@@ -430,7 +430,7 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
       <Field label={t('guides.details.credit')} value={draft.credit} onChangeText={(v) => set({ credit: v })}
         placeholder={t('guides.details.creditPlaceholder', { year: formatNumber(new Date().getFullYear(), { useGrouping: false }) })} autoCapitalize="sentences"
         help={t('guides.details.creditHelp')} />
-      <Field label={t('guides.details.source')} value={draft.source} onChangeText={(v) => set({ source: v })} placeholder={t('guides.details.sourcePlaceholder')} autoCapitalize="sentences" />
+      <Field help={t('help.stock.guideSource')} label={t('guides.details.source')} value={draft.source} onChangeText={(v) => set({ source: v })} placeholder={t('guides.details.sourcePlaceholder')} autoCapitalize="sentences" />
     </View>
   );
 }
@@ -623,13 +623,13 @@ function StepEditor(props: { ctx: Ctx; draft: GuideDraft; step: DraftStep; index
         <Text style={txt.label}>{t('guides.steps.stepNumber', { n: props.index + 1 })}</Text>
         <Field label={t('guides.steps.title')} value={step.title} onChangeText={(v) => update({ title: v })} placeholder={t('guides.steps.titlePlaceholder')} autoCapitalize="words"
           help={t('guides.steps.titleHelp')} />
-        <Field label={t('guides.steps.phase')} value={step.phase} onChangeText={(v) => update({ phase: v })} placeholder={t('guides.steps.phasePlaceholder')} autoCapitalize="words" />
+        <Field help={t('help.stock.guidePhase')} label={t('guides.steps.phase')} value={step.phase} onChangeText={(v) => update({ phase: v })} placeholder={t('guides.steps.phasePlaceholder')} autoCapitalize="words" />
         {phases.length > 1 ? (
           <ChipRow>
             {phases.map((p) => <HelpRow key={p} of="guide.phase"><Chip label={p} on={step.phase.trim() === p} help={t('guides.steps.phaseHelp')} onPress={() => update({ phase: p })} /></HelpRow>)}
           </ChipRow>
         ) : null}
-        <Field label={t('guides.steps.purpose')} value={step.purpose} onChangeText={(v) => update({ purpose: v })} placeholder={t('guides.steps.purposePlaceholder')} autoCapitalize="sentences" />
+        <Field help={t('help.stock.guidePurpose')} label={t('guides.steps.purpose')} value={step.purpose} onChangeText={(v) => update({ purpose: v })} placeholder={t('guides.steps.purposePlaceholder')} autoCapitalize="sentences" />
       </Card>
       <AudioSlot ctx={ctx} label={t('guides.steps.audio')} removeLabel={t('guides.steps.removeAudio')} audio={step.audio} recordLabel={t('guides.steps.record')}
         onChange={(audio) => dispatch({ type: 'setStepAudio', id: step.id, audio })} />
@@ -863,7 +863,7 @@ function ResourceCard(props: { ctx: Ctx; r: DraftResource; dispatch: Dispatch; o
       <Field label={t('guides.media.title')} value={r.title} onChangeText={(v) => dispatch({ type: 'updateResource', ref: r.ref, patch: { title: v } })}
         placeholder={r.kind === 'map' ? t('guides.media.mapTitlePlaceholder') : t('guides.media.picturesTitlePlaceholder')} autoCapitalize="sentences"
         help={t('guides.media.titleHelp')} />
-      <Field label={t('guides.media.description')} value={r.description} onChangeText={(v) => dispatch({ type: 'updateResource', ref: r.ref, patch: { description: v } })}
+      <Field help={t('help.stock.guideResource')} label={t('guides.media.description')} value={r.description} onChangeText={(v) => dispatch({ type: 'updateResource', ref: r.ref, patch: { description: v } })}
         placeholder={t('guides.media.descriptionPlaceholder')} autoCapitalize="sentences" />
       {r.media.map((m) => <HelpRow key={m.id} of="guide.mediaItem"><MediaItem ctx={props.ctx} r={r} m={m} dispatch={dispatch} /></HelpRow>)}
       {canPickFiles && r.kind === 'media' ? <SmallBtn label={t('guides.media.addAnother')} icon="plus" help={t('guides.media.addAnotherHelp')} onPress={() => props.onAdd('image')} /> : null}
@@ -894,7 +894,7 @@ function MediaItem(props: { ctx: Ctx; r: DraftResource; m: DraftMedia; dispatch:
             {(['photo', 'illustration'] as const).map((k) => <Chip key={k} label={mediaKindLabel(k)} on={m.kind === k} help={k === 'photo' ? t('guides.media.photoHelp') : t('guides.media.illustrationHelp')} onPress={() => patch({ kind: k })} />)}
           </ChipRow>
         ) : null}
-        {r.media.length > 1 ? <Field label={t('guides.media.pictureTitle')} value={m.title} onChangeText={(v) => patch({ title: v })} placeholder={t('guides.media.pictureTitlePlaceholder')} autoCapitalize="sentences" /> : null}
+        {r.media.length > 1 ? <Field help={t('help.stock.pictureTitle')} label={t('guides.media.pictureTitle')} value={m.title} onChangeText={(v) => patch({ title: v })} placeholder={t('guides.media.pictureTitlePlaceholder')} autoCapitalize="sentences" /> : null}
         <Field label={t('guides.media.caption')} value={m.caption} onChangeText={(v) => patch({ caption: v })} placeholder={t('guides.media.captionPlaceholder')} autoCapitalize="sentences"
           help={t('guides.media.captionPlaceholder')} />
       </View>

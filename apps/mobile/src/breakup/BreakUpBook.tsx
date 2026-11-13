@@ -71,7 +71,7 @@ export function BookHead(props: {
       </Group>
       <Sheet visible={naming} title={title} sub={t('breakup.bookName.sub')} onClose={() => setNaming(false)}
         footer={<PrimaryBtn label={t('common.save')} icon="check" disabled={!name.trim()} help={t('breakup.bookName.saveHelp')} onPress={() => void saveName()} />}>
-        <Field value={name} onChangeText={setName} accessibilityLabel={title} autoCapitalize="words"
+        <Field help={t('help.stock.bookName')} value={name} onChangeText={setName} accessibilityLabel={title} autoCapitalize="words"
           placeholder={choices.bibles.length || choices.languages.length ? t('breakup.bookName.typeOrTap') : props.templateName} />
         {choices.bibles.length ? (
           <>

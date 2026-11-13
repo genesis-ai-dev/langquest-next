@@ -1088,14 +1088,14 @@ export function ReasonSheet(props: {
   const ready = reason.trim().length > 0 || !!hash;
   return (
     <Sheet visible={props.visible} title={props.title} sub={props.sub} onClose={props.onClose}
-      footer={<PrimaryBtn label={props.confirmLabel} tone={props.tone ?? 'dark'} disabled={!ready}
+      footer={<PrimaryBtn help={t('help.stock.confirmReason')} label={props.confirmLabel} tone={props.tone ?? 'dark'} disabled={!ready}
         // i18n-ignore: stored in the event log as the reason when only a voice note was given; stays English like the rest of the log
         onPress={() => { props.onConfirm({ reason: reason.trim() || 'Explained in a voice note.', ...(hash ? { blobHash: hash } : {}) }); setReason(''); setHash(null); }} />}>
       {props.quickReasons.length > 0 ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {props.quickReasons.map((q) => <HelpRow key={q} of="kit.reason"><QuickReason reason={q} on={reason === q} onPick={() => setReason(q)} /></HelpRow>)}
       </View> : null}
       {props.voice ? props.voice({ hash, onChange: setHash }) : null}
-      <Field value={reason} onChangeText={setReason} placeholder={props.quickReasons.length ? t('shell.kit.orTypeReason') : t('common.orTypeIt')} multiline />
+      <Field help={t('help.stock.typeReason')} value={reason} onChangeText={setReason} placeholder={props.quickReasons.length ? t('shell.kit.orTypeReason') : t('common.orTypeIt')} multiline />
       <Text style={txt.xs}>{props.footnote ?? t('shell.kit.reasonFootnote')}</Text>
     </Sheet>
   );

@@ -276,7 +276,7 @@ export function PassageNoteEditor({ ctx }: { ctx: Ctx }) {
           <VoiceNote ctx={ctx} label={t('notes.onVerses.say')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
           {/* One line until there is more to show, so the verses keep most of a small phone (UI audit, finding 44). */}
           <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} autoCapitalize="sentences" help={t('reference.notes.typeHelp')} multiline style={styles.typeLine} />
-          <PrimaryBtn label={t('common.addNote')} icon="check" disabled={!ready} busy={busy} onPress={() => void add()} />
+          <PrimaryBtn help={t('help.stock.addNote')} label={t('common.addNote')} icon="check" disabled={!ready} busy={busy} onPress={() => void add()} />
         </>
       )}>
       <View style={styles.hint}>

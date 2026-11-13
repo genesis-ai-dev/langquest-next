@@ -543,7 +543,7 @@ function SayYoursSheet(props: { ctx: Ctx; v: PassageView; term: KeyTermView; dra
     <Sheet visible title={t('reference.keyWords.sayTitle', { term: term.term })}
       sub={term.gloss ? t('reference.keyWords.saySubGloss', { gloss: term.gloss, language: v.language }) : t('reference.keyWords.saySub', { language: v.language })}
       action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
-      onClose={props.onClose} footer={<PrimaryBtn label={t('reference.keyWords.addYourWord')} icon="check" busy={busy} disabled={!hash && !text.trim()} onPress={() => void add()} />}>
+      onClose={props.onClose} footer={<PrimaryBtn help={t('help.stock.addWord')} label={t('reference.keyWords.addYourWord')} icon="check" busy={busy} disabled={!hash && !text.trim()} onPress={() => void add()} />}>
       <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
       <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} help={t('reference.keyWords.typeHelp', { language: v.language })} />
     </Sheet>
@@ -647,8 +647,8 @@ export function AddWordSheet(props: {
           </View>
         </View>
       ) : null}
-      <Field value={term} onChangeText={(x) => put({ term: x })} placeholder={t('reference.keyWords.wordPlaceholder')} />
-      <Field value={gloss} onChangeText={(x) => put({ gloss: x })} placeholder={t('reference.keyWords.meaningPlaceholder')} autoCapitalize="sentences" />
+      <Field help={t('help.stock.keyWord')} value={term} onChangeText={(x) => put({ term: x })} placeholder={t('reference.keyWords.wordPlaceholder')} />
+      <Field help={t('help.stock.keyMeaning')} value={gloss} onChangeText={(x) => put({ gloss: x })} placeholder={t('reference.keyWords.meaningPlaceholder')} autoCapitalize="sentences" />
       {word.length > 1 ? (
         <>
           {v.unitId && props.rows !== undefined ? <WhereItIs rows={props.rows} book={bookOf(v.title)} word={word} bibleName={props.bibleName} missing={t('common.loading')} max={3} /> : null}
@@ -772,7 +772,7 @@ export function NoteSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; tit
   return (
     <Sheet visible title={props.title} sub={props.sub ?? t('reference.notes.sheetSub')} onClose={props.onClose}
       action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
-      footer={<PrimaryBtn label={t('common.addNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void add()} />}>
+      footer={<PrimaryBtn help={t('help.stock.addNote')} label={t('common.addNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void add()} />}>
       <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>
       <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
       <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} help={t('reference.notes.typeHelp')} multiline />

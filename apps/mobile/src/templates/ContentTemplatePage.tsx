@@ -93,7 +93,7 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
       footer={changing && pick ? (
         <>
           <Text style={txt.smMuted}>{pickerNote({ hasCurrent: !!sel, recorded: data.recorded, language, currentParts: lower(words.many), pick })}</Text>
-          <PrimaryBtn label={t('content.picker.use', { name: choiceName(pick) })} icon="check" busy={busy} disabled={!canManage} onPress={() => void use(pick)} />
+          <PrimaryBtn help={t('help.stock.useTemplate')} label={t('content.picker.use', { name: choiceName(pick) })} icon="check" busy={busy} disabled={!canManage} onPress={() => void use(pick)} />
         </>
       ) : undefined}>
       {sel ? (

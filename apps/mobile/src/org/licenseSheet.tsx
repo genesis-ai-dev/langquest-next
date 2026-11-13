@@ -49,7 +49,7 @@ export function LicenseSheet(props: {
 
   let footer = null;
   if (props.mode === 'choose') {
-    footer = <PrimaryBtn label={t('shell.license.use')} onPress={() => props.onConfirm?.(picked)} />;
+    footer = <PrimaryBtn help={t('help.stock.useLicense')} label={t('shell.license.use')} onPress={() => props.onConfirm?.(picked)} />;
   } else if (props.mode === 'open') {
     footer = confirming ? (
       <>

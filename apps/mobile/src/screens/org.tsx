@@ -480,7 +480,7 @@ export function ClusterHome(ctx: Ctx) {
     <Screen header={<Header title={c.name} sub={t('clusters.home.sub', { count: c.languageIds.length })} onBack={ctx.back} />}
       footer={may ? (
         <>
-          <PrimaryBtn label={t('clusters.home.add')} icon="plus" onPress={() => { setAdding(new Set()); setSheet('add'); }} />
+          <PrimaryBtn help={t('help.stock.addToGroup')} label={t('clusters.home.add')} icon="plus" onPress={() => { setAdding(new Set()); setSheet('add'); }} />
           <QuietLinks items={[
             { label: t('clusters.home.rename'), icon: 'edit', help: t('clusters.home.renameHelp'), onPress: () => { setRename(c.name); setSheet('rename'); } },
             { label: t('clusters.home.ungroup'), icon: 'layers', help: t('clusters.home.ungroupHelp'), onPress: () => setSheet('ungroup') }
@@ -528,7 +528,7 @@ export function ClusterHome(ctx: Ctx) {
         footer={<PrimaryBtn label={t('clusters.rename.save')} icon="check" busy={busy} disabled={!rename.trim() || rename.trim() === c.name} help={t('help.details.save')}
           // i18n-ignore: the first argument is a log label
           onPress={() => void run('rename cluster', clusterEvents(v.org, { clusterId, name: rename }), t('clusters.rename.done', { name: rename.trim() }))} />}>
-        <Field label={t('clusters.rename.label')} value={rename} onChangeText={setRename} autoCapitalize="words" />
+        <Field help={t('help.stock.groupRename')} label={t('clusters.rename.label')} value={rename} onChangeText={setRename} autoCapitalize="words" />
         {error ? <Banner icon="flag" tone="amber" title={t('clusters.home.notSaved')} body={error} /> : null}
       </Sheet>
       <Sheet visible={sheet === 'ungroup'} title={t('clusters.ungroup.title', { cluster: c.name })} onClose={close}
@@ -578,8 +578,8 @@ function RenameSheet(props: {
   }
   return (
     <Sheet visible={visible} title={props.title} sub={props.sub} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('org.rename.save')} icon="check" busy={busy} disabled={!next || next === current} onPress={() => void save()} />}>
-      <Field label={t('org.itsName')} value={name} onChangeText={setName} placeholder={current} autoCapitalize="words" />
+      footer={<PrimaryBtn help={t('help.stock.saveName')} label={t('org.rename.save')} icon="check" busy={busy} disabled={!next || next === current} onPress={() => void save()} />}>
+      <Field help={t('help.stock.newName')} label={t('org.itsName')} value={name} onChangeText={setName} placeholder={current} autoCapitalize="words" />
       {warning ? <Banner icon="flag" tone="amber" title={t('org.rename.taken')} body={warning} /> : null}
       {error ? <Banner icon="flag" tone="amber" title={t('org.rename.failed')} body={error} /> : null}
     </Sheet>
@@ -617,7 +617,7 @@ function LanguoidLinkSheet(props: { ctx: Ctx; visible: boolean; onClose: () => v
   return (
     <Sheet visible={visible} title={props.linked ? t('org.link.titleAgain', { name: props.name }) : t('org.link.title', { name: props.name })} onClose={props.onClose}
       sub={t('org.link.sub', { name: props.name })}
-      footer={<PrimaryBtn label={t('org.link.linkIt')} icon="check" busy={busy} disabled={!picked} onPress={() => void link()} />}>
+      footer={<PrimaryBtn help={t('help.stock.linkIt')} label={t('org.link.linkIt')} icon="check" busy={busy} disabled={!picked} onPress={() => void link()} />}>
       <SearchField value={query} onChangeText={(q) => { setQuery(q); setPicked(null); }} placeholder={t('org.link.searchPlaceholder')} />
       <LanguoidPicker search={search} picked={picked} onPick={setPicked}
         unlisted={t('org.link.unlisted')} unreachable={t('org.link.unreachable')} />
@@ -1125,8 +1125,8 @@ export function InviteMember(ctx: Ctx) {
         ]} />
       <Sheet visible={!!email} title={t('org.invite.emailTitle')} sub={email ? `${roleName(ctx, email.roleId)} · ${email.scope.level === 'org' ? v.orgName : v.label(email.scope.languageId)}` : undefined}
         onClose={() => setEmail(null)}
-        footer={<PrimaryBtn label={t('org.invite.send')} icon="send" busy={busy} disabled={!looksLikeEmail(address)} onPress={() => void send()} />}>
-        <Field label={t('org.invite.emailLabel')} value={address} onChangeText={setAddress} placeholder={t('org.invite.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none" />
+        footer={<PrimaryBtn help={t('help.stock.sendInvite')} label={t('org.invite.send')} icon="send" busy={busy} disabled={!looksLikeEmail(address)} onPress={() => void send()} />}>
+        <Field help={t('help.stock.inviteEmail')} label={t('org.invite.emailLabel')} value={address} onChangeText={setAddress} placeholder={t('org.invite.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none" />
         {error ? <Banner icon="flag" tone="amber" title={t('org.invite.notSent')} body={error} /> : null}
       </Sheet>
     </>
@@ -1194,7 +1194,7 @@ function JoinRequest(ctx: Ctx) {
       bodyStyle={{ paddingHorizontal: 20, gap: space.md }}
       footer={allowed ? (
         <>
-          <PrimaryBtn label={t('org.join.letIn', { name: first })} icon="check" busy={busy} disabled={!roleId || !scope} onPress={() => void decide(true)} />
+          <PrimaryBtn help={t('help.stock.letIn')} label={t('org.join.letIn', { name: first })} icon="check" busy={busy} disabled={!roleId || !scope} onPress={() => void decide(true)} />
           <QuietLinks items={[{ label: t('org.join.sayNo'), icon: 'close', help: t('org.join.sayNoHelp'), onPress: () => void decide(false) }]} />
         </>
       ) : undefined}>
@@ -1317,7 +1317,7 @@ function MemberEditor(ctx: Ctx) {
     <Screen header={<Header title={pending ? t('org.member.assignRole') : who} sub={sub} onBack={ctx.back} />}
       footer={allowed ? (
         <>
-          <PrimaryBtn label={pending ? t('org.member.assignRole') : t('org.member.saveAssignment')} disabled={!ready} busy={busy} onPress={() => void save()} />
+          <PrimaryBtn help={t('help.stock.saveRole')} label={pending ? t('org.member.assignRole') : t('org.member.saveAssignment')} disabled={!ready} busy={busy} onPress={() => void save()} />
           {pending ? <GhostBtn label={t('org.member.decline')} tone="red" help={t('org.member.declineHelp')} onPress={() => void decline()} disabled={busy} /> : null}
         </>
       ) : undefined}>
@@ -1833,7 +1833,7 @@ export function NewLanguage(ctx: Ctx) {
             <Question>{t('clusters.newLanguage.what')}</Question>
             <ChoiceCard on={!many} icon="globe" title={t('clusters.newLanguage.one')} sub={t('clusters.newLanguage.oneSub')} onPress={() => setMany(false)} />
             <ChoiceCard on={many} icon="layers" title={t('clusters.newLanguage.cluster')} sub={t('clusters.newLanguage.clusterSub')} onPress={() => { setMany(true); setPicked(null); }}>
-              {many ? <Field label={t('clusters.newLanguage.clusterName')} value={clusterTitle} onChangeText={setClusterTitle}
+              {many ? <Field help={t('help.stock.groupName')} label={t('clusters.newLanguage.clusterName')} value={clusterTitle} onChangeText={setClusterTitle}
                 placeholder={t('clusters.newLanguage.clusterPlaceholder')} autoCapitalize="words" /> : null}
             </ChoiceCard>
           </>
@@ -1870,7 +1870,7 @@ export function NewLanguage(ctx: Ctx) {
             {/* Under "Not there?" too, when the search found near matches: the line promised this link (UI audit, finding 46). */}
             {name.trim() && search.status !== 'idle' && search.status !== 'searching' ? (
               <>
-                <Field label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />
+                <Field help={t('help.stock.languageCode')} label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />
                 <QuietLink icon="plus" label={t('clusters.newLanguage.addTyped', { name: name.trim() })} detail={t('clusters.newLanguage.addTypedHelp')} onPress={addTyped} />
               </>
             ) : null}
@@ -1900,7 +1900,7 @@ export function NewLanguage(ctx: Ctx) {
               // Picking fills the name only while it is empty, the last pick's, or typed to find it: a name of the person's own stays (LAN-141).
               onPick={(h) => { setPicked(h); if (h) { const next = nameAfterPick(name, filled, h); setName(next); setFilled(next === h.name ? h.name : filled ?? h.name); } }}
               unlisted={t('org.newLanguage.unlisted')} unreachable={t('org.newLanguage.unreachable')} />
-            {picked ? null : <Field label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />}
+            {picked ? null : <Field help={t('help.stock.languageCode')} label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />}
             {mayGroup ? (
               <>
                 {/* Which cluster it joins, if any: made right here when it is new (decision 108). */}
@@ -1918,7 +1918,7 @@ export function NewLanguage(ctx: Ctx) {
                   ) : null}
                   <Chip label={t('clusters.newLanguage.newCluster')} icon="plus" on={joins === NEW_CLUSTER} help={t('clusters.newLanguage.newClusterHelp')} onPress={() => setJoins(NEW_CLUSTER)} />
                 </Pills>
-                {joins === NEW_CLUSTER ? <Field label={t('clusters.newLanguage.clusterName')} value={newCluster} onChangeText={setNewCluster}
+                {joins === NEW_CLUSTER ? <Field help={t('help.stock.groupName')} label={t('clusters.newLanguage.clusterName')} value={newCluster} onChangeText={setNewCluster}
                   placeholder={t('clusters.newLanguage.clusterPlaceholder')} autoCapitalize="words" /> : null}
               </>
             ) : null}

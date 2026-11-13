@@ -707,7 +707,7 @@ export function ProfileEdit(ctx: Ctx) {
   return (
     <Screen
       header={<Header title={t('account.profile.title')} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={t('account.profile.save')} onPress={() => void save()} disabled={!value.trim() && !passwordTooShort} busy={busy} />}
+      footer={<PrimaryBtn help={t('help.stock.saveProfile')} label={t('account.profile.save')} onPress={() => void save()} disabled={!value.trim() && !passwordTooShort} busy={busy} />}
     >
       <View style={styles.avatarBlock}>
         <PersonAvatar look={personLook(ctx.session.actorId, value)} size={72} />
@@ -932,7 +932,7 @@ export function SignOutConfirm(ctx: Ctx) {
     <Screen header={<HelpTop />} bodyStyle={styles.centered}
       footer={
         <>
-          <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()}
+          <PrimaryBtn help={t('help.stock.signOut')} label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()}
             disabled={finishing || blocked || busy || (LOCKS_ON_SIGN_OUT && lock.ways === null)} />
           <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={ctx.back} />
         </>
