@@ -84,9 +84,25 @@ Review it, the record updating, set aside with a reason, the Inbox. All
 events were accepted by the server's validation and permission rules.
 
 App-only screens (each edge is in `specParity.test.ts`'s drift log with its
-reason): Sync, Delete Account, the Reports section, and Write a Guide
+reason): Sync, Delete Account, the Reports section, Write a Guide
 (`guide_editor`, from Reference Material and from a study guide's Edit or
-Copy to adapt; `src/guides/`, docs/reference-material.md).
+Copy to adapt; `src/guides/`, docs/reference-material.md), and Share nearby
+(`share_nearby`, from Sync on an Android phone whose organization has it on,
+labelled experimental; docs/nearby-sync-plan.md 5.8). Share nearby keeps the
+kit and the conventions above: 48 pt rows, its one main action a 56 pt
+button, help lines on every part, and words that wrap. Joining without
+internet adds two more on the same terms (docs/nearby-sync-plan.md 14.1): Let
+someone in (`let_someone_in`, from Share nearby for someone holding a pass for
+the language), whose code, one tap and two pictures let a new phone in, and
+Join without internet (`join_offline`, a guest screen from Scan a code), the
+new phone's progress through the ask and the starting copy. Get the install
+file (`get_install_file`, from Share nearby, from Let someone in's line
+that the new phone needs the app first, and from the Get it link on Sync's
+Ready for offline card while online and this phone lacks the file it needs;
+docs/nearby-sync-plan.md 14.4) is the
+part done online before a trip: the file's exact name, Get the install file
+as its one main button, Check my file, the too-old word and how to pass the
+file on. Let someone in keeps only the field: role, code, pictures, one tap.
 
 ### Not ported yet
 

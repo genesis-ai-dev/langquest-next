@@ -41,8 +41,8 @@ SQL
 npx supabase db query --linked --project-ref "$ref" --workdir "$work" -f "$work/role.sql" > /dev/null
 echo "✓ v2_reader can read v2's usernames and emails, and nothing else"
 
-DOTENVX_NO_NATIVE=true npx dotenvx set V2_DATABASE_URL \
-  "postgresql://v2_reader.$ref:$pw@$host:5432/postgres" -f "$file" -fk .env.keys > /dev/null
+# On stdin, not as an argument, which npx would write to npm's debug log.
+printf '%s' "postgresql://v2_reader.$ref:$pw@$host:5432/postgres" | node scripts/dotenvx-set.mjs V2_DATABASE_URL "$file" secret
 git add "$file"
 git commit -q -m "Read-only v2 access for the v2 import" -- "$file"
 echo "✓ V2_DATABASE_URL encrypted in $file and committed; npm run secrets -- production puts it on the app's Worker"

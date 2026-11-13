@@ -24,7 +24,10 @@
 // next push is counted as a failure: that is why the threshold is not 100%
 // and why a test must be seen in several runs (--min). A report in which more
 // than MANY tests failed is one cause (the stack down), not many flakes, and
-// is left out (scripts/nightly-report.mjs does the same).
+// is left out (scripts/nightly-report.mjs does the same). Runs on a release
+// branch or a catch-up copy onto one (`release/*`, `copy/*`) are not counted:
+// they run the older app and tests the public build was cut from, so a race
+// that main fixed since still fails there, and filing it again is noise (LAN-242).
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -40,6 +43,9 @@ const EVENTS = ['pull_request', 'merge_group', 'push'];
 
 // --- Reading the runs ---------------------------------------------------------
 
+/** Is this run of main's code and tests, not of a release branch's older copy? */
+export const isMainLine = (run) => !/^(release|copy)\//.test(run.head_branch ?? '');
+
 /** The last `count` completed runs worth counting, newest first. `get(path)` is a GitHub REST GET returning JSON. */
 export async function recentRuns(get, repo, count, maxPages = 5) {
   const runs = [];
@@ -47,7 +53,7 @@ export async function recentRuns(get, repo, count, maxPages = 5) {
     const { workflow_runs: batch } = await get(`/repos/${repo}/actions/workflows/${WORKFLOW}/runs?status=completed&per_page=100&page=${page}`);
     if (!batch.length) break;
     for (const run of batch) {
-      if (EVENTS.includes(run.event) && ['success', 'failure'].includes(run.conclusion)) runs.push(run);
+      if (EVENTS.includes(run.event) && ['success', 'failure'].includes(run.conclusion) && isMainLine(run)) runs.push(run);
     }
   }
   return runs.slice(0, count);
@@ -73,12 +79,29 @@ export function reportFromZip(bytes) {
   }
 }
 
+/**
+ * A fetch that tries again when GitHub answers 5xx or the connection drops:
+ * one of the 160-odd artifact downloads failing with a 502 or 503 failed the
+ * whole night (2026-11-11 and 2026-11-13). A 4xx is an answer, given back at once.
+ */
+export async function fetchRetrying(url, init, { fetchImpl = fetch, tries = 3, waitMs = 2000 } = {}) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetchImpl(url, init);
+      if (res.status < 500 || attempt >= tries) return res;
+    } catch (e) {
+      if (attempt >= tries) throw e;
+    }
+    await new Promise((r) => setTimeout(r, waitMs * attempt));
+  }
+}
+
 /** A GET against api.github.com, JSON back. */
-export function githubGet(token, fetchImpl = fetch) {
+export function githubGet(token, fetchImpl = fetch, waitMs = 2000) {
   return async (path) => {
-    const res = await fetchImpl(`https://api.github.com${path}`, {
+    const res = await fetchRetrying(`https://api.github.com${path}`, {
       headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' }
-    });
+    }, { fetchImpl, waitMs });
     if (!res.ok) throw new Error(`GitHub ${path}: HTTP ${res.status}`);
     return res.json();
   };
@@ -180,7 +203,7 @@ async function main() {
   }
   const get = githubGet(token);
   const download = async (artifact) => {
-    const res = await fetch(artifact.archive_download_url, { headers: { authorization: `Bearer ${token}` } });
+    const res = await fetchRetrying(artifact.archive_download_url, { headers: { authorization: `Bearer ${token}` } });
     if (!res.ok) throw new Error(`GitHub artifact ${artifact.name}: HTTP ${res.status}`);
     return reportFromZip(Buffer.from(await res.arrayBuffer()));
   };

@@ -1,6 +1,6 @@
 import type { Card, EventPayloads, EventType } from './events';
 import { buildIndexes, type Indexes } from './indexes';
-import { TG_MATERIAL_ID } from './materials';
+import { MAX_KEY_TERM_AUDIO_MS, TG_MATERIAL_ID } from './materials';
 import type { FlowSelection, LanguageState } from './state';
 import { canDeleteVersion, derivePassage, latestDraftBy, type PassageState } from './passage';
 import type { UsedReference } from './references';
@@ -24,6 +24,28 @@ export interface EventSpec<T extends EventType = EventType> {
   payload: EventPayloads[T];
 }
 
+/**
+ * The one way to mint a `commandId`: `by:<actorId>:<unique>`. Event ids
+ * (`<commandId>:<n>`) and the ids a create makes (`take:`, `review:`, `note:`,
+ * `req:`, `dep:`, `rendering:`, `adjustment:`) inherit it, so each names its
+ * author (`idAuthor`) and a teammate holding it before the server does cannot
+ * take it first (docs/nearby-sync-plan.md 5.4). Core has no randomness, so the
+ * caller passes `unique`: a fresh random id, or a stable key where a retry must
+ * land on the same ids.
+ */
+export function newCommandId(actorId: string, unique: string): string {
+  return `by:${actorId}:${unique}`;
+}
+
+/**
+ * An id without the author `newCommandId` put in front. The recorder's journal
+ * holds a recording's id before anyone is named on it, and recovery may run for
+ * someone else, so "is this recording here" compares this.
+ */
+export function unboundId(id: string): string {
+  return id.replace(/^by:[^:]+:/, '');
+}
+
 /** The intent is not valid against the current fold; nothing was appended. */
 export class CommandError extends Error {
   override name = 'CommandError';
@@ -44,8 +66,12 @@ export interface Commands {
   keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string; parentTakeId?: string | null }): EventSpec[];
   /** Set one of the person's drafts aside (decisions.md 83). Undo is `keepTake` with its cards and the draft as parent. */
   deleteDraft(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
-  /** Delete a version its publisher no longer wants (LAN-83, `canDeleteVersion`): a tombstone; its number and its checks stay on the record. */
-  deleteVersion(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
+  /**
+   * Delete a version its publisher no longer wants, or any version for an
+   * admin of the language (`admin`, decisions.md 124 amended; `canDeleteVersion`):
+   * a tombstone; its number and its checks stay on the record.
+   */
+  deleteVersion(c: { commandId: string; unitId: string; takeId: string; actorId: string; admin?: boolean }): EventSpec[];
   /**
    * Which verses each part holds (decisions.md 82): one 'v1.CardVerseSet'
    * per card whose mark changed, from the marks of a whole list of cards.
@@ -126,6 +152,8 @@ export interface Commands {
   markStudyStep(c: { commandId: string; unitId: string; guideId: string; stepId: string; done: boolean }): EventSpec[];
   defineKind(c: RecordEvents['v1.ReviewKindDefined'] & { commandId: string }): EventSpec[];
   /** Tie key terms to a take (TERM-4): the draft being recorded, or a version as it is published. */
+  /** Record a spoken example of a term (decision 207); the Key Term screen asks for two or three. */
+  addKeyTermAudio(c: { commandId: string; termId: string; blobHash: string; durationMs: number; wayId: string; duringTakeId?: string }): EventSpec[];
   linkKeyTerms(c: { commandId: string; takeId: string; termIds: string[]; note?: string; adjustmentId?: string }): EventSpec[];
   /** A new term (TERM-6): the term, its first rendering, and why, as its first adjustment. */
   defineKeyTerm(c: { commandId: string; termId: string; term: string; gloss: string; unitScope: string[];
@@ -264,7 +292,7 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
 
     deleteVersion(c) {
       const passage = derivePassage(state, c.unitId, idx);
-      if (!canDeleteVersion(passage, c.takeId, c.actorId)) throw new CommandError('Only whoever published a version can delete it.');
+      if (!canDeleteVersion(passage, c.takeId, c.actorId, c.admin)) throw new CommandError('Only whoever published a version, or an admin, can delete it.');
       return [{ id: ids(c.commandId)(), type: 'v1.TakeArchived', payload: { takeId: c.takeId } }];
     },
 
@@ -478,6 +506,15 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
         { id: next(), type: 'v1.FlowSelected', payload: { flowId: CUSTOM_FLOW, ...(name ? { name } : {}) } },
         ...steps.map((payload) => ({ id: next(), type: 'v1.FlowStepSet' as const, payload }))
       ];
+    },
+
+    addKeyTermAudio(c) {
+      if (!state.keyTerms[c.termId]?.term) throw new CommandError('That key term is not here.');
+      const durationMs = Math.round(c.durationMs);
+      if (!c.wayId) throw new CommandError('Say which way of saying it this is.');
+      if (!(durationMs > 0)) throw new CommandError('Record the term before saving.');
+      if (durationMs > MAX_KEY_TERM_AUDIO_MS) throw new CommandError('Keep a term to a few seconds.');
+      return [{ id: ids(c.commandId)(), type: 'v1.KeyTermAudioRenderingAdded', payload: { termId: c.termId, renderingId: `audio:${c.commandId}`, blobHash: c.blobHash, durationMs, wayId: c.wayId, ...(c.duringTakeId ? { duringTakeId: c.duringTakeId } : {}) } }];
     },
 
     linkKeyTerms(c) {

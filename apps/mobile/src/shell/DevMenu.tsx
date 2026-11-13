@@ -23,6 +23,7 @@ export function DevMenu(props: {
   language: LanguageHandle;
   org: OrgHandle;
   currentEmail: string | null;
+  actorId: string;
   isOwner: boolean;
   /** Screen jumping bypasses the flow machine, so it stays in dev builds. */
   isDev: boolean;
@@ -68,7 +69,7 @@ export function DevMenu(props: {
       {canSeed ? (
         <Group>
           <Row icon="people" label="Seed demo team into this organization" sub={busy === 'seed' ? 'Seeding…' : 'Local server, owner only'}
-            onPress={busy ? undefined : () => void run('seed', () => seedDemoTeam({ org: props.org, language: props.language, isDev: props.isDev }))} last />
+            onPress={busy ? undefined : () => void run('seed', () => seedDemoTeam({ org: props.org, language: props.language, isDev: props.isDev, actorId: props.actorId }))} last />
         </Group>
       ) : null}
       {props.isDev ? (

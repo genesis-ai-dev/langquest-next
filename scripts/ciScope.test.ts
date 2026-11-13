@@ -1,12 +1,13 @@
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { changedFiles, eventRange, JOBS, RULES, scopeFor } from './ci-scope.mjs';
+import { changedFiles, eventRange, JOBS, RULES, scopeFor, SHARED } from './ci-scope.mjs';
 
 /**
  * Which guardrails jobs a pull request needs, from the files that it
  * changes (scripts/ci-scope.mjs, decisions.md 150). Leaving a job out
  * wrongly lets a red change into main, so a file that no rule names, and
- * any shared code, runs every job.
+ * any shared code, runs every shared job. Only the nearby module and what it
+ * compiles against compile its Kotlin (docs/nearby-sync-plan.md section 7).
  */
 
 const needs = (...files: string[]) => JOBS.filter((job) => scopeFor(files)[job]);
@@ -17,15 +18,16 @@ describe('the jobs that changed files need', () => {
     expect(needs('docs/testing.md', 'PLAN.md', 'AGENTS.md', 'apps/mobile/README.md')).toEqual([]);
   });
 
-  it('shared code, the database, dependencies and CI run every job', () => {
+  it('shared code, the database, dependencies and CI run every shared job, and compile no Kotlin', () => {
+    expect(SHARED).toEqual(JOBS.filter((job) => job !== 'android-native'));
     for (const file of [
       'packages/core/src/reducer.ts',
       'packages/sync/src/push.ts',
       'supabase/migrations/20261022000000_x.sql',
       'supabase/functions/push-delivery/index.ts',
       'package.json',
-      'package-lock.json',
-      'apps/mobile/package.json',
+      'packages/core/package.json',
+      'apps/web/package.json',
       '.github/workflows/guardrails.yml',
       '.githooks/pre-push',
       'vitest.config.ts',
@@ -33,23 +35,46 @@ describe('the jobs that changed files need', () => {
       'scripts/README.md',
       'library/flows/x.json',
     ])
-      expect(needs(file), file).toEqual(JOBS);
+      expect(needs(file), file).toEqual(SHARED);
   });
 
-  it('a file that no rule names runs every job', () => {
-    expect(needs('something-new/x.ts')).toEqual(JOBS);
+  it('a file that no rule names runs every shared job', () => {
+    expect(needs('something-new/x.ts')).toEqual(SHARED);
     expect(scopeFor(['something-new/x.ts']).server).toContain('no rule names it');
+  });
+
+  it('the nearby module compiles its Kotlin and keeps the browser jobs', () => {
+    for (const file of [
+      'apps/mobile/modules/nearby-link/android/src/main/java/expo/modules/nearbylink/Frames.kt',
+      'apps/mobile/modules/nearby-link/android/src/main/AndroidManifest.xml',
+      'apps/mobile/modules/nearby-link/package.json',
+      'apps/mobile/modules/nearby-link/README.md',
+      'apps/mobile/modules/nearby-link/src/wire.ts',
+    ])
+      expect(needs(file), file).toEqual(['web-smoke', 'ui-web', 'android-native']);
+    expect(needs('apps/mobile/modules/microphone-energy/android/src/main/java/x.kt')).toEqual(['web-smoke', 'ui-web']);
+  });
+
+  it('the app\'s dependencies and the root lockfile run every job, Kotlin included', () => {
+    expect(needs('apps/mobile/package.json')).toEqual(JOBS);
+    expect(needs('package-lock.json')).toEqual(JOBS);
   });
 
   it('the app and the browser tests run the two browser jobs, the SQL smokes the server job', () => {
     expect(needs('apps/mobile/src/screens/home.tsx')).toEqual(['web-smoke', 'ui-web']);
     expect(needs('apps/web/worker/index.ts', 'e2e/ui/home.spec.ts')).toEqual(['web-smoke', 'ui-web']);
     expect(needs('server/inviteChecksSmoke.sql')).toEqual(['server']);
-    expect(needs('server/inviteChecksSmoke.sql', 'apps/mobile/App.tsx')).toEqual(JOBS);
+    expect(needs('server/inviteChecksSmoke.sql', 'apps/mobile/App.tsx')).toEqual(SHARED);
   });
 
-  it('a dependency of the app runs every job, ahead of the app rule', () => {
-    expect(RULES.findIndex((r) => r.pattern.test('apps/mobile/package.json'))).toBe(1);
+  it('the module and the app\'s dependencies are matched ahead of the dependency rule and the app rule', () => {
+    const at = (file: string) => RULES.findIndex((r) => r.pattern.test(file));
+    const dependencyRule = at('apps/web/package.json');
+    const appRule = at('apps/mobile/src/x.ts');
+    expect(at('apps/mobile/package.json')).toBeLessThan(dependencyRule);
+    expect(at('package-lock.json')).toBeLessThan(dependencyRule);
+    expect(at('apps/mobile/modules/nearby-link/package.json')).toBeLessThan(dependencyRule);
+    expect(dependencyRule).toBeLessThan(appRule);
   });
 
   it('names the first file that needs each job', () => {
@@ -57,6 +82,7 @@ describe('the jobs that changed files need', () => {
       server: null,
       'web-smoke': 'apps/mobile/src/x.tsx',
       'ui-web': 'apps/mobile/src/x.tsx',
+      'android-native': null,
     });
   });
 });

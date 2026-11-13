@@ -27,6 +27,19 @@
       "plus": "Plus",
       "equals": "Equals",
       "point": "Decimal point"
+    },
+    "nearby": {
+      "startLine": "Sharing starts only when you press Start sharing, and stops after ten minutes or once you are up to date.",
+      "start": "Start sharing",
+      "startHelp": "Turns on Bluetooth and Wi-Fi to find teammates nearby, for up to ten minutes.",
+      "warning": "Someone with the right equipment can tell that this phone is broadcasting, and Android's questions will show the app's real name. Do this where you are alone.",
+      "warned": "Continue",
+      "warnedHelp": "Goes on to share. Android may ask for permission next.",
+      "left": "Sharing stopped because you left the app.",
+      "run": "Sharing stopped after ten minutes.",
+      "level": "Up to date. Sharing stopped.",
+      "letInLook": "The new phone will show LangQuest until they choose another look under More settings.",
+      "apkTrace": "Your browser's history and download list show where the install file came from. You can clear them afterwards."
     }
   },
   "native": {

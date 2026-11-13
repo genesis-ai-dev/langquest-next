@@ -846,6 +846,7 @@ Expected:
 - Step 7: the divider's label is "Divider between reference and your recording", its hint "Drag up or down to give either one more room", and its value reads "Source 35%" (and so on), "Reference as one line", "Recorder as one line".
 - The divider's touch area is at least 48 points tall.
 - Fixed (2026-10-13): on the web the divider had no value for a screen reader (react-native-web reads `aria-valuetext`, not `accessibilityValue`); `SplitPane.tsx` now gives both. Step 7's swipes are a device check; the web run checks the label and the value at each stop.
+- Fixed (2026-11-13, LAN-117): on the web a mouse drag of the divider selected the page's text, and the next drag (step 3) then dragged that text, so the browser ended the divider's drag where it began. The divider now keeps a mouse press from the browser; the web run checks that step 1 selects no text.
 - When the recorder pane is shorter than 360 points, the parts card shows closed ("Parts 1–4, 4 parts · 0:16"); tapping it opens it and gives the recorder the room (the reference goes to one line). Changed (2026-10-16, LAN-83): the card no longer gives way to "Parts 1–4 recorded · drag up to see them".
 
 ---

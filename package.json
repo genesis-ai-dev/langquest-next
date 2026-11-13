@@ -3,6 +3,11 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "packageManager": "npm@11.19.1",
+  "devEngines": {
+    "runtime": { "name": "node", "version": "^24.15.0", "onFail": "warn" },
+    "packageManager": { "name": "npm", "version": "^11.0.0", "onFail": "warn" }
+  },
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -47,10 +52,13 @@
     "env:eas": "scripts/eas-env.sh",
     "secrets": "node scripts/secrets.mjs",
     "diag": "tsx scripts/diag.ts",
+    "key-terms:eval": "tsx scripts/key-term-eval.ts",
     "moderation": "tsx scripts/moderation.ts",
     "global-viewer": "tsx scripts/global-viewer.ts",
     "org-verification": "tsx scripts/org-verification.ts",
     "publisher-import": "tsx scripts/publisher-import.ts",
+    "org-feature": "tsx scripts/org-feature.ts",
+    "nearby-keys": "tsx scripts/nearby-keys.ts",
     "v2": "node scripts/with-local-keys.mjs tsx server/v2.ts",
     "library:seed": "tsx scripts/library-seed.ts",
     "bibles:survey": "tsx scripts/bible-survey.ts",
@@ -74,31 +82,37 @@
     "email:typecheck": "wrangler types -c apps/invite-email/wrangler.jsonc apps/invite-email/worker-configuration.d.ts && tsc -p apps/invite-email"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
-    "@dotenvx/dotenvx": "^2.33.0",
+    "@axe-core/playwright": "^4.14.0",
+    "@dotenvx/dotenvx": "^2.38.2",
     "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
-    "@playwright/test": "^1.63.0",
-    "@stryker-mutator/core": "^10.0.0",
-    "@stryker-mutator/vitest-runner": "^10.0.0",
-    "@types/node": "^26.6.4",
-    "@vitest/coverage-v8": "^5.0.4",
-    "eas-cli": "^24.10.0",
-    "eslint": "10.12.0",
-    "eslint-plugin-boundaries": "7.2.0",
+    "@playwright/test": "^1.65.0",
+    "@stryker-mutator/core": "^10.1.1",
+    "@stryker-mutator/vitest-runner": "^10.1.1",
+    "@types/node": "^24.19.2",
+    "@typescript/native": "npm:typescript@7.0.2",
+    "@vitest/coverage-v8": "^5.1.0",
+    "eas-cli": "^27.7.0",
+    "eslint": "10.14.0",
+    "eslint-plugin-boundaries": "7.4.2",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.7",
     "fast-check": "^4.10.2",
     "postgres": "^3.4.9",
-    "supabase": "^2.119.0",
+    "supabase": "^2.122.1",
     "tsx": "^4.23.15",
-    "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.2",
-    "vitest": "^5.0.3",
-    "wrangler": "^4.147.0"
+    "typescript": "npm:@typescript/typescript6@~6.0.2",
+    "typescript-eslint": "8.72.2",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.159.0"
   },
   "overrides": {
     "eas-cli": {
-      "typescript": "$typescript"
-    }
+      "typescript": "$typescript",
+      "minimatch@5": "5.1.9",
+      "nanoid@3": "3.3.20"
+    },
+    "joi": "17.13.9",
+    "node-forge": "1.4.3",
+    "tar": "7.5.22"
   }
 }

@@ -141,6 +141,23 @@ export function metadataOf(text: string | null): Record<string, unknown> | null 
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
+/**
+ * A file v2's app recorded. The app names a recording by a UUID
+ * (`local/<uuid>.<ext>` on the phone, the same name without `local/` once it
+ * is published); before 2025-10-13 an iPhone kept its recorder's name,
+ * `recording-<UUID>.m4a`. Every other name in v2's bucket is a file someone
+ * uploaded instead. v2's website names its uploads from the time: its
+ * upload process `<milliseconds>-<uuid>.<ext>`, its bulk upload
+ * `audio/<milliseconds>-<random>.<ext>`, its bulk asset form
+ * `audio-<milliseconds>-<random>.<ext>`, its asset form
+ * `<milliseconds>-<file's own name>`. Names under `content/` come from no
+ * v2 code. On v2 production on 2026-11-12, 1,096,018 of 1,228,354 names
+ * were recordings.
+ */
+export function recordedInApp(name: string): boolean {
+  return /^(local\/)?(recording-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[0-9a-z]+$/i.test(name.trim());
+}
+
 /** A file name that reached v2's bucket, or null for one that never left a phone. */
 export function bucketName(name: string): string | null {
   const n = name.trim();
