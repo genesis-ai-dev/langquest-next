@@ -3,7 +3,7 @@
 // SegCard, RecordButton). Every pressable goes through the kit or
 // `useHelpSpot` (with its HelpBadge), so help mode explains it instead of pressing it.
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, type ScrollViewInstance, View } from 'react-native';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpLoud, HelpQuiet, HelpRow } from '../helpMode/helpBadge';
@@ -29,7 +29,7 @@ export interface ChipItem<T extends string> {
 
 /** One row of chips, scrolling sideways, the open one filled; it keeps the open one in view. */
 export function RefChips<T extends string>(props: { items: ChipItem<T>[]; value: T; onChange: (id: T) => void }) {
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const xs = useRef<Partial<Record<T, number>>>({});
   useEffect(() => {
     const x = xs.current[props.value];

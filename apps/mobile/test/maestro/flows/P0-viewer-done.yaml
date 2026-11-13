@@ -36,14 +36,20 @@ tags:
     timeout: 30000
 - assertVisible: "Peer check, looks good"
 - assertVisible: "Back translation, looks good"
-- assertVisible: "Community check, looks good"
-# The last two cards sit below the fold on a 6-inch phone (Pixel 6, 2026-11-11).
+# The later checks' cards sit below the player and the first two, under the
+# fold on a 6-inch phone (Pixel 6, 2026-11-11): bring each up.
+- scrollUntilVisible:
+    element: "Community check, looks good"
+    direction: DOWN
+    centerElement: true
 - scrollUntilVisible:
     element: "Consultant check, looks good"
     direction: DOWN
+    centerElement: true
 - scrollUntilVisible:
     element: "Final approval, looks good"
     direction: DOWN
+    centerElement: true
 # Read only: no record, check, ask or main action.
 - assertNotVisible: "Do the .*"
 - assertNotVisible: "Ask .*"

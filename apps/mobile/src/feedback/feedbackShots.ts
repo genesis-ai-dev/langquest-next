@@ -14,7 +14,7 @@ const fileFor = (id: string, which: ShotKind) => new File(DIR, which === 'shot' 
 
 export async function keepShot(id: string, base64: string, which: ShotKind = 'shot'): Promise<void> {
   if (!DIR.exists) DIR.create({ intermediates: true, idempotent: true });
-  fileFor(id, which).write(base64, { encoding: 'base64' });
+  fileFor(id, which).writeSync(base64, { encoding: 'base64' });
 }
 
 /** The screenshot (or picture) as base64, or null when there is none (or it was lost behind the app's back). */

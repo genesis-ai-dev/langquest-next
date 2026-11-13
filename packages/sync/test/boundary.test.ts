@@ -10,7 +10,7 @@ import { join, relative } from 'node:path';
  * use Node's built-ins as well.
  */
 const SRC = join(__dirname, '../src');
-const ALLOWED = new Set(['@langquest-next/core', '@supabase/supabase-js']);
+const ALLOWED = new Set(['@langquest-next/core', '@langquest-next/core/nearby', '@supabase/supabase-js']);
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

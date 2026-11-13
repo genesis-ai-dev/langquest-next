@@ -3,7 +3,7 @@
 // than PICTURE_SIDE and saved as a JPEG that fits (pictureFile.ts on phones).
 // The chooser opens in the same tap, before anything waits, or a browser
 // refuses to open it.
-import type { View } from 'react-native';
+import type { ViewInstance } from 'react-native';
 import { PICTURE_QUALITIES, pictureFits, pictureSize } from './feedbackModel';
 import type { ChosenPicture } from './pictureFile';
 
@@ -25,7 +25,7 @@ export function choosePicture(): Promise<ChosenPicture | null> {
 }
 
 /** Never needed on the web: choosePicture already made it fit. */
-export async function shrinkPicture(_view: View, _shown: { width: number; height: number }): Promise<string | null> {
+export async function shrinkPicture(_view: ViewInstance, _shown: { width: number; height: number }): Promise<string | null> {
   return null;
 }
 

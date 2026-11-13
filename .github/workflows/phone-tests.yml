@@ -84,7 +84,7 @@ jobs:
       CI: 'true'
       RESULTS: e2e/results/maestro/android/nightly
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # First, so a machine without KVM fails in a minute, not after the build.
       - name: Give the runner KVM (the emulator needs it)
         run: bash scripts/ci-android-emulator.sh --kvm
@@ -92,13 +92,13 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/share/swift /opt/hostedtoolcache/CodeQL
           df -h /
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       # The build first, alone on the machine: Gradle and the stack together
       # fight for its four cores. Only main's runs keep Gradle's cache, so
       # pull requests read it and do not fill the repository's cache space.
-      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: gradle
         with:
           path: |
@@ -117,7 +117,7 @@ jobs:
           printf 'org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=2g\nkotlin.daemon.jvmargs=-Xmx3g\n' >> ~/.gradle/gradle.properties
           export JAVA_HOME="$JAVA_HOME_17_X64"
           node scripts/maestro-build.mjs --platform android --build-only --abi x86_64
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: github.ref == 'refs/heads/main' && steps.gradle.outputs.cache-hit != 'true'
         with:
           path: |
@@ -161,7 +161,7 @@ jobs:
           node scripts/phone-tests.mjs safe-names "$RESULTS" || true
       - name: Keep the results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: phone-tests-android
           path: ${{ env.RESULTS }}
@@ -189,9 +189,9 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       SERVER: ${{ github.workspace }}/.phone-server
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Keep the stack's ports out of the outbound port range
         run: bash scripts/ci-reserve-ports.sh
@@ -218,7 +218,7 @@ jobs:
           unset token
           bash scripts/phone-tests-wait.sh tunnel "$RUNNER_TEMP/cloudflared" http://127.0.0.1:9000 "$RUNNER_TEMP/cloudflared.log" "$SERVER/tunnel.json"
       - name: Hand the address and the accounts to the iPhone job
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: phone-tests-ios-server
           path: ${{ env.SERVER }}
@@ -230,7 +230,7 @@ jobs:
         run: bash scripts/phone-tests-wait.sh job "iPhone simulator" 190
       - name: Keep the logs
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: phone-tests-ios-server-logs
           path: |
@@ -259,9 +259,9 @@ jobs:
       RESULTS: e2e/results/maestro/ios/nightly
       SERVER: ${{ github.workspace }}/.phone-server
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Xcode and the simulators it has
         run: |
@@ -296,7 +296,7 @@ jobs:
           node scripts/phone-tests.mjs safe-names "$RESULTS" || true
       - name: Keep the results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: phone-tests-ios
           path: ${{ env.RESULTS }}
@@ -316,10 +316,10 @@ jobs:
       OUT: .phone-tests
       HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24 }
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, package-manager-cache: false }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: phone-tests-*
           path: .phone-results
@@ -333,7 +333,7 @@ jobs:
       - name: Claude looks at each failed screen
         if: steps.summary.outputs.failures != '0' && env.HAS_CLAUDE_TOKEN == 'true'
         continue-on-error: true
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
@@ -362,7 +362,7 @@ jobs:
         run: '[ -f "$OUT/summary.json" ] && node scripts/phone-tests.mjs markdown --out "$OUT" >> "$GITHUB_STEP_SUMMARY" || true'
       - name: Keep the report
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: phone-tests-report
           path: ${{ env.OUT }}

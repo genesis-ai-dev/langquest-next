@@ -587,7 +587,7 @@ export function FlowsHome(ctx: Ctx) {
       const doc = docs.get<FlowDoc>(hash);
       if (!doc) throw new CommandError(t('config.errors.flowHasNoVersion'));
       name = 'shared' in target ? target.shared.name : lib.item(target.itemId)?.name ?? doc.name;
-      specs = copyFlowEvents(state, { name, doc, kinds });
+      specs = copyFlowEvents(state, ctx.session.actorId, { name, doc, kinds });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: libraryFailure('use flow', e) }), 'problem'); // i18n-ignore: log label
       setBusy(false);
@@ -1136,8 +1136,8 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     const fields = fieldWrites(changes);
     setBusy(true);
     const saved = await actCommand(ctx, 'save material', () => (isNew // i18n-ignore: log label
-      ? defineMaterialEvents(s, { materialId: id, materialKind, title, changes, isQuestions, reviewKind })
-      : setMaterialFieldsEvents(s, id, fields)),
+      ? defineMaterialEvents(s, ctx.session.actorId, { materialId: id, materialKind, title, changes, isQuestions, reviewKind })
+      : setMaterialFieldsEvents(s, ctx.session.actorId, id, fields)),
     isNew ? t('config.material.added', { title: title.trim() }) : t('config.material.saved'));
     if (!saved) { setBusy(false); return; }
     await draft.clear();
@@ -1161,7 +1161,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   function toggleLock() {
     if (!existing || !canManage) return;
     const to = !locked;
-    void actCommand(ctx, 'lock material', () => lockMaterialEvents(state!, existing.materialId, to), // i18n-ignore: log label
+    void actCommand(ctx, 'lock material', () => lockMaterialEvents(state!, ctx.session.actorId, existing.materialId, to), // i18n-ignore: log label
       to ? t('config.material.lockedToast') : t('config.material.unlockedToast'));
   }
 
@@ -1181,7 +1181,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     setBusy(true);
     if (changes.length) {
       const written = await actCommand(ctx, 'save material', // i18n-ignore: log label
-        () => setMaterialFieldsEvents(state!, existing.materialId, fieldWrites(changes)), t('config.material.saved'));
+        () => setMaterialFieldsEvents(state!, ctx.session.actorId, existing.materialId, fieldWrites(changes)), t('config.material.saved'));
       if (!written) { setBusy(false); return; }
       draft.set(null);
       await draft.clear();
@@ -1435,7 +1435,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
     if (!it || !material || busy) return;
     let plan: ReturnType<typeof questionSetToReviews>;
     try {
-      plan = planQuestionSetReviews(state!, it.itemId, material);
+      plan = planQuestionSetReviews(state!, ctx.session.actorId, it.itemId, material);
     } catch (e) {
       ctx.toast(failure('use question set', e), 'problem');
       return;
@@ -1623,7 +1623,7 @@ export function KeyTerms(ctx: Ctx) {
     if (!state || busy || !termDraftReady(draft)) return;
     setBusy(true);
     // TERM-6: the concept, its first rendering, and that as its first adjustment (who, when, which passage).
-    const saved = await actCommand(ctx, 'add key term', () => defineKeyTermEvents(state, draft, unitId), // i18n-ignore: log label
+    const saved = await actCommand(ctx, 'add key term', () => defineKeyTermEvents(state, ctx.session.actorId, draft, unitId), // i18n-ignore: log label
      t('config.keyTerms.added', { term: draft.term.trim() }));
     if (saved) {
       setDraft(EMPTY_TERM_DRAFT);
@@ -1753,7 +1753,7 @@ export function KeyTermDetail(ctx: Ctx) {
   async function tie() {
     if (!draftTakeId || isLinked || busy) return;
     setBusy(true);
-    await actCommand(ctx, 'tie key term', () => linkKeyTermEvents(state!, draftTakeId, [termId]), // i18n-ignore: log label
+    await actCommand(ctx, 'tie key term', () => linkKeyTermEvents(state!, ctx.session.actorId, draftTakeId, [termId]), // i18n-ignore: log label
       t('config.keyTerm.tied', { term: term!.term }));
     setBusy(false);
   }
@@ -1762,7 +1762,7 @@ export function KeyTermDetail(ctx: Ctx) {
     if (!canEdit || busy || !adjustmentReady(note, hash)) return;
     const duringTakeId = adjustDuringTake(draftTakeId, passage);
     setBusy(true);
-    const saved = await actCommand(ctx, 'adjust key term', () => adjustKeyTermEvents(state!, { // i18n-ignore: log label
+    const saved = await actCommand(ctx, 'adjust key term', () => adjustKeyTermEvents(state!, ctx.session.actorId, { // i18n-ignore: log label
       termId, rendering, context, note,
       ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {}),
       // TERM-5: an adjustment made while drafting ties the term to the draft.
@@ -1779,7 +1779,7 @@ export function KeyTermDetail(ctx: Ctx) {
   async function saveExample(hash: string, durationMs: number, wayId: string) {
     setBusy(true);
     const duringTakeId = adjustDuringTake(draftTakeId, passage);
-    await actCommand(ctx, 'record key term example', () => addKeyTermAudioEvents(state!, termId, hash, durationMs, wayId, duringTakeId), // i18n-ignore: log label
+    await actCommand(ctx, 'record key term example', () => addKeyTermAudioEvents(state!, ctx.session.actorId, termId, hash, durationMs, wayId, duringTakeId), // i18n-ignore: log label
       t('config.keyTerm.exampleSaved'));
     setBusy(false);
   }

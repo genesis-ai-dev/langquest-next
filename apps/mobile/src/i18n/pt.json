@@ -354,7 +354,11 @@
     "cluster_home": "Grupo",
     "global_viewer": "Observador global",
     "forgot_password": "Esqueci a senha",
-    "new_password": "Nova senha"
+    "new_password": "Nova senha",
+    "share_nearby": "Compartilhar por perto",
+    "let_someone_in": "Deixar alguém entrar",
+    "join_offline": "Participar sem internet",
+    "get_install_file": "Baixar o arquivo de instalação"
   },
   "native": {
     "microphone": "O LangQuest grava a sua voz para traduzir passagens.",
@@ -2978,7 +2982,11 @@
       "createAccountHelp": "Abre um formulário para o seu e-mail e uma senha nova.",
       "browseHelp": "Veja trabalhos de tradução que as organizações compartilham publicamente. Não precisa de conta.",
       "forgot": "Esqueceu a senha?",
-      "forgotHelp": "Abre uma página onde você recebe um link por e-mail para escolher uma senha nova."
+      "forgotHelp": "Abre uma página onde você recebe um link por e-mail para escolher uma senha nova.",
+      "localHere": "Alguém entrou na equipe neste celular sem internet. Ninguém mais pode entrar na conta aqui até o celular dessa pessoa se conectar à internet uma vez.",
+      "joiningTitle": "{{name}} está entrando na equipe neste celular",
+      "goOnJoining": "Continuar a entrada",
+      "goOnJoiningHelp": "Abre a tela que termina a entrada na equipe pelo celular de um colega."
     },
     "terms": {
       "title": "Termos e privacidade",
@@ -3107,7 +3115,9 @@
       "notNowHelp": "Esquece este convite e volta para o seu trabalho.",
       "whoJoins": "Quem vai entrar?",
       "someoneNew": "Outra pessoa",
-      "someoneNewHelp": "Para alguém que ainda não está neste telefone: uma conta nova. Depois, digite o nome da pessoa."
+      "someoneNewHelp": "Para alguém que ainda não está neste telefone: uma conta nova. Depois, digite o nome da pessoa.",
+      "joinNotGuest": "Este código deixa um celular novo entrar em uma equipe. Este celular já tem alguém nele.",
+      "localJoined": "Pronto. O seu trabalho vai para o servidor como seu."
     },
     "signInKey": {
       "notGuestTitle": "Este é um código de acesso",
@@ -3123,6 +3133,7 @@
       "notValid": "Este código não é válido.",
       "expiredOrUsed": "Este código expirou ou já foi usado. Peça um novo.",
       "codeBusy": "Não foi possível usar este código. Tente de novo.",
+      "forSomeoneElse": "Este código foi feito para outra pessoa. Peça um feito para você.",
       "scanElseHelp": "Deixa este código e abre o leitor de novo.",
       "signOutHelp": "Abre a saída da conta, para que a pessoa deste código entre neste aparelho.",
       "buttonHelp": "Faz você entrar neste aparelho com este código. Nada para digitar.",
@@ -3335,7 +3346,10 @@
       "signInFailed": "A sua nova senha já está pronta. Entre com ela.",
       "changedTitle": "Senha mudada",
       "changedBody": "De agora em diante, {{email}} entra com a nova senha.",
-      "doneHelp": "Volta para a sua tela inicial."
+      "doneHelp": "Volta para a sua tela inicial.",
+      "lost": "Um celular meu foi perdido ou levado",
+      "lostSub": "Os celulares dos colegas de equipe deixam de confiar no trabalho desse celular com data depois de agora, e seus outros celulares precisam entrar de novo para compartilhar por perto.",
+      "lostLetIn": "Se você deixou alguém entrar por aquele celular e essa pessoa ainda não se conectou à internet, o servidor vai recusá-la. O trabalho dela fica no celular dela, e alguém que possa convidar pessoas pode deixá-la entrar de novo com um convite."
     }
   },
   "account": {
@@ -3475,7 +3489,33 @@
       "nameHelp": "Abre o seu perfil, para mudar o nome que a sua equipe vê.",
       "offlineHelp": "Mostra o que este aparelho guarda para trabalhar sem internet.",
       "tourHelp": "Abre três cartões curtos sobre para que serve o LangQuest.",
-      "moreHelp": "Abre as configurações de senha, notificações, sincronização e conta. Um número quer dizer mudanças esperando para enviar."
+      "moreHelp": "Abre as configurações de senha, notificações, sincronização e conta. Um número quer dizer mudanças esperando para enviar.",
+      "local": {
+        "title": "{{name}}, você entrou sem internet",
+        "letInBy": "{{name}} deixou você entrar pelo celular.",
+        "letIn": "Um colega deixou você entrar pelo celular dele.",
+        "waiting": "A sua conta é criada na primeira vez que este celular se conectar à internet. Até lá, o seu trabalho espera aqui.",
+        "joining": "Conectando ao servidor…",
+        "finishing": "Você entrou. Terminando de preparar este celular…",
+        "needsCode": "A sua conta está pronta. Entre como {{name}} com um código de alguém da sua equipe.",
+        "needsCodeLine": "Peça a um colega para abrir Ajudar a entrar e depois leia o código dele aqui.",
+        "keyLost": "Este celular perdeu a chave com que você entrou. O seu trabalho continua aqui. Peça ajuda a alguém da sua equipe.",
+        "otherAccount": "Outra pessoa entrou na conta neste celular. O seu trabalho continua aqui.",
+        "refusedLine": "O seu trabalho está seguro neste celular. Peça um convite a alguém que possa convidar pessoas e depois leia o convite aqui.",
+        "workSafe": "O seu trabalho fica guardado neste celular e nos celulares dos colegas até chegar ao servidor.",
+        "retry": "Tentar agora",
+        "retryHelp": "Pergunta ao servidor de novo agora, se este celular tiver internet.",
+        "scan": "Ler um código",
+        "scanHelp": "Abre o leitor para um convite ou o código de acesso de um colega.",
+        "refused": {
+          "expired": "O servidor recusou você: o passe com que você entrou já tinha vencido.",
+          "used": "O servidor recusou você: o passe com que você entrou já foi usado.",
+          "off": "O servidor recusou você: a sua organização desligou a entrada sem internet.",
+          "notFound": "O servidor recusou você: ele não conhece o passe com que você entrou.",
+          "retired": "O servidor recusou você: a sua função não é mais usada, ou o colega que deixou você entrar não pode mais dá-la.",
+          "other": "O servidor recusou você."
+        }
+      }
     },
     "more": {
       "noEmail": "Ainda sem e-mail",
@@ -3516,6 +3556,16 @@
       "blockedCount_other": "{{count, number}} pessoas",
       "deleteAccount": "Excluir conta",
       "deleteSub": "A sua conta e o seu nome, para sempre",
+      "removeMe": "Me remover deste celular",
+      "removeMeSub": "Em vez de sair: este celular esquece você",
+      "removeMeHelp": "Pergunta antes. Depois este celular esquece você e volta para Entrar.",
+      "removeMeTitle": "Remover {{name}} deste celular?",
+      "removeMeUnsent": "Ainda não enviado deste celular: {{things}}. A menos que o celular de um colega tenha levado, será perdido.",
+      "removeMeBody": "Este celular esquece você e a sua chave, e volta para Entrar. Para trabalhar aqui de novo, alguém precisa deixar você entrar outra vez, como uma pessoa nova.",
+      "removeMeButton": "Me remover",
+      "removing": "Removendo…",
+      "lostPhoneSub": "Envia por e-mail um link para escolher uma senha nova e deixar de confiar nesse celular",
+      "lostPhoneSent": "Link enviado para {{email}}. Abra-o, escolha uma senha nova e ative “Um celular meu foi perdido ou levado”.",
       "testing": "Testes",
       "personaSub": "Entrar como tradutor, revisor ou administrador de demonstração",
       "syncHelp": "Mostra o que espera para enviar ou baixar. Um número quer dizer mudanças esperando para enviar.",
