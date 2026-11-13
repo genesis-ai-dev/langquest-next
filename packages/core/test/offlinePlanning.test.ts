@@ -24,6 +24,7 @@ function referenceHashes(state: LanguageState, scope: ReadonlySet<string>): Set<
     for (const term of Object.values(state.keyTerms)) {
       if (term.unitScope.length && !term.unitScope.some((id) => ancestors.has(id))) continue;
       for (const adjustment of Object.values(term.adjustments)) if (adjustment.blobHash) needed.add(adjustment.blobHash);
+      for (const audio of Object.values(term.audioRenderings ?? {})) needed.add(audio.blobHash);
     }
   }
   return needed;

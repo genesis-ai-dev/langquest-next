@@ -27,6 +27,14 @@ export interface SessionSafeOptions {
   anonKey: string;
   /** Whether this client's storage still holds a sign-in. */
   hasSavedSession: () => Promise<boolean>;
+  /**
+   * Whether a local person holds the phone (docs/nearby-sync-plan.md 14.1, 5 "Requests"): they
+   * have no session until first contact, and a request as no one would be refused, not offline,
+   * which would mark their work refused. So it fails as offline, but for a helper's code
+   * (`sign-in-code`), which is how one whose key no longer signs in gets their session, and
+   * which the function refuses for a code made for anyone else.
+   */
+  localPersonHolds?: () => boolean;
   /** Told when a renewal could not reach Supabase Auth, and when one worked (answerAtOnceWhileOffline). */
   watch?: RenewalWatch;
   /** The fetch underneath; the global one when left out. */
@@ -136,7 +144,8 @@ export function sessionSafeFetch(opts: SessionSafeOptions): typeof fetch {
       renewed(watch, { failed: 'http', status: res.status });
       throw new TypeError(`Network request failed: sign-in renewal answered ${res.status}`);
     }
-    if (isData(url) && bearerOf(input, init) === opts.anonKey && await opts.hasSavedSession()) {
+    if (isData(url) && bearerOf(input, init) === opts.anonKey &&
+        ((opts.localPersonHolds?.() === true && !isHelperCode(url)) || await opts.hasSavedSession())) {
       throw new TypeError(NOT_RENEWED);
     }
     return base(input, init);
@@ -173,6 +182,11 @@ function isRenewal(url: string): boolean {
 /** Requests that act as the person: the database, files and functions. Auth's own calls are left alone. */
 function isData(url: string): boolean {
   return /\/(rest|storage|functions)\/v1\//.test(url);
+}
+
+/** A helper's sign-in code: holding the code is the permission, so it goes as no one. */
+function isHelperCode(url: string): boolean {
+  return /\/functions\/v1\/sign-in-code([?#]|$)/.test(url);
 }
 
 function bearerOf(input: RequestInfo | URL, init: RequestInit | undefined): string | null {

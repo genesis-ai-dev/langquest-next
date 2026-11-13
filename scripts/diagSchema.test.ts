@@ -1,11 +1,13 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { DIAG_CONTEXT, DIAG_SCHEMA, DIAG_TOKEN } from '@langquest-next/sync';
+import { NEARBY_DIAG_SCHEMA } from '@langquest-next/sync/nearby';
 
 // The phone and the server apply the same diagnostics allowlist
 // (docs/diagnostics.md). The server's copy is a JSON literal between
 // diag-schema markers in the newest migration that defines it; this holds
 // the two equal, so a field added on one side only is a failing test, not a
-// silent drop.
+// silent drop. Android's `nearby` kind is held in the nearby entry, so the
+// web carries none of it, and the server allows it beside the rest.
 
 const dir = new URL('../supabase/migrations/', import.meta.url);
 const sql = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()
@@ -15,7 +17,7 @@ describe('diagnostics allowlist parity', () => {
   it('the migration allows exactly what packages/sync allows', () => {
     const literal = /-- diag-schema:begin\n'([^']*)'\n-- diag-schema:end/.exec(sql)?.[1];
     expect(literal).toBeDefined();
-    expect(JSON.parse(literal!)).toEqual(JSON.parse(JSON.stringify({ kinds: DIAG_SCHEMA, context: DIAG_CONTEXT })));
+    expect(JSON.parse(literal!)).toEqual(JSON.parse(JSON.stringify({ kinds: { ...DIAG_SCHEMA, ...NEARBY_DIAG_SCHEMA }, context: DIAG_CONTEXT })));
   });
 
   it('the token pattern is the same on both sides', () => {

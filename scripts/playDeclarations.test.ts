@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { DIAG_CONTEXT, DIAG_SCHEMA } from '@langquest-next/sync';
+import { NEARBY_DIAG_SCHEMA } from '@langquest-next/sync/nearby';
 
 /**
  * What we told Google Play (docs/play-store-declarations.md, decisions.md 49)
@@ -17,6 +18,10 @@ interface Facts {
   appName: string;
   androidPermissions: string[];
   blockedPermissions: string[];
+  /** Permissions the app's own native modules declare in their manifests, with the attributes that limit them. */
+  modulePermissions: string[];
+  /** Hardware features they declare, and whether a phone needs them to install the app. */
+  moduleFeatures: string[];
   plugins: string[];
   mobileDependencies: string[];
   diagnostics: { context: string[]; kinds: Record<string, string[]> };
@@ -30,6 +35,30 @@ function declared(): Facts {
 
 const sorted = (xs: readonly string[]) => [...xs].sort();
 
+/**
+ * Every `uses-permission` and `uses-feature` in apps/mobile/modules/<module>/android/src/main/AndroidManifest.xml.
+ * They merge into the app's manifest as app.json's do (autolinking finds each module), so they
+ * count as the app's permissions: a module manifest is where attributes app.json cannot say
+ * live (docs/nearby-sync-plan.md section 9).
+ */
+function moduleManifests(): { permissions: string[]; features: string[] } {
+  const permissions: string[] = [];
+  const features: string[] = [];
+  const dir = 'apps/mobile/modules';
+  for (const mod of readdirSync(dir)) {
+    const path = `${dir}/${mod}/android/src/main/AndroidManifest.xml`;
+    if (!existsSync(path)) continue;
+    const xml = readFileSync(path, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    const attr = (tag: string, name: string) => new RegExp(`android:${name}="([^"]+)"`).exec(tag)?.[1];
+    for (const [tag] of xml.matchAll(/<uses-permission(?:-sdk-23)?\b[^>]*>/g)) {
+      const limits = ['maxSdkVersion', 'usesPermissionFlags'].flatMap((n) => (attr(tag, n) ? [`${n}=${attr(tag, n)}`] : []));
+      permissions.push([attr(tag, 'name'), ...limits].join(' '));
+    }
+    for (const [tag] of xml.matchAll(/<uses-feature\b[^>]*>/g)) features.push(`${attr(tag, 'name')} required=${attr(tag, 'required') ?? 'true'}`);
+  }
+  return { permissions: sorted(permissions), features: sorted(features) };
+}
+
 function actual(): Facts {
   const app = JSON.parse(readFileSync('apps/mobile/app.json', 'utf8')).expo;
   const pkg = JSON.parse(readFileSync('apps/mobile/package.json', 'utf8'));
@@ -38,13 +67,17 @@ function actual(): Facts {
     const options = Object.fromEntries(Object.entries(p[1] ?? {}).sort(([a], [b]) => a.localeCompare(b)));
     return `${p[0]} ${JSON.stringify(options)}`;
   });
-  const kinds = Object.fromEntries(Object.entries(DIAG_SCHEMA).map(([kind, s]) =>
+  // Android's `nearby` kind sits in the nearby entry, and phones send it as they send the rest.
+  const kinds = Object.fromEntries(Object.entries({ ...DIAG_SCHEMA, ...NEARBY_DIAG_SCHEMA }).map(([kind, s]) =>
     [kind, sorted([...s.n, ...Object.keys(s.t)])]));
+  const modules = moduleManifests();
   return {
     package: app.android.package,
     appName: app.name,
     androidPermissions: sorted(app.android.permissions ?? []),
     blockedPermissions: sorted(app.android.blockedPermissions ?? []),
+    modulePermissions: modules.permissions,
+    moduleFeatures: modules.features,
     plugins: sorted(plugins),
     mobileDependencies: sorted(Object.keys(pkg.dependencies ?? {})),
     diagnostics: { context: sorted(DIAG_CONTEXT), kinds }
@@ -64,6 +97,13 @@ describe('Play Store declarations', () => {
     expect(code.androidPermissions, HOW).toEqual(sorted(doc.androidPermissions));
     expect(code.blockedPermissions, HOW).toEqual(sorted(doc.blockedPermissions));
     expect(code.plugins, HOW).toEqual(sorted(doc.plugins));
+  });
+
+  it('cover every permission and feature the app\'s own native modules declare', () => {
+    expect(code.modulePermissions, HOW).toEqual(sorted(doc.modulePermissions ?? []));
+    expect(code.moduleFeatures, HOW).toEqual(sorted(doc.moduleFeatures ?? []));
+    // A feature a phone must have would hide the app from every phone without it, whoever has the feature turned on.
+    for (const f of code.moduleFeatures) expect(f, HOW).toMatch(/ required=false$/);
   });
 
   it('cover every SDK the app ships (an SDK can collect data on its own)', () => {

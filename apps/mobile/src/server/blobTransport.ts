@@ -40,9 +40,10 @@ async function tokenOf(client: SupabaseClient): Promise<string> {
  * session to send under: a hand-over sends a signed-out person's recordings
  * as them (handOver.ts).
  */
-export async function uploadBlob(orgId: string, streamId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}, as: SupabaseClient = supabase): Promise<void> {
+export async function uploadBlob(orgId: string, streamId: string, ref: StoredFile & { namedBy?: string }, store: BlobStore, timings: TransferTimings = {}, as: SupabaseClient = supabase): Promise<void> {
   const url = `${api()}/api/blobs/${objectPath(orgId, streamId, ref)}`;
-  const headers = { Authorization: `Bearer ${await tokenOf(as)}`, 'Content-Type': mimeOf(ref.format) };
+  // A teammate's file put up by someone who only views names the accepted event naming it (docs/nearby-sync-plan.md section 6).
+  const headers = { Authorization: `Bearer ${await tokenOf(as)}`, 'Content-Type': mimeOf(ref.format), ...(ref.namedBy ? { 'x-named-by': ref.namedBy } : {}) };
   const sent = Date.now();
   // Web keeps blobs in the browser's file storage (webFiles.ts): the same request, from those bytes.
   const res = Platform.OS === 'web'

@@ -1,0 +1,19 @@
+# Open LINK (a langquestnext:// link) in the app. An iPhone first asks
+# "Open in “LangQuest Next”?", and the box stays over the next flow when no one
+# answers it (iOS 26 simulator, 2026-11-12): the flow says Open.
+appId: com.frontierrnd.langquestnext
+---
+- openLink: ${LINK}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: "Open in .*"
+          timeout: 5000
+          optional: true
+      - runFlow:
+          when:
+            visible: "Open in .*"
+          commands:
+            - tapOn: "Open"

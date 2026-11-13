@@ -93,12 +93,18 @@ role on a hosted database (`DIAG_DATABASE_URL`) or the local database.
 | `auth` `courier` `gone`/`unreachable` | Work another person left on a shared phone cannot be handed over | `eventsLeft`, `uploadsLeft` |
 | `expected` with a large count | The same shown-to-the-person failure, over and over | `where` and code name the screen and cause |
 | `diagDropped` | The phone was offline long enough to drop records | The history is incomplete; widen nothing, ask nothing |
+| `nearby` rooms with `heard` 0, stopped `idle` | Share nearby never found anyone: nobody else had it open on that language, or this phone's scan hears nothing | Teammates' installs in the same window; `adv` (a phone that cannot advertise is never heard); `blocked` reasons; `find:` codes |
+| `nearby` rooms with `heard` above 0 and `echoed` 0 | Heard teammates, never echoed: one-way hearing, or the other phone cannot advertise | `maybe` against `taps`: the screen offers a tap |
+| `nearby` `blocked` (`no-certificate`, `permission-blocked`, `bluetooth-off`) | The screen could not run | `no-certificate`: the phone has not reached the server since nearby was turned on (`npm run org-feature -- list`) |
+| `nearby` sessions ended `dropped`, `stalled` or with a module code | "It stops": the link went | `links` all `bluetooth` and `fallbacks` high: Wi-Fi Direct and the hotspot did not come up; the code names where |
+| `nearby` `strangers` | Connections that never passed the opening | Not a fault: a stranger, a replay, or a teammate on another discovery-key generation |
 | `diag -- jobs` shows a stale job | A cron, the GitHub projection job or a Worker stopped | The job's last error class; GitHub Actions or Cloudflare logs for that window |
 
 ## Changing what is recorded
 
-Add a field to `DIAG_SCHEMA` and to the JSON in `diag.schema()` in a new
-migration (never edit a shipped one); `scripts/diagSchema.test.ts` fails
+Add a field to `DIAG_SCHEMA` (or, for Share nearby, `NEARBY_DIAG_SCHEMA` in
+`packages/sync/src/nearbyDiag.ts`, which the web never carries) and to the
+JSON in `diag.schema()` in a new migration (never edit a shipped one); `scripts/diagSchema.test.ts` fails
 until both agree, and `scripts/playDeclarations.test.ts` until the facts
 block in `docs/play-store-declarations.md` lists it. A new field must be a measurement or a code-written tag,
 never something a person typed or said. Add a signal and a test in

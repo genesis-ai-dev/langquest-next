@@ -32,6 +32,17 @@ Per-pull-request Supabase branches still open automatically for database
 changes. They have their own URL and no secrets, so they test migrations,
 not the app.
 
+## Addresses
+
+| Environment | The app | Links it makes, and machines |
+| --- | --- | --- |
+| production | `https://app.langquest.org`, with `https://next.langquest.org` as an alias | `https://next.langquest.org`, until the later steps in `docs/cloudflare.md` |
+| preview | `https://next-preview.langquest.org` | the same |
+
+Both production hosts are one Worker, so a browser at either has the page and
+API of its own origin (decisions.md 210). A browser's storage belongs to its
+origin, so work and sign-in do not carry from one to the other.
+
 ## Where settings live
 
 | Setting | File | Reaches the platform by |
@@ -40,7 +51,7 @@ not the app.
 | Worker public config, plain | `vars` in each `wrangler.jsonc` (top level is production, `env.preview` is preview) | every deploy |
 | Hosted Supabase project refs, plain | `[remotes.<env>] project_id` in `supabase/config.toml` | read by scripts; the app Worker's `SUPABASE_URL` var must match (a test checks) |
 | Secrets, encrypted | `.env.preview`, `.env.production` at the repository root | `npm run secrets -- <env>` |
-| Hosted Auth settings (`[auth*]`, such as `[auth.mfa.totp]`), plain | `supabase/config.toml` | `npx supabase config push` by hand, below; merging does not apply them |
+| Hosted Auth settings (`[auth*]`, such as `[auth.mfa.totp]`; a project's site URL and redirect list in `[remotes.<env>.auth]`), plain | `supabase/config.toml` | `npx supabase config push` by hand, below; merging does not apply them |
 
 The secrets file holds `INVITE_RELAY_SECRET` and `PUSH_DELIVERY_SECRET`,
 and production also `DIAG_DATABASE_URL` (read on a laptop by
@@ -50,7 +61,9 @@ also hold the ops dashboard's `ADMIN_*` keys: one read-only token per
 provider, each optional (`docs/admin.md`), `APP_STORE_REVIEW_KEY`,
 the key that sends new iPhone builds to App Review (The App Store key,
 below), and `PLAY_REVIEW_KEY`, the key that moves new Android builds from
-internal testing to production review (The Play key, below). It may also hold `BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By
+internal testing to production review (The Play key, below), and
+`APK_R2_ACCESS_KEY_ID` with `APK_R2_SECRET_ACCESS_KEY`, the carried builds'
+bucket token (The carried build, below). It may also hold `BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By
 Hearing's key for the Worker's Bible routes (`docs/reference-material.md`). That one is optional: it is not
 in the Worker's `secrets.required`, so a deploy never waits for it, and
 until a person sets it (`npm run env:update -- <env> BIBLE_BRAIN_ACCESS_KEY`,
@@ -61,17 +74,20 @@ the Worker within seconds of a push to an organization that has webhooks
 cron. `scripts/webhook-poke-secret.sh` makes a random one for each
 environment that has none (preview, then production; `--rotate` replaces
 it), commits it through `env:update` and applies it with `npm run secrets`.
+`NEARBY_SIGNING_KEY` is optional the same way: the app Worker's Ed25519 key
+for nearby sync's certificates and attestations (The nearby signing key,
+below); without it `/api/nearby/*` answers 503.
 `npm run secrets` puts each where it is used, as `scripts/secrets.mjs`
 declares:
 
 | Destination | Gets |
 | --- | --- |
-| app's Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY`, `WEBHOOK_POKE_SECRET`, `V2_SUPABASE_ANON_KEY` and `V2_DATABASE_URL` when the file has them, `YOUTUBE_CLIENT_ID` with `YOUTUBE_CLIENT_SECRET` when it has both, and `LINEAR_API_KEY` when it has it. Its job containers get them from the Worker at each start: the projection pass the database's, the v2 import v2's too, the tutorial publish job the YouTube client's, the comments job the YouTube client's and Linear's (`docs/server-jobs.md`) |
+| app's Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY`, `WEBHOOK_POKE_SECRET`, `V2_SUPABASE_ANON_KEY` and `V2_DATABASE_URL` when the file has them, `YOUTUBE_CLIENT_ID` with `YOUTUBE_CLIENT_SECRET` when it has both, `LINEAR_API_KEY` when it has it, and `NEARBY_SIGNING_KEY` when it has it. Its job containers get them from the Worker at each start: the projection pass the database's, the v2 import v2's too, the tutorial publish job the YouTube client's, the comments job the YouTube client's and Linear's (`docs/server-jobs.md`) |
 | invite-email Worker | `INVITE_RELAY_SECRET` |
 | admin Worker (production only) | each provider token or key (`ADMIN_*`) when the file has them (`docs/admin.md`). Never the service-role key |
 | Hyperdrive `langquest-next-diag` (production only) | `DIAG_DATABASE_URL`, as the config's connection; the first run makes the config and writes its id into `apps/admin/wrangler.jsonc` to commit (`docs/admin.md`) |
 | GitHub Actions secrets of this repository (production only) | `GEMINI_API_KEY` when the file has it, for the nightly filming of the tutorial videos (`.github/workflows/tutorials.yml`, `docs/tutorial-videos.md`); `CLAUDE_CODE_OAUTH_TOKEN` when it has it, a Claude plan's sign-in for the nightly look at the videos' feedback (`.github/workflows/tutorial-review.yml`, `docs/tutorial-videos.md` "Feedback") and the watch for user issues (`.github/workflows/user-issues.yml`, `docs/diagnostics.md`). The watch also uses the `LINEAR_API_KEY` repository secret that `linear-sync.yml` uses, which this script does not place. Never a production key (`scripts/workflows.test.ts`); needs `gh` signed in |
-| EAS's `production` environment (production only) | `APP_STORE_REVIEW_KEY` and `PLAY_REVIEW_KEY` when the file has them, as variables with secret visibility, which only EAS's jobs and builds can read: the App Review and Play review steps of the EAS workflows (The App Store key and The Play key, below). Needs `eas` signed in (`npx eas login`) |
+| EAS's `production` environment (production only) | `APP_STORE_REVIEW_KEY`, `PLAY_REVIEW_KEY`, `APK_R2_ACCESS_KEY_ID` and `APK_R2_SECRET_ACCESS_KEY` when the file has them, as variables with secret visibility, which only EAS's jobs and builds can read: the App Review and Play review steps of the EAS workflows, and the carried build's (The App Store key, The Play key and The carried build, below). Needs `eas` signed in (`npx eas login`) |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PUSH_DELIVERY_SECRET` (once `PROJECTION_WORKER_SECRET`, which this unsets), `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_push_delivery_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the app's Worker's route) |
 | pg_cron | the push-delivery job: its migration (`20261026170400_push_delivery_when_waiting.sql`) schedules it, calling the function only when something is waiting, only where Vault already has the secrets, and leaves the projection pass to the Worker's job container, so this runs that migration again |
@@ -133,6 +149,63 @@ Global Viewers need (docs/global-viewers.md).
 `npm run secrets` compares Supabase values by digest. Worker secrets cannot be
 read back, so it only checks that they exist, and sets them again on every
 apply.
+
+It runs wrangler with the `langquest-email` auth profile
+(`scripts/cloudflare-deploy.mjs`), not the one a plain `npx wrangler login`
+signs in. Make it once, signed in to the account the Workers name
+(`account_id` in each `wrangler.jsonc`):
+
+```
+npx wrangler auth create langquest-email
+```
+
+When wrangler cannot list a Worker's secrets or find the Hyperdrive config,
+signed out or offline, the script stops before comparing and says why, with
+wrangler's own words. Until 2026-11-13 it read such a failure as an empty
+list, so every Worker secret and the Hyperdrive config showed as missing, and
+a yes would have set them all again and made a second config. Only a Worker
+that does not exist counts as having no secrets; it gets a line of its own,
+since every Worker of a deployed environment exists and a missing one most
+often means the wrong account.
+
+## The nearby signing key
+
+`NEARBY_SIGNING_KEY` is the app Worker's Ed25519 private key for nearby sync
+(`apps/web/worker/nearby.ts`, `docs/nearby-sync-plan.md` 5.12): it signs each
+phone's certificate, each organization's revocation list and the attestations
+of pulled work. It is one compact JWK with its `kid`, a secret of its own, never
+derived from the service-role key, since rotating that would strand phones
+that are offline for months. Its public half is a public setting in two places
+that must be equal (`scripts/nearbyCertKeys.test.ts`): `NEARBY_CERT_KEYS` in the
+app Worker's `vars` (top level for production, `env.preview` for preview) and
+`EXPO_PUBLIC_NEARBY_CERT_KEYS` in `apps/mobile/.env.<env>`, each a list of
+`kid:base64url` so that a key can rotate. Both are empty until someone makes
+the key: the Worker answers 503 and phones refuse every chain.
+
+To make it, once per environment, before the first update or build that
+carries nearby sync (production at the merge, `docs/nearby-sync-plan.md` 7):
+
+```
+scripts/nearby-signing-key.sh production
+npm run secrets -- production
+npm run env:eas -- push production     # if the script's own EAS push was declined
+```
+
+The script makes the pair with Node's crypto and pipes the private JWK into
+`env:update`, so it is encrypted into `.env.production` and committed without
+being printed or written in plain text. It appends the public `kid:key` to
+`NEARBY_CERT_KEYS` in `apps/web/wrangler.jsonc` and commits that, then sets
+`EXPO_PUBLIC_NEARBY_CERT_KEYS` with `env:update`, which commits the app's file
+and offers to push it to EAS. Merging the commits deploys the Worker with the
+list. The Worker signs only while `NEARBY_CERT_KEYS` lists its key's `kid`
+with that very public key, so a key that phones would not trust is never used.
+
+To rotate, `--rotate` makes a new key and appends its public half; the old
+`kid` stays listed, so phones built before the rotation keep trusting what
+the old key signed (batches are carried for months). An environment that
+already has the key keeps it without `--rotate`. Locally, `npm run web:dev`
+passes `NEARBY_SIGNING_KEY` and `NEARBY_CERT_KEYS` from your shell to the
+Worker when they are set (`scripts/web-dev-vars.ts`), never a hosted key.
 
 ## The App Store key
 
@@ -267,6 +340,69 @@ production release's version with the one Play's public page shows. A
 release Google rejected looks the same as one in review: someone fixes it
 in Play Console, or a merge labelled `store: replace review` sends its
 build in its place.
+
+## The carried build
+
+A carried build is the APK a teammate carries to a phone with no internet
+or no Play Store (docs/nearby-sync-plan.md 14.4). The EAS workflow on main
+makes one when the APK bucket has no file named for that merge's reducer,
+lines and protocol versions and Android fingerprint
+(`.eas/workflows/deploy-to-testers.yml`, the `carried_*` jobs), uploads it
+to Play's alpha track as a draft, and `scripts/carried-build.mjs` fetches
+its Play-signed universal APK from Google (`generatedApks`) and puts it in
+the bucket, where the app's Worker serves it at
+`https://next.langquest.org/apk/<name>`. Until all of the below is done, the
+check fails with "the APK bucket is not configured" and nothing else
+happens; the store build and its updates go on as before.
+
+Once, as a person (agents may not do these):
+
+1. Before the merge, with the Play key, try `GET generatedApks` on a build
+   already in Play, to see that the key may read it and that Play gives one
+   universal APK for it. This only reads:
+
+   ```
+   npx dotenvx run -f .env.production -fk .env.keys --quiet -- node --input-type=module -e "
+   import { client, playKey } from './scripts/play-review.mjs';
+   const api = await client(playKey(process.env));
+   const a = await api('GET', '/generatedApks/<version code>');
+   console.log(JSON.stringify(a.generatedApks?.map((k) => ({ universal: Boolean(k.generatedUniversalApk?.downloadId) }))));"
+   ```
+
+   It should print `[{"universal":true}]`. A 403 means the service account
+   needs a further Play Console permission for app bundle downloads; more
+   than one entry means more than one signing key, which the script refuses.
+2. Create the buckets the Worker binds, before the merge, because a deploy
+   with a binding to a bucket that does not exist fails:
+   `npm run r2:buckets -- production` (and `preview`), which makes
+   `langquest-next-apks` (`langquest-next-apks-preview`) beside the
+   recordings bucket, private, with no r2.dev address.
+3. Cloudflare dashboard > R2 > Manage API tokens > Create Account API
+   token: Object Read & Write, applied to `langquest-next-apks` only. It
+   shows an Access Key ID and a Secret Access Key once. Enter each when
+   `env:update` asks (hidden), never as an argument, then apply them to EAS:
+
+   ```
+   npm run --silent env:update -- production APK_R2_ACCESS_KEY_ID
+   npm run --silent env:update -- production APK_R2_SECRET_ACCESS_KEY
+   npm run secrets -- production --only eas
+   ```
+
+   The token can read and write that one bucket and nothing else: not the
+   recordings, not the account.
+4. See what a publish would do, writing nothing, for the build of step 1
+   (it names the file with this checkout's versions):
+   `npx dotenvx run -f .env.production -fk .env.keys --quiet -- npx tsx
+   scripts/carried-build.mjs --publish --dry-run --version-code <code>
+   --fingerprint <its runtime version> --build-fingerprint <the same>`.
+
+Each run prints a line that starts with what it found:
+
+| Line | Means |
+| --- | --- |
+| `due:` | no file of this build's name is in the bucket, so the carried build runs |
+| `none:` | the file is there; nothing to build |
+| `no carried build:` | a setting or key is missing, or Google or the bucket answered something unexpected; the job failed and changed nothing. The next merge that changes the app checks again |
 
 ## Replacing a build in review
 

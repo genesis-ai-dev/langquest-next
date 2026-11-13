@@ -28,8 +28,8 @@ export type BarState =
   | null;
 
 /**
- * Waiting while anything is; "all uploaded" for a moment after the last of
- * it went up (`justEmptied`, which the bar times); otherwise nothing.
+ * Waiting while anything is; "all uploaded" once the last of it went up,
+ * until the screen changes (`justEmptied`, `DoneMark`); otherwise nothing.
  */
 export function barState(counts: WaitingCounts, offline: boolean, justEmptied: boolean): BarState {
   if (counts.recordings + counts.changes > 0) return { kind: 'waiting', counts, offline };
@@ -101,7 +101,7 @@ export function changeUnits(state: LanguageState | null, languageEvents: readonl
   return units;
 }
 
-/** How long "All uploaded" stays on the bar once the last thing went up. */
+/** The least time "All uploaded" stays on the bar once the last thing went up; it goes at the next move to another screen. */
 export const DONE_SHOWN_MS = 4000;
 
 /**
@@ -112,6 +112,26 @@ export const DONE_SHOWN_MS = 4000;
 export function emptiedStep(was: number, total: number): 'show' | 'hide' | 'keep' {
   if (total > 0) return 'hide';
   return was > 0 ? 'show' : 'keep';
+}
+
+/**
+ * "All uploaded" on the bar, from when the last of it went up (`at`) until
+ * the first move to another screen at least DONE_SHOWN_MS later. The bar
+ * sits above the screens, so as it goes every screen moves up by its height:
+ * going as the screen changes, it never moves one someone is using, where a
+ * tap aimed a moment before would land 52 pt low (decisions.md 166).
+ */
+export type DoneMark = { at: number } | null;
+
+/** The mark once what waits went from `was` to `total` at `now`. */
+export function doneAfterCount(done: DoneMark, was: number, total: number, now: number): DoneMark {
+  const step = emptiedStep(was, total);
+  return step === 'show' ? { at: now } : step === 'hide' ? null : done;
+}
+
+/** The mark once the person moved to another screen at `now`: gone if it has shown long enough, kept for the next move if not. */
+export function doneAfterMove(done: DoneMark, now: number): DoneMark {
+  return done && now - done.at >= DONE_SHOWN_MS ? null : done;
 }
 
 /** "3 recordings waiting to upload", or the changes when no recording waits. */

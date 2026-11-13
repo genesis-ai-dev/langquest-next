@@ -17,5 +17,6 @@ export function readOnlyOrg(org: OrgHandle): OrgHandle {
 }
 
 export function readOnlyLanguage(language: LanguageHandle): LanguageHandle {
-  return { ...language, append: refuse, appendMany: refuse, run: refuse };
+  // No exchange either: a nearby session would take teammates' events into this phone's log.
+  return { ...language, append: refuse, appendMany: refuse, run: refuse, nearby: () => null };
 }

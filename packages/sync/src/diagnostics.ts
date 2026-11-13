@@ -161,7 +161,17 @@ export const DIAG_CONTEXT = [
   'embedded', 'reducerVersion', 'protocolVersion'
 ] as const;
 
-export type DiagKind = keyof typeof DIAG_SCHEMA;
+/** One kind's fields: numbers by name, tags by name with their values or `token`. */
+export interface DiagSpec {
+  readonly n: readonly string[];
+  readonly t: Readonly<Record<string, readonly string[] | typeof TOKEN>>;
+}
+
+/**
+ * `nearby` is a phone's kind: its fields live in the nearby entry (`NEARBY_DIAG_SCHEMA`, nearbyDiag.ts),
+ * so the web carries none of them, and a recorder takes it with `Diagnostics.allow`.
+ */
+export type DiagKind = keyof typeof DIAG_SCHEMA | 'nearby';
 type DiagContextKey = (typeof DIAG_CONTEXT)[number];
 export type DiagContext = Partial<Record<DiagContextKey, string>>;
 
@@ -207,12 +217,13 @@ export function stackFrames(stack: string | undefined): string | undefined {
   return frames.length > 0 ? frames.join('\n') : undefined;
 }
 
-/** Apply the allowlist. Returns null when the record is not one we know how to keep. */
-export function sanitizeDiag(input: unknown): DiagRecord | null {
+/** Apply the allowlist, and `more`'s kinds beside it. Returns null when the record is not one we know how to keep. */
+export function sanitizeDiag(input: unknown, more: Readonly<Record<string, DiagSpec>> = {}): DiagRecord | null {
   if (!input || typeof input !== 'object') return null;
   const r = input as Record<string, unknown>;
   const kind = r.kind as DiagKind;
-  const spec = Object.prototype.hasOwnProperty.call(DIAG_SCHEMA, kind as string) ? DIAG_SCHEMA[kind] : undefined;
+  const own = (o: object) => Object.prototype.hasOwnProperty.call(o, kind);
+  const spec: DiagSpec | undefined = own(DIAG_SCHEMA) ? DIAG_SCHEMA[kind as keyof typeof DIAG_SCHEMA] : own(more) ? more[kind] : undefined;
   if (!spec || typeof r.id !== 'string' || !DIAG_TOKEN.test(r.id)) return null;
   if (typeof r.at !== 'number' || !Number.isFinite(r.at)) return null;
   const n: Record<string, number> = {};
@@ -223,7 +234,7 @@ export function sanitizeDiag(input: unknown): DiagRecord | null {
   }
   const t: Record<string, string> = {};
   const inT = (r.t ?? {}) as Record<string, unknown>;
-  for (const [key, allowed] of Object.entries(spec.t) as [string, readonly string[] | typeof TOKEN][]) {
+  for (const [key, allowed] of Object.entries(spec.t)) {
     const v = inT[key];
     if (typeof v !== 'string') continue;
     if (allowed === TOKEN ? DIAG_TOKEN.test(v) : allowed.includes(v)) t[key] = v;
@@ -379,6 +390,7 @@ export class Diagnostics {
   private readonly o: Required<Pick<DiagnosticsOptions, 'tallyWindowMs' | 'tallyMaxCount' | 'hourlyWindowMs'>>;
   private writes: Promise<void> = Promise.resolve();
   private droppedSinceTaken = 0;
+  private readonly more: Record<string, DiagSpec> = {};
 
   constructor(private readonly opts: DiagnosticsOptions) {
     this.now = opts.now ?? (() => Date.now());
@@ -400,10 +412,15 @@ export class Diagnostics {
     return this.enabled;
   }
 
+  /** Kinds a platform adds beside `DIAG_SCHEMA` (Android's `nearby`); the server's allowlist holds them too. */
+  allow(kinds: Readonly<Record<string, DiagSpec>>): void {
+    Object.assign(this.more, kinds);
+  }
+
   /** Record something. Never throws, never blocks the caller. */
   record(kind: DiagKind, input: DiagInput = {}): void {
     if (!this.enabled) return;
-    const clean = sanitizeDiag({ ...input, id: this.opts.newId(), kind, at: this.now() });
+    const clean = sanitizeDiag({ ...input, id: this.opts.newId(), kind, at: this.now() }, this.more);
     if (!clean) return;
     this.writes = this.writes
       .then(async () => { this.droppedSinceTaken += (await this.opts.store.addDiag(clean, this.max)) || 0; })

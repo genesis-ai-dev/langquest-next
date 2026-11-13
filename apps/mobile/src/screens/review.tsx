@@ -29,7 +29,7 @@
 // the saved mark in the header. Back and ✕ leave and keep it; opening the
 // same review again brings it back where it was left; sending it drops it.
 import {
-  checkShows, commands, helpNotesFor, keyTermLinksFor, keyTermsFor, languageName, notePart as notePartOf, questionsForKind, RECORD_STEP, SHOWN,
+  newCommandId, checkShows, commands, helpNotesFor, keyTermLinksFor, keyTermsFor, languageName, notePart as notePartOf, questionsForKind, RECORD_STEP, SHOWN,
   type Card as AudioCard, type EventSpec, type KindDef, type NoteAnchor, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -341,7 +341,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     const live = ctx.language.state;
     if (!live || !v || !version || !kind || busy) return;
     const state = live;
-    const cmd = Crypto.randomUUID();
+    const commandId = newCommandId(ctx.session.actorId, Crypto.randomUUID());
     const c = commands(state, indexesFor(state));
     // What was said about what should change goes with Looks good only when the reviewer says so.
     const text = opts.withoutSaid ? '' : comment.trim();
@@ -354,7 +354,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     try {
       if (!logged) {
         specs = c.recordReview({
-          commandId: cmd, takeIds: [version.takeId], kindId: kind.id, outcome: outcome === 'needs_changes' ? 'needs_changes' : 'looks_good', via: 'app',
+          commandId, takeIds: [version.takeId], kindId: kind.id, outcome: outcome === 'needs_changes' ? 'needs_changes' : 'looks_good', via: 'app',
           ...(text ? { comment: text } : {}), ...(commentHash ? { commentBlobHash: commentHash } : {}),
           ...(cleanA ? { answers: cleanA } : {}), ...(cleanS ? { skipped: cleanS } : {}), ...(request ? { requestId: request.id } : {}),
           ...(people > 0 ? { people } : {}), ...(place.trim() ? { place: place.trim() } : {}), ...(artifacts.length ? { artifacts } : {})
@@ -375,11 +375,11 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         const req = requestFor(v.p, kind.id, actorId, { mineOnly: true });
         specs = makes
           ? c.produceContent({
-            commandId: cmd, fromTakeId: version.takeId, kindId: kind.id, cards: made, via: 'logged',
+            commandId, fromTakeId: version.takeId, kindId: kind.id, cards: made, via: 'logged',
             ...(text ? { note: text } : {}), ...(commentHash ? { noteBlobHash: commentHash } : {}), ...shared, ...(req ? { requestId: req.id } : {})
           })
           : c.recordReview({
-            commandId: cmd, takeIds: [version.takeId], kindId: kind.id, outcome: outcome === 'needs_changes' ? 'needs_changes' : 'looks_good', via: 'logged',
+            commandId, takeIds: [version.takeId], kindId: kind.id, outcome: outcome === 'needs_changes' ? 'needs_changes' : 'looks_good', via: 'logged',
             ...(text ? { comment: text } : {}), ...(commentHash ? { commentBlobHash: commentHash } : {}), ...shared,
             ...(artifacts.length ? { artifacts } : {}), ...(req ? { requestId: req.id } : {})
           });
@@ -390,7 +390,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       const sent = specs.find((sp) => sp.type === 'v1.ReviewRecorded')?.payload as { reviewId: string } | undefined;
       if (sent) {
         specs = [...specs, ...notes.flatMap((n, i) => c.addNote({
-          commandId: `${cmd}:note:${i}`, unitId: v.unitId, anchor: n.anchor, kindId: kind.id, reviewId: sent.reviewId,
+          commandId: `${commandId}:note:${i}`, unitId: v.unitId, anchor: n.anchor, kindId: kind.id, reviewId: sent.reviewId,
           ...(n.text ? { text: n.text } : {}), ...(n.hash ? { blobHash: n.hash } : {})
         }))];
       }
@@ -401,7 +401,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           if (sp.type !== 'v1.ReviewRecorded') return [];
           const p = sp.payload as { reviewId: string; takeId: string };
           if (state.takes[p.takeId]?.unitId !== v.unitId) return [];
-          return c.referencesUsed({ commandId: cmd, unitId: v.unitId, reviewId: p.reviewId, items: used });
+          return c.referencesUsed({ commandId, unitId: v.unitId, reviewId: p.reviewId, items: used });
         })];
       }
     } catch (e) {

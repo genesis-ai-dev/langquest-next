@@ -185,6 +185,13 @@ function installLines(install: string, x: InstallSummary & { roles?: string; lan
   }
   if (x.audio) out.push(`- audio: ${Object.entries(x.audio).filter(([, n]) => n).map(([k, n]) => `${k} ${k.endsWith('Ms') ? s(n) : n}`).join(', ')}`);
   for (const g of x.auth ?? []) out.push(`- auth ${g.op}${g.action ? `/${g.action}` : ''}: ${g.outcome}${g.code ? ` (${g.code})` : ''} ×${g.count}, last ${g.lastAt}${g.last ? ` ${JSON.stringify(g.last)}` : ''}`);
+  if (x.nearby) {
+    const n = x.nearby;
+    const rt = n.roomTotals ?? {};
+    out.push(`- share nearby: ${n.rooms?.length ?? 0} rooms (last ${n.lastAt ?? '?'}), stopped ${(n.rooms ?? []).map((r) => r.stop).join(', ') || '-'}; heard ${rt.heard ?? 0}, echoed ${rt.echoed ?? 0}, taps ${rt.taps ?? 0}/${rt.maybe ?? 0}, pipes failed ${rt.pipeFails ?? 0}, strangers ${rt.strangers ?? 0}`);
+    if (n.sessionTotals) out.push(`- nearby sessions: ${n.sessionTotals.count ?? 0}, ended ${JSON.stringify(n.ends ?? {})}, links ${JSON.stringify(n.links ?? {})}, fallbacks ${n.sessionTotals.fallbacks ?? 0}; events ${n.sessionTotals.events ?? 0} in, ${n.sessionTotals.sent ?? 0} out; files ${n.sessionTotals.files ?? 0} in, ${n.sessionTotals.served ?? 0} out, ${n.sessionTotals.fileFails ?? 0} failed`);
+    if (n.codes || n.blocked) out.push(`- nearby codes ${JSON.stringify(n.codes ?? {})}${n.blocked ? `, could not run ${JSON.stringify(n.blocked)}` : ''}`);
+  }
   for (const e of x.expected ?? []) out.push(`- expected: ${e.count}× "${e.where}" ${e.name}${e.code ? ` (${e.code})` : ''}, last ${e.lastAt}`);
   for (const e of x.errors ?? []) out.push(`- error: ${e.count}× ${e.name}${e.code ? ` (${e.code})` : ''} at "${e.where}", latest ${e.lastErrorId}`);
   return out;

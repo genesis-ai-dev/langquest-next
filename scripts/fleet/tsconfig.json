@@ -2,7 +2,7 @@
   "extends": "../../packages/core/tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "paths": { "@langquest-next/core": ["../../packages/core/src/index.ts"] }
+    "paths": { "@langquest-next/core": ["../../packages/core/src/index.ts"], "@langquest-next/core/nearby": ["../../packages/core/src/nearby.ts"] }
   },
   "include": ["*.ts", "scenarios/*.ts"]
 }

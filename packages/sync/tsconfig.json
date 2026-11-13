@@ -1,7 +1,7 @@
 {
   "extends": "../core/tsconfig.json",
   "compilerOptions": {
-    "paths": { "@langquest-next/core": ["../core/src/index.ts"] }
+    "paths": { "@langquest-next/core": ["../core/src/index.ts"], "@langquest-next/core/nearby": ["../core/src/nearby.ts"] }
   },
   "include": ["src", "test"]
 }

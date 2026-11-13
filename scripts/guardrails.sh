@@ -40,6 +40,18 @@ else
   echo "! could not fetch origin/main; skipped"
 fi
 
+# CI and Cloudflare run the Node in .node-version and its npm 11 (decisions.md
+# 246). An older Node or npm here can pass what fails there, or rewrite the
+# lockfile in a shape CI refuses, so this stops on a different major.
+step "Is this the Node and npm that CI uses?"
+want=$(cat .node-version)
+if [ "$(node -p 'process.versions.node.split(".")[0]')" != "${want%%.*}" ] || [ "$(npm -v | cut -d. -f1)" != 11 ]; then
+  echo "x this shell has Node $(node -v) and npm $(npm -v); CI uses Node $want and npm 11."
+  echo "  Install Node $want (a version manager reads .node-version), then run npm ci."
+  exit 1
+fi
+[ "$(node -v)" = "v$want" ] && echo "yes" || echo "yes, Node $(node -v) (CI pins v$want)"
+
 step "Typecheck"
 npm run --silent typecheck
 
