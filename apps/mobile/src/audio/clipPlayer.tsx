@@ -9,7 +9,7 @@
 // Until sound comes, its button shows a spinner in place of Pause.
 import { isStored, recordedDurationMs } from '@langquest-next/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { PanResponder, Platform, Pressable, StyleSheet, View, type AccessibilityActionEvent, type LayoutChangeEvent } from 'react-native';
+import { PanResponder, Platform, Pressable, StyleSheet, View, type AccessibilityActionEvent, type KeyDownEvent, type LayoutChangeEvent } from 'react-native';
 import { Text } from '../ui/text';
 import { audioFormat } from './audioFormat';
 import { clipsAvailable } from './clipsAvailable';
@@ -294,11 +294,11 @@ export function ClipPlayer(props: {
   const stepBy = (seconds: number) => void seekRef.current(Math.max(0, Math.min(totalRef.current, elapsed + seconds)));
   const onAction = (e: AccessibilityActionEvent) => stepBy(e.nativeEvent.actionName === 'increment' ? 10 : -10);
   const keys = Platform.OS === 'web' ? {
-    onKeyDown: (e: { key: string; preventDefault(): void }) => {
-      const to = { ArrowRight: 10, ArrowUp: 10, ArrowLeft: -10, ArrowDown: -10 }[e.key];
+    onKeyDown: (e: KeyDownEvent) => {
+      const to = { ArrowRight: 10, ArrowUp: 10, ArrowLeft: -10, ArrowDown: -10 }[e.nativeEvent.key];
       if (to !== undefined) { e.preventDefault(); stepBy(to); }
-      else if (e.key === 'Home') { e.preventDefault(); void seekRef.current(0); }
-      else if (e.key === 'End') { e.preventDefault(); void seekRef.current(totalRef.current); }
+      else if (e.nativeEvent.key === 'Home') { e.preventDefault(); void seekRef.current(0); }
+      else if (e.nativeEvent.key === 'End') { e.preventDefault(); void seekRef.current(totalRef.current); }
     }
   } : {};
   const share = total > 0 ? Math.min(1, elapsed / total) : 0;

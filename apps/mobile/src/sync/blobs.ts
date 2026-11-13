@@ -586,7 +586,7 @@ export class BlobStore {
       const dest = this.fileFor(ref);
       if (!dest.exists) {
         dest.create({ overwrite: true });
-        dest.write(bytes);
+        dest.writeSync(bytes);
       }
     }
     this.markPresent(hash, bytes.byteLength, format);

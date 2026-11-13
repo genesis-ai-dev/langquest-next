@@ -105,7 +105,7 @@ async function toDisk(hash: string, text: string, made = false): Promise<void> {
   if (!DIR) return;
   ensureDir();
   const file = new File(DIR, `${hash}.json`);
-  if (!file.exists) file.write(text);
+  if (!file.exists) file.writeSync(text);
 }
 
 /** A document's text as kept here, or null: what a starting copy sends a newcomer (docs/nearby-sync-plan.md 14.1, 4). Phones only. */

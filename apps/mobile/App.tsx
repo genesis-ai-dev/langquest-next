@@ -675,8 +675,10 @@ function OrgWork(props: Who & {
                 rather than drawing screens underneath it. */}
             <View style={{ flex: 1, overflow: 'hidden' }}>
             {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166) and Share
-                nearby, where its tap would push Sync over the radios (docs/nearby-sync-plan.md 5.8). */}
-            {screen === 'sync_status' || screen === 'share_nearby' ? null : <UploadBar ctx={ctx} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
+                nearby, where its tap would push Sync over the radios (docs/nearby-sync-plan.md 5.8). It goes only as
+                the top route changes, so it never moves the screen below it while someone uses it. */}
+            {screen === 'sync_status' || screen === 'share_nearby' ? null
+              : <UploadBar ctx={ctx} screenKey={nav.current.key ?? screen} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
             <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
               <Stack.Navigator

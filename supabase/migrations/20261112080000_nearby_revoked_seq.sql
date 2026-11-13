@@ -1,5 +1,5 @@
 -- A revocation list's number only goes up (security review, 2026-11-10;
--- docs/nearby-sync-plan.md 5.12, Revocation; decision 221).
+-- docs/nearby-sync-plan.md 5.12, Revocation; decision 222).
 --
 -- A new row's seq was max(seq) + 1, and revocations go with a deleted account
 -- (on delete cascade, 20261112050000_nearby_join.sql), so when the deleted

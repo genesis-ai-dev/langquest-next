@@ -1,7 +1,7 @@
 /**
  * The `sub` of an access token, for a check every client makes at sign-in (server/auth.ts), apart
  * from firstContactModel.ts so the web, which never has a local person, need not load that (the
- * web budget, decision 232). Pure.
+ * web budget, decision 233). Pure.
  */
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);

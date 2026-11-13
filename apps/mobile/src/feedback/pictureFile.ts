@@ -9,7 +9,7 @@
 // by shrinkPicture, with the same react-native-view-shot that takes the
 // screenshot. The web picks and shrinks in the browser (pictureFile.web.ts).
 import { File } from 'expo-file-system';
-import { Image, PixelRatio, Platform, type View } from 'react-native';
+import { Image, PixelRatio, Platform, type ViewInstance } from 'react-native';
 import { CAPTURE_MS, PICTURE_BYTES, PICTURE_QUALITIES, pictureFits, pictureSize } from './feedbackModel';
 
 /** Whether this phone offers Add a picture: Android, whose store answers already cover photos; not iPhones. */
@@ -29,7 +29,7 @@ export async function choosePicture(): Promise<ChosenPicture | null> {
 }
 
 /** The picture as shown in `view` (`shown` points), as a JPEG that fits; null when it could not be drawn small enough. */
-export async function shrinkPicture(view: View, shown: { width: number; height: number }): Promise<string | null> {
+export async function shrinkPicture(view: ViewInstance, shown: { width: number; height: number }): Promise<string | null> {
   const { captureRef } = await import('react-native-view-shot');
   const ratio = PixelRatio.get();
   const size = pictureSize({ width: shown.width * ratio, height: shown.height * ratio });

@@ -8,7 +8,7 @@ import { setupBlobs } from './blob-upload';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { clientAs, localServer, send, signIn } from './fixture';
-import { button, byId, enterPassage, expect, expectStill, languageArrived, openAs, screenText, tab, text, waitForApp, type AccountKey, type PassageKey, type UiWorld } from './support';
+import { button, byId, enterPassage, expect, expectStill, languageArrived, openAs, screenBelowBar, screenText, tab, text, waitForApp, type AccountKey, type PassageKey, type UiWorld } from './support';
 
 const visible = (l: Locator) => l.locator('visible=true');
 
@@ -342,9 +342,9 @@ export async function expand(page: Page, title: string, shown?: string | RegExp)
 }
 
 /**
- * My Work's whole text, after pulling from the server. Names come with the
- * organization a moment after the list, so it waits for the text to settle
- * (and, with `until`, for that text to show).
+ * My Work's whole text (below the upload bar), after pulling from the server.
+ * Names come with the organization a moment after the list, so it waits for
+ * the text to settle (and, with `until`, for that text to show).
  */
 export async function myWork(page: Page, until?: string | RegExp): Promise<string> {
   await reloadApp(page);
@@ -352,7 +352,7 @@ export async function myWork(page: Page, until?: string | RegExp): Promise<strin
   // The app reopens on the section it was on, and may put it back as it loads: tap Work until My Work stays.
   let last = '';
   await expect.poll(async () => {
-    let now = await screenText(page);
+    let now = await screenBelowBar(page);
     if (!now.startsWith('My Work')) {
       await tab(page, 'work').click({ timeout: 5_000 }).catch(() => {});
       now = '';

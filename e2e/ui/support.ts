@@ -193,6 +193,21 @@ export async function screenText(page: Page): Promise<string> {
   return (await page.locator('body').innerText()).replace(/\s+/g, ' ');
 }
 
+/**
+ * The screen's visible text without the upload bar above it. The bar sits
+ * above every screen and says "All uploaded" until the next one (decisions.md
+ * 166), so a screen's heading need not start the page.
+ */
+export async function screenBelowBar(page: Page): Promise<string> {
+  const [all, bar] = await page.evaluate(() => [
+    document.body.innerText,
+    (document.querySelector('[data-testid="upload-bar"]') as HTMLElement | null)?.innerText ?? ''
+  ]);
+  const squash = (t: string) => t.replace(/\s+/g, ' ').trim();
+  const [whole, above] = [squash(all), squash(bar)];
+  return above && whole.startsWith(above) ? whole.slice(above.length).trimStart() : whole;
+}
+
 /** Ask the app to sync now, as pulling down or Sync now does, through the same screen a person uses. */
 export async function syncNow(page: Page): Promise<void> {
   await page.evaluate(() => (globalThis as { __langquestSyncNow?: () => Promise<void> }).__langquestSyncNow?.());

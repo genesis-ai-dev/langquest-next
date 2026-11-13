@@ -145,17 +145,17 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // 2026-11-09), 250 bytes past then: the store every client opens steps a write through prepare, run
 // and finalize, each asked again, so expo-modules-core's unlocked lookup cannot drop or repeat it.
 // Raised by 3 KB with getting and checking the install file on Let someone in (Carl, 2026-11-09,
-// decision 245 as amended), 2,900 bytes past then: the first visit's growth below, and the install
+// decision 246 as amended), 2,900 bytes past then: the first visit's growth below, and the install
 // file part, its rules and the stub the web takes for its hook in the nearby chunk, which the web
 // never opens; the browser link, the meta row and the file picker stay in .android files.
-// Raised by 3 KB with Get the install file split from Let someone in (Carl, 2026-11-09, decision 245
+// Raised by 3 KB with Get the install file split from Let someone in (Carl, 2026-11-09, decision 246
 // amended again), 2,845 bytes past then: the new screen, Share nearby's second row and Let someone
 // in's line in the nearby chunk, which the web never opens; the words in all 16 catalogs; and the
 // screen's id and edges in the flow. A first visit stays under its own budget (163 bytes left).
 // Raised by 1 KB with Share nearby's two jobs (Carl, 2026-11-09), 689 bytes past then: the first
 // visit's growth below, and the two headed sections and the Sync row's rule in the nearby chunk,
 // which the web never opens.
-// Raised by 2 KB with the Sync reminders to get the install file (Carl, 2026-11-09, decision 245
+// Raised by 2 KB with the Sync reminders to get the install file (Carl, 2026-11-09, decision 246
 // amended again), 1,189 bytes past then: the first visit's growth below, and the reminder's rule
 // in the model the nearby chunk carries, which the web never opens.
 // Raised by 5 KB with the fixes from the two-emulator test and main merged in (Carl, 2026-11-09),
@@ -167,7 +167,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised by 15 KB with main merged in (Carl, 2026-11-12), 13,852 bytes past then: main's
 // organization export sheet and recorded key-term examples, whose own budget main kept at
 // 4.9 MB; with nearby sync's chunks they no longer fit the branch's.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 65 * 1024;
+// Raised by 50 KB with Expo SDK 58 (Carl, 2026-11-11, decision 250), 50,620 bytes past then:
+// the first visit's growth below, which every chunk counts too.
+// Both raises together with nearby sync merged in (Carl, 2026-11-12): the upgrades come to 49,438
+// bytes over nearby sync's 65 KB, 1,762 bytes under the two together.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 115 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -197,7 +201,7 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 65 * 1024;
 // Raised by 1 KB with Remove me from this phone and a helper's code for a local person (Carl,
 // 2026-11-08), 23 bytes past then: their English words in the catalog every visit carries.
 // Raised by 2 KB with getting and checking the install file on Let someone in (Carl, 2026-11-09,
-// decision 245 as amended), 1,054 bytes past then: its English words (the download, the name
+// decision 246 as amended), 1,054 bytes past then: its English words (the download, the name
 // check, a file too old, and both phones' words on a version refusal) in the catalog every visit
 // carries; the screen loads when opened.
 // Raised by 1 KB with Share nearby's two jobs (Carl, 2026-11-09), 255 bytes past then: their
@@ -226,7 +230,18 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 65 * 1024;
 // the token check left firstContactModel.ts (1.9 KB, now tokenModel.ts).
 // Raised by 5 KB with main merged in (Carl, 2026-11-12), 4,024 bytes past then: main's
 // organization export and recorded key-term examples above, on top of nearby sync's budget.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 19 * 1024;
+// Raised by 20 KB with the library upgrades (Carl, 2026-11-11), 20,164 bytes past then, measured
+// package by package from the source maps: lucide-react-native 1.52 to 1.70 (7.6 KB), i18next 26.4
+// to 26.7 (6.6 KB), React Navigation 7.20 to 7.21 (2.2 KB), supabase-js 2.117 to 2.119 (1.9 KB) and
+// react-i18next 17.0 to 17.1 (1.5 KB). All the chunks together came out 1.9 KB smaller.
+// Raised by 52 KB with Expo SDK 58 (Carl, 2026-11-11, decision 250), 52,380 bytes past then, by
+// package from the source maps: React DOM 19.2 to 19.3 (28.5 KB), react-native-svg 15.15 to 15.16
+// (5.5 KB), expo (3.4 KB), expo-audio (2.2 KB), expo-sqlite (1.5 KB), safe-area-context (1.4 KB),
+// expo-file-system (1.3 KB), expo-status-bar (1.1 KB) and React Navigation under React 19.3 (1.5 KB).
+// None of it is the app's code.
+// Both raises together with nearby sync merged in (Carl, 2026-11-12): the upgrades come to 72,051
+// bytes over nearby sync's 19 KB, 1,677 bytes under the two together.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 91 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

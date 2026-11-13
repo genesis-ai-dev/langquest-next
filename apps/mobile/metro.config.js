@@ -59,6 +59,18 @@ config.server.enhanceMiddleware = (middleware) => (req, res, next) => {
   middleware(req, res, next);
 };
 
+// react-native-screens freezes the screens under the top one with
+// react-freeze (`freezeOnBlur`, decision 119). Its 1.0.4 loops on React 19.1
+// and later (software-mansion/react-freeze#44): the app gets a mended
+// `Freeze` instead (src/shell/freeze.tsx, decision 251), until react-freeze
+// publishes the fix (test/freezeShim.test.ts says when).
+const FREEZE = path.join(__dirname, 'src/shell/freeze.tsx');
+const resolveBefore = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === 'react-freeze') return { type: 'sourceFile', filePath: FREEZE };
+  return (resolveBefore ?? context.resolveRequest)(context, moduleName, platform);
+};
+
 // A build of its own cache: Expo writes EXPO_PUBLIC_* values into each file
 // as Metro transforms it, and Metro's cache does not know a value changed,
 // so a release build could reuse a file transformed with other settings.

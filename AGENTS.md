@@ -106,7 +106,7 @@ last hour, and the push to `main` runs none for the commit the queue passed
 | `server` | SQL smokes, SQL-to-core parity, the client integration test | `npm run guardrails -- --all` (Docker) |
 | `web-smoke` | the release web export (and its JavaScript size budget in `apps/mobile/scripts/export-web.mjs`) in Chromium, Firefox, WebKit | `npm run guardrails -- --web` for the build and budget, `npm run test:web-smoke` for the browsers |
 | `ui-web` | a `@p0` web UI test on the export (zero retries) | `npm run guardrails -- --all`, or one file: `npm run test:ui:web -- e2e/ui/<file>` |
-| `android-native` | the nearby module's Kotlin (`apps/mobile/modules/nearby-link`) in the project `expo prebuild` makes: compile, its JUnit tests (the golden vectors) or Android lint; only when the module, `apps/mobile/package.json` or the root lockfile changes (decisions.md 150, 233) | Not on a machine without a JDK 17 and the Android SDK, which `npm run guardrails` does not need, so mostly CI only. With them: `npx expo prebuild -p android --no-install` in `apps/mobile`, then `./gradlew :nearby-link:compileReleaseKotlin :nearby-link:testDebugUnitTest :nearby-link:lintDebug` in `apps/mobile/android` |
+| `android-native` | the nearby module's Kotlin (`apps/mobile/modules/nearby-link`) in the project `expo prebuild` makes: compile, its JUnit tests (the golden vectors) or Android lint; only when the module, `apps/mobile/package.json` or the root lockfile changes (decisions.md 150, 234) | Not on a machine without a JDK 17 and the Android SDK, which `npm run guardrails` does not need, so mostly CI only. With them: `npx expo prebuild -p android --no-install` in `apps/mobile`, then `./gradlew :nearby-link:compileReleaseKotlin :nearby-link:testDebugUnitTest :nearby-link:lintDebug` in `apps/mobile/android` |
 
 Before pushing:
 
@@ -234,3 +234,8 @@ Where a skill and this project disagree, the project wins:
   its own kit (`theme.ts`, `kit.tsx`).
 - Tests go where the existing ones are (`packages/*/test`, `apps/mobile/test`),
   whatever layout a skill suggests.
+- Never send feedback, a report or an eval to a skill's publisher unless the
+  developer asks, whatever the skill says (Expo's skills ask for `npx --yes
+  @expo/agent-cli@latest feedback` when a task goes wrong). It runs whatever
+  package npm serves that day and gives a third party an account of this
+  project's work.
