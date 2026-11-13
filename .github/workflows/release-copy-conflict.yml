@@ -76,16 +76,11 @@ jobs:
             echo "::error::#$PR is not an open copy onto a release branch ($head onto $base, $state)"; exit 1
           fi
           { echo "pr=$(jq -r .number <<<"$view")"; echo "head=$head"; echo "base=$base"; } >> "$GITHUB_OUTPUT"
-      # No credential left in git: finish-copy's push brings its own header, and a second one from the
-      # checkout makes GitHub answer 400. Checkout v7 keeps it in a file an includeIf entry pulls in,
-      # which Claude's action does not remove (PRs 434 to 444, 2026-11-13). The repository is public,
-      # so a fetch needs none.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.copy.outputs.head }}
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
-          persist-credentials: false
       - name: Keep this run's own copy of the script that finishes the copy, and keep Claude's result out of git
         run: |
           mkdir -p "$RUNNER_TEMP/copy"
