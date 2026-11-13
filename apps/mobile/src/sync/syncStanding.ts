@@ -2,18 +2,18 @@
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 
-export type SyncStanding = 'live' | 'checking' | 'offline' | 'refused' | 'tooOld';
+export type SyncStanding = 'live' | 'checking' | 'offline' | 'refused' | 'tooOld' | 'signIn';
 
 /**
  * An app below the minimum version is its own standing, not "refused" (UI
  * audit, finding 119): its own work still goes out, nothing new comes in,
  * and Update is the way on. An account the server refused outranks it.
  */
-export function syncStanding(p: Ctx['language']): SyncStanding {
+export function syncStanding(p: Ctx['language'], signInBlocked = false): SyncStanding {
   if (p.refused) return 'refused';
   if (p.tooOld) return 'tooOld';
   if (p.refusedEvents > 0) return 'refused';
-  if (p.online === false) return 'offline';
+  if (p.online === false) return signInBlocked ? 'signIn' : 'offline';
   return p.live ? 'live' : 'checking';
 }
 
@@ -31,7 +31,7 @@ export function standingIcon(s: SyncStanding): 'onPhone' | 'cloud' | 'notOnPhone
 /** The state in a word or two ("Live", "Offline"), the button's spoken name. */
 export function standingTitle(s: SyncStanding): string {
   return s === 'live' ? t('account.sync.standing.live') : s === 'offline' ? t('account.sync.standing.offline')
-    : s === 'checking' ? t('account.sync.standing.checking') : s === 'tooOld' ? t('account.sync.standing.tooOld') : t('account.sync.standing.refused');
+    : s === 'signIn' ? t('account.sync.standing.signIn') : s === 'checking' ? t('account.sync.standing.checking') : s === 'tooOld' ? t('account.sync.standing.tooOld') : t('account.sync.standing.refused');
 }
 
 export let previewCount: number | null = null;
@@ -55,11 +55,13 @@ export function previewSyncRing() {
 
 /**
  * What the sync icon counts. Its number and name say what this device holds for the server
- * (events, language and organization, and recordings not yet uploaded); its ring turns for
+ * (events, language and organization, and recordings not yet uploaded, a teammate's held here
+ * among them, since this phone would upload them: docs/nearby-sync-plan.md 5.8; the sign-out
+ * check counts only the person's own, `pendingUp`); its ring turns for
  * anything in flight, recordings still coming down too, so a phone that is still receiving
  * never looks done. The Sync screen splits the two ("To send", "To receive").
  */
-export function iconCounts(s: { pending: number; orgPending: number; pendingUp: number; pendingDown: number }): { toSend: number; inFlight: number } {
-  const toSend = s.pending + s.orgPending + s.pendingUp;
+export function iconCounts(s: { pending: number; orgPending: number; pendingUp: number; pendingDown: number; holding: number }): { toSend: number; inFlight: number } {
+  const toSend = s.pending + s.orgPending + s.pendingUp + s.holding;
   return { toSend, inFlight: toSend + s.pendingDown };
 }

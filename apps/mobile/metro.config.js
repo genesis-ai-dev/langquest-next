@@ -36,8 +36,9 @@ config.watcher = {
   additionalExts: (config.watcher?.additionalExts ?? []).filter((ext) => !envExts.has(ext))
 };
 config.resolver.assetExts.push('wasm');
-// In development the browser fetches the other languages' words from here;
-// an export copies them beside the page (src/i18n/catalogs.web.ts).
+// In development the browser fetches the other languages' words from here,
+// with nearby sync's merged in; an export copies them beside the page
+// (src/i18n/catalogs.web.ts, scripts/export-web.mjs).
 const path = require('node:path');
 const fs = require('node:fs');
 config.server.enhanceMiddleware = (middleware) => (req, res, next) => {
@@ -47,12 +48,27 @@ config.server.enhanceMiddleware = (middleware) => (req, res, next) => {
   if (catalog) {
     const file = path.join(__dirname, 'src/i18n', `${catalog[1]}.json`);
     if (fs.existsSync(file)) {
+      const words = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const nearby = path.join(__dirname, 'src/nearby/i18n', `${catalog[1]}.json`);
+      if (fs.existsSync(nearby)) Object.assign(words, JSON.parse(fs.readFileSync(nearby, 'utf8')));
       res.setHeader('Content-Type', 'application/json');
-      res.end(fs.readFileSync(file));
+      res.end(JSON.stringify(words));
       return;
     }
   }
   middleware(req, res, next);
+};
+
+// react-native-screens freezes the screens under the top one with
+// react-freeze (`freezeOnBlur`, decision 119). Its 1.0.4 loops on React 19.1
+// and later (software-mansion/react-freeze#44): the app gets a mended
+// `Freeze` instead (src/shell/freeze.tsx, decision 251), until react-freeze
+// publishes the fix (test/freezeShim.test.ts says when).
+const FREEZE = path.join(__dirname, 'src/shell/freeze.tsx');
+const resolveBefore = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === 'react-freeze') return { type: 'sourceFile', filePath: FREEZE };
+  return (resolveBefore ?? context.resolveRequest)(context, moduleName, platform);
 };
 
 // A build of its own cache: Expo writes EXPO_PUBLIC_* values into each file

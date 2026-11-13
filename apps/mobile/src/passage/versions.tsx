@@ -6,7 +6,7 @@
 // published ones are deleted by whoever published them (LAN-83). Deleting
 // a draft or a version asks first (ConfirmDelete). The footer starts a new
 // version from nothing. The record's history follows.
-import { canDeleteVersion, commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
+import { newCommandId, canDeleteVersion, commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
 import { deleteVersion } from './deleteVersion';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import * as Crypto from 'expo-crypto';
@@ -65,7 +65,7 @@ export function VersionsPage(props: {
   const remove = (d: DraftView, name: string) => {
     let specs;
     try {
-      specs = commands(state, indexesFor(state)).deleteDraft({ commandId: Crypto.randomUUID(), unitId, takeId: d.takeId, actorId: me });
+      specs = commands(state, indexesFor(state)).deleteDraft({ commandId: newCommandId(me, Crypto.randomUUID()), unitId, takeId: d.takeId, actorId: me });
     } catch (e) {
       ctx.toast(t('passage.versions.notDeleted', { reason: failureMessage('versions: delete draft', e) }), 'problem');
       return;

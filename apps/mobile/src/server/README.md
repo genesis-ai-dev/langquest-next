@@ -12,5 +12,12 @@ area: `auth`, `account`, `invites`, `library`, `languages`, `moderation`,
 `notifications`, `reference`, `diagnostics`, `globalViewer` (decisions.md
 158), `v2`, `personas` (dev builds),
 `handOver` (sessions kept for a shared phone), `sync` (the transport the
-streams use), `reachability` (whether the server answers, decision 166) and
-`blobTransport`.
+streams use), `reachability` (whether the server answers, decision 166),
+`blobTransport`, and for nearby sync (decisions.md 217 to 223) `nearby` (the
+Worker's certificate and attestation routes), `nearbyKey` (the install key,
+Android only behind `nearbyKey.android.ts`), `nearbySecrets` (the
+Keystore names, and each person's discovery keys, which `lock` seals),
+`localPerson` (joining offline's local person, kept outside any session,
+Android only behind `localPerson.android.ts`), and `carriedApk` (the Worker
+address of the carried build's install file, which Get the install file
+opens in the phone's browser; the app itself requests nothing there).

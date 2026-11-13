@@ -60,7 +60,7 @@ jobs:
       HAS_CLAUDE_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}
     steps:
       - id: token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
@@ -76,7 +76,7 @@ jobs:
             echo "::error::#$PR is not an open copy onto a release branch ($head onto $base, $state)"; exit 1
           fi
           { echo "pr=$(jq -r .number <<<"$view")"; echo "head=$head"; echo "base=$base"; } >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.copy.outputs.head }}
           fetch-depth: 0
@@ -95,7 +95,7 @@ jobs:
           PR: ${{ steps.copy.outputs.pr }}
         run: node scripts/release-branches.mjs conflict-note --branch "$HEAD" --pr "$PR"
       - id: claude
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
         if: env.HAS_CLAUDE_KEY == 'true'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

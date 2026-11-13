@@ -12,6 +12,8 @@
 import { OrgName } from '../verified/VerifiedSeal';
 import { signInName } from '../auth/accounts';
 import { readHelp, type SignInHelp } from '../auth/signInHelp';
+import { lostPhoneRowShown } from '../auth/model';
+import { askResetLink } from '../auth/signInFlow';
 import { decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useState } from 'react';
@@ -41,6 +43,7 @@ import { txt } from '../ui/textStyles';
 import { storeUrl } from '../appVersion/appVersionModel';
 import { belowMinimum } from '../appVersion/syncGate';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
+import { RemoveMeRow } from '../shell/RemoveMeRow';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
@@ -56,11 +59,17 @@ import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
 import { useLockWays } from '../auth/useLockWays';
 import { LOCKS_ON_SIGN_OUT, lockAndSignOut, rememberPassword, setAccountPassword, setLockPattern, signOutThisDevice } from '../account/accountAuth';
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
+import { useLocalPerson } from '../shell/useLocalPerson';
+import { membershipOf } from '../session/localPersonModel';
+import { firstContactOpen } from '../session/identityModel';
+import { firstContactWords } from '../session/firstContactWords';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
 import { AppIconRow } from '../shell/AppIconRow';
+import { NearbyRow } from '../shell/NearbyRow';
 import { useNotificationsOffered } from '../shell/useNotificationsOffered';
 import { PersonAvatar } from '../ui/UserChip';
+import { useSignInBlocked } from '../sync/useSignInBlocked';
 import { iconCounts, standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
 import { LanguageRow } from '../account/uiLanguage';
 import { inSeveral, refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
@@ -74,6 +83,7 @@ import { useOrganizations } from '../account/useOrganizations';
 import { useUnsent } from '../account/useUnsent';
 import { deleteThisAccount } from '../account/deleteThisAccount';
 import { a11yState } from '../ui/a11yModel';
+import { reportLink } from '../passage/reportLinkModel';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
 
@@ -315,7 +325,7 @@ export function InboxHome(ctx: Ctx) {
               if (target.kind === 'person') ctx.go(canAssign ? 'edit_member' : 'members_list', canAssign ? { memberId: target.profileId } : undefined);
               // A version or review opens itself, over its passage (UI audit, finding 113); a note or request, the passage.
               else if (target.unitId && target.languageId) {
-                ctx.openPassage(target.unitId, target.languageId, target.kind === 'version' || target.kind === 'review' ? { reported: `${target.kind}:${target.id}` } : undefined);
+                ctx.openPassage(target.unitId, target.languageId, target.kind === 'version' || target.kind === 'review' ? { reported: reportLink(target.kind, target.id) } : undefined);
               }
             }} />}>
           <View style={styles.requestBody}>
@@ -386,11 +396,15 @@ export function SettingsHome(ctx: Ctx) {
   const moreSub = p.refused ? t('account.me.moreRefused')
     : p.refusedEvents > 0 ? t('account.me.moreRefusedEvents', { n: p.refusedEvents })
     : waiting > 0 ? t('account.me.morePending', { count: waiting }) : moreSettingsSub();
+  const local = ctx.session.isLocal;
+  // Joined has a session but first contact is still open: the card stays, and Sign out does not come yet.
+  const finishing = firstContactOpen(useLocalPerson(), ctx.session.actorId);
   return (
     <Screen header={<Header title={t('account.me.title')} />}>
+      {local || finishing ? <LocalPersonCard ctx={ctx} name={name} /> : null}
       <Group>
         <Row icon="user" label={name} sub={t('account.me.nameSub')} help={t('account.me.nameHelp')} onPress={() => ctx.go('profile_edit')} />
-        {inSeveral(orgs) ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
+        {inSeveral(orgs) && !local ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
         {/* What comes along to the field, seen before a trip (decisions.md 61). */}
         <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} help={t('account.me.offlineHelp')} onPress={() => ctx.go('sync_status', { show: 'offline' })} />
         <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} help={t('account.me.tourHelp')} onPress={() => ctx.go('vision')} />
@@ -398,8 +412,40 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon="settings" label={t('account.me.more')} sub={moreSub} help={t('account.me.moreHelp')} onPress={() => ctx.go('settings_more')}
           {...(waiting > 0 ? { badge: formatNumber(waiting) } : {})} last />
       </Group>
-      <DangerLink label={t('account.me.signOut')} onPress={() => ctx.go('sign_out_confirm')} />
+      {/* Someone let in offline cannot sign out: their work has no account to wait under until first contact (14.1, 5 "Me"),
+          and in joined a session gone leaves the phone running as them with no lock (security review, 2026-11-10). */}
+      {local || finishing ? null : <DangerLink label={t('account.me.signOut')} onPress={() => ctx.go('sign_out_confirm')} />}
     </Screen>
+  );
+}
+
+/**
+ * Someone let in offline (docs/nearby-sync-plan.md 14.1, 5 and 6): who let them in, where first
+ * contact stands with Try now, why the join route refused in words, and for a refusal or an account
+ * that needs a helper's code, the scanner, which takes an invite from someone with Invite or the
+ * helper's code. Their work stays on this phone whatever the server says.
+ */
+function LocalPersonCard(props: { ctx: Ctx; name: string }) {
+  const { ctx } = props;
+  const local = useLocalPerson();
+  const inviter = membershipOf(local)?.inviter;
+  const status = ctx.firstContact.status;
+  const words = firstContactWords(status);
+  const stopped = status.kind === 'refused' || status.kind === 'needsCode';
+  return (
+    <Card>
+      <View style={{ gap: space.xs }}>
+        <Text style={[txt.body, { fontWeight: '700' }]}>{t('account.me.local.title', { name: props.name })}</Text>
+        <Text style={txt.sm}>{inviter ? t('account.me.local.letInBy', { name: ctx.name(inviter) }) : t('account.me.local.letIn')}</Text>
+        {words ? <Text style={[txt.sm, stopped || status.kind === 'blocked' ? { color: TINT.amberText } : null]}>
+          {status.kind === 'needsCode' ? t('account.me.local.needsCode', { name: status.signInName }) : t(words)}</Text> : null}
+        {status.kind === 'refused' ? <Text style={txt.smMuted}>{t('account.me.local.refusedLine')}</Text> : null}
+        {status.kind === 'needsCode' ? <Text style={txt.smMuted}>{t('account.me.local.needsCodeLine')}</Text> : null}
+        <Text style={txt.smMuted}>{t('account.me.local.workSafe')}</Text>
+      </View>
+      {status.kind === 'waiting' ? <GhostBtn label={t('account.me.local.retry')} icon="restart" help={t('account.me.local.retryHelp')} onPress={ctx.firstContact.retry} /> : null}
+      {stopped ? <GhostBtn label={t('account.me.local.scan')} icon="qr" help={t('account.me.local.scanHelp')} onPress={() => ctx.go('scan_qr')} /> : null}
+    </Card>
   );
 }
 
@@ -450,13 +496,14 @@ export function SettingsMore(ctx: Ctx) {
   const p = ctx.language;
   const status = useSyncStatus();
   const toSend = iconCounts(status).toSend;
-  const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending + status.orgPending, recordings: status.pendingUp, lastSync: status.lastSync });
+  const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending + status.orgPending, recordings: status.pendingUp + status.holding, lastSync: status.lastSync });
   // Someone in several organizations switches on Me itself; anyone else finds it here, where it also starts a new one.
   const orgs = useOrganizations(s.actorId).rows;
-  const switchHere = !inSeveral(orgs);
-  const passwordRow = s.isManaged && hasPassword === false;
+  // Someone let in offline has no account yet: no switching, notifications or deleting until first contact (14.1, 5 "Me").
+  const switchHere = !inSeveral(orgs) && !s.isLocal;
+  const passwordRow = s.isManaged && hasPassword === false && !s.isLocal;
   // No push on the web yet, nor on a disguised Android phone (useNotificationsOffered.ts).
-  const notifications = useNotificationsOffered();
+  const notifications = useNotificationsOffered() && !s.isLocal;
   const blocked = ctx.blocks.ids.length;
   return (
     <Screen header={<Header title={t('account.me.more')} onBack={ctx.back} />}>
@@ -517,11 +564,16 @@ export function SettingsMore(ctx: Ctx) {
           <Row icon="block" label={t('account.more.blocked')} sub={t('account.more.blockedCount', { count: blocked })} help={t('account.more.blockedHelp')} onPress={() => setBlockedOpen(true)} last />
         ) : null}
       </Group>
+      {/* A lost or taken phone (decisions.md 200): the link's New password has the choice that revokes its nearby keys. */}
+      {lostPhoneRowShown(s) && s.email ? <Group><LostPhoneRow ctx={ctx} email={s.email} /></Group> : null}
       {/* Store rules, decisions.md 46: the store answers and the App Review notes say Settings → Delete account; it is here, under Me › More settings. */}
-      <Group>
-        <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('account.more.deleteAccount')} sub={t('account.more.deleteSub')}
-          onPress={() => ctx.go('delete_account')} last />
-      </Group>
+      {/* Someone let in offline has no account to delete yet: Remove me from this phone takes its place, and Sign out's (14.1, 5 "Me"). */}
+      {s.isLocal ? <RemoveMeRow ctx={ctx} name={name} /> : (
+        <Group>
+          <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('account.more.deleteAccount')} sub={t('account.more.deleteSub')}
+            onPress={() => ctx.go('delete_account')} last />
+        </Group>
+      )}
       {ctx.canSwitchPersona ? (
         <>
           <SectionLabel label={t('account.more.testing')} />
@@ -533,6 +585,23 @@ export function SettingsMore(ctx: Ctx) {
       {blockedOpen ? <BlockedPeople ctx={ctx} onClose={() => setBlockedOpen(false)} /> : null}
     </Screen>
   );
+}
+
+/**
+ * "A phone of mine was lost or taken": only emails a Forgot password link,
+ * since the mailbox, not this session, is what may revoke the person's
+ * nearby keys (docs/nearby-sync-plan.md section 6). The choice is on New password.
+ */
+function LostPhoneRow(props: { ctx: Ctx; email: string }) {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
+  async function send() {
+    if (state === 'sending') return;
+    setState('sending');
+    const result = await askResetLink(props.email);
+    if (result.kind === 'error') { setState('idle'); props.ctx.toast(result.text, 'problem'); } else setState('sent');
+  }
+  const sub = state === 'sending' ? t('entry.forgot.sending') : state === 'sent' ? t('account.more.lostPhoneSent', { email: props.email }) : t('account.more.lostPhoneSub');
+  return <Row icon="phone" label={t('entry.newPassword.lost')} sub={sub} help={t('account.more.lostPhoneSub')} onPress={() => void send()} disabled={state === 'sending'} last />;
 }
 
 /**
@@ -748,6 +817,8 @@ function OrgWay(props: { icon: IconName; label: string; sub: string; help: strin
  */
 export function SignOutConfirm(ctx: Ctx) {
   const { online, refused } = ctx.language;
+  // Reached from a scanner's "Not me" as well as Me: someone whose first contact is still open does not sign out (14.1, 5 "Me").
+  const finishing = firstContactOpen(useLocalPerson(), ctx.session.actorId);
   const waiting = useUnsent(ctx);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -788,6 +859,7 @@ export function SignOutConfirm(ctx: Ctx) {
     await signOutThisDevice();
   }
   async function signOut() {
+    if (finishing) return;
     if (needsPattern) { choose(); return; }
     setBusy(true);
     setError('');
@@ -825,7 +897,8 @@ export function SignOutConfirm(ctx: Ctx) {
             ? t('account.signOut.forgets')
             : online === false && !LOCKS_ON_SIGN_OUT ? '' : t('account.signOut.anytime');
   // A browser needs the server to let you back in, so offline it says so; a phone has the lock.
-  const why = !blocked && online === false && !LOCKS_ON_SIGN_OUT ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
+  const why = finishing ? t('account.me.local.finishing')
+    : !blocked && online === false && !LOCKS_ON_SIGN_OUT ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
   if (choosing === 'picture') {
     return (
       <Screen header={<HelpTop />} bodyStyle={styles.centered}
@@ -860,7 +933,7 @@ export function SignOutConfirm(ctx: Ctx) {
       footer={
         <>
           <PrimaryBtn help={t('help.stock.signOut')} label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()}
-            disabled={blocked || busy || (LOCKS_ON_SIGN_OUT && lock.ways === null)} />
+            disabled={finishing || blocked || busy || (LOCKS_ON_SIGN_OUT && lock.ways === null)} />
           <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={ctx.back} />
         </>
       }>
@@ -964,7 +1037,7 @@ export function SyncStatus(ctx: Ctx) {
   const offlineSummaryNow = useOfflineSummary(ctx);
   const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
   const rejected = refusedHere(ins, orgIns, logged);
-  const standing = syncStanding(language);
+  const standing = syncStanding(language, useSignInBlocked());
   const offlineFirst = ctx.params['show'] === 'offline';
   const [details, setDetails] = useState(false);
   const syncNow = async () => {
@@ -996,6 +1069,8 @@ export function SyncStatus(ctx: Ctx) {
           <Text style={txt.body}>{belowMinimum() ? t('account.sync.tooOldSends') : t('account.sync.tooOld')}</Text>
         ) : null}
       </Card>
+      {/* Share nearby, where this phone may share it (Android, the organization on; docs/nearby-sync-plan.md 5.8). */}
+      <NearbyRow ctx={ctx} />
       {/* Settings' "Ready for offline" opens here with what comes along first (decisions.md 61); otherwise what waits to upload, by passage, and what went up (decision 166). */}
       {offlineFirst ? <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></> : null}
       <UploadsCard ctx={ctx} />
@@ -1004,6 +1079,8 @@ export function SyncStatus(ctx: Ctx) {
       {offlineFirst ? null : <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></>}
       <Card>
         <SyncLine icon="download" label={t('account.sync.toReceive')} value={sync.pendingDown} rate={sync.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} unknown={offline} />
+        {/* Teammates' recordings here the server lacks, shown whenever there are some, even with the organization turned off (5.8). */}
+        {sync.holding ? <SyncLine icon="people" label={t('nearby.sync.holding')} value={sync.holding} help={t('nearby.sync.holdingHelp')} /> : null}
         {rejected.length ? <SyncLine icon="flag" label={t('account.sync.refusedLine')} value={rejected.length} tone={TINT.redText} help={t('account.sync.help.refusedLine')} /> : null}
       </Card>
       <Disclosure testID="sync-details" icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}
@@ -1014,7 +1091,8 @@ export function SyncStatus(ctx: Ctx) {
         <Stat id="confirmed" icon="check" color={C.green} value={Math.max(ins?.cursor ?? 0, logged?.cursor ?? 0)} label={t('account.sync.latestConfirmed')} />
         <Stat id="checkpoint" icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
       </View>
-      <Transfer icon="up" pending={sync.pendingUp} peak={sync.peakUp} rate={rates.up} label={t('account.sync.audioUp')} offline={offline} />
+      {/* Teammates' recordings waiting to upload count too: that is true of this phone (decisions.md 166, docs/nearby-sync-plan.md 5.8). */}
+      <Transfer icon="up" pending={sync.pendingUp + sync.holding} peak={sync.peakUp} rate={rates.up} label={t('account.sync.audioUp')} offline={offline} />
       <Transfer icon="download" pending={sync.pendingDown} peak={sync.peakDown} rate={rates.down} label={t('account.sync.audioDown')} offline={offline} />
       {ins && ins.pending.length ? (
         <>
@@ -1076,10 +1154,10 @@ function clock(hlc: string): string {
 /** The store a phone updates from; none on the web, which is always the newest. */
 const STORE = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : null;
 
-const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red, tooOld: C.amber };
+const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red, tooOld: C.amber, signIn: C.amber };
 
 function standingHelp(s: SyncStanding): string {
-  return s === 'live' ? t('account.sync.help.live') : s === 'offline' ? t('account.sync.help.offline')
+  return s === 'signIn' ? t('account.sync.help.signIn') : s === 'live' ? t('account.sync.help.live') : s === 'offline' ? t('account.sync.help.offline')
     : s === 'checking' ? t('account.sync.help.checking') : s === 'tooOld' ? t('account.sync.help.tooOld') : t('account.sync.help.refused');
 }
 

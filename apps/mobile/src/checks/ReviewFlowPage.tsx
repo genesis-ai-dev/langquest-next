@@ -3,7 +3,7 @@
 // organization's whole shelf (Review flows). Opened from the language's page
 // as get_ready `step: 'flow'`. Using a ready-made flow copies its checks into
 // the language (decision 91) and asks first over its own (decision 134).
-import { commands, CUSTOM_FLOW, deriveFlow, languageName, type EventSpec } from '@langquest-next/core';
+import { newCommandId, commands, CUSTOM_FLOW, deriveFlow, languageName, type EventSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Text } from '../ui/text';
@@ -50,7 +50,7 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
     let specs: EventSpec[];
     try {
       // A ready-made flow is copied into the language, its checks the language's own (decision 91).
-      specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: e.c.name, kinds: kindsOf(e.doc), steps: e.doc.steps });
+      specs = commands(state, indexesFor(state)).copyFlow({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), name: e.c.name, kinds: kindsOf(e.doc), steps: e.doc.steps });
     } catch (err) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) }), 'problem'); // i18n-ignore: log label
       setBusy(false);

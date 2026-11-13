@@ -1,5 +1,6 @@
 import { currentLanguage } from '../i18n';
 import { passwordReset } from '../server/auth';
+import { newPasswordBody } from './model';
 
 /**
  * Forgot password (docs/invites-and-accounts.md flow G, decisions.md 200),
@@ -27,10 +28,11 @@ export async function askForResetLink(email: string): Promise<void> {
 /**
  * Set a new password with a link's code. Answers the account it is for and,
  * usually, a session to sign in with; without one, the phone signs in with
- * the email and the new password.
+ * the email and the new password. With `lost`, the server first revokes the
+ * person's nearby keys (docs/nearby-sync-plan.md section 6).
  */
-export async function chooseNewPassword(code: string, password: string): Promise<{ email: string; userId: string; session?: Tokens }> {
-  return call({ code, password });
+export async function chooseNewPassword(code: string, password: string, lost = false): Promise<{ email: string; userId: string; session?: Tokens }> {
+  return call(newPasswordBody(code, password, lost));
 }
 
 async function call<T>(body: Parameters<typeof passwordReset>[0]): Promise<T> {
