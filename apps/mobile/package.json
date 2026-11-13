@@ -33,7 +33,7 @@
     "html-to-image": "1.11.13",
     "i18n-iso-countries": "^7.14.0",
     "i18next": "^26.4.2",
-    "lucide-react-native": "^1.52.0",
+    "lucide-react-native": "^1.71.0",
     "onnxruntime-web": "1.29.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
