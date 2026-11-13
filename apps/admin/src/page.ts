@@ -90,16 +90,22 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .vtools { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 8px 0; } .vtools label { margin: 0 0 4px; } .vtools select { width: auto; }
 .vrow { display: grid; grid-template-columns: minmax(180px, 280px) 1fr; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding: 4px 0; }
 .vrow b { font-weight: 600; font-size: 13px; } .vrow .tag { font-size: 11px; }
-.tl { display: grid; gap: 1px; min-height: 22px; align-items: center; }
-.tl.d14 { grid-template-columns: repeat(14, 1fr); } .tl.d60 { grid-template-columns: repeat(60, 1fr); }
-.tl > span { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; min-height: 22px; align-items: center; background: var(--bg); border-radius: 3px; }
+.tlw { overflow-x: auto; min-width: 0; scrollbar-width: thin; }
+.tl { display: grid; grid-template-columns: repeat(60, 1fr); gap: 1px; min-height: 22px; align-items: center; width: 430%; }
+.tl > span { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; min-height: 22px; align-items: center; background: var(--bg); border-radius: 3px; }
 .tl > span.wk { background: var(--line); }
-.tl.days > span { background: none; font-size: 10px; color: var(--muted); min-height: 0; }
-.mk { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--grey); text-decoration: none; }
+.tl.days > span { background: none; font-size: 10px; color: var(--muted); min-height: 0; white-space: nowrap; overflow: hidden; }
+.timed .tl:not(.days) > span { display: block; } .timed .tl > span > .mk { position: absolute; top: 6px; }
+.mk { display: inline-block; width: 10px; height: 10px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: var(--grey); text-decoration: none; cursor: pointer; }
+.mk:focus-visible, .mk:hover { outline: 2px solid var(--ink); outline-offset: 1px; }
 .mk.film.app { background: #8E44AD; } .mk.film.script { background: var(--primary); } .mk.film.tool { background: var(--grey); } .mk.film.new, .mk.film.asked, .mk.film.unknown { background: var(--muted); }
 .mk.up { background: var(--green); border-radius: 2px; } .mk.comment { background: #2F80ED; border-radius: 50% 50% 50% 0; }
 .mk.suggested, .mk.decided { background: var(--amber); transform: rotate(45deg); border-radius: 1px; width: 8px; height: 8px; } .mk.fix { background: var(--amber); border-radius: 2px; }
 .mk.held, .mk.failed { background: var(--red); border-radius: 1px; }
+.vdet { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 4px 0 10px; background: var(--card); }
+.vdet .head { display: flex; gap: 8px; align-items: center; } .vdet .head b { flex: 1; } .vdet p { margin: 6px 0; }
+.vdet blockquote { margin: 6px 0; padding: 6px 10px; border-inline-start: 3px solid #2F80ED; background: var(--bg); border-radius: 6px; }
+.vfilms { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; } .vfilms figure { margin: 0; } .vfilms video { width: 100%; border-radius: 8px; background: #000; }
 .vkey { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 6px 0; } .vkey span { display: inline-flex; gap: 4px; align-items: center; }
 /* Where each build and update is (sources/pipeline.ts): stages left to right, an arrow between, each build a card in its stage. */
 .lane { margin: 6px 0 14px; }
@@ -914,7 +920,8 @@ export function csp(supabaseUrl: string, nonce: string): string {
     `script-src 'nonce-${nonce}'`,
     `style-src 'nonce-${nonce}'`,
     "img-src 'self' blob:",
-    'media-src blob:',
+    // The tutorial films play here, from the app Worker's /api/tutorials/ on this host (decisions.md 180).
+    "media-src 'self' blob:",
     `connect-src 'self' ${new URL(supabaseUrl).origin}`,
     "base-uri 'none'",
     "form-action 'none'",

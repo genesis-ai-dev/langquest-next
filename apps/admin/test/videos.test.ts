@@ -98,6 +98,27 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13)', () => {
     expect(b.admin.find((a) => a.kind === 'paused')!.title).toBe('15 languages are paused');
   });
 
+  it('counts in each language the videos that need a person, not the pause', () => {
+    const b = videoBoard(input({ films: [film(), film({ language: 'fr' })], feedback: feedback({ suggestions: [suggestion()] }) }), NOW);
+    expect(b.languages.find((l) => l.language === 'en')).toMatchObject({ nightly: true, issues: 1 });
+    expect(b.languages.find((l) => l.language === 'fr')).toMatchObject({ nightly: false, issues: 1 });
+    expect(b.languages.find((l) => l.language === 'es')).toMatchObject({ issues: 0 });
+  });
+
+  it('opens each mark\'s details: the change, the films to compare, the comment as written', () => {
+    const app = { kind: 'screen' as const, steps: [3], screens: ['Language'], changes: [{ sha: 'e'.repeat(40), pr: 403, subject: 'Nearby sync' }] };
+    const comment = { id: 'c1', kind: 'comment' as const, tutorial: 'record-a-passage', language: 'en', at: at(30), ref: 'Ugx', youtubeId: 'dQw4w9WgXcQ', pr: null, text: 'La G está cortada', english: 'The G is cut off', reply: null, replyEnglish: null, lookedAt: null, outcome: null };
+    const b = videoBoard(input({
+      films: [film(), film({ sha256: sha('b'), madeAt: at(3), chosenAt: null, publishedAt: null, youtubeId: null })], feedback: feedback({ inputs: [comment] }),
+      status: { en: status([{ film: { sha256: sha('b'), filmedAt: at(3), commit: null, why: [app] } }]) }
+    }), NOW);
+    const newFilm = en(b).marks.find((m) => m.kind === 'film' && m.cause === 'app')!;
+    expect(newFilm.detail.links[0]).toEqual({ text: 'App change: PR 403 (Nearby sync)', href: 'https://github.com/genesis-ai-dev/langquest-next/pull/403/files' });
+    expect(newFilm.detail.films.map((f) => f.label)).toEqual(['This film', 'The film before']);
+    expect(newFilm.detail.films[1]!.href).toBe(`/api/tutorials/en/record-a-passage/${sha('a')}.mp4`);
+    expect(en(b).marks.find((m) => m.kind === 'comment')!.detail).toMatchObject({ quote: 'La G está cortada', lines: ['In English: The G is cut off', 'Claude has not looked at it yet.'] });
+  });
+
   it('says which sources it could not read', () => {
     expect(videoBoard(input({ films: null, status: {}, nightly: null }), NOW).missing).toEqual([
       'films (migration 20261113234000_tutorial_films.sql)', 'the filming run on GitHub', 'the nightly language list',

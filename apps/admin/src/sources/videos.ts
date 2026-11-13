@@ -82,6 +82,18 @@ export interface Mark {
   /** For a film: what made it ('app' | 'script' | 'tool' | 'new' | 'asked' | 'unknown'). */
   cause?: string;
   link?: string;
+  /** What a click on the mark opens: lines to read, what was written as written, links, and films to watch side by side. */
+  detail: MarkDetail;
+}
+
+export interface MarkDetail {
+  title: string;
+  lines: string[];
+  /** A comment as written, in its own language. */
+  quote?: string;
+  links: { text: string; href: string }[];
+  /** Films to play: this film, and the one before it to compare. */
+  films: { label: string; href: string }[];
 }
 
 export interface VideoRow {
@@ -108,7 +120,8 @@ export interface WorkerItem {
 }
 
 export interface Videos {
-  languages: { language: string; nightly: boolean; statusAt: string | null }[];
+  /** Each app language: filmed each night or paused, its last status file, and how many of its videos need a person (a bad or warn state, not counting the pause). */
+  languages: { language: string; nightly: boolean; statusAt: string | null; issues: number }[];
   videos: VideoRow[];
   admin: AdminItem[];
   worker: WorkerItem[];
@@ -158,6 +171,9 @@ export function nightlyLanguages(workflow: string): string[] | null {
   const m = /^\s*NIGHTLY_LANGUAGES:\s*([^\n#]*)/m.exec(workflow);
   return m ? m[1]!.split(',').map((l) => l.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean) : null;
 }
+
+/** A state that waits on a person; a paused language's own pause and missing films are said once, not per video. */
+const NEEDS_PERSON = (s: VideoState) => (s.level === 'bad' || s.level === 'warn') && s.key !== 'paused' && s.key !== 'new';
 
 const LEVEL_ORDER: StateKey[] = ['fails', 'held', 'fixFailed', 'approve', 'merge', 'fixing', 'toFix', 'filming', 'tonight', 'slotted', 'comment', 'reply', 'publish', 'upload', 'new', 'paused', 'current'];
 
@@ -261,18 +277,49 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
 
       // The timeline: films and uploads, comments, suggestions and fixes, tonight's hold or failure.
       const marks: Mark[] = [];
-      for (const f of own) {
+      const filmHref = (f: FilmRow) => `/api/tutorials/${language}/${tutorial}/${f.sha256}.mp4`;
+      const changeLinks = (why: Cause[] | null) => (why ?? []).flatMap((c) => 'changes' in c ? c.changes.map((r) => ({
+        text: `${c.kind === 'script' ? 'Script' : c.shared ? 'Shared app code' : 'App'} change: ${r.pr ? `PR ${r.pr}` : r.sha.slice(0, 7)}${r.subject && !/^Merge pull request/.test(r.subject) ? ` (${r.subject.slice(0, 80)})` : ''}`,
+        href: r.pr ? `${pr(r.pr)}/files` : `${REPO}/commit/${r.sha}`
+      })) : []);
+      const causeLines = (why: Cause[] | null) => why ? why.map((c) => whyText([c])!) : ['Why this film was made was not recorded: films before 14 November keep no cause.'];
+      own.forEach((f, n) => {
         const why = sv?.film && sv.film.sha256 === f.sha256 ? sv.film.why : null;
-        if (recent(f.madeAt)) marks.push({ at: f.madeAt, kind: 'film', cause: causeOf(why), text: whyText(why) ?? 'new film' });
-        if (recent(f.publishedAt) && f.youtubeId) marks.push({ at: f.publishedAt!, kind: 'up', text: 'on YouTube', link: `https://youtu.be/${f.youtubeId}` });
-      }
-      for (const i of mine) if (recent(i.at)) marks.push({ at: i.at, kind: 'comment', text: i.english ?? i.text, link: commentLink(i) });
+        const before = own[n - 1];
+        if (recent(f.madeAt)) marks.push({ at: f.madeAt, kind: 'film', cause: causeOf(why), text: whyText(why) ?? 'new film', detail: {
+          title: `New film, ${f.madeAt.slice(0, 16).replace('T', ' ')} UTC`,
+          lines: [...causeLines(why), ...(why?.some((c) => c.kind === 'screen') ? [`Steps whose words changed: ${why.flatMap((c) => c.kind === 'screen' ? c.steps : []).join(', ')}.`] : [])],
+          links: [...changeLinks(why), ...(f.youtubeId ? [{ text: 'Watch on YouTube', href: `https://youtu.be/${f.youtubeId}` }] : [])],
+          films: [{ label: 'This film', href: filmHref(f) }, ...(before ? [{ label: 'The film before', href: filmHref(before) }] : [])]
+        } });
+        if (recent(f.publishedAt) && f.youtubeId) marks.push({ at: f.publishedAt!, kind: 'up', text: 'on YouTube', link: `https://youtu.be/${f.youtubeId}`, detail: {
+          title: 'On YouTube', lines: [`Put up ${f.publishedAt!.slice(0, 16).replace('T', ' ')} UTC.`],
+          links: [{ text: 'Watch on YouTube', href: `https://youtu.be/${f.youtubeId}` }], films: []
+        } });
+      });
+      for (const i of mine) if (recent(i.at)) marks.push({ at: i.at, kind: 'comment', text: i.english ?? i.text, link: commentLink(i), detail: {
+        title: `Comment on YouTube (${language})`,
+        lines: [...(i.english && i.english !== i.text ? [`In English: ${i.english}`] : []), ...(i.reply ? [`Reply suggested: ${i.replyEnglish ?? i.reply}`] : []),
+          i.lookedAt ? `Claude's answer: ${i.outcome ?? 'made a suggestion (see the suggestion mark)'}` : 'Claude has not looked at it yet.'],
+        quote: i.text, links: [{ text: 'Open the comment on YouTube', href: commentLink(i) }], films: []
+      } });
       for (const sg of suggestionsOf.get(tutorial) ?? []) {
-        if (recent(sg.madeAt)) marks.push({ at: sg.madeAt, kind: 'suggested', text: `Suggested: ${sg.title}` });
-        if (sg.decision && recent(sg.decidedAt)) marks.push({ at: sg.decidedAt!, kind: 'decided', text: `${sg.decision === 'accepted' ? 'Accepted' : 'Rejected'}: ${sg.title}` });
-        if (sg.fix && recent(sg.fix.at)) marks.push({ at: sg.fix.at, kind: 'fix', text: `Fix ${sg.fix.state}${sg.fix.pr ? ` (PR ${sg.fix.pr})` : ''}`, ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}) });
+        const about = [sg.detail, ...sg.inputs.map((i) => `Answers: ${i.english ?? i.text}`)];
+        if (recent(sg.madeAt)) marks.push({ at: sg.madeAt, kind: 'suggested', text: `Suggested: ${sg.title}`, detail: { title: `Claude suggested: ${sg.title}`, lines: about, links: [], films: [] } });
+        if (sg.decision && recent(sg.decidedAt)) marks.push({ at: sg.decidedAt!, kind: 'decided', text: `${sg.decision === 'accepted' ? 'Accepted' : 'Rejected'}: ${sg.title}`, detail: {
+          title: `${sg.decision === 'accepted' ? 'Accepted' : 'Rejected'}: ${sg.title}`, lines: [...about, ...(sg.reason ? [`Why: ${sg.reason}`] : [])],
+          links: sg.issueUrl ? [{ text: `Linear ${sg.issue}`, href: sg.issueUrl }] : [], films: []
+        } });
+        if (sg.fix && recent(sg.fix.at)) marks.push({ at: sg.fix.at, kind: 'fix', text: `Fix ${sg.fix.state}${sg.fix.pr ? ` (PR ${sg.fix.pr})` : ''}`, ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}), detail: {
+          title: `Fix: ${sg.fix.state}`, lines: [sg.title, ...(sg.fix.note ? [`Error: ${sg.fix.note}`] : [])],
+          links: [...(sg.fix.pr ? [{ text: `PR ${sg.fix.pr}: what changed in the script`, href: `${pr(sg.fix.pr)}/files` }] : []), ...(sg.fix.run ? [{ text: 'The run that wrote it', href: sg.fix.run }] : [])], films: []
+        } });
       }
-      if (s && (sv?.tonight === 'held' || sv?.tonight === 'failed')) marks.push({ at: s.at, kind: sv.tonight, text: sv.tonight === 'held' ? `Held: ${(sv.held ?? []).join('; ')}` : 'Film failed' });
+      if (s && (sv?.tonight === 'held' || sv?.tonight === 'failed')) marks.push({ at: s.at, kind: sv.tonight, text: sv.tonight === 'held' ? `Held: ${(sv.held ?? []).join('; ')}` : 'Film failed', detail: {
+        title: sv.tonight === 'held' ? 'Held by the frame check' : 'The film failed',
+        lines: sv.tonight === 'held' ? (sv.held ?? ['The frame check held it.']) : ['The error is in the log of the language\'s filming job.'],
+        links: j?.url ? [{ text: 'Open the log', href: j.url }] : [], films: []
+      } });
       marks.sort((a, b) => a.at.localeCompare(b.at));
 
       const filmWhy = sv?.film && newest && sv.film.sha256 === newest.sha256 ? whyText(sv.film.why) : null;
@@ -320,7 +367,8 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
     ...(Object.keys(status).length ? [] : ['the nightly status files (the first comes the night after PR 449 merges)'])
   ];
   return {
-    languages: languages.map((l) => ({ language: l, nightly: isNightly(l), statusAt: status[l]?.at ?? null })),
+    languages: languages.map((l) => ({ language: l, nightly: isNightly(l), statusAt: status[l]?.at ?? null,
+      issues: videos.filter((v) => v.language === l && v.states.some((st) => NEEDS_PERSON(st))).length })),
     videos, admin, worker, missing
   };
 }

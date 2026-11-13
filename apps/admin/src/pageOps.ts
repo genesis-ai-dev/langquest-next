@@ -357,6 +357,7 @@ Object.assign(RENDER, {
     if (d.missing.length) h += '<p class="muted">Not read: ' + esc(d.missing.join('; ')) + '. The lists leave those out.</p>';
     h += '<div class="vl"><div><h3>For an admin</h3>' + (d.admin.length ? d.admin.map((a) => item(a, ADMIN_LEVEL[a.kind] || '')).join('') : '<p class="muted">Nothing.</p>') + '</div>' +
       '<div><h3>Workers, now and tonight</h3>' + (d.worker.length ? d.worker.map((w) => item(w, w.when === 'now' ? 'info' : '')).join('') : '<p class="muted">Nothing queued.</p>') + '</div></div>';
+    setTimeout(() => layoutTimelines(), 0);
     return h + '<h3>By video</h3><div id="video-rows">' + videoRows() + '</div>';
   },
   tutorials(d) {
@@ -543,7 +544,9 @@ document.addEventListener('click', (e) => {
 
 // ---- the tutorial video lists (sources/videos.ts): a language and a span chosen here, and Accept, Edit and Reject on a suggestion ----
 let VIDEOS = null;
-let videoLanguage = 'en', videoDays = 14;
+// The timeline shows 60 days; its zoom is how wide a day is. A pinch on a touchpad (or Ctrl and the scroll wheel) zooms it; it opens at the last 14 days.
+let videoLanguage = 'en', dayWidth = 0, shownMarks = [];
+const TIMELINE_DAYS = 60;
 const ADMIN_LINKS = { fails: 'Open the log', held: 'Open the log', fixFailed: 'Open the run', merge: 'Open the PR', reply: 'Reply on YouTube', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
 const MARKS = { film: 'New film', up: 'On YouTube', comment: 'Comment', suggested: 'Suggestion', decided: 'Accepted or rejected', fix: 'Fix PR', held: 'Held', failed: 'Film failed' };
 const CAUSES = { app: 'app change', script: 'script change', tool: 'film tool change', new: 'first film', asked: 'asked by hand', unknown: 'cause not recorded' };
@@ -554,38 +557,117 @@ function suggestionButtons(s) {
     '<details><summary>Edit</summary><label for="sg-' + esc(s.id) + '">What to change</label><textarea id="sg-' + esc(s.id) + '" maxlength="4000" rows="6">' + esc(s.detail) + '</textarea>' +
     '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="edit">Save</button></p></details>';
 }
+const timelineStart = () => { const end = new Date(); end.setUTCHours(0, 0, 0, 0); return end.getTime() - (TIMELINE_DAYS - 1) * 86400000; };
 function videoRows() {
   const d = VIDEOS;
   if (!d) return '';
-  const end = new Date(); end.setUTCHours(0, 0, 0, 0);
-  const first = end.getTime() - (videoDays - 1) * 86400000;
-  const dayOf = (iso) => Math.floor((Date.parse(iso) - first) / 86400000);
-  const langs = d.languages.map((l) => '<option value="' + esc(l.language) + '"' + (l.language === videoLanguage ? ' selected' : '') + '>' + esc(languageName(l.language)) + (l.nightly ? '' : ' (paused)') + '</option>').join('');
-  let h = '<div class="vtools"><div><label for="video-lang">Language</label><select id="video-lang">' + langs + '</select></div>' +
-    '<div><button type="button" data-vdays="14"' + (videoDays === 14 ? ' class="primary"' : '') + '>Last 14 days</button> <button type="button" data-vdays="60"' + (videoDays === 60 ? ' class="primary"' : '') + '>Last 60 days</button></div></div>';
+  const first = timelineStart();
+  shownMarks = [];
+  const langs = d.languages.map((l) => '<option value="' + esc(l.language) + '"' + (l.language === videoLanguage ? ' selected' : '') + '>' + esc(languageName(l.language)) +
+    (l.issues ? ' (' + num(l.issues) + ')' : '') + (l.nightly ? '' : ' (paused)') + '</option>').join('');
+  let h = '<div class="vtools"><div><label for="video-lang">Language <small class="muted">(videos that need a person)</small></label><select id="video-lang">' + langs + '</select></div>' +
+    '<div><button type="button" data-vzoom="out" aria-label="Zoom out">−</button> <button type="button" data-vzoom="in" aria-label="Zoom in">+</button> ' +
+    '<button type="button" data-vfit="14">Last 14 days</button> <button type="button" data-vfit="60">Last 60 days</button></div></div>';
   h += '<div class="vkey">' + ['app', 'script', 'tool', 'new'].map((c) => '<span><i class="mk film ' + c + '"></i>New film: ' + esc(CAUSES[c]) + '</span>').join('') +
-    ['up', 'comment', 'suggested', 'fix', 'held'].map((k) => '<span><i class="mk ' + k + '"></i>' + esc(MARKS[k]) + '</span>').join('') + '</div>';
+    ['up', 'comment', 'suggested', 'fix', 'held'].map((k) => '<span><i class="mk ' + k + '"></i>' + esc(MARKS[k]) + '</span>').join('') + '<span>Click a mark for details. Pinch, or Ctrl and the scroll wheel, to zoom.</span></div>';
   const rows = d.videos.filter((v) => v.language === videoLanguage);
   if (!rows.length) return h + '<p class="muted">No videos in this language yet.</p>';
-  const days = Array.from({ length: videoDays }, (_, i) => new Date(first + i * 86400000));
-  const cls = 'tl d' + videoDays;
-  h += '<div class="vrow"><span></span><div class="' + cls + ' days">' + days.map((x, i) => '<span>' + (videoDays === 14 || i % 7 === 0 ? esc(String(x.getUTCDate())) : '') + '</span>').join('') + '</div></div>';
-  for (const v of rows) {
+  const days = Array.from({ length: TIMELINE_DAYS }, (_, i) => new Date(first + i * 86400000));
+  h += '<div class="vrow"><span></span><div class="tlw"><div class="tl days">' + days.map((x) => '<span data-day>' + esc(x.toLocaleDateString([], { month: 'short', day: 'numeric' })) + '</span>').join('') + '</div></div></div>';
+  rows.forEach((v, r) => {
     const cells = days.map(() => []);
-    for (const m of v.marks) { const i = dayOf(m.at); if (i >= 0 && i < videoDays) cells[i].push(m); }
-    const mark = (m) => { const t = MARKS[m.kind] + (m.kind === 'film' ? ' (' + (CAUSES[m.cause] || m.cause) + ')' : '') + ', ' + new Date(m.at).toLocaleString() + ': ' + m.text;
-      const c = 'mk ' + m.kind + (m.cause ? ' ' + m.cause : '');
-      return m.link ? '<a class="' + c + '" href="' + esc(m.link) + '" target="_blank" rel="noopener noreferrer" title="' + esc(t) + '" aria-label="' + esc(t) + '"></a>' : '<i class="' + c + '" title="' + esc(t) + '"></i>'; };
+    for (const m of v.marks) { const i = Math.floor((Date.parse(m.at) - first) / 86400000); if (i >= 0 && i < TIMELINE_DAYS) cells[i].push(m); }
+    const mark = (m) => {
+      const t = MARKS[m.kind] + (m.kind === 'film' ? ' (' + (CAUSES[m.cause] || m.cause) + ')' : '') + ', ' + new Date(m.at).toLocaleString() + ': ' + m.text;
+      shownMarks.push({ m, row: r });
+      const at = new Date(m.at);
+      return '<button type="button" class="mk ' + m.kind + (m.cause ? ' ' + m.cause : '') + '" data-mark="' + (shownMarks.length - 1) + '" data-h="' + ((at.getUTCHours() * 60 + at.getUTCMinutes()) / 1440).toFixed(4) + '" title="' + esc(t) + '" aria-label="' + esc(t) + '"></button>';
+    };
     const chip = (s) => s.link ? '<a class="tag ' + s.level + '" href="' + esc(s.link) + '" target="_blank" rel="noopener noreferrer">' + esc(s.text) + '</a>' : '<span class="tag ' + s.level + '">' + esc(s.text) + '</span>';
     h += '<div class="vrow"><div><b>' + esc(v.title) + '</b><br>' + v.states.map(chip).join('') +
       (v.film ? '<br><small class="muted">Film ' + when(v.film.madeAt) + (v.film.why ? ': ' + esc(v.film.why) : '') + '</small>' : '') + '</div>' +
-      '<div class="' + cls + '">' + cells.map((c, i) => '<span' + (days[i].getUTCDay() === 0 ? ' class="wk"' : '') + '>' + c.map(mark).join('') + '</span>').join('') + '</div></div>';
-  }
+      '<div class="tlw"><div class="tl">' + cells.map((c, i) => '<span' + (days[i].getUTCDay() === 0 ? ' class="wk"' : '') + '>' + c.map(mark).join('') + '</span>').join('') + '</div></div></div>' +
+      '<div class="vdet" id="vdet-' + r + '" hidden></div>';
+  });
   return h;
 }
-function redrawVideos() { const box = $('video-rows'); if (box) { box.innerHTML = videoRows(); annotate(box); } }
+/** Each timeline's width from the zoom; when a day is wide enough, each mark sits at its time of day. */
+function layoutTimelines(keepAt) {
+  const box = $('video-rows');
+  if (!box) return;
+  const wraps = [...box.querySelectorAll('.tlw')];
+  if (!wraps.length) return;
+  const view = wraps[0].clientWidth || 600;
+  if (!dayWidth) dayWidth = view / 14;
+  dayWidth = Math.max(view / TIMELINE_DAYS, Math.min(2400, dayWidth));
+  for (const tl of box.querySelectorAll('.tl')) tl.style.width = Math.round(dayWidth * TIMELINE_DAYS) + 'px';
+  const timed = dayWidth >= 160;
+  box.classList.toggle('timed', timed);
+  for (const b of box.querySelectorAll('.mk[data-h]')) b.style.left = timed ? 'calc(' + (Number(b.dataset.h) * 100) + '% - 5px)' : '';
+  const left = keepAt === undefined ? dayWidth * TIMELINE_DAYS - view : keepAt;
+  for (const w of wraps) w.scrollLeft = left;
+}
+function redrawVideos() { const box = $('video-rows'); if (box) { box.innerHTML = videoRows(); annotate(box); layoutTimelines(); } }
+/** Zoom by factor about the point x pixels into the timeline's view. */
+function zoomTimelines(factor, x) {
+  const w = document.querySelector('#video-rows .tlw');
+  if (!w) return;
+  const at = (w.scrollLeft + x) / dayWidth;
+  dayWidth *= factor;
+  layoutTimelines(0);
+  const view = w.clientWidth;
+  dayWidth = Math.max(view / TIMELINE_DAYS, Math.min(2400, dayWidth));
+  layoutTimelines(Math.max(0, at * dayWidth - x));
+}
+let syncing = false;
+document.addEventListener('scroll', (e) => {
+  if (syncing || !e.target.classList || !e.target.classList.contains('tlw')) return;
+  syncing = true;
+  for (const w of document.querySelectorAll('#video-rows .tlw')) if (w !== e.target) w.scrollLeft = e.target.scrollLeft;
+  syncing = false;
+}, true);
+document.addEventListener('wheel', (e) => {
+  const w = e.target.closest && e.target.closest('#video-rows .tlw');
+  if (!w || !e.ctrlKey) return;
+  e.preventDefault();
+  zoomTimelines(Math.exp(-e.deltaY / 200), e.clientX - w.getBoundingClientRect().left);
+}, { passive: false });
+// Safari's own pinch.
+let gestureWidth = 0;
+document.addEventListener('gesturestart', (e) => { if (e.target.closest && e.target.closest('#video-rows .tlw')) { e.preventDefault(); gestureWidth = dayWidth; } });
+document.addEventListener('gesturechange', (e) => {
+  const w = e.target.closest && e.target.closest('#video-rows .tlw');
+  if (!w || !gestureWidth) return;
+  e.preventDefault();
+  zoomTimelines(gestureWidth * e.scale / dayWidth, e.clientX - w.getBoundingClientRect().left);
+});
+document.addEventListener('gestureend', () => { gestureWidth = 0; });
+function markDetail(m) {
+  const d = m.detail || { title: m.text, lines: [], links: [], films: [] };
+  return '<div class="head"><b>' + esc(d.title) + '</b> <small class="muted">' + esc(new Date(m.at).toLocaleString()) + '</small><button type="button" data-vclose>Close</button></div>' +
+    d.lines.map((l) => '<p class="setup">' + esc(l) + '</p>').join('') +
+    (d.quote ? '<blockquote>' + esc(d.quote) + '</blockquote>' : '') +
+    (d.links.length ? '<p>' + d.links.map((l) => '<a href="' + esc(l.href) + '" target="_blank" rel="noopener noreferrer">' + esc(l.text) + '</a>').join(' · ') + '</p>' : '') +
+    (d.films.length ? '<div class="vfilms">' + d.films.map((f) => '<figure><figcaption>' + esc(f.label) + '</figcaption><video controls preload="metadata" src="' + esc(f.href) + '"></video></figure>').join('') + '</div>' : '');
+}
 document.addEventListener('change', (e) => { if (e.target && e.target.id === 'video-lang') { videoLanguage = e.target.value; redrawVideos(); } });
-document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-vdays]'); if (b) { videoDays = Number(b.dataset.vdays); redrawVideos(); } });
+document.addEventListener('click', (e) => {
+  const t = e.target.closest ? e.target : null;
+  if (!t) return;
+  const fit = t.closest('[data-vfit]');
+  if (fit) { const w = document.querySelector('#video-rows .tlw'); dayWidth = (w ? w.clientWidth : 600) / Number(fit.dataset.vfit); layoutTimelines(); }
+  const z = t.closest('[data-vzoom]');
+  if (z) { const w = document.querySelector('#video-rows .tlw'); zoomTimelines(z.dataset.vzoom === 'in' ? 1.6 : 1 / 1.6, w ? w.clientWidth / 2 : 0); }
+  const mk = t.closest('[data-mark]');
+  if (mk) {
+    const { m, row } = shownMarks[Number(mk.dataset.mark)] || {};
+    const box = $('vdet-' + row);
+    if (m && box) { for (const o of document.querySelectorAll('.vdet')) if (o !== box) o.hidden = true; box.innerHTML = markDetail(m); box.hidden = false; }
+  }
+  const close = t.closest('[data-vclose]');
+  if (close) close.closest('.vdet').hidden = true;
+});
+window.addEventListener('resize', () => layoutTimelines());
 
 // ---- one install's diagnostics, readable --------------------------------------------------
 const pairs = (o) => Object.entries(o || {}).map(([k, v]) => '<span class="nowrap">' + esc(k === 'ms' ? 'took' : k) + ' <b>' + esc(typeof v === 'number' && /ms$/i.test(k) ? ms(v) : v) + '</b></span>').join(' · ');
