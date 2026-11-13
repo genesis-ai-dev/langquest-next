@@ -45,6 +45,7 @@ import {
 } from '../passage/recordInputsModel';
 import { VersionsPage } from '../passage/versions';
 import { deleteVersion } from '../passage/deleteVersion';
+import { deletesAny } from '../passage/versionsModel';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { cardDurations } from '../recording/workspaceModel';
 import { mmss, totalMs } from '../recording/model';
@@ -932,7 +933,7 @@ export function VersionDetail(ctx: Ctx) {
   const key = (part: string) => `version:${unitId}:${languageId}:${version.takeId}:${part}`;
   const params = { unitId, languageId };
   const canEdit = recordCan(ctx.session).record;
-  const deletable = canEdit && canDeleteVersion(p, version.takeId, ctx.session.actorId);
+  const deletable = canEdit && canDeleteVersion(p, version.takeId, ctx.session.actorId, deletesAny(ctx.session));
   const durations = cardDurations(v.state, unitId);
   const footer = canEdit ? (
     <View style={styles.versionFooter}>
