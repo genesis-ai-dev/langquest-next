@@ -217,15 +217,20 @@ jobs:
           (PHONE_TUNNEL_TOKEN="$token" setsid nohup node scripts/phone-tunnel.mjs serve --port 9000 > "$RUNNER_TEMP/gate.log" 2>&1 &)
           unset token
           bash scripts/phone-tests-wait.sh tunnel "$RUNNER_TEMP/cloudflared" http://127.0.0.1:9000 "$RUNNER_TEMP/cloudflared.log" "$SERVER/tunnel.json"
+      # Named by the run's attempt: "Re-run failed jobs" keeps the first
+      # attempt's artifacts, and an iPhone job that took that address reached a
+      # server that was gone (run 38, 2026-11-13).
       - name: Hand the address and the accounts to the iPhone job
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: phone-tests-ios-server
+          name: phone-tests-ios-server-${{ github.run_attempt }}
           path: ${{ env.SERVER }}
           # The folder's name starts with a dot, which upload-artifact leaves out unless told.
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
+      # Ends as the iPhone job ended: when that one failed, this one fails
+      # too, so "Re-run failed jobs" starts a new test server for it.
       - name: Serve until the iPhone job ends
         run: bash scripts/phone-tests-wait.sh job "iPhone simulator" 190
       - name: Keep the logs
