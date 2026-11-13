@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dimensions, Keyboard, type KeyboardEvent, LayoutAnimation, Platform, type ViewInstance } from 'react-native';
-import { keyboardCover, keyboardTop } from './keyboardModel';
+import { keyboardCover, keyboardCues, keyboardTop } from './keyboardModel';
 
 /**
  * How much of a view the on-screen keyboard covers, kept current as the
@@ -28,15 +28,13 @@ export function useKeyboardCover() {
     else ref.current?.measureInWindow((_x, y, _w, height) => { if (top.current === at) cover(keyboardCover({ y, height }, at)); });
   }, []);
   useEffect(() => {
-    // Opened with the keyboard already up.
+    // Opened with the keyboard up, or on its way down: the keyboard's last word settles it (keyboardCues).
     if (Keyboard.isVisible()) { top.current = keyboardTop(Keyboard.metrics(), Dimensions.get('window').height); remeasure(); }
-    const ios = Platform.OS === 'ios';
-    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', (e) => {
-      top.current = keyboardTop(e.endCoordinates, Dimensions.get('window').height);
-      remeasure(e);
-    });
-    const hide = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', (e) => { top.current = null; remeasure(e); });
-    return () => { show.remove(); hide.remove(); };
+    const subscriptions = keyboardCues(Platform.OS).map((cue) => Keyboard.addListener(cue.event, (e) => {
+      top.current = cue.shows ? keyboardTop(e.endCoordinates, Dimensions.get('window').height) : null;
+      remeasure(cue.moves ? e : undefined);
+    }));
+    return () => { for (const s of subscriptions) s.remove(); };
   }, [remeasure]);
   const onLayout = useCallback(() => remeasure(), [remeasure]);
   return { ref, covered, onLayout };
