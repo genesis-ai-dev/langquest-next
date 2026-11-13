@@ -337,6 +337,8 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
+          # A scheduled run starts as the merge queue, the last to change this file.
+          allowed_bots: github-merge-queue
           prompt: |
             Tonight some phone UI test flows failed. .phone-tests/failures.json lists them: the phone (android or ios), the flow's name, its file in apps/mobile/test/maestro/flows, Maestro's error, and the picture of the screen when it failed (.phone-tests/shots/<shot>; it can be null). The pictures show a test server with made-up people and data.
             For each failed flow, read the flow file and the error, and look at the picture. Then write .phone-tests/look.json: a JSON array with one object for each failed flow, {"platform": "<as given>", "flow": "<the name as given>", "what": "<one sentence>", "cause": "app" | "test" | "machine"}.
