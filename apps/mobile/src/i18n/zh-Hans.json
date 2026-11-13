@@ -3152,7 +3152,8 @@
       "downloading": "正在下载更新……",
       "downloadingPercent": "正在下载更新……{{percent}}",
       "webReady": "LangQuest 的新版本已就绪。重新加载即可使用。",
-      "storeBuild": "应用商店版本",
+      "storeBuild": "应用商店版本 {{version}}",
+      "noUpdate": "无更新",
       "updateBuild": "更新 {{id}}",
       "unknownBuild": "未知更新"
     },

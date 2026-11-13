@@ -3657,7 +3657,8 @@
       "downloading": "جارٍ تنزيل التحديث…",
       "downloadingPercent": "جارٍ تنزيل التحديث… {{percent}}",
       "webReady": "نسخة جديدة من LangQuest جاهزة. أعد تحميل الصفحة لتستخدمها.",
-      "storeBuild": "إصدار المتجر",
+      "storeBuild": "إصدار المتجر {{version}}",
+      "noUpdate": "لا يوجد تحديث",
       "updateBuild": "التحديث {{id}}",
       "unknownBuild": "تحديث غير معروف"
     },
