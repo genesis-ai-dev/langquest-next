@@ -44,8 +44,12 @@ export interface Commands {
   keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string; parentTakeId?: string | null }): EventSpec[];
   /** Set one of the person's drafts aside (decisions.md 83). Undo is `keepTake` with its cards and the draft as parent. */
   deleteDraft(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
-  /** Delete a version its publisher no longer wants (LAN-83, `canDeleteVersion`): a tombstone; its number and its checks stay on the record. */
-  deleteVersion(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
+  /**
+   * Delete a version its publisher no longer wants, or any version for an
+   * admin of the language (`admin`, decisions.md 124 amended; `canDeleteVersion`):
+   * a tombstone; its number and its checks stay on the record.
+   */
+  deleteVersion(c: { commandId: string; unitId: string; takeId: string; actorId: string; admin?: boolean }): EventSpec[];
   /**
    * Which verses each part holds (decisions.md 82): one 'v1.CardVerseSet'
    * per card whose mark changed, from the marks of a whole list of cards.
@@ -266,7 +270,7 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
 
     deleteVersion(c) {
       const passage = derivePassage(state, c.unitId, idx);
-      if (!canDeleteVersion(passage, c.takeId, c.actorId)) throw new CommandError('Only whoever published a version can delete it.');
+      if (!canDeleteVersion(passage, c.takeId, c.actorId, c.admin)) throw new CommandError('Only whoever published a version, or an admin, can delete it.');
       return [{ id: ids(c.commandId)(), type: 'v1.TakeArchived', payload: { takeId: c.takeId } }];
     },
 
