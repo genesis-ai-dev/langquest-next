@@ -1,0 +1,3 @@
+{
+  "comment": "LAN-111: main's Expo SDK 58 update (decision 250) already turns on R8 shrinking and keeps the speech model's classes. My pull request (#369, https://github.com/genesis-ai-dev/langquest-next/pull/369) overlaps it and waits for Caleb's choice."
+}
