@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { AUDIENCE, API, changesOf, CHANGES_MAX, prOf, runUrl, withRun } from './tutorial-review.mjs';
+import { AUDIENCE, API, changesOf, CHANGES_MAX, prOf, problemsOf, runUrl, withRun } from './tutorial-review.mjs';
 import { REVIEW_PATH, REVIEW_RULE } from '../apps/web/worker/tutorialReview';
 
 /** The scripts around Claude's nightly look at the tutorial videos' feedback (decisions.md 186). */
@@ -16,9 +16,21 @@ describe('tutorial-review.mjs', () => {
     expect(yml).toContain('id-token: write');
     expect(yml).toContain('claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}');
     expect(yml).toContain('node scripts/tutorial-review.mjs fetch .tutorial-review');
-    expect(yml).toContain('node scripts/tutorial-review.mjs send .tutorial-review');
-    // Claude reads, searches, writes its look and reads git; it has no network and no shell besides.
-    expect(yml).toContain('--allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"');
+    // After Claude, the script as checked out, from a copy made before Claude: Claude can write in the checkout.
+    const copy = yml.indexOf('cp scripts/tutorial-review.mjs "$RUNNER_TEMP/look/scripts/"');
+    expect(copy).toBeGreaterThan(0);
+    expect(yml).toContain('cp server/tutorialFeedback.ts "$RUNNER_TEMP/look/server/"');
+    expect(copy).toBeLessThan(yml.indexOf('anthropics/claude-code-action'));
+    expect(yml).toContain('node "$RUNNER_TEMP/look/scripts/tutorial-review.mjs" check .tutorial-review');
+    expect(yml).toContain('node "$RUNNER_TEMP/look/scripts/tutorial-review.mjs" send .tutorial-review');
+    expect(yml).not.toContain('node scripts/tutorial-review.mjs send');
+    // Claude mends a look the Worker would refuse once, before it is sent.
+    expect(yml).toContain("if: steps.check.outputs.problems == 'yes'");
+    expect(yml.indexOf('id: mend')).toBeLessThan(yml.indexOf('name: Send the look'));
+    // Claude reads, searches, writes its look and reads git; it has no network and no shell besides. Both times.
+    const tools = '--allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"';
+    expect(yml.split('claude_args:').slice(1).map((a) => a.split('\n')[0]!.trim())).toEqual([tools, tools]);
+    expect(yml.split('allowed_bots: github-merge-queue')).toHaveLength(3);
     expect(existsSync(new URL('../.agents/skills/tutorial-review/SKILL.md', import.meta.url))).toBe(true);
   });
 
@@ -44,5 +56,64 @@ describe('tutorial-review.mjs', () => {
     expect(runUrl(env)).toBe('https://github.com/genesis-ai-dev/langquest-next/actions/runs/123');
     expect(runUrl({ ...env, GITHUB_RUN_ATTEMPT: '2' })).toBe('https://github.com/genesis-ai-dev/langquest-next/actions/runs/123/attempts/2');
     expect(withRun({ looked: [], sha: 'ignored' }, 'c'.repeat(40), env)).toEqual({ looked: [], sha: 'c'.repeat(40), runUrl: 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/123' });
+  });
+
+  describe('checking the look before it is sent', () => {
+    const env = { GITHUB_SERVER_URL: 'https://github.com', GITHUB_REPOSITORY: 'genesis-ai-dev/langquest-next', GITHUB_RUN_ID: '123', GITHUB_RUN_ATTEMPT: '1' };
+    const sha = 'c'.repeat(40);
+    const comment = '11111111-2222-4333-8444-555555555555';
+    const note = '66666666-7777-4888-8999-aaaaaaaaaaaa';
+    const waiting = 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff';
+    const state = {
+      last: null,
+      inputs: [{ id: comment, kind: 'comment', lookedAt: null }, { id: note, kind: 'note', lookedAt: null }],
+      suggestions: [{ id: waiting, decision: null }]
+    };
+    const change = { sha: 'f40e52a0115f4fd50c461eed7bb4dbbed276161e', at: '2026-11-13T05:54:00Z', subject: 'Nearby sync (#403)', pr: 403, files: [] };
+    const fine = {
+      code: [{ key: 'pr-403-sync', sha: change.sha, tutorial: 'sync-nearby', pr: 403, title: 'Nearby sync', english: 'A new way to sync.', at: change.at }],
+      comments: [{ id: comment, english: 'Thanks!', reply: '', replyEnglish: '' }],
+      looked: [{ input: comment, outcome: 'Thanks only.' }],
+      suggestions: [{ kind: 'new', tutorial: null, title: 'Show nearby sync', detail: 'A video of the new sync.', inputs: ['pr-403-sync'] }],
+      attach: [{ suggestion: waiting, inputs: [note] }]
+    };
+    const problems = (review: unknown) => problemsOf(review, state, [change], sha, env);
+
+    it('passes a look the Worker takes whole', async () => {
+      expect(await problems(fine)).toEqual([]);
+    });
+
+    // Run 43406100298 (2026-11-13): looked[0] named a change, which the Worker refused, and the night was lost.
+    it('says when a change that needs nothing was put in looked, by its commit or its pull request', async () => {
+      for (const ref of [change.sha, change.sha.slice(0, 8), 403, 'pr-403', '#403']) {
+        const found = await problems({ ...fine, looked: [{ input: ref, outcome: 'Nothing to change.' }, ...fine.looked] });
+        expect(found[0]).toBe("The Worker would refuse the whole look: looked[0].input: an input's id or a code change's key.");
+        expect(found[1]).toMatch(/^looked\[0\]\.input is .*: a change from changes\.json \(f40e52a0 "Nearby sync \(#403\)"\), not an input\. A change that needs nothing goes nowhere/);
+        expect(found).toHaveLength(2);
+      }
+    });
+
+    it('says how to write an entry that names no input, an id state.json does not have, a suggestion not waiting and an input left out', async () => {
+      const other = '12345678-1234-4234-8234-123456789012';
+      const found = await problems({ ...fine, looked: [{ id: comment, outcome: 'Thanks only.' }], attach: [{ suggestion: other, inputs: [other] }] });
+      expect(found).toEqual([
+        "The Worker would refuse the whole look: looked[0].input: an input's id or a code change's key.",
+        'looked[0].input is missing: write each entry as { "input": "<an input\'s id>", "outcome": "<why nothing is suggested>" }.',
+        `attach[0].inputs[0] is "${other}", which is no input's id in state.json. Name an input by its "id" from state.json's "inputs".`,
+        `attach[0].suggestion is "${other}", which is no waiting suggestion's id in state.json.`,
+        `Input ${comment} (a comment) is in no place: put it in a suggestion's inputs, in attach, or in looked with an outcome.`,
+        `Input ${note} (a note) is in no place: put it in a suggestion's inputs, in attach, or in looked with an outcome.`
+      ]);
+    });
+
+    it('says when a code change is in no place, and what the Worker would refuse besides', async () => {
+      expect(await problems({ ...fine, suggestions: [], looked: [...fine.looked, { input: 'pr-9', outcome: 'x' }] })).toEqual([
+        "The Worker would refuse the whole look: looked[1].input: an input's id or a code change's key.",
+        'looked[1].input is "pr-9", which is no input\'s id in state.json and no key in code. Name an input by its "id" from state.json\'s "inputs", or a code change by its "key".',
+        'code key "pr-403-sync" is in no place: name it in the suggestion it is for.'
+      ]);
+      expect(await problems({ ...fine, comments: [{ id: comment, english: 'Thanks!', reply: 'Use the calculator.', replyEnglish: '' }] }))
+        .toEqual(["The Worker would refuse the whole look: comments[0].reply: never the phone's disguise (decisions.md 171)."]);
+    });
   });
 });
