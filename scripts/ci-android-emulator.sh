@@ -10,7 +10,8 @@
 # image is Google APIs (no Play Store), as the run-app skill says: the Play
 # image stays "unauthorized" to adb until someone taps its prompt. It boots
 # with no window and no snapshot, and the script returns when Android says
-# the boot is complete (at most 10 minutes), as emulator-5554.
+# the boot is complete (at most 10 minutes) and a network reaches the
+# internet (at most 6 more), as emulator-5554.
 #
 # ANDROID_API picks the Android version (35 by default). The emulator's own
 # output goes to the log file, which the workflow keeps.
@@ -63,6 +64,40 @@ CONFIG="$ANDROID_AVD_HOME/$AVD.avd/config.ini"
   echo 'hw.keyboard=yes'
 } >> "$CONFIG"
 
+# A network that reaches the internet before the flows start. The image can
+# boot with Wi-Fi off and no mobile data, so Android has no network at all; the
+# app then rightly calls the phone offline, and every flow that downloads
+# fails (run 34, 2026-11-13: 6 of 25). Wi-Fi and mobile data are turned on,
+# and the script waits until Android has checked that a network reaches the
+# internet (VALIDATED, what the app reads as online), with airplane mode on and
+# off between tries. A machine where that never happens fails here, as a
+# machine, not in the flows.
+online() { adb shell dumpsys connectivity 2> /dev/null | tr -d '\r' | grep -qE '[&: ]VALIDATED[& ]'; }
+network() {
+  local try
+  adb shell svc wifi enable || true
+  adb shell svc data enable || true
+  for try in 1 2 3; do
+    for _ in $(seq 1 24); do
+      if online; then
+        echo "The emulator reaches the internet (try $try)"
+        return 0
+      fi
+      sleep 5
+    done
+    echo "The emulator has no network that reaches the internet after 2 minutes (try $try): airplane mode on and off, then Wi-Fi and mobile data on"
+    adb shell cmd connectivity airplane-mode enable || true
+    sleep 5
+    adb shell cmd connectivity airplane-mode disable || true
+    adb shell svc wifi enable || true
+    adb shell svc data enable || true
+  done
+  online && return 0
+  echo "::error::The Android emulator has no network that reaches the internet after 6 minutes: the app would be offline in every flow"
+  adb shell dumpsys connectivity | tr -d '\r' | grep -E 'Active default network|NetworkAgentInfo' | head -20 || true
+  return 1
+}
+
 nohup emulator -avd "$AVD" -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect \
   -cores 2 -dns-server 8.8.8.8,1.1.1.1 > "$LOG" 2>&1 &
 
@@ -77,6 +112,7 @@ for _ in $(seq 1 120); do
     # shows no error boxes.
     adb shell pm disable-user --user 0 com.google.android.googlesdksetup > /dev/null 2>&1 || true
     adb shell settings put global hide_error_dialogs 1 || true
+    network || exit 1
     echo "The emulator is up: $(adb shell getprop ro.build.version.release | tr -d '\r') (API $API)"
     exit 0
   fi
