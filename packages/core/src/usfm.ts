@@ -13,6 +13,9 @@ import { USFM_BOOKS, usfmOf } from './versification';
  */
 
 /** Markers whose whole span is not verse text: footnotes, cross references, study notes, figures, sidebars. */
+/** Which reading of a file `checkUsfm` is. A change to what it keeps or drops is a new number, as Aquilla stamps its importers (its decision 0001). */
+export const USFM_PARSER_VERSION = 1;
+
 const SPAN_MARKERS = ['f', 'fe', 'x', 'ef', 'ex', 'esb', 'fig'];
 
 export interface UsfmChapter {
@@ -34,7 +37,7 @@ export type UsfmProblem =
   | { code: 'chapterOrder'; chapter: number; after: number }
   | { code: 'badVerse'; chapter: number; text: string }
   | { code: 'backward'; chapter: number; start: number; end: number }
-  | { code: 'outOfOrder' | 'emptyVerses'; count: number }
+  | { code: 'outOfOrder' | 'emptyVerses' | 'missingVerses'; count: number }
   | { code: 'duplicateBook'; book: string; other: string };
 
 export interface UsfmCheck {
@@ -84,6 +87,23 @@ function utf8Bytes(s: string): number {
   return n;
 }
 
+/** Lines that are headings and titles, not verse text; a verse or chapter marker later on the same line stays. */
+const HEADING_LINE = /^\\(?:s\d?|ms\d?|mr|r|sr|rem|sts|d|mt\d?|imt\d?|is\d?|ip|ipi|im|imi|ili\d?|iot|io\d?|iq\d?|ib|ie|iex|imq|ipq|ipr|imte\d?|toc\d|h\d?|cl|cd|sp|lit|periph|usfm|ide|id)\b([^\n]*)$/gm;
+
+/**
+ * The text of a file with what is not verse words taken out: milestones
+ * (`\zaln-s |x-strong="G1"\*`, `\ts\*`, `\qt-s |sid="q1"\*`, from aligned
+ * unfoldingWord files), notes, and heading lines.
+ */
+function prepareBody(src: string): string {
+  let s = src.replace(/\\z?[a-z]+-[se](?:\s[^\\]*)?\\\*/g, '').replace(/\\ts\\\*/g, '');
+  for (const m of SPAN_MARKERS) s = s.replace(new RegExp(String.raw`\\\+?${m}\s(?:(?!\\[cv]\s)[\s\S])*?\\\+?${m}\*`, 'g'), ' ');
+  return s.replace(HEADING_LINE, (_all, rest: string) => {
+    const at = rest.search(/\\[cv]\s/);
+    return at >= 0 ? rest.slice(at) : '';
+  });
+}
+
 const MARKER_LINE = /^\\([a-z]+\d*)\*?(?:\s+(.*))?$/;
 
 /** Read one USFM file. Never throws: every problem is in `errors` or `warnings`. */
@@ -109,73 +129,60 @@ export function checkUsfm(fileName: string, text: string): UsfmCheck {
     else out.book = code;
   }
 
-  // ---- body: join lines to their marker, then walk the markers ----
+  // ---- names from the header lines ----
+  const names: Record<string, string> = {};
+  for (const line of src.split('\n')) {
+    const m = MARKER_LINE.exec(line.trim());
+    if (m && ['h', 'toc1', 'toc2', 'toc3', 'mt', 'mt1'].includes(m[1]!)) names[m[1]!] ??= cleanVerseText(m[2] ?? '');
+  }
+
+  // ---- body: \c and \v are found anywhere in the text, not only at a line's start ("\q1 \v 1 ..." is common in poetry) ----
+  const body = prepareBody(src);
   let chapter = 0;
   let current: UsfmChapter | null = null;
-  let verse: { start: number; end: number; text: string[] } | null = null;
   let lastVerseEnd = 0;
-  const names: Record<string, string> = {};
   const seenChapters = new Set<number>();
   let strayVerse = false;
   let outOfOrder = 0;
   let emptyVerses = 0;
-
-  const closeVerse = () => {
-    if (!verse || !current) { verse = null; return; }
-    const body = cleanVerseText(verse.text.join(' '));
-    if (!body) emptyVerses++;
-    current.verses.push([verse.start, verse.end, body]);
-    out.verseCount++;
-    verse = null;
-  };
-
-  for (const rawLine of src.split('\n')) {
-    const line = rawLine.trim();
-    if (!line) continue;
-    const m = MARKER_LINE.exec(line);
-    if (!m) { if (verse) verse.text.push(line); continue; }
-    const marker = m[1]!;
-    const rest = m[2] ?? '';
-    switch (marker) {
-      case 'id': break;
-      case 'h': case 'toc1': case 'toc2': case 'toc3': case 'mt': case 'mt1':
-        names[marker] ??= cleanVerseText(rest); break;
-      case 'c': {
-        closeVerse();
-        const n = Number.parseInt(rest, 10);
-        if (!Number.isInteger(n) || n < 1) { fail({ code: 'badChapter', text: rest.slice(0, 20) }); break; }
-        if (seenChapters.has(n)) { fail({ code: 'chapterTwice', chapter: n }); }
-        else if (n < chapter) warn({ code: 'chapterOrder', chapter: n, after: chapter });
-        seenChapters.add(n);
-        chapter = n;
-        lastVerseEnd = 0;
-        current = { chapter: n, verses: [] };
-        out.chapters.push(current);
-        break;
-      }
-      case 'v': {
-        closeVerse();
-        const vm = /^(\d+)[a-z]?(?:\s*[-–—]\s*(\d+)[a-z]?)?(?:\s+([\s\S]*))?$/.exec(rest);
-        if (!current) { strayVerse = true; break; }
-        if (!vm) { fail({ code: 'badVerse', chapter, text: rest.slice(0, 20) }); break; }
-        const start = Number(vm[1]);
-        const end = vm[2] ? Number(vm[2]) : start;
-        if (end < start) { fail({ code: 'backward', chapter, start, end }); break; }
-        if (start <= lastVerseEnd && lastVerseEnd > 0) outOfOrder++;
-        lastVerseEnd = Math.max(lastVerseEnd, end);
-        verse = { start, end, text: vm[3] ? [vm[3]] : [] };
-        break;
-      }
-      default:
-        if (verse) { const t = rest; if (t) verse.text.push(`\\${marker} ${t}`); }
+  let missingVerses = 0;
+  const marks = [...body.matchAll(/\\([cv])[ \t\n]+(\S+)[ \t]*/g)];
+  marks.forEach((m, i) => {
+    const kind = m[1]!;
+    const value = m[2]!;
+    const stop = marks[i + 1]?.index ?? body.length;
+    if (kind === 'c') {
+      const n = /^\d+$/.test(value) ? Number(value) : 0;
+      if (n < 1) { fail({ code: 'badChapter', text: value.slice(0, 20) }); current = null; return; }
+      if (seenChapters.has(n)) fail({ code: 'chapterTwice', chapter: n });
+      else if (n < chapter) warn({ code: 'chapterOrder', chapter: n, after: chapter });
+      seenChapters.add(n);
+      chapter = n;
+      lastVerseEnd = 0;
+      current = { chapter: n, verses: [] };
+      out.chapters.push(current);
+      return;
     }
-  }
-  closeVerse();
+    if (!current) { strayVerse = true; return; }
+    const vm = /^(\d+)[a-z]?(?:[-\u2013\u2014](\d+)[a-z]?)?$/.exec(value);
+    if (!vm) { fail({ code: 'badVerse', chapter, text: value.slice(0, 20) }); return; }
+    const start = Number(vm[1]);
+    const end = vm[2] ? Number(vm[2]) : start;
+    if (end < start) { fail({ code: 'backward', chapter, start, end }); return; }
+    if (start <= lastVerseEnd && lastVerseEnd > 0) outOfOrder++;
+    else if (start > lastVerseEnd + 1 && lastVerseEnd > 0) missingVerses += start - lastVerseEnd - 1;
+    lastVerseEnd = Math.max(lastVerseEnd, end);
+    const text = cleanVerseText(body.slice(m.index! + m[0].length, stop));
+    if (!text) emptyVerses++;
+    current.verses.push([start, end, text]);
+    out.verseCount++;
+  });
 
   if (strayVerse) fail({ code: 'strayVerse' });
   if (!out.chapters.length) fail({ code: 'noChapters' });
   else if (out.verseCount === 0) fail({ code: 'noVerses' });
   if (outOfOrder) fail({ code: 'outOfOrder', count: outOfOrder });
+  if (missingVerses) warn({ code: 'missingVerses', count: missingVerses });
   if (emptyVerses && out.verseCount) warn({ code: 'emptyVerses', count: emptyVerses });
   const gaps = out.chapters.flatMap((c, i) => (i > 0 && c.chapter !== out.chapters[i - 1]!.chapter + 1 ? [c.chapter] : []));
   if (gaps.length && !out.errors.some((e) => e.code === 'chapterTwice')) warn({ code: 'missingChapters', chapter: gaps[0]! });
@@ -186,7 +193,13 @@ export function checkUsfm(fileName: string, text: string): UsfmCheck {
 
 /** The checks of several files together: one book per file, no book twice. */
 export function checkUsfmFiles(files: readonly { name: string; text: string }[]): UsfmCheck[] {
-  const checks = files.map((f) => checkUsfm(f.name, f.text));
+  // A file may hold several books (each starts at its own \\id): each becomes its own check.
+  const checks = files.flatMap((f) => {
+    const parts = f.text.split(/^(?=\\id[ \t])/m).filter((p) => p.trim());
+    const books = parts.filter((p) => /^\\id[ \t]/.test(p));
+    if (books.length < 2) return [checkUsfm(f.name, f.text)];
+    return books.map((p) => checkUsfm(`${f.name} (${p.slice(4, 7).toUpperCase()})`, p));
+  });
   const first = new Map<string, string>();
   for (const c of checks) {
     if (!c.book || c.errors.length) continue;
@@ -218,6 +231,7 @@ export function usfmProblemText(p: UsfmProblem): string {
     case 'badVerse': return `In chapter ${p.chapter} a verse line reads "\\v ${p.text}". A verse needs a number.`;
     case 'backward': return `In chapter ${p.chapter}, verse range ${p.start}-${p.end} runs backward.`;
     case 'outOfOrder': return `${p.count} verse${p.count === 1 ? ' is' : 's are'} out of order or repeated inside a chapter.`;
+    case 'missingVerses': return `${p.count} verse${p.count === 1 ? ' is' : 's are'} missing between the verses the file has.`;
     case 'emptyVerses': return `${p.count} verse${p.count === 1 ? ' has' : 's have'} no text.`;
     case 'duplicateBook': return `This is ${englishBookName(p.book)} again; ${p.other} already holds it.`;
   }

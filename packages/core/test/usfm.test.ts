@@ -50,7 +50,7 @@ describe('checkUsfm', () => {
 
 describe('usfmBible@1 and usfmBook@1', () => {
   const h = 'a'.repeat(64);
-  const book: UsfmBookDoc = { format: 'usfmBook@1', book: 'RUT', name: 'Rut', chapters: [{ chapter: 1, verses: [[1, 1, 'x']] }], usfm: GOOD, deps: [] };
+  const book: UsfmBookDoc = { format: 'usfmBook@1', book: 'RUT', name: 'Rut', chapters: [{ chapter: 1, verses: [[1, 1, 'x']] }], parser: 1, usfm: GOOD, deps: [] };
   const bible: UsfmBibleDoc = withDeps({
     format: 'usfmBible@1', name: 'Our Bible', abbreviation: 'OB', language: 'hin', versification: h, copyright: '© Team', rightsConfirmed: true,
     books: [{ book: 'RUT', name: 'Rut', doc: 'b'.repeat(64), chapters: 1, verses: 1 }], deps: []
@@ -77,4 +77,25 @@ describe('size', () => {
 
 it('flags broken letters', () => {
   expect(checkUsfm('a.usfm', '\\id RUT\n\\c 1\n\\v 1 a�b').errors.map((e) => e.code)).toContain('brokenLetters');
+});
+
+describe('files from other tools (Aquilla\'s samples)', () => {
+  it('reads poetry whose verse marker is in the middle of a line', () => {
+    const c = checkUsfm('psa.usfm', '\\id PSA\n\\c 1\n\\ms1 Book One\n\\q1 \\v 1 Happy is the man\n\\q2 who walks well,\n\\q1 \\v 2 but his delight is the law.\n');
+    expect(c.errors).toEqual([]);
+    expect(c.chapters[0]!.verses).toEqual([[1, 1, 'Happy is the man who walks well,'], [2, 2, 'but his delight is the law.']]);
+  });
+  it('keeps only the words of aligned USFM 3 (unfoldingWord)', () => {
+    const t = '\\id TIT\n\\c 1\n\\ts\\*\n\\p\n\\v 1 \\zaln-s |x-strong="G39720" x-lemma="Παῦλος" x-occurrence="1"\\*\\w Paul|x-occurrence="1" x-occurrences="1"\\w*\\zaln-e\\*,\n\\zaln-s |x-strong="G14010"\\*\\w a|x-occurrence="1"\\w*\n\\w servant|x-occurrence="1"\\w*\\zaln-e\\*\n';
+    expect(checkUsfm('tit.usfm', t).chapters[0]!.verses).toEqual([[1, 1, 'Paul, a servant']]);
+  });
+  it('puts a heading, a note and a Psalm title outside the verse', () => {
+    const c = checkUsfm('a.usfm', '\\id RUT\n\\c 1\n\\s1 A heading\n\\d A title\n\\v 1 Words\\f + \\ft a note\\f* here.\n\\s1 Next heading\n\\v 2 More.\n');
+    expect(c.chapters[0]!.verses).toEqual([[1, 1, 'Words here.'], [2, 2, 'More.']]);
+  });
+  it('says when verses are missing, and splits a file that holds several books', () => {
+    expect(checkUsfm('a.usfm', '\\id RUT\n\\c 1\n\\v 1 a\n\\v 4 b\n').warnings.map((w) => w.code)).toEqual(['missingVerses']);
+    const books = checkUsfmFiles([{ name: 'all.usfm', text: '\\id RUT\n\\c 1\n\\v 1 a\n\\id JON\n\\c 1\n\\v 1 b\n' }]);
+    expect(books.map((b) => [b.fileName, b.book, b.errors.length])).toEqual([['all.usfm (RUT)', 'RUT', 0], ['all.usfm (JON)', 'JON', 0]]);
+  });
 });

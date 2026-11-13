@@ -7796,7 +7796,8 @@
       "backward": "In chapter {{chapter}}, the verses {{start}}-{{end}} run backward.",
       "outOfOrder": "Verses are out of order or repeated inside a chapter. Count: {{count}}.",
       "emptyVerses": "Some verses have no text. Count: {{count}}.",
-      "duplicateBook": "This is {{book}} again. The file {{other}} already has it. Leave one out."
+      "duplicateBook": "This is {{book}} again. The file {{other}} already has it. Leave one out.",
+      "missingVerses": "Some verses are missing between the verses the file has. Count: {{count}}."
     },
     "chooseHelp": "Pick USFM files (.usfm or .sfm) or a zip of them from this computer.",
     "publishHelp": "Adds this Bible to your organization's Reference Material.",

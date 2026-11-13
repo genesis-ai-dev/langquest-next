@@ -1,1 +1,4 @@
-{"text": "I will look at the Aquilla USFM uploader and compare it with ours. Then I will tell you what we should change before anyone merges.", "working": true}
+{
+  "text": "I read Aquilla's USFM importer and tried our checker on its sample files. Our first version failed two ways. Psalms in unfoldingWord files showed no verses, because poetry puts the verse marker mid-line. Alignment markup also leaked into the verse text. I fixed both. I also added: files with several books, UTF-16 files, a warning for missing verses, and a stamp saying which reading made each book. All of Aquilla's samples now read correctly. Still open, and Aquilla leaves it open too: checking verse numbers against the chosen numbering. Your question about the upload flow stands. The change is pushed to the pull request.",
+  "working": false
+}

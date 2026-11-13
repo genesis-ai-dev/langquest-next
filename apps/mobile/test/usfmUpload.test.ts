@@ -2,7 +2,7 @@ import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { checkUsfmFiles, validateDoc, withDeps } from '@langquest-next/core';
 import { describe, expect, it } from 'vitest';
 import { bibleDoc, bookDoc, emptyDetails, missingDetail, readyBooks, suggestAbbreviation } from '../src/usfm/model';
-import { readZip, ZipError } from '../src/usfm/zipModel';
+import { decode, readZip, ZipError } from '../src/usfm/zipModel';
 
 const RUT = '\\id RUT\n\\c 1\n\\v 1 In the days of the judges.\n';
 const MAT = '\\id MAT\n\\c 1\n\\v 1 The book of the genealogy.\n';
@@ -76,5 +76,12 @@ describe('the Bible an admin publishes', () => {
     expect(suggestAbbreviation('Our Team Bible')).toBe('OTB');
     expect(suggestAbbreviation('Gondi')).toBe('GOND');
     expect(suggestAbbreviation('  ')).toBe('');
+  });
+});
+
+describe('reading a file as text', () => {
+  it('reads UTF-8 and UTF-16 with its byte-order mark', async () => {
+    expect(decode(new TextEncoder().encode(RUT))).toBe(RUT);
+    expect(decode(new Uint8Array(Buffer.from(`\uFEFF${RUT}`, 'utf16le')))).toBe(RUT);
   });
 });

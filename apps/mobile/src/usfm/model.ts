@@ -1,6 +1,6 @@
 // Upload your own Bible (LAN-229, decision 253): what the admin fills in, what
 // is ready to publish, and the documents it becomes. Pure: no React Native.
-import { bookOrder, type UsfmBibleDoc, type UsfmBookDoc, type UsfmCheck } from '@langquest-next/core';
+import { bookOrder, USFM_PARSER_VERSION, type UsfmBibleDoc, type UsfmBookDoc, type UsfmCheck } from '@langquest-next/core';
 
 /** What the admin types and picks after the files pass their checks. */
 export interface UsfmDetails {
@@ -44,7 +44,7 @@ export function missingDetail(checks: readonly UsfmCheck[], d: UsfmDetails): Usf
 
 /** The book document for one passing file. */
 export function bookDoc(check: UsfmCheck, usfm: string): UsfmBookDoc {
-  return { format: 'usfmBook@1', book: check.book!, name: check.name || check.book!, chapters: check.chapters, usfm, deps: [] };
+  return { format: 'usfmBook@1', book: check.book!, name: check.name || check.book!, chapters: check.chapters, parser: USFM_PARSER_VERSION, usfm, deps: [] };
 }
 
 /** The Bible's header once its books have hashes (`docs`, by book code). */

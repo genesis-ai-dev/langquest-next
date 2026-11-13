@@ -202,6 +202,11 @@ material → Upload Bible files** on the web (decisions.md 253, LAN-229).
    `material`), through the library's outbox like any item. Nothing goes to
    the live library from anywhere but the admin's own publish.
 
+The reading was checked against Aquilla's USFM importer and its sample files
+(decision 253, amended): `\v` is found anywhere in a line, milestones, notes,
+headings and Psalm titles stay out of the verse words, a file with several
+books is read as several, and UTF-16 files work.
+
 **Waits on LAN-230:** the reader does not open a `usfmBible@1` yet, so
 translators do not see it beside a passage, and the offered-Bibles counts and
 coverage leave it out. Paragraphs, headings and notes are kept in each book's

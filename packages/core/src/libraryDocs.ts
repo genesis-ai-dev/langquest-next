@@ -437,6 +437,8 @@ export interface UsfmBookDoc {
   book: string;
   name: string;
   chapters: { chapter: number; verses: [number, number, string][] }[];
+  /** Which reading of the file made `chapters` (`USFM_PARSER_VERSION`), so a later reading can tell and read `usfm` again. */
+  parser: number;
   /** The USFM file as uploaded, so markup, headings and notes can be shown later without another upload. */
   usfm: string;
   deps: string[];
@@ -770,6 +772,7 @@ export function validateDoc(value: unknown): string | null {
     case 'usfmBook@1': {
       if (!/^[A-Z0-9]{3}$/.test(String(d['book'])) || !str(d['name'])) return 'a book needs a USFM code and a name';
       if (typeof d['usfm'] !== 'string') return 'a book keeps its USFM text';
+      if (!Number.isInteger(d['parser'])) return 'a book says which reading of the file made its verses';
       if (!Array.isArray(d['chapters']) || (d['chapters'] as unknown[]).length === 0) return 'a book needs chapters';
       for (const c of d['chapters'] as unknown[]) {
         if (!isObj(c) || !Number.isInteger(c['chapter']) || !Array.isArray(c['verses']) ||

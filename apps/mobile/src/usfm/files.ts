@@ -2,7 +2,7 @@
 // `.sfm` and `.txt` files, or a zip of them. Web only, as the guide editor's
 // uploads are (guides/files.ts): a phone leaves big uploads to the web app.
 import { Platform } from 'react-native';
-import { readZip, ZipError, type Inflate } from './zipModel';
+import { decode, readZip, ZipError, type Inflate } from './zipModel';
 
 export const canPickUsfm = Platform.OS === 'web';
 
@@ -32,7 +32,6 @@ const inflate: Inflate = async (raw) => {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 };
 
-const decode = (bytes: Uint8Array) => new TextDecoder('utf-8').decode(bytes);
 
 /** The text files the person picked, with a zip opened into its files. A `PickFailure` when the zip cannot be read. */
 export async function pickUsfmFiles(): Promise<PickedText[] | PickFailure> {
