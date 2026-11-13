@@ -60,7 +60,7 @@
     // apps/mobile/.env.production (scripts/nearbyCertKeys.test.ts). Empty, so
     // /api/nearby/* answers 503, until a person runs
     // scripts/nearby-signing-key.sh production, which appends to it.
-    "NEARBY_CERT_KEYS": ""
+    "NEARBY_CERT_KEYS": "k111eefb3:fZwqKhahDgzcChI56-mtV-iO9wxXwR_7WaDUJvrv6kY"
   },
   // Set on the Worker by `npm run secrets -- production`, never at deploy;
   // a deploy fails while one is missing.

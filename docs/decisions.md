@@ -1315,7 +1315,7 @@ their own, but through a pull request whose guardrails checks are green;
 `main` takes no direct push (decisions.md 150).
 
 Amended (2026-11-07, Carl Sauder): the app's first flag, nearby sync's
-(219), has no synced configuration document. It keeps this entry's
+(220), has no synced configuration document. It keeps this entry's
 per-organization control, default of off, offline behaviour, lack of a
 third-party service, and its rule that a flag gates screens and behaviour,
 never events. The record is `org_features` on the server, and the
@@ -1686,10 +1686,10 @@ only within an hour and while it is still looked after with no password.
 
 Amended (2026-11-08, Carl Sauder): a join can now also come through the
 Worker's `POST /api/nearby/join`, taking a two-link chain, proof of the key
-and the phone's own id, for a newcomer let in offline (242, 243; docs/
+and the phone's own id, for a newcomer let in offline (243, 244; docs/
 nearby-sync-plan.md 14.1, step 6). It makes the same kind of looked-after
 account with no password, but with the id the key gives, and redeems a join
-pass instead of a token (239). `supabase/functions/join` stays as it is for
+pass instead of a token (240). `supabase/functions/join` stays as it is for
 current builds. A newcomer whose pass stopped is let in by an ordinary
 invite: the phone posts the token to the same route with its chain, the
 route calls `preview_invite` before making anything, and the token is still
@@ -1762,7 +1762,7 @@ Coming back from the lock takes the session back from the courier without
 ending it, after any delivery under way stops (`takeBackHandOver`).
 
 Amended (2026-11-07, Carl Sauder): a teammate's events that came from their
-phone (`nearby`, 211) never go through the courier. They are not `pending`,
+phone (`nearby`, 212) never go through the courier. They are not `pending`,
 so `pendingStreamsBy` and a hand-over's `deliverQueued` never see them, and
 `requeue` and Try again never turn a row with a `via` into `pending`: naming
 this person proves nothing, so the courier would otherwise push a forged
@@ -2853,16 +2853,16 @@ of `server/concurrentAppendSmoke.sql` (`record_blob` twice at once).
 
 Amended (2026-11-08, Carl Sauder): proof of a key can now sign someone in to
 an account made from a chain, until that key's first session, which
-`install_keys.first_session_at` records (Carl's answer 10; 243). It signs in
+`install_keys.first_session_at` records (Carl's answer 10; 244). It signs in
 only an account whose `app_metadata.chain_key` is that key, that is looked
 after, with the key's row unrevoked and no first session yet, so an ordinary
 account's certified key gets nothing. `nearby_certificate_facts` closes the
 window on all of the person's rows, as does either `take_sign_in_code`
 function, so a helper's code on another phone ends it too. After that, a
 helper's code as for anyone. "Nobody is added without joining" still holds:
-a newcomer joins by redeeming a pass whose stops the server checks (239),
+a newcomer joins by redeeming a pass whose stops the server checks (240),
 and the id they come in with follows from their key, so it cannot name a
-member, an imported person or a deleted account (240, 244).
+member, an imported person or a deleted account (241, 245).
 
 ## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
 
@@ -3720,7 +3720,7 @@ missing files, in which case add a slow background spot check of hashes.
 
 Amended (2026-11-07, Carl Sauder): a teammate's recording that came from
 their phone and is lost behind the app's back is not this person's to record
-again. Such a file is marked when it lands (225), so the lost view
+again. Such a file is marked when it lands (226), so the lost view
 (`LanguageSession.lost`, `lostFilesOf` given the marks) counts it in
 neither of the alert's totals and names none of its passages: its author's
 phone is where it is recorded again, if it must be. This person's own
@@ -5368,6 +5368,25 @@ waveform are numbered, and that is enough. The row keeps the status
 the time and Done; screen readers hear the status with how many parts are
 kept so far. In back translation the source part stays named above, on its
 player.
+
+Amended (2026-11-13, Caleb Koster): an admin of the language may delete any
+version, not only their own. An admin is someone who holds `manage_roles`
+there: an Organization Admin, or the Organization Admin role given for one
+language (a Language Admin). Coordinators, translators and reviewers still
+delete only what they published. Reason: Caleb asked that an admin can
+remove work so that a passage looks as if nobody had worked on it yet, for
+example work brought from LangQuest v2 that should not count (Every
+Language's Berom team lost most of its v2 audio, 2026-11-13). Imported work
+is published under the v2 person's name, and that person may never sign in
+here, so only an admin can clear it. When a passage's last version is
+deleted, the passage shows as not started (`recorded` is false). It is the
+same tombstone as before: the version keeps its number, and the history
+still shows it and who deleted it, so nothing is lost (hidden, never
+deleted). Caleb chose this over a new "clear the whole passage" button,
+because the Delete button and its ask-first sheet already exist, and each
+of Berom's imported passages has one version. The server already accepted
+`v1.TakeArchived` from anyone who may translate, so only core
+(`canDeleteVersion`, `deleteVersion`'s `admin`) and the app change.
 
 ## 125. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
 
@@ -7473,7 +7492,7 @@ Reverse if: the old tests fail often for reasons that phones never meet
 past the `server` job's other steps (then run the commits in parallel jobs).
 
 Amended (2026-11-07, Carl Sauder): `append_events` is restated once, for
-the `by:` rule (214): a caller's event whose id, or the id a create makes,
+the `by:` rule (215): a caller's event whose id, or the id a create makes,
 names someone else is refused with a reason that reads as `INVALID`. Any
 other id behaves as today, so old builds keep their results, which this
 entry's old-sync run checks in CI on the nearby branch's pull request
@@ -7814,7 +7833,7 @@ tried it again, and Carl asked how such a copy is ever corrected. So:
 
 
 Amended (2026-11-08, Carl Sauder): a phone with no Play Store gets a carried
-file after a native change (245), because this entry deletes
+file after a native change (246), because this entry deletes
 `release/android` once the new build is public, and over-the-air updates
 after a native change reach the old runtime only through that branch, so
 such a phone would otherwise get nothing for good until a newer file exists
@@ -7822,6 +7841,33 @@ such a phone would otherwise get nothing for good until a newer file exists
 merge touching the files nearby sync added is copied to `release/android`,
 where they do not exist, and conflicts, so such merges wait until it is
 public (section 7). Caleb should see this, since 155 is his entry.
+
+Amended (2026-11-13, Carl Sauder): the copies onto `release/ios` in PRs 437
+and 441 failed `unit`. Nearby sync had made `scripts/serverCalls.test.ts`
+import `FIELD_PROFILES` from `apps/mobile/scripts/store-build-guard.mjs`. A
+copy takes that test from main as machinery, but keeps the release branch's
+guard, which on a branch from before carried builds has no such export. So
+the machinery may import only machinery: `scripts/releaseBranches.test.ts`
+fails when a file in `MACHINERY` imports a local file that is not in it. The
+check that the guard holds the same two profiles as the server-calls check
+moved to `scripts/storeBuildGuard.test.ts`, which a release branch keeps at
+its own version, and is skipped on a release branch, where the guard is the
+public build's and the server-calls check is main's. Taking the guard from
+main instead was rejected: it is the phone app's build code, which a copy
+leaves as the public build has it.
+
+Amended (2026-11-13, Carl Sauder): from the merge of nearby sync on, every
+copy in which Claude made commits (PRs 434, 437, 439, 440, 441 and 444) ended
+with "its commits could not be pushed ... error: 400". The dependency upgrades
+in that merge moved `actions/checkout` from v4.4.0 to v7.0.1. That version
+keeps its token in a file that an `includeIf` entry pulls into the repository's
+git config. Claude's action removes the checkout's token from the local config
+and from plain `include.path` files, but not from that one. So the push of
+Claude's commits (`pushCopy`, which brings its own header) sent two
+Authorization headers, and GitHub refused it. The copy workflow's checkout now
+keeps no credential (`persist-credentials: false`, as `user-issues.yml`
+already did), and `scripts/releaseBranches.test.ts` holds it there. The
+repository is public, so the workflow's fetches need none.
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
@@ -8004,7 +8050,7 @@ fast enough that a restarted one costs less than a build that waits, then
 send every build straight to production again.
 
 Amended (2026-11-08, Carl Sauder): carried builds never go to production
-review (245). A merge that makes one uploads it to Play's `alpha` track
+review (246). A merge that makes one uploads it to Play's `alpha` track
 with release status `draft` (`eas.json`, `submit.carried`), which
 `scripts/play-review.mjs` never reads, since it sends the newest build on
 the internal track to production review. EAS documents only production,
@@ -8013,6 +8059,14 @@ an exception to this entry's "every new build goes to production review",
 and it uses up a version code, so later store builds simply number higher
 (docs/nearby-sync-plan.md 14.4). Caleb should see this, since 157 is his
 entry.
+
+Amended (2026-11-13, Carl Sauder): the app reads the time back from a store
+build's version and shows it on Sync, with the build number, beside the OTA
+update's id and time (`storeVersionTime` in
+`apps/mobile/src/shell/updateStatus.ts`). The phone's settings show only the
+store version and nothing else shows the update, so a tester needs both to
+say which code they run. A new form for the version needs that reader
+changed too; a version it cannot read shows no date, never a wrong one.
 
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
@@ -8746,8 +8800,8 @@ Pictures, never names, as above.
 
 Amended (2026-11-07, Carl Sauder): Carl chose (his answer 5, 2026-11-06)
 that on a shared phone a signed-out person's unsent work may be shared
-nearby, so the nearby install key (216) and each person's certificates
-(217) sit outside this entry's seal: the key in the Keystore beside it, the
+nearby, so the nearby install key (217) and each person's certificates
+(218) sit outside this entry's seal: the key in the Keystore beside it, the
 chains as plain meta rows. They are used only when someone signed in has
 opened Share nearby, apart from proving the key to the Worker in the
 certificate call of whoever is signed in. This weakens what this entry
@@ -8983,7 +9037,7 @@ settings Expo embeds; an export of the iPhone app (`expo export --platform
 ios`) had none on 2026-11-05. Android is unchanged.
 
 Amended (2026-11-07, Carl Sauder): a disguised Android phone is offered
-Share nearby, with limits (Carl's answer 15; 230 has them in full). The
+Share nearby, with limits (Carl's answer 15; 231 has them in full). The
 radios never run behind the cover: opening the screen does nothing, a press
 starts it, ten minutes or "Up to date" stops it with no listening bursts,
 and going to the background stops it for good, so only a new press after the
@@ -11545,7 +11599,7 @@ destructuring; a teammate's clock is received only within 5 minutes
 (`clockCloseEnough`). `SyncInspection` has a nearby count, and the fleet's
 `caughtUp` requires it to be zero. The cost is that nearby rows, like pending
 ones, hold `takeCheckpoint` on its slow path and keep memory from shedding
-until the server confirms them (215 has the numbers).
+until the server confirms them (216 has the numbers).
 Reverse if: a `pending` or `confirmed` row is ever downgraded by a teammate's
 copy, or a nearby row is ever pushed.
 
@@ -11579,7 +11633,7 @@ its install key (plan section 11).
 
 Date: 2026-11-12 · By: Carl Sauder · Status: accepted
 
-Reason: with numbered batches (212) a teammate could close a number by
+Reason: with numbered batches (213) a teammate could close a number by
 leaving events out, and a phone holding part of a batch could close it for
 the next phone (plan 5.3, from the security review). A number counts only
 when every id in its manifest is here under that digest, under a later batch
@@ -11691,7 +11745,7 @@ Reason: with no server to ask, identity has to be arranged while online,
 and authorship has to survive being carried by a third phone and the relay
 (`docs/nearby-sync-plan.md` 5.5). So a phone makes its own Ed25519 key the
 first time someone on it belongs to an organization with nearby sync on
-(219), and signs its batches, its proof at Hello and its certificate
+(220), and signs its batches, its proof at Hello and its certificate
 request with it. One key per install, not per person: one install key
 stays, so two organizations' phones can still be matched on profile id,
 device id and that key. Until phase 5 key making and the certificate call
@@ -12044,7 +12098,7 @@ counting once it names neither.
 
 Date: 2026-11-12 · By: Carl Sauder · Status: accepted
 
-Reason: every phone now takes teammates' recordings (226), so a cheap phone
+Reason: every phone now takes teammates' recordings (227), so a cheap phone
 can fill up, and until now there was only yes or no (`evictableOf`). Carl
 chose (2026-11-06) that a backup may go when space runs short (plan 5.6).
 Level 1 is today's rule unchanged: files the server has, outside this
@@ -12192,7 +12246,7 @@ generation, at the end of any completed sync unless the room is running, and
 at any sign-out; and Ready to carry says "today", "since you were last
 online" or not, from the vector, holdings and members, with the newest work
 held from each (`firstHlc`), not from who met whom. No meeting time is kept
-anywhere, and diagnostics name no teammate (234). All that costs is partner
+anywhere, and diagnostics name no teammate (235). All that costs is partner
 order and perhaps one extra session. Android's backup rules leave the
 database out (`configureAndroidBackup`), and a test holds that.
 Reverse if: partner order without times makes teams of five take many more
@@ -12221,7 +12275,7 @@ under pressure would light the radios and show teammates' names in front of
 whoever asked. One warning comes before any permission prompt, because
 Android's prompts name the application whatever icon the phone shows.
 `radios.joinHotspot` is false there, since the hotspot's join dialog names
-it too (`radiosFor`). "Hold teammates' recordings" is off by default (226).
+it too (`radiosFor`). "Hold teammates' recordings" is off by default (227).
 The code goes through a `.android` seam (`src/shell/useAppCovered`,
 `NearbyCoverNotes`), and every word only a disguised phone shows stays in
 `src/disguise/i18n`, so iPhone and web builds carry none of it (171 as
@@ -12239,7 +12293,7 @@ while it is open, so no personal switch for the radios is needed (Carl's
 choices of 2026-11-06, plan 2, 5.8 and 5.10). It is `share_nearby`
 (`apps/mobile/src/screens/nearby.tsx`), loaded when first opened, from a row
 under Sync that shows only with a certificate for the organization and a
-discovery key for the language (219), with an `APP_ONLY` edge since the
+discovery key for the language (220), with an `APP_ONLY` edge since the
 partner demo has no such flow, and an amber experimental badge until the
 experiment ends, which is Carl's call later. Below Android 10, or without
 Bluetooth LE or Wi-Fi Direct, the row is disabled with a line saying why
@@ -12273,7 +12327,7 @@ rest stubs and flow edges), and all chunks to 4.92 MB (4.90 MB to 4.92 MB,
 13 KB of it the screen's chunk, which the web never opens but the screen map
 names), each rounded up to the next 0.01 MB. Everything else moved behind
 the Android-only nearby entries (`@langquest-next/sync/nearby`, `.android`
-files), which is also why diagnostics' `nearby` kind lives there (234).
+files), which is also why diagnostics' `nearby` kind lives there (235).
 Reverse if: a later change needs room and nearby's share can move behind a
 chunk the web never loads.
 
@@ -12357,10 +12411,10 @@ Neither side records the other phone's tag, salt, key, install key, profile
 or device id, as `docs/diagnostics.md` already rules for a shared phone's
 other person; building added that the record leaves out whether the phone
 wears a disguise and its "Hold teammates' recordings" row, which defaults
-off under one (226), since either would mark the person in records that
+off under one (227), since either would mark the person in records that
 support and Claude read. The schema lives in the nearby entry and a
 recorder takes it with `Diagnostics.allow`, because the web bundle had no
-room (232); the server's allowlist (`diag.schema()`, migration
+room (233); the server's allowlist (`diag.schema()`, migration
 `20261112020000_diag_nearby.sql`) holds it beside the rest, and
 `diag.install_summary` reports it as `nearby`. Only transfers go to the
 user-issue watch: these records are for reading a field report, and a
@@ -12371,7 +12425,7 @@ file a kind of nearby failure.
 
 Amended (2026-11-07, Carl Sauder): leaving the disguise out was not enough,
 because only a disguised phone has a run limit or stops at "Up to date"
-(230), so a room record with `stop` `run` or `level`, or a run that ended at
+(231), so a room record with `stop` `run` or `level`, or a run that ended at
 exactly ten minutes, marked the person. A room record now reads those stops
 as `asked`, and says it ran, and took to "Up to date", at most ten minutes
 (`NEARBY_ROOM_MS_CAP`, held equal to the app's run limit by a test), so a
@@ -12456,7 +12510,7 @@ Reverse if: field data shows backdated floods, or real work refused at the
 cap more often than staff can raise it.
 
 Amended (2026-11-08, Carl Sauder): every revocation now ends the person's
-sessions, not only staff's (221 as amended), the password branch's lost
+sessions, not only staff's (222 as amended), the password branch's lost
 code revokes too, and suspending an account revokes its keys.
 
 ## 238. The relay carries no redaction and no stamp more than a day ahead
@@ -12620,7 +12674,7 @@ proof of key, the id and a request id to the Worker's `POST
 /api/nearby/join` (`accountFromChain`, shared with the relay, so a
 teammate carrying the newcomer's work makes the same account): an id that
 exists is reached only by its own `chain_key`, a deleted id is refused
-(244), `pass_refusal` is asked before any Auth call, then `createUser` with
+(245), `pass_refusal` is asked before any Auth call, then `createUser` with
 the phone's own id and `app_metadata: { managed: true, chain_key }`, the
 `install_keys` row and `redeem_pass_for`. A database error answers 503,
 never a refusal, and `JOIN_RATE_LIMIT` runs before any signature check. A
@@ -12698,7 +12752,7 @@ no id is answered by `take_sign_in_code_v2` as before. Migration
 
 Date: 2026-11-12 · By: Carl Sauder · Status: accepted
 
-Reason: a newcomer's id follows from their key (240), so a chain kept on a
+Reason: a newcomer's id follows from their key (241), so a chain kept on a
 phone could make an account with the id of one deleted since, and
 `accountdeleted:` events are written only for live memberships, so the log
 cannot say who was deleted (docs/nearby-sync-plan.md 14.1, step 6).
@@ -12940,7 +12994,14 @@ Reverse if: react-freeze or react-native-screens publishes the fix (remove
 the file and the redirect); or a frozen screen comes back without its
 content, or late, which says the mended thaw is wrong.
 
-## 252. An organization's own Bible, uploaded as USFM files, is two new library formats, `usfmBible@1` and `usfmBook@1`, and no shipped format changes
+## 252. Back translation shows as two rows on the record, make it and check it, and never as a peer review
+
+Date: 2026-11-12 · By: Caleb Koster · Status: accepted
+
+Reason: at the 5 November 2026 meeting with Bezily's group the Standard Bible Flow looked as if a back translation needed a peer review, because step 1 lists both side by side and a made back translation read "looks good" though nobody had checked it (LAN-234). Caleb chose two rows with the flows unchanged. A kind that makes new content (`produces`) now shows "Back translation · make it" (done reads "made") followed by "Back translation · check it", which follows the check that compares it (`checkedBy`) and reads "checked" only once that check is done (`teamSteps` in `pathModel.ts`, `TeamStep.part`). It stays out when the back translation is set aside or moved past. The rows keep the look of the other team rows. Decision 91's one-row-per-check still holds for every other kind; flows and kinds are unchanged.
+Reverse if: people still read the check row as a second review, or a language's flow needs back translation checked by something other than a named check.
+
+## 253. An organization's own Bible, uploaded as USFM files, is two new library formats, `usfmBible@1` and `usfmBook@1`, and no shipped format changes
 
 Date: 2026-11-12 · By: Caleb Koster · Status: accepted
 

@@ -1,4 +1,4 @@
-// Upload your own Bible (LAN-229, decision 252): what the admin fills in, what
+// Upload your own Bible (LAN-229, decision 253): what the admin fills in, what
 // is ready to publish, and the documents it becomes. Pure: no React Native.
 import { bookOrder, type UsfmBibleDoc, type UsfmBookDoc, type UsfmCheck } from '@langquest-next/core';
 

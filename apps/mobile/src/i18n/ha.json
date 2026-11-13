@@ -3271,7 +3271,8 @@
       "downloading": "Ana sauke sabuntawa…",
       "downloadingPercent": "Ana sauke sabuntawa… {{percent}}",
       "webReady": "Sabuwar sigar LangQuest ta shirya. Ku sake loda shafin don amfani da ita.",
-      "storeBuild": "ginin shago",
+      "storeBuild": "ginin shago {{version}}",
+      "noUpdate": "babu sabuntawa",
       "updateBuild": "sabuntawa {{id}}",
       "unknownBuild": "sabuntawa ba a sani ba"
     },
@@ -3981,7 +3982,11 @@
         "askedWho": "an roƙi {{who}}",
         "asked": "an roƙa",
         "next": "na gaba",
-        "afterDone": "bayan kun gama"
+        "afterDone": "bayan kun gama",
+        "made": "an yi ta",
+        "checked": "an duba ta",
+        "afterMade": "bayan an yi ta",
+        "checkedBy": "a cikin {{check}}"
       },
       "help": {
         "study": "Ku bi jagorar nazari tare kafin ku naɗa. Babu abin da ke jiran sa.",
@@ -4001,7 +4006,9 @@
         "checkpoint": "Alamar kulle: dole a wuce shi kafin matakan da ke bayansa."
       },
       "thenTheTeam": "Sannan tawagar",
-      "teamHears": "Sannan tawagar za ta iya jin sa"
+      "teamHears": "Sannan tawagar za ta iya jin sa",
+      "makeIt": "{{what}} · yin ta",
+      "checkIt": "{{what}} · duba ta"
     },
     "quote": "“{{text}}”",
     "journey": {

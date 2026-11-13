@@ -3271,7 +3271,8 @@
       "downloading": "Downloading update…",
       "downloadingPercent": "Downloading update… {{percent}}",
       "webReady": "A new version of LangQuest is ready. Reload to use it.",
-      "storeBuild": "store build",
+      "storeBuild": "store build {{version}}",
+      "noUpdate": "no update",
       "updateBuild": "update {{id}}",
       "unknownBuild": "update unknown"
     },
@@ -3981,7 +3982,11 @@
         "askedWho": "asked {{who}}",
         "asked": "asked",
         "next": "next",
-        "afterDone": "once you're done"
+        "afterDone": "once you're done",
+        "made": "made",
+        "checked": "checked",
+        "afterMade": "after it is made",
+        "checkedBy": "in the {{check}}"
       },
       "help": {
         "study": "Go through the study guide together before you record. Nothing waits on it.",
@@ -4001,7 +4006,9 @@
         "checkpoint": "The lock: it must pass before the steps after it."
       },
       "thenTheTeam": "Then the team",
-      "teamHears": "Then the team can hear it"
+      "teamHears": "Then the team can hear it",
+      "makeIt": "{{what}} · make it",
+      "checkIt": "{{what}} · check it"
     },
     "quote": "“{{text}}”",
     "journey": {

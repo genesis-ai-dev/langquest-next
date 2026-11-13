@@ -3271,7 +3271,8 @@
       "downloading": "Dina-download ang update…",
       "downloadingPercent": "Dina-download ang update… {{percent}}",
       "webReady": "Handa na ang bagong bersiyon ng LangQuest. I-reload para magamit ito.",
-      "storeBuild": "build mula sa store",
+      "storeBuild": "build mula sa store {{version}}",
+      "noUpdate": "walang update",
       "updateBuild": "update {{id}}",
       "unknownBuild": "hindi alam ang update"
     },
@@ -3981,7 +3982,11 @@
         "askedWho": "hiniling: {{who}}",
         "asked": "hiniling",
         "next": "susunod",
-        "afterDone": "kapag tapos ka na"
+        "afterDone": "kapag tapos ka na",
+        "made": "nagawa na",
+        "checked": "nasuri na",
+        "afterMade": "pagkatapos gawin",
+        "checkedBy": "sa {{check}}"
       },
       "help": {
         "study": "Pag-aralan nang magkakasama ang gabay sa pag-aaral bago ka mag-record. Walang naghihintay rito.",
@@ -4001,7 +4006,9 @@
         "checkpoint": "Ang kandado: kailangan itong pumasa bago ang mga hakbang pagkatapos nito."
       },
       "thenTheTeam": "Saka ang pangkat",
-      "teamHears": "Saka ito maririnig ng pangkat"
+      "teamHears": "Saka ito maririnig ng pangkat",
+      "makeIt": "{{what}} · gawin",
+      "checkIt": "{{what}} · suriin"
     },
     "quote": "“{{text}}”",
     "journey": {
