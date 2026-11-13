@@ -5,10 +5,10 @@
 // lit, a note on a verse or a moment, the team's words after the key words
 // when switched on), key words (a tile for each with the team's word, its
 // sheet, add a word), notes, and everything recorded so far.
-import { commands, keyTermsFor, notePart, noteHelp, RECORD_STEP, replyOf, type KeyTermView, type KeyWordDoc, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
+import { newCommandId, commands, keyTermsFor, notePart, noteHelp, RECORD_STEP, replyOf, type KeyTermView, type KeyWordDoc, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { Fragment, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, ScrollView, type ScrollViewInstance, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
@@ -112,7 +112,7 @@ export function BiblePane(props: {
     : bible.audioAbsent ? t('recording.player.notOnDeviceYet')
       : src?.loading || !src ? t('common.loading') : src.textProblem;
   const selectedRow = props.selected ? src?.rows?.find((r) => r.key === props.selected) ?? null : null;
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const follow = useFollowVerse({ playing: player.playing, verse: player.started ? player.current?.key : undefined, scroll: scrollRef });
   // Under the chosen verse: what a note there is on, with the moment when it is playing there (UI audit, finding 42).
   const noteHereLabel = (key: string) => {
@@ -373,7 +373,7 @@ export function BibleBar(props: { bible: Bible; onOpen: () => void }) {
 // ---- key words --------------------------------------------------------------------------
 
 /**
- * The Key words chip (a-wsTerms; LAN-233, decision 208): the team's words as
+ * The Key words chip (a-wsTerms; LAN-233, decision 253): the team's words as
  * tiles that wrap, each with the key word, the team's word and ▶ for its
  * voice ("no word yet" in amber when there is none). A tap on a tile opens
  * its sheet over the recorder (keyTerms/KeyTermSheet.tsx), where it is used,
@@ -537,7 +537,7 @@ function SayYoursSheet(props: { ctx: Ctx; v: PassageView; term: KeyTermView; dra
       // TERM-5: a rendering said (and, when typed, written), recorded with this passage; tied to the draft when there is one.
       await ctx.act(commands(state, indexesFor(state)).adjustKeyTermRendering({
         // i18n-ignore: the rendering's note is stored in the event log
-        commandId: Crypto.randomUUID(), termId: term.termId, rendering: text, note: hash ? '' : `Rendered “${text.trim()}” in ${v.title}.`,
+        commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), termId: term.termId, rendering: text, note: hash ? '' : `Rendered “${text.trim()}” in ${v.title}.`,
         ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {}),
         ...(props.canTie && props.draftTakeId ? { tieToTakeId: props.draftTakeId } : {})
       }), t('reference.keyWords.saved', { term: term.term }));
@@ -627,7 +627,7 @@ export function AddWordSheet(props: {
     try {
       // TERM-6: the word, how the language says it (said, typed or both), recorded as its first adjustment.
       await ctx.act(commands(state, indexesFor(state)).defineKeyTerm({
-        commandId: Crypto.randomUUID(), termId: from?.termId ?? `kt-${Crypto.randomUUID()}`, term, gloss, unitScope: book ? [book] : [],
+        commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), termId: from?.termId ?? `kt-${Crypto.randomUUID()}`, term, gloss, unitScope: book ? [book] : [],
         // i18n-ignore: the term's first note is stored in the event log
         rendering, note: rendering.trim() ? `First rendering: ${rendering.trim()}.` : 'Said in a voice note.',
         ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {})

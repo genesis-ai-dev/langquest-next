@@ -4,6 +4,13 @@
  *
  *   npm run test:ui:build -- --platform ios --device <simulator udid>
  *   npm run test:ui:build -- --platform android --device <avd name, e.g. Pixel_6>
+ *   npm run test:ui:build -- --platform android|ios --build-only [--abi x86_64]
+ *
+ * --build-only builds the app without a device and prints where it is (an
+ * .apk, or a simulator .app), for a machine that starts its emulator or
+ * simulator after the build: the nightly phone tests (.github/workflows/
+ * phone-tests.yml, decision 208). --abi builds Android's native code for one
+ * processor only (the emulator's), which takes a quarter of the time.
  *
  * A release build with its JavaScript inside, pointed at the local stack
  * (.env.development): no Metro, no dev launcher and no developer menu, so a
@@ -31,8 +38,10 @@ const value = (name, fallback) => {
 };
 const platform = value('platform', 'ios');
 const device = value('device', '');
+const buildOnly = args.includes('--build-only');
+const abi = value('abi', '');
 if (!['ios', 'android'].includes(platform)) throw new Error('--platform is ios or android');
-if (!device) throw new Error('--device is required (a simulator udid, or an Android Virtual Device name)');
+if (!device && !buildOnly) throw new Error('--device is required (a simulator udid, or an Android Virtual Device name), or --build-only');
 
 // The repository's tools (dotenvx, expo) as `npm run` would find them.
 const PATH = [join(app, 'node_modules/.bin'), join(root, 'node_modules/.bin'), process.env.PATH].join(':');
@@ -73,11 +82,48 @@ if (platform === 'android') {
   // settings of now.
   run('./gradlew', ['--stop'], join(app, 'android'));
   rmSync(join(app, 'android/app/build/generated/assets/react'), { recursive: true, force: true });
-  run('node', ['scripts/with-env.mjs', 'development', 'npx', 'expo', 'run:android', '--variant', 'release', '--device', device, '--no-bundler']);
+  if (buildOnly) {
+    const gradle = ['./gradlew', ':app:assembleRelease', '--no-daemon', ...(abi ? [`-PreactNativeArchitectures=${abi}`] : [])];
+    run('node', ['scripts/with-env.mjs', 'development', 'bash', '-c', `cd android && ${gradle.join(' ')}`]);
+    built(join(app, 'android/app/build/outputs/apk/release/app-release.apk'));
+  } else {
+    run('node', ['scripts/with-env.mjs', 'development', 'npx', 'expo', 'run:android', '--variant', 'release', '--device', device, '--no-bundler']);
+  }
 } else {
   if (!existsSync(join(app, 'ios'))) run('npx', ['expo', 'prebuild', '--platform', 'ios', '--no-install']);
   patch(join(app, 'ios/LangQuestNext/Supporting/Expo.plist'), '<key>EXUpdatesEnabled</key>\n    <true/>',
     '<key>EXUpdatesEnabled</key>\n    <false/>', 'updates off');
-  run('node', ['scripts/with-env.mjs', 'development', 'npx', 'expo', 'run:ios', '--configuration', 'Release', '--device', device, '--no-bundler']);
+  if (buildOnly) {
+    // The simulator build is signed to run locally, with no team, as `expo run:ios` signs one.
+    // A build with no signing at all has no entitlements, and the keychain refuses the sign-in
+    // ("A required entitlement isn't present", iOS 26 simulator, 2026-11-11). A build with no
+    // team cannot have associated domains, and no flow needs them: the flows open
+    // langquestnext:// links. The JavaScript is bundled by Xcode's own build phase, with these settings.
+    const entitlements = join(app, 'ios/LangQuestNext/LangQuestNext.entitlements');
+    const text = readFileSync(entitlements, 'utf8');
+    const kept = text.replace(/\s*<key>com\.apple\.developer\.associated-domains<\/key>\s*<array>[\s\S]*?<\/array>/, '');
+    if (kept !== text) {
+      writeFileSync(entitlements, kept);
+      console.log('ios/LangQuestNext/LangQuestNext.entitlements: no associated domains (a build with no team cannot have them)');
+    }
+    run('pod', ['install'], join(app, 'ios'));
+    run('node', ['scripts/with-env.mjs', 'development', 'xcodebuild', '-workspace', 'ios/LangQuestNext.xcworkspace', '-scheme', 'LangQuestNext',
+      '-configuration', 'Release', '-sdk', 'iphonesimulator', '-destination', 'generic/platform=iOS Simulator',
+      '-derivedDataPath', 'ios/build', ...(abi ? [`ARCHS=${abi}`, 'ONLY_ACTIVE_ARCH=NO'] : []), '-quiet', 'build']);
+    built(join(app, 'ios/build/Build/Products/Release-iphonesimulator/LangQuestNext.app'));
+  } else {
+    run('node', ['scripts/with-env.mjs', 'development', 'npx', 'expo', 'run:ios', '--configuration', 'Release', '--device', device, '--no-bundler']);
+  }
+}
+
+/** Say where the built app is, for the step that installs it, and stop. */
+function built(file) {
+  if (!existsSync(file)) {
+    console.error(`x the build finished but ${file} is not there`);
+    process.exit(1);
+  }
+  console.log(`\nBuilt the ${platform} test build: ${file}`);
+  if (process.env.GITHUB_OUTPUT) writeFileSync(process.env.GITHUB_OUTPUT, `app=${file}\n`, { flag: 'a' });
+  process.exit(0);
 }
 console.log(`\nInstalled the ${platform} test build on ${device}. Run the flows with: npm run test:ui:phone -- --platform ${platform}`);

@@ -6,7 +6,7 @@
 // and kept as recorded wears the grey ear instead (KeptMark.tsx); a
 // cleaned part, and a part this device has not measured, wear neither.
 import { useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, StyleSheet, useWindowDimensions, View, type ViewInstance } from 'react-native';
 import { Text } from '../ui/text';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -36,7 +36,7 @@ export function CleanUpMark(props: { ctx: Ctx; hash: string; part: string; disab
 }
 
 export function NoiseMark(props: { sound: PartSound; part: string; disabled: boolean; onCleanUp: () => void }) {
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const { width, height } = useWindowDimensions();
   const open = () => ref.current?.measureInWindow((x, y, w, h) =>

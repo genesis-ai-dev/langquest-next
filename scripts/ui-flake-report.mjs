@@ -73,12 +73,29 @@ export function reportFromZip(bytes) {
   }
 }
 
+/**
+ * A fetch that tries again when GitHub answers 5xx or the connection drops:
+ * one of the 160-odd artifact downloads failing with a 502 or 503 failed the
+ * whole night (2026-11-11 and 2026-11-13). A 4xx is an answer, given back at once.
+ */
+export async function fetchRetrying(url, init, { fetchImpl = fetch, tries = 3, waitMs = 2000 } = {}) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetchImpl(url, init);
+      if (res.status < 500 || attempt >= tries) return res;
+    } catch (e) {
+      if (attempt >= tries) throw e;
+    }
+    await new Promise((r) => setTimeout(r, waitMs * attempt));
+  }
+}
+
 /** A GET against api.github.com, JSON back. */
-export function githubGet(token, fetchImpl = fetch) {
+export function githubGet(token, fetchImpl = fetch, waitMs = 2000) {
   return async (path) => {
-    const res = await fetchImpl(`https://api.github.com${path}`, {
+    const res = await fetchRetrying(`https://api.github.com${path}`, {
       headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' }
-    });
+    }, { fetchImpl, waitMs });
     if (!res.ok) throw new Error(`GitHub ${path}: HTTP ${res.status}`);
     return res.json();
   };
@@ -180,7 +197,7 @@ async function main() {
   }
   const get = githubGet(token);
   const download = async (artifact) => {
-    const res = await fetch(artifact.archive_download_url, { headers: { authorization: `Bearer ${token}` } });
+    const res = await fetchRetrying(artifact.archive_download_url, { headers: { authorization: `Bearer ${token}` } });
     if (!res.ok) throw new Error(`GitHub artifact ${artifact.name}: HTTP ${res.status}`);
     return reportFromZip(Buffer.from(await res.arrayBuffer()));
   };

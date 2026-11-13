@@ -71,6 +71,8 @@ function fakes() {
       for (const e of entries) l.set(e.key, e);
       ledgers.set(scope, l);
     },
+    // These files are not named as v2's app names a recording, so the import marks them uploads (decisions.md 188, amended 2026-11-12).
+    putStamps: async () => {},
     append: async (list: AnyEvent[]) => { events.push(...list); return { accepted: list.length, duplicates: 0, rejected: [] }; },
     files: async (names: string[]) => new Map(names.flatMap((n) => (fileMap.has(n) ? [[n, fileMap.get(n)!] as const] : []))),
     putFiles: async (list: { name: string; file: CopiedFile | null }[]) => { for (const f of list) fileMap.set(f.name, f.file ?? { missingSince: new Date(now).toISOString() }); },

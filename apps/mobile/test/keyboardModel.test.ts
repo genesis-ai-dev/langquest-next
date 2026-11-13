@@ -1,7 +1,7 @@
 // Keeping a screen's footer above the on-screen keyboard (kit's KeyboardSafe):
 // where the keyboard's top is, and how much of a view it covers.
 import { describe, expect, it } from 'vitest';
-import { keyboardCover, keyboardTop } from '../src/ui/keyboardModel';
+import { keyboardCover, keyboardCues, keyboardTop } from '../src/ui/keyboardModel';
 
 // An iPhone 13: 844 points tall, the status bar 47, the home indicator 34, a keyboard with suggestions 336.
 const WINDOW = 844;
@@ -41,5 +41,18 @@ describe('what the keyboard covers', () => {
 
   it('is in whole points', () => {
     expect(keyboardCover({ y: 47.3, height: 763 }, 508)).toBe(302);
+  });
+});
+
+describe('the keyboard events a view follows', () => {
+  it('on iOS moves with the keyboard, and settles where it ended up, so a screen opened while it went does not keep its padding', () => {
+    const cues = keyboardCues('ios');
+    expect(cues.filter((c) => c.moves).map((c) => c.event)).toEqual(['keyboardWillShow', 'keyboardWillHide']);
+    // The "did" events come after a screen that opened mid-way has subscribed, and say where the keyboard is.
+    expect(cues.filter((c) => !c.moves).map((c) => [c.event, c.shows])).toEqual([['keyboardDidShow', true], ['keyboardDidHide', false]]);
+  });
+
+  it('on Android follows the keyboard once it is there', () => {
+    expect(keyboardCues('android').map((c) => [c.event, c.shows, c.moves])).toEqual([['keyboardDidShow', true, false], ['keyboardDidHide', false, false]]);
   });
 });

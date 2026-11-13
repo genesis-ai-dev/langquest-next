@@ -62,7 +62,7 @@ const TAKE_TAIL_MAX_MS = 600;
 let keepAwakeTags = 0;
 
 export interface RecordedCard {
-  /** Stable id chosen before any save step; the handler uses it as recordingId. */
+  /** Stable id chosen before any save step; the handler's recordingId is this id named for whoever is signed in. */
   id: string;
   ref: RecordingFile;
   durationMs: number;

@@ -47,23 +47,25 @@ jobs:
         run: |
           echo "::error title=Needs you%3A Claude token::The nightly look at the tutorial videos' feedback has no CLAUDE_CODE_OAUTH_TOKEN. Run claude setup-token, then npm run env:update -- production CLAUDE_CODE_OAUTH_TOKEN and npm run secrets -- production. https://github.com/${{ github.repository }}/blob/main/docs/tutorial-videos.md#feedback"
           exit 1
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: env.HAS_CLAUDE_TOKEN == 'true'
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: env.HAS_CLAUDE_TOKEN == 'true'
-        with: { node-version: 24 }
+        with: { node-version-file: .node-version, package-manager-cache: false }
       - name: What is open, and what main changed
         if: env.HAS_CLAUDE_TOKEN == 'true'
         run: node scripts/tutorial-review.mjs fetch .tutorial-review
       - name: Claude looks
         id: look
         if: env.HAS_CLAUDE_TOKEN == 'true'
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
+          # A scheduled run starts as the merge queue, the last to change this file.
+          allowed_bots: github-merge-queue
           prompt: |
             Use the tutorial-review skill (.agents/skills/tutorial-review/SKILL.md). What is open is in .tutorial-review/state.json and the changes merged into main since the last look are in .tutorial-review/changes.json. Write your look to .tutorial-review/review.json, as the skill says, and nothing else.
           claude_args: --allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"

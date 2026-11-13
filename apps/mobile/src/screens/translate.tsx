@@ -11,7 +11,7 @@
 // chip each: the Bible (play, Back 10 s, a Bible picker, notes on verses and
 // moments), the guide, key words (a tile for each, the team's word on it; a tap opens its
 // sheet over the recorder, never another screen, so a key word never ends a
-// recording, LAN-233, decision 208; a switch there puts the team's words in the
+// recording, LAN-233, decision 253; a switch there puts the team's words in the
 // Bible's text), notes, and everything recorded so far. Playing the Bible while recording pauses the
 // microphone and recording resumes when it stops (listen, speak, listen;
 // LAN-23). The recorder shows the parts recorded under one card and the
@@ -45,7 +45,7 @@
 // listen to the latest version and what you save is content for the next
 // check, not a version.
 import {
-  checkShows, cleanUpOf, commands, decodeHlc, derivePartVerses, derivePassage, draftsBy, keyTermsForUnit, partMarksFor, RECORD_STEP, skippedVerses, versesInChapter, type PartLabel,
+  newCommandId, checkShows, cleanUpOf, commands, decodeHlc, derivePartVerses, derivePassage, draftsBy, keyTermsForUnit, partMarksFor, RECORD_STEP, skippedVerses, versesInChapter, type PartLabel,
   type CleanUpChoice, type EventSpec, type KeyWordDoc, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
 } from '@langquest-next/core';
 import type { KeyWordList } from '../keyTerms/listsModel';
@@ -258,8 +258,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const current = latestCtx.current;
     const s = current.language.state;
     if (!s) throw new Error(t('translate.orgLoading'));
+    // The card's id is the journal's, which names nobody. Whoever is signed in now writes the event.
+    const commandId = newCommandId(current.session.actorId, card.id);
     await current.language.run(commands(s, indexesFor(s)).addRecording({
-      commandId: card.id, recordingId: card.id, unitId, kind: 'target',
+      commandId, recordingId: commandId, unitId, kind: 'target',
       card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
     }));
     current.language.triggerUpload();
@@ -289,7 +291,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     composeLock.current = true;
     setComposing(true);
     let specs: EventSpec[];
-    const commandId = Crypto.randomUUID();
+    const commandId = newCommandId(me, Crypto.randomUUID());
     try {
       specs = commands(state, idx).keepTake({ commandId, unitId, cardHashes: list, actorId: me, parentTakeId: parentNow() });
       // The verses of what was said in a place: its own, or none (workspaceModel `marksForSaid`, decisions.md 124).
@@ -297,7 +299,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       if (insertBefore && verses.length > 0) {
         const marks = marksForSaid(list, partMarksFor(state, unitId, list, verses), new Set(pending), aim.kind === 'end' ? undefined : aim.mark,
           verses.length, aim.kind === 'gap' && !!aim.insert);
-        specs = [...specs, ...commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards: list, marks, verses })];
+        specs = [...specs, ...commands(state, idx).setCardVerses({ commandId: newCommandId(me, Crypto.randomUUID()), unitId, cards: list, marks, verses })];
       }
     } catch (e) {
       composeLock.current = false;
@@ -372,7 +374,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     setHole(next ? { before: next, ...(mark ? { mark } : {}) } : null);
     setAim(next ? { kind: 'gap', before: next, ...(mark ? { mark } : {}) } : { kind: 'end' });
     const { specs, cleared: nowCleared } = removeCardSpecs(state, idx, {
-      commandId: Crypto.randomUUID(), unitId, actorId: me, list, hash, pending: new Set(pending), parentTakeId: parentNow(),
+      commandId: newCommandId(me, Crypto.randomUUID()), unitId, actorId: me, list, hash, pending: new Set(pending), parentTakeId: parentNow(),
       ...(draft ? { draftTakeId: draft.takeId } : {}), ...(startCards ? { latestCards: startCards } : {})
     });
     const before = snapNow();
@@ -389,7 +391,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     if (blocked || list.length === 0) return;
     const label = recorderLines(list.length).group;
     const specs = clearListSpecs(state, idx, {
-      commandId: Crypto.randomUUID(), unitId, list, pending: new Set(pending), parentTakeId: parentNow(), ...(draft ? { draftTakeId: draft.takeId } : {})
+      commandId: newCommandId(me, Crypto.randomUUID()), unitId, list, pending: new Set(pending), parentTakeId: parentNow(), ...(draft ? { draftTakeId: draft.takeId } : {})
     });
     setAim({ kind: 'end' });
     setHole(null);
@@ -408,7 +410,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const hash = list[from]!;
     const after: PartsSnap = { list: moved, marks: verseKeys.length > 0 ? marksKeepingLabels(before, moved, verseKeys.length, new Set([hash])) : marksOf(moved, before) };
     const { specs } = restoreSpecs(state, idx, {
-      commandId: Crypto.randomUUID(), unitId, actorId: me, to: after, verses: verseKeys, parentTakeId: parentNow(),
+      commandId: newCommandId(me, Crypto.randomUUID()), unitId, actorId: me, to: after, verses: verseKeys, parentTakeId: parentNow(),
       ...(draft ? { draftTakeId: draft.takeId } : {}), ...(startCards ? { latestCards: startCards } : {})
     });
     // A deleted part's place is not kept across a move; what was chosen by a part stays with it.
@@ -426,7 +428,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const how = { tool: CLEAN_UP_TOOL, ...(limitDb === null ? {} : { limitDb }) };
     let specs: EventSpec[];
     try {
-      specs = commands(state, idx).cleanUpParts({ commandId: Crypto.randomUUID(), unitId, actorId: me, cardHashes: list, parentTakeId: parentNow(), parts: choices, ...how });
+      specs = commands(state, idx).cleanUpParts({ commandId: newCommandId(me, Crypto.randomUUID()), unitId, actorId: me, cardHashes: list, parentTakeId: parentNow(), parts: choices, ...how });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: clean up', e) }), 'problem');
       return false;
@@ -466,7 +468,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const s = stateRef.current;
     const now = snapNow();
     const { specs, cleared: nowCleared } = restoreSpecs(s, indexesFor(s), {
-      commandId: Crypto.randomUUID(), unitId, actorId: me, to: step.to, from: step.from, now, verses: verseKeys, parentTakeId: draftIn(s)?.takeId ?? parentNow(),
+      commandId: newCommandId(me, Crypto.randomUUID()), unitId, actorId: me, to: step.to, from: step.from, now, verses: verseKeys, parentTakeId: draftIn(s)?.takeId ?? parentNow(),
       ...(draft ? { draftTakeId: draft.takeId } : {}), ...(startCards ? { latestCards: startCards } : {})
     });
     const wasCleared = cleared;
@@ -548,7 +550,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const cards = list;
     let specs: EventSpec[];
     try {
-      specs = commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards, marks: next, verses: verseKeys });
+      specs = commands(state, idx).setCardVerses({ commandId: newCommandId(me, Crypto.randomUUID()), unitId, cards, marks: next, verses: verseKeys });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: verse labels', e) }), 'problem');
       return;
@@ -645,7 +647,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // Nobody else here could check it: Done does the next check now (decisions.md 178).
   const selfCheck = useMemo(() => !!nextUp && can.review && nobodyElseReviews(state, orgState, { languageId, me, lines }), [nextUp, can.review, state, orgState, languageId, me, lines]);
   async function publish(note: string, noteBlobHash: string | null, ask: DoneAsk): Promise<boolean> {
-    const commandId = Crypto.randomUUID();
+    const commandId = newCommandId(me, Crypto.randomUUID());
     let specs: EventSpec[];
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
     const offline = ctx.language.online === false;
@@ -661,7 +663,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       if (takeId) specs = [...specs, ...c.referencesUsed({ commandId, unitId, takeId: takeId.takeId, items: usage.items() })];
       // Sent on in the same write, so it is never published and forgotten (History's Withdraw takes the asking back).
       if (ask && 'kindId' in ask && sendTo) {
-        const asked = c.ask({ ...sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }), ...(ask.questions.length ? { questions: ask.questions } : {}) });
+        const asked = c.ask({ ...sendToInput({ commandId: newCommandId(me, Crypto.randomUUID()), unitId, kindId: ask.kindId, target: sendTo }), ...(ask.questions.length ? { questions: ask.questions } : {}) });
         specs = [...specs, ...asked];
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name), offline);
       }

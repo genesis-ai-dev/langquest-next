@@ -28,6 +28,21 @@ function device(transport: Transport, deviceId: string, wall: { t: number }) {
 afterEach(() => setBelowMinimum(false));
 
 describe('below the minimum version', () => {
+  it('still delivers teammates\' signed work it carries, and still refuses downloads (docs/nearby-sync-plan.md section 6)', async () => {
+    // Why: decision 154 as amended. LQ001 takes nothing per caller, so a carrier below the store minimum
+    // can still hand a lost author's work to the server; offline teams and lost phones are why delivery exists.
+    const calls: string[] = [];
+    const inner = {
+      relay: async () => { calls.push('relay'); return []; },
+      pull: async () => { calls.push('pull'); return []; }
+    } as unknown as SupabaseTransport;
+    const t = gated(inner) as unknown as Transport;
+    setBelowMinimum(true);
+    await expect(t.relay!('org1', 'p1', [])).resolves.toEqual([]);
+    await expect(t.pull('org1', 'p1', 0, 1)).rejects.toThrow('below_min_version');
+    expect(calls).toEqual(['relay']);
+  });
+
   it('sends the waiting work, then stops downloading other people\'s changes', async () => {
     const server = new FakeServer();
     const wall = { t: 0 };

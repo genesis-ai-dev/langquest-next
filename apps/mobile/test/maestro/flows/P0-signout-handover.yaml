@@ -63,10 +63,20 @@ tags:
       id: "toast"
     timeout: 20000
 # Sign out from Me.
-- tapOn:
-    id: "header-close"
-- tapOn:
-    id: "header-back"
+# Back out to a screen with the tabs, one screen at a time, each once the
+# screen has settled: on an iPhone a tap aimed while the screen still moved
+# landed on the next screen, in the search field (run 10, 2026-11-12).
+- waitForAnimationToEnd:
+    timeout: 5000
+- runFlow:
+    when:
+      visible:
+        id: "header-close"
+    commands:
+      - tapOn:
+          id: "header-close"
+      - waitForAnimationToEnd:
+          timeout: 5000
 - runFlow:
     when:
       notVisible:
@@ -74,6 +84,18 @@ tags:
     commands:
       - tapOn:
           id: "header-back"
+      - waitForAnimationToEnd:
+          timeout: 5000
+- runFlow:
+    when:
+      notVisible:
+        id: "tab-me"
+    commands:
+      - tapOn:
+          id: "header-back"
+      - waitForAnimationToEnd:
+          timeout: 5000
+- runFlow: ../common/close-map-keyboard.yaml
 - tapOn:
     id: "tab-me"
 - tapOn: "Sign out"
@@ -129,7 +151,9 @@ tags:
 - assertVisible: ".*${TRANS_FIRST}.*"
 - tapOn:
     id: "header-close"
-# REV's Sync shows nothing refused.
+# REV's Sync shows nothing refused. Back to the tabs as above.
+- waitForAnimationToEnd:
+    timeout: 5000
 - runFlow:
     when:
       notVisible:
@@ -137,6 +161,9 @@ tags:
     commands:
       - tapOn:
           id: "header-back"
+      - waitForAnimationToEnd:
+          timeout: 5000
+- runFlow: ../common/close-map-keyboard.yaml
 - tapOn:
     id: "tab-me"
 - tapOn: "More settings.*"

@@ -24,6 +24,28 @@ export interface EventSpec<T extends EventType = EventType> {
   payload: EventPayloads[T];
 }
 
+/**
+ * The one way to mint a `commandId`: `by:<actorId>:<unique>`. Event ids
+ * (`<commandId>:<n>`) and the ids a create makes (`take:`, `review:`, `note:`,
+ * `req:`, `dep:`, `rendering:`, `adjustment:`) inherit it, so each names its
+ * author (`idAuthor`) and a teammate holding it before the server does cannot
+ * take it first (docs/nearby-sync-plan.md 5.4). Core has no randomness, so the
+ * caller passes `unique`: a fresh random id, or a stable key where a retry must
+ * land on the same ids.
+ */
+export function newCommandId(actorId: string, unique: string): string {
+  return `by:${actorId}:${unique}`;
+}
+
+/**
+ * An id without the author `newCommandId` put in front. The recorder's journal
+ * holds a recording's id before anyone is named on it, and recovery may run for
+ * someone else, so "is this recording here" compares this.
+ */
+export function unboundId(id: string): string {
+  return id.replace(/^by:[^:]+:/, '');
+}
+
 /** The intent is not valid against the current fold; nothing was appended. */
 export class CommandError extends Error {
   override name = 'CommandError';
@@ -44,8 +66,12 @@ export interface Commands {
   keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string; parentTakeId?: string | null }): EventSpec[];
   /** Set one of the person's drafts aside (decisions.md 83). Undo is `keepTake` with its cards and the draft as parent. */
   deleteDraft(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
-  /** Delete a version its publisher no longer wants (LAN-83, `canDeleteVersion`): a tombstone; its number and its checks stay on the record. */
-  deleteVersion(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
+  /**
+   * Delete a version its publisher no longer wants, or any version for an
+   * admin of the language (`admin`, decisions.md 124 amended; `canDeleteVersion`):
+   * a tombstone; its number and its checks stay on the record.
+   */
+  deleteVersion(c: { commandId: string; unitId: string; takeId: string; actorId: string; admin?: boolean }): EventSpec[];
   /**
    * Which verses each part holds (decisions.md 82): one 'v1.CardVerseSet'
    * per card whose mark changed, from the marks of a whole list of cards.
@@ -266,7 +292,7 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
 
     deleteVersion(c) {
       const passage = derivePassage(state, c.unitId, idx);
-      if (!canDeleteVersion(passage, c.takeId, c.actorId)) throw new CommandError('Only whoever published a version can delete it.');
+      if (!canDeleteVersion(passage, c.takeId, c.actorId, c.admin)) throw new CommandError('Only whoever published a version, or an admin, can delete it.');
       return [{ id: ids(c.commandId)(), type: 'v1.TakeArchived', payload: { takeId: c.takeId } }];
     },
 

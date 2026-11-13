@@ -331,7 +331,7 @@ $('refresh').addEventListener('click', () => load(true));
 // ---- the sections ----------------------------------------------------------------
 const BASE_SECTIONS = [
   { id: 'jobs', title: 'Server jobs', src: 'diag.jobs: projections, push delivery, v2 import, the web Worker\\'s cron, webhooks, invite email' },
-  { id: 'code', title: 'Code and deploys', src: 'GitHub main, its Actions runs, and what next.langquest.org serves' },
+  { id: 'code', title: 'Code and deploys', src: 'GitHub main, its Actions runs, and what app.langquest.org serves' },
   { id: 'clients', title: 'Phones and browsers', src: 'Field diagnostics every install sends (docs/diagnostics.md)', wide: true },
   { id: 'cloudflare', title: 'Cloudflare', src: 'Workers requests, errors, deploys and builds, last 24 h' },
   { id: 'supabase', title: 'Supabase', src: 'Project health, Edge Functions and log counts, last 24 h' },

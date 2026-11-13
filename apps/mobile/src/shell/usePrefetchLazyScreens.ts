@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { InteractionManager } from 'react-native';
 import { prefetchLazyScreens } from './lazyModules';
+import { whenIdle } from '../ui/whenIdle';
 
 /**
  * Once the organization's first sync has settled and the screen is idle,
@@ -11,7 +11,6 @@ import { prefetchLazyScreens } from './lazyModules';
 export function usePrefetchLazyScreens(settled: boolean): void {
   useEffect(() => {
     if (!settled) return;
-    const task = InteractionManager.runAfterInteractions(prefetchLazyScreens);
-    return () => task.cancel();
+    return whenIdle(prefetchLazyScreens);
   }, [settled]);
 }
