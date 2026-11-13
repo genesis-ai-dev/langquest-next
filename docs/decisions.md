@@ -13003,7 +13003,7 @@ Reverse if: people still read the check row as a second review, or a language's 
 
 ## 253. The Key words chip shows the team's words as tiles; a tap opens a sheet in place, so a key word never ends a recording
 
-Date: 2026-11-11 · By: Caleb Koster · Status: accepted
+Date: 2026-11-13 · By: Caleb Koster · Status: accepted
 
 Reason: LAN-233: a translator recording a passage wants the team's word for
 each key word in front of them, and a tap on a key word row must not stop the
