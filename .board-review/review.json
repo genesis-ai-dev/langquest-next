@@ -1,0 +1,38 @@
+{
+  "kind": "screen",
+  "ask": "Should I build this Add a book button on the map, and the same for folders and stories?",
+  "problem": "Teams that do not know their template cannot add a book, folder or story while they translate. They must leave the map and open the template editor.",
+  "found": "The test failed because the sandbox's network re-signs secure traffic and the sign-up service did not trust it. I fixed that. Both flows now run in the browser at phone width. No phone simulator here.",
+  "changed": "Nothing in the app yet. The first picture is the real map today. The second is the same screen with the proposed button drawn in. Other pictures show the flows that work today.",
+  "why": "The button sits at the end of the book list, where a team notices a missing book. It opens the same short sheet the template editor uses today. Folders and stories would get the same button on an outline language's map.",
+  "touches": "Only people who edit templates would see it. It saves a new template version, like Done. I also added a setup script so agents can run browser tests.",
+  "pictures": [
+    {
+      "file": "d1-before-end-of-list.png",
+      "label": "Before: the map's book list today"
+    },
+    {
+      "file": "d2-after-end-of-list.png",
+      "label": "After: with the proposed Add a book button"
+    },
+    {
+      "file": "a3-book-waits.png",
+      "label": "Today: a book waits to be divided"
+    },
+    {
+      "file": "a5-own-way.png",
+      "label": "Today: dividing a book your own way"
+    },
+    {
+      "file": "b6-outline-parts.png",
+      "label": "Today: a folder and a lesson in a new outline template"
+    },
+    {
+      "file": "c2-add-a-book.png",
+      "label": "Today: the Add a book sheet, only inside the template editor"
+    }
+  ],
+  "guess": {
+    "answer": "looks_good"
+  }
+}

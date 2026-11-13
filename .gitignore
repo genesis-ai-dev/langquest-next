@@ -42,6 +42,7 @@ stryker.log
 # The job runner's bundles (scripts/build-jobs.mjs), built before each deploy and dev run.
 apps/web/jobs/dist/
 /.old-sync/
+apps/web/.wrangler.noc.jsonc
 
 # Key-term evaluation sets hold partner recordings (eval/key-terms/README.md).
 eval/key-terms/*/

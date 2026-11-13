@@ -259,6 +259,14 @@ the machine, and two parts of it belong to the checkout that started them:
   `EXPO_PUBLIC_API_URL=http://localhost:8797 UI_PORT=8797 npm run test:ui:web -- --grep @p0`.
   Never stop another session's Worker.
 
+### In a cloud agent's sandbox
+
+The sandbox re-signs HTTPS, so Supabase's edge-runtime container cannot load
+its packages and every UI test fails in `join as ...: Edge Function returned
+a non-2xx status code`. `scripts/cloud-sandbox-web.sh` fills that container's
+package cache from the host and serves the Worker without the jobs container
+(Docker Hub may answer 429). The steps are in the script's header (LAN-239).
+
 ## Adding a test
 
 - Layer 1 to 3: beside the code's existing tests, titled with the spec ID
