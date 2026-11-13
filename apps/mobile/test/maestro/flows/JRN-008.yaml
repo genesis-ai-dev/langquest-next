@@ -77,6 +77,13 @@ tags:
 - extendedWaitUntil:
     visible: "Take ${TRANS_NAME} off this check"
     timeout: 20000
+# Once the upload bar has gone (decision 166): it moves every screen by its
+# height as it goes, and a Back aimed before then lands under the button (on
+# an iPhone two of the four did nothing; run 43342922443, 2026-11-13).
+- extendedWaitUntil:
+    notVisible:
+      id: "upload-bar"
+    timeout: 30000
 # Back to the check, the Checks list, its Review flow, then Alpha's page where the tab bar is.
 - tapOn:
     id: "header-back"
