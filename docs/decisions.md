@@ -5232,6 +5232,25 @@ the time and Done; screen readers hear the status with how many parts are
 kept so far. In back translation the source part stays named above, on its
 player.
 
+Amended (2026-11-13, Caleb Koster): an admin of the language may delete any
+version, not only their own. An admin is someone who holds `manage_roles`
+there: an Organization Admin, or the Organization Admin role given for one
+language (a Language Admin). Coordinators, translators and reviewers still
+delete only what they published. Reason: Caleb asked that an admin can
+remove work so that a passage looks as if nobody had worked on it yet, for
+example work brought from LangQuest v2 that should not count (Every
+Language's Berom team lost most of its v2 audio, 2026-11-13). Imported work
+is published under the v2 person's name, and that person may never sign in
+here, so only an admin can clear it. When a passage's last version is
+deleted, the passage shows as not started (`recorded` is false). It is the
+same tombstone as before: the version keeps its number, and the history
+still shows it and who deleted it, so nothing is lost (hidden, never
+deleted). Caleb chose this over a new "clear the whole passage" button,
+because the Delete button and its ask-first sheet already exist, and each
+of Berom's imported passages has one version. The server already accepted
+`v1.TakeArchived` from anyone who may translate, so only core
+(`canDeleteVersion`, `deleteVersion`'s `admin`) and the app change.
+
 ## 125. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
