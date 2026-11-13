@@ -1,11 +1,22 @@
 {
   "kind": "structure",
-  "ask": "Does this explain it? Is it right to leave release-branch runs out of the flaky count?",
+  "ask": "Is it right to leave release-branch runs out of the flaky-test count?",
   "problem": "A web test named PASS-004 failed in 2 of 27 checks, so the nightly check filed an issue calling it flaky.",
   "found": "The test plays a translator opening a passage a reviewer sent back. It expects the note, a Hear the feedback button, and a Record a fix page. It failed only on old release code, which read the screen too early.",
   "changed": "No change for people. The nightly check no longer counts release-branch runs. I removed the set-aside tag from the test, so it keeps blocking.",
   "why": "Main fixed the early read on 29 October, but the release branch is older. Ten local runs under heavy load all passed. Setting the test aside would hide a working test.",
   "touches": "Only the nightly flaky-test report. The release branch gets the fix when it next catches up with main.",
-  "pictures": [{"file": "what.png", "label": "What the test checks"}, {"file": "why.png", "label": "Why it failed on the release branch"}],
-  "guess": {"answer": "looks_good"}
+  "pictures": [
+    {
+      "file": "what.png",
+      "label": "What the test checks"
+    },
+    {
+      "file": "why.png",
+      "label": "Why it failed on the release branch"
+    }
+  ],
+  "guess": {
+    "answer": "looks_good"
+  }
 }
