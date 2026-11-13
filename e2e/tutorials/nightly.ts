@@ -10,6 +10,11 @@
 // Each new film is first looked at as someone who pauses it would
 // (frame-check.ts): one with something wrong keeps its last film, and what is
 // wrong goes on the run's summary.
+// A video is filmed again too when its script changed (what it says, does or
+// lights), and each film keeps why it was made and the commit it was filmed
+// from (why.ts); the changes merged since then that touched a screen it shows
+// slot it, and the night says whether its words changed. Every video's state
+// goes into <out>/status-<language>.json, for the release and the chart.
 // The channel's trailer (trailer/README.md) goes the same way: its screens
 // captured, and the film made again when its look changed.
 //
@@ -28,9 +33,11 @@ import { filmName, manifestName, readManifest, type Film } from '../../server/tu
 import { TRAILER, type ChannelLanguage } from '../../server/youtube';
 import { GROUPS, TUTORIALS } from './all';
 import { checkFilm, problemLines } from './frame-check';
-import { lookOf, tryAgain } from './look';
+import { lookOf, stepLooks, tryAgain } from './look';
 import { firstSentence, FRAME, PLAYLISTS, TRAILER_FRAME, youtubeText } from './playlists';
+import { importsOf, screenCode, stepScreens, type ScreenCode } from './screens';
 import { TRAILER_DIR, trailerLook, trailerText } from './trailer/trailer';
+import { causeLine, readLog, scriptOf, slotsOf, whyFilm, type Cause, type Change, type Slot } from './why';
 
 const args = process.argv.slice(2);
 const flag = (name: string) => { const i = args.indexOf(name); return i < 0 ? undefined : args.splice(i, 2)[1]; };
@@ -49,6 +56,44 @@ const ids = (named ? args.filter((id) => id !== TRAILER) : Object.keys(TUTORIALS
 for (const id of ids) if (!TUTORIALS[id]) throw new Error(`No tutorial called ${id}`);
 const results = path.join('e2e', 'results', 'tutorials');
 mkdirSync(outDir, { recursive: true });
+const linesFile = path.join('e2e', 'tutorials', 'lines', `${language}.json`);
+const lines = language === 'en' || !existsSync(linesFile) ? {} : JSON.parse(readFileSync(linesFile, 'utf8')) as Record<string, string>;
+const say = (english: string) => (language === 'en' ? english : lines[english] ?? english);
+
+// What each video is filmed from tonight: the commit, its script, and the code that draws its screens (why.ts).
+const git = (...a: string[]) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
+let head: string | undefined;
+try {
+  head = git('rev-parse', 'HEAD').trim();
+} catch {
+  console.log(`${language}: not in a git checkout; films keep no commit and nothing is slotted`);
+}
+const logs = new Map<string, Change[] | null>();
+/** The changes merged into main since a commit, newest first; null when this history does not have it. */
+function changesSince(commit: string | undefined): Change[] | null {
+  if (!head || !commit || !/^[0-9a-f]{40}$/.test(commit)) return null;
+  if (commit === head) return [];
+  if (!logs.has(commit)) {
+    const known = spawnSync('git', ['merge-base', '--is-ancestor', commit, 'HEAD']).status === 0;
+    logs.set(commit, known ? readLog(git('log', '--first-parent', '--diff-merges=first-parent', '--name-only', '--format=%x00%H%x09%s', `${commit}..HEAD`)) : null);
+  }
+  return logs.get(commit)!;
+}
+let code: ScreenCode = { own: new Map(), shared: new Set() };
+try {
+  code = screenCode({ read: (file) => (existsSync(file) ? readFileSync(file, 'utf8') : null) });
+} catch (error) {
+  console.log(`${language}: the screens' code could not be read (${String(error)}); nothing is slotted`);
+}
+const scriptFile = (id: string) => path.join('e2e', 'tutorials', `${id}.ts`);
+const scriptSource = (id: string) => (existsSync(scriptFile(id)) ? readFileSync(scriptFile(id), 'utf8') : '');
+/** A video's script tonight, in this language (why.ts `scriptOf`). */
+const scriptNow = (id: string) => scriptOf(scriptSource(id), TUTORIALS[id]!.steps.map((s) => (s.say ? say(s.say) : undefined)), TUTORIALS[id]!.speech ?? []);
+/** Its own files, and the helpers in this folder it imports: where a change to its script is found. */
+const scriptFiles = (id: string) => new Set([
+  `e2e/tutorials/${id}.ts`, `e2e/tutorials/lines/${language}.json`,
+  ...importsOf(scriptSource(id)).filter((i) => /^\.\/[\w-]+$/.test(i) && i !== './tutorial').map((i) => `e2e/tutorials/${i.slice(2)}.ts`)
+]);
 
 const manifestFile = path.join(releaseDir, manifestName(language));
 // A video taken out of all.ts, out of this language, or for staff leaves the manifest; the trailer stays.
@@ -57,6 +102,9 @@ const kept = new Map<string, Film>(
     .filter((f) => f.tutorial === TRAILER || (TUTORIALS[f.tutorial] && !TUTORIALS[f.tutorial]!.staff && !TUTORIALS[f.tutorial]!.notIn?.includes(language)))
     .map((f) => [f.tutorial, f])
 );
+
+// The commit each video was last checked or filmed at: the changes merged since then slot it (why.ts).
+const lastCheck = new Map([...kept].map(([id, f]) => [id, f.checked?.commit ?? f.commit]));
 
 /** make-videos.ts for these videos; which ended well. `alone`: one video at a time. */
 function makeVideos(videos: string[], dry: boolean, alone = dry): Set<string> {
@@ -86,6 +134,7 @@ if (untried.length) {
   for (const id of makeVideos(untried, true)) tried.add(id);
 }
 const looks = new Map([...tried].map((id) => [id, lookOf(stepsOf(id), language)]));
+const scripts = new Map(ids.map((id) => [id, scriptNow(id)]));
 // A film framed as films no longer are (FRAME) is made again whatever its look: no need to try it twice.
 const stale = (id: string) => kept.has(id) && kept.get(id)!.frame !== FRAME;
 // A video that looks changed is tried again, at most twice (look.ts tryAgain).
@@ -101,8 +150,22 @@ for (let again = unsure(); again.length; again = unsure()) {
   }
 }
 for (const [id, tries] of seen) looks.set(id, tries[tries.length - 1]!);
-const changed = ids.filter((id) => looks.has(id) && (named || stale(id) || kept.get(id)?.look !== looks.get(id)));
+// Each step's look, from the last try (the one its look is from).
+const steps = new Map([...looks.keys()].map((id) => [id, stepLooks(stepsOf(id), language)]));
+// Why each video is filmed (why.ts): no film, named, framed as films no longer are, its script, its words on a screen.
+const why = new Map<string, Cause[]>();
+for (const id of ids) {
+  if (!looks.has(id)) continue;
+  const film = kept.get(id);
+  const causes = whyFilm({
+    ...(film ? { film } : {}), named, frame: FRAME, tried: { look: looks.get(id)!, steps: steps.get(id)! }, script: scripts.get(id)!,
+    screens: stepScreens(TUTORIALS[id]!), scriptFiles: scriptFiles(id), changes: changesSince(film?.commit), code
+  });
+  if (causes.length) why.set(id, causes);
+}
+const changed = ids.filter((id) => why.has(id));
 console.log(`${language}: ${tried.size} of ${ids.length} tried (${triedAgain} tries again), ${changed.length} to film: ${changed.join(' ') || 'none'}`);
+for (const id of changed) console.log(`${language}: ${id}: ${why.get(id)!.map(causeLine).join('; ')}`);
 
 const filmed = changed.length ? makeVideos(changed, false) : new Set<string>();
 // A film that failed although its dry run passed is filmed once more, alone: two films at once share the
@@ -136,9 +199,8 @@ if (held.size) {
     if (process.env['GITHUB_ACTIONS']) console.log(`::warning title=${escape(`Frame check: ${id} (${language})`).replace(/:/g, '%3A').replace(/,/g, '%2C')}::${escape(found.join('\n'))}`);
   }
 }
-const lines = language === 'en' ? {} : JSON.parse(readFileSync(path.join('e2e', 'tutorials', 'lines', `${language}.json`), 'utf8')) as Record<string, string>;
-const say = (english: string) => (language === 'en' ? english : lines[english] ?? english);
 const order = Object.keys(TUTORIALS);
+const now = new Date().toISOString();
 for (const id of filmed) {
   if (held.has(id)) continue;
   const tutorial = TUTORIALS[id]!;
@@ -150,9 +212,20 @@ for (const id of filmed) {
   const text = youtubeText(say(tutorial.title), opening ? firstSentence(say(opening)) : '', { language, tutorial: id, ...(tutorial.notIn ? { notIn: tutorial.notIn } : {}) });
   kept.set(id, {
     tutorial: id, sha256, bytes: readFileSync(mp4).length, seconds: Math.max(1, Math.round(seconds)), ...text,
-    playlist: PLAYLISTS[language]![who], position: order.indexOf(id), look: looks.get(id)!, frame: FRAME
+    playlist: PLAYLISTS[language]![who], position: order.indexOf(id), look: looks.get(id)!, frame: FRAME,
+    ...(head ? { commit: head } : {}), filmedAt: now, script: scripts.get(id)!, steps: steps.get(id)!, why: why.get(id)!
   });
   copyFileSync(mp4, path.join(outDir, filmName(language, id, sha256)));
+}
+// A film tried tonight that reads as it did is checked as of tonight: changes merged before now slot it no more.
+// One from before films kept their script, steps and commit takes tonight's as its own, once.
+for (const id of ids) {
+  const film = kept.get(id);
+  if (!film || why.has(id) || !looks.has(id) || film.look !== looks.get(id)) continue;
+  kept.set(id, {
+    ...film, script: film.script ?? scripts.get(id)!, steps: film.steps ?? steps.get(id)!,
+    ...(head ? { commit: film.commit ?? head, checked: { commit: head, at: now } } : {})
+  });
 }
 
 /** The trailer: captured until its look is sure (as a video's dry run is tried again), made when it changed. */
@@ -188,6 +261,32 @@ const trailerMade = !named || trailerNamed ? trailer() : true;
 const films = [...kept.values()].sort((a, b) => a.position - b.position);
 writeFileSync(path.join(outDir, manifestName(language)), `${JSON.stringify({ language, films }, null, 2)}\n`);
 const failed = [...ids.filter((id) => !tried.has(id) || (changed.includes(id) && !filmed.has(id))), ...(trailerMade ? [] : [TRAILER])];
+
+// Every public video's state in this language, for the release and the chart: its film and why it was made,
+// tonight's try, and the changes that slot it (merged since its last check, touching a screen it shows).
+type Tonight = 'filmed' | 'held' | 'failed' | 'same' | 'not tried';
+const tonight = (id: string): Tonight =>
+  !ids.includes(id) ? 'not tried' : held.has(id) ? 'held' : filmed.has(id) ? 'filmed' : changed.includes(id) || !tried.has(id) ? 'failed' : 'same';
+const slots = new Map<string, Slot[]>();
+const status = Object.keys(TUTORIALS).filter((id) => !TUTORIALS[id]!.staff && !TUTORIALS[id]!.notIn?.includes(language)).map((id) => {
+  const film = kept.get(id);
+  // A video filmed tonight has answered what slotted it: its causes say which changes.
+  const slot = tonight(id) === 'filmed' ? [] : slotsOf(stepScreens(TUTORIALS[id]!), changesSince(lastCheck.get(id)), code);
+  if (slot.length) slots.set(id, slot);
+  return {
+    tutorial: id, title: TUTORIALS[id]!.title, tonight: tonight(id),
+    film: film ? { sha256: film.sha256, filmedAt: film.filmedAt ?? null, commit: film.commit ?? null, why: film.why ?? null } : null,
+    why: why.get(id) ?? [], slots: tonight(id) === 'same' ? [] : slot, checked: tonight(id) === 'same' ? slot : [],
+    ...(held.has(id) ? { held: held.get(id)! } : {})
+  };
+});
+writeFileSync(path.join(outDir, `status-${language}.json`), `${JSON.stringify({ language, commit: head ?? null, at: now, videos: status }, null, 2)}\n`);
+const summary = [
+  ...(changed.length ? [`### Why each video was filmed (${language})`, '', ...changed.map((id) => `- **${id}** (${tonight(id)}): ${why.get(id)!.map(causeLine).join('; ')}`), ''] : []),
+  ...(slots.size ? [`### Slotted by code changes to their screens (${language})`, '',
+    ...[...slots].map(([id, s]) => `- **${id}** (${tonight(id) === 'same' ? 'words the same, slot cleared' : tonight(id)}): ${s.map((c) => `${c.pr ? `#${c.pr}` : c.sha.slice(0, 7)} (${c.screens.join(', ')})`).join(', ')}`), ''] : [])
+];
+if (summary.length && process.env['GITHUB_STEP_SUMMARY']) appendFileSync(process.env['GITHUB_STEP_SUMMARY'], `${summary.join('\n')}\n`);
 console.log(`${language}: ${filmed.size - held.size} filmed, ${films.length} in the manifest${failed.length ? `, failed: ${failed.join(' ')}` : ''}` +
   `${held.size ? `, held by the frame check: ${[...held.keys()].join(' ')}` : ''}`);
 if (failed.length || held.size) process.exit(1);

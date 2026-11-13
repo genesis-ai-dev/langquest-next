@@ -1,8 +1,9 @@
 /**
  * The comments on the tutorial videos, kept for Claude's nightly look
  * (docs/tutorial-videos.md "Feedback", decisions.md 186):
- * server/tutorialCommentsModel.ts run by the job container each day at 23:50
- * UTC, after the publish job (apps/web/worker/jobsModel.ts;
+ * server/tutorialCommentsModel.ts run by the job container each day at
+ * midnight in California, first in YouTube's day, before the uploads use up
+ * its units (apps/web/worker/jobsModel.ts;
  * scripts/build-jobs.mjs bundles this file). It reads each channel's refresh
  * token from Vault, keeps each new comment as written, files in Linear the
  * accepted code changes still waiting when it has LINEAR_API_KEY, and

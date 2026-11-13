@@ -173,6 +173,11 @@ export function lookOf(steps: string[], language = 'en'): string {
   return createHash('sha256').update(JSON.stringify(steps.map((step) => steadyStep(step, language)))).digest('hex');
 }
 
+/** Each step's look on its own, shortly hashed: which steps' screens changed (why.ts). */
+export function stepLooks(steps: string[], language = 'en'): string[] {
+  return steps.map((step) => createHash('sha256').update(steadyStep(step, language)).digest('hex').slice(0, 16));
+}
+
 /**
  * Whether a video that may have changed is tried again, from the looks of
  * its tries so far and its film's. A screen read while it was still changing

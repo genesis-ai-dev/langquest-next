@@ -238,7 +238,7 @@ export const HELP: Record<string, string> = {
   'judged noise': 'Kinds of failure Claude judged nothing to fix this week (one person\'s wrong password, a refusal the app handled). One comes back when twice as many people hit it.',
   'suggestions waiting': 'Suggestions Claude made that nobody has accepted, edited or rejected yet. Edit one to change what it says before accepting it.',
   'not looked at yet': 'Comments, code changes and notes Claude has not looked at yet. It looks each night at 10:00 UTC (tutorial-review.yml on GitHub).',
-  'not in Linear yet': 'Accepted code changes not filed in Linear yet. They wait when Linear refused or there is no Linear key (LINEAR_API_KEY); the comments job files them each night at 23:50 UTC.',
+  'not in Linear yet': 'Accepted code changes not filed in Linear yet. They wait when Linear refused or there is no Linear key (LINEAR_API_KEY); the comments job files them each night at midnight in California.',
   'last look': 'When Claude last looked, how many comments, changes and notes it looked at, and how many suggestions it made.',
   Suggestions: 'What Claude suggests, waiting ones first, then those answered in the last 30 days, each with what it answers. Accept says yes; Reject asks why not, which Claude reads before suggesting the same again.',
   'What came in': 'Comments, code changes and notes Claude has not looked at yet, and those it looked at in the last 30 days and suggested nothing for, with why.',
