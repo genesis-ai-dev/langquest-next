@@ -11,7 +11,7 @@ import { noteExpected } from '../diagnostics/report';
 import * as server from '../server/library';
 import { cachedDoc, flushOutbox, keepNewDoc, loadDocs, onDocs, prepareDoc } from './docStore';
 import { adoptError } from './failureModel';
-import { copyOps, followOps, mayWriteLibrary, newItemId, publishOps, subscribeOps, type LibraryOp, type SharedItem } from './model';
+import { copyOps, followOps, mayWriteLibrary, newItemId, publishOps, readRetryMs, subscribeOps, type LibraryOp, type SharedItem } from './model';
 
 /**
  * The organization's library for screens (docs/library.md): its items, the
@@ -146,21 +146,38 @@ export function useLibraryDocs(orgId: string, hashes: (string | null | undefined
   const key = [...new Set(hashes.filter(Boolean))].sort().join(',');
   const [revision, bump] = useState(0);
   const [error, setError] = useState('');
+  // The key still being fetched (asked again after a failure), '' once settled.
+  const [pendingKey, setPendingKey] = useState('');
   useEffect(() => onDocs(() => bump((n) => n + 1)), []);
   useEffect(() => {
     if (!key) return;
     let active = true;
-    loadDocs(orgId, key.split(','), opts.deps === false ? { deps: false } : {}).catch((e: unknown) => {
-      // Offline: what is on the phone is shown; the rest says it is waiting.
-      noteExpected('library documents', e);
-      // A flag for the screens, which say what is missing in their own words.
-      if (active) setError(t('library.errors.notConnected'));
-    });
+    setPendingKey(key);
+    void (async () => {
+      // A read that fails (offline, a busy server, a sign-in being renewed) is asked again a few
+      // times: one failure left New language's review step at "No ways to check" (LAN-254).
+      for (let i = 0; active; i++) {
+        try {
+          await loadDocs(orgId, key.split(','), opts.deps === false ? { deps: false } : {});
+          if (active) setError('');
+          break;
+        } catch (e) {
+          // Offline: what is on the phone is shown; the rest says it is waiting.
+          noteExpected('library documents', e);
+          // A flag for the screens, which say what is missing in their own words.
+          if (active) setError(t('library.errors.notConnected'));
+          const wait = readRetryMs(i + 1);
+          if (wait === null) break;
+          await new Promise((done) => setTimeout(done, wait));
+        }
+      }
+      if (active) setPendingKey((k) => (k === key ? '' : k));
+    })();
     return () => { active = false; };
   }, [orgId, key, opts.deps]);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- A new `get` whenever documents arrive, so memos that read through it recompute
   const get = useCallback(<T extends LibraryDoc = LibraryDoc>(hash: string | null | undefined) => cachedDoc(hash) as T | null, [revision]);
-  return { get, error, revision };
+  return { get, error, revision, pending: !!key && pendingKey === key };
 }
 
 /**
@@ -173,21 +190,36 @@ export function useSharedItems(kind: LibraryKind, orgId: string, enabled = true)
   const [loaded, setLoaded] = useState(false);
   const key = `library-shared:${kind}`;
   const refresh = useCallback(async () => {
+    let cached = false;
     try {
-      const cached = await AsyncStorage.getItem(key);
-      if (cached) setRows(JSON.parse(cached));
-      const { data, error: failed } = await server.sharedItems(kind);
-      if (failed) throw new Error(failed.message);
-      const list = ((data ?? []) as SharedItem[]).filter((r) => r.org_id !== orgId);
-      setRows(list);
-      setError('');
-      await AsyncStorage.setItem(key, JSON.stringify(list));
+      const kept = await AsyncStorage.getItem(key);
+      if (kept) { setRows(JSON.parse(kept)); cached = true; }
     } catch (e) {
       noteExpected('shared library', e);
-      setError(t('library.errors.notConnected'));
-    } finally {
-      setLoaded(true);
     }
+    // A read that fails is asked again a few times before the list is called empty: one failure
+    // under load left New language's review step at "No ways to check" for good (LAN-254).
+    for (let i = 0; ; i++) {
+      try {
+        const { data, error: failed } = await server.sharedItems(kind);
+        if (failed) throw new Error(failed.message);
+        const list = ((data ?? []) as SharedItem[]).filter((r) => r.org_id !== orgId);
+        setRows(list);
+        setError('');
+        setLoaded(true);
+        await AsyncStorage.setItem(key, JSON.stringify(list)).catch((e: unknown) => noteExpected('shared library', e));
+        return;
+      } catch (e) {
+        noteExpected('shared library', e);
+        setError(t('library.errors.notConnected'));
+        // The last list seen is shown meanwhile; without one, it is still loading.
+        if (cached) setLoaded(true);
+        const wait = readRetryMs(i + 1);
+        if (wait === null) break;
+        await new Promise((done) => setTimeout(done, wait));
+      }
+    }
+    setLoaded(true);
   }, [key, kind, orgId]);
   useEffect(() => { if (enabled) void refresh(); }, [enabled, refresh]);
   return useMemo(() => ({ rows, error, loaded, refresh }), [rows, error, loaded, refresh]);
