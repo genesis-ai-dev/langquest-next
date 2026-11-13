@@ -61,7 +61,8 @@ posted, filmed or merged without them.
 
 `.tutorial-review/changes.json`: the changes merged into main since the last
 look (or the last 7 days) that touch the app or the videos, newest first:
-`sha`, `at`, `subject`, `pr` (or null) and `files`.
+`sha`, `at`, `subject`, `pr` (or null) and `files`. A change is not an
+input: it has no `id`, and it becomes one only when you add it to `code`.
 
 Each video is `e2e/tutorials/<id>.ts` (`all.ts` lists them, `tutorial.ts`
 says what a step is). A step names its `screen`, the `part` it lights, what
@@ -81,7 +82,8 @@ English line.
    a `help` line it follows was changed or removed; or the app gained
    something a video should show. For each change and video that does, add
    an entry to `code` with a `key` of your own (`pr-272-record`), and a
-   suggestion that names that key.
+   suggestion that names that key. A change that needs nothing goes
+   nowhere: not in `code`, not in `looked`.
 2. **Comments.** Every comment with `english` null gets an entry in
    `comments`: `english` (the comment in English, as written; a comment in
    English is copied), `reply` (a short reply in the language the comment is
@@ -94,6 +96,8 @@ English line.
    in `looked` with an `outcome` saying in a line why nothing is suggested
    ("Thanks only", "Spam", "Answered by the reply", "Decision 126 took
    out due dates"). An input that is in a suggestion needs no `looked` entry.
+   A new input is one in state.json's `inputs` with `lookedAt` null, or a
+   `code` entry you added.
 
 ## Suggestions
 
@@ -138,7 +142,10 @@ anything is posted.
 
 `.tutorial-review/review.json`, one JSON object. Every list may be left out
 or empty; the script adds the commit and the run. Ids are the inputs' and
-suggestions' `id`s from state.json, or a key from `code`.
+suggestions' `id`s from state.json, or a key from `code`. An entry of
+`looked`, a suggestion's `inputs` and `attach`'s `inputs` name an input by
+its `id` from state.json's `inputs` or a `key` from this look's `code`:
+never a commit, a pull request's number or a video's id.
 
 ```json
 {
@@ -168,3 +175,9 @@ refuses the whole look over the first thing wrong: a `key` is letters,
 digits, `-` and `_` (at most 40); a video is named by its id; `code.at` is a
 time; `english` is at most 5000 characters, a reply 2000, an outcome 500.
 Read the file back once you have written it.
+
+The workflow checks the file after you (`node scripts/tutorial-review.mjs
+check`). When the Worker would refuse it, or lose part of it, you are asked
+once to mend it: `.tutorial-review/problems.txt` lists each problem in a
+line. Mend those, keep the rest of your look as it is, and write
+review.json again.
