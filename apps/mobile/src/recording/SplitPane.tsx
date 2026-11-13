@@ -60,7 +60,17 @@ export function SplitPane(props: {
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: () => { start.current = shown(); setDragging(true); },
+    onPanResponderGrant: (e) => {
+      // A mouse press on the web would start selecting the page's text, and a press on text already selected starts
+      // the browser's own drag of it, which ends this drag back where it began (REC-040, LAN-117). Keep the press
+      // from the browser, and give the divider the focus the press would have given it, for its arrow keys.
+      if (Platform.OS === 'web' && (e.nativeEvent as { type?: string }).type === 'mousedown') {
+        e.preventDefault();
+        (e.currentTarget as unknown as { focus?: (o: { preventScroll: boolean }) => void } | null)?.focus?.({ preventScroll: true });
+      }
+      start.current = shown();
+      setDragging(true);
+    },
     onPanResponderMove: (_, g) => setFraction(fractionAfterDrag(start.current, g.dy, latest.current.available)),
     onPanResponderRelease: (_, g) => { setDragging(false); settle(fractionAfterDrag(start.current, g.dy, latest.current.available)); },
     onPanResponderTerminate: () => { setDragging(false); settle(start.current); }
