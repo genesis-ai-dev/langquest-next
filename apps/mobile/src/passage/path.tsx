@@ -120,7 +120,7 @@ function TeamRow(props: { ctx: Ctx; step: TeamStep; people: string[] | null; onP
   const press = props.onPress || spot.id ? spot.onPress : undefined;
   const look = teamLook(step);
   return (
-    <Pressable testID={`team-row-${step.kindId}`} onPress={press} disabled={!press} accessibilityRole="button" accessibilityLabel={`${step.name}, ${step.status}`}
+    <Pressable testID={step.part === 'check' ? `team-row-${step.kindId}-check` : `team-row-${step.kindId}`} onPress={press} disabled={!press} accessibilityRole="button" accessibilityLabel={`${step.name}, ${step.status}`}
       style={({ pressed }) => [styles.teamCard, pressed && { opacity: 0.7 }]}>
       <View style={[styles.teamTile, { backgroundColor: look.tile }]}>
         <Ico name={look.icon} size={20} color={look.color} strokeWidth={step.state === 'done' ? 3 : 2.2} />
