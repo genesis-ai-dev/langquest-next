@@ -3368,7 +3368,8 @@
       "downloading": "Descargando actualización…",
       "downloadingPercent": "Descargando actualización… {{percent}}",
       "webReady": "Hay una versión nueva de LangQuest lista. Vuelve a cargar la página para usarla.",
-      "storeBuild": "versión de la tienda",
+      "storeBuild": "versión de la tienda {{version}}",
+      "noUpdate": "sin actualización",
       "updateBuild": "actualización {{id}}",
       "unknownBuild": "actualización desconocida"
     },

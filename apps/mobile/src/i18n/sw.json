@@ -3267,7 +3267,8 @@
       "downloading": "Inapakua sasisho…",
       "downloadingPercent": "Inapakua sasisho… {{percent}}",
       "webReady": "Toleo jipya la LangQuest liko tayari. Pakia upya ili kulitumia.",
-      "storeBuild": "toleo la duka",
+      "storeBuild": "toleo la duka {{version}}",
+      "noUpdate": "hakuna sasisho",
       "updateBuild": "sasisho {{id}}",
       "unknownBuild": "sasisho lisilojulikana"
     },
