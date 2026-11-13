@@ -3253,7 +3253,8 @@
       "downloading": "Downloading update…",
       "downloadingPercent": "Downloading update… {{percent}}",
       "webReady": "A new version of LangQuest is ready. Reload to use it.",
-      "storeBuild": "store build",
+      "storeBuild": "store build {{version}}",
+      "noUpdate": "no update",
       "updateBuild": "update {{id}}",
       "unknownBuild": "update unknown"
     },
