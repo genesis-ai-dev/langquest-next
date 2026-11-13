@@ -3267,7 +3267,8 @@
       "downloading": "अपडेट डाउनलोड हुँदैछ…",
       "downloadingPercent": "अपडेट डाउनलोड हुँदैछ… {{percent}}",
       "webReady": "LangQuest को नयाँ संस्करण तयार छ। प्रयोग गर्न पृष्ठ फेरि लोड गर्नुहोस्।",
-      "storeBuild": "स्टोर बिल्ड",
+      "storeBuild": "स्टोर बिल्ड {{version}}",
+      "noUpdate": "कुनै अपडेट छैन",
       "updateBuild": "अपडेट {{id}}",
       "unknownBuild": "अपडेट थाहा छैन"
     },

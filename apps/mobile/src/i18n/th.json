@@ -3166,7 +3166,8 @@
       "downloading": "กำลังดาวน์โหลดอัปเดต…",
       "downloadingPercent": "กำลังดาวน์โหลดอัปเดต… {{percent}}",
       "webReady": "LangQuest เวอร์ชันใหม่พร้อมแล้ว โหลดหน้าใหม่เพื่อใช้งาน",
-      "storeBuild": "บิลด์จากสโตร์",
+      "storeBuild": "บิลด์จากสโตร์ {{version}}",
+      "noUpdate": "ไม่มีอัปเดต",
       "updateBuild": "อัปเดต {{id}}",
       "unknownBuild": "ไม่ทราบอัปเดต"
     },

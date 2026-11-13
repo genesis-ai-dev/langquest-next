@@ -50,6 +50,7 @@ import { notificationTarget, openAfterSwitch } from '../notifications/notificati
 import { personLook } from '../ui/people';
 import { usePerson } from '../ui/usePerson';
 import { noteExpected, failureMessage } from '../diagnostics/report';
+import { storeBuildParts } from '../diagnostics/storeBuild';
 import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
 import { FORGETS_ON_SIGN_OUT } from '../web/forgetBrowser';
@@ -64,7 +65,7 @@ import { membershipOf } from '../session/localPersonModel';
 import { firstContactOpen } from '../session/identityModel';
 import { firstContactWords } from '../session/firstContactWords';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
-import { runningBuildLabel } from '../shell/updateStatus';
+import { runningBuildLines } from '../shell/updateStatus';
 import { AppIconRow } from '../shell/AppIconRow';
 import { NearbyRow } from '../shell/NearbyRow';
 import { useNotificationsOffered } from '../shell/useNotificationsOffered';
@@ -1120,7 +1121,7 @@ export function SyncStatus(ctx: Ctx) {
       ) : null}
       {/* Refused events are on this device too (PLAN.md invariant 1); the summary's count includes them. */}
       <Text style={[txt.xs, { textAlign: 'center' }]} selectable>
-        {runningBuildLabel({ updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch })}
+        {runningBuildLines({ store: storeBuildParts(), updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch }).join('\n')}
       </Text>
       </Disclosure>
     </Screen>
