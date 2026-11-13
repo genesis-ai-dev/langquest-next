@@ -553,6 +553,19 @@ test('PASS-060 Delete a draft, asked first', async ({ browser }) => {
   await expect(text(page, 'Your draft')).toBeVisible();
 });
 
+test('PASS-069 An admin deletes a version someone else published', async ({ browser }) => {
+  // An admin clears work that should not count, whoever published it, so the passage shows as not started (decision 124, amended 2026-11-13).
+  const s = await spare(9);
+  if (!(await passageAs(world(), 'TRANS', s)).recorded) await recordOn(world(), 'TRANS', s, { parts: 1, publish: true });
+  const page = await recordAs(browser, world(), 'ADMIN', s);
+  await versionsPage(page);
+  await button(page, 'Delete Version 1').click();
+  await expect(text(page, 'Delete Version 1?')).toBeVisible();
+  await page.getByRole('button', { name: 'Delete Version 1', exact: true }).locator('visible=true').last().click();
+  await toast(page, 'Version 1 deleted.');
+  await expect.poll(async () => (await passageAs(world(), 'ADMIN', s)).recorded, { timeout: 30_000 }).toBe(false);
+});
+
 test('PASS-061 Reviews by version', async ({ browser }) => {
   await needsAtV2();
   const page = await recordAs(browser, world(), 'TRANS', 'P-NEEDS');
