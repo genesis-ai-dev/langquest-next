@@ -3152,7 +3152,8 @@
       "downloading": "Mengunduh pembaruan…",
       "downloadingPercent": "Mengunduh pembaruan… {{percent}}",
       "webReady": "Versi baru LangQuest sudah siap. Muat ulang untuk memakainya.",
-      "storeBuild": "versi toko aplikasi",
+      "storeBuild": "versi toko aplikasi {{version}}",
+      "noUpdate": "tidak ada pembaruan",
       "updateBuild": "pembaruan {{id}}",
       "unknownBuild": "pembaruan tidak diketahui"
     },
