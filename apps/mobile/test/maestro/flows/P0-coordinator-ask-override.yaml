@@ -91,8 +91,10 @@ tags:
 # fixture left it. (The toast's message and that the next step, the final
 # approval, is offered are checked by JRN-006.)
 # The card reads out the reason too: "Consultant check, moved past · <reason>".
-- extendedWaitUntil:
-    visible: "Consultant check, moved past.*"
+- scrollUntilVisible:
+    element: "Consultant check, moved past.*"
+    direction: DOWN
+    centerElement: true
     timeout: 20000
 # Each tap once the screen has settled: on an iPhone the history was still
 # opening, and a tap aimed at Undo opened an entry (run 10, 2026-11-12).
@@ -111,3 +113,5 @@ tags:
 - scrollUntilVisible:
     element: "Consultant check, next"
     direction: DOWN
+    centerElement: true
+    timeout: 20000

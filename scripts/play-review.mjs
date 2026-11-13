@@ -36,8 +36,9 @@ import { createPrivateKey, createSign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const API = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications';
-const TOKEN_URL = 'https://oauth2.googleapis.com/token';
+/** The Play Developer API's applications, and Google's token endpoint (scripts/carried-build.mjs uses them too). */
+export const API = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications';
+export const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
 /** The app's id on Google Play (app.json, android.package). */
 export const PACKAGE = 'com.frontierrnd.langquestnext';

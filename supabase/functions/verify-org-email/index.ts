@@ -4,7 +4,7 @@
 // role only, so no client ever holds a code it was not emailed), and the
 // invite-email Worker sends it. The app then confirms it with
 // org_verification_confirm, as the person.
-import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { createClient } from 'npm:@supabase/supabase-js@2.119.0';
 import { reply, headers, serviceClient } from '../_shared/session.ts';
 
 /** What the database answers instead of a code, and the status the app gets for it. */

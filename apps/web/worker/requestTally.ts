@@ -15,7 +15,7 @@ import { statusClass, type JobRun } from '../../../server/jobRuns';
  */
 export type RouteClass =
   | 'blobs_put' | 'blobs_get' | 'blob_access' | 'r2_put' | 'record_blob'
-  | 'reports' | 'agent_api' | 'mcp' | 'webhook' | 'device' | 'links' | 'ops' | 'other';
+  | 'reports' | 'agent_api' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'ops' | 'other';
 
 /** Which kind of request this is; null for what is not counted (the web app and its files). */
 export function routeClass(method: string, path: string): RouteClass | null {
@@ -33,7 +33,8 @@ export function routeClass(method: string, path: string): RouteClass | null {
   if (path.startsWith('/api/v1/links/')) return 'links';
   if (path === '/api/v1' || path.startsWith('/api/v1/')) return 'agent_api';
   if (path === '/api/internal/poke') return 'webhook';
-  if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/') || path === '/videos') return 'other';
+  if (path.startsWith('/api/nearby/') || path === '/api/relay') return 'nearby';
+  if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/') || path.startsWith('/apk/') || path === '/videos') return 'other';
   return null;
 }
 

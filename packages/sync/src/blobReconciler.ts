@@ -1,4 +1,4 @@
-import { emptyLanguageState, isStored, type LanguageState } from '@langquest-next/core';
+import { emptyLanguageState, isStored, referencedBlobs, type LanguageState } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseTransport } from './supabaseTransport';
 import { foldStream } from './foldStream';
@@ -28,6 +28,12 @@ export interface ReconcilerDeps {
   hasStoredBlobs?(orgId: string, streamId: string): Promise<boolean>;
   download(o: BlobObject): Promise<Uint8Array>;
   remove(o: BlobObject): Promise<void>;
+  /**
+   * Put an object's bytes under another key of the same hash: a file stored under a format the
+   * log does not name, with nothing under the name it does (docs/nearby-sync-plan.md section 6,
+   * Repair). Absent: nothing is repaired.
+   */
+  copy?(from: BlobObject, to: BlobObject): Promise<void>;
   recordBlob(orgId: string, streamId: string, hash: string, size: number): Promise<void>;
   invalidateBlob(orgId: string, streamId: string, hash: string, reason: string): Promise<void>;
   /** SHA-256 hex. */
@@ -44,12 +50,29 @@ export interface ReconcileReport {
   invalidated: number;
   /** Objects whose bytes could not be fetched this pass: left alone, listed here. */
   unreadable: string[];
+  /** Files copied to the name the log gives them, from one under another format. */
+  repaired?: number;
 }
 
-/** The hashes the log holds as stored that none of the listed objects has. */
-export function missingHashes(state: LanguageState, listed: Iterable<string>): string[] {
-  const have = new Set(listed);
-  return Object.keys(state.blobs).filter((hash) => isStored(state, hash) && !have.has(hash));
+/**
+ * The hashes the log holds as stored that none of the listed objects has under the name the log
+ * gives it (`<hash>.<format>`, from `referencedBlobs`), or under any name when the log names no
+ * format for it. A recording whose bytes sit only under another extension counts as missing,
+ * since phones ask for the name and would find nothing, until the reconciler repairs it.
+ */
+export function missingHashes(state: LanguageState, listed: Iterable<{ hash: string; format: string }>): string[] {
+  const names = new Set<string>();
+  const hashes = new Set<string>();
+  for (const o of listed) {
+    names.add(`${o.hash}.${o.format}`);
+    hashes.add(o.hash);
+  }
+  const refs = referencedBlobs(state);
+  return Object.keys(state.blobs).filter((hash) => {
+    if (!isStored(state, hash)) return false;
+    const ref = refs.get(hash);
+    return ref ? !names.has(`${hash}.${ref.format}`) : !hashes.has(hash);
+  });
 }
 
 /**
@@ -71,13 +94,15 @@ export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boole
     report.streams += 1;
     // The files first: a stream with none has nothing to confirm or verify, so it is not folded,
     // unless the caller counts what is missing (a stream whose files all went is the worst case).
-    const objects = await deps.listObjects(orgId, streamId);
+    const objects = [...await deps.listObjects(orgId, streamId)];
     if (objects.length === 0 && !opts.countMissing) continue;
     // A log with no BlobStored holds nothing as stored: nothing to fold, and nothing can be missing.
     const stored = (await deps.hasStoredBlobs?.(orgId, streamId)) !== false;
     if (objects.length === 0 && !stored) continue;
-    const state = stored ? await foldStream(deps.transport, orgId, streamId, opts.pageSize ?? 1000) : emptyLanguageState();
-    if (opts.countMissing) report.missing += missingHashes(state, objects.map((o) => o.hash)).length;
+    // A stream with files is folded when it can be repaired, confirmations or not: a file under the wrong format would be confirmed otherwise.
+    const state = stored || (objects.length > 0 && deps.copy) ? await foldStream(deps.transport, orgId, streamId, opts.pageSize ?? 1000) : emptyLanguageState();
+    if (opts.countMissing) report.missing += missingHashes(state, objects).length;
+    if (deps.copy) objects.push(...await repairFormats(deps, deps.copy, state, objects, report));
     const unconfirmed: BlobObject[] = [];
     for (const o of objects) {
       report.objects += 1;
@@ -109,6 +134,34 @@ export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boole
     });
   }
   return report;
+}
+
+/**
+ * A file whose bytes sit under another format than the log's `referencedBlobs` names, with
+ * nothing under the right name, is copied across (docs/nearby-sync-plan.md section 6, Repair):
+ * a writer's PUT names no event, so `blob_named_by` cannot hold the extension for them, and
+ * `v1.BlobStored` records only hash and size. The bytes never leave R2's side of the Worker,
+ * and a second pass finds the right name there and does nothing. Answers the objects made.
+ */
+async function repairFormats(deps: ReconcilerDeps, copy: NonNullable<ReconcilerDeps['copy']>, state: LanguageState, objects: readonly BlobObject[], report: ReconcileReport): Promise<BlobObject[]> {
+  const refs = referencedBlobs(state);
+  const names = new Set(objects.map((o) => `${o.hash}.${o.format}`));
+  const made: BlobObject[] = [];
+  for (const o of objects) {
+    const ref = refs.get(o.hash);
+    if (!ref || ref.format === o.format || names.has(`${o.hash}.${ref.format}`)) continue;
+    const to = { ...o, format: ref.format };
+    try {
+      await copy(o, to);
+    } catch (err) {
+      report.unreadable.push(`${o.orgId}/${o.streamId}/${o.hash}: ${(err as Error).message}`);
+      continue;
+    }
+    names.add(`${o.hash}.${ref.format}`);
+    made.push(to);
+    report.repaired = (report.repaired ?? 0) + 1;
+  }
+  return made;
 }
 
 /** Confirmations in flight at once for one stream. */
@@ -155,6 +208,7 @@ export function reconcilerDeps(service: SupabaseClient, files: BlobFiles): Recon
     },
     download: (o) => files.get(key(o)),
     remove: (o) => files.remove(key(o)),
+    copy: async (from, to) => files.put(key(to), await files.get(key(from))),
     recordBlob: async (orgId, streamId, hash, size) => {
       const { error } = await service.rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
       if (error) throw new Error(`record_blob: ${error.message}`);

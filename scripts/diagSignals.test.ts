@@ -139,6 +139,45 @@ describe('diagnostic signals', () => {
     expect(texts({ d: install({ releases, fills: [{ at: '2026-10-21T00:00:00Z', event: 'done', ms: 3600_000 }, { at: '2026-10-21T00:00:00Z', event: 'start' }] }) })).toEqual([]);
   });
 
+  it('reads Share nearby: never finding anyone, a phone that cannot advertise, refusals, and sessions that stop', () => {
+    // Why: "Share nearby never finds anyone" and "it stops" must be answerable from counts and codes alone.
+    const t = texts({ a: install({ nearby: {
+      rooms: [
+        { at: 'T2', stop: 'idle', adv: 'no', heard: 0, echoed: 0, strangers: 2 },
+        { at: 'T1', stop: 'asked', heard: 2, echoed: 0, maybe: 2, taps: 0, pipeFails: 1 }
+      ],
+      roomTotals: { heard: 2, pipeFails: 1, strangers: 2 },
+      sessionTotals: { count: 4, fallbacks: 6, noRoom: 1, newerApp: 1 },
+      ends: { done: 1, dropped: 2, 'heard:busy': 1 },
+      links: { bluetooth: 2 },
+      codes: { 'room:PIPE_TIMEOUT': 1, 'session:LINK_DROPPED': 2, 'find:ADVERTISE_FAILED': 3 },
+      blocked: { 'permission-blocked': 1 }
+    } }) });
+    const all = t.join('\n');
+    expect(t).toContain('problem: Share nearby could not run once: its permissions were refused for good: they are turned on in the phone\'s settings.');
+    expect(all).toMatch(/problem: Share nearby ran 1 time and heard no teammate's phone \(stopped idle\)/);
+    expect(all).toMatch(/problem: This phone cannot advertise/);
+    expect(all).toMatch(/watch: Teammates were heard but never echoed this phone in 1 room \(2 taps offered, 0 taken\)/);
+    expect(t).toContain('watch: 1 Bluetooth connection to a teammate would not open (PIPE_TIMEOUT ×1).');
+    expect(t).toContain('problem: Find failed on the phone: ADVERTISE_FAILED ×3.');
+    expect(t).toContain('problem: 3 of 4 nearby sessions did not finish: 2 dropped, 1 heard:busy (LINK_DROPPED ×2).');
+    expect(all).toMatch(/Every nearby session that moved work went over Bluetooth \(6 fallbacks\)/);
+    expect(all).toMatch(/found no room for teammates' recordings/);
+    expect(all).toMatch(/one of them needs a newer app/);
+    expect(all).toMatch(/2 connections never passed the opening/);
+    // A healthy exchange over Wi-Fi Direct says nothing.
+    expect(texts({ b: install({ nearby: { rooms: [{ at: 'T', stop: 'asked', heard: 1, echoed: 1, sessions: 1, done: 1 }], ends: { done: 1 }, links: { 'wifi-direct': 1 } } }) })).toEqual([]);
+  });
+
+  it("names Share nearby's expected failures, and an attestation that did not match as a problem", () => {
+    const t = texts({ a: install({ expected: [
+      { where: 'nearby_attest', name: 'mismatch', code: null, count: 1, lastAt: 'T' },
+      { where: 'nearby: ready to carry', name: 'Error', code: null, count: 2, lastAt: 'T' }
+    ] }) });
+    expect(t).toContain("problem: 1× the Worker's attestation did not match this phone's rows (last T).");
+    expect(t).toContain('watch: 2× Ready to carry could not read what the phone holds ("nearby: ready to carry", Error), last T.');
+  });
+
   it('runs without a language, for the organization report', () => {
     expect(signals(null, [], { a: install({ errors: [{ name: 'TypeError', where: 'x', code: null, count: 1, lastErrorId: 'E-1', lastAt: 'T' }] }) }, [])
       .map((s) => s.text)).toEqual(['1× TypeError at "x" (latest E-1, T).']);

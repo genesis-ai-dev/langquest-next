@@ -34,7 +34,6 @@ tags:
 - extendedWaitUntil:
     visible: "(?i)Then the team"
     timeout: 30000
-- assertVisible: "Consultant check, .*"
 # The team's checks are cards, and the Consultant check's can sit under the
 # bottom bar, where a tap on its middle lands on the bar: bring it up first.
 - scrollUntilVisible:
@@ -92,8 +91,10 @@ tags:
 # What stays, not the toast (about 3.5 s, often gone before a slow phone reads
 # the screen; the web suite checks its words, 05-passage-checks): the row says
 # moved past, and History keeps the reason.
-- extendedWaitUntil:
-    visible: "Consultant check, moved past"
+- scrollUntilVisible:
+    element: "Consultant check, moved past.*"
+    direction: DOWN
+    centerElement: true
     timeout: 20000
 - tapOn: "Versions and history"
 - tapOn: "History.*"
@@ -110,8 +111,10 @@ tags:
 - tapOn:
     text: "Looks good"
     waitToSettleTimeoutMs: 0
-- extendedWaitUntil:
-    visible: ".*Final approval.*looks good.*"
+- scrollUntilVisible:
+    element: ".*Final approval.*looks good.*"
+    direction: DOWN
+    centerElement: true
     timeout: 20000
 # Step 5: VIEW: chapter 15 lists P-CHECK done, the chapter only started.
 - runFlow: ../common/launch.yaml
@@ -126,16 +129,20 @@ tags:
     timeout: 60000
 - tapOn: "${LANG_A}: .*Open its map.*"
 - tapOn: "Luke\\..*"
-# Luke lists its passages (decision 166): P-CHECK's row says Done.
-- scrollUntilVisible:
-    element: "${P_CHECK}\\. Done.*"
-    direction: DOWN
-    timeout: 60000
+# Luke lists its passages, 25 at a time (decision 166): P-CHECK's row says Done.
+- runFlow:
+    file: ../common/show-passage.yaml
+    env:
+      ROW: "${P_CHECK}\\. Done.*"
 - tapOn: "${P_CHECK}\\. Done.*"
 - extendedWaitUntil:
     visible: "(?i)Then the team"
     timeout: 30000
-- assertVisible: "Consultant check, moved past"
+- scrollUntilVisible:
+    element: "Consultant check, moved past.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 20000
 - assertNotVisible:
     id: "primary-action"
 - tapOn: "Versions and history"

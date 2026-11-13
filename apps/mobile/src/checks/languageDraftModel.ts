@@ -3,7 +3,7 @@
 // list of checks and each check's own pages) before the language exists, and
 // folded as its stream would fold them. Continue sends them in each new
 // language's stream, under ids of that language (`draftSpecsFor`).
-import { encodeHlc, foldLanguage, type AnyEvent, type EventSpec, type LanguageState, type OrgState } from '@langquest-next/core';
+import { newCommandId, encodeHlc, foldLanguage, type AnyEvent, type EventSpec, type LanguageState, type OrgState } from '@langquest-next/core';
 
 /** The draft's stand-in for a language id. Real ids start "L-", so it is never one. */
 export const DRAFT_LANGUAGE = 'draft';
@@ -60,8 +60,8 @@ export function foldDraft(d: LanguageDraft): LanguageState {
  * that language, so each language of a cluster gets its own copy and a
  * Continue tried again sends nothing twice.
  */
-export function draftSpecsFor(languageId: string, specs: readonly EventSpec[]): EventSpec[] {
-  return specs.map((s, i) => ({ ...s, id: `${languageId}:d${i}` }) as EventSpec);
+export function draftSpecsFor(languageId: string, specs: readonly EventSpec[], actorId: string): EventSpec[] {
+  return specs.map((s, i) => ({ ...s, id: newCommandId(actorId, `${languageId}:d${i}`) }) as EventSpec);
 }
 
 /**

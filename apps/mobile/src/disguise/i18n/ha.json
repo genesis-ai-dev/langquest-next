@@ -27,6 +27,19 @@
       "plus": "Ƙara",
       "equals": "Daidai da",
       "point": "Digo"
+    },
+    "nearby": {
+      "startLine": "Rabawa yana farawa ne kawai idan ka danna Fara rabawa, kuma yana tsayawa bayan minti goma ko da zarar komai ya zama sabo.",
+      "start": "Fara rabawa",
+      "startHelp": "Yana kunna Bluetooth da Wi-Fi don nemo abokan aiki na kusa, har zuwa minti goma.",
+      "warning": "Wanda ke da kayan aiki na musamman zai iya gane cewa wannan waya tana watsa sigina, kuma tambayoyin Android za su nuna ainihin sunan manhajar. Yi wannan a inda kake kai kaɗai.",
+      "warned": "Ci gaba",
+      "warnedHelp": "Yana ci gaba zuwa rabawa. Android na iya neman izini a gaba.",
+      "left": "Rabawa ya tsaya saboda ka bar manhajar.",
+      "run": "Rabawa ya tsaya bayan minti goma.",
+      "level": "Komai sabo ne. Rabawa ya tsaya.",
+      "letInLook": "Sabuwar wayar za ta nuna LangQuest har sai sun zaɓi wani kamanni a Ƙarin saituna.",
+      "apkTrace": "Tarihin burauza da jerin abubuwan da aka sauke suna nuna inda fayil ɗin girkawa ya fito. Za ka iya goge su daga baya."
     }
   },
   "native": {

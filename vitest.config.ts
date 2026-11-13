@@ -8,7 +8,9 @@ const shard = process.env['VITEST_COVERAGE_SHARD'] === '1';
 
 export default defineConfig({
   resolve: {
+    // The nearby entry first: an alias also matches what starts with it and a slash.
     alias: {
+      '@langquest-next/core/nearby': fileURLToPath(new URL('./packages/core/src/nearby.ts', import.meta.url)),
       '@langquest-next/core': fileURLToPath(new URL('./packages/core/src/index.ts', import.meta.url))
     }
   },

@@ -11,9 +11,15 @@ import { LOCAL_URL, localKey } from './local-supabase';
 // the environment when set (export BIBLE_BRAIN_ACCESS_KEY first), never
 // printed, and the routes answer 503 without it.
 const bibleBrain = process.env['BIBLE_BRAIN_ACCESS_KEY']?.trim();
+// Nearby sync's certificates the same way (apps/web/worker/nearby.ts): a key of
+// your own, never a hosted one, with its public half as NEARBY_CERT_KEYS (and as
+// EXPO_PUBLIC_NEARBY_CERT_KEYS in apps/mobile/.env.development.local for the
+// app). Without both, /api/nearby/* answers 503.
+const nearbyKey = process.env['NEARBY_SIGNING_KEY']?.trim();
+const nearbyCertKeys = process.env['NEARBY_CERT_KEYS']?.trim();
 writeFileSync(new URL('../apps/web/.dev.vars', import.meta.url),
   `SUPABASE_URL=${LOCAL_URL}\nSUPABASE_ANON_KEY=${localKey('SUPABASE_ANON_KEY')}\nSUPABASE_SERVICE_ROLE_KEY=${localKey('SUPABASE_SERVICE_ROLE_KEY')}\n` +
-  (bibleBrain ? `BIBLE_BRAIN_ACCESS_KEY=${bibleBrain}\n` : ''), { mode: 0o600 });
+  (bibleBrain ? `BIBLE_BRAIN_ACCESS_KEY=${bibleBrain}\n` : '') + (nearbyKey ? `NEARBY_SIGNING_KEY=${nearbyKey}\n` : ''), { mode: 0o600 });
 
 // Wrangler loads only the secrets wrangler.jsonc requires, and the Bible
 // Brain key is deliberately not required (a deploy must not stop before a
@@ -36,7 +42,8 @@ delete config.routes;
 // layer would answer it with the page; the Worker gets it first. Production
 // has no such endpoint.
 config.assets = { ...config.assets, run_worker_first: [...(config.assets?.run_worker_first ?? []), '/__scheduled'] };
-if (bibleBrain) config.secrets = { required: [...new Set([...(config.secrets?.required ?? []), 'BIBLE_BRAIN_ACCESS_KEY'])] };
+const devSecrets = [...(bibleBrain ? ['BIBLE_BRAIN_ACCESS_KEY'] : []), ...(nearbyKey ? ['NEARBY_SIGNING_KEY'] : [])];
+if (devSecrets.length) config.secrets = { required: [...new Set([...(config.secrets?.required ?? []), ...devSecrets])] };
 // The job container (worker/jobs.ts) runs in Docker, where 127.0.0.1 is the
 // container itself; it reaches the local database through Docker's name for
 // the host. A plain var in the copy, since wrangler reads from .dev.vars only
@@ -45,6 +52,7 @@ const jobsUrl = new URL(LOCAL_URL);
 jobsUrl.hostname = 'host.docker.internal';
 // The same for the Worker's own address (the v2 import puts files there), and
 // no v2 import here: a local stack has no v2 keys (npm run v2 imports by hand).
-config.vars = { ...config.vars, JOBS_SUPABASE_URL: jobsUrl.origin, JOBS_API_URL: 'http://host.docker.internal:8787', V2_IMPORT_ENABLED: 'false' };
+// Production's nearby list is never trusted here: the local list, or none.
+config.vars = { ...config.vars, JOBS_SUPABASE_URL: jobsUrl.origin, JOBS_API_URL: 'http://host.docker.internal:8787', V2_IMPORT_ENABLED: 'false', NEARBY_CERT_KEYS: nearbyCertKeys ?? '' };
 writeFileSync(new URL('../apps/web/.wrangler.dev.jsonc', import.meta.url), JSON.stringify(config, null, 1));
 mkdirSync(new URL('../apps/mobile/dist', import.meta.url), { recursive: true });

@@ -223,7 +223,7 @@ describe('a copy with a conflict', () => {
     expect(yml).toMatch(/HAS_CLAUDE_KEY: \$\{\{ secrets\.CLAUDE_CODE_OAUTH_TOKEN != '' \|\| secrets\.ANTHROPIC_API_KEY != '' \}\}/);
     expect(yml).toMatch(/claude_code_oauth_token: \$\{\{ secrets\.CLAUDE_CODE_OAUTH_TOKEN \}\}/);
     expect(yml).toMatch(/if: env\.HAS_CLAUDE_KEY != 'true'\n\s+env:[\s\S]*?conflict-note/);
-    expect(yml).toMatch(/claude-code-action@v1\n\s+if: env\.HAS_CLAUDE_KEY == 'true'/);
+    expect(yml).toMatch(/claude-code-action@[0-9a-f]{40} # v1\.[0-9.]+\n\s+if: env\.HAS_CLAUDE_KEY == 'true'/);
   });
 
   it('each copy also takes main\'s server-calls check, which reads main\'s server on a release branch', () => {
@@ -359,7 +359,7 @@ describe('a copy with a conflict', () => {
   it('Claude\'s action lets the release bot that labels the copy start it', () => {
     // Without it, the first iPhone catch-up (2026-11-05) failed: "Workflow initiated by non-human actor".
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
-    expect(yml).toMatch(/claude-code-action@v1\n[\s\S]*?\n\s+allowed_bots: langquest-release-branches\n/);
+    expect(yml).toMatch(/claude-code-action@[0-9a-f]{40} # v1\.[0-9.]+\n[\s\S]*?\n\s+allowed_bots: langquest-release-branches\n/);
   });
 
   it('the workflow keeps a release branch for both platforms', () => {

@@ -10,11 +10,14 @@ import { appFiles, findModuleScopeT, findUiText, keysNamed } from './uiText';
 // every key used and defined, and every language holding the same keys as
 // English, with the plural forms that language needs. The Android phone's
 // disguise keeps its words apart (src/disguise/i18n, decisions.md 171), so
-// that an iPhone build carries none of them; they are held to the same rules.
+// that an iPhone build carries none of them, and nearby sync keeps its own
+// apart (src/nearby/i18n, decision 233), so that the web need not carry them
+// on every visit; both are held to the same rules.
 
 const ROOT = join(import.meta.dirname, '..');
 const DIR = join(ROOT, 'src/i18n');
 const DISGUISE_DIR = join(ROOT, 'src/disguise/i18n');
+const NEARBY_DIR = join(ROOT, 'src/nearby/i18n');
 type Tree = { [k: string]: string | Tree };
 const catalog = (code: string, dir = DIR): Tree => JSON.parse(readFileSync(join(dir, `${code}.json`), 'utf8')) as Tree;
 
@@ -35,6 +38,8 @@ const en = leaves(catalog('en'));
 const enBases = basesOf(en);
 const disguiseEn = leaves(catalog('en', DISGUISE_DIR));
 const disguiseBases = basesOf(disguiseEn);
+const nearbyEn = leaves(catalog('en', NEARBY_DIR));
+const nearbyBases = basesOf(nearbyEn);
 const placeholders = (s: string) => new Set([...s.matchAll(/\{\{\s*([\w.]+)[^}]*\}\}/g)].map((m) => m[1]!));
 const tags = (s: string) => [...s.matchAll(/<\/?(\w+)\s*\/?>/g)].map((m) => m[0]).sort();
 
@@ -72,11 +77,11 @@ describe('the app writes no words into its code (LAN-42)', { timeout: 30_000 }, 
     }
     // A string literal that is a key is a use (t('a.b'), or a key kept in a table and passed to t later).
     // `native.*` is read by iOS from apps/mobile/locales (checked below), not by the code.
-    const unused = [...enBases, ...disguiseBases].filter((k) => !k.startsWith('native.') && !literals.has(k) && ![...prefixes].some((p) => k.startsWith(p)));
+    const unused = [...enBases, ...disguiseBases, ...nearbyBases].filter((k) => !k.startsWith('native.') && !literals.has(k) && ![...prefixes].some((p) => k.startsWith(p)));
     expect(unused).toEqual([]);
     // Every `t('…')` names a key English has (the typecheck says so too, unless a key is built at run time).
     const tCalls = files.flatMap((path) => [...readFileSync(path, 'utf8').matchAll(/\bt\(\s*'([^'$]+)'/g)].map((m) => m[1]!));
-    expect(tCalls.filter((k) => !enBases.has(k) && !disguiseBases.has(k))).toEqual([]);
+    expect(tCalls.filter((k) => !enBases.has(k) && !disguiseBases.has(k) && !nearbyBases.has(k))).toEqual([]);
     // The disguise's words are used only where an iPhone build never goes (disguiseIphone.test.ts).
     const disguiseUsers = files.filter((path) => [...readFileSync(path, 'utf8').matchAll(/\bt\(\s*'([^'$]+)'/g)].some((m) => disguiseBases.has(m[1]!)));
     expect(disguiseUsers.map((p) => p.slice(ROOT.length + 1)).filter((p) => !p.startsWith('src/disguise/'))).toEqual([]);
@@ -100,6 +105,19 @@ describe('the catalogs', () => {
     for (const l of UI_LANGUAGES) expect([...leaves(catalog(l.code)).keys()].filter((k) => disguiseBases.has(k.replace(PLURAL, ''))), l.code).toEqual([]);
   });
 
+  it("has nearby sync's words for each language too, a loader for each, and none in the catalogs every visit carries", () => {
+    const files = readdirSync(NEARBY_DIR).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')).sort();
+    expect(files).toEqual(UI_LANGUAGES.map((l) => l.code).sort());
+    const loaders = readFileSync(join(ROOT, 'src/nearby/nearbyWords.ts'), 'utf8');
+    for (const l of UI_LANGUAGES) if (l.code !== 'en') expect(loaders).toContain(`case '${l.code}': return require('./i18n/${l.code}.json');`);
+    for (const l of UI_LANGUAGES) expect([...leaves(catalog(l.code)).keys()].filter((k) => nearbyBases.has(k.replace(PLURAL, ''))), l.code).toEqual([]);
+    // A phone loads them with its catalogs; the web, with the nearby screens only.
+    expect(readFileSync(join(ROOT, 'src/shell/wiring.ts'), 'utf8')).toContain("import '../nearby/nearbyWordsAtStart';");
+    expect(readFileSync(join(ROOT, 'src/nearby/nearbyWordsAtStart.ts'), 'utf8')).toContain("import './nearbyWords';");
+    expect(readFileSync(join(ROOT, 'src/nearby/nearbyWordsAtStart.web.ts'), 'utf8')).not.toContain('import');
+    expect(readFileSync(join(ROOT, 'src/screens/nearby.tsx'), 'utf8')).toContain("import '../nearby/nearbyWords';");
+  });
+
   it('gives iOS the microphone and camera questions in each language (scripts/native-locales.mjs)', () => {
     const app = JSON.parse(readFileSync(join(ROOT, 'app.json'), 'utf8')).expo as { locales?: Record<string, string>; ios: { infoPlist: Record<string, string> } };
     const english = catalog('en').native as Tree;
@@ -115,7 +133,8 @@ describe('the catalogs', () => {
 
   const sources = [
     { where: 'src/i18n', dir: DIR, en, enBases, pluralBases: pluralsOf(en) },
-    { where: 'src/disguise/i18n', dir: DISGUISE_DIR, en: disguiseEn, enBases: disguiseBases, pluralBases: pluralsOf(disguiseEn) }
+    { where: 'src/disguise/i18n', dir: DISGUISE_DIR, en: disguiseEn, enBases: disguiseBases, pluralBases: pluralsOf(disguiseEn) },
+    { where: 'src/nearby/i18n', dir: NEARBY_DIR, en: nearbyEn, enBases: nearbyBases, pluralBases: pluralsOf(nearbyEn) }
   ];
   for (const { where, dir, en, enBases, pluralBases } of sources) for (const lang of UI_LANGUAGES.filter((l) => l.code !== 'en')) {
     describe(`${lang.english} (${lang.code}) in ${where}`, () => {

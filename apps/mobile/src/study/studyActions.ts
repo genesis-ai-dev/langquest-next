@@ -1,5 +1,5 @@
 // Saving a study note (study/ui.tsx).
-import { commands, CommandError, type EventSpec, type NoteAnchor } from '@langquest-next/core';
+import { newCommandId, commands, CommandError, type EventSpec, type NoteAnchor } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { commandErrorText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
@@ -20,7 +20,7 @@ export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId'>, anchor:
   let specs: EventSpec[];
   try {
     specs = commands(state, indexesFor(state)).addNote({
-      commandId: Crypto.randomUUID(), unitId: v.unitId, anchor,
+      commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), unitId: v.unitId, anchor,
       ...(c.text.trim() ? { text: c.text.trim() } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {}), ...(kindId ? { kindId } : {})
     });
   } catch (e) {
@@ -46,7 +46,7 @@ export async function takeBackNote(ctx: Ctx, noteId: string): Promise<void> {
   const state = ctx.language.state;
   if (!state) return;
   try {
-    await ctx.act(commands(state, indexesFor(state)).withdrawNote({ commandId: Crypto.randomUUID(), noteId }), t('common.undone'));
+    await ctx.act(commands(state, indexesFor(state)).withdrawNote({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), noteId }), t('common.undone'));
   } catch (e) {
     noteExpected('study: take back note', e);
   }
