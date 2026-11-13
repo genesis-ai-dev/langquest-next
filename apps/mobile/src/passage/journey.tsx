@@ -9,7 +9,7 @@
 // heard, read only.
 import type { FlowStepStatus, KindStatus, ReviewView, Version } from '@langquest-next/core';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, View, type ViewInstance } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import { stepName } from '../i18n/coreText';
@@ -23,7 +23,7 @@ import { commaList, versionTitle, when, type PassageView } from './passageView';
 import { shadow } from '../ui/shadow';
 import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import {
-  currentStepId, kindLineText, lastReviewOn, ledTo, madeAfter, oldKindLineText, oldStepState, oldStepSummary, pathState, reviewMark,
+  answerAttachments, currentStepId, kindLineText, lastReviewOn, ledTo, madeAfter, oldKindLineText, oldStepState, oldStepSummary, pathState, reviewMark,
   stepSummary, versionCaption, type NameFn, type PathState
 } from './recordTextModel';
 import { a11yState } from '../ui/a11yModel';
@@ -89,7 +89,7 @@ export function Journey(props: {
   onOpenVersion: (takeId: string) => void;
   onOpenReview: (reviewId: string) => void;
   /** The current step's row once it is laid out, so the screen can open scrolled to it. */
-  onCurrentLayout: (row: View) => void;
+  onCurrentLayout: (row: ViewInstance) => void;
   teamName?: (teamId: string) => string | undefined;
 }) {
   const { ctx, v } = props;
@@ -102,7 +102,7 @@ export function Journey(props: {
   // Steps someone opened or closed by hand; the rest follow the default (the current one open).
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   useEffect(() => { setExpanded({}); }, [v.unitId, v.languageId, props.versionIdx]);
-  const currentRow = useRef<View>(null);
+  const currentRow = useRef<ViewInstance>(null);
   const go = (i: number) => { if (i >= 0 && i < versions.length && i !== props.versionIdx) props.onVersion(i); };
   const goTo = (takeId?: string) => go(versions.findIndex((x) => x.takeId === takeId));
   const kindName = (id: string) => v.kind(id).name;
@@ -255,7 +255,7 @@ function Pill(props: { label: string; bg: string; fg: string; icon?: IconName })
 }
 
 /** One stop on the path: a dot on the line at the left, its content on the right. */
-function JourneyRow(props: { dot: ReactNode; line?: string; dim?: boolean; rowRef?: React.RefObject<View | null>; onLayout?: () => void; children: ReactNode }) {
+function JourneyRow(props: { dot: ReactNode; line?: string; dim?: boolean; rowRef?: React.RefObject<ViewInstance | null>; onLayout?: () => void; children: ReactNode }) {
   return (
     <View ref={props.rowRef} onLayout={props.onLayout} collapsable={false} style={[styles.journeyRow, props.dim && { opacity: 0.6 }]}>
       <View style={styles.rail}>
@@ -376,12 +376,17 @@ function ReviewAttachments(props: { ctx: Ctx; v: PassageView; review: ReviewView
   const { ctx, v, review } = props;
   const makes = v.kind(review.kindId).produces;
   const parts = review.artifacts ?? [];
-  if (!review.comment && !review.commentBlobHash && parts.length === 0) return null;
+  const answer = answerAttachments(review);
+  if (!review.comment && !review.commentBlobHash && parts.length === 0 && !answer.note && !answer.blobHash) return null;
   return (
     <View style={{ gap: space.xs }}>
       {review.comment ? <Text style={[txt.xs, { fontStyle: 'italic' }]} numberOfLines={2}>{t('passage.quote', { text: review.comment })}</Text> : null}
       {review.commentBlobHash ? (
         <ClipRow ctx={ctx} hashes={[review.commentBlobHash]} label={t('passage.journey.voiceFeedback')} playLabel={t('passage.journey.playVoiceFeedback')} />
+      ) : null}
+      {answer.note ? <Text style={[txt.xs, { fontStyle: 'italic' }]} numberOfLines={2}>{t('passage.quote', { text: answer.note })}</Text> : null}
+      {answer.blobHash ? (
+        <ClipRow ctx={ctx} hashes={[answer.blobHash]} label={t('passage.review.answerAloud')} playLabel={t('passage.review.answerAloud')} />
       ) : null}
       {parts.length > 0 ? (
         <ClipRow ctx={ctx} hashes={parts.map((c) => c.hash)}

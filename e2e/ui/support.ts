@@ -193,6 +193,21 @@ export async function screenText(page: Page): Promise<string> {
   return (await page.locator('body').innerText()).replace(/\s+/g, ' ');
 }
 
+/**
+ * The screen's visible text without the upload bar above it. The bar sits
+ * above every screen and says "All uploaded" until the next one (decisions.md
+ * 166), so a screen's heading need not start the page.
+ */
+export async function screenBelowBar(page: Page): Promise<string> {
+  const [all, bar] = await page.evaluate(() => [
+    document.body.innerText,
+    (document.querySelector('[data-testid="upload-bar"]') as HTMLElement | null)?.innerText ?? ''
+  ]);
+  const squash = (t: string) => t.replace(/\s+/g, ' ').trim();
+  const [whole, above] = [squash(all), squash(bar)];
+  return above && whole.startsWith(above) ? whole.slice(above.length).trimStart() : whole;
+}
+
 /** Ask the app to sync now, as pulling down or Sync now does, through the same screen a person uses. */
 export async function syncNow(page: Page): Promise<void> {
   await page.evaluate(() => (globalThis as { __langquestSyncNow?: () => Promise<void> }).__langquestSyncNow?.());
@@ -276,7 +291,13 @@ export async function openPassage(page: Page, world: UiWorld, key: keyof UiWorld
   // The field by its test id too, so the passage opens in any interface language (A11Y-019).
   const search = visible(page.getByRole('searchbox')).or(visible(page.getByPlaceholder(/Search|Find/))).or(visible(page.getByTestId('map-search'))).first();
   await expect(search.or(lang).first()).toBeVisible({ timeout: 60_000 });
-  if (!(await search.isVisible())) await lang.click();
+  // Under load a tap on the language's card can open nothing on a device that has just signed in
+  // (REC-004's second device stayed on All languages for 20 s, guardrails run of 2026-11-12, the
+  // runner's CPU at 0% idle), as a tap on a row can below: the tap is made again until the map is open.
+  await expect(async () => {
+    if (!(await search.isVisible())) await lang.click({ timeout: 5_000 });
+    await expect(search).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 30_000 });
   await search.fill(label.replace(/^Luke /, 'Luke '));
   // The passage is open when its title is the screen's heading; the row's own words are no sign of it.
   // Under load the list can move between finding the row and the tap landing (the search filters a

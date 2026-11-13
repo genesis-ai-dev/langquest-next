@@ -350,7 +350,11 @@
     "cluster_home": "语言群",
     "global_viewer": "全局查看者",
     "forgot_password": "忘记密码",
-    "new_password": "新密码"
+    "new_password": "新密码",
+    "share_nearby": "附近共享",
+    "let_someone_in": "让人加入",
+    "join_offline": "不用互联网加入",
+    "get_install_file": "获取安装文件"
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
@@ -2694,6 +2698,17 @@
       "changes_other": "{{count, number}} 次修改",
       "latestBy": "最近由{{name}}修改，{{when}}",
       "playExplanation": "播放解释",
+      "examples": "用{{language}}说出来",
+      "examplesCount": "已录：{{count, number}} / {{want, number}}",
+      "wayN": "说法 {{n, number}}",
+      "recordThisWay": "录这种说法",
+      "recordAgain": "再录一次这种说法",
+      "addWay": "添加另一种说法",
+      "addWayHelp": "添加团队在别处说这个词的另一种方式，比如它的意思不同的时候。",
+      "wayUsedIn": "用于",
+      "wayPassageHelp": "打开{{passage}}，在上下文中听这种说法",
+      "playExample": "播放例子 {{n, number}}",
+      "exampleSaved": "例子已保存",
       "openVersion": "打开第 {{n, number}} 版",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "作为{{passage}}的一部分记录，并关联到你的草稿。",
@@ -2771,7 +2786,11 @@
       "createAccountHelp": "打开表单，填写你的邮箱和新密码。",
       "browseHelp": "查看各机构公开分享的翻译工作。不需要账号。",
       "forgot": "忘记密码？",
-      "forgotHelp": "打开一个页面，你可以通过邮件收到链接，用来设置新密码。"
+      "forgotHelp": "打开一个页面，你可以通过邮件收到链接，用来设置新密码。",
+      "localHere": "有人已在这部手机上不用互联网加入了团队。在他的手机连上一次互联网之前，其他人都不能在这里登录。",
+      "joiningTitle": "{{name}}正在这部手机上加入",
+      "goOnJoining": "继续加入",
+      "goOnJoiningHelp": "打开页面，完成从队友手机加入团队。"
     },
     "terms": {
       "title": "条款和隐私",
@@ -2900,7 +2919,9 @@
       "notNowHelp": "清除这个邀请，回到你的工作。",
       "whoJoins": "谁要加入？",
       "someoneNew": "新的人",
-      "someoneNewHelp": "给还不在这部手机上的人：一个新账号。接下来输入他们的名字。"
+      "someoneNewHelp": "给还不在这部手机上的人：一个新账号。接下来输入他们的名字。",
+      "joinNotGuest": "这个码是让新手机加入团队用的。这部手机上已经有人了。",
+      "localJoined": "完成。你的工作会以你的名义传到服务器。"
     },
     "signInKey": {
       "notGuestTitle": "这是一个登录码",
@@ -2916,6 +2937,7 @@
       "notValid": "这个代码无效。",
       "expiredOrUsed": "这个代码已过期或已被使用。请重新索取一个。",
       "codeBusy": "暂时无法使用这个代码。请重试。",
+      "forSomeoneElse": "这个代码是为别人生成的。请索取为你生成的代码。",
       "scanElseHelp": "放弃这个代码，重新打开扫码。",
       "signOutHelp": "打开退出登录，让这个登录码的主人在这台设备上登录。",
       "buttonHelp": "用这个代码在本设备上为你登录。什么都不用输入。",
@@ -3122,7 +3144,10 @@
       "signInFailed": "你的新密码已设置好。请用它登录。",
       "changedTitle": "密码已修改",
       "changedBody": "从现在起，{{email}} 用新密码登录。",
-      "doneHelp": "回到你的主页。"
+      "doneHelp": "回到你的主页。",
+      "lost": "我的一部手机丢了或被拿走了",
+      "lostSub": "队友的手机将不再信任那部手机上时间晚于现在的工作，你的其他手机需要重新登录才能附近共享。",
+      "lostLetIn": "如果你从那部手机让人加入，而他们还没连上过互联网，服务器会拒绝他们。他们的工作会留在他们的手机上，能邀请人员的人可以用邀请再让他们加入。"
     }
   },
   "account": {
@@ -3260,7 +3285,33 @@
       "nameHelp": "打开你的个人资料，可以更改团队看到的名字。",
       "offlineHelp": "显示本设备为离线工作保存了哪些内容。",
       "tourHelp": "打开三张简短的卡片，介绍 LangQuest 的用途。",
-      "moreHelp": "打开密码、通知、同步和账号设置。数字表示有等待发送的更改。"
+      "moreHelp": "打开密码、通知、同步和账号设置。数字表示有等待发送的更改。",
+      "local": {
+        "title": "{{name}}，你是不用互联网加入的",
+        "letInBy": "{{name}}从他的手机让你加入了。",
+        "letIn": "一位队友从他的手机让你加入了。",
+        "waiting": "这部手机第一次连上互联网时，会为你创建账号。在那之前，你的工作会在这里等着。",
+        "joining": "正在连接服务器…",
+        "finishing": "已登录。正在完成这部手机的设置…",
+        "needsCode": "你的账号已准备好。请用团队成员给你的登录码，以{{name}}的身份登录。",
+        "needsCodeLine": "请队友打开“帮他登录”，然后在这里扫描他们的码。",
+        "keyLost": "这部手机丢失了加入时用的密钥。你的工作还在这里。请向团队成员求助。",
+        "otherAccount": "这部手机上有其他人登录了。你的工作还在这里。",
+        "refusedLine": "你的工作安全地保存在这部手机上。请向能邀请人员的人要一个邀请，然后在这里扫描。",
+        "workSafe": "你的工作会保存在这部手机和队友的手机上，直到传到服务器。",
+        "retry": "现在重试",
+        "retryHelp": "如果这部手机有互联网，现在再问一次服务器。",
+        "scan": "扫码",
+        "scanHelp": "打开扫描器，扫描邀请或队友的登录码。",
+        "refused": {
+          "expired": "服务器拒绝了你：你加入时用的许可已过期。",
+          "used": "服务器拒绝了你：你加入时用的许可已经用完了。",
+          "off": "服务器拒绝了你：你的机构关闭了不用互联网加入。",
+          "notFound": "服务器拒绝了你：它不认识你加入时用的许可。",
+          "retired": "服务器拒绝了你：你的角色已不再使用，或者让你加入的队友已不能再给这个角色。",
+          "other": "服务器拒绝了你。"
+        }
+      }
     },
     "more": {
       "noEmail": "还没有邮箱",
@@ -3297,6 +3348,16 @@
       "blockedCount_other": "{{count, number}} 人",
       "deleteAccount": "删除账号",
       "deleteSub": "永久删除你的账号和名字",
+      "removeMe": "把我从这部手机移除",
+      "removeMeSub": "代替退出登录：这部手机会忘记你",
+      "removeMeHelp": "会先询问。然后这部手机会忘记你，并回到登录。",
+      "removeMeTitle": "要把{{name}}从这部手机移除吗？",
+      "removeMeUnsent": "这部手机上还没有发出的：{{things}}。除非队友的手机已经带走，否则会丢失。",
+      "removeMeBody": "这部手机会忘记你和你的密钥，并回到登录。要再在这里工作，需要有人把你作为新的人重新加入。",
+      "removeMeButton": "移除我",
+      "removing": "正在移除…",
+      "lostPhoneSub": "通过邮件发送链接，用来设置新密码并不再信任那部手机",
+      "lostPhoneSent": "链接已发送到 {{email}}。打开它，设置新密码，并打开“我的一部手机丢了或被拿走了”。",
       "testing": "测试",
       "personaSub": "以演示用的译者、审核人或管理员身份登录",
       "syncHelp": "显示等待发送或下载的内容。数字表示有等待发送的更改。",
@@ -3413,7 +3474,8 @@
         "checking": "已连接",
         "offline": "离线",
         "refused": "未同步",
-        "tooOld": "更新后才能接收"
+        "tooOld": "更新后才能接收",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "团队的更改会即时到达，你的更改也会立刻发出。",
@@ -3422,7 +3484,8 @@
         "refused": "服务器不接受本设备的更改。你的工作仍保存在这里。",
         "tooOld": "这个应用版本太旧，收不到团队的更改。请到应用商店更新。",
         "toReceive": "本设备仍在下载的他人录音。",
-        "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。"
+        "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "待接收",
       "refusedLine": "被拒绝",
@@ -7631,5 +7694,28 @@
       "badItem": "请选择你自己的同类项。",
       "offline": "无法连接 LangQuest。请检查网络后重试。"
     }
+  },
+  "orgExport": {
+    "title": "导出所有数据",
+    "sub": "一个压缩包：按文件夹整理的录音、每条录音的清单、进度表和完整记录。",
+    "whole": "整个组织",
+    "some": "仅部分语言",
+    "start": "生成压缩包",
+    "waiting": "等待开始",
+    "reading": "正在读取组织",
+    "audio": "正在添加录音：{{done}} / {{total}}",
+    "log": "正在添加完整记录",
+    "ready": "可以下载",
+    "download": "下载",
+    "failed": "导出未完成。请重试。",
+    "started": "导出已开始。",
+    "problem": "无法开始导出。",
+    "expired": "7 天后已删除。",
+    "keep": "生成的压缩包会保留 7 天。",
+    "help": "打开一个页面，把组织的全部数据下载为一个压缩包。",
+    "wholeHelp": "导出组织的所有语言。",
+    "someHelp": "选择要导出的语言。",
+    "languageHelp": "包含或不包含这种语言。",
+    "downloadHelp": "下载已生成的压缩包。"
   }
 }

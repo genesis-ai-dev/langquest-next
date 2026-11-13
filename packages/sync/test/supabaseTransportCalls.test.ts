@@ -80,6 +80,30 @@ describe('SupabaseTransport calls', () => {
   });
 });
 
+describe('SupabaseTransport.knownEvents', () => {
+  it('asks known_events for the ids in this stream and maps each row the server holds', async () => {
+    const { transport, calls } = client(() => ({
+      data: [{ id: 'e1', server_seq: '12', hlc: '000000000000001:000000:d', actor_id: 'a' }], error: null
+    }));
+    expect(await transport.knownEvents('o', 's', ['e1', 'e2'])).toEqual([{ id: 'e1', serverSeq: 12, hlc: '000000000000001:000000:d', actorId: 'a' }]);
+    expect(calls).toEqual([{ fn: 'known_events', args: { p_org: 'o', p_stream: 's', p_ids: ['e1', 'e2'] } }]);
+  });
+
+  it('asks nothing for no ids', async () => {
+    const { transport, calls } = client(() => ({ data: [], error: null }));
+    expect(await transport.knownEvents('o', 's', [])).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  it('answers null when the database is behind, and refuses as every RPC does', async () => {
+    // Why: Supabase, the Worker and app updates deploy apart (docs/nearby-sync-plan.md 5.12); a phone ahead of the database waits, it does not fail.
+    expect(await client(() => ({ data: null, error: { message: 'Could not find the function public.known_events', code: 'PGRST202' } })).transport.knownEvents('o', 's', ['e1'])).toBeNull();
+    await expect(client(() => ({ data: null, error: { message: 'not a member', code: '42501' } })).transport.knownEvents('o', 's', ['e1'])).rejects.toBeInstanceOf(NotAuthorizedError);
+    await expect(client(() => ({ data: null, error: { message: 'too many ids: 501 (max 500); page the request', code: '22023' } })).transport.knownEvents('o', 's', ['e1']))
+      .rejects.toThrow('22023: too many ids');
+  });
+});
+
 describe('SupabaseTransport.watch', () => {
   function realtime() {
     const state: { name?: string; config?: unknown; onBroadcast?: () => void; onStatus?: (s: string) => void; removed: unknown[] } = { removed: [] };

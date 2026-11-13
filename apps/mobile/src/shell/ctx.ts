@@ -3,6 +3,7 @@ import type { ScreenId } from './flow';
 import type { Blocks } from '../moderation/moderationData';
 import type { Session } from './session';
 import type { InviteHandle } from '../invites/useHeldInvite';
+import type { FirstContactView } from '../session/firstContactModel';
 import type { OrgHandle } from '../sync/useOrg';
 import type { LanguageHandle } from '../sync/useLanguage';
 import type { V2Welcome } from '../account/welcomeBack';
@@ -63,7 +64,7 @@ export interface Ctx {
    */
   blocks: Blocks;
   /** Record-derived updates for the Inbox and which of them this device has shown. */
-  inbox: { updates: Update[]; unread: number; isRead: (id: string) => boolean; markRead: (ids: string[]) => void };
+  inbox: { updates: Update[]; unread: number; unreadStale: boolean; isRead: (id: string) => boolean; markRead: (ids: string[]) => void };
 
   /**
    * Someone who came from LangQuest v2 and has not been welcomed yet: what
@@ -83,6 +84,12 @@ export interface Ctx {
    * the app uses it.
    */
   invite: InviteHandle;
+  /**
+   * A local person's first contact (docs/nearby-sync-plan.md 14.1, 6): where it stands, for Me
+   * and Sync, a way to try now, and an ordinary invite's token for someone the pass no longer
+   * takes. Its status is `none` for everyone else.
+   */
+  firstContact: FirstContactView;
   /** Switch to another organization: its stream, and the language it opens to. */
   /** Switch organization; `open` names the language, and the passage, to open once it is in (an Inbox row from there). */
   openOrganization: (orgId: string, open?: { languageId: string; unitId?: string }) => Promise<void>;

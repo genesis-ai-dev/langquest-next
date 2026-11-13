@@ -9,12 +9,17 @@ import { getRecordingJournal } from '../recording/recordingJournal';
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { isRecording } from '../recording/recorderState';
 import { getStore } from '../storage/store';
+import { nearbyFilesFor, nearbyMakerFor } from '../nearby/nearbyPhone';
 import { serverTransport } from './serverTransport';
 import { trackSync } from './syncActivity';
 import type { LanguagePlatform } from './openLanguage';
 import type { RecoveryEnv } from './recoverRecordings';
 
-/** Keep this much free for recording, and cap the cache; evict only what the server can give back. */
+/**
+ * Keep this much free for recording, and cap the cache. Level 1 evicts only what the server can give
+ * back; on Android, level 2 can also free teammates' recordings marked nearby, never this person's own
+ * unsent work, and the cap leaves those alone (docs/nearby-sync-plan.md 5.6).
+ */
 const LIMITS = { minFreeBytes: 500 * 1024 * 1024, maxTotalBytes: 2 * 1024 * 1024 * 1024 };
 
 /** One budget per device, shared by every language's workers. */
@@ -44,7 +49,10 @@ export async function appLanguagePlatform(): Promise<LanguagePlatform> {
     fetch: downloadBlob,
     timedTransfer,
     registerProbe: registerDeviceProbe,
-    settled: (f, blobsWanted) => { void flushDiagnostics({ blobCacheBytes: f.totalBytes(), blobsWanted }).catch(() => {}); }
+    settled: (f, blobsWanted) => { void flushDiagnostics({ blobCacheBytes: f.totalBytes(), blobsWanted }).catch(() => {}); },
+    // Android's file gives each person and organization one nearby half; elsewhere there is none.
+    nearby: nearbyMakerFor,
+    nearbyFiles: nearbyFilesFor
   };
 }
 

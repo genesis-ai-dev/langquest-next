@@ -5,7 +5,8 @@
  * hash to their name. Who may use an object is the database's answer
  * (`blob_access`), the same rule the bucket policies held before.
  *
- *   PUT    /api/blobs/:key                 upload; Bearer access token or service key
+ *   PUT    /api/blobs/:key                 upload; Bearer access token or service key; x-named-by: <event id>
+ *                                          lets someone who only views upload a file that accepted event names
  *   GET    /api/blob-urls/:key             a link (a path) to read it for ten minutes; Bearer access token
  *   GET    /api/blobs/:key?expires&sig     read through that link, Range supported
  *   GET    /api/blobs/:key                 read; Bearer service key
@@ -43,6 +44,12 @@ export interface BlobDeps {
   identityOf?(token: string): Promise<{ profileId: string; aal?: string | undefined } | null>;
   /** May this profile read the object, or with `write`, upload it? `aal` is the token's level, when known. */
   mayUse(key: string, profileId: string, write: boolean, aal?: string): Promise<boolean>;
+  /**
+   * `blob_named_by`: may someone who may not write here upload this file because an accepted
+   * event names it under exactly this name (the `x-named-by` header, docs/nearby-sync-plan.md
+   * section 6)? So that any phone can carry a teammate's recording. Without it the header is ignored.
+   */
+  namedBy?(key: string, profileId: string, eventId: string): Promise<boolean>;
   /** Append v1.BlobStored for the object (idempotent: the event id carries hash and size). */
   record(orgId: string, streamId: string, hash: string, size: number): Promise<void>;
   /** The service-role key: scripts and the reconciler present it, and read links are signed with a key derived from it. */
@@ -239,6 +246,13 @@ async function allowed(who: Who, key: string, write: boolean, deps: BlobDeps): P
   return 'service' in who || deps.mayUse(key, who.profileId, write, who.aal);
 }
 
+/** The event a PUT names with `x-named-by`, and whether it lets this person upload this file. R2 still checks the bytes against the name. */
+async function namedByEvent(request: Request, who: Who, b: BlobKey, deps: BlobDeps): Promise<boolean> {
+  const eventId = request.headers.get('x-named-by');
+  if (!deps.namedBy || 'service' in who || !eventId || eventId.length > 256 || /[\u0000-\u001f\u007f]/.test(eventId)) return false;
+  return deps.namedBy(b.key, who.profileId, eventId);
+}
+
 export async function handleBlobs(request: Request, deps: BlobDeps): Promise<Response> {
   try {
     return await answer(request, deps);
@@ -287,7 +301,7 @@ async function answer(request: Request, deps: BlobDeps): Promise<Response> {
   if (method === 'PUT') {
     const who = await caller(request, deps);
     if (!who) return json(401, { error: 'Sign in again.' });
-    if (!(await allowed(who, b.key, true, deps))) return json(403, { error: 'You may not add files here.' });
+    if (!(await allowed(who, b.key, true, deps)) && !(await namedByEvent(request, who, b, deps))) return json(403, { error: 'You may not add files here.' });
     return upload(request, b, deps);
   }
   if (method === 'DELETE') {

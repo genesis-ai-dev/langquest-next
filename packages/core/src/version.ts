@@ -7,6 +7,20 @@
  */
 export const CLIENT_PROTOCOL_VERSION = 1;
 
+/**
+ * The versions of the nearby protocol this build speaks (docs/nearby-sync-plan.md 5.12).
+ * Apart from `CLIENT_PROTOCOL_VERSION`, which gates whoever calls the server, this only
+ * decides whether two phones can talk. A phone with no internet cannot update, so `min`
+ * stays down while any supported store build speaks it.
+ */
+export const NEARBY_PROTOCOL = { min: 1, max: 1 } as const;
+
+/** The newest version both ranges hold, or null. Written so that a NaN or upside-down range from a teammate gives null. */
+export function pickProtocol(mine: { min: number; max: number }, theirs: { min: number; max: number }): number | null {
+  const newest = Math.min(mine.max, theirs.max);
+  return newest >= Math.max(mine.min, theirs.min) ? newest : null;
+}
+
 /** An app version as the stores print it: one to three dot-separated numbers ('2026.1022.1830'). */
 export const VERSION_TEXT = '\\d+(?:\\.\\d+){0,2}';
 export const VERSION_PATTERN = new RegExp(`^${VERSION_TEXT}$`);

@@ -13,7 +13,7 @@
 // 'template', 'helps' and 'flow' for a ready language's three picks (decision 138). `only: '1'` opens
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
-  commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, materialsFor,
+  newCommandId, commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, materialsFor,
   followerItemId, goesWith, isTemplateDoc, recommendedFor, templateBooks,
   type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
 } from '@langquest-next/core';
@@ -322,7 +322,7 @@ function useHelpItems(ctx: Ctx) {
   }
   /** Language-stream writes for one set's says, in one step; the same row changes it back (decision 134). */
   async function sayAll(plan: { says: ReferenceSay[] }, message: string) {
-    const specs = (list: ReferenceSay[]) => list.map((p) => ({ id: Crypto.randomUUID(), type: 'v1.ReferenceSet', payload: p } as EventSpec));
+    const specs = (list: ReferenceSay[]) => list.map((p) => ({ id: newCommandId(ctx.session.actorId, Crypto.randomUUID()), type: 'v1.ReferenceSet', payload: p } as EventSpec));
     if (!plan.says.length) return;
     try {
       await ctx.act(specs(plan.says), message);
@@ -499,7 +499,7 @@ function ReferenceLanguageStep({ ctx, lang, header, back, onDone }: StepProps & 
       setBusy(false);
       return;
     }
-    const specs = (list: typeof says) => list.map((x) => ({ id: Crypto.randomUUID(), ...x } as EventSpec));
+    const specs = (list: typeof says) => list.map((x) => ({ id: newCommandId(ctx.session.actorId, Crypto.randomUUID()), ...x } as EventSpec));
     try {
       // Choosing the earlier languages again changes it back (decision 134).
       await ctx.act(specs(says), t('getReady.language.saved', { team: lang, language: joinAnd(values.map(languageLabel)) }));
@@ -866,7 +866,7 @@ function ChecksStep({ ctx, header, next, back }: StepProps) {
     let specs: EventSpec[];
     try {
       // A ready-made flow is copied into the language, its checks the language's own (decision 91).
-      specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: pick.c.name, kinds: kindsOf(pick.doc), steps: pick.doc.steps });
+      specs = commands(state, indexesFor(state)).copyFlow({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), name: pick.c.name, kinds: kindsOf(pick.doc), steps: pick.doc.steps });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('get ready: who checks', e) }), 'problem');
       setBusy(false);

@@ -3,7 +3,7 @@
 // near the top or bottom of the pane. Dropping says where the row landed
 // among the rows; dragModel.ts holds the rules.
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, type LayoutChangeEvent, type PanResponderInstance, type View } from 'react-native';
+import { type LayoutChangeEvent, PanResponder, type PanResponderInstance, type ViewInstance } from 'react-native';
 import { dropPlan, edgeSpeed, type DropPlan, type RowBox } from './dragModel';
 
 /** The scrolling pane a list sits in, so a drag can scroll it: by how much it moved, and its top and bottom on screen. */
@@ -28,7 +28,7 @@ export interface DragRows {
   /** The grip's touch handlers for a row. */
   grip: (key: string) => PanResponderInstance['panHandlers'];
   /** Each row's view, so the list can scroll to it. */
-  ref: (key: string) => (v: View | null) => void;
+  ref: (key: string) => (v: ViewInstance | null) => void;
   /** The grip last tapped without a drag, and when: it shows how to move its row (LAN-132). */
   tapped: { key: string; at: number } | null;
 }
@@ -57,7 +57,7 @@ export function useDragRows(keys: readonly string[], enabled: boolean, onDrop: (
   /** The laid-out rows still on the card (a deleted part's row is gone). */
   const laidOut = () => latest.current.keys.flatMap((k) => { const b = boxes.current.get(k); return b ? [b] : []; });
   const frame = useRef<number | null>(null);
-  const views = useRef(new Map<string, View>());
+  const views = useRef(new Map<string, ViewInstance>());
   const showKey = show?.key;
   const showAt = show?.at;
   useEffect(() => {

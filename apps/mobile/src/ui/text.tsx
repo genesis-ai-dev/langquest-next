@@ -3,10 +3,10 @@
 // app language on an English phone it would sit at the left; the base
 // writing direction puts it where Arabic readers start (decision 81). Every
 // screen imports Text from here (apps/mobile/test/i18n.test.ts holds them to it).
-import { Platform, StyleSheet, Text as NativeText, type TextProps, type TextStyle } from 'react-native';
+import { Platform, StyleSheet, Text as NativeText, type TextInstance, type TextProps, type TextStyle } from 'react-native';
 import { isRtl } from '../i18n';
 
-export function Text(props: TextProps & { ref?: React.Ref<NativeText> }) {
+export function Text(props: TextProps & { ref?: React.Ref<TextInstance> }) {
   if (Platform.OS === 'android') return <NativeText {...props} style={androidWeight(props.style)} />;
   if (Platform.OS !== 'ios' || !isRtl()) return <NativeText {...props} />;
   return <NativeText {...props} style={[{ writingDirection: 'rtl' }, props.style]} />;

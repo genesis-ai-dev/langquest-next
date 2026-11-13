@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { failureMessage, noteExpected } from '../diagnostics/report';
 import { t } from '../i18n';
+import { heardUserState } from '../nearby/nearbyFlag';
 import { userState } from '../server/account';
 import { onAuthChange } from '../server/auth';
 import {
@@ -21,6 +22,8 @@ const listeners = new Set<() => void>();
 async function read(actorId: string): Promise<void> {
   const { data, error } = await userState();
   if (error) { noteExpected('global viewer state', error); return; }
+  // The same answer says which organizations have nearby sync on (docs/nearby-sync-plan.md 5.10).
+  heardUserState(actorId, data);
   known.set(actorId, accessOf(data));
   for (const hear of listeners) hear();
 }

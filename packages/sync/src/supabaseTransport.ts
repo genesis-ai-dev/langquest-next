@@ -1,6 +1,6 @@
 import { CLIENT_PROTOCOL_VERSION, type AnyEvent } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AppendResult, RowCursor, SnapshotHead, SnapshotMeta, SnapshotRowsPage, Transport, WatchHandlers } from './types';
+import type { AppendResult, KnownEvent, RowCursor, SnapshotHead, SnapshotMeta, SnapshotRowsPage, Transport, WatchHandlers } from './types';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, ServerError, UNRENEWED_TEXT, UnrenewedError } from './types';
 
 interface EventRow {
@@ -20,8 +20,27 @@ interface EventRow {
 export class SupabaseTransport implements Transport {
   constructor(private readonly supabase: SupabaseClient) {}
 
+  /**
+   * Every RPC goes through here. A tab or phone that slept wakes holding an
+   * access token that expired meanwhile, and PostgREST answers PGRST303
+   * ("JWT expired") before supabase-js has renewed it. Renew the sign-in and
+   * ask once more; every RPC here is safe to repeat (appends are idempotent
+   * by event id). A second PGRST303 is left for `toError`: the sign-in could
+   * not be renewed, which reads as offline, not as a server error.
+   */
+  private async call(fn: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string; code?: string } | null; status: number }> {
+    const first = await this.supabase.rpc(fn, args);
+    if (first.error?.code !== 'PGRST303') return first;
+    try {
+      await this.supabase.auth.refreshSession();
+    } catch {
+      /* the retry below fails the same way and is classified */
+    }
+    return this.supabase.rpc(fn, args);
+  }
+
   async append(events: AnyEvent[]): Promise<AppendResult[]> {
-    const { data, error, status } = await this.supabase.rpc('append_events', {
+    const { data, error, status } = await this.call('append_events', {
       p_events: events.map(({ serverSeq: _s, ...e }) => e),
       p_client_version: CLIENT_PROTOCOL_VERSION
     });
@@ -32,7 +51,7 @@ export class SupabaseTransport implements Transport {
   }
 
   async snapshotMeta(orgId: string, streamId: string, reducerVersion: number): Promise<SnapshotMeta | null> {
-    const { data, error, status } = await this.supabase.rpc('get_snapshot_meta', {
+    const { data, error, status } = await this.call('get_snapshot_meta', {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_reducer_version: reducerVersion
@@ -43,7 +62,7 @@ export class SupabaseTransport implements Transport {
   }
 
   async snapshotChunk(orgId: string, streamId: string, reducerVersion: number, serverSeq: number, index: number): Promise<string | null> {
-    const { data, error, status } = await this.supabase.rpc('get_snapshot_chunk', {
+    const { data, error, status } = await this.call('get_snapshot_chunk', {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_reducer_version: reducerVersion,
@@ -55,7 +74,7 @@ export class SupabaseTransport implements Transport {
   }
 
   async snapshotHead(orgId: string, streamId: string, reducerVersion: number, linesVersion: number, withShared = true): Promise<SnapshotHead | null> {
-    const { data, error, status } = await this.supabase.rpc('get_snapshot_head', {
+    const { data, error, status } = await this.call('get_snapshot_head', {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_reducer_version: reducerVersion,
@@ -78,7 +97,7 @@ export class SupabaseTransport implements Transport {
   async snapshotRows(
     orgId: string, streamId: string, reducerVersion: number, minSeq: number, unitIds: readonly string[], after: RowCursor | null, limit: number
   ): Promise<SnapshotRowsPage | null> {
-    const { data, error, status } = await this.supabase.rpc('get_snapshot_rows', {
+    const { data, error, status } = await this.call('get_snapshot_rows', {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_reducer_version: reducerVersion,
@@ -98,7 +117,7 @@ export class SupabaseTransport implements Transport {
   }
 
   async snapshotPassages(orgId: string, streamId: string, reducerVersion: number, items: readonly { kind: string; id: string }[]): Promise<{ kind: string; id: string; unitId: string }[]> {
-    const { data, error, status } = await this.supabase.rpc('get_snapshot_passages', {
+    const { data, error, status } = await this.call('get_snapshot_passages', {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_reducer_version: reducerVersion,
@@ -125,8 +144,23 @@ export class SupabaseTransport implements Transport {
     };
   }
 
+  /**
+   * What the server holds of these ids in this stream, at most 500 (`known_events`,
+   * docs/nearby-sync-plan.md 5.7, 5.12). Supabase, the Worker and app updates deploy
+   * apart, so a database from before the function answers null, and the sweep waits.
+   */
+  async knownEvents(orgId: string, streamId: string, ids: readonly string[]): Promise<KnownEvent[] | null> {
+    if (ids.length === 0) return [];
+    const { data, error, status } = await this.call('known_events', { p_org: orgId, p_stream: streamId, p_ids: ids });
+    if (error?.code === 'PGRST202') return null;
+    if (error) throw toError(error, status);
+    return ((data as { id: string; server_seq: number | string; hlc: string; actor_id: string }[] | null) ?? []).map(
+      (r) => ({ id: r.id, serverSeq: Number(r.server_seq), hlc: r.hlc, actorId: r.actor_id })
+    );
+  }
+
   async pull(orgId: string, streamId: string, after: number, limit: number): Promise<AnyEvent[]> {
-    const { data, error, status } = await this.supabase.rpc('pull_events', {
+    const { data, error, status } = await this.call('pull_events', {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_after: after,
@@ -164,6 +198,11 @@ function toError(error: { message: string; code?: string }, status?: number): Er
   // for every purpose but diagnostics. Before the network test, which its
   // text also passes.
   if (UNRENEWED_TEXT.test(error.message)) return new UnrenewedError(error.message);
+  // PostgREST's own answer to an access token that expired while the request
+  // was on its way (PGRST303, "JWT expired"): a tab or phone that slept
+  // woke with the old token. The next request carries a renewed one, so it
+  // is the same as a sign-in not yet renewed: queued, retried, not an error.
+  if (error.code === 'PGRST303') return new UnrenewedError(error.message);
   // insufficient_privilege: every `raise ... using errcode = '42501'` in
   // supabase/migrations, which is how the RPCs refuse a non-member.
   if (error.code === '42501' || /not a member|permission denied|service role only|not authorized/i.test(error.message)) {
