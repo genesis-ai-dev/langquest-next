@@ -8392,6 +8392,12 @@
       "offline": "Impossible de joindre LangQuest. Vérifiez votre connexion et réessayez."
     }
   },
+  "tutorial": {
+    "open": "Voir comment",
+    "watch": "Regarder sur YouTube",
+    "download": "Télécharger la vidéo",
+    "help": "La vidéo de cet écran."
+  },
   "orgExport": {
     "title": "Exporter toutes les données",
     "sub": "Un zip : enregistrements dans des dossiers, la liste de chaque enregistrement, des feuilles de progression et l'historique complet.",

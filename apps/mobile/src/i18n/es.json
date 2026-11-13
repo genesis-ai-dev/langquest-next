@@ -8392,6 +8392,12 @@
       "offline": "No se pudo conectar con LangQuest. Revisa tu conexión e inténtalo de nuevo."
     }
   },
+  "tutorial": {
+    "open": "Ver cómo",
+    "watch": "Ver en YouTube",
+    "download": "Descargar el video",
+    "help": "El video de esta pantalla."
+  },
   "orgExport": {
     "title": "Exportar todos los datos",
     "sub": "Un zip: grabaciones en carpetas, una lista de cada grabación, hojas de progreso y el registro completo.",

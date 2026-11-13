@@ -8047,6 +8047,12 @@
       "offline": "Ba a iya kaiwa ga LangQuest ba. Ku duba haɗinku ku sake gwadawa."
     }
   },
+  "tutorial": {
+    "open": "Kalli yadda",
+    "watch": "Kalla a YouTube",
+    "download": "Sauke bidiyon",
+    "help": "Bidiyon wannan allon."
+  },
   "orgExport": {
     "title": "Fitar da duk bayanai",
     "sub": "Zip ɗaya: rikodi a cikin manyan fayiloli, jerin kowane rikodi, takardun ci gaba da cikakken tarihi.",

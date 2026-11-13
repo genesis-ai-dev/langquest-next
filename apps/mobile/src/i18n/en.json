@@ -8047,6 +8047,12 @@
       "offline": "Could not reach LangQuest. Check your connection and try again."
     }
   },
+  "tutorial": {
+    "open": "Watch how",
+    "watch": "Watch on YouTube",
+    "download": "Download the video",
+    "help": "The video for this screen."
+  },
   "orgExport": {
     "title": "Export all data",
     "sub": "One zip: recordings in folders, a list of every recording, progress sheets and the full record.",

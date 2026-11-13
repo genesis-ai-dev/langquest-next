@@ -8392,6 +8392,12 @@
       "offline": "Não foi possível falar com o LangQuest. Verifique a conexão e tente de novo."
     }
   },
+  "tutorial": {
+    "open": "Ver como",
+    "watch": "Assistir no YouTube",
+    "download": "Baixar o vídeo",
+    "help": "O vídeo desta tela."
+  },
   "orgExport": {
     "title": "Exportar todos os dados",
     "sub": "Um zip: gravações em pastas, uma lista de cada gravação, planilhas de progresso e o registro completo.",

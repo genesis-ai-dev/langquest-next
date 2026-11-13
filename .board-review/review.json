@@ -1,0 +1,15 @@
+{
+  "kind": "screen",
+  "ask": "Does the play button in help mode look right, and is the foot of the screen the place for it?",
+  "problem": "The help page had no way to watch or download the video for the screen a person is on.",
+  "found": "Videos already exist in 15 languages, with lasting links. The app linked to none of them.",
+  "changed": "In help mode a play button sits at the foot's left. It opens Watch on YouTube and Download for that screen's video. It uses the app's language. No match means no button, as you chose.",
+  "why": "The button sits beside Send feedback, so it covers nothing. Pictures are drawings of the layout, not screenshots: I could not run the app here. Not yet done: the filming does not record which build each video was made for. Until it does, only language decides.",
+  "touches": "The server lists a language's videos. All 16 word files gain four short phrases. Decision 205 is added. No video is published or changed.",
+  "pictures": [
+    {"file": "before.png", "label": "Before: no video button"},
+    {"file": "after.png", "label": "After: play button at the foot"},
+    {"file": "after-open.png", "label": "After: Watch and Download"}
+  ],
+  "guess": {"answer": "looks_good"}
+}

@@ -8047,6 +8047,12 @@
       "offline": "Imeshindwa kufikia LangQuest. Angalia muunganisho wako ujaribu tena."
     }
   },
+  "tutorial": {
+    "open": "Tazama jinsi",
+    "watch": "Tazama kwenye YouTube",
+    "download": "Pakua video",
+    "help": "Video ya skrini hii."
+  },
   "orgExport": {
     "title": "Hamisha data zote",
     "sub": "Zip moja: rekodi katika folda, orodha ya kila rekodi, jedwali za maendeleo na kumbukumbu kamili.",

@@ -10,7 +10,7 @@
 // go too, on Android and the web: chosen from the phone's files and made
 // smaller (LAN-198, pictureFile.ts). Saved as an account change, it goes when the phone is online.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, PanResponder, StyleSheet, View, type ViewInstance } from 'react-native';
+import { Image, Linking, PanResponder, Pressable, StyleSheet, View, type ViewInstance } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { Chip, ChipWrap, Field, GhostBtn, Group, HELP_FOOT_ROOM, Ico, PrimaryBtn, Row, Sheet } from '../ui/kit';
@@ -31,6 +31,7 @@ import {
 } from './feedbackModel';
 import { canChoosePicture, choosePicture, shrinkPicture, type ChosenPicture } from './pictureFile';
 import { touches } from '../ui/touches';
+import { useTutorialLink } from './useTutorialLink';
 
 /** Two frames: the dimming has gone from the screen before it is taken. */
 const afterPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -52,6 +53,8 @@ export function FeedbackHost(props: { ctx: Ctx; screen: string; signedIn: boolea
   const [pill, setPill] = useState<Size | null>(null);
   const [drag, setDrag] = useState(kept);
   const { actorId } = props.ctx.session;
+  const video = useTutorialLink(props.screen);
+  const [videoOpen, setVideoOpen] = useState(false);
   // What was written before signing in goes as whoever signs in.
   useEffect(() => { if (props.signedIn) void adoptWaitingFeedback(actorId); }, [props.signedIn, actorId]);
   const showing = !!help?.on && help.top === null && !taking;
@@ -114,7 +117,20 @@ export function FeedbackHost(props: { ctx: Ctx; screen: string; signedIn: boolea
             <HelpLit />
           </View>
         ) : null}
+        {showing && video ? (
+          // help-ignore: help mode's own button, like the ?: it opens the screen's video rather than explaining
+          <Pressable testID="help-video" accessibilityRole="button" accessibilityLabel={t('tutorial.open')} onPress={() => setVideoOpen(true)}
+            style={[styles.videoBtn, { bottom: Math.max(0, (HELP_FOOT_ROOM - 48) / 2) }]}>
+            <Ico name="play" size={22} color={C.white} />
+          </Pressable>
+        ) : null}
       </View>
+      {video ? (
+        <Sheet visible={videoOpen && showing} title={t('tutorial.open')} sub={t('tutorial.help')} onClose={() => setVideoOpen(false)}>
+          {video.watch ? <PrimaryBtn label={t('tutorial.watch')} icon="play" onPress={() => void Linking.openURL(video.watch!)} /> : null}
+          <GhostBtn label={t('tutorial.download')} icon="download" onPress={() => void Linking.openURL(video.download)} />
+        </Sheet>
+      ) : null}
       {open ? <FeedbackSheet ctx={props.ctx} screen={props.screen} shot={open.shot} signedIn={props.signedIn} onClose={() => setOpen(null)} /> : null}
     </>
   );
@@ -270,6 +286,7 @@ function ProfileSwitch(props: { ctx: Ctx; on: boolean; onToggle: () => void }) {
 const THUMB = 40;
 
 const styles = StyleSheet.create({
+  videoBtn: { position: 'absolute', left: space.md, width: 48, height: 48, borderRadius: 24, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   place: { position: 'absolute', maxWidth: '92%' },
   // Until it is measured it waits, unseen, where it will go.
   unplaced: { left: space.lg, bottom: space.lg, opacity: 0 },
