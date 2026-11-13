@@ -1,0 +1,12 @@
+{
+  "name": "nearby-link",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nearby sync's link on Android: Bluetooth LE, Wi-Fi Direct, the local-only hotspot and sockets (docs/nearby-sync-plan.md 5.9)",
+  "main": "index.ts",
+  "types": "index.ts",
+  "license": "UNLICENSED",
+  "peerDependencies": {
+    "expo": "*"
+  }
+}

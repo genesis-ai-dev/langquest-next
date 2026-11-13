@@ -1,3 +1,5 @@
+import { createClient } from '@supabase/supabase-js';
+import { SupabaseTransport } from '@langquest-next/sync';
 import { handleApi } from './api';
 import type { OrgStub } from './agent/http';
 import { supabaseAgentStore } from './agent/store';
@@ -20,6 +22,8 @@ import { isOpsPath, toOps } from './ops';
 import { pokeInBatches } from './batches';
 import { handleDownload, handleWatch } from './tutorialVideos';
 import { githubOidc } from './githubOidc';
+import { nearbySigner, parseCertKeys, subtleSha256, subtleVerify, type NearbySigner } from './nearbyKeys';
+import type { AccountDeps } from './nearbyJoin';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
@@ -80,6 +84,37 @@ const tokenCache = new TtlCache<TokenRecord>(MAX_ENTRIES);
 /** GitHub's signing keys, kept in the isolate (githubOidc.ts). */
 let githubOidcCached: ReturnType<typeof githubOidc> | null = null;
 let blobAccessCached: ((key: string, profileId: string, write: boolean, aal?: string) => Promise<boolean>) | null = null;
+/** Nearby sync's key, imported once per isolate (nearbyKeys.ts), and its callers' identity with the session asked every time. */
+let nearbySignerCached: Promise<NearbySigner | null> | null = null;
+let nearbyCallerCached: ((token: string) => Promise<Identity | null>) | null = null;
+/** The public keys phones trust, read once per isolate: a batch's chain is checked against them (relay.ts). */
+let nearbyRootKeysCached: Map<string, string> | null = null;
+
+/** Never shown or stored anywhere, as `join` makes one: a newcomer signs in by key, then by a helper's code. */
+function randomPassword(): string {
+  return [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** A newcomer's account in the database and Auth (nearbyJoin.ts), for the join route and the relay alike. */
+function newcomerAccounts(env: Env): Omit<AccountDeps, 'rootKeys' | 'verify' | 'sha256'> {
+  return {
+    state: async ({ profileId, key, salt, pass, roleId }) => await serviceClient(env).rpc('nearby_join_state', {
+      p_profile: profileId, p_key: key, p_salt: salt, p_pass: pass, p_role: roleId
+    }),
+    finish: async ({ profileId, key, salt, deviceId, name, pass, roleId, token }) => await serviceClient(env).rpc('nearby_join_finish', {
+      p_profile: profileId, p_key: key, p_salt: salt, p_install: deviceId, p_name: name, p_pass: pass, p_role: roleId, p_token: token ?? null
+    }),
+    preview: async (token) => await serviceClient(env).rpc('preview_invite', { p_token: token }),
+    // `managed` makes it a looked-after account to the server, and `chain_key` says which key reaches it; only the service role writes app_metadata.
+    createUser: async ({ id, email, chainKey }) => {
+      const made = await serviceClient(env).auth.admin.createUser({
+        id, email, password: randomPassword(), email_confirm: true, user_metadata: { has_password: false }, app_metadata: { managed: true, chain_key: chainKey }
+      });
+      return { error: made.error ? { message: made.error.message } : null };
+    },
+    random: () => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32
+  };
+}
 
 /** The app's Worker: `/api/*` here, everything else is the built page. */
 export default {
@@ -190,7 +225,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     if (error) console.error(`ops_tutorial_list ${language}:`, error.message);
     return videosPage(language, error ? null : pageVideos(data));
   }
-  // The videos the help page can link, in the app's language (LAN-244, decisions.md 211): the same list as /videos, as JSON.
+  // The videos the help page can link, in the app's language (LAN-244, decisions.md 252): the same list as /videos, as JSON.
   if (url.pathname === '/api/tutorial-links' && request.method === 'GET') {
     const [{ pageVideos }, { pageLanguage }] = await Promise.all([import('./videosPage'), import('./i18n/pages')]);
     const language = pageLanguage(request);
@@ -199,7 +234,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       console.error(`ops_tutorial_list ${language}:`, error.message);
       return Response.json({ language, videos: [] }, { status: 503, headers: { 'cache-control': 'no-store' } });
     }
-    // Only the language asked for: a language with no approved catalog is answered in English, and its people get no English video (decision 211).
+    // Only the language asked for: a language with no approved catalog is answered in English, and its people get no English video (decision 252).
     const exact = url.searchParams.get('lang') === language;
     const videos = (exact ? pageVideos(data) : []).map((v) => ({ tutorial: v.tutorial, sha256: v.sha256, youtube: v.youtube }));
     return Response.json({ language, videos }, { headers: { 'cache-control': 'public, max-age=300' } });
@@ -219,6 +254,11 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       if (error) throw new Error(error.message);
       return typeof data === 'string' ? data : null;
     });
+  }
+  // A carried build's APK, for a carrier's browser (apk.ts, docs/nearby-sync-plan.md 14.4); anything else under /apk/ is 404.
+  if (url.pathname.startsWith('/apk/')) {
+    const { serveApk } = await import('./apk');
+    return serveApk(request, env.APKS);
   }
   if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
   // The database says an organization's log moved (decisions.md 101); its object looks a few seconds later.
@@ -284,6 +324,13 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return data === true;
       }),
       record: recordBlob,
+      // Asked every time, never through cachedBlobAccess, which remembers per person and stream: one file allowed
+      // by naming an event would open the whole stream for a minute (docs/nearby-sync-plan.md section 6, Files).
+      namedBy: async (key, profileId, eventId) => {
+        const { data, error } = await serviceClient(env).rpc('blob_named_by', { p_name: key, p_profile: profileId, p_event: eventId });
+        if (error) throw new Error(`blob_named_by: ${error.message}`);
+        return data === true;
+      },
       tally: (step, status) => tally.add(step, status)
     },
     agent: {
@@ -327,7 +374,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return hash;
       }
     },
-    // The organization export (orgExports.ts, decisions.md 211): an admin asks, the job container builds one zip in R2.
+    // The organization export (orgExports.ts, decisions.md 252): an admin asks, the job container builds one zip in R2.
     orgExports: {
       serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
       profileOf,
@@ -367,6 +414,65 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       },
       record: jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
       now: () => Date.now()
+    },
+    // Nearby sync's certificates and attestations (nearby.ts, docs/nearby-sync-plan.md 5.12).
+    nearby: {
+      signer: () => (nearbySignerCached ??= nearbySigner(env.NEARBY_SIGNING_KEY, env.NEARBY_CERT_KEYS)),
+      // Not liveSessions: its 30-second cache would let a phone whose sessions were just ended make a new key, and it
+      // takes a database it cannot reach as a yes. sessionLiveCheck asks every time and throws then.
+      certificateCaller: async (token) => {
+        nearbyCallerCached ??= cachedIdentityOf(claimsVerifier(serviceClient(env)), Date.now, sessionLiveCheck(serviceClient(env)));
+        return (await nearbyCallerCached(token))?.profileId ?? null;
+      },
+      profileOf,
+      allowed: async (profileId) => !env.NEARBY_RATE_LIMIT || (await env.NEARBY_RATE_LIMIT.limit({ key: profileId })).success,
+      facts: async (profileId, deviceId, publicKey, languages) => await serviceClient(env).rpc('nearby_certificate_facts', {
+        p_profile: profileId, p_install: deviceId, p_key: publicKey, p_languages: languages
+      }),
+      nearbyOn: async (orgId) => await serviceClient(env).rpc('_org_feature_on', { p_org: orgId, p_feature: 'nearby' }),
+      // The caller's own token, so pull_events' can_read_stream decides; mapped as every phone maps a pull.
+      pullAs: (token, orgId, streamId, afterSeq, limit) => {
+        if (!env.SUPABASE_ANON_KEY) throw new Error('SUPABASE_ANON_KEY is not set');
+        const asCaller = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+          global: { headers: { authorization: `Bearer ${token}` } },
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+        });
+        return new SupabaseTransport(asCaller).pull(orgId, streamId, afterSeq, limit);
+      },
+      now: () => Date.now(),
+      verify: subtleVerify,
+      sha256: subtleSha256
+    },
+    // A newcomer's first contact (nearbyJoin.ts, docs/nearby-sync-plan.md 14.1), and the account the relay shares with it.
+    join: {
+      ...newcomerAccounts(env),
+      rootKeys: () => (nearbyRootKeysCached ??= parseCertKeys(env.NEARBY_CERT_KEYS)),
+      allowed: async (address) => !env.JOIN_RATE_LIMIT || (await env.JOIN_RATE_LIMIT.limit({ key: address })).success,
+      // Supabase's own one-time sign-in token, made and used here and never sent anywhere (supabase/functions/_shared/session.ts).
+      signIn: async (email) => {
+        if (!env.SUPABASE_ANON_KEY) throw new Error('SUPABASE_ANON_KEY is not set');
+        const link = await serviceClient(env).auth.admin.generateLink({ type: 'magiclink', email });
+        const tokenHash = link.data?.properties?.hashed_token;
+        if (link.error || !tokenHash) throw new Error(link.error?.message ?? 'no sign-in token');
+        const anon = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+        const { data, error } = await anon.auth.verifyOtp({ token_hash: tokenHash, type: 'magiclink' });
+        if (error || !data.session) throw new Error(error?.message ?? 'no session');
+        return { access_token: data.session.access_token, refresh_token: data.session.refresh_token };
+      },
+      verify: subtleVerify,
+      sha256: subtleSha256
+    },
+    // Teammates' signed work, delivered by whichever phone reaches the server (relay.ts, docs/nearby-sync-plan.md section 6).
+    relay: {
+      accounts: newcomerAccounts(env),
+      rootKeys: () => (nearbyRootKeysCached ??= parseCertKeys(env.NEARBY_CERT_KEYS)),
+      profileOf,
+      mayRead: async (orgId, streamId, profileId) => await serviceClient(env).rpc('can_read_stream', { p_org: orgId, p_stream: streamId, p_profile: profileId }),
+      append: async (author, key, events, clientVersion) => await serviceClient(env).rpc('relay_append_events', {
+        p_author: author, p_key: key, p_events: events, p_client_version: clientVersion
+      }),
+      verify: subtleVerify,
+      sha256: subtleSha256
     },
     // The watch for user issues, every 15 minutes from GitHub Actions (userIssues.ts, decisions.md 202).
     userIssues: {

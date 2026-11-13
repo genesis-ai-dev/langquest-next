@@ -1,7 +1,7 @@
 // The one way to show a person: avatar + name, tap for name and full id.
 // Names are not unique and can change, so the id is always one tap away.
 import { useRef, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewInstance } from 'react-native';
 import { Text } from './text';
 import Svg, { Circle, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { t } from '../i18n';
@@ -46,7 +46,7 @@ export function PersonAvatar(props: { look: PersonLook; size?: number }) {
 
 export function UserChip(props: { id: string }) {
   const look = usePerson()(props.id);
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const { width, height } = useWindowDimensions();
   // Below the chip, or above it when too close to the bottom edge.

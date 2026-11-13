@@ -1,6 +1,6 @@
 # Guardrails on every PR, so nothing depends on a local hook having run.
 #
-# scope:    which of server, web-smoke and ui-web the pull request's
+# scope:    which of server, web-smoke, ui-web and android-native the pull request's
 #           changed files need (scripts/ci-scope.mjs, decisions.md 150);
 #           none, when the commit already passed (decisions.md 164): a merge
 #           queue entry whose tree the pull request's own run tested within
@@ -18,6 +18,11 @@
 #           seeded and push delivery scheduled; the Worker runs the
 #           projection pass in its job container (docs/testing.md),
 #           in four shards of two browsers each (see ui-web below).
+# android-native: the nearby link's Kotlin (apps/mobile/modules/nearby-link)
+#           compiled in the Android project that `expo prebuild` makes, its
+#           JUnit tests and Android lint; only when the module, the app's
+#           package.json or the root lockfile changes (docs/nearby-sync-plan.md
+#           section 7).
 # nightly:  the whole web UI suite, a fleet scenario and Stryker on core,
 #           on a schedule; not blocking, but each job files its failures in
 #           Linear (scripts/nightly-report.mjs; a dry run off main) and
@@ -112,8 +117,9 @@ env:
   SUPABASE_EXCLUDE: studio,imgproxy,vector,logflare,supavisor
 
 # main requires one check, `gate` (.github/rulesets/main.json, decisions.md
-# 150). `scope` says which of `server`, `web-smoke` and `ui-web` the pull
-# request's changed files need (scripts/ci-scope.mjs); the others are
+# 150). `scope` says which of `server`, `web-smoke`, `ui-web` and
+# `android-native` the pull request's changed files need
+# (scripts/ci-scope.mjs); the others are
 # skipped. `gate` passes only when `checks`, `unit`, `coverage` and every
 # needed job passed.
 # A job that runs on a pull request is in `gate`'s needs;
@@ -132,10 +138,11 @@ jobs:
       server: ${{ steps.scope.outputs.server }}
       web-smoke: ${{ steps.scope.outputs.web-smoke }}
       ui-web: ${{ steps.scope.outputs.ui-web }}
+      android-native: ${{ steps.scope.outputs.android-native }}
       # The run that already passed this tree or commit, or empty: then no job runs.
       tested: ${{ steps.scope.outputs.tested }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -150,12 +157,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # The server-calls step reads main's history since the oldest
         # supported store build.
         with: { fetch-depth: 0 }
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - run: npm run typecheck
       # What may import what (decisions.md 104, 105): eslint.config.mjs.
@@ -195,15 +202,15 @@ jobs:
       matrix:
         shard: [1, 2, 3]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Unit tests (shard ${{ matrix.shard }} of 3)
         env:
           VITEST_COVERAGE_SHARD: '1'
         run: npx vitest run --coverage --shard=${{ matrix.shard }}/3 --reporter=blob --reporter=default
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unit-blob-${{ matrix.shard }}
           path: .vitest/blob/*
@@ -218,11 +225,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: unit-blob-*
           path: .vitest/blob
@@ -231,7 +238,7 @@ jobs:
         run: npx vitest run --merge-reports --coverage
       - name: Keep the coverage report
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage
           path: coverage/lcov.info
@@ -248,11 +255,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # The store builds' sync tests take their code out of main's history.
         with: { fetch-depth: 0 }
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Keep the stack's ports out of the outbound port range
         run: bash scripts/ci-reserve-ports.sh
@@ -290,9 +297,9 @@ jobs:
       CI: 'true'
       SMOKE_PORT: '8787'
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Record the runner's load
         run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
@@ -329,7 +336,7 @@ jobs:
       # What the page showed when a step failed (error-context.md), so a CI-only failure can be read.
       - name: Keep the smoke results
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: web-smoke-results
           path: e2e/results
@@ -368,9 +375,9 @@ jobs:
       UI_WORKERS: '2'
       SHARDS: '4'
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Record the runner's load
         run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
@@ -404,7 +411,7 @@ jobs:
         run: bash scripts/ci-load.sh stop "$RUNNER_TEMP/load" e2e/results/ui/load
       - name: Keep the results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-web-p0-results-${{ matrix.shard }}
           path: |
@@ -414,13 +421,58 @@ jobs:
             e2e/results/ui/**/error-context.md
           if-no-files-found: ignore
 
+  android-native:
+    # The nearby link's native module (apps/mobile/modules/nearby-link,
+    # docs/nearby-sync-plan.md section 7, Carl's answers 3 and 22): nothing
+    # else compiles its Kotlin before a store build, and no developer's
+    # machine has to hold an Android SDK. `expo prebuild` writes the Android
+    # project the store build would (android/ is generated and ignored), and
+    # Gradle compiles the module against the expo-modules-core it resolves,
+    # runs its JUnit tests (the golden vectors in the module's
+    # test-vectors.json, which vitest also reads) and Android lint. GitHub's
+    # Ubuntu runner carries an Android SDK (ANDROID_HOME) with its licences
+    # accepted, so Gradle fetches any platform it lacks; the JDK is set here.
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.android-native == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
+      - run: npm ci
+      # Gradle's caches, keyed by the files that decide what it downloads.
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            package-lock.json
+            apps/mobile/modules/*/android/build.gradle
+      - name: The Android project (expo prebuild)
+        working-directory: apps/mobile
+        run: npx expo prebuild -p android --no-install
+      - name: Compile the nearby module, run its JUnit tests and lint it
+        working-directory: apps/mobile/android
+        run: ./gradlew --no-daemon --stacktrace :nearby-link:compileReleaseKotlin :nearby-link:testDebugUnitTest :nearby-link:lintDebug
+      - name: Keep the test and lint reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-native-reports
+          path: |
+            apps/mobile/modules/nearby-link/android/build/reports
+            apps/mobile/modules/nearby-link/android/build/test-results
+          if-no-files-found: ignore
+
   gate:
     # The one check that main requires. A job that the changed files do not
     # need is skipped and counts as passed; a needed job must have passed.
     # It runs whatever the others did (always()), so a failure or a cancel
     # fails it instead of leaving it skipped, which GitHub would count as a
     # pass.
-    needs: [scope, checks, unit, coverage, server, web-smoke, ui-web]
+    needs: [scope, checks, unit, coverage, server, web-smoke, ui-web, android-native]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -447,7 +499,7 @@ jobs:
             if (bad.length) { console.log(`::error::Not every needed job passed: ${bad.join(", ")}`); process.exit(1); }
           '
       # checks, unit or coverage failed on main: the deploy lanes wait on them (decisions.md 53).
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: failure() && github.event_name == 'push' && steps.verdict.outputs.checks-failed == 'true'
         with: { sparse-checkout: scripts }
       - name: Tell Linear (checks failed on main)
@@ -471,7 +523,7 @@ jobs:
           echo "tree=$tree" >> "$GITHUB_OUTPUT"
       - name: Name it for the merge queue
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: tested-tree-${{ steps.tree.outputs.tree }}
           path: ${{ runner.temp }}/tested-tree.json
@@ -492,10 +544,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The npm cache, saved after the job when the lockfile changed.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - uses: ./.github/actions/playwright
         with: { browsers: chromium, warm: 'true' }
@@ -520,9 +572,9 @@ jobs:
       # Two browsers, as in ui-web: the run is not waited for, so it can be slower and steadier.
       UI_WORKERS: '2'
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Record the runner's load
         run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
@@ -546,7 +598,7 @@ jobs:
         run: bash scripts/ci-load.sh stop "$RUNNER_TEMP/load" e2e/results/ui/load
       - name: Keep the results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-web-nightly-results
           path: |
@@ -579,9 +631,9 @@ jobs:
       UI_PORT: '8787'
       UI_WORKERS: '2'
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Record the runner's load
         run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
@@ -606,7 +658,7 @@ jobs:
         run: bash scripts/ci-load.sh stop "$RUNNER_TEMP/load" e2e/results/ui/load
       - name: Keep the results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-web-quarantine-results
           path: |
@@ -633,9 +685,9 @@ jobs:
       # Lists runs and downloads their artifacts; nothing is written to GitHub.
       actions: read
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24 }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, package-manager-cache: false }
       - name: Pass rates of the last runs
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -650,12 +702,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - run: npm run fleet -- normalDay --json=fleet-normalDay.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fleet-normalDay
           path: fleet-normalDay.json
@@ -681,18 +733,18 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       # The shard's incremental file, so a night only re-tests what changed in its files.
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .stryker-tmp/incremental-${{ matrix.shard }}.json
           key: stryker-core-${{ matrix.shard }}-of-4-${{ github.sha }}
           restore-keys: stryker-core-${{ matrix.shard }}-of-4-
       - run: node scripts/mutation-shards.mjs run ${{ matrix.shard }} 4
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: mutation-core-${{ matrix.shard }}
@@ -707,16 +759,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24 }
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, package-manager-cache: false }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: mutation-core-*
           path: reports/shards
       - name: Merge the shards' reports
         run: node scripts/mutation-shards.mjs merge reports/shards reports/mutation/mutation.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: mutation-core

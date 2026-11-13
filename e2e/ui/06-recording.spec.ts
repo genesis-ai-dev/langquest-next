@@ -892,6 +892,9 @@ test('REC-040 The divider, its five stops and its one-line ends', async ({ page 
   // All the way up: the reference is one line.
   await drag(0);
   await expect(divider).toHaveAttribute('aria-valuetext', 'Reference as one line');
+  // A mouse drag selects no text: selected text under the divider made the next drag the browser's own, and the browser
+  // ended the divider's drag where it began (LAN-117).
+  expect(await page.evaluate(() => String(window.getSelection())), 'text selected by the drag').toBe('');
   await expect(button(page, 'Open the reference')).toBeVisible();
   // This passage has Bible audio, so the one line is the Bible player; the hint to drag down is only for a passage without (LAN-81).
   await expect(text(page, 'Drag down for the guide, key words, notes and earlier recordings')).toHaveCount(0);

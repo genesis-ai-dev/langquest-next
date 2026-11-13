@@ -8,9 +8,9 @@ const entry = (over: Partial<JournalEntry> = {}) => ({
 });
 
 describe('recovered recording payload', () => {
-  it('carries the journal id, the passage and one target card', () => {
-    expect(recoveredRecording(entry())).toEqual({
-      recordingId: 'rec-1', unitId: 'passage', kind: 'target',
+  it('carries the journal id named for whoever is signed in now, the passage and one target card', () => {
+    expect(recoveredRecording(entry(), 'sam')).toEqual({
+      recordingId: 'by:sam:rec-1', unitId: 'passage', kind: 'target',
       cards: [{ hash: 'h1', durationMs: 900, format: 'wav' }]
     });
   });
@@ -46,12 +46,12 @@ describe('recoverRecordings', () => {
     };
     return { session, files, env, log };
   }
-  const language = { orgId: 'org', languageId: 'lang' };
+  const language = { orgId: 'org', languageId: 'lang', actorId: 'sam' };
 
   it('appends the recovered card, then refreshes and uploads', async () => {
     const { session, files, env, log } = setup({ resumed: ['rec-1'], dropped: [], failed: [] });
     expect(await recoverRecordings(session, files, language, env)).toBe(true);
-    expect(log.appended).toEqual([recoveredRecording(entry())]);
+    expect(log.appended).toEqual([recoveredRecording(entry(), 'sam')]);
     expect(log).toMatchObject({ refreshed: 1, uploads: 1 });
   });
 

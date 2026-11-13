@@ -4,13 +4,13 @@
 // put it, until they bring the playing verse back into view or press play
 // again.
 import { useEffect, useRef, type RefObject } from 'react';
-import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView } from 'react-native';
+import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollViewInstance } from 'react-native';
 import { followTo, heldAfterScroll, type Box } from './followVerseModel';
 
 /** How long after the app scrolls the list its scroll events are its own, not the person's. */
 const OURS_MS = 700;
 
-export function useFollowVerse(o: { playing: boolean; verse: string | undefined; scroll: RefObject<ScrollView | null> }) {
+export function useFollowVerse(o: { playing: boolean; verse: string | undefined; scroll: RefObject<ScrollViewInstance | null> }) {
   const rows = useRef<Record<string, { y: number; h: number }>>({});
   const listY = useRef(0);
   const view = useRef({ y: 0, h: 0 });

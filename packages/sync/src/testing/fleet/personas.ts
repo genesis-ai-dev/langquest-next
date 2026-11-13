@@ -1,4 +1,4 @@
-import { instantiateFlow, type AnyEvent, type EventPayloads, type EventType } from '@langquest-next/core';
+import { instantiateFlow, newCommandId, type AnyEvent, type EventPayloads, type EventType } from '@langquest-next/core';
 import type { Random } from '../random';
 
 /** One thing a person does: the events a screen would append for it. */
@@ -96,7 +96,7 @@ export function translator(o: { actorId: string; index: number; of: number; rand
       const unit = revise.values().next().value ?? todo.shift();
       if (!unit) return null;
       revise.delete(unit);
-      const takeId = `${o.actorId}-take${++takes}-${o.random.int(0, 1e9)}`;
+      const takeId = newCommandId(o.actorId, `take${++takes}-${o.random.int(0, 1e9)}`);
       const cards = Array.from({ length: o.random.int(2, 4) }, () => ({ hash: o.random.hash(), durationMs: o.random.int(3_000, 12_000) }));
       const parentTakeId = latest.get(unit) ?? null;
       latest.set(unit, takeId);
@@ -138,7 +138,7 @@ export function reviewer(o: { actorId: string; kindId: string; random: Random; s
       const i = queue.findIndex((takeId) => !phone || phone.hasAudio(cardsOf.get(takeId) ?? []));
       if (i < 0) return null;
       const takeId = queue.splice(i, 1)[0]!;
-      const id = `${o.actorId}-review${++reviews}`;
+      const id = newCommandId(o.actorId, `review${++reviews}`);
       const outcome = o.random.chance(o.sendBackRate ?? 0.3) ? 'needs_changes' : 'looks_good';
       const action: Action = [{ type: 'v1.ReviewRecorded', payload: { reviewId: id, takeId, kindId: o.kindId, outcome, via: 'app' } }];
       const unitId = unitOf.get(takeId);

@@ -1,131 +1,131 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
     "clean-architecture": {
       "source": "ciembor/agent-rules-books",
       "sourceType": "github",
       "skillPath": "clean-architecture/SKILL.md",
-      "computedHash": "84fd3d3edd262c968d49c8b57c51370974feb0e28832a8dcc8049f1347e50da8"
+      "computedHash": "1d8853dd20056026676ac7b30455fc540aeb6f018c7d6aefdd9287014297eca6"
     },
     "clean-code": {
       "source": "ciembor/agent-rules-books",
       "sourceType": "github",
       "skillPath": "clean-code/SKILL.md",
-      "computedHash": "eb3a646d4c3ab8ef33dafe2ddb0978eaf1f6613a06e8ebd5a1ce1ab85826c4e3"
+      "computedHash": "710cc96e8e8d8c0553ba3ee4be008ad253ded54e5737535a8257a3494452f214"
     },
     "codebase-design": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/codebase-design/SKILL.md",
-      "computedHash": "5a17552cc1482f1a40124bf4e6c9dbd90ac0dbb47e71c07d47369f9e5f2ae3b5"
+      "computedHash": "d40f025dc1b0f2020663260f38f2bcb8d6ed3523afb11e5fda624b01238677e8"
     },
     "designing-data-intensive-applications": {
       "source": "ciembor/agent-rules-books",
       "sourceType": "github",
       "skillPath": "designing-data-intensive-applications/SKILL.md",
-      "computedHash": "8e28216b1b087531969b22c3bb8d719ca5b733989b0b88737a2fbd0eec6cdfa7"
+      "computedHash": "f2116c114e204836811563f2af71cb775a42a6d4b0e910dd46623bd0af08e7ba"
     },
     "domain-driven-design-distilled": {
       "source": "ciembor/agent-rules-books",
       "sourceType": "github",
       "skillPath": "domain-driven-design-distilled/SKILL.md",
-      "computedHash": "8a9aa1a8c5ddcdcdfb4bc6c6ca6f976796bd7807b57e384956988c676f0b6b98"
+      "computedHash": "b7a040e99f393165594232767fd4aa96d6813f028184008c5edd704429a5d259"
     },
     "domain-modeling": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/domain-modeling/SKILL.md",
-      "computedHash": "a11713c0ff7870efa3c331b2e273f09116158485246edc89ae5088eefd1b0b48"
+      "computedHash": "b78689833404148c769077355e12dbe5ad996a158a1e21e58ddf169e439d9d8c"
     },
     "expo-design-system": {
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-design-system/SKILL.md",
-      "computedHash": "24ac73a01c4d4fcb8a53711c579e39df02cfdaab01e90a13b771c2893ac4fea4"
+      "computedHash": "9a848126c0cc6e07fd35830f63b53d4aa8b48abb96eabd4cb4be6034a5635d09"
     },
     "expo-module": {
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-module/SKILL.md",
-      "computedHash": "9c968a5bcb153ccdac1edbe014145ae37d6e6dac06846bfad7b2faaf890d88f0"
+      "computedHash": "95b2949e5cd28db87853ab63743e87304e7b9a36023326dccef56f9c813a3d04"
     },
     "expo-upgrade": {
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-upgrade/SKILL.md",
-      "computedHash": "2e7f5ffbeeb8e4d1e6d8441c30abe9d3817b6ab59bd19106bede903581680144"
+      "computedHash": "64e918ef206f6bfa450a20fb2668371d884c8d1003b6e947d825396da27c9fe0"
     },
     "property-based-testing": {
       "source": "trailofbits/skills",
       "sourceType": "github",
       "skillPath": "plugins/property-based-testing/skills/property-based-testing/SKILL.md",
-      "computedHash": "c754807c7113dfb2e8c2de64e19a6612f87282b621da8b1e50e2a7137d8bbe8c"
+      "computedHash": "1fadba845ba4a8f8916bb58f5b61dda6142780851ffb6a5a5ff82574b7798bfa"
     },
     "react-native-accessibility": {
       "source": "rushatgabhane/react-native-accessibility-skill",
       "sourceType": "github",
       "skillPath": "react-native-accessibility/SKILL.md",
-      "computedHash": "a532c831f0123482d345cea0c01c936d56b372fd3df17a1f48bd82a15155bfb8"
+      "computedHash": "e3f6ae74446775b9a6dbb0000e63d153ac9f671e6ce8dacadf638e1f97786882"
     },
     "react-native-best-practices": {
       "source": "callstackincubator/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/react-native-best-practices/SKILL.md",
-      "computedHash": "4b2b9561ff7b4b9d15ff76d2dd2a6191e3cdc7f36c06d171e377bfefcbcb2bfb"
+      "computedHash": "03a527a04426ca72763396170997a51d6d07600100a549f09915a6b4e8dc10c1"
     },
     "react-navigation": {
       "source": "callstackincubator/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/react-navigation/SKILL.md",
-      "computedHash": "f09111c137b0bac6e43ff5ff57297afc93ae51583797acf779733ace4d1ced60"
+      "computedHash": "7c68186b107a625be4e3a71157b5ee88af843b3b5d48aab03363239134d4844c"
     },
     "refactoring": {
       "source": "ciembor/agent-rules-books",
       "sourceType": "github",
       "skillPath": "refactoring/SKILL.md",
-      "computedHash": "670b52574be2041152611ece9fd717fe5c95873926f92ca9375ccd317ee4e7c2"
+      "computedHash": "1ac6df461320cc390cb6f67cbf5a0f1bac73c79367ea897b44dc60d229ddcd71"
     },
     "security-review": {
       "source": "getsentry/skills",
       "sourceType": "github",
       "skillPath": "skills/security-review/SKILL.md",
-      "computedHash": "ec9792f5fd065e020c48ab5a57707c83435c286c449ba98dfa726d7b1842c868"
+      "computedHash": "4af8c6b37142b46cbbca40d5f5e6c505699b8785486a7306faf1b79dcce7ff47"
     },
     "supabase": {
       "source": "supabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/supabase/SKILL.md",
-      "computedHash": "583344c20e90f3654dbb0632f088d89fd9f1dde8ac85e8a644dd12eee59b1380"
+      "computedHash": "2fbff32fd63b7d31585cacf0ed43e5bf8d05dd20d6c0c751d256cb967a00eec1"
     },
     "supabase-postgres-best-practices": {
       "source": "supabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
-      "computedHash": "e14e276241805c97dbcfe40dcbea1a3035269cc7293cac4b1832dda41a835e60"
+      "computedHash": "3eb972c2d7c818e544e35cc33ea8d7147d4d78ae08142ef40037b0fbac7a2505"
     },
     "systematic-debugging": {
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/systematic-debugging/SKILL.md",
-      "computedHash": "3589907ee34dc8b1b7223a33fac98ab841a9e42f9960ab4433a832f0c6f00be0"
+      "computedHash": "79ff0583175346e39431b0dc713b223edd1bd7a7ea2b6c8b78b2fb9a3fed6782"
     },
     "test-driven-development": {
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/test-driven-development/SKILL.md",
-      "computedHash": "3cfe4ebb6fa7288f668d87880d279c8e48f7a92b63415e296857060f5ce22e05"
+      "computedHash": "2782702b2cf69ace085ed30d067b6f8bfd2d777ad51770fc5bdae9cb5c1b5c04"
     },
     "ux-heuristics": {
       "source": "wondelai/skills",
       "sourceType": "github",
       "skillPath": "ux-heuristics/SKILL.md",
-      "computedHash": "078959463a4d191d3ff17fd7a0b036697c79da3e86102251c98f76ffa9e66a28"
+      "computedHash": "42bf5673212445b63ec0db611cfef58429946b9038b8ba9a6d4397d6161ff93c"
     },
     "verification-before-completion": {
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/verification-before-completion/SKILL.md",
-      "computedHash": "b529822bdac4b197b180fe12225cff86b930b65910435103c10622df7f041651"
+      "computedHash": "09b0e3a4689c1c38a3b8fc6ef57a1d4165aa33c0013d546dbde9dd348941a319"
     }
   }
 }

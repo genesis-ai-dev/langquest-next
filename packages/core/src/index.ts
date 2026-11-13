@@ -12,6 +12,7 @@ export * from './org';
 export * from './license';
 export * from './materials';
 export * from './version';
+export * from './carriedApk';
 export * from './commands';
 export * from './sourceBibles';
 export * from './record';

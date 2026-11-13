@@ -350,7 +350,11 @@
     "cluster_home": "Rumpun",
     "global_viewer": "Pengamat Global",
     "forgot_password": "Lupa Kata Sandi",
-    "new_password": "Kata Sandi Baru"
+    "new_password": "Kata Sandi Baru",
+    "share_nearby": "Berbagi di sekitar",
+    "let_someone_in": "Izinkan seseorang masuk",
+    "join_offline": "Gabung tanpa internet",
+    "get_install_file": "Dapatkan file instalasi"
   },
   "native": {
     "microphone": "LangQuest merekam suara Anda untuk menerjemahkan perikop.",
@@ -2782,7 +2786,11 @@
       "createAccountHelp": "Membuka formulir untuk email Anda dan kata sandi baru.",
       "browseHelp": "Lihat pekerjaan penerjemahan yang dibagikan organisasi untuk publik. Tidak perlu akun.",
       "forgot": "Lupa kata sandi?",
-      "forgotHelp": "Membuka halaman tempat Anda mendapat tautan lewat email untuk memilih kata sandi baru."
+      "forgotHelp": "Membuka halaman tempat Anda mendapat tautan lewat email untuk memilih kata sandi baru.",
+      "localHere": "Seseorang bergabung dengan tim di ponsel ini tanpa internet. Tidak ada orang lain yang bisa masuk di sini sampai ponselnya tersambung ke internet sekali.",
+      "joiningTitle": "{{name}} sedang bergabung di ponsel ini",
+      "goOnJoining": "Lanjutkan bergabung",
+      "goOnJoiningHelp": "Membuka layar untuk menyelesaikan bergabung dengan tim dari ponsel rekan tim."
     },
     "terms": {
       "title": "Ketentuan & Privasi",
@@ -2911,7 +2919,9 @@
       "notNowHelp": "Melupakan undangan ini dan kembali ke pekerjaan Anda.",
       "whoJoins": "Siapa yang bergabung?",
       "someoneNew": "Orang baru",
-      "someoneNewHelp": "Untuk orang yang belum ada di ponsel ini: akun baru. Lalu, ketik namanya."
+      "someoneNewHelp": "Untuk orang yang belum ada di ponsel ini: akun baru. Lalu, ketik namanya.",
+      "joinNotGuest": "Kode ini untuk ponsel baru yang mau bergabung dengan tim. Ponsel ini sudah dipakai seseorang.",
+      "localJoined": "Selesai. Pekerjaan Anda dikirim ke server atas nama Anda."
     },
     "signInKey": {
       "notGuestTitle": "Ini kode masuk",
@@ -2927,6 +2937,7 @@
       "notValid": "Kode ini tidak berlaku.",
       "expiredOrUsed": "Kode ini sudah kedaluwarsa atau sudah dipakai. Minta yang baru.",
       "codeBusy": "Kode ini tidak dapat dipakai. Silakan coba lagi.",
+      "forSomeoneElse": "Kode ini dibuat untuk orang lain. Minta kode yang dibuat untuk Anda.",
       "scanElseHelp": "Meninggalkan kode ini dan membuka pemindai lagi.",
       "signOutHelp": "Membuka keluar akun, agar orang pemilik kode ini bisa masuk di perangkat ini.",
       "buttonHelp": "Memasukkan Anda di perangkat ini dengan kode ini. Tidak perlu mengetik.",
@@ -3133,7 +3144,10 @@
       "signInFailed": "Kata sandi baru Anda sudah dibuat. Masuk dengan kata sandi itu.",
       "changedTitle": "Kata sandi diubah",
       "changedBody": "Mulai sekarang {{email}} masuk dengan kata sandi baru.",
-      "doneHelp": "Kembali ke layar utama Anda."
+      "doneHelp": "Kembali ke layar utama Anda.",
+      "lost": "Ponsel saya hilang atau diambil orang",
+      "lostSub": "Ponsel rekan tim berhenti memercayai pekerjaan dari ponsel itu yang bertanggal setelah sekarang, dan ponsel Anda yang lain perlu masuk lagi untuk berbagi di sekitar.",
+      "lostLetIn": "Jika dari ponsel itu Anda mengizinkan seseorang masuk yang belum tersambung ke internet, server akan menolak mereka. Pekerjaan mereka tetap di ponsel mereka, dan orang yang bisa mengundang dapat mengizinkan mereka masuk lagi dengan undangan."
     }
   },
   "account": {
@@ -3271,7 +3285,33 @@
       "nameHelp": "Membuka profil Anda, untuk mengubah nama yang dilihat tim Anda.",
       "offlineHelp": "Menampilkan apa yang disimpan perangkat ini untuk bekerja tanpa koneksi.",
       "tourHelp": "Membuka tiga kartu singkat tentang kegunaan LangQuest.",
-      "moreHelp": "Membuka pengaturan kata sandi, notifikasi, sinkronisasi, dan akun Anda. Angka berarti ada perubahan yang menunggu dikirim."
+      "moreHelp": "Membuka pengaturan kata sandi, notifikasi, sinkronisasi, dan akun Anda. Angka berarti ada perubahan yang menunggu dikirim.",
+      "local": {
+        "title": "{{name}}, Anda bergabung tanpa internet",
+        "letInBy": "{{name}} mengizinkan Anda masuk dari ponselnya.",
+        "letIn": "Seorang rekan tim mengizinkan Anda masuk dari ponselnya.",
+        "waiting": "Akun Anda dibuat saat ponsel ini pertama kali tersambung ke internet. Sampai saat itu, pekerjaan Anda menunggu di sini.",
+        "joining": "Menghubungi server…",
+        "finishing": "Sudah masuk. Menyelesaikan penyiapan ponsel ini…",
+        "needsCode": "Akun Anda sudah siap. Masuk sebagai {{name}} dengan kode dari seseorang di tim Anda.",
+        "needsCodeLine": "Minta rekan tim membuka Bantu mereka masuk, lalu pindai kodenya di sini.",
+        "keyLost": "Ponsel ini kehilangan kunci yang dipakai saat diizinkan masuk. Pekerjaan Anda masih ada di sini. Minta bantuan seseorang di tim Anda.",
+        "otherAccount": "Orang lain sudah masuk di ponsel ini. Pekerjaan Anda masih ada di sini.",
+        "refusedLine": "Pekerjaan Anda aman di ponsel ini. Minta undangan dari orang yang bisa mengundang, lalu pindai di sini.",
+        "workSafe": "Pekerjaan Anda disimpan di ponsel ini dan di ponsel rekan tim sampai tiba di server.",
+        "retry": "Coba sekarang",
+        "retryHelp": "Menghubungi server lagi sekarang, jika ponsel ini ada internet.",
+        "scan": "Pindai kode",
+        "scanHelp": "Membuka pemindai untuk undangan atau kode masuk dari rekan tim.",
+        "refused": {
+          "expired": "Server menolak Anda: izin yang dipakai saat Anda masuk sudah habis masa berlakunya.",
+          "used": "Server menolak Anda: izin yang dipakai saat Anda masuk sudah terpakai habis.",
+          "off": "Server menolak Anda: organisasi Anda mematikan bergabung tanpa internet.",
+          "notFound": "Server menolak Anda: server tidak mengenal izin yang dipakai saat Anda masuk.",
+          "retired": "Server menolak Anda: peran Anda tidak dipakai lagi, atau rekan tim yang mengizinkan Anda masuk tidak bisa lagi memberikannya.",
+          "other": "Server menolak Anda."
+        }
+      }
     },
     "more": {
       "noEmail": "Belum ada email",
@@ -3308,6 +3348,16 @@
       "blockedCount_other": "{{count, number}} orang",
       "deleteAccount": "Hapus akun",
       "deleteSub": "Akun dan nama Anda, untuk selamanya",
+      "removeMe": "Hapus saya dari ponsel ini",
+      "removeMeSub": "Sebagai ganti keluar: ponsel ini melupakan Anda",
+      "removeMeHelp": "Bertanya dulu. Lalu ponsel ini melupakan Anda dan kembali ke Masuk.",
+      "removeMeTitle": "Hapus {{name}} dari ponsel ini?",
+      "removeMeUnsent": "Belum terkirim dari ponsel ini: {{things}}. Kecuali ponsel rekan tim sudah membawanya, ini akan hilang.",
+      "removeMeBody": "Ponsel ini melupakan Anda dan kunci Anda, lalu kembali ke Masuk. Untuk bekerja di sini lagi, seseorang harus memasukkan Anda lagi, sebagai orang baru.",
+      "removeMeButton": "Hapus saya",
+      "removing": "Menghapus…",
+      "lostPhoneSub": "Mengirim tautan lewat email untuk memilih kata sandi baru dan berhenti memercayai ponsel itu",
+      "lostPhoneSent": "Tautan dikirim ke {{email}}. Buka, pilih kata sandi baru, lalu nyalakan “Ponsel saya hilang atau diambil orang”.",
       "testing": "Pengujian",
       "personaSub": "Masuk sebagai penerjemah, pemeriksa, atau admin contoh",
       "syncHelp": "Menampilkan apa yang menunggu dikirim atau diunduh. Angka berarti ada perubahan yang menunggu dikirim.",

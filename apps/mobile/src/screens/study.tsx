@@ -18,7 +18,7 @@
 // the study is advice: nothing waits on it (STUDY-6). App only: Write a
 // guide (`guide_editor`), from the steps sheet, for whoever manages
 // reference material; the editor itself is in src/guides/.
-import { checkShows, commands, isLicense, keyTermsForUnit, RECORD_STEP, type EventSpec, type PassageNote } from '@langquest-next/core';
+import { newCommandId, checkShows, commands, isLicense, keyTermsForUnit, RECORD_STEP, type EventSpec, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -139,7 +139,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const mark = (isDone: boolean): EventSpec[] => {
     const now = ctx.language.state ?? state!;
     return commands(now, indexesFor(now)).markStudyStep({
-      commandId: Crypto.randomUUID(), unitId: v!.unitId, guideId: guide.id, stepId: status.step.id, done: isDone
+      commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), unitId: v!.unitId, guideId: guide.id, stepId: status.step.id, done: isDone
     });
   };
   async function done() {

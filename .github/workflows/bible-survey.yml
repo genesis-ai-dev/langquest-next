@@ -56,9 +56,9 @@ jobs:
         run: |
           echo "::error title=Needs you%3A Bible Brain key::The Bible survey has no BIBLE_BRAIN_ACCESS_KEY. Run npm run secrets -- production, which copies it from .env.production. https://github.com/${{ github.repository }}/blob/main/docs/breaking-up-the-bible.md#bibles-from-bible-brain"
           exit 1
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Survey 40 Bibles
         env:
@@ -67,7 +67,7 @@ jobs:
       - name: Summary
         if: always()
         run: cat bible-sample/*.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: bible-sample
@@ -87,12 +87,12 @@ jobs:
         run: |
           echo "::error title=Needs you%3A Bible Brain key::The Bible survey has no BIBLE_BRAIN_ACCESS_KEY. Run npm run secrets -- production, which copies it from .env.production. https://github.com/${{ github.repository }}/blob/main/docs/breaking-up-the-bible.md#bibles-from-bible-brain"
           exit 1
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       # Where the last run stopped; a run with --only or --full starts afresh.
-      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: inputs.args == ''
         with:
           path: bible-survey/survey.json
@@ -104,7 +104,7 @@ jobs:
           ARGS: ${{ inputs.args }}
         # ARGS is split into words on purpose: it holds the flags given by hand.
         run: npx tsx scripts/bible-survey.ts --out bible-survey --resume bible-survey/survey.json --minutes 300 $ARGS
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: always() && inputs.args == '' && hashFiles('bible-survey/survey.json') != ''
         with:
           path: bible-survey/survey.json
@@ -112,7 +112,7 @@ jobs:
       - name: Summary
         if: always()
         run: cat bible-survey/*.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: bible-survey
@@ -127,9 +127,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Every chapter of the listed Bibles
         env:
@@ -141,7 +141,7 @@ jobs:
       - name: Summary
         if: always()
         run: cat bible-full/*.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: bible-full

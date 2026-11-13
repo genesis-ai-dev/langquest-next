@@ -25,12 +25,18 @@ import { licenseText } from '../i18n/coreText';
 import { t, Trans } from '../i18n';
 import { formatPercent } from '../i18n/format';
 import { inviteCard, scanVerdict } from '../invites/heldInvite';
+import { cameraOnOpen, cameraShows } from '../invites/scanCameraModel';
 import { parseKey } from '../invites/inviteCode';
+import { holdJoinCode } from '../invites/heldJoinCode';
+import { useLocalPerson } from '../shell/useLocalPerson';
+import { useAppCovered } from '../shell/useAppCovered';
+import { useHoldsPasses } from '../nearby/useHoldsPasses';
 import type { Ctx } from '../shell/ctx';
 import { askResetLink, createAccountWithEmail, resetPassword, signInWithEmail, signInWithKey, waitText } from '../auth/signInFlow';
 import { queueJoinRequest } from '../auth/joinRequest';
 import { useAuthStep } from '../auth/useSignIn';
 import { createAccountReady, MIN_PASSWORD } from '../auth/model';
+import { refusalWords } from '../session/firstContactWords';
 import { nameNeedsFix, signInReady } from '../auth/signIn';
 import { isPattern, patternSecret } from '../session/lockModel';
 import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
@@ -94,8 +100,18 @@ export function SignIn(ctx: Ctx) {
   // A language a guest tapped on Explore: asked about once they are in (heldAskModel.ts).
   const asking = useHeldAsk();
   const patternPeople = usePatternPeople();
+  // Someone let in offline whose starting copy is not whole yet (docs/nearby-sync-plan.md 14.1): no other account signs in over them.
+  const local = useLocalPerson();
   // Signing out of a browser: the page reloads once the browser has forgotten everything, so a Sign In now would be emptied.
   if (forgettingThisBrowser()) return <Screen><EmptyState icon="lock" title={t('account.signOut.signingOut')} /></Screen>;
+  if (local && local.stage !== 'asking') {
+    return (
+      <Screen header={<HelpTop start={<LanguageChip />} />}
+        footer={<PrimaryBtn label={t('entry.signIn.goOnJoining')} icon="arrowR" help={t('entry.signIn.goOnJoiningHelp')} onPress={() => ctx.go('join_offline')} />}>
+        <Banner icon="people" title={t('entry.signIn.joiningTitle', { name: local.name })} body={t('entry.signIn.localHere')} />
+      </Screen>
+    );
+  }
   // On a short phone the ways in below the fields must show, or show that they are there (UI audit, finding 27):
   // the language shares the ?'s line, the name sits beside a smaller mark, and the scroll bar shows.
   return (
@@ -294,16 +310,20 @@ export function ForgotPassword(ctx: Ctx) {
  * already as that account, the phone stays signed in with the new password;
  * as someone else, their sign-in is left alone and only the password
  * changes. Setting it signs the account's other phones out (Supabase Auth);
- * their unsent work waits there until they sign in again.
+ * their unsent work waits there until they sign in again. "A phone of mine
+ * was lost or taken", off unless turned on, first revokes the person's
+ * nearby keys (decisions.md 200, docs/nearby-sync-plan.md section 6).
  */
 export function NewPassword(ctx: Ctx) {
   const code = ctx.params['code'] ?? '';
   const [password, setPassword] = useState('');
+  const [lost, setLost] = useState(false);
   const [error, setError] = useState(() => /^[0-9a-f]{64}$/.test(code) ? '' : t('entry.newPassword.expired'));
   const [expired, setExpired] = useState(() => !/^[0-9a-f]{64}$/.test(code));
   const [busy, setBusy] = useState(false);
   const [changedFor, setChangedFor] = useState<string | null>(null);
   const guest = ctx.session.isGuest;
+  const holdsPasses = useHoldsPasses(guest ? null : ctx.session.actorId);
   const ready = password.length >= MIN_PASSWORD && !busy && !expired;
 
   // Opened from a link, there is nothing under this screen: Back leads where
@@ -315,7 +335,7 @@ export function NewPassword(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      const result = await resetPassword(code, password, guest ? null : ctx.session.actorId, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev });
+      const result = await resetPassword(code, password, guest ? null : ctx.session.actorId, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev }, lost);
       if (result.kind === 'changed') setChangedFor(result.email);
       else if (result.kind === 'expired') { setExpired(true); setError(result.text); }
       else if (result.kind === 'error') setError(result.text);
@@ -340,6 +360,14 @@ export function NewPassword(ctx: Ctx) {
         secure autoCapitalize="none" help={t('entry.newPassword.fieldHelp')} onSubmit={() => { if (ready) void choose(); }} />
       {/* The placeholder that says so is gone once typing starts: say why the button stays off. */}
       {password.length > 0 && password.length < MIN_PASSWORD ? <Text style={txt.error}>{t('entry.createAccount.tooShort')}</Text> : null}
+      {!expired ? (
+        <Group>
+          <Row icon="phone" label={t('entry.newPassword.lost')} sub={t('entry.newPassword.lostSub')} role="switch" checked={lost} disabled={busy}
+            onPress={() => setLost((on) => !on)} last />
+        </Group>
+      ) : null}
+      {/* A lost phone's revoked key strands newcomers let in from it whose first contact has not happened (docs/nearby-sync-plan.md 14.3). */}
+      {!expired && lost && holdsPasses ? <Banner icon="warning" tone="amber" title={t('entry.newPassword.lostLetIn')} /> : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       {expired ? (
         <GhostBtn label={t('entry.newPassword.newLink')} icon="send" help={t('entry.newPassword.newLinkHelp')} onPress={() => ctx.go('forgot_password')} />
@@ -669,9 +697,14 @@ export function ScanQr(ctx: Ctx) {
   const [scanning, setScanning] = useState(false);
   const scanned = useRef(false);
   const autoStarted = useRef(false);
-  const [error, setError] = useState('');
+  // A disguised phone's cover in front of this screen: no camera behind it (scanCameraModel.ts, decisions.md 171).
+  const { covered } = useAppCovered();
+  // A Let someone in link opened from outside the app by someone already on this phone (routingModel `joinLinkRoute`).
+  const [error, setError] = useState(() => (parseKey(ctx.params['code'] ?? '')?.kind === 'join' && !ctx.session.isGuest ? t('entry.scan.joinNotGuest') : ''));
+  const [localBusy, setLocalBusy] = useState(false);
+  const [localDone, setLocalDone] = useState('');
   const guest = ctx.session.isGuest;
-  const held = invite.held ?? null;
+  const held = ctx.session.isLocal ? null : invite.held ?? null;
 
   // A link opens this screen on its own (flow D), with nothing under it to go
   // back to: Back then leads where the person would otherwise be, Sign In or
@@ -683,13 +716,14 @@ export function ScanQr(ctx: Ctx) {
   // What the server says about the held key; null when it cannot be asked.
   const { preview, asked } = useInvitePreview(invite);
 
-  // Nothing read yet: open the camera, so pointing it is the only step.
+  // Nothing read yet: open the camera, so pointing it is the only step; under a cover, once the code lifts it.
   useEffect(() => {
-    if (autoStarted.current || Platform.OS === 'web' || !permission || held || signinCode) return;
+    const step = cameraOnOpen({ decided: autoStarted.current, web: Platform.OS === 'web', covered, permission, held: !!held, signinCode: !!signinCode });
+    if (step === 'later') return;
     autoStarted.current = true;
-    if (permission.granted) { setScanning(true); return; }
-    if (permission.canAskAgain) void requestPermission().then((r) => { if (r.granted) setScanning(true); });
-  }, [permission, held, signinCode, requestPermission]);
+    if (step === 'start') setScanning(true);
+    else if (step === 'ask') void requestPermission().then((r) => { if (r.granted) setScanning(true); });
+  }, [permission, held, signinCode, requestPermission, covered]);
 
   async function read(value: string) {
     const key = parseKey(value);
@@ -698,6 +732,25 @@ export function ScanQr(ctx: Ctx) {
     if (key.kind === 'signin') { setSigninCode(key.code); return true; }
     if (key.kind === 'reset') { ctx.go('new_password', { code: key.code }); return true; }
     setSigninCode(null);
+    // A teammate's Let someone in code (docs/nearby-sync-plan.md 14.1, 3) is no invite: it is held for joining their phone.
+    if (key.kind === 'join') {
+      holdJoinCode(key);
+      if (guest) ctx.go('join_offline');
+      else setError(t('entry.scan.joinNotGuest'));
+      return true;
+    }
+    // Someone let in offline whose join was refused: an invite from someone with Invite lets this same id in (14.1, 6 "After").
+    if (ctx.session.isLocal) {
+      setLocalBusy(true);
+      try {
+        const status = await ctx.firstContact.joinWithToken(key.token);
+        setLocalDone(status.kind === 'refused' ? t(refusalWords(status.status)) : status.kind === 'needsCode' ? t('account.me.local.needsCode', { name: status.signInName })
+          : t('entry.scan.localJoined'));
+      } finally {
+        setLocalBusy(false);
+      }
+      return true;
+    }
     await invite.scan(key);
     return true;
   }
@@ -772,7 +825,7 @@ export function ScanQr(ctx: Ctx) {
       {signinCode ? <SignInKey ctx={ctx} code={signinCode} onCancel={() => setSigninCode(null)} /> : (
         <>
           <View style={styles.viewfinder}>
-            {scanning && permission?.granted ? (
+            {cameraShows(scanning, !!permission?.granted, covered) ? (
               <CameraView style={StyleSheet.absoluteFill} facing="back"
                 barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                 onBarcodeScanned={({ data }) => {
@@ -840,6 +893,8 @@ export function ScanQr(ctx: Ctx) {
             }} />
           {held && (dead || alreadyIn) ? <LinkBtn label={t('entry.scan.clearInvite')} color={C.muted} help={t('entry.scan.clearInviteHelp')} onPress={() => void invite.drop()} style={{ alignSelf: 'center' }} /> : null}
           {held && !dead && !alreadyIn && !guest ? <LinkBtn label={t('common.notNow')} color={C.muted} help={t('entry.scan.notNowHelp')} onPress={() => void invite.drop().then(ctx.home)} style={{ alignSelf: 'center' }} /> : null}
+          {localBusy ? <Text style={txt.sm}>{t('entry.shared.joining')}</Text> : null}
+          {localDone ? <Banner icon="info" title={localDone} /> : null}
           {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
         </>
       )}
@@ -856,7 +911,8 @@ export function ScanQr(ctx: Ctx) {
 function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
   const { ctx } = props;
   const { busy, error, run } = useAuthStep();
-  if (!ctx.session.isGuest) {
+  // Someone let in offline whose key sign-in is over signs in with a helper's code made for them (docs/nearby-sync-plan.md 14.1, 6).
+  if (!ctx.session.isGuest && !ctx.session.isLocal) {
     // The way out it asks for, on the screen that asks (UI audit, finding 34): the helper's code is still there to scan after.
     return (
       <>

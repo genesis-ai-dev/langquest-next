@@ -25,6 +25,7 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | `error` | A fault reaches `reportError` (`apps/mobile/src/diagnostics/report.ts`) | error class, where, the id shown to the person, fatal or not, a fixed code (a recorder's `nospace`, a SQLSTATE), stack frames |
 | `expected` | A failure already shown to the person (`noteExpected`), tallied per hour | where, error class, code; how many |
 | `audio` | Recording and playback, tallied per hour per language | takes and their total length, takes too short to keep, microphone refused, start, stop, save and compression failures, WAV kept, interruptions; plays, playback failures, taps on audio not yet on the phone, stream failures; plays that reached sound, how long they waited for it added up, and the longest wait (decision 182, amended 2026-11-04) |
+| `nearby` | Share nearby, on Android (docs/nearby-sync-plan.md sections 9 and 11). Its fields live in the nearby entry (`NEARBY_DIAG_SCHEMA`, `packages/sync/src/nearbyDiag.ts`) so the web carries none, and a recorder takes the kind with `Diagnostics.allow` | `event` says which: `room` when a room stops (why: `asked`, `idle`, `wait`, `no-key`, with a disguised phone's run limit and "Up to date" stops read as `asked`; ms it ran and ms to its first "Up to date", each at most ten minutes; teammates' phones heard and how many echoed, taps offered and taken, the most salts of this form no key matched at once, Bluetooth connections that would not open with the last module code, strangers' openings that never checked, teammates turned away while busy, openings with no answer, sessions and how many finished; whether the radio can advertise, use Wi-Fi Direct and host a hotspot); `session` when one of this phone's sessions ends (role, how it ended with its `bye` reason, the module's code, or a store fault's class; the link that moved the work after how many fallbacks; events and files in and out, refused, over budget, failed files; flags for no room, backups cut, older work from the server, a clock off by over five minutes, a newer app needed); `find` when Find fails natively (the module's code); `blocked` when the screen cannot run (the phone's reason, no certificate, a radio off, permissions refused or approximate); `deliver` when a sync delivered teammates' signed work to the server (docs/nearby-sync-plan.md section 6: ms, events sent, events the server took as new, refused here, of them stamped too far ahead and a revoked key's later work or past its cap, batches the relay did not try and batches it answered, and the class of what stopped it early, `later` for not yet). Never a tag, salt, key, install key, profile or device id, name, summary or file, so nothing says who was met or what moved; not whether the phone wears a disguise, nor its "Hold teammates' recordings" row. Share nearby's failures already shown to the person are `expected` tallies (`nearby: ready to carry`, `nearby: history`, `nearby_attest`) |
 | `auth` | Signing in and staying in | what was tried (`sign_in`, `sign_up`, `code`, `v2`, `redeem`, `join`, `renew`, `ended`, `courier`, `outbox`, `route`, `delete`, `org_list`), how it ended, an Auth error code, SQLSTATE or our own code; ms, HTTP status, attempt, ages; for a hand-over, how much another person's sign-in left to send, never who; a sign-in from the phone's lock (decisions.md 168) is `sign_in` with action `lock_pattern` or `lock_password` |
 
 Every delivery also sends the phone's context: install id, OS and version,
@@ -52,7 +53,9 @@ one.
 **Never recorded:** audio or blob bytes, event payloads, anything typed
 (titles, notes, comments, transcripts), names, emails, phone numbers, invite
 codes, tokens, IP addresses, location, screenshots, file names or hashes,
-and on a shared phone the other person's id. Error messages are not
+and on a shared phone the other person's id. Share nearby records nothing
+about the teammate's phone it met (no tag, salt, key, install key, profile
+or device id), and nothing that would mark a phone as wearing a disguise. Error messages are not
 recorded, because they can quote what someone typed; only the class name
 and the stack frames, with the message line removed and file paths cut to
 file names.
@@ -326,6 +329,11 @@ last 7 days into **kinds**, named by the records' code-like tags:
 | `job` | `job:projection:failing` | a server job failing three times running, or stopped |
 | `worker` | `worker:blobs_get:5xx` | a Worker route answering 5xx at least 5 times in a day |
 | `feedback` | `feedback:<id>` | a problem sent from help mode (bugs, not ideas) |
+
+`nearby` records are not a family: they are for reading a field report, and
+a dropped radio link or a teammate out of range is not a bug to file. Only
+Share nearby's `expected` tallies reach the watch, as every `expected` does
+(docs/nearby-sync-plan.md section 9).
 
 Development builds and the accounts in `ops.watch_ignored` (the store
 review account and Claude's production test account; an operator adds

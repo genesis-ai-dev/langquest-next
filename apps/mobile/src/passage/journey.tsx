@@ -9,7 +9,7 @@
 // heard, read only.
 import type { FlowStepStatus, KindStatus, ReviewView, Version } from '@langquest-next/core';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, View, type ViewInstance } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import { stepName } from '../i18n/coreText';
@@ -89,7 +89,7 @@ export function Journey(props: {
   onOpenVersion: (takeId: string) => void;
   onOpenReview: (reviewId: string) => void;
   /** The current step's row once it is laid out, so the screen can open scrolled to it. */
-  onCurrentLayout: (row: View) => void;
+  onCurrentLayout: (row: ViewInstance) => void;
   teamName?: (teamId: string) => string | undefined;
 }) {
   const { ctx, v } = props;
@@ -102,7 +102,7 @@ export function Journey(props: {
   // Steps someone opened or closed by hand; the rest follow the default (the current one open).
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   useEffect(() => { setExpanded({}); }, [v.unitId, v.languageId, props.versionIdx]);
-  const currentRow = useRef<View>(null);
+  const currentRow = useRef<ViewInstance>(null);
   const go = (i: number) => { if (i >= 0 && i < versions.length && i !== props.versionIdx) props.onVersion(i); };
   const goTo = (takeId?: string) => go(versions.findIndex((x) => x.takeId === takeId));
   const kindName = (id: string) => v.kind(id).name;
@@ -255,7 +255,7 @@ function Pill(props: { label: string; bg: string; fg: string; icon?: IconName })
 }
 
 /** One stop on the path: a dot on the line at the left, its content on the right. */
-function JourneyRow(props: { dot: ReactNode; line?: string; dim?: boolean; rowRef?: React.RefObject<View | null>; onLayout?: () => void; children: ReactNode }) {
+function JourneyRow(props: { dot: ReactNode; line?: string; dim?: boolean; rowRef?: React.RefObject<ViewInstance | null>; onLayout?: () => void; children: ReactNode }) {
   return (
     <View ref={props.rowRef} onLayout={props.onLayout} collapsable={false} style={[styles.journeyRow, props.dim && { opacity: 0.6 }]}>
       <View style={styles.rail}>

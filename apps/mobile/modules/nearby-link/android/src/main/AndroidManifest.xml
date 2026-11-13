@@ -1,0 +1,34 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    Nearby sync's permissions (docs/nearby-sync-plan.md section 9), here and not in app.json:
+    app.json cannot say these attributes, and an edit there moves the iPhone build's fingerprint.
+    Every one is asked for at run time only when Share nearby opens. No components: no service,
+    receiver or provider. Not ACCESS_LOCAL_NETWORK, FOREGROUND_SERVICE or REQUEST_INSTALL_PACKAGES.
+  -->
+
+  <!-- Android 11 and earlier: Bluetooth as a normal permission. -->
+  <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+
+  <!-- Android 12 and later: the Nearby devices group. A scan never derives location. -->
+  <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+  <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+  <!-- Only where older Androids force it for Bluetooth scans and Wi-Fi Direct: both, or Android 12 may ignore the request. -->
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
+  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="32" />
+
+  <!-- Wi-Fi Direct and the local-only hotspot. -->
+  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+  <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+  <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <!-- Android 13 and later: Wi-Fi Direct and the hotspot without location. -->
+  <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" />
+
+  <!-- Not required: Play would otherwise hide the app from phones without them, flag or no flag. -->
+  <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+  <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+  <uses-feature android:name="android.hardware.wifi.direct" android:required="false" />
+</manifest>

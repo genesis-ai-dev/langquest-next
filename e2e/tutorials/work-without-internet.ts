@@ -101,7 +101,7 @@ export const workWithoutInternet: Tutorial = {
       say: 'This bar says what is waiting to upload.'
     },
     {
-      // Back online as the line starts, so the bar goes up while it is said; then it is all uploaded, and goes.
+      // Back online as the line starts, so the bar goes up while it is said; then it says all uploaded until the next screen.
       screen: 'workspace',
       first: (page) => page.context().setOffline(false),
       part: (page) => id(page, 'upload-bar'),
