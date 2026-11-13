@@ -29,8 +29,8 @@ test('JRN-010 A viewer follows progress @p0 @wide', async ({ page }) => {
   await button(page, /^Luke\./).click();
   await (await bookRow(page, new RegExp(`^${done}\\. Done`))).click();
   await expect(text(page, done)).toBeVisible();
-  for (const check of ['Peer check', 'Back translation', 'Community check', 'Consultant check', 'Final approval']) {
-    await expect(button(page, new RegExp(`^${check}, (looks good|done|complete)`, 'i'))).toBeVisible();
+  for (const check of ['Peer check', 'Back translation · make it', 'Back translation · check it', 'Community check', 'Consultant check', 'Final approval']) {
+    await expect(button(page, new RegExp(`^${check}, (looks good|made|checked|done|complete)`, 'i'))).toBeVisible();
   }
   for (const action of [/^Record$/, /^Do the /, /^Ask /, /^Back-translate/, /^Hear the feedback$/]) {
     await expect(page.getByRole('button', { name: action }).locator('visible=true')).toHaveCount(0);
