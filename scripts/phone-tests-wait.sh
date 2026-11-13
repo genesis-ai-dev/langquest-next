@@ -8,12 +8,14 @@
 #                                  starts a quick tunnel to origin and writes its
 #                                  address (2 min a try, 3 tries)
 #   job "<job name>" <minutes>     a job of this run has ended (the test server
-#                                  serves until the iPhone job ends)
+#                                  serves until the iPhone job ends); fails when
+#                                  that job did not pass, so "Re-run failed
+#                                  jobs" runs this job again with it
 #   simulator <app> <device.json>  makes, boots and installs an iPhone simulator;
 #                                  sets UDID for the next steps (10 min)
 #   server <dir>                   the test server's address and accounts are in
-#                                  this run's artifacts; fails at once if the
-#                                  server's job ended without them (60 min)
+#                                  this run attempt's artifacts; fails at once if
+#                                  the server's job ended without them (60 min)
 #   local <log>                    127.0.0.1:54421 answers through the tunnel (6 min)
 set -euo pipefail
 mode="${1:?usage: phone-tests-wait.sh worker|tunnel|job|simulator|server|local ...}"
@@ -67,9 +69,16 @@ case "$mode" in
   job)
     name="$1" minutes="$2"
     while until_limit $((minutes * 60)); do
-      status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
-        --jq ".jobs[] | select(.name == \"$name\") | .status" 2>/dev/null | head -1 || true)"
-      if [ "$status" = completed ]; then echo "The job \"$name\" has ended."; exit 0; fi
+      # This attempt's job (the API lists the latest attempt's jobs): its
+      # result once it has one.
+      ended="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
+        --jq ".jobs[] | select(.name == \"$name\" and .status == \"completed\") | .conclusion" 2>/dev/null | head -1 || true)"
+      if [ -n "$ended" ]; then
+        echo "The job \"$name\" has ended: $ended."
+        case "$ended" in success | skipped | neutral) exit 0 ;; esac
+        echo "::error::The job \"$name\" did not pass ($ended). This job fails with it, so that \"Re-run failed jobs\" starts a new test server for it."
+        exit 1
+      fi
       sleep 30
     done
     echo "Stopped serving after $minutes minutes."
@@ -103,7 +112,9 @@ case "$mode" in
       # A download that works but has no tunnel.json will not get better; a
       # download that fails may be the artifact not listed yet, or GitHub
       # having a bad hour (HTTP 502 on 2026-11-11), so that one is retried.
-      if last="$(gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n phone-tests-ios-server -D "$dir" 2>&1)"; then
+      # This attempt's server: a re-run keeps the first attempt's artifact,
+      # and its address leads to a server that has stopped.
+      if last="$(gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n "phone-tests-ios-server-${GITHUB_RUN_ATTEMPT:-1}" -D "$dir" 2>&1)"; then
         if [ -f "$dir/tunnel.json" ]; then echo "The test server is up."; exit 0; fi
         echo "::error::The iPhone test server's artifact has no tunnel.json"
         ls -la "$dir" || true
