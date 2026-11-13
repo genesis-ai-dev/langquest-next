@@ -7833,6 +7833,14 @@ Releases section draws where each build and update is now
 fast enough that a restarted one costs less than a build that waits, then
 send every build straight to production again.
 
+Amended (2026-11-13, Carl Sauder): the app reads the time back from a store
+build's version and shows it on Sync, with the build number, beside the OTA
+update's id and time (`storeVersionTime` in
+`apps/mobile/src/shell/updateStatus.ts`). The phone's settings show only the
+store version and nothing else shows the update, so a tester needs both to
+say which code they run. A new form for the version needs that reader
+changed too; a version it cannot read shows no date, never a wrong one.
+
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
