@@ -107,7 +107,7 @@ describe('the Nightly tests part', () => {
       ['/check-runs/2/annotations', []],
       ['/check-runs/3/annotations', []]
     ]);
-    // The section reads the clock, so the run's age is from NOW and not from today.
+    // nightlySection ages the runs against the clock, so the clock is the test's NOW, not today.
     vi.useFakeTimers({ toFake: ['Date'], now: NOW });
     const s = await nightlySection({ GITHUB_REPO: 'o/r' }, fetcher).finally(() => vi.useRealTimers());
     const d = s.data as Nightly;
