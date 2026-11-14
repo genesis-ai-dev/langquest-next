@@ -49,10 +49,11 @@ import { followProgressAsAViewer } from './follow-progress-as-a-viewer';
 import { reportsOnTheWeb } from './reports-on-the-web';
 import { bringInYourOwnMaterial } from './bring-in-your-own-material';
 import { readAnyOrganization } from './read-any-organization';
+import { seeYourWorkFromTheOldApp } from './see-your-work-from-the-old-app';
 
 /** Who each video is for, which is its playlist on YouTube (playlists.ts), each in the plan's order. */
 export const GROUPS: { who: Who; videos: Tutorial[] }[] = [
-  { who: 'everyone', videos: [joinYourTeam, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount, reportOrBlockSomeone] },
+  { who: 'everyone', videos: [joinYourTeam, seeYourWorkFromTheOldApp, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount, reportOrBlockSomeone] },
   {
     who: 'admins',
     videos: [startAnOrganization, addALanguage, getALanguageReady, inviteYourTeam, letPeopleIn, changeARole, makeARole, showALanguageToThePublic, groupLanguagesIntoACluster,
