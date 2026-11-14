@@ -41,6 +41,19 @@ export interface Film {
   look: string;
   /** How it was framed and described (e2e/tutorials/playlists.ts FRAME); none before films were wide (decisions.md 191). */
   frame?: string;
+  // Why it was filmed and what from (e2e/tutorials/why.ts, decisions.md 183 amended 2026-11-13); none on films
+  // from before. The intake does not read them: they tell the filming's next night, and people, what changed a video.
+  /** The commit of main it was filmed from. */
+  commit?: string;
+  filmedAt?: string;
+  /** Its script as said in the manifest's language, hashed (why.ts `scriptOf`). */
+  script?: string;
+  /** Each step's look on its own (look.ts `stepLooks`). */
+  steps?: string[];
+  /** What made it (why.ts `Cause`): no film yet, its script, the words on its screens and the changes that did it. */
+  why?: { kind: string }[];
+  /** The last night it was tried and read the same: changes merged before that commit slot it no more. */
+  checked?: { commit: string; at: string };
 }
 
 /**

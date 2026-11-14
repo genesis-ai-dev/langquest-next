@@ -9796,6 +9796,32 @@ again, and Caleb looks at the English films before the other fourteen
 languages are filmed; they come back, English and French first, when he
 says the English ones look right.
 
+Amended (2026-11-13, Caleb Koster): a video is filmed again when its script
+changes too, and each film says why it was made. Caleb (2026-11-13, thread
+"Make comments and screen changes update videos") named two reasons a video
+changes, a comment on YouTube and a change to a screen or flow it shows,
+and asked for every video a changed screen touches to be slotted for an
+update, with the cause shown. The look sees only the words on screen, so a
+fix to what a video says (the way a comment's fix comes in) was never
+filmed. Each film in the manifest now keeps the commit it was filmed from,
+its script (its file and the lines it says, hashed), each step's look and
+its causes (`e2e/tutorials/why.ts`); a changed script films it again. A
+change merged into main that touched the own code of a screen a video shows
+(`e2e/tutorials/screens.ts`: what the screen's module imports, less what
+four or more of the twenty modules share) slots the video; the night's try
+films it when its words changed and clears the slot when they did not. A
+slot does not film by itself: from 30 October to 13 November, 80 merges
+would have slotted 15 to 46 of the 47 English videos on each day with a
+merge, and YouTube takes about 100 uploads a day for fifteen languages.
+Step pictures from two nights were compared to catch what the words miss,
+and differ by themselves (a person's colour, a QR code, a waveform, a
+toast), so they decide nothing. Each
+language's `status-<language>.json` in the release gives every video's
+film, causes, tonight's try and slots. The filming checks out main's whole
+history to find the changes. Reverse if: slots cleared as the same turn out
+to hide changes people see (then a person or Claude judges those slots), or
+scripts change so often that films churn on YouTube.
+
 ## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
@@ -9973,18 +9999,32 @@ Code changes, notes and answered suggestions keep their year. A comment
 Claude has not looked at within 30 days, because the look stopped running,
 is lost to it.
 
-Amended (2026-11-13, Caleb Koster): the dashboard shows the videos as three
-lists in place of the filming table and the suggestion cards: what an admin
-must do (accept, edit or reject a suggestion, merge a fix, look at a held or
-failing film, post a reply, publish, connect a channel, turn a language on),
-what the workers do now and tonight, and every video in each app language
-with its state and a day-by-day timeline. Caleb asked for these lists so one
-page says what waits on him and what waits on a job. The history comes from
-`ops.tutorial_videos`, which already keeps every film (`diag.ops_tutorial_films`,
-migration `20261113234000_tutorial_films.sql`); the causes, holds, failures
-and slots from the nightly's `status-<language>.json` in the public release;
-a fix's state from its suggestion. A suggested reply shows for 14 days,
-since nothing records that someone posted it.
+Amended (2026-11-13, Caleb Koster): the comments job reads first in
+YouTube's day, at midnight in California (`apps/web/worker/jobsModel.ts`),
+not at 23:50 UTC. The publish job's uploads that day had used up the
+project's units by then: on 4 to 9 November 2026 the job read 0 to 11 of
+the 16 channels and stopped on `quotaExceeded`. Reading a channel's new
+comments costs a unit a page; at midnight the day's 10,000 are all there,
+and the intake and the uploads come five minutes later.
+
+Amended (2026-11-13, Caleb Koster): the dashboard shows the videos as one
+list for each app language, in place of the filming table and the
+suggestion cards. Each video's row has its state, a day-by-day timeline
+(zoomed with a pinch; a click on a mark shows the change, the films before
+and after, the comment as written, the PR or the log) and, at its right, a
+warning mark when an admin must act. The mark opens that video's cards: the
+problem, who acts next, what happens if nobody does, and a box to tell
+Claude what to do; Claude's next fix run takes that instruction as already
+approved. Beside the list, what waits on an admin that is not one video's
+(publish, connect a channel, paused languages) and what the workers do now
+and tonight. Caleb asked for this so one page says what waits on him, and
+so that he gives Claude directions before the night's run instead of
+opening logs. The history comes from `ops.tutorial_videos`, which already
+keeps every film (`diag.ops_tutorial_films`, migration
+`20261113234000_tutorial_films.sql`); the causes, holds, failures and slots
+from the nightly's `status-<language>.json` in the public release; a fix's
+state from its suggestion. A suggested reply shows for 14 days, since
+nothing records that someone posted it.
 
 ## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
 

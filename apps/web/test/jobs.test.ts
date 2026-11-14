@@ -48,8 +48,12 @@ describe('job runner', () => {
     expect(jobsDue(Date.UTC(2026, 9, 19, 23, 40))).toEqual([{ key: 'projection' }]);
     expect(JOBS['tutorial-publish']).toMatchObject({ job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 });
     expect(JOBS['tutorial-intake']).toMatchObject({ job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 });
-    // The day's comments on the videos, after the publish job (decision 186).
-    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 50))).toEqual([{ key: 'projection' }, { key: 'tutorial-comments' }]);
+    // The day's comments on the videos, first as YouTube's day begins, before the intake and the uploads after it use
+    // up the day's units (decision 186, amended 2026-11-13: read at 23:50 UTC, 4 to 9 November found none left).
+    expect(jobsDue(Date.UTC(2026, 9, 19, 7, 0))).toEqual([{ key: 'projection' }, { key: 'v2-import' }, { key: 'tutorial-comments' }]);
+    expect(jobsDue(Date.UTC(2026, 10, 2, 8, 0))).toEqual([{ key: 'projection' }, { key: 'v2-import' }, { key: 'tutorial-comments' }]);
+    expect(jobsDue(Date.UTC(2026, 10, 2, 7, 0))).toEqual([{ key: 'projection' }, { key: 'v2-import' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 50))).toEqual([{ key: 'projection' }]);
     expect(JOBS['tutorial-comments']).toMatchObject({ job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['fold-canary']).toMatchObject({ job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['blob-reconcile']).toMatchObject({ job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 });
