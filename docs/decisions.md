@@ -10007,6 +10007,35 @@ the 16 channels and stopped on `quotaExceeded`. Reading a channel's new
 comments costs a unit a page; at midnight the day's 10,000 are all there,
 and the intake and the uploads come five minutes later.
 
+Amended (2026-11-13, Caleb Koster): Claude makes an accepted change to a
+video's script, screens or voice, as a draft pull request; the "Not yet"
+above is done, without the preview film. Caleb (2026-11-13, threads "Make
+comments and screen changes update videos" and "Show the tutorial video
+pipeline for the last week") found a comment on "Choose the app's
+language" that nothing came of, and gave a video's states as waiting for
+admin approval, working on fix, and waiting for admin to merge the pull
+request: a person accepts first, then Claude works. Every 30 minutes the
+same workflow's fix jobs start at most three accepted changes, as the watch
+for user issues makes its draft fixes (202): Claude changes only
+`e2e/tutorials/<video>.ts` and `e2e/tutorials/lines/` in a checkout with no
+key; a job with no key applies the patch and runs the videos' typecheck and
+tests; a job that runs nothing of it opens the draft pull request with the
+built-in token, which links what it answers and never quotes a commenter. A
+person marks it Ready for review and merges it, and the merge films the
+video again (183). Each suggestion keeps where its fix is (migration
+`20261114010000_tutorial_fixes.sql`): working, open, merged, closed or
+failed with why, read and written through the Worker's
+`/api/tutorial-review/fixes`. A code change still goes to Linear and a new
+video is still made by a person. Caleb (2026-11-13) also asked that an
+admin see each problem (a comment, a screen change, a film that failed or
+was held) and write what Claude must do with it: that instruction, sent
+from the dashboard's card, is an accepted suggestion at once (kind
+`instruction`, `ops_tutorial_instruct`), and Claude reads the film's log,
+the screen where it stopped, the frame check and the video's state with
+it. Reverse if: more of Claude's fixes are
+closed than merged for weeks, or they eat into the plan's limits when
+people need them.
+
 ## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
 
 Date: 2026-10-29 · By: Caleb Koster · Status: accepted

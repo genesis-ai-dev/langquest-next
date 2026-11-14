@@ -398,6 +398,16 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         if (error) throw new Error(`ops_tutorial_reviewed: ${error.message}`);
         return data;
       },
+      fixes: async (limit) => {
+        const { data, error } = await serviceClient(env).rpc('ops_tutorial_fixes', { p_limit: limit });
+        if (error) throw new Error(`ops_tutorial_fixes: ${error.message}`);
+        return data;
+      },
+      fixed: async (u, runUrl) => {
+        const { data, error } = await serviceClient(env).rpc('ops_tutorial_fixed', { p_id: u.id, p_state: u.state, p_pr: u.pr, p_run: runUrl, p_note: u.note });
+        if (error) throw new Error(`ops_tutorial_fixed: ${error.message}`);
+        return data as string;
+      },
       record: jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
       now: () => Date.now()
     },

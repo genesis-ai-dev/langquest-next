@@ -32,6 +32,7 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     connectChannel: async (row) => { done.push(`connect ${row.language} ${row.channelId} ${row.title} ${row.refreshToken} by ${row.by} section ${row.section}`); },
     approveTutorials: async (items, by) => { done.push(`approve ${items.length} by ${by}`); return items.length; },
     addNote: async (tutorial, text, by) => { done.push(`note ${tutorial} ${text} by ${by}`); },
+    instruct: async (row, by) => { done.push(`instruct ${JSON.stringify(row)} by ${by}`); return SUGGESTION; },
     decideSuggestion: async (id, decision, detail, reason, by) => {
       done.push(`${decision} ${id} ${detail} ${reason} by ${by}`);
       return id === SUGGESTION ? { result: decision, kind: 'script' } : id === CODE ? { result: decision, kind: 'code' } : id === ANSWERED ? { result: 'decided', kind: 'script' } : { result: 'not_found' };
@@ -238,6 +239,34 @@ describe('feedback on the tutorial videos (decisions.md 186)', () => {
     ]) {
       expect(parseAction(bad)).toBeNull();
     }
+  });
+
+  it('takes an admin\'s instruction for a video as a note with instruct, its arguments checked', () => {
+    const instruct = { kind: 'tutorial-note', tutorial: 'answer-feedback', text: '  The button is now called On this device. Change the script.  ', instruct: true };
+    expect(parseAction(instruct)).toEqual({
+      kind: 'tutorial-instruction', tutorial: 'answer-feedback', text: 'The button is now called On this device. Change the script.', problem: null, language: null, inputs: []
+    });
+    expect(parseAction({ ...instruct, problem: 'Answer feedback (en): the film fails', language: 'en', inputs: [REQUEST.toUpperCase(), REQUEST] }))
+      .toMatchObject({ problem: 'Answer feedback (en): the film fails', language: 'en', inputs: [REQUEST] });
+    // A note without instruct stays a note: an older dashboard's, or the free note.
+    expect(parseAction({ ...instruct, instruct: false })).toMatchObject({ kind: 'tutorial-note' });
+    for (const bad of [
+      { ...instruct, tutorial: null }, { ...instruct, instruct: 'yes' }, { ...instruct, problem: 'x'.repeat(201) }, { ...instruct, language: 'English' },
+      { ...instruct, inputs: ['x'] }, { ...instruct, inputs: Array.from({ length: 21 }, () => REQUEST) }, { ...instruct, inputs: REQUEST }, { ...instruct, text: ' ' }
+    ]) {
+      expect(parseAction(bad)).toBeNull();
+    }
+  });
+
+  it('keeps an instruction as an accepted change by this person, and records which', async () => {
+    const d = deps();
+    const sent = { kind: 'tutorial-note', tutorial: 'answer-feedback', text: 'Change the script.', instruct: true, problem: 'Answer feedback (en): the film fails', language: 'en', inputs: [REQUEST] };
+    expect(await act(d, 'aal2', sent)).toEqual({ ok: true, result: 'instructed' });
+    expect(d.done).toEqual([`instruct ${JSON.stringify({ tutorial: 'answer-feedback', text: 'Change the script.', problem: 'Answer feedback (en): the film fails', language: 'en', inputs: [REQUEST] })} by ${VIEWER}`]);
+    expect(d.rows).toEqual([{ profileId: VIEWER, action: 'tutorial_note', target: 'answer-feedback', result: 'ok', detail: `instruction:${SUGGESTION}` }]);
+    const aal1 = deps();
+    expect(await act(aal1, 'aal1', sent)).toMatchObject({ ok: false, status: 403 });
+    expect(aal1.done).toEqual([]);
   });
 
   it('keeps a note as this person, and records it', async () => {
