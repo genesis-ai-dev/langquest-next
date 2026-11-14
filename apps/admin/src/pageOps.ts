@@ -75,6 +75,29 @@ export const OPS_SECTIONS = [
 export const OPS_SCRIPT = String.raw`
 const orgLink = (id, name) => '<button class="link" data-org="' + esc(id) + '">' + esc(name || String(id).slice(0, 8)) + '</button>';
 const installLink = (id) => id ? '<button class="link" data-q="' + esc(id) + '"><code>' + esc(String(id).slice(0, 8)) + '</code></button>' : '–';
+/** Quiet installs by account (decisions.md 162): which accounts the warning counts, and the ones a person marked not an issue. */
+function silentPhones(q) {
+  if (!q) return '<p class="muted">Could not read them (the database lacks diag.ops_quiet_accounts).</p>';
+  const devices = (a) => Object.entries(a.devices || {}).sort((x, y) => y[1] - x[1]).map(([k, n]) => num(n) + ' ' + esc(k)).join(', ');
+  let h = '<p>' + num(q.count) + ' quiet for 3 days while another device of the same person reports.' +
+    (q.markedCount ? ' ' + num(q.markedCount) + ' more on accounts marked not an issue.' : '') + '</p>';
+  if (q.accounts.length) {
+    h += table([
+      { h: 'Account', v: (a) => accountLink(a.profile) }, { h: 'Quiet', n: true, v: (a) => num(a.quiet) }, { h: 'Reporting', n: true, v: (a) => num(a.reporting) },
+      { h: 'Quiet devices', v: devices }, { h: 'Last heard', v: (a) => ageOf(a.lastSeen) },
+      { h: '', v: (a) => '<button type="button" data-quiet="' + esc(a.profile) + '" data-ok="yes">Not an issue</button>' }
+    ], q.accounts);
+  }
+  if (q.marked.length) {
+    h += '<details><summary>Marked not an issue (' + num(q.marked.length) + ')</summary>' + table([
+      { h: 'Account', v: (a) => accountLink(a.profile) }, { h: 'Quiet', n: true, v: (a) => num(a.quiet) },
+      { h: 'Marked by', v: (a) => short(a.by) }, { h: 'When', v: (a) => when(a.at) },
+      { h: '', v: (a) => '<button type="button" data-quiet="' + esc(a.profile) + '" data-ok="no">Undo</button>' }
+    ], q.marked) + '</details>';
+  }
+  return h;
+}
+const accountLink = (id) => '<button class="link" data-q="' + esc(id) + '"><code>' + esc(id) + '</code></button>';
 const share = (a, b) => b ? ((a / b) * 100).toFixed(1) + '%' : '–';
 const hours = (msv) => msv === null || msv === undefined ? '–' : ms(Number(msv));
 const ageOf = (iso) => iso ? ago(iso) : '–';
@@ -155,9 +178,7 @@ Object.assign(RENDER, {
       { h: 'Lost', n: true, v: (s) => '<span class="' + (s.lostRecordings ? 'bad' : '') + '">' + num(s.lostFiles || 0) + (s.lostRecordings ? ' (' + num(s.lostRecordings) + ' rec.)' : '') + '</span>' },
       { h: 'Reported', v: (s) => when(s.at) }
     ], d.stuck);
-    h += '<h3>Silent phones</h3><p>' + num(d.silent.count) + ' quiet for 3 days while another device of the same person reports.</p>' +
-      (d.silent.installs.length ? '<p>' + d.silent.installs.map((s) => installLink(s.install) + ' <small>' + ageOf(s.lastSeen) + '</small>').join(' · ') + '</p>' : '');
-    return h;
+    return h + '<h3>Silent phones</h3>' + silentPhones(d.quiet);
   },
   pipeline(d) {
     // Each store build sits in the stage it is in now, an arrow to the next; inside it, the over-the-air updates it takes.
@@ -472,6 +493,7 @@ async function perform(action, button) {
       : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
       : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
       : action.kind === 'tutorial-note' ? (body.result === 'instructed' ? 'Sent. Claude starts the fix at its next fix run (:20 and :50 each hour).' : 'Sent. Claude reads it at its next look (10:00 UTC).')
+      : action.kind === 'quiet-account' ? (action.ok ? 'Marked not an issue. Its quiet installs no longer count in the warning.' : 'Its quiet installs count in the warning again.')
       : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
       : 'Feedback marked ' + body.result + '.');
     load(false);
@@ -516,6 +538,11 @@ document.addEventListener('click', (e) => {
   if (run && confirm('Run ' + run.dataset.run + ' now?')) perform({ kind: 'run', key: run.dataset.run }, run);
   const fb = e.target.closest && e.target.closest('[data-fb]');
   if (fb) perform({ kind: 'feedback', id: fb.dataset.fb, status: fb.dataset.status }, fb);
+  const qa = e.target.closest && e.target.closest('[data-quiet]');
+  if (qa) {
+    const ok = qa.dataset.ok === 'yes';
+    if (!ok || confirm('Mark this account not an issue? Its quiet installs stop counting in the warning, now and later.')) perform({ kind: 'quiet-account', profile: qa.dataset.quiet, ok }, qa);
+  }
   const ver = e.target.closest && e.target.closest('[data-ver]');
   if (ver && confirm((ver.dataset.decision === 'grant' ? 'Grant' : 'Decline') + ' this blue check?')) perform({ kind: 'verification', id: ver.dataset.ver, decision: ver.dataset.decision }, ver);
 });
