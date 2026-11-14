@@ -10007,6 +10007,25 @@ the 16 channels and stopped on `quotaExceeded`. Reading a channel's new
 comments costs a unit a page; at midnight the day's 10,000 are all there,
 and the intake and the uploads come five minutes later.
 
+Amended (2026-11-13, Caleb Koster): the dashboard shows the videos as one
+list for each app language, in place of the filming table and the
+suggestion cards. Each video's row has its state, a day-by-day timeline
+(zoomed with a pinch; a click on a mark shows the change, the films before
+and after, the comment as written, the PR or the log) and, at its right, a
+warning mark when an admin must act. The mark opens that video's cards: the
+problem, who acts next, what happens if nobody does, and a box to tell
+Claude what to do; Claude's next fix run takes that instruction as already
+approved. Beside the list, what waits on an admin that is not one video's
+(publish, connect a channel, paused languages) and what the workers do now
+and tonight. Caleb asked for this so one page says what waits on him, and
+so that he gives Claude directions before the night's run instead of
+opening logs. The history comes from `ops.tutorial_videos`, which already
+keeps every film (`diag.ops_tutorial_films`, migration
+`20261113234000_tutorial_films.sql`); the causes, holds, failures and slots
+from the nightly's `status-<language>.json` in the public release; a fix's
+state from its suggestion. A suggested reply shows for 14 days, since
+nothing records that someone posted it.
+
 Amended (2026-11-13, Caleb Koster): Claude makes an accepted change to a
 video's script, screens or voice, as a draft pull request; the "Not yet"
 above is done, without the preview film. Caleb (2026-11-13, threads "Make
@@ -10468,6 +10487,17 @@ before Next is tapped. Two holds were Claude reading the app wrongly, so
 the frame check's prompt now says what a passage's step marks mean (a
 grey skip-forward sign is a check set aside) and that the recording
 clock counts the silence a part is cut from.
+
+Amended (2026-11-13, Caleb Koster): a change that only makes films look
+better leaves `FRAME` as it is, so no video is filmed again for it alone.
+The title picture (`compose.ts`) was cut at its lines' boxes, so the foot
+of a g, p or y on a title's last line was cut off in 22 of the 46 English
+films; a YouTube viewer saw it. The picture now takes in room around its
+letters. Changing `FRAME` would have filmed all 46 English videos again
+(46 frame checks and 46 uploads) for that alone. Instead each film gets it
+when it is filmed again for another reason (a screen it shows changed, or
+a person named it), so such changes can wait in old films until then.
+Reverse if: viewers keep pointing at a fault that only a new film fixes.
 
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 

@@ -271,7 +271,9 @@ video's description is written when it is filmed and put on when it is
 uploaded; a film from before decision 191 (tall, its voice written out),
 from before the camera moved in on what each step lights, or with a ring
 drawn round each part rather than the spotlight, is filmed again once, whatever its look (`FRAME` in `playlists.ts` and in the release's
-manifest), and only a video's newest version goes up.
+manifest), and only a video's newest version goes up. A change that only
+makes films look better leaves `FRAME` as it is: each film gets it when it
+is filmed again for another reason (decision 191, amended 2026-11-13).
 
 A video's description ends with a link to the same video in each other
 language it is made in: `https://next.langquest.org/v/<language>/<video>`,
@@ -353,7 +355,7 @@ the videos (decision 186). Three kinds of input:
   change that only alters how a screen looks needs nothing, since the
   nightly filming films that video again by itself.
 - **Notes** the team leaves on the ops dashboard: Tutorial videos →
-  Feedback and suggestions → Add a note, about a video or one not made yet.
+  What came in, and notes → Add a note, about a video or one not made yet.
 
 Each night at 10:00 UTC `.github/workflows/tutorial-review.yml` has Claude
 look at what is open. `scripts/tutorial-review.mjs fetch` gets it from the
@@ -460,3 +462,33 @@ The looks' runs are in the dashboard's Server jobs as `tutorial_review`
 (one the Worker refused is `bad_review`), and the comments job's as
 `tutorial_comments`. Run either by hand: Run workflow on GitHub, or Run now
 on the dashboard.
+
+
+### On the ops dashboard
+
+Tutorial videos → Videos, your list and the workers' list
+(`apps/admin/src/sources/videos.ts`):
+
+- **By video**: in one app language (the list says how many of its videos
+  wait on an admin), each video's states, a timeline (Ctrl and the scroll
+  wheel, or a pinch, zooms it; a click on a mark shows the change, the
+  films before and after, the comment as written, the PR or the log), and
+  at the right a mark: **!** when something waits on an admin, **i** when
+  Claude acts next. The mark opens that video's cards: the problem, who acts
+  next, what happens if nobody does, Accept, Edit and Reject on a
+  suggestion, and **Tell Claude what to do**. An instruction sent there is
+  an accepted suggestion of kind `instruction`: Claude's next fix run writes
+  it as a pull request, with no second Accept.
+- **For an admin**: what is not one video's: films to publish, channels to
+  connect, paused languages (not in `NIGHTLY_LANGUAGES`).
+- **Workers, now and tonight**: the filming run, or the next one at 20:10
+  UTC; videos a screen change slots for tonight's check; fixes Claude
+  writes; comments Claude reads; films waiting for YouTube's daily limit.
+
+A suggested reply shows for 14 days, since nothing records that someone
+posted it.
+
+It reads `diag.ops_tutorial_films()`, `ops_tutorial_feedback()` and
+`ops_tutorials()`, each language's `status-<language>.json` from the
+release, the filming run, and `tutorials.yml` on GitHub. A list built
+without one of them says which.
