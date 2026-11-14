@@ -21,6 +21,12 @@ describe('a video\'s look', () => {
     expect(saving('- text: Lumari\n- img "Saving":\n  - progressbar')).toBe(true);
     expect(saving('- img "Saved"')).toBe(false);
     expect(saving('- img "Guardando"', 'es')).toBe(true);
+    // Me counting what the phone keeps reads as it settles: one dry run read it at "Checking this device…" (2026-11-13).
+    expect(saving('- button "Ready for offline Checking this device…":')).toBe(true);
+    expect(saving('- button "جاهز للعمل بدون اتصال جارٍ فحص هذا الجهاز…":', 'ar')).toBe(true);
+    // An English film that shows the app in Arabic for a while (choose-the-app-language).
+    expect(saving('- button "جاهز للعمل بدون اتصال جارٍ فحص هذا الجهاز…":')).toBe(true);
+    expect(saving('- button "Ready for offline 12 passages on this device":')).toBe(false);
   });
 
   it('stays the same through what changes each run though the app did not', () => {
