@@ -39,7 +39,7 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13)', () => {
   it('puts a failing or held film first, and asks an admin to look', () => {
     const b = videoBoard(input({ status: { en: status([{ tonight: 'held', held: ['a toast covers the button'] }]) } }), NOW);
     expect(keys(b)[0]).toBe('held');
-    expect(b.admin[0]).toMatchObject({ kind: 'held', detail: 'a toast covers the button' });
+    expect(b.admin[0]).toMatchObject({ kind: 'held', who: 'you', detail: expect.stringContaining('a toast covers the button') });
     expect(en(b).marks.at(-1)).toMatchObject({ kind: 'held' });
     expect(keys(videoBoard(input({ status: { en: status([{ tonight: 'failed' }]) } }), NOW))[0]).toBe('fails');
   });
@@ -68,7 +68,8 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13)', () => {
     const slot = { sha: 'd'.repeat(40), pr: 455, subject: 'Merge pull request #455', screens: ['Language'] };
     const b = videoBoard(input({ status: { en: status([{ slots: [slot] }]) } }), NOW);
     expect(en(b).states[0]).toMatchObject({ key: 'slotted', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/455' });
-    expect(b.worker).toContainEqual(expect.objectContaining({ kind: 'check', title: 'Check 1 video in en tonight' }));
+    expect(b.worker).toContainEqual(expect.objectContaining({ kind: 'check', title: 'Tonight: check 1 video in en for screen changes' }));
+    expect(b.admin).toContainEqual(expect.objectContaining({ kind: 'screen', who: 'claude', instruct: expect.stringContaining('PR 455') }));
   });
 
   it('shows comments not looked at, and replies to post for two weeks', () => {
@@ -88,7 +89,7 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13)', () => {
     const waiting = [{ tutorial: 'record-a-passage', language: 'en', sha256: sha('b'), title: 'Record a passage', playlist: 'Translators', seconds: 80, madeAt: at(5), chosenAt: at(4), failed: null, failedAt: null, replaces: 'dQw4w9WgXcQ' }];
     const b = videoBoard(input({ films: [film(), chosen], tutorials: { channels: [], waiting } }), NOW);
     expect(keys(b)).toEqual(['upload']);
-    expect(b.worker).toContainEqual(expect.objectContaining({ kind: 'upload', title: 'Upload 1 film in en' }));
+    expect(b.worker).toContainEqual(expect.objectContaining({ kind: 'upload', title: 'Put 1 new film in en on YouTube' }));
   });
 
   it('pauses the languages not filmed each night, and says so once in the admin list', () => {
@@ -101,7 +102,9 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13)', () => {
   it('counts in each language the videos that need a person, not the pause', () => {
     const b = videoBoard(input({ films: [film(), film({ language: 'fr' })], feedback: feedback({ suggestions: [suggestion()] }) }), NOW);
     expect(b.languages.find((l) => l.language === 'en')).toMatchObject({ nightly: true, issues: 1 });
-    expect(b.languages.find((l) => l.language === 'fr')).toMatchObject({ nightly: false, issues: 1 });
+    // A suggestion's card is on its film's language (English when it names none).
+    expect(b.languages.find((l) => l.language === 'fr')).toMatchObject({ nightly: false, issues: 0 });
+    expect(b.admin.find((a) => a.kind === 'approve')).toMatchObject({ tutorial: 'record-a-passage', language: 'en' });
     expect(b.languages.find((l) => l.language === 'es')).toMatchObject({ issues: 0 });
   });
 
@@ -117,6 +120,28 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13)', () => {
     expect(newFilm.detail.films.map((f) => f.label)).toEqual(['This film', 'The film before']);
     expect(newFilm.detail.films[1]!.href).toBe(`/api/tutorials/en/record-a-passage/${sha('a')}.mp4`);
     expect(en(b).marks.find((m) => m.kind === 'comment')!.detail).toMatchObject({ quote: 'La G está cortada', lines: ['In English: The G is cut off', 'Claude has not looked at it yet.'] });
+  });
+
+  it('says who acts next on a failing film, and that Claude has the admin\'s instruction once sent', () => {
+    const failing = input({ status: { en: status([{ tonight: 'failed' }]) } });
+    const before = videoBoard(failing, NOW).admin[0]!;
+    expect(before).toMatchObject({ kind: 'fails', who: 'you', instruct: expect.stringContaining('fails each night') });
+    expect(before.next).toContain('Each night fails again');
+    const note = { id: 'n1', kind: 'note' as const, tutorial: 'record-a-passage', language: null, at: at(1), ref: null, youtubeId: null, pr: null,
+      text: 'Instruction from an admin. ...\nClaude, do this: tap On this device', english: null, reply: null, replyEnglish: null, lookedAt: null, outcome: null };
+    const after = videoBoard({ ...failing, feedback: feedback({ inputs: [note] }) }, NOW).admin.find((a) => a.kind === 'fails')!;
+    expect(after).toMatchObject({ who: 'claude', instructed: { at: at(1), looked: false } });
+    // Once the Worker knows instructions, one is an accepted suggestion of kind 'instruction', with its fix.
+    const instruction = suggestion({ id: 'i1', kind: 'instruction', title: 'the film fails', detail: 'tap On this device', madeAt: at(1), decision: 'accepted', decidedAt: at(1), language: 'en' });
+    const queued = videoBoard({ ...failing, feedback: feedback({ suggestions: [instruction] }) }, NOW);
+    expect(queued.admin.find((a) => a.kind === 'fails')).toMatchObject({ who: 'claude', instructed: { text: 'tap On this device', fix: null } });
+    expect(keys(queued)).toContain('toFix');
+    expect(queued.worker).toContainEqual(expect.objectContaining({ kind: 'toFix', detail: expect.stringContaining('Your instruction: tap On this device') }));
+    // Its fix waiting for a merge says the rest: the problem's own card goes.
+    const open = videoBoard({ ...failing, feedback: feedback({ suggestions: [{ ...instruction, fix: { state: 'open', pr: 470, at: at(0.5), run: null, note: null } }] }) }, NOW);
+    expect(open.admin.map((a) => a.kind)).toEqual(['merge', 'paused']);
+    // An older note does not answer a newer problem.
+    expect(videoBoard({ ...failing, feedback: feedback({ inputs: [{ ...note, at: at(20) }] }) }, NOW).admin.find((a) => a.kind === 'fails')!.instructed).toBeUndefined();
   });
 
   it('says which sources it could not read', () => {

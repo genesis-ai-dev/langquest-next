@@ -88,7 +88,7 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .vi p { margin: 4px 0; } .vi small { color: var(--muted); }
 .tag.warn { color: var(--amber); background: var(--amberbg); } .tag.info { color: var(--primary); background: var(--bg); }
 .vtools { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 8px 0; } .vtools label { margin: 0 0 4px; } .vtools select { width: auto; }
-.vrow { display: grid; grid-template-columns: minmax(180px, 280px) 1fr; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding: 4px 0; }
+.vrow { display: grid; grid-template-columns: minmax(180px, 280px) 1fr 44px; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding: 4px 0; }
 .vrow b { font-weight: 600; font-size: 13px; } .vrow .tag { font-size: 11px; }
 .tlw { overflow-x: auto; min-width: 0; scrollbar-width: thin; }
 .tl { display: grid; grid-template-columns: repeat(60, 1fr); gap: 1px; min-height: 22px; align-items: center; width: 430%; }
@@ -102,6 +102,11 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .mk.up { background: var(--green); border-radius: 2px; } .mk.comment { background: #2F80ED; border-radius: 50% 50% 50% 0; }
 .mk.suggested, .mk.decided { background: var(--amber); transform: rotate(45deg); border-radius: 1px; width: 8px; height: 8px; } .mk.fix { background: var(--amber); border-radius: 2px; }
 .mk.held, .mk.failed { background: var(--red); border-radius: 1px; }
+.warnmk { min-height: 32px; min-width: 32px; padding: 0 6px; border-radius: 999px; font-weight: 700; font-size: 14px; border: 0; cursor: pointer; display: inline-block; text-align: center; line-height: 32px; }
+.warnmk.you { background: var(--amber); color: #fff; } .warnmk.claude { background: var(--bg); color: var(--primary); border: 1px solid var(--line); }
+span.warnmk { min-height: 0; min-width: 0; line-height: 1.4; padding: 0 6px; }
+.vcards { margin: 4px 0 10px; padding-inline-start: 12px; border-inline-start: 3px solid var(--amber); }
+label.check { display: inline-flex; gap: 6px; align-items: center; font-weight: 400; margin: 0 0 10px; }
 .vdet { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 4px 0 10px; background: var(--card); }
 .vdet .head { display: flex; gap: 8px; align-items: center; } .vdet .head b { flex: 1; } .vdet p { margin: 6px 0; }
 .vdet blockquote { margin: 6px 0; padding: 6px 10px; border-inline-start: 3px solid #2F80ED; background: var(--bg); border-radius: 6px; }

@@ -346,16 +346,18 @@ Object.assign(RENDER, {
   videos(d) {
     VIDEOS = d;
     const item = (x, level) => '<div class="vi ' + level + '"><p><b>' + esc(x.title) + '</b>' + (x.at ? ' <small>' + when(x.at) + '</small>' : '') + '</p>' +
-      (x.detail ? '<p class="setup"><small>' + esc(x.detail) + '</small></p>' : '') +
-      (x.link ? '<p><a href="' + esc(x.link) + '"' + (x.link.startsWith('#') ? '' : ' target="_blank" rel="noopener noreferrer"') + '>' + esc(ADMIN_LINKS[x.kind] || 'Open') + '</a></p>' : '') +
-      (x.suggestion ? suggestionButtons(x.suggestion) : '') + '</div>';
-    const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', merge: 'warn', approve: 'warn', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
+      (x.detail ? '<p class="setup">' + esc(x.detail) + '</p>' : '') + (x.link ? '<p>' + cardLink(x) + '</p>' : '') + '</div>';
     const now = d.worker.filter((w) => w.when === 'now');
-    let h = '<div class="stats">' + stat(num(d.admin.filter((a) => a.kind !== 'paused').length), 'things for an admin', d.admin.some((a) => ADMIN_LEVEL[a.kind] === 'bad') ? 'bad' : d.admin.length ? 'warn' : '', NOW) +
+    // The cards of one video are on its row, behind the mark at the right; here, only what is not one video's.
+    const general = d.admin.filter((a) => !a.tutorial);
+    const needYou = d.languages.reduce((n, l) => n + l.issues, 0);
+    let h = '<div class="stats">' + stat(num(needYou), needYou === 1 ? 'video waits on an admin' : 'videos wait on an admin', needYou ? 'warn' : '', 'every language') +
       stat(num(now.length), 'worker jobs running', '', NOW) + stat(num(d.worker.length - now.length), 'worker jobs waiting', '', 'now or tonight') +
       stat(num(d.videos.filter((v) => v.language === 'en' && v.states[0].key === 'current').length) + ' of ' + num(d.videos.filter((v) => v.language === 'en').length), 'English videos up to date', '', NOW) + '</div>';
     if (d.missing.length) h += '<p class="muted">Not read: ' + esc(d.missing.join('; ')) + '. The lists leave those out.</p>';
-    h += '<div class="vl"><div><h3>For an admin</h3>' + (d.admin.length ? d.admin.map((a) => item(a, ADMIN_LEVEL[a.kind] || '')).join('') : '<p class="muted">Nothing.</p>') + '</div>' +
+    h += '<div class="vl"><div><h3>For an admin</h3>' +
+      (needYou ? '<p>' + num(needYou) + (needYou === 1 ? ' video waits' : ' videos wait') + ' on you. Each has a <span class="warnmk you">!</span> at the right of its row, under By video.</p>' : '') +
+      (general.length ? general.map(adminCard).join('') : needYou ? '' : '<p class="muted">Nothing.</p>') + '</div>' +
       '<div><h3>Workers, now and tonight</h3>' + (d.worker.length ? d.worker.map((w) => item(w, w.when === 'now' ? 'info' : '')).join('') : '<p class="muted">Nothing queued.</p>') + '</div></div>';
     setTimeout(() => layoutTimelines(), 0);
     return h + '<h3>By video</h3><div id="video-rows">' + videoRows() + '</div>';
@@ -469,7 +471,7 @@ async function perform(action, button) {
     say(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.')
       : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
       : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
-      : action.kind === 'tutorial-note' ? 'Note added. Claude looks at it at the next look.'
+      : action.kind === 'tutorial-note' ? (body.result === 'instructed' ? 'Sent. Claude starts the fix at its next fix run (:20 and :50 each hour).' : 'Sent. Claude reads it at its next look (10:00 UTC).')
       : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
       : 'Feedback marked ' + body.result + '.');
     load(false);
@@ -545,9 +547,46 @@ document.addEventListener('click', (e) => {
 // ---- the tutorial video lists (sources/videos.ts): a language and a span chosen here, and Accept, Edit and Reject on a suggestion ----
 let VIDEOS = null;
 // The timeline shows 60 days; its zoom is how wide a day is. A pinch on a touchpad (or Ctrl and the scroll wheel) zooms it; it opens at the last 14 days.
-let videoLanguage = 'en', dayWidth = 0, shownMarks = [];
+let videoLanguage = 'en', dayWidth = 0, shownMarks = [], onlyMine = false, openCards = null;
+/** The mark at the right of a video's row: ! when something waits on an admin, i when Claude acts next and an admin may still say what to do. */
+function warnMark(cards, r) {
+  if (!cards.length) return '<span></span>';
+  const mine = cards.filter((a) => a.who === 'you').length;
+  const t = mine ? mine + (mine === 1 ? ' thing waits' : ' things wait') + ' on you' : 'Claude acts next; you may tell Claude what to do';
+  return '<button type="button" class="warnmk ' + (mine ? 'you' : 'claude') + '" data-cards="' + r + '" title="' + esc(t) + '" aria-label="' + esc(t) + '">' + (mine ? '!' + (mine > 1 ? ' ' + mine : '') : 'i') + '</button>';
+}
 const TIMELINE_DAYS = 60;
-const ADMIN_LINKS = { fails: 'Open the log', held: 'Open the log', fixFailed: 'Open the run', merge: 'Open the PR', reply: 'Reply on YouTube', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
+const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', merge: 'warn', approve: 'warn', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
+const cardLink = (x) => x.link ? '<a href="' + esc(x.link) + '"' + (x.link.startsWith('#') ? '' : ' target="_blank" rel="noopener noreferrer"') + '>' + esc(ADMIN_LINKS[x.kind] || WORKER_LINKS[x.kind] || 'Open') + '</a>' : '';
+const FIX_STATE = { working: 'Claude writes the fix now.', open: 'Claude\'s fix waits for your merge.', merged: 'The fix is merged. The next night films the video again.', closed: 'The fix PR was closed without a merge.', failed: 'Claude could not write the fix.' };
+/** One thing for an admin: the problem, who acts next, what happens next, and where it applies, the box to tell Claude what to do. */
+function adminCard(a) {
+  const ins = a.instructed;
+  return '<div class="vi ' + (a.who === 'you' ? ADMIN_LEVEL[a.kind] || 'warn' : 'info') + '">' +
+    '<p><span class="tag ' + (a.who === 'you' ? 'warn' : 'info') + '">' + (a.who === 'you' ? 'Waits on you' : 'Claude acts next') + '</span>' + (a.at ? '<small>' + when(a.at) + '</small>' : '') + '</p>' +
+    '<p><b>' + esc(a.title) + '</b></p>' + (a.detail ? '<p class="setup">' + esc(a.detail) + '</p>' : '') +
+    (ins ? '' : '<p class="setup"><small><b>Next:</b> ' + esc(a.next) + '</small></p>') + (a.link ? '<p>' + cardLink(a) + '</p>' : '') +
+    (a.suggestion ? suggestionButtons(a.suggestion) : '') +
+    (ins ? '<p class="setup"><small><b>Your instruction</b> (' + when(ins.at) + '):</small><br>' + esc(ins.text) + '</p>' +
+      '<p class="setup"><small><b>Next:</b> ' + esc(ins.fix ? FIX_STATE[ins.fix.state] || ins.fix.state : ins.looked ? 'Claude starts the fix at its next fix run (:20 and :50 each hour), as a pull request for your merge.' : 'Claude reads it at its next run.') + '</small></p>' : '') +
+    (a.instruct ? '<details' + (a.who === 'you' && !ins ? ' open' : '') + '><summary>' + (ins ? 'Send another instruction' : 'Tell Claude what to do') + '</summary>' +
+      '<label for="ins-' + esc(cardId(a)) + '">What Claude must do</label><textarea id="ins-' + esc(cardId(a)) + '" maxlength="2000" rows="3" placeholder="For example: the button is now called On this device. Change step 4 to tap it."></textarea>' +
+      '<p><button type="button" class="primary" data-instruct="' + esc(cardId(a)) + '">Send to Claude</button></p></details>' : '') + '</div>';
+}
+const cardId = (a) => (a.kind + '-' + (a.tutorial || '') + '-' + (a.language || '')).replace(/[^a-zA-Z0-9-]/g, '');
+// "Tell Claude what to do": an instruction on the video for Claude's next fix run, with the problem it answers and the inputs the card shows.
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-instruct]');
+  if (!b || !VIDEOS) return;
+  const a = VIDEOS.admin.find((x) => cardId(x) === b.dataset.instruct);
+  const text = (($('ins-' + b.dataset.instruct) || {}).value || '').trim();
+  if (!a) return;
+  if (!text) { say('Write what Claude must do first.', 'red'); return; }
+  perform({ kind: 'tutorial-note', tutorial: a.tutorial, text: text.slice(0, 2000), instruct: true, problem: a.instruct.slice(0, 200),
+    language: a.language || 'en', inputs: (a.inputIds || []).slice(0, 20) }, b);
+});
+const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run' };
+const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'Open the run', merge: 'Open the PR', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
 const MARKS = { film: 'New film', up: 'On YouTube', comment: 'Comment', suggested: 'Suggestion', decided: 'Accepted or rejected', fix: 'Fix PR', held: 'Held', failed: 'Film failed' };
 const CAUSES = { app: 'app change', script: 'script change', tool: 'film tool change', new: 'first film', asked: 'asked by hand', unknown: 'cause not recorded' };
 function suggestionButtons(s) {
@@ -565,15 +604,17 @@ function videoRows() {
   shownMarks = [];
   const langs = d.languages.map((l) => '<option value="' + esc(l.language) + '"' + (l.language === videoLanguage ? ' selected' : '') + '>' + esc(languageName(l.language)) +
     (l.issues ? ' (' + num(l.issues) + ')' : '') + (l.nightly ? '' : ' (paused)') + '</option>').join('');
-  let h = '<div class="vtools"><div><label for="video-lang">Language <small class="muted">(videos that need a person)</small></label><select id="video-lang">' + langs + '</select></div>' +
+  let h = '<div class="vtools"><div><label for="video-lang">Language <small class="muted">(videos that wait on you)</small></label><select id="video-lang">' + langs + '</select></div>' +
     '<div><button type="button" data-vzoom="out" aria-label="Zoom out">−</button> <button type="button" data-vzoom="in" aria-label="Zoom in">+</button> ' +
-    '<button type="button" data-vfit="14">Last 14 days</button> <button type="button" data-vfit="60">Last 60 days</button></div></div>';
+    '<button type="button" data-vfit="14">Last 14 days</button> <button type="button" data-vfit="60">Last 60 days</button></div>' +
+    '<div><label class="check"><input type="checkbox" id="video-mine"' + (onlyMine ? ' checked' : '') + '> Only videos that wait on you</label></div></div>';
   h += '<div class="vkey">' + ['app', 'script', 'tool', 'new'].map((c) => '<span><i class="mk film ' + c + '"></i>New film: ' + esc(CAUSES[c]) + '</span>').join('') +
     ['up', 'comment', 'suggested', 'fix', 'held'].map((k) => '<span><i class="mk ' + k + '"></i>' + esc(MARKS[k]) + '</span>').join('') + '<span>Click a mark for details. Pinch, or Ctrl and the scroll wheel, to zoom.</span></div>';
-  const rows = d.videos.filter((v) => v.language === videoLanguage);
+  const cardsOf = (v) => d.admin.filter((a) => a.tutorial === v.tutorial && a.language === v.language);
+  const rows = d.videos.filter((v) => v.language === videoLanguage && (!onlyMine || cardsOf(v).some((a) => a.who === 'you')));
   if (!rows.length) return h + '<p class="muted">No videos in this language yet.</p>';
   const days = Array.from({ length: TIMELINE_DAYS }, (_, i) => new Date(first + i * 86400000));
-  h += '<div class="vrow"><span></span><div class="tlw"><div class="tl days">' + days.map((x) => '<span data-day>' + esc(x.toLocaleDateString([], { month: 'short', day: 'numeric' })) + '</span>').join('') + '</div></div></div>';
+  h += '<div class="vrow"><span></span><div class="tlw"><div class="tl days">' + days.map((x) => '<span data-day>' + esc(x.toLocaleDateString([], { month: 'short', day: 'numeric' })) + '</span>').join('') + '</div></div><span></span></div>';
   rows.forEach((v, r) => {
     const cells = days.map(() => []);
     for (const m of v.marks) { const i = Math.floor((Date.parse(m.at) - first) / 86400000); if (i >= 0 && i < TIMELINE_DAYS) cells[i].push(m); }
@@ -586,8 +627,9 @@ function videoRows() {
     const chip = (s) => s.link ? '<a class="tag ' + s.level + '" href="' + esc(s.link) + '" target="_blank" rel="noopener noreferrer">' + esc(s.text) + '</a>' : '<span class="tag ' + s.level + '">' + esc(s.text) + '</span>';
     h += '<div class="vrow"><div><b>' + esc(v.title) + '</b><br>' + v.states.map(chip).join('') +
       (v.film ? '<br><small class="muted">Film ' + when(v.film.madeAt) + (v.film.why ? ': ' + esc(v.film.why) : '') + '</small>' : '') + '</div>' +
-      '<div class="tlw"><div class="tl">' + cells.map((c, i) => '<span' + (days[i].getUTCDay() === 0 ? ' class="wk"' : '') + '>' + c.map(mark).join('') + '</span>').join('') + '</div></div></div>' +
-      '<div class="vdet" id="vdet-' + r + '" hidden></div>';
+      '<div class="tlw"><div class="tl">' + cells.map((c, i) => '<span' + (days[i].getUTCDay() === 0 ? ' class="wk"' : '') + '>' + c.map(mark).join('') + '</span>').join('') + '</div></div>' + warnMark(cardsOf(v), r) + '</div>' +
+      '<div class="vdet" id="vdet-' + r + '" hidden></div>' +
+      (cardsOf(v).length ? '<div class="vcards" id="vcards-' + r + '"' + (openCards === v.tutorial + '/' + v.language ? '' : ' hidden') + ' data-key="' + esc(v.tutorial + '/' + v.language) + '">' + cardsOf(v).map(adminCard).join('') + '</div>' : '');
   });
   return h;
 }
@@ -650,7 +692,10 @@ function markDetail(m) {
     (d.links.length ? '<p>' + d.links.map((l) => '<a href="' + esc(l.href) + '" target="_blank" rel="noopener noreferrer">' + esc(l.text) + '</a>').join(' · ') + '</p>' : '') +
     (d.films.length ? '<div class="vfilms">' + d.films.map((f) => '<figure><figcaption>' + esc(f.label) + '</figcaption><video controls preload="metadata" src="' + esc(f.href) + '"></video></figure>').join('') + '</div>' : '');
 }
-document.addEventListener('change', (e) => { if (e.target && e.target.id === 'video-lang') { videoLanguage = e.target.value; redrawVideos(); } });
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'video-lang') { videoLanguage = e.target.value; redrawVideos(); }
+  if (e.target && e.target.id === 'video-mine') { onlyMine = e.target.checked; redrawVideos(); }
+});
 document.addEventListener('click', (e) => {
   const t = e.target.closest ? e.target : null;
   if (!t) return;
@@ -664,6 +709,8 @@ document.addEventListener('click', (e) => {
     const box = $('vdet-' + row);
     if (m && box) { for (const o of document.querySelectorAll('.vdet')) if (o !== box) o.hidden = true; box.innerHTML = markDetail(m); box.hidden = false; }
   }
+  const wm = t.closest('[data-cards]');
+  if (wm) { const box = $('vcards-' + wm.dataset.cards); if (box) { box.hidden = !box.hidden; openCards = box.hidden ? null : box.dataset.key; } }
   const close = t.closest('[data-vclose]');
   if (close) close.closest('.vdet').hidden = true;
 });

@@ -414,18 +414,26 @@ on the dashboard.
 ### On the ops dashboard
 
 Tutorial videos → Videos, your list and the workers' list
-(`apps/admin/src/sources/videos.ts`) puts it all in three lists:
+(`apps/admin/src/sources/videos.ts`):
 
-- **For an admin**: suggestions to accept, edit or reject; fix pull requests
-  to merge; held or failing films to look at; suggested replies to post
-  (shown 14 days, since nothing records a reply); films to publish;
-  channels to connect; paused languages (not in `NIGHTLY_LANGUAGES`).
+- **By video**: in one app language (the list says how many of its videos
+  wait on an admin), each video's states, a timeline (Ctrl and the scroll
+  wheel, or a pinch, zooms it; a click on a mark shows the change, the
+  films before and after, the comment as written, the PR or the log), and
+  at the right a mark: **!** when something waits on an admin, **i** when
+  Claude acts next. The mark opens that video's cards: the problem, who acts
+  next, what happens if nobody does, Accept, Edit and Reject on a
+  suggestion, and **Tell Claude what to do**. An instruction sent there is
+  an accepted suggestion of kind `instruction`: Claude's next fix run writes
+  it as a pull request, with no second Accept.
+- **For an admin**: what is not one video's: films to publish, channels to
+  connect, paused languages (not in `NIGHTLY_LANGUAGES`).
 - **Workers, now and tonight**: the filming run, or the next one at 20:10
   UTC; videos a screen change slots for tonight's check; fixes Claude
   writes; comments Claude reads; films waiting for YouTube's daily limit.
-- **By video**: in one app language, each video's states (the most urgent
-  first) and a timeline of the last 14 or 60 days: new films coloured by
-  what made them, uploads, comments, suggestions, fixes, holds.
+
+A suggested reply shows for 14 days, since nothing records that someone
+posted it.
 
 It reads `diag.ops_tutorial_films()`, `ops_tutorial_feedback()` and
 `ops_tutorials()`, each language's `status-<language>.json` from the
