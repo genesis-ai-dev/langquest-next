@@ -10089,6 +10089,17 @@ the frame check's prompt now says what a passage's step marks mean (a
 grey skip-forward sign is a check set aside) and that the recording
 clock counts the silence a part is cut from.
 
+Amended (2026-11-13, Caleb Koster): a change that only makes films look
+better leaves `FRAME` as it is, so no video is filmed again for it alone.
+The title picture (`compose.ts`) was cut at its lines' boxes, so the foot
+of a g, p or y on a title's last line was cut off in 22 of the 46 English
+films; a YouTube viewer saw it. The picture now takes in room around its
+letters. Changing `FRAME` would have filmed all 46 English videos again
+(46 frame checks and 46 uploads) for that alone. Instead each film gets it
+when it is filmed again for another reason (a screen it shows changed, or
+a person named it), so such changes can wait in old films until then.
+Reverse if: viewers keep pointing at a fault that only a new film fixes.
+
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted
