@@ -13,7 +13,7 @@
 // screen, since people who joined in the same second can be listed in either
 // order. A step's words are read once they stop changing and nothing is
 // saving, and without the toast, which comes and goes by the clock (film.ts).
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import type { Page } from 'playwright';
@@ -43,6 +43,15 @@ function catalogWords(language: string, keys: string[]): string[] {
 /** A catalog string as a pattern: its values ({{count}}) match anything. */
 const pattern = (words: string) => words.split(/\{\{[^}]*\}\}/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.+?');
 
+/** Every app language with a catalog (none where the app's catalogs are not at hand). */
+function appLanguages(): string[] {
+  try {
+    return readdirSync(path.join('apps', 'mobile', 'src', 'i18n')).filter((f) => /^[a-zA-Z-]+\.json$/.test(f)).map((f) => f.slice(0, -'.json'.length));
+  } catch {
+    return [];
+  }
+}
+
 const statuses = new Map<string, { unsteady: RegExp; kept: RegExp; saving: RegExp }>();
 
 /**
@@ -60,13 +69,16 @@ function statusWords(language: string): { unsteady: RegExp; kept: RegExp; saving
   const found = {
     unsteady: new RegExp(`${uploads}|^\\s*- img "(${saved})"`, 'u'),
     kept: new RegExp(any(['offline.passage.downloadingCount', 'offline.downloading', 'offline.download', 'offline.onDevice']), 'gu'),
-    saving: new RegExp(`^\\s*- img "(${any(['saved.saving'])})"`, 'mu')
+    // Or Me still counting the passages this device keeps ("Checking this device…", then "12 passages on this
+    // device"): read at either one, a screen looked changed though nothing was (choose-the-app-language, 2026-11-13).
+    // In any app language: that video reads Me in Arabic too.
+    saving: new RegExp(`^\\s*- img "(${any(['saved.saving'])})"|${appLanguages().flatMap((code) => catalogWords(code, ['offline.summary.checking'])).map(pattern).join('|') || '(?!)'}`, 'mu')
   };
   statuses.set(language, found);
   return found;
 }
 
-/** Whether a screen still shows something saving, which film.ts waits out before reading its words. */
+/** Whether a screen still shows something saving, or still counts what the device keeps, which film.ts waits out before reading its words. */
 export const saving = (screen: string, language = 'en') => statusWords(language).saving.test(screen);
 
 const calendars = new Map<string, RegExp>();

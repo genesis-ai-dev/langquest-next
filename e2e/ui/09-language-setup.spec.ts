@@ -52,7 +52,7 @@ test('SETUP-002 Only an organization admin renames the organization and changes 
   await tab(p, 'manage').click();
   await byId(p, 'header-up').click();
   await expect(text(p, w.orgName).first()).toBeVisible();
-  await expect(text(p, 'New language or cluster')).toHaveCount(0);
+  await expect(text(p, 'New language')).toHaveCount(0);
   await expect(p.getByTestId('org-rename')).toHaveCount(0);
   await button(p, /^(License: )?All rights reserved/).click();
   await expectOnScreen(p, 'Only an organization admin can change this.');

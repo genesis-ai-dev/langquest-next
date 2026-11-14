@@ -28,7 +28,10 @@ export const watchLink = (language: string, tutorial: string) => `${APP_LINK}/v/
  * (camera.ts), with a description of one line and its links. A film the
  * release keeps from before (tall, wide with the phone small all through, or
  * zoomed with a ring drawn round each part, not the spotlight) is made again
- * whatever its look.
+ * whatever its look. A change that only makes films look better leaves FRAME
+ * as it is, so no film is made again for it alone: each gets it when it is
+ * made again for another reason (the whole letters of a title, compose.ts,
+ * 2026-11-13).
  */
 export const FRAME = 'zoomed-spotlight';
 /** How the trailer is framed: wide (decisions.md 191). trailer/render.ts draws it, not compose.ts, so the camera changes no trailer. */
