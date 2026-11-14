@@ -727,7 +727,6 @@
       "newLanguage": "New language",
       "noLanguages": "No languages yet. Add the first one your team will record.",
       "openToBring": "Open it to bring it onto this device",
-      "newLanguageOrCluster": "New language or cluster",
       "inviteHelp": "Choose what they will do, then show them a code to scan.",
       "languageHelp": "Opens its page: get it ready, see its work and its people.",
       "licenseHelp": "The license your team's work is under. Setup says what it allows.",
@@ -3253,7 +3252,8 @@
       "downloading": "Downloading update…",
       "downloadingPercent": "Downloading update… {{percent}}",
       "webReady": "A new version of LangQuest is ready. Reload to use it.",
-      "storeBuild": "store build",
+      "storeBuild": "store build {{version}}",
+      "noUpdate": "no update",
       "updateBuild": "update {{id}}",
       "unknownBuild": "update unknown"
     },
@@ -3927,7 +3927,11 @@
         "askedWho": "asked {{who}}",
         "asked": "asked",
         "next": "next",
-        "afterDone": "once you're done"
+        "afterDone": "once you're done",
+        "made": "made",
+        "checked": "checked",
+        "afterMade": "after it is made",
+        "checkedBy": "in the {{check}}"
       },
       "help": {
         "study": "Go through the study guide together before you record. Nothing waits on it.",
@@ -3947,7 +3951,9 @@
         "checkpoint": "The lock: it must pass before the steps after it."
       },
       "thenTheTeam": "Then the team",
-      "teamHears": "Then the team can hear it"
+      "teamHears": "Then the team can hear it",
+      "makeIt": "{{what}} · make it",
+      "checkIt": "{{what}} · check it"
     },
     "quote": "“{{text}}”",
     "journey": {

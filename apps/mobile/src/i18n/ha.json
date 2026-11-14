@@ -727,7 +727,6 @@
       "newLanguage": "Sabon harshe",
       "noLanguages": "Babu harsuna tukuna. Ku ƙara na farko da tawagarku za ta naɗa.",
       "openToBring": "Buɗe shi don kawo shi kan wannan na'ura",
-      "newLanguageOrCluster": "Sabon harshe ko rukuni",
       "inviteHelp": "Ku zaɓi abin da za su yi, sannan ku nuna musu lamba su karanta.",
       "languageHelp": "Yana buɗe shafinsa: ku shirya shi, ku ga aikinsa da mutanensa.",
       "licenseHelp": "Lasisin da aikin tawagarku yake ƙarƙashinsa. Tsari yana faɗin abin da ya yarda da shi.",
@@ -3253,7 +3252,8 @@
       "downloading": "Ana sauke sabuntawa…",
       "downloadingPercent": "Ana sauke sabuntawa… {{percent}}",
       "webReady": "Sabuwar sigar LangQuest ta shirya. Ku sake loda shafin don amfani da ita.",
-      "storeBuild": "ginin shago",
+      "storeBuild": "ginin shago {{version}}",
+      "noUpdate": "babu sabuntawa",
       "updateBuild": "sabuntawa {{id}}",
       "unknownBuild": "sabuntawa ba a sani ba"
     },
@@ -3927,7 +3927,11 @@
         "askedWho": "an roƙi {{who}}",
         "asked": "an roƙa",
         "next": "na gaba",
-        "afterDone": "bayan kun gama"
+        "afterDone": "bayan kun gama",
+        "made": "an yi ta",
+        "checked": "an duba ta",
+        "afterMade": "bayan an yi ta",
+        "checkedBy": "a cikin {{check}}"
       },
       "help": {
         "study": "Ku bi jagorar nazari tare kafin ku naɗa. Babu abin da ke jiran sa.",
@@ -3947,7 +3951,9 @@
         "checkpoint": "Alamar kulle: dole a wuce shi kafin matakan da ke bayansa."
       },
       "thenTheTeam": "Sannan tawagar",
-      "teamHears": "Sannan tawagar za ta iya jin sa"
+      "teamHears": "Sannan tawagar za ta iya jin sa",
+      "makeIt": "{{what}} · yin ta",
+      "checkIt": "{{what}} · duba ta"
     },
     "quote": "“{{text}}”",
     "journey": {

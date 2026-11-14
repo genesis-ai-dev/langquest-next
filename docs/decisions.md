@@ -5235,6 +5235,25 @@ the time and Done; screen readers hear the status with how many parts are
 kept so far. In back translation the source part stays named above, on its
 player.
 
+Amended (2026-11-13, Caleb Koster): an admin of the language may delete any
+version, not only their own. An admin is someone who holds `manage_roles`
+there: an Organization Admin, or the Organization Admin role given for one
+language (a Language Admin). Coordinators, translators and reviewers still
+delete only what they published. Reason: Caleb asked that an admin can
+remove work so that a passage looks as if nobody had worked on it yet, for
+example work brought from LangQuest v2 that should not count (Every
+Language's Berom team lost most of its v2 audio, 2026-11-13). Imported work
+is published under the v2 person's name, and that person may never sign in
+here, so only an admin can clear it. When a passage's last version is
+deleted, the passage shows as not started (`recorded` is false). It is the
+same tombstone as before: the version keeps its number, and the history
+still shows it and who deleted it, so nothing is lost (hidden, never
+deleted). Caleb chose this over a new "clear the whole passage" button,
+because the Delete button and its ask-first sheet already exist, and each
+of Berom's imported passages has one version. The server already accepted
+`v1.TakeArchived` from anyone who may translate, so only core
+(`canDeleteVersion`, `deleteVersion`'s `admin`) and the app change.
+
 ## 125. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -7817,6 +7836,14 @@ Releases section draws where each build and update is now
 fast enough that a restarted one costs less than a build that waits, then
 send every build straight to production again.
 
+Amended (2026-11-13, Carl Sauder): the app reads the time back from a store
+build's version and shows it on Sync, with the build number, beside the OTA
+update's id and time (`storeVersionTime` in
+`apps/mobile/src/shell/updateStatus.ts`). The phone's settings show only the
+store version and nothing else shows the update, so a tester needs both to
+say which code they run. A new form for the version needs that reader
+changed too; a version it cannot read shows no date, never a wrong one.
+
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
@@ -10062,6 +10089,17 @@ the frame check's prompt now says what a passage's step marks mean (a
 grey skip-forward sign is a check set aside) and that the recording
 clock counts the silence a part is cut from.
 
+Amended (2026-11-13, Caleb Koster): a change that only makes films look
+better leaves `FRAME` as it is, so no video is filmed again for it alone.
+The title picture (`compose.ts`) was cut at its lines' boxes, so the foot
+of a g, p or y on a title's last line was cut off in 22 of the 46 English
+films; a YouTube viewer saw it. The picture now takes in room around its
+letters. Changing `FRAME` would have filmed all 46 English videos again
+(46 frame checks and 46 uploads) for that alone. Instead each film gets it
+when it is filmed again for another reason (a screen it shows changed, or
+a person named it), so such changes can wait in old films until then.
+Reverse if: viewers keep pointing at a fault that only a new film fixes.
+
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted
@@ -11170,3 +11208,12 @@ change, which breaks scanning on phones already in the field.
 Reverse if: `app.` causes a problem that `next.` does not (then remove its route,
 and the legacy app can have the name back). `next.` may redirect once its traffic
 has moved and browsers there have drained, as `docs/cloudflare.md` says.
+
+## 211. Back translation shows as two rows on the record, make it and check it, and never as a peer review
+
+Date: 2026-11-12 · By: Caleb Koster · Status: accepted
+
+Reason: at the 5 November 2026 meeting with Bezily's group the Standard Bible Flow looked as if a back translation needed a peer review, because step 1 lists both side by side and a made back translation read "looks good" though nobody had checked it (LAN-234). Caleb chose two rows with the flows unchanged. A kind that makes new content (`produces`) now shows "Back translation · make it" (done reads "made") followed by "Back translation · check it", which follows the check that compares it (`checkedBy`) and reads "checked" only once that check is done (`teamSteps` in `pathModel.ts`, `TeamStep.part`). It stays out when the back translation is set aside or moved past. The rows keep the look of the other team rows. Decision 91's one-row-per-check still holds for every other kind; flows and kinds are unchanged.
+Reverse if: people still read the check row as a second review, or a language's flow needs back translation checked by something other than a named check.
+
+(Numbered 252 on main; 211 here, the next free number on the release branch.)

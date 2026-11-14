@@ -727,7 +727,6 @@
       "newLanguage": "አዲስ ቋንቋ",
       "noLanguages": "እስካሁን ቋንቋዎች የሉም። ቡድንዎ የሚቀርጸውን የመጀመሪያውን ቋንቋ ያክሉ።",
       "openToBring": "ወደዚህ መሣሪያ ለማምጣት ይክፈቱት",
-      "newLanguageOrCluster": "አዲስ ቋንቋ ወይም ቡድን",
       "inviteHelp": "ምን እንደሚያደርጉ ይምረጡ፣ ከዚያ የሚቃኙትን ኮድ ያሳዩአቸው።",
       "languageHelp": "ገጹን ይከፍታል፦ ያዘጋጁት፣ ሥራውንና ሰዎቹን ይመልከቱ።",
       "licenseHelp": "የቡድንዎ ሥራ የሚገኝበት ፈቃድ። «ማዋቀሪያ» ምን እንደሚፈቅድ ይናገራል።",
@@ -3253,7 +3252,8 @@
       "downloading": "ዝማኔውን በማውረድ ላይ…",
       "downloadingPercent": "ዝማኔውን በማውረድ ላይ… {{percent}}",
       "webReady": "አዲስ የLangQuest ስሪት ዝግጁ ነው። ለመጠቀም ገጹን እንደገና ይጫኑ።",
-      "storeBuild": "የመደብር ስሪት",
+      "storeBuild": "የመደብር ስሪት {{version}}",
+      "noUpdate": "ምንም ዝማኔ የለም",
       "updateBuild": "ዝማኔ {{id}}",
       "unknownBuild": "ያልታወቀ ዝማኔ"
     },
@@ -3927,7 +3927,11 @@
         "askedWho": "{{who}} ተጠይቋል",
         "asked": "ተጠይቋል",
         "next": "ቀጣይ",
-        "afterDone": "ከጨረሱ በኋላ"
+        "afterDone": "ከጨረሱ በኋላ",
+        "made": "ተሠርቷል",
+        "checked": "ተፈትሿል",
+        "afterMade": "ከተሠራ በኋላ",
+        "checkedBy": "በ{{check}}"
       },
       "help": {
         "study": "ከመቅረጽዎ በፊት የጥናት መመሪያውን በአንድነት ይለፉ። ምንም ነገር እሱን አይጠብቅም።",
@@ -3947,7 +3951,9 @@
         "checkpoint": "መቆለፊያው፦ ከእሱ በኋላ ካሉት ደረጃዎች በፊት ማለፍ አለበት።"
       },
       "thenTheTeam": "ከዚያ ቡድኑ",
-      "teamHears": "ከዚያ ቡድኑ ሊሰማው ይችላል"
+      "teamHears": "ከዚያ ቡድኑ ሊሰማው ይችላል",
+      "makeIt": "{{what}} · መስራት",
+      "checkIt": "{{what}} · መፈተሽ"
     },
     "quote": "«{{text}}»",
     "journey": {

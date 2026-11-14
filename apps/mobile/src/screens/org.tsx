@@ -319,7 +319,7 @@ export function OrgHome(ctx: Ctx) {
   const canInvite = edgeAllowed(edgeFor('org_home', 'invite_member')!, ctx.session) && ctx.session.can('invite_members');
   // With clusters, the languages are grouped under them, then those in none (decision 108, amended 2026-10-20).
   const groups = languageGroups(v.org, v.languages);
-  const addLanguage = mayAdd ? { label: t('org.home.newLanguageOrCluster'), help: t('org.home.newLanguageHelp'), onPress: () => ctx.go('new_language') } : undefined;
+  const addLanguage = mayAdd ? { label: t('org.home.newLanguage'), help: t('org.home.newLanguageHelp'), onPress: () => ctx.go('new_language') } : undefined;
   // Languages already here grouped under a name, without adding one (LAN-140): its own row, not found only inside New language.
   const addCluster: AddRow | undefined = mayAdd && v.languages.length > 0
     ? { label: t('org.home.newCluster'), help: t('org.home.newClusterHelp'), icon: 'layers', onPress: () => ctx.go('new_language', { cluster: 'new' }) } : undefined;
