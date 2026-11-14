@@ -748,7 +748,9 @@ async function play(step: Step, index: number): Promise<void> {
   if (step.atSpeech !== undefined) {
     const last = spoken.at(-1);
     if (!last) throw new Error(`step ${index + 1} waits on speech that never started`);
-    while (now() < last.t + step.atSpeech) await sleep(20);
+    // 'end': once the recording has played to its end, however long the voice made it.
+    const at = step.atSpeech === 'end' ? speech.find((s) => s.file === last.file)!.seconds + 0.3 : step.atSpeech;
+    while (now() < last.t + at) await sleep(20);
   }
   if (step.first) await step.first(page);
   const parts = step.part?.(page);

@@ -15,8 +15,8 @@ export interface Step {
   say?: string;
   /** The help line (catalog key in apps/mobile/src/i18n/en.json) that the words follow. */
   help?: string;
-  /** Wait until the speaker's last recording has played this many seconds (a step said while they speak). */
-  atSpeech?: number;
+  /** Wait until the speaker's last recording has played this many seconds (a step said while they speak), or to its end. */
+  atSpeech?: number | 'end';
   /** The finger taps the lit part. */
   tap?: boolean;
   /** Where on the part the finger lands or starts a drag, when not its middle; `box` is the part as it shows, cut by the screen and what holds it. */
