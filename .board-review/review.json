@@ -1,0 +1,38 @@
+{
+  "kind": "question",
+  "ask": "Should an edit made during a review send the passage back for review?",
+  "problem": "A recorder can add a second version to a passage with audio, even mid-review. Nobody is asked to listen, and the passage still looks finished.",
+  "found": "I tried neither phone nor web; both failed here. From the code: the new version goes live, old checks still count, and the passage stays Done. Partner apps keep the last approved version.",
+  "changed": "Nothing yet. I built nothing, as you asked.",
+  "why": "Earlier decisions say publishing never sends anything by itself, and only approved versions leave the team. Option 2 fits both: it shows the gap and leaves sending to the recorder.",
+  "touches": "Option 2 changes the Done label and one message on the passage. Option 3 breaks an earlier decision. Option 4 adds a choice to publishing.",
+  "pictures": [
+    {
+      "file": "today.png",
+      "label": "Today"
+    }
+  ],
+  "options": [
+    {
+      "label": "Keep it as it is",
+      "result": "Edits never go back for review. Unheard audio can hide behind a Done passage.",
+      "picture": "optA.png"
+    },
+    {
+      "label": "Mark it, and offer to send",
+      "result": "The passage says the new version is not checked. The main button offers Send to the usual reviewer. Nothing is sent by itself.",
+      "picture": "optB.png"
+    },
+    {
+      "label": "Send it back automatically",
+      "result": "Every edit after a check goes to the reviewer at once. Nothing slips through, but small fixes bother reviewers.",
+      "picture": "optC.png"
+    },
+    {
+      "label": "Ask the editor when they publish",
+      "result": "Publishing shows two buttons: send for review, or publish only. The editor decides each time.",
+      "picture": "optD.png"
+    }
+  ],
+  "recommended": 1
+}
