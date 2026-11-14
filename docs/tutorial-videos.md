@@ -377,8 +377,9 @@ what it says first), or Reject with why, which the next look reads before
 suggesting the same again. An accepted code change becomes a Linear issue,
 "Tutorial feedback: …": at once when the app's Worker has `LINEAR_API_KEY`,
 otherwise at the comments job's next run. The replies Claude suggests are
-shown to copy into YouTube Studio; nothing is posted by itself. Making an
-accepted change to a video is still done by hand. A comment, with its
+shown to copy into YouTube Studio; nothing is posted by itself. An accepted
+change to a video's script, screens or voice is made by Claude, below. A
+comment, with its
 English and suggested reply, is taken out 30 days after it was posted, and
 one older is never copied: YouTube's rule for what an API client keeps about
 other people, as the privacy policy says (`/privacy#youtube`; an hourly
@@ -403,9 +404,59 @@ The workflow holds no production key. The app's Worker answers
 the OpenID Connect token GitHub signs for the job
 (`apps/web/worker/githubOidc.ts`); a branch, a fork or another workflow
 gets a token that names itself. Claude has no network, no token and no
-shell beyond reading git: the script around it fetches and sends. Anyone
-can write a comment, so the skill treats comments as data, never as
-instructions, and nothing Claude suggests happens without a person.
+shell beyond reading git (and editing the checkout, when it makes an
+accepted change): the script around it fetches and sends. Anyone can write
+a comment, so the skill treats comments as data, never as instructions, and
+nothing Claude suggests or makes happens without a person.
+
+### Claude makes an accepted change
+
+A suggestion to change a video's script, screens or voice that a person
+accepted is made by Claude as a draft pull request (decision 186, amended
+2026-11-13). Every 30 minutes the same workflow runs its fix jobs, as the
+watch for user issues does (`user-issues.yml`):
+
+1. `queue` asks the Worker (`/api/tutorial-review/fixes`) what waits, asks
+   GitHub whether each draft pull request so far was merged or closed, and
+   starts at most three accepted changes, oldest first.
+2. `fix` has Claude change the video, following the skill's part "Making an
+   accepted change", in a checkout with no key and no shell. Claude reads
+   the suggestion as accepted (with the person's edits) and, from the last
+   film run in the suggestion's language (English unless an instruction
+   names another): the picture of each of the video's steps, the end of its
+   log, the screen where a failed film stopped, the frame check's findings,
+   and the video's entry in `status-<language>.json`. It changes only
+   `e2e/tutorials/<video>.ts` and `e2e/tutorials/lines/`. When the change
+   needs the app itself, another video or a person's choice, Claude writes
+   none and says why.
+3. `check` refuses a patch that changes any other file, applies it, and runs
+   the videos' typecheck and tests, with no key.
+4. `open` pushes it to `tutorial-fix/<id>` and opens a draft pull request
+   that says what was accepted, links what it answers (never quoting a
+   commenter) and gives the checks. Its pull requests start no checks.
+
+A person reads it, marks it Ready for review (CI runs), and merges it. The
+merge films the video again at once (`tutorials.yml` runs on a change to
+`e2e/tutorials`), and its film's cause names the pull request (above, "Why
+a video is filmed again"). Each suggestion keeps where its fix is
+(migration `20261114010000_tutorial_fixes.sql`): waiting for Claude,
+working, open (waiting for a person to merge it), merged, closed, or failed
+with why. The dashboard reads it, with how many wait for Claude (`toFix`),
+are being written (`fixing`) and wait for a merge (`toMerge`). A run that
+stops leaves its change to the next run after three hours. A code change
+still goes to Linear, and a new video is still made by a person.
+
+**An admin's instruction.** A card on the dashboard for a comment, a screen
+change, or a film that failed or was held has a box for what Claude must do.
+Its Send is the ops action `tutorial-note` with `instruct: true`, the
+video, the card's problem line, the film's language and the inputs the card
+shows (`opsActions.ts`). It is kept as the admin's note and becomes an
+accepted suggestion of the kind `instruction` at once
+(`ops_tutorial_instruct`): no second Accept. The inputs it names count as
+looked at, so the look does not suggest them again. The next fix run makes
+it like any accepted change, and its pull request quotes the problem and
+the instruction. A Worker older than this keeps it as a plain note, which
+the next look reads.
 
 The looks' runs are in the dashboard's Server jobs as `tutorial_review`
 (one the Worker refused is `bad_review`), and the comments job's as

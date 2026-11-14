@@ -4,7 +4,7 @@ import { handleSourceAudio } from './sourceAudio';
 import { handleBlobs, type BlobDeps } from './blobs';
 import { handleHelpAudio } from './helpAudio';
 import { handleTutorialVideo } from './tutorialVideos';
-import { handleTutorialReview, REVIEW_PATH, type ReviewDeps } from './tutorialReview';
+import { FIXES_PATH, handleTutorialReview, REVIEW_PATH, type ReviewDeps } from './tutorialReview';
 import { handleOrgExports, type ExportDeps } from './orgExports';
 import { FILMED_PATH, handleTutorialFilmed, type FilmedDeps } from './tutorialFilmed';
 import { handleUserIssues, USER_ISSUES_PATH, type UserIssuesDeps } from './userIssues';
@@ -112,7 +112,7 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   }
   if (url.pathname.startsWith('/api/help-audio/')) return handleHelpAudio(request, deps.blobs?.bucket);
   if (url.pathname.startsWith('/api/tutorials/')) return handleTutorialVideo(request, deps.blobs);
-  if (url.pathname === REVIEW_PATH) return deps.tutorialReview ? handleTutorialReview(request, deps.tutorialReview) : json(503, { error: 'The tutorial review is not set up here.' });
+  if (url.pathname === REVIEW_PATH || url.pathname === FIXES_PATH) return deps.tutorialReview ? handleTutorialReview(request, deps.tutorialReview) : json(503, { error: 'The tutorial review is not set up here.' });
   if (url.pathname === USER_ISSUES_PATH) return deps.userIssues ? handleUserIssues(request, deps.userIssues) : json(503, { error: 'The watch for user issues is not set up here.' });
   if (url.pathname === FILMED_PATH) return deps.tutorialFilmed ? handleTutorialFilmed(request, deps.tutorialFilmed) : json(503, { error: 'The tutorial intake is not set up here.' });
   if (url.pathname === JOIN_PATH) return deps.join ? handleJoin(request, deps.join) : json(503, { error: 'Nearby sync is not set up here yet.' });
