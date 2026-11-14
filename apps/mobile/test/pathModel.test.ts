@@ -52,13 +52,15 @@ describe('the passage path (decision 71)', () => {
     const team = teamSteps(l.input('akol'));
     expect(team.map((t) => `${t.name}|${t.status}`)).toEqual([
       "Peer check|once you're done",
-      'Back translation|same time',
+      'Back translation · make it|same time', 'Back translation · check it|after it is made',
       'Community check|after the peer check',
       'Consultant check|after the community check',
       'Final approval|after the consultant check'
     ]);
     expect(team[1]!.together).toBe(true);
-    expect(team[3]!.checkpoint).toBe(true);
+    // Back translation is two rows, make it and check it, and neither is a peer review (LAN-234).
+    expect(team.map((t) => t.part)).toEqual([undefined, 'make', 'check', undefined, undefined, undefined]);
+    expect(team[4]!.checkpoint).toBe(true);
   });
 
   it('a study guide with steps comes first, and stays lit until it is done or someone records', () => {

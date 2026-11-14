@@ -23,6 +23,7 @@ export const answerFeedback: Tutorial = {
     },
     {
       screen: 'my_work',
+      // The row's name goes on past its step: "Luke 14:15–24 Feedback to hear On this device" (LAN-19, PR 389).
       part: (page) => button(page, /Feedback to hear/),
       say: 'Feedback to hear means a check came back with changes to make. Tap it.',
       tap: true,

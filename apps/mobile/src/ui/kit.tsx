@@ -15,10 +15,7 @@ import {
   ChevronsUpDown, CloudAlert, CloudDownload, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply, Ear
 } from './icons';
 import { Fragment, isValidElement, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  AccessibilityInfo, ActivityIndicator, Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
-  type StyleProp, type TextStyle, type ViewStyle
-} from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Modal, Platform, Pressable, ScrollView, type ScrollViewInstance, type StyleProp, StyleSheet, Switch, type SwitchInstance, TextInput, type TextStyle, View, type ViewInstance, type ViewStyle } from 'react-native';
 import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
@@ -146,7 +143,7 @@ export function Screen(props: {
   // Something drawn on with a finger stops the body scrolling meanwhile (scrollHoldContext.ts).
   const [held, setHeld] = useState(false);
   // Before the new page is drawn, so it never shows at the last page's scroll.
-  const body = useRef<ScrollView>(null);
+  const body = useRef<ScrollViewInstance>(null);
   const page = props.page;
   useLayoutEffect(() => {
     if (page !== undefined) body.current?.scrollTo({ y: 0, animated: false });
@@ -653,7 +650,7 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
   const size = props.size ?? 48;
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   // On the web an icon names itself on hover, as a button with words would (UI audit, findings 75 and 76).
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   useEffect(() => {
     if (Platform.OS === 'web') (ref.current as unknown as { setAttribute?: (k: string, v: string) => void } | null)?.setAttribute?.('title', props.label);
   }, [props.label]);
@@ -718,7 +715,7 @@ export function Toggle(props: { on: boolean; onToggle: () => void; label: string
   /** What help mode says it turns on. */ help?: string;
   /** Drawn inside a row that is the switch (Row's `role="switch"`): the row explains it. */ drawnOnly?: boolean }) {
   const spot = useHelpSpot(props.label, props.help ?? (props.on ? t('help.details.switchOn') : t('help.details.switchOff')), props.drawnOnly ? undefined : props.onToggle);
-  const input = useRef<Switch>(null);
+  const input = useRef<SwitchInstance>(null);
   const drawnOnWeb = !!props.drawnOnly && Platform.OS === 'web';
   useEffect(() => { if (drawnOnWeb) unfocusable(input.current); });
   return (

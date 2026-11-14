@@ -51,7 +51,13 @@ export const SCREEN_IDS = [
   // App only: LangQuest support's authenticator and every organization, read-only (decision 158)
   'global_viewer',
   // App only: Forgot password, and the new password its emailed link opens (decision 200)
-  'forgot_password', 'new_password'
+  'forgot_password', 'new_password',
+  // App only: phones near each other bring each other up to date with no internet (docs/nearby-sync-plan.md 5.8)
+  'share_nearby',
+  // App only: a teammate's phone lets a new person in with no internet, and the new phone's progress (docs/nearby-sync-plan.md 14.1)
+  'let_someone_in', 'join_offline',
+  // App only: getting and checking the install file a new phone needs, online before a trip (docs/nearby-sync-plan.md 14.4)
+  'get_install_file'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -449,7 +455,26 @@ export const EDGES: Edge[] = [
   e('new_password', 'forgot_password'), // the link expired: tap Send a new link
   e('new_password', 'terms_privacy', undefined, 'guest'), // tap the terms line
   e('new_password', 'sign_in', 'reset', 'guest'), // tap Back with nothing under it
-  e('new_password', 'home_hub', 'reset') // tap Back with nothing under it, or Done
+  e('new_password', 'home_hub', 'reset'), // tap Back with nothing under it, or Done
+  // App only: Share nearby, from Sync where this phone may share (docs/nearby-sync-plan.md 5.8, experimental)
+  e('sync_status', 'share_nearby'),
+  e('share_nearby', 'sync_status', 'back'),
+  // App only: joining without internet (docs/nearby-sync-plan.md 14.1, experimental)
+  e('share_nearby', 'let_someone_in'), // tap Let someone in
+  e('let_someone_in', 'share_nearby', 'back'),
+  // App only: the install file, got and checked online before a trip (docs/nearby-sync-plan.md 14.4, experimental)
+  e('share_nearby', 'get_install_file'), // tap Get the install file, or the line saying the file got is too old
+  e('get_install_file', 'share_nearby', 'back'),
+  e('let_someone_in', 'get_install_file'), // tap Get the install file under the new phone needing the app first
+  e('get_install_file', 'let_someone_in', 'back'),
+  e('sync_status', 'get_install_file'), // tap Get it on Ready for offline's line that this phone lacks the install file it needs
+  e('get_install_file', 'sync_status', 'back'),
+  e('scan_qr', 'join_offline', undefined, 'guest'), // scan a teammate's Let someone in code
+  e('join_offline', 'scan_qr', undefined, 'guest'), // tap Scan a new code
+  e('join_offline', 'sign_in', 'back', 'guest'), // tap Back
+  e('sign_in', 'join_offline', undefined, 'guest'), // a copy left unfinished: tap Go on joining
+  e('settings_home', 'scan_qr'), // someone let in offline and refused, or needing a helper's code: tap Scan a code
+  e('scan_qr', 'settings_home', 'back')
 ];
 
 /**

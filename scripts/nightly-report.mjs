@@ -22,6 +22,12 @@
 //
 // Add --dry-run to print what would be filed without calling Linear.
 // LINEAR_API_KEY is required otherwise; missing, the script fails.
+//
+// Each suite also leaves one line on its run, an annotation titled
+// "Nightly: <suite>" (`nightNotice`): how many passed, or that it broke,
+// and the Linear issue of each failure. The ops dashboard's Nightly tests
+// part reads those lines from GitHub (apps/admin/src/sources/nightly.ts,
+// decisions.md 209). The line is written whether Linear answered or not.
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
@@ -98,6 +104,19 @@ function testBody(test, sha, url) {
 }
 
 /**
+ * Why a run of the web UI suite broke as a whole, in a sentence, or null when
+ * it did not: no report, more than MANY failures (one cause), or a failed
+ * job whose tests all passed. `tests` is `testsOf(report)`, or null.
+ */
+export function uiBroke(tests, status) {
+  const failing = tests?.filter((t) => !t.passed).length ?? 0;
+  if (!tests) return `The job ${ended(status)} and left no report: the suite did not run to the end.`;
+  if (failing > MANY) return `${failing} tests failed, which is one cause rather than ${failing}.`;
+  if (status !== 'success' && !failing) return `The job ${ended(status)} with every test that ran passing: a step around the tests broke.`;
+  return null;
+}
+
+/**
  * What one run of the web UI suite says, as outcomes for `plan`. `report` is
  * the parsed report.json, or null when the suite left none; `status` the
  * job's status (success, failure, cancelled).
@@ -105,12 +124,10 @@ function testBody(test, sha, url) {
 export function uiOutcomes(report, status, sha, url) {
   const tests = report ? testsOf(report) : null;
   const failing = tests?.filter((t) => !t.passed) ?? [];
-  let broke = null;
-  if (!tests) broke = `The job ${ended(status)} and left no report: the suite did not run to the end.`;
-  else if (failing.length > MANY) {
-    broke = [`${failing.length} tests failed, which is one cause rather than ${failing.length}. The first error:`, '',
-      '```', failing[0].error, '```', '', ...failing.map((t) => `- ${t.key}`)].join('\n');
-  } else if (status !== 'success' && !failing.length) broke = `The job ${ended(status)} with every test that ran passing: a step around the tests broke.`;
+  let broke = uiBroke(tests, status);
+  if (broke && failing.length > MANY) {
+    broke = [`${broke} The first error:`, '', '```', failing[0].error, '```', '', ...failing.map((t) => `- ${t.key}`)].join('\n');
+  }
   const out = [];
   if (broke) out.push({ key: UI_RUN, passed: false, body: `${broke}\n\nRun: ${url}` });
   else if (status === 'success') out.push({ key: UI_RUN, passed: true });
@@ -153,12 +170,15 @@ export function plan(issues, outcomes, sha, url) {
   return actions;
 }
 
-/** Carry out a plan, and say what was done. */
-export async function apply(api, actions) {
+/** Carry out a plan, and say what was done. Each issue opened goes in `created`, by its title. */
+export async function apply(api, actions, created = new Map()) {
   const out = [];
   for (const a of actions) {
-    if (a.create) out.push(`opened ${await api.create(a.create.title, a.create.description)}: ${a.create.title}`);
-    else {
+    if (a.create) {
+      const id = await api.create(a.create.title, a.create.description);
+      created.set(a.create.title, id);
+      out.push(`opened ${id}: ${a.create.title}`);
+    } else {
       await api.comment(a.comment.issue.id, a.comment.body);
       out.push(`${a.comment.issue.identifier}: ${a.comment.body.split(' · ')[0]}`);
     }
@@ -166,6 +186,50 @@ export async function apply(api, actions) {
   if (!out.length) out.push('nothing new to tell Linear');
   return out;
 }
+
+/**
+ * The Linear issue of each failing outcome after `apply`: the one it opened
+ * (`created`), or the newest open one with that title. In outcome order,
+ * each once.
+ */
+export function issuesOf(issues, outcomes, created = new Map()) {
+  const out = [];
+  for (const o of outcomes.filter((x) => !x.passed)) {
+    const title = `${PREFIX}${o.key}`;
+    const id = created.get(title) ?? [...issues].filter((i) => i.title === title && isOpen(i))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]?.identifier;
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+// --- The line on the run -------------------------------------------------------
+
+/** Each suite's name on its line, by the reporter's command or job name. */
+export const SUITES = { ui: 'Web UI suite', 'nightly-fleet': 'Fleet simulation', 'nightly-mutation': 'Mutation tests on core' };
+
+/**
+ * The line a nightly suite leaves on its run for the ops dashboard
+ * (apps/admin/src/sources/nightly.ts `parseLine` reads it back). Its first
+ * line is one of "Broke: <why>", "<passed> of <ran> passed", "Passed" or
+ * "Failed"; each line after it is a Linear issue, "<id>" or "<id> <url>".
+ * `night` is { ran, passed, ok, broke, issues: [{ id, url }] }: ran and
+ * passed are counts, or null for a job that has none; ok says whether a
+ * job without counts passed.
+ */
+export function nightLine(night) {
+  const head = night.broke ? `Broke: ${night.broke.replace(/\s+/g, ' ').trim().slice(0, 300)}`
+    : night.ran !== null && night.ran !== undefined ? `${night.passed} of ${night.ran} passed`
+      : night.ok ? 'Passed' : 'Failed';
+  return [head, ...(night.issues ?? []).map((i) => (i.url ? `${i.id} ${i.url}` : i.id))].join('\n');
+}
+
+/** A workflow command's text, escaped as GitHub reads it (a property also escapes `:` and `,`). */
+const escapeData = (s) => s.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+const escapeProperty = (s) => escapeData(s).replace(/:/g, '%3A').replace(/,/g, '%2C');
+
+/** The line as a notice annotation on the job, titled "Nightly: <suite>". */
+export const nightNotice = (suite, night) => `::notice title=${escapeProperty(`${PREFIX}${suite}`)}::${escapeData(nightLine(night))}`;
 
 // --- Linear -----------------------------------------------------------------
 
@@ -211,8 +275,17 @@ export function linearApi(key, fetchImpl = fetch) {
     async comment(issueId, body) {
       await gql(`mutation($issueId: String!, $body: String!) {
         commentCreate(input: { issueId: $issueId, body: $body }) { success } }`, { issueId, body });
+    },
+    /** An issue's address in Linear, for the line on the run. */
+    async urlOf(identifier) {
+      return (await gql(`query($id: String!) { issue(id: $id) { url } }`, { id: identifier })).issue?.url ?? null;
     }
   };
+}
+
+/** Each issue with its address, when Linear gives one; an address that will not come leaves the id alone. */
+export async function withUrls(api, ids) {
+  return Promise.all(ids.map(async (id) => ({ id, url: api.urlOf ? await api.urlOf(id).catch(() => null) : null })));
 }
 
 /** Prints instead of calling Linear, as if no nightly issue were open. */
@@ -248,20 +321,37 @@ async function main() {
     console.error('usage: nightly-report.mjs ui|job [--name <job>] --status <job.status> --sha <sha> --url <run> [--report <file>] [--dry-run]');
     process.exit(2);
   }
-  const key = process.env.LINEAR_API_KEY;
-  if (!opt['dry-run'] && !key) {
-    console.error('::error::Add the LINEAR_API_KEY secret; the nightly failures cannot be filed without it.');
-    process.exit(1);
-  }
   let outcomes;
+  let night;
   if (command === 'ui') {
     const file = opt.report ?? 'e2e/results/ui/report.json';
-    outcomes = uiOutcomes(existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null, status, sha, url);
+    const report = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
+    const tests = report ? testsOf(report) : null;
+    outcomes = uiOutcomes(report, status, sha, url);
+    night = { ran: tests?.length ?? null, passed: tests?.filter((t) => t.passed).length ?? null, broke: uiBroke(tests, status) };
   } else {
     outcomes = jobOutcomes(opt.name, status, url);
+    night = { ran: null, passed: null, ok: status === 'success', broke: ['success', 'failure'].includes(status) ? null : `The job ${ended(status)}.` };
   }
-  const api = opt['dry-run'] ? dryApi() : linearApi(key);
-  for (const line of await apply(api, plan(await api.issues(), outcomes, sha, url))) console.log(line);
+  // Linear first, for the issues' ids; the line on the run is written whatever Linear says.
+  let issues = [];
+  let failed = null;
+  try {
+    const key = process.env.LINEAR_API_KEY;
+    if (!opt['dry-run'] && !key) {
+      console.error('::error::Add the LINEAR_API_KEY secret; the nightly failures cannot be filed without it.');
+      throw new Error('LINEAR_API_KEY is missing');
+    }
+    const api = opt['dry-run'] ? dryApi() : linearApi(key);
+    const known = await api.issues();
+    const created = new Map();
+    for (const line of await apply(api, plan(known, outcomes, sha, url), created)) console.log(line);
+    issues = await withUrls(api, issuesOf(known, outcomes, created));
+  } catch (err) {
+    failed = err;
+  }
+  console.log(nightNotice(SUITES[command === 'ui' ? 'ui' : opt.name] ?? opt.name, { ...night, issues }));
+  if (failed) throw failed;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

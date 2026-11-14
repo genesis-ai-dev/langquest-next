@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  ADMIN_KEYS, CRON_JOB, EAS_KEYS, EAS_PROJECT, HYPERDRIVE_PLACEHOLDER, ONLY, createdId, hyperdriveId, withHyperdriveId, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_FUNCTION_SECRETS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, easNames, failure, parseArgs, queryRows, relayUrl, summarize, unknownKeys, vaultSql, workersIn
+  ADMIN_KEYS, CRON_JOB, EAS_KEYS, EAS_PROJECT, HYPERDRIVE_PLACEHOLDER, ONLY, createdId, hyperdriveId, withHyperdriveId, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_FUNCTION_SECRETS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, easNames, failure, hyperdriveGone, parseArgs, queryRows, relayUrl, secretListFailure, summarize, unknownKeys, unreadable, vaultSql, workersIn
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -98,6 +98,15 @@ describe('secrets', () => {
     expect(Object.keys(destinations('production', all, 'ref', 'k').workers.app)).not.toContain('CLAUDE_CODE_OAUTH_TOKEN');
     expect(Object.keys(destinations('production', values, 'ref', 'k').workers.app)).not.toContain('LINEAR_API_KEY');
     expect(OPTIONAL_KEYS).toContain('LINEAR_API_KEY');
+  });
+
+  it('gives the app\'s Worker the nearby signing key when the file has it, and nowhere else; a deploy never waits for it', () => {
+    const wanted = destinations('production', { ...values, NEARBY_SIGNING_KEY: '{"kid":"k1"}' }, 'ref', 'k');
+    expect(wanted.workers.app).toMatchObject({ NEARBY_SIGNING_KEY: '{"kid":"k1"}' });
+    expect(JSON.stringify({ ...wanted, workers: { ...wanted.workers, app: {} } })).not.toContain('NEARBY_SIGNING_KEY');
+    expect(Object.keys(destinations('preview', values, 'ref', 'k').workers.app)).not.toContain('NEARBY_SIGNING_KEY');
+    expect(OPTIONAL_KEYS).toContain('NEARBY_SIGNING_KEY');
+    expect(read('apps/web/wrangler.jsonc')).not.toMatch(/"required": \[[^\]]*NEARBY_SIGNING_KEY/);
   });
 
   it('gives GitHub the Gemini key for the nightly filming and the Claude token for the nightly look and frame check, from production\'s file only, and nothing else', () => {
@@ -206,6 +215,13 @@ describe('secrets', () => {
     expect(summarize({ ...ok, github: { GEMINI_API_KEY: 'missing' } }).behind).toBe(true);
   });
 
+  it('says when a Worker is not on the account wrangler is signed in to, before its secrets', () => {
+    const { lines, behind } = summarize({ workers: { app: { K: 'missing' } }, absent: ['app'], functions: {}, vault: {}, scheduled: true });
+    expect(behind).toBe(true);
+    expect(lines[0]).toMatch(/app Worker is not on the Cloudflare account wrangler is signed in to \(npx wrangler whoami\)/);
+    expect(lines[1]).toMatch(/app Worker secret K \(missing\)/);
+  });
+
   it('reads query rows in either shape the Supabase CLI prints', () => {
     expect(queryRows([{ a: 1 }])).toEqual([{ a: 1 }]);
     expect(queryRows({ boundary: 'x', rows: [{ a: 1 }] })).toEqual([{ a: 1 }]);
@@ -248,5 +264,58 @@ describe('the ops dashboard\'s Hyperdrive config', () => {
   it('holds the committed config to a placeholder or a real id', () => {
     const committed = read(WORKERS.admin);
     expect(committed).toMatch(new RegExp(`"binding": "DIAG", "id": "(${HYPERDRIVE_PLACEHOLDER}|[0-9a-f]{32})"`));
+  });
+  it('never hands a value to npx, which writes its arguments to npm\'s debug log on disk (security review, 2026-11-10)', () => {
+    const scripts = readdirSync(new URL('../scripts', import.meta.url)).filter((f) => /\.(sh|mjs)$/.test(f));
+    for (const file of scripts) {
+      const text = read(`scripts/${file}`);
+      expect(text, file).not.toMatch(/npx dotenvx set/);
+      expect(text, file).not.toMatch(/'npx', \['eas', 'env:(set|create|update)'/);
+    }
+    // env-update passes the value on stdin, to the one helper that calls dotenvx's own set.
+    expect(read('scripts/env-update.sh')).toContain(`printf '%s' "$value" | node scripts/dotenvx-set.mjs "$key" "$src" secret`);
+  });
+});
+
+// What wrangler prints, from wrangler 4.158's source and a run of 2026-11-13,
+// when a person ran `npm run secrets -- production` signed out: every Worker
+// secret and the Hyperdrive config were reported missing, and a yes would have
+// set them all again and made a second config.
+describe('a Cloudflare listing that fails', () => {
+  const signedOut = "✘ [ERROR] In a non-interactive environment, it's necessary to set a CLOUDFLARE_API_TOKEN environment variable for wrangler to work. Please go to https://developers.cloudflare.com/fundamentals/api/get-started/create-token/ for instructions on how to create an api token, and assign its value to CLOUDFLARE_API_TOKEN.";
+  const badToken = '✘ [ERROR] A request to the Cloudflare API (/accounts/a1/workers/scripts/langquest-next/secrets) failed.\n\n  Authentication error [code: 10000]';
+  const offline = '✘ [ERROR] fetch failed\n  getaddrinfo ENOTFOUND api.cloudflare.com';
+  const config = '0123456789abcdef0123456789abcdef';
+
+  it('takes a Worker that does not exist as one with no secrets yet, and nothing else', () => {
+    expect(secretListFailure('✘ [ERROR] Worker "langquest-next" not found.\n\nIf this is a new Worker, run `wrangler deploy` first to create it.\nOtherwise, check that the Worker name is correct and you\'re logged into the right account.')).toBe('absent');
+    expect(secretListFailure('✘ [ERROR] Worker "langquest-next-preview" (env: preview) not found.')).toBe('absent');
+    expect(secretListFailure('✘ [ERROR] A request to the Cloudflare API (/accounts/a1/workers/scripts/x/secrets) failed.\n\n  This Worker does not exist on your account. [code: 10007]')).toBe('absent');
+    for (const output of [signedOut, badToken, offline, '', 'Unexpected token < in JSON at position 0']) {
+      expect(secretListFailure(output), output).toBe('unreadable');
+    }
+  });
+
+  it('takes a Hyperdrive config as gone only when Cloudflare says so', () => {
+    expect(hyperdriveGone(`✘ [ERROR] A request to the Cloudflare API (/accounts/a1/hyperdrive/configs/${config}) failed.\n\n  Hyperdrive config not found [code: 2005]`)).toBe(true);
+    expect(hyperdriveGone(signedOut)).toBe(false);
+    expect(hyperdriveGone(badToken.replace('workers/scripts/langquest-next/secrets', `hyperdrive/configs/${config}`))).toBe(false);
+    expect(hyperdriveGone(offline)).toBe(false);
+  });
+
+  it('stops with what wrangler said, and how to sign in when that was it', () => {
+    for (const output of [signedOut, badToken]) {
+      const message = unreadable("the app Worker's secrets", output);
+      expect(message).toMatch(/^could not read the app Worker's secrets, so nothing was compared or applied/);
+      // The script runs wrangler with this profile; a plain `wrangler login` signs in another one (2026-11-13).
+      expect(message).toContain('npx wrangler auth create langquest-email');
+      expect(message).toContain(output);
+    }
+    expect(unreadable('x', signedOut, '', null)).toContain('npx wrangler login');
+    const message = unreadable("the app Worker's secrets", offline, 'Run this again.');
+    expect(message).not.toMatch(/wrangler (login|auth)/);
+    expect(message).toContain('Run this again.');
+    expect(message).toContain(offline);
+    expect(unreadable('x', signedOut, 'Run this again.')).not.toContain('Run this again.');
   });
 });

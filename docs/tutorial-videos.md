@@ -132,7 +132,8 @@ the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
 2. compares each video's look (`look.ts`) with the look of the film the
    repository's `tutorials` release keeps, tries a video that looks changed
    again (a screen read mid-change can look different once), and films again
-   only the videos whose look changed, or that have no film yet, two at a
+   only the videos whose look or script changed, or that have no film yet
+   ([Why a video is filmed again](#why-a-video-is-filmed-again)), two at a
    time; a film that fails is filmed once more, alone;
 3. looks at each new film as someone who pauses it would (`frame-check.ts`):
    a still while each line is said, and the first and the last, as the video
@@ -183,6 +184,46 @@ YouTube's day of uploads begins, with the publish after it. A run by hand:
 Run now on the dashboard's Server jobs (`tutorial-intake`), or the
 workflow's Run workflow on GitHub, with languages and videos to film.
 
+### Why a video is filmed again
+
+An existing video changes for two reasons (Caleb, 2026-11-13): a comment on
+YouTube asks for a fix, or a change merged into main changes a screen or a
+flow the video shows. Each film in the manifest keeps the commit of main it
+was filmed from, its script, each step's look and why it was made
+(`e2e/tutorials/why.ts`), so each night says what changed a video:
+
+- **Its script.** What the video says (in the film's language), does or
+  lights: its own file and every line it says, hashed. A fix asked for in a
+  comment comes in this way, as a pull request that changes the script; the
+  words on its screens stay the same, so the look alone would not film it.
+- **Its words on a screen.** Which steps read differently, the screens they
+  are on, and the changes merged since the film that touched those screens'
+  own code. A screen's code is what its module in the app's screen table
+  (`SCREENS` in `apps/mobile/App.tsx`) imports, on and on, as the web export
+  resolves it (`e2e/tutorials/screens.ts`); a file that four or more of the
+  twenty screen modules import (the kit, the theme, the catalogs) is shared,
+  as are the app's packages, and is named only when no screen's own code
+  changed.
+- No film yet, a film framed as films no longer are, or a person named it.
+
+A change merged into main that touched a screen's own code **slots** every
+video that shows that screen. The night tries it: its words changed, and it
+is filmed again with that change as the cause; or they did not, and the slot
+is cleared (the film is checked as of that night). Slotted videos are not
+filmed whatever their look: from 30 October to 13 November, 80 merges
+would have slotted 15 to 46 of the 47 English videos on each day with a
+merge, and YouTube takes about 100 uploads a day for all fifteen languages. Two nights' step pictures were compared too,
+to film what the words do not show; they differ by themselves (a person's
+colour, an invitation's QR code, a recording's waveform, a toast), so the
+pictures decide nothing.
+
+Each language's job puts `status-<language>.json` in the release beside
+its manifest: every public video's film (when, from which commit, why),
+tonight's try (`filmed`, `held`, `failed`, `same`, `not tried`), the causes,
+and the changes that slot it or that tonight cleared. The run's summary
+lists the same. A film from before keeps no commit, script or step looks:
+the first night it reads the same, it takes that night's as its own.
+
 A change the look does not see (a new sound, a colour) is filmed by running
 the workflow by hand with that video named, which films it whatever its
 look. A video for LangQuest staff (`staff: true`, "Read any
@@ -230,7 +271,9 @@ video's description is written when it is filmed and put on when it is
 uploaded; a film from before decision 191 (tall, its voice written out),
 from before the camera moved in on what each step lights, or with a ring
 drawn round each part rather than the spotlight, is filmed again once, whatever its look (`FRAME` in `playlists.ts` and in the release's
-manifest), and only a video's newest version goes up.
+manifest), and only a video's newest version goes up. A change that only
+makes films look better leaves `FRAME` as it is: each film gets it when it
+is filmed again for another reason (decision 191, amended 2026-11-13).
 
 A video's description ends with a link to the same video in each other
 language it is made in: `https://next.langquest.org/v/<language>/<video>`,
@@ -304,7 +347,9 @@ the videos (decision 186). Three kinds of input:
 
 - **Comments** on the videos and channels. The comments job in the app's
   job container (`server/tutorialComments.ts`) reads each connected
-  channel's new comments each day at 23:50 UTC, after the publish job.
+  channel's new comments each day at midnight in California, as YouTube's
+  day of units begins and before the intake and the uploads after it use
+  them up (read at 23:50 UTC, 4 to 9 November 2026 found none left).
 - **Changes merged into main** that make a video's words or steps wrong (a
   button renamed, a step moved, a help line changed). Claude finds them; a
   change that only alters how a screen looks needs nothing, since the
@@ -319,9 +364,13 @@ Claude (`anthropics/claude-code-action`, following the `tutorial-review`
 skill in `.agents/skills`) puts each comment into English with a reply in
 its own language, and suggests what to change: a video's script, screens or
 voice, the app's code, or a new video. Every input ends in a suggestion or
-with a line saying why none. `send` hands the look to the Worker, which
-checks it (`parseReview` in `server/tutorialFeedback.ts`) before the
-database takes it.
+with a line saying why none. `check` holds the look against what the
+Worker takes and what is open; when the Worker would refuse it, or lose part
+of it, Claude is asked once to mend it from the list of problems. `send`
+hands the look to the Worker, which checks it (`parseReview` in
+`server/tutorialFeedback.ts`) before the database takes it. A look still
+refused is kept with the run for 14 days (`review.json` and
+`problems.txt`), for a person to read.
 
 A person decides each suggestion on the dashboard: Accept, Edit (change
 what it says first), or Reject with why, which the next look reads before

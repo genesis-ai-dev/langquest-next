@@ -37,8 +37,10 @@ export const JOBS = {
   // most nights a few, the first full set about 705 of about 10 MB, each a download and an upload.
   'tutorial-intake': { job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 },
   // The comments on the tutorial videos, kept for Claude's nightly look (server/tutorialComments.ts, decisions.md 186):
-  // a day's comments, a page of 100 a call, and at most 20 Linear issues.
-  'tutorial-comments': { job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 }
+  // a day's comments, a page of 100 a call (1 of YouTube's units), and at most 20 Linear issues.
+  'tutorial-comments': { job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 },
+  // The organization export (server/orgExport.ts, decisions.md 206): started when an admin asks, builds one zip a request.
+  'org-export': { job: 'org_export', entrypoint: ['node', 'orgexport.mjs'], timeLimitMs: 240 * 60_000 }
 } as const satisfies Record<string, JobSpec>;
 
 export type JobKey = keyof typeof JOBS;
@@ -65,7 +67,10 @@ export const JOB_TICK = '*/5 * * * *';
  * (AFTER). One more intake at five past midnight in California, when
  * YouTube's day of uploads and units begins, takes in what the filming could
  * not say, and the publish after it puts up what the day before had no room
- * for. The day's comments on the videos are read at 23:50 UTC (186).
+ * for. The day's comments on the videos are read first, at midnight in
+ * California, before that intake: the uploads that follow use up YouTube's
+ * day of units, and a reading at 23:50 UTC found none left on 4 to 9
+ * November 2026 (186, amended 2026-11-13).
  */
 export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   const t = new Date(scheduledTime);
@@ -74,8 +79,8 @@ export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   if (minute % 15 === 0) due.push(t.getUTCHours() === 3 && minute === 15 ? { key: 'v2-import', all: true } : { key: 'v2-import' });
   if (t.getUTCHours() === 4 && minute === 5) due.push({ key: 'fold-canary' });
   if (t.getUTCHours() === 4 && minute === 35) due.push({ key: 'blob-reconcile' });
+  if (pacificHour(t) === 0 && minute === 0) due.push({ key: 'tutorial-comments' });
   if (pacificHour(t) === 0 && minute === 5) due.push({ key: 'tutorial-intake' });
-  if (t.getUTCHours() === 23 && minute === 50) due.push({ key: 'tutorial-comments' });
   return due;
 }
 
@@ -244,6 +249,8 @@ export function jobEnv(key: JobKey, s: JobSettings): { env: Record<string, strin
     return { env: { ...env, YOUTUBE_CLIENT_ID: s.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: s.YOUTUBE_CLIENT_SECRET,
       ...(s.LINEAR_API_KEY ? { LINEAR_API_KEY: s.LINEAR_API_KEY } : {}) } };
   }
+  // The export reads files and puts its zip in R2 through the Worker.
+  if (key === 'org-export') return s.API_URL ? { env: { ...env, API_URL: s.API_URL } } : { refuse: 'org export: API_URL not set on the Worker' };
   // The intake reads the public release itself and puts the films through the Worker.
   if (key === 'tutorial-intake') return s.API_URL ? { env: { ...env, API_URL: s.API_URL } } : { refuse: 'tutorial intake: API_URL not set on the Worker' };
   if (s.V2_IMPORT_ENABLED !== 'true') return { skip: 'disabled' };

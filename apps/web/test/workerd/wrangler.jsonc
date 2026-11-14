@@ -1,0 +1,9 @@
+{
+  // nearbyWorkerd.test.ts's Worker: the nearby signer under workerd, with the
+  // app Worker's compatibility date and flags (a test holds them equal) and
+  // nothing else, so wrangler does not read apps/web/wrangler.jsonc above it.
+  "name": "nearby-workerd-test",
+  "main": "nearbyEntry.ts",
+  "compatibility_date": "2026-09-29",
+  "compatibility_flags": ["nodejs_compat"]
+}

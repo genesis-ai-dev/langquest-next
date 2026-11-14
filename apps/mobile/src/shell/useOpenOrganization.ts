@@ -20,8 +20,12 @@ export interface Arrival { orgId: string; languageId: string; unitId?: string }
  * until this account's organization is known: a guest, or an account in no
  * organization, syncs nothing. Opening a placeholder instead asked the
  * server for an organization this person is not in.
+ *
+ * A local person (docs/nearby-sync-plan.md 14.1, 5) opens `localOrg`, the organization their
+ * chain names, and the server's list is never asked for them: they have no session to ask with.
+ * It is remembered, so after first contact the same organization stays open.
  */
-export function useOpenOrganization(actorId: string, signedIn: boolean) {
+export function useOpenOrganization(actorId: string, signedIn: boolean, localOrg: string | null = null) {
   const [orgId, setOrgId] = useState<string | null>(null);
   const [decided, setDecided] = useState(false);
   const [selectionRevision, setSelectionRevision] = useState(0);
@@ -41,6 +45,11 @@ export function useOpenOrganization(actorId: string, signedIn: boolean) {
     let unwake = () => {};
     void (async () => {
       if (!signedIn) return;
+      if (localOrg) {
+        await AsyncStorage.setItem(key, JSON.stringify({ orgId: localOrg }));
+        if (active) setOrgId(localOrg);
+        return;
+      }
       const raw = await AsyncStorage.getItem(key);
       // Saved before decision 34 as { orgId, languageId }: the org is what counts.
       const saved = raw ? (JSON.parse(raw) as { orgId?: string }).orgId : undefined;
@@ -75,7 +84,7 @@ export function useOpenOrganization(actorId: string, signedIn: boolean) {
     })().catch((e: unknown) => { reportError('restore organization', e); })
       .finally(() => { if (active) setDecided(true); });
     return () => { active = false; if (timer) clearTimeout(timer); unwake(); };
-  }, [key, signedIn, failures]);
+  }, [key, signedIn, failures, localOrg]);
   // Help audio is the app's, not an organization's; its downloads are tallied under the one open here.
   useEffect(() => { setHelpAudioOrg(orgId); }, [orgId]);
   const openOrganization: Ctx['openOrganization'] = useCallback(async (next, open) => {

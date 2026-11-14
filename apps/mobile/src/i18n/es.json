@@ -354,7 +354,11 @@
     "cluster_home": "Grupo",
     "global_viewer": "Observador global",
     "forgot_password": "Olvidé mi contraseña",
-    "new_password": "Contraseña nueva"
+    "new_password": "Contraseña nueva",
+    "share_nearby": "Compartir cerca",
+    "let_someone_in": "Dejar entrar a alguien",
+    "join_offline": "Unirse sin internet",
+    "get_install_file": "Conseguir el archivo de instalación"
   },
   "native": {
     "microphone": "LangQuest graba tu voz para traducir pasajes.",
@@ -740,7 +744,6 @@
       "newLanguage": "Nuevo idioma",
       "noLanguages": "Todavía no hay idiomas. Agrega el primero que grabará tu equipo.",
       "openToBring": "Ábrelo para traerlo a este dispositivo",
-      "newLanguageOrCluster": "Idioma o grupo nuevo",
       "inviteHelp": "Elige qué hará y luego muéstrale un código para escanear.",
       "languageHelp": "Abre su página: prepáralo, ve su trabajo y su gente.",
       "licenseHelp": "La licencia del trabajo de tu equipo. Configuración dice qué permite.",
@@ -2890,6 +2893,17 @@
       "changes_other": "{{count, number}} cambios",
       "latestBy": "el último por {{name}}, {{when}}",
       "playExplanation": "Reproducir la explicación",
+      "examples": "Dígalo en {{language}}",
+      "examplesCount": "Grabados: {{count, number}} de {{want, number}}",
+      "wayN": "Forma {{n, number}}",
+      "recordThisWay": "Grabar esta forma",
+      "recordAgain": "Grabar esta forma otra vez",
+      "addWay": "Agregar otra forma de decirla",
+      "addWayHelp": "Agregue otra forma en que su equipo dice esta palabra en otro lugar, por ejemplo cuando significa otra cosa.",
+      "wayUsedIn": "Usada en",
+      "wayPassageHelp": "Abrir {{passage}} para oír esta forma en su lugar",
+      "playExample": "Reproducir el ejemplo {{n, number}}",
+      "exampleSaved": "Ejemplo guardado",
       "openVersion": "Abrir la versión {{n, number}}",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Registrado como parte de {{passage}} y ligado a tu borrador.",
@@ -2967,7 +2981,11 @@
       "createAccountHelp": "Abre un formulario para tu correo y una contraseña nueva.",
       "browseHelp": "Ve el trabajo de traducción que las organizaciones comparten públicamente. No necesitas cuenta.",
       "forgot": "¿Olvidaste tu contraseña?",
-      "forgotHelp": "Abre una página donde recibes un enlace por correo para elegir una contraseña nueva."
+      "forgotHelp": "Abre una página donde recibes un enlace por correo para elegir una contraseña nueva.",
+      "localHere": "Alguien se unió al equipo en este teléfono sin internet. Nadie más puede iniciar sesión aquí hasta que su teléfono se conecte a internet una vez.",
+      "joiningTitle": "{{name}} se está uniendo en este teléfono",
+      "goOnJoining": "Seguir uniéndose",
+      "goOnJoiningHelp": "Abre la pantalla que termina de unirte al equipo desde el teléfono de un compañero."
     },
     "terms": {
       "title": "Términos y privacidad",
@@ -3096,7 +3114,9 @@
       "notNowHelp": "Olvida esta invitación y vuelve a tu trabajo.",
       "whoJoins": "¿Quién se une?",
       "someoneNew": "Alguien nuevo",
-      "someoneNewHelp": "Para alguien que aún no está en este teléfono: una cuenta nueva. Después, escribe su nombre."
+      "someoneNewHelp": "Para alguien que aún no está en este teléfono: una cuenta nueva. Después, escribe su nombre.",
+      "joinNotGuest": "Este código permite que un teléfono nuevo se una a un equipo. Este teléfono ya tiene a alguien.",
+      "localJoined": "Listo. Tu trabajo llega al servidor como tuyo."
     },
     "signInKey": {
       "notGuestTitle": "Este es un código para iniciar sesión",
@@ -3112,6 +3132,7 @@
       "notValid": "Este código no es válido.",
       "expiredOrUsed": "Este código venció o ya se usó. Pide uno nuevo.",
       "codeBusy": "No se pudo usar este código. Inténtalo de nuevo.",
+      "forSomeoneElse": "Este código se hizo para otra persona. Pide uno hecho para ti.",
       "scanElseHelp": "Deja este código y vuelve a abrir el escáner.",
       "signOutHelp": "Abre cerrar sesión, para que la persona de este código pueda entrar en este dispositivo.",
       "buttonHelp": "Inicia tu sesión en este dispositivo con este código. No hay nada que escribir.",
@@ -3324,7 +3345,10 @@
       "signInFailed": "Tu contraseña nueva ya está puesta. Inicia sesión con ella.",
       "changedTitle": "Contraseña cambiada",
       "changedBody": "De ahora en adelante, {{email}} inicia sesión con la contraseña nueva.",
-      "doneHelp": "Vuelve a tu pantalla de inicio."
+      "doneHelp": "Vuelve a tu pantalla de inicio.",
+      "lost": "Perdí un teléfono mío o me lo quitaron",
+      "lostSub": "Los teléfonos de tus compañeros dejan de confiar en el trabajo de ese teléfono con fecha posterior a ahora, y tus otros teléfonos necesitan iniciar sesión de nuevo para compartir cerca.",
+      "lostLetIn": "Si dejaste entrar desde ese teléfono a alguien que todavía no se ha conectado a internet, el servidor lo rechazará. Su trabajo se queda en su teléfono, y alguien que pueda invitar personas puede dejarlo entrar de nuevo con una invitación."
     }
   },
   "account": {
@@ -3343,7 +3367,8 @@
       "downloading": "Descargando actualización…",
       "downloadingPercent": "Descargando actualización… {{percent}}",
       "webReady": "Hay una versión nueva de LangQuest lista. Vuelve a cargar la página para usarla.",
-      "storeBuild": "versión de la tienda",
+      "storeBuild": "versión de la tienda {{version}}",
+      "noUpdate": "sin actualización",
       "updateBuild": "actualización {{id}}",
       "unknownBuild": "actualización desconocida"
     },
@@ -3464,7 +3489,33 @@
       "nameHelp": "Abre tu perfil, para cambiar el nombre que ve tu equipo.",
       "offlineHelp": "Muestra lo que guarda este dispositivo para trabajar sin conexión.",
       "tourHelp": "Abre tres tarjetas cortas sobre para qué sirve LangQuest.",
-      "moreHelp": "Abre los ajustes de tu contraseña, notificaciones, sincronización y cuenta. Un número indica cambios esperando para enviarse."
+      "moreHelp": "Abre los ajustes de tu contraseña, notificaciones, sincronización y cuenta. Un número indica cambios esperando para enviarse.",
+      "local": {
+        "title": "{{name}}, te uniste sin internet",
+        "letInBy": "{{name}} te dejó entrar desde su teléfono.",
+        "letIn": "Un compañero te dejó entrar desde su teléfono.",
+        "waiting": "Tu cuenta se crea la primera vez que este teléfono se conecte a internet. Hasta entonces, tu trabajo espera aquí.",
+        "joining": "Conectando con el servidor…",
+        "finishing": "Sesión iniciada. Terminando de preparar este teléfono…",
+        "needsCode": "Tu cuenta está lista. Inicia sesión como {{name}} con un código de alguien de tu equipo.",
+        "needsCodeLine": "Pide a un compañero que abra Ayudarle a iniciar sesión y luego escanea su código aquí.",
+        "keyLost": "Este teléfono perdió la clave con la que te dejaron entrar. Tu trabajo sigue aquí. Pide ayuda a alguien de tu equipo.",
+        "otherAccount": "Otra persona inició sesión en este teléfono. Tu trabajo sigue aquí.",
+        "refusedLine": "Tu trabajo está seguro en este teléfono. Pide una invitación a alguien que pueda invitar personas y luego escanéala aquí.",
+        "workSafe": "Tu trabajo se guarda en este teléfono y en los de tus compañeros hasta que llegue al servidor.",
+        "retry": "Intentar ahora",
+        "retryHelp": "Vuelve a preguntar al servidor ahora, si este teléfono tiene internet.",
+        "scan": "Escanear un código",
+        "scanHelp": "Abre el escáner para una invitación o el código de inicio de sesión de un compañero.",
+        "refused": {
+          "expired": "El servidor te rechazó: el pase con el que te dejaron entrar ya venció.",
+          "used": "El servidor te rechazó: el pase con el que te dejaron entrar ya se usó.",
+          "off": "El servidor te rechazó: tu organización tiene desactivado unirse sin internet.",
+          "notFound": "El servidor te rechazó: no conoce el pase con el que te dejaron entrar.",
+          "retired": "El servidor te rechazó: tu rol ya no se usa, o el compañero que te dejó entrar ya no puede darlo.",
+          "other": "El servidor te rechazó."
+        }
+      }
     },
     "more": {
       "noEmail": "Todavía no hay correo",
@@ -3505,6 +3556,16 @@
       "blockedCount_other": "{{count, number}} personas",
       "deleteAccount": "Eliminar cuenta",
       "deleteSub": "Tu cuenta y tu nombre, para siempre",
+      "removeMe": "Quitarme de este teléfono",
+      "removeMeSub": "En lugar de cerrar sesión: este teléfono te olvida",
+      "removeMeHelp": "Primero pregunta. Luego este teléfono te olvida y vuelve a Iniciar sesión.",
+      "removeMeTitle": "¿Quitar a {{name}} de este teléfono?",
+      "removeMeUnsent": "Aún sin enviar desde este teléfono: {{things}}. Si el teléfono de un compañero no lo llevó, se perderá.",
+      "removeMeBody": "Este teléfono te olvida a ti y a tu clave, y vuelve a Iniciar sesión. Para trabajar aquí otra vez, alguien tiene que dejarte entrar de nuevo, como una persona nueva.",
+      "removeMeButton": "Quitarme",
+      "removing": "Quitando…",
+      "lostPhoneSub": "Te envía por correo un enlace para elegir una contraseña nueva y dejar de confiar en ese teléfono",
+      "lostPhoneSent": "Enlace enviado a {{email}}. Ábrelo, elige una contraseña nueva y activa “Perdí un teléfono mío o me lo quitaron”.",
       "testing": "Pruebas",
       "personaSub": "Iniciar sesión como traductor, revisor o administrador de prueba",
       "syncHelp": "Muestra lo que espera para enviarse o descargarse. Un número indica cambios esperando para enviarse.",
@@ -4043,7 +4104,11 @@
         "askedWho": "se pidió a {{who}}",
         "asked": "pedido",
         "next": "sigue",
-        "afterDone": "cuando termines"
+        "afterDone": "cuando termines",
+        "made": "hecha",
+        "checked": "revisada",
+        "afterMade": "después de hacerla",
+        "checkedBy": "en la {{check}}"
       },
       "help": {
         "study": "Hagan juntos la guía de estudio antes de grabar. Nada depende de esto.",
@@ -4063,7 +4128,9 @@
         "checkpoint": "El candado: debe aprobarse antes de los pasos siguientes."
       },
       "thenTheTeam": "Luego el equipo",
-      "teamHears": "Luego el equipo puede escucharla"
+      "teamHears": "Luego el equipo puede escucharla",
+      "makeIt": "{{what}} · hacerla",
+      "checkIt": "{{what}} · revisarla"
     },
     "quote": "“{{text}}”",
     "journey": {
@@ -8323,5 +8390,28 @@
       "badItem": "Elige uno de tus propios elementos del mismo tipo.",
       "offline": "No se pudo conectar con LangQuest. Revisa tu conexión e inténtalo de nuevo."
     }
+  },
+  "orgExport": {
+    "title": "Exportar todos los datos",
+    "sub": "Un zip: grabaciones en carpetas, una lista de cada grabación, hojas de progreso y el registro completo.",
+    "whole": "Toda la organización",
+    "some": "Solo algunos idiomas",
+    "start": "Crear el zip",
+    "waiting": "Esperando para empezar",
+    "reading": "Leyendo la organización",
+    "audio": "Añadiendo grabaciones: {{done}} de {{total}}",
+    "log": "Añadiendo el registro completo",
+    "ready": "Listo para descargar",
+    "download": "Descargar",
+    "failed": "La exportación no terminó. Inténtalo de nuevo.",
+    "started": "La exportación ha empezado.",
+    "problem": "No se pudo iniciar la exportación.",
+    "expired": "Eliminado después de 7 días.",
+    "keep": "Un zip terminado se conserva 7 días.",
+    "help": "Abre una página para descargar todos los datos de la organización en un zip.",
+    "wholeHelp": "Exporta todos los idiomas de la organización.",
+    "someHelp": "Elige qué idiomas exportar.",
+    "languageHelp": "Incluye u omite este idioma.",
+    "downloadHelp": "Descarga el zip terminado."
   }
 }

@@ -12,7 +12,10 @@ tags:
 - extendedWaitUntil:
     visible: "Email or sign-in name"
     timeout: 60000
-- openLink: "langquestnext://invite?org=org-ui-made-up&token=5f0c1a7e9d2b4c6e8a0f1b3d5c7e9a1b2c4d6e8f0a1b3c5d7e9f0a2b4c6d8e0f"
+- runFlow:
+    file: ../common/open-link.yaml
+    env:
+      LINK: "langquestnext://invite?org=org-ui-made-up&token=5f0c1a7e9d2b4c6e8a0f1b3d5c7e9a1b2c4d6e8f0a1b3c5d7e9f0a2b4c6d8e0f"
 - extendedWaitUntil:
     visible: "Invitation to join an organization"
     timeout: 30000
