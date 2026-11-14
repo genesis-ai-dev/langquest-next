@@ -121,10 +121,17 @@ await tab.evaluate(() => document.fonts.ready);
 // A camera that moves in fades the title (and the app's mark) out as it goes, so the ends of its words never show at
 // the edge of a close shot, and back in whenever it goes out: the title is a picture of its own over the page.
 const heading = tab.locator(WIDE ? '#title' : '.side');
+// The picture takes in more than the title's boxes: a letter can reach past its line's box (the tail of the g in
+// "language" was cut flat, as in 22 of the 46 English titles; a YouTube viewer saw it, 2026-11-12), and Thai or Burmese
+// marks reach further. Around it is clear, so the picture is cut 0.6 of the biggest letters' size out, within the page.
 const title = K > 1 ? await heading.evaluate((el) => {
-  const boxes = (el.id === 'title' ? [el] : [...el.children]).map((c) => c.getBoundingClientRect());
-  const [x, y] = [Math.floor(Math.min(...boxes.map((b) => b.left))), Math.floor(Math.min(...boxes.map((b) => b.top)))];
-  return { x, y, width: Math.ceil(Math.max(...boxes.map((b) => b.right))) - x, height: Math.ceil(Math.max(...boxes.map((b) => b.bottom))) - y };
+  const parts = el.id === 'title' ? [el] : [...el.children];
+  const boxes = parts.map((c) => c.getBoundingClientRect());
+  const room = Math.ceil(0.6 * Math.max(...parts.map((c) => parseFloat(getComputedStyle(c).fontSize))));
+  const page = document.documentElement.getBoundingClientRect();
+  const [x, y] = [Math.max(0, Math.floor(Math.min(...boxes.map((b) => b.left))) - room), Math.max(0, Math.floor(Math.min(...boxes.map((b) => b.top))) - room)];
+  const [right, bottom] = [Math.min(page.width, Math.ceil(Math.max(...boxes.map((b) => b.right))) + room), Math.min(page.height, Math.ceil(Math.max(...boxes.map((b) => b.bottom))) + room)];
+  return { x, y, width: right - x, height: bottom - y };
 }) : undefined;
 if (title) await heading.evaluate((el) => { el.style.visibility = 'hidden'; });
 await tab.screenshot({ path: path.join(work, 'page.png') });

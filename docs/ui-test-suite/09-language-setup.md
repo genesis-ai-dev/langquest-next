@@ -314,7 +314,7 @@ Preconditions (in addition to the global ones):
 - Resets: adds a language "Charlie {run}".
 
 Steps:
-1. Open Org home and tap "New language or cluster". Read the six steps,
+1. Open Org home and tap "New language". Read the six steps,
    then tap "Start". Leave "One language" chosen under "What are you
    adding?".
 2. Type "Charlie {run}" in "Its name". Do not pick a list entry. Type
@@ -680,7 +680,7 @@ Preconditions (in addition to the global ones):
   ungroups the cluster, so Bravo ends as it began.
 
 Steps:
-1. Open Org home, tap "New language or cluster", then "Start".
+1. Open Org home, tap "New language", then "Start".
 2. Tap "A cluster of languages". Type "Cluster {run}" in "The cluster's
    name".
 3. Type "Kilo {run}" in "Add a language" and tap "Add “Kilo {run}”" (the
