@@ -1,6 +1,10 @@
 // "Work without internet", for everyone: Grace sees what her phone keeps, the
-// internet goes, she records a part anyway, and it is sent by itself when the
-// internet comes back.
+// phone loses the internet, she records a part anyway, and it is sent by
+// itself when the internet comes back.
+// A YouTube viewer (2026-11-12) asked what "the internet goes" means, and
+// heard overlong pauses: a line that only explains moves on as soon as it is
+// said (stay 0), and each tap while recording is said, so no tap goes by in
+// four seconds of quiet.
 import type { Page } from 'playwright';
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
@@ -22,7 +26,8 @@ export const workWithoutInternet: Tutorial = {
       screen: 'my_work',
       part: (page) => cloud(page, /^Live/),
       say: 'LangQuest works without internet. This cloud shows whether you are connected. A green dot means your work is sent as you go.',
-      help: 'help.sync.live'
+      help: 'help.sync.live',
+      stay: 0
     },
     {
       screen: 'my_work',
@@ -35,7 +40,8 @@ export const workWithoutInternet: Tutorial = {
     {
       screen: 'settings_home',
       part: (page) => button(page, /^Ready for offline/),
-      say: 'Ready for offline shows how many passages this phone keeps, to work on anywhere.'
+      say: 'Ready for offline shows how many passages this phone keeps, to work on anywhere.',
+      stay: 0
     },
     {
       screen: 'settings_home',
@@ -49,8 +55,9 @@ export const workWithoutInternet: Tutorial = {
       screen: 'my_work',
       first: (page) => page.context().setOffline(true),
       part: (page) => cloud(page, /^Offline/),
-      say: 'When the internet goes, the dot turns amber. Keep working. Everything you do is kept on this phone.',
-      help: 'help.sync.offline'
+      say: 'When there is no internet, the dot turns amber. Keep working. Everything you do is kept on this phone.',
+      help: 'help.sync.offline',
+      stay: 0
     },
     {
       screen: 'my_work',
@@ -63,6 +70,7 @@ export const workWithoutInternet: Tutorial = {
     {
       screen: 'passage_record',
       part: (page) => id(page, 'primary-action'),
+      say: 'Tap Record.',
       tap: true,
       until: (page) => shows(page, 'record-button'),
       stay: 0.6
@@ -70,6 +78,7 @@ export const workWithoutInternet: Tutorial = {
     {
       screen: 'workspace',
       part: (page) => id(page, 'record-button'),
+      say: 'Tap the red button and speak.',
       tap: true,
       speak: 0
     },
@@ -77,6 +86,7 @@ export const workWithoutInternet: Tutorial = {
       screen: 'workspace',
       atSpeech: 8.9,
       part: (page) => id(page, 'record-button'),
+      say: "Tap stop when you've finished.",
       tap: true,
       until: (page) => shows(page, 'live-part-1'),
       stay: 0.6
@@ -93,12 +103,14 @@ export const workWithoutInternet: Tutorial = {
       screen: 'workspace',
       part: (page) => id(page, 'saved-mark'),
       say: 'This tick means your recording is kept on this phone.',
-      help: 'saved.draftHelp'
+      help: 'saved.draftHelp',
+      stay: 0
     },
     {
       screen: 'workspace',
       part: (page) => id(page, 'upload-bar'),
-      say: 'This bar says what is waiting to upload.'
+      say: 'This bar says what is waiting to upload.',
+      stay: 0
     },
     {
       // Back online as the line starts, so the bar goes up while it is said; then it is all uploaded, and goes.
