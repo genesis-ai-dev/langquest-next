@@ -3657,7 +3657,8 @@
       "downloading": "جارٍ تنزيل التحديث…",
       "downloadingPercent": "جارٍ تنزيل التحديث… {{percent}}",
       "webReady": "نسخة جديدة من LangQuest جاهزة. أعد تحميل الصفحة لتستخدمها.",
-      "storeBuild": "إصدار المتجر",
+      "storeBuild": "إصدار المتجر {{version}}",
+      "noUpdate": "لا يوجد تحديث",
       "updateBuild": "التحديث {{id}}",
       "unknownBuild": "تحديث غير معروف"
     },
@@ -4435,7 +4436,11 @@
         "askedWho": "طُلب من {{who}}",
         "asked": "تم الطلب",
         "next": "التالي",
-        "afterDone": "بعد أن تنتهي"
+        "afterDone": "بعد أن تنتهي",
+        "made": "تمّت",
+        "checked": "روجعت",
+        "afterMade": "بعد إنجازها",
+        "checkedBy": "في {{check}}"
       },
       "help": {
         "study": "مرّوا معًا على دليل الدراسة قبل أن تسجّلوا. لا شيء ينتظره.",
@@ -4455,7 +4460,9 @@
         "checkpoint": "القفل: يجب أن تنجح قبل الخطوات التي بعدها."
       },
       "thenTheTeam": "ثم الفريق",
-      "teamHears": "ثم يمكن للفريق سماعه"
+      "teamHears": "ثم يمكن للفريق سماعه",
+      "makeIt": "{{what}} · إنجازها",
+      "checkIt": "{{what}} · مراجعتها"
     },
     "quote": "“{{text}}”",
     "journey": {

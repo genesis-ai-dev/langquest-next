@@ -3354,7 +3354,8 @@
       "downloading": "Descargando actualización…",
       "downloadingPercent": "Descargando actualización… {{percent}}",
       "webReady": "Hay una versión nueva de LangQuest lista. Vuelve a cargar la página para usarla.",
-      "storeBuild": "versión de la tienda",
+      "storeBuild": "versión de la tienda {{version}}",
+      "noUpdate": "sin actualización",
       "updateBuild": "actualización {{id}}",
       "unknownBuild": "actualización desconocida"
     },
@@ -4054,7 +4055,11 @@
         "askedWho": "se pidió a {{who}}",
         "asked": "pedido",
         "next": "sigue",
-        "afterDone": "cuando termines"
+        "afterDone": "cuando termines",
+        "made": "hecha",
+        "checked": "revisada",
+        "afterMade": "después de hacerla",
+        "checkedBy": "en la {{check}}"
       },
       "help": {
         "study": "Hagan juntos la guía de estudio antes de grabar. Nada depende de esto.",
@@ -4074,7 +4079,9 @@
         "checkpoint": "El candado: debe aprobarse antes de los pasos siguientes."
       },
       "thenTheTeam": "Luego el equipo",
-      "teamHears": "Luego el equipo puede escucharla"
+      "teamHears": "Luego el equipo puede escucharla",
+      "makeIt": "{{what}} · hacerla",
+      "checkIt": "{{what}} · revisarla"
     },
     "quote": "“{{text}}”",
     "journey": {

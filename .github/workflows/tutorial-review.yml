@@ -64,6 +64,8 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
+          # A scheduled run starts as the merge queue, the last to change this file.
+          allowed_bots: github-merge-queue
           prompt: |
             Use the tutorial-review skill (.agents/skills/tutorial-review/SKILL.md). What is open is in .tutorial-review/state.json and the changes merged into main since the last look are in .tutorial-review/changes.json. Write your look to .tutorial-review/review.json, as the skill says, and nothing else.
           claude_args: --allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"

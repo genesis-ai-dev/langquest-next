@@ -3152,7 +3152,8 @@
       "downloading": "Mengunduh pembaruan…",
       "downloadingPercent": "Mengunduh pembaruan… {{percent}}",
       "webReady": "Versi baru LangQuest sudah siap. Muat ulang untuk memakainya.",
-      "storeBuild": "versi toko aplikasi",
+      "storeBuild": "versi toko aplikasi {{version}}",
+      "noUpdate": "tidak ada pembaruan",
       "updateBuild": "pembaruan {{id}}",
       "unknownBuild": "pembaruan tidak diketahui"
     },
@@ -3800,7 +3801,11 @@
         "askedWho": "meminta {{who}}",
         "asked": "diminta",
         "next": "berikutnya",
-        "afterDone": "setelah Anda selesai"
+        "afterDone": "setelah Anda selesai",
+        "made": "sudah dibuat",
+        "checked": "sudah diperiksa",
+        "afterMade": "setelah dibuat",
+        "checkedBy": "di {{check}}"
       },
       "help": {
         "study": "Lalui panduan studi bersama sebelum Anda merekam. Tidak ada yang menunggu langkah ini.",
@@ -3820,7 +3825,9 @@
         "checkpoint": "Gembok: tahap ini harus lulus sebelum tahap-tahap sesudahnya."
       },
       "thenTheTeam": "Lalu tim",
-      "teamHears": "Lalu tim bisa mendengarnya"
+      "teamHears": "Lalu tim bisa mendengarnya",
+      "makeIt": "{{what}} · buat",
+      "checkIt": "{{what}} · periksa"
     },
     "quote": "“{{text}}”",
     "journey": {
