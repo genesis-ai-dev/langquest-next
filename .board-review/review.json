@@ -1,0 +1,23 @@
+{
+  "kind": "needs_you",
+  "ask": "Can you close the empty draft pull request for LAN-225?",
+  "problem": "File downloads from the server failed with a server error 5 times in one day. No one reported it, and retrying probably worked.",
+  "found": "No download errors in the latest hour and a half. The nightly file check is clean. The cause stays unknown, likely a brief storage fault.",
+  "changed": "Nothing. You chose to wait and watch, so I wrote no code.",
+  "why": "No specific error showed, so a fix would be a guess. If errors grow again, we look at the server logs then.",
+  "touches": "Nothing else.",
+  "pictures": [],
+  "links": [
+    {
+      "label": "Draft pull request",
+      "url": "https://github.com/genesis-ai-dev/langquest-next/pull/366"
+    },
+    {
+      "label": "Linear issue LAN-225",
+      "url": "https://linear.app/frontierrandd/issue/LAN-225"
+    }
+  ],
+  "guess": {
+    "answer": "looks_good"
+  }
+}
