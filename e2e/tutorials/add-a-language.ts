@@ -27,7 +27,7 @@ export const addALanguage: Tutorial = {
     },
     {
       screen: 'org_home',
-      part: (page) => words(page, 'New language or cluster'),
+      part: (page) => words(page, 'New language'),
       say: "Your organization's languages are here. Tap New language.",
       tap: true,
       until: until('6 steps'),
