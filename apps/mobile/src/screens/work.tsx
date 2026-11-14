@@ -346,7 +346,8 @@ export function MyWork(ctx: Ctx) {
   const shown = moreShown ? items : items.slice(0, THEN_CAP);
   const listLabel = lead && !getReady && !addLanguage && !suggested ? t('work.list.then') : t('work.list.alsoForYou');
   const nothing = !lead && items.length === 0;
-  const empty = nothing ? workEmpty({ open: languageId, pulled: ctx.language.pulled, online: ctx.language.online, loaded: true, passages: idx.passages.length, gettingReady: !!getReady }) : null;
+  // Not on this phone is said even beside a join request or another language's news: those are the organization's (LAN-251).
+  const empty = workEmpty({ open: languageId, pulled: ctx.language.pulled, online: ctx.language.online, loaded: true, passages: idx.passages.length, gettingReady: !!getReady, others: (lead ? 1 : 0) + items.length });
   return (
     <Screen header={header}>
       {lead}

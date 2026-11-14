@@ -527,9 +527,12 @@ test('NAV-022 TRANS is not offered to divide a book', async ({ browser }) => {
 
 test('NAV-023 COORD Offline, a language this phone has not brought down', async ({ browser }) => {
   // COORD's phone has opened only Bravo; Alpha is set up, with passages and work, but not on this phone (UI audit, finding 79).
+  // A join request waits too (NAV-019): the notice must show beside it, not only on an empty screen (LAN-251).
+  await joinRequest();
   const context = await browser.newContext({ viewport: { width: 430, height: 932 } });
   const page = await context.newPage();
   await open(page, 'COORD', { language: 'B' });
+  await expect(text(page, 'Nora Noorg wants to join')).toBeVisible();
   await context.setOffline(true);
   await tab(page, 'map').click();
   // Progress names Alpha as not on this device yet.
@@ -537,7 +540,8 @@ test('NAV-023 COORD Offline, a language this phone has not brought down', async 
   await expect(text(page, "Alpha isn't on this device yet")).toBeVisible();
   await tab(page, 'work').click();
   await expect.poll(() => headerTitle(page)).toBe('My Work');
-  await expect(text(page, "Alpha isn't on this device yet")).toBeVisible();
+  // On My Work itself, beside the join request: the Map's copy of the notice can still count as visible.
+  await expect.poll(() => screen(page)).toMatch(/Alpha isn't on this device yet.*Nora Noorg wants to join/);
   // Not caught up, and not unset: Get ready would ask what Alpha has already answered.
   await expect(text(page, 'Nothing is waiting on you')).toHaveCount(0);
   await expect(text(page, /^Get Alpha ready/)).toHaveCount(0);
