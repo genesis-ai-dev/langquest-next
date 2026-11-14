@@ -1,0 +1,12 @@
+{
+  "kind": "needs_you",
+  "ask": "Do you want to merge this pull request?",
+  "problem": "People with no password must pick a picture and draw a pattern when they first sign out. You asked if they could skip it.",
+  "found": "The failed gate came from an older run that a newer push cancelled. The newest run passed every needed check.",
+  "changed": "No app change. You chose to keep both required, so only the decision log notes your answer.",
+  "why": "Both steps are the only offline way back in for people with no password. The pull request holds just that note.",
+  "touches": "Nothing else. No store answers change.",
+  "pictures": [],
+  "links": [{"label": "Pull request", "url": "https://github.com/genesis-ai-dev/langquest-next/pull/367"}],
+  "guess": {"answer": "looks_good"}
+}
