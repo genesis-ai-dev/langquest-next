@@ -40,10 +40,10 @@ function linkParams(raw: string, path: 'invite' | 'signin'): string | null {
 }
 
 /**
- * The hosts the app's links are made at: the two it declares for universal links and app links (app.json,
+ * The hosts the app's links are made at: the ones it declares for universal links and app links (app.json,
  * associatedDomains and intentFilters) and the address this build was given (appUrl.ts).
  */
-const DECLARED_HOSTS = ['next.langquest.org', 'next-preview.langquest.org'];
+const DECLARED_HOSTS = ['app.langquest.org', 'next.langquest.org', 'next-preview.langquest.org'];
 function appHosts(): Set<string> {
   const hosts = new Set(DECLARED_HOSTS);
   try {
@@ -107,10 +107,68 @@ export function parseResetKey(input: string): { code: string } | null {
   return m?.[1] ? { code: m[1].toLowerCase() } : null;
 }
 
-/** Every key the one scanner reads: an invite (link or bare code), a sign-in key or a Forgot password link. */
-type ScannedKey = { kind: 'invite'; token: string; orgId?: string } | { kind: 'signin'; code: string } | { kind: 'reset'; code: string };
+/**
+ * A teammate's Let someone in code (docs/nearby-sync-plan.md 14.1, 3): only how to reach the
+ * inviter's phone, a one-time secret and a pin on its opening, so a photo of it gives nobody a
+ * pass, a chain or a key (Carl's answer 21). Wi-Fi Direct or a hotspot, its network name and
+ * passphrase, the port, `k` (16 random bytes the link's keys come from) and `c` (the first 16
+ * bytes of SHA-256 of the inviter's opening, which the newcomer's phone holds the opening to).
+ */
+export interface JoinCode {
+  kind: 'join';
+  network: 'wifi-direct' | 'hotspot';
+  ssid: string;
+  passphrase: string;
+  port: number;
+  /** `k`, base64url. */
+  secret: string;
+  /** `c`, base64url. */
+  pin: string;
+}
+
+const B64URL_16 = /^[A-Za-z0-9_-]{21}[AQgw]$/;
+
+/**
+ * `langquestnext://join?v=1&t=<kind>&s=<network name>&p=<passphrase>&h=<port>&k=<secret>&c=<pin>`,
+ * the app's scheme only: an https form would need app.json's intent filters and a web page, and
+ * nothing needs them offline. Strict, unlike an invite: it is only ever scanned, never typed.
+ */
+export function joinUri(code: Omit<JoinCode, 'kind'>): string {
+  const q = [['v', '1'], ['t', code.network], ['s', code.ssid], ['p', code.passphrase], ['h', String(code.port)], ['k', code.secret], ['c', code.pin]];
+  return `langquestnext://join?${q.map(([k, v]) => `${k}=${encodeURIComponent(v!)}`).join('&')}`;
+}
+
+export function parseJoinCode(input: string): JoinCode | null {
+  const m = /^langquestnext:\/\/join\?([^#\s]*)$/i.exec(input.trim());
+  if (!m) return null;
+  const params = new Map<string, string>();
+  for (const part of m[1]!.split('&')) {
+    const at = part.indexOf('=');
+    if (at < 1) return null;
+    const key = part.slice(0, at);
+    if (params.has(key)) return null;
+    try { params.set(key, decodeURIComponent(part.slice(at + 1))); } catch { return null; }
+  }
+  const t = params.get('t');
+  const ssid = params.get('s') ?? '';
+  const passphrase = params.get('p') ?? '';
+  const port = Number(params.get('h'));
+  const secret = params.get('k') ?? '';
+  const pin = params.get('c') ?? '';
+  if (params.get('v') !== '1' || (t !== 'wifi-direct' && t !== 'hotspot')) return null;
+  // A Wi-Fi network's name is 1 to 32 bytes, a WPA passphrase 8 to 63 characters.
+  if (ssid.length < 1 || ssid.length > 32 || passphrase.length < 8 || passphrase.length > 63) return null;
+  if (!/^[1-9][0-9]{0,4}$/.test(params.get('h') ?? '') || port > 65535) return null;
+  if (!B64URL_16.test(secret) || !B64URL_16.test(pin)) return null;
+  return { kind: 'join', network: t, ssid, passphrase, port, secret, pin };
+}
+
+/** Every key the one scanner reads: an invite (link or bare code), a sign-in key, a Forgot password link or a Let someone in code. */
+export type ScannedKey = { kind: 'invite'; token: string; orgId?: string } | { kind: 'signin'; code: string } | { kind: 'reset'; code: string } | JoinCode;
 
 export function parseKey(input: string): ScannedKey | null {
+  const join = parseJoinCode(input);
+  if (join) return join;
   const reset = parseResetKey(input);
   if (reset) return { kind: 'reset', ...reset };
   const signin = parseSignInKey(input);

@@ -30,6 +30,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   request_access: { rpcs:['create_join_request','listed_organizations','listed_organizations_search'] },
   scan_qr: { emits:['v1.TermsAccepted'],rpcs:['preview_invite','redeem_invite_v2','my_organizations','record_user_event'] },
   // Forgot password goes through the password-reset Edge Function only (decision 200); a new password signs in and accepts the terms.
+  // "A phone of mine was lost or taken" is `lost` on that same call, which revokes the person's nearby keys first.
   new_password: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   explore_home: { reads:['public_languages'] },
   // People asking to join show under a coordinator's Get ready card (decision 71).
@@ -113,7 +114,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   passage_reference: { emits:['v1.PassageReferenceLinked'],reads:['library','recommendedFor','passageLink','linkedTo','materialsFor','derivePassage','keyTermsForUnit'],rpcs:['library_get_documents'] },
   key_terms: { emits:['v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],reads:['keyTermsFor'] },
   // On a passage: its verses with the word, and other languages' words for it from their logs on this phone (demo ADR-042).
-  key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded'],reads:['keyTermView','keyTermsFor'] },
+  key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded','v1.KeyTermAudioRenderingAdded'],reads:['keyTermView','keyTermsFor'] },
   // Using a library flow for a language; Undo restores the flow and steps it had.
   flows_home: { emits:['v1.FlowSelected','v1.ReviewKindDefined','v1.FlowStepSet','v1.FlowStepRemoved',
     'v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
@@ -132,9 +133,17 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // A Global Viewer's tab (decision 158): their access, and every organization.
   global_viewer: { rpcs:['get_user_state','global_viewer_organizations'] },
   settings_home: { reads:['offlineSummary'],rpcs:['my_organizations'] },
-  // What Settings had beyond Me's five rows (decision 71).
+  // What Settings had beyond Me's five rows (decision 71). Its lost-phone row asks password-reset for a link, no RPC (decision 200).
   settings_more: { rpcs:['register_push_token','set_blocked','my_organizations'],reads:['user_blocks'] },
   sign_out_confirm: { rpcs:['unregister_push_token'] },
+  // Share nearby (docs/nearby-sync-plan.md 5.8): no event, no call; it reads who is on the language for Ready to carry.
+  share_nearby: { reads:['org.members'] },
+  // Let someone in and the new phone's progress (docs/nearby-sync-plan.md 14.1): no event and no call; membership comes at first contact.
+  let_someone_in: { reads:['org.roles'] },
+  join_offline: {},
+  // Get the install file (docs/nearby-sync-plan.md 14.4), from Share nearby, Let someone in and Sync's Ready for offline card: no event,
+  // no call; the browser gets the file, and the name is kept in a meta row.
+  get_install_file: {},
   delete_account: { rpcs:['delete_my_account'] },
   // Read from the app's Worker, not the local fold (decisions.md 44, 57).
   // A language's country and target go straight to the organization's

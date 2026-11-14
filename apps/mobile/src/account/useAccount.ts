@@ -3,6 +3,8 @@ import { SyncScheduler } from '@langquest-next/sync';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { reportError } from '../diagnostics/report';
+import { chainNamesHere, onChainNames, readChainNames } from './chainNames';
+import { withChainNames } from './chainNamesModel';
 import { accountOutbox, queueAccountAction } from './accountData';
 import { profileNameToSave } from '../auth/accounts';
 import type { AccountAction } from '@langquest-next/sync';
@@ -84,12 +86,14 @@ export function useProfileName(actorId: string, email: string | null) {
 
 /** Everyone's profile name this account may see; read again when `refresh` changes (someone joined). */
 export function useDisplayNames(actorId: string, refresh = '') {
-  const [names, setNames] = useState<Record<string, string>>(() => directories.get(actorId) ?? {});
+  const [names, setNames] = useState<Record<string, string>>(() => withChainNames(directories.get(actorId) ?? {}, chainNamesHere(actorId) ?? {}));
   useEffect(() => {
-    const hear = () => setNames(directories.get(actorId) ?? {});
+    const hear = () => setNames(withChainNames(directories.get(actorId) ?? {}, chainNamesHere(actorId) ?? {}));
     directoryListeners.add(hear);
+    const offChains = onChainNames(hear);
     hear();
-    return () => { directoryListeners.delete(hear); };
+    if (!chainNamesHere(actorId)) void readChainNames(actorId).then(hear).catch(() => undefined);
+    return () => { directoryListeners.delete(hear); offChains(); };
   }, [actorId]);
   useEffect(() => {
     let active = true;

@@ -168,7 +168,7 @@ describe('noticing files the device lost (decisions.md 92)', () => {
 
     store.remove([{ hash: a.hash, format: 'mp3' }]);
     expect(store.has(a.hash)).toBe(false);
-    store.reclaim([{ hash: b.hash, format: 'wav' }], { minFreeBytes: 0, maxTotalBytes: 0 });
+    store.reclaim([[{ hash: b.hash, format: 'wav' }]], { minFreeBytes: 0, maxTotalBytes: 0 });
     await store.settle();
     expect(order).toEqual([`forget ${a.hash} present`, `forget ${b.hash} present`]);
     expect(files.size).toBe(0);
@@ -180,19 +180,25 @@ describe('noticing files the device lost (decisions.md 92)', () => {
     expect(await again.lostFiles()).toEqual([]);
   });
 
-  it('reclaims largest first, only as much as it must', async () => {
+  it('reclaims in the order given, only as much as it must, and the cap leaves teammates\' files alone', async () => {
     const { files, web } = folder();
     const ledger = new MemoryFileLedger();
     const store = await start(web, ledger);
     const small = await store.ingestBytes(bytes('s'), 'wav');
     const big = await store.ingestBytes(bytes('b'.repeat(100)), 'wav');
     const mid = await store.ingestBytes(bytes('m'.repeat(50)), 'wav');
-    const all = [small, big, mid].map((f) => ({ hash: f.hash, format: 'wav' as const }));
-    // 151 bytes held, at most 60 allowed: the 100-byte file is enough.
-    expect(store.reclaim(all, { minFreeBytes: 0, maxTotalBytes: 60 })).toEqual([big.hash]);
-    expect(store.reclaim(all, { minFreeBytes: 0, maxTotalBytes: 60 })).toEqual([]);
+    const nearby = await store.ingestBytes(bytes('n'.repeat(500)), 'wav');
+    // Largest first, as the session hands level 1 over.
+    const all = [big, mid, small].map((f) => ({ hash: f.hash, format: 'wav' as const }));
+    const level2 = [{ hash: nearby.hash, format: 'wav' as const }];
+    const uncapped = new Set([nearby.hash]);
+    // 651 bytes held, 500 of them a teammate's; at most 60 allowed: the 100-byte file is enough, and the cap never reaches level 2.
+    expect(store.reclaim([all, level2], { minFreeBytes: 0, maxTotalBytes: 60, uncapped })).toEqual([big.hash]);
+    expect(store.reclaim([all, level2], { minFreeBytes: 0, maxTotalBytes: 60, uncapped })).toEqual([]);
+    expect(store.totalBytes(uncapped)).toBe(51);
+    expect(store.has(nearby.hash)).toBe(true);
     await store.settle();
-    expect([...files.keys()].sort()).toEqual([`${small.hash}.wav`, `${mid.hash}.wav`].sort());
+    expect([...files.keys()].sort()).toEqual([`${small.hash}.wav`, `${mid.hash}.wav`, `${nearby.hash}.wav`].sort());
   });
 
   it('without a ledger the store works as before and reports nothing', async () => {

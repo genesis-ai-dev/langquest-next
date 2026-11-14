@@ -13,7 +13,7 @@ export const GROUP_HELP: Record<string, string> = {
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
   safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
   phones: 'Everything phones and browsers tell us about themselves: syncs, errors and crashes, files, recording, signing in, which builds they run and how often each crashes, and phones that are stuck or have gone quiet. Counts and codes only, never content.',
-  releases: 'Where each new store build and over-the-air update is now, what is on main and whether CI passed, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
+  releases: 'Where each new store build and over-the-air update is now, what is on main and whether CI passed, how last night\'s tests went, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
   jobs: 'The server\'s own scheduled work: each job\'s runs and failures and whether it runs now (Run now starts one), the database\'s own timers (pg_cron), push notifications, and the import from LangQuest v2.',
   database: 'The database\'s health (connections, cache, deadlocks, slowest calls), where its space goes, long-open queries and transactions, and the Supabase project\'s services, logs and Edge Functions.',
   traffic: 'Requests each Cloudflare Worker answered in the last day with errors, CPU and its latest build, and the app Worker\'s requests by kind with how long they took and how many a limit refused.',
@@ -22,7 +22,7 @@ export const GROUP_HELP: Record<string, string> = {
   support: 'Work waiting on LangQuest staff: content reports (the Terms promise action within 24 hours), suspensions, deletions, feedback from the help button, and what was done from this page.',
   access: 'Who can see every organization (Global Viewers), limits that refused requests, other apps connected through tokens, device sign-ins, webhooks and review links, and what stops working on a date.',
   stores: 'How the app does in the stores: Android crash and freeze rates as Google Play measures them, App Store review state and builds, and recent reviews.',
-  tutorials: 'The how-to videos on YouTube, one channel for each app language: where tonight\'s filming is, which channels are connected, the videos made and not up yet (each wide one is chosen as it comes in and goes up at once), Publish, which puts up the ones ticked, 100 a day, and what Claude suggests each night from the comments, the code changes and the team\'s notes, to accept, edit or reject.'
+  tutorials: 'The how-to videos on YouTube, one channel for each app language. First what an admin must do and what the workers do now and tonight; then every video in a language with its state and a timeline of its films, uploads, comments and fixes; then each channel, the films not on YouTube yet with Publish, and what came in about the videos.',
 };
 
 /** Each part of a section (one source's answer), on its sub-heading. */
@@ -47,6 +47,7 @@ export const SECTION_HELP: Record<string, string> = {
   expiry: 'Tokens, certificates and other things that stop working on a date, soonest first. Warns at 30 days, a problem at 7.',
   capacity: 'How fast the database and the recordings bucket are growing against the plan\'s limits, and this month\'s Cloudflare usage against what the plan includes.',
   code: 'What is on main on GitHub, whether the latest CI runs passed, and whether the web app serves the newest commit.',
+  nightly: 'How last night\'s tests went, every suite together: the web UI suite, the fleet simulation and the mutation tests (guardrails.yml, 02:30 UTC), and the phone flows on an Android emulator and an iPhone simulator (phone-tests.yml, 08:30 UTC). Each failure has its Linear issue, with its error and screen. A failed test is a watch; a suite that broke, or a nightly that stopped running, is a problem.',
   cloudflare: 'Each Cloudflare Worker\'s requests, errors and CPU over the last day, and its latest deploy and build.',
   supabase: 'The LangQuest Next Supabase project\'s status, each service\'s health, Edge Functions, and error counts from its logs.',
   expo: 'App builds on EAS, store submissions, and the newest over-the-air update on each branch.',
@@ -56,10 +57,10 @@ export const SECTION_HELP: Record<string, string> = {
   appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',
   v2: 'The import from LangQuest v2: each v2 project\'s latest transfer, and whether it finished, stopped part way or failed.',
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
-  filming: 'Where the filming is: the run of tutorials.yml on GitHub filming now, or the latest. It starts at 20:10 UTC each night and when a change to the videos is merged into main; five languages film at once, each trying every video and filming only those that changed. Log opens a language\'s job on GitHub. As each language finishes, its new films come in, and the wide ones go up on YouTube at once.',
+  videos: 'For an admin: suggestions to accept, edit or reject, fix pull requests to merge, held or failing films to look at, replies to post, films to publish, channels to connect, paused languages. Workers: the filming run now, or the next one at 20:10 UTC, videos a screen change slots for tonight\'s check, fixes Claude writes, comments Claude reads, uploads waiting for YouTube. By video: each video\'s state (the first chip is the most urgent) and what happened to it each day. Point at a mark to read it.',
   tutorials: 'Each app language\'s YouTube channel and whether LangQuest may post to it, and every video made that is not on YouTube yet: ready to choose, or chosen and waiting for its turn.',
   userissues: 'One row for each Linear issue the watch filed or added to, open ones first, and one for each problem it found already fixed. Fixed by is the pull request Linear links to the issue, or the newest merge into main that names it.',
-  videofeedback: 'What came in about the videos (comments on YouTube, code changes merged into main, notes left here) and what Claude suggests doing about it each night: a change to a video\'s script, screens or voice, to the app\'s code, or a new video. Accept, edit or reject each; an accepted code change goes to Linear. Reply to comments in YouTube Studio.'
+  videofeedback: 'What came in about the videos (comments on YouTube, code changes merged into main, notes left here) and what Claude suggests doing about it each night: a change to a video\'s script, screens or voice, to the app\'s code, or a new video. Answer each suggestion at the ! on its video\'s row, or in For an admin. An accepted change to a video becomes Claude\'s draft pull request; merge it, and the next night films the video again. An accepted code change goes to Linear. Reply to comments in YouTube Studio.'
 };
 
 export const HELP: Record<string, string> = {
@@ -240,7 +241,7 @@ export const HELP: Record<string, string> = {
   'judged noise': 'Kinds of failure Claude judged nothing to fix this week (one person\'s wrong password, a refusal the app handled). One comes back when twice as many people hit it.',
   'suggestions waiting': 'Suggestions Claude made that nobody has accepted, edited or rejected yet. Edit one to change what it says before accepting it.',
   'not looked at yet': 'Comments, code changes and notes Claude has not looked at yet. It looks each night at 10:00 UTC (tutorial-review.yml on GitHub).',
-  'not in Linear yet': 'Accepted code changes not filed in Linear yet. They wait when Linear refused or there is no Linear key (LINEAR_API_KEY); the comments job files them each night at 23:50 UTC.',
+  'not in Linear yet': 'Accepted code changes not filed in Linear yet. They wait when Linear refused or there is no Linear key (LINEAR_API_KEY); the comments job files them each night at midnight in California.',
   'last look': 'When Claude last looked, how many comments, changes and notes it looked at, and how many suggestions it made.',
   Suggestions: 'What Claude suggests, waiting ones first, then those answered in the last 30 days, each with what it answers. Accept says yes; Reject asks why not, which Claude reads before suggesting the same again.',
   'What came in': 'Comments, code changes and notes Claude has not looked at yet, and those it looked at in the last 30 days and suggested nothing for, with why.',

@@ -13,7 +13,7 @@ import { headers, reply, serviceClient, sha256Hex, signInAs } from '../_shared/s
  *   v2 who has not signed in to this app yet: v2 is asked to send its own
  *   reset email, as its app would, and they sign in here with the password
  *   they choose there (docs/v2-import.md section 3).
- * - `{ code, password }`: the link was opened and a new password typed. The
+ * - `{ code, password, lost? }`: the link was opened and a new password typed. The
  *   code is taken once (given back if the password could not be set), the
  *   password is set, and the person is signed in. Setting a password ends the
  *   account's other sessions (Supabase Auth does this); their work waits on
@@ -36,7 +36,7 @@ Deno.serve(async (request) => {
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return reply({ error: 'Invalid request', code: 'validation_failed' }, 400); }
   if (!body || typeof body !== 'object') return reply({ error: 'Invalid request', code: 'validation_failed' }, 400);
-  if ('code' in body) return await choose(body.code, body.password);
+  if ('code' in body) return await choose(body.code, body.password, body.lost);
   return await ask(request, body.email, body.locale);
 });
 
@@ -100,8 +100,14 @@ async function ask(request: Request, email: unknown, locale: unknown): Promise<R
   return reply({ sent: true });
 }
 
-/** Set the new password with the code from the link, and sign the person in. */
-async function choose(code: unknown, password: unknown): Promise<Response> {
+/**
+ * Set the new password with the code from the link, and sign the person in. With `lost`
+ * ("A phone of mine was lost or taken", which builds before nearby sync never send), the
+ * person's nearby install keys are revoked first (docs/nearby-sync-plan.md section 6): the
+ * authority is the mailbox, not a session, so a taken phone cannot use it against its
+ * owner's new phone. A failure gives the code back so the person can retry.
+ */
+async function choose(code: unknown, password: unknown, lost: unknown): Promise<Response> {
   if (typeof code !== 'string' || !CODE.test(code)) return reply({ error: 'This link is not valid.', code: 'expired' }, 400);
   if (typeof password !== 'string' || password.length < 6 || password.length > 128) {
     return reply({ error: 'Choose a password of 6 or more characters.', code: 'weak_password' }, 400);
@@ -112,6 +118,13 @@ async function choose(code: unknown, password: unknown): Promise<Response> {
   if (taken.error) return reply(BUSY, 503);
   const row = (taken.data as { profile_id: string; email: string }[] | null)?.[0];
   if (!row) return reply({ error: 'This link has expired or was already used. Ask for a new one.', code: 'expired' }, 410);
+  if (lost === true) {
+    const revoked = await service.rpc('revoke_install_keys', { p_profile: row.profile_id, p_by: 'New password: a phone was lost or taken' });
+    if (revoked.error) {
+      await service.rpc('password_reset_release', { p_code_hash: hash });
+      return reply(BUSY, 503);
+    }
+  }
   const updated = await service.auth.admin.updateUserById(row.profile_id, { password });
   if (updated.error) {
     await service.rpc('password_reset_release', { p_code_hash: hash });

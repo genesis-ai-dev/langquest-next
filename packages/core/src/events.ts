@@ -193,5 +193,9 @@ export interface EventEnvelope<T extends EventType = EventType> {
 
 export type AnyEvent = { [T in EventType]: EventEnvelope<T> }[EventType];
 
-/** Local-only bookkeeping; never synced. */
-export type LocalEventStatus = 'pending' | 'confirmed' | 'rejected';
+/**
+ * Local-only bookkeeping; never synced. `nearby` is an event from a teammate's
+ * phone that this phone holds and folds, and the server has not confirmed to it. It
+ * is not `pending`, because a pending row goes up as its author when they sign in here.
+ */
+export type LocalEventStatus = 'pending' | 'confirmed' | 'rejected' | 'nearby';

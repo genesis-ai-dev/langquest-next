@@ -287,7 +287,7 @@ export interface Integrations {
 /** The app Worker's request tally over a day (apps/web/worker/requestTally.ts), summed by diag.totals. */
 export const TOTALS_SQL = `select coalesce(diag.totals(array_agg(n)), '{}'::jsonb) as v from diag.job_runs where job = $1 and started_at > now() - interval '1 day'`;
 
-export const ROUTES = ['reports', 'blobs_get', 'blobs_put', 'blob_access', 'r2_put', 'record_blob', 'agent_api', 'mcp', 'device', 'links', 'webhook', 'ops', 'other'] as const;
+export const ROUTES = ['reports', 'blobs_get', 'blobs_put', 'blob_access', 'r2_put', 'record_blob', 'agent_api', 'mcp', 'device', 'links', 'nearby', 'webhook', 'ops', 'other'] as const;
 
 export interface RouteRow { route: string; requests: number; s4xx: number; s5xx: number; s429: number; lt100ms: number; lt1s: number; lt10s: number; over10s: number }
 

@@ -69,7 +69,7 @@ describe('adding a language (ORG-2, decisions 63, 76, 84, 91)', () => {
     // What was set on its checks before it existed comes with them, under ids of this language (decision 146).
     const shows = language[0]!.specs.filter((s) => s.type === 'v1.CheckShowsSet');
     expect(shows.map((s) => s.payload)).toEqual([{ kindId: 'record', what: 'bibleText', shown: false }]);
-    expect(shows[0]!.id.startsWith(`${made.languageId}:`)).toBe(true);
+    expect(shows[0]!.id.startsWith(`by:${admin}:${made.languageId}:`)).toBe(true);
     expect(language[0]!.specs.filter((s) => s.type === 'v1.ReferenceSet').map((s) => s.payload)).toEqual([{ itemId: 'web', state: 'recommended' }]);
   });
 
@@ -79,7 +79,7 @@ describe('adding a language (ORG-2, decisions 63, 76, 84, 91)', () => {
     const made = await createLanguage(input({ bookNames: { itemId: null, shared: shared('langquest.names.npi'), name: nepali.name, docHash: 'c'.repeat(64), doc: nepali } }), deps);
     const names = language[0]!.specs.filter((s) => s.type === 'v1.BookNamesSelected');
     expect(names.map((s) => s.payload)).toEqual([{ itemId: 'followed:langquest.names.npi', docHash: 'c'.repeat(64), language: 'npi', names: { LUK: 'लूका' } }]);
-    expect(names[0]!.id.startsWith(`${made.languageId}:`)).toBe(true);
+    expect(names[0]!.id.startsWith(`by:${admin}:${made.languageId}:`)).toBe(true);
     // Names that could not be followed are named, and the template's names stand.
     const offline = app({ adopt: async () => { throw new Error('offline'); } });
     const without = await createLanguage(input({ bookNames: { itemId: null, shared: shared('langquest.names.npi'), name: nepali.name, docHash: 'c'.repeat(64), doc: nepali } }), offline.deps);
@@ -145,7 +145,7 @@ describe('a cluster of new languages (createLanguages, decision 108)', () => {
     expect(language.map((l) => l.languageId)).toEqual(made.languages.map((l) => l.languageId));
     for (const l of language) expect(l.specs.filter((s) => s.type === 'v1.FlowSelected')).toHaveLength(1);
     // Each its own copy of the draft: the same events, under ids of its own (event ids are unique across streams).
-    for (const l of language) expect(l.specs.filter((s) => s.id.startsWith(`${l.languageId}:d`)).map((s) => s.type)).toEqual(checks.map((s) => s.type));
+    for (const l of language) expect(l.specs.filter((s) => s.id.startsWith(`by:${admin}:${l.languageId}:d`)).map((s) => s.type)).toEqual(checks.map((s) => s.type));
     for (const l of language) expect(l.specs.filter((s) => s.type === 'v1.CheckShowsSet').map((s) => s.payload)).toEqual([{ kindId: 'record', what: 'bibleText', shown: false }]);
     const grouping = org.filter((e) => e.type === 'v1.ClusterNamed' || e.type === 'v1.LanguageClusterSet');
     expect(grouping).toEqual([
@@ -180,8 +180,8 @@ describe('a cluster of new languages (createLanguages, decision 108)', () => {
 
 describe('what a new language is offered (offerSpecs)', () => {
   it('skips what the organization already recommends everywhere, with ids a retry repeats', () => {
-    const specs = offerSpecs('lang1', ['web', 'fia'], [], { web: { value: true } } as never);
-    expect(specs).toEqual([{ id: 'lang1:offer:0', type: 'v1.ReferenceSet', payload: { itemId: 'fia', state: 'recommended' } }]);
+    const specs = offerSpecs('lang1', ['web', 'fia'], [], { web: { value: true } } as never, 'sam');
+    expect(specs).toEqual([{ id: 'by:sam:lang1:offer:0', type: 'v1.ReferenceSet', payload: { itemId: 'fia', state: 'recommended' } }]);
   });
 });
 

@@ -109,6 +109,10 @@ do $$ declare v jsonb := diag.ops_tutorials(); begin
   assert jsonb_array_length(v->'waiting') = 3, 'English''s new version, Spanish and French wait: %', v->'waiting';
   assert (select count(*) from jsonb_array_elements(v->'waiting') w where w->>'language' = 'en' and w->>'replaces' = 'dQw4w9WgXcQ') = 1, 'English replaces the one up';
   assert v->'published'->0->>'language' = 'en' and (v->'published'->0->>'videos')::int = 1, 'one video up in English';
+  -- Every film for the video list and timeline: English's two, Spanish's and French's, the one up with its YouTube id.
+  v := diag.ops_tutorial_films();
+  assert jsonb_array_length(v) = 4, 'four films: %', v;
+  assert (select count(*) from jsonb_array_elements(v) f where f->>'language' = 'en' and f->>'youtubeId' = 'dQw4w9WgXcQ') = 1, 'the English film up: %', v;
   begin
     perform public.ops_youtube_refresh('UC8Ry8oFIPWzDygngMwvkBLQ');
     raise exception 'diag_reader read a refresh token';
@@ -263,6 +267,31 @@ do $$ declare v jsonb; n int; note uuid; bug uuid; thanks uuid; s1 uuid; s2 uuid
   perform public.ops_suggestion_filed(s2, 'LAN-170', 'https://linear.app/frontierrnd/issue/LAN-170');
   assert jsonb_array_length(public.ops_suggestions_to_file(10)) = 0, 'filed once';
   assert jsonb_array_length(public.ops_tutorial_review_state()->'inputs') = 0, 'every input answered';
+
+  -- Claude writes the accepted script change as a draft pull request (migration *_tutorial_fixes.sql,
+  -- decisions.md 186 amended 2026-11-13): it waits for a fix run, which starts it, opens it or says why
+  -- not; a later run says it was merged. A state only moves forward, and only a change Claude makes moves.
+  v := public.ops_tutorial_fixes(3);
+  assert jsonb_array_length(v->'toFix') = 1 and (v->'toFix'->0->>'id')::uuid = s1 and v->'toFix'->0->'fix' = 'null'::jsonb and v->'open' = '[]'::jsonb,
+    'the accepted script change waits for Claude, the code change does not: %', v;
+  assert jsonb_array_length(public.ops_tutorial_fixes(0)->'toFix') = 0, 'none when none asked';
+  assert public.ops_tutorial_fixed(s2, 'working', null, null, null) = 'refused', 'a code change goes to Linear, not to Claude';
+  assert public.ops_tutorial_fixed(gen_random_uuid(), 'working', null, null, null) = 'not_found', 'not found';
+  assert public.ops_tutorial_fixed(s1, 'open', 451, null, null) = 'refused', 'opened only after it was started';
+  assert public.ops_tutorial_fixed(s1, 'working', null, 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/200', null) = 'ok', 'started';
+  assert public.ops_tutorial_fixed(s1, 'working', null, 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/201', null) = 'refused', 'one run at a time';
+  assert jsonb_array_length(public.ops_tutorial_fixes(3)->'toFix') = 0, 'a run is on it';
+  assert public.ops_tutorial_fixed(s1, 'failed', null, null, 'The script has no line 9.') = 'ok', 'no fix, and why';
+  assert public.ops_tutorial_fixed(s1, 'working', null, 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/202', null) = 'ok', 'tried again';
+  assert public.ops_tutorial_fixed(s1, 'open', 451, null, null) = 'ok', 'its draft pull request';
+  v := public.ops_tutorial_fixes(3);
+  assert v->'toFix' = '[]'::jsonb and v->'open' = jsonb_build_array(jsonb_build_object('id', s1, 'pr', 451)), 'it waits for a person: %', v;
+  assert public.ops_tutorial_fixed(s1, 'merged', 452, null, null) = 'refused', 'another pull request';
+  assert public.ops_tutorial_fixed(s1, 'merged', 451, null, null) = 'ok', 'merged';
+  assert public.ops_tutorial_fixed(s1, 'closed', 451, null, null) = 'refused', 'merged stays merged';
+  assert public.ops_tutorial_fixes(3)->'open' = '[]'::jsonb, 'nothing waits';
+  v := (select x->'fix' from jsonb_array_elements(public.ops_tutorial_review_state()->'suggestions') x where (x->>'id')::uuid = s1);
+  assert v->>'state' = 'merged' and (v->>'pr')::int = 451 and v->>'run' like '%/runs/202' and v->'note' = 'null'::jsonb and v->>'at' is not null, 'where its fix is: %', v;
 end $$;
 reset role;
 do $$ begin
@@ -299,8 +328,76 @@ set local role diag_reader;
 do $$ declare v jsonb := diag.ops_tutorial_feedback(); begin
   assert jsonb_array_length(v->'suggestions') = 2 and (v->>'open')::int = 0 and (v->>'waiting')::int = 0 and (v->>'unfiled')::int = 0, 'the dashboard''s feedback: %', v;
   assert v->'last'->>'runUrl' like '%/124/attempts/2' and v->'videos'->0->>'title' = 'Record a passage', 'its last look and the videos: %', v;
+  assert (v->>'toFix')::int = 0 and (v->>'fixing')::int = 0 and (v->>'toMerge')::int = 0, 'no fix waits: %', v;
+  assert (select x->'fix'->>'state' from jsonb_array_elements(v->'suggestions') x where x->>'kind' = 'script') = 'merged', 'the dashboard sees the fix';
 end $$;
 reset role;
+-- A fix still open stays on the dashboard after 30 days; a run that stopped leaves its fix to the next after three hours.
+do $$ begin
+  update ops.tutorial_suggestions set decided_at = now() - interval '40 days', fix_state = 'open', fix_at = now() - interval '40 days' where kind = 'script';
+  assert jsonb_array_length(diag.ops_tutorial_feedback()->'suggestions') = 2 and (diag.ops_tutorial_feedback()->>'toMerge')::int = 1, 'an open fix stays listed';
+  update ops.tutorial_suggestions set fix_state = 'working', fix_pr = null, fix_at = now() - interval '4 hours' where kind = 'script';
+  assert jsonb_array_length(public.ops_tutorial_fixes(3)->'toFix') = 1, 'a stale run''s fix is handed out again';
+  begin
+    update ops.tutorial_suggestions set fix_state = 'open', fix_pr = null where kind = 'script';
+    raise exception 'an open fix with no pull request';
+  exception when check_violation then null;
+  end;
+  begin
+    update ops.tutorial_suggestions set fix_state = 'working', fix_at = now() where kind = 'code';
+    raise exception 'a fix for a code change';
+  exception when check_violation then null;
+  end;
+end $$;
+-- An admin's instruction from a card on the dashboard is accepted as written, with no second Accept, and
+-- answers the inputs the card showed; the next fix run takes it like any accepted change.
+set local role service_role;
+do $$ declare v jsonb; c uuid; s uuid; begin
+  perform public.ops_comments_read('en', 'UC8Ry8oFIPWzDygngMwvkBLQ', jsonb_build_array(
+    jsonb_build_object('id', 'Ugcomment-steps-06', 'videoId', 'dQw4w9WgXcQ', 'text', 'It stops at step 4', 'publishedAt', now() - interval '1 day')));
+  c := (select (x->>'id')::uuid from jsonb_array_elements(public.ops_tutorial_review_state()->'inputs') x where x->>'ref' = 'Ugcomment-steps-06');
+  s := public.ops_tutorial_instruct('record-a-passage', 'en', 'Record a passage (en): the film fails',
+    'The button is now called On this device. Change the script.', array[c, c], '0d000000-0000-0000-0000-0000000000aa');
+  assert not exists (select 1 from jsonb_array_elements(public.ops_tutorial_review_state()->'inputs') x where (x->>'id')::uuid = c),
+    'the comment it answers is looked at, so the look does not suggest it again';
+  v := (select x from jsonb_array_elements(public.ops_tutorial_fixes(3)->'toFix') x where (x->>'id')::uuid = s);
+  assert v->>'kind' = 'instruction' and v->>'decision' = 'accepted' and v->>'language' = 'en' and v->>'title' = 'Record a passage (en): the film fails'
+    and v->>'detail' like 'The button is now called On this device.%' and v->'fix' = 'null'::jsonb and jsonb_array_length(v->'inputs') = 2,
+    'an instruction waits for the next fix run, with the note and the comment: %', v;
+  assert public.ops_suggestion_decide(s, 'rejected', null, null, '0d000000-0000-0000-0000-0000000000aa')->>'result' = 'decided', 'no second answer';
+  assert public.ops_tutorial_fixed(s, 'working', null, 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/300', null) = 'ok', 'a run starts it';
+  begin
+    perform public.ops_tutorial_instruct(null, null, null, 'Do it.', null, '0d000000-0000-0000-0000-0000000000aa');
+    raise exception 'an instruction for no video';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.ops_tutorial_instruct('record-a-passage', null, null, ' ', null, '0d000000-0000-0000-0000-0000000000aa');
+    raise exception 'an empty instruction';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.ops_tutorial_instruct('record-a-passage', null, null, 'Do it.', array_fill(c, array[21]), '0d000000-0000-0000-0000-0000000000aa');
+    raise exception 'an instruction naming 21 inputs';
+  exception when invalid_parameter_value then null;
+  end;
+end $$;
+reset role;
+do $$ begin
+  assert (select count(*) from ops.tutorial_inputs where kind = 'note' and by = '0d000000-0000-0000-0000-0000000000aa' and looked_at is not null
+    and text like 'The button is now called%') = 1, 'the instruction is kept as its writer''s note';
+  assert (select decided_by = '0d000000-0000-0000-0000-0000000000aa' and fix_state = 'working' from ops.tutorial_suggestions where kind = 'instruction'), 'accepted by its writer';
+  begin
+    update ops.tutorial_suggestions set decision = null, decided_at = null, decided_by = null, fix_state = null, fix_at = null where kind = 'instruction';
+    raise exception 'an instruction not accepted';
+  exception when check_violation then null;
+  end;
+  begin
+    update ops.tutorial_suggestions set decision = null, decided_at = null, decided_by = null where kind = 'script';
+    raise exception 'a fix for a change no one accepted';
+  exception when check_violation then null;
+  end;
+end $$;
 set local role authenticated;
 do $$ begin
   begin
@@ -316,6 +413,21 @@ do $$ begin
   begin
     perform diag.ops_tutorial_feedback();
     raise exception 'authenticated read the feedback';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.ops_tutorial_fixed(gen_random_uuid(), 'working', null, null, null);
+    raise exception 'authenticated moved a fix';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.ops_tutorial_fixes(3);
+    raise exception 'authenticated read the fixes';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.ops_tutorial_instruct('record-a-passage', null, null, 'Do it.', null, gen_random_uuid());
+    raise exception 'authenticated wrote an instruction';
   exception when insufficient_privilege then null;
   end;
 end $$;

@@ -50,7 +50,12 @@ tags:
 # Override: P-CHECK waits at the Consultant check, a checkpoint.
 - tapOn:
     id: "header-back"
-- tapOn: "Find.*"
+# The field by its ID, once the way back has finished: on an iPhone the field
+# was still moving under the tap, which then missed it (run 9, 2026-11-12).
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    id: "map-search"
 - eraseText: 40
 - inputText: ${P_CHECK.split(':')[0]}
 - runFlow:
@@ -85,16 +90,28 @@ tags:
 # History's Undo puts the checkpoint back, so JRN-006 finds P-CHECK as the
 # fixture left it. (The toast's message and that the next step, the final
 # approval, is offered are checked by JRN-006.)
-- extendedWaitUntil:
-    visible: "Consultant check, moved past"
+# The card reads out the reason too: "Consultant check, moved past · <reason>".
+- scrollUntilVisible:
+    element: "Consultant check, moved past.*"
+    direction: DOWN
+    centerElement: true
     timeout: 20000
+# Each tap once the screen has settled: on an iPhone the history was still
+# opening, and a tap aimed at Undo opened an entry (run 10, 2026-11-12).
 - tapOn: "Versions and history"
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn: "History.*"
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     text: "Undo"
     index: 0
 - tapOn:
     id: "header-close"
-- extendedWaitUntil:
-    visible: "Consultant check, next"
+# The passage opens at its top again, with the card under the fold.
+- scrollUntilVisible:
+    element: "Consultant check, next"
+    direction: DOWN
+    centerElement: true
     timeout: 20000

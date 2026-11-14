@@ -1,5 +1,5 @@
 // The book names a language can use (decision 193), and using one.
-import { followerItemId, selectBookNamesSpec } from '@langquest-next/core';
+import { newCommandId, followerItemId, selectBookNamesSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import type { Ctx } from '../shell/ctx';
@@ -40,7 +40,7 @@ export function useUseBookNames(ctx: Ctx, lib: ReturnType<typeof useLibrary>, af
       const itemId = set.itemId ?? (set.shared!.subscribable ? await lib.subscribe(set.shared!, true) : await lib.copy(set.shared!));
       // ctx.act says "Not saved" and why itself; stay here to try again.
       try {
-        await ctx.act([selectBookNamesSpec({ commandId: Crypto.randomUUID(), itemId, docHash: set.docHash, doc: set.doc })], message);
+        await ctx.act([selectBookNamesSpec({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), itemId, docHash: set.docHash, doc: set.doc })], message);
       } catch { return; }
       after();
     } catch (e) {

@@ -26,7 +26,8 @@ export const divider = (page: Page): Locator => page.getByRole('slider', { name:
 /**
  * From My Work, the passage Daniel asked for (Luke 13:31-35), recorded from
  * the speaker's first recording, stopped and kept: the workspace with its
- * parts, every one saved and uploaded, and the upload bar gone.
+ * parts, every one saved and uploaded. The upload bar says "All uploaded"
+ * until the first move to another screen (decisions.md 166).
  */
 export async function recordOffCamera(page: Page, mic: Mic, parts: number): Promise<void> {
   await page.getByText('Luke 13:31–35').locator('visible=true').first().waitFor({ timeout: 60_000 });
@@ -43,8 +44,8 @@ export async function recordOffCamera(page: Page, mic: Mic, parts: number): Prom
   await button(page, new RegExp(`^Parts 1–${parts}, ${parts} parts · `)).waitFor({ timeout: 60_000 });
   const play = page.getByRole('button', { name: `Play Parts 1–${parts}`, exact: true }).locator('visible=true').first();
   await page.waitForFunction((e) => e?.getAttribute('aria-disabled') !== 'true', await play.elementHandle({ timeout: 60_000 }), { timeout: 60_000 });
+  // Uploaded: the bar says so (unless the uploads went before it counted them) and stays on this screen.
   await page.getByText('All uploaded').waitFor({ timeout: 60_000 }).catch(() => undefined);
-  await id(page, 'upload-bar').waitFor({ state: 'hidden', timeout: 60_000 });
   // The count can read right before the last part comes in: counted again once every part is kept.
   await button(page, new RegExp(`^Parts 1–${parts}, ${parts} parts · `)).waitFor({ timeout: 10_000 });
 }

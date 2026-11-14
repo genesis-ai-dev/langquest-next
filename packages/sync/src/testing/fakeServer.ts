@@ -1,6 +1,7 @@
-import { CLIENT_PROTOCOL_VERSION, emptyLanguageState, foldLanguage, LINES_VERSION, REDUCER_VERSION, takeSnapshot, type AnyEvent, type PassageLine, type Snapshot } from '@langquest-next/core';
+import { CLIENT_PROTOCOL_VERSION, decodeHlc, emptyLanguageState, entityKeyOf, foldLanguage, idAuthor, isHlc, LINES_VERSION, REDUCER_VERSION, takeSnapshot, type AnyEvent, type PassageLine, type Snapshot } from '@langquest-next/core';
+import { parseBatchManifest } from '@langquest-next/core/nearby';
 import { cutLanguage, languageLinesOf, type ServerCut } from '../serverCut';
-import type { AppendResult, KeptRecord, RowCursor, Transport } from '../types';
+import type { AppendResult, KeptRecord, RelayAnswer, RelayBatch, RowCursor, Transport } from '../types';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, ServerError } from '../types';
 
 /**
@@ -37,6 +38,30 @@ export class FakeServer {
   pullCalls = 0;
   /** Clients below this protocol version are refused, like the server RPCs. */
   minClientVersion = 0;
+  knownEventsCalls = 0;
+  /** A database from before `knownEvents`: it answers null. */
+  knownEventsBehind = false;
+  attestCalls = 0;
+  /** What the Worker does with rows it read: nothing here until a test gives it a signer, and the call answers null, as when nearby is off. */
+  attester: ((orgId: string, streamId: string, rows: readonly AnyEvent[]) => Promise<{ text: string; kid: string; sig: string } | null>) | null = null;
+  relayCalls = 0;
+  /**
+   * The Worker's `/api/relay` (docs/nearby-sync-plan.md section 6). Off, the transport has no
+   * `relay`, as a server before delivery: tests of the sweep and of the phases before it model
+   * only authors pushing their own work. Delivery's tests and scenarios turn it on.
+   */
+  relaying = false;
+  /** A Worker with no key yet, or a database behind: the relay answers null. */
+  relayBehind = false;
+  /**
+   * What the Worker checks of a batch (chain, signature, digests): the reason it is refused
+   * whole, or null. A test gives one with real keys; without it every batch holds.
+   */
+  relayCheck: ((orgId: string, streamId: string, batch: RelayBatch) => Promise<string | null>) | null = null;
+  /** Keys the server holds as revoked, by `<key> <profile>`, with when (`revoke_install_keys`). */
+  readonly revokedKeys = new Map<string, number>();
+  /** How far past the server's time the relay takes a stamp (`relay_ahead_limit_ms`). */
+  relayAheadMs = 86_400_000;
   readonly snapshots = new Map<string, Snapshot>();
   /** The reducer the snapshot worker runs; a test raises it to model a deploy that bumps REDUCER_VERSION. */
   reducerVersion = REDUCER_VERSION;
@@ -169,7 +194,41 @@ export class FakeServer {
         this.pullCalls += 1;
         // Seqs in a stream run 1, 2, 3, ... so the event after `after` is at index `after`.
         return (this.byStream.get(`${orgId}/${streamId}`) ?? []).slice(after, after + limit);
+      },
+      knownEvents: async (orgId, streamId, ids) => {
+        this.reach();
+        this.knownEventsCalls += 1;
+        if (this.knownEventsBehind) return null;
+        if (ids.length > 500) throw new ServerError('too many ids', '22023');
+        return ids.flatMap((id) => {
+          const e = this.byId.get(id);
+          return e && e.orgId === orgId && e.streamId === streamId && e.serverSeq !== undefined ? [{ id, serverSeq: e.serverSeq, hlc: e.hlc, actorId: e.actorId }] : [];
+        });
+      },
+      attest: async (orgId, streamId, afterSeq) => {
+        this.reach();
+        this.attestCalls += 1;
+        return this.attester ? this.attester(orgId, streamId, (this.byStream.get(`${orgId}/${streamId}`) ?? []).slice(afterSeq, afterSeq + 200)) : null;
+      },
+      ...(this.relaying ? { relay: this.relayAs() } : {})
+    };
+  }
+
+  /** The relay as a transport calls it, made once per transport. */
+  private relayAs(): NonNullable<Transport['relay']> {
+    return async (orgId, streamId, batches) => {
+      this.reach();
+      if (this.minClientVersion > CLIENT_PROTOCOL_VERSION) throw new ClientTooOldError('client too old');
+      this.relayCalls += 1;
+      if (this.relayBehind) return null;
+      const before = this.log.length;
+      const out: RelayAnswer[] = [];
+      for (const b of batches) out.push(await this.relayOne(orgId, streamId, b));
+      if (this.log.length > before) {
+        const fresh = this.log.slice(before);
+        for (const listener of this.appended) listener(fresh);
       }
+      return out;
     };
   }
 
@@ -271,9 +330,37 @@ export class FakeServer {
     this.lines.set(`${orgId}/${streamId}`, { version, seq, byUnit: new Map(lines.map((l) => [l.unitId, l])) });
   }
 
+  /**
+   * What `/api/relay` and `relay_append_events` do with one batch (docs/nearby-sync-plan.md
+   * section 6): the Worker's checks, then per event the refusals by name, a revoked key's later
+   * work, a stamp far ahead and another author's event, then `append_events` as the author.
+   */
+  private async relayOne(orgId: string, streamId: string, b: RelayBatch): Promise<RelayAnswer> {
+    const m = parseBatchManifest(b.manifest, { orgId, streamId });
+    if (!m) return { key: '', n: 0, refused: 'bad manifest' };
+    const refused = this.relayCheck ? await this.relayCheck(orgId, streamId, b) : null;
+    if (refused) return { key: m.key, n: m.n, refused };
+    const signed = new Set(m.events.map(([id]) => id));
+    const no = (id: string, reason: string): AppendResult => ({ id, accepted: false, serverSeq: null, reason });
+    const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+    const verdicts = b.events.filter((e) => signed.has(e.id)).map((e): AppendResult => {
+      const wall = isHlc(e.hlc) ? decodeHlc(e.hlc).wallMs : NaN;
+      const revokedAt = this.revokedKeys.get(`${m.key} ${e.actorId}`);
+      if (!Number.isFinite(wall)) return no(e.id, 'malformed envelope: a clock no phone can read');
+      if (revokedAt !== undefined && wall >= revokedAt) return no(e.id, `key revoked: dated after ${day(revokedAt)}`);
+      if (e.type === 'v1.Redacted') return no(e.id, 'invalid payload: a redaction is not relayed');
+      if (wall > this.now() + this.relayAheadMs) return no(e.id, `stamped too far ahead: ${day(wall)}`);
+      if (e.actorId !== m.actorId || e.orgId !== orgId || e.streamId !== streamId) return no(e.id, 'actorId does not match caller');
+      return this.accept(e);
+    });
+    return { key: m.key, n: m.n, verdicts };
+  }
+
   private accept(e: AnyEvent): AppendResult {
     const existing = this.byId.get(e.id);
     if (existing) return { id: e.id, accepted: true, serverSeq: existing.serverSeq!, reason: 'duplicate' };
+    // `append_events`' rule on bound ids: nobody else may take an id that names its author.
+    if (!isUnboundOrAuthors(e)) return { id: e.id, accepted: false, serverSeq: null, reason: 'malformed envelope: id names someone else' };
     const reason = this.authorize(e);
     if (reason) return { id: e.id, accepted: false, serverSeq: null, reason };
     const key = `${e.orgId}/${e.streamId}`;
@@ -305,6 +392,11 @@ export class FakeServer {
     }
     return text;
   }
+}
+
+function isUnboundOrAuthors(e: AnyEvent): boolean {
+  const key = entityKeyOf(e);
+  return [e.id, ...(key === null ? [] : [key])].every((id) => (idAuthor(id) ?? e.actorId) === e.actorId);
 }
 
 function cmp(a: string, b: string): number {

@@ -36,6 +36,11 @@ export type Action =
   | { kind: 'tutorials-publish'; items: [string, string, string][] }
   /** A note on a tutorial video, or on none, for Claude's nightly look. */
   | { kind: 'tutorial-note'; tutorial: string | null; text: string }
+  /**
+   * What an admin told Claude to do with a video, from a card on the dashboard (a comment, a screen change,
+   * a film that failed or was held): a `tutorial-note` with `instruct: true`. Accepted at once (186).
+   */
+  | { kind: 'tutorial-instruction'; tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }
   /** A person's answer to Claude's suggestion: accept or reject it (as edited), or only edit its detail. */
   | { kind: 'tutorial-suggestion'; id: string; decision: 'accept' | 'reject' | 'edit'; detail: string | null; reason: string | null }
   /** An account's quiet installs marked not an issue, or counted again. */
@@ -63,6 +68,8 @@ export interface ActionDeps {
   approveTutorials(items: [string, string, string][], by: string): Promise<number>;
   /** A note kept for Claude's look (`ops_tutorial_note`). */
   addNote(tutorial: string | null, text: string, by: string): Promise<void>;
+  /** An admin's instruction kept as an accepted suggestion (`ops_tutorial_instruct`): its id. */
+  instruct(row: { tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }, by: string): Promise<string>;
   /** A suggestion answered (`ops_suggestion_decide`): what happened, and the suggestion's kind. */
   decideSuggestion(id: string, decision: 'accepted' | 'rejected' | 'edited', detail: string | null, reason: string | null, by: string): Promise<{ result: string; kind?: string }>;
   /** An account's quiet installs marked not an issue or counted again, by this staff member: `marked`, `unmarked`, or `not_found` (`ops_quiet_account_mark`). */
@@ -82,6 +89,9 @@ export const PUBLISH_MAX = 2000;
 export const NOTE_MAX = 2000;
 export const DETAIL_MAX = 4000;
 export const REASON_MAX = 500;
+/** The longest problem line an instruction's card sends, and the most inputs it names. */
+export const PROBLEM_MAX = 200;
+export const INSTRUCTION_INPUTS_MAX = 20;
 
 function tutorialItems(items: unknown): [string, string, string][] | null {
   if (!Array.isArray(items) || items.length === 0 || items.length > PUBLISH_MAX) return null;
@@ -116,7 +126,15 @@ export function parseAction(input: unknown): Action | null {
   if (a.kind === 'tutorial-note') {
     const tutorial = t.tutorial === null || t.tutorial === undefined ? null : typeof t.tutorial === 'string' && t.tutorial.length <= 80 && TUTORIAL.test(t.tutorial) ? t.tutorial : undefined;
     const text = optional(t.text, NOTE_MAX);
-    return tutorial !== undefined && text ? { kind: 'tutorial-note', tutorial, text } : null;
+    if (tutorial === undefined || !text) return null;
+    const i = input as { instruct?: unknown; problem?: unknown; language?: unknown; inputs?: unknown };
+    if (i.instruct === undefined || i.instruct === false) return { kind: 'tutorial-note', tutorial, text };
+    const problem = optional(i.problem, PROBLEM_MAX);
+    const language = i.language === undefined || i.language === null ? null : typeof i.language === 'string' && LANGUAGE.test(i.language) ? i.language : undefined;
+    const inputs = i.inputs === undefined || i.inputs === null ? [] : Array.isArray(i.inputs) && i.inputs.length <= INSTRUCTION_INPUTS_MAX
+      && i.inputs.every((x) => typeof x === 'string' && UUID.test(x)) ? [...new Set((i.inputs as string[]).map((x) => x.toLowerCase()))] : undefined;
+    if (i.instruct !== true || !tutorial || problem === undefined || language === undefined || !inputs) return null;
+    return { kind: 'tutorial-instruction', tutorial, text, problem, language, inputs };
   }
   if (a.kind === 'tutorial-suggestion' && typeof a.id === 'string' && UUID.test(a.id) && (d === 'accept' || d === 'reject' || d === 'edit')) {
     const detail = optional(t.detail, DETAIL_MAX);
@@ -139,6 +157,7 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'run': return { name: NAMES.run, target: action.key };
     case 'tutorials-publish': return { name: NAMES[action.kind], target: `${action.items.length} videos` };
     case 'tutorial-note': return { name: NAMES[action.kind], target: action.tutorial ?? 'no video' };
+    case 'tutorial-instruction': return { name: NAMES['tutorial-note'], target: action.tutorial };
     case 'tutorial-suggestion': return { name: `suggestion_${DECIDED[action.decision]}`, target: action.id };
     case 'quiet-account': return { name: action.ok ? 'quiet_ok' : 'quiet_ok_undo', target: action.profile };
     default: return { name: NAMES[action.kind], target: 'youtube' };
@@ -194,6 +213,12 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       await deps.addNote(action.tutorial, action.text, who.profileId);
       await deps.record({ profileId: who.profileId, action: name, target, result: 'ok' });
       return { ok: true, result: 'noted' };
+    }
+    if (action.kind === 'tutorial-instruction') {
+      const { kind: _kind, ...row } = action;
+      const id = await deps.instruct(row, who.profileId);
+      await deps.record({ profileId: who.profileId, action: name, target, result: 'ok', detail: `instruction:${id}` });
+      return { ok: true, result: 'instructed' };
     }
     if (action.kind === 'tutorial-suggestion') return await answerSuggestion(deps, who.profileId, action, name, target);
     const result = await deps.runJob(action.key);
@@ -317,6 +342,13 @@ export function actionDeps(env: Env): ActionDeps {
     markQuietAccount: async (profile, ok, by) => {
       const { data, error } = await db().rpc('ops_quiet_account_mark', { p_profile: profile, p_ok: ok, p_by: by });
       if (error) throw new Error(`ops_quiet_account_mark: ${error.message}`);
+      return String(data);
+    },
+    instruct: async ({ tutorial, text, problem, language, inputs }, by) => {
+      const { data, error } = await db().rpc('ops_tutorial_instruct', {
+        p_tutorial: tutorial, p_language: language, p_problem: problem, p_text: text, p_inputs: inputs, p_by: by
+      });
+      if (error) throw new Error(`ops_tutorial_instruct: ${error.message}`);
       return String(data);
     },
     decideSuggestion: async (id, decision, detail, reason, by) => {

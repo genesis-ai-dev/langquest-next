@@ -352,7 +352,11 @@
     "cluster_home": "Kumpol",
     "global_viewer": "Pandaigdigang Tagatingin",
     "forgot_password": "Nakalimutan ang Password",
-    "new_password": "Bagong Password"
+    "new_password": "Bagong Password",
+    "share_nearby": "Ibahagi sa malapit",
+    "let_someone_in": "Magpapasok ng isang tao",
+    "join_offline": "Sumali nang walang internet",
+    "get_install_file": "Kunin ang install file"
   },
   "native": {
     "microphone": "Nire-record ng LangQuest ang iyong boses para isalin ang mga sipi.",
@@ -727,7 +731,6 @@
       "newLanguage": "Bagong wika",
       "noLanguages": "Wala pang mga wika. Idagdag ang unang ire-record ng iyong pangkat.",
       "openToBring": "Buksan ito para mailagay sa device na ito",
-      "newLanguageOrCluster": "Bagong wika o kumpol",
       "inviteHelp": "Piliin kung ano ang gagawin nila, saka ipakita sa kanila ang code na ii-scan.",
       "languageHelp": "Binubuksan ang pahina nito: ihanda ito, tingnan ang gawain at mga tao nito.",
       "licenseHelp": "Ang lisensiya ng gawain ng iyong pangkat. Sinasabi ng Setup kung ano ang pinapayagan nito.",
@@ -2792,6 +2795,17 @@
       "changes_other": "{{count, number}} pagbabago",
       "latestBy": "pinakahuli ni {{name}}, {{when}}",
       "playExplanation": "I-play ang paliwanag",
+      "examples": "Sabihin ito sa {{language}}",
+      "examplesCount": "Na-record: {{count, number}} sa {{want, number}}",
+      "wayN": "Paraan {{n, number}}",
+      "recordThisWay": "I-record ang paraang ito",
+      "recordAgain": "I-record muli ang paraang ito",
+      "addWay": "Magdagdag ng ibang paraan ng pagsabi",
+      "addWayHelp": "Magdagdag ng isa pang paraan ng koponan ninyo sa pagsabi ng salitang ito sa ibang lugar, tulad kapag iba ang kahulugan.",
+      "wayUsedIn": "Ginamit sa",
+      "wayPassageHelp": "Buksan ang {{passage}} para marinig ang paraang ito sa konteksto",
+      "playExample": "I-play ang halimbawa {{n, number}}",
+      "exampleSaved": "Nai-save ang halimbawa",
       "openVersion": "Buksan ang Bersiyon {{n, number}}",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Naitala bilang bahagi ng {{passage}}, at nakatali sa iyong borador.",
@@ -2869,7 +2883,11 @@
       "createAccountHelp": "Nagbubukas ng form para sa iyong email at bagong password.",
       "browseHelp": "Tingnan ang gawain sa pagsasalin na hayagang ibinabahagi ng mga organisasyon. Hindi kailangan ng account.",
       "forgot": "Nakalimutan ang password?",
-      "forgotHelp": "Nagbubukas ng pahina kung saan makakukuha ka ng link sa email para pumili ng bagong password."
+      "forgotHelp": "Nagbubukas ng pahina kung saan makakukuha ka ng link sa email para pumili ng bagong password.",
+      "localHere": "May sumali sa pangkat sa teleponong ito nang walang internet. Walang ibang makapag-sign in dito hanggang makakonekta sa internet ang telepono niya nang isang beses.",
+      "joiningTitle": "Sumasali si {{name}} sa teleponong ito",
+      "goOnJoining": "Ituloy ang pagsali",
+      "goOnJoiningHelp": "Binubuksan ang screen na tatapos sa pagsali sa pangkat mula sa telepono ng isang kasamahan."
     },
     "terms": {
       "title": "Mga Tuntunin at Privacy",
@@ -2998,7 +3016,9 @@
       "notNowHelp": "Kinakalimutan ang imbitasyong ito at bumabalik sa iyong gawain.",
       "whoJoins": "Sino ang sasali?",
       "someoneNew": "Isang bagong tao",
-      "someoneNewHelp": "Para sa taong wala pa sa teleponong ito: isang bagong account. Susunod, i-type ang pangalan niya."
+      "someoneNewHelp": "Para sa taong wala pa sa teleponong ito: isang bagong account. Susunod, i-type ang pangalan niya.",
+      "joinNotGuest": "Ang code na ito ay para makasali sa pangkat ang isang bagong telepono. May gumagamit na sa teleponong ito.",
+      "localJoined": "Tapos na. Mapupunta sa server ang gawa mo bilang iyo."
     },
     "signInKey": {
       "notGuestTitle": "Code ito sa pag-sign in",
@@ -3014,6 +3034,7 @@
       "notValid": "Hindi wasto ang code na ito.",
       "expiredOrUsed": "Nag-expire na o nagamit na ang code na ito. Humingi ng bago.",
       "codeBusy": "Hindi magamit ang code na ito. Pakisubukang muli.",
+      "forSomeoneElse": "Ginawa ang code na ito para sa ibang tao. Humingi ng code na ginawa para sa iyo.",
       "scanElseHelp": "Iniiwan ang code na ito at binubuksang muli ang scanner.",
       "signOutHelp": "Binubuksan ang pag-sign out, para makapag-sign in sa device na ito ang taong pinag-uukulan ng code.",
       "buttonHelp": "Isina-sign in ka sa device na ito gamit ang code na ito. Walang ita-type.",
@@ -3223,7 +3244,10 @@
       "signInFailed": "Nakatakda na ang iyong bagong password. Mag-sign in gamit ito.",
       "changedTitle": "Napalitan ang password",
       "changedBody": "Magsa-sign in ang {{email}} gamit ang bagong password mula ngayon.",
-      "doneHelp": "Pabalik sa iyong home page."
+      "doneHelp": "Pabalik sa iyong home page.",
+      "lost": "Nawala o kinuha ang isa kong telepono",
+      "lostSub": "Hindi na pagkakatiwalaan ng mga telepono ng mga kasamahan ang gawa ng teleponong iyon na may petsang lampas sa ngayon, at kailangang mag-sign in muli ng iba mo pang telepono para makapagbahagi sa malapit.",
+      "lostLetIn": "Kung may pinapasok ka mula sa teleponong iyon na hindi pa nakakakonekta sa internet, tatanggihan sila ng server. Mananatili ang gawa nila sa telepono nila, at maaari silang papasukin ulit gamit ang imbitasyon ng isang makapag-iimbita."
     }
   },
   "account": {
@@ -3242,7 +3266,8 @@
       "downloading": "Dina-download ang update…",
       "downloadingPercent": "Dina-download ang update… {{percent}}",
       "webReady": "Handa na ang bagong bersiyon ng LangQuest. I-reload para magamit ito.",
-      "storeBuild": "build mula sa store",
+      "storeBuild": "build mula sa store {{version}}",
+      "noUpdate": "walang update",
       "updateBuild": "update {{id}}",
       "unknownBuild": "hindi alam ang update"
     },
@@ -3362,7 +3387,33 @@
       "nameHelp": "Binubuksan ang iyong profile, para palitan ang pangalang nakikita ng iyong pangkat.",
       "offlineHelp": "Ipinapakita kung ano ang itinatago ng device na ito para makapagtrabaho nang walang koneksiyon.",
       "tourHelp": "Nagbubukas ng tatlong maiikling card tungkol sa layunin ng LangQuest.",
-      "moreHelp": "Binubuksan ang mga setting ng iyong password, notification, sync at account. Ang numero ay mga pagbabagong naghihintay na maipadala."
+      "moreHelp": "Binubuksan ang mga setting ng iyong password, notification, sync at account. Ang numero ay mga pagbabagong naghihintay na maipadala.",
+      "local": {
+        "title": "{{name}}, sumali ka nang walang internet",
+        "letInBy": "Pinapasok ka ni {{name}} mula sa telepono niya.",
+        "letIn": "Pinapasok ka ng isang kasamahan mula sa telepono niya.",
+        "waiting": "Gagawin ang account mo sa unang beses na makakonekta sa internet ang teleponong ito. Hanggang doon, maghihintay dito ang gawa mo.",
+        "joining": "Kumokonekta sa server…",
+        "finishing": "Naka-sign in na. Tinatapos ang pag-set up ng teleponong ito…",
+        "needsCode": "Handa na ang account mo. Mag-sign in bilang {{name}} gamit ang code mula sa isang kasama mo sa pangkat.",
+        "needsCodeLine": "Hilingin sa isang kasamahan na buksan ang Tulungan siyang mag-sign in, saka i-scan dito ang code niya.",
+        "keyLost": "Nawala sa teleponong ito ang susi na ginamit nang papasukin ito. Nandito pa rin ang gawa mo. Humingi ng tulong sa isang kasama mo sa pangkat.",
+        "otherAccount": "Ibang tao ang naka-sign in sa teleponong ito. Nandito pa rin ang gawa mo.",
+        "refusedLine": "Ligtas ang gawa mo sa teleponong ito. Humingi ng imbitasyon sa isang makapag-iimbita, saka i-scan ito dito.",
+        "workSafe": "Itinatago ang gawa mo sa teleponong ito at sa mga telepono ng mga kasamahan hanggang makarating ito sa server.",
+        "retry": "Subukan ngayon",
+        "retryHelp": "Tinatanong ulit ang server ngayon, kung may internet ang teleponong ito.",
+        "scan": "I-scan ang code",
+        "scanHelp": "Binubuksan ang scanner para sa imbitasyon o sa code sa pag-sign in ng isang kasamahan.",
+        "refused": {
+          "expired": "Tinanggihan ka ng server: paso na ang pahintulot na ginamit nang papasukin ka.",
+          "used": "Tinanggihan ka ng server: naubos na ang pahintulot na ginamit nang papasukin ka.",
+          "off": "Tinanggihan ka ng server: naka-off sa iyong organisasyon ang pagsali nang walang internet.",
+          "notFound": "Tinanggihan ka ng server: hindi nito kilala ang pahintulot na ginamit nang papasukin ka.",
+          "retired": "Tinanggihan ka ng server: hindi na ginagamit ang tungkulin mo, o hindi na ito maibibigay ng kasamahang nagpapasok sa iyo.",
+          "other": "Tinanggihan ka ng server."
+        }
+      }
     },
     "more": {
       "noEmail": "Wala pang email",
@@ -3401,6 +3452,16 @@
       "blockedCount_other": "{{count, number}} tao",
       "deleteAccount": "Burahin ang account",
       "deleteSub": "Ang iyong account at ang iyong pangalan, magpakailanman",
+      "removeMe": "Alisin ako sa teleponong ito",
+      "removeMeSub": "Sa halip na mag-sign out: kakalimutan ka ng teleponong ito",
+      "removeMeHelp": "Magtatanong muna. Pagkatapos ay kakalimutan ka ng teleponong ito at babalik sa Sign In.",
+      "removeMeTitle": "Alisin si {{name}} sa teleponong ito?",
+      "removeMeUnsent": "Hindi pa naipapadala mula sa teleponong ito: {{things}}. Maliban kung nadala na ito ng telepono ng isang kasamahan, mawawala ito.",
+      "removeMeBody": "Kakalimutan ka ng teleponong ito at ang iyong susi, at babalik sa Sign In. Para makapagtrabaho ulit dito, kailangang may magpapasok ulit sa iyo, bilang bagong tao.",
+      "removeMeButton": "Alisin ako",
+      "removing": "Inaalis…",
+      "lostPhoneSub": "Nagpapadala sa email mo ng link para pumili ng bagong password at hindi na pagkatiwalaan ang teleponong iyon",
+      "lostPhoneSent": "Naipadala ang link sa {{email}}. Buksan ito, pumili ng bagong password at i-on ang “Nawala o kinuha ang isa kong telepono”.",
       "testing": "Pagsubok",
       "personaSub": "Mag-sign in bilang demo na tagasalin, tagarepaso o admin",
       "syncHelp": "Ipinapakita kung ano ang naghihintay na maipadala o ma-download. Ang numero ay mga pagbabagong naghihintay na maipadala.",
@@ -3523,7 +3584,8 @@
         "checking": "Nakakonekta",
         "offline": "Offline",
         "refused": "Hindi nagsi-sync",
-        "tooOld": "I-update para makatanggap"
+        "tooOld": "I-update para makatanggap",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "Dumarating ang mga pagbabago mula sa iyong pangkat habang nangyayari ang mga ito, at agad na naipapadala ang sa iyo.",
@@ -3532,7 +3594,8 @@
         "refused": "Hindi tumatanggap ang server ng mga pagbabago mula sa device na ito. Itinatago pa rin dito ang iyong gawain.",
         "tooOld": "Masyadong luma ang app na ito para matanggap ang mga pagbabago ng iyong pangkat. I-update ito mula sa store.",
         "toReceive": "Mga rekording mula sa iba na dina-download pa ng device na ito.",
-        "refusedLine": "Mga pagbabagong hindi tinanggap ng server, kadalasan dahil nagbago ang isang pahintulot. Nananatili ang mga ito sa device na ito; buksan ang Mga Detalye para makita ang bawat isa."
+        "refusedLine": "Mga pagbabagong hindi tinanggap ng server, kadalasan dahil nagbago ang isang pahintulot. Nananatili ang mga ito sa device na ito; buksan ang Mga Detalye para makita ang bawat isa.",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "Tatanggapin",
       "refusedLine": "Tinanggihan",
@@ -3914,7 +3977,11 @@
         "askedWho": "hiniling: {{who}}",
         "asked": "hiniling",
         "next": "susunod",
-        "afterDone": "kapag tapos ka na"
+        "afterDone": "kapag tapos ka na",
+        "made": "nagawa na",
+        "checked": "nasuri na",
+        "afterMade": "pagkatapos gawin",
+        "checkedBy": "sa {{check}}"
       },
       "help": {
         "study": "Pag-aralan nang magkakasama ang gabay sa pag-aaral bago ka mag-record. Walang naghihintay rito.",
@@ -3934,7 +4001,9 @@
         "checkpoint": "Ang kandado: kailangan itong pumasa bago ang mga hakbang pagkatapos nito."
       },
       "thenTheTeam": "Saka ang pangkat",
-      "teamHears": "Saka ito maririnig ng pangkat"
+      "teamHears": "Saka ito maririnig ng pangkat",
+      "makeIt": "{{what}} · gawin",
+      "checkIt": "{{what}} · suriin"
     },
     "quote": "“{{text}}”",
     "journey": {
@@ -7976,5 +8045,28 @@
       "badItem": "Pumili ng isa sa sarili mong item na pareho ang uri.",
       "offline": "Hindi maabot ang LangQuest. Tingnan ang iyong koneksiyon at subukan ulit."
     }
+  },
+  "orgExport": {
+    "title": "I-export ang lahat ng data",
+    "sub": "Isang zip: mga recording sa mga folder, listahan ng bawat recording, mga sheet ng progreso at ang buong talaan.",
+    "whole": "Ang buong organisasyon",
+    "some": "Ilang wika lang",
+    "start": "Gawin ang zip",
+    "waiting": "Naghihintay na magsimula",
+    "reading": "Binabasa ang organisasyon",
+    "audio": "Dinadagdag ang mga recording: {{done}} sa {{total}}",
+    "log": "Dinadagdag ang buong talaan",
+    "ready": "Handa nang i-download",
+    "download": "I-download",
+    "failed": "Hindi natapos ang export. Subukan ulit.",
+    "started": "Nagsimula na ang export.",
+    "problem": "Hindi masimulan ang export.",
+    "expired": "Inalis pagkatapos ng 7 araw.",
+    "keep": "Ang natapos na zip ay nananatili nang 7 araw.",
+    "help": "Nagbubukas ng pahina para i-download ang lahat ng data ng organisasyon bilang isang zip.",
+    "wholeHelp": "I-export ang lahat ng wika ng organisasyon.",
+    "someHelp": "Piliin kung aling mga wika ang i-eexport.",
+    "languageHelp": "Isama o huwag isama ang wikang ito.",
+    "downloadHelp": "Dina-download ang natapos na zip."
   }
 }

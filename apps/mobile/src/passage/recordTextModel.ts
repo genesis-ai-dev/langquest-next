@@ -205,6 +205,19 @@ export function kindLineText(k: KindStatus, s: FlowStepStatus, p: PassageState, 
   }
 }
 
+/**
+ * What the person who answered a review left with the answer: their words and
+ * a voice note (LAN-240). Whoever gave the feedback finds it on the passage,
+ * next to the review's line, and plays it there.
+ */
+export function answerAttachments(r: ReviewView): { note?: string; blobHash?: string } {
+  const a = r.response;
+  return {
+    ...(a?.note ? { note: a.note } : {}),
+    ...(a?.blobHash ? { blobHash: a.blobHash } : {})
+  };
+}
+
 /** A kind's line in a step on an older version: what it said, and who. */
 export function oldKindLineText(r: ReviewView | undefined, kind: KindDef | undefined, name: NameFn): string {
   if (!r) return t('passage.record.notReviewedHere');

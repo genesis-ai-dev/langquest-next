@@ -40,6 +40,12 @@ export interface Session {
   /** Not signed in at all (browsing public listings). */
   isGuest: boolean;
   /**
+   * A local person (docs/nearby-sync-plan.md 14.1, 5): let in offline by a teammate's phone, with
+   * no account until first contact. Not a guest, but with no server session: no sign-out, no
+   * Switch or new organization, and nothing that needs the server until then.
+   */
+  isLocal: boolean;
+  /**
    * A looked-after account (accounts.ts): no email of its own. What it may
    * do is still its role's; only helping others sign in needs an email
    * (decisions.md 67, docs/invites-and-accounts.md).
@@ -80,7 +86,8 @@ export function deriveSession(
   org: OrgState | null = null,
   languageId?: string | null,
   fromV2 = false,
-  globalViewer: GlobalViewerAccess | null = null
+  globalViewer: GlobalViewerAccess | null = null,
+  isLocal = false
 ): Session {
   const own = org ? privilegesFor(org, actorId, languageId ?? undefined) : new Set<Privilege>();
   // A Global Viewer sees an organization they are not in as its admins do,
@@ -116,6 +123,7 @@ export function deriveSession(
     isFirstTime: !seenVision && !readOnly,
     fromV2,
     isGuest: actorId === 'guest',
+    isLocal: isLocal && actorId !== 'guest',
     isManaged,
     isGlobalViewer: globalViewer === 'on',
     viewingAsGlobalViewer: readOnly,
@@ -195,7 +203,7 @@ export const AUTH_SCREENS: ScreenId[] = ['sign_in', 'create_account'];
  * with the guest-gated edges by a test: every `guest` edge's endpoints must
  * appear here, so adding a guest screen without listing it fails.
  */
-export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_home', 'scan_qr', 'terms_privacy', 'forgot_password', 'new_password'];
+export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_home', 'scan_qr', 'terms_privacy', 'forgot_password', 'new_password', 'join_offline'];
 
 /**
  * Has enough arrived to route a signed-in person? The org must have synced
@@ -231,6 +239,8 @@ export interface Tab {
   screen: ScreenId;
   label: string;
   badge?: number;
+  /** The badge's count could not be fully read (LAN-221): "n+", or "?" when nothing is known. */
+  badgeStale?: boolean;
 }
 
 /**
@@ -244,7 +254,7 @@ export interface Tab {
  * Viewer looking in) has no Inbox: nothing ever arrives there for them
  * (decision 71 amended, decision 158).
  */
-export function tabsFor(s: Session, counts: { forYou: number; unread: number } = { forYou: 0, unread: 0 }, opts: { wide?: boolean } = {}): Tab[] {
+export function tabsFor(s: Session, counts: { forYou: number; unread: number; unreadStale?: boolean } = { forYou: 0, unread: 0 }, opts: { wide?: boolean } = {}): Tab[] {
   const tabs: Tab[] = [];
   const hasMyWork = homeScreenFor(s) === 'my_work';
   if (hasMyWork) tabs.push({ id: 'work', screen: 'my_work', label: t('account.tabs.work') });
@@ -252,7 +262,7 @@ export function tabsFor(s: Session, counts: { forYou: number; unread: number } =
   if (opts.wide && !s.hasNoOrg && s.can('view_status')) tabs.push({ id: 'reports', screen: 'reports_home', label: t('account.tabs.reports') });
   const manage = manageHomeFor(s);
   if (manage) tabs.push({ id: 'manage', screen: manage, label: t('account.tabs.manage') });
-  if (!hasMyWork && !s.readOnly) tabs.push({ id: 'inbox', screen: 'inbox_home', label: t('account.tabs.inbox'), badge: counts.unread });
+  if (!hasMyWork && !s.readOnly) tabs.push({ id: 'inbox', screen: 'inbox_home', label: t('account.tabs.inbox'), badge: counts.unread, badgeStale: counts.unreadStale === true });
   tabs.push({ id: 'me', screen: 'settings_home', label: t('account.tabs.me') });
   return tabs;
 }

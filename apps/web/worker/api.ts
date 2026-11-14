@@ -4,11 +4,15 @@ import { handleSourceAudio } from './sourceAudio';
 import { handleBlobs, type BlobDeps } from './blobs';
 import { handleHelpAudio } from './helpAudio';
 import { handleTutorialVideo } from './tutorialVideos';
-import { handleTutorialReview, REVIEW_PATH, type ReviewDeps } from './tutorialReview';
+import { FIXES_PATH, handleTutorialReview, REVIEW_PATH, type ReviewDeps } from './tutorialReview';
+import { handleOrgExports, type ExportDeps } from './orgExports';
 import { FILMED_PATH, handleTutorialFilmed, type FilmedDeps } from './tutorialFilmed';
 import { handleUserIssues, USER_ISSUES_PATH, type UserIssuesDeps } from './userIssues';
 import { handleLanguoids, type LanguoidDeps } from './languoids';
 import { handleAgentApi, type AgentDeps } from './agent/http';
+import { handleNearby, isNearbyPath, type NearbyDeps } from './nearby';
+import { handleRelay, RELAY_PATH, type RelayDeps } from './relay';
+import { handleJoin, JOIN_PATH, type JoinDeps } from './nearbyJoin';
 
 export interface ApiDeps {
   /** The profile a Supabase access token belongs to, or null when it is not valid. */
@@ -37,8 +41,16 @@ export interface ApiDeps {
   tutorialReview?: ReviewDeps;
   /** The filming saying its films are in (`/api/tutorial-filmed`, tutorialFilmed.ts); without it that route answers 503. */
   tutorialFilmed?: FilmedDeps;
+  /** The organization export's door (`/api/orgs/:org/exports`, `/api/org-exports/`, orgExports.ts, decisions.md 206); without it those routes answer 503. */
+  orgExports?: ExportDeps;
   /** The watch for user issues (`/api/user-issues`, userIssues.ts); without it that route answers 503. */
   userIssues?: UserIssuesDeps;
+  /** Nearby sync's certificates and attestations (`/api/nearby/*`, nearby.ts); without it those routes answer 503. */
+  nearby?: NearbyDeps;
+  /** Delivery of teammates' signed work (`/api/relay`, relay.ts); without it the route answers 503. */
+  relay?: RelayDeps;
+  /** A newcomer's first contact (`/api/nearby/join`, nearbyJoin.ts); without it the route answers 503. */
+  join?: JoinDeps;
 }
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
@@ -87,7 +99,7 @@ export async function handleApi(request: Request, deps: ApiDeps): Promise<Respon
   if (path === '/api/v1' || path.startsWith('/api/v1/')) {
     return deps.agent ? handleAgentApi(request, deps.agent) : json(503, { error: 'The API is not set up here.' });
   }
-  if (request.method === 'OPTIONS') return withCors(request, new Response(null, { status: 204, headers: { 'access-control-allow-methods': 'GET, HEAD, PUT' } }));
+  if (request.method === 'OPTIONS') return withCors(request, new Response(null, { status: 204, headers: { 'access-control-allow-methods': 'GET, HEAD, PUT, POST' } }));
   return withCors(request, await answer(request, deps));
 }
 
@@ -100,11 +112,17 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   }
   if (url.pathname.startsWith('/api/help-audio/')) return handleHelpAudio(request, deps.blobs?.bucket);
   if (url.pathname.startsWith('/api/tutorials/')) return handleTutorialVideo(request, deps.blobs);
-  if (url.pathname === REVIEW_PATH) return deps.tutorialReview ? handleTutorialReview(request, deps.tutorialReview) : json(503, { error: 'The tutorial review is not set up here.' });
+  if (url.pathname === REVIEW_PATH || url.pathname === FIXES_PATH) return deps.tutorialReview ? handleTutorialReview(request, deps.tutorialReview) : json(503, { error: 'The tutorial review is not set up here.' });
   if (url.pathname === USER_ISSUES_PATH) return deps.userIssues ? handleUserIssues(request, deps.userIssues) : json(503, { error: 'The watch for user issues is not set up here.' });
   if (url.pathname === FILMED_PATH) return deps.tutorialFilmed ? handleTutorialFilmed(request, deps.tutorialFilmed) : json(503, { error: 'The tutorial intake is not set up here.' });
+  if (url.pathname === JOIN_PATH) return deps.join ? handleJoin(request, deps.join) : json(503, { error: 'Nearby sync is not set up here yet.' });
+  if (isNearbyPath(url.pathname)) return deps.nearby ? handleNearby(request, deps.nearby) : json(503, { error: 'Nearby sync is not set up here yet.' });
+  if (url.pathname === RELAY_PATH) return deps.relay ? handleRelay(request, deps.relay) : json(503, { error: 'Nearby sync is not set up here yet.' });
   if (url.pathname === '/api/languoids') {
     return deps.languoids ? handleLanguoids(request, deps.languoids) : json(503, { error: 'The language list is not set up here.' });
+  }
+  if (/^\/api\/orgs\/[^/]+\/exports(\/|$)/.test(url.pathname) || url.pathname.startsWith('/api/org-exports/')) {
+    return deps.orgExports ? handleOrgExports(request, deps.orgExports) : json(503, { error: 'Exports are not set up here.' });
   }
   const match = /^\/api\/orgs\/([^/]+)\/reports$/.exec(url.pathname);
   if (!match) return json(404, { error: 'Not found.' });

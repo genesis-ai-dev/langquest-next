@@ -39,7 +39,9 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
-import { runUrl } from './tutorial-review.mjs';
+import { oldPathsOf, pathsOf, runUrl } from './tutorial-review.mjs';
+
+export { oldPathsOf, pathsOf };
 
 export const API = process.env.USER_ISSUES_API ?? 'https://next.langquest.org/api/user-issues';
 /** What the Worker expects the token to be for (apps/web/worker/userIssues.ts USER_ISSUES_RULE). */
@@ -327,32 +329,7 @@ const FIX_BOT = { name: 'github-actions[bot]', email: '41898282+github-actions[b
 /** The branch a draft fix goes on. */
 export const fixBranch = (issue) => `user-issue/${issue.toLowerCase()}`;
 
-/** The paths `git apply --numstat -z` lists: one per change, both sides of a rename. */
-export function pathsOf(numstatZ) {
-  const parts = String(numstatZ).split('\0');
-  const out = [];
-  for (let i = 0; i < parts.length; i += 1) {
-    const m = /^(?:-|\d+)\t(?:-|\d+)\t(.*)$/s.exec(parts[i]);
-    if (!m) continue;
-    if (m[1]) out.push(m[1]);
-    else {
-      out.push(parts[i + 1], parts[i + 2]);
-      i += 2;
-    }
-  }
-  return out.filter(Boolean);
-}
-
-/**
- * The paths a patch takes away from: renamed or copied from, and changed or deleted (git apply
- * lists only where a rename goes). Quoted paths stay quoted, and fixRefusal refuses them.
- */
-export function oldPathsOf(patch) {
-  const out = [];
-  for (const m of String(patch).matchAll(/^(?:(?:rename|copy) from |--- a\/)(.+)$/gm)) out.push(m[1]);
-  for (const m of String(patch).matchAll(/^--- (".+)$/gm)) out.push(m[1]);
-  return out;
-}
+// pathsOf and oldPathsOf are tutorial-review.mjs's, whose fix jobs read patches the same way.
 
 /** Why a draft fix may not go on, or null: a path it may never change, or too much to review. */
 export function fixRefusal(paths, bytes) {

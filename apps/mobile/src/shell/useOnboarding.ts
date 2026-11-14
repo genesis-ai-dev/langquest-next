@@ -11,6 +11,8 @@ import { userState } from '../server/account';
 export function useOnboarding(actorId: string, signedIn: boolean) {
   const [welcomed, setWelcomed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // The server's "already welcomed" arrived after routing (leaveLateWelcome).
+  const [welcomedLate, setWelcomedLate] = useState(false);
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -22,7 +24,7 @@ export function useOnboarding(actorId: string, signedIn: boolean) {
       // welcomed on another device was welcomed again (AUTH-058). Offline, or slow,
       // it goes on after a few seconds as before.
       if (!seen && signedIn && joined !== '1') {
-        const asked = userState().then(({ data, error }) => !error && !!data?.visionSeen, () => false);
+        const asked = askWelcomed(() => active);
         const timeout = new Promise<boolean>((done) => setTimeout(() => done(false), 4000));
         if (await Promise.race([asked, timeout])) {
           await AsyncStorage.setItem(`vision:${actorId}`, '1');
@@ -32,7 +34,7 @@ export function useOnboarding(actorId: string, signedIn: boolean) {
           void asked.then(async (yes) => {
             if (!yes) return;
             await AsyncStorage.setItem(`vision:${actorId}`, '1');
-            if (active) setWelcomed(true);
+            if (active) { setWelcomed(true); setWelcomedLate(true); }
           });
         }
       }
@@ -45,5 +47,22 @@ export function useOnboarding(actorId: string, signedIn: boolean) {
     await AsyncStorage.multiSet([[`vision:${actorId}`, '1'], [`joined:${actorId}`, '0']]);
     setWelcomed(true);
   }, [actorId]);
-  return { welcomed, loaded, markWelcomed };
+  return { welcomed, loaded, welcomedLate, markWelcomed };
+}
+
+/**
+ * Has the server seen this account welcomed? A read that goes out before
+ * the sign-in is on the request fails (sessionSafeFetch), and taking that
+ * as "no" welcomed the person again; it is asked again a few times, further
+ * apart each time, as the profile reads are (useAccount.ts).
+ */
+async function askWelcomed(alive: () => boolean): Promise<boolean> {
+  for (let i = 0; i < 5 && alive(); i++) {
+    try {
+      const { data, error } = await userState();
+      if (!error) return !!data?.visionSeen;
+    } catch { /* the sign-in is not on the request yet */ }
+    await new Promise((done) => setTimeout(done, 500 * (i + 1)));
+  }
+  return false;
 }
