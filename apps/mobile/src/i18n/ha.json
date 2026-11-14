@@ -3927,11 +3927,7 @@
         "askedWho": "an roƙi {{who}}",
         "asked": "an roƙa",
         "next": "na gaba",
-        "afterDone": "bayan kun gama",
-        "made": "an yi ta",
-        "checked": "an duba ta",
-        "afterMade": "bayan an yi ta",
-        "checkedBy": "a cikin {{check}}"
+        "afterDone": "bayan kun gama"
       },
       "help": {
         "study": "Ku bi jagorar nazari tare kafin ku naɗa. Babu abin da ke jiran sa.",
@@ -3951,9 +3947,7 @@
         "checkpoint": "Alamar kulle: dole a wuce shi kafin matakan da ke bayansa."
       },
       "thenTheTeam": "Sannan tawagar",
-      "teamHears": "Sannan tawagar za ta iya jin sa",
-      "makeIt": "{{what}} · yin ta",
-      "checkIt": "{{what}} · duba ta"
+      "teamHears": "Sannan tawagar za ta iya jin sa"
     },
     "quote": "“{{text}}”",
     "journey": {

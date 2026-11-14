@@ -3927,11 +3927,7 @@
         "askedWho": "asked {{who}}",
         "asked": "asked",
         "next": "next",
-        "afterDone": "once you're done",
-        "made": "made",
-        "checked": "checked",
-        "afterMade": "after it is made",
-        "checkedBy": "in the {{check}}"
+        "afterDone": "once you're done"
       },
       "help": {
         "study": "Go through the study guide together before you record. Nothing waits on it.",
@@ -3951,9 +3947,7 @@
         "checkpoint": "The lock: it must pass before the steps after it."
       },
       "thenTheTeam": "Then the team",
-      "teamHears": "Then the team can hear it",
-      "makeIt": "{{what}} · make it",
-      "checkIt": "{{what}} · check it"
+      "teamHears": "Then the team can hear it"
     },
     "quote": "“{{text}}”",
     "journey": {

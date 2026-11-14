@@ -3800,11 +3800,7 @@
         "askedWho": "已请{{who}}",
         "asked": "已请求",
         "next": "下一步",
-        "afterDone": "在你完成之后",
-        "made": "已制作",
-        "checked": "已检查",
-        "afterMade": "制作完成后",
-        "checkedBy": "在{{check}}中"
+        "afterDone": "在你完成之后"
       },
       "help": {
         "study": "录音前大家一起过一遍学习指南。不会因此耽误其他步骤。",
@@ -3824,9 +3820,7 @@
         "checkpoint": "锁：它必须通过，后面的步骤才能进行。"
       },
       "thenTheTeam": "然后由团队检查",
-      "teamHears": "然后团队就能听到",
-      "makeIt": "{{what}} · 制作",
-      "checkIt": "{{what}} · 检查"
+      "teamHears": "然后团队就能听到"
     },
     "quote": "“{{text}}”",
     "journey": {

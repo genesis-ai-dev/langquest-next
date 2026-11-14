@@ -40,11 +40,6 @@ export interface TeamStep {
    */
   state: 'done' | 'setAside' | 'movedPast' | 'attention' | 'waiting' | 'todo' | 'locked';
   checkpoint: boolean;
-  /**
-   * A kind that makes new content (a back translation) is two rows: `make` is the kind's own row, `check` is
-   * the check that follows it, by the check that compares it (LAN-234). Neither is a peer review.
-   */
-  part?: 'make' | 'check';
 }
 
 export interface PathInput {
@@ -167,8 +162,7 @@ export function teamSteps(input: PathInput): TeamStep[] {
   let previous: { name: string; complete: boolean } | undefined;
   return p.steps.flatMap((s) => {
     const rows = s.kinds.map((k, j): TeamStep => {
-      const makes = kinds.find((d) => d.id === k.kindId)?.produces;
-      const name = makes ? t('passage.path.makeIt', { what: kindName(kinds, k.kindId) }) : kindName(kinds, k.kindId);
+      const name = kindName(kinds, k.kindId);
       let status: string;
       let state: TeamStep['state'];
       // A checkpoint clears only with approval given in the app (decision 72; core derivePassage), so a check
@@ -181,7 +175,7 @@ export function teamSteps(input: PathInput): TeamStep[] {
         state = movedPast ? 'movedPast' : k.state === 'skipped' ? 'setAside' : 'done';
         status = movedPast ? (s.override?.reason ? t('passage.path.status.movedPastWhy', { reason: s.override.reason }) : t('passage.path.status.movedPast'))
           : k.state === 'skipped' ? t('passage.path.status.setAside')
-          : k.state === 'addressed' ? t('passage.path.status.answered') : makes ? t('passage.path.status.made') : t('passage.path.status.looksGood');
+          : k.state === 'addressed' ? t('passage.path.status.answered') : t('passage.path.status.looksGood');
       } else if (k.state === 'suggestions') {
         state = 'attention'; status = t('passage.path.status.needsChanges');
       } else if (k.state === 'addressed' && !s.lockedBy) {
@@ -201,25 +195,10 @@ export function teamSteps(input: PathInput): TeamStep[] {
           ? previous ? after(previous.name) : t('passage.path.status.afterDone')
           : previous && !previous.complete ? after(previous.name) : t('passage.path.status.next');
       }
-      const row: TeamStep = { stepId: s.step.id, kindId: k.kindId, together: j > 0, name, status, state, checkpoint: s.step.checkpoint, ...(makes ? { part: 'make' as const } : {}) };
-      return row;
+      return { stepId: s.step.id, kindId: k.kindId, together: j > 0, name, status, state, checkpoint: s.step.checkpoint };
     });
     // Later steps say the step before by its first check, so the line stays short.
     previous = { name: kindName(kinds, s.step.kindIds[0] ?? ''), complete: s.complete || !!s.override };
-    return rows.flatMap((row) => {
-      const makes = kinds.find((d) => d.id === row.kindId)?.produces;
-      const checker = makes ? p.steps.flatMap((st) => st.kinds.map((c) => ({ st, c }))).find((x) => x.c.kindId === makes.checkedBy) : undefined;
-      if (!makes || !checker || row.state === 'setAside' || row.state === 'movedPast') return [row];
-      const checkName = kindName(kinds, checker.c.kindId);
-      const made = row.state === 'done';
-      const checked = kindCleared(checker.c, checker.st);
-      const check: TeamStep = {
-        stepId: checker.st.step.id, kindId: checker.c.kindId, together: false, part: 'check',
-        name: t('passage.path.checkIt', { what: kindName(kinds, row.kindId) }),
-        status: checked ? t('passage.path.status.checked') : made ? t('passage.path.status.checkedBy', { check: kindInSentence(checkName) }) : t('passage.path.status.afterMade'),
-        state: checked ? 'done' : 'todo', checkpoint: false
-      };
-      return [row, check];
-    });
+    return rows;
   });
 }

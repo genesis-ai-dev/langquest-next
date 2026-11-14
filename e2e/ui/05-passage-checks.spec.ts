@@ -128,7 +128,7 @@ test('PASS-017 REV Back-translate it, and the record afterwards', async ({ brows
   await byId(page, 'primary-action').click();
   await toast(page, 'Back translation published.');
   await expect(header(page)).toHaveText(L);
-  expect((await teamRows(page)).slice(0, 2)).toEqual(['Peer check, looks good', 'Back translation · make it, made']);
+  expect((await teamRows(page)).slice(0, 2)).toEqual(['Peer check, looks good', 'Back translation, looks good']);
 });
 
 test('PASS-017 TREV Back-translate it, and is offered the next check', async ({ browser }) => {
@@ -226,7 +226,7 @@ async function setAsideThenUndo(browser: Browser, who: AccountKey): Promise<Page
   await sheet(page).getByRole('button', { name: 'Not needed for this passage' }).click();
   await confirm.click();
   await toast(page, 'Back translation set aside · reason saved');
-  await expect(teamRow(page, 'Back translation')).toHaveAttribute('aria-label', /^Back translation · make it, /);
+  await expect(teamRow(page, 'Back translation')).toHaveAttribute('aria-label', /^Back translation, /);
   await undoFromHistory(page, "Brought back — it's a suggested step again");
   await openTeamRow(page, 'Back translation');
   expect(await sheetText(page)).not.toContain('Set aside: Not needed for this passage');
@@ -408,7 +408,7 @@ test('PASS-050 A back translation that happened outside the app', async ({ brows
   const [card] = await recordings(world(), 'REV', 1);
   await actAs(world(), 'REV', (c) => c.produceContent({ commandId: id(), fromTakeId: take('P-SUBMITTED'), kindId: 'bt', cards: [card!], via: 'logged' }));
   await refreshRecord(page, world(), 'P-SUBMITTED');
-  expect((await teamRows(page))[1]).toBe('Back translation · make it, made');
+  expect((await teamRows(page))[1]).toBe('Back translation, looks good');
 });
 
 // ---- checkpoints -------------------------------------------------------------------------------

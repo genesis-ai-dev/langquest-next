@@ -99,7 +99,7 @@ describe('a checkpoint on the path', () => {
   it('a check logged afterwards leaves it next, and Final Approval locked (PASS-053)', () => {
     const l = atCheckpoint();
     l.run('akol', (c) => c.recordReview({ commandId: 'r3', takeIds: [l.take()], kindId: 'consultant', outcome: 'looks_good', via: 'logged' }));
-    const team = teamSteps(l.input('akol')).filter((st) => st.part !== 'check');
+    const team = teamSteps(l.input('akol'));
     expect(team[3]).toMatchObject({ kindId: 'consultant', state: 'todo', status: 'next' });
     expect(team[4]).toMatchObject({ kindId: 'final', state: 'locked', status: 'after the consultant check' });
   });
@@ -108,7 +108,7 @@ describe('a checkpoint on the path', () => {
     const l = atCheckpoint();
     const stepId = l.passage().steps[2]!.step.id;
     l.run('lead', (c) => c.depart({ commandId: 'o1', unitId: 'luk15', type: 'override', stepId, reason: 'Consultant visit is months away' }));
-    const team = teamSteps(l.input('akol')).filter((st) => st.part !== 'check');
+    const team = teamSteps(l.input('akol'));
     // Moved past, with its reason, and never the same state as a check that passed (UI audit, finding 86).
     expect(team[3]).toMatchObject({ kindId: 'consultant', state: 'movedPast', status: 'moved past · Consultant visit is months away' });
     expect(team.filter((st) => st.state === 'done').map((st) => st.kindId)).not.toContain('consultant');
@@ -176,7 +176,7 @@ describe('a checkpoint behind another (UI audit, finding 91)', () => {
     const l = twoCheckpoints();
     const stepId = l.passage().steps.find((st) => st.step.kindIds.includes('consultant'))!.step.id;
     l.run('lead', (c) => c.depart({ commandId: 'o1', unitId: 'luk15', type: 'override', stepId, reason: 'Consultant visit is months away' }));
-    const consultant = teamSteps(l.input('akol')).find((st) => st.kindId === 'consultant' && st.part !== 'check')!;
+    const consultant = teamSteps(l.input('akol')).find((st) => st.kindId === 'consultant')!;
     expect(consultant.state).toBe('locked');
   });
 });

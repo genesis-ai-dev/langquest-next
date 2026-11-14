@@ -3927,11 +3927,7 @@
         "askedWho": "hiniling: {{who}}",
         "asked": "hiniling",
         "next": "susunod",
-        "afterDone": "kapag tapos ka na",
-        "made": "nagawa na",
-        "checked": "nasuri na",
-        "afterMade": "pagkatapos gawin",
-        "checkedBy": "sa {{check}}"
+        "afterDone": "kapag tapos ka na"
       },
       "help": {
         "study": "Pag-aralan nang magkakasama ang gabay sa pag-aaral bago ka mag-record. Walang naghihintay rito.",
@@ -3951,9 +3947,7 @@
         "checkpoint": "Ang kandado: kailangan itong pumasa bago ang mga hakbang pagkatapos nito."
       },
       "thenTheTeam": "Saka ang pangkat",
-      "teamHears": "Saka ito maririnig ng pangkat",
-      "makeIt": "{{what}} · gawin",
-      "checkIt": "{{what}} · suriin"
+      "teamHears": "Saka ito maririnig ng pangkat"
     },
     "quote": "“{{text}}”",
     "journey": {

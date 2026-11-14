@@ -105,7 +105,7 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
 
     // Step 6: REV back-translates Version 2 and publishes it.
     const bt = rev.getByRole('button', { name: /^Back-translate it$/ }).locator('visible=true');
-    if (!(await bt.count())) await rev.getByRole('button', { name: /^Back translation · make it, / }).locator('visible=true').first().click();
+    if (!(await bt.count())) await rev.getByRole('button', { name: /^Back translation, / }).locator('visible=true').first().click();
     await bt.first().click();
     await expect(text(rev, /Version 2/)).toBeVisible();
     await sayEachPart(rev, 3);
@@ -115,7 +115,7 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
 
     // Step 7: TRANS logs the Community Check: Already happened, looks good, at Village church.
     await openByLabel(trans, PX);
-    await syncUntil(trans, async () => (await trans.getByRole('button', { name: /^Back translation · make it, (made|done)/ }).count()) > 0);
+    await syncUntil(trans, async () => (await trans.getByRole('button', { name: /^Back translation, (looks good|done)/ }).count()) > 0);
     await trans.getByRole('button', { name: /^Community check, / }).locator('visible=true').first().click();
     await button(trans, 'Already happened').click();
     await button(trans, /^Add details/).click();
