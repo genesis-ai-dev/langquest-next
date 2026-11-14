@@ -19,7 +19,7 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
-import { Pressable, View } from 'react-native';
+import { Linking, Platform, Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
 import { choiceName, type LibraryChoice } from '../templates/contentTemplatesModel';
@@ -244,6 +244,8 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
   const reference = can('manage_reference');
   const flows = can('manage_flows');
   const open = ctx.details(`home:${props.from}:setup`);
+  // The page that makes an access token (LAN-237): the app's own address, so a host move changes only that setting; the web app uses a relative one.
+  const connectUrl = props.level !== 'org' ? null : Platform.OS === 'web' ? '/connect' : APP_URL ? `${APP_URL}/connect` : null;
   // What is behind the tap, the first one said as a list starts ("Content templates, reference, …").
   const parts: [string, string][] = [
     ...(templates ? [[t('org.setup.summary.templates'), t('org.setup.summary.templates')] as [string, string]] : []),
@@ -262,7 +264,9 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
           sub={referenceSub} /> : null}
         {flows ? <Row icon="flow" label={t('org.setup.flows')} sub={applied(counts.flow, 'flow')} help={t('org.setup.flowsHelp')} onPress={() => ctx.go('flows_home', params)} /> : null}
         <Row icon="star" label={t('org.setup.roles')} sub={t('org.setup.rolesSub', { count: liveRoles(ctx.org.state?.roles).length })} help={t('org.setup.rolesHelp')} onPress={() => ctx.go('roles_home', params)}
-          last />
+          last={!connectUrl} />
+        {connectUrl ? <Row icon="link" label={t('org.setup.connect')} sub={t('org.setup.connectSub')} help={t('org.setup.connectHelp')} last
+          onPress={() => { void Linking.openURL(connectUrl).catch(() => undefined); }} /> : null}
       </Disclosure>
     </View>
   );

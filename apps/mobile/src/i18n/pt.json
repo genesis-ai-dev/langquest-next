@@ -693,6 +693,9 @@
       "reference": "Material de referência",
       "flows": "Fluxos de revisão",
       "roles": "Funções",
+      "connect": "Conectar um aplicativo",
+      "connectSub": "Criar um token de acesso",
+      "connectHelp": "Abre uma página onde você cria um token de acesso para outro aplicativo, com o endereço e um exemplo.",
       "summary": {
         "templates": "Modelos de conteúdo",
         "referenceFirst": "Material de referência",
@@ -4677,6 +4680,8 @@
       "backAgainToLeave": "Toque em Voltar de novo para sair do LangQuest",
       "languageExplorer": "Idiomas do mundo e seus códigos",
       "languageExplorerNewTab": "Idiomas do mundo e seus códigos, abre em uma nova aba",
+      "connect": "Conectar",
+      "connectNewTab": "Conectar um aplicativo: criar um token de acesso, abre em uma nova aba",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4860,7 +4865,8 @@
       "manage": "Os idiomas, as pessoas e as configurações da sua organização.",
       "inbox": "O que aconteceu que diz respeito a você: pedidos, comentários, pessoas pedindo para entrar.",
       "me": "O seu nome, este aparelho e as suas configurações.",
-      "explorer": "Abre numa nova aba uma lista dos idiomas do mundo: os códigos de cada um e onde é falado. Não são os idiomas da sua organização."
+      "explorer": "Abre numa nova aba uma lista dos idiomas do mundo: os códigos de cada um e onde é falado. Não são os idiomas da sua organização.",
+      "connect": "Abre em uma nova aba uma página onde você cria um token de acesso para outro aplicativo, com o endereço e um exemplo."
     },
     "sync": {
       "live": "Nuvem com um visto: conectado. Seu trabalho é enviado conforme você avança. Toque para ver o que foi enviado.",

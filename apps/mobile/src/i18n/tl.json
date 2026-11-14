@@ -687,6 +687,9 @@
       "reference": "Sanggunian",
       "flows": "Mga daloy ng pagrepaso",
       "roles": "Mga tungkulin",
+      "connect": "Mag-ikonekta ng app",
+      "connectSub": "Gumawa ng access token",
+      "connectHelp": "Nagbubukas ng pahina kung saan gagawa ka ng access token para sa ibang app, kasama ang address at isang halimbawa.",
       "summary": {
         "templates": "Mga template ng nilalaman",
         "referenceFirst": "Sanggunian",
@@ -4531,6 +4534,8 @@
       "backAgainToLeave": "Pindutin ulit ang Back para umalis sa LangQuest",
       "languageExplorer": "Mga wika at code sa mundo",
       "languageExplorerNewTab": "Mga wika at code sa mundo, nagbubukas sa bagong tab",
+      "connect": "Ikonekta",
+      "connectNewTab": "Mag-ikonekta ng app: gumawa ng access token, bubukas sa bagong tab",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4712,7 +4717,8 @@
       "manage": "Ang mga wika, tao at setting ng iyong organisasyon.",
       "inbox": "Ang nangyaring may kinalaman sa iyo: mga hiling, puna, mga taong gustong sumali.",
       "me": "Ang iyong pangalan, ang device na ito at ang iyong mga setting.",
-      "explorer": "Nagbubukas ng listahan ng mga wika sa mundo sa bagong tab: ang mga code ng bawat isa at kung saan ito sinasalita. Hindi ito ang mga wika ng iyong organisasyon."
+      "explorer": "Nagbubukas ng listahan ng mga wika sa mundo sa bagong tab: ang mga code ng bawat isa at kung saan ito sinasalita. Hindi ito ang mga wika ng iyong organisasyon.",
+      "connect": "Nagbubukas ng pahina sa bagong tab kung saan gagawa ka ng access token para sa ibang app, kasama ang address at isang halimbawa."
     },
     "sync": {
       "live": "Ulap na may tsek: nakakonekta. Ipinapadala ang iyong gawa habang gumagawa ka. I-tap para makita ang naipadala.",

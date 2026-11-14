@@ -687,6 +687,9 @@
       "reference": "Reference material",
       "flows": "Review flows",
       "roles": "Roles",
+      "connect": "Connect an app",
+      "connectSub": "Make an access token",
+      "connectHelp": "Opens a page where you make an access token for another app, and see the address and an example.",
       "summary": {
         "templates": "Content templates",
         "referenceFirst": "Reference material",
@@ -4531,6 +4534,8 @@
       "backAgainToLeave": "Press Back again to leave LangQuest",
       "languageExplorer": "World languages and codes",
       "languageExplorerNewTab": "World languages and codes, opens in a new tab",
+      "connect": "Connect",
+      "connectNewTab": "Connect an app: make an access token, opens in a new tab",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4712,7 +4717,8 @@
       "manage": "Your organization's languages, people and settings.",
       "inbox": "What happened that concerns you: requests, feedback, people asking to join.",
       "me": "Your name, this device and your settings.",
-      "explorer": "Opens a list of the world's languages in a new tab: each one's codes and where it is spoken. These are not your organization's languages."
+      "explorer": "Opens a list of the world's languages in a new tab: each one's codes and where it is spoken. These are not your organization's languages.",
+      "connect": "Opens a page in a new tab where you make an access token for another app, and see the address and an example."
     },
     "sync": {
       "live": "Cloud with a tick: connected. Your work is sent as you go. Tap to see what was sent.",

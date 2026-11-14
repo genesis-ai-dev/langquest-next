@@ -71,6 +71,8 @@ export function NavChrome(props: {
         </View>
         {/* The web app only: the language explorer, a page of its own (docs/languoids.md). */}
         {Platform.OS === 'web' ? <ExplorerLink /> : null}
+        {/* The web app only: where a person makes an access token for another app (LAN-237). A relative address, so a host move keeps it working. */}
+        {Platform.OS === 'web' ? <ConnectButton /> : null}
       </View>
     );
   }
@@ -145,7 +147,22 @@ function ExplorerLink() {
   );
 }
 
+/** The web app's Connect button: the page that makes an access token, in a new tab. */
+function ConnectButton() {
+  const spot = useHelpSpot(t('shell.nav.connect'), t('help.tabs.connect'), () => { window.open('/connect', '_blank', 'noopener'); });
+  return (
+    <Pressable testID="nav-connect" onPress={spot.onPress} accessibilityRole="link"
+      accessibilityLabel={t('shell.nav.connectNewTab')}
+      style={({ pressed }) => [styles.connect, pressed && { opacity: 0.8 }]}>
+      <Ico name="link" size={22} color={C.white} />
+      <Text style={[txt.body, { flex: 1, fontWeight: '700', color: C.white }]} numberOfLines={1}>{t('shell.nav.connect')}</Text>
+      <HelpBadge spot={spot} inset />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  connect: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.primary, paddingHorizontal: space.md, marginTop: space.md, borderRadius: radius.md, backgroundColor: C.primary },
   tabs: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.sm, paddingBottom: space.xs },
   tab: { flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: space.sm },
   tabPill: { paddingHorizontal: 18, paddingVertical: 4, borderRadius: 99 },

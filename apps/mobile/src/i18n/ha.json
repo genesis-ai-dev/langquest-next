@@ -687,6 +687,9 @@
       "reference": "Kayan Bincike",
       "flows": "Tsare-tsaren Bita",
       "roles": "Matsayai",
+      "connect": "Haɗa manhaja",
+      "connectSub": "Yi alamar shiga",
+      "connectHelp": "Yana buɗe shafi inda za ka yi alamar shiga ga wata manhaja, da adireshi da misali.",
       "summary": {
         "templates": "Samfuran abun ciki",
         "referenceFirst": "Kayan Bincike",
@@ -4531,6 +4534,8 @@
       "backAgainToLeave": "Danna Koma sake don fita daga LangQuest",
       "languageExplorer": "Harsunan duniya da lambobinsu",
       "languageExplorerNewTab": "Harsunan duniya da lambobinsu, yana buɗewa a sabon shafi",
+      "connect": "Haɗa",
+      "connectNewTab": "Haɗa manhaja: yi alamar shiga, tana buɗewa a sabon shafi",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4712,7 +4717,8 @@
       "manage": "Harsuna, mutane da saitunan ƙungiyarku.",
       "inbox": "Abin da ya faru da ya shafe ku: buƙatu, sharhi, mutanen da ke son shiga.",
       "me": "Sunanku, wannan na'ura da saitunanku.",
-      "explorer": "Yana buɗe jerin harsunan duniya a sabon shafi: lambobin kowane harshe da inda ake magana da shi. Waɗannan ba harsunan ƙungiyarku ba ne."
+      "explorer": "Yana buɗe jerin harsunan duniya a sabon shafi: lambobin kowane harshe da inda ake magana da shi. Waɗannan ba harsunan ƙungiyarku ba ne.",
+      "connect": "Yana buɗe shafi a sabon shafin burauza inda za ka yi alamar shiga ga wata manhaja, da adireshi da misali."
     },
     "sync": {
       "live": "Gajimare mai alamar daidai: an haɗa. Ana aika aikinka yayin da kake yi. Taɓa don ganin abin da aka aika.",
