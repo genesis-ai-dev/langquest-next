@@ -107,7 +107,9 @@ describe('the Nightly tests part', () => {
       ['/check-runs/2/annotations', []],
       ['/check-runs/3/annotations', []]
     ]);
-    const s = await nightlySection({ GITHUB_REPO: 'o/r' }, fetcher);
+    // nightlySection reads the clock; the run times above are NOW's, so a later day made them stale.
+    vi.useFakeTimers({ toFake: ['Date'], now: NOW });
+    const s = await nightlySection({ GITHUB_REPO: 'o/r' }, fetcher).finally(() => vi.useRealTimers());
     const d = s.data as Nightly;
     expect(String(vi.mocked(fetcher).mock.calls[0]![0])).toContain('branch=main&event=schedule&status=completed');
     expect(d.runs.map((r) => [r.workflow, r.run?.number ?? null])).toEqual([['guardrails.yml', 9], ['phone-tests.yml', null]]);
