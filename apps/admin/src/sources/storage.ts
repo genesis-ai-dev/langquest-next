@@ -180,6 +180,8 @@ export async function storageSection(env: Env, fetcher: typeof fetch = fetch, no
 export interface Capacity {
   now: { dbBytes: number; eventsBytes: number; eventsRows: number; snapshotsBytes: number } | null;
   limitBytes: number;
+  /** Where `limitBytes` came from: what Supabase said, or SUPABASE_DB_LIMIT_GB when Supabase did not answer. */
+  limitFrom?: 'supabase' | 'setting';
   dbGrowthPerDay: number | null;
   weeksLeft: number | null;
   history: { at: string; dbBytes: number }[];
@@ -208,8 +210,17 @@ export function capacityAlerts(c: Capacity): Alert[] {
   return out;
 }
 
+/** The database's disk as Supabase says it, in bytes; null when it cannot say (the token needs `infra_disk_config_read`). */
+async function diskBytes(env: Env, fetcher: typeof fetch): Promise<number | null> {
+  const ref = env.SUPABASE_PROJECTS.split(',')[0]?.split(':')[0]?.trim();
+  if (!env.ADMIN_SUPABASE_TOKEN || !ref) return null;
+  const disk = await getJson<{ attributes?: { size_gb?: number } }>(fetcher, `https://api.supabase.com/v1/projects/${ref}/config/disk`,
+    { headers: { authorization: `Bearer ${env.ADMIN_SUPABASE_TOKEN}` } }, 'Supabase disk').catch(() => null);
+  const gb = num(disk?.attributes?.size_gb);
+  return gb > 0 ? gb * 1024 ** 3 : null;
+}
+
 export async function capacitySection(env: Env, fetcher: typeof fetch = fetch, now = Date.now(), diag: <T>(fn: (q: Query) => Promise<T>) => Promise<T> = (fn) => withDiag(diagConnection(env), fn)): Promise<Section<Capacity>> {
-  const limitBytes = (Number(env.SUPABASE_DB_LIMIT_GB) || 64) * 1024 ** 3;
   const fromDiag = diag(async (q) => {
     const [sizes, history] = await Promise.all([
       q<Capacity['now']>(`select diag.ops_sizes() as v`).catch((e: unknown) => { if (isMissing(e)) return null; throw e; }),
@@ -236,12 +247,13 @@ export async function capacitySection(env: Env, fetcher: typeof fetch = fetch, n
     // The last week, as Storage shows it: a month would take in one-off copies such as the v2 import's.
     ? r2Days(fetcher, env, now).then((days) => ({ bytes: days.at(-1)?.bytes ?? 0, growthPerDay: growthPerDay(days.slice(-8).map((d) => ({ at: d.date, bytes: d.bytes }))) })).catch(() => null)
     : Promise.resolve(null);
-  const [d, u, r] = await Promise.all([fromDiag, usage, r2]);
+  const [d, u, r, disk] = await Promise.all([fromDiag, usage, r2, diskBytes(env, fetcher)]);
+  const limitBytes = disk ?? (Number(env.SUPABASE_DB_LIMIT_GB) || 256) * 1024 ** 3;
   const history = d.history.map((h) => ({ at: h.at, dbBytes: num(h.dbBytes) }));
   const dbGrowthPerDay = growthPerDay(history.map((h) => ({ at: h.at, bytes: h.dbBytes })));
   const current = d.sizes ? num(d.sizes.dbBytes) : history.at(-1)?.dbBytes ?? null;
   // Already past the limit there are no weeks left to count: capacityAlerts says it is past instead.
   const weeksLeft = current !== null && current < limitBytes && dbGrowthPerDay && dbGrowthPerDay > 0 ? (limitBytes - current) / dbGrowthPerDay / 7 : null;
-  const c: Capacity = { now: d.sizes, limitBytes, dbGrowthPerDay, weeksLeft, history, r2: r, usage: u };
+  const c: Capacity = { now: d.sizes, limitBytes, limitFrom: disk === null ? 'setting' : 'supabase', dbGrowthPerDay, weeksLeft, history, r2: r, usage: u };
   return ok(c, capacityAlerts(c));
 }
