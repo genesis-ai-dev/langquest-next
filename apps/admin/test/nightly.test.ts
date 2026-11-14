@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nightNotice } from '../../../scripts/nightly-report.mjs';
 import { phoneNights } from '../../../scripts/phone-tests.mjs';
 import { NIGHTLIES, nightlyAlerts, nightlySection, parseLine, STALE_H, type Nightly } from '../src/sources/nightly';
@@ -11,6 +11,7 @@ import { NIGHTLIES, nightlyAlerts, nightlySection, parseLine, STALE_H, type Nigh
 
 const NOW = Date.parse('2026-11-13T12:00:00Z');
 const hAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
+afterEach(() => vi.useRealTimers());
 
 /** A notice as GitHub keeps it: the workflow command's title and message, unescaped. */
 function annotation(notice: string) {
@@ -107,6 +108,7 @@ describe('the Nightly tests part', () => {
       ['/check-runs/2/annotations', []],
       ['/check-runs/3/annotations', []]
     ]);
+    vi.useFakeTimers({ toFake: ['Date'], now: NOW }); // the fixture's clock, not today's
     const s = await nightlySection({ GITHUB_REPO: 'o/r' }, fetcher);
     const d = s.data as Nightly;
     expect(String(vi.mocked(fetcher).mock.calls[0]![0])).toContain('branch=main&event=schedule&status=completed');
