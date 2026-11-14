@@ -230,7 +230,9 @@ video's description is written when it is filmed and put on when it is
 uploaded; a film from before decision 191 (tall, its voice written out),
 from before the camera moved in on what each step lights, or with a ring
 drawn round each part rather than the spotlight, is filmed again once, whatever its look (`FRAME` in `playlists.ts` and in the release's
-manifest), and only a video's newest version goes up.
+manifest), and only a video's newest version goes up. A change that only
+makes films look better leaves `FRAME` as it is: each film gets it when it
+is filmed again for another reason (decision 191, amended 2026-11-13).
 
 A video's description ends with a link to the same video in each other
 language it is made in: `https://next.langquest.org/v/<language>/<video>`,
