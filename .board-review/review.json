@@ -1,0 +1,22 @@
+{
+  "kind": "screen",
+  "ask": "Is this fix good to merge, knowing the after pictures come from tonight's film run?",
+  "problem": "The nightly tutorial film run failed twice over. The Answer feedback video could not be filmed. The Use the help video was held back because the number on the bell looked cut off.",
+  "found": "Pull request 376 was in that run; it fixed something else. A new button on My Work rows hid the Feedback row from the film. The bell's count sat outside its help-mode light. No open pull request covers either.",
+  "changed": "In help mode the light around the bell now also covers its count, so the number shows clearly. Main already had the film step fix, so this change only holds the bell.",
+  "why": "The checks stay on; the film step is fixed on main and the screen fault is fixed here. Moving the count inside the bell would change the look. I could not run the app here, so tonight's film shows the after frames.",
+  "touches": "Only the bell's help-mode light when it shows a count.",
+  "pictures": [
+    {
+      "file": "before-work.png",
+      "label": "Before: My Work rows now end with the On this device button, so the film step could not find the Feedback row"
+    },
+    {
+      "file": "before-help.png",
+      "label": "Before: the bell's count is half dimmed in help mode"
+    }
+  ],
+  "guess": {
+    "answer": "looks_good"
+  }
+}
