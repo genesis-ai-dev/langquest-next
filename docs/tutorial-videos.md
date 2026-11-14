@@ -434,6 +434,12 @@ watch for user issues does (`user-issues.yml`):
 4. `open` pushes it to `tutorial-fix/<id>` and opens a draft pull request
    that says what was accepted, links what it answers (never quoting a
    commenter) and gives the checks. Its pull requests start no checks.
+   When GitHub will not open it (the repository must let Actions open pull
+   requests: `.github/actions-permissions.json`, applied with
+   `npm run github:rules -- --apply`), the fix is failed with that reason
+   and its branch stays. Each later run's `queue` opens it from the branch
+   without Claude, or takes the pull request a person opened from it
+   (migration `20261114070000_tutorial_fix_unopened.sql`).
 
 A person reads it, marks it Ready for review (CI runs), and merges it. The
 merge films the video again at once (`tutorials.yml` runs on a change to
