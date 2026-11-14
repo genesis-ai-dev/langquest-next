@@ -10007,6 +10007,25 @@ the 16 channels and stopped on `quotaExceeded`. Reading a channel's new
 comments costs a unit a page; at midnight the day's 10,000 are all there,
 and the intake and the uploads come five minutes later.
 
+Amended (2026-11-13, Caleb Koster): the dashboard shows the videos as one
+list for each app language, in place of the filming table and the
+suggestion cards. Each video's row has its state, a day-by-day timeline
+(zoomed with a pinch; a click on a mark shows the change, the films before
+and after, the comment as written, the PR or the log) and, at its right, a
+warning mark when an admin must act. The mark opens that video's cards: the
+problem, who acts next, what happens if nobody does, and a box to tell
+Claude what to do; Claude's next fix run takes that instruction as already
+approved. Beside the list, what waits on an admin that is not one video's
+(publish, connect a channel, paused languages) and what the workers do now
+and tonight. Caleb asked for this so one page says what waits on him, and
+so that he gives Claude directions before the night's run instead of
+opening logs. The history comes from `ops.tutorial_videos`, which already
+keeps every film (`diag.ops_tutorial_films`, migration
+`20261113234000_tutorial_films.sql`); the causes, holds, failures and slots
+from the nightly's `status-<language>.json` in the public release; a fix's
+state from its suggestion. A suggested reply shows for 14 days, since
+nothing records that someone posted it.
+
 ## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
 
 Date: 2026-10-29 · By: Caleb Koster · Status: accepted

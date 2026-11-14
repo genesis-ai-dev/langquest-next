@@ -109,6 +109,10 @@ do $$ declare v jsonb := diag.ops_tutorials(); begin
   assert jsonb_array_length(v->'waiting') = 3, 'English''s new version, Spanish and French wait: %', v->'waiting';
   assert (select count(*) from jsonb_array_elements(v->'waiting') w where w->>'language' = 'en' and w->>'replaces' = 'dQw4w9WgXcQ') = 1, 'English replaces the one up';
   assert v->'published'->0->>'language' = 'en' and (v->'published'->0->>'videos')::int = 1, 'one video up in English';
+  -- Every film for the video list and timeline: English's two, Spanish's and French's, the one up with its YouTube id.
+  v := diag.ops_tutorial_films();
+  assert jsonb_array_length(v) = 4, 'four films: %', v;
+  assert (select count(*) from jsonb_array_elements(v) f where f->>'language' = 'en' and f->>'youtubeId' = 'dQw4w9WgXcQ') = 1, 'the English film up: %', v;
   begin
     perform public.ops_youtube_refresh('UC8Ry8oFIPWzDygngMwvkBLQ');
     raise exception 'diag_reader read a refresh token';
