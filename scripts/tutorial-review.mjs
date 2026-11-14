@@ -198,6 +198,11 @@ async function send(dir) {
 /** The changes Claude makes; a code change goes to Linear and a new video is made by a person (server/tutorialFeedback.ts FIXABLE_KINDS). */
 export const FIXABLE = ['script', 'screen', 'voice', 'instruction'];
 export const FIX_LIMITS = { files: 20, bytes: 200_000, summary: 3000, noFix: 1000 };
+/**
+ * How a fix whose draft pull request GitHub would not open is failed; a later run opens it from its pushed
+ * branch (migration 20261114070000_tutorial_fix_unopened.sql matches these words).
+ */
+export const UNOPENED_NOTE = 'GitHub did not let the workflow open the pull request';
 /** The phone's disguise (decisions.md 171, server/tutorialFeedback.ts DISGUISE): no video shows or explains it. */
 const DISGUISE = /\b(disguis\w*|calculators?|notepads?)\b/i;
 const VIDEO = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -304,7 +309,9 @@ export function fixPull(suggestion, fix, checks, run) {
     '',
     `**The change:** ${fix.summary}`,
     '',
-    `**In the workflow:** ${result(checks.typecheck, 'typecheck')}; ${result(checks.tests, "the videos' tests")} ([run](${run})).`,
+    checks
+      ? `**In the workflow:** ${result(checks.typecheck, 'typecheck')}; ${result(checks.tests, "the videos' tests")} ([run](${run})).`
+      : `**In the workflow:** its typecheck and tests ran in [this run](${run}).`,
     '',
     'Read the change, then mark this pull request Ready for review: CI runs then. When it is merged into main, the video is filmed again at once, and its film names this pull request as the cause.',
     '',
@@ -329,7 +336,8 @@ async function github(method, path, body) {
 }
 
 /**
- * Which draft pull requests were merged or closed since, and at most three accepted changes started
+ * Which draft pull requests were merged or closed since, the ones GitHub would not open opened now,
+ * and at most three accepted changes started
  * (only with a Claude token: without one the look says so): each <dir>/<id>.json, and their ids as
  * the step's `fixes` output. Prints ids and videos only: the logs are public.
  */
@@ -343,6 +351,11 @@ async function queue(dir) {
     if (got.status !== 200) console.log(`::warning::PR ${pr}: GitHub answered ${got.status}`);
     if (state) updates.push({ id, state, pr });
   }
+  for (const s of waiting.unopened ?? []) {
+    if (!ID.test(s.id ?? '') || !VIDEO.test(s.tutorial ?? '')) continue;
+    const pr = await openUnopened(s);
+    if (pr) updates.push({ id: s.id, state: 'open', pr });
+  }
   const claude = process.env.HAS_CLAUDE_TOKEN === 'true';
   const take = claude ? (waiting.toFix ?? []).filter((s) => ID.test(s.id) && FIXABLE.includes(s.kind) && VIDEO.test(s.tutorial ?? '')) : [];
   const moved = updates.length;
@@ -353,6 +366,39 @@ async function queue(dir) {
   for (const s of started) writeFileSync(join(dir, `${s.id}.json`), JSON.stringify(s, null, 2));
   console.log(started.length ? `started: ${started.map((s) => `${s.id.slice(0, 8)} (${s.tutorial})`).join(', ')}` : claude ? 'no accepted change waits' : 'no Claude token: no change started');
   output({ fixes: JSON.stringify(started.map((s) => s.id)) });
+}
+
+/** The fix's summary from its commit on the branch: the paragraph after the title (`fixOpen` writes it). */
+export function summaryOf(message) {
+  const parts = String(message ?? '').split(/\n\s*\n/);
+  return cut(said(parts[1] ?? ''), FIX_LIMITS.summary) || 'See the branch\'s commit.';
+}
+
+/**
+ * A fix whose draft pull request GitHub would not open: the pull request a person opened from its
+ * branch, or one this run opens now with the built-in token; null while GitHub still refuses, or
+ * when its branch is gone (a person then writes the instruction again).
+ */
+async function openUnopened(s) {
+  const branch = fixBranch(s.id);
+  const found = await github('GET', `/pulls?head=${REPO.split('/')[0]}:${branch}&state=all&per_page=5`);
+  // One a person opened (or closed, or merged): the next run's look at the open ones says which.
+  const theirs = found.status === 200 && Array.isArray(found.json) ? found.json[0] : null;
+  if (theirs?.number) return theirs.number;
+  const commit = await github('GET', `/commits/${encodeURIComponent(branch)}`);
+  if (commit.status !== 200) {
+    console.log(`${s.id.slice(0, 8)}: the branch ${branch} is gone (GitHub answered ${commit.status})`);
+    return null;
+  }
+  const pull = fixPull(s, { summary: summaryOf(commit.json.commit?.message), noFix: '' }, null, s.fix?.run ?? runUrl(process.env));
+  if (DISGUISE.test(`${pull.title}\n${pull.body}`)) return null;
+  const made = await github('POST', '/pulls', { title: pull.title, head: branch, base: 'main', body: pull.body, draft: true });
+  if (made.status === 201) {
+    console.log(`${s.id.slice(0, 8)}: opened PR ${made.json.number} from ${branch}`);
+    return made.json.number;
+  }
+  console.log(`::warning title=Needs you%3A pull requests from Actions::GitHub still answers ${made.status} to opening ${branch}. Turn on "Allow GitHub Actions to create and approve pull requests" with npm run github:rules -- --apply.`);
+  return null;
 }
 
 /**
@@ -432,7 +478,7 @@ async function fixOpen(dir, id) {
   const made = await github('POST', '/pulls', { title: pull.title, head: branch, base: 'main', body: pull.body, draft: true });
   if (made.status !== 201) {
     console.log(`::error title=Needs you%3A pull requests from Actions::GitHub answered ${made.status} (${String(made.json.message ?? '').slice(0, 200)}) to the fix for ${id}; the branch ${branch} is pushed. Turn on "Allow GitHub Actions to create and approve pull requests" with npm run github:rules -- --apply.`);
-    return tell('failed', null, `GitHub did not let the workflow open the pull request; the branch ${branch} is pushed.`);
+    return tell('failed', null, `${UNOPENED_NOTE}; the branch ${branch} is pushed. The next fix run opens it once GitHub lets it.`);
   }
   return tell('open', made.json.number, null);
 }

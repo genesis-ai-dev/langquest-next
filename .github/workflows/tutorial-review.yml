@@ -152,7 +152,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      pull-requests: read
+      # Opens a fix's draft pull request that GitHub would not open before, from its pushed branch.
+      pull-requests: write
     outputs:
       fixes: ${{ steps.queue.outputs.fixes }}
     steps:

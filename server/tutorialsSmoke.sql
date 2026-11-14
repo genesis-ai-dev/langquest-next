@@ -366,6 +366,17 @@ do $$ declare v jsonb; c uuid; s uuid; begin
     'an instruction waits for the next fix run, with the note and the comment: %', v;
   assert public.ops_suggestion_decide(s, 'rejected', null, null, '0d000000-0000-0000-0000-0000000000aa')->>'result' = 'decided', 'no second answer';
   assert public.ops_tutorial_fixed(s, 'working', null, 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/300', null) = 'ok', 'a run starts it';
+  -- GitHub would not open its pull request (migration *_tutorial_fix_unopened.sql): a later run opens it from its branch.
+  assert public.ops_tutorial_fixed(s, 'failed', null, null,
+    'GitHub did not let the workflow open the pull request; the branch tutorial-fix/abcdef12 is pushed.') = 'ok', 'failed: GitHub would not open it';
+  v := public.ops_tutorial_fixes(3)->'unopened';
+  assert jsonb_array_length(v) = 1 and (v->0->>'id')::uuid = s and v->0->'fix'->>'run' like '%/runs/300', 'it waits to be opened: %', v;
+  assert public.ops_tutorial_fixed(s, 'open', null, null, null) = 'refused', 'opened only with its pull request';
+  assert public.ops_tutorial_fixed(s, 'open', 470, 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/301', null) = 'ok', 'opened by a later run';
+  v := (select x from jsonb_array_elements(public.ops_tutorial_fixes(3)->'open') x where (x->>'id')::uuid = s);
+  assert (v->>'pr')::int = 470 and public.ops_tutorial_fixes(3)->'unopened' = '[]'::jsonb, 'open, and no more to open';
+  assert public.ops_tutorial_fixed(s, 'closed', 470, null, null) = 'ok', 'closed';
+  assert public.ops_tutorial_fixed(s, 'working', null, 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/302', null) = 'refused', 'a closed fix is not started again';
   begin
     perform public.ops_tutorial_instruct(null, null, null, 'Do it.', null, '0d000000-0000-0000-0000-0000000000aa');
     raise exception 'an instruction for no video';
@@ -386,7 +397,8 @@ reset role;
 do $$ begin
   assert (select count(*) from ops.tutorial_inputs where kind = 'note' and by = '0d000000-0000-0000-0000-0000000000aa' and looked_at is not null
     and text like 'The button is now called%') = 1, 'the instruction is kept as its writer''s note';
-  assert (select decided_by = '0d000000-0000-0000-0000-0000000000aa' and fix_state = 'working' from ops.tutorial_suggestions where kind = 'instruction'), 'accepted by its writer';
+  assert (select decided_by = '0d000000-0000-0000-0000-0000000000aa' and fix_state = 'closed' and fix_pr = 470 and fix_note is null
+    from ops.tutorial_suggestions where kind = 'instruction'), 'accepted by its writer, and its fix as the runs left it';
   begin
     update ops.tutorial_suggestions set decision = null, decided_at = null, decided_by = null, fix_state = null, fix_at = null where kind = 'instruction';
     raise exception 'an instruction not accepted';

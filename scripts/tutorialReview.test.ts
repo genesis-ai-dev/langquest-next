@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { AUDIENCE, API, changesOf, CHANGES_MAX, checkFix, checkResults, FIX_LIMITS, FIXABLE, fixBranch, fixPull, fixRefusal, prOf, prStateOf, problemsOf, runUrl, withRun } from './tutorial-review.mjs';
+import { AUDIENCE, API, changesOf, CHANGES_MAX, checkFix, checkResults, FIX_LIMITS, FIXABLE, summaryOf, UNOPENED_NOTE, fixBranch, fixPull, fixRefusal, prOf, prStateOf, problemsOf, runUrl, withRun } from './tutorial-review.mjs';
 import { FIXES_PATH, FIXES_PER_RUN, REVIEW_PATH, REVIEW_RULE } from '../apps/web/worker/tutorialReview';
 import { FIXABLE_KINDS } from '../server/tutorialFeedback';
 
@@ -212,6 +212,20 @@ describe('tutorial-review.mjs', () => {
       expect(body).toContain('**The instruction:**\n\n> The button is now called On this device. Change the script.');
       const hidden = fixPull({ ...instruction, detail: 'Show the calculator instead.' }, fix, { typecheck: 'passed', tests: 'passed' }, 'https://x').body;
       expect(hidden).not.toMatch(/calculator/i);
+    });
+
+    it('opens later a fix whose pull request GitHub would not open, from its pushed branch, without Claude', () => {
+      const migration = read('supabase/migrations/20261114070000_tutorial_fix_unopened.sql');
+      expect(migration).toContain(`s.fix_note like '${UNOPENED_NOTE}%'`);
+      expect(read('scripts/tutorial-review.mjs')).toContain('`${UNOPENED_NOTE}; the branch ${branch} is pushed.');
+      expect(jobs.queue).toContain('pull-requests: write');
+      expect(jobs.queue).not.toMatch(/contents: write|anthropics\/claude-code-action/);
+      expect(summaryOf('Tutorial video work-without-internet: Wait for the upload bar\n\nStep 6 waits for the bar.\n\nClaude\'s change for an accepted suggestion: https://x'))
+        .toBe('Step 6 waits for the bar.');
+      expect(summaryOf('Only a title')).toBe('See the branch\'s commit.');
+      const { body } = fixPull({ id: '0d000000-0000-4000-8000-000000000003', kind: 'script', tutorial: 'work-without-internet', title: 'Wait for the bar', detail: 'Wait.', inputs: [] },
+        { summary: 'Step 6 waits.', noFix: '' }, null, 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/7');
+      expect(body).toContain('**In the workflow:** its typecheck and tests ran in [this run](https://github.com/genesis-ai-dev/langquest-next/actions/runs/7).');
     });
 
     it('gives Claude the film of the instruction\'s language: its pictures, log, failure screens, frame check and state', () => {
