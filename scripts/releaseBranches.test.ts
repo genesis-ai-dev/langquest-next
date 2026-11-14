@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -267,6 +267,11 @@ describe('a copy with a conflict', () => {
     // GitHub runs no pull_request workflow on a copy with a conflict, so its label started nothing (PR 347, 2026-11-06).
     expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 1, conflicting: true })).toBe('try');
     expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 3, conflicting: true })).toBe('person');
+    expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 1, conflicting: true, sinceTry: 61 })).toBe('try');
+    // Within the hour after a try, the Claude that the try started may still run (PR 347, 2026-11-06 03:26 UTC).
+    expect(CLAUDE_MINUTES).toBe(60);
+    expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 3, conflicting: true, sinceTry: 1 })).toBe('none');
+    expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 1, conflicting: true, sinceTry: 59 })).toBe('none');
     expect(nextForCopy({ labels: [PERSON_LABEL], gate: null, tries: 3, conflicting: true })).toBe('none');
     // Claude is on it, or a person is, or nothing failed (yet).
     expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
@@ -373,6 +378,9 @@ describe('a copy with a conflict', () => {
     expect(yml).toMatch(/- id: copy\n[\s\S]*?PR: \$\{\{ github\.event\.pull_request\.number \|\| github\.event\.client_payload\.pr \}\}[\s\S]*?"\$base" != release\/\*[\s\S]*?exit 1/);
     expect(yml.indexOf('- id: copy')).toBeLessThan(yml.indexOf('actions/checkout@'));
     expect(yml).toContain('ref: ${{ steps.copy.outputs.head }}');
+    // The hourly run waits for a Claude run as long as the workflow lets one run.
+    expect(yml).toContain(`timeout-minutes: ${CLAUDE_MINUTES}\n`);
+    expect(script.slice(script.indexOf('function fixFailedCopies('), script.indexOf('function startClaude('))).toContain("'--json', 'number,headRefName,headRefOid,labels,comments,statusCheckRollup,mergeable'");
     // After the step that finds the copy, nothing reads the pull request from the event.
     expect(yml.slice(yml.indexOf('- uses: actions/checkout@'))).not.toContain('github.event.');
   });

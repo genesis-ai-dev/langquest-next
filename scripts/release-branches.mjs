@@ -117,6 +117,8 @@ export const CONFLICT_LABEL = 'copy-conflict';
 export const PERSON_LABEL = 'copy-needs-person';
 /** How many times the hourly run starts Claude again on a copy before a person must finish it. */
 export const FIX_TRIES = 3;
+/** How long one Claude run may take: release-copy-conflict.yml's timeout-minutes. */
+export const CLAUDE_MINUTES = 60;
 /** The repository_dispatch event that starts Claude on a copy with a conflict (startClaude). */
 export const DISPATCH_EVENT = 'release-copy';
 /** How the hourly run's comment on a try for failed checks starts. */
@@ -141,10 +143,14 @@ export const RESULTS = ['copied', 'copied in part', 'left out'];
  * CLAUDE_LABEL on a copy with a conflict does not mean that Claude is on it:
  * GitHub runs no pull_request workflow on a pull request with a conflict,
  * so the label started nothing (PR 347, 2026-11-06), and the hourly run
- * starts Claude through a repository_dispatch instead (startClaude).
+ * starts Claude through a repository_dispatch instead (startClaude). That
+ * Claude runs for up to an hour (the workflow's timeout), so within the
+ * hour after the last try (`sinceTry`, in minutes) Claude is on it: on
+ * 2026-11-06 a run started by hand at 03:25 UTC sent Claude to PR 347, and
+ * the hourly run at 03:26 counted that try as failed.
  */
-export function nextForCopy({ labels, gate, tries, conflicting = false }) {
-  if (labels.includes(PERSON_LABEL) || (labels.includes(CLAUDE_LABEL) && !conflicting)) return 'none';
+export function nextForCopy({ labels, gate, tries, conflicting = false, sinceTry = Infinity }) {
+  if (labels.includes(PERSON_LABEL) || (labels.includes(CLAUDE_LABEL) && (!conflicting || sinceTry < CLAUDE_MINUTES))) return 'none';
   if (!labels.includes(CONFLICT_LABEL) && gate !== 'FAILURE' && !conflicting) return 'none';
   return tries < FIX_TRIES ? 'try' : 'person';
 }
@@ -545,8 +551,10 @@ function fixFailedCopies(platform, fresh = { pushed: new Set(), labelled: new Se
     if (!commitOfCopy(pr.headRefName) || (fresh.labelled.has(pr.number) && !conflicting)) continue;
     const labels = (pr.labels ?? []).map((l) => l.name);
     const gate = fresh.pushed.has(pr.number) ? null : (pr.statusCheckRollup ?? []).filter((c) => c.name === 'gate').at(-1)?.conclusion ?? null;
-    const tries = (pr.comments ?? []).filter((c) => isTry(c.body)).length;
-    const step = nextForCopy({ labels, gate, tries, conflicting });
+    const tried = (pr.comments ?? []).filter((c) => isTry(c.body));
+    const tries = tried.length;
+    const sinceTry = tried.length ? (Date.now() - Date.parse(tried.at(-1).createdAt)) / 60000 : Infinity;
+    const step = nextForCopy({ labels, gate, tries, conflicting, sinceTry });
     const unfinished = labels.includes(CONFLICT_LABEL);
     if (step === 'try') {
       const why = unfinished ? `${UNFINISHED_NOTE}, so Claude tries again`
