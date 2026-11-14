@@ -58,6 +58,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await primary(page).click();
   await expect(page.getByRole('radio', { name: /^FIA passages\./ })).toBeVisible();
   await page.getByRole('radio', { name: /^FIA passages\./ }).click();
+  await page.getByRole('radio', { name: /^New Testament/ }).click();
   await primary(page).click();
   // Reference material before the review flow (decision 146), in those languages.
   await expect(text(page, 'What will help Journey Language’s team?')).toBeVisible();

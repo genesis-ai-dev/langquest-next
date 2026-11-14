@@ -48,7 +48,8 @@ async function bibleStep(page: Page, opts: { way?: string | RegExp; scope?: stri
   await expectOnScreen(page, 'How should the Bible be divided?');
   // "FIA passages" is LangQuest's (it comes with FIA's study guides); "FIA passages (English)" is the one Alpha follows.
   await text(page, opts.way ?? 'FIA passages').click();
-  if (opts.scope) await text(page, opts.scope).click();
+  // The step starts on Whole Bible (LAN-232); these tests follow the New Testament unless they say otherwise.
+  await text(page, opts.scope ?? 'New Testament').click();
   for (const b of opts.books ?? []) await text(page, b).click();
   await primary(page).click();
 }
@@ -217,6 +218,9 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   await primary(page).click();
   await text(page, 'FIA passages').click();
   await expectOnScreen(page, '3 of 6 · Divide into sections', 'Which part of the Bible?', 'New Testament', 'Old Testament', 'Whole Bible', 'Choose books');
+  // The step starts on Whole Bible (LAN-232); Choose books starts from the part picked, so pick the New Testament first.
+  await expect(page.getByRole('radio', { name: /^Whole Bible/ }).locator('visible=true').first()).toBeChecked();
+  await text(page, 'New Testament').click();
   await text(page, 'Choose books').click();
   await expectOnScreen(page, 'Mark', 'Luke');
   // A book chip says whether it is on (aria-pressed on the web).
