@@ -5,7 +5,7 @@ import path from 'node:path';
 import { UI_LANGUAGES } from '@langquest-next/core';
 import { filmProblem } from '../../../server/tutorialIntakeModel';
 import { TRAILER } from '../../../server/youtube';
-import { PLAYLISTS } from '../playlists';
+import { FRAME, PLAYLISTS, TRAILER_FRAME } from '../playlists';
 import { TRAILER_WORDS, trailerLook, trailerText, type TrailerWords } from './trailer';
 
 const KEYS = Object.keys(TRAILER_WORDS['en']!) as (keyof TrailerWords)[];
@@ -40,6 +40,13 @@ describe('the trailer in every app language', () => {
     const film = { tutorial: TRAILER, sha256: 'a'.repeat(64), bytes: 1, seconds: 48, ...text, playlist: PLAYLISTS[code]!.everyone, position: 0, look: 'b'.repeat(64) };
     expect(filmProblem(film)).toBeNull();
   });
+});
+
+// The intake refuses a manifest whose frame it cannot read (server/tutorialIntakeModel.ts): at most 20 letters, digits and dashes.
+it('names how films and the trailer are framed as the intake takes them in', () => {
+  const film = { tutorial: 'record-a-passage', sha256: 'a'.repeat(64), bytes: 1, seconds: 48, ...trailerText('en'), playlist: PLAYLISTS['en']!.everyone, position: 1, look: 'b'.repeat(64) };
+  expect(filmProblem({ ...film, frame: FRAME })).toBeNull();
+  expect(filmProblem({ ...film, tutorial: TRAILER, frame: TRAILER_FRAME })).toBeNull();
 });
 
 describe('the trailer look', () => {
