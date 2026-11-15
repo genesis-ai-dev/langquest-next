@@ -18,7 +18,9 @@
 //   node scripts/server-calls.mjs --list   the calls of the newest store build
 //
 // The store builds come from EAS when EXPO_TOKEN is set, and otherwise from
-// apps/mobile/store-builds.json, which lists them as EAS had them.
+// apps/mobile/store-builds.json, which lists them as EAS had them. Carried
+// builds (profile `carried`, docs/nearby-sync-plan.md 14.4) count as store
+// builds here: they are in the field too, on phones with no Play Store.
 //
 // A release branch (decisions.md 155) deploys no server: its OTA updates
 // reach phones that call main's server. So on a release branch, or a copy
@@ -194,17 +196,32 @@ export async function storeBuilds(env = process.env) {
   return { source: 'EAS', ...kept, builds: await easBuilds(listed.projectId, env.EXPO_TOKEN) };
 }
 
-/** Every finished production build of the project on EAS, newest first. */
+/**
+ * The build profiles whose builds people run in the field: the store build,
+ * and the carried build a teammate takes to a phone with no Play Store
+ * (docs/nearby-sync-plan.md 14.4), which calls the same server for as long
+ * as it is installed. scripts/store-build-guard.mjs holds the same two.
+ */
+export const FIELD_PROFILES = ['production', 'carried'];
+
+/** Every finished build of the project on EAS in a field profile, newest first. */
 async function easBuilds(projectId, token) {
+  const builds = [];
+  for (const profile of FIELD_PROFILES) builds.push(...await easBuildsOf(projectId, token, profile));
+  return builds.sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/** Every finished build of one profile on EAS. */
+async function easBuildsOf(projectId, token, profile) {
   const builds = [];
   for (let offset = 0; ; offset += 50) {
     const res = await fetch('https://api.expo.dev/graphql', {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        query: `query ($id: String!, $offset: Int!) { app { byId(appId: $id) { builds(offset: $offset, limit: 50, filter: { buildProfile: "production", status: FINISHED }) {
+        query: `query ($id: String!, $offset: Int!, $profile: String!) { app { byId(appId: $id) { builds(offset: $offset, limit: 50, filter: { buildProfile: $profile, status: FINISHED }) {
           platform appBuildVersion gitCommitHash createdAt } } } }`,
-        variables: { id: projectId, offset },
+        variables: { id: projectId, offset, profile },
       }),
     });
     if (!res.ok) throw new Error(`EAS answered ${res.status}`);
@@ -214,7 +231,7 @@ async function easBuilds(projectId, token) {
     builds.push(...page.map((b) => ({ platform: b.platform.toLowerCase(), build: Number(b.appBuildVersion), commit: b.gitCommitHash, at: b.createdAt })));
     if (page.length < 50) break;
   }
-  return builds.sort((a, b) => b.at.localeCompare(a.at));
+  return builds;
 }
 
 const label = (b) => `Build ${b.build} (${b.platform === 'ios' ? 'iPhone' : 'Android'})`;
