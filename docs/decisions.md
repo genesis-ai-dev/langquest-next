@@ -13111,8 +13111,10 @@ had the newest store build public, and the wait had held nothing. Now:
 - Android: `deploy-to-testers.yml` submits each new build with EAS's
   `production` profile, to the production track with `releaseStatus:
   completed`, as 157 first did. A newer release takes the place of one
-  Google has not approved yet, so only the newest is in review. The
-  `internal` submit profile is gone. `scripts/play-review.mjs` still runs
+  Google has not approved yet, so only the newest is in review. No job
+  uses the `internal` submit profile now; it stays in `eas.json`, since
+  any change to that file changes the native fingerprint and would make
+  new store builds of both apps. `scripts/play-review.mjs` still runs
   every hour (`app-store-review.yml`), and only sends the newest build
   left in internal testing (from before this change, or put there by hand)
   to production review; it no longer reads Play's public page.

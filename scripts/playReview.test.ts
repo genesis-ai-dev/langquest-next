@@ -175,13 +175,13 @@ describe('the workflows', () => {
   const job = (name: string) => deploy.split(/\n(?=  \w+:\n)/).find((part) => part.startsWith(`  ${name}:\n`)) ?? '';
 
   it('sends a new Android build straight to production review, and nothing to internal testing', () => {
+    // eas.json keeps its unused `internal` profile: any change to that file changes the native fingerprint (decision 253).
     expect(job('submit_android')).toContain('needs: [build_android]\n');
     expect(job('submit_android')).not.toContain('if:');
     expect(job('submit_android')).toContain('profile: production');
     expect(deploy).not.toMatch(/profile: internal|store-choice|node scripts\/play-review/);
     const eas = JSON.parse(read('apps/mobile/eas.json')).submit;
     expect(eas.production.android).toEqual({ track: 'production', releaseStatus: 'completed' });
-    expect(Object.values(eas).map((p: any) => p.android?.track)).not.toContain('internal');
   });
 
   it('tries every hour, with the production key', () => {
