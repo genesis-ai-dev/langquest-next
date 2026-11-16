@@ -103,7 +103,7 @@ export function nightlyAlerts(n: Nightly, now = Date.now()): Alert[] {
   return out;
 }
 
-export async function nightlySection(env: GitHubEnv, fetcher: typeof fetch = fetch): Promise<Section<Nightly>> {
+export async function nightlySection(env: GitHubEnv, fetcher: typeof fetch = fetch, now = Date.now()): Promise<Section<Nightly>> {
   const gh = githubApi(env, fetcher);
   const runs = await Promise.all(NIGHTLIES.map(async (n): Promise<NightRun> => {
     const latest = (await gh<Runs>(`/actions/workflows/${n.workflow}/runs?branch=main&event=schedule&status=completed&per_page=1`, 'GitHub nightly runs')).workflow_runs[0];
@@ -123,5 +123,5 @@ export async function nightlySection(env: GitHubEnv, fetcher: typeof fetch = fet
     };
   }));
   const data: Nightly = { repo: env.GITHUB_REPO, runs };
-  return ok(data, nightlyAlerts(data));
+  return ok(data, nightlyAlerts(data, now));
 }
