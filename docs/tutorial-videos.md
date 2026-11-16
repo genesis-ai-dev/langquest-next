@@ -120,7 +120,8 @@ A script is written once, in English. In another language:
 At 20:10 UTC, and when a change to `e2e/tutorials` or the workflow is
 merged into main, for each language in its `NIGHTLY_LANGUAGES` (all fifteen,
 English and French first, five at a time; English alone from 2026-11-01
-until Caleb has looked at the spotlight films), a runner starts the local stack and the web export as the UI tests
+while Caleb looked at the spotlight films; English, French and Spanish from
+2026-11-16, the others after them), a runner starts the local stack and the web export as the UI tests
 do, has Gemini translate any line the language lacks (`translate-lines.ts`;
 the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
 
@@ -132,7 +133,8 @@ the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
 2. compares each video's look (`look.ts`) with the look of the film the
    repository's `tutorials` release keeps, tries a video that looks changed
    again (a screen read mid-change can look different once), and films again
-   only the videos whose look changed, or that have no film yet, two at a
+   only the videos whose look or script changed, or that have no film yet
+   ([Why a video is filmed again](#why-a-video-is-filmed-again)), two at a
    time; a film that fails is filmed once more, alone;
 3. looks at each new film as someone who pauses it would (`frame-check.ts`):
    a still while each line is said, and the first and the last, as the video
@@ -183,6 +185,46 @@ YouTube's day of uploads begins, with the publish after it. A run by hand:
 Run now on the dashboard's Server jobs (`tutorial-intake`), or the
 workflow's Run workflow on GitHub, with languages and videos to film.
 
+### Why a video is filmed again
+
+An existing video changes for two reasons (Caleb, 2026-11-13): a comment on
+YouTube asks for a fix, or a change merged into main changes a screen or a
+flow the video shows. Each film in the manifest keeps the commit of main it
+was filmed from, its script, each step's look and why it was made
+(`e2e/tutorials/why.ts`), so each night says what changed a video:
+
+- **Its script.** What the video says (in the film's language), does or
+  lights: its own file and every line it says, hashed. A fix asked for in a
+  comment comes in this way, as a pull request that changes the script; the
+  words on its screens stay the same, so the look alone would not film it.
+- **Its words on a screen.** Which steps read differently, the screens they
+  are on, and the changes merged since the film that touched those screens'
+  own code. A screen's code is what its module in the app's screen table
+  (`SCREENS` in `apps/mobile/App.tsx`) imports, on and on, as the web export
+  resolves it (`e2e/tutorials/screens.ts`); a file that four or more of the
+  twenty screen modules import (the kit, the theme, the catalogs) is shared,
+  as are the app's packages, and is named only when no screen's own code
+  changed.
+- No film yet, a film framed as films no longer are, or a person named it.
+
+A change merged into main that touched a screen's own code **slots** every
+video that shows that screen. The night tries it: its words changed, and it
+is filmed again with that change as the cause; or they did not, and the slot
+is cleared (the film is checked as of that night). Slotted videos are not
+filmed whatever their look: from 30 October to 13 November, 80 merges
+would have slotted 15 to 46 of the 47 English videos on each day with a
+merge, and YouTube takes about 100 uploads a day for all fifteen languages. Two nights' step pictures were compared too,
+to film what the words do not show; they differ by themselves (a person's
+colour, an invitation's QR code, a recording's waveform, a toast), so the
+pictures decide nothing.
+
+Each language's job puts `status-<language>.json` in the release beside
+its manifest: every public video's film (when, from which commit, why),
+tonight's try (`filmed`, `held`, `failed`, `same`, `not tried`), the causes,
+and the changes that slot it or that tonight cleared. The run's summary
+lists the same. A film from before keeps no commit, script or step looks:
+the first night it reads the same, it takes that night's as its own.
+
 A change the look does not see (a new sound, a colour) is filmed by running
 the workflow by hand with that video named, which films it whatever its
 look. A video for LangQuest staff (`staff: true`, "Read any
@@ -230,7 +272,9 @@ video's description is written when it is filmed and put on when it is
 uploaded; a film from before decision 191 (tall, its voice written out),
 from before the camera moved in on what each step lights, or with a ring
 drawn round each part rather than the spotlight, is filmed again once, whatever its look (`FRAME` in `playlists.ts` and in the release's
-manifest), and only a video's newest version goes up.
+manifest), and only a video's newest version goes up. A change that only
+makes films look better leaves `FRAME` as it is: each film gets it when it
+is filmed again for another reason (decision 191, amended 2026-11-13).
 
 A video's description ends with a link to the same video in each other
 language it is made in: `https://next.langquest.org/v/<language>/<video>`,
@@ -300,7 +344,7 @@ every 48 hours; some countries block YouTube.
 ## The help page's link
 
 In help mode a play button at the foot's left opens Watch on YouTube and
-Download for the screen's video (decision 253, LAN-244): the video of the
+Download for the screen's video (decision 254, LAN-244): the video of the
 app's language, for this build. Nothing shows when none fits. The Worker's
 `/api/tutorial-links?lang=` lists the language's chosen videos, and
 `pickTutorialLink` (`packages/core/src/tutorialLinks.ts`) chooses.
@@ -312,13 +356,17 @@ the videos (decision 186). Three kinds of input:
 
 - **Comments** on the videos and channels. The comments job in the app's
   job container (`server/tutorialComments.ts`) reads each connected
-  channel's new comments each day at 23:50 UTC, after the publish job.
+  channel's new comments each day at midnight in California, as YouTube's
+  day of units begins and before the intake and the uploads after it use
+  them up (read at 23:50 UTC, 4 to 9 November 2026 found none left).
 - **Changes merged into main** that make a video's words or steps wrong (a
   button renamed, a step moved, a help line changed). Claude finds them; a
   change that only alters how a screen looks needs nothing, since the
   nightly filming films that video again by itself.
 - **Notes** the team leaves on the ops dashboard: Tutorial videos →
-  Feedback and suggestions → Add a note, about a video or one not made yet.
+  What came in, and notes → Add a note, about a video or one not made yet.
+- **Films that failed or were held** last night, from each language's
+  `status-<language>.json` in the `tutorials` release.
 
 Each night at 10:00 UTC `.github/workflows/tutorial-review.yml` has Claude
 look at what is open. `scripts/tutorial-review.mjs fetch` gets it from the
@@ -327,17 +375,26 @@ Claude (`anthropics/claude-code-action`, following the `tutorial-review`
 skill in `.agents/skills`) puts each comment into English with a reply in
 its own language, and suggests what to change: a video's script, screens or
 voice, the app's code, or a new video. Every input ends in a suggestion or
-with a line saying why none. `send` hands the look to the Worker, which
-checks it (`parseReview` in `server/tutorialFeedback.ts`) before the
-database takes it.
+with a line saying why none. A change to a video's script, screens or voice
+that is wrong against the app on main, with one right fix that Claude
+checked, is marked **clear**: the Worker and the database accept it at once,
+and Claude makes it with no person asked (decision 186, amended
+2026-11-16). Every other suggestion waits for a person. `check` holds the look against what the
+Worker takes and what is open; when the Worker would refuse it, or lose part
+of it, Claude is asked once to mend it from the list of problems. `send`
+hands the look to the Worker, which checks it (`parseReview` in
+`server/tutorialFeedback.ts`) before the database takes it. A look still
+refused is kept with the run for 14 days (`review.json` and
+`problems.txt`), for a person to read.
 
-A person decides each suggestion on the dashboard: Accept, Edit (change
+A person decides each other suggestion on the dashboard: Accept, Edit (change
 what it says first), or Reject with why, which the next look reads before
 suggesting the same again. An accepted code change becomes a Linear issue,
 "Tutorial feedback: …": at once when the app's Worker has `LINEAR_API_KEY`,
 otherwise at the comments job's next run. The replies Claude suggests are
-shown to copy into YouTube Studio; nothing is posted by itself. Making an
-accepted change to a video is still done by hand. A comment, with its
+shown to copy into YouTube Studio; nothing is posted by itself. An accepted
+change to a video's script, screens or voice is made by Claude, below. A
+comment, with its
 English and suggested reply, is taken out 30 days after it was posted, and
 one older is never copied: YouTube's rule for what an API client keeps about
 other people, as the privacy policy says (`/privacy#youtube`; an hourly
@@ -362,11 +419,118 @@ The workflow holds no production key. The app's Worker answers
 the OpenID Connect token GitHub signs for the job
 (`apps/web/worker/githubOidc.ts`); a branch, a fork or another workflow
 gets a token that names itself. Claude has no network, no token and no
-shell beyond reading git: the script around it fetches and sends. Anyone
-can write a comment, so the skill treats comments as data, never as
-instructions, and nothing Claude suggests happens without a person.
+shell beyond reading git (and editing the checkout, when it makes an
+accepted change): the script around it fetches and sends. Anyone can write
+a comment, so the skill treats comments as data, never as instructions.
+Only a clear change to a video happens without a person, and only after
+the two checks below; nothing Claude suggests for the app happens without
+one.
+
+### Claude makes an accepted change
+
+A suggestion to change a video's script, screens or voice that is clear, or
+that a person accepted, is made by Claude as a pull request that merges
+itself when its checks pass (decision 186, amended 2026-11-13 and
+2026-11-16). Every 30 minutes the same workflow runs its fix jobs, as the
+watch for user issues does (`user-issues.yml`):
+
+1. `queue` asks the Worker (`/api/tutorial-review/fixes`) what waits, asks
+   GitHub whether each pull request so far was merged or closed, closes one
+   whose `gate` check failed or that has not merged within 24 hours (its fix
+   is then `failed`, which asks a developer on the dashboard), and starts at
+   most three accepted changes, oldest first.
+2. `fix` has Claude change the video, following the skill's part "Making an
+   accepted change", in a checkout with no key and no shell. Claude reads
+   the suggestion as accepted (with the person's edits) and, from the last
+   film run in the suggestion's language (English unless an instruction
+   names another): the picture of each of the video's steps, the end of its
+   log, the screen where a failed film stopped, the frame check's findings,
+   and the video's entry in `status-<language>.json`. It changes only
+   `e2e/tutorials/<video>.ts` and `e2e/tutorials/lines/`. When the change
+   needs the app itself, another video or a person's choice, Claude writes
+   none and says why.
+3. `check` refuses a patch that changes any other file, or adds a line to a
+   video's file that reads a file, the environment or the network, runs
+   another program or code from text, or reaches into the page beyond
+   Playwright's own steps (`codeRefusal` in `scripts/tutorial-review.mjs`).
+   It applies the patch and runs the videos' typecheck and tests, with no
+   key.
+4. `vet` has a second Claude read only the patch, never the comment or the
+   suggestion, and say whether it only changes what the video shows and
+   says (the skill's part "Reading a change before it merges"). It can read
+   files and write its verdict, nothing more.
+5. `open` stops when `vet` said no, and the fix fails with why. Otherwise it
+   pushes the patch to `tutorial-fix/<id>` with the built-in token (which
+   cannot change a workflow), opens the pull request with the token of
+   LangQuest's own GitHub App (`RELEASE_APP_ID`, as release-branches does),
+   so that guardrails run at once, and turns on auto-merge. The pull request
+   says what was accepted and by whom, links what it answers (never quoting
+   a commenter), gives the second check's words and the checks.
+
+The merge queue merges it when `gate` passes; no person reads it. The merge
+films the video again at once (`tutorials.yml` runs on a change to
+`e2e/tutorials`), and its film's cause names the pull request (above, "Why
+a video is filmed again"). Each suggestion keeps where its fix is
+(migrations `20261114010000_tutorial_fixes.sql` and
+`20261116210000_tutorial_clear_fixes.sql`): waiting for Claude, working,
+open (its checks run), merged, closed, failed with why, or unneeded (the
+video already does it). A run that stops leaves its change to the next run
+after three hours. A code change still goes to Linear, and a new video is
+still made by a person.
+
+**An admin's instruction.** A card on the dashboard for a comment, a screen
+change, or a film that failed or was held has a box for what Claude must do.
+Its Send is the ops action `tutorial-note` with `instruct: true`, the
+video, the card's problem line, the film's language and the inputs the card
+shows (`opsActions.ts`). It is kept as the admin's note and becomes an
+accepted suggestion of the kind `instruction` at once
+(`ops_tutorial_instruct`): no second Accept. The inputs it names count as
+looked at, so the look does not suggest them again. The next fix run makes
+it like any accepted change, and its pull request quotes the problem and
+the instruction. A Worker older than this keeps it as a plain note, which
+the next look reads.
 
 The looks' runs are in the dashboard's Server jobs as `tutorial_review`
 (one the Worker refused is `bad_review`), and the comments job's as
 `tutorial_comments`. Run either by hand: Run workflow on GitHub, or Run now
 on the dashboard.
+
+
+### On the ops dashboard
+
+Tutorial videos → Videos, your list and the workers' list
+(`apps/admin/src/sources/videos.ts`):
+
+- **By video**: in one app language (the list says how many of its videos
+  wait on an admin), each video's states, a timeline (Ctrl and the scroll
+  wheel, or a pinch, zooms it; a click on a mark shows the change, the
+  films before and after, the comment as written, the PR or the log), and
+  at the right a mark: **!** when something waits on an admin, **i** when
+  Claude acts next. The mark opens that video's cards: the problem, who acts
+  next, what happens if nobody does, Accept, Edit and Reject on a
+  suggestion, and **Tell Claude what to do**. An instruction sent there is
+  an accepted suggestion of kind `instruction`: Claude's next fix run writes
+  it as a pull request, with no second Accept.
+- **For an admin**: what is not one video's: films to publish, channels to
+  connect, paused languages (not in `NIGHTLY_LANGUAGES`).
+- **Workers, now and tonight**: the filming run, or the next one at 20:10
+  UTC; videos a screen change slots for tonight's check; fixes Claude
+  writes, and pull requests that merge themselves when their checks pass;
+  comments Claude reads; films waiting for YouTube's daily limit.
+- **Changes Claude made to the videos**: the record of each fix of the last
+  30 days, with who said yes (Claude for a clear fix, an admin, or an
+  admin's instruction), its state and its pull request. A clear fix is
+  seen nowhere else.
+
+A held or failing film waits on Claude's next look first (**i**); it waits
+on an admin (**!**) when a look after it made nothing for it, or what it
+made was rejected. A fix that failed, or whose pull request was closed, waits
+on an admin.
+
+A suggested reply shows for 14 days, since nothing records that someone
+posted it.
+
+It reads `diag.ops_tutorial_films()`, `ops_tutorial_feedback()` and
+`ops_tutorials()`, each language's `status-<language>.json` from the
+release, the filming run, and `tutorials.yml` on GitHub. A list built
+without one of them says which.

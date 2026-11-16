@@ -744,7 +744,6 @@
       "newLanguage": "Nuevo idioma",
       "noLanguages": "Todavía no hay idiomas. Agrega el primero que grabará tu equipo.",
       "openToBring": "Ábrelo para traerlo a este dispositivo",
-      "newLanguageOrCluster": "Idioma o grupo nuevo",
       "inviteHelp": "Elige qué hará y luego muéstrale un código para escanear.",
       "languageHelp": "Abre su página: prepáralo, ve su trabajo y su gente.",
       "licenseHelp": "La licencia del trabajo de tu equipo. Configuración dice qué permite.",
@@ -3727,6 +3726,21 @@
       "drawAgain": "Dibújalo otra vez",
       "newPattern": "Dibujar un patrón nuevo",
       "choosePatternHelp": "Elige una imagen y un patrón para volver a iniciar sesión en este teléfono, incluso sin conexión."
+    },
+    "appLock": {
+      "row": "Bloquear la app",
+      "rowHelp": "Si está activado, la app te pide tu patrón cada vez que se abre y cada vez que vuelves a ella. Activarlo o desactivarlo te pide primero tu patrón.",
+      "on": "Ahora la app te pide tu patrón al abrirse.",
+      "off": "La app ya no te pide tu patrón.",
+      "opening": "Abriendo…",
+      "checking": "Comprobando…",
+      "forgot": "¿Lo olvidaste?",
+      "forgotHelp": "¿Olvidaste tu patrón? Cierra sesión y vuelve a iniciarla con tu contraseña o con un código de acceso de alguien de tu equipo. Tu trabajo se queda en este teléfono.",
+      "signOutHelp": "Cierra la sesión en este teléfono. Tu trabajo se queda en él y se envía cuando se pueda.",
+      "backHelp": "Vuelve a los puntos.",
+      "waitFor_one": "Demasiados intentos. Vuelve a intentarlo en {{count, number}} minuto.",
+      "waitFor_many": "Demasiados intentos. Vuelve a intentarlo en {{count, number}} minutos.",
+      "waitFor_other": "Demasiados intentos. Vuelve a intentarlo en {{count, number}} minutos."
     }
   },
   "study": {

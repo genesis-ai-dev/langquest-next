@@ -7142,6 +7142,13 @@ rows are still inserted into `snapshot_units` and the old ones deleted, since
 the table is keyed by the snapshot's seq and a new seq is a new row;
 decision 88's retention is as it was.
 
+Amended (2026-11-11, Caleb Koster): once a screen has shown "Downloading
+this language", the banner stays where it is when the last passage arrives,
+as "On this device" with a full bar and the same height, until the person
+leaves the screen. Taken away at once, it moved the list under it up by its
+height mid-tap: on the web the tap landed on nothing, and on a phone it can
+land on the row below (LAN-253, the nightly's STUDY-030).
+
 ## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted
@@ -8401,6 +8408,21 @@ or `suggestion_rejected`. They change only that feedback, never an
 organization's work. Accepting a code change also files it in Linear when
 the app Worker has `LINEAR_API_KEY`.
 
+Amended (2026-11-05, Caleb Koster): a sixth kind, `quiet-account`, recorded
+as `quiet_ok` or `quiet_ok_undo`. The warning about installs gone quiet
+counted 43 installs and named nobody. Asked who they were, Caleb confirmed
+that 3 accounts holding 40 of them were the store review account, a
+developer and Caleb's own; a reinstall leaves the old install quiet. Caleb
+asked to see the accounts behind the warning on the page and to say of one
+that it is not an issue. Silent phones now lists quiet installs by account
+(`diag.ops_quiet_accounts`), and a mark (`ops.quiet_accounts_ok`, gone with
+the account) takes that account's quiet installs out of the warning's count,
+now and later, until someone presses Undo. Not `ops.watch_ignored`: that
+also leaves the account out of the watch for user issues (202), and a
+problem on a marked account's phone is still a problem. It changes only this
+count, never an organization's work. The page shows the account's id and no
+name or email, as diagnostics do (38); its Look up opens the account's installs.
+
 ## 163. A pull request's guardrails run in about the time of its slowest test job, not of its setup
 
 Date: 2026-10-23 · By: Carl Sauder · Status: accepted
@@ -8828,6 +8850,13 @@ chosen sign-out has sealed them first. Discovery keys are written only by
 stored session is that person's, so a certificate answer that arrives after
 they signed out is dropped rather than left in the clear. Sign-out does not
 wait for that call, which may be waiting on the network.
+
+Amended (2026-11-16, Caleb Koster): the pattern also locks the app, for
+whoever turns Lock the app on in More settings (decision 253, LAN-255): it
+asks for their own pattern each time the app opens or is come back to,
+checked against their pattern's wrap here while they stay signed in, and
+wrong tries there count with Sign In's. Forgot? on that lock signs out as
+Sign Out does, and they come back as this entry says.
 
 ## 169. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
 
@@ -9796,6 +9825,45 @@ again, and Caleb looks at the English films before the other fourteen
 languages are filmed; they come back, English and French first, when he
 says the English ones look right.
 
+Amended (2026-11-13, Caleb Koster): a video is filmed again when its script
+changes too, and each film says why it was made. Caleb (2026-11-13, thread
+"Make comments and screen changes update videos") named two reasons a video
+changes, a comment on YouTube and a change to a screen or flow it shows,
+and asked for every video a changed screen touches to be slotted for an
+update, with the cause shown. The look sees only the words on screen, so a
+fix to what a video says (the way a comment's fix comes in) was never
+filmed. Each film in the manifest now keeps the commit it was filmed from,
+its script (its file and the lines it says, hashed), each step's look and
+its causes (`e2e/tutorials/why.ts`); a changed script films it again. A
+change merged into main that touched the own code of a screen a video shows
+(`e2e/tutorials/screens.ts`: what the screen's module imports, less what
+four or more of the twenty modules share) slots the video; the night's try
+films it when its words changed and clears the slot when they did not. A
+slot does not film by itself: from 30 October to 13 November, 80 merges
+would have slotted 15 to 46 of the 47 English videos on each day with a
+merge, and YouTube takes about 100 uploads a day for fifteen languages.
+Step pictures from two nights were compared to catch what the words miss,
+and differ by themselves (a person's colour, a QR code, a waveform, a
+toast), so they decide nothing. Each
+language's `status-<language>.json` in the release gives every video's
+film, causes, tonight's try and slots. The filming checks out main's whole
+history to find the changes. Reverse if: slots cleared as the same turn out
+to hide changes people see (then a person or Claude judges those slots), or
+scripts change so often that films churn on YouTube.
+
+Amended (2026-11-16, Caleb Koster): French and Spanish are filmed each night
+again (`NIGHTLY_LANGUAGES: en,fr,es`). The English spotlight films are
+current (all 46 the same on 2026-11-15), so the other languages can come
+back, and their films from 1 November still show the old screens and the old
+wide frame. Caleb chose two languages first (2026-11-16, thread "Explain
+tutorial video failures and paused languages") over all fifteen at once: a
+language's first night films all 47 videos again (its frame changed), so
+fifteen would be about 700 films, about seven days of YouTube's uploads,
+and more Gemini voice and Claude plan use for the frame check; two show a
+fault in the translated films before it repeats in fifteen. The rest come
+back after them. Reverse if: French or Spanish films fail or are held where
+English passes (then they pause again until the cause is fixed).
+
 ## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
@@ -9972,6 +10040,106 @@ how to take away a channel's access), and the videos page (187) links it.
 Code changes, notes and answered suggestions keep their year. A comment
 Claude has not looked at within 30 days, because the look stopped running,
 is lost to it.
+
+Amended (2026-11-13, Caleb Koster): the comments job reads first in
+YouTube's day, at midnight in California (`apps/web/worker/jobsModel.ts`),
+not at 23:50 UTC. The publish job's uploads that day had used up the
+project's units by then: on 4 to 9 November 2026 the job read 0 to 11 of
+the 16 channels and stopped on `quotaExceeded`. Reading a channel's new
+comments costs a unit a page; at midnight the day's 10,000 are all there,
+and the intake and the uploads come five minutes later.
+
+Amended (2026-11-13, Caleb Koster): the dashboard shows the videos as one
+list for each app language, in place of the filming table and the
+suggestion cards. Each video's row has its state, a day-by-day timeline
+(zoomed with a pinch; a click on a mark shows the change, the films before
+and after, the comment as written, the PR or the log) and, at its right, a
+warning mark when an admin must act. The mark opens that video's cards: the
+problem, who acts next, what happens if nobody does, and a box to tell
+Claude what to do; Claude's next fix run takes that instruction as already
+approved. Beside the list, what waits on an admin that is not one video's
+(publish, connect a channel, paused languages) and what the workers do now
+and tonight. Caleb asked for this so one page says what waits on him, and
+so that he gives Claude directions before the night's run instead of
+opening logs. The history comes from `ops.tutorial_videos`, which already
+keeps every film (`diag.ops_tutorial_films`, migration
+`20261113234000_tutorial_films.sql`); the causes, holds, failures and slots
+from the nightly's `status-<language>.json` in the public release; a fix's
+state from its suggestion. A suggested reply shows for 14 days, since
+nothing records that someone posted it.
+
+Amended (2026-11-13, Caleb Koster): Claude makes an accepted change to a
+video's script, screens or voice, as a draft pull request; the "Not yet"
+above is done, without the preview film. Caleb (2026-11-13, threads "Make
+comments and screen changes update videos" and "Show the tutorial video
+pipeline for the last week") found a comment on "Choose the app's
+language" that nothing came of, and gave a video's states as waiting for
+admin approval, working on fix, and waiting for admin to merge the pull
+request: a person accepts first, then Claude works. Every 30 minutes the
+same workflow's fix jobs start at most three accepted changes, as the watch
+for user issues makes its draft fixes (202): Claude changes only
+`e2e/tutorials/<video>.ts` and `e2e/tutorials/lines/` in a checkout with no
+key; a job with no key applies the patch and runs the videos' typecheck and
+tests; a job that runs nothing of it opens the draft pull request with the
+built-in token, which links what it answers and never quotes a commenter. A
+person marks it Ready for review and merges it, and the merge films the
+video again (183). Each suggestion keeps where its fix is (migration
+`20261114010000_tutorial_fixes.sql`): working, open, merged, closed or
+failed with why, read and written through the Worker's
+`/api/tutorial-review/fixes`. A code change still goes to Linear and a new
+video is still made by a person. Caleb (2026-11-13) also asked that an
+admin see each problem (a comment, a screen change, a film that failed or
+was held) and write what Claude must do with it: that instruction, sent
+from the dashboard's card, is an accepted suggestion at once (kind
+`instruction`, `ops_tutorial_instruct`), and Claude reads the film's log,
+the screen where it stopped, the frame check and the video's state with
+it. Reverse if: more of Claude's fixes are
+closed than merged for weeks, or they eat into the plan's limits when
+people need them.
+
+Amended (2026-11-16, Caleb Koster): Claude fixes a video by itself when
+the fix is clear, and every video fix merges itself. Caleb (2026-11-16,
+thread "Automate tutorial video fixes") found that the fix flow asked too
+much of him: Claude should judge each comment and app change, make a fix
+that is clearly needed (pull request and merge too) with no person seeing
+it but a record kept, and wait for a developer's answer on the ops
+dashboard only when one is needed, as the only input a person gives. Claude
+changes only the videos, never the app. Decided (migration
+`20261116210000_tutorial_clear_fixes.sql`, the `tutorial-review` skill):
+- **The look sorts each input.** A change to a video's script, screens or
+  voice that is wrong against the app on main, with one right fix that
+  Claude checked, is `clear`: the Worker and the database accept it at once
+  (`clear`, `decided_at`, no `decided_by`). A viewer's wish, a choice of
+  what to teach, the app's code and a new video still wait for a person.
+  The look also reads each language's `status-<language>.json`, so a film
+  that failed or was held becomes a suggestion, with the film's language.
+- **A video fix merges itself.** The pull request is opened, not as a
+  draft, with the token of LangQuest's own GitHub App (the release-branches
+  App, `RELEASE_APP_ID`), so guardrails run at once, with auto-merge on;
+  the merge queue merges it when `gate` passes. The push stays with the
+  built-in token, which cannot change a workflow. A fix run closes a pull
+  request whose `gate` failed or that has not merged within 24 hours, and
+  its fix is `failed`, which asks a developer on the dashboard. A fix that
+  finds the video already does what was asked is `unneeded`, not failed.
+- **Two checks before a pull request opens.** A fixed rule (`codeRefusal`,
+  `scripts/tutorial-review.mjs`) refuses an added line in a video's file
+  that reads a file, the environment or the network, runs another program
+  or code from text, or reaches into the page beyond Playwright's own steps;
+  and a second Claude, which reads only the patch and never the comment or
+  the suggestion, says whether it only changes what the video shows and
+  says. Either one stops it, and the fix fails with why.
+- **The record** is the dashboard's "Changes Claude made to the videos":
+  each fix of the last 30 days, who said yes (Claude, an admin, or an
+  admin's instruction), its state and its pull request. An open fix is a
+  worker's item, not an admin's card. A held or failing film waits on
+  Claude's next look first, and on an admin when that look made nothing for
+  it or what it made was rejected.
+Considered: the organization setting "Allow GitHub Actions to create and
+approve pull requests": its pull requests start no checks, so they can never
+merge themselves, and it would apply to every repository in the
+organization, which Caleb did not want. Reverse if: a clear fix that merged
+has to be taken back more than once a month, or Claude's fixes fail their
+checks more often than they pass.
 
 ## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
 
@@ -10405,6 +10573,17 @@ before Next is tapped. Two holds were Claude reading the app wrongly, so
 the frame check's prompt now says what a passage's step marks mean (a
 grey skip-forward sign is a check set aside) and that the recording
 clock counts the silence a part is cut from.
+
+Amended (2026-11-13, Caleb Koster): a change that only makes films look
+better leaves `FRAME` as it is, so no video is filmed again for it alone.
+The title picture (`compose.ts`) was cut at its lines' boxes, so the foot
+of a g, p or y on a title's last line was cut off in 22 of the 46 English
+films; a YouTube viewer saw it. The picture now takes in room around its
+letters. Changing `FRAME` would have filmed all 46 English videos again
+(46 frame checks and 46 uploads) for that alone. Instead each film gets it
+when it is filmed again for another reason (a screen it shows changed, or
+a person named it), so such changes can wait in old films until then.
+Reverse if: viewers keep pointing at a fault that only a new film fixes.
 
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
@@ -11125,6 +11304,16 @@ watch's runs apart (`FREQUENT_WORKFLOWS`). Reading main's latest 40 runs and
 then leaving the watch's out still let it, with release-branches, fill the
 40 within about 8 hours, so it now reads the latest run of each workflow on
 its own (decision 209).
+
+Amended (2026-11-16, Caleb Koster): a tutorial video's fix (186, amended
+2026-11-16) is opened with LangQuest's own GitHub App, so its checks start
+at once and it merges itself, which this decision refused for a user
+issue's fix. A video fix may change only the video's own file and lines; a
+fixed rule refuses an added line there that could reach a key (a file, the
+environment, the network, another program, code from text); and a second
+Claude reads the patch first. A user issue's fix may change any of the
+app's code, so it stays a draft opened with the built-in token, and its
+checks still wait for a person.
 
 ## 203. A study step shows the pictures and maps its text asks for, linked or not, and the rest after its text
 
@@ -13001,9 +13190,64 @@ Date: 2026-11-12 · By: Caleb Koster · Status: accepted
 Reason: at the 5 November 2026 meeting with Bezily's group the Standard Bible Flow looked as if a back translation needed a peer review, because step 1 lists both side by side and a made back translation read "looks good" though nobody had checked it (LAN-234). Caleb chose two rows with the flows unchanged. A kind that makes new content (`produces`) now shows "Back translation · make it" (done reads "made") followed by "Back translation · check it", which follows the check that compares it (`checkedBy`) and reads "checked" only once that check is done (`teamSteps` in `pathModel.ts`, `TeamStep.part`). It stays out when the back translation is set aside or moved past. The rows keep the look of the other team rows. Decision 91's one-row-per-check still holds for every other kind; flows and kinds are unchanged.
 Reverse if: people still read the check row as a second review, or a language's flow needs back translation checked by something other than a named check.
 
-## 253. The help page links a screen to its tutorial video by the app's language and build, and shows nothing when none fits
+## 253. A person can lock the app with their own sign-in pattern, which it asks for each time the app opens or is come back to
 
-Date: 2026-11-13 · By: Caleb Koster · Status: accepted
+Date: 2026-11-16 · By: Caleb Koster · Status: accepted
+
+Reason: amends 168. Someone who leaves a phone with LangQuest open, or hands
+it over, shows their work to whoever picks it up; people asked for the app to
+lock (LAN-255). Of the options put to him, Caleb chose (2026-11-13 and
+2026-11-16):
+- **Their own sign-in pattern, not a PIN.** The lock is the picture and the
+  nine dots of 168, the same ones that sign the person back in after
+  signing out: one secret to remember, no reading, no numbers. The pattern
+  is checked by opening the person's own pattern wrap of 168 and finding the
+  key they hold now (`checkPattern`, `src/server/lock.ts`), so nothing new
+  is kept and a pattern made under an older key opens nothing. Wrong tries
+  count with Sign In's, since it is the same pattern: four are free, then
+  each waits twice as long, up to an hour.
+- **Each person's own.** It is a switch in Me → More settings, Lock the app
+  (`src/appLock/AppLockRow.tsx`), off until they turn it on; turning it on
+  or off asks for their pattern first. Someone with no pattern yet chooses a
+  picture and draws one twice there, as at their first sign-out, and that
+  is also the pattern they sign back in with. On a shared phone the lock
+  stands only for the person signed in who turned it on. Who has it on is a
+  list of account ids in the app's key-value store, read at once as the app
+  starts (`src/appLock/appLock.ts`), so the lock stands before a frame of
+  their work shows. If their pattern went (they came back by a helper's
+  code, and the key it wrapped went with it), the lock turns itself off.
+- **Each time the app is left.** It stands on every fresh start and the
+  moment the app goes to the background, however short the time away: a
+  share sheet, a permission prompt on Android, or a call locks it too, as
+  171's disguise does. Caleb chose this over a minute's grace, the safest
+  and the most drawing. The phone's list of open apps shows the lock, not
+  the work.
+- **Over everything, with the app going on under it.** `AppLockGate`
+  (`src/shell/AppLockGate.tsx`, around everything in App.tsx inside 171's
+  disguise) keeps the app running under the lock, so sync goes on and the
+  app comes back as it was left; every modal draws the lock too, through
+  `ModalCoverContext`, with a disguise's cover still on top of it. A
+  disguised Android phone asks for the code, then the pattern. A sign-in or
+  sign-out that just happened, by any way, does not ask again. Android's
+  Back on the lock leaves the app.
+- **Forgot? signs out.** It leaves as Sign Out does
+  (`leaveThisDevice`, `src/account/accountAuth.ts`): unsent work is handed
+  over and sent as them later (60), and the sign-in stays locked for their
+  return (168). They sign in again with their password, or a helper's code
+  online; the work on the phone stays.
+- **Phones only.** The web has no lock: `AppLockGate.web.tsx`,
+  `AppLockRow.web.tsx` and `useAppLockSignOut.web.ts` import none of it, as
+  `lock.web.ts` keeps 168's cryptography out of the web bundle. Nothing is
+  sent, so no store answer changes (`docs/play-store-declarations.md`).
+Tests `apps/mobile/test/appLock.test.ts`, `lockFlow.test.ts`.
+Reverse if: people turn it off because they draw too often after a share
+sheet or a permission prompt (then a short time away does not lock), or
+people who forget the pattern lose access more often than the lock keeps
+someone out (then a helper's code opens it too).
+
+## 254. The help page links a screen to its tutorial video by the app's language and build, and shows nothing when none fits
+
+Date: 2026-11-16 · By: Caleb Koster · Status: accepted
 
 Reason: LAN-244 asks for each screen's tutorial video and download on the help page, matched to the app's version (store build and update) and its language. When no video fits, Caleb chose to hide the link: no English stand-in, no list, no warning. A wrong-language or wrong-version video could show buttons the person does not have. `packages/core/src/tutorialLinks.ts` picks (`pickTutorialLink`: screen to video, same language only, left out when filmed for another store build or a newer update than the phone's); the Worker lists a language's chosen videos at `/api/tutorial-links` (only for a language with its own approved catalog, so an unsupported one is not answered in English); help mode's play button opens Watch and Download, using the lasting links of decision 187. Considered and turned down: English stand-in, the full videos list, the closest video with a warning. The build fields (`runtimes`, `filmedFrom`) are read when the list carries them; the filming does not record them yet, so until it does only language decides, which is true of the web app always.
 Reverse if: people in languages with few videos ask where the video is; then show the English one, labelled.

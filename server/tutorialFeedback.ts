@@ -12,6 +12,8 @@ export type InputKind = (typeof INPUT_KINDS)[number];
 /** script: what is said; screen: what is shown or tapped; voice: how it is said; code: the app itself; new: a video not made yet. */
 export const SUGGESTION_KINDS = ['script', 'screen', 'voice', 'code', 'new'] as const;
 export type SuggestionKind = (typeof SUGGESTION_KINDS)[number];
+/** What an admin told Claude to do with a video, from a card on the ops dashboard: accepted as it is written, never the look's. */
+export type StoredSuggestionKind = SuggestionKind | 'instruction';
 
 /** An input as `ops.tutorial_input_json` gives it. */
 export interface FeedbackInput {
@@ -37,8 +39,10 @@ export interface FeedbackInput {
 /** A suggestion as `ops.tutorial_suggestion_json` gives it, with the inputs it answers. */
 export interface Suggestion {
   id: string;
-  kind: SuggestionKind;
+  kind: StoredSuggestionKind;
   tutorial: string | null;
+  /** An instruction's film language (its log and pictures); null means English. */
+  language?: string | null;
   title: string;
   detail: string;
   madeAt: string;
@@ -46,10 +50,42 @@ export interface Suggestion {
   decision: 'accepted' | 'rejected' | null;
   decidedAt: string | null;
   reason: string | null;
+  /**
+   * Claude accepted it itself, as a clear fix (decisions.md 186, amended 2026-11-16): a change to a video's script,
+   * screens or voice with one right answer that Claude checked. `decidedAt` is when; no person decided it.
+   */
+  clear?: boolean;
   issue: string | null;
   issueUrl: string | null;
+  /** Where Claude's draft pull request for an accepted change to a video is, or null before one is started. */
+  fix?: Fix | null;
   inputs: FeedbackInput[];
 }
+
+/**
+ * Where Claude's fix for an accepted change to a video's script, screens or voice is (decisions.md 186,
+ * amended 2026-11-13 and 2026-11-16): `working`, a run is writing it; `open`, its pull request runs its
+ * checks and merges itself when they pass; `merged`, the film run after the merge films the video again;
+ * `closed`, closed without a merge by a person; `failed`, Claude wrote no fix, the second check stopped it,
+ * or its checks failed (the run closed it), and `note` says why; `unneeded`, the video already does what
+ * the suggestion says, and `note` says how.
+ */
+export const FIX_STATES = ['working', 'open', 'merged', 'closed', 'failed', 'unneeded'] as const;
+export type FixState = (typeof FIX_STATES)[number];
+export interface Fix {
+  state: FixState;
+  /** The pull request: null while working, and when no fix was opened. */
+  pr: number | null;
+  at: string;
+  /** The Actions run that wrote it. */
+  run: string | null;
+  note: string | null;
+}
+/**
+ * The changes Claude makes once a person accepts them, and an admin's instruction (accepted as written); a code
+ * change goes to Linear, and a new video is made by a person.
+ */
+export const FIXABLE_KINDS: readonly StoredSuggestionKind[] = ['script', 'screen', 'voice', 'instruction'];
 
 export const REPOSITORY = 'genesis-ai-dev/langquest-next';
 /** A Linear issue's title starts with this, as the nightly's start with "Nightly: ". */
@@ -89,6 +125,9 @@ const TUTORIAL = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA = /^[0-9a-f]{40}$/;
 const KEY = /^[A-Za-z0-9_-]{1,40}$/;
+const LANGUAGE = /^[a-z]{2,3}(-[A-Z][a-z]{3})?$/;
+/** The suggestions Claude may accept itself as clear, and make: a change to a video, never the app or a new video. */
+export const CLEAR_KINDS: readonly SuggestionKind[] = ['script', 'screen', 'voice'];
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /**
  * The phone's disguise (decisions.md 171): a calculator or notepad in front of the app that a code opens. No video,
@@ -113,7 +152,11 @@ export interface Review {
   code: CodeInput[];
   comments: { id: string; english: string; reply: string; replyEnglish: string }[];
   looked: { input: string; outcome: string | null }[];
-  suggestions: { kind: SuggestionKind; tutorial: string | null; title: string; detail: string; inputs: string[] }[];
+  /**
+   * `clear`: Claude accepts it itself (only a change to a video's script, screens or voice); `language`: the film
+   * it is about, when that is not English (a film that fails or is held in one language).
+   */
+  suggestions: { kind: SuggestionKind; tutorial: string | null; language: string | null; clear: boolean; title: string; detail: string; inputs: string[] }[];
   attach: { suggestion: string; inputs: string[] }[];
 }
 
@@ -188,8 +231,14 @@ export function parseReview(input: unknown): Review {
     if (kind === 'new' ? tutorial !== null : tutorial !== null && (typeof tutorial !== 'string' || !TUTORIAL.test(tutorial) || tutorial.length > 80)) {
       throw new ReviewError(`${where}.tutorial: ${kind === 'new' ? 'null for a new video' : "a video's id, or null"}`);
     }
+    const clear = s['clear'] ?? false;
+    if (typeof clear !== 'boolean') throw new ReviewError(`${where}.clear: true or false`);
+    if (clear && !(CLEAR_KINDS.includes(kind as SuggestionKind) && tutorial !== null)) throw new ReviewError(`${where}.clear: only a change to one video's ${CLEAR_KINDS.join(', ')}`);
+    const language = s['language'] ?? null;
+    if (language !== null && (typeof language !== 'string' || !LANGUAGE.test(language) || tutorial === null)) throw new ReviewError(`${where}.language: an app language's code for the video's film, or null`);
     return {
-      kind: kind as SuggestionKind, tutorial: tutorial as string | null, title: noDisguise(text(s, 'title', where, 200), `${where}.title`),
+      kind: kind as SuggestionKind, tutorial: tutorial as string | null, language: language as string | null, clear,
+      title: noDisguise(text(s, 'title', where, 200), `${where}.title`),
       detail: noDisguise(text(s, 'detail', where, 4000), `${where}.detail`), inputs: refs(s, where)
     };
   });
@@ -199,4 +248,30 @@ export function parseReview(input: unknown): Review {
     return { suggestion: a['suggestion'], inputs: refs(a, where) };
   });
   return { sha: input['sha'], runUrl: input['runUrl'], code, comments, looked, suggestions, attach };
+}
+
+// ---- where each fix is, as the fix jobs say it (POST /api/tutorial-review/fixes) -------------------
+
+/** A fix's move, as the fix jobs send it and `ops_tutorial_fixed` takes it. */
+export interface FixUpdate { id: string; state: FixState; pr: number | null; note: string | null }
+/** More than a run could send; a list past it is refused whole. */
+export const FIX_UPDATES_MAX = 50;
+
+/** What a fix run sent: the run it is, and each suggestion's move. A ReviewError says the first thing wrong. */
+export function parseFixUpdates(input: unknown): { runUrl: string; updates: FixUpdate[] } {
+  if (!isObj(input)) throw new ReviewError('not an object');
+  if (typeof input['runUrl'] !== 'string' || !RUN.test(input['runUrl'])) throw new ReviewError(`runUrl: a run of ${REPOSITORY}`);
+  const updates = list(input, 'updates', FIX_UPDATES_MAX).map((u, n) => {
+    const where = `updates[${n}]`;
+    if (!isObj(u) || typeof u['id'] !== 'string' || !UUID.test(u['id'])) throw new ReviewError(`${where}.id: a suggestion's id`);
+    const state = u['state'];
+    if (typeof state !== 'string' || !(FIX_STATES as readonly string[]).includes(state)) throw new ReviewError(`${where}.state: one of ${FIX_STATES.join(', ')}`);
+    const pr = u['pr'] ?? null;
+    if (pr !== null && !(Number.isInteger(pr) && (pr as number) > 0 && (pr as number) <= 10_000_000)) throw new ReviewError(`${where}.pr: a pull request's number or null`);
+    if (pr === null && ['open', 'merged', 'closed'].includes(state)) throw new ReviewError(`${where}.pr: the pull request, for ${state}`);
+    // Why there is no fix: only for the dashboard, which is private.
+    const note = u['note'] === null || u['note'] === undefined || u['note'] === '' ? null : text(u, 'note', where, 1000);
+    return { id: u['id'], state: state as FixState, pr: pr as number | null, note };
+  });
+  return { runUrl: input['runUrl'], updates };
 }
