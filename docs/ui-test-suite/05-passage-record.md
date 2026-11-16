@@ -1566,3 +1566,26 @@ Expected:
 Resets: undo the set aside, and withdraw the request, from History.
 
 Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo and Withdraw take each act back.
+
+### PASS-069 An admin deletes a version someone else published
+Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Steps:
+1. TRANS publishes Version 1 of a spare passage.
+2. As ADMIN, open that passage's Versions page.
+3. Tap the trash on "Version 1", then "Delete Version 1" in the sheet.
+
+Expected:
+- ADMIN sees the trash "Delete Version 1" on TRANS's version. Tapping it
+  opens the sheet "Delete Version 1?", as for the person who published it.
+- Step 3 shows "Version 1 deleted.", and the passage is no longer recorded:
+  it shows as not started.
+- The deleted version stays in History, with who deleted it.
+- COORD, TRANS's fellow translators and reviewers see no trash on a version
+  they did not publish (held at the model layer:
+  `apps/mobile/test/versionsModel.test.ts`, core `deletedVersions.test.ts`).
+
+Added (2026-11-13, decision 124 amended): an admin clears work that should
+not count, such as v2 work whose audio was lost.
+
+Resets: none (a spare passage).

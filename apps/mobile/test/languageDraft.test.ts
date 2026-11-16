@@ -27,10 +27,10 @@ describe('New language’s draft (decision 146)', () => {
   });
 
   it('gives each new language its own copy, under ids of that language, without the reference languages it is added with', () => {
-    const a = draftSpecsFor('L-lpx-1', draft.specs);
-    const b = draftSpecsFor('L-lpx-2', draft.specs);
+    const a = draftSpecsFor('L-lpx-1', draft.specs, 'sam');
+    const b = draftSpecsFor('L-lpx-2', draft.specs, 'sam');
     expect(a.map((s) => s.payload)).toEqual(draft.specs.map((s) => s.payload));
-    expect(a.every((s) => s.id.startsWith('L-lpx-1:'))).toBe(true);
+    expect(a.every((s) => s.id.startsWith('by:sam:L-lpx-1:'))).toBe(true);
     expect(new Set([...a, ...b].map((s) => s.id)).size).toBe(a.length + b.length);
     expect(a.some((s) => s.type === 'v1.ReferenceLanguageSet')).toBe(false);
   });

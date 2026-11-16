@@ -5,7 +5,7 @@ import {
 import { entryRows, FILE, type KeptLanguage } from './keptLanguage';
 import type { KeptLines } from './keptLines';
 import { NO_UNIT } from './serverCut';
-import type { EventStore, KeptRecord, SnapshotHead, Transport, WriteBatch } from './types';
+import { OfflineError, type EventStore, type KeptRecord, type SnapshotHead, type SnapshotRowsPage, type Transport, type WriteBatch } from './types';
 
 type Verdict = LanguageState['blobs'][string];
 
@@ -19,6 +19,14 @@ export const FILLED = 'filled';
 export class CutGoneError extends Error {
   override name = 'CutGoneError';
 }
+
+/**
+ * Where a fill reads rows when not from the server: a teammate's link for a starting copy
+ * (docs/nearby-sync-plan.md 14.1, 4). Never null: null is the server's word that its cut is
+ * gone, which drops the language. A link that drops throws `OfflineError`, and the fill goes on
+ * at the next step.
+ */
+export type FillRows = (orgId: string, streamId: string, reducerVersion: number, minSeq: number, unitIds: readonly string[], after: SnapshotRowsPage['next'], limit: number) => Promise<SnapshotRowsPage>;
 
 /** Rows asked for at once: about the size of a snapshot piece (decision 18) at Koro's 250 bytes a row. */
 export const ROWS_PER_PAGE = 1_000;
@@ -83,6 +91,8 @@ export class KeptFill {
   private todoStored = false;
   /** Rows per passage, made once per `todo` rather than per page. */
   private counts: { of: FillMeta['todo']; rows: Map<string, number> } | null = null;
+  /** Set while a starting copy is held: rows come from it alone, and nothing is asked of the server. */
+  private source: FillRows | null = null;
 
   constructor(
     private readonly store: EventStore,
@@ -102,6 +112,11 @@ export class KeptFill {
   /** Can this phone fill a language from the server's cut at all? */
   get possible(): boolean {
     return !!this.transport.snapshotHead && !!this.transport.snapshotRows;
+  }
+
+  /** Rows from here instead of the server, or from the server again with null. */
+  rowsFrom(source: FillRows | null): void {
+    this.source = source;
   }
 
   key(): string {
@@ -252,7 +267,7 @@ export class KeptFill {
       }
     }
     // Not on this phone yet: the server's newest snapshot says. What it does not know either was made since, and arrives in the tail.
-    if (missing.length > 0 && this.transport.snapshotPassages) {
+    if (missing.length > 0 && !this.source && this.transport.snapshotPassages) {
       for (const r of await this.transport.snapshotPassages(this.orgId, this.streamId, this.reducerVersion, missing)) out.add(r.unitId);
     }
     return [...out];
@@ -268,7 +283,7 @@ export class KeptFill {
   async step(budgetMs: number, first: () => Iterable<string> = () => [], now: () => number = Date.now): Promise<string[]> {
     const meta = this.meta;
     if (!meta || !this.active()) return [];
-    if (meta.stale !== null) await this.refreshLines(meta);
+    if (meta.stale !== null && !this.source) await this.refreshLines(meta);
     const started = now();
     const done: string[] = [];
     // At least one batch, then more while the time lasts.
@@ -322,9 +337,12 @@ export class KeptFill {
     let after: { unitId: string; kind: string; id: string } | null = null;
     const pending = new Set(asked);
     do {
-      const page = await this.transport.snapshotRows!(this.orgId, this.streamId, this.reducerVersion, meta.base, asked, after, this.pageRows);
+      const page: SnapshotRowsPage | null = this.source
+        ? await this.source(this.orgId, this.streamId, this.reducerVersion, meta.base, asked, after, this.pageRows)
+        : await this.transport.snapshotRows!(this.orgId, this.streamId, this.reducerVersion, meta.base, asked, after, this.pageRows);
       // No snapshot at or past the shared part's has a cut any more: nothing can fill this checkpoint in.
-      if (!page) throw new CutGoneError(`no cut at or past ${meta.base}`);
+      // A starting copy's source never says that, whatever it answers: its link only drops.
+      if (!page) throw this.source ? new OfflineError('no rows from the starting copy') : new CutGoneError(`no cut at or past ${meta.base}`);
       // A passage seen on this page is complete unless the next page goes on with it; with no next page, every one is.
       // Asked of the page, not compared as strings, so the server's byte order and the phone's never have to agree.
       const seen = new Set(page.rows.map((r) => r.unitId));

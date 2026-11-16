@@ -114,6 +114,33 @@ describe('blob reconciler', () => {
   });
 });
 
+describe('blob reconciler repair (docs/nearby-sync-plan.md section 6)', () => {
+  it('copies a file stored under a format the log does not name to the name it does, counts it missing until then, and does it once', async () => {
+    // Why: v1.BlobStored records only hash and size, so bytes PUT as H.m4a when phones ask for
+    // H.wav would count as safe, and phones would free a copy the server cannot serve.
+    const server = new FakeServer();
+    await language(server);
+    server.serviceEvent('v1.BlobStored', { hash: sha('good'), size: 4 });
+    const objects: BlobObject[] = [{ orgId: 'org1', streamId: 'p1', hash: sha('good'), format: 'm4a', size: 4 }];
+    const copies: string[] = [];
+    const d: ReconcilerDeps = {
+      ...deps(server, objects),
+      copy: async (from, to) => {
+        copies.push(`${from.hash}.${from.format}>${to.hash}.${to.format}`);
+        objects.push(to);
+      }
+    };
+    const first = await reconcileBlobs(d, { verify: false, countMissing: true });
+    expect(first.missing).toBe(1);
+    expect(first.repaired).toBe(1);
+    expect(copies).toEqual([`${sha('good')}.m4a>${sha('good')}.wav`]);
+    const second = await reconcileBlobs(d, { verify: false, countMissing: true });
+    expect(second.missing).toBe(0);
+    expect(second.repaired ?? 0).toBe(0);
+    expect(copies).toHaveLength(1);
+  });
+});
+
 describe('blob reconciler caution', () => {
   it('an object it cannot download is reported, not invalidated', async () => {
     // Why: a transient storage error must never make the server disown

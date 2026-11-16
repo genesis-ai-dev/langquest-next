@@ -25,7 +25,7 @@ import {
 } from '@langquest-next/core';
 import { Bold, List, TextQuote, type LucideIcon } from '../ui/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Image, Pressable, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
+import { AccessibilityInfo, Image, Pressable, StyleSheet, TextInput, View, type TextInputSelectionChangeEvent } from 'react-native';
 import { Text } from '../ui/text';
 import { licenseText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
@@ -683,7 +683,7 @@ function TextEditor(props: { draft: GuideDraft; text: string; onChange: (text: s
     setForced(r.selection);
     setTray(null);
   };
-  const onSelection = (e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+  const onSelection = (e: TextInputSelectionChangeEvent) => {
     sel.current = e.nativeEvent.selection;
     if (forced) setForced(undefined);
   };

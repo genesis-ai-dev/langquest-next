@@ -1,5 +1,5 @@
 import {
-  CommandError, isTemplateDoc, libraryItems, libraryItemView, selectFlowSpecs, selectTemplateSpecs,
+  newCommandId, CommandError, isTemplateDoc, libraryItems, libraryItemView, selectFlowSpecs, selectTemplateSpecs,
   type FlowDoc, type LibraryDoc, type LibraryItemView, type LibraryKind, type LanguageState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -123,7 +123,7 @@ export function useLibrary(ctx: Ctx) {
     const docs = await loadDocs(orgId, [hash]);
     const doc = docs.get(hash);
     if (!doc) throw new CommandError(t('library.errors.documentNotHere'));
-    const commandId = Crypto.randomUUID();
+    const commandId = newCommandId(ctx.session.actorId, Crypto.randomUUID());
     if (isTemplateDoc(doc)) {
       const v11n = doc.bible ? (docs.get(doc.bible.versification) as VersificationDoc | undefined) ?? null : null;
       if (doc.bible && !v11n) throw new CommandError(t('library.errors.versificationNotHere'));
@@ -133,7 +133,7 @@ export function useLibrary(ctx: Ctx) {
     }
     if (doc.format === 'flow@1') return selectFlowSpecs(state, { commandId, itemId, docHash: hash, doc: doc as FlowDoc });
     throw new CommandError(t('library.errors.onlyTemplatesAndFlows'));
-  }, [ctx.language.state, library, orgId]);
+  }, [ctx.language.state, ctx.session.actorId, library, orgId]);
 
   /** May this person write the organization's library for this kind (organization scope, `mayWriteLibrary`)? */
   const canWrite = useCallback((kind: LibraryKind) => mayWriteLibrary(orgState ?? null, ctx.session.actorId, kind), [orgState, ctx.session.actorId]);

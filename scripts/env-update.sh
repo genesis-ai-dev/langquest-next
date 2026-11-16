@@ -41,10 +41,13 @@ else
 fi
 [ -n "$value" ] || { echo "x empty value. To remove a key: npx dotenvx del $key -f $src" >&2; exit 1; }
 
+# On stdin, never as an argument: npx writes its arguments to npm's debug log
+# on disk, and a running program's arguments show in ps (security review,
+# 2026-11-10). printf is a shell builtin, so no process carries the value.
 if [ "$kind" = public ]; then
-  npx dotenvx set "$key" "$value" -f "$src" --plain > /dev/null
+  printf '%s' "$value" | node scripts/dotenvx-set.mjs "$key" "$src" public
 else
-  DOTENVX_NO_NATIVE=true npx dotenvx set "$key" "$value" -f "$src" -fk .env.keys > /dev/null
+  printf '%s' "$value" | node scripts/dotenvx-set.mjs "$key" "$src" secret
 fi
 unset value
 node scripts/env-check.mjs > /dev/null

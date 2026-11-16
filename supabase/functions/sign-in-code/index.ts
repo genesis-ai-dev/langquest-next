@@ -11,13 +11,21 @@ import { headers, reply, serviceClient, sha256Hex, signInAs } from '../_shared/s
  * the old phone is lost, signs every other session of the account out.
  * With a password (builds before 59): it sets that password and returns the
  * sign-in name, and the phone signs in with both, as before.
+ *
+ * With `profileId` (a local person's phone, docs/nearby-sync-plan.md 14.1,
+ * 6): a code made for anyone else is refused before it is taken, since the
+ * phone would refuse that session and the code would be spent for nothing.
+ * Builds that send no id are answered as before.
  */
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers });
   if (request.method !== 'POST') return reply({ error: 'Method not allowed' }, 405);
-  let code: unknown, password: unknown;
-  try { ({ code, password } = await request.json()); } catch { return reply({ error: 'Invalid request' }, 400); }
+  let code: unknown, password: unknown, profileId: unknown;
+  try { ({ code, password, profileId } = await request.json()); } catch { return reply({ error: 'Invalid request' }, 400); }
   if (typeof code !== 'string' || !/^[0-9a-f]{64}$/i.test(code)) return reply({ error: 'This code is not valid.' }, 400);
+  if (profileId !== undefined && (typeof profileId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(profileId) || password !== undefined)) {
+    return reply({ error: 'Invalid request' }, 400);
+  }
   if (password !== undefined && (typeof password !== 'string' || password.length < 6 || password.length > 128)) {
     return reply({ error: 'Choose a password of 6 or more characters.' }, 400);
   }
@@ -37,7 +45,10 @@ Deno.serve(async (request) => {
     return reply({ signInName: row.email.split('@')[0] });
   }
 
-  const taken = await service.rpc('take_sign_in_code_v2', { p_code_hash: hash });
+  const taken = typeof profileId === 'string'
+    ? await service.rpc('take_sign_in_code_for', { p_code_hash: hash, p_profile_id: profileId.toLowerCase() })
+    : await service.rpc('take_sign_in_code_v2', { p_code_hash: hash });
+  if (taken.error?.code === '28000') return reply({ error: 'This code was made for someone else.' }, 403);
   if (taken.error) return reply({ error: 'Unable to use this code. Please retry.' }, 500);
   const row = (taken.data as { profile_id: string; email: string; lost: boolean; helper_name: string | null }[] | null)?.[0];
   if (!row) return reply({ error: 'This code has expired or was already used. Ask for a new one.' }, 410);

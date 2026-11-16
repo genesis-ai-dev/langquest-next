@@ -1,4 +1,5 @@
 import { MemoryStore } from '@langquest-next/sync';
+import { nearbyClient, type NearbyPort } from '@langquest-next/sync/nearby';
 import { FakeServer } from '../../../packages/sync/src/testing/fakeServer';
 import { openLanguage, type LanguagePlatform, type OpenLanguageInput } from '../src/sync/openLanguage';
 import { RateMeter } from '../src/sync/rate';
@@ -62,5 +63,24 @@ describe('openLanguage: the language session wired without React', () => {
     expect(await openLanguage(input, platform, () => true)).toBeNull();
     expect(probes.size).toBe(0);
     expect(seen).toEqual({ changes: 0, files: 0 });
+  });
+
+  it('gives the client the nearby half the platform has for this person and organization, and none without one', async () => {
+    const { platform, input } = setup();
+    const asked: string[] = [];
+    const ports: NearbyPort[] = [];
+    const half = nearbyClient();
+    (platform as { nearby?: unknown }).nearby = async (orgId: string, actorId: string) => {
+      asked.push(`${actorId}@${orgId}`);
+      return (port: NearbyPort) => { ports.push(port); return half(port); };
+    };
+    const opened = await openLanguage(input, platform);
+    expect(asked).toEqual(['akol@org1']);
+    expect(ports.map((p) => `${p.orgId}/${p.streamId}`)).toEqual(['org1/luke']);
+    opened?.close();
+    const plain = setup();
+    const again = await openLanguage(plain.input, plain.platform);
+    expect(again).not.toBeNull();
+    again?.close();
   });
 });

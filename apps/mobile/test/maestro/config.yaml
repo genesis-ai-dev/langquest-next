@@ -7,7 +7,12 @@ flows:
 executionOrder:
   continueOnFailure: true
   # JRN-006 changes P-CHECK for good; P0-coordinator-ask-override undoes its
-  # own override, so it goes first.
+  # own override, so it goes first. NAV-061 needs P-ASIDE's Peer check not
+  # asked yet, which PASS-068 asks; SYNC-016 needs P-SUBMITTED still asked of
+  # REV, which the P0 reviewer flow answers. Both leave the world as they
+  # found it, so they go before the rest.
   flowsOrder:
     - "P0 A coordinator asks someone and overrides a checkpoint"
     - "JRN-006 A coordinator moves a passage past a checkpoint and signs it off"
+    - "NAV-061 Android's back button"
+    - "SYNC-016 Keep a passage offline, and stop keeping it"

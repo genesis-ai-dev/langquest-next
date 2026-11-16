@@ -1,6 +1,6 @@
 import {
   askedOfLines, defaultOfflineScope, downloadWorkOf, evictableOf, filePlan, filePlanOf, keptVerdict, lostFilesOf, offlineCountsOf,
-  offlineSummaryOf, referencedBlobs, unitsAskedOf, uploadWorkOf, voiceFormat, workedBy,
+  offlineSummaryOf, referencedBlobs, unboundId, unitsAskedOf, uploadWorkOf, voiceFormat, workedBy,
   type BlobRef, type FilePlan, type LanguageState, type LostFilesView, type OfflineReasons, type OfflineSummary, type UnitOffline
 } from '@langquest-next/core';
 import { AUDIO, FILE, type AudioRow } from './keptLanguage';
@@ -79,15 +79,22 @@ export class LanguageFiles {
     return offlineSummaryOf(await this.plan({ units }), present, chosen, why);
   }
 
-  /** What the files a phone lost behind the app's back were (decisions.md 92). */
-  async lost(hashes: readonly string[]): Promise<LostFilesView> {
-    return lostFilesOf(await this.plan({ hashes }), hashes);
+  /** What the files a phone lost behind the app's back were (decisions.md 92). `nearby`: teammates' files, which count in neither total. */
+  async lost(hashes: readonly string[], nearby?: ReadonlySet<string>): Promise<LostFilesView> {
+    return lostFilesOf(await this.plan({ hashes }), hashes, nearby);
   }
 
-  /** Does the language hold this recording, in memory or on disk? */
-  async hasRecording(id: string): Promise<boolean> {
-    if (this.client.getState().recordings[id]) return true;
-    return !!this.client.keptRecords() && (await this.store.keptById(this.orgId, this.streamId, 'recording', [id])).length > 0;
+  /**
+   * Does the language hold this recording, in memory or on disk, under any author's name?
+   * The journal's id names nobody, and whoever was signed in when the event was written may
+   * not be who asks now. `unitId` keeps the read on disk to one passage's rows.
+   */
+  async hasRecording(id: string, unitId: string): Promise<boolean> {
+    const wanted = unboundId(id);
+    const named = (key: string) => unboundId(key) === wanted;
+    if (Object.keys(this.client.getState().recordings).some(named)) return true;
+    if (!this.client.keptRecords()) return false;
+    return (await this.store.keptByUnit(this.orgId, this.streamId, ['recording'], [unitId])).some((r) => named(r.id));
   }
 
   /** A file's size as the server confirmed it, from memory or the last download list. */
@@ -112,7 +119,7 @@ export class LanguageFiles {
   };
 
   /** The files memory names, and, from disk, those of these passages and these files, with the server's verdict on each. */
-  private async plan(about: { units?: Iterable<string>; hashes?: Iterable<string> }): Promise<FilePlan> {
+  async plan(about: { units?: Iterable<string>; hashes?: Iterable<string> }): Promise<FilePlan> {
     const live = this.client.getState();
     const kept = this.client.keptRecords();
     if (!kept) return filePlanOf(live);
