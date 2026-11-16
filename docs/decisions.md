@@ -8851,6 +8851,13 @@ stored session is that person's, so a certificate answer that arrives after
 they signed out is dropped rather than left in the clear. Sign-out does not
 wait for that call, which may be waiting on the network.
 
+Amended (2026-11-16, Caleb Koster): the pattern also locks the app, for
+whoever turns Lock the app on in More settings (decision 253, LAN-255): it
+asks for their own pattern each time the app opens or is come back to,
+checked against their pattern's wrap here while they stay signed in, and
+wrong tries there count with Sign In's. Forgot? on that lock signs out as
+Sign Out does, and they come back as this entry says.
+
 ## 169. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted
@@ -10090,6 +10097,50 @@ it. Reverse if: more of Claude's fixes are
 closed than merged for weeks, or they eat into the plan's limits when
 people need them.
 
+Amended (2026-11-16, Caleb Koster): Claude fixes a video by itself when
+the fix is clear, and every video fix merges itself. Caleb (2026-11-16,
+thread "Automate tutorial video fixes") found that the fix flow asked too
+much of him: Claude should judge each comment and app change, make a fix
+that is clearly needed (pull request and merge too) with no person seeing
+it but a record kept, and wait for a developer's answer on the ops
+dashboard only when one is needed, as the only input a person gives. Claude
+changes only the videos, never the app. Decided (migration
+`20261116210000_tutorial_clear_fixes.sql`, the `tutorial-review` skill):
+- **The look sorts each input.** A change to a video's script, screens or
+  voice that is wrong against the app on main, with one right fix that
+  Claude checked, is `clear`: the Worker and the database accept it at once
+  (`clear`, `decided_at`, no `decided_by`). A viewer's wish, a choice of
+  what to teach, the app's code and a new video still wait for a person.
+  The look also reads each language's `status-<language>.json`, so a film
+  that failed or was held becomes a suggestion, with the film's language.
+- **A video fix merges itself.** The pull request is opened, not as a
+  draft, with the token of LangQuest's own GitHub App (the release-branches
+  App, `RELEASE_APP_ID`), so guardrails run at once, with auto-merge on;
+  the merge queue merges it when `gate` passes. The push stays with the
+  built-in token, which cannot change a workflow. A fix run closes a pull
+  request whose `gate` failed or that has not merged within 24 hours, and
+  its fix is `failed`, which asks a developer on the dashboard. A fix that
+  finds the video already does what was asked is `unneeded`, not failed.
+- **Two checks before a pull request opens.** A fixed rule (`codeRefusal`,
+  `scripts/tutorial-review.mjs`) refuses an added line in a video's file
+  that reads a file, the environment or the network, runs another program
+  or code from text, or reaches into the page beyond Playwright's own steps;
+  and a second Claude, which reads only the patch and never the comment or
+  the suggestion, says whether it only changes what the video shows and
+  says. Either one stops it, and the fix fails with why.
+- **The record** is the dashboard's "Changes Claude made to the videos":
+  each fix of the last 30 days, who said yes (Claude, an admin, or an
+  admin's instruction), its state and its pull request. An open fix is a
+  worker's item, not an admin's card. A held or failing film waits on
+  Claude's next look first, and on an admin when that look made nothing for
+  it or what it made was rejected.
+Considered: the organization setting "Allow GitHub Actions to create and
+approve pull requests": its pull requests start no checks, so they can never
+merge themselves, and it would apply to every repository in the
+organization, which Caleb did not want. Reverse if: a clear fix that merged
+has to be taken back more than once a month, or Claude's fixes fail their
+checks more often than they pass.
+
 ## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
 
 Date: 2026-10-29 · By: Caleb Koster · Status: accepted
@@ -11253,6 +11304,16 @@ watch's runs apart (`FREQUENT_WORKFLOWS`). Reading main's latest 40 runs and
 then leaving the watch's out still let it, with release-branches, fill the
 40 within about 8 hours, so it now reads the latest run of each workflow on
 its own (decision 209).
+
+Amended (2026-11-16, Caleb Koster): a tutorial video's fix (186, amended
+2026-11-16) is opened with LangQuest's own GitHub App, so its checks start
+at once and it merges itself, which this decision refused for a user
+issue's fix. A video fix may change only the video's own file and lines; a
+fixed rule refuses an added line there that could reach a key (a file, the
+environment, the network, another program, code from text); and a second
+Claude reads the patch first. A user issue's fix may change any of the
+app's code, so it stays a draft opened with the built-in token, and its
+checks still wait for a person.
 
 ## 203. A study step shows the pictures and maps its text asks for, linked or not, and the rest after its text
 
@@ -13129,3 +13190,57 @@ Date: 2026-11-12 · By: Caleb Koster · Status: accepted
 Reason: at the 5 November 2026 meeting with Bezily's group the Standard Bible Flow looked as if a back translation needed a peer review, because step 1 lists both side by side and a made back translation read "looks good" though nobody had checked it (LAN-234). Caleb chose two rows with the flows unchanged. A kind that makes new content (`produces`) now shows "Back translation · make it" (done reads "made") followed by "Back translation · check it", which follows the check that compares it (`checkedBy`) and reads "checked" only once that check is done (`teamSteps` in `pathModel.ts`, `TeamStep.part`). It stays out when the back translation is set aside or moved past. The rows keep the look of the other team rows. Decision 91's one-row-per-check still holds for every other kind; flows and kinds are unchanged.
 Reverse if: people still read the check row as a second review, or a language's flow needs back translation checked by something other than a named check.
 
+## 253. A person can lock the app with their own sign-in pattern, which it asks for each time the app opens or is come back to
+
+Date: 2026-11-16 · By: Caleb Koster · Status: accepted
+
+Reason: amends 168. Someone who leaves a phone with LangQuest open, or hands
+it over, shows their work to whoever picks it up; people asked for the app to
+lock (LAN-255). Of the options put to him, Caleb chose (2026-11-13 and
+2026-11-16):
+- **Their own sign-in pattern, not a PIN.** The lock is the picture and the
+  nine dots of 168, the same ones that sign the person back in after
+  signing out: one secret to remember, no reading, no numbers. The pattern
+  is checked by opening the person's own pattern wrap of 168 and finding the
+  key they hold now (`checkPattern`, `src/server/lock.ts`), so nothing new
+  is kept and a pattern made under an older key opens nothing. Wrong tries
+  count with Sign In's, since it is the same pattern: four are free, then
+  each waits twice as long, up to an hour.
+- **Each person's own.** It is a switch in Me → More settings, Lock the app
+  (`src/appLock/AppLockRow.tsx`), off until they turn it on; turning it on
+  or off asks for their pattern first. Someone with no pattern yet chooses a
+  picture and draws one twice there, as at their first sign-out, and that
+  is also the pattern they sign back in with. On a shared phone the lock
+  stands only for the person signed in who turned it on. Who has it on is a
+  list of account ids in the app's key-value store, read at once as the app
+  starts (`src/appLock/appLock.ts`), so the lock stands before a frame of
+  their work shows. If their pattern went (they came back by a helper's
+  code, and the key it wrapped went with it), the lock turns itself off.
+- **Each time the app is left.** It stands on every fresh start and the
+  moment the app goes to the background, however short the time away: a
+  share sheet, a permission prompt on Android, or a call locks it too, as
+  171's disguise does. Caleb chose this over a minute's grace, the safest
+  and the most drawing. The phone's list of open apps shows the lock, not
+  the work.
+- **Over everything, with the app going on under it.** `AppLockGate`
+  (`src/shell/AppLockGate.tsx`, around everything in App.tsx inside 171's
+  disguise) keeps the app running under the lock, so sync goes on and the
+  app comes back as it was left; every modal draws the lock too, through
+  `ModalCoverContext`, with a disguise's cover still on top of it. A
+  disguised Android phone asks for the code, then the pattern. A sign-in or
+  sign-out that just happened, by any way, does not ask again. Android's
+  Back on the lock leaves the app.
+- **Forgot? signs out.** It leaves as Sign Out does
+  (`leaveThisDevice`, `src/account/accountAuth.ts`): unsent work is handed
+  over and sent as them later (60), and the sign-in stays locked for their
+  return (168). They sign in again with their password, or a helper's code
+  online; the work on the phone stays.
+- **Phones only.** The web has no lock: `AppLockGate.web.tsx`,
+  `AppLockRow.web.tsx` and `useAppLockSignOut.web.ts` import none of it, as
+  `lock.web.ts` keeps 168's cryptography out of the web bundle. Nothing is
+  sent, so no store answer changes (`docs/play-store-declarations.md`).
+Tests `apps/mobile/test/appLock.test.ts`, `lockFlow.test.ts`.
+Reverse if: people turn it off because they draw too often after a share
+sheet or a permission prompt (then a short time away does not lock), or
+people who forget the pattern lose access more often than the lock keeps
+someone out (then a helper's code opens it too).

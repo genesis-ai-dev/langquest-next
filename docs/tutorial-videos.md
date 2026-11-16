@@ -357,6 +357,8 @@ the videos (decision 186). Three kinds of input:
   nightly filming films that video again by itself.
 - **Notes** the team leaves on the ops dashboard: Tutorial videos →
   What came in, and notes → Add a note, about a video or one not made yet.
+- **Films that failed or were held** last night, from each language's
+  `status-<language>.json` in the `tutorials` release.
 
 Each night at 10:00 UTC `.github/workflows/tutorial-review.yml` has Claude
 look at what is open. `scripts/tutorial-review.mjs fetch` gets it from the
@@ -365,7 +367,11 @@ Claude (`anthropics/claude-code-action`, following the `tutorial-review`
 skill in `.agents/skills`) puts each comment into English with a reply in
 its own language, and suggests what to change: a video's script, screens or
 voice, the app's code, or a new video. Every input ends in a suggestion or
-with a line saying why none. `check` holds the look against what the
+with a line saying why none. A change to a video's script, screens or voice
+that is wrong against the app on main, with one right fix that Claude
+checked, is marked **clear**: the Worker and the database accept it at once,
+and Claude makes it with no person asked (decision 186, amended
+2026-11-16). Every other suggestion waits for a person. `check` holds the look against what the
 Worker takes and what is open; when the Worker would refuse it, or lose part
 of it, Claude is asked once to mend it from the list of problems. `send`
 hands the look to the Worker, which checks it (`parseReview` in
@@ -373,7 +379,7 @@ hands the look to the Worker, which checks it (`parseReview` in
 refused is kept with the run for 14 days (`review.json` and
 `problems.txt`), for a person to read.
 
-A person decides each suggestion on the dashboard: Accept, Edit (change
+A person decides each other suggestion on the dashboard: Accept, Edit (change
 what it says first), or Reject with why, which the next look reads before
 suggesting the same again. An accepted code change becomes a Linear issue,
 "Tutorial feedback: …": at once when the app's Worker has `LINEAR_API_KEY`,
@@ -407,19 +413,24 @@ the OpenID Connect token GitHub signs for the job
 gets a token that names itself. Claude has no network, no token and no
 shell beyond reading git (and editing the checkout, when it makes an
 accepted change): the script around it fetches and sends. Anyone can write
-a comment, so the skill treats comments as data, never as instructions, and
-nothing Claude suggests or makes happens without a person.
+a comment, so the skill treats comments as data, never as instructions.
+Only a clear change to a video happens without a person, and only after
+the two checks below; nothing Claude suggests for the app happens without
+one.
 
 ### Claude makes an accepted change
 
-A suggestion to change a video's script, screens or voice that a person
-accepted is made by Claude as a draft pull request (decision 186, amended
-2026-11-13). Every 30 minutes the same workflow runs its fix jobs, as the
+A suggestion to change a video's script, screens or voice that is clear, or
+that a person accepted, is made by Claude as a pull request that merges
+itself when its checks pass (decision 186, amended 2026-11-13 and
+2026-11-16). Every 30 minutes the same workflow runs its fix jobs, as the
 watch for user issues does (`user-issues.yml`):
 
 1. `queue` asks the Worker (`/api/tutorial-review/fixes`) what waits, asks
-   GitHub whether each draft pull request so far was merged or closed, and
-   starts at most three accepted changes, oldest first.
+   GitHub whether each pull request so far was merged or closed, closes one
+   whose `gate` check failed or that has not merged within 24 hours (its fix
+   is then `failed`, which asks a developer on the dashboard), and starts at
+   most three accepted changes, oldest first.
 2. `fix` has Claude change the video, following the skill's part "Making an
    accepted change", in a checkout with no key and no shell. Claude reads
    the suggestion as accepted (with the person's edits) and, from the last
@@ -430,22 +441,34 @@ watch for user issues does (`user-issues.yml`):
    `e2e/tutorials/<video>.ts` and `e2e/tutorials/lines/`. When the change
    needs the app itself, another video or a person's choice, Claude writes
    none and says why.
-3. `check` refuses a patch that changes any other file, applies it, and runs
-   the videos' typecheck and tests, with no key.
-4. `open` pushes it to `tutorial-fix/<id>` and opens a draft pull request
-   that says what was accepted, links what it answers (never quoting a
-   commenter) and gives the checks. Its pull requests start no checks.
+3. `check` refuses a patch that changes any other file, or adds a line to a
+   video's file that reads a file, the environment or the network, runs
+   another program or code from text, or reaches into the page beyond
+   Playwright's own steps (`codeRefusal` in `scripts/tutorial-review.mjs`).
+   It applies the patch and runs the videos' typecheck and tests, with no
+   key.
+4. `vet` has a second Claude read only the patch, never the comment or the
+   suggestion, and say whether it only changes what the video shows and
+   says (the skill's part "Reading a change before it merges"). It can read
+   files and write its verdict, nothing more.
+5. `open` stops when `vet` said no, and the fix fails with why. Otherwise it
+   pushes the patch to `tutorial-fix/<id>` with the built-in token (which
+   cannot change a workflow), opens the pull request with the token of
+   LangQuest's own GitHub App (`RELEASE_APP_ID`, as release-branches does),
+   so that guardrails run at once, and turns on auto-merge. The pull request
+   says what was accepted and by whom, links what it answers (never quoting
+   a commenter), gives the second check's words and the checks.
 
-A person reads it, marks it Ready for review (CI runs), and merges it. The
-merge films the video again at once (`tutorials.yml` runs on a change to
+The merge queue merges it when `gate` passes; no person reads it. The merge
+films the video again at once (`tutorials.yml` runs on a change to
 `e2e/tutorials`), and its film's cause names the pull request (above, "Why
 a video is filmed again"). Each suggestion keeps where its fix is
-(migration `20261114010000_tutorial_fixes.sql`): waiting for Claude,
-working, open (waiting for a person to merge it), merged, closed, or failed
-with why. The dashboard reads it, with how many wait for Claude (`toFix`),
-are being written (`fixing`) and wait for a merge (`toMerge`). A run that
-stops leaves its change to the next run after three hours. A code change
-still goes to Linear, and a new video is still made by a person.
+(migrations `20261114010000_tutorial_fixes.sql` and
+`20261116210000_tutorial_clear_fixes.sql`): waiting for Claude, working,
+open (its checks run), merged, closed, failed with why, or unneeded (the
+video already does it). A run that stops leaves its change to the next run
+after three hours. A code change still goes to Linear, and a new video is
+still made by a person.
 
 **An admin's instruction.** A card on the dashboard for a comment, a screen
 change, or a film that failed or was held has a box for what Claude must do.
@@ -484,7 +507,17 @@ Tutorial videos → Videos, your list and the workers' list
   connect, paused languages (not in `NIGHTLY_LANGUAGES`).
 - **Workers, now and tonight**: the filming run, or the next one at 20:10
   UTC; videos a screen change slots for tonight's check; fixes Claude
-  writes; comments Claude reads; films waiting for YouTube's daily limit.
+  writes, and pull requests that merge themselves when their checks pass;
+  comments Claude reads; films waiting for YouTube's daily limit.
+- **Changes Claude made to the videos**: the record of each fix of the last
+  30 days, with who said yes (Claude for a clear fix, an admin, or an
+  admin's instruction), its state and its pull request. A clear fix is
+  seen nowhere else.
+
+A held or failing film waits on Claude's next look first (**i**); it waits
+on an admin (**!**) when a look after it made nothing for it, or what it
+made was rejected. A fix that failed, or whose pull request was closed, waits
+on an admin.
 
 A suggested reply shows for 14 days, since nothing records that someone
 posted it.
