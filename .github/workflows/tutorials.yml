@@ -54,14 +54,16 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # The app languages filmed each night. English alone for now (Caleb,
-  # 2026-11-01): the spotlight films every video again, and he looks at the
-  # English ones before the other fifteen are filmed; then they come back,
-  # English and French first: en,fr,es,pt,ar,sw,ha,am,hi,bn,ne,id,th,my,zh-Hans,tl.
+  # The app languages filmed each night. English alone from 2026-11-01, while
+  # Caleb looked at the spotlight films; French and Spanish back from
+  # 2026-11-16 (Caleb), two languages before the rest, so a fault in the
+  # translated films shows in two and not fifteen, and YouTube takes their
+  # 94 new films in about a day. The others come back after them:
+  # en,fr,es,pt,ar,sw,ha,am,hi,bn,ne,id,th,my,zh-Hans,tl.
   # A line is said by Gemini's batch voice, on its paid tier, the first time
   # it is filmed; the release keeps each language's voice
   # (voice-<language>.tgz), so it is never paid twice.
-  NIGHTLY_LANGUAGES: en
+  NIGHTLY_LANGUAGES: en,fr,es
 
 jobs:
   languages:
