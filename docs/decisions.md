@@ -9822,6 +9822,19 @@ history to find the changes. Reverse if: slots cleared as the same turn out
 to hide changes people see (then a person or Claude judges those slots), or
 scripts change so often that films churn on YouTube.
 
+Amended (2026-11-16, Caleb Koster): French and Spanish are filmed each night
+again (`NIGHTLY_LANGUAGES: en,fr,es`). The English spotlight films are
+current (all 46 the same on 2026-11-15), so the other languages can come
+back, and their films from 1 November still show the old screens and the old
+wide frame. Caleb chose two languages first (2026-11-16, thread "Explain
+tutorial video failures and paused languages") over all fifteen at once: a
+language's first night films all 47 videos again (its frame changed), so
+fifteen would be about 700 films, about seven days of YouTube's uploads,
+and more Gemini voice and Claude plan use for the frame check; two show a
+fault in the translated films before it repeats in fifteen. The rest come
+back after them. Reverse if: French or Spanish films fail or are held where
+English passes (then they pause again until the cause is fixed).
+
 ## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
