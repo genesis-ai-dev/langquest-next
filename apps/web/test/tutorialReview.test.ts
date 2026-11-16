@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GITHUB_ISSUER, githubOidc } from '../worker/githubOidc';
-import { handleTutorialReview, REVIEW_RULE, type ReviewDeps } from '../worker/tutorialReview';
-import { parseReview, ReviewError, type Review } from '../../../server/tutorialFeedback';
+import { FIXES_PER_RUN, handleTutorialReview, REVIEW_RULE, type ReviewDeps } from '../worker/tutorialReview';
+import { FIX_UPDATES_MAX, parseFixUpdates, parseReview, ReviewError, type FixUpdate, type Review } from '../../../server/tutorialFeedback';
 import type { JobRun } from '../../../server/jobRuns';
 
 /** Claude's nightly look at the tutorial videos' feedback (decisions.md 186): who gets in, and what it may send. */
@@ -136,18 +136,23 @@ describe('handleTutorialReview', () => {
   function deps(over: Partial<ReviewDeps> = {}) {
     const runs: JobRun[] = [];
     const sent: Review[] = [];
+    moves.length = 0;
     const d: ReviewDeps = {
       verify: async (t) => (t === 'good' ? { repository: 'genesis-ai-dev/langquest-next', workflowRef: REVIEW_RULE.workflowRef, runId: '123456', runAttempt: '1', eventName: 'schedule' } : null),
       state: async () => ({ last: null, inputs: [], suggestions: [], videos: [] }),
       reviewed: async (r) => { sent.push(r); return { review: 1, code: 1, looked: 1, suggested: 2, skipped: 0 }; },
       record: async (run) => { runs.push(run); },
+      fixes: async (limit) => ({ toFix: [], open: [], limit }),
+      fixed: async (u) => { moves.push(u); return u.id === UNKNOWN ? 'not_found' : 'ok'; },
       now: () => NOW,
       ...over
     };
-    return { d, runs, sent };
+    return { d, runs, sent, moves };
   }
-  const req = (method: string, auth: string | null, body?: unknown) =>
-    new Request('https://next.langquest.org/api/tutorial-review', { method, headers: auth ? { authorization: `Bearer ${auth}` } : {}, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  const moves: FixUpdate[] = [];
+  const UNKNOWN = '0d000000-0000-4000-8000-0000000000ff';
+  const req = (method: string, auth: string | null, body?: unknown, path = '/api/tutorial-review') =>
+    new Request(`https://next.langquest.org${path}`, { method, headers: auth ? { authorization: `Bearer ${auth}` } : {}, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 
   it('lets in only the review workflow\'s token', async () => {
     const { d, runs } = deps();
@@ -182,5 +187,40 @@ describe('handleTutorialReview', () => {
     const { d, runs } = deps({ reviewed: async () => ({ review: 2, code: 0, looked: 0, suggested: 0, skipped: 3 }) });
     await handleTutorialReview(req('POST', 'good', review()), d);
     expect(runs[0]).toMatchObject({ outcome: 'partial', errorClass: 'unknown_ids', n: { skipped: 3 } });
+  });
+
+  it('hands the fix jobs what waits, and takes where each fix is now, from this run only', async () => {
+    const { d, runs } = deps();
+    const FIXES = '/api/tutorial-review/fixes';
+    expect((await handleTutorialReview(req('GET', 'stolen', undefined, FIXES), d)).status).toBe(401);
+    expect(await (await handleTutorialReview(req('GET', 'good', undefined, FIXES), d)).json()).toEqual({ toFix: [], open: [], limit: FIXES_PER_RUN });
+    const runUrl = 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/123456';
+    const id = '0d000000-0000-4000-8000-000000000001';
+    const posted = await handleTutorialReview(req('POST', 'good', { runUrl, updates: [{ id, state: 'open', pr: 451 }, { id: UNKNOWN, state: 'working' }] }, FIXES), d);
+    expect(await posted.json()).toEqual({ results: ['ok', 'not_found'] });
+    expect(moves).toEqual([{ id, state: 'open', pr: 451, note: null }, { id: UNKNOWN, state: 'working', pr: null, note: null }]);
+    expect((await handleTutorialReview(req('POST', 'good', { runUrl: runUrl.replace('123456', '999'), updates: [] }, FIXES), d)).status).toBe(400);
+    expect(await (await handleTutorialReview(req('POST', 'good', { runUrl, updates: [{ id, state: 'merged' }] }, FIXES), d)).json()).toEqual({ error: 'updates[0].pr: the pull request, for merged' });
+    expect(runs).toEqual([]);
+  });
+});
+
+describe('parseFixUpdates', () => {
+  const runUrl = 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/7/attempts/2';
+  const id = '0d000000-0000-4000-8000-000000000001';
+  it('takes each move with its pull request, or why there is no fix', () => {
+    expect(parseFixUpdates({ runUrl, updates: [{ id, state: 'failed', note: ' The script has no such line. ' }, { id, state: 'closed', pr: 9 }] })).toEqual({
+      runUrl, updates: [{ id, state: 'failed', pr: null, note: 'The script has no such line.' }, { id, state: 'closed', pr: 9, note: null }]
+    });
+  });
+  it('says the first thing wrong', () => {
+    for (const [sent, error] of [
+      [{ runUrl: 'https://github.com/someone/else/actions/runs/7', updates: [] }, 'runUrl'],
+      [{ runUrl, updates: [{ id: 'x', state: 'open', pr: 1 }] }, 'updates[0].id'],
+      [{ runUrl, updates: [{ id, state: 'done' }] }, 'updates[0].state'],
+      [{ runUrl, updates: [{ id, state: 'open', pr: 0 }] }, 'updates[0].pr'],
+      [{ runUrl, updates: [{ id, state: 'failed', note: 'x'.repeat(1001) }] }, 'updates[0].note'],
+      [{ runUrl, updates: Array.from({ length: FIX_UPDATES_MAX + 1 }, () => ({ id, state: 'working' })) }, 'updates: a list']
+    ] as const) expect(() => parseFixUpdates(sent), error).toThrow(new RegExp(`^${error.replace(/[[\]]/g, '\\$&')}`));
   });
 });

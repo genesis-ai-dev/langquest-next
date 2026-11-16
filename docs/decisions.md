@@ -9796,6 +9796,32 @@ again, and Caleb looks at the English films before the other fourteen
 languages are filmed; they come back, English and French first, when he
 says the English ones look right.
 
+Amended (2026-11-13, Caleb Koster): a video is filmed again when its script
+changes too, and each film says why it was made. Caleb (2026-11-13, thread
+"Make comments and screen changes update videos") named two reasons a video
+changes, a comment on YouTube and a change to a screen or flow it shows,
+and asked for every video a changed screen touches to be slotted for an
+update, with the cause shown. The look sees only the words on screen, so a
+fix to what a video says (the way a comment's fix comes in) was never
+filmed. Each film in the manifest now keeps the commit it was filmed from,
+its script (its file and the lines it says, hashed), each step's look and
+its causes (`e2e/tutorials/why.ts`); a changed script films it again. A
+change merged into main that touched the own code of a screen a video shows
+(`e2e/tutorials/screens.ts`: what the screen's module imports, less what
+four or more of the twenty modules share) slots the video; the night's try
+films it when its words changed and clears the slot when they did not. A
+slot does not film by itself: from 30 October to 13 November, 80 merges
+would have slotted 15 to 46 of the 47 English videos on each day with a
+merge, and YouTube takes about 100 uploads a day for fifteen languages.
+Step pictures from two nights were compared to catch what the words miss,
+and differ by themselves (a person's colour, a QR code, a waveform, a
+toast), so they decide nothing. Each
+language's `status-<language>.json` in the release gives every video's
+film, causes, tonight's try and slots. The filming checks out main's whole
+history to find the changes. Reverse if: slots cleared as the same turn out
+to hide changes people see (then a person or Claude judges those slots), or
+scripts change so often that films churn on YouTube.
+
 ## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
@@ -9972,6 +9998,62 @@ how to take away a channel's access), and the videos page (187) links it.
 Code changes, notes and answered suggestions keep their year. A comment
 Claude has not looked at within 30 days, because the look stopped running,
 is lost to it.
+
+Amended (2026-11-13, Caleb Koster): the comments job reads first in
+YouTube's day, at midnight in California (`apps/web/worker/jobsModel.ts`),
+not at 23:50 UTC. The publish job's uploads that day had used up the
+project's units by then: on 4 to 9 November 2026 the job read 0 to 11 of
+the 16 channels and stopped on `quotaExceeded`. Reading a channel's new
+comments costs a unit a page; at midnight the day's 10,000 are all there,
+and the intake and the uploads come five minutes later.
+
+Amended (2026-11-13, Caleb Koster): the dashboard shows the videos as one
+list for each app language, in place of the filming table and the
+suggestion cards. Each video's row has its state, a day-by-day timeline
+(zoomed with a pinch; a click on a mark shows the change, the films before
+and after, the comment as written, the PR or the log) and, at its right, a
+warning mark when an admin must act. The mark opens that video's cards: the
+problem, who acts next, what happens if nobody does, and a box to tell
+Claude what to do; Claude's next fix run takes that instruction as already
+approved. Beside the list, what waits on an admin that is not one video's
+(publish, connect a channel, paused languages) and what the workers do now
+and tonight. Caleb asked for this so one page says what waits on him, and
+so that he gives Claude directions before the night's run instead of
+opening logs. The history comes from `ops.tutorial_videos`, which already
+keeps every film (`diag.ops_tutorial_films`, migration
+`20261113234000_tutorial_films.sql`); the causes, holds, failures and slots
+from the nightly's `status-<language>.json` in the public release; a fix's
+state from its suggestion. A suggested reply shows for 14 days, since
+nothing records that someone posted it.
+
+Amended (2026-11-13, Caleb Koster): Claude makes an accepted change to a
+video's script, screens or voice, as a draft pull request; the "Not yet"
+above is done, without the preview film. Caleb (2026-11-13, threads "Make
+comments and screen changes update videos" and "Show the tutorial video
+pipeline for the last week") found a comment on "Choose the app's
+language" that nothing came of, and gave a video's states as waiting for
+admin approval, working on fix, and waiting for admin to merge the pull
+request: a person accepts first, then Claude works. Every 30 minutes the
+same workflow's fix jobs start at most three accepted changes, as the watch
+for user issues makes its draft fixes (202): Claude changes only
+`e2e/tutorials/<video>.ts` and `e2e/tutorials/lines/` in a checkout with no
+key; a job with no key applies the patch and runs the videos' typecheck and
+tests; a job that runs nothing of it opens the draft pull request with the
+built-in token, which links what it answers and never quotes a commenter. A
+person marks it Ready for review and merges it, and the merge films the
+video again (183). Each suggestion keeps where its fix is (migration
+`20261114010000_tutorial_fixes.sql`): working, open, merged, closed or
+failed with why, read and written through the Worker's
+`/api/tutorial-review/fixes`. A code change still goes to Linear and a new
+video is still made by a person. Caleb (2026-11-13) also asked that an
+admin see each problem (a comment, a screen change, a film that failed or
+was held) and write what Claude must do with it: that instruction, sent
+from the dashboard's card, is an accepted suggestion at once (kind
+`instruction`, `ops_tutorial_instruct`), and Claude reads the film's log,
+the screen where it stopped, the frame check and the video's state with
+it. Reverse if: more of Claude's fixes are
+closed than merged for weeks, or they eat into the plan's limits when
+people need them.
 
 ## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
 
@@ -10405,6 +10487,17 @@ before Next is tapped. Two holds were Claude reading the app wrongly, so
 the frame check's prompt now says what a passage's step marks mean (a
 grey skip-forward sign is a check set aside) and that the recording
 clock counts the silence a part is cut from.
+
+Amended (2026-11-13, Caleb Koster): a change that only makes films look
+better leaves `FRAME` as it is, so no video is filmed again for it alone.
+The title picture (`compose.ts`) was cut at its lines' boxes, so the foot
+of a g, p or y on a title's last line was cut off in 22 of the 46 English
+films; a YouTube viewer saw it. The picture now takes in room around its
+letters. Changing `FRAME` would have filmed all 46 English videos again
+(46 frame checks and 46 uploads) for that alone. Instead each film gets it
+when it is filmed again for another reason (a screen it shows changed, or
+a person named it), so such changes can wait in old films until then.
+Reverse if: viewers keep pointing at a fault that only a new film fixes.
 
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
