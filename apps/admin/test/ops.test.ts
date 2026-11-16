@@ -146,6 +146,12 @@ describe('storage, capacity and releases', () => {
     expect(storageAlerts(storage({ reconcile: { at: hoursAgo(3), outcome: 'partial', n: { missing: 2 } } }), NOW)[0]).toMatchObject({ level: 'urgent', text: expect.stringContaining('2 recordings') });
   });
 
+  it('says to watch recordings the R2 reconciliation copied to the file type the log names, which are safe', () => {
+    expect(storageAlerts(storage({ reconcile: { at: hoursAgo(3), outcome: 'ok', n: { missing: 0, repaired: 45 } } }), NOW))
+      .toEqual([{ level: 'watch', text: expect.stringContaining('copied 45 recordings') }]);
+    expect(storageAlerts(storage({ reconcile: { at: hoursAgo(3), outcome: 'ok', n: { missing: 0, repaired: 0 } } }), NOW)).toEqual([]);
+  });
+
   it('takes the newest backup from the daily list or, with point-in-time recovery, from the physical one', () => {
     expect(latestBackup({ pitr_enabled: true, backups: [], physical_backup_data: { latest_physical_backup_date_unix: 1792695536 } }))
       .toEqual({ pitr: true, latest: new Date(1792695536 * 1000).toISOString(), count: 1 });

@@ -43,7 +43,7 @@ export interface ReconcilerDeps {
 export interface ReconcileReport {
   streams: number;
   objects: number;
-  /** Files the log holds as stored (its latest verdict) that the bucket does not list: work that may be lost. Counted only with `countMissing`. */
+  /** Files the log holds as stored (its latest verdict) that the bucket does not list once this pass has repaired what it can: work that may be lost. Counted only with `countMissing`. */
   missing: number;
   confirmed: number;
   verified: number;
@@ -101,8 +101,9 @@ export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boole
     if (objects.length === 0 && !stored) continue;
     // A stream with files is folded when it can be repaired, confirmations or not: a file under the wrong format would be confirmed otherwise.
     const state = stored || (objects.length > 0 && deps.copy) ? await foldStream(deps.transport, orgId, streamId, opts.pageSize ?? 1000) : emptyLanguageState();
+    // Repair before counting: a file this pass copies to the name the log gives it is not missing.
+    if (deps.copy) objects.push(...await repairFormats(deps.copy, state, objects, report));
     if (opts.countMissing) report.missing += missingHashes(state, objects).length;
-    if (deps.copy) objects.push(...await repairFormats(deps, deps.copy, state, objects, report));
     const unconfirmed: BlobObject[] = [];
     for (const o of objects) {
       report.objects += 1;
@@ -141,28 +142,36 @@ export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boole
  * nothing under the right name, is copied across (docs/nearby-sync-plan.md section 6, Repair):
  * a writer's PUT names no event, so `blob_named_by` cannot hold the extension for them, and
  * `v1.BlobStored` records only hash and size. The bytes never leave R2's side of the Worker,
- * and a second pass finds the right name there and does nothing. Answers the objects made.
+ * and a second pass finds the right name there and does nothing. A few copies go at once, so
+ * a night with thousands to make stays inside the job's time limit. Answers the objects made.
  */
-async function repairFormats(deps: ReconcilerDeps, copy: NonNullable<ReconcilerDeps['copy']>, state: LanguageState, objects: readonly BlobObject[], report: ReconcileReport): Promise<BlobObject[]> {
+async function repairFormats(copy: NonNullable<ReconcilerDeps['copy']>, state: LanguageState, objects: readonly BlobObject[], report: ReconcileReport): Promise<BlobObject[]> {
   const refs = referencedBlobs(state);
   const names = new Set(objects.map((o) => `${o.hash}.${o.format}`));
-  const made: BlobObject[] = [];
+  // One copy for each name the bucket lacks, even when the bytes sit under two other formats.
+  const wanted = new Map<string, { from: BlobObject; to: BlobObject }>();
   for (const o of objects) {
     const ref = refs.get(o.hash);
-    if (!ref || ref.format === o.format || names.has(`${o.hash}.${ref.format}`)) continue;
-    const to = { ...o, format: ref.format };
+    if (!ref || ref.format === o.format) continue;
+    const name = `${o.hash}.${ref.format}`;
+    if (!names.has(name) && !wanted.has(name)) wanted.set(name, { from: o, to: { ...o, format: ref.format } });
+  }
+  const made: BlobObject[] = [];
+  await inParallel([...wanted.values()], COPY_AT_ONCE, async ({ from, to }) => {
     try {
-      await copy(o, to);
+      await copy(from, to);
     } catch (err) {
-      report.unreadable.push(`${o.orgId}/${o.streamId}/${o.hash}: ${(err as Error).message}`);
-      continue;
+      report.unreadable.push(`${from.orgId}/${from.streamId}/${from.hash}: ${(err as Error).message}`);
+      return;
     }
-    names.add(`${o.hash}.${ref.format}`);
     made.push(to);
     report.repaired = (report.repaired ?? 0) + 1;
-  }
+  });
   return made;
 }
+
+/** Copies in flight at once for one stream. */
+const COPY_AT_ONCE = 4;
 
 /** Confirmations in flight at once for one stream. */
 const RECORD_AT_ONCE = 4;

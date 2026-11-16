@@ -115,7 +115,7 @@ describe('blob reconciler', () => {
 });
 
 describe('blob reconciler repair (docs/nearby-sync-plan.md section 6)', () => {
-  it('copies a file stored under a format the log does not name to the name it does, counts it missing until then, and does it once', async () => {
+  it('copies a file stored under a format the log does not name to the name it does, does not count it missing once copied, and does it once', async () => {
     // Why: v1.BlobStored records only hash and size, so bytes PUT as H.m4a when phones ask for
     // H.wav would count as safe, and phones would free a copy the server cannot serve.
     const server = new FakeServer();
@@ -130,14 +130,76 @@ describe('blob reconciler repair (docs/nearby-sync-plan.md section 6)', () => {
         objects.push(to);
       }
     };
+    // Why missing is 0: the nightly run counted the file before copying it, so a night that
+    // repaired everything still said partial (Nov 15 and 16, 2026: 3,329 and 45).
     const first = await reconcileBlobs(d, { verify: false, countMissing: true });
-    expect(first.missing).toBe(1);
+    expect(first.missing).toBe(0);
     expect(first.repaired).toBe(1);
     expect(copies).toEqual([`${sha('good')}.m4a>${sha('good')}.wav`]);
     const second = await reconcileBlobs(d, { verify: false, countMissing: true });
     expect(second.missing).toBe(0);
     expect(second.repaired ?? 0).toBe(0);
     expect(copies).toHaveLength(1);
+  });
+
+  it('counts a file missing when its copy fails, and reports the failure', async () => {
+    const server = new FakeServer();
+    await language(server);
+    server.serviceEvent('v1.BlobStored', { hash: sha('good'), size: 4 });
+    const d: ReconcilerDeps = {
+      ...deps(server, [{ orgId: 'org1', streamId: 'p1', hash: sha('good'), format: 'm4a', size: 4 }]),
+      copy: async () => { throw new Error('Internal Server Error'); }
+    };
+    const report = await reconcileBlobs(d, { verify: false, countMissing: true });
+    expect(report.missing).toBe(1);
+    expect(report.repaired ?? 0).toBe(0);
+    expect(report.unreadable).toEqual([`org1/p1/${sha('good')}: Internal Server Error`]);
+  });
+
+  it('makes one copy for a name the bucket lacks, when the bytes sit under two other formats', async () => {
+    const server = new FakeServer();
+    await language(server);
+    server.serviceEvent('v1.BlobStored', { hash: sha('good'), size: 4 });
+    const copies: string[] = [];
+    const d: ReconcilerDeps = {
+      ...deps(server, [
+        { orgId: 'org1', streamId: 'p1', hash: sha('good'), format: 'm4a', size: 4 },
+        { orgId: 'org1', streamId: 'p1', hash: sha('good'), format: 'mp3', size: 4 }
+      ]),
+      copy: async (from, to) => { copies.push(`${from.format}>${to.format}`); }
+    };
+    const report = await reconcileBlobs(d, { verify: false, countMissing: true });
+    expect(copies).toEqual(['m4a>wav']);
+    expect(report).toMatchObject({ missing: 0, repaired: 1 });
+  });
+
+  it('keeps a few copies in flight at once, so thousands fit in the nightly time limit', async () => {
+    // Why: Nov 14, 2026 the run copied about 18,000 files one at a time and was stopped at the
+    // job's 2-hour limit with 56 languages not looked at.
+    const server = new FakeServer();
+    const wall = { t: 0 };
+    const client = new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA', store: new MemoryStore(),
+      transport: server.transportFor(), clock: new HlcClock('dA', () => (wall.t += 1))
+    });
+    await client.load();
+    const hashes = Array.from({ length: 10 }, (_, i) => sha(`part${i}`));
+    await client.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'u1', kind: 'target', cards: hashes.map((hash) => ({ hash, durationMs: 1 })) });
+    await client.sync();
+    for (const hash of hashes) server.serviceEvent('v1.BlobStored', { hash, size: 4 });
+    let inFlight = 0;
+    let most = 0;
+    const d: ReconcilerDeps = {
+      ...deps(server, hashes.map((hash) => ({ orgId: 'org1', streamId: 'p1', hash, format: 'm4a', size: 4 }))),
+      copy: async () => {
+        most = Math.max(most, ++inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        inFlight -= 1;
+      }
+    };
+    const report = await reconcileBlobs(d, { verify: false, countMissing: true });
+    expect(report).toMatchObject({ missing: 0, repaired: 10 });
+    expect(most).toBe(4);
   });
 });
 
