@@ -61,14 +61,24 @@ export interface Fleet {
    */
   firstDownloads: { day: string; what: 'fallback' | 'restart' | 'no_snapshot'; reason: string; count: number; installs: number }[];
   stuck: { install: string; unsentMin: number | null; stuckMin: number | null; freeMb: number | null; lostFiles: number | null; lostRecordings: number | null; at: string }[];
-  silent: { count: number; installs: { install: string; lastSeen: string }[] };
+  /** Quiet installs by account; null where the database lacks diag.ops_quiet_accounts. */
+  quiet: QuietAccounts | null;
 }
+
+/** diag.ops_quiet_accounts(): `count` and `accounts` leave out the accounts a person marked not an issue. */
+export interface QuietAccounts {
+  count: number; markedCount: number;
+  accounts: { profile: string; quiet: number; reporting: number; devices: Record<string, number>; lastSeen: string }[];
+  marked: { profile: string; quiet: number; by: string; at: string }[];
+}
+
+export const quietAccountsOf = (row: QuietAccounts): QuietAccounts => ({ ...row, count: num(row.count), markedCount: num(row.markedCount) });
 
 /** Records are kept 90 days and indexed by arrival; installs by when they were last heard from. */
 export const FLEET_SQL = `with r as (
   select install_id, org_id, stream_id, kind, received_at, update_id, n, t from diag.records where received_at > now() - interval '14 days'
 ),
-seen as (select install_id, profile_id, context, last_seen from diag.installs where last_seen > now() - interval '14 days')
+seen as (select install_id, context, last_seen from diag.installs where last_seen > now() - interval '14 days')
 select jsonb_build_object(
   'builds', (select coalesce(jsonb_agg(jsonb_build_object('platform', x.os, 'version', x.v, 'reducers', x.rv, 'day', x.d, 'week', x.w, 'fortnight', x.f) order by x.os, x.v desc), '[]'::jsonb)
     from (select coalesce(context->>'os', '?') as os, coalesce(context->>'appVersion', '?') as v, string_agg(distinct context->>'reducerVersion', ', ') as rv,
@@ -114,14 +124,7 @@ select jsonb_build_object(
                 where kind = 'device' and received_at > now() - interval '7 days' order by install_id, received_at desc) last
           where (n->>'oldestUnsentMin')::numeric > 1440 or (n->>'wantedStuckMin')::numeric > 1440
              or (n->>'freeDiskMb')::numeric < 500 or (n->>'lostFiles')::numeric > 0 or (n->>'lostRecordings')::numeric > 0
-          order by received_at desc limit 25) x),
-  'silent', (select jsonb_build_object('count', count(*), 'installs', coalesce((jsonb_agg(jsonb_build_object('install', q.install_id, 'lastSeen', q.last_seen)
-      order by q.last_seen desc) filter (where q.rn <= 20)), '[]'::jsonb))
-    from (select i.install_id, i.last_seen, row_number() over (order by i.last_seen desc) as rn from diag.installs i
-          where i.last_seen < now() - interval '3 days' and i.last_seen > now() - interval '30 days' and i.profile_id is not null
-            and coalesce(i.context->>'os', '') <> 'web'
-            and exists (select 1 from diag.installs o where o.profile_id = i.profile_id and o.install_id <> i.install_id
-                        and o.last_seen > now() - interval '3 days')) q)
+          order by received_at desc limit 25) x)
 ) as v`;
 
 /** A crash on more than this share of an update's installs is a reason to roll it back. */
@@ -139,7 +142,7 @@ export function fleetAlerts(f: Fleet, reducer = REDUCER_VERSION): Alert[] {
   if (old > 0) out.push({ level: 'watch', text: `${plural(old, 'install')} heard from this week still run an older reducer than ${reducer}: they need a store update.` });
   const lost = f.stuck.filter((s) => num(s.lostRecordings) > 0).length;
   if (lost > 0) out.push({ level: 'urgent', text: `${plural(lost, 'install')} lost recordings before sending them (Stuck phones).` });
-  if (f.silent.count >= 5) out.push({ level: 'watch', text: `${plural(f.silent.count, 'install')} went quiet for 3 days while another device of the same person still reports: diagnostics off, or delivery broken.` });
+  if (f.quiet && f.quiet.count >= 5) out.push({ level: 'watch', text: `${plural(f.quiet.count, 'install')} went quiet for 3 days while another device of the same person still reports: diagnostics off, or delivery broken (Silent phones).` });
   const recent = f.toMap.filter((d) => d.kind === 'open').slice(-1)[0];
   if (recent && recent.count >= 5 && num(recent.p95Ms) > 15 * 60_000) {
     out.push({ level: 'watch', text: `A language's first download took over ${Math.round(num(recent.p95Ms) / 60_000)} minutes for one in twenty on ${recent.day}.` });
@@ -556,8 +559,8 @@ export interface OpsSections {
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues] = await Promise.all([
-    part<Fleet>(query, FLEET_SQL),
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet] = await Promise.all([
+    part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
     part<Safety['canary']>(query, CANARY_SQL),
@@ -581,7 +584,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<VerificationRow[]>(query, `select diag.org_verification_requests() as v`),
     part<TutorialsRow>(query, `select diag.ops_tutorials() as v`),
     part<Feedback>(query, `select diag.ops_tutorial_feedback() as v`),
-    part<UserIssues>(query, `select diag.ops_user_issues() as v`)
+    part<UserIssues>(query, `select diag.ops_user_issues() as v`),
+    part<QuietAccounts>(query, `select diag.ops_quiet_accounts() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -590,7 +594,10 @@ export async function opsSections(query: Query): Promise<OpsSections> {
 
   const safetyParts = [rejected, arrivals, canary];
   return {
-    fleet: build([fleet], '', () => ok(val(fleet), fleetAlerts(val(fleet)))),
+    fleet: build([fleet], '', () => {
+      const f: Fleet = { ...val(fleet), quiet: quiet.ok ? quietAccountsOf(quiet.value) : null };
+      return ok(f, fleetAlerts(f));
+    }),
     safety: build(safetyParts, '', () => {
       const s: Safety = {
         rejected: rejected.ok ? rejected.value : [], arrivals: arrivals.ok ? arrivals.value : [],

@@ -7142,6 +7142,13 @@ rows are still inserted into `snapshot_units` and the old ones deleted, since
 the table is keyed by the snapshot's seq and a new seq is a new row;
 decision 88's retention is as it was.
 
+Amended (2026-11-11, Caleb Koster): once a screen has shown "Downloading
+this language", the banner stays where it is when the last passage arrives,
+as "On this device" with a full bar and the same height, until the person
+leaves the screen. Taken away at once, it moved the list under it up by its
+height mid-tap: on the web the tap landed on nothing, and on a phone it can
+land on the row below (LAN-253, the nightly's STUDY-030).
+
 ## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted
@@ -8400,6 +8407,21 @@ rejected (with why), recorded as `suggestion_accepted`, `suggestion_edited`
 or `suggestion_rejected`. They change only that feedback, never an
 organization's work. Accepting a code change also files it in Linear when
 the app Worker has `LINEAR_API_KEY`.
+
+Amended (2026-11-05, Caleb Koster): a sixth kind, `quiet-account`, recorded
+as `quiet_ok` or `quiet_ok_undo`. The warning about installs gone quiet
+counted 43 installs and named nobody. Asked who they were, Caleb confirmed
+that 3 accounts holding 40 of them were the store review account, a
+developer and Caleb's own; a reinstall leaves the old install quiet. Caleb
+asked to see the accounts behind the warning on the page and to say of one
+that it is not an issue. Silent phones now lists quiet installs by account
+(`diag.ops_quiet_accounts`), and a mark (`ops.quiet_accounts_ok`, gone with
+the account) takes that account's quiet installs out of the warning's count,
+now and later, until someone presses Undo. Not `ops.watch_ignored`: that
+also leaves the account out of the watch for user issues (202), and a
+problem on a marked account's phone is still a problem. It changes only this
+count, never an organization's work. The page shows the account's id and no
+name or email, as diagnostics do (38); its Look up opens the account's installs.
 
 ## 163. A pull request's guardrails run in about the time of its slowest test job, not of its setup
 
@@ -9828,6 +9850,19 @@ film, causes, tonight's try and slots. The filming checks out main's whole
 history to find the changes. Reverse if: slots cleared as the same turn out
 to hide changes people see (then a person or Claude judges those slots), or
 scripts change so often that films churn on YouTube.
+
+Amended (2026-11-16, Caleb Koster): French and Spanish are filmed each night
+again (`NIGHTLY_LANGUAGES: en,fr,es`). The English spotlight films are
+current (all 46 the same on 2026-11-15), so the other languages can come
+back, and their films from 1 November still show the old screens and the old
+wide frame. Caleb chose two languages first (2026-11-16, thread "Explain
+tutorial video failures and paused languages") over all fifteen at once: a
+language's first night films all 47 videos again (its frame changed), so
+fifteen would be about 700 films, about seven days of YouTube's uploads,
+and more Gemini voice and Claude plan use for the frame check; two show a
+fault in the translated films before it repeats in fifteen. The rest come
+back after them. Reverse if: French or Spanish films fail or are held where
+English passes (then they pause again until the cause is fixed).
 
 ## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
 

@@ -107,7 +107,8 @@ describe('a v2 file phones may not play', () => {
     // Stored as the M4A, under the M4A's hash, with the M4A's length.
     expect(uploads.find((u) => u.hash === hash)).toMatchObject({ format: 'm4a', bytes: m4a(42_000) });
     expect(fileMap.find((f) => f.name === 'ch1.mp3')?.file).toEqual({ hash, size: m4a(42_000).length, durationMs: 42_000, format: 'm4a' });
-    expect(cards).toContainEqual({ hash, durationMs: 42_000 });
+    // Its card names it M4A, the name it has in R2.
+    expect(cards).toContainEqual({ hash, durationMs: 42_000, format: 'm4a' });
     expect(cards).toHaveLength(2);
     expect(log).toContain('info: Of those, 1 were MP3 or another kind phones may not play, and were converted to M4A');
     expect(log.some((l) => l.includes("not in v2's storage"))).toBe(false);
