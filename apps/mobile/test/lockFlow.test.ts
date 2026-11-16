@@ -166,6 +166,46 @@ describe('signing out of a phone, locked', () => {
   });
 });
 
+describe('the app lock (decisions.md 200)', () => {
+  it('opens with the signed-in person\'s own pattern, under the key they hold now, and counts misses with Sign In', async () => {
+    const lock = await load();
+    fake.secure.set('sb-session', session('akol'));
+    expect(await lock.checkPattern('akol', Z)).toEqual({ kind: 'none' });
+    await lock.setLockPattern('akol', Z, 3);
+    expect(await lock.checkPattern('akol', Z)).toEqual({ kind: 'ok' });
+    // Still signed in: nothing sealed, nothing signed out.
+    expect(fake.secure.get('sb-session')).toBe(session('akol'));
+    expect(fake.signOuts).toEqual([]);
+    // Too short is not a guess; a wrong pattern is, and the fifth waits, as on Sign In.
+    expect(await lock.checkPattern('akol', [0, 1])).toEqual({ kind: 'wrong' });
+    const tries = [];
+    for (let i = 0; i < 5; i++) tries.push((await lock.checkPattern('akol', L)).kind);
+    expect(tries).toEqual(['wrong', 'wrong', 'wrong', 'wrong', 'wrong']);
+    expect((await lock.checkPattern('akol', Z)).kind).toBe('wait');
+    // Signed out after that (Forgot?): Sign In waits too, since it is the same pattern.
+    await lock.lockAndSignOut('akol');
+    expect((await lock.signBackIn('pattern', patternSecret(Z), { actorId: 'akol' })).kind).toBe('wait');
+  });
+
+  it('a pattern made under an older key opens nothing, and someone else\'s pattern never opens this person\'s lock', async () => {
+    const lock = await load();
+    fake.secure.set('sb-session', session('akol'));
+    await lock.rememberPassword('akol', 'akol@example.org', 'pw-one');
+    await lock.setLockPattern('akol', Z, 3);
+    await lock.lockAndSignOut('akol');
+    fake.secure.set('sb-session', session('mary'));
+    await lock.setLockPattern('mary', L, 5);
+    expect(await lock.checkPattern('mary', Z)).toEqual({ kind: 'wrong' });
+    expect(await lock.checkPattern('mary', L)).toEqual({ kind: 'ok' });
+    await lock.lockAndSignOut('mary');
+    // Akol back with a new password: their old pattern's key is gone.
+    fake.secure.set('sb-session', session('akol', 'access-2'));
+    await lock.signedInHere('akol');
+    await lock.rememberPassword('akol', 'akol@example.org', 'pw-two');
+    expect(await lock.checkPattern('akol', Z)).toEqual({ kind: 'none' });
+  });
+});
+
 describe('work handed to the courier (decisions.md 60)', () => {
   it('coming back takes the kept session, its newest form, and the notifications it had not disconnected yet', async () => {
     const lock = await load();

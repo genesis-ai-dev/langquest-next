@@ -2,7 +2,7 @@ import Storage from 'expo-sqlite/kv-store';
 import { Keyboard } from 'react-native';
 import { noteExpected } from '../diagnostics/report';
 import { checkPattern, lockAndSignOut, lockPictures, lockWays, setLockPattern, type Checked, type PatternChoice } from '../server/lock';
-import { locksOnReturn, parsePeople, showsLock, startState, withActor, withPerson, type AppLockState } from './appLockModel';
+import { parsePeople, showsLock, startState, withActor, withPerson, type AppLockState } from './appLockModel';
 
 /**
  * The app lock (decisions.md 200), as this phone holds it. Who has it on is
@@ -20,7 +20,6 @@ function readPeople(): string[] {
 }
 
 let state: AppLockState = startState(readPeople());
-let leftAt: number | null = null;
 const listeners = new Set<() => void>();
 function set(next: AppLockState) {
   if (next === state) return;
@@ -56,16 +55,14 @@ async function dropWithoutPattern(actorId: string): Promise<void> {
   }
 }
 
-/** The app went to the background. */
-export function leftApp(now: number): void {
-  leftAt = now;
-}
-
-/** The app is in front again: after a minute away, the lock stands. */
-export function cameBack(now: number): void {
-  const away = locksOnReturn(leftAt, now);
-  leftAt = null;
-  if (!away || state.locked) return;
+/**
+ * The app went to the background: the lock stands at once, so the phone's
+ * list of open apps shows it too, and coming back asks, however short the
+ * time away (a share sheet and a permission prompt count, as decision 171's
+ * disguise has it; Caleb, 2026-11-16).
+ */
+export function leftApp(): void {
+  if (state.locked) return;
   set({ ...state, locked: true });
   if (showsLock(state)) Keyboard.dismiss();
 }

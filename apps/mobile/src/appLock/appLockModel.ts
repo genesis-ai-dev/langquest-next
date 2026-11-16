@@ -1,17 +1,9 @@
 /**
  * The app lock (decisions.md 200): someone who turns it on in More settings
  * draws their own sign-in pattern (decision 168) each time the app opens.
- * Who has it on, when coming back asks again, and who the lock stands in
- * front of. Pure, so the tests run it as the phone does.
+ * Who has it on, and who the lock stands in front of. Pure, so the tests
+ * run it as the phone does.
  */
-
-/** Back within a minute (a share sheet, a permission prompt, a call) finds the app as it was; longer, or a fresh start, asks. */
-export const AWAY_MS = 60_000;
-
-/** Whether coming back, having left at `leftAt`, asks for the pattern. A clock set back asks too. */
-export function locksOnReturn(leftAt: number | null, now: number): boolean {
-  return leftAt !== null && (now - leftAt >= AWAY_MS || now < leftAt);
-}
 
 /** The people on this phone who have it on, by profile id. A torn write reads as nobody. */
 export function parsePeople(raw: string | null | undefined): string[] {

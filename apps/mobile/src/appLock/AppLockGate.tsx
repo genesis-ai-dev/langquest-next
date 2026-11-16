@@ -9,14 +9,14 @@ import { GhostBtn, LinkBtn, PrimaryBtn } from '../ui/kit';
 import { Text } from '../ui/text';
 import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
-import { cameBack, leftApp, ownPicture, setActor, signOutFromLock, tryPattern } from './appLock';
+import { leftApp, ownPicture, setActor, signOutFromLock, tryPattern } from './appLock';
 import { showsLock } from './appLockModel';
 import { useAppLock } from './useAppLock';
 
 /**
  * The app lock in front of the whole app (decisions.md 200). Someone who
  * turned it on draws their own sign-in pattern, under their picture, each
- * time the app opens, and after a minute or more away. The app goes on
+ * time the app opens, and each time they come back to it. The app goes on
  * under it (sync too), and comes back as it was left. Every modal draws
  * the lock as well (ModalCoverContext), since a modal sits above this
  * view; a disguise's cover, when Android has one, stays on top of it.
@@ -28,8 +28,7 @@ export function AppLockGate(props: { actorId: string | null | undefined; childre
   useEffect(() => { if (props.actorId !== undefined) setActor(props.actorId); }, [props.actorId]);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'background') leftApp(Date.now());
-      else if (s === 'active') cameBack(Date.now());
+      if (s === 'background') leftApp();
     });
     return () => sub.remove();
   }, []);

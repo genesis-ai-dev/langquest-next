@@ -3620,7 +3620,7 @@
     },
     "appLock": {
       "row": "Lock the app",
-      "rowHelp": "When on, the app asks for your pattern each time it opens, and after a minute away. Turning it on or off asks for your pattern first.",
+      "rowHelp": "When on, the app asks for your pattern each time it opens, and each time you come back to it. Turning it on or off asks for your pattern first.",
       "on": "The app now asks for your pattern when it opens.",
       "off": "The app no longer asks for your pattern.",
       "opening": "Opening…",
