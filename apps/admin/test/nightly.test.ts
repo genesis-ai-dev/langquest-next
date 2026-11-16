@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { nightNotice } from '../../../scripts/nightly-report.mjs';
 import { phoneNights } from '../../../scripts/phone-tests.mjs';
 import { NIGHTLIES, nightlyAlerts, nightlySection, parseLine, STALE_H, type Nightly } from '../src/sources/nightly';
@@ -93,6 +93,9 @@ describe('the Nightly tests part', () => {
   });
 
   it("reads each nightly's latest scheduled run, its reporting jobs' lines, and a job that left none", async () => {
+    // The section judges a run's age by the clock; the run below is 10 h before NOW, not before today.
+    vi.useFakeTimers({ toFake: ['Date'], now: NOW });
+    onTestFinished(() => { vi.useRealTimers(); });
     const ui = annotation(nightNotice('Web UI suite', { ran: 682, passed: 680, broke: null, issues: [{ id: 'LAN-260', url: null }] }));
     const fetcher = routes([
       ['/actions/workflows/guardrails.yml/runs', { workflow_runs: [{ id: 9, head_sha: 'abcdef1234', created_at: hAgo(10), html_url: 'https://github.com/o/r/actions/runs/9', run_number: 9, conclusion: 'failure' }] }],
