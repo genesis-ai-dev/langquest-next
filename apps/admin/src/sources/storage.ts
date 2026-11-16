@@ -143,6 +143,8 @@ export function storageAlerts(s: Storage, now = Date.now()): Alert[] {
     if (!s.backups.pitr && (hours === null || hours > 36)) out.push({ level: 'urgent', text: `The database's latest backup is ${hours === null ? 'missing' : `${Math.round(hours)} hours old`}, and point-in-time recovery is off.` });
   }
   if (s.reconcile && num(s.reconcile.n.missing) > 0) out.push({ level: 'urgent', text: `The R2 reconciliation found ${plural(num(s.reconcile.n.missing), 'recording')} the log names but R2 does not have.` });
+  // Copied files are safe, but something uploads or imports recordings under the wrong file type.
+  if (s.reconcile && num(s.reconcile.n.repaired) > 0) out.push({ level: 'watch', text: `The R2 reconciliation copied ${plural(num(s.reconcile.n.repaired), 'recording')} to the file type the log names: something saved ${num(s.reconcile.n.repaired) === 1 ? 'it' : 'them'} under another type.` });
   const lost = s.lostFiles.slice(-1)[0];
   if (lost && lost.installs >= 3) out.push({ level: 'watch', text: `${plural(lost.installs, 'install')} reported files lost behind the app's back on ${lost.day} (decision 92).` });
   return out;
