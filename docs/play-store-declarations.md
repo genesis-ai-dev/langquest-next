@@ -195,7 +195,7 @@ the phone and never stored or sent; an email or sign-in name is kept only as
 a hash salted per phone. Nothing new leaves the phone, so no data type
 changes, and account creation and sign-in methods are unchanged.
 
-The app lock (decisions.md 200), a switch in More settings that is off until
+The app lock (decisions.md 253), a switch in More settings that is off until
 the person turns it on, asks for that same pattern each time the app opens or
 is come back to. The pattern is checked on the phone against the sign-out
 lock above; the app keeps only which people on the phone turned it on (their

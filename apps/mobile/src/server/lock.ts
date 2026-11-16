@@ -314,7 +314,7 @@ export function openLock(kind: Wrap['kind'], secret: string, who: { address?: st
 export type Checked = { kind: 'ok' } | { kind: 'none' } | { kind: 'wrong' } | { kind: 'wait'; ms: number };
 
 /**
- * The app lock (decisions.md 200): does this pattern open the lock of the
+ * The app lock (decisions.md 253): does this pattern open the lock of the
  * person signed in here? It opens their pattern's wrap and finds the key
  * they hold now. `none`: they have no pattern under that key. Wrong guesses
  * count with Sign In's, since it is the same pattern; too short a pattern

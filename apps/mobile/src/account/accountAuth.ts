@@ -22,7 +22,7 @@ export async function signOutThisDevice(): Promise<void> {
  * Sign Out, once nothing holds it back: a phone hands unsent work over and
  * sends it as you later (decisions.md 60), else locks the sign-in for your
  * return (168); a browser signs out of this device only (87). Sign Out and
- * the app lock's Forgot? (200) both leave this way. `unsent` lists the open
+ * the app lock's Forgot? (253) both leave this way. `unsent` lists the open
  * language's recordings still to upload.
  */
 export async function leaveThisDevice(actorId: string, handsOver: boolean, language: { orgId: string; languageId: string; unsent: () => Promise<BlobRef[]> }): Promise<void> {

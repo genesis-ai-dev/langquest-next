@@ -1,4 +1,4 @@
-// More settings › Lock the app (decisions.md 200): a switch, which asks for
+// More settings › Lock the app (decisions.md 253): a switch, which asks for
 // the person's own sign-in pattern before it changes. Someone with no
 // pattern yet chooses a picture and draws one twice first, as at their first
 // sign-out (decision 168): that is the pattern the lock asks for, and the one

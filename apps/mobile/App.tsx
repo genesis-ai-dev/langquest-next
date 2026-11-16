@@ -382,7 +382,7 @@ export default function App() {
     <SafeAreaProvider>
       {/* On Android, a disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 171). */}
       <AppCover>
-      {/* On a phone, whoever turned the app lock on draws their pattern each time the app opens (decisions.md 200). */}
+      {/* On a phone, whoever turned the app lock on draws their pattern each time the app opens (decisions.md 253). */}
       <AppLockGate actorId={who === undefined ? undefined : who.signedIn ? who.actorId : null}>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
@@ -588,7 +588,7 @@ function OrgWork(props: Who & {
     canSwitchPersona
   }), [language, org, session, params, go, back, home, languageId, setLanguage, languages, act, toast, details, recent, openPassage,
     name, blocks, inboxView, welcomeView, markWelcomed, acceptTerms, invite, firstContact, openOrganization, openDev, canSwitchPersona]);
-  // The app lock's Forgot? signs out as Sign Out does (decisions.md 200).
+  // The app lock's Forgot? signs out as Sign Out does (decisions.md 253).
   useAppLockSignOut(ctx);
   const syncSources = useMemo(() => ({ language: language.syncStatus, org: org.syncStatus }), [language.syncStatus, org.syncStatus]);
 

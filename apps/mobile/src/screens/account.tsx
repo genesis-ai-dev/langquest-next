@@ -558,7 +558,7 @@ export function SettingsMore(ctx: Ctx) {
         <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={toSend > 0 ? formatNumber(toSend) : undefined} onPress={() => ctx.go('sync_status')} />
         {/* Android only: a calculator or notepad in front of the app, opened with a code (decisions.md 171). */}
         <AppIconRow ctx={ctx} />
-        {/* Phones only: the person's own pattern each time the app opens (decisions.md 200). */}
+        {/* Phones only: the person's own pattern each time the app opens (decisions.md 253). */}
         <AppLockRow ctx={ctx} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label={t('account.more.diagnostics')} sub={t('account.more.diagnosticsSub')}

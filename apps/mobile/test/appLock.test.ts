@@ -1,7 +1,7 @@
 import { parsePeople, showsLock, startState, withActor, withPerson } from '../src/appLock/appLockModel';
 
 /**
- * The app lock (decisions.md 200): who has it on, and when it stands in
+ * The app lock (decisions.md 253): who has it on, and when it stands in
  * front of the app. The pattern check is lockFlow.test.ts; the store that
  * holds this on the phone is below, with the key-value store faked.
  */

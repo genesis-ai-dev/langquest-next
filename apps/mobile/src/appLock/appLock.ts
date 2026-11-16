@@ -5,7 +5,7 @@ import { checkPattern, lockAndSignOut, lockPictures, lockWays, setLockPattern, t
 import { parsePeople, showsLock, startState, withActor, withPerson, type AppLockState } from './appLockModel';
 
 /**
- * The app lock (decisions.md 200), as this phone holds it. Who has it on is
+ * The app lock (decisions.md 253), as this phone holds it. Who has it on is
  * kept in the app's key-value store and read at once as the app starts, so
  * the lock stands before one frame of their work shows; the pattern is the
  * person's sign-in lock (server/lock.ts), so nothing new is kept and

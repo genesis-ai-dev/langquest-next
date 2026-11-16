@@ -1,5 +1,5 @@
 /**
- * The app lock (decisions.md 200): someone who turns it on in More settings
+ * The app lock (decisions.md 253): someone who turns it on in More settings
  * draws their own sign-in pattern (decision 168) each time the app opens.
  * Who has it on, and who the lock stands in front of. Pure, so the tests
  * run it as the phone does.

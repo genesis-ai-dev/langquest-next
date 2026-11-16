@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 /**
- * The web has no app lock (decisions.md 200): a browser forgets everything
+ * The web has no app lock (decisions.md 253): a browser forgets everything
  * on sign-out (decision 11), and none of the lock's code is in its bundle.
  * Phones take AppLockGate.tsx.
  */

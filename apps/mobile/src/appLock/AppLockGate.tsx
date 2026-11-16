@@ -14,7 +14,7 @@ import { showsLock } from './appLockModel';
 import { useAppLock } from './useAppLock';
 
 /**
- * The app lock in front of the whole app (decisions.md 200). Someone who
+ * The app lock in front of the whole app (decisions.md 253). Someone who
  * turned it on draws their own sign-in pattern, under their picture, each
  * time the app opens, and each time they come back to it. The app goes on
  * under it (sync too), and comes back as it was left. Every modal draws

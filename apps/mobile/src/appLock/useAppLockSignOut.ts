@@ -6,7 +6,7 @@ import { HANDS_OVER } from '../sync/handOver';
 import { setSignOutForLock } from './appLock';
 
 /**
- * The app lock's Forgot? (decisions.md 200) leaves as Sign Out does, from the
+ * The app lock's Forgot? (decisions.md 253) leaves as Sign Out does, from the
  * open organization: unsent work is handed over and sent as them later
  * (decision 60), and the sign-in stays locked for their return (168).
  */

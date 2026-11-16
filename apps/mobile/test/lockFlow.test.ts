@@ -166,7 +166,7 @@ describe('signing out of a phone, locked', () => {
   });
 });
 
-describe('the app lock (decisions.md 200)', () => {
+describe('the app lock (decisions.md 253)', () => {
   it('opens with the signed-in person\'s own pattern, under the key they hold now, and counts misses with Sign In', async () => {
     const lock = await load();
     fake.secure.set('sb-session', session('akol'));
