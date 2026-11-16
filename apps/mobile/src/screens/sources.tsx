@@ -255,7 +255,7 @@ function BibleDetailView(props: {
     }
   }
 
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const footer = option && props.languageId ? (
     has ? <PrimaryBtn label={t('sources.explore.inMyBibles')} icon="check" disabled onPress={() => undefined} />
       : <PrimaryBtn label={t('sources.explore.addToMyBibles')} icon="plus" busy={busy} help={t('sources.explore.addHelp')} onPress={() => void add()} />
