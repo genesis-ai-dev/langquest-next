@@ -101,7 +101,7 @@ export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
  * payload: see `privilegeFor`. The SQL `event_privilege` is this table; keep
  * them identical (`scripts/record-parity-sql.ts`).
  */
-type EventPrivilege = Privilege | readonly Privilege[] | 'bootstrap' | null;
+export type EventPrivilege = Privilege | readonly Privilege[] | 'bootstrap' | null;
 
 export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   // organization stream

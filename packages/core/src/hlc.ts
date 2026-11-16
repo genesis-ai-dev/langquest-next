@@ -15,6 +15,32 @@ export function encodeHlc(wallMs: number, counter: number, nodeId: string): Hlc 
   return `${String(wallMs).padStart(WALL_WIDTH, '0')}:${String(counter).padStart(COUNTER_WIDTH, '0')}:${nodeId}`;
 }
 
+/**
+ * Is this a clock `encodeHlc` could have made? `decodeHlc` throws on too few
+ * parts and reads `x1:y:z` as NaN, so a clock from outside this phone is
+ * checked before it reaches `HlcClock`. The twin is `events_hlc_format` in SQL.
+ */
+export function isHlc(hlc: unknown): hlc is Hlc {
+  return typeof hlc === 'string' && /^\d{15}:\d{6}:[^:]+$/.test(hlc);
+}
+
+/**
+ * How far ahead of the server's clock an event may be stamped: the server's
+ * `clock_ahead_tolerance_ms`, and the rule for a nearby phone's clock, which no
+ * server has bounded.
+ */
+export const CLOCK_AHEAD_TOLERANCE_MS = 300000;
+
+/**
+ * May this phone take on a clock from a nearby phone (`HlcClock.receive`)? Field
+ * phones often have wrong dates, and one bad clock taken on would spread to the
+ * whole team. Only ahead matters, since a clock behind this one changes nothing
+ * here. Written so that NaN, either way, says no.
+ */
+export function clockCloseEnough(hlc: unknown, nowMs: number): boolean {
+  return isHlc(hlc) && decodeHlc(hlc).wallMs - nowMs <= CLOCK_AHEAD_TOLERANCE_MS;
+}
+
 export function decodeHlc(hlc: Hlc): { wallMs: number; counter: number; nodeId: string } {
   const [wall, counter, nodeId] = hlc.split(':');
   if (wall === undefined || counter === undefined || nodeId === undefined) {

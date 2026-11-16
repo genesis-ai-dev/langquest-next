@@ -8,7 +8,7 @@
   "dependencies": {
     "@langquest-next/sync": "*",
     "@langquest-next/core": "*",
-    "@supabase/supabase-js": "^2.117.2"
+    "@supabase/supabase-js": "^2.119.0"
   },
   "sideEffects": false
 }

@@ -358,5 +358,67 @@ reset role;
 delete from diag.records where install_id in ('dg_dT2', 'dg_dT3');
 delete from diag.installs where install_id in ('dg_dT2', 'dg_dT3');
 
+-- 8. Share nearby (20261112020000_diag_nearby.sql): rooms, sessions, Find's
+-- codes and why the screen could not run go in through the allowlist, which
+-- keeps the module's codes and nothing that names a teammate, and the reports
+-- read them for the language and for the organization.
+select set_config('request.jwt.claim.sub', 'dg_t1', false);
+do $$
+declare
+  v_now numeric := extract(epoch from now()) * 1000;
+begin
+  perform public.diag_ingest(
+    jsonb_build_object('installId', 'dg_dN', 'os', 'android'),
+    jsonb_build_array(
+      jsonb_build_object('id', 'dgn1', 'kind', 'nearby', 'at', v_now - 9000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        'n', jsonb_build_object('ms', 300000, 'heard', 0, 'echoed', 0, 'maxUnmatched', 2, 'strangers', 3, 'sessions', 0, 'tag', 77),
+        't', jsonb_build_object('event', 'room', 'stop', 'idle', 'adv', 'no', 'direct', 'yes', 'hotspot', 'yes', 'peer', 'sam', 'salt', 'AAEC')),
+      jsonb_build_object('id', 'dgn2', 'kind', 'nearby', 'at', v_now - 8000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        'n', jsonb_build_object('ms', 600000, 'heard', 2, 'echoed', 2, 'pipeFails', 1, 'sessions', 2, 'done', 1, 'maxUnmatched', 1),
+        't', jsonb_build_object('event', 'room', 'stop', 'asked', 'code', 'PIPE_TIMEOUT')),
+      jsonb_build_object('id', 'dgn3', 'kind', 'nearby', 'at', v_now - 7000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        'n', jsonb_build_object('ms', 40000, 'fallbacks', 2, 'events', 30, 'files', 4, 'fileFails', 1),
+        't', jsonb_build_object('event', 'session', 'role', 'i', 'end', 'done', 'link', 'hotspot')),
+      jsonb_build_object('id', 'dgn4', 'kind', 'nearby', 'at', v_now - 6000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        'n', jsonb_build_object('ms', 5000),
+        't', jsonb_build_object('event', 'session', 'role', 'r', 'end', 'heard', 'bye', 'busy', 'code', 'LINK_DROPPED', 'link', 'memory')),
+      jsonb_build_object('id', 'dgn5', 'kind', 'nearby', 'at', v_now - 5000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        't', jsonb_build_object('event', 'find', 'code', 'BLUETOOTH_OFF')),
+      jsonb_build_object('id', 'dgn6', 'kind', 'nearby', 'at', v_now - 4000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        't', jsonb_build_object('event', 'find', 'code', 'Sam''s phone')),
+      jsonb_build_object('id', 'dgn7', 'kind', 'nearby', 'at', v_now - 3000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        't', jsonb_build_object('event', 'blocked', 'why', 'permission-blocked'))
+    ));
+  -- Only what the allowlist names: no tag, peer or salt, no code it does not list, no link it does not know.
+  if (select n from diag.records where id = 'dgn1') ? 'tag' or (select t from diag.records where id = 'dgn1') ?| array['peer', 'salt'] then
+    raise exception 'a nearby record kept what names a teammate: %', (select to_jsonb(r) from diag.records r where id = 'dgn1');
+  end if;
+  if (select t from diag.records where id = 'dgn6') ? 'code' then raise exception 'a code the module does not list was kept'; end if;
+  if (select t from diag.records where id = 'dgn4') ? 'link' then raise exception 'the fleet''s memory link was kept as a link'; end if;
+  if (select t->>'code' from diag.records where id = 'dgn4') <> 'LINK_DROPPED' then raise exception 'a listed code was dropped'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+set role diag_reader;
+do $$
+declare v jsonb;
+begin
+  v := diag.summary('dg_org', 'dg_lang', interval '1 day', 'dg_dN')->'dg_dN'->'nearby';
+  if v is null then raise exception 'summary should hold the install''s nearby records'; end if;
+  if jsonb_array_length(v->'rooms') <> 2 or v->'rooms'->0->>'stop' <> 'asked' or v->'rooms'->1->>'adv' <> 'no' then raise exception 'nearby rooms: %', v->'rooms'; end if;
+  if (v->'roomTotals'->>'strangers')::int <> 3 or (v->'roomTotals'->>'maxUnmatched')::int <> 2 or (v->'roomTotals'->>'heard')::int <> 2 then
+    raise exception 'nearby room totals: %', v->'roomTotals';
+  end if;
+  if (v->'sessionTotals'->>'count')::int <> 2 or (v->'sessionTotals'->>'events')::int <> 30 then raise exception 'nearby session totals: %', v->'sessionTotals'; end if;
+  if v->'ends' <> '{"done": 1, "heard:busy": 1}'::jsonb or v->'links' <> '{"hotspot": 1}'::jsonb then raise exception 'nearby ends and links: %', v; end if;
+  if v->'codes' <> '{"room:PIPE_TIMEOUT": 1, "session:LINK_DROPPED": 1, "find:BLUETOOTH_OFF": 1}'::jsonb then raise exception 'nearby codes: %', v->'codes'; end if;
+  if v->'blocked' <> '{"permission-blocked": 1}'::jsonb then raise exception 'nearby blocked: %', v->'blocked'; end if;
+  -- The organization report, with no language, shows them too.
+  v := diag.org_summary('dg_org', interval '1 day');
+  if (v->'installs'->'dg_dN'->'nearby'->'sessionTotals'->>'count')::int <> 2 then raise exception 'org_summary nearby: %', v->'installs'->'dg_dN'; end if;
+end $$;
+reset role;
+delete from diag.records where install_id = 'dg_dN';
+delete from diag.installs where install_id = 'dg_dN';
+
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'diag-smoke ok'

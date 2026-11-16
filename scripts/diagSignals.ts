@@ -54,7 +54,30 @@ export interface InstallSummary {
   audio?: null | Partial<Record<'takes' | 'takeMs' | 'tooShort' | 'micRefused' | 'startFail' | 'stopFail' | 'saveFail' | 'encodeFail' | 'wavKept'
     | 'interrupted' | 'plays' | 'playFail' | 'playNotHere' | 'streamFail', number>>;
   auth?: null | AuthGroup[];
+  nearby?: null | NearbySummary;
   releases: null | { updateId: string | null; from: string; to: string; records: number }[];
+}
+
+/** One Share nearby room as it stopped (docs/nearby-sync-plan.md section 11): why, its codes and counts. */
+export interface NearbyRoom {
+  at: string; stop: string; code?: string | null; adv?: string | null; direct?: string | null; hotspot?: string | null;
+  ms?: number; levelMs?: number; heard?: number; echoed?: number; maybe?: number; taps?: number; maxUnmatched?: number;
+  pipeFails?: number; strangers?: number; busy?: number; noAnswer?: number; sessions?: number; done?: number;
+}
+
+/** What an install's Share nearby recorded over the window (`diag.install_summary`'s `nearby`). Counts and codes, never who. */
+export interface NearbySummary {
+  rooms?: NearbyRoom[] | null;
+  roomTotals?: Partial<Record<'ms' | 'heard' | 'echoed' | 'maybe' | 'taps' | 'pipeFails' | 'strangers' | 'busy' | 'noAnswer' | 'sessions' | 'done', number>> | null;
+  sessionTotals?: Partial<Record<'count' | 'ms' | 'fallbacks' | 'events' | 'sent' | 'files' | 'served' | 'fileFails' | 'refused' | 'overBudget'
+    | 'keyRefused' | 'farAhead' | 'noRoom' | 'cutBackups' | 'older' | 'clockOff' | 'newerApp', number>> | null;
+  /** `end` or `end:bye`. */
+  ends?: Record<string, number> | null;
+  links?: Record<string, number> | null;
+  /** `room:CODE`, `session:CODE`, `find:CODE`. */
+  codes?: Record<string, number> | null;
+  blocked?: Record<string, number> | null;
+  lastAt?: string;
 }
 
 export interface FillRecord {
@@ -172,6 +195,68 @@ function secs(ms: number): string {
   if (ms >= 2 * 3_600_000) return `${Math.round(ms / 3_600_000)} h`;
   return ms >= 120_000 ? `${Math.round(ms / 60_000)} min` : `${(ms / 1000).toFixed(1)} s`;
 }
+
+const BLOCKED: Record<string, string> = {
+  'permission-blocked': 'its permissions were refused for good: they are turned on in the phone\'s settings',
+  'permission-approximate': 'location was granted only as approximate, and Wi-Fi Direct needs precise on Android 12',
+  'bluetooth-off': 'Bluetooth was off', 'wifi-off': 'Wi-Fi was off', 'location-off': 'Location was off (Android 10 and 11 scan nothing without it)',
+  'no-certificate': 'the phone held no certificate or discovery key for this organization and language: it has not reached the server since nearby was turned on, or the language was never opened online',
+  'no-key': 'the phone had no nearby key yet', 'android-too-old': 'the phone runs Android 9 or older',
+  'no-bluetooth-le': 'the phone has no Bluetooth LE', 'no-wifi-direct': 'the phone has no Wi-Fi Direct', 'not-in-build': 'the build has no nearby module'
+};
+
+/**
+ * What Share nearby's records say about one phone (docs/nearby-sync-plan.md section 11): why it
+ * could not run, a room that heard nobody or was never echoed, a radio that cannot advertise,
+ * connections that failed, strangers' openings, sessions that did not finish and by what, the link
+ * the work went over, and the phone short of room. Counts and codes only; nothing names the other
+ * phone.
+ */
+export function nearbySignals(x: NearbySummary | null | undefined): { level: Signal['level']; text: string }[] {
+  if (!x) return [];
+  const out: { level: Signal['level']; text: string }[] = [];
+  const add = (level: Signal['level'], text: string) => out.push({ level, text });
+  const times = (n: number) => (n === 1 ? 'once' : `${n} times`);
+  for (const [why, n] of Object.entries(x.blocked ?? {})) add('problem', `Share nearby could not run ${times(n)}: ${BLOCKED[why] ?? why}.`);
+  const rooms = x.rooms ?? [];
+  const deaf = rooms.filter((r) => !r.heard);
+  if (deaf.length) {
+    add('problem', `Share nearby ran ${deaf.length} time${deaf.length === 1 ? '' : 's'} and heard no teammate's phone (stopped ${[...new Set(deaf.map((r) => r.stop))].join(', ')}): nobody else had it open on this language, or this phone's scan hears nothing (Bluetooth, a maker that holds back scan results, the scan limit).`);
+  }
+  if (rooms.some((r) => r.adv === 'no')) add('problem', `This phone cannot advertise over Bluetooth LE: teammates never hear it, and it meets only phones that can (plan section 11).`);
+  const unechoed = rooms.filter((r) => (r.heard ?? 0) > 0 && !r.echoed);
+  if (unechoed.length) add('watch', `Teammates were heard but never echoed this phone in ${unechoed.length} room${unechoed.length === 1 ? '' : 's'} (${unechoed.reduce((s, r) => s + (r.maybe ?? 0), 0)} taps offered, ${unechoed.reduce((s, r) => s + (r.taps ?? 0), 0)} taken): one-way hearing, or the other phone cannot advertise.`);
+  const t = x.roomTotals ?? {};
+  if (t.pipeFails) add('watch', `${t.pipeFails} Bluetooth connection${t.pipeFails === 1 ? '' : 's'} to a teammate would not open${Object.keys(x.codes ?? {}).some((k) => k.startsWith('room:')) ? ` (${Object.entries(x.codes ?? {}).filter(([k]) => k.startsWith('room:')).map(([k, n]) => `${k.slice(5)} ×${n}`).join(', ')})` : ''}.`);
+  if (t.strangers) add('info', `${t.strangers} connection${t.strangers === 1 ? '' : 's'} never passed the opening: strangers, a played-back advert, or a teammate on a discovery key this phone does not hold.`);
+  const finds = Object.entries(x.codes ?? {}).filter(([k]) => k.startsWith('find:'));
+  if (finds.length) add('problem', `Find failed on the phone: ${finds.map(([k, n]) => `${k.slice(5)} ×${n}`).join(', ')}.`);
+  const ends = Object.entries(x.ends ?? {});
+  const total = ends.reduce((sum, [, n]) => sum + n, 0);
+  const unfinished = ends.filter(([k]) => k !== 'done' && k !== 'heard:done' && k !== 'said:done');
+  const bad = unfinished.reduce((sum, [, n]) => sum + n, 0);
+  if (bad) {
+    const codes = Object.entries(x.codes ?? {}).filter(([k]) => k.startsWith('session:')).map(([k, n]) => `${k.slice(8)} ×${n}`);
+    add(bad / total > 0.3 ? 'problem' : 'watch', `${bad} of ${total} nearby sessions did not finish: ${unfinished.map(([k, n]) => `${n} ${k}`).join(', ')}${codes.length ? ` (${codes.join(', ')})` : ''}.`);
+  }
+  const s = x.sessionTotals ?? {};
+  const links = Object.entries(x.links ?? {});
+  if (links.length && !links.some(([k]) => k !== 'bluetooth')) add('watch', `Every nearby session that moved work went over Bluetooth (${s.fallbacks ?? 0} fallbacks): Wi-Fi Direct and the hotspot did not come up, so recordings wait.`);
+  else if ((x.links?.hotspot ?? 0) > 0) add('info', `${x.links!.hotspot} nearby session${x.links!.hotspot === 1 ? '' : 's'} fell back to the hotspot: Wi-Fi Direct did not come up.`);
+  if (s.noRoom) add('problem', `${s.noRoom} nearby session${s.noRoom === 1 ? '' : 's'} found no room for teammates' recordings: the phone cannot carry everything (plan 5.6).`);
+  if (s.fileFails) add('watch', `${s.fileFails} recording${s.fileFails === 1 ? '' : 's'} from a teammate's phone failed to arrive or to check.`);
+  if (s.newerApp) add('problem', `A teammate's phone runs an app this one shares no protocol with (${times(s.newerApp)}): one of them needs a newer app.`);
+  if (s.clockOff) add('watch', `A teammate's clock differed from this phone's by over five minutes in ${s.clockOff} session${s.clockOff === 1 ? '' : 's'}.`);
+  if (s.keyRefused) add('watch', `${s.keyRefused} newer discovery key${s.keyRefused === 1 ? '' : 's'} handed on by a teammate did not check.`);
+  return out;
+}
+
+/** The `expected` tallies Share nearby writes, with what each means. */
+const NEARBY_EXPECTED: Record<string, string> = {
+  nearby_attest: 'the Worker could not vouch for pulled work, so teammates get it only from the server',
+  'nearby: ready to carry': 'Ready to carry could not read what the phone holds',
+  'nearby: history': 'History could not say which rows came from a teammate\'s phone'
+};
 
 /**
  * The report's signals, ranked. `health` is the language as a cold phone
@@ -323,6 +408,14 @@ export function signals(health: LanguageHealth | null, members: Member[], summar
     }
     audioSignals(s, install);
     authSignals(s, install);
+    for (const n of nearbySignals(s.nearby)) add(n.level, install, n.text);
+    for (const e of s.expected ?? []) {
+      const meaning = NEARBY_EXPECTED[e.where];
+      if (!meaning) continue;
+      // A mismatch is the Worker signing what this phone does not hold: never expected.
+      if (e.where === 'nearby_attest' && e.name === 'mismatch') add('problem', install, `${e.count}× the Worker's attestation did not match this phone's rows (last ${e.lastAt}).`);
+      else add('watch', install, `${e.count}× ${meaning} ("${e.where}", ${e.name}${e.code ? `, ${e.code}` : ''}), last ${e.lastAt}.`);
+    }
     const updates = new Set((s.releases ?? []).map((r) => r.updateId));
     if (updates.size > 1) add('info', install, `Ran ${updates.size} app updates in the window; compare before and after.`);
   }

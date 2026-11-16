@@ -36,7 +36,7 @@ vi.mock('expo-file-system', () => ({
     constructor(_dir: unknown, name: string) { this.path = name; }
     get exists() { return fake.disk.has(this.path); }
     async text() { return fake.disk.get(this.path)!; }
-    write(text: string) { fake.disk.set(this.path, text); }
+    writeSync(text: string) { fake.disk.set(this.path, text); }
     delete() { fake.disk.delete(this.path); }
   }
 }));

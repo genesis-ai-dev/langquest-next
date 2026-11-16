@@ -34,12 +34,17 @@ export function recorderLines(count: number): { next: string; group: string; gro
   };
 }
 
-/** The sum of the lengths, or undefined when any is unknown. */
+/**
+ * The parts' length together, or undefined when any is unknown: each part
+ * as long as its row shows it, in whole seconds, so the total is what the
+ * rows add up to ("0:09" three times is "0:27", not the "0:26" that their
+ * 25.8 seconds round to; the tutorial frame check caught one, 2026-11-13).
+ */
 export function totalMs(lengths: (number | undefined)[]): number | undefined {
   let sum = 0;
   for (const l of lengths) {
     if (l === undefined) return undefined;
-    sum += l;
+    sum += Math.max(0, Math.round(l / 1000)) * 1000;
   }
   return sum;
 }

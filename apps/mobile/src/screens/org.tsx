@@ -11,7 +11,7 @@
 // languages directly (docs/decisions.md 63). A cluster (decision 108, demo
 // ADR-045) is a name on some of them, with a page of its own (ClusterHome).
 import {
-  clusterName, mayManageClusters, orgClusters,
+  newCommandId, clusterName, mayManageClusters, orgClusters,
   commands, decodeHlc, deriveFlow, emptyLanguageState, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, progressOf as linesProgress,
   leavesNoRoleManager, libraryItems, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLanguages, orgLicense, orgName, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type LibraryKind, type License, type Scope, type ScopeLevel, type SourceDoc
@@ -319,7 +319,7 @@ export function OrgHome(ctx: Ctx) {
   const canInvite = edgeAllowed(edgeFor('org_home', 'invite_member')!, ctx.session) && ctx.session.can('invite_members');
   // With clusters, the languages are grouped under them, then those in none (decision 108, amended 2026-10-20).
   const groups = languageGroups(v.org, v.languages);
-  const addLanguage = mayAdd ? { label: t('org.home.newLanguageOrCluster'), help: t('org.home.newLanguageHelp'), onPress: () => ctx.go('new_language') } : undefined;
+  const addLanguage = mayAdd ? { label: t('org.home.newLanguage'), help: t('org.home.newLanguageHelp'), onPress: () => ctx.go('new_language') } : undefined;
   // Languages already here grouped under a name, without adding one (LAN-140): its own row, not found only inside New language.
   const addCluster: AddRow | undefined = mayAdd && v.languages.length > 0
     ? { label: t('org.home.newCluster'), help: t('org.home.newClusterHelp'), icon: 'layers', onPress: () => ctx.go('new_language', { cluster: 'new' }) } : undefined;
@@ -1628,7 +1628,7 @@ export function NewLanguage(ctx: Ctx) {
     if (plan === 'ask') { setStartAgain(true); return; }
     let specs: EventSpec[];
     try {
-      specs = startingSpecs({ commandId: Crypto.randomUUID(), flow: choosing || !flow ? null : { name: flow.c.name, kinds: chk.kindsOf(flow.doc), steps: flow.doc.steps } });
+      specs = startingSpecs({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), flow: choosing || !flow ? null : { name: flow.c.name, kinds: chk.kindsOf(flow.doc), steps: flow.doc.steps } });
     } catch (e) {
       setError(failure('new language checks', e));
       return;

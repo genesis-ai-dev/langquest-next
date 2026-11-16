@@ -3,14 +3,41 @@ import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 import { isTestBuild } from '../build/testBuild';
 
-/** Statements on one connection: the database, or a transaction's own connection. */
+/**
+ * expo-modules-core finds a database or statement from its id in a table that the JavaScript
+ * thread grows while expo-sqlite's queue reads it, with no lock (`SharedObjectRegistry`'s
+ * `toNativeObject`). A lookup made while the table grows can miss, and the call is refused as
+ * "Cannot use shared object that was already released" though the object is alive: seen on an
+ * Android emulator as E-QLI101 under Share nearby, which makes many shared objects. The lookup
+ * comes before the call's native body, so nothing ran, and the call is asked again. A real
+ * release, or any other error, still reaches the caller.
+ */
+async function native<T>(call: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await call();
+    } catch (e) {
+      // i18n-ignore: the end of expo-modules-core's message, matched, never shown; three tries in all.
+      if (attempt >= 3 || !String(e).includes('already released')) throw e;
+    }
+  }
+}
+
+/** Statements on one connection: the database, or a transaction's own connection. Each native call is asked again after a missed lookup (above). */
 function statements(db: SQLite.SQLiteDatabase): Pick<SqlDriver, 'run' | 'all'> {
   return {
+    // Step by step, so a write that ran is never run again because a later step's lookup missed.
     run: async (sql, params = []) => {
-      await db.runAsync(sql, params as SQLite.SQLiteBindParams);
+      const statement = await native(() => db.prepareAsync(sql));
+      try {
+        await native(() => statement.executeAsync(params as SQLite.SQLiteBindParams));
+      } finally {
+        await native(() => statement.finalizeAsync());
+      }
     },
+    // A read is asked again whole: reading twice changes nothing.
     all: async <T,>(sql: string, params: unknown[] = []) =>
-      db.getAllAsync<T>(sql, params as SQLite.SQLiteBindParams)
+      native(() => db.getAllAsync<T>(sql, params as SQLite.SQLiteBindParams))
   };
 }
 
@@ -60,11 +87,12 @@ function preparedRun(db: SQLite.SQLiteDatabase): SqlDriver['run'] {
   return async (sql, params = []) => {
     let statement = cache.get(sql);
     if (!statement) {
-      statement = db.prepareAsync(sql);
+      statement = native(() => db.prepareAsync(sql));
       cache.set(sql, statement);
       statement.catch(() => cache.delete(sql));
     }
-    await (await statement).executeAsync(params as SQLite.SQLiteBindParams);
+    const prepared = await statement;
+    await native(() => prepared.executeAsync(params as SQLite.SQLiteBindParams));
   };
 }
 
@@ -87,12 +115,12 @@ export function writeConnectionDriver(db: SQLite.SQLiteDatabase, writer: SQLite.
     ...statements(db),
     transaction: (fn) => {
       const next = queue.then(async () => {
-        await writer.execAsync('BEGIN IMMEDIATE');
+        await native(() => writer.execAsync('BEGIN IMMEDIATE'));
         try {
           await fn(tx);
-          await writer.execAsync('COMMIT');
+          await native(() => writer.execAsync('COMMIT'));
         } catch (e) {
-          await writer.execAsync('ROLLBACK').catch(() => {});
+          await native(() => writer.execAsync('ROLLBACK')).catch(() => {});
           throw e;
         }
       });
@@ -120,6 +148,7 @@ async function expoDriver(db: SQLite.SQLiteDatabase, name: string): Promise<SqlD
 let storePromise: Promise<SqliteStore> | undefined;
 let diagPromise: Promise<SqliteDiagStore> | undefined;
 let ledgerPromise: Promise<SqliteFileLedger> | undefined;
+let ledgerDriverPromise: Promise<SqlDriver> | undefined;
 /** The open databases, so signing out on the web can close and delete them. */
 const opened = new Map<string, SQLite.SQLiteDatabase>();
 /** Their write connections (phones only). */
@@ -178,16 +207,27 @@ export function getDiagStore(): Promise<SqliteDiagStore> {
  * open its storage at all.
  */
 export function getFileLedger(): Promise<SqliteFileLedger> {
-  ledgerPromise ??= allowed.then(() => open('langquest-files.db'))
-    .then(async (db) => SqliteFileLedger.open(await expoDriver(db, 'langquest-files.db')))
+  ledgerPromise ??= fileLedgerDriver().then((driver) => SqliteFileLedger.open(driver))
     .catch((error: unknown) => { ledgerPromise = undefined; throw error; });
   return ledgerPromise;
 }
+
+/** The ledger's database, where Android also keeps its nearby marks beside `kept_files` (docs/nearby-sync-plan.md 5.6). Phones only, as above. */
+export function fileLedgerDriver(): Promise<SqlDriver> {
+  ledgerDriverPromise ??= allowed.then(() => open('langquest-files.db')).then((db) => expoDriver(db, 'langquest-files.db'))
+    .catch((error: unknown) => { ledgerDriverPromise = undefined; throw error; });
+  return ledgerDriverPromise;
+}
+
+/** The event log's driver, once opened, for the one question the store has no call for (`holdsUnsent`). */
+let resolveMain: (driver: SqlDriver | null) => void = () => {};
+const mainDriver = new Promise<SqlDriver | null>((resolve) => { resolveMain = resolve; });
 
 /** One local event log per device, shared by every stream this phone syncs. */
 export function getStore(): Promise<SqliteStore> {
   storePromise ??= allowed.then(() => open('langquest-next.db')).then(async (db) => {
     const driver = await expoDriver(db, 'langquest-next.db');
+    resolveMain(driver);
     const store = await SqliteStore.open(driver);
     // The web UI suite reads the device log directly (e2e/ui, web dev
     // and local-stack exports only (testBuild.ts)). Installed once the schema exists, so its presence means ready.
@@ -200,6 +240,17 @@ export function getStore(): Promise<SqliteStore> {
     return store;
   }).catch(failed<SqliteStore>(() => { storePromise = undefined; }));
   return storePromise;
+}
+
+/**
+ * Does this phone hold anyone's unsent work: a row pending, or a teammate's held as nearby? A
+ * newcomer joins offline only on a phone with nobody on it (docs/nearby-sync-plan.md 14.1, 3).
+ */
+export async function holdsUnsent(): Promise<boolean> {
+  await getStore();
+  const driver = await mainDriver;
+  if (!driver) return false;
+  return (await driver.all<{ one: number }>("select 1 as one from events where status in ('pending', 'nearby') limit 1")).length > 0;
 }
 
 /**

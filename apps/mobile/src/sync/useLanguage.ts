@@ -2,7 +2,7 @@ import * as Network from 'expo-network';
 import { saysOffline } from './networkWake';
 import { onlineNow } from './reachModel';
 import { useServerReach } from './useServerReach';
-import type { LanguageSession, LanguageStatus, SyncInspection } from '@langquest-next/sync';
+import type { LanguageSession, LanguageStatus, SyncClient, SyncInspection } from '@langquest-next/sync';
 import {
   CommandError, emptyLanguageState, languageLines, updatesFor as coreUpdatesFor, type BlobRef, type EventPayloads, type EventSpec, type EventType,
   type LanguageState, type LostFilesView, type OfflineSummary, type PassageLines, type UnitOffline, type Update
@@ -18,6 +18,13 @@ import { onWake } from './wake';
 import { stateCopier } from './publishedState';
 import { NO_LANGUAGE_STATUS, StatusStore, type LanguageStatusStore, type LanguageSyncStatus } from './syncStatusStore';
 import { t } from '../i18n';
+
+/** The open language's session as Share nearby uses it, and nothing else of it. */
+export interface NearbyLanguage {
+  client: SyncClient;
+  /** Teammates' files over a link; null where this platform keeps none. */
+  moves: ReturnType<LanguageSession['nearbyMoves']>;
+}
 
 export interface LanguageHandle {
   orgId: string;
@@ -55,6 +62,12 @@ export interface LanguageHandle {
   revision: number;
   /** The local log as the sync screen shows it; null before load. */
   inspect: () => Promise<SyncInspection | null>;
+  /**
+   * What Share nearby needs of this language's session, while one is open (docs/nearby-sync-plan.md
+   * 5.12): its client, which is the session's port, and its file moves. Null before it opens and
+   * for a read-only session (readOnly.ts), so a Global Viewer never starts an exchange.
+   */
+  nearby: () => NearbyLanguage | null;
   /**
    * What changes while syncing (pending, lastSync, transfer counts, the files
    * here) is not on this handle: it would redraw every screen on every tick.
@@ -132,7 +145,7 @@ const NO_LINES: PassageLines = languageLines(emptyLanguageState());
 
 const NOTHING_YET: LanguageStatus = {
   revision: 0, pending: 0, refusedEvents: 0, lastSync: 'never', online: null, tooOld: false,
-  refused: null, pulled: false, live: false, pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0,
+  refused: null, pulled: false, live: false, pendingUp: 0, pendingDown: 0, holding: 0, peakUp: 0, peakDown: 0,
   present: new Set(), keptUnits: new Set(), keptOffline: null, offlineSummary: null, scope: new Set(), lines: NO_LINES, fill: null,
   uploads: new Map(), sent: [], uploading: new Set(), downloading: new Set()
 };
@@ -193,7 +206,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       // Only a change in what is shown redraws the shell; the ticking part goes to its own store.
       setStatus((prev) => (slowSame(prev, now) ? prev : now));
       syncStatus.set({
-        pending: now.pending, lastSync: now.lastSync, pendingUp: now.pendingUp, pendingDown: now.pendingDown,
+        pending: now.pending, lastSync: now.lastSync, pendingUp: now.pendingUp, pendingDown: now.pendingDown, holding: now.holding,
         peakUp: now.peakUp, peakDown: now.peakDown, present: now.present, uploads: now.uploads, sent: now.sent,
         uploading: now.uploading, downloading: now.downloading
       });
@@ -225,7 +238,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       sessionRef.current = language.session;
       filesRef.current = language.files;
       // Finish any save a crash or kill interrupted; after the workers start, so the upload pass sees the recovered card.
-      await recoverRecordings(language.session, language.files, { orgId, languageId }, appRecoveryEnv(), () => cancelled);
+      await recoverRecordings(language.session, language.files, { orgId, languageId, actorId }, appRecoveryEnv(), () => cancelled);
     })();
     return () => {
       cancelled = true;
@@ -290,6 +303,10 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   );
   const triggerUpload = useCallback(() => sessionRef.current?.triggerUpload(), []);
   const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
+  const nearby = useCallback((): NearbyLanguage | null => {
+    const session = sessionRef.current;
+    return session ? { client: session.client, moves: session.nearbyMoves() } : null;
+  }, []);
   const { tooOld, refused, refusedEvents, pulled, live, revision } = status;
   // Offline when the phone itself says it has no network, at once; when the server
   // stopped answering checks; or when it did not answer the last sync (decisions.md 166):
@@ -304,10 +321,10 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   // One object until something it shows changes, so `ctx` can be one too.
   return useMemo(
     () => ({
-      orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, syncStatus, blobs,
+      orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, nearby, syncStatus, blobs,
       lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, append, appendMany, run, sync
     }),
-    [orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, syncStatus, blobs,
+    [orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, nearby, syncStatus, blobs,
       lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, append, appendMany, run, sync]
   );
 }

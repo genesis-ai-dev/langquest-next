@@ -164,9 +164,11 @@ export async function joinByInvite(token: string, joinId: string, name?: string)
 /**
  * Use a helper's sign-in key, signed out (flow F): nothing to type. Returns
  * the session, who helped, and whether the old phone was signed out.
+ * `profileId`, from a local person's phone: the function refuses a code
+ * made for anyone else before taking it (docs/nearby-sync-plan.md 14.1, 6).
  */
-export async function redeemSignInCode(code: string): Promise<{ session: Tokens; signInName: string; helper: string | null; oldPhoneSignedOut?: boolean }> {
-  return invoke('sign-in-code', { code });
+export async function redeemSignInCode(code: string, profileId?: string): Promise<{ session: Tokens; signInName: string; helper: string | null; oldPhoneSignedOut?: boolean }> {
+  return invoke('sign-in-code', { code, ...(profileId ? { profileId } : {}) });
 }
 
 /** Ask to join an org. One row per (org, requester); asking twice is not an error. */

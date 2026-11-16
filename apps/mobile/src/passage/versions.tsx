@@ -3,10 +3,11 @@
 // hear, edit, publish or delete (with Undo); then the published versions,
 // newest first, each to hear, open, or edit into a new draft (a published
 // version never changes), and the latest one asked for its next check. The
-// published ones are deleted by whoever published them (LAN-83). Deleting
+// published ones are deleted by whoever published them (LAN-83), or by an
+// admin of the language (decisions.md 124, amended 2026-11-13). Deleting
 // a draft or a version asks first (ConfirmDelete). The footer starts a new
 // version from nothing. The record's history follows.
-import { canDeleteVersion, commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
+import { newCommandId, canDeleteVersion, commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
 import { deleteVersion } from './deleteVersion';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import * as Crypto from 'expo-crypto';
@@ -29,7 +30,7 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { C, radius, space, target } from '../ui/theme';
 import { versionReviewsSummary } from './recordTextModel';
-import { draftName, startedFrom } from './versionsModel';
+import { deletesAny, draftName, startedFrom } from './versionsModel';
 import { useVersesHeld } from './useVerses';
 
 export function VersionsPage(props: {
@@ -65,7 +66,7 @@ export function VersionsPage(props: {
   const remove = (d: DraftView, name: string) => {
     let specs;
     try {
-      specs = commands(state, indexesFor(state)).deleteDraft({ commandId: Crypto.randomUUID(), unitId, takeId: d.takeId, actorId: me });
+      specs = commands(state, indexesFor(state)).deleteDraft({ commandId: newCommandId(me, Crypto.randomUUID()), unitId, takeId: d.takeId, actorId: me });
     } catch (e) {
       ctx.toast(t('passage.versions.notDeleted', { reason: failureMessage('versions: delete draft', e) }), 'problem');
       return;
@@ -113,7 +114,7 @@ export function VersionsPage(props: {
         <HelpRow key={ver.takeId} of="versions.version">
           <VersionCard ctx={ctx} v={v} ver={ver} latest={ver.takeId === p.latest?.takeId} length={length(ver.cardHashes)}
             canRecord={props.canRecord} {...(ver.takeId === p.latest?.takeId && props.ask ? { ask: props.ask } : {})}
-            {...(props.canRecord && canDeleteVersion(p, ver.takeId, me) ? { onDelete: () => setAsking({ name: versionTitle(ver.n), sub: length(ver.cardHashes), go: () => deleteVersion(ctx, v, ver) }) } : {})}
+            {...(props.canRecord && canDeleteVersion(p, ver.takeId, me, deletesAny(ctx.session)) ? { onDelete: () => setAsking({ name: versionTitle(ver.n), sub: length(ver.cardHashes), go: () => deleteVersion(ctx, v, ver) }) } : {})}
             onOpen={() => props.go('version_detail', { takeId: ver.takeId })} onEdit={() => props.go('workspace', { from: ver.takeId })} />
         </HelpRow>
       ))}

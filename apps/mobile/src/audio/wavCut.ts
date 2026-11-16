@@ -16,7 +16,7 @@ export async function cutWav(uri: string, fromMs: number, toMs: number): Promise
   const total = src.size ?? 0;
   const read = src.open(FileMode.ReadOnly);
   try {
-    const format = readWavHeader(read.readBytes(44));
+    const format = readWavHeader(read.readBytesSync(44));
     if (!format) throw new Error('not a recorder WAV');
     const { start, length } = wavRange(format, Math.max(0, total - 44), fromMs, toMs);
     if (!STAGING.exists) STAGING.create({ intermediates: true, idempotent: true });
@@ -24,12 +24,12 @@ export async function cutWav(uri: string, fromMs: number, toMs: number): Promise
     out.create();
     const write = out.open(FileMode.WriteOnly);
     try {
-      write.writeBytes(wavHeader(length, format));
+      write.writeBytesSync(wavHeader(length, format));
       read.offset = 44 + start;
       for (let left = length; left > 0;) {
-        const bytes = read.readBytes(Math.min(left, BLOCK));
+        const bytes = read.readBytesSync(Math.min(left, BLOCK));
         if (bytes.length === 0) break;
-        write.writeBytes(bytes);
+        write.writeBytesSync(bytes);
         left -= bytes.length;
       }
     } finally { write.close(); }

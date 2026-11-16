@@ -128,7 +128,7 @@ test('PASS-017 REV Back-translate it, and the record afterwards', async ({ brows
   await byId(page, 'primary-action').click();
   await toast(page, 'Back translation published.');
   await expect(header(page)).toHaveText(L);
-  expect((await teamRows(page)).slice(0, 2)).toEqual(['Peer check, looks good', 'Back translation, looks good']);
+  expect((await teamRows(page)).slice(0, 2)).toEqual(['Peer check, looks good', 'Back translation · make it, made']);
 });
 
 test('PASS-017 TREV Back-translate it, and is offered the next check', async ({ browser }) => {
@@ -226,7 +226,7 @@ async function setAsideThenUndo(browser: Browser, who: AccountKey): Promise<Page
   await sheet(page).getByRole('button', { name: 'Not needed for this passage' }).click();
   await confirm.click();
   await toast(page, 'Back translation set aside · reason saved');
-  await expect(teamRow(page, 'Back translation')).toHaveAttribute('aria-label', /^Back translation, /);
+  await expect(teamRow(page, 'Back translation')).toHaveAttribute('aria-label', /^Back translation · make it, /);
   await undoFromHistory(page, "Brought back — it's a suggested step again");
   await openTeamRow(page, 'Back translation');
   expect(await sheetText(page)).not.toContain('Set aside: Not needed for this passage');
@@ -408,7 +408,7 @@ test('PASS-050 A back translation that happened outside the app', async ({ brows
   const [card] = await recordings(world(), 'REV', 1);
   await actAs(world(), 'REV', (c) => c.produceContent({ commandId: id(), fromTakeId: take('P-SUBMITTED'), kindId: 'bt', cards: [card!], via: 'logged' }));
   await refreshRecord(page, world(), 'P-SUBMITTED');
-  expect((await teamRows(page))[1]).toBe('Back translation, looks good');
+  expect((await teamRows(page))[1]).toBe('Back translation · make it, made');
 });
 
 // ---- checkpoints -------------------------------------------------------------------------------
@@ -551,6 +551,19 @@ test('PASS-060 Delete a draft, asked first', async ({ browser }) => {
   await page.getByRole('button', { name: 'Delete Draft 1', exact: true }).locator('visible=true').last().click();
   await toast(page, 'Draft 1 deleted.');
   await expect(text(page, 'Your draft')).toBeVisible();
+});
+
+test('PASS-069 An admin deletes a version someone else published', async ({ browser }) => {
+  // An admin clears work that should not count, whoever published it, so the passage shows as not started (decision 124, amended 2026-11-13).
+  const s = await spare(9);
+  if (!(await passageAs(world(), 'TRANS', s)).recorded) await recordOn(world(), 'TRANS', s, { parts: 1, publish: true });
+  const page = await recordAs(browser, world(), 'ADMIN', s);
+  await versionsPage(page);
+  await button(page, 'Delete Version 1').click();
+  await expect(text(page, 'Delete Version 1?')).toBeVisible();
+  await page.getByRole('button', { name: 'Delete Version 1', exact: true }).locator('visible=true').last().click();
+  await toast(page, 'Version 1 deleted.');
+  await expect.poll(async () => (await passageAs(world(), 'ADMIN', s)).recorded, { timeout: 30_000 }).toBe(false);
 });
 
 test('PASS-061 Reviews by version', async ({ browser }) => {

@@ -74,6 +74,8 @@ function fakes(opts: { audio: string[]; bucket: Record<string, Uint8Array>; know
     orgCreator: async () => null,
     ledger: async () => new Map(),
     putLedger: async () => {},
+    // These files are not named as v2's app names a recording, so the import marks them uploads (decisions.md 188, amended 2026-11-12).
+    putStamps: async () => {},
     append: async (list: AnyEvent[]) => { events.push(...list); return { accepted: list.length, duplicates: 0, rejected: [] }; },
     files: async (names: string[]) => new Map(names.flatMap((n) => (opts.known?.[n] ? [[n, opts.known[n]!] as const] : []))),
     putFiles: async (list: { name: string; file: CopiedFile | null }[]) => { fileMap.push(...list); },

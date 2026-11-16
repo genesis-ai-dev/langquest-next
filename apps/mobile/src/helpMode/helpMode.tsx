@@ -7,7 +7,7 @@
 // decision 81), or in the browser's voice on the web. Nothing opens or speaks
 // by itself.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { Dimensions, I18nManager, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Dimensions, I18nManager, Platform, Pressable, StyleSheet, View, type ViewInstance } from 'react-native';
 import Svg, { Circle, Defs, Mask, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../ui/text';
@@ -286,7 +286,7 @@ function HelpLayer(props: {
     useCallback((l: () => void) => { store.listeners.add(l); return () => { store.listeners.delete(l); }; }, [store]),
     () => store.version
   );
-  const root = useRef<View>(null);
+  const root = useRef<ViewInstance>(null);
   const [frame, setFrame] = useState<HelpRect | null>(null);
   const insets = useSafeAreaInsets();
   const [tipHeight, setTipHeight] = useState(0);
