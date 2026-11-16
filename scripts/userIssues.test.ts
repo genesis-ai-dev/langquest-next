@@ -98,8 +98,11 @@ describe('user-issues.mjs', () => {
     expect(watchSteps.find((s) => s.includes('file .user-issues'))).toContain('GIT_DIR: ${{ runner.temp }}/base.git');
     expect(jobs['fix']).toContain('run: node "$RUNNER_TEMP/watch/user-issues.mjs" fix-patch .user-issues');
     expect(jobs['fix']).toContain('max-parallel: 1');
-    // The checks hold no secret; the paths are refused before anything of the patch runs.
-    expect(jobs['check']).not.toMatch(/secrets\.|cache:/);
+    // The checks hold no secret and share no cache that the patch could write to; setup-node caches on
+    // its own when package.json names a packageManager, so the job turns that off (decisions.md 247).
+    // The paths are refused before anything of the patch runs.
+    expect(jobs['check']).not.toMatch(/secrets\.|(?<!package-manager-)cache:/);
+    expect(jobs['check']).toContain('package-manager-cache: false');
     expect(jobs['check']!.indexOf('fix-paths')).toBeLessThan(jobs['check']!.indexOf('npm ci'));
     // The push runs nothing of the patch.
     expect(jobs['open']).not.toMatch(/\bnpm\b|\bnpx\b|vitest|claude-code-action/);

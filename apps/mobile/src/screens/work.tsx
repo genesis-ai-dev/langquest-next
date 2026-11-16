@@ -41,6 +41,7 @@ import { Bell, NextCard, QuietToggle, ReadyCard } from '../work/home';
 import { checkName } from '../admin/adminModel';
 import { Faces } from '../checks/parts';
 import { HelpRow } from '../helpMode/helpBadge';
+import { DownloadButton } from '../sync/offline';
 import { useReadySummary, type ReadySummary } from '../admin/useReadySummary';
 import { switchedFrom } from '../work/switchedFrom';
 import { divideSub, elsewhereCounts, nextSub, readinessFrom, THEN_CAP, undecided, waitingWhat, waitingWho, workEmpty, workIcon, workSub, workTarget, workWhat, type Readiness } from '../work/homeModel';
@@ -136,17 +137,20 @@ interface WorkItem {
   title: string;
   sub: string;
   onPress: () => void;
+  /** The passage it is about: its row ends with the download button, so "On this device" shows before anyone opens it (decisions.md 166). */
+  unitId?: string;
   /** What help mode says tapping it does, where `sub` says what it is rather than that. */
   help?: string;
 }
 
-function WorkRows(props: { items: WorkItem[] }) {
+function WorkRows(props: { ctx: Ctx; items: WorkItem[] }) {
   return (
     <Group>
       {props.items.map((it, i) => (
         // A to-do of each kind (a join request, a passage to record) speaks for the rest of its kind.
         <HelpRow key={it.id} of={`work.todo.${it.icon}`}>
           <Row icon={it.icon} label={it.title} sub={it.sub} last={i === props.items.length - 1} onPress={it.onPress} {...(it.help ? { help: it.help } : {})}
+            {...(it.unitId ? { right: <DownloadButton ctx={props.ctx} unitId={it.unitId} testID={`work-download-${it.unitId}`} /> } : {})}
             iconBg={it.tone === 'amber' ? TINT.amber : C.light} iconColor={it.tone === 'amber' ? TINT.amberText : C.primary} />
         </HelpRow>
       ))}
@@ -189,7 +193,7 @@ export function MyWork(ctx: Ctx) {
   // The sidebar names the organization on a desktop; the subtitle then need not.
   const orgName = useOrgInChrome() ? '' : ctx.org.state?.org?.value.name ?? '';
   const language = languageId ? languageName(ctx.org.state, languageId) : '';
-  const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
+  const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} stale={ctx.inbox.unreadStale} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
   const header = (
     <Header title={t('work.title')} sub={[language, orgName].filter(Boolean).join(' · ') || undefined}
       {...(orgName ? { subNode: <OrgLine text={[language, orgName].filter(Boolean).join(' · ')} orgName={orgName} orgId={ctx.language.orgId} style={txt.xs} /> } : {})}
@@ -233,7 +237,7 @@ export function MyWork(ctx: Ctx) {
     const sub = h.kind === 'respond' ? w.what : workSub(w.what, w.by ? { by: w.by } : {});
     // A check asked of you reads as one (demo HomeCoord: "Check Luke 1:1–4"); the rest by the passage alone.
     return { id: h.id, icon: look.icon, tone: look.tone, title: h.kind === 'review' ? t('work.checkPassage', { passage: w.title }) : w.title, sub, onPress: () => open(h, languageId),
-      help: t('work.list.openHelp') };
+      unitId: h.unitId, help: t('work.list.openHelp') };
   };
   const joinItems: WorkItem[] = joins.rows.map((r) => ({
     id: `join:${r.id}`, icon: 'people', tone: 'brand',
@@ -300,7 +304,7 @@ export function MyWork(ctx: Ctx) {
     ? [...earlier.over.keys()].filter((u) => state.units[u] && !lines.get(u).recorded) : [];
   if (again.length && languageId) {
     tasks.push({ id: 'again', icon: 'mic', tone: 'amber', title: t('work.again.title', { passage: unitTitle(state, again[0]!) }),
-      sub: t('work.again.sub', { count: again.length }), help: t('work.again.help'), onPress: () => ctx.openPassage(again[0]!, languageId) });
+      sub: t('work.again.sub', { count: again.length }), unitId: again[0]!, help: t('work.again.help'), onPress: () => ctx.openPassage(again[0]!, languageId) });
   }
   // Books waiting to be divided before anyone can record them (decision 80), for those who divide: the first opens
   // in this language, and the line says why it waits (FIA has no passages for Romans). Book by book leaves every
@@ -364,7 +368,7 @@ export function MyWork(ctx: Ctx) {
       {items.length > 0 ? (
         <>
           <SectionLabel label={listLabel} />
-          <WorkRows items={shown} />
+          <WorkRows ctx={ctx} items={shown} />
           {items.length > THEN_CAP ? (
             <QuietToggle label={moreShown ? t('work.list.fewer') : t('work.list.more', { count: items.length - THEN_CAP })} open={moreShown} onPress={() => setMoreShown((v) => !v)}
               detail={moreShown ? t('work.list.fewerHelp') : t('work.list.moreHelp')} />

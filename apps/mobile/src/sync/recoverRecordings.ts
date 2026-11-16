@@ -25,7 +25,7 @@ export function recoveryCode(error: string): string {
 
 /**
  * Finish any save a crash or kill interrupted (recordingJournalModel.ts).
- * Idempotent by recordingId; call it after the session has started so the
+ * Idempotent by the journal's id, under any author's name; call it after the session has started so the
  * upload pass sees the recovered card. Resolves to whether any recording
  * was recovered, in which case the session has been refreshed and told to
  * upload. An entry that failed stays in the journal for the next open.
@@ -33,7 +33,7 @@ export function recoveryCode(error: string): string {
 export async function recoverRecordings(
   session: Pick<LanguageSession, 'hasRecording' | 'refresh' | 'triggerUpload'> & { client: Pick<LanguageSession['client'], 'append'> },
   files: Pick<BlobStore, 'exists' | 'ingest'>,
-  language: { orgId: string; languageId: string },
+  language: { orgId: string; languageId: string; actorId: string },
   env: RecoveryEnv,
   isCancelled: () => boolean = () => false
 ): Promise<boolean> {
@@ -46,8 +46,8 @@ export async function recoverRecordings(
       const { ref, size } = await files.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
       return { hash: ref.hash, size };
     },
-    hasRecording: (id) => session.hasRecording(id),
-    append: async (e) => { await session.client.append('v1.RecordingAdded', recoveredRecording(e)); }
+    hasRecording: (id, unitId) => session.hasRecording(id, unitId),
+    append: async (e) => { await session.client.append('v1.RecordingAdded', recoveredRecording(e, language.actorId)); }
   }).catch((e: unknown) => { env.reportError('recording recovery', e); return null; });
   // Count each failure by its cause's fixed class (a full disk, a file gone),
   // never its text; how many wait is the journal's own probe.

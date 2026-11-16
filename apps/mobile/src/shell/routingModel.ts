@@ -39,3 +39,24 @@ const ORG_LIST_RETRY_MS = [2_000, 5_000, 15_000, 30_000, 60_000, 120_000, 300_00
 export function orgListRetryMs(failures: number): number | null {
   return failures >= 1 && failures <= ORG_LIST_RETRY_MS.length ? ORG_LIST_RETRY_MS[failures - 1]! : null;
 }
+
+/**
+ * Where a Let someone in link opened from outside the app leads (docs/nearby-sync-plan.md 14.1,
+ * 3): a phone with nobody on it straight to joining, since that is all the code is for; anyone
+ * else to the scanner with the link, which says the code is for a new phone.
+ */
+export function joinLinkRoute(someoneHere: boolean, url: string): { screen: 'join_offline' } | { screen: 'scan_qr'; params: { code: string } } {
+  return someoneHere ? { screen: 'scan_qr', params: { code: url } } : { screen: 'join_offline' };
+}
+
+/**
+ * A welcome shown only because the server's "already welcomed" came late
+ * (useOnboarding: a new device routes after a few seconds without it) is
+ * left for the home once that answer is in, while it is still the one
+ * screen. Without this the person was welcomed again, and a second device
+ * signed in to a new organization stayed on "Welcome" (AUTH-058, LAN-252).
+ * Someone already past it (Get started, What is LangQuest?) is not moved.
+ */
+export function leaveLateWelcome(screen: ScreenId, stackLength: number, isFirstTime: boolean, welcomedLate: boolean): boolean {
+  return welcomedLate && !isFirstTime && screen === 'welcome' && stackLength === 1;
+}

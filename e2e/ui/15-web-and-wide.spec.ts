@@ -13,6 +13,7 @@ import {
 } from './support';
 import { browserStateFor } from './fixture';
 import { inviteRole } from './people-helpers';
+import { expectParts } from './06-recording-helpers';
 import { addNote, caughtUp, deviceAs, openRecord, openSync, quietReloads, setOffline, SYNC_CLEAR, syncChip, toTab } from './sync-helpers';
 
 const world = useWorld();
@@ -699,6 +700,9 @@ test('WEB-026 The update banner waits while recording', async ({ page }) => {
   await expect(text(page, 'Update ready · it restarts when you stop recording')).toBeVisible();
   await expect(banner).toHaveCount(0);
   await expect(byId(page, 'record-button')).toHaveAttribute('aria-label', 'Stop recording');
+  // The microphone is the voice file on a loop (1.5 s said, 2.5 s quiet): a Done tapped in the quiet saves no take (LAN-246), so wait for a part first.
+  await expectParts(page, 1, 15_000);
+  await expect(banner).toHaveCount(0);
   // Done leaves the session (LAN-82): its parts are saved, and only then may the page reload.
   await button(page, 'Done').click();
   // The take is saved before a reload is allowed (isRecording covers the save).

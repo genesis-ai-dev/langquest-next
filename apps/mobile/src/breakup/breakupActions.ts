@@ -1,6 +1,6 @@
 // What the break-up screens do with templates: adopt a way, make one the language's own,
 // publish a change, and who uses each (breakup/useBreakup.ts holds the hooks).
-import { CommandError, languageName, orgLanguages, privilegesFor, selectTemplateSpecs, templateBooks, type EventSpec, type LibraryItemView, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { newCommandId, CommandError, languageName, orgLanguages, privilegesFor, selectTemplateSpecs, templateBooks, type EventSpec, type LibraryItemView, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import type { LibraryChoice } from '../templates/contentTemplatesModel';
 import type { Ctx } from '../shell/ctx';
@@ -72,7 +72,7 @@ export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>
       if (u.languageId === ctx.language.languageId || !c.chosen.has(u.languageId) || !u.mayChange) continue;
       await appendToLanguage({
         orgId: ctx.language.orgId, languageId: u.languageId, actorId: ctx.session.actorId,
-        specs: [{ id: Crypto.randomUUID(), type: 'v1.TemplateSelected', payload: { itemId, docHash: sel.docHash, unitPrefix: u.unitPrefix, ...(u.books ? { books: u.books } : {}) } } as EventSpec]
+        specs: [{ id: newCommandId(ctx.session.actorId, Crypto.randomUUID()), type: 'v1.TemplateSelected', payload: { itemId, docHash: sel.docHash, unitPrefix: u.unitPrefix, ...(u.books ? { books: u.books } : {}) } } as EventSpec]
       }).catch((e: unknown) => noteExpected('template copy for another language', e));
     }
   }
@@ -80,7 +80,7 @@ export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>
   const v11n = c.doc.bible ? ((docs.get(c.doc.bible.versification) as VersificationDoc | undefined) ?? null) : null;
   if (c.doc.bible && !v11n) throw new CommandError(t('breakup.errors.versificationMissing'));
   return selectTemplateSpecs(state, {
-    commandId: Crypto.randomUUID(), itemId, docHash, doc: c.doc, versification: v11n, unitPrefix: sel.unitPrefix,
+    commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), itemId, docHash, doc: c.doc, versification: v11n, unitPrefix: sel.unitPrefix,
     ...(sel.books ? { books: sel.books } : {})
   });
 }

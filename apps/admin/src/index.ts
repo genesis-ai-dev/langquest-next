@@ -11,7 +11,8 @@ import { appStoreSection } from './sources/appstore';
 import { expoSection } from './sources/expo';
 import { googlePlaySection } from './sources/googleplay';
 import { codeSection } from './sources/github';
-import { filmingSection } from './sources/filming';
+import { videosSection } from './sources/videos';
+import { nightlySection } from './sources/nightly';
 import { supabaseSection } from './sources/supabase';
 import { containerSection } from './sources/container';
 import { expirySection } from './sources/expiry';
@@ -23,7 +24,7 @@ import { capacitySection, storageSection } from './sources/storage';
 
 /**
  * The ops dashboard (docs/admin.md, decisions.md 160): the page at
- * /ops-dashboard and its API at /ops/api/*, on next.langquest.org. This
+ * /ops-dashboard and its API at /ops/api/*, on app.langquest.org. This
  * Worker has no address of its own; the app's Worker hands it those paths
  * through its OPS service binding (apps/web/worker/ops.ts). Every API call
  * checks the sign-in first. The one write, POST /ops/api/actions, is passed
@@ -60,7 +61,8 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   adoption: (env) => adoptionSection(env),
   pipeline: (env) => pipelineSection(env),
   container: (env) => containerSection(env),
-  filming: (env) => filmingSection(env)
+  videos: (env) => videosSection(env),
+  nightly: (env) => nightlySection(env)
 };
 
 /** The sections read as diag_reader in one connection, with what each says when that connection fails. */

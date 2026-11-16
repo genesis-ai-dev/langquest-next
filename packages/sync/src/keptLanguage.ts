@@ -180,7 +180,7 @@ export class KeptLanguage {
    * memory or the rows already kept can name, each combined with the copy
    * already kept; and what the checkpoint itself holds.
    */
-  async split(state: LanguageState, opts: { whole?: boolean } = {}): Promise<Split> {
+  async split(state: LanguageState, opts: { whole?: boolean; tailOnly?: boolean } = {}): Promise<Split> {
     const entries = [...partEntries(state)];
     // A passage memory can name, else the one the rows say for what an entry hangs on.
     const onDisk = new Map<string, Map<string, string>>();
@@ -207,7 +207,8 @@ export class KeptLanguage {
     // The kept copies of entries memory does not hold whole (passages not loaded), to combine with.
     const priors = new Map<string, unknown>();
     // A whole language (a checkpoint from a build that held it all) is every copy there is: rows on disk are older, never combined in.
-    const toRead = opts.whole ? [] : placed.filter((p) => !this.ready.has(p.unitId)).map((p) => ({ kind: p.part.kind, id: p.id }));
+    // A fold of the last checkpoint and the confirmed tail (`tailOnly`) holds only what the tail said, so even a passage open on screen is combined with its rows.
+    const toRead = opts.whole ? [] : placed.filter((p) => opts.tailOnly || !this.ready.has(p.unitId)).map((p) => ({ kind: p.part.kind, id: p.id }));
     for (const [kind, ids] of groupBy(toRead)) {
       for (const r of await this.store.keptById(this.orgId, this.streamId, kind, ids)) priors.set(`${kind}\u0000${r.id}`, JSON.parse(r.json));
     }

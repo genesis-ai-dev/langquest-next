@@ -265,11 +265,12 @@ export async function goBack(page: Page): Promise<void> {
 export { button, field, primary };
 
 /** A fixture account on its own device, with no reloads from the dev server (support.ts deviceFor otherwise). */
-export async function deviceAs(browser: Browser, world: UiWorld, who: AccountKey, opts: { language?: 'A' | 'B' | 'C' } = {}): Promise<{ context: BrowserContext; page: Page }> {
+export async function deviceAs(browser: Browser, world: UiWorld, who: AccountKey, opts: { language?: 'A' | 'B' | 'C'; before?: (context: BrowserContext) => Promise<void> } = {}): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext({ viewport: { width: 430, height: 932 }, permissions: ['microphone'] });
   await quietReloads(context);
+  await opts.before?.(context);
   const page = await context.newPage();
-  await openAs(page, world, who, opts);
+  await openAs(page, world, who, { language: opts.language });
   return { context, page };
 }
 

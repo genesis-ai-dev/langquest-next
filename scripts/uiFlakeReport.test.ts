@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MANY, PREFIX } from './nightly-report.mjs';
 import { below, tally } from './ui-flakes.mjs';
-import { collect, flakeActions, listBody, listed, recentRuns, reportArtifacts, UI_FLAKES } from './ui-flake-report.mjs';
+import { collect, fetchRetrying, flakeActions, githubGet, listBody, listed, recentRuns, reportArtifacts, UI_FLAKES } from './ui-flake-report.mjs';
 
 // The tracker exists so a test that fails now and then is seen without anyone
 // downloading reports by hand. What these hold: only runs worth counting are
@@ -33,6 +33,12 @@ describe('which runs are counted', () => {
     expect((await recentRuns(get, 'o/r', 10)).map((r: { id: number }) => r.id)).toEqual([1, 4, 5, 7]);
   });
 
+  it('leaves out release branches and their catch-up copies, which run older code (LAN-242)', async () => {
+    const withBranch = (id: number, head_branch: string) => ({ id, event: 'pull_request', conclusion: 'failure', head_branch });
+    const get = async () => ({ workflow_runs: [withBranch(1, 'claude/x'), withBranch(2, 'copy/ios/abbde04c'), withBranch(3, 'release/ios'), withBranch(4, 'main')] });
+    expect((await recentRuns(get, 'o/r', 10, 1)).map((r: { id: number }) => r.id)).toEqual([1, 4]);
+  });
+
   it('stops at the number asked for', async () => {
     expect((await recentRuns(get, 'o/r', 2)).map((r: { id: number }) => r.id)).toEqual([1, 4]);
   });
@@ -45,6 +51,40 @@ describe('which runs are counted', () => {
       { name: 'ui-web-nightly-results', expired: false }
     ];
     expect((await reportArtifacts(async () => ({ artifacts }), 'o/r', 1)).map((a: { name: string }) => a.name)).toEqual(['ui-web-p0-results-1']);
+  });
+});
+
+describe('a GitHub answer that fails now and then', () => {
+  const answers = (...statuses: (number | 'drop')[]) => {
+    const calls: string[] = [];
+    const fetchImpl = async (url: string) => {
+      calls.push(url);
+      const s = statuses.shift();
+      if (s === 'drop') throw new TypeError('fetch failed');
+      return new Response(JSON.stringify({ ok: true }), { status: s ?? 200 });
+    };
+    return { calls, fetchImpl: fetchImpl as unknown as typeof fetch };
+  };
+
+  it('tries again after a 502 or a dropped connection, and takes the next answer', async () => {
+    const a = answers(502, 'drop', 200);
+    const res = await fetchRetrying('https://x/zip', {}, { fetchImpl: a.fetchImpl, waitMs: 0 });
+    expect(res.status).toBe(200);
+    expect(a.calls).toHaveLength(3);
+  });
+
+  it('gives back a 4xx at once, and the last 5xx after three tries', async () => {
+    const notFound = answers(404, 200);
+    expect((await fetchRetrying('https://x/zip', {}, { fetchImpl: notFound.fetchImpl, waitMs: 0 })).status).toBe(404);
+    expect(notFound.calls).toHaveLength(1);
+    const down = answers(503, 503, 503, 200);
+    expect((await fetchRetrying('https://x/zip', {}, { fetchImpl: down.fetchImpl, waitMs: 0 })).status).toBe(503);
+    expect(down.calls).toHaveLength(3);
+  });
+
+  it('a GitHub GET survives one 502', async () => {
+    const a = answers(502, 200);
+    expect(await githubGet('t', a.fetchImpl, 0)('/repos/o/r')).toEqual({ ok: true });
   });
 });
 

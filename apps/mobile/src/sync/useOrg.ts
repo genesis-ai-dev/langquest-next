@@ -1,4 +1,4 @@
-import { OrgSession, ensureDeviceId, type OrgStatus, type SyncInspection } from '@langquest-next/sync';
+import { OrgSession, ensureDeviceId, type OrgStatus, type SyncClient, type SyncInspection } from '@langquest-next/sync';
 import { emptyOrgState, type EventPayloads, type OrgEventType, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -35,6 +35,8 @@ export interface OrgHandle {
    * language's client then re-queues work refused for want of one.
    */
   membershipEpoch: number;
+  /** The organization's client while a session is open, for a starting copy a teammate sends a newcomer (docs/nearby-sync-plan.md 14.1, 4). */
+  client: () => SyncClient<OrgState> | null;
 }
 
 const NOTHING_YET: OrgStatus = { pending: 0, live: false, pulled: false, settled: false, membershipEpoch: 0 };
@@ -103,9 +105,10 @@ export function useOrg(orgId: string | null, actorId: string): OrgHandle {
     await sessionRef.current?.append(type, payload);
   }, []);
   const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
+  const client = useCallback(() => sessionRef.current?.client ?? null, []);
   const { live, pulled, settled, membershipEpoch } = status;
   return useMemo(
-    () => ({ state, syncStatus, append, sync, live, inspect, pulled, settled, membershipEpoch }),
-    [state, syncStatus, append, sync, live, inspect, pulled, settled, membershipEpoch]
+    () => ({ state, syncStatus, append, sync, live, inspect, pulled, settled, membershipEpoch, client }),
+    [state, syncStatus, append, sync, live, inspect, pulled, settled, membershipEpoch, client]
   );
 }

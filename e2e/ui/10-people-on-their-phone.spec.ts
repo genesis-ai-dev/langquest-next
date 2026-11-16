@@ -26,9 +26,17 @@ test.afterEach(async ({ page }, info) => {
 test('PEOPLE-045 A member\'s new role reaches their phone', async ({ page, browser }) => {
   const w = world();
   const tom = w.accounts.TRANS.name;
-  const trans = await deviceAs(browser, w, 'TRANS');
+  const trans = await deviceAs(browser, w, 'TRANS', { before: installMicControl });
   await expect(tab(trans.page, 'work')).toBeVisible({ timeout: 60_000 });
   expect(await tabsShown(trans.page)).toEqual(['work', 'map', 'me']);
+  // TRANS records on this phone, so there is something of theirs on its record to keep. The events
+  // the seed wrote are not a stand-in: CI's snapshot worker cuts Alpha every minute, and a phone
+  // opened after a cut starts from it and stores none of the events before it (decision 88; LAN-247).
+  await openWorkspace(trans.page, w, 'P-NEW');
+  await recordParts(trans.page, 1);
+  const recorded = (await deviceEvents(trans.page, w.orgId, w.languages.A.languageId)).length;
+  expect(recorded).toBeGreaterThan(0);
+  await toTabs(trans.page);
 
   await openAs(page, w, 'ADMIN');
   await alphaMembers(page, w);
@@ -42,7 +50,8 @@ test('PEOPLE-045 A member\'s new role reaches their phone', async ({ page, brows
   await expect.poll(() => tabsShown(trans.page), { timeout: 60_000 }).toEqual(['map', 'inbox', 'me']);
   // What TRANS recorded stays on the record.
   const rows = await deviceEvents(trans.page, w.orgId, w.languages.A.languageId);
-  expect(rows.filter((r) => r.type === 'v1.VersionPublished' || r.type === 'v1.TakeComposed').length).toBeGreaterThan(0);
+  expect(rows.length).toBeGreaterThanOrEqual(recorded);
+  expect(rows.some((r) => r.type === 'v1.TakeComposed')).toBe(true);
 
   // No toast offers Undo (decision 134): TRANS's role is given back the same way it was changed.
   await text(page, tom).click();

@@ -72,7 +72,10 @@ tags:
 # onChangeText), so a typed code is read at its 32nd character and fails; and
 # on Android a pasted code reaches the server as an unknown invite (preview_invite
 # answers not_found for the token the field sends).
-- openLink: "langquestnext://invite?token=${maestro.copiedText}"
+- runFlow:
+    file: ../common/open-link.yaml
+    env:
+      LINK: "langquestnext://invite?token=${maestro.copiedText}"
 - extendedWaitUntil:
     visible: "Invite for Ana Test"
     timeout: 30000

@@ -1,5 +1,5 @@
 import { deriveSession, tabsFor } from '../src/shell/session';
-import { addressSection } from '../src/shell/routingModel';
+import { addressSection, joinLinkRoute, leaveLateWelcome } from '../src/shell/routingModel';
 import { pathFor, sectionOfPath } from '../src/web/webPaths';
 import { ORG, roleSession } from './sessions';
 
@@ -79,5 +79,30 @@ describe('WEB-019 a refresh never opens a section the person may not open, per r
     for (const p of ['/work', '/map', '/map/language', '/reports', '/manage', '/inbox', '/settings']) {
       expect(addressSection(sectionOfPath(p), stranger, true)).toBeNull();
     }
+  });
+});
+
+// Found on two emulators: a join link tapped outside the app held the code and opened Scan a code, which never went on, so a new person could not join.
+describe('a Let someone in link opened from outside the app (docs/nearby-sync-plan.md 14.1, 3)', () => {
+  const url = 'langquestnext://join?v=1&t=wifi-direct&s=DIRECT-xy&p=p&h=1&k=k&c=c';
+  it('takes a phone with nobody on it straight to joining', () => {
+    expect(joinLinkRoute(false, url)).toEqual({ screen: 'join_offline' });
+  });
+  it('takes anyone signed in to the scanner, with the link, which says why it is not for them', () => {
+    expect(joinLinkRoute(true, url)).toEqual({ screen: 'scan_qr', params: { code: url } });
+  });
+});
+
+describe('a welcome the server answered late (AUTH-058, LAN-252)', () => {
+  it('goes on to the home while the welcome is still the one screen', () => {
+    expect(leaveLateWelcome('welcome', 1, false, true)).toBe(true);
+  });
+  it('leaves the welcome alone when nothing came late, or the person is still to be welcomed', () => {
+    expect(leaveLateWelcome('welcome', 1, false, false)).toBe(false);
+    expect(leaveLateWelcome('welcome', 1, true, true)).toBe(false);
+  });
+  it('never moves someone already past it', () => {
+    expect(leaveLateWelcome('vision', 2, false, true)).toBe(false);
+    expect(leaveLateWelcome('my_work', 1, false, true)).toBe(false);
   });
 });

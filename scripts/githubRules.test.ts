@@ -52,7 +52,7 @@ describe('the ruleset for main', () => {
 
 describe('the workflow reader', () => {
   it('reads the jobs that run on a pull request', () => {
-    expect(pullRequestJobs(guardrails)).toEqual(['scope', 'checks', 'unit', 'coverage', 'server', 'web-smoke', 'ui-web', 'gate']);
+    expect(pullRequestJobs(guardrails)).toEqual(['scope', 'checks', 'unit', 'coverage', 'server', 'web-smoke', 'ui-web', 'android-native', 'gate']);
   });
 
   it('leaves out a nightly job and a push-only one, and reads both shapes of needs', () => {

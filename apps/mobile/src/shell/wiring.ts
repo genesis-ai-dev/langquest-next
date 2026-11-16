@@ -3,6 +3,8 @@ import { noteExpected } from '../diagnostics/report';
 import { setHelpAudioReporting } from '../helpMode/helpAudio';
 import { currentSession } from '../server/auth';
 import { ingestDiagnostics } from '../server/diagnostics';
+// Nearby sync's words, on a phone from the start; the web's come with the nearby screens.
+import '../nearby/nearbyWordsAtStart';
 
 /**
  * What the base folders (decisions.md 105) need from folders above them,

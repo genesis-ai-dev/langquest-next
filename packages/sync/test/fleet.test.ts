@@ -1,5 +1,5 @@
 import { emptyLanguageState, foldLanguage, languageLines, REDUCER_VERSION } from '@langquest-next/core';
-import { always, Fleet, FLEET_EPOCH, NETWORKS, offlineBetween, patchy, TIME, village, type Link } from '../src/testing';
+import { always, Fleet, FLEET_EPOCH, NETWORKS, never, offlineBetween, patchy, TIME, village, type Link, type SimDevice } from '../src/testing';
 
 /**
  * A small fleet on simulated time (docs/fleet-simulation.md): the app's
@@ -148,5 +148,146 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
       expect(d.client.fillProgress(), d.id).toBeNull();
       expect(lines(d.client.passageLines()), d.id).toEqual(lines(languageLines(server)));
     }
+  });
+
+  it('a team that shares nearby with no server ends, after one trip to town, with every phone the server\'s fold and nothing nearby', async () => {
+    // Why: a nearby phone is not a server (docs/nearby-sync-plan.md 5.1). The room and the sessions are the app's
+    // own code on fleet time; whatever they moved, once each phone reaches the server it must hold the server's
+    // log folded, with no teammate's row left waiting (`caughtUp` requires none).
+    const town = FLEET_EPOCH + 2 * TIME.DAY + 9 * TIME.HOUR;
+    const fleet = new Fleet({
+      seed: 5, audio: { bytesPerSecond: 16_000 }, keepOnDisk: 'half', nearby: {},
+      crew: { passages: 20, translators: 2, reviewers: 1, link: () => offlineBetween(FLEET_EPOCH + 2 * TIME.HOUR, town, always(NETWORKS.phone, 'phone')) }
+    });
+    await fleet.start();
+    const team = fleet.devices.slice(1);
+    for (let day = 0; day < 2; day++) {
+      await fleet.time.runUntil(FLEET_EPOCH + day * TIME.DAY + 17 * TIME.HOUR);
+      await fleet.nearby!.gather(team);
+      for (let i = 0; i < 360 && !fleet.nearby!.allStopped(team); i++) await fleet.runFor(10_000);
+      await fleet.nearby!.leave(team);
+    }
+    expect(fleet.nearby!.stats.eventsTaken).toBeGreaterThan(0);
+    expect(fleet.nearby!.stats.filesGot).toBeGreaterThan(0);
+    const r = fleet.report(await fleet.settle(), 0);
+    expect(r.errors).toEqual([]);
+    expect(r.agreement).toMatchObject({ caughtUp: true, agree: true, disagree: [] });
+    for (const d of fleet.devices) expect((await d.client.inspect()).nearby, d.id).toBe(0);
+  });
+
+  describe('delivery through a teammate (docs/nearby-sync-plan.md section 6, phase 4)', () => {
+    const villageTeam = (seed: number) => new Fleet({
+      seed, audio: { bytesPerSecond: 16_000 }, keepOnDisk: 'half', nearby: { delivery: true },
+      crew: { passages: 20, translators: 2, reviewers: 1, link: () => offlineBetween(FLEET_EPOCH + 2 * TIME.HOUR, FLEET_EPOCH + 1000 * TIME.DAY, always(NETWORKS.phone, 'phone')) }
+    });
+    const meet = async (fleet: Fleet, team: SimDevice[]) => {
+      await fleet.nearby!.gather(team);
+      for (let i = 0; i < 360 && !fleet.nearby!.allStopped(team); i++) await fleet.runFor(10_000);
+      await fleet.nearby!.leave(team);
+    };
+    const onServer = (fleet: Fleet) => new Set(fleet.server.stream(fleet.orgId, fleet.streamId).map((e) => e.id));
+
+    it('one phone alone carries everyone\'s work to the server: every event and every file the team made', async () => {
+      // Why: the purpose of delivery. After a full round of exchanges, any one phone with "Hold teammates'
+      // recordings" on, alone reaching the server, leaves it holding all the team's work, as each author.
+      const fleet = villageTeam(7);
+      await fleet.start();
+      const team = fleet.devices.slice(1);
+      for (let day = 0; day < 2; day++) {
+        await fleet.time.runUntil(FLEET_EPOCH + day * TIME.DAY + 17 * TIME.HOUR);
+        await meet(fleet, team);
+      }
+      fleet.stopWork();
+      await meet(fleet, team);
+      const made = new Set<string>();
+      const recorded = new Set<string>();
+      for (const d of team) {
+        for (const id of await d.eventIds()) made.add(id);
+        for (const l of (await d.client.inspect()).pending) if (l.event.type === 'v1.RecordingAdded') for (const c of l.event.payload.cards) recorded.add(c.hash);
+      }
+      const carrier = team[0]!;
+      for (const d of team) if (d !== carrier) d.setLink(never(NETWORKS.phone));
+      carrier.setLink(always(NETWORKS.phone, 'phone'));
+      await fleet.runFor(2 * TIME.HOUR);
+      const server = onServer(fleet);
+      expect([...made].filter((id) => !server.has(id))).toEqual([]);
+      expect([...recorded].filter((h) => !fleet.server.blobs.has(h))).toEqual([]);
+      expect(carrier.metrics.delivered).toBeGreaterThan(0);
+      const r = fleet.report(await fleet.settle(), 0);
+      expect(r.errors).toEqual([]);
+      expect(r.agreement).toMatchObject({ caughtUp: true, agree: true, disagree: [] });
+      for (const d of fleet.devices) expect((await d.client.inspect()).nearby, d.id).toBe(0);
+    });
+
+    it('a lost phone\'s shared work reaches the server through the survivors, and what never left it is all that is lost', async () => {
+      const fleet = villageTeam(8);
+      await fleet.start();
+      const team = fleet.devices.slice(1);
+      const gone = team[1]!;
+      await fleet.time.runUntil(FLEET_EPOCH + 17 * TIME.HOUR);
+      await meet(fleet, team);
+      const shared = new Set((await Promise.all(team.filter((d) => d !== gone).map(async (d) => (await d.nearbyRows()).filter((e) => e.actorId === gone.actorId).map((e) => e.id)))).flat());
+      await fleet.lose(gone);
+      expect(shared.size).toBeGreaterThan(0);
+      const r = fleet.report(await fleet.settle(), 0);
+      expect(r.agreement).toMatchObject({ caughtUp: true, agree: true });
+      const server = onServer(fleet);
+      expect([...shared].filter((id) => !server.has(id))).toEqual([]);
+      for (const d of fleet.devices) expect((await d.client.inspect()).nearby, d.id).toBe(0);
+    });
+  });
+
+  describe('joining offline (docs/nearby-sync-plan.md 14.1, phase 6)', () => {
+    const meet = async (fleet: Fleet, team: SimDevice[]) => {
+      await fleet.nearby!.gather(team);
+      for (let i = 0; i < 360 && !fleet.nearby!.allStopped(team); i++) await fleet.runFor(10_000);
+      await fleet.nearby!.leave(team);
+    };
+    const onServer = (fleet: Fleet) => new Set(fleet.server.stream(fleet.orgId, fleet.streamId).map((e) => e.id));
+    it.each([[true, false], [false, true]])('a newcomer let in with no server (kept %s, server cut %s) works, shares nearby, and at first contact holds the server\'s fold with nothing forged kept', async (kept, serverCut) => {
+      // Why: a starting copy is a stand-in. Whatever a teammate's copy said, the newcomer's work must reach
+      // teammates and the server under its own id, and the server's first download must leave no trace of the copy.
+      const fleet = new Fleet({
+        seed: 11, audio: { bytesPerSecond: 16_000 }, keepOnDisk: 'half', checkpointEvery: 20, serverCut, nearby: { delivery: true },
+        crew: { passages: 16, translators: 2, reviewers: 1, link: () => offlineBetween(FLEET_EPOCH + TIME.DAY + 12 * TIME.HOUR, FLEET_EPOCH + 1000 * TIME.DAY, always(NETWORKS.phone, 'phone')) }
+      });
+      await fleet.start();
+      await fleet.time.runUntil(FLEET_EPOCH + TIME.DAY + 12 * TIME.HOUR);
+      fleet.devices[0]!.setLink(never(NETWORKS.wifi));
+      const team = [...fleet.devices];
+      await fleet.time.runUntil(FLEET_EPOCH + TIME.DAY + 17 * TIME.HOUR);
+      const { device: newcomer, crypto, idSalt } = await fleet.addNewcomer('n0', never(NETWORKS.phone), { kept });
+      const inviter = team.find((d) => d.keepsOnDisk === kept && d.persona.role !== 'reviewer')!;
+      const forged = 'forged/p999';
+      const joined = await fleet.nearby!.letIn(inviter, newcomer, {
+        crypto, idSalt, name: 'Nyibol', roleId: 'translator',
+        forge: (copy) => { const s = copy.state as { units: Record<string, unknown> }; s.units[forged] = Object.values(s.units)[0]; return copy; }
+      });
+      expect(joined.newcomer.copy).toMatchObject({ whole: true });
+      expect(await newcomer.client.holdsCopy()).toBe(true);
+      const copied = await newcomer.wholeState();
+      expect(forged in copied.units).toBe(true);
+      for (const [unitId, u] of Object.entries(copied.units)) newcomer.persona.observe({ type: 'v1.UnitAdded', payload: { unitId, parentUnitId: u.parentUnitId, kind: u.kind, label: u.label, order: u.order } } as never);
+      const everyone = [...team, newcomer];
+      for (let day = 2; day < 4; day++) {
+        await fleet.time.runUntil(FLEET_EPOCH + day * TIME.DAY + 17 * TIME.HOUR);
+        await meet(fleet, everyone);
+      }
+      fleet.stopWork();
+      await meet(fleet, everyone);
+      const made = new Set((await newcomer.client.inspect()).pending.filter((l) => l.event.actorId === newcomer.actorId).map((l) => l.event.id));
+      expect(made.size).toBeGreaterThan(0);
+      for (const d of team) {
+        const held = await d.eventIds();
+        expect([...made].filter((id) => !held.has(id)), d.id).toEqual([]);
+      }
+      const r = fleet.report(await fleet.settle(), 0);
+      expect(r.errors).toEqual([]);
+      expect(r.agreement).toMatchObject({ caughtUp: true, agree: true, disagree: [] });
+      const server = onServer(fleet);
+      expect([...made].filter((id) => !server.has(id))).toEqual([]);
+      expect(await newcomer.client.holdsCopy()).toBe(false);
+      for (const d of fleet.devices) expect(forged in (await d.wholeState()).units, d.id).toBe(false);
+    });
   });
 });

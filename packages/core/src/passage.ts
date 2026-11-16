@@ -484,12 +484,16 @@ function patchIndexes(state: LanguageState, prev: RecordIndexes, changes: readon
 // ---- the passage -----------------------------------------------------------------
 
 /**
- * Whether a person may delete a version (LAN-83): whoever published it.
+ * Whether a person may delete a version (LAN-83): whoever published it, or
+ * an admin of the language (`admin`: they hold `manage_roles` there, as an
+ * Organization Admin or a Language Admin does), who may delete anyone's, so
+ * a passage whose work should not count (an import whose audio was lost)
+ * shows as not started again (decisions.md 124, amended 2026-11-13).
  * Deleting leaves a tombstone, since a reviewer offline may already hold
  * it and check it later: that check is kept to read and counts for nothing.
  */
-export function canDeleteVersion(p: Pick<PassageState, 'versions'>, takeId: string, actorId: string): boolean {
-  return p.versions.some((v) => v.takeId === takeId && v.by === actorId);
+export function canDeleteVersion(p: Pick<PassageState, 'versions'>, takeId: string, actorId: string, admin = false): boolean {
+  return p.versions.some((v) => v.takeId === takeId && (admin || v.by === actorId));
 }
 
 export function derivePassage(state: LanguageState, unitId: string, idx?: Indexes): PassageState {
@@ -1101,7 +1105,7 @@ export function recordAudioHashes(state: LanguageState): Set<string> {
   for (const d of Object.values(state.departures ?? {})) add(d.reasonBlobHash);
   for (const r of Object.values(state.requests ?? {})) add(r.noteBlobHash);
   for (const r of Object.values(state.responses ?? {})) add(r.blobHash);
-  for (const t of Object.values(state.keyTerms ?? {})) for (const a of Object.values(t.adjustments)) add(a.blobHash);
+  for (const t of Object.values(state.keyTerms ?? {})) { for (const a of Object.values(t.adjustments)) add(a.blobHash); for (const a of Object.values(t.audioRenderings ?? {})) add(a.blobHash); }
   return out;
 }
 

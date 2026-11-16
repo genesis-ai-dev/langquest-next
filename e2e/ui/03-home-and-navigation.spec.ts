@@ -324,6 +324,8 @@ test('NAV-012 Then: three rows, and the rest one tap on', async ({ page }) => {
   for (const k of rows) await expect(text(page, label(k))).toBeVisible();
   for (const k of ['P-NEW', 'P-DRAFT', 'P-NEEDS'] as const) await expect(text(page, label(k))).toHaveCount(0);
   await expect(text(page, 'Record · asked by Cora Coordinator')).toBeVisible();
+  // Each row ends with its passage's download button, so "ready offline" shows before the passage opens (LAN-19, decisions.md 166).
+  for (const k of rows) await expect(byId(page, `work-download-${W().passages[k].unitId}`)).toHaveAttribute('aria-label', /^(On this device|Download for offline|Downloading for offline|Only \d+ of \d+ files|Not on this device yet|Checking this device…)/);
   await button(page, '3 more for you').click();
   const all = await screen(page);
   const at = (k: PassageKey) => all.indexOf(label(k));

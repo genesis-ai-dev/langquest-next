@@ -1,11 +1,14 @@
 import { createHash } from 'node:crypto';
-import { emptyLanguageState, foldLanguage } from '@langquest-next/core';
+import { CLOCK_AHEAD_TOLERANCE_MS, decodeHlc, emptyLanguageState, foldLanguage, isHlc, type AnyEvent, type Role } from '@langquest-next/core';
 import { SNAPSHOT_SCHEDULE } from '../../snapshotWorker';
 import { FakeServer } from '../fakeServer';
+import { fakeSha256, fakeSigner } from '../memoryNearbyLink';
+import { base64urlEncode, newcomerProfileId } from '@langquest-next/core/nearby';
 import { seededRandom, type Random } from '../random';
 import { VirtualTime } from '../virtualTime';
 import { OFFICE_HOURS, SimDevice, type FleetContext, type WorkPattern } from './device';
 import { always, NETWORKS, TIME, type Link } from './links';
+import { FleetNearby, type FleetNearbyOptions, type NearbyStats } from './nearby';
 import { coordinator, REVIEW_KINDS, reviewer, translator, type Persona } from './personas';
 
 /** Monday 5 January 2026, 00:00 UTC: weekdays line up with work patterns. */
@@ -63,6 +66,14 @@ export interface FleetOptions {
    * first download by fill. Off, the server is one from before.
    */
   serverCut?: boolean;
+  /**
+   * Phones can share nearby (docs/nearby-sync-plan.md): each SyncClient takes the nearby
+   * platform, holds a fake-worker certificate, and the server attests what a phone pulled.
+   * Off, a fleet runs exactly as it did before nearby existed.
+   */
+  nearby?: FleetNearbyOptions | null;
+  /** The server refuses a clock over 5 minutes ahead of it, as `append_events` does; the phone re-stamps. Off by default, so runs without it count what they always did. */
+  clockAhead?: boolean;
 }
 
 /**
@@ -75,6 +86,10 @@ export class Fleet {
   readonly time = new VirtualTime(FLEET_EPOCH);
   readonly server = new FakeServer();
   readonly devices: SimDevice[] = [];
+  /** Phones lost or broken (`lose`): out of the run, their unsent work with them. */
+  readonly lost: SimDevice[] = [];
+  /** Sharing between phones, when `FleetOptions.nearby` turns it on. */
+  readonly nearby: FleetNearby | null = null;
   readonly orgId = 'org-fleet';
   readonly streamId = 'lang-fleet';
   snapshotsTaken = 0;
@@ -100,8 +115,19 @@ export class Fleet {
       audio: options.audio ?? null,
       recordedAt: new Map(),
       keepsOnDisk: (index) => options.keepOnDisk === true || (options.keepOnDisk === 'half' && index % 2 === 1),
-      ...(options.checkpointEvery !== undefined ? { checkpointEvery: options.checkpointEvery } : {})
+      ...(options.checkpointEvery !== undefined ? { checkpointEvery: options.checkpointEvery } : {}),
+      ...(options.nearby ? { nearbyPlatform: { sha256: fakeSha256, holdsCertificate: () => true } } : {})
     };
+    if (options.nearby) {
+      const roles = new Map<string, Role>();
+      this.nearby = new FleetNearby({
+        time: this.time, orgId: this.orgId, streamId: this.streamId,
+        roleOf: (actorId) => roles.get(actorId) ?? 'viewer'
+      }, options.nearby);
+      this.server.attester = (orgId, streamId, rows) => this.nearby!.worker.attestRows(orgId, streamId, rows);
+      this.server.relaying = options.nearby.delivery === true;
+      this.roles = roles;
+    }
     const { crew } = options;
     const work = crew.work ?? OFFICE_HOURS;
     this.add('coord', 'coordinator', coordinator(crew.passages, { redactShare: crew.redactShare ?? 0, random: this.random.fork('coord') }), work, always(NETWORKS.wifi, 'wifi'));
@@ -116,8 +142,31 @@ export class Fleet {
     }
   }
 
-  private add(id: string, actorId: string, persona: Persona, work: WorkPattern, link: Link): void {
-    this.devices.push(new SimDevice(id, actorId, persona, work, link, this.context, this.random.fork(`device:${id}`), this.devices.length));
+  private roles: Map<string, Role> | null = null;
+
+  private add(id: string, actorId: string, persona: Persona, work: WorkPattern, link: Link, index = this.devices.length): SimDevice {
+    this.roles?.set(actorId, persona.role);
+    const device = new SimDevice(id, actorId, persona, work, link, this.context, this.random.fork(`device:${id}`), index);
+    this.devices.push(device);
+    return device;
+  }
+
+  /**
+   * A new person's phone with nobody on it (docs/nearby-sync-plan.md 14.1, phase 6): a new install
+   * key and salt, an id that follows from them, a translator's work, and no server until its link
+   * says so. Installed, with nothing to work on until a starting copy arrives (`FleetNearby.letIn`).
+   * `kept` puts it where the fleet keeps the language on disk, or not.
+   */
+  async addNewcomer(id: string, link: Link, o: { kept: boolean }): Promise<{ device: SimDevice; crypto: ReturnType<typeof fakeSigner>; idSalt: string }> {
+    const crypto = fakeSigner(`fleet:${id}`);
+    const idSalt = base64urlEncode(fakeSha256(new TextEncoder().encode(`salt:${id}`)).slice(0, 16));
+    const actorId = (await newcomerProfileId(crypto.publicKey, idSalt, fakeSha256))!;
+    let index = this.devices.length;
+    if (this.context.keepsOnDisk(index) !== o.kept) index += 1;
+    const translators = this.options.crew.translators;
+    const device = this.add(id, actorId, translator({ actorId, index: translators, of: translators + 1, random: this.random.fork(`t:${id}`) }), this.options.crew.work ?? OFFICE_HOURS, link, index);
+    await device.install();
+    return { device, crypto, idSalt };
   }
 
   /** Install every app; the coordinator sets the language up at once. */
@@ -125,11 +174,20 @@ export class Fleet {
     const { realtime } = this.context;
     const unlisted = this.options.unlistedUntil;
     if (unlisted !== undefined) this.server.authorize = () => (this.time.now() < unlisted ? 'language not listed yet' : null);
+    if (this.options.clockAhead) {
+      const before = this.server.authorize;
+      this.server.authorize = (e: AnyEvent) => {
+        const now = this.time.now();
+        if (isHlc(e.hlc) && decodeHlc(e.hlc).wallMs > now + CLOCK_AHEAD_TOLERANCE_MS) return `clock ahead: server time ${now}`;
+        return before(e);
+      };
+    }
     this.server.appended.add(() => {
       if (!realtime.on) return;
       for (const d of this.devices) this.time.setTimeout(() => d.poke(), realtime.delayMs);
     });
     for (const d of this.devices) await d.install();
+    if (this.nearby) for (const d of this.devices) await this.nearby.enrol(d);
     const coord = this.devices[0]!;
     const setup = coord.persona.next();
     if (setup) {
@@ -186,6 +244,21 @@ export class Fleet {
     return this.time.runFor(ms);
   }
 
+  /** People stop working (their personas act no more), as `settle` does, while phones stay as they are. */
+  stopWork(): void {
+    this.working = false;
+  }
+
+  /** A phone lost or broken: it stops, and what it never sent goes with it. */
+  async lose(device: SimDevice): Promise<void> {
+    const at = this.devices.indexOf(device);
+    if (at < 0) return;
+    await this.nearby?.leave([device]);
+    device.stop();
+    this.devices.splice(at, 1);
+    this.lost.push(device);
+  }
+
   /** Run `fn` at simulated time `at` (ms since FLEET_EPOCH). */
   at(at: number, fn: () => void | Promise<void>): void {
     this.time.setTimeout(() => {
@@ -199,22 +272,35 @@ export class Fleet {
    * everything, or `maxMs` passes. Then every phone's fold is compared with
    * the server's log folded from scratch.
    */
-  async settle(maxMs = 12 * TIME.HOUR): Promise<Agreement> {
+  async settle(maxMs = 12 * TIME.HOUR, o: { unsentBy?: ReadonlySet<string> } = {}): Promise<Agreement> {
     this.working = false;
     const started = this.time.now();
     for (const d of this.devices) d.setLink(always(NETWORKS.wifi, 'wifi'));
     let caughtUp = false;
     while (this.time.now() - started < maxMs) {
       await this.time.runFor(TIME.MINUTE);
-      const all = await Promise.all(this.devices.map((d) => d.caughtUp()));
+      const all = await Promise.all(this.devices.map((d) => d.caughtUp(o)));
       if (all.every(Boolean)) { caughtUp = true; break; }
     }
     const settleMs = this.time.now() - started;
     for (const d of this.devices) d.stop();
-    const expected = digest(foldLanguage(this.server.stream(this.orgId, this.streamId), emptyLanguageState()));
+    const log = this.server.stream(this.orgId, this.streamId);
+    const expected = foldDigest(foldLanguage(log, emptyLanguageState()));
+    // Work only a lost author could send stays nearby without delivery (phase 4). A phone holding any of it must hold all
+    // that any phone holds, and agree on the server's log plus it; a phone that never met the team agrees on the log.
+    const unsent = new Map<string, AnyEvent>();
+    const held = new Map<SimDevice, number>();
+    if (o.unsentBy) {
+      for (const d of this.devices) {
+        const mine = (await d.nearbyRows()).filter((e) => o.unsentBy!.has(e.actorId));
+        held.set(d, mine.length);
+        for (const e of mine) unsent.set(e.id, e);
+      }
+    }
+    const withUnsent = unsent.size === 0 ? expected : foldDigest(foldLanguage([...log, ...unsent.values()], emptyLanguageState()));
     const disagree: string[] = [];
-    for (const d of this.devices) if (digest(await d.wholeState()) !== expected) disagree.push(d.id);
-    return { caughtUp, settleMs, agree: caughtUp && disagree.length === 0, disagree, digest: expected };
+    for (const d of this.devices) if (foldDigest(await d.wholeState()) !== ((held.get(d) ?? 0) > 0 ? withUnsent : expected)) disagree.push(d.id);
+    return { caughtUp, settleMs, agree: caughtUp && disagree.length === 0, disagree, digest: withUnsent };
   }
 
   report(agreement: Agreement | null, realMs: number): FleetReport {
@@ -249,6 +335,7 @@ export class Fleet {
         offlineSyncs: sum((d) => d.metrics.offlineSyncs),
         fills: sum((d) => d.metrics.fills),
         syncErrors: sum((d) => d.metrics.syncErrors),
+        delivered: sum((d) => d.metrics.delivered),
         syncCpuMs: stats(flat((d) => d.metrics.syncCpuMs)),
         appendCpuMs: stats(flat((d) => d.metrics.appendCpuMs)),
         // Each install loads once, and so does each adopted server snapshot; the rest are refolds.
@@ -278,9 +365,38 @@ export class Fleet {
         workListCpuSeconds: round(sum((d) => d.metrics.workListCpuMs) / 1000)
       } : null,
       agreement,
+      ...(this.nearby ? { nearby: this.nearbyReport(this.nearby.stats) } : {}),
       errors: this.time.errors.map((e) => (e instanceof Error ? e.message : String(e)))
     };
   }
+
+  private nearbyReport(n: NearbyStats): NearbyReport {
+    return {
+      pairings: n.pairings, ended: n.ended, eventsSent: n.eventsSent, eventsTaken: n.eventsTaken, refused: n.refused, overBudget: n.overBudget,
+      filesGot: n.filesGot, mbBluetooth: round((n.bytes['bluetooth'] ?? 0) / 1e6), mbWifi: round((n.bytes['wifi'] ?? 0) / 1e6),
+      farAhead: n.farAhead, clockOff: n.clockOff,
+      propagationMinutes: stats([...this.devices, ...this.lost].flatMap((d) => d.metrics.nearbyPropagationMs).map((ms) => ms / TIME.MINUTE))
+    };
+  }
+}
+
+/** What nearby sharing did over a run. */
+export interface NearbyReport {
+  /** Sessions a phone opened (each pairing once). */
+  pairings: number;
+  /** Sessions on either side, by how they ended. */
+  ended: Record<string, number>;
+  eventsSent: number;
+  eventsTaken: number;
+  refused: number;
+  overBudget: number;
+  filesGot: number;
+  mbBluetooth: number;
+  mbWifi: number;
+  farAhead: number;
+  clockOff: number;
+  /** From an append on one phone to its arrival on another from a teammate. */
+  propagationMinutes: Stats;
 }
 
 export interface Agreement {
@@ -314,6 +430,8 @@ export interface FleetReport {
     /** Passages filled in from the server's cut. */
     fills: number;
     syncErrors: number;
+    /** Teammates' events phones delivered that the server took as new (docs/nearby-sync-plan.md section 6). */
+    delivered: number;
     syncCpuMs: Stats;
     appendCpuMs: Stats;
     /** Full refolds of the local log, beyond the load at install and after adopting a snapshot. */
@@ -349,6 +467,8 @@ export interface FleetReport {
     workListCpuSeconds: number;
   } | null;
   agreement: Agreement | null;
+  /** When the run shared nearby (FleetOptions.nearby). */
+  nearby?: NearbyReport;
   errors: string[];
 }
 
@@ -368,7 +488,7 @@ function round(n: number): number {
  * guard that snapshots compact away). Keys are sorted, because two folds
  * of the same events in different orders insert keys in different orders.
  */
-function digest(state: object): string {
+export function foldDigest(state: object): string {
   const { appliedEventIds: _ignored, ...rest } = state as { appliedEventIds?: unknown };
   return createHash('sha256').update(canonical(rest)).digest('hex').slice(0, 16);
 }
