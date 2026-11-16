@@ -221,6 +221,13 @@ export function iosLane(i: PipelineInputs): StoreLane {
 }
 
 const SENT = new Set(['completed', 'inProgress']);
+/**
+ * The Play track that carried builds go to as drafts (apps/mobile/eas.json,
+ * submit.carried; decisions.md 246). A carried build never goes to review,
+ * so it is no store build waiting in internal testing, and the lane leaves
+ * its submissions out.
+ */
+export const CARRIED_TRACK = 'alpha';
 /** The newest release of a track among those sent: its version name and highest version code. */
 function newestSent(releases: PlayRelease[]): { name: string | null; code: number } | null {
   let best: { name: string | null; code: number } | null = null;
@@ -242,7 +249,7 @@ export function androidLane(i: PipelineInputs): StoreLane {
   const prod = i.play ? newestSent(i.play.production) : null;
   if (live) stage(stages, 'live').cards.push(buildCard(prod?.name === live ? String(prod.code) : codeOf(live), live, 'what people download', 'live', null));
   else notes.push("Google Play's page could not be read, so which version people download is not known.");
-  const subs = i.submissions.filter((s) => s.platform === 'android');
+  const subs = i.submissions.filter((s) => s.platform === 'android' && s.track !== CARRIED_TRACK);
 
   if (i.play) {
     const inReview = !!prod && prod.name !== live && (!live || newerVersion(prod.name, live));
@@ -459,7 +466,7 @@ const prsByCommit = new Map<string, { pr: number; title: string } | null>();
 export const PIPELINE_QUERY = `query ($id: String!) {
   app { byId(appId: $id) {
     builds(offset: 0, limit: 40, filter: { buildProfile: "production" }) { status platform createdAt completedAt appVersion appBuildVersion runtime { version } }
-    submissions(filter: {}, offset: 0, limit: 12) { status platform createdAt completedAt androidConfig { track } submittedBuild { appVersion appBuildVersion } }
+    submissions(filter: {}, offset: 0, limit: 30) { status platform createdAt completedAt androidConfig { track } submittedBuild { appVersion appBuildVersion } }
     updateBranchByName(name: "production") { updateGroups(offset: 0, limit: 30) { id platform createdAt message gitCommitHash isRollBackToEmbedded runtime { version } } }
   } }
 }`;

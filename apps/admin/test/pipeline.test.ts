@@ -1,6 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  androidLane, attachUpdates, iosLane, newerVersion, pendingCopies, pipelineAlerts, pipelineFrom, pipelineSection, prFromMessage, PIPELINE_QUERY,
+  androidLane, CARRIED_TRACK, attachUpdates, iosLane, newerVersion, pendingCopies, pipelineAlerts, pipelineFrom, pipelineSection, prFromMessage, PIPELINE_QUERY,
   type PipelineInputs, type StoreLane
 } from '../src/sources/pipeline';
 
@@ -143,6 +144,18 @@ describe('the Android lane', () => {
     expect(read(androidLane(w)).waiting).toContain('build 53: upload to Google Play failed');
     w.submissions[0] = { ...w.submissions[0]!, status: 'IN_PROGRESS', track: 'production' };
     expect(read(androidLane(w)).review).toContain('build 53: uploading to production');
+  });
+
+  it('leaves out carried builds, which go to Play\'s alpha track as drafts and never to review', () => {
+    const carried = (build: string, status: string, h: number) => ({ platform: 'android' as const, status, at: hAgo(h), doneAt: status === 'FINISHED' ? hAgo(h - 0.1) : null, track: CARRIED_TRACK, version: `2026.1104.${2000 + Number(build)}`, build });
+    const w = world({ play: null });
+    w.submissions.unshift(carried('55', 'IN_PROGRESS', 0.5), carried('54', 'ERRORED', 1), carried('53', 'FINISHED', 2));
+    expect(read(androidLane(w))).toMatchObject({
+      waiting: ['build 52: waits for the review ahead of it to end'],
+      review: ['build 50: in review, or rejected (Play Console says which)']
+    });
+    expect(read(androidLane({ ...w, play: world().play }))).toEqual(read(androidLane(world())));
+    expect(JSON.parse(readFileSync(new URL('../../mobile/eas.json', import.meta.url), 'utf8')).submit.carried.android.track).toBe(CARRIED_TRACK);
   });
 });
 
