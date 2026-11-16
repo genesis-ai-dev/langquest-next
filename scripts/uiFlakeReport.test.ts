@@ -33,6 +33,12 @@ describe('which runs are counted', () => {
     expect((await recentRuns(get, 'o/r', 10)).map((r: { id: number }) => r.id)).toEqual([1, 4, 5, 7]);
   });
 
+  it('leaves out release branches and their catch-up copies, which run older code (LAN-242)', async () => {
+    const withBranch = (id: number, head_branch: string) => ({ id, event: 'pull_request', conclusion: 'failure', head_branch });
+    const get = async () => ({ workflow_runs: [withBranch(1, 'claude/x'), withBranch(2, 'copy/ios/abbde04c'), withBranch(3, 'release/ios'), withBranch(4, 'main')] });
+    expect((await recentRuns(get, 'o/r', 10, 1)).map((r: { id: number }) => r.id)).toEqual([1, 4]);
+  });
+
   it('stops at the number asked for', async () => {
     expect((await recentRuns(get, 'o/r', 2)).map((r: { id: number }) => r.id)).toEqual([1, 4]);
   });
