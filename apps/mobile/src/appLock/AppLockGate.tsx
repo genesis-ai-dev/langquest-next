@@ -97,9 +97,11 @@ function LockFace(props: { actorId: string }) {
         {forgot ? (
           <>
             <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{t('account.signOut.question')}</Text>
-            <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" help={t('account.appLock.signOutHelp')}
-              onPress={() => void signOut()} disabled={busy} />
-            <GhostBtn label={t('common.back')} help={t('account.appLock.backHelp')} onPress={() => { setForgot(false); setError(''); }} disabled={busy} />
+            <View style={styles.buttons}>
+              <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" help={t('account.appLock.signOutHelp')}
+                onPress={() => void signOut()} disabled={busy} />
+              <GhostBtn label={t('common.back')} help={t('account.appLock.backHelp')} onPress={() => { setForgot(false); setError(''); }} disabled={busy} />
+            </View>
           </>
         ) : (
           <>
@@ -139,5 +141,6 @@ function useNow(until: number): number {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   face: { backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: space.xl },
-  column: { width: '100%', maxWidth: 360, alignItems: 'center', gap: space.md }
+  column: { width: '100%', maxWidth: 360, alignItems: 'center', gap: space.md },
+  buttons: { alignSelf: 'stretch', gap: space.sm }
 });
