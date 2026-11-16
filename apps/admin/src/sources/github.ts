@@ -1,9 +1,14 @@
-import { getJson, hoursAgo, ok, type Alert, type Section } from '../section';
+import { hoursAgo, ok, type Alert, type Section } from '../section';
+import { githubApi, type GitHubEnv } from './githubApi';
+import { NIGHTLIES } from './nightly';
+
+export { githubApi, type GitHubEnv };
 
 /**
  * The code and what runs it: which commit the web app serves (its
  * /version.json) against `main` on GitHub, and the latest run of each
- * GitHub Actions workflow on `main`. Merging to `main` deploys, so a web app
+ * GitHub Actions workflow on `main`, read workflow by workflow so one that
+ * runs every few minutes cannot push the others out of a list of runs. Merging to `main` deploys, so a web app
  * left behind `main` is a deploy that failed (every Workers Build failed
  * from 2026-10-16 to 10-19; docs/cloudflare.md). A failed run that says what
  * only a person can fix (Gemini's credit, a key or token refused) is a
@@ -14,10 +19,15 @@ import { getJson, hoursAgo, ok, type Alert, type Section } from '../section';
 interface Commit { sha: string; commit: { message: string; committer: { date: string } | null } }
 interface Compare { status: string; ahead_by: number; behind_by: number; files?: { filename: string }[] }
 interface Runs { workflow_runs: { id: number; name: string | null; path?: string; status: string | null; conclusion: string | null; head_sha: string; created_at: string; html_url: string; event: string; run_number: number }[] }
-interface Jobs { jobs: { id: number; conclusion: string | null }[] }
+interface Workflows { workflows: { id: number; name: string; path: string; state: string }[] }
+interface Jobs { jobs: { id: number; name: string; conclusion: string | null }[] }
 interface Annotation { title: string | null; message: string; annotation_level: string }
 
-export interface Run { id: number; workflow: string; status: string; conclusion: string | null; sha: string; at: string; url: string; event: string; number: number }
+export interface Run {
+  id: number; workflow: string; path?: string | undefined; status: string; conclusion: string | null; sha: string; at: string; url: string; event: string; number: number;
+  /** A failed scheduled run of a nightly test workflow whose failed jobs the Nightly tests part says (sources/nightly.ts): no alert here. */
+  nightly?: boolean;
+}
 
 /**
  * What only a person can fix, as a failed run says it: an annotation titled
@@ -59,12 +69,24 @@ export function changesApp(files: readonly { filename: string }[] | undefined): 
 }
 
 /**
- * Workflows that run every few minutes, read on their own: in the list of
- * main's latest runs they would leave out every other workflow. The watch for
- * user issues runs every 15 minutes (decisions.md 202).
+ * This repository's own workflows that GitHub still runs. Dependabot's and
+ * CodeQL's (`dynamic/…`) are not ours. Each is read on its own: in one list
+ * of main's latest runs, the watch for user issues (every 15 minutes,
+ * decisions.md 202) and release-branches (hourly) left out every run older
+ * than about 8 hours, the nightly tests among them.
  */
-export const FREQUENT_WORKFLOWS = ['user-issues.yml'];
-const frequent = (r: { path?: string }) => FREQUENT_WORKFLOWS.some((f) => (r.path ?? '').startsWith(`.github/workflows/${f}`));
+export const ownWorkflows = (w: Workflows['workflows']) => w.filter((x) => x.state === 'active' && x.path.startsWith('.github/workflows/'));
+
+/**
+ * Whether the Nightly tests part already says why this run failed: a
+ * scheduled run of a nightly test workflow whose every failed job is one its
+ * lines cover. Any other job failing there (checks, the flake report) is
+ * still said here.
+ */
+export function saidByNightly(run: Pick<Run, 'event' | 'path'>, failedJobs: readonly string[]): boolean {
+  const n = NIGHTLIES.find((x) => run.path === `.github/workflows/${x.workflow}`);
+  return run.event === 'schedule' && n !== undefined && failedJobs.length > 0 && failedJobs.every((j) => n.covers.test(j));
+}
 
 /** How long a merge may take to reach the web app before it counts as stuck: the export alone takes a few minutes. */
 export const DEPLOY_GRACE_H = 0.75;
@@ -85,13 +107,14 @@ export function codeAlerts(code: Code, now = Date.now()): Alert[] {
     out.push({ level: 'problem', text: `${n.what}: ${n.text} (GitHub workflow "${n.workflow}")`, link: n.link });
   }
   for (const r of code.runs) {
-    if (failedRun(r) && !code.needsYou.some((n) => n.workflow === r.workflow)) {
+    if (failedRun(r) && !r.nightly && !code.needsYou.some((n) => n.workflow === r.workflow)) {
       out.push({ level: 'watch', text: `GitHub workflow "${r.workflow}" failed on main (run ${r.number}, ${r.event}).`, link: r.url });
     }
   }
   return out;
 }
 
+const FAILED_JOB = new Set(['failure', 'timed_out', 'cancelled']);
 const failedRun = (r: Run) => r.conclusion === 'failure' || r.conclusion === 'timed_out' || r.conclusion === 'startup_failure';
 
 /** A run's "Needs you" annotations, once each, with the link its message ends with (or the run's own). */
@@ -125,25 +148,9 @@ export function latestPerWorkflow(runs: Runs['workflow_runs']): Run[] {
     const name = r.name ?? 'workflow';
     if (seen.has(name)) continue;
     seen.add(name);
-    out.push({ id: r.id, workflow: name, status: r.status ?? 'unknown', conclusion: r.conclusion, sha: r.head_sha.slice(0, 8), at: r.created_at, url: r.html_url, event: r.event, number: r.run_number });
+    out.push({ id: r.id, workflow: name, path: r.path, status: r.status ?? 'unknown', conclusion: r.conclusion, sha: r.head_sha.slice(0, 8), at: r.created_at, url: r.html_url, event: r.event, number: r.run_number });
   }
   return out;
-}
-
-export interface GitHubEnv { GITHUB_REPO: string; ADMIN_GITHUB_TOKEN?: string }
-
-/** Reads `path` under the repository on GitHub's API; the repository is public, so the token only lifts the anonymous rate limit. */
-export function githubApi(env: GitHubEnv, fetcher: typeof fetch): <T>(path: string, what: string) => Promise<T> {
-  const headers: Record<string, string> = {
-    accept: 'application/vnd.github+json',
-    'x-github-api-version': '2022-11-28',
-    'user-agent': 'langquest-next-admin',
-    ...(env.ADMIN_GITHUB_TOKEN ? { authorization: `Bearer ${env.ADMIN_GITHUB_TOKEN}` } : {})
-  };
-  const api = `https://api.github.com/repos/${env.GITHUB_REPO}`;
-  const anonymous = env.ADMIN_GITHUB_TOKEN ? '' : ' Without ADMIN_GITHUB_TOKEN, GitHub limits anonymous calls per address, which a Worker shares.';
-  return <T>(path: string, what: string) => getJson<T>(fetcher, `${api}${path}`, { headers }, what)
-    .catch((e: Error) => { throw new Error(`${e.message}${anonymous}`); });
 }
 
 export async function codeSection(env: GitHubEnv & { APP_URL: string }, fetcher: typeof fetch = fetch): Promise<Section<Code>> {
@@ -153,13 +160,10 @@ export async function codeSection(env: GitHubEnv & { APP_URL: string }, fetcher:
   const live = fetcher(liveUrl, { signal: AbortSignal.timeout(8000) })
     .then(async (r) => (r.ok ? { build: String(((await r.json()) as { build?: unknown }).build ?? '') || null } : { build: null, error: `HTTP ${r.status}` }))
     .catch((e: unknown) => ({ build: null, error: e instanceof Error ? e.name : 'no answer' }));
-  const [head, runs, frequentRuns, liveBuild] = await Promise.all([
-    gh<Commit>('/commits/main', 'GitHub main'),
-    gh<Runs>('/actions/runs?branch=main&per_page=40', 'GitHub Actions'),
-    Promise.all(FREQUENT_WORKFLOWS.map((f) => gh<Runs>(`/actions/workflows/${f}/runs?branch=main&per_page=1`, 'GitHub Actions')
-      .then((r) => r.workflow_runs, () => []))).then((r) => r.flat()),
-    live
-  ]);
+  // The latest run on main of each workflow, one call each; a workflow that cannot be read is left out.
+  const latestRuns = gh<Workflows>('/actions/workflows?per_page=100', 'GitHub workflows').then((w) => Promise.all(ownWorkflows(w.workflows)
+    .map((f) => gh<Runs>(`/actions/workflows/${f.id}/runs?branch=main&per_page=1`, 'GitHub Actions').then((r) => r.workflow_runs, () => [])))).then((r) => r.flat());
+  const [head, runs, liveBuild] = await Promise.all([gh<Commit>('/commits/main', 'GitHub main'), latestRuns, live]);
   let behind: number | null = null;
   let appChanged: boolean | null = null;
   if (liveBuild.build && head.sha.startsWith(liveBuild.build)) { behind = 0; appChanged = false; }
@@ -168,10 +172,12 @@ export async function codeSection(env: GitHubEnv & { APP_URL: string }, fetcher:
     behind = compare?.ahead_by ?? null;
     appChanged = compare ? changesApp(compare.files) : null;
   }
-  const latest = latestPerWorkflow([...runs.workflow_runs.filter((r) => !frequent(r)), ...frequentRuns].sort((a, b) => b.created_at.localeCompare(a.created_at)));
-  // A failed run's first few failed jobs, read for what only a person can fix; a source that cannot read them keeps the plain failure.
+  const latest = latestPerWorkflow([...runs].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+  // A failed run's failed jobs: whether Nightly tests says them, and the first few read for what only a person can fix.
+  // A source that cannot read them keeps the plain failure.
   const needsYou = (await Promise.all(latest.filter((r) => failedRun(r) && OWN_EVENTS.has(r.event)).map(async (run) => {
     const jobs = await gh<Jobs>(`/actions/runs/${run.id}/jobs?filter=latest&per_page=100`, 'GitHub jobs').catch(() => ({ jobs: [] }));
+    run.nightly = saidByNightly(run, jobs.jobs.filter((j) => j.conclusion !== null && FAILED_JOB.has(j.conclusion)).map((j) => j.name));
     const read = jobs.jobs.filter((j) => j.conclusion === 'failure').slice(0, JOBS_READ);
     const annotations = (await Promise.all(read.map((j) => gh<Annotation[]>(`/check-runs/${j.id}/annotations`, 'GitHub annotations').catch(() => [])))).flat();
     return needsYouOf(run, annotations);

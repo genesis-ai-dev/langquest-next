@@ -10,11 +10,13 @@ export interface LanguageSyncStatus {
   pending: number;
   /** The last sync's outcome, for the sync screen. */
   lastSync: string;
-  /** Recordings waiting to go up and audio waiting to come down, and the highest each has been since the queue was last empty. */
+  /** This person's recordings waiting to go up (not a teammate's, which sign-out does not wait for) and audio waiting to come down, and the highest each has been since the queue was last empty. */
   pendingUp: number;
   pendingDown: number;
   peakUp: number;
   peakDown: number;
+  /** Teammates' recordings here the server has not confirmed: the Sync screen's "Holding N for teammates" (docs/nearby-sync-plan.md 5.8). Android only; 0 elsewhere. */
+  holding: number;
   /** Audio files on this phone now; a new set only when the session publishes (about twice a second at most). */
   present: ReadonlySet<string>;
   /** Recordings waiting to upload by passage, and what this device sent and when (decisions.md 166). */
@@ -34,7 +36,7 @@ const NO_FILES: ReadonlySet<string> = new Set();
 const NO_UPLOADS: ReadonlyMap<string, PassageUploads> = new Map();
 
 export const NO_LANGUAGE_STATUS: LanguageSyncStatus = {
-  pending: 0, lastSync: 'never', pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: NO_FILES, uploads: NO_UPLOADS, sent: [],
+  pending: 0, lastSync: 'never', pendingUp: 0, pendingDown: 0, holding: 0, peakUp: 0, peakDown: 0, present: NO_FILES, uploads: NO_UPLOADS, sent: [],
   uploading: NO_FILES, downloading: NO_FILES
 };
 

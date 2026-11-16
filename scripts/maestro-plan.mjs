@@ -58,3 +58,11 @@ export function skipReport(/** @type {{ tag: string; why: string }[]} */ skips, 
   }
   return lines;
 }
+
+/** Each flow a run leaves out, with the tag and why: one entry per flow, the first rule that skips it. */
+export function skippedFlows(/** @type {{ tag: string; why: string }[]} */ skips, /** @type {{ name: string; tags: string[] }[]} */ flows) {
+  return flows.flatMap((f) => {
+    const s = skips.find((rule) => f.tags.includes(rule.tag));
+    return s ? [{ flow: f.name, tag: s.tag, why: s.why }] : [];
+  });
+}

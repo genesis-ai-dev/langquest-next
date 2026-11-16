@@ -20,7 +20,9 @@
 # job reports nothing: the deploy watchdog routine finds the issue left in
 # Deploying.
 # The typecheck and unit tests (the same as the pre-push hook) run first.
-# This workflow is the only way to make a store build (decisions.md 156).
+# This workflow is the only way to make a store build (decisions.md 156),
+# and a carried build, apart from the store build's jobs (the carried_* jobs
+# below, docs/nearby-sync-plan.md 14.4).
 name: Deploy to testers
 
 on:
@@ -38,12 +40,13 @@ on:
       - '!apps/mobile/public/**'
       - '!**/*.md'
 
-# Node 24, as on developer machines and in GitHub CI: its npm 11 wrote the
-# lockfile, and the image's default npm stops at `npm ci` with "Missing:
-# typescript@5.9.3 from lock file". Builds take theirs from eas.json.
+# Node 24 (.node-version, held by scripts/toolchain.test.ts), as on developer
+# machines and in GitHub CI: its npm 11 wrote the lockfile, and the image's
+# default npm stops at `npm ci` with "Missing: typescript@5.9.3 from lock
+# file". Builds take theirs from eas.json.
 defaults:
   tools:
-    node: '24'
+    node: '24.22.3'
 
 jobs:
   checks:
@@ -186,6 +189,70 @@ jobs:
     params:
       branch: production
       platform: android
+
+  # The carried build (docs/nearby-sync-plan.md 14.4, scripts/carried-build.mjs):
+  # an APK holding this merge's JavaScript, for a teammate to carry to a phone
+  # with no internet or no Play Store. One is due when the APK bucket has no
+  # file named for this checkout's reducer, lines and protocol versions and the
+  # Android fingerprint, so a merge that changes none of them makes none, and a
+  # publish that failed is tried again by the next merge. These jobs need only
+  # the fingerprint, and no store job needs them, so their failure never holds
+  # up publish_android_update or a store upload. Each step fails closed: a check
+  # that cannot tell, or an answer from Google or the bucket that is not what
+  # the script expects, stops the job with a plain message and writes nothing.
+  # get_android_build matches profile production, so a carried build (profile
+  # carried) never stands in for a store build that failed. It goes to Play's alpha track as a draft (eas.json, submit.carried),
+  # which scripts/play-review.mjs never reads, so it is never sent to review.
+  # It reads PLAY_REVIEW_KEY (GET requests only) and the APK bucket's limited
+  # R2 token, APK_R2_ACCESS_KEY_ID and APK_R2_SECRET_ACCESS_KEY, from EAS's
+  # production environment (docs/environments.md, "The carried build").
+  carried_check:
+    name: Check whether a carried build is due
+    needs: [fingerprint]
+    environment: production
+    outputs:
+      due: ${{ steps.check.outputs.due }}
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - id: check
+        name: Ask the APK bucket for this build's file by name
+        run: |
+          cd ../..
+          due="$(npx tsx scripts/carried-build.mjs --check --fingerprint '${{ needs.fingerprint.outputs.android_fingerprint_hash }}')" || exit 1
+          set-output due "$due"
+  build_carried:
+    name: Build the carried build
+    needs: [carried_check]
+    if: ${{ needs.carried_check.outputs.due == 'true' }}
+    type: build
+    # Held by the same guard as a store build (scripts/store-build-guard.mjs),
+    # and versioned from the merge time like one; it uses up a version code,
+    # so later store builds simply number higher.
+    env:
+      LQ_STORE_BUILD_REF: ${{ github.ref }}
+      LQ_STORE_VERSION_TIME: ${{ github.event.head_commit.timestamp }}
+    params:
+      platform: android
+      profile: carried
+  submit_carried:
+    name: Upload the carried build to Play's alpha track as a draft
+    needs: [build_carried]
+    type: submit
+    params:
+      build_id: ${{ needs.build_carried.outputs.build_id }}
+      profile: carried
+  publish_carried:
+    name: Put the carried build's signed universal APK in the APK bucket
+    needs: [fingerprint, build_carried, submit_carried]
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Fetch the Play-signed universal APK and put it in the APK bucket under its name
+        run: |
+          cd ../..
+          npx tsx scripts/carried-build.mjs --publish --version-code '${{ needs.build_carried.outputs.app_build_version }}' --fingerprint '${{ needs.fingerprint.outputs.android_fingerprint_hash }}' --build-fingerprint '${{ needs.build_carried.outputs.fingerprint_hash }}'
 
   linear_ios_update:
     name: Tell Linear (ios update)

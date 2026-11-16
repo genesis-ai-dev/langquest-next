@@ -45,6 +45,19 @@ Baseline numbers for every scenario at several sizes are in
 | `reducerBump` | An update changes the reducer: the server first, then every phone over an hour, each keeping its store but not its checkpoint (decision 110), so it catches up through the server snapshot while the team works and the server writes snapshots on its schedule (decision 88). `--keepStore=0` reinstalls instead | Snapshot outcomes, minutes to catch up, megabytes |
 | `slowLink` | Phones on a 2 KB/s link join a busy language | Whether each joiner's snapshot went `stale`, minutes, megabytes |
 | `refoldTriggers` | The language is not listed for its first 10 hours (its events refused and re-queued), then the coordinator redacts notes as it goes | Refolds while unlisted and after, the sync CPU they cost, empty snapshot lookups |
+| `villageMonth` | A team with no server for a month meets with Share nearby open each evening, then makes one trip to town; `--atBudget=1` (the default) has one member write notes up to the budget per signer (decision 216) | Meetings and pairings, radio megabytes, nearby rows on each phone, load and fold time before town (`SimDevice.timeLoad`), agreement with nothing nearby after |
+| `wrongDate` | One phone's date is years ahead; the server refuses a clock over 5 minutes ahead (`clockAhead`) and that phone re-stamps | Far-ahead rows teammates held, teammates' stamps (none ahead), sessions warned of the clock, events ahead on the server after (none) |
+| `fiveInRoom` | Five phones with no signal meet in one room, then again after one went to town, then once with nothing new | Pairings and minutes to level against 6 (a good order) and 10 (every pair), review audio ahead of backups in each session, the cost of the gap a trip to town opens |
+| `lostPhone` | A phone is lost after sharing nearby (`Fleet.lose`); with `delivery` (on by default, phase 4) the survivors deliver its work | Survivors hold all it shared; after town the server holds every event and file it shared, nothing stays nearby, and what never left that phone is reported (`delivery=0`: survivors agree on the log plus its work, which stays nearby) |
+| `nearbyCarry` | A village team shares nearby each evening, then one phone alone reaches the server (docs/nearby-sync-plan.md section 6) | Events and files the team made missing from the server after that phone's trip (none), how many it delivered, minutes in town, then agreement with nothing nearby |
+| `nearbyTown` | The same team, with a different phone going to town each morning for `hours` hours | Per trip, teammates' rows that phone held and how many the server then lacked (none), events delivered, then agreement with nothing nearby |
+| `nearbyNewcomer` | A team goes to a village; a new person's phone with nobody on it is let in by a teammate over a QR link and takes a starting copy, works and shares nearby, then everyone reaches the server (docs/nearby-sync-plan.md 14.1). `forged=1` lies in the copy; `kept`, `serverCut` pick the copy's and first contact's path | The copy whole, the newcomer's events on each teammate before town and on the server after, the copy gone and nothing forged left on any phone, then agreement |
+
+The nearby scenarios run the app's own room and sessions (`packages/sync/src/testing/fleet/nearby.ts`):
+memory radios, each link carrying its bytes at its kind's speed (Bluetooth 40 KB/s, Wi-Fi
+Direct 5 MB/s, from the reports in `nearby-sync-plan.md` section 4), a fake-worker certificate
+per phone, and the door's privileges from each persona's fixed role. A fleet with no
+`nearby` option runs exactly as before.
 
 ## Reading the report
 

@@ -57,6 +57,7 @@ const CHANGED_SINCE = { name: 'changedSince', in: 'query', schema: time(), descr
 /** The server's own time for a thing (decisions.md 188), beside the clock of the phone that made it. */
 const UPLOADED = 'When LangQuest\'s server received it, by the server\'s clock. A phone that was offline sends days of work at once: its own times stay old, this is when it arrived.';
 const FILE_UPLOADED = 'When LangQuest\'s server stored the file, by the server\'s clock. Null while the server holds no good copy, usually because the phone has not uploaded it yet; the link plays only once it has.';
+const ORIGIN = 'How it was made: app_recording, recorded in an app (LangQuest Next, or LangQuest v2\'s app); web_upload, a file uploaded to LangQuest v2\'s website instead. LangQuest Next itself takes no uploaded audio yet. Uploads the import brought over before origin existed show web_upload after its next nightly whole read (03:15 UTC).';
 const V2_UPLOADED = 'For work brought over from LangQuest v2: when v2\'s server received it, by v2\'s clock (uploadedAt is when LangQuest Next got it from the import). Null for work made in LangQuest Next, and where v2 kept no time.';
 
 function schemas(): Record<string, Schema> {
@@ -68,7 +69,7 @@ function schemas(): Record<string, Schema> {
     order: text('Sorts passages into display order, compared as plain strings.'),
     reference: nullable(ref('PassageReference')),
     status: ref('Status'),
-    version: nullable(obj({ n: int(), takeId: text(), submittedAt: time('When it was published, by the phone\'s clock.'), uploadedAt: nullable(time(UPLOADED)), v2UploadedAt: nullable(time(`${V2_UPLOADED} For a version, when v2 had all of it: the newest time on its parts.`)), durationMs: int() }, [],
+    version: nullable(obj({ n: int(), takeId: text(), submittedAt: time('When it was published, by the phone\'s clock.'), uploadedAt: nullable(time(UPLOADED)), v2UploadedAt: nullable(time(`${V2_UPLOADED} For a version, when v2 had all of it: the newest time on its parts.`)), origin: text(`${ORIGIN} A version is mixed when it holds parts of both.`, { enum: ['app_recording', 'web_upload', 'mixed'] }), durationMs: int() }, [],
       'The version this token hears: the latest with read, the approved one with read:published alone. Null when there is none.')),
     approvedVersion: nullable(obj({ n: int(), takeId: text() }, [], 'The newest version every step approved; what a listening app should play.')),
     releases: list(ref('Release'), 'Where a version is live, one entry per channel.'),
@@ -80,7 +81,7 @@ function schemas(): Record<string, Schema> {
     reviews: list(ref('Review'), 'With read: every review of every version. With read:published alone: listener reviews of version.'),
     steps: list(ref('Step'), 'The language\'s review flow and where the passage is in it. Needs read.'),
     requests: list(ref('Request'), 'Work asked for and not done yet, oldest first. Needs read.'),
-    versions: list(obj({ n: int(), takeId: text(), submittedAt: time('By the phone\'s clock.'), uploadedAt: nullable(time(UPLOADED)), v2UploadedAt: nullable(time(`${V2_UPLOADED} For a version, when v2 had all of it: the newest time on its parts.`)) }), 'Every version, oldest first. Needs read.'),
+    versions: list(obj({ n: int(), takeId: text(), submittedAt: time('By the phone\'s clock.'), uploadedAt: nullable(time(UPLOADED)), v2UploadedAt: nullable(time(`${V2_UPLOADED} For a version, when v2 had all of it: the newest time on its parts.`)), origin: text(`${ORIGIN} A version is mixed when it holds parts of both.`, { enum: ['app_recording', 'web_upload', 'mixed'] }) }), 'Every version, oldest first. Needs read.'),
     approvedAudio: list(ref('AudioCard'), 'approvedVersion\'s cards in playing order, so a listening app keeps playing what it published while a newer version is in review; empty when nothing is approved. Needs read.')
   };
   const passage = (optional: string[], description: string) => obj({ ...summary, ...includes }, optional, description);
@@ -163,7 +164,8 @@ function schemas(): Record<string, Schema> {
     AudioCard: obj({
       hash: text(), format: text(undefined, { enum: ['wav', 'm4a'] }), durationMs: int(),
       url: text('Plays without a token until expiresAt (ten minutes), with Range support. Ask again for a fresh one.'), expiresAt: time(),
-      uploadedAt: nullable(time(FILE_UPLOADED)), v2UploadedAt: nullable(time(`${V2_UPLOADED} For a file, when v2 had the audio.`))
+      uploadedAt: nullable(time(FILE_UPLOADED)), v2UploadedAt: nullable(time(`${V2_UPLOADED} For a file, when v2 had the audio.`)),
+      origin: text(ORIGIN, { enum: ['app_recording', 'web_upload'] })
     }),
     Review: obj({
       kindId: text('listener, or a kind in the language\'s flow.'), kind: text('The kind\'s name, such as "Peer Review".'),

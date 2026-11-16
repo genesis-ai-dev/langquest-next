@@ -1,6 +1,6 @@
 import { CLIENT_PROTOCOL_VERSION, type AnyEvent } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AppendResult, RowCursor, SnapshotHead, SnapshotMeta, SnapshotRowsPage, Transport, WatchHandlers } from './types';
+import type { AppendResult, KnownEvent, RowCursor, SnapshotHead, SnapshotMeta, SnapshotRowsPage, Transport, WatchHandlers } from './types';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, ServerError, UNRENEWED_TEXT, UnrenewedError } from './types';
 
 interface EventRow {
@@ -142,6 +142,21 @@ export class SupabaseTransport implements Transport {
     return () => {
       void this.supabase.removeChannel(channel);
     };
+  }
+
+  /**
+   * What the server holds of these ids in this stream, at most 500 (`known_events`,
+   * docs/nearby-sync-plan.md 5.7, 5.12). Supabase, the Worker and app updates deploy
+   * apart, so a database from before the function answers null, and the sweep waits.
+   */
+  async knownEvents(orgId: string, streamId: string, ids: readonly string[]): Promise<KnownEvent[] | null> {
+    if (ids.length === 0) return [];
+    const { data, error, status } = await this.call('known_events', { p_org: orgId, p_stream: streamId, p_ids: ids });
+    if (error?.code === 'PGRST202') return null;
+    if (error) throw toError(error, status);
+    return ((data as { id: string; server_seq: number | string; hlc: string; actor_id: string }[] | null) ?? []).map(
+      (r) => ({ id: r.id, serverSeq: Number(r.server_seq), hlc: r.hlc, actorId: r.actor_id })
+    );
   }
 
   async pull(orgId: string, streamId: string, after: number, limit: number): Promise<AnyEvent[]> {

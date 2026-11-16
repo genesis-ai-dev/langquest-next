@@ -53,10 +53,46 @@ export function updateFailure(u: UpdateSignals): Error | null {
   return u.isUpdatePending ? null : u.downloadError ?? u.checkError ?? null;
 }
 
-/** The running build, for the settings line: "update 4f2a1c9 · Sep 17, 2:02 PM". */
-export function runningBuildLabel(c: { updateId?: string; createdAt?: Date; isEmbeddedLaunch: boolean }): string {
-  const which = c.isEmbeddedLaunch ? t('account.update.storeBuild')
-    : c.updateId ? t('account.update.updateBuild', { id: c.updateId.slice(0, 7) }) : t('account.update.unknownBuild');
-  if (!c.createdAt) return which;
-  return `${which} · ${formatDayTime(c.createdAt)}`;
+/**
+ * The running build, for the Sync screen: the store build and the update on
+ * top of it, each with its date.
+ *   store build 2026.1030.1319 (48) · Oct 30, 1:19 PM
+ *   update 4f2a1c9 · Nov 12, 4:05 PM
+ * The phone's settings show only the store build and the update shows
+ * nowhere else, so a tester needs both to say which code they are on. A
+ * browser has no store build, so it has the update line alone.
+ */
+export function runningBuildLines(c: {
+  store?: { version: string; build?: string };
+  updateId?: string;
+  createdAt?: Date;
+  isEmbeddedLaunch: boolean;
+}): string[] {
+  const dated = (text: string, at: Date | null | undefined) => (at ? `${text} · ${formatDayTime(at)}` : text);
+  const lines: string[] = [];
+  if (c.store) {
+    const { version, build } = c.store;
+    // A build that is not a store build (1.0.0) has no time in its version; running its own bundle, the bundle's time is its own.
+    const at = storeVersionTime(version) ?? (c.isEmbeddedLaunch ? c.createdAt : null);
+    lines.push(dated(t('account.update.storeBuild', { version: build ? `${version} (${build})` : version }), at));
+  }
+  if (c.isEmbeddedLaunch) lines.push(t('account.update.noUpdate'));
+  else lines.push(dated(c.updateId ? t('account.update.updateBuild', { id: c.updateId.slice(0, 7) }) : t('account.update.unknownBuild'), c.createdAt));
+  return lines;
+}
+
+/**
+ * When a store build was made, read back from its version: a store build's
+ * version is the time of its merge in UTC as year.monthday.hourminute
+ * (apps/mobile/app.config.js, decisions.md 157), so 2026.1022.1830 is
+ * 2026-10-22T18:30Z. Null for any other version, such as 1.0.0.
+ */
+export function storeVersionTime(version: string): Date | null {
+  const m = /^(\d{4})\.(\d{3,4})\.(\d{1,4})$/.exec(version);
+  if (!m) return null;
+  const [year, monthDay, hourMinute] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const at = new Date(Date.UTC(year, Math.floor(monthDay / 100) - 1, monthDay % 100, Math.floor(hourMinute / 100), hourMinute % 100));
+  // Only a version that its time gives back exactly: 2026.1340.2575 is no time.
+  const again = `${at.getUTCFullYear()}.${(at.getUTCMonth() + 1) * 100 + at.getUTCDate()}.${at.getUTCHours() * 100 + at.getUTCMinutes()}`;
+  return again === version ? at : null;
 }

@@ -1,15 +1,17 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
-  buildIndexes, derivePassage, emptyLanguageState, foldLanguage, HlcClock, REDUCER_VERSION, keptVerdict, languageLines, PART_OF_KIND, putEntry, referencedBlobs, updatesFor, withOwnParts,
+  buildIndexes, derivePassage, emptyLanguageState, foldLanguage, HlcClock, newCommandId, REDUCER_VERSION, keptVerdict, languageLines, PART_OF_KIND, putEntry, referencedBlobs, updatesFor, withOwnParts,
   type LanguageState
 } from '@langquest-next/core';
 import { PART_KINDS } from '../src/keptLanguage';
 import { MemoryStore } from '../src/memoryStore';
 import { SqliteStore, type SqlDriver } from '../src/sqliteStore';
 import type { EventStore } from '../src/types';
-import { keptCheckpointVersion, SyncClient } from '../src/syncClient';
+import { nearbyClient } from '../src/nearbyClient';
+import { keptCheckpointVersion, LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
 import { LanguageFiles } from '../src/languageFiles';
 import { FakeServer } from '../src/testing/fakeServer';
+import { intakeFor, signerOf, teammate } from './nearbyFixtures';
 
 /**
  * A big language keeps each passage's records (recordings, versions,
@@ -40,15 +42,16 @@ function sqlite(): EventStore {
 /** Each test runs on both stores: the memory twin, and SQLite as the phone runs it. */
 let makeStore: () => EventStore = () => new MemoryStore();
 
-function phone(server: FakeServer, deviceId: string, actorId: string, opts: { keepOnDisk?: boolean; checkpointEvery?: number; pullPageSize?: number; store?: EventStore; build?: string } = {}) {
+function phone(server: FakeServer, deviceId: string, actorId: string, opts: { keepOnDisk?: boolean; checkpointEvery?: number; pullPageSize?: number; store?: EventStore; build?: string; materializer?: Materializer<Lang> } = {}) {
   const store = opts.store ?? makeStore();
   const client = new SyncClient({
     orgId: 'org1', streamId: 'p1', actorId, deviceId, store, transport: server.transportFor(),
-    clock: new HlcClock(deviceId, () => ++ids), newId: () => `${deviceId}-${++ids}`,
+    clock: new HlcClock(deviceId, () => ++ids), newId: () => `${deviceId}-${++ids}`, nearby: nearbyClient(),
     ...(opts.keepOnDisk ? { keepOnDisk: true } : {}),
     ...(opts.checkpointEvery ? { checkpointEvery: opts.checkpointEvery } : {}),
     ...(opts.pullPageSize ? { pullPageSize: opts.pullPageSize } : {}),
-    ...(opts.build ? { build: opts.build } : {})
+    ...(opts.build ? { build: opts.build } : {}),
+    ...(opts.materializer ? { materializer: opts.materializer } : {})
   });
   return { client, store };
 }
@@ -120,6 +123,121 @@ async function language(server: FakeServer, n: number) {
 
 describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sqlite]] as const)('on the %s store', (_name, make) => {
 beforeEach(() => { makeStore = make; });
+
+describe('nearby rows', () => {
+  /** Work by Sam on `u1` and `u2`, with every id naming him, as a current build writes it. */
+  async function nearbyWork(c: SyncClient, tag: string) {
+    const by = (name: string) => newCommandId('sam', `${name}-${tag}`);
+    await c.append('v1.RecordingAdded', { recordingId: by('r'), unitId: 'u1', kind: 'target', cards: [{ hash: `h-${tag}`, durationMs: 1000 }] });
+    await c.append('v1.TakeComposed', { takeId: by('t'), unitId: 'u1', cardHashes: [`h-${tag}`], parentTakeId: null });
+    await c.append('v1.TakeSubmitted', { takeId: by('t') });
+    await c.append('v1.ReviewRecorded', { reviewId: by('rv'), takeId: by('t'), kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'slower' });
+    await c.append('v1.RequestMade', { requestId: by('q'), unitId: 'u2', what: 'record', profileId: 'r1' });
+    await c.append('v1.NoteAdded', { noteId: by('n'), unitId: 'u2', anchor: { kind: 'passage' }, text: 'hm' });
+    await c.append('v1.DepartureRecorded', { departureId: by('dep'), unitId: 'u2', type: 'skip', kindId: 'peer', reason: 'no peer' });
+    await c.append('v1.NoteWithdrawn', { noteId: by('n') });
+  }
+
+  it.each([['in order', [0, 1, 2]], ['newest first', [2, 1, 0]], ['with a page again', [1, 0, 1, 2, 0]]] as const)('agrees with a phone that keeps everything in memory, %s, through a checkpoint and a relaunch', async (_how, order) => {
+    const server = new FakeServer();
+    await language(server, 3);
+    const sam = await teammate('sam');
+    const author = phone(server, sam.deviceId, 'sam', { store: new MemoryStore() });
+    await author.client.load();
+    await author.client.pull();
+    const pages = [];
+    for (let i = 0; i < 3; i++) {
+      await nearbyWork(author.client, `t${i}`);
+      await author.client.signUnsigned(signerOf(sam));
+      pages.push((await author.client.nearbyBatchPage(sam.key, i + 1))!);
+    }
+    const held = phone(server, 'dM', 'r1', { store: new MemoryStore() });
+    const kept = phone(server, 'dK', 'r1', { keepOnDisk: true, checkpointEvery: 2 });
+    for (const p of [held, kept]) { await p.client.load(); await p.client.pull(); }
+    await kept.client.loadUnits(['u1']);
+
+    for (const at of order) {
+      for (const p of [held, kept]) await p.client.receiveNearby(pages[at]!, intakeFor());
+    }
+    expect(await kept.store.nearbyCount('org1', 'p1')).toBe(24);
+    const units = ['u0', 'u1', 'u2'];
+    await kept.client.settleLines();
+    expect(linesOf(kept.client.passageLines(), units)).toEqual(linesOf(held.client.passageLines(), units));
+    expect(comparable(await whole(kept.client, kept.store))).toEqual(comparable(held.client.getState()));
+
+    // A pull past a checkpoint leaves them out of it and holds them still.
+    await author.client.append('v1.UnitAdded', { unitId: 'u9', parentUnitId: null, kind: 'passage', label: 'P9', order: 'z' });
+    await server.transportFor().append([(await author.store.pending('org1', 'p1')).at(-1)!.event]);
+    for (const p of [held, kept]) await p.client.pull();
+    expect(comparable(await whole(kept.client, kept.store))).toEqual(comparable(held.client.getState()));
+
+    // A relaunch reads the rows back the same way.
+    await kept.client.load();
+    await kept.client.settleLines();
+    expect(comparable(await whole(kept.client, kept.store))).toEqual(comparable(held.client.getState()));
+    expect(linesOf(kept.client.passageLines(), units)).toEqual(linesOf(held.client.passageLines(), units));
+
+    // And once the server has them all, nothing is left nearby, and both still agree.
+    await author.client.sync();
+    for (const p of [held, kept]) await p.client.sync();
+    for (const p of [held, kept]) expect(await p.store.nearbyCount('org1', 'p1')).toBe(0);
+    await kept.client.settleLines();
+    expect(comparable(await whole(kept.client, kept.store))).toEqual(comparable(held.client.getState()));
+    expect(linesOf(kept.client.passageLines(), units)).toEqual(linesOf(held.client.passageLines(), units));
+  });
+
+  it('agrees with a phone that keeps everything in memory across a reducer bump, with the rows still waiting for the server', async () => {
+    // Why: a new REDUCER_VERSION makes every checkpoint unreadable (decisions.md 110), and nearby rows are in none, so
+    // after an update both phones fold them again from the log beside the stream pulled from the start. A kept phone
+    // must not lose them to its rebuilt rows, nor hold them twice.
+    const server = new FakeServer();
+    await language(server, 3);
+    const sam = await teammate('sam');
+    const author = phone(server, sam.deviceId, 'sam', { store: new MemoryStore() });
+    await author.client.load();
+    await author.client.pull();
+    const pages = [];
+    for (let i = 0; i < 2; i++) {
+      await nearbyWork(author.client, `b${i}`);
+      await author.client.signUnsigned(signerOf(sam));
+      pages.push((await author.client.nearbyBatchPage(sam.key, i + 1))!);
+    }
+    const stores = { held: makeStore(), kept: makeStore() };
+    const open = (materializer?: Materializer<Lang>) => ({
+      held: phone(server, 'dM', 'r1', { store: stores.held, checkpointEvery: 2, ...(materializer ? { materializer } : {}) }),
+      kept: phone(server, 'dK', 'r1', { store: stores.kept, keepOnDisk: true, checkpointEvery: 2, ...(materializer ? { materializer } : {}) })
+    });
+    const before = open();
+    for (const p of [before.held, before.kept]) {
+      await p.client.load();
+      await p.client.pull();
+      for (const page of pages) await p.client.receiveNearby(page, intakeFor());
+    }
+    expect((await before.kept.client.inspect()).checkpointSeq).toBeGreaterThan(0);
+    const units = ['u0', 'u1', 'u2'];
+    const agree = async (o: ReturnType<typeof open>) => {
+      await o.kept.client.settleLines();
+      expect(comparable(await whole(o.kept.client, o.kept.store))).toEqual(comparable(o.held.client.getState()));
+      expect(linesOf(o.kept.client.passageLines(), units)).toEqual(linesOf(o.held.client.passageLines(), units));
+    };
+    await agree(before);
+
+    // The update: the same stores, a reducer that cannot read either checkpoint, and no server snapshot for it yet.
+    const after = open({ ...LANGUAGE_MATERIALIZER, version: LANGUAGE_MATERIALIZER.version + 1 } as Materializer<Lang>);
+    for (const p of [after.held, after.kept]) await p.client.load();
+    for (const p of [after.held, after.kept]) expect(await p.store.nearbyCount('org1', 'p1')).toBe(16);
+    await agree(after);
+    for (const p of [after.held, after.kept]) await p.client.pull();
+    await agree(after);
+
+    // Once the server has them, nothing is left nearby, and both are the server's fold.
+    await author.client.sync();
+    for (const p of [after.held, after.kept]) await p.client.sync();
+    for (const p of [after.held, after.kept]) expect(await p.store.nearbyCount('org1', 'p1')).toBe(0);
+    await agree(after);
+    expect(comparable(after.held.client.getState())).toEqual(comparable(foldLanguage(server.stream('org1', 'p1'), emptyLanguageState())));
+  });
+});
 
 describe('a language that keeps its recordings on disk', () => {
   it('opens from a server snapshot holding no recordings in memory until a passage opens', async () => {
@@ -383,6 +501,40 @@ describe('a language that keeps its recordings on disk', () => {
     await client.sync();
     const full = foldLanguage(server.stream('org1', 'p1'), emptyLanguageState());
     expect(comparable(await whole(client, store))).toEqual(comparable(full));
+  });
+
+  it('a checkpoint taken with work not yet sent combines a passage open on screen with its kept rows', async () => {
+    // Why: the slow path folds the last checkpoint and the confirmed tail, and a checkpoint holds no records, so an
+    // entry in that fold has only what the tail said. A passage open on screen must not have its rows replaced by that.
+    const server = new FakeServer();
+    const lead = await language(server, 20);
+    await lead.client.append('v1.CardVerseSet', { unitId: 'u3', hash: 'first', mark: 'next' });
+    for (let i = 0; i < 6; i++) {
+      await lead.client.append('v1.RecordingAdded', { recordingId: `b${i}`, unitId: `u${i + 10}`, kind: 'target', cards: [{ hash: `hb${i}`, durationMs: 5 }] });
+    }
+    await lead.client.sync();
+    const { client, store } = phone(server, 'dB', 'r1', { keepOnDisk: true, checkpointEvery: 5 });
+    await client.load();
+    await client.pull();
+    expect(await store.keptById('org1', 'p1', 'cardVerses', ['u3'])).toHaveLength(1);
+    await client.loadUnits(['u3']);
+    server.offline = true;
+    await client.append('v1.RecordingAdded', { recordingId: 'mine', unitId: 'u5', kind: 'target', cards: [{ hash: 'hm', durationMs: 9 }] });
+    server.offline = false;
+    // Someone marks another card in that passage, and enough other work follows that the next pull takes a checkpoint.
+    await lead.client.append('v1.CardVerseSet', { unitId: 'u3', hash: 'second', mark: 'join' });
+    for (let i = 0; i < 8; i++) {
+      await lead.client.append('v1.RecordingAdded', { recordingId: `o${i}`, unitId: `u${i + 10}`, kind: 'target', cards: [{ hash: `ho${i}`, durationMs: 5 }] });
+    }
+    await lead.client.sync();
+    await client.pull();
+    expect((await client.inspect()).pending).toHaveLength(1);
+    await client.sync();
+    const full = foldLanguage(server.stream('org1', 'p1'), emptyLanguageState());
+    expect(comparable(await whole(client, store))).toEqual(comparable(full));
+    // And the row itself, which a later session reads with nothing in memory.
+    const [row] = await store.keptById('org1', 'p1', 'cardVerses', ['u3']);
+    expect(JSON.parse(row!.json)).toEqual(full.cardVerses!['u3']);
   });
 
   it('a list reads each passage as the state shows it, without waiting for its line to be worked out', async () => {
@@ -673,7 +825,7 @@ describe('file planning for a language kept on disk', () => {
     const files = new LanguageFiles(client, store, 'org1', 'p1');
     const present = new Set(['unsent', 'h2']);
     expect((await files.upload(present)).map((r) => r.hash)).toEqual(['unsent']);
-    expect(await files.hasRecording('mine')).toBe(true);
+    expect(await files.hasRecording('mine', 'u7')).toBe(true);
     // The passage this person recorded in is theirs to keep offline.
     expect([...(await files.scope('t1'))]).toContain('u7');
     // Kept offline: the stored files of u2 and u7 come down, with the server's size; the unsent one cannot.

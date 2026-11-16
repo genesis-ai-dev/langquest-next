@@ -1,5 +1,6 @@
 import { CommonActions } from '@react-navigation/native';
 import { useCallback } from 'react';
+import { Keyboard } from 'react-native';
 import { edgeFor, TAB_SCREENS, type ScreenId } from './flow';
 import { t } from '../i18n';
 import { navRef, type Nav, type Route } from './nav';
@@ -31,6 +32,11 @@ export function useNavActions(o: { nav: Nav; session: Session; toast: (message: 
         toast(t('shell.nav.noPermission'));
         return;
       }
+      // The keyboard goes with the screen it was typed on. Left up, iOS hides it
+      // for the next screen and, on the way back, focuses the field again and
+      // puts it back up over the tab bar (a map search, a result opened, Back:
+      // SYNC-016 on iPhone, where the tap on Me landed on the keyboard).
+      Keyboard.dismiss();
       const mode = edge.mode ?? 'push';
       if (fromKey && fromKey !== nav.stack[nav.stack.length - 1]?.key) return nav.fromRoute(fromKey, mode, route);
       switch (mode) {

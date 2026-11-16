@@ -45,6 +45,13 @@ insert into diag.installs (install_id, profile_id) values
 insert into diag.records (id, install_id, delivered_by, kind, at) values
   ('del-test-r1','del-test-install-a','d0000000-0000-0000-0000-00000000000a','sync',now()),
   ('del-test-r2','del-test-install-b','d0000000-0000-0000-0000-00000000000b','sync',now());
+-- Nearby sync's keys and revocation rows go with the account (docs/nearby-sync-plan.md 5.12).
+insert into public.install_keys (public_key, profile_id, install_id) values
+  (rpad('delkeya', 43, 'A'), 'd0000000-0000-0000-0000-00000000000a', 'del-test-install-a'),
+  (rpad('delkeya', 43, 'A'), 'd0000000-0000-0000-0000-00000000000b', 'del-test-install-a'),
+  (rpad('delkeyb', 43, 'A'), 'd0000000-0000-0000-0000-00000000000b', 'del-test-install-b');
+insert into public.install_key_revocations (org_id, seq, public_key, profile_id) values
+  ('del-test-org', 1, rpad('delkeya', 43, 'A'), 'd0000000-0000-0000-0000-00000000000a');
 insert into v2_import.arrivals (profile_id, projects) values
   ('d0000000-0000-0000-0000-00000000000a', '[{"id":"p1","name":"Leaver Project"}]'), ('d0000000-0000-0000-0000-00000000000b', '[]');
 insert into v2_import.people_links (v2_id, next_id, email, confirmed_by) values
@@ -98,6 +105,9 @@ begin
   if exists (select 1 from diag.installs where profile_id = a) or exists (select 1 from diag.records where delivered_by = a) then
     raise exception 'diagnostics kept';
   end if;
+  if exists (select 1 from public.install_keys where profile_id::text = a) then raise exception 'install key kept'; end if;
+  if exists (select 1 from public.install_key_revocations where profile_id::text = a) then raise exception 'revocation row kept'; end if;
+  if (select count(*) from public.install_keys where profile_id::text = b) <> 2 then raise exception 'someone else''s install keys went too'; end if;
   if exists (select 1 from public.org_memberships where profile_id = a and not removed) then raise exception 'membership kept'; end if;
   if cardinality(public.org_privileges('del-test-org', a, 'L1')) <> 0 then raise exception 'privileges kept in the language'; end if;
   if (select count(*) from public.events where type = 'v1.MemberRemoved' and payload->>'profileId' = a) <> 2 then
@@ -127,6 +137,19 @@ begin
      or not exists (select 1 from diag.records where delivered_by = b)
      or not exists (select 1 from public.org_memberships where profile_id = b and not removed) then
     raise exception 'another account was touched';
+  end if;
+end $$;
+
+-- The leaver held the revocation list's newest number. Their rows went with them, and the next
+-- revocation still takes a higher number, or every phone holding the old list would ignore the new
+-- one (security review, 2026-11-10).
+do $$ declare b text := 'd0000000-0000-0000-0000-00000000000b'; begin
+  if public._revoked_seq('del-test-org') <> 1 then raise exception 'the list''s number went down with the leaver'; end if;
+  if public._revoke_install_keys(b::uuid, 'smoke') <> 2 then raise exception 'expected two keys revoked'; end if;
+  if (select array_agg(seq order by seq) from public.install_key_revocations where org_id = 'del-test-org') <> array[2, 3]::bigint[]
+     or public._revoked_seq('del-test-org') <> 3 then
+    raise exception 'a revocation after the deletion reused a number: %',
+      (select array_agg(seq order by seq) from public.install_key_revocations where org_id = 'del-test-org');
   end if;
 end $$;
 

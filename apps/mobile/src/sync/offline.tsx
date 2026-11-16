@@ -14,6 +14,7 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
+import { InstallFileReminder } from '../shell/InstallFileReminder';
 import { Card, Header, HelpInfo, Ico, ProgressBar, Screen, type IconName } from '../ui/kit';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { isOffline } from './uploadsModel';
@@ -232,6 +233,8 @@ export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
           <ProgressBar value={(s.ready / s.kept) * 100} {...(ready ? { color: onColor.green } : {})} />
         </HelpInfo>
       ) : null}
+      {/* A carrier who can let a new person in, reminded while online to get the install file (docs/nearby-sync-plan.md 14.4). */}
+      <InstallFileReminder ctx={ctx} />
       <Block icon="check" tint={onColor.green} bg={TINT.green} title={t('offline.card.alwaysTitle')}
         body={STUDY_FILES_OFFLINE ? t('offline.card.alwaysBodyStudy', { language }) : t('offline.card.alwaysBody', { language })} />
       <Block icon="cloud" tint={TINT.amberText} bg={TINT.amber} title={t('offline.card.needsTitle')}

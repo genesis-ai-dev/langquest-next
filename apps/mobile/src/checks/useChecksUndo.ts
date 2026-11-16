@@ -5,7 +5,7 @@
 // back as they were (restoreChecks: a removed step comes back as a new step
 // of the same checks), Redo as Undo found them; both are new events.
 import * as Crypto from 'expo-crypto';
-import { deriveFlow, type LanguageState } from '@langquest-next/core';
+import { newCommandId, deriveFlow, type LanguageState } from '@langquest-next/core';
 import { useCallback, useEffect, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 import type { Ctx } from '../shell/ctx';
@@ -37,7 +37,7 @@ export function useChecksUndo(ctx: Ctx) {
     const now = checksOf(s);
     setBusy(true);
     try {
-      await ctx.language.run(restoreChecks(s, step.to, Crypto.randomUUID()));
+      await ctx.language.run(restoreChecks(s, step.to, newCommandId(ctx.session.actorId, Crypto.randomUUID())));
       // The step moved to the other side remembers the checks it found, for the way back.
       const moved = which === 'undo' ? step.history.undone : step.history.done;
       const last = moved[moved.length - 1]!;

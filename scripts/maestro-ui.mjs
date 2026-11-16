@@ -33,10 +33,10 @@
  * go to e2e/results/maestro/<platform>/<label>/.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { flowTags, plannedSkips, skipReport } from './maestro-plan.mjs';
+import { flowTags, plannedSkips, skippedFlows, skipReport } from './maestro-plan.mjs';
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -212,7 +212,10 @@ const flowFiles = readdirSync(join(flowsDir, 'flows')).filter((f) => f.endsWith(
 
 // What this run cannot hold is skipped and said, not failed (scripts/maestro-plan.mjs).
 const skips = plannedSkips({ platform, voice: args.includes('--voice'), mic: args.includes('--mic'), wrapped: args.includes('--wrapped'), flows });
-for (const line of skipReport(skips, flowFiles.map((f) => ({ name: f.replace(/^.*\//, '').replace(/\.yaml$/, ''), tags: flowTags(readFileSync(f, 'utf8')) })))) console.log(line);
+const flowList = flowFiles.map((f) => ({ name: f.replace(/^.*\//, '').replace(/\.yaml$/, ''), tags: flowTags(readFileSync(f, 'utf8')) }));
+for (const line of skipReport(skips, flowList)) console.log(line);
+// What was left out and why, for the nightly report (scripts/phone-tests.mjs).
+writeFileSync(join(results, 'skipped.json'), JSON.stringify(skippedFlows(skips, flowList), null, 2));
 const excludeTags = [...value('exclude-tags', '').split(',').filter(Boolean), ...skips.map((s) => s.tag)].join(',');
 
 // --voice: the simulator and emulator hear the host's input, so loop the voice

@@ -25,13 +25,15 @@ import { useUploadState } from './useUploadState';
 /**
  * Over every screen while anything made on this device waits to upload: how
  * many, growing as people record, and whether it is going up or the device
- * is offline. "All uploaded" for a moment once the last of it went. Tapping
+ * is offline. "All uploaded" once the last of it went, until the person
+ * moves to another screen (`screenKey`, the stack's top route): the screens
+ * sit below the bar, so it goes only as one gives way to the next. Tapping
  * opens the Sync screen, as the tabs open theirs (chrome, decisions.md 166);
  * `onOpen` is null where leaving is not wanted (the recorder).
  */
-export function UploadBar(props: { ctx: Ctx; onOpen: (() => void) | null }) {
+export function UploadBar(props: { ctx: Ctx; screenKey: string; onOpen: (() => void) | null }) {
   const { counts, offline, moving } = useUploadState(props.ctx);
-  const justEmptied = useJustEmptied(counts.recordings + counts.changes);
+  const justEmptied = useJustEmptied(counts.recordings + counts.changes, props.screenKey);
   const bar = barState(counts, offline, justEmptied);
   const label = !bar ? '' : bar.kind === 'done' ? t('uploads.allUploaded') : waitingWords(bar.counts);
   const state = bar?.kind === 'waiting' ? (bar.offline ? t('account.sync.standing.offline') : moving ? t('uploads.uploading') : '') : '';
