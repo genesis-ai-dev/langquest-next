@@ -11,9 +11,8 @@ import { failureMessage } from '../diagnostics/report';
 import { t } from '../i18n';
 import { isPattern, MIN_DOTS, PICTURES } from '../session/lockModel';
 import { GhostBtn, PrimaryBtn, Row, Sheet } from '../ui/kit';
-import { Text } from '../ui/text';
-import { txt } from '../ui/textStyles';
 import { checkOwnPattern, choosePattern, setOn } from './appLock';
+import { PadMessage } from './PadMessage';
 import { useAppLock } from './useAppLock';
 
 type Step = 'check' | 'picture' | 'pattern';
@@ -83,7 +82,6 @@ function AppLockSheet(props: { ctx: Ctx; step: Step; setStep: (s: Step | null) =
       setBusy(false);
     }
   }
-  const errorLine = error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null;
   if (step === 'picture') {
     return (
       <Sheet visible title={t('account.lock.pictureTitle')} onClose={close}
@@ -99,17 +97,16 @@ function AppLockSheet(props: { ctx: Ctx; step: Step; setStep: (s: Step | null) =
       <Sheet visible title={first === null ? t('account.lock.drawTitle') : t('account.lock.drawAgain')} onClose={close} onBack={back}
         footer={<GhostBtn label={t('common.back')} help={t('help.details.back')} onPress={back} disabled={busy} />}>
         {picture !== null ? <ChosenPicture picture={picture} /> : null}
-        <PatternPad onDone={(dots) => void drew(dots)} disabled={busy} error={!!error} resetKey={padKey} />
-        {errorLine}
+        <PatternPad onDone={(dots) => void drew(dots)} disabled={busy} error={!!error} resetKey={padKey} onStart={() => setError('')} />
+        <PadMessage tone="error" text={error} />
       </Sheet>
     );
   }
   return (
     <Sheet visible title={t('account.appLock.row')} onClose={close}>
       {props.picture !== null ? <ChosenPicture picture={props.picture} /> : null}
-      <PatternPad onDone={(dots) => void checked(dots)} disabled={busy} error={!!error} resetKey={padKey} />
-      {busy ? <Text style={[txt.smMuted, { textAlign: 'center' }]} accessibilityLiveRegion="polite">{t('account.appLock.checking')}</Text> : null}
-      {errorLine}
+      <PatternPad onDone={(dots) => void checked(dots)} disabled={busy} error={!!error} resetKey={padKey} onStart={() => setError('')} />
+      <PadMessage tone={busy ? 'muted' : 'error'} text={busy ? t('account.appLock.checking') : error} />
     </Sheet>
   );
 }

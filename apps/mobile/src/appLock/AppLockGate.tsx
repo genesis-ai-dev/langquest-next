@@ -11,6 +11,7 @@ import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
 import { leftApp, ownPicture, setActor, signOutFromLock, tryPattern } from './appLock';
 import { showsLock } from './appLockModel';
+import { PadMessage } from './PadMessage';
 import { useAppLock } from './useAppLock';
 
 /**
@@ -105,14 +106,11 @@ function LockFace(props: { actorId: string }) {
           </>
         ) : (
           <>
-            <PatternPad onDone={(dots) => void drew(dots)} disabled={busy || waiting} error={!!error} resetKey={padKey} />
-            {busy ? <Text style={[txt.smMuted, { textAlign: 'center' }]} accessibilityLiveRegion="polite">{t('account.appLock.opening')}</Text> : null}
-            {waiting && !busy ? (
-              <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">
-                {t('account.appLock.waitFor', { count: Math.max(1, Math.ceil((until - now) / 60_000)) })}
-              </Text>
-            ) : null}
-            {error && !busy && !waiting ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
+            <PatternPad onDone={(dots) => void drew(dots)} disabled={busy || waiting} error={!!error} resetKey={padKey} onStart={() => setError('')} />
+            <PadMessage tone={busy ? 'muted' : 'error'}
+              text={busy ? t('account.appLock.opening')
+                : waiting ? t('account.appLock.waitFor', { count: Math.max(1, Math.ceil((until - now) / 60_000)) })
+                : error} />
             <LinkBtn label={t('account.appLock.forgot')} help={t('account.appLock.forgotHelp')} onPress={() => { setForgot(true); setError(''); }} style={{ alignSelf: 'center' }} />
           </>
         )}
