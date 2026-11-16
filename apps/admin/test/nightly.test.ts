@@ -93,6 +93,9 @@ describe('the Nightly tests part', () => {
   });
 
   it("reads each nightly's latest scheduled run, its reporting jobs' lines, and a job that left none", async () => {
+    // The runs below are dated from NOW, so the section must read the clock as NOW too, or a run grows stale as days pass.
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
+    onTestFinished(() => { vi.useRealTimers(); });
     const ui = annotation(nightNotice('Web UI suite', { ran: 682, passed: 680, broke: null, issues: [{ id: 'LAN-260', url: null }] }));
     const fetcher = routes([
       ['/actions/workflows/guardrails.yml/runs', { workflow_runs: [{ id: 9, head_sha: 'abcdef1234', created_at: hAgo(10), html_url: 'https://github.com/o/r/actions/runs/9', run_number: 9, conclusion: 'failure' }] }],
@@ -107,7 +110,7 @@ describe('the Nightly tests part', () => {
       ['/check-runs/2/annotations', []],
       ['/check-runs/3/annotations', []]
     ]);
-    const s = await nightlySection({ GITHUB_REPO: 'o/r' }, fetcher);
+    const s = await nightlySection({ GITHUB_REPO: 'o/r' }, fetcher, NOW);
     const d = s.data as Nightly;
     expect(String(vi.mocked(fetcher).mock.calls[0]![0])).toContain('branch=main&event=schedule&status=completed');
     expect(d.runs.map((r) => [r.workflow, r.run?.number ?? null])).toEqual([['guardrails.yml', 9], ['phone-tests.yml', null]]);

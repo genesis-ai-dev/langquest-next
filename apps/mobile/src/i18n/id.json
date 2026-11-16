@@ -718,7 +718,6 @@
       "newLanguage": "Bahasa baru",
       "noLanguages": "Belum ada bahasa. Tambahkan bahasa pertama yang akan direkam tim Anda.",
       "openToBring": "Buka untuk membawanya ke perangkat ini",
-      "newLanguageOrCluster": "Bahasa atau rumpun baru",
       "inviteHelp": "Pilih apa yang akan mereka lakukan, lalu tunjukkan kepada mereka kode untuk dipindai.",
       "languageHelp": "Membuka halamannya: siapkan bahasanya, lihat pekerjaan dan orang-orangnya.",
       "licenseHelp": "Lisensi yang berlaku untuk pekerjaan tim Anda. Pengaturan menjelaskan apa yang diizinkannya.",
@@ -3511,6 +3510,19 @@
       "drawAgain": "Gambar sekali lagi",
       "newPattern": "Gambar pola baru",
       "choosePatternHelp": "Pilih gambar dan pola untuk masuk kembali di ponsel ini, bahkan tanpa koneksi."
+    },
+    "appLock": {
+      "row": "Kunci aplikasi",
+      "rowHelp": "Saat aktif, aplikasi meminta pola Anda setiap kali dibuka dan setiap kali Anda kembali ke aplikasi. Mengaktifkan atau mematikannya meminta pola Anda lebih dulu.",
+      "on": "Sekarang aplikasi meminta pola Anda saat dibuka.",
+      "off": "Aplikasi tidak lagi meminta pola Anda.",
+      "opening": "Membuka…",
+      "checking": "Memeriksa…",
+      "forgot": "Lupa?",
+      "forgotHelp": "Lupa pola Anda? Keluar, lalu masuk lagi dengan kata sandi Anda, atau dengan kode masuk dari seseorang di tim Anda. Pekerjaan Anda tetap ada di ponsel ini.",
+      "signOutHelp": "Keluar dari ponsel ini. Pekerjaan Anda tetap ada di ponsel dan dikirim saat bisa.",
+      "backHelp": "Kembali ke titik-titik.",
+      "waitFor_other": "Terlalu banyak percobaan. Coba lagi dalam {{count, number}} menit."
     }
   },
   "study": {

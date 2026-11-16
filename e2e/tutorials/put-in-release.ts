@@ -1,7 +1,8 @@
 // Puts one language's nightly films into the repository's `tutorials`
 // release (.github/workflows/tutorials.yml, docs/tutorial-videos.md): the new
 // films first, then the manifest that names them, so the intake job never
-// reads a manifest naming a film that is not there yet; then the voice they
+// reads a manifest naming a film that is not there yet, and each video's
+// state (status-<language>.json, for the chart); then the voice they
 // were said in, for the next night; last it deletes that language's films
 // the manifest no longer names. Uses gh, with GH_TOKEN. It says how many
 // films it put in as the step's `films` output, so the workflow tells the
@@ -30,6 +31,9 @@ const named = new Set(readManifest(language, JSON.parse(readFileSync(manifest, '
 const films = readdirSync(out).filter((f) => named.has(f));
 if (films.length) gh('release', 'upload', TUTORIALS_TAG, ...films.map((f) => path.join(out, f)), '--clobber');
 gh('release', 'upload', TUTORIALS_TAG, manifest, '--clobber');
+// Every video's state in the language (nightly.ts): its film, why it was made, what slots it.
+const status = path.join(out, `status-${language}.json`);
+if (existsSync(status)) gh('release', 'upload', TUTORIALS_TAG, status, '--clobber');
 
 // The voice: each line said, the speaker's readings and the pieces they are
 // made of, so a line is never paid for twice. Kept whenever Gemini said

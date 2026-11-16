@@ -744,7 +744,6 @@
       "newLanguage": "Nouvelle langue",
       "noLanguages": "Pas encore de langues. Ajoutez la première que votre équipe va enregistrer.",
       "openToBring": "Ouvrez-la pour l’avoir sur cet appareil",
-      "newLanguageOrCluster": "Nouvelle langue ou nouveau groupe",
       "inviteHelp": "Choisissez ce qu’ils feront, puis montrez-leur un code à scanner.",
       "languageHelp": "Ouvre sa page : la préparer, voir son travail et son équipe.",
       "licenseHelp": "La licence du travail de votre équipe. Configuration indique ce qu’elle permet.",
@@ -3731,6 +3730,21 @@
       "drawAgain": "Dessinez-le à nouveau",
       "newPattern": "Dessiner un nouveau schéma",
       "choosePatternHelp": "Choisissez une image et un schéma pour vous reconnecter sur ce téléphone, même sans connexion."
+    },
+    "appLock": {
+      "row": "Verrouiller l’appli",
+      "rowHelp": "Si c’est activé, l’appli demande votre schéma à chaque ouverture et à chaque retour. Pour l’activer ou le désactiver, elle demande d’abord votre schéma.",
+      "on": "L’appli demande maintenant votre schéma à l’ouverture.",
+      "off": "L’appli ne demande plus votre schéma.",
+      "opening": "Ouverture…",
+      "checking": "Vérification…",
+      "forgot": "Oublié ?",
+      "forgotHelp": "Vous avez oublié votre schéma ? Déconnectez-vous, puis reconnectez-vous avec votre mot de passe ou avec un code de connexion d’une personne de votre équipe. Votre travail reste sur ce téléphone.",
+      "signOutHelp": "Vous déconnecte de ce téléphone. Votre travail y reste et est envoyé dès que possible.",
+      "backHelp": "Revient aux points.",
+      "waitFor_one": "Trop d’essais. Réessayez dans {{count, number}} minute.",
+      "waitFor_many": "Trop d’essais. Réessayez dans {{count, number}} minutes.",
+      "waitFor_other": "Trop d’essais. Réessayez dans {{count, number}} minutes."
     }
   },
   "study": {

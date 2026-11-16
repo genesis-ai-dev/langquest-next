@@ -173,7 +173,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // bytes over nearby sync's 65 KB, 1,762 bytes under the two together.
 // Raised by 3 KB with back translation's two rows (Caleb Koster, 2026-11-13, LAN-234), 1 KB past then:
 // the same words and rows' model as the first visit's raise below, which every chunk counts too.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 118 * 1024;
+// Raised by 2 KB with the app lock (Caleb Koster, 2026-11-16, LAN-255), 35 bytes past then with main
+// merged in (the Map's download card, LAN-253): the first visit's raise below, which every chunk counts too.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 120 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -245,7 +247,10 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 118 * 1024;
 // bytes over nearby sync's 19 KB, 1,677 bytes under the two together.
 // Raised by 2 KB with back translation's two rows (Caleb Koster, 2026-11-13, LAN-234), 1 KB past then
 // with main merged in: the six new English words in the catalog every visit carries, and the rows' model.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 93 * 1024;
+// Raised by 2 KB with the app lock (Caleb Koster, 2026-11-16, LAN-255, decision 253), a few hundred bytes
+// past then with main merged in: its English words in the catalog every visit carries, and Sign Out's
+// steps moved into one function the lock shares. The lock itself is phones only; the web takes stubs.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 95 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

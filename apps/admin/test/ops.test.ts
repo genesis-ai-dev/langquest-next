@@ -7,7 +7,7 @@ import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import {
   dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, userIssueAlerts,
-  userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type Safety, type Tutorials, type UserIssues
+  userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type QuietAccounts, type Safety, type Tutorials, type UserIssues
 } from '../src/sources/ops';
 import { CHANNELS } from '../../../server/youtube';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
@@ -18,8 +18,10 @@ import { ALLOWANCE, PRICE_USD, capacityAlerts, extraUsd, growthPerDay, latestBac
 const NOW = Date.parse('2026-10-22T12:00:00Z');
 const hoursAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
 
+const quiet = (over: Partial<QuietAccounts> = {}): QuietAccounts => ({ count: 0, markedCount: 0, accounts: [], marked: [], ...over });
+
 const fleet = (over: Partial<Fleet> = {}): Fleet => ({
-  updates: [], versions: [], web: [], builds: [], toMap: [], firstDownloads: [], stuck: [], silent: { count: 0, installs: [] }, ...over
+  updates: [], versions: [], web: [], builds: [], toMap: [], firstDownloads: [], stuck: [], quiet: quiet(), ...over
 });
 
 describe('builds and stuck phones', () => {
@@ -43,6 +45,13 @@ describe('builds and stuck phones', () => {
     }), 19);
     expect(alerts.map((a) => a.level).sort()).toEqual(['urgent', 'watch']);
     expect(alerts.find((a) => a.level === 'watch')!.text).toContain('4 installs');
+  });
+
+  it('warns about quiet installs only from 5 on accounts nobody marked not an issue', () => {
+    const text = (f: Fleet) => fleetAlerts(f).map((a) => a.text);
+    expect(text(fleet({ quiet: quiet({ count: 5 }) }))).toEqual(['5 installs went quiet for 3 days while another device of the same person still reports: diagnostics off, or delivery broken (Silent phones).']);
+    expect(text(fleet({ quiet: quiet({ count: 4, markedCount: 40 }) }))).toEqual([]);
+    expect(text(fleet({ quiet: null }))).toEqual([]);
   });
 });
 
@@ -397,6 +406,24 @@ describe('feedback on the tutorial videos (decisions.md 186)', () => {
     const row = feedback({ open: 1, videos: [{ tutorial: 'record-a-passage', title: 'Record a passage' }] });
     const s = await opsSections(fakeQuery([['ops_tutorial_feedback', row]]));
     expect(s.videofeedback).toMatchObject({ state: 'ok', data: { open: 1, videos: row.videos } });
+  });
+});
+
+describe('quiet installs by account (decisions.md 162)', () => {
+  const row = {
+    count: '3', markedCount: '34',
+    accounts: [{ profile: '11111111-1111-4111-8111-111111111111', quiet: 3, reporting: 1, devices: { OnePlus8Pro: 2, ios: 1 }, lastSeen: hoursAgo(90) }],
+    marked: [{ profile: '22222222-2222-4222-8222-222222222222', quiet: 34, by: '0857d1bc-0000-4000-8000-000000000001', at: hoursAgo(1) }]
+  };
+
+  it('reads diag.ops_quiet_accounts into the fleet section, and counts what the database sends as numbers', async () => {
+    const s = await opsSections(fakeQuery([['jsonb_build_object(\n  \'builds\'', { ...fleet(), quiet: undefined }], ['ops_quiet_accounts', row]]));
+    expect(s.fleet).toMatchObject({ state: 'ok', data: { quiet: { count: 3, markedCount: 34, accounts: row.accounts, marked: row.marked } } });
+  });
+
+  it('keeps the fleet section when a database lacks the function, without a quiet count', async () => {
+    const s = await opsSections(fakeQuery([['jsonb_build_object(\n  \'builds\'', { ...fleet(), quiet: undefined }]]));
+    expect(s.fleet).toMatchObject({ state: 'ok', data: { quiet: null } });
   });
 });
 

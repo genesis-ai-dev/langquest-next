@@ -731,7 +731,6 @@
       "newLanguage": "Lugha mpya",
       "noLanguages": "Bado hakuna lugha. Ongeza ya kwanza ambayo timu yako itarekodi.",
       "openToBring": "Ifungue ili kuileta kwenye kifaa hiki",
-      "newLanguageOrCluster": "Lugha au kundi jipya",
       "inviteHelp": "Chagua watakachofanya, kisha uwaonyeshe msimbo ili wausome.",
       "languageHelp": "Hufungua ukurasa wake: iandae, ona kazi yake na watu wake.",
       "licenseHelp": "Leseni ambayo kazi ya timu yako iko chini yake. Maandalizi yanaeleza inaruhusu nini.",
@@ -3621,6 +3620,20 @@
       "drawAgain": "Uchore tena",
       "newPattern": "Chora mchoro mpya",
       "choosePatternHelp": "Chagua picha na mchoro wa kuingia tena kwenye simu hii, hata bila mtandao."
+    },
+    "appLock": {
+      "row": "Funga programu",
+      "rowHelp": "Ikiwa imewashwa, programu inaomba mchoro wako kila inapofunguliwa na kila unaporudi kwake. Kuiwasha au kuizima kunaomba mchoro wako kwanza.",
+      "on": "Sasa programu inaomba mchoro wako inapofunguliwa.",
+      "off": "Programu haiombi tena mchoro wako.",
+      "opening": "Inafunguka…",
+      "checking": "Inakagua…",
+      "forgot": "Umesahau?",
+      "forgotHelp": "Umesahau mchoro wako? Toka, kisha ingia tena kwa nenosiri lako, au kwa msimbo wa kuingia kutoka kwa mtu kwenye timu yako. Kazi yako inabaki kwenye simu hii.",
+      "signOutHelp": "Inakutoa kwenye simu hii. Kazi yako inabaki kwenye simu na itatumwa itakapowezekana.",
+      "backHelp": "Inarudi kwenye nukta.",
+      "waitFor_one": "Majaribio mengi mno. Jaribu tena baada ya dakika {{count, number}}.",
+      "waitFor_other": "Majaribio mengi mno. Jaribu tena baada ya dakika {{count, number}}."
     }
   },
   "study": {
