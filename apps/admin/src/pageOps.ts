@@ -363,7 +363,8 @@ Object.assign(RENDER, {
     }
     return h;
   },
-  // The tutorial videos as three lists (sources/videos.ts): what an admin must do, what the workers do, and each video with its states and timeline.
+  // The tutorial videos as three lists (sources/videos.ts): what an admin must do, what the workers do, and each video with its states and timeline;
+  // then the record of each change Claude made to a video (a clear fix merges itself, so this is where a person sees it).
   videos(d) {
     VIDEOS = d;
     const item = (x, level) => '<div class="vi ' + level + '"><p><b>' + esc(x.title) + '</b>' + (x.at ? ' <small>' + when(x.at) + '</small>' : '') + '</p>' +
@@ -380,6 +381,16 @@ Object.assign(RENDER, {
       (needYou ? '<p>' + num(needYou) + (needYou === 1 ? ' video waits' : ' videos wait') + ' on you. Each has a <span class="warnmk you">!</span> at the right of its row, under By video.</p>' : '') +
       (general.length ? general.map(adminCard).join('') : needYou ? '' : '<p class="muted">Nothing.</p>') + '</div>' +
       '<div><h3>Workers, now and tonight</h3>' + (d.worker.length ? d.worker.map((w) => item(w, w.when === 'now' ? 'info' : '')).join('') : '<p class="muted">Nothing queued.</p>') + '</div></div>';
+    const changes = d.changes || [];
+    h += '<details class="vchanges"><summary><b>Changes Claude made to the videos</b> <small class="muted">(' + num(changes.length) + ', last 30 days)</small></summary>' +
+      '<p class="muted">A clear fix merges itself and is not asked of anyone. Each change is here, with its pull request.</p>' + table([
+        { h: 'When', v: (c) => when(c.at) },
+        { h: 'Video', v: (c) => esc(c.video) + ' <small class="muted">' + esc(languageName(c.language)) + '</small>' },
+        { h: 'Change', v: (c) => esc(c.change) + (c.note ? '<br><small class="' + (c.state === 'failed' ? 'bad' : 'muted') + '">' + esc(c.note) + '</small>' : '') },
+        { h: 'Yes from', v: (c) => esc(CHANGE_BY[c.by] || c.by) },
+        { h: 'State', v: (c) => '<span class="tag ' + (CHANGE_LEVEL[c.state] || '') + '">' + esc(CHANGE_STATE[c.state] || c.state) + '</span>' },
+        { h: '', v: (c) => c.link ? '<a href="' + esc(c.link) + '" target="_blank" rel="noopener noreferrer">' + (c.pr ? 'PR ' + num(c.pr) : 'The run') + '</a>' : '' }
+      ], changes) + '</details>';
     setTimeout(() => layoutTimelines(), 0);
     return h + '<h3>By video</h3><div id="video-rows">' + videoRows() + '</div>';
   },
@@ -552,7 +563,7 @@ document.addEventListener('click', (e) => {
   const sg = e.target.closest && e.target.closest('[data-sg]');
   if (sg) {
     const id = sg.dataset.sg, d = sg.dataset.decision;
-    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : sg.dataset.kind === 'new' ? '' : ' Claude writes it as a draft pull request for you to merge.'))) perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg);
+    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : sg.dataset.kind === 'new' ? '' : ' Claude makes the change as a pull request that merges itself when its checks pass.'))) perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg);
     if (d === 'reject') {
       const reason = prompt('Why not? Claude reads this before suggesting it again. (You may leave it empty.)', '');
       if (reason !== null) perform({ kind: 'tutorial-suggestion', id, decision: 'reject', detail: null, reason: reason.slice(0, 500) }, sg);
@@ -583,9 +594,13 @@ function warnMark(cards, r) {
   return '<button type="button" class="warnmk ' + (mine ? 'you' : 'claude') + '" data-cards="' + r + '" title="' + esc(t) + '" aria-label="' + esc(t) + '">' + (mine ? '!' + (mine > 1 ? ' ' + mine : '') : 'i') + '</button>';
 }
 const TIMELINE_DAYS = 60;
-const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', merge: 'warn', approve: 'warn', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
+const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', approve: 'warn', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
 const cardLink = (x) => x.link ? '<a href="' + esc(x.link) + '"' + (x.link.startsWith('#') ? '' : ' target="_blank" rel="noopener noreferrer"') + '>' + esc(ADMIN_LINKS[x.kind] || WORKER_LINKS[x.kind] || 'Open') + '</a>' : '';
-const FIX_STATE = { working: 'Claude writes the fix now.', open: 'Claude\'s fix waits for your merge.', merged: 'The fix is merged. The next night films the video again.', closed: 'The fix PR was closed without a merge.', failed: 'Claude could not write the fix.' };
+const FIX_STATE = { working: 'Claude writes the change now.', open: 'Claude\'s pull request merges itself when its checks pass.', merged: 'The change is merged. The next night films the video again.', closed: 'The pull request was closed without a merge.', failed: 'Claude could not make the change.', unneeded: 'No change was needed: the video already does this.' };
+// The record of changes Claude made (sources/videos.ts ChangeItem).
+const CHANGE_BY = { claude: 'Claude (clear fix)', admin: 'An admin accepted it', instruction: 'An admin\'s instruction' };
+const CHANGE_STATE = { working: 'Being written', open: 'Merges when checks pass', merged: 'Merged', closed: 'Closed', failed: 'Failed', unneeded: 'No change needed' };
+const CHANGE_LEVEL = { working: 'info', open: 'info', merged: 'good', closed: '', failed: 'bad', unneeded: '' };
 /** One thing for an admin: the problem, who acts next, what happens next, and where it applies, the box to tell Claude what to do. */
 function adminCard(a) {
   const ins = a.instructed;
@@ -595,7 +610,7 @@ function adminCard(a) {
     (ins ? '' : '<p class="setup"><small><b>Next:</b> ' + esc(a.next) + '</small></p>') + (a.link ? '<p>' + cardLink(a) + '</p>' : '') +
     (a.suggestion ? suggestionButtons(a.suggestion) : '') +
     (ins ? '<p class="setup"><small><b>Your instruction</b> (' + when(ins.at) + '):</small><br>' + esc(ins.text) + '</p>' +
-      '<p class="setup"><small><b>Next:</b> ' + esc(ins.fix ? FIX_STATE[ins.fix.state] || ins.fix.state : ins.looked ? 'Claude starts the fix at its next fix run (:20 and :50 each hour), as a pull request for your merge.' : 'Claude reads it at its next run.') + '</small></p>' : '') +
+      '<p class="setup"><small><b>Next:</b> ' + esc(ins.fix ? FIX_STATE[ins.fix.state] || ins.fix.state : ins.looked ? 'Claude starts the change at its next fix run (:20 and :50 each hour), as a pull request that merges itself when its checks pass.' : 'Claude reads it at its next run.') + '</small></p>' : '') +
     (a.instruct ? '<details' + (a.who === 'you' && !ins ? ' open' : '') + '><summary>' + (ins ? 'Send another instruction' : 'Tell Claude what to do') + '</summary>' +
       '<label for="ins-' + esc(cardId(a)) + '">What Claude must do</label><textarea id="ins-' + esc(cardId(a)) + '" maxlength="2000" rows="3" placeholder="For example: the button is now called On this device. Change step 4 to tap it."></textarea>' +
       '<p><button type="button" class="primary" data-instruct="' + esc(cardId(a)) + '">Send to Claude</button></p></details>' : '') + '</div>';
@@ -612,8 +627,8 @@ document.addEventListener('click', (e) => {
   perform({ kind: 'tutorial-note', tutorial: a.tutorial, text: text.slice(0, 2000), instruct: true, problem: a.instruct.slice(0, 200),
     language: a.language || 'en', inputs: (a.inputIds || []).slice(0, 20) }, b);
 });
-const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run' };
-const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'Open the run', merge: 'Open the PR', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
+const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run', merging: 'Open the PR' };
+const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
 const MARKS = { film: 'New film', up: 'On YouTube', comment: 'Comment', suggested: 'Suggestion', decided: 'Accepted or rejected', fix: 'Fix PR', held: 'Held', failed: 'Film failed' };
 const CAUSES = { app: 'app change', script: 'script change', tool: 'film tool change', new: 'first film', asked: 'asked by hand', unknown: 'cause not recorded' };
 function suggestionButtons(s) {

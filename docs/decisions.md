@@ -10090,6 +10090,50 @@ it. Reverse if: more of Claude's fixes are
 closed than merged for weeks, or they eat into the plan's limits when
 people need them.
 
+Amended (2026-11-16, Caleb Koster): Claude fixes a video by itself when
+the fix is clear, and every video fix merges itself. Caleb (2026-11-16,
+thread "Automate tutorial video fixes") found that the fix flow asked too
+much of him: Claude should judge each comment and app change, make a fix
+that is clearly needed (pull request and merge too) with no person seeing
+it but a record kept, and wait for a developer's answer on the ops
+dashboard only when one is needed, as the only input a person gives. Claude
+changes only the videos, never the app. Decided (migration
+`20261116210000_tutorial_clear_fixes.sql`, the `tutorial-review` skill):
+- **The look sorts each input.** A change to a video's script, screens or
+  voice that is wrong against the app on main, with one right fix that
+  Claude checked, is `clear`: the Worker and the database accept it at once
+  (`clear`, `decided_at`, no `decided_by`). A viewer's wish, a choice of
+  what to teach, the app's code and a new video still wait for a person.
+  The look also reads each language's `status-<language>.json`, so a film
+  that failed or was held becomes a suggestion, with the film's language.
+- **A video fix merges itself.** The pull request is opened, not as a
+  draft, with the token of LangQuest's own GitHub App (the release-branches
+  App, `RELEASE_APP_ID`), so guardrails run at once, with auto-merge on;
+  the merge queue merges it when `gate` passes. The push stays with the
+  built-in token, which cannot change a workflow. A fix run closes a pull
+  request whose `gate` failed or that has not merged within 24 hours, and
+  its fix is `failed`, which asks a developer on the dashboard. A fix that
+  finds the video already does what was asked is `unneeded`, not failed.
+- **Two checks before a pull request opens.** A fixed rule (`codeRefusal`,
+  `scripts/tutorial-review.mjs`) refuses an added line in a video's file
+  that reads a file, the environment or the network, runs another program
+  or code from text, or reaches into the page beyond Playwright's own steps;
+  and a second Claude, which reads only the patch and never the comment or
+  the suggestion, says whether it only changes what the video shows and
+  says. Either one stops it, and the fix fails with why.
+- **The record** is the dashboard's "Changes Claude made to the videos":
+  each fix of the last 30 days, who said yes (Claude, an admin, or an
+  admin's instruction), its state and its pull request. An open fix is a
+  worker's item, not an admin's card. A held or failing film waits on
+  Claude's next look first, and on an admin when that look made nothing for
+  it or what it made was rejected.
+Considered: the organization setting "Allow GitHub Actions to create and
+approve pull requests": its pull requests start no checks, so they can never
+merge themselves, and it would apply to every repository in the
+organization, which Caleb did not want. Reverse if: a clear fix that merged
+has to be taken back more than once a month, or Claude's fixes fail their
+checks more often than they pass.
+
 ## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
 
 Date: 2026-10-29 · By: Caleb Koster · Status: accepted
@@ -11253,6 +11297,16 @@ watch's runs apart (`FREQUENT_WORKFLOWS`). Reading main's latest 40 runs and
 then leaving the watch's out still let it, with release-branches, fill the
 40 within about 8 hours, so it now reads the latest run of each workflow on
 its own (decision 209).
+
+Amended (2026-11-16, Caleb Koster): a tutorial video's fix (186, amended
+2026-11-16) is opened with LangQuest's own GitHub App, so its checks start
+at once and it merges itself, which this decision refused for a user
+issue's fix. A video fix may change only the video's own file and lines; a
+fixed rule refuses an added line there that could reach a key (a file, the
+environment, the network, another program, code from text); and a second
+Claude reads the patch first. A user issue's fix may change any of the
+app's code, so it stays a draft opened with the built-in token, and its
+checks still wait for a person.
 
 ## 203. A study step shows the pictures and maps its text asks for, linked or not, and the rest after its text
 
