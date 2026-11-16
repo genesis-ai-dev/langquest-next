@@ -28,7 +28,7 @@ const suggestion = (o: Record<string, unknown> = {}) => ({
 const en = (b: ReturnType<typeof videoBoard>) => b.videos.find((v) => v.language === 'en' && v.tutorial === 'record-a-passage')!;
 const keys = (b: ReturnType<typeof videoBoard>) => en(b).states.map((s) => s.key);
 
-describe('each video\'s state (decisions.md 186, amended 2026-11-13)', () => {
+describe('each video\'s state (decisions.md 186, amended 2026-11-13 and 2026-11-16)', () => {
   it('is up to date when nothing waits', () => {
     const b = videoBoard(input(), NOW);
     expect(keys(b)).toEqual(['current']);
@@ -36,10 +36,19 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13)', () => {
     expect(b.admin.filter((a) => a.kind !== 'paused')).toEqual([]);
   });
 
-  it('puts a failing or held film first, and asks an admin to look', () => {
-    const b = videoBoard(input({ status: { en: status([{ tonight: 'held', held: ['a toast covers the button'] }]) } }), NOW);
+  it('puts a failing or held film first; Claude\'s next look fixes it, or an admin is asked', () => {
+    const held = { en: status([{ tonight: 'held', held: ['a toast covers the button'] }]) };
+    const b = videoBoard(input({ status: held }), NOW);
     expect(keys(b)[0]).toBe('held');
-    expect(b.admin[0]).toMatchObject({ kind: 'held', who: 'you', detail: expect.stringContaining('a toast covers the button') });
+    expect(b.admin.find((a) => a.kind === 'held')).toMatchObject({ who: 'claude', detail: expect.stringContaining('a toast covers the button'), next: expect.stringContaining('Claude looks at it at 10:00 UTC') });
+    // A look after the film that made nothing for it: an admin must say what to do.
+    const last = { at: at(2), sha: 'f'.repeat(40), runUrl: 'https://github.com/r/9', looked: 1, suggested: 0, code: 0 };
+    expect(videoBoard(input({ status: held, feedback: feedback({ last }) }), NOW).admin.find((a) => a.kind === 'held')).toMatchObject({ who: 'you' });
+    // What that look made for it says the rest; a rejected one leaves it to an admin.
+    const madeFor = suggestion({ kind: 'screen', madeAt: at(2), clear: true, decision: 'accepted', decidedAt: at(2) });
+    expect(videoBoard(input({ status: held, feedback: feedback({ last, suggestions: [madeFor] }) }), NOW).admin.find((a) => a.kind === 'held')).toMatchObject({ who: 'claude' });
+    expect(videoBoard(input({ status: held, feedback: feedback({ last, suggestions: [suggestion({ madeAt: at(2), decision: 'rejected', decidedAt: at(1) })] }) }), NOW)
+      .admin.find((a) => a.kind === 'held')).toMatchObject({ who: 'you' });
     expect(en(b).marks.at(-1)).toMatchObject({ kind: 'held' });
     expect(keys(videoBoard(input({ status: { en: status([{ tonight: 'failed' }]) } }), NOW))[0]).toBe('fails');
   });
@@ -54,14 +63,58 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13)', () => {
     const working = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ ...accepted, fix: { state: 'working', pr: null, at: at(4), run: 'https://github.com/r/1', note: null } })] }) }), NOW);
     expect(keys(working)).toEqual(['fixing']);
     expect(working.worker).toContainEqual(expect.objectContaining({ when: 'now', kind: 'fixing' }));
+    // The pull request merges itself when its checks pass: no admin card, a worker item.
     const open = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ ...accepted, fix: { state: 'open', pr: 460, at: at(3), run: null, note: null } })] }) }), NOW);
-    expect(en(open).states[0]).toMatchObject({ key: 'merge', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/460' });
-    expect(open.admin[0]).toMatchObject({ kind: 'merge', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/460' });
+    expect(en(open).states[0]).toMatchObject({ key: 'merge', level: 'info', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/460' });
+    expect(open.admin.filter((a) => a.kind !== 'paused')).toEqual([]);
+    expect(open.worker).toContainEqual(expect.objectContaining({ when: 'now', kind: 'merging', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/460' }));
     // Merged after last night's status: tonight films it.
     const merged = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ ...accepted, fix: { state: 'merged', pr: 460, at: at(2), run: null, note: null } })] }) }), NOW);
     expect(keys(merged)).toEqual(['tonight']);
     const failedFix = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ ...accepted, fix: { state: 'failed', pr: null, at: at(2), run: 'https://github.com/r/2', note: 'the script would not run' } })] }) }), NOW);
-    expect(failedFix.admin[0]).toMatchObject({ kind: 'fixFailed', detail: 'the script would not run', link: 'https://github.com/r/2' });
+    expect(failedFix.admin[0]).toMatchObject({ kind: 'fixFailed', who: 'you', detail: 'the script would not run', link: 'https://github.com/r/2' });
+    // Closed by the fix run (its checks failed, or it waited a day): the card opens the pull request.
+    const closed = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ ...accepted, fix: { state: 'failed', pr: 461, at: at(1), run: 'https://github.com/r/3', note: 'Its checks failed (gate: failure), so the pull request is closed.' } })] }) }), NOW);
+    expect(closed.admin[0]).toMatchObject({ kind: 'fixFailed', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/461' });
+  });
+
+  it('asks no one about a clear fix, and keeps a record of each change Claude made', () => {
+    const clear = suggestion({ kind: 'screen', clear: true, madeAt: at(5), decision: 'accepted', decidedAt: at(5) });
+    const b = videoBoard(input({ feedback: feedback({ suggestions: [clear] }) }), NOW);
+    expect(en(b).states).toEqual([{ key: 'toFix', text: 'Clear fix, Claude starts it next', level: 'info' }]);
+    expect(b.admin.filter((a) => a.kind !== 'paused')).toEqual([]);
+    expect(b.languages.find((l) => l.language === 'en')).toMatchObject({ issues: 0 });
+    expect(b.worker).toContainEqual(expect.objectContaining({ kind: 'toFix', detail: expect.stringContaining('Claude found it clear and accepted it itself') }));
+    // One mark says it was suggested and accepted by Claude.
+    expect(en(b).marks.map((m) => [m.kind, m.text])).toContainEqual(['decided', 'Clear fix, accepted by Claude: Say "Language" in full']);
+    expect(en(b).marks.some((m) => m.kind === 'suggested')).toBe(false);
+
+    const fix = (state: string, pr: number | null, hoursAgo: number, note: string | null = null) => ({ state, pr, at: at(hoursAgo), run: 'https://github.com/r/5', note });
+    const record = videoBoard(input({ feedback: feedback({ suggestions: [
+      suggestion({ id: 'a', ...clear, fix: fix('merged', 480, 4) }),
+      suggestion({ id: 'b', decision: 'accepted', decidedAt: at(6), fix: fix('open', 481, 1) }),
+      suggestion({ id: 'c', kind: 'instruction', detail: 'tap On this device', language: 'fr', decision: 'accepted', decidedAt: at(3), fix: fix('failed', 482, 2, 'It did not merge within 24 hours, so the pull request is closed.') }),
+      suggestion({ id: 'd', ...clear, fix: fix('unneeded', null, 3, 'Step 3 already says Language.') })
+    ] }) }), NOW).changes;
+    expect(record.map((c) => [c.pr, c.by, c.state, c.language])).toEqual([[481, 'admin', 'open', 'en'], [482, 'instruction', 'failed', 'fr'], [null, 'claude', 'unneeded', 'en'], [480, 'claude', 'merged', 'en']]);
+    expect(record[0]).toMatchObject({ video: 'Record a passage', change: 'Say "Language" in full', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/481' });
+    expect(record[1]).toMatchObject({ change: 'tap On this device', note: expect.stringContaining('24 hours') });
+    expect(record[2]).toMatchObject({ link: 'https://github.com/r/5', note: 'Step 3 already says Language.' });
+  });
+
+  it('shows a suggestion about one language\'s film on that language\'s row only', () => {
+    const french = suggestion({ kind: 'voice', language: 'fr', decision: 'accepted', decidedAt: at(3), fix: { state: 'failed', pr: 482, at: at(2), run: null, note: 'no' } });
+    const b = videoBoard(input({ films: [film(), film({ language: 'fr' })], nightly: ['en', 'fr'], status: { en: status([{}]), fr: status([{}], { language: 'fr' }) }, feedback: feedback({ suggestions: [french] }) }), NOW);
+    expect(keys(b)).toEqual(['current']);
+    expect(b.videos.find((v) => v.language === 'fr')!.states.map((s) => s.key)).toEqual(['fixFailed']);
+    expect(b.admin.find((a) => a.kind === 'fixFailed')).toMatchObject({ language: 'fr' });
+  });
+
+  it('says nothing is left to do when the video already does what a fix asked', () => {
+    const b = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ clear: true, decision: 'accepted', decidedAt: at(5), fix: { state: 'unneeded', pr: null, at: at(4), run: null, note: 'Step 3 already says Language.' } })] }) }), NOW);
+    expect(keys(b)).toEqual(['current']);
+    expect(b.admin.filter((a) => a.kind !== 'paused')).toEqual([]);
+    expect(en(b).marks.find((m) => m.kind === 'fix')).toMatchObject({ text: 'Fix no change needed', detail: { lines: ['Say "Language" in full', 'Why: Step 3 already says Language.'] } });
   });
 
   it('says a screen change slots a video for tonight\'s check', () => {
@@ -124,9 +177,12 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13)', () => {
 
   it('says who acts next on a failing film, and that Claude has the admin\'s instruction once sent', () => {
     const failing = input({ status: { en: status([{ tonight: 'failed' }]) } });
-    const before = videoBoard(failing, NOW).admin[0]!;
-    expect(before).toMatchObject({ kind: 'fails', who: 'you', instruct: expect.stringContaining('fails each night') });
-    expect(before.next).toContain('Each night fails again');
+    const before = videoBoard(failing, NOW).admin.find((a) => a.kind === 'fails')!;
+    expect(before).toMatchObject({ who: 'claude', instruct: expect.stringContaining('fails each night') });
+    expect(before.next).toContain('Claude looks at it at 10:00 UTC');
+    const looked = videoBoard({ ...failing, feedback: feedback({ last: { at: at(2), sha: 'f'.repeat(40), runUrl: 'https://github.com/r/9', looked: 1, suggested: 0, code: 0 } }) }, NOW).admin[0]!;
+    expect(looked).toMatchObject({ kind: 'fails', who: 'you' });
+    expect(looked.next).toContain('Each night fails again');
     const note = { id: 'n1', kind: 'note' as const, tutorial: 'record-a-passage', language: null, at: at(1), ref: null, youtubeId: null, pr: null,
       text: 'Instruction from an admin. ...\nClaude, do this: tap On this device', english: null, reply: null, replyEnglish: null, lookedAt: null, outcome: null };
     const after = videoBoard({ ...failing, feedback: feedback({ inputs: [note] }) }, NOW).admin.find((a) => a.kind === 'fails')!;
@@ -137,9 +193,13 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13)', () => {
     expect(queued.admin.find((a) => a.kind === 'fails')).toMatchObject({ who: 'claude', instructed: { text: 'tap On this device', fix: null } });
     expect(keys(queued)).toContain('toFix');
     expect(queued.worker).toContainEqual(expect.objectContaining({ kind: 'toFix', detail: expect.stringContaining('Your instruction: tap On this device') }));
-    // Its fix waiting for a merge says the rest: the problem's own card goes.
+    // Its pull request merges itself: the problem's card stays with Claude, and says so.
     const open = videoBoard({ ...failing, feedback: feedback({ suggestions: [{ ...instruction, fix: { state: 'open', pr: 470, at: at(0.5), run: null, note: null } }] }) }, NOW);
-    expect(open.admin.map((a) => a.kind)).toEqual(['merge', 'paused']);
+    expect(open.admin.map((a) => a.kind)).toEqual(['paused', 'fails']);
+    expect(open.admin.find((a) => a.kind === 'fails')).toMatchObject({ who: 'claude', instructed: { fix: { state: 'open', pr: 470 } } });
+    // A fix that failed says the rest in its own card: the problem's card goes.
+    const failedFix = videoBoard({ ...failing, feedback: feedback({ suggestions: [{ ...instruction, fix: { state: 'failed', pr: 470, at: at(0.5), run: null, note: 'Its checks failed (gate: failure), so the pull request is closed.' } }] }) }, NOW);
+    expect(failedFix.admin.map((a) => a.kind)).toEqual(['fixFailed', 'paused']);
     // An older note does not answer a newer problem.
     expect(videoBoard({ ...failing, feedback: feedback({ inputs: [{ ...note, at: at(20) }] }) }, NOW).admin.find((a) => a.kind === 'fails')!.instructed).toBeUndefined();
   });

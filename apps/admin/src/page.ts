@@ -86,6 +86,7 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .vi { border: 1px solid var(--line); border-inline-start-width: 4px; border-radius: 8px; padding: 8px 10px; margin: 6px 0; background: var(--card); }
 .vi.bad { border-inline-start-color: var(--red); color: inherit; } .vi.warn { border-inline-start-color: var(--amber); color: inherit; } .vi.info { border-inline-start-color: var(--primary); }
 .vi p { margin: 4px 0; } .vi small { color: var(--muted); }
+.vchanges { margin: 12px 0; } .vchanges summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; gap: 6px; }
 .tag.warn { color: var(--amber); background: var(--amberbg); } .tag.info { color: var(--primary); background: var(--bg); }
 .vtools { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 8px 0; } .vtools label { margin: 0 0 4px; } .vtools select { width: auto; }
 .vrow { display: grid; grid-template-columns: minmax(180px, 280px) 1fr 44px; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding: 4px 0; }

@@ -106,6 +106,12 @@ describe('parseReview', () => {
     expect(parseReview(review({ looked: [{ input: INPUT, outcome: '' }] })).looked[0]!.outcome).toBeNull();
   });
 
+  it('takes a clear fix Claude accepts itself, and the language of the film a suggestion is about (decisions.md 186, amended 2026-11-16)', () => {
+    const clear = parseReview(review({ suggestions: [{ kind: 'screen', tutorial: 'answer-feedback', language: 'fr', clear: true, title: 'Tap On this device', detail: 'Step 4.', inputs: [] }] }));
+    expect(clear.suggestions[0]).toMatchObject({ kind: 'screen', tutorial: 'answer-feedback', language: 'fr', clear: true });
+    expect(parseReview(review()).suggestions.every((s) => s.clear === false && s.language === null)).toBe(true);
+  });
+
   it('says the first thing wrong', () => {
     const wrong: [Record<string, unknown>, string][] = [
       [{ sha: 'main' }, 'sha'],
@@ -120,6 +126,12 @@ describe('parseReview', () => {
       [{ comments: [{ id: 'Ugc-1', english: 'e', reply: '', replyEnglish: '' }] }, 'comments[0].id'],
       [{ looked: Array.from({ length: 4001 }, () => ({ input: INPUT, outcome: null })) }, 'looked'],
       [{ attach: [{ suggestion: 'pr-272', inputs: [] }] }, 'attach[0].suggestion'],
+      // Only a change to one video is clear; the app itself and a new video always wait for a person.
+      [{ suggestions: [{ kind: 'code', tutorial: 'record-a-passage', clear: true, title: 't', detail: 'd', inputs: [] }] }, 'suggestions[0].clear'],
+      [{ suggestions: [{ kind: 'new', tutorial: null, clear: true, title: 't', detail: 'd', inputs: [] }] }, 'suggestions[0].clear'],
+      [{ suggestions: [{ kind: 'script', tutorial: null, clear: true, title: 't', detail: 'd', inputs: [] }] }, 'suggestions[0].clear'],
+      [{ suggestions: [{ kind: 'script', tutorial: 'record-a-passage', clear: 'yes', title: 't', detail: 'd', inputs: [] }] }, 'suggestions[0].clear'],
+      [{ suggestions: [{ kind: 'script', tutorial: 'record-a-passage', language: 'French', title: 't', detail: 'd', inputs: [] }] }, 'suggestions[0].language'],
       // The phone's disguise (decisions.md 171) is never explained in public, whoever asks.
       [{ suggestions: [{ kind: 'new', tutorial: null, title: 'Make LangQuest look like a calculator', detail: 'd', inputs: [] }] }, 'suggestions[0].title'],
       [{ suggestions: [{ kind: 'script', tutorial: 'your-account', title: 'Show the App icon row', detail: 'Tap App icon, then Notepad, and type a code.', inputs: [] }] }, 'suggestions[0].detail'],
@@ -212,6 +224,9 @@ describe('parseFixUpdates', () => {
     expect(parseFixUpdates({ runUrl, updates: [{ id, state: 'failed', note: ' The script has no such line. ' }, { id, state: 'closed', pr: 9 }] })).toEqual({
       runUrl, updates: [{ id, state: 'failed', pr: null, note: 'The script has no such line.' }, { id, state: 'closed', pr: 9, note: null }]
     });
+    // A fix that needs no change, and one whose checks failed (its pull request closed).
+    expect(parseFixUpdates({ runUrl, updates: [{ id, state: 'unneeded', note: 'Step 4 already taps it.' }, { id, state: 'failed', pr: 9, note: 'Its checks failed.' }] }).updates)
+      .toEqual([{ id, state: 'unneeded', pr: null, note: 'Step 4 already taps it.' }, { id, state: 'failed', pr: 9, note: 'Its checks failed.' }]);
   });
   it('says the first thing wrong', () => {
     for (const [sent, error] of [

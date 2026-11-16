@@ -50,6 +50,11 @@ export interface Suggestion {
   decision: 'accepted' | 'rejected' | null;
   decidedAt: string | null;
   reason: string | null;
+  /**
+   * Claude accepted it itself, as a clear fix (decisions.md 186, amended 2026-11-16): a change to a video's script,
+   * screens or voice with one right answer that Claude checked. `decidedAt` is when; no person decided it.
+   */
+  clear?: boolean;
   issue: string | null;
   issueUrl: string | null;
   /** Where Claude's draft pull request for an accepted change to a video is, or null before one is started. */
@@ -59,15 +64,17 @@ export interface Suggestion {
 
 /**
  * Where Claude's fix for an accepted change to a video's script, screens or voice is (decisions.md 186,
- * amended 2026-11-13): `working`, a run is writing it; `open`, its draft pull request waits for a person
- * to merge it; `merged`, the film run after the merge films the video again; `closed`, closed without a
- * merge; `failed`, Claude wrote no fix, and `note` says why.
+ * amended 2026-11-13 and 2026-11-16): `working`, a run is writing it; `open`, its pull request runs its
+ * checks and merges itself when they pass; `merged`, the film run after the merge films the video again;
+ * `closed`, closed without a merge by a person; `failed`, Claude wrote no fix, the second check stopped it,
+ * or its checks failed (the run closed it), and `note` says why; `unneeded`, the video already does what
+ * the suggestion says, and `note` says how.
  */
-export const FIX_STATES = ['working', 'open', 'merged', 'closed', 'failed'] as const;
+export const FIX_STATES = ['working', 'open', 'merged', 'closed', 'failed', 'unneeded'] as const;
 export type FixState = (typeof FIX_STATES)[number];
 export interface Fix {
   state: FixState;
-  /** The draft pull request: null while working, and when no fix was opened. */
+  /** The pull request: null while working, and when no fix was opened. */
   pr: number | null;
   at: string;
   /** The Actions run that wrote it. */
@@ -118,6 +125,9 @@ const TUTORIAL = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA = /^[0-9a-f]{40}$/;
 const KEY = /^[A-Za-z0-9_-]{1,40}$/;
+const LANGUAGE = /^[a-z]{2,3}(-[A-Z][a-z]{3})?$/;
+/** The suggestions Claude may accept itself as clear, and make: a change to a video, never the app or a new video. */
+export const CLEAR_KINDS: readonly SuggestionKind[] = ['script', 'screen', 'voice'];
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /**
  * The phone's disguise (decisions.md 171): a calculator or notepad in front of the app that a code opens. No video,
@@ -142,7 +152,11 @@ export interface Review {
   code: CodeInput[];
   comments: { id: string; english: string; reply: string; replyEnglish: string }[];
   looked: { input: string; outcome: string | null }[];
-  suggestions: { kind: SuggestionKind; tutorial: string | null; title: string; detail: string; inputs: string[] }[];
+  /**
+   * `clear`: Claude accepts it itself (only a change to a video's script, screens or voice); `language`: the film
+   * it is about, when that is not English (a film that fails or is held in one language).
+   */
+  suggestions: { kind: SuggestionKind; tutorial: string | null; language: string | null; clear: boolean; title: string; detail: string; inputs: string[] }[];
   attach: { suggestion: string; inputs: string[] }[];
 }
 
@@ -217,8 +231,14 @@ export function parseReview(input: unknown): Review {
     if (kind === 'new' ? tutorial !== null : tutorial !== null && (typeof tutorial !== 'string' || !TUTORIAL.test(tutorial) || tutorial.length > 80)) {
       throw new ReviewError(`${where}.tutorial: ${kind === 'new' ? 'null for a new video' : "a video's id, or null"}`);
     }
+    const clear = s['clear'] ?? false;
+    if (typeof clear !== 'boolean') throw new ReviewError(`${where}.clear: true or false`);
+    if (clear && !(CLEAR_KINDS.includes(kind as SuggestionKind) && tutorial !== null)) throw new ReviewError(`${where}.clear: only a change to one video's ${CLEAR_KINDS.join(', ')}`);
+    const language = s['language'] ?? null;
+    if (language !== null && (typeof language !== 'string' || !LANGUAGE.test(language) || tutorial === null)) throw new ReviewError(`${where}.language: an app language's code for the video's film, or null`);
     return {
-      kind: kind as SuggestionKind, tutorial: tutorial as string | null, title: noDisguise(text(s, 'title', where, 200), `${where}.title`),
+      kind: kind as SuggestionKind, tutorial: tutorial as string | null, language: language as string | null, clear,
+      title: noDisguise(text(s, 'title', where, 200), `${where}.title`),
       detail: noDisguise(text(s, 'detail', where, 4000), `${where}.detail`), inputs: refs(s, where)
     };
   });
