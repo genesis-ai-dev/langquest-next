@@ -60,7 +60,7 @@ Hyperdrive config `npm run secrets` makes from it). Production may
 also hold the ops dashboard's `ADMIN_*` keys: one read-only token per
 provider, each optional (`docs/admin.md`), `APP_STORE_REVIEW_KEY`,
 the key that sends new iPhone builds to App Review (The App Store key,
-below), and `PLAY_REVIEW_KEY`, the key that moves new Android builds from
+below), and `PLAY_REVIEW_KEY`, the key that sends an Android build left in
 internal testing to production review (The Play key, below), and
 `APK_R2_ACCESS_KEY_ID` with `APK_R2_SECRET_ACCESS_KEY`, the carried builds'
 bucket token (The carried build, below). It may also hold `BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By
@@ -251,15 +251,15 @@ Each run prints a line that starts with what it found:
 | Line | Means |
 | --- | --- |
 | `submit:` | no review was open, so the newest build Apple has processed went to App Review, on its own App Store version, released as soon as Apple approves it |
-| `wait:` | a review is waiting or under way, or an approved version is not out yet; the newest build waits in TestFlight and goes on a later run |
-| `cancel:` | a review is waiting or under way with an older build, and the newest build's pull request was labelled `store: replace review` (Replacing a build in review, below): the review is cancelled and the newest build goes to review on that version. When Apple finishes cancelling a moment late, the next run sends it |
+| `cancel:` | a review is waiting or under way with an older build: the review is cancelled and the newest build goes to review on that version (decisions.md 253). When Apple finishes cancelling a moment late, the next run sends it |
+| `wait:` | an approved version is not out yet, or Apple is still cancelling or finishing a review; the newest build waits in TestFlight and goes on a later run |
 | `replace:` | Apple rejected a version, and a newer build is processed: the rejected version leaves its rejected submission and goes to review with the newer build and its version number (decisions.md 157, amended 2026-11-03). When Apple closes the submission a moment late, the next run sends it |
 | `held:` | Apple rejected the newest build itself, or a rejected or draft submission in App Store Connect holds something else. Someone reads Apple's message in App Store Connect (App Review), answers it there, and resubmits or removes the version, or the next store build takes its place; after that the step goes on by itself |
 | `stuck:` | the newest build's version number belongs to a version already out, which Apple takes only once, so the run fails. Two store builds of merges in the same minute, or a second build of one merge, share a number; the next store build brings a new one |
 | `none:` | nothing newer than the public build, or nothing processed yet |
 
-It never deletes anything, and cancels or changes a review only for a
-build whose pull request asked to replace it. The only thing it removes is
+It never deletes anything, and cancels a review only to send a newer
+build in its place. The only thing it removes is
 a rejected version from its rejected submission, when a newer build takes
 its place, as the Remove button on App Store Connect's App Review page
 does. To
@@ -285,17 +285,18 @@ key once the Integrations page opens.
 
 ## The Play key
 
-`PLAY_REVIEW_KEY` is how `scripts/play-review.mjs` moves each new Android
-build from Play's internal testing track to production review when nothing
-is in review there (decisions.md 157, amended 2026-11-04): the JSON key
-file of a Google Cloud service account that Play Console lets release to
-production. It lives encrypted in `.env.production`, and `npm run secrets`
-puts it in EAS's production environment, the only place that reads it: the
-hourly `.eas/workflows/app-store-review.yml` and the `review_android` job
-of `deploy-to-testers.yml`. Without it the step says "no Google Play key
-yet" and succeeds, and Android builds wait in internal testing for a
-person to promote them in Play Console (Test and release > Internal
-testing > Promote release > Production).
+`PLAY_REVIEW_KEY` is how `scripts/play-review.mjs` sends the newest
+Android build left in Play's internal testing track to production review
+(decisions.md 253): the JSON key file of a Google Cloud service account
+that Play Console lets release to production. New builds go straight to
+production review from `deploy-to-testers.yml` with EAS's own key; this
+step only clears internal testing of builds from before 2026-11-16, or put
+there by hand. It lives encrypted in `.env.production`, and `npm run
+secrets` puts it in EAS's production environment, the only place that
+reads it: the hourly `.eas/workflows/app-store-review.yml` and the carried
+build's jobs. Without it the step says "no Google Play key yet" and
+succeeds, and a person promotes such a build in Play Console (Test and
+release > Internal testing > Promote release > Production).
 
 To make it, once, as a Play Console admin. It is a service account of its
 own, `play-review`, in a Google Cloud project the team can open
@@ -330,16 +331,11 @@ Each run prints a line that starts with what it found:
 
 | Line | Means |
 | --- | --- |
-| `promote:` | nothing is in review on Google Play, so the newest build in internal testing went to production review, released to everyone once Google approves it |
-| `wait:` | a production release is newer than the version Google Play's page shows people, so it is in review (or Google rejected it), or the page could not be read; the newest build waits in internal testing and goes on a later run |
+| `promote:` | the newest build in internal testing is newer than every production release, so it went to production review, in place of a release Google has not approved yet, and is released to everyone once Google approves it |
 | `none:` | nothing in internal testing is newer than production |
 
-Google's API cannot say whether a release is in review
-(issuetracker.google.com/208842993), so the step compares the newest
-production release's version with the one Play's public page shows. A
-release Google rejected looks the same as one in review: someone fixes it
-in Play Console, or a merge labelled `store: replace review` sends its
-build in its place.
+Only the newest build in internal testing goes; older ones there are
+left, since a newer release on production replaces them.
 
 ## The carried build
 
@@ -404,20 +400,16 @@ Each run prints a line that starts with what it found:
 | `none:` | the file is there; nothing to build |
 | `no carried build:` | a setting or key is missing, or Google or the bucket answered something unexpected; the job failed and changed nothing. The next merge that changes the app checks again |
 
-## Replacing a build in review
+## Only the newest build is in review
 
-By default a new store build waits while an older one is in review, on
-both stores, so a review is never restarted. To replace the build in
-review instead (an urgent fix, say), add the label `store: replace review`
-to the pull request before it merges (`scripts/store-choice.mjs`). Its
-Android build then goes straight to production review, which Play reviews
-in place of the release that waited, and its iPhone build cancels the App
-Review that is waiting or under way and goes to review on that version,
-at the back of Apple's line. An approved version on its way out is never
-touched. The label is read from GitHub's public API when the merge's build
-is sent; if it cannot be read, the build waits. The label itself is kept in
-`.github/labels.json`, and `npm run github:rules -- --apply` makes it on
-GitHub.
+Every new store build goes straight to production review, on both stores
+(decisions.md 253), and takes the place of an older build still in
+review: on Google Play a newer production release replaces one Google
+has not approved yet, and on the App Store the step cancels the review of
+an older build and sends the newest on that version, at the back of
+Apple's line. An approved version on its way out is never touched. So
+only the newest build is ever in review, and nothing waits for an older
+review to end.
 
 ## Setting up preview (once)
 

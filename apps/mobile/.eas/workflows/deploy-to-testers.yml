@@ -2,19 +2,16 @@
 # servers, not GitHub Actions). Each platform is decided on its own: if the
 # native fingerprint matches an existing production build, the change ships
 # as an over-the-air update on the production channel, which installed builds
-# take on next launch. Otherwise it builds a new binary and sends it to
-# production review when no review is open there (decisions.md 157, amended
-# 2026-11-04): on Android to Play's internal testing track (eas.json,
-# submit.internal), and then to production with a full rollout when nothing
-# is in review on Play (scripts/play-review.mjs); on iOS to TestFlight, and
-# then to App Review when no review is open (scripts/app-store-review.mjs;
-# after a rejection the build takes the rejected one's place).
-# app-store-review.yml runs both steps every hour, so a build that waited
-# goes once the review ends. A pull request labelled `store: replace review`
-# (scripts/store-choice.mjs) skips the wait on both stores: its Android
-# build goes straight to production (eas.json, submit.production), and its
-# iPhone build cancels the review that is open and takes its place. Each
-# build is public as soon as Google or Apple approves it.
+# take on next launch. Otherwise it builds a new binary and sends it straight
+# to production review (decisions.md 157 and 253), and only the newest build
+# is ever in review: on Android to Play's production track (eas.json,
+# submit.production), where a newer release takes the place of one that is
+# still in review; on iOS to TestFlight, and then to App Review
+# (scripts/app-store-review.mjs), which cancels a review of an older build
+# and sends the newest in its place. app-store-review.yml runs the App
+# Review step every hour too, since Apple is usually still processing the
+# build when this workflow gets there. Each build is public as soon as
+# Google or Apple approves it.
 # Each platform's last job tells Linear its lane is out (scripts/linear-sync.mjs,
 # decisions.md 53); LINEAR_API_KEY is an EAS variable on `production`. A failed
 # job reports nothing: the deploy watchdog routine finds the issue left in
@@ -66,22 +63,6 @@ jobs:
     type: fingerprint
     environment: production
 
-  # Whether the merged pull request asks to replace the build in store
-  # review (the label `store: replace review`); "false", the default, when
-  # it does not or the label cannot be read.
-  store_choice:
-    name: Wait for an open store review, or replace it
-    needs: [fingerprint]
-    outputs:
-      replace: ${{ steps.choice.outputs.replace }}
-    steps:
-      - uses: eas/checkout
-      - id: choice
-        name: Read the merged pull request's labels
-        run: |
-          cd ../..
-          set-output replace "$(node scripts/store-choice.mjs --sha '${{ github.event.head_commit.id }}')"
-
   get_ios_build:
     name: Check for an existing iOS build
     needs: [fingerprint]
@@ -115,12 +96,12 @@ jobs:
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
   review_ios:
-    name: Send to App Review when no review is open
+    name: Send to App Review, in place of a review of an older build
     needs: [submit_ios]
     environment: production
     steps:
       - uses: eas/checkout
-      - name: Send the newest build to App Review, or let it wait in TestFlight
+      - name: Send the newest build to App Review once Apple has processed it
         run: |
           cd ../..
           node scripts/app-store-review.mjs
@@ -157,30 +138,11 @@ jobs:
       profile: production
   submit_android:
     name: Submit to Play production review, replacing any in review
-    needs: [build_android, store_choice]
-    if: ${{ needs.store_choice.outputs.replace == 'true' }}
+    needs: [build_android]
     type: submit
     params:
       build_id: ${{ needs.build_android.outputs.build_id }}
       profile: production
-  submit_android_internal:
-    name: Submit to Play internal testing
-    needs: [build_android, store_choice]
-    if: ${{ needs.store_choice.outputs.replace != 'true' }}
-    type: submit
-    params:
-      build_id: ${{ needs.build_android.outputs.build_id }}
-      profile: internal
-  review_android:
-    name: Send to Play production review when nothing is in review
-    needs: [submit_android_internal]
-    environment: production
-    steps:
-      - uses: eas/checkout
-      - name: Send the newest build to production review, or let it wait in internal testing
-        run: |
-          cd ../..
-          node scripts/play-review.mjs
   publish_android_update:
     name: Publish Android over-the-air update
     needs: [get_android_build]
@@ -290,17 +252,6 @@ jobs:
   linear_android_submit:
     name: Tell Linear (android submit)
     needs: [submit_android]
-    environment: production
-    steps:
-      - uses: eas/checkout
-      - name: Report the android lane
-        run: |
-          cd ../..
-          node scripts/linear-sync.mjs lane --name android --status ok --sha "$(git rev-parse HEAD)"
-
-  linear_android_internal:
-    name: Tell Linear (android internal testing)
-    needs: [submit_android_internal]
     environment: production
     steps:
       - uses: eas/checkout

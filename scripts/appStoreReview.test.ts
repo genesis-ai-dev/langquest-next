@@ -10,12 +10,11 @@ import appConfig from '../apps/mobile/app.config.js';
 
 /**
  * The iPhone half of sending new builds to production review
- * (scripts/app-store-review.mjs, decisions.md 157): never cancel, change or
- * replace what is in review unless the newer build's pull request asked to
- * replace it (the label `store: replace review`), let newer builds wait in
- * TestFlight while a review or release is on its way, let a newer build take a rejected one's
- * place (and leave the rejected build itself to a person), and send only the
- * newest build when nothing is open. The step runs against a fake App Store
+ * (scripts/app-store-review.mjs, decisions.md 157 and 253): cancel a review
+ * of an older build and send the newest in its place, let the newest build
+ * wait in TestFlight only while an approved version is on its way out, let a
+ * newer build take a rejected one's place (and leave the rejected build
+ * itself to a person), and send only the newest build when nothing is open. The step runs against a fake App Store
  * Connect that refuses what Apple refuses.
  */
 
@@ -188,22 +187,13 @@ function fakeApple(world: World, { itemConflicts = 0, readyAfterLooks = 0, refus
   return { fetch, calls, writes, world };
 }
 
-/**
- * One run of the step against a fake App Store Connect, with no real
- * waiting. `replace` is what the newest build's pull request asks (the
- * label `store: replace review`); `asked` lists the versions it was asked for.
- */
-async function step(world: World, options: Parameters<typeof fakeApple>[1] = {}, args: string[] = [], replace = false) {
+/** One run of the step against a fake App Store Connect, with no real waiting. */
+async function step(world: World, options: Parameters<typeof fakeApple>[1] = {}, args: string[] = []) {
   const apple = fakeApple(world, options);
   const waited: number[] = [];
   const said: string[] = [];
-  const asked: string[] = [];
-  const choice = async (version: string) => {
-    asked.push(version);
-    return replace ? { replace: true, why: `${version} came from #400, labelled "store: replace review"` } : { replace: false, why: `${version} came from #400, not labelled "store: replace review"` };
-  };
-  const result = await run({ env, args, appId: APP, fetch: apple.fetch as never, wait: (async (ms: number) => { waited.push(ms); }) as never, log: (line: string) => said.push(line), choice: choice as never });
-  return { ...apple, result, waited, said, asked };
+  const result = await run({ env, args, appId: APP, fetch: apple.fetch as never, wait: (async (ms: number) => { waited.push(ms); }) as never, log: (line: string) => said.push(line) });
+  return { ...apple, result, waited, said };
 }
 
 // Today's App Store (2026-11-02): build 45 is public, build 48 waits for Apple.
@@ -221,20 +211,18 @@ const inReview = (state: string): World => ({
 const fresh = (world: World): World => JSON.parse(JSON.stringify(world));
 
 describe('a build already in review', () => {
-  it('is never cancelled, changed or replaced unless the newer build\'s merge asks: while a review is open, the step only reads', async () => {
-    for (const state of REVIEWING) {
-      const { writes, result, said, asked } = await step(inReview(state));
+  it('is left alone while Apple is cancelling or completing it: the step only reads, and the newer build goes on a later run', async () => {
+    for (const state of REVIEWING.filter((x) => !CANCELABLE.includes(x))) {
+      const { writes, result, said } = await step(inReview(state));
       expect(writes(), state).toEqual([]);
       expect(result.action, state).toBe('wait');
       expect(said.at(-1), state).toContain('so build 49 waits in TestFlight');
-      // The label is read only for a review the step could cancel.
-      expect(asked, state).toEqual(CANCELABLE.includes(state) ? ['2026.1104.1700'] : []);
     }
   });
 
-  it('is cancelled for a newer build whose pull request asked to replace it, and the newer build goes to review on its version', async () => {
+  it('is cancelled for a newer build, and the newer build goes to review on its version', async () => {
     for (const state of CANCELABLE) {
-      const { writes, result, said, world: after } = await step(inReview(state), {}, [], true);
+      const { writes, result, said, world: after } = await step(inReview(state));
       expect(writes().map((c) => `${c.method} ${c.path.split('?')[0]}`), state).toEqual([
         'PATCH /reviewSubmissions/s-48',
         'PATCH /appStoreVersions/v-48',
@@ -244,36 +232,34 @@ describe('a build already in review', () => {
         'PATCH /reviewSubmissions/s-2'
       ]);
       expect(writes()[0].body, state).toEqual({ type: 'reviewSubmissions', id: 's-48', attributes: { canceled: true } });
-      expect(said[0], state).toBe('Build 49: 2026.1104.1700 came from #400, labelled "store: replace review".');
-      expect(said[1], state).toMatch(/^cancel: version 2026\.1030\.1319 \(build 48\) is (waiting for review|in review), and the merge that made build 49 asked to replace it/);
+      expect(said[0], state).toMatch(/^cancel: version 2026\.1030\.1319 \(build 48\) is (waiting for review|in review), and build 49 is newer, so that review is cancelled and build 49 \(2026\.1104\.1700\) goes to review in its place\.$/);
       expect(result.action, state).toBe('submit');
       expect(after.versions.find((v) => v.id === 'v-48'), state).toMatchObject({ string: '2026.1104.1700', build: 'b49', state: 'WAITING_FOR_REVIEW' });
     }
   });
 
   it('is cancelled with --dry-run only in words', async () => {
-    const { writes, result } = await step(inReview('WAITING_FOR_REVIEW'), {}, ['--dry-run'], true);
+    const { writes, result } = await step(inReview('WAITING_FOR_REVIEW'), {}, ['--dry-run']);
     expect(writes()).toEqual([]);
     expect(result.action).toBe('cancel');
   });
 
   it('when Apple has not finished cancelling, the newer build goes on a later run', async () => {
-    const { writes, result, waited } = await step(inReview('IN_REVIEW'), { cancelsLate: true }, [], true);
+    const { writes, result, waited } = await step(inReview('IN_REVIEW'), { cancelsLate: true });
     expect(writes().map((c) => `${c.method} ${c.path}`)).toEqual(['PATCH /reviewSubmissions/s-48']);
     expect(waited.filter((ms) => ms === READY_WAIT_MS)).toHaveLength(READY_LOOKS - 1);
     expect(result).toMatchObject({ action: 'wait', why: 'Apple is still cancelling the review, so build 49 goes on a later run' });
   });
 
-  it('is not cancelled for its own build, nor while it is approved and on its way out, even when a merge asks', async () => {
-    const own = await step({ ...inReview('WAITING_FOR_REVIEW'), builds: builds.slice(0, 2) }, {}, [], true);
+  it('is not cancelled for its own build, nor while it is approved and on its way out', async () => {
+    const own = await step({ ...inReview('WAITING_FOR_REVIEW'), builds: builds.slice(0, 2) });
     expect(own.writes()).toEqual([]);
     expect(own.result.action).toBe('none');
     for (const state of ['ACCEPTED', 'PENDING_DEVELOPER_RELEASE', 'PENDING_APPLE_RELEASE', 'PROCESSING_FOR_DISTRIBUTION']) {
       const world: World = { versions: [live45, { id: 'v-48', string: '2026.1030.1319', state, build: 'b48' }], builds, submissions: [{ id: 's-48', state: 'COMPLETE', items: ['v-48'] }] };
-      const { writes, result, asked } = await step(world, {}, [], true);
+      const { writes, result } = await step(world);
       expect(writes(), state).toEqual([]);
       expect(result.action, state).toBe('wait');
-      expect(asked, state).toEqual([]);
     }
   });
 
@@ -563,7 +549,7 @@ describe('the step\'s code and workflows', () => {
     const source = read('scripts/app-store-review.mjs');
     expect(source.match(/\bcanceled: true\b/g)).toHaveLength(1);
     expect(source).toContain("export async function cancelReview(api, submission, { wait = sleep } = {}) {\n  await api('PATCH', `/reviewSubmissions/${submission.id}`, { type: 'reviewSubmissions', id: submission.id, attributes: { canceled: true } });");
-    // Called once, for the step that only a merge labelled `store: replace review` makes.
+    // Called once, for the step that a review of an older build makes.
     expect(source.match(/await cancelReview\(/g)).toHaveLength(1);
     expect(source).toMatch(/if \(step\.action === 'cancel'\) \{\n    const done = await cancelReview\(/);
     expect(source).not.toMatch(/'DELETE'/);

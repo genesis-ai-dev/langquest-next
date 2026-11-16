@@ -51,7 +51,7 @@ export const SECTION_HELP: Record<string, string> = {
   cloudflare: 'Each Cloudflare Worker\'s requests, errors and CPU over the last day, and its latest deploy and build.',
   supabase: 'The LangQuest Next Supabase project\'s status, each service\'s health, Edge Functions, and error counts from its logs.',
   expo: 'App builds on EAS, store submissions, and the newest over-the-air update on each branch.',
-  pipeline: 'Each new store build in the stage it is in now, left to right: building on EAS, waiting in TestFlight or Play\'s internal testing, in review, approved, and what people download. A new build waits while an older one is in review, unless its pull request had the label "store: replace review" (decisions.md 157). Inside each build: the over-the-air updates it takes (published for its runtime after it was made), each with its pull request and how many of the platform\'s phones run it.',
+  pipeline: 'Each new store build in the stage it is in now, left to right: building on EAS, waiting in TestFlight or Play\'s internal testing, in review, approved, and what people download. Each new build goes to review at once, in place of an older one still in review, so only the newest is ever in review (decisions.md 253). Inside each build: the over-the-air updates it takes (published for its runtime after it was made), each with its pull request and how many of the platform\'s phones run it.',
   adoption: 'How far each over-the-air update has reached. For each channel, platform and runtime that phones run: the newest update EAS published for exactly that, and how many installs active in the last 7 days run it, an older update, or the build\'s embedded one. Matched by the update id phones report.',
   googleplay: 'Android crash and freeze (ANR) rates as Google Play measures them, against Play\'s bad-behaviour lines, and recent reviews.',
   appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',
@@ -66,11 +66,11 @@ export const SECTION_HELP: Record<string, string> = {
 export const HELP: Record<string, string> = {
   // ---- where each build and update is (sources/pipeline.ts)
   'Building on EAS': 'Store builds EAS is making now, and the newest one when it failed.',
-  TestFlight: 'iPhone builds uploaded to Apple and not sent for review: Apple processing them, or waiting while an older build is in App Review. The hourly step sends only the newest once the review ends.',
+  TestFlight: 'iPhone builds uploaded to Apple and not sent for review yet: Apple processing them, or waiting for the hourly step. The step sends only the newest, in place of an older build in App Review; it waits only while an approved version goes out.',
   'App Review': 'The iPhone version Apple is reviewing or will review next, or the one it rejected. A rejected one waits for a person, unless a newer build replaces it.',
   'Approved, not out yet': 'Apple approved it and is putting it on the App Store, or it waits for someone to release it.',
   'On the App Store': 'The version people download from the App Store now.',
-  'Internal testing': 'Android builds in Play\'s internal testing track: waiting while an older build is in Play review. play-review.mjs sends the newest to production review once nothing is in review (it needs PLAY_REVIEW_KEY).',
+  'Internal testing': 'Android builds in Play\'s internal testing track, from before new builds went straight to production review (2026-11-16) or put there by hand. play-review.mjs sends the newest to production review within the hour (it needs PLAY_REVIEW_KEY).',
   'Play review': 'The newest production release that Google Play\'s page does not show yet: in review, or rejected (Play Console says which).',
   'On Google Play': 'The version Google Play\'s page shows: what people download now.',
   // ---- sync and data safety

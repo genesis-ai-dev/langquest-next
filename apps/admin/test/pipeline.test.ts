@@ -75,7 +75,7 @@ describe('the iPhone lane', () => {
   it('puts each build in its stage: building, waiting in TestFlight behind the review, in review, on the App Store', () => {
     expect(read(iosLane(world()))).toEqual({
       building: ['build 53: building'],
-      waiting: ['build 52: waits for the review ahead of it to end'],
+      waiting: ['build 52: waits to be sent for review'],
       review: ['build 50: waiting for review'],
       approved: [],
       live: ['build 45: what people download']
@@ -111,7 +111,7 @@ describe('the Android lane', () => {
   it('puts the newest internal build behind the production release Google has not approved yet', () => {
     expect(read(androidLane(world()))).toEqual({
       building: [],
-      waiting: ['build 52: waits for the review ahead of it to end'],
+      waiting: ['build 52: waits to be sent for review'],
       review: ['build 50: in review, or rejected (Play Console says which)'],
       live: ['build 48: what people download']
     });
@@ -125,7 +125,7 @@ describe('the Android lane', () => {
   it('falls back on where EAS sent each build when Play\'s tracks cannot be read', () => {
     const lane = androidLane(world({ play: null, notes: { ios: [], android: ["Play's tracks are not connected."] } }));
     expect(read(lane)).toMatchObject({
-      waiting: ['build 52: waits for the review ahead of it to end'],
+      waiting: ['build 52: waits to be sent for review'],
       review: ['build 50: in review, or rejected (Play Console says which)'],
       live: ['build 48: what people download']
     });
@@ -151,7 +151,7 @@ describe('the Android lane', () => {
     const w = world({ play: null });
     w.submissions.unshift(carried('55', 'IN_PROGRESS', 0.5), carried('54', 'ERRORED', 1), carried('53', 'FINISHED', 2));
     expect(read(androidLane(w))).toMatchObject({
-      waiting: ['build 52: waits for the review ahead of it to end'],
+      waiting: ['build 52: waits to be sent for review'],
       review: ['build 50: in review, or rejected (Play Console says which)']
     });
     expect(read(androidLane({ ...w, play: world().play }))).toEqual(read(androidLane(world())));

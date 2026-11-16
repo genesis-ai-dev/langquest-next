@@ -8,11 +8,12 @@ import { googleToken } from './googleplay';
 
 /**
  * Where every new store build and over-the-air update sits on its way to
- * people (decisions.md 157): for each platform, the stages a store build
- * goes through, with each build in the stage it is in now, and inside each
- * build the updates it takes (the pull request that made each, and how many
- * of the platform's phones run it). A new build waits in TestFlight or Play's internal testing
- * while an older one is in review, so this shows what waits and why.
+ * people (decisions.md 157 and 253): for each platform, the stages a store
+ * build goes through, with each build in the stage it is in now, and inside
+ * each build the updates it takes (the pull request that made each, and how
+ * many of the platform's phones run it). A new build goes to review at once,
+ * in place of an older one still in review; an iPhone build waits in
+ * TestFlight while Apple processes it, and this shows what waits and why.
  *
  * Expo says what was built and sent where; App Store Connect says where an
  * iPhone build stands; Play's tracks (read in an edit that is thrown away)
@@ -204,7 +205,7 @@ export function iosLane(i: PipelineInputs): StoreLane {
   for (const b of i.apple.builds.slice(0, 4)) {
     if (held.has(b.build) || !(num(b.build) > (newestSent || 0))) continue;
     const state = b.state === 'PROCESSING' ? ['Apple is processing it', 'busy'] as const
-      : b.state === 'VALID' ? ['waits for the review ahead of it to end', 'wait'] as const
+      : b.state === 'VALID' ? ['waits to be sent for review', 'wait'] as const
         : ['Apple refused it after processing', 'bad'] as const;
     waiting.cards.push(buildCard(b.build, b.version, state[0], state[1], b.uploadedAt ?? builtAt(i.builds, 'ios', b.build)));
   }
@@ -261,7 +262,7 @@ export function androidLane(i: PipelineInputs): StoreLane {
       if (!SENT.has(r.status)) continue;
       for (const code of r.versionCodes) {
         if (prod && Number(code) <= prod.code) continue;
-        stage(stages, 'waiting').cards.push(buildCard(code, r.name ?? versionOf(code), inReview ? 'waits for the review ahead of it to end' : 'waits to be sent for review', 'wait', builtAt(i.builds, 'android', code)));
+        stage(stages, 'waiting').cards.push(buildCard(code, r.name ?? versionOf(code), 'waits to be sent for review', 'wait', builtAt(i.builds, 'android', code)));
       }
     }
   } else {
@@ -272,7 +273,7 @@ export function androidLane(i: PipelineInputs): StoreLane {
     const newestProd = Math.max(...toProd.map((s) => num(s.build)).filter(Number.isFinite), 0);
     if (toProd[0]) stage(stages, 'review').cards.push(buildCard(toProd[0].build, toProd[0].version, 'in review, or rejected (Play Console says which)', 'wait', toProd[0].doneAt ?? toProd[0].at));
     for (const s of finished.filter((s) => s.track !== 'production' && num(s.build) > newestProd)) {
-      stage(stages, 'waiting').cards.push(buildCard(s.build, s.version, toProd[0] ? 'waits for the review ahead of it to end' : 'waits to be sent for review', 'wait', s.doneAt ?? s.at));
+      stage(stages, 'waiting').cards.push(buildCard(s.build, s.version, 'waits to be sent for review', 'wait', s.doneAt ?? s.at));
     }
   }
   for (const s of subs.filter((s) => RUNNING.has(s.status))) {

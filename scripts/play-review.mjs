@@ -1,36 +1,25 @@
-// Move the newest Android build from internal testing to production review
-// when nothing is in review on Google Play (decisions.md 157, amended
-// 2026-11-04).
+// Send the newest Android build left in Play's internal testing track to
+// production review (decisions.md 253).
 //
-// A merge into main that makes a new Android build uploads it to Play's
-// internal testing track (eas.json, submit.internal), and this step runs
-// right after; an EAS schedule runs it every hour too
-// (app-store-review.yml). Play reviews a new production release from the
-// start, and a newer one sent while another is in review takes its place, so
-// the new build waits in internal testing while an older one is in review,
-// as an iPhone build waits in TestFlight. A merge whose pull request is
-// labelled `store: replace review` (scripts/store-choice.mjs) skips the wait:
-// the workflow sends its build straight to production.
+// A merge into main that makes a new Android build sends it straight to
+// production review (eas.json, submit.production), and a newer production
+// release takes the place of one that is still in review, so only the
+// newest build is ever in review. From 2026-11-04 to 2026-11-16 new builds
+// went to internal testing first and waited there while another was in
+// review (decision 157, amended 2026-11-04); this step, run every hour by
+// an EAS schedule (app-store-review.yml), sends the newest build that is
+// still there to production review, and only that one, so nothing stays in
+// internal testing. A build already on production, or older than the
+// newest one there, is left alone.
 //
-// Google's API cannot say whether a release is in review: it calls a
-// production release completed from the moment it is sent
-// (issuetracker.google.com/208842993). Play's public page shows the version
-// people can download, and only once Google approved it (the store check
-// reads it too, apps/web/worker/storeReleases.ts). So a production release
-// whose version is not the one the page shows is in review, and while the
-// page cannot be read the build waits. A release Google rejected stays in
-// production unpublished, and the build waits until a person acts in Play
-// Console, or a merge labelled `store: replace review` sends its build in
-// its place.
-//
-//   node scripts/play-review.mjs             look, and send when it is time
+//   node scripts/play-review.mjs             look, and send when there is one
 //   node scripts/play-review.mjs --dry-run   look, and say what it would do
 //
 // It needs a Google Play service account key with "Release to production",
 // as PLAY_REVIEW_KEY: the JSON file Google Cloud gives for the key. It is a
 // secret in .env.production, and `npm run secrets -- production --only eas`
 // puts it in EAS's production environment (docs/environments.md, "The Play
-// key"). Its only writes are a production release of a build already in
+// key"). Its only write is a production release of a build already in
 // internal testing.
 import { createPrivateKey, createSign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -42,10 +31,9 @@ export const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
 /** The app's id on Google Play (app.json, android.package). */
 export const PACKAGE = 'com.frontierrnd.langquestnext';
-const PAGE = `https://play.google.com/store/apps/details?id=${PACKAGE}&hl=en&gl=us`;
 
 /** What the step says while it has no key. */
-export const NO_KEY = 'no Google Play key yet (PLAY_REVIEW_KEY is not in EAS\'s production environment), so the newest Android build waits in internal testing for a person to promote it to production in Play Console';
+export const NO_KEY = 'no Google Play key yet (PLAY_REVIEW_KEY is not in EAS\'s production environment), so a person promotes the newest Android build in internal testing to production in Play Console';
 /** Release states that count as sent: a production release is sent once it is completed, or rolling out. */
 const SENT = ['completed', 'inProgress'];
 
@@ -62,41 +50,20 @@ export function newestRelease(releases = []) {
   return best;
 }
 
-/** Whether version `a` is at least version `b`, for dotted numbers (2026.1104.802); null when either is not one. */
-function atLeast(a, b) {
-  const parts = (v) => (/^\d+(\.\d+)*$/.test(v ?? '') ? v.split('.').map(Number) : null);
-  const [x, y] = [parts(a), parts(b)];
-  if (!x || !y) return null;
-  for (let i = 0; i < Math.max(x.length, y.length); i++) {
-    if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0);
-  }
-  return true;
-}
-
 /**
  * What to do now: `production` and `internal` are the tracks' releases as
- * Google's API gives them, `live` the version Play's page shows (null when
- * it could not be read). The action is `promote` (the newest internal build
- * goes to production review), `wait` (a release is in review, or nobody can
- * tell) or `none` (nothing newer waits).
+ * Google's API gives them. The action is `promote` (the newest build in
+ * internal testing goes to production review, in place of any release still
+ * in review there) or `none` (no newer build is in internal testing).
  */
-export function nextPlayStep({ production = [], internal = [], live = null }) {
+export function nextPlayStep({ production = [], internal = [] }) {
   const sent = newestRelease(production);
   const waiting = newestRelease(internal);
   const name = (r) => `build ${r.code}${r.name ? ` (${r.name})` : ''}`;
   if (!waiting) return { action: 'none', why: 'no build is in internal testing' };
   if (sent && waiting.code <= sent.code) return { action: 'none', why: `${name(waiting)} is not newer than ${name(sent)} on production` };
-  const waits = `so ${name(waiting)} waits in internal testing and goes on a later run`;
-  if (sent) {
-    if (live === null) return { action: 'wait', why: `Google Play's page could not be read, so nobody can tell whether ${name(sent)} is still in review, ${waits}` };
-    if (sent.name !== live && atLeast(live, sent.name) !== true) {
-      return {
-        action: 'wait',
-        why: `${name(sent)} is in review on Google Play (people get ${live}), ${waits}. If Google rejected it, someone fixes it in Play Console, or a merge labelled "store: replace review" sends its build in its place`
-      };
-    }
-  }
-  return { action: 'promote', why: `nothing is in review on Google Play${live ? ` (people get ${live})` : ''}, so ${name(waiting)} goes to production review`, release: waiting };
+  const replaces = sent ? `, in place of ${name(sent)} if Google has not approved that one yet` : '';
+  return { action: 'promote', why: `${name(waiting)} is the newest build in internal testing, so it goes to production review${replaces}`, release: waiting };
 }
 
 /**
@@ -179,16 +146,8 @@ export async function promote(api, release) {
   await api('POST', `/edits/${edit.id}:commit`);
 }
 
-/** The version people can download from Google Play now, from its public page, or null. */
-export async function livePlayVersion({ fetch: fetchImpl = fetch } = {}) {
-  const res = await fetchImpl(PAGE, { headers: { 'user-agent': 'Mozilla/5.0 (compatible; LangQuest Play review)' }, signal: AbortSignal.timeout(30_000) });
-  if (!res.ok) return null;
-  // The page carries its data as JSON; the current version is the only string in a [[["…"]] of its own.
-  return /\[\[\["(\d+(?:\.\d+){0,2})"\]\]/.exec(await res.text())?.[1] ?? null;
-}
-
-/** One run: look, say what is next, and send when it is time. Returns the step. */
-export async function run({ env = process.env, args = [], fetch: fetchImpl = fetch, log = console.log, live = () => livePlayVersion({ fetch: fetchImpl }) } = {}) {
+/** One run: look, say what is next, and send when there is a build to send. Returns the step. */
+export async function run({ env = process.env, args = [], fetch: fetchImpl = fetch, log = console.log } = {}) {
   const key = playKey(env);
   if (!key) {
     log(`wait: ${NO_KEY}.`);
@@ -196,7 +155,7 @@ export async function run({ env = process.env, args = [], fetch: fetchImpl = fet
   }
   const api = await client(key, { fetch: fetchImpl });
   const tracks = await look(api);
-  const step = nextPlayStep({ ...tracks, live: await live().catch(() => null) });
+  const step = nextPlayStep(tracks);
   log(`${step.action}: ${step.why}.`);
   if (args.includes('--dry-run') || step.action !== 'promote') return step;
   await promote(api, step.release);

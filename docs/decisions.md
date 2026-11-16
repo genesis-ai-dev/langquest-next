@@ -7902,7 +7902,7 @@ build profile to a workflow, which would do the guard's job without a hook.
 
 ## 157. New builds go to production review on their own, and each is public as soon as Google or Apple approves it
 
-Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+Date: 2026-10-22 · By: Caleb Koster · Status: partly superseded by 253
 
 Reason: a person promoted each Android build from internal testing to
 production, and submitted and released each iPhone build by hand, so a new
@@ -13094,3 +13094,39 @@ Date: 2026-11-12 · By: Caleb Koster · Status: accepted
 Reason: at the 5 November 2026 meeting with Bezily's group the Standard Bible Flow looked as if a back translation needed a peer review, because step 1 lists both side by side and a made back translation read "looks good" though nobody had checked it (LAN-234). Caleb chose two rows with the flows unchanged. A kind that makes new content (`produces`) now shows "Back translation · make it" (done reads "made") followed by "Back translation · check it", which follows the check that compares it (`checkedBy`) and reads "checked" only once that check is done (`teamSteps` in `pathModel.ts`, `TeamStep.part`). It stays out when the back translation is set aside or moved past. The rows keep the look of the other team rows. Decision 91's one-row-per-check still holds for every other kind; flows and kinds are unchanged.
 Reverse if: people still read the check row as a second review, or a language's flow needs back translation checked by something other than a named check.
 
+## 253. Every new store build goes straight to production review, in place of an older build still in review, on both stores
+
+Date: 2026-11-16 · By: Caleb Koster · Status: accepted
+
+Reason: Supersedes 157's amendment of 2026-11-04, which held a new build
+in TestFlight or Play's internal testing while an older one was in review,
+unless its pull request carried the label `store: replace review`. Caleb
+expects every merge that makes a store build to go to production review at
+once, with nothing waiting in internal testing, and chose to replace a
+review rather than wait for it (decision card, 2026-11-16). He asked after
+the ops dashboard showed five Android builds "waiting" in internal
+testing; those were carried builds on Play's alpha track (246), which the
+dashboard, without Play's tracks, counted as internal testing. Both stores
+had the newest store build public, and the wait had held nothing. Now:
+- Android: `deploy-to-testers.yml` submits each new build with EAS's
+  `production` profile, to the production track with `releaseStatus:
+  completed`, as 157 first did. A newer release takes the place of one
+  Google has not approved yet, so only the newest is in review. The
+  `internal` submit profile is gone. `scripts/play-review.mjs` still runs
+  every hour (`app-store-review.yml`), and only sends the newest build
+  left in internal testing (from before this change, or put there by hand)
+  to production review; it no longer reads Play's public page.
+- iPhone: `scripts/app-store-review.mjs` cancels a review that waits or is
+  under way with an older build and sends the newest build on that
+  version, as the label used to ask. Apple then reviews the newest from the
+  start of its line. An approved version on its way out is still never
+  touched, and 157's rejection rules (2026-11-03 and 2026-11-04) stand.
+- The label, `scripts/store-choice.mjs` and `.github/labels.json` are gone,
+  with `npm run github:rules`'s label part; the label left on GitHub does
+  nothing.
+- The ops dashboard leaves carried submissions out of the Android lane
+  (`CARRIED_TRACK` in `apps/admin/src/sources/pipeline.ts`).
+Reverse if: a restarted Apple review keeps the newest fix from people for
+days (native merges a day or less apart while Apple takes longer), then
+let an iPhone build wait for a review that is under way, as 157 amended
+2026-11-04 did.

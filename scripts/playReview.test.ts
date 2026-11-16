@@ -1,17 +1,15 @@
 import { generateKeyPairSync, verify } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { NO_KEY, PACKAGE, assertion, livePlayVersion, newestRelease, nextPlayStep, playKey, run } from './play-review.mjs';
+import { NO_KEY, PACKAGE, assertion, newestRelease, nextPlayStep, playKey, run } from './play-review.mjs';
 import { EAS_KEYS, destinations } from './secrets.mjs';
 
 /**
- * The Android half of sending new builds to production review
- * (scripts/play-review.mjs, decisions.md 157 amended 2026-11-04): a new
- * build waits in internal testing while an older one is in review on Google
- * Play, and goes to production once nothing is. Google's API calls a
- * production release completed from the moment it is sent, so "in review"
- * is a production release newer than the version Play's page shows. The
- * step runs against a fake Play Developer API.
+ * The Android step that clears internal testing (scripts/play-review.mjs,
+ * decisions.md 253): new builds go straight to production review, and the
+ * newest build left in internal testing goes there too, in place of a
+ * release still in review, so nothing waits in internal testing. Only the
+ * newest goes. The step runs against a fake Play Developer API.
  */
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -73,10 +71,10 @@ function fakeGoogle(tracks: Tracks) {
   return { fetch, calls, writes, tracks };
 }
 
-async function step(tracks: Tracks, live: string | null, args: string[] = []) {
+async function step(tracks: Tracks, args: string[] = []) {
   const google = fakeGoogle(tracks);
   const said: string[] = [];
-  const result = await run({ env, args, fetch: google.fetch as never, log: (line: string) => said.push(line), live: async () => live });
+  const result = await run({ env, args, fetch: google.fetch as never, log: (line: string) => said.push(line) });
   return { ...google, result, said };
 }
 
@@ -85,47 +83,42 @@ const public48: Release = { name: '2026.1030.1319', versionCodes: ['48'], status
 const review50: Release = { name: '2026.1103.2251', versionCodes: ['50'], status: 'completed' };
 const internal51: Release = { name: '2026.1104.1802', versionCodes: ['51'], status: 'completed' };
 
-describe('a new Android build', () => {
-  it('waits in internal testing while an older build is in review on Google Play, and the step only reads', async () => {
-    const { writes, result, said } = await step({ production: [public48, review50], internal: [internal51] }, '2026.1030.1319');
-    expect(writes()).toEqual([]);
-    expect(result.action).toBe('wait');
-    expect(said[0]).toBe('wait: build 50 (2026.1103.2251) is in review on Google Play (people get 2026.1030.1319), so build 51 (2026.1104.1802) waits in internal testing and goes on a later run. If Google rejected it, someone fixes it in Play Console, or a merge labelled "store: replace review" sends its build in its place.');
-  });
+const internal52: Release = { name: '2026.1105.900', versionCodes: ['52'], status: 'completed' };
 
-  it('goes to production review once the older build is public, released to everyone when Google approves it', async () => {
-    const { writes, result, said, tracks } = await step({ production: [public48, review50], internal: [internal51] }, '2026.1103.2251');
+describe('a build left in internal testing', () => {
+  it('goes to production review in place of the release still in review, released to everyone when Google approves it', async () => {
+    const { writes, result, said, tracks } = await step({ production: [public48, review50], internal: [internal51] });
     expect(writes().map((c) => `${c.method} ${c.path}`)).toEqual(['PUT /edits/e2/tracks/production', 'POST /edits/e2:commit']);
     expect(writes()[0].body).toEqual({ track: 'production', releases: [{ name: '2026.1104.1802', versionCodes: ['51'], status: 'completed' }] });
     expect(result.action).toBe('promote');
     expect(said).toEqual([
-      'promote: nothing is in review on Google Play (people get 2026.1103.2251), so build 51 (2026.1104.1802) goes to production review.',
+      'promote: build 51 (2026.1104.1802) is the newest build in internal testing, so it goes to production review, in place of build 50 (2026.1103.2251) if Google has not approved that one yet.',
       'Build 51 is in production review, and goes public when Google approves it.'
     ]);
     expect(newestRelease(tracks.production)?.code).toBe(51);
   });
 
-  it('waits while Play\'s page cannot be read, since nobody can tell whether a review is open', async () => {
-    const { writes, result } = await step({ production: [public48, review50], internal: [internal51] }, null);
-    expect(writes()).toEqual([]);
-    expect(result.why).toMatch(/^Google Play's page could not be read, so nobody can tell whether build 50 \(2026\.1103\.2251\) is still in review/);
+  it('goes alone: only the newest of several builds in internal testing is sent', async () => {
+    const { writes, result } = await step({ production: [public48], internal: [internal51, internal52] });
+    expect(result.action).toBe('promote');
+    expect(writes().filter((c) => c.method === 'PUT').map((c) => c.body.releases)).toEqual([[{ name: '2026.1105.900', versionCodes: ['52'], status: 'completed' }]]);
   });
 
-  it('does nothing when no newer build waits, and throws away the edits it reads in', async () => {
-    const { writes, result, calls } = await step({ production: [public48, review50], internal: [{ ...review50 }] }, '2026.1030.1319');
+  it('does nothing when no newer build is in internal testing, and throws away the edits it reads in', async () => {
+    const { writes, result, calls } = await step({ production: [public48, review50], internal: [{ ...review50 }] });
     expect(writes()).toEqual([]);
     expect(result).toMatchObject({ action: 'none', why: 'build 50 (2026.1103.2251) is not newer than build 50 (2026.1103.2251) on production' });
     expect(calls.filter((c) => c.method === 'DELETE').map((c) => c.path)).toEqual(['/edits/e1']);
-    expect((await step({ production: [public48], internal: [] }, '2026.1030.1319')).result.action).toBe('none');
+    expect((await step({ production: [public48], internal: [] })).result.action).toBe('none');
   });
 
   it('goes straight to review on a production track with nothing on it yet', async () => {
-    const { result } = await step({ production: [], internal: [internal51] }, null);
-    expect(result.action).toBe('promote');
+    const { result } = await step({ production: [], internal: [internal51] });
+    expect(result).toMatchObject({ action: 'promote', why: 'build 51 (2026.1104.1802) is the newest build in internal testing, so it goes to production review' });
   });
 
   it('only says so with --dry-run', async () => {
-    const { writes, result } = await step({ production: [public48], internal: [internal51] }, '2026.1030.1319', ['--dry-run']);
+    const { writes, result } = await step({ production: [public48], internal: [internal51] }, ['--dry-run']);
     expect(result.action).toBe('promote');
     expect(writes()).toEqual([]);
   });
@@ -138,18 +131,10 @@ describe('what the step reads', () => {
     expect(newestRelease([])).toBeNull();
   });
 
-  it('counts a production release as public once Play shows its version or a newer one', () => {
-    expect(nextPlayStep({ production: [review50], internal: [internal51], live: '2026.1103.2251' }).action).toBe('promote');
-    expect(nextPlayStep({ production: [review50], internal: [internal51], live: '2026.1104.900' }).action).toBe('promote');
-    expect(nextPlayStep({ production: [review50], internal: [internal51], live: '2026.1103.2250' }).action).toBe('wait');
-    expect(nextPlayStep({ production: [{ ...review50, name: 'Release 50' }], internal: [internal51], live: '2026.1103.2251' }).action).toBe('wait');
-  });
-
-  it('reads the public version from Play\'s page, and nothing from a page without one', async () => {
-    const page = (status: number, text: string) => (async () => ({ ok: status < 300, status, text: async () => text })) as never;
-    expect(await livePlayVersion({ fetch: page(200, '<script>AF_initDataCallback({data:[[["2026.1030.1319"]],[[[36]]]]})</script>') })).toBe('2026.1030.1319');
-    expect(await livePlayVersion({ fetch: page(200, '<html>consent</html>') })).toBeNull();
-    expect(await livePlayVersion({ fetch: page(429, '') })).toBeNull();
+  it('never waits for a review: the newest build in internal testing goes whatever is on production', () => {
+    expect(nextPlayStep({ production: [review50], internal: [internal51] }).action).toBe('promote');
+    expect(nextPlayStep({ production: [{ ...review50, name: 'Release 50' }], internal: [internal51] }).action).toBe('promote');
+    expect(nextPlayStep({ production: [{ ...internal51 }], internal: [internal51] }).action).toBe('none');
   });
 });
 
@@ -189,16 +174,14 @@ describe('the workflows', () => {
   /** A job's lines, up to the next job. */
   const job = (name: string) => deploy.split(/\n(?=  \w+:\n)/).find((part) => part.startsWith(`  ${name}:\n`)) ?? '';
 
-  it('sends a new Android build to internal testing, then to production review when nothing is in review, unless its pull request asks to replace the review', () => {
-    expect(job('store_choice')).toContain("node scripts/store-choice.mjs --sha '${{ github.event.head_commit.id }}'");
-    expect(job('submit_android')).toContain("if: ${{ needs.store_choice.outputs.replace == 'true' }}");
+  it('sends a new Android build straight to production review, and nothing to internal testing', () => {
+    expect(job('submit_android')).toContain('needs: [build_android]\n');
+    expect(job('submit_android')).not.toContain('if:');
     expect(job('submit_android')).toContain('profile: production');
-    expect(job('submit_android_internal')).toContain("if: ${{ needs.store_choice.outputs.replace != 'true' }}");
-    expect(job('submit_android_internal')).toContain('profile: internal');
-    expect(job('review_android')).toMatch(/needs: \[submit_android_internal\]\n\s*environment: production[\s\S]*node scripts\/play-review\.mjs/);
+    expect(deploy).not.toMatch(/profile: internal|store-choice|node scripts\/play-review/);
     const eas = JSON.parse(read('apps/mobile/eas.json')).submit;
     expect(eas.production.android).toEqual({ track: 'production', releaseStatus: 'completed' });
-    expect(eas.internal.android).toEqual({ track: 'internal', releaseStatus: 'completed' });
+    expect(Object.values(eas).map((p: any) => p.android?.track)).not.toContain('internal');
   });
 
   it('tries every hour, with the production key', () => {

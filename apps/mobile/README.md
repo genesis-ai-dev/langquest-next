@@ -100,17 +100,16 @@ typecheck and unit tests run, then, per platform, a change whose native
 fingerprint matches an existing production build goes out as an
 over-the-air update on the `production` channel (installed builds take it on
 next launch), and any other change builds a new binary and sends it to
-production review (decisions.md 157). A new build waits while an older
-one is in review, on both stores. On Android the build goes to internal
-testing, and then to the production track with a full rollout when nothing
-is in review on Google Play (`scripts/play-review.mjs`). On iOS the build
-goes to TestFlight, and then to App Review when no review is open
-(`scripts/app-store-review.mjs`). `.eas/workflows/app-store-review.yml`
-runs both every hour and sends the newest waiting build once a review
-ends; after Apple rejects a version, a newer build takes its place. A pull
-request labelled `store: replace review` skips the wait: its builds
-replace the ones in review on both stores (`docs/environments.md`,
-Replacing a build in review). The steps need the App Store key and the
+production review (decisions.md 157 and 253), in place of an older build
+still in review, so only the newest build is ever in review. On Android
+the build goes straight to the production track with a full rollout. On
+iOS the build goes to TestFlight, and then to App Review
+(`scripts/app-store-review.mjs`), which cancels a review of an older
+build first. `.eas/workflows/app-store-review.yml` runs that step every
+hour, since Apple is usually still processing the build when the merge's
+run gets there; after Apple rejects a version, a newer build takes its
+place (`docs/environments.md`, Only the newest build is in review). The
+steps need the App Store key and the
 Play key in EAS, once (`docs/environments.md`, The App Store key and The
 Play key). Apple and Google release a
 build as soon as they approve it. Each store build's version
@@ -155,7 +154,7 @@ Console.
    has one, that Google service account can be given access to this app
    too (Play Console, Users and permissions).
 4. The next merge to `main` builds the production AAB and submits it to
-   internal testing. Store builds come only from that workflow (decisions.md
+   production review. Store builds come only from that workflow (decisions.md
    150). If Play
    refuses it because the app is still a draft, upload that one AAB by hand
    in Play Console (Testing, Internal testing, Create release) and roll it

@@ -49,13 +49,6 @@
         "releaseStatus": "completed"
       }
     },
-    "internal": {
-      "extends": "production",
-      "android": {
-        "track": "internal",
-        "releaseStatus": "completed"
-      }
-    },
     "carried": {
       "extends": "production",
       "android": {
