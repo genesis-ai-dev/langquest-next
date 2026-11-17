@@ -23,7 +23,10 @@ Two changes, chosen by Carl:
 - Inside a run, `submit_carried` waits with `after` for
   `submit_android_internal`, `submit_android` and `review_android`, however
   they end, so the store's jobs still never wait for or depend on the
-  carried ones.
+  carried ones. A job skipped by its own `if`, or because a job it needs
+  was skipped, counts as done for `after`: a probe run on EAS on
+  2026-11-17 (`01a1eb89-82ca-7a95-907f-5ebbc015bf0d`) showed the waiting
+  job run after both kinds.
 
 `scripts/playReview.test.ts` holds the group on every workflow that writes
 to Play, and `scripts/carriedBuild.test.ts` holds the order.
@@ -35,8 +38,6 @@ on "This Edit has been deleted" was not enough: EAS's submit job (fastlane)
 has no retry, and the job that retries would delete the other run's edit in
 turn.
 
-Reverse if: EAS's `after` skips a job when one it waits for was skipped
-(then submit_carried never runs in the usual run, where `submit_android` is
-skipped; the first deploy after this merge shows it, and a no-op job between
-them would be the fix), waiting deploys hold up updates in a way people
-notice, or Play or EAS gives a lock narrower than a whole run.
+Reverse if: waiting deploys hold up updates in a way people notice, EAS
+changes how `after` treats a skipped job, or Play or EAS gives a lock
+narrower than a whole run.
