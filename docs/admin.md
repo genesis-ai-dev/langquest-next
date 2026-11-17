@@ -488,6 +488,17 @@ reads the last 24 h (`?range=24h`) and leads with the job its alert names.
 A tap on a red square asks the detail for `failed`, on an amber one for
 `partial`, on any other for `runs`.
 
+The fixed lists draw a square for each item (`apps/admin/src/pageLists.ts`,
+plan 5c2): nightly suites, EAS, v2 projects, user issues, feedback,
+channels, what came in about the videos and the videos. `listRows` turns
+the part's own data into rows of items (state, name, fields, link) with no
+new read; the squares lead the part and its card, and a tap opens the
+item's fields in the detail panel, with no call to the server. Past 200
+items a row draws 100 squares of 1% each (`shareCells`). Storage shows the
+nightly R2 check as blob_reconcile's row of the job squares. A new list
+needs a case in `listRows`, a line in `LIST_SAID` and a test in
+`apps/admin/test/lists.test.ts`; never put a name or an email in its fields.
+
 A tap on a bar or a point asks
 `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,
 decisions.md 255): the records behind that number in that bucket, 50 a page,

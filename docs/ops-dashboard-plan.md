@@ -204,6 +204,19 @@ the pictures keep working at tens of thousands of people and over years. So:
   tap on a red square opens that bucket's failed runs, on an amber square its
   partial runs. The rows come from the same totals as the charts, so a job
   that runs every minute for a year is still one row of buckets.
+- **A square for each item of a fixed list** (built, 5c2): nightly suites,
+  EAS builds, submissions and updates, v2 projects, user issues, feedback,
+  YouTube channels, what came in about the videos, and the videos (a row
+  for each app language, a column for each video) each draw a square for
+  each item, from the data the part already read: red with an x when it
+  failed, amber with a dot when it waits, purple with a ring when it runs,
+  green when done, grey when there is nothing to do. The squares lead the
+  part, and the card when the part has an alert. A tap opens the item: its
+  fields and its page (Linear, GitHub, EAS, YouTube). A row past 200 items
+  (feedback, issues and v2 projects grow with people) draws 100 squares of
+  1% each, and a state with any item keeps a square; a tap on one lists
+  its items, 50 at a time. The nightly R2 check is blob_reconcile's row of
+  the job squares, a square a night for 14 nights.
 - **History** comes from totals by hour and day, never from raw records
   (section 7, phase 5): `diag.hourly`, `diag.daily` and `diag.monthly`, read by
   `GET /ops/api/<part>?range=`, built first (`docs/admin.md`, History).
@@ -482,7 +495,7 @@ changes an organization stay in the CLIs, run on a call.
 | 5b | **Built (2026-11-17)**: the start page "What needs you first" (5.0), each section's charts over a range, and the detail panel for a bucket (`/ops/api/<part>/detail`, raw records, 90 days at most; `/ops/api/glance`) (decisions.md 255) | 5a merged |
 | 5b2 | **Built (2026-11-17)**: speed at 40,000 installs: "What installs report" and "Builds in the field" counted every 10 minutes by pg_cron (`langquest-ops-counts`) from each kind's index and two small tables for each install, read by the page in 1 to 25 ms (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md) | 5b merged |
 | 5c1 | **Built (2026-11-17)**: a square for each job run, in Jobs and pg_cron, on the card (24 h) and in the section (the range); a tap on a failed or partial square opens those runs (5.0) | 5b2 merged |
-| 5c2 | A square for each item of a fixed list: nightly suites, EAS builds, v2 imports, channels, videos, issues, feedback, R2 nights | 5c1 merged |
+| 5c2 | **Built (2026-11-17)**: a square for each item of a fixed list: nightly suites, EAS builds, submissions and updates, v2 projects, user issues, feedback, channels, videos, what came in about the videos, and the nightly R2 check; a tap opens the item (5.0) | 5c1 merged |
 | 5c3 | Lanes and lines: store builds, App Store, deploys, what shipped, expiry dates | 5c2 merged |
 | 5c4 | Meters and shares: capacity, database, Google Play, limits, routes, phones, people | 5c3 merged |
 | 5d | `OpsWatch` (section 11.4) | phase 3 |

@@ -78,7 +78,7 @@ svg.mini .base { stroke: var(--line); stroke-width: 1; }
 svg.sq .q.ok { fill: var(--green); } svg.sq .q.part { fill: var(--amber); } svg.sq .q.fail { fill: var(--red); }
 svg.sq .q.none { fill: none; stroke: var(--line); stroke-width: 1; } svg.sq .q.gap { fill: var(--bg); stroke: var(--line); stroke-dasharray: 2 2; }
 svg.sq .q.sel { stroke: var(--primary); stroke-width: 2.5; }
-svg.sq .mk { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; pointer-events: none; } svg.sq .dt { fill: #fff; pointer-events: none; }
+svg.sq .mk { fill: none; stroke: var(--card); stroke-width: 1.6; stroke-linecap: round; pointer-events: none; } svg.sq .dt { fill: var(--card); pointer-events: none; }
 .sqbox p.muted { font-size: 12px; margin: 2px 0; }
 .sqleg { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--muted); margin-top: 4px; }
 .sqleg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-inline-end: 4px; }
@@ -310,7 +310,7 @@ const ALSO_SHOWN = 3;
 function cardHtml(c) {
   const t = splitAlert(tidy(c.text));
   const gl = glanceOf(c.group);
-  const sq = SQUARES[c.part] ? squarePic(c.part, c.text) : '';
+  const sq = SQUARES[c.part] ? squarePic(c.part, c.text) : listCardPic(c.part);
   const link = safeLink(c.link);
   const also = c.more.slice(0, ALSO_SHOWN).map((x) => '<li>' + esc(splitAlert(tidy(x)).title) + '</li>').join('');
   const rest = c.more.length - ALSO_SHOWN;
@@ -443,19 +443,24 @@ function squareSvg(row, hst, r) {
     (r ? ' data-range="' + esc(r) + '"' : '') + '>' + body + '</svg>';
 }
 
-/** A part's runs as squares: a row for each job, rows with a failure first. max cuts the rows for a card; a job its alert names leads there. */
-function squaresBox(part, hst, r, max, alert) {
+/**
+ * A part's runs as squares: a row for each job, rows with a failure first. max cuts the rows for a card; a job its alert names leads there.
+ * only draws one job's row under its own title (the nightly R2 check is blob_reconcile's).
+ */
+function squaresBox(part, hst, r, max, alert, only) {
   const sq = SQUARES[part];
   const named = (row) => Boolean(alert) && row.key !== '_other' && String(alert).includes(row.key);
-  const rows = runSquares(hst, sq).map((row, at) => ({ row, at })).sort((a, b) => Number(named(b.row)) - Number(named(a.row)) || a.at - b.at).map((x) => x.row);
+  const rows = runSquares(hst, sq).filter((row) => !only || row.key === only.key)
+    .map((row, at) => ({ row, at })).sort((a, b) => Number(named(b.row)) - Number(named(a.row)) || a.at - b.at).map((x) => x.row);
   if (!rows.length) return '';
   const shown = max ? rows.slice(0, max) : rows;
   const bad = rows.filter((x) => x.failed).length;
   const step = STEP_ONE[hst.step];
-  const head = num(rows.length) + ' ' + (rows.length === 1 ? sq.one : sq.many) + ' · ' + (bad ? num(bad) + ' with a failed run' : 'no failed run');
+  const head = only ? [rows[0].failed ? num(rows[0].failed) + ' failed' : '', rows[0].partial ? num(rows[0].partial) + ' did part of the work' : ''].filter(Boolean).join(' · ') || 'no failure'
+    : num(rows.length) + ' ' + (rows.length === 1 ? sq.one : sq.many) + ' · ' + (bad ? num(bad) + ' with a failed run' : 'no failed run');
   const states = ['ok'].concat(sq.partial ? ['part'] : [], ['fail', 'none']);
   return '<div class="chart sqbox' + (max ? ' mini' : '') + '" data-part="' + esc(part) + '" data-metric="' + esc(sq.runs) + '">' +
-    '<div class="ct"><span>' + esc(PART_TITLE[part] || part) + ', a square for each ' + esc(step) + '</span><b>' + esc(head) + '</b></div>' +
+    '<div class="ct"><span>' + esc(only ? only.title : PART_TITLE[part] || part) + ', a square for each ' + esc(step) + '</span><b>' + esc(head) + '</b></div>' +
     '<div class="sqrows">' + shown.map((row) => '<div class="sqrow"><span title="' + esc(keyName(row.key)) + '">' + esc(keyName(row.key)) + '</span>' + squareSvg(row, hst, r) + '</div>').join('') +
     '<div class="sqrow"><span></span><div class="ax"><span>' + esc(bucketLabel(hst.buckets[0], hst.step)) + '</span><span>' + esc(bucketLabel(hst.buckets[hst.buckets.length - 1], hst.step)) + ' UTC</span></div></div></div>' +
     (rows.length > shown.length ? '<p class="muted">' + num(rows.length - shown.length) + ' more ' + esc(sq.many) + ' in ' + esc(PART_TITLE[part] || part) + '.</p>' : '') +
@@ -551,13 +556,14 @@ document.addEventListener('click', (e) => {
     loadHistory(chart.dataset.part, range).then((hst) => drawPart(chart.dataset.part, hst));
     return;
   }
-  const svg = e.target.closest && e.target.closest('.chart svg');
+  // A list's squares (pageLists.ts) open their own detail.
+  const svg = e.target.closest && e.target.closest('.chart:not(.lstbox) svg');
   if (svg) { openBucket(svg, bucketAt(svg, e.clientX)); return; }
   const lk = e.target.closest && e.target.closest('[data-lookup]');
   if (lk) { lookUp(lk.dataset.lookup); return; }
 });
 document.addEventListener('keydown', (e) => {
-  const svg = e.target.closest && e.target.closest('.chart svg');
+  const svg = e.target.closest && e.target.closest('.chart:not(.lstbox) svg');
   if (svg) {
     const n = Number(svg.dataset.n);
     const at = Number(svg.dataset.sel || n - 1);

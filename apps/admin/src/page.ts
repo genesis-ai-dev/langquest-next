@@ -8,6 +8,7 @@
  */
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
+import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT } from './pageLists';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
@@ -179,6 +180,7 @@ td button { white-space: nowrap; }
   .pa::before { content: '↓'; }
 }
 ${START_CSS}
+${LISTS_CSS}
 </style>
 </head>
 <body>
@@ -447,7 +449,9 @@ function partHtml(g, id) {
   if (s.state === 'error') return head + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
   try {
     if (id === 'jobs') return head + renderJobs(s.data, results.container);
-    return head + counted(s.data) + (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+    // A square for each item of a fixed list leads its part (pageLists.ts).
+    const pic = listPicture(id, s.data);
+    return head + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
   } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
 }
 
@@ -884,6 +888,8 @@ const METRIC = ${JSON.stringify(METRICS).replace(/</g, '\\u003c')};
 const GLANCE = ${JSON.stringify(GLANCE)};
 ${START_LOGIC}
 ${START_SCRIPT}
+${LISTS_LOGIC}
+${LISTS_SCRIPT}
 
 let loading = false;
 async function load(fresh) {
