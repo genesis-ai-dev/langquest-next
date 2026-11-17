@@ -87,7 +87,7 @@ export function missingHashes(state: LanguageState, listed: Iterable<{ hash: str
  *
  * Idempotent: a second pass over an unchanged bucket does nothing.
  */
-export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boolean; pageSize?: number; countMissing?: boolean; shouldStop?: () => boolean; report?: ReconcileReport }): Promise<ReconcileReport> {
+export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boolean; pageSize?: number; countMissing?: boolean; shouldStop?: () => boolean; report?: ReconcileReport; copyRetryMs?: readonly number[] }): Promise<ReconcileReport> {
   const report: ReconcileReport = opts.report ?? { streams: 0, objects: 0, missing: 0, confirmed: 0, verified: 0, invalidated: 0, unreadable: [] };
   for (const { orgId, streamId } of await deps.streams()) {
     if (opts.shouldStop?.()) break;
@@ -102,7 +102,7 @@ export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boole
     // A stream with files is folded when it can be repaired, confirmations or not: a file under the wrong format would be confirmed otherwise.
     const state = stored || (objects.length > 0 && deps.copy) ? await foldStream(deps.transport, orgId, streamId, opts.pageSize ?? 1000) : emptyLanguageState();
     // Repair before counting: a file this pass copies to the name the log gives it is not missing.
-    if (deps.copy) objects.push(...await repairFormats(deps.copy, state, objects, report));
+    if (deps.copy) objects.push(...await repairFormats(deps.copy, state, objects, report, opts.copyRetryMs ?? COPY_RETRY_MS));
     if (opts.countMissing) report.missing += missingHashes(state, objects).length;
     const unconfirmed: BlobObject[] = [];
     for (const o of objects) {
@@ -143,9 +143,10 @@ export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boole
  * a writer's PUT names no event, so `blob_named_by` cannot hold the extension for them, and
  * `v1.BlobStored` records only hash and size. The bytes never leave R2's side of the Worker,
  * and a second pass finds the right name there and does nothing. A few copies go at once, so
- * a night with thousands to make stays inside the job's time limit. Answers the objects made.
+ * a night with thousands to make stays inside the job's time limit. A copy that fails is tried
+ * again after each wait in `retryMs`, then left for the next night. Answers the objects made.
  */
-async function repairFormats(copy: NonNullable<ReconcilerDeps['copy']>, state: LanguageState, objects: readonly BlobObject[], report: ReconcileReport): Promise<BlobObject[]> {
+async function repairFormats(copy: NonNullable<ReconcilerDeps['copy']>, state: LanguageState, objects: readonly BlobObject[], report: ReconcileReport, retryMs: readonly number[]): Promise<BlobObject[]> {
   const refs = referencedBlobs(state);
   const names = new Set(objects.map((o) => `${o.hash}.${o.format}`));
   // One copy for each name the bucket lacks, even when the bytes sit under two other formats.
@@ -158,11 +159,17 @@ async function repairFormats(copy: NonNullable<ReconcilerDeps['copy']>, state: L
   }
   const made: BlobObject[] = [];
   await inParallel([...wanted.values()], COPY_AT_ONCE, async ({ from, to }) => {
-    try {
-      await copy(from, to);
-    } catch (err) {
-      report.unreadable.push(`${from.orgId}/${from.streamId}/${from.hash}: ${(err as Error).message}`);
-      return;
+    for (let tries = 0; ; tries += 1) {
+      try {
+        await copy(from, to);
+        break;
+      } catch (err) {
+        if (tries >= retryMs.length) {
+          report.unreadable.push(`${from.orgId}/${from.streamId}/${from.hash}: ${(err as Error).message}`);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, retryMs[tries]));
+      }
     }
     made.push(to);
     report.repaired = (report.repaired ?? 0) + 1;
@@ -172,6 +179,12 @@ async function repairFormats(copy: NonNullable<ReconcilerDeps['copy']>, state: L
 
 /** Copies in flight at once for one stream. */
 const COPY_AT_ONCE = 4;
+
+/**
+ * The waits before a failed copy is tried again. R2 refused 7 of 222 copies in one minute on
+ * Nov 17, 2026 (the Worker's 502 "Try again"), after none in 56,000 uploads over 10 days.
+ */
+const COPY_RETRY_MS = [2_000, 10_000] as const;
 
 /** Confirmations in flight at once for one stream. */
 const RECORD_AT_ONCE = 4;
