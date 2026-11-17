@@ -66,6 +66,16 @@ select 'clients all', length(diag.ops_series('clients', 'all')::text);
 select 'safety all', length(diag.ops_series('safety', 'all')::text);
 select 'jobs 1y', length(diag.ops_series('jobs', '1y')::text);
 select 'people all', length(diag.ops_series('people', 'all')::text);
+-- The start page's 14 days (diag.ops_glance), then a tap on a bar: the rows behind it, a page at a time.
+select 'glance', length(diag.ops_glance(array['clients', 'safety', 'jobs', 'worker', 'capacity', 'people', 'support', 'integrations', 'userissues'],
+  array['errors', 'refused', 'runs', 'requests', 'db_bytes', 'active_accounts', 'feedback', 'webhook_deliveries', 'looked_at_first'])::text);
+select 'errors, a day', length(diag.ops_detail('clients', 'errors', '', date_trunc('day', now(), 'UTC') - interval '1 day', date_trunc('day', now(), 'UTC') + interval '1 day', 0)::text);
+select 'errors, a key, a day', length(diag.ops_detail('clients', 'errors', 'LoadError7 · screen0', date_trunc('day', now(), 'UTC') - interval '1 day', date_trunc('day', now(), 'UTC') + interval '1 day', 0)::text);
+select 'errors, a week, page 20', length(diag.ops_detail('clients', 'errors', '', now() - interval '7 days', now(), 20)::text);
+select 'crashes, a month', length(diag.ops_detail('clients', 'crashes', '', now() - interval '31 days', now(), 0)::text);
+select 'refused, a key, a day', length(diag.ops_detail('safety', 'refused', 'invalid', now() - interval '1 day', now(), 0)::text);
+select 'lost files, a day', length(diag.ops_detail('storage', 'lost_files_installs', '', now() - interval '1 day', now(), 0)::text);
+select 'syncs failed, a key, an hour', length(diag.ops_detail('clients', 'sync_errors', 'push:E_HTTP', date_trunc('hour', now()) - interval '1 hour', date_trunc('hour', now()), 0)::text);
 reset role;
 
 rollback;
