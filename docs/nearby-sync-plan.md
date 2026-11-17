@@ -101,6 +101,8 @@ the same way.
 | --- | --- | --- | --- |
 | 24 | Should nearby sync reach phones below Android 10? | Not now. Production's diagnostics on 2026-11-16 held one install below Android 10, an Android 7 tablet, and none on 8 or 9, out of about ten real Android phones, most of them the team's and testers'. Answer 7 stands. Look again when field phones report. | Sections 5.8, 11 |
 | 25 | What do iPhones need first? | Sharing between an iPhone and an Android, and between two iPhones. Joining offline on an iPhone is optional and comes after them. | Section 7, phase 5 |
+| 26 | Two iPhones cannot see each other's echo without connecting. How does one start a session with the other? | One tap per opening, as answer 21: the iPhone shows "A teammate may be nearby", and one tap lets it connect to every teammate it cannot get an echo from, until the screen closes. | Section 7, phase 5 |
+| 27 | When does phase 5 merge? | On a draft pull request, after a real-phone test with iPhones and Androids, and not before. | Section 7, phase 5 |
 
 ## 3. Why this fits the app
 
@@ -1900,8 +1902,8 @@ their fixed ids would mark the phone, and no device name or transmit power. Core
 can advertise only a local name and service UUIDs, but Apple's documentation says an
 iPhone's scan response holds only a name, and a UUID that does not fit the advert goes to an
 overflow area that only an iPhone scanning for that UUID sees. So an iPhone sends the advert
-alone and serves the scan response's UUID from a GATT characteristic, and the protocol does
-not change (section 7, phase 5). Every UUID is a valid version 4, because the random version and
+alone, other phones know it by its salt until Hello (`onAdvert`), and the protocol does not
+change (section 7, phase 5). Every UUID is a valid version 4, because the random version and
 variant bits of an underived one are themselves a thing to filter on, and that leaves 74
 bits of MAC. Native matches each advert itself, with a cache per salt, and hands up matches,
 unmasked, and the salts of adverts of this form that match no key. So the `kFind` of every
@@ -2735,57 +2737,74 @@ first real number comes from the branch APK.
 
 **Phase 5: iPhones.** After the first release. Sharing between an iPhone and an Android and
 between two iPhones comes first; joining offline on an iPhone is optional and comes last
-(Carl's answer 25). The protocol stays at 1, so the carried file's name does not change: a
-new link kind is offered through Hello's `can`, which `nearbyWire.ts` is built to grow, and
-older phones drop fields of `arrange` they do not know. What an iPhone can do decides the
-design:
+(Carl's answer 25), and nothing merges before a real-phone test with iPhones (answer 27).
+The protocol stays at 1, so the carried file's name does not change: a new link kind is
+named in `arrange`'s radios, whose fields older phones drop when they do not know them
+(`nearbyWire.ts`), and a plan offers it only when both phones name it. What an iPhone can
+do decides the design:
 
 - **Find.** It scans and connects as any phone does, but it cannot send the scan response.
   Apple's documentation for `startAdvertising` gives an app 28 bytes of advert for service
   UUIDs and a scan response for the local name only, and puts a UUID that does not fit in an
   overflow area that only an iPhone scanning for that exact UUID sees. Find's UUIDs change
   with every salt and `r`, so nobody could scan for them. So an iPhone advertises the advert
-  alone and serves the scan response's UUID from a GATT characteristic, derived from `kFind`
-  and the salt as the service's UUID is, with a new `r` on each read. A phone that hears a
-  teammate's advert with no scan response reads it. An iPhone cannot choose when its
-  Bluetooth address changes (reportedly about every 15 minutes), so on an iPhone salt and
-  address do not change together, and two salts can be linked through one address. The
-  decision entry says so.
+  alone, and serves the same GATT service under it. A phone that hears a teammate's advert
+  with no scan response (`onAdvert`) knows it only by its salt until Hello: no tag, summary
+  or echo. It still echoes that salt, so an iPhone can check an Android's echo and connects
+  to an Android only once echoed, as Androids do. Reading anything more would take a
+  connection before the echo, which is what the echo exists to stop (section 5.12, The
+  echo). An iPhone cannot choose when its Bluetooth address changes (reportedly about every
+  15 minutes), so on an iPhone salt and address do not change together, and two salts can be
+  linked through one address. The decision entry says so.
 - **Move.** An iPhone has no Wi-Fi Direct API and no way for an app to host a network. It
   joins one by name and passphrase (`NEHotspotConfiguration`, with `joinOnce`), after a
   system prompt each time. It sends `radios: { directByName: false, band5: false, hotspot:
   false, joinHotspot: true }`, and `arrangePlan` already has an Android host a local-only
   hotspot for that. Between two iPhones a new link kind, `awdl`, uses Apple's own direct
   Wi-Fi: the host opens a Network framework listener with `includePeerToPeer`, as a Bonjour
-  service under a one-time name it sends in `host`, and the other connects to that name. The
-  service type is fixed in `Info.plist` (`NSBonjourServices`), and is on the air only while
-  a link comes up, as Android's `DIRECT-` name is. `arrangePlan` offers `awdl` only when both
-  phones list it in `can`. Not MultipeerConnectivity (section 4). Wi-Fi Aware (iOS 26,
+  service under a one-time name it sends in `host` (as `ssid`), and the other connects to that
+  name. The service type is fixed in `Info.plist` (`NSBonjourServices`), and is on the air
+  only while a link comes up, as Android's `DIRECT-` name is. Anyone could connect to it, so
+  the host gives each connection in turn as a hotspot does (`nextLink`), and only the one that
+  proves the attempt's keys becomes the link. `arrangePlan` offers `awdl` only when both
+  phones say `awdl` in their radios. An iPhone also says `joinDirect`: it can join an
+  Android's Wi-Fi Direct group as a plain client, by name and passphrase, which is faster
+  than the hotspot and is tried first; the real-phone test says whether it holds, and a
+  tunable turns it off. Not MultipeerConnectivity (section 4). Wi-Fi Aware (iOS 26,
   iPhone 12 and later) is worth another look once it has matured, as a link to Androids that
   have it. Failing all of these, events move over Bluetooth while audio waits, as today.
-- **Androids must find iPhones too.** Only the phone with the newer discovery key can hear
+- **Androids must hear iPhones too.** Only the phone with the newer discovery key can hear
   the other, so it starts the session (section 5.12, Generations), and a new generation
   comes at least every 90 days. An Android ahead of an iPhone hears nothing today, because
   `FindMatcher.hear` drops a matching advert that has no scan response, and the iPhone
   cannot match the newer advert, so the two cannot meet until the iPhone reaches the server.
-  The read also lets an Android echo an iPhone's salt, show the iPhone before a session, and
-  say "Up to date" only when it is. That is Kotlin, so an Android store build, and it moves
-  the Android fingerprint, which makes a carried build (decision 246). An Android without it
-  never echoes an iPhone, so an iPhone connects at once to an Android that has not echoed
-  it, as a phone that cannot advertise does and with the same risk (section 5.12, The echo).
-  An argument from JavaScript turns that off once few Androids lack the read.
+  So `hear` hands up a matching advert alone (`onAdvert`), and the room echoes its salt.
+  That is Kotlin, so an Android store build, and it moves the Android fingerprint, which
+  makes a carried build (decision 246).
+- **Who connects.** A phone heard by its advert alone is in the room under `@` and its salt.
+  An Android leaves such a phone on its own generation to connect, since it can check the
+  Android's echo, and only echoes it. Heard under an older generation, it cannot hear the
+  Android, so the Android offers answer 21's tap and connects after it. An iPhone cannot get
+  an echo from another iPhone, or from an Android without the change, so after a while it
+  shows "A teammate may be nearby", and one tap covers every such teammate until the screen
+  closes (answer 26). Of two iPhones that both tapped, the lower salt connects at once and
+  the other waits, as the lower tag does today. With no summary to compare, a phone heard
+  only by its advert is tried once per salt: after a session with it the room waits for its
+  next salt, so new work between two iPhones can wait up to one rotation (4 to 6 minutes).
+  An Android cannot see an iPhone's summary either, so it can say "Up to date" while an
+  iPhone in range still has something; the iPhone connects when it sees the summaries
+  differ.
 
 1. **The real-phone test first,** with a throwaway dev build, since the simulator has no
    Bluetooth. Its questions are in section 11, and its answers decide steps 2 to 5.
-2. Core and sync, which reach Androids by update: the characteristic's UUID and bytes in the
-   Find contract, with golden vectors; `awdl` in `NearbyLink`, `host` and `arrangePlan`; if
-   the test shows iPhones join an Android's group reliably, a radio for that, tried before
-   the hotspot because the group is faster; `SeenPhone` from a read; and the iPhone's rule
-   for an Android that has not echoed it. The fake radio gains an iPhone's radios, and
-   `arrangePlan` cases and fleet scenarios cover both pairs, an iPhone behind on its
-   generation and a mixed room of five.
+2. Core and sync, which reach Androids by update: `onAdvert` and the `@` entries in
+   `NearbyRoom`, with the tap that covers every such teammate and the salt order between two
+   iPhones; `awdl` and `joinDirect` in the radios, `awdl` in `NearbyLink` and `host`, and
+   both in `arrangePlan`. The fake radio gains an iPhone's radios, and `arrangePlan` cases and
+   fleet scenarios cover both pairs, an iPhone behind on its generation and a mixed room of
+   five.
 3. The Swift half of `nearby-link`, with `ios` in `expo-module.config.json`: Find (the scan,
-   the advert, the GATT service and characteristic, both ends of a pipe), the join, the
+   the advert, the GATT service, both ends of a pipe), the join, the
    `awdl` host and join, `secure` with CryptoKit's AES-GCM on the same wire format, frames,
    streams and file parts, the codes in `src/codes.ts`, every tunable from JavaScript,
    nothing logged and nothing done at construction, as decision 224 holds the Kotlin to.
@@ -2793,9 +2812,8 @@ design:
    and `NSBonjourServices`, and the app the entitlement
    `com.apple.developer.networking.HotspotConfiguration`. Each of these moves the iPhone
    fingerprint, so this costs an iPhone store build and review.
-4. Kotlin: `FindMatcher.hear` hands up a matching advert with no scan response, so the room
-   echoes its salt and native reads the characteristic, with JUnit vectors. Its store build
-   goes public before the iPhone's, or with it.
+4. Kotlin: `FindMatcher.hear` hands up a matching advert with no scan response as `onAdvert`,
+   with JUnit cases. Its store build goes public before the iPhone's, or with it.
 5. The app. Each `.android` file is sorted. The exchange's move to `.native` files, which
    Metro resolves for both phones, while the web keeps the plain stub: `useNearby`,
    `nearbyRun`, `nearbyLink`, `nearbyIdentity`, `nearbyKey`, `nearbyRelay`, `NearbyRow` and
@@ -3116,7 +3134,7 @@ For iPhones (phase 5, section 7), answered by phase 5's own test:
 
 | Question | Why it matters |
 | --- | --- |
-| Does an iPhone's advert really leave out a second service UUID, as Apple's documentation says? | Phase 5's characteristic exists because of it. If an iPhone sends both, Find needs no change for iPhones. |
+| Does an iPhone's advert really leave out a second service UUID, as Apple's documentation says? | Phase 5's advert-alone form and its taps exist because of it. If an iPhone sends both, an iPhone can send Find as an Android does, with no taps. |
 | Does an iPhone hear an Android's advert and scan response in the foreground, and connect to its GATT service? | iPhone with Android rests on it, with no Android change. |
 | Does an iPhone join an Android's local-only hotspot, and its Wi-Fi Direct group as a plain client, on several makers and both bands, and what does each deliver? | One project saw an iPhone 11 fail to join a Galaxy A05s group (section 4). The group is faster, so it goes first if it holds. |
 | How often does an iPhone change its Bluetooth address, and does stopping and starting the advert change it? | It says how far two salts can be linked on an iPhone (phase 5, Find). |

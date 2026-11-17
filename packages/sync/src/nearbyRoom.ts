@@ -1,7 +1,7 @@
 import { base64urlDecode, base64urlEncode, discoveryKeyAt, type DiscoveryKey } from '@langquest-next/core/nearby';
 import type { NearbyPeerRecord } from './nearbyKeep';
 import { emptyRoomTally, nearbyCodeOf, roomDiagOf, sessionDiagOf, type NearbyDiagInput, type NearbyRoomTally } from './nearbyDiag';
-import type { FindTunables, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from './nearbyLink';
+import type { FindTunables, HeardAdvert, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from './nearbyLink';
 import { channelKeysOf, findEchoOf, findPayload, findTagOf } from './nearbyOpening';
 import { choosePartner, type PartnerInRange } from './nearbyPartners';
 import type { NearbyRole, NearbySessionReport, Radios } from './nearbySession';
@@ -83,7 +83,10 @@ export type NearbyRoomStop = 'asked' | 'idle' | 'wait' | 'run' | 'level' | 'no-k
 export type NearbyRoomEvent =
   /** Teammates who have echoed this phone's salt. Nobody shows before that. */
   | { t: 'teammates'; seen: readonly { tag: string; key: string | null; older: boolean }[] }
-  /** No echo came: "A teammate may be nearby", and connecting takes a tap (`NearbyRoom.tap`). */
+  /**
+   * No echo came: "A teammate may be nearby", and connecting takes a tap (`NearbyRoom.tap`). A tag that
+   * starts with `ALONE_TAG` is a phone heard by its advert alone, known by its salt until Hello.
+   */
   | { t: 'maybe'; tag: string }
   | { t: 'session'; tag: string | null; role: NearbyRole }
   | { t: 'ended'; tag: string | null; report: NearbySessionReport }
@@ -115,8 +118,13 @@ interface Generation {
   kSess: Uint8Array;
 }
 
+/** A phone heard by its advert alone (an iPhone's) is in the room under this and its salt, since it sends no tag (phase 5). */
+export const ALONE_TAG = '@';
+
 interface Heard {
   seen: SeenPhone;
+  /** Heard by its advert alone: no tag, summary or echo until Hello (`onAdvert`). */
+  alone: boolean;
   firstAt: number;
   lastAt: number;
   echoed: boolean;
@@ -181,6 +189,8 @@ export class NearbyRoom {
    * heard, and a disguised phone must not stop at level having found nobody (5.8, `stopWhenLevel`).
    */
   private everMet = false;
+  /** On a phone whose advert goes out alone, one tap covers every teammate it cannot get an echo from, until the screen closes (Carl's answer 26). */
+  private tappedAll = false;
   private level = false;
   private chosen: string | null = null;
   private echoTurn = 0;
@@ -228,6 +238,7 @@ export class NearbyRoom {
     this.tally = emptyRoomTally();
     this.heardTags.clear();
     this.echoedTags.clear();
+    this.tappedAll = false;
     this.caps = await this.opt.radio.capabilities();
     // Stopped while it waited, before `running`: `halt` found nothing to stop, so nothing starts (security review, 2026-11-10).
     if (mine !== this.starts) return;
@@ -243,7 +254,8 @@ export class NearbyRoom {
       radio.onSalt((salt) => this.heardSalt(salt)),
       radio.onFound((seen) => this.found(seen)),
       radio.onFormSalt((salt, rssi) => this.formSalt(salt, rssi)),
-      radio.onPipe((pipe, salt) => this.piped(pipe, salt))
+      radio.onPipe((pipe, salt) => this.piped(pipe, salt)),
+      ...(radio.onAdvert ? [radio.onAdvert((heard) => this.advert(heard))] : [])
     ];
     this.running = true;
     await this.startFind();
@@ -263,12 +275,22 @@ export class NearbyRoom {
     return this.halt('asked');
   }
 
-  /** The screen answered "A teammate may be nearby". */
+  /**
+   * The screen answered "A teammate may be nearby". A phone whose advert goes out alone (an iPhone) cannot
+   * get an echo from another iPhone, or from an Android on older code, so there one tap covers every such
+   * teammate, now and later, until the screen closes (Carl's answer 26).
+   */
   tap(tag: string): void {
     const h = this.heard.get(tag);
     if (h) {
       h.tapped = true;
       this.everMet = true;
+    }
+    if (this.advertAlone()) {
+      this.tappedAll = true;
+      for (const other of this.heard.values()) if (!other.echoed) other.tapped = true;
+      this.everMet = true;
+      this.showTeammates();
     }
     this.tally.taps += 1;
   }
@@ -392,8 +414,10 @@ export class NearbyRoom {
 
   private found(seen: SeenPhone): void {
     if (!this.running || !this.gens[seen.scan] || seen.tag === this.myTag) return;
+    // Its scan response came after all: the whole form says more than the advert did.
+    this.heard.delete(`${ALONE_TAG}${seen.salt}`);
     const held = this.heard.get(seen.tag);
-    const h: Heard = held ?? { seen, firstAt: this.now, lastAt: this.now, echoed: false, tapped: false, offered: false, heardBefore: [], stale: new Set() };
+    const h: Heard = held ?? { seen, alone: false, firstAt: this.now, lastAt: this.now, echoed: false, tapped: this.tappedAll, offered: false, heardBefore: [], stale: new Set() };
     h.seen = seen;
     if (!h.heardBefore.includes(seen.summary)) h.heardBefore = [...h.heardBefore, seen.summary].slice(-8);
     h.lastAt = this.now;
@@ -408,6 +432,32 @@ export class NearbyRoom {
       this.everMet = true;
     }
     this.showTeammates();
+  }
+
+  /**
+   * A teammate's advert with no scan response: an iPhone's (phase 5). It is echoed like any other,
+   * so an iPhone can check this phone's echo and connect, and it shows only once tapped or met. With
+   * no summary to compare, it is tried once per salt: `heardBefore` holds the empty summary, so a
+   * session with it leaves it stale until its next salt.
+   */
+  private advert(heard: HeardAdvert): void {
+    if (!this.running || !this.gens[heard.scan] || heard.salt === this.salts.current) return;
+    if ([...this.heard.values()].some((h) => !h.alone && h.seen.salt === heard.salt)) return;
+    const tag = `${ALONE_TAG}${heard.salt}`;
+    const seen: SeenPhone = {
+      peer: heard.peer, salt: heard.salt, r: '', tag, summary: '', echo: '', connectable: heard.connectable, ...(heard.rssi !== undefined ? { rssi: heard.rssi } : {}), scan: heard.scan
+    };
+    const h: Heard = this.heard.get(tag) ?? { seen, alone: true, firstAt: this.now, lastAt: this.now, echoed: false, tapped: this.tappedAll, offered: false, heardBefore: [''], stale: new Set() };
+    h.seen = seen;
+    h.lastAt = this.now;
+    if (this.scanOnly()) h.echoed = true;
+    this.heard.set(tag, h);
+    this.showTeammates();
+  }
+
+  /** This phone's advert goes out alone (an iPhone): others cannot see its tag, summary or echo. */
+  private advertAlone(): boolean {
+    return this.caps?.scanResponse === false;
   }
 
   private formSalt(salt: string, rssi?: number): void {
@@ -449,6 +499,8 @@ export class NearbyRoom {
       const { tag, scan, summary } = h.seen;
       const off = this.backoff.get(tag);
       if ((off && off.until > this.now) || h.stale.has(summary)) continue;
+      // Heard alone on this phone's own generation, it can check this phone's echo and connects itself; only an iPhone, which it cannot echo, connects to it.
+      if (h.alone && scan === 0 && !this.advertAlone()) continue;
       const echoed = h.echoed || h.tapped;
       if (!echoed && this.now - h.firstAt >= this.tune.tapAfterMs) {
         // A recording waits here for a tap and holds off nothing.
@@ -468,7 +520,9 @@ export class NearbyRoom {
       inRange.push({
         tag, key, summary, position: position >= 0 ? position : null,
         finished: this.refused.get(tag) ?? (record ? { mine: record.mine, theirs: record.theirs } : null),
-        ...this.opt.facts.swap(key), echoed, older: scan > 0, listed: this.opt.facts.listed(key), dueAnyway
+        ...this.opt.facts.swap(key), echoed, older: scan > 0, listed: this.opt.facts.listed(key), dueAnyway,
+        // An Android cannot see an iPhone's tag, so the iPhone connects; of two iPhones, the lower salt.
+        ...(this.advertAlone() ? { connectsFirst: h.alone ? (this.salts.current ?? '') < h.seen.salt : true } : {})
       });
     }
     const me = { tag: this.myTag, summary: this.summary };
@@ -524,7 +578,7 @@ export class NearbyRoom {
       return;
     }
     const session = this.opt.openSession({
-      role: 'i', link, salt: base64urlDecode(seen.salt) ?? NONE, kSess: gen.kSess, kFind: gen.kFind, gen: gen.gen, older: seen.scan > 0, heardTag: tag,
+      role: 'i', link, salt: base64urlDecode(seen.salt) ?? NONE, kSess: gen.kSess, kFind: gen.kFind, gen: gen.gen, older: seen.scan > 0, ...(h.alone ? {} : { heardTag: tag }),
       radios: this.opt.radios(this.caps), otherWaiting: () => waiting
     });
     this.session = session;
