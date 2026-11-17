@@ -6,7 +6,7 @@ import { containerAlerts, containerSection } from '../src/sources/container';
 import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import {
-  dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, userIssueAlerts,
+  FLEET_SQL, dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, userIssueAlerts,
   userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type QuietAccounts, type Safety, type Tutorials, type UserIssues
 } from '../src/sources/ops';
 import { CHANNELS } from '../../../server/youtube';
@@ -240,7 +240,7 @@ function fakeQuery(answers: [string, unknown][]): Query {
 describe('reading as diag_reader', () => {
   it('turns off only the sections whose functions a database lacks', async () => {
     const s = await opsSections(fakeQuery([
-      ['jsonb_build_object(\n  \'builds\'', fleet()],
+      ['ops_cached(\'fleet\')', fleet()],
       ['rejNotMember', []], ['arrivalsSampled', []], ['fold_canary', []], ['totals', {}]
     ]));
     expect(s.fleet.state).toBe('ok');
@@ -254,6 +254,12 @@ describe('reading as diag_reader', () => {
     expect(s.tutorials).toMatchObject({ state: 'off', setup: expect.stringContaining('20261028090000_tutorial_videos.sql') });
     expect(s.videofeedback).toMatchObject({ state: 'off', setup: expect.stringContaining('20261029120000_tutorial_feedback.sql') });
     expect(s.userissues).toMatchObject({ state: 'off', setup: expect.stringContaining('20261103204500_user_issues_fixed.sql') });
+  });
+
+  it('reads the builds from the count the database makes every 10 minutes, and says which migration it lacks', async () => {
+    const s = await opsSections(fakeQuery([['rejNotMember', []], ['arrivalsSampled', []], ['fold_canary', []], ['totals', {}]]));
+    expect(s.fleet).toMatchObject({ state: 'off', setup: expect.stringContaining('20261117200000_ops_phone_counts.sql') });
+    expect(FLEET_SQL).toBe(`select diag.ops_cached('fleet') as v`);
   });
 
   it('looks a person up by email and answers with their id and installs, never the address', async () => {
@@ -423,12 +429,12 @@ describe('quiet installs by account (decisions.md 162)', () => {
   };
 
   it('reads diag.ops_quiet_accounts into the fleet section, and counts what the database sends as numbers', async () => {
-    const s = await opsSections(fakeQuery([['jsonb_build_object(\n  \'builds\'', { ...fleet(), quiet: undefined }], ['ops_quiet_accounts', row]]));
+    const s = await opsSections(fakeQuery([['ops_cached(\'fleet\')', { ...fleet(), quiet: undefined }], ['ops_quiet_accounts', row]]));
     expect(s.fleet).toMatchObject({ state: 'ok', data: { quiet: { count: 3, markedCount: 34, accounts: row.accounts, marked: row.marked } } });
   });
 
   it('keeps the fleet section when a database lacks the function, without a quiet count', async () => {
-    const s = await opsSections(fakeQuery([['jsonb_build_object(\n  \'builds\'', { ...fleet(), quiet: undefined }]]));
+    const s = await opsSections(fakeQuery([['ops_cached(\'fleet\')', { ...fleet(), quiet: undefined }]]));
     expect(s.fleet).toMatchObject({ state: 'ok', data: { quiet: null } });
   });
 });

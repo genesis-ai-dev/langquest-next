@@ -120,6 +120,20 @@ describe('the database and the v2 import', () => {
     expect(s.feedback).toMatchObject({ state: 'off', setup: expect.stringContaining('not on this database yet') });
     expect([s.jobs.state, s.clients.state, s.database.state, s.v2.state]).toEqual(['ok', 'ok', 'ok', 'ok']);
   });
+
+  it('reads the phones from the count the database makes every 10 minutes, and says which migration it lacks', async () => {
+    const asked: string[] = [];
+    const query = vi.fn(async (sql: string) => {
+      asked.push(sql);
+      if (sql.includes('ops_cached')) throw Object.assign(new Error('function diag.ops_cached(unknown) does not exist'), { code: '42883' });
+      if (sql.includes('pg_database_size')) return { sizeBytes: 1, connections: 1, maxConnections: 60, stats: null, rpc: [] };
+      return [];
+    });
+    const s = await diagSections(query as never);
+    expect(asked).toContain(`select diag.ops_cached('clients') as v`);
+    expect(asked.some((q) => q.includes('diag.records'))).toBe(false);
+    expect(s.clients).toMatchObject({ state: 'off', setup: expect.stringContaining('20261117200000_ops_phone_counts.sql') });
+  });
 });
 
 describe('code and deploys', () => {

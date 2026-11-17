@@ -5,9 +5,9 @@
 --
 -- It seeds 40,000 installs, a busy day of raw records (1.2 million: 30 from
 -- each install), and 3 years of diag.daily for every number with 10 keys
--- each, then times a day's fill, an hour's fill and every range of every
--- part, as diag_reader. The page's budget is 500 ms a call. Everything rolls
--- back.
+-- each, then times a day's fill, an hour's fill, every range of every part,
+-- and the phone counts (decisions.md 256), as diag_reader. The page's budget
+-- is 500 ms a call. Everything rolls back.
 \set ON_ERROR_STOP on
 \timing on
 begin;
@@ -76,6 +76,17 @@ select 'crashes, a month', length(diag.ops_detail('clients', 'crashes', '', now(
 select 'refused, a key, a day', length(diag.ops_detail('safety', 'refused', 'invalid', now() - interval '1 day', now(), 0)::text);
 select 'lost files, a day', length(diag.ops_detail('storage', 'lost_files_installs', '', now() - interval '1 day', now(), 0)::text);
 select 'syncs failed, a key, an hour', length(diag.ops_detail('clients', 'sync_errors', 'push:E_HTTP', date_trunc('hour', now()) - interval '1 hour', date_trunc('hour', now()), 0)::text);
+reset role;
+
+-- The phone counts every 10 minutes (decisions.md 256): the first reads 90
+-- days, the next only what arrived since; then the page reads the count.
+-- A week of records instead of this day makes the count about 10 s.
+delete from diag.ops_cache;
+select 'phone counts, first', diag.ops_cache_fill();
+select 'phone counts, next', diag.ops_cache_fill();
+set role diag_reader;
+select 'phones count', length(diag.ops_cached('clients')::text);
+select 'builds count, stuck read now', length(diag.ops_cached('fleet')::text);
 reset role;
 
 rollback;

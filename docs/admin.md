@@ -492,6 +492,20 @@ counted, never listed. Past 90 days a bucket says it keeps totals only.
 When a number gets a new filter in `daily_compute`, give it the same row in
 `diag.detail_filters` in the same migration.
 
+## Phones and builds: counted every 10 minutes
+
+"What installs report" (`clients`) and "Builds in the field" (`fleet`) read a
+week or two of every phone's records, which at tens of thousands of installs
+takes longer than the page may wait. So the database counts them every 10
+minutes (`diag.ops_cache_fill`, pg_cron `langquest-ops-counts`, job
+`ops_counts` in Server jobs; decisions.md 256), and the page reads the last
+count (`diag.ops_cached`), with "Counted at" under each part. A count past 25
+minutes old shows as late. The stuck phones are read at once, not counted.
+The counts read `diag.install_updates` (each install and update it ran) and
+`diag.install_device` (each install's last device record), kept up from the
+records since the last count. `server/opsCountsSmoke.sql` keeps the page's old
+SQL and fails when the counts answer differently; change both together.
+
 ## Not built yet
 
 - iOS crash counts: App Store Connect gives them only as daily analytics
