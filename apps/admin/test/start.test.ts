@@ -8,7 +8,7 @@ import { START_LOGIC } from '../src/pageStart';
 import { detailAsk, GLANCE, METRICS, PART_IDS } from '../src/sources/history';
 
 /** The start page's pure helpers, as the page runs them (pageStart.ts START_LOGIC). */
-const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, rangeTotal, bucketEnd };`)() as {
+const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, rangeTotal, bucketEnd, runSquares };`)() as {
   splitAlert: (t: string) => { title: string; next: string };
   startPlan: (sections: typeof GROUPS, results: Record<string, unknown>, levels: string[]) => {
     cards: { level: string; group: string; part: string; text: string; more: string[] }[]; ok: { group: string; off: string[] }[]; waiting: string[];
@@ -17,7 +17,9 @@ const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, stor
   claudeWork: (u: unknown) => { issue: string }[];
   rangeTotal: (agg: string, values: (number | null)[]) => number | null;
   bucketEnd: (buckets: string[], i: number, step: string) => string;
+  runSquares: (hst: Hst, sq: { runs: string; failed?: string; partial?: string }) => { key: string; cells: string[]; failed: number; partial: number }[];
 };
+type Hst = { counted?: boolean[]; series: { metric: string; key: string; values: (number | null)[] }[] };
 const LEVELS = ['urgent', 'problem', 'watch'];
 const okSection = { state: 'ok', alerts: [], checkedAt: '' };
 
@@ -93,6 +95,30 @@ describe('the start page, What needs you first', () => {
     expect(logic.bucketEnd(['2026-11-16T05:00:00.000Z'], 0, 'hour')).toBe('2026-11-16T06:00:00.000Z');
     expect(logic.bucketEnd(['2026-11-09T00:00:00.000Z'], 0, 'week')).toBe('2026-11-16T00:00:00.000Z');
     expect(logic.bucketEnd(['2026-01-01T00:00:00.000Z'], 0, 'month')).toBe('2026-02-01T00:00:00.000Z');
+  });
+
+  it('gives each job a row of squares: failed over part of the work over ran, an empty bucket and one not counted yet apart', () => {
+    const hst: Hst = {
+      counted: [true, true, true, true, false],
+      series: [
+        { metric: 'runs', key: '', values: [9, 9, 9, 0, null] },
+        { metric: 'runs', key: 'snapshot', values: [2, 2, 0, 0, null] },
+        { metric: 'runs', key: 'push_delivery', values: [6, 6, 6, 0, null] },
+        { metric: 'runs', key: '_other', values: [1, 1, 1, 0, null] },
+        { metric: 'failed', key: 'push_delivery', values: [0, 1, 0, 0, null] },
+        { metric: 'partial', key: 'push_delivery', values: [1, 1, 0, 0, null] },
+        { metric: 'failed', key: '', values: [0, 1, 0, 0, null] }
+      ]
+    };
+    const rows = logic.runSquares(hst, { runs: 'runs', failed: 'failed', partial: 'partial' });
+    expect(rows.map((r) => r.key)).toEqual(['push_delivery', 'snapshot', '_other']);
+    expect(rows[0]).toEqual({ key: 'push_delivery', cells: ['part', 'fail', 'ok', 'none', 'gap'], failed: 1, partial: 1 });
+    expect(rows[1]!.cells).toEqual(['ok', 'ok', 'none', 'none', 'gap']);
+    // pg_cron has no "part of the work": a partial number it lacks never shows.
+    expect(logic.runSquares(hst, { runs: 'runs', failed: 'failed' })[0]!.cells).toEqual(['ok', 'fail', 'ok', 'none', 'gap']);
+    for (const [part, names] of [['jobs', ['runs', 'failed', 'partial']], ['cron', ['runs', 'failed']]] as const) {
+      for (const m of names) expect(METRICS[part]?.[m], `${part}.${m}`).toBeTruthy();
+    }
   });
 
   it('draws a number for each section it names, from a part that section has', () => {
