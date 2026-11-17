@@ -1,0 +1,83 @@
+# What we tell Apple's App Store
+
+The answers given in App Store Connect for LangQuest Next, bundle ID
+`com.frontierrnd.langquestnext`, that Share nearby on iPhones touches
+(`docs/nearby-sync-plan.md` section 7, phase 5; decisions.md 254). Google
+Play's answers are in `docs/play-store-declarations.md`; this file is its
+counterpart for Apple, and so far it records only what phase 5 changes. The
+rest of App Store Connect (age rating, the listing, the other App Privacy
+answers) is not recorded here yet: add each one as it is next looked at, from
+what App Store Connect shows, never from memory.
+
+**When the iPhone app changes what it collects, sends, asks permission for or
+shows, update this file and the matching App Store Connect answer in the same
+change**, as AGENTS.md asks for Play.
+
+First filled in: 2026-11-16, Carl Sauder, with Claude.
+
+## Permissions the app asks for
+
+The words iOS shows in each prompt are `ios.infoPlist` in `apps/mobile/app.json`.
+
+| Key | Since | Why |
+| --- | --- | --- |
+| `NSMicrophoneUsageDescription` | the first build | Recording passages. |
+| `NSBluetoothAlwaysUsageDescription` | phase 5 | Share nearby finds teammates' phones over Bluetooth while its screen is open. Asked once, after the screen's line saying why (`askPermission`). |
+| `NSLocalNetworkUsageDescription` | phase 5 | Share nearby moves work over Wi-Fi to the teammate's phone. iOS asks at the first such connection; the app cannot ask ahead. |
+| `NSBonjourServices`: `_nlink._tcp` | phase 5 | Two iPhones meet over Apple's own direct Wi-Fi as a Bonjour service of this type, under a one-time name, only while a link comes up. |
+
+No background modes: the radios run only while Share nearby is open.
+
+## Capabilities
+
+| Capability | Since | Why |
+| --- | --- | --- |
+| Hotspot Configuration (`com.apple.developer.networking.HotspotConfiguration`) | phase 5 | An iPhone joins an Android teammate's Wi-Fi network by name and passphrase, with a system prompt each time. |
+
+The App ID must have the capability on. EAS turns it on when it builds with
+the entitlement in `app.json`; a person checks it in the Apple Developer
+account after the first such build.
+
+## App Privacy
+
+Share nearby sends the team's work straight to teammates' phones, and a phone
+that reaches the internet uploads teammates' unsent work for them (delivery,
+phase 4), as the work the app already sends to our server. What phase 5 adds
+for Apple is what phase 2 added for Google: each install makes a signing key,
+and the server keeps its public half with the person's account and device
+(decisions.md 217). Play declares it under "Device or other IDs". The
+matching App Privacy answer is **Identifiers → Device ID: collected, linked
+to the user, used for App Functionality, not for tracking**. Add it before
+the first iPhone build with Share nearby goes to review. Nothing else in App
+Privacy changes: no location is read on an iPhone, and Bluetooth and Wi-Fi
+only carry the team's own work.
+
+## Encryption (export compliance)
+
+`apps/mobile/app.json` says `ITSAppUsesNonExemptEncryption: false`, which was
+true while iPhones carried only HTTPS and the sign-out lock. From phase 5 an
+iPhone also has Share nearby's protocol between phones, as Android has had
+since phase 3: X25519 key agreement, HKDF and HMAC with SHA-256 and Ed25519
+signatures in JavaScript (`@noble/curves`, `@noble/hashes`), and AES-256-GCM
+for every frame and file in the module (Apple's CryptoKit), all published
+standard algorithms protecting the team's own data. Play's "Encryption"
+section names the classification the developer must confirm (mass-market,
+5D992.c). **Before the first iPhone build with phase 5 goes to review, the
+developer decides Apple's export compliance answers from that
+classification and sets `ITSAppUsesNonExemptEncryption` to match**; until
+then it is left as it was, because the value is a declaration only the
+developer can make.
+
+## App Review notes
+
+Share nearby appears only for an organization LangQuest staff have turned
+nearby sync on for, so "LangQuest Sample" must have it on before a build
+with it goes to review (`npm run org-feature -- grant <its organization id>
+nearby --hosted`). The notes add: "Share nearby (Sync → Share nearby) passes
+the team's work between phones with no internet, iPhone to iPhone or iPhone
+to Android. Sign in as the test account on two phones, open the same
+language on both, and open Share nearby on both. On an iPhone, iOS asks for
+Bluetooth first, and for the local network when the phones first connect
+over Wi-Fi; between two iPhones, tap 'A teammate may be nearby' once." A
+reviewer has one device, so attach a short video of two phones sharing.
+Joining offline (Let someone in) is not on iPhones and is not described.

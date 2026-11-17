@@ -1,6 +1,6 @@
 # Guardrails on every PR, so nothing depends on a local hook having run.
 #
-# scope:    which of server, web-smoke, ui-web and android-native the pull request's
+# scope:    which of server, web-smoke, ui-web, android-native and ios-native the pull request's
 #           changed files need (scripts/ci-scope.mjs, decisions.md 150);
 #           none, when the commit already passed (decisions.md 164): a merge
 #           queue entry whose tree the pull request's own run tested within
@@ -23,6 +23,11 @@
 #           JUnit tests and Android lint; only when the module, the app's
 #           package.json or the root lockfile changes (docs/nearby-sync-plan.md
 #           section 7).
+# ios-native: the nearby link's Swift: its pure parts' XCTest cases against
+#           the golden vectors, and the whole iPhone app compiled for the
+#           simulator on a Mac; only when the module's Swift or what both
+#           halves share, the app's package.json or the root lockfile changes
+#           (docs/nearby-sync-plan.md section 7, phase 5).
 # nightly:  the whole web UI suite, a fleet scenario and Stryker on core,
 #           on a schedule; not blocking, but each job files its failures in
 #           Linear (scripts/nightly-report.mjs; a dry run off main) and
@@ -117,8 +122,8 @@ env:
   SUPABASE_EXCLUDE: studio,imgproxy,vector,logflare,supavisor
 
 # main requires one check, `gate` (.github/rulesets/main.json, decisions.md
-# 150). `scope` says which of `server`, `web-smoke`, `ui-web` and
-# `android-native` the pull request's changed files need
+# 150). `scope` says which of `server`, `web-smoke`, `ui-web`,
+# `android-native` and `ios-native` the pull request's changed files need
 # (scripts/ci-scope.mjs); the others are
 # skipped. `gate` passes only when `checks`, `unit`, `coverage` and every
 # needed job passed.
@@ -139,6 +144,7 @@ jobs:
       web-smoke: ${{ steps.scope.outputs.web-smoke }}
       ui-web: ${{ steps.scope.outputs.ui-web }}
       android-native: ${{ steps.scope.outputs.android-native }}
+      ios-native: ${{ steps.scope.outputs.ios-native }}
       # The run that already passed this tree or commit, or empty: then no job runs.
       tested: ${{ steps.scope.outputs.tested }}
     steps:
@@ -466,13 +472,40 @@ jobs:
             apps/mobile/modules/nearby-link/android/build/test-results
           if-no-files-found: ignore
 
+  ios-native:
+    # The nearby link's Swift (apps/mobile/modules/nearby-link/ios,
+    # docs/nearby-sync-plan.md section 7, phase 5, decisions.md 254). Nothing
+    # else compiles it before a store build, and no developer here has a Mac.
+    # Its Swift package runs the pure parts (Find's bytes, frames, sealing,
+    # file parts) against the golden vectors in the module's test-vectors.json,
+    # which vitest and JUnit also read. Then the iPhone app is built for the
+    # simulator as the nightly iPhone job builds it (scripts/maestro-build.mjs),
+    # which compiles the module's radio code against the iOS SDK. The
+    # repository is public, so the Mac costs nothing but time.
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.ios-native == 'true' }}
+    runs-on: macos-26
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
+      - run: npm ci
+      - name: Xcode
+        run: xcodebuild -version
+      - name: The pure Swift against the golden vectors
+        working-directory: apps/mobile/modules/nearby-link/ios
+        run: swift test
+      - name: The iPhone app, nearby module included, for the simulator
+        run: node scripts/maestro-build.mjs --platform ios --build-only --abi arm64
+
   gate:
     # The one check that main requires. A job that the changed files do not
     # need is skipped and counts as passed; a needed job must have passed.
     # It runs whatever the others did (always()), so a failure or a cancel
     # fails it instead of leaving it skipped, which GitHub would count as a
     # pass.
-    needs: [scope, checks, unit, coverage, server, web-smoke, ui-web, android-native]
+    needs: [scope, checks, unit, coverage, server, web-smoke, ui-web, android-native, ios-native]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

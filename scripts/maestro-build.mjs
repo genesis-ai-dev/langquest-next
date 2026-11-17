@@ -97,14 +97,18 @@ if (platform === 'android') {
     // The simulator build is signed to run locally, with no team, as `expo run:ios` signs one.
     // A build with no signing at all has no entitlements, and the keychain refuses the sign-in
     // ("A required entitlement isn't present", iOS 26 simulator, 2026-11-11). A build with no
-    // team cannot have associated domains, and no flow needs them: the flows open
-    // langquestnext:// links. The JavaScript is bundled by Xcode's own build phase, with these settings.
+    // team cannot have associated domains or Hotspot Configuration (Share nearby's Wi-Fi join on
+    // an iPhone, decisions.md 254), and no flow needs them: the flows open langquestnext://
+    // links, and a simulator has no radios. The JavaScript is bundled by Xcode's own build phase,
+    // with these settings.
     const entitlements = join(app, 'ios/LangQuestNext/LangQuestNext.entitlements');
     const text = readFileSync(entitlements, 'utf8');
-    const kept = text.replace(/\s*<key>com\.apple\.developer\.associated-domains<\/key>\s*<array>[\s\S]*?<\/array>/, '');
+    const kept = text
+      .replace(/\s*<key>com\.apple\.developer\.associated-domains<\/key>\s*<array>[\s\S]*?<\/array>/, '')
+      .replace(/\s*<key>com\.apple\.developer\.networking\.HotspotConfiguration<\/key>\s*<true\/>/, '');
     if (kept !== text) {
       writeFileSync(entitlements, kept);
-      console.log('ios/LangQuestNext/LangQuestNext.entitlements: no associated domains (a build with no team cannot have them)');
+      console.log('ios/LangQuestNext/LangQuestNext.entitlements: no associated domains or Hotspot Configuration (a build with no team cannot have them)');
     }
     run('pod', ['install'], join(app, 'ios'));
     run('node', ['scripts/with-env.mjs', 'development', 'xcodebuild', '-workspace', 'ios/LangQuestNext.xcworkspace', '-scheme', 'LangQuestNext',
