@@ -256,7 +256,10 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 121 * 1024;
 // Raised by 2 KB with the app lock (Caleb Koster, 2026-11-16, LAN-255, decision 253), a few hundred bytes
 // past then with main merged in: its English words in the catalog every visit carries, and Sign Out's
 // steps moved into one function the lock shares. The lock itself is phones only; the web takes stubs.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 95 * 1024;
+// Raised by 1 KB with the passage row's download button beside the row, not inside it (Caleb Koster,
+// 2026-11-17, LAN-158), 250 bytes past then: Row's action slot, its wrapper and three styles, in the
+// kit every visit carries. All chunks still fit their own budget.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 96 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
