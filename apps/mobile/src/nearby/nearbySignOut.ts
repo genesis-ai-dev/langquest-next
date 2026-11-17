@@ -15,7 +15,7 @@ import { getStore } from '../storage/store';
  * - `nearbyPeers` goes, phone-wide: it says who is on the team, and a taken phone gives it up.
  *   `nearbyToday` joins it here once something writes it.
  *
- * Plain on every build: no nearby entry is imported, and elsewhere than Android there is
+ * Plain on every build: no nearby entry is imported, and on the web there is
  * nothing to find. It never throws and never holds up the sign-out.
  */
 export async function nearbyAfterAuthEvent(event: AuthChangeEvent, before: Pick<Session, 'user'> | null | undefined): Promise<void> {

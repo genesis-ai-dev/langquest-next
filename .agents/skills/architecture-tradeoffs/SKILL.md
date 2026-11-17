@@ -12,7 +12,7 @@ Richards and Ford's two laws frame everything here:
    one that isn't, you haven't found the trade-off yet.
 2. **Why is more important than how.** Record the reasoning, not just the choice.
 
-The style for this app is already chosen (PLAN.md sections 3 to 5, docs/decisions.md and docs/decisions/).
+The style for this app is already chosen (PLAN.md sections 3 to 5, docs/decisions/).
 Use this skill to keep new work consistent with it, and to reopen a decision only
 with evidence against the characteristics that drove it.
 
@@ -118,12 +118,12 @@ rows, sagas) may be wrong for commutative, order-independent events. The
 
 ## Step 5: record it
 
-Record a decision as a file of its own in `docs/decisions/`, named by its date and
-a few words, **not** in a `docs/adr/` folder or as a new numbered entry in
-`docs/decisions.md` (which holds entries 1 to 253). Match the format in
-`docs/decisions/README.md`: a heading, a `Date: · By: · Status:` line, `Reason:`,
-and `Reverse if:`. `By` is the developer, not the agent. Supersede or amend past
-decisions; never rewrite them. Write one only when the
+Record a decision as a file of its own in `docs/decisions/`, named by its date
+and a few words (`2026-11-17-one-file-per-decision.md`), **not** in a `docs/adr/`
+folder and never with a new number. Match the format in `docs/decisions/README.md`:
+a heading, a `Date: · By: · Status:` line, `Reason:`, and `Reverse if:`. `By` is
+the developer, not the agent. Supersede or amend past decisions; never rewrite
+them. Write one only when the
 choice is hard to reverse, surprising without context, and the result of a real
 trade-off. When code and PLAN.md disagree, fix the code, then update PLAN.md in
 the same change.

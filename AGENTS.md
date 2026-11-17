@@ -107,6 +107,7 @@ last hour, and the push to `main` runs none for the commit the queue passed
 | `web-smoke` | the release web export (and its JavaScript size budget in `apps/mobile/scripts/export-web.mjs`) in Chromium, Firefox, WebKit | `npm run guardrails -- --web` for the build and budget, `npm run test:web-smoke` for the browsers |
 | `ui-web` | a `@p0` web UI test on the export (zero retries) | `npm run guardrails -- --all`, or one file: `npm run test:ui:web -- e2e/ui/<file>` |
 | `android-native` | the nearby module's Kotlin (`apps/mobile/modules/nearby-link`) in the project `expo prebuild` makes: compile, its JUnit tests (the golden vectors) or Android lint; only when the module, `apps/mobile/package.json` or the root lockfile changes (decisions.md 150, 234) | Not on a machine without a JDK 17 and the Android SDK, which `npm run guardrails` does not need, so mostly CI only. With them: `npx expo prebuild -p android --no-install` in `apps/mobile`, then `./gradlew :nearby-link:compileReleaseKotlin :nearby-link:testDebugUnitTest :nearby-link:lintDebug` in `apps/mobile/android` |
+| `ios-native` | the nearby module's Swift (`apps/mobile/modules/nearby-link/ios`): its Swift package's tests (the golden vectors) or the iPhone app's simulator build on a Mac; only when the module's Swift or what both halves share, `apps/mobile/package.json` or the root lockfile changes (decisions.md 150, 256) | CI only on this kind of machine: there is no Mac. On a Mac: `swift test` in `apps/mobile/modules/nearby-link/ios`, then `node scripts/maestro-build.mjs --platform ios --build-only` |
 
 Before pushing:
 
@@ -124,8 +125,8 @@ Before pushing:
 Things parallel branches collide on, which only show on the merge with
 `main`: a migration's 14-digit version (`scripts/migrations.test.ts`), the
 web size budget (two branches can each fit alone and not together), and the
-worker bundle. A decision no longer does: each is a file of its own (Decision
-log below). When a check is red, read its
+worker bundle. Decisions do not collide: each new one is a file of its own,
+named by its date (`docs/decisions/README.md`). When a check is red, read its
 log first (`gh run view <run> --log-failed`), and say whether the cause is the
 change, `main`, or a flaky test. A test that fails without a product cause is
 tagged `@quarantine` with an owner (`docs/testing.md`), never retried until it
@@ -184,26 +185,27 @@ access, the store listing. Google holds us to those answers.
 
 ## Decision log (required, whoever you are working for)
 
-The team's ADR log is `docs/decisions.md` (entries 1 to 253, cited by
-number) and, after those, one file per decision in `docs/decisions/`,
-named by its date and a few words (`docs/decisions/README.md` has the format).
-Any agent working in this repo keeps it current for every developer, without
-being asked.
+`docs/decisions/` is the team's ADR log, one file per decision. Any agent
+working in this repo keeps it current for every developer, without being
+asked. `docs/decisions/README.md` has the format.
 
-- Before designing, read the decisions that touch the area (search both). If
-  the change contradicts one, say so and ask the developer before going on.
-  Never quietly work around a recorded decision.
+- Before designing, read the decisions that touch the area (search
+  `docs/decisions/`). If the change contradicts one, say so and ask the
+  developer before going on. Never quietly work around a recorded decision.
 - When a change makes or changes an architecture or design decision (the
-  README lists the triggers), write a new file in `docs/decisions/`, or amend
-  the decision, in the same change. Never add a numbered entry to
+  README lists the triggers), add a decision or amend one in the same change.
+  Name a new one `docs/decisions/YYYY-MM-DD-few-words.md`, with today's date;
+  it has no number. Never add a numbered file, or an entry to
   `docs/decisions.md`. Put the developer driving the session in `By`
   (`git config user.name` gives their handle; use their full name as the log
-  already does) and today's date in `Date` and the file name. Cite it by its
-  path (`docs/decisions/2026-10-27-one-file-per-decision.md`).
+  already does) and today's date in `Date`.
 - If the reason is not clear from the conversation, ask the developer for it.
   Do not make one up.
-- Never renumber an entry or rewrite its reasoning. Supersede it with a new
-  decision, or append an `Amended (date, name):` paragraph.
+- Never renumber or rename a decision, or rewrite its reasoning. Supersede it
+  with a new decision, or append an `Amended (date, name):` paragraph to its
+  file.
+- Cite decisions 1 to 256 by number ("decisions.md 34"), and a later one by
+  its path (`docs/decisions/2026-11-17-one-file-per-decision.md`).
 - When you finish, say which decision you added or amended, or that the
   change needed none.
 
@@ -259,11 +261,11 @@ Third-party skills, by task:
 
 Where a skill and this project disagree, the project wins:
 
-- PLAN.md invariants and `docs/decisions.md` override any skill. Generic
+- PLAN.md invariants and `docs/decisions/` override any skill. Generic
   event-sourcing advice (expected-version checks, ordered projections,
   last-writer-wins rows, stored status) does not apply; see `event-sourced-sync`.
-- Record decisions as files in `docs/decisions/` in its format (its README),
-  not in a `docs/adr/` folder.
+- Record decisions in `docs/decisions/`, one file each in the format of its
+  README, not in a new `docs/adr/` folder.
 - Touch targets are 48pt and primary actions 56pt, not 44pt.
 - The partner demo decides screens. Skills that assume Expo Router, NativeWind,
   `@expo/ui` or a web stack do not apply; this app uses react-navigation and

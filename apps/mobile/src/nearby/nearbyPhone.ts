@@ -2,10 +2,9 @@ import type { LanguageSessionOptions, SyncClientOptions } from '@langquest-next/
 import type { BlobStore } from '../sync/blobs';
 
 /**
- * A language client's nearby half (docs/nearby-sync-plan.md 5.12, `nearbyClient`). Only the
- * Android app passes one (nearbyPhone.android.ts): the web shares nothing nearby (decision 58)
- * and iPhones come in a later phase, so here there is none and the nearby entries stay out of
- * this bundle.
+ * A language client's nearby half (docs/nearby-sync-plan.md 5.12, `nearbyClient`). Only a phone
+ * passes one (nearbyPhone.native.ts, Android and iPhones): the web shares nothing nearby (decision
+ * 58), so here there is none and the nearby entries stay out of this bundle.
  */
 export async function nearbyMakerFor(_orgId: string, _actorId: string): Promise<SyncClientOptions['nearby']> {
   return undefined;
@@ -15,7 +14,7 @@ export async function nearbyMakerFor(_orgId: string, _actorId: string): Promise<
 export type NearbyFilesOptions = Pick<LanguageSessionOptions, 'fetchFile' | 'nearbyFiles' | 'holdChoice' | 'mayUpload'>;
 
 /**
- * A language session's nearby files. Only the Android app has any: here no file is ever marked as
+ * A language session's nearby files. Only a phone has any: here, on the web, no file is ever marked as
  * a teammate's, and every file here counts as this person's, as it always has.
  */
 export async function nearbyFilesFor(_orgId: string, _actorId: string, _languageId: string, _files: BlobStore): Promise<NearbyFilesOptions> {

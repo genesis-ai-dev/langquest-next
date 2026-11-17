@@ -2,7 +2,7 @@ import { keepFindKeys } from '../server/lock';
 import { forgetLocalPerson, readLocalPerson } from '../server/localPerson';
 import { forgetInstallKey } from '../server/nearbyKey';
 import { getStore } from '../storage/store';
-import { forgetAllChains } from './nearbyPhone.android';
+import { forgetAllChains } from './nearbyPhone.native';
 
 /**
  * "Remove me from this phone" (docs/nearby-sync-plan.md 14.1, 5 "Me"), in place of Sign out and

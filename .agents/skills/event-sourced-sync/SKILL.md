@@ -95,7 +95,7 @@ permutation and idempotence tests then cover it), and
 ## Outside advice that does NOT apply here
 
 Common event-sourcing and sync guidance assumes ordered streams and a single
-writer. Reject it here unless a decision (`docs/decisions.md`, `docs/decisions/`) says otherwise:
+writer. Reject it here unless a decision in `docs/decisions/` says otherwise:
 
 | Advice you will see | Why it is wrong here |
 | --- | --- |

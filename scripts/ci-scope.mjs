@@ -1,6 +1,6 @@
 // Which guardrails jobs a pull request needs, from the files that it changes
 // (decisions.md 150). `checks`, `unit` and `coverage` always run. `server`,
-// `web-smoke`, `ui-web` and `android-native` run when a changed file can
+// `web-smoke`, `ui-web`, `android-native` and `ios-native` run when a changed file can
 // affect what they test, and the `gate` job passes only when every job that
 // the files need has passed.
 //
@@ -10,8 +10,9 @@
 // main: the entry's diff from its base, which holds this pull request and
 // every one ahead of it.
 // A file that no rule below names runs the shared jobs (SHARED: every job
-// but `android-native`, which compiles the nearby module's Kotlin and runs
-// only for the module and the dependencies it compiles against). Any error
+// but `android-native` and `ios-native`, which compile the nearby module's
+// Kotlin and Swift and run only for the module and the dependencies it
+// compiles against). Any error
 // runs every job: this never fails a run. The nightly run and a manual run
 // run every job.
 // A merge queue entry whose tree the pull request's own run tested, and a
@@ -20,7 +21,7 @@
 //
 //   node scripts/ci-scope.mjs     in the workflow: reads GITHUB_* and the
 //                                 event, writes server=, web-smoke=,
-//                                 ui-web= and android-native= (true|false)
+//                                 ui-web=, android-native= and ios-native= (true|false)
 //                                 and tested= (the run
 //                                 that already passed it, or empty) to
 //                                 GITHUB_OUTPUT, and why to the job summary
@@ -31,12 +32,12 @@ import { fileURLToPath } from 'node:url';
 import { alreadyTested } from './ci-tested.mjs';
 
 /** The jobs that scope can leave out. `checks`, `unit` and `coverage` always run. */
-export const JOBS = ['server', 'web-smoke', 'ui-web', 'android-native'];
+export const JOBS = ['server', 'web-smoke', 'ui-web', 'android-native', 'ios-native'];
 
 /**
  * What shared code, a dependency and a file that no rule names run: every
- * job but `android-native`, so a change to core or a script does not
- * compile Kotlin (docs/nearby-sync-plan.md section 7).
+ * job but `android-native` and `ios-native`, so a change to core or a script
+ * compiles no Kotlin or Swift (docs/nearby-sync-plan.md section 7).
  */
 export const SHARED = ['server', 'web-smoke', 'ui-web'];
 
@@ -52,14 +53,17 @@ export const RULES = [
   // What every shared job runs on: the shared packages, the database, the
   // dependencies, the CI and its scripts, the library that jobs seed.
   { pattern: /^(packages\/(core|sync)|supabase|library|scripts|\.github|\.githooks)\//, jobs: SHARED },
-  // The nearby module's own files also compile its Kotlin, and keep the
-  // browser jobs that the app rule below would give them. The app's
-  // dependencies and the root lockfile can move expo-modules-core, which the
-  // module compiles against (Carl's answer 22), so they run it beside what
-  // the dependency rule gives them. Both come before that rule, which
-  // matches any package.json.
-  { pattern: /^apps\/mobile\/modules\/nearby-link\//, jobs: [...APP, 'android-native'] },
-  { pattern: /^apps\/mobile\/package\.json$|^package-lock\.json$/, jobs: [...SHARED, 'android-native'] },
+  // The nearby module's own files also compile its Kotlin (android/) or its
+  // Swift (ios/ and its podspec, phase 5), or both for what they share (the
+  // contract, the golden vectors), and keep the browser jobs that the app
+  // rule below would give them. The app's dependencies and the root lockfile
+  // can move expo-modules-core, which the module compiles against (Carl's
+  // answer 22), so they run both beside what the dependency rule gives them.
+  // All come before that rule, which matches any package.json.
+  { pattern: /^apps\/mobile\/modules\/nearby-link\/android\//, jobs: [...APP, 'android-native'] },
+  { pattern: /^apps\/mobile\/modules\/nearby-link\/(ios\/|[^/]+\.podspec$)/, jobs: [...APP, 'ios-native'] },
+  { pattern: /^apps\/mobile\/modules\/nearby-link\//, jobs: [...APP, 'android-native', 'ios-native'] },
+  { pattern: /^apps\/mobile\/package\.json$|^package-lock\.json$/, jobs: [...SHARED, 'android-native', 'ios-native'] },
   { pattern: /(^|\/)(package\.json|package-lock\.json)$|^(vitest\.config\.ts|tsconfig[^/]*\.json)$/, jobs: SHARED },
   // Words for people and agents: the decision log, the plan, the docs, the
   // skills. Their tests (the decision log's format, links) are unit tests.

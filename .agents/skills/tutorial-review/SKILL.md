@@ -45,7 +45,7 @@ changes to the app and new videos always wait for one.
   answers it. A look whose reply or suggestion names it is refused whole
   (`server/tutorialFeedback.ts`).
 - **Follow the app's recorded decisions.** Before a code suggestion, read
-  the entries of `docs/decisions.md` and the parts of `PLAN.md` that touch
+  the decisions in `docs/decisions/` and the parts of `PLAN.md` that touch
   it. Never suggest what they rule out (explanatory text on screens, due
   dates, AI help in the app, a timed undo, and the rest); when a comment asks
   for one, say in `looked` which decision says no.

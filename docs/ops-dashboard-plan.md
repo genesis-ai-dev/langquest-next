@@ -162,6 +162,41 @@ one new migration per phase. Almost all of it reads what is recorded
 already; the few things that must be recorded first say so, and none of
 them is collected from people or their phones.
 
+### 5.0 How the page shows it (2026-11-17)
+
+Caleb picked the start page "What needs you first" on 2026-11-17 (decisions.md
+254), with three conditions: every other number stays reachable for 14 days
+and more, any square, bar or point opens the technical detail behind it, and
+the pictures keep working at tens of thousands of people and over years. So:
+
+- **The start page** (built, 5b) shows a count of what needs a person and one
+  card for each part whose alerts need a person: its most urgent alert leads,
+  with its section's 14-day picture, a "Next:" line and its actions; 3 more
+  follow and the rest are counted, so 30 new error kinds stay one card. Beside
+  them: Claude works on it (open issues the watch filed), Waits on Apple or
+  Google (builds in review), and Watch, one line for each part's alerts to
+  watch. Every section with no alert is one OK line with its 14-day picture
+  (`GET /ops/api/glance`, decisions.md 255). The levels in 5.1 stay.
+- **A section** (`#g/<section>`) opens from its card or its OK line, with a
+  chart for each number of each part and a range: 24 h, 14 days, 90 days,
+  1 year, All (by hour, day, day, week, month), then every table it had.
+  A count is bars; a level is a line with points. Each number's top keys are
+  buttons that show one key. All sections (`#all`) is the page as before.
+- **A tap on a bar or point** (or arrow keys and Enter) opens a panel: that
+  bucket's number for each key, then the records behind it, 50 at a time,
+  read from the raw records inside 90 days and as totals past that
+  (`GET /ops/api/<part>/detail`, decisions.md 255). Each record shows its
+  install with Look up, its codes and numbers, and its stack.
+- **Scale**: a thing with a fixed count (suites, jobs, videos, stores,
+  Workers) keeps one square each; a thing that grows with people (phones,
+  browsers, people, organizations) becomes a share, one square 1% past 200;
+  events become counts per bucket; a list shows its top 10, then Show all, a
+  table the server pages. The start page never draws a mark for each person
+  or install.
+- **History** comes from totals by hour and day, never from raw records
+  (section 7, phase 5): `diag.hourly`, `diag.daily` and `diag.monthly`, read by
+  `GET /ops/api/<part>?range=`, built first (`docs/admin.md`, History).
+
 ### 5.1 Needs attention (built, extended)
 
 The alerts from every section, problems first. New: each alert links to the
@@ -432,6 +467,10 @@ changes an organization stay in the CLIs, run on a call.
 | 3 | New reads: the extensions in 5.2 to 5.7 and sections 5.10 to 5.13, with one migration of `diag` functions; `/ops/api/attention`. The few things recorded first land here too: the projection pass's upload-delay and clock-skew numbers, the fold canary, the request tally's duration buckets and `rate_limited` classes, and `account_delete` runs. Several pull requests, one per group, so each can be reviewed alone | phase 1 |
 | 4 | Actions (section 6) and `ops.actions` | phase 2, its decision |
 | 5 | History and telling people: a daily rollup (`diag.daily`, by pg_cron) for trends past 7 days, and the `OpsWatch` Durable Object (section 11.4), which sends a problem to Slack or Linear when it stays for 15 minutes | phase 3 |
+| 5a | **Built (2026-11-17)**: totals by hour (`diag.hourly`, 14 days), by day (`diag.daily`, all time) and by month (`diag.monthly`, for All), filled every 10 minutes by pg_cron (`langquest-daily-totals`), and `GET /ops/api/<part>?range=24h\|14d\|90d\|1y\|all` (decisions.md 254) | phase 3 |
+| 5b | **Built (2026-11-17)**: the start page "What needs you first" (5.0), each section's charts over a range, and the detail panel for a bucket (`/ops/api/<part>/detail`, raw records, 90 days at most; `/ops/api/glance`) (decisions.md 255) | 5a merged |
+| 5c | The pictures the design draws in place of plain charts: a square for each job run, suite or video, store lanes, the phones' share, meters for capacity | 5b merged |
+| 5d | `OpsWatch` (section 11.4) | phase 3 |
 
 Each phase is one pull request, with the guardrails green (`--web` for
 phase 1, since it touches the app Worker; `--all` for phases with a

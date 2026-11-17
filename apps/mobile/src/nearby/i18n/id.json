@@ -2,6 +2,7 @@
   "nearby": {
     "experimental": "Uji coba",
     "intro": "Berfungsi tanpa internet: perbarui ponsel rekan tim, atau berikan aplikasi kepada orang baru dan izinkan mereka bergabung dengan tim.",
+    "introTeammates": "Berfungsi tanpa internet: perbarui ponsel rekan tim.",
     "withTeammates": "Dengan rekan tim",
     "withTeammatesLine": "Ponsel yang sudah memiliki LangQuest saling memperbarui. Biarkan ini terbuka sampai muncul tulisan Sudah terbaru.",
     "newPerson": "Orang baru",
@@ -33,9 +34,12 @@
       "nearbyAndLocation": "Android akan bertanya dua kali: untuk menemukan perangkat di sekitar, lalu untuk lokasi, yang diperlukan Wi-Fi Direct. LangQuest tidak mencatat di mana Anda berada.",
       "nearbyDevices": "Android akan meminta izin agar LangQuest bisa menemukan dan tersambung ke perangkat di sekitar. Izin ini hanya dipakai selama layar ini terbuka.",
       "precise": "Android hanya memberi lokasi perkiraan, padahal Wi-Fi Direct memerlukan lokasi akurat untuk tersambung. LangQuest tetap tidak mencatat di mana Anda berada.",
+      "bluetooth": "iPhone Anda akan meminta izin agar LangQuest bisa memakai Bluetooth untuk menemukan ponsel rekan tim. Izin ini hanya dipakai selama layar ini terbuka. Saat ponsel tersambung, iPhone juga bisa meminta izin untuk menemukan perangkat di jaringan lokal Anda dan untuk bergabung ke Wi-Fi rekan tim. Izinkan juga, agar rekaman bisa berpindah.",
       "settings": "Android tidak akan bertanya lagi. Buka pengaturan aplikasi ini, lalu Izin, dan izinkan Perangkat di sekitar atau Lokasi.",
+      "settingsIphone": "iPhone Anda tidak akan bertanya lagi. Buka pengaturan aplikasi ini lalu nyalakan Bluetooth, dan juga Jaringan Lokal jika ada.",
       "allow": "Lanjutkan",
       "allowHelp": "Menampilkan pertanyaan Android. Pilih Izinkan untuk berbagi dengan rekan tim di sekitar.",
+      "allowHelpIphone": "Menampilkan pertanyaan iPhone Anda. Pilih Izinkan untuk berbagi dengan rekan tim di sekitar.",
       "openSettings": "Buka Pengaturan",
       "openSettingsHelp": "Membuka halaman aplikasi ini di pengaturan ponsel Anda, tempat Anda bisa mengizinkannya."
     },
@@ -65,6 +69,7 @@
     },
     "connect": "Sambungkan",
     "connectHelp": "Menyambung ke ponsel ini. Gunakan saat ada rekan tim di dekat Anda tetapi kedua ponsel belum saling menemukan.",
+    "connectHelpAll": "Menyambung ke semua ponsel rekan tim di sekitar yang belum menemukan ponsel ini. Satu ketukan berlaku untuk semuanya sampai Anda keluar dari layar ini.",
     "came": {
       "title": "Yang sudah berpindah",
       "changesIn": "Perubahan diterima: {{n}}",
@@ -84,6 +89,7 @@
     },
     "clockOff": "Jam ponsel rekan tim dan jam ponsel ini berbeda lebih dari lima menit. Periksa tanggal dan jam di kedua ponsel.",
     "newerApp": "Ponsel rekan tim memerlukan versi aplikasi yang lebih baru untuk berbagi dengan ponsel ini. Perbarui aplikasi dari toko aplikasi, atau dapatkan versi yang lebih baru dari rekan tim.",
+    "newerAppIphone": "Ponsel rekan tim memerlukan versi aplikasi yang lebih baru untuk berbagi dengan ponsel ini. Perbarui aplikasi dari toko aplikasi.",
     "apkOld": "File instalasi yang Anda dapatkan adalah untuk versi lama. Dapatkan yang baru sebelum Anda tanpa internet.",
     "tooOld": "Aplikasi ini terlalu lama untuk berbagi. Perbarui dari toko aplikasi.",
     "farAhead": "Ponsel {{name}} memakai tanggal yang jauh di masa depan. Pekerjaannya menunggu sampai tiba di server.",

@@ -6,12 +6,12 @@ import type { ReadyToCarry } from './readyToCarryModel';
  * Share nearby's run as plain data (docs/nearby-sync-plan.md 5.8, 5.11, section 8): what
  * `useNearby` keeps between the room's reports, when a stop latches, what a press and a lock
  * do, and what the screen is handed. Pure, so every rule is tested without radios: the hook
- * (useNearby.android.ts) turns the room's events into actions here and draws nothing.
+ * (useNearby.native.ts) turns the room's events into actions here and draws nothing.
  *
  * The room's events and a session's report are mirrored here by shape (`RoomReport`,
- * `SessionReportLike`), because only `.android` files import the nearby entries; sync's types
- * fit them as they are. No word is chosen here: the screen maps each key to its catalog, and
- * words a worn phone alone shows stay in src/disguise/i18n.
+ * `SessionReportLike`), because only a phone's files (`.native`, `.android`, `.ios`) import the
+ * nearby entries; sync's types fit them as they are. No word is chosen here: the screen maps each
+ * key to its catalog, and words a worn phone alone shows stay in src/disguise/i18n.
  */
 
 // ---- what the room is told to do ----------------------------------------------------------
@@ -70,11 +70,36 @@ export interface RadiosLike {
   band5: boolean;
   hotspot: boolean;
   joinHotspot: boolean;
+  /** Apple's own direct Wi-Fi between two iPhones (section 7's phase 5); left out where the phone has none. */
+  awdl?: boolean;
+  /** Joins an Android's Wi-Fi Direct group as a plain client (an iPhone); left out where the phone cannot. */
+  joinDirect?: boolean;
 }
 
-/** What `arrange` says: a worn phone never joins a hotspot, whose system dialog names the application; it may still host. */
-export function radiosFor(caps: RadiosLike, worn: boolean): RadiosLike {
-  return { directByName: caps.directByName, band5: caps.band5, hotspot: caps.hotspot, joinHotspot: caps.joinHotspot && !worn };
+/** What `arrange` may offer beyond what the phone can do, set from JavaScript so the real-phone test can turn it off. */
+export interface RadioTunables {
+  /**
+   * An iPhone says `joinDirect`, so it tries an Android's Wi-Fi Direct group, which is faster than
+   * the hotspot, first. The real-phone test says whether it holds (section 7's phase 5); false
+   * leaves an iPhone to the hotspot alone.
+   */
+  joinDirect: boolean;
+}
+
+export const NEARBY_RADIO_TUNABLES: RadioTunables = { joinDirect: true };
+
+/**
+ * What `arrange` says: what the phone can do, except that a worn phone never joins a hotspot, whose
+ * system dialog names the application (it may still host), and `joinDirect` only while the tunable
+ * allows it. `awdl` and `joinDirect` go only when the phone says them, so an Android's `arrange`
+ * is as it was.
+ */
+export function radiosFor(caps: RadiosLike, worn: boolean, tunables: RadioTunables = NEARBY_RADIO_TUNABLES): RadiosLike {
+  return {
+    directByName: caps.directByName, band5: caps.band5, hotspot: caps.hotspot, joinHotspot: caps.joinHotspot && !worn,
+    ...(caps.awdl === true ? { awdl: true } : {}),
+    ...(caps.joinDirect === true && tunables.joinDirect ? { joinDirect: true } : {})
+  };
 }
 
 /** Share nearby is offered only to someone holding a certificate for the organization and a discovery key for the language. */
@@ -137,7 +162,7 @@ export interface SessionReportLike {
   peer: { profileId: string; tag: string } | null;
   newerAppNeeded: boolean;
   clockOff: boolean;
-  linkKind: 'wifi-direct' | 'hotspot' | 'bluetooth' | 'memory' | null;
+  linkKind: 'wifi-direct' | 'hotspot' | 'awdl' | 'bluetooth' | 'memory' | null;
   got: { events: number; refused: number };
   sent: { events: number };
   files: { got: number; served: number; failed: number; noRoom: boolean; cutBackups: boolean };
@@ -266,7 +291,8 @@ export type NearbyRunAction =
   | { t: 'failed' }
   | { t: 'room'; report: RoomReport; worn: boolean; names?: ReadonlyMap<string, string> }
   | { t: 'progress'; report: SessionReportLike }
-  | { t: 'tapped'; tag: string }
+  /** "A teammate may be nearby" tapped; `all` where one tap covers every teammate without an echo (an iPhone, Carl's answer 26). */
+  | { t: 'tapped'; tag: string; all?: boolean }
   | { t: 'find-error'; code: string };
 
 const sameFarAhead = (a: { actorId: string; hlc: string }, b: { actorId: string; hlc: string }) => a.actorId === b.actorId;
@@ -376,7 +402,10 @@ export function nearbyRunReducer(s: NearbyRunState, a: NearbyRunAction): NearbyR
       if (!s.current) return s;
       return { ...s, current: { ...s.current, eventsIn: a.report.got.events, eventsOut: a.report.sent.events, filesIn: a.report.files.got, filesOut: a.report.files.served } };
     case 'tapped':
-      return { ...s, teammates: s.teammates.map((t) => (t.tag === a.tag && t.state === 'maybe' ? { ...t, state: 'here' } : t)), met: s.met || s.teammates.some((t) => t.tag === a.tag) };
+      return {
+        ...s, teammates: s.teammates.map((t) => ((t.tag === a.tag || a.all === true) && t.state === 'maybe' ? { ...t, state: 'here' } : t)),
+        met: s.met || s.teammates.some((t) => t.tag === a.tag)
+      };
     case 'find-error':
       return { ...s, findError: a.code };
   }
@@ -394,6 +423,13 @@ export type NearbyWhyNot = NearbyUnavailable | 'no-key' | 'no-certificate' | 're
 export interface NearbyView {
   /** Show the Share nearby row at all: a certificate for the organization and a discovery key for the language. */
   offered: boolean;
+  /** An iPhone: the words that name the system's questions and settings say iPhone, not Android. */
+  iphone: boolean;
+  /**
+   * This phone's advert goes out alone (an iPhone), so one tap on "A teammate may be nearby" covers
+   * every teammate it cannot get an echo from, until the screen closes (Carl's answer 26).
+   */
+  tapCoversAll: boolean;
   /** Null when it can run; else why not, for the disabled row's line. */
   whyNot: NearbyWhyNot | null;
   /** Radios the person must turn on. */
@@ -427,13 +463,13 @@ export interface NearbyActions {
   press(): void;
   /** After a stop that latched. On a worn phone it is a press. */
   lookAgain(): void;
-  /** "A teammate may be nearby": connect with this one. */
+  /** "A teammate may be nearby": connect with this one, or on an iPhone with every one (`tapCoversAll`). */
   tap(tag: string): void;
   /** The warning was read: go on to the prompts, if any. */
   warned(): void;
   /** The line saying why was read: the system's prompts now. */
   askPermissions(): Promise<void>;
-  /** Android will not prompt again: the app's settings. */
+  /** The phone will not prompt again: the app's settings. */
   openSettings(): Promise<void>;
   setHold(hold: boolean): Promise<void>;
 }
@@ -445,6 +481,8 @@ export interface NearbyHandle {
 
 export interface NearbyViewFacts {
   offered: boolean;
+  iphone: boolean;
+  tapCoversAll: boolean;
   whyNot: NearbyWhyNot | null;
   radiosOff: RadioOff[];
   permissions: { state: PermissionsState; step: PermissionStep };
@@ -458,7 +496,7 @@ export interface NearbyViewFacts {
 export function nearbyViewOf(f: NearbyViewFacts): NearbyView {
   const { run } = f;
   return {
-    offered: f.offered, whyNot: f.whyNot, radiosOff: f.radiosOff, permissions: f.permissions, worn: f.worn,
+    offered: f.offered, iphone: f.iphone, tapCoversAll: f.tapCoversAll, whyNot: f.whyNot, radiosOff: f.radiosOff, permissions: f.permissions, worn: f.worn,
     needsPress: f.worn && !run.pressed, running: run.running, stopped: run.stopped, level: run.level && run.met, teammates: run.teammates,
     sessions: run.sessions, current: run.current, holding: f.holding, farAhead: run.farAhead, clockOff: run.clockOff,
     newerAppNeeded: run.newerAppNeeded, findError: run.findError, hold: f.hold, carry: f.carry

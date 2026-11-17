@@ -67,7 +67,7 @@ export const NEARBY_DIAG_SCHEMA = {
       role: ['i', 'r'],
       end: ['done', 'silent', 'no-answer', 'said', 'heard', 'dropped', 'stalled', 'failed'],
       bye: ['done', 'nothing', 'busy', 'protocol', 'identity', 'not-member', 'stopped'],
-      link: ['wifi-direct', 'hotspot', 'bluetooth'],
+      link: ['wifi-direct', 'hotspot', 'awdl', 'bluetooth'],
       code: NEARBY_DIAG_CODES,
       error: 'token',
       why: NEARBY_DIAG_BLOCKED,

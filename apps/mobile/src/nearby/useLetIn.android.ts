@@ -11,12 +11,12 @@ import { codeShown, LET_IN_CODE_MS, LET_IN_START, letInEndOf, letInReducer, letI
 import type { PassShape } from './nearbyModel';
 import { radiosMayRun } from './nearbyModel';
 import { letInWithPass } from './nearbyJoin.android';
-import { nearbyRadio } from './nearbyLink.android';
+import { nearbyRadio } from './nearbyLink.native';
 import { nearbyFlag } from './nearbyFlag';
 import { androidSdk, checkNearbyPermissions } from './nearbyPermissions.android';
 import { permissionsStateOf } from './nearbyPermissionsModel';
-import { joinPassFor } from './nearbyPhone.android';
-import { useFocus } from './useNearby.android';
+import { joinPassFor } from './nearbyPhone.native';
+import { useFocus } from './useNearby.native';
 import type { LetInHandle } from './useLetIn';
 
 const KEEP_AWAKE = 'nearby-let-in';

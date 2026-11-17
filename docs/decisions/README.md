@@ -1,11 +1,21 @@
-# Decisions, one file each
+# Decisions
 
-The architecture decision record (ADR) log for this app, after entry 253.
-Entries 1 to 253 came before and are in [../decisions.md](../decisions.md),
-where they keep their numbers. Every architecture or design decision, from
-any developer or agent, gets a file here as it is made, so the files in name
-order read as the history of how the design got to where it is. Each one has
-the reason and what would change our mind.
+The architecture decision record (ADR) log for this app, one file per
+decision. It is the only one: every architecture or design decision, from any
+developer or agent, gets a file here as it is made, so the files in name order
+read as the history of how the design got to where it is. Each one has the
+reason and what would change our mind.
+
+- Decisions 1 to 256 are `NNNN-few-words.md`, by number
+  (`0034-….md` is decision 34). Code and docs cite them by number:
+  "decisions.md 34" or "decision 34".
+- Each later decision is `YYYY-MM-DD-few-words.md`, by its date and a few
+  words of its title. It has no number. Cite it by its path:
+  `docs/decisions/2026-11-17-one-file-per-decision.md`.
+
+Two branches never write the same file, so a new decision never conflicts
+with another branch's, and nothing is renumbered when they merge
+([2026-11-17-one-file-per-decision](./2026-11-17-one-file-per-decision.md)).
 
 ## How to write one
 
@@ -17,10 +27,9 @@ offline; a deliberate departure from PLAN.md, the partner demo or an earlier
 decision. A bug fix, a refactor that keeps behaviour, or a new event that
 fits an existing merge shape does not need one.
 
-Name the file by today's date and a few words of its title, in lowercase with
-hyphens, such as `2026-10-27-one-file-per-decision.md`. A thread knows the
-name before any pull request exists, and two branches never pick the same
-one, so nothing is renumbered when they merge.
+Name the file by today's date and a few words of its title, in lowercase
+with hyphens, such as `2026-11-17-one-file-per-decision.md`. Pick words that
+another branch is not likely to pick on the same day.
 
 ~~~md
 # The decision, stated as a sentence
@@ -33,15 +42,14 @@ Reverse if: the evidence that would change our mind.
 
 - `Date` is the date in the file name. `By` is the developer who made the
   decision, not the agent that typed it.
-- `Status` is `accepted`, `superseded by <name>` or
-  `partly superseded by <name>`, where `<name>` is the later decision's file
-  name without `.md`.
-- Cite a decision by its path: `docs/decisions/2026-10-27-one-file-per-decision.md`.
-  Entries 1 to 253 are still cited by number ("decisions.md 34").
+- `Status` is `accepted`, `superseded by <id>` or `partly superseded by <id>`.
+  `<id>` is a later decision's number (`superseded by 150`) or its file name
+  without `.md` (`superseded by 2026-11-17-one-file-per-decision`).
 - Never rewrite a past decision's reasoning. If a decision changes, write a
-  new one that says "Supersedes <name>" (or "Supersedes 35") and set the old
-  one's status. If it only narrows or extends, append a dated paragraph to
-  it: `Amended (YYYY-MM-DD, Full Name): what changed and why.`
+  new one that says "Supersedes 35" (or the file name) and set the old one's
+  status. If it only narrows or extends, append a dated paragraph to its
+  file: `Amended (YYYY-MM-DD, Full Name): what changed and why.`
+- Never add a numbered file. Decision 256 is the last number.
 - Land the decision in the same commit or pull request as the change it
   explains. `scripts/decisions.test.ts` checks the format, and that every
-  decision cited by its path exists.
+  decision cited by its path or by "decisions.md N" exists.

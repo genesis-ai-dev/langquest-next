@@ -81,7 +81,10 @@ under GDPR-style rules it is still personal data. What keeps it proportionate:
 - only operational measurements, no content (above);
 - a record may name an org only if the delivering account belongs to it;
 - kept 90 days after arrival (`diag.prune`, run on every ingest), installs
-  forgotten after 180 days without a delivery;
+  forgotten after 180 days without a delivery; what the ops dashboard keeps
+  longer is totals by day (`diag.daily`, decisions.md 254): counts and levels
+  for the whole fleet, by platform, job, error kind or route, never by
+  install or person;
 - readable only by the `diag_reader` role and the database owner, never by
   the app's API roles;
 - the person can turn it off in Settings › App › Send diagnostics
@@ -162,10 +165,13 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   the nightly R2 check (`blob_reconcile`: `streams`, `objects`, `missing`,
   recordings the log holds and R2 lacks once the run has repaired what it
   can, `orphaned`, files R2 had that the log did not, `repaired`, files the
-  run copied to the file type the log names, `server/reconcileJob.ts`), the
+  run copied to the file type the log names, `unreadable`, copies that still
+  failed after two more tries, `server/reconcileJob.ts`), the
   snapshot purge (`snapshot_purge`: `snapshots`, `rows` and `staged`
   removed, every 10 minutes in the database, `ops.purge_snapshots`, decision
-  204), each account deletion
+  204), the ops dashboard's totals (`daily_totals`: `hours`, `days` and
+  `rows` counted, every 10 minutes in the database, `diag.daily_fill`,
+  decision 254), each account deletion
   (`account_delete`, written by `_delete_account` with no id at all), the
   Worker's job tick (`job_starts`: jobs started, found running, switched
   off, or that could not start), push delivery

@@ -142,18 +142,39 @@ describe('blob reconciler repair (docs/nearby-sync-plan.md section 6)', () => {
     expect(copies).toHaveLength(1);
   });
 
-  it('counts a file missing when its copy fails, and reports the failure', async () => {
+  it('counts a file missing when its copy still fails after its tries, and reports the failure', async () => {
     const server = new FakeServer();
     await language(server);
     server.serviceEvent('v1.BlobStored', { hash: sha('good'), size: 4 });
+    let tries = 0;
     const d: ReconcilerDeps = {
       ...deps(server, [{ orgId: 'org1', streamId: 'p1', hash: sha('good'), format: 'm4a', size: 4 }]),
-      copy: async () => { throw new Error('Internal Server Error'); }
+      copy: async () => { tries += 1; throw new Error('Internal Server Error'); }
     };
-    const report = await reconcileBlobs(d, { verify: false, countMissing: true });
+    const report = await reconcileBlobs(d, { verify: false, countMissing: true, copyRetryMs: [0, 0] });
+    expect(tries).toBe(3);
     expect(report.missing).toBe(1);
     expect(report.repaired ?? 0).toBe(0);
     expect(report.unreadable).toEqual([`org1/p1/${sha('good')}: Internal Server Error`]);
+  });
+
+  it('tries a failed copy again, so a passing refusal from R2 does not leave a file missing for a day', async () => {
+    // Why: Nov 17, 2026 R2 refused 7 of 222 copies with the Worker's 502 "Try again", and phones
+    // asked for those 7 files by name and found nothing until the next night.
+    const server = new FakeServer();
+    await language(server);
+    server.serviceEvent('v1.BlobStored', { hash: sha('good'), size: 4 });
+    let tries = 0;
+    const d: ReconcilerDeps = {
+      ...deps(server, [{ orgId: 'org1', streamId: 'p1', hash: sha('good'), format: 'm4a', size: 4 }]),
+      copy: async () => {
+        tries += 1;
+        if (tries < 3) throw new Error('upload (502): The file could not be stored just now. Try again.');
+      }
+    };
+    const report = await reconcileBlobs(d, { verify: false, countMissing: true, copyRetryMs: [0, 0] });
+    expect(tries).toBe(3);
+    expect(report).toMatchObject({ missing: 0, repaired: 1, unreadable: [] });
   });
 
   it('makes one copy for a name the bucket lacks, when the bytes sit under two other formats', async () => {
