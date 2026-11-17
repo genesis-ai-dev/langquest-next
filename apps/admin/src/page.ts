@@ -447,8 +447,18 @@ function partHtml(g, id) {
   if (s.state === 'error') return head + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
   try {
     if (id === 'jobs') return head + renderJobs(s.data, results.container);
-    return head + (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+    return head + counted(s.data) + (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
   } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
+}
+
+/** A part the database counts every 10 minutes (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md): when, and late past 25 minutes. */
+function counted(d) {
+  if (!d || !d.countedAt) return '';
+  const at = new Date(d.countedAt);
+  const late = Date.now() - at.getTime() > 25 * 60000;
+  const time = at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
+  return '<p class="counted ' + (late ? 'bad' : 'muted') + '" title="' + esc(ago(d.countedAt)) + '">Counted at ' + esc(time) + ' UTC'
+    + (late ? ', late: the count runs every 10 minutes (ops_counts in Server jobs).' : ', every 10 minutes.') + '</p>';
 }
 
 /** The jobs as diag records them, with whether each runs now (the job container's answer) in the same row. */

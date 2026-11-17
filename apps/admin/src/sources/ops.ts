@@ -63,6 +63,8 @@ export interface Fleet {
   stuck: { install: string; unsentMin: number | null; stuckMin: number | null; freeMb: number | null; lostFiles: number | null; lostRecordings: number | null; at: string }[];
   /** Quiet installs by account; null where the database lacks diag.ops_quiet_accounts. */
   quiet: QuietAccounts | null;
+  /** When the database made this count (every 10 minutes); absent before migration 20261117200000. */
+  countedAt?: string;
 }
 
 /** diag.ops_quiet_accounts(): `count` and `accounts` leave out the accounts a person marked not an issue. */
@@ -74,58 +76,11 @@ export interface QuietAccounts {
 
 export const quietAccountsOf = (row: QuietAccounts): QuietAccounts => ({ ...row, count: num(row.count), markedCount: num(row.markedCount) });
 
-/** Records are kept 90 days and indexed by arrival; installs by when they were last heard from. */
-export const FLEET_SQL = `with r as (
-  select install_id, org_id, stream_id, kind, received_at, update_id, n, t from diag.records where received_at > now() - interval '14 days'
-),
-seen as (select install_id, context, last_seen from diag.installs where last_seen > now() - interval '14 days')
-select jsonb_build_object(
-  'builds', (select coalesce(jsonb_agg(jsonb_build_object('platform', x.os, 'version', x.v, 'reducers', x.rv, 'day', x.d, 'week', x.w, 'fortnight', x.f) order by x.os, x.v desc), '[]'::jsonb)
-    from (select coalesce(context->>'os', '?') as os, coalesce(context->>'appVersion', '?') as v, string_agg(distinct context->>'reducerVersion', ', ') as rv,
-                 count(*) filter (where last_seen > now() - interval '1 day') as d, count(*) filter (where last_seen > now() - interval '7 days') as w, count(*) as f
-          from seen where coalesce(context->>'channel', '') <> 'development' and coalesce(context->>'os', '') <> 'web' group by 1, 2) x),
-  'updates', (select coalesce(jsonb_agg(jsonb_build_object('update', x.up, 'runtime', x.rt, 'channel', x.ch, 'installs', x.i,
-      'crashed', x.cr, 'firstSeen', x.fs, 'lastSeen', x.ls) order by x.fs desc), '[]'::jsonb)
-    from (select coalesce(left(r.update_id, 8), 'embedded') as up, max(s.context->>'runtimeVersion') as rt, max(s.context->>'channel') as ch,
-                 count(distinct r.install_id) as i,
-                 count(distinct r.install_id) filter (where r.kind = 'error' and r.t->>'fatal' = 'yes') as cr,
-                 min(r.received_at) as fs, max(r.received_at) as ls
-          from r left join seen s using (install_id) group by 1 order by min(r.received_at) desc limit 12) x),
-  'versions', (select coalesce(jsonb_agg(jsonb_build_object('reducer', x.rv, 'protocol', x.pv, 'installs', x.c) order by x.c desc), '[]'::jsonb)
-    from (select context->>'reducerVersion' as rv, context->>'protocolVersion' as pv, count(*) as c
-          from seen where last_seen > now() - interval '7 days' group by 1, 2) x),
-  'web', (select coalesce(jsonb_agg(jsonb_build_object('commit', x.cm, 'installs', x.c) order by x.c desc), '[]'::jsonb)
-    from (select context->>'runtimeVersion' as cm, count(*) as c from seen
-          where context->>'channel' = 'web' and last_seen > now() - interval '7 days' group by 1 limit 10) x),
-  'toMap', (select coalesce(jsonb_agg(jsonb_build_object('day', x.d, 'kind', x.k, 'count', x.c, 'p50Ms', x.p50, 'p95Ms', x.p95) order by x.d, x.k), '[]'::jsonb)
-    from (select to_char(date_trunc('day', received_at), 'YYYY-MM-DD') as d, k, count(*) as c,
-                 round(percentile_cont(0.5) within group (order by v)) as p50, round(percentile_cont(0.95) within group (order by v)) as p95
-          from (select received_at,
-                       case when kind = 'open' then 'open' else 'fill' end as k,
-                       case when kind = 'open' then (n->>'ms')::numeric else (n->>'msToMap')::numeric end as v
-                from r where kind = 'open' or (kind = 'fill' and t->>'event' = 'start')) q
-          where v is not null group by 1, 2) x),
-  'firstDownloads', (select coalesce(jsonb_agg(jsonb_build_object('day', x.d, 'what', x.w, 'reason', x.re, 'count', x.c, 'installs', x.i) order by x.d desc, x.c desc, x.w, x.re), '[]'::jsonb)
-    from (select to_char(date_trunc('day', q.received_at), 'YYYY-MM-DD') as d, q.w, q.re, count(*) as c, count(distinct q.install_id) as i
-          from (select r.received_at, r.install_id,
-                       case when r.kind = 'snapshot' then 'no_snapshot' else r.t->>'event' end as w,
-                       case when r.kind = 'snapshot' then coalesce(s.context->>'reducerVersion', '?') else coalesce(r.t->>'reason', '?') end as re
-                from r left join seen s using (install_id)
-                where coalesce(s.context->>'channel', '') <> 'development'
-                  and ((r.kind = 'fill' and r.t->>'event' in ('fallback', 'restart'))
-                    -- The organization's and a person's streams never have a snapshot, so only a language's says anything.
-                    or (r.kind = 'snapshot' and r.t->>'outcome' = 'none' and r.stream_id <> '_org' and r.org_id <> '_person'))) q
-          group by 1, 2, 3 order by 1 desc, 4 desc limit 40) x),
-  'stuck', (select coalesce(jsonb_agg(jsonb_build_object('install', x.install_id, 'unsentMin', x.un, 'stuckMin', x.st, 'freeMb', x.fr,
-      'lostFiles', x.lf, 'lostRecordings', x.lr, 'at', x.received_at) order by x.received_at desc), '[]'::jsonb)
-    from (select install_id, received_at, (n->>'oldestUnsentMin')::numeric as un, (n->>'wantedStuckMin')::numeric as st,
-                 (n->>'freeDiskMb')::numeric as fr, (n->>'lostFiles')::numeric as lf, (n->>'lostRecordings')::numeric as lr
-          from (select distinct on (install_id) install_id, received_at, n from r
-                where kind = 'device' and received_at > now() - interval '7 days' order by install_id, received_at desc) last
-          where (n->>'oldestUnsentMin')::numeric > 1440 or (n->>'wantedStuckMin')::numeric > 1440
-             or (n->>'freeDiskMb')::numeric < 500 or (n->>'lostFiles')::numeric > 0 or (n->>'lostRecordings')::numeric > 0
-          order by received_at desc limit 25) x)
-) as v`;
+/**
+ * Counted by the database every 10 minutes (diag.ops_cache_fill, decisions.md
+ * 257), with the stuck phones read at once; `countedAt` says when.
+ */
+export const FLEET_SQL = `select diag.ops_cached('fleet') as v`;
 
 /** A crash on more than this share of an update's installs is a reason to roll it back. */
 export const CRASH_ROLLBACK_SHARE = 0.02;
@@ -594,7 +549,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
 
   const safetyParts = [rejected, arrivals, canary];
   return {
-    fleet: build([fleet], '', () => {
+    fleet: build([fleet], 'Needs migration 20261117200000_ops_phone_counts.sql on this database.', () => {
       const f: Fleet = { ...val(fleet), quiet: quiet.ok ? quietAccountsOf(quiet.value) : null };
       return ok(f, fleetAlerts(f));
     }),

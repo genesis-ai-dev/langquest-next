@@ -37,66 +37,18 @@ export interface Clients {
   transfer: Record<string, Record<string, number>>;
   audio: Record<string, number> | null;
   device: { reporting: number; lowDisk: number; lostFiles: number; lostRecordings: number; unsentOverDay: number; downloadStuckOverDay: number; diagDropped: number };
+  /** When the database made this count (every 10 minutes); absent before migration 20261117200000. */
+  countedAt?: string;
 }
 
 /**
  * Every install together: the last day and week by when records arrived.
- * Records are kept 90 days and indexed by arrival (diag_records_received_idx).
+ * The database counts it every 10 minutes (diag.ops_cache_fill, decisions.md
+ * 257), since at tens of thousands of installs a week of records takes
+ * longer than the page may wait; `countedAt` says when.
  */
-export const CLIENTS_SQL = `with r as (
-  select install_id, kind, received_at, n, t from diag.records where received_at > now() - interval '7 days'
-),
-d as (select * from r where received_at > now() - interval '1 day'),
-seen as (select install_id, context, last_seen from diag.installs where last_seen > now() - interval '7 days')
-select jsonb_build_object(
-  'installs', jsonb_build_object(
-    'day', (select count(*) from seen where last_seen > now() - interval '1 day'),
-    'week', (select count(*) from seen),
-    'all', (select count(*) from diag.installs)),
-  'records', jsonb_build_object('day', (select count(*) from d), 'week', (select count(*) from r)),
-  'platforms', (select coalesce(jsonb_agg(jsonb_build_object('os', x.os, 'installs', x.c) order by x.c desc), '[]'::jsonb)
-    from (select coalesce(context->>'os', 'unknown') as os, count(*) as c from seen group by 1) x),
-  'builds', (select coalesce(jsonb_agg(jsonb_build_object('runtime', x.rt, 'channel', x.ch, 'update', x.up, 'embedded', x.em,
-      'installs', x.c, 'lastSeen', x.ls) order by x.ls desc), '[]'::jsonb)
-    from (select context->>'runtimeVersion' as rt, context->>'channel' as ch, left(context->>'updateId', 8) as up,
-                 context->>'embedded' as em, count(*) as c, max(last_seen) as ls
-          from seen group by 1, 2, 3, 4 order by max(last_seen) desc limit 12) x),
-  'sync', (select coalesce(jsonb_object_agg(x.o, jsonb_build_object('records', x.c, 'installs', x.i)), '{}'::jsonb)
-    from (select coalesce(t->>'outcome', 'unknown') as o, count(*) as c, count(distinct install_id) as i
-          from d where kind = 'sync' group by 1) x),
-  'syncErrors', (select coalesce(jsonb_agg(jsonb_build_object('code', x.k, 'records', x.c, 'installs', x.i) order by x.c desc), '[]'::jsonb)
-    from (select coalesce(t->>'phase', '?') || ':' || coalesce(t->>'code', t->>'error', '?') as k, count(*) as c, count(distinct install_id) as i
-          from d where kind = 'sync' and t->>'outcome' = 'error' group by 1 order by 2 desc limit 8) x),
-  'errors', (select coalesce(jsonb_agg(jsonb_build_object('name', x.nm, 'where', x.wh, 'code', x.cd, 'fatal', x.ft, 'records', x.c,
-      'day', x.cday, 'installs', x.i, 'lastAt', x.la, 'errorId', x.eid) order by x.la desc), '[]'::jsonb)
-    from (select t->>'name' as nm, t->>'where' as wh, t->>'code' as cd, bool_or(t->>'fatal' = 'yes') as ft, count(*) as c,
-                 count(*) filter (where received_at > now() - interval '1 day') as cday,
-                 count(distinct install_id) as i, max(received_at) as la,
-                 (array_agg(t->>'errorId' order by received_at desc))[1] as eid
-          from r where kind = 'error' group by 1, 2, 3 order by max(received_at) desc limit 20) x),
-  'expected', (select coalesce(jsonb_agg(jsonb_build_object('where', x.wh, 'name', x.nm, 'code', x.cd, 'count', x.c,
-      'installs', x.i, 'lastAt', x.la) order by x.c desc), '[]'::jsonb)
-    from (select t->>'where' as wh, t->>'name' as nm, t->>'code' as cd, sum(coalesce((n->>'count')::numeric, 1)) as c,
-                 count(distinct install_id) as i, max(received_at) as la
-          from r where kind = 'expected' group by 1, 2, 3 order by 4 desc limit 12) x),
-  'auth', (select coalesce(jsonb_agg(jsonb_build_object('op', x.op, 'outcome', x.oc, 'code', x.cd, 'records', x.c,
-      'installs', x.i, 'lastAt', x.la) order by x.c desc), '[]'::jsonb)
-    from (select t->>'op' as op, t->>'outcome' as oc, t->>'code' as cd, count(*) as c, count(distinct install_id) as i, max(received_at) as la
-          from r where kind = 'auth' and coalesce(t->>'outcome', '') not in ('ok', 'done', 'keep', 'home')
-          group by 1, 2, 3 order by 4 desc limit 12) x),
-  'transfer', (select coalesce(jsonb_object_agg(x.dir, x.tot), '{}'::jsonb)
-    from (select coalesce(t->>'dir', 'unknown') as dir, diag.totals(array_agg(n)) as tot from d where kind = 'transfer' group by 1) x),
-  'audio', (select diag.totals(array_agg(n)) from d where kind = 'audio'),
-  'device', (select jsonb_build_object(
-      'reporting', count(*),
-      'lowDisk', count(*) filter (where (n->>'freeDiskMb')::numeric < 500),
-      'lostFiles', count(*) filter (where (n->>'lostFiles')::numeric > 0),
-      'lostRecordings', count(*) filter (where (n->>'lostRecordings')::numeric > 0),
-      'unsentOverDay', count(*) filter (where (n->>'oldestUnsentMin')::numeric > 1440),
-      'downloadStuckOverDay', count(*) filter (where (n->>'wantedStuckMin')::numeric > 1440),
-      'diagDropped', count(*) filter (where (n->>'diagDropped')::numeric > 0))
-    from (select distinct on (install_id) install_id, n from r where kind = 'device' order by install_id, received_at desc) x)
-) as v`;
+export const CLIENTS_SQL = `select diag.ops_cached('clients') as v`;
+export const COUNTS_MIGRATION = 'Needs migration 20261117200000_ops_phone_counts.sql on this database.';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -257,7 +209,7 @@ export async function diagSections(query: Query): Promise<DiagSections> {
   // One connection runs one statement at a time, so these queue there.
   const [jobs, clients, database, v2, feedback] = await Promise.all([
     guard(one<JobRow[]>(JOBS_SQL, ['2 days'], (rows) => jobsSection(rows))),
-    guard(one<Clients>(CLIENTS_SQL, [], (c) => clientsSection(c))),
+    guard(one<Clients>(CLIENTS_SQL, [], (c) => clientsSection(c), COUNTS_MIGRATION)),
     guard((async () => {
       const db = await query<Database>(DATABASE_SQL);
       // Extra: before its migration the timings show without a date.
