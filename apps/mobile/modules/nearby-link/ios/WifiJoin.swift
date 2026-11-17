@@ -53,17 +53,17 @@ enum WifiJoin {
    * configured itself; where it cannot, the gateway is tried anyway, since the opening checks
    * whoever answers.
    */
-  static func gateways(of ssid: String, until deadline: Int64, port: Int) -> [NWEndpoint] {
+  static func gateways(of ssid: String, until deadline: Int64, port: Int) -> [Network.NWEndpoint] {
     let current = Future<String?>()
     NEHotspotNetwork.fetchCurrent { network in current.complete(network?.ssid) }
     if let name = try? current.get(ms: 2_000, timeout: NearbyCode.JOIN_TIMEOUT), name != ssid { return [] }
-    guard let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else { return [] }
-    let found = Future<[NWEndpoint]>()
+    guard let nwPort = Network.NWEndpoint.Port(rawValue: UInt16(port)) else { return [] }
+    let found = Future<[Network.NWEndpoint]>()
     let monitor = NWPathMonitor(requiredInterfaceType: .wifi)
     monitor.pathUpdateHandler = { path in
-      let hosts: [NWEndpoint] = path.gateways.compactMap { gateway in
+      let hosts: [Network.NWEndpoint] = path.gateways.compactMap { gateway in
         guard case let .hostPort(host, _) = gateway else { return nil }
-        if case .ipv4 = host { return NWEndpoint.hostPort(host: host, port: nwPort) }
+        if case .ipv4 = host { return Network.NWEndpoint.hostPort(host: host, port: nwPort) }
         return nil
       }
       if !hosts.isEmpty { found.complete(hosts) }
