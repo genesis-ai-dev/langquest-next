@@ -135,7 +135,7 @@ passes or skipped quietly.
 ## Cloud threads (Claude Code on a cloud machine)
 
 Coding threads run on Claude Code's cloud machines, not on a developer's Mac
-(`docs/decisions/2026-10-27-coding-threads-run-in-the-cloud.md`). A cloud machine is Linux with 4 CPUs, 16 GB and Docker,
+(`docs/decisions/2026-11-17-coding-threads-run-in-the-cloud.md`). A cloud machine is Linux with 4 CPUs, 16 GB and Docker,
 and no iPhone simulator or Android emulator. When `CLAUDE_CODE_REMOTE` is
 `true`:
 

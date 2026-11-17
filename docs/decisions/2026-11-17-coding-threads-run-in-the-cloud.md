@@ -1,6 +1,6 @@
 # Coding threads run on Claude Code's cloud machines, which scripts/cloud-setup.sh makes ready for `npm run guardrails -- --all`; what only a phone shows goes to one thread on the Mac
 
-Date: 2026-10-27 · By: Caleb Koster · Status: accepted
+Date: 2026-11-17 · By: Caleb Koster · Status: accepted
 
 Reason: coding threads ran through Remote Control on Caleb's Mac. Past three
 or four at once, mostly through their iPhone simulators and Android
