@@ -106,6 +106,71 @@ function listRows(part, d) {
         link: i.kind === 'code' && i.pr ? PR_URL + i.pr : null })).sort(byState) }
     ].filter((r) => r.items.length);
   }
+  // ---- lanes and lines (plan 5c3): the same items, drawn on a track, a line or an axis of days ----
+  if (part === 'pipeline') {
+    const tone = { bad: 'fail', wait: 'part', busy: 'run', live: 'ok' };
+    // A lane's stages in order on a track; a stage's mark is its most urgent build.
+    return (d.lanes || []).map((l) => ({ label: l.title, draw: 'track', items: (l.stages || []).map((st) => {
+      const cards = st.cards || [];
+      const s = cards.map((c) => tone[c.tone] || 'none').sort((a, b) => rankOf(a) - rankOf(b))[0] || 'none';
+      return { s, name: st.title, short: cards.length ? String(cards[0].build || cards[0].title).replace(/^build /, '') + (cards.length > 1 ? ' +' + (cards.length - 1) : '') : '',
+        at: cards.length ? cards[0].at : null,
+        fields: cards.length ? cards.flatMap((c) => fieldsOf([[c.title + (c.version ? ' (' + c.version + ')' : ''), c.state], ['Since', c.at],
+          ['Updates it takes', c.updates && c.updates.length ? c.updates.length : null]])) : [['Builds', st.unseen || 'none']] };
+    }) })).filter((r) => r.items.length);
+  }
+  if (part === 'code') {
+    const run = (r) => r.status !== 'completed' ? 'run' : r.conclusion === 'success' ? 'ok'
+      : r.conclusion === 'failure' || r.conclusion === 'timed_out' ? (r.nightly ? 'part' : 'fail') : 'off';
+    const stale = d.behind !== 0 && d.appChanged !== false;
+    let host = String((d.live || {}).url || '');
+    try { host = new URL(host).host; } catch {}
+    const main = d.main || {};
+    return [
+      { label: 'The web app', draw: 'track', count: false, items: [
+        { s: 'ok', name: 'main', short: String(main.sha || '').slice(0, 8), at: main.at || null,
+          fields: fieldsOf([['Commit', main.sha], ['Merged', main.at], ['Title', main.title]]), link: d.repo && main.sha ? 'https://github.com/' + d.repo + '/commit/' + main.sha : null },
+        { s: !d.live || !d.live.build || stale ? 'fail' : 'ok', name: 'web host', short: d.live && d.live.build ? String(d.live.build).slice(0, 8) : '?', at: null,
+          fields: fieldsOf([['Host', host], ['Build', d.live && d.live.build ? d.live.build : 'no answer'], ['Error', d.live ? d.live.error : null],
+            ['Commits not deployed', d.behind === null || d.behind === undefined ? 'unknown' : d.behind], ['Any for the web app', d.appChanged === null || d.appChanged === undefined ? null : d.appChanged ? 'yes' : 'no']]),
+          link: d.live ? d.live.url : null }] },
+      { label: 'Workflows on main', items: (d.runs || []).map((r) => ({ s: run(r), name: r.workflow, at: r.at,
+        fields: fieldsOf([['Result', r.conclusion || r.status], ['Started', r.at], ['Event', r.event], ['Commit', r.sha], ['Run', r.number ? '#' + r.number : null],
+          ['Nightly', r.nightly ? 'Nightly tests says its failures' : null]]), link: r.url })).sort(byState) }
+    ].filter((r) => r.items.length);
+  }
+  if (part === 'releases') {
+    // Errors a day as a line; under it, a tick for each day that shipped a merge, a deploy or an update.
+    const items = (d.errorsByDay || []).slice().sort((a, b) => String(a.day).localeCompare(String(b.day))).map((e) => {
+      const shipped = (d.timeline || []).filter((t) => String(t.at).slice(0, 10) === e.day);
+      return { s: Number(e.crashes) ? 'fail' : shipped.length ? 'run' : 'ok', name: e.day, at: null, v: Number(e.errors) || 0, crashes: Number(e.crashes) || 0, shipped: shipped.length,
+        fields: fieldsOf([['Errors', e.errors], ['Crashes', e.crashes], ['Installs', e.installs]]).concat(shipped.slice(0, 20).map((t) => [t.kind, t.text]),
+          shipped.length > 20 ? [['More', (shipped.length - 20) + ' more shipped']] : []) };
+    });
+    return items.length ? [{ label: 'Errors a day', draw: 'line', items }] : [];
+  }
+  if (part === 'expiry') {
+    const now = Date.now();
+    const items = (d.items || []).map((x) => {
+      const left = x.expires ? (Date.parse(x.expires) - now) / 86400000 : null;
+      return { s: left === null ? 'none' : left <= 7 ? 'fail' : left <= 30 ? 'part' : 'ok', name: x.what, at: x.expires, days: left,
+        fields: fieldsOf([['Expires', x.expires || 'no date'], ['Days left', left === null ? null : Math.ceil(left)], ['From', x.source], ['Note', x.note]]) };
+    }).sort((a, b) => Number(a.days === null) - Number(b.days === null) || a.days - b.days);
+    return items.length ? [{ label: 'Days left', draw: 'axis', items }] : [];
+  }
+  if (part === 'appstore') {
+    const words = (st) => String(st || '').toLowerCase().replace(/_/g, ' ');
+    const ver = (st) => /REJECTED|INVALID/.test(st) ? 'fail' : st === 'READY_FOR_SALE' || st === 'READY_FOR_DISTRIBUTION' ? 'ok' : st === 'IN_REVIEW' ? 'run'
+      : /WAITING|PENDING/.test(st) ? 'part' : /REPLACED|REMOVED/.test(st) ? 'off' : 'none';
+    const oldestFirst = (a, b) => Date.parse(a.at || 0) - Date.parse(b.at || 0);
+    return [
+      { label: 'Versions', items: (d.versions || []).map((v) => ({ s: ver(v.state), name: v.version + (v.platform ? ' · ' + v.platform : ''), at: v.at,
+        fields: fieldsOf([['State', words(v.state)], ['Created', v.at], ['Platform', v.platform]]) })).sort(oldestFirst) },
+      { label: 'Builds', items: (d.builds || []).map((b) => ({ s: b.expired ? 'off' : b.state === 'VALID' ? 'ok' : b.state === 'PROCESSING' ? 'run' : 'fail',
+        name: (b.version || '?') + (b.build ? ' (' + b.build + ')' : ''), at: b.uploadedAt,
+        fields: fieldsOf([['Processing', words(b.state)], ['Uploaded', b.uploadedAt], ['Expired', b.expired ? 'yes' : null]]) })).sort(oldestFirst) }
+    ].filter((r) => r.items.length);
+  }
   if (part === 'videos') {
     const lv = { bad: 'fail', warn: 'part', info: 'run', good: 'ok' };
     // A row for each app language, the videos in the same order in each, so a column is one video.
@@ -148,13 +213,102 @@ const LIST_SAID = {
   feedback: { one: 'item', many: 'items', part: 'Not seen', run: 'Seen', ok: 'Done' },
   tutorials: { one: 'channel', many: 'channels', fail: 'Failed on YouTube', part: 'Videos or comments wait', ok: 'Connected', none: 'Not connected' },
   videofeedback: { one: 'thing that came in', many: 'things that came in', fail: 'Claude could not', part: 'Waits for you', run: 'Claude works on it', ok: 'Accepted', off: 'No change', none: 'Not looked at yet' },
-  videos: { one: 'video', many: 'videos', fail: 'Failed or held', part: 'Waits on someone', run: 'A worker has it', ok: 'Up to date', off: 'Paused' }
+  videos: { one: 'video', many: 'videos', fail: 'Failed or held', part: 'Waits on someone', run: 'A worker has it', ok: 'Up to date', off: 'Paused' },
+  pipeline: { one: 'stage', many: 'stages', pic: 'a dot for each stage, its build above', fail: 'Needs a person', part: 'Waiting', run: 'On its way', ok: 'What people get', none: 'No build' },
+  code: { one: 'workflow', many: 'workflows', pic: 'main, what the web host serves, and each workflow', fail: 'Failed, or behind main', part: 'Failed, Nightly tests says why', run: 'Running', ok: 'Passed, or up to date', off: 'Cancelled or skipped' },
+  releases: { one: 'day', many: 'days', pic: 'errors and crashes each day, a tick on each day with a change', line: true },
+  expiry: { one: 'key', many: 'keys', pic: 'a dot for each key on a line of days left', fail: 'Expired, or 7 days or less', part: '30 days or less', ok: 'More than 30 days', none: 'No date' },
+  appstore: { one: 'version or build', many: 'versions and builds', fail: 'Rejected or not valid', part: 'Waits for Apple', run: 'In review or processing', ok: 'On the App Store, or valid', off: 'Replaced or expired', none: 'Not sent' }
 };
 const rowName = (r) => r.lang ? languageName(r.label) : r.label;
 const itemName = (x) => x.lang ? languageName(x.name) : x.name;
 
+/** The mark inside a square or a dot: an x for failed, a dot for waits, a ring for runs, so none rests on color alone. */
+function markAt(c, cx, cy, k) {
+  const a = 2 * k;
+  if (c === 'fail') return '<path class="mk" d="M' + (cx - a) + ' ' + (cy - a) + 'L' + (cx + a) + ' ' + (cy + a) + 'M' + (cx + a) + ' ' + (cy - a) + 'L' + (cx - a) + ' ' + (cy + a) + '"/>';
+  if (c === 'part') return '<circle class="dt" cx="' + cx + '" cy="' + cy + '" r="' + (1.8 * k) + '"/>';
+  if (c === 'run') return '<circle class="rg" cx="' + cx + '" cy="' + cy + '" r="' + (2.4 * k) + '"/>';
+  return '';
+}
+
+/** The svg around a row's marks, with what a screen reader says and what the keys move over. */
+function rowSvg(part, at, r, w, h, n, cols, body, how, k) {
+  const said = LIST_SAID[part];
+  const counts = LIST_ORDER.filter((s) => said[s]).map((s) => [s, r.items.filter((x) => x.s === s).length]).filter((p) => p[1]);
+  const label = rowName(r) + ': ' + counts.map((p) => num(p[1]) + ' ' + said[p[0]].toLowerCase()).join(', ') + (how ? ', ' + how : '') +
+    '. Tap a mark, or use the arrow keys and Enter, for its detail.';
+  return '<svg class="sq' + (r.draw ? ' ' + r.draw : '') + '" width="' + Math.round(w * (k || 1.25)) + '" height="' + Math.round(h * (k || 1.25)) + '" viewBox="0 0 ' + w + ' ' + h + '" tabindex="0" role="img" aria-label="' + esc(label) + '"' +
+    ' data-part="' + esc(part) + '" data-row="' + at + '" data-n="' + n + '" data-cols="' + cols + '">' + body + '</svg>';
+}
+
+/** A lane's stages, or main and what the web host serves: a dot on a track for each, what it holds above, its name below. */
+function trackSvg(part, at, r, mini) {
+  // On a card a lane must fit about 200 px at full size, so its stages close up and a long name takes two lines.
+  const said = LIST_SAID[part], n = r.items.length, gap = mini && n > 2 ? 52 : 72, two = mini && n > 2, w = 48 + (n - 1) * gap, h = two ? 58 : 50, X = (i) => 24 + i * gap;
+  const name = (x, cx) => {
+    const t = String(x.name), sp = t.indexOf(' ');
+    if (!two || t.length <= 9 || sp < 0) return '<text class="tx" x="' + cx + '" y="46" text-anchor="middle">' + esc(t.slice(0, 16)) + '</text>';
+    return '<text class="tx" x="' + cx + '" y="45" text-anchor="middle">' + esc(t.slice(0, sp).slice(0, 10)) + '<tspan x="' + cx + '" dy="10">' + esc(t.slice(sp + 1).slice(0, 10)) + '</tspan></text>';
+  };
+  let body = '<path class="tk" d="M' + X(0) + ' 24H' + X(n - 1) + '"/>';
+  r.items.forEach((x, i) => {
+    const big = x.s !== 'none';
+    body += '<circle class="q ' + x.s + '" data-i="' + i + '" cx="' + X(i) + '" cy="24" r="' + (big ? 7 : 4) + '"><title>' + esc(itemName(x) + ' · ' + (said[x.s] || x.s)) + '</title></circle>' +
+      markAt(x.s, X(i), 24, 1) +
+      (x.short ? '<text class="tx b" x="' + X(i) + '" y="10" text-anchor="middle">' + esc(String(x.short).slice(0, 12)) + '</text>' : '') +
+      name(x, X(i));
+  });
+  return rowSvg(part, at, r, w, h, n, n, body, '', mini ? 1 : 0);
+}
+
+/** Errors a day as a line, an x on a day with a crash, a tick under a day that shipped; a tap on a day opens it. */
+function lineSvg(part, at, r, mini) {
+  const n = r.items.length, w = mini ? 210 : 300, h = 96, top = 8, base = h - 30, step = n > 1 ? (w - 20) / (n - 1) : w - 20;
+  const max = Math.max.apply(null, [1].concat(r.items.map((x) => x.v)));
+  const X = (i) => n > 1 ? 10 + i * step : w / 2, Y = (v) => base - (v / max) * (base - top);
+  const line = r.items.map((x, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(x.v).toFixed(1)).join('');
+  let body = '<path class="ar" d="' + line + 'L' + X(n - 1).toFixed(1) + ' ' + base + 'L' + X(0).toFixed(1) + ' ' + base + 'Z"/>' +
+    '<path class="bl" d="M4 ' + base + 'H' + (w - 4) + '"/><path class="ln" d="' + line + '"/>';
+  r.items.forEach((x, i) => {
+    const cx = X(i);
+    body += '<rect class="hit" data-i="' + i + '" x="' + (cx - step / 2).toFixed(1) + '" y="0" width="' + step.toFixed(1) + '" height="' + (base + 22) + '"><title>' +
+      esc(x.name + ': ' + num(x.v) + ' errors' + (x.crashes ? ', ' + num(x.crashes) + ' crashes' : '') + (x.shipped ? ', ' + num(x.shipped) + ' shipped' : '')) + '</title></rect>';
+    if (x.crashes) body += '<path class="cx" d="M' + (cx - 3.5) + ' ' + (base - 11.5) + 'l7 7M' + (cx + 3.5) + ' ' + (base - 11.5) + 'l-7 7"/>';
+    if (x.shipped) body += '<rect class="tick" x="' + (cx - 2).toFixed(1) + '" y="' + (base + 5) + '" width="4" height="' + Math.min(14, 3 + x.shipped * 1.2).toFixed(1) + '" rx="1"/>';
+  });
+  body += '<text class="tx" x="' + X(0) + '" y="' + (h - 2) + '">' + esc(r.items[0].name.slice(5)) + '</text>' +
+    '<text class="tx" x="' + X(n - 1) + '" y="' + (h - 2) + '" text-anchor="end">' + esc(r.items[n - 1].name.slice(5)) + ' UTC</text>';
+  return rowSvg(part, at, r, w, h, n, n, body, 'a day a step', mini ? 1 : 0);
+}
+
+/** Each key as a dot on a line of days left, 0 to 120; the zones under 7 and 30 days are its alerts. */
+function axisSvg(part, at, r, mini) {
+  const said = LIST_SAID[part], n = r.items.length, w = mini ? 210 : 320, h = 70, L = 14, R = w - 14, MAXD = 120;
+  const X = (d) => L + (Math.max(0, Math.min(MAXD, d)) / MAXD) * (R - L);
+  let body = '<rect class="zf" x="' + L + '" y="4" width="' + (X(7) - L).toFixed(1) + '" height="44"/><rect class="zp" x="' + X(7).toFixed(1) + '" y="4" width="' + (X(30) - X(7)).toFixed(1) + '" height="44"/>' +
+    '<path class="bl" d="M' + L + ' 48H' + R + '"/>' +
+    // On a card, 0 and 7 would touch, so 7 stays, and the row's name says days.
+    [[0, '0'], [7, '7'], [30, '30'], [60, '60'], [90, '90'], [MAXD, mini ? '120+' : '120+ days']].filter((t) => !mini || t[0]).map((t) => '<text class="tx" x="' + X(t[0]).toFixed(1) + '" y="62" text-anchor="' + (t[0] === MAXD ? 'end' : 'middle') + '">' + t[1] + '</text>').join('');
+  const used = [];
+  r.items.forEach((x, i) => {
+    const cx = x.days === null ? R : X(x.days);
+    // Dots on the same days stack, so each stays a tap of its own.
+    let k = 0;
+    while (used.some((u) => Math.abs(u[0] - cx) < 11 && u[1] === k)) k += 1;
+    used.push([cx, k]);
+    const cy = 38 - (k % 3) * 12;
+    body += '<circle class="q ' + x.s + '" data-i="' + i + '" cx="' + cx.toFixed(1) + '" cy="' + cy + '" r="5"><title>' +
+      esc(x.name + ' · ' + (x.days === null ? 'no date' : x.days < 0 ? 'expired' : Math.ceil(x.days) + ' days left')) + '</title></circle>' + markAt(x.s, Number(cx.toFixed(1)), cy, 0.8);
+  });
+  return rowSvg(part, at, r, w, h, n, n, body, 'on a line of days left', mini ? 1 : 0);
+}
+
 /** One row's squares, wrapped; each has its name for a pointer, and a mark for failed, waits and runs, so none rests on color alone. */
-function listSvg(part, at, r, wrap) {
+function listSvg(part, at, r, wrap, mini) {
+  if (r.draw === 'track') return trackSvg(part, at, r, mini);
+  if (r.draw === 'line') return lineSvg(part, at, r, mini);
+  if (r.draw === 'axis') return axisSvg(part, at, r, mini);
   const said = LIST_SAID[part];
   const share = r.items.length > SHARE_PAST;
   const cells = share ? shareCells(r.items, 100) : r.items.map((x) => x.s);
@@ -164,16 +318,9 @@ function listSvg(part, at, r, wrap) {
   cells.forEach((c, i) => {
     const x = (i % cols) * st, y = Math.floor(i / cols) * st;
     const tip = share ? (said[c] || c) + ': 1% of ' + num(r.items.length) : itemName(r.items[i]) + ' · ' + (said[c] || c);
-    body += '<rect class="q ' + c + '" data-i="' + i + '" x="' + x + '" y="' + y + '" width="' + size + '" height="' + size + '" rx="2"><title>' + esc(tip) + '</title></rect>';
-    if (c === 'fail') body += '<path class="mk" d="M' + (x + 3) + ' ' + (y + 3) + 'L' + (x + 7) + ' ' + (y + 7) + 'M' + (x + 7) + ' ' + (y + 3) + 'L' + (x + 3) + ' ' + (y + 7) + '"/>';
-    else if (c === 'part') body += '<circle class="dt" cx="' + (x + 5) + '" cy="' + (y + 5) + '" r="1.8"/>';
-    else if (c === 'run') body += '<circle class="rg" cx="' + (x + 5) + '" cy="' + (y + 5) + '" r="2.4"/>';
+    body += '<rect class="q ' + c + '" data-i="' + i + '" x="' + x + '" y="' + y + '" width="' + size + '" height="' + size + '" rx="2"><title>' + esc(tip) + '</title></rect>' + markAt(c, x + 5, y + 5, 1);
   });
-  const counts = LIST_ORDER.filter((s) => said[s]).map((s) => [s, r.items.filter((x) => x.s === s).length]).filter((p) => p[1]);
-  const label = rowName(r) + ': ' + counts.map((p) => num(p[1]) + ' ' + said[p[0]].toLowerCase()).join(', ') + (share ? ', one square for each 1%' : '') +
-    '. Tap a square, or use the arrow keys and Enter, for its detail.';
-  return '<svg class="sq" width="' + Math.round(w * 1.25) + '" height="' + Math.round(h * 1.25) + '" viewBox="0 0 ' + w + ' ' + h + '" tabindex="0" role="img" aria-label="' + esc(label) + '"' +
-    ' data-part="' + esc(part) + '" data-row="' + at + '" data-n="' + n + '" data-cols="' + cols + '">' + body + '</svg>';
+  return rowSvg(part, at, r, w, h, n, cols, body, share ? 'one square for each 1%' : '');
 }
 
 /** A part's list as squares; on a card (mini), the rows that need a look lead, 4 at most. */
@@ -182,17 +329,21 @@ function listBox(part, d, mini) {
   const rows = said ? listRows(part, d) : null;
   if (!rows || !rows.length) return '';
   const all = rows.flatMap((r) => r.items);
+  // The head counts the list's items; a row of context (main and what the web host serves) is left out.
+  const counted = rows.filter((r) => r.count !== false).flatMap((r) => r.items);
   const order = rows.map((r, at) => ({ r, at, w: Math.min.apply(null, r.items.map((x) => rankOf(x.s))) }));
   const shown = mini ? order.slice().sort((a, b) => a.w - b.w || a.at - b.at).slice(0, 4) : order;
   // The videos keep one video in each column; other lists wrap, and on a phone every list wraps at 24 so a square stays big enough to tap.
   const narrow = typeof matchMedia === 'function' && matchMedia('(max-width: 640px)').matches;
   const wrap = mini || narrow ? 24 : part === 'videos' ? Math.max.apply(null, rows.map((r) => r.items.length)) : 50;
   return '<div class="chart sqbox lstbox' + (mini ? ' mini' : '') + '" data-part="' + esc(part) + '">' +
-    '<div class="ct"><span>' + esc(PART_TITLE[part] || part) + ', a square for each ' + esc(said.one) + '</span><b>' + num(all.length) + ' ' + esc(all.length === 1 ? said.one : said.many) + '</b></div>' +
+    '<div class="ct"><span>' + esc(PART_TITLE[part] || part) + ', ' + esc(said.pic || 'a square for each ' + said.one) + '</span><b>' + num(counted.length) + ' ' + esc(counted.length === 1 ? said.one : said.many) + '</b></div>' +
     '<div class="sqrows">' + shown.map((o) => '<div class="sqrow"><span title="' + esc(rowName(o.r)) + '">' + esc(rowName(o.r)) + (o.r.items.length > SHARE_PAST ? ' (1% each)' : '') + '</span>' +
-      listSvg(part, o.at, o.r, wrap) + '</div>').join('') + '</div>' +
+      listSvg(part, o.at, o.r, wrap, mini) + '</div>').join('') + '</div>' +
     (shown.length < rows.length ? '<p class="muted">' + num(rows.length - shown.length) + ' more rows in ' + esc(PART_TITLE[part] || part) + '.</p>' : '') +
-    '<div class="sqleg">' + LIST_ORDER.filter((s) => said[s]).map((s) => '<span><i class="' + s + '"></i>' + esc(said[s]) + ' <b>' + num(all.filter((x) => x.s === s).length) + '</b></span>').join('') + '</div></div>';
+    (said.line ? '<div class="sqleg"><span><i class="ln"></i>Errors a day</span><span><i class="cx"></i>Crashes <b>' + num(all.reduce((a, x) => a + (x.crashes || 0), 0)) + '</b></span>' +
+      '<span><i class="tick"></i>Shipped <b>' + num(all.reduce((a, x) => a + (x.shipped || 0), 0)) + '</b></span></div></div>'
+      : '<div class="sqleg">' + LIST_ORDER.filter((s) => said[s] && (!mini || all.some((x) => x.s === s))).map((s) => '<span><i class="' + s + '"></i>' + esc(said[s]) + ' <b>' + num(all.filter((x) => x.s === s).length) + '</b></span>').join('') + '</div></div>');
 }
 
 /** The nightly R2 check: blob_reconcile's row of the job squares, a square a night for 14 nights (the Jobs totals). */
@@ -238,11 +389,11 @@ function openItem(svg, i) {
   if (!r) return;
   markBucket(svg, i);
   const said = LIST_SAID[part];
-  const share = r.items.length > SHARE_PAST;
+  const share = !r.draw && r.items.length > SHARE_PAST;
   const state = share ? shareCells(r.items, 100)[i] : r.items[i].s;
   const items = share ? r.items.filter((x) => x.s === state) : [r.items[i]];
   shown = { svg, list: { part, items, page: 1 } };
-  const where = (PART_TITLE[part] || part) + ' · ' + rowName(r) + ' · ' + (said[state] || state);
+  const where = (PART_TITLE[part] || part) + ' · ' + rowName(r) + (said[state] ? ' · ' + said[state] : '');
   const x = items[0];
   $('detail').innerHTML = '<div class="head"><h2 id="detail-title">' + (share ? esc(said[state] || state) + ': ' + num(items.length) + ' of ' + num(r.items.length) : esc(itemName(x))) + '</h2>' +
     '<button type="button" id="detail-close" aria-label="Close the details">Close</button></div>' +
@@ -270,7 +421,7 @@ function drawShare() {
 
 document.addEventListener('click', (e) => {
   const svg = e.target.closest && e.target.closest('.lstbox svg.sq');
-  const cell = svg && e.target.closest('rect[data-i]');
+  const cell = svg && e.target.closest('[data-i]');
   if (cell) openItem(svg, Number(cell.dataset.i));
 });
 document.addEventListener('keydown', (e) => {
@@ -287,6 +438,14 @@ document.addEventListener('keydown', (e) => {
 export const LISTS_CSS = String.raw`
 svg.sq .q.run { fill: var(--primary); } svg.sq .q.off { fill: var(--grey); }
 svg.sq .rg { fill: none; stroke: var(--card); stroke-width: 1.4; pointer-events: none; }
+.lstbox svg.sq .q { pointer-events: all; } .lstbox svg.sq circle.q.none { fill: var(--card); stroke: var(--muted); }
+.lstbox svg.sq circle.q.sel { stroke: var(--ink); stroke-width: 2.5; }
+svg.sq .tk, svg.sq .bl { fill: none; stroke: var(--line); stroke-width: 1.5; } svg.sq .tx { font-size: 9px; fill: var(--muted); } svg.sq .tx.b { fill: var(--ink); font-weight: 600; }
+svg.sq .ln { fill: none; stroke: var(--primary); stroke-width: 2; stroke-linejoin: round; } svg.sq .ar { fill: var(--primary); opacity: .12; }
+svg.sq .hit { fill: transparent; cursor: pointer; } svg.sq .hit.sel { fill: var(--primary); opacity: .15; }
+svg.sq .cx { fill: none; stroke: var(--red); stroke-width: 2.2; stroke-linecap: round; pointer-events: none; } svg.sq .tick { fill: var(--ink); pointer-events: none; }
+svg.sq .zf { fill: var(--redbg); } svg.sq .zp { fill: var(--amberbg); }
+.sqleg i.ln { height: 2px; background: var(--primary); vertical-align: 3px; } .sqleg i.cx { background: var(--red); } .sqleg i.tick { width: 4px; background: var(--ink); }
 .lstbox svg.sq rect { cursor: pointer; }
 .lstbox .sqleg b { color: var(--ink); font-weight: 600; }
 .sqleg i.run { background: var(--primary); } .sqleg i.off { background: var(--grey); }

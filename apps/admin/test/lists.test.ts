@@ -4,8 +4,8 @@ import { page } from '../src/page';
 import { LISTS_LOGIC, LISTS_SCRIPT } from '../src/pageLists';
 import { PART_TITLES } from '../src/pageOps';
 
-interface Item { s: string; name: string; at: string | null; fields: [string, unknown][]; link?: string | null; lang?: boolean }
-interface Row { label: string; items: Item[]; lang?: boolean }
+interface Item { s: string; name: string; at: string | null; fields: [string, unknown][]; link?: string | null; lang?: boolean; short?: string; v?: number; crashes?: number; shipped?: number; days?: number | null }
+interface Row { label: string; items: Item[]; lang?: boolean; draw?: string; count?: boolean }
 
 /** The list pictures' pure helpers, as the page runs them (pageLists.ts LISTS_LOGIC). */
 const logic = new Function(`${LISTS_LOGIC}; return { listRows, shareCells, LIST_ORDER, SHARE_PAST };`)() as {
@@ -16,14 +16,14 @@ const logic = new Function(`${LISTS_LOGIC}; return { listRows, shareCells, LIST_
 };
 const states = (r: Row) => r.items.map((x) => x.s);
 const field = (x: Item, name: string) => x.fields.find((f) => f[0] === name)?.[1];
-const LISTED = ['nightly', 'expo', 'v2', 'userissues', 'feedback', 'tutorials', 'videofeedback', 'videos'];
+const LISTED = ['nightly', 'expo', 'v2', 'userissues', 'feedback', 'tutorials', 'videofeedback', 'videos', 'pipeline', 'code', 'releases', 'expiry', 'appstore'];
 
 describe('a square for each item of a fixed list (plan 5c2)', () => {
   it('draws a list for each part it names, each with a title, and none for the rest', () => {
     for (const p of LISTED) {
       expect(PART_TITLES[p], p).toBeTruthy();
       expect(LISTS_SCRIPT, p).toContain(`  ${p}: { one: '`);
-      expect(logic.listRows(p, {}), p).toEqual([]);
+      expect(Array.isArray(logic.listRows(p, {})), p).toBe(true);
     }
     expect(logic.listRows('jobs', {})).toBeNull();
     expect(logic.listRows('nightly', null)).toBeNull();
@@ -135,6 +135,63 @@ describe('a square for each item of a fixed list (plan 5c2)', () => {
     expect(rows.map((r) => r.label)).toEqual(['en', 'fr']);
     expect(rows.map((r) => r.items.map((x) => x.name))).toEqual([['a', 'b'], ['a', 'b']]);
     expect(rows.map(states)).toEqual([['ok', 'fail'], ['off', 'off']]);
+  });
+
+  it('puts each store build on its lane\'s track at its stage, the most urgent build marking the stage', () => {
+    const card = (build: string, tone: string, state: string) => ({ title: 'build ' + build, build, version: '2026.1117.1', state, tone, at: '2026-11-17T01:00:00Z', updates: [{ id: 'u' }] });
+    const rows = logic.listRows('pipeline', { repo: 'o/r', activeDays: 14, lanes: [{ id: 'ios', title: 'iPhone store builds', notes: [], stages: [
+      { id: 'eas', title: 'EAS build', cards: [] },
+      { id: 'tf', title: 'TestFlight', cards: [card('53', 'busy', 'In TestFlight'), card('52', 'bad', 'Copy needs a person')] },
+      { id: 'review', title: 'App Review', cards: [card('51', 'wait', 'In review for 26 h')] },
+      { id: 'store', title: 'App Store', cards: [], unseen: 'App Store Connect is not connected.' }] }] })!;
+    expect(rows[0]).toMatchObject({ label: 'iPhone store builds', draw: 'track' });
+    expect(states(rows[0]!)).toEqual(['none', 'fail', 'part', 'none']);
+    expect(rows[0]!.items[1]!.short).toBe('53 +1');
+    expect(rows[0]!.items[1]!.fields.map((f) => f[0])).toEqual(['build 53 (2026.1117.1)', 'Since', 'Updates it takes', 'build 52 (2026.1117.1)', 'Since', 'Updates it takes']);
+    expect(rows[0]!.items[3]!.fields).toEqual([['Builds', 'App Store Connect is not connected.']]);
+  });
+
+  it('marks the web host red when it is behind main with a change for the web app, and a nightly\'s failure apart', () => {
+    const d = (behind: number | null, appChanged: boolean | null) => ({ repo: 'o/r', main: { sha: 'abcdef1234567', at: '2026-11-17T01:00:00Z', title: 'Merge' },
+      live: { url: 'https://next.langquest.org', build: 'abcdef12' }, behind, appChanged, runs: [
+        { id: 1, workflow: 'deploy', status: 'completed', conclusion: 'success', sha: 'abc', at: '2026-11-17T01:00:00Z', url: 'https://github.com/o/r/actions/runs/1', event: 'push', number: 4 },
+        { id: 2, workflow: 'guardrails', status: 'completed', conclusion: 'failure', sha: 'abc', at: '2026-11-17T01:00:00Z', url: 'https://github.com/o/r/actions/runs/2', event: 'schedule', number: 5, nightly: true },
+        { id: 3, workflow: 'tutorials', status: 'in_progress', conclusion: null, sha: 'abc', at: '2026-11-17T01:00:00Z', url: 'https://github.com/o/r/actions/runs/3', event: 'schedule', number: 6 }] });
+    const behind = logic.listRows('code', d(3, true))!;
+    expect(behind.map((r) => r.label)).toEqual(['The web app', 'Workflows on main']);
+    // The web app's row is context: the card's head counts workflows only.
+    expect(behind.map((r) => r.count)).toEqual([false, undefined]);
+    expect(behind[0]!.items.map((x) => [x.name, x.s, x.short])).toEqual([['main', 'ok', 'abcdef12'], ['web host', 'fail', 'abcdef12']]);
+    expect(states(behind[1]!)).toEqual(['part', 'run', 'ok']);
+    expect(logic.listRows('code', d(3, false))![0]!.items[1]!.s).toBe('ok');
+    expect(logic.listRows('code', d(0, null))![0]!.items[1]!.s).toBe('ok');
+  });
+
+  it('draws errors a day oldest first, with what shipped each day, and a crash day red', () => {
+    const rows = logic.listRows('releases', { hosts: [], migrations: {}, notes: [],
+      errorsByDay: [{ day: '2026-11-17', errors: 5, crashes: 0, installs: 3 }, { day: '2026-11-16', errors: 9, crashes: 2, installs: 4 }],
+      timeline: [{ at: '2026-11-17T08:00:00Z', kind: 'merge', text: 'PR 486' }, { at: '2026-11-17T09:00:00Z', kind: 'deploy', text: 'Worker' }] })!;
+    expect(rows[0]!.draw).toBe('line');
+    expect(rows[0]!.items.map((x) => [x.name, x.s, x.v, x.crashes, x.shipped])).toEqual([['2026-11-16', 'fail', 9, 2, 0], ['2026-11-17', 'run', 5, 0, 2]]);
+    expect(rows[0]!.items[1]!.fields).toContainEqual(['merge', 'PR 486']);
+  });
+
+  it('puts each key on its days left: expired and 7 days red, 30 days amber, no date last', () => {
+    const at = (days: number) => new Date(Date.now() + days * 86400000).toISOString();
+    const rows = logic.listRows('expiry', { notes: [], items: [{ what: 'Play key', expires: at(90), source: 'Google' }, { what: 'Hand key', expires: null, source: 'apps/admin/expiry.json' },
+      { what: 'Apple cert', expires: at(20), source: 'Apple' }, { what: 'Old token', expires: at(-2), source: 'Cloudflare' }, { what: 'Soon', expires: at(5), source: 'GitHub' }] })!;
+    expect(rows[0]!.draw).toBe('axis');
+    expect(rows[0]!.items.map((x) => [x.name, x.s])).toEqual([['Old token', 'fail'], ['Soon', 'fail'], ['Apple cert', 'part'], ['Play key', 'ok'], ['Hand key', 'none']]);
+    expect(field(rows[0]!.items[2]!, 'Days left')).toBe(20);
+  });
+
+  it('shows the App Store versions and builds oldest first, a rejection red', () => {
+    const rows = logic.listRows('appstore', { notes: [], testflightCrashes: null, reviews: null,
+      versions: [{ version: '2026.1117', platform: 'IOS', state: 'WAITING_FOR_REVIEW', at: '2026-11-17T00:00:00Z' }, { version: '2026.1105', platform: 'IOS', state: 'REJECTED', at: '2026-11-05T00:00:00Z' },
+        { version: '2026.1020', platform: 'IOS', state: 'READY_FOR_SALE', at: '2026-10-20T00:00:00Z' }],
+      builds: [{ version: '2026.1117', build: '53', state: 'PROCESSING', uploadedAt: '2026-11-17T00:00:00Z', expired: false }, { version: '2026.1001', build: '40', state: 'VALID', uploadedAt: '2026-10-01T00:00:00Z', expired: true }] })!;
+    expect(rows.map((r) => states(r))).toEqual([['ok', 'fail', 'part'], ['off', 'run']]);
+    expect(rows[1]!.items[1]!.name).toBe('2026.1117 (53)');
   });
 
   it('turns a long row into 100 squares, worst first, keeping every state that has an item', () => {

@@ -499,6 +499,13 @@ nightly R2 check as blob_reconcile's row of the job squares. A new list
 needs a case in `listRows`, a line in `LIST_SAID` and a test in
 `apps/admin/test/lists.test.ts`; never put a name or an email in its fields.
 
+Some rows draw another shape (`draw` on the row, plan 5c3): `track` (the
+store lanes, and main next to what the web host serves), `line` (What
+shipped: errors a day, crashes, and a tick on each day with a change) and
+`axis` (Expiry dates: days left, 0 to 120). The same tap, arrow keys and
+detail panel work on each. A row with `count: false` is context, and the
+head does not count its items.
+
 A tap on a bar or a point asks
 `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,
 decisions.md 255): the records behind that number in that bucket, 50 a page,

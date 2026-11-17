@@ -217,6 +217,17 @@ the pictures keep working at tens of thousands of people and over years. So:
   1% each, and a state with any item keeps a square; a tap on one lists
   its items, 50 at a time. The nightly R2 check is blob_reconcile's row of
   the job squares, a square a night for 14 nights.
+- **Lanes and lines** (built, 5c3): from the data each part already read.
+  Store builds and updates draw a lane for each platform, a dot for each
+  stage with its build above; Code and deploys draws main and what the web
+  host serves on a track (red when the host is behind main with a change
+  for the web app), and a square for each workflow on main; App Store draws
+  a square for each version and build; What shipped draws errors a day as a
+  line, an x on a day with a crash and a tick on a day with a merge, a
+  deploy or an update; Expiry dates draws each key as a dot on a line of
+  days left, with the 7- and 30-day zones of its alerts. A tap on a dot, a
+  square or a day opens its fields. On a card a picture fits about 200 px
+  at full size.
 - **History** comes from totals by hour and day, never from raw records
   (section 7, phase 5): `diag.hourly`, `diag.daily` and `diag.monthly`, read by
   `GET /ops/api/<part>?range=`, built first (`docs/admin.md`, History).
@@ -496,7 +507,7 @@ changes an organization stay in the CLIs, run on a call.
 | 5b2 | **Built (2026-11-17)**: speed at 40,000 installs: "What installs report" and "Builds in the field" counted every 10 minutes by pg_cron (`langquest-ops-counts`) from each kind's index and two small tables for each install, read by the page in 1 to 25 ms (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md) | 5b merged |
 | 5c1 | **Built (2026-11-17)**: a square for each job run, in Jobs and pg_cron, on the card (24 h) and in the section (the range); a tap on a failed or partial square opens those runs (5.0) | 5b2 merged |
 | 5c2 | **Built (2026-11-17)**: a square for each item of a fixed list: nightly suites, EAS builds, submissions and updates, v2 projects, user issues, feedback, channels, videos, what came in about the videos, and the nightly R2 check; a tap opens the item (5.0) | 5c1 merged |
-| 5c3 | Lanes and lines: store builds, App Store, deploys, what shipped, expiry dates | 5c2 merged |
+| 5c3 | **Built (2026-11-17)**: lanes and lines: store builds, App Store, code and deploys, what shipped, expiry dates; a tap opens the stage, the version, the workflow, the day or the key (5.0) | 5c2 merged |
 | 5c4 | Meters and shares: capacity, database, Google Play, limits, routes, phones, people | 5c3 merged |
 | 5d | `OpsWatch` (section 11.4) | phase 3 |
 
