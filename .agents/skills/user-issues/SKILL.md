@@ -65,7 +65,9 @@ people using the app their work.
     `stack` are theirs only.
   - A **server** kind has `server`: a job's name, how often it runs, how many
     runs failed in a row (`streak`), its last outcome and error class, and its
-    last good run; or a Worker route and how many 5xx answers it gave in a day.
+    last good run; or a Worker route and how many 5xx answers it gave in a day;
+    or `line`: a line the ops dashboard shows (`level`, its `text`, the
+    kind's `title`, the dashboard `part` and its page `link`).
   - A **problem sent from help mode** has `feedback`: `body` (what they
     typed), the `screen` they sent it from, `os`, `app`, `uiLanguage`,
     whether it came with a `screenshot`, a `picture` or a voice note
@@ -135,6 +137,13 @@ A key is the family, then the record's own code-like tags
 - `worker:<route>:5xx`: the app's Worker (`apps/web/worker`) answering with
   server errors.
 - `feedback:<id>`: one problem a person sent from help mode.
+- `ops:<kind>:<subject>`: a line the ops dashboard shows that the records do
+  not hold (`apps/admin/src/alertKinds.ts` names every kind): an R2 check, a
+  Workers Build, an EAS build, a GitHub workflow failing on main, a token
+  about to expire, a slow route. Each line gets one Linear issue, so the
+  dashboard can show who works on it and when it clears
+  (`docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`). Read the
+  code that raises it (`apps/admin/src/sources/`) to tell what it measures.
 
 The phones' files are those same records, which `npm run diag` and the ops
 dashboard read; the issue lists the installs so a developer can read more
@@ -192,6 +201,9 @@ dashboard read; the issue lists the installs so a developer can read more
      twice; a refusal the app handled as it should for one person; an
      `expected` failure that is the app working as designed (a microphone the
      person refused). Say why in a short `note`.
+   - An `ops:` line is noise only when it measures nothing wrong with
+     LangQuest (a count that is high for a known, harmless reason). A line
+     that names the same problem as an open issue is `known` with that issue.
    - Not noise, even for one person: lost recordings or files, an upload or
      download stuck over a day, a crash or error boundary, a server job
      stopped or failing, the Worker's 5xx, anything a person took the trouble

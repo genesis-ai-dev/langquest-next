@@ -17,7 +17,7 @@ import type { RecoveryEnv } from './recoverRecordings';
 
 /**
  * Keep this much free for recording, and cap the cache. Level 1 evicts only what the server can give
- * back; on Android, level 2 can also free teammates' recordings marked nearby, never this person's own
+ * back; on a phone, level 2 can also free teammates' recordings marked nearby, never this person's own
  * unsent work, and the cap leaves those alone (docs/nearby-sync-plan.md 5.6).
  */
 const LIMITS = { minFreeBytes: 500 * 1024 * 1024, maxTotalBytes: 2 * 1024 * 1024 * 1024 };
@@ -50,7 +50,7 @@ export async function appLanguagePlatform(): Promise<LanguagePlatform> {
     timedTransfer,
     registerProbe: registerDeviceProbe,
     settled: (f, blobsWanted) => { void flushDiagnostics({ blobCacheBytes: f.totalBytes(), blobsWanted }).catch(() => {}); },
-    // Android's file gives each person and organization one nearby half; elsewhere there is none.
+    // A phone's file gives each person and organization one nearby half; on the web there is none.
     nearby: nearbyMakerFor,
     nearbyFiles: nearbyFilesFor
   };

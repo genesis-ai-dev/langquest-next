@@ -386,7 +386,8 @@ Object.assign(RENDER, {
       '<p class="muted">A clear fix merges itself and is not asked of anyone. Each change is here, with its pull request.</p>' + table([
         { h: 'When', v: (c) => when(c.at) },
         { h: 'Video', v: (c) => esc(c.video) + ' <small class="muted">' + esc(languageName(c.language)) + '</small>' },
-        { h: 'Change', v: (c) => esc(c.change) + (c.note ? '<br><small class="' + (c.state === 'failed' ? 'bad' : 'muted') + '">' + esc(c.note) + '</small>' : '') },
+        { h: 'Change', v: (c) => esc(detailParts(c.change)[0]) + (c.note ? '<br><small class="' + (c.state === 'failed' ? 'bad' : 'muted') + '">' + esc(c.note) + '</small>' : '') +
+          ((c.pictures || []).length || (c.after || []).length ? '<details class="vtech"><summary>Pictures' + ((c.after || []).length ? ', before and after' : '') + '</summary>' + pictureStrip(c.pictures, c.after) + '</details>' : '') },
         { h: 'Yes from', v: (c) => esc(CHANGE_BY[c.by] || c.by) },
         { h: 'State', v: (c) => '<span class="tag ' + (CHANGE_LEVEL[c.state] || '') + '">' + esc(CHANGE_STATE[c.state] || c.state) + '</span>' },
         { h: '', v: (c) => c.link ? '<a href="' + esc(c.link) + '" target="_blank" rel="noopener noreferrer">' + (c.pr ? 'PR ' + num(c.pr) : 'The run') + '</a>' : '' }
@@ -606,7 +607,7 @@ function adminCard(a) {
   const ins = a.instructed;
   return '<div class="vi ' + (a.who === 'you' ? ADMIN_LEVEL[a.kind] || 'warn' : 'info') + '">' +
     '<p><span class="tag ' + (a.who === 'you' ? 'warn' : 'info') + '">' + (a.who === 'you' ? 'Waits on you' : 'Claude acts next') + '</span>' + (a.at ? '<small>' + when(a.at) + '</small>' : '') + '</p>' +
-    '<p><b>' + esc(a.title) + '</b></p>' + (a.detail ? '<p class="setup">' + esc(a.detail) + '</p>' : '') +
+    '<p><b>' + esc(a.title) + '</b></p>' + detailHtml(a.detail) + pictureStrip(a.pictures) +
     (ins ? '' : '<p class="setup"><small><b>Next:</b> ' + esc(a.next) + '</small></p>') + (a.link ? '<p>' + cardLink(a) + '</p>' : '') +
     (a.suggestion ? suggestionButtons(a.suggestion) : '') +
     (ins ? '<p class="setup"><small><b>Your instruction</b> (' + when(ins.at) + '):</small><br>' + esc(ins.text) + '</p>' +
@@ -616,6 +617,82 @@ function adminCard(a) {
       '<p><button type="button" class="primary" data-instruct="' + esc(cardId(a)) + '">Send to Claude</button></p></details>' : '') + '</div>';
 }
 const cardId = (a) => (a.kind + '-' + (a.tutorial || '') + '-' + (a.language || '')).replace(/[^a-zA-Z0-9-]/g, '');
+/**
+ * A suggestion's words: what an admin reads first, and the technical part for the fix, after a line that starts
+ * "For the fix:" (the tutorial-review skill writes both), folded away.
+ */
+function detailParts(t) {
+  const text = String(t || '');
+  const i = text.search(/^For the fix:/m);
+  return i < 0 ? [text.trim(), ''] : [text.slice(0, i).trim(), text.slice(i).replace(/^For the fix:\s*/, '').trim()];
+}
+function detailHtml(t) {
+  const [plain, technical] = detailParts(t);
+  return (plain ? '<p class="setup">' + esc(plain) + '</p>' : '') +
+    (technical ? '<details class="vtech"><summary>Technical details for the fix</summary><p class="setup">' + esc(technical) + '</p></details>' : '');
+}
+/** Where a picture is from, in words: its language, and its step, or its time in the film. */
+function pictureLabel(p) {
+  const clock = (t) => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+  const where = p.kind === 'step' ? 'step ' + p.n : p.kind === 'stopped' ? 'step ' + p.n + ', where the film stopped'
+    : typeof p.at === 'number' ? 'the film at ' + clock(p.at) : 'still ' + p.n;
+  return languageName(p.language) + ', ' + where;
+}
+/**
+ * The part of a picture to show when its ring is small (a phone in a wide film frame): the ring with space round it,
+ * at least 40% of the picture each way. Null when that is most of the picture anyway.
+ */
+function zoomOf(ring) {
+  const [x, y, w, h] = ring;
+  const span = (at, size) => {
+    const pad = Math.max(size * 0.4, 0.05);
+    let a = Math.max(0, at - pad), b = Math.min(1, at + size + pad);
+    if (b - a < 0.4) { const c = (a + b) / 2; a = Math.max(0, Math.min(0.6, c - 0.2)); b = a + 0.4; }
+    return [a, b - a];
+  };
+  const [zx, zw] = span(x, w), [zy, zh] = span(y, h);
+  return zw * zh <= 0.5 ? [zx, zy, zw, zh] : null;
+}
+/**
+ * One picture: numbered, ringed where Claude saw the place (an SVG over it, so no inline style), with its place and
+ * caption. A small ring's picture shows that part zoomed in (zoomPicture, when it loads); a click opens all of it.
+ */
+function pictureFigure(p, n) {
+  const src = '/api/tutorial-pictures/' + encodeURIComponent(p.picture);
+  const ring = Array.isArray(p.ring) && p.ring.length === 4 ? p.ring.map((x) => Math.max(0, Math.min(1, Number(x) || 0))) : null;
+  const r = ring ? ring.map((x) => (x * 100).toFixed(2) + '%') : null;
+  const zoom = ring ? zoomOf(ring) : null;
+  return '<figure class="vpic' + (zoom ? ' zoom' : '') + '"><a class="vpicbox' + (zoom ? ' zoom' : '') + '" href="' + esc(src) + '" target="_blank" rel="noopener noreferrer" title="Open the picture full size"' +
+    (zoom ? ' data-zoom="' + zoom.map((x) => x.toFixed(4)).join(',') + '"' : '') + '><span class="vpicin">' +
+    '<img src="' + esc(src) + '" alt="' + esc(p.caption) + '" loading="lazy">' +
+    (r ? '<svg class="vring" aria-hidden="true"><rect class="halo" x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] + '" rx="8"></rect>' +
+      '<rect x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] + '" rx="8"></rect></svg>' : '') +
+    '</span><span class="vnum">' + n + '</span></a>' +
+    '<figcaption><b>' + n + '. ' + esc(pictureLabel(p)) + '</b>' + (zoom ? ' <small>(zoomed in: click to see all of it)</small>' : '') + '<br>' + esc(p.caption) + '</figcaption></figure>';
+}
+/** Shows a zoomed picture's part: the box takes that part's shape (at most 400 px high), and the picture moves inside it. Set through the CSSOM, which the page's CSP allows. */
+function zoomPicture(img) {
+  const box = img.closest('[data-zoom]');
+  if (!box || !img.naturalWidth || !img.naturalHeight) return;
+  const [x, y, w, h] = box.dataset.zoom.split(',').map(Number);
+  const shape = (w * img.naturalWidth) / (h * img.naturalHeight);
+  box.style.aspectRatio = String(shape);
+  box.closest('.vpic').style.width = Math.round(Math.min(340, 400 * shape)) + 'px';
+  const inner = img.parentNode;
+  inner.style.width = (100 / w) + '%';
+  inner.style.left = (-100 * x / w) + '%';
+  inner.style.top = (-100 * y / h) + '%';
+  box.classList.add('ready');
+}
+document.addEventListener('load', (e) => { if (e.target && e.target.tagName === 'IMG' && e.target.closest('[data-zoom]')) zoomPicture(e.target); }, true);
+/** The pictures of what a suggestion is about; with the same places after its fix, the two side by side. */
+function pictureStrip(pictures, after) {
+  const now = Array.isArray(pictures) ? pictures : [];
+  const then = Array.isArray(after) ? after : [];
+  if (!now.length && !then.length) return '';
+  const group = (title, list) => '<div class="vpicgroup">' + (title ? '<p class="vpichead">' + esc(title) + '</p>' : '') + '<div class="vpicrow">' + list.map((p, i) => pictureFigure(p, i + 1)).join('') + '</div></div>';
+  return '<div class="vpics">' + (then.length ? group(now.length ? 'Before the fix' : '', now) + group('After the fix (filmed again)', then) : group('', now)) + '</div>';
+}
 // "Tell Claude what to do": an instruction on the video for Claude's next fix run, with the problem it answers and the inputs the card shows.
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('[data-instruct]');
@@ -729,7 +806,7 @@ document.addEventListener('gestureend', () => { gestureWidth = 0; });
 function markDetail(m) {
   const d = m.detail || { title: m.text, lines: [], links: [], films: [] };
   return '<div class="head"><b>' + esc(d.title) + '</b> <small class="muted">' + esc(new Date(m.at).toLocaleString()) + '</small><button type="button" data-vclose>Close</button></div>' +
-    d.lines.map((l) => '<p class="setup">' + esc(l) + '</p>').join('') +
+    d.lines.map((l) => detailHtml(l)).join('') + pictureStrip(d.pictures, d.after) +
     (d.quote ? '<blockquote>' + esc(d.quote) + '</blockquote>' : '') +
     (d.links.length ? '<p>' + d.links.map((l) => '<a href="' + esc(l.href) + '" target="_blank" rel="noopener noreferrer">' + esc(l.text) + '</a>').join(' · ') + '</p>' : '') +
     (d.films.length ? '<div class="vfilms">' + d.films.map((f) => '<figure><figcaption>' + esc(f.label) + '</figcaption><video controls preload="metadata" src="' + esc(f.href) + '"></video></figure>').join('') + '</div>' : '');

@@ -84,7 +84,10 @@ under GDPR-style rules it is still personal data. What keeps it proportionate:
   forgotten after 180 days without a delivery; what the ops dashboard keeps
   longer is totals by day (`diag.daily`, decisions.md 254): counts and levels
   for the whole fleet, by platform, job, error kind or route, never by
-  install or person;
+  install or person; its counts every 10 minutes keep two small tables for
+  each install (`diag.install_updates`, 90 days, and `diag.install_device`,
+  7 days, docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md), which go with the install and lose what a
+  deleted account's records said;
 - readable only by the `diag_reader` role and the database owner, never by
   the app's API roles;
 - the person can turn it off in Settings › App › Send diagnostics
@@ -171,7 +174,9 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   removed, every 10 minutes in the database, `ops.purge_snapshots`, decision
   204), the ops dashboard's totals (`daily_totals`: `hours`, `days` and
   `rows` counted, every 10 minutes in the database, `diag.daily_fill`,
-  decision 254), each account deletion
+  decision 254), the ops dashboard's phone counts (`ops_counts`: `updates`
+  and `devices` added, `clientsMs` and `fleetMs`, every 10 minutes in the
+  database, `diag.ops_cache_fill`, docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md), each account deletion
   (`account_delete`, written by `_delete_account` with no id at all), the
   Worker's job tick (`job_starts`: jobs started, found running, switched
   off, or that could not start), push delivery
@@ -337,6 +342,7 @@ last 7 days into **kinds**, named by the records' code-like tags:
 | `job` | `job:projection:failing` | a server job failing three times running, or stopped |
 | `worker` | `worker:blobs_get:5xx` | a Worker route answering 5xx at least 5 times in a day |
 | `feedback` | `feedback:<id>` | a problem sent from help mode (bugs, not ideas) |
+| `ops` | `ops:r2-missing`, `ops:workflow-failed:guardrails` | a line of the ops dashboard the records do not hold, passed in by the app Worker (`OpsLines`, `docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`) |
 
 `nearby` records are not a family: they are for reading a field report, and
 a dropped radio link or a teammate out of range is not a bug to file. Only
@@ -385,7 +391,10 @@ watch does not read the store build number phones send since 2026-11-03.
 The ops dashboard's **User issues** section (`diag.ops_user_issues()`)
 lists every issue the watch filed or commented on and every kind it found
 already fixed, the last 90 days: its state in Linear, the pull request that
-fixed it and when, and the last look.
+fixed it and when, and the last look. Its `lines` say what the watch decided
+about each kind a dashboard line can name (`ops`, `job` and `worker` keys):
+the start page shows each line's Linear issue from them, and lists the lines
+gone from the page under Resolved.
 
 **Claude sees what came with each problem** (decisions.md 202, amended
 2026-11-04). Before Claude looks, the step before it asks the Worker for

@@ -11,8 +11,12 @@ import { REPOSITORY } from './tutorialFeedback';
  * by the database (`ops_user_issues_looked`). Pure: no database, no network.
  */
 
-/** Where a kind comes from: the first part of its key. */
-export const FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'job', 'worker', 'feedback'] as const;
+/**
+ * Where a kind comes from: the first part of its key. `ops`: a line of the
+ * ops dashboard the records do not hold (apps/admin/src/alertKinds.ts), which
+ * the app Worker reads from the dashboard's Worker for each watch.
+ */
+export const FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'job', 'worker', 'feedback', 'ops'] as const;
 export type Family = (typeof FAMILIES)[number];
 
 /**
@@ -71,7 +75,7 @@ export interface WatchKind {
   } | null;
   /** For a kind fixed or closed: people who hit it more than a day after the fix (its `platforms`, `apps`, `installIds` and `stack` are theirs only). */
   peopleAfterFix: number | null;
-  /** A server job in trouble, or the Worker's 5xx answers. */
+  /** A server job in trouble, the Worker's 5xx answers, or an ops dashboard line (`line`: its level, text, title, part and link). */
   server: Record<string, unknown> | null;
   /** A problem sent from help mode: never who sent it (no name or email). */
   feedback: {

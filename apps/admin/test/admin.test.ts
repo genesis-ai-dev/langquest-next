@@ -210,8 +210,9 @@ describe('the API', () => {
 
   it('calls only /ops/api from the page', async () => {
     const html = await (await handle(new Request('https://next.langquest.org/ops-dashboard'), fullEnv)).text();
-    // Only links to the app's public tutorial videos, opened in a tab of their own to watch, leave it (decisions.md 180).
-    expect(html).not.toMatch(/['"]\/api\/(?!tutorials\/)/);
+    // Only the app's public tutorial videos (decisions.md 180) and the pictures of what Claude suggests for them
+    // (decisions.md 186, amended 2026-11-17), shown or opened in a tab of their own, leave it.
+    expect(html).not.toMatch(/['"]\/api\/(?!tutorials\/|tutorial-pictures\/)/);
     expect(html).toContain("'/ops/api/");
   });
 

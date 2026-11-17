@@ -47,7 +47,7 @@ export const API = process.env.USER_ISSUES_API ?? 'https://next.langquest.org/ap
 /** What the Worker expects the token to be for (apps/web/worker/userIssues.ts USER_ISSUES_RULE). */
 export const AUDIENCE = 'https://next.langquest.org/api/user-issues';
 /** server/userIssues.ts FAMILIES (scripts/userIssues.test.ts holds them equal). */
-export const FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'job', 'worker', 'feedback'];
+export const FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'job', 'worker', 'feedback', 'ops'];
 export const KEY = new RegExp(`^(${FAMILIES.join('|')}):[A-Za-z0-9 _.:()/#@-]{1,290}$`);
 /** server/userIssues.ts ISSUE_LABEL and ISSUE_PREFIX. */
 export const LABEL = 'User issue';
@@ -100,6 +100,15 @@ export function factsOf(kind) {
       ...(media.length ? ['', `With ${media.join(' and ')}: [ops dashboard](${OPS}), Feedback.`] : []),
       ...(kind.phoneFacts?.length ? ['', '**That phone in the half hour before**', '', ...kind.phoneFacts.map((l) => `- ${cut(l, 300)}`)] : [])
     ].join('\n');
+  }
+  if (kind.server?.line) {
+    const l = kind.server.line;
+    const level = { urgent: 'Act now', problem: 'Fix soon', watch: 'Watch' }[l.level] ?? l.level ?? '?';
+    return [
+      `**The ops dashboard shows: ${cut(l.title ?? kind.key, 120)}** · ${level} · in ${l.part ?? '?'} · [ops dashboard](${OPS})`,
+      `> ${cut(l.text, 600)}`,
+      ...(l.link ? [`Its page: ${l.link}`] : [])
+    ].join('\n\n');
   }
   if (kind.server) {
     const s = kind.server;

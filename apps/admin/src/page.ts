@@ -8,7 +8,11 @@
  */
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
+import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
+import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
+import { FIX_CSS, FIX_LOGIC, FIX_SCRIPT } from './pageFixes';
+import { KINDS } from './alertKinds';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
 
@@ -113,6 +117,25 @@ label.check { display: inline-flex; gap: 6px; align-items: center; font-weight: 
 .vdet { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 4px 0 10px; background: var(--card); }
 .vdet .head { display: flex; gap: 8px; align-items: center; } .vdet .head b { flex: 1; } .vdet p { margin: 6px 0; }
 .vdet blockquote { margin: 6px 0; padding: 6px 10px; border-inline-start: 3px solid #2F80ED; background: var(--bg); border-radius: 6px; }
+/* Pictures of what a suggestion is about (pageOps.ts pictureStrip): numbered, ringed, with a caption under each. */
+.vpics { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 8px 0; }
+.vpicgroup { min-width: 0; } .vpichead { margin: 0 0 4px; font-weight: 600; }
+.vpicrow { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.vpic { margin: 0; max-width: 340px; }
+.vpicbox { position: relative; display: inline-block; line-height: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg); }
+.vpicbox img { display: block; max-width: 100%; max-height: 360px; width: auto; height: auto; }
+.vpicin { position: relative; display: block; }
+.vpic.zoom { width: 340px; max-width: 100%; }
+.vpicbox.zoom { display: block; width: 100%; aspect-ratio: 4 / 3; }
+.vpicbox.zoom .vpicin { position: absolute; left: 0; top: 0; width: 100%; }
+.vpicbox.zoom img { width: 100%; max-width: none; max-height: none; }
+.vpicbox.zoom:not(.ready) .vring { display: none; }
+.vring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.vring rect { fill: none; stroke: #E5484D; stroke-width: 4; vector-effect: non-scaling-stroke; }
+.vring rect.halo { stroke: #fff; stroke-width: 8; opacity: .9; }
+.vnum { position: absolute; top: 6px; inset-inline-start: 6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; background: #E5484D; color: #fff; font: 700 14px/24px system-ui, sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.vpic figcaption { font-size: 13px; line-height: 1.35; margin-top: 4px; }
+.vtech summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .vfilms { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; } .vfilms figure { margin: 0; } .vfilms video { width: 100%; border-radius: 8px; background: #000; }
 .vkey { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 6px 0; } .vkey span { display: inline-flex; gap: 4px; align-items: center; }
 /* Where each build and update is (sources/pipeline.ts): stages left to right, an arrow between, each build a card in its stage. */
@@ -179,6 +202,9 @@ td button { white-space: nowrap; }
   .pa::before { content: '↓'; }
 }
 ${START_CSS}
+${FIX_CSS}
+${LISTS_CSS}
+${METERS_CSS}
 </style>
 </head>
 <body>
@@ -446,9 +472,41 @@ function partHtml(g, id) {
   if (s.state === 'off') return head + '<p class="setup muted">Not connected. ' + esc(s.setup) + '</p>';
   if (s.state === 'error') return head + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
   try {
-    if (id === 'jobs') return head + renderJobs(s.data, results.container);
-    return head + (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+    if (id === 'jobs') return head + numbers(id, renderJobs(s.data, results.container));
+    // A picture leads its part (pageLists.ts, pageMeters.ts); its numbers and tables wait behind one tap.
+    const pic = listPicture(id, s.data);
+    const html = (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+    // A part that nothing draws (no picture, no line over time) keeps its table open, and so does one that holds a queue for a person.
+    return head + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + ((pic || METRIC[id]) && !QUEUE.test(html) ? numbers(id, html) : html);
   } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
+}
+
+/**
+ * A part's numbers and tables, closed until a tap opens them, so a section
+ * shows its pictures first (plan 5c); a part stays open through a refresh
+ * once opened.
+ */
+const openNumbers = new Set();
+// Grant, Accept, Send to Claude, Add a note, Connect, Publish, Seen or Done (pageLists.ts QUEUE_CONTROLS).
+const QUEUE = /${QUEUE_SOURCE}/;
+function numbers(id, html) {
+  return '<details class="numbers" data-part="' + esc(id) + '"' + (openNumbers.has(id) ? ' open' : '') + '><summary><span class="sn">Show the numbers</span><span class="hn">Hide the numbers</span></summary>' + html + '</details>';
+}
+// toggle does not bubble, so it is caught on its way down.
+document.addEventListener('toggle', (e) => {
+  const d = e.target;
+  if (!d.matches || !d.matches('details.numbers')) return;
+  if (d.open) openNumbers.add(d.dataset.part); else openNumbers.delete(d.dataset.part);
+}, true);
+
+/** A part the database counts every 10 minutes (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md): when, and late past 25 minutes. */
+function counted(d) {
+  if (!d || !d.countedAt) return '';
+  const at = new Date(d.countedAt);
+  const late = Date.now() - at.getTime() > 25 * 60000;
+  const time = at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
+  return '<p class="counted ' + (late ? 'bad' : 'muted') + '" title="' + esc(ago(d.countedAt)) + '">Counted at ' + esc(time) + ' UTC'
+    + (late ? ', late: the count runs every 10 minutes (ops_counts in Server jobs).' : ', every 10 minutes.') + '</p>';
 }
 
 /** The jobs as diag records them, with whether each runs now (the job container's answer) in the same row. */
@@ -479,7 +537,7 @@ function attention() {
   for (const g of SECTIONS) for (const part of g.parts) {
     const s = results[part];
     if (!s) continue;
-    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, link: a.link, where: g.title, id: g.id });
+    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, link: a.link, where: g.title, id: g.id, alert: a });
     if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + s.error, where: g.title, id: g.id });
   }
   const loading = PARTS.filter((p) => !results[p]).length;
@@ -490,7 +548,7 @@ function attention() {
   el.textContent = top ? LEVELS.filter((l) => c[l] > 0).map((l) => LEVEL[l].count(c[l])).join(', ') : loading ? 'Checking…' : 'All clear';
   // A link only to https pages: an alert's link comes from what a workflow wrote (apps/admin/src/sources/github.ts).
   const fix = (i) => String(i.link || '').startsWith('https://') ? ' <a href="' + esc(i.link) + '" target="_blank" rel="noopener">Open</a>' : '';
-  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + fix(i) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button></span></li>';
+  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + fix(i) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button>' + fixHtml(i.alert, true) + '</span></li>';
   $('attention-list').innerHTML = items.length
     ? LEVELS.map((l) => {
       const at = items.filter((i) => (i.level in LEVEL ? i.level : 'watch') === l);
@@ -874,6 +932,14 @@ const METRIC = ${JSON.stringify(METRICS).replace(/</g, '\\u003c')};
 const GLANCE = ${JSON.stringify(GLANCE)};
 ${START_LOGIC}
 ${START_SCRIPT}
+// ---- each line's Linear issue and fix, and the lines resolved (pageFixes.ts) ----
+const KINDS = ${JSON.stringify(KINDS).replace(/</g, '\\u003c')};
+${FIX_LOGIC}
+${FIX_SCRIPT}
+${LISTS_LOGIC}
+${METERS_LOGIC}
+${LISTS_SCRIPT}
+${METERS_SCRIPT}
 
 let loading = false;
 async function load(fresh) {
@@ -883,6 +949,7 @@ async function load(fresh) {
   for (const k of Object.keys(results)) delete results[k];
   for (const k of Object.keys(histories)) delete histories[k];
   glanceData = null;
+  fixData = null;
   const here = view();
   if (here.name === 'group') renderHist(here.id);
   for (const s of SECTIONS) if (s.id !== 'lookup') { const p = $('pill-' + s.id); p.className = 'pill wait'; p.textContent = 'Loading…'; }
@@ -894,7 +961,10 @@ async function load(fresh) {
     api('/ops/api/ops' + q).then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); }).catch(fail(${JSON.stringify(OPS_IDS)})),
     ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id]))),
     // The start page's pictures: without them it still shows every card and line.
-    api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {})
+    api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {}),
+    // The pull requests that name a line's Linear issue: without them each line still shows its issue.
+    api('/ops/api/fixes' + q).then((d) => { fixData = d; renderStart(); attention(); })
+      .catch((err) => { fixData = { state: 'error', error: err.message }; renderStart(); })
   ];
   await Promise.all(jobs);
   $('checked').textContent = 'Checked ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

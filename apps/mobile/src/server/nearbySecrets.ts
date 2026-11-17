@@ -11,8 +11,8 @@ import { secureStorage } from './secureStorage';
  *   written only by lock.ts's `keepFindKeys`, in the queue sign-out uses, and only while that
  *   person is the one signed in.
  *
- * Plain storage calls, the same on every build: only Android writes any (nearbyKey.android.ts,
- * src/nearby), so elsewhere these read nothing.
+ * Plain storage calls, the same on every build: only a phone writes any (nearbyKey.native.ts,
+ * src/nearby), so on the web these read nothing.
  */
 
 export const INSTALL_KEY = 'nearby-install-key';

@@ -2,6 +2,7 @@
   "nearby": {
     "experimental": "试验功能",
     "intro": "不需要互联网：让队友的手机更新到最新，或者把应用给新成员，让他们加入团队。",
+    "introTeammates": "不需要互联网：让队友的手机更新到最新。",
     "withTeammates": "与队友",
     "withTeammatesLine": "已经装有 LangQuest 的手机会互相更新到最新。请保持打开，直到显示“已是最新”。",
     "newPerson": "新成员",
@@ -33,9 +34,12 @@
       "nearbyAndLocation": "Android 会问两次：先问能否查找附近的设备，再问位置信息，这是 Wi-Fi Direct 需要的。LangQuest 不会记录你在哪里。",
       "nearbyDevices": "Android 会请你允许 LangQuest 查找并连接附近的设备。只在此页面打开时使用。",
       "precise": "Android 只给了大致位置，而 Wi-Fi Direct 需要精确位置才能连接。LangQuest 仍然不会记录你在哪里。",
+      "bluetooth": "你的 iPhone 会请你允许 LangQuest 使用 Bluetooth 查找队友的手机。只在此页面打开时使用。手机连接时，它可能还会请你允许查找本地网络上的设备，以及加入队友的 Wi-Fi。也请允许这些，录音才能传过去。",
       "settings": "Android 不会再问了。请打开这个应用的设置，进入“权限”，允许“附近的设备”或“位置信息”。",
+      "settingsIphone": "你的 iPhone 不会再问了。请打开这个应用的设置，打开 Bluetooth；如果有“本地网络”，也一并打开。",
       "allow": "继续",
       "allowHelp": "显示 Android 的询问。选择“允许”，即可与附近的队友共享。",
+      "allowHelpIphone": "显示 iPhone 的询问。选择“允许”，即可与附近的队友共享。",
       "openSettings": "打开设置",
       "openSettingsHelp": "打开手机设置中这个应用的页面，你可以在那里允许。"
     },
@@ -65,6 +69,7 @@
     },
     "connect": "连接",
     "connectHelp": "连接到这部手机。当队友就在附近、但两部手机还没找到对方时使用。",
+    "connectHelpAll": "连接附近所有还没找到这部手机的队友手机。在你离开此页面之前，点一次就对所有人有效。",
     "came": {
       "title": "传送情况",
       "changesIn": "收到的更改：{{n}}",
@@ -84,6 +89,7 @@
     },
     "clockOff": "队友手机的时钟和这部手机相差超过五分钟。请检查两部手机的日期和时间。",
     "newerApp": "队友的手机需要更新版本的应用，才能和这部手机共享。请到应用商店更新应用，或从队友那里获取新版本。",
+    "newerAppIphone": "队友的手机需要更新版本的应用，才能和这部手机共享。请到应用商店更新应用。",
     "apkOld": "你获取的安装文件是旧版本的。断网之前，请获取新的。",
     "tooOld": "这个应用版本太旧，无法共享。请到应用商店更新。",
     "farAhead": "{{name}}的手机日期设在很远的未来。他们的工作要等传到服务器后才会过来。",
