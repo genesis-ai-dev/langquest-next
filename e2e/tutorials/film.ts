@@ -596,10 +596,14 @@ if (VOICE_ONLY) process.exit(0);
 
 rmSync(path.join(out, 'frames'), { recursive: true, force: true });
 rmSync(path.join(out, 'heard'), { recursive: true, force: true });
-rmSync(path.join(out, 'steps'), { recursive: true, force: true });
 mkdirSync(path.join(out, 'frames'), { recursive: true });
 mkdirSync(path.join(out, 'heard'), { recursive: true });
-if (DRY) mkdirSync(path.join(out, 'steps'), { recursive: true });
+// A film keeps the step pictures its dry run made just before it: the nightly look at the videos' feedback shows
+// them on the ops dashboard, beside what it suggests (decisions.md 186, amended 2026-11-17).
+if (DRY) {
+  rmSync(path.join(out, 'steps'), { recursive: true, force: true });
+  mkdirSync(path.join(out, 'steps'), { recursive: true });
+}
 const speech = (tutorial.speech ?? []).map((f) => { const file = path.join(speechDir, f); return { file, seconds: wavSeconds(file) }; });
 
 const world = await buildWorld({

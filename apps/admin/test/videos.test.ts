@@ -102,6 +102,23 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13 and 2026-11-
     expect(record[2]).toMatchObject({ link: 'https://github.com/r/5', note: 'Step 3 already says Language.' });
   });
 
+  it('shows the pictures Claude picked on the card, the marks and the record, and the same places after the fix (decisions.md 186, amended 2026-11-17)', () => {
+    const picture = (n: number, c = 'e') => ({ picture: `${sha(c)}.png`, language: 'en', tutorial: 'record-a-passage', kind: 'step' as const, n, caption: `Step ${n}. The G is cut off.`, ring: [0.1, 0.2, 0.5, 0.1] as [number, number, number, number] });
+    const ask = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ pictures: [picture(3)] })] }) }), NOW);
+    expect(ask.admin[0]).toMatchObject({ kind: 'approve', pictures: [picture(3)] });
+    expect(en(ask).marks.find((m) => m.kind === 'suggested')!.detail.pictures).toEqual([picture(3)]);
+    // A fix that failed shows what it was about; one merged and filmed again shows before and after.
+    const failed = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ pictures: [picture(3)], decision: 'accepted', decidedAt: at(6), fix: { state: 'failed', pr: null, at: at(2), run: 'https://github.com/r/5', note: 'No such step.' } })] }) }), NOW);
+    expect(failed.admin.find((a) => a.kind === 'fixFailed')).toMatchObject({ pictures: [picture(3)] });
+    const merged = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ pictures: [picture(3)], after: [picture(3, 'f')], decision: 'accepted', decidedAt: at(6), fix: { state: 'merged', pr: 480, at: at(4), run: null, note: null } })] }) }), NOW);
+    expect(merged.changes[0]).toMatchObject({ pictures: [picture(3)], after: [picture(3, 'f')] });
+    expect(en(merged).marks.find((m) => m.kind === 'fix')!.detail).toMatchObject({ pictures: [picture(3)], after: [picture(3, 'f')] });
+    // Without pictures, none are said.
+    const none = videoBoard(input({ feedback: feedback({ suggestions: [suggestion()] }) }), NOW);
+    expect(none.admin[0]).not.toHaveProperty('pictures');
+    expect(en(none).marks.find((m) => m.kind === 'suggested')!.detail).not.toHaveProperty('pictures');
+  });
+
   it('shows a suggestion about one language\'s film on that language\'s row only', () => {
     const french = suggestion({ kind: 'voice', language: 'fr', decision: 'accepted', decidedAt: at(3), fix: { state: 'failed', pr: 482, at: at(2), run: null, note: 'no' } });
     const b = videoBoard(input({ films: [film(), film({ language: 'fr' })], nightly: ['en', 'fr'], status: { en: status([{}]), fr: status([{}], { language: 'fr' }) }, feedback: feedback({ suggestions: [french] }) }), NOW);
