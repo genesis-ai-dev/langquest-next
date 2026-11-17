@@ -220,6 +220,18 @@ export function iosLane(i: PipelineInputs): StoreLane {
   return { id: 'ios', title: 'iPhone store builds', stages, notes };
 }
 
+/**
+ * The Play tracks a store build is sent to, as eas.json's submit profiles name
+ * them: `internal` (submit.internal), from which play-review.mjs sends the
+ * newest to `production` (submit.production, or straight there for a pull
+ * request labelled `store: replace review`). A carried build goes to `alpha`
+ * as a draft (submit.carried) only so that Play makes its signed APK
+ * (decisions.md 246); it is not a store build, nobody promotes it, and it
+ * shows in no stage.
+ */
+const TRACK = { internal: 'internal', production: 'production' } as const;
+const toStore = (s: EasSubmission) => s.track === TRACK.internal || s.track === TRACK.production;
+
 const SENT = new Set(['completed', 'inProgress']);
 /** The newest release of a track among those sent: its version name and highest version code. */
 function newestSent(releases: PlayRelease[]): { name: string | null; code: number } | null {
@@ -242,7 +254,8 @@ export function androidLane(i: PipelineInputs): StoreLane {
   const prod = i.play ? newestSent(i.play.production) : null;
   if (live) stage(stages, 'live').cards.push(buildCard(prod?.name === live ? String(prod.code) : codeOf(live), live, 'what people download', 'live', null));
   else notes.push("Google Play's page could not be read, so which version people download is not known.");
-  const subs = i.submissions.filter((s) => s.platform === 'android');
+  // Uploads to the store tracks only: a carried build's, finished, running or failed, is in no stage.
+  const subs = i.submissions.filter((s) => s.platform === 'android' && toStore(s));
 
   if (i.play) {
     const inReview = !!prod && prod.name !== live && (!live || newerVersion(prod.name, live));
@@ -261,18 +274,18 @@ export function androidLane(i: PipelineInputs): StoreLane {
     // Without Play's tracks, where EAS sent each build is the best guess: a build moved in Play Console is not seen.
     const newerThanLive = (s: EasSubmission) => !live || newerVersion(s.version, live);
     const finished = subs.filter((s) => s.status === 'FINISHED' && newerThanLive(s));
-    const toProd = finished.filter((s) => s.track === 'production');
+    const toProd = finished.filter((s) => s.track === TRACK.production);
     const newestProd = Math.max(...toProd.map((s) => num(s.build)).filter(Number.isFinite), 0);
     if (toProd[0]) stage(stages, 'review').cards.push(buildCard(toProd[0].build, toProd[0].version, 'in review, or rejected (Play Console says which)', 'wait', toProd[0].doneAt ?? toProd[0].at));
-    for (const s of finished.filter((s) => s.track !== 'production' && num(s.build) > newestProd)) {
+    for (const s of finished.filter((s) => s.track === TRACK.internal && num(s.build) > newestProd)) {
       stage(stages, 'waiting').cards.push(buildCard(s.build, s.version, toProd[0] ? 'waits for the review ahead of it to end' : 'waits to be sent for review', 'wait', s.doneAt ?? s.at));
     }
   }
   for (const s of subs.filter((s) => RUNNING.has(s.status))) {
-    stage(stages, s.track === 'production' ? 'review' : 'waiting').cards.push(buildCard(s.build, s.version, `uploading to ${s.track === 'production' ? 'production' : 'internal testing'}`, 'busy', s.at));
+    stage(stages, s.track === TRACK.production ? 'review' : 'waiting').cards.push(buildCard(s.build, s.version, `uploading to ${s.track === TRACK.production ? 'production' : 'internal testing'}`, 'busy', s.at));
   }
   if (subs[0]?.status === 'ERRORED') {
-    stage(stages, subs[0].track === 'production' ? 'review' : 'waiting').cards.push(buildCard(subs[0].build, subs[0].version, 'upload to Google Play failed', 'bad', subs[0].doneAt ?? subs[0].at));
+    stage(stages, subs[0].track === TRACK.production ? 'review' : 'waiting').cards.push(buildCard(subs[0].build, subs[0].version, 'upload to Google Play failed', 'bad', subs[0].doneAt ?? subs[0].at));
   }
   // The internal track keeps one release; the newest waits, with nothing between it and review.
   stage(stages, 'waiting').cards.sort((a, b) => num(b.build) - num(a.build));
@@ -456,18 +469,35 @@ const prsByCommit = new Map<string, { pr: number; title: string } | null>();
 
 // ---- reading the sources -------------------------------------------------------------------
 
+const SUBMISSION_FIELDS = 'status platform createdAt completedAt androidConfig { track } submittedBuild { appVersion appBuildVersion }';
+
+/**
+ * Builds of the `production` profile only, so a carried build (profile
+ * `carried`) is never one. Submissions are read for each platform on its own:
+ * EAS filters them by platform and status but not by track, and every carried
+ * build adds an Android one on Play's alpha track (one per merge while its
+ * publish step failed). Android's window is 50, the page eas-cli itself asks
+ * for (SUBMISSIONS_LIMIT), since the lane without Play's tracks needs every
+ * store upload back to the newest one to production, with carried ones in
+ * between. iPhone uploads keep a window of their own, which Android's never
+ * crowd.
+ */
 export const PIPELINE_QUERY = `query ($id: String!) {
   app { byId(appId: $id) {
     builds(offset: 0, limit: 40, filter: { buildProfile: "production" }) { status platform createdAt completedAt appVersion appBuildVersion runtime { version } }
-    submissions(filter: {}, offset: 0, limit: 12) { status platform createdAt completedAt androidConfig { track } submittedBuild { appVersion appBuildVersion } }
+    iosSubmissions: submissions(filter: { platform: IOS }, offset: 0, limit: 12) { ${SUBMISSION_FIELDS} }
+    androidSubmissions: submissions(filter: { platform: ANDROID }, offset: 0, limit: 50) { ${SUBMISSION_FIELDS} }
     updateBranchByName(name: "production") { updateGroups(offset: 0, limit: 30) { id platform createdAt message gitCommitHash isRollBackToEmbedded runtime { version } } }
   } }
 }`;
 
+interface ExpoSubmission { status: string; platform: string; createdAt: string; completedAt?: string | null; androidConfig?: { track?: string | null } | null; submittedBuild?: { appVersion?: string | null; appBuildVersion?: string | null } | null }
+
 interface ExpoAnswer {
   data?: { app?: { byId?: {
     builds?: { status: string; platform: string; createdAt: string; completedAt?: string | null; appVersion?: string | null; appBuildVersion?: string | null; runtime?: { version?: string | null } | null }[];
-    submissions?: { status: string; platform: string; createdAt: string; completedAt?: string | null; androidConfig?: { track?: string | null } | null; submittedBuild?: { appVersion?: string | null; appBuildVersion?: string | null } | null }[];
+    iosSubmissions?: ExpoSubmission[];
+    androidSubmissions?: ExpoSubmission[];
     updateBranchByName?: { updateGroups?: { id: string; platform: string; createdAt: string; message?: string | null; gitCommitHash?: string | null; isRollBackToEmbedded?: boolean | null; runtime?: { version?: string | null } | null }[][] } | null;
   } } };
   errors?: { message: string }[];
@@ -482,9 +512,10 @@ export function expoInputs(answer: ExpoAnswer): Pick<PipelineInputs, 'builds' | 
     const platform = platformOf(b.platform);
     return platform ? [{ platform, status: b.status, at: b.createdAt, doneAt: b.completedAt ?? null, version: b.appVersion ?? null, build: b.appBuildVersion ?? null, runtime: b.runtime?.version ?? null }] : [];
   }));
-  const submissions = byNewest((app?.submissions ?? []).flatMap((s) => {
+  // The track in eas.json's lower case: eas-cli lowers EAS's answer before it prints it, so it may come in capitals.
+  const submissions = byNewest([...(app?.iosSubmissions ?? []), ...(app?.androidSubmissions ?? [])].flatMap((s) => {
     const platform = platformOf(s.platform);
-    return platform ? [{ platform, status: s.status, at: s.createdAt, doneAt: s.completedAt ?? null, track: s.androidConfig?.track ?? null, version: s.submittedBuild?.appVersion ?? null, build: s.submittedBuild?.appBuildVersion ?? null }] : [];
+    return platform ? [{ platform, status: s.status, at: s.createdAt, doneAt: s.completedAt ?? null, track: s.androidConfig?.track?.toLowerCase() ?? null, version: s.submittedBuild?.appVersion ?? null, build: s.submittedBuild?.appBuildVersion ?? null }] : [];
   }));
   const updates = byNewest((app?.updateBranchByName?.updateGroups ?? []).flat().flatMap((u) => {
     const platform = platformOf(u.platform);
@@ -520,7 +551,7 @@ export function appleInputs(
 
 const PLAY_API = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications';
 
-/** Play's internal and production tracks, read in an edit that is then deleted, so nothing changes. */
+/** Play's internal and production tracks (never alpha, which holds carried builds), read in an edit that is then deleted, so nothing changes. */
 export async function playTracks(key: string, pkg: string, fetcher: typeof fetch, now = Date.now()): Promise<PlayTracks> {
   const account = jsonSecret<{ client_email: string; private_key: string }>(key, 'ADMIN_GOOGLE_PLAY_KEY', ['client_email', 'private_key']);
   const headers = { authorization: `Bearer ${await googleToken(account, fetcher, now)}` };
@@ -530,7 +561,7 @@ export async function playTracks(key: string, pkg: string, fetcher: typeof fetch
     const { tracks = [] } = await getJson<{ tracks?: { track: string; releases?: { name?: string; status?: string; versionCodes?: (string | number)[] }[] }[] }>(
       fetcher, `${base}/${encodeURIComponent(edit.id)}/tracks`, { headers }, 'Play tracks');
     const of = (name: string) => (tracks.find((t) => t.track === name)?.releases ?? []).map((r) => ({ name: r.name ?? null, status: r.status ?? 'unknown', versionCodes: (r.versionCodes ?? []).map(String) }));
-    return { internal: of('internal'), production: of('production') };
+    return { internal: of(TRACK.internal), production: of(TRACK.production) };
   } finally {
     await fetcher(`${base}/${encodeURIComponent(edit.id)}`, { method: 'DELETE', headers, signal: AbortSignal.timeout(10_000) }).catch(() => null);
   }
