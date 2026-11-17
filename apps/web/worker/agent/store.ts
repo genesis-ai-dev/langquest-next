@@ -282,14 +282,29 @@ export function supabaseAgentStore(service: SupabaseClient): AgentStore {
 export const RECEIPTS_PER_ASK = 1000;
 
 /**
+ * Calls of one lookup on their way at once. A page of 500 passages of a
+ * language the import brought over names tens of thousands of keys (three
+ * v2 stamps for each part of each version): forty calls, which one after
+ * another made the page wait for each in turn.
+ */
+export const RECEIPT_ASKS_AT_ONCE = 4;
+
+/**
  * When the server received these records of one language (decisions.md 188),
  * keyed as view.ts `Receipts` names them: `received_times`, with each kind
- * of key in its own list.
+ * of key in its own list. Takes go in calls of their own: the database
+ * finds a take by reading every `v1.TakeSubmitted` of the language, so a
+ * few takes in every call made each call read them all again. The other
+ * kinds are looked up by an index or a primary key.
  */
 export async function receivedTimes(service: SupabaseClient, orgId: string, languageId: string, keys: readonly string[]): Promise<Map<string, string>> {
+  // A list that fits one call stays one call: it reads the takes once either way.
+  const kinds = keys.length <= RECEIPTS_PER_ASK ? [[...keys]]
+    : [keys.filter((k) => k.startsWith('submitted:')), keys.filter((k) => !k.startsWith('submitted:'))];
+  const pages: string[][] = [];
+  for (const kind of kinds) for (let i = 0; i < kind.length; i += RECEIPTS_PER_ASK) pages.push(kind.slice(i, i + RECEIPTS_PER_ASK));
   const out = new Map<string, string>();
-  for (let i = 0; i < keys.length; i += RECEIPTS_PER_ASK) {
-    const page = keys.slice(i, i + RECEIPTS_PER_ASK);
+  const ask = async (page: string[]) => {
     const named = (prefix: string) => page.filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length));
     const data = must('received_times', await service.rpc('received_times', {
       p_org: orgId, p_stream: languageId, p_takes: named('submitted:'), p_events: named('event:'), p_v2: named('v2:'),
@@ -297,6 +312,11 @@ export async function receivedTimes(service: SupabaseClient, orgId: string, lang
       p_entities: page.filter((k) => !k.startsWith('submitted:') && !k.startsWith('event:') && !k.startsWith('v2:'))
     }));
     for (const r of (data ?? []) as { key: string; received_at: string }[]) out.set(r.key, new Date(r.received_at).toISOString());
-  }
+  };
+  let next = 0;
+  const runner = async () => {
+    while (next < pages.length) await ask(pages[next++]!);
+  };
+  await Promise.all(Array.from({ length: Math.min(RECEIPT_ASKS_AT_ONCE, pages.length) }, runner));
   return out;
 }
