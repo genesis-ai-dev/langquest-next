@@ -194,7 +194,7 @@ the pictures keep working at tens of thousands of people and over years. So:
   table the server pages. The start page never draws a mark for each person
   or install. The two reads that grow with phones ("What installs
   report", "Builds in the field") are counted by the database every 10
-  minutes, and the page reads that count (decisions.md 257).
+  minutes, and the page reads that count (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md).
 - **History** comes from totals by hour and day, never from raw records
   (section 7, phase 5): `diag.hourly`, `diag.daily` and `diag.monthly`, read by
   `GET /ops/api/<part>?range=`, built first (`docs/admin.md`, History).
@@ -471,7 +471,7 @@ changes an organization stay in the CLIs, run on a call.
 | 5 | History and telling people: a daily rollup (`diag.daily`, by pg_cron) for trends past 7 days, and the `OpsWatch` Durable Object (section 11.4), which sends a problem to Slack or Linear when it stays for 15 minutes | phase 3 |
 | 5a | **Built (2026-11-17)**: totals by hour (`diag.hourly`, 14 days), by day (`diag.daily`, all time) and by month (`diag.monthly`, for All), filled every 10 minutes by pg_cron (`langquest-daily-totals`), and `GET /ops/api/<part>?range=24h\|14d\|90d\|1y\|all` (decisions.md 254) | phase 3 |
 | 5b | **Built (2026-11-17)**: the start page "What needs you first" (5.0), each section's charts over a range, and the detail panel for a bucket (`/ops/api/<part>/detail`, raw records, 90 days at most; `/ops/api/glance`) (decisions.md 255) | 5a merged |
-| 5b2 | **Built (2026-11-17)**: speed at 40,000 installs: "What installs report" and "Builds in the field" counted every 10 minutes by pg_cron (`langquest-ops-counts`) from each kind's index and two small tables for each install, read by the page in 1 to 25 ms (decisions.md 257) | 5b merged |
+| 5b2 | **Built (2026-11-17)**: speed at 40,000 installs: "What installs report" and "Builds in the field" counted every 10 minutes by pg_cron (`langquest-ops-counts`) from each kind's index and two small tables for each install, read by the page in 1 to 25 ms (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md) | 5b merged |
 | 5c | The pictures the design draws in place of plain charts: a square for each job run, suite or video, store lanes, the phones' share, meters for capacity | 5b merged |
 | 5d | `OpsWatch` (section 11.4) | phase 3 |
 

@@ -451,7 +451,7 @@ function partHtml(g, id) {
   } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
 }
 
-/** A part the database counts every 10 minutes (decisions.md 257): when, and late past 25 minutes. */
+/** A part the database counts every 10 minutes (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md): when, and late past 25 minutes. */
 function counted(d) {
   if (!d || !d.countedAt) return '';
   const at = new Date(d.countedAt);
