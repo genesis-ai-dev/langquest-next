@@ -137,7 +137,7 @@ export interface SessionReportLike {
   peer: { profileId: string; tag: string } | null;
   newerAppNeeded: boolean;
   clockOff: boolean;
-  linkKind: 'wifi-direct' | 'hotspot' | 'bluetooth' | 'memory' | null;
+  linkKind: 'wifi-direct' | 'hotspot' | 'awdl' | 'bluetooth' | 'memory' | null;
   got: { events: number; refused: number };
   sent: { events: number };
   files: { got: number; served: number; failed: number; noRoom: boolean; cutBackups: boolean };
