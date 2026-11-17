@@ -12,7 +12,7 @@ const PAGE = 500;
 const NONE: ReadonlyMap<string, NearbyOrigin> = new Map();
 
 /**
- * A record's History on an Android phone: each entry that came from a teammate's phone and is
+ * A record's History on a phone: each entry that came from a teammate's phone and is
  * still `nearby` here says so (docs/nearby-sync-plan.md 5.8). Read again as the fold moves, and
  * not at all while the language holds no nearby row.
  */

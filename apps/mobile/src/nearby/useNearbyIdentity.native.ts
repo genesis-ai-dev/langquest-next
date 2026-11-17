@@ -1,22 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
-import { useDisguise } from '../disguise/useDisguise';
+import { useAppCovered } from '../shell/useAppCovered';
 import { keepNearbyOrg } from './holdChoice';
-import { refreshHoldChoice, refreshNearbyIdentity } from './nearbyIdentity.android';
+import { refreshHoldChoice, refreshNearbyIdentity } from './nearbyIdentity.native';
 import { nearbyFlag, onNearbyFlag } from './nearbyFlag';
 import { membershipMarkOf } from './nearbyModel';
 import type { NearbyIdentityProps } from './useNearbyIdentity';
 
 /**
  * A phone's nearby identity, from `SyncEffects`, whatever screen is open (docs/nearby-sync-plan.md
- * 5.5, 5.10, 5.12): after each organization pull, on each `get_user_state` answer, on a change of
- * this person's membership and when another language opens, it keeps the install key,
- * certificates, discovery keys and revocation lists current (nearbyIdentity.android.ts). It also
- * keeps "Hold teammates' recordings" where `openLanguage` reads it, so sync never reads a disguise.
- * Draws nothing and shows nothing.
+ * 5.5, 5.10, 5.12), on an Android phone or an iPhone: after each organization pull, on each
+ * `get_user_state` answer, on a change of this person's membership and when another language
+ * opens, it keeps the install key, certificates, discovery keys and revocation lists current
+ * (nearbyIdentity.native.ts). It also keeps "Hold teammates' recordings" where `openLanguage` reads
+ * it, so sync never reads a cover; whether the phone wears one comes through `useAppCovered`, so an
+ * iPhone carries none of that code. Draws nothing and shows nothing.
  */
 export function useNearbyIdentity(props: NearbyIdentityProps): void {
   const { actorId, signedIn, orgId, orgPulled, languageId } = props;
-  const worn = useDisguise().look !== null;
+  const { worn } = useAppCovered();
   useEffect(() => { void refreshHoldChoice(worn); }, [worn]);
 
   const [revision, setRevision] = useState(() => nearbyFlag(actorId).revision);

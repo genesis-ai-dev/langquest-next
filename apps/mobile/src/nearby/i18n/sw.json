@@ -2,6 +2,7 @@
   "nearby": {
     "experimental": "Majaribio",
     "intro": "Inafanya kazi bila intaneti: sasisha simu za wenzako wa timu, au mpe mtu mpya programu na umruhusu ajiunge na timu.",
+    "introTeammates": "Inafanya kazi bila intaneti: sasisha simu za wenzako wa timu.",
     "withTeammates": "Na wenzako wa timu",
     "withTeammatesLine": "Simu ambazo tayari zina LangQuest zinasasishana. Acha hii wazi hadi iseme Imesasishwa.",
     "newPerson": "Mtu mpya",
@@ -33,9 +34,12 @@
       "nearbyAndLocation": "Android itauliza mara mbili: kutafuta vifaa vilivyo karibu, kisha kwa ajili ya mahali, ambayo Wi-Fi Direct inahitaji. LangQuest hairekodi ulipo.",
       "nearbyDevices": "Android itaomba kuruhusu LangQuest itafute na iunganishe na vifaa vilivyo karibu. Inatumia hii tu wakati skrini hii iko wazi.",
       "precise": "Android imetoa mahali pa takriban tu, na Wi-Fi Direct inahitaji mahali kamili ili kuunganisha. LangQuest bado hairekodi ulipo.",
+      "bluetooth": "iPhone yako itaomba kuruhusu LangQuest itumie Bluetooth kutafuta simu za wenzako wa timu. Inatumia hii tu wakati skrini hii iko wazi. Simu zikiunganishwa, inaweza pia kuomba kutafuta vifaa kwenye mtandao wako wa karibu na kujiunga na Wi-Fi ya mwenzako. Ruhusu hivyo pia, ili rekodi ziweze kupita.",
       "settings": "Android haitauliza tena. Fungua mipangilio ya programu hii, kisha Ruhusa, na uruhusu Vifaa vilivyo karibu au Mahali.",
+      "settingsIphone": "iPhone yako haitauliza tena. Fungua mipangilio ya programu hii na uwashe Bluetooth, na pia Mtandao wa Karibu (Local Network) ikiwa upo.",
       "allow": "Endelea",
       "allowHelp": "Huonyesha swali la Android. Chagua Ruhusu ili kushiriki na wenzako wa timu walio karibu.",
+      "allowHelpIphone": "Huonyesha swali la iPhone yako. Chagua Ruhusu (Allow) ili kushiriki na wenzako wa timu walio karibu.",
       "openSettings": "Fungua mipangilio",
       "openSettingsHelp": "Hufungua ukurasa wa programu hii kwenye mipangilio ya simu yako, ambapo unaweza kuiruhusu."
     },
@@ -65,6 +69,7 @@
     },
     "connect": "Unganisha",
     "connectHelp": "Huunganisha na simu hii. Itumie wakati mwenzako yuko karibu lakini simu hazijapatana.",
+    "connectHelpAll": "Huunganisha na simu zote za wenzako zilizo karibu ambazo hazijaipata hii. Mguso mmoja unatosha kwa wote hadi utoke kwenye skrini hii.",
     "came": {
       "title": "Kilichopita kati ya simu",
       "changesIn": "Mabadiliko yaliyopokelewa: {{n}}",
@@ -84,6 +89,7 @@
     },
     "clockOff": "Saa ya simu ya mwenzako na ya simu hii zinatofautiana kwa zaidi ya dakika tano. Angalia tarehe na saa kwenye simu zote mbili.",
     "newerApp": "Simu ya mwenzako inahitaji toleo jipya zaidi la programu ili kushiriki na hii. Sasisha programu kutoka dukani, au pata toleo jipya kutoka kwa mwenzako.",
+    "newerAppIphone": "Simu ya mwenzako inahitaji toleo jipya zaidi la programu ili kushiriki na hii. Sasisha programu kutoka dukani.",
     "apkOld": "Faili ya kusakinisha uliyopata ni ya toleo la zamani. Pata mpya kabla hujakosa intaneti.",
     "tooOld": "Programu hii ni ya zamani mno kushiriki. Isasishe kutoka dukani.",
     "farAhead": "Simu ya {{name}} ina tarehe ya mbali sana mbeleni. Kazi yake inasubiri hadi ifike kwenye seva.",

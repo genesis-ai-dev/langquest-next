@@ -4,14 +4,16 @@
 // the app and joins the team from this phone. Opened from Sync while the organization has it on;
 // labelled experimental (section 5.10). The radios
 // run only while this screen is open and on screen (useNearby, `radiosMayRun`); nothing here asks
-// Android for anything until a button is pressed. A phone that wears a cover waits for a press,
+// the phone for anything until a button is pressed. A phone that wears a cover waits for a press,
 // and its own words stay in src/disguise/i18n behind NearbyCoverNotes (decision 171 as amended).
 // Joining without internet (14.1) adds Let someone in, from here, and the new phone's progress
-// screen, a guest screen from Scan a code; both are app only and labelled experimental. Get the
-// install file (14.4), from here and from Let someone in, is the job done online before a trip,
-// apart from Let someone in's in the field.
-// Not split by platform: only Android offers the way in (NearbyRow.android.tsx), and elsewhere
-// useNearby says it is not in this build. Loads the first time it is opened (lazyScreens.tsx).
+// screen, a guest screen from Scan a code; both are app only, Android only for now, and labelled
+// experimental. Get the install file (14.4), from here and from Let someone in, is the job done
+// online before a trip, apart from Let someone in's in the field.
+// Not split by platform: a phone offers the way in (NearbyRow.native.tsx), and on the web useNearby
+// says it is not in this build. On an iPhone (section 7's phase 5) the joining and install file
+// hooks are their plain stubs, so A new person never shows, and words that would name Android or
+// the install file come from `phoneWords`. Loads the first time it is opened (lazyScreens.tsx).
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LetInCode } from '../nearby/LetInCode';
@@ -29,7 +31,8 @@ import { useNearby } from '../nearby/useNearby';
 import type { NearbyActions, NearbySessionLine, NearbyTeammate, NearbyView } from '../nearby/nearbyRunModel';
 import type { ReadyToCarry } from '../nearby/readyToCarryModel';
 import {
-  endedWords, linesShown, PERMISSION_WORDS, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS, WHY_NOT_WORDS, type NearbyStage
+  connectHelp, endedWords, linesShown, PERMISSION_WORDS, phoneWords, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS, WHY_NOT_WORDS,
+  type NearbyStage
 } from '../nearby/shareNearbyModel';
 import type { Ctx } from '../shell/ctx';
 import { LetInCoverNote } from '../shell/LetInCoverNote';
@@ -52,7 +55,7 @@ export function ShareNearby(ctx: Ctx) {
   const look = usePerson();
   /** A person by name and picture; someone this phone cannot put a name to is "A teammate" (5.8). */
   const who = (profileId: string | null) => (profileId ? ctx.name(profileId) : t('nearby.aTeammate'));
-  const main = mainAction(stage, actions);
+  const main = mainAction(stage, view, actions);
   const apk = useCarriedApk();
   return (
     <Screen header={<Header title={t('screens.share_nearby')} onBack={ctx.back} />}
@@ -63,7 +66,7 @@ export function ShareNearby(ctx: Ctx) {
           <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{t('screens.share_nearby')}</Text>
           <Badge label={t('nearby.experimental')} tone="amber" />
         </View>
-        <Text style={txt.sm}>{t('nearby.intro')}</Text>
+        <Text style={txt.sm}>{t(phoneWords(view).intro)}</Text>
       </Card>
       <Job label={t('nearby.withTeammates')} line={t('nearby.withTeammatesLine')} />
       <StageCard stage={stage} view={view} actions={actions} who={who} />
@@ -126,9 +129,9 @@ function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean }) {
   );
 }
 
-/** The one main thing to do now, as a 56 pt button: Continue to Android's question, Open settings, or Look again. */
-function mainAction(stage: NearbyStage, actions: NearbyActions): { label: string; icon: IconName; help: string; onPress: () => void } | null {
-  if (stage.t === 'permission') return { label: t('nearby.permission.allow'), icon: 'arrowR', help: t('nearby.permission.allowHelp'), onPress: () => { void actions.askPermissions(); } };
+/** The one main thing to do now, as a 56 pt button: Continue to the phone's question, Open settings, or Look again. */
+function mainAction(stage: NearbyStage, view: NearbyView, actions: NearbyActions): { label: string; icon: IconName; help: string; onPress: () => void } | null {
+  if (stage.t === 'permission') return { label: t('nearby.permission.allow'), icon: 'arrowR', help: t(phoneWords(view).allowHelp), onPress: () => { void actions.askPermissions(); } };
   if (stage.t === 'settings') return { label: t('nearby.permission.openSettings'), icon: 'settings', help: t('nearby.permission.openSettingsHelp'), onPress: () => { void actions.openSettings(); } };
   if (stage.t === 'stopped') return { label: t('nearby.lookAgain'), icon: 'search', help: t('nearby.lookAgainHelp'), onPress: actions.lookAgain };
   return null;
@@ -166,7 +169,7 @@ function StageCard(props: { stage: NearbyStage; view: NearbyView; actions: Nearb
     case 'permission':
       return <Banner icon="info" title={t(PERMISSION_WORDS[stage.reason])} />;
     case 'settings':
-      return <Banner icon="lock" tone="amber" title={t(PERMISSION_WORDS.settings)} />;
+      return <Banner icon="lock" tone="amber" title={t(phoneWords(view).settings)} />;
     case 'stopped': {
       const words = STOP_WORDS[stage.why];
       return (
@@ -220,7 +223,7 @@ function Warnings(props: { ctx: Ctx; view: NearbyView }) {
   const { view, ctx } = props;
   const lines = [
     ctx.language.tooOld ? t('nearby.tooOld') : null,
-    view.newerAppNeeded ? t('nearby.newerApp') : null,
+    view.newerAppNeeded ? t(phoneWords(view).newerApp) : null,
     view.clockOff ? t('nearby.clockOff') : null,
     ...view.farAhead.map((f) => t('nearby.farAhead', { name: ctx.name(f.actorId) }))
   ].filter((l): l is string => l !== null);
@@ -238,7 +241,7 @@ function Warnings(props: { ctx: Ctx; view: NearbyView }) {
 }
 
 function Teammates(props: { view: NearbyView; actions: NearbyActions; who: (p: string | null) => string; look: ReturnType<typeof usePerson> }) {
-  const shown = teammatesShown(props.view.teammates);
+  const shown = teammatesShown(props.view.teammates, props.view.tapCoversAll);
   if (shown.length === 0) return null;
   return (
     <>
@@ -252,7 +255,7 @@ function Teammates(props: { view: NearbyView; actions: NearbyActions; who: (p: s
               <Row label={m.state === 'maybe' ? state : name} sub={m.state === 'maybe' ? undefined : state} last={i === shown.length - 1}
                 accessibilityLabel={m.state === 'maybe' ? state : `${name}, ${state}`}
                 leading={<PersonAvatar look={m.profileId ? props.look(m.profileId) : personLook(m.tag)} size={40} />}
-                right={m.state === 'maybe' ? <SmallBtn label={t('nearby.connect')} help={t('nearby.connectHelp')} onPress={() => props.actions.tap(m.tag)} /> : undefined} />
+                right={m.state === 'maybe' ? <SmallBtn label={t('nearby.connect')} help={t(connectHelp(props.view))} onPress={() => props.actions.tap(m.tag)} /> : undefined} />
             </HelpRow>
           );
         })}

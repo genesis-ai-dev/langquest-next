@@ -9,33 +9,35 @@ import { noteExpected } from '../diagnostics/report';
 import type { NativeCapabilities } from '../../modules/nearby-link';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
-import { currentHoldChoice } from './holdChoice.android';
-import { pressHoldChoice } from './nearbyIdentity.android';
-import { nearbyRadio } from './nearbyLink.android';
-import { carryFactsOf, type StoredCarryFacts } from './nearbyCarry.android';
+import { currentHoldChoice } from './holdChoice.native';
+import { pressHoldChoice } from './nearbyIdentity.native';
+import { nearbyRadio } from './nearbyLink.native';
+import { carryFactsOf, type StoredCarryFacts } from './nearbyCarry.native';
+import { copySourceOf } from './nearbyCopySource';
 import { nearbyBlockedOf } from './nearbyDiagModel';
 import { holdByDefault, radiosMayRun } from './nearbyModel';
-import { androidSdk, askingForNearby, askNearbyPermissions, checkNearbyPermissions, openNearbySettings } from './nearbyPermissions.android';
+import { askingForNearby, askNearbyPermissions, checkNearbyPermissions, openNearbySettings, phoneSystem } from './nearbyPermissions';
 import {
   afterPrompt, permissionsStateOf, permissionStepOf, radiosOffOf, unavailableReasonOf, type PermissionAnswers
 } from './nearbyPermissionsModel';
-import { nearbyDiagFor, nearbyNamesOf, nearbyOfferedFor, nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.android';
-import { copySourceOf } from './nearbyJoin.android';
+import { nearbyDiagFor, nearbyNamesOf, nearbyOfferedFor, nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
 import {
   NEARBY_PROGRESS_MS, NEARBY_RUN_START, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, nearbyRunReducer, nearbyViewOf, startWithin, type NearbyHandle, type NearbyWhyNot
 } from './nearbyRunModel';
 import { readyToCarryOf } from './readyToCarryModel';
 
 /**
- * Share nearby on an Android phone (docs/nearby-sync-plan.md 5.8, 5.11, 5.12). It builds the
- * room for the open language from the phone's identity pieces (nearbyRun.android.ts) and runs it
- * only while `radiosMayRun` says so: focused, on screen, not covered, not stopped, and on a phone
- * that wears a cover, pressed. Every start asks the gate again after each await. A `blur` or the
- * background stops it; on a phone with no cover it resumes from the vector, and on one that wears
- * a cover the lock clears the press, so only a new press restarts it. The room's own stops (idle,
- * the run limit, "Up to date" on a worn phone) latch until Look again, reopening the screen, or a
- * press. Keep-awake follows the room, under its own tag. Progress stays in this hook's state,
- * read by Share nearby alone, never in `ctx`. It hands the screen plain data and draws nothing.
+ * Share nearby on an Android phone or an iPhone (docs/nearby-sync-plan.md 5.8, 5.11, 5.12, and
+ * section 7's phase 5). It builds the room for the open language from the phone's identity pieces
+ * (nearbyRun.native.ts) and runs it only while `radiosMayRun` says so: focused, on screen, not
+ * covered, not stopped, and on a phone that wears a cover, pressed. Every start asks the gate again
+ * after each await. A `blur` or the background stops it; on a phone with no cover it resumes from
+ * the vector, and on one that wears a cover the lock clears the press, so only a new press restarts
+ * it. The room's own stops (idle, the run limit, "Up to date" on a worn phone) latch until Look
+ * again, reopening the screen, or a press. Keep-awake follows the room, under its own tag. Progress
+ * stays in this hook's state, read by Share nearby alone, never in `ctx`. It hands the screen plain
+ * data and draws nothing. The permission rules are the phone's own (nearbyPermissions.android.ts,
+ * nearbyPermissions.ios.ts), and only Android serves a newcomer's starting copy (nearbyCopySource).
  */
 
 const KEEP_AWAKE = 'nearby-share';
@@ -71,7 +73,7 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   const [stored, setStored] = useState<StoredCarryFacts | null>(null);
   const wornRef = useRef(worn);
   wornRef.current = worn;
-  const sdk = androidSdk();
+  const { os, sdk } = phoneSystem();
 
   /** Ready to carry's facts from the store: on opening, after each session and at "Up to date" (5.8). */
   const nearbyLanguage = language.nearby;
@@ -95,10 +97,13 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   const focused = useFocus(useCallback(() => { dispatch({ t: 'reopened', worn: wornRef.current }); refresh(); }, [refresh]));
 
   // The background stops the radios, but not a permission prompt or the hotspot's join dialog on a phone with no cover (5.8).
+  // An iPhone's system prompts (Bluetooth, Local Network, a Wi-Fi join) and Control Center leave the app `inactive`, still on
+  // screen; only `background` is leaving. Android never says `inactive`.
   const [onScreen, setOnScreen] = useState(() => AppState.currentState === 'active');
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') { setOnScreen(true); refresh(); return; }
+      if (state === 'inactive') return;
       if (!wornRef.current && (askingForNearby() || radio?.joiningHotspot())) return;
       setOnScreen(false);
     });
@@ -115,13 +120,15 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   }), [radio, diag]);
 
   const whyNot: NearbyWhyNot | null = readOnly ? 'read-only'
-    : unavailableReasonOf(facts, radio !== null, sdk) ?? (facts === null || offered === null ? 'loading' : offered ? null : 'no-certificate');
-  const radiosOff = useMemo(() => radiosOffOf(facts), [facts]);
-  const state = permissionsStateOf(sdk, answers);
+    : unavailableReasonOf(facts, radio !== null, sdk, os) ?? (facts === null || offered === null ? 'loading' : offered ? null : 'no-certificate');
+  const radiosOff = useMemo(() => radiosOffOf(facts, os), [facts, os]);
+  const state = permissionsStateOf(sdk, answers, os);
   const step = useMemo(
-    () => permissionStepOf({ sdk, answers, worn, warned: run.warned, firstPress: !run.warnedOnce }),
-    [sdk, answers, worn, run.warned, run.warnedOnce]
+    () => permissionStepOf({ sdk, os, answers, worn, warned: run.warned, firstPress: !run.warnedOnce }),
+    [sdk, os, answers, worn, run.warned, run.warnedOnce]
   );
+  // An iPhone's advert goes out alone: one tap covers every teammate it cannot get an echo from (Carl's answer 26).
+  const tapCoversAll = facts?.scanResponse === false;
   const permissions = useMemo(() => ({ state, step }), [state, step]);
 
   // Diagnostics hear once per reason while the screen is open why it cannot run, never who.
@@ -190,7 +197,7 @@ export function useNearby(ctx: Ctx): NearbyHandle {
         lastProgress.current = now;
         dispatch({ t: 'progress', report: r });
       };
-      // Any teammate whose read gate passes a newcomer's chain sends a starting copy, on the same versions (14.1, 4).
+      // Any teammate whose read gate passes a newcomer's chain sends a starting copy, on the same versions (14.1, 4): on Android; an iPhone has none.
       const copy = copySourceOf({ actorId, language: open.client, org: orgClient.current() });
       room = nearbyRoomOf({ radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn, report, progress, copy });
       held.current = { room, ticker: null };
@@ -232,12 +239,14 @@ export function useNearby(ctx: Ctx): NearbyHandle {
     const got = await askNearbyPermissions(step.permissions);
     // The continuation asks the gate by drawing again with what was granted.
     setAnswers((before) => afterPrompt(before, got));
-  }, [step]);
+    // An iPhone says whether Bluetooth is on only once Bluetooth is allowed.
+    radio?.facts().then(setFacts).catch((e: unknown) => noteExpected('nearby: capabilities', e));
+  }, [step, radio]);
 
   const actions = useMemo(() => ({
     press: () => dispatch({ t: 'press', worn }),
     lookAgain: () => dispatch({ t: 'look-again', worn }),
-    tap: (tag: string) => { held.current?.room.tap(tag); dispatch({ t: 'tapped', tag }); },
+    tap: (tag: string) => { held.current?.room.tap(tag); dispatch({ t: 'tapped', tag, all: tapCoversAll }); },
     warned: () => dispatch({ t: 'warned' }),
     askPermissions,
     openSettings: openNearbySettings,
@@ -245,7 +254,7 @@ export function useNearby(ctx: Ctx): NearbyHandle {
       await pressHoldChoice(next, worn);
       setHoldShown(next);
     }
-  }), [worn, askPermissions]);
+  }), [worn, askPermissions, tapCoversAll]);
 
   const members = useMemo(() => [...languagePeople(org.state, languageId).keys()], [org.state, languageId]);
   const carry = useMemo(() => readyToCarryOf({
@@ -256,14 +265,15 @@ export function useNearby(ctx: Ctx): NearbyHandle {
     batches: stored?.batches ?? [], pulledUnshared: stored?.pulledUnshared ?? false, lastOnlineMs: stored?.lastOnlineMs ?? null, ...(stored?.onServer ? { onServer: stored.onServer } : {})
   }), [actorId, members, present, run.teammates, hold, run.sessions, run.farAhead, stored]);
 
+  const iphone = os === 'ios';
   const view = useMemo(
-    () => nearbyViewOf({ offered: offered === true, whyNot, radiosOff, permissions, worn, run, holding, hold, carry }),
-    [offered, whyNot, radiosOff, permissions, worn, run, holding, hold, carry]
+    () => nearbyViewOf({ offered: offered === true, iphone, tapCoversAll, whyNot, radiosOff, permissions, worn, run, holding, hold, carry }),
+    [offered, iphone, tapCoversAll, whyNot, radiosOff, permissions, worn, run, holding, hold, carry]
   );
   return useMemo(() => ({ view, actions }), [view, actions]);
 }
 
-/** For the Sync screen's row: whether to show Share nearby, and why it is disabled (5.8, Carl's answer 7). Starts nothing. */
+/** For the Sync screen's row: whether to show Share nearby, and why it is disabled (5.8, Carl's answer 7). Starts nothing and asks nothing. */
 export function useNearbyOffered(ctx: Ctx): { offered: boolean; whyNot: NearbyWhyNot | null } {
   const radio = nearbyRadio();
   const { actorId, readOnly } = ctx.session;
@@ -276,6 +286,7 @@ export function useNearbyOffered(ctx: Ctx): { offered: boolean; whyNot: NearbyWh
     nearbyOfferedFor(actorId, orgId, languageId).then((o) => { if (live) setOffered(o); }).catch((e: unknown) => noteExpected('nearby: offered', e));
     return () => { live = false; };
   }, [radio, actorId, orgId, languageId]);
-  const whyNot: NearbyWhyNot | null = readOnly ? 'read-only' : unavailableReasonOf(facts, radio !== null, androidSdk());
+  const { os, sdk } = phoneSystem();
+  const whyNot: NearbyWhyNot | null = readOnly ? 'read-only' : unavailableReasonOf(facts, radio !== null, sdk, os);
   return useMemo(() => ({ offered, whyNot }), [offered, whyNot]);
 }

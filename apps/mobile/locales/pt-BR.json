@@ -1,6 +1,8 @@
 {
   "ios": {
     "NSMicrophoneUsageDescription": "O LangQuest grava a sua voz para traduzir passagens.",
-    "NSCameraUsageDescription": "O LangQuest usa a câmera para ler códigos QR de convite."
+    "NSCameraUsageDescription": "O LangQuest usa a câmera para ler códigos QR de convite.",
+    "NSBluetoothAlwaysUsageDescription": "O LangQuest usa o Bluetooth para encontrar os celulares dos seus colegas por perto e compartilhar o trabalho com eles.",
+    "NSLocalNetworkUsageDescription": "O LangQuest usa a rede local para compartilhar o trabalho com os celulares dos seus colegas por perto."
   }
 }

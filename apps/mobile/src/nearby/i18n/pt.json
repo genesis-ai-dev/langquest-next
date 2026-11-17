@@ -2,6 +2,7 @@
   "nearby": {
     "experimental": "Experimental",
     "intro": "Funciona sem internet: atualize os celulares dos colegas de equipe, ou dê o app a uma pessoa nova e deixe-a entrar na equipe.",
+    "introTeammates": "Funciona sem internet: atualize os celulares dos colegas de equipe.",
     "withTeammates": "Com colegas de equipe",
     "withTeammatesLine": "Celulares que já têm o LangQuest se atualizam entre si. Deixe isto aberto até aparecer Atualizado.",
     "newPerson": "Uma pessoa nova",
@@ -33,9 +34,12 @@
       "nearbyAndLocation": "O Android vai perguntar duas vezes: para encontrar dispositivos por perto e depois para a localização, de que o Wi-Fi Direct precisa. O LangQuest não registra onde você está.",
       "nearbyDevices": "O Android vai pedir para deixar o LangQuest encontrar dispositivos por perto e se conectar a eles. Ele usa isso só enquanto esta tela está aberta.",
       "precise": "O Android deu só a localização aproximada, e o Wi-Fi Direct precisa da localização exata para se conectar. O LangQuest continua sem registrar onde você está.",
+      "bluetooth": "O iPhone vai pedir para deixar o LangQuest usar o Bluetooth para encontrar os celulares dos colegas. Ele usa isso só enquanto esta tela está aberta. Quando os celulares se conectarem, ele também pode pedir para encontrar dispositivos na sua rede local e para entrar no Wi-Fi de um colega. Permita isso também, para que as gravações possam passar.",
       "settings": "O Android não vai perguntar de novo. Abra as configurações deste app, depois Permissões, e permita Dispositivos por perto ou Localização.",
+      "settingsIphone": "O iPhone não vai perguntar de novo. Abra as configurações deste app e ative o Bluetooth, e também a Rede Local, se aparecer.",
       "allow": "Continuar",
       "allowHelp": "Mostra a pergunta do Android. Escolha Permitir para compartilhar com colegas por perto.",
+      "allowHelpIphone": "Mostra a pergunta do iPhone. Escolha Permitir para compartilhar com colegas por perto.",
       "openSettings": "Abrir configurações",
       "openSettingsHelp": "Abre a página deste app nas configurações do celular, onde você pode permitir."
     },
@@ -65,6 +69,7 @@
     },
     "connect": "Conectar",
     "connectHelp": "Conecta a este celular. Use quando um colega estiver por perto, mas os celulares não tiverem se encontrado.",
+    "connectHelpAll": "Conecta a todos os celulares de colegas por perto que ainda não encontraram este. Um toque vale para todos até você sair desta tela.",
     "came": {
       "title": "O que foi trocado",
       "changesIn": "Mudanças recebidas: {{n}}",
@@ -84,6 +89,7 @@
     },
     "clockOff": "O relógio de um colega e o deste celular estão diferentes em mais de cinco minutos. Confira a data e a hora nos dois celulares.",
     "newerApp": "O celular de um colega precisa de uma versão mais nova do app para compartilhar com este. Atualize o app pela loja ou pegue a versão mais nova com um colega.",
+    "newerAppIphone": "O celular de um colega precisa de uma versão mais nova do app para compartilhar com este. Atualize o app pela loja.",
     "apkOld": "O arquivo de instalação que você pegou é de uma versão anterior. Pegue o novo antes de ficar sem internet.",
     "tooOld": "Este app é antigo demais para compartilhar. Atualize pela loja.",
     "farAhead": "O celular de {{name}} está com uma data muito no futuro. O trabalho dessa pessoa espera até chegar ao servidor.",

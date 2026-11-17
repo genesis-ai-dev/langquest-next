@@ -5,7 +5,7 @@ import { fakeWorker } from '../../../packages/sync/src/testing/memoryNearbyLink'
 /**
  * The path from the shell to the certificate call, drawn as the app draws it (App.tsx `OrgWork`,
  * src/sync/SyncEffects.tsx): `useGlobalViewer` reads get_user_state and hands it to the nearby flag,
- * and `useNearbyIdentity.android` asks the Worker once the organization is pulled and the flag says
+ * and `useNearbyIdentity.native` asks the Worker once the organization is pulled and the flag says
  * nearby is on, in either order. React is a small stand-in here (state, refs, effects after the
  * draw, a draw again on a state change), since the app's own tests render no components; the
  * Keystore, the device store, get_user_state and the certificate call are faked, as in
@@ -91,13 +91,15 @@ const fake = vi.hoisted(() => ({
 vi.mock('react', () => ({ useState: react.useState, useRef: react.useRef, useEffect: react.useEffect, useMemo: react.useMemo, useCallback: react.useCallback }));
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 vi.mock('expo-crypto', () => ({ getRandomBytes: (n: number) => new Uint8Array(randomBytes(n)), randomUUID: () => randomUUID() }));
-vi.mock('../src/server/secureStorage', () => ({
-  secureStorage: {
+// One Keychain or Keystore: the install key's device-only entries sit beside the rest.
+vi.mock('../src/server/secureStorage', () => {
+  const kv = {
     getItem: async (k: string) => fake.secure.get(k) ?? null,
     setItem: async (k: string, v: string) => { fake.secure.set(k, v); },
     removeItem: async (k: string) => { fake.secure.delete(k); }
-  }
-}));
+  };
+  return { secureStorage: kv, deviceOnlyStorage: kv };
+});
 vi.mock('../src/storage/store', () => ({ getStore: async () => fake.store }));
 vi.mock('expo-file-system', () => ({ File: class {}, Paths: { availableDiskSpace: 0 } }));
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -114,10 +116,11 @@ vi.mock('../src/server/account', () => ({
 vi.mock('../src/server/auth', () => ({ onAuthChange: () => () => {} }));
 vi.mock('../src/server/globalViewer', () => ({}));
 vi.mock('../src/i18n', () => ({ t: (key: string) => key }));
-vi.mock('../src/disguise/useDisguise', () => ({ useDisguise: () => ({ look: null }) }));
-// The Android files, as Metro gives them to the Android files.
-vi.mock('../src/server/nearbyKey', () => import('../src/server/nearbyKey.android'));
-vi.mock('../src/nearby/holdChoice', () => import('../src/nearby/holdChoice.android'));
+// A phone with no cover; whether it wears one comes only through this seam, so an iPhone carries no cover code.
+vi.mock('../src/shell/useAppCovered', () => ({ useAppCovered: () => ({ covered: false, worn: false }) }));
+// A phone's files, as Metro gives them to the phone's files.
+vi.mock('../src/server/nearbyKey', () => import('../src/server/nearbyKey.native'));
+vi.mock('../src/nearby/holdChoice', () => import('../src/nearby/holdChoice.native'));
 vi.mock('../src/diagnostics/report', () => ({
   noteExpected: (where: string, e: unknown) => { fake.noted.push(`${where}: ${e instanceof Error ? e.message : String(e)}`); },
   failureMessage: () => 'failed'
@@ -135,9 +138,9 @@ const org = {
 async function load() {
   vi.resetModules();
   vi.stubEnv('EXPO_PUBLIC_NEARBY_CERT_KEYS', `k1:${worker.rootKeys.get('k1')}`);
-  const { useNearbyIdentity } = await import('../src/nearby/useNearbyIdentity.android');
+  const { useNearbyIdentity } = await import('../src/nearby/useNearbyIdentity.native');
   const { useGlobalViewer } = await import('../src/account/useGlobalViewer');
-  const phone = await import('../src/nearby/nearbyPhone.android');
+  const phone = await import('../src/nearby/nearbyPhone.native');
   return { useNearbyIdentity, useGlobalViewer, phone };
 }
 

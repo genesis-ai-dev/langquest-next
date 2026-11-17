@@ -4503,6 +4503,16 @@ the app (`src/nearby/nearbyCryptoModel.ts`, `@noble/curves` and
 `nearbyClient`, and `LanguageSession`'s `client` option passes `nearby` on
 to its `SyncClient`.
 
+Amended (2026-11-16, Carl Sauder): iPhones share nearby too (254), so a
+phone's own file imports the nearby entries: `.native` (Android and
+iPhones), `.android` or `.ios` (`nearbyOnPhones` in `eslint.config.mjs`), each
+with a plain stub beside it, which only the web bundle takes. What a phone
+offers only on Android (joining offline, the install file, the disguise)
+stays in `.android` files, so an iPhone gets their plain stubs, and no
+`.native` file names a `.android` one (`apps/mobile/test/nearbyIphone.test.ts`).
+An iPhone's permission prompt is `src/nearby/nearbyPermissions.ios.ts`,
+beside Android's.
+
 ## 105. In `apps/mobile`, server calls live in `src/server/`, logic outside screens, and folders by feature
 
 Date: 2026-10-14 · By: Carl Sauder · Status: accepted
@@ -11980,6 +11990,19 @@ iCloud backup nor a move to a new iPhone carries, so a restored iPhone makes a
 new key as a restored Android does. The key file is now `.native`, for both
 phones; the web still has none.
 
+Amended (2026-11-16, Carl Sauder): on an iPhone the key is in the Keychain
+after the first unlock and for this device only
+(`AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY`, `deviceOnlyStorage` in
+`apps/mobile/src/server/secureStorage.ts`), as the sessions are after the
+first unlock, so a read while the phone is locked does not find it missing
+and replace it. An iPhone's Keychain also outlives the app, unlike Android's
+Keystore, so a reinstalled app would find the old key with none of the
+batches it numbered, and teammates would skip the new ones under the same
+numbers. So the app's own storage marks the key this install made, and a key
+without the mark is replaced (`nearbyKey.native.ts`). A restore onto the same
+iPhone brings back both, with an older count, which is answer 2's known
+weakness as on Android.
+
 ## 218. The Worker signs one certificate per person and organization, naming that organization alone
 
 Date: 2026-11-12 · By: Carl Sauder · Status: accepted
@@ -12529,6 +12552,19 @@ teammates", and a record's History one line for a row still nearby.
 Reverse if: the experiment ends (then the badge goes, and admins may get the
 toggle), or people miss teammates because the screen stopped (then the idle
 limit moves).
+
+Amended (2026-11-16, Carl Sauder): it shows on iPhones too (254); only the
+web is without it. On an iPhone it is disabled only without the module or
+Bluetooth LE: no Android version is compared with an iPhone's iOS version,
+and an iPhone has no Wi-Fi Direct and needs none. Bluetooth is the one
+prompt an iPhone can ask ahead, after the screen's line saying why, which
+also names the Local Network prompt and the Wi-Fi join that come when the
+phones connect; a refusal sends the person to the app's settings, since iOS
+asks once. Bluetooth off counts only once Bluetooth is allowed, and
+Location never does. A system prompt leaves an iPhone app `inactive`, which
+is not leaving the screen, so the radios stop only in the background. The
+screen's words name neither Android nor the install file on an iPhone, and A
+new person never shows there.
 
 ## 233. The web app may take 3.94 MB on a first visit and 4.92 MB in all, for nearby sync
 
@@ -13321,3 +13357,14 @@ UUID in its scan response (then it sends Find whole and the taps go), iPhones
 cannot join an Android's hotspot or group reliably, or `awdl` is too slow or
 too unreliable between iPhones (then Wi-Fi Aware, or Bluetooth alone for
 events).
+
+Amended (2026-11-16, Carl Sauder): in the app, an iPhone's `arrange` says
+`awdl` and `joinDirect` as its module does, `joinDirect` only while
+`NEARBY_RADIO_TUNABLES.joinDirect` allows it, so an update can turn it off if
+the real-phone test finds it does not hold (`radiosFor`,
+`apps/mobile/src/nearby/nearbyRunModel.ts`). The screen shows one "A
+teammate may be nearby" for every teammate an iPhone cannot get an echo
+from, since its one tap covers them all; a phone known only by its salt has
+no name and shows as "A teammate". An iPhone does not serve a newcomer's
+starting copy, which stays with joining offline on Android
+(`src/nearby/nearbyCopySource.ts` and `.android`).

@@ -3,7 +3,7 @@ import { nearbyKeepOf } from '@langquest-next/sync/nearby';
 import { installKey } from '../server/nearbyKey';
 import { getStore } from '../storage/store';
 import type { NearbyLanguage } from '../sync/useLanguage';
-import { nearbyNamesOf } from './nearbyRun.android';
+import { nearbyNamesOf } from './nearbyRun.native';
 import { wallOf, type CarryFacts } from './readyToCarryModel';
 
 /**
