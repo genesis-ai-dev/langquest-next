@@ -443,12 +443,38 @@ Not tried against the real services yet (no keys were at hand): Play's
 rates are read as fractions (0.0109 is 1.09%), and the first real answer
 should confirm it.
 
+## History: totals by hour and day
+
+Raw records and job runs stay 90 days. For a range past that, and so that a
+year opens as fast as a day at any number of phones, a pg_cron job
+(`langquest-daily-totals`, every 10 minutes, `diag.daily_fill`, decisions.md
+254) counts them into totals: `diag.hourly` (the hour now and the one before,
+kept 14 days) and `diag.daily` (today and yesterday once an hour, kept for all
+time). One row is one number of one part for one key (a platform, a job, an
+error, a route; `''` is the total) and one day. A number keeps its 30 largest
+keys a day and adds the rest up as `_other`. No key is an install, a person, a
+name or an email. Each run also fills two days and 24 hours that were never
+counted, newest first, so the 90 days of raw records are counted within a few
+hours of the migration. `diag.daily_metrics` says how a week or a month adds
+each number up: a count is summed, a level (phones that reported, a size, a
+p95) shows its busiest day. The numbers and their words are
+`apps/admin/src/sources/history.ts` `METRICS`.
+
+`GET /ops/api/<part>?range=24h|14d|90d|1y|all` answers one part's numbers in
+buckets of an hour, a day, a day, a week and a month, from the totals only
+(`diag.ops_series`): each number's total and its 10 largest keys over the
+range, one value a bucket, and `counted`, whether each bucket was counted yet
+(null is not counted; 0 is counted with none). `server/dailyTotalsSmoke.sql`
+holds what a day holds; `server/dailyTotalsLoad.sql`, run by hand, times it
+with 40,000 installs and 3 years of totals.
+
 ## Not built yet
 
 - iOS crash counts: App Store Connect gives them only as daily analytics
   reports, which have to be requested once and read the next day.
-- History past what `diag` keeps (90 days of runs and records): a daily
-  rollup, phase 5 of `docs/ops-dashboard-plan.md`.
+- Pictures over a range of days on the page. The totals they read are
+  built (below); the start page and its pictures come next
+  (`docs/ops-dashboard-plan.md` 7).
 - Telling anyone: the page shows problems to whoever opens it; nothing
   sends them (`OpsWatch`, phase 5).
 - Container time in Capacity and cost: Cloudflare's public analytics do not

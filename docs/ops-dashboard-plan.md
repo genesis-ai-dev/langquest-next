@@ -162,6 +162,31 @@ one new migration per phase. Almost all of it reads what is recorded
 already; the few things that must be recorded first say so, and none of
 them is collected from people or their phones.
 
+### 5.0 How the page shows it (2026-11-17)
+
+Caleb picked the start page "What needs you first" on 2026-11-17 (decisions.md
+254), with three conditions: every other number stays reachable for 14 days
+and more, any square, bar or point opens the technical detail behind it, and
+the pictures keep working at tens of thousands of people and over years. So:
+
+- **The start page** shows a count of what needs a person, one card for each
+  alert (its picture, a "Next:" line and its actions), grouped as Needs you,
+  Claude works on it, Waits on Apple or Google, and Watch. Every part with no
+  alert is one OK line with a small picture. The levels in 5.1 stay.
+- **A part** opens from its card or its OK line, with all its pictures and a
+  range: 24 h, 14 days, 90 days, 1 year, All (by hour, day, day, week, month).
+- **A tap on a square, bar or point** opens that bucket's records, ids and
+  codes, read from the raw records inside 90 days and as totals past that.
+- **Scale**: a thing with a fixed count (suites, jobs, videos, stores,
+  Workers) keeps one square each; a thing that grows with people (phones,
+  browsers, people, organizations) becomes a share, one square 1% past 200;
+  events become counts per bucket; a list shows its top 10, then Show all, a
+  table the server pages. The start page never draws a mark for each person
+  or install.
+- **History** comes from totals by hour and day, never from raw records
+  (section 7, phase 5): `diag.hourly` and `diag.daily`, read by
+  `GET /ops/api/<part>?range=`, built first (`docs/admin.md`, History).
+
 ### 5.1 Needs attention (built, extended)
 
 The alerts from every section, problems first. New: each alert links to the
@@ -432,6 +457,10 @@ changes an organization stay in the CLIs, run on a call.
 | 3 | New reads: the extensions in 5.2 to 5.7 and sections 5.10 to 5.13, with one migration of `diag` functions; `/ops/api/attention`. The few things recorded first land here too: the projection pass's upload-delay and clock-skew numbers, the fold canary, the request tally's duration buckets and `rate_limited` classes, and `account_delete` runs. Several pull requests, one per group, so each can be reviewed alone | phase 1 |
 | 4 | Actions (section 6) and `ops.actions` | phase 2, its decision |
 | 5 | History and telling people: a daily rollup (`diag.daily`, by pg_cron) for trends past 7 days, and the `OpsWatch` Durable Object (section 11.4), which sends a problem to Slack or Linear when it stays for 15 minutes | phase 3 |
+| 5a | **Built (2026-11-17)**: totals by hour (`diag.hourly`, 14 days) and by day (`diag.daily`, all time), filled every 10 minutes by pg_cron (`langquest-daily-totals`), and `GET /ops/api/<part>?range=24h\|14d\|90d\|1y\|all` (decisions.md 254) | phase 3 |
+| 5b | The start page "What needs you first" (5.0), each part's pictures over a range, and the detail panel for a bucket (`/ops/api/<part>/detail`, raw records, 90 days at most) | 5a merged |
+| 5c | The remaining parts' pictures | 5b merged |
+| 5d | `OpsWatch` (section 11.4) | phase 3 |
 
 Each phase is one pull request, with the guardrails green (`--web` for
 phase 1, since it touches the app Worker; `--all` for phases with a
