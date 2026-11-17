@@ -344,7 +344,7 @@ every 48 hours; some countries block YouTube.
 ## The help page's link
 
 In help mode a play button at the foot's left opens Watch on YouTube and
-Download for the screen's video (decision 257, LAN-244): the video of the
+Download for the screen's video (docs/decisions/2026-11-17-help-page-tutorial-video-links.md, LAN-244): the video of the
 app's language, for this build. Nothing shows when none fits. The Worker's
 `/api/tutorial-links?lang=` lists the language's chosen videos, and
 `pickTutorialLink` (`packages/core/src/tutorialLinks.ts`) chooses.

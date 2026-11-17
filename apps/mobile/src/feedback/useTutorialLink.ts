@@ -18,7 +18,7 @@ const asked = new Map<string, Promise<LinkVideo[] | null>>();
 /**
  * The video for `screen` in the app's language and this build, with its
  * download and watch links; null while it loads, when none fits, or offline:
- * then nothing shows (decision 257).
+ * then nothing shows (docs/decisions/2026-11-17-help-page-tutorial-video-links.md).
  */
 export function useTutorialLink(screen: string): { download: string; watch: string | null } | null {
   const language = currentLanguage();

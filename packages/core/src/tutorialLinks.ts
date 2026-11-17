@@ -1,7 +1,7 @@
 /**
  * Which tutorial video the help page offers for a screen (LAN-244). Pure: the
  * app and the Worker hand it what they know, it says which video, if any.
- * When nothing fits, nothing shows (Caleb's choice, decision 257): no English
+ * When nothing fits, nothing shows (Caleb's choice, docs/decisions/2026-11-17-help-page-tutorial-video-links.md): no English
  * stand-in, no list, no warning.
  */
 
