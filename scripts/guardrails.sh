@@ -5,7 +5,9 @@
 #   npm run guardrails            the `checks` job: typecheck, the unit suite
 #                                 with coverage, the worker bundle parity
 #   npm run guardrails -- --web   also the release web export and its size
-#                                 budget (what web-smoke and ui-web build first)
+#                                 budget (the production export, which
+#                                 web-smoke builds first and Workers Builds
+#                                 deploys)
 #   npm run guardrails -- --all   also the server job and the P0 web UI tests
 #                                 against the local stack (needs Docker; starts
 #                                 it with npm run db:start if it is down)
@@ -74,8 +76,11 @@ echo "yes"
 
 [ "$level" = checks ] && { printf '\nchecks: passed\n'; exit 0; }
 
+# The production export, as Workers Builds builds it: its settings make it
+# bigger than the development export the UI tests serve, which they build
+# again for the local stack (e2e/export-web.sh).
 step "Release web export and its size budget"
-npm run --silent export:web -w mobile -- development
+npm run --silent export:web -w mobile -- production
 
 [ "$level" = web ] && { printf '\nchecks and web export: passed (web-smoke and ui-web still run only with --all or in CI)\n'; exit 0; }
 

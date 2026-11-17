@@ -88,7 +88,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Two fitness functions (decisions.md 58): the JavaScript a first visit
 // downloads (the files index.html loads), and all of it (every chunk, loaded
 // or not). They were one number until screens were split into chunks that
-// load when opened (src/shell/lazyScreens.tsx).
+// load when opened (src/shell/lazyScreens.tsx). The production export is the
+// one held to them: Workers Builds builds it, and its settings make it about
+// 500 bytes bigger than the development export the tests serve, so CI's
+// web-smoke and `npm run guardrails -- --web` build it too (decision 123).
 // 4.8 MB when this was set (catalog data, study texts, the map's shapes); a
 // rise past it is a change someone should notice, not drift. Raised to 6 MB
 // with localization (decision 81): the app's words moved from the code into
@@ -175,7 +178,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // the same words and rows' model as the first visit's raise below, which every chunk counts too.
 // Raised by 2 KB with the app lock (Caleb Koster, 2026-11-16, LAN-255), 35 bytes past then with main
 // merged in (the Map's download card, LAN-253): the first visit's raise below, which every chunk counts too.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 120 * 1024;
+// Raised by 1 KB when nearby sync on iPhones (Carl, 2026-11-17, decision 256) merged with main: the
+// production export came out 437 bytes past and Workers Builds refused to deploy it, though the
+// development export CI measured then was 59 bytes under. CI now measures the production export.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 121 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
