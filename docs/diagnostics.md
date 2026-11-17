@@ -86,7 +86,7 @@ under GDPR-style rules it is still personal data. What keeps it proportionate:
   for the whole fleet, by platform, job, error kind or route, never by
   install or person; its counts every 10 minutes keep two small tables for
   each install (`diag.install_updates`, 90 days, and `diag.install_device`,
-  7 days, decisions.md 256), which go with the install and lose what a
+  7 days, decisions.md 257), which go with the install and lose what a
   deleted account's records said;
 - readable only by the `diag_reader` role and the database owner, never by
   the app's API roles;
@@ -176,7 +176,7 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   `rows` counted, every 10 minutes in the database, `diag.daily_fill`,
   decision 254), the ops dashboard's phone counts (`ops_counts`: `updates`
   and `devices` added, `clientsMs` and `fleetMs`, every 10 minutes in the
-  database, `diag.ops_cache_fill`, decision 256), each account deletion
+  database, `diag.ops_cache_fill`, decision 257), each account deletion
   (`account_delete`, written by `_delete_account` with no id at all), the
   Worker's job tick (`job_starts`: jobs started, found running, switched
   off, or that could not start), push delivery

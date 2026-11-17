@@ -2,6 +2,7 @@
   "nearby": {
     "experimental": "Experimental",
     "intro": "Works without the internet: bring teammates' phones up to date, or give a new person the app and let them join the team.",
+    "introTeammates": "Works without the internet: bring teammates' phones up to date.",
     "withTeammates": "With teammates",
     "withTeammatesLine": "Phones that already have LangQuest bring each other up to date. Keep this open until it says Up to date.",
     "newPerson": "A new person",
@@ -33,9 +34,12 @@
       "nearbyAndLocation": "Android will ask twice: to find nearby devices, then for location, which Wi-Fi Direct needs. LangQuest does not record where you are.",
       "nearbyDevices": "Android will ask to let LangQuest find and connect to nearby devices. It uses this only while this screen is open.",
       "precise": "Android gave only approximate location, and Wi-Fi Direct needs precise location to connect. LangQuest still does not record where you are.",
+      "bluetooth": "Your iPhone will ask to let LangQuest use Bluetooth to find teammates' phones. It uses this only while this screen is open. When the phones connect, it may also ask to find devices on your local network and to join a teammate's Wi-Fi. Allow those too, so recordings can come across.",
       "settings": "Android will not ask again. Open this app's settings, then Permissions, and allow Nearby devices or Location.",
+      "settingsIphone": "Your iPhone will not ask again. Open this app's settings and turn on Bluetooth, and Local Network if it is there.",
       "allow": "Continue",
       "allowHelp": "Shows Android's question. Choose Allow to share with teammates nearby.",
+      "allowHelpIphone": "Shows your iPhone's question. Choose Allow to share with teammates nearby.",
       "openSettings": "Open settings",
       "openSettingsHelp": "Opens this app's page in your phone's settings, where you can allow it."
     },
@@ -65,6 +69,7 @@
     },
     "connect": "Connect",
     "connectHelp": "Connects to this phone. Use it when a teammate is nearby but the phones have not found each other.",
+    "connectHelpAll": "Connects to every teammate's phone nearby that has not found this one. One tap covers them all until you leave this screen.",
     "came": {
       "title": "What came across",
       "changesIn": "Changes received: {{n}}",
@@ -84,6 +89,7 @@
     },
     "clockOff": "A teammate's clock and this phone's differ by more than five minutes. Check the date and time on both phones.",
     "newerApp": "A teammate's phone needs a newer version of the app to share with this one. Update the app from the store, or get the newer version from a teammate.",
+    "newerAppIphone": "A teammate's phone needs a newer version of the app to share with this one. Update the app from the store.",
     "apkOld": "The install file you got is for an older version. Get the new one before you go offline.",
     "tooOld": "This app is too old to share. Update it from the store.",
     "farAhead": "{{name}}'s phone has a date far in the future. Their work waits until it reaches the server.",

@@ -2,6 +2,7 @@
   "nearby": {
     "experimental": "Expérimental",
     "intro": "Fonctionne sans Internet : mettez à jour les téléphones de vos coéquipiers, ou donnez l’application à une nouvelle personne et laissez-la rejoindre l’équipe.",
+    "introTeammates": "Fonctionne sans Internet : mettez à jour les téléphones de vos coéquipiers.",
     "withTeammates": "Avec vos coéquipiers",
     "withTeammatesLine": "Les téléphones qui ont déjà LangQuest se mettent à jour entre eux. Gardez ceci ouvert jusqu’à ce qu’il affiche À jour.",
     "newPerson": "Une nouvelle personne",
@@ -33,9 +34,12 @@
       "nearbyAndLocation": "Android va demander deux fois : pour trouver les appareils à proximité, puis pour la localisation, dont Wi-Fi Direct a besoin. LangQuest n’enregistre pas où vous êtes.",
       "nearbyDevices": "Android va demander d’autoriser LangQuest à trouver les appareils à proximité et à s’y connecter. Il s’en sert seulement pendant que cet écran est ouvert.",
       "precise": "Android n’a donné que la localisation approximative, et Wi-Fi Direct a besoin de la localisation précise pour se connecter. LangQuest n’enregistre toujours pas où vous êtes.",
+      "bluetooth": "Votre iPhone va demander d’autoriser LangQuest à utiliser le Bluetooth pour trouver les téléphones de vos coéquipiers. Il s’en sert seulement pendant que cet écran est ouvert. Quand les téléphones se connectent, il peut aussi demander à trouver des appareils sur votre réseau local et à rejoindre le Wi-Fi d’un coéquipier. Autorisez-les aussi, pour que les enregistrements puissent passer.",
       "settings": "Android ne demandera plus. Ouvrez les réglages de cette application, puis Autorisations, et autorisez Appareils à proximité ou Localisation.",
+      "settingsIphone": "Votre iPhone ne demandera plus. Ouvrez les réglages de cette application et activez Bluetooth, ainsi que Réseau local s’il y figure.",
       "allow": "Continuer",
       "allowHelp": "Affiche la question d’Android. Choisissez Autoriser pour partager avec les coéquipiers à proximité.",
+      "allowHelpIphone": "Affiche la question de votre iPhone. Choisissez Autoriser pour partager avec les coéquipiers à proximité.",
       "openSettings": "Ouvrir les réglages",
       "openSettingsHelp": "Ouvre la page de cette application dans les réglages du téléphone, où vous pouvez l’autoriser."
     },
@@ -65,6 +69,7 @@
     },
     "connect": "Se connecter",
     "connectHelp": "Se connecte à ce téléphone. Utilisez-le quand un coéquipier est à proximité mais que les téléphones ne se sont pas trouvés.",
+    "connectHelpAll": "Se connecte à tous les téléphones de coéquipiers à proximité qui n’ont pas trouvé celui-ci. Un seul appui suffit pour tous jusqu’à ce que vous quittiez cet écran.",
     "came": {
       "title": "Ce qui a été échangé",
       "changesIn": "Modifications reçues : {{n}}",
@@ -84,6 +89,7 @@
     },
     "clockOff": "L’horloge d’un coéquipier et celle de ce téléphone diffèrent de plus de cinq minutes. Vérifiez la date et l’heure sur les deux téléphones.",
     "newerApp": "Le téléphone d’un coéquipier a besoin d’une version plus récente de l’application pour partager avec celui-ci. Mettez à jour l’application depuis le store, ou obtenez la version récente auprès d’un coéquipier.",
+    "newerAppIphone": "Le téléphone d’un coéquipier a besoin d’une version plus récente de l’application pour partager avec celui-ci. Mettez à jour l’application depuis le store.",
     "apkOld": "Le fichier d’installation que vous avez obtenu est pour une version plus ancienne. Obtenez le nouveau avant d’être sans internet.",
     "tooOld": "Cette application est trop ancienne pour partager. Mettez-la à jour depuis le store.",
     "farAhead": "Le téléphone de {{name}} a une date très en avance. Son travail attend d’arriver au serveur.",

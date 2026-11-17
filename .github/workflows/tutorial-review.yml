@@ -100,7 +100,7 @@ jobs:
       - name: Claude looks
         id: look
         if: env.HAS_CLAUDE_TOKEN == 'true'
-        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
@@ -120,7 +120,7 @@ jobs:
       - name: Claude mends the look
         id: mend
         if: steps.check.outputs.problems == 'yes'
-        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
@@ -259,7 +259,7 @@ jobs:
           fi
           echo "$video ($language): pictures $(ls .tutorial-fix/pictures 2>/dev/null | wc -l), film files $(ls .tutorial-fix/film 2>/dev/null | wc -l), status $(test -f .tutorial-fix/status.json && echo yes || echo no)"
       - name: Claude makes the change
-        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
@@ -391,7 +391,7 @@ jobs:
           cp "$RUNNER_TEMP/fix/fix.patch" .tutorial-vet/fix.patch
       - name: A second Claude reads the change
         if: steps.patch.outputs.yes == 'true'
-        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}

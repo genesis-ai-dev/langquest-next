@@ -1,6 +1,6 @@
 -- The ops dashboard's two reads that grow with phones, "What installs
 -- report" and "Builds in the field", counted every 10 minutes so the page
--- reads them at once at any number of phones (decisions.md 256).
+-- reads them at once at any number of phones (decisions.md 257).
 --
 -- At 40,000 installs with a week of records (8.4 million), the page's own
 -- SQL for them took 19 s and 33 s and hit the 15 s statement limit: each

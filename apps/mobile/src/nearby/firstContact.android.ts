@@ -9,7 +9,7 @@ import { installKey } from '../server/nearbyKey';
 import { afterJoin, firstContactStep, joinAnswerOf, tokenSubject, type FirstContactBlock } from '../session/firstContactModel';
 import { membershipOf, type LocalPerson } from '../session/localPersonModel';
 import { nobleSha256, signWith } from './nearbyCryptoModel';
-import { firstCertificate } from './nearbyIdentity.android';
+import { firstCertificate } from './nearbyIdentity.native';
 
 /**
  * A local person's first contact on an Android phone (docs/nearby-sync-plan.md 14.1, 6; the rules

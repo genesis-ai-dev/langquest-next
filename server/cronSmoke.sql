@@ -7,7 +7,7 @@
 -- migration before this file; it cleans up after itself. The Inbox purge
 -- (decision 122), the purge of cron's own run history, of comments copied
 -- from YouTube over 30 days old (186, amended) and of snapshots (204), and
--- the ops dashboard's daily totals (254) and its phone counts (256), need
+-- the ops dashboard's daily totals (254) and its phone counts (257), need
 -- no secret:
 -- their migrations schedule them, so a reset keeps them and so does the
 -- clean-up here. Push delivery calls the function only when

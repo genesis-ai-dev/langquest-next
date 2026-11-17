@@ -1,5 +1,5 @@
 -- The ops dashboard's phone counts (migration *_ops_phone_counts.sql,
--- decisions.md 256): diag.ops_clients() and diag.ops_fleet() answer what the
+-- decisions.md 257): diag.ops_clients() and diag.ops_fleet() answer what the
 -- page's own SQL answered before (kept below as it was), the small tables
 -- they read are kept up however often a record is counted, a count records
 -- its job run and holds no install id, the stuck phones and a deleted
@@ -10,7 +10,7 @@ begin;
 -- A count pg_cron starts now waits for this one.
 select pg_advisory_xact_lock(hashtext('diag.ops_cache_fill'));
 
--- The page's SQL before decision 256, word for word.
+-- The page's SQL before decision 257, word for word.
 create function pg_temp.old_clients() returns jsonb language sql stable as $old$
 with r as (
   select install_id, kind, received_at, n, t from diag.records where received_at > now() - interval '7 days'

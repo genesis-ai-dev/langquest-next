@@ -118,16 +118,23 @@ describe('the catalogs', () => {
     expect(readFileSync(join(ROOT, 'src/screens/nearby.tsx'), 'utf8')).toContain("import '../nearby/nearbyWords';");
   });
 
-  it('gives iOS the microphone and camera questions in each language (scripts/native-locales.mjs)', () => {
+  it('gives iOS the microphone, camera, Bluetooth and local network questions in each language (scripts/native-locales.mjs)', () => {
     const app = JSON.parse(readFileSync(join(ROOT, 'app.json'), 'utf8')).expo as { locales?: Record<string, string>; ios: { infoPlist: Record<string, string> } };
     const english = catalog('en').native as Tree;
     expect(app.ios.infoPlist.NSMicrophoneUsageDescription).toBe(english.microphone);
+    expect(app.ios.infoPlist.NSBluetoothAlwaysUsageDescription).toBe(english.bluetooth);
+    expect(app.ios.infoPlist.NSLocalNetworkUsageDescription).toBe(english.localNetwork);
     for (const lang of UI_LANGUAGES.filter((l) => l.code !== 'en')) {
       const name = ({ pt: 'pt-BR', tl: 'fil' } as Record<string, string>)[lang.code] ?? lang.code;
       expect(app.locales?.[name], name).toBe(`./locales/${name}.json`);
       const native = catalog(lang.code).native as Tree;
       expect(JSON.parse(readFileSync(join(ROOT, 'locales', `${name}.json`), 'utf8')), name)
-        .toEqual({ ios: { NSMicrophoneUsageDescription: native.microphone, NSCameraUsageDescription: native.camera } });
+        .toEqual({
+          ios: {
+            NSMicrophoneUsageDescription: native.microphone, NSCameraUsageDescription: native.camera,
+            NSBluetoothAlwaysUsageDescription: native.bluetooth, NSLocalNetworkUsageDescription: native.localNetwork
+          }
+        });
     }
   });
 

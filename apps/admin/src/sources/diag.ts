@@ -44,7 +44,7 @@ export interface Clients {
 /**
  * Every install together: the last day and week by when records arrived.
  * The database counts it every 10 minutes (diag.ops_cache_fill, decisions.md
- * 256), since at tens of thousands of installs a week of records takes
+ * 257), since at tens of thousands of installs a week of records takes
  * longer than the page may wait; `countedAt` says when.
  */
 export const CLIENTS_SQL = `select diag.ops_cached('clients') as v`;

@@ -1,10 +1,10 @@
 import { OfflineError } from '@langquest-next/sync';
 import type { NearbyLink, SeenPhone } from '@langquest-next/sync/nearby';
 import { NEARBY_DROP_CODES, type NativeCapabilities, type NearbyLinkEvents } from '../modules/nearby-link';
-import { NearbyNativeError, nearbyRadioOver, type NearbyBinding } from '../src/nearby/nearbyLink.android';
+import { NearbyNativeError, nearbyRadioOver, type NearbyBinding } from '../src/nearby/nearbyLink.native';
 
 /**
- * The nearby module as sync's radio and link (src/nearby/nearbyLink.android.ts; docs/nearby-sync-plan.md
+ * The nearby module as sync's radio and link (src/nearby/nearbyLink.native.ts; docs/nearby-sync-plan.md
  * 5.12): over a fake binding, every call rejects with `OfflineError` on a drop and names any other
  * code, events come up field for field, and links are kept by id with what `onLinkDown` said.
  */

@@ -78,7 +78,7 @@ export const quietAccountsOf = (row: QuietAccounts): QuietAccounts => ({ ...row,
 
 /**
  * Counted by the database every 10 minutes (diag.ops_cache_fill, decisions.md
- * 256), with the stuck phones read at once; `countedAt` says when.
+ * 257), with the stuck phones read at once; `countedAt` says when.
  */
 export const FLEET_SQL = `select diag.ops_cached('fleet') as v`;
 

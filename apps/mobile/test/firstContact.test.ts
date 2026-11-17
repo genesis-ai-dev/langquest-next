@@ -28,13 +28,15 @@ const fake = vi.hoisted(() => ({
 
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 vi.mock('expo-crypto', () => ({ getRandomBytes: (n: number) => new Uint8Array(randomBytes(n)), randomUUID: () => randomUUID() }));
-vi.mock('../src/server/secureStorage', () => ({
-  secureStorage: {
+// One Keychain or Keystore: the install key's device-only entries sit beside the rest.
+vi.mock('../src/server/secureStorage', () => {
+  const kv = {
     getItem: async (k: string) => fake.secure.get(k) ?? null,
     setItem: async (k: string, v: string) => { fake.secure.set(k, v); },
     removeItem: async (k: string) => { fake.secure.delete(k); }
-  }
-}));
+  };
+  return { secureStorage: kv, deviceOnlyStorage: kv };
+});
 vi.mock('../src/storage/store', () => ({ getStore: async () => fake.store, fileLedgerDriver: async () => { throw new Error('no ledger here'); } }));
 vi.mock('expo-file-system', () => ({ File: class {}, Paths: { availableDiskSpace: 0 } }));
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -52,8 +54,8 @@ vi.mock('../src/server/auth', () => ({
   }
 }));
 vi.mock('../src/server/localPerson', () => import('../src/server/localPerson.android'));
-vi.mock('../src/server/nearbyKey', () => import('../src/server/nearbyKey.android'));
-vi.mock('../src/nearby/holdChoice', () => import('../src/nearby/holdChoice.android'));
+vi.mock('../src/server/nearbyKey', () => import('../src/server/nearbyKey.native'));
+vi.mock('../src/nearby/holdChoice', () => import('../src/nearby/holdChoice.native'));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: (where: string, e: unknown) => { fake.noted.push(`${where}: ${e instanceof Error ? e.message : String(e)}`); } }));
 
 /** A Supabase access token for `sub`, as far as the phone reads one. */
@@ -63,7 +65,7 @@ const json = (status: number, body: unknown) => new Response(JSON.stringify(body
 async function load() {
   vi.resetModules();
   vi.stubEnv('EXPO_PUBLIC_API_URL', 'https://next.example');
-  const key = await import('../src/server/nearbyKey.android');
+  const key = await import('../src/server/nearbyKey.native');
   // By the name the app imports it under, so the test and the app share the one held record.
   const local = await import('../src/server/localPerson');
   const contact = await import('../src/nearby/firstContact.android');
