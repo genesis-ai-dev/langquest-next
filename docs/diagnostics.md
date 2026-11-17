@@ -162,7 +162,8 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   the nightly R2 check (`blob_reconcile`: `streams`, `objects`, `missing`,
   recordings the log holds and R2 lacks once the run has repaired what it
   can, `orphaned`, files R2 had that the log did not, `repaired`, files the
-  run copied to the file type the log names, `server/reconcileJob.ts`), the
+  run copied to the file type the log names, `unreadable`, copies that still
+  failed after two more tries, `server/reconcileJob.ts`), the
   snapshot purge (`snapshot_purge`: `snapshots`, `rows` and `staged`
   removed, every 10 minutes in the database, `ops.purge_snapshots`, decision
   204), each account deletion
