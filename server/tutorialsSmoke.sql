@@ -447,6 +447,75 @@ do $$ begin
   exception when check_violation then null;
   end;
 end $$;
+-- Pictures (decisions.md 186, amended 2026-11-17): a new suggestion keeps the pictures the look picked; a later
+-- look adds them to one that waits or has none, and pictures after its fix only once the fix is merged. It may
+-- say a waiting one's words again in plain words, never over an admin's edit. A list or words the table would
+-- refuse are skipped and counted, never the whole look.
+set local role service_role;
+do $$ declare r jsonb; v jsonb; p jsonb; q jsonb; s uuid; d uuid; e uuid; begin
+  p := jsonb_build_array(jsonb_build_object('picture', repeat('c', 64) || '.jpg', 'language', 'fr', 'tutorial', 'study-a-passage', 'kind', 'still', 'n', 14,
+    'at', 81.31, 'caption', 'The dark band starts in the middle of the words.', 'ring', jsonb_build_array(0.61, 0.38, 0.25, 0.35)));
+  q := jsonb_build_array(jsonb_build_object('picture', repeat('d', 64) || '.png', 'language', 'en', 'tutorial', 'record-a-passage', 'kind', 'step', 'n', 9,
+    'caption', 'Step 9. The button says Done.'));
+  r := public.ops_tutorial_reviewed(jsonb_build_object('sha', repeat('5', 40), 'runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/126',
+    'suggestions', jsonb_build_array(
+      jsonb_build_object('kind', 'screen', 'tutorial', 'study-a-passage', 'language', 'fr', 'title', 'Wait for the dark band', 'detail', 'd', 'inputs', '[]'::jsonb, 'pictures', p),
+      jsonb_build_object('kind', 'screen', 'tutorial', 'study-a-passage', 'title', 'Bad pictures', 'detail', 'd', 'inputs', '[]'::jsonb,
+        'pictures', jsonb_build_array(jsonb_build_object('picture', 'x.png'))))));
+  assert (r->>'suggested')::int = 2 and (r->>'skipped')::int = 1 and (r->>'pictured')::int = 0, 'both suggested, the bad pictures skipped: %', r;
+  v := (select x from jsonb_array_elements(public.ops_tutorial_review_state()->'suggestions') x where x->>'title' = 'Wait for the dark band');
+  assert v->'pictures' = p and v->'after' = '[]'::jsonb, 'a suggestion keeps its pictures: %', v;
+  s := (v->>'id')::uuid;
+  assert (select x->'pictures' from jsonb_array_elements(public.ops_tutorial_review_state()->'suggestions') x where x->>'title' = 'Bad pictures') = '[]'::jsonb, 'none kept';
+  e := (select (x->>'id')::uuid from jsonb_array_elements(public.ops_tutorial_review_state()->'suggestions') x where x->>'title' = 'Bad pictures');
+  assert public.ops_suggestion_decide(e, 'edited', 'An admin''s own words.', null, '0d000000-0000-0000-0000-0000000000aa')->>'result' = 'edited', 'an admin edits it';
+  d := (select (x->>'id')::uuid from jsonb_array_elements(public.ops_tutorial_review_state()->'suggestions') x where x->>'title' = 'Say Done');
+  assert public.ops_tutorial_fixed(d, 'open', 473, null, null) = 'ok' and public.ops_tutorial_fixed(d, 'merged', 473, null, null) = 'ok', 'its fix merged';
+  r := public.ops_tutorial_reviewed(jsonb_build_object('sha', repeat('6', 40), 'runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/127',
+    'pictures', jsonb_build_array(
+      jsonb_build_object('suggestion', s, 'when', 'now', 'pictures', q),
+      jsonb_build_object('suggestion', d, 'pictures', q),
+      jsonb_build_object('suggestion', d, 'when', 'after', 'pictures', p),
+      jsonb_build_object('suggestion', s, 'when', 'after', 'pictures', p),
+      jsonb_build_object('suggestion', d, 'when', 'now', 'pictures', p),
+      jsonb_build_object('suggestion', gen_random_uuid(), 'pictures', p),
+      jsonb_build_object('suggestion', s, 'pictures', '[]'::jsonb),
+      jsonb_build_object('suggestion', s, 'title', 'At the end, the screen is only half dark', 'detail', 'Picture 1 shows it.'),
+      jsonb_build_object('suggestion', e, 'title', 'Other words', 'detail', 'Other words.'),
+      jsonb_build_object('suggestion', d, 'title', 'Other words'),
+      jsonb_build_object('suggestion', s, 'title', repeat('x', 201)))));
+  assert (r->>'pictured')::int = 4 and (r->>'skipped')::int = 7,
+    'a waiting one''s pictures and words replaced, an answered one''s pictures added once, after only once merged; the rest skipped: %', r;
+  v := (select x from jsonb_array_elements(public.ops_tutorial_review_state()->'suggestions') x where (x->>'id')::uuid = s);
+  assert v->'pictures' = q and v->'after' = '[]'::jsonb, 'the waiting suggestion shows its new pictures: %', v;
+  assert v->>'title' = 'At the end, the screen is only half dark' and v->>'detail' = 'Picture 1 shows it.' and v->'editedAt' = 'null'::jsonb,
+    'and its words, said again in plain words, as no admin''s edit: %', v;
+  v := (select x from jsonb_array_elements(public.ops_tutorial_review_state()->'suggestions') x where (x->>'id')::uuid = e);
+  assert v->>'title' = 'Bad pictures' and v->>'detail' = 'An admin''s own words.', 'an admin''s edit is never written over: %', v;
+  v := (select x from jsonb_array_elements(public.ops_tutorial_review_state()->'suggestions') x where (x->>'id')::uuid = d);
+  assert v->'pictures' = q and v->'after' = p and v->>'title' = 'Say Done', 'the merged fix shows before and after, in its own words: %', v;
+end $$;
+reset role;
+set local role diag_reader;
+do $$ declare v jsonb; begin
+  v := (select x from jsonb_array_elements(diag.ops_tutorial_feedback()->'suggestions') x where x->>'title' = 'Say Done');
+  assert jsonb_array_length(v->'pictures') = 1 and v->'after'->0->>'caption' like 'The dark band%' and v->'after'->0->'ring' = '[0.61, 0.38, 0.25, 0.35]'::jsonb,
+    'the dashboard reads the pictures, before and after, with the ring: %', v;
+end $$;
+reset role;
+do $$ begin
+  begin
+    update ops.tutorial_suggestions set pictures = '[{"picture": "../x.png"}]'::jsonb where title = 'Say Done';
+    raise exception 'a picture with no hash';
+  exception when check_violation then null;
+  end;
+  begin
+    update ops.tutorial_suggestions set after_pictures = (select jsonb_agg(pictures->0) from generate_series(1, 7), ops.tutorial_suggestions where title = 'Say Done')
+      where title = 'Say Done';
+    raise exception 'seven pictures';
+  exception when check_violation then null;
+  end;
+end $$;
 set local role authenticated;
 do $$ begin
   begin

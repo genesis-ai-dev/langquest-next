@@ -113,6 +113,25 @@ label.check { display: inline-flex; gap: 6px; align-items: center; font-weight: 
 .vdet { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 4px 0 10px; background: var(--card); }
 .vdet .head { display: flex; gap: 8px; align-items: center; } .vdet .head b { flex: 1; } .vdet p { margin: 6px 0; }
 .vdet blockquote { margin: 6px 0; padding: 6px 10px; border-inline-start: 3px solid #2F80ED; background: var(--bg); border-radius: 6px; }
+/* Pictures of what a suggestion is about (pageOps.ts pictureStrip): numbered, ringed, with a caption under each. */
+.vpics { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 8px 0; }
+.vpicgroup { min-width: 0; } .vpichead { margin: 0 0 4px; font-weight: 600; }
+.vpicrow { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.vpic { margin: 0; max-width: 340px; }
+.vpicbox { position: relative; display: inline-block; line-height: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg); }
+.vpicbox img { display: block; max-width: 100%; max-height: 360px; width: auto; height: auto; }
+.vpicin { position: relative; display: block; }
+.vpic.zoom { width: 340px; max-width: 100%; }
+.vpicbox.zoom { display: block; width: 100%; aspect-ratio: 4 / 3; }
+.vpicbox.zoom .vpicin { position: absolute; left: 0; top: 0; width: 100%; }
+.vpicbox.zoom img { width: 100%; max-width: none; max-height: none; }
+.vpicbox.zoom:not(.ready) .vring { display: none; }
+.vring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.vring rect { fill: none; stroke: #E5484D; stroke-width: 4; vector-effect: non-scaling-stroke; }
+.vring rect.halo { stroke: #fff; stroke-width: 8; opacity: .9; }
+.vnum { position: absolute; top: 6px; inset-inline-start: 6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; background: #E5484D; color: #fff; font: 700 14px/24px system-ui, sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.vpic figcaption { font-size: 13px; line-height: 1.35; margin-top: 4px; }
+.vtech summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .vfilms { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; } .vfilms figure { margin: 0; } .vfilms video { width: 100%; border-radius: 8px; background: #000; }
 .vkey { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 6px 0; } .vkey span { display: inline-flex; gap: 4px; align-items: center; }
 /* Where each build and update is (sources/pipeline.ts): stages left to right, an arrow between, each build a card in its stage. */
