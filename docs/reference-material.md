@@ -185,7 +185,7 @@ material has. Web first; on a phone it edits text and records step audio.
 ## Upload your own Bible (USFM)
 
 An admin with Manage Reference opens **Setup → Reference Material → Add
-material → Upload Bible files** on the web (decisions.md 257, LAN-229).
+material → Upload Bible files** on the web (docs/decisions/2026-11-17-usfm-bibles-are-two-library-formats.md, LAN-229).
 
 1. **Files.** `.usfm`, `.sfm`, `.ptx` or `.txt` files, or one zip (opened in
    the browser; `src/usfm/zipModel.ts`). `checkUsfm` (`packages/core/src/usfm.ts`)
@@ -203,7 +203,7 @@ material → Upload Bible files** on the web (decisions.md 257, LAN-229).
    the live library from anywhere but the admin's own publish.
 
 The reading was checked against Aquilla's USFM importer and its sample files
-(decision 257, amended): `\v` is found anywhere in a line, milestones, notes,
+(docs/decisions/2026-11-17-usfm-bibles-are-two-library-formats.md, amended): `\v` is found anywhere in a line, milestones, notes,
 headings and Psalm titles stay out of the verse words, a file with several
 books is read as several, and UTF-16 files work.
 

@@ -33,4 +33,4 @@ GitHub ruleset with restricted file paths, so a routine cannot skip it.
 - `packages/core/src/events.ts`, `packages/core/src/record.ts`, `packages/core/src/validate.ts`
 - `apps/mobile/app.json`, `apps/mobile/eas.json`, `apps/mobile/modules/**`
 - `.github/**`, `apps/mobile/.eas/**`, `.githooks/**`
-- `.env*`, anything in `docs/decisions.md` that changes or supersedes an entry
+- `.env*`, anything in `docs/decisions/` that changes or supersedes a decision

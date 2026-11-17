@@ -1,4 +1,4 @@
-// Upload your own Bible (LAN-229, decision 257): what the admin fills in, what
+// Upload your own Bible (LAN-229, docs/decisions/2026-11-17-usfm-bibles-are-two-library-formats.md): what the admin fills in, what
 // is ready to publish, and the documents it becomes. Pure: no React Native.
 import { bookOrder, USFM_PARSER_VERSION, type UsfmBibleDoc, type UsfmBookDoc, type UsfmCheck } from '@langquest-next/core';
 

@@ -14,7 +14,7 @@ const needs = (...files: string[]) => JOBS.filter((job) => scopeFor(files)[job])
 
 describe('the jobs that changed files need', () => {
   it('a change to the decision log or the docs needs only checks', () => {
-    expect(needs('docs/decisions.md')).toEqual([]);
+    expect(needs('docs/decisions.md', 'docs/decisions/2026-11-17-one-file-per-decision.md')).toEqual([]);
     expect(needs('docs/testing.md', 'PLAN.md', 'AGENTS.md', 'apps/mobile/README.md')).toEqual([]);
   });
 

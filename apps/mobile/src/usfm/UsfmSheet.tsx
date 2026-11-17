@@ -1,4 +1,4 @@
-// Upload your own Bible (LAN-229, decision 257), from Setup → Reference
+// Upload your own Bible (LAN-229, docs/decisions/2026-11-17-usfm-bibles-are-two-library-formats.md), from Setup → Reference
 // Material on the web: an admin picks USFM files (or a zip of them), the app
 // checks each one and says in plain words what is wrong, then the admin names
 // the Bible and its language and publishes it as an organization library item.
