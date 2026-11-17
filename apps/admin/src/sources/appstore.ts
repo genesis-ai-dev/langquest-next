@@ -41,14 +41,14 @@ export function appStoreAlerts(a: AppStore): Alert[] {
   const out: Alert[] = [];
   const latest = a.versions[0];
   if (latest && REJECTED.has(latest.state) && latest.state !== 'DEVELOPER_REJECTED') {
-    out.push({ level: 'problem', text: `App Store: version ${latest.version} was ${latest.state.toLowerCase().replace(/_/g, ' ')} in review.` });
+    out.push({ level: 'problem', key: 'app-review-rejected', text: `App Store: version ${latest.version} was ${latest.state.toLowerCase().replace(/_/g, ' ')} in review.` });
   }
   const build = a.builds[0];
   if (build && (build.state === 'FAILED' || build.state === 'INVALID')) {
-    out.push({ level: 'problem', text: `App Store: the latest build ${build.version ?? ''}${build.build ? ` (${build.build})` : ''} is ${build.state.toLowerCase()} after processing.` });
+    out.push({ level: 'problem', key: 'app-build-invalid', text: `App Store: the latest build ${build.version ?? ''}${build.build ? ` (${build.build})` : ''} is ${build.state.toLowerCase()} after processing.` });
   }
-  if (a.testflightCrashes && a.testflightCrashes.week > 0) out.push({ level: 'watch', text: `TestFlight: testers sent ${a.testflightCrashes.week} crash report${a.testflightCrashes.week === 1 ? '' : 's'} in the last 7 days.` });
-  if (a.reviews && a.reviews.lowWeek > 0) out.push({ level: 'watch', text: `App Store: ${a.reviews.lowWeek} one- or two-star review${a.reviews.lowWeek === 1 ? '' : 's'} in the last 7 days.` });
+  if (a.testflightCrashes && a.testflightCrashes.week > 0) out.push({ level: 'watch', key: 'testflight-crashes', text: `TestFlight: testers sent ${a.testflightCrashes.week} crash report${a.testflightCrashes.week === 1 ? '' : 's'} in the last 7 days.` });
+  if (a.reviews && a.reviews.lowWeek > 0) out.push({ level: 'watch', key: 'app-store-low-reviews', text: `App Store: ${a.reviews.lowWeek} one- or two-star review${a.reviews.lowWeek === 1 ? '' : 's'} in the last 7 days.` });
   return out;
 }
 

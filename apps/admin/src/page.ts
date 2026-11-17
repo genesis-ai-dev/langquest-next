@@ -11,6 +11,8 @@ import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } 
 import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
 import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
+import { FIX_CSS, FIX_LOGIC, FIX_SCRIPT } from './pageFixes';
+import { KINDS } from './alertKinds';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
 
@@ -200,6 +202,7 @@ td button { white-space: nowrap; }
   .pa::before { content: '↓'; }
 }
 ${START_CSS}
+${FIX_CSS}
 ${LISTS_CSS}
 ${METERS_CSS}
 </style>
@@ -534,7 +537,7 @@ function attention() {
   for (const g of SECTIONS) for (const part of g.parts) {
     const s = results[part];
     if (!s) continue;
-    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, link: a.link, where: g.title, id: g.id });
+    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, link: a.link, where: g.title, id: g.id, alert: a });
     if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + s.error, where: g.title, id: g.id });
   }
   const loading = PARTS.filter((p) => !results[p]).length;
@@ -545,7 +548,7 @@ function attention() {
   el.textContent = top ? LEVELS.filter((l) => c[l] > 0).map((l) => LEVEL[l].count(c[l])).join(', ') : loading ? 'Checking…' : 'All clear';
   // A link only to https pages: an alert's link comes from what a workflow wrote (apps/admin/src/sources/github.ts).
   const fix = (i) => String(i.link || '').startsWith('https://') ? ' <a href="' + esc(i.link) + '" target="_blank" rel="noopener">Open</a>' : '';
-  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + fix(i) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button></span></li>';
+  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + fix(i) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button>' + fixHtml(i.alert, true) + '</span></li>';
   $('attention-list').innerHTML = items.length
     ? LEVELS.map((l) => {
       const at = items.filter((i) => (i.level in LEVEL ? i.level : 'watch') === l);
@@ -929,6 +932,10 @@ const METRIC = ${JSON.stringify(METRICS).replace(/</g, '\\u003c')};
 const GLANCE = ${JSON.stringify(GLANCE)};
 ${START_LOGIC}
 ${START_SCRIPT}
+// ---- each line's Linear issue and fix, and the lines resolved (pageFixes.ts) ----
+const KINDS = ${JSON.stringify(KINDS).replace(/</g, '\\u003c')};
+${FIX_LOGIC}
+${FIX_SCRIPT}
 ${LISTS_LOGIC}
 ${METERS_LOGIC}
 ${LISTS_SCRIPT}
@@ -942,6 +949,7 @@ async function load(fresh) {
   for (const k of Object.keys(results)) delete results[k];
   for (const k of Object.keys(histories)) delete histories[k];
   glanceData = null;
+  fixData = null;
   const here = view();
   if (here.name === 'group') renderHist(here.id);
   for (const s of SECTIONS) if (s.id !== 'lookup') { const p = $('pill-' + s.id); p.className = 'pill wait'; p.textContent = 'Loading…'; }
@@ -953,7 +961,10 @@ async function load(fresh) {
     api('/ops/api/ops' + q).then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); }).catch(fail(${JSON.stringify(OPS_IDS)})),
     ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id]))),
     // The start page's pictures: without them it still shows every card and line.
-    api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {})
+    api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {}),
+    // The pull requests that name a line's Linear issue: without them each line still shows its issue.
+    api('/ops/api/fixes' + q).then((d) => { fixData = d; renderStart(); attention(); })
+      .catch((err) => { fixData = { state: 'error', error: err.message }; renderStart(); })
   ];
   await Promise.all(jobs);
   $('checked').textContent = 'Checked ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
