@@ -21,7 +21,7 @@ import { releasesSection } from './sources/releases';
 import { adoptionSection } from './sources/adoption';
 import { pipelineSection } from './sources/pipeline';
 import { capacitySection, storageSection } from './sources/storage';
-import { history, isRange, PART_IDS, RANGES } from './sources/history';
+import { detail, detailAsk, glance, history, isRange, PART_IDS, RANGES } from './sources/history';
 
 /**
  * The ops dashboard (docs/admin.md, decisions.md 160): the page at
@@ -142,6 +142,26 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (!isRange(range)) return json({ error: `range is one of ${RANGES.join(', ')}` }, 400);
     try {
       return json(await withDiag(diagConnection(env), (query) => history(query, section, range)));
+    } catch (e) {
+      return json({ error: errorText(e) }, 502);
+    }
+  }
+  // The start page's 14 days of each section's number, in one call (decisions.md 254).
+  if (section === 'glance') {
+    try {
+      return json(await withDiag(diagConnection(env), glance));
+    } catch (e) {
+      return json({ error: errorText(e) }, 502);
+    }
+  }
+  // The raw rows behind one bucket of one number, 50 at a time, 90 days at most (sources/history.ts).
+  const tapped = /^([a-z0-9_]{1,40})\/detail$/.exec(section);
+  if (tapped) {
+    if (!PART_IDS.has(tapped[1]!)) return json({ error: 'Not found' }, 404);
+    const ask = detailAsk(tapped[1]!, url.searchParams);
+    if ('error' in ask) return json(ask, 400);
+    try {
+      return json(await withDiag(diagConnection(env), (query) => detail(query, ask)));
     } catch (e) {
       return json({ error: errorText(e) }, 502);
     }
