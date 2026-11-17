@@ -110,4 +110,4 @@ block in `docs/play-store-declarations.md` lists it. A new field must be a measu
 never something a person typed or said. Add a signal and a test in
 `scripts/diagSignals.ts` if the field answers a question. Anything that
 would identify a person, or record content, is a new decision
-(`docs/decisions.md`), not a field.
+(`docs/decisions/`), not a field.
