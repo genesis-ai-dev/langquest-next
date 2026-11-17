@@ -1,26 +1,18 @@
 {
  "kind": "needs_you",
- "ask": "Can you get Carl's OK, merge the pull request, and paste the setup line?",
- "problem": "Many changes run at once and clash. Your Mac runs only 3 or 4 threads. Since Oct 1, 54 merges of main clashed. 41 of them clashed only in the decisions file.",
- "found": "Yes. Changes all added decisions to one shared file, so they clashed. Now each new decision is its own file. Old decisions 1 to 253 stay put. Coding threads also move to Claude's cloud.",
- "changed": "I merged main in and moved the closing decision number to 253. The cloud setup still works. Fast checks pass.",
- "why": "Separate files never clash. I could also have named files by pull request number, but that needs a rename later. Carl's OK is needed because it changes how the team writes decisions.",
- "touches": "Open changes that add a numbered decision must move it into its own file after this merges.",
+ "ask": "Can you merge the pull request and paste the setup line?",
+ "problem": "Many changes run at once and clash. Your Mac runs only 3 or 4 threads at a time.",
+ "found": "Main already gave each decision its own file, so that half of this pull request is done. What is left is running coding threads on Claude's cloud machines.",
+ "changed": "I merged main in and dropped the duplicate decision work. This pull request now adds only the cloud setup. Fast checks pass.",
+ "why": "Two versions of one file per decision would clash. I kept main's and dated the cloud decision today. Carl's OK is no longer needed for this pull request.",
+ "touches": "Nothing else. Old pull request 255 is now redundant.",
  "pictures": [
   {
-   "file": "before.png",
-   "label": "Before: one shared decisions file"
-  },
-  {
    "file": "after.png",
-   "label": "After: one file per new decision"
+   "label": "What this pull request is now"
   }
  ],
  "steps": [
-  {
-   "text": "Ask Carl to approve one file per decision",
-   "link": "https://github.com/genesis-ai-dev/langquest-next/pull/372"
-  },
   {
    "text": "Merge pull request 372 once checks are green",
    "link": "https://github.com/genesis-ai-dev/langquest-next/pull/372"
