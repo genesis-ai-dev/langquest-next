@@ -30,8 +30,9 @@
    "link": "https://github.com/genesis-ai-dev/langquest-next/pull/255"
   },
   {
-   "text": "Paste the setup line from pull request 372 into the cloud environment's setup script box",
-   "link": "https://github.com/genesis-ai-dev/langquest-next/pull/372"
+   "text": "Copy the setup line, then paste it into the cloud environment's setup script box",
+   "link": "https://claude.ai/code",
+   "command": "printf '%s' 'bash langquest-next/scripts/cloud-setup.sh --snapshot || true' | pbcopy"
   }
  ],
  "links": [
