@@ -1,9 +1,8 @@
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ownTempDirs, sweepTempDirs, testTempDir } from '../../../../scripts/testTempDirs';
 
 /**
  * A phone keeps a big language's passages on its disk and holds only the
@@ -44,15 +43,22 @@ function run(args: string[], heapMb?: number): Promise<{ status: number | null; 
   });
 }
 
+/** The language's folder, which every case's child reads and writes (scripts/testTempDirs.ts). */
+const TEMP = 'kept-heap';
 let dir = '';
 
 describe('a phone holds a big language kept on disk inside a small heap', { timeout: 150_000 }, () => {
   beforeAll(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'kept-heap-'));
+    // What a run that was itself killed left behind goes first; a run going on beside this one keeps its own.
+    sweepTempDirs(TEMP);
+    dir = testTempDir(TEMP);
     const prepared = await run(['prepare', dir, String(PASSAGES), String(RECORDINGS)]);
     expect(prepared.out?.ok, prepared.stderr).toBe(true);
   }, 150_000);
-  afterAll(() => { if (dir) rmSync(dir, { recursive: true, force: true }); });
+  afterAll(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+    expect(ownTempDirs(TEMP)).toEqual([]);
+  });
 
   it('a first download from the server snapshot', async () => {
     const r = await run(['open', dir, String(PASSAGES), String(RECORDINGS), 'kept', 'snapshot'], HEAP_MB);
