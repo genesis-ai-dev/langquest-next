@@ -45,3 +45,12 @@ new tag in pull requests. Decided:
 
 Reverse if: the team stops naming the Linear issue in pull requests (then the
 fix needs another link), or Linear stops being where problems are tracked.
+
+Amended (2026-11-17, Caleb Koster): a line that names several Linear issues
+(a nightly suite with several failed tests) shows each issue's own fix under
+it. One issue's pull request is not the line's fix: the page called PR 396
+(LAN-158) the fix for a suite whose other tests were LAN-156 (no fix) and
+LAN-248 (PR 409). Such a line waits after a merge only when every issue has
+a merged fix; else it says how many of its issues have one. A pull request
+names only the issues it fixes or is part of, because the page reads every
+id in its title and text as a fix (the rule is in AGENTS.md).

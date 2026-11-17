@@ -490,7 +490,9 @@ the pull requests open or merged in the last 14 days that name a `LAN-` id.
 Under each line the page shows its issue and one state: no Linear issue yet,
 no fix yet, a fix waiting on its merge, a fix merged with the time the line
 should clear (merge, 30 minutes to deploy, the check's window, then its next
-run, in the viewer's clock), or still there after that check. A card whose
+run, in the viewer's clock), or still there after that check. A line that
+names several issues (a nightly suite) lists each issue's own fix, and says
+how many of them have one. A card whose
 lines all wait after a merged fix goes last, dashed, and the count leaves it
 out. **Resolved**, closed by default under the cards, lists the lines tied
 to Linear in the last 14 days that the page no longer shows; only a part

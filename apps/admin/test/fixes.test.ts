@@ -11,7 +11,7 @@ import { fixesSection, fixPrs, FIX_DAYS, namedIssues } from '../src/sources/fixe
 // should clear (docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md).
 
 type Row = { key: string; verdict: string; issue: string | null; issueUrl?: string | null; state?: string | null; closedAt?: string | null; fixedBy?: number | null; fixedAt?: string | null; lookedAt?: string };
-type Fix = { state: string; key: string; issues: string[]; at?: number; from?: number; pr?: { number: number | null }; phones: boolean };
+type Fix = { state: string; key: string; issues: string[]; at?: number; from?: number; pr?: { number: number | null }; phones: boolean; fixed?: number; each?: (Fix & { issue: string })[] };
 type Line = { key: string; level?: string; subject?: string; watchKey?: string; issues?: string[]; recheck?: Record<string, unknown> };
 
 /** The page's own logic, as it runs there (pageFixes.ts FIX_LOGIC). */
@@ -122,6 +122,24 @@ describe('a line\'s state, from its Linear issue and the pull requests that name
     expect(logic.lineFix({ key: 'nightly-failed', subject: 'Web UI suite', issues: ['LAN-260'] }, kinds, ud([]), [pr(9, 'open', ['LAN-260'])], NOW)).toMatchObject({ state: 'open', issues: ['LAN-260'] });
     const records = ud([], [{ issue: 'LAN-224', verdict: 'filed', keys: ['error:TypeError@passage:-'] }]);
     expect(logic.lineFix({ key: 'app-crash', subject: 'TypeError in passage', watchKey: 'error:TypeError@passage:-' }, kinds, records, [], NOW)).toMatchObject({ state: 'issue', issues: ['LAN-224'] });
+  });
+
+  it('gives a line with several issues each issue\'s own fix: one test\'s fix is not the line\'s', () => {
+    const suite = { key: 'nightly-failed', subject: 'Phones', issues: ['LAN-156', 'LAN-248', 'LAN-158'], recheck: { daily: ['08:30'], takesMin: 60 } };
+    // PR 396 named LAN-158 and PR 409 LAN-248: the page called PR 396 the fix for all three (2026-11-17).
+    const part = logic.lineFix(suite, kinds, ud([]), [pr(396, 'open', ['LAN-158']), pr(409, 'open', ['LAN-248'])], NOW);
+    expect(part).toMatchObject({ state: 'part', fixed: 2, issues: ['LAN-156', 'LAN-248', 'LAN-158'] });
+    expect(part.each!.map((e) => [e.issue, e.state, e.pr?.number ?? null])).toEqual([['LAN-156', 'issue', null], ['LAN-248', 'open', 409], ['LAN-158', 'open', 396]]);
+    expect(logic.lineFix(suite, kinds, ud([]), [], NOW)).toMatchObject({ state: 'issue', fixed: 0 });
+    // Waits after a merge only when every issue has a merged fix, until the last one's check.
+    const all = [pr(1, 'merged', ['LAN-156'], '2026-11-17T09:00:00Z'), pr(2, 'merged', ['LAN-248', 'LAN-158'], '2026-11-17T20:00:00Z')];
+    const merged = logic.lineFix(suite, kinds, ud([]), all, NOW);
+    expect(merged).toMatchObject({ state: 'merged', pr: { number: 2 } });
+    expect(new Date(merged.at!).toISOString()).toBe('2026-11-18T09:30:00.000Z');
+    expect(logic.lineFix(suite, kinds, ud([]), all.slice(0, 1), NOW)).toMatchObject({ state: 'part', fixed: 1 });
+    // One still there after its fix's check is what to read first.
+    const later = at('2026-11-20T12:00:00Z');
+    expect(logic.lineFix(suite, kinds, ud([]), all.slice(0, 1), later)).toMatchObject({ state: 'stuck', pr: { number: 1 } });
   });
 
   it('says a fix in the app clears only as phones update', () => {
