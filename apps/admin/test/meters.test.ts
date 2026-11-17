@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { page } from '../src/page';
-import { LISTS_LOGIC } from '../src/pageLists';
+import { FOLDED_CONTROLS, LISTS_LOGIC, QUEUE_CONTROLS, QUEUE_SOURCE } from '../src/pageLists';
 import { METERS_LOGIC, METERS_SCRIPT } from '../src/pageMeters';
 import { OPS_SECTIONS, PART_TITLES } from '../src/pageOps';
 import { databaseAlerts, type Database } from '../src/sources/diag';
@@ -120,6 +120,16 @@ describe('meters and shares (plan 5c4)', () => {
       ['R2 class A operations', 'ok', '0.0%'], ['R2 class B operations', 'ok', '100%'], ['R2 storage', 'part', '12 GB']]);
     expect(field(item('capacity', c, 'Durable Object requests'), 'Extra cost so far')).toBe('$2.00');
     expect(rows('capacity', { ...c, r2: null, usage: { ...c.usage, error: 'refused' } })).toEqual([]);
+  });
+
+  it('keeps a part open when it holds a queue for a person, and names every control as one or the other', async () => {
+    const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
+    const used = new Set([...html.matchAll(/<(?:button|textarea|input|select)\b[^>]*/g)].flatMap((m) => [...m[0].matchAll(/data-[a-z-]+/g)].map((x) => x[0])));
+    expect([...used].filter((a) => !QUEUE_CONTROLS.includes(a) && !FOLDED_CONTROLS.includes(a)).sort(), 'a new control: put it in QUEUE_CONTROLS or FOLDED_CONTROLS').toEqual([]);
+    const queue = new RegExp(QUEUE_SOURCE);
+    for (const c of QUEUE_CONTROLS) expect(queue.test(`<button ${c}="x">`) && queue.test(`<input type="checkbox" ${c}>`), c).toBe(true);
+    for (const c of FOLDED_CONTROLS) expect(queue.test(`<button ${c}="x">`), c).toBe(false);
+    expect(html).toContain('!QUEUE.test(html) ? numbers(id, html)');
   });
 
   it('puts the drawing on the page with no inline style', async () => {

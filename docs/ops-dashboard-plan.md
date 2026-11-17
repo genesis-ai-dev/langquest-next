@@ -241,7 +241,10 @@ the pictures keep working at tens of thousands of people and over years. So:
 - **Pictures first** (built with 5c4): in a section, each part's tables wait
   behind one tap ("Show the numbers"), so a section reads as its charts and
   pictures. A part that nothing draws (no picture, no line over time) keeps
-  its table open. An opened part stays open when the page refreshes.
+  its table open, and so does a part that holds a queue for a person (Grant,
+  Accept, Send to Claude, Add a note, Connect or Publish, Seen or Done), so an
+  answer never waits behind a tap. An opened part stays open when the page
+  refreshes.
 - **History** comes from totals by hour and day, never from raw records
   (section 7, phase 5): `diag.hourly`, `diag.daily` and `diag.monthly`, read by
   `GET /ops/api/<part>?range=`, built first (`docs/admin.md`, History).

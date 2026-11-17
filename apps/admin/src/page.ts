@@ -8,7 +8,7 @@
  */
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
-import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT } from './pageLists';
+import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
 import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
 import { GLANCE, METRICS } from './sources/history';
@@ -473,8 +473,8 @@ function partHtml(g, id) {
     // A picture leads its part (pageLists.ts, pageMeters.ts); its numbers and tables wait behind one tap.
     const pic = listPicture(id, s.data);
     const html = (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
-    // A part that nothing draws (no picture, no line over time) keeps its table open.
-    return head + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + (pic || METRIC[id] ? numbers(id, html) : html);
+    // A part that nothing draws (no picture, no line over time) keeps its table open, and so does one that holds a queue for a person.
+    return head + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + ((pic || METRIC[id]) && !QUEUE.test(html) ? numbers(id, html) : html);
   } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
 }
 
@@ -484,6 +484,8 @@ function partHtml(g, id) {
  * once opened.
  */
 const openNumbers = new Set();
+// Grant, Accept, Send to Claude, Add a note, Connect, Publish, Seen or Done (pageLists.ts QUEUE_CONTROLS).
+const QUEUE = /${QUEUE_SOURCE}/;
 function numbers(id, html) {
   return '<details class="numbers" data-part="' + esc(id) + '"' + (openNumbers.has(id) ? ' open' : '') + '><summary><span class="sn">Show the numbers</span><span class="hn">Hide the numbers</span></summary>' + html + '</details>';
 }

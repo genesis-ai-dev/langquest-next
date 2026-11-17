@@ -518,8 +518,12 @@ shares sets `sum` in `LIST_SAID`: its head and legend count what it splits.
 In a section, a part's tables (`RENDER`, and the Jobs table with its Run now
 buttons) sit in a closed `details.numbers` ("Show the numbers") under its
 picture, so the section shows pictures first. A part with no picture and no
-history line (`METRIC`) shows its table open. The page remembers which parts
-are open while it refreshes.
+history line (`METRIC`) shows its table open. So does a part whose body holds
+a queue control (`QUEUE_CONTROLS` in `pageLists.ts`: Grant, Accept, Send to
+Claude, Add a note, Connect or Publish, Seen or Done); Not an issue and Run
+now may wait behind the tap (`FOLDED_CONTROLS`). `test/meters.test.ts` fails
+on a control in neither list. The page remembers which parts are open while
+it refreshes.
 
 A tap on a bar or a point asks
 `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,

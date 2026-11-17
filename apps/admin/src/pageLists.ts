@@ -442,6 +442,23 @@ document.addEventListener('keydown', (e) => {
 });
 `;
 
+/**
+ * The controls with which a person answers a queue: Grant or Deny, Accept, Reject or Edit, Send to
+ * Claude, a video's cards, Add a note, Connect or Publish, Seen or Done. A part that shows one keeps
+ * its body open under its picture, so an answer never waits behind "Show the numbers".
+ */
+export const QUEUE_CONTROLS = ['data-decision', 'data-sg', 'data-instruct', 'data-cards', 'data-note', 'data-yt-connect', 'data-yt-publish', 'data-yt-item', 'data-yt-all', 'data-fb'];
+/**
+ * The controls that may wait behind "Show the numbers": they open, look, move or zoom, or only quiet a
+ * warning or start a job early (Not an issue, Run now). A new control goes in one list or the other
+ * (`test/meters.test.ts`).
+ */
+export const FOLDED_CONTROLS = ['data-quiet', 'data-ok', 'data-run', 'data-org', 'data-q', 'data-install', 'data-fb-id', 'data-shot', 'data-what', 'data-status',
+  'data-mark', 'data-vzoom', 'data-vfit', 'data-vclose', 'data-voice', 'data-goto', 'data-range', 'data-key', 'data-lookup', 'data-h', 'data-s', 'data-t', 'data-l',
+  'data-kind', 'data-ver'];
+/** Whether a part's body holds a queue control (above). */
+export const QUEUE_SOURCE = String.raw`\s(?:` + QUEUE_CONTROLS.join('|') + String.raw`)(?=[\s=>])`;
+
 export const LISTS_CSS = String.raw`
 svg.sq .q.run { fill: var(--primary); } svg.sq .q.off { fill: var(--grey); }
 svg.sq .rg { fill: none; stroke: var(--card); stroke-width: 1.4; pointer-events: none; }
