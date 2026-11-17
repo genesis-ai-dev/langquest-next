@@ -228,6 +228,16 @@ the pictures keep working at tens of thousands of people and over years. So:
   days left, with the 7- and 30-day zones of its alerts. A tap on a dot, a
   square or a day opens its fields. On a card a picture fits about 200 px
   at full size.
+- **Meters and shares** (built, 5c4): a thing with a limit draws a bar
+  filled as far as it is used, red or amber exactly when its alert is
+  (the database disk and Cloudflare's plan, connections and the slowest
+  calls, Google's crash and ANR lines, the rate limits, the oldest open
+  report, the largest tables, each Worker's requests). What grows with
+  people draws one bar split by share, each part as wide as its count and
+  at least a tap wide (syncs by how they ended, each route's requests by
+  time, installs by update, accounts by when they were last active), so the
+  bar keeps its size at any count. The Supabase project draws a square for
+  each service. A tap on a bar or a part opens its fields.
 - **History** comes from totals by hour and day, never from raw records
   (section 7, phase 5): `diag.hourly`, `diag.daily` and `diag.monthly`, read by
   `GET /ops/api/<part>?range=`, built first (`docs/admin.md`, History).
@@ -508,7 +518,7 @@ changes an organization stay in the CLIs, run on a call.
 | 5c1 | **Built (2026-11-17)**: a square for each job run, in Jobs and pg_cron, on the card (24 h) and in the section (the range); a tap on a failed or partial square opens those runs (5.0) | 5b2 merged |
 | 5c2 | **Built (2026-11-17)**: a square for each item of a fixed list: nightly suites, EAS builds, submissions and updates, v2 projects, user issues, feedback, channels, videos, what came in about the videos, and the nightly R2 check; a tap opens the item (5.0) | 5c1 merged |
 | 5c3 | **Built (2026-11-17)**: lanes and lines: store builds, App Store, code and deploys, what shipped, expiry dates; a tap opens the stage, the version, the workflow, the day or the key (5.0) | 5c2 merged |
-| 5c4 | Meters and shares: capacity, database, Google Play, limits, routes, phones, people | 5c3 merged |
+| 5c4 | **Built (2026-11-17)**: meters and shares: capacity, database, largest tables, Google Play, limits, the report queue, Workers, routes, syncs, updates in the field, accounts, Supabase services (5.0) | 5c3 merged |
 | 5d | `OpsWatch` (section 11.4) | phase 3 |
 
 Each phase is one pull request, with the guardrails green (`--web` for

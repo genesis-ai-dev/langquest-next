@@ -9,6 +9,7 @@
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
 import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT } from './pageLists';
+import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
@@ -181,6 +182,7 @@ td button { white-space: nowrap; }
 }
 ${START_CSS}
 ${LISTS_CSS}
+${METERS_CSS}
 </style>
 </head>
 <body>
@@ -889,7 +891,9 @@ const GLANCE = ${JSON.stringify(GLANCE)};
 ${START_LOGIC}
 ${START_SCRIPT}
 ${LISTS_LOGIC}
+${METERS_LOGIC}
 ${LISTS_SCRIPT}
+${METERS_SCRIPT}
 
 let loading = false;
 async function load(fresh) {

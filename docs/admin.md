@@ -506,6 +506,15 @@ shipped: errors a day, crashes, and a tick on each day with a change) and
 detail panel work on each. A row with `count: false` is context, and the
 head does not count its items.
 
+Meters and shares are rows of the same lists (`apps/admin/src/pageMeters.ts`,
+plan 5c4): `draw: 'meter'` is a bar for each item against its `max`, with
+a `line` where a store draws one; `draw: 'share'` is one bar split by each
+item's `v`. A meter takes its limit from the alert it stands for (the
+sources export `CRASH_LINE`, `DB_FULL_SHARE`, `REPORT_DUE_HOURS` and the
+slow-RPC rule), and `apps/admin/test/meters.test.ts` checks that each bar
+turns red or amber exactly when its alert does. A part whose rows are all
+shares sets `sum` in `LIST_SAID`: its head and legend count what it splits.
+
 A tap on a bar or a point asks
 `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,
 decisions.md 255): the records behind that number in that bucket, 50 a page,

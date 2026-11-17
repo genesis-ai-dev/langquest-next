@@ -7,6 +7,8 @@
  * (feedback, issues, v2 projects) turns into 100 squares of 1% each past 200
  * items, so the picture keeps its size. The nightly R2 check is the
  * blob_reconcile row of the job squares (pageStart.ts), one square a night.
+ * A row can draw another shape instead (`draw`): a track, a line or an axis
+ * (5c3), or a meter or a share (pageMeters.ts, 5c4).
  */
 
 /** Pure helpers, no page state: apps/admin/test/lists.test.ts runs them with new Function. */
@@ -182,7 +184,8 @@ function listRows(part, d) {
         link: st.link || null };
     }) })).filter((r) => r.items.length);
   }
-  return null;
+  // Meters and shares (pageMeters.ts) are rows of the same lists.
+  return typeof meterRows === 'function' ? meterRows(part, d) : null;
 }
 
 /**
@@ -309,6 +312,8 @@ function listSvg(part, at, r, wrap, mini) {
   if (r.draw === 'track') return trackSvg(part, at, r, mini);
   if (r.draw === 'line') return lineSvg(part, at, r, mini);
   if (r.draw === 'axis') return axisSvg(part, at, r, mini);
+  if (r.draw === 'meter') return meterSvg(part, at, r, mini);
+  if (r.draw === 'share') return shareSvg(part, at, r, mini);
   const said = LIST_SAID[part];
   const share = r.items.length > SHARE_PAST;
   const cells = share ? shareCells(r.items, 100) : r.items.map((x) => x.s);
@@ -331,19 +336,21 @@ function listBox(part, d, mini) {
   const all = rows.flatMap((r) => r.items);
   // The head counts the list's items; a row of context (main and what the web host serves) is left out.
   const counted = rows.filter((r) => r.count !== false).flatMap((r) => r.items);
+  // A share counts what it splits (syncs, requests, installs), not its parts.
+  const weigh = (xs) => said.sum ? xs.reduce((a, x) => a + (Number(x.v) || 0), 0) : xs.length;
   const order = rows.map((r, at) => ({ r, at, w: Math.min.apply(null, r.items.map((x) => rankOf(x.s))) }));
   const shown = mini ? order.slice().sort((a, b) => a.w - b.w || a.at - b.at).slice(0, 4) : order;
   // The videos keep one video in each column; other lists wrap, and on a phone every list wraps at 24 so a square stays big enough to tap.
   const narrow = typeof matchMedia === 'function' && matchMedia('(max-width: 640px)').matches;
   const wrap = mini || narrow ? 24 : part === 'videos' ? Math.max.apply(null, rows.map((r) => r.items.length)) : 50;
   return '<div class="chart sqbox lstbox' + (mini ? ' mini' : '') + '" data-part="' + esc(part) + '">' +
-    '<div class="ct"><span>' + esc(PART_TITLE[part] || part) + ', ' + esc(said.pic || 'a square for each ' + said.one) + '</span><b>' + num(counted.length) + ' ' + esc(counted.length === 1 ? said.one : said.many) + '</b></div>' +
+    '<div class="ct"><span>' + esc(PART_TITLE[part] || part) + ', ' + esc(said.pic || 'a square for each ' + said.one) + '</span><b>' + num(weigh(counted)) + ' ' + esc(weigh(counted) === 1 ? said.one : said.many) + '</b></div>' +
     '<div class="sqrows">' + shown.map((o) => '<div class="sqrow"><span title="' + esc(rowName(o.r)) + '">' + esc(rowName(o.r)) + (o.r.items.length > SHARE_PAST ? ' (1% each)' : '') + '</span>' +
       listSvg(part, o.at, o.r, wrap, mini) + '</div>').join('') + '</div>' +
     (shown.length < rows.length ? '<p class="muted">' + num(rows.length - shown.length) + ' more rows in ' + esc(PART_TITLE[part] || part) + '.</p>' : '') +
     (said.line ? '<div class="sqleg"><span><i class="ln"></i>Errors a day</span><span><i class="cx"></i>Crashes <b>' + num(all.reduce((a, x) => a + (x.crashes || 0), 0)) + '</b></span>' +
       '<span><i class="tick"></i>Shipped <b>' + num(all.reduce((a, x) => a + (x.shipped || 0), 0)) + '</b></span></div></div>'
-      : '<div class="sqleg">' + LIST_ORDER.filter((s) => said[s] && (!mini || all.some((x) => x.s === s))).map((s) => '<span><i class="' + s + '"></i>' + esc(said[s]) + ' <b>' + num(all.filter((x) => x.s === s).length) + '</b></span>').join('') + '</div></div>');
+      : '<div class="sqleg">' + LIST_ORDER.filter((s) => said[s] && (!mini || all.some((x) => x.s === s))).map((s) => '<span><i class="' + s + '"></i>' + esc(said[s]) + ' <b>' + num(weigh(all.filter((x) => x.s === s))) + '</b></span>').join('') + '</div></div>');
 }
 
 /** The nightly R2 check: blob_reconcile's row of the job squares, a square a night for 14 nights (the Jobs totals). */
