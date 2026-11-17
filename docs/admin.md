@@ -480,6 +480,14 @@ OK lines and cards their 14-day pictures: one number for each section
 chart for each number over the range, then its tables; `#all` shows every
 section as before.
 
+Jobs and pg_cron also draw a row of squares for each job, one square for
+each bucket (`SQUARES` and `runSquares` in `pageStart.ts`), from the same
+`runs`, `failed` and `partial` totals as their charts: red when a run
+failed, amber when one did part of its work, green when it ran. Their card
+reads the last 24 h (`?range=24h`) and leads with the job its alert names.
+A tap on a red square asks the detail for `failed`, on an amber one for
+`partial`, on any other for `runs`.
+
 A tap on a bar or a point asks
 `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,
 decisions.md 255): the records behind that number in that bucket, 50 a page,
