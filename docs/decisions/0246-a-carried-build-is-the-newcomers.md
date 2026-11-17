@@ -83,3 +83,11 @@ got one for an older version, to get it: a line on the Ready for offline card
 with a Get it link to Get the install file, and an amber line on the Share
 nearby row (Carl's choice), until the right file is got (`apkReminder`, plan
 14.4).
+
+Amended (2026-11-17, Carl Sauder): `submit_carried` now also waits, with
+`after`, for the store build's Play uploads and its review step
+(`submit_android_internal`, `submit_android`, `review_android`), however
+they end. Play deletes an open edit when another opens, and the carried
+upload deleted build 55's mid-upload
+(`docs/decisions/2026-11-17-play-uploads-take-turns.md`). The store's jobs
+still never wait for or depend on the carried ones.
