@@ -21,6 +21,7 @@ import { releasesSection } from './sources/releases';
 import { adoptionSection } from './sources/adoption';
 import { pipelineSection } from './sources/pipeline';
 import { capacitySection, storageSection } from './sources/storage';
+import { history, isRange, PART_IDS, RANGES } from './sources/history';
 
 /**
  * The ops dashboard (docs/admin.md, decisions.md 160): the page at
@@ -134,6 +135,17 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   const fresh = url.searchParams.get('fresh') === '1';
   const section = url.pathname.slice(API_BASE.length);
+  // A part's numbers over a range of days, from the totals only (sources/history.ts, decisions.md 254).
+  const range = url.searchParams.get('range');
+  if (range !== null) {
+    if (!PART_IDS.has(section)) return json({ error: 'Not found' }, 404);
+    if (!isRange(range)) return json({ error: `range is one of ${RANGES.join(', ')}` }, 400);
+    try {
+      return json(await withDiag(diagConnection(env), (query) => history(query, section, range)));
+    } catch (e) {
+      return json({ error: errorText(e) }, 502);
+    }
+  }
   if (section === 'me') return json({ profileId: who.profileId });
   // The connection itself failing makes every section of the answer say so.
   if (section === 'diag') return json(await diagAnswer(env));
