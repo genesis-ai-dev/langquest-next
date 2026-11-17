@@ -15,7 +15,7 @@ import { statusClass, type JobRun } from '../../../server/jobRuns';
  */
 export type RouteClass =
   | 'blobs_put' | 'blobs_get' | 'blob_access' | 'r2_put' | 'record_blob'
-  | 'reports' | 'agent_api' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'ops' | 'other';
+  | 'reports' | 'agent_api' | 'agent_list' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'ops' | 'other';
 
 /** Which kind of request this is; null for what is not counted (the web app and its files). */
 export function routeClass(method: string, path: string): RouteClass | null {
@@ -31,6 +31,8 @@ export function routeClass(method: string, path: string): RouteClass | null {
   // The two sets of public endpoints behind DEVICE_RATE_LIMIT and LINK_RATE_LIMIT.
   if (path.startsWith('/api/v1/device/')) return 'device';
   if (path.startsWith('/api/v1/links/')) return 'links';
+  // A page of a language's passages: the read a partner pages through a whole language with, apart from the API's quick calls.
+  if (/^\/api\/v1\/languages\/[^/]+\/passages$/.test(path)) return 'agent_list';
   if (path === '/api/v1' || path.startsWith('/api/v1/')) return 'agent_api';
   if (path === '/api/internal/poke') return 'webhook';
   if (path.startsWith('/api/nearby/') || path === '/api/relay') return 'nearby';

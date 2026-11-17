@@ -287,7 +287,7 @@ export interface Integrations {
 /** The app Worker's request tally over a day (apps/web/worker/requestTally.ts), summed by diag.totals. */
 export const TOTALS_SQL = `select coalesce(diag.totals(array_agg(n)), '{}'::jsonb) as v from diag.job_runs where job = $1 and started_at > now() - interval '1 day'`;
 
-export const ROUTES = ['reports', 'blobs_get', 'blobs_put', 'blob_access', 'r2_put', 'record_blob', 'agent_api', 'mcp', 'device', 'links', 'nearby', 'webhook', 'ops', 'other'] as const;
+export const ROUTES = ['reports', 'blobs_get', 'blobs_put', 'blob_access', 'r2_put', 'record_blob', 'agent_api', 'agent_list', 'mcp', 'device', 'links', 'nearby', 'webhook', 'ops', 'other'] as const;
 
 export interface RouteRow { route: string; requests: number; s4xx: number; s5xx: number; s429: number; lt100ms: number; lt1s: number; lt10s: number; over10s: number }
 
@@ -302,12 +302,20 @@ export function routeRows(totals: Record<string, number>): RouteRow[] {
   })).filter((r) => r.requests > 0);
 }
 
+/**
+ * Routes whose time is no sign that the app is slow: their failures still warn, their time does not.
+ * `agent_list`, a page of a language's passages: a partner paging through every language of its
+ * organization makes the organization's Durable Object open each language from its own storage,
+ * 2 to 19 s a page in the nightly bulk read of 2026-11-17 (making it faster: LAN-292).
+ */
+export const SLOW_BY_DESIGN: ReadonlySet<string> = new Set(['agent_list']);
+
 export function workerAlerts(rows: RouteRow[]): Alert[] {
   const out: Alert[] = [];
   // The ops dashboard's own route waits on the providers it asks (Cloudflare, Supabase, Expo): slow by design, and not the app's.
   for (const r of rows.filter((x) => x.route !== 'ops')) {
     const timed = r.lt100ms + r.lt1s + r.lt10s + r.over10s;
-    if (timed >= 50 && (r.lt10s + r.over10s) / timed >= 0.05) {
+    if (!SLOW_BY_DESIGN.has(r.route) && timed >= 50 && (r.lt10s + r.over10s) / timed >= 0.05) {
       out.push({ level: 'watch', text: `${r.route}: ${(((r.lt10s + r.over10s) / timed) * 100).toFixed(1)}% of ${timed} timed requests took a second or more in the last day.` });
     }
     if (r.requests >= 50 && r.s5xx / r.requests >= 0.02) out.push({ level: 'problem', text: `${r.route}: ${r.s5xx} of ${r.requests} requests failed on the server in the last day.` });
@@ -619,7 +627,10 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     integrations: build([integrations], MIGRATION, () => {
       const i: Integrations = {
         ...val(integrations), dispatch: dispatch.ok ? dispatch.value : {},
-        api: { agentApi: route('agent_api')?.requests ?? 0, mcp: route('mcp')?.requests ?? 0, errors: (route('agent_api')?.s5xx ?? 0) + (route('mcp')?.s5xx ?? 0) }
+        api: {
+          agentApi: (route('agent_api')?.requests ?? 0) + (route('agent_list')?.requests ?? 0), mcp: route('mcp')?.requests ?? 0,
+          errors: (route('agent_api')?.s5xx ?? 0) + (route('agent_list')?.s5xx ?? 0) + (route('mcp')?.s5xx ?? 0)
+        }
       };
       return ok(i, integrationAlerts(i));
     }),
