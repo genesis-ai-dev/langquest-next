@@ -84,7 +84,7 @@ export async function releasesSection(env: Env, fetcher: typeof fetch = fetch, n
         .then((d) => (d.result?.deployments ?? []).filter((x) => x.created_on >= since).map((x): TimelineEvent => ({ at: x.created_on, kind: 'deploy', text: `${name} deployed` })))))
       .then((all) => all.flat()).catch((e: unknown) => { note(e); return [] as TimelineEvent[]; })
     : Promise.resolve([] as TimelineEvent[]);
-  const updates = expoSection(env, fetcher)
+  const updates = expoSection(env, fetcher, { workflowRuns: false })
     .then((s) => s.state === 'ok' && s.data ? s.data.updates.filter((u) => u.at >= since).map((u): TimelineEvent => ({ at: u.at, kind: 'update', text: `EAS update on ${u.branch}${u.runtime ? ` (runtime ${u.runtime})` : ''}` })) : [])
     .catch((e: unknown) => { note(e); return [] as TimelineEvent[]; });
   const host = (url: string) => fetcher(`${url.replace(/\/+$/, '')}/version.json`, { signal: AbortSignal.timeout(8000) })

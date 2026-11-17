@@ -676,6 +676,12 @@ const RENDER = {
       { h: 'Status', v: (x) => '<span class="' + (x.status === 'FINISHED' ? 'good' : x.status === 'ERRORED' ? 'bad' : 'warn') + '">' + esc(x.status) + '</span>' },
       { h: 'When', v: (x) => when(x.at) }
     ], d.submissions);
+    if (d.workflows && d.workflows.length) h += '<h3>Shipping workflows on EAS</h3>' + table([
+      { h: 'Workflow', v: (r) => (r.url ? '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.name) + '</a>' : esc(r.name)) + '<br><small>' + esc(r.branch || '') + (r.commit ? ' · <code>' + esc(r.commit) + '</code>' : '') + '</small>' },
+      { h: 'Result', v: (r) => '<span class="' + (r.status === 'SUCCESS' ? 'good' : 'bad') + '">' + esc(r.status) + '</span>' + (r.failed.length ? '<br><small class="bad">' + r.failed.map((j) => esc(j)).join('<br>') + '</small>' : r.error ? '<br><small class="bad">' + esc(r.error) + '</small>' : '') },
+      { h: 'When', v: (r) => when(r.at) }
+    ], d.workflows);
+    if (d.workflowsError) h += '<p class="muted">EAS workflow runs could not be read: ' + esc(d.workflowsError) + '</p>';
     h += '<h3>Latest updates</h3>' + table([
       { h: 'Branch', v: (u) => esc(u.branch) + '<br><small>' + esc(u.platform || '') + (u.runtime ? ' · runtime ' + esc(u.runtime) : '') + '</small>' },
       { h: 'Group', v: (u) => short(u.group) }, { h: 'When', v: (u) => when(u.at) }

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { byWorker, cloudflareAlerts, cloudflareSection } from '../src/sources/cloudflare';
 import { clientAlerts, databaseAlerts, diagSections, errorText, jobsSection, mediaType, v2Section, type Clients, type JobRow, type V2Project } from '../src/sources/diag';
-import { expoAlerts, expoFrom } from '../src/sources/expo';
+import { expoAlerts, expoFrom, expoSection, NOT_SHIPPING_WORKFLOWS, SHIPPING_WORKFLOWS, workflowAlerts, workflowRunsFrom, WORKFLOW_RUNS_QUERY } from '../src/sources/expo';
 import { filmingRun, filmingSection, filmJobs, type Filming } from '../src/sources/filming';
 import { APP_BUILD_PATHS, changesApp, codeAlerts, codeSection, latestPerWorkflow, needsYouOf, ownWorkflows, saidByNightly, type Code } from '../src/sources/github';
 import { SQLSTATE, errorGroups, httpErrorsSql, pathShape, pgErrorsSql, projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
@@ -420,16 +420,162 @@ describe('Expo', () => {
         { status: 'FINISHED', platform: 'ANDROID', createdAt: hAgo(9), buildProfile: 'production', appVersion: '1.0.2', runtime: null }
       ],
       submissions: [
-        { status: 'ERRORED', platform: 'IOS', createdAt: hAgo(3), error: { errorCode: 'SUBMISSION_SERVICE_ERROR', message: 'App Store Connect refused the build' }, submittedBuild: { appVersion: '1.0.3' } },
-        { status: 'FINISHED', platform: 'IOS', createdAt: hAgo(30), error: null, submittedBuild: { appVersion: '1.0.2' } }
+        { id: 's2', status: 'ERRORED', platform: 'IOS', createdAt: hAgo(3), error: { errorCode: 'SUBMISSION_SERVICE_ERROR', message: 'App Store Connect refused the build' }, submittedBuild: { appVersion: '1.0.3' } },
+        { id: 's1', status: 'FINISHED', platform: 'IOS', createdAt: hAgo(30), error: null, submittedBuild: { appVersion: '1.0.2' } }
       ],
       updateBranches: [{ name: 'production', updateGroups: [[{ group: 'g1', platform: 'android', createdAt: hAgo(2), runtime: { version: '1.0.2' } }, { group: 'g1', platform: 'ios', createdAt: hAgo(2), runtime: { version: '1.0.2' } }]] }, { name: 'empty', updateGroups: [] }]
     } } } });
     expect(e.updates).toEqual([{ branch: 'production', platform: 'android, ios', runtime: '1.0.2', group: 'g1', at: hAgo(2) }]);
-    expect(e.submissions[0]).toEqual({ platform: 'IOS', status: 'ERRORED', at: hAgo(3), error: 'SUBMISSION_SERVICE_ERROR: App Store Connect refused the build', version: '1.0.3' });
+    expect(e.submissions[0]).toEqual({ id: 's2', platform: 'IOS', status: 'ERRORED', at: hAgo(3), error: 'SUBMISSION_SERVICE_ERROR: App Store Connect refused the build', version: '1.0.3' });
     expect(expoAlerts(e)).toEqual([
       { level: 'watch', text: 'The latest android production build failed on EAS.' },
       { level: 'watch', text: 'The latest ios store submission failed on EAS (SUBMISSION_SERVICE_ERROR).' }
     ]);
+  });
+
+  describe('workflows that ship the app', () => {
+    const job = (name: string, status: string, made: Record<string, unknown> = {}) => ({ name, status, ...made });
+    const run = (id: string, status: string, h: number, jobs: unknown[] = [], more: Record<string, unknown> = {}) =>
+      ({ node: { id, status, createdAt: hAgo(h), gitCommitHash: 'abcdef1234567890', requestedGitRef: 'refs/heads/main', errors: [], jobs, ...more } });
+    const workflow = (fileName: string, name: string, ...edges: unknown[]) => ({ fileName, name, runsPaginated: { edges } });
+    const answer = (...workflows: unknown[]) => ({ data: { app: { byId: { slug: 'langquest-next', ownerAccount: { name: 'acct' }, workflows } } } }) as Parameters<typeof workflowRunsFrom>[0];
+    const testersJobs = [
+      job('Typecheck and tests', 'SUCCESS'),
+      job('Build iOS', 'FAILURE', { turtleBuild: { id: 'b-ios' } }),
+      job('Put the carried build\'s signed universal APK in the APK bucket', 'FAILURE'),
+      job('Publish Android over-the-air update', 'SUCCESS'),
+      job('Tell Linear (ios submit)', 'SKIPPED')
+    ];
+
+    it('names each workflow in apps/mobile/.eas/workflows as shipping or not', () => {
+      const files = readdirSync('apps/mobile/.eas/workflows').filter((f) => /\.ya?ml$/.test(f)).sort();
+      expect([...SHIPPING_WORKFLOWS, ...NOT_SHIPPING_WORKFLOWS].sort()).toEqual(files);
+    });
+
+    it('makes a failed newest run a problem naming its failed jobs, branch and commit, linked to the run', () => {
+      const runs = workflowRunsFrom(answer(workflow('deploy-to-testers.yml', 'Deploy to testers', run('r2', 'FAILURE', 1, testersJobs), run('r1', 'SUCCESS', 5))));
+      expect(runs.map((r) => r.id)).toEqual(['r2']);
+      expect(workflowAlerts(runs)).toEqual([{
+        level: 'problem',
+        text: 'EAS workflow "Deploy to testers" failed on main at abcdef12. Failed: Build iOS; Put the carried build\'s signed universal APK in the APK bucket.',
+        link: 'https://expo.dev/accounts/acct/projects/langquest-next/workflows/r2'
+      }]);
+      // Nothing about who started it is asked for or kept.
+      expect(WORKFLOW_RUNS_QUERY).not.toMatch(/actor|username|firstName|email/i);
+      expect(JSON.stringify(runs)).not.toMatch(/actor|username/i);
+    });
+
+    it('lets a newer success of the same workflow clear a failure', () => {
+      const runs = workflowRunsFrom(answer(workflow('deploy-to-testers.yml', 'Deploy to testers', run('r1', 'FAILURE', 5, testersJobs), run('r2', 'SUCCESS', 1))));
+      expect(runs.map((r) => [r.id, r.status])).toEqual([['r2', 'SUCCESS']]);
+      expect(workflowAlerts(runs)).toEqual([]);
+    });
+
+    it('passes over a run still going, or cancelled, for the newest finished one', () => {
+      const failedBehind = workflowRunsFrom(answer(workflow('deploy-to-testers.yml', 'Deploy to testers',
+        run('r4', 'IN_PROGRESS', 0.2, [job('Build iOS', 'IN_PROGRESS')]), run('r3', 'CANCELED', 0.5), run('r2', 'FAILURE', 3, testersJobs), run('r1', 'SUCCESS', 9))));
+      expect(failedBehind.map((r) => r.id)).toEqual(['r2']);
+      expect(workflowAlerts(failedBehind)).toHaveLength(1);
+      // A run still going is not a failure, even when one of its jobs already failed.
+      const going = workflowRunsFrom(answer(workflow('deploy-to-testers.yml', 'Deploy to testers', run('r2', 'IN_PROGRESS', 0.2, testersJobs), run('r1', 'SUCCESS', 9))));
+      expect(going.map((r) => r.id)).toEqual(['r1']);
+      expect(workflowAlerts(going)).toEqual([]);
+      // Only runs still going: nothing to say yet.
+      expect(workflowRunsFrom(answer(workflow('app-store-review.yml', 'Send the newest builds to store review', run('r1', 'NEW', 0.1))))).toEqual([]);
+    });
+
+    it('ignores workflows that do not ship the app', () => {
+      const runs = workflowRunsFrom(answer(
+        workflow('deploy-preview.yml', 'Deploy to preview', run('p1', 'FAILURE', 1, [job('Build iOS', 'FAILURE')], { requestedGitRef: 'refs/heads/develop' })),
+        workflow('someone-elses.yml', 'Something else', run('x1', 'FAILURE', 1))
+      ));
+      expect(runs).toEqual([]);
+    });
+
+    it('keeps the two release branches apart, and says a failure before any job ran', () => {
+      const runs = workflowRunsFrom(answer(workflow('deploy-release-branch.yml', 'Deploy a release branch to the public build',
+        run('a2', 'SUCCESS', 1, [], { requestedGitRef: 'refs/heads/release/android' }),
+        run('i1', 'FAILURE', 4, [job('Publish iOS over-the-air update to the public build', 'SKIPPED')], { requestedGitRef: 'refs/heads/release/ios', gitCommitHash: null, errors: [{ title: 'Invalid workflow file.' }] })
+      )));
+      expect(runs.map((r) => r.id)).toEqual(['a2', 'i1']);
+      expect(workflowAlerts(runs)).toEqual([{
+        level: 'problem', text: 'EAS workflow "Deploy a release branch to the public build" failed on release/ios. Invalid workflow file.',
+        link: 'https://expo.dev/accounts/acct/projects/langquest-next/workflows/i1'
+      }]);
+    });
+
+    it('says a build or submission that a failed run made once, by the run\'s line', () => {
+      const runs = workflowRunsFrom(answer(workflow('deploy-to-testers.yml', 'Deploy to testers',
+        run('r2', 'FAILURE', 1, [job('Build iOS', 'FAILURE', { turtleBuild: { id: 'b-ios' } }), job('Submit to Play internal testing', 'FAILURE', { turtleSubmission: { id: 's-and' } })]))));
+      const e = expoFrom({ data: { app: { byId: {
+        builds: [
+          { id: 'b-ios', status: 'ERRORED', platform: 'IOS', createdAt: hAgo(1), buildProfile: 'production' },
+          { id: 'b-prev', status: 'ERRORED', platform: 'ANDROID', createdAt: hAgo(2), buildProfile: 'preview' }
+        ],
+        submissions: [
+          { id: 's-and', status: 'ERRORED', platform: 'ANDROID', createdAt: hAgo(1), error: { errorCode: 'X' } },
+          { id: 's-ios', status: 'ERRORED', platform: 'IOS', createdAt: hAgo(6), error: null }
+        ],
+        updateBranches: []
+      } } } }, runs);
+      expect(expoAlerts(e)).toEqual([
+        // Made by hand or by another workflow: still a watch of its own.
+        { level: 'watch', text: 'The latest android preview build failed on EAS.' },
+        { level: 'watch', text: 'The latest ios store submission failed on EAS.' },
+        { level: 'problem', text: 'EAS workflow "Deploy to testers" failed on main at abcdef12. Failed: Build iOS; Submit to Play internal testing.', link: 'https://expo.dev/accounts/acct/projects/langquest-next/workflows/r2' }
+      ]);
+      // Once a newer run succeeds, the failed build is the plain watch again until a newer build.
+      expect(expoAlerts({ ...e, workflows: [] })).toContainEqual({ level: 'watch', text: 'The latest ios production build failed on EAS.' });
+    });
+
+    it('reads nothing from a malformed or empty answer, and never throws', () => {
+      const node = (n: unknown) => ({ data: { app: { byId: { workflows: [{ fileName: 'deploy-to-testers.yml', runsPaginated: { edges: [{ node: n }] } }] } } } });
+      const answers: unknown[] = [
+        undefined, null, {}, 'text', [1, 2], { data: null }, { data: { app: null } }, { data: { app: { byId: null } } },
+        { data: { app: { byId: { workflows: 'deploy-to-testers.yml' } } } },
+        { data: { app: { byId: { workflows: [null, 7, { fileName: 'deploy-to-testers.yml' }, { fileName: 'deploy-to-testers.yml', runsPaginated: { edges: 'x' } }] } } } },
+        { data: { app: { byId: { workflows: [{ fileName: 'deploy-to-testers.yml', runsPaginated: { edges: [null, 3, {}, { node: null }] } }] } } } },
+        node({ id: 7, status: 'FAILURE', createdAt: hAgo(1) }),
+        node({ id: 'r', status: null, createdAt: hAgo(1) }),
+        node({ id: 'r', status: 'FAILURE', createdAt: 'yesterday-ish' }),
+        { errors: [{ message: 'Unauthorized' }] }
+      ];
+      for (const a of answers) {
+        const runs = workflowRunsFrom(a as Parameters<typeof workflowRunsFrom>[0]);
+        expect(runs, JSON.stringify(a)).toEqual([]);
+        expect(workflowAlerts(runs)).toEqual([]);
+      }
+      // A failed run whose jobs and errors cannot be read is still said, plainly, and with no link when the project cannot be named.
+      const bare = workflowRunsFrom(node({ id: 'r', status: 'FAILURE', createdAt: hAgo(1), jobs: 'x', errors: { title: 'y' } }) as Parameters<typeof workflowRunsFrom>[0]);
+      expect(workflowAlerts(bare)).toEqual([{ level: 'problem', text: 'EAS workflow "deploy-to-testers.yml" failed.' }]);
+    });
+
+    it('asks for the runs apart, so a refusal there leaves the builds and says so', async () => {
+      const main = { data: { app: { byId: { builds: [{ id: 'b1', status: 'FINISHED', platform: 'IOS', createdAt: hAgo(2), buildProfile: 'production' }], submissions: [], updateBranches: [] } } } };
+      const api = (runs: unknown, status = 200) => vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) =>
+        String(init?.body).includes('runsPaginated') ? Response.json(runs, { status }) : Response.json(main)) as unknown as typeof fetch;
+      const env = { ADMIN_EXPO_TOKEN: 't', EXPO_PROJECT_ID: 'p' };
+
+      const failing = await expoSection(env, api(answer(workflow('deploy-to-testers.yml', 'Deploy to testers', run('r2', 'FAILURE', 1, testersJobs)))));
+      expect(failing.state).toBe('ok');
+      expect(failing.alerts.map((a) => a.level)).toEqual(['problem']);
+
+      const refused = await expoSection(env, api({}, 500));
+      expect(refused).toMatchObject({ state: 'ok', data: { builds: [{ id: 'b1' }], workflows: [], workflowsError: 'Expo: HTTP 500' } });
+      expect(refused.alerts).toEqual([{ level: 'watch', text: 'EAS workflow runs could not be read (Expo: HTTP 500), so a failed deploy on EAS would not show here.' }]);
+
+      const errors = await expoSection(env, api({ errors: [{ message: 'Field "runsPaginated" is not defined' }] }));
+      expect(errors.data?.workflowsError).toBe('Field "runsPaginated" is not defined');
+
+      for (const garbage of [{}, null, 'text', { data: { app: { byId: { workflows: 'x' } } } }]) {
+        const s = await expoSection(env, api(garbage));
+        expect(s).toMatchObject({ state: 'ok', alerts: [], data: { workflows: [], workflowsError: null } });
+      }
+
+      // The release timeline needs only the updates: one call, no runs.
+      const once = api({});
+      await expoSection(env, once, { workflowRuns: false });
+      expect(once).toHaveBeenCalledTimes(1);
+    });
   });
 });
