@@ -56,6 +56,16 @@ export const RECEIPTS_KEPT = 20_000;
  * before (decisions.md 188). One it has kept is remembered like a receipt.
  */
 export const V2_RECHECK_MS = 15 * 60 * 1000;
+/**
+ * A passage read that takes this long writes one line to the Worker's log
+ * saying where the time went (catching up the language, the database's
+ * receipts, building the answer), with counts and no ids, so a slow read
+ * can be found in Workers Logs by its parts.
+ */
+export const SLOW_READ_MS = 1_000;
+
+/** What one answer's receipts cost: keys it named, keys the database was asked about, and the time those asks took. */
+interface ReceiptCost { keys: number; asked: number; ms: number }
 
 const no = (r: Refusal): Answer<never> => ({ ok: false, ...r });
 const yes = <T>(data: T): Answer<T> => ({ ok: true, data });
@@ -90,7 +100,7 @@ export class AgentOrg {
   private readonly receipts = new Map<string, { at: string | null; until: number }>();
 
   /** A language's receipts, from what the object remembers first and the database for the rest, in one question. */
-  private receivedIn(languageId: string): Receipts {
+  private receivedIn(languageId: string, cost?: ReceiptCost): Receipts {
     return async (keys) => {
       const out = new Map<string, string>();
       const ask: string[] = [];
@@ -100,8 +110,13 @@ export class AgentOrg {
         if (!known || known.until <= now) ask.push(key);
         else if (known.at !== null) out.set(key, known.at);
       }
+      if (cost) cost.keys += keys.length;
       if (!ask.length) return out;
       const answer = await this.deps.received(languageId, ask);
+      if (cost) {
+        cost.asked += ask.length;
+        cost.ms += this.now() - now;
+      }
       for (const key of ask) {
         const at = answer.get(key) ?? null;
         if (at !== null) out.set(key, at);
@@ -149,7 +164,9 @@ export class AgentOrg {
 
   async read(grant: Grant, q: AgentQuery): Promise<Answer<LanguageView[] | LanguageView['can'] | { passages: PassageListItem[]; nextAfter: string | null } | PassageDetail | ExternalValueOut | ReturnType<typeof externalValuesFor>>> {
     if (q.op === 'languages') return yes(languagesFor(grant, await this.folder.orgOnly()));
+    const began = this.now();
     const held = await this.language(q.languageId);
+    const caughtUp = this.now();
     const can = held ? languageAccess(grant, held.org, q.languageId) : null;
     if (!held || !can) return no({ status: 404, code: 'no_language', error: 'This token cannot open that language.' });
     if (q.op === 'can') return yes(can);
@@ -160,12 +177,24 @@ export class AgentOrg {
       return isRefusal(one) ? no(one) : yes(one);
     }
     if (!can.read) return no({ status: 403, code: 'scope', error: 'This token was not given a read scope.' });
+    const cost: ReceiptCost = { keys: 0, asked: 0, ms: 0 };
     if (q.op === 'passages') {
-      const page = await passagesFor(grant, grant.orgId, q.languageId, held.records, q.query, this.deps.sign, this.receivedIn(q.languageId));
+      const page = await passagesFor(grant, grant.orgId, q.languageId, held.records, q.query, this.deps.sign, this.receivedIn(q.languageId, cost));
+      this.logSlow('passages', began, caughtUp, cost, isRefusal(page) ? 0 : page.passages.length, q.query.include);
       return isRefusal(page) ? no(page) : yes(page);
     }
-    const detail = await passageFor(grant, grant.orgId, q.languageId, held.records, q.unitId, this.deps.sign, this.receivedIn(q.languageId));
+    const detail = await passageFor(grant, grant.orgId, q.languageId, held.records, q.unitId, this.deps.sign, this.receivedIn(q.languageId, cost));
+    this.logSlow('passage', began, caughtUp, cost, isRefusal(detail) ? 0 : 1, []);
     return isRefusal(detail) ? no(detail) : yes(detail);
+  }
+
+  /** One line for a read that took SLOW_READ_MS or more: where its time went, in counts and milliseconds only. */
+  private logSlow(op: string, began: number, caughtUp: number, cost: ReceiptCost, passages: number, include: readonly string[]): void {
+    const total = this.now() - began;
+    if (total < SLOW_READ_MS) return;
+    const language = caughtUp - began;
+    console.log(`slow agent read ${op}: ${total} ms; language ${language} ms, receipts ${cost.ms} ms (${cost.asked} of ${cost.keys} keys asked), `
+      + `answer ${total - language - cost.ms} ms; ${passages} passages${include.length ? `, include ${include.join(',')}` : ''}`);
   }
 
   async write(grant: Grant, w: AgentWrite): Promise<Answer<{ eventId: string; duplicate: boolean; passage: PassageDetail | null } | ExternalValueOut | { key: string; deleted: true }>> {
