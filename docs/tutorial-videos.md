@@ -379,6 +379,27 @@ hands the look to the Worker, which checks it (`parseReview` in
 refused is kept with the run for 14 days (`review.json` and
 `problems.txt`), for a person to read.
 
+Each suggestion about a video comes with pictures of what it is about
+(decision 186, amended 2026-11-17): the look downloads the last film run's
+pictures in each language (its `tutorials-<language>` artifact: each step's
+screen, the stills the frame check found wrong, the screen where a film
+stopped) and Claude picks one to six for each suggestion, with a caption in
+plain words and, where it can see the place, a ring. A film keeps the step
+pictures its dry run made (`film.ts`), so a video filmed again has them too.
+`send` puts each picture in R2 through the Worker
+(`PUT /api/tutorial-review/pictures/<sha256>.<png|jpg>`, this workflow only)
+before the look, and the suggestion keeps their names; only a picture whose
+hash was listed before Claude ran is sent. Anyone may read one at
+`/api/tutorial-pictures/<sha256>.<png|jpg>`: a still of a public video, or a
+screen of its test data. A later look adds pictures to a suggestion that
+has none or still waits for a person, and, once its fix is merged and the
+video filmed again, the same places as they look now, so the dashboard and
+the fix's pull request show before and after. Claude writes the start of
+each suggestion for an admin, in plain words; the part for the fix comes
+after a line that starts "For the fix:", which the dashboard folds away. A
+suggestion made before that still waits for a person, and that no admin
+edited, gets its words again in that form from the next look.
+
 A person decides each other suggestion on the dashboard: Accept, Edit (change
 what it says first), or Reject with why, which the next look reads before
 suggesting the same again. An accepted code change becomes a Linear issue,
@@ -500,7 +521,12 @@ Tutorial videos → Videos, your list and the workers' list
   at the right a mark: **!** when something waits on an admin, **i** when
   Claude acts next. The mark opens that video's cards: the problem, who acts
   next, what happens if nobody does, Accept, Edit and Reject on a
-  suggestion, and **Tell Claude what to do**. An instruction sent there is
+  suggestion, and **Tell Claude what to do**. A suggestion's card, its
+  timeline marks and its line in the changes Claude made show its pictures:
+  numbered, ringed where Claude saw the place, with a caption under each,
+  and, once the fix is filmed, the same places after it, side by side. A
+  picture with a small ring shows that part zoomed in. A click opens a
+  picture full size. An instruction sent there is
   an accepted suggestion of kind `instruction`: Claude's next fix run writes
   it as a pull request, with no second Accept.
 - **For an admin**: what is not one video's: films to publish, channels to
