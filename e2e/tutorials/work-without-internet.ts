@@ -55,7 +55,7 @@ export const workWithoutInternet: Tutorial = {
       screen: 'my_work',
       first: (page) => page.context().setOffline(true),
       part: (page) => cloud(page, /^Offline/),
-      say: 'When there is no internet, the dot turns amber. Keep working. Everything you do is kept on this phone.',
+      say: 'When you lose internet, the dot turns amber. Keep working. Everything you do is kept on this phone.',
       help: 'help.sync.offline',
       stay: 0
     },
