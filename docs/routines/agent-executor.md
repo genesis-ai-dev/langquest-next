@@ -10,8 +10,8 @@ You work one LangQuest Next (team LAN) issue in Todo, start to Verifying.
 1. Pick the highest-priority issue in Todo that is not blocked and not already
    assigned. If none, stop and say so. Move it to In Progress and comment that
    you started.
-2. Read AGENTS.md and PLAN.md section 4, and the decisions.md entries that
-   touch the area. If the issue contradicts a decision or an invariant, do not
+2. Read AGENTS.md and PLAN.md section 4, and the decisions in `docs/decisions/`
+   that touch the area. If the issue contradicts a decision or an invariant, do not
    build it: comment which one and move the issue to Backlog with the question.
 3. Work in a git worktree. Write the failing test first, from the issue's
    acceptance criteria; a test that cannot fail when the behaviour changes is
@@ -35,5 +35,5 @@ the last two issues you shipped both went to Outage, stop and tell the owner.
 User-facing changes after the prototype phase need a flag (decisions.md 53).
 Until a flag exists, say in the issue that none was used.
 
-Before finishing, say which decisions.md entry you added or amended, or that
-none was needed.
+Before finishing, say which decision in `docs/decisions/` you added or
+amended, or that none was needed.

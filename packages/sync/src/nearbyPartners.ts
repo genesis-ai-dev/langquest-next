@@ -21,6 +21,11 @@ export interface PartnerInRange {
   listed: boolean;
   /** From the room's own timer: the two have not exchanged for a set time. */
   dueAnyway: boolean;
+  /**
+   * Whether this phone connects first, where the tags cannot say (phase 5): an iPhone always to a phone
+   * that cannot hear its advert's tag, and of two iPhones the lower salt. Left out, the lower tag.
+   */
+  connectsFirst?: boolean;
 }
 
 const lower = (a: PartnerInRange, b: PartnerInRange): number => {
@@ -49,5 +54,5 @@ export function choosePartner(
   });
   const [best] = [...worthIt].sort(lower);
   if (!best) return null;
-  return { partner: best.tag, connect: best.echoed && (best.older || opts.waited === true || me.tag < best.tag) };
+  return { partner: best.tag, connect: best.echoed && (best.older || opts.waited === true || (best.connectsFirst ?? me.tag < best.tag)) };
 }

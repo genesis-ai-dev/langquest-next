@@ -13,13 +13,13 @@ app's page from ever answering them. Production only: preview has no
 database of its own for it to read yet, so `/ops-dashboard` there says it
 is not set up.
 
-It reads, with four exceptions (decisions.md 162): marking feedback seen,
+It reads, with six exceptions (decisions.md 162): marking feedback seen,
 done or open again, running a server job now, granting or declining an
 organization's blue check request (decisions.md 173, docs/verified-organizations.md),
 connecting a tutorial channel on YouTube and choosing the videos to put
-up there (decisions.md 180, below), and leaving a note about a tutorial
+up there (decisions.md 180, below), leaving a note about a tutorial
 video or accepting, editing or rejecting a change Claude suggests for one
-(decisions.md 186). For those the page posts
+(decisions.md 186), and marking an account's quiet installs not an issue. For those the page posts
 to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
 action and the person's own token to the app Worker's `OpsActions`
 entrypoint (`APP_ACTIONS` binding), which checks the token itself (a live
@@ -75,8 +75,8 @@ An alert says only what someone could act on. A merge that changes nothing
 the web app is built from, notifications for people with no push token
 (they stay in the Inbox), RPCs only the server's jobs call, an average over
 fewer than 20 calls, the v2 import's backdated events, browsers going
-quiet, and an overage costing under $5 this month raise none; each figure
-still shows in its section. The same list is JSON at
+quiet, an account marked not an issue under Silent phones, and an overage
+costing under $5 this month raise none; each figure still shows in its section. The same list is JSON at
 `/ops/api/attention`, with a count per level. Each section collapses to its
 title and status (OK, urgent, problems, to watch, not connected, could not
 read): it starts closed when it is fine and open when something needs a
@@ -113,7 +113,7 @@ the page loads to exactly one section.
 | Feedback | its open count from `diag.ops_feedback_open()` (migration `20261026120000_ops_feedback_and_since.sql`; `diag_reader` cannot read the table); `diag.feedback()`, `diag.feedback_screenshot()`, `diag.feedback_picture()` and `diag.feedback_voice()`, once the feedback store's migration is on the database; until then the section says so. Screenshots, chosen pictures and voice notes load when asked for, and only as JPEG, WAV or m4a | `DIAG_DATABASE_URL` |
 | Look up | an error code (`diag.error`), an email (`diag.lookup_email`: the profile id and its installs, never the address back), a profile id (`diag.person`), an install's last three days (`diag.timeline`), or an organization or language by name (`diag.find`) | `DIAG_DATABASE_URL` |
 | Sync and data safety | work the server refused, by reason (`sync` records); what arrived and how late, and events stamped ahead of the clock (the projection pass's sample); the nightly fold canary; languages behind the projection pass, overdue snapshots and the largest languages (`diag.ops_pipeline`) | `DIAG_DATABASE_URL`, migration `20261023100000_ops_dashboard.sql` |
-| Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones and phones gone quiet | `DIAG_DATABASE_URL` |
+| Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones, and phones gone quiet by account (`diag.ops_quiet_accounts`) | `DIAG_DATABASE_URL` |
 | Release health | merges on `main`, Worker deploys and EAS updates over 14 days against errors phones reported; the commit each host serves; hosted migrations against `main` (`diag.migrations_applied` and the files on GitHub) | `DIAG_DATABASE_URL`; the Cloudflare, Expo and GitHub tokens add to the timeline |
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
 | Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
@@ -129,7 +129,7 @@ the page loads to exactly one section.
 | Nightly tests (Releases) | GitHub: for `guardrails.yml` and `phone-tests.yml` (`apps/admin/src/sources/nightly.ts` `NIGHTLIES`), the latest completed scheduled run on `main`, and the line each reporting job left on it, an annotation titled "Nightly: <suite>" (`scripts/nightly-report.mjs` `nightNotice`, decisions.md 209): the web UI suite, the fleet simulation, the mutation tests and each phone, with how many passed or why it broke, and the Linear issue of each failure. The detail of a failure is in Linear. A failed test is a watch; a suite that broke, a reporting job that failed and left no line, or a nightly last run more than 36 hours ago is a problem | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
 | Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx), with the errors grouped: a Postgres error by its SQLSTATE (named), role, client and the RPC a PostgREST call named; a server error by method, the path's first parts (ids hidden) and status. Never a log message, which can quote what someone typed | `ADMIN_SUPABASE_TOKEN` |
-| Where each build and update is (Releases) | A diagram: each new store build in the stage it is in now (building on EAS; TestFlight or Play's internal testing; App Review or Play review; approved; what people download), and inside each build the over-the-air updates it takes (published on the production branch for its runtime after it was made), each linked to its pull request with how many of the platform's phones run it (`apps/admin/src/sources/pipeline.ts`, decisions.md 157). A pull request shows in each build that has it: from main in the new build, and in the public build as a copy through its release branch, named with its copy pull request, first as "PR open, not merged yet" (an open pull request onto `release/<platform>`, read from GitHub) and then as the update it sent (decisions.md 155). A copy says when it waits for Claude, who examines every copy before it merges, when its tests failed and Claude is fixing them, and when Claude has not finished it (the hourly run starts Claude again, up to 3 times); a copy whose tests still fail, or that is still not finished, after Claude's 3 tries, or that has been open for 3 hours, is a problem under Needs attention, linked to the copy. EAS says what was built and sent where; App Store Connect says where an iPhone build stands; Play's tracks, read in an edit that is deleted unsent, and Play's public page say where an Android build stands. A build waiting 3 hours with nothing in review is a watch. A store that cannot be read leaves its lane to what EAS knows, and says so | `ADMIN_EXPO_TOKEN`; `ADMIN_APP_STORE_KEY`, `ADMIN_GOOGLE_PLAY_KEY` and `DIAG_DATABASE_URL` each fill in more |
+| Where each build and update is (Releases) | A diagram: each new store build in the stage it is in now (building on EAS; TestFlight or Play's internal testing; App Review or Play review; approved; what people download), and inside each build the over-the-air updates it takes (published on the production branch for its runtime after it was made), each linked to its pull request with how many of the platform's phones run it (`apps/admin/src/sources/pipeline.ts`, decisions.md 157). Carried builds (Play's alpha track, decisions.md 246) are not store builds and do not show. A pull request shows in each build that has it: from main in the new build, and in the public build as a copy through its release branch, named with its copy pull request, first as "PR open, not merged yet" (an open pull request onto `release/<platform>`, read from GitHub) and then as the update it sent (decisions.md 155). A copy says when it waits for Claude, who examines every copy before it merges, when its tests failed and Claude is fixing them, and when Claude has not finished it (the hourly run starts Claude again, up to 3 times); a copy whose tests still fail, or that is still not finished, after Claude's 3 tries, or that has been open for 3 hours, is a problem under Needs attention, linked to the copy. EAS says what was built and sent where; App Store Connect says where an iPhone build stands; Play's tracks, read in an edit that is deleted unsent, and Play's public page say where an Android build stands. A build waiting 3 hours with nothing in review is a watch. A store that cannot be read leaves its lane to what EAS knows, and says so | `ADMIN_EXPO_TOKEN`; `ADMIN_APP_STORE_KEY`, `ADMIN_GOOGLE_PLAY_KEY` and `DIAG_DATABASE_URL` each fill in more |
 | App builds and updates | EAS builds, store submissions and the newest update on each branch | `ADMIN_EXPO_TOKEN` |
 | Update adoption | for each channel, platform and runtime the phones run: the newest update EAS published there and how many installs active in the last 7 days run it, an older update, or their build's embedded one. EAS gives each update's id per platform, the id a phone reports in its diagnostics (`Updates.updateId`), so they match exactly; a channel serving two branches (a rollout) takes the newer. Browsers are left out, and a phone with diagnostics off is not counted (`apps/admin/src/sources/adoption.ts`) | `ADMIN_EXPO_TOKEN`; `DIAG_DATABASE_URL` |
 | Google Play | Android vitals for the last 7 days Play has (user-perceived crash and ANR rates, 7-day user-weighted as Play Console shows them, against Play's bad-behaviour lines, 1.09% and 0.47%), the top crash and ANR clusters, and the last week's reviews | `ADMIN_GOOGLE_PLAY_KEY` |
@@ -443,12 +443,62 @@ Not tried against the real services yet (no keys were at hand): Play's
 rates are read as fractions (0.0109 is 1.09%), and the first real answer
 should confirm it.
 
+## History: totals by hour and day
+
+Raw records and job runs stay 90 days. For a range past that, and so that a
+year opens as fast as a day at any number of phones, a pg_cron job
+(`langquest-daily-totals`, every 10 minutes, `diag.daily_fill`, decisions.md
+254) counts them into totals: `diag.hourly` (the hour now and the one before,
+kept 14 days), `diag.daily` (today and yesterday once an hour, kept for all
+time) and `diag.monthly` (each month again from its days, for the range All).
+One row is one number of one part for one key (a platform, a job, an
+error, a route; `''` is the total) and one day. A number keeps its 30 largest
+keys a day and adds the rest up as `_other`. No key is an install, a person, a
+name or an email. Each run also fills two days and 24 hours that were never
+counted, newest first, so the 90 days of raw records are counted within a few
+hours of the migration. `diag.daily_metrics` says how a week or a month adds
+each number up: a count is summed, a level (phones that reported, a size, a
+p95) shows its busiest day. The numbers and their words are
+`apps/admin/src/sources/history.ts` `METRICS`.
+
+`GET /ops/api/<part>?range=24h|14d|90d|1y|all` answers one part's numbers in
+buckets of an hour, a day, a day, a week and a month, from the totals only
+(`diag.ops_series`): each number's total and its 10 largest keys over the
+range, one value a bucket, and `counted`, whether each bucket was counted yet
+(null is not counted; 0 is counted with none). `server/dailyTotalsSmoke.sql`
+holds what a day holds; `server/dailyTotalsLoad.sql`, run by hand, times it
+with 40,000 installs and 3 years of totals.
+
+## The start page, a section's charts and the records behind a bar
+
+The page opens on "What needs you first" (`apps/admin/src/pageStart.ts`,
+`docs/ops-dashboard-plan.md` 5.0): a count, one card for each part whose
+alerts need a person, one line for each part's alerts to watch, and an OK line
+for each section with none. `GET /ops/api/glance` (`diag.ops_glance`) gives the
+OK lines and cards their 14-day pictures: one number for each section
+(`GLANCE` in `sources/history.ts`). `#g/<section>` shows one section with a
+chart for each number over the range, then its tables; `#all` shows every
+section as before.
+
+A tap on a bar or a point asks
+`GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,
+decisions.md 255): the records behind that number in that bucket, 50 a page,
+newest first, for a bucket of at most 32 days. Records and job runs are read
+through the number's row in `diag.detail_filters`, the same filter and key
+that `daily_compute` counts with; `server/opsDetailSmoke.sql` fails when the
+two differ. Cron runs, feedback, content reports and user issues come from
+their own tables, without bodies, names, emails or report details. People are
+counted, never listed. Past 90 days a bucket says it keeps totals only.
+When a number gets a new filter in `daily_compute`, give it the same row in
+`diag.detail_filters` in the same migration.
+
 ## Not built yet
 
 - iOS crash counts: App Store Connect gives them only as daily analytics
   reports, which have to be requested once and read the next day.
-- History past what `diag` keeps (90 days of runs and records): a daily
-  rollup, phase 5 of `docs/ops-dashboard-plan.md`.
+- Pictures over a range of days on the page. The totals they read are
+  built (below); the start page and its pictures come next
+  (`docs/ops-dashboard-plan.md` 7).
 - Telling anyone: the page shows problems to whoever opens it; nothing
   sends them (`OpsWatch`, phase 5).
 - Container time in Capacity and cost: Cloudflare's public analytics do not

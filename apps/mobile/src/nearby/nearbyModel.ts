@@ -143,7 +143,8 @@ export type CertificateAnswer =
 
 /**
  * A join pass as the Worker signs it (core's `JoinPass`, docs/nearby-sync-plan.md 5.12 and 14.1),
- * written out here because only `.android` files import the nearby entry.
+ * written out here because only a phone's own files (`.native`, `.android`, `.ios`) import the
+ * nearby entry.
  */
 export interface PassShape {
   kind: 'pass@1';
@@ -345,7 +346,7 @@ export function languagesToName(held: FindKeys, orgId: string, opened: readonly 
 
 // ---- what a phone holds for teammates ---------------------------------------------------
 
-/** core's `HoldChoice`, written out here because only `.android` files import the nearby entries. */
+/** core's `HoldChoice`, written out here because only a phone's own files import the nearby entries. */
 export type HoldChoice = { hold: true } | { hold: false; reviewWindow: number };
 
 /** Open-for-review passages a phone with the row off takes, as a starting guess (5.6). */

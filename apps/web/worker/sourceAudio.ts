@@ -33,18 +33,25 @@ export async function handleSourceAudio(request: Request, deps: SourceAudioDeps)
  * Fetch an audio file and answer with its bytes as they arrive: never
  * cached, here or by the browser (the app keeps its own copy, by hash).
  * 404 when the host has no such file, 502 when it did not answer with audio.
+ * A file sent as bytes of no named kind is audio when its link ends in an
+ * audio name: Bible Brain sends some MP3s (ENGWEBN2DA) as S3's default
+ * `binary/octet-stream`, and every browser keep of them failed (LAN-241).
  */
 export async function passAudioThrough(fetchImpl: (url: string, init?: RequestInit) => Promise<Response>, link: string): Promise<Response> {
   let res: Response;
   try {
     res = await fetchImpl(link, { headers: { accept: 'audio/*' } });
   } catch {
+    console.error('source audio: the host did not answer');
     return text(502, 'The audio did not come just now. Try again.');
   }
   if (res.status === 404 || res.status === 410) return text(404, 'No such audio file.');
-  const type = res.headers.get('content-type') ?? '';
-  if (!res.ok || !res.body || !/^(audio\/|application\/octet-stream)/i.test(type)) {
+  const sent = res.headers.get('content-type') ?? '';
+  const type = /^audio\//i.test(sent) ? sent : /^(application|binary)\/octet-stream/i.test(sent) ? (audioTypeOf(link) ?? 'application/octet-stream') : null;
+  if (!res.ok || !res.body || !type) {
     await res.body?.cancel().catch(() => undefined);
+    // The link is signed, so only what came back is logged.
+    console.error(`source audio: the host answered ${res.status} ${sent || 'with no type'}`);
     return text(502, 'The audio did not come just now. Try again.');
   }
   const length = res.headers.get('content-length');
@@ -52,6 +59,18 @@ export async function passAudioThrough(fetchImpl: (url: string, init?: RequestIn
     status: 200,
     headers: { 'content-type': type, ...(length ? { 'content-length': length } : {}), 'cache-control': 'private, no-store' }
   });
+}
+
+const AUDIO_TYPES: Record<string, string> = { mp3: 'audio/mpeg', m4a: 'audio/mp4', webm: 'audio/webm', ogg: 'audio/ogg', wav: 'audio/wav' };
+
+/** The audio type a link's file name says, or null. */
+function audioTypeOf(link: string): string | null {
+  try {
+    const ext = /\.([a-z0-9]+)$/i.exec(new URL(link).pathname)?.[1]?.toLowerCase();
+    return (ext && AUDIO_TYPES[ext]) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 const text = (status: number, body: string) =>

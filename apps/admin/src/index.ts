@@ -11,7 +11,7 @@ import { appStoreSection } from './sources/appstore';
 import { expoSection } from './sources/expo';
 import { googlePlaySection } from './sources/googleplay';
 import { codeSection } from './sources/github';
-import { filmingSection } from './sources/filming';
+import { videosSection } from './sources/videos';
 import { nightlySection } from './sources/nightly';
 import { supabaseSection } from './sources/supabase';
 import { containerSection } from './sources/container';
@@ -21,6 +21,7 @@ import { releasesSection } from './sources/releases';
 import { adoptionSection } from './sources/adoption';
 import { pipelineSection } from './sources/pipeline';
 import { capacitySection, storageSection } from './sources/storage';
+import { detail, detailAsk, glance, history, isRange, PART_IDS, RANGES } from './sources/history';
 
 /**
  * The ops dashboard (docs/admin.md, decisions.md 160): the page at
@@ -61,7 +62,7 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   adoption: (env) => adoptionSection(env),
   pipeline: (env) => pipelineSection(env),
   container: (env) => containerSection(env),
-  filming: (env) => filmingSection(env),
+  videos: (env) => videosSection(env),
   nightly: (env) => nightlySection(env)
 };
 
@@ -134,6 +135,37 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   const fresh = url.searchParams.get('fresh') === '1';
   const section = url.pathname.slice(API_BASE.length);
+  // A part's numbers over a range of days, from the totals only (sources/history.ts, decisions.md 254).
+  const range = url.searchParams.get('range');
+  if (range !== null) {
+    if (!PART_IDS.has(section)) return json({ error: 'Not found' }, 404);
+    if (!isRange(range)) return json({ error: `range is one of ${RANGES.join(', ')}` }, 400);
+    try {
+      return json(await withDiag(diagConnection(env), (query) => history(query, section, range)));
+    } catch (e) {
+      return json({ error: errorText(e) }, 502);
+    }
+  }
+  // The start page's 14 days of each section's number, in one call (decisions.md 254).
+  if (section === 'glance') {
+    try {
+      return json(await withDiag(diagConnection(env), glance));
+    } catch (e) {
+      return json({ error: errorText(e) }, 502);
+    }
+  }
+  // The raw rows behind one bucket of one number, 50 at a time, 90 days at most (sources/history.ts).
+  const tapped = /^([a-z0-9_]{1,40})\/detail$/.exec(section);
+  if (tapped) {
+    if (!PART_IDS.has(tapped[1]!)) return json({ error: 'Not found' }, 404);
+    const ask = detailAsk(tapped[1]!, url.searchParams);
+    if ('error' in ask) return json(ask, 400);
+    try {
+      return json(await withDiag(diagConnection(env), (query) => detail(query, ask)));
+    } catch (e) {
+      return json({ error: errorText(e) }, 502);
+    }
+  }
   if (section === 'me') return json({ profileId: who.profileId });
   // The connection itself failing makes every section of the answer say so.
   if (section === 'diag') return json(await diagAnswer(env));

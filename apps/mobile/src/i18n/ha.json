@@ -360,7 +360,9 @@
   },
   "native": {
     "microphone": "LangQuest yana naɗar muryarku don fassara nassosi.",
-    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata."
+    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata.",
+    "bluetooth": "LangQuest yana amfani da Bluetooth don nemo wayoyin abokan aikinka na kusa da raba aiki da su.",
+    "localNetwork": "LangQuest yana amfani da cibiyar sadarwa ta gida don raba aiki da wayoyin abokan aikinka na kusa."
   },
   "library": {
     "sourceLine": {
@@ -731,7 +733,6 @@
       "newLanguage": "Sabon harshe",
       "noLanguages": "Babu harsuna tukuna. Ku ƙara na farko da tawagarku za ta naɗa.",
       "openToBring": "Buɗe shi don kawo shi kan wannan na'ura",
-      "newLanguageOrCluster": "Sabon harshe ko rukuni",
       "inviteHelp": "Ku zaɓi abin da za su yi, sannan ku nuna musu lamba su karanta.",
       "languageHelp": "Yana buɗe shafinsa: ku shirya shi, ku ga aikinsa da mutanensa.",
       "licenseHelp": "Lasisin da aikin tawagarku yake ƙarƙashinsa. Tsari yana faɗin abin da ya yarda da shi.",
@@ -3267,7 +3268,8 @@
       "downloading": "Ana sauke sabuntawa…",
       "downloadingPercent": "Ana sauke sabuntawa… {{percent}}",
       "webReady": "Sabuwar sigar LangQuest ta shirya. Ku sake loda shafin don amfani da ita.",
-      "storeBuild": "ginin shago",
+      "storeBuild": "ginin shago {{version}}",
+      "noUpdate": "babu sabuntawa",
       "updateBuild": "sabuntawa {{id}}",
       "unknownBuild": "sabuntawa ba a sani ba"
     },
@@ -3616,6 +3618,20 @@
       "drawAgain": "Sake zana shi",
       "newPattern": "Zana sabon zane",
       "choosePatternHelp": "Zaɓi hoto da zane don sake shiga a wannan waya, ko babu intanet."
+    },
+    "appLock": {
+      "row": "Kulle manhajar",
+      "rowHelp": "Idan an kunna, manhajar tana tambayar zanenku duk lokacin da aka buɗe ta, da duk lokacin da kuka koma gare ta. Kunna ko kashe ta yana tambayar zanenku tukuna.",
+      "on": "Yanzu manhajar tana tambayar zanenku lokacin da aka buɗe ta.",
+      "off": "Manhajar ba ta tambayar zanenku kuma.",
+      "opening": "Ana buɗewa…",
+      "checking": "Ana dubawa…",
+      "forgot": "Kun manta?",
+      "forgotHelp": "Kun manta zanenku? Ku fita, sannan ku sake shiga da kalmar sirrinku, ko da lambar shiga daga wani a tawagarku. Aikinku yana nan a wannan waya.",
+      "signOutHelp": "Yana fitar da ku daga wannan waya. Aikinku yana nan a cikinta, kuma za a aika shi idan an samu dama.",
+      "backHelp": "Yana komawa kan ɗigogin.",
+      "waitFor_one": "Gwaje-gwaje sun yi yawa. Ku sake gwadawa bayan minti {{count, number}}.",
+      "waitFor_other": "Gwaje-gwaje sun yi yawa. Ku sake gwadawa bayan mintuna {{count, number}}."
     }
   },
   "study": {
@@ -3977,7 +3993,11 @@
         "askedWho": "an roƙi {{who}}",
         "asked": "an roƙa",
         "next": "na gaba",
-        "afterDone": "bayan kun gama"
+        "afterDone": "bayan kun gama",
+        "made": "an yi ta",
+        "checked": "an duba ta",
+        "afterMade": "bayan an yi ta",
+        "checkedBy": "a cikin {{check}}"
       },
       "help": {
         "study": "Ku bi jagorar nazari tare kafin ku naɗa. Babu abin da ke jiran sa.",
@@ -3997,7 +4017,9 @@
         "checkpoint": "Alamar kulle: dole a wuce shi kafin matakan da ke bayansa."
       },
       "thenTheTeam": "Sannan tawagar",
-      "teamHears": "Sannan tawagar za ta iya jin sa"
+      "teamHears": "Sannan tawagar za ta iya jin sa",
+      "makeIt": "{{what}} · yin ta",
+      "checkIt": "{{what}} · duba ta"
     },
     "quote": "“{{text}}”",
     "journey": {

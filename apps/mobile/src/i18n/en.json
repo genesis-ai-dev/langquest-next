@@ -360,7 +360,9 @@
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",
-    "camera": "LangQuest uses the camera to scan invite QR codes."
+    "camera": "LangQuest uses the camera to scan invite QR codes.",
+    "bluetooth": "LangQuest uses Bluetooth to find your teammates' phones nearby and share work with them.",
+    "localNetwork": "LangQuest uses the local network to share work with your teammates' phones nearby."
   },
   "library": {
     "sourceLine": {
@@ -731,7 +733,6 @@
       "newLanguage": "New language",
       "noLanguages": "No languages yet. Add the first one your team will record.",
       "openToBring": "Open it to bring it onto this device",
-      "newLanguageOrCluster": "New language or cluster",
       "inviteHelp": "Choose what they will do, then show them a code to scan.",
       "languageHelp": "Opens its page: get it ready, see its work and its people.",
       "licenseHelp": "The license your team's work is under. Setup says what it allows.",
@@ -3267,7 +3268,8 @@
       "downloading": "Downloading update…",
       "downloadingPercent": "Downloading update… {{percent}}",
       "webReady": "A new version of LangQuest is ready. Reload to use it.",
-      "storeBuild": "store build",
+      "storeBuild": "store build {{version}}",
+      "noUpdate": "no update",
       "updateBuild": "update {{id}}",
       "unknownBuild": "update unknown"
     },
@@ -3616,6 +3618,20 @@
       "drawAgain": "Draw it again",
       "newPattern": "Draw a new pattern",
       "choosePatternHelp": "Choose a picture and a pattern to sign back in with on this phone, even with no connection."
+    },
+    "appLock": {
+      "row": "Lock the app",
+      "rowHelp": "When on, the app asks for your pattern each time it opens, and each time you come back to it. Turning it on or off asks for your pattern first.",
+      "on": "The app now asks for your pattern when it opens.",
+      "off": "The app no longer asks for your pattern.",
+      "opening": "Opening…",
+      "checking": "Checking…",
+      "forgot": "Forgot?",
+      "forgotHelp": "Forgot your pattern? Sign out, then sign in again with your password, or with a sign-in code from someone on your team. Your work stays on this phone.",
+      "signOutHelp": "Signs out of this phone. Your work stays on it and is sent when it can be.",
+      "backHelp": "Goes back to the dots.",
+      "waitFor_one": "Too many tries. Try again in {{count, number}} minute.",
+      "waitFor_other": "Too many tries. Try again in {{count, number}} minutes."
     }
   },
   "study": {
@@ -3977,7 +3993,11 @@
         "askedWho": "asked {{who}}",
         "asked": "asked",
         "next": "next",
-        "afterDone": "once you're done"
+        "afterDone": "once you're done",
+        "made": "made",
+        "checked": "checked",
+        "afterMade": "after it is made",
+        "checkedBy": "in the {{check}}"
       },
       "help": {
         "study": "Go through the study guide together before you record. Nothing waits on it.",
@@ -3997,7 +4017,9 @@
         "checkpoint": "The lock: it must pass before the steps after it."
       },
       "thenTheTeam": "Then the team",
-      "teamHears": "Then the team can hear it"
+      "teamHears": "Then the team can hear it",
+      "makeIt": "{{what}} · make it",
+      "checkIt": "{{what}} · check it"
     },
     "quote": "“{{text}}”",
     "journey": {

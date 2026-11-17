@@ -45,6 +45,7 @@ class NearbyLinkModule : Module() {
 
   private val events = object : RadioEvents {
     override fun found(seen: Map<String, Any?>) = emit("onFound", seen)
+    override fun advert(heard: Map<String, Any?>) = emit("onAdvert", heard)
     override fun formSalt(salt: String, rssi: Int) = emit("onFormSalt", mapOf("salt" to salt, "rssi" to rssi))
     override fun salt(salt: String) = emit("onSalt", mapOf("salt" to salt))
     override fun pipe(linkId: String, salt: String) = emit("onPipe", mapOf("linkId" to linkId, "salt" to salt))
@@ -105,7 +106,7 @@ class NearbyLinkModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("NearbyLink")
-    Events("onFound", "onFormSalt", "onSalt", "onPipe", "onRefused", "onLinkDown", "onFindError")
+    Events("onFound", "onAdvert", "onFormSalt", "onSalt", "onPipe", "onRefused", "onLinkDown", "onFindError")
 
     // So a JavaScript thread that hung, or an app that went, cannot leave the radios on.
     OnDestroy {
@@ -117,6 +118,10 @@ class NearbyLinkModule : Module() {
     OnActivityEntersBackground { io.execute { stopAll(backgrounded = true) } }
 
     AsyncFunction("capabilities") { promise: Promise -> run(promise) { Radios.capabilities(context) } }
+
+    // An iPhone shows its Bluetooth prompt here (phase 5). On Android JavaScript asks for the
+    // permissions itself (src/nearby/nearbyPermissions.android.ts), so this only says whether they are granted.
+    AsyncFunction("askPermission") { promise: Promise -> run(promise) { Radios.granted(context) } }
 
     AsyncFunction("configureLinks") { tunables: Map<String, Any?>, promise: Promise ->
       run(promise) { linkTune = FindTunables.links(tunables); null }

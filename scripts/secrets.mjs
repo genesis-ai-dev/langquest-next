@@ -302,14 +302,44 @@ export const queryRows = (output) => (Array.isArray(output) ? output : output?.r
 const query = (ref, sql) => withTempFile('q.sql', sql, (file) => queryRows(JSON.parse(
   run('supabase', ['db', 'query', '--linked', '--project-ref', ref, '--output-format', 'json', '--agent', 'no', '-f', file]))));
 
-function workerSecretNames(config, environment) {
+/**
+ * What a failed `wrangler secret list` means: 'absent' when it says the Worker
+ * does not exist (wrangler 4 says `Worker "<name>" not found.`, from the API's
+ * code 10007, or 10090 for a legacy environment), which has no secrets yet and
+ * which `secret bulk` makes; 'unreadable' for anything else, a sign-in or a
+ * network failure most often, which says nothing about what the Worker holds.
+ */
+export const secretListFailure = (output) =>
+  /Worker "[^"]*"(?: \(env: [^)]*\))? not found\./.test(output) || /\[code: 100(?:07|90)\]/.test(output) ? 'absent' : 'unreadable';
+
+/** Whether a failed `wrangler hyperdrive get` says Cloudflare has no such config, rather than that it could not ask. */
+export const hyperdriveGone = (output) =>
+  /hyperdrive\/configs\/[0-9a-f]{32}\) failed/.test(output) && /not found|does not exist/i.test(output);
+
+/**
+ * The error for a Cloudflare listing that could not be read. It stops the
+ * script before the comparison is shown: read as empty, every secret looked
+ * missing and a yes would have set them all again and made a second
+ * Hyperdrive config (2026-11-13, signed out). Says how to sign in when that
+ * was the cause, in the profile the script runs wrangler with; otherwise adds
+ * `otherwise`, then wrangler's own words.
+ */
+export function unreadable(what, output, otherwise = '', profile = authArgs()[1] ?? null) {
+  const signedOut = /CLOUDFLARE_API_TOKEN|not authenticated|wrangler login|\[code: 10000\]/i.test(output);
+  const signIn = profile ? `npx wrangler auth create ${profile}` : 'npx wrangler login';
+  const advice = signedOut ? ` wrangler is not signed in for this script: run ${signIn}, then this again.` : otherwise ? ` ${otherwise}` : '';
+  return `could not read ${what}, so nothing was compared or applied.${advice}\n${output}`;
+}
+
+/** A Worker's secret names, or null when the Worker does not exist; any other failure stops the script. */
+function workerSecretNames(worker, environment) {
   try {
-    const listed = JSON.parse(run('wrangler', ['secret', 'list', ...targetArgs(config, environment), '--format', 'json', ...authArgs()]));
+    const listed = JSON.parse(run('wrangler', ['secret', 'list', ...targetArgs(WORKERS[worker], environment), '--format', 'json', ...authArgs()]));
     return listed.map((s) => s.name);
-  } catch {
-    // Most often a Worker that does not exist yet, which has no secrets;
-    // `secret bulk` creates it. Any other failure shows again when applying.
-    return [];
+  } catch (err) {
+    const output = err instanceof Error ? err.message : String(err);
+    if (secretListFailure(output) === 'absent') return null;
+    throw new Error(unreadable(`the ${worker} Worker's secrets`, output));
   }
 }
 
@@ -363,10 +393,12 @@ function hostedState(environment, ref, wanted) {
   // Push delivery scheduled on its own function, and the projection pass not: it runs in the Worker's job container.
   const jobs = query(ref, `select jobname from cron.job where (jobname = ${literal(CRON_JOB)} and command like ${literal(`%${PUSH_FUNCTION}%`)}) or jobname = ${literal(RETIRED_JOB)};`).map((r) => r.jobname);
   const scheduled = jobs.includes(CRON_JOB) && !jobs.includes(RETIRED_JOB);
+  const absent = [];
   const workers = Object.fromEntries(Object.keys(wanted.workers).map((worker) => {
-    const present = workerSecretNames(WORKERS[worker], environment);
+    const present = workerSecretNames(worker, environment);
+    if (present === null) absent.push(worker);
     return [worker, Object.fromEntries(Object.keys(wanted.workers[worker]).map((name) =>
-      [name, present.includes(name) ? 'set' : 'missing']))];
+      [name, present?.includes(name) ? 'set' : 'missing']))];
   }));
   // The config's login cannot be read back, so this says only whether it exists.
   let hyperdrive = null;
@@ -374,7 +406,17 @@ function hostedState(environment, ref, wanted) {
     const id = hyperdriveId(readFileSync(join(root, WORKERS.admin), 'utf8'));
     hyperdrive = 'missing';
     if (id) {
-      try { run('wrangler', ['hyperdrive', 'get', id, '-c', WORKERS.admin, ...authArgs()]); hyperdrive = 'set'; } catch { /* gone: made again */ }
+      try {
+        run('wrangler', ['hyperdrive', 'get', id, '-c', WORKERS.admin, ...authArgs()]);
+        hyperdrive = 'set';
+      } catch (err) {
+        const output = err instanceof Error ? err.message : String(err);
+        // Gone: made again. Anything else would make a second config beside the one in use.
+        if (!hyperdriveGone(output)) {
+          throw new Error(unreadable(`Hyperdrive ${HYPERDRIVE_NAME}`, output,
+            `If it was deleted, put "${HYPERDRIVE_PLACEHOLDER}" back as its id in ${WORKERS.admin} and run this again.`));
+        }
+      }
     }
   }
   // GitHub, like Cloudflare, says only which secrets a repository has.
@@ -387,6 +429,7 @@ function hostedState(environment, ref, wanted) {
     retired: RETIRED_FUNCTION_SECRETS.filter((name) => name in functionDigests),
     vault: drift(wanted.vault, vaultDigests),
     workers,
+    absent,
     scheduled
   };
 }
@@ -397,6 +440,11 @@ export function summarize(state) {
   let behind = false;
   const mark = (s) => (s === 'same' || s === 'set' ? '✓' : s === 'missing' ? '+' : '~');
   for (const [worker, names] of Object.entries(state.workers ?? {})) {
+    // A deployed environment's Workers all exist, so this is most often the wrong account.
+    if (state.absent?.includes(worker)) {
+      lines.push(`  ! ${worker} Worker is not on the Cloudflare account wrangler is signed in to (npx wrangler whoami); applying makes it there`);
+      behind = true;
+    }
     for (const [name, s] of Object.entries(names)) {
       lines.push(`  ${mark(s)} ${worker} Worker secret ${name}${s === 'set' ? ' (set; its value cannot be read back)' : ' (missing)'}`);
       if (s !== 'set') behind = true;

@@ -1,6 +1,8 @@
 {
   "ios": {
     "NSMicrophoneUsageDescription": "LangQuest อัดเสียงของคุณเพื่อแปลตอนพระคัมภีร์",
-    "NSCameraUsageDescription": "LangQuest ใช้กล้องเพื่อสแกนคิวอาร์โค้ดคำเชิญ"
+    "NSCameraUsageDescription": "LangQuest ใช้กล้องเพื่อสแกนคิวอาร์โค้ดคำเชิญ",
+    "NSBluetoothAlwaysUsageDescription": "LangQuest ใช้ Bluetooth เพื่อค้นหาโทรศัพท์ของเพื่อนร่วมทีมที่อยู่ใกล้ๆ และแชร์งานกับพวกเขา",
+    "NSLocalNetworkUsageDescription": "LangQuest ใช้เครือข่ายเฉพาะที่เพื่อแชร์งานกับโทรศัพท์ของเพื่อนร่วมทีมที่อยู่ใกล้ๆ"
   }
 }

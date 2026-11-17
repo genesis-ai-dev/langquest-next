@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { carriedApkNameHere } from '@langquest-next/core';
 import {
-  APK_TYPE, BINDING, CURRENT, MIN_BYTES, Refusal, bucketConfig, check, checkApk, fileName, publish, run, signV4, universalApk
+  APK_TYPE, BINDING, CURRENT, MAX_DOWNLOAD_ID, MIN_BYTES, Refusal, bucketConfig, check, checkApk, fileName, publish, run, signV4, universalApk
 } from './carried-build.mjs';
 import { look } from './play-review.mjs';
 import { EAS_KEYS, FILE_KEYS } from './secrets.mjs';
@@ -33,7 +33,7 @@ function apk(size = MIN_BYTES + 10): Uint8Array {
 interface Call { method: string; url: string; headers: Record<string, string> }
 
 /** Google's token endpoint, generatedApks and its download, and R2's S3 API for one bucket, in one fetch. */
-function fakes(o: { generated?: (n: number) => { status: number; body?: unknown }; file?: Uint8Array; bucket?: Map<string, { body: Uint8Array | string; type: string; disposition?: string }>; bucketStatus?: number } = {}) {
+function fakes(o: { generated?: (n: number) => { status: number; body?: unknown }; download?: string; file?: Uint8Array; bucket?: Map<string, { body: Uint8Array | string; type: string; disposition?: string }>; bucketStatus?: number } = {}) {
   const calls: Call[] = [];
   const bucket = o.bucket ?? new Map();
   let generatedAsked = 0;
@@ -51,7 +51,7 @@ function fakes(o: { generated?: (n: number) => { status: number; body?: unknown 
         const a = o.generated?.(generatedAsked) ?? { status: 200, body: { generatedApks: [{ certificateSha256Hash: 'c', generatedUniversalApk: { downloadId: 'dl-1' } }] } };
         return typeof a.body === 'string' ? new Response(a.body, { status: a.status }) : Response.json(a.body ?? {}, { status: a.status });
       }
-      if (play[1] === '/generatedApks/42/downloads/dl-1:download?alt=media') return new Response(o.file ?? apk());
+      if (play[1] === (o.download ?? '/generatedApks/42/downloads/dl-1:download?alt=media')) return new Response(o.file ?? apk());
       return new Response('?', { status: 404 });
     }
     const r2 = /^https:\/\/acct\.r2\.cloudflarestorage\.com\/apks\/(.+)$/.exec(url);
@@ -196,6 +196,73 @@ describe('--publish', () => {
     expect(universalApk({ generatedApks: [] })).toBeNull();
     expect(universalApk({ generatedApks: [{ generatedSplitApks: [] }] })).toBeNull();
     expect(() => universalApk({ generatedApks: [{}, {}] })).toThrow(/2 signing keys/);
+  });
+
+  it('takes Play\'s download id as the opaque string Google documents, / + = and : too, and asks for the download with it percent-encoded', async () => {
+    const id = 'Cg+4bW9yZS9pZA==/vc:52';
+    const download = '/generatedApks/42/downloads/Cg%2B4bW9yZS9pZA%3D%3D%2Fvc%3A52:download?alt=media';
+    const f = fakes({ generated: () => ({ status: 200, body: { generatedApks: [{ generatedUniversalApk: { downloadId: id } }] } }), download });
+    expect((await publish({ ...base, fetch: f.fetch })).wrote).toBe(true);
+    expect(f.bucket.has(NAME)).toBe(true);
+    expect(f.calls.filter((c) => c.url.includes('/downloads/')).map((c) => c.url.replace(/^.*\/applications\/[^/]+/, ''))).toEqual([download]);
+    for (const one of ['a/b', 'a+b', 'ab==', 'a:b', 'é~!*()\'', 'x'.repeat(MAX_DOWNLOAD_ID)]) {
+      expect(universalApk({ generatedApks: [{ generatedUniversalApk: { downloadId: one } }] }), one.slice(0, 9)).toBe(one);
+    }
+  });
+
+  it('counts a universal APK with no download id as not made yet, so it asks again, and gives up having written nothing', async () => {
+    expect(universalApk({ generatedApks: [{ generatedUniversalApk: {} }] })).toBeNull();
+    const later = fakes({ generated: (n) => ({ status: 200, body: { generatedApks: [{ generatedUniversalApk: n < 2 ? {} : { downloadId: 'dl-1' } }] } }) });
+    await publish({ ...base, fetch: later.fetch });
+    expect([later.asked(), later.bucket.has(NAME)]).toEqual([2, true]);
+    const never = fakes({ generated: () => ({ status: 200, body: { generatedApks: [{ generatedUniversalApk: {} }] } }) });
+    let slept = 0;
+    await expect(publish({ ...base, fetch: never.fetch, tries: 3, sleep: async () => { slept += 1; } })).rejects.toThrow(/no universal APK for version code 42 after 3 tries/);
+    expect([never.asked(), slept]).toEqual([3, 2]);
+    expect(never.writes()).toEqual([]);
+  });
+
+  it('refuses a download id it cannot put in a URL, saying what it looks like and never what it is', async () => {
+    const said = (generatedUniversalApk: unknown) => {
+      try {
+        universalApk({ generatedApks: [{ generatedUniversalApk }] });
+      } catch (err) {
+        expect(err).toBeInstanceOf(Refusal);
+        return (err as Error).message;
+      }
+      throw new Error('not refused');
+    };
+    const cannot = 'Google Play\'s universal APK has a download id this script cannot use: ';
+    const cases: [unknown, string][] = [
+      ['Cg+4bW9y ZS9pZA==/vc:52', 'a string of 23 characters: letters, digits, punctuation + / : =, whitespace U+0020'],
+      ['Cg+4bW9yZS9p\nZA==', 'a string of 17 characters: letters, digits, punctuation + =, whitespace U+000A'],
+      ['Cg4bW9y\u0000ZS9pZA', 'a string of 14 characters: letters, digits, control or unprintable characters U+0000'],
+      ['Cg4bW9y​ZS9pZA', 'a string of 14 characters: letters, digits, control or unprintable characters U+200B'],
+      ['A'.repeat(MAX_DOWNLOAD_ID + 1), `a string of ${MAX_DOWNLOAD_ID + 1} characters, more than ${MAX_DOWNLOAD_ID}: letters`],
+      ['', 'an empty string'],
+      [7, 'a number, not a string'],
+      [null, 'null, not a string'],
+      [{}, 'an object, not a string'],
+      [['dl-1'], 'a list, not a string']
+    ];
+    for (const [downloadId, shape] of cases) {
+      const message = said({ downloadId });
+      expect(message).toBe(cannot + shape);
+      if (typeof downloadId === 'string' && downloadId) {
+        for (const part of downloadId.split(/[\s\p{C}]/u)) expect(message, shape).not.toContain(part);
+      }
+    }
+    const controls = String.fromCharCode(1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 16, 17, 18, 19, 20);
+    expect(said({ downloadId: controls })).toMatch(/control or unprintable characters U\+0001 .* U\+0011 and 3 more$/);
+    expect(said('dl-1')).toBe('Google Play\'s universal APK is a string, not an object');
+    expect(said(null)).toBe('Google Play\'s universal APK is null, not an object');
+
+    // What the publish_carried job prints.
+    const f = fakes({ generated: () => ({ status: 200, body: { generatedApks: [{ generatedUniversalApk: { downloadId: 'Cg+4bW9yZS9p\nZA==' } }] } }) });
+    const log: string[] = [];
+    expect(await run(['--publish', '--version-code', '42', '--fingerprint', FP, '--build-fingerprint', FP], { env, config, fetch: f.fetch, out: quiet, log: (s) => log.push(s) })).toBe(1);
+    expect(log).toEqual([`no carried build: ${cannot}a string of 17 characters: letters, digits, punctuation + =, whitespace U+000A.`]);
+    expect(f.writes()).toEqual([]);
   });
 
   it('refuses a file that is not an APK, writing nothing', async () => {

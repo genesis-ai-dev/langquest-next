@@ -91,4 +91,20 @@ describe('deleting a published version', () => {
     expect(canDeleteVersion(l.passage(), v1, 'ayen')).toBe(false);
     expect(() => commands(l.state()).deleteVersion({ commandId: 'x', unitId: 'john3', takeId: v1, actorId: 'ayen' })).toThrow(CommandError);
   });
+
+  it("lets an admin delete anyone's version, so the passage shows as not started (decisions.md 124, amended)", () => {
+    // Why: work imported from LangQuest v2 is published under the v2 person's name, and an admin
+    // clears work that should not count (Berom's chapters whose audio was lost) on their behalf.
+    const l = language();
+    l.publish(['a1']);
+    const v1 = l.passage().latest!.takeId;
+    expect(canDeleteVersion(l.passage(), v1, 'lead', true)).toBe(true);
+    l.run('lead', (c) => c.deleteVersion({ commandId: 'admin-del', unitId: 'john3', takeId: v1, actorId: 'lead', admin: true }));
+    const p = l.passage();
+    expect(p.recorded).toBe(false);
+    expect(p.versions).toEqual([]);
+    // A tombstone still: the history says who deleted it, and its number is never used again.
+    expect(p.deletedVersions.map((v) => [v.n, v.by, v.deleted.by])).toEqual([[1, 'akol', 'lead']]);
+    expect(p.nextVersionN).toBe(2);
+  });
 });

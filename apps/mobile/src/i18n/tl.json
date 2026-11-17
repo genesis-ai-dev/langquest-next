@@ -360,7 +360,9 @@
   },
   "native": {
     "microphone": "Nire-record ng LangQuest ang iyong boses para isalin ang mga sipi.",
-    "camera": "Ginagamit ng LangQuest ang camera para i-scan ang mga QR code ng imbitasyon."
+    "camera": "Ginagamit ng LangQuest ang camera para i-scan ang mga QR code ng imbitasyon.",
+    "bluetooth": "Ginagamit ng LangQuest ang Bluetooth para hanapin ang telepono ng iyong mga kasamahang malapit at makapagbahagi ng gawain sa kanila.",
+    "localNetwork": "Ginagamit ng LangQuest ang local network para makapagbahagi ng gawain sa telepono ng iyong mga kasamahang malapit."
   },
   "library": {
     "sourceLine": {
@@ -731,7 +733,6 @@
       "newLanguage": "Bagong wika",
       "noLanguages": "Wala pang mga wika. Idagdag ang unang ire-record ng iyong pangkat.",
       "openToBring": "Buksan ito para mailagay sa device na ito",
-      "newLanguageOrCluster": "Bagong wika o kumpol",
       "inviteHelp": "Piliin kung ano ang gagawin nila, saka ipakita sa kanila ang code na ii-scan.",
       "languageHelp": "Binubuksan ang pahina nito: ihanda ito, tingnan ang gawain at mga tao nito.",
       "licenseHelp": "Ang lisensiya ng gawain ng iyong pangkat. Sinasabi ng Setup kung ano ang pinapayagan nito.",
@@ -3267,7 +3268,8 @@
       "downloading": "Dina-download ang update…",
       "downloadingPercent": "Dina-download ang update… {{percent}}",
       "webReady": "Handa na ang bagong bersiyon ng LangQuest. I-reload para magamit ito.",
-      "storeBuild": "build mula sa store",
+      "storeBuild": "build mula sa store {{version}}",
+      "noUpdate": "walang update",
       "updateBuild": "update {{id}}",
       "unknownBuild": "hindi alam ang update"
     },
@@ -3616,6 +3618,20 @@
       "drawAgain": "Iguhit itong muli",
       "newPattern": "Gumuhit ng bagong pattern",
       "choosePatternHelp": "Pumili ng larawan at pattern para makapag-sign in muli sa teleponong ito, kahit walang koneksiyon."
+    },
+    "appLock": {
+      "row": "I-lock ang app",
+      "rowHelp": "Kapag naka-on, hihingin ng app ang pattern mo sa bawat pagbukas at sa bawat balik mo rito. Hihingin muna ang pattern mo kapag ino-on o ino-off ito.",
+      "on": "Hihingin na ng app ang pattern mo kapag nagbukas ito.",
+      "off": "Hindi na hihingin ng app ang pattern mo.",
+      "opening": "Nagbubukas…",
+      "checking": "Sinusuri…",
+      "forgot": "Nakalimutan?",
+      "forgotHelp": "Nakalimutan mo ang pattern mo? Mag-sign out, saka mag-sign in ulit gamit ang password mo, o code sa pag-sign in mula sa isang kasama mo sa pangkat. Mananatili sa phone na ito ang trabaho mo.",
+      "signOutHelp": "Magsa-sign out sa phone na ito. Mananatili rito ang trabaho mo at ipapadala kapag posible.",
+      "backHelp": "Babalik sa mga tuldok.",
+      "waitFor_one": "Masyadong maraming subok. Subukang muli pagkalipas ng {{count, number}} minuto.",
+      "waitFor_other": "Masyadong maraming subok. Subukang muli pagkalipas ng {{count, number}} minuto."
     }
   },
   "study": {
@@ -3977,7 +3993,11 @@
         "askedWho": "hiniling: {{who}}",
         "asked": "hiniling",
         "next": "susunod",
-        "afterDone": "kapag tapos ka na"
+        "afterDone": "kapag tapos ka na",
+        "made": "nagawa na",
+        "checked": "nasuri na",
+        "afterMade": "pagkatapos gawin",
+        "checkedBy": "sa {{check}}"
       },
       "help": {
         "study": "Pag-aralan nang magkakasama ang gabay sa pag-aaral bago ka mag-record. Walang naghihintay rito.",
@@ -3997,7 +4017,9 @@
         "checkpoint": "Ang kandado: kailangan itong pumasa bago ang mga hakbang pagkatapos nito."
       },
       "thenTheTeam": "Saka ang pangkat",
-      "teamHears": "Saka ito maririnig ng pangkat"
+      "teamHears": "Saka ito maririnig ng pangkat",
+      "makeIt": "{{what}} · gawin",
+      "checkIt": "{{what}} · suriin"
     },
     "quote": "“{{text}}”",
     "journey": {

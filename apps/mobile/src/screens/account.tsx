@@ -45,27 +45,29 @@ import { belowMinimum } from '../appVersion/syncGate';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { RemoveMeRow } from '../shell/RemoveMeRow';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
-import { tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
+import type { RemoteNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
 import { personLook } from '../ui/people';
 import { usePerson } from '../ui/usePerson';
 import { noteExpected, failureMessage } from '../diagnostics/report';
+import { storeBuildParts } from '../diagnostics/storeBuild';
 import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
 import { FORGETS_ON_SIGN_OUT } from '../web/forgetBrowser';
-import { HANDS_OVER, signOutHandingOver } from '../sync/handOver';
+import { HANDS_OVER } from '../sync/handOver';
 import { isPattern, MIN_DOTS, PICTURES } from '../session/lockModel';
 import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
 import { useLockWays } from '../auth/useLockWays';
-import { LOCKS_ON_SIGN_OUT, lockAndSignOut, rememberPassword, setAccountPassword, setLockPattern, signOutThisDevice } from '../account/accountAuth';
+import { LOCKS_ON_SIGN_OUT, leaveThisDevice, rememberPassword, setAccountPassword, setLockPattern } from '../account/accountAuth';
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useLocalPerson } from '../shell/useLocalPerson';
 import { membershipOf } from '../session/localPersonModel';
 import { firstContactOpen } from '../session/identityModel';
 import { firstContactWords } from '../session/firstContactWords';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
-import { runningBuildLabel } from '../shell/updateStatus';
+import { runningBuildLines } from '../shell/updateStatus';
 import { AppIconRow } from '../shell/AppIconRow';
+import { AppLockRow } from '../shell/AppLockRow';
 import { NearbyRow } from '../shell/NearbyRow';
 import { useNotificationsOffered } from '../shell/useNotificationsOffered';
 import { PersonAvatar } from '../ui/UserChip';
@@ -556,6 +558,8 @@ export function SettingsMore(ctx: Ctx) {
         <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={toSend > 0 ? formatNumber(toSend) : undefined} onPress={() => ctx.go('sync_status')} />
         {/* Android only: a calculator or notepad in front of the app, opened with a code (decisions.md 171). */}
         <AppIconRow ctx={ctx} />
+        {/* Phones only: the person's own pattern each time the app opens (decisions.md 253). */}
+        <AppLockRow ctx={ctx} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label={t('account.more.diagnostics')} sub={t('account.more.diagnosticsSub')}
           role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} last={blocked === 0} />
@@ -843,20 +847,8 @@ export function SignOutConfirm(ctx: Ctx) {
     setChoosing('picture');
   }
   async function leave() {
-    if (handsOver) {
-      const { orgId, languageId } = ctx.language;
-      await signOutHandingOver(ctx.session.actorId, (await ctx.language.blobs.unsent()).map((ref) => ({ orgId, languageId, ref })));
-      return;
-    }
-    if (HANDS_OVER) {
-      // Offline, the courier disconnects this phone's notifications later, as you (decision 87).
-      if (!await tryUnregisterNotifications()) { await signOutHandingOver(ctx.session.actorId, []); return; }
-    } else {
-      await unregisterNotifications();
-    }
-    // A phone keeps the session, locked, for your return (decision 168); this device only either way (decision 87).
-    if (LOCKS_ON_SIGN_OUT) { await lockAndSignOut(ctx.session.actorId); return; }
-    await signOutThisDevice();
+    const { orgId, languageId, blobs } = ctx.language;
+    await leaveThisDevice(ctx.session.actorId, handsOver, { orgId, languageId, unsent: blobs.unsent });
   }
   async function signOut() {
     if (finishing) return;
@@ -1120,7 +1112,7 @@ export function SyncStatus(ctx: Ctx) {
       ) : null}
       {/* Refused events are on this device too (PLAN.md invariant 1); the summary's count includes them. */}
       <Text style={[txt.xs, { textAlign: 'center' }]} selectable>
-        {runningBuildLabel({ updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch })}
+        {runningBuildLines({ store: storeBuildParts(), updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch }).join('\n')}
       </Text>
       </Disclosure>
     </Screen>

@@ -8,6 +8,8 @@
  */
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
+import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
+import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
 
 export function page(cfg: { supabaseUrl: string; anonKey: string }, nonce: string): Response {
@@ -80,6 +82,39 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .tag.bad { color: var(--red); background: var(--redbg); } .tag.good { color: var(--green); background: var(--greenbg); }
 .wide { grid-column: 1 / -1; }
 .diag-inline { border-inline-start: 3px solid var(--line); padding-inline-start: 12px; margin: 6px 0 4px; }
+/* Tutorial videos (sources/videos.ts): the admin's list and the workers' list side by side, then each video with its states and a day-by-day timeline. */
+.vl { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.vl > div { min-width: 0; }
+.vi { border: 1px solid var(--line); border-inline-start-width: 4px; border-radius: 8px; padding: 8px 10px; margin: 6px 0; background: var(--card); }
+.vi.bad { border-inline-start-color: var(--red); color: inherit; } .vi.warn { border-inline-start-color: var(--amber); color: inherit; } .vi.info { border-inline-start-color: var(--primary); }
+.vi p { margin: 4px 0; } .vi small { color: var(--muted); }
+.vchanges { margin: 12px 0; } .vchanges summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; gap: 6px; }
+.tag.warn { color: var(--amber); background: var(--amberbg); } .tag.info { color: var(--primary); background: var(--bg); }
+.vtools { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 8px 0; } .vtools label { margin: 0 0 4px; } .vtools select { width: auto; }
+.vrow { display: grid; grid-template-columns: minmax(180px, 280px) 1fr 44px; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding: 4px 0; }
+.vrow b { font-weight: 600; font-size: 13px; } .vrow .tag { font-size: 11px; }
+.tlw { overflow-x: auto; min-width: 0; scrollbar-width: thin; }
+.tl { display: grid; grid-template-columns: repeat(60, 1fr); gap: 1px; min-height: 22px; align-items: center; width: 430%; }
+.tl > span { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; min-height: 22px; align-items: center; background: var(--bg); border-radius: 3px; }
+.tl > span.wk { background: var(--line); }
+.tl.days > span { background: none; font-size: 10px; color: var(--muted); min-height: 0; white-space: nowrap; overflow: hidden; }
+.timed .tl:not(.days) > span { display: block; } .timed .tl > span > .mk { position: absolute; top: 6px; }
+.mk { display: inline-block; width: 10px; height: 10px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: var(--grey); text-decoration: none; cursor: pointer; }
+.mk:focus-visible, .mk:hover { outline: 2px solid var(--ink); outline-offset: 1px; }
+.mk.film.app { background: #8E44AD; } .mk.film.script { background: var(--primary); } .mk.film.tool { background: var(--grey); } .mk.film.new, .mk.film.asked, .mk.film.unknown { background: var(--muted); }
+.mk.up { background: var(--green); border-radius: 2px; } .mk.comment { background: #2F80ED; border-radius: 50% 50% 50% 0; }
+.mk.suggested, .mk.decided { background: var(--amber); transform: rotate(45deg); border-radius: 1px; width: 8px; height: 8px; } .mk.fix { background: var(--amber); border-radius: 2px; }
+.mk.held, .mk.failed { background: var(--red); border-radius: 1px; }
+.warnmk { min-height: 32px; min-width: 32px; padding: 0 6px; border-radius: 999px; font-weight: 700; font-size: 14px; border: 0; cursor: pointer; display: inline-block; text-align: center; line-height: 32px; }
+.warnmk.you { background: var(--amber); color: #fff; } .warnmk.claude { background: var(--bg); color: var(--primary); border: 1px solid var(--line); }
+span.warnmk { min-height: 0; min-width: 0; line-height: 1.4; padding: 0 6px; }
+.vcards { margin: 4px 0 10px; padding-inline-start: 12px; border-inline-start: 3px solid var(--amber); }
+label.check { display: inline-flex; gap: 6px; align-items: center; font-weight: 400; margin: 0 0 10px; }
+.vdet { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 4px 0 10px; background: var(--card); }
+.vdet .head { display: flex; gap: 8px; align-items: center; } .vdet .head b { flex: 1; } .vdet p { margin: 6px 0; }
+.vdet blockquote { margin: 6px 0; padding: 6px 10px; border-inline-start: 3px solid #2F80ED; background: var(--bg); border-radius: 6px; }
+.vfilms { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; } .vfilms figure { margin: 0; } .vfilms video { width: 100%; border-radius: 8px; background: #000; }
+.vkey { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 6px 0; } .vkey span { display: inline-flex; gap: 4px; align-items: center; }
 /* Where each build and update is (sources/pipeline.ts): stages left to right, an arrow between, each build a card in its stage. */
 .lane { margin: 6px 0 14px; }
 .flow { display: flex; align-items: stretch; gap: 0; margin: 4px 0; }
@@ -143,11 +178,13 @@ td button { white-space: nowrap; }
   .pa { width: auto; }
   .pa::before { content: '↓'; }
 }
+${START_CSS}
 </style>
 </head>
 <body>
 <header><div class="bar">
   <h1>LangQuest operations</h1>
+  <nav class="views" aria-label="Views"><a href="#">What needs you</a><a href="#all">All sections</a></nav>
   <small id="checked"></small>
   <span class="tools"><button id="expand-all" type="button" hidden>Expand all</button><button id="collapse-all" type="button" hidden>Collapse all</button></span>
   <button id="refresh" type="button" hidden>Refresh</button>
@@ -169,6 +206,7 @@ td button { white-space: nowrap; }
     <p><button class="primary" type="submit">Continue</button></p>
   </form>
   <div id="board" hidden>
+${START_HTML}
     <section class="card" id="attention">
       <div class="head"><h2>Needs attention</h2><span class="pill wait" id="attention-pill">Checking…</span></div>
       <ul id="attention-list"></ul>
@@ -355,7 +393,8 @@ const results = {};
 function layout() {
   $('grid').innerHTML = SECTIONS.map((s) => '<section class="card' + (s.wide ? ' wide' : '') + '" id="card-' + s.id + '"><div class="head" data-toggle="' + s.id + '"><div><h2>' +
     '<button type="button" class="toggle" id="toggle-' + s.id + '" aria-expanded="true" aria-controls="body-' + s.id + '"><span class="chev" aria-hidden="true">▾</span><span data-help-key="group:' + s.id + '">' + esc(s.title) + '</span></button>' +
-    '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div><div class="body" id="body-' + s.id + '"></div></section>').join('');
+    '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div>' +
+    '<div class="hist" id="hist-' + s.id + '" hidden></div><div class="body" id="body-' + s.id + '"></div></section>').join('');
   for (const s of SECTIONS) applyOpen(s.id);
   annotate($('grid'));
   $('pill-lookup').hidden = true;
@@ -430,8 +469,9 @@ function show(id, s) {
   $('body-' + g.id).innerHTML = g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join('');
   if (g.parts.includes('feedback')) wireScreenshots();
   annotate($('body-' + g.id));
-  applyOpen(g.id);
+  if (view().name === 'all') applyOpen(g.id);
   attention();
+  renderStart();
 }
 
 function attention() {
@@ -829,12 +869,22 @@ window.addEventListener('scroll', hideTip, { passive: true });
 
 ${OPS_SCRIPT}
 
+// ---- the start page, each section's numbers over a range, and the detail panel (pageStart.ts) ----
+const METRIC = ${JSON.stringify(METRICS).replace(/</g, '\\u003c')};
+const GLANCE = ${JSON.stringify(GLANCE)};
+${START_LOGIC}
+${START_SCRIPT}
+
 let loading = false;
 async function load(fresh) {
   if (loading) return;
   loading = true;
   $('refresh').disabled = true;
   for (const k of Object.keys(results)) delete results[k];
+  for (const k of Object.keys(histories)) delete histories[k];
+  glanceData = null;
+  const here = view();
+  if (here.name === 'group') renderHist(here.id);
   for (const s of SECTIONS) if (s.id !== 'lookup') { const p = $('pill-' + s.id); p.className = 'pill wait'; p.textContent = 'Loading…'; }
   attention();
   const q = fresh ? '?fresh=1' : '';
@@ -842,7 +892,9 @@ async function load(fresh) {
   const jobs = [
     api('/ops/api/diag' + q).then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); }).catch(fail(['jobs', 'clients', 'database', 'v2', 'feedback'])),
     api('/ops/api/ops' + q).then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); }).catch(fail(${JSON.stringify(OPS_IDS)})),
-    ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
+    ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id]))),
+    // The start page's pictures: without them it still shows every card and line.
+    api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {})
   ];
   await Promise.all(jobs);
   $('checked').textContent = 'Checked ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -856,6 +908,7 @@ async function start() {
   $('signin').hidden = true; $('mfa').hidden = true; say('');
   $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false; $('expand-all').hidden = false; $('collapse-all').hidden = false;
   if (!$('grid').children.length) layout();
+  route();
   await finishYouTube();
   const deep = /^\\/ops-dashboard\\/org\\/([^/]+)$/.exec(location.pathname);
   if (deep) openOrg(decodeURIComponent(deep[1]), false);
@@ -893,7 +946,8 @@ export function csp(supabaseUrl: string, nonce: string): string {
     `script-src 'nonce-${nonce}'`,
     `style-src 'nonce-${nonce}'`,
     "img-src 'self' blob:",
-    'media-src blob:',
+    // The tutorial films play here, from the app Worker's /api/tutorials/ on this host (decisions.md 180).
+    "media-src 'self' blob:",
     `connect-src 'self' ${new URL(supabaseUrl).origin}`,
     "base-uri 'none'",
     "form-action 'none'",

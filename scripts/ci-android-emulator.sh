@@ -10,7 +10,8 @@
 # image is Google APIs (no Play Store), as the run-app skill says: the Play
 # image stays "unauthorized" to adb until someone taps its prompt. It boots
 # with no window and no snapshot, and the script returns when Android says
-# the boot is complete (at most 10 minutes), as emulator-5554.
+# the boot is complete (at most 10 minutes) and a network reaches the
+# internet (at most 6 more), as emulator-5554.
 #
 # ANDROID_API picks the Android version (35 by default). The emulator's own
 # output goes to the log file, which the workflow keeps.
@@ -63,6 +64,78 @@ CONFIG="$ANDROID_AVD_HOME/$AVD.avd/config.ini"
   echo 'hw.keyboard=yes'
 } >> "$CONFIG"
 
+# A network that reaches the internet before the flows start. The image can
+# boot with no network at all (Wi-Fi off or not joined, no mobile data); the
+# app then rightly calls the phone offline, and every flow that downloads
+# fails (run 34, 2026-11-13: 6 of 25). The script reads Android's default
+# network and waits until Android has checked that it reaches the internet
+# (VALIDATED, what the app reads as online). While it has none, it tries in
+# turn: waiting, the emulator's modem back on its home network with mobile
+# data on, Wi-Fi on, airplane mode on and off. Each step's result goes to the
+# job's log. A machine that never gets a network fails here, as a machine,
+# not in the flows.
+#
+# Only the default network's own lines count: its block under "Active default
+# network" and its NetworkAgentInfo. The rest of `dumpsys connectivity` lists
+# apps' requests too, and Google asks for VALIDATED networks there (a check
+# that read the whole dump took one of those for a network, run 36,
+# 2026-11-13).
+connectivity() { adb shell dumpsys connectivity 2> /dev/null | tr -d '\r' || true; }
+default_network() {
+  local d id
+  d=$(connectivity)
+  id=$(awk '/^Active default network: [0-9]+/ { print $4; exit }' <<< "$d")
+  [ -n "$id" ] || { echo "Active default network: none"; return 0; }
+  awk -v id="$id" '/^Active default network:/ { on = 1; n = 0; print; next }
+    on && (NF == 0 || ++n > 6) { on = 0 }
+    on || index($0, "network{" id "}") { print }' <<< "$d" | grep -v 'REQUEST' || true
+}
+online() {
+  local own
+  own=$(default_network)
+  grep -q '^Active default network: [0-9]' <<< "$own" && grep -qE '(^|[^A-Z_])VALIDATED([^A-Z_]|$)' <<< "$own"
+}
+wait_online() {
+  local _
+  for _ in $(seq 1 "$1"); do
+    online && return 0
+    sleep 5
+  done
+  return 1
+}
+say_network() {
+  local own
+  own=$(default_network)
+  echo "  ${own:0:600}" | tr '\n' ' '
+  echo
+  echo "  Modem: $(adb emu gsm status 2> /dev/null | tr -d '\r' | grep -v '^OK' | tr '\n' ' ')"
+  echo "  Wi-Fi: $(adb shell dumpsys wifi 2> /dev/null | tr -d '\r' | grep -m1 -E '^Wi-Fi is ')"
+}
+network() {
+  local step
+  for step in wait modem wifi airplane; do
+    case $step in
+      wait) ;;
+      modem) adb emu gsm voice home > /dev/null 2>&1 || true
+             adb emu gsm data home > /dev/null 2>&1 || true
+             adb shell svc data enable || true ;;
+      wifi) adb shell svc wifi enable || true ;;
+      airplane) adb shell cmd connectivity airplane-mode enable || true
+                sleep 10
+                adb shell cmd connectivity airplane-mode disable || true ;;
+    esac
+    if wait_online 18; then
+      echo "The emulator reaches the internet (after: $step)"
+      say_network
+      return 0
+    fi
+    echo "No network that reaches the internet after 90 s (after: $step)"
+    say_network
+  done
+  echo "::error::The Android emulator has no network that reaches the internet after 6 minutes: the app would be offline in every flow"
+  return 1
+}
+
 nohup emulator -avd "$AVD" -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect \
   -cores 2 -dns-server 8.8.8.8,1.1.1.1 > "$LOG" 2>&1 &
 
@@ -77,6 +150,7 @@ for _ in $(seq 1 120); do
     # shows no error boxes.
     adb shell pm disable-user --user 0 com.google.android.googlesdksetup > /dev/null 2>&1 || true
     adb shell settings put global hide_error_dialogs 1 || true
+    network || exit 1
     echo "The emulator is up: $(adb shell getprop ro.build.version.release | tr -d '\r') (API $API)"
     exit 0
   fi

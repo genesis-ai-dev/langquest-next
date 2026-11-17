@@ -105,9 +105,19 @@ tags:
 - tapOn:
     id: "header-close"
 # Step 4: the final approval: looks good; the passage is done.
+# The check opens on Listen; its button is found by its words. Found by its ID
+# alone, the tap went to the passage's own button as that screen slid away,
+# and Decide never opened (iPhone, run 34, 2026-11-13).
 - tapOn: "Do the final approval"
+- extendedWaitUntil:
+    visible:
+      id: "primary-action"
+      text: "Next: decide"
+      enabled: true
+    timeout: 60000
 - tapOn:
     id: "primary-action"
+    text: "Next: decide"
 - tapOn:
     text: "Looks good"
     waitToSettleTimeoutMs: 0

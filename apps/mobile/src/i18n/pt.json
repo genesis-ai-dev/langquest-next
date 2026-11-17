@@ -362,7 +362,9 @@
   },
   "native": {
     "microphone": "O LangQuest grava a sua voz para traduzir passagens.",
-    "camera": "O LangQuest usa a câmera para ler códigos QR de convite."
+    "camera": "O LangQuest usa a câmera para ler códigos QR de convite.",
+    "bluetooth": "O LangQuest usa o Bluetooth para encontrar os celulares dos seus colegas por perto e compartilhar o trabalho com eles.",
+    "localNetwork": "O LangQuest usa a rede local para compartilhar o trabalho com os celulares dos seus colegas por perto."
   },
   "library": {
     "sourceLine": {
@@ -744,7 +746,6 @@
       "newLanguage": "Novo idioma",
       "noLanguages": "Ainda não há idiomas. Adicione o primeiro que a sua equipe vai gravar.",
       "openToBring": "Abra para trazê-lo para este aparelho",
-      "newLanguageOrCluster": "Idioma ou grupo novo",
       "inviteHelp": "Escolha o que a pessoa vai fazer e depois mostre um código para ela ler.",
       "languageHelp": "Abre a página do idioma: preparar, ver o trabalho e as pessoas dele.",
       "licenseHelp": "A licença do trabalho da sua equipe. Configuração diz o que ela permite.",
@@ -3368,7 +3369,8 @@
       "downloading": "Baixando atualização…",
       "downloadingPercent": "Baixando atualização… {{percent}}",
       "webReady": "Uma nova versão do LangQuest está pronta. Recarregue para usá-la.",
-      "storeBuild": "versão da loja",
+      "storeBuild": "versão da loja {{version}}",
+      "noUpdate": "sem atualização",
       "updateBuild": "atualização {{id}}",
       "unknownBuild": "atualização desconhecida"
     },
@@ -3726,6 +3728,21 @@
       "drawAgain": "Desenhe de novo",
       "newPattern": "Desenhar um padrão novo",
       "choosePatternHelp": "Escolha uma imagem e um padrão para entrar de novo neste aparelho, mesmo sem internet."
+    },
+    "appLock": {
+      "row": "Bloquear o app",
+      "rowHelp": "Quando ligado, o app pede seu padrão toda vez que abre e toda vez que você volta para ele. Ligar ou desligar pede seu padrão primeiro.",
+      "on": "Agora o app pede seu padrão ao abrir.",
+      "off": "O app não pede mais seu padrão.",
+      "opening": "Abrindo…",
+      "checking": "Verificando…",
+      "forgot": "Esqueceu?",
+      "forgotHelp": "Esqueceu seu padrão? Saia e entre de novo com sua senha ou com um código de acesso de alguém da sua equipe. Seu trabalho fica neste celular.",
+      "signOutHelp": "Sai deste celular. Seu trabalho fica nele e é enviado quando for possível.",
+      "backHelp": "Volta para os pontos.",
+      "waitFor_one": "Tentativas demais. Tente de novo em {{count, number}} minuto.",
+      "waitFor_many": "Tentativas demais. Tente de novo em {{count, number}} minutos.",
+      "waitFor_other": "Tentativas demais. Tente de novo em {{count, number}} minutos."
     }
   },
   "study": {
@@ -4104,7 +4121,11 @@
         "askedWho": "pedida a {{who}}",
         "asked": "pedida",
         "next": "próxima",
-        "afterDone": "quando você terminar"
+        "afterDone": "quando você terminar",
+        "made": "feita",
+        "checked": "conferida",
+        "afterMade": "depois de feita",
+        "checkedBy": "na {{check}}"
       },
       "help": {
         "study": "Façam juntos o guia de estudo antes de gravar. Nada fica esperando por ele.",
@@ -4124,7 +4145,9 @@
         "checkpoint": "O cadeado: precisa passar antes das etapas seguintes."
       },
       "thenTheTeam": "Depois a equipe",
-      "teamHears": "Depois a equipe pode ouvir"
+      "teamHears": "Depois a equipe pode ouvir",
+      "makeIt": "{{what}} · fazer",
+      "checkIt": "{{what}} · conferir"
     },
     "quote": "“{{text}}”",
     "journey": {

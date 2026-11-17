@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { FIELD_PROFILES, brokenCalls, callsAt, callsIn, missing, releaseBranch, schemaAfter, serverHere, serverOfMain } from './server-calls.mjs';
-import { FIELD_PROFILES as GUARDED } from '../apps/mobile/scripts/store-build-guard.mjs';
 
 /** A release branch deploys no server, so its code's calls are on main's (decisions.md 155). */
 const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' }).trim();
@@ -14,10 +13,11 @@ const serverForThisBranch = () => (releaseBranch(process.env, branch) ? serverOf
  * call, what the migrations leave, and how a broken call is named.
  */
 
+// That the store build guard holds the same two is in storeBuildGuard.test.ts: a copy onto a
+// release branch takes this file from main, but not the guard (scripts/release-branches.mjs MACHINERY).
 describe('the builds whose calls are held', () => {
-  it('are the store build\'s and the carried build\'s, the profiles the store build guard holds (docs/nearby-sync-plan.md 14.4)', () => {
+  it('are the store build\'s and the carried build\'s (docs/nearby-sync-plan.md 14.4)', () => {
     expect(FIELD_PROFILES).toEqual(['production', 'carried']);
-    expect(GUARDED).toEqual(FIELD_PROFILES);
   });
 });
 
