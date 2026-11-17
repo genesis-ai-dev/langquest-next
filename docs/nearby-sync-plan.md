@@ -94,6 +94,14 @@ in the same way.
 | 22 | When does `android-native` run? | Also on changes to `apps/mobile/package.json` and the lockfile, as well as the module's files. This widens answer 3. | Section 7 |
 | 23 | Who may revoke a member's phone? | New password and staff only. No admin action on this branch. | Section 6 |
 
+**Carl's answers of 2026-11-16,** after the merge. These override the rest of this plan in
+the same way.
+
+| # | Question | Answer | Where |
+| --- | --- | --- | --- |
+| 24 | Should nearby sync reach phones below Android 10? | Not now. Production's diagnostics on 2026-11-16 held one install below Android 10, an Android 7 tablet, and none on 8 or 9, out of about ten real Android phones, most of them the team's and testers'. Answer 7 stands. Look again when field phones report. | Sections 5.8, 11 |
+| 25 | What do iPhones need first? | Sharing between an iPhone and an Android, and between two iPhones. Joining offline on an iPhone is optional and comes after them. | Section 7, phase 5 |
+
 ## 3. Why this fits the app
 
 Most of the hard part already exists.
@@ -184,7 +192,10 @@ reach the whole team.
 iPhones (phase 5): an iPhone has no Wi-Fi Direct API. It joins an Android phone's group as
 an ordinary Wi-Fi client through `NEHotspotConfiguration`, after a prompt each time. This
 is unproven: one project reports an iPhone 11 on iOS 18 failing to join a Galaxy A05s
-group on 2.4 GHz. A team of only iPhones needs Network framework.
+group on 2.4 GHz. A team of only iPhones needs Network framework. Phase 5 (section 7) has
+the design: an iPhone joins an Android's local-only hotspot, or its group if the real-phone
+test shows that holds, and two iPhones use Apple's own direct Wi-Fi through Network
+framework.
 
 ## 5. The design
 
@@ -1886,8 +1897,11 @@ bits clear wherever they are used, because a receiver clears the same bits after
 unmasking; a golden vector holds equal summaries equal under two salts. A legacy advert
 has room for this and nothing else. There is no manufacturer or service data, because
 their fixed ids would mark the phone, and no device name or transmit power. Core Bluetooth
-can advertise only a local name and service UUIDs, so this form keeps phase 5 from
-changing the protocol. Every UUID is a valid version 4, because the random version and
+can advertise only a local name and service UUIDs, but Apple's documentation says an
+iPhone's scan response holds only a name, and a UUID that does not fit the advert goes to an
+overflow area that only an iPhone scanning for that UUID sees. So an iPhone sends the advert
+alone and serves the scan response's UUID from a GATT characteristic, and the protocol does
+not change (section 7, phase 5). Every UUID is a valid version 4, because the random version and
 variant bits of an underived one are themselves a thing to filter on, and that leaves 74
 bits of MAC. Native matches each advert itself, with a cache per salt, and hands up matches,
 unmasked, and the salts of adverts of this form that match no key. So the `kFind` of every
@@ -2719,9 +2733,102 @@ first real number comes from the branch APK.
    4 clause in `nearbyConverges`. Decision entries, amend 11, 97, 152, 154 and 200, and PLAN
    section 9.
 
-**Phase 5: iPhones.** Not on this branch. iPhones join an Android phone's group, and
-iPhone to iPhone goes over Network framework, or Wi-Fi Aware if it has matured. The
-protocol is unchanged, and `NearbyLink` gains implementations.
+**Phase 5: iPhones.** After the first release. Sharing between an iPhone and an Android and
+between two iPhones comes first; joining offline on an iPhone is optional and comes last
+(Carl's answer 25). The protocol stays at 1, so the carried file's name does not change: a
+new link kind is offered through Hello's `can`, which `nearbyWire.ts` is built to grow, and
+older phones drop fields of `arrange` they do not know. What an iPhone can do decides the
+design:
+
+- **Find.** It scans and connects as any phone does, but it cannot send the scan response.
+  Apple's documentation for `startAdvertising` gives an app 28 bytes of advert for service
+  UUIDs and a scan response for the local name only, and puts a UUID that does not fit in an
+  overflow area that only an iPhone scanning for that exact UUID sees. Find's UUIDs change
+  with every salt and `r`, so nobody could scan for them. So an iPhone advertises the advert
+  alone and serves the scan response's UUID from a GATT characteristic, derived from `kFind`
+  and the salt as the service's UUID is, with a new `r` on each read. A phone that hears a
+  teammate's advert with no scan response reads it. An iPhone cannot choose when its
+  Bluetooth address changes (reportedly about every 15 minutes), so on an iPhone salt and
+  address do not change together, and two salts can be linked through one address. The
+  decision entry says so.
+- **Move.** An iPhone has no Wi-Fi Direct API and no way for an app to host a network. It
+  joins one by name and passphrase (`NEHotspotConfiguration`, with `joinOnce`), after a
+  system prompt each time. It sends `radios: { directByName: false, band5: false, hotspot:
+  false, joinHotspot: true }`, and `arrangePlan` already has an Android host a local-only
+  hotspot for that. Between two iPhones a new link kind, `awdl`, uses Apple's own direct
+  Wi-Fi: the host opens a Network framework listener with `includePeerToPeer`, as a Bonjour
+  service under a one-time name it sends in `host`, and the other connects to that name. The
+  service type is fixed in `Info.plist` (`NSBonjourServices`), and is on the air only while
+  a link comes up, as Android's `DIRECT-` name is. `arrangePlan` offers `awdl` only when both
+  phones list it in `can`. Not MultipeerConnectivity (section 4). Wi-Fi Aware (iOS 26,
+  iPhone 12 and later) is worth another look once it has matured, as a link to Androids that
+  have it. Failing all of these, events move over Bluetooth while audio waits, as today.
+- **Androids must find iPhones too.** Only the phone with the newer discovery key can hear
+  the other, so it starts the session (section 5.12, Generations), and a new generation
+  comes at least every 90 days. An Android ahead of an iPhone hears nothing today, because
+  `FindMatcher.hear` drops a matching advert that has no scan response, and the iPhone
+  cannot match the newer advert, so the two cannot meet until the iPhone reaches the server.
+  The read also lets an Android echo an iPhone's salt, show the iPhone before a session, and
+  say "Up to date" only when it is. That is Kotlin, so an Android store build, and it moves
+  the Android fingerprint, which makes a carried build (decision 246). An Android without it
+  never echoes an iPhone, so an iPhone connects at once to an Android that has not echoed
+  it, as a phone that cannot advertise does and with the same risk (section 5.12, The echo).
+  An argument from JavaScript turns that off once few Androids lack the read.
+
+1. **The real-phone test first,** with a throwaway dev build, since the simulator has no
+   Bluetooth. Its questions are in section 11, and its answers decide steps 2 to 5.
+2. Core and sync, which reach Androids by update: the characteristic's UUID and bytes in the
+   Find contract, with golden vectors; `awdl` in `NearbyLink`, `host` and `arrangePlan`; if
+   the test shows iPhones join an Android's group reliably, a radio for that, tried before
+   the hotspot because the group is faster; `SeenPhone` from a read; and the iPhone's rule
+   for an Android that has not echoed it. The fake radio gains an iPhone's radios, and
+   `arrangePlan` cases and fleet scenarios cover both pairs, an iPhone behind on its
+   generation and a mixed room of five.
+3. The Swift half of `nearby-link`, with `ios` in `expo-module.config.json`: Find (the scan,
+   the advert, the GATT service and characteristic, both ends of a pipe), the join, the
+   `awdl` host and join, `secure` with CryptoKit's AES-GCM on the same wire format, frames,
+   streams and file parts, the codes in `src/codes.ts`, every tunable from JavaScript,
+   nothing logged and nothing done at construction, as decision 224 holds the Kotlin to.
+   `Info.plist` gains `NSBluetoothAlwaysUsageDescription`, `NSLocalNetworkUsageDescription`
+   and `NSBonjourServices`, and the app the entitlement
+   `com.apple.developer.networking.HotspotConfiguration`. Each of these moves the iPhone
+   fingerprint, so this costs an iPhone store build and review.
+4. Kotlin: `FindMatcher.hear` hands up a matching advert with no scan response, so the room
+   echoes its salt and native reads the characteristic, with JUnit vectors. Its store build
+   goes public before the iPhone's, or with it.
+5. The app. Each `.android` file is sorted. The exchange's move to `.native` files, which
+   Metro resolves for both phones, while the web keeps the plain stub: `useNearby`,
+   `nearbyRun`, `nearbyLink`, `nearbyIdentity`, `nearbyKey`, `nearbyRelay`, `NearbyRow` and
+   the like, and whatever an iPhone needs to take an Android newcomer's work
+   (`useChainMembership` may be one). These stay Android only: the disguise's (`AppCover`,
+   `useAppCovered`, `NearbyCoverNotes`, `LetInCoverNote`, `AppIconRow`), the carried file's
+   (`useCarriedApk`, `InstallFileReminder`) and joining offline's, until step 8. An iPhone
+   gets its own permissions file: Bluetooth's state and permission; Local Network, which has
+   no way to ask ahead and prompts at the first connection; and the Wi-Fi prompt at each
+   join. The install key goes in the Keychain for this device only, so a restored iPhone
+   makes a new key as a restored Android does (decision 217). Every new line goes in all 16
+   catalogs, with help lines. iPhones carry no disguise, so Share nearby shows on them
+   undisguised, and `disguiseIphone.test.ts` still passes.
+6. Stores. Nothing records the App Store's answers as `docs/play-store-declarations.md` does
+   Play's, so this starts `docs/app-store-declarations.md`: App Privacy, the review notes
+   with a video of two phones, and `nearby` on LangQuest Sample. `app.json` says
+   `ITSAppUsesNonExemptEncryption: false`, and an iPhone will now carry its own encryption
+   between phones (AES-GCM, X25519, Ed25519), so that answer is checked before the build.
+   While either store build is in review, hold merges touching these files (decision 155).
+7. CI: `ios-native`, scoped as `android-native` is and in `gate.needs`, on a macOS runner,
+   builds the module and runs its XCTest against `test-vectors.json`.
+   `nearbyNative.test.ts` holds the Swift files and the `Info.plist` keys to the same text
+   guards. Decision entries: a new one for the iPhone link, and amend 150, 217, 224 and 231.
+8. Optional, last: joining offline on an iPhone that already has the app from the App Store.
+   The newcomer only has to join a network, so an Android lets an iPhone in over a hotspot
+   (or its group, after step 1), and an iPhone can let in only another iPhone, over `awdl`.
+   "Give them the app" stays Android only. The limit is the reducer version: a starting copy
+   needs the same `REDUCER_VERSION` (decision 110), and with no carried build an iPhone runs
+   the JavaScript of its last update, so this likely waits on section 14.3's fallback.
+
+**Phase 5's gate.** The real-phone test again, with iPhones: an iPhone with each kind of
+Android in the gate's list below, two iPhones, a mixed room of five, an iPhone behind on its
+generation meeting an Android ahead, and a disguised Android hosting for an iPhone.
 
 **Phase 6: joining offline.** Section 14: carried builds, join passes, the screen that
 lets someone in, the starting copy, the local person and the join route. Someone with
@@ -2836,7 +2943,8 @@ Each phase updates `docs/play-store-declarations.md` in the same change. The Pla
 answers change when the branch merges, and a person changes them. Phase 2 puts install
 keys and certificates on the server, and adds `@noble/curves`, so the Device or other IDs
 answer and `mobileDependencies` in the facts block change with it. The rest changes in
-phase 3.
+phase 3. Phase 5 starts `docs/app-store-declarations.md` for the App Store's answers
+(section 7).
 
 The permissions come from Android's pages for Wi-Fi Direct, the local-only hotspot and
 Bluetooth. The real-phone test confirms the list. They go in the module's own
@@ -2963,7 +3071,7 @@ branch (section 7), and its answers and numbers get written in here.
 | --- | --- |
 | Real throughput and discovery time on 2 GB Androids, in a hut and across a room | Everything in section 4 is reported, not measured here. |
 | Does the link hold up on China-market phones with no Play services: Xiaomi, OPPO, vivo, Honor, older Huawei? | The deciding factor (section 4). Nothing has been tested there, and their systems may kill or block what stock Android allows. Whether they deliver unfiltered scan results is unknown; one empty `ScanFilter`, the usual workaround, is an option from JavaScript. |
-| Which Android versions and phone makers does the field use? Query `diag.installs` (`npm run diag`) | The docs say "partner phones are 2 GB Androids", but nothing here has counted them. Phones below Android 10 get a disabled row, so this says how many people that leaves out. |
+| Which Android versions and phone makers does the field use? Query `diag.installs` (`npm run diag`) | The docs say "partner phones are 2 GB Androids", but nothing here has counted them. Phones below Android 10 get a disabled row, so this says how many people that leaves out. On 2026-11-16 production held one install below Android 10 (an Android 7 tablet) and none on 8 or 9, from about ten real Android phones, mostly the team's and testers' (answer 24). Field phones are still uncounted. |
 | Can a phone in China reach next.langquest.org, Supabase, R2 and EAS Update? | Carrying the team's work means nothing if the server cannot be reached from there. Not tested. |
 | How often does the band end up 5 GHz, and what does each band really deliver? | Reports range from 4 to 53 MB/s, and every phone now has to receive everything. |
 | Does a Bluetooth broadcast with a rotating id and no fixed service id work between phone makers, and on iPhones later? Does `neverForLocation` pass a rotating UUID, given it filters some beacons? | It is what keeps a phone from being marked as running this app (decision 171). |
@@ -3003,6 +3111,17 @@ For joining offline (section 14):
 | How long does a starting copy take for a big language on a 2 GB phone? | Koro Miyan has about 160,000 rows (decision 143). |
 | How large is the largest text in a big language's starting copy? | `COPY_TEXT_MAX_CHARS` lets a sender make a newcomer join 256 million characters, more than a 2 GB phone holds. It should be a few times the largest real one, once measured (security review, 2026-11-10). |
 | Do Bluetooth connections that never turn on notifications use up a phone's connection places, or stop it advertising, or does Android drop them? | The GATT server reacts only to a disconnect, so a stranger's silent connections are held until they leave (security review, 2026-11-10). If they block teammates, the module cancels a connection with no pipe after a few seconds. |
+
+For iPhones (phase 5, section 7), answered by phase 5's own test:
+
+| Question | Why it matters |
+| --- | --- |
+| Does an iPhone's advert really leave out a second service UUID, as Apple's documentation says? | Phase 5's characteristic exists because of it. If an iPhone sends both, Find needs no change for iPhones. |
+| Does an iPhone hear an Android's advert and scan response in the foreground, and connect to its GATT service? | iPhone with Android rests on it, with no Android change. |
+| Does an iPhone join an Android's local-only hotspot, and its Wi-Fi Direct group as a plain client, on several makers and both bands, and what does each deliver? | One project saw an iPhone 11 fail to join a Galaxy A05s group (section 4). The group is faster, so it goes first if it holds. |
+| How often does an iPhone change its Bluetooth address, and does stopping and starting the advert change it? | It says how far two salts can be linked on an iPhone (phase 5, Find). |
+| Between two iPhones, how long does `awdl` take to come up, and what does it deliver? | It is the only fast link between iPhones. |
+| How do the Bluetooth, Local Network and Wi-Fi prompts read, in what order do they come, and does Local Network's come back once refused? | Each needs a line before it, and a refused Local Network prompt stops every Wi-Fi link to an iPhone. |
 
 ## 12. Decisions this touches
 
@@ -3103,7 +3222,7 @@ belongs: section 2 for Carl's answers, and sections 5 to 14 for the rest.
 | A pass fetched late in its 90-day window has little time left, so should an answer also hold the next window's pass in that window's last 30 days? | Carl | Answer 17 is built as worded, so a phone that last reached the server near a window's end can hold a pass with days left, and every pass ends on the same date. Holding the next window's too would keep a team leaving town able to let someone in, at the cost of up to 20 uses in that time. Not built unless he says so (section 14.1). |
 | What ends the experiment? | Carl, later | A follow-up issue, as decision 53 asks. A suggested test: teams have used it offline for a month, the test's numbers hold in the field, and no work was lost or wrongly confirmed. |
 | When admins get the toggle, may they turn it on without staff? | Later | Yes, once it is no longer experimental. Until then, staff choose who tries it. |
-| Can an iPhone that already has the app join offline? | Later | In principle, after phase 5. Only the install is impossible. |
+| Can an iPhone that already has the app join offline? | Later | Optional, as phase 5's last step (answer 25). Only the install is impossible, and with no carried build the reducer version is the real limit. |
 | Could an existing member use a starting copy for a language they never opened? | Later | By the same path. Newcomers come first. |
 
 ## 14. Joining offline
