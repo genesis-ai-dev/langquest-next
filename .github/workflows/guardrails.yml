@@ -474,7 +474,7 @@ jobs:
 
   ios-native:
     # The nearby link's Swift (apps/mobile/modules/nearby-link/ios,
-    # docs/nearby-sync-plan.md section 7, phase 5, decisions.md 254). Nothing
+    # docs/nearby-sync-plan.md section 7, phase 5, decisions.md 256). Nothing
     # else compiles it before a store build, and no developer here has a Mac.
     # Its Swift package runs the pure parts (Find's bytes, frames, sealing,
     # file parts) against the golden vectors in the module's test-vectors.json,

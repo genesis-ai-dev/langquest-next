@@ -98,7 +98,7 @@ if (platform === 'android') {
     // A build with no signing at all has no entitlements, and the keychain refuses the sign-in
     // ("A required entitlement isn't present", iOS 26 simulator, 2026-11-11). A build with no
     // team cannot have associated domains or Hotspot Configuration (Share nearby's Wi-Fi join on
-    // an iPhone, decisions.md 254), and no flow needs them: the flows open langquestnext://
+    // an iPhone, decisions.md 256), and no flow needs them: the flows open langquestnext://
     // links, and a simulator has no radios. The JavaScript is bundled by Xcode's own build phase,
     // with these settings.
     const entitlements = join(app, 'ios/LangQuestNext/LangQuestNext.entitlements');

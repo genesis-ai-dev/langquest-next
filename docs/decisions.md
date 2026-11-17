@@ -4503,7 +4503,7 @@ the app (`src/nearby/nearbyCryptoModel.ts`, `@noble/curves` and
 `nearbyClient`, and `LanguageSession`'s `client` option passes `nearby` on
 to its `SyncClient`.
 
-Amended (2026-11-16, Carl Sauder): iPhones share nearby too (254), so a
+Amended (2026-11-16, Carl Sauder): iPhones share nearby too (256), so a
 phone's own file imports the nearby entries: `.native` (Android and
 iPhones), `.android` or `.ios` (`nearbyOnPhones` in `eslint.config.mjs`), each
 with a plain stub beside it, which only the web bundle takes. What a phone
@@ -7402,7 +7402,7 @@ compiles no Kotlin; a nightly run, a manual run and a scope error still run
 every job. AGENTS.md's Guardrails table has its row.
 
 Amended (2026-11-16, Carl Sauder): a sixth scoped job, `ios-native`, for the
-nearby module's Swift (254): on a Mac (`macos-26`, free for a public
+nearby module's Swift (256): on a Mac (`macos-26`, free for a public
 repository), its Swift package's tests against the golden vectors, then the
 iPhone app built for the simulator as the nightly iPhone job builds it. It
 runs for the module's `ios/` and podspec, for what both halves share (the
@@ -11984,7 +11984,7 @@ answer covers it (`docs/play-store-declarations.md`).
 Reverse if: the real-phone test finds a restored phone keeps its key, or
 Ed25519 in Hermes is too slow for one check per batch (plan section 11).
 
-Amended (2026-11-16, Carl Sauder): iPhones make and keep the key too (254).
+Amended (2026-11-16, Carl Sauder): iPhones make and keep the key too (256).
 On an iPhone it lives in the Keychain for this device only, which neither an
 iCloud backup nor a move to a new iPhone carries, so a restored iPhone makes a
 new key as a restored Android does. The key file is now `.native`, for both
@@ -12283,7 +12283,7 @@ app on the phone no longer hold every place for the whole attempt
 (pre-merge security review).
 
 Amended (2026-11-16, Carl Sauder): iPhones come in, on the same protocol
-(254): an iPhone's advert goes out alone, it joins an Android's local-only
+(256): an iPhone's advert goes out alone, it joins an Android's local-only
 hotspot, or its Wi-Fi Direct group as a plain client, and two iPhones use
 Apple's own direct Wi-Fi (`awdl`). The Kotlin now hands up a teammate's
 advert heard with no scan response (`onAdvert`), the module's one native
@@ -12520,7 +12520,7 @@ Reverse if: the real-phone test finds the prompts name the launcher alias
 (then the warning changes), or people under a disguise are found broadcasting
 behind the cover.
 
-Amended (2026-11-16, Carl Sauder): Share nearby now shows on iPhones (254),
+Amended (2026-11-16, Carl Sauder): Share nearby now shows on iPhones (256),
 with no disguise, since an iPhone build carries none (171 as amended); the
 disguise's files stay `.android`, so `disguiseIphone.test.ts` still holds.
 The web is still without it, through the plain stubs; the exchange's files
@@ -12553,7 +12553,7 @@ Reverse if: the experiment ends (then the badge goes, and admins may get the
 toggle), or people miss teammates because the screen stopped (then the idle
 limit moves).
 
-Amended (2026-11-16, Carl Sauder): it shows on iPhones too (254); only the
+Amended (2026-11-16, Carl Sauder): it shows on iPhones too (256); only the
 web is without it. On an iPhone it is disabled only without the module or
 Bluetooth LE: no Android version is compared with an iPhone's iOS version,
 and an iPhone has no Wi-Fi Direct and needs none. Bluetooth is the one
@@ -13311,9 +13311,93 @@ sheet or a permission prompt (then a short time away does not lock), or
 people who forget the pattern lose access more often than the lock keeps
 someone out (then a helper's code opens it too).
 
-## 254. iPhones share nearby: the advert goes out alone and is known by its salt, two iPhones meet after one tap per opening and over Apple's own direct Wi-Fi, and an iPhone joins an Android's network as a plain client
+## 254. The ops dashboard opens on what needs a person, and draws every range of days from totals by hour and day that pg_cron keeps for all time
 
-Date: 2026-11-16 · By: Carl Sauder · Status: accepted
+Date: 2026-11-17 · By: Caleb Koster · Status: accepted
+
+Reason: the ops dashboard (160, 161) shows 34 parts as lists of numbers, and
+each read scans up to 14 days of raw records, which cannot hold at tens of
+thousands of phones and keeps nothing past the 90 days raw records live.
+Caleb compared four designs (thread "Show visual concepts for the ops
+dashboard") and picked "What needs you first" on 2026-11-17: the page opens on
+a count and a card for each thing that needs a person, and each part with no
+alert is one OK line. He asked that all other data stay reachable (14 days and
+more), that any square, bar or point open its technical detail, and that the
+pictures scale to tens of thousands of people and more over a long time
+(`docs/ops-dashboard-plan.md` 5.0). Decided:
+- **Pictures read totals, never raw records.** `diag.hourly` (kept 14 days,
+  for the 24 h range), `diag.daily` (kept for all time) and `diag.monthly`
+  (the days again by month, for All) hold one row for each number of each
+  part, each key and each hour, day or month (migration
+  `20261117060000_diag_daily.sql`). A number keeps its 30 largest keys a day
+  and adds the rest up as `_other`, so a flood of new error kinds cannot grow
+  the table without end. `GET /ops/api/<part>?range=24h|14d|90d|1y|all`
+  (`diag.ops_series`) reads them in buckets of an hour, a day, a day, a week
+  and a month; a week or a month sums a count and shows a level (phones that
+  reported, a size, a p95) at its busiest day (`diag.daily_metrics`). With
+  40,000 installs and 3 years of totals each call took 7 to 170 ms
+  (`server/dailyTotalsLoad.sql`). A part's whole history read from the days
+  took 490 to 590 ms, so All reads the months: about 40 ms, one row a month
+  however many years.
+- **pg_cron fills them, in the database, not the job container.** Every
+  number comes from tables in the same database (`diag.records`,
+  `diag.job_runs`, accounts, invites, feedback, `cron.job_run_details`), so
+  `diag.daily_fill` (`langquest-daily-totals`, every 10 minutes) needs no
+  secret and no network, a database reset keeps it, and it records a
+  `daily_totals` job run so a stopped fill shows as stale. Each run counts
+  the hour now and the one before, today and yesterday once an hour (late
+  arrivals land in yesterday), and two days and 24 hours never counted,
+  newest first: the 90 days of raw records that exist on the day it lands
+  are counted within a few hours. A day's fill at 40,000 installs, 1.2
+  million records, takes about 10 s, and each hour counts two (today and
+  yesterday).
+- **Counts only, so raw retention stays 90 days.** A row is a count or a
+  level for the whole fleet by platform, job, error kind, route or update,
+  never an install id, a profile id, a name or an email
+  (`server/dailyTotalsSmoke.sql` checks it). `diag.prune`, the privacy
+  policy's 90 and 180 days and the Play answers are unchanged.
+Reverse if: a year by week passes 500 ms (add weekly totals), a fill passes 10 minutes at the fleet's size (fill the day from the
+hours), or a number needs a breakdown by install or person, which belongs in
+the detail panel's raw records and never in totals.
+
+## 255. A tapped bucket lists its raw records through one stored filter for each number, which a test holds equal to the totals' own count
+
+Date: 2026-11-17 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked that any square, bar or point on the ops dashboard open
+the technical detail behind it (254). Totals hold no ids, so that detail can
+only come from the raw records, which live 90 days. Each number counts its
+records with its own filter (`diag.daily_compute`), and the list behind a bar
+must show the same records the bar counted. Decided:
+- **One call for a bucket.** `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=`
+  (`diag.ops_detail`, migration `20261117143000_ops_detail.sql`) lists the
+  records behind one number in one bucket of at most 32 days, 50 a page,
+  newest first. A bucket older than 90 days says it keeps totals only; one
+  that starts before then lists from 90 days ago and says so. People are
+  counted, never listed, so their numbers have no rows.
+- **Filters are rows, run as dynamic SQL.** `diag.detail_filters` holds each
+  records or job-runs number's filter and key as SQL text, copied from
+  `daily_compute`. `diag.ops_detail_rows` runs that text with `format()`,
+  with the key, the bucket and the page as parameters. A security definer
+  function that picks its filter with `case` cannot use an index, and two
+  indexes (records by kind and time, and refused syncs) only help a query
+  that names its filter. At 40,000 installs a day's bucket took 5 to 460 ms
+  (`server/dailyTotalsLoad.sql`). Nobody can write the table; `diag_reader`
+  can run `ops_detail` and `ops_glance` and nothing under them.
+- **A test holds the two copies equal.** `server/opsDetailSmoke.sql` counts
+  every kept key of every such number both ways, through its filter and from
+  the daily totals, and fails when they differ. It also checks that no row
+  holds a feedback body, a name, an email or a report's details.
+- **The start page reads one call.** `GET /ops/api/glance`
+  (`diag.ops_glance`) gives the last 14 days of one number for each section,
+  for its small pictures: 2 ms.
+Reverse if: a bucket's list passes 500 ms (add an index for that number), or
+the two copies of a filter drift often enough that `daily_compute` should
+read its filters from `diag.detail_filters` too.
+
+## 256. iPhones share nearby: the advert goes out alone and is known by its salt, two iPhones meet after one tap per opening and over Apple's own direct Wi-Fi, and an iPhone joins an Android's network as a plain client
+
+Date: 2026-11-17 · By: Carl Sauder · Status: accepted
 
 Reason: sharing between an iPhone and an Android, and between two iPhones,
 comes first for iPhones; joining offline on an iPhone is optional and later

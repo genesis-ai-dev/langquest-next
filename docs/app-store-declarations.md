@@ -2,7 +2,7 @@
 
 The answers given in App Store Connect for LangQuest Next, bundle ID
 `com.frontierrnd.langquestnext`, that Share nearby on iPhones touches
-(`docs/nearby-sync-plan.md` section 7, phase 5; decisions.md 254). Google
+(`docs/nearby-sync-plan.md` section 7, phase 5; decisions.md 256). Google
 Play's answers are in `docs/play-store-declarations.md`; this file is its
 counterpart for Apple, and so far it records only what phase 5 changes. The
 rest of App Store Connect (age rating, the listing, the other App Privacy
