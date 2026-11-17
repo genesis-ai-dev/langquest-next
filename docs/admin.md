@@ -469,6 +469,29 @@ range, one value a bucket, and `counted`, whether each bucket was counted yet
 holds what a day holds; `server/dailyTotalsLoad.sql`, run by hand, times it
 with 40,000 installs and 3 years of totals.
 
+## The start page, a section's charts and the records behind a bar
+
+The page opens on "What needs you first" (`apps/admin/src/pageStart.ts`,
+`docs/ops-dashboard-plan.md` 5.0): a count, one card for each part whose
+alerts need a person, one line for each part's alerts to watch, and an OK line
+for each section with none. `GET /ops/api/glance` (`diag.ops_glance`) gives the
+OK lines and cards their 14-day pictures: one number for each section
+(`GLANCE` in `sources/history.ts`). `#g/<section>` shows one section with a
+chart for each number over the range, then its tables; `#all` shows every
+section as before.
+
+A tap on a bar or a point asks
+`GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,
+decisions.md 255): the records behind that number in that bucket, 50 a page,
+newest first, for a bucket of at most 32 days. Records and job runs are read
+through the number's row in `diag.detail_filters`, the same filter and key
+that `daily_compute` counts with; `server/opsDetailSmoke.sql` fails when the
+two differ. Cron runs, feedback, content reports and user issues come from
+their own tables, without bodies, names, emails or report details. People are
+counted, never listed. Past 90 days a bucket says it keeps totals only.
+When a number gets a new filter in `daily_compute`, give it the same row in
+`diag.detail_filters` in the same migration.
+
 ## Not built yet
 
 - iOS crash counts: App Store Connect gives them only as daily analytics

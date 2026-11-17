@@ -8,6 +8,8 @@
  */
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
+import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
+import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
 
 export function page(cfg: { supabaseUrl: string; anonKey: string }, nonce: string): Response {
@@ -176,11 +178,13 @@ td button { white-space: nowrap; }
   .pa { width: auto; }
   .pa::before { content: '↓'; }
 }
+${START_CSS}
 </style>
 </head>
 <body>
 <header><div class="bar">
   <h1>LangQuest operations</h1>
+  <nav class="views" aria-label="Views"><a href="#">What needs you</a><a href="#all">All sections</a></nav>
   <small id="checked"></small>
   <span class="tools"><button id="expand-all" type="button" hidden>Expand all</button><button id="collapse-all" type="button" hidden>Collapse all</button></span>
   <button id="refresh" type="button" hidden>Refresh</button>
@@ -202,6 +206,7 @@ td button { white-space: nowrap; }
     <p><button class="primary" type="submit">Continue</button></p>
   </form>
   <div id="board" hidden>
+${START_HTML}
     <section class="card" id="attention">
       <div class="head"><h2>Needs attention</h2><span class="pill wait" id="attention-pill">Checking…</span></div>
       <ul id="attention-list"></ul>
@@ -388,7 +393,8 @@ const results = {};
 function layout() {
   $('grid').innerHTML = SECTIONS.map((s) => '<section class="card' + (s.wide ? ' wide' : '') + '" id="card-' + s.id + '"><div class="head" data-toggle="' + s.id + '"><div><h2>' +
     '<button type="button" class="toggle" id="toggle-' + s.id + '" aria-expanded="true" aria-controls="body-' + s.id + '"><span class="chev" aria-hidden="true">▾</span><span data-help-key="group:' + s.id + '">' + esc(s.title) + '</span></button>' +
-    '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div><div class="body" id="body-' + s.id + '"></div></section>').join('');
+    '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div>' +
+    '<div class="hist" id="hist-' + s.id + '" hidden></div><div class="body" id="body-' + s.id + '"></div></section>').join('');
   for (const s of SECTIONS) applyOpen(s.id);
   annotate($('grid'));
   $('pill-lookup').hidden = true;
@@ -463,8 +469,9 @@ function show(id, s) {
   $('body-' + g.id).innerHTML = g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join('');
   if (g.parts.includes('feedback')) wireScreenshots();
   annotate($('body-' + g.id));
-  applyOpen(g.id);
+  if (view().name === 'all') applyOpen(g.id);
   attention();
+  renderStart();
 }
 
 function attention() {
@@ -862,12 +869,22 @@ window.addEventListener('scroll', hideTip, { passive: true });
 
 ${OPS_SCRIPT}
 
+// ---- the start page, each section's numbers over a range, and the detail panel (pageStart.ts) ----
+const METRIC = ${JSON.stringify(METRICS).replace(/</g, '\\u003c')};
+const GLANCE = ${JSON.stringify(GLANCE)};
+${START_LOGIC}
+${START_SCRIPT}
+
 let loading = false;
 async function load(fresh) {
   if (loading) return;
   loading = true;
   $('refresh').disabled = true;
   for (const k of Object.keys(results)) delete results[k];
+  for (const k of Object.keys(histories)) delete histories[k];
+  glanceData = null;
+  const here = view();
+  if (here.name === 'group') renderHist(here.id);
   for (const s of SECTIONS) if (s.id !== 'lookup') { const p = $('pill-' + s.id); p.className = 'pill wait'; p.textContent = 'Loading…'; }
   attention();
   const q = fresh ? '?fresh=1' : '';
@@ -875,7 +892,9 @@ async function load(fresh) {
   const jobs = [
     api('/ops/api/diag' + q).then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); }).catch(fail(['jobs', 'clients', 'database', 'v2', 'feedback'])),
     api('/ops/api/ops' + q).then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); }).catch(fail(${JSON.stringify(OPS_IDS)})),
-    ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
+    ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id]))),
+    // The start page's pictures: without them it still shows every card and line.
+    api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {})
   ];
   await Promise.all(jobs);
   $('checked').textContent = 'Checked ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -889,6 +908,7 @@ async function start() {
   $('signin').hidden = true; $('mfa').hidden = true; say('');
   $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false; $('expand-all').hidden = false; $('collapse-all').hidden = false;
   if (!$('grid').children.length) layout();
+  route();
   await finishYouTube();
   const deep = /^\\/ops-dashboard\\/org\\/([^/]+)$/.exec(location.pathname);
   if (deep) openOrg(decodeURIComponent(deep[1]), false);
