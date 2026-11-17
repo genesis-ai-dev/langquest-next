@@ -70,6 +70,21 @@ svg.mini .base { stroke: var(--line); stroke-width: 1; }
 .chart .keys { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .chart .keys button { min-height: 32px; padding: 0 8px; font-size: 12px; font-weight: 400; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chart .keys button[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); font-weight: 600; }
+.chart.sqbox { grid-column: 1 / -1; }
+.sqrows { display: grid; gap: 3px; margin: 8px 0 4px; width: fit-content; max-width: 100%; }
+.sqrow { display: grid; grid-template-columns: minmax(0, 168px) minmax(0, 1fr); gap: 10px; align-items: center; }
+.sqrow > span { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chart svg.sq { width: auto; max-width: 100%; height: auto; margin: 0; overflow: visible; }
+svg.sq .q.ok { fill: var(--green); } svg.sq .q.part { fill: var(--amber); } svg.sq .q.fail { fill: var(--red); }
+svg.sq .q.none { fill: none; stroke: var(--line); stroke-width: 1; } svg.sq .q.gap { fill: var(--bg); stroke: var(--line); stroke-dasharray: 2 2; }
+svg.sq .q.sel { stroke: var(--primary); stroke-width: 2.5; }
+svg.sq .mk { fill: none; stroke: var(--card); stroke-width: 1.6; stroke-linecap: round; pointer-events: none; } svg.sq .dt { fill: var(--card); pointer-events: none; }
+.sqbox p.muted { font-size: 12px; margin: 2px 0; }
+.sqleg { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.sqleg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-inline-end: 4px; }
+.sqleg i.ok { background: var(--green); } .sqleg i.part { background: var(--amber); } .sqleg i.fail { background: var(--red); } .sqleg i.none { border: 1px solid var(--line); }
+.pic .chart.sqbox { border: 0; padding: 0; } .sqbox.mini .ct { display: block; } .sqbox.mini .ct span, .sqbox.mini .ct b { display: block; font-size: 12px; }
+.sqbox.mini .sqrow { grid-template-columns: minmax(0, 1fr); gap: 0; } .sqbox.mini .sqrow > span { font-size: 11px; color: var(--muted); }
 #detail { position: fixed; z-index: 5; inset: 0 0 0 auto; width: min(480px, 100%); background: var(--card); border-inline-start: 1px solid var(--line); box-shadow: -8px 0 24px rgba(0,0,0,.15); overflow-y: auto; padding: 16px; }
 #detail .head { position: sticky; top: -16px; background: var(--card); padding: 4px 0 8px; z-index: 1; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
 #detail .head h2 { flex: 1; min-width: 0; }
@@ -80,6 +95,7 @@ svg.mini .base { stroke: var(--line); stroke-width: 1; }
   .cols { grid-template-columns: minmax(0, 1fr); }
   .nc { grid-template-columns: minmax(0, 1fr); }
   .okline { grid-template-columns: 14px minmax(0, 1fr) 84px 12px; }
+  .sqrow { grid-template-columns: minmax(0, 1fr); gap: 0; }
   #start .hero b { font-size: 44px; }
   #detail { inset: auto 0 0 0; width: 100%; max-height: 82vh; border-inline-start: 0; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,.2); }
   .views a { padding: 0 8px; }
@@ -180,6 +196,24 @@ function rangeTotal(agg, values) {
   return agg === 'max' ? v[v.length - 1] : v.reduce((a, b) => a + b, 0);
 }
 
+/**
+ * A square for each bucket of each job (plan 5c): one row for each key of
+ * the runs number, each square failed, did part of the work, ran, no run, or
+ * not counted yet. A job count stays fixed as people grow, so one square each
+ * stays small at any scale. Rows with a failure lead, then by name, Others last.
+ */
+function runSquares(hst, sq) {
+  const of = (metric, key) => { const s = metric ? hst.series.find((x) => x.metric === metric && x.key === key) : null; return s ? s.values : []; };
+  const rows = hst.series.filter((s) => s.metric === sq.runs && s.key !== '').map((s) => {
+    const failed = of(sq.failed, s.key), partial = of(sq.partial, s.key);
+    const cells = s.values.map((v, i) => hst.counted && hst.counted[i] === false ? 'gap'
+      : Number(failed[i]) > 0 ? 'fail' : Number(partial[i]) > 0 ? 'part' : Number(v) > 0 ? 'ok' : 'none');
+    return { key: s.key, cells, failed: cells.filter((c) => c === 'fail').length, partial: cells.filter((c) => c === 'part').length };
+  });
+  rows.sort((a, b) => Number(b.failed > 0) - Number(a.failed > 0) || Number(a.key === '_other') - Number(b.key === '_other') || a.key.localeCompare(b.key));
+  return rows;
+}
+
 /** A bucket's end: the next bucket's start, or one step after the last. */
 function bucketEnd(buckets, i, step) {
   if (i + 1 < buckets.length) return buckets[i + 1];
@@ -276,6 +310,7 @@ const ALSO_SHOWN = 3;
 function cardHtml(c) {
   const t = splitAlert(tidy(c.text));
   const gl = glanceOf(c.group);
+  const sq = SQUARES[c.part] ? squarePic(c.part, c.text) : listCardPic(c.part);
   const link = safeLink(c.link);
   const also = c.more.slice(0, ALSO_SHOWN).map((x) => '<li>' + esc(splitAlert(tidy(x)).title) + '</li>').join('');
   const rest = c.more.length - ALSO_SHOWN;
@@ -287,7 +322,7 @@ function cardHtml(c) {
     (t.next ? '<p><b>Next:</b> ' + esc(t.next) + '</p>' : '') +
     '<p class="acts"><a class="button primary" href="#g/' + esc(c.group) + '">Open ' + esc(titleOf(c.group)) + '</a>' +
     (link ? '<a class="button" href="' + esc(link) + '" target="_blank" rel="noopener">Open the page</a>' : '') + '</p></div>' +
-    (gl ? '<div class="pic">' + miniSvg(gl.s.values, gl.s.agg, 200, 64) + '<small>' + esc(gl.said) + '</small></div>' : '<div></div>') +
+    (sq ? '<div class="pic">' + sq + '</div>' : gl ? '<div class="pic">' + miniSvg(gl.s.values, gl.s.agg, 200, 64) + '<small>' + esc(gl.said) + '</small></div>' : '<div></div>') +
     '</article>';
 }
 
@@ -384,6 +419,66 @@ function loadHistory(part, r) {
 const keyName = (k) => k === '' ? 'All' : k === '_other' ? 'Others' : k;
 const shownKey = {};
 
+// ---- a square for each run (plan 5c) --------------------------------------------------------
+const SQUARES = {
+  jobs: { runs: 'runs', failed: 'failed', partial: 'partial', one: 'job', many: 'jobs' },
+  cron: { runs: 'runs', failed: 'failed', one: 'database job', many: 'database jobs' }
+};
+const SQ_SAID = { ok: 'ran', part: 'did part of the work', fail: 'failed', none: 'no run', gap: 'not counted yet' };
+const STEP_ONE = { hour: 'hour', day: 'day', week: 'week', month: 'month' };
+
+/** One job's row: a square for each bucket. A failure has an x and part of the work a dot, so neither rests on color alone. */
+function squareSvg(row, hst, r) {
+  const n = row.cells.length, size = 10, gap = 2, s = size + gap, w = n * s - gap;
+  let body = '';
+  row.cells.forEach((c, i) => {
+    const x = i * s;
+    body += '<rect class="q ' + c + '" data-i="' + i + '" x="' + x + '" y="1" width="' + size + '" height="' + size + '" rx="2"/>';
+    if (c === 'fail') body += '<path class="mk" d="M' + (x + 3) + ' 4L' + (x + 7) + ' 8M' + (x + 7) + ' 4L' + (x + 3) + ' 8"/>';
+    else if (c === 'part') body += '<circle class="dt" cx="' + (x + 5) + '" cy="6" r="1.8"/>';
+  });
+  const said = [row.failed ? num(row.failed) + ' failed' : '', row.partial ? num(row.partial) + ' did part of the work' : ''].filter(Boolean).join(', ') || 'no failure';
+  const label = keyName(row.key) + ', one square for each ' + STEP_ONE[hst.step] + ': ' + said + '. Tap a square, or use the arrow keys and Enter, for its runs.';
+  return '<svg class="sq" width="' + (n * 15) + '" height="' + Math.round((size + 2) * 1.25) + '" viewBox="0 0 ' + w + ' ' + (size + 2) + '" tabindex="0" role="img" aria-label="' + esc(label) + '" data-key="' + esc(row.key) + '" data-n="' + n + '"' +
+    (r ? ' data-range="' + esc(r) + '"' : '') + '>' + body + '</svg>';
+}
+
+/**
+ * A part's runs as squares: a row for each job, rows with a failure first. max cuts the rows for a card; a job its alert names leads there.
+ * only draws one job's row under its own title (the nightly R2 check is blob_reconcile's).
+ */
+function squaresBox(part, hst, r, max, alert, only) {
+  const sq = SQUARES[part];
+  const named = (row) => Boolean(alert) && row.key !== '_other' && String(alert).includes(row.key);
+  const rows = runSquares(hst, sq).filter((row) => !only || row.key === only.key)
+    .map((row, at) => ({ row, at })).sort((a, b) => Number(named(b.row)) - Number(named(a.row)) || a.at - b.at).map((x) => x.row);
+  if (!rows.length) return '';
+  const shown = max ? rows.slice(0, max) : rows;
+  const bad = rows.filter((x) => x.failed).length;
+  const step = STEP_ONE[hst.step];
+  const head = only ? [rows[0].failed ? num(rows[0].failed) + ' failed' : '', rows[0].partial ? num(rows[0].partial) + ' did part of the work' : ''].filter(Boolean).join(' · ') || 'no failure'
+    : num(rows.length) + ' ' + (rows.length === 1 ? sq.one : sq.many) + ' · ' + (bad ? num(bad) + ' with a failed run' : 'no failed run');
+  const states = ['ok'].concat(sq.partial ? ['part'] : [], ['fail', 'none']);
+  return '<div class="chart sqbox' + (max ? ' mini' : '') + '" data-part="' + esc(part) + '" data-metric="' + esc(sq.runs) + '">' +
+    '<div class="ct"><span>' + esc(only ? only.title : PART_TITLE[part] || part) + ', a square for each ' + esc(step) + '</span><b>' + esc(head) + '</b></div>' +
+    '<div class="sqrows">' + shown.map((row) => '<div class="sqrow"><span title="' + esc(keyName(row.key)) + '">' + esc(keyName(row.key)) + '</span>' + squareSvg(row, hst, r) + '</div>').join('') +
+    '<div class="sqrow"><span></span><div class="ax"><span>' + esc(bucketLabel(hst.buckets[0], hst.step)) + '</span><span>' + esc(bucketLabel(hst.buckets[hst.buckets.length - 1], hst.step)) + ' UTC</span></div></div></div>' +
+    (rows.length > shown.length ? '<p class="muted">' + num(rows.length - shown.length) + ' more ' + esc(sq.many) + ' in ' + esc(PART_TITLE[part] || part) + '.</p>' : '') +
+    '<div class="sqleg">' + states.map((c) => '<span><i class="' + c + '"></i>' + esc(SQ_SAID[c].charAt(0).toUpperCase() + SQ_SAID[c].slice(1)) + '</span>').join('') + '</div></div>';
+}
+
+/** The last 24 hours of a part's runs as squares, for its card on the start page; '' when they cannot be read. */
+const dayPics = {};
+function squarePic(part, alert) {
+  const hst = dayPics[part];
+  if (hst === undefined) {
+    dayPics[part] = null;
+    loadHistory(part, '24h').then((h) => { dayPics[part] = h; renderStart(); }, () => { dayPics[part] = false; renderStart(); });
+  }
+  if (hst === null || hst === undefined) return '<p class="muted">Loading…</p>';
+  return hst ? squaresBox(part, hst, '24h', 6, alert) : '';
+}
+
 function drawPart(part, hst) {
   const box = $('charts-' + part);
   if (!box || hst.range !== range) return;
@@ -406,7 +501,7 @@ function drawPart(part, hst) {
   }).join('');
   box.innerHTML = '<h3 class="part">' + esc(PART_TITLE[part] || part) + ', ' + esc(RANGE_NAMES[range]) + '</h3>' +
     (hst.counted.some((c) => !c) ? '<p class="muted">Some ' + (hst.step === 'hour' ? 'hours' : 'days') + ' are not counted yet: the job counts the last 90 days a few at a time.</p>' : '') +
-    '<div class="charts">' + (charts || '<p class="muted">Nothing counted yet.</p>') + '</div>';
+    '<div class="charts">' + (SQUARES[part] ? squaresBox(part, hst, null, 0) : '') + (charts || '<p class="muted">Nothing counted yet.</p>') + '</div>';
 }
 
 function bucketLabel(iso, step) {
@@ -461,13 +556,14 @@ document.addEventListener('click', (e) => {
     loadHistory(chart.dataset.part, range).then((hst) => drawPart(chart.dataset.part, hst));
     return;
   }
-  const svg = e.target.closest && e.target.closest('.chart svg');
+  // A list's squares (pageLists.ts) open their own detail.
+  const svg = e.target.closest && e.target.closest('.chart:not(.lstbox) svg');
   if (svg) { openBucket(svg, bucketAt(svg, e.clientX)); return; }
   const lk = e.target.closest && e.target.closest('[data-lookup]');
   if (lk) { lookUp(lk.dataset.lookup); return; }
 });
 document.addEventListener('keydown', (e) => {
-  const svg = e.target.closest && e.target.closest('.chart svg');
+  const svg = e.target.closest && e.target.closest('.chart:not(.lstbox) svg');
   if (svg) {
     const n = Number(svg.dataset.n);
     const at = Number(svg.dataset.sel || n - 1);
@@ -496,8 +592,12 @@ function closeDetail() {
 function openBucket(svg, i) {
   markBucket(svg, i);
   const chart = svg.closest('.chart');
-  const part = chart.dataset.part, metric = chart.dataset.metric, key = svg.dataset.key || '';
-  loadHistory(part, range).then((hst) => {
+  const part = chart.dataset.part, key = svg.dataset.key || '';
+  // A failed square opens the failed runs, and one that did part of the work those runs; the rest open every run.
+  const cell = svg.classList.contains('sq') ? svg.querySelector('rect[data-i="' + i + '"]') : null, sq = SQUARES[part];
+  const metric = cell && sq && cell.classList.contains('fail') ? sq.failed : cell && sq && sq.partial && cell.classList.contains('part') ? sq.partial : chart.dataset.metric;
+  // A card's squares show the last 24 hours, whatever range the section pages show.
+  loadHistory(part, svg.dataset.range || range).then((hst) => {
     const from = hst.buckets[i], to = bucketEnd(hst.buckets, i, hst.step);
     shown = { svg, part, metric, key, from, to, step: hst.step, page: 0, rows: [], hst, i };
     drawDetail();

@@ -8,6 +8,8 @@
  */
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
+import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
+import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
@@ -198,6 +200,8 @@ td button { white-space: nowrap; }
   .pa::before { content: '↓'; }
 }
 ${START_CSS}
+${LISTS_CSS}
+${METERS_CSS}
 </style>
 </head>
 <body>
@@ -465,10 +469,32 @@ function partHtml(g, id) {
   if (s.state === 'off') return head + '<p class="setup muted">Not connected. ' + esc(s.setup) + '</p>';
   if (s.state === 'error') return head + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
   try {
-    if (id === 'jobs') return head + renderJobs(s.data, results.container);
-    return head + counted(s.data) + (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+    if (id === 'jobs') return head + numbers(id, renderJobs(s.data, results.container));
+    // A picture leads its part (pageLists.ts, pageMeters.ts); its numbers and tables wait behind one tap.
+    const pic = listPicture(id, s.data);
+    const html = (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+    // A part that nothing draws (no picture, no line over time) keeps its table open, and so does one that holds a queue for a person.
+    return head + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + ((pic || METRIC[id]) && !QUEUE.test(html) ? numbers(id, html) : html);
   } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
 }
+
+/**
+ * A part's numbers and tables, closed until a tap opens them, so a section
+ * shows its pictures first (plan 5c); a part stays open through a refresh
+ * once opened.
+ */
+const openNumbers = new Set();
+// Grant, Accept, Send to Claude, Add a note, Connect, Publish, Seen or Done (pageLists.ts QUEUE_CONTROLS).
+const QUEUE = /${QUEUE_SOURCE}/;
+function numbers(id, html) {
+  return '<details class="numbers" data-part="' + esc(id) + '"' + (openNumbers.has(id) ? ' open' : '') + '><summary><span class="sn">Show the numbers</span><span class="hn">Hide the numbers</span></summary>' + html + '</details>';
+}
+// toggle does not bubble, so it is caught on its way down.
+document.addEventListener('toggle', (e) => {
+  const d = e.target;
+  if (!d.matches || !d.matches('details.numbers')) return;
+  if (d.open) openNumbers.add(d.dataset.part); else openNumbers.delete(d.dataset.part);
+}, true);
 
 /** A part the database counts every 10 minutes (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md): when, and late past 25 minutes. */
 function counted(d) {
@@ -903,6 +929,10 @@ const METRIC = ${JSON.stringify(METRICS).replace(/</g, '\\u003c')};
 const GLANCE = ${JSON.stringify(GLANCE)};
 ${START_LOGIC}
 ${START_SCRIPT}
+${LISTS_LOGIC}
+${METERS_LOGIC}
+${LISTS_SCRIPT}
+${METERS_SCRIPT}
 
 let loading = false;
 async function load(fresh) {

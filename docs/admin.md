@@ -480,6 +480,51 @@ OK lines and cards their 14-day pictures: one number for each section
 chart for each number over the range, then its tables; `#all` shows every
 section as before.
 
+Jobs and pg_cron also draw a row of squares for each job, one square for
+each bucket (`SQUARES` and `runSquares` in `pageStart.ts`), from the same
+`runs`, `failed` and `partial` totals as their charts: red when a run
+failed, amber when one did part of its work, green when it ran. Their card
+reads the last 24 h (`?range=24h`) and leads with the job its alert names.
+A tap on a red square asks the detail for `failed`, on an amber one for
+`partial`, on any other for `runs`.
+
+The fixed lists draw a square for each item (`apps/admin/src/pageLists.ts`,
+plan 5c2): nightly suites, EAS, v2 projects, user issues, feedback,
+channels, what came in about the videos and the videos. `listRows` turns
+the part's own data into rows of items (state, name, fields, link) with no
+new read; the squares lead the part and its card, and a tap opens the
+item's fields in the detail panel, with no call to the server. Past 200
+items a row draws 100 squares of 1% each (`shareCells`). Storage shows the
+nightly R2 check as blob_reconcile's row of the job squares. A new list
+needs a case in `listRows`, a line in `LIST_SAID` and a test in
+`apps/admin/test/lists.test.ts`; never put a name or an email in its fields.
+
+Some rows draw another shape (`draw` on the row, plan 5c3): `track` (the
+store lanes, and main next to what the web host serves), `line` (What
+shipped: errors a day, crashes, and a tick on each day with a change) and
+`axis` (Expiry dates: days left, 0 to 120). The same tap, arrow keys and
+detail panel work on each. A row with `count: false` is context, and the
+head does not count its items.
+
+Meters and shares are rows of the same lists (`apps/admin/src/pageMeters.ts`,
+plan 5c4): `draw: 'meter'` is a bar for each item against its `max`, with
+a `line` where a store draws one; `draw: 'share'` is one bar split by each
+item's `v`. A meter takes its limit from the alert it stands for (the
+sources export `CRASH_LINE`, `DB_FULL_SHARE`, `REPORT_DUE_HOURS` and the
+slow-RPC rule), and `apps/admin/test/meters.test.ts` checks that each bar
+turns red or amber exactly when its alert does. A part whose rows are all
+shares sets `sum` in `LIST_SAID`: its head and legend count what it splits.
+
+In a section, a part's tables (`RENDER`, and the Jobs table with its Run now
+buttons) sit in a closed `details.numbers` ("Show the numbers") under its
+picture, so the section shows pictures first. A part with no picture and no
+history line (`METRIC`) shows its table open. So does a part whose body holds
+a queue control (`QUEUE_CONTROLS` in `pageLists.ts`: Grant, Accept, Send to
+Claude, Add a note, Connect or Publish, Seen or Done); Not an issue and Run
+now may wait behind the tap (`FOLDED_CONTROLS`). `test/meters.test.ts` fails
+on a control in neither list. The page remembers which parts are open while
+it refreshes.
+
 A tap on a bar or a point asks
 `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,
 decisions.md 255): the records behind that number in that bucket, 50 a page,

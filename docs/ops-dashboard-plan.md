@@ -195,6 +195,56 @@ the pictures keep working at tens of thousands of people and over years. So:
   or install. The two reads that grow with phones ("What installs
   report", "Builds in the field") are counted by the database every 10
   minutes, and the page reads that count (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md).
+- **A square for each job run** (built, 5c1): Jobs and pg_cron show a row of
+  squares for each job, one square for each bucket: red with an x when a run
+  failed, amber with a dot when a run did part of its work, green when it
+  ran, an outline when it did not run, dashed when the bucket is not counted
+  yet. Jobs with a failure lead. The card shows the last 24 h, led by the
+  job its alert names, 6 rows at most; the section shows the chosen range. A
+  tap on a red square opens that bucket's failed runs, on an amber square its
+  partial runs. The rows come from the same totals as the charts, so a job
+  that runs every minute for a year is still one row of buckets.
+- **A square for each item of a fixed list** (built, 5c2): nightly suites,
+  EAS builds, submissions and updates, v2 projects, user issues, feedback,
+  YouTube channels, what came in about the videos, and the videos (a row
+  for each app language, a column for each video) each draw a square for
+  each item, from the data the part already read: red with an x when it
+  failed, amber with a dot when it waits, purple with a ring when it runs,
+  green when done, grey when there is nothing to do. The squares lead the
+  part, and the card when the part has an alert. A tap opens the item: its
+  fields and its page (Linear, GitHub, EAS, YouTube). A row past 200 items
+  (feedback, issues and v2 projects grow with people) draws 100 squares of
+  1% each, and a state with any item keeps a square; a tap on one lists
+  its items, 50 at a time. The nightly R2 check is blob_reconcile's row of
+  the job squares, a square a night for 14 nights.
+- **Lanes and lines** (built, 5c3): from the data each part already read.
+  Store builds and updates draw a lane for each platform, a dot for each
+  stage with its build above; Code and deploys draws main and what the web
+  host serves on a track (red when the host is behind main with a change
+  for the web app), and a square for each workflow on main; App Store draws
+  a square for each version and build; What shipped draws errors a day as a
+  line, an x on a day with a crash and a tick on a day with a merge, a
+  deploy or an update; Expiry dates draws each key as a dot on a line of
+  days left, with the 7- and 30-day zones of its alerts. A tap on a dot, a
+  square or a day opens its fields. On a card a picture fits about 200 px
+  at full size.
+- **Meters and shares** (built, 5c4): a thing with a limit draws a bar
+  filled as far as it is used, red or amber exactly when its alert is
+  (the database disk and Cloudflare's plan, connections and the slowest
+  calls, Google's crash and ANR lines, the rate limits, the oldest open
+  report, the largest tables, each Worker's requests). What grows with
+  people draws one bar split by share, each part as wide as its count and
+  at least a tap wide (syncs by how they ended, each route's requests by
+  time, installs by update, accounts by when they were last active), so the
+  bar keeps its size at any count. The Supabase project draws a square for
+  each service. A tap on a bar or a part opens its fields.
+- **Pictures first** (built with 5c4): in a section, each part's tables wait
+  behind one tap ("Show the numbers"), so a section reads as its charts and
+  pictures. A part that nothing draws (no picture, no line over time) keeps
+  its table open, and so does a part that holds a queue for a person (Grant,
+  Accept, Send to Claude, Add a note, Connect or Publish, Seen or Done), so an
+  answer never waits behind a tap. An opened part stays open when the page
+  refreshes.
 - **History** comes from totals by hour and day, never from raw records
   (section 7, phase 5): `diag.hourly`, `diag.daily` and `diag.monthly`, read by
   `GET /ops/api/<part>?range=`, built first (`docs/admin.md`, History).
@@ -472,7 +522,10 @@ changes an organization stay in the CLIs, run on a call.
 | 5a | **Built (2026-11-17)**: totals by hour (`diag.hourly`, 14 days), by day (`diag.daily`, all time) and by month (`diag.monthly`, for All), filled every 10 minutes by pg_cron (`langquest-daily-totals`), and `GET /ops/api/<part>?range=24h\|14d\|90d\|1y\|all` (decisions.md 254) | phase 3 |
 | 5b | **Built (2026-11-17)**: the start page "What needs you first" (5.0), each section's charts over a range, and the detail panel for a bucket (`/ops/api/<part>/detail`, raw records, 90 days at most; `/ops/api/glance`) (decisions.md 255) | 5a merged |
 | 5b2 | **Built (2026-11-17)**: speed at 40,000 installs: "What installs report" and "Builds in the field" counted every 10 minutes by pg_cron (`langquest-ops-counts`) from each kind's index and two small tables for each install, read by the page in 1 to 25 ms (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md) | 5b merged |
-| 5c | The pictures the design draws in place of plain charts: a square for each job run, suite or video, store lanes, the phones' share, meters for capacity | 5b merged |
+| 5c1 | **Built (2026-11-17)**: a square for each job run, in Jobs and pg_cron, on the card (24 h) and in the section (the range); a tap on a failed or partial square opens those runs (5.0) | 5b2 merged |
+| 5c2 | **Built (2026-11-17)**: a square for each item of a fixed list: nightly suites, EAS builds, submissions and updates, v2 projects, user issues, feedback, channels, videos, what came in about the videos, and the nightly R2 check; a tap opens the item (5.0) | 5c1 merged |
+| 5c3 | **Built (2026-11-17)**: lanes and lines: store builds, App Store, code and deploys, what shipped, expiry dates; a tap opens the stage, the version, the workflow, the day or the key (5.0) | 5c2 merged |
+| 5c4 | **Built (2026-11-17)**: meters and shares: capacity, database, largest tables, Google Play, limits, the report queue, Workers, routes, syncs, updates in the field, accounts, Supabase services (5.0) | 5c3 merged |
 | 5d | `OpsWatch` (section 11.4) | phase 3 |
 
 Each phase is one pull request, with the guardrails green (`--web` for
