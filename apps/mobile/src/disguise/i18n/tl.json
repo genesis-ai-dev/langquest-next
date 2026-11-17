@@ -27,6 +27,19 @@
       "plus": "Dagdag",
       "equals": "Katumbas",
       "point": "Decimal point"
+    },
+    "nearby": {
+      "startLine": "Magsisimula lang ang pagbabahagi kapag pinindot mo ang Simulan ang pagbabahagi, at hihinto ito pagkalipas ng sampung minuto o kapag napapanahon ka na.",
+      "start": "Simulan ang pagbabahagi",
+      "startHelp": "Ini-on ang Bluetooth at Wi-Fi para mahanap ang mga kasamahang malapit, nang hanggang sampung minuto.",
+      "warning": "Malalaman ng taong may tamang kagamitan na nagbo-broadcast ang teleponong ito, at ipapakita ng mga tanong ng Android ang tunay na pangalan ng app. Gawin ito kapag mag-isa ka.",
+      "warned": "Magpatuloy",
+      "warnedHelp": "Tumutuloy sa pagbabahagi. Maaaring humingi ng pahintulot ang Android pagkatapos.",
+      "left": "Huminto ang pagbabahagi dahil umalis ka sa app.",
+      "run": "Huminto ang pagbabahagi pagkalipas ng sampung minuto.",
+      "level": "Napapanahon. Huminto ang pagbabahagi.",
+      "letInLook": "LangQuest ang ipapakita ng bagong telepono hanggang pumili sila ng ibang itsura sa Iba pang setting.",
+      "apkTrace": "Makikita sa history at listahan ng download ng browser kung saan galing ang install file. Puwede mo itong burahin pagkatapos."
     }
   },
   "native": {

@@ -20,16 +20,17 @@ import { touches } from '../ui/touches';
  * works too, then Done finishes it; that is also how a screen reader enters
  * one. `resetKey` clears it when it changes. In help mode a tap explains it.
  */
-export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?: boolean; error?: boolean; resetKey?: number }) {
+export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?: boolean; error?: boolean; resetKey?: number;
+  /** A new pattern begins: a finger lands, or the first dot is tapped. A message about the last one can go. */ onStart?: () => void }) {
   const [size, setSize] = useState(0);
   const [dots, setDots] = useState<number[]>([]);
   const [finger, setFinger] = useState<{ x: number; y: number } | null>(null);
   const [tapping, setTapping] = useState(false);
   const spot = useHelpInfo(t('shell.pattern.label', { n: MIN_DOTS }), t('shell.pattern.help', { n: MIN_DOTS }));
   const helping = !!spot.id;
-  const latest = useRef({ dots, size, tapping, moved: false, from: null as number | null, onDone: props.onDone, off: !!props.disabled || helping,
+  const latest = useRef({ dots, size, tapping, moved: false, from: null as number | null, onDone: props.onDone, onStart: props.onStart, off: !!props.disabled || helping,
     hold: null as ((on: boolean) => void) | null });
-  latest.current = { ...latest.current, dots, size, tapping, onDone: props.onDone, off: !!props.disabled || helping };
+  latest.current = { ...latest.current, dots, size, tapping, onDone: props.onDone, onStart: props.onStart, off: !!props.disabled || helping };
   useEffect(() => { setDots([]); setTapping(false); }, [props.resetKey]);
   // iOS takes a sideways drag anywhere on the screen as "go back" (fullScreenGestureEnabled in App.tsx).
   useSwipeBackOff(true);
@@ -54,6 +55,7 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: (e) => {
       latest.current.hold?.(true);
+      if (latest.current.dots.length === 0) latest.current.onStart?.();
       latest.current.moved = false;
       latest.current.from = dotAt(e.nativeEvent.locationX, e.nativeEvent.locationY, latest.current.size);
       reach(e.nativeEvent.locationX, e.nativeEvent.locationY);
@@ -95,6 +97,7 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
   // as a click, to onPress, which the dots need even though no finger reaches them.
   const tapDot = (d: number) => {
     if (latest.current.off) return;
+    if (latest.current.dots.length === 0) latest.current.onStart?.();
     const next = addDot(latest.current.dots, d);
     latest.current.dots = next;
     setTapping(true);

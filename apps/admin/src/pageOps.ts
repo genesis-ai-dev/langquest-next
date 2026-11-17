@@ -19,7 +19,7 @@ export const GROUPS = [
   { id: 'userissues', title: 'User issues', src: 'What the watch for user issues filed in Linear or found already fixed, each issue\'s state and the pull request that fixed it', wide: true, parts: ['userissues'] },
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What installs report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
-  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
+  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, last night\'s tests, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'nightly', 'releases', 'expo', 'adoption'] },
   { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, pg_cron, push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
   { id: 'database', title: 'Database', src: 'Connections, cache, slow calls, largest tables, long transactions, and the Supabase project', parts: ['database', 'dbdetail', 'supabase'] },
   { id: 'traffic', title: 'Workers and traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
@@ -28,7 +28,7 @@ export const GROUPS = [
   { id: 'support', title: 'Support', src: 'Content reports, suspensions, deletions, feedback, and what was done from this page', wide: true, parts: ['support', 'feedback'] },
   { id: 'access', title: 'Access and integrations', src: 'Global Viewers, limits hit, tokens, device grants, webhooks, review links, and what expires', parts: ['security', 'integrations', 'expiry'] },
   { id: 'stores', title: 'App stores', src: 'Google Play vitals and reviews, App Store review state, builds and reviews', parts: ['googleplay', 'appstore'] },
-  { id: 'tutorials', title: 'Tutorial videos', src: 'Filming now, each app language\'s YouTube channel, the videos made and not up yet, Publish, and what Claude suggests from comments, code changes and notes', wide: true, parts: ['filming', 'tutorials', 'videofeedback'] }
+  { id: 'tutorials', title: 'Tutorial videos', src: 'Each video\'s state and timeline in each app language, what an admin must do, what the workers do now and tonight, each channel, Publish, and what came in', wide: true, parts: ['videos', 'tutorials', 'videofeedback'] }
 ] as const;
 
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
@@ -37,15 +37,15 @@ export const PART_TITLES: Record<string, string> = {
   expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
-  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', filming: 'Filming', tutorials: 'Channels and videos', videofeedback: 'Feedback and suggestions',
-  userissues: 'Problems people hit'
+  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', videos: 'Videos, your list and the workers\' list', tutorials: 'Channels and videos', videofeedback: 'What came in, and notes',
+  userissues: 'Problems people hit', nightly: 'Nightly tests'
 };
 
 /** Read as diag_reader in one call (/ops/api/ops). */
 export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
-export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'filming', 'pipeline'] as const;
+export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'videos', 'pipeline', 'nightly'] as const;
 
 export const OPS_SECTIONS = [
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
@@ -65,15 +65,39 @@ export const OPS_SECTIONS = [
   { id: 'security', title: 'Security and limits', src: 'Global Viewers, limits hit, new credentials' },
   { id: 'expiry', title: 'Expiry dates', src: 'Tokens, Apple certificates and profiles, and dates kept in apps/admin/expiry.json' },
   { id: 'capacity', title: 'Capacity and cost', src: 'Database and R2 growth against the plan, Cloudflare usage this month' },
-  { id: 'filming', title: 'Filming', src: 'GitHub: the run of tutorials.yml on main filming now, or the latest, and each language\'s job (decisions.md 183)' },
+  { id: 'videos', title: 'Tutorial video lists', src: 'diag.ops_tutorial_films, ops_tutorial_feedback and ops_tutorials; status-<language>.json in the tutorials release; the filming run and NIGHTLY_LANGUAGES on GitHub (decisions.md 186)' },
   { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
   { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' },
-  { id: 'userissues', title: 'User issues', src: 'ops.user_issues: what the watch filed in Linear, closed there, or found already fixed, with the pull request (decisions.md 202)' }
+  { id: 'userissues', title: 'User issues', src: 'ops.user_issues: what the watch filed in Linear, closed there, or found already fixed, with the pull request (decisions.md 202)' },
+  { id: 'nightly', title: 'Nightly tests', src: 'GitHub: the line each nightly suite leaves on its latest scheduled run on main (decisions.md 209)' }
 ] as const;
 
 export const OPS_SCRIPT = String.raw`
 const orgLink = (id, name) => '<button class="link" data-org="' + esc(id) + '">' + esc(name || String(id).slice(0, 8)) + '</button>';
 const installLink = (id) => id ? '<button class="link" data-q="' + esc(id) + '"><code>' + esc(String(id).slice(0, 8)) + '</code></button>' : '–';
+/** Quiet installs by account (decisions.md 162): which accounts the warning counts, and the ones a person marked not an issue. */
+function silentPhones(q) {
+  if (!q) return '<p class="muted">Could not read them (the database lacks diag.ops_quiet_accounts).</p>';
+  const devices = (a) => Object.entries(a.devices || {}).sort((x, y) => y[1] - x[1]).map(([k, n]) => num(n) + ' ' + esc(k)).join(', ');
+  let h = '<p>' + num(q.count) + ' quiet for 3 days while another device of the same person reports.' +
+    (q.markedCount ? ' ' + num(q.markedCount) + ' more on accounts marked not an issue.' : '') + '</p>';
+  if (q.accounts.length) {
+    h += table([
+      { h: 'Account', v: (a) => accountLink(a.profile) }, { h: 'Quiet', n: true, v: (a) => num(a.quiet) }, { h: 'Reporting', n: true, v: (a) => num(a.reporting) },
+      { h: 'Quiet devices', v: devices }, { h: 'Last heard', v: (a) => ageOf(a.lastSeen) },
+      { h: '', v: (a) => '<button type="button" data-quiet="' + esc(a.profile) + '" data-ok="yes">Not an issue</button>' }
+    ], q.accounts);
+  }
+  if (q.marked.length) {
+    h += '<details><summary>Marked not an issue (' + num(q.marked.length) + ')</summary>' + table([
+      { h: 'Account', v: (a) => accountLink(a.profile) }, { h: 'Quiet', n: true, v: (a) => num(a.quiet) },
+      { h: 'Marked by', v: (a) => short(a.by) }, { h: 'When', v: (a) => when(a.at) },
+      { h: '', v: (a) => '<button type="button" data-quiet="' + esc(a.profile) + '" data-ok="no">Undo</button>' }
+    ], q.marked) + '</details>';
+  }
+  return h;
+}
+const accountLink = (id) => '<button class="link" data-q="' + esc(id) + '"><code>' + esc(id) + '</code></button>';
 const share = (a, b) => b ? ((a / b) * 100).toFixed(1) + '%' : '–';
 const hours = (msv) => msv === null || msv === undefined ? '–' : ms(Number(msv));
 const ageOf = (iso) => iso ? ago(iso) : '–';
@@ -154,9 +178,7 @@ Object.assign(RENDER, {
       { h: 'Lost', n: true, v: (s) => '<span class="' + (s.lostRecordings ? 'bad' : '') + '">' + num(s.lostFiles || 0) + (s.lostRecordings ? ' (' + num(s.lostRecordings) + ' rec.)' : '') + '</span>' },
       { h: 'Reported', v: (s) => when(s.at) }
     ], d.stuck);
-    h += '<h3>Silent phones</h3><p>' + num(d.silent.count) + ' quiet for 3 days while another device of the same person reports.</p>' +
-      (d.silent.installs.length ? '<p>' + d.silent.installs.map((s) => installLink(s.install) + ' <small>' + ageOf(s.lastSeen) + '</small>').join(' · ') + '</p>' : '');
-    return h;
+    return h + '<h3>Silent phones</h3>' + silentPhones(d.quiet);
   },
   pipeline(d) {
     // Each store build sits in the stage it is in now, an arrow to the next; inside it, the over-the-air updates it takes.
@@ -341,29 +363,36 @@ Object.assign(RENDER, {
     }
     return h;
   },
-  // The run of tutorials.yml filming now, or the latest (sources/filming.ts): where each language's job is.
-  filming(d) {
-    if (!d.run) return '<p class="muted">No filming run on main yet.</p>';
-    const films = d.jobs.filter((j) => j.language);
-    const count = (state) => films.filter((j) => j.state === state).length;
-    const running = d.run.status !== 'completed';
-    const by = { push: 'a merge into main', schedule: 'the nightly schedule', workflow_dispatch: 'Run workflow on GitHub' }[d.run.event] || d.run.event;
-    let h = '<div class="stats">' + stat(count('done') + ' of ' + films.length, 'languages done', '', running ? NOW : 'run ' + d.run.number) +
-      stat(num(count('running')), 'languages filming now', '', NOW) + stat(num(count('waiting')), 'languages waiting', '', NOW) +
-      stat(num(count('failed')), 'languages failed', count('failed') ? 'bad' : '', running ? NOW : 'run ' + d.run.number) + '</div>';
-    h += '<p><a href="' + esc(d.run.url) + '" target="_blank" rel="noopener">Run ' + num(d.run.number) + '</a>, started by ' + esc(by) + ' ' + when(d.run.at) + ' on <code>' + esc(d.run.sha) + '</code>: ' +
-      '<span class="' + (running ? 'warn' : d.run.conclusion === 'success' ? 'good' : 'bad') + '">' + esc(running ? 'filming' : d.run.conclusion || d.run.status) + '</span>' +
-      (d.queued ? ' · ' + num(d.queued) + ' more ' + (d.queued === 1 ? 'run waits' : 'runs wait') + ' behind it' : '') + '</p>';
-    if (running && !films.length) h += '<p class="muted">The languages start once Grace\'s pieces are said.</p>';
-    const name = (j) => j.language ? esc(languageName(j.language)) + ' <small><code>' + esc(j.language) + '</code></small>' : j.job === 'grace' ? 'Grace\'s pieces <small>(every language)</small>' : esc(j.job);
-    const now = (j) => j.state === 'running' ? '<span class="warn">' + (j.language ? 'filming' : 'running') + '</span>' + (j.step ? '<br><small>' + esc(j.step) + (j.stepAt ? ', ' + esc(ago(j.stepAt)) : '') + '</small>' : '')
-      : j.state === 'done' ? '<span class="good">done</span>' : j.state === 'failed' ? '<span class="bad">failed</span>' : '<span class="muted">' + esc(j.state === 'waiting' ? 'waiting its turn' : j.state) + '</span>';
-    const took = (j) => !j.startedAt ? '–' : j.finishedAt ? ms(Date.parse(j.finishedAt) - Date.parse(j.startedAt)) : ms(Date.now() - Date.parse(j.startedAt)) + ' so far';
-    h += table([
-      { h: 'Language', v: name }, { h: 'Now', v: now }, { h: 'Started', v: (j) => j.startedAt ? when(j.startedAt) : '–' }, { h: 'Took', n: true, v: took },
-      { h: '', v: (j) => j.url ? '<a href="' + esc(j.url) + '" target="_blank" rel="noopener">Log</a>' : '' }
-    ], d.jobs.filter((j) => j.language || j.job === 'grace' || j.state !== 'done'));
-    return h;
+  // The tutorial videos as three lists (sources/videos.ts): what an admin must do, what the workers do, and each video with its states and timeline;
+  // then the record of each change Claude made to a video (a clear fix merges itself, so this is where a person sees it).
+  videos(d) {
+    VIDEOS = d;
+    const item = (x, level) => '<div class="vi ' + level + '"><p><b>' + esc(x.title) + '</b>' + (x.at ? ' <small>' + when(x.at) + '</small>' : '') + '</p>' +
+      (x.detail ? '<p class="setup">' + esc(x.detail) + '</p>' : '') + (x.link ? '<p>' + cardLink(x) + '</p>' : '') + '</div>';
+    const now = d.worker.filter((w) => w.when === 'now');
+    // The cards of one video are on its row, behind the mark at the right; here, only what is not one video's.
+    const general = d.admin.filter((a) => !a.tutorial);
+    const needYou = d.languages.reduce((n, l) => n + l.issues, 0);
+    let h = '<div class="stats">' + stat(num(needYou), needYou === 1 ? 'video waits on an admin' : 'videos wait on an admin', needYou ? 'warn' : '', 'every language') +
+      stat(num(now.length), 'worker jobs running', '', NOW) + stat(num(d.worker.length - now.length), 'worker jobs waiting', '', 'now or tonight') +
+      stat(num(d.videos.filter((v) => v.language === 'en' && v.states[0].key === 'current').length) + ' of ' + num(d.videos.filter((v) => v.language === 'en').length), 'English videos up to date', '', NOW) + '</div>';
+    if (d.missing.length) h += '<p class="muted">Not read: ' + esc(d.missing.join('; ')) + '. The lists leave those out.</p>';
+    h += '<div class="vl"><div><h3>For an admin</h3>' +
+      (needYou ? '<p>' + num(needYou) + (needYou === 1 ? ' video waits' : ' videos wait') + ' on you. Each has a <span class="warnmk you">!</span> at the right of its row, under By video.</p>' : '') +
+      (general.length ? general.map(adminCard).join('') : needYou ? '' : '<p class="muted">Nothing.</p>') + '</div>' +
+      '<div><h3>Workers, now and tonight</h3>' + (d.worker.length ? d.worker.map((w) => item(w, w.when === 'now' ? 'info' : '')).join('') : '<p class="muted">Nothing queued.</p>') + '</div></div>';
+    const changes = d.changes || [];
+    h += '<details class="vchanges"><summary><b>Changes Claude made to the videos</b> <small class="muted">(' + num(changes.length) + ', last 30 days)</small></summary>' +
+      '<p class="muted">A clear fix merges itself and is not asked of anyone. Each change is here, with its pull request.</p>' + table([
+        { h: 'When', v: (c) => when(c.at) },
+        { h: 'Video', v: (c) => esc(c.video) + ' <small class="muted">' + esc(languageName(c.language)) + '</small>' },
+        { h: 'Change', v: (c) => esc(c.change) + (c.note ? '<br><small class="' + (c.state === 'failed' ? 'bad' : 'muted') + '">' + esc(c.note) + '</small>' : '') },
+        { h: 'Yes from', v: (c) => esc(CHANGE_BY[c.by] || c.by) },
+        { h: 'State', v: (c) => '<span class="tag ' + (CHANGE_LEVEL[c.state] || '') + '">' + esc(CHANGE_STATE[c.state] || c.state) + '</span>' },
+        { h: '', v: (c) => c.link ? '<a href="' + esc(c.link) + '" target="_blank" rel="noopener noreferrer">' + (c.pr ? 'PR ' + num(c.pr) : 'The run') + '</a>' : '' }
+      ], changes) + '</details>';
+    setTimeout(() => layoutTimelines(), 0);
+    return h + '<h3>By video</h3><div id="video-rows">' + videoRows() + '</div>';
   },
   tutorials(d) {
     const connected = d.channels.filter((c) => c.connectedAt).length;
@@ -404,24 +433,11 @@ Object.assign(RENDER, {
       : i.kind === 'code' ? (i.pr ? 'https://github.com/genesis-ai-dev/langquest-next/pull/' + i.pr : i.ref ? 'https://github.com/genesis-ai-dev/langquest-next/commit/' + i.ref : null) : null;
     const where = (i) => i.kind === 'comment' ? 'Comment' + (i.language ? ', ' + esc(languageName(i.language)) : '') : i.kind === 'code' ? 'Code change' + (i.pr ? ' #' + i.pr : '') : 'Note';
     const said = (i) => esc(i.english || i.text) + (i.kind === 'comment' && i.english && i.language !== 'en' ? '<details><summary>As written</summary>' + esc(i.text) + '</details>' : '');
-    const answers = (s) => s.inputs.length ? '<ul>' + s.inputs.map((i) => '<li><small>' + where(i) + ' · ' + when(i.at) + (link(i) ? ' · ' + out(link(i), 'open') : '') + '</small><br>' + said(i) +
-      (i.reply ? '<br><small>Reply suggested: ' + esc(i.replyEnglish || i.reply) + '</small>' + (i.language !== 'en' ? '<details><summary>In ' + esc(languageName(i.language)) + '</summary>' + esc(i.reply) + '</details>' : '') : '') + '</li>').join('') + '</ul>' : '';
     let h = '<div class="stats">' + stat(num(d.open), 'suggestions waiting', d.open ? 'warn' : '', NOW) + stat(num(d.waiting), 'not looked at yet', '', 'Claude looks at 10:00 UTC') +
       stat(num(d.unfiled), 'not in Linear yet', d.unfiled ? 'warn' : '', NOW) +
       stat(d.last ? when(d.last.at) : 'never', 'last look', '', d.last ? num(d.last.looked) + ' looked at, ' + num(d.last.suggested) + ' suggested' : '') + '</div>';
     if (d.last) h += '<p class="muted">' + out(d.last.runUrl, 'The last look\'s run on GitHub') + ', up to ' + out('https://github.com/genesis-ai-dev/langquest-next/commit/' + d.last.sha, '<code>' + esc(d.last.sha.slice(0, 8)) + '</code>') + '.</p>';
-    h += '<h3>Suggestions</h3>';
-    h += d.suggestions.length ? d.suggestions.map((s) => '<div class="fb"><span class="tag">' + esc(SUGGESTION_KINDS[s.kind] || s.kind) + '</span>' +
-      (s.decision ? '<span class="tag ' + (s.decision === 'accepted' ? 'good' : '') + '">' + esc(s.decision) + '</span>' : '<span class="tag bad">waiting</span>') +
-      '<small>' + (s.tutorial ? video(s.tutorial) + ' · ' : '') + 'suggested ' + when(s.madeAt) + (s.editedAt ? ' · edited ' + when(s.editedAt) : '') + (s.decidedAt ? ' · ' + esc(s.decision) + ' ' + when(s.decidedAt) : '') + '</small>' +
-      '<p><b>' + esc(s.title) + '</b></p><p class="setup">' + esc(s.detail) + '</p>' + answers(s) +
-      (s.reason ? '<p><small>' + (s.decision === 'rejected' ? 'Why not: ' : 'Note: ') + esc(s.reason) + '</small></p>' : '') +
-      (s.issue ? '<p><small>Linear: ' + out(s.issueUrl, esc(s.issue)) + '</small></p>' : s.kind === 'code' && s.decision === 'accepted' ? '<p><small class="muted">Linear: tonight, with the comments job</small></p>' : '') +
-      (s.decision ? '' : '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="accept" data-kind="' + esc(s.kind) + '">Accept</button> ' +
-        '<button type="button" data-sg="' + esc(s.id) + '" data-decision="reject">Reject</button></p>' +
-        '<details><summary>Edit</summary><label for="sg-' + esc(s.id) + '">What to change</label><textarea id="sg-' + esc(s.id) + '" maxlength="4000" rows="6">' + esc(s.detail) + '</textarea>' +
-        '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="edit">Save</button></p></details>') +
-      '</div>').join('') : '<p class="muted">Nothing here.</p>';
+    h += '<p class="muted">Suggestions waiting for a yes or no are under For an admin, above.</p>';
     h += '<h3>What came in</h3>' + table([
       { h: 'When', v: (i) => when(i.at) },
       { h: 'Kind', v: (i) => where(i) },
@@ -449,6 +465,19 @@ Object.assign(RENDER, {
       { h: 'Fixed by', v: (r) => r.fixedBy ? out('https://github.com/genesis-ai-dev/langquest-next/pull/' + r.fixedBy, 'PR ' + esc(r.fixedBy)) + '<br><small>' + when(r.fixedAt) + '</small>' : r.closedAt ? '<span class="muted">no PR named</span>' : '' },
       { h: 'Found', v: (r) => when(r.firstAt) }
     ], d.issues);
+  },
+  // Last night's tests, every suite together (sources/nightly.ts, decisions.md 209): counts and Linear issues; the detail is in Linear.
+  nightly(d) {
+    const issue = (i) => /^https:\/\/linear\.app\//.test(String(i.url || '')) ? '<a href="' + esc(i.url) + '" target="_blank" rel="noopener noreferrer">' + esc(i.id) + '</a>' : esc(i.id);
+    const result = (s) => s.broke ? '<span class="bad">broke: ' + esc(s.broke) + '</span>'
+      : '<span class="' + (s.failed ? 'warn' : 'good') + '">' + (s.ran !== null ? num(s.passed) + ' of ' + num(s.ran) + ' passed' : s.failed ? 'failed' : 'passed') + '</span>';
+    const rows = d.runs.flatMap((r) => r.run ? r.suites.map((s) => ({ r, s })) : [{ r, s: null }]);
+    return table([
+      { h: 'Suite', v: (x) => x.s ? esc(x.s.suite) + '<br><small>' + esc(x.r.title) + '</small>' : esc(x.r.title) },
+      { h: 'Last night', v: (x) => x.r.run ? '<a href="' + esc(x.r.run.url) + '" target="_blank" rel="noopener">' + when(x.r.run.at) + '</a><br><small><code>' + esc(x.r.run.sha) + '</code></small>' : '<span class="muted">no scheduled run on main yet</span>' },
+      { h: 'Result', v: (x) => x.s ? result(x.s) : '' },
+      { h: 'Linear', v: (x) => x.s ? x.s.issues.map(issue).join(', ') : '' }
+    ], rows) + '<p class="muted">Each failure, with its error and screen, is in its Linear issue.</p>';
   }
 });
 
@@ -474,7 +503,8 @@ async function perform(action, button) {
     say(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.')
       : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
       : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
-      : action.kind === 'tutorial-note' ? 'Note added. Claude looks at it at the next look.'
+      : action.kind === 'tutorial-note' ? (body.result === 'instructed' ? 'Sent. Claude starts the fix at its next fix run (:20 and :50 each hour).' : 'Sent. Claude reads it at its next look (10:00 UTC).')
+      : action.kind === 'quiet-account' ? (action.ok ? 'Marked not an issue. Its quiet installs no longer count in the warning.' : 'Its quiet installs count in the warning again.')
       : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
       : 'Feedback marked ' + body.result + '.');
     load(false);
@@ -519,6 +549,11 @@ document.addEventListener('click', (e) => {
   if (run && confirm('Run ' + run.dataset.run + ' now?')) perform({ kind: 'run', key: run.dataset.run }, run);
   const fb = e.target.closest && e.target.closest('[data-fb]');
   if (fb) perform({ kind: 'feedback', id: fb.dataset.fb, status: fb.dataset.status }, fb);
+  const qa = e.target.closest && e.target.closest('[data-quiet]');
+  if (qa) {
+    const ok = qa.dataset.ok === 'yes';
+    if (!ok || confirm('Mark this account not an issue? Its quiet installs stop counting in the warning, now and later.')) perform({ kind: 'quiet-account', profile: qa.dataset.quiet, ok }, qa);
+  }
   const ver = e.target.closest && e.target.closest('[data-ver]');
   if (ver && confirm((ver.dataset.decision === 'grant' ? 'Grant' : 'Decline') + ' this blue check?')) perform({ kind: 'verification', id: ver.dataset.ver, decision: ver.dataset.decision }, ver);
 });
@@ -528,7 +563,7 @@ document.addEventListener('click', (e) => {
   const sg = e.target.closest && e.target.closest('[data-sg]');
   if (sg) {
     const id = sg.dataset.sg, d = sg.dataset.decision;
-    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : ''))) perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg);
+    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : sg.dataset.kind === 'new' ? '' : ' Claude makes the change as a pull request that merges itself when its checks pass.'))) perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg);
     if (d === 'reject') {
       const reason = prompt('Why not? Claude reads this before suggesting it again. (You may leave it empty.)', '');
       if (reason !== null) perform({ kind: 'tutorial-suggestion', id, decision: 'reject', detail: null, reason: reason.slice(0, 500) }, sg);
@@ -546,6 +581,182 @@ document.addEventListener('click', (e) => {
     else say('Write the note first.', 'red');
   }
 });
+
+// ---- the tutorial video lists (sources/videos.ts): a language and a span chosen here, and Accept, Edit and Reject on a suggestion ----
+let VIDEOS = null;
+// The timeline shows 60 days; its zoom is how wide a day is. A pinch on a touchpad (or Ctrl and the scroll wheel) zooms it; it opens at the last 14 days.
+let videoLanguage = 'en', dayWidth = 0, shownMarks = [], onlyMine = false, openCards = null;
+/** The mark at the right of a video's row: ! when something waits on an admin, i when Claude acts next and an admin may still say what to do. */
+function warnMark(cards, r) {
+  if (!cards.length) return '<span></span>';
+  const mine = cards.filter((a) => a.who === 'you').length;
+  const t = mine ? mine + (mine === 1 ? ' thing waits' : ' things wait') + ' on you' : 'Claude acts next; you may tell Claude what to do';
+  return '<button type="button" class="warnmk ' + (mine ? 'you' : 'claude') + '" data-cards="' + r + '" title="' + esc(t) + '" aria-label="' + esc(t) + '">' + (mine ? '!' + (mine > 1 ? ' ' + mine : '') : 'i') + '</button>';
+}
+const TIMELINE_DAYS = 60;
+const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', approve: 'warn', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
+const cardLink = (x) => x.link ? '<a href="' + esc(x.link) + '"' + (x.link.startsWith('#') ? '' : ' target="_blank" rel="noopener noreferrer"') + '>' + esc(ADMIN_LINKS[x.kind] || WORKER_LINKS[x.kind] || 'Open') + '</a>' : '';
+const FIX_STATE = { working: 'Claude writes the change now.', open: 'Claude\'s pull request merges itself when its checks pass.', merged: 'The change is merged. The next night films the video again.', closed: 'The pull request was closed without a merge.', failed: 'Claude could not make the change.', unneeded: 'No change was needed: the video already does this.' };
+// The record of changes Claude made (sources/videos.ts ChangeItem).
+const CHANGE_BY = { claude: 'Claude (clear fix)', admin: 'An admin accepted it', instruction: 'An admin\'s instruction' };
+const CHANGE_STATE = { working: 'Being written', open: 'Merges when checks pass', merged: 'Merged', closed: 'Closed', failed: 'Failed', unneeded: 'No change needed' };
+const CHANGE_LEVEL = { working: 'info', open: 'info', merged: 'good', closed: '', failed: 'bad', unneeded: '' };
+/** One thing for an admin: the problem, who acts next, what happens next, and where it applies, the box to tell Claude what to do. */
+function adminCard(a) {
+  const ins = a.instructed;
+  return '<div class="vi ' + (a.who === 'you' ? ADMIN_LEVEL[a.kind] || 'warn' : 'info') + '">' +
+    '<p><span class="tag ' + (a.who === 'you' ? 'warn' : 'info') + '">' + (a.who === 'you' ? 'Waits on you' : 'Claude acts next') + '</span>' + (a.at ? '<small>' + when(a.at) + '</small>' : '') + '</p>' +
+    '<p><b>' + esc(a.title) + '</b></p>' + (a.detail ? '<p class="setup">' + esc(a.detail) + '</p>' : '') +
+    (ins ? '' : '<p class="setup"><small><b>Next:</b> ' + esc(a.next) + '</small></p>') + (a.link ? '<p>' + cardLink(a) + '</p>' : '') +
+    (a.suggestion ? suggestionButtons(a.suggestion) : '') +
+    (ins ? '<p class="setup"><small><b>Your instruction</b> (' + when(ins.at) + '):</small><br>' + esc(ins.text) + '</p>' +
+      '<p class="setup"><small><b>Next:</b> ' + esc(ins.fix ? FIX_STATE[ins.fix.state] || ins.fix.state : ins.looked ? 'Claude starts the change at its next fix run (:20 and :50 each hour), as a pull request that merges itself when its checks pass.' : 'Claude reads it at its next run.') + '</small></p>' : '') +
+    (a.instruct ? '<details' + (a.who === 'you' && !ins ? ' open' : '') + '><summary>' + (ins ? 'Send another instruction' : 'Tell Claude what to do') + '</summary>' +
+      '<label for="ins-' + esc(cardId(a)) + '">What Claude must do</label><textarea id="ins-' + esc(cardId(a)) + '" maxlength="2000" rows="3" placeholder="For example: the button is now called On this device. Change step 4 to tap it."></textarea>' +
+      '<p><button type="button" class="primary" data-instruct="' + esc(cardId(a)) + '">Send to Claude</button></p></details>' : '') + '</div>';
+}
+const cardId = (a) => (a.kind + '-' + (a.tutorial || '') + '-' + (a.language || '')).replace(/[^a-zA-Z0-9-]/g, '');
+// "Tell Claude what to do": an instruction on the video for Claude's next fix run, with the problem it answers and the inputs the card shows.
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-instruct]');
+  if (!b || !VIDEOS) return;
+  const a = VIDEOS.admin.find((x) => cardId(x) === b.dataset.instruct);
+  const text = (($('ins-' + b.dataset.instruct) || {}).value || '').trim();
+  if (!a) return;
+  if (!text) { say('Write what Claude must do first.', 'red'); return; }
+  perform({ kind: 'tutorial-note', tutorial: a.tutorial, text: text.slice(0, 2000), instruct: true, problem: a.instruct.slice(0, 200),
+    language: a.language || 'en', inputs: (a.inputIds || []).slice(0, 20) }, b);
+});
+const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run', merging: 'Open the PR' };
+const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
+const MARKS = { film: 'New film', up: 'On YouTube', comment: 'Comment', suggested: 'Suggestion', decided: 'Accepted or rejected', fix: 'Fix PR', held: 'Held', failed: 'Film failed' };
+const CAUSES = { app: 'app change', script: 'script change', tool: 'film tool change', new: 'first film', asked: 'asked by hand', unknown: 'cause not recorded' };
+function suggestionButtons(s) {
+  return (s.inputs.length ? '<ul>' + s.inputs.map((i) => '<li><small>' + esc(i.kind === 'comment' ? 'Comment' : i.kind === 'code' ? 'Code change' : 'Note') + ' · ' + when(i.at) + '</small><br>' + esc(i.english || i.text) + '</li>').join('') + '</ul>' : '') +
+    '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="accept" data-kind="' + esc(s.kind) + '">Accept</button> ' +
+    '<button type="button" data-sg="' + esc(s.id) + '" data-decision="reject">Reject</button></p>' +
+    '<details><summary>Edit</summary><label for="sg-' + esc(s.id) + '">What to change</label><textarea id="sg-' + esc(s.id) + '" maxlength="4000" rows="6">' + esc(s.detail) + '</textarea>' +
+    '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="edit">Save</button></p></details>';
+}
+const timelineStart = () => { const end = new Date(); end.setUTCHours(0, 0, 0, 0); return end.getTime() - (TIMELINE_DAYS - 1) * 86400000; };
+function videoRows() {
+  const d = VIDEOS;
+  if (!d) return '';
+  const first = timelineStart();
+  shownMarks = [];
+  const langs = d.languages.map((l) => '<option value="' + esc(l.language) + '"' + (l.language === videoLanguage ? ' selected' : '') + '>' + esc(languageName(l.language)) +
+    (l.issues ? ' (' + num(l.issues) + ')' : '') + (l.nightly ? '' : ' (paused)') + '</option>').join('');
+  let h = '<div class="vtools"><div><label for="video-lang">Language <small class="muted">(videos that wait on you)</small></label><select id="video-lang">' + langs + '</select></div>' +
+    '<div><button type="button" data-vzoom="out" aria-label="Zoom out">−</button> <button type="button" data-vzoom="in" aria-label="Zoom in">+</button> ' +
+    '<button type="button" data-vfit="14">Last 14 days</button> <button type="button" data-vfit="60">Last 60 days</button></div>' +
+    '<div><label class="check"><input type="checkbox" id="video-mine"' + (onlyMine ? ' checked' : '') + '> Only videos that wait on you</label></div></div>';
+  h += '<div class="vkey">' + ['app', 'script', 'tool', 'new'].map((c) => '<span><i class="mk film ' + c + '"></i>New film: ' + esc(CAUSES[c]) + '</span>').join('') +
+    ['up', 'comment', 'suggested', 'fix', 'held'].map((k) => '<span><i class="mk ' + k + '"></i>' + esc(MARKS[k]) + '</span>').join('') + '<span>Click a mark for details. Pinch, or Ctrl and the scroll wheel, to zoom.</span></div>';
+  const cardsOf = (v) => d.admin.filter((a) => a.tutorial === v.tutorial && a.language === v.language);
+  const rows = d.videos.filter((v) => v.language === videoLanguage && (!onlyMine || cardsOf(v).some((a) => a.who === 'you')));
+  if (!rows.length) return h + '<p class="muted">No videos in this language yet.</p>';
+  const days = Array.from({ length: TIMELINE_DAYS }, (_, i) => new Date(first + i * 86400000));
+  h += '<div class="vrow"><span></span><div class="tlw"><div class="tl days">' + days.map((x) => '<span data-day>' + esc(x.toLocaleDateString([], { month: 'short', day: 'numeric' })) + '</span>').join('') + '</div></div><span></span></div>';
+  rows.forEach((v, r) => {
+    const cells = days.map(() => []);
+    for (const m of v.marks) { const i = Math.floor((Date.parse(m.at) - first) / 86400000); if (i >= 0 && i < TIMELINE_DAYS) cells[i].push(m); }
+    const mark = (m) => {
+      const t = MARKS[m.kind] + (m.kind === 'film' ? ' (' + (CAUSES[m.cause] || m.cause) + ')' : '') + ', ' + new Date(m.at).toLocaleString() + ': ' + m.text;
+      shownMarks.push({ m, row: r });
+      const at = new Date(m.at);
+      return '<button type="button" class="mk ' + m.kind + (m.cause ? ' ' + m.cause : '') + '" data-mark="' + (shownMarks.length - 1) + '" data-h="' + ((at.getUTCHours() * 60 + at.getUTCMinutes()) / 1440).toFixed(4) + '" title="' + esc(t) + '" aria-label="' + esc(t) + '"></button>';
+    };
+    const chip = (s) => s.link ? '<a class="tag ' + s.level + '" href="' + esc(s.link) + '" target="_blank" rel="noopener noreferrer">' + esc(s.text) + '</a>' : '<span class="tag ' + s.level + '">' + esc(s.text) + '</span>';
+    h += '<div class="vrow"><div><b>' + esc(v.title) + '</b><br>' + v.states.map(chip).join('') +
+      (v.film ? '<br><small class="muted">Film ' + when(v.film.madeAt) + (v.film.why ? ': ' + esc(v.film.why) : '') + '</small>' : '') + '</div>' +
+      '<div class="tlw"><div class="tl">' + cells.map((c, i) => '<span' + (days[i].getUTCDay() === 0 ? ' class="wk"' : '') + '>' + c.map(mark).join('') + '</span>').join('') + '</div></div>' + warnMark(cardsOf(v), r) + '</div>' +
+      '<div class="vdet" id="vdet-' + r + '" hidden></div>' +
+      (cardsOf(v).length ? '<div class="vcards" id="vcards-' + r + '"' + (openCards === v.tutorial + '/' + v.language ? '' : ' hidden') + ' data-key="' + esc(v.tutorial + '/' + v.language) + '">' + cardsOf(v).map(adminCard).join('') + '</div>' : '');
+  });
+  return h;
+}
+/** Each timeline's width from the zoom; when a day is wide enough, each mark sits at its time of day. */
+function layoutTimelines(keepAt) {
+  const box = $('video-rows');
+  if (!box) return;
+  const wraps = [...box.querySelectorAll('.tlw')];
+  if (!wraps.length) return;
+  const view = wraps[0].clientWidth || 600;
+  if (!dayWidth) dayWidth = view / 14;
+  dayWidth = Math.max(view / TIMELINE_DAYS, Math.min(2400, dayWidth));
+  for (const tl of box.querySelectorAll('.tl')) tl.style.width = Math.round(dayWidth * TIMELINE_DAYS) + 'px';
+  const timed = dayWidth >= 160;
+  box.classList.toggle('timed', timed);
+  for (const b of box.querySelectorAll('.mk[data-h]')) b.style.left = timed ? 'calc(' + (Number(b.dataset.h) * 100) + '% - 5px)' : '';
+  const left = keepAt === undefined ? dayWidth * TIMELINE_DAYS - view : keepAt;
+  for (const w of wraps) w.scrollLeft = left;
+}
+function redrawVideos() { const box = $('video-rows'); if (box) { box.innerHTML = videoRows(); annotate(box); layoutTimelines(); } }
+/** Zoom by factor about the point x pixels into the timeline's view. */
+function zoomTimelines(factor, x) {
+  const w = document.querySelector('#video-rows .tlw');
+  if (!w) return;
+  const at = (w.scrollLeft + x) / dayWidth;
+  dayWidth *= factor;
+  layoutTimelines(0);
+  const view = w.clientWidth;
+  dayWidth = Math.max(view / TIMELINE_DAYS, Math.min(2400, dayWidth));
+  layoutTimelines(Math.max(0, at * dayWidth - x));
+}
+let syncing = false;
+document.addEventListener('scroll', (e) => {
+  if (syncing || !e.target.classList || !e.target.classList.contains('tlw')) return;
+  syncing = true;
+  for (const w of document.querySelectorAll('#video-rows .tlw')) if (w !== e.target) w.scrollLeft = e.target.scrollLeft;
+  syncing = false;
+}, true);
+document.addEventListener('wheel', (e) => {
+  const w = e.target.closest && e.target.closest('#video-rows .tlw');
+  if (!w || !e.ctrlKey) return;
+  e.preventDefault();
+  zoomTimelines(Math.exp(-e.deltaY / 200), e.clientX - w.getBoundingClientRect().left);
+}, { passive: false });
+// Safari's own pinch.
+let gestureWidth = 0;
+document.addEventListener('gesturestart', (e) => { if (e.target.closest && e.target.closest('#video-rows .tlw')) { e.preventDefault(); gestureWidth = dayWidth; } });
+document.addEventListener('gesturechange', (e) => {
+  const w = e.target.closest && e.target.closest('#video-rows .tlw');
+  if (!w || !gestureWidth) return;
+  e.preventDefault();
+  zoomTimelines(gestureWidth * e.scale / dayWidth, e.clientX - w.getBoundingClientRect().left);
+});
+document.addEventListener('gestureend', () => { gestureWidth = 0; });
+function markDetail(m) {
+  const d = m.detail || { title: m.text, lines: [], links: [], films: [] };
+  return '<div class="head"><b>' + esc(d.title) + '</b> <small class="muted">' + esc(new Date(m.at).toLocaleString()) + '</small><button type="button" data-vclose>Close</button></div>' +
+    d.lines.map((l) => '<p class="setup">' + esc(l) + '</p>').join('') +
+    (d.quote ? '<blockquote>' + esc(d.quote) + '</blockquote>' : '') +
+    (d.links.length ? '<p>' + d.links.map((l) => '<a href="' + esc(l.href) + '" target="_blank" rel="noopener noreferrer">' + esc(l.text) + '</a>').join(' · ') + '</p>' : '') +
+    (d.films.length ? '<div class="vfilms">' + d.films.map((f) => '<figure><figcaption>' + esc(f.label) + '</figcaption><video controls preload="metadata" src="' + esc(f.href) + '"></video></figure>').join('') + '</div>' : '');
+}
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'video-lang') { videoLanguage = e.target.value; redrawVideos(); }
+  if (e.target && e.target.id === 'video-mine') { onlyMine = e.target.checked; redrawVideos(); }
+});
+document.addEventListener('click', (e) => {
+  const t = e.target.closest ? e.target : null;
+  if (!t) return;
+  const fit = t.closest('[data-vfit]');
+  if (fit) { const w = document.querySelector('#video-rows .tlw'); dayWidth = (w ? w.clientWidth : 600) / Number(fit.dataset.vfit); layoutTimelines(); }
+  const z = t.closest('[data-vzoom]');
+  if (z) { const w = document.querySelector('#video-rows .tlw'); zoomTimelines(z.dataset.vzoom === 'in' ? 1.6 : 1 / 1.6, w ? w.clientWidth / 2 : 0); }
+  const mk = t.closest('[data-mark]');
+  if (mk) {
+    const { m, row } = shownMarks[Number(mk.dataset.mark)] || {};
+    const box = $('vdet-' + row);
+    if (m && box) { for (const o of document.querySelectorAll('.vdet')) if (o !== box) o.hidden = true; box.innerHTML = markDetail(m); box.hidden = false; }
+  }
+  const wm = t.closest('[data-cards]');
+  if (wm) { const box = $('vcards-' + wm.dataset.cards); if (box) { box.hidden = !box.hidden; openCards = box.hidden ? null : box.dataset.key; } }
+  const close = t.closest('[data-vclose]');
+  if (close) close.closest('.vdet').hidden = true;
+});
+window.addEventListener('resize', () => layoutTimelines());
 
 // ---- one install's diagnostics, readable --------------------------------------------------
 const pairs = (o) => Object.entries(o || {}).map(([k, v]) => '<span class="nowrap">' + esc(k === 'ms' ? 'took' : k) + ' <b>' + esc(typeof v === 'number' && /ms$/i.test(k) ? ms(v) : v) + '</b></span>').join(' · ');

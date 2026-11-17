@@ -2,6 +2,17 @@
 // (decisions.md 83). Pure, tested in test/versionsModel.test.ts.
 import type { DraftView, Version } from '@langquest-next/core';
 import { t } from '../i18n';
+import type { Session } from '../shell/session';
+
+/**
+ * May this person delete anyone's published version, not only their own? An
+ * admin of the language may (decisions.md 124, amended 2026-11-13): they hold
+ * `manage_roles` there, as an Organization Admin or a Language Admin does. A
+ * coordinator does not. Looking in read-only (decisions.md 158) never may.
+ */
+export function deletesAny(s: Pick<Session, 'readOnly' | 'can'>): boolean {
+  return !s.readOnly && s.can('manage_roles');
+}
 
 /**
  * "Draft" when the person keeps one; "Draft 1", "Draft 2" in the order they

@@ -6,6 +6,8 @@ import { Diagnostics, MemoryDiagStore } from '../../diagnostics';
 import { FILE, PART_KINDS } from '../../keptLanguage';
 import { LanguageFiles } from '../../languageFiles';
 import { MemoryStore } from '../../memoryStore';
+import { nearbyClient } from '../../nearbyClient';
+import type { NearbyPlatform } from '../../nearbyUpkeep';
 import { LANGUAGE_MATERIALIZER, SyncClient } from '../../syncClient';
 import { SyncScheduler } from '../../syncScheduler';
 import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, TransferBudget, TransferWorker, UPLOAD_DEFAULTS } from '../../transferWorker';
@@ -48,6 +50,8 @@ export interface FleetContext {
   recordedAt: Map<string, number>;
   /** Does the phone at this place in the fleet keep the language on disk (decisions.md 143)? */
   keepsOnDisk: (index: number) => boolean;
+  /** Phones can share nearby (docs/nearby-sync-plan.md): what their SyncClient takes for it. Absent, a fleet runs as it always did. */
+  nearbyPlatform?: NearbyPlatform;
 }
 
 /** One device's numbers. CPU is real milliseconds in this process; delays are simulated milliseconds. */
@@ -85,6 +89,10 @@ export class DeviceMetrics {
   /** Real CPU the transfer workers spent working out what to move (they scan the whole language each pass). */
   workListCpuMs = 0;
   workLists = 0;
+  /** From append on another phone to arriving here from a nearby teammate. */
+  nearbyPropagationMs: number[] = [];
+  /** Teammates' events this phone delivered that the server took as new (docs/nearby-sync-plan.md section 6). */
+  delivered = 0;
 }
 
 /**
@@ -120,6 +128,10 @@ export class SimDevice {
   private down: TransferWorker | null = null;
   private pulling = false;
   private online: boolean | null = null;
+  /** Events a nearby teammate handed this phone that its person has already seen. */
+  private readonly heardNearby = new Set<string>();
+  /** How far this phone's date is off: its SyncClient reads the fleet's time plus this. Set before `install` or `restart`. */
+  clockOffsetMs = 0;
 
   constructor(
     readonly id: string,
@@ -133,6 +145,11 @@ export class SimDevice {
   ) {}
 
   private files: LanguageFiles | null = null;
+
+  /** The id this install's events carry, which its nearby certificate names. */
+  get deviceId(): string {
+    return `${this.id}.${this.installs}`;
+  }
 
   /** Keeps the language on disk, as the app does (decisions.md 143)? */
   get keepsOnDisk(): boolean {
@@ -180,7 +197,9 @@ export class SimDevice {
       ...(this.keepsOnDisk ? { keepOnDisk: true } : {}),
       ...(this.fleet.checkpointEvery !== undefined ? { checkpointEvery: this.fleet.checkpointEvery } : {}),
       transport: this.observed(shaped),
-      now: time.now,
+      // A phone's clock reads whole milliseconds, as Hello's `wallMs` must; fleets without nearby keep the time as they always read it.
+      now: this.fleet.nearbyPlatform || this.clockOffsetMs !== 0 ? () => Math.floor(time.now()) + this.clockOffsetMs : time.now,
+      ...(this.fleet.nearbyPlatform ? { nearby: nearbyClient(this.fleet.nearbyPlatform) } : {}),
       newId: () => this.random.uuid(),
       diag: new Diagnostics({ store: this.diag, newId: () => this.random.uuid(), now: time.now, maxRecords: Infinity })
     });
@@ -312,6 +331,73 @@ export class SimDevice {
     await this.open();
   }
 
+  /**
+   * The app closed and opened again on the same store and build: the load a person waits
+   * for, read in its `load` diagnostics record.
+   */
+  async restart(): Promise<void> {
+    this.stop();
+    await this.open();
+  }
+
+  /**
+   * How long this phone's app takes to open the language from its store, in real
+   * milliseconds on this machine: a second client on the same store runs the app's own
+   * `load` with a clock that moves with the CPU, and its `load` record is returned
+   * (`ms`, `readMs`, `foldMs`, `events`). The fleet's clock stands still during a load, so
+   * the phone's own record says 0. Nothing is written but what `load` itself writes.
+   */
+  async timeLoad(): Promise<Record<string, number>> {
+    const sim = this.fleet.time.now();
+    const started = performance.now();
+    const now = () => sim + (performance.now() - started);
+    const diag = new MemoryDiagStore();
+    const client = new SyncClient({
+      orgId: this.fleet.orgId,
+      streamId: this.fleet.streamId,
+      actorId: this.actorId,
+      deviceId: this.deviceId,
+      store: this.store,
+      materializer: { ...LANGUAGE_MATERIALIZER, version: this.reducerVersion },
+      ...(this.keepsOnDisk ? { keepOnDisk: true } : {}),
+      ...(this.fleet.checkpointEvery !== undefined ? { checkpointEvery: this.fleet.checkpointEvery } : {}),
+      transport: this.fleet.server.transportFor(),
+      now,
+      ...(this.fleet.nearbyPlatform ? { nearby: nearbyClient(this.fleet.nearbyPlatform) } : {}),
+      newId: () => this.random.uuid(),
+      diag: new Diagnostics({ store: diag, newId: () => this.random.uuid(), now, maxRecords: Infinity })
+    });
+    await client.load();
+    return { ...diag.records.find((r) => r.kind === 'load')!.n };
+  }
+
+  /** Audio files on this phone, and their sizes: what nearby sharing serves and fills (`fleet/nearby.ts`). */
+  get audioHere(): Set<string> {
+    return this.present;
+  }
+
+  get audioSizes(): Map<string, number> {
+    return this.sizes;
+  }
+
+  /** A nearby teammate's events reached this phone: its person sees them as they would after a pull. */
+  heard(events: readonly AnyEvent[]): void {
+    const { time, appendedAt } = this.fleet;
+    for (const e of events) {
+      if (this.heardNearby.has(e.id)) continue;
+      this.heardNearby.add(e.id);
+      const at = appendedAt.get(e.id);
+      if (at !== undefined && !e.deviceId.startsWith(`${this.id}.`)) this.metrics.nearbyPropagationMs.push(time.now() - at);
+      this.persona.observe(e);
+    }
+  }
+
+  /** A file landed from a nearby teammate: what can go up and play now has changed. */
+  filesChanged(): void {
+    this.up?.nudge();
+    this.down?.nudge();
+  }
+
   setLink(link: Link): void {
     this.link = link;
     this.applyLink();
@@ -330,18 +416,44 @@ export class SimDevice {
     this.fleet.time.clearTimeout(this.workTimer);
   }
 
-  /** Has this phone everything the server has, and sent everything it made? */
-  async caughtUp(): Promise<boolean> {
+  /**
+   * Has this phone everything the server has, sent everything it made, and nothing from a
+   * teammate the server has not confirmed? `unsentBy` names authors whose work only they can
+   * send (a lost phone, before delivery): their nearby rows may stay.
+   */
+  async caughtUp(o: { unsentBy?: ReadonlySet<string> } = {}): Promise<boolean> {
     const view = await this.client.inspect();
     // A first download is done when every passage's rows are here too (decisions.md 147).
     const events = view.pending.length === 0 && view.cursor >= this.fleet.server.head(this.fleet.orgId, this.fleet.streamId)
-      && this.client.fillProgress() === null;
+      && this.client.fillProgress() === null && (view.nearby === 0 || (o.unsentBy !== undefined && (await this.nearbyRows()).every((e) => o.unsentBy!.has(e.actorId))));
     if (!events || !this.fleet.audio) return events;
     return (await this.uploadWork()).length === 0 && (await this.downloadWork()).length === 0;
   }
 
+  /** Every event this phone holds, whatever its status, but those refused. */
+  async eventIds(): Promise<Set<string>> {
+    const out = new Set<string>();
+    for (let after: string | null = null; ;) {
+      const page = await this.store.page(this.fleet.orgId, this.fleet.streamId, after, 1_000);
+      for (const l of page) if (l.status !== 'rejected') out.add(l.event.id);
+      if (page.length < 1_000) return out;
+      after = page[page.length - 1]!.event.id;
+    }
+  }
+
+  /** Every teammate's event this phone holds that the server has not confirmed. */
+  async nearbyRows(): Promise<AnyEvent[]> {
+    const out: AnyEvent[] = [];
+    for (let after: string | null = null; ;) {
+      const page = await this.store.nearbyPage(this.fleet.orgId, this.fleet.streamId, after, 1_000);
+      out.push(...page.map((l) => l.event));
+      if (page.length < 1_000) return out;
+      after = page[page.length - 1]!.event.id;
+    }
+  }
+
   /** What the app keeps offline for this person, plus what they chose to keep (useLanguage scopeNow). */
-  private async offlineScope(): Promise<Set<string>> {
+  async offlineScope(): Promise<Set<string>> {
     const scope = this.files ? await this.files.scope(this.actorId) : defaultOfflineScope(this.client.getState(), this.actorId);
     for (const unitId of this.persona.wants?.() ?? []) scope.add(unitId);
     return scope;
@@ -453,7 +565,24 @@ export class SimDevice {
         this.metrics.bytesDown += JSON.stringify(page)?.length ?? 0;
         return page;
       } } : {}),
-      ...(t.snapshotPassages ? { snapshotPassages: (...a: Parameters<NonNullable<Transport['snapshotPassages']>>) => timed(() => t.snapshotPassages!(...a)) } : {})
+      ...(t.snapshotPassages ? { snapshotPassages: (...a: Parameters<NonNullable<Transport['snapshotPassages']>>) => timed(() => t.snapshotPassages!(...a)) } : {}),
+      ...(t.knownEvents ? { knownEvents: async (...a: Parameters<NonNullable<Transport['knownEvents']>>) => {
+        const known = await timed(() => t.knownEvents!(...a));
+        this.metrics.bytesDown += JSON.stringify(known)?.length ?? 0;
+        return known;
+      } } : {}),
+      ...(t.attest ? { attest: async (...a: Parameters<NonNullable<Transport['attest']>>) => {
+        const answer = await timed(() => t.attest!(...a));
+        this.metrics.bytesDown += JSON.stringify(answer)?.length ?? 0;
+        return answer;
+      } } : {}),
+      // Delivery through a teammate (docs/nearby-sync-plan.md section 6): what it sends counts up.
+      ...(t.relay ? { relay: async (...a: Parameters<NonNullable<Transport['relay']>>) => {
+        const answer = await timed(() => t.relay!(...a));
+        for (const b of answer ?? []) for (const v of b.verdicts ?? []) if (v.accepted && v.reason !== 'duplicate') this.metrics.delivered += 1;
+        this.metrics.bytesDown += JSON.stringify(answer)?.length ?? 0;
+        return answer;
+      } } : {})
     };
   }
 

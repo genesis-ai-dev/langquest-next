@@ -557,7 +557,7 @@ describe('when the server received it (decisions.md 188)', () => {
     expect(d4.version.submittedAt).toBe(iso(decodeHlc(submitted.hlc).wallMs));
     expect(d4.version.uploadedAt).toBe(arrivalOf(log, submitted));
     expect(Date.parse(d4.version.uploadedAt) - Date.parse(d4.version.submittedAt)).toBe(DAYS_3);
-    expect(d4.versions).toEqual([{ n: 1, takeId: 'take-d4', submittedAt: d4.version.submittedAt, uploadedAt: d4.version.uploadedAt, v2UploadedAt: null }]);
+    expect(d4.versions).toEqual([{ n: 1, takeId: 'take-d4', submittedAt: d4.version.submittedAt, uploadedAt: d4.version.uploadedAt, v2UploadedAt: null, origin: 'app_recording' }]);
     expect(d4.requests).toMatchObject([{ requestId: 'q-d4', uploadedAt: arrivalOf(log, eventOf(log, 'v1.RequestMade', (p) => p['requestId'] === 'q-d4')) }]);
     expect(d4.reviews).toMatchObject([{ kindId: 'peer', uploadedAt: arrivalOf(log, eventOf(log, 'v1.ReviewRecorded', (p) => p['reviewId'] === 'peer-d4')) }]);
     // The list gives the same, for the version it summarizes.
@@ -617,6 +617,35 @@ describe('when the server received it (decisions.md 188)', () => {
     const later = (await call('GET', '/api/v1/languages/din/passages/d4', t)).body;
     expect(later.audio[1].v2UploadedAt).toBe('2025-02-10T00:00:00.000Z');
     expect(later.version.v2UploadedAt).toBe('2025-02-10T00:00:00.000Z');
+  });
+
+  it("says whether each part was recorded or uploaded through v2's web uploader, and a version with both is mixed", async () => {
+    // Why: Every Language pays recording teams per chapter, and its staff upload old archives through v2's website (2026-11-12).
+    const { call, token, log, advance } = setup();
+    log.device = 'v2import';
+    recorded(log, 'din', 'd4');
+    log.device = 'd';
+    const [a, b] = [card('d4a').hash, card('d4b').hash];
+    const t = await token('admin', { scopes: ['read'] });
+    const origins = async () => {
+      const d4 = (await call('GET', '/api/v1/languages/din/passages/d4', t)).body;
+      const listed = (await call('GET', '/api/v1/languages/din/passages', t)).body.passages.find((p: { unitId: string }) => p.unitId === 'd4');
+      return { version: d4.version.origin, versions: d4.versions.map((v: { origin: string }) => v.origin), audio: d4.audio.map((x: { origin: string }) => x.origin), listed: listed.version.origin };
+    };
+    // Nothing marked: both parts were recorded in an app.
+    expect(await origins()).toEqual({ version: 'app_recording', versions: ['app_recording'], audio: ['app_recording', 'app_recording'], listed: 'app_recording' });
+    // The import marks b as uploaded (its next pass, or the whole read for work that came over before).
+    log.v2Stamps.set(`din\nupload:${b}`, '2025-02-03T08:00:00.000Z');
+    advance(V2_RECHECK_MS);
+    expect(await origins()).toEqual({ version: 'mixed', versions: ['mixed'], audio: ['app_recording', 'web_upload'], listed: 'mixed' });
+    log.v2Stamps.set(`din\nupload:${a}`, '2025-02-03T08:00:00.000Z');
+    advance(V2_RECHECK_MS);
+    expect(await origins()).toEqual({ version: 'web_upload', versions: ['web_upload'], audio: ['web_upload', 'web_upload'], listed: 'web_upload' });
+    // Work made in Next was recorded, and costs no question about v2.
+    const asked = log.receivedAsks.length;
+    const d2 = (await call('GET', '/api/v1/languages/din/passages/d2', t)).body;
+    expect([d2.version.origin, ...d2.audio.map((x: { origin: string }) => x.origin)]).toEqual(['app_recording', 'app_recording', 'app_recording']);
+    expect(log.receivedAsks.slice(asked).flat().filter((k) => k.startsWith('v2:'))).toEqual([]);
   });
 
   it('asks the database once for a page, and after that only about what it has not seen', async () => {

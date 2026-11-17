@@ -1,6 +1,6 @@
 # The ops dashboard
 
-`https://next.langquest.org/ops-dashboard` shows staff what is going on
+`https://app.langquest.org/ops-dashboard` shows staff what is going on
 with LangQuest in one page: what phones and browsers report, how the
 server's own jobs are doing, and what each service LangQuest runs on says
 about its part. Its API is `/ops/api/*` on the same host. It is a Worker of
@@ -13,13 +13,13 @@ app's page from ever answering them. Production only: preview has no
 database of its own for it to read yet, so `/ops-dashboard` there says it
 is not set up.
 
-It reads, with four exceptions (decisions.md 162): marking feedback seen,
+It reads, with six exceptions (decisions.md 162): marking feedback seen,
 done or open again, running a server job now, granting or declining an
 organization's blue check request (decisions.md 173, docs/verified-organizations.md),
 connecting a tutorial channel on YouTube and choosing the videos to put
-up there (decisions.md 180, below), and leaving a note about a tutorial
+up there (decisions.md 180, below), leaving a note about a tutorial
 video or accepting, editing or rejecting a change Claude suggests for one
-(decisions.md 186). For those the page posts
+(decisions.md 186), and marking an account's quiet installs not an issue. For those the page posts
 to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
 action and the person's own token to the app Worker's `OpsActions`
 entrypoint (`APP_ACTIONS` binding), which checks the token itself (a live
@@ -75,8 +75,8 @@ An alert says only what someone could act on. A merge that changes nothing
 the web app is built from, notifications for people with no push token
 (they stay in the Inbox), RPCs only the server's jobs call, an average over
 fewer than 20 calls, the v2 import's backdated events, browsers going
-quiet, and an overage costing under $5 this month raise none; each figure
-still shows in its section. The same list is JSON at
+quiet, an account marked not an issue under Silent phones, and an overage
+costing under $5 this month raise none; each figure still shows in its section. The same list is JSON at
 `/ops/api/attention`, with a count per level. Each section collapses to its
 title and status (OK, urgent, problems, to watch, not connected, could not
 read): it starts closed when it is fine and open when something needs a
@@ -91,8 +91,8 @@ known start (the billing month, the last reset of Postgres' counters, the
 first nightly size), `oldest 2 days ago` for a queue, `now` for a state,
 `all time` for a total. A count whose start is not known says so.
 
-The page has thirteen sections, each about one subject (`apps/admin/src/pageOps.ts`
-`GROUPS`): Look up, Sync and data safety, Phones and browsers, Releases,
+The page has fourteen sections, each about one subject (`apps/admin/src/pageOps.ts`
+`GROUPS`): Look up, User issues, Sync and data safety, Phones and browsers, Releases,
 Server jobs, Database, Workers and traffic, Storage and capacity, People and
 organizations, Support, Access and integrations, App stores, and Tutorial
 videos. A section
@@ -113,7 +113,7 @@ the page loads to exactly one section.
 | Feedback | its open count from `diag.ops_feedback_open()` (migration `20261026120000_ops_feedback_and_since.sql`; `diag_reader` cannot read the table); `diag.feedback()`, `diag.feedback_screenshot()`, `diag.feedback_picture()` and `diag.feedback_voice()`, once the feedback store's migration is on the database; until then the section says so. Screenshots, chosen pictures and voice notes load when asked for, and only as JPEG, WAV or m4a | `DIAG_DATABASE_URL` |
 | Look up | an error code (`diag.error`), an email (`diag.lookup_email`: the profile id and its installs, never the address back), a profile id (`diag.person`), an install's last three days (`diag.timeline`), or an organization or language by name (`diag.find`) | `DIAG_DATABASE_URL` |
 | Sync and data safety | work the server refused, by reason (`sync` records); what arrived and how late, and events stamped ahead of the clock (the projection pass's sample); the nightly fold canary; languages behind the projection pass, overdue snapshots and the largest languages (`diag.ops_pipeline`) | `DIAG_DATABASE_URL`, migration `20261023100000_ops_dashboard.sql` |
-| Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones and phones gone quiet | `DIAG_DATABASE_URL` |
+| Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones, and phones gone quiet by account (`diag.ops_quiet_accounts`) | `DIAG_DATABASE_URL` |
 | Release health | merges on `main`, Worker deploys and EAS updates over 14 days against errors phones reported; the commit each host serves; hosted migrations against `main` (`diag.migrations_applied` and the files on GitHub) | `DIAG_DATABASE_URL`; the Cloudflare, Expo and GitHub tokens add to the timeline |
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
 | Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
@@ -125,7 +125,8 @@ the page loads to exactly one section.
 | Expiry dates | each provider token's end date where its provider reports one (Cloudflare, GitHub), Apple's certificates and provisioning profiles, and the dates in `apps/admin/expiry.json` | the tokens; the file needs nothing |
 | Capacity and cost | the database's size and growth (the fold canary records sizes nightly) against its provisioned disk (`SUPABASE_DB_LIMIT_GB`, 64 GB), R2's growth, and this month's Workers, Durable Object and R2 usage against the plan's allowance (`apps/admin/src/sources/storage.ts` `ALLOWANCE`) | `DIAG_DATABASE_URL`; `ADMIN_CLOUDFLARE_TOKEN` |
 | Filming (Tutorial videos) | GitHub: the run of `.github/workflows/tutorials.yml` on `main` filming now (a run held behind it is counted, not shown), or the latest, and each job of it: Grace's pieces, then each app language waiting its turn (five film at once), filming with the step it is on, done or failed, when it started, how long it took, and its log. No alerts: a failed run is said under Code and deploys | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
-| Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `next.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge that changed a file it is built from (its watch paths, `docs/cloudflare.md`) is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19). A failed run of this repository's own (a push, a schedule or a run by hand) that says what only a person can fix, in an annotation titled "Needs you: …" (Gemini's credit or key for the tutorial videos, `e2e/tutorials/needs-you.mjs`; the Claude token of `tutorial-review.yml` and `user-issues.yml`), is a problem with an Open link to the page that fixes it; the next run that works takes it away. A pull request's runs are never read for it. The watch for user issues runs every 15 minutes, so its latest run is read on its own and the rest of main's runs without it (`FREQUENT_WORKFLOWS`) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
+| Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `app.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge that changed a file it is built from (its watch paths, `docs/cloudflare.md`) is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19). A failed run of this repository's own (a push, a schedule or a run by hand) that says what only a person can fix, in an annotation titled "Needs you: …" (Gemini's credit or key for the tutorial videos, `e2e/tutorials/needs-you.mjs`; the Claude token of `tutorial-review.yml` and `user-issues.yml`), is a problem with an Open link to the page that fixes it; the next run that works takes it away. A pull request's runs are never read for it. Each of the repository's active workflows is read on its own (`ownWorkflows`), so one that runs every few minutes cannot push the others out; a failed scheduled run of a nightly test workflow raises nothing here when every job that failed in it is one Nightly tests says (`saidByNightly`) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit (about ten calls a refresh) |
+| Nightly tests (Releases) | GitHub: for `guardrails.yml` and `phone-tests.yml` (`apps/admin/src/sources/nightly.ts` `NIGHTLIES`), the latest completed scheduled run on `main`, and the line each reporting job left on it, an annotation titled "Nightly: <suite>" (`scripts/nightly-report.mjs` `nightNotice`, decisions.md 209): the web UI suite, the fleet simulation, the mutation tests and each phone, with how many passed or why it broke, and the Linear issue of each failure. The detail of a failure is in Linear. A failed test is a watch; a suite that broke, a reporting job that failed and left no line, or a nightly last run more than 36 hours ago is a problem | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
 | Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx), with the errors grouped: a Postgres error by its SQLSTATE (named), role, client and the RPC a PostgREST call named; a server error by method, the path's first parts (ids hidden) and status. Never a log message, which can quote what someone typed | `ADMIN_SUPABASE_TOKEN` |
 | Where each build and update is (Releases) | A diagram: each new store build in the stage it is in now (building on EAS; TestFlight or Play's internal testing; App Review or Play review; approved; what people download), and inside each build the over-the-air updates it takes (published on the production branch for its runtime after it was made), each linked to its pull request with how many of the platform's phones run it (`apps/admin/src/sources/pipeline.ts`, decisions.md 157). A pull request shows in each build that has it: from main in the new build, and in the public build as a copy through its release branch, named with its copy pull request, first as "PR open, not merged yet" (an open pull request onto `release/<platform>`, read from GitHub) and then as the update it sent (decisions.md 155). A copy says when it waits for Claude, who examines every copy before it merges, when its tests failed and Claude is fixing them, and when Claude has not finished it (the hourly run starts Claude again, up to 3 times); a copy whose tests still fail, or that is still not finished, after Claude's 3 tries, or that has been open for 3 hours, is a problem under Needs attention, linked to the copy. EAS says what was built and sent where; App Store Connect says where an iPhone build stands; Play's tracks, read in an edit that is deleted unsent, and Play's public page say where an Android build stands. A build waiting 3 hours with nothing in review is a watch. A store that cannot be read leaves its lane to what EAS knows, and says so | `ADMIN_EXPO_TOKEN`; `ADMIN_APP_STORE_KEY`, `ADMIN_GOOGLE_PLAY_KEY` and `DIAG_DATABASE_URL` each fill in more |
@@ -211,12 +212,12 @@ or its Workers Build), that Worker is only the placeholder step 1 makes,
 and `/ops-dashboard` answers 503 saying it is not deployed. The admin Worker binds back to the app Worker's `JobStatus`
 entrypoint (`APP_JOBS`); until the app Worker with that entrypoint is
 deployed, the Job container section says it could not ask. Check: `curl -s -o /dev/null -w '%{http_code}\n'
-https://next.langquest.org/ops-dashboard` says `200`.
+https://app.langquest.org/ops-dashboard` says `200`.
 
 ### 4. Let yourself in
 
 You need a Global Viewer account with its authenticator set up
-(`docs/global-viewers.md`). Open `https://next.langquest.org/ops-dashboard`
+(`docs/global-viewers.md`). Open `https://app.langquest.org/ops-dashboard`
 and sign in with it, then enter your code. The database sections fill in;
 the others say "Not connected" until step 5.
 

@@ -22,7 +22,9 @@ npx skills update -p                                       # update all project 
 ```
 
 Read the diff before committing an update: skills run with the agent's full
-permissions.
+permissions. An update can add instructions, not only change them: the
+2026-11-12 update had Expo's skills ask agents to send Expo a report when a
+task goes wrong, which `AGENTS.md` now overrides.
 
 ## Project skills
 

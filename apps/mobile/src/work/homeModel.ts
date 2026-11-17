@@ -197,15 +197,19 @@ export function divideSub(o: { wayName: string | null; book: string; waiting: nu
 }
 
 /**
- * Why My Work has nothing, before it says "Nothing is waiting on you" (UI
- * audit, finding 79): the open language is not on this phone yet and there
- * is no connection to bring it (the Map's own rule, MAP-033), or it has no
- * passages yet because nobody has set it up. Otherwise null: it really is
- * caught up. Get ready leads for an admin, so it is never "not set up" then.
+ * Why My Work has nothing of the open language to show (UI audit, finding
+ * 79): it is not on this phone yet and there is no connection to bring it
+ * (the Map's own rule, MAP-033), or it has no passages yet because nobody has
+ * set it up. Otherwise null: it really is caught up. Get ready leads for an
+ * admin, so it is never "not set up" then. `others` counts what else the
+ * screen shows (a lead card, a join request, news from another language):
+ * those come from the organization, not the open language, so "not on this
+ * device" is said beside them (LAN-251), while "no passages yet" is said only
+ * when nothing else shows.
  */
-export function workEmpty(o: { open: string | null; pulled: boolean; online: boolean | null; loaded: boolean; passages: number; gettingReady: boolean }): 'notHere' | 'noPassages' | null {
+export function workEmpty(o: { open: string | null; pulled: boolean; online: boolean | null; loaded: boolean; passages: number; gettingReady: boolean; others?: number }): 'notHere' | 'noPassages' | null {
   if (!o.open) return null;
   // mapModel's needsConnection, for the open language (mapModel reads this file, so not imported from there).
   if (!o.pulled && o.online === false && (!o.loaded || o.passages === 0)) return 'notHere';
-  return o.loaded && o.passages === 0 && !o.gettingReady ? 'noPassages' : null;
+  return o.loaded && o.passages === 0 && !o.gettingReady && !o.others ? 'noPassages' : null;
 }

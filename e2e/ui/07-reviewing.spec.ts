@@ -805,7 +805,7 @@ async function btInProgress(page: Page, said: number): Promise<void> {
   await openRecord(page, world(), 'P-Q3');
   // The peer check and the back translation are one step (same time): either may lead.
   const bt = page.getByRole('button', { name: 'Back-translate it', exact: true }).locator('visible=true');
-  if (!(await bt.count())) await page.getByRole('button', { name: /^Back translation, / }).locator('visible=true').first().click();
+  if (!(await bt.count())) await page.getByRole('button', { name: /^Back translation · make it, / }).locator('visible=true').first().click();
   await bt.last().click();
   for (let n = 1; n <= said; n++) await sayPart(page, n);
 }

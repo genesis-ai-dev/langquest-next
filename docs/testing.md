@@ -16,7 +16,7 @@ below it, so a check goes in the lowest-numbered layer that can hold it.
 | 2. Server | SQL smokes, SQL-to-core parity (`validate_payload`, `event_privilege`), the sync integration test, a fleet scenario on simulated time | Plain SQL run by `psql` from a Node script (`scripts/db-test.mjs`); the parity check and the fleet are `tsx` scripts; the integration test is Vitest | `server/*.sql`, `scripts/db-test.mjs`, `packages/sync/test/integration.test.ts`, `scripts/fleet` | CI on every PR (fleet nightly) |
 | 3. Screen models | What a screen shows for a state and a role: main button, path steps, team rows, tabs. Pure functions in `apps/mobile/src/<feature>/model.ts` and `*Model.ts`, tested with the core fixtures and `test/sessions.ts`. | Vitest | `apps/mobile/test` | every `npm test` |
 | 4. End-to-end, web | A person does a job in the real app, signed in, against the local server: the release web export served by the Worker. | Playwright (Chromium) | `e2e/ui` | `@p0` on every PR; the whole suite nightly and before a store release |
-| 5. End-to-end, phones | What only a phone shows: recording, permissions, backgrounding, airplane mode, hand-over, the P0 smoke set. On a Release test build. | Maestro (YAML flows) | `apps/mobile/test/maestro` | before a store release, and after a change to the recorder, sync or sign-in |
+| 5. End-to-end, phones | What only a phone shows: recording, permissions, backgrounding, airplane mode, hand-over, the P0 smoke set. On a Release test build. | Maestro (YAML flows) | `apps/mobile/test/maestro` | nightly on an Android emulator and an iPhone simulator (`.github/workflows/phone-tests.yml`, decision 208); before a store release, and after a change to the recorder, sync or sign-in |
 
 Beside them:
 
@@ -141,7 +141,7 @@ These keep the suite fast enough to run and stable enough to trust.
   `ui-web-p0-results-*` artifacts of the last 40 pull request and push runs,
   prints the tests under 95% of their runs (seen in at least 5) and keeps
   one Linear issue for them, `Nightly: the web UI tests that do not pass
-  every run`, commenting when the list changes. A pull request that broke a
+  every run`, commenting when the list changes. Runs on `release/*` and `copy/*` branches are left out: they run the older code the public build was cut from, so a race main already fixed still fails there (LAN-242). A pull request that broke a
   test and fixed it later counts as failures there, so read the failing runs
   before quarantining. Run it by hand with `--dry-run` (it uses the `gh`
   sign-in). A report in which more than 15 tests failed is left out: that is
@@ -173,7 +173,8 @@ These keep the suite fast enough to run and stable enough to trust.
 | PR (CI `server`) | `db:test`, `test:integration` | under 15 min |
 | PR (CI `web-smoke`) | the export in three engines | under 20 min |
 | PR (CI `ui-web`) | `@p0` web tests on the export, in four shards of two browsers, cut by recorded duration | under 20 min |
-| Nightly (CI) | the whole web suite, `@quarantine` apart; fleet `normalDay`; Stryker on core | not blocking; failures filed in Linear, unassigned (`scripts/nightly-report.mjs`) |
+| Nightly (CI) | the whole web suite, `@quarantine` apart; fleet `normalDay`; Stryker on core | not blocking; failures filed in Linear, unassigned (`scripts/nightly-report.mjs`); the ops dashboard's Nightly tests part shows last night (decision 209) |
+| Nightly (CI, `phone-tests`) | every Maestro flow but `voice`, on an Android emulator and an iPhone simulator; a PR that changes the workflow or its scripts runs the `smoke` flows | not blocking; each failure filed in Linear under LAN-210 with its screen (`scripts/phone-tests.mjs`); the ops dashboard's Nightly tests part shows the night (decisions 208, 209) |
 | `npm run ship` | typecheck, then `@p0` web tests on the local stack (`SHIP_UNTESTED=1` skips, loudly) | |
 | Store release | full web suite, every Maestro flow on both phones, the run sheet | |
 

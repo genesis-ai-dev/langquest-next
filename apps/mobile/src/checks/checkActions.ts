@@ -1,7 +1,7 @@
 // Saving a language's checks (checks/LanguageChecks.tsx, screens/checks.tsx). The
 // list of checks takes a save back with its own Undo (decision 134), not a toast's:
 // each save is a step there while the list is open (checksHistory.ts).
-import { commands, deriveFlow, type EventSpec } from '@langquest-next/core';
+import { newCommandId, commands, deriveFlow, type EventSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
@@ -20,7 +20,7 @@ export async function saveRows(ctx: Ctx, rows: CheckRow[], message: string, befo
   const previous = { flow: state.flow?.value ?? null, steps: flow.steps };
   let specs: EventSpec[];
   try {
-    specs = [...before, ...c.saveFlowSteps({ commandId: Crypto.randomUUID(), steps: stepsOf(rows) })];
+    specs = [...before, ...c.saveFlowSteps({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), steps: stepsOf(rows) })];
   } catch (e) {
     ctx.toast(t('common.notSaved', { reason: failureMessage('save checks', e) }), 'problem'); // i18n-ignore: log label
     return null;

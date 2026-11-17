@@ -12,7 +12,7 @@
 // grouped by verse (Caleb, 2026-10-10): one list, as before. The numbering
 // is core's (verses.ts); this file only draws it and passes on what was tapped.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Animated, Easing, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Easing, PanResponder, Platform, Pressable, StyleSheet, View, type ViewInstance } from 'react-native';
 import { Text } from '../ui/text';
 import {
   derivePartVerses, markForSpan, settlePartMarks, skippedVerses, tapPart, withPartMark,
@@ -104,10 +104,10 @@ export function VerseParts(props: {
   // up or down starts it, numbering each empty part the finger passes. On a
   // phone the responder system carries it; on the web, pointer events do,
   // since a Pressable keeps mouse presses from the responder system there.
-  const box = useRef<View>(null);
+  const box = useRef<ViewInstance>(null);
   const boxSpan = useRef({ left: 0, width: 0 });
   const rects = useRef<Map<number, { y: number; h: number }>>(new Map());
-  const refs = useRef<Map<number, View>>(new Map());
+  const refs = useRef<Map<number, ViewInstance>>(new Map());
   const slide = useRef<{ armed: boolean; startY: number; last: number; marks: PartMark[] | null; base: PartMark[]; endedAt: number }>(
     { armed: false, startY: 0, last: -1, marks: null, base: [], endedAt: 0 });
   // While help is on, a slide numbers nothing: the spaces explain themselves instead.
@@ -282,7 +282,7 @@ export function VerseParts(props: {
 function PartRow(props: {
   ctx: Ctx; part: Part; first: boolean; last: boolean; name: string; label: PartLabel | null; verses: string[];
   ghost: { text: string; join: boolean } | null; flash: boolean; shake: boolean; editing: boolean; disabled: boolean;
-  gutterRef: (v: View | null) => void; onTap: () => void; onHold: () => void; onDelete: () => void;
+  gutterRef: (v: ViewInstance | null) => void; onTap: () => void; onHold: () => void; onDelete: () => void;
   /** Chosen: what is said next replaces this part (LAN-83). */
   chosen: boolean; onChoose: () => void;
   /** Just recorded: shaded until the next recording. Lifted: being dragged. */

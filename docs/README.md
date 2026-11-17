@@ -1,18 +1,20 @@
 # Documentation
 
 - [testing.md](./testing.md) — The testing strategy: five layers, which one a test belongs in, the end-to-end rules, and what runs on a PR, nightly and before a release
-- [decisions.md](./decisions.md) and [decisions/](./decisions/) — The ADR log: every design decision, who made it and when, with reasoning and reversal conditions; entries 1 to 204 in the file, then one file per decision in the folder
+- [decisions.md](./decisions.md) and [decisions/](./decisions/) — The ADR log: every design decision, who made it and when, with reasoning and reversal conditions; entries 1 to 253 in the file, then one file per decision in the folder
 - [cloudflare.md](./cloudflare.md) — Workers Builds: what merging to develop and main deploys; builds hold no secrets
 - [environments.md](./environments.md) — Development, preview and production: branches, where public settings and secrets live, `npm run secrets`, setup
 - [flow-coverage-audit.md](./flow-coverage-audit.md) — Flow coverage audit
 - [performance-audit.md](./performance-audit.md) — Event system performance: today's baseline, how to measure it, and ranked improvements with the metric for each
 - [performance-audit-app.md](./performance-audit-app.md) — App and server performance (rendering, startup, web bundle, Worker, SQL), and the event audit's open items, ranked with a fix and a metric each
 - [performance-audit-2026-10-26.md](./performance-audit-2026-10-26.md) — Re-measure after big languages and Global Viewers: the web bundle's icons, the kept-on-disk path, the server's passes, and both earlier audits' open items
+- [nearby-sync-plan.md](./nearby-sync-plan.md) — Proposed: phones near each other swap events and audio with no internet: transport, the `nearby` status, trust, audio, phases, and joining offline as a future requirement
 - [fleet-simulation.md](./fleet-simulation.md) — Many phones on simulated time against the in-memory server: `npm run fleet`, the scenarios, and how to read them
 - [fleet-baselines.md](./fleet-baselines.md) — Baseline numbers for every fleet scenario at several sizes, to compare before and after a performance change (`npm run fleet:baselines`)
 - [global-viewers.md](./global-viewers.md) — Global Viewers: LangQuest support who read every organization, as its admins see it, on an authenticator-verified session; making one on a call, revoking, a lost authenticator, how it works
 - [verified-organizations.md](./verified-organizations.md) — the blue check after an organization's name: an admin asks with a code emailed to its domain, staff grant it on the ops dashboard, and where it shows
 - [publisher-imports.md](./publisher-imports.md) — importers staff turn on for a publisher's organization: its admins bring in their own material (FIA from Bible Aquifer), the server builds it, they publish it
+- [org-export.md](./org-export.md) — the organization export: one zip of every recording, its metadata, progress sheets and the raw log, and who may take it
 - [library.md](./library.md) — The library: templates, flows and reference material as versioned documents
 - [languoids.md](./languoids.md) — Languages and regions: v2's reference tables filled from Glottolog, the explorer, search, and the interface-language proposal
 - [v2-project-languages.md](./v2-project-languages.md) — The language each v2 project should get here (many picked English), and the records that follow it

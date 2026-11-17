@@ -27,6 +27,19 @@
       "plus": "Jumlisha",
       "equals": "Sawa na",
       "point": "Nukta ya desimali"
+    },
+    "nearby": {
+      "startLine": "Kushiriki huanza tu unapogusa Anza kushiriki, na husimama baada ya dakika kumi au mara unaposasishwa.",
+      "start": "Anza kushiriki",
+      "startHelp": "Huwasha Bluetooth na Wi-Fi ili kupata wenzako wa timu walio karibu, hadi dakika kumi.",
+      "warning": "Mtu mwenye vifaa sahihi anaweza kujua kuwa simu hii inatangaza, na maswali ya Android yataonyesha jina halisi la programu. Fanya hivi ukiwa peke yako.",
+      "warned": "Endelea",
+      "warnedHelp": "Inaendelea kushiriki. Android inaweza kuomba ruhusa baadaye.",
+      "left": "Kushiriki kumesimama kwa sababu umetoka kwenye programu.",
+      "run": "Kushiriki kumesimama baada ya dakika kumi.",
+      "level": "Imesasishwa. Kushiriki kumesimama.",
+      "letInLook": "Simu mpya itaonyesha LangQuest hadi wachague mwonekano mwingine kwenye Mipangilio zaidi.",
+      "apkTrace": "Historia ya kivinjari na orodha yake ya vipakuliwa vinaonyesha faili ya kusakinisha ilikotoka. Unaweza kuvifuta baadaye."
     }
   },
   "native": {

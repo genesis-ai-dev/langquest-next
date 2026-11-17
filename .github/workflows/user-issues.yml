@@ -69,13 +69,13 @@ jobs:
     env:
       HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Enough of main for Claude's git log and for the pull requests that fixed what was hit.
           fetch-depth: 600
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24 }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, package-manager-cache: false }
       - name: The scripts and the repository as checked out, for the steps after Claude
         run: |
           mkdir -p "$RUNNER_TEMP/watch" && cp scripts/user-issues.mjs scripts/linear-sync.mjs scripts/tutorial-review.mjs "$RUNNER_TEMP/watch/"
@@ -94,7 +94,7 @@ jobs:
       - name: Claude looks
         id: look
         if: steps.watch.outputs.look != '0'
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
@@ -142,12 +142,12 @@ jobs:
       matrix:
         issue: ${{ fromJSON(needs.watch.outputs.fixes) }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 600
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24 }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, package-manager-cache: false }
       - name: The scripts and the repository as checked out, for the steps after Claude
         run: |
           mkdir -p "$RUNNER_TEMP/watch" && cp scripts/user-issues.mjs scripts/linear-sync.mjs scripts/tutorial-review.mjs "$RUNNER_TEMP/watch/"
@@ -160,7 +160,7 @@ jobs:
           FIX_PRIVATE: ${{ runner.temp }}/private.json
         run: node scripts/user-issues.mjs fix-context .user-issues "$ISSUE"
       - name: Claude writes a fix
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
@@ -175,7 +175,7 @@ jobs:
           FIX_OUT: ${{ runner.temp }}/fix-out
           FIX_PRIVATE: ${{ runner.temp }}/private.json
         run: node "$RUNNER_TEMP/watch/user-issues.mjs" fix-patch .user-issues
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: user-issue-fix-${{ matrix.issue }}
           path: ${{ runner.temp }}/fix-out/
@@ -196,7 +196,7 @@ jobs:
       matrix:
         issue: ${{ fromJSON(needs.watch.outputs.fixes) }}
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         continue-on-error: true
         with:
           name: user-issue-fix-${{ matrix.issue }}
@@ -204,14 +204,14 @@ jobs:
       - name: Is there a patch
         id: patch
         run: if [ -f "$RUNNER_TEMP/fix/fix.patch" ]; then echo "yes=true" >> "$GITHUB_OUTPUT"; else echo "yes=false" >> "$GITHUB_OUTPUT"; fi
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.patch.outputs.yes == 'true'
         with:
           persist-credentials: false
       # No npm cache, since code from the patch runs here and must not write what other workflows restore.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.patch.outputs.yes == 'true'
-        with: { node-version: 24 }
+        with: { node-version-file: .node-version, package-manager-cache: false }
       - name: Only what a draft fix may change
         if: steps.patch.outputs.yes == 'true'
         run: node scripts/user-issues.mjs fix-paths "$RUNNER_TEMP/fix/fix.patch"
@@ -244,7 +244,7 @@ jobs:
         run: |
           word() { case "$1" in success) echo passed;; failure) echo failed;; none) echo none;; *) echo "not run";; esac; }
           printf '{"typecheck":"%s","tests":"%s"}\n' "$(word "$TYPECHECK")" "$(word "$TESTS")" > "$RUNNER_TEMP/check/check.json"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.patch.outputs.yes == 'true'
         with:
           name: user-issue-check-${{ matrix.issue }}
@@ -267,15 +267,15 @@ jobs:
       matrix:
         issue: ${{ fromJSON(needs.watch.outputs.fixes) }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24 }
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, package-manager-cache: false }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         continue-on-error: true
         with:
           name: user-issue-fix-${{ matrix.issue }}
           path: .user-issues/fix
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         continue-on-error: true
         with:
           name: user-issue-check-${{ matrix.issue }}

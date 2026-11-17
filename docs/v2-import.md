@@ -240,6 +240,14 @@ weeks ago, so a wait counted from the recording was over before it began.
   says so. Where there is no ffmpeg (a laptop without it), such a file is
   left unrecorded for a run that has it, and a file in v2's storage that
   is not audio is reported as unreadable rather than missing.
+- **Each part names its file type.** A card that names none is WAV to
+  every reader, and until 2026-11-16 the import named only WAV, so the
+  log asked phones for `<hash>.wav` where R2 held `<hash>.m4a` (21,377
+  files; the nightly reconciler copied them to the WAV name on 2026-11-14
+  to 16, `repairFormats`). Cards now name M4A too. A recording said before
+  that is compared as it was said (`asFirstSaid` in `map.ts`), so the
+  change says none of them again; one is said again, with the file type,
+  only when its parts change in v2.
 - **Where it runs.** The dashboard runs a transfer on the computer it is
   open on; `npm run v2 -- sync` does one pass from the command line; and
   the job container behind the app's Worker runs a pass every 15
@@ -279,6 +287,13 @@ weeks ago, so a wait counted from the recording was over before it began.
   said again for them (`Fact.stamps`, decisions.md 188). The access-token
   API gives them as `v2UploadedAt`, beside `uploadedAt`, Next's own stamp
   from when the import appended the work (`docs/agent-api.md`).
+- **Recorded or uploaded.** v2's app names a recording by a UUID; v2's
+  website names an uploaded file from the time, as `<milliseconds>-…`
+  (`recordedInApp` in `rows.ts`). For a file
+  that v2's app did not record, the import keeps one more stamp,
+  `upload:<hash>`: when v2 got it. The API gives every audio file and
+  version an `origin` from it (`web_upload`, `app_recording`, or `mixed`
+  for a version with both; decisions.md 188, amended 2026-11-12).
 - **Trying it.** `npm run v2 -- try --project <id>` maps projects and checks
   every event against the app's rules, writing nothing;
   `V2_IMPORT_FILES_DIR` keeps files in a folder instead of R2, for a whole

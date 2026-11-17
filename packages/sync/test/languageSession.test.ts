@@ -30,7 +30,7 @@ function memoryFiles(): LocalFiles & { put(hash: string, size: number): void; re
     sizes: () => sizes,
     sizeOf: (hash) => sizes.get(hash),
     formatOf: (hash) => (sizes.has(hash) ? 'm4a' : undefined),
-    reclaim: (evictable) => { reclaimed.push(evictable.map((r) => r.hash)); },
+    reclaim: (lists) => { reclaimed.push((lists[0] ?? []).map((r) => r.hash)); },
     onChange: (l) => { listeners.add(l); return () => { listeners.delete(l); }; }
   };
 }
@@ -266,7 +266,7 @@ describe('LanguageSession: a language kept on disk (decisions.md 143)', () => {
     await session.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
     await until(() => session.status.keptOffline !== null && session.status.scope.has('Luke 1'));
     expect(session.status.keptOffline?.get('Luke 1')).toMatchObject({ audio: 1, here: 1, reason: 'worked' });
-    expect(await session.hasRecording('r1')).toBe(true);
+    expect(await session.hasRecording('r1', 'Luke 1')).toBe(true);
     session.triggerUpload();
     await until(() => uploaded.includes('h1'));
     await session.loadUnits(['Luke 1']);
