@@ -10,9 +10,10 @@
 --
 -- One pg_cron job, every 10 minutes, counts the hour now and the hour before
 -- into diag.hourly (kept 14 days, for the 24 h range), each hour counts
--- today and yesterday into diag.daily, and each run fills a few days and
--- hours that have no totals yet, newest first, so the 90 days of raw records
--- that exist when this lands come in within a few hours. The page then reads
+-- today and yesterday into diag.daily (and their months into diag.monthly),
+-- and each run fills a few days and hours that have no totals yet, newest
+-- first, so the 90 days of raw records that exist when this lands come in
+-- within a few hours. The page then reads
 -- totals only: a year opens as fast as a day, at any number of phones.
 
 -- ---- the tables -----------------------------------------------------------------------------
@@ -29,6 +30,17 @@ create table if not exists diag.daily (
 );
 -- A part's totals over a range, without its keys: what most pictures draw.
 create index if not exists diag_daily_totals_idx on diag.daily (part, day) include (metric, value) where key = '';
+
+-- The same by month, from diag.daily: a part's whole history (the range All) reads one
+-- row a month for each number and key, not one a day, so it stays fast after years.
+create table if not exists diag.monthly (
+  month date not null check (extract(day from month) = 1),
+  part text not null check (part ~ '^[a-z0-9_]{1,40}$'),
+  metric text not null check (metric ~ '^[a-z0-9_]{1,60}$'),
+  key text not null default '' check (length(key) <= 160),
+  value numeric not null,
+  primary key (part, metric, month, key)
+);
 
 create table if not exists diag.hourly (
   hour timestamptz not null,
@@ -97,9 +109,10 @@ on conflict (part, metric) do update set agg = excluded.agg;
 
 alter table diag.daily enable row level security;
 alter table diag.hourly enable row level security;
+alter table diag.monthly enable row level security;
 alter table diag.daily_filled enable row level security;
 alter table diag.daily_metrics enable row level security;
-revoke all on diag.daily, diag.hourly, diag.daily_filled, diag.daily_metrics from public, anon, authenticated;
+revoke all on diag.daily, diag.monthly, diag.hourly, diag.daily_filled, diag.daily_metrics from public, anon, authenticated;
 
 -- ---- what one window holds ------------------------------------------------------------------
 
@@ -347,6 +360,40 @@ create or replace function diag.daily_backfill_hours() returns int language sql 
 -- Counts the buckets of one step from p_from to p_to again, whole: a key that
 -- dropped out of a bucket's 30 largest goes, and a bucket with no records is
 -- marked counted with no rows.
+-- A month's totals again from its days: a count adds up, a level keeps its busiest day, and
+-- keys past the month's 30 largest add up as '_other' with the days' own '_other'.
+create or replace function diag.monthly_refill(p_at timestamptz) returns int
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_m date := pg_catalog.date_trunc('month', p_at at time zone 'UTC')::date;
+  v_rows int;
+begin
+  delete from diag.monthly mo where mo.month = v_m;
+  insert into diag.monthly (month, part, metric, key, value)
+  with agg as (
+    select d.part, d.metric, d.key, case m.agg when 'max' then max(d.value) else sum(d.value) end as value
+    from diag.daily d join diag.daily_metrics m on m.part = d.part and m.metric = d.metric
+    where d.day >= v_m and d.day < (v_m + interval '1 month')::date
+    group by d.part, d.metric, d.key, m.agg
+  ),
+  ranked as (
+    select a.*, row_number() over (partition by a.part, a.metric order by a.value desc, a.key) as rn
+    from agg a where a.key not in ('', '_other')
+  )
+  select v_m, a.part, a.metric, a.key, a.value from agg a where a.key = ''
+  union all
+  select v_m, r.part, r.metric, r.key, r.value from ranked r where r.rn <= 30
+  union all
+  select v_m, o.part, o.metric, '_other', sum(o.value) from (
+    select r.part, r.metric, r.value from ranked r where r.rn > 30
+    union all
+    select a.part, a.metric, a.value from agg a where a.key = '_other'
+  ) o group by 2, 3;
+  get diagnostics v_rows = row_count;
+  return v_rows;
+end $$;
+revoke all on function diag.monthly_refill(timestamptz) from public, anon, authenticated, service_role;
+
 create or replace function diag.daily_refill(p_step text, p_from timestamptz, p_to timestamptz) returns int
 language plpgsql security definer set search_path = '' as $$
 declare v_rows int := 0; v_n int;
@@ -369,6 +416,9 @@ begin
   from pg_catalog.generate_series(p_from, p_to - interval '1 second', ('1 ' || p_step)::interval) b
   on conflict (step, at) do update set filled_at = excluded.filled_at, rows = excluded.rows;
   get diagnostics v_n = row_count;
+  if p_step = 'day' then
+    perform diag.monthly_refill(m) from pg_catalog.generate_series(pg_catalog.date_trunc('month', p_from, 'UTC'), p_to - interval '1 second', interval '1 month') m;
+  end if;
   return v_rows;
 end $$;
 revoke all on function diag.daily_refill(text, timestamptz, timestamptz) from public, anon, authenticated, service_role;
@@ -427,6 +477,7 @@ begin
                ('snapshots_bytes', (v_sizes->>'snapshotsBytes')::numeric)) m(metric, v)
   where m.v is not null
   on conflict (part, metric, day, key) do update set value = greatest(diag.daily.value, excluded.value);
+  perform diag.monthly_refill(v_day);
 
   delete from diag.hourly h where h.hour < v_hour - interval '14 days';
   delete from diag.daily_filled f where f.step = 'hour' and f.at < v_hour - interval '14 days';
@@ -474,7 +525,7 @@ begin
     when '14d' then (v_today - 13)::timestamp at time zone 'UTC'
     when '90d' then (v_today - 89)::timestamp at time zone 'UTC'
     when '1y' then pg_catalog.date_trunc('week', (v_today - 364)::timestamp) at time zone 'UTC'
-    else pg_catalog.date_trunc('month', coalesce((select min(d.day) from diag.daily d where d.part = p_part), v_today)::timestamp) at time zone 'UTC' end;
+    else coalesce((select min(mo.month) from diag.monthly mo where mo.part = p_part), pg_catalog.date_trunc('month', v_today::timestamp)::date)::timestamp at time zone 'UTC' end;
   v_buckets := array(select pg_catalog.generate_series(v_from, case when v_step = 'hour' then v_hour else v_today::timestamp at time zone 'UTC' end,
     ('1 ' || v_step)::interval));
   select jsonb_agg(exists (select 1 from diag.daily_filled f
@@ -488,8 +539,11 @@ begin
     select d.metric, d.key, pg_catalog.date_trunc(v_step, d.day::timestamp) at time zone 'UTC',
            case m.agg when 'max' then max(d.value) else sum(d.value) end
     from diag.daily d join diag.daily_metrics m on m.part = d.part and m.metric = d.metric
-    where v_step <> 'hour' and d.part = p_part and d.day >= (v_from at time zone 'UTC')::date
+    where v_step in ('day', 'week') and d.part = p_part and d.day >= (v_from at time zone 'UTC')::date
     group by d.metric, d.key, 3, m.agg
+    union all
+    select mo.metric, mo.key, mo.month::timestamp at time zone 'UTC', mo.value
+    from diag.monthly mo where v_step = 'month' and mo.part = p_part and mo.month >= (v_from at time zone 'UTC')::date
   ),
   m as (select x.metric, x.agg from diag.daily_metrics x where x.part = p_part),
   keyed as (

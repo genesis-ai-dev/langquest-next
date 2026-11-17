@@ -44,7 +44,8 @@ cross join lateral (select '' as key union all select 'key-' || g from generate_
 insert into diag.daily_filled (step, at, rows)
 select 'day', d, 1 from generate_series(current_date - 1095, current_date - 2, interval '1 day') d
 on conflict do nothing;
-analyze diag.records; analyze diag.installs; analyze diag.daily; analyze diag.daily_filled;
+select count(diag.monthly_refill(m)) as months from generate_series(date_trunc('month', current_date - 1095), current_date, interval '1 month') m;
+analyze diag.records; analyze diag.installs; analyze diag.daily; analyze diag.monthly; analyze diag.daily_filled;
 
 select count(*) as raw_records from diag.records where received_at > now() - interval '1 day';
 select count(*) as daily_rows from diag.daily;

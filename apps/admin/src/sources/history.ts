@@ -1,7 +1,8 @@
 /**
  * A part's numbers over a range of days (decisions.md 254). The pg_cron job
  * `langquest-daily-totals` counts the raw records into totals by hour
- * (diag.hourly, 14 days) and by day (diag.daily, all time); diag.ops_series
+ * (diag.hourly, 14 days), by day (diag.daily, all time) and by month
+ * (diag.monthly, from the days, for All); diag.ops_series
  * reads only those totals, never the raw records, so a year answers as fast
  * as a day, at any number of phones. GET /ops/api/<part>?range=… serves it.
  */

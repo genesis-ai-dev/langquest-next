@@ -449,8 +449,9 @@ Raw records and job runs stay 90 days. For a range past that, and so that a
 year opens as fast as a day at any number of phones, a pg_cron job
 (`langquest-daily-totals`, every 10 minutes, `diag.daily_fill`, decisions.md
 254) counts them into totals: `diag.hourly` (the hour now and the one before,
-kept 14 days) and `diag.daily` (today and yesterday once an hour, kept for all
-time). One row is one number of one part for one key (a platform, a job, an
+kept 14 days), `diag.daily` (today and yesterday once an hour, kept for all
+time) and `diag.monthly` (each month again from its days, for the range All).
+One row is one number of one part for one key (a platform, a job, an
 error, a route; `''` is the total) and one day. A number keeps its 30 largest
 keys a day and adds the rest up as `_other`. No key is an install, a person, a
 name or an email. Each run also fills two days and 24 hours that were never

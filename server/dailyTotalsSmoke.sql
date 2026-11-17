@@ -47,6 +47,14 @@ begin
   perform diag.daily_refill('day', d, d + interval '1 day');
   select value into v from diag.daily where day = d::date and part = 'clients' and metric = 'errors' and key = '';
   if v <> 35 then raise exception 'errors total: %', v; end if;
+  -- Its month again from its days: a count adds up, a level keeps its busiest day, 30 keys at most.
+  if (select value from diag.monthly where month = date_trunc('month', d::date)::date and part = 'clients' and metric = 'errors' and key = '')
+       is distinct from (select sum(value) from diag.daily where date_trunc('month', day) = date_trunc('month', d::date) and part = 'clients' and metric = 'errors' and key = '')
+     or (select value from diag.monthly where month = date_trunc('month', d::date)::date and part = 'clients' and metric = 'installs' and key = '')
+       is distinct from (select max(value) from diag.daily where date_trunc('month', day) = date_trunc('month', d::date) and part = 'clients' and metric = 'installs' and key = '')
+     or (select count(*) from diag.monthly where month = date_trunc('month', d::date)::date and part = 'clients' and metric = 'errors' and key not in ('', '_other')) > 30 then
+    raise exception 'month totals: %', (select jsonb_object_agg(metric || '/' || key, value) from diag.monthly where month = date_trunc('month', d::date)::date and part = 'clients' and key = '');
+  end if;
   select count(*) into n from diag.daily where day = d::date and part = 'clients' and metric = 'errors' and key not in ('', '_other');
   if n <> 30 then raise exception 'error keys kept: %', n; end if;
   select value into v from diag.daily where day = d::date and part = 'clients' and metric = 'errors' and key = '_other';
