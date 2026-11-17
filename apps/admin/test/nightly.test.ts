@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { nightNotice } from '../../../scripts/nightly-report.mjs';
 import { phoneNights } from '../../../scripts/phone-tests.mjs';
+import { WORKFLOW_RECHECK } from '../src/alertKinds';
 import { NIGHTLIES, nightlyAlerts, nightlySection, parseLine, STALE_H, type Nightly } from '../src/sources/nightly';
 
 // Last night's tests on the ops dashboard (decisions.md 209). These hold the
@@ -80,15 +81,15 @@ describe('the Nightly tests part', () => {
   it('calls failed tests a watch, with their issues, linked to the first', () => {
     const failed = { ...suite, passed: 680, failed: true, issues: [{ id: 'LAN-260', url: 'https://linear.app/t/issue/LAN-260' }, { id: 'LAN-261', url: null }] };
     expect(nightlyAlerts({ repo: 'o/r', runs: [run({ suites: [failed] })] }, NOW))
-      .toEqual([{ level: 'watch', text: 'Nightly Web UI suite: 2 of 682 failed (LAN-260, LAN-261).', link: 'https://linear.app/t/issue/LAN-260' }]);
+      .toEqual([{ level: 'watch', key: 'nightly-failed', subject: 'Web UI suite', issues: ['LAN-260', 'LAN-261'], recheck: WORKFLOW_RECHECK['guardrails.yml'], text: 'Nightly Web UI suite: 2 of 682 failed (LAN-260, LAN-261).', link: 'https://linear.app/t/issue/LAN-260' }]);
   });
 
   it('calls a suite that broke, or a nightly that stopped running, a problem', () => {
     const broke = { ...suite, ran: null, passed: null, failed: true, broke: 'The job failed and left no report.' };
     const alerts = nightlyAlerts({ repo: 'o/r', runs: [run({ suites: [broke] }), run({ workflow: 'phone-tests.yml', title: 'Phone tests', run: { ...run().run!, at: hAgo(STALE_H + 1) } })] }, NOW);
     expect(alerts).toEqual([
-      { level: 'problem', text: 'Nightly Web UI suite broke: The job failed and left no report.', link: 'https://github.com/o/r/actions/runs/9' },
-      { level: 'problem', text: `The Phone tests last ran on its schedule ${STALE_H + 1} h ago: the schedule may have stopped.`, link: 'https://github.com/o/r/actions/workflows/phone-tests.yml' }
+      { level: 'problem', key: 'nightly-broke', subject: 'Web UI suite', recheck: WORKFLOW_RECHECK['guardrails.yml'], text: 'Nightly Web UI suite broke: The job failed and left no report.', link: 'https://github.com/o/r/actions/runs/9' },
+      { level: 'problem', key: 'nightly-stopped', subject: 'phone-tests.yml', recheck: WORKFLOW_RECHECK['phone-tests.yml'], text: `The Phone tests last ran on its schedule ${STALE_H + 1} h ago: the schedule may have stopped.`, link: 'https://github.com/o/r/actions/workflows/phone-tests.yml' }
     ]);
   });
 

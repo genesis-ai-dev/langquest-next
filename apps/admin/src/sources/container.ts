@@ -15,10 +15,10 @@ export interface JobStatusRpc { jobs(): Promise<JobState[]> }
 export function containerAlerts(jobs: JobState[], now = Date.now()): Alert[] {
   const out: Alert[] = [];
   for (const j of jobs) {
-    if (j.error) out.push({ level: 'watch', text: `Could not ask the ${j.job} job's object how it is (${j.error}).` });
+    if (j.error) out.push({ level: 'watch', key: 'job-unreachable', subject: j.job, text: `Could not ask the ${j.job} job's object how it is (${j.error}).` });
     // Its object stops a run at the limit; one still going well past it was not stopped.
     if (j.running && j.startedAt && now - Date.parse(j.startedAt) > j.timeLimitMs + 15 * 60_000) {
-      out.push({ level: 'problem', text: `The ${j.job} job has run ${Math.round((now - Date.parse(j.startedAt)) / 60_000)} minutes, past its ${Math.round(j.timeLimitMs / 60_000)}-minute limit.` });
+      out.push({ level: 'problem', key: 'job-over-limit', subject: j.job, text: `The ${j.job} job has run ${Math.round((now - Date.parse(j.startedAt)) / 60_000)} minutes, past its ${Math.round(j.timeLimitMs / 60_000)}-minute limit.` });
     }
   }
   return out;

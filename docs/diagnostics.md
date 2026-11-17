@@ -342,6 +342,7 @@ last 7 days into **kinds**, named by the records' code-like tags:
 | `job` | `job:projection:failing` | a server job failing three times running, or stopped |
 | `worker` | `worker:blobs_get:5xx` | a Worker route answering 5xx at least 5 times in a day |
 | `feedback` | `feedback:<id>` | a problem sent from help mode (bugs, not ideas) |
+| `ops` | `ops:r2-missing`, `ops:workflow-failed:guardrails` | a line of the ops dashboard the records do not hold, passed in by the app Worker (`OpsLines`, `docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`) |
 
 `nearby` records are not a family: they are for reading a field report, and
 a dropped radio link or a teammate out of range is not a bug to file. Only
@@ -390,7 +391,10 @@ watch does not read the store build number phones send since 2026-11-03.
 The ops dashboard's **User issues** section (`diag.ops_user_issues()`)
 lists every issue the watch filed or commented on and every kind it found
 already fixed, the last 90 days: its state in Linear, the pull request that
-fixed it and when, and the last look.
+fixed it and when, and the last look. Its `lines` say what the watch decided
+about each kind a dashboard line can name (`ops`, `job` and `worker` keys):
+the start page shows each line's Linear issue from them, and lists the lines
+gone from the page under Resolved.
 
 **Claude sees what came with each problem** (decisions.md 202, amended
 2026-11-04). Before Claude looks, the step before it asks the Worker for

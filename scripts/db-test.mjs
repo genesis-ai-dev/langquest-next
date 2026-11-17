@@ -33,7 +33,7 @@ const SMOKES = [
   'server/dailyTotalsSmoke.sql', 'server/opsDetailSmoke.sql', 'server/opsCountsSmoke.sql',
   'server/opsActionsSmoke.sql',
   'server/tutorialsSmoke.sql',
-  'server/userIssuesSmoke.sql',
+  'server/userIssuesSmoke.sql', 'server/opsLinesSmoke.sql',
   'server/moderation-smoke.sql',
   'server/inviteKeysSmoke.sql',
   'server/passwordResetSmoke.sql',

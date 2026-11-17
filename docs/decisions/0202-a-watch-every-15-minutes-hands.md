@@ -160,3 +160,9 @@ environment, the network, another program, code from text); and a second
 Claude reads the patch first. A user issue's fix may change any of the
 app's code, so it stays a draft opened with the built-in token, and its
 checks still wait for a person.
+
+Amended (2026-11-17, Caleb Koster): the watch also takes the ops
+dashboard's own lines, as server kinds in a new family `ops`
+(`ops:<kind>[:<subject>]`), so Claude files or links one Linear issue for
+each line, and the page shows that issue, its fix and when the line should
+clear (`docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`).

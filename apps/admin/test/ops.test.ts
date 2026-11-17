@@ -104,7 +104,7 @@ describe('the app Worker and support', () => {
   it('says when organizations wait for a blue check (decisions.md 173), and not for decided ones', () => {
     const s = { reports: { open: 0, oldestAt: null, staffOnly: 0, resolvedWeek: 0 }, suspended: { total: 0, week: 0 }, deletions: [], feedbackOpen: { open: 0, oldestAt: null }, actions: [] };
     const row = (status: 'waiting' | 'granted' | 'declined') => ({ id: 'r', orgId: 'o', orgName: 'Org', domain: 'org.example', emailDomain: 'org.example', status, createdAt: hoursAgo(3), confirmedAt: hoursAgo(3), decidedAt: null, verified: false });
-    expect(supportAlerts({ ...s, verifications: [row('waiting'), row('waiting'), row('granted')] }, NOW)).toEqual([{ level: 'watch', text: '2 organizations waiting for a blue check (Support, Blue check requests).' }]);
+    expect(supportAlerts({ ...s, verifications: [row('waiting'), row('waiting'), row('granted')] }, NOW)).toEqual([{ level: 'watch', key: 'blue-check-waiting', text: '2 organizations waiting for a blue check (Support, Blue check requests).' }]);
     expect(supportAlerts({ ...s, verifications: [row('declined')] }, NOW)).toEqual([]);
     expect(supportAlerts({ ...s, verifications: null }, NOW)).toEqual([]);
   });
@@ -148,7 +148,7 @@ describe('storage, capacity and releases', () => {
 
   it('says to watch recordings the R2 reconciliation copied to the file type the log names, which are safe', () => {
     expect(storageAlerts(storage({ reconcile: { at: hoursAgo(3), outcome: 'ok', n: { missing: 0, repaired: 45 } } }), NOW))
-      .toEqual([{ level: 'watch', text: expect.stringContaining('copied 45 recordings') }]);
+      .toEqual([{ level: 'watch', key: 'r2-repaired', text: expect.stringContaining('copied 45 recordings') }]);
     expect(storageAlerts(storage({ reconcile: { at: hoursAgo(3), outcome: 'ok', n: { missing: 0, repaired: 0 } } }), NOW)).toEqual([]);
   });
 
@@ -171,7 +171,7 @@ describe('storage, capacity and releases', () => {
     const size = (gb: number) => ({ dbBytes: gb * 1024 ** 3, eventsBytes: 0, eventsRows: 0, snapshotsBytes: 0 });
     // October 2026: 13 GB of a 64 GB disk is nothing to say.
     expect(capacityAlerts({ ...base, weeksLeft: null, now: size(13) })).toEqual([]);
-    expect(capacityAlerts({ ...base, weeksLeft: null, now: size(60) })).toEqual([{ level: 'problem', text: expect.stringMatching(/^The database \(60 GB\) fills 94% of its 64 GB disk/) }]);
+    expect(capacityAlerts({ ...base, weeksLeft: null, now: size(60) })).toEqual([{ level: 'problem', key: 'db-disk-full', text: expect.stringMatching(/^The database \(60 GB\) fills 94% of its 64 GB disk/) }]);
   });
 
   it('raises an overage only once it costs five dollars this month', () => {
@@ -343,7 +343,7 @@ describe('the longest query and oldest transaction', () => {
   });
 
   it('still reads a database from before the migration, which named no one', () => {
-    expect(dbDetailAlerts(db({ longestQueryS: 600 }))).toEqual([{ level: 'watch', text: 'A query has been running for 10 minutes.' }]);
+    expect(dbDetailAlerts(db({ longestQueryS: 600 }))).toEqual([{ level: 'watch', key: 'long-query', text: 'A query has been running for 10 minutes.' }]);
   });
 });
 
@@ -374,22 +374,22 @@ describe('tutorial videos (decisions.md 180)', () => {
     });
     expect(t.channels.find((c) => c.language === 'es')).toMatchObject({ branded: true, held: 2 });
     expect(tutorialAlerts(t, NOW)).toEqual([
-      { level: 'problem', text: 'YouTube refused the fr channel: connect again (Tutorial videos).' },
-      { level: 'watch', text: '3 comments held for review on YouTube: approve or remove in YouTube Studio (Tutorial videos).' }
+      { level: 'problem', key: 'youtube-refused', text: 'YouTube refused the fr channel: connect again (Tutorial videos).' },
+      { level: 'watch', key: 'comments-held', text: '3 comments held for review on YouTube: approve or remove in YouTube Studio (Tutorial videos).' }
     ]);
   });
 
   it('asks for a Publish, a Connect again, or a look, each when it is due', () => {
     const t = (w: Tutorials['waiting']): Tutorials => ({ channels: [], waiting: w });
     expect(tutorialAlerts(t([]), NOW)).toEqual([]);
-    expect(tutorialAlerts(t([waiting(), waiting({ language: 'fr' })]), NOW)).toEqual([{ level: 'watch', text: '2 tutorial videos ready to publish (Tutorial videos).' }]);
+    expect(tutorialAlerts(t([waiting(), waiting({ language: 'fr' })]), NOW)).toEqual([{ level: 'watch', key: 'videos-ready', text: '2 tutorial videos ready to publish (Tutorial videos).' }]);
     expect(tutorialAlerts(t([waiting({ chosenAt: hoursAgo(2), failed: 'youtube_invalid_grant' })]), NOW)).toEqual([
-      { level: 'problem', text: 'YouTube refused the es channel: connect again (Tutorial videos).' }
+      { level: 'problem', key: 'youtube-refused', text: 'YouTube refused the es channel: connect again (Tutorial videos).' }
     ]);
     // A day's limit is no problem until the video has waited past a day and more.
     expect(tutorialAlerts(t([waiting({ chosenAt: hoursAgo(10), failed: 'youtube_uploadLimitExceeded' })]), NOW)).toEqual([]);
     expect(tutorialAlerts(t([waiting({ chosenAt: hoursAgo(31), failed: 'youtube_uploadLimitExceeded' })]), NOW)).toEqual([
-      { level: 'problem', text: '1 tutorial video chosen more than 30 hours ago is still not on YouTube (Tutorial videos).' }
+      { level: 'problem', key: 'videos-stuck', text: '1 tutorial video chosen more than 30 hours ago is still not on YouTube (Tutorial videos).' }
     ]);
     // A long queue on a channel that put videos up today is waiting its turn, not stuck.
     const es = { language: 'es', channelId: CHANNELS.es, title: null, connectedAt: hoursAgo(50), section: 'made', branded: true, brandFailed: null, held: 0, videos: 10 } as const;
@@ -407,10 +407,10 @@ describe('feedback on the tutorial videos (decisions.md 186)', () => {
 
   it('says when suggestions wait for a yes or no, and when accepted code changes are not in Linear', () => {
     expect(feedbackAlerts(feedback({ waiting: 12 }))).toEqual([]);
-    expect(feedbackAlerts(feedback({ open: 1 }))).toEqual([{ level: 'watch', text: '1 suggestion for the tutorial videos waits for a yes or no (Tutorial videos).' }]);
+    expect(feedbackAlerts(feedback({ open: 1 }))).toEqual([{ level: 'watch', key: 'suggestions-wait', text: '1 suggestion for the tutorial videos waits for a yes or no (Tutorial videos).' }]);
     expect(feedbackAlerts(feedback({ open: 4, unfiled: 2 }))).toEqual([
-      { level: 'watch', text: '4 suggestions for the tutorial videos wait for a yes or no (Tutorial videos).' },
-      { level: 'watch', text: '2 accepted code changes not in Linear yet (Tutorial videos).' }
+      { level: 'watch', key: 'suggestions-wait', text: '4 suggestions for the tutorial videos wait for a yes or no (Tutorial videos).' },
+      { level: 'watch', key: 'changes-not-filed', text: '2 accepted code changes not in Linear yet (Tutorial videos).' }
     ]);
   });
 
@@ -453,10 +453,10 @@ describe('the watch for user issues (decisions.md 202)', () => {
 
   it('says how many issues are open in Linear, and when a look failed', () => {
     expect(userIssueAlerts(issues({ closed: 3, fixed: 1, last: { at: hoursAgo(1), outcome: 'ok', n: { looked: 2 } } }))).toEqual([]);
-    expect(userIssueAlerts(issues({ open: 1 }))).toEqual([{ level: 'watch', text: '1 user issue open in Linear (User issues).' }]);
+    expect(userIssueAlerts(issues({ open: 1 }))).toEqual([{ level: 'watch', key: 'user-issues-open', text: '1 user issue open in Linear (User issues).' }]);
     expect(userIssueAlerts(issues({ open: 3, last: { at: hoursAgo(1), outcome: 'error', n: null } }))).toEqual([
-      { level: 'watch', text: '3 user issues open in Linear (User issues).' },
-      { level: 'problem', text: 'The watch for user issues failed to look at or file what it found (User issues).' }
+      { level: 'watch', key: 'user-issues-open', text: '3 user issues open in Linear (User issues).' },
+      { level: 'problem', key: 'user-issue-watch-failed', text: 'The watch for user issues failed to look at or file what it found (User issues).' }
     ]);
   });
 

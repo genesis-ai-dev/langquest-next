@@ -118,7 +118,7 @@ the page loads to exactly one section.
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
 | Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
 | App Worker | requests by route, server errors, rate-limit refusals and time taken, from the request tally | `DIAG_DATABASE_URL` |
-| User issues | `diag.ops_user_issues`: each Linear issue the watch for user issues filed or commented on and each kind it found already fixed, the last 90 days, open ones first, with its state in Linear, the pull request that fixed it and when, and the last look (`docs/diagnostics.md`, migration `20261103204500_user_issues_fixed.sql`). Issues open in Linear are a watch; a look that failed is a problem | `DIAG_DATABASE_URL`, the migration |
+| User issues | `diag.ops_user_issues`: each Linear issue the watch for user issues filed or commented on and each kind it found already fixed, the last 90 days, open ones first, with its state in Linear, the pull request that fixed it and when, and the last look; and each dashboard line's decision (`lines`, migration `20261117213500_ops_lines_linear.sql`) (`docs/diagnostics.md`, migration `20261103204500_user_issues_fixed.sql`). Issues open in Linear are a watch; a look that failed is a problem | `DIAG_DATABASE_URL`, the migration |
 | Tutorial videos | `diag.ops_tutorials`: each app language's YouTube channel and when it was connected, each video's newest version not on YouTube (ready, or chosen and waiting, with the last failure's code), and the count up in each language; never a token (migration `20261028090000_tutorial_videos.sql`). `diag.ops_tutorial_feedback`: Claude's suggestions with what each answers, what came in that it has not looked at or suggested nothing for, and its last look (migration `20261029120000_tutorial_feedback.sql`) | `DIAG_DATABASE_URL`, the migrations; Connect and Publish need `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET` on the app's Worker; filing an accepted code change in Linear at once needs `LINEAR_API_KEY` there |
 | People and organizations | `diag.ops_people` and `ops_orgs`, counted, never named; an organization opens its own page at `/ops-dashboard/org/<id>` (`diag.ops_org` and its installs' sync errors) | `DIAG_DATABASE_URL`, the migration |
 | Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
@@ -479,6 +479,24 @@ OK lines and cards their 14-day pictures: one number for each section
 (`GLANCE` in `sources/history.ts`). `#g/<section>` shows one section with a
 chart for each number over the range, then its tables; `#all` shows every
 section as before.
+
+**Each line's Linear issue and fix** (`apps/admin/src/pageFixes.ts`,
+`docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`). Every alert
+has a kind from `KINDS` in `apps/admin/src/alertKinds.ts`, which says its
+part and when its check runs again. The watch for user issues ties each line
+to one Linear issue (its own key, or `ops:<kind>[:<subject>]`, handed over by
+the `OpsLines` entrypoint). `GET /ops/api/fixes` (`sources/fixes.ts`) lists
+the pull requests open or merged in the last 14 days that name a `LAN-` id.
+Under each line the page shows its issue and one state: no Linear issue yet,
+no fix yet, a fix waiting on its merge, a fix merged with the time the line
+should clear (merge, 30 minutes to deploy, the check's window, then its next
+run, in the viewer's clock), or still there after that check. A card whose
+lines all wait after a merged fix goes last, dashed, and the count leaves it
+out. **Resolved**, closed by default under the cards, lists the lines tied
+to Linear in the last 14 days that the page no longer shows; only a part
+that answered can say a line is gone. A new alert needs a kind in `KINDS`
+(TypeScript refuses an alert without one) and, for a scheduled workflow, its
+cron in `WORKFLOW_RECHECK`.
 
 Jobs and pg_cron also draw a row of squares for each job, one square for
 each bucket (`SQUARES` and `runSquares` in `pageStart.ts`), from the same

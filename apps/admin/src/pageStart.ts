@@ -119,6 +119,7 @@ export const START_HTML = String.raw`
           <h3 class="colh">Watch, no action now</h3><div id="start-watch"></div>
         </div>
       </div>
+      <details class="resolved" id="start-resolved" hidden></details>
       <h3 class="okh"><span class="dot ok"></span>OK</h3>
       <div class="oklist" id="start-ok"></div>
     </section>
@@ -154,14 +155,14 @@ function startPlan(sections, results, levels) {
     for (const p of g.parts) {
       const s = results[p];
       if (!s) continue;
-      const items = (s.alerts || []).map((a) => ({ level: levels.includes(a.level) ? a.level : 'watch', text: a.text, link: a.link }));
-      if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + (s.error || 'unknown') + '.' });
+      const items = (s.alerts || []).map((a) => ({ level: levels.includes(a.level) ? a.level : 'watch', text: a.text, link: a.link, alert: a }));
+      if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + (s.error || 'unknown') + '.', alert: { key: 'unreadable', subject: p, level: 'watch' } });
       items.sort((a, b) => rank(a.level) - rank(b.level));
       for (const watch of [false, true]) {
         const these = items.filter((i) => (i.level === 'watch') === watch);
         if (!these.length) continue;
         any = true;
-        cards.push({ level: these[0].level, group: g.id, part: p, text: these[0].text, link: these[0].link, more: these.slice(1).map((i) => i.text) });
+        cards.push({ level: these[0].level, group: g.id, part: p, text: these[0].text, link: these[0].link, more: these.slice(1).map((i) => i.text), alerts: these.map((i) => i.alert) });
       }
     }
     if (any) continue;
@@ -312,11 +313,12 @@ function cardHtml(c) {
   const gl = glanceOf(c.group);
   const sq = SQUARES[c.part] ? squarePic(c.part, c.text) : listCardPic(c.part);
   const link = safeLink(c.link);
-  const also = c.more.slice(0, ALSO_SHOWN).map((x) => '<li>' + esc(splitAlert(tidy(x)).title) + '</li>').join('');
+  const lines = c.alerts || [];
+  const also = c.more.slice(0, ALSO_SHOWN).map((x, i) => '<li>' + esc(splitAlert(tidy(x)).title) + fixHtml(lines[i + 1], true) + '</li>').join('');
   const rest = c.more.length - ALSO_SHOWN;
-  return '<article class="nc ' + c.level + '"><div>' +
+  return '<article class="nc ' + c.level + (fixing(c) ? ' fixing' : '') + '"><div>' +
     '<span class="badge ' + c.level + '">' + esc(LEVEL[c.level].title) + '</span>' +
-    '<h4>' + esc(t.title) + '</h4>' +
+    '<h4>' + esc(t.title) + '</h4>' + fixHtml(lines[0]) +
     '<p class="muted">' + esc(whereOf(c)) + '</p>' +
     (also ? '<ul class="also">' + also + (rest > 0 ? '<li>' + num(rest) + ' more in ' + esc(titleOf(c.group)) + '</li>' : '') + '</ul>' : '') +
     (t.next ? '<p><b>Next:</b> ' + esc(t.next) + '</p>' : '') +
@@ -328,8 +330,8 @@ function cardHtml(c) {
 
 /** One line for a part's alerts to watch, beside the cards; it opens the part's section. */
 function watchHtml(c) {
-  return '<a class="item" href="#g/' + esc(c.group) + '"><b>' + esc(splitAlert(tidy(c.text)).title) + '</b><small class="muted">' + esc(whereOf(c)) +
-    (c.more.length ? ' · ' + num(c.more.length) + ' more' : '') + '</small></a>';
+  return '<div class="item wl"><a class="go" href="#g/' + esc(c.group) + '"><b>' + esc(splitAlert(tidy(c.text)).title) + '</b><small class="muted">' + esc(whereOf(c)) +
+    (c.more.length ? ' · ' + num(c.more.length) + ' more' : '') + '</small></a>' + fixHtml((c.alerts || [])[0], true) + '</div>';
 }
 
 function okLineHtml(groupId, state) {
@@ -349,10 +351,12 @@ function renderStart() {
 function drawStart() {
   if ($('start').hidden) return;
   const plan = startPlan(SECTIONS, results, LEVELS);
-  const needs = plan.cards.filter((c) => c.level !== 'watch');
+  // A card whose every line waits for its check after a merged fix needs nobody now: it goes last, dashed.
+  const needs = plan.cards.filter((c) => c.level !== 'watch').sort((a, b) => Number(fixing(a)) - Number(fixing(b)));
   const watch = plan.cards.filter((c) => c.level === 'watch');
   const count = (cs) => cs.reduce((n, c) => n + 1 + c.more.length, 0);
-  const needN = count(needs), watchN = count(watch);
+  const fixed = waitingFixes(needs.flatMap((c) => c.alerts || []));
+  const needN = count(needs) - fixed, watchN = count(watch);
   const claude = claudeWork(results.userissues && results.userissues.state === 'ok' ? results.userissues.data : null);
   const store = storeWaits(results.pipeline && results.pipeline.state === 'ok' ? results.pipeline.data : null);
   const loading = plan.waiting.length;
@@ -361,6 +365,7 @@ function drawStart() {
   $('hero-title').textContent = needN === 1 ? 'thing needs you' : needN ? 'things need you' : loading ? 'Checking…' : 'Nothing needs you now';
   const okCount = plan.ok.filter((o) => !o.off.length).length;
   $('hero-line').textContent = [
+    fixed ? fixed + (fixed === 1 ? ' has a fix merged and waits' : ' have a fix merged and wait') + ' for a check.' : '',
     watchN ? watchN + ' to watch.' : '',
     claude.length ? claude.length + ' Claude works on.' : '',
     store.length ? store.length + (store.length === 1 ? ' waits' : ' wait') + ' on Apple or Google.' : '',
@@ -377,6 +382,20 @@ function drawStart() {
     : '<p class="muted none">' + (results.pipeline ? 'No build in review.' : 'Loading…') + '</p>';
   $('start-ok').innerHTML = plan.ok.map((o) => okLineHtml(o.group, o.off)).concat(plan.waiting.map((id) => okLineHtml(id, 'wait'))).join('') ||
     '<p class="muted">Every section has something above.</p>';
+  drawResolved();
+}
+
+/** Every card line is a merged fix that waits for its check. */
+const fixing = (c) => Boolean(c.alerts && c.alerts.length) && waitingFixes(c.alerts) === c.alerts.length;
+
+/** The lines the watch tied to Linear that this page no longer shows, under one closed heading. */
+function drawResolved() {
+  const ud = userIssuesData(), el = $('start-resolved');
+  el.hidden = !ud || !ud.lines;
+  if (el.hidden) return;
+  const now = new Set(PARTS.flatMap((p) => ((results[p] && results[p].alerts) || []).map(watchKeyOf)));
+  const answered = (part) => Boolean(results[part]) && results[part].state === 'ok';
+  el.innerHTML = resolvedHtml(resolvedLines(ud, now, answered, KINDS, Date.now()));
 }
 
 $('start-look').addEventListener('submit', (e) => {
