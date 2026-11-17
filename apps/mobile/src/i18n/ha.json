@@ -360,7 +360,9 @@
   },
   "native": {
     "microphone": "LangQuest yana naɗar muryarku don fassara nassosi.",
-    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata."
+    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata.",
+    "bluetooth": "LangQuest yana amfani da Bluetooth don nemo wayoyin abokan aikinka na kusa da raba aiki da su.",
+    "localNetwork": "LangQuest yana amfani da cibiyar sadarwa ta gida don raba aiki da wayoyin abokan aikinka na kusa."
   },
   "library": {
     "sourceLine": {

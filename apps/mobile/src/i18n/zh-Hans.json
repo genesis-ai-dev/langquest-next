@@ -358,7 +358,9 @@
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
-    "camera": "LangQuest 使用相机扫描邀请二维码。"
+    "camera": "LangQuest 使用相机扫描邀请二维码。",
+    "bluetooth": "LangQuest 使用蓝牙查找附近队友的手机，并与他们共享工作。",
+    "localNetwork": "LangQuest 使用本地网络与附近队友的手机共享工作。"
   },
   "library": {
     "sourceLine": {

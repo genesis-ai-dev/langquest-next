@@ -2,9 +2,9 @@ import type { Ctx } from '../shell/ctx';
 import type { NearbyHandle, NearbyWhyNot } from './nearbyRunModel';
 
 /**
- * Share nearby's hook (docs/nearby-sync-plan.md 5.8). Only Android shares nearby until phase 5
- * (useNearby.android.ts); here nothing runs, nothing is offered, and every action does nothing,
- * so the web and iPhone bundles carry no radio, no nearby entry and no cover code.
+ * Share nearby's hook (docs/nearby-sync-plan.md 5.8). Only a phone shares nearby
+ * (useNearby.native.ts, for Android and iPhones); on the web nothing runs, nothing is offered, and
+ * every action does nothing, so the web bundle carries no radio, no nearby entry and no cover code.
  */
 
 const NOTHING = (): void => undefined;
@@ -12,7 +12,7 @@ const NOTHING_LATER = async (): Promise<void> => undefined;
 
 const NOT_HERE: NearbyHandle = {
   view: {
-    offered: false, whyNot: 'not-in-build', radiosOff: [], permissions: { state: 'none', step: { t: 'ready' } }, worn: false, needsPress: false,
+    offered: false, iphone: false, tapCoversAll: false, whyNot: 'not-in-build', radiosOff: [], permissions: { state: 'none', step: { t: 'ready' } }, worn: false, needsPress: false,
     running: false, stopped: null, level: false, teammates: [], sessions: [], current: null, holding: 0, farAhead: [], clockOff: false,
     newerAppNeeded: false, findError: null, hold: true,
     carry: { everything: true, missing: 0, coming: 0, elsewhere: [], noRoom: false, notAllRecordings: false, pulledUnshared: false, olderFromServer: false, farAhead: [], teammates: [] }

@@ -8,7 +8,7 @@ import { NearbyCallError, post } from './nearby';
  * LQ001 gates the caller as a push does. Null on 503, which means not yet (no key on the
  * Worker, a database behind); `ClientTooOldError` on 426, which leaves every row nearby;
  * `OfflineError` with no connection; `NearbyCallError` with the status otherwise, which stops
- * delivery for this sync and nothing more. Android only, as Share nearby is (decision 58): the
+ * delivery for this sync and nothing more. A phone's only, as Share nearby is (decision 58): the
  * web carries none of it. The route is written out whole so `server-calls` records it.
  */
 export async function relayBatches(orgId: string, streamId: string, batches: RelayBatch[]): Promise<RelayAnswer[] | null> {

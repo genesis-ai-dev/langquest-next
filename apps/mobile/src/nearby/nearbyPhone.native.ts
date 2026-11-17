@@ -14,13 +14,13 @@ import { parseCertKeys, parseChains, parsePasses, passFor, type HeldChains, type
 import type { NearbyFilesOptions } from './nearbyPhone';
 
 /**
- * Nearby sync's pieces on an Android phone (docs/nearby-sync-plan.md 5.5, 5.12): the Worker's
+ * Nearby sync's pieces on an Android phone or an iPhone (docs/nearby-sync-plan.md 5.5, 5.12): the Worker's
  * public keys, the chains and revocation lists this phone keeps, the client's nearby half,
  * and the door's lookup with real Ed25519 (`@noble/curves`) and SHA-256 (`@noble/hashes`).
  * Chains (`nearbyChain:<profileId>`) and lists (`nearbyRevoked:<org>`) are plain meta rows
  * (5.12, "The store"): what a teammate's phone already holds, outside decision 168's seal, so a
  * signed-out person's unsent work can still be signed (Carl's answer 5). Keys stay in the
- * Keystore (server/nearbySecrets.ts) and are never logged.
+ * Keystore or Keychain (server/nearbySecrets.ts) and are never logged.
  */
 
 /** `EXPO_PUBLIC_NEARBY_CERT_KEYS`, inlined at bundle time: a phone trusts only what is bundled in it. */
@@ -107,7 +107,7 @@ export function holdsCertificate(profileId: string, orgId: string): boolean {
   return chains.get(profileId)?.[orgId] !== undefined;
 }
 
-/** The newest revocation list held for an organization, as signed. Kept only after its signature checked (nearbyIdentity.android.ts). */
+/** The newest revocation list held for an organization, as signed. Kept only after its signature checked (nearbyIdentity.native.ts). */
 export async function readRevoked(orgId: string): Promise<{ list: RevocationList; signed: SignedText } | null> {
   const raw = await (await getStore()).meta(revokedKey(orgId));
   if (!raw) return null;
@@ -194,7 +194,7 @@ export async function phoneSignerFor(orgId: string, signedIn: string): Promise<N
 // ---- teammates' files (docs/nearby-sync-plan.md 5.6) -----------------------------------
 
 /**
- * A language session's nearby files on an Android phone (docs/nearby-sync-plan.md 5.6): the marks
+ * A language session's nearby files on a phone (docs/nearby-sync-plan.md 5.6): the marks
  * in the file ledger's database, the file store's half of a nearby move, "Hold teammates'
  * recordings" as `useNearbyIdentity` worked it out, and what this person may do from the
  * organization's fold. The native write into the staging name arrives with the radios; this is

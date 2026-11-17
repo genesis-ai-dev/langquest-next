@@ -11,10 +11,10 @@ import { keepFindKeys } from '../server/lock';
 import { readFindKeys } from '../server/nearbySecrets';
 import { getStore } from '../storage/store';
 import type { NearbyLanguage } from '../sync/useLanguage';
-import type { PhoneRadio } from './nearbyLink.android';
+import type { PhoneRadio } from './nearbyLink.native';
 import { parseFindKeys, type FindKey } from './nearbyModel';
-import { holdsCertificate, nearbyGateFor, phoneCrypto, phoneSignerFor, readChains, readRevoked, ROOT_KEYS } from './nearbyPhone.android';
-import { certOrgSeqOf, listedKey, namesOf, nearbyOffered, orgSeqHereOf, radiosFor, roomLimitsFor, swapOf } from './nearbyRunModel';
+import { holdsCertificate, nearbyGateFor, phoneCrypto, phoneSignerFor, readChains, readRevoked, ROOT_KEYS } from './nearbyPhone.native';
+import { certOrgSeqOf, listedKey, namesOf, NEARBY_RADIO_TUNABLES, nearbyOffered, orgSeqHereOf, radiosFor, roomLimitsFor, swapOf } from './nearbyRunModel';
 
 /**
  * Share nearby's room for the open language, from the phone's identity pieces
@@ -152,7 +152,8 @@ export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
     radio, crypto: pieces.crypto, keys: () => ({ gen: key.gen, key: key.key, floor: key.floor }),
     facts: factsOf(a, keep, () => nearbyNamesOf(language, orgId)),
     ...roomLimitsFor(worn),
-    radios: (caps) => radiosFor(caps, worn),
+    // An iPhone's awdl and joinDirect go through as its module says them, joinDirect while the tunable allows it.
+    radios: (caps) => radiosFor(caps, worn, NEARBY_RADIO_TUNABLES),
     find: NEARBY_FIND,
     report: a.report,
     diag: nearbyDiagFor(orgId, languageId),

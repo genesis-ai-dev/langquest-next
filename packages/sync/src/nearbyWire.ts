@@ -21,8 +21,11 @@ export type Message =
   | { t: 'you-first' }
   /** The hand-on, one hop: a newer generation of the session's language. */
   | { t: 'discovery-key'; gen: number; key: string }
-  /** `joinHotspot` is false on a disguised phone. */
-  | { t: 'arrange'; summary: string; radios: { directByName: boolean; band5: boolean; hotspot: boolean; joinHotspot: boolean } }
+  /**
+   * `joinHotspot` is false on a disguised phone. `awdl` and `joinDirect` came with iPhones (phase 5): a phone
+   * that names neither leaves them out, and an older phone drops them, so a plan offers them only when both name them.
+   */
+  | { t: 'arrange'; summary: string; radios: { directByName: boolean; band5: boolean; hotspot: boolean; joinHotspot: boolean; awdl?: boolean; joinDirect?: boolean } }
   | ({ t: 'host'; attempt?: number /* the place in the arranged plan; the session refuses a host without it */ } & HostDetails)
   | { t: 'ready' }
   /** `vector` and `holdings` (counters) are by install key. */
@@ -120,13 +123,16 @@ function read(t: string, o: Raw): Message | null | undefined {
     case 'arrange': {
       const r = o['radios'];
       if (!isRaw(r) || !isSummary(o['summary'])) return null;
-      const { directByName, band5, hotspot, joinHotspot } = r;
+      const { directByName, band5, hotspot, joinHotspot, awdl, joinDirect } = r;
       if (typeof directByName !== 'boolean' || typeof band5 !== 'boolean' || typeof hotspot !== 'boolean' || typeof joinHotspot !== 'boolean') return null;
-      return { t, summary: o['summary'], radios: { directByName, band5, hotspot, joinHotspot } };
+      if (!optionalIs(awdl, (v) => typeof v === 'boolean') || !optionalIs(joinDirect, (v) => typeof v === 'boolean')) return null;
+      return {
+        t, summary: o['summary'], radios: { directByName, band5, hotspot, joinHotspot, ...optional('awdl', awdl as boolean | undefined), ...optional('joinDirect', joinDirect as boolean | undefined) }
+      };
     }
     case 'host': {
       const { kind, attempt, ssid, passphrase, port, band, security } = o;
-      if (!isOneOf(kind, ['wifi-direct', 'hotspot', 'bluetooth'] as const)) return null;
+      if (!isOneOf(kind, ['wifi-direct', 'hotspot', 'awdl', 'bluetooth'] as const)) return null;
       const isPort = (v: unknown) => isCount(v) && v <= 65535;
       const isAttempt = (v: unknown) => isCount(v) && v < 64;
       if (![ssid, passphrase, band, security].every((v) => optionalIs(v, isText)) || !optionalIs(port, isPort) || !optionalIs(attempt, isAttempt)) return null;

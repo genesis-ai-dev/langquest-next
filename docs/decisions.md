@@ -4503,6 +4503,16 @@ the app (`src/nearby/nearbyCryptoModel.ts`, `@noble/curves` and
 `nearbyClient`, and `LanguageSession`'s `client` option passes `nearby` on
 to its `SyncClient`.
 
+Amended (2026-11-16, Carl Sauder): iPhones share nearby too (256), so a
+phone's own file imports the nearby entries: `.native` (Android and
+iPhones), `.android` or `.ios` (`nearbyOnPhones` in `eslint.config.mjs`), each
+with a plain stub beside it, which only the web bundle takes. What a phone
+offers only on Android (joining offline, the install file, the disguise)
+stays in `.android` files, so an iPhone gets their plain stubs, and no
+`.native` file names a `.android` one (`apps/mobile/test/nearbyIphone.test.ts`).
+An iPhone's permission prompt is `src/nearby/nearbyPermissions.ios.ts`,
+beside Android's.
+
 ## 105. In `apps/mobile`, server calls live in `src/server/`, logic outside screens, and folders by feature
 
 Date: 2026-10-14 · By: Carl Sauder · Status: accepted
@@ -7390,6 +7400,16 @@ other dependencies and unmatched files now run `SHARED` (the three jobs they
 ran before), not every name in `JOBS`, so a change to core or a script
 compiles no Kotlin; a nightly run, a manual run and a scope error still run
 every job. AGENTS.md's Guardrails table has its row.
+
+Amended (2026-11-16, Carl Sauder): a sixth scoped job, `ios-native`, for the
+nearby module's Swift (256): on a Mac (`macos-26`, free for a public
+repository), its Swift package's tests against the golden vectors, then the
+iPhone app built for the simulator as the nightly iPhone job builds it. It
+runs for the module's `ios/` and podspec, for what both halves share (the
+contract, the vectors, the module's config), and for `apps/mobile/package.json`
+and the root lockfile, as `android-native` does; a Kotlin-only change no
+longer compiles Swift, nor a Swift-only one Kotlin. `SHARED` leaves out both.
+AGENTS.md's Guardrails table has its row.
 
 ## 151. A pull request may not take away a server call that a supported store build makes
 
@@ -11964,6 +11984,25 @@ answer covers it (`docs/play-store-declarations.md`).
 Reverse if: the real-phone test finds a restored phone keeps its key, or
 Ed25519 in Hermes is too slow for one check per batch (plan section 11).
 
+Amended (2026-11-16, Carl Sauder): iPhones make and keep the key too (256).
+On an iPhone it lives in the Keychain for this device only, which neither an
+iCloud backup nor a move to a new iPhone carries, so a restored iPhone makes a
+new key as a restored Android does. The key file is now `.native`, for both
+phones; the web still has none.
+
+Amended (2026-11-16, Carl Sauder): on an iPhone the key is in the Keychain
+after the first unlock and for this device only
+(`AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY`, `deviceOnlyStorage` in
+`apps/mobile/src/server/secureStorage.ts`), as the sessions are after the
+first unlock, so a read while the phone is locked does not find it missing
+and replace it. An iPhone's Keychain also outlives the app, unlike Android's
+Keystore, so a reinstalled app would find the old key with none of the
+batches it numbered, and teammates would skip the new ones under the same
+numbers. So the app's own storage marks the key this install made, and a key
+without the mark is replaced (`nearbyKey.native.ts`). A restore onto the same
+iPhone brings back both, with an older count, which is answer 2's known
+weakness as on Android.
+
 ## 218. The Worker signs one certificate per person and organization, naming that organization alone
 
 Date: 2026-11-12 · By: Carl Sauder · Status: accepted
@@ -12243,6 +12282,14 @@ sends no `ready` within `replyMs`, so four silent connections from another
 app on the phone no longer hold every place for the whole attempt
 (pre-merge security review).
 
+Amended (2026-11-16, Carl Sauder): iPhones come in, on the same protocol
+(256): an iPhone's advert goes out alone, it joins an Android's local-only
+hotspot, or its Wi-Fi Direct group as a plain client, and two iPhones use
+Apple's own direct Wi-Fi (`awdl`). The Kotlin now hands up a teammate's
+advert heard with no scan response (`onAdvert`), the module's one native
+change for iPhones, so this costs an Android store build as well as the
+iPhone's.
+
 ## 225. Phones open sealed, and a phone shows and connects to a teammate only after hearing its own salt echoed
 
 Date: 2026-11-12 · By: Carl Sauder · Status: accepted
@@ -12473,6 +12520,12 @@ Reverse if: the real-phone test finds the prompts name the launcher alias
 (then the warning changes), or people under a disguise are found broadcasting
 behind the cover.
 
+Amended (2026-11-16, Carl Sauder): Share nearby now shows on iPhones (256),
+with no disguise, since an iPhone build carries none (171 as amended); the
+disguise's files stay `.android`, so `disguiseIphone.test.ts` still holds.
+The web is still without it, through the plain stubs; the exchange's files
+are now `.native` beside them.
+
 ## 232. Share nearby is a screen of its own, labelled experimental, opened from Sync on an Android phone whose organization has it on
 
 Date: 2026-11-12 · By: Carl Sauder · Status: accepted
@@ -12499,6 +12552,19 @@ teammates", and a record's History one line for a row still nearby.
 Reverse if: the experiment ends (then the badge goes, and admins may get the
 toggle), or people miss teammates because the screen stopped (then the idle
 limit moves).
+
+Amended (2026-11-16, Carl Sauder): it shows on iPhones too (256); only the
+web is without it. On an iPhone it is disabled only without the module or
+Bluetooth LE: no Android version is compared with an iPhone's iOS version,
+and an iPhone has no Wi-Fi Direct and needs none. Bluetooth is the one
+prompt an iPhone can ask ahead, after the screen's line saying why, which
+also names the Local Network prompt and the Wi-Fi join that come when the
+phones connect; a refusal sends the person to the app's settings, since iOS
+asks once. Bluetooth off counts only once Bluetooth is allowed, and
+Location never does. A system prompt leaves an iPhone app `inactive`, which
+is not leaving the screen, so the radios stop only in the background. The
+screen's words name neither Android nor the install file on an iPhone, and A
+new person never shows there.
 
 ## 233. The web app may take 3.94 MB on a first visit and 4.92 MB in all, for nearby sync
 
@@ -13329,7 +13395,92 @@ Reverse if: a bucket's list passes 500 ms (add an index for that number), or
 the two copies of a filter drift often enough that `daily_compute` should
 read its filters from `diag.detail_filters` too.
 
-## 256. The help page links a screen to its tutorial video by the app's language and build, and shows nothing when none fits
+## 256. iPhones share nearby: the advert goes out alone and is known by its salt, two iPhones meet after one tap per opening and over Apple's own direct Wi-Fi, and an iPhone joins an Android's network as a plain client
+
+Date: 2026-11-17 · By: Carl Sauder · Status: accepted
+
+Reason: sharing between an iPhone and an Android, and between two iPhones,
+comes first for iPhones; joining offline on an iPhone is optional and later
+(Carl's answer 25, `docs/nearby-sync-plan.md` section 7, phase 5). An app on
+an iPhone can advertise only service UUIDs and a local name, and Apple
+documents that its scan response holds only the name, so an iPhone cannot
+send Find's scan response (tag, summary, echo; 224). It sends the advert
+alone and serves the same GATT service under it. A phone that hears such an
+advert (`onAdvert`) keeps it in the room under `@` and its salt
+(`ALONE_TAG`, `packages/sync/src/nearbyRoom.ts`) and echoes that salt, so an
+iPhone can check an Android's echo and connects to an Android only once
+echoed, as Androids do. Reading more before connecting would take the very
+connection the echo exists to stop, so nothing is read. An Android leaves an
+iPhone on its own generation to connect; one ahead on its key offers the tap
+it already had (answer 21), because the iPhone behind cannot hear it. An
+iPhone cannot get an echo from another iPhone, or from an Android on older
+code, so it shows "A teammate may be nearby" and one tap covers every such
+teammate until the screen closes (answer 26); of two iPhones that both
+tapped, the lower salt connects. With no summary to compare, a phone heard
+alone is tried once per salt. To move files, an iPhone, which can host
+nothing an Android can join, joins an Android's local-only hotspot, or its
+Wi-Fi Direct group as a plain client by name and passphrase
+(`NEHotspotConfiguration`), with a system prompt each time; the group is
+offered only when both Hellos list `join-direct`, so a phone on older code
+and its partner still work out the same plan. Two iPhones use Apple's own
+direct Wi-Fi through Network framework (`awdl`), the host listening as a
+Bonjour service under a one-time name it sends in `host`, of the type
+`_nlink._tcp`, which `Info.plist` fixes. `awdl` and `joinDirect` are fields
+of `arrange`'s radios that older phones drop, so the protocol stays at 1 and
+the carried file's name does not change. What it costs: an iPhone cannot
+choose when its Bluetooth address changes, so two of its salts can be linked
+through one address until iOS changes it; the Bonjour type is fixed and on
+the air while a link comes up, as Android's `DIRECT-` name is; new work
+between two iPhones can wait up to one rotation; an Android cannot see an
+iPhone's summary, so it can say "Up to date" while an iPhone in range still
+has something, until the iPhone connects; and the Kotlin change costs an
+Android store build and a carried build (246). Nothing merges before a
+real-phone test with iPhones and Androids (answer 27).
+Reverse if: the real-phone test finds an iPhone does send a second service
+UUID in its scan response (then it sends Find whole and the taps go), iPhones
+cannot join an Android's hotspot or group reliably, or `awdl` is too slow or
+too unreliable between iPhones (then Wi-Fi Aware, or Bluetooth alone for
+events).
+
+Amended (2026-11-16, Carl Sauder): in the app, an iPhone's `arrange` says
+`awdl` and `joinDirect` as its module does, `joinDirect` only while
+`NEARBY_RADIO_TUNABLES.joinDirect` allows it, so an update can turn it off if
+the real-phone test finds it does not hold (`radiosFor`,
+`apps/mobile/src/nearby/nearbyRunModel.ts`). The screen shows one "A
+teammate may be nearby" for every teammate an iPhone cannot get an echo
+from, since its one tap covers them all; a phone known only by its salt has
+no name and shows as "A teammate". An iPhone does not serve a newcomer's
+starting copy, which stays with joining offline on Android
+(`src/nearby/nearbyCopySource.ts` and `.android`).
+
+Amended (2026-11-16, Carl Sauder): the Swift (`apps/mobile/modules/nearby-link/ios`)
+differs from the Kotlin where an iPhone does. When Bluetooth goes off or is
+refused while Find runs it says so (`onFindError`, `BLUETOOTH_OFF` or
+`NO_PERMISSION`) and starts Find again under a new salt when Bluetooth comes
+back; the Android-only tunables (`advertiseInterval`, `scanMode`,
+`emptyScanFilter`, `connectable: 'after-hearing'`) are read and do nothing,
+since an iPhone's advert is always connectable; and an iPhone's GATT server
+cannot end a central's connection, so closing a pipe it serves drops it here
+and refuses further writes. An iPhone's own name, as set in Settings, is
+probably readable over GATT by anyone who connects, as Android's was before
+`setDiscoverable(false)`; the real-phone test checks it (plan section 11).
+
+Amended (2026-11-17, Carl Sauder): phase 5 merges before its real-phone
+test, not after it (plan answer 28, replacing answer 27). The test runs on
+the store builds the merge makes, from TestFlight and Play's internal testing
+as soon as each is built, before either store approves it. Only Carl's
+organization has nearby on in production, so only its phones can open Share
+nearby, and Android's nearby merged the same way (#403). What every other
+phone takes is the module linked into the app, which makes no Bluetooth
+manager and asks for nothing until Share nearby asks for Bluetooth or starts
+Find; the branch's app passed the phone smoke flows on the iPhone simulator
+and the Android emulator. Before the merge, the App Store's answers go in
+(`docs/app-store-declarations.md`: export compliance, App Privacy's Device
+ID, `nearby` on LangQuest Sample). The cost: a Swift or Kotlin fix the test
+finds needs another store build and review, not an update, and an App Review
+that cannot reach Share nearby may hold later iPhone builds.
+
+## 257. The help page links a screen to its tutorial video by the app's language and build, and shows nothing when none fits
 
 Date: 2026-11-17 · By: Caleb Koster · Status: accepted
 

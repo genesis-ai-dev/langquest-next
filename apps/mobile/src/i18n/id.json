@@ -358,7 +358,9 @@
   },
   "native": {
     "microphone": "LangQuest merekam suara Anda untuk menerjemahkan perikop.",
-    "camera": "LangQuest memakai kamera untuk memindai kode QR undangan."
+    "camera": "LangQuest memakai kamera untuk memindai kode QR undangan.",
+    "bluetooth": "LangQuest memakai Bluetooth untuk menemukan ponsel rekan tim Anda di sekitar dan berbagi pekerjaan dengan mereka.",
+    "localNetwork": "LangQuest memakai jaringan lokal untuk berbagi pekerjaan dengan ponsel rekan tim Anda di sekitar."
   },
   "library": {
     "sourceLine": {

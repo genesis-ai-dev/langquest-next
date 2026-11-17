@@ -11,8 +11,8 @@ export interface NearbyIdentityProps {
 }
 
 /**
- * A phone's nearby identity (docs/nearby-sync-plan.md 5.5, 5.10). Until phase 5 only Android
- * makes a key or asks for a certificate (useNearbyIdentity.android.ts); here there is nothing to
- * keep, and the hold choice is always `{ hold: true }` (holdChoice.ts).
+ * A phone's nearby identity (docs/nearby-sync-plan.md 5.5, 5.10). Only a phone makes a key or
+ * asks for a certificate (useNearbyIdentity.native.ts, Android and iPhones); on the web there is
+ * nothing to keep, and the hold choice is always `{ hold: true }` (holdChoice.ts).
  */
 export function useNearbyIdentity(_props: NearbyIdentityProps): void {}

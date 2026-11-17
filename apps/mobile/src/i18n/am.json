@@ -360,7 +360,9 @@
   },
   "native": {
     "microphone": "LangQuest ክፍሎችን ለመተርጎም ድምፅዎን ይቀርጻል።",
-    "camera": "LangQuest የግብዣ QR ኮዶችን ለመቃኘት ካሜራውን ይጠቀማል።"
+    "camera": "LangQuest የግብዣ QR ኮዶችን ለመቃኘት ካሜራውን ይጠቀማል።",
+    "bluetooth": "LangQuest በአቅራቢያ ያሉ የቡድን አጋሮችዎን ስልኮች ለማግኘትና ሥራን ከእነሱ ጋር ለማጋራት Bluetoothን ይጠቀማል።",
+    "localNetwork": "LangQuest በአቅራቢያ ካሉ የቡድን አጋሮችዎ ስልኮች ጋር ሥራን ለማጋራት የአካባቢውን አውታረ መረብ ይጠቀማል።"
   },
   "library": {
     "sourceLine": {

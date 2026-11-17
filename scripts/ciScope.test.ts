@@ -18,8 +18,8 @@ describe('the jobs that changed files need', () => {
     expect(needs('docs/testing.md', 'PLAN.md', 'AGENTS.md', 'apps/mobile/README.md')).toEqual([]);
   });
 
-  it('shared code, the database, dependencies and CI run every shared job, and compile no Kotlin', () => {
-    expect(SHARED).toEqual(JOBS.filter((job) => job !== 'android-native'));
+  it('shared code, the database, dependencies and CI run every shared job, and compile no Kotlin or Swift', () => {
+    expect(SHARED).toEqual(JOBS.filter((job) => job !== 'android-native' && job !== 'ios-native'));
     for (const file of [
       'packages/core/src/reducer.ts',
       'packages/sync/src/push.ts',
@@ -43,19 +43,27 @@ describe('the jobs that changed files need', () => {
     expect(scopeFor(['something-new/x.ts']).server).toContain('no rule names it');
   });
 
-  it('the nearby module compiles its Kotlin and keeps the browser jobs', () => {
+  it('the nearby module compiles its Kotlin, its Swift, or both for what they share, and keeps the browser jobs', () => {
     for (const file of [
       'apps/mobile/modules/nearby-link/android/src/main/java/expo/modules/nearbylink/Frames.kt',
       'apps/mobile/modules/nearby-link/android/src/main/AndroidManifest.xml',
+    ])
+      expect(needs(file), file).toEqual(['web-smoke', 'ui-web', 'android-native']);
+    for (const file of ['apps/mobile/modules/nearby-link/ios/Frames.swift', 'apps/mobile/modules/nearby-link/NearbyLink.podspec'])
+      expect(needs(file), file).toEqual(['web-smoke', 'ui-web', 'ios-native']);
+    for (const file of [
       'apps/mobile/modules/nearby-link/package.json',
       'apps/mobile/modules/nearby-link/README.md',
       'apps/mobile/modules/nearby-link/src/wire.ts',
+      'apps/mobile/modules/nearby-link/test-vectors.json',
+      'apps/mobile/modules/nearby-link/expo-module.config.json',
     ])
-      expect(needs(file), file).toEqual(['web-smoke', 'ui-web', 'android-native']);
+      expect(needs(file), file).toEqual(['web-smoke', 'ui-web', 'android-native', 'ios-native']);
     expect(needs('apps/mobile/modules/microphone-energy/android/src/main/java/x.kt')).toEqual(['web-smoke', 'ui-web']);
+    expect(needs('apps/mobile/modules/microphone-energy/ios/Level.swift')).toEqual(['web-smoke', 'ui-web']);
   });
 
-  it('the app\'s dependencies and the root lockfile run every job, Kotlin included', () => {
+  it('the app\'s dependencies and the root lockfile run every job, Kotlin and Swift included', () => {
     expect(needs('apps/mobile/package.json')).toEqual(JOBS);
     expect(needs('package-lock.json')).toEqual(JOBS);
   });
@@ -83,6 +91,7 @@ describe('the jobs that changed files need', () => {
       'web-smoke': 'apps/mobile/src/x.tsx',
       'ui-web': 'apps/mobile/src/x.tsx',
       'android-native': null,
+      'ios-native': null,
     });
   });
 });
