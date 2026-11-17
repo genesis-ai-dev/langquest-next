@@ -95,7 +95,7 @@ describe('the relay call (docs/nearby-sync-plan.md section 6)', () => {
   const batch = { manifest: '{}', sig: 's', chain: [], events: [] };
 
   it('posts the batches with this build\'s protocol version, and hands back each batch\'s answer', async () => {
-    const { relayBatches } = await import('../src/server/nearbyRelay.android');
+    const { relayBatches } = await import('../src/server/nearbyRelay.native');
     const { CLIENT_PROTOCOL_VERSION } = await import('@langquest-next/core');
     const answer = [{ key: 'k', n: 1, verdicts: [{ id: 'e1', accepted: true, serverSeq: 4, reason: null }] }];
     reply = () => new Response(JSON.stringify({ batches: answer }));
@@ -106,7 +106,7 @@ describe('the relay call (docs/nearby-sync-plan.md section 6)', () => {
 
   it('503 is not yet, 426 is too old, a body it cannot read or another status throws, no network is offline', async () => {
     vi.resetModules();
-    const { relayBatches } = await import('../src/server/nearbyRelay.android');
+    const { relayBatches } = await import('../src/server/nearbyRelay.native');
     reply = () => new Response('{}', { status: 503 });
     expect(await relayBatches('o1', 'L1', [batch])).toBeNull();
     reply = () => new Response(JSON.stringify({ code: 'LQ001' }), { status: 426 });

@@ -362,7 +362,9 @@
   },
   "native": {
     "microphone": "LangQuest enregistre votre voix pour traduire des passages.",
-    "camera": "LangQuest utilise l’appareil photo pour scanner les codes QR d’invitation."
+    "camera": "LangQuest utilise l’appareil photo pour scanner les codes QR d’invitation.",
+    "bluetooth": "LangQuest utilise le Bluetooth pour trouver les téléphones de vos coéquipiers à proximité et partager le travail avec eux.",
+    "localNetwork": "LangQuest utilise le réseau local pour partager le travail avec les téléphones de vos coéquipiers à proximité."
   },
   "library": {
     "sourceLine": {

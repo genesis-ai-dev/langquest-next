@@ -7,7 +7,7 @@ import { secureStorage } from './secureStorage';
  * are session/localPersonModel.ts): kept in `secureStorage` under its own name, outside any
  * session and outside decision 168's seal, since a local person has no session to seal it with
  * and cannot sign out. Read once, then held here, so the fetch gate can answer at once. Writes
- * go one at a time. Nothing here holds a key: the install key is nearbyKey.android.ts's.
+ * go one at a time. Nothing here holds a key: the install key is nearbyKey.native.ts's.
  */
 
 export type { LocalPerson } from '../session/localPersonModel';

@@ -12,13 +12,13 @@ import { onWake } from '../sync/wake';
 import { useAppCovered } from '../shell/useAppCovered';
 import { goOnOnline, JOIN_START, joinEndOf, joinName, joinReducer } from './joinOfflineModel';
 import { finishUnfinished, joinWithCode, phoneNotEmpty, unfinishedCopy } from './nearbyJoin.android';
-import { nearbyRadio } from './nearbyLink.android';
+import { nearbyRadio } from './nearbyLink.native';
 import { radiosMayRun } from './nearbyModel';
 import { androidSdk, askingForNearby, askNearbyPermissions, checkNearbyPermissions, openNearbySettings } from './nearbyPermissions.android';
 import { missingPermissions, permissionsStateOf } from './nearbyPermissionsModel';
-import { nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.android';
+import { nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
 import { NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, startWithin } from './nearbyRunModel';
-import { useFocus } from './useNearby.android';
+import { useFocus } from './useNearby.native';
 import type { JoinOfflineHandle } from './useJoinOffline';
 
 const KEEP_AWAKE = 'nearby-join';

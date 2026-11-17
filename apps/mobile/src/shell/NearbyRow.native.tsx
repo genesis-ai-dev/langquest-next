@@ -13,14 +13,16 @@ import { space, TINT } from '../ui/theme';
 import type { Ctx } from './ctx';
 
 /**
- * Share nearby on the Sync screen (docs/nearby-sync-plan.md 5.8, 5.10): shown once this phone
- * holds a certificate for the organization and a discovery key for the language, labelled
- * experimental. Its line names its two jobs, teammates' phones and a new person, where Share
- * nearby offers Let someone in, else the first alone (`nearbyRowWords`); there, while online and
- * this phone lacks the install file it needs now (`apkReminder`, 14.4), a small amber line says to
- * get it before going offline, and tapping still opens Share nearby. Below Android 10, or
- * without Bluetooth LE or Wi-Fi Direct, it is disabled with a line saying why, and keeps its
- * `onPress` so help mode can explain it (Carl's answer 7). A
+ * Share nearby on the Sync screen of an Android phone or an iPhone (docs/nearby-sync-plan.md 5.8,
+ * 5.10, section 7's phase 5): shown once this phone holds a certificate for the organization and a
+ * discovery key for the language, labelled experimental. Its line names its two jobs, teammates'
+ * phones and a new person, where Share nearby offers Let someone in, else the first alone
+ * (`nearbyRowWords`); there, while online and this phone lacks the install file it needs now
+ * (`apkReminder`, 14.4), a small amber line says to get it before going offline, and tapping still
+ * opens Share nearby. Only Android lets someone in: on an iPhone `useLetIn` and `useCarriedApk`
+ * are their plain stubs, so the row names teammates alone and never the install file. Below
+ * Android 10, or without Bluetooth LE or (on Android) Wi-Fi Direct, it is disabled with a line
+ * saying why, and keeps its `onPress` so help mode can explain it (Carl's answer 7). A
  * batch stamped far ahead names its author here too (5.4), whether or not the row shows, and so
  * does teammates' work the server refused whole when this phone delivered it, with the server's
  * reason (section 6).

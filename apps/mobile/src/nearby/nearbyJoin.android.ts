@@ -24,9 +24,9 @@ import { askingRecord, notEmptyWhy, seedsFor, type NotEmptyWhy } from './joinOff
 import { keepGrant, setWhenWhole } from './joinGrant';
 import { installKey } from '../server/nearbyKey';
 import { nobleSha256, phoneCryptoOf } from './nearbyCryptoModel';
-import type { PhoneRadio } from './nearbyLink.android';
-import { keepChains, nearbyGateFor, nearbyMakerFor, readChains, readRevoked, ROOT_KEYS } from './nearbyPhone.android';
-import { findKeyFor, nearbyPiecesFor } from './nearbyRun.android';
+import type { PhoneRadio } from './nearbyLink.native';
+import { keepChains, nearbyGateFor, nearbyMakerFor, readChains, readRevoked, ROOT_KEYS } from './nearbyPhone.native';
+import { findKeyFor, nearbyPiecesFor } from './nearbyRun.native';
 import { certOrgSeqOf, orgSeqHereOf } from './nearbyRunModel';
 import type { NearbyLanguage } from '../sync/useLanguage';
 

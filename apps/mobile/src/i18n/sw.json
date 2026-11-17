@@ -360,7 +360,9 @@
   },
   "native": {
     "microphone": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
-    "camera": "LangQuest hutumia kamera kusoma misimbo ya QR ya mialiko."
+    "camera": "LangQuest hutumia kamera kusoma misimbo ya QR ya mialiko.",
+    "bluetooth": "LangQuest hutumia Bluetooth kutafuta simu za wenzako wa timu walio karibu na kushiriki kazi nao.",
+    "localNetwork": "LangQuest hutumia mtandao wa karibu kushiriki kazi na simu za wenzako wa timu walio karibu."
   },
   "library": {
     "sourceLine": {

@@ -37,6 +37,7 @@ class BleFind(
 ) {
   interface Events {
     fun found(seen: Map<String, Any?>)
+    fun advert(heard: Map<String, Any?>)
     fun formSalt(salt: String, rssi: Int)
     fun salt(salt: String)
     fun failed(code: NearbyCode)
@@ -64,6 +65,7 @@ class BleFind(
   private var lastScanStart = 0L
   private val heardResponses = HashMap<String, String>()
   private val formSaltsAt = HashMap<String, Long>()
+  private val advertsAt = HashMap<String, Long>()
 
   private val rotate = Runnable { rotateNow() }
   private val restartScan = Runnable { restartScanNow() }
@@ -153,6 +155,7 @@ class BleFind(
     usedR.clear()
     heardResponses.clear()
     formSaltsAt.clear()
+    advertsAt.clear()
     saltHeld = false
     rotationDue = false
     rotating = false
@@ -384,6 +387,18 @@ class BleFind(
           ),
         )
         heardTeammate()
+      }
+      is Heard.Advert -> {
+        // The same advert, heard again and again with no response, tells JavaScript nothing new.
+        val saltText = Bytes.b64url(h.salt)
+        val now = SystemClock.elapsedRealtime()
+        val at = advertsAt[saltText]
+        if (at != null && now - at < (tune?.formSaltRepeatMs ?: 5_000)) return
+        if (advertsAt.size > 512) advertsAt.clear()
+        advertsAt[saltText] = now
+        events.advert(
+          mapOf("peer" to result.device.address, "salt" to saltText, "connectable" to result.isConnectable, "rssi" to result.rssi, "scan" to h.scan),
+        )
       }
       is Heard.FormSalt -> {
         val saltText = Bytes.b64url(h.salt)

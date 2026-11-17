@@ -368,7 +368,9 @@
   },
   "native": {
     "microphone": "يسجّل LangQuest صوتك لترجمة المقاطع.",
-    "camera": "يستخدم LangQuest الكاميرا لمسح رموز QR الخاصة بالدعوات."
+    "camera": "يستخدم LangQuest الكاميرا لمسح رموز QR الخاصة بالدعوات.",
+    "bluetooth": "يستخدم LangQuest تقنية Bluetooth للعثور على هواتف زملائك القريبة ومشاركة العمل معهم.",
+    "localNetwork": "يستخدم LangQuest الشبكة المحلية لمشاركة العمل مع هواتف زملائك القريبة."
   },
   "library": {
     "sourceLine": {

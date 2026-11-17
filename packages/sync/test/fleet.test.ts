@@ -175,6 +175,38 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
     for (const d of fleet.devices) expect((await d.client.inspect()).nearby, d.id).toBe(0);
   });
 
+  it('a mixed room of five, iPhones and Androids, shares nearby with no server, and after one trip to town every phone is the server\'s fold', async () => {
+    // Why: an iPhone's advert goes out alone (docs/nearby-sync-plan.md section 7, phase 5), so Androids know it by its
+    // salt, two iPhones need a tap and are tried once a salt, and the iPhone always connects to an Android. Whatever
+    // that leaves to chance, every phone must still end with every event and file the team made.
+    const town = FLEET_EPOCH + 2 * TIME.DAY + 9 * TIME.HOUR;
+    const fleet = new Fleet({
+      seed: 9, audio: { bytesPerSecond: 16_000 }, keepOnDisk: 'half',
+      nearby: { iphone: (d) => fleet.devices.indexOf(d) % 2 === 1, taps: true },
+      crew: { passages: 20, translators: 3, reviewers: 2, link: () => offlineBetween(FLEET_EPOCH + 2 * TIME.HOUR, town, always(NETWORKS.phone, 'phone')) }
+    });
+    await fleet.start();
+    const team = fleet.devices.slice(1);
+    expect(team.length).toBe(5);
+    for (let day = 0; day < 2; day++) {
+      await fleet.time.runUntil(FLEET_EPOCH + day * TIME.DAY + 17 * TIME.HOUR);
+      await fleet.nearby!.gather(team);
+      for (let i = 0; i < 360 && !fleet.nearby!.allStopped(team); i++) await fleet.runFor(10_000);
+      await fleet.nearby!.leave(team);
+    }
+    expect(fleet.nearby!.stats.eventsTaken).toBeGreaterThan(0);
+    expect(fleet.nearby!.stats.filesGot).toBeGreaterThan(0);
+    // Each kind of pair met: an iPhone with an Android, and two iPhones.
+    const opened = team.map((d) => fleet.nearby!.eventsOf(d).filter((e) => e.t === 'session').length);
+    expect(opened.every((n) => n > 0)).toBe(true);
+    // Two iPhones cannot check each other's echo, so someone tapped.
+    expect(team.some((d) => fleet.nearby!.eventsOf(d).some((e) => e.t === 'maybe'))).toBe(true);
+    const r = fleet.report(await fleet.settle(), 0);
+    expect(r.errors).toEqual([]);
+    expect(r.agreement).toMatchObject({ caughtUp: true, agree: true, disagree: [] });
+    for (const d of fleet.devices) expect((await d.client.inspect()).nearby, d.id).toBe(0);
+  });
+
   describe('delivery through a teammate (docs/nearby-sync-plan.md section 6, phase 4)', () => {
     const villageTeam = (seed: number) => new Fleet({
       seed, audio: { bytesPerSecond: 16_000 }, keepOnDisk: 'half', nearby: { delivery: true },

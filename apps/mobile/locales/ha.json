@@ -1,6 +1,8 @@
 {
   "ios": {
     "NSMicrophoneUsageDescription": "LangQuest yana naɗar muryarku don fassara nassosi.",
-    "NSCameraUsageDescription": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata."
+    "NSCameraUsageDescription": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata.",
+    "NSBluetoothAlwaysUsageDescription": "LangQuest yana amfani da Bluetooth don nemo wayoyin abokan aikinka na kusa da raba aiki da su.",
+    "NSLocalNetworkUsageDescription": "LangQuest yana amfani da cibiyar sadarwa ta gida don raba aiki da wayoyin abokan aikinka na kusa."
   }
 }

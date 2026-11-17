@@ -38,6 +38,15 @@ export const NEARBY_NETWORKS = {
 export interface FleetNearbyOptions {
   /** How often each open room is ticked and the air scanned (the app refreshes its scan response about every 2 s). */
   tickMs?: number;
+  /**
+   * These phones are iPhones (docs/nearby-sync-plan.md section 7, phase 5): an advert with no scan
+   * response, no Wi-Fi Direct or hotspot of their own, a plain client in an Android's group, and
+   * awdl between two of them. Their salts rotate as native's timer does, since a phone heard by its
+   * advert alone is tried again only under its next salt.
+   */
+  iphone?: (device: SimDevice) => boolean;
+  /** Each person taps "A teammate may be nearby" when it shows, as someone who sees the teammate beside them would. */
+  taps?: boolean;
   /** How long Wi-Fi Direct takes to come up once both sides agree to it. */
   wifiUpMs?: number;
   /** False keeps every session on Bluetooth, which moves no files. */
@@ -85,6 +94,10 @@ export interface NearbyStats {
 
 const DISCOVERY = base64urlEncode(fakeSha256(utf8Encode('fleet discovery key')));
 
+/** An iPhone's radio (phase 5): its advert goes out alone, and it hosts nothing an Android can join. */
+const IPHONE_CAPS = { scanResponse: false, directByName: false, hotspot: false, joinHotspot: true, awdl: true, joinDirect: true };
+const IPHONE_RADIOS = { directByName: false, band5: false, hotspot: false, joinHotspot: true };
+
 const FIND: FindTunables = { rotateMinMs: 240_000, rotateMaxMs: 360_000, scanStartGapMs: 6_000, scanRestartMs: 1_500_000, connectRetries: 2, connectable: 'always' };
 
 /** A native frame's sealed header and tag, beside its body. */
@@ -114,12 +127,13 @@ export class FleetNearby {
   private readonly phones = new Map<SimDevice, NearbyPhone>();
   private readonly open = new Set<NearbyPhone>();
   private ticker: unknown = null;
+  private rotateAt = 0;
   private readonly o: Required<FleetNearbyOptions>;
 
   constructor(private readonly ctx: FleetNearbyContext, options: FleetNearbyOptions = {}) {
     this.o = {
       tickMs: 2_000, wifiUpMs: 5_000, wifi: true, bluetooth: NEARBY_NETWORKS.bluetooth, wifiShape: NEARBY_NETWORKS.wifi,
-      budget: { ...NEARBY_BUDGET }, idleLimitMs: 300_000, delivery: false, ...options
+      budget: { ...NEARBY_BUDGET }, idleLimitMs: 300_000, delivery: false, iphone: () => false, taps: false, ...options
     };
     this.air = memoryNearbyAir({ time: ctx.time, files: this.shelf });
   }
@@ -144,7 +158,7 @@ export class FleetNearby {
       // Through the device, so a restarted app's client is the one asked.
       keep: nearbyKeepOf({ nearbyMeta: (k) => device.client.nearbyMeta(k), writeNearbyMeta: (r) => device.client.writeNearbyMeta(r) }, { orgId: this.ctx.orgId, streamId: this.ctx.streamId }),
       files: null as unknown as NearbyFileMoves,
-      radio: this.air.radio(device.id),
+      radio: this.radioFor(device),
       pipe: new LinkPipe(),
       keys: { gen: 1, key: DISCOVERY, floor: 1, direct: true, certOrgSeq: 0 },
       room: null,
@@ -155,6 +169,10 @@ export class FleetNearby {
     this.phones.set(device, phone);
   }
 
+  private radioFor(device: SimDevice): MemoryNearbyRadio {
+    return this.o.iphone(device) ? this.air.radio(device.id, IPHONE_CAPS) : this.air.radio(device.id);
+  }
+
   /** A newcomer's phone, with the chain its join granted, as `enrol` gives anyone else theirs (phase 6). */
   enrolWith(device: SimDevice, crypto: NearbyCrypto, chain: ChainLink[]): void {
     const phone: NearbyPhone = {
@@ -162,7 +180,7 @@ export class FleetNearby {
       signer: { publicKey: crypto.publicKey, sign: crypto.sign, sha256: crypto.sha256, chainFor: (actorId) => (actorId === device.actorId ? chain : null) },
       keep: nearbyKeepOf({ nearbyMeta: (k) => device.client.nearbyMeta(k), writeNearbyMeta: (r) => device.client.writeNearbyMeta(r) }, { orgId: this.ctx.orgId, streamId: this.ctx.streamId }),
       files: null as unknown as NearbyFileMoves,
-      radio: this.air.radio(device.id),
+      radio: this.radioFor(device),
       pipe: new LinkPipe(),
       keys: { gen: 1, key: DISCOVERY, floor: 1, direct: false, certOrgSeq: 0 },
       room: null,
@@ -279,6 +297,11 @@ export class FleetNearby {
       if (this.open.size === 0) return;
       this.ticker = time.setTimeout(turn, this.o.tickMs);
       void (async () => {
+        if (time.now() >= this.rotateAt) {
+          // Native's rotation timer, on iPhones only: the rest of the fleet keeps one salt a gathering, as it always has.
+          this.rotateAt = time.now() + FIND.rotateMinMs;
+          for (const phone of this.open) if (this.o.iphone(phone.device)) this.air.rotate(phone.device.id);
+        }
         this.air.scan();
         for (const phone of [...this.open]) {
           if (phone.room?.isRunning) await phone.room.tick(time.now());
@@ -292,10 +315,11 @@ export class FleetNearby {
     const { time } = this.ctx;
     const radio = this.shaped(phone);
     const directByName = this.o.wifi;
+    const iphone = this.o.iphone(phone.device);
     return new NearbyRoom({
       radio, crypto: phone.crypto, keys: () => phone.keys, facts: this.facts(phone),
       idleLimitMs: this.o.idleLimitMs, waitLimitMs: 1_800_000, stopWhenLevel: false,
-      radios: () => ({ directByName, band5: false, hotspot: false, joinHotspot: false }), find: FIND,
+      radios: () => (iphone ? { ...IPHONE_RADIOS, joinDirect: this.o.wifi, awdl: this.o.wifi } : { directByName, band5: false, hotspot: false, joinHotspot: false }), find: FIND,
       report: (e) => this.reported(phone, e),
       openSession: (args) => {
         const generations: NearbyGenerations = {
@@ -317,6 +341,7 @@ export class FleetNearby {
 
   private reported(phone: NearbyPhone, e: NearbyRoomEvent): void {
     phone.events.push(e);
+    if (e.t === 'maybe' && this.o.taps) phone.room?.tap(e.tag);
     if (e.t === 'session') phone.sessions += 1;
     if (e.t === 'session' && e.role === 'i') this.stats.pairings += 1;
     if (e.t !== 'ended') return;
@@ -454,13 +479,15 @@ export class FleetNearby {
       holdScan: (held) => radio.holdScan(held),
       holdSalt: (held) => radio.holdSalt(held),
       onFound: (h) => radio.onFound(h),
+      onAdvert: (h) => radio.onAdvert!(h),
       onFormSalt: (h) => radio.onFormSalt(h),
       onSalt: (h) => radio.onSalt(h),
       onPipe: (h) => radio.onPipe((pipe, salt) => h(wrap(pipe), salt)),
       openPipe: async (peer, salt, scan) => wrap(await radio.openPipe(peer, salt, scan)),
       host: async (kind, opts) => {
         const hosted = await radio.host(kind, opts);
-        return { ...hosted, link: hosted.link.then(wrap) };
+        const { nextLink } = hosted;
+        return { ...hosted, link: hosted.link.then(wrap), ...(nextLink ? { nextLink: () => nextLink.call(hosted).then(wrap) } : {}) };
       },
       join: async (kind, details) => {
         await time.sleep(this.o.wifiUpMs);
