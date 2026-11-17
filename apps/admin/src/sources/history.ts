@@ -145,3 +145,94 @@ export async function history(query: Query, part: string, range: Range): Promise
     throw e;
   }
 }
+
+// ---- the start page and the detail panel (migration 20261117143000_ops_detail.sql) ------------
+
+/**
+ * The one number each section's line on the start page draws over 14 days
+ * (pageOps.ts GROUPS). A section with none here (releases, stores, videos,
+ * the database's health) shows its state only, until its own picture comes.
+ */
+export const GLANCE: Readonly<Record<string, { part: string; metric: string }>> = {
+  userissues: { part: 'userissues', metric: 'looked_at_first' },
+  safety: { part: 'safety', metric: 'refused' },
+  phones: { part: 'clients', metric: 'errors' },
+  jobs: { part: 'jobs', metric: 'runs' },
+  traffic: { part: 'worker', metric: 'requests' },
+  storage: { part: 'capacity', metric: 'db_bytes' },
+  people: { part: 'people', metric: 'active_accounts' },
+  support: { part: 'support', metric: 'feedback' },
+  access: { part: 'integrations', metric: 'webhook_deliveries' }
+};
+
+export interface Glance {
+  step: 'day';
+  buckets: string[];
+  counted: boolean[];
+  series: { part: string; metric: string; agg: 'sum' | 'max'; values: (number | null)[] }[];
+}
+
+const array = (xs: readonly string[]): string => `{${xs.map((x) => `"${x}"`).join(',')}}`;
+const GLANCE_PAIRS = Object.values(GLANCE);
+export const GLANCE_SQL = `select diag.ops_glance($1::text[], $2::text[]) as v`;
+export const GLANCE_PARAMS = [array(GLANCE_PAIRS.map((g) => g.part)), array(GLANCE_PAIRS.map((g) => g.metric))];
+
+const MISSING = 'The database lacks the ops dashboard\'s detail functions: apply migration 20261117143000_ops_detail.sql.';
+
+/** The start page's 14 days of each section's number, in one call. */
+export async function glance(query: Query): Promise<Glance> {
+  try {
+    return await query<Glance>(GLANCE_SQL, GLANCE_PARAMS);
+  } catch (e) {
+    if (isMissing(e)) throw new Error(MISSING);
+    throw e;
+  }
+}
+
+export interface DetailAsk { part: string; metric: string; key: string; from: string; to: string; page: number }
+
+export interface Detail {
+  part: string; metric: string; key: string; from: string; to: string;
+  /** Where the rows come from; `totals` when there are none to show (past 90 days, or people). */
+  source: 'records' | 'job_runs' | 'cron' | 'feedback' | 'reports' | 'issues' | 'totals';
+  page: number;
+  more: boolean;
+  rows: Record<string, unknown>[];
+  note: string | null;
+}
+
+/** A bucket is at most a month: the widest bucket the page draws (All, by month). */
+const MAX_SPAN_MS = 32 * 24 * 3600 * 1000;
+
+/**
+ * What /ops/api/<part>/detail asks, checked before anything is read: a number
+ * the part has, a key no longer than the totals keep, a bucket from < to of
+ * at most a month, and a page from 0 to 1000. Returns an error to show
+ * instead, which names what is wrong.
+ */
+export function detailAsk(part: string, params: URLSearchParams): DetailAsk | { error: string } {
+  const metric = params.get('metric') ?? '';
+  if (!METRICS[part]?.[metric]) return { error: `metric is one of ${Object.keys(METRICS[part] ?? {}).join(', ') || 'none for this part'}` };
+  const key = params.get('key') ?? '';
+  if (key.length > 160) return { error: 'key is at most 160 characters' };
+  const from = Date.parse(params.get('from') ?? '');
+  const to = Date.parse(params.get('to') ?? '');
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from || to - from > MAX_SPAN_MS) {
+    return { error: 'from and to are times (ISO 8601), from before to, at most a month apart' };
+  }
+  const page = Number(params.get('page') ?? '0');
+  if (!Number.isInteger(page) || page < 0 || page > 1000) return { error: 'page is 0 to 1000' };
+  return { part, metric, key, from: new Date(from).toISOString(), to: new Date(to).toISOString(), page };
+}
+
+export const DETAIL_SQL = `select diag.ops_detail($1, $2, $3, $4::timestamptz, $5::timestamptz, $6::int) as v`;
+
+/** One page (50 rows) of the raw rows behind one bucket of one number. */
+export async function detail(query: Query, ask: DetailAsk): Promise<Detail> {
+  try {
+    return await query<Detail>(DETAIL_SQL, [ask.part, ask.metric, ask.key, ask.from, ask.to, ask.page]);
+  } catch (e) {
+    if (isMissing(e)) throw new Error(MISSING);
+    throw e;
+  }
+}
