@@ -13380,3 +13380,18 @@ cannot end a central's connection, so closing a pipe it serves drops it here
 and refuses further writes. An iPhone's own name, as set in Settings, is
 probably readable over GATT by anyone who connects, as Android's was before
 `setDiscoverable(false)`; the real-phone test checks it (plan section 11).
+
+Amended (2026-11-17, Carl Sauder): phase 5 merges before its real-phone
+test, not after it (plan answer 28, replacing answer 27). The test runs on
+the store builds the merge makes, from TestFlight and Play's internal testing
+as soon as each is built, before either store approves it. Only Carl's
+organization has nearby on in production, so only its phones can open Share
+nearby, and Android's nearby merged the same way (#403). What every other
+phone takes is the module linked into the app, which makes no Bluetooth
+manager and asks for nothing until Share nearby asks for Bluetooth or starts
+Find; the branch's app passed the phone smoke flows on the iPhone simulator
+and the Android emulator. Before the merge, the App Store's answers go in
+(`docs/app-store-declarations.md`: export compliance, App Privacy's Device
+ID, `nearby` on LangQuest Sample). The cost: a Swift or Kotlin fix the test
+finds needs another store build and review, not an update, and an App Review
+that cannot reach Share nearby may hold later iPhone builds.

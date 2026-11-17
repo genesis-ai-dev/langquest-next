@@ -102,7 +102,13 @@ the same way.
 | 24 | Should nearby sync reach phones below Android 10? | Not now. Production's diagnostics on 2026-11-16 held one install below Android 10, an Android 7 tablet, and none on 8 or 9, out of about ten real Android phones, most of them the team's and testers'. Answer 7 stands. Look again when field phones report. | Sections 5.8, 11 |
 | 25 | What do iPhones need first? | Sharing between an iPhone and an Android, and between two iPhones. Joining offline on an iPhone is optional and comes after them. | Section 7, phase 5 |
 | 26 | Two iPhones cannot see each other's echo without connecting. How does one start a session with the other? | One tap per opening, as answer 21: the iPhone shows "A teammate may be nearby", and one tap lets it connect to every teammate it cannot get an echo from, until the screen closes. | Section 7, phase 5 |
-| 27 | When does phase 5 merge? | On a draft pull request, after a real-phone test with iPhones and Androids, and not before. | Section 7, phase 5 |
+| 27 | When does phase 5 merge? | On a draft pull request, after a real-phone test with iPhones and Androids, and not before. Replaced by answer 28. | Section 7, phase 5 |
+
+**Carl's answer of 2026-11-17.** It overrides answer 27.
+
+| # | Question | Answer | Where |
+| --- | --- | --- | --- |
+| 28 | Must phase 5 wait for its real-phone test before it merges? | No. It merges once its checks pass and the App Store's answers are in (export compliance, App Privacy's Device ID, `nearby` on LangQuest Sample), and the real-phone test runs on the store builds it makes: TestFlight and Play's internal testing, as soon as each is built and before either store approves it. Only Carl's organization has nearby on in production, so only its phones can open Share nearby, and Android's nearby merged the same way (#403). A native fix the test finds costs another store build and review. | Section 7, phase 5 |
 
 ## 3. Why this fits the app
 
@@ -2740,7 +2746,8 @@ first real number comes from the branch APK.
 
 **Phase 5: iPhones.** After the first release. Sharing between an iPhone and an Android and
 between two iPhones comes first; joining offline on an iPhone is optional and comes last
-(Carl's answer 25), and nothing merges before a real-phone test with iPhones (answer 27).
+(Carl's answer 25). It merges before its real-phone test, which runs on the store builds
+(answer 28).
 The protocol stays at 1, so the carried file's name does not change: a new link kind is
 named in `arrange`'s radios, whose fields older phones drop when they do not know them
 (`nearbyWire.ts`), and a plan offers it only when both phones name it. What an iPhone can
@@ -2798,8 +2805,10 @@ do decides the design:
   iPhone in range still has something; the iPhone connects when it sees the summaries
   differ.
 
-1. **The real-phone test first,** with a throwaway dev build, since the simulator has no
-   Bluetooth. Its questions are in section 11, and its answers decide steps 2 to 5.
+1. **The real-phone test,** on the store builds after the merge (answer 28): TestFlight
+   and Play's internal testing, since the simulator has no Bluetooth. Its questions are in
+   section 11. Steps 2 to 7 were built before it, so what it finds is fixed after: by an
+   update in JavaScript, by another store build in Swift or Kotlin.
 2. Core and sync, which reach Androids by update: `onAdvert` and the `@` entries in
    `NearbyRoom`, with the tap that covers every such teammate and the salt order between two
    iPhones; `awdl` and `joinDirect` in the radios, `awdl` in `NearbyLink` and `host`, and
@@ -2847,9 +2856,10 @@ do decides the design:
    needs the same `REDUCER_VERSION` (decision 110), and with no carried build an iPhone runs
    the JavaScript of its last update, so this likely waits on section 14.3's fallback.
 
-**Phase 5's gate.** The real-phone test again, with iPhones: an iPhone with each kind of
-Android in the gate's list below, two iPhones, a mixed room of five, an iPhone behind on its
-generation meeting an Android ahead, and a disguised Android hosting for an iPhone.
+**Phase 5's gate.** The real-phone test again, with iPhones, on the store builds after the
+merge (answer 28): an iPhone with each kind of Android in the gate's list below, two
+iPhones, a mixed room of five, an iPhone behind on its generation meeting an Android ahead,
+and a disguised Android hosting for an iPhone.
 
 **Phase 6: joining offline.** Section 14: carried builds, join passes, the screen that
 lets someone in, the starting copy, the local person and the join route. Someone with

@@ -11,7 +11,9 @@ what App Store Connect shows, never from memory.
 
 **When the iPhone app changes what it collects, sends, asks permission for or
 shows, update this file and the matching App Store Connect answer in the same
-change**, as AGENTS.md asks for Play.
+change**, as AGENTS.md asks for Play. A merge into main sends the iPhone build
+to App Review by itself (decisions.md 157), so an answer a change needs goes
+in App Store Connect before that change merges.
 
 First filled in: 2026-11-16, Carl Sauder, with Claude.
 
