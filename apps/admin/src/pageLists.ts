@@ -456,6 +456,9 @@ svg.sq .zf { fill: var(--redbg); } svg.sq .zp { fill: var(--amberbg); }
 .lstbox svg.sq rect { cursor: pointer; }
 .lstbox .sqleg b { color: var(--ink); font-weight: 600; }
 .sqleg i.run { background: var(--primary); } .sqleg i.off { background: var(--grey); }
+details.numbers { margin: 4px 0 16px; } details.numbers > summary { display: inline-flex; align-items: center; min-height: 48px; padding: 0 16px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--primary); list-style: none; }
+details.numbers > summary::-webkit-details-marker { display: none; } details.numbers[open] > summary { margin-bottom: 8px; }
+details.numbers[open] .sn, details.numbers:not([open]) .hn { display: none; }
 .part-pic { margin: 8px 0 12px; } .part-pic .lstbox { width: fit-content; min-width: min(420px, 100%); max-width: 100%; }
 #detail details { border-bottom: 1px solid var(--line); padding: 6px 0; }
 #detail .tools a.button { display: inline-flex; align-items: center; text-decoration: none; }

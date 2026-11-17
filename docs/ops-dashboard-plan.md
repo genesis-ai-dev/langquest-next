@@ -238,6 +238,10 @@ the pictures keep working at tens of thousands of people and over years. So:
   time, installs by update, accounts by when they were last active), so the
   bar keeps its size at any count. The Supabase project draws a square for
   each service. A tap on a bar or a part opens its fields.
+- **Pictures first** (built with 5c4): in a section, each part's tables wait
+  behind one tap ("Show the numbers"), so a section reads as its charts and
+  pictures. A part that nothing draws (no picture, no line over time) keeps
+  its table open. An opened part stays open when the page refreshes.
 - **History** comes from totals by hour and day, never from raw records
   (section 7, phase 5): `diag.hourly`, `diag.daily` and `diag.monthly`, read by
   `GET /ops/api/<part>?range=`, built first (`docs/admin.md`, History).

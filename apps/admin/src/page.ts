@@ -450,12 +450,30 @@ function partHtml(g, id) {
   if (s.state === 'off') return head + '<p class="setup muted">Not connected. ' + esc(s.setup) + '</p>';
   if (s.state === 'error') return head + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
   try {
-    if (id === 'jobs') return head + renderJobs(s.data, results.container);
-    // A square for each item of a fixed list leads its part (pageLists.ts).
+    if (id === 'jobs') return head + numbers(id, renderJobs(s.data, results.container));
+    // A picture leads its part (pageLists.ts, pageMeters.ts); its numbers and tables wait behind one tap.
     const pic = listPicture(id, s.data);
-    return head + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+    const html = (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+    // A part that nothing draws (no picture, no line over time) keeps its table open.
+    return head + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + (pic || METRIC[id] ? numbers(id, html) : html);
   } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
 }
+
+/**
+ * A part's numbers and tables, closed until a tap opens them, so a section
+ * shows its pictures first (plan 5c); a part stays open through a refresh
+ * once opened.
+ */
+const openNumbers = new Set();
+function numbers(id, html) {
+  return '<details class="numbers" data-part="' + esc(id) + '"' + (openNumbers.has(id) ? ' open' : '') + '><summary><span class="sn">Show the numbers</span><span class="hn">Hide the numbers</span></summary>' + html + '</details>';
+}
+// toggle does not bubble, so it is caught on its way down.
+document.addEventListener('toggle', (e) => {
+  const d = e.target;
+  if (!d.matches || !d.matches('details.numbers')) return;
+  if (d.open) openNumbers.add(d.dataset.part); else openNumbers.delete(d.dataset.part);
+}, true);
 
 /** A part the database counts every 10 minutes (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md): when, and late past 25 minutes. */
 function counted(d) {

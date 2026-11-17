@@ -124,7 +124,7 @@ describe('meters and shares (plan 5c4)', () => {
 
   it('puts the drawing on the page with no inline style', async () => {
     const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
-    for (const f of ['function meterRows(', 'function meterSvg(', 'function shareSvg(']) expect(html).toContain(f);
+    for (const f of ['function meterRows(', 'function meterSvg(', 'function shareSvg(', 'function numbers(', 'Show the numbers']) expect(html).toContain(f);
     expect(html).not.toMatch(/ style="/);
   });
 });

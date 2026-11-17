@@ -515,6 +515,12 @@ slow-RPC rule), and `apps/admin/test/meters.test.ts` checks that each bar
 turns red or amber exactly when its alert does. A part whose rows are all
 shares sets `sum` in `LIST_SAID`: its head and legend count what it splits.
 
+In a section, a part's tables (`RENDER`, and the Jobs table with its Run now
+buttons) sit in a closed `details.numbers` ("Show the numbers") under its
+picture, so the section shows pictures first. A part with no picture and no
+history line (`METRIC`) shows its table open. The page remembers which parts
+are open while it refreshes.
+
 A tap on a bar or a point asks
 `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,
 decisions.md 255): the records behind that number in that bucket, 50 a page,
