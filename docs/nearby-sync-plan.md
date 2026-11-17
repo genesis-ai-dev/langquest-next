@@ -1028,7 +1028,9 @@ protocol version.
   56 pt targets, and words that wrap at 360 pt (decision 139). On the web and on iPhones,
   for now, it is absent, through a plain stub with `.android` files (`NearbyRow.tsx`,
   `NearbyRow.android.tsx`), as `AppIconRow` does, so those builds carry none of it. A
-  `.web` stub would still ship it on iPhones.
+  `.web` stub would still ship it on iPhones. Phase 5 moved the exchange's files to
+  `.native`, which iPhones and Androids share, so only the web is without it now; the
+  disguise, the install file and joining offline stay `.android` (section 7).
 - **Disabled, with a line saying why** (Carl's answer, 2026-11-06), on an Android phone
   below Android 10, or without Bluetooth LE or Wi-Fi Direct. `minSdk` is 24, and
   `WifiP2pConfig.Builder` is API 29, so the module ships on those phones and does nothing.
@@ -1273,7 +1275,8 @@ route, a QR code or a native callback, such as `idSalt`, a discovery key, a salt
 | worker | `apps/web/worker/nearby.ts`, `relay.ts` | `POST /api/nearby/certificate`, `POST /api/nearby/attest`, `POST /api/nearby/join`, `POST /api/relay`, written as literals so `server-calls` sees them. In phase 6, `GET /apk/*`. |
 
 `@langquest-next/sync/nearby` needs an exception at `eslint.config.mjs:32`, which refuses
-every package subpath from `apps/mobile/src`, and only `.android` files may import it. No
+every package subpath from `apps/mobile/src`, and only `.android` files may import it
+(since phase 5, `.native` and `.ios` files too: `nearbyOnPhones`). No
 app file imports a sync subpath on Metro today, so `expo export -p android` must prove it
 resolves. No `.rpc('known_events')` or `/api/...` text may appear in `apps/mobile/src` or
 `packages/sync/src`, even in a comment, before the migration or Worker route that defines
@@ -3140,6 +3143,8 @@ For iPhones (phase 5, section 7), answered by phase 5's own test:
 | How often does an iPhone change its Bluetooth address, and does stopping and starting the advert change it? | It says how far two salts can be linked on an iPhone (phase 5, Find). |
 | Between two iPhones, how long does `awdl` take to come up, and what does it deliver? | It is the only fast link between iPhones. |
 | How do the Bluetooth, Local Network and Wi-Fi prompts read, in what order do they come, and does Local Network's come back once refused? | Each needs a line before it, and a refused Local Network prompt stops every Wi-Fi link to an iPhone. |
+| Can a phone that connects to an iPhone's GATT service read the iPhone's own name (Generic Access, 0x2A00)? | It would name the person's phone to anyone who connects, as Android's did before `setDiscoverable(false)` (section 5.12). |
+| Does Core Bluetooth on an iPhone report an Android's advert and scan response as two service UUIDs and nothing else, and an iPhone's advert as one? | The Swift matcher refuses a record with a name or other data, as the Kotlin does, so a phone whose stack adds either would never be heard. |
 
 ## 12. Decisions this touches
 

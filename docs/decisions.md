@@ -13368,3 +13368,15 @@ from, since its one tap covers them all; a phone known only by its salt has
 no name and shows as "A teammate". An iPhone does not serve a newcomer's
 starting copy, which stays with joining offline on Android
 (`src/nearby/nearbyCopySource.ts` and `.android`).
+
+Amended (2026-11-16, Carl Sauder): the Swift (`apps/mobile/modules/nearby-link/ios`)
+differs from the Kotlin where an iPhone does. When Bluetooth goes off or is
+refused while Find runs it says so (`onFindError`, `BLUETOOTH_OFF` or
+`NO_PERMISSION`) and starts Find again under a new salt when Bluetooth comes
+back; the Android-only tunables (`advertiseInterval`, `scanMode`,
+`emptyScanFilter`, `connectable: 'after-hearing'`) are read and do nothing,
+since an iPhone's advert is always connectable; and an iPhone's GATT server
+cannot end a central's connection, so closing a pipe it serves drops it here
+and refuses further writes. An iPhone's own name, as set in Settings, is
+probably readable over GATT by anyone who connects, as Android's was before
+`setDiscoverable(false)`; the real-phone test checks it (plan section 11).
