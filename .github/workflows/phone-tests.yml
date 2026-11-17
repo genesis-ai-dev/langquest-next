@@ -87,6 +87,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # First, so a machine without KVM fails in a minute, not after the build.
       - name: Give the runner KVM (the emulator needs it)
+        id: kvm
         run: bash scripts/ci-android-emulator.sh --kvm
       - name: Make room on the disk (the stack, Gradle and the emulator need about 25 GB)
         run: |
@@ -133,31 +134,44 @@ jobs:
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Start the test server (local Supabase, the library, push delivery)
+        id: server
         run: bash scripts/ci-retry-pull.sh npm run db:start
       - name: Start the app's Worker on :8787 in the background
         run: (setsid nohup bash e2e/ui-web.sh 8787 > "$RUNNER_TEMP/worker.log" 2>&1 &)
+      # Starts it again, data wiped, when a start is not ready, and says why
+      # in why.txt when no start is (LAN-283).
       - name: Start the Android emulator
-        run: bash scripts/ci-android-emulator.sh "$RUNNER_TEMP/emulator.log"
+        id: emulator
+        run: bash scripts/ci-android-emulator.sh "$RUNNER_TEMP/emulator.log" "$RESULTS/why.txt"
       - name: Install Maestro
+        id: maestro
         run: |
           curl -fsSL https://get.maestro.mobile.dev | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Wait for the Worker
+        id: worker
         run: bash scripts/phone-tests-wait.sh worker "$RUNNER_TEMP/worker.log"
       - name: Install the app
+        id: install
         run: |
           adb install -r "${{ steps.build.outputs.app }}"
           mkdir -p "$RESULTS"
           printf '{"device":"Pixel 6","os":"Android %s"}\n' "$(adb shell getprop ro.build.version.release | tr -d '\r')" > "$RESULTS/device.json"
       - name: The phone flows
+        id: flows
         run: npm run test:ui:phone -- --platform android --device emulator-5554 --label nightly ${FLOW_TAGS:+--tags "$FLOW_TAGS"}
+      # Also the step that stopped the job, if one did, so the report says
+      # why no flow ran instead of only that none did (LAN-283).
       - name: Keep the logs
         if: always()
+        env:
+          STEPS: ${{ toJSON(steps) }}
         run: |
           mkdir -p "$RESULTS/logs"
           adb logcat -d > "$RESULTS/logs/logcat.txt" 2>/dev/null || true
-          cp "$RUNNER_TEMP"/worker.log "$RUNNER_TEMP"/emulator.log "$RESULTS/logs/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker.log "$RUNNER_TEMP"/emulator*.log "$RUNNER_TEMP"/emulator*.txt "$RESULTS/logs/" 2>/dev/null || true
           rm -f "$RESULTS/world.json"
+          node scripts/phone-tests.mjs stopped android "$RESULTS" || true
           node scripts/phone-tests.mjs safe-names "$RESULTS" || true
       - name: Keep the results
         if: always()
@@ -276,28 +290,36 @@ jobs:
         id: build
         run: node scripts/maestro-build.mjs --platform ios --build-only --abi arm64
       - name: Start the iPhone simulator
+        id: simulator
         run: bash scripts/phone-tests-wait.sh simulator "${{ steps.build.outputs.app }}" "$RESULTS/device.json"
       - name: Install Maestro
+        id: maestro
         run: |
           curl -fsSL https://get.maestro.mobile.dev | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Wait for the test server
+        id: wait-server
         run: bash scripts/phone-tests-wait.sh server "$SERVER"
       - name: Reach the test server through the tunnel
+        id: tunnel
         run: |
           url="$(node -p "require('$SERVER/tunnel.json').url")"
           (nohup node scripts/phone-tunnel.mjs connect --url "$url" > "$RUNNER_TEMP/tunnel.log" 2>&1 &)
           bash scripts/phone-tests-wait.sh local "$RUNNER_TEMP/tunnel.log"
           cp "$SERVER/world.json" "$RESULTS/world.json"
       - name: The phone flows
+        id: flows
         run: npm run test:ui:phone -- --platform ios --device "$UDID" --label nightly --reuse-world ${FLOW_TAGS:+--tags "$FLOW_TAGS"}
       - name: Keep the logs
         if: always()
+        env:
+          STEPS: ${{ toJSON(steps) }}
         run: |
           mkdir -p "$RESULTS/logs"
           cp "$RUNNER_TEMP"/tunnel.log "$RESULTS/logs/" 2>/dev/null || true
           [ -n "${UDID:-}" ] && xcrun simctl spawn "$UDID" log show --last 30m --style compact --predicate 'process == "LangQuestNext"' > "$RESULTS/logs/simulator.log" 2>/dev/null || true
           rm -f "$RESULTS/world.json"
+          node scripts/phone-tests.mjs stopped ios "$RESULTS" || true
           node scripts/phone-tests.mjs safe-names "$RESULTS" || true
       - name: Keep the results
         if: always()
