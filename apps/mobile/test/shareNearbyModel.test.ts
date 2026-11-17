@@ -4,7 +4,8 @@ import { originsOf, originWords } from '../src/nearby/nearbyHistoryModel';
 import { nearbyViewOf, NEARBY_RUN_START, type NearbyRunState, type NearbyView } from '../src/nearby/nearbyRunModel';
 import { NOTHING_TO_CARRY } from '../src/nearby/readyToCarryModel';
 import {
-  endedWords, linesShown, nearbyRowWords, PERMISSION_WORDS, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS, WHY_NOT_WORDS
+  connectHelp, endedWords, linesShown, nearbyRowWords, PERMISSION_WORDS, PHONE_WORDS, phoneWords, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS,
+  WHY_NOT_WORDS
 } from '../src/nearby/shareNearbyModel';
 
 // Share nearby's states (docs/nearby-sync-plan.md 5.8, section 8): tested through the model, since
@@ -17,7 +18,8 @@ const disguiseEn = JSON.parse(readFileSync(join(ROOT, 'src/disguise/i18n/en.json
 const has = (tree: Tree, key: string) => typeof key.split('.').reduce<Tree | string | undefined>((at, k) => (typeof at === 'object' ? at[k] : undefined), tree) === 'string';
 
 const view = (over: Partial<Omit<Parameters<typeof nearbyViewOf>[0], 'run'>> = {}, run: Partial<NearbyRunState> = {}): NearbyView => nearbyViewOf({
-  offered: true, whyNot: null, radiosOff: [], permissions: { state: 'granted', step: { t: 'ready' } }, worn: false, holding: 0, hold: true, carry: NOTHING_TO_CARRY,
+  offered: true, iphone: false, tapCoversAll: false, whyNot: null, radiosOff: [], permissions: { state: 'granted', step: { t: 'ready' } }, worn: false, holding: 0, hold: true,
+  carry: NOTHING_TO_CARRY,
   ...over, run: { ...NEARBY_RUN_START, ...run }
 });
 
@@ -98,6 +100,38 @@ describe('Share nearby\'s states', () => {
     expect(linesShown([line])).toEqual([]);
     expect(linesShown([line, { ...line, profileId: 'sam', how: 'done' }, { ...line, eventsIn: 2 }]).map((l) => l.profileId ?? l.eventsIn)).toEqual([2, 'sam']);
     expect(teammatesShown([{ tag: 'a', key: null, profileId: null, older: false, state: 'missed' }, { tag: 'b', key: null, profileId: null, older: false, state: 'maybe' }]).map((m) => m.tag)).toEqual(['b']);
+  });
+});
+
+describe('Share nearby on an iPhone (section 7, phase 5)', () => {
+  const iphone = { iphone: true, tapCoversAll: true };
+  const words = (tree: Tree, key: string) => key.split('.').reduce<Tree | string | undefined>((at, k) => (typeof at === 'object' ? at[k] : undefined), tree) as string;
+
+  it("says why before the Bluetooth prompt, and sends a refusal to the settings in the iPhone's words", () => {
+    const explain = { t: 'explain' as const, reason: 'bluetooth' as const, permissions: ['BLUETOOTH' as const] };
+    expect(stageOf(view({ ...iphone, permissions: { state: 'needed', step: explain } }))).toEqual({ t: 'permission', reason: 'bluetooth', permissions: ['BLUETOOTH'] });
+    expect(stageOf(view({ ...iphone, permissions: { state: 'blocked', step: { t: 'settings' } } }))).toEqual({ t: 'settings' });
+    expect(phoneWords(view(iphone))).toBe(PHONE_WORDS.iphone);
+    expect(phoneWords(view())).toBe(PHONE_WORDS.android);
+  });
+
+  it('never names Android, the install file or giving a new person the app, in English', () => {
+    const shown = [...Object.values(PHONE_WORDS.iphone), PERMISSION_WORDS.bluetooth, connectHelp(view(iphone))];
+    expect(shown.filter((k) => !has(en, k))).toEqual([]);
+    for (const k of shown) expect(words(en, k), k).not.toMatch(/Android|install file|new person|Wi-Fi Direct/);
+    // Android keeps its own.
+    for (const k of Object.values(PHONE_WORDS.android)) expect(has(en, k), k).toBe(true);
+    expect(words(en, PHONE_WORDS.android.settings)).toMatch(/Android/);
+  });
+
+  it('shows one "A teammate may be nearby" for every teammate without an echo, since one tap covers them all', () => {
+    const maybe = (tag: string) => ({ tag, key: null, profileId: null, older: false, state: 'maybe' as const });
+    const here = { tag: 't1', key: 'K1', profileId: 'sam', older: false, state: 'here' as const };
+    const teammates = [maybe('@salt1'), here, maybe('@salt2'), maybe('t3')];
+    expect(teammatesShown(teammates, true).map((m) => m.tag)).toEqual(['@salt1', 't1']);
+    expect(teammatesShown(teammates).map((m) => m.tag)).toEqual(['@salt1', 't1', '@salt2', 't3']);
+    expect(connectHelp(view(iphone))).toBe('nearby.connectHelpAll');
+    expect(connectHelp(view())).toBe('nearby.connectHelp');
   });
 });
 

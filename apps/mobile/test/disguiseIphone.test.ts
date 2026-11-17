@@ -1,7 +1,8 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, relative } from 'node:path';
+import { join } from 'node:path';
 import ts from 'typescript';
+import { iphoneFiles } from './iphoneBundle';
 
 // An iPhone build has no disguise (decisions.md 171, amended 2026-11-03 and
 // 2026-11-05). Apple refused build 48 twice under App Review Guideline
@@ -15,7 +16,7 @@ import ts from 'typescript';
 const ROOT = join(import.meta.dirname, '..');
 const read = (file: string) => readFileSync(join(ROOT, file), 'utf8');
 const app = JSON.parse(read('app.json')) as { expo: { plugins: (string | [string, unknown])[] } & Record<string, unknown> };
-const pkg = JSON.parse(read('package.json')) as { main: string; expo?: { autolinking?: { ios?: { exclude?: string[] } } } };
+const pkg = JSON.parse(read('package.json')) as { expo?: { autolinking?: { ios?: { exclude?: string[] } } } };
 const load = createRequire(import.meta.url);
 const plugin = load('../plugins/withAndroidAppIcons.js') as ((config: object) => { mods?: Record<string, Record<string, unknown>> }) & { ICONS: Record<string, unknown>[] };
 
@@ -26,43 +27,6 @@ const DISGUISE = /disguis|calculat|notepad|notes[1-5]\b/i;
 function embeddedConfig(): string {
   const dynamic = load('../app.config.js') as (args: { config: object }) => object;
   return JSON.stringify(dynamic({ config: app.expo }));
-}
-
-const EXTS = ['ts', 'tsx', 'js', 'jsx', 'json'];
-/** A file as Metro finds it for an iPhone: `x.ios.ts` before `x.native.ts` before `x.ts`, then `x/index`. */
-function resolveIos(from: string, spec: string): string | null {
-  const base = join(dirname(from), spec);
-  if (existsSync(base) && statSync(base).isFile()) return base;
-  for (const stem of [base, join(base, 'index')]) {
-    for (const ext of EXTS) for (const platform of ['.ios', '.native', '']) {
-      const file = `${stem}${platform}.${ext}`;
-      if (existsSync(file)) return file;
-    }
-  }
-  return null;
-}
-
-const SPEC = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)'(\.{1,2}\/[^']+)'/g;
-
-/** Every file of the app an iPhone build bundles, from package.json's main through each relative import. */
-function iphoneFiles(): string[] {
-  const seen = new Set<string>();
-  const queue = [join(ROOT, pkg.main)];
-  while (queue.length) {
-    const file = queue.pop()!;
-    if (seen.has(file)) continue;
-    seen.add(file);
-    if (!/\.[jt]sx?$/.test(file)) continue;
-    // Types are not bundled: `import type` and `export type` bring in nothing.
-    const body = readFileSync(file, 'utf8').replace(/^(?:import|export) type [^;]*;/gm, '');
-    for (const m of body.matchAll(SPEC)) {
-      const found = resolveIos(file, m[1]!);
-      if (found) queue.push(found);
-      else if (!/\.(png|jpe?g|svg|ttf|otf|mp3|m4a|wav|webp|gif)$/.test(m[1]!)) throw new Error(`${relative(ROOT, file)}: cannot find ${m[1]}`);
-      else seen.add(join(dirname(file), m[1]!));
-    }
-  }
-  return [...seen].map((f) => relative(ROOT, f)).sort();
 }
 
 /** A file's code without its comments, which the bundle leaves out: its names, strings and JSX text. */
@@ -79,7 +43,7 @@ function codeWords(file: string): string[] {
 }
 
 describe('an iPhone build has no disguise', () => {
-  const files = iphoneFiles();
+  const files = iphoneFiles(ROOT);
 
   it("does not run expo-alternate-app-icons' own plugin, whose iOS steps put the icons in the app", () => {
     const names = app.expo.plugins.map((p) => (Array.isArray(p) ? p[0] : p));

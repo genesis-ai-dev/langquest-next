@@ -15,8 +15,8 @@ area: `auth`, `account`, `invites`, `library`, `languages`, `moderation`,
 streams use), `reachability` (whether the server answers, decision 166),
 `blobTransport`, and for nearby sync (decisions.md 217 to 223) `nearby` (the
 Worker's certificate and attestation routes), `nearbyKey` (the install key,
-Android only behind `nearbyKey.android.ts`), `nearbySecrets` (the
-Keystore names, and each person's discovery keys, which `lock` seals),
+a phone's only behind `nearbyKey.native.ts`), `nearbySecrets` (the
+Keystore and Keychain names, and each person's discovery keys, which `lock` seals),
 `localPerson` (joining offline's local person, kept outside any session,
 Android only behind `localPerson.android.ts`), and `carriedApk` (the Worker
 address of the carried build's install file, which Get the install file

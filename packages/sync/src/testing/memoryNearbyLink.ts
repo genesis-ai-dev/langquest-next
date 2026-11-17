@@ -3,7 +3,7 @@ import { type AnyEvent, type Privilege } from '@langquest-next/core';
 import {
   attestationText, base64urlEncode, bytesToHex, eventDigest, linkText, nearbyBytes, signJoinPass, utf8Encode, type Attestation, type ChainLink, type ChainOrg, type JoinPass, type WorkerLink
 } from '@langquest-next/core/nearby';
-import type { FindTunables, HostDetails, HostOptions, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from '../nearbyLink';
+import type { FindTunables, HeardAdvert, HostDetails, HostOptions, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from '../nearbyLink';
 import { NEARBY_MESSAGE_MAX } from '../nearbyLink';
 import type { Message } from '../nearbyWire';
 import { OfflineError } from '../types';
@@ -349,9 +349,11 @@ export function memoryNearbyPair(o: MemoryNearbyPairOptions): MemoryNearbyPair {
 
 // ---- the radio --------------------------------------------------------------------
 
-type HostKind = 'wifi-direct' | 'hotspot';
+type HostKind = 'wifi-direct' | 'hotspot' | 'awdl';
 
 export interface MemoryRadioKnobs {
+  /** An Android on older native code: an advert heard alone, with no scan response, goes nowhere (phase 5). */
+  noAdvertAlone?: boolean;
   /** `host` rejects for these kinds. */
   hostFails?: HostKind[];
   /** `join` never brings the link up for these kinds, so only the deadline moves on. */
@@ -432,6 +434,7 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
     salt: string | null;
     usedR: Set<string>;
     found: Set<(seen: SeenPhone) => void>;
+    advert: Set<(heard: HeardAdvert) => void>;
     formSalt: Set<(salt: string, rssi?: number) => void>;
     onSalt: Set<(salt: string) => void>;
     onPipe: Set<(pipe: NearbyLink, salt: string) => void>;
@@ -457,7 +460,11 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
   const hear = (listener: MemoryRadioState, advert: MemoryAdvert) => {
     if (!listener.find || listener.scanHeld || listener.radio.name === advert.peer) return;
     const scan = listener.find.scanKeys.findIndex((k) => sameKey(k, advert.kFind));
-    if (scan >= 0) for (const h of listener.found) h(seenOf(advert, scan));
+    // An iPhone's advert goes out with no scan response (phase 5): a listener matches it by the advert alone.
+    const alone = radios.get(advert.peer)?.caps.scanResponse === false;
+    if (scan >= 0 && alone) {
+      if (!listener.knobs.noAdvertAlone) for (const h of listener.advert) h({ peer: advert.peer, salt: advert.salt, connectable: true, rssi: -50, scan });
+    } else if (scan >= 0) for (const h of listener.found) h(seenOf(advert, scan));
     else for (const h of listener.formSalt) h(advert.salt, -50);
   };
   const advertOf = (state: MemoryRadioState): MemoryAdvert | null =>
@@ -473,7 +480,7 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
     radio(name, caps = {}, knobs = {}) {
       const calls = { startFind: 0, updateFind: 0, stopFind: 0, stopAll: 0, openPipe: 0, takeDown: 0 };
       const state = {
-        caps: { ...NO_CAPS, ...caps }, knobs, find: null, salt: null, usedR: new Set(), found: new Set(), formSalt: new Set(), onSalt: new Set(), onPipe: new Set(),
+        caps: { ...NO_CAPS, ...caps }, knobs, find: null, salt: null, usedR: new Set(), found: new Set(), advert: new Set(), formSalt: new Set(), onSalt: new Set(), onPipe: new Set(),
         scanHeld: false, saltHeld: false, rotationDue: false
       } as unknown as MemoryRadioState;
       const radio: MemoryNearbyRadio = {
@@ -518,6 +525,7 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
           }
         },
         onFound: (h) => listen(state.found, h),
+        onAdvert: (h) => listen(state.advert, h),
         onFormSalt: (h) => listen(state.formSalt, h),
         onSalt: (h) => listen(state.onSalt, h),
         onPipe: (h) => listen(state.onPipe, h),
@@ -566,8 +574,8 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
             groups.delete(ssid);
             settle();
           };
-          // Only a hotspot hands up every connection: its server is not bound to its own network.
-          return { kind, ssid, passphrase: opts.passphrase ?? 'system-chosen', link, ...(kind === 'hotspot' ? { nextLink: next } : {}), onRefused: () => () => undefined, takeDown };
+          // Only a hotspot and awdl hand up every connection: neither's server is bound to a network of its own.
+          return { kind, ssid, passphrase: opts.passphrase ?? 'system-chosen', link, ...(kind !== 'wifi-direct' ? { nextLink: next } : {}), onRefused: () => () => undefined, takeDown };
         },
         async join(kind, details: HostDetails) {
           const group = details.ssid === undefined ? undefined : groups.get(details.ssid);

@@ -2,6 +2,7 @@
   "nearby": {
     "experimental": "Na gwaji",
     "intro": "Yana aiki ba tare da intanet ba: sabunta wayoyin abokan aiki, ko ka ba sabon mutum manhajar ka bar shi ya shiga tawagar.",
+    "introTeammates": "Yana aiki ba tare da intanet ba: sabunta wayoyin abokan aiki.",
     "withTeammates": "Tare da abokan aiki",
     "withTeammatesLine": "Wayoyin da tuni suke da LangQuest suna sabunta juna. Ka bar wannan a buɗe har sai ya ce Komai sabo ne.",
     "newPerson": "Sabon mutum",
@@ -33,9 +34,12 @@
       "nearbyAndLocation": "Android za ta tambaya sau biyu: don nemo na'urorin da ke kusa, sannan don wuri, wanda Wi-Fi Direct ke buƙata. LangQuest ba ya rubuta inda kake.",
       "nearbyDevices": "Android za ta nemi ka bar LangQuest ya nemo kuma ya haɗa da na'urorin da ke kusa. Yana amfani da wannan ne kawai yayin da wannan shafin yake a buɗe.",
       "precise": "Android ta ba da wuri na kusan-kusan kawai, amma Wi-Fi Direct yana buƙatar ainihin wuri don haɗawa. Har yanzu LangQuest ba ya rubuta inda kake.",
+      "bluetooth": "iPhone ɗinka za ta nemi ka bar LangQuest ya yi amfani da Bluetooth don nemo wayoyin abokan aiki. Yana amfani da wannan ne kawai yayin da wannan shafin yake a buɗe. Idan wayoyin suka haɗu, za ta iya kuma neman izinin nemo na'urori a cibiyar sadarwarka ta gida da kuma shiga Wi-Fi na abokin aiki. Ka ba da izinin waɗannan ma, don naɗe-naɗe su iya wucewa.",
       "settings": "Android ba za ta sake tambaya ba. Buɗe saitunan wannan manhaja, sannan Izini, ka ba da izinin Na'urorin da ke kusa ko Wuri.",
+      "settingsIphone": "iPhone ɗinka ba za ta sake tambaya ba. Buɗe saitunan wannan manhaja ka kunna Bluetooth, da kuma Local Network idan yana nan.",
       "allow": "Ci gaba",
       "allowHelp": "Yana nuna tambayar Android. Zaɓi Ba da izini don rabawa da abokan aiki na kusa.",
+      "allowHelpIphone": "Yana nuna tambayar iPhone ɗinka. Zaɓi Ba da izini (Allow) don rabawa da abokan aiki na kusa.",
       "openSettings": "Buɗe saituna",
       "openSettingsHelp": "Yana buɗe shafin wannan manhaja a saitunan wayarka, inda za ka iya ba ta izini."
     },
@@ -65,6 +69,7 @@
     },
     "connect": "Haɗa",
     "connectHelp": "Yana haɗawa da wannan waya. Yi amfani da shi idan abokin aiki yana kusa amma wayoyin ba su sami juna ba.",
+    "connectHelpAll": "Yana haɗawa da duk wayoyin abokan aiki na kusa da ba su sami wannan ba. Taɓawa ɗaya ta isa ga duka har sai ka bar wannan shafin.",
     "came": {
       "title": "Abin da aka yi musaya",
       "changesIn": "Canje-canjen da aka karɓa: {{n}}",
@@ -84,6 +89,7 @@
     },
     "clockOff": "Agogon wani abokin aiki da na wannan waya sun bambanta da fiye da minti biyar. Duba kwanan wata da lokaci a wayoyin biyu.",
     "newerApp": "Wayar wani abokin aiki tana buƙatar sabuwar sigar manhajar kafin ta raba da wannan. Sabunta manhajar daga shago, ko ka karɓi sabuwar sigar daga abokin aiki.",
+    "newerAppIphone": "Wayar wani abokin aiki tana buƙatar sabuwar sigar manhajar kafin ta raba da wannan. Sabunta manhajar daga shago.",
     "apkOld": "Fayil ɗin girkawa da ka samu na tsohuwar sigar ne. Ka samu sabon kafin ka rasa intanet.",
     "tooOld": "Wannan manhaja ta tsufa da yawa don rabawa. Sabunta ta daga shago.",
     "farAhead": "Wayar {{name}} tana da kwanan wata mai nisa a nan gaba. Aikinsu zai jira har sai ya iso sabar.",

@@ -1,6 +1,8 @@
 {
   "ios": {
     "NSMicrophoneUsageDescription": "Nire-record ng LangQuest ang iyong boses para isalin ang mga sipi.",
-    "NSCameraUsageDescription": "Ginagamit ng LangQuest ang camera para i-scan ang mga QR code ng imbitasyon."
+    "NSCameraUsageDescription": "Ginagamit ng LangQuest ang camera para i-scan ang mga QR code ng imbitasyon.",
+    "NSBluetoothAlwaysUsageDescription": "Ginagamit ng LangQuest ang Bluetooth para hanapin ang telepono ng iyong mga kasamahang malapit at makapagbahagi ng gawain sa kanila.",
+    "NSLocalNetworkUsageDescription": "Ginagamit ng LangQuest ang local network para makapagbahagi ng gawain sa telepono ng iyong mga kasamahang malapit."
   }
 }

@@ -15,7 +15,7 @@ import {
   askReason, certificateAnswerOf, chainsForOrgs, findKeysAfterAnswer, findKeysForOrgs, holdChoiceOf, languagesToName, membershipMarkOf, nearbyOrgsOf,
   parseAskRecord, parseFindKeys, passesForOrgs, type AskRecord, type FindKeys, type HeldChains, type HeldPass
 } from './nearbyModel';
-import { forgetAllChains, keepChains, keepPasses, keepRevoked, readChains, readPasses, readRevoked, ROOT_KEYS } from './nearbyPhone.android';
+import { forgetAllChains, keepChains, keepPasses, keepRevoked, readChains, readPasses, readRevoked, ROOT_KEYS } from './nearbyPhone.native';
 
 /**
  * A phone's nearby identity, kept current after each organization pull (docs/nearby-sync-plan.md

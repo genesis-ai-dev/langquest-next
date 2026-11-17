@@ -2,6 +2,7 @@
   "nearby": {
     "experimental": "Sinusubukan pa",
     "intro": "Gumagana nang walang internet: gawing napapanahon ang telepono ng mga kasamahan, o bigyan ng app ang isang bagong tao at pasalihin siya sa pangkat.",
+    "introTeammates": "Gumagana nang walang internet: gawing napapanahon ang telepono ng mga kasamahan.",
     "withTeammates": "Kasama ang mga kasamahan",
     "withTeammatesLine": "Nagpapanahon sa isa't isa ang mga teleponong may LangQuest na. Panatilihin itong bukas hanggang sabihin nitong Napapanahon.",
     "newPerson": "Isang bagong tao",
@@ -33,9 +34,12 @@
       "nearbyAndLocation": "Dalawang beses magtatanong ang Android: para maghanap ng mga device sa malapit, saka para sa lokasyon, na kailangan ng Wi-Fi Direct. Hindi itinatala ng LangQuest kung nasaan ka.",
       "nearbyDevices": "Hihilingin ng Android na payagan ang LangQuest na maghanap at kumonekta sa mga device sa malapit. Ginagamit lang ito habang bukas ang screen na ito.",
       "precise": "Tinatayang lokasyon lang ang ibinigay ng Android, at kailangan ng Wi-Fi Direct ang eksaktong lokasyon para kumonekta. Hindi pa rin itinatala ng LangQuest kung nasaan ka.",
+      "bluetooth": "Hihilingin ng iyong iPhone na payagan ang LangQuest na gumamit ng Bluetooth para hanapin ang telepono ng mga kasamahan. Ginagamit lang ito habang bukas ang screen na ito. Kapag nagkonekta ang mga telepono, maaari rin itong humingi ng pahintulot na maghanap ng mga device sa iyong local network at sumali sa Wi-Fi ng isang kasamahan. Payagan din ang mga iyon, para makalipat ang mga rekording.",
       "settings": "Hindi na magtatanong ulit ang Android. Buksan ang settings ng app na ito, saka ang Mga Pahintulot, at payagan ang Mga kalapit na device o Lokasyon.",
+      "settingsIphone": "Hindi na magtatanong ulit ang iyong iPhone. Buksan ang settings ng app na ito at i-on ang Bluetooth, pati ang Local Network kung naroon.",
       "allow": "Magpatuloy",
       "allowHelp": "Ipinapakita ang tanong ng Android. Piliin ang Payagan para makapagbahagi sa mga kasamahang malapit.",
+      "allowHelpIphone": "Ipinapakita ang tanong ng iyong iPhone. Piliin ang Payagan (Allow) para makapagbahagi sa mga kasamahang malapit.",
       "openSettings": "Buksan ang Settings",
       "openSettingsHelp": "Binubuksan ang pahina ng app na ito sa settings ng iyong telepono, kung saan mo ito mapapayagan."
     },
@@ -65,6 +69,7 @@
     },
     "connect": "Kumonekta",
     "connectHelp": "Kumokonekta sa teleponong ito. Gamitin kapag may kasamahang malapit pero hindi pa nagkakahanapan ang mga telepono.",
+    "connectHelpAll": "Kumokonekta sa lahat ng telepono ng mga kasamahang malapit na hindi pa nakakahanap sa teleponong ito. Sapat ang isang tap para sa lahat hanggang umalis ka sa screen na ito.",
     "came": {
       "title": "Ang naipasa",
       "changesIn": "Mga pagbabagong natanggap: {{n}}",
@@ -84,6 +89,7 @@
     },
     "clockOff": "Mahigit limang minuto ang pagkakaiba ng orasan sa telepono ng isang kasamahan at sa teleponong ito. Tingnan ang petsa at oras sa parehong telepono.",
     "newerApp": "Kailangan ng telepono ng isang kasamahan ang mas bagong bersiyon ng app para makapagbahagi sa teleponong ito. I-update ang app mula sa store, o kunin ang mas bagong bersiyon mula sa isang kasamahan.",
+    "newerAppIphone": "Kailangan ng telepono ng isang kasamahan ang mas bagong bersiyon ng app para makapagbahagi sa teleponong ito. I-update ang app mula sa store.",
     "apkOld": "Para sa lumang bersiyon ang install file na nakuha mo. Kunin ang bago bago ka mawalan ng internet.",
     "tooOld": "Masyadong luma ang app na ito para makapagbahagi. I-update ito mula sa store.",
     "farAhead": "Malayo sa hinaharap ang petsa sa telepono ni {{name}}. Maghihintay ang kanilang gawa hanggang makarating ito sa server.",

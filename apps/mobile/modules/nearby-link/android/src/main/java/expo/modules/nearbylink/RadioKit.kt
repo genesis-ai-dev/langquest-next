@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicLong
 /** What the radios tell JavaScript, through the module's events. */
 interface RadioEvents {
   fun found(seen: Map<String, Any?>)
+  fun advert(heard: Map<String, Any?>)
   fun formSalt(salt: String, rssi: Int)
   fun salt(salt: String)
   fun pipe(linkId: String, salt: String)
@@ -80,6 +81,7 @@ class RadioKit(
 
   private val find = BleFind(context, handler, pipes, object : BleFind.Events {
     override fun found(seen: Map<String, Any?>) = events.found(seen)
+    override fun advert(heard: Map<String, Any?>) = events.advert(heard)
     override fun formSalt(salt: String, rssi: Int) = events.formSalt(salt, rssi)
     override fun salt(salt: String) = events.salt(salt)
     override fun failed(code: NearbyCode) = events.findError(code)

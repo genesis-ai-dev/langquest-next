@@ -474,8 +474,8 @@ team's own data. That
 is mass-market encryption of the kind the US Export Administration
 Regulations treat under 5D992.c; the developer must confirm that
 classification, and whether a self-classification report is due, before the
-build with it goes to review. iPhone builds carry none of the module, so
-`ITSAppUsesNonExemptEncryption` stays `false` until phase 5 looks again.
+build with it goes to review. From phase 5 iPhones carry the same protocol;
+Apple's side of it is in `docs/app-store-declarations.md`, "Encryption".
 
 ## Store listing
 

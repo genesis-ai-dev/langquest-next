@@ -1,13 +1,13 @@
 import { OfflineError } from '@langquest-next/sync';
-import type { FindTunables, HostDetails, HostOptions, NearbyCapabilities, NearbyLink, NearbyRadio, SeenPhone } from '@langquest-next/sync/nearby';
+import type { FindTunables, HeardAdvert, HostDetails, HostOptions, NearbyCapabilities, NearbyLink, NearbyRadio, SeenPhone } from '@langquest-next/sync/nearby';
 import {
-  NEARBY_DROP_CODES, nearbyCodeOf, nearbyLinkNative, type NativeCapabilities, type NativeHosted, type NativeSeenPhone, type NearbyLinkEvents, type NearbyLinkNative,
-  type NearbyNativeCode
+  NEARBY_DROP_CODES, nearbyCodeOf, nearbyLinkNative, type NativeCapabilities, type NativeHeardAdvert, type NativeHosted, type NativeSeenPhone, type NearbyLinkEvents,
+  type NearbyLinkNative, type NearbyNativeCode
 } from '../../modules/nearby-link';
 
 /**
- * The nearby module on an Android phone as sync's `NearbyRadio` and `NearbyLink`
- * (docs/nearby-sync-plan.md 5.9, 5.12). Mechanism only: what to trust and when to connect is
+ * The nearby module on an Android phone or an iPhone as sync's `NearbyRadio` and `NearbyLink`
+ * (docs/nearby-sync-plan.md 5.9, 5.12, and section 7's phase 5). Mechanism only: what to trust and when to connect is
  * the room's and the session's. Every call that fails with a code saying the link went
  * (`NEARBY_DROP_CODES`) rejects with sync's `OfflineError`, as the contract says; any other
  * code rejects with a `NearbyNativeError` naming it, so diagnostics and the screen can tell a
@@ -38,7 +38,7 @@ export interface PhoneRadio extends NearbyRadio {
   facts(): Promise<NativeCapabilities>;
   /** Find failed natively (Bluetooth off, advertising refused): the code, never a key or address. */
   onFindError(hear: (code: NearbyNativeCode) => void): () => void;
-  /** A hotspot join is under way: its system dialog takes the app to the background, which is not leaving (5.8). */
+  /** A join with a system dialog is under way (a hotspot, or any network on an iPhone): the dialog takes the app to the background, which is not leaving (5.8). */
   joiningHotspot(): boolean;
 }
 
@@ -86,11 +86,28 @@ function seenOf(e: NativeSeenPhone): SeenPhone {
   return seen;
 }
 
+function advertOf(e: NativeHeardAdvert): HeardAdvert {
+  const heard: HeardAdvert = { peer: e.peer, salt: e.salt, connectable: e.connectable, scan: e.scan };
+  if (typeof e.rssi === 'number') heard.rssi = e.rssi;
+  return heard;
+}
+
 function capabilitiesOf(c: NativeCapabilities): NearbyCapabilities {
   return {
     sdk: c.sdk, advertise: c.advertise, directByName: c.directByName, band5: c.band5, hotspot: c.hotspot, joinHotspot: c.joinHotspot,
-    bluetoothOn: c.bluetoothOn, wifiOn: c.wifiOn, locationOn: c.locationOn
+    bluetoothOn: c.bluetoothOn, wifiOn: c.wifiOn, locationOn: c.locationOn,
+    ...(typeof c.scanResponse === 'boolean' ? { scanResponse: c.scanResponse } : {}),
+    ...(typeof c.awdl === 'boolean' ? { awdl: c.awdl } : {}),
+    ...(typeof c.joinDirect === 'boolean' ? { joinDirect: c.joinDirect } : {})
   };
+}
+
+/**
+ * A join that shows a system dialog: a hotspot on any phone, and any network on an iPhone
+ * (`NEHotspotConfiguration`), which alone says `joinDirect`; awdl asks nothing.
+ */
+function asksToJoin(kind: 'wifi-direct' | 'hotspot' | 'awdl', iphone: boolean): boolean {
+  return kind === 'hotspot' || (kind === 'wifi-direct' && iphone);
 }
 
 function hostDetailsOf(h: NativeHosted): HostDetails {
@@ -135,6 +152,13 @@ export function nearbyRadioOver(native: NearbyBinding, options: Partial<NearbyRa
   /** Each link this phone holds, and the code it went down with, if it did. */
   const links = new Map<string, { down: NearbyNativeCode | null }>();
   let joining = 0;
+  /** Only an iPhone's module says `joinDirect`; the room reads the capabilities before any join. */
+  let iphone = false;
+  const read = async (): Promise<NativeCapabilities> => {
+    const c = await native.capabilities();
+    iphone = c.joinDirect === true;
+    return c;
+  };
 
   native.addListener('onLinkDown', (e) => {
     const held = links.get(e.linkId);
@@ -188,8 +212,8 @@ export function nearbyRadioOver(native: NearbyBinding, options: Partial<NearbyRa
   };
 
   return {
-    capabilities: () => call(async () => capabilitiesOf(await native.capabilities())),
-    facts: () => call(() => native.capabilities()),
+    capabilities: () => call(async () => capabilitiesOf(await read())),
+    facts: () => call(read),
     startFind: (args: { kFind: Uint8Array; scanKeys: Uint8Array[]; payload: Uint8Array; r: Uint8Array; tunables: FindTunables }) =>
       call(() => native.startFind(bytes(args.kFind), joinedKeys(args.scanKeys), bytes(args.payload), bytes(args.r), { ...args.tunables })),
     updateFind: (args) => call(() => native.updateFind(bytes(args.payload), bytes(args.r))),
@@ -197,6 +221,7 @@ export function nearbyRadioOver(native: NearbyBinding, options: Partial<NearbyRa
     holdScan: (held) => call(() => native.holdScan(held)),
     holdSalt: (held) => call(() => native.holdSalt(held)),
     onFound: (hear) => listen((h) => native.addListener('onFound', (e) => h(seenOf(e))), hear),
+    onAdvert: (hear) => listen((h) => native.addListener('onAdvert', (e) => h(advertOf(e))), hear),
     onFormSalt: (hear) => listen((h) => native.addListener('onFormSalt', (e) => (typeof e.rssi === 'number' ? h(e.salt, e.rssi) : h(e.salt))), hear),
     onSalt: (hear) => listen((h) => native.addListener('onSalt', (e) => h(e.salt)), hear),
     onPipe: (hear) => listen((h) => native.addListener('onPipe', (e) => h(linkOf(e.linkId, 'bluetooth'), e.salt)), hear),
@@ -211,18 +236,19 @@ export function nearbyRadioOver(native: NearbyBinding, options: Partial<NearbyRa
       return {
         ...hostDetailsOf(hosted),
         link,
-        // A hotspot's server is not bound to its own network, so native hands up every connection in turn (Hosted.kt).
-        ...(kind === 'hotspot' ? { nextLink } : {}),
+        // Neither a hotspot's server nor awdl's is bound to a network of its own, so native hands up every connection in turn (Hosted.kt).
+        ...(kind !== 'wifi-direct' ? { nextLink } : {}),
         onRefused: (hear) => listen((h) => native.addListener('onRefused', (e) => { if (e.hostId === hosted.hostId) h(); }), hear),
         takeDown: () => call(() => native.takeDown(hosted.hostId))
       };
     },
     join: async (kind, details) => {
-      if (kind === 'hotspot') joining += 1;
+      const asks = asksToJoin(kind, iphone);
+      if (asks) joining += 1;
       try {
         return linkOf(await call(() => native.join(kind, joinDetailsOf(details), o.joinDeadlineMs)), kind);
       } finally {
-        if (kind === 'hotspot') joining -= 1;
+        if (asks) joining -= 1;
       }
     },
     joiningHotspot: () => joining > 0,
