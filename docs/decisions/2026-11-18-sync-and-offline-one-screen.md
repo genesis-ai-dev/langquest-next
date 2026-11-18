@@ -26,7 +26,7 @@ answers at a glance and opens for detail:
   waiting" and the upload bar open the same screen.
 - **A status card.** The packages scene of decision 166, turned on its side
   (`TransitStrip`, transit.tsx): this phone on the left, the server's cloud on
-  the right, uploads moving along one lane and downloads along the other.
+  the right, uploads moving along one track and downloads along the other.
   - **The line is the status:** solid while live, dashed while polling,
     broken at a no-signal mark while offline (the waiting package goes to
     the break and drops back), an alert on the cloud where the server

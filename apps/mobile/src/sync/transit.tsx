@@ -17,7 +17,7 @@ import type { StripLink } from './syncScreenModel';
 /**
  * The strip is drawn in these units and scaled to the card: the phone on the
  * left, the server's cloud on the right, recordings going up along the upper
- * lane and coming down along the lower one.
+ * track and coming down along the lower one.
  */
 const W = 320;
 const H = 96;
@@ -26,9 +26,9 @@ const CLOUD_X = 284;
 const MID_Y = 40;
 const UP_Y = 30;
 const DOWN_Y = 52;
-const LANE_FROM = 66;
-const LANE_TO = 250;
-/** Offline, the no-signal line stands across both lanes halfway. */
+const TRACK_FROM = 66;
+const TRACK_TO = 250;
+/** Offline, the no-signal line stands across both tracks halfway. */
 const BARRIER = 160;
 
 /**
@@ -91,8 +91,8 @@ export function TransitStrip(props: { up: number; down: number; link: StripLink;
   const reduce = useReduceMotion();
   const [width, setWidth] = useState(0);
   const k = width / W;
-  const upF = useMemo(() => flight(LANE_FROM), []);
-  const downF = useMemo(() => flight(LANE_TO), []);
+  const upF = useMemo(() => flight(TRACK_FROM), []);
+  const downF = useMemo(() => flight(TRACK_TO), []);
   // Packages move only while files really do (decisions.md 166): offline the front one tries
   // and drops back; online they wait by the phone until an upload is under way.
   const goingUp = up > 0 && !reduce && (offline || props.movingUp);
@@ -102,15 +102,15 @@ export function TransitStrip(props: { up: number; down: number; link: StripLink;
     if (!goingUp) { upF.o.setValue(0); return undefined; }
     const loop = offline
       ? Animated.loop(Animated.sequence([
-          set(upF, LANE_FROM, 0.9, 1),
+          set(upF, TRACK_FROM, 0.9, 1),
           to(upF.x, BARRIER - 16, 520, Easing.out(Easing.cubic)),
-          to(upF.x, LANE_FROM, 760, Easing.bounce),
+          to(upF.x, TRACK_FROM, 760, Easing.bounce),
           Animated.delay(500)
         ]))
       : Animated.loop(Animated.sequence([
-          set(upF, LANE_FROM, 0.9, 1),
-          to(upF.x, LANE_TO, 1300),
-          Animated.parallel([to(upF.x, LANE_TO + 14, 260, Easing.out(Easing.cubic)), to(upF.s, 0.4, 260), to(upF.o, 0, 260)]),
+          set(upF, TRACK_FROM, 0.9, 1),
+          to(upF.x, TRACK_TO, 1300),
+          Animated.parallel([to(upF.x, TRACK_TO + 14, 260, Easing.out(Easing.cubic)), to(upF.s, 0.4, 260), to(upF.o, 0, 260)]),
           Animated.delay(450)
         ]));
     loop.start();
@@ -120,10 +120,10 @@ export function TransitStrip(props: { up: number; down: number; link: StripLink;
   useEffect(() => {
     if (!comingDown) { downF.o.setValue(0); return undefined; }
     const loop = Animated.loop(Animated.sequence([
-      set(downF, LANE_TO + 10, 0.4, 0),
-      Animated.parallel([to(downF.x, LANE_TO, 260, Easing.out(Easing.cubic)), to(downF.s, 0.9, 260), to(downF.o, 1, 260)]),
-      to(downF.x, LANE_FROM, 1300),
-      Animated.parallel([to(downF.x, LANE_FROM - 14, 260), to(downF.s, 0.3, 260), to(downF.o, 0, 260)]),
+      set(downF, TRACK_TO + 10, 0.4, 0),
+      Animated.parallel([to(downF.x, TRACK_TO, 260, Easing.out(Easing.cubic)), to(downF.s, 0.9, 260), to(downF.o, 1, 260)]),
+      to(downF.x, TRACK_FROM, 1300),
+      Animated.parallel([to(downF.x, TRACK_FROM - 14, 260), to(downF.s, 0.3, 260), to(downF.o, 0, 260)]),
       Animated.delay(450)
     ]));
     loop.start();
@@ -131,7 +131,7 @@ export function TransitStrip(props: { up: number; down: number; link: StripLink;
   }, [comingDown, downF]);
 
   const cloud = link === 'live' ? onColor.green : link === 'offline' ? C.amber : link === 'refused' ? onColor.red : C.primary;
-  const lane = link === 'live' ? onColor.green : C.border;
+  const track = link === 'live' ? onColor.green : C.border;
   const clear = up === 0 && down === 0 && !offline;
   const moving = (f: Flight, y: number, color: string) => (
     <Animated.View style={[touches.none, styles.abs, {
@@ -149,8 +149,8 @@ export function TransitStrip(props: { up: number; down: number; link: StripLink;
           <Svg width={width} height={width * (H / W)} viewBox={`0 0 ${W} ${H}`}>
             {offline ? (
               <G>
-                <Line x1={LANE_FROM} y1={UP_Y} x2={BARRIER - 8} y2={UP_Y} stroke={C.border} strokeWidth={2} strokeDasharray="3 5" />
-                <Line x1={LANE_FROM} y1={DOWN_Y} x2={BARRIER - 8} y2={DOWN_Y} stroke={C.border} strokeWidth={2} strokeDasharray="3 5" />
+                <Line x1={TRACK_FROM} y1={UP_Y} x2={BARRIER - 8} y2={UP_Y} stroke={C.border} strokeWidth={2} strokeDasharray="3 5" />
+                <Line x1={TRACK_FROM} y1={DOWN_Y} x2={BARRIER - 8} y2={DOWN_Y} stroke={C.border} strokeWidth={2} strokeDasharray="3 5" />
                 <Line x1={BARRIER} y1={14} x2={BARRIER} y2={66} stroke={C.amber} strokeWidth={2.5} strokeDasharray="5 4" />
                 <G x={BARRIER} y={80}>
                   <Circle r={9} fill={TINT.amber} />
@@ -160,12 +160,12 @@ export function TransitStrip(props: { up: number; down: number; link: StripLink;
               </G>
             ) : (
               <G>
-                <Line x1={LANE_FROM} y1={UP_Y} x2={LANE_TO} y2={UP_Y} stroke={lane} strokeWidth={2} strokeDasharray={link === 'live' ? undefined : '3 5'} />
-                <Line x1={LANE_TO} y1={DOWN_Y} x2={LANE_FROM} y2={DOWN_Y} stroke={lane} strokeWidth={2} strokeDasharray={link === 'live' ? undefined : '3 5'} />
+                <Line x1={TRACK_FROM} y1={UP_Y} x2={TRACK_TO} y2={UP_Y} stroke={track} strokeWidth={2} strokeDasharray={link === 'live' ? undefined : '3 5'} />
+                <Line x1={TRACK_TO} y1={DOWN_Y} x2={TRACK_FROM} y2={DOWN_Y} stroke={track} strokeWidth={2} strokeDasharray={link === 'live' ? undefined : '3 5'} />
               </G>
             )}
             {clear && link !== 'refused' ? (
-              <G x={(LANE_FROM + LANE_TO) / 2} y={(UP_Y + DOWN_Y) / 2}>
+              <G x={(TRACK_FROM + TRACK_TO) / 2} y={(UP_Y + DOWN_Y) / 2}>
                 <Circle r={11} fill={TINT.green} />
                 <Path d="M-5 0 l3.5 3.5 l6.5 -7" stroke={TINT.greenText} strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </G>
@@ -180,7 +180,7 @@ export function TransitStrip(props: { up: number; down: number; link: StripLink;
             </G>
           </Svg>
           {goingUp ? null : up > 0 ? (
-            <View style={[touches.none, styles.abs, { left: (LANE_FROM - 10) * k, top: (UP_Y - 8) * k }]}><Package color={C.primary} k={k} /></View>
+            <View style={[touches.none, styles.abs, { left: (TRACK_FROM - 10) * k, top: (UP_Y - 8) * k }]}><Package color={C.primary} k={k} /></View>
           ) : null}
           {moving(upF, UP_Y, offline ? C.amber : C.primary)}
           {moving(downF, DOWN_Y, onColor.green)}

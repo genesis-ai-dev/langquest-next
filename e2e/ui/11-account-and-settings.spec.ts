@@ -144,18 +144,19 @@ test('ACCT-003 Each row on Me opens its screen, and Back returns', async ({ page
   await backToMe();
 });
 
-test('ACCT-004 Waiting work shows on Me\'s "More settings" row', async ({ page }) => {
+test('ACCT-004 Waiting work shows on Me\'s "Sync and offline" row, not on More settings', async ({ page }) => {
   await openAs(page, world(), 'TRANS');
   await languageLoaded(page);
   await offline(page, true);
   await addNoteUI(page, world(), 'P-SUBMITTED', 'ACCT-004 waiting note', { offline: true });
   await openMe(page);
-  const more = row(page, 'More settings');
-  await expect(more).toContainText('1 waiting to send · password, notifications, sync, account');
-  await expect(more).toContainText(/1$/);
+  const sync = row(page, 'Sync and offline');
+  await expect(sync).toContainText('1 change waiting to send');
+  await expect(sync).toContainText(/send1$/);
+  // More settings no longer holds Sync, so it carries no count (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
+  await expect(row(page, 'More settings')).toContainText(/Password, notifications, account$/);
   await offline(page, false);
-  await expect(more).toContainText('Password, notifications, sync, account', { timeout: 45_000 });
-  await expect(more).not.toContainText('waiting to send');
+  await expect(sync).not.toContainText('waiting to send', { timeout: 45_000 });
   await expectSent(page, world());
 });
 
@@ -172,7 +173,7 @@ for (const who of ['TRANS', 'VIEW', 'LADMIN'] as const) {
     await expect(text(page, a.email)).toBeVisible();
     await expect(text(page, `${roles[who]} · ${world().orgName}`)).toBeVisible();
     const all = await screenText(page);
-    expectInOrder(all.toLowerCase(), [a.name.toLowerCase(), 'switch organization', 'this device', 'sync', 'send diagnostics', 'delete account',
+    expectInOrder(all.toLowerCase(), [a.name.toLowerCase(), 'switch organization', 'this device', 'send diagnostics', 'delete account',
       'your account and your name, for good']);
     // The web has no push (WEB-021); these accounts have email; nobody is blocked yet.
     expect(all).not.toContain('Notifications');
@@ -663,7 +664,7 @@ test('ACCT-034 The ? explains each part of the screen', async ({ page }) => {
   await byId(page, 'header-help').click();
   await expect(byId(page, 'header-help')).toHaveAccessibleName('Turn help off');
   await row(page, 'More settings').click();
-  const tip = button(page, /^More settings\. Opens your password, notifications, sync and account settings\./);
+  const tip = button(page, /^More settings\. Opens your password, notifications and account settings\./);
   await expect(tip).toBeVisible();
   await expect(heading(page, 'Me')).toBeVisible();
   await tip.click();

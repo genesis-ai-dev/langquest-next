@@ -3383,7 +3383,7 @@
       "signOutHelp": "Iniiwan ang account na ito sa device na ito. Itinatago ang gawaing hindi pa naipapadala hanggang maipadala ito.",
       "nameHelp": "Binubuksan ang iyong profile, para palitan ang pangalang nakikita ng iyong pangkat.",
       "tourHelp": "Nagbubukas ng tatlong maiikling card tungkol sa layunin ng LangQuest.",
-      "moreHelp": "Binubuksan ang mga setting ng iyong password, notification, sync at account. Ang numero ay mga pagbabagong naghihintay na maipadala.",
+      "moreHelp": "Binubuksan ang mga setting ng iyong password, notification at account.",
       "local": {
         "title": "{{name}}, sumali ka nang walang internet",
         "letInBy": "Pinapasok ka ni {{name}} mula sa telepono niya.",

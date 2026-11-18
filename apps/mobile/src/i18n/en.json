@@ -3383,7 +3383,7 @@
       "signOutHelp": "Leaves this account on this device. Work not yet sent is kept until it is.",
       "nameHelp": "Opens your profile, to change the name your team sees.",
       "tourHelp": "Opens three short cards on what LangQuest is for.",
-      "moreHelp": "Opens your password, notifications, sync and account settings. A number means changes waiting to send.",
+      "moreHelp": "Opens your password, notifications and account settings.",
       "local": {
         "title": "{{name}}, you joined without internet",
         "letInBy": "{{name}} let you in from their phone.",

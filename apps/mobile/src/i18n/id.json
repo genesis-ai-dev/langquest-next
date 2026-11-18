@@ -3282,7 +3282,7 @@
       "signOutHelp": "Keluar dari akun ini di perangkat ini. Pekerjaan yang belum terkirim tetap disimpan sampai terkirim.",
       "nameHelp": "Membuka profil Anda, untuk mengubah nama yang dilihat tim Anda.",
       "tourHelp": "Membuka tiga kartu singkat tentang kegunaan LangQuest.",
-      "moreHelp": "Membuka pengaturan kata sandi, notifikasi, sinkronisasi, dan akun Anda. Angka berarti ada perubahan yang menunggu dikirim.",
+      "moreHelp": "Membuka pengaturan kata sandi, notifikasi, dan akun Anda.",
       "local": {
         "title": "{{name}}, Anda bergabung tanpa internet",
         "letInBy": "{{name}} mengizinkan Anda masuk dari ponselnya.",

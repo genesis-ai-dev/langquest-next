@@ -600,8 +600,11 @@ function OrgWork(props: Who & {
   const viewingName = session.viewingAsGlobalViewer ? org.state?.org?.value.name ?? '' : '';
   const navPush = nav.push;
   // The upload bar opens Sync from wherever it is shown, as chrome, like a tab (decisions.md 166).
-  const openChrome = useCallback((screen: ScreenId) => { if (navRef.isReady() && navRef.getCurrentRoute()?.name !== screen) navPush({ screen }); }, [navPush]);
-  const openSync = useCallback(() => openChrome('sync_status'), [openChrome]);
+  const openChrome = useCallback((screen: ScreenId, params?: Record<string, string>) => {
+    if (navRef.isReady() && navRef.getCurrentRoute()?.name !== screen) navPush(params ? { screen, params } : { screen });
+  }, [navPush]);
+  // The bar says what waits to upload: Sync and offline opens with Uploads open (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
+  const openSync = useCallback(() => openChrome('sync_status', { open: 'uploads' }), [openChrome]);
   const headerExtra = useMemo(() => (!showLink ? null : (
     <GlobalViewerLink orgName={viewingName} onPress={() => openChrome('global_viewer')} />
   )), [showLink, viewingName, openChrome]);

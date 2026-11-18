@@ -3484,7 +3484,7 @@
       "signOutHelp": "Sale de esta cuenta en este dispositivo. El trabajo que todavía no se envió se guarda hasta que se envíe.",
       "nameHelp": "Abre tu perfil, para cambiar el nombre que ve tu equipo.",
       "tourHelp": "Abre tres tarjetas cortas sobre para qué sirve LangQuest.",
-      "moreHelp": "Abre los ajustes de tu contraseña, notificaciones, sincronización y cuenta. Un número indica cambios esperando para enviarse.",
+      "moreHelp": "Abre los ajustes de tu contraseña, notificaciones y cuenta.",
       "local": {
         "title": "{{name}}, te uniste sin internet",
         "letInBy": "{{name}} te dejó entrar desde su teléfono.",
