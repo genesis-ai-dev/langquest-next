@@ -101,10 +101,9 @@ test('PEOPLE-046 A removed member\'s next sync is refused, and they are told', a
   // The header's sync icon says it in its name ("Not syncing, 2 to send").
   await expect(button(p, /^Not syncing/)).toBeVisible({ timeout: 60_000 });
   await tab(p, 'me').click();
-  await expect(text(p, 'This account cannot sync · notifications, account')).toBeVisible();
-  await text(p, 'More settings').click();
+  // Me's Sync and offline row says so (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
   await expect(text(p, 'This account cannot sync this organization')).toBeVisible();
-  await text(p, 'Sync').click();
+  await text(p, 'Sync and offline').click();
   await expect(text(p, 'The server refused this account for this organization.')).toBeVisible();
   // The recording stays on the device, counted, not dropped: still waiting, or kept as refused with the server's reason (SYNC, refused work).
   const mine = (await deviceEvents(p, w.orgId, w.languages.A.languageId)).filter((r) => r.status !== 'confirmed');

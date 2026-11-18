@@ -337,7 +337,7 @@
     "book_structure": "Découper un livre",
     "reference_home": "Bibliothèque de référence",
     "material_editor": "Modifier le document",
-    "sync_status": "Synchronisation",
+    "sync_status": "Synchronisation et hors-ligne",
     "delete_account": "Supprimer le compte",
     "reports_home": "Rapports",
     "reports_language": "Rapport de la langue",
@@ -3477,21 +3477,14 @@
     "me": {
       "title": "Moi",
       "nameSub": "Nom, e-mail et mot de passe",
-      "offline": "Prêt pour le hors-ligne",
       "tour": "Comment fonctionne LangQuest",
       "tourSub": "Écoutez une courte présentation",
       "more": "Autres réglages",
-      "moreRefused": "Ce compte ne peut pas se synchroniser · notifications, compte",
-      "moreRefusedEvents": "Refusés · {{n, number}} · notifications, synchronisation, compte",
-      "morePending_one": "{{count, number}} en attente d’envoi · notifications, synchronisation, compte",
-      "morePending_many": "{{count, number}} en attente d’envoi · notifications, synchronisation, compte",
-      "morePending_other": "{{count, number}} en attente d’envoi · notifications, synchronisation, compte",
       "signOut": "Se déconnecter",
       "signOutHelp": "Quitte ce compte sur cet appareil. Le travail pas encore envoyé est gardé jusqu’à ce qu’il le soit.",
       "nameHelp": "Ouvre votre profil, pour changer votre nom, votre e-mail ou votre mot de passe.",
-      "offlineHelp": "Affiche ce que cet appareil garde pour travailler sans connexion.",
       "tourHelp": "Ouvre trois courtes fiches sur ce à quoi sert LangQuest.",
-      "moreHelp": "Ouvre les réglages des notifications, de la synchronisation et du compte. Un nombre indique des modifications en attente d’envoi.",
+      "moreHelp": "Ouvre les réglages des notifications et du compte.",
       "local": {
         "title": "{{name}}, vous avez rejoint sans Internet",
         "letInBy": "{{name}} vous a fait entrer depuis son téléphone.",
@@ -3537,7 +3530,6 @@
       "switchActive": "{{org}} (active)",
       "switchOrStart": "{{org}} · ou en créer une nouvelle",
       "thisDevice": "Cet appareil",
-      "sync": "Synchronisation",
       "syncRefused": "Ce compte ne peut pas synchroniser cette organisation",
       "syncPending_one": "{{count, number}} modification en attente d’envoi",
       "syncPending_many": "{{count, number}} modifications en attente d’envoi",
@@ -3568,7 +3560,6 @@
       "lostPhoneSent": "Lien envoyé à {{email}}. Ouvrez-le, choisissez un nouveau mot de passe et activez « Un de mes téléphones a été perdu ou pris ».",
       "testing": "Test",
       "personaSub": "Se connecter comme traducteur, réviseur ou administrateur de démonstration",
-      "syncHelp": "Affiche ce qui attend d’être envoyé ou téléchargé. Un nombre indique des modifications en attente d’envoi.",
       "blockedHelp": "Affiche les personnes que vous avez bloquées, pour les débloquer.",
       "switchOrgHelp": "Ouvre vos organisations, pour passer à une autre ou en créer une nouvelle."
     },
@@ -3713,17 +3704,33 @@
         "refused": "Le serveur n’accepte pas les modifications de cet appareil. Votre travail reste gardé ici.",
         "tooOld": "Cette application est trop ancienne pour recevoir les changements de votre équipe. Mettez-la à jour depuis le store.",
         "toReceive": "Enregistrements d’autres personnes que cet appareil télécharge encore.",
-        "refusedLine": "Modifications que le serveur n’a pas acceptées, souvent parce qu’une permission a changé. Elles restent sur cet appareil ; ouvrez Détails pour les voir.",
         "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "À recevoir",
-      "refusedLine": "Refusés",
-      "none": "Aucun",
-      "moreInfo": "En savoir plus",
       "details": "Détails",
       "syncNowHelp": "Envoie ce qui attend et reçoit ce qui est nouveau, tout de suite.",
       "detailsHelp": "Chaque modification en attente ou refusée, et les transferts audio : pour quelqu’un qui résout un problème.",
-      "eventHelp": "Ouvre le passage concerné par cette modification."
+      "eventHelp": "Ouvre le passage concerné par cette modification.",
+      "title": "Synchronisation et hors-ligne",
+      "rowHelp": "Ouvre ce que cet appareil envoie et reçoit, et ce qu’il garde pour travailler sans connexion.",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "Refusé par le serveur",
+        "refusedCount_one": "{{count, number}} modification",
+        "refusedCount_many": "{{count, number}} modifications",
+        "refusedCount_other": "{{count, number}} modifications",
+        "refusedNote": "Elles restent sur cet appareil. Quelqu’un qui gère votre équipe peut souvent aider.",
+        "refusedHelp": "Les modifications que le serveur n’a pas acceptées, chacune avec sa raison. Elles restent sur cet appareil.",
+        "uploads": "Envois",
+        "uploadsHelp": "Ce qui attend d’être envoyé sur cet appareil, par passage, et ce qui est déjà parti.",
+        "downloads": "Téléchargements",
+        "readyHelp": "Si ce téléphone a ce qu’il vous faut avant de passer hors ligne."
+      },
+      "down": {
+        "count_one": "{{count, number}} enregistrement à recevoir",
+        "count_many": "{{count, number}} enregistrements à recevoir",
+        "count_other": "{{count, number}} enregistrements à recevoir",
+        "offline": "Cherche du nouveau travail quand vous êtes de nouveau en ligne"
+      }
     },
     "lock": {
       "tooShort": "Reliez au moins {{n}} points.",
@@ -4956,7 +4963,10 @@
       "notSent_one": "{{count, number}} enregistrement de vos passages gardés n’a pas encore été envoyé par l’appareil qui l’a fait, donc aucun appareil ne peut le télécharger.",
       "notSent_many": "{{count, number}} enregistrements de vos passages gardés n’ont pas encore été envoyés par l’appareil qui les a faits, donc aucun appareil ne peut les télécharger.",
       "notSent_other": "{{count, number}} enregistrements de vos passages gardés n’ont pas encore été envoyés par l’appareil qui les a faits, donc aucun appareil ne peut les télécharger.",
-      "barHelp": "Combien de vos passages gardés sont entièrement sur cet appareil."
+      "barHelp": "Combien de vos passages gardés sont entièrement sur cet appareil.",
+      "keptTitle": "Passages gardés",
+      "worksOffline": "Ce qui fonctionne sans connexion",
+      "worksOfflineHelp": "Affiche ce qui est toujours sur cet appareil, et ce qui a besoin d’une connexion."
     },
     "keepHelp": "Garde son audio sur cet appareil, pour qu’il fonctionne sans connexion.",
     "stopKeepingHelp": "Laisse cet appareil retirer à nouveau son audio quand il a besoin de place.",
@@ -5468,7 +5478,7 @@
       "ready_one": "{{ready}} passage sur {{count, number}} prêt sur cet appareil",
       "ready_many": "{{ready}} passages sur {{count, number}} prêts sur cet appareil",
       "ready_other": "{{ready}} passages sur {{count, number}} prêts sur cet appareil",
-      "moreSettingsSub": "Notifications, synchronisation, compte"
+      "moreSettingsSub": "Notifications, compte"
     },
     "waiting": "En attente de découpage",
     "parts": {

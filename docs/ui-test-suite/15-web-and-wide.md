@@ -167,7 +167,7 @@ Roles: TRANS · Priority: P2 · Platforms: Web (390 px and 1280 px) · Run: Auto
 Preconditions: None.
 
 Steps:
-1. Open "Me", "More settings", "Sync" at each width.
+1. Open "Me", "Sync and offline", then "Details", at each width.
 
 Expected:
 - Phone width: the four tiles sit two by two.
@@ -182,15 +182,15 @@ Preconditions: None.
 
 Steps:
 1. At each width, open: P-NEEDS's record; its Version 1; "Me", "More
-   settings"; "Sync"; "Edit Profile"; the recording workspace for P-NEW;
-   "Sign out".
+   settings"; Back, then "Sync and offline"; "Edit Profile"; the recording
+   workspace for P-NEW; "Sign out".
 
 Expected:
 
 | Screen | Phone | Tablet and desktop |
 | --- | --- | --- |
 | Passage record, Version | no tabs | tabs |
-| More settings, Sync, Edit Profile | no tabs | tabs |
+| More settings, Sync and offline, Edit Profile | no tabs | tabs |
 | Recording workspace | no tabs | no tabs |
 | Sign out | no tabs | no tabs |
 
@@ -349,14 +349,14 @@ Roles: TRANS, ADMIN · Priority: P1 · Platforms: Web · Run: Auto
 Preconditions: None.
 
 Steps:
-1. TRANS: on "Me", open "More settings", then "Sync". Reload.
+1. TRANS: on "Me", open "Sync and offline". Reload.
 2. TRANS: open the Map tab. Reload.
 3. ADMIN at 1280 px: open Reports, then "Pace". Reload.
 4. Signed out: open `/settings` directly, then sign in as TRANS.
 
 Expected:
-- Step 1: the app reopens on "Me" (the section), not Sync. Address
-  `/settings`.
+- Step 1: the app reopens on "Me" (the section), not Sync and offline.
+  Address `/settings`.
 - Step 2: LANG-A's map. Address `/map/language`.
 - Step 3: Reports, on "Overview".
 - Step 4: "Sign In" first; after signing in, "Me".
@@ -394,14 +394,14 @@ Roles: TRANS · Priority: P2 · Platforms: Web · Run: Auto
 Preconditions: None.
 
 Steps:
-1. Open My Work, P-NEEDS, Me, More settings, Sync, and Switch Organization.
-   Read the browser tab's title each time.
+1. Open My Work, P-NEEDS, Me, Sync and offline, More settings, and Switch
+   Organization. Read the browser tab's title each time.
 2. Sign out and read it on Sign In.
 
 Expected:
 - "My Work · LangQuest", "Passage Record · LangQuest", "Me · LangQuest",
-  "More settings · LangQuest", "Sync · LangQuest", "Switch Org · LangQuest",
-  "Sign In · LangQuest".
+  "Sync and offline · LangQuest", "More settings · LangQuest",
+  "Switch Org · LangQuest", "Sign In · LangQuest".
 - The title follows the app's language (in Spanish, the screen's Spanish
   name, then "· LangQuest").
 - Note: the switcher's header says "Switch Organization" while its title

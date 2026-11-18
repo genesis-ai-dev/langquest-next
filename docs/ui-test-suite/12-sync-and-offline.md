@@ -1,8 +1,8 @@
 # 12. Sync and offline (SYNC)
 
-The Sync screen, work done offline by each role, two devices converging,
-Ready for offline, refused work, audio transfer, the update banner and
-starting without a connection.
+The Sync and offline screen, work done offline by each role, two devices
+converging, Ready for offline, refused work, audio transfer, the update
+banner and starting without a connection.
 
 Read [the README](README.md) first: G1 to G10, the fixture and the accounts
 apply here. G10.2 (nothing refused) is suspended only in the tests that say
@@ -10,6 +10,24 @@ they expect a refusal.
 
 In quoted text, `{TRANS}`, `{REV}` and the like stand for that account's
 display name.
+
+The screen (docs/decisions/2026-11-18-sync-and-offline-one-screen.md):
+- It is titled "Sync and offline". It opens from Me's "Sync and offline"
+  row, the header's sync icon, the upload bar, and Sign out's "See what is
+  waiting". "Sync" below is short for it. More settings has no Sync row.
+- First a status card: a strip with this phone on the left and the cloud
+  on the right, then the status word ("Live", "Connected", "Offline", "Not
+  syncing"…) and its sentence. "Sync now" is the footer button.
+- Then folds, each one line that opens in place: "Refused by the server"
+  (only when something is refused), "Uploads", "Downloads" (a line with
+  nothing to open), "Ready for offline", the "Share nearby" row (where this
+  phone may share), and "Details".
+- "Details" holds the tiles ("waiting to upload", "refused by the server",
+  "latest confirmed", "local checkpoint"), the "Audio uploading" and "Audio
+  downloading" cards, the "Waiting · {n}" list and the build line. A step
+  that reads any of these opens "Details" first.
+- Only "Refused by the server" and the fold a link asks for arrive open.
+  Nothing is remembered between visits.
 
 How to go offline:
 - iOS simulator: turn off the Mac's network for the simulator (Network Link
@@ -33,23 +51,29 @@ Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 Preconditions: None.
 
 Steps:
-1. Tap "Me", then "More settings", then "Sync".
-2. Wait 5 seconds.
+1. Tap "Me", then "Sync and offline".
+2. Tap "Details". Wait 5 seconds.
+3. Tap "Ready for offline", then "What works offline".
 
 Expected:
-- Header "Sync", with Back.
-- A green banner "Live: changes arrive as they happen" (or, before the live
-  channel opens, "Checking for changes now and then"). No body text under
-  it.
-- A card "Ready for offline", then "Always on this device" and "Needs a
-  connection" (details in SYNC-017).
-- Four tiles: "waiting to upload" 0, "refused by the server" 0, "latest
-  confirmed" (a number above 0), "local checkpoint" (a number). On a phone
-  they sit two by two.
+- Header "Sync and offline", with Back.
+- The status card: the strip, with a tick on the line (nothing waits
+  either way). Under it "Live" and its sentence "Changes from your team
+  arrive as they happen, and yours go out right away." (or, before the
+  live channel opens, "Connected" and its sentence). No ⓘ.
+- No "The server refused this account for this organization." and no
+  "Refused by the server" fold.
+- The folds "Uploads", "Downloads", "Ready for offline" and "Details",
+  each one line. "Always on this device" does not show until step 3.
+- Step 2: four tiles: "waiting to upload" 0, "refused by the server" 0,
+  "latest confirmed" (a number above 0), "local checkpoint" (a number). On
+  a phone they sit two by two.
 - Two cards, "Audio uploading" and "Audio downloading", each with a green
   "Up to date" badge.
-- No "Waiting" or "Refused" section.
-- Under them "{n} events on this device" and the build line (SYNC-004).
+- No "Waiting · {n}" list.
+- "{n} events on this device" and the build line (SYNC-004).
+- Step 3: "Always on this device" and "Needs a connection" (details in
+  SYNC-017).
 - A footer button "Sync now".
 - The numbers update by themselves about once a second.
 
@@ -60,11 +84,13 @@ Preconditions:
 - The device is offline.
 
 Steps:
-1. Open "Sync".
+1. Open "Sync and offline", then "Details".
 2. Tap "Sync now".
 
 Expected:
-- An amber banner "Offline: work is kept on this device".
+- The status says "Offline", with "No connection. Everything you do is
+  kept on this device and sends by itself when you are back online." The
+  strip's line is broken.
 - Step 2: the button says "Syncing…" briefly, then "Sync now" again. No
   error toast and no crash.
 - The tiles keep their values.
@@ -84,7 +110,7 @@ Preconditions:
 
 Steps:
 1. Add three notes to P-SUBMITTED (PASS).
-2. Open "Sync".
+2. Open "Sync and offline", then "Details".
 3. Go online and watch the screen for 30 seconds.
 
 Expected:
@@ -103,7 +129,7 @@ Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual
 Preconditions: None.
 
 Steps:
-1. Open "Sync" and scroll to the end.
+1. Open "Sync and offline", tap "Details" and scroll to the end.
 
 Expected:
 - "{n} events on this device", with {n} above 0.
@@ -124,7 +150,8 @@ Preconditions:
 
 Steps:
 1. Device 2 (COORD): add a note to P-SUBMITTED.
-2. Device 1 (TRANS): open "Sync". Note "latest confirmed". Tap "Sync now".
+2. Device 1 (TRANS): open "Sync and offline", then "Details". Note "latest
+   confirmed". Tap "Sync now".
 
 Expected:
 - The button says "Syncing…" and cannot be tapped again until it finishes.
@@ -140,15 +167,15 @@ Preconditions:
   migration.
 
 Steps:
-1. Open "Sync".
+1. Open "Sync and offline".
 
 Expected:
 - The header's sync icon is an amber cloud with a down arrow, named
   "Update to receive", not "Not syncing" (UI audit, finding 119).
-- Sync's standing says "Update to receive", and under it "Update the app
-  to sync." (below the minimum version set in app_versions instead: "This
-  app is too old to receive your team's changes. Your own work still goes
-  out.").
+- The status says "Update to receive" with its sentence, and under it
+  "Update the app to sync." (below the minimum version set in app_versions
+  instead: "This app is too old to receive your team's changes. Your own
+  work still goes out.").
 - On a phone the main button is "Update", which opens the store page; on
   the web "Sync now" is disabled.
 - Work made now still saves on the device and shows as waiting.
@@ -171,7 +198,7 @@ Expected:
 - Step 1: no chip.
 - Step 2: a chip "Offline".
 - Step 3: the chip says "1 to send" (or the number of waiting events).
-- Step 4: opens "Sync".
+- Step 4: opens "Sync and offline".
 - Step 5: no chip.
 - When the server refuses the account (SYNC-018), the chip says "Not
   syncing".
@@ -184,7 +211,7 @@ tries the server (a write, Sync now, or the offline poll), as in SYNC-002.
 Roles: TRANS, COORD · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- Device 1 (TRANS) shows "Live: changes arrive as they happen" on Sync.
+- Device 1 (TRANS) shows "Live" on Sync and offline.
 
 Steps:
 1. Device 1 (TRANS): open P-SUBMITTED.
@@ -192,8 +219,7 @@ Steps:
 
 Expected:
 - Within 10 seconds, without "Sync now", the note appears on Device 1.
-- If Device 1 shows "Checking for changes now and then" instead, the note
-  arrives within a minute.
+- If Device 1 shows "Connected" instead, the note arrives within a minute.
 
 ---
 
@@ -208,7 +234,7 @@ Preconditions:
 Steps:
 1. Device 1 (TRANS): open P-NEW from My Work, record about 10 seconds in
    two parts, and publish Version 1 (REC).
-2. Device 1: open P-NEW's record, then "Sync".
+2. Device 1: open P-NEW's record, then "Sync and offline" and "Details".
 3. Device 1: kill the app and open it again, still offline.
 4. Device 1: go online. Wait 30 seconds.
 5. Device 2 (COORD): tap "Sync now", open P-NEW and play Version 1.
@@ -343,10 +369,12 @@ Preconditions:
 - Fresh install, signed in as TRANS, online.
 
 Steps:
-1. Tap "Me" at once and read "Ready for offline".
+1. Tap "Me" at once and read "Sync and offline".
 2. Wait until the downloads finish (Sync's "Audio downloading" is "Up to
    date"). Read it again.
 3. Open the Map for LANG-A and count the passages with the kept mark.
+4. On Me, tap "Sync and offline". Read "Ready for offline", tap it, then
+   tap "What works offline".
 
 Expected:
 - Step 1: "Checking this device…", then "{ready} of {n} passages ready on
@@ -357,8 +385,12 @@ Expected:
   P-NEEDS.
 - An account with no kept passages (VIEW) sees "No passages kept on this
   device yet".
-- Tapping the row opens "Sync", which starts with the "Ready for offline"
-  card.
+- With work waiting to send or refused, the row says that first instead
+  (ACCT-011).
+- Step 4: "Sync and offline" opens. "Ready for offline" says "{n} passages
+  on this device" too. Opened, it says "All {n} kept passages are on this
+  device.", and "What works offline" shows "Always on this device" and
+  "Needs a connection".
 
 ### SYNC-016 Keep a passage offline, and stop keeping it
 Roles: REV · Priority: P1 · Platforms: iOS, Android · Run: Auto
@@ -371,7 +403,7 @@ Preconditions:
 Steps:
 1. Open P-ASIDE. Read the line at the top of the passage.
 2. Tap it.
-3. Wait until it finishes. Read the line, then Me's "Ready for offline".
+3. Wait until it finishes. Read the line, then Me's "Sync and offline".
 4. Open P-ASIDE again and tap the line.
 
 Expected:
@@ -393,30 +425,44 @@ Preconditions:
 - On a phone, at least one kept passage is still downloading.
 
 Steps:
-1. Open "Sync" online. Read the "Ready for offline" card.
+1. Open "Sync and offline" online. Read the "Ready for offline" line, then
+   tap it.
 2. Go offline and read it again.
-3. Run the test on the web.
+3. Tap "What works offline".
+4. Run the test on the web.
 
 Expected:
-- Step 1: "Ready for offline" with the same counts as Me as a sentence,
-  then "Stay connected until this finishes." and a bar.
+- Step 1: the line says what Me's row says ("{ready} of {n} passages ready
+  on this device"), in amber. Opened: "Kept passages", with the counts as
+  a sentence, then "Stay connected until this finishes." and a bar. During
+  a language's first download the sentence is "{filled} of {total}
+  passages are on this device." instead.
+- "Always on this device" and "Needs a connection" do not show until
+  step 3.
 - Step 2: the sentence ends "Connect to finish before you travel."
-- "Always on this device": "Every passage's text, status and history in
-  Alpha. Audio, study pictures, maps and study audio of passages you were
-  asked to work on, have worked on, or chose to keep." (phones).
+- Step 3: "Always on this device": "Every passage's text, status and
+  history in Alpha. Audio, study pictures, maps and study audio of
+  passages you were asked to work on, have worked on, or chose to keep."
+  (phones).
 - "Needs a connection" lists:
-  - "Audio and study material of passages you have not kept. Open a
-    passage and tap Keep offline to take it with you." (phones)
+  - "Audio and study material of passages not downloaded." (phones)
   - "Study films." (phones)
   - "Reports."
   - "Other languages. Open one while connected to bring it up to date."
 - Web: "Always on this device" names only text, status, history and audio;
-  "Needs a connection" says "Audio of passages you have not kept. …" and
+  "Needs a connection" says "Audio of passages not downloaded." and
   "Study pictures, maps and study audio, in the web app." instead of
   "Study films.".
 - When a kept passage holds a recording that has not reached the server:
   "1 recording in your kept passages hasn't been sent from the device that
   made it yet, so no device can download it."
+- Android, for someone who can let a new person in (Share nearby offers
+  it): under the kept passages, "Install file for a new person" says
+  whether this phone has the install file for this version. Online, "Get
+  the install file" opens its screen; offline, "Getting the install file
+  needs the internet." The "Ready for offline" line adds "Install file for
+  a new person: not got yet" (or "…: for an older version") in amber until
+  it has the file, then "Install file got".
 
 ### SYNC-018 Work refused after removal is kept and shown
 Roles: TRANS, COORD · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto (web; phones by hand)
@@ -431,21 +477,25 @@ Steps:
 2. Device 2 (COORD): "Manage", "Members", open TRANS, and use "Remove from
    language" for LANG-A (PEOPLE).
 3. Device 1: go online. Wait 60 seconds.
-4. Device 1: look at My Work, then open "Sync" (from the chip or Me).
+4. Device 1: look at My Work, then open "Sync and offline" (from the chip
+   or Me), and "Details".
 5. Device 1: open P-Q1.
 
 Expected:
-- Step 4: My Work's chip says "Not syncing". Sync shows "refused by the
-  server" above 0 and, if the server refused the whole language, the body
-  "The server refused this account for this organization."
-- A section "Refused · {n}" lists Version 1's events, each with a red flag
+- Step 4: My Work's chip says "Not syncing". Under Details, "refused by
+  the server" is above 0. If the server refused the whole language, the
+  status card says "Not syncing" and "The server refused this account for
+  this organization."
+- "Refused by the server" comes first, already open, with "{n} change(s)"
+  ({n} as in the tile). It lists Version 1's events, each with a red flag
   and the server's reason (for example "not a member").
 - "waiting to upload" does not count them, and they are not deleted: "{n}
   events on this device" is not lower than before step 3.
-- Me's "More settings" says "This account cannot sync · notifications,
-  account" when the whole language is refused.
+- Me's "Sync and offline" row says "This account cannot sync this
+  organization" when the whole language is refused.
 - Step 5: Device 1 no longer shows Version 1 as published (refused work
-  leaves the passage), but it is still listed under Refused.
+  leaves the passage), but it is still listed under "Refused by the
+  server".
 - Device 2 never shows Version 1 of P-Q1.
 
 Known issue (2026-10-12): removing TRANS's only assignment may leave the
@@ -472,14 +522,18 @@ Steps:
 2. Device 2 (COORD): change TRANS's role at LANG-A from Translator to
    Reviewer (PEOPLE).
 3. Device 1: go online. Wait 60 seconds. Tap "Sync now".
-4. Device 1: open "Sync".
+4. Device 1: open "Sync and offline", then "Details".
+5. Device 1: open My Work, then Me.
 
 Expected:
-- "refused by the server" above 0. "Refused · {n}" lists Version 1's
-  events, each with the reason (for example "may not emit v1.…").
+- "refused by the server" above 0. "Refused by the server" comes first,
+  already open, with "{n} change(s)". It lists Version 1's events, each
+  with the reason (for example "may not emit v1.…").
 - P-Q2 on Device 1 no longer shows Version 1. Device 2 never does.
 - The events are still on Device 1 ("{n} events on this device" did not
   drop).
+- Step 5: My Work shows the sync chip, and Me's "Sync and offline" row
+  says "Refused · {n}" (PLAN.md invariant 1).
 
 Fixed (2026-10-13): outside the Sync screen nothing says work was
 refused: My Work's chip and Me's "More settings" count only waiting work and
@@ -500,12 +554,14 @@ Preconditions:
 
 Steps:
 1. Device 2 (COORD): give TRANS the Translator role at LANG-A again.
-2. Device 1 (TRANS): wait 60 seconds, then tap "Sync now" on Sync twice.
+2. Device 1 (TRANS): wait 60 seconds, then tap "Sync now" on Sync and
+   offline twice.
 3. Device 2: tap "Sync now" and open P-Q1 and P-Q2.
 
 Expected:
 - Step 2: the refused events move back to "Waiting", then go. "refused by
-  the server" returns to 0. My Work has no chip.
+  the server" returns to 0, and "Refused by the server" is gone from the
+  screen. My Work has no chip.
 - Step 3: Version 1 of each is there, by {TRANS}, and plays.
 - If they stay refused, record the reasons shown.
 
@@ -522,7 +578,7 @@ Preconditions:
 
 Steps:
 1. Record and publish 60 seconds on P-Q3.
-2. Open "Sync" at once.
+2. Open "Sync and offline", then "Details", at once.
 
 Expected:
 - "Audio uploading" shows "{n} left · {speed}" (speed in "B/s", "KB/s" or
@@ -538,13 +594,14 @@ Preconditions:
 - Slow network, as in SYNC-021.
 
 Steps:
-1. Record and publish 60 seconds on P-Q4. Open "Sync".
+1. Record and publish 60 seconds on P-Q4. Open "Sync and offline", then
+   "Details".
 2. When the bar is about half full, go offline for 2 minutes.
 3. Go online.
 
 Expected:
 - Step 2: the card still says how many are left. Nothing is marked refused.
-  The banner turns amber.
+  The status says "Offline".
 - Step 3: the upload carries on by itself without "Sync now", and ends at
   "Up to date". COORD can play the whole recording, with no gap or repeat.
 
@@ -555,7 +612,8 @@ Preconditions:
 - Slow network, as in SYNC-021.
 
 Steps:
-1. Record and publish 60 seconds on Luke 17:1-10. Open "Sync".
+1. Record and publish 60 seconds on Luke 17:1-10. Open "Sync and
+   offline", then "Details".
 2. While "Audio uploading" shows files left, kill the app.
 3. Open the app again.
 
@@ -614,7 +672,8 @@ Automated as a Maestro flow; REV's voice note is made beside it with
 `npx tsx e2e/ui/sync-wrap.ts rev-voice-note <world.json>`.
 
 Preconditions:
-- Device 1 (TRANS) is on Sync.
+- Device 1 (TRANS) is on Sync and offline (Me → "Sync and offline"), with
+  "Details" open.
 
 Steps:
 1. Device 2 (REV): record a 30-second voice note as feedback on P-SUBMITTED
@@ -766,7 +825,7 @@ Steps:
 1. Open Luke 1:1–4 (not kept: nobody asked TRANS for it, and TRANS never
    worked on it). Read the line at the top, and tap it.
 2. Record and publish a part on P-Q4.
-3. Open Sync.
+3. Open "Sync and offline", then "Details".
 
 Expected:
 - Step 1: the line reads "Download needs a connection" and does nothing when
@@ -775,8 +834,9 @@ Expected:
 - Step 2: the toast ends "Your team gets it when this device is connected."
   The upload bar says "{n} recordings waiting to upload · Offline", never
   "Uploading".
-- Step 3: "To receive" says "Offline" (or the count of files this device
-  already knows it must fetch), never "None", and the transfers say
+- Step 3: "Downloads" says "Checks for new work when back online" (or "{n}
+  recordings to receive", the files this device already knows it must
+  fetch), never "Up to date", and the transfers under Details say
   "Offline", not "Up to date": what is new on the server cannot be known.
   Nowhere says "All uploaded".
 - Online, "Uploading" and a moving download show only while a file is

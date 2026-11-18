@@ -335,7 +335,7 @@
     "book_structure": "Divide a Book",
     "reference_home": "Reference material",
     "material_editor": "Edit Material",
-    "sync_status": "Sync",
+    "sync_status": "Sync and offline",
     "delete_account": "Delete Account",
     "reports_home": "Reports",
     "reports_language": "Language Report",
@@ -3376,20 +3376,14 @@
     "me": {
       "title": "Me",
       "nameSub": "Name, email and password",
-      "offline": "Ready for offline",
       "tour": "How LangQuest works",
       "tourSub": "Listen to a short tour",
       "more": "More settings",
-      "moreRefused": "This account cannot sync · notifications, account",
-      "moreRefusedEvents": "Refused · {{n, number}} · notifications, sync, account",
-      "morePending_one": "{{count, number}} waiting to send · notifications, sync, account",
-      "morePending_other": "{{count, number}} waiting to send · notifications, sync, account",
       "signOut": "Sign out",
       "signOutHelp": "Leaves this account on this device. Work not yet sent is kept until it is.",
       "nameHelp": "Opens your profile, to change your name, email or password.",
-      "offlineHelp": "Shows what this device keeps for working without a connection.",
       "tourHelp": "Opens three short cards on what LangQuest is for.",
-      "moreHelp": "Opens your notifications, sync and account settings. A number means changes waiting to send.",
+      "moreHelp": "Opens your notifications and account settings.",
       "local": {
         "title": "{{name}}, you joined without internet",
         "letInBy": "{{name}} let you in from their phone.",
@@ -3435,7 +3429,6 @@
       "switchActive": "{{org}} (active)",
       "switchOrStart": "{{org}} · or start a new one",
       "thisDevice": "This device",
-      "sync": "Sync",
       "syncRefused": "This account cannot sync this organization",
       "syncPending_one": "{{count, number}} change waiting to send",
       "syncPending_other": "{{count, number}} changes waiting to send",
@@ -3464,7 +3457,6 @@
       "lostPhoneSent": "Link sent to {{email}}. Open it, choose a new password and turn on “A phone of mine was lost or taken”.",
       "testing": "Testing",
       "personaSub": "Sign in as a demo translator, reviewer or admin",
-      "syncHelp": "Shows what waits to send or download. A number means changes waiting to send.",
       "blockedHelp": "Shows who you blocked, to unblock them.",
       "switchOrgHelp": "Opens your organizations, to switch to another or start a new one."
     },
@@ -3603,17 +3595,31 @@
         "refused": "The server is not accepting changes from this device. Your work is still kept here.",
         "tooOld": "This app is too old to receive your team’s changes. Update it from the store.",
         "toReceive": "Recordings from others that this device is still downloading.",
-        "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one.",
         "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "To receive",
-      "refusedLine": "Refused",
-      "none": "None",
-      "moreInfo": "More about this",
       "details": "Details",
       "syncNowHelp": "Sends what is waiting and gets what is new, right away.",
       "detailsHelp": "Each change waiting or refused, and audio transfers: for someone fixing a problem.",
-      "eventHelp": "Opens the passage this change is about."
+      "eventHelp": "Opens the passage this change is about.",
+      "title": "Sync and offline",
+      "rowHelp": "Opens what this device sends and receives, and what it keeps for working without a connection.",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "Refused by the server",
+        "refusedCount_one": "{{count, number}} change",
+        "refusedCount_other": "{{count, number}} changes",
+        "refusedNote": "They stay on this device. Someone who manages your team can usually help.",
+        "refusedHelp": "Changes the server would not accept, each with its reason. They stay on this device.",
+        "uploads": "Uploads",
+        "uploadsHelp": "What waits on this device to upload, by passage, and what went up.",
+        "downloads": "Downloads",
+        "readyHelp": "Whether this phone has what you need before you go offline."
+      },
+      "down": {
+        "count_one": "{{count, number}} recording to receive",
+        "count_other": "{{count, number}} recordings to receive",
+        "offline": "Checks for new work when back online"
+      }
     },
     "lock": {
       "tooShort": "Join at least {{n}} dots.",
@@ -4799,7 +4805,10 @@
       "bullet": "• {{line}}",
       "notSent_one": "{{count, number}} recording in your kept passages hasn't been sent from the device that made it yet, so no device can download it.",
       "notSent_other": "{{count, number}} recordings in your kept passages haven't been sent from the device that made them yet, so no device can download them.",
-      "barHelp": "How many of your kept passages are fully on this device."
+      "barHelp": "How many of your kept passages are fully on this device.",
+      "keptTitle": "Kept passages",
+      "worksOffline": "What works offline",
+      "worksOfflineHelp": "Shows what is always on this device, and what needs a connection."
     },
     "keepHelp": "Keeps its audio on this device, so it works without a connection.",
     "stopKeepingHelp": "Lets this device remove its audio again when it needs room.",
@@ -5295,7 +5304,7 @@
       "kept_other": "{{count, number}} passages on this device",
       "ready_one": "{{ready}} of {{count, number}} passage ready on this device",
       "ready_other": "{{ready}} of {{count, number}} passages ready on this device",
-      "moreSettingsSub": "Notifications, sync, account"
+      "moreSettingsSub": "Notifications, account"
     },
     "waiting": "Waiting to be divided",
     "parts": {

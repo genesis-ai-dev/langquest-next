@@ -76,7 +76,7 @@ export const yourAccount: Tutorial = {
     {
       screen: 'settings_home',
       part: (page) => button(page, /^More settings/),
-      say: 'More settings has notifications and sync.',
+      say: 'More settings has notifications and your account.',
       tap: true,
       until: (page) => heading(page, 'More settings').waitFor({ timeout: 10_000 }),
       stay: 0.8

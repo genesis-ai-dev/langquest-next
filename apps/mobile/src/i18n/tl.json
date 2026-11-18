@@ -335,7 +335,7 @@
     "book_structure": "Hatiin ang Isang Aklat",
     "reference_home": "Sanggunian",
     "material_editor": "I-edit ang Materyal",
-    "sync_status": "Pag-sync",
+    "sync_status": "Pag-sync at offline",
     "delete_account": "Burahin ang Account",
     "reports_home": "Mga Ulat",
     "reports_language": "Ulat ng Wika",
@@ -3376,20 +3376,14 @@
     "me": {
       "title": "Ako",
       "nameSub": "Pangalan, email at password",
-      "offline": "Handa para sa offline",
       "tour": "Paano gumagana ang LangQuest",
       "tourSub": "Makinig sa isang maikling paglilibot",
       "more": "Iba pang setting",
-      "moreRefused": "Hindi makapag-sync ang account na ito · notification, account",
-      "moreRefusedEvents": "Tinanggihan · {{n, number}} · notification, sync, account",
-      "morePending_one": "{{count, number}} naghihintay na maipadala · notification, sync, account",
-      "morePending_other": "{{count, number}} naghihintay na maipadala · notification, sync, account",
       "signOut": "Mag-sign out",
       "signOutHelp": "Iniiwan ang account na ito sa device na ito. Itinatago ang gawaing hindi pa naipapadala hanggang maipadala ito.",
       "nameHelp": "Binubuksan ang iyong profile, para palitan ang iyong pangalan, email o password.",
-      "offlineHelp": "Ipinapakita kung ano ang itinatago ng device na ito para makapagtrabaho nang walang koneksiyon.",
       "tourHelp": "Nagbubukas ng tatlong maiikling card tungkol sa layunin ng LangQuest.",
-      "moreHelp": "Binubuksan ang mga setting ng iyong notification, sync at account. Ang numero ay mga pagbabagong naghihintay na maipadala.",
+      "moreHelp": "Binubuksan ang mga setting ng iyong notification at account.",
       "local": {
         "title": "{{name}}, sumali ka nang walang internet",
         "letInBy": "Pinapasok ka ni {{name}} mula sa telepono niya.",
@@ -3435,7 +3429,6 @@
       "switchActive": "{{org}} (aktibo)",
       "switchOrStart": "{{org}} · o magsimula ng bago",
       "thisDevice": "Ang device na ito",
-      "sync": "Pag-sync",
       "syncRefused": "Hindi ma-sync ng account na ito ang organisasyong ito",
       "syncPending_one": "{{count, number}} pagbabagong naghihintay na maipadala",
       "syncPending_other": "{{count, number}} pagbabagong naghihintay na maipadala",
@@ -3464,7 +3457,6 @@
       "lostPhoneSent": "Naipadala ang link sa {{email}}. Buksan ito, pumili ng bagong password at i-on ang “Nawala o kinuha ang isa kong telepono”.",
       "testing": "Pagsubok",
       "personaSub": "Mag-sign in bilang demo na tagasalin, tagarepaso o admin",
-      "syncHelp": "Ipinapakita kung ano ang naghihintay na maipadala o ma-download. Ang numero ay mga pagbabagong naghihintay na maipadala.",
       "blockedHelp": "Ipinapakita kung sino ang na-block mo, para i-unblock sila.",
       "switchOrgHelp": "Binubuksan ang iyong mga organisasyon, para lumipat sa iba o magsimula ng bago."
     },
@@ -3603,17 +3595,31 @@
         "refused": "Hindi tumatanggap ang server ng mga pagbabago mula sa device na ito. Itinatago pa rin dito ang iyong gawain.",
         "tooOld": "Masyadong luma ang app na ito para matanggap ang mga pagbabago ng iyong pangkat. I-update ito mula sa store.",
         "toReceive": "Mga rekording mula sa iba na dina-download pa ng device na ito.",
-        "refusedLine": "Mga pagbabagong hindi tinanggap ng server, kadalasan dahil nagbago ang isang pahintulot. Nananatili ang mga ito sa device na ito; buksan ang Mga Detalye para makita ang bawat isa.",
         "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "Tatanggapin",
-      "refusedLine": "Tinanggihan",
-      "none": "Wala",
-      "moreInfo": "Higit pa tungkol dito",
       "details": "Mga Detalye",
       "syncNowHelp": "Ipinapadala ang naghihintay at kinukuha ang bago, ngayon din.",
       "detailsHelp": "Bawat pagbabagong naghihintay o tinanggihan, at mga paglilipat ng audio: para sa taong nag-aayos ng problema.",
-      "eventHelp": "Binubuksan ang siping tinutukoy ng pagbabagong ito."
+      "eventHelp": "Binubuksan ang siping tinutukoy ng pagbabagong ito.",
+      "title": "Pag-sync at offline",
+      "rowHelp": "Binubuksan kung ano ang ipinapadala at tinatanggap ng device na ito, at kung ano ang itinatago nito para makapagtrabaho nang walang koneksiyon.",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "Tinanggihan ng server",
+        "refusedCount_one": "{{count, number}} pagbabago",
+        "refusedCount_other": "{{count, number}} pagbabago",
+        "refusedNote": "Nananatili ang mga ito sa device na ito. Kadalasang makakatulong ang namamahala sa iyong pangkat.",
+        "refusedHelp": "Mga pagbabagong hindi tinanggap ng server, bawat isa ay may dahilan. Nananatili ang mga ito sa device na ito.",
+        "uploads": "Mga upload",
+        "uploadsHelp": "Ang naghihintay na ma-upload sa device na ito, ayon sa sipi, at ang na-upload na.",
+        "downloads": "Mga download",
+        "readyHelp": "Kung nasa teleponong ito na ang kailangan mo bago ka mag-offline."
+      },
+      "down": {
+        "count_one": "{{count, number}} rekording na tatanggapin",
+        "count_other": "{{count, number}} rekording na tatanggapin",
+        "offline": "Titingnan kung may bagong gawain kapag online ka na muli"
+      }
     },
     "lock": {
       "tooShort": "Pagdugtungin ang kahit {{n}} tuldok.",
@@ -4799,7 +4805,10 @@
       "bullet": "• {{line}}",
       "notSent_one": "{{count, number}} rekording sa iyong mga itinatagong sipi ang hindi pa naipapadala mula sa device na gumawa ng mga ito, kaya walang device na makapag-download ng mga ito.",
       "notSent_other": "{{count, number}} rekording sa iyong mga itinatagong sipi ang hindi pa naipapadala mula sa device na gumawa ng mga ito, kaya walang device na makapag-download ng mga ito.",
-      "barHelp": "Ilan sa iyong mga itinatagong sipi ang buong nasa device na ito."
+      "barHelp": "Ilan sa iyong mga itinatagong sipi ang buong nasa device na ito.",
+      "keptTitle": "Mga itinatagong sipi",
+      "worksOffline": "Ang gumagana nang offline",
+      "worksOfflineHelp": "Ipinapakita kung ano ang laging nasa device na ito, at kung ano ang kailangan ng koneksiyon."
     },
     "keepHelp": "Itinatago ang audio nito sa device na ito, para gumana ito nang walang koneksiyon.",
     "stopKeepingHelp": "Pinapayagan ulit ang device na ito na alisin ang audio nito kapag kailangan nito ng puwang.",
@@ -5295,7 +5304,7 @@
       "kept_other": "{{count, number}} sipi sa device na ito",
       "ready_one": "{{ready}} sa {{count, number}} sipi ang handa sa device na ito",
       "ready_other": "{{ready}} sa {{count, number}} sipi ang handa sa device na ito",
-      "moreSettingsSub": "Mga notification, sync, account"
+      "moreSettingsSub": "Mga notification, account"
     },
     "waiting": "Naghihintay na mahati",
     "parts": {

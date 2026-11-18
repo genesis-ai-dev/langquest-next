@@ -337,7 +337,7 @@
     "book_structure": "Dividir um livro",
     "reference_home": "Biblioteca de referência",
     "material_editor": "Editar material",
-    "sync_status": "Sincronizar",
+    "sync_status": "Sincronização e uso sem internet",
     "delete_account": "Excluir conta",
     "reports_home": "Relatórios",
     "reports_language": "Relatório do idioma",
@@ -3477,21 +3477,14 @@
     "me": {
       "title": "Eu",
       "nameSub": "Nome, e-mail e senha",
-      "offline": "Pronto para usar sem internet",
       "tour": "Como o LangQuest funciona",
       "tourSub": "Ouça uma apresentação curta",
       "more": "Mais configurações",
-      "moreRefused": "Esta conta não pode sincronizar · notificações, conta",
-      "moreRefusedEvents": "Recusados · {{n, number}} · notificações, sincronização, conta",
-      "morePending_one": "{{count, number}} esperando para enviar · notificações, sincronização, conta",
-      "morePending_many": "{{count, number}} esperando para enviar · notificações, sincronização, conta",
-      "morePending_other": "{{count, number}} esperando para enviar · notificações, sincronização, conta",
       "signOut": "Sair",
       "signOutHelp": "Sai desta conta neste aparelho. O trabalho ainda não enviado fica guardado até ser enviado.",
       "nameHelp": "Abre seu perfil, para mudar seu nome, e-mail ou senha.",
-      "offlineHelp": "Mostra o que este aparelho guarda para trabalhar sem internet.",
       "tourHelp": "Abre três cartões curtos sobre para que serve o LangQuest.",
-      "moreHelp": "Abre as configurações de notificações, sincronização e conta. Um número quer dizer mudanças esperando para enviar.",
+      "moreHelp": "Abre as configurações de notificações e conta.",
       "local": {
         "title": "{{name}}, você entrou sem internet",
         "letInBy": "{{name}} deixou você entrar pelo celular.",
@@ -3537,7 +3530,6 @@
       "switchActive": "{{org}} (ativa)",
       "switchOrStart": "{{org}} · ou criar uma nova",
       "thisDevice": "Este aparelho",
-      "sync": "Sincronização",
       "syncRefused": "Esta conta não pode sincronizar esta organização",
       "syncPending_one": "{{count, number}} mudança esperando para enviar",
       "syncPending_many": "{{count, number}} de mudanças esperando para enviar",
@@ -3568,7 +3560,6 @@
       "lostPhoneSent": "Link enviado para {{email}}. Abra-o, escolha uma senha nova e ative “Um celular meu foi perdido ou levado”.",
       "testing": "Testes",
       "personaSub": "Entrar como tradutor, revisor ou administrador de demonstração",
-      "syncHelp": "Mostra o que espera para enviar ou baixar. Um número quer dizer mudanças esperando para enviar.",
       "blockedHelp": "Mostra quem você bloqueou, para desbloquear.",
       "switchOrgHelp": "Abre as suas organizações, para trocar para outra ou criar uma nova."
     },
@@ -3713,17 +3704,33 @@
         "refused": "O servidor não está aceitando alterações deste dispositivo. Seu trabalho continua guardado aqui.",
         "tooOld": "Este app é antigo demais para receber as mudanças da sua equipe. Atualize pela loja.",
         "toReceive": "Gravações de outras pessoas que este dispositivo ainda está baixando.",
-        "refusedLine": "Alterações que o servidor não aceitou, geralmente porque uma permissão mudou. Ficam neste dispositivo; abra Detalhes para ver cada uma.",
         "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "A receber",
-      "refusedLine": "Recusadas",
-      "none": "Nenhuma",
-      "moreInfo": "Saiba mais",
       "details": "Detalhes",
       "syncNowHelp": "Envia o que está esperando e recebe o que é novo, na hora.",
       "detailsHelp": "Cada mudança esperando ou recusada, e as transferências de áudio: para quem está resolvendo um problema.",
-      "eventHelp": "Abre a passagem a que esta mudança se refere."
+      "eventHelp": "Abre a passagem a que esta mudança se refere.",
+      "title": "Sincronização e uso sem internet",
+      "rowHelp": "Abre o que este aparelho envia e recebe, e o que ele guarda para trabalhar sem internet.",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "Recusado pelo servidor",
+        "refusedCount_one": "{{count, number}} mudança",
+        "refusedCount_many": "{{count, number}} de mudanças",
+        "refusedCount_other": "{{count, number}} mudanças",
+        "refusedNote": "Elas ficam neste aparelho. Quem administra sua equipe geralmente pode ajudar.",
+        "refusedHelp": "Mudanças que o servidor não aceitou, cada uma com o motivo. Elas ficam neste aparelho.",
+        "uploads": "Envios",
+        "uploadsHelp": "O que espera neste aparelho para enviar, por passagem, e o que já foi enviado.",
+        "downloads": "Downloads",
+        "readyHelp": "Se este celular tem o que você precisa antes de ficar sem internet."
+      },
+      "down": {
+        "count_one": "{{count, number}} gravação a receber",
+        "count_many": "{{count, number}} de gravações a receber",
+        "count_other": "{{count, number}} gravações a receber",
+        "offline": "Procura trabalho novo quando você estiver com internet de novo"
+      }
     },
     "lock": {
       "tooShort": "Ligue pelo menos {{n}} pontos.",
@@ -4956,7 +4963,10 @@
       "notSent_one": "{{count, number}} gravação nas suas passagens guardadas ainda não foi enviada do aparelho que a fez, então nenhum aparelho consegue baixá-la.",
       "notSent_many": "{{count, number}} de gravações nas suas passagens guardadas ainda não foram enviadas do aparelho que as fez, então nenhum aparelho consegue baixá-las.",
       "notSent_other": "{{count, number}} gravações nas suas passagens guardadas ainda não foram enviadas do aparelho que as fez, então nenhum aparelho consegue baixá-las.",
-      "barHelp": "Quantas das suas passagens guardadas estão inteiras neste aparelho."
+      "barHelp": "Quantas das suas passagens guardadas estão inteiras neste aparelho.",
+      "keptTitle": "Passagens guardadas",
+      "worksOffline": "O que funciona sem internet",
+      "worksOfflineHelp": "Mostra o que está sempre neste aparelho e o que precisa de conexão."
     },
     "keepHelp": "Guarda o áudio dela neste aparelho, para funcionar sem internet.",
     "stopKeepingHelp": "Deixa este aparelho remover o áudio dela de novo quando precisar de espaço.",
@@ -5468,7 +5478,7 @@
       "ready_one": "{{ready}} de {{count, number}} passagem pronta neste aparelho",
       "ready_many": "{{ready}} de {{count, number}} de passagens prontas neste aparelho",
       "ready_other": "{{ready}} de {{count, number}} passagens prontas neste aparelho",
-      "moreSettingsSub": "Notificações, sincronização, conta"
+      "moreSettingsSub": "Notificações, conta"
     },
     "waiting": "Esperando ser dividido",
     "parts": {

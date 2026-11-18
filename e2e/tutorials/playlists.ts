@@ -90,9 +90,10 @@ export function firstSentence(line: string): string {
  * LangQuest (decisions.md 187), every video and the app, and the same video
  * in each other language. Never what the voice says, line by line: the
  * video says it, and a description is read at a glance. A summary too long
- * for YouTube is cut.
+ * for YouTube is cut. A video with the tune ends with the tune's credit,
+ * which its licence asks for (tune.ts).
  */
-export function youtubeText(title: string, summary: string, elsewhere?: Elsewhere): { title: string; description: string } {
+export function youtubeText(title: string, summary: string, elsewhere?: Elsewhere, credit?: string): { title: string; description: string } {
   const others = elsewhere ? UI_LANGUAGES.filter((l) => l.code !== elsewhere.language && Object.hasOwn(CHANNELS, l.code) && !elsewhere.notIn?.includes(l.code)) : [];
   const words = elsewhere ? WORDS[elsewhere.language as keyof typeof WORDS] ?? WORDS.en : undefined;
   const links = [
@@ -102,7 +103,7 @@ export function youtubeText(title: string, summary: string, elsewhere?: Elsewher
   const languages = elsewhere && others.length
     ? [OTHER_LANGUAGES[elsewhere.language] ?? OTHER_LANGUAGES['en'], ...others.map((l) => `${l.name}: ${watchLink(l.code, elsewhere.tutorial)}`)].join('\n')
     : '';
-  const end = ['', links, ...(languages ? [languages] : [])].join('\n\n');
+  const end = ['', links, ...(languages ? [languages] : []), ...(credit ? [plain(credit)] : [])].join('\n\n');
   let first = plain(summary);
   while (first && bytes(first + end) > YOUTUBE_DESCRIPTION_BYTES) first = [...first].slice(0, -1).join('');
   return { title: [...plain(title)].slice(0, YOUTUBE_TITLE).join(''), description: (first + end).trim() };

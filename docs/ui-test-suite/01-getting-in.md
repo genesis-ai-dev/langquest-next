@@ -116,7 +116,7 @@ Expected:
 Roles: KEPT · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
-- KEPT has set a password in Edit Profile, for a shared phone. Their sign-in name (for example `kept-123`) is in the tester's notes.
+- KEPT has set a password in Edit Profile. Their sign-in name (for example `kept-123`) is in the tester's notes.
 - KEPT is signed out on this device.
 
 Steps:

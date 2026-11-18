@@ -335,7 +335,7 @@
     "book_structure": "Raba Littafi",
     "reference_home": "Ɗakin Kayan Bincike",
     "material_editor": "Gyara Kaya",
-    "sync_status": "Daidaitawa",
+    "sync_status": "Daidaitawa da amfani ba intanet",
     "delete_account": "Goge Asusu",
     "reports_home": "Rahotanni",
     "reports_language": "Rahoton Harshe",
@@ -3376,20 +3376,14 @@
     "me": {
       "title": "Ni",
       "nameSub": "Suna, imel da kalmar sirri",
-      "offline": "Shirye don amfani ba intanet",
       "tour": "Yadda LangQuest yake aiki",
       "tourSub": "Saurari gajeren bayani",
       "more": "Ƙarin saituna",
-      "moreRefused": "Wannan asusu ba zai iya daidaitawa ba · sanarwa, asusu",
-      "moreRefusedEvents": "An ƙi · {{n, number}} · sanarwa, daidaitawa, asusu",
-      "morePending_one": "{{count, number}} yana jiran a aika · sanarwa, daidaitawa, asusu",
-      "morePending_other": "{{count, number}} suna jiran a aika · sanarwa, daidaitawa, asusu",
       "signOut": "Fita",
       "signOutHelp": "Yana fita daga wannan asusu a wannan na'ura. Ana riƙe aikin da ba a aika ba har sai an aika shi.",
       "nameHelp": "Yana buɗe bayanan kanku, don canza sunanku, imel ɗinku ko kalmar sirrinku.",
-      "offlineHelp": "Yana nuna abin da wannan na'ura take riƙewa don aiki ba tare da intanet ba.",
       "tourHelp": "Yana buɗe gajerun katuna uku game da amfanin LangQuest.",
-      "moreHelp": "Yana buɗe saitunan sanarwa, daidaitawa da asusunku. Lamba tana nufin akwai canje-canje da ke jiran a aika.",
+      "moreHelp": "Yana buɗe saitunan sanarwa da asusunku.",
       "local": {
         "title": "{{name}}, kun shiga ba tare da intanet ba",
         "letInBy": "{{name}} ya shigar da ku daga wayarsa.",
@@ -3435,7 +3429,6 @@
       "switchActive": "{{org}} (mai aiki)",
       "switchOrStart": "{{org}} · ko ku kafa sabuwa",
       "thisDevice": "Wannan na'ura",
-      "sync": "Daidaitawa",
       "syncRefused": "Wannan asusu ba zai iya daidaita wannan ƙungiya ba",
       "syncPending_one": "Canji {{count, number}} yana jiran a aika",
       "syncPending_other": "Canje-canje {{count, number}} suna jiran a aika",
@@ -3464,7 +3457,6 @@
       "lostPhoneSent": "An aika mahaɗi zuwa {{email}}. Buɗe shi, zaɓi sabuwar kalmar sirri, sannan ku kunna “Ɗaya daga cikin wayoyina ya ɓace ko an ɗauke shi”.",
       "testing": "Gwaji",
       "personaSub": "Shiga a matsayin mai fassara, mai bita ko mai kula na gwaji",
-      "syncHelp": "Yana nuna abin da ke jiran a aika ko a sauke. Lamba tana nufin akwai canje-canje da ke jiran a aika.",
       "blockedHelp": "Yana nuna waɗanda kuka toshe, don cire toshewarsu.",
       "switchOrgHelp": "Yana buɗe ƙungiyoyinku, don sauyawa zuwa wata ko kafa sabuwa."
     },
@@ -3603,17 +3595,31 @@
         "refused": "Sabar ba ta karɓar canje-canje daga wannan na'ura. Aikinka yana nan a ajiye.",
         "tooOld": "Wannan manhaja ta tsufa da yawa don karɓar sauye-sauyen ƙungiyarka. Sabunta ta daga shago.",
         "toReceive": "Rikodin wasu da wannan na'ura har yanzu take saukewa.",
-        "refusedLine": "Canje-canjen da sabar ta ƙi karɓa, yawanci saboda izini ya canza. Suna nan a wannan na'ura; buɗe Cikakkun bayanai don ganin kowanne.",
         "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "Don karɓa",
-      "refusedLine": "An ƙi",
-      "none": "Babu",
-      "moreInfo": "Ƙarin bayani",
       "details": "Cikakkun bayanai",
       "syncNowHelp": "Yana aika abin da ke jira, ya samo abin da yake sabo, nan take.",
       "detailsHelp": "Kowane canji da ke jira ko aka ƙi, da tura sauti: don wanda ke gyara matsala.",
-      "eventHelp": "Yana buɗe nassin da wannan canji ya shafa."
+      "eventHelp": "Yana buɗe nassin da wannan canji ya shafa.",
+      "title": "Daidaitawa da amfani ba intanet",
+      "rowHelp": "Yana buɗe abin da wannan na'ura take aikawa da karɓa, da abin da take riƙewa don aiki ba tare da intanet ba.",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "Sabar ta ƙi karɓa",
+        "refusedCount_one": "Canji {{count, number}}",
+        "refusedCount_other": "Canje-canje {{count, number}}",
+        "refusedNote": "Suna nan a wannan na'ura. Wanda ke kula da ƙungiyarku yawanci zai iya taimaka.",
+        "refusedHelp": "Canje-canjen da sabar ta ƙi karɓa, kowanne da dalilinsa. Suna nan a wannan na'ura.",
+        "uploads": "Ɗorawa",
+        "uploadsHelp": "Abin da ke jiran ɗorawa a wannan na'ura, bisa nassi, da abin da aka ɗora.",
+        "downloads": "Saukewa",
+        "readyHelp": "Ko wannan waya tana da abin da kuke buƙata kafin ku rasa intanet."
+      },
+      "down": {
+        "count_one": "Naɗi {{count, number}} don karɓa",
+        "count_other": "Naɗe-naɗe {{count, number}} don karɓa",
+        "offline": "Za a duba sabon aiki idan kun dawo kan intanet"
+      }
     },
     "lock": {
       "tooShort": "Haɗa aƙalla ɗigo {{n}}.",
@@ -4799,7 +4805,10 @@
       "bullet": "• {{line}}",
       "notSent_one": "Naɗi {{count, number}} a cikin nassosin da kuka adana bai aiku ba tukuna daga na'urar da ta yi shi, don haka babu na'urar da za ta iya sauke shi.",
       "notSent_other": "Naɗe-naɗe {{count, number}} a cikin nassosin da kuka adana ba su aiku ba tukuna daga na'urar da ta yi su, don haka babu na'urar da za ta iya sauke su.",
-      "barHelp": "Nawa ne daga cikin nassosin da kuka adana suke cikakku a wannan na'ura."
+      "barHelp": "Nawa ne daga cikin nassosin da kuka adana suke cikakku a wannan na'ura.",
+      "keptTitle": "Nassosin da kuka adana",
+      "worksOffline": "Abin da ke aiki ba intanet",
+      "worksOfflineHelp": "Yana nuna abin da ke kullum a wannan na'ura, da abin da ke buƙatar intanet."
     },
     "keepHelp": "Yana adana sautinsa a wannan na'ura, don ya yi aiki ba tare da intanet ba.",
     "stopKeepingHelp": "Yana bar wannan na'ura ta sake cire sautinsa idan tana buƙatar wuri.",
@@ -5295,7 +5304,7 @@
       "kept_other": "Nassosi {{count, number}} a wannan na'ura",
       "ready_one": "Nassi {{ready}} cikin {{count, number}} ya shirya a wannan na'ura",
       "ready_other": "Nassosi {{ready}} cikin {{count, number}} sun shirya a wannan na'ura",
-      "moreSettingsSub": "Sanarwa, daidaitawa, asusu"
+      "moreSettingsSub": "Sanarwa, asusu"
     },
     "waiting": "Yana jiran a raba shi",
     "parts": {

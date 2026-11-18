@@ -91,3 +91,5 @@ they end. Play deletes an open edit when another opens, and the carried
 upload deleted build 55's mid-upload
 (`docs/decisions/2026-11-17-play-uploads-take-turns.md`). The store's jobs
 still never wait for or depend on the carried ones.
+
+Amended (2026-11-18, Carl Sauder): Sync reminds a carrier of the install file in one place, as an item of Ready for offline's packing list (got, never got or too old, online or not, with Get the install file while online), not as an amber line under the Share nearby row nor a line on the Ready for offline card (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
