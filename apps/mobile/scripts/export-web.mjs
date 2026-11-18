@@ -181,7 +181,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised by 1 KB when nearby sync on iPhones (Carl, 2026-11-17, decision 256) merged with main: the
 // production export came out 437 bytes past and Workers Builds refused to deploy it, though the
 // development export CI measured then was 59 bytes under. CI now measures the production export.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 121 * 1024;
+// Raised by 1 KB with Welcome back's Continue without it (Caleb Koster, 2026-11-11, LAN-250), 83 bytes
+// past then with main merged in: the button, its English words and the waiting rows' new words.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 122 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
