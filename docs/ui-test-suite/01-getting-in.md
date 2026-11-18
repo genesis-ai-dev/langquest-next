@@ -1068,13 +1068,14 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Open the link.
-2. Type a new password of 4 characters, then of 10. Tap the eye.
+2. Type a new password of 4 characters, then of 10. In "Confirm password"
+   type it with one letter more, then the same. Tap the first eye.
 3. Tap "Sign in".
 4. Sign out, and sign in with the new password; then try the old one.
 
 Expected:
-- Step 1: "New Password", one password field, "Sign in" (disabled), and the terms line.
-- Step 2: "The password needs 6 or more characters." while it is short; then "Sign in" is enabled. The eye shows the password and its label becomes "Hide password".
+- Step 1: "New Password", a password field and "Confirm password" (placeholder "Re-enter password"; typed twice, as on Create Account and Edit Profile, LAN-304), "Sign in" (disabled), and the terms line.
+- Step 2: "The password needs 6 or more characters." while it is short; "Passwords do not match." and "Sign in" still disabled while the two differ; then "Sign in" is enabled. The first eye shows the password, not the confirmation, and its label becomes "Hide password".
 - Step 3: "Join your team" opens, signed in. The link is gone from the address bar.
 - Step 4: the new password signs in; the old one says "Wrong email, sign-in name or password."
 
@@ -1085,7 +1086,7 @@ Preconditions (in addition to the global ones):
 - A link that was used (AUTH-065's), and one more than an hour old.
 
 Steps:
-1. Open each link, type a password of 6 or more and tap "Sign in".
+1. Open each link, type a password of 6 or more twice and tap "Sign in".
 2. Tap "Send a new link".
 
 Expected:

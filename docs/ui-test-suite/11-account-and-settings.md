@@ -30,14 +30,14 @@ Steps:
 Expected:
 - The header says "Me" and has no Back button.
 - One card holds five rows, in this order:
-  - The account's display name, with "Name and photo" under it.
+  - The account's display name, with "Name, email and password" under it.
   - "Ready for offline", with one of: "Checking this device…", "No passages
     kept on this device yet", "{n} passage(s) on this device", or
     "{ready} of {n} passage(s) ready on this device".
   - "How LangQuest works", with "Listen to a short tour".
   - "Language", with the name of the language the app shows, in that
     language ("English").
-  - "More settings", with "Password, notifications, sync, account" and no
+  - "More settings", with "Notifications, sync, account" and no
     count.
 - Below the card, a red "Sign out" link.
 - The tab bar shows, with "Me" lit.
@@ -136,7 +136,7 @@ Expected:
   account and your name, for good".
 - On iOS and Android there is also "Notifications" with "Hear about
   requests and feedback". On the web there is none (WEB-021).
-- No "Set a password" row (these accounts have email).
+- No "Set a password" row (Edit Profile holds the password, LAN-304).
 - No "Blocked people" row (nobody is blocked yet).
 - The tab bar is hidden on a phone.
 
@@ -164,8 +164,8 @@ Expected:
   help you sign in."
 - "Signed in on this device with {COORD}'s help · {date}", with today's
   date.
-- A "Set a password" row with "If other people use this device". Tapping it
-  opens "Edit Profile".
+- No "Set a password" row: a password and an email are added on Edit
+  Profile, from Me's name row (LAN-304, ACCT-019).
 
 ### ACCT-007 Notifications can be turned on and off
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android · Run: Device
@@ -347,8 +347,9 @@ Steps:
 
 Expected:
 - Step 1: "Edit Profile" shows an avatar, "Full Name" holding the current
-  name, "Email" with the account's address, and "Save Profile". There is no
-  password field.
+  name, "Email" holding the account's address, "New password (optional)"
+  empty with "You sign in with {email} and this password." under it, and
+  "Save Profile" (LAN-304).
 - Step 2: the button says "Saving…" briefly. A toast says "Profile saved.
   It syncs when you are connected." The app returns to where Edit Profile
   was opened from.
@@ -425,20 +426,22 @@ Preconditions:
 - KEPT has no password.
 
 Steps:
-1. Tap "Me", "More settings", "Set a password".
+1. Tap "Me", then the name row.
 2. Type "abc12" in "Password (optional)" and tap "Save Profile".
 
 Expected:
-- Step 1: "Edit Profile" shows "Email" with "No email yet", and a field
-  "Password (optional)" with the placeholder "6 or more characters" and the
-  hint "Set one if other people use this device, so you can sign back in
-  after they do."
+- Step 1: "Edit Profile" shows "Email" empty with the placeholder "No email
+  yet" (never the made-up address) and under it "With an email, you sign in
+  with it instead of {handle}, and Forgot password can send you a link. A
+  helper's code no longer signs you in."; then a field "Password
+  (optional)" with the placeholder "6 or more characters" and the hint "Set
+  one so you can sign in on another device." (LAN-304)
 - Once something is typed, the hint becomes "You sign in with {handle} and
   this password. Write the name down." ({handle} is KEPT's sign-in name.)
 - Step 2: red text "Choose a password of 6 or more characters." The screen
   stays open and nothing is saved.
 
-### ACCT-020 Setting a password needs a connection
+### ACCT-020 Setting a password needs a connection, and an email needs a password
 Roles: KEPT · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto (Web added as for ACCT-006)
 
 Preconditions:
@@ -446,17 +449,26 @@ Preconditions:
   known), and is now offline.
 
 Steps:
-1. Open "Set a password", type "kept-pass-1", and tap "Save Profile".
+1. Open Edit Profile from Me's name row, type "kept-pass-1" in "Password
+   (optional)", and tap "Save Profile". Then type it again in "Confirm
+   password" and tap "Save Profile".
 2. Change the name too, and tap "Save Profile" again.
-3. Put the name back, clear the password, and tap "Save Profile".
+3. Clear the password, type an email, and tap "Save Profile".
+4. Clear the email, put the name back, and tap "Save Profile".
 
 Expected:
-- Step 1: red text "Setting a password needs a connection." The screen
-  stays open.
+- Step 1: "Confirm password" (placeholder "Re-enter password") shows once
+  the password has something in it. Before it is typed, red text
+  "Passwords do not match."; after, red text "Setting a password needs a
+  connection." The screen stays open.
 - Step 2: "Name saved. Setting a password needs a connection." The new
   name is kept on the device and syncs later (UI audit, finding 117).
-- Step 3: back on More settings with the name. "Set a password" is still
-  there.
+- Step 3: the password field's label becomes "Password", and under it
+  "Choose a password too: with an email, a helper's code no longer signs
+  you in."; Save says the same in red (LAN-304). The screen stays open and
+  the account keeps no email.
+- Step 4: back on Me with the name. More settings still says "No email
+  yet".
 
 ### ACCT-021 A looked-after account sets a password
 Roles: KEPT · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto (Web added as for ACCT-006; its own world, `11-account-kept-password.spec.ts`)
@@ -465,15 +477,16 @@ Preconditions:
 - KEPT has no password. Online.
 
 Steps:
-1. Open "Set a password", type a password of 8 characters, and tap "Save
+1. Open Edit Profile from Me's name row, type a password of 8 characters
+   in "Password (optional)" and again in "Confirm password", and tap "Save
    Profile".
-2. Open "More settings", then "Edit Profile" again.
+2. Open "Edit Profile" again.
 3. Go to Me and tap "Sign out".
 
 Expected:
-- Step 1: the toast "Saved. You can sign in with your sign-in name and this
-  password." The app goes back.
-- Step 2: no "Set a password" row on More settings. Edit Profile's field is
+- Step 1: the toast "Saved. You sign in with {handle} and this password."
+  The app goes back to Me.
+- Step 2: Edit Profile's field is
   now "New password (optional)" with the hint "You sign in with {handle}
   and this password. Write the name down."
 - Step 3: the sign-out screen no longer mentions a code from anyone (see
@@ -487,6 +500,87 @@ again when it changes.
 
 Resets: KEPT has a password. ACCT-006, ACCT-019, ACCT-020 and ACCT-041 need a
 fresh KEPT.
+
+### ACCT-059 A looked-after account adds its email and a password
+Roles: NEW (looked after, a Translator, ADMIN its steward) · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto (Web, `11-account-email.spec.ts`)
+
+LAN-304: an account made without an email adds one on Edit Profile, the one
+place for an email and a password. Nothing is sent to prove the address, as
+nothing is at sign-up
+(docs/decisions/2026-11-18-edit-profile-holds-email-and-password.md).
+
+Preconditions:
+- The account has no password and a steward. Online.
+
+Steps:
+1. Tap "Me", then the name row.
+2. Type an address no account has in "Email", in capitals with spaces
+   around it, and tap "Save Profile".
+3. Type a password of 8 characters in "Password" and again in "Confirm
+   password".
+4. Tap "Save Profile", then open "More settings".
+
+Expected:
+- Step 1: "Email" is empty, with the sign-in name line of ACCT-019.
+- Step 2: the password field's label is "Password" (no longer optional),
+  and red text "Choose a password too: with an email, a helper's code no
+  longer signs you in." Nothing is saved.
+- Step 3: under the password, "You sign in with {address} and this
+  password.", the address in lower case.
+- Step 4: the toast "Saved. You sign in with {address} and this password."
+  and Me. More settings shows the address under the name, and no "No email
+  yet" or "New device?" lines.
+- On the server the account's address is the new one, its steward row is
+  gone, and the address and password sign in; the sign-in name no longer
+  does.
+
+Resets: the account is deleted.
+
+### ACCT-060 Someone with an email changes it; another account's address is refused
+Roles: NEW (a Translator) · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto (Web, `11-account-email.spec.ts`)
+
+Preconditions: Online.
+
+Steps:
+1. Tap "Me", then the name row.
+2. Type TRANS's address in "Email" and tap "Save Profile".
+3. Type "not-an-address" and tap "Save Profile".
+4. Clear "Email" and tap "Save Profile".
+5. Type an address no account has and tap "Save Profile". Open "More
+   settings".
+
+Expected:
+- Step 1: "Email" holds the account's address.
+- Step 2: red text "Another account already uses this email." The screen
+  stays open.
+- Step 3: "Check the email address."
+- Step 4: "Type the email you sign in with." (an email cannot be taken
+  away). The server still has the old address.
+- Step 5: the toast "Saved. You sign in with {address} from now on." More
+  settings shows the new address. It signs in with the old password.
+
+Resets: the account is deleted.
+
+### ACCT-061 Someone with an email changes their password
+Roles: NEW (a Translator) · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto (Web, `11-account-email.spec.ts`)
+
+Preconditions: Online.
+
+Steps:
+1. Tap "Me", then the name row.
+2. Type "abc12" in "New password (optional)" and tap "Save Profile".
+3. Type a password of 11 characters, and in "Confirm password" the same
+   with one letter more. Tap "Save Profile".
+4. Type the same password in "Confirm password" and tap "Save Profile".
+
+Expected:
+- Step 2: "Choose a password of 6 or more characters." Nothing is saved.
+- Step 3: "Passwords do not match." under the fields and again in red after
+  Save. The old password still signs in.
+- Step 4: the toast "Saved. You sign in with {email} and this password."
+  and Me. The new password signs in; the old one no longer does.
+
+Resets: the account is deleted.
 
 ---
 
@@ -759,7 +853,7 @@ Expected:
   stays lit with a number, in reading order, top to bottom. The "?" stays
   lit, so help can be turned off.
 - Step 2: a tooltip beside the row says "More settings" and its sub-line
-  "Password, notifications, sync, account". The app does not open More
+  "Notifications, sync, account". The app does not open More
   settings.
 - Step 3: the tooltip closes. Help stays on.
 - Step 4: the tooltip says "Sign out" and "Leaves this account on this
@@ -962,11 +1056,11 @@ Steps:
 
 Expected:
 - "Sign out?" with "To sign back in, you'll need a code from {inviter} or an
-  admin. If other people use this device, set a password in Edit Profile
-  first."
+  admin. To sign back in without help, add your email or a password in Edit
+  Profile first."
 - If the inviter cannot be found: "To sign back in, you'll need a code from
-  the person who invited you or an admin. If other people use this device,
-  set a password in Edit Profile first."
+  the person who invited you or an admin. To sign back in without help, add
+  your email or a password in Edit Profile first."
 - With work waiting (offline, after recording), the text is the hand-over
   sentence followed by the code sentence.
 - "Sign Out" is enabled.

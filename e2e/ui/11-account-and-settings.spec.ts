@@ -30,8 +30,8 @@ const heading = (page: Page, name: string | RegExp) => page.getByRole('heading',
 /** A sheet's ✕ (the last Close on screen: the sheet is drawn over the screen). */
 const closeSheet = (page: Page) => button(page, 'Close');
 
-const ME_ROWS = ['Name and photo', 'Ready for offline', 'How LangQuest works',
-  'Listen to a short tour', 'Language', 'English', 'More settings', 'Password, notifications, sync, account', 'Sign out'];
+const ME_ROWS = ['Name, email and password', 'Ready for offline', 'How LangQuest works',
+  'Listen to a short tour', 'Language', 'English', 'More settings', 'Notifications, sync, account', 'Sign out'];
 
 /** Each of `words` appears in `whole`, in this order. */
 function expectInOrder(whole: string, words: string[]) {
@@ -100,7 +100,7 @@ for (const who of ['TRANS', 'VIEW', 'ADMIN'] as const) {
     expectInOrder(all, [world().accounts[who].name, ...ME_ROWS]);
     expect(all).toMatch(/Ready for offline (Checking this device…|No passages kept on this device yet|\d+ passages? on this device|\d+ of \d+ passages? ready on this device)/);
     // No count on More settings: its sub-line runs straight into Sign out.
-    expect(all).toContain('Password, notifications, sync, account Sign out');
+    expect(all).toContain('Notifications, sync, account Sign out');
     await expect(button(page, 'Sign out')).toBeVisible();
     // "Me" is lit: its label is the brand colour, the other tabs' are not.
     const colour = (id: 'me' | 'map') => tab(page, id).locator('div[dir="auto"]').last().evaluate((e) => getComputedStyle(e).color);
@@ -151,10 +151,10 @@ test('ACCT-004 Waiting work shows on Me\'s "More settings" row', async ({ page }
   await addNoteUI(page, world(), 'P-SUBMITTED', 'ACCT-004 waiting note', { offline: true });
   await openMe(page);
   const more = row(page, 'More settings');
-  await expect(more).toContainText('1 waiting to send · password, notifications, sync, account');
+  await expect(more).toContainText('1 waiting to send · notifications, sync, account');
   await expect(more).toContainText(/1$/);
   await offline(page, false);
-  await expect(more).toContainText('Password, notifications, sync, account', { timeout: 45_000 });
+  await expect(more).toContainText('Notifications, sync, account', { timeout: 45_000 });
   await expect(more).not.toContainText('waiting to send');
   await expectSent(page, world());
 });
@@ -196,9 +196,8 @@ test('ACCT-006 A looked-after account sees how to get back in', async ({ page })
   await expect(text(page, `Translator · ${world().orgName}`)).toBeVisible();
   await expect(text(page, `New device? ${world().accounts.ADMIN.name} or an admin can help you sign in.`)).toBeVisible();
   await expect(text(page, new RegExp(`^Signed in on this device with ${esc(world().accounts.COORD.name)}'s help · `))).toBeVisible();
-  await expect(row(page, 'Set a password')).toContainText('If other people use this device');
-  await row(page, 'Set a password').click();
-  await expect(heading(page, 'Edit Profile')).toBeVisible();
+  // A password and an email are added on Edit Profile, from Me's name row; More settings has no row for them (LAN-304).
+  expect(await screenText(page)).not.toContain('Set a password');
 });
 
 test('ACCT-010 Switch Organization says which organization is active, on Me for someone in several', async ({ browser }) => {
@@ -290,10 +289,11 @@ test('ACCT-015 Change your name', async ({ page, browser }) => {
     await row(page, name).click();
     await expect(heading(page, 'Edit Profile')).toBeVisible();
     await expect(field(page, 'Full Name')).toHaveValue(name);
-    await expect(text(page, 'Email')).toBeVisible();
-    await expect(text(page, w.accounts.TRANS.email)).toBeVisible();
+    await expect(field(page, 'Email')).toHaveValue(w.accounts.TRANS.email);
     await expect(primary(page)).toHaveAccessibleName('Save Profile');
-    await expect(page.locator('input[type="password"]')).toHaveCount(0);
+    // An account with an email changes its password here too, and nowhere else (LAN-304).
+    await expect(field(page, 'New password (optional)')).toHaveValue('');
+    await expect(text(page, `You sign in with ${w.accounts.TRANS.email} and this password.`)).toBeVisible();
     await field(page, 'Full Name').fill(`${name} Test`);
     await primary(page).click();
     await expectToast(page, 'Profile saved. It syncs when you are connected.');
@@ -392,13 +392,16 @@ test('ACCT-018 A name the server refuses says why', async ({ page }) => {
 test('ACCT-019 A looked-after account\'s password must be 6 or more characters', async ({ page }) => {
   const kept = world().accounts.KEPT;
   await openAs(page, world(), 'KEPT');
-  await openMore(page);
-  await row(page, 'Set a password').click();
+  await openMe(page);
+  await row(page, kept.name).click();
   await expect(heading(page, 'Edit Profile')).toBeVisible();
-  await expect(text(page, 'No email yet')).toBeVisible();
+  // No email yet: the field starts empty, never with the made-up address, and says what adding one changes (LAN-304).
+  await expect(field(page, 'Email')).toHaveValue('');
+  await expect(field(page, 'Email')).toHaveAttribute('placeholder', 'No email yet');
+  await expect(text(page, `With an email, you sign in with it instead of ${kept.signInName}, and Forgot password can send you a link. A helper's code no longer signs you in.`)).toBeVisible();
   const pass = field(page, 'Password (optional)');
   await expect(pass).toHaveAttribute('placeholder', '6 or more characters');
-  await expect(text(page, 'Set one if other people use this device, so you can sign back in after they do.')).toBeVisible();
+  await expect(text(page, 'Set one so you can sign in on another device.')).toBeVisible();
   await pass.fill('abc12');
   await expect(text(page, `You sign in with ${kept.signInName} and this password. Write the name down.`)).toBeVisible();
   await primary(page).click();
@@ -406,14 +409,18 @@ test('ACCT-019 A looked-after account\'s password must be 6 or more characters',
   await expect(heading(page, 'Edit Profile')).toBeVisible();
 });
 
-test('ACCT-020 Setting a password needs a connection', async ({ page }) => {
+test('ACCT-020 Setting a password needs a connection, and an email needs a password', async ({ page }) => {
   await openAs(page, world(), 'KEPT');
-  await openMore(page);
+  await openMe(page);
   // The name came down while online, as on a phone that has been used before.
-  await expect(text(page, world().accounts.KEPT.name)).toBeVisible();
+  await expect(row(page, world().accounts.KEPT.name)).toBeVisible();
   await offline(page, true);
-  await row(page, 'Set a password').click();
+  await row(page, world().accounts.KEPT.name).click();
   await field(page, 'Password (optional)').fill('kept-pass-1');
+  // Typed twice (LAN-304): until the two match, Save says so instead.
+  await primary(page).click();
+  await expect(text(page, 'Passwords do not match.').last()).toBeVisible();
+  await field(page, 'Confirm password').fill('kept-pass-1');
   await primary(page).click();
   await expect(text(page, 'Setting a password needs a connection.')).toBeVisible();
   await expect(heading(page, 'Edit Profile')).toBeVisible();
@@ -422,12 +429,20 @@ test('ACCT-020 Setting a password needs a connection', async ({ page }) => {
   await field(page, 'Full Name').fill(`${name} Two`);
   await primary(page).click();
   await expect(text(page, 'Name saved. Setting a password needs a connection.')).toBeVisible();
-  await field(page, 'Full Name').fill(name);
+  // An email on an account with no password needs one with it, since helpers' codes stop then (LAN-304).
   await field(page, 'Password (optional)').fill('');
+  await field(page, 'Email').fill(`acct-020-${world().run}@example.org`);
+  await expect(field(page, 'Password')).toBeVisible();
   await primary(page).click();
-  await expect(heading(page, 'More settings')).toBeVisible();
-  await expect(text(page, name)).toBeVisible();
-  await expect(row(page, 'Set a password')).toBeVisible();
+  await expect(text(page, "Choose a password too: with an email, a helper's code no longer signs you in.").last()).toBeVisible();
+  await expect(heading(page, 'Edit Profile')).toBeVisible();
+  await field(page, 'Email').fill('');
+  await field(page, 'Full Name').fill(name);
+  await primary(page).click();
+  await expect(heading(page, 'Me')).toBeVisible();
+  await expect(row(page, name)).toBeVisible();
+  await row(page, 'More settings').click();
+  await expect(text(page, 'No email yet')).toBeVisible();
 });
 
 // ---- Switch Organization -------------------------------------------------------------------------
@@ -804,7 +819,7 @@ test('ACCT-041 A looked-after account is warned before signing out', async ({ pa
   await openMe(page);
   await button(page, 'Sign out').click();
   await expect(text(page, 'Sign out?')).toBeVisible();
-  await expect(text(page, `To sign back in, you'll need a code from ${world().accounts.ADMIN.name} or an admin. If other people use this device, set a password in Edit Profile first.`))
+  await expect(text(page, `To sign back in, you'll need a code from ${world().accounts.ADMIN.name} or an admin. To sign back in without help, add your email or a password in Edit Profile first.`))
     .toBeVisible();
   await expect(primary(page)).toBeEnabled();
 });

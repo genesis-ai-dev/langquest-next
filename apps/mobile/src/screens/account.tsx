@@ -10,7 +10,6 @@
 // Requirements INBOX-1, INBOX-2, AUTH-7, AUTH-8, ONB-2 (the Me rows back to
 // them), CORE-12 (sign-out never strands work).
 import { OrgName } from '../verified/VerifiedSeal';
-import { signInName } from '../auth/accounts';
 import { readHelp, type SignInHelp } from '../auth/signInHelp';
 import { lostPhoneRowShown } from '../auth/model';
 import { askResetLink } from '../auth/signInFlow';
@@ -19,8 +18,8 @@ import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
-import { accountOutbox, queueAccountAction } from '../account/accountData';
-import { authErrorText, groupByRead, outboxErrorText, ownName, remoteTitle, roleWords, updateText } from '../account/accountText';
+import { accountOutbox } from '../account/accountData';
+import { groupByRead, outboxErrorText, ownName, remoteTitle, roleWords, updateText } from '../account/accountText';
 import { deriveKinds, kindOf } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { edgeFor } from '../shell/flow';
@@ -38,7 +37,7 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation/model';
 import { decideRequest, type PendingRequest } from '../invites/invites';
-import { Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, HelpTop, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
+import { Badge, Banner, Card, Disclosure, EmptyState, GhostBtn, Group, HelpTop, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { storeUrl } from '../appVersion/appVersionModel';
 import { belowMinimum } from '../appVersion/syncGate';
@@ -58,7 +57,7 @@ import { HANDS_OVER } from '../sync/handOver';
 import { isPattern, MIN_DOTS, PICTURES } from '../session/lockModel';
 import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
 import { useLockWays } from '../auth/useLockWays';
-import { LOCKS_ON_SIGN_OUT, leaveThisDevice, rememberPassword, setAccountPassword, setLockPattern } from '../account/accountAuth';
+import { LOCKS_ON_SIGN_OUT, leaveThisDevice, setLockPattern } from '../account/accountAuth';
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useLocalPerson } from '../shell/useLocalPerson';
 import { membershipOf } from '../session/localPersonModel';
@@ -479,10 +478,10 @@ function DangerLink(props: { label: string; onPress: () => void }) {
 // ---- More settings (AUTH-7, AUTH-8; decision 71) -------------------------------------------------
 
 /**
- * Everything Settings had that Me does not lead with: the account, a
- * password for a looked-after account, notifications, switching
- * organization (Me has it for someone in several), sync, diagnostics,
- * blocked people and deleting the account.
+ * Everything Settings had that Me does not lead with: the account,
+ * notifications, switching organization (Me has it for someone in several),
+ * sync, diagnostics, blocked people and deleting the account. A name, email
+ * and password are changed on Edit Profile alone (LAN-304).
  */
 export function SettingsMore(ctx: Ctx) {
   const notify = useNotificationSwitch();
@@ -491,7 +490,6 @@ export function SettingsMore(ctx: Ctx) {
   const s = ctx.session;
   const { roleName, orgName } = useAccountLine(ctx);
   const inviter = useInviterName(ctx);
-  const [hasPassword] = useHasPassword();
   const [help, setHelp] = useState<SignInHelp | null>(null);
   useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
   const name = useOwnName(ctx);
@@ -503,7 +501,6 @@ export function SettingsMore(ctx: Ctx) {
   const orgs = useOrganizations(s.actorId).rows;
   // Someone let in offline has no account yet: no switching, notifications or deleting until first contact (14.1, 5 "Me").
   const switchHere = !inSeveral(orgs) && !s.isLocal;
-  const passwordRow = s.isManaged && hasPassword === false && !s.isLocal;
   // No push on the web yet, nor on a disguised Android phone (useNotificationsOffered.ts).
   const notifications = useNotificationsOffered() && !s.isLocal;
   const blocked = ctx.blocks.ids.length;
@@ -532,13 +529,8 @@ export function SettingsMore(ctx: Ctx) {
           </View>
         ) : null}
       </Card>
-      {passwordRow || notifications || switchHere ? (
+      {notifications || switchHere ? (
         <Group>
-          {/* For a shared phone: then they can sign back in after someone else has used it (decisions.md 59). */}
-          {passwordRow ? (
-            <Row icon="lock" label={t('account.more.setPassword')} sub={t('account.more.setPasswordSub')} onPress={() => ctx.go('profile_edit')}
-              last={!notifications && !switchHere} />
-          ) : null}
           {/* A switch that shows its state and turns off too (UI audit, finding 114). */}
           {notifications ? (
             <Row icon="notif" label={t('account.more.notifications')}
@@ -661,86 +653,6 @@ function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
   );
 }
 
-// ---- Edit Profile (AUTH-7) ------------------------------------------------------------------------------
-
-/** Your name, saved on this phone and sent when connected. */
-export function ProfileEdit(ctx: Ctx) {
-  const names = useDisplayNames(ctx.session.actorId);
-  const [name, setName] = useState<string | null>(null);
-  const [password, setPassword] = useState('');
-  const [hasPassword, recheck] = useHasPassword();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const actions = useAccountActions(ctx.session.actorId);
-  const pending = actions.filter((a) => a.kind === 'profile' && a.status !== 'sent').at(-1);
-  const value = name ?? String(pending?.payload.displayName ?? names[ctx.session.actorId] ?? '');
-  const managed = ctx.session.isManaged;
-  const handle = signInName(ctx.session.email);
-  // Saving stays off while the name is empty, except a too-short password:
-  // that has to be tappable so this screen can refuse it (ACCT-019).
-  const passwordTooShort = managed && password.length > 0 && password.length < 6;
-  async function save() {
-    setBusy(true);
-    setError('');
-    try {
-      // A too-short password is refused here and nothing is written, name included (ACCT-019).
-      if (passwordTooShort) { setError(t('account.profile.shortPassword')); return; }
-      // The name syncs whenever it can, so it is kept first: a password that needs a connection
-      // never takes the name down with it (UI audit, finding 117).
-      const saved = String(pending?.payload.displayName ?? names[ctx.session.actorId] ?? '').trim();
-      const renamed = value.trim() !== saved;
-      if (renamed || !(managed && password)) await queueAccountAction(ctx.session.actorId, 'profile', { displayName: value.trim() });
-      // A password goes to the server now (it needs a connection).
-      if (managed && password) {
-        const { error } = await setAccountPassword(password);
-        if (error) {
-          noteExpected('set password', error);
-          const why = authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection'));
-          setError(renamed ? `${t('account.profile.nameSaved')} ${why}` : why);
-          return;
-        }
-        // The new password also signs them back in here offline (decisions.md 168).
-        if (ctx.session.email) await rememberPassword(ctx.session.actorId, ctx.session.email, password);
-        recheck();
-      }
-      ctx.toast(managed && password ? t('account.profile.savedWithPassword') : t('account.profile.saved'));
-      ctx.back();
-    } catch (e) { setError(failure('save profile', e)); }
-    finally { setBusy(false); }
-  }
-  return (
-    <Screen
-      header={<Header title={t('account.profile.title')} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={t('account.profile.save')} onPress={() => void save()} disabled={!value.trim() && !passwordTooShort} busy={busy} />}
-    >
-      <View style={styles.avatarBlock}>
-        <PersonAvatar look={personLook(ctx.session.actorId, value)} size={72} />
-      </View>
-      <Field label={t('account.profile.nameLabel')} value={value} onChangeText={setName} placeholder={t('entry.fields.yourName')} autoCapitalize="words"
-        help={t('account.profile.nameHelp')} />
-      <View style={{ gap: space.xs }}>
-        <Text style={txt.xsStrong}>{t('entry.fields.email')}</Text>
-        {/* A looked-after account's address is not an email anyone can use (accounts.ts). */}
-        <Text style={txt.body}>{managed || !ctx.session.email ? t('account.more.noEmail') : ctx.session.email}</Text>
-      </View>
-      {managed ? (
-        <View style={{ gap: space.xs }}>
-          <Field label={hasPassword ? t('account.profile.newPassword') : t('account.profile.password')} value={password} onChangeText={setPassword}
-            placeholder={t('account.profile.passwordPlaceholder')} secure autoCapitalize="none" help={t('account.profile.passwordHelp')} />
-          <Text style={txt.xs}>
-            {password || hasPassword
-              ? (handle ? t('account.profile.signInWith', { name: handle }) : t('account.profile.signInWithYourName'))
-              : t('account.profile.setOne')}
-          </Text>
-        </View>
-      ) : null}
-      {pending?.status === 'failed' ? <Banner icon="flag" tone="amber" title={t('account.profile.lastChangeRefused')} body={outboxErrorText(pending.error)} /> : null}
-      {pending?.status === 'queued' ? <Banner icon="cloud" title={t('entry.shared.savedOnDevice')} body={t('account.profile.savedBody')} /> : null}
-      {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-    </Screen>
-  );
-}
-
 // ---- Switch Organization (AUTH-8) --------------------------------------------------------------------------
 
 export function OrgSwitcher(ctx: Ctx) {
@@ -826,7 +738,7 @@ export function SignOutConfirm(ctx: Ctx) {
   const waiting = useUnsent(ctx);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  // Without an email or a password, getting back in takes a helper's code (decisions.md 59).
+  // Without an email or a password, getting back in takes a helper's code (decisions.md 59); Edit Profile adds either (LAN-304).
   const inviter = useInviterName(ctx);
   const [hasPassword] = useHasPassword();
   const needsHelp = ctx.session.isManaged && hasPassword === false;
@@ -1234,7 +1146,6 @@ const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   tile: { width: tile.md, height: tile.md, borderRadius: 16, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   check: { width: 26, height: 26, borderRadius: 13, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
-  avatarBlock: { alignItems: 'center', paddingVertical: space.md },
   centered: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.xl, gap: space.lg },
   bigTile: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
@@ -1247,4 +1158,4 @@ const styles = StyleSheet.create({
   dangerText: { fontSize: T.base, fontWeight: '700', color: TINT.redText }
 });
 
-export const contracts = contractsFor('inbox_home', 'settings_home', 'settings_more', 'profile_edit', 'org_switcher', 'sign_out_confirm', 'delete_account', 'sync_status');
+export const contracts = contractsFor('inbox_home', 'settings_home', 'settings_more', 'org_switcher', 'sign_out_confirm', 'delete_account', 'sync_status');

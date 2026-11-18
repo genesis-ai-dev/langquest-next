@@ -384,8 +384,6 @@ export const EDGES: Edge[] = [
   e('edit_member', 'my_work', 'back'),
   e('settings_home', 'settings_more'),
   e('settings_more', 'settings_home', 'back'),
-  e('settings_more', 'profile_edit'),
-  e('profile_edit', 'settings_more', 'back'),
   e('settings_more', 'org_switcher'),
   e('org_switcher', 'settings_more', 'back'),
   e('settings_more', 'sync_status'),

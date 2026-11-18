@@ -1,5 +1,6 @@
-// "Your account", for everyone: Samuel changes his name, sees how to switch
-// organization, and where to delete his account (he keeps it).
+// "Your account", for everyone: Samuel changes his name, sees where his email
+// and password are (LAN-304), how to switch organization, and where to delete
+// his account (he keeps it).
 import type { Page } from 'playwright';
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
@@ -25,7 +26,7 @@ export const yourAccount: Tutorial = {
     },
     {
       screen: 'settings_home',
-      part: (page) => button(page, /Name and photo$/),
+      part: (page) => button(page, /Name, email and password$/),
       say: 'To change your name, tap it.',
       tap: true,
       until: (page) => heading(page, 'Edit Profile').waitFor({ timeout: 10_000 }),
@@ -37,6 +38,12 @@ export const yourAccount: Tutorial = {
       say: 'Change it here. Your team sees this name on your work.',
       paste: 'Samuel Mensah',
       stay: 0.8
+    },
+    {
+      screen: 'profile_edit',
+      part: (page) => [page.getByLabel('Email', { exact: true }).locator('visible=true').first(),
+        page.getByLabel('New password (optional)', { exact: true }).locator('visible=true').first()],
+      say: 'Your email and password are here too.'
     },
     {
       screen: 'profile_edit',
@@ -69,7 +76,7 @@ export const yourAccount: Tutorial = {
     {
       screen: 'settings_home',
       part: (page) => button(page, /^More settings/),
-      say: 'More settings has your password, notifications and sync.',
+      say: 'More settings has notifications and sync.',
       tap: true,
       until: (page) => heading(page, 'More settings').waitFor({ timeout: 10_000 }),
       stay: 0.8

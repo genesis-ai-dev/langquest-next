@@ -123,6 +123,7 @@ const loadSources = () => import('./src/screens/sources');
 const loadGlobalViewer = () => import('./src/screens/globalViewer');
 const loadGuideEditor = () => import('./src/screens/guideEditor');
 const loadNearby = () => import('./src/screens/nearby');
+const loadProfileEdit = () => import('./src/screens/profileEdit');
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
@@ -136,7 +137,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   study_guide: Study.StudyGuide, study_step: Study.StudyStep, guide_editor: lazyScreen(loadGuideEditor, 'GuideEditor'),
   workspace: Translate.Workspace, back_translation: Translate.BackTranslation,
   key_terms: lazyScreen(loadConfig, 'KeyTerms'), key_term_detail: lazyScreen(loadConfig, 'KeyTermDetail'),
-  inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: Account.ProfileEdit,
+  inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: lazyScreen(loadProfileEdit, 'ProfileEdit'),
   org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm, delete_account: Account.DeleteAccount, sync_status: Account.SyncStatus,
   org_home: lazyScreen(loadOrg, 'OrgHome'), cluster_home: lazyScreen(loadOrg, 'ClusterHome'), language_home: lazyScreen(loadOrg, 'LanguageHome'),
   new_language: lazyScreen(loadOrg, 'NewLanguage'), members_list: lazyScreen(loadOrg, 'MembersList'), invite_member: lazyScreen(loadOrg, 'InviteMember'), invite_qr: lazyScreen(loadOrg, 'InviteQr'),
