@@ -1,4 +1,4 @@
-import type { ApkCheck } from './carriedApkModel';
+import type { ApkCheck, KeepResult, KeptFile } from './carriedApkModel';
 
 /** The carried build's install file as Get the install file, Let someone in and Share nearby take it (docs/nearby-sync-plan.md 14.4). */
 export interface CarriedApkHandle {
@@ -10,13 +10,20 @@ export interface CarriedApkHandle {
   opened: string | null | undefined;
   /** The file the person got before is for an older version (`apkStale`). */
   stale: boolean;
-  /** What the file last chosen under Check my file said, with its name, until the screen closes. */
-  checked: { result: ApkCheck; name: string } | null;
+  /**
+   * What the file last chosen under Check my file said, with its name, until the screen closes;
+   * for a right name, also what keeping a copy for Give the app came to (14.5).
+   */
+  checked: { result: ApkCheck; name: string; keep?: KeepResult } | null;
+  /** The copy kept for Give the app: null if none, undefined until it is read (docs/nearby-sync-plan.md 14.5). */
+  kept: KeptFile | null | undefined;
+  /** This build's native module can keep a file and give the app (an older binary under this update cannot). */
+  canGive: boolean;
   actions: { get(): void; check(): void };
 }
 
 const NOTHING = (): void => undefined;
-const NOT_HERE: CarriedApkHandle = { needed: null, url: null, opened: null, stale: false, checked: null, actions: { get: NOTHING, check: NOTHING } };
+const NOT_HERE: CarriedApkHandle = { needed: null, url: null, opened: null, stale: false, checked: null, kept: null, canGive: false, actions: { get: NOTHING, check: NOTHING } };
 
 /**
  * Only an Android phone lets someone in, so only Android's file (useCarriedApk.android.ts) names a

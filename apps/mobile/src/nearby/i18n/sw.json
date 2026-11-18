@@ -189,6 +189,15 @@
         "stopped": "Msimbo umeondoka kwa sababu uliondoka kwenye skrini hii. Tengeneza mpya.",
         "noCertificate": "Simu hii lazima iunganishwe kwenye intaneti mara moja kabla ya kuweza kumruhusu mtu yeyote aingie.",
         "failed": "Kuna tatizo limetokea kwenye simu hii. Tengeneza msimbo mpya."
+      },
+      "keep": {
+        "keeping": "Inahifadhi nakala kwenye simu hii…",
+        "kept": "Imehifadhiwa kwenye simu hii, tayari kwa Mpe mtu programu. Unaweza kufuta ile iliyo kwenye Vipakuliwa.",
+        "notOurs": "Hii si faili ya kusakinisha ya LangQuest yenyewe. Ipate tena ukiwa bado na intaneti.",
+        "noSpace": "Hakuna nafasi ya kutosha kwenye simu hii kuhifadhi nakala. Futa vitu vingine upate nafasi, kisha uichague tena.",
+        "unreadable": "Faili hii haikuweza kusomwa. Ichague tena.",
+        "failed": "Nakala haikuweza kuhifadhiwa. Ichague tena.",
+        "unsupported": "Sasisha LangQuest kutoka dukani ili kumpa mtu programu kupitia Wi-Fi."
       }
     },
     "installFile": {
@@ -253,6 +262,65 @@
         "refused": "Simu hii haikuweza kuhakiki jibu la mwenzako. Omba msimbo mpya.",
         "dropped": "Muunganisho ulikatika. Omba msimbo mpya.",
         "failed": "Kuna tatizo limetokea kwenye simu hii. Omba msimbo mpya."
+      }
+    },
+    "give": {
+      "intro": "Tuma LangQuest kwenye simu mpya kupitia Wi-Fi ya simu hii yenyewe. Hakuna simu kati ya hizo mbili inayohitaji intaneti.",
+      "rowSub": "Tuma LangQuest kwenye simu mpya kupitia Wi-Fi, bila intaneti",
+      "rowHelp": "Hufungua Mpe mtu programu, ambapo simu hii inatuma LangQuest kwenye simu mpya kupitia Wi-Fi yake yenyewe.",
+      "linkHelp": "Hufungua Mpe mtu programu, ili kutuma LangQuest kwenye simu mpya kupitia Wi-Fi ya simu hii.",
+      "size": "Faili ya kusakinisha: {{size}} MB",
+      "start": "Anza",
+      "startHelp": "Huwasha Wi-Fi ya simu hii yenyewe ili simu mpya iunganishe, na huonyesha msimbo wa kwanza.",
+      "starting": "Inawasha Wi-Fi ya simu hii…",
+      "noFile": "Kwanza hifadhi faili ya kusakinisha kwenye simu hii: ipate ukiwa bado na intaneti, kisha uichague kwenye Kagua faili yangu.",
+      "unsupported": "Simu hii haiwezi kumpa mtu programu kupitia Wi-Fi. Badala yake, tuma faili ya kusakinisha kwa Quick Share, kadi ya SD au kebo ya USB.",
+      "join": {
+        "title": "1. Unganisha kwenye Wi-Fi ya simu hii",
+        "line": "Kwenye simu mpya, fungua kamera, ielekeze kwenye msimbo huu na uguse Unganisha.",
+        "code": "Msimbo wa kuunganisha kwenye Wi-Fi ya simu hii",
+        "network": "Jina la Wi-Fi: {{name}}",
+        "password": "Nenosiri: {{password}}",
+        "typeLine": "Kamera haisomi misimbo? Katika mipangilio ya Wi-Fi ya simu mpya, chagua jina hili na uandike nenosiri."
+      },
+      "next": "Endelea",
+      "nextHelp": "Huonyesha msimbo wa pili, wa ukurasa wa kupakua, baada ya simu mpya kuunganishwa.",
+      "download": {
+        "title": "2. Fungua ukurasa wa kupakua",
+        "line": "Elekeza kamera ya simu mpya kwenye msimbo huu na ufungue ukurasa. Gusa Pakua.",
+        "code": "Msimbo wa ukurasa wa kupakua",
+        "address": "Au andika anwani hii kwenye kivinjari chake: {{address}}",
+        "dataLine": "Ukurasa usipofunguka, zima data ya simu kwenye simu mpya, au gusa Endelea kuunganishwa inapouliza."
+      },
+      "backToJoin": "Rudi kwenye msimbo wa kwanza",
+      "backToJoinHelp": "Huonyesha tena msimbo wa kuunganisha kwenye Wi-Fi ya simu hii.",
+      "sending": "Inatuma: {{sent}} kati ya {{total}} MB",
+      "sent": "Imetumwa. Kwenye simu mpya, gusa faili ili kuisakinisha.",
+      "sentLine": "Huenda ikaomba mara moja kuruhusu kusakinisha kutoka kwenye kivinjari. Kisha mruhusu aingie kupitia simu hii.",
+      "letIn": "Mruhusu aingie",
+      "letInHelp": "Hufungua Mruhusu mtu aingie, ili simu mpya ijiunge na timu.",
+      "stop": "Simamisha",
+      "stopHelp": "Huzima Wi-Fi ya simu hii kwa ajili ya simu mpya.",
+      "stayOpen": "Acha skrini hii wazi hadi faili itumwe.",
+      "ended": {
+        "stopped": "Imesimama.",
+        "idle": "Imesimama baada ya dakika 15 bila ombi lolote.",
+        "phone": "Imesimama: simu hii ilizima Wi-Fi yake, au programu iliachwa."
+      },
+      "failed": {
+        "wifiOff": "Washa Wi-Fi kwenye simu hii, kisha uguse Anza tena.",
+        "permission": "Simu hii inahitaji ruhusa ya kutumia Wi-Fi na vifaa vilivyo karibu. Iruhusu, kisha uguse Anza tena.",
+        "busy": "Shiriki karibu inatumia Wi-Fi ya simu hii. Isimamishe, kisha uguse Anza tena.",
+        "failed": "Wi-Fi ya simu hii haikuwaka. Gusa Anza ili ujaribu tena.",
+        "permissionCovered": "Fungua Shiriki karibu kwanza na uruhusu kile inachouliza. Kisha urudi na uguse Anza."
+      },
+      "page": {
+        "title": "Sakinisha LangQuest",
+        "size": "{{size}} MB",
+        "download": "Pakua",
+        "stepOpen": "Fungua faili uliyopakua.",
+        "stepAllow": "Ruhusu kusakinisha kutoka kwenye kivinjari hiki, simu ikiuliza.",
+        "stepInstall": "Gusa Sakinisha."
       }
     }
   }

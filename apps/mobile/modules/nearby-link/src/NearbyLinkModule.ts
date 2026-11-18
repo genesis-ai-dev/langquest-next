@@ -74,6 +74,34 @@ export interface NativeHosted {
   security?: string;
 }
 
+/** The install file Give the app hands over (docs/nearby-sync-plan.md 14.5), kept in the app's own folder. */
+export interface NativeKeptFile {
+  /** The carried build's name, as core's `carriedApkName` writes it. */
+  name: string;
+  size: number;
+}
+/** A Give the app session: the Wi-Fi Direct group the new phone joins, and the page's address on it. */
+export interface NativeGiving {
+  ssid: string;
+  passphrase: string;
+  /** The group's own address, such as 192.168.49.1. */
+  address: string;
+  port: number;
+}
+/** What the page's server has done so far. */
+export interface NativeGiveStatus {
+  serving: boolean;
+  /** Bytes of the install file sent, over every request. */
+  sent: number;
+  /** The install file's size. */
+  total: number;
+  /** Requests that got the whole file to its end. */
+  downloads: number;
+  /** Requests answered, the page's and the file's. */
+  asked: number;
+  /** When the last request came, in epoch milliseconds; 0 before any. */
+  lastAskedMs: number;
+}
 /** `SeenPhone` in packages/sync/src/nearbyLink.ts, field for field. */
 export interface NativeSeenPhone {
   peer: string;
@@ -145,6 +173,29 @@ export interface NearbyLinkNative extends NativeModule<NearbyLinkEvents> {
   cancelFile(linkId: string, transferId: string): Promise<void>;
   closeLink(linkId: string): Promise<void>;
   stopAll(): Promise<void>;
+  /**
+   * Give the app (docs/nearby-sync-plan.md 14.5). Copies the install file a person chose in Check my
+   * file (`uri`, the picker's content URI; anything else is BAD_ARGUMENT) into the app's own folder
+   * under `name`, and keeps it only if it is this app's own: the same package and signing
+   * certificates as the running app, and the runtime version `name`'s fingerprint says.
+   * FILE_REFUSED for any other file, FILE_TOO_BIG past 1 GiB, FILE_NO_SPACE without room for it and
+   * `minFreeBytes` more, FILE_UNREADABLE when it cannot be read or is not a plain file. Any file
+   * kept before goes. Android only.
+   */
+  keepInstallFile(uri: string, name: string, minFreeBytes: number): Promise<NativeKeptFile>;
+  /** The install file kept, or null. */
+  keptInstallFile(): Promise<NativeKeptFile | null>;
+  /** Deletes the kept install file. */
+  dropInstallFile(): Promise<void>;
+  /**
+   * Forms a Wi-Fi Direct group with a name and passphrase of native's choosing and serves `page`
+   * (HTML) at `/` and the kept file at `/<name>` on the group's own address, until
+   * `stopGiveApp`, `stopAll` or the app goes to the background. FILE_UNREADABLE with no kept
+   * file; GROUP_BUSY while a nearby session hosts a group. Android 10 and later.
+   */
+  startGiveApp(page: string, deadlineMs: number): Promise<NativeGiving>;
+  giveAppStatus(): Promise<NativeGiveStatus>;
+  stopGiveApp(): Promise<void>;
 }
 
 const native = requireOptionalNativeModule<NearbyLinkNative>('NearbyLink');

@@ -189,6 +189,15 @@
         "stopped": "El código ya no sirve porque saliste de esta pantalla. Crea uno nuevo.",
         "noCertificate": "Este teléfono debe conectarse a internet una vez antes de poder dejar entrar a alguien.",
         "failed": "Algo salió mal en este teléfono. Crea un código nuevo."
+      },
+      "keep": {
+        "keeping": "Guardando una copia en este teléfono…",
+        "kept": "Guardado en este teléfono, listo para Dar la app. Puedes borrar el que está en Descargas.",
+        "notOurs": "Este no es el archivo de instalación propio de LangQuest. Consíguelo de nuevo mientras tienes internet.",
+        "noSpace": "No hay espacio suficiente en este teléfono para guardar una copia. Libera espacio y vuelve a elegirlo.",
+        "unreadable": "No se pudo leer este archivo. Vuelve a elegirlo.",
+        "failed": "No se pudo guardar una copia. Vuelve a elegirlo.",
+        "unsupported": "Actualiza LangQuest desde la tienda para dar la app por Wi-Fi."
       }
     },
     "installFile": {
@@ -253,6 +262,65 @@
         "refused": "Este teléfono no pudo comprobar la respuesta de tu compañero. Pide un código nuevo.",
         "dropped": "La conexión se cortó. Pide un código nuevo.",
         "failed": "Algo salió mal en este teléfono. Pide un código nuevo."
+      }
+    },
+    "give": {
+      "intro": "Envía LangQuest a un teléfono nuevo por el propio Wi-Fi de este teléfono. Ninguno de los dos teléfonos necesita internet.",
+      "rowSub": "Envía LangQuest a un teléfono nuevo por Wi-Fi, sin internet",
+      "rowHelp": "Abre Dar la app, donde este teléfono envía LangQuest a un teléfono nuevo por su propio Wi-Fi.",
+      "linkHelp": "Abre Dar la app, para enviar LangQuest al teléfono nuevo por el Wi-Fi de este teléfono.",
+      "size": "Archivo de instalación: {{size}} MB",
+      "start": "Iniciar",
+      "startHelp": "Enciende el propio Wi-Fi de este teléfono para que el teléfono nuevo se conecte, y muestra el primer código.",
+      "starting": "Encendiendo el Wi-Fi de este teléfono…",
+      "noFile": "Primero guarda el archivo de instalación en este teléfono: consíguelo mientras tienes internet y luego elígelo en Revisar mi archivo.",
+      "unsupported": "Este teléfono no puede dar la app por Wi-Fi. En su lugar, envía el archivo de instalación por Quick Share, una tarjeta SD o un cable USB.",
+      "join": {
+        "title": "1. Conectarse al Wi-Fi de este teléfono",
+        "line": "En el teléfono nuevo, abre la cámara, apúntala a este código y toca Conectar.",
+        "code": "Código para conectarse al Wi-Fi de este teléfono",
+        "network": "Nombre del Wi-Fi: {{name}}",
+        "password": "Contraseña: {{password}}",
+        "typeLine": "¿La cámara no lee códigos? En los ajustes de Wi-Fi del teléfono nuevo, elige este nombre y escribe la contraseña."
+      },
+      "next": "Siguiente",
+      "nextHelp": "Muestra el segundo código, el de la página de descarga, cuando el teléfono nuevo ya se haya conectado.",
+      "download": {
+        "title": "2. Abrir la página de descarga",
+        "line": "Apunta la cámara del teléfono nuevo a este código y abre la página. Toca Descargar.",
+        "code": "Código de la página de descarga",
+        "address": "O escribe esta dirección en su navegador: {{address}}",
+        "dataLine": "Si la página no se abre, apaga los datos móviles del teléfono nuevo, o toca Mantener conexión cuando te lo pregunte."
+      },
+      "backToJoin": "Volver al primer código",
+      "backToJoinHelp": "Vuelve a mostrar el código para conectarse al Wi-Fi de este teléfono.",
+      "sending": "Enviando: {{sent}} de {{total}} MB",
+      "sent": "Enviado. En el teléfono nuevo, toca el archivo para instalarlo.",
+      "sentLine": "Puede que pida una vez permitir instalaciones desde el navegador. Después, deja entrar a la persona desde este teléfono.",
+      "letIn": "Dejarla entrar",
+      "letInHelp": "Abre Dejar entrar a alguien, para que el teléfono nuevo se una al equipo.",
+      "stop": "Detener",
+      "stopHelp": "Apaga el Wi-Fi de este teléfono para el teléfono nuevo.",
+      "stayOpen": "Deja esta pantalla abierta hasta que se envíe el archivo.",
+      "ended": {
+        "stopped": "Detenido.",
+        "idle": "Se detuvo tras 15 minutos sin ninguna petición.",
+        "phone": "Detenido: este teléfono apagó su Wi-Fi o se salió de la app."
+      },
+      "failed": {
+        "wifiOff": "Enciende el Wi-Fi de este teléfono y luego toca Iniciar otra vez.",
+        "permission": "Este teléfono necesita permiso para usar el Wi-Fi con dispositivos cercanos. Permítelo y luego toca Iniciar otra vez.",
+        "busy": "Compartir cerca está usando el Wi-Fi de este teléfono. Detenlo y luego toca Iniciar otra vez.",
+        "failed": "El Wi-Fi de este teléfono no se encendió. Toca Iniciar para intentarlo de nuevo.",
+        "permissionCovered": "Primero abre Compartir cerca y permite lo que pida. Luego vuelve y toca Iniciar."
+      },
+      "page": {
+        "title": "Instalar LangQuest",
+        "size": "{{size}} MB",
+        "download": "Descargar",
+        "stepOpen": "Abre el archivo descargado.",
+        "stepAllow": "Permite instalar desde este navegador, si el teléfono lo pide.",
+        "stepInstall": "Toca Instalar."
       }
     }
   }

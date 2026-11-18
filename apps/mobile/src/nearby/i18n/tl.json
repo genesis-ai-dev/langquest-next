@@ -189,6 +189,15 @@
         "stopped": "Nawala ang code dahil umalis ka sa screen na ito. Gumawa ng bago.",
         "noCertificate": "Kailangang kumonekta muna sa internet nang isang beses ang teleponong ito bago ito makapagpapasok ng kahit sino.",
         "failed": "May nangyaring mali sa teleponong ito. Gumawa ng bagong code."
+      },
+      "keep": {
+        "keeping": "Nagtatabi ng kopya sa teleponong ito…",
+        "kept": "Nakatabi na sa teleponong ito, handa para sa Ibigay ang app. Puwede mong burahin ang nasa Downloads.",
+        "notOurs": "Hindi ito ang sariling install file ng LangQuest. Kunin ito ulit habang may internet ka.",
+        "noSpace": "Kulang ang espasyo sa teleponong ito para magtabi ng kopya. Magbakante ng espasyo at piliin ito ulit.",
+        "unreadable": "Hindi mabasa ang file na ito. Piliin ito ulit.",
+        "failed": "Hindi makapagtabi ng kopya. Piliin ito ulit.",
+        "unsupported": "I-update ang LangQuest mula sa store para maibigay ang app sa Wi-Fi."
       }
     },
     "installFile": {
@@ -253,6 +262,65 @@
         "refused": "Hindi masuri ng teleponong ito ang sagot ng kasamahan mo. Humingi ng bagong code.",
         "dropped": "Naputol ang koneksiyon. Humingi ng bagong code.",
         "failed": "May nangyaring mali sa teleponong ito. Humingi ng bagong code."
+      }
+    },
+    "give": {
+      "intro": "Ipadala ang LangQuest sa bagong telepono sa sariling Wi-Fi ng teleponong ito. Hindi kailangan ng internet ng alinmang telepono.",
+      "rowSub": "Ipadala ang LangQuest sa bagong telepono sa Wi-Fi, nang walang internet",
+      "rowHelp": "Binubuksan ang Ibigay ang app, kung saan ipinapadala ng teleponong ito ang LangQuest sa bagong telepono sa sarili nitong Wi-Fi.",
+      "linkHelp": "Binubuksan ang Ibigay ang app, para maipadala ang LangQuest sa bagong telepono sa Wi-Fi ng teleponong ito.",
+      "size": "Install file: {{size}} MB",
+      "start": "Simulan",
+      "startHelp": "Binubuksan ang sariling Wi-Fi ng teleponong ito para makakonekta ang bagong telepono, at ipinapakita ang unang code.",
+      "starting": "Sinisimulan ang Wi-Fi ng teleponong ito…",
+      "noFile": "Itabi muna ang install file sa teleponong ito: kunin ito habang may internet ka, saka piliin ito sa Suriin ang file ko.",
+      "unsupported": "Hindi maibibigay ng teleponong ito ang app sa Wi-Fi. Sa halip, ipadala ang install file sa Quick Share, SD card o USB cable.",
+      "join": {
+        "title": "1. Kumonekta sa Wi-Fi ng teleponong ito",
+        "line": "Sa bagong telepono, buksan ang camera, itutok ito sa code na ito, at i-tap ang Kumonekta.",
+        "code": "Code para kumonekta sa Wi-Fi ng teleponong ito",
+        "network": "Pangalan ng Wi-Fi: {{name}}",
+        "password": "Password: {{password}}",
+        "typeLine": "Walang camera na nakakabasa ng code? Sa Wi-Fi settings ng bagong telepono, piliin ang pangalang ito at i-type ang password."
+      },
+      "next": "Susunod",
+      "nextHelp": "Ipinapakita ang ikalawang code, para sa download page, kapag nakakonekta na ang bagong telepono.",
+      "download": {
+        "title": "2. Buksan ang download page",
+        "line": "Itutok ang camera ng bagong telepono sa code na ito at buksan ang page. I-tap ang I-download.",
+        "code": "Code para sa download page",
+        "address": "O i-type ang address na ito sa browser nito: {{address}}",
+        "dataLine": "Kung hindi bumukas ang page, i-off ang mobile data sa bagong telepono, o i-tap ang Manatiling nakakonekta kapag nagtanong ito."
+      },
+      "backToJoin": "Bumalik sa unang code",
+      "backToJoinHelp": "Ipinapakita ulit ang code para kumonekta sa Wi-Fi ng teleponong ito.",
+      "sending": "Ipinapadala: {{sent}} sa {{total}} MB",
+      "sent": "Naipadala na. Sa bagong telepono, i-tap ang file para i-install ito.",
+      "sentLine": "Baka magtanong ito nang isang beses kung papayagan ang pag-install mula sa browser. Pagkatapos, papasukin siya mula sa teleponong ito.",
+      "letIn": "Papasukin siya",
+      "letInHelp": "Binubuksan ang Magpapasok ng isang tao, para makasali sa pangkat ang bagong telepono.",
+      "stop": "Ihinto",
+      "stopHelp": "Ino-off ang Wi-Fi ng teleponong ito para sa bagong telepono.",
+      "stayOpen": "Panatilihing bukas ang screen na ito hanggang maipadala ang file.",
+      "ended": {
+        "stopped": "Huminto.",
+        "idle": "Huminto pagkalipas ng 15 minuto nang walang anumang hiling.",
+        "phone": "Huminto: in-off ng teleponong ito ang Wi-Fi nito, o iniwan ang app."
+      },
+      "failed": {
+        "wifiOff": "I-on ang Wi-Fi sa teleponong ito, saka i-tap ulit ang Simulan.",
+        "permission": "Kailangan ng teleponong ito ng pahintulot para gamitin ang Wi-Fi sa mga device sa malapit. Payagan ito, saka i-tap ulit ang Simulan.",
+        "busy": "Ginagamit ng Ibahagi sa malapit ang Wi-Fi ng teleponong ito. Ihinto ito, saka i-tap ulit ang Simulan.",
+        "failed": "Hindi nagsimula ang Wi-Fi ng teleponong ito. I-tap ang Simulan para subukan ulit.",
+        "permissionCovered": "Buksan muna ang Ibahagi sa malapit at payagan ang hinihingi nito. Saka bumalik at i-tap ang Simulan."
+      },
+      "page": {
+        "title": "I-install ang LangQuest",
+        "size": "{{size}} MB",
+        "download": "I-download",
+        "stepOpen": "Buksan ang na-download na file.",
+        "stepAllow": "Payagan ang pag-install mula sa browser na ito, kung magtanong ang telepono.",
+        "stepInstall": "I-tap ang I-install."
       }
     }
   }

@@ -424,18 +424,31 @@ member taps once after both compare two pictures.
   `https://next.langquest.org/apk/<name>`, the Play-signed universal APK of a carried build,
   which Play Console offers for each build and Google says may be distributed elsewhere, under a
   name that holds only version numbers. A carrier downloads it with a browser while online and
-  passes it on by Quick Share, SD card or USB; the app never downloads or installs an APK, and
-  `REQUEST_INSTALL_PACKAGES` stays out of it. Carried builds use the alpha track, as drafts.
+  passes it on by Quick Share, SD card, USB or Give the app (below); the app never downloads or
+  installs an APK, and `REQUEST_INSTALL_PACKAGES` stays out of it. Carried builds use the alpha
+  track, as drafts.
 - **Finding and checking the file** (decision 246, amended 2026-11-09). Get the install file,
   a screen opened from Share nearby and Let someone in, opens that address in the phone's own
   browser; the app makes no request to it. It remembers the name of the file last opened, in one row on the phone holding only that
   name (no person, organization or time), to say when the file is for an older version. Check
   my file opens Android's system file picker through `expo-document-picker`, Expo's module for
-  it, and reads only the chosen file's name: the file is not copied, opened or read, and nothing
-  about it leaves the phone. The picker needs no permission (the module adds only a `<queries>`
-  entry for the `OPEN_DOCUMENT` intent, which is not a permission) and has no config plugin; it
-  is linked on Android only (`expo.autolinking.ios.exclude`). It collects nothing: Data safety
-  "Files and docs" stays not collected, since nothing is sent off the phone.
+  it, and checks the chosen file's name. Since 2026-11-18 (docs/nearby-sync-plan.md 14.5), a
+  right one is also copied into the app's own storage and read on the phone, to keep it only if
+  it is this app's own: its package name and signing certificates are compared with the running
+  app's (`PackageManager.getPackageArchiveInfo`). Nothing about the file is sent to our server or
+  anyone else. The picker needs no permission (the module adds only a `<queries>` entry for the
+  `OPEN_DOCUMENT` intent, which is not a permission) and has no config plugin; it is linked on
+  Android only (`expo.autolinking.ios.exclude`). It collects nothing: Data safety "Files and docs"
+  stays not collected, since the file is the app's own installer, not the person's data, and
+  nothing is sent to us.
+- **Give the app** (docs/nearby-sync-plan.md 14.5,
+  docs/decisions/2026-11-18-give-the-app-over-wifi.md), a screen from Share nearby and Let someone
+  in: the member's phone forms a Wi-Fi Direct group (the permissions Share nearby already declares)
+  and serves the kept copy of the app's own install file, with a small page, to the phone that
+  joins it from a QR code, while the screen is open. The new phone installs it through its own
+  system dialog after its person taps the file; the app installs nothing. It carries the app's
+  public install file, no personal data, and is a transfer the person starts and sees, so no
+  Data safety answer changes, and no permission is added.
 - **Permissions, content and audience** are unchanged: no permission or diagnostic is added,
   only that SDK, which sends nothing, and the new person joins the same organization's work by
   invitation, as before.

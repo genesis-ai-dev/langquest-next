@@ -354,7 +354,8 @@
     "share_nearby": "แชร์ใกล้เคียง",
     "let_someone_in": "รับคนเข้าร่วม",
     "join_offline": "เข้าร่วมโดยไม่ใช้อินเทอร์เน็ต",
-    "get_install_file": "รับไฟล์ติดตั้ง"
+    "get_install_file": "รับไฟล์ติดตั้ง",
+    "give_app": "ส่งต่อแอป"
   },
   "native": {
     "microphone": "LangQuest อัดเสียงของคุณเพื่อแปลตอนพระคัมภีร์",

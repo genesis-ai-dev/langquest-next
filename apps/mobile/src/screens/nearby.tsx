@@ -17,12 +17,14 @@
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LetInCode } from '../nearby/LetInCode';
+import { GiveAppScreen } from '../nearby/GiveAppScreen';
 import { ChosenPicture } from '../auth/patternPad';
 import { apkGet, apkShown, apkStart, joinRows, letInVersionsWords } from '../nearby/carriedApkModel';
 import { joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
 import type { LetInEnd, LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
 import { useCarriedApk } from '../nearby/useCarriedApk';
+import type { KeepResult } from '../nearby/carriedApkModel';
 import { useLetIn, useLetInOffered } from '../nearby/useLetIn';
 import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
@@ -121,6 +123,10 @@ function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean }) {
         {rows.installFile ? (
           <Row icon="download" label={t('screens.get_install_file')} sub={t('nearby.installFile.rowSub')}
             help={t('nearby.installFile.rowHelp')} onPress={() => props.ctx.go('get_install_file')} />
+        ) : null}
+        {/* Give the app (14.5): the new phone gets LangQuest over this phone's own Wi-Fi. */}
+        {rows.installFile ? (
+          <Row icon="send" label={t('screens.give_app')} sub={t('nearby.give.rowSub')} help={t('nearby.give.rowHelp')} onPress={() => props.ctx.go('give_app')} />
         ) : null}
         <Row icon="people" label={t('screens.let_someone_in')} sub={rows.letIn === 'expired' ? t('nearby.letIn.why.expired') : t('nearby.letIn.rowSub')}
           help={t('nearby.letIn.rowHelp')} disabled={rows.letIn !== 'ready'} onPress={() => { if (rows.letIn === 'ready') props.ctx.go('let_someone_in'); }} last />
@@ -436,7 +442,10 @@ export function LetSomeoneIn(ctx: Ctx) {
               <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.letIn.needsApp')}</Text>
             </View>
             {apk.needed !== null ? (
-              <LinkBtn label={t('screens.get_install_file')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} />
+              <>
+                <LinkBtn label={t('screens.give_app')} help={t('nearby.give.linkHelp')} onPress={() => ctx.go('give_app', { from: 'let_someone_in' })} />
+                <LinkBtn label={t('screens.get_install_file')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} />
+              </>
             ) : null}
             <LetInCoverNote worn={worn} part="look" />
           </>
@@ -548,7 +557,7 @@ export function GetInstallFile(ctx: Ctx) {
             {get === 'offline' ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('nearby.letIn.getOffline')}</Text> : null}
           </Card>
           <Card>
-            <GhostBtn label={t('nearby.letIn.check')} icon="folder" help={t('nearby.letIn.checkHelp')} onPress={apk.actions.check} />
+            <GhostBtn label={t('nearby.letIn.check')} icon="folder" help={t('nearby.letIn.checkHelp')} onPress={apk.actions.check} disabled={apk.checked?.keep === 'keeping'} />
             {apk.checked ? (
               <View style={styles.line}>
                 <Ico name={apk.checked.result === 'right' ? 'check' : 'warning'} size={20} color={apk.checked.result === 'right' ? TINT.greenText : TINT.amberText} />
@@ -558,6 +567,7 @@ export function GetInstallFile(ctx: Ctx) {
                 </View>
               </View>
             ) : null}
+            {apk.checked?.keep ? <KeepLine keep={apk.checked.keep} /> : null}
           </Card>
           <Card>
             <Text style={txt.sm}>{t('nearby.letIn.getLine')}</Text>
@@ -568,6 +578,40 @@ export function GetInstallFile(ctx: Ctx) {
       ) : null}
     </Screen>
   );
+}
+
+/** What keeping a copy of the chosen file came to, under Check my file (14.5). */
+const KEEP_WORDS = {
+  keeping: 'nearby.letIn.keep.keeping',
+  kept: 'nearby.letIn.keep.kept',
+  'not-ours': 'nearby.letIn.keep.notOurs',
+  'no-space': 'nearby.letIn.keep.noSpace',
+  unreadable: 'nearby.letIn.keep.unreadable',
+  failed: 'nearby.letIn.keep.failed',
+  unsupported: 'nearby.letIn.keep.unsupported'
+} as const satisfies Record<KeepResult, string>;
+
+function KeepLine(props: { keep: KeepResult }) {
+  const { keep } = props;
+  const good = keep === 'kept';
+  return (
+    <View style={styles.line}>
+      {keep === 'keeping' ? <ActivityIndicator color={C.primary} />
+        : <Ico name={good ? 'check' : 'warning'} size={20} color={good ? TINT.greenText : TINT.amberText} />}
+      <Text style={[txt.sm, { flex: 1 }]}>{t(KEEP_WORDS[keep])}</Text>
+    </View>
+  );
+}
+
+// ---- Give the app (docs/nearby-sync-plan.md 14.5) ------------------------------------------
+
+/**
+ * Give the app, from Share nearby's A new person and Let someone in. Android only: the screen is
+ * GiveAppScreen.android.tsx, and the web and an iPhone get a plain stub, so their bundles carry
+ * none of it.
+ */
+export function GiveApp(ctx: Ctx) {
+  return <GiveAppScreen {...ctx} />;
 }
 
 function Waiting(props: { text: string }) {
@@ -664,4 +708,4 @@ export function JoinOffline(ctx: Ctx) {
   );
 }
 
-export const contracts = contractsFor('share_nearby', 'let_someone_in', 'join_offline', 'get_install_file');
+export const contracts = contractsFor('share_nearby', 'let_someone_in', 'join_offline', 'get_install_file', 'give_app');
