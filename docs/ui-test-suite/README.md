@@ -34,7 +34,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 09 | [09-language-setup.md](09-language-setup.md) | New language and clusters, Get ready, templates, dividing books, review flows, reference material, the guide editor, licence | `SETUP` | 69 |
 | 10 | [10-people-and-roles.md](10-people-and-roles.md) | Members, invites, join requests, editing members, roles, review teams, the limits on granting | `PEOPLE` | 48 |
 | 11 | [11-account-and-settings.md](11-account-and-settings.md) | Me, More settings, profile, notifications, switching organization, app language, help mode, signing out, deleting an account, Global Viewers, the app icon disguise | `ACCT` | 58 |
-| 12 | [12-sync-and-offline.md](12-sync-and-offline.md) | The Sync screen, offline work, Ready for offline, handing over, two devices, refused work, the update banner | `SYNC` | 34 |
+| 12 | [12-sync-and-offline.md](12-sync-and-offline.md) | The Sync and offline screen, offline work, Ready for offline, handing over, two devices, refused work, the update banner | `SYNC` | 34 |
 | 13 | [13-moderation.md](13-moderation.md) | Reporting, blocking, hidden content, removal, reports in the Inbox | `MOD` | 24 |
 | 14 | [14-reports.md](14-reports.md) | The Reports section on wide windows | `RPT` | 22 |
 | 15 | [15-web-and-wide.md](15-web-and-wide.md) | Wide layouts, panes, one tab at a time, browser history, forgetting the browser | `WEB` | 28 |
@@ -145,7 +145,7 @@ These hold for every test unless the test says otherwise.
 **G7. Starting point**
 - The test starts on the role's home screen, with the tab bar showing.
 - Nothing is waiting to send: My Work shows no sync chip, and Me shows no
-  count on "More settings".
+  count on "Sync and offline".
 - No toast is showing.
 
 **G8. Audio**
@@ -500,7 +500,8 @@ the world under the tests after it: the world is kept for the whole run
   `else-reference` for its tiles); `person-<profileId>` on a member's row;
   `toggle-must-pass`, `toggle-same-time` and `toggle-required` on the checks
   setup switches; `sync-tile-<waiting|refused|confirmed|checkpoint>` on the
-  Sync screen's tiles; `invite-role-<title>` on a role's card in Invite
+  Sync screen's tiles and `sync-<refused|uploads|downloads|ready|details>`
+  on its folds; `invite-role-<title>` on a role's card in Invite
   someone and `invite-role-<title>-invite` on its Invite (phone
   accessibility trees list the button beside the card, so Maestro's
   `childOf` cannot find it).
