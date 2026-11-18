@@ -323,6 +323,7 @@ describe('the carried build in the pipeline', () => {
   const deploy = read('apps/mobile/.eas/workflows/deploy-to-testers.yml');
   const job = (name: string) => deploy.split(/\n(?=  \w+:\n)/).find((part) => part.startsWith(`  ${name}:\n`)) ?? '';
   const needs = (name: string) => (/\n {4}needs: \[([^\]]*)\]/.exec(job(name))?.[1] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const after = (name: string) => (/\n {4}after: \[([^\]]*)\]/.exec(job(name))?.[1] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
   it('checks, builds on the carried profile, uploads to the alpha track as a draft, and publishes the APK, in jobs of its own', () => {
     expect(needs('carried_check')).toEqual(['fingerprint']);
@@ -346,6 +347,18 @@ describe('the carried build in the pipeline', () => {
     expect(needs('publish_android_update')).toEqual(['get_android_build']);
     // get-build matches on profile, so a carried build never satisfies the store build's check (14.4).
     expect(job('get_android_build')).toMatch(/profile: production/);
+  });
+
+  // Play keeps one edit open at a time, so the carried upload opening its edit deleted the store
+  // build's mid-upload (build 55, 2026-11-17). It waits for every job of the run that writes to
+  // Play, however they end (`after`, not `needs`), so the store's jobs still never depend on it.
+  it('uploads only once the store build has gone up and its review step is done', () => {
+    const jobs = [...deploy.matchAll(/\n {2}(\w+):\n/g)].map((m) => m[1]!);
+    const playWriters = jobs.filter((j) => j !== 'submit_carried' && (/^submit_android/.test(j) || job(j).includes('node scripts/play-review.mjs')));
+    expect(playWriters.sort()).toEqual(['review_android', 'submit_android', 'submit_android_internal']);
+    expect(after('submit_carried').sort()).toEqual(playWriters);
+    expect(needs('submit_carried')).toEqual(['build_carried']);
+    for (const name of jobs) expect(after(name).length === 0 || name === 'submit_carried', name).toBe(true);
   });
 
   it('goes on the alpha track as a draft, which play-review.mjs never reads, so it is never promoted', async () => {
