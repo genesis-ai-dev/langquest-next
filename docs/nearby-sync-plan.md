@@ -3131,10 +3131,10 @@ For joining offline (section 14):
 | Question | Why it matters |
 | --- | --- |
 | Does the link work on a factory-fresh phone that has never been online? | It should, since it uses only Android's own APIs, but nothing has tested it. |
-| Does a universal APK file signed with the Play key install offline, sent by Quick Share and copied by SD card? | It is the main route. Answerable only after the merge, since only then is there a Play-signed build of this code. A person can try it on an older build first. |
+| Does a universal APK file signed with the Play key install offline, sent by Quick Share and copied by SD card? | It is the main route. Answerable only after the merge, since only then is there a Play-signed build of this code. A person can try it on an older build first. On 2026-11-17 carried build 56 installed from Files on an Android 16 phone, offline and online, but Play's automatic protection then sent it to the Play Store and closed it (section 14.4). Protection is now off; a file made after that is still to be tried, by Quick Share and SD card too. |
 | Can Quick Share through Files by Google send an installed app as a complete copy? | It would mean nobody has to prepare a file, but production builds are app bundles, so a phone holds split APKs, and Play's own "Share apps" is reported removed. |
 | Does a phone installed that way take Play updates later? | It has to reach the normal update path when it first gets online. |
-| Does Android developer verification get in the way of installing offline? | It expands globally in 2027, and Google's page does not cover this. |
+| Does Android developer verification get in the way of installing offline? | It expands globally in 2027, and Google's page does not cover this. On 2026-11-17 the verifier passed carried build 56 on an Android 16 phone that was online; offline, the install finished, but whether the verifier ran is not known. |
 | Does `GET generatedApks` give a universal APK on the `alpha` track without waiting for review, may `PLAY_REVIEW_KEY` read it, and how big is the file? | Section 14.4 depends on it. Someone with the key tries it first on an existing build (Carl's answer, 2026-11-06). The file holds four ABIs and the speech models, and carriers download it on town connections. |
 | Does a QR code with this payload scan on 2 GB phones in poor light, and does the camera's scanner work with no Play services? | Section 14.1 keeps the payload small for this reason. |
 | What do Files by Google, common makers' file managers and Chrome's download list show for this APK? | The neutral name only stops a casual look (section 14.4). If a file manager draws the app's own icon beside it, the line a disguised carrier sees (`apkTrace`) must say so (security review, 2026-11-10). |
@@ -3740,6 +3740,15 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   once the newcomer has a starting copy.
 - **After install.** A carried build uses the `production` channel, so when the phone gets
   online it takes over-the-air updates like any other.
+- **No automatic protection** (Carl's choice, 2026-11-18). Play's automatic protection adds an
+  installer check to every APK Play makes, this one too: installed from a file, the app
+  opens the Play Store and closes, which a phone with no Play Store or no internet cannot
+  get past (carried build 56, 2026-11-17). Play can turn it off only for the whole app or,
+  by hand, for one release, and its API's unprotected APKs are splits, so it is off for the
+  whole app, a setting in Play Console with no API (`docs/environments.md`, "The carried
+  build"). `carried-build.mjs` refuses an APK whose manifest, code or files name
+  `com.pairip`, before writing anything
+  (`docs/decisions/2026-11-18-play-protection-off-for-carried-builds.md`).
 
 ## 15. Sources
 
