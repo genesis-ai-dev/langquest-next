@@ -182,7 +182,7 @@ export function WelcomeBack(ctx: Ctx) {
         <PrimaryBtn label={t('entry.welcomeBack.checkAgain')} icon="restart" help={t('entry.welcomeBack.checkAgainHelp')} onPress={() => void checkAgain()} busy={busy} />
       ) : target ? (
         <>
-          <PrimaryBtn label={t('entry.welcomeBack.keepGoing', { passage: target.title })} icon="arrowR" disabled={busy}
+          <PrimaryBtn help={t('help.stock.keepGoing')} label={t('entry.welcomeBack.keepGoing', { passage: target.title })} icon="arrowR" disabled={busy}
             onPress={() => void leave(() => ctx.openPassage(target.unitId, target.languageId))} />
           <GhostBtn label={t('entry.welcomeBack.goToMyWork')} disabled={busy} help={t('entry.welcomeBack.goToMyWorkHelp')} onPress={() => void leave(() => ctx.go(homeScreenFor(ctx.session)))} />
         </>

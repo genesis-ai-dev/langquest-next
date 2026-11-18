@@ -73,7 +73,7 @@ export function ExportSheet(props: {
       props.toast(t('orgExport.problem'), 'problem');
     }
   }
-  const footer = <PrimaryBtn label={t('orgExport.start')} disabled={busy || open || (ids !== null && ids.length === 0)} onPress={() => void start()} />;
+  const footer = <PrimaryBtn help={t('help.stock.startExport')} label={t('orgExport.start')} disabled={busy || open || (ids !== null && ids.length === 0)} onPress={() => void start()} />;
   return (
     <Sheet visible={visible} title={t('orgExport.title')} sub={t('orgExport.sub')} onClose={props.onClose} footer={footer}>
       <View style={{ gap: space.sm }}>

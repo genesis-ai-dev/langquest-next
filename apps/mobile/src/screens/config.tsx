@@ -298,7 +298,7 @@ export function RoleEditor(ctx: Ctx) {
       footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" help={t('config.roleEditor.saveHelp')} onPress={() => void save()} disabled={!label.trim() || !dirty} busy={busy} />}>
       {inherited ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.roleEditor.inheritedBody')} /> : null}
       {readOnly && !inherited ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.roleEditor.noPermission')} /> : null}
-      {isNew && !readOnly ? <Field label={t('config.roleEditor.nameLabel')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.namePlaceholder')} autoCapitalize="words" /> : null}
+      {isNew && !readOnly ? <Field help={t('help.stock.roleName')} label={t('config.roleEditor.nameLabel')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.namePlaceholder')} autoCapitalize="words" /> : null}
       {ROLE_SWITCHES.map((g) => (
         <View key={g.title} style={{ gap: space.sm }}>
           <SectionLabel label={g.title} />
@@ -838,8 +838,8 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
         <>
           {readOnly ? (desc ? <Text style={[txt.sm, { paddingHorizontal: space.xs }]}>{desc}</Text> : null) : (
             <>
-              <Field label={t('config.flowEditor.nameLabel')} value={label} onChangeText={(v) => edit({ name: v })} placeholder={t('config.flowEditor.namePlaceholder')} autoCapitalize="words" />
-              <Field label={t('config.flowEditor.descriptionLabel')} value={desc} onChangeText={(v) => edit({ description: v })} placeholder={t('config.flowEditor.descriptionPlaceholder')} autoCapitalize="sentences" multiline />
+              <Field help={t('help.stock.itsName')} label={t('config.flowEditor.nameLabel')} value={label} onChangeText={(v) => edit({ name: v })} placeholder={t('config.flowEditor.namePlaceholder')} autoCapitalize="words" />
+              <Field help={t('help.stock.itsPurpose')} label={t('config.flowEditor.descriptionLabel')} value={desc} onChangeText={(v) => edit({ description: v })} placeholder={t('config.flowEditor.descriptionPlaceholder')} autoCapitalize="sentences" multiline />
               <LanguageField label={t('reference.language.writtenIn')} value={writtenIn} onChange={(code) => edit({ language: code })} />
             </>
           )}
@@ -1227,7 +1227,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
               </HelpRow>
             ))}
           </Group>
-          <Field label={t('config.material.titleLabel')} value={title} onChangeText={(v) => edit({ title: v })} placeholder={isQuestions ? t('config.material.questionsTitlePlaceholder') : t('config.material.titlePlaceholder')} autoCapitalize="sentences" />
+          <Field help={t('help.stock.materialTitle')} label={t('config.material.titleLabel')} value={title} onChangeText={(v) => edit({ title: v })} placeholder={isQuestions ? t('config.material.questionsTitlePlaceholder') : t('config.material.titlePlaceholder')} autoCapitalize="sentences" />
           {language && mayRecommend && !isQuestions ? (
             <>
               <SectionLabel label={t('config.material.whereItApplies')} />
@@ -1488,7 +1488,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
                 </HelpRow>
               ))}
             </ChipRow>
-            <Field label={t('config.material.titleLabel')} value={titleText} onChangeText={setTitle} placeholder={t('config.libraryMaterial.titlePlaceholder')} autoCapitalize="sentences" />
+            <Field help={t('help.stock.materialTitle')} label={t('config.material.titleLabel')} value={titleText} onChangeText={setTitle} placeholder={t('config.libraryMaterial.titlePlaceholder')} autoCapitalize="sentences" />
             <LanguageField label={t('reference.language.writtenIn')} value={lang} onChange={setLanguage} />
             <Field label={t('config.libraryMaterial.textLabel')} value={b} onChangeText={setBody} placeholder={t('config.libraryMaterial.textPlaceholder')} autoCapitalize="sentences" multiline
               help={t('config.libraryMaterial.textHelp')} />
@@ -1663,12 +1663,12 @@ export function KeyTerms(ctx: Ctx) {
 
       <Sheet visible={adding} title={t('config.keyTerms.newKeyTerm')} sub={t('config.keyTerms.newSub', { language })} onClose={() => setAdding(false)}
         action={<SavedMark status={termDraft.status} help={t('saved.draftHelp')} />}
-        footer={<PrimaryBtn label={t('config.keyTerms.addTerm')} onPress={() => void add()} disabled={!termDraftReady(draft)} busy={busy} />}>
-        <Field value={draft.term} onChangeText={(v) => setDraft({ ...draft, term: v })} placeholder={t('config.keyTerms.termPlaceholder')} />
-        <Field value={draft.gloss} onChangeText={(v) => setDraft({ ...draft, gloss: v })} placeholder={t('config.keyTerms.meaningPlaceholder')} autoCapitalize="sentences" />
+        footer={<PrimaryBtn help={t('help.stock.saveTerm')} label={t('config.keyTerms.addTerm')} onPress={() => void add()} disabled={!termDraftReady(draft)} busy={busy} />}>
+        <Field help={t('help.stock.termWord')} value={draft.term} onChangeText={(v) => setDraft({ ...draft, term: v })} placeholder={t('config.keyTerms.termPlaceholder')} />
+        <Field help={t('help.stock.keyMeaning')} value={draft.gloss} onChangeText={(v) => setDraft({ ...draft, gloss: v })} placeholder={t('config.keyTerms.meaningPlaceholder')} autoCapitalize="sentences" />
         <Field value={draft.rendering} onChangeText={(v) => setDraft({ ...draft, rendering: v })} placeholder={t('config.keyTerms.renderingPlaceholder', { language })}
           help={t('config.keyTerms.renderingHelp', { language })} />
-        <Field value={draft.context} onChangeText={(v) => setDraft({ ...draft, context: v })} placeholder={t('config.keyTerms.contextPlaceholder')} multiline autoCapitalize="sentences" />
+        <Field help={t('help.stock.termContext')} value={draft.context} onChangeText={(v) => setDraft({ ...draft, context: v })} placeholder={t('config.keyTerms.contextPlaceholder')} multiline autoCapitalize="sentences" />
       </Sheet>
     </Screen>
   );
@@ -1883,10 +1883,10 @@ export function KeyTermDetail(ctx: Ctx) {
         sub={canTie ? t('config.keyTerm.adjustSubTie', { passage: passageLabel ?? '' }) : t('config.keyTerm.adjustSub')}
         action={<SavedMark status={adjust.status} help={t('saved.draftHelp')} />}
         footer={<PrimaryBtn label={t('reference.keyWords.addYourWord')} help={t('config.keyTerm.saveHelp')} onPress={() => void addAdjustment()} disabled={!adjustmentReady(note, hash)} busy={busy} />}>
-        <Field value={rendering} onChangeText={(v) => change({ rendering: v })} placeholder={t('config.keyTerm.newRendering')} />
-        {rendering.trim() ? <Field value={context} onChangeText={(v) => change({ context: v })} placeholder={t('config.keyTerm.whenToUse')} multiline autoCapitalize="sentences" /> : null}
+        <Field help={t('help.stock.termRendering')} value={rendering} onChangeText={(v) => change({ rendering: v })} placeholder={t('config.keyTerm.newRendering')} />
+        {rendering.trim() ? <Field help={t('help.stock.termWhen')} value={context} onChangeText={(v) => change({ context: v })} placeholder={t('config.keyTerm.whenToUse')} multiline autoCapitalize="sentences" /> : null}
         {passage ? <VoiceNote ctx={ctx} label={t('config.keyTerm.sayWhy')} hash={hash} onChange={(h) => change({ hash: h })} /> : null}
-        <Field value={note} onChangeText={(v) => change({ note: v })} placeholder={passage ? t('config.keyTerm.orTypeWhy') : t('config.keyTerm.typeWhy')} multiline autoCapitalize="sentences" />
+        <Field help={t('help.stock.termWhy')} value={note} onChangeText={(v) => change({ note: v })} placeholder={passage ? t('config.keyTerm.orTypeWhy') : t('config.keyTerm.typeWhy')} multiline autoCapitalize="sentences" />
       </Sheet>
     </Screen>
   );

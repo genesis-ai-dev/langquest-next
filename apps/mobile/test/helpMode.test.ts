@@ -145,9 +145,9 @@ describe('every part explains itself', { timeout: 30_000 }, () => {
 
   it('lets no more main buttons and fields fall back to the stock line', () => {
     // UI audit, finding 108: "The main thing to do on this screen." says nothing about this one.
-    // Give a new PrimaryBtn or Field its own `help`; when you give old ones theirs, lower this number.
+    // Give a new PrimaryBtn or Field its own `help`; the old ones all have theirs now (LAN-151), so none may fall back.
     // `npx tsx apps/mobile/test/helpParts.ts --stock` lists them.
-    expect(scanStockLines(join(import.meta.dirname, '..')).length).toBeLessThanOrEqual(96);
+    expect(scanStockLines(join(import.meta.dirname, '..')).length).toBeLessThanOrEqual(0);
     expect(findStockLines('src/a.tsx', `<View><PrimaryBtn label="Go" onPress={go} /><PrimaryBtn label="Go" help="Goes." onPress={go} /><Field label="Name" {...p} /></View>`)
       .map((f) => f.text)).toEqual(['PrimaryBtn says the stock line']);
   });

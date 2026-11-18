@@ -678,7 +678,7 @@ function TemplateEditorForm({ ctx, lib, item, initial, draft }: { ctx: Ctx; lib:
         <>
           <Field label={t('content.name')} value={f.name} onChangeText={(name) => set({ name })} placeholder={t('content.editor.namePlaceholder')} autoCapitalize="words"
             help={t('content.editor.nameHelp')} />
-          <Field label={t('content.editor.whatFor')} value={f.description} onChangeText={(description) => set({ description })} placeholder={t('content.editor.whatForPlaceholder')} multiline />
+          <Field help={t('help.stock.contentFor')} label={t('content.editor.whatFor')} value={f.description} onChangeText={(description) => set({ description })} placeholder={t('content.editor.whatForPlaceholder')} multiline />
           {/* What its names are in (decision 84): lists inside a language show it to teams that read it. */}
           <LanguageField label={t('reference.language.writtenIn')} value={f.language ?? null} onChange={(language) => set({ language })} />
         </>
@@ -837,7 +837,7 @@ function BookSheet(props: { book: { book: string; name: string }; onClose: () =>
   return (
     <Sheet visible title={bookNameOf(props.book.book)} sub={t('content.bookSheet.sub')} onClose={done}
       footer={<PrimaryBtn label={t('common.done')} disabled={!name.trim()} help={t('content.keepNameHelp')} onPress={done} />}>
-      <Field label={t('content.bookSheet.nameLabel')} value={name} onChangeText={setName} placeholder={bookNameOf(props.book.book)} autoCapitalize="words" />
+      <Field help={t('help.stock.bookName')} label={t('content.bookSheet.nameLabel')} value={name} onChangeText={setName} placeholder={bookNameOf(props.book.book)} autoCapitalize="words" />
       <GhostBtn label={t('content.bookSheet.remove')} icon="trash" tone="red" help={t('content.bookSheet.removeNote')} onPress={props.onRemove} />
       <Text style={txt.smMuted}>{t('content.bookSheet.removeNote')}</Text>
     </Sheet>

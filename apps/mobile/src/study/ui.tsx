@@ -198,7 +198,7 @@ export function ContributeSheet(props: {
   return (
     <Sheet visible title={props.title} sub={t('study.contribute.sub')} onClose={props.onClose}
       action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
-      footer={<PrimaryBtn label={props.answer ? t('study.contribute.addAnswer') : t('common.addNote')} busy={busy} disabled={!text.trim() && !hash}
+      footer={<PrimaryBtn help={t('help.stock.saveAnswer')} label={props.answer ? t('study.contribute.addAnswer') : t('common.addNote')} busy={busy} disabled={!text.trim() && !hash}
         onPress={() => void add()} />}>
       <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>
       <VoiceNote ctx={props.ctx} label={t('study.contribute.record')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
@@ -299,7 +299,7 @@ export function GlossarySheet(props: {
   const add = !props.hasKeyTerm ? props.add : undefined;
   return (
     <Sheet visible title={e.term} sub={t('study.glossary.sub', { source: props.source })} onClose={props.onClose}
-      footer={props.hasKeyTerm ? <PrimaryBtn label={t('study.glossary.openKeyTerm')} icon="book" onPress={props.onOpenTerm} />
+      footer={props.hasKeyTerm ? <PrimaryBtn help={t('help.stock.openTerm')} label={t('study.glossary.openKeyTerm')} icon="book" onPress={props.onOpenTerm} />
         : add ? (
           <View style={{ gap: space.xs }}>
             <PrimaryBtn label={t('keyTerms.sheet.add')} icon="plus" help={add.help} onPress={add.onPress} />

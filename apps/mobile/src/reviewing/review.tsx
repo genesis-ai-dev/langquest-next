@@ -507,10 +507,10 @@ function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string;
         <View style={styles.noteMark}><SavedMark status={draft.status} help={t('saved.draftHelp')} /></View>
       </View>
       <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
-      <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} multiline />
+      <Field help={t('help.stock.typeNote')} value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} multiline />
       <View style={{ flexDirection: 'row', gap: space.sm }}>
         <View style={{ flex: 1 }}><GhostBtn label={t('common.close')} help={t('review.simple.closeNoteHelp')} onPress={props.onDone} /></View>
-        <View style={{ flex: 1 }}><PrimaryBtn label={t('common.addNote')} disabled={!text.trim() && !hash} onPress={() => void add()} /></View>
+        <View style={{ flex: 1 }}><PrimaryBtn help={t('help.stock.addNote')} label={t('common.addNote')} disabled={!text.trim() && !hash} onPress={() => void add()} /></View>
       </View>
     </View>
   );

@@ -51,7 +51,7 @@ export function BookNamesPage({ ctx }: { ctx: Ctx }) {
   return (
     <Screen header={<Header title={t('bookNames.title')} sub={language} onBack={ctx.back} />} bodyStyle={PAD}
       footer={pick ? (
-        <PrimaryBtn label={t('bookNames.use', { name: pick.name })} icon="check" busy={busy} disabled={!canManage}
+        <PrimaryBtn help={t('help.stock.useNames')} label={t('bookNames.use', { name: pick.name })} icon="check" busy={busy} disabled={!canManage}
           onPress={() => void use(pick, t('bookNames.nowUses', { language, name: pick.name }))} />
       ) : undefined}>
       {used ? (

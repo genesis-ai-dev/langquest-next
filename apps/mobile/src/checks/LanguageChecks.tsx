@@ -247,7 +247,7 @@ function AddCheckSheet(props: { visible: boolean; kinds: KindDef[]; taken: strin
       ) : null}
       <Field label={t('config.flowEditor.somethingElse')} value={name} onChangeText={setName} placeholder={t('config.flowEditor.newCheckPlaceholder')} autoCapitalize="words"
         help={t('checks.newCheckHelp')} />
-      <PrimaryBtn label={t('config.flowEditor.addThisCheck')} icon="plus" disabled={!name.trim()} onPress={() => {
+      <PrimaryBtn help={t('help.stock.addCheck')} label={t('config.flowEditor.addThisCheck')} icon="plus" disabled={!name.trim()} onPress={() => {
         const k: KindDef = { id: newKindId(name, props.kinds.map((x) => x.id)), name: name.trim(), description: '', usualReviewer: '' };
         setName('');
         props.onPick(k, true);

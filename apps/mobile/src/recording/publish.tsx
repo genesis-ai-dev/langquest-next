@@ -146,7 +146,7 @@ export function PublishScreen(props: {
           onClose={() => setSaying(false)} action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
           footer={<PrimaryBtn label={t('common.done')} icon="check" help={t('recording.publish.doneHelp')} onPress={() => setSaying(false)} />}>
           <VoiceNote ctx={ctx} label={needsNote ? t('recording.publish.sayWhatChanged') : t('common.sayIt')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
-          <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} multiline />
+          <Field help={t('help.stock.typeNote')} value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} multiline />
         </Sheet>
       ) : null}
     </Screen>

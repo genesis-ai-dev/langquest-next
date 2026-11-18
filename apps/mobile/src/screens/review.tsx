@@ -457,7 +457,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     footer = (
       <>
         {hint ? <Text style={[txt.smMuted, styles.center]}>{hint}</Text> : null}
-        <PrimaryBtn label={t('review.screen.sendFeedback')} icon="send" disabled={!r.saysWhat || !r.ready} busy={busy} onPress={() => void save('needs_changes')} />
+        <PrimaryBtn help={t('help.stock.sendReview')} label={t('review.screen.sendFeedback')} icon="send" disabled={!r.saysWhat || !r.ready} busy={busy} onPress={() => void save('needs_changes')} />
       </>
     );
   } else if (stage === 'listen') {
@@ -466,7 +466,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     footer = next ? (
       <>
         {unheard ? <Text style={[txt.smMuted, styles.center]}>{t('review.screen.notOnPhoneYet')}</Text> : null}
-        <PrimaryBtn label={nextLabel(next)} icon="right" disabled={unheard} onPress={goNext} />
+        <PrimaryBtn help={t('help.stock.nextStep')} label={nextLabel(next)} icon="right" disabled={unheard} onPress={goNext} />
       </>
     ) : null;
   } else if (stage === 'questions' && q) {
@@ -477,7 +477,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         {qi > 0 ? <IconBtn name="arrowL" label={t('review.screen.previousQuestion')} help={t('review.screen.previousQuestionHelp')} onPress={previous} /> : null}
         <SkipBtn onPress={() => (q.required && !answeredHere ? setSkipFor(q.q.id) : goNext())} />
         <View style={{ flex: 1 }}>
-          <PrimaryBtn label={last ? nextLabel(next ?? stages[at]!) : t('review.screen.nextQuestion')} icon="right"
+          <PrimaryBtn help={t('help.stock.nextQuestion')} label={last ? nextLabel(next ?? stages[at]!) : t('review.screen.nextQuestion')} icon="right"
             disabled={!canLeave(q, captured.answers, skipped, makes ? {} : voice)} onPress={goNext} />
         </View>
       </View>
@@ -595,7 +595,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             )}
             {makes || typing[q.q.id] || answers[q.q.id] ? (
               <View style={{ alignSelf: 'stretch' }}>
-                <Field value={answers[q.q.id] ?? ''} onChangeText={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} placeholder={t('review.screen.typeAnswer')} multiline />
+                <Field help={t('help.stock.typeAnswer')} value={answers[q.q.id] ?? ''} onChangeText={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} placeholder={t('review.screen.typeAnswer')} multiline />
               </View>
             ) : (
               <LinkBtn label={t('common.orTypeIt')} help={t('review.screen.orTypeHelp')} style={{ alignSelf: 'center' }} onPress={() => setTyping((x) => ({ ...x, [q.q.id]: true }))} />
@@ -669,7 +669,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           </View>
         ) : <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} onClip={(clip) => { setSaidForChange(true); setFeedback(clip); }} />}
         {typeFeedback || comment ? (
-          <Field value={comment} onChangeText={(text) => { setSaidForChange(true); setComment(text); }} placeholder={logged ? t('review.screen.typeWhatPeopleUnderstood') : t('review.screen.typeWhatWorked')} multiline testID="feedback-text" />
+          <Field help={t('help.stock.typeSaw')} value={comment} onChangeText={(text) => { setSaidForChange(true); setComment(text); }} placeholder={logged ? t('review.screen.typeWhatPeopleUnderstood') : t('review.screen.typeWhatWorked')} multiline testID="feedback-text" />
         ) : <LinkBtn label={t('common.orTypeIt')} help={t('review.screen.orTypeHelp')} style={{ alignSelf: 'center' }} onPress={() => setTypeFeedback(true)} />}
       </Centre>
       {evidence ? (
@@ -723,7 +723,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           sub={t('review.screen.whoSheetSub')} onClose={() => setSheet(null)}
           footer={<PrimaryBtn label={t('common.done')} help={t('review.screen.sheetDoneHelp')} onPress={() => setSheet(null)} />}>
           {logged && !group ? (
-            <Field value={givenBy} onChangeText={setGivenBy} autoCapitalize="words" placeholder={makes ? t('review.screen.whoMadeIt') : t('review.screen.whoReviewedIt')} />
+            <Field help={t('help.stock.typePerson')} value={givenBy} onChangeText={setGivenBy} autoCapitalize="words" placeholder={makes ? t('review.screen.whoMadeIt') : t('review.screen.whoReviewedIt')} />
           ) : <PeopleCounter value={people} onChange={setPeople} />}
           {/* Already happened keeps where under Add details, with which version. */}
           {logged ? null : <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} help={t('review.screen.whereHelp')} />}
@@ -749,7 +749,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           onClose={() => setSheet(null)} footer={<PrimaryBtn label={t('common.done')} help={t('review.screen.sheetDoneHelp')} onPress={() => setSheet(null)} />}>
           <VoiceNote ctx={ctx} label={logged ? t('review.screen.recordSummary') : t('common.sayIt')} hash={feedback?.hash ?? null}
             onChange={(h, card) => { setSaidForChange(false); setFeedback(h ? { hash: h, durationMs: card?.durationMs ?? 0, format: card?.format ?? 'm4a' } : null); }} />
-          <Field value={comment} onChangeText={(text) => { setSaidForChange(false); setComment(text); }} placeholder={t('common.orTypeIt')} multiline />
+          <Field help={t('help.stock.typeNote')} value={comment} onChangeText={(text) => { setSaidForChange(false); setComment(text); }} placeholder={t('common.orTypeIt')} multiline />
         </Sheet>
       ) : null}
 
@@ -897,7 +897,7 @@ export function GuestReview(ctx: Ctx) {
           <View style={styles.micDot}><Ico name="mic" size={18} color={C.white} /></View>
           <Text style={[txt.sm, { flex: 1, fontWeight: '600', color: C.muted }]}>{t('review.guest.replyByVoice')}</Text>
         </View>
-        <Field value={comment} onChangeText={setComment} placeholder={t('common.orTypeIt')} multiline />
+        <Field help={t('help.stock.typeNote')} value={comment} onChangeText={setComment} placeholder={t('common.orTypeIt')} multiline />
       </Block>
     </Screen>
   );

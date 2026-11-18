@@ -66,7 +66,7 @@ export function AnswerInput(props: { type: SourcedQuestion['q']['type']; value?:
       </View>
     );
   }
-  return <Field value={props.value ?? ''} onChangeText={props.onChange} placeholder={t('review.parts.yourAnswer')} multiline />;
+  return <Field help={t('help.stock.typeAnswer')} value={props.value ?? ''} onChangeText={props.onChange} placeholder={t('review.parts.yourAnswer')} multiline />;
 }
 
 /** The combined question list, labelled by source; required ones need an answer or a reason (REV-2). */

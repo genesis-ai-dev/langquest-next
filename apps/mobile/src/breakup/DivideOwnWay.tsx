@@ -203,8 +203,8 @@ export function DivideOwnWay(props: {
       {sel === order[0]
         ? <Text style={[txt.smMuted, { textAlign: 'center', paddingVertical: space.sm }]}>{t('breakup.own.bookStarts')}</Text>
         : starts.has(sel)
-          ? <PrimaryBtn label={t('breakup.own.joinWith', { n: formatNumber(numberOf(sel) - 1) })} icon="join" onPress={() => joinAt(sel)} />
-          : <PrimaryBtn label={t('breakup.own.startHere')} icon="cut" onPress={() => startAt(sel)} />}
+          ? <PrimaryBtn help={t('help.stock.joinPart')} label={t('breakup.own.joinWith', { n: formatNumber(numberOf(sel) - 1) })} icon="join" onPress={() => joinAt(sel)} />
+          : <PrimaryBtn help={t('help.stock.startPart')} label={t('breakup.own.startHere')} icon="cut" onPress={() => startAt(sel)} />}
     </View>
   ) : (
     <>
