@@ -157,7 +157,7 @@
       "turnedAway": "Wata waya ta gwada wannan lambar kuma an ƙi karɓar ta.",
       "stayOpen": "Ka bar wannan shafin a buɗe har sai ya gama.",
       "file": "Fayil ɗin girkawa na wannan sigar: {{file}}",
-      "fileExact": "Fayil ɗin da ke cikin Abubuwan da aka sauke dole ne ya kasance da wannan suna daidai. Duk wani suna dabam sigar da ba daidai ba ce.",
+      "fileStart": "Sunan fayil ɗin da ke cikin Abubuwan da aka sauke dole ne ya fara da {{start}}. Sunan da ya fara ta wata hanya dabam na wata sigar ce.",
       "fileOld": "Fayil ɗin girkawa da ka samu a baya na tsohuwar sigar ne. Ka samu sabon kafin ka rasa intanet.",
       "get": "Samu fayil ɗin girkawa",
       "getHelp": "Yana buɗe burauzar wayar, wadda ke sauke fayil ɗin girkawa na wannan sigar.",

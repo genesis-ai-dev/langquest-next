@@ -157,7 +157,7 @@
       "turnedAway": "Ponsel lain mencoba kode ini dan ditolak.",
       "stayOpen": "Biarkan layar ini terbuka sampai selesai.",
       "file": "File instalasi untuk versi ini: {{file}}",
-      "fileExact": "File di folder Download Anda harus bernama persis seperti ini. Nama lain berarti versi yang salah.",
+      "fileStart": "Nama file di folder Download Anda harus diawali dengan {{start}}. Nama yang diawali dengan cara lain berarti versi yang berbeda.",
       "fileOld": "File instalasi yang Anda dapatkan sebelumnya adalah untuk versi lama. Dapatkan yang baru sebelum Anda tanpa internet.",
       "get": "Dapatkan file instalasi",
       "getHelp": "Membuka browser ponsel, yang mengunduh file instalasi untuk versi ini.",
