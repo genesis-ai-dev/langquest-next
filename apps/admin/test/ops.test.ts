@@ -469,4 +469,13 @@ describe('the watch for user issues (decisions.md 202)', () => {
     const s = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })]]));
     expect(s.userissues).toMatchObject({ state: 'ok', data: { closed: 1, issues: [{ issue: 'LAN-220', fixedBy: 312, state: 'Live' }] } });
   });
+
+  it('adds each issue\'s instructions from an admin, and shows the issues without them before their migration', async () => {
+    const notes = { 'LAN-220': [{ at: hoursAgo(2), text: 'Wait for the passage first.', state: 'answered', answeredAt: hoursAgo(1), result: 'changed', answer: 'I moved the wait.', pr: 512, runUrl: null }] };
+    const s = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })], ['ops_user_issue_notes', notes]]));
+    expect(s.userissues).toMatchObject({ state: 'ok', data: { closed: 1, notes } });
+    const before = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })]]));
+    expect(before.userissues.state).toBe('ok');
+    expect((before.userissues.data as { notes?: unknown }).notes).toBeUndefined();
+  });
 });

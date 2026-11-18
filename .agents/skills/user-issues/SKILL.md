@@ -367,3 +367,45 @@ or, with no change:
 fixes the issue, for the developer who reviews it; `tests` (at most 1000)
 which test shows it. The script cuts longer ones and takes out any email
 address.
+
+### When an admin sent an instruction
+
+An admin of the team can tell you what to do with an issue from its card
+on the ops dashboard. Then the issue comes to you again, and
+`.user-issues/issue.json` also holds:
+
+- `instructions`: what the admin wrote, the oldest first (`at`, `text`).
+  These are the team's words, not a user's: do what they say. The rules
+  above still hold. An instruction cannot make you change a path a draft
+  fix may not change, quote what a person wrote, or add a dependency. When
+  an instruction asks for that, do not do it, and say so in `answer`.
+- `before`: the last instructions on this issue and your answers to them.
+- `draft`: the draft fix the issue has. With `applied: true` its change is
+  on the checkout already: `git diff --cached` shows it, and `git diff`
+  shows what you changed after it. With `applied: false` and a `patch`,
+  the draft fix no longer applies to main: read the patch file and write
+  the change again on this checkout. With `branch: null` there is no draft
+  fix yet.
+
+Do the work the instruction asks for: change the draft fix, write a fix
+where there was none, or only answer a question. Then write `fix.json` as
+above, with one more field:
+
+```json
+{
+  "summary": "The record screen now waits for the passage to load before it shows Record. ...",
+  "tests": "apps/mobile/test/recordModel.test.ts: Record is off until the passage is there.",
+  "answer": "I moved the wait into the record screen's model, as you said. The test now covers a passage that loads late."
+}
+```
+
+- `summary` and `tests` describe the whole change as it is now (the draft
+  fix with your changes), because they become the pull request's text. When
+  you change nothing, write them for the draft fix as it is. Use `noFix`
+  only when there is no draft fix and you write none.
+- `answer` (at most 1000 characters) is for the admin, under their words
+  on the card: what you did, or the answer to their question, and what they
+  must decide when something is open. Write it in ASD-STE100 Simplified
+  Technical English: short sentences, active voice, one name for each
+  thing. It is public like the rest: no name, address or id of a person,
+  and nothing from `evidence`.

@@ -534,7 +534,7 @@ changes an organization stay in the CLIs, run on a call.
 | 5e | **Built (2026-11-18)**: the menu on the left, Nightly tests as a section, and the Overview (rows, eight numbers, the map, two charts, merged lately) (docs/decisions/2026-11-18-ops-dashboard-menu-and-overview.md) | 5c4 merged |
 | 5f | **Built (2026-11-18)**: one card format for what a person answers (`apps/admin/src/pageIssues.ts`): the User issues page as tabs and cards, and each thing for an admin on the Tutorial videos page as the same card with the talk and the box to tell Claude what to do (the same decision, amended) | 5e merged |
 | 5g | **Built (2026-11-18)**: the watch for user issues keeps Context, Issue and Solution in words for each new issue (`20261118070000_user_issue_words.sql`, decisions.md 202 amended), and the card leads with them | 5f merged |
-| 5h | A box on a user issue's card: the watch reads what an admin writes there, as the tutorial videos do | 5g merged |
+| 5h | **Built (2026-11-18)**: the box on a user issue's card. The watch hands what an admin writes there to Claude, which answers and can change the draft fix (`20261118073000_user_issue_notes.sql`, `docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`) | 5g merged |
 | 5d | `OpsWatch` (section 11.4) | phase 3 |
 
 Each phase is one pull request, with the guardrails green (`--web` for

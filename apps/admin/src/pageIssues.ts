@@ -85,7 +85,7 @@ const ISSUE_STEPS = [['Found', ''], ['In Linear', 'not in Linear yet'], ['Fix wr
  * ones and those merged in the last 14 days), or null before they are read:
  * then an open issue says only that it is open.
  */
-function issueWay(r, prs) {
+function issueWay(r, prs, notes) {
   const naming = r.issue ? (prs || []).filter((p) => (p.issues || []).includes(r.issue)) : [];
   const open = naming.find((p) => p.state === 'open') || null;
   const merged = naming.filter((p) => p.state === 'merged' && p.mergedAt).sort((a, b) => Date.parse(b.mergedAt) - Date.parse(a.mergedAt))[0] ||
@@ -95,10 +95,25 @@ function issueWay(r, prs) {
     const dropped = /^(cancell?ed|duplicate)$/i.test(String(r.state || ''));
     return { tab: 'closed', pill: dropped ? r.state : 'Closed', level: dropped ? '' : 'done', at: dropped ? 0 : ISSUE_STEPS.length + 1, pr: merged };
   }
-  if (open) return { tab: 'you', pill: 'Waits on you', level: 'you', at: 4, pr: open };
-  if (merged) return { tab: 'merged', pill: 'Merged', level: 'claude', at: 5, pr: merged };
-  if (!prs) return { tab: 'open', pill: 'Open', level: '', at: 3, pr: null };
-  return { tab: 'nofix', pill: 'No fix yet', level: '', at: 3, pr: null };
+  // An instruction Claude has not answered: Claude acts next, in the tab the issue is in.
+  const asked = (notes || []).some((n) => n.state === 'waiting' || n.state === 'working');
+  const next = (way) => (asked ? { ...way, pill: 'Claude acts next', level: 'claude' } : way);
+  if (open) return next({ tab: 'you', pill: 'Waits on you', level: 'you', at: 4, pr: open });
+  if (merged) return next({ tab: 'merged', pill: 'Merged', level: 'claude', at: 5, pr: merged });
+  if (!prs) return next({ tab: 'open', pill: 'Open', level: '', at: 3, pr: null });
+  return next({ tab: 'nofix', pill: 'No fix yet', level: '', at: 3, pr: null });
+}
+
+/** What the card says under an admin's instruction on a user issue, by the note's state, when Claude wrote no words. */
+const NOTE_STATE = {
+  waiting: 'Claude reads it at the next run of the watch (each 15 minutes).',
+  working: 'Claude works on it now.',
+  stopped: 'Claude did not answer. The run stopped. Send the instruction again.',
+  changed: 'Claude changed the draft fix.', answered: 'Claude changed nothing.', none: 'Claude wrote no answer.'
+};
+/** One instruction on a user issue as the talk shows it: Claude's words, or the state's. */
+function noteSaid(n) {
+  return n.state === 'answered' ? n.answer || NOTE_STATE[n.result] || NOTE_STATE.none : NOTE_STATE[n.state] || NOTE_STATE.waiting;
 }
 
 /** The tabs of the User issues page, in order; Open shows only while the pull requests are not read. */
@@ -158,7 +173,7 @@ const outLink = (href, words, cls) => '<a' + (cls ? ' class="' + cls + '"' : '')
 
 // ---- the User issues page: tabs with counts, one card for each issue ----
 let issueTab = null;
-function userIssueCard(r, way, tab) {
+function userIssueCard(r, way, tab, notes) {
   const source = issueSource(r.keys);
   const pr = way.pr;
   const solution = {
@@ -185,12 +200,30 @@ function userIssueCard(r, way, tab) {
     ],
     pill: [way.pill, way.level], steps: [ISSUE_STEPS, way.at],
     side: (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
-      (r.issue && safeLink(r.issueUrl) ? outLink(r.issueUrl, 'Open ' + esc(r.issue) + ' in Linear', 'button') : '')
+      (r.issue && safeLink(r.issueUrl) ? outLink(r.issueUrl, 'Open ' + esc(r.issue) + ' in Linear', 'button') : '') +
+      issueTalk(r, notes)
   });
+}
+/**
+ * The talk on a user issue's card: each instruction an admin sent with Claude's answer under it, then,
+ * while the issue is open, the box to send one. Nothing before the database keeps instructions.
+ */
+function issueTalk(r, notes) {
+  if (!r.issue || !notes) return '';
+  const list = notes[r.issue] || [];
+  const talk = list.map((n) => {
+    const where = n.pr ? ' · ' + outLink(PR_URL + n.pr, 'PR ' + esc(n.pr)) : n.state !== 'answered' && n.state !== 'waiting' && safeLink(n.runUrl) ? ' · ' + outLink(n.runUrl, 'The run') : '';
+    return '<p class="said you">' + esc(n.text) + '</p><small class="you">You · ' + when(n.at) + '</small>' +
+      '<p class="said claude">' + esc(noteSaid(n)) + '</p><small>Claude' + (n.answeredAt ? ' · ' + when(n.answeredAt) : '') + where + '</small>';
+  }).join('');
+  const id = esc(r.issue);
+  return (talk ? '<div class="talk">' + talk + '</div>' : '') +
+    (r.closedAt ? '' : '<div class="tell"><textarea id="uin-' + id + '" maxlength="2000" rows="3" aria-label="What Claude must do" placeholder="' + (list.length ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
+      '<small>Claude starts at the next run of the watch (each 15 minutes).</small><button type="button" class="primary" data-uinote="' + id + '">Send to Claude</button></div>');
 }
 function userIssuesHtml(d) {
   const prs = fixData && fixData.state === 'ok' && fixData.data ? fixData.data.prs : null;
-  const rows = (d.issues || []).map((r) => ({ r, way: issueWay(r, prs) }));
+  const rows = (d.issues || []).map((r) => ({ r, way: issueWay(r, prs, r.issue && d.notes ? d.notes[r.issue] : null) }));
   const t = issueTabs(rows.map((x) => x.way), issueTab);
   const stats = '<div class="stats">' + stat(num(d.open), 'open in Linear', d.open ? 'warn' : '', NOW) + stat(num(d.closed), 'closed in Linear', '', '90 days') +
     stat(num(d.fixed), 'already fixed when seen', '', '90 days') + stat(num(d.noiseWeek), 'judged noise', '', LAST_WEEK) +
@@ -199,7 +232,7 @@ function userIssuesHtml(d) {
   return stats + '<div class="issues"><div class="itabs" role="group" aria-label="Issues by state">' +
     ISSUE_TABS.filter((x) => x[0] !== 'open' || t.count.open).map((x) =>
       '<button type="button" data-itab="' + x[0] + '" aria-pressed="' + (x[0] === t.tab) + '">' + esc(x[1]) + '<span class="count">' + num(t.count[x[0]]) + '</span></button>').join('') + '</div>' +
-    '<div class="icards">' + rows.map((x) => userIssueCard(x.r, x.way, t.tab)).join('') + '</div></div>';
+    '<div class="icards">' + rows.map((x) => userIssueCard(x.r, x.way, t.tab, d.notes)).join('') + '</div></div>';
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('[data-itab]');
@@ -208,6 +241,14 @@ document.addEventListener('click', (e) => {
   issueTab = b.dataset.itab;
   for (const x of box.querySelectorAll('[data-itab]')) x.setAttribute('aria-pressed', String(x === b));
   for (const c of box.querySelectorAll('.icard[data-tab]')) c.hidden = issueTab !== 'all' && c.dataset.tab !== issueTab;
+});
+// "Tell Claude what to do" on a user issue: an instruction for the watch's next run.
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-uinote]');
+  if (!b) return;
+  const text = ((document.getElementById('uin-' + b.dataset.uinote) || {}).value || '').trim();
+  if (!text) { say('Write what Claude must do first.', 'red'); return; }
+  perform({ kind: 'user-issue-note', issue: b.dataset.uinote, text: text.slice(0, 2000) }, b);
 });
 
 // ---- a question about a tutorial video (sources/videos.ts AdminItem), in the same card ----

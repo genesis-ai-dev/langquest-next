@@ -177,3 +177,10 @@ and the kind's keys. The lines are Claude's own words, at most 300
 characters each, never what a person wrote, an id or an address: the script
 cuts an address out and the Worker refuses one. Linear keeps the long
 summary and the cause, as before.
+
+Amended (2026-11-18, Caleb Koster): the three jobs that write a draft fix
+also take an admin's instruction on an issue, sent from its card on the ops
+dashboard. Claude starts from the draft fix the issue has, answers, and may
+change it; `open` pushes the change to the draft fix's branch and gets
+`id-token: write` to send the answer back through the Worker
+(`docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`).

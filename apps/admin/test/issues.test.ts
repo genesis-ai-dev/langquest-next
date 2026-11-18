@@ -4,9 +4,10 @@ import { ISSUE_LOGIC, ISSUE_SCRIPT } from '../src/pageIssues';
 
 interface Way { tab: string; pill: string; level: string; at: number; pr: { number: number } | null }
 type Row = Record<string, unknown>;
-const logic = new Function(`${ISSUE_LOGIC}; return { issueSource, issueWay, issueTabs, videoWay, ISSUE_STEPS, VIDEO_STEPS };`)() as {
+const logic = new Function(`${ISSUE_LOGIC}; return { issueSource, issueWay, issueTabs, videoWay, noteSaid, ISSUE_STEPS, VIDEO_STEPS };`)() as {
   issueSource: (keys: string[]) => string;
-  issueWay: (r: Row, prs: Row[] | null) => Way;
+  issueWay: (r: Row, prs: Row[] | null, notes?: Row[] | null) => Way;
+  noteSaid: (n: Row) => string;
   issueTabs: (ways: { tab: string }[], chosen: string | null) => { count: Record<string, number>; tab: string };
   videoWay: (a: Row) => { at: number };
   ISSUE_STEPS: [string, string][]; VIDEO_STEPS: [string, string][];
@@ -22,7 +23,7 @@ const draw = new Function(`
   const detailParts = (t) => String(t || '').split('|'), cardId = (a) => a.kind, languageName = (c) => 'language ' + c;
   const cardLink = (x) => '<a href="' + x.link + '">Open</a>';
   const FIX_STATE = { open: 'It merges itself.', working: 'Claude writes it.' }, ADMIN_LEVEL = { fails: 'bad' }, SUGGESTION_KINDS = { voice: 'Voice' };
-  const document = { addEventListener() {} };
+  const document = { addEventListener() {}, getElementById() { return null; } };
   let fixData = null;
   ${ISSUE_LOGIC}
   ${ISSUE_SCRIPT}
@@ -178,6 +179,43 @@ describe('the cards', () => {
     expect(html).not.toContain('class="steps"');
     expect(html).not.toContain('class="tell"');
     expect(html).toContain('<a class="button" href="#tutorials">Open</a>');
+  });
+
+  it('draws the talk and the box on an open user issue, and no box on a closed one', () => {
+    const note = (over: Row = {}): Row => ({ at: '2026-11-18T01:00:00Z', text: 'Wait for the passage <first>.', state: 'waiting', answeredAt: null, result: null, answer: null, pr: null, runUrl: null, ...over });
+    const closed = issue({ issue: 'LAN-5', issueUrl: 'https://linear.app/t/issue/LAN-5', state: 'Live', closedAt: '2026-11-12T00:00:00Z', verdict: 'fixed' });
+    draw.fixes({ state: 'ok', data: { prs: [pr(7, 'open', ['LAN-9'])] } });
+    const html = draw.userIssuesHtml({ issues: [issue(), closed], open: 1, closed: 1, fixed: 0, noiseWeek: 0, last: null, notes: {
+      'LAN-9': [note({ state: 'answered', answeredAt: '2026-11-18T01:20:00Z', result: 'changed', answer: 'I moved the wait.', pr: 7 }), note({ text: 'Why 30 seconds?' })],
+      'LAN-5': [note({ state: 'answered', answeredAt: '2026-11-11T00:00:00Z', result: 'answered', answer: 'The cause is the cache.' })]
+    } });
+    const [open, done] = html.split('<article').slice(1);
+    // The admin's words are escaped, with Claude's answer under them and the pull request it changed.
+    expect(open).toContain('<p class="said you">Wait for the passage &#60;first&#62;.</p>');
+    expect(open).toContain('<p class="said claude">I moved the wait.</p>');
+    expect(open).toContain('>PR 7</a>');
+    expect(open).toContain('<p class="said claude">Claude reads it at the next run of the watch (each 15 minutes).</p>');
+    expect(open).toContain('<textarea id="uin-LAN-9"');
+    expect(open).toContain('data-uinote="LAN-9">Send to Claude</button>');
+    expect(open).toContain('placeholder="Send another instruction…"');
+    // An instruction that waits: Claude acts next, in the tab the issue is in.
+    expect(open).toContain('data-tab="you"');
+    expect(open).toContain('<span class="ipill claude">Claude acts next</span>');
+    // A closed issue keeps what was said and takes no more.
+    expect(done).toContain('The cause is the cache.');
+    expect(done).not.toContain('data-uinote');
+    // Before the database keeps instructions, a card has no box.
+    expect(draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toContain('class="tell"');
+    draw.fixes(null);
+  });
+
+  it('says what Claude does with an instruction from its state', () => {
+    expect(logic.noteSaid({ state: 'working' })).toBe('Claude works on it now.');
+    expect(logic.noteSaid({ state: 'stopped' })).toContain('Send the instruction again');
+    expect(logic.noteSaid({ state: 'answered', result: 'changed', answer: null })).toBe('Claude changed the draft fix.');
+    expect(logic.noteSaid({ state: 'answered', result: 'answered', answer: 'Yes.' })).toBe('Yes.');
+    expect(logic.issueWay(issue(), [], [{ state: 'working' }])).toMatchObject({ tab: 'nofix', pill: 'Claude acts next', level: 'claude' });
+    expect(logic.issueWay(issue(), [], [{ state: 'answered' }])).toMatchObject({ pill: 'No fix yet' });
   });
 
   it('are in the page, which still has no style attribute', async () => {

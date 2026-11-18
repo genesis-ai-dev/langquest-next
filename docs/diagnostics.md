@@ -407,6 +407,21 @@ kind, and the dashboard's card for the issue leads with them. A later look
 that sends none keeps them. An issue filed before this has none: its card
 shows the counts and the kind's keys.
 
+**An admin's instruction** (`docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`,
+migration `20261118073000_user_issue_notes.sql`). An open issue's card on
+the ops dashboard has a box, "Tell Claude what to do". What an admin sends
+there is kept in `ops.user_issue_notes`. At its next run the watch names the
+issue (`notes` in what `GET /api/user-issues` answers), and `file` hands it
+to the fix jobs after the new issues, at most three issues a run. The step
+before Claude reads the instruction (`GET /api/user-issues?notes=<issue>`)
+and puts the issue's draft fix on the checkout. Claude answers in
+`fix.json` (`answer`) and may change the draft fix or write one. `open`
+then pushes one commit to the draft fix's branch, makes its pull request a
+draft again when it was not, and posts the answer to the Worker (`notes` in
+the POST), for the card. A run takes an instruction at most twice: when two
+runs stop before they answer, the card says so and the admin sends it
+again. The admin's words go to Claude and stay out of GitHub and Linear.
+
 **Claude sees what came with each problem** (decisions.md 202, amended
 2026-11-04). Before Claude looks, the step before it asks the Worker for
 two more things and keeps them in `.user-issues/evidence` on the runner:

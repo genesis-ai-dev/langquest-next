@@ -293,6 +293,82 @@ begin
   assert jsonb_array_length(v->'issues') = 3 and v::text not like '%ui-p%' and v::text not like '%secret%', 'no noise, never who';
 end $$;
 
+-- An admin's instruction on an open issue (migration *_user_issue_notes.sql): kept for the watch, taken by a run
+-- at most twice, answered once, and shown on the ops dashboard without who wrote it.
+do $$
+declare
+  v jsonb; n jsonb; a text; b text;
+  run text := 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/140';
+  admin uuid := '0d000000-0000-0000-0000-0000000000aa';
+begin
+  assert public.ops_user_issue_instruct('LAN-300', 'Fix it.', admin) = 'not_found', 'not on a closed issue';
+  assert public.ops_user_issue_instruct('LAN-999', 'Fix it.', admin) = 'not_found', 'nor on one the watch does not have';
+  a := public.ops_user_issue_instruct('LAN-12', '  Wait for the passage first.  ', admin);
+  b := public.ops_user_issue_instruct('LAN-12', 'Why 30 seconds?', admin);
+  assert a ~ '^[0-9a-f-]{36}$' and b ~ '^[0-9a-f-]{36}$', 'kept, with an id';
+  -- One transaction gives every row the same time: set them apart, as minutes do in production.
+  update ops.user_issue_notes set at = now() - interval '2 minutes' where id = a::uuid;
+  update ops.user_issue_notes set at = now() - interval '1 minute' where id = b::uuid;
+  v := public.ops_user_issue_notes_waiting();
+  assert jsonb_array_length(v) = 1 and v->0->>'issue' = 'LAN-12' and v->0->'ids' = jsonb_build_array(a, b), 'the watch is handed the issue with its notes, the oldest first';
+  v := public.ops_user_issue_notes('LAN-12');
+  assert jsonb_array_length(v->'waiting') = 2 and v->'waiting'->0->>'text' = 'Wait for the passage first.' and jsonb_array_length(v->'before') = 0, 'the fix run reads the words';
+
+  -- A run takes both and answers the first; an answer stays.
+  v := public.ops_user_issue_notes_done(jsonb_build_object('runUrl', run, 'notes', jsonb_build_array(
+    jsonb_build_object('id', a, 'taken', true), jsonb_build_object('id', b, 'taken', true))));
+  assert v = '{"taken": 2, "answered": 0}'::jsonb, 'taken';
+  v := public.ops_user_issue_notes_done(jsonb_build_object('runUrl', run, 'notes', jsonb_build_array(
+    jsonb_build_object('id', a, 'taken', false, 'result', 'changed', 'answer', 'I moved the wait.', 'pr', 512))));
+  assert v = '{"taken": 0, "answered": 1}'::jsonb, 'answered';
+  v := public.ops_user_issue_notes_done(jsonb_build_object('runUrl', run, 'notes', jsonb_build_array(
+    jsonb_build_object('id', a, 'taken', false, 'result', 'none'), jsonb_build_object('id', a, 'taken', true))));
+  assert v = '{"taken": 0, "answered": 0}'::jsonb
+    and (select result = 'changed' and pr = 512 and tries = 1 and run_url = run from ops.user_issue_notes where id = a::uuid), 'an answer stays';
+
+  -- The run that took the second stopped: it comes back once, and not a third time.
+  assert public.ops_user_issue_notes_waiting()->0->'ids' = jsonb_build_array(b), 'the other comes back';
+  perform public.ops_user_issue_notes_done(jsonb_build_object('runUrl', run, 'notes', jsonb_build_array(jsonb_build_object('id', b, 'taken', true))));
+  assert jsonb_array_length(public.ops_user_issue_notes_waiting()) = 0, 'and not a third time';
+  v := public.ops_user_issue_notes('LAN-12');
+  assert jsonb_array_length(v->'waiting') = 1 and v->'before'->0->>'answer' = 'I moved the wait.' and v->'before'->0->>'result' = 'changed',
+    'the run that has it still reads it, with what was said before';
+
+  begin
+    perform public.ops_user_issue_notes_done(jsonb_build_object('runUrl', 'https://github.com/someone/else/actions/runs/1'));
+    assert false, 'another repository''s run got in';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.ops_user_issue_notes_done(jsonb_build_object('runUrl', run, 'notes', jsonb_build_array(
+      jsonb_build_object('id', b, 'taken', false, 'result', 'merged'))));
+    assert false, 'a result off the list got in';
+  exception when check_violation then null;
+  end;
+
+  -- Three that wait fill an issue.
+  perform public.ops_user_issue_instruct('LAN-12', 'One.', admin), public.ops_user_issue_instruct('LAN-12', 'Two.', admin), public.ops_user_issue_instruct('LAN-12', 'Three.', admin);
+  assert public.ops_user_issue_instruct('LAN-12', 'Four.', admin) = 'full', 'three wait already';
+
+  -- The dashboard: by issue, the oldest first, each with its state; never who wrote it.
+  set local role diag_reader;
+  v := diag.ops_user_issue_notes();
+  reset role;
+  n := v->'LAN-12';
+  assert jsonb_array_length(n) = 5 and not v ? 'LAN-300', 'the last five of each issue that has any';
+  assert n->0->>'state' = 'answered' and n->0->>'answer' = 'I moved the wait.' and (n->0->>'pr')::int = 512 and n->0->>'result' = 'changed', 'the answer under the words';
+  assert n->1->>'state' = 'working' and n->1->>'runUrl' = run and n->2->>'state' = 'waiting', 'a run has the second; the third waits';
+  assert v::text not like '%' || admin::text || '%', 'never who';
+  update ops.user_issue_notes set taken_at = now() - interval '4 hours' where id = b::uuid;
+  assert diag.ops_user_issue_notes()->'LAN-12'->1->>'state' = 'stopped', 'two runs took it and neither answered';
+
+  assert not has_function_privilege('authenticated', 'public.ops_user_issue_instruct(text, text, uuid)', 'execute')
+    and not has_function_privilege('anon', 'public.ops_user_issue_notes(text)', 'execute')
+    and not has_function_privilege('authenticated', 'public.ops_user_issue_notes_done(jsonb)', 'execute')
+    and not has_function_privilege('anon', 'public.ops_user_issue_notes_waiting()', 'execute'), 'only the service role';
+  perform public.ops_record_action(admin, 'user_issue_note', 'LAN-12', 'ok', 'note:' || a);
+end $$;
+
 -- Kinds found fixed are taken out 90 days after they were looked at, like noise.
 update ops.user_issues set looked_at = now() - interval '91 days' where key = 'transfer:down:source:failOther';
 select public.ops_user_issues_looked(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/131')) is not null as looked;
