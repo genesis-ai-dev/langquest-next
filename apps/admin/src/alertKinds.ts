@@ -99,7 +99,7 @@ export const KINDS = {
   'fold-canary-mismatch': { part: 'safety', title: 'The fold canary found a difference', recheck: { daily: ['04:05'], takesMin: 30 } },
   'upload-delay': { part: 'safety', title: 'Work arrived over a day late', recheck: DAY_PHONES },
   'clock-ahead': { part: 'safety', title: 'Phones stamped work ahead of the server\'s clock', recheck: DAY_PHONES },
-  'projection-lag': { part: 'safety', title: 'Languages wait for the projection pass', recheck: { everyMin: 5 } },
+  'projection-lag': { part: 'safety', title: 'Projection passes left a language behind', recheck: { everyMin: 5 } },
   'snapshots-overdue': { part: 'safety', title: 'Snapshots are overdue', recheck: COUNTED },
   'snapshots-old-reducer': { part: 'safety', title: 'Snapshots wait for the current reducer', recheck: COUNTED },
 

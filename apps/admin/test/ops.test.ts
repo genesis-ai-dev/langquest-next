@@ -7,7 +7,7 @@ import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import {
   FLEET_SQL, dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, userIssueAlerts,
-  userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type QuietAccounts, type Safety, type Tutorials, type UserIssues
+  userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type LagRow, type Pipeline, type QuietAccounts, type Safety, type Tutorials, type UserIssues
 } from '../src/sources/ops';
 import { CHANNELS } from '../../../server/youtube';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
@@ -80,6 +80,29 @@ describe('sync and data safety', () => {
   it('watches events stamped ahead of the clock and long upload delays', () => {
     const alerts = safetyAlerts(safety({ arrivals: [{ day: '2026-10-22', sampled: 500, newEvents: 900, p50Ms: 1000, p95Ms: 30 * 3_600_000, maxMs: 1, futureStamped: 3, futureInstalls: 1 }] }));
     expect(alerts).toHaveLength(2);
+  });
+
+  // What diag.ops_pipeline answers: Bhujel on 2026-11-18, 988 events from one v2 import between two passes.
+  const lag = (over: Partial<LagRow> = {}): LagRow => ({
+    orgId: 'o', languageId: 'l', name: 'Bhujel', head: 174220, projectedSeq: 173232, behind: 988,
+    projectedAt: '2026-11-18T04:45:58Z', waitingSince: '2026-11-18T04:51:10Z', passesSince: 0, ...over
+  });
+  const pipeline = (rows: LagRow[]): Pipeline => ({ lagging: rows.length, lag: rows, snapshots: { overdue: 0, oldReducer: 0, noCut: 0, worst: [] }, largest: [] });
+
+  it('says nothing of a language that waits for its first projection pass, however many events it has', () => {
+    expect(safetyAlerts(safety({ pipeline: pipeline([lag()]) }))).toEqual([]);
+    // One pass since can be a pass that a deploy stopped before it reached the language.
+    expect(safetyAlerts(safety({ pipeline: pipeline([lag({ passesSince: 1 })]) }))).toEqual([]);
+    // A database before the migration does not count passes: no line, rather than a guess.
+    const { waitingSince: _w, passesSince: _p, ...before } = lag();
+    expect(safetyAlerts(safety({ pipeline: pipeline([before]) }))).toEqual([]);
+  });
+
+  it('names the languages that two or more projection passes left behind, however few their events', () => {
+    const alerts = safetyAlerts(safety({ pipeline: pipeline([lag({ name: 'Koro', passesSince: 7, behind: 3 }), lag({ passesSince: 2 }), lag()]) }));
+    expect(alerts).toEqual([{ level: 'watch', key: 'projection-lag', text: '2 languages still wait after 2 or more projection passes (longest: Koro, 7 passes, 3 events behind).' }]);
+    expect(safetyAlerts(safety({ pipeline: pipeline([lag({ name: null, languageId: 'l-9', passesSince: 2, behind: 1 })]) }))[0]!.text)
+      .toBe('1 language still waits after 2 or more projection passes (longest: l-9, 2 passes, 1 event behind).');
   });
 });
 
@@ -252,6 +275,7 @@ describe('reading as diag_reader', () => {
     expect(s.safety.state).toBe('ok');
     // Before its migration the rest of the section still shows.
     expect(s.safety.data!.copies).toBeNull();
+    expect(s.safety.data!.pipeline).toBeNull();
     expect(s.worker.state).toBe('ok');
     for (const id of ['people', 'cron', 'dbdetail', 'push', 'integrations', 'support', 'security'] as const) {
       expect(s[id]).toMatchObject({ state: 'off', setup: expect.stringContaining('20261023100000_ops_dashboard.sql') });
@@ -259,6 +283,16 @@ describe('reading as diag_reader', () => {
     expect(s.tutorials).toMatchObject({ state: 'off', setup: expect.stringContaining('20261028090000_tutorial_videos.sql') });
     expect(s.videofeedback).toMatchObject({ state: 'off', setup: expect.stringContaining('20261029120000_tutorial_feedback.sql') });
     expect(s.userissues).toMatchObject({ state: 'off', setup: expect.stringContaining('20261103204500_user_issues_fixed.sql') });
+  });
+
+  it('marks for the page the languages that the projection passes left behind', async () => {
+    const row = { orgId: 'o', name: 'Bhujel', head: 10, projectedSeq: 4, behind: 6, projectedAt: null, waitingSince: hoursAgo(1) };
+    const s = await opsSections(fakeQuery([
+      ['rejNotMember', []], ['arrivalsSampled', []], ['fold_canary', []],
+      ['ops_pipeline', { lagging: 2, lag: [{ ...row, languageId: 'a', passesSince: 12 }, { ...row, languageId: 'b', passesSince: 0 }], snapshots: { overdue: 0, oldReducer: 0, noCut: 0, worst: [] }, largest: [] }]
+    ]));
+    expect(s.safety.data!.pipeline!.lag.map((l) => [l.languageId, l.left])).toEqual([['a', true], ['b', false]]);
+    expect(s.safety.alerts.map((a) => a.key)).toEqual(['projection-lag']);
   });
 
   it('reads the builds from the count the database makes every 10 minutes, and says which migration it lacks', async () => {

@@ -122,9 +122,34 @@ export interface SnapshotCopies {
   languages: { orgId: string; languageId: string; name: string | null; versions: number; snapshots: number; chars: number; perVersion: { reducer: number; snapshots: number }[] }[];
 }
 
+/** A language whose stream is past its projection mark (diag.ops_pipeline). */
+export interface LagRow {
+  orgId: string; languageId: string; name: string | null; head: number; projectedSeq: number; behind: number; projectedAt: string | null;
+  /** When the oldest event the pass has not projected arrived. Absent before migration 20261118051742_projection_passes_since.sql. */
+  waitingSince?: string | null;
+  /** Projection passes that started after that and have ended. Absent before the same migration. */
+  passesSince?: number;
+  /** That many passes left it behind (`leftBehind`), for the page. */
+  left?: boolean;
+}
+
+/**
+ * How many projection passes must leave a language behind before it is a
+ * line. A language behind the pass is normal for one pass: the pass runs
+ * every five minutes, and an import can append a thousand events between
+ * two of them (Bhujel, 2026-11-18: 988 events, projected within six minutes).
+ * A pass that started after a language's oldest waiting event arrived, and
+ * ended without it, left it behind. One alone can be a pass a deploy
+ * stopped, or an append that committed as the pass began, so it takes two.
+ */
+export const PASSES_LEFT_BEHIND = 2;
+
+/** Did the projection passes leave this language behind, rather than not reach it yet? */
+export const leftBehind = (l: LagRow): boolean => num(l.passesSince) >= PASSES_LEFT_BEHIND;
+
 export interface Pipeline {
   lagging: number;
-  lag: { orgId: string; languageId: string; name: string | null; head: number; projectedSeq: number; behind: number; projectedAt: string | null }[];
+  lag: LagRow[];
   snapshots: { overdue: number; oldReducer: number; noCut: number; worst: { orgId: string; languageId: string; name: string | null; behind: number; ageMinutes: number | null }[] };
   largest: { orgId: string; languageId: string; name: string | null; events: number; snapshotBytes: number | null }[];
 }
@@ -172,8 +197,9 @@ export function safetyAlerts(s: Safety): Alert[] {
   if (arrivals && arrivals.futureInstalls > 0) out.push({ level: 'watch', key: 'clock-ahead', text: `${plural(arrivals.futureStamped, 'event')} from ${plural(arrivals.futureInstalls, 'install')} were stamped more than 5 minutes ahead of the server's clock on ${arrivals.day}.` });
   const p = s.pipeline;
   if (p) {
-    const far = p.lag.filter((l) => l.behind >= 200);
-    if (far.length) out.push({ level: 'watch', key: 'projection-lag', text: `${plural(far.length, 'language')} ${far.length === 1 ? 'is' : 'are'} 200 or more events behind the projection pass (most: ${far[0]!.name ?? far[0]!.languageId}, ${far[0]!.behind}).` });
+    // In the order the database gives them: the most passes first, then the most events.
+    const left = p.lag.filter(leftBehind);
+    if (left.length) out.push({ level: 'watch', key: 'projection-lag', text: `${plural(left.length, 'language')} still ${left.length === 1 ? 'waits' : 'wait'} after ${PASSES_LEFT_BEHIND} or more projection passes (longest: ${left[0]!.name ?? left[0]!.languageId}, ${plural(num(left[0]!.passesSince), 'pass', 'passes')}, ${plural(left[0]!.behind, 'event')} behind).` });
     if (p.snapshots.overdue >= 5) out.push({ level: 'watch', key: 'snapshots-overdue', text: `${plural(p.snapshots.overdue, 'language')} have a snapshot older than decision 88 allows.` });
     if (p.snapshots.oldReducer > 0) out.push({ level: 'watch', key: 'snapshots-old-reducer', text: `${plural(p.snapshots.oldReducer, 'language')} have no snapshot from the current reducer yet.` });
   }
@@ -575,7 +601,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     safety: build(safetyParts, '', () => {
       const s: Safety = {
         rejected: rejected.ok ? rejected.value : [], arrivals: arrivals.ok ? arrivals.value : [],
-        canary: canary.ok ? canary.value : [], pipeline: pipeline.ok ? pipeline.value : null, copies: copies.ok ? copies.value : null
+        canary: canary.ok ? canary.value : [], copies: copies.ok ? copies.value : null,
+        pipeline: pipeline.ok ? { ...pipeline.value, lag: pipeline.value.lag.map((l) => ({ ...l, left: leftBehind(l) })) } : null
       };
       return ok(s, safetyAlerts(s));
     }),
