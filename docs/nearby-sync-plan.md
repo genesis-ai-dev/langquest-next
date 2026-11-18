@@ -3688,8 +3688,10 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
 - **Checking before leaving town** (decision 246, amended three times 2026-11-09). Getting the
   file is done online before a trip, and letting someone in is done in the field, so each
   has a screen of its own (Carl's choice). Get the install file (`get_install_file`) names
-  the file this phone needs by those versions alone, and says the file in Downloads must
-  have exactly this name: any other name is the wrong version. Share nearby opens it from
+  the file this phone needs by those versions alone, shown as the start of its name
+  (`r21-l1-p1-….apk`), and says the file in Downloads must have a name that starts that way:
+  a name that starts any other way is the wrong version (Carl's choice, 2026-11-18,
+  `docs/decisions/2026-11-18-carried-file-matches-by-versions.md`). Share nearby opens it from
   a row above Let someone in, on the same terms (a pass held, joining on, Android), with a
   line saying it is for before going offline; Let someone in opens it from a line at its
   top saying the new phone needs LangQuest installed first; and Sync's Ready for offline
@@ -3722,9 +3724,19 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     (`InstallFileReminder`, `NearbyRow`) with plain stubs elsewhere.
   - *Check my file.* Opens Android's system file picker (`expo-document-picker`, which needs
     no permission; the file is not copied) and compares only the chosen file's name with the
-    one needed: "This is the right file", which is then remembered as got, or "This file is
-    for a different version: you need <name>". `expo-file-system`'s picker was not enough: it
-    gives the picked file's address, not its name.
+    versions needed, whatever fingerprint ends it: "This is the right file", which is then
+    remembered as got, or "This file is for a different version: you need
+    r21-l1-p1-….apk". `expo-file-system`'s picker was not enough: it gives the picked file's
+    address, not its name.
+  - *A phone whose build has no file.* Files are made only at merges into main, for main's
+    fingerprint, so a phone on another build (a store build from before publishing worked, or
+    a release branch's) asks for a name the bucket lacks. The Worker sends it, by a 302 that
+    is never cached, to the newest file for the same versions, by the Play version code the
+    publish records on each file, so the browser downloads that file under its own name. Any
+    such file lets a new phone join this one: a join checks only the reducer and lines
+    versions. Carried builds on release branches were turned down: each would take a version
+    code above the store build in review, which a phone installed from it could then never
+    take from Play.
   - A help line says: "When everyone you came for is in, delete this file. You need internet
     to get it again." It gives no reason, and does not mention a disguise (decision 171's
     amendment of 2026-10-29). A carrier whose own phone wears a disguise sees two more lines,

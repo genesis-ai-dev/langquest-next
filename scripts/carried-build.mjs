@@ -37,7 +37,7 @@ import { createHash, createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LINES_VERSION, NEARBY_PROTOCOL, REDUCER_VERSION, carriedApkName } from '@langquest-next/core';
+import { CARRIED_APK_VERSION_CODE, LINES_VERSION, NEARBY_PROTOCOL, REDUCER_VERSION, carriedApkName } from '@langquest-next/core';
 import { parseJsonc, root, wranglerFor } from './env-files.mjs';
 import { API, PACKAGE, TOKEN_URL, assertion, playKey } from './play-review.mjs';
 
@@ -333,7 +333,8 @@ export async function publish({
   }
   if (already) log(`${name} is in the APK bucket already; it and the current record are left as they are.`);
   else {
-    await bucket.put(name, bytes, APK_TYPE, { 'content-disposition': `attachment; filename="${name}"` });
+    // The version code goes with the file, so the Worker can send a phone whose own build has no file to the newest for its versions.
+    await bucket.put(name, bytes, APK_TYPE, { 'content-disposition': `attachment; filename="${name}"`, [`x-amz-meta-${CARRIED_APK_VERSION_CODE}`]: String(code) });
     const stored = await bucket.head(name);
     if (stored?.size !== bytes.length) throw new Refusal(`the APK bucket holds ${stored?.size ?? 'nothing'} bytes under ${name}, not ${bytes.length}`);
     log(`${name} is in the APK bucket: version code ${code}, ${bytes.length} bytes, sha256 ${hash}.`);

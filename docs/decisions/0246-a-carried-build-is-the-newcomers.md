@@ -1,6 +1,6 @@
 # 246. A carried build is the newcomer's install file: made when the reducer, lines or protocol version or the Android fingerprint changes, fetched from Play and served from an R2 bucket of its own
 
-Date: 2026-11-12 · By: Carl Sauder · Status: accepted
+Date: 2026-11-12 · By: Carl Sauder · Status: partly superseded by 2026-11-18-carried-file-matches-by-versions
 
 Reason: an iPhone cannot install an app offline and a store build holds only
 the JavaScript it was built with, so Carl chose (2026-11-06) that the app
