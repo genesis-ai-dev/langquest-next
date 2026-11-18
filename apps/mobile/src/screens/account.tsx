@@ -28,9 +28,14 @@ import { edgeAllowed } from '../shell/session';
 import { updateTarget } from '../work/homeModel';
 import { t } from '../i18n';
 import { formatAgo, formatDayTime, formatNumber, formatShortDate, formatTime } from '../i18n/format';
-import { FillBanner, OfflineCard } from '../sync/offline';
-import { SentList, UploadsCard, WaitingList } from '../sync/uploads';
-import { changeUnits } from '../sync/uploadsModel';
+import { ReadyForOffline } from '../sync/offline';
+import { SentList, WaitingList } from '../sync/uploads';
+import { TransitStrip } from '../sync/transit';
+import { useFolds } from '../sync/useFolds';
+import { useUploadState } from '../sync/useUploadState';
+import { useInstallFile } from '../nearby/useInstallFile';
+import { downloadsLine, foldsOpenAtFirst, meSyncLine, readyLine, refusedLine, stripLink, uploadsLine } from '../sync/syncScreenModel';
+import { changeUnits, uploadsSummary } from '../sync/uploadsModel';
 import { useOfflineSummary } from '../sync/useOfflineSummary';
 import { useSyncStatus } from '../sync/useSyncStatus';
 import { offlineCount, moreSettingsSub } from '../account/meModel';
@@ -389,15 +394,15 @@ export function SettingsHome(ctx: Ctx) {
   const offline = useOfflineSummary(ctx);
   const orgs = useOrganizations(ctx.session.actorId).rows;
   const { orgName } = useAccountLine(ctx);
-  // Sync needs noticing when work is waiting to send: say so on More settings' row. The organization's
-  // changes count too (a language or organization made offline), as they do before sign-out.
+  // Sync needs noticing when work is waiting to send or was refused: Sync and offline's row says so, else
+  // how ready this device is for offline. The organization's changes count too (a language or
+  // organization made offline), as they do before sign-out.
   const p = ctx.language;
   const status = useSyncStatus();
   // One number for what waits to send, the sync icon's (UI audit, finding 118).
   const waiting = iconCounts(status).toSend;
-  const moreSub = p.refused ? t('account.me.moreRefused')
-    : p.refusedEvents > 0 ? t('account.me.moreRefusedEvents', { n: p.refusedEvents })
-    : waiting > 0 ? t('account.me.morePending', { count: waiting }) : moreSettingsSub();
+  const syncLine = meSyncLine({ refused: p.refused, refusedEvents: p.refusedEvents, live: p.live, online: p.online, pending: status.pending + status.orgPending,
+    recordings: status.pendingUp + status.holding, lastSync: status.lastSync, offline });
   const local = ctx.session.isLocal;
   // Joined has a session but first contact is still open: the card stays, and Sign out does not come yet.
   const finishing = firstContactOpen(useLocalPerson(), ctx.session.actorId);
@@ -407,12 +412,12 @@ export function SettingsHome(ctx: Ctx) {
       <Group>
         <Row icon="user" label={name} sub={t('account.me.nameSub')} help={t('account.me.nameHelp')} onPress={() => ctx.go('profile_edit')} />
         {inSeveral(orgs) && !local ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
-        {/* What comes along to the field, seen before a trip (decisions.md 61). */}
-        <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} help={t('account.me.offlineHelp')} onPress={() => ctx.go('sync_status', { show: 'offline' })} />
+        {/* What is sent, and what comes along to the field, seen before a trip (decisions.md 61, docs/decisions/2026-11-18-sync-and-offline-one-screen.md). */}
+        <Row icon="cloud" label={t('account.sync.title')} sub={syncLine} help={t('account.sync.rowHelp')} onPress={() => ctx.go('sync_status')}
+          {...(waiting > 0 ? { badge: formatNumber(waiting) } : {})} />
         <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} help={t('account.me.tourHelp')} onPress={() => ctx.go('vision')} />
         <LanguageRow />
-        <Row icon="settings" label={t('account.me.more')} sub={moreSub} help={t('account.me.moreHelp')} onPress={() => ctx.go('settings_more')}
-          {...(waiting > 0 ? { badge: formatNumber(waiting) } : {})} last />
+        <Row icon="settings" label={t('account.me.more')} sub={moreSettingsSub()} help={t('account.me.moreHelp')} onPress={() => ctx.go('settings_more')} last />
       </Group>
       {/* Someone let in offline cannot sign out: their work has no account to wait under until first contact (14.1, 5 "Me"),
           and in joined a session gone leaves the phone running as them with no lock (security review, 2026-11-10). */}
@@ -495,10 +500,6 @@ export function SettingsMore(ctx: Ctx) {
   const [help, setHelp] = useState<SignInHelp | null>(null);
   useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
   const name = useOwnName(ctx);
-  const p = ctx.language;
-  const status = useSyncStatus();
-  const toSend = iconCounts(status).toSend;
-  const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending + status.orgPending, recordings: status.pendingUp + status.holding, lastSync: status.lastSync });
   // Someone in several organizations switches on Me itself; anyone else finds it here, where it also starts a new one.
   const orgs = useOrganizations(s.actorId).rows;
   // Someone let in offline has no account yet: no switching, notifications or deleting until first contact (14.1, 5 "Me").
@@ -555,7 +556,6 @@ export function SettingsMore(ctx: Ctx) {
       ) : null}
       <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
-        <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={toSend > 0 ? formatNumber(toSend) : undefined} onPress={() => ctx.go('sync_status')} />
         {/* Android only: a calculator or notepad in front of the app, opened with a code (decisions.md 171). */}
         <AppIconRow ctx={ctx} />
         {/* Phones only: the person's own pattern each time the app opens (decisions.md 253). */}
@@ -945,7 +945,7 @@ export function SignOutConfirm(ctx: Ctx) {
           <Text style={txt.bodyMuted}>{t('account.signOut.sending')}</Text>
         </View>
       ) : null}
-      {blocked && ctx.language.orgId ? <LinkBtn label={t('account.signOut.seeWaiting')} help={t('account.signOut.seeWaitingHelp')} onPress={() => ctx.go('sync_status')} /> : null}
+      {blocked && ctx.language.orgId ? <LinkBtn label={t('account.signOut.seeWaiting')} help={t('account.signOut.seeWaitingHelp')} onPress={() => ctx.go('sync_status', { open: 'uploads' })} /> : null}
       {/* Someone with a password may still want a pattern, and a pattern can be changed. */}
       {LOCKS_ON_SIGN_OUT && lock.ways && !needsPattern ? (
         <LinkBtn label={lock.ways.includes('pattern') ? t('account.lock.newPattern') : t('account.lock.drawTitle')}
@@ -1013,12 +1013,16 @@ export function DeleteAccount(ctx: Ctx) {
   );
 }
 
-// ---- Sync (app only) ---------------------------------------------------------------------------------------------
+// ---- Sync and offline (app only) ---------------------------------------------------------------------------------
 
 /**
- * What the phone holds and where it is going: the channel, the event queue,
- * audio transfer with speed and a bar, then the waiting and refused events
- * one line each so a developer can see the log move. Polled once a second.
+ * Sync and offline (docs/decisions/2026-11-18-sync-and-offline-one-screen.md): one card that says
+ * where this phone stands with the server, drawn as the transit strip (decisions.md 166) over the
+ * status word and its sentence, with Sync now; then folds, each one line saying what it holds:
+ * Refused (only when there is some, and open), Uploads, Downloads (a line with nothing to open),
+ * Ready for offline with the install file for someone who can let a new person in, Share nearby
+ * where it is offered, and Details for support. Each opens in place; a link may ask for one open
+ * (`open`). Polled once a second.
  */
 export function SyncStatus(ctx: Ctx) {
   const { language, org } = ctx;
@@ -1030,8 +1034,12 @@ export function SyncStatus(ctx: Ctx) {
   const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
   const rejected = refusedHere(ins, orgIns, logged);
   const standing = syncStanding(language, useSignInBlocked());
-  const offlineFirst = ctx.params['show'] === 'offline';
-  const [details, setDetails] = useState(false);
+  const folds = useFolds(foldsOpenAtFirst(ctx.params['open']));
+  const { counts, moving: movingUp } = useUploadState(ctx);
+  const lastSent = sync.sent.reduce((m, e) => Math.max(m, e.at), 0);
+  const uploads = uploadsLine(uploadsSummary(counts, movingUp, lastSent, Date.now()), offline);
+  const install = useInstallFile(ctx);
+  const ready = readyLine(offlineSummaryNow, install.item);
   const syncNow = async () => {
     setBusy(true);
     try { await Promise.all([language.sync(), org.sync()]); language.triggerUpload(); }
@@ -1039,7 +1047,7 @@ export function SyncStatus(ctx: Ctx) {
     finally { setBusy(false); }
   };
   return (
-    <Screen header={<Header title={offlineFirst ? t('account.me.offline') : t('account.more.sync')} onBack={ctx.back} />}
+    <Screen header={<Header title={t('account.sync.title')} onBack={ctx.back} />}
       footer={language.tooOld && STORE ? (
         // Too old to receive: the way on is the store, a button rather than a line (UI audit, finding 119).
         <PrimaryBtn label={t('appVersion.update')} icon="download" help={t('appVersion.updateHelp')}
@@ -1050,33 +1058,60 @@ export function SyncStatus(ctx: Ctx) {
       )}>
       {/* The last try failing to reach the server outranks the live channel, which can take a minute to notice a lost network. */}
       <Card>
-        <View style={[styles.profile, { flexWrap: 'wrap' }]} accessible accessibilityLabel={standingTitle(standing)}>
+        <TransitStrip up={counts.recordings > 0 ? counts.recordings : counts.changes} down={sync.pendingDown} link={stripLink(standing)}
+          movingUp={movingUp} movingDown={!offline && sync.downloading.size > 0} />
+        <View style={styles.profile} accessible accessibilityLabel={standingTitle(standing)}>
           <View style={[styles.liveDot, { backgroundColor: STANDING_COLOR[standing] }]} />
           <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{standingTitle(standing)}</Text>
-          <Info label={standingTitle(standing)} text={standingHelp(standing)} />
         </View>
+        <Text style={txt.smMuted}>{standingHelp(standing)}</Text>
         {/* The server's refusal is English (its reason goes to the log): say what it means. */}
         {language.refused ? <Text style={txt.smMuted}>{t('account.sync.refused')}</Text> : language.tooOld ? (
           // Below the minimum version the phone still sends its own work (syncGate.ts); a server that refuses the protocol takes nothing.
           <Text style={txt.body}>{belowMinimum() ? t('account.sync.tooOldSends') : t('account.sync.tooOld')}</Text>
         ) : null}
       </Card>
+      {/* The one thing to act on, so it comes first and arrives open. */}
+      {rejected.length ? (
+        <Disclosure testID="sync-refused" icon="flag" tone="red" title={t('account.sync.fold.refused')} summary={refusedLine(rejected.length)}
+          help={t('account.sync.fold.refusedHelp')} open={folds.isOpen('refused')} onToggle={() => folds.toggle('refused')}>
+          <View style={styles.foldBody}>
+            <Group>
+              {rejected.slice(0, 20).map((l, i, a) => (
+                <HelpRow key={l.event.id} of="sync.event">
+                  <Row icon="flag" iconColor={TINT.redText} label={eventLabel(ctx, l.event)} sub={l.rejectReason ?? clock(l.event.hlc)} help={t('account.sync.eventHelp')} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
+                </HelpRow>
+              ))}
+            </Group>
+            <Text style={txt.xs}>{t('account.sync.fold.refusedNote')}</Text>
+          </View>
+        </Disclosure>
+      ) : null}
+      {/* What waits to upload, by passage, and what went up (decision 166). */}
+      <Disclosure testID="sync-uploads" icon="upload" tone={uploads.tone ?? undefined} title={t('account.sync.fold.uploads')} summary={uploads.line}
+        help={t('account.sync.fold.uploadsHelp')} open={folds.isOpen('uploads')} onToggle={() => folds.toggle('uploads')}>
+        <View style={styles.foldBody}>
+          <WaitingList ctx={ctx} changes={changeUnits(ctx.language.state, ins?.pending ?? [], orgIns?.pending.length ?? 0)} />
+          {/* Teammates' recordings waiting to upload here count too: that is true of this phone (decisions.md 166, docs/nearby-sync-plan.md 5.8). */}
+          {sync.holding ? (
+            <Text style={txt.sm} accessibilityHint={t('nearby.sync.holdingHelp')}>{t('account.sync.statLabel', { value: formatNumber(sync.holding), label: t('nearby.sync.holding') })}</Text>
+          ) : null}
+          <SentList ctx={ctx} />
+          {!uploads.tone && !counts.recordings && !counts.changes && sync.sent.length === 0 ? <Text style={txt.smMuted}>{t('uploads.allUploaded')}</Text> : null}
+        </View>
+      </Disclosure>
+      {/* Offline, what is new on the server cannot be known: never "Up to date" then (decision 166). */}
+      <Disclosure testID="sync-downloads" icon="download" title={t('account.sync.fold.downloads')} help={t('account.sync.help.toReceive')}
+        summary={downloadsLine({ online: language.online, pendingDown: sync.pendingDown, rate: sync.pendingDown && rates.down ? speed(rates.down) : null })} />
+      {/* What to pack before a trip (decisions.md 61): kept passages and, for someone who can let a new person in, the install file. */}
+      <Disclosure testID="sync-ready" icon="onPhone" tone={ready.tone ?? undefined} title={t('offline.card.readyTitle')} summary={ready.line}
+        help={t('account.sync.fold.readyHelp')} open={folds.isOpen('ready')} onToggle={() => folds.toggle('ready')}>
+        <ReadyForOffline ctx={ctx} s={offlineSummaryNow} install={install.item} installShown={install.shown} />
+      </Disclosure>
       {/* Share nearby, where this phone may share it (Android, the organization on; docs/nearby-sync-plan.md 5.8). */}
       <NearbyRow ctx={ctx} />
-      {/* Settings' "Ready for offline" opens here with what comes along first (decisions.md 61); otherwise what waits to upload, by passage, and what went up (decision 166). */}
-      {offlineFirst ? <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></> : null}
-      <UploadsCard ctx={ctx} />
-      <WaitingList ctx={ctx} changes={changeUnits(ctx.language.state, ins?.pending ?? [], orgIns?.pending.length ?? 0)} />
-      <SentList ctx={ctx} />
-      {offlineFirst ? null : <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></>}
-      <Card>
-        <SyncLine icon="download" label={t('account.sync.toReceive')} value={sync.pendingDown} rate={sync.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} unknown={offline} />
-        {/* Teammates' recordings here the server lacks, shown whenever there are some, even with the organization turned off (5.8). */}
-        {sync.holding ? <SyncLine icon="people" label={t('nearby.sync.holding')} value={sync.holding} help={t('nearby.sync.holdingHelp')} /> : null}
-        {rejected.length ? <SyncLine icon="flag" label={t('account.sync.refusedLine')} value={rejected.length} tone={TINT.redText} help={t('account.sync.help.refusedLine')} /> : null}
-      </Card>
       <Disclosure testID="sync-details" icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}
-        open={details} onToggle={() => setDetails((d) => !d)} help={t('account.sync.detailsHelp')}>
+        open={folds.isOpen('details')} onToggle={() => folds.toggle('details')} help={t('account.sync.detailsHelp')}>
       <View style={styles.tiles}>
         <Stat id="waiting" icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label={t('account.sync.waitingUpload')} />
         <Stat id="refused" icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label={t('account.sync.refusedByServer')} />
@@ -1098,19 +1133,7 @@ export function SyncStatus(ctx: Ctx) {
           </Group>
         </>
       ) : null}
-      {rejected.length ? (
-        <>
-          <SectionLabel label={t('account.sync.refusedCount', { n: rejected.length })} />
-          <Group>
-            {rejected.slice(0, 20).map((l, i, a) => (
-              <HelpRow key={l.event.id} of="sync.event">
-                <Row icon="flag" iconColor={TINT.redText} label={eventLabel(ctx, l.event)} sub={l.rejectReason ?? clock(l.event.hlc)} help={t('account.sync.eventHelp')} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
-              </HelpRow>
-            ))}
-          </Group>
-        </>
-      ) : null}
-      {/* Refused events are on this device too (PLAN.md invariant 1); the summary's count includes them. */}
+      {/* Refused events are on this device too (PLAN.md invariant 1); the summary's count includes them, and the Refused fold lists them. */}
       <Text style={[txt.xs, { textAlign: 'center' }]} selectable>
         {runningBuildLines({ store: storeBuildParts(), updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch }).join('\n')}
       </Text>
@@ -1151,41 +1174,6 @@ const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: 
 function standingHelp(s: SyncStanding): string {
   return s === 'signIn' ? t('account.sync.help.signIn') : s === 'live' ? t('account.sync.help.live') : s === 'offline' ? t('account.sync.help.offline')
     : s === 'checking' ? t('account.sync.help.checking') : s === 'tooOld' ? t('account.sync.help.tooOld') : t('account.sync.help.refused');
-}
-
-/** A small ⓘ that shows one plain sentence under its row. While help is on, it says that sentence about its row (`label`). */
-function Info(props: { label: string; text: string }) {
-  const [open, setOpen] = useState(false);
-  const spot = useHelpSpot(props.label, props.text, () => setOpen((o) => !o));
-  return (
-    <>
-      <Pressable onPress={spot.onPress} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('account.sync.moreInfo')}
-        {...a11yState({ expanded: open }, 'button')} style={({ pressed }) => pressed && { opacity: 0.6 }}>
-        <Ico name="info" size={18} color={open ? C.primary : C.muted} />
-        <HelpBadge spot={spot} />
-      </Pressable>
-      {open ? <Text style={[txt.smMuted, styles.infoText]}>{props.text}</Text> : null}
-    </>
-  );
-}
-
-/** One plain line: what is waiting, how many, and a sentence behind ⓘ. */
-function SyncLine(props: { icon: IconName; label: string; value: number; rate?: number; tone?: string; help: string;
-  /** Offline, "None" would be a guess: the server may have new work this device cannot know of (decisions.md 166). */ unknown?: boolean }) {
-  const unknown = !props.value && !!props.unknown;
-  const color = props.tone ?? (unknown ? TINT.amberText : props.value ? C.primary : C.green);
-  const value = props.value ? formatNumber(props.value) : unknown ? t('account.sync.standing.offline') : t('account.sync.none');
-  return (
-    <View style={[styles.profile, { flexWrap: 'wrap', paddingVertical: space.xs }]}>
-      <View style={[styles.profile, { flex: 1 }]} accessible accessibilityLabel={`${props.label}: ${value}`}>
-        <Ico name={props.value || unknown ? props.icon : 'check'} size={20} color={color} />
-        <Text style={[txt.body, { flex: 1 }]}>{props.label}</Text>
-        {props.rate ? <Text style={txt.xs}>{speed(props.rate)}</Text> : null}
-        <Text style={[txt.body, { fontWeight: '700', color, fontVariant: ['tabular-nums'] }]}>{value}</Text>
-      </View>
-      <Info label={props.label} text={props.help} />
-    </View>
-  );
 }
 
 function Stat(props: { id: string; icon: IconName; color: string; value: number; label: string }) {
@@ -1238,8 +1226,8 @@ const styles = StyleSheet.create({
   centered: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.xl, gap: space.lg },
   bigTile: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
+  foldBody: { padding: space.lg, gap: space.md },
   liveDot: { width: 14, height: 14, borderRadius: 7 },
-  infoText: { width: '100%', marginTop: space.xs },
   tile2: { width: '47%', flexGrow: 1, alignItems: 'center', gap: space.xs, paddingVertical: space.lg, paddingHorizontal: space.sm, borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.card },
   statValue: { fontSize: T.xl, fontWeight: '700' },

@@ -97,12 +97,11 @@ export async function keptHere(page: Page): Promise<void> {
   await expect(page.locator('[aria-label="On this device"]').locator('visible=true').first()).toBeVisible({ timeout: 60_000 });
 }
 
-/** Me, More settings, Sync. */
+/** Me, Sync and offline (docs/decisions/2026-11-18-sync-and-offline-one-screen.md), with Details open. */
 export async function openSync(page: Page): Promise<void> {
   await toTab(page, 'me');
-  await text(page, 'More settings').click();
-  await button(page, /^Sync[ ,]/).click();
-  await expect(page.getByRole('heading', { name: 'Sync', exact: true }).locator('visible=true').first()).toBeVisible();
+  await button(page, /^Sync and offline/).click();
+  await expect(page.getByRole('heading', { name: 'Sync and offline', exact: true }).locator('visible=true').first()).toBeVisible();
   await openSyncDetails(page);
 }
 

@@ -901,10 +901,9 @@ protocol version.
   line names both jobs on the same terms, else teammates' phones alone, and a reason while it
   cannot run (`nearbyRowWords`). Its words say work goes both ways (Carl's words, 2026-11-09):
   "Share work progress with teammates, or bring in a new person, without the internet", else
-  "Share work progress with teammates without the internet", with help to match. While it can
-  be pressed, online, and this phone lacks the install file it needs now, a small amber line
-  under it says "Get the install file before you go offline" (14.4, "Reminded while online");
-  tapping the row still opens Share nearby.
+  "Share work progress with teammates without the internet", with help to match. The install
+  file is not reminded here: it is an item of Sync and offline's Ready for offline list (14.4,
+  "Reminded while online"; docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
 - It asks for its permissions with a line saying why (section 9), and shows teammates who
   also have it open, with name and picture. Phones with equal summaries never connect, so
   a phone works out who it sees from the tag in the broadcast, and from what it already
@@ -2832,7 +2831,7 @@ do decides the design:
    the like, and whatever an iPhone needs to take an Android newcomer's work
    (`useChainMembership` may be one). These stay Android only: the disguise's (`AppCover`,
    `useAppCovered`, `NearbyCoverNotes`, `LetInCoverNote`, `AppIconRow`), the carried file's
-   (`useCarriedApk`, `InstallFileReminder`) and joining offline's, until step 8. An iPhone
+   (`useCarriedApk`) and joining offline's, until step 8. An iPhone
    gets its own permissions file: Bluetooth's state and permission; Local Network, which has
    no way to ask ahead and prompts at the first connection; and the Wi-Fi prompt at each
    join. The install key goes in the Keychain for this device only, so a restored iPhone
@@ -3694,8 +3693,8 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   `docs/decisions/2026-11-18-carried-file-matches-by-versions.md`). Share nearby opens it from
   a row above Let someone in, on the same terms (a pass held, joining on, Android), with a
   line saying it is for before going offline; Let someone in opens it from a line at its
-  top saying the new phone needs LangQuest installed first; and Sync's Ready for offline
-  card opens it from its reminder line (below). Let someone in keeps only the
+  top saying the new phone needs LangQuest installed first; and Sync and offline's Ready for
+  offline list opens it from its install file item (below). Let someone in keeps only the
   field: the role, Show the code, the code, the pictures, the one tap and the words of a
   version refusal.
   - *Getting it.* While online, Get the install file, that screen's one main button, opens `<Worker>/apk/<name>` in the
@@ -3710,18 +3709,19 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     get the new one before going offline, and Share nearby says the same as a line while
     online, under A new person, above its Get the install file row. The words go when the two match again; the
     row stays, so the next version is caught too.
-  - *Reminded while online* (Carl's choice, 2026-11-09). Sync reminds a carrier before they
-    leave, on Share nearby's terms for A new person (`joinRows`), only while online (the
-    server just reached and the file can be got, `apkGet`), and only while this phone has
-    not got the file it needs now: never got (no `carriedApkOpened`) or got for an older
-    version (`apkStale`); nothing shows before the meta row is read. Its Ready for offline
-    card gets a line, "Install file for a new person: not got yet" or "Install file for a
-    new person: for an older version", with a Get it link to Get the install file
-    (`sync_status → get_install_file`), and the Share nearby row a small amber line, "Get the
-    install file before you go offline" (5.8). Both go once the right file is got, by
-    pressing Get the install file or a right file under Check my file. The rule is
-    `apkReminder` in `carriedApkModel.ts`; what reads nearby state is in `.android` files
-    (`InstallFileReminder`, `NearbyRow`) with plain stubs elsewhere.
+  - *Reminded while online* (Carl's choice, 2026-11-09; one place since 2026-11-18,
+    docs/decisions/2026-11-18-sync-and-offline-one-screen.md). The install file is an item
+    of Sync and offline's Ready for offline list, a packing list for a trip, on Share
+    nearby's terms for A new person (`joinRows`), online or not: got ("Got: r21-l1-p1-….apk",
+    with the line to delete it when everyone is in), never got (no `carriedApkOpened`), or
+    got for an older version (`apkStale`); nothing shows before the meta row is read. Never
+    got or too old turns the fold's line amber ("Install file for a new person: not got
+    yet", "…: for an older version"), and while online the item has Get the install file
+    (`sync_status → get_install_file`); offline it says getting it needs the internet. The
+    rule is `installFileItem` in `carriedApkModel.ts`, read by `useInstallFile`; on an iPhone
+    and the web its hooks are plain stubs, so the item never shows. The Share nearby row's
+    amber line and the Ready for offline card's line it replaces said the same at the same
+    moments (Carl, 2026-11-18).
   - *Check my file.* Opens Android's system file picker (`expo-document-picker`, which needs
     no permission; the file is not copied) and compares only the chosen file's name with the
     versions needed, whatever fingerprint ends it: "This is the right file", which is then

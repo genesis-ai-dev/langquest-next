@@ -14,8 +14,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { InstallFileReminder } from '../shell/InstallFileReminder';
-import { Card, Header, HelpInfo, Ico, ProgressBar, Screen, type IconName } from '../ui/kit';
+import type { InstallItem } from '../nearby/carriedApkModel';
+import { Card, Header, HelpInfo, Ico, LinkBtn, ProgressBar, Screen, type IconName } from '../ui/kit';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { isOffline } from './uploadsModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -219,43 +219,70 @@ export function PassageNotHere(props: { ctx: Ctx; unitId: string }) {
   );
 }
 
-/** The Sync screen's card: how ready this phone is, and what never comes along. */
-export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
-  const { ctx, s } = props;
+/**
+ * Inside Sync's Ready for offline fold (decisions.md 61, docs/decisions/2026-11-18-sync-and-offline-one-screen.md):
+ * what to pack before a trip, as a short list. Kept passages: how many are on this device, with
+ * the first download's progress while it runs (decisions.md 147) and the recordings no device
+ * can fetch yet. The install file, for someone who can let a new person in (`installFileItem`):
+ * got, never got or too old, with the way to get it while online. Then what always works offline
+ * and what needs a connection, folded, since it never changes.
+ */
+export function ReadyForOffline(props: { ctx: Ctx; s: OfflineOverview | null; install: InstallItem | null; installShown: string | null }) {
+  const { ctx, s, install } = props;
+  const [always, setAlways] = useState(false);
   const offline = isOffline(ctx.language.online);
+  const fill = ctx.language.fill;
+  const filling = !!fill && fill.total > 0 && fill.filled < fill.total;
   const ready = !!s && s.kept > 0 && s.ready === s.kept;
   const language = ctx.languageId ? languageName(ctx.org.state, ctx.languageId) : t('offline.card.thisLanguage');
-  const head = ready
+  const head = ready && !filling
     ? { icon: 'onPhone' as IconName, tint: onColor.green, bg: TINT.green }
-    : s?.kept && !offline ? { icon: 'download' as IconName, tint: C.primary, bg: C.light }
+    : (s?.kept || filling) && !offline ? { icon: 'download' as IconName, tint: C.primary, bg: C.light }
     : { icon: 'notOnPhone' as IconName, tint: TINT.amberText, bg: TINT.amber };
-  const finish = s && s.kept && !ready ? (offline ? t('offline.connectToFinish') : t('offline.stayConnected')) : null;
-  // Settings' line, as a sentence here.
-  const line = offlineLine(s);
+  const finish = filling || (s && s.kept && !ready) ? (offline ? t('offline.connectToFinish') : t('offline.stayConnected')) : null;
+  // The first download outranks the kept count: until it ends, a passage may not be here at all (decisions.md 147).
+  const line = filling ? t('offline.fill.count', { filled: fill.filled, total: fill.total }) : offlineLine(s);
   return (
-    <Card>
-      <Block icon={head.icon} tint={head.tint} bg={head.bg} title={t('offline.card.readyTitle')}
+    <View style={styles.list}>
+      <Block icon={head.icon} tint={head.tint} bg={head.bg} title={t('offline.card.keptTitle')}
         body={sentences(endsSentence(line) ? line : t('offline.card.lineAsSentence', { line }), finish)} />
-      {s && s.kept ? (
-        <HelpInfo label={t('offline.card.readyTitle')} detail={t('offline.card.barHelp')}>
+      {filling ? (
+        <HelpInfo label={t('offline.fill.title')} detail={t('offline.fill.barHelp')}>
+          <ProgressBar value={(fill.filled / fill.total) * 100} />
+        </HelpInfo>
+      ) : s && s.kept ? (
+        <HelpInfo label={t('offline.card.keptTitle')} detail={t('offline.card.barHelp')}>
           <ProgressBar value={(s.ready / s.kept) * 100} {...(ready ? { color: onColor.green } : {})} />
         </HelpInfo>
       ) : null}
-      {/* A carrier who can let a new person in, reminded while online to get the install file (docs/nearby-sync-plan.md 14.4). */}
-      <InstallFileReminder ctx={ctx} />
-      <Block icon="check" tint={onColor.green} bg={TINT.green} title={t('offline.card.alwaysTitle')}
-        body={STUDY_FILES_OFFLINE ? t('offline.card.alwaysBodyStudy', { language }) : t('offline.card.alwaysBody', { language })} />
-      <Block icon="cloud" tint={TINT.amberText} bg={TINT.amber} title={t('offline.card.needsTitle')}
-        body={[
-          STUDY_FILES_OFFLINE ? t('offline.card.needsNotDownloadedStudy') : t('offline.card.needsNotDownloaded'),
-          STUDY_FILES_OFFLINE ? t('offline.card.needsFilms') : t('offline.card.needsStudyWeb'),
-          t('offline.card.needsReports'),
-          t('offline.card.needsOtherLanguages')
-        ].map((l) => t('offline.card.bullet', { line: l })).join('\n')} />
-      {s && s.notSent ? (
-        <Text style={txt.xs}>{t('offline.card.notSent', { count: s.notSent })}</Text>
+      {s && s.notSent ? <Text style={txt.xs}>{t('offline.card.notSent', { count: s.notSent })}</Text> : null}
+      {install ? (
+        <>
+          <Block icon={install === 'got' ? 'check' : 'warning'} tint={install === 'got' ? onColor.green : TINT.amberText} bg={install === 'got' ? TINT.green : TINT.amber}
+            title={t('nearby.installFile.title')}
+            body={install === 'got' ? sentences(t('nearby.installFile.got', { file: props.installShown ?? '' }), t('nearby.letIn.fileHelp'))
+              : install === 'older' ? t('nearby.letIn.fileOld') : t('nearby.installFile.lineHelp')} />
+          {offline ? (install === 'got' ? null : <Text style={[txt.xs, { color: TINT.amberText }]}>{t('nearby.letIn.getOffline')}</Text>) : (
+            <LinkBtn label={t('nearby.letIn.get')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} style={{ alignSelf: 'flex-start' }} />
+          )}
+        </>
       ) : null}
-    </Card>
+      <LinkBtn label={t('offline.card.worksOffline')} help={t('offline.card.worksOfflineHelp')} expanded={always}
+        onPress={() => setAlways((o) => !o)} style={{ alignSelf: 'flex-start' }} />
+      {always ? (
+        <>
+          <Block icon="check" tint={onColor.green} bg={TINT.green} title={t('offline.card.alwaysTitle')}
+            body={STUDY_FILES_OFFLINE ? t('offline.card.alwaysBodyStudy', { language }) : t('offline.card.alwaysBody', { language })} />
+          <Block icon="cloud" tint={TINT.amberText} bg={TINT.amber} title={t('offline.card.needsTitle')}
+            body={[
+              STUDY_FILES_OFFLINE ? t('offline.card.needsNotDownloadedStudy') : t('offline.card.needsNotDownloaded'),
+              STUDY_FILES_OFFLINE ? t('offline.card.needsFilms') : t('offline.card.needsStudyWeb'),
+              t('offline.card.needsReports'),
+              t('offline.card.needsOtherLanguages')
+            ].map((l) => t('offline.card.bullet', { line: l })).join('\n')} />
+        </>
+      ) : null}
+    </View>
   );
 }
 
@@ -272,6 +299,7 @@ function Block(props: { icon: IconName; tint: string; bg: string; title: string;
 }
 
 const styles = StyleSheet.create({
+  list: { padding: space.lg, gap: space.md },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   tile: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   disc: { alignItems: 'center', justifyContent: 'center', borderWidth: 2, backgroundColor: C.card },

@@ -388,8 +388,6 @@ export const EDGES: Edge[] = [
   e('profile_edit', 'settings_more', 'back'),
   e('settings_more', 'org_switcher'),
   e('org_switcher', 'settings_more', 'back'),
-  e('settings_more', 'sync_status'),
-  e('sync_status', 'settings_more', 'back'),
   e('settings_more', 'delete_account'),
   e('delete_account', 'settings_more', 'back'),
   // App only: the four questions, one screen each, and where each answer is made in full (decision 71, demo ADR-039)
@@ -467,7 +465,7 @@ export const EDGES: Edge[] = [
   e('get_install_file', 'share_nearby', 'back'),
   e('let_someone_in', 'get_install_file'), // tap Get the install file under the new phone needing the app first
   e('get_install_file', 'let_someone_in', 'back'),
-  e('sync_status', 'get_install_file'), // tap Get it on Ready for offline's line that this phone lacks the install file it needs
+  e('sync_status', 'get_install_file'), // tap Get the install file on Ready for offline's list
   e('get_install_file', 'sync_status', 'back'),
   e('scan_qr', 'join_offline', undefined, 'guest'), // scan a teammate's Let someone in code
   e('join_offline', 'scan_qr', undefined, 'guest'), // tap Scan a new code

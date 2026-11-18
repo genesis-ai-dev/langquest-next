@@ -1,4 +1,4 @@
-import { joinRows, type ApkReminder } from './carriedApkModel';
+import { joinRows } from './carriedApkModel';
 import type { LetInWhyNot } from './letInModel';
 import type { NearbyPermission, PermissionReason, RadioOff } from './nearbyPermissionsModel';
 import type { NearbySessionLine, NearbyStop, NearbyTeammate, NearbyView, NearbyWhyNot, TeammateState } from './nearbyRunModel';
@@ -56,19 +56,16 @@ export const WHY_NOT_WORDS = {
  * cannot, else its jobs: sharing work progress with teammates both ways, and bringing in a new
  * person only on the terms that show Let someone in on Share nearby (`joinRows`: joining on for
  * this organization and a pass to let people in), so nobody is told of a job the screen will not
- * offer them. While the row can be pressed and Sync reminds this person to get the install file
- * (`apkReminder`, 14.4), a small amber line under it says so. Help mode says the same.
+ * offer them. Help mode says the same. Getting the install file is on Ready for offline's list,
+ * not here (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
  */
-export function nearbyRowWords(whyNot: NearbyWhyNot | null, letIn: LetInWhyNot | null, reminder: ApkReminder | null): {
+export function nearbyRowWords(whyNot: NearbyWhyNot | null, letIn: LetInWhyNot | null): {
   sub: (typeof WHY_NOT_WORDS)[NearbyWhyNot] | 'nearby.rowSub' | 'nearby.rowSubJoin';
-  help: 'nearby.rowHelp' | 'nearby.rowHelpJoin' | 'nearby.rowHelpRemind';
-  remind: 'nearby.installFile.remind' | null;
+  help: 'nearby.rowHelp' | 'nearby.rowHelpJoin';
 } {
-  if (whyNot !== null) return { sub: WHY_NOT_WORDS[whyNot], help: 'nearby.rowHelp', remind: null };
-  if (joinRows(letIn, null).letIn === null) return { sub: 'nearby.rowSub', help: 'nearby.rowHelp', remind: null };
-  return reminder !== null
-    ? { sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpRemind', remind: 'nearby.installFile.remind' }
-    : { sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpJoin', remind: null };
+  if (whyNot !== null) return { sub: WHY_NOT_WORDS[whyNot], help: 'nearby.rowHelp' };
+  if (joinRows(letIn, null).letIn === null) return { sub: 'nearby.rowSub', help: 'nearby.rowHelp' };
+  return { sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpJoin' };
 }
 
 export const RADIO_WORDS = { bluetooth: 'nearby.radios.bluetooth', wifi: 'nearby.radios.wifi', location: 'nearby.radios.location' } as const satisfies Record<RadioOff, string>;

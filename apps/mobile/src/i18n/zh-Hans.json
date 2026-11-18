@@ -333,7 +333,7 @@
     "book_structure": "划分书卷",
     "reference_home": "参考资料库",
     "material_editor": "编辑资料",
-    "sync_status": "同步",
+    "sync_status": "同步与离线",
     "delete_account": "删除账号",
     "reports_home": "报告",
     "reports_language": "语言报告",
@@ -3275,17 +3275,12 @@
     "me": {
       "title": "我",
       "nameSub": "名字和照片",
-      "offline": "可以离线使用",
       "tour": "LangQuest 是怎么运作的",
       "tourSub": "听一段简短的介绍",
       "more": "更多设置",
-      "moreRefused": "这个账号无法同步 · 密码、通知、账号",
-      "moreRefusedEvents": "被拒绝 · {{n, number}} · 密码、通知、同步、账号",
-      "morePending_other": "{{count, number}} 项等待发送 · 密码、通知、同步、账号",
       "signOut": "退出登录",
       "signOutHelp": "在本设备上退出这个账号。还没发送的工作会保留到发送完成为止。",
       "nameHelp": "打开你的个人资料，可以更改团队看到的名字。",
-      "offlineHelp": "显示本设备为离线工作保存了哪些内容。",
       "tourHelp": "打开三张简短的卡片，介绍 LangQuest 的用途。",
       "moreHelp": "打开密码、通知、同步和账号设置。数字表示有等待发送的更改。",
       "local": {
@@ -3335,7 +3330,6 @@
       "switchActive": "{{org}}（当前）",
       "switchOrStart": "{{org}} · 或者新建一个",
       "thisDevice": "本设备",
-      "sync": "同步",
       "syncRefused": "这个账号无法同步这个机构",
       "syncPending_other": "{{count, number}} 项更改等待发送",
       "syncPendingMixed": "{{total, number}} 项待发送 · 录音：{{recordings, number}}",
@@ -3362,7 +3356,6 @@
       "lostPhoneSent": "链接已发送到 {{email}}。打开它，设置新密码，并打开“我的一部手机丢了或被拿走了”。",
       "testing": "测试",
       "personaSub": "以演示用的译者、审核人或管理员身份登录",
-      "syncHelp": "显示等待发送或下载的内容。数字表示有等待发送的更改。",
       "blockedHelp": "显示你屏蔽了谁，可以取消屏蔽。",
       "switchOrgHelp": "打开你的机构，可以切换到另一个，或者新建一个。"
     },
@@ -3486,17 +3479,29 @@
         "refused": "服务器不接受本设备的更改。你的工作仍保存在这里。",
         "tooOld": "这个应用版本太旧，收不到团队的更改。请到应用商店更新。",
         "toReceive": "本设备仍在下载的他人录音。",
-        "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。",
         "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "待接收",
-      "refusedLine": "被拒绝",
-      "none": "无",
-      "moreInfo": "了解更多",
       "details": "详细信息",
       "syncNowHelp": "立即发送等待中的内容，并获取新内容。",
       "detailsHelp": "每一项等待中或被拒绝的更改，以及音频传输：供排查问题的人查看。",
-      "eventHelp": "打开这项更改所涉及的经段。"
+      "eventHelp": "打开这项更改所涉及的经段。",
+      "title": "同步与离线",
+      "rowHelp": "打开本设备发送和接收的内容，以及为离线工作保存的内容。",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "被服务器拒绝",
+        "refusedCount_other": "{{count, number}} 项更改",
+        "refusedNote": "它们留在本设备上。管理你团队的人通常可以帮忙。",
+        "refusedHelp": "服务器未接受的更改，每项都附有原因。它们留在本设备上。",
+        "uploads": "上传",
+        "uploadsHelp": "本设备上按经段列出的等待上传的内容，以及已上传的内容。",
+        "downloads": "下载",
+        "readyHelp": "离线之前，这部手机上是否已有你需要的内容。"
+      },
+      "down": {
+        "count_other": "{{count, number}} 段录音待接收",
+        "offline": "重新联网后会检查新工作"
+      }
     },
     "lock": {
       "tooShort": "至少连接 {{n}} 个点。",
@@ -4635,7 +4640,10 @@
       "needsOtherLanguages": "其他语言。联网时打开一个语言，就能把它更新到最新。",
       "bullet": "• {{line}}",
       "notSent_other": "你保存的经段中有 {{count, number}} 段录音还没有从录制它们的设备上发送出来，所以任何设备都还无法下载。",
-      "barHelp": "你保存的经段中，有多少已完整下载到本设备上。"
+      "barHelp": "你保存的经段中，有多少已完整下载到本设备上。",
+      "keptTitle": "保存的经段",
+      "worksOffline": "离线能用什么",
+      "worksOfflineHelp": "显示始终在本设备上的内容，以及需要联网的内容。"
     },
     "keepHelp": "把它的音频保存在本设备上，不联网也能用。",
     "stopKeepingHelp": "本设备需要空间时，可以再次删除它的音频。",
@@ -5115,7 +5123,7 @@
       "noneKept": "本设备上还没有保存经段",
       "kept_other": "本设备上有 {{count, number}} 个经段",
       "ready_other": "{{count, number}} 个经段中有 {{ready}} 个已在本设备上就绪",
-      "moreSettingsSub": "密码、通知、同步、账号"
+      "moreSettingsSub": "密码、通知、账号"
     },
     "waiting": "等待划分",
     "parts": {
