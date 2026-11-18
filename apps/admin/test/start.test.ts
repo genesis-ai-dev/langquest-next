@@ -8,7 +8,8 @@ import { START_LOGIC } from '../src/pageStart';
 import { detailAsk, GLANCE, METRICS, PART_IDS } from '../src/sources/history';
 
 /** The start page's pure helpers, as the page runs them (pageStart.ts START_LOGIC). */
-const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, rangeTotal, bucketEnd, runSquares };`)() as {
+const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, rangeTotal, bucketEnd, runSquares, chartSeries };`)() as {
+  chartSeries: (all: Hst['series'], wanted?: string) => { total: Hst['series'][number] | null; keys: Hst['series']; shown: Hst['series'][number] | null };
   splitAlert: (t: string) => { title: string; next: string };
   startPlan: (sections: typeof GROUPS, results: Record<string, unknown>, levels: string[]) => {
     cards: { level: string; group: string; part: string; text: string; more: string[] }[]; ok: { group: string; off: string[] }[]; waiting: string[];
@@ -96,6 +97,19 @@ describe('the Overview, what needs you first', () => {
     expect(logic.bucketEnd(['2026-11-16T05:00:00.000Z'], 0, 'hour')).toBe('2026-11-16T06:00:00.000Z');
     expect(logic.bucketEnd(['2026-11-09T00:00:00.000Z'], 0, 'week')).toBe('2026-11-16T00:00:00.000Z');
     expect(logic.bucketEnd(['2026-01-01T00:00:00.000Z'], 0, 'month')).toBe('2026-02-01T00:00:00.000Z');
+  });
+
+  it('draws a number that is counted only by key, leading with its largest key', () => {
+    // A first download's time is counted for open and for fill, never as one total (diag.daily_compute).
+    const times = [{ metric: 'first_download_p95_ms', key: 'fill', values: [4800, null, 4000] }, { metric: 'first_download_p95_ms', key: 'open', values: [9200, 14100, 1083000] }];
+    const c = logic.chartSeries(times);
+    expect([c.total, c.keys.map((k) => k.key), c.shown?.key]).toEqual([null, ['fill', 'open'], 'open']);
+    expect(logic.chartSeries(times, 'fill').shown?.key).toBe('fill');
+    // A number with a total leads with it, and a key the range no longer has falls back to it.
+    const counts = [{ metric: 'first_downloads', key: '', values: [3, 1] }, { metric: 'first_downloads', key: 'open', values: [2, 1] }];
+    expect(logic.chartSeries(counts).shown?.key).toBe('');
+    expect(logic.chartSeries(counts, 'gone').shown?.key).toBe('');
+    expect(logic.chartSeries([]).shown).toBeNull();
   });
 
   it('gives each job a row of squares: failed over part of the work over ran, an empty bucket and one not counted yet apart', () => {

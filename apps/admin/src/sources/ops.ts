@@ -287,17 +287,24 @@ export function cronAlerts(c: Cron): Alert[] {
 export const whose = (a: Activity | null | undefined): string =>
   a ? `${a.role ?? 'an unknown role'}${a.client ? ` (${a.client})` : ''}` : '';
 
+/** A transaction open longer than this, or a query running longer, is a line; the Database pictures draw each against it (pageMeters.ts). */
+export const LONG_XACT_S = 3600;
+export const LONG_QUERY_S = 300;
+/** A table with this share of dead rows, of at least this many rows, is a line. */
+export const DEAD_ROWS_SHARE = 0.3;
+export const DEAD_ROWS_MIN = 10_000;
+
 export function dbDetailAlerts(d: DbDetail): Alert[] {
   const out: Alert[] = [];
-  if (num(d.oldestXactS) > 3600) {
+  if (num(d.oldestXactS) > LONG_XACT_S) {
     const x = d.oldestXact;
     out.push({ level: 'watch', key: 'long-transaction', text: `A database transaction${x ? ` by ${whose(x)}` : ''}${x?.state && x.state !== 'active' ? `, ${x.state},` : ''} has been open for ${Math.round(num(d.oldestXactS) / 60)} minutes: it holds back vacuum.` });
   }
-  if (num(d.longestQueryS) > 300) {
+  if (num(d.longestQueryS) > LONG_QUERY_S) {
     const q = d.longestQuery;
     out.push({ level: 'watch', key: 'long-query', text: `A query${q ? ` by ${whose(q)}` : ''} has been running for ${Math.round(num(d.longestQueryS) / 60)} minutes${q?.waitingOn === 'Lock' ? ', blocked by a lock' : ''}.` });
   }
-  for (const t of d.tables) if (num(t.deadRatio) >= 0.3 && t.rows >= 10_000) out.push({ level: 'watch', key: 'dead-rows', subject: t.name, text: `${t.name} is ${Math.round(num(t.deadRatio) * 100)}% dead rows: autovacuum is behind.` });
+  for (const t of d.tables) if (num(t.deadRatio) >= DEAD_ROWS_SHARE && t.rows >= DEAD_ROWS_MIN) out.push({ level: 'watch', key: 'dead-rows', subject: t.name, text: `${t.name} is ${Math.round(num(t.deadRatio) * 100)}% dead rows: autovacuum is behind.` });
   return out;
 }
 

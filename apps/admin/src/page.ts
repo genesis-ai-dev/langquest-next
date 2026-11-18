@@ -54,6 +54,9 @@ section.card { background: var(--card); border: 1px solid var(--line); border-ra
 .dot.urgent { background: var(--red); box-shadow: 0 0 0 3px var(--redbg); }
 #attention li.level { display: block; padding: 12px 0 2px; border-top: 0; font-size: 13px; font-weight: 600; }
 #attention li.level small { font-weight: 400; color: var(--muted); }
+ul.plines { list-style: none; margin: 6px 0 10px; padding: 0; display: grid; gap: 6px; }
+ul.plines li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+ul.plines li b { margin-inline-end: 4px; }
 .where { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .stats { display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
 .stat { flex: 1 1 90px; background: var(--bg); border-radius: 10px; padding: 8px 10px; }
@@ -472,15 +475,32 @@ function partHtml(g, id) {
   const head = g.parts.length > 1 ? '<h3 class="part"><span data-help-key="section:' + id + '">' + esc(PART_TITLE[id] || id) + '</span></h3>' : '';
   if (!s) return head + '<p class="muted">Loading…</p>';
   if (s.state === 'off') return head + '<p class="setup muted">Not connected. ' + esc(s.setup) + '</p>';
-  if (s.state === 'error') return head + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
+  // The container's answer has no part of its own (show), so its lines read with the jobs'.
+  const lines = partLines(id === 'jobs' && results.container ? (s.alerts || []).concat(results.container.alerts || []) : s.alerts);
+  if (s.state === 'error') return head + lines + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
   try {
-    if (id === 'jobs') return head + numbers(id, renderJobs(s.data, results.container));
+    if (id === 'jobs') return head + lines + numbers(id, renderJobs(s.data, results.container));
     // A picture leads its part (pageLists.ts, pageMeters.ts); its numbers and tables wait behind one tap.
     const pic = listPicture(id, s.data);
     const html = (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
     // A part that nothing draws (no picture, no line over time) keeps its table open, and so does one that holds a queue for a person.
-    return head + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + ((pic || METRIC[id]) && !QUEUE.test(html) ? numbers(id, html) : html);
-  } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
+    return head + lines + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + ((pic || METRIC[id]) && !QUEUE.test(html) ? numbers(id, html) : html);
+  } catch (err) { return head + lines + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
+}
+
+/**
+ * A part's lines in words, at the part: what its section's status counts. A
+ * picture cannot mark every line (a transaction open for an hour is no bar),
+ * so the words lead, and nobody opens the numbers to learn what a status is about.
+ * Each line's Linear issue and fix stay on the Overview (pageFixes.ts).
+ */
+function partLines(alerts) {
+  if (!alerts || !alerts.length) return '';
+  const link = (a) => String(a.link || '').startsWith('https://') ? ' <a href="' + esc(a.link) + '" target="_blank" rel="noopener">Open</a>' : '';
+  return '<ul class="plines">' + alerts.map((a) => {
+    const l = a.level in LEVEL ? a.level : 'watch';
+    return '<li><span class="dot ' + l + '"></span><span><b>' + LEVEL[l].title + '</b> ' + esc(tidy(a.text)) + link(a) + '</span></li>';
+  }).join('') + '</ul>';
 }
 
 /**
