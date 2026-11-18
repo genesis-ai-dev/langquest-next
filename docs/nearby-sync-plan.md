@@ -3134,6 +3134,9 @@ For joining offline (section 14):
 | Can Quick Share through Files by Google send an installed app as a complete copy? | It would mean nobody has to prepare a file, but production builds are app bundles, so a phone holds split APKs, and Play's own "Share apps" is reported removed. |
 | Does a phone installed that way take Play updates later? | It has to reach the normal update path when it first gets online. |
 | Does Android developer verification get in the way of installing offline? | It expands globally in 2027, and Google's page does not cover this. On 2026-11-17 the verifier passed carried build 56 on an Android 16 phone that was online; offline, the install finished, but whether the verifier ran is not known. |
+| Do phones join a Wi-Fi Direct group as plain Wi-Fi from a QR code (14.5)? | Give the app depends on it. Pixels should; makers vary, and phones in China most of all. Android 8 and 9 have no Wi-Fi QR reader, so their people type the name and password. |
+| Does a new phone's browser download an app file from the carrier's page over plain `http`, and what does it warn (14.5)? | Chrome warns about app files and may warn about `http`. Makers' own browsers, common in China, are untested. Each warning is one more tap for someone not technical. |
+| With mobile data on, does the new phone open the carrier's page at all (14.5)? | A Wi-Fi with no internet can lose the browser to mobile data. The screen would then say to tap "Stay connected" or turn mobile data off. |
 | Does `GET generatedApks` give a universal APK on the `alpha` track without waiting for review, may `PLAY_REVIEW_KEY` read it, and how big is the file? | Section 14.4 depends on it. Someone with the key tries it first on an existing build (Carl's answer, 2026-11-06). The file holds four ABIs and the speech models, and carriers download it on town connections. |
 | Does a QR code with this payload scan on 2 GB phones in poor light, and does the camera's scanner work with no Play services? | Section 14.1 keeps the payload small for this reason. |
 | What do Files by Google, common makers' file managers and Chrome's download list show for this APK? | The neutral name only stops a casual look (section 14.4). If a file manager draws the app's own icon beside it, the line a disguised carrier sees (`apkTrace`) must say so (security review, 2026-11-10). |
@@ -3248,10 +3251,13 @@ belongs: section 2 for Carl's answers, and sections 5 to 14 for the rest.
 | Is the amber upload bar right on a phone holding backups? | Carl, when it ships | It counts them, as true of this phone (section 5.8). He should be told, so he can object. |
 | Is decision 168's amendment acceptable? | Caleb | Carl's answer stands: the pre-merge security review (2026-11-10) found no reason against it (section 5.5). A copied key with a live pass can let in a new person with no manage privilege, and he should know that too. |
 | A teammate holding any of the Worker's attestations can push a phone's claim mark past rows it never got. Fix it, or accept it? | Carl | Open (security review, 2026-11-10). Honest teammates then send that phone no claims below the mark, so work confirmed in town reaches it only from the server; nothing is lost or wrongly confirmed. A fix signs `afterSeq` into the attestation and moves the mark only over rows held or on the page, which changes the Worker's answer, so it waits for his word. |
-| Check my file says "This is the right file" from the name alone. Check the file's signer, or change the words? | Carl | Section 14.3 accepts that a newcomer cannot verify an APK, but the carrier's phone runs the real app and could compare the file's signing certificate with its own (`PackageManager.getPackageArchiveInfo`), a native call. Short of that, the words could say the name is right. Nothing changed (security review, 2026-11-10). |
+| Check my file says "This is the right file" from the name alone. Check the file's signer, or change the words? | Carl | Section 14.3 accepts that a newcomer cannot verify an APK, but the carrier's phone runs the real app and could compare the file's signing certificate with its own (`PackageManager.getPackageArchiveInfo`), a native call. Short of that, the words could say the name is right. Nothing changed (security review, 2026-11-10). Planned with 14.5: keeping the file for Give the app is the time to check its signer. |
 | Smaller items the pre-merge security review left open | Carl, after the first release | A certificate call racing a revocation could sign a fresh key within about 100 ms (both could take one lock on the person). A phone serves a file by hash from any language whose fold names it, looser than the server's rule per stream, though the asker must know the hash. A member could backdate one-event batches so every carrier delivers theirs first, 25 a sync. Teammates' certificates show a newcomer their other languages before first contact, as the organization stream shows members. |
 | Follow-up issue, "A lost shared phone: other people's keys stay good" (section 6). Should a helper's code say a shared phone is gone? | Carl raises it with Caleb, after the first release | Only the named person is revoked for now (answer 20), and the list holds pairs. A taken shared phone's private key is gone for all of its people, but the others' rows stay good. A third question in a new `issue_sign_in_code_v3`, "Was the shared phone lost too?", with v2 left as no, would revoke every row with that key. It changes the helper flow (decision 59), so it needs Caleb. The issue does not exist yet. |
 | A pass fetched late in its 90-day window has little time left, so should an answer also hold the next window's pass in that window's last 30 days? | Carl | Answer 17 is built as worded, so a phone that last reached the server near a window's end can hold a pass with days left, and every pass ends on the same date. Holding the next window's too would keep a team leaving town able to let someone in, at the cost of up to 20 uses in that time. Not built unless he says so (section 14.1). |
+| Give the app (14.5): its own screen, from Let someone in and Share nearby? | Carl | Draft: yes, so Let someone in keeps only the field's steps. |
+| Give the app's page (14.5): in the carrier's app language, or a choice on the page? | Carl | Draft: the carrier's language, with pictures that carry the steps. A choice adds words in 16 languages to a page the new person sees once. |
+| Give the app (14.5): keep the picked file's grant until a newer version is needed, or ask each trip? | Carl | Draft: keep it until the name this phone needs changes; asking again each trip is one more step before leaving town. |
 | What ends the experiment? | Carl, later | A follow-up issue, as decision 53 asks. A suggested test: teams have used it offline for a month, the test's numbers hold in the field, and no work was lost or wrongly confirmed. |
 | When admins get the toggle, may they turn it on without staff? | Later | Yes, once it is no longer experimental. Until then, staff choose who tries it. |
 | Can an iPhone that already has the app join offline? | Later | Optional, as phase 5's last step (answer 25). Only the install is impossible, and with no carried build the reducer version is the real limit. |
@@ -3765,6 +3771,123 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   `com.pairip`, before writing anything
   (`docs/decisions/2026-11-18-play-protection-off-for-carried-builds.md`).
 
+### 14.5 Handing the install file over Wi-Fi (planned)
+
+Not built. Carl's choice, 2026-11-18, after his own offline install test worked but took too
+many steps for people who are not technical: the browser's warning on an app file, finding
+the file in Downloads, sending it by Quick Share from a files app, and Quick Share needing
+Google Play services on both phones, which phones in China do not have.
+
+**The idea.** The carrier's phone hands the file over its own Wi-Fi. The new phone joins that
+Wi-Fi from a QR code and downloads the file from a small page the carrier's phone serves, then
+the person taps it to install. Neither phone needs the internet or Google services. The app
+still never downloads or installs the file (decision 246): it serves a file the carrier got
+with the browser and chose once. Google Play's Device and Network Abuse policy says an app "may
+not download executable code (such as dex, JAR, .so files) from a source other than Google
+Play", which is why the download stays in the browser. Quick Share, an SD card and a USB cable
+stay as other ways.
+
+**Why two codes.** A QR code holds either a Wi-Fi login or a web address, not both. The usual
+way round it, the "Sign in to network" page a phone opens by itself on joining, needs a name
+server on port 53, which an app cannot open without root. So the carrier's screen shows two
+codes, one after the other, as Let someone in shows two pictures.
+
+**The carrier's phone.**
+1. **Before the trip, online.** Get the install file opens the browser as now. Check my file
+   then also keeps the file: the pick holds a lasting read grant
+   (`takePersistableUriPermission` on the `ACTION_OPEN_DOCUMENT` result), and the phone checks
+   the file, not only its name: the package name and signing certificate must be the running
+   app's own (`PackageManager.getPackageArchiveInfo` with its signing info), and its versions
+   the ones its name says. That answers section 13's question on checking the signer. A file
+   that fails is not kept, and the screen says it is not LangQuest's own file.
+2. **In the field: Give the app** (`give_app`, a new screen, from Let someone in's line that
+   the new phone needs LangQuest first, and from Share nearby's A new person). One main
+   button, Start:
+   - The phone forms a Wi-Fi Direct group (`WifiDirect` in `WifiLinks.kt`: a name in
+     Android's `DIRECT-xx-` form with nothing in it that names the app, and a random
+     passphrase) and starts the file server on the group's own address (`groupOwnerAddress`).
+   - **Step 1, join:** a QR code of the Wi-Fi login (`WIFI:T:WPA;S:<name>;P:<passphrase>;;`,
+     with `\ ; , : "` escaped), with the name and password in text under it for a phone that
+     cannot read it.
+   - **Step 2, download:** after Next, a QR code of the page's address
+     (`http://<group address>:<port>/`), with the address in text.
+   - **While it sends:** "Sending: 120 of 212 MB", from the server's count of bytes sent. Then
+     "Sent. On the new phone, tap the file to install it", and the way on to Let someone in.
+   - Stop, leaving the screen, or 15 minutes with nothing asked ends the group and the server.
+     A phone holds one Wi-Fi Direct group at a time, so this and a Share nearby session never
+     run together.
+   - A carrier with no kept file, or a file for other versions, is sent to Get the install
+     file first (online) and told it is needed before going offline.
+
+**The new phone.**
+1. The camera reads code 1 and offers to join (Android 10 and later, in the camera, Google
+   Lens or Wi-Fi settings' QR button). An older phone types the name and password.
+2. The camera reads code 2, and the browser opens the page: what this is ("Install
+   LangQuest"), the size, one Download button, and three pictures of what follows on a phone:
+   open the file, allow installs from this source, install. The words are in the carrier's
+   app language; the pictures carry the meaning for someone who does not read it.
+3. The download takes about a minute at 4 to 10 MB/s. The person taps the file, allows the
+   browser once, and installs. Then Join without internet goes on as now (14.1).
+
+**What exists already.**
+- The Wi-Fi Direct group with a chosen name and passphrase, Android 10 and later
+  (`WifiP2pConfig.Builder`, `WifiLinks.kt`), and its known address. An ordinary phone joins a
+  group as plain Wi-Fi with its passphrase. The local-only hotspot is not used: no public API
+  gives its address (`Hosted.kt`), and the second code needs it.
+- A server socket bound to the group's address, tested over loopback (`Hosted.kt`).
+- The permissions Share nearby already holds for Wi-Fi Direct: `NEARBY_WIFI_DEVICES`
+  (`neverForLocation`), and fine location only up to Android 12.
+- QR codes (`react-native-qrcode-svg`, the kit) and the system file picker
+  (`expo-document-picker`, `ACTION_OPEN_DOCUMENT`).
+
+**What is new.**
+- **Native, in the nearby module (Kotlin):** a small HTTP/1.1 file server on the group's
+  address. `GET /` gives the page (HTML handed over from JavaScript). `GET /<file name>`
+  streams the kept file from its content URI with its length, type
+  `application/vnd.android.package-archive` and its name in `Content-Disposition`, and
+  honours `Range`, so a cut-off download resumes. Anything else is 404. It serves that one file
+  and nothing else from the phone. It reports bytes sent. Pure Kotlin on `java.*` over a stream
+  source, so JUnit runs it over loopback as it does `Hosted`. Also: keep a picked file's grant,
+  and check a file's package, signer and versions.
+- **JavaScript:** `giveAppModel.ts` (the Wi-Fi code's text and its escaping, the address code,
+  the steps, the page's HTML from the words, the timeout); `useGiveApp.android.ts` with a
+  plain stub elsewhere; the screen, lazy, beside Share nearby's; about 20 English lines in
+  16 languages.
+- **The flow:** `give_app` as an app-only screen, with edges from `let_someone_in` and
+  `share_nearby` and their reasons in `specParity.test.ts`, and its contract.
+
+**Privacy and disguise.** The Wi-Fi name says nothing about the app, the organization or
+anyone. The page names LangQuest only to the person installing it, and holds nothing about the
+team. The server answers only phones on the group, which know the passphrase from the code,
+and serves only the install file, which is public anyway (decision 246). A disguised carrier's
+screen says what Let someone in already says, and nothing on the carrier's phone changes.
+
+**Store declarations and policy.** No new permission is expected, and none to install apps:
+`REQUEST_INSTALL_PACKAGES` stays out, and the new phone installs through its own system dialog.
+Nothing is sent to the server or anyone else, so Data safety does not change. To confirm while
+building: whether Android 17's local network access asks anything of a server on a Wi-Fi Direct
+group. The module's links already listen there without `ACCESS_LOCAL_NETWORK`.
+`docs/play-store-declarations.md` is checked at the time.
+
+**Tests.**
+- JUnit for the server: its routes, `Range`, 404 for anything else, one file only, the count
+  of bytes sent, and stop.
+- Unit tests for the model: the Wi-Fi code's escaping, the address code, the steps and the
+  timeout.
+- Screen tests for each step, the stub on other platforms, and the parity edges.
+- Two phones are the real-phone test's (section 11). Maestro drives one phone.
+
+**Phases.** Each one is shippable alone.
+1. Keep and check the file: the lasting grant and the signer check under Check my file.
+2. The server, the group and Give the app.
+3. The real-phone test across makers.
+
+It is native code, so it reaches phones with a store build, not an update. A decision then
+amends 246, which says the newcomer's file travels by Quick Share, SD card or USB.
+
+**Rough size.** About 400 to 600 lines of Kotlin and TypeScript, with tests. Nobody has
+measured that.
+
 ## 15. Sources
 
 - [Nearby Connections overview](https://developers.google.com/nearby/connections/overview), [strategies](https://developers.google.com/nearby/connections/strategies), [permissions](https://developers.google.com/nearby/connections/android/get-started), [payloads](https://developers.google.com/nearby/connections/android/exchange-data) and [authentication](https://developers.google.com/nearby/connections/android/manage-connections)
@@ -3776,5 +3899,6 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
 - Installing offline: [`REQUEST_INSTALL_PACKAGES` policy](https://support.google.com/googleplay/android-developer/answer/12085295?hl=en), [Android Central](https://www.androidcentral.com/apps-software/google-ditches-share-apps-nearby-share-play-store) and [PhoneArena](https://www.phonearena.com/news/google-app-sharing-feature-play-store_id168341) on Play's "Share apps", [Quick Share help](https://support.google.com/googleplay/answer/9283534), [Android developer verification](https://support.google.com/android-developer-console/answer/16561738?hl=en) and [Android Authority on its timeline](https://www.androidauthority.com/android-sideloading-changes-timeline-3679204/)
 - Working without Play services: [Android Wi-Fi Direct](https://developer.android.com/develop/connectivity/wifi/wifip2p), [`WifiP2pConfig.Builder`](https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pConfig.Builder), [local-only hotspot](https://developer.android.com/develop/connectivity/wifi/localonlyhotspot), [Wi-Fi Aware](https://source.android.com/docs/core/connect/wifi-aware), [apps in China](https://appinchina.co/blog/google-play-store-in-china-everything-you-need-to-know/), [google/nearby](https://github.com/google/nearby), [HMS Core devices](https://consumer.huawei.com/en/support/content/en-us15841699/), [HarmonyOS NEXT and Android apps](https://m.gsmarena.com/huaweis_harmonyos_next_beta_launches_officially-news-63397.php), [Bridgefy pricing](https://bridgefy.notion.site/Bridgefy-SDK-Pricing-22cf443f5ef680039882cd88cedac706) and [its iPhone usage notes](https://docs.bridgefy.me/sdk/ios/usage)
 - Reports on the same approach: [nativephp-wifi-direct](https://github.com/protendai/nativephp-wifi-direct) (Android hosts and joins, iPhone joining), [medXfer's notes](https://github.com/Medboy224/medXfer/pull/225) (speeds by band, iPhone approval), [the Mutual Transmission Alliance](https://www.slashgear.com/xiaomi-oppo-and-vivo-form-alliance-for-easy-wireless-file-transfer-02605050) and [SCMP on its growth](https://www.scmp.com/tech/article/3085428/chinas-airdrop-android-now-works-oneplus-and-more)
+- Handing the file over Wi-Fi (14.5): [Device and Network Abuse policy](https://support.google.com/googleplay/android-developer/answer/16273414), [`WifiP2pConfig.Builder`](https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pConfig.Builder), [`PackageManager.getPackageArchiveInfo`](https://developer.android.com/reference/android/content/pm/PackageManager#getPackageArchiveInfo(java.lang.String,%20android.content.pm.PackageManager.PackageInfoFlags)) and the [Wi-Fi QR code format](https://github.com/zxing/zxing/wiki/Barcode-Contents#wi-fi-network-config-android-ios-11)
 - Carried APK and updates: [Play's signed universal APK](https://support.google.com/googleplay/android-developer/answer/9006925), [Android Publisher `generatedapks`](https://developers.google.com/android-publisher/api-ref/rest/v3/generatedapks), [Expo on overriding the update address](https://docs.expo.dev/eas-update/override/), [Expo code signing](https://docs.expo.dev/eas-update/code-signing/) and [`eas.json` tracks](https://docs.expo.dev/eas/json/)
 - Android permissions and scanning: [local network permission](https://developer.android.com/privacy-and-security/local-network-permission), [location at run time](https://developer.android.com/develop/sensors-and-location/location/permissions/runtime), [`uses-feature`](https://developer.android.com/guide/topics/manifest/uses-feature-element), [Punch Through](https://punchthrough.com/android-ble-scan-errors/) and [ProAndroidDev](https://proandroiddev.com/to-find-a-beacon-without-losing-it-my-journey-into-a-realm-of-bluetooth-low-energy-on-android-aa3e2c2923aa) on scan limits, and [Apple on advertising from an iPhone](https://developer.apple.com/library/content/documentation/NetworkingInternetWeb/Conceptual/CoreBluetooth_concepts/BestPracticesForSettingUpYourIOSDeviceAsAPeripheral/BestPracticesForSettingUpYourIOSDeviceAsAPeripheral.html)
