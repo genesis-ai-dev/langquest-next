@@ -7,8 +7,12 @@ frame, with a computer voice saying the script's lines. Decision 177 says why
 they are made this way.
 
 A few videos are general and introductory: they show the whole app and teach
-no taps ("How LangQuest works"). Only those have a tune under the voice
-(`docs/decisions/2026-11-18-tune-on-introductory-videos.md`).
+no taps ("How LangQuest works", "The path of a passage"). Only those have a
+tune under the voice
+(`docs/decisions/2026-11-18-tune-on-introductory-videos.md`). Some videos walk
+through one whole task from its start to its end, and take in what several
+short videos each show ("Create your account and look around": the account,
+the invite, the look around). They have no tune.
 
 ## Making them
 

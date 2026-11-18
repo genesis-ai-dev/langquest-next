@@ -124,7 +124,7 @@ describe('a video on YouTube', () => {
     for (const part of ['Carefree', 'Kevin MacLeod', 'incompetech.com', 'https://creativecommons.org/licenses/by/4.0/']) expect(TUNE.credit).toContain(part);
     expect(existsSync(TUNE.file)).toBe(true);
     // A general, introductory video has the tune. A video of one task or one setting has none.
-    expect(Object.values(TUTORIALS).filter((t) => t.tune).map((t) => t.id)).toEqual(['how-langquest-works']);
+    expect(Object.values(TUTORIALS).filter((t) => t.tune).map((t) => t.id)).toEqual(['how-langquest-works', 'the-path-of-a-passage']);
   });
 
   it('plays the tune quietly under the voice, and takes it out as the film ends', () => {
