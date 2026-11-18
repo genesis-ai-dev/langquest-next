@@ -185,8 +185,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // docs/decisions/2026-11-18-carried-file-matches-by-versions.md), 365 bytes past then: core's two
 // name rules (a name's versions start, and whether two names share it) that Check my file and the
 // Worker share, and the nearby chunk's showing of that start, which the web never opens.
-// Raised by 1 KB with Welcome back's Continue without it (Caleb Koster, 2026-11-11, LAN-250), 83 bytes
-// past then with main merged in: the button, its English words and the waiting rows' new words.
+// Welcome back's Continue without it (Caleb Koster, 2026-11-11, LAN-250) came out 83 bytes past the
+// limit before that raise: the button, its English words and the waiting rows' new words. Both fit
+// in the same 1 KB (322 bytes left with both merged), so it needs no raise of its own.
 const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 122 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
