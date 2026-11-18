@@ -1,0 +1,1 @@
+{"comment": "The fix for NAV-023 is on main in b691997d (Nov 16): offline, My Work says the language is not on this device even beside a join request. The duplicate draft PR https://github.com/genesis-ai-dev/langquest-next/pull/417 is closed."}
