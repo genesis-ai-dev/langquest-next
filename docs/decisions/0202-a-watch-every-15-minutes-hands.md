@@ -166,3 +166,14 @@ dashboard's own lines, as server kinds in a new family `ops`
 (`ops:<kind>[:<subject>]`), so Claude files or links one Linear issue for
 each line, and the page shows that issue, its fix and when the line should
 clear (`docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`).
+
+Amended (2026-11-18, Caleb Koster): with each new issue Claude also writes
+it in three lines, `context`, `problem` and `solution`, and the database
+keeps them (`20261118070000_user_issue_words.sql`). The ops dashboard shows
+each issue as a card an admin reads without the code
+(`docs/decisions/2026-11-18-ops-dashboard-menu-and-overview.md`, amended),
+and the database held only the title, so the card could show only counts
+and the kind's keys. The lines are Claude's own words, at most 300
+characters each, never what a person wrote, an id or an address: the script
+cuts an address out and the Worker refuses one. Linear keeps the long
+summary and the cause, as before.

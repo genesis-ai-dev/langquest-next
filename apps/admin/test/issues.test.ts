@@ -117,6 +117,17 @@ describe('the cards', () => {
     expect(html).toContain('Step 3 of 5: no fix yet');
   });
 
+  it('leads each line with the words the watch kept, and keeps what the records say under them', () => {
+    draw.fixes({ state: 'ok', data: { prs: [] } });
+    const words = { context: 'A person saves a recording.', problem: 'The recording is <gone>.', solution: 'Keep the file until the save ends.' };
+    const html = draw.userIssuesHtml({ issues: [issue(words)], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
+    expect(html).toContain('<dt>Context</dt><dd><p>A person saves a recording.</p><small class="muted">2 people · First seen then</small></dd>');
+    expect(html).toContain('<dt>Issue</dt><dd><p>The recording is &#60;gone&#62;.</p><small class="muted"><code>error:TypeError:library</code></small></dd>');
+    expect(html).toContain('<dt>Solution</dt><dd><p>Keep the file until the save ends.</p><small class="muted">No pull request names LAN-9.');
+    // An issue filed before the watch kept words shows what the records say.
+    expect(draw.userIssuesHtml({ issues: [issue({ context: null })], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).toContain('<dt>Context</dt><dd>2 people · First seen then</dd>');
+  });
+
   it('says so when the pull requests could not be read, and never says No fix yet then', () => {
     draw.fixes({ state: 'error', error: 'GitHub said no' });
     const html = draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });

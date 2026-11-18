@@ -36,6 +36,10 @@ describe('what the workflow sends back', () => {
     const l = parseLooked(looked());
     expect(l.looked.map((x) => x.verdict)).toEqual(['filed', 'noise', 'known']);
     expect(l.looked[2]?.note).toBeNull();
+    // An issue's three lines for its card: kept as sent, null where none was.
+    expect(l.looked[0]).toMatchObject({ context: null, problem: null, solution: null });
+    const lines = { context: 'A person saves a recording.', problem: 'The recording is gone.', solution: '' };
+    expect(parseLooked(looked({ looked: [{ ...looked().looked[0], ...lines }] as Looked['looked'] })).looked[0]).toMatchObject({ ...lines, solution: null });
     expect(l.grew).toEqual([{ key: 'transfer:down:source:failOther', people: 6, count: 40 }]);
     expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [] });
   });
@@ -70,6 +74,9 @@ describe('what the workflow sends back', () => {
       [one({ verdict: 'fixed', issue: null, issueUrl: null, fixedBy: 0, fixedAt: '2026-11-03T17:09:42Z' }), "looked[0].fixedBy: a pull request's number"],
       [one({ verdict: 'fixed', issue: null, issueUrl: null, fixedAt: 'yesterday' }), 'looked[0].fixedAt: a time (ISO 8601)'],
       [one({ title: 'mail me@example.com' }), 'looked[0].title: at most 200 characters, no address'],
+      [one({ context: 'x'.repeat(301) }), 'looked[0].context: at most 300 characters, no address'],
+      [one({ problem: 'Ask me@example.com.' }), 'looked[0].problem: at most 300 characters, no address'],
+      [one({ solution: 7 }), 'looked[0].solution: at most 300 characters, no address'],
       [looked({ states: [{ issue: 'LAN-1', state: 'Live', closed: 'yes' }] as unknown as Looked['states'] }), 'states[0].closed: true or false'],
       [looked({ states: [{ issue: 'LAN-1', state: 'Todo', closed: false, closedAt: '2026-11-03T17:09:42Z' }] as unknown as Looked['states'] }), 'states[0]: an open issue has no closedAt or fix'],
       [looked({ states: [{ issue: 'LAN-1', state: 'Live', closed: true }, { issue: 'LAN-1', state: 'Live', closed: true }] as unknown as Looked['states'] }), 'states[1].issue: a Linear issue (LAN-12), once'],

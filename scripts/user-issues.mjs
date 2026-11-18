@@ -53,7 +53,7 @@ export const KEY = new RegExp(`^(${FAMILIES.join('|')}):[A-Za-z0-9 _.:()/#@-]{1,
 export const LABEL = 'User issue';
 export const PREFIX = 'User issue: ';
 /** How much of what Claude writes goes on; the rest is cut. */
-export const LIMITS = { title: 100, summary: 4000, cause: 6000, comment: 3000, note: 300, keys: 20 };
+export const LIMITS = { title: 100, summary: 4000, cause: 6000, comment: 3000, note: 300, keys: 20, line: 300 };
 /** Linear issues handed to Claude: every open one, and any changed in this many days. */
 export const LINEAR_DAYS = 90;
 const LINEAR_MAX = 300;
@@ -206,7 +206,7 @@ export function checkDecisions(decisions, watch, linear) {
       return;
     }
     const priority = [1, 2, 3, 4].includes(f.priority) ? f.priority : 3;
-    out.file.push({ keys, title: cut(text(f.title).replace(/\s+/g, ' ').replace(/^User issue:\s*/i, ''), LIMITS.title), priority, summary: text(f.summary), cause: text(f.cause) });
+    out.file.push({ keys, title: cut(text(f.title).replace(/\s+/g, ' ').replace(/^User issue:\s*/i, ''), LIMITS.title), priority, summary: text(f.summary), cause: text(f.cause), ...linesOf(f) });
   });
   (Array.isArray(d.known) ? d.known : []).forEach((k, n) => {
     const where = `known[${n}]`;
@@ -231,6 +231,16 @@ export function checkDecisions(decisions, watch, linear) {
 }
 
 /**
+ * An issue in three lines for its card on the ops dashboard (decisions.md 202, amended 2026-11-18):
+ * `context`, `problem` and `solution`, each one line, cut to its limit, addresses out. Null where
+ * Claude wrote none.
+ */
+export function linesOf(entry) {
+  const line = (v) => cut(redact(text(v)).replace(/\s+/g, ' ').trim(), LIMITS.line) || null;
+  return { context: line(entry.context), problem: line(entry.problem), solution: line(entry.solution) };
+}
+
+/**
  * What the Worker is told about a kind: its verdict, its issue, and the counts
  * it was judged at. A kind found fixed is counted from the fix: the people who
  * hit it since (none for one just found fixed), so it comes back only when
@@ -240,7 +250,8 @@ export function lookedOf(kind, verdict, issue, note = null, extra = {}) {
   return {
     key: kind.key, verdict, issue: issue?.identifier ?? null, issueUrl: issue?.url ?? null,
     people: verdict === 'fixed' ? kind.peopleAfterFix ?? 0 : kind.people, count: kind.count, note,
-    title: extra.title ?? null, fixedBy: extra.fixedBy ?? null, fixedAt: extra.fixedAt ?? null
+    title: extra.title ?? null, context: extra.context ?? null, problem: extra.problem ?? null, solution: extra.solution ?? null,
+    fixedBy: extra.fixedBy ?? null, fixedAt: extra.fixedAt ?? null
   };
 }
 
@@ -779,7 +790,7 @@ async function file(dir) {
         console.log(`::warning::could not assign to USER_ISSUES_ASSIGNEE (${e instanceof Error ? e.message : e}); filing unassigned`);
         issue = await api.create(input);
       }
-      for (const k of kinds) looked.push(lookedOf(k, 'filed', issue, null, { title: f.title }));
+      for (const k of kinds) looked.push(lookedOf(k, 'filed', issue, null, { title: f.title, context: f.context, problem: f.problem, solution: f.solution }));
       if (fixes.length < FIX_MAX) fixes.push(issue.identifier);
       console.log(`filed ${issue.identifier}, priority ${f.priority}: ${f.keys.join(', ')}`);
     } catch (e) {

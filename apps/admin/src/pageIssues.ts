@@ -27,6 +27,7 @@ export const ISSUE_CSS = String.raw`
 .itags .tag { margin: 0; background: var(--soft); color: var(--ink2); } .itags .tag.bad { color: var(--red); background: var(--redbg); }
 .itags a.lin { font-weight: 600; color: var(--ink); text-decoration: none; letter-spacing: .02em; } .itags a.lin:hover, .itags a.lin:focus-visible { color: var(--primary); text-decoration: underline; }
 .icard a.pr, dl.kv a { color: var(--primary); font-weight: 600; }
+dl.kv dd > small { display: block; font-size: 12px; line-height: 1.4; }
 .icard h4 { font-size: 16px; line-height: 1.3; margin: 0 0 4px; overflow-wrap: anywhere; }
 .imeta { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
 dl.kv { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 8px 12px; margin: 10px 0 0; font-size: 13.5px; line-height: 1.45; }
@@ -169,15 +170,18 @@ function userIssueCard(r, way, tab) {
       : (pr && pr.number ? 'Fixed in ' + prLink(pr) + '. ' : 'No pull request named. ') + 'Closed ' + when(r.closedAt) + '.'
   }[way.tab]();
   const keys = (r.keys || []).slice(0, 3).map((k) => '<code>' + esc(k) + '</code>').join('<br>') + ((r.keys || []).length > 3 ? '<br><small class="muted">and ' + num(r.keys.length - 3) + ' more</small>' : '');
+  // Claude's words for the issue, where the watch kept them; under each, what the records say.
+  const said = (words, facts) => words ? '<p>' + esc(words) + '</p>' + (facts ? '<small class="muted">' + facts + '</small>' : '') : facts;
+  const seen = [r.people ? num(r.people) + (Number(r.people) === 1 ? ' person' : ' people') : '', 'First seen ' + when(r.firstAt)].filter(Boolean).join(' · ');
   return issueCard({
     tab: way.tab, hidden: tab !== 'all' && tab !== way.tab,
     tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : '') +
       (r.issue && r.state ? '<span>' + esc(r.state) + ' in Linear</span>' : ''),
     title: r.title || (r.keys || [])[0] || 'A problem with no name',
     lines: [
-      ['Context', [r.people ? num(r.people) + (Number(r.people) === 1 ? ' person' : ' people') : '', 'First seen ' + when(r.firstAt)].filter(Boolean).join(' · ')],
-      ['Issue', keys],
-      ['Solution', solution]
+      ['Context', said(r.context, seen)],
+      ['Issue', said(r.problem, keys)],
+      ['Solution', said(r.solution, solution)]
     ],
     pill: [way.pill, way.level], steps: [ISSUE_STEPS, way.at],
     side: (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +

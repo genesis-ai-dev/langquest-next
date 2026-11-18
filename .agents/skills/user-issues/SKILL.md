@@ -231,6 +231,20 @@ The developer reads the issue on their phone, between other things.
 - `cause`: for a developer or an agent fixing it: the file and line, what
   happens there, the commit that may have caused it, and what to check
   next. Mark a guess as a guess. It goes in the issue's Agent notes.
+- `context`, `problem`, `solution`: the issue in three lines, for its card
+  on the ops dashboard. An admin reads the card without the code and decides
+  what to do. Each is one or two short sentences, at most 300 characters, in
+  ASD-STE100 Simplified Technical English: short sentences, active voice,
+  one name for each thing, no code names.
+  - `context`: what the person was doing, and where ("A person opens a
+    passage in the web app and plays the reference audio.").
+  - `problem`: what goes wrong, and for how many ("The audio does not
+    download. The play button stays grey. 3 people hit it since Nov 1.").
+  - `solution`: what fixes it, or what a person must decide ("Let the web
+    page read audio from the reference audio host."). When you do not know
+    the cause, say what to find first.
+  Use your own words. Do not copy what a person wrote, and give no name,
+  address or id: the script cuts an address out.
 - `comment` (known): one or two sentences on what is new.
 - `note` (noise): one line on why it is nothing to fix. (fixed): one line
   on why that pull request fixes it and why the hits came before it.
@@ -250,6 +264,9 @@ or empty.
       "title": "Reference audio won't download in the web app",
       "priority": 2,
       "summary": "In the web app, reference audio never downloads: the play button stays grey. Three people on web hit it since Nov 1, on the newest version. One of them wrote in from the passage screen.",
+      "context": "A person opens a passage in the web app and plays the reference audio.",
+      "problem": "The audio does not download. The play button stays grey. 3 people hit it since Nov 1.",
+      "solution": "Let the web page read audio from the reference audio host.",
       "cause": "apps/web/worker/index.ts sets a Content-Security-Policy whose connect-src leaves out the reference audio host (line 210), so fetch() fails before any request (failOther, not failHttp). It came with commit abc1234 (Oct 31). Check: the CSP header on next.langquest.org/app."
     }
   ],

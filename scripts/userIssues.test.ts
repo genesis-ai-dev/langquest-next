@@ -190,10 +190,13 @@ describe("Claude's decisions", () => {
 
   it('takes one verdict per kind it was handed, and says what it left', () => {
     const plan = checkDecisions({
-      file: [{ keys: [ERR.key, FB.key], title: 'User issue: Recordings\nvanish', priority: 1, summary: 's', cause: 'c' }],
+      file: [{ keys: [ERR.key, FB.key], title: 'User issue: Recordings\nvanish', priority: 1, summary: 's', cause: 'c', context: 'A person saves a recording.\nOn Android.', problem: `Ask x@y.org. ${'It is gone. '.repeat(40)}` }],
       noise: [{ key: NOISE.key, note: 'A wrong password, once.' }]
     }, watch, linear);
-    expect(plan.file).toEqual([{ keys: [ERR.key, FB.key], title: 'Recordings vanish', priority: 1, summary: 's', cause: 'c' }]);
+    // The three lines of its card: one line each, cut to their limit, an address out; null where Claude wrote none.
+    expect(plan.file).toEqual([{ keys: [ERR.key, FB.key], title: 'Recordings vanish', priority: 1, summary: 's', cause: 'c',
+      context: 'A person saves a recording. On Android.', problem: expect.stringMatching(/^Ask \[address\]\. It is gone\. .*…$/), solution: null }]);
+    expect(plan.file[0]?.problem).toHaveLength(LIMITS.line);
     expect(plan.noise).toEqual([{ key: NOISE.key, note: 'A wrong password, once.' }]);
     expect(plan.dropped).toEqual([]);
     expect(plan.undecided).toEqual([]);
@@ -235,9 +238,9 @@ describe("Claude's decisions", () => {
   });
 
   it('tells the Worker the counts each kind was judged at', () => {
-    expect(lookedOf(ERR, 'filed', { identifier: 'LAN-220', url: 'https://linear.app/x/issue/LAN-220' }, null, { title: 'Recordings vanish' })).toEqual({
+    expect(lookedOf(ERR, 'filed', { identifier: 'LAN-220', url: 'https://linear.app/x/issue/LAN-220' }, null, { title: 'Recordings vanish', context: 'c', problem: 'p' })).toEqual({
       key: ERR.key, verdict: 'filed', issue: 'LAN-220', issueUrl: 'https://linear.app/x/issue/LAN-220', people: 3, count: 9, note: null,
-      title: 'Recordings vanish', fixedBy: null, fixedAt: null
+      title: 'Recordings vanish', context: 'c', problem: 'p', solution: null, fixedBy: null, fixedAt: null
     });
     // Found fixed: counted from the fix, so it comes back only when people hit it after the fix.
     expect(lookedOf(ERR, 'fixed', null, 'n', { fixedBy: 312, fixedAt: '2026-11-03T17:09:42.000Z' })).toMatchObject({ people: 0, fixedBy: 312, issue: null });

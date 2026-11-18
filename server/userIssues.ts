@@ -133,6 +133,12 @@ export interface Looked {
     key: string; verdict: Verdict; issue: string | null; issueUrl: string | null; people: number; count: number; note: string | null;
     /** What a person sees go wrong (filed or fixed), for the ops dashboard. */
     title: string | null;
+    /**
+     * The issue in three lines for its card on the ops dashboard (decisions.md 202, amended 2026-11-18): what the
+     * person was doing and where, what goes wrong, and what would fix it or what a person must decide. Claude's
+     * words, never what someone wrote. A look that sends none keeps the lines the kind has.
+     */
+    context: string | null; problem: string | null; solution: string | null;
     /** `fixed` only: the pull request on main that fixed it (when known), and when it merged or its issue closed. */
     fixedBy: number | null; fixedAt: string | null;
   }[];
@@ -244,6 +250,17 @@ function titleOf(o: Obj, where: string): string | null {
   return v;
 }
 
+/** The longest line of an issue's card. */
+export const LINE_MAX = 300;
+
+/** One of an issue's three lines for its card: at most LINE_MAX characters and never an address. */
+function lineOf(o: Obj, field: 'context' | 'problem' | 'solution', where: string): string | null {
+  const v = o[field];
+  if (absent(v) || v === '') return null;
+  if (typeof v !== 'string' || v.length > LINE_MAX || EMAIL.test(v)) throw new LookedError(`${where}.${field}: at most ${LINE_MAX} characters, no address`);
+  return v;
+}
+
 /** What the workflow sent, checked; a LookedError says the first thing wrong. */
 export function parseLooked(input: unknown): Looked {
   if (!isObj(input)) throw new LookedError('not an object');
@@ -276,7 +293,7 @@ export function parseLooked(input: unknown): Looked {
     }
     return {
       key: k, verdict: verdict as Verdict, issue: issue as string | null, issueUrl: issueUrl as string | null, people: count(l, 'people', where), count: count(l, 'count', where),
-      note: note as string | null, title, fixedBy, fixedAt
+      note: note as string | null, title, context: lineOf(l, 'context', where), problem: lineOf(l, 'problem', where), solution: lineOf(l, 'solution', where), fixedBy, fixedAt
     };
   });
   const grew = list(input, 'grew', LOOKED_MAX.grew).map((g, n) => {

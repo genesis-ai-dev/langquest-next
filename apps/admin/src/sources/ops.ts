@@ -489,6 +489,12 @@ export interface UserIssueRow {
   /** The pull request on main that fixed it, and when it merged. */
   fixedBy: number | null; fixedAt: string | null;
   keys: string[]; people: number; firstAt: string; lookedAt: string;
+  /**
+   * The issue in three lines, as Claude wrote them when the watch filed it (decisions.md 202, amended 2026-11-18):
+   * what the person was doing, what goes wrong, and what would fix it. Absent before migration
+   * 20261118070000_user_issue_words.sql, and null for an issue filed before it.
+   */
+  context?: string | null; problem?: string | null; solution?: string | null;
 }
 
 /**

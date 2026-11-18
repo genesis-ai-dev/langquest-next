@@ -90,7 +90,8 @@ begin
   v := public.ops_user_issues_looked(jsonb_build_object('sha', repeat('a', 40), 'runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/123',
     'looked', jsonb_build_array(
       jsonb_build_object('key', 'feedback:0d000000-0000-4000-8000-0000000000f1', 'verdict', 'filed', 'issue', 'LAN-300', 'issueUrl', 'https://linear.app/x/issue/LAN-300', 'people', 1, 'count', 1),
-      jsonb_build_object('key', 'error:TypeError@record:-', 'verdict', 'filed', 'issue', 'LAN-300', 'issueUrl', 'https://linear.app/x/issue/LAN-300', 'people', 2, 'count', 2),
+      jsonb_build_object('key', 'error:TypeError@record:-', 'verdict', 'filed', 'issue', 'LAN-300', 'issueUrl', 'https://linear.app/x/issue/LAN-300', 'people', 2, 'count', 2,
+        'context', 'A person saves a recording.', 'problem', 'The recording is gone.', 'solution', 'Keep the file until the save ends.'),
       jsonb_build_object('key', 'auth:sign_in:refused:invalid_credentials', 'verdict', 'noise', 'people', 1, 'count', 1, 'note', 'A wrong password, once.'),
       jsonb_build_object('key', 'job:blob_reconcile:failing', 'verdict', 'known', 'issue', 'LAN-12', 'issueUrl', 'https://linear.app/x/issue/LAN-12', 'people', 0, 'count', 3),
       jsonb_build_object('key', 'worker:blobs_get:5xx', 'verdict', 'known', 'issue', 'LAN-12', 'issueUrl', 'https://linear.app/x/issue/LAN-12', 'people', 0, 'count', 6)),
@@ -283,8 +284,12 @@ begin
   select e into x from jsonb_array_elements(v->'issues') e where e->>'issue' = 'LAN-300';
   assert x->>'verdict' = 'fixed' and x->>'state' = 'Live' and (x->>'fixedBy')::int = 312 and x->>'closedAt' is not null
     and x->>'issueUrl' = 'https://linear.app/x/issue/LAN-300' and x->>'title' = 'Recordings vanish on save', 'the closed one, with its title in Linear';
+  -- Its three lines for the card are those one of its kinds was filed with, kept through the looks since.
+  assert x->>'context' = 'A person saves a recording.' and x->>'problem' = 'The recording is gone.' and x->>'solution' = 'Keep the file until the save ends.',
+    'the lines of its card';
+  assert (select count(*) = 1 from ops.user_issues where issue = 'LAN-300' and context is not null), 'only the kind that was sent lines holds them';
   select e into x from jsonb_array_elements(v->'issues') e where e->'keys' = '["transfer:down:source:failOther"]'::jsonb;
-  assert x->>'issue' is null and (x->>'fixedBy')::int = 295 and x->>'title' = 'Reference audio does not download', 'found fixed';
+  assert x->>'issue' is null and (x->>'fixedBy')::int = 295 and x->>'title' = 'Reference audio does not download' and x->>'context' is null, 'found fixed, with no lines';
   assert jsonb_array_length(v->'issues') = 3 and v::text not like '%ui-p%' and v::text not like '%secret%', 'no noise, never who';
 end $$;
 

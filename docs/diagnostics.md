@@ -396,6 +396,17 @@ about each kind a dashboard line can name (`ops`, `job` and `worker` keys):
 the start page shows each line's Linear issue from them, and lists the lines
 gone from the page under Resolved.
 
+**Each issue in three lines** (decisions.md 202, amended 2026-11-18;
+migration `20261118070000_user_issue_words.sql`). With a new issue Claude
+writes `context` (what the person was doing, and where), `problem` (what
+goes wrong) and `solution` (what fixes it, or what a person must decide),
+each at most 300 characters, in its own words: never what a person wrote,
+an id or an address (`linesOf` in `scripts/user-issues.mjs` cuts an address
+out, `parseLooked` refuses one). The database keeps them with the issue's
+kind, and the dashboard's card for the issue leads with them. A later look
+that sends none keeps them. An issue filed before this has none: its card
+shows the counts and the kind's keys.
+
 **Claude sees what came with each problem** (decisions.md 202, amended
 2026-11-04). Before Claude looks, the step before it asks the Worker for
 two more things and keeps them in `.user-issues/evidence` on the runner:
