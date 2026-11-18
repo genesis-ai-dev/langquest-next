@@ -23,7 +23,7 @@ type Hst = { counted?: boolean[]; series: { metric: string; key: string; values:
 const LEVELS = ['urgent', 'problem', 'watch'];
 const okSection = { state: 'ok', alerts: [], checkedAt: '' };
 
-describe('the start page, What needs you first', () => {
+describe('the Overview, what needs you first', () => {
   it('puts every section with parts somewhere, so every part stays one tap away, whatever has answered', () => {
     const parts = GROUPS.flatMap((g) => [...g.parts]);
     const states = [undefined, okSection, { state: 'off', alerts: [], setup: 'x', checkedAt: '' }, { state: 'error', alerts: [], error: 'down', checkedAt: '' },
@@ -40,8 +40,9 @@ describe('the start page, What needs you first', () => {
   it('opens every section on a page that holds all its parts', async () => {
     const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
     expect(html).toContain(`'<div class="hist" id="hist-' + s.id + '" hidden></div><div class="body" id="body-' + s.id + '"></div></section>'`);
-    expect(html).toContain('<a class="okline" href="#g/');
-    expect(html).toContain('<a href="#all">All sections</a>');
+    // The menu has a line for each section and one for all of them (pageShell.ts).
+    expect(html).toContain("navLine('#g/' + id, id, titleOf(id)");
+    expect(html).toContain("navLine('#all', 'all', 'All sections'");
   });
 
   it('shows the most urgent first, an unreadable part as one to watch, and a section with no alert as OK', () => {

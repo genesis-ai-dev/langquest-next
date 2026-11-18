@@ -19,7 +19,7 @@ export const GROUPS = [
   { id: 'userissues', title: 'User issues', src: 'What the watch for user issues filed in Linear or found already fixed, each issue\'s state and the pull request that fixed it', wide: true, parts: ['userissues'] },
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What installs report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
-  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, last night\'s tests, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'nightly', 'releases', 'expo', 'adoption'] },
+  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
   { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, pg_cron, push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
   { id: 'database', title: 'Database', src: 'Connections, cache, slow calls, largest tables, long transactions, and the Supabase project', parts: ['database', 'dbdetail', 'supabase'] },
   { id: 'traffic', title: 'Workers and traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
@@ -28,6 +28,7 @@ export const GROUPS = [
   { id: 'support', title: 'Support', src: 'Content reports, suspensions, deletions, feedback, and what was done from this page', wide: true, parts: ['support', 'feedback'] },
   { id: 'access', title: 'Access and integrations', src: 'Global Viewers, limits hit, tokens, device grants, webhooks, review links, and what expires', parts: ['security', 'integrations', 'expiry'] },
   { id: 'stores', title: 'App stores', src: 'Google Play vitals and reviews, App Store review state, builds and reviews', parts: ['googleplay', 'appstore'] },
+  { id: 'nightly', title: 'Nightly tests', src: 'The line each nightly suite left on its latest scheduled run on main: what ran, what passed, and the Linear issue of each test that failed', wide: true, parts: ['nightly'] },
   { id: 'tutorials', title: 'Tutorial videos', src: 'Each video\'s state and timeline in each app language, what an admin must do, what the workers do now and tonight, each channel, Publish, and what came in', wide: true, parts: ['videos', 'tutorials', 'videofeedback'] }
 ] as const;
 
