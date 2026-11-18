@@ -1,3 +1,4 @@
+import { WORKFLOW_RECHECK } from '../alertKinds';
 import { hoursAgo, ok, type Alert, type Section } from '../section';
 import { githubApi, type GitHubEnv } from './githubApi';
 
@@ -86,24 +87,27 @@ export function nightlyAlerts(n: Nightly, now = Date.now()): Alert[] {
   const out: Alert[] = [];
   for (const r of n.runs) {
     if (!r.run) continue;
+    // The line is about the latest scheduled run: the next one checks a fix.
+    const recheck = WORKFLOW_RECHECK[r.workflow];
     const age = hoursAgo(r.run.at, now);
     if (age !== null && age > STALE_H) {
-      out.push({ level: 'problem', text: `The ${r.title} last ran on its schedule ${Math.round(age)} h ago: the schedule may have stopped.`, link: `https://github.com/${n.repo}/actions/workflows/${r.workflow}` });
+      out.push({ level: 'problem', key: 'nightly-stopped', subject: r.workflow, text: `The ${r.title} last ran on its schedule ${Math.round(age)} h ago: the schedule may have stopped.`, link: `https://github.com/${n.repo}/actions/workflows/${r.workflow}`, ...(recheck ? { recheck } : {}) });
     }
     for (const s of r.suites) {
       const ids = s.issues.length ? ` (${s.issues.map((i) => i.id).join(', ')})` : '';
       const link = s.issues.find((i) => i.url)?.url ?? r.run.url;
-      if (s.broke) out.push({ level: 'problem', text: `Nightly ${s.suite} broke: ${s.broke}${ids}`, link });
+      const named = { subject: s.suite, ...(s.issues.length ? { issues: s.issues.map((i) => i.id) } : {}), ...(recheck ? { recheck } : {}) };
+      if (s.broke) out.push({ level: 'problem', key: 'nightly-broke', ...named, text: `Nightly ${s.suite} broke: ${s.broke}${ids}`, link });
       else if (s.failed) {
         const what = s.ran !== null && s.passed !== null ? `: ${s.ran - s.passed} of ${s.ran} failed` : ' failed';
-        out.push({ level: 'watch', text: `Nightly ${s.suite}${what}${ids}.`, link });
+        out.push({ level: 'watch', key: 'nightly-failed', ...named, text: `Nightly ${s.suite}${what}${ids}.`, link });
       }
     }
   }
   return out;
 }
 
-export async function nightlySection(env: GitHubEnv, fetcher: typeof fetch = fetch): Promise<Section<Nightly>> {
+export async function nightlySection(env: GitHubEnv, fetcher: typeof fetch = fetch, now = Date.now()): Promise<Section<Nightly>> {
   const gh = githubApi(env, fetcher);
   const runs = await Promise.all(NIGHTLIES.map(async (n): Promise<NightRun> => {
     const latest = (await gh<Runs>(`/actions/workflows/${n.workflow}/runs?branch=main&event=schedule&status=completed&per_page=1`, 'GitHub nightly runs')).workflow_runs[0];
@@ -123,5 +127,5 @@ export async function nightlySection(env: GitHubEnv, fetcher: typeof fetch = fet
     };
   }));
   const data: Nightly = { repo: env.GITHUB_REPO, runs };
-  return ok(data, nightlyAlerts(data));
+  return ok(data, nightlyAlerts(data, now));
 }

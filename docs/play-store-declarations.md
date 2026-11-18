@@ -195,6 +195,13 @@ the phone and never stored or sent; an email or sign-in name is kept only as
 a hash salted per phone. Nothing new leaves the phone, so no data type
 changes, and account creation and sign-in methods are unchanged.
 
+The app lock (decisions.md 253), a switch in More settings that is off until
+the person turns it on, asks for that same pattern each time the app opens or
+is come back to. The pattern is checked on the phone against the sign-out
+lock above; the app keeps only which people on the phone turned it on (their
+account ids, in the app's own storage), and nothing is sent. No data type,
+permission or sign-in method changes, so no Play Console answer changes.
+
 Recordings (decisions.md 106) are kept and uploaded as AAC (`.m4a`) on a
 phone instead of WAV: the same voice recordings in a smaller file, so the
 "Voice or sound recordings" answer is unchanged.
@@ -467,8 +474,8 @@ team's own data. That
 is mass-market encryption of the kind the US Export Administration
 Regulations treat under 5D992.c; the developer must confirm that
 classification, and whether a self-classification report is due, before the
-build with it goes to review. iPhone builds carry none of the module, so
-`ITSAppUsesNonExemptEncryption` stays `false` until phase 5 looks again.
+build with it goes to review. From phase 5 iPhones carry the same protocol;
+Apple's side of it is in `docs/app-store-declarations.md`, "Encryption".
 
 ## Store listing
 

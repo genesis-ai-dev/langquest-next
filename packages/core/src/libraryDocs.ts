@@ -407,10 +407,10 @@ export interface LabelsDoc {
 }
 
 /**
- * A Bible an organization uploaded as USFM files (decision 253): the
+ * A Bible an organization uploaded as USFM files (decision `docs/decisions/2026-11-17-uploaded-usfm-bible-library-formats.md`): the
  * header of `usfmBible@1`, one `usfmBook@1` per book. Unlike `source@1`
  * it has no provider, no audio and no timings; it is text the team holds
- * and says it may share. It is read through `sourceOf` (decision 254).
+ * and says it may share. It is read through `sourceOf` (decision `docs/decisions/2026-11-17-uploaded-usfm-bible-read-as-a-bible.md`).
  */
 export interface UsfmBibleDoc {
   format: 'usfmBible@1';
@@ -495,7 +495,7 @@ export type BibleSource = Omit<SourceDoc, 'books'> & {
 
 const uploadedViews = new WeakMap<UsfmBibleDoc, BibleSource>();
 
-/** The Bible a document is, or null when it is not one (decision 254). The same document always gives the same object, so memos hold. */
+/** The Bible a document is, or null when it is not one (decision `docs/decisions/2026-11-17-uploaded-usfm-bible-read-as-a-bible.md`). The same document always gives the same object, so memos hold. */
 export function sourceOf(doc: LibraryDoc | null | undefined): BibleSource | null {
   if (doc?.format === 'source@1') return doc;
   if (doc?.format !== 'usfmBible@1') return null;

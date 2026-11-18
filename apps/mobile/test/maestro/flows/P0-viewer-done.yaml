@@ -35,7 +35,9 @@ tags:
     visible: "(?i)Then the team"
     timeout: 30000
 - assertVisible: "Peer check, looks good"
-- assertVisible: "Back translation, looks good"
+# Back translation is two rows (decision 252): made, then checked once the
+# Consultant check that compares it is done (LAN-275, LAN-276).
+- assertVisible: "Back translation · make it, made"
 # The later checks' cards sit below the player and the first two, under the
 # fold on a 6-inch phone (Pixel 6, 2026-11-11): bring each up.
 - scrollUntilVisible:
@@ -44,6 +46,10 @@ tags:
     centerElement: true
 - scrollUntilVisible:
     element: "Consultant check, looks good"
+    direction: DOWN
+    centerElement: true
+- scrollUntilVisible:
+    element: "Back translation · check it, checked"
     direction: DOWN
     centerElement: true
 - scrollUntilVisible:

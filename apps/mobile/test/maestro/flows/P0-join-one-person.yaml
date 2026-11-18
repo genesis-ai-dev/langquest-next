@@ -62,6 +62,8 @@ tags:
 # A fresh install: nothing kept from COORD.
 - runFlow: ../common/launch.yaml
 - tapOn: "Scan a code"
+# The camera starts on this screen.
+- runFlow: ../common/allow-camera.yaml
 # The code goes in as its link. Typing or pasting it into the field cannot be
 # automated: Maestro types one character at a time, and the field takes any 32
 # hex characters as a whole code (inviteCode.ts parseInvite, entry.tsx

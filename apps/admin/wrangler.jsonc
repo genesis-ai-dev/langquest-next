@@ -5,7 +5,7 @@
   // Cloudflare, Supabase, GitHub, Expo, Google Play and the App
   // Store say about their part.
   "name": "langquest-next-admin",
-  "main": "src/index.ts",
+  "main": "src/worker.ts",
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
   "compatibility_date": "2026-10-01",
   // global_fetch_strictly_public: app.langquest.org is another Worker on the

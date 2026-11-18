@@ -18,9 +18,9 @@ export type NearbyStage =
   | { t: 'cover'; stopped: NearbyStop | null }
   /** Radios the person must turn on. */
   | { t: 'radios'; off: RadioOff[] }
-  /** The line saying why, before Android's question; nothing is asked until the button. */
+  /** The line saying why, before the phone's question; nothing is asked until the button. */
   | { t: 'permission'; reason: PermissionReason; permissions: NearbyPermission[] }
-  /** Android will not ask again: the app's settings. */
+  /** The phone will not ask again: the app's settings. */
   | { t: 'settings' }
   /** Stopped, and it stays stopped until Look again. */
   | { t: 'stopped'; why: NearbyStop }
@@ -78,8 +78,32 @@ export const PERMISSION_WORDS = {
   'nearby-and-location': 'nearby.permission.nearbyAndLocation',
   'nearby-devices': 'nearby.permission.nearbyDevices',
   precise: 'nearby.permission.precise',
+  bluetooth: 'nearby.permission.bluetooth',
   settings: 'nearby.permission.settings'
 } as const satisfies Record<PermissionReason, string>;
+
+/**
+ * Words that name the phone's own question, its settings, or what only Android offers: Android's,
+ * and an iPhone's, which never names Android or the install file (section 7's phase 5). `intro`
+ * names a new person only where the phone can let one in.
+ */
+export const PHONE_WORDS = {
+  android: {
+    intro: 'nearby.intro', settings: 'nearby.permission.settings', allowHelp: 'nearby.permission.allowHelp', newerApp: 'nearby.newerApp'
+  },
+  iphone: {
+    intro: 'nearby.introTeammates', settings: 'nearby.permission.settingsIphone', allowHelp: 'nearby.permission.allowHelpIphone', newerApp: 'nearby.newerAppIphone'
+  }
+} as const;
+
+export function phoneWords(v: Pick<NearbyView, 'iphone'>): (typeof PHONE_WORDS)[keyof typeof PHONE_WORDS] {
+  return v.iphone ? PHONE_WORDS.iphone : PHONE_WORDS.android;
+}
+
+/** Connect's help: one teammate, or on an iPhone every teammate it cannot get an echo from (Carl's answer 26). */
+export function connectHelp(v: Pick<NearbyView, 'tapCoversAll'>): 'nearby.connectHelp' | 'nearby.connectHelpAll' {
+  return v.tapCoversAll ? 'nearby.connectHelpAll' : 'nearby.connectHelp';
+}
 
 /**
  * A stop's line on a phone with no cover. `run` and `level` stop only a phone that wears one, and
@@ -131,7 +155,15 @@ export function linesShown(sessions: readonly NearbySessionLine[]): NearbySessio
   return sessions.filter((l) => l.profileId !== null || moved(l)).reverse();
 }
 
-/** Teammates worth a row: a session that named nobody and did not finish was no teammate this phone can show. */
-export function teammatesShown(teammates: readonly NearbyTeammate[]): NearbyTeammate[] {
-  return teammates.filter((m) => !(m.state === 'missed' && m.profileId === null));
+/**
+ * Teammates worth a row: a session that named nobody and did not finish was no teammate this phone
+ * can show. Where one tap covers every teammate without an echo (`tapCoversAll`, an iPhone), one
+ * "A teammate may be nearby" row stands for them all, since its Connect reaches every one: phones
+ * heard only by their advert have no name and look alike.
+ */
+export function teammatesShown(teammates: readonly NearbyTeammate[], tapCoversAll = false): NearbyTeammate[] {
+  const shown = teammates.filter((m) => !(m.state === 'missed' && m.profileId === null));
+  if (!tapCoversAll) return shown;
+  const firstMaybe = shown.findIndex((m) => m.state === 'maybe');
+  return shown.filter((m, i) => m.state !== 'maybe' || i === firstMaybe);
 }

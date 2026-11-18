@@ -3,7 +3,7 @@ import { readUsfm, usfmPlainText } from './usfmRead';
 import { USFM_BOOKS, usfmOf } from './versification';
 
 /**
- * Checking one USFM file (decision 253, docs/reference-material.md): what an
+ * Checking one USFM file (decision `docs/decisions/2026-11-17-uploaded-usfm-bible-library-formats.md`, docs/reference-material.md): what an
  * admin sees before a Bible is published as organization reference material.
  * Pure: text in, a book and what is wrong with it out.
  *

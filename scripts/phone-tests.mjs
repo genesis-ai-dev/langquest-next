@@ -25,6 +25,10 @@
  *   safe-names <dir>       renames what Maestro wrote there so GitHub takes it
  *            as an artifact: no " : < > | * ? in a name (a flow's name, which
  *            Maestro puts in its folders, may hold a colon)
+ *   stopped <android|ios> <dir>   when a step of the phone's job failed, writes
+ *            <dir>/stopped.json: the first such step (from the STEPS env,
+ *            the job's `toJSON(steps)`) and why, when the step wrote why.txt
+ *            there. The summary gives it as the reason a phone left no report.
  *
  * The pictures go to Linear and to the run's artifacts, which are public as
  * the repository is: they show the test server's made-up organization and
@@ -45,6 +49,38 @@ export const MANY = 10;
 export const PARENT = 'LAN-210';
 export const CAUSES = ['app', 'test', 'machine'];
 const FLOWS_DIR = 'apps/mobile/test/maestro/flows';
+
+/**
+ * The steps of a phone's job that can stop it before the flows leave a
+ * report: each step's id in phone-tests.yml, and its name there, which the
+ * summary quotes so a reader finds the step in the run's log.
+ */
+export const STEPS = {
+  kvm: 'Give the runner KVM (the emulator needs it)',
+  build: { android: 'Build the Android test app', ios: 'Build the iPhone test app' },
+  server: 'Start the test server (local Supabase, the library, push delivery)',
+  emulator: 'Start the Android emulator',
+  simulator: 'Start the iPhone simulator',
+  maestro: 'Install Maestro',
+  worker: 'Wait for the Worker',
+  install: 'Install the app',
+  'wait-server': 'Wait for the test server',
+  tunnel: 'Reach the test server through the tunnel',
+  flows: 'The phone flows'
+};
+const stepName = (id, platform) => (typeof STEPS[id] === 'string' ? STEPS[id] : STEPS[id]?.[platform]) ?? id;
+
+/**
+ * Where a phone's job stopped: the first step, in the job's order, that
+ * failed or was cancelled (`steps` is the job's `toJSON(steps)`), with why
+ * when the step said (why.txt). Null when none did.
+ */
+export function stoppedAt(platform, steps, why = null) {
+  const id = Object.keys(steps ?? {}).find((k) => ['failure', 'cancelled'].includes(steps[k]?.outcome));
+  if (!id) return null;
+  const said = typeof why === 'string' ? why.replace(/\s+/g, ' ').trim() : '';
+  return { step: stepName(id, platform), why: said || null };
+}
 
 const unescapeXml = (s) => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, '&');
@@ -158,6 +194,7 @@ export function platformSummary(platform, dir, status, { day, files = new Map(),
   const tests = reports.length ? reports.flatMap((f) => junitFlows(readFileSync(f, 'utf8'))) : null;
   const all = walk(dir);
   const device = readJson(join(dir, 'device.json'), {});
+  const stopped = readJson(join(dir, 'stopped.json'), null);
   const notRun = readJson(join(dir, 'skipped.json'), []).map((s) => ({ flow: s.flow, why: s.why }));
   const flows = (tests ?? []).map((t) => {
     let shot = null;
@@ -172,7 +209,9 @@ export function platformSummary(platform, dir, status, { day, files = new Map(),
   }).sort((a, b) => Number(a.passed) - Number(b.passed));
   const failed = flows.filter((f) => !f.passed).length;
   let broke = null;
-  if (!tests) broke = `The ${PLATFORMS[platform].label} job ${said(status)} before the flows ran to the end, and left no report.`;
+  if (!tests && typeof stopped?.step === 'string') {
+    broke = `The ${PLATFORMS[platform].label} job stopped at "${stopped.step}", before the flows left a report.${typeof stopped.why === 'string' && stopped.why ? ` ${stopped.why}` : ''}`;
+  } else if (!tests) broke = `The ${PLATFORMS[platform].label} job ${said(status)} before the flows ran to the end, and left no report.`;
   else if (!flows.length) broke = `The ${PLATFORMS[platform].label} job ${said(status)} and no flow ran.`;
   else if (failed > MANY) broke = `${failed} of ${flows.length} flows failed on the ${PLATFORMS[platform].label}: one cause, most likely the test server or the phone, rather than ${failed}.`;
   else if (status !== 'success' && !failed) broke = `The ${PLATFORMS[platform].label} job ${said(status)} with every flow that ran passing: a step around the flows broke.`;
@@ -394,10 +433,31 @@ async function main() {
     console.log(`Renamed ${safeNames(rest[0])} names GitHub's artifacts refuse.`);
     return;
   }
+  if (command === 'stopped') {
+    const [platform, dir] = rest;
+    if (!PLATFORMS[platform] || !dir) throw new Error('stopped needs a phone (android or ios) and a folder');
+    let steps = {};
+    try {
+      steps = JSON.parse(process.env.STEPS ?? '{}');
+    } catch {
+      // No steps to read: nothing to say.
+    }
+    let why = null;
+    try {
+      why = readFileSync(join(dir, 'why.txt'), 'utf8');
+    } catch {
+      // The step said nothing more.
+    }
+    const stopped = stoppedAt(platform, steps, why);
+    mkdirSync(dir, { recursive: true });
+    if (stopped) writeFileSync(join(dir, 'stopped.json'), JSON.stringify(stopped, null, 2));
+    console.log(stopped ? `Stopped at "${stopped.step}"${stopped.why ? `: ${stopped.why}` : ''}` : 'No step failed before the flows.');
+    return;
+  }
   const opt = flags(rest);
   const out = opt.out;
   if (!out || !['summary', 'look', 'linear', 'notices', 'markdown'].includes(command)) {
-    console.error('usage: phone-tests.mjs summary|look|linear|notices|markdown --out <dir>, or safe-names <dir> (see the file\'s header)');
+    console.error('usage: phone-tests.mjs summary|look|linear|notices|markdown --out <dir>, or safe-names <dir>, or stopped <phone> <dir> (see the file\'s header)');
     process.exit(2);
   }
   const summaryFile = join(out, 'summary.json');

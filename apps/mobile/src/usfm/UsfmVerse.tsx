@@ -1,4 +1,4 @@
-// An uploaded Bible's verse as its file sets it out (LAN-230, decision 254): the
+// An uploaded Bible's verse as its file sets it out (LAN-230, decision `docs/decisions/2026-11-17-uploaded-usfm-bible-read-as-a-bible.md`): the
 // headings above it, its lines of prose and poetry, and its notes below. Every
 // reader draws these around its own row: the tap, the number and the marks on
 // key words stay the reader's own.

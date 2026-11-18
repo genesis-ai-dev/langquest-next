@@ -232,7 +232,7 @@ export interface VerseRow {
   verseStart: number;
   verseEnd: number;
   text: string;
-  /** An uploaded Bible's verse as its file sets it out (decision 254): `text` stays its plain words. */
+  /** An uploaded Bible's verse as its file sets it out (decision `docs/decisions/2026-11-17-uploaded-usfm-bible-read-as-a-bible.md`): `text` stays its plain words. */
   usfm?: { verse: UsfmVerse; chapterHead?: string };
 }
 

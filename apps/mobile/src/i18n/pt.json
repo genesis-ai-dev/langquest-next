@@ -362,7 +362,9 @@
   },
   "native": {
     "microphone": "O LangQuest grava a sua voz para traduzir passagens.",
-    "camera": "O LangQuest usa a câmera para ler códigos QR de convite."
+    "camera": "O LangQuest usa a câmera para ler códigos QR de convite.",
+    "bluetooth": "O LangQuest usa o Bluetooth para encontrar os celulares dos seus colegas por perto e compartilhar o trabalho com eles.",
+    "localNetwork": "O LangQuest usa a rede local para compartilhar o trabalho com os celulares dos seus colegas por perto."
   },
   "library": {
     "sourceLine": {
@@ -3730,6 +3732,21 @@
       "drawAgain": "Desenhe de novo",
       "newPattern": "Desenhar um padrão novo",
       "choosePatternHelp": "Escolha uma imagem e um padrão para entrar de novo neste aparelho, mesmo sem internet."
+    },
+    "appLock": {
+      "row": "Bloquear o app",
+      "rowHelp": "Quando ligado, o app pede seu padrão toda vez que abre e toda vez que você volta para ele. Ligar ou desligar pede seu padrão primeiro.",
+      "on": "Agora o app pede seu padrão ao abrir.",
+      "off": "O app não pede mais seu padrão.",
+      "opening": "Abrindo…",
+      "checking": "Verificando…",
+      "forgot": "Esqueceu?",
+      "forgotHelp": "Esqueceu seu padrão? Saia e entre de novo com sua senha ou com um código de acesso de alguém da sua equipe. Seu trabalho fica neste celular.",
+      "signOutHelp": "Sai deste celular. Seu trabalho fica nele e é enviado quando for possível.",
+      "backHelp": "Volta para os pontos.",
+      "waitFor_one": "Tentativas demais. Tente de novo em {{count, number}} minuto.",
+      "waitFor_many": "Tentativas demais. Tente de novo em {{count, number}} minutos.",
+      "waitFor_other": "Tentativas demais. Tente de novo em {{count, number}} minutos."
     }
   },
   "study": {

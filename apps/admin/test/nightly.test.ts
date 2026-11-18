@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it, onTestFinished, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { nightNotice } from '../../../scripts/nightly-report.mjs';
 import { phoneNights } from '../../../scripts/phone-tests.mjs';
+import { WORKFLOW_RECHECK } from '../src/alertKinds';
 import { NIGHTLIES, nightlyAlerts, nightlySection, parseLine, STALE_H, type Nightly } from '../src/sources/nightly';
 
 // Last night's tests on the ops dashboard (decisions.md 209). These hold the
@@ -80,21 +81,21 @@ describe('the Nightly tests part', () => {
   it('calls failed tests a watch, with their issues, linked to the first', () => {
     const failed = { ...suite, passed: 680, failed: true, issues: [{ id: 'LAN-260', url: 'https://linear.app/t/issue/LAN-260' }, { id: 'LAN-261', url: null }] };
     expect(nightlyAlerts({ repo: 'o/r', runs: [run({ suites: [failed] })] }, NOW))
-      .toEqual([{ level: 'watch', text: 'Nightly Web UI suite: 2 of 682 failed (LAN-260, LAN-261).', link: 'https://linear.app/t/issue/LAN-260' }]);
+      .toEqual([{ level: 'watch', key: 'nightly-failed', subject: 'Web UI suite', issues: ['LAN-260', 'LAN-261'], recheck: WORKFLOW_RECHECK['guardrails.yml'], text: 'Nightly Web UI suite: 2 of 682 failed (LAN-260, LAN-261).', link: 'https://linear.app/t/issue/LAN-260' }]);
   });
 
   it('calls a suite that broke, or a nightly that stopped running, a problem', () => {
     const broke = { ...suite, ran: null, passed: null, failed: true, broke: 'The job failed and left no report.' };
     const alerts = nightlyAlerts({ repo: 'o/r', runs: [run({ suites: [broke] }), run({ workflow: 'phone-tests.yml', title: 'Phone tests', run: { ...run().run!, at: hAgo(STALE_H + 1) } })] }, NOW);
     expect(alerts).toEqual([
-      { level: 'problem', text: 'Nightly Web UI suite broke: The job failed and left no report.', link: 'https://github.com/o/r/actions/runs/9' },
-      { level: 'problem', text: `The Phone tests last ran on its schedule ${STALE_H + 1} h ago: the schedule may have stopped.`, link: 'https://github.com/o/r/actions/workflows/phone-tests.yml' }
+      { level: 'problem', key: 'nightly-broke', subject: 'Web UI suite', recheck: WORKFLOW_RECHECK['guardrails.yml'], text: 'Nightly Web UI suite broke: The job failed and left no report.', link: 'https://github.com/o/r/actions/runs/9' },
+      { level: 'problem', key: 'nightly-stopped', subject: 'phone-tests.yml', recheck: WORKFLOW_RECHECK['phone-tests.yml'], text: `The Phone tests last ran on its schedule ${STALE_H + 1} h ago: the schedule may have stopped.`, link: 'https://github.com/o/r/actions/workflows/phone-tests.yml' }
     ]);
   });
 
   it("reads each nightly's latest scheduled run, its reporting jobs' lines, and a job that left none", async () => {
-    // The section judges a run's age by the clock; the run below is 10 h before NOW, not before today.
-    vi.useFakeTimers({ toFake: ['Date'], now: NOW });
+    // The runs below are dated from NOW, so the section must read the clock as NOW too, or a run grows stale as days pass.
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
     onTestFinished(() => { vi.useRealTimers(); });
     const ui = annotation(nightNotice('Web UI suite', { ran: 682, passed: 680, broke: null, issues: [{ id: 'LAN-260', url: null }] }));
     const fetcher = routes([
@@ -110,7 +111,7 @@ describe('the Nightly tests part', () => {
       ['/check-runs/2/annotations', []],
       ['/check-runs/3/annotations', []]
     ]);
-    const s = await nightlySection({ GITHUB_REPO: 'o/r' }, fetcher);
+    const s = await nightlySection({ GITHUB_REPO: 'o/r' }, fetcher, NOW);
     const d = s.data as Nightly;
     expect(String(vi.mocked(fetcher).mock.calls[0]![0])).toContain('branch=main&event=schedule&status=completed');
     expect(d.runs.map((r) => [r.workflow, r.run?.number ?? null])).toEqual([['guardrails.yml', 9], ['phone-tests.yml', null]]);
