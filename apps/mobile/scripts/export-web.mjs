@@ -179,7 +179,12 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // docs/decisions/2026-11-18-carried-file-matches-by-versions.md), 365 bytes past then: core's two
 // name rules (a name's versions start, and whether two names share it) that Check my file and the
 // Worker share, and the nearby chunk's showing of that start, which the web never opens.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 121 * 1024;
+// Raised by 4 KB with Sync and offline (Carl, 2026-11-18, docs/decisions/2026-11-18-sync-and-offline-one-screen.md),
+// 3,095 bytes past then: its English words in the catalog every visit carries (the folds' titles and
+// lines, the packing list, the screen's new name), the screen's rules and the sideways strip. The
+// screen itself moved into a chunk of its own (screens/sync.tsx), loaded when opened, so a first
+// visit stays under its own budget.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 126 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

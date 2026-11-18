@@ -54,8 +54,9 @@ test('SYNC-019 Work refused after a role change is kept and shown @p0', async ({
   const { page, before } = device;
   await expect.poll(() => tile(page, 'refused by the server'), { timeout: 15_000 }).toBeGreaterThan(0);
   const refused = await tile(page, 'refused by the server');
-  await expect(text(page, `Refused · ${refused}`)).toBeVisible();
-  // Each row says the server's reason.
+  // Refused by the server comes first and arrives open, with the count (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
+  await expect(button(page, new RegExp(`^Refused by the server\\. ${refused} changes?$`))).toBeVisible();
+  // Each row says the server's reason: the fold is open (the web export does not expose its expanded state).
   for (const r of (await refusedOn(page)).slice(0, 20)) {
     expect(r.rejectReason).toBeTruthy();
     await expect(text(page, r.rejectReason!, false)).toBeVisible();
@@ -64,11 +65,11 @@ test('SYNC-019 Work refused after a role change is kept and shown @p0', async ({
   // Not deleted: the count of events on this device did not drop.
   expect(await eventsHere(page)).toBeGreaterThanOrEqual(before);
 
-  // Outside the Sync screen too (PLAN.md invariant 1): My Work's chip "Refused · n" and Me's More settings say it.
+  // Outside the Sync screen too (PLAN.md invariant 1): My Work's chip "Refused · n" and Me's Sync and offline row say it.
   await toTab(page, 'work');
   await expect.soft(syncChip(page), 'My Work\'s chip says work was refused').toBeVisible({ timeout: 10_000 });
   await toTab(page, 'me');
-  await expect.soft(page.getByRole('button', { name: /^More settings[.,]? .*refused/i }).locator('visible=true'), 'Me\'s More settings says work was refused')
+  await expect.soft(page.getByRole('button', { name: /^Sync and offline[.,]? Refused · \d/ }).locator('visible=true'), 'Me\'s Sync and offline row says work was refused')
     .toBeVisible({ timeout: 5_000 });
 
   // The refused version leaves the passage on this device; Device 2 never had it.
@@ -100,7 +101,7 @@ test('SYNC-020 Refused work goes again when access returns', async ({ browser })
   await button(page, 'Sync now').click();
   await expect.poll(() => tile(page, 'refused by the server'), { timeout: 30_000 }).toBe(0);
   await expect.poll(() => tile(page, 'waiting to upload'), { timeout: 30_000 }).toBe(0);
-  await expect(text(page, /^Refused · \d/)).toBeHidden();
+  await expect(button(page, /^Refused by the server/)).toHaveCount(0);
   await toTab(page, 'work');
   await expect(syncChip(page)).toHaveAccessibleName(SYNC_CLEAR, { timeout: 30_000 });
   // Device 2: Version 1 is there, by TRANS, and its audio is on the server.

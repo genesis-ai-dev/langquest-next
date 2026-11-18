@@ -4,7 +4,7 @@ import type { LetInWhyNot } from './letInModel';
 /**
  * The carried build's install file on a carrier's phone (docs/nearby-sync-plan.md 14.4,
  * "Checking before leaving town"), as pure rules: when Share nearby offers Get the install file,
- * when that screen offers to get it, when Sync reminds a carrier to get it, when the file the person got last is for an older version,
+ * when that screen offers to get it, what Sync's Ready for offline says of it, when the file the person got last is for an older version,
  * what a file they chose says, and how a refusal over versions is worded. Nothing here calls anything, so every rule is tested without
  * a phone. The app never downloads or installs the file: the phone's browser does, and the person.
  */
@@ -91,26 +91,16 @@ export function joinRows(whyNot: LetInWhyNot | null, needed: string | null): { l
 }
 
 /**
- * Why Sync reminds a carrier to get the install file (docs/nearby-sync-plan.md 14.4, "Reminded
- * while online"): this phone never got one, or got one for an older version.
+ * The install file as an item of Sync's Ready for offline checklist (docs/nearby-sync-plan.md 14.4,
+ * docs/decisions/2026-11-18-sync-and-offline-one-screen.md): got, never got, or got for older
+ * versions. Shown only where Share nearby shows A new person and Get the install file (`joinRows`),
+ * online or not, since packing for a trip is checked before leaving and offline it says getting it
+ * needs the internet. Null until the remembered name is read, so nothing shows before then.
  */
-export type ApkReminder = 'not-got' | 'older';
+export type InstallItem = 'got' | 'not-got' | 'older';
 
-/**
- * Whether Sync reminds this person to get the install file while they still can: only where Share
- * nearby shows A new person and Get the install file (`joinRows`), only while the server was just
- * reached (`online` true) and the file can be got (`apkGet`), and only while the file this phone
- * has is not the one it needs now. `opened` is undefined until the remembered name is read, so
- * nothing shows before then. Getting the file, or a right file under Check my file, ends it.
- */
-export function apkReminder(o: { letIn: LetInWhyNot | null; needed: string | null; url: string | null; opened: string | null | undefined; online: boolean | null }): ApkReminder | null {
-  if (!joinRows(o.letIn, o.needed).installFile || o.online !== true || apkGet(o) !== 'ready' || o.opened === undefined) return null;
+export function installFileItem(o: { letIn: LetInWhyNot | null; needed: string | null; opened: string | null | undefined }): InstallItem | null {
+  if (!joinRows(o.letIn, o.needed).installFile || o.opened === undefined) return null;
   if (o.opened === null) return 'not-got';
-  return apkStale(o.needed, o.opened) ? 'older' : null;
+  return apkStale(o.needed, o.opened) ? 'older' : 'got';
 }
-
-/** The line on Sync's Ready for offline card for each reminder. */
-export const APK_REMINDER_WORDS = {
-  'not-got': 'nearby.installFile.notGot',
-  older: 'nearby.installFile.older'
-} as const satisfies Record<ApkReminder, string>;

@@ -11,7 +11,6 @@
     "rowSubJoin": "Raba ci gaban aiki da abokan aiki, ko shigar da sabon mutum, ba tare da intanet ba",
     "rowHelp": "Yana buɗe Raba da na kusa, inda wayoyin da ke kusa da juna suke aika wa juna ci gaban aiki kuma suna karɓa ba tare da intanet ba.",
     "rowHelpJoin": "Yana buɗe Raba da na kusa, inda wayoyin da ke kusa da juna suke aika wa juna ci gaban aiki kuma suna karɓa ba tare da intanet ba, kuma inda kake ba sabon mutum manhajar ka bar shi ya shiga tawagar.",
-    "rowHelpRemind": "Yana buɗe Raba da na kusa, inda wayoyin da ke kusa da juna suke aika wa juna ci gaban aiki kuma suna karɓa ba tare da intanet ba, kuma inda kake ba sabon mutum manhajar ka bar shi ya shiga tawagar. Wannan wayar ba ta da fayil ɗin girkawa da wayar sabon mutum ke buƙata yanzu tukuna: ka samu shi a can kafin ka rasa intanet.",
     "why": {
       "loading": "Ana duba wannan waya…",
       "notInBuild": "Wannan sigar manhajar ba za ta iya rabawa da na kusa ba. Sabunta ta daga shago.",
@@ -191,11 +190,12 @@
       "rowSub": "Kafin ka rasa intanet",
       "rowHelp": "Yana buɗe Samu fayil ɗin girkawa, inda kake sauke kuma ka duba fayil ɗin da sabuwar waya ke girka LangQuest da shi. Ka yi haka yayin da kake da intanet.",
       "linkHelp": "Yana buɗe Samu fayil ɗin girkawa, inda kake sauke kuma ka duba fayil ɗin da sabuwar waya ke girka LangQuest da shi.",
-      "remind": "Ka samu fayil ɗin girkawa kafin ka rasa intanet",
       "notGot": "Fayil ɗin girkawa don sabon mutum: ba a samu ba tukuna",
       "older": "Fayil ɗin girkawa don sabon mutum: na tsohuwar sigar ne",
-      "getIt": "Samu shi",
-      "lineHelp": "Wayar sabon mutum tana girka LangQuest daga wannan fayil. Wannan wayar ba ta samu na wannan sigar ba tukuna: ka samu shi yayin da kake da intanet, don ka iya ba sabon mutum shi ba tare da intanet ba."
+      "lineHelp": "Wayar sabon mutum tana girka LangQuest daga wannan fayil. Wannan wayar ba ta samu na wannan sigar ba tukuna: ka samu shi yayin da kake da intanet, don ka iya ba sabon mutum shi ba tare da intanet ba.",
+      "title": "Fayil ɗin girkawa don sabon mutum",
+      "got": "An samu: {{file}}",
+      "gotShort": "An samu fayil ɗin girkawa"
     },
     "join": {
       "intro": "Ka shiga tawagarka daga wayar abokin aiki, ba tare da intanet ba. Za a buɗe asusunka a karon farko da wayarka ta sami intanet.",

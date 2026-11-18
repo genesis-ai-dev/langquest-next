@@ -11,7 +11,6 @@
     "rowSubJoin": "Ibahagi ang progreso ng gawain sa mga kasamahan, o magpapasok ng bagong tao, nang walang internet",
     "rowHelp": "Binubuksan ang Ibahagi sa malapit, kung saan nagpapadala at tumatanggap ng progreso ng gawain sa isa't isa ang mga teleponong magkakalapit nang walang internet.",
     "rowHelpJoin": "Binubuksan ang Ibahagi sa malapit, kung saan nagpapadala at tumatanggap ng progreso ng gawain sa isa't isa ang mga teleponong magkakalapit nang walang internet, at kung saan mo binibigyan ng app ang isang bagong tao at pinasasali siya sa pangkat.",
-    "rowHelpRemind": "Binubuksan ang Ibahagi sa malapit, kung saan nagpapadala at tumatanggap ng progreso ng gawain sa isa't isa ang mga teleponong magkakalapit nang walang internet, at kung saan mo binibigyan ng app ang isang bagong tao at pinasasali siya sa pangkat. Wala pa sa teleponong ito ang install file na kailangan ngayon ng telepono ng bagong tao: kunin ito roon bago ka mawalan ng internet.",
     "why": {
       "loading": "Sinusuri ang teleponong ito…",
       "notInBuild": "Hindi makapagbahagi sa malapit ang bersiyong ito ng app. I-update ito mula sa store.",
@@ -191,11 +190,12 @@
       "rowSub": "Bago ka mawalan ng internet",
       "rowHelp": "Binubuksan ang Kunin ang install file, kung saan mo dina-download at sinusuri ang file na pag-i-install ng LangQuest sa bagong telepono. Gawin ito habang may internet ka.",
       "linkHelp": "Binubuksan ang Kunin ang install file, kung saan mo dina-download at sinusuri ang file na pag-i-install ng LangQuest sa bagong telepono.",
-      "remind": "Kunin ang install file bago ka mawalan ng internet",
       "notGot": "Install file para sa bagong tao: hindi pa nakukuha",
       "older": "Install file para sa bagong tao: para sa lumang bersiyon",
-      "getIt": "Kunin",
-      "lineHelp": "Mula sa file na ito nag-i-install ng LangQuest ang telepono ng bagong tao. Hindi pa nakukuha ng teleponong ito ang para sa bersiyong ito: kunin ito habang may internet ka, para maibigay mo ito sa bagong tao nang walang internet."
+      "lineHelp": "Mula sa file na ito nag-i-install ng LangQuest ang telepono ng bagong tao. Hindi pa nakukuha ng teleponong ito ang para sa bersiyong ito: kunin ito habang may internet ka, para maibigay mo ito sa bagong tao nang walang internet.",
+      "title": "Install file para sa bagong tao",
+      "got": "Nakuha: {{file}}",
+      "gotShort": "Nakuha na ang install file"
     },
     "join": {
       "intro": "Sumali sa pangkat mo mula sa telepono ng isang kasamahan, nang walang internet. Gagawin ang account mo sa unang beses na makakonekta sa internet ang telepono mo.",

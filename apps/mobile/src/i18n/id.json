@@ -333,7 +333,7 @@
     "book_structure": "Bagi Kitab",
     "reference_home": "Perpustakaan Referensi",
     "material_editor": "Ubah Bahan",
-    "sync_status": "Sinkronisasi",
+    "sync_status": "Sinkronisasi dan offline",
     "delete_account": "Hapus Akun",
     "reports_home": "Laporan",
     "reports_language": "Laporan Bahasa",
@@ -3273,19 +3273,14 @@
     "me": {
       "title": "Saya",
       "nameSub": "Nama dan foto",
-      "offline": "Siap untuk offline",
       "tour": "Cara kerja LangQuest",
       "tourSub": "Dengarkan tur singkat",
       "more": "Pengaturan lain",
-      "moreRefused": "Akun ini tidak dapat sinkron · kata sandi, notifikasi, akun",
-      "moreRefusedEvents": "Ditolak · {{n, number}} · kata sandi, notifikasi, sinkronisasi, akun",
-      "morePending_other": "{{count, number}} menunggu dikirim · kata sandi, notifikasi, sinkronisasi, akun",
       "signOut": "Keluar",
       "signOutHelp": "Keluar dari akun ini di perangkat ini. Pekerjaan yang belum terkirim tetap disimpan sampai terkirim.",
       "nameHelp": "Membuka profil Anda, untuk mengubah nama yang dilihat tim Anda.",
-      "offlineHelp": "Menampilkan apa yang disimpan perangkat ini untuk bekerja tanpa koneksi.",
       "tourHelp": "Membuka tiga kartu singkat tentang kegunaan LangQuest.",
-      "moreHelp": "Membuka pengaturan kata sandi, notifikasi, sinkronisasi, dan akun Anda. Angka berarti ada perubahan yang menunggu dikirim.",
+      "moreHelp": "Membuka pengaturan kata sandi, notifikasi, dan akun Anda.",
       "local": {
         "title": "{{name}}, Anda bergabung tanpa internet",
         "letInBy": "{{name}} mengizinkan Anda masuk dari ponselnya.",
@@ -3333,7 +3328,6 @@
       "switchActive": "{{org}} (aktif)",
       "switchOrStart": "{{org}} · atau mulai yang baru",
       "thisDevice": "Perangkat ini",
-      "sync": "Sinkronisasi",
       "syncRefused": "Akun ini tidak dapat menyinkronkan organisasi ini",
       "syncPending_other": "{{count, number}} perubahan menunggu dikirim",
       "syncPendingMixed": "{{total, number}} menunggu dikirim · rekaman: {{recordings, number}}",
@@ -3360,7 +3354,6 @@
       "lostPhoneSent": "Tautan dikirim ke {{email}}. Buka, pilih kata sandi baru, lalu nyalakan “Ponsel saya hilang atau diambil orang”.",
       "testing": "Pengujian",
       "personaSub": "Masuk sebagai penerjemah, pemeriksa, atau admin contoh",
-      "syncHelp": "Menampilkan apa yang menunggu dikirim atau diunduh. Angka berarti ada perubahan yang menunggu dikirim.",
       "blockedHelp": "Menampilkan siapa yang Anda blokir, untuk membuka blokirnya.",
       "switchOrgHelp": "Membuka organisasi-organisasi Anda, untuk berpindah ke yang lain atau memulai yang baru."
     },
@@ -3484,17 +3477,29 @@
         "refused": "Server tidak menerima perubahan dari perangkat ini. Pekerjaan Anda tetap tersimpan di sini.",
         "tooOld": "Aplikasi ini terlalu lama untuk menerima perubahan tim Anda. Perbarui dari toko aplikasi.",
         "toReceive": "Rekaman dari orang lain yang masih diunduh perangkat ini.",
-        "refusedLine": "Perubahan yang tidak diterima server, biasanya karena izin berubah. Tetap ada di perangkat ini; buka Detail untuk melihat masing-masing.",
         "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "Akan diterima",
-      "refusedLine": "Ditolak",
-      "none": "Tidak ada",
-      "moreInfo": "Info lebih lanjut",
       "details": "Detail",
       "syncNowHelp": "Mengirim yang menunggu dan mengambil yang baru, saat ini juga.",
       "detailsHelp": "Setiap perubahan yang menunggu atau ditolak, dan transfer audio: untuk orang yang memperbaiki masalah.",
-      "eventHelp": "Membuka perikop yang terkait dengan perubahan ini."
+      "eventHelp": "Membuka perikop yang terkait dengan perubahan ini.",
+      "title": "Sinkronisasi dan offline",
+      "rowHelp": "Membuka apa yang dikirim dan diterima perangkat ini, serta apa yang disimpannya untuk bekerja tanpa koneksi.",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "Ditolak oleh server",
+        "refusedCount_other": "{{count, number}} perubahan",
+        "refusedNote": "Perubahan ini tetap ada di perangkat ini. Orang yang mengelola tim Anda biasanya dapat membantu.",
+        "refusedHelp": "Perubahan yang tidak diterima server, masing-masing dengan alasannya. Tetap ada di perangkat ini.",
+        "uploads": "Unggahan",
+        "uploadsHelp": "Apa yang menunggu diunggah di perangkat ini, per perikop, dan apa yang sudah diunggah.",
+        "downloads": "Unduhan",
+        "readyHelp": "Apakah ponsel ini sudah memiliki yang Anda perlukan sebelum Anda offline."
+      },
+      "down": {
+        "count_other": "{{count, number}} rekaman akan diterima",
+        "offline": "Memeriksa pekerjaan baru saat Anda kembali daring"
+      }
     },
     "lock": {
       "tooShort": "Hubungkan setidaknya {{n}} titik.",
@@ -4633,7 +4638,10 @@
       "needsOtherLanguages": "Bahasa lain. Buka salah satunya saat terhubung agar diperbarui.",
       "bullet": "• {{line}}",
       "notSent_other": "{{count, number}} rekaman di perikop yang Anda simpan belum dikirim dari perangkat yang membuatnya, jadi belum ada perangkat yang bisa mengunduhnya.",
-      "barHelp": "Berapa banyak perikop yang Anda simpan sudah lengkap ada di perangkat ini."
+      "barHelp": "Berapa banyak perikop yang Anda simpan sudah lengkap ada di perangkat ini.",
+      "keptTitle": "Perikop yang disimpan",
+      "worksOffline": "Yang bisa dipakai tanpa koneksi",
+      "worksOfflineHelp": "Menampilkan apa yang selalu ada di perangkat ini, dan apa yang memerlukan koneksi."
     },
     "keepHelp": "Menyimpan audionya di perangkat ini, agar bisa dipakai tanpa koneksi.",
     "stopKeepingHelp": "Membiarkan perangkat ini menghapus audionya lagi saat perlu ruang.",
@@ -5113,7 +5121,7 @@
       "noneKept": "Belum ada perikop yang disimpan di perangkat ini",
       "kept_other": "{{count, number}} perikop di perangkat ini",
       "ready_other": "{{ready}} dari {{count, number}} perikop siap di perangkat ini",
-      "moreSettingsSub": "Kata sandi, notifikasi, sinkronisasi, akun"
+      "moreSettingsSub": "Kata sandi, notifikasi, akun"
     },
     "waiting": "Menunggu dibagi",
     "parts": {
