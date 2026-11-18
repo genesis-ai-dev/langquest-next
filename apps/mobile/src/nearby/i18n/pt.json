@@ -163,7 +163,7 @@
       "turnedAway": "Outro celular tentou usar este código e foi recusado.",
       "stayOpen": "Deixe esta tela aberta até terminar.",
       "file": "Arquivo de instalação desta versão: {{file}}",
-      "fileExact": "O arquivo na sua pasta Downloads precisa ter exatamente este nome. Qualquer outro nome é a versão errada.",
+      "fileStart": "O arquivo na sua pasta Downloads precisa ter um nome que comece com {{start}}. Um nome que comece de outro jeito é de outra versão.",
       "fileOld": "O arquivo de instalação que você pegou antes é de uma versão anterior. Pegue o novo antes de ficar sem internet.",
       "get": "Baixar o arquivo de instalação",
       "getHelp": "Abre o navegador do celular, que baixa o arquivo de instalação desta versão.",
