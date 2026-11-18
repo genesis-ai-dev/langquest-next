@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { CARRIED_APK_VERSION_CODE, carriedApkName, carriedApkNameHere } from '@langquest-next/core';
-import { APK_CONTENT_TYPE, apkNameOf, newestFitting, serveApk, type ApkBucket } from '../worker/apk';
+import { carriedApkName, carriedApkNameHere } from '@langquest-next/core';
+import { APK_CONTENT_TYPE, apkNameOf, serveApk, type ApkBucket } from '../worker/apk';
 import { ownsResponse } from '../worker/securityHeaders';
 import { routeClass } from '../worker/requestTally';
 
@@ -11,23 +11,11 @@ import { routeClass } from '../worker/requestTally';
 
 const NAME = carriedApkName({ reducer: 21, lines: 1, protocol: { min: 1, max: 1 }, fingerprint: '0a1b2c3d4e5f' })!;
 
-/**
- * An R2 bucket of named byte arrays, answering get (with ranges), head and list (by prefix, with
- * custom metadata) as the binding does. `put` gives a file's version code and when it was put there.
- */
-function fakeBucket(files: Record<string, Uint8Array>, put: Record<string, { code?: string; at?: number }> = {}) {
+/** An R2 bucket of named byte arrays, answering get (with ranges) and head as the binding does. */
+function fakeBucket(files: Record<string, Uint8Array>) {
   const asked: string[] = [];
-  const meta = (key: string, bytes: Uint8Array) => ({
-    key, size: bytes.length, httpEtag: `"${key.length}-${bytes.length}"`, uploaded: new Date(put[key]?.at ?? 0),
-    customMetadata: put[key]?.code === undefined ? {} : { [CARRIED_APK_VERSION_CODE]: put[key].code }
-  });
+  const meta = (key: string, bytes: Uint8Array) => ({ key, size: bytes.length, httpEtag: `"${key.length}-${bytes.length}"` });
   const bucket = {
-    async list(options: { prefix?: string; include?: string[] }) {
-      asked.push(`list ${options.prefix}`);
-      expect(options.include).toEqual(['customMetadata']);
-      const keys = Object.keys(files).filter((k) => k.startsWith(options.prefix ?? '')).sort();
-      return { objects: keys.map((k) => meta(k, files[k]!)), truncated: false, delimitedPrefixes: [] };
-    },
     async head(key: string) {
       asked.push(`head ${key}`);
       const bytes = files[key];
@@ -88,32 +76,8 @@ describe('the APK route', () => {
       expect((await serveApk(ask(path), bucket)).status, path).toBe(404);
     }
     for (const method of ['PUT', 'POST', 'DELETE']) expect((await serveApk(ask(`/apk/${NAME}`, { method }), bucket)).status, method).toBe(404);
-    // Only the carried build's names were ever asked of the bucket, and listed only by that name's versions.
-    expect(asked).toEqual([`get ${other}`, 'list r22-l1-p1-']);
-  });
-
-  it('sends a name the bucket lacks to the newest file for the same versions, by version code, so a phone whose build has no file still gets one', async () => {
-    const fp = (f: string) => carriedApkName({ reducer: 21, lines: 1, protocol: { min: 1, max: 1 }, fingerprint: f })!;
-    const [mine, older, newest, unmarked] = [fp('52e6dfee'), fp('3f882a53'), fp('401de22e'), fp('aaaaaaaa')];
-    const otherVersions = carriedApkName({ reducer: 22, lines: 1, protocol: { min: 1, max: 1 }, fingerprint: 'bbbbbbbb' })!;
-    const otherProtocol = carriedApkName({ reducer: 21, lines: 1, protocol: { min: 1, max: 2 }, fingerprint: 'cccccccc' })!;
-    // Put there in another order than their version codes: a build published again later is not the newest.
-    const { bucket } = fakeBucket(
-      { [older]: apk, [newest]: apk, [unmarked]: apk, [otherVersions]: apk, [otherProtocol]: apk, 'current.json': new Uint8Array([123, 125]) },
-      { [older]: { code: '54', at: 3 }, [newest]: { code: '56', at: 2 }, [unmarked]: { at: 9 }, [otherVersions]: { code: '99', at: 9 }, [otherProtocol]: { code: '98', at: 9 } }
-    );
-    for (const method of ['GET', 'HEAD']) {
-      const res = await serveApk(ask(`/apk/${mine}`, { method }), bucket);
-      expect([res.status, res.headers.get('location'), res.headers.get('cache-control')], method).toEqual([302, `/apk/${newest}`, 'private, no-store']);
-    }
-    // The file it is sent to is served under its own name, so Downloads holds what it is.
-    const there = await serveApk(ask(`/apk/${newest}`), bucket);
-    expect([there.status, there.headers.get('content-disposition')]).toEqual([200, `attachment; filename="${newest}"`]);
-    // With no version codes, the one put there last; with no file for those versions at all, 404.
-    expect(await newestFitting(fakeBucket({ [older]: apk, [unmarked]: apk }, { [unmarked]: { at: 9 } }).bucket, mine)).toBe(unmarked);
-    const none = fakeBucket({ [otherVersions]: apk, [otherProtocol]: apk });
-    expect((await serveApk(ask(`/apk/${mine}`), none.bucket)).status).toBe(404);
-    expect(none.asked).toEqual([`get ${mine}`, 'list r21-l1-p1-']);
+    // Only the carried build's names were ever asked of the bucket.
+    expect(asked).toEqual([`get ${other}`]);
   });
 
   it('says it is not set up where the Worker has no APK bucket', async () => {
