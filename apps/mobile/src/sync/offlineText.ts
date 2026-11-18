@@ -55,3 +55,8 @@ export function offlineLine(s: OfflineOverview | null): string {
   if (studyFiles) return t('offline.summary.someReadyStudy', { ...counts, studyFiles });
   return t('offline.summary.someReady', counts);
 }
+
+/** Whole sentences, one after another. */
+export function sentences(...parts: (string | false | null | undefined)[]): string {
+  return parts.filter(Boolean).join(' ');
+}

@@ -3,7 +3,7 @@
 // own world: it takes TRANS out of LANG-A and leaves them out. PLAN.md
 // invariant 1: the refused work stays on the device, marked, with its reason,
 // and is shown.
-import { deviceEvents, expect, expectSyncIdle, openAs, screenText, syncNow, test, text, useWorld } from './support';
+import { button, deviceEvents, expect, expectSyncIdle, openAs, screenText, syncNow, test, text, useWorld } from './support';
 import {
   atA, caughtUp, eventsHere, openRecord, openSync, passageAs, quietReloads, recordAndPublish, setMembership, setOffline, syncChip, tile, toTab
 } from './sync-helpers';
@@ -54,13 +54,13 @@ test('SYNC-018 Work refused after removal is kept and shown @p0', async ({ page,
   await syncChip(page).click();
   await expect.poll(() => tile(page, 'refused by the server')).toBeGreaterThan(0);
   const refused = await tile(page, 'refused by the server');
-  await expect(text(page, `Refused · ${refused}`)).toBeVisible();
+  await expect(button(page, new RegExp(`^Refused by the server\\. ${refused} changes?$`))).toBeVisible();
   expect(await tile(page, 'waiting to upload')).toBe(0);
   expect(await eventsHere(page)).toBeGreaterThanOrEqual(before);
   await expect(text(page, 'The server refused this account for this organization.')).toBeVisible();
-  // Me's More settings says so.
+  // Me's Sync and offline row says so.
   await toTab(page, 'me');
-  await expect(text(page, 'This account cannot sync · password, notifications, account')).toBeVisible();
+  await expect(text(page, 'This account cannot sync this organization')).toBeVisible();
   // Refused work leaves the passage, but stays listed under Refused.
   await openRecord(page, w, 'P-Q1');
   await expect(text(page, /^Version 1 · /)).toBeHidden();

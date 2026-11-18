@@ -54,3 +54,5 @@ and "On this device" means a passage's rows and its audio: a kept passage
 whose rows have not arrived is not ready, and opened offline it shows its
 line and "Not on this device yet". The person's offline scope fills first,
 after whatever a screen opens.
+
+Amended (2026-11-18, Carl Sauder): Me's "Ready for offline" row and More settings' "Sync" are one row on Me, "Sync and offline", opening one screen with one title and one order; Ready for offline is a fold on it, a packing list of kept passages and, for someone who can let a new person in, the install file, with what always works offline folded under it (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
