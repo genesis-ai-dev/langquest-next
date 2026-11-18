@@ -8,6 +8,12 @@
  */
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
+import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
+import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
+import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
+import { FIX_CSS, FIX_LOGIC, FIX_SCRIPT } from './pageFixes';
+import { KINDS } from './alertKinds';
+import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
 
 export function page(cfg: { supabaseUrl: string; anonKey: string }, nonce: string): Response {
@@ -86,6 +92,7 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .vi { border: 1px solid var(--line); border-inline-start-width: 4px; border-radius: 8px; padding: 8px 10px; margin: 6px 0; background: var(--card); }
 .vi.bad { border-inline-start-color: var(--red); color: inherit; } .vi.warn { border-inline-start-color: var(--amber); color: inherit; } .vi.info { border-inline-start-color: var(--primary); }
 .vi p { margin: 4px 0; } .vi small { color: var(--muted); }
+.vchanges { margin: 12px 0; } .vchanges summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; gap: 6px; }
 .tag.warn { color: var(--amber); background: var(--amberbg); } .tag.info { color: var(--primary); background: var(--bg); }
 .vtools { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 8px 0; } .vtools label { margin: 0 0 4px; } .vtools select { width: auto; }
 .vrow { display: grid; grid-template-columns: minmax(180px, 280px) 1fr 44px; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding: 4px 0; }
@@ -110,6 +117,25 @@ label.check { display: inline-flex; gap: 6px; align-items: center; font-weight: 
 .vdet { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 4px 0 10px; background: var(--card); }
 .vdet .head { display: flex; gap: 8px; align-items: center; } .vdet .head b { flex: 1; } .vdet p { margin: 6px 0; }
 .vdet blockquote { margin: 6px 0; padding: 6px 10px; border-inline-start: 3px solid #2F80ED; background: var(--bg); border-radius: 6px; }
+/* Pictures of what a suggestion is about (pageOps.ts pictureStrip): numbered, ringed, with a caption under each. */
+.vpics { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 8px 0; }
+.vpicgroup { min-width: 0; } .vpichead { margin: 0 0 4px; font-weight: 600; }
+.vpicrow { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.vpic { margin: 0; max-width: 340px; }
+.vpicbox { position: relative; display: inline-block; line-height: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg); }
+.vpicbox img { display: block; max-width: 100%; max-height: 360px; width: auto; height: auto; }
+.vpicin { position: relative; display: block; }
+.vpic.zoom { width: 340px; max-width: 100%; }
+.vpicbox.zoom { display: block; width: 100%; aspect-ratio: 4 / 3; }
+.vpicbox.zoom .vpicin { position: absolute; left: 0; top: 0; width: 100%; }
+.vpicbox.zoom img { width: 100%; max-width: none; max-height: none; }
+.vpicbox.zoom:not(.ready) .vring { display: none; }
+.vring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.vring rect { fill: none; stroke: #E5484D; stroke-width: 4; vector-effect: non-scaling-stroke; }
+.vring rect.halo { stroke: #fff; stroke-width: 8; opacity: .9; }
+.vnum { position: absolute; top: 6px; inset-inline-start: 6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; background: #E5484D; color: #fff; font: 700 14px/24px system-ui, sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.vpic figcaption { font-size: 13px; line-height: 1.35; margin-top: 4px; }
+.vtech summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .vfilms { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; } .vfilms figure { margin: 0; } .vfilms video { width: 100%; border-radius: 8px; background: #000; }
 .vkey { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 6px 0; } .vkey span { display: inline-flex; gap: 4px; align-items: center; }
 /* Where each build and update is (sources/pipeline.ts): stages left to right, an arrow between, each build a card in its stage. */
@@ -175,11 +201,16 @@ td button { white-space: nowrap; }
   .pa { width: auto; }
   .pa::before { content: '↓'; }
 }
+${START_CSS}
+${FIX_CSS}
+${LISTS_CSS}
+${METERS_CSS}
 </style>
 </head>
 <body>
 <header><div class="bar">
   <h1>LangQuest operations</h1>
+  <nav class="views" aria-label="Views"><a href="#">What needs you</a><a href="#all">All sections</a></nav>
   <small id="checked"></small>
   <span class="tools"><button id="expand-all" type="button" hidden>Expand all</button><button id="collapse-all" type="button" hidden>Collapse all</button></span>
   <button id="refresh" type="button" hidden>Refresh</button>
@@ -201,6 +232,7 @@ td button { white-space: nowrap; }
     <p><button class="primary" type="submit">Continue</button></p>
   </form>
   <div id="board" hidden>
+${START_HTML}
     <section class="card" id="attention">
       <div class="head"><h2>Needs attention</h2><span class="pill wait" id="attention-pill">Checking…</span></div>
       <ul id="attention-list"></ul>
@@ -387,7 +419,8 @@ const results = {};
 function layout() {
   $('grid').innerHTML = SECTIONS.map((s) => '<section class="card' + (s.wide ? ' wide' : '') + '" id="card-' + s.id + '"><div class="head" data-toggle="' + s.id + '"><div><h2>' +
     '<button type="button" class="toggle" id="toggle-' + s.id + '" aria-expanded="true" aria-controls="body-' + s.id + '"><span class="chev" aria-hidden="true">▾</span><span data-help-key="group:' + s.id + '">' + esc(s.title) + '</span></button>' +
-    '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div><div class="body" id="body-' + s.id + '"></div></section>').join('');
+    '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div>' +
+    '<div class="hist" id="hist-' + s.id + '" hidden></div><div class="body" id="body-' + s.id + '"></div></section>').join('');
   for (const s of SECTIONS) applyOpen(s.id);
   annotate($('grid'));
   $('pill-lookup').hidden = true;
@@ -439,9 +472,41 @@ function partHtml(g, id) {
   if (s.state === 'off') return head + '<p class="setup muted">Not connected. ' + esc(s.setup) + '</p>';
   if (s.state === 'error') return head + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
   try {
-    if (id === 'jobs') return head + renderJobs(s.data, results.container);
-    return head + (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+    if (id === 'jobs') return head + numbers(id, renderJobs(s.data, results.container));
+    // A picture leads its part (pageLists.ts, pageMeters.ts); its numbers and tables wait behind one tap.
+    const pic = listPicture(id, s.data);
+    const html = (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+    // A part that nothing draws (no picture, no line over time) keeps its table open, and so does one that holds a queue for a person.
+    return head + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + ((pic || METRIC[id]) && !QUEUE.test(html) ? numbers(id, html) : html);
   } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
+}
+
+/**
+ * A part's numbers and tables, closed until a tap opens them, so a section
+ * shows its pictures first (plan 5c); a part stays open through a refresh
+ * once opened.
+ */
+const openNumbers = new Set();
+// Grant, Accept, Send to Claude, Add a note, Connect, Publish, Seen or Done (pageLists.ts QUEUE_CONTROLS).
+const QUEUE = /${QUEUE_SOURCE}/;
+function numbers(id, html) {
+  return '<details class="numbers" data-part="' + esc(id) + '"' + (openNumbers.has(id) ? ' open' : '') + '><summary><span class="sn">Show the numbers</span><span class="hn">Hide the numbers</span></summary>' + html + '</details>';
+}
+// toggle does not bubble, so it is caught on its way down.
+document.addEventListener('toggle', (e) => {
+  const d = e.target;
+  if (!d.matches || !d.matches('details.numbers')) return;
+  if (d.open) openNumbers.add(d.dataset.part); else openNumbers.delete(d.dataset.part);
+}, true);
+
+/** A part the database counts every 10 minutes (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md): when, and late past 25 minutes. */
+function counted(d) {
+  if (!d || !d.countedAt) return '';
+  const at = new Date(d.countedAt);
+  const late = Date.now() - at.getTime() > 25 * 60000;
+  const time = at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
+  return '<p class="counted ' + (late ? 'bad' : 'muted') + '" title="' + esc(ago(d.countedAt)) + '">Counted at ' + esc(time) + ' UTC'
+    + (late ? ', late: the count runs every 10 minutes (ops_counts in Server jobs).' : ', every 10 minutes.') + '</p>';
 }
 
 /** The jobs as diag records them, with whether each runs now (the job container's answer) in the same row. */
@@ -462,8 +527,9 @@ function show(id, s) {
   $('body-' + g.id).innerHTML = g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join('');
   if (g.parts.includes('feedback')) wireScreenshots();
   annotate($('body-' + g.id));
-  applyOpen(g.id);
+  if (view().name === 'all') applyOpen(g.id);
   attention();
+  renderStart();
 }
 
 function attention() {
@@ -471,7 +537,7 @@ function attention() {
   for (const g of SECTIONS) for (const part of g.parts) {
     const s = results[part];
     if (!s) continue;
-    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, link: a.link, where: g.title, id: g.id });
+    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, link: a.link, where: g.title, id: g.id, alert: a });
     if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + s.error, where: g.title, id: g.id });
   }
   const loading = PARTS.filter((p) => !results[p]).length;
@@ -482,7 +548,7 @@ function attention() {
   el.textContent = top ? LEVELS.filter((l) => c[l] > 0).map((l) => LEVEL[l].count(c[l])).join(', ') : loading ? 'Checking…' : 'All clear';
   // A link only to https pages: an alert's link comes from what a workflow wrote (apps/admin/src/sources/github.ts).
   const fix = (i) => String(i.link || '').startsWith('https://') ? ' <a href="' + esc(i.link) + '" target="_blank" rel="noopener">Open</a>' : '';
-  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + fix(i) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button></span></li>';
+  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + fix(i) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button>' + fixHtml(i.alert, true) + '</span></li>';
   $('attention-list').innerHTML = items.length
     ? LEVELS.map((l) => {
       const at = items.filter((i) => (i.level in LEVEL ? i.level : 'watch') === l);
@@ -861,12 +927,31 @@ window.addEventListener('scroll', hideTip, { passive: true });
 
 ${OPS_SCRIPT}
 
+// ---- the start page, each section's numbers over a range, and the detail panel (pageStart.ts) ----
+const METRIC = ${JSON.stringify(METRICS).replace(/</g, '\\u003c')};
+const GLANCE = ${JSON.stringify(GLANCE)};
+${START_LOGIC}
+${START_SCRIPT}
+// ---- each line's Linear issue and fix, and the lines resolved (pageFixes.ts) ----
+const KINDS = ${JSON.stringify(KINDS).replace(/</g, '\\u003c')};
+${FIX_LOGIC}
+${FIX_SCRIPT}
+${LISTS_LOGIC}
+${METERS_LOGIC}
+${LISTS_SCRIPT}
+${METERS_SCRIPT}
+
 let loading = false;
 async function load(fresh) {
   if (loading) return;
   loading = true;
   $('refresh').disabled = true;
   for (const k of Object.keys(results)) delete results[k];
+  for (const k of Object.keys(histories)) delete histories[k];
+  glanceData = null;
+  fixData = null;
+  const here = view();
+  if (here.name === 'group') renderHist(here.id);
   for (const s of SECTIONS) if (s.id !== 'lookup') { const p = $('pill-' + s.id); p.className = 'pill wait'; p.textContent = 'Loading…'; }
   attention();
   const q = fresh ? '?fresh=1' : '';
@@ -874,7 +959,12 @@ async function load(fresh) {
   const jobs = [
     api('/ops/api/diag' + q).then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); }).catch(fail(['jobs', 'clients', 'database', 'v2', 'feedback'])),
     api('/ops/api/ops' + q).then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); }).catch(fail(${JSON.stringify(OPS_IDS)})),
-    ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
+    ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id]))),
+    // The start page's pictures: without them it still shows every card and line.
+    api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {}),
+    // The pull requests that name a line's Linear issue: without them each line still shows its issue.
+    api('/ops/api/fixes' + q).then((d) => { fixData = d; renderStart(); attention(); })
+      .catch((err) => { fixData = { state: 'error', error: err.message }; renderStart(); })
   ];
   await Promise.all(jobs);
   $('checked').textContent = 'Checked ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -888,6 +978,7 @@ async function start() {
   $('signin').hidden = true; $('mfa').hidden = true; say('');
   $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false; $('expand-all').hidden = false; $('collapse-all').hidden = false;
   if (!$('grid').children.length) layout();
+  route();
   await finishYouTube();
   const deep = /^\\/ops-dashboard\\/org\\/([^/]+)$/.exec(location.pathname);
   if (deep) openOrg(decodeURIComponent(deep[1]), false);

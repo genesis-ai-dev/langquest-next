@@ -360,7 +360,9 @@
   },
   "native": {
     "microphone": "LangQuest yana naɗar muryarku don fassara nassosi.",
-    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata."
+    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata.",
+    "bluetooth": "LangQuest yana amfani da Bluetooth don nemo wayoyin abokan aikinka na kusa da raba aiki da su.",
+    "localNetwork": "LangQuest yana amfani da cibiyar sadarwa ta gida don raba aiki da wayoyin abokan aikinka na kusa."
   },
   "library": {
     "sourceLine": {
@@ -3618,6 +3620,20 @@
       "drawAgain": "Sake zana shi",
       "newPattern": "Zana sabon zane",
       "choosePatternHelp": "Zaɓi hoto da zane don sake shiga a wannan waya, ko babu intanet."
+    },
+    "appLock": {
+      "row": "Kulle manhajar",
+      "rowHelp": "Idan an kunna, manhajar tana tambayar zanenku duk lokacin da aka buɗe ta, da duk lokacin da kuka koma gare ta. Kunna ko kashe ta yana tambayar zanenku tukuna.",
+      "on": "Yanzu manhajar tana tambayar zanenku lokacin da aka buɗe ta.",
+      "off": "Manhajar ba ta tambayar zanenku kuma.",
+      "opening": "Ana buɗewa…",
+      "checking": "Ana dubawa…",
+      "forgot": "Kun manta?",
+      "forgotHelp": "Kun manta zanenku? Ku fita, sannan ku sake shiga da kalmar sirrinku, ko da lambar shiga daga wani a tawagarku. Aikinku yana nan a wannan waya.",
+      "signOutHelp": "Yana fitar da ku daga wannan waya. Aikinku yana nan a cikinta, kuma za a aika shi idan an samu dama.",
+      "backHelp": "Yana komawa kan ɗigogin.",
+      "waitFor_one": "Gwaje-gwaje sun yi yawa. Ku sake gwadawa bayan minti {{count, number}}.",
+      "waitFor_other": "Gwaje-gwaje sun yi yawa. Ku sake gwadawa bayan mintuna {{count, number}}."
     }
   },
   "study": {

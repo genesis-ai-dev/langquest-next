@@ -302,6 +302,12 @@ describe('the Bible routes', () => {
     // FCBH's file host failing is a gateway error, not audio.
     up.overrides.set('cdn/audio/ENGESVO1DA_GEN_2.mp3', () => new Response('<html>', { status: 200, headers: { 'content-type': 'text/html' } }));
     expect((await file('/api/bible/file/ENGESVO1DA/GEN/2')).status).toBe(502);
+    // Some of FCBH's MP3s come as S3's default type (ENGWEBN2DA, LAN-241): still audio.
+    up.overrides.set('cdn/audio/ENGESVO1DA_GEN_3.mp3', () => new Response('mp3 bytes', { status: 200, headers: { 'content-type': 'binary/octet-stream' } }));
+    const untyped = await file('/api/bible/file/ENGESVO1DA/GEN/3');
+    expect(untyped.status).toBe(200);
+    expect(untyped.text).toBe('mp3 bytes');
+    expect(untyped.headers.get('content-type')).toBe('audio/mpeg');
     // Only the link is cached, as before; never the bytes.
     expect([...cache.store.values()].some((v) => v.body.startsWith('mp3 of'))).toBe(false);
     expect((await call('/api/bible/audio/ENGESVO1DA/GEN/1')).body.offline).toBe(true);

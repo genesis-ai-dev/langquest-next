@@ -15,7 +15,7 @@ import { utf8ToBytes } from '@noble/hashes/utils';
  * phone), so the tests check it against core's golden vectors as the phone
  * runs it. Nothing here keeps, logs or sends a key.
  *
- * Shaped as `NearbyCrypto` without importing it: only `.android` files import
+ * Shaped as `NearbyCrypto` without importing it: only a phone's own files import
  * the nearby entries, and they type this as that.
  */
 

@@ -7,17 +7,24 @@
 //   node scripts/tutorial-review.mjs fetch <dir>   what is open (state.json) and what main changed since the last look (changes.json)
 //   node scripts/tutorial-review.mjs check <dir>   review.json against what the Worker takes and what state.json holds:
 //                                                  each problem a line in <dir>/problems.txt, for Claude to mend once
-//   node scripts/tutorial-review.mjs send <dir>    review.json, as Claude wrote it, to the app's Worker
+//   node scripts/tutorial-review.mjs send <dir>    review.json, as Claude wrote it, to the app's Worker, after the
+//                                                  pictures it names (each sent once, by its bytes' hash)
 //
-// An accepted change to a video, written by Claude as a draft pull request
-// (decisions.md 186, amended 2026-11-13), in the workflow's fix jobs:
+// An accepted change to a video (a clear fix Claude accepted itself, a
+// suggestion a person accepted, or an admin's instruction), written by Claude
+// as a pull request that merges itself when its checks pass (decisions.md 186,
+// amended 2026-11-13 and 2026-11-16), in the workflow's fix jobs:
 //
-//   node scripts/tutorial-review.mjs queue <dir>                 says which draft pull requests were merged or closed, and
-//                                                                starts at most three accepted changes: <dir>/<id>.json each
+//   node scripts/tutorial-review.mjs queue <dir>                 says which pull requests were merged, closed or failed (closing
+//                                                                one whose checks failed or that waited a day), and starts at
+//                                                                most three accepted changes: <dir>/<id>.json each
 //   node scripts/tutorial-review.mjs fix-patch <dir>             after Claude: its change as a patch, and its fix.json, checked
-//   node scripts/tutorial-review.mjs fix-paths <patch> <video>   refuses a patch that changes more than the video's own file and lines
-//   node scripts/tutorial-review.mjs fix-open <dir> <id>         pushes the patch to tutorial-fix/<id>, opens it as a draft pull
-//                                                                request, and tells the Worker; or tells it why there is none
+//   node scripts/tutorial-review.mjs fix-paths <patch> <video>   refuses a patch that changes more than the video's own file and
+//                                                                lines, or adds code that reaches outside the video's steps
+//   node scripts/tutorial-review.mjs vet-out <dir>               after the second Claude: its verdict.json, checked
+//   node scripts/tutorial-review.mjs fix-open <dir> <id>         pushes the patch to tutorial-fix/<id>, opens its pull request
+//                                                                with LangQuest's GitHub App and turns on auto-merge, and tells
+//                                                                the Worker; or tells it why there is none
 //
 // fetch, send, queue and fix-open sign in with the OpenID Connect token
 // GitHub gives the job (`id-token: write`); the Worker lets in this workflow
@@ -25,7 +32,8 @@
 // else, they stop. check, fix-patch and fix-paths need no token and send
 // nothing.
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -117,15 +125,138 @@ export async function problemsOf(review, state, changes, sha, env) {
   return problems;
 }
 
+// ---- the pictures a look names (decisions.md 186, amended 2026-11-17) --------------------------------
+
+/** A picture's size at most (server/tutorialFeedback.ts PICTURE_MAX.bytes), its caption's length, and how many a suggestion has. */
+export const PICTURE_LIMITS = { bytes: 3 * 1024 * 1024, caption: 300, pictures: 6 };
+/**
+ * Where a picture is in the last film run's folder (.tutorial-review/films/, the tutorials-<language> artifact):
+ * a step's screen (steps/NN.png), a still the frame check found wrong (check/NN.jpg) or the screen where a film
+ * stopped (failed-step-N.png). Nothing else is a picture.
+ */
+const PICTURE_PATH = /^([a-z]{2,3}(?:-[A-Z][a-z]{3})?)\/([a-z0-9]+(?:-[a-z0-9]+)*)\/(?:steps\/(\d{1,3})\.png|check\/(\d{1,3})\.jpg|failed-step-(\d{1,3})\.png)$/;
+
+/** What a picture's path says: its language, video, kind and number; null when it is no picture of a film run. */
+export function pictureOf(file) {
+  const path = String(file ?? '').trim().replace(/^(?:\.\/)?(?:\.tutorial-review\/)?(?:films\/)?/, '');
+  const m = PICTURE_PATH.exec(path);
+  if (!m) return null;
+  const [, language, tutorial, step, still, stopped] = m;
+  return { path, language, tutorial, kind: step ? 'step' : still ? 'still' : 'stopped', n: Number(step ?? still ?? stopped), ext: still ? 'jpg' : 'png' };
+}
+
+/** A PNG's or a JPEG's first bytes. */
+const isImage = (bytes, ext) => ext === 'png'
+  ? bytes.length > 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  : bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+
+const isRing = (r) => Array.isArray(r) && r.length === 4 && r.every((x) => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 1)
+  && r[2] > 0 && r[3] > 0 && r[0] + r[2] <= 1.001 && r[1] + r[3] <= 1.001;
+
+/**
+ * The look with each picture named by its bytes' hash, as the Worker takes it, and the files to send. Claude names
+ * a picture by its path in the film run's folder (`file`); this reads it, checks it is a PNG or JPEG the film run
+ * made (`known`: the hashes listed before Claude ran, when given), and adds its language, video, kind, number and,
+ * for a still, its time in the film (check.json). A picture that cannot be used is left out, with a line saying
+ * why, so it never stops the look.
+ */
+export function withPictures(review, films, known = null) {
+  const files = new Map();
+  const problems = [];
+  const stillTimes = new Map();
+  const stillAt = (language, tutorial, n) => {
+    const key = `${language}/${tutorial}`;
+    if (!stillTimes.has(key)) {
+      try {
+        stillTimes.set(key, JSON.parse(readFileSync(join(films, language, tutorial, 'check.json'), 'utf8')).stills ?? []);
+      } catch {
+        stillTimes.set(key, []);
+      }
+    }
+    const t = stillTimes.get(key)[n - 1]?.t;
+    return typeof t === 'number' && Number.isFinite(t) && t >= 0 ? t : undefined;
+  };
+  const convert = (list, where) => (Array.isArray(list) ? list : []).flatMap((p, k) => {
+    const at = `${where}.pictures[${k}]`;
+    const of = pictureOf(p?.file);
+    if (!of) {
+      problems.push(`${at}.file is ${shown(p?.file)}: name a picture in .tutorial-review/films/ as <language>/<video>/steps/NN.png, <language>/<video>/check/NN.jpg or <language>/<video>/failed-step-N.png.`);
+      return [];
+    }
+    const caption = typeof p.caption === 'string' ? p.caption.trim() : '';
+    if (!caption || caption.length > PICTURE_LIMITS.caption) {
+      problems.push(`${at}.caption: say in at most ${PICTURE_LIMITS.caption} characters what to look at in ${of.path}.`);
+      return [];
+    }
+    let bytes;
+    try {
+      bytes = readFileSync(join(films, of.path));
+    } catch {
+      problems.push(`${at}.file ${of.path} is not in .tutorial-review/films/: the last film run has no such picture. Pick one that is there.`);
+      return [];
+    }
+    const sha = createHash('sha256').update(bytes).digest('hex');
+    if (bytes.length > PICTURE_LIMITS.bytes || !isImage(bytes, of.ext) || (known && !known.has(sha))) {
+      problems.push(`${at}.file ${of.path} is not a picture the film run made.`);
+      return [];
+    }
+    const name = `${sha}.${of.ext}`;
+    files.set(name, join(films, of.path));
+    const ring = p.ring === undefined || p.ring === null ? undefined : isRing(p.ring) ? p.ring : null;
+    if (ring === null) problems.push(`${at}.ring is ${shown(p.ring)}: give [x, y, width, height], each a part of the picture from 0 to 1, from its top left, inside it; or leave the ring out.`);
+    const seconds = of.kind === 'still' ? stillAt(of.language, of.tutorial, of.n) : undefined;
+    return [{ picture: name, language: of.language, tutorial: of.tutorial, kind: of.kind, n: of.n, ...(seconds === undefined ? {} : { at: seconds }), caption, ...(ring ? { ring } : {}) }];
+  });
+  const many = (list, where) => {
+    const out = convert(list, where);
+    if (out.length > PICTURE_LIMITS.pictures) problems.push(`${where}.pictures: at most ${PICTURE_LIMITS.pictures}; the first ${PICTURE_LIMITS.pictures} are kept.`);
+    return out.slice(0, PICTURE_LIMITS.pictures);
+  };
+  const suggestions = entries(review, 'suggestions').map((s, n) => (isObj(s) && s.pictures !== undefined ? { ...s, pictures: many(s.pictures, `suggestions[${n}]`) } : s));
+  const pictures = entries(review, 'pictures').flatMap((e, n) => {
+    if (!isObj(e)) return [e];
+    const shown2 = many(e.pictures, `pictures[${n}]`);
+    return shown2.length || hasWords(e) ? [{ ...e, pictures: shown2 }] : [];
+  });
+  return { review: { ...review, suggestions, ...(review?.pictures !== undefined ? { pictures } : {}) }, files, problems };
+}
+
+/** A `pictures` entry that also says a waiting suggestion's words again. */
+const hasWords = (e) => isObj(e) && (e.title !== undefined || e.detail !== undefined);
+
+/**
+ * Pictures for a suggestion made before, each as a line Claude can act on when the database would skip it: `now`
+ * for a suggestion that has no pictures or still waits for a person, `after` only for one whose fix was merged.
+ * New words (`title`, `detail`) only for one that waits for a person and that no admin edited.
+ */
+export function picturePlaces(review, state) {
+  const byId = new Map((state.suggestions ?? []).map((s) => [s.id, s]));
+  return entries(review, 'pictures').flatMap((e, n) => {
+    const s = byId.get(e?.suggestion);
+    if (!s) return [`pictures[${n}].suggestion is ${shown(e?.suggestion)}, which is no suggestion's id in state.json.`];
+    if ((e.when ?? 'now') === 'after' && s.fix?.state !== 'merged') return [`pictures[${n}]: "after" pictures are only for a suggestion whose fix was merged; ${s.id} has ${s.fix ? `a fix that is ${s.fix.state}` : 'no fix'}.`];
+    if ((e.when ?? 'now') === 'now' && s.decision && (s.pictures ?? []).length) return [`pictures[${n}]: ${s.id} has its pictures already and was answered; leave it.`];
+    if (hasWords(e) && (s.decision || s.editedAt)) return [`pictures[${n}]: new words only for a suggestion that waits for a person and that no admin edited; ${s.id} was ${s.decision ? 'answered' : 'edited by an admin'}. Leave out title and detail.`];
+    return [];
+  });
+}
+
+/** The hashes of the pictures the film run made, listed before Claude ran (one `sha256sum` line each), or null. */
+export function knownPictures(file) {
+  if (!file || !existsSync(file)) return null;
+  return new Set(readFileSync(file, 'utf8').split('\n').map((l) => /^([0-9a-f]{64})\s/.exec(l)?.[1]).filter(Boolean));
+}
+
 async function check(dir) {
   const file = join(dir, 'problems.txt');
   rmSync(file, { force: true });
   let problems;
   try {
-    const review = JSON.parse(readFileSync(join(dir, 'review.json'), 'utf8'));
+    const written = JSON.parse(readFileSync(join(dir, 'review.json'), 'utf8'));
     const state = JSON.parse(readFileSync(join(dir, 'state.json'), 'utf8'));
     const changes = JSON.parse(readFileSync(join(dir, 'changes.json'), 'utf8'));
-    problems = await problemsOf(review, state, changes, git('rev-parse', 'HEAD').trim(), process.env);
+    const { review, problems: pictureProblems } = withPictures(written, join(dir, 'films'), knownPictures(process.env.PICTURES_KNOWN));
+    problems = [...await problemsOf(review, state, changes, git('rev-parse', 'HEAD').trim(), process.env), ...pictureProblems, ...picturePlaces(review, state)];
   } catch (e) {
     problems = [`review.json could not be read: ${e instanceof Error ? e.message.slice(0, 200) : e}. Write it as one JSON object, as the skill says.`];
   }
@@ -135,13 +266,17 @@ async function check(dir) {
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `problems=${problems.length ? 'yes' : 'no'}\n`);
 }
 
+let token = null;
 async function oidcToken() {
+  // A token lasts some minutes: one serves a look's pictures and the look.
+  if (token && token.until > Date.now()) return token.value;
   const url = process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
   const bearer = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
   if (!url || !bearer) throw new Error('No GitHub OIDC token here: this runs only in tutorial-review.yml, with id-token: write.');
   const res = await fetch(`${url}&audience=${encodeURIComponent(AUDIENCE)}`, { headers: { authorization: `bearer ${bearer}` } });
   if (!res.ok) throw new Error(`GitHub OIDC token: HTTP ${res.status}`);
-  return (await res.json()).value;
+  token = { value: (await res.json()).value, until: Date.now() + 120_000 };
+  return token.value;
 }
 
 async function call(method, body, path = '') {
@@ -178,26 +313,62 @@ async function fetchState(dir) {
   console.log(`open: ${state.inputs.length} inputs (${open} not looked at yet), ${state.suggestions.filter((s) => !s.decision).length} suggestions waiting; ${changes.length} changes since ${last ? last.slice(0, 8) : `${FIRST_DAYS} days ago`}`);
 }
 
+/** Sends a picture to the Worker, which keeps it by its hash; true when it is there. */
+async function sendPicture(name, path) {
+  const bytes = readFileSync(path);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await fetch(`${API}/pictures/${name}`, {
+      method: 'PUT',
+      headers: { authorization: `Bearer ${await oidcToken()}`, 'content-type': name.endsWith('.png') ? 'image/png' : 'image/jpeg', 'content-length': String(bytes.length) },
+      body: bytes
+    }).catch(() => null);
+    if (res?.ok) return true;
+    if (res && res.status < 500) {
+      console.log(`::warning::picture ${name}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+      return false;
+    }
+  }
+  console.log(`::warning::picture ${name}: the Worker did not answer`);
+  return false;
+}
+
 async function send(dir) {
-  const review = JSON.parse(readFileSync(join(dir, 'review.json'), 'utf8'));
+  const written = JSON.parse(readFileSync(join(dir, 'review.json'), 'utf8'));
+  const { review: named, files, problems } = withPictures(written, join(dir, 'films'), knownPictures(process.env.PICTURES_KNOWN));
+  for (const p of problems) console.log(`::warning title=Tutorial review picture::${p.replace(/[\r\n%]/g, ' ')}`);
+  const sent = new Set();
+  for (const [name, path] of files) if (await sendPicture(name, path)) sent.add(name);
+  // A picture the Worker did not keep is left out: a card never shows a picture that is not there.
+  const keep = (list) => (Array.isArray(list) ? list.filter((p) => sent.has(p.picture)) : list);
+  const review = {
+    ...named,
+    suggestions: entries(named, 'suggestions').map((s) => (isObj(s) && Array.isArray(s.pictures) ? { ...s, pictures: keep(s.pictures) } : s)),
+    ...(named.pictures !== undefined ? { pictures: entries(named, 'pictures').map((e) => ({ ...e, pictures: keep(e.pictures) })).filter((e) => e.pictures.length || hasWords(e)) } : {})
+  };
+  if (files.size) console.log(`pictures: ${sent.size} of ${files.size} sent`);
   const done = await call('POST', withRun(review, git('rev-parse', 'HEAD').trim(), process.env));
-  console.log(`sent: ${done.code} code changes, ${done.looked} looked at, ${done.suggested} suggestions${done.skipped ? `, ${done.skipped} ids the database did not know` : ''}`);
+  console.log(`sent: ${done.code} code changes, ${done.looked} looked at, ${done.suggested} suggestions${done.pictured ? `, pictures for ${done.pictured} more` : ''}${done.skipped ? `, ${done.skipped} ids the database did not know` : ''}`);
   if (done.skipped) console.log(`::warning::${done.skipped} inputs or suggestions named in review.json were not found`);
 }
 
-// ---- an accepted change, written by Claude as a draft pull request ---------------------------------
+// ---- an accepted change, written by Claude as a pull request that merges itself ----------------------
 
-// A person accepted a suggestion to change a video's script, screens or voice on the ops dashboard,
-// or an admin wrote there what Claude must do with a video (an instruction, accepted as written).
-// Every 30 minutes `queue` asks the Worker for those that wait and starts at most three; `fix` has
-// Claude change the video in a checkout with no key and no shell; `check` applies the patch and runs
-// typecheck and the videos' tests with no key at all; `open` runs nothing of the patch, pushes it and
-// opens a draft pull request with the built-in token, whose pull requests start no checks: a person
-// reads it, marks it Ready for review, and merges it, and the merge films the video again (183).
+// The nightly look found a clear fix to a video and accepted it itself, a person accepted a suggestion
+// to change a video's script, screens or voice on the ops dashboard, or an admin wrote there what
+// Claude must do with a video (an instruction, accepted as written). Every 30 minutes `queue` asks
+// the Worker for those that wait and starts at most three; `fix` has Claude change the video in a
+// checkout with no key and no shell; `check` applies the patch and runs typecheck and the videos'
+// tests with no key at all; `vet` has a second Claude read only the patch, never what was asked;
+// `open` runs nothing of the patch, pushes it, opens its pull request with LangQuest's GitHub App
+// (whose pull requests start the checks) and turns on auto-merge: no person reads it, and the merge
+// queue merges it when guardrails pass. The merge films the video again (183). A pull request whose
+// checks fail, or that has not merged within a day, is closed by a later `queue`, and its fix failed.
 
 /** The changes Claude makes; a code change goes to Linear and a new video is made by a person (server/tutorialFeedback.ts FIXABLE_KINDS). */
 export const FIXABLE = ['script', 'screen', 'voice', 'instruction'];
-export const FIX_LIMITS = { files: 20, bytes: 200_000, summary: 3000, noFix: 1000 };
+export const FIX_LIMITS = { files: 20, bytes: 200_000, summary: 3000, noFix: 1000, already: 1000, why: 1000 };
+/** A fix's pull request that has not merged in this long is closed, and its fix failed. */
+export const OPEN_HOURS = 24;
 /** The phone's disguise (decisions.md 171, server/tutorialFeedback.ts DISGUISE): no video shows or explains it. */
 const DISGUISE = /\b(disguis\w*|calculators?|notepads?)\b/i;
 const VIDEO = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -239,10 +410,26 @@ export function oldPathsOf(patch) {
 /** The branch a fix goes on. */
 export const fixBranch = (id) => `tutorial-fix/${String(id).slice(0, 8)}`;
 
-/** Where a draft pull request is now, as GitHub gives it: merged, closed, or still open (null). */
+/** Where a fix's pull request is now, as GitHub gives it: merged, closed, or still open (null). */
 export function prStateOf(pull) {
   if (pull?.merged || pull?.merged_at) return 'merged';
   return pull?.state === 'closed' ? 'closed' : null;
+}
+
+/**
+ * What to do with a fix's pull request that is still open: nothing yet (null), or close it and fail the
+ * fix, with why. Its checks failed: the newest `gate` check run on its head has finished and did not pass.
+ * It has waited more than OPEN_HOURS since it was opened (`at`, from the Worker): the merge queue or
+ * auto-merge let it go (a conflict with main, most often).
+ */
+export function openVerdict(gateRuns, at, now = Date.now()) {
+  const newest = [...(gateRuns ?? [])].sort((a, b) => String(b.started_at ?? '').localeCompare(String(a.started_at ?? '')))[0];
+  if (newest?.status === 'completed' && !['success', 'neutral', 'skipped'].includes(newest.conclusion)) {
+    return `Its checks failed (gate: ${newest.conclusion}), so the pull request is closed.`;
+  }
+  const opened = Date.parse(at ?? '');
+  if (Number.isFinite(opened) && now - opened > OPEN_HOURS * 3600_000) return `It did not merge within ${OPEN_HOURS} hours, so the pull request is closed.`;
+  return null;
 }
 
 /**
@@ -260,12 +447,70 @@ export function fixRefusal(paths, bytes, video) {
   return null;
 }
 
-/** fix.json as Claude wrote it: what the change does, or why there is none. */
+/**
+ * What a video's code may not gain, since no person reads a fix before it merges (decisions.md 186, amended
+ * 2026-11-16): a video says, lights, taps, types and waits through the helpers next to it; it never reaches
+ * the network, files, the environment, other programs, the database or code run in the page. A narration
+ * line that only says one of these words is fine: the patterns look for code.
+ */
+export const CODE_REFUSED = [
+  [/\brequire\s*\(|\bimport\s*\((?!\s*'playwright'\s*\))|\bimport\.meta\b/, 'loads code'],
+  [/\bprocess\s*[.[]|\bglobalThis\b|\bglobal\s*[.[]|\b__dirname\b|\b__filename\b/, 'reads the process or the environment'],
+  [/\beval\s*\(|\bFunction\s*\(|\bnew\s+Function\b|\bsetTimeout\s*\(\s*['"`]/, 'runs code from text'],
+  [/\bfetch\s*\(|\bXMLHttpRequest\b|\bWebSocket\b|\bsendBeacon\b/, 'reaches the network'],
+  [/\bchild_process\b|\bexecFile(Sync)?\s*\(|\bexecSync\s*\(|\bspawn(Sync)?\s*\(|['"]node:/, 'runs another program'],
+  [/\b(read|write|append)File(Sync)?\s*\(|\b(rm|unlink|mkdir|rename|copyFile)(Sync)?\s*\(|\bcreate(Read|Write)Stream\b/, 'reads or writes files'],
+  [/\.(evaluate|evaluateHandle|addInitScript|exposeFunction|exposeBinding|route|routeFromHAR|setExtraHTTPHeaders|addCookies)\s*\(/, 'runs code in the page or changes its traffic'],
+  [/\bserviceClient\b|\bsupabase\b|SERVICE_ROLE|\bsecrets?\./i, 'reaches the database or a key'],
+  [/https?:\/\/(?!next\.langquest\.org\b)/, 'names a web address other than next.langquest.org']
+];
+
+/** The lines a patch adds to one file: `diff --git a/<path> b/<path>` sections, `+` lines (not `+++`). */
+export function addedLines(patch, path) {
+  const out = [];
+  let inFile = false;
+  for (const line of String(patch).split('\n')) {
+    if (line.startsWith('diff --git ')) inFile = line === `diff --git a/${path} b/${path}` || line.endsWith(` b/${path}`);
+    else if (inFile && line.startsWith('+') && !line.startsWith('+++')) out.push(line.slice(1));
+  }
+  return out;
+}
+
+/**
+ * Why a fix's code may not go on, or null: a line it adds to the video's own file that matches CODE_REFUSED,
+ * or that imports anything but a helper next to the video (`./<name>`), the app's pure core or a type from
+ * Playwright: a fix never brings in the test fixtures, which hold the database's keys. The lines files
+ * (`lines/<language>.json`) are words, and are only parsed by the filming.
+ */
+export function codeRefusal(patch, video) {
+  for (const line of addedLines(patch, `e2e/tutorials/${video}.ts`)) {
+    if (/^\s*(import|export)\b[^;]*\bfrom\b|^\s*import\s+['"]/.test(line) && !/^\s*import\s+(type\s+)?[\w{}\s,*]+\s+from\s+'(\.\/[a-z0-9-]+|@langquest-next\/core)'\s*;?\s*$|^\s*import\s+type\s+[\w{}\s,*]+\s+from\s+'playwright'\s*;?\s*$/.test(line)) {
+      return `it adds an import that is not a helper next to the video: ${cut(line.trim(), 120)}`;
+    }
+    for (const [pattern, what] of CODE_REFUSED) if (pattern.test(line)) return `it adds code that ${what}: ${cut(line.trim(), 120)}`;
+  }
+  return null;
+}
+
+/**
+ * fix.json as Claude wrote it: what the change does, why there is none, or how the video already does what
+ * was asked (`already`: no change needed, decisions.md 186 amended 2026-11-16). One of the three, in that
+ * order of weight: `already`, then `noFix`, then `summary`.
+ */
 export function checkFix(raw) {
   const o = isObj(raw) ? raw : {};
+  const already = cut(said(o.already), FIX_LIMITS.already);
+  if (already) return { summary: '', noFix: '', already };
   const summary = cut(said(o.summary), FIX_LIMITS.summary);
   const noFix = cut(said(o.noFix), FIX_LIMITS.noFix);
-  return { summary, noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.') };
+  return { summary, noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), already: '' };
+}
+
+/** The second Claude's verdict.json: only `ok: true` lets the fix open; `why` says what it found, in a line. */
+export function checkVet(raw) {
+  const o = isObj(raw) ? raw : {};
+  const why = cut(said(o.why), FIX_LIMITS.why);
+  return { ok: o.ok === true && !!why, why: why || 'The second check wrote no verdict.' };
 }
 
 /** check.json from the job with no key: only its fixed words, since the patch's own code ran there. */
@@ -284,16 +529,38 @@ function inputLine(i) {
   return `A note on the ops dashboard, ${day}`;
 }
 
-/** The draft pull request's title and body: the suggestion as accepted, what it answers, Claude's change and its checks. */
-export function fixPull(suggestion, fix, checks, run) {
+/** A picture's place in words: its language, and its step, or its time in the film. */
+export function pictureLabel(p) {
+  const clock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  const where = p.kind === 'step' ? `step ${p.n}` : p.kind === 'stopped' ? `step ${p.n}, where the film stopped` : typeof p.at === 'number' ? `${clock(p.at)} into the film` : `still ${p.n}`;
+  return `${p.language} · ${where}`;
+}
+
+/** What the suggestion is about, as pictures in the pull request: each served by the app's Worker, which anyone may read. */
+export function picturesMarkdown(pictures) {
+  const list = (Array.isArray(pictures) ? pictures : []).filter((p) => /^[0-9a-f]{64}\.(png|jpg)$/.test(p?.picture ?? ''));
+  if (!list.length) return [];
+  const one = (p) => String(p.caption ?? '').replace(/[\r\n[\]]+/g, ' ').trim();
+  return ['', '**What it is about** (pictures from the last film run, picked by Claude):', '',
+    ...list.flatMap((p, n) => [`${n + 1}. ${pictureLabel(p)}: ${one(p)}`, '', `   <img src="${PICTURE_ORIGIN}/api/tutorial-pictures/${p.picture}" width="360" alt="Picture ${n + 1}">`, ''])];
+}
+/** Where the pictures are served, as the PR body links them. */
+const PICTURE_ORIGIN = 'https://next.langquest.org';
+
+/**
+ * The pull request's title and body: the suggestion as accepted (by Claude as a clear fix, by a person, or an
+ * admin's instruction), what it answers, Claude's change, its checks and the second check's verdict.
+ */
+export function fixPull(suggestion, fix, checks, run, vet) {
   const title = `Tutorial video ${suggestion.tutorial}: ${suggestion.title}`.slice(0, 200);
   const inputs = Array.isArray(suggestion.inputs) ? suggestion.inputs : [];
   const instruction = suggestion.kind === 'instruction';
   const detail = String(suggestion.detail ?? '');
+  const from = instruction ? 'from an instruction an admin wrote on the ops dashboard'
+    : suggestion.clear ? "from a clear fix Claude found in its nightly look and accepted itself, with no person's yes"
+    : 'from a suggestion a person accepted on the ops dashboard';
   const body = [
-    instruction
-      ? `Claude's change to the tutorial video \`${suggestion.tutorial}\`, from an instruction an admin wrote on the ops dashboard (docs/tutorial-videos.md "Feedback", decisions.md 186).`
-      : `Claude's change to the tutorial video \`${suggestion.tutorial}\`, from a suggestion a person accepted on the ops dashboard (docs/tutorial-videos.md "Feedback", decisions.md 186).`,
+    `Claude's change to the tutorial video \`${suggestion.tutorial}\`, ${from} (docs/tutorial-videos.md "Feedback", decisions.md 186).`,
     '',
     instruction ? `**The problem**${suggestion.language ? ` (${suggestion.language})` : ''}: ${suggestion.title}` : `**The suggestion** (${suggestion.kind}): ${suggestion.title}`,
     '',
@@ -301,12 +568,15 @@ export function fixPull(suggestion, fix, checks, run) {
     // The phone's disguise is never written where the public reads (decisions.md 171).
     ...(DISGUISE.test(detail) ? ['> (Not quoted here: read it on the ops dashboard.)'] : detail.split('\n').map((l) => `> ${l}`)),
     ...(inputs.length ? ['', '**What it answers:**', '', ...inputs.map((i) => `- ${inputLine(i)}`)] : []),
+    ...picturesMarkdown(suggestion.pictures),
     '',
     `**The change:** ${fix.summary}`,
     '',
     `**In the workflow:** ${result(checks.typecheck, 'typecheck')}; ${result(checks.tests, "the videos' tests")} ([run](${run})).`,
     '',
-    'Read the change, then mark this pull request Ready for review: CI runs then. When it is merged into main, the video is filmed again at once, and its film names this pull request as the cause.',
+    `**The second check** (a Claude that read only this change, never what was asked): ${vet?.why ?? 'not run'}`,
+    '',
+    'This pull request merges itself when its checks pass: no person needs to read or merge it (decisions.md 186, amended 2026-11-16). When it is merged into main, the video is filmed again at once, and its film names this pull request as the cause. To stop it, close it.',
     '',
     `Suggestion ${suggestion.id}`
   ].join('\n');
@@ -318,37 +588,53 @@ const output = (values) => {
   appendFileSync(process.env.GITHUB_OUTPUT, Object.entries(values).map(([k, v]) => `${k}=${v}\n`).join(''));
 };
 
-async function github(method, path, body) {
-  if (!process.env.GITHUB_TOKEN) throw new Error('No GITHUB_TOKEN: this job needs it.');
+async function github(method, path, body, token = process.env.GITHUB_TOKEN) {
+  if (!token) throw new Error('No GITHUB_TOKEN: this job needs it.');
   const res = await fetch(`${process.env.GITHUB_API_URL ?? 'https://api.github.com'}/repos/${REPO}${path}`, {
     method,
-    headers: { authorization: `Bearer ${process.env.GITHUB_TOKEN}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', ...(body ? { 'content-type': 'application/json' } : {}) },
+    headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', ...(body ? { 'content-type': 'application/json' } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {})
   });
   return { status: res.status, json: await res.json().catch(() => ({})) };
 }
 
 /**
- * Which draft pull requests were merged or closed since, and at most three accepted changes started
- * (only with a Claude token: without one the look says so): each <dir>/<id>.json, and their ids as
- * the step's `fixes` output. Prints ids and videos only: the logs are public.
+ * Which pull requests were merged or closed since, which are closed now because their checks failed or
+ * they waited a day (their fix failed), and at most three accepted changes started (only with a Claude
+ * token: without one the look says so): each <dir>/<id>.json, and their ids as the step's `fixes`
+ * output. Prints ids and videos only: the logs are public.
  */
 async function queue(dir) {
   mkdirSync(dir, { recursive: true });
   const waiting = await call('GET', undefined, '/fixes');
   const updates = [];
-  for (const { id, pr } of waiting.open ?? []) {
+  for (const { id, pr, at } of waiting.open ?? []) {
     const got = await github('GET', `/pulls/${pr}`);
-    const state = got.status === 200 ? prStateOf(got.json) : null;
-    if (got.status !== 200) console.log(`::warning::PR ${pr}: GitHub answered ${got.status}`);
-    if (state) updates.push({ id, state, pr });
+    if (got.status !== 200) {
+      console.log(`::warning::PR ${pr}: GitHub answered ${got.status}`);
+      continue;
+    }
+    const state = prStateOf(got.json);
+    if (state) {
+      updates.push({ id, state, pr });
+      continue;
+    }
+    const runs = await github('GET', `/commits/${got.json.head?.sha}/check-runs?check_name=gate&per_page=20`);
+    const why = openVerdict(runs.status === 200 ? runs.json.check_runs : [], at);
+    if (!why) continue;
+    const closed = await github('PATCH', `/pulls/${pr}`, { state: 'closed' });
+    if (closed.status !== 200) {
+      console.log(`::warning::PR ${pr}: GitHub answered ${closed.status} to closing it`);
+      continue;
+    }
+    updates.push({ id, state: 'failed', pr, note: why });
   }
   const claude = process.env.HAS_CLAUDE_TOKEN === 'true';
   const take = claude ? (waiting.toFix ?? []).filter((s) => ID.test(s.id) && FIXABLE.includes(s.kind) && VIDEO.test(s.tutorial ?? '')) : [];
   const moved = updates.length;
   updates.push(...take.map((s) => ({ id: s.id, state: 'working', pr: null })));
   const { results = [] } = updates.length ? await call('POST', { runUrl: runUrl(process.env), updates }, '/fixes') : {};
-  updates.slice(0, moved).forEach((u, n) => console.log(`PR ${u.pr}: ${u.state}${results[n] === 'ok' ? '' : ` (${results[n]})`}`));
+  updates.slice(0, moved).forEach((u, n) => console.log(`PR ${u.pr}: ${u.state}${u.note ? `: ${u.note}` : ''}${results[n] === 'ok' ? '' : ` (${results[n]})`}`));
   const started = take.filter((_, n) => results[moved + n] === 'ok');
   for (const s of started) writeFileSync(join(dir, `${s.id}.json`), JSON.stringify(s, null, 2));
   console.log(started.length ? `started: ${started.map((s) => `${s.id.slice(0, 8)} (${s.tutorial})`).join(', ')}` : claude ? 'no accepted change waits' : 'no Claude token: no change started');
@@ -375,21 +661,40 @@ function fixPatch(dir) {
   const fix = checkFix(raw);
   git('add', '-A', '--', '.', `:(exclude)${dir}`);
   const patch = git('diff', '--cached', '--binary');
-  if (!fix.noFix && !patch) fix.noFix = 'Claude changed no file.';
-  if (!fix.noFix && DISGUISE.test(`${patch}\n${fix.summary}`)) fix.noFix = 'The change names the phone\'s disguise (decisions.md 171), which no video shows; a person makes it.';
+  if (fix.already && patch) Object.assign(fix, { already: '', noFix: 'Claude said the video already does it, and changed it too.' });
+  if (!fix.noFix && !fix.already && !patch) fix.noFix = 'Claude changed no file.';
+  if (!fix.noFix && !fix.already && DISGUISE.test(`${patch}\n${fix.summary}`)) fix.noFix = 'The change names the phone\'s disguise (decisions.md 171), which no video shows; a person makes it.';
   writeFileSync(join(out, 'fix.json'), JSON.stringify(fix, null, 2));
-  if (!fix.noFix) writeFileSync(join(out, 'fix.patch'), patch);
-  console.log(fix.noFix ? 'no fix' : `a fix: ${patch.length} bytes`);
+  if (!fix.noFix && !fix.already) writeFileSync(join(out, 'fix.patch'), patch);
+  console.log(fix.already ? 'no change needed' : fix.noFix ? 'no fix' : `a fix: ${patch.length} bytes`);
 }
 
 /** Refuses a patch that changes more than the video's own file and lines: the paths as git reads them, before it is applied. */
 async function fixPaths(patchPath, video) {
   const patch = readFileSync(patchPath);
   const paths = [...new Set([...pathsOf(git('apply', '--numstat', '-z', patchPath)), ...oldPathsOf(patch.toString('utf8'))])];
-  const reason = fixRefusal(paths, patch.length, video);
+  const reason = fixRefusal(paths, patch.length, video) ?? codeRefusal(patch.toString('utf8'), video);
   if (reason) throw new Error(`refused the fix: ${reason}`);
   git('apply', '--check', patchPath);
-  console.log(`the fix changes only ${video} and its lines`);
+  console.log(`the fix changes only ${video} and its lines, and adds no code that reaches outside them`);
+}
+
+/** After the second Claude: its verdict, checked, in VET_OUT. Runs nothing of the patch. */
+function vetOut(dir) {
+  const out = process.env.VET_OUT || join(dir, 'out');
+  mkdirSync(out, { recursive: true });
+  const path = join(dir, 'verdict.json');
+  let raw = {};
+  if (existsSync(path) && readFileSync(path).length < 100_000) {
+    try {
+      raw = readJson(path);
+    } catch {
+      raw = {};
+    }
+  }
+  const vet = checkVet(raw);
+  writeFileSync(join(out, 'verdict.json'), JSON.stringify(vet, null, 2));
+  console.log(vet.ok ? 'the second check passed the change' : 'the second check stopped the change');
 }
 
 /**
@@ -406,10 +711,13 @@ async function fixOpen(dir, id) {
   };
   const suggestion = readJson(join(dir, 'input', `${id}.json`));
   const fixPath = join(dir, 'fix', 'fix.json');
-  const fix = existsSync(fixPath) ? checkFix(readJson(fixPath)) : { summary: '', noFix: 'The job that writes it failed.' };
+  const fix = existsSync(fixPath) ? checkFix(readJson(fixPath)) : { summary: '', noFix: 'The job that writes it failed.', already: '' };
+  if (fix.already) return tell('unneeded', null, fix.already);
   const patchPath = join(dir, 'fix', 'fix.patch');
   const checkPath = join(dir, 'check', 'check.json');
   const checks = checkResults(existsSync(checkPath) ? readJson(checkPath) : {});
+  const vetPath = join(dir, 'vet', 'verdict.json');
+  const vet = checkVet(existsSync(vetPath) ? readJson(vetPath) : {});
   let reason = fix.noFix || (existsSync(patchPath) ? null : 'Its patch is missing.');
   if (!reason) {
     try {
@@ -418,7 +726,9 @@ async function fixOpen(dir, id) {
       reason = e instanceof Error ? e.message : String(e);
     }
   }
-  const pull = reason ? null : fixPull(suggestion, fix, checks, run);
+  if (!reason && !vet.ok) reason = `The second check stopped it: ${vet.why}`;
+  if (!reason && !process.env.PR_TOKEN) reason = 'No token from LangQuest\'s GitHub App (secrets RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY), which opens the pull request.';
+  const pull = reason ? null : fixPull(suggestion, fix, checks, run, vet);
   if (pull && DISGUISE.test(`${pull.title}\n${pull.body}`)) reason = 'The pull request would name the phone\'s disguise (decisions.md 171); a person makes this change.';
   if (reason) return tell('failed', null, cut(reason, 1000));
   const branch = fixBranch(id);
@@ -429,17 +739,24 @@ async function fixOpen(dir, id) {
     input: `${pull.title}\n\n${fix.summary}\n\nClaude's change for an accepted suggestion: ${run}\n`
   });
   git('push', '-q', 'origin', `HEAD:refs/heads/${branch}`);
-  const made = await github('POST', '/pulls', { title: pull.title, head: branch, base: 'main', body: pull.body, draft: true });
+  // LangQuest's GitHub App opens it, so its checks start (a pull request the built-in token opens starts none).
+  const made = await github('POST', '/pulls', { title: pull.title, head: branch, base: 'main', body: pull.body, draft: false }, process.env.PR_TOKEN);
   if (made.status !== 201) {
-    console.log(`::error title=Needs you%3A pull requests from Actions::GitHub answered ${made.status} (${String(made.json.message ?? '').slice(0, 200)}) to the fix for ${id}; the branch ${branch} is pushed. Turn on "Allow GitHub Actions to create and approve pull requests" with npm run github:rules -- --apply.`);
-    return tell('failed', null, `GitHub did not let the workflow open the pull request; the branch ${branch} is pushed.`);
+    console.log(`::error title=Needs you%3A tutorial fix pull request::GitHub answered ${made.status} (${String(made.json.message ?? '').slice(0, 200)}) to the App opening the fix for ${id}; the branch ${branch} is pushed. The App needs Pull requests write on this repository.`);
+    return tell('failed', null, `GitHub did not let the App open the pull request (${made.status}); the branch ${branch} is pushed.`);
+  }
+  // Merges itself through the merge queue once its checks pass; a later queue closes it if they fail.
+  try {
+    execFileSync('gh', ['pr', 'merge', String(made.json.number), '--auto', '-R', REPO], { env: { ...process.env, GH_TOKEN: process.env.PR_TOKEN }, stdio: 'inherit' });
+  } catch {
+    console.log(`::warning::PR ${made.json.number}: auto-merge was not turned on; if it has not merged in ${OPEN_HOURS} hours, a fix run closes it.`);
   }
   return tell('open', made.json.number, null);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [command, dir, arg] = process.argv.slice(2);
-  const commands = { fetch: fetchState, check, send, queue, 'fix-patch': fixPatch, 'fix-paths': fixPaths, 'fix-open': fixOpen };
+  const commands = { fetch: fetchState, check, send, queue, 'fix-patch': fixPatch, 'fix-paths': fixPaths, 'vet-out': vetOut, 'fix-open': fixOpen };
   if (!dir || !Object.hasOwn(commands, command)) {
     console.error(`usage: node scripts/tutorial-review.mjs <${Object.keys(commands).join('|')}> <dir or patch> [suggestion or video]`);
     process.exit(2);

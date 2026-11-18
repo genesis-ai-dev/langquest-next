@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { derivePassage, foldLanguage, foldOrg, ORG_STREAM, validateEvent, withDeps, type AnyEvent, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { derivePassage, foldLanguage, foldOrg, ORG_STREAM, referencedBlobs, validateEvent, withDeps, type AnyEvent, type Card, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { chosenHere, mapProject, type CopiedFile, type MapContext } from '../src/map';
-import { reconcile, type LedgerEntry } from '../src/reconcile';
+import { reconcile, type Fact, type LedgerEntry, type Said } from '../src/reconcile';
 import { recordedInApp, type V2Asset, type V2Content, type V2Placement, type V2ProjectRows, type V2Quest, type V2Vote } from '../src/rows';
 
 const H = (c: string) => c.repeat(64);
@@ -199,6 +199,32 @@ describe('mapProject: a Bible project', () => {
     // a1's recording stays, and so does the back translation hanging off it: nothing said here disappears.
     expect(each[3]!.filter((e) => e.type === 'v1.Redacted')).toEqual([]);
     expect(Object.keys(state.recordings ?? {}).length).toBeGreaterThan(0);
+  });
+
+  it("names an M4A part's file type, so phones ask R2 for the file the import put there", () => {
+    const { all } = run([{ rows: bible() }]);
+    const cards = all.filter((e) => e.type === 'v1.RecordingAdded').flatMap((e) => (e.payload as { cards: Card[] }).cards);
+    expect(cards.map((c) => [c.hash, c.format])).toEqual([[H('1'), 'm4a'], [H('2'), 'wav'], [H('3'), 'wav']]);
+    const refs = referencedBlobs(foldLanguage(all.filter((e) => e.streamId === 'p1')));
+    expect([H('1'), H('2'), H('5')].map((h) => refs.get(h)?.format)).toEqual(['m4a', 'wav', 'wav']);
+  });
+
+  it('says no recording again that it said before M4A parts named their file type, until its parts change', () => {
+    // Before 2026-11-16 a card named its file type only when it was WAV.
+    const firstSaid = (s: Said): Said => s.type !== 'v1.RecordingAdded' ? s
+      : { ...s, payload: { ...(s.payload as { cards: Card[] }), cards: (s.payload as { cards: Card[] }).cards.map(({ format, ...c }) => (format === 'wav' ? { ...c, format } : c)) } as Said['payload'] };
+    const before = mapProject(bible(), ctx()).facts.map((f): Fact => (f.key.startsWith('rec:') ? { ...f, value: undefined, say: (s, look) => f.say(s, look).map(firstSaid) } : f));
+    const opts = { orgId: 'org1', scope: 'p1', now: NOW, takeBackAbsent: chosenHere };
+    const ledger = new Map<string, LedgerEntry>();
+    const first = reconcile(before, ledger, opts);
+    for (const [k, e] of first.entries) ledger.set(k, e);
+    expect(first.events.filter((e) => e.type === 'v1.RecordingAdded').flatMap((e) => (e.payload as { cards: Card[] }).cards).map((c) => c.format)).toEqual([undefined, 'wav', 'wav']);
+    expect(reconcile(mapProject(bible(), ctx()).facts, ledger, opts).events).toEqual([]);
+    // A part that changes in v2 is said again, and now names its M4A file.
+    const more = bible();
+    more.contents.push(content('a1', ['a3.m4a'], { order_index: 2 }));
+    const again = reconcile(mapProject(more, ctx()).facts, ledger, opts).events.filter((e) => e.type === 'v1.RecordingAdded');
+    expect(again.map((e) => e.payload)).toEqual([expect.objectContaining({ recordingId: 'rec:a1:ch1#2', cards: [{ hash: H('1'), durationMs: 1000, format: 'm4a' }, { hash: H('4'), durationMs: 4000, format: 'm4a' }] })]);
   });
 
   it('holds a version until its files reach v2, then brings it over', () => {

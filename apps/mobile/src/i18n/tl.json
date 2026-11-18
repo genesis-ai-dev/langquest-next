@@ -360,7 +360,9 @@
   },
   "native": {
     "microphone": "Nire-record ng LangQuest ang iyong boses para isalin ang mga sipi.",
-    "camera": "Ginagamit ng LangQuest ang camera para i-scan ang mga QR code ng imbitasyon."
+    "camera": "Ginagamit ng LangQuest ang camera para i-scan ang mga QR code ng imbitasyon.",
+    "bluetooth": "Ginagamit ng LangQuest ang Bluetooth para hanapin ang telepono ng iyong mga kasamahang malapit at makapagbahagi ng gawain sa kanila.",
+    "localNetwork": "Ginagamit ng LangQuest ang local network para makapagbahagi ng gawain sa telepono ng iyong mga kasamahang malapit."
   },
   "library": {
     "sourceLine": {
@@ -3618,6 +3620,20 @@
       "drawAgain": "Iguhit itong muli",
       "newPattern": "Gumuhit ng bagong pattern",
       "choosePatternHelp": "Pumili ng larawan at pattern para makapag-sign in muli sa teleponong ito, kahit walang koneksiyon."
+    },
+    "appLock": {
+      "row": "I-lock ang app",
+      "rowHelp": "Kapag naka-on, hihingin ng app ang pattern mo sa bawat pagbukas at sa bawat balik mo rito. Hihingin muna ang pattern mo kapag ino-on o ino-off ito.",
+      "on": "Hihingin na ng app ang pattern mo kapag nagbukas ito.",
+      "off": "Hindi na hihingin ng app ang pattern mo.",
+      "opening": "Nagbubukas…",
+      "checking": "Sinusuri…",
+      "forgot": "Nakalimutan?",
+      "forgotHelp": "Nakalimutan mo ang pattern mo? Mag-sign out, saka mag-sign in ulit gamit ang password mo, o code sa pag-sign in mula sa isang kasama mo sa pangkat. Mananatili sa phone na ito ang trabaho mo.",
+      "signOutHelp": "Magsa-sign out sa phone na ito. Mananatili rito ang trabaho mo at ipapadala kapag posible.",
+      "backHelp": "Babalik sa mga tuldok.",
+      "waitFor_one": "Masyadong maraming subok. Subukang muli pagkalipas ng {{count, number}} minuto.",
+      "waitFor_other": "Masyadong maraming subok. Subukang muli pagkalipas ng {{count, number}} minuto."
     }
   },
   "study": {

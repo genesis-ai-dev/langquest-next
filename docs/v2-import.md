@@ -240,6 +240,14 @@ weeks ago, so a wait counted from the recording was over before it began.
   says so. Where there is no ffmpeg (a laptop without it), such a file is
   left unrecorded for a run that has it, and a file in v2's storage that
   is not audio is reported as unreadable rather than missing.
+- **Each part names its file type.** A card that names none is WAV to
+  every reader, and until 2026-11-16 the import named only WAV, so the
+  log asked phones for `<hash>.wav` where R2 held `<hash>.m4a` (21,377
+  files; the nightly reconciler copied them to the WAV name on 2026-11-14
+  to 16, `repairFormats`). Cards now name M4A too. A recording said before
+  that is compared as it was said (`asFirstSaid` in `map.ts`), so the
+  change says none of them again; one is said again, with the file type,
+  only when its parts change in v2.
 - **Where it runs.** The dashboard runs a transfer on the computer it is
   open on; `npm run v2 -- sync` does one pass from the command line; and
   the job container behind the app's Worker runs a pass every 15

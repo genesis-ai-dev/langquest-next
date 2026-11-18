@@ -10,19 +10,21 @@ import { person } from './localPersonFixtures';
  */
 
 const fake = vi.hoisted(() => ({ secure: new Map<string, string>(), meta: new Map<string, string>() }));
-vi.mock('../src/server/secureStorage', () => ({
-  secureStorage: {
+// One Keychain or Keystore: the install key's device-only entries sit beside the rest.
+vi.mock('../src/server/secureStorage', () => {
+  const kv = {
     getItem: async (k: string) => fake.secure.get(k) ?? null,
     setItem: async (k: string, v: string) => { fake.secure.set(k, v); },
     removeItem: async (k: string) => { fake.secure.delete(k); }
-  }
-}));
+  };
+  return { secureStorage: kv, deviceOnlyStorage: kv };
+});
 vi.mock('../src/server/supabase', () => ({ SESSION_KEY: 'sb-session' }));
 // lock.ts's own rules for discovery keys are its tests'; removing them is a plain delete.
 vi.mock('../src/server/lock', () => ({ keepFindKeys: async (id: string, raw: string | null) => { if (raw === null) fake.secure.delete(`nearbyFindKeys:${id}`); return true; } }));
 // As Metro resolves them on an Android phone.
 vi.mock('../src/server/localPerson', () => import('../src/server/localPerson.android'));
-vi.mock('../src/server/nearbyKey', () => import('../src/server/nearbyKey.android'));
+vi.mock('../src/server/nearbyKey', () => import('../src/server/nearbyKey.native'));
 vi.mock('react-native', () => ({ Platform: { OS: 'android', select: (o: Record<string, unknown>) => o['android'] ?? o['default'] } }));
 vi.mock('expo-crypto', () => ({ getRandomBytes: (n: number) => new Uint8Array(n).fill(7) }));
 vi.mock('expo-file-system', () => ({ File: class {}, Paths: {} }));

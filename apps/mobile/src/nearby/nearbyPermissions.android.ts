@@ -1,12 +1,13 @@
 import { Linking, PermissionsAndroid, Platform, type Permission } from 'react-native';
-import { nearbyPermissionsFor, type NearbyPermission, type PermissionAnswer, type PermissionAnswers } from './nearbyPermissionsModel';
+import { nearbyPermissionsFor, type NearbyPermission, type PermissionAnswer, type PermissionAnswers, type PhoneSystem } from './nearbyPermissionsModel';
 
 /**
  * Share nearby's permission prompts through React Native's `PermissionsAndroid`
  * (docs/nearby-sync-plan.md 5.8, section 9). No native code: it lists every permission the
  * module's manifest declares. Asked only when the person presses the screen's button after its
  * line saying why, never at launch and never for a background. What to ask and what an answer
- * means are nearbyPermissionsModel.ts.
+ * means are nearbyPermissionsModel.ts. An iPhone's are nearbyPermissions.ios.ts, with the same
+ * exports but `androidSdk`, which only Android's own files read.
  */
 
 const full = (p: NearbyPermission) => `android.permission.${p}` as Permission;
@@ -14,6 +15,11 @@ const full = (p: NearbyPermission) => `android.permission.${p}` as Permission;
 /** This phone's Android API level. */
 export function androidSdk(): number {
   return typeof Platform.Version === 'number' ? Platform.Version : Number(Platform.Version) || 0;
+}
+
+/** Android, at its API level, for the rules in nearbyPermissionsModel.ts. */
+export function phoneSystem(): PhoneSystem {
+  return { os: 'android', sdk: androidSdk() };
 }
 
 /** A prompt is open: it takes the app to the background, which is not leaving it (as the recorder's microphone prompt). */
