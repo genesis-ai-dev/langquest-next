@@ -17,7 +17,7 @@ import { askResetLink } from '../auth/signInFlow';
 import { decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { accountOutbox, queueAccountAction } from '../account/accountData';
 import { authErrorText, groupByRead, outboxErrorText, ownName, remoteTitle, roleWords, updateText } from '../account/accountText';
@@ -27,35 +27,25 @@ import { edgeFor } from '../shell/flow';
 import { edgeAllowed } from '../shell/session';
 import { updateTarget } from '../work/homeModel';
 import { t } from '../i18n';
-import { formatAgo, formatDayTime, formatNumber, formatShortDate, formatTime } from '../i18n/format';
-import { ReadyForOffline } from '../sync/offline';
-import { SentList, WaitingList } from '../sync/uploads';
-import { TransitStrip } from '../sync/transit';
-import { useFolds } from '../sync/useFolds';
-import { useUploadState } from '../sync/useUploadState';
-import { useInstallFile } from '../nearby/useInstallFile';
-import { downloadsLine, foldsOpenAtFirst, meSyncLine, readyLine, refusedLine, stripLink, uploadsLine } from '../sync/syncScreenModel';
-import { changeUnits, uploadsSummary } from '../sync/uploadsModel';
+import { formatAgo, formatDayTime, formatNumber, formatShortDate } from '../i18n/format';
+import { meSyncLine } from '../sync/syncScreenModel';
 import { useOfflineSummary } from '../sync/useOfflineSummary';
 import { useSyncStatus } from '../sync/useSyncStatus';
-import { offlineCount, moreSettingsSub } from '../account/meModel';
+import { moreSettingsSub } from '../account/meModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation/model';
 import { decideRequest, type PendingRequest } from '../invites/invites';
-import { Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, HelpTop, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
+import { Banner, Card, EmptyState, Field, GhostBtn, Group, HelpTop, Header, Ico, LinkBtn, PrimaryBtn, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
-import { storeUrl } from '../appVersion/appVersionModel';
-import { belowMinimum } from '../appVersion/syncGate';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { RemoveMeRow } from '../shell/RemoveMeRow';
-import { useLayout, useOpenDetail } from '../ui/useLayout';
+import { useOpenDetail } from '../ui/useLayout';
 import type { RemoteNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
 import { personLook } from '../ui/people';
 import { usePerson } from '../ui/usePerson';
 import { noteExpected, failureMessage } from '../diagnostics/report';
-import { storeBuildParts } from '../diagnostics/storeBuild';
 import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
 import { FORGETS_ON_SIGN_OUT } from '../web/forgetBrowser';
@@ -70,17 +60,13 @@ import { membershipOf } from '../session/localPersonModel';
 import { firstContactOpen } from '../session/identityModel';
 import { firstContactWords } from '../session/firstContactWords';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
-import { runningBuildLines } from '../shell/updateStatus';
 import { AppIconRow } from '../shell/AppIconRow';
 import { AppLockRow } from '../shell/AppLockRow';
-import { NearbyRow } from '../shell/NearbyRow';
 import { useNotificationsOffered } from '../shell/useNotificationsOffered';
 import { PersonAvatar } from '../ui/UserChip';
-import { useSignInBlocked } from '../sync/useSignInBlocked';
-import { iconCounts, standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
+import { iconCounts } from '../sync/syncStanding';
 import { LanguageRow } from '../account/uiLanguage';
-import { inSeveral, refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
-import { useSyncInspection } from '../account/useSyncInspection';
+import { inSeveral, remoteRowView } from '../account/model';
 import { useDiagnosticsSwitch } from '../account/useDiagnosticsSwitch';
 import { useNotificationSwitch } from '../account/useNotificationSwitch';
 import { useHasPassword } from '../account/useHasPassword';
@@ -89,7 +75,6 @@ import { useInviterName } from '../account/useInviterName';
 import { useOrganizations } from '../account/useOrganizations';
 import { useUnsent } from '../account/useUnsent';
 import { deleteThisAccount } from '../account/deleteThisAccount';
-import { a11yState } from '../ui/a11yModel';
 import { reportLink } from '../passage/reportLinkModel';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
@@ -1013,207 +998,6 @@ export function DeleteAccount(ctx: Ctx) {
   );
 }
 
-// ---- Sync and offline (app only) ---------------------------------------------------------------------------------
-
-/**
- * Sync and offline (docs/decisions/2026-11-18-sync-and-offline-one-screen.md): one card that says
- * where this phone stands with the server, drawn as the transit strip (decisions.md 166) over the
- * status word and its sentence, with Sync now; then folds, each one line saying what it holds:
- * Refused (only when there is some, and open), Uploads, Downloads (a line with nothing to open),
- * Ready for offline with the install file for someone who can let a new person in, Share nearby
- * where it is offered, and Details for support. Each opens in place; a link may ask for one open
- * (`open`). Polled once a second.
- */
-export function SyncStatus(ctx: Ctx) {
-  const { language, org } = ctx;
-  const sync = useSyncStatus();
-  const { ins, orgIns, logged, rates } = useSyncInspection(language, org, (e) => ctx.toast(failure('sync inspect', e), 'problem'));
-  const [busy, setBusy] = useState(false);
-  const offline = language.online === false;
-  const offlineSummaryNow = useOfflineSummary(ctx);
-  const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
-  const rejected = refusedHere(ins, orgIns, logged);
-  const standing = syncStanding(language, useSignInBlocked());
-  const folds = useFolds(foldsOpenAtFirst(ctx.params['open']));
-  const { counts, moving: movingUp } = useUploadState(ctx);
-  const lastSent = sync.sent.reduce((m, e) => Math.max(m, e.at), 0);
-  const uploads = uploadsLine(uploadsSummary(counts, movingUp, lastSent, Date.now()), offline);
-  const install = useInstallFile(ctx);
-  const ready = readyLine(offlineSummaryNow, install.item);
-  const syncNow = async () => {
-    setBusy(true);
-    try { await Promise.all([language.sync(), org.sync()]); language.triggerUpload(); }
-    catch (e) { ctx.toast(failure('sync now', e), 'problem'); }
-    finally { setBusy(false); }
-  };
-  return (
-    <Screen header={<Header title={t('account.sync.title')} onBack={ctx.back} />}
-      footer={language.tooOld && STORE ? (
-        // Too old to receive: the way on is the store, a button rather than a line (UI audit, finding 119).
-        <PrimaryBtn label={t('appVersion.update')} icon="download" help={t('appVersion.updateHelp')}
-          onPress={() => { Linking.openURL(storeUrl(STORE)).catch((e: unknown) => noteExpected('store page', e)); }} />
-      ) : (
-        <PrimaryBtn label={busy ? t('account.sync.syncing') : t('account.sync.syncNow')} icon="restart" help={t('account.sync.syncNowHelp')}
-          onPress={() => void syncNow()} disabled={language.tooOld || busy} />
-      )}>
-      {/* The last try failing to reach the server outranks the live channel, which can take a minute to notice a lost network. */}
-      <Card>
-        <TransitStrip up={counts.recordings > 0 ? counts.recordings : counts.changes} down={sync.pendingDown} link={stripLink(standing)}
-          movingUp={movingUp} movingDown={!offline && sync.downloading.size > 0} />
-        <View style={styles.profile} accessible accessibilityLabel={standingTitle(standing)}>
-          <View style={[styles.liveDot, { backgroundColor: STANDING_COLOR[standing] }]} />
-          <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{standingTitle(standing)}</Text>
-        </View>
-        <Text style={txt.smMuted}>{standingHelp(standing)}</Text>
-        {/* The server's refusal is English (its reason goes to the log): say what it means. */}
-        {language.refused ? <Text style={txt.smMuted}>{t('account.sync.refused')}</Text> : language.tooOld ? (
-          // Below the minimum version the phone still sends its own work (syncGate.ts); a server that refuses the protocol takes nothing.
-          <Text style={txt.body}>{belowMinimum() ? t('account.sync.tooOldSends') : t('account.sync.tooOld')}</Text>
-        ) : null}
-      </Card>
-      {/* The one thing to act on, so it comes first and arrives open. */}
-      {rejected.length ? (
-        <Disclosure testID="sync-refused" icon="flag" tone="red" title={t('account.sync.fold.refused')} summary={refusedLine(rejected.length)}
-          help={t('account.sync.fold.refusedHelp')} open={folds.isOpen('refused')} onToggle={() => folds.toggle('refused')}>
-          <View style={styles.foldBody}>
-            <Group>
-              {rejected.slice(0, 20).map((l, i, a) => (
-                <HelpRow key={l.event.id} of="sync.event">
-                  <Row icon="flag" iconColor={TINT.redText} label={eventLabel(ctx, l.event)} sub={l.rejectReason ?? clock(l.event.hlc)} help={t('account.sync.eventHelp')} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
-                </HelpRow>
-              ))}
-            </Group>
-            <Text style={txt.xs}>{t('account.sync.fold.refusedNote')}</Text>
-          </View>
-        </Disclosure>
-      ) : null}
-      {/* What waits to upload, by passage, and what went up (decision 166). */}
-      <Disclosure testID="sync-uploads" icon="upload" tone={uploads.tone ?? undefined} title={t('account.sync.fold.uploads')} summary={uploads.line}
-        help={t('account.sync.fold.uploadsHelp')} open={folds.isOpen('uploads')} onToggle={() => folds.toggle('uploads')}>
-        <View style={styles.foldBody}>
-          <WaitingList ctx={ctx} changes={changeUnits(ctx.language.state, ins?.pending ?? [], orgIns?.pending.length ?? 0)} />
-          {/* Teammates' recordings waiting to upload here count too: that is true of this phone (decisions.md 166, docs/nearby-sync-plan.md 5.8). */}
-          {sync.holding ? (
-            <Text style={txt.sm} accessibilityHint={t('nearby.sync.holdingHelp')}>{t('account.sync.statLabel', { value: formatNumber(sync.holding), label: t('nearby.sync.holding') })}</Text>
-          ) : null}
-          <SentList ctx={ctx} />
-          {!uploads.tone && !counts.recordings && !counts.changes && sync.sent.length === 0 ? <Text style={txt.smMuted}>{t('uploads.allUploaded')}</Text> : null}
-        </View>
-      </Disclosure>
-      {/* Offline, what is new on the server cannot be known: never "Up to date" then (decision 166). */}
-      <Disclosure testID="sync-downloads" icon="download" title={t('account.sync.fold.downloads')} help={t('account.sync.help.toReceive')}
-        summary={downloadsLine({ online: language.online, pendingDown: sync.pendingDown, rate: sync.pendingDown && rates.down ? speed(rates.down) : null })} />
-      {/* What to pack before a trip (decisions.md 61): kept passages and, for someone who can let a new person in, the install file. */}
-      <Disclosure testID="sync-ready" icon="onPhone" tone={ready.tone ?? undefined} title={t('offline.card.readyTitle')} summary={ready.line}
-        help={t('account.sync.fold.readyHelp')} open={folds.isOpen('ready')} onToggle={() => folds.toggle('ready')}>
-        <ReadyForOffline ctx={ctx} s={offlineSummaryNow} install={install.item} installShown={install.shown} />
-      </Disclosure>
-      {/* Share nearby, where this phone may share it (Android, the organization on; docs/nearby-sync-plan.md 5.8). */}
-      <NearbyRow ctx={ctx} />
-      <Disclosure testID="sync-details" icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}
-        open={folds.isOpen('details')} onToggle={() => folds.toggle('details')} help={t('account.sync.detailsHelp')}>
-      <View style={styles.tiles}>
-        <Stat id="waiting" icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label={t('account.sync.waitingUpload')} />
-        <Stat id="refused" icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label={t('account.sync.refusedByServer')} />
-        <Stat id="confirmed" icon="check" color={C.green} value={Math.max(ins?.cursor ?? 0, logged?.cursor ?? 0)} label={t('account.sync.latestConfirmed')} />
-        <Stat id="checkpoint" icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
-      </View>
-      {/* Teammates' recordings waiting to upload count too: that is true of this phone (decisions.md 166, docs/nearby-sync-plan.md 5.8). */}
-      <Transfer icon="up" pending={sync.pendingUp + sync.holding} peak={sync.peakUp} rate={rates.up} label={t('account.sync.audioUp')} offline={offline} />
-      <Transfer icon="download" pending={sync.pendingDown} peak={sync.peakDown} rate={rates.down} label={t('account.sync.audioDown')} offline={offline} />
-      {ins && ins.pending.length ? (
-        <>
-          <SectionLabel label={t('account.sync.waitingCount', { n: ins.pending.length })} />
-          <Group>
-            {ins.pending.slice(0, 20).map((l, i, a) => (
-              <HelpRow key={l.event.id} of="sync.event">
-                <Row icon="cloud" label={eventLabel(ctx, l.event)} sub={clock(l.event.hlc)} help={t('account.sync.eventHelp')} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
-              </HelpRow>
-            ))}
-          </Group>
-        </>
-      ) : null}
-      {/* Refused events are on this device too (PLAN.md invariant 1); the summary's count includes them, and the Refused fold lists them. */}
-      <Text style={[txt.xs, { textAlign: 'center' }]} selectable>
-        {runningBuildLines({ store: storeBuildParts(), updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch }).join('\n')}
-      </Text>
-      </Disclosure>
-    </Screen>
-  );
-}
-
-/** The passage a change on this phone is about, when it names one the open language has. */
-function unitOf(ctx: Ctx, event: { payload: unknown }): string | null {
-  const unitId = (event.payload as { unitId?: unknown } | null)?.unitId;
-  return typeof unitId === 'string' && ctx.language.state?.units[unitId] ? unitId : null;
-}
-
-/** A change as its kind and the passage it is about ("TakeComposed · Luke 15:11–32"), so people can tell what is stuck. */
-function eventLabel(ctx: Ctx, event: { type: string; payload: unknown }): string {
-  const kind = event.type.replace(/^v\d\./, '');
-  const unitId = unitOf(ctx, event);
-  return unitId && ctx.language.state ? `${kind} · ${unitTitle(ctx.language.state, unitId)}` : kind;
-}
-
-/** Tapping a change about a passage opens that passage (design principle 11). */
-function openUnit(ctx: Ctx, event: { payload: unknown }): (() => void) | undefined {
-  const unitId = unitOf(ctx, event);
-  const languageId = ctx.language.languageId;
-  return unitId && languageId ? () => ctx.openPassage(unitId, languageId) : undefined;
-}
-
-function clock(hlc: string): string {
-  try { return formatTime(decodeHlc(hlc).wallMs, { seconds: true }); } catch { return ''; }
-}
-
-/** The store a phone updates from; none on the web, which is always the newest. */
-const STORE = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : null;
-
-const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red, tooOld: C.amber, signIn: C.amber };
-
-function standingHelp(s: SyncStanding): string {
-  return s === 'signIn' ? t('account.sync.help.signIn') : s === 'live' ? t('account.sync.help.live') : s === 'offline' ? t('account.sync.help.offline')
-    : s === 'checking' ? t('account.sync.help.checking') : s === 'tooOld' ? t('account.sync.help.tooOld') : t('account.sync.help.refused');
-}
-
-function Stat(props: { id: string; icon: IconName; color: string; value: number; label: string }) {
-  // Two by two on a phone; one row of four once the column is wide enough.
-  const { kind, contentWidth } = useLayout();
-  return (
-    <View testID={`sync-tile-${props.id}`} style={[styles.tile2, kind !== 'phone' && contentWidth >= 600 && { width: '22%' }]} accessible
-      accessibilityLabel={t('account.sync.statLabel', { value: formatNumber(props.value), label: props.label })}>
-      <Ico name={props.icon} size={24} color={props.color} />
-      <Text style={[styles.statValue, { color: props.color }]}>{formatNumber(props.value)}</Text>
-      <Text style={[txt.xs, { textAlign: 'center' }]}>{props.label}</Text>
-    </View>
-  );
-}
-
-function Transfer(props: { icon: IconName; pending: number; peak: number; rate: number; label: string; offline: boolean }) {
-  const total = Math.max(props.peak, props.pending);
-  const done = total - props.pending;
-  const idle = props.pending === 0;
-  // The card itself is not focusable when it has no action (kit Card), so the words a screen reader hears sit on this group.
-  return (
-    <Card>
-      <View accessible accessibilityLabel={props.offline ? t('shell.a11y.labelDetail', { label: props.label, detail: t('account.sync.standing.offline') })
-        : idle ? t('account.sync.transferIdle', { label: props.label })
-        : t('account.sync.transferBusy', { label: props.label, done, total, speed: speed(props.rate) })} style={{ gap: space.sm }}>
-        <View style={styles.profile}>
-          <Ico name={props.icon} size={22} color={idle ? C.muted : C.primary} />
-          <Text style={[txt.sm, { flex: 1, fontWeight: '600' }]}>{props.label}</Text>
-          <View style={{ flexShrink: 1, maxWidth: '50%', alignItems: 'flex-end' }}>
-            {/* Offline nothing moves and nothing new is known: never "Up to date" then (decisions.md 166). */}
-            {props.offline ? <Badge label={t('account.sync.standing.offline')} tone="amber" />
-              : idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
-          </View>
-        </View>
-        {idle ? null : <ProgressBar value={total ? (done / total) * 100 : 100} />}
-      </View>
-    </Card>
-  );
-}
-
 const styles = StyleSheet.create({
   sending: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
   rowEnd: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
@@ -1225,14 +1009,8 @@ const styles = StyleSheet.create({
   avatarBlock: { alignItems: 'center', paddingVertical: space.md },
   centered: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.xl, gap: space.lg },
   bigTile: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
-  foldBody: { padding: space.lg, gap: space.md },
-  liveDot: { width: 14, height: 14, borderRadius: 7 },
-  tile2: { width: '47%', flexGrow: 1, alignItems: 'center', gap: space.xs, paddingVertical: space.lg, paddingHorizontal: space.sm, borderRadius: radius.xl,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.card },
-  statValue: { fontSize: T.xl, fontWeight: '700' },
   dangerLink: { minHeight: target.primary, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', paddingHorizontal: space.xl },
   dangerText: { fontSize: T.base, fontWeight: '700', color: TINT.redText }
 });
 
-export const contracts = contractsFor('inbox_home', 'settings_home', 'settings_more', 'profile_edit', 'org_switcher', 'sign_out_confirm', 'delete_account', 'sync_status');
+export const contracts = contractsFor('inbox_home', 'settings_home', 'settings_more', 'profile_edit', 'org_switcher', 'sign_out_confirm', 'delete_account');

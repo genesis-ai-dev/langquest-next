@@ -62,6 +62,12 @@ and the two titles and orders. PR 514, which kept the install-file reminder on
 the Share nearby row and dropped Ready for offline's, was closed for this:
 the file is packed before a trip, so it belongs on the packing list.
 
+The screen is a module of its own (`screens/sync.tsx`, with
+`sync/readyForOffline.tsx` and `sync/transitStrip.tsx`), loaded the first
+time it is opened, since most visits never open it. That keeps a first visit
+within its web budget; the all-chunks budget rose 4 KB, mostly for the new
+words every visit carries.
+
 Amends decisions 61, 166 and 246. The partner demo has no Sync screen, so
 demo parity does not apply.
 
