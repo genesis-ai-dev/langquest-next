@@ -19,6 +19,17 @@ on:
   schedule:
     - cron: '7 * * * *'
 
+# Google Play keeps one edit (a draft change to the app) open at a time:
+# opening one deletes the one before it, so two uploads at once fail ("This
+# Edit has been deleted": build 55, 2026-11-17). Every workflow that writes
+# to Play is in this group (deploy-to-testers.yml too), so their runs take
+# turns: a run waits for the one ahead of it, none is cancelled, and every
+# waiting run keeps its place
+# (docs/decisions/2026-11-17-play-uploads-take-turns.md).
+concurrency:
+  group: google-play
+  queue: max
+
 defaults:
   tools:
     node: '24.22.3'

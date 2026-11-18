@@ -1,9 +1,11 @@
 import { generateKeyPairSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { crc32, deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { carriedApkNameHere } from '@langquest-next/core';
 import {
-  APK_TYPE, BINDING, CURRENT, MAX_DOWNLOAD_ID, MIN_BYTES, Refusal, bucketConfig, check, checkApk, fileName, publish, run, signV4, universalApk
+  APK_TYPE, BINDING, CURRENT, MAX_DOWNLOAD_ID, MIN_BYTES, Refusal, bucketConfig, check, checkApk, fileName, protection, publish, run, signV4, universalApk,
+  zipEntries
 } from './carried-build.mjs';
 import { look } from './play-review.mjs';
 import { EAS_KEYS, FILE_KEYS } from './secrets.mjs';
@@ -24,16 +26,73 @@ const config = { account_id: 'acct', r2_buckets: [{ binding: 'BLOBS', bucket_nam
 const FP = '0a1b2c3d4e5f60718293a4b5c6d7e8f901234567';
 const NAME = fileName(FP);
 
-function apk(size = MIN_BYTES + 10): Uint8Array {
-  const bytes = new Uint8Array(size);
-  bytes.set([0x50, 0x4b, 0x03, 0x04]);
-  return bytes;
+type ZipFile = [name: string, data: string | Uint8Array, deflated?: boolean];
+
+/** A zip of these files, each deflated unless it says otherwise, as Play lays out an APK. */
+function zip(files: ZipFile[]): Uint8Array {
+  const parts: Buffer[] = [];
+  const directory: Buffer[] = [];
+  let offset = 0;
+  for (const [name, data, deflated = true] of files) {
+    const raw = typeof data === 'string' ? Buffer.from(data, 'utf8') : Buffer.from(data);
+    const body = deflated ? deflateRawSync(raw) : raw;
+    const fileName = Buffer.from(name, 'utf8');
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(deflated ? 8 : 0, 8);
+    local.writeUInt32LE(crc32(raw), 14);
+    local.writeUInt32LE(body.length, 18);
+    local.writeUInt32LE(raw.length, 22);
+    local.writeUInt16LE(fileName.length, 26);
+    const entry = Buffer.alloc(46);
+    entry.writeUInt32LE(0x02014b50, 0);
+    entry.writeUInt16LE(20, 4);
+    entry.writeUInt16LE(20, 6);
+    entry.writeUInt16LE(deflated ? 8 : 0, 10);
+    entry.writeUInt32LE(crc32(raw), 16);
+    entry.writeUInt32LE(body.length, 20);
+    entry.writeUInt32LE(raw.length, 24);
+    entry.writeUInt16LE(fileName.length, 28);
+    entry.writeUInt32LE(offset, 42);
+    parts.push(local, fileName, body);
+    directory.push(entry, fileName);
+    offset += local.length + fileName.length + body.length;
+  }
+  const dir = Buffer.concat(directory);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(files.length, 8);
+  end.writeUInt16LE(files.length, 10);
+  end.writeUInt32LE(dir.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return new Uint8Array(Buffer.concat([...parts, dir, end]));
+}
+
+/** A binary manifest's strings are UTF-16 (aapt2's manifests, and Play's) or UTF-8. */
+const utf16 = (s: string) => new Uint8Array(Buffer.from(s, 'utf16le'));
+const MANIFEST = utf16('manifest package com.frontierrnd.langquestnext application com.frontierrnd.langquestnext.MainApplication');
+/** What Play's automatic protection put in version code 56's manifest and code (2026-11-17). */
+const PROTECTED_MANIFEST = utf16('manifest application com.pairip.application.Application activity com.pairip.licensecheck.LicenseActivity');
+const PROTECTED_CODE = 'Lcom/pairip/licensecheck/LicenseActivity;';
+const APP_FILES: ZipFile[] = [['AndroidManifest.xml', MANIFEST], ['classes.dex', 'dex\n035 Lcom/frontierrnd/langquestnext/MainApplication;'], ['classes2.dex', 'dex\n035 Lexpo/modules/ExpoModulesPackage;']];
+
+/** An APK as Play gives one: these files, padded to `size` bytes with a stored file. Below a zip's size, the zip header alone. */
+function apk(size = MIN_BYTES + 10, files: ZipFile[] = APP_FILES): Uint8Array {
+  const pad = (n: number) => zip([...files, ['res/raw/padding.bin', new Uint8Array(n), false]]);
+  const bare = pad(0).length;
+  if (size < bare) {
+    const bytes = new Uint8Array(size);
+    bytes.set([0x50, 0x4b, 0x03, 0x04]);
+    return bytes;
+  }
+  return pad(size - bare);
 }
 
 interface Call { method: string; url: string; headers: Record<string, string> }
 
 /** Google's token endpoint, generatedApks and its download, and R2's S3 API for one bucket, in one fetch. */
-function fakes(o: { generated?: (n: number) => { status: number; body?: unknown }; download?: string; file?: Uint8Array; bucket?: Map<string, { body: Uint8Array | string; type: string; disposition?: string }>; bucketStatus?: number } = {}) {
+function fakes(o: { generated?: (n: number) => { status: number; body?: unknown }; download?: string; file?: Uint8Array; bucket?: Map<string, { body: Uint8Array | string; type: string; disposition?: string; versionCode?: string }>; bucketStatus?: number } = {}) {
   const calls: Call[] = [];
   const bucket = o.bucket ?? new Map();
   let generatedAsked = 0;
@@ -62,7 +121,7 @@ function fakes(o: { generated?: (n: number) => { status: number; body?: unknown 
       const obj = bucket.get(key);
       if (method === 'PUT') {
         const body = init.body as Uint8Array | string;
-        bucket.set(key, { body, type: headers['content-type']!, disposition: headers['content-disposition'] });
+        bucket.set(key, { body, type: headers['content-type']!, disposition: headers['content-disposition'], versionCode: headers['x-amz-meta-version-code'] });
         return new Response(null, { status: 200 });
       }
       if (!obj) return new Response('<Code>NoSuchKey</Code>', { status: 404 });
@@ -150,6 +209,8 @@ describe('--publish', () => {
     const stored = f.bucket.get(NAME)!;
     expect(stored.type).toBe('application/vnd.android.package-archive');
     expect(stored.disposition).toBe(`attachment; filename="${NAME}"`);
+    // The Worker reads it as the file's custom metadata, to find the newest file for a phone's versions.
+    expect(stored.versionCode).toBe('42');
     expect((stored.body as Uint8Array).length).toBe(MIN_BYTES + 10);
     const current = JSON.parse(f.bucket.get(CURRENT)!.body as string);
     expect(current).toMatchObject({ name: NAME, versionCode: 42, fingerprint: FP, bytes: MIN_BYTES + 10, publishedAt: '2026-11-08T12:00:00.000Z' });
@@ -265,6 +326,51 @@ describe('--publish', () => {
     expect(f.writes()).toEqual([]);
   });
 
+  it('refuses an APK holding Play\'s automatic protection, wherever it shows, before writing anything', async () => {
+    const cases: [ZipFile[], string][] = [
+      [[['AndroidManifest.xml', PROTECTED_MANIFEST], ...APP_FILES.slice(1)], 'its AndroidManifest.xml names com.pairip'],
+      [[['AndroidManifest.xml', 'manifest com.pairip.licensecheck.LicenseActivity'], ...APP_FILES.slice(1)], 'its AndroidManifest.xml names com.pairip'],
+      [[...APP_FILES.slice(0, 2), ['classes2.dex', `dex\n035 ${PROTECTED_CODE}`]], 'its classes2.dex names com.pairip'],
+      [[...APP_FILES, ['lib/arm64-v8a/libpairipcore.so', 'ELF', false]], 'it holds lib/arm64-v8a/libpairipcore.so']
+    ];
+    for (const [files, where] of cases) {
+      expect(protection(apk(MIN_BYTES + 10, files))).toBe(where);
+      const f = fakes({ file: apk(MIN_BYTES + 10, files) });
+      const log: string[] = [];
+      expect(await run(['--publish', '--version-code', '42', '--fingerprint', FP, '--build-fingerprint', FP], { env, config, fetch: f.fetch, out: quiet, log: (s) => log.push(s) })).toBe(1);
+      expect(log).toEqual([
+        `no carried build: the APK Google Play gave has Play's automatic protection in it (${where}): installed from a file, it opens the Play Store and closes, so it is not carried. A person turns automatic protection off in Play Console, and the next merge makes the carried build again (docs/environments.md, "The carried build").`
+      ]);
+      expect(f.writes()).toEqual([]);
+    }
+    expect(protection(apk())).toBeNull();
+  });
+
+  it('reads an APK\'s entries from its directory, deflated or stored, and refuses one it cannot read rather than pass it', () => {
+    expect(zipEntries(apk()).map((e) => [e.name, e.method])).toEqual([['AndroidManifest.xml', 8], ['classes.dex', 8], ['classes2.dex', 8], ['res/raw/padding.bin', 0]]);
+    expect(protection(apk(MIN_BYTES + 10, [['AndroidManifest.xml', PROTECTED_MANIFEST, false]]))).toBe('its AndroidManifest.xml names com.pairip');
+    const unreadable = (bytes: Uint8Array, why: RegExp) => {
+      expect(() => checkApk(bytes)).toThrow(Refusal);
+      expect(() => checkApk(bytes)).toThrow(why);
+      expect(() => checkApk(bytes)).toThrow(/so whether Play's automatic protection is in it is not known/);
+    };
+    unreadable(apk(MIN_BYTES + 10, APP_FILES.slice(1)), /it has no AndroidManifest\.xml/);
+    unreadable(apk(MIN_BYTES + 10, [...APP_FILES, ['AndroidManifest.xml', MANIFEST]]), /more than one AndroidManifest\.xml/);
+    const cut = apk(MIN_BYTES + 100);
+    unreadable(cut.subarray(0, cut.length - 22 - 1), /no end of central directory/);
+    const moved = apk().slice();
+    const end = moved.length - 22;
+    new DataView(moved.buffer).setUint32(end + 16, 5, true);
+    unreadable(moved, /entry 1 of 4 is not where its directory says/);
+    const garbled = apk().slice();
+    garbled.set([0xff, 0xff, 0xff, 0xff], 30 + 'AndroidManifest.xml'.length);
+    unreadable(garbled, /AndroidManifest\.xml does not inflate to its size/);
+    const bzip = apk().slice();
+    const view = new DataView(bzip.buffer);
+    view.setUint16(view.getUint32(bzip.length - 22 + 16, true) + 10, 12, true);
+    unreadable(bzip, /AndroidManifest\.xml is compressed with method 12/);
+  });
+
   it('refuses a file that is not an APK, writing nothing', async () => {
     expect(() => checkApk(apk(100))).toThrow(/outside/);
     const notZip = apk();
@@ -323,6 +429,7 @@ describe('the carried build in the pipeline', () => {
   const deploy = read('apps/mobile/.eas/workflows/deploy-to-testers.yml');
   const job = (name: string) => deploy.split(/\n(?=  \w+:\n)/).find((part) => part.startsWith(`  ${name}:\n`)) ?? '';
   const needs = (name: string) => (/\n {4}needs: \[([^\]]*)\]/.exec(job(name))?.[1] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const after = (name: string) => (/\n {4}after: \[([^\]]*)\]/.exec(job(name))?.[1] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
   it('checks, builds on the carried profile, uploads to the alpha track as a draft, and publishes the APK, in jobs of its own', () => {
     expect(needs('carried_check')).toEqual(['fingerprint']);
@@ -346,6 +453,18 @@ describe('the carried build in the pipeline', () => {
     expect(needs('publish_android_update')).toEqual(['get_android_build']);
     // get-build matches on profile, so a carried build never satisfies the store build's check (14.4).
     expect(job('get_android_build')).toMatch(/profile: production/);
+  });
+
+  // Play keeps one edit open at a time, so the carried upload opening its edit deleted the store
+  // build's mid-upload (build 55, 2026-11-17). It waits for every job of the run that writes to
+  // Play, however they end (`after`, not `needs`), so the store's jobs still never depend on it.
+  it('uploads only once the store build has gone up and its review step is done', () => {
+    const jobs = [...deploy.matchAll(/\n {2}(\w+):\n/g)].map((m) => m[1]!);
+    const playWriters = jobs.filter((j) => j !== 'submit_carried' && (/^submit_android/.test(j) || job(j).includes('node scripts/play-review.mjs')));
+    expect(playWriters.sort()).toEqual(['review_android', 'submit_android', 'submit_android_internal']);
+    expect(after('submit_carried').sort()).toEqual(playWriters);
+    expect(needs('submit_carried')).toEqual(['build_carried']);
+    for (const name of jobs) expect(after(name).length === 0 || name === 'submit_carried', name).toBe(true);
   });
 
   it('goes on the alpha track as a draft, which play-review.mjs never reads, so it is never promoted', async () => {

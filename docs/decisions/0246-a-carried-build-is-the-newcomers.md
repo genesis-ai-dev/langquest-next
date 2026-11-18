@@ -1,6 +1,6 @@
 # 246. A carried build is the newcomer's install file: made when the reducer, lines or protocol version or the Android fingerprint changes, fetched from Play and served from an R2 bucket of its own
 
-Date: 2026-11-12 · By: Carl Sauder · Status: accepted
+Date: 2026-11-12 · By: Carl Sauder · Status: partly superseded by 2026-11-18-carried-file-matches-by-versions
 
 Reason: an iPhone cannot install an app offline and a store build holds only
 the JavaScript it was built with, so Carl chose (2026-11-06) that the app
@@ -83,3 +83,11 @@ got one for an older version, to get it: a line on the Ready for offline card
 with a Get it link to Get the install file, and an amber line on the Share
 nearby row (Carl's choice), until the right file is got (`apkReminder`, plan
 14.4).
+
+Amended (2026-11-17, Carl Sauder): `submit_carried` now also waits, with
+`after`, for the store build's Play uploads and its review step
+(`submit_android_internal`, `submit_android`, `review_android`), however
+they end. Play deletes an open edit when another opens, and the carried
+upload deleted build 55's mid-upload
+(`docs/decisions/2026-11-17-play-uploads-take-turns.md`). The store's jobs
+still never wait for or depend on the carried ones.

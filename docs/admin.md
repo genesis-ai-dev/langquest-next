@@ -126,7 +126,7 @@ the page loads to exactly one section.
 | Capacity and cost | the database's size and growth (the fold canary records sizes nightly) against its provisioned disk (`SUPABASE_DB_LIMIT_GB`, 64 GB), R2's growth, and this month's Workers, Durable Object and R2 usage against the plan's allowance (`apps/admin/src/sources/storage.ts` `ALLOWANCE`) | `DIAG_DATABASE_URL`; `ADMIN_CLOUDFLARE_TOKEN` |
 | Filming (Tutorial videos) | GitHub: the run of `.github/workflows/tutorials.yml` on `main` filming now (a run held behind it is counted, not shown), or the latest, and each job of it: Grace's pieces, then each app language waiting its turn (five film at once), filming with the step it is on, done or failed, when it started, how long it took, and its log. No alerts: a failed run is said under Code and deploys | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `app.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge that changed a file it is built from (its watch paths, `docs/cloudflare.md`) is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19). A failed run of this repository's own (a push, a schedule or a run by hand) that says what only a person can fix, in an annotation titled "Needs you: …" (Gemini's credit or key for the tutorial videos, `e2e/tutorials/needs-you.mjs`; the Claude token of `tutorial-review.yml` and `user-issues.yml`), is a problem with an Open link to the page that fixes it; the next run that works takes it away. A pull request's runs are never read for it. Each of the repository's active workflows is read on its own (`ownWorkflows`), so one that runs every few minutes cannot push the others out; a failed scheduled run of a nightly test workflow raises nothing here when every job that failed in it is one Nightly tests says (`saidByNightly`) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit (about ten calls a refresh) |
-| Nightly tests (Releases) | GitHub: for `guardrails.yml` and `phone-tests.yml` (`apps/admin/src/sources/nightly.ts` `NIGHTLIES`), the latest completed scheduled run on `main`, and the line each reporting job left on it, an annotation titled "Nightly: <suite>" (`scripts/nightly-report.mjs` `nightNotice`, decisions.md 209): the web UI suite, the fleet simulation, the mutation tests and each phone, with how many passed or why it broke, and the Linear issue of each failure. The detail of a failure is in Linear. A failed test is a watch; a suite that broke, a reporting job that failed and left no line, or a nightly last run more than 36 hours ago is a problem | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
+| Nightly tests (its own section) | GitHub: for `guardrails.yml` and `phone-tests.yml` (`apps/admin/src/sources/nightly.ts` `NIGHTLIES`), the latest completed scheduled run on `main`, and the line each reporting job left on it, an annotation titled "Nightly: <suite>" (`scripts/nightly-report.mjs` `nightNotice`, decisions.md 209): the web UI suite, the fleet simulation, the mutation tests and each phone, with how many passed or why it broke, and the Linear issue of each failure. The detail of a failure is in Linear. A failed test is a watch; a suite that broke, a reporting job that failed and left no line, or a nightly last run more than 36 hours ago is a problem | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
 | Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx), with the errors grouped: a Postgres error by its SQLSTATE (named), role, client and the RPC a PostgREST call named; a server error by method, the path's first parts (ids hidden) and status. Never a log message, which can quote what someone typed | `ADMIN_SUPABASE_TOKEN` |
 | Where each build and update is (Releases) | A diagram: each new store build in the stage it is in now (building on EAS; TestFlight or Play's internal testing; App Review or Play review; approved; what people download), and inside each build the over-the-air updates it takes (published on the production branch for its runtime after it was made), each linked to its pull request with how many of the platform's phones run it (`apps/admin/src/sources/pipeline.ts`, decisions.md 157). Carried builds (Play's alpha track, decisions.md 246) are not store builds and do not show. A pull request shows in each build that has it: from main in the new build, and in the public build as a copy through its release branch, named with its copy pull request, first as "PR open, not merged yet" (an open pull request onto `release/<platform>`, read from GitHub) and then as the update it sent (decisions.md 155). A copy says when it waits for Claude, who examines every copy before it merges, when its tests failed and Claude is fixing them, and when Claude has not finished it (the hourly run starts Claude again, up to 3 times); a copy whose tests still fail, or that is still not finished, after Claude's 3 tries, or that has been open for 3 hours, is a problem under Needs attention, linked to the copy. EAS says what was built and sent where; App Store Connect says where an iPhone build stands; Play's tracks, read in an edit that is deleted unsent, and Play's public page say where an Android build stands. A build waiting 3 hours with nothing in review is a watch. A store that cannot be read leaves its lane to what EAS knows, and says so | `ADMIN_EXPO_TOKEN`; `ADMIN_APP_STORE_KEY`, `ADMIN_GOOGLE_PLAY_KEY` and `DIAG_DATABASE_URL` each fill in more |
@@ -469,16 +469,22 @@ range, one value a bucket, and `counted`, whether each bucket was counted yet
 holds what a day holds; `server/dailyTotalsLoad.sql`, run by hand, times it
 with 40,000 installs and 3 years of totals.
 
-## The start page, a section's charts and the records behind a bar
+## The Overview, the menu, a section's charts and the records behind a bar
 
-The page opens on "What needs you first" (`apps/admin/src/pageStart.ts`,
-`docs/ops-dashboard-plan.md` 5.0): a count, one card for each part whose
-alerts need a person, one line for each part's alerts to watch, and an OK line
-for each section with none. `GET /ops/api/glance` (`diag.ops_glance`) gives the
-OK lines and cards their 14-day pictures: one number for each section
-(`GLANCE` in `sources/history.ts`). `#g/<section>` shows one section with a
-chart for each number over the range, then its tables; `#all` shows every
-section as before.
+The page has a menu on the left (`apps/admin/src/pageShell.ts`,
+`docs/decisions/2026-11-18-ops-dashboard-menu-and-overview.md`): Overview,
+then one line for each section in three groups, then All sections. A line
+shows how many of its section's lines need a person and a dot for its most
+urgent level. The page opens on the Overview (`apps/admin/src/pageOverview.ts`;
+what it decides is `startPlan` in `pageStart.ts`, `docs/ops-dashboard-plan.md`
+5.0): one row for each part's alerts that need a person, one for each part's
+alerts to watch, rows for what Claude works on and what waits on a store,
+eight numbers, a map of the parts with a dot for each, two charts of errors
+over 14 days, and the newest merged pull requests. `GET /ops/api/glance`
+(`diag.ops_glance`) gives a row or a number its 14-day picture: one number
+for each section (`GLANCE` in `sources/history.ts`). `#g/<section>` shows one
+section with a chart for each number over the range, then its tables; `#all`
+shows every section on one page.
 
 **Each line's Linear issue and fix** (`apps/admin/src/pageFixes.ts`,
 `docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`). Every alert
@@ -490,7 +496,9 @@ the pull requests open or merged in the last 14 days that name a `LAN-` id.
 Under each line the page shows its issue and one state: no Linear issue yet,
 no fix yet, a fix waiting on its merge, a fix merged with the time the line
 should clear (merge, 30 minutes to deploy, the check's window, then its next
-run, in the viewer's clock), or still there after that check. A card whose
+run, in the viewer's clock), or still there after that check. A line that
+names several issues (a nightly suite) lists each issue's own fix, and says
+how many of them have one. A card whose
 lines all wait after a merged fix goes last, dashed, and the count leaves it
 out. **Resolved**, closed by default under the cards, lists the lines tied
 to Linear in the last 14 days that the page no longer shows; only a part

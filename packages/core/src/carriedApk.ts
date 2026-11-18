@@ -21,6 +21,13 @@ export interface CarriedVersions {
 /** What the Worker serves under (`/apk/<name>`), as a literal so a reader finds it. */
 export const CARRIED_APK_PATH = '/apk/';
 
+/**
+ * The custom metadata that `scripts/carried-build.mjs` puts on each file in the APK bucket (as
+ * `x-amz-meta-version-code`): its Play version code, by which the Worker finds the newest file
+ * for a phone's versions.
+ */
+export const CARRIED_APK_VERSION_CODE = 'version-code';
+
 const FINGERPRINT = /^[0-9a-f]{8,}$/;
 const NAME = /^r(\d{1,6})-l(\d{1,6})-p(\d{1,6})(?:\.(\d{1,6}))?-([0-9a-f]{8})\.apk$/;
 
@@ -44,6 +51,27 @@ export function parseCarriedApkName(name: string): CarriedVersions | null {
   const v = { reducer: Number(m[1]), lines: Number(m[2]), protocol: { min, max }, fingerprint: m[5]! };
   // One spelling per name: `p1.1` and `r021` are not names this writes, so they name nothing.
   return carriedApkName(v) === name ? v : null;
+}
+
+/**
+ * The start of a carried build's name that says which phones it fits: its reducer, lines and
+ * protocol versions, such as `r21-l1-p1-`, without the fingerprint; null for a name core does not
+ * write. Every file whose name starts the same way installs an app that can join a phone on those
+ * versions (the session's `sameVersions` checks only the reducer and lines, and the protocol
+ * decides whether two phones can talk), so the Worker sends a phone whose own build has no file
+ * to the newest that fits, and Check my file takes any of them
+ * (docs/decisions/2026-11-18-carried-file-matches-by-versions.md).
+ */
+export function carriedApkVersionsPart(name: string): string | null {
+  const v = parseCarriedApkName(name);
+  if (!v) return null;
+  return carriedApkName(v)!.slice(0, -'00000000.apk'.length);
+}
+
+/** Whether two names are carried builds for the same versions, whatever their fingerprints. */
+export function sameCarriedVersions(a: string, b: string): boolean {
+  const start = carriedApkVersionsPart(a);
+  return start !== null && start === carriedApkVersionsPart(b);
 }
 
 /** The name of the file that installs this build's versions, for the runtime version (fingerprint) it runs on; null where there is none. */

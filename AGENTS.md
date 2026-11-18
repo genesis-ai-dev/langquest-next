@@ -77,6 +77,9 @@ Rules specific to this folder:
 - Put the Linear issue ID (`LAN-12`) in the commit message of work that comes
   from an issue. The pipeline moves that issue to Deploying, then Live or
   Outage (`scripts/linear-sync.mjs`, decisions.md 53). No ID, no status change.
+  Name there, and in the pull request's title and text, only the issues the
+  work fixes or is part of: the ops dashboard shows a pull request as the fix
+  for every `LAN-` id it names (`apps/admin/src/sources/fixes.ts`).
 - Secrets are committed encrypted with dotenvx in the root `.env.<env>`;
   public settings are plain (`docs/environments.md`). Change either with
   `npm run env:update -- <env> KEY`, never by hand or in a dashboard, and

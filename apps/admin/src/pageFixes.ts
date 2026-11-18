@@ -21,9 +21,11 @@ svg.ic { width: 14px; height: 14px; flex: none; }
 .fx svg.waitbar { width: 120px; height: 10px; flex: none; }
 svg.waitbar .tr { fill: var(--line); } svg.waitbar .dn { fill: var(--primary); } svg.waitbar .end { fill: var(--card); stroke: var(--primary); stroke-width: 1.5; }
 svg.ic .o { fill: none; stroke: var(--muted); stroke-width: 1.6; } svg.ic .f { fill: var(--primary); } svg.ic .h { stroke: var(--card); stroke-width: 1.6; fill: none; stroke-linecap: round; }
-svg.ic.s-open .f { fill: var(--amber); } svg.ic.s-stuck .f { fill: var(--red); } svg.ic.s-done .f { fill: var(--green); } svg.ic.s-issue .o { stroke: var(--primary); }
+svg.ic.s-open .f, svg.ic.s-part .f { fill: var(--amber); } svg.ic.s-stuck .f { fill: var(--red); } svg.ic.s-done .f { fill: var(--green); } svg.ic.s-issue .o { stroke: var(--primary); }
 svg.ic.s-person .o { stroke: var(--amber); }
 ul.also li .fx { display: inline-flex; margin: 0 0 0 6px; font-size: 12px; }
+.fx .each { flex-basis: 100%; display: grid; gap: 2px; margin: 2px 0 0 22px; }
+.fx .each > span { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
 .nc.fixing { border-style: dashed; box-shadow: none; }
 .side .wl a.go { display: block; color: var(--ink); text-decoration: none; min-height: 40px; }
 .side .wl a.go b { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -91,7 +93,11 @@ function rowFor(key, ud) {
  * 'merged' (a fix merged, the line waits for its check), 'stuck' (still there
  * after that check), 'open' (a fix waits on its merge), 'issue' (a Linear issue,
  * no fix yet), 'noise' (the watch found nothing to fix), 'person' (a person acts
- * on the page) or 'none' (no Linear issue yet).
+ * on the page) or 'none' (no Linear issue yet). A line that names several
+ * issues (a nightly suite's failed tests) has one fix for each issue: it is
+ * 'merged' only when every issue has a merged fix, 'stuck' when one is still
+ * there after its fix, 'part' when only some issues have a fix, and 'issue'
+ * when none has. Its each holds every issue's own state.
  */
 function lineFix(a, kinds, ud, prs, now) {
   const kind = kinds[a.key] || {};
@@ -100,6 +106,18 @@ function lineFix(a, kinds, ud, prs, now) {
   const row = a.issues && a.issues.length ? null : rowFor(key, ud);
   const issues = a.issues && a.issues.length ? a.issues.slice() : row && row.issue ? [row.issue] : [];
   const base = { key, row, issues, phones: Boolean(r.phones) };
+  if (issues.length > 1) {
+    const each = issues.map((i) => Object.assign(lineFix(Object.assign({}, a, { issues: [i] }), kinds, ud, prs, now), { issue: i }));
+    const merged = each.filter((e) => e.state === 'merged');
+    if (merged.length === each.length) {
+      const last = merged.reduce((x, y) => (y.at > x.at || (y.at === x.at && y.from > x.from) ? y : x));
+      return Object.assign(base, { state: 'merged', pr: last.pr, from: last.from, at: last.at, each });
+    }
+    const stuck = each.find((e) => e.state === 'stuck');
+    if (stuck) return Object.assign(base, { state: 'stuck', pr: stuck.pr, at: stuck.at, each });
+    const fixed = each.filter((e) => e.state === 'open' || e.state === 'merged').length;
+    return Object.assign(base, { state: fixed ? 'part' : 'issue', fixed, each });
+  }
   const naming = (prs || []).filter((p) => (p.issues || []).some((i) => issues.includes(i)));
   const merged = naming.filter((p) => p.state === 'merged' && p.mergedAt).map((p) => ({ number: p.number, url: p.url, title: p.title, at: Date.parse(p.mergedAt) }));
   // Linear closed it with the pull request that fixed it (the watch reads that every 15 minutes).
@@ -174,6 +192,7 @@ const ICONS = {
   person: '<circle class="o" cx="7" cy="7" r="5.5"/><circle class="f" cx="7" cy="7" r="2"/>',
   issue: '<circle class="o" cx="7" cy="7" r="5.5"/><circle class="f" cx="7" cy="7" r="2.5"/>',
   open: '<circle class="o" cx="7" cy="7" r="5.5"/><path class="f" d="M7 1.5A5.5 5.5 0 0 1 7 12.5Z"/>',
+  part: '<circle class="o" cx="7" cy="7" r="5.5"/><path class="f" d="M7 1.5A5.5 5.5 0 0 1 12.5 7H7Z"/>',
   merged: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M7 3.8V7L9.2 8.4"/>',
   stuck: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M4.8 4.8L9.2 9.2M9.2 4.8L4.8 9.2"/>',
   done: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M4.2 7.2L6.2 9.2L9.8 5"/>'
@@ -203,17 +222,27 @@ function fixHtml(a, compact) {
   // "Could not read" is about the page's own call; "user issues open" counts Linear issues itself.
   if (!a || !a.key || a.key === 'unreadable' || a.key === 'user-issues-open') return '';
   const f = fixOf(a);
+  // A line with several issues lists each issue's own fix under its first row (not when compact).
+  const each = f.each && !compact
+    ? '<span class="each">' + f.each.map((e) => '<span>' + icon(e.state) + linearChip(e) + '<span>' + fixSays(e, true) + '</span></span>').join('') + '</span>'
+    : '';
+  return '<span class="fx s-' + f.state + '">' + icon(f.state) + (each ? '' : linearChip(f)) + '<span>' + fixSays(f, compact) + '</span>' +
+    (f.state === 'merged' && !compact ? waitBar(f.from, f.at) : '') + each + '</span>';
+}
+
+/** The few words for a state. */
+function fixSays(f, compact) {
   const says = {
     none: () => compact ? 'No Linear issue yet' : 'No Linear issue yet. The watch for user issues files one.',
     person: () => 'You act on this in the page',
     noise: () => 'Claude found nothing to fix',
-    issue: () => compact ? 'No fix yet' : 'No fix yet',
+    issue: () => f.each ? 'No fix yet for its ' + f.each.length + ' issues' : 'No fix yet',
+    part: () => f.fixed + ' of ' + f.each.length + ' issues ' + (f.fixed === 1 ? 'has' : 'have') + ' a fix',
     open: () => prLink(f.pr) + ' waits on merge' + (compact ? '' : '. After the merge, it clears by <span class="when">' + esc(clock(f.at)) + '</span>' + onPhones(f)),
     merged: () => 'Fixed in ' + prLink(f.pr) + '. Clears by <span class="when">' + esc(clock(f.at)) + '</span>' + onPhones(f),
     stuck: () => '<span class="say">Still here after ' + prLink(f.pr) + '</span>' + (compact ? '' : '. It should have cleared by ' + esc(clock(f.at)) + '.')
   };
-  return '<span class="fx s-' + f.state + '">' + icon(f.state) + linearChip(f) + '<span>' + says[f.state]() + '</span>' +
-    (f.state === 'merged' && !compact ? waitBar(f.from, f.at) : '') + '</span>';
+  return says[f.state]();
 }
 
 /** How many lines wait for their check after a merged fix: they need nobody now. */

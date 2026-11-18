@@ -1,3 +1,4 @@
+import { carriedApkVersionsPart, sameCarriedVersions } from '@langquest-next/core';
 import type { LetInWhyNot } from './letInModel';
 
 /**
@@ -29,33 +30,53 @@ export function apkGet(o: { needed: string | null; url: string | null; online: b
 }
 
 /**
- * The file the person got before is for an older version: a name remembered, and not the one this
- * phone needs now. The words go when the two match again, and never show before the first press.
+ * The file the person got before is for older versions: a name remembered, and not for the
+ * versions this phone needs now. Only the versions count, not the fingerprint, since any file for
+ * them lets a new phone join this one (core `sameCarriedVersions`). The words go when the two
+ * match again, and never show before the first press.
  */
 export function apkStale(needed: string | null, opened: string | null | undefined): boolean {
-  return needed !== null && opened !== null && opened !== undefined && opened !== needed;
+  return needed !== null && opened !== null && opened !== undefined && !sameCarriedVersions(opened, needed);
 }
 
 /**
- * What a chosen file's name says: the right file, or one for another version. The name must be
- * this one, but for the number a browser adds to a second download of the same file
- * ("name (1).apk"), which changes no version. Any other name is the wrong version.
+ * What a chosen file's name says: the right file, or one for other versions. Its name must start
+ * with the versions this phone needs (core `carriedApkVersionsPart`), whatever fingerprint ends
+ * it: the Worker sends a phone whose own build has no file to the newest file for its versions
+ * (docs/decisions/2026-11-18-carried-file-matches-by-versions.md). The number a browser adds to a
+ * second download of a file ("name (1).apk") changes no version. Any other name is the wrong
+ * version.
  */
 export type ApkCheck = 'right' | 'other';
 
 export function apkCheck(chosen: string, needed: string): ApkCheck {
-  return chosen.replace(/ ?\(\d+\)(?=\.apk$)/, '') === needed ? 'right' : 'other';
+  return sameCarriedVersions(chosen.replace(/ ?\(\d+\)(?=\.apk$)/, ''), needed) ? 'right' : 'other';
 }
 
 /**
- * The inviter's words when the new phone runs other versions: they need this phone's file, by
- * name, or, where this phone has no name for its versions (a development build), the file for
- * this phone's version.
+ * How the screens show the file this phone needs: the start of its name that must match and the
+ * rest left open, as `r21-l1-p1-….apk`, since the file got may end in another build's
+ * fingerprint. A name core does not write is shown as it is.
+ */
+export function apkShown(needed: string): string {
+  const start = carriedApkVersionsPart(needed);
+  return start === null ? needed : `${start}….apk`;
+}
+
+/** The start a file's name must have to fit this phone, such as `r21-l1-p1-`; a name core does not write, whole. */
+export function apkStart(needed: string): string {
+  return carriedApkVersionsPart(needed) ?? needed;
+}
+
+/**
+ * The inviter's words when the new phone runs other versions: they need a file for this phone's
+ * versions, shown as its name's start (`apkShown`), or, where this phone has no name for its
+ * versions (a development build), the file for this phone's version.
  */
 export function letInVersionsWords(installFile: string | null):
   | { key: 'nearby.letIn.end.versions'; file: string }
   | { key: 'nearby.letIn.end.versionsUnnamed' } {
-  return installFile !== null ? { key: 'nearby.letIn.end.versions', file: installFile } : { key: 'nearby.letIn.end.versionsUnnamed' };
+  return installFile !== null ? { key: 'nearby.letIn.end.versions', file: apkShown(installFile) } : { key: 'nearby.letIn.end.versionsUnnamed' };
 }
 
 /**
