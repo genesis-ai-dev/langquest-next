@@ -181,7 +181,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised by 1 KB when nearby sync on iPhones (Carl, 2026-11-17, decision 256) merged with main: the
 // production export came out 437 bytes past and Workers Builds refused to deploy it, though the
 // development export CI measured then was 59 bytes under. CI now measures the production export.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 121 * 1024;
+// Raised by 12 KB with the Key words chip's tiles (Caleb Koster, 2026-11-17, LAN-233), 10 KB past
+// then with main merged in: the first visit's raise below, which every chunk counts too.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 133 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -259,7 +261,13 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 121 * 1024;
 // Raised by 1 KB with the passage row's download button beside the row, not inside it (Caleb Koster,
 // 2026-11-17, LAN-158), 250 bytes past then: Row's action slot, its wrapper and three styles, in the
 // kit every visit carries. All chunks still fit their own budget.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 96 * 1024;
+// Raised by 16 KB with the Key words chip's tiles (Caleb Koster, 2026-11-17, LAN-233,
+// docs/decisions/2026-11-17-key-words-tiles-sheet-in-place.md), 15 KB past then with main merged in:
+// the tiles, the switch for the team's words in the Bible text and their chips in a verse, the word
+// grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
+// words in the catalog every visit carries. They show on the recording screen as it opens; the word's
+// sheet loads when first opened (keyTerms/lazySheets.tsx).
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
