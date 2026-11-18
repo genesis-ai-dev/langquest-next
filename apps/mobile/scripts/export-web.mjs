@@ -184,7 +184,12 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // lines, the packing list, the screen's new name), the screen's rules and the sideways strip. The
 // screen itself moved into a chunk of its own (screens/sync.tsx), loaded when opened, so a first
 // visit stays under its own budget.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 125 * 1024;
+// Raised by 5 KB with an email and a password on Edit Profile (Carl, 2026-11-18, LAN-304,
+// docs/decisions/2026-11-18-edit-profile-holds-email-and-password.md), 3,975 bytes past then with
+// Sync and offline merged in: its words in all 16 catalogs, the email and confirm fields, and New
+// password's confirm field. Edit Profile moved to a chunk of its own, loaded when opened, so a
+// first visit stays under its own budget (17,240 bytes left with Sync and offline's chunk too).
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 130 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

@@ -421,7 +421,7 @@ Steps:
 
 Expected:
 - No "Notifications" row. "Switch Organization" is the first row after the
-  profile card (or "Set a password" for a looked-after account).
+  profile card.
 - The Inbox still works from My Work's bell.
 - The browser never asks for notification permission.
 
