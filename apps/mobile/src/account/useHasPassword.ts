@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { currentSession, onAuthChange } from '../server/auth';
 
 /**
- * Whether a looked-after account has a password: one made by joining has
- * none until its owner sets one (the `join` function marks it); older ones
- * chose one when they joined. Null until read from the stored session.
+ * Whether the account has a password: a looked-after one made by joining has
+ * none until its owner sets one on Edit Profile (the `join` function marks
+ * it), and keeps none if it adds an email without one; every other account
+ * chose one. Null until read from the stored session.
  */
 export function useHasPassword(): [boolean | null, () => void] {
   const [has, setHas] = useState<boolean | null>(null);
@@ -16,7 +17,7 @@ export function useHasPassword(): [boolean | null, () => void] {
     });
     return () => { active = false; };
   }, [tick]);
-  // A password set on Edit Profile updates the user: More settings, still open under it, reads it again (ACCT-021).
+  // A password set on Edit Profile updates the user: Sign Out, opened after it, reads it again (ACCT-021).
   useEffect(() => {
     return onAuthChange((event) => { if (event === 'USER_UPDATED') setTick((n) => n + 1); });
   }, []);
