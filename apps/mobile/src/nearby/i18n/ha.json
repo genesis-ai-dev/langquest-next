@@ -197,11 +197,7 @@
       "rowSub": "Kafin ka rasa intanet",
       "rowHelp": "Yana buɗe Samu fayil ɗin girkawa, inda kake sauke kuma ka duba fayil ɗin da sabuwar waya ke girka LangQuest da shi. Ka yi haka yayin da kake da intanet.",
       "linkHelp": "Yana buɗe Samu fayil ɗin girkawa, inda kake sauke kuma ka duba fayil ɗin da sabuwar waya ke girka LangQuest da shi.",
-      "remind": "Ka samu fayil ɗin girkawa kafin ka rasa intanet",
-      "notGot": "Fayil ɗin girkawa don sabon mutum: ba a samu ba tukuna",
-      "older": "Fayil ɗin girkawa don sabon mutum: na tsohuwar sigar ne",
-      "getIt": "Samu shi",
-      "lineHelp": "Wayar sabon mutum tana girka LangQuest daga wannan fayil. Wannan wayar ba ta samu na wannan sigar ba tukuna: ka samu shi yayin da kake da intanet, don ka iya ba sabon mutum shi ba tare da intanet ba."
+      "remind": "Ka samu fayil ɗin girkawa kafin ka rasa intanet"
     },
     "join": {
       "intro": "Ka shiga tawagarka daga wayar abokin aiki, ba tare da intanet ba. Za a buɗe asusunka a karon farko da wayarka ta sami intanet.",

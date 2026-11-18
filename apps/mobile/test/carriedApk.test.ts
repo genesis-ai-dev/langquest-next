@@ -1,7 +1,7 @@
 import { carriedApkName, CARRIED_APK_PATH } from '@langquest-next/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { APK_REMINDER_WORDS, apkCheck, apkGet, apkReminder, apkShown, apkStale, apkStart, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
+import { apkCheck, apkGet, apkReminder, apkShown, apkStale, apkStart, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
 import { carriedApkAddress } from '../src/server/carriedApkModel';
 
 /**
@@ -95,12 +95,12 @@ describe('Sync reminding a carrier to get the file', () => {
     expect(at({ url: null })).toBeNull();
   });
 
-  it('has its words in English, as Carl gave them', () => {
+  it('has its one line in English, as Carl gave it, and no second line on Ready for offline', () => {
     const en = JSON.parse(readFileSync(join(import.meta.dirname, '../src/nearby/i18n/en.json'), 'utf8')) as { nearby: { installFile: Record<string, string> } };
-    const words = Object.fromEntries(Object.entries(APK_REMINDER_WORDS).map(([k, key]) => [k, en.nearby.installFile[key.split('.').pop()!]]));
-    expect(words).toEqual({ 'not-got': 'Install file for a new person: not got yet', older: 'Install file for a new person: for an older version' });
-    expect(en.nearby.installFile).toMatchObject({ getIt: 'Get it', remind: 'Get the install file before you go offline' });
-    expect(typeof en.nearby.installFile['lineHelp']).toBe('string');
+    expect(en.nearby.installFile['remind']).toBe('Get the install file before you go offline');
+    // Ready for offline's line said the same on the same screen at the same moments (Carl, 2026-11-18).
+    expect(Object.keys(en.nearby.installFile)).not.toEqual(expect.arrayContaining(['notGot']));
+    expect(Object.keys(en.nearby.installFile).filter((k) => ['notGot', 'older', 'getIt', 'lineHelp'].includes(k))).toEqual([]);
   });
 });
 

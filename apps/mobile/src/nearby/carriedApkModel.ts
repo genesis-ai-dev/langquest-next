@@ -92,7 +92,9 @@ export function joinRows(whyNot: LetInWhyNot | null, needed: string | null): { l
 
 /**
  * Why Sync reminds a carrier to get the install file (docs/nearby-sync-plan.md 14.4, "Reminded
- * while online"): this phone never got one, or got one for an older version.
+ * while online"): this phone never got one, or got one for an older version. Sync says it once, as
+ * the amber line under its Share nearby row (`nearbyRowWords`); Ready for offline's line said the
+ * same and is gone (Carl, 2026-11-18).
  */
 export type ApkReminder = 'not-got' | 'older';
 
@@ -108,9 +110,3 @@ export function apkReminder(o: { letIn: LetInWhyNot | null; needed: string | nul
   if (o.opened === null) return 'not-got';
   return apkStale(o.needed, o.opened) ? 'older' : null;
 }
-
-/** The line on Sync's Ready for offline card for each reminder. */
-export const APK_REMINDER_WORDS = {
-  'not-got': 'nearby.installFile.notGot',
-  older: 'nearby.installFile.older'
-} as const satisfies Record<ApkReminder, string>;

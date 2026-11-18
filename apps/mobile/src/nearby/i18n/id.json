@@ -197,11 +197,7 @@
       "rowSub": "Sebelum Anda tanpa internet",
       "rowHelp": "Membuka Dapatkan file instalasi, tempat Anda mengunduh dan memeriksa file untuk memasang LangQuest di ponsel baru. Lakukan selagi ada internet.",
       "linkHelp": "Membuka Dapatkan file instalasi, tempat Anda mengunduh dan memeriksa file untuk memasang LangQuest di ponsel baru.",
-      "remind": "Dapatkan file instalasi sebelum Anda tanpa internet",
-      "notGot": "File instalasi untuk orang baru: belum didapatkan",
-      "older": "File instalasi untuk orang baru: untuk versi lama",
-      "getIt": "Dapatkan",
-      "lineHelp": "Ponsel orang baru memasang LangQuest dari file ini. Ponsel ini belum mendapatkan file untuk versi ini: dapatkan selagi Anda punya internet, agar bisa memberikannya kepada orang baru tanpa internet."
+      "remind": "Dapatkan file instalasi sebelum Anda tanpa internet"
     },
     "join": {
       "intro": "Bergabung dengan tim Anda dari ponsel rekan tim, tanpa internet. Akun Anda dibuat saat ponsel Anda pertama kali tersambung ke internet.",

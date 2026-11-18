@@ -197,11 +197,7 @@
       "rowSub": "Avant d’être sans internet",
       "rowHelp": "Ouvre Obtenir le fichier d’installation, où vous téléchargez et vérifiez le fichier qui installe LangQuest sur un nouveau téléphone. Faites-le tant que vous avez internet.",
       "linkHelp": "Ouvre Obtenir le fichier d’installation, où vous téléchargez et vérifiez le fichier qui installe LangQuest sur un nouveau téléphone.",
-      "remind": "Obtenez le fichier d’installation avant d’être sans internet",
-      "notGot": "Fichier d’installation pour une nouvelle personne : pas encore obtenu",
-      "older": "Fichier d’installation pour une nouvelle personne : pour une version plus ancienne",
-      "getIt": "L’obtenir",
-      "lineHelp": "Le téléphone d’une nouvelle personne installe LangQuest à partir de ce fichier. Ce téléphone n’a pas encore celui de cette version : obtenez-le tant que vous avez internet, pour pouvoir le donner à une nouvelle personne hors ligne."
+      "remind": "Obtenez le fichier d’installation avant d’être sans internet"
     },
     "join": {
       "intro": "Rejoignez votre équipe depuis le téléphone d’un coéquipier, sans Internet. Votre compte est créé la première fois que votre téléphone se connecte à Internet.",

@@ -28,7 +28,7 @@ describe('Share nearby on an iPhone', () => {
     expect(files.filter((f) => /\.android\.[jt]sx?$/.test(f))).toEqual([]);
     expect(files).toEqual(expect.arrayContaining([
       'src/nearby/useLetIn.ts', 'src/nearby/useJoinOffline.ts', 'src/nearby/useCarriedApk.ts', 'src/nearby/nearbyCopySource.ts', 'src/nearby/useChainMembership.ts',
-      'src/sync/firstContactGate.ts', 'src/shell/InstallFileReminder.tsx', 'src/shell/useAppCovered.ts', 'src/shell/NearbyCoverNotes.tsx'
+      'src/sync/firstContactGate.ts', 'src/shell/useAppCovered.ts', 'src/shell/NearbyCoverNotes.tsx'
     ]));
   });
 });

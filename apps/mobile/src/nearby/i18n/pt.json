@@ -197,11 +197,7 @@
       "rowSub": "Antes de ficar sem internet",
       "rowHelp": "Abre Baixar o arquivo de instalação, onde você baixa e verifica o arquivo com que um celular novo instala o LangQuest. Faça isso enquanto tem internet.",
       "linkHelp": "Abre Baixar o arquivo de instalação, onde você baixa e verifica o arquivo com que um celular novo instala o LangQuest.",
-      "remind": "Baixe o arquivo de instalação antes de ficar sem internet",
-      "notGot": "Arquivo de instalação para uma pessoa nova: ainda não baixado",
-      "older": "Arquivo de instalação para uma pessoa nova: de uma versão anterior",
-      "getIt": "Baixar",
-      "lineHelp": "O celular de uma pessoa nova instala o LangQuest a partir deste arquivo. Este celular ainda não baixou o desta versão: baixe-o enquanto tem internet, para poder passá-lo a uma pessoa nova sem internet."
+      "remind": "Baixe o arquivo de instalação antes de ficar sem internet"
     },
     "join": {
       "intro": "Entre na sua equipe pelo celular de um colega, sem internet. A sua conta é criada na primeira vez que o seu celular se conectar à internet.",

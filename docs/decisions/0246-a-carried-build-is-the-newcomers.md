@@ -91,3 +91,12 @@ they end. Play deletes an open edit when another opens, and the carried
 upload deleted build 55's mid-upload
 (`docs/decisions/2026-11-17-play-uploads-take-turns.md`). The store's jobs
 still never wait for or depend on the carried ones.
+
+Amended (2026-11-18, Carl Sauder): Sync reminds a carrier to get the install
+file once, as the amber line under its Share nearby row. The Ready for
+offline card's line ("Install file for a new person: not got yet", or "for
+an older version", with a Get it link) is gone, because the two showed on
+the same screen at the same moments and said the same thing (Carl's
+choice). Tapping the row opens Share nearby, where Get the install file and
+its too-old line are; the `sync_status → get_install_file` edge goes with
+the link. Plan 14.4 has the details.

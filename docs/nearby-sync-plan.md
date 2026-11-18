@@ -2832,7 +2832,7 @@ do decides the design:
    the like, and whatever an iPhone needs to take an Android newcomer's work
    (`useChainMembership` may be one). These stay Android only: the disguise's (`AppCover`,
    `useAppCovered`, `NearbyCoverNotes`, `LetInCoverNote`, `AppIconRow`), the carried file's
-   (`useCarriedApk`, `InstallFileReminder`) and joining offline's, until step 8. An iPhone
+   (`useCarriedApk`) and joining offline's, until step 8. An iPhone
    gets its own permissions file: Bluetooth's state and permission; Local Network, which has
    no way to ask ahead and prompts at the first connection; and the Wi-Fi prompt at each
    join. The install key goes in the Keychain for this device only, so a restored iPhone
@@ -3694,8 +3694,7 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   `docs/decisions/2026-11-18-carried-file-matches-by-versions.md`). Share nearby opens it from
   a row above Let someone in, on the same terms (a pass held, joining on, Android), with a
   line saying it is for before going offline; Let someone in opens it from a line at its
-  top saying the new phone needs LangQuest installed first; and Sync's Ready for offline
-  card opens it from its reminder line (below). Let someone in keeps only the
+  top saying the new phone needs LangQuest installed first. Let someone in keeps only the
   field: the role, Show the code, the code, the pictures, the one tap and the words of a
   version refusal.
   - *Getting it.* While online, Get the install file, that screen's one main button, opens `<Worker>/apk/<name>` in the
@@ -3714,14 +3713,15 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     leave, on Share nearby's terms for A new person (`joinRows`), only while online (the
     server just reached and the file can be got, `apkGet`), and only while this phone has
     not got the file it needs now: never got (no `carriedApkOpened`) or got for an older
-    version (`apkStale`); nothing shows before the meta row is read. Its Ready for offline
-    card gets a line, "Install file for a new person: not got yet" or "Install file for a
-    new person: for an older version", with a Get it link to Get the install file
-    (`sync_status → get_install_file`), and the Share nearby row a small amber line, "Get the
-    install file before you go offline" (5.8). Both go once the right file is got, by
-    pressing Get the install file or a right file under Check my file. The rule is
-    `apkReminder` in `carriedApkModel.ts`; what reads nearby state is in `.android` files
-    (`InstallFileReminder`, `NearbyRow`) with plain stubs elsewhere.
+    version (`apkStale`); nothing shows before the meta row is read. The Share nearby row
+    gets a small amber line, "Get the install file before you go offline" (5.8), and tapping
+    the row opens Share nearby, where Get the install file is, with its too-old line when the
+    file got is for an older version. It goes once the right file is got, by pressing Get the
+    install file or a right file under Check my file. The rule is `apkReminder` in
+    `carriedApkModel.ts`; what reads nearby state is in `NearbyRow.native.tsx`, with a plain
+    stub on the web. The Ready for offline card had a line saying the same, with a Get it
+    link, until Carl took it out on 2026-11-18: the two showed on the same screen at the
+    same moments.
   - *Check my file.* Opens Android's system file picker (`expo-document-picker`, which needs
     no permission; the file is not copied) and compares only the chosen file's name with the
     versions needed, whatever fingerprint ends it: "This is the right file", which is then

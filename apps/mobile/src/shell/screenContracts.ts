@@ -141,7 +141,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // Let someone in and the new phone's progress (docs/nearby-sync-plan.md 14.1): no event and no call; membership comes at first contact.
   let_someone_in: { reads:['org.roles'] },
   join_offline: {},
-  // Get the install file (docs/nearby-sync-plan.md 14.4), from Share nearby, Let someone in and Sync's Ready for offline card: no event,
+  // Get the install file (docs/nearby-sync-plan.md 14.4), from Share nearby and Let someone in: no event,
   // no call; the browser gets the file, and the name is kept in a meta row.
   get_install_file: {},
   delete_account: { rpcs:['delete_my_account'] },

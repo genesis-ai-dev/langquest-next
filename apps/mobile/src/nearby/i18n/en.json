@@ -197,11 +197,7 @@
       "rowSub": "Before you go offline",
       "rowHelp": "Opens Get the install file, where you download and check the file a new phone installs LangQuest from. Do it while you have internet.",
       "linkHelp": "Opens Get the install file, where you download and check the file a new phone installs LangQuest from.",
-      "remind": "Get the install file before you go offline",
-      "notGot": "Install file for a new person: not got yet",
-      "older": "Install file for a new person: for an older version",
-      "getIt": "Get it",
-      "lineHelp": "A new person's phone installs LangQuest from this file. This phone has not got the one for this version yet: get it while you have internet, so you can give it to a new person offline."
+      "remind": "Get the install file before you go offline"
     },
     "join": {
       "intro": "Join your team from a teammate's phone, without internet. Your account is made the first time your phone reaches the internet.",
