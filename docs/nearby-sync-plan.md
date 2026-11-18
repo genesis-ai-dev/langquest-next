@@ -3453,7 +3453,10 @@ it does today (decision 54).
      sync shows `refused`. So `hasSavedSession` also answers true for a local person, and
      `sessionSafeFetch` turns as-no-one requests into offline failures. Their transport
      throws `OfflineError` until first contact, because `pushNow` marks anything the
-     server answers as rejected. Events stay `pending`.
+     server answers as rejected. Events stay `pending`. The live channel, asked for once
+     when a stream opens, waits for the sign-in to change and opens once first contact
+     saves a session; checked only at the start, it never opened, and Sync said Connected
+     until the app started again (Carl's test, 2026-11-18).
    - **Teammates.** Their events are `pending` here and reach teammates as `nearby`, shown
      under the name in their chain: the session reports it (`peer.name`, from a two-link
      chain only), so does the inviter's tap, and the app keeps it under
