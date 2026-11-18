@@ -162,6 +162,20 @@ function runSquares(hst, sq) {
   return rows;
 }
 
+/**
+ * The series one chart draws, from all of its number's series: the total and
+ * its keys. A number counted only by key has no total (a first download's
+ * time is counted for open and for fill, and the two never add up): its
+ * chart then leads with its largest key, so the number still has a chart.
+ */
+function chartSeries(all, wanted) {
+  const total = all.find((s) => s.key === '') || null;
+  const keys = all.filter((s) => s.key !== '');
+  const size = (s) => (s.values || []).reduce((a, v) => a + (Number(v) || 0), 0);
+  const lead = total || keys.slice().sort((a, b) => size(b) - size(a))[0] || null;
+  return { total, keys, shown: all.find((s) => s.key === (wanted || '')) || lead };
+}
+
 /** A bucket's end: the next bucket's start, or one step after the last. */
 function bucketEnd(buckets, i, step) {
   if (i + 1 < buckets.length) return buckets[i + 1];
@@ -343,18 +357,14 @@ function drawPart(part, hst) {
   if (!box || hst.range !== range) return;
   const metrics = Object.keys(METRIC[part]);
   const charts = metrics.map((m) => {
-    const all = hst.series.filter((s) => s.metric === m);
-    const total = all.find((s) => s.key === '');
-    if (!total) return '';
-    const key = shownKey[part + '.' + m] || '';
-    const s = all.find((x) => x.key === key) || total;
+    const { total, keys, shown: s } = chartSeries(hst.series.filter((x) => x.metric === m), shownKey[part + '.' + m]);
+    if (!s) return '';
     const unit = METRIC[part][m].unit;
     const fmt = (x) => x === null ? '–' : unit === 'bytes' ? bytes(x) : unit === 'ms' ? ms(x) : num(x);
-    const keys = all.filter((x) => x.key !== '');
     return '<div class="chart" data-part="' + esc(part) + '" data-metric="' + esc(m) + '"><div class="ct"><span data-help-key="metric:' + esc(part + '.' + m) + '">' + esc(METRIC[part][m].label) + '</span><b>' + esc(fmt(rangeTotal(s.agg, s.values))) + '</b></div>' +
       chartSvg(s, hst, part, m) +
       '<div class="ax"><span>' + esc(bucketLabel(hst.buckets[0], hst.step)) + '</span><span>' + esc(bucketLabel(hst.buckets[hst.buckets.length - 1], hst.step)) + '</span></div>' +
-      (keys.length ? '<div class="keys">' + [total].concat(keys).map((x) => '<button type="button" data-key="' + esc(x.key) + '" aria-pressed="' + (x.key === s.key) + '" title="' + esc(keyName(x.key)) + '">' +
+      (keys.length ? '<div class="keys">' + (total ? [total] : []).concat(keys).map((x) => '<button type="button" data-key="' + esc(x.key) + '" aria-pressed="' + (x.key === s.key) + '" title="' + esc(keyName(x.key)) + '">' +
         esc(keyName(x.key)) + ' · ' + esc(fmt(rangeTotal(x.agg, x.values))) + '</button>').join('') + '</div>' : '') +
       '</div>';
   }).join('');
