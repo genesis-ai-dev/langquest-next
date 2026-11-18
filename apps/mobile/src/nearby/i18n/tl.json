@@ -312,7 +312,6 @@
         "permission": "Kailangan ng teleponong ito ng pahintulot para gamitin ang Wi-Fi sa mga device sa malapit. Payagan ito, saka i-tap ulit ang Simulan.",
         "busy": "Ginagamit ng Ibahagi sa malapit ang Wi-Fi ng teleponong ito. Ihinto ito, saka i-tap ulit ang Simulan.",
         "failed": "Hindi nagsimula ang Wi-Fi ng teleponong ito. I-tap ang Simulan para subukan ulit.",
-        "locationOff": "I-on ang Lokasyon sa teleponong ito: kailangan ito ng Android nito para sa sariling Wi-Fi ng teleponong ito. Saka i-tap ulit ang Simulan.",
         "permissionCovered": "Buksan muna ang Ibahagi sa malapit at payagan ang hinihingi nito. Saka bumalik at i-tap ang Simulan."
       },
       "page": {

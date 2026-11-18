@@ -312,7 +312,6 @@
         "permission": "Este celular precisa de permissão para usar o Wi-Fi com dispositivos por perto. Permita e toque em Iniciar de novo.",
         "busy": "O Compartilhar por perto está usando o Wi-Fi deste celular. Pare-o e toque em Iniciar de novo.",
         "failed": "O Wi-Fi deste celular não ligou. Toque em Iniciar para tentar de novo.",
-        "locationOff": "Ative a Localização neste celular: o Android dele precisa dela para o próprio Wi-Fi deste celular. Depois toque em Iniciar de novo.",
         "permissionCovered": "Primeiro abra o Compartilhar por perto e permita o que ele pedir. Depois volte e toque em Iniciar."
       },
       "page": {

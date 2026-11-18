@@ -24,11 +24,15 @@ object GiveNames {
 }
 
 /**
- * A running Give the app session: the page's server and the group it serves on. `close` stops
- * the server, then takes the group down; it is safe to call more than once.
+ * A Give the app session: the page's server and the group it serves on. `close` stops the server,
+ * then takes the group down; it is safe to call more than once. A session the server ended by
+ * itself (its time ran out, or the group went) stays closed until a stop forgets it, so its
+ * status says `serving: false` with what it did.
  */
 class GiveApp(val details: Map<String, Any?>, private val server: InstallFileServer, private val teardown: () -> Unit) {
   @Volatile private var closed = false
+
+  val isClosed: Boolean get() = closed
 
   fun status(): Map<String, Any?> = statusMap(server.status())
 

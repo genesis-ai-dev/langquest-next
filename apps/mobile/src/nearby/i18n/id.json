@@ -312,7 +312,6 @@
         "permission": "Ponsel ini perlu izin untuk memakai Wi-Fi dengan perangkat di sekitar. Izinkan, lalu ketuk Mulai lagi.",
         "busy": "Berbagi di sekitar sedang memakai Wi-Fi ponsel ini. Hentikan dulu, lalu ketuk Mulai lagi.",
         "failed": "Wi-Fi ponsel ini tidak menyala. Ketuk Mulai untuk mencoba lagi.",
-        "locationOff": "Nyalakan Lokasi di ponsel ini: Android-nya memerlukannya untuk Wi-Fi ponsel ini sendiri. Lalu ketuk Mulai lagi.",
         "permissionCovered": "Buka Berbagi di sekitar dulu dan izinkan yang dimintanya. Lalu kembali ke sini dan ketuk Mulai."
       },
       "page": {

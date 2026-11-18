@@ -29,13 +29,22 @@ person and Let someone in:
 - **Why two codes:** a QR code holds a login or an address, not both. The
   page a phone opens by itself on joining a network would need a name server
   on port 53, which an app cannot open.
-- **The server** is HTTP/1.1, bound only to the group's address. It answers
-  only `/` and the file's own path, honours one byte range so a cut-off
-  download resumes, serves at most four connections at once, and logs
-  nothing (`InstallFileServer.kt`).
-- **When it stops:** on Stop, on leaving the screen, when the app goes to
-  the background, or after 15 minutes with nothing asked. It never runs while
-  Share nearby holds a group.
+- **The server** is HTTP/1.1, bound to the group's address, and closes
+  unanswered any caller outside the group's subnet. It answers only `/` and
+  the file's own path, logs nothing, and sends the page with a strict
+  Content-Security-Policy (`InstallFileServer.kt`).
+  - **Resuming:** it honours one byte range, with an ETag and If-Range, so a
+    cut-off download resumes.
+  - **Limits:** four connections at once, with a 503 past them; a 20-second
+    request head; 15 minutes per connection; at least 16 KiB/s while the file
+    is sent.
+- **When it stops:**
+  - On Stop, on leaving the screen, when a screen is pushed over it, when the
+    app goes to the background, or when a cover comes down.
+  - After 15 minutes with nothing asked and nothing sent.
+  - When the group goes, and after 30 minutes in any case.
+
+  It never runs while Share nearby holds a group.
 
 **The file.** The app still downloads nothing, so decision 246 and Google
 Play's Device and Network Abuse policy ("may not download executable code ...
@@ -43,10 +52,15 @@ from a source other than Google Play") hold:
 
 - **Where it comes from:** the carrier got the file with the browser, and
   chose it under Check my file.
-- **The copy:** a right name is copied into the app's own folder. Native
-  keeps it only if it is this app's own: the same package and the same signing
-  certificates as the running app (`PackageManager.getPackageArchiveInfo`).
-  That settles the security review's question of a check by name alone.
+- **The copy:** a right name is copied into the app's own folder, from the
+  picker's content URI only, at most 1 GiB. Native keeps it only if it is
+  this app's own: the same package and the same signing certificates as the
+  running app (`PackageManager.getPackageArchiveInfo`).
+- **The name must tell the truth:** the build's runtime version, read as
+  expo-updates reads it (the fingerprint asset), must start with the name's
+  fingerprint. A real but older build under today's name is refused. A build
+  whose version cannot be read is kept.
+- **That settles** the security review's question of a check by name alone.
 - **Why a copy, not a lasting grant on the chosen file:** the module sends
   files only from the app's own folders, and the check needs a real path.
 - **How long:** the copy stays until this phone needs other versions (answer

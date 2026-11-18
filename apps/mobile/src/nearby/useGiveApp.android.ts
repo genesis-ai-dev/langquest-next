@@ -24,8 +24,8 @@ function failOf(code: string | null): GiveFail | null {
 }
 
 /**
- * Give the app on an Android phone (docs/nearby-sync-plan.md 14.5). Start checks Wi-Fi, Location
- * where Android 10 and 11 need it, and the one permission Wi-Fi Direct needs, asking for it after
+ * Give the app on an Android phone (docs/nearby-sync-plan.md 14.5). Start checks Wi-Fi and the one
+ * permission Wi-Fi Direct needs, asking for it after
  * the screen's line (never at launch, and never on a phone wearing a cover, which allows it from
  * Share nearby). Then native forms the group and serves the page and the kept file; the screen
  * shows code 1, then code 2 after Next, then what the server counts. The phone stays awake from
@@ -87,8 +87,8 @@ export function useGiveApp(): GiveAppHandle {
       if (!still()) return;
       if (!caps.wifiOn) return give('wifi-off');
       const sdk = androidSdk();
-      // Android 10 and 11 need Location on for Wi-Fi Direct, as for nearby (radiosOffOf).
-      if (sdk <= 30 && !caps.locationOn) return give('location-off');
+      // Forming a group needs no Location switch, unlike nearby's Bluetooth scan (AOSP's CREATE_GROUP
+      // checks the permission only, security review 2026-11-18), so none is asked for here.
       const must = giveMustHave(sdk);
       const have = await checkNearbyPermissions(sdk);
       if (!still()) return;

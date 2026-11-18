@@ -18,6 +18,8 @@ import java.net.Socket
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.util.Random
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 /** Give the app's page and file server over loopback, as the group serves it (docs/nearby-sync-plan.md 14.5). */
@@ -27,26 +29,32 @@ class InstallFileServerTest {
   private val bytes = ByteArray(300_000).also { Random(7).nextBytes(it) }
   private val dir = File(System.getProperty("java.io.tmpdir"), "give-app-${System.nanoTime()}").apply { mkdirs() }
   private val file = File(dir, name).apply { writeBytes(bytes) }
+  private val loopback = InetAddress.getLoopbackAddress()
   private val now = AtomicLong(1_000)
   private val opened = ArrayList<AutoCloseable>()
+  private val ports = HashMap<InstallFileServer, Int>()
 
   @After fun tearDown() {
     opened.forEach { try { it.close() } catch (_: Exception) {} }
     dir.deleteRecursively()
   }
 
-  private fun serving(maxConnections: Int = 4, timeoutMs: Int = 20_000): InstallFileServer {
-    val socket = ServerSocket(0, 8, InetAddress.getLoopbackAddress())
-    val s = InstallFileServer(socket, page, name, file, maxConnections, timeoutMs) { now.get() }
+  private fun serving(
+    limits: InstallFileServer.Limits = InstallFileServer.Limits(),
+    peers: Subnet = Subnet(loopback, 8),
+    served: File = file,
+    stillThere: () -> Boolean = { true },
+    onStopped: () -> Unit = {},
+    socket: ServerSocket = ServerSocket(0, 8, loopback),
+  ): InstallFileServer {
+    val s = InstallFileServer(socket, page, name, served, peers, limits, stillThere, onStopped) { now.get() }
     opened.add(AutoCloseable { s.close() })
     ports[s] = socket.localPort
     s.start()
     return s
   }
 
-  private val ports = HashMap<InstallFileServer, Int>()
-
-  private fun connect(s: InstallFileServer): Socket = Socket(InetAddress.getLoopbackAddress(), ports.getValue(s)).also {
+  private fun connect(s: InstallFileServer): Socket = Socket(loopback, ports.getValue(s)).also {
     it.soTimeout = 5_000
     opened.add(it)
   }
@@ -55,14 +63,18 @@ class InstallFileServerTest {
     fun header(name: String): String? = headers[name.lowercase()]
   }
 
+  private fun readAll(socket: Socket): ByteArray {
+    val all = ByteArrayOutputStream()
+    try { socket.getInputStream().copyTo(all) } catch (e: SocketException) {}
+    return all.toByteArray()
+  }
+
   /** Sends `request` as it is, reads the answer to the end of the stream (every answer closes), and closes, as a browser does. */
   private fun send(socket: Socket, request: String): Answer {
     val raw = socket.use {
       it.getOutputStream().write(request.toByteArray(Charsets.ISO_8859_1))
       it.getOutputStream().flush()
-      val all = ByteArrayOutputStream()
-      it.getInputStream().copyTo(all)
-      all.toByteArray()
+      readAll(it)
     }
     val split = (0..raw.size - 4).firstOrNull { raw[it] == '\r'.code.toByte() && raw[it + 1] == '\n'.code.toByte() && raw[it + 2] == '\r'.code.toByte() && raw[it + 3] == '\n'.code.toByte() }
       ?: throw IOException("no answer")
@@ -73,8 +85,10 @@ class InstallFileServerTest {
     return Answer(status, headers, raw.copyOfRange(split + 4, raw.size))
   }
 
-  private fun ask(s: InstallFileServer, method: String, path: String, vararg headers: String): Answer =
-    send(connect(s), "$method $path HTTP/1.1\r\nHost: 192.168.49.1:8080\r\n" + headers.joinToString("") { "$it\r\n" } + "\r\n")
+  private fun request(method: String, path: String, vararg headers: String) =
+    "$method $path HTTP/1.1\r\nHost: 192.168.49.1:8080\r\n" + headers.joinToString("") { "$it\r\n" } + "\r\n"
+
+  private fun ask(s: InstallFileServer, method: String, path: String, vararg headers: String): Answer = send(connect(s), request(method, path, *headers))
 
   /** Whether the server closed `socket` within `ms`: the end of the stream or a reset, and not a wait that ran out. */
   private fun closedBy(socket: Socket, ms: Int): Boolean {
@@ -103,24 +117,31 @@ class InstallFileServerTest {
     assertEquals("${a.body.size}", a.header("Content-Length"))
   }
 
-  @Test fun servesThePageAtTheRoot() {
+  private val etag = "\"$name-${bytes.size}\""
+
+  @Test fun servesThePageAtTheRootUnderAStrictPolicy() {
     val s = serving()
     val a = ask(s, "GET", "/")
     assertEquals(200, a.status)
     assertEquals("text/html; charset=utf-8", a.header("Content-Type"))
     assertArrayEquals(page, a.body)
     assertCommon(a)
+    assertEquals("default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'", a.header("Content-Security-Policy"))
+    assertEquals("no-referrer", a.header("Referrer-Policy"))
     assertEquals(0L, s.status().sent)
   }
 
-  @Test fun servesTheFileWholeAsAnAttachmentAndCountsADownload() {
+  @Test fun servesTheFileWholeAsAnAttachmentWithValidatorsAndCountsADownload() {
     val s = serving()
     val a = ask(s, "GET", "/$name")
     assertEquals(200, a.status)
     assertEquals("application/vnd.android.package-archive", a.header("Content-Type"))
     assertEquals("attachment; filename=\"$name\"", a.header("Content-Disposition"))
     assertEquals("bytes", a.header("Accept-Ranges"))
+    assertEquals(etag, a.header("ETag"))
+    assertEquals(InstallFileServer.httpDate(file.lastModified()), a.header("Last-Modified"))
     assertNull(a.header("Content-Range"))
+    assertNull(a.header("Content-Security-Policy"))
     assertArrayEquals(bytes, a.body)
     assertCommon(a)
     eventually("the download was counted") { s.status().downloads == 1L }
@@ -139,7 +160,7 @@ class InstallFileServerTest {
     assertEquals(200, root.status)
     assertEquals("${page.size}", root.header("Content-Length"))
     assertEquals(0, root.body.size)
-    eventually("both were answered") { s.status().asked == 2L }
+    assertEquals(2L, s.status().asked)
     assertEquals(0L, s.status().sent)
     assertEquals(0L, s.status().downloads)
   }
@@ -149,9 +170,9 @@ class InstallFileServerTest {
     val a = ask(s, "GET", "/$name", "Range: bytes=100-199")
     assertEquals(206, a.status)
     assertEquals("bytes 100-199/${bytes.size}", a.header("Content-Range"))
+    assertEquals(etag, a.header("ETag"))
     assertArrayEquals(bytes.copyOfRange(100, 200), a.body)
     assertCommon(a)
-    eventually("it was answered") { s.status().asked == 1L }
     assertEquals(100L, s.status().sent)
     assertEquals(0L, s.status().downloads)
     // An end past the file's is the file's end.
@@ -170,6 +191,24 @@ class InstallFileServerTest {
     assertArrayEquals(bytes.copyOfRange(250_000, 300_000), a.body)
     eventually("the download was counted") { s.status().downloads == 1L }
     assertEquals(50_000L, s.status().sent)
+  }
+
+  /** Why: Chrome resumes only with a validator, and sends it back in If-Range; another copy must start again. */
+  @Test fun aRangeIsHonouredOnlyWhenIfRangeNamesThisCopy() {
+    val s = serving()
+    val lastModified = InstallFileServer.httpDate(file.lastModified())
+    for (ok in listOf(etag, lastModified)) {
+      val a = ask(s, "GET", "/$name", "Range: bytes=10-19", "If-Range: $ok")
+      assertEquals(ok, 206, a.status)
+      assertArrayEquals(bytes.copyOfRange(10, 20), a.body)
+    }
+    for (other in listOf("\"$name-1\"", "W/$etag", "Mon, 01 Jan 2001 00:00:00 GMT")) {
+      val a = ask(s, "GET", "/$name", "Range: bytes=10-19", "If-Range: $other")
+      assertEquals(other, 200, a.status)
+      assertArrayEquals(bytes, a.body)
+    }
+    // Two If-Range headers cannot both hold.
+    assertEquals(200, ask(s, "GET", "/$name", "Range: bytes=10-19", "If-Range: $etag", "If-Range: $etag").status)
   }
 
   @Test fun aSuffixRangeIsTheFilesLastBytes() {
@@ -252,60 +291,171 @@ class InstallFileServerTest {
     }
   }
 
-  @Test fun countsEveryAnswerAndWhenTheLastCame() {
+  /** Why: the screen ends a session nobody asks anything of; requests for anything else must not keep it alive. */
+  @Test fun countsOnlyThePageAndTheFileAsAskedAndWhenTheLastCame() {
     val s = serving()
     assertEquals(InstallFileServer.Status(true, 0, bytes.size.toLong(), 0, 0, 0), s.status())
     ask(s, "GET", "/")
     now.set(5_000)
-    ask(s, "GET", "/favicon.ico")
-    now.set(9_000)
     ask(s, "GET", "/$name", "Range: bytes=0-9")
-    eventually("three were answered") { s.status().asked == 3L }
-    assertEquals(9_000L, s.status().lastAskedMs)
+    now.set(9_000)
+    ask(s, "GET", "/favicon.ico")
+    ask(s, "POST", "/")
+    send(connect(s), "nonsense\r\n\r\n")
+    assertEquals(2L, s.status().asked)
+    assertEquals(5_000L, s.status().lastAskedMs)
     assertEquals(10L, s.status().sent)
   }
 
-  /** Why: a phone could open connections and hold them; past four at once, more are closed at once. */
-  @Test fun servesAtMostFourAtOnceAndClosesAnyMore() {
+  /** Why: a phone could open connections and hold them; past four at once, another is told to come back, not dropped. */
+  @Test fun servesAtMostFourAtOnceAndAnswersAnyMore503() {
     val s = serving()
     val held = (1..4).map { connect(s) }
-    val extra = connect(s)
-    assertTrue("a fifth was closed at once", closedBy(extra, 1_000))
-    // The four are still served.
-    for (c in held) assertEquals(200, send(c, "GET / HTTP/1.1\r\n\r\n").status)
-    // And once they are done, another is.
+    val busy = send(connect(s), request("GET", "/"))
+    assertEquals(503, busy.status)
+    assertEquals("close", busy.header("Connection"))
+    assertEquals("2", busy.header("Retry-After"))
+    assertEquals("${busy.body.size}", busy.header("Content-Length"))
+    assertEquals(0L, s.status().asked)
+    // The four are still served, and once they are done, another is.
+    for (c in held) assertEquals(200, send(c, request("GET", "/")).status)
     eventually("a fifth was served once the four were done") {
       try { ask(s, "GET", "/").status == 200 } catch (e: IOException) { false }
     }
   }
 
-  @Test fun aConnectionThatSendsNothingIsClosedAfterTheTimeout() {
-    val s = serving(timeoutMs = 200)
+  /** Why: Linux takes packets for the group's address that arrive on any network; only the group's own phones are answered. */
+  @Test fun closesAConnectionFromOutsideTheGroupUnanswered() {
+    val s = serving(peers = Subnet(InetAddress.getByName("10.0.0.0"), 8))
+    val outsider = connect(s)
+    try { outsider.getOutputStream().write(request("GET", "/").toByteArray(Charsets.ISO_8859_1)) } catch (e: IOException) {}
+    assertEquals(0, readAll(outsider).size)
+    assertEquals(0L, s.status().asked)
+    assertTrue(s.status().serving)
+  }
+
+  @Test fun aSubnetHoldsOnlyItsOwnAddresses() {
+    val group = Subnet(InetAddress.getByName("192.168.49.1"), 24)
+    assertTrue(group.contains(InetAddress.getByName("192.168.49.23")))
+    assertTrue(group.contains(InetAddress.getByName("192.168.49.255")))
+    assertFalse(group.contains(InetAddress.getByName("192.168.50.1")))
+    assertFalse(group.contains(InetAddress.getByName("10.0.0.1")))
+    assertFalse(group.contains(InetAddress.getByName("::1")))
+    assertFalse(group.contains(null))
+    val odd = Subnet(InetAddress.getByName("10.0.0.0"), 9)
+    assertTrue(odd.contains(InetAddress.getByName("10.127.255.255")))
+    assertFalse(odd.contains(InetAddress.getByName("10.128.0.0")))
+    assertTrue(Subnet(InetAddress.getByName("10.0.0.0"), 0).contains(InetAddress.getByName("8.8.8.8")))
+  }
+
+  @Test fun aConnectionThatSendsNothingIsClosedAfterTheHeadsTime() {
+    val s = serving(InstallFileServer.Limits(headMs = 200))
     val silent = connect(s)
     assertTrue("a silent connection was closed", closedBy(silent, 3_000))
     assertEquals(0L, s.status().asked)
   }
 
+  /**
+   * Why: the head's deadline bounds every read. Checked only after a read returned, a byte just
+   * before the deadline bought a whole new wait, so a byte now and then held a place for good.
+   */
+  @Test fun aHeadThatGoesQuietJustBeforeItsDeadlineIsClosedAtTheDeadline() {
+    val s = serving(InstallFileServer.Limits(headMs = 1_000))
+    val trickle = connect(s)
+    val started = System.currentTimeMillis()
+    for (c in "GET / HTT") {
+      trickle.getOutputStream().write(c.code)
+      Thread.sleep(100)
+    }
+    assertTrue("the quiet head was closed", closedBy(trickle, 3_000))
+    val took = System.currentTimeMillis() - started
+    assertTrue("closed at the deadline, not a read's wait after it: $took ms", took < 1_600)
+    assertEquals(0L, s.status().asked)
+  }
+
+  @Test fun aConnectionIsClosedPastItsWholeLife() {
+    val s = serving(InstallFileServer.Limits(headMs = 60_000, connectionMs = 200, sweepMs = 50))
+    assertTrue("a connection past its life was closed", closedBy(connect(s), 3_000))
+  }
+
+  /** Why: a phone that takes the file too slowly, or not at all, would hold its place for as long as it liked. */
+  @Test fun aFileTakenTooSlowlyIsCutOffAndAHealthyOneIsNot() {
+    val big = File(dir, "big.apk").apply { writeBytes(ByteArray(16 shl 20)) }
+    val limits = InstallFileServer.Limits(minBytesPerSecond = 1L shl 20, rateWindowMs = 300, sweepMs = 50)
+    val s = serving(limits, served = big)
+    val slow = connect(s)
+    slow.getOutputStream().write(request("GET", "/$name").toByteArray(Charsets.ISO_8859_1))
+    // Takes nothing until well past a window, then reads what got through.
+    Thread.sleep(1_000)
+    val got = readAll(slow)
+    assertTrue("cut off short of the file: ${got.size}", got.size < big.length())
+    assertEquals(0L, s.status().downloads)
+    // At loopback's speed the same limits let the whole file through.
+    val whole = ask(s, "GET", "/$name")
+    assertEquals(200, whole.status)
+    assertEquals(big.length().toInt(), whole.body.size)
+  }
+
+  /** Why: a session JavaScript forgot would otherwise hold the Wi-Fi group for as long as the app ran. */
+  @Test fun stopsItselfWhenTheSessionsTimeIsUp() {
+    val stopped = AtomicInteger()
+    val s = serving(InstallFileServer.Limits(serveMs = 300, sweepMs = 50), onStopped = { stopped.incrementAndGet() })
+    assertTrue(s.status().serving)
+    eventually("serving stopped") { !s.status().serving }
+    eventually("the session was told") { stopped.get() == 1 }
+    Thread.sleep(200)
+    assertEquals(1, stopped.get())
+  }
+
+  @Test fun stopsItselfWhenTheGroupHasGone() {
+    val there = AtomicBoolean(true)
+    val stopped = AtomicInteger()
+    val s = serving(InstallFileServer.Limits(sweepMs = 50), stillThere = { there.get() }, onStopped = { stopped.incrementAndGet() })
+    val waiting = connect(s)
+    assertEquals(200, ask(s, "GET", "/").status)
+    there.set(false)
+    eventually("serving stopped") { !s.status().serving }
+    assertEquals(1, stopped.get())
+    assertTrue("an open connection was closed", closedBy(waiting, 2_000))
+  }
+
+  /** Why: one failed accept (too many open files, say) ended the server for good. */
+  @Test fun keepsAcceptingAfterAnAcceptFails() {
+    val failing = object : ServerSocket(0, 8, loopback) {
+      val failures = AtomicInteger(1)
+      override fun accept(): Socket {
+        if (failures.getAndDecrement() > 0) throw IOException("too many open files")
+        return super.accept()
+      }
+    }
+    val s = serving(socket = failing)
+    assertEquals(200, ask(s, "GET", "/").status)
+    assertTrue(s.status().serving)
+  }
+
   @Test fun closeStopsServingAndClosesOpenConnections() {
-    val s = serving()
+    val stopped = AtomicInteger()
+    val s = serving(onStopped = { stopped.incrementAndGet() })
     val waiting = connect(s)
     s.close()
     assertFalse(s.status().serving)
     assertTrue("an open connection was closed", closedBy(waiting, 2_000))
     try {
-      val late = Socket(InetAddress.getLoopbackAddress(), ports.getValue(s))
+      val late = Socket(loopback, ports.getValue(s))
       opened.add(late)
       assertTrue("a later connection was not served", closedBy(late, 2_000))
     } catch (e: ConnectException) {
       // Refused: nothing listens any more.
     }
     s.close()
+    // A close from outside is not the server stopping itself.
+    assertEquals(0, stopped.get())
   }
 
   @Test fun refusesANameThatIsNotPlain() {
     for (bad in listOf("", "a b.apk", "x\".apk", "a/b.apk", "a\r\nb.apk")) {
       try {
-        InstallFileServer(ServerSocket(0, 1, InetAddress.getLoopbackAddress()).also { opened.add(it) }, page, bad, file)
+        InstallFileServer(ServerSocket(0, 1, loopback).also { opened.add(it) }, page, bad, file, Subnet(loopback, 8))
         fail("took $bad")
       } catch (e: IllegalArgumentException) {}
     }

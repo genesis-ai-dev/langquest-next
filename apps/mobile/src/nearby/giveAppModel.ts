@@ -52,12 +52,12 @@ export type GiveStage =
 
 export type GiveEnd = 'stopped' | 'idle' | 'phone';
 /**
- * Why it would not start: Wi-Fi off; Location off where Android 10 and 11 need it; the permission
+ * Why it would not start: Wi-Fi off; the permission
  * refused, or refused for good (`blocked`, only settings can allow it), or not yet allowed on a
  * phone wearing a cover, which asks nothing from this screen (Carl's answer 15: Share nearby asks,
  * after its line); Share nearby holding Wi-Fi Direct; no kept file; anything else.
  */
-export type GiveFail = 'wifi-off' | 'location-off' | 'permission' | 'blocked' | 'permission-covered' | 'busy' | 'no-file' | 'failed';
+export type GiveFail = 'wifi-off' | 'permission' | 'blocked' | 'permission-covered' | 'busy' | 'no-file' | 'failed';
 
 /** A Wi-Fi QR code's field, with `\ ; , : "` escaped as the format asks. */
 export function wifiEscape(value: string): string {

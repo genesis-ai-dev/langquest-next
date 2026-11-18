@@ -312,7 +312,6 @@
         "permission": "Este teléfono necesita permiso para usar el Wi-Fi con dispositivos cercanos. Permítelo y luego toca Iniciar otra vez.",
         "busy": "Compartir cerca está usando el Wi-Fi de este teléfono. Detenlo y luego toca Iniciar otra vez.",
         "failed": "El Wi-Fi de este teléfono no se encendió. Toca Iniciar para intentarlo de nuevo.",
-        "locationOff": "Activa la Ubicación en este teléfono: su Android la necesita para el propio Wi-Fi del teléfono. Luego toca Iniciar otra vez.",
         "permissionCovered": "Primero abre Compartir cerca y permite lo que pida. Luego vuelve y toca Iniciar."
       },
       "page": {

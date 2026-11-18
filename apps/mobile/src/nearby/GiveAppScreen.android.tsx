@@ -20,7 +20,6 @@ const GIVE_END = {
 
 const GIVE_FAIL = {
   'wifi-off': 'nearby.give.failed.wifiOff',
-  'location-off': 'nearby.give.failed.locationOff',
   permission: 'nearby.give.failed.permission',
   blocked: 'nearby.permission.settings',
   'permission-covered': 'nearby.give.failed.permissionCovered',

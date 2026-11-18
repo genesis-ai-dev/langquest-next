@@ -436,10 +436,25 @@ describe('Give the app (docs/nearby-sync-plan.md 14.5)', () => {
     expect([...kotlinCode.matchAll(/ServerSocket\(([^)]*)\)/g)].map((m) => m[1]).filter((args) => args!.split(',').length < 3)).toEqual(['0, 4']);
   });
 
+  it('answers only phones on the group\'s own network, and stops when the group goes', () => {
+    // Linux takes packets for the group's address that arrive on any interface (the weak host model).
+    expect(server).toMatch(/if \(!peers\.contains\(socket\.inetAddress\)\) \{\s*quietlyClose\(socket\)\s*continue/);
+    expect(kit).toMatch(/val peers = Subnet\(group\.address, groupPrefix\(group\.address\)\)/);
+    expect(kit).toMatch(/NetworkInterface\.getByInetAddress\(address\)\?\.interfaceAddresses\?\.firstOrNull \{ it\.address == address \}\?\.networkPrefixLength/);
+    expect(kit).toMatch(/stillThere = \{ NetworkInterface\.getByInetAddress\(group\.address\) != null \}/);
+    expect(kit).toMatch(/onStopped = \{ session\?\.close\(\) \}/);
+    // And a session ends by itself after 30 minutes, whatever JavaScript does.
+    expect(server).toMatch(/val serveMs: Long = 30 \* 60_000L/);
+  });
+
   it('serves the page and the one file by exact path, in pure Kotlin on java.* alone, and logs nothing', () => {
     for (const m of server.matchAll(/^import\s+([\w.]+)/gm)) expect(m[1]).toMatch(/^java\./);
-    expect(server).toMatch(/when \(r\.target\) \{\s*"\/" ->[^\n]*\n\s*filePath ->[^\n]*\n\s*else -> answer\(conn, out, 404/);
+    expect(server).toMatch(/when \(r\.target\) \{\s*"\/" -> \{\s*asked\(\)\s*answer\([^\n]*\n\s*\}\s*filePath -> \{\s*asked\(\)\s*sendFile\([^\n]*\n\s*\}\s*else -> answer\(out, 404/);
     expect(server).toMatch(/private val filePath = "\/\$name"/);
+    // Only the page and the file count as asked, so other requests cannot keep a session alive.
+    expect(server.match(/^\s*asked\(\)$/gm)).toHaveLength(2);
+    expect(server).toContain(`"Content-Security-Policy" to "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"`);
+    expect(server).toContain('"Referrer-Policy" to "no-referrer"');
     // Nothing decodes, resolves or normalises a path, so nothing else on the phone is reachable.
     expect(server).not.toMatch(/URLDecoder|URI\(|normalize|canonical|\bFile\(/);
     for (const header of ['"Cache-Control" to "no-store"', '"X-Content-Type-Options" to "nosniff"', '"Connection" to "close"']) expect(server).toContain(header);
@@ -449,21 +464,29 @@ describe('Give the app (docs/nearby-sync-plan.md 14.5)', () => {
     expect(keep).toMatch(/private val folder: File get\(\) = File\(context\.filesDir, FOLDER\)/);
     expect(keep).toMatch(/const val FOLDER = "install-file"/);
     expect(keep).toMatch(/val dir = folder\n/);
-    // It writes only `<name>.part` there, then renames it there.
+    // It writes only a `.part` copy of its own there, then renames it there.
     expect([...keep.matchAll(/FileOutputStream\(([^)]*)\)/g)].map((m) => m[1])).toEqual(['part, false']);
-    expect(keep).toMatch(/val part = File\(dir, "\$name\.part"\)/);
+    expect(keep).toMatch(/val part = File\(dir, "\$name\.\$\{UUID\.randomUUID\(\)\}\.part"\)/);
     expect(keep).toMatch(/val kept = File\(dir, name\)/);
+    // From the picker's content URI alone, a plain file under the size cap, copied outside the lock.
+    expect(keep).toMatch(/if \(source\.scheme != "content"\) throw NearbyException\(NearbyCode\.BAD_ARGUMENT/);
+    expect(keep).toMatch(/if \(!OsConstants\.S_ISREG\(stat\.st_mode\)\) throw NearbyException\(NearbyCode\.FILE_UNREADABLE/);
+    expect(keep).toMatch(/const val MAX_BYTES = 1L shl 30/);
+    expect(keep).toMatch(/writing\.add\(part\.name\)\n\s*\}\n\s*try \{\n\s*openPlainFile\(source, dir, minFreeBytes\)\.use \{ copy\(it, part, dir, minFreeBytes\) \}\n\s*synchronized\(lock\) \{\n\s*if \(!ours\(part, name\)\)/);
     expect(keep).toMatch(/if \(!nameOk\(name\)\) throw NearbyException\(NearbyCode\.BAD_ARGUMENT/);
     expect(keep).toContain('Regex("^r[0-9]+-l[0-9]+-p[0-9]+(\\\\.[0-9]+)?-[0-9a-f]{8}\\\\.apk$")');
     // A copy, not a lasting grant on the person's file, and nowhere outside the app's own folder.
     expect(keep).not.toMatch(/takePersistableUriPermission|cacheDir|getExternalFilesDir|getExternalStorage|Environment\.|openFileOutput/);
   });
 
-  it('keeps only this app\'s own file: its package name and exactly its signers', () => {
+  it('keeps only this app\'s own file: its package name, exactly its signers, and the build its name says', () => {
     expect(keep).toMatch(/if \(archive\.packageName != context\.packageName\) return false/);
-    expect(keep).toMatch(/return sameSigners\(signers\(archive\), signers\(own\)\)/);
-    expect(keep).toMatch(/if \(!ours\(part\)\) throw NearbyException\(NearbyCode\.FILE_REFUSED/);
+    expect(keep).toMatch(/if \(!sameSigners\(signers\(archive\), signers\(own\)\)\) return false/);
+    expect(keep).toMatch(/return runtimeMatches\(name, runtimeVersionOf\(pm, archive, apk\.path\)\)/);
+    expect(keep).toMatch(/if \(!ours\(part, name\)\) throw NearbyException\(NearbyCode\.FILE_REFUSED/);
     expect(keep).toMatch(/catch \(e: Exception\) \{\s*part\.delete\(\)/);
+    // Android 9 and 10 collect an archive's certificates only for GET_SIGNATURES.
+    expect(keep).toMatch(/Build\.VERSION\.SDK_INT >= Build\.VERSION_CODES\.R -> pm\.getPackageArchiveInfo\(path, PackageManager\.GET_SIGNING_CERTIFICATES or PackageManager\.GET_META_DATA\)\n\s*Build\.VERSION\.SDK_INT >= Build\.VERSION_CODES\.P ->\n\s*pm\.getPackageArchiveInfo\(path, PackageManager\.GET_SIGNATURES or PackageManager\.GET_SIGNING_CERTIFICATES or PackageManager\.GET_META_DATA\)/);
   });
 
   it('makes its Wi-Fi name and passphrase with SecureRandom, and nothing in the module uses a weaker one', () => {
@@ -477,9 +500,11 @@ describe('Give the app (docs/nearby-sync-plan.md 14.5)', () => {
   });
 
   it('never runs beside a nearby group, hosted or joined: GROUP_BUSY either way', () => {
-    expect(kit).toMatch(/private fun claimNearby\(\) = synchronized\(groups\) \{\s*if \(giving != null \|\| giveForming\) throw NearbyException\(NearbyCode\.GROUP_BUSY/);
+    expect(kit).toMatch(/private fun claimNearby\(\) = synchronized\(groups\) \{\s*if \(giving\?\.isClosed == false \|\| giveForming\) throw NearbyException\(NearbyCode\.GROUP_BUSY/);
     expect(kitFun('host')).toMatch(/claimNearby\(\)/);
     expect(kitFun('join')).toMatch(/claimNearby\(\)/);
+    // A join whose link could not be made lets its claim go.
+    expect(kitFun('join')).toMatch(/return registry\.adopt\(SocketTransport\(socket\), kind\) \{ end\(\) \}\n\s*\} catch \(e: Exception\) \{[\s\S]*?end\(\)\n\s*throw e/);
     expect(kitFun('startGiveApp')).toMatch(/if \(nearbyGroups > 0\) throw NearbyException\(NearbyCode\.GROUP_BUSY/);
     // Keeping the file needs no radio; serving it does, on Android 10 and later.
     expect(moduleKt).toMatch(/AsyncFunction\("keepInstallFile"\)[^\n]*\n\s*run\(promise\)/);

@@ -3802,8 +3802,11 @@ codes, one after the other, as Let someone in shows two pictures.
    then also keeps the file: a right name is copied into the app's own folder
    (`filesDir/install-file/`, `keepInstallFile`), and native keeps the copy only if it is this
    app's own: the same package and the same signing certificates as the running app
-   (`PackageManager.getPackageArchiveInfo`). The module sends files only from the app's own
-   folders, and that check needs a real path, so a copy, not a lasting grant on the chosen file.
+   (`PackageManager.getPackageArchiveInfo`), and its runtime version, read as expo-updates reads
+   it, must start with the fingerprint its name says, so a real but older build under today's
+   name is refused. The module sends files only from the app's own folders, and that check needs
+   a real path, so a copy (from the picker's content URI, at most 1 GiB), not a lasting grant on
+   the chosen file.
    That settles section 13's old question on checking the signer. A file that fails is not
    kept, and the screen says it is not LangQuest's own; with too little room it says so (100 MB
    stays free). The copy stays until this phone needs other versions, then goes (answer 31,
@@ -3854,8 +3857,12 @@ codes, one after the other, as Let someone in shows two pictures.
   address. `GET /` gives the page (HTML handed over from JavaScript). `GET /<file name>`
   streams the kept file from its content URI with its length, type
   `application/vnd.android.package-archive` and its name in `Content-Disposition`, and
-  honours `Range`, so a cut-off download resumes. Anything else is 404. It serves that one file
-  and nothing else from the phone. It reports bytes sent. Pure Kotlin on `java.*` over a stream
+  honours `Range` with an ETag and `If-Range`, so a cut-off download resumes. Anything else is
+  404. It serves that one file and nothing else from the phone, closes unanswered any caller
+  outside the group's subnet, sends the page with a strict Content-Security-Policy, and holds
+  four connections at once (a 503 past them), each at most 15 minutes and at least 16 KiB/s while
+  the file goes. It reports bytes sent, and stops if the group goes and after 30 minutes in any
+  case (security review, 2026-11-18). Pure Kotlin on `java.*` over a stream
   source, so JUnit runs it over loopback as it does `Hosted`. Also: keep a picked file's grant,
   and check a file's package, signer and versions.
 - **JavaScript:** `giveAppModel.ts` (the Wi-Fi code's text and its escaping, the address code,

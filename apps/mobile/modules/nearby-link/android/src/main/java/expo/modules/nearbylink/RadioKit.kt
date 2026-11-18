@@ -10,6 +10,7 @@ import java.io.File
 import java.io.IOException
 import java.net.BindException
 import java.net.InetAddress
+import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.security.SecureRandom
@@ -106,7 +107,7 @@ class RadioKit(
   private val groups = Any()
   /** Nearby's groups hosted or joined, and those forming. */
   private var nearbyGroups = 0
-  /** Give the app's session, once it serves. */
+  /** Give the app's session, once it serves; it holds the group until it is closed. */
   private var giving: GiveApp? = null
   /** Give the app's group is forming. */
   private var giveForming = false
@@ -115,7 +116,7 @@ class RadioKit(
 
   /** A nearby group may start forming: none while Give the app runs. */
   private fun claimNearby() = synchronized(groups) {
-    if (giving != null || giveForming) throw NearbyException(NearbyCode.GROUP_BUSY, "Give the app holds the Wi-Fi Direct group")
+    if (giving?.isClosed == false || giveForming) throw NearbyException(NearbyCode.GROUP_BUSY, "Give the app holds the Wi-Fi Direct group")
     nearbyGroups += 1
   }
 
@@ -211,10 +212,18 @@ class RadioKit(
       throw e
     }
     val gone = AtomicBoolean()
-    return registry.adopt(SocketTransport(socket), kind) {
+    val end = {
       if (gone.compareAndSet(false, true)) {
         try { down() } finally { releaseNearby() }
       }
+    }
+    try {
+      return registry.adopt(SocketTransport(socket), kind) { end() }
+    } catch (e: Exception) {
+      // Joined, but no link was made of it: leave the network and let the group go.
+      try { socket.close() } catch (_: IOException) {}
+      end()
+      throw e
     }
   }
 
@@ -242,7 +251,7 @@ class RadioKit(
     // Only Wi-Fi Direct's own permission: Give the app uses no Bluetooth (docs/nearby-sync-plan.md 14.5).
     Radios.requireWifiDirect(context)
     val stopsBefore = synchronized(groups) {
-      if (giving != null || giveForming) throw NearbyException(NearbyCode.GROUP_BUSY, "Give the app is already running")
+      if (giving?.isClosed == false || giveForming) throw NearbyException(NearbyCode.GROUP_BUSY, "Give the app is already running")
       if (nearbyGroups > 0) throw NearbyException(NearbyCode.GROUP_BUSY, "a nearby group holds Wi-Fi Direct")
       giveForming = true
       giveStops
@@ -270,19 +279,39 @@ class RadioKit(
     // 2.4 GHz, which every phone that joins as plain Wi-Fi can see; some cannot see 5 GHz.
     val group = wifiDirect.form(ssid, passphrase, WifiP2pConfig.GROUP_OWNER_BAND_2GHZ, deadlineMs)
     try {
+      val peers = Subnet(group.address, groupPrefix(group.address))
       val socket = giveSocket(group.address)
+      var session: GiveApp? = null
       val server = try {
-        InstallFileServer(socket, page, kept.name, kept.file).also { it.start() }
+        InstallFileServer(
+          socket, page, kept.name, kept.file, peers,
+          // The group's interface goes when the group does; serving then stops, and so does the session.
+          stillThere = { NetworkInterface.getByInetAddress(group.address) != null },
+          onStopped = { session?.close() },
+        )
       } catch (e: Exception) {
         try { socket.close() } catch (_: IOException) {}
         throw e
       }
       val details = mapOf("ssid" to ssid, "passphrase" to passphrase, "address" to group.address.hostAddress, "port" to socket.localPort)
-      return GiveApp(details, server, group.down)
+      val made = GiveApp(details, server, group.down)
+      session = made
+      server.start()
+      return made
     } catch (e: Exception) {
       try { group.down() } catch (_: Exception) {}
       throw e as? NearbyException ?: NearbyException(NearbyCode.GROUP_FAILED, "could not serve on the group", e)
     }
+  }
+
+  /** The group's network prefix, from its own interface: only phones on that network are answered. */
+  private fun groupPrefix(address: InetAddress): Int {
+    val prefix = try {
+      NetworkInterface.getByInetAddress(address)?.interfaceAddresses?.firstOrNull { it.address == address }?.networkPrefixLength?.toInt()
+    } catch (e: IOException) {
+      null
+    }
+    return prefix?.takeIf { it in 1..32 } ?: throw NearbyException(NearbyCode.GROUP_FAILED, "the group's network is not known")
   }
 
   /** Only on the group's own address, so nobody on another network this phone is on reaches the page. */

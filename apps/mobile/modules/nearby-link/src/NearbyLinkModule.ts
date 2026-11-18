@@ -175,10 +175,12 @@ export interface NearbyLinkNative extends NativeModule<NearbyLinkEvents> {
   stopAll(): Promise<void>;
   /**
    * Give the app (docs/nearby-sync-plan.md 14.5). Copies the install file a person chose in Check my
-   * file (`uri`, a content or file URI) into the app's own folder under `name`, and keeps it only
-   * if it is this app's own: the same package and signing certificates as the running app.
-   * FILE_REFUSED for any other file, FILE_NO_SPACE without room for it and `minFreeBytes` more,
-   * FILE_UNREADABLE when it cannot be read. Any file kept before goes. Android only.
+   * file (`uri`, the picker's content URI; anything else is BAD_ARGUMENT) into the app's own folder
+   * under `name`, and keeps it only if it is this app's own: the same package and signing
+   * certificates as the running app, and the runtime version `name`'s fingerprint says.
+   * FILE_REFUSED for any other file, FILE_TOO_BIG past 1 GiB, FILE_NO_SPACE without room for it and
+   * `minFreeBytes` more, FILE_UNREADABLE when it cannot be read or is not a plain file. Any file
+   * kept before goes. Android only.
    */
   keepInstallFile(uri: string, name: string, minFreeBytes: number): Promise<NativeKeptFile>;
   /** The install file kept, or null. */

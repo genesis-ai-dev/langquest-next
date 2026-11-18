@@ -312,7 +312,6 @@
         "permission": "This phone needs permission to use Wi-Fi with nearby devices. Allow it, then press Start again.",
         "busy": "Share nearby is using this phone's Wi-Fi. Stop it, then press Start again.",
         "failed": "This phone's Wi-Fi did not start. Press Start to try again.",
-        "locationOff": "Turn on Location on this phone: its Android needs it for this phone's own Wi-Fi. Then press Start again.",
         "permissionCovered": "Open Share nearby first and allow what it asks. Then come back and press Start."
       },
       "page": {

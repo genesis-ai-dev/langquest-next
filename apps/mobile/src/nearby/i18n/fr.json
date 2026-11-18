@@ -312,7 +312,6 @@
         "permission": "Ce téléphone a besoin d’une autorisation pour utiliser le Wi-Fi avec les appareils à proximité. Autorisez-la, puis touchez à nouveau Démarrer.",
         "busy": "Partager à proximité utilise le Wi-Fi de ce téléphone. Arrêtez-le, puis touchez à nouveau Démarrer.",
         "failed": "Le Wi-Fi de ce téléphone n’a pas démarré. Touchez Démarrer pour réessayer.",
-        "locationOff": "Activez la Localisation sur ce téléphone : son Android en a besoin pour le Wi-Fi de ce téléphone. Puis touchez à nouveau Démarrer.",
         "permissionCovered": "Ouvrez d’abord Partager à proximité et autorisez ce qu’il demande. Puis revenez et touchez Démarrer."
       },
       "page": {
