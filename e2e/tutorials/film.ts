@@ -847,6 +847,6 @@ const heard = played
   .filter((p) => p.at >= t0 && audio.has(p.id) && p.to > p.from)
   .map((p) => ({ t: clock(p.at), file: audio.get(p.id)!, from: p.from, to: p.to }));
 writeFileSync(path.join(out, 'film.json'), JSON.stringify({
-  tutorial: tutorial.id, title: inLanguage(tutorial.title), language: LANGUAGE, end, viewport, frames, said, spoken, heard, focus
+  tutorial: tutorial.id, title: inLanguage(tutorial.title), language: LANGUAGE, ...(tutorial.tune ? { tune: true } : {}), end, viewport, frames, said, spoken, heard, focus
 }, null, 1));
 console.log(`${tutorial.title}: ${frames.length} frames, ${end.toFixed(1)} s, ${said.length} lines, ${heard.length} played → ${out}`);

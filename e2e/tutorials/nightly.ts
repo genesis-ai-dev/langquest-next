@@ -35,6 +35,7 @@ import { GROUPS, TUTORIALS } from './all';
 import { checkFilm, problemLines } from './frame-check';
 import { lookOf, stepLooks, tryAgain } from './look';
 import { firstSentence, FRAME, PLAYLISTS, TRAILER_FRAME, youtubeText } from './playlists';
+import { TUNE } from './tune';
 import { importsOf, screenCode, stepScreens, type ScreenCode } from './screens';
 import { TRAILER_DIR, trailerLook, trailerText } from './trailer/trailer';
 import { causeLine, readLog, scriptOf, slotsOf, whyFilm, type Cause, type Change, type Slot } from './why';
@@ -209,7 +210,10 @@ for (const id of filmed) {
   const seconds = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mp4], { encoding: 'utf8' }));
   const who = GROUPS.find((g) => g.videos.includes(tutorial))!.who;
   const opening = tutorial.steps.find((s) => s.say)?.say;
-  const text = youtubeText(say(tutorial.title), opening ? firstSentence(say(opening)) : '', { language, tutorial: id, ...(tutorial.notIn ? { notIn: tutorial.notIn } : {}) });
+  const text = youtubeText(
+    say(tutorial.title), opening ? firstSentence(say(opening)) : '', { language, tutorial: id, ...(tutorial.notIn ? { notIn: tutorial.notIn } : {}) },
+    tutorial.tune ? TUNE.credit : undefined
+  );
   kept.set(id, {
     tutorial: id, sha256, bytes: readFileSync(mp4).length, seconds: Math.max(1, Math.round(seconds)), ...text,
     playlist: PLAYLISTS[language]![who], position: order.indexOf(id), look: looks.get(id)!, frame: FRAME,

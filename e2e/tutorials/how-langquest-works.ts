@@ -18,6 +18,7 @@ export const howLangQuestWorks: Tutorial = {
   id: 'how-langquest-works',
   title: 'How LangQuest works',
   as: 'ADMIN',
+  tune: true,
   names: recordAPassage.names,
   steps: [
     {
