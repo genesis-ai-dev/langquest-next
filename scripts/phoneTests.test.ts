@@ -1,11 +1,11 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { nightLine, PREFIX } from './nightly-report.mjs';
 import {
   addLook, file, flowKey, junitFlows, MANY, markdown, nightSummary, phoneNights,
-  phoneOutcomes, PICTURE, runKey, safeName, safeNames, shotFor, slug
+  phoneOutcomes, PICTURE, runKey, safeName, safeNames, shotFor, slug, STEPS, stoppedAt
 } from './phone-tests.mjs';
 
 // The nightly phone tests' report (decision 208). These tests hold what keeps
@@ -134,9 +134,51 @@ describe('nightSummary', () => {
     expect(summary.platforms[1]!.broke).toBe('The iPhone simulator job was cancelled before the flows ran to the end, and left no report.');
   });
 
+  it('says at which step a phone stopped, and why, when its job said (LAN-283)', () => {
+    const { summary } = night({ android: 'failure', ios: 'failure' }, (root) => {
+      const android = results(root, 'android', { junit: '', shots: [], device: false });
+      writeFileSync(join(android, 'stopped.json'), JSON.stringify({ step: 'Start the Android emulator', why: 'The Android emulator started 2 times, and no start was ready for the flows.' }));
+      const ios = results(root, 'ios', { junit: '', shots: [], device: false });
+      writeFileSync(join(ios, 'stopped.json'), JSON.stringify({ step: 'Wait for the test server', why: null }));
+    });
+    expect(summary.platforms[0]!.broke).toBe('The Android emulator job stopped at "Start the Android emulator", before the flows left a report. The Android emulator started 2 times, and no start was ready for the flows.');
+    expect(summary.platforms[1]!.broke).toBe('The iPhone simulator job stopped at "Wait for the test server", before the flows left a report.');
+  });
+
   it('leaves out a phone a manual run left out', () => {
     const { summary } = night({ android: 'success', ios: 'skipped' }, (root) => results(root, 'android', { shots: [] }));
     expect(summary.platforms.map((p) => p.platform)).toEqual(['android']);
+  });
+});
+
+describe('stoppedAt', () => {
+  const steps = {
+    kvm: { outcome: 'success', conclusion: 'success', outputs: {} },
+    build: { outcome: 'success', conclusion: 'success', outputs: { app: '/x.apk' } },
+    emulator: { outcome: 'failure', conclusion: 'failure', outputs: {} },
+    maestro: { outcome: 'skipped', conclusion: 'skipped', outputs: {} },
+    flows: { outcome: 'skipped', conclusion: 'skipped', outputs: {} }
+  };
+
+  it('names the first step that failed, as the workflow names it, with what the step said', () => {
+    expect(stoppedAt('android', steps, '  The emulator had\n no network.  ')).toEqual({ step: 'Start the Android emulator', why: 'The emulator had no network.' });
+    expect(stoppedAt('ios', { ...steps, emulator: undefined, build: { outcome: 'cancelled' } }, null)).toEqual({ step: 'Build the iPhone test app', why: null });
+    expect(stoppedAt('android', { npm: { outcome: 'failure' } }, '')).toEqual({ step: 'npm', why: null });
+  });
+
+  it('says nothing when no step failed', () => {
+    expect(stoppedAt('android', { ...steps, emulator: { outcome: 'success' } }, 'left over')).toBeNull();
+    expect(stoppedAt('android', null)).toBeNull();
+  });
+
+  it('knows each step by the id and name it has in phone-tests.yml', () => {
+    const workflow = readFileSync(new URL('../.github/workflows/phone-tests.yml', import.meta.url), 'utf8');
+    const jobs = { android: workflow.slice(workflow.indexOf('\n  android:'), workflow.indexOf('\n  ios-server:')), ios: workflow.slice(workflow.indexOf('\n  ios:'), workflow.indexOf('\n  report:')) };
+    for (const [id, name] of Object.entries(STEPS)) {
+      const names = typeof name === 'string' ? { android: name, ios: name } : name;
+      const found = Object.entries(jobs).filter(([p, job]) => job.includes(`- name: ${names[p as 'android' | 'ios']}\n        id: ${id}\n`));
+      expect(found.length, `step ${id}`).toBeGreaterThan(0);
+    }
   });
 });
 

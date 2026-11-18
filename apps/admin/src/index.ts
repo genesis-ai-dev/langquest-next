@@ -4,6 +4,7 @@ import { ACTION_BYTES, youtubeCallback } from './youtube';
 import { diagConnection, withDiag } from './db';
 import type { Env } from './env';
 import { page, SECURITY_HEADERS } from './page';
+import { alertId, watchKeyOf } from './alertKinds';
 import { LEVELS, settle, type Level, type Section } from './section';
 import { cloudflareSection } from './sources/cloudflare';
 import { diagSections, errorText, lookup, mediaType, PICTURE_SQL, SCREENSHOT_SQL, VOICE_SQL } from './sources/diag';
@@ -12,6 +13,7 @@ import { expoSection } from './sources/expo';
 import { googlePlaySection } from './sources/googleplay';
 import { codeSection } from './sources/github';
 import { videosSection } from './sources/videos';
+import { fixesSection } from './sources/fixes';
 import { nightlySection } from './sources/nightly';
 import { supabaseSection } from './sources/supabase';
 import { containerSection } from './sources/container';
@@ -85,17 +87,26 @@ async function opsAnswer(env: Env): Promise<Record<string, Section>> {
 /**
  * Every section's alerts in one list, most urgent first: what the page's
  * "Needs attention" shows, as JSON for whatever reads it without the page
- * (docs/ops-dashboard-plan.md 5.1).
+ * (docs/ops-dashboard-plan.md 5.1). `id` is the line's name for a pull
+ * request that fixes it: "Fixes ops warning: <id>" (alertKinds.ts).
  */
-async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; urgent: number; problems: number; watch: number; items: { level: Level; text: string; link?: string; section: string }[] }> {
+export interface AttentionItem {
+  level: Level; text: string; link?: string; section: string; key: string; id: string;
+  /** Its key in the watch for user issues, which ties it to its Linear issue (alertKinds.ts watchKeyOf). */
+  watchKey: string;
+  /** Linear issues the line already names (a nightly failure's). */
+  issues?: string[];
+}
+
+export async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; urgent: number; problems: number; watch: number; items: AttentionItem[] }> {
   const [diag, ops, ...providers] = await Promise.all([
     diagAnswer(env), opsAnswer(env),
     ...Object.entries(PROVIDERS).map(([id, run]) => memo(id, fresh, () => settle(id, () => run(env))).then((s) => [id, s] as const))
   ]);
   const all: (readonly [string, Section])[] = [...Object.entries(diag), ...Object.entries(ops), ...(providers as (readonly [string, Section])[])];
   const items = all.flatMap(([section, s]) => [
-    ...s.alerts.map((a) => ({ level: a.level, text: a.text, ...(a.link ? { link: a.link } : {}), section })),
-    ...(s.state === 'error' ? [{ level: 'watch' as const, text: `Could not read: ${s.error ?? 'unknown'}`, section }] : [])
+    ...s.alerts.map((a): AttentionItem => ({ level: a.level, text: a.text, ...(a.link ? { link: a.link } : {}), section, key: a.key, id: alertId(a), watchKey: watchKeyOf(a), ...(a.issues?.length ? { issues: a.issues } : {}) })),
+    ...(s.state === 'error' ? [{ level: 'watch' as const, text: `Could not read: ${s.error ?? 'unknown'}`, section, key: 'unreadable', id: alertId({ key: 'unreadable', subject: section }), watchKey: watchKeyOf({ key: 'unreadable', subject: section }) }] : [])
   ]).sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
   const count = (level: Level) => items.filter((i) => i.level === level).length;
   return { checkedAt: new Date().toISOString(), urgent: count('urgent'), problems: count('problem'), watch: count('watch'), items };
@@ -202,6 +213,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       return json({ error: errorText(e) }, 502);
     }
   }
+  // Pull requests that say which lines they fix, for each line's state (sources/fixes.ts).
+  if (section === 'fixes') return json(await memo('fixes', fresh, () => settle('fixes', () => fixesSection(env))));
   const provider = PROVIDERS[section];
   if (provider) return json(await memo(section, fresh, () => settle(section, () => provider(env))));
   return json({ error: 'Not found' }, 404);

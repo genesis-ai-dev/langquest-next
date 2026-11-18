@@ -1,5 +1,5 @@
 import { CHANNELS, type ChannelLanguage } from '../../../../server/youtube';
-import type { FeedbackInput, Suggestion } from '../../../../server/tutorialFeedback';
+import type { FeedbackInput, Picture, Suggestion } from '../../../../server/tutorialFeedback';
 import { diagConnection, withDiag, type Query } from '../db';
 import { failed, ok, type Section } from '../section';
 import { filmingSection, type Filming } from './filming';
@@ -100,6 +100,9 @@ export interface MarkDetail {
   links: { text: string; href: string }[];
   /** Films to play: this film, and the one before it to compare. */
   films: { label: string; href: string }[];
+  /** What a suggestion is about, as Claude picked it from the last film run, and the same places after its fix. */
+  pictures?: Picture[];
+  after?: Picture[];
 }
 
 export interface VideoRow {
@@ -124,6 +127,8 @@ export interface AdminItem {
   tutorial?: string; language?: string; link?: string;
   /** For `approve`: the suggestion, for its Accept, Edit and Reject. */
   suggestion?: FixedSuggestion;
+  /** What the card is about, as pictures Claude picked from the last film run (decisions.md 186, amended 2026-11-17). */
+  pictures?: Picture[];
   /** Where "Tell Claude what to do" applies: the words that start the note, so Claude knows the problem it answers. */
   instruct?: string;
   /** The admin's newest instruction for this video since the problem began. */
@@ -152,6 +157,9 @@ export interface ChangeItem {
   pr: number | null; link: string | null;
   /** Why it failed, or why no change was needed. */
   note: string | null;
+  /** What the change is about, before it, and the same places once the video was filmed again. */
+  pictures: Picture[];
+  after: Picture[];
 }
 
 export interface Videos {
@@ -263,18 +271,20 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
     const on = s.tutorial ? `${title(s.tutorial)}: ` : '';
     // A suggestion's cards go on its video's row in its film's language (English when it names none).
     const where = s.tutorial ? { tutorial: s.tutorial, language: s.language ?? 'en' } : {};
-    if (!s.decision) admin.push({ kind: 'approve', title: `${on}${s.title}`, detail: s.detail, at: s.madeAt, who: 'you', ...where, suggestion: s,
+    const pictures = s.pictures?.length ? { pictures: s.pictures } : {};
+    if (!s.decision) admin.push({ kind: 'approve', title: `${on}${s.title}`, detail: s.detail, at: s.madeAt, who: 'you', ...where, suggestion: s, ...pictures,
       next: FIXABLE.has(s.kind) && s.tutorial ? 'Accept: Claude makes the change as a pull request that merges itself when its checks pass. The next night films the video again. Nothing happens until you answer.'
         : s.kind === 'code' ? 'Accept: it goes to Linear as an app issue. Nothing happens until you answer.' : 'Accept or reject it. Nothing happens until you answer.' });
     const fix = s.fix;
     const yes = s.kind === 'instruction' ? `Your instruction: ${s.detail}` : s.clear ? `${s.title}. Claude found it clear and accepted it itself.` : `${s.title}. You accepted it.`;
     if (fix?.state === 'open' && fix.pr) worker.push({ when: 'now', kind: 'merging', title: `${on}Claude's change merges itself when its checks pass (PR ${fix.pr})`, detail: `${yes} If a check fails, or it does not merge within a day, Claude closes it and asks you under For an admin.`, at: fix.at, link: pr(fix.pr) });
-    if (fix?.state === 'failed') admin.push({ kind: 'fixFailed', title: `${on}Claude could not make the change`, detail: fix.note ?? s.title, at: fix.at, who: 'you', ...(fix.pr ? { link: pr(fix.pr) } : fix.run ? { link: fix.run } : {}),
+    if (fix?.state === 'failed') admin.push({ kind: 'fixFailed', title: `${on}Claude could not make the change`, detail: fix.note ?? s.title, at: fix.at, who: 'you', ...pictures, ...(fix.pr ? { link: pr(fix.pr) } : fix.run ? { link: fix.run } : {}),
       next: 'Tell Claude what to do instead. Claude tries again at its next fix run (:20 and :50 each hour). Nothing happens until you do.', ...where, ...(s.tutorial ? { instruct: `Claude could not make the change "${s.title}" (${fix.note ?? 'no reason given'}).` } : {}) });
     if (fix?.state === 'working') worker.push({ when: 'now', kind: 'fixing', title: `${on}Claude writes the change now`, detail: `${yes} When done, the pull request merges itself when its checks pass.`, at: fix.at, ...(fix.run ? { link: fix.run } : {}) });
     if (s.decision === 'accepted' && !fix && s.tutorial && FIXABLE.has(s.kind)) worker.push({ when: 'next', kind: 'toFix', title: `${on}Claude starts the change at its next fix run (:20 and :50 each hour)`, detail: `${yes} Claude makes it as a pull request that merges itself when its checks pass.`, at: s.decidedAt });
     if (fix && s.tutorial) changes.push({ at: fix.at, tutorial: s.tutorial, language: s.language ?? 'en', video: title(s.tutorial), change: s.kind === 'instruction' ? s.detail : s.title,
-      by: s.kind === 'instruction' ? 'instruction' : s.clear ? 'claude' : 'admin', state: fix.state, pr: fix.pr, link: fix.pr ? pr(fix.pr) : fix.run, note: fix.note });
+      by: s.kind === 'instruction' ? 'instruction' : s.clear ? 'claude' : 'admin', state: fix.state, pr: fix.pr, link: fix.pr ? pr(fix.pr) : fix.run, note: fix.note,
+      pictures: s.pictures ?? [], after: s.after ?? [] });
   }
   changes.sort((a, b) => b.at.localeCompare(a.at));
 
@@ -354,17 +364,18 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
       } });
       for (const sg of mineSg) {
         const about = [sg.detail, ...sg.inputs.map((i) => `Answers: ${i.english ?? i.text}`)];
+        const shown = { ...(sg.pictures?.length ? { pictures: sg.pictures } : {}), ...(sg.after?.length ? { after: sg.after } : {}) };
         // A clear fix is suggested and accepted by Claude at once: one mark says both.
-        if (recent(sg.madeAt) && !sg.clear) marks.push({ at: sg.madeAt, kind: 'suggested', text: `Suggested: ${sg.title}`, detail: { title: `Claude suggested: ${sg.title}`, lines: about, links: [], films: [] } });
+        if (recent(sg.madeAt) && !sg.clear) marks.push({ at: sg.madeAt, kind: 'suggested', text: `Suggested: ${sg.title}`, detail: { title: `Claude suggested: ${sg.title}`, lines: about, links: [], films: [], ...shown } });
         const decided = sg.clear ? 'Clear fix, accepted by Claude' : sg.decision === 'accepted' ? 'Accepted' : 'Rejected';
         if (sg.decision && recent(sg.decidedAt)) marks.push({ at: sg.decidedAt!, kind: 'decided', text: `${decided}: ${sg.title}`, detail: {
           title: `${decided}: ${sg.title}`, lines: [...about, ...(sg.clear ? ['Claude checked that the video is wrong against the app and that there is one right fix, so no person was asked.'] : []), ...(sg.reason ? [`Why: ${sg.reason}`] : [])],
-          links: sg.issueUrl ? [{ text: `Linear ${sg.issue}`, href: sg.issueUrl }] : [], films: []
+          links: sg.issueUrl ? [{ text: `Linear ${sg.issue}`, href: sg.issueUrl }] : [], films: [], ...shown
         } });
         const fixState = sg.fix?.state === 'unneeded' ? 'no change needed' : sg.fix?.state === 'open' ? 'open, merges itself when checks pass' : sg.fix?.state;
         if (sg.fix && recent(sg.fix.at)) marks.push({ at: sg.fix.at, kind: 'fix', text: `Fix ${fixState}${sg.fix.pr ? ` (PR ${sg.fix.pr})` : ''}`, ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}), detail: {
           title: `Fix: ${fixState}`, lines: [sg.title, ...(sg.fix.note ? [`${sg.fix.state === 'unneeded' ? 'Why' : 'Error'}: ${sg.fix.note}`] : [])],
-          links: [...(sg.fix.pr ? [{ text: `PR ${sg.fix.pr}: what changed in the script`, href: `${pr(sg.fix.pr)}/files` }] : []), ...(sg.fix.run ? [{ text: 'The run that wrote it', href: sg.fix.run }] : [])], films: []
+          links: [...(sg.fix.pr ? [{ text: `PR ${sg.fix.pr}: what changed in the script`, href: `${pr(sg.fix.pr)}/files` }] : []), ...(sg.fix.run ? [{ text: 'The run that wrote it', href: sg.fix.run }] : [])], films: [], ...shown
         } });
       }
       if (s && (sv?.tonight === 'held' || sv?.tonight === 'failed')) marks.push({ at: s.at, kind: sv.tonight, text: sv.tonight === 'held' ? `Held: ${(sv.held ?? []).join('; ')}` : 'Film failed', detail: {

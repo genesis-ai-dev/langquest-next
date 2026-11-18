@@ -97,8 +97,13 @@
   // The ops dashboard (worker/ops.ts, docs/admin.md, decisions.md 160): its
   // own Worker, with no address of its own, reached only through this
   // binding, so its read tokens never sit on this one. Production only: the
-  // preview stack has no database of its own for it to read yet.
-  "services": [{ "binding": "OPS", "service": "langquest-next-admin" }],
+  // preview stack has no database of its own for it to read yet. OPS_LINES:
+  // its one read-only entrypoint, the dashboard's lines that the watch for
+  // user issues ties to Linear issues (apps/admin/src/lines.ts).
+  "services": [
+    { "binding": "OPS", "service": "langquest-next-admin" },
+    { "binding": "OPS_LINES", "service": "langquest-next-admin", "entrypoint": "OpsLines" }
+  ],
   // Recordings and guide media (worker/blobs.ts, decisions.md 69). Private:
   // no public access and no r2.dev address; everything goes through
   // /api/blobs. Created by scripts/r2-buckets.mjs; `wrangler dev` keeps a

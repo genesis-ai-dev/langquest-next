@@ -7,7 +7,8 @@
 //   node scripts/tutorial-review.mjs fetch <dir>   what is open (state.json) and what main changed since the last look (changes.json)
 //   node scripts/tutorial-review.mjs check <dir>   review.json against what the Worker takes and what state.json holds:
 //                                                  each problem a line in <dir>/problems.txt, for Claude to mend once
-//   node scripts/tutorial-review.mjs send <dir>    review.json, as Claude wrote it, to the app's Worker
+//   node scripts/tutorial-review.mjs send <dir>    review.json, as Claude wrote it, to the app's Worker, after the
+//                                                  pictures it names (each sent once, by its bytes' hash)
 //
 // An accepted change to a video (a clear fix Claude accepted itself, a
 // suggestion a person accepted, or an admin's instruction), written by Claude
@@ -31,7 +32,8 @@
 // else, they stop. check, fix-patch and fix-paths need no token and send
 // nothing.
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -123,15 +125,138 @@ export async function problemsOf(review, state, changes, sha, env) {
   return problems;
 }
 
+// ---- the pictures a look names (decisions.md 186, amended 2026-11-17) --------------------------------
+
+/** A picture's size at most (server/tutorialFeedback.ts PICTURE_MAX.bytes), its caption's length, and how many a suggestion has. */
+export const PICTURE_LIMITS = { bytes: 3 * 1024 * 1024, caption: 300, pictures: 6 };
+/**
+ * Where a picture is in the last film run's folder (.tutorial-review/films/, the tutorials-<language> artifact):
+ * a step's screen (steps/NN.png), a still the frame check found wrong (check/NN.jpg) or the screen where a film
+ * stopped (failed-step-N.png). Nothing else is a picture.
+ */
+const PICTURE_PATH = /^([a-z]{2,3}(?:-[A-Z][a-z]{3})?)\/([a-z0-9]+(?:-[a-z0-9]+)*)\/(?:steps\/(\d{1,3})\.png|check\/(\d{1,3})\.jpg|failed-step-(\d{1,3})\.png)$/;
+
+/** What a picture's path says: its language, video, kind and number; null when it is no picture of a film run. */
+export function pictureOf(file) {
+  const path = String(file ?? '').trim().replace(/^(?:\.\/)?(?:\.tutorial-review\/)?(?:films\/)?/, '');
+  const m = PICTURE_PATH.exec(path);
+  if (!m) return null;
+  const [, language, tutorial, step, still, stopped] = m;
+  return { path, language, tutorial, kind: step ? 'step' : still ? 'still' : 'stopped', n: Number(step ?? still ?? stopped), ext: still ? 'jpg' : 'png' };
+}
+
+/** A PNG's or a JPEG's first bytes. */
+const isImage = (bytes, ext) => ext === 'png'
+  ? bytes.length > 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  : bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+
+const isRing = (r) => Array.isArray(r) && r.length === 4 && r.every((x) => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 1)
+  && r[2] > 0 && r[3] > 0 && r[0] + r[2] <= 1.001 && r[1] + r[3] <= 1.001;
+
+/**
+ * The look with each picture named by its bytes' hash, as the Worker takes it, and the files to send. Claude names
+ * a picture by its path in the film run's folder (`file`); this reads it, checks it is a PNG or JPEG the film run
+ * made (`known`: the hashes listed before Claude ran, when given), and adds its language, video, kind, number and,
+ * for a still, its time in the film (check.json). A picture that cannot be used is left out, with a line saying
+ * why, so it never stops the look.
+ */
+export function withPictures(review, films, known = null) {
+  const files = new Map();
+  const problems = [];
+  const stillTimes = new Map();
+  const stillAt = (language, tutorial, n) => {
+    const key = `${language}/${tutorial}`;
+    if (!stillTimes.has(key)) {
+      try {
+        stillTimes.set(key, JSON.parse(readFileSync(join(films, language, tutorial, 'check.json'), 'utf8')).stills ?? []);
+      } catch {
+        stillTimes.set(key, []);
+      }
+    }
+    const t = stillTimes.get(key)[n - 1]?.t;
+    return typeof t === 'number' && Number.isFinite(t) && t >= 0 ? t : undefined;
+  };
+  const convert = (list, where) => (Array.isArray(list) ? list : []).flatMap((p, k) => {
+    const at = `${where}.pictures[${k}]`;
+    const of = pictureOf(p?.file);
+    if (!of) {
+      problems.push(`${at}.file is ${shown(p?.file)}: name a picture in .tutorial-review/films/ as <language>/<video>/steps/NN.png, <language>/<video>/check/NN.jpg or <language>/<video>/failed-step-N.png.`);
+      return [];
+    }
+    const caption = typeof p.caption === 'string' ? p.caption.trim() : '';
+    if (!caption || caption.length > PICTURE_LIMITS.caption) {
+      problems.push(`${at}.caption: say in at most ${PICTURE_LIMITS.caption} characters what to look at in ${of.path}.`);
+      return [];
+    }
+    let bytes;
+    try {
+      bytes = readFileSync(join(films, of.path));
+    } catch {
+      problems.push(`${at}.file ${of.path} is not in .tutorial-review/films/: the last film run has no such picture. Pick one that is there.`);
+      return [];
+    }
+    const sha = createHash('sha256').update(bytes).digest('hex');
+    if (bytes.length > PICTURE_LIMITS.bytes || !isImage(bytes, of.ext) || (known && !known.has(sha))) {
+      problems.push(`${at}.file ${of.path} is not a picture the film run made.`);
+      return [];
+    }
+    const name = `${sha}.${of.ext}`;
+    files.set(name, join(films, of.path));
+    const ring = p.ring === undefined || p.ring === null ? undefined : isRing(p.ring) ? p.ring : null;
+    if (ring === null) problems.push(`${at}.ring is ${shown(p.ring)}: give [x, y, width, height], each a part of the picture from 0 to 1, from its top left, inside it; or leave the ring out.`);
+    const seconds = of.kind === 'still' ? stillAt(of.language, of.tutorial, of.n) : undefined;
+    return [{ picture: name, language: of.language, tutorial: of.tutorial, kind: of.kind, n: of.n, ...(seconds === undefined ? {} : { at: seconds }), caption, ...(ring ? { ring } : {}) }];
+  });
+  const many = (list, where) => {
+    const out = convert(list, where);
+    if (out.length > PICTURE_LIMITS.pictures) problems.push(`${where}.pictures: at most ${PICTURE_LIMITS.pictures}; the first ${PICTURE_LIMITS.pictures} are kept.`);
+    return out.slice(0, PICTURE_LIMITS.pictures);
+  };
+  const suggestions = entries(review, 'suggestions').map((s, n) => (isObj(s) && s.pictures !== undefined ? { ...s, pictures: many(s.pictures, `suggestions[${n}]`) } : s));
+  const pictures = entries(review, 'pictures').flatMap((e, n) => {
+    if (!isObj(e)) return [e];
+    const shown2 = many(e.pictures, `pictures[${n}]`);
+    return shown2.length || hasWords(e) ? [{ ...e, pictures: shown2 }] : [];
+  });
+  return { review: { ...review, suggestions, ...(review?.pictures !== undefined ? { pictures } : {}) }, files, problems };
+}
+
+/** A `pictures` entry that also says a waiting suggestion's words again. */
+const hasWords = (e) => isObj(e) && (e.title !== undefined || e.detail !== undefined);
+
+/**
+ * Pictures for a suggestion made before, each as a line Claude can act on when the database would skip it: `now`
+ * for a suggestion that has no pictures or still waits for a person, `after` only for one whose fix was merged.
+ * New words (`title`, `detail`) only for one that waits for a person and that no admin edited.
+ */
+export function picturePlaces(review, state) {
+  const byId = new Map((state.suggestions ?? []).map((s) => [s.id, s]));
+  return entries(review, 'pictures').flatMap((e, n) => {
+    const s = byId.get(e?.suggestion);
+    if (!s) return [`pictures[${n}].suggestion is ${shown(e?.suggestion)}, which is no suggestion's id in state.json.`];
+    if ((e.when ?? 'now') === 'after' && s.fix?.state !== 'merged') return [`pictures[${n}]: "after" pictures are only for a suggestion whose fix was merged; ${s.id} has ${s.fix ? `a fix that is ${s.fix.state}` : 'no fix'}.`];
+    if ((e.when ?? 'now') === 'now' && s.decision && (s.pictures ?? []).length) return [`pictures[${n}]: ${s.id} has its pictures already and was answered; leave it.`];
+    if (hasWords(e) && (s.decision || s.editedAt)) return [`pictures[${n}]: new words only for a suggestion that waits for a person and that no admin edited; ${s.id} was ${s.decision ? 'answered' : 'edited by an admin'}. Leave out title and detail.`];
+    return [];
+  });
+}
+
+/** The hashes of the pictures the film run made, listed before Claude ran (one `sha256sum` line each), or null. */
+export function knownPictures(file) {
+  if (!file || !existsSync(file)) return null;
+  return new Set(readFileSync(file, 'utf8').split('\n').map((l) => /^([0-9a-f]{64})\s/.exec(l)?.[1]).filter(Boolean));
+}
+
 async function check(dir) {
   const file = join(dir, 'problems.txt');
   rmSync(file, { force: true });
   let problems;
   try {
-    const review = JSON.parse(readFileSync(join(dir, 'review.json'), 'utf8'));
+    const written = JSON.parse(readFileSync(join(dir, 'review.json'), 'utf8'));
     const state = JSON.parse(readFileSync(join(dir, 'state.json'), 'utf8'));
     const changes = JSON.parse(readFileSync(join(dir, 'changes.json'), 'utf8'));
-    problems = await problemsOf(review, state, changes, git('rev-parse', 'HEAD').trim(), process.env);
+    const { review, problems: pictureProblems } = withPictures(written, join(dir, 'films'), knownPictures(process.env.PICTURES_KNOWN));
+    problems = [...await problemsOf(review, state, changes, git('rev-parse', 'HEAD').trim(), process.env), ...pictureProblems, ...picturePlaces(review, state)];
   } catch (e) {
     problems = [`review.json could not be read: ${e instanceof Error ? e.message.slice(0, 200) : e}. Write it as one JSON object, as the skill says.`];
   }
@@ -141,13 +266,17 @@ async function check(dir) {
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `problems=${problems.length ? 'yes' : 'no'}\n`);
 }
 
+let token = null;
 async function oidcToken() {
+  // A token lasts some minutes: one serves a look's pictures and the look.
+  if (token && token.until > Date.now()) return token.value;
   const url = process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
   const bearer = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
   if (!url || !bearer) throw new Error('No GitHub OIDC token here: this runs only in tutorial-review.yml, with id-token: write.');
   const res = await fetch(`${url}&audience=${encodeURIComponent(AUDIENCE)}`, { headers: { authorization: `bearer ${bearer}` } });
   if (!res.ok) throw new Error(`GitHub OIDC token: HTTP ${res.status}`);
-  return (await res.json()).value;
+  token = { value: (await res.json()).value, until: Date.now() + 120_000 };
+  return token.value;
 }
 
 async function call(method, body, path = '') {
@@ -184,10 +313,41 @@ async function fetchState(dir) {
   console.log(`open: ${state.inputs.length} inputs (${open} not looked at yet), ${state.suggestions.filter((s) => !s.decision).length} suggestions waiting; ${changes.length} changes since ${last ? last.slice(0, 8) : `${FIRST_DAYS} days ago`}`);
 }
 
+/** Sends a picture to the Worker, which keeps it by its hash; true when it is there. */
+async function sendPicture(name, path) {
+  const bytes = readFileSync(path);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await fetch(`${API}/pictures/${name}`, {
+      method: 'PUT',
+      headers: { authorization: `Bearer ${await oidcToken()}`, 'content-type': name.endsWith('.png') ? 'image/png' : 'image/jpeg', 'content-length': String(bytes.length) },
+      body: bytes
+    }).catch(() => null);
+    if (res?.ok) return true;
+    if (res && res.status < 500) {
+      console.log(`::warning::picture ${name}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+      return false;
+    }
+  }
+  console.log(`::warning::picture ${name}: the Worker did not answer`);
+  return false;
+}
+
 async function send(dir) {
-  const review = JSON.parse(readFileSync(join(dir, 'review.json'), 'utf8'));
+  const written = JSON.parse(readFileSync(join(dir, 'review.json'), 'utf8'));
+  const { review: named, files, problems } = withPictures(written, join(dir, 'films'), knownPictures(process.env.PICTURES_KNOWN));
+  for (const p of problems) console.log(`::warning title=Tutorial review picture::${p.replace(/[\r\n%]/g, ' ')}`);
+  const sent = new Set();
+  for (const [name, path] of files) if (await sendPicture(name, path)) sent.add(name);
+  // A picture the Worker did not keep is left out: a card never shows a picture that is not there.
+  const keep = (list) => (Array.isArray(list) ? list.filter((p) => sent.has(p.picture)) : list);
+  const review = {
+    ...named,
+    suggestions: entries(named, 'suggestions').map((s) => (isObj(s) && Array.isArray(s.pictures) ? { ...s, pictures: keep(s.pictures) } : s)),
+    ...(named.pictures !== undefined ? { pictures: entries(named, 'pictures').map((e) => ({ ...e, pictures: keep(e.pictures) })).filter((e) => e.pictures.length || hasWords(e)) } : {})
+  };
+  if (files.size) console.log(`pictures: ${sent.size} of ${files.size} sent`);
   const done = await call('POST', withRun(review, git('rev-parse', 'HEAD').trim(), process.env));
-  console.log(`sent: ${done.code} code changes, ${done.looked} looked at, ${done.suggested} suggestions${done.skipped ? `, ${done.skipped} ids the database did not know` : ''}`);
+  console.log(`sent: ${done.code} code changes, ${done.looked} looked at, ${done.suggested} suggestions${done.pictured ? `, pictures for ${done.pictured} more` : ''}${done.skipped ? `, ${done.skipped} ids the database did not know` : ''}`);
   if (done.skipped) console.log(`::warning::${done.skipped} inputs or suggestions named in review.json were not found`);
 }
 
@@ -369,6 +529,24 @@ function inputLine(i) {
   return `A note on the ops dashboard, ${day}`;
 }
 
+/** A picture's place in words: its language, and its step, or its time in the film. */
+export function pictureLabel(p) {
+  const clock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  const where = p.kind === 'step' ? `step ${p.n}` : p.kind === 'stopped' ? `step ${p.n}, where the film stopped` : typeof p.at === 'number' ? `${clock(p.at)} into the film` : `still ${p.n}`;
+  return `${p.language} · ${where}`;
+}
+
+/** What the suggestion is about, as pictures in the pull request: each served by the app's Worker, which anyone may read. */
+export function picturesMarkdown(pictures) {
+  const list = (Array.isArray(pictures) ? pictures : []).filter((p) => /^[0-9a-f]{64}\.(png|jpg)$/.test(p?.picture ?? ''));
+  if (!list.length) return [];
+  const one = (p) => String(p.caption ?? '').replace(/[\r\n[\]]+/g, ' ').trim();
+  return ['', '**What it is about** (pictures from the last film run, picked by Claude):', '',
+    ...list.flatMap((p, n) => [`${n + 1}. ${pictureLabel(p)}: ${one(p)}`, '', `   <img src="${PICTURE_ORIGIN}/api/tutorial-pictures/${p.picture}" width="360" alt="Picture ${n + 1}">`, ''])];
+}
+/** Where the pictures are served, as the PR body links them. */
+const PICTURE_ORIGIN = 'https://next.langquest.org';
+
 /**
  * The pull request's title and body: the suggestion as accepted (by Claude as a clear fix, by a person, or an
  * admin's instruction), what it answers, Claude's change, its checks and the second check's verdict.
@@ -390,6 +568,7 @@ export function fixPull(suggestion, fix, checks, run, vet) {
     // The phone's disguise is never written where the public reads (decisions.md 171).
     ...(DISGUISE.test(detail) ? ['> (Not quoted here: read it on the ops dashboard.)'] : detail.split('\n').map((l) => `> ${l}`)),
     ...(inputs.length ? ['', '**What it answers:**', '', ...inputs.map((i) => `- ${inputLine(i)}`)] : []),
+    ...picturesMarkdown(suggestion.pictures),
     '',
     `**The change:** ${fix.summary}`,
     '',

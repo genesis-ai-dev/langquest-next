@@ -118,7 +118,7 @@ the page loads to exactly one section.
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
 | Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
 | App Worker | requests by route, server errors, rate-limit refusals and time taken, from the request tally | `DIAG_DATABASE_URL` |
-| User issues | `diag.ops_user_issues`: each Linear issue the watch for user issues filed or commented on and each kind it found already fixed, the last 90 days, open ones first, with its state in Linear, the pull request that fixed it and when, and the last look (`docs/diagnostics.md`, migration `20261103204500_user_issues_fixed.sql`). Issues open in Linear are a watch; a look that failed is a problem | `DIAG_DATABASE_URL`, the migration |
+| User issues | `diag.ops_user_issues`: each Linear issue the watch for user issues filed or commented on and each kind it found already fixed, the last 90 days, open ones first, with its state in Linear, the pull request that fixed it and when, and the last look; and each dashboard line's decision (`lines`, migration `20261117213500_ops_lines_linear.sql`) (`docs/diagnostics.md`, migration `20261103204500_user_issues_fixed.sql`). Issues open in Linear are a watch; a look that failed is a problem | `DIAG_DATABASE_URL`, the migration |
 | Tutorial videos | `diag.ops_tutorials`: each app language's YouTube channel and when it was connected, each video's newest version not on YouTube (ready, or chosen and waiting, with the last failure's code), and the count up in each language; never a token (migration `20261028090000_tutorial_videos.sql`). `diag.ops_tutorial_feedback`: Claude's suggestions with what each answers, what came in that it has not looked at or suggested nothing for, and its last look (migration `20261029120000_tutorial_feedback.sql`) | `DIAG_DATABASE_URL`, the migrations; Connect and Publish need `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET` on the app's Worker; filing an accepted code change in Linear at once needs `LINEAR_API_KEY` there |
 | People and organizations | `diag.ops_people` and `ops_orgs`, counted, never named; an organization opens its own page at `/ops-dashboard/org/<id>` (`diag.ops_org` and its installs' sync errors) | `DIAG_DATABASE_URL`, the migration |
 | Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
@@ -480,6 +480,69 @@ OK lines and cards their 14-day pictures: one number for each section
 chart for each number over the range, then its tables; `#all` shows every
 section as before.
 
+**Each line's Linear issue and fix** (`apps/admin/src/pageFixes.ts`,
+`docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`). Every alert
+has a kind from `KINDS` in `apps/admin/src/alertKinds.ts`, which says its
+part and when its check runs again. The watch for user issues ties each line
+to one Linear issue (its own key, or `ops:<kind>[:<subject>]`, handed over by
+the `OpsLines` entrypoint). `GET /ops/api/fixes` (`sources/fixes.ts`) lists
+the pull requests open or merged in the last 14 days that name a `LAN-` id.
+Under each line the page shows its issue and one state: no Linear issue yet,
+no fix yet, a fix waiting on its merge, a fix merged with the time the line
+should clear (merge, 30 minutes to deploy, the check's window, then its next
+run, in the viewer's clock), or still there after that check. A card whose
+lines all wait after a merged fix goes last, dashed, and the count leaves it
+out. **Resolved**, closed by default under the cards, lists the lines tied
+to Linear in the last 14 days that the page no longer shows; only a part
+that answered can say a line is gone. A new alert needs a kind in `KINDS`
+(TypeScript refuses an alert without one) and, for a scheduled workflow, its
+cron in `WORKFLOW_RECHECK`.
+
+Jobs and pg_cron also draw a row of squares for each job, one square for
+each bucket (`SQUARES` and `runSquares` in `pageStart.ts`), from the same
+`runs`, `failed` and `partial` totals as their charts: red when a run
+failed, amber when one did part of its work, green when it ran. Their card
+reads the last 24 h (`?range=24h`) and leads with the job its alert names.
+A tap on a red square asks the detail for `failed`, on an amber one for
+`partial`, on any other for `runs`.
+
+The fixed lists draw a square for each item (`apps/admin/src/pageLists.ts`,
+plan 5c2): nightly suites, EAS, v2 projects, user issues, feedback,
+channels, what came in about the videos and the videos. `listRows` turns
+the part's own data into rows of items (state, name, fields, link) with no
+new read; the squares lead the part and its card, and a tap opens the
+item's fields in the detail panel, with no call to the server. Past 200
+items a row draws 100 squares of 1% each (`shareCells`). Storage shows the
+nightly R2 check as blob_reconcile's row of the job squares. A new list
+needs a case in `listRows`, a line in `LIST_SAID` and a test in
+`apps/admin/test/lists.test.ts`; never put a name or an email in its fields.
+
+Some rows draw another shape (`draw` on the row, plan 5c3): `track` (the
+store lanes, and main next to what the web host serves), `line` (What
+shipped: errors a day, crashes, and a tick on each day with a change) and
+`axis` (Expiry dates: days left, 0 to 120). The same tap, arrow keys and
+detail panel work on each. A row with `count: false` is context, and the
+head does not count its items.
+
+Meters and shares are rows of the same lists (`apps/admin/src/pageMeters.ts`,
+plan 5c4): `draw: 'meter'` is a bar for each item against its `max`, with
+a `line` where a store draws one; `draw: 'share'` is one bar split by each
+item's `v`. A meter takes its limit from the alert it stands for (the
+sources export `CRASH_LINE`, `DB_FULL_SHARE`, `REPORT_DUE_HOURS` and the
+slow-RPC rule), and `apps/admin/test/meters.test.ts` checks that each bar
+turns red or amber exactly when its alert does. A part whose rows are all
+shares sets `sum` in `LIST_SAID`: its head and legend count what it splits.
+
+In a section, a part's tables (`RENDER`, and the Jobs table with its Run now
+buttons) sit in a closed `details.numbers` ("Show the numbers") under its
+picture, so the section shows pictures first. A part with no picture and no
+history line (`METRIC`) shows its table open. So does a part whose body holds
+a queue control (`QUEUE_CONTROLS` in `pageLists.ts`: Grant, Accept, Send to
+Claude, Add a note, Connect or Publish, Seen or Done); Not an issue and Run
+now may wait behind the tap (`FOLDED_CONTROLS`). `test/meters.test.ts` fails
+on a control in neither list. The page remembers which parts are open while
+it refreshes.
+
 A tap on a bar or a point asks
 `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,
 decisions.md 255): the records behind that number in that bucket, 50 a page,
@@ -491,6 +554,20 @@ their own tables, without bodies, names, emails or report details. People are
 counted, never listed. Past 90 days a bucket says it keeps totals only.
 When a number gets a new filter in `daily_compute`, give it the same row in
 `diag.detail_filters` in the same migration.
+
+## Phones and builds: counted every 10 minutes
+
+"What installs report" (`clients`) and "Builds in the field" (`fleet`) read a
+week or two of every phone's records, which at tens of thousands of installs
+takes longer than the page may wait. So the database counts them every 10
+minutes (`diag.ops_cache_fill`, pg_cron `langquest-ops-counts`, job
+`ops_counts` in Server jobs; docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md), and the page reads the last
+count (`diag.ops_cached`), with "Counted at" under each part. A count past 25
+minutes old shows as late. The stuck phones are read at once, not counted.
+The counts read `diag.install_updates` (each install and update it ran) and
+`diag.install_device` (each install's last device record), kept up from the
+records since the last count. `server/opsCountsSmoke.sql` keeps the page's old
+SQL and fails when the counts answer differently; change both together.
 
 ## Not built yet
 

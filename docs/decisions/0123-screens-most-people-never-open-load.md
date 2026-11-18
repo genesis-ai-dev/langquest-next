@@ -39,3 +39,17 @@ package's entry elsewhere (`noIconBarrel`, `eslint.config.mjs`). A first
 visit went from 5.70 to 3.71 MiB and every file together from 6.54 to 4.54
 (performance-audit-2026-10-26.md item 1). The budgets keep about 5% of
 room, as above, so the space is spent on purpose rather than by drift.
+
+Amended (2026-11-17, Caleb Koster): the budgets are held on the production
+export, the one Workers Builds builds and refuses to deploy when it is over.
+CI and `npm run guardrails -- --web` measured the development export, which
+its settings (the local stack's shorter address, no app address and no
+nearby certificate keys) make about 500 bytes smaller. When nearby sync on
+iPhones (256) merged on 2026-11-17, the development export was 59 bytes
+under and passed every check, and the production export was 437 bytes over:
+`main` built but did not deploy, and next.langquest.org stayed on the
+commit before it. web-smoke now builds the production export first, only
+for the budget, and then the development export its tests serve; guardrails
+builds the production one; `e2e/export-web.sh` reuses an export only when
+it holds the running stack's address. Reverse if: the two exports' sizes
+are made equal, so that one build measures both.

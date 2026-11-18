@@ -114,11 +114,12 @@ describe('user-issues.mjs', () => {
     expect(KEY.source).toBe(model.KEY.source);
     expect(LABEL).toBe(model.ISSUE_LABEL);
     expect(PREFIX).toBe(model.ISSUE_PREFIX);
-    const sql = read('supabase/migrations/20261103180000_user_issues.sql');
+    // The table's check, as the newest migration that sets it: ops lines joined on 2026-11-17.
+    const sql = read('supabase/migrations/20261117213500_ops_lines_linear.sql');
     // Postgres allows no repetition count over 255, so the table says the length on its own.
     expect(sql).toContain(`check (length(key) <= 300 and key ~ '^(${FAMILIES.join('|')}):[A-Za-z0-9 _.:()/#@-]+$')`);
     // A tag a record left out is a dash, which a key may hold; never a question mark.
-    expect(sql).not.toMatch(/coalesce\([rn]\.t->>'\w+', '\?'\)/);
+    expect(read('supabase/migrations/20261103180000_user_issues.sql')).not.toMatch(/coalesce\([rn]\.t->>'\w+', '\?'\)/);
   });
 });
 
@@ -156,6 +157,10 @@ describe('an issue in Linear', () => {
     expect(factsOf(job)).toContain('(error, 57014)');
     expect(factsOf(kind('job:tutorial_review:stopped', { server: { job: 'tutorial_review', streak: 0 } }))).toContain('stopped running');
     expect(factsOf(kind('worker:blobs:5xx', { count: 7, server: { route: 'blobs', answers5xxLastDay: 7 } }))).toContain('answered 7 times with a server error');
+    // A line of the ops dashboard: what it says, where, and its page; the key goes in the agent notes.
+    const line = factsOf(kind('ops:r2-missing', { server: { line: { level: 'urgent', text: 'The R2 reconciliation found 7 recordings the log names but R2 does not have.', title: 'Recordings missing from R2', part: 'storage', link: null } } }));
+    expect(line).toContain('**The ops dashboard shows: Recordings missing from R2** · Act now · in storage');
+    expect(line).toContain('> The R2 reconciliation found 7 recordings');
   });
 
   it('says how many more people hit a filed problem, and that it was closed', () => {

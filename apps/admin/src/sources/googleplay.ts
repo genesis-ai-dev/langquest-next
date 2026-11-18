@@ -96,11 +96,11 @@ export function weighted(rows: MetricRow[], perceived: string, plain: string): R
 export function playAlerts(p: GooglePlay): Alert[] {
   const out: Alert[] = [];
   const pc = (x: number) => `${(x * 100).toFixed(2)}%`;
-  if (p.crash && p.crash.userPerceived >= CRASH_LINE) out.push({ level: 'problem', text: `Google Play: ${pc(p.crash.userPerceived)} of Android users met a crash over the last 7 days, past Play's ${pc(CRASH_LINE)} bad-behaviour line.` });
-  else if (p.crash && p.crash.userPerceived >= CRASH_LINE / 2) out.push({ level: 'watch', text: `Google Play: user-perceived crash rate is ${pc(p.crash.userPerceived)} over the last 7 days (Play's line is ${pc(CRASH_LINE)}).` });
-  if (p.anr && p.anr.userPerceived >= ANR_LINE) out.push({ level: 'problem', text: `Google Play: ${pc(p.anr.userPerceived)} of Android users met an ANR (app not responding) over the last 7 days, past Play's ${pc(ANR_LINE)} line.` });
-  else if (p.anr && p.anr.userPerceived >= ANR_LINE / 2) out.push({ level: 'watch', text: `Google Play: user-perceived ANR rate is ${pc(p.anr.userPerceived)} over the last 7 days (Play's line is ${pc(ANR_LINE)}).` });
-  if (p.reviews && p.reviews.lowWeek > 0) out.push({ level: 'watch', text: `Google Play: ${p.reviews.lowWeek} one- or two-star review${p.reviews.lowWeek === 1 ? '' : 's'} in the last 7 days.` });
+  if (p.crash && p.crash.userPerceived >= CRASH_LINE) out.push({ level: 'problem', key: 'play-crash-rate', text: `Google Play: ${pc(p.crash.userPerceived)} of Android users met a crash over the last 7 days, past Play's ${pc(CRASH_LINE)} bad-behaviour line.` });
+  else if (p.crash && p.crash.userPerceived >= CRASH_LINE / 2) out.push({ level: 'watch', key: 'play-crash-rate', text: `Google Play: user-perceived crash rate is ${pc(p.crash.userPerceived)} over the last 7 days (Play's line is ${pc(CRASH_LINE)}).` });
+  if (p.anr && p.anr.userPerceived >= ANR_LINE) out.push({ level: 'problem', key: 'play-anr-rate', text: `Google Play: ${pc(p.anr.userPerceived)} of Android users met an ANR (app not responding) over the last 7 days, past Play's ${pc(ANR_LINE)} line.` });
+  else if (p.anr && p.anr.userPerceived >= ANR_LINE / 2) out.push({ level: 'watch', key: 'play-anr-rate', text: `Google Play: user-perceived ANR rate is ${pc(p.anr.userPerceived)} over the last 7 days (Play's line is ${pc(ANR_LINE)}).` });
+  if (p.reviews && p.reviews.lowWeek > 0) out.push({ level: 'watch', key: 'play-low-reviews', text: `Google Play: ${p.reviews.lowWeek} one- or two-star review${p.reviews.lowWeek === 1 ? '' : 's'} in the last 7 days.` });
   return out;
 }
 

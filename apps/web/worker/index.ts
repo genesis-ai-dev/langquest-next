@@ -474,7 +474,13 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     userIssues: {
       verify: githubOidcCached ??= githubOidc((input, init) => fetch(input, init)),
       watch: async () => {
-        const { data, error } = await serviceClient(env).rpc('ops_user_issue_watch');
+        // The dashboard's lines that need a Linear issue; without them the watch still reads the records.
+        // Before the admin Worker has OpsLines, the call fails: the watch goes on without them.
+        const lines = await Promise.resolve().then(() => env.OPS_LINES?.lines() ?? []).catch((e: unknown) => {
+          console.error(`ops lines: ${e instanceof Error ? e.name : 'unknown'}`);
+          return [];
+        });
+        const { data, error } = await serviceClient(env).rpc('ops_user_issue_watch', { p_lines: lines });
         if (error) throw new Error(`ops_user_issue_watch: ${error.message}`);
         return data;
       },

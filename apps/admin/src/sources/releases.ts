@@ -49,14 +49,14 @@ export function migrationsBehind(applied: string | null, files: string[]): { mai
 export function releaseAlerts(r: Releases): Alert[] {
   const out: Alert[] = [];
   if (r.migrations.behind && r.migrations.behind > 0) {
-    out.push({ level: 'problem', text: `The hosted database is ${r.migrations.behind} migration${r.migrations.behind === 1 ? '' : 's'} behind main (newest applied ${r.migrations.applied ?? 'none'}, main has ${r.migrations.main}): run npm run db:apply.` });
+    out.push({ level: 'problem', key: 'migrations-behind', text: `The hosted database is ${r.migrations.behind} migration${r.migrations.behind === 1 ? '' : 's'} behind main (newest applied ${r.migrations.applied ?? 'none'}, main has ${r.migrations.main}): run npm run db:apply.` });
   }
   const days = r.errorsByDay;
   const today = days.at(-1);
   const before = days.slice(-8, -1);
   const mean = before.length ? before.reduce((s, d) => s + d.crashes, 0) / before.length : 0;
   if (today && today.crashes >= 10 && today.crashes > 3 * Math.max(mean, 1)) {
-    out.push({ level: 'problem', text: `Crashes jumped to ${today.crashes} on ${today.day}, against ${mean.toFixed(1)} a day the week before. Check the timeline for what shipped.` });
+    out.push({ level: 'problem', key: 'crash-jump', text: `Crashes jumped to ${today.crashes} on ${today.day}, against ${mean.toFixed(1)} a day the week before. Check the timeline for what shipped.` });
   }
   return out;
 }
