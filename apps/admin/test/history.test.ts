@@ -8,11 +8,15 @@ import { history, isRange, METRICS, PART_IDS, RANGES, SERIES_SQL } from '../src/
 
 const MIGRATION = 'supabase/migrations/20261117060000_diag_daily.sql';
 
-/** The (part, metric, agg) rows the migration puts in diag.daily_metrics. */
+/** A later migration that adds numbers: a first download's wait for a connection. */
+const LATER = ['supabase/migrations/20261118234300_first_download_wait.sql'];
+
+/** The (part, metric, agg) rows the migrations put in diag.daily_metrics. */
 function sqlMetrics(): [string, string, string][] {
-  const sql = readFileSync(MIGRATION, 'utf8');
-  const block = /insert into diag\.daily_metrics \(part, metric, agg\) values([\s\S]*?)on conflict/.exec(sql)![1]!;
-  return [...block.matchAll(/\('([a-z0-9_]+)', '([a-z0-9_]+)', '(sum|max)'\)/g)].map((m) => [m[1]!, m[2]!, m[3]!]);
+  return [MIGRATION, ...LATER].flatMap((file) => {
+    const block = /insert into diag\.daily_metrics \(part, metric, agg\) values([\s\S]*?)on conflict/.exec(readFileSync(file, 'utf8'))![1]!;
+    return [...block.matchAll(/\('([a-z0-9_]+)', '([a-z0-9_]+)', '(sum|max)'\)/g)].map((m): [string, string, string] => [m[1]!, m[2]!, m[3]!]);
+  });
 }
 
 describe('the numbers kept by day', () => {

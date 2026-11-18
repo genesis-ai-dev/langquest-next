@@ -174,6 +174,9 @@ describe('the API', () => {
     expect(table).toBeGreaterThan(html.indexOf('<h3>Time to a usable Map</h3>'));
     expect(table).toBeLessThan(html.indexOf('<h3>Stuck phones</h3>'));
     expect(HELP['First downloads that fell back or started over']).toBeTruthy();
+    // A first download's wait for a connection has its own columns beside the download time.
+    const map = html.slice(html.indexOf('<h3>Time to a usable Map</h3>'), table);
+    for (const h of ['Waited', 'Longest wait']) { expect(map, h).toContain("h: '" + h + "'"); expect(HELP[h], h).toBeTruthy(); }
   });
 
   it('shows phones by build first among the builds, and snapshot copies beside the snapshots, with hover text', async () => {
