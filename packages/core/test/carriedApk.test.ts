@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { CARRIED_APK_PATH, carriedApkName, carriedApkNameHere, parseCarriedApkName } from '../src/carriedApk';
+import { CARRIED_APK_PATH, carriedApkName, carriedApkNameHere, carriedApkVersionsPart, parseCarriedApkName, sameCarriedVersions } from '../src/carriedApk';
 import { LINES_VERSION, NEARBY_PROTOCOL, REDUCER_VERSION } from '../src';
 
 /**
@@ -50,6 +50,32 @@ describe('the carried build\'s file name', () => {
       'r21-l1-p1-0a1b2c3d.apk/x', '../r21-l1-p1-0a1b2c3d.apk', 'r21-l1-p1-0A1B2C3D.apk', 'langquest-r21-l1-p1-0a1b2c3d.apk', 'current.json']) {
       expect(parseCarriedApkName(other), other).toBeNull();
     }
+  });
+
+  it('says which phones a file fits by the start of its name, the versions without the fingerprint', () => {
+    expect(carriedApkVersionsPart('r21-l1-p1-0a1b2c3d.apk')).toBe('r21-l1-p1-');
+    expect(carriedApkVersionsPart('r22-l3-p1.2-0a1b2c3d.apk')).toBe('r22-l3-p1.2-');
+    for (const other of ['', 'current.json', 'r21-l1-p1-0A1B2C3D.apk', 'r21-l1-p1.1-0a1b2c3d.apk']) expect(carriedApkVersionsPart(other), other).toBeNull();
+    // A start is never the start of another versions' start: p1- is not p1.2-, r2- is not r21-.
+    expect('r21-l1-p1.2-0a1b2c3d.apk'.startsWith(carriedApkVersionsPart('r21-l1-p1-0a1b2c3d.apk')!)).toBe(false);
+    expect('r21-l1-p1-0a1b2c3d.apk'.startsWith(carriedApkVersionsPart('r2-l1-p1-0a1b2c3d.apk')!)).toBe(false);
+  });
+
+  it('counts two files as the same versions whatever their fingerprints, and any change of version as not', () => {
+    fc.assert(fc.property(
+      fc.nat(999), fc.nat(999), fc.nat(990), fc.nat(5), fc.stringMatching(/^[0-9a-f]{8}$/), fc.stringMatching(/^[0-9a-f]{8}$/),
+      fc.constantFrom('reducer', 'lines', 'min', 'max'),
+      (reducer, lines, min, span, a, b, moved) => {
+        const v = { reducer, lines, protocol: { min, max: min + span } };
+        const one = carriedApkName({ ...v, fingerprint: a })!;
+        expect(sameCarriedVersions(one, carriedApkName({ ...v, fingerprint: b })!)).toBe(true);
+        const other = moved === 'reducer' ? { ...v, reducer: reducer + 1 } : moved === 'lines' ? { ...v, lines: lines + 1 }
+          : moved === 'min' ? { ...v, protocol: { min: min + span + 1, max: min + span + 1 } } : { ...v, protocol: { min, max: min + span + 1 } };
+        expect(sameCarriedVersions(one, carriedApkName({ ...other, fingerprint: a })!)).toBe(false);
+      }
+    ));
+    expect(sameCarriedVersions('current.json', 'current.json')).toBe(false);
+    expect(sameCarriedVersions('r21-l1-p1-0a1b2c3d.apk', 'r21-l1-p1-0a1b2c3d (1).apk')).toBe(false);
   });
 
   it('names this build\'s file from the runtime version it runs on, and nothing without one', () => {

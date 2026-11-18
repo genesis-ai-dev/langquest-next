@@ -157,7 +157,7 @@
       "turnedAway": "May ibang teleponong sumubok sa code na ito at tinanggihan.",
       "stayOpen": "Panatilihing bukas ang screen na ito hanggang matapos.",
       "file": "Install file para sa bersiyong ito: {{file}}",
-      "fileExact": "Dapat eksaktong ganito ang pangalan ng file sa Downloads mo. Maling bersiyon ang anumang ibang pangalan.",
+      "fileStart": "Dapat nagsisimula sa {{start}} ang pangalan ng file sa Downloads mo. Ibang bersiyon ang pangalang iba ang simula.",
       "fileOld": "Para sa lumang bersiyon ang install file na nakuha mo dati. Kunin ang bago bago ka mawalan ng internet.",
       "get": "Kunin ang install file",
       "getHelp": "Binubuksan ang browser ng telepono, na magda-download ng install file para sa bersiyong ito.",

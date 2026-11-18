@@ -157,7 +157,7 @@
       "turnedAway": "Simu nyingine ilijaribu msimbo huu na ikakataliwa.",
       "stayOpen": "Acha skrini hii wazi hadi imalize.",
       "file": "Faili ya kusakinisha ya toleo hili: {{file}}",
-      "fileExact": "Faili iliyo kwenye Vipakuliwa vyako lazima iwe na jina hili hasa. Jina lingine lolote ni toleo lisilo sahihi.",
+      "fileStart": "Jina la faili iliyo kwenye Vipakuliwa vyako lazima lianze na {{start}}. Jina linaloanza kwa njia nyingine ni la toleo jingine.",
       "fileOld": "Faili ya kusakinisha uliyopata awali ni ya toleo la zamani. Pata mpya kabla hujakosa intaneti.",
       "get": "Pata faili ya kusakinisha",
       "getHelp": "Hufungua kivinjari cha simu, kinachopakua faili ya kusakinisha ya toleo hili.",

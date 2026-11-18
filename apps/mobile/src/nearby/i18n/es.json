@@ -157,7 +157,7 @@
       "turnedAway": "Otro teléfono intentó usar este código y fue rechazado.",
       "stayOpen": "Deja esta pantalla abierta hasta que termine.",
       "file": "Archivo de instalación de esta versión: {{file}}",
-      "fileExact": "El archivo en tus Descargas debe tener exactamente este nombre. Cualquier otro nombre es la versión equivocada.",
+      "fileStart": "El archivo en tus Descargas debe tener un nombre que empiece por {{start}}. Un nombre que empiece de otra forma es de otra versión.",
       "fileOld": "El archivo de instalación que conseguiste antes es de una versión anterior. Consigue el nuevo antes de quedarte sin internet.",
       "get": "Conseguir el archivo de instalación",
       "getHelp": "Abre el navegador del teléfono, que descarga el archivo de instalación de esta versión.",

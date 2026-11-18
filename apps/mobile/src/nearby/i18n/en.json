@@ -157,7 +157,7 @@
       "turnedAway": "Another phone tried this code and was turned away.",
       "stayOpen": "Keep this screen open until it finishes.",
       "file": "Install file for this version: {{file}}",
-      "fileExact": "The file in your Downloads must have exactly this name. Any other name is the wrong version.",
+      "fileStart": "The file in your Downloads must have a name that starts with {{start}}. A name that starts any other way is for a different version.",
       "fileOld": "The install file you got before is for an older version. Get the new one before you go offline.",
       "get": "Get the install file",
       "getHelp": "Opens your phone's browser, which downloads the install file for this version.",

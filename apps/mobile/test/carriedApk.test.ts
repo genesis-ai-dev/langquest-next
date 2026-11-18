@@ -1,20 +1,23 @@
 import { carriedApkName, CARRIED_APK_PATH } from '@langquest-next/core';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { APK_REMINDER_WORDS, apkCheck, apkGet, apkReminder, apkStale, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
+import { APK_REMINDER_WORDS, apkCheck, apkGet, apkReminder, apkShown, apkStale, apkStart, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
 import { carriedApkAddress } from '../src/server/carriedApkModel';
 
 /**
  * The install file on a carrier's phone (docs/nearby-sync-plan.md 14.4). Why these tests: a
  * carrier who leaves town with a file for older versions can let nobody in, so the screen must say
  * so while they can still fix it; the address must be the Worker's own route for exactly this
- * name; the check must take only the exact name as right; and the inviter must be told which file
- * the newcomer needs.
+ * name; the check must take a file for this phone's versions as right, whatever build's
+ * fingerprint ends its name, and nothing else; and the inviter must be told which file the
+ * newcomer needs.
  */
 
 const base = { reducer: 21, lines: 1, protocol: { min: 1, max: 1 }, fingerprint: '4989edff0a1b2c3d' };
 const NOW = carriedApkName(base)!;
 const OLDER = carriedApkName({ ...base, reducer: 20 })!;
+/** The same versions from another build: what the Worker sends a phone to when its own build has no file. */
+const SIBLING = carriedApkName({ ...base, fingerprint: '401de22e' })!;
 
 describe('Share nearby\'s rows', () => {
   it('offers Get the install file beside Let someone in, on the same terms, and only with a file to name', () => {
@@ -52,6 +55,9 @@ describe('a file got for an older version', () => {
   it('is too old only when a name was remembered and it is not the one needed now', () => {
     expect(apkStale(NOW, OLDER)).toBe(true);
     expect(apkStale(NOW, NOW)).toBe(false);
+    // Another build's file for the same versions is not older: it lets a new phone join this one.
+    expect(apkStale(NOW, SIBLING)).toBe(false);
+    expect(apkStale(NOW, 'not a name')).toBe(true);
     expect(apkStale(NOW, null)).toBe(false);
     expect(apkStale(null, OLDER)).toBe(false);
     // Not read yet: nothing is known to be old.
@@ -99,9 +105,13 @@ describe('Sync reminding a carrier to get the file', () => {
 });
 
 describe('checking a file by its name', () => {
-  it('takes the exact name, or the same name a browser numbered for a second download, as right, and any other version as not', () => {
+  it('takes any file for this phone\'s versions, whatever fingerprint ends its name or number a browser added, as right, and any other version as not', () => {
     expect(apkCheck(NOW, NOW)).toBe('right');
+    expect(apkCheck(SIBLING, NOW)).toBe('right');
+    expect(apkCheck(SIBLING.replace('.apk', ' (2).apk'), NOW)).toBe('right');
     expect(apkCheck(OLDER, NOW)).toBe('other');
+    expect(apkCheck(carriedApkName({ ...base, lines: 2 })!, NOW)).toBe('other');
+    expect(apkCheck(carriedApkName({ ...base, protocol: { min: 1, max: 2 } })!, NOW)).toBe('other');
     // Chrome saves a second download of the same file as "name (1).apk": same versions, same file.
     expect(apkCheck(NOW.replace('.apk', ' (1).apk'), NOW)).toBe('right');
     expect(apkCheck(NOW.replace('.apk', '(12).apk'), NOW)).toBe('right');
@@ -109,11 +119,28 @@ describe('checking a file by its name', () => {
     expect(apkCheck(NOW.toUpperCase(), NOW)).toBe('other');
     expect(apkCheck('LangQuest.apk', NOW)).toBe('other');
   });
+
+  it('shows the start a name must have, with the rest left open, since the file got may be another build\'s', () => {
+    expect(apkShown(NOW)).toBe('r21-l1-p1-….apk');
+    expect(apkStart(NOW)).toBe('r21-l1-p1-');
+    expect(SIBLING.startsWith(apkStart(NOW))).toBe(true);
+    expect(OLDER.startsWith(apkStart(NOW))).toBe(false);
+    expect([apkShown('odd.apk'), apkStart('odd.apk')]).toEqual(['odd.apk', 'odd.apk']);
+  });
+
+  it('says so in every language, with the start in each', () => {
+    const dir = join(import.meta.dirname, '../src/nearby/i18n');
+    for (const file of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
+      const letIn = JSON.parse(readFileSync(join(dir, file), 'utf8')).nearby.letIn;
+      expect(letIn.fileStart, file).toContain('{{start}}');
+      expect(letIn.fileExact, file).toBeUndefined();
+    }
+  });
 });
 
 describe('the inviter told of a version refusal', () => {
   it('names the file this phone needs, or the version without a name where there is none', () => {
-    expect(letInVersionsWords(NOW)).toEqual({ key: 'nearby.letIn.end.versions', file: NOW });
+    expect(letInVersionsWords(NOW)).toEqual({ key: 'nearby.letIn.end.versions', file: 'r21-l1-p1-….apk' });
     expect(letInVersionsWords(null)).toEqual({ key: 'nearby.letIn.end.versionsUnnamed' });
   });
 });
