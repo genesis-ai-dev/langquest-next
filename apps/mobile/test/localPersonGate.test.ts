@@ -8,10 +8,19 @@ import { FakeServer } from '../../../packages/sync/src/testing/fakeServer';
  * sends nothing as no one then. Both open as soon as first contact saves a session.
  */
 
-const fake = vi.hoisted(() => ({ holds: false, saved: null as string | null, secure: new Map<string, string>(), clients: [] as { key: string; fetch: typeof fetch }[] }));
+const fake = vi.hoisted(() => ({
+  holds: false, saved: null as string | null, secure: new Map<string, string>(), clients: [] as { key: string; fetch: typeof fetch }[],
+  /** Who listens for the sign-in to change (supabase-js's onAuthStateChange, through server/auth.ts). */
+  listeners: new Set<(event: string, session: object | null) => void>()
+}));
+/** The sign-in changed, as supabase-js tells it: first contact's setSession saves the session, then says SIGNED_IN. */
+const authChanged = (event: string, session: object | null) => { for (const fn of [...fake.listeners]) fn(event, session); };
 
 vi.mock('../src/server/localPerson', () => ({ localPersonHolds: () => fake.holds }));
-vi.mock('../src/server/auth', () => ({ savedSignIn: async () => fake.saved }));
+vi.mock('../src/server/auth', () => ({
+  savedSignIn: async () => fake.saved,
+  onAuthChange: (fn: (event: string, session: object | null) => void) => { fake.listeners.add(fn); return () => { fake.listeners.delete(fn); }; }
+}));
 vi.mock('react-native-url-polyfill/auto', () => ({}));
 vi.mock('../src/server/secureStorage', () => ({
   secureStorage: { getItem: async (k: string) => fake.secure.get(k) ?? null, setItem: async () => undefined, removeItem: async () => undefined }
@@ -28,7 +37,11 @@ beforeEach(() => {
   fake.holds = false;
   fake.saved = null;
   fake.secure.clear();
+  fake.listeners.clear();
 });
+
+/** Lets the gate's storage reads and their callbacks finish. */
+const settle = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 /** The fake server's transport, counting every call that reaches it. */
@@ -75,6 +88,63 @@ describe('the streams\' transport until first contact', () => {
     fake.saved = '{"access_token":"a"}';
     await client.sync();
     expect(calls).toContain('append');
+  });
+
+  it('opens the live channel once first contact saves a session, so Sync says Live without the app starting again', async () => {
+    const { untilFirstContact } = await import('../src/sync/firstContactGate.android');
+    const { transport, calls } = counted(new FakeServer());
+    fake.holds = true;
+    const gated = untilFirstContact(transport as SupabaseTransport) as Required<Transport>;
+    // The stream opens before first contact: no channel, and nothing heard yet.
+    const off = gated.watch('o1', 'L1', { onChange: () => undefined } as never);
+    await settle();
+    authChanged('INITIAL_SESSION', null);
+    await settle();
+    expect(calls).toEqual([]);
+    // First contact's setSession saves the session, then supabase-js says SIGNED_IN: the channel opens, once.
+    fake.saved = '{"access_token":"a"}';
+    authChanged('SIGNED_IN', { access_token: 'a' });
+    authChanged('TOKEN_REFRESHED', { access_token: 'b' });
+    await settle();
+    expect(calls).toEqual(['watch']);
+    // Opened, it stops listening; closing the stream closes the channel.
+    expect(fake.listeners.size).toBe(0);
+    off();
+  });
+
+  it('does not miss a session saved while it was still reading the last one, and opens nothing for a stream already closed', async () => {
+    const { untilFirstContact } = await import('../src/sync/firstContactGate.android');
+    const { transport, calls } = counted(new FakeServer());
+    fake.holds = true;
+    const gated = untilFirstContact(transport as SupabaseTransport) as Required<Transport>;
+    // The session is saved and SIGNED_IN said while the first read, which found nothing, is under way.
+    let release!: () => void;
+    const reading = new Promise<void>((r) => { release = r; });
+    let first = true;
+    fake.saved = null;
+    const auth = await import('../src/server/auth');
+    const spy = vi.spyOn(auth, 'savedSignIn').mockImplementation(async () => {
+      if (first) { first = false; await reading; return null; }
+      return fake.saved;
+    });
+    gated.watch('o1', 'L1', { onChange: () => undefined } as never);
+    fake.saved = '{"access_token":"a"}';
+    authChanged('SIGNED_IN', { access_token: 'a' });
+    release();
+    await settle();
+    expect(calls).toEqual(['watch']);
+    spy.mockRestore();
+
+    // A stream closed before first contact opens no channel after it.
+    const later = counted(new FakeServer());
+    fake.saved = null;
+    const closedEarly = (untilFirstContact(later.transport as SupabaseTransport) as Required<Transport>).watch('o1', 'L2', { onChange: () => undefined } as never);
+    await settle();
+    closedEarly();
+    fake.saved = '{"access_token":"a"}';
+    authChanged('SIGNED_IN', { access_token: 'a' });
+    await settle();
+    expect(later.calls).toEqual([]);
   });
 
   it('is the plain transport for everyone else', async () => {
