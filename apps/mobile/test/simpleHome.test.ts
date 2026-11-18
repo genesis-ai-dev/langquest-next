@@ -104,17 +104,18 @@ describe('the simple tabs (decision 71)', () => {
   });
 
   it('keeps everything Settings had one tap under Me', () => {
-    // Why: Me shows five rows; More settings holds the rest (switching
-    // organization, sync, diagnostics, deleting the account), so nothing is lost. Edit
-    // Profile, with the email and password, opens from Me's name row alone (LAN-304).
+    // Why: Me shows five rows; More settings holds the rest (profile, switching
+    // organization, diagnostics, deleting the account), so nothing is lost. Sync and
+    // offline is one row on Me, the only one: More settings no longer opens it too
+    // (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
     const s = roleSession('translator');
     for (const to of ['settings_more', 'profile_edit', 'sync_status', 'vision', 'sign_out_confirm'] as const) {
       expect(EDGES.some((e) => e.from === 'settings_home' && e.to === to && edgeAllowed(e, s)), to).toBe(true);
     }
-    expect(EDGES.some((e) => e.from === 'settings_more' && e.to === 'profile_edit')).toBe(false);
-    for (const to of ['org_switcher', 'sync_status', 'delete_account'] as const) {
+    for (const to of ['org_switcher', 'delete_account', 'profile_edit'] as const) {
       expect(EDGES.some((e) => e.from === 'settings_more' && e.to === to && edgeAllowed(e, s)), to).toBe(true);
     }
+    expect(EDGES.some((e) => e.from === 'settings_more' && e.to === 'sync_status')).toBe(false);
   });
 
   it('lets someone in several organizations switch from Me, not only under More settings', () => {

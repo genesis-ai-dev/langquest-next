@@ -117,22 +117,6 @@ export function rememberPassword(actorId: string, address: string, password: str
 }
 
 /**
- * Their email changed on Edit Profile (LAN-304): the password they sign back
- * in with here is typed beside the new address from now on, so the lock is
- * found by that. Nothing else changes, so a pattern stays good.
- */
-export function rememberAddress(actorId: string, address: string): Promise<void> {
-  if (!LOCKS_ON_SIGN_OUT) return Promise.resolve();
-  return serial(async () => {
-    const list = await readLocks();
-    const lock = list.find((l) => l.actorId === actorId);
-    if (!lock) return;
-    const hashed = addressHash(await phoneSalt(), address);
-    await writeLocks(list.map((l) => (l === lock ? { ...l, address: hashed } : l)));
-  }).catch((e: unknown) => noteExpected('lock: new address', e));
-}
-
-/**
  * Signed in on this phone by any way but the lock (a password, a code, an
  * invite): a session sealed for them earlier is not theirs to come back to
  * any more, so it goes. Their key and wraps stay.

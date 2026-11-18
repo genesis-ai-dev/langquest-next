@@ -1119,15 +1119,14 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. NEW's device: turn the network on. Tap Sync now.
-2. Read My Work, Me and Me → More settings.
-3. Read the Sync screen.
+2. Read My Work and Me.
+3. On Me, tap "Sync and offline".
 
 Expected:
 - The refusal is shown, never silent (PLAN.md invariant 1): My Work's chip
-  reads "Not syncing"; Me reads "This account cannot sync · password,
-  notifications, account"; More settings reads "This account cannot sync
-  this organization"; Sync says "The server refused this account for this
-  organization."
+  reads "Not syncing"; Me's "Sync and offline" row reads "This account
+  cannot sync this organization"; Sync and offline says "The server
+  refused this account for this organization."
 - The unsent recording stays on the device, counted, not dropped: the
   server refuses its events ("not a member") and the device keeps them as
   refused (SYNC covers what happens to refused work).

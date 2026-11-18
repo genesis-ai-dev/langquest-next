@@ -1632,7 +1632,7 @@ Amended (2026-11-06, Caleb Koster): the web app's address is now
 
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
-Date: 2026-10-05 · By: Caleb Koster · Status: partly superseded by 2026-11-18-edit-profile-holds-email-and-password
+Date: 2026-10-05 · By: Caleb Koster · Status: accepted
 
 Reason: supersedes part of 54. People invited by QR in the field often have
 no email and will not remember a sign-in name or a password, so 54's join

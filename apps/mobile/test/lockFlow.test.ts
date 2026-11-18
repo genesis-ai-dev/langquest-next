@@ -119,20 +119,6 @@ describe('signing out of a phone, locked', () => {
     expect(fake.secure.get('sb-session')).toBe(session('akol'));
   });
 
-  it('an email added or changed on Edit Profile finds the lock from then on, and the old address no longer does (LAN-304)', async () => {
-    const lock = await load();
-    fake.secure.set('sb-session', session('akol'));
-    await lock.rememberPassword('akol', 'akol-482@people.langquest.org', 'correct horse');
-    await lock.rememberAddress('akol', 'Akol@Example.org');
-    // Nobody else's lock is touched, and someone with no lock here gets none.
-    await lock.rememberAddress('mary', 'mary@example.org');
-    await lock.lockAndSignOut('akol');
-    expect([...fake.secure.values(), ...fake.plain.values()].join()).not.toMatch(/akol@example/i);
-    expect(await lock.signBackIn('password', 'correct horse', { address: 'akol-482@people.langquest.org' })).toEqual({ kind: 'none' });
-    expect(await lock.signBackIn('password', 'correct horse', { address: 'mary@example.org' })).toEqual({ kind: 'none' });
-    expect(await lock.signBackIn('password', 'correct horse', { address: 'akol@example.org' })).toEqual({ kind: 'ok' });
-  });
-
   it('two people never share a picture, and one person\'s wrong guesses never hold up the other', async () => {
     const lock = await load();
     fake.secure.set('sb-session', session('akol'));

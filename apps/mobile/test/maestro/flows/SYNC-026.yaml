@@ -28,8 +28,7 @@ tags:
 - extendedWaitUntil:
     visible: ".*12 passages on this device.*"
     timeout: 300000
-- tapOn: "More settings.*"
-- tapOn: "Sync.*"
+- tapOn: "Sync and offline.*"
 - runFlow: ../common/open-sync-details.yaml
 - scrollUntilVisible:
     element: ".*Audio downloading.*"

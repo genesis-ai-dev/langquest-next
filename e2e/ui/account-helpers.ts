@@ -32,23 +32,20 @@ async function rpc<T>(sb: SupabaseClient, fn: string, args: Record<string, unkno
   return data as T;
 }
 
-export interface NewAccount { key: AccountKey; id: string; email: string; password: string; name: string; session: Session; sb: SupabaseClient; signInName?: string }
+export interface NewAccount { key: AccountKey; id: string; email: string; password: string; name: string; session: Session; sb: SupabaseClient }
 
 /**
  * A NEW account for one test (README: "NEW"), with the terms accepted and
  * the Welcome seen. `role` makes it a member of ORG at LANG-A by an invite
  * ADMIN issues and it redeems (decision 75); without one it belongs nowhere.
- * `lookedAfter` makes it as `join` does (decision 59): a sign-in name's
- * address and no password of its own, so redeeming records ADMIN as its steward.
  */
-export async function newAccount(world: UiWorld, n: number, role?: 'translator', opts: { lookedAfter?: boolean } = {}): Promise<{ world: UiWorld; who: NewAccount }> {
+export async function newAccount(world: UiWorld, n: number, role?: 'translator'): Promise<{ world: UiWorld; who: NewAccount }> {
   const s = localServer();
   const admin = createClient(s.url, s.service, { auth: { persistSession: false, autoRefreshToken: false } });
-  const signInName = opts.lookedAfter ? `ui-${world.run}-kept${n}-${randomBytes(2).toString('hex')}`.toLowerCase() : undefined;
-  const email = signInName ? `${signInName}@people.langquest.org` : `ui-${world.run}-new${n}-${randomBytes(2).toString('hex')}@example.org`;
+  const email = `ui-${world.run}-new${n}-${randomBytes(2).toString('hex')}@example.org`;
   const password = randomBytes(12).toString('hex');
   const name = `New Person ${n}`;
-  const made = await admin.auth.admin.createUser({ email, password, email_confirm: true, ...(signInName ? { user_metadata: { has_password: false } } : {}) });
+  const made = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (made.error || !made.data.user) throw new Error(`NEW-${n}: ${made.error?.message ?? 'not made'}`);
   const sb = createClient(s.url, s.anon, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
@@ -68,7 +65,7 @@ export async function newAccount(world: UiWorld, n: number, role?: 'translator',
     await rpc(sb, 'redeem_invite_v2', { p_token: token });
   }
   const key = `NEW${n}` as AccountKey;
-  const who: NewAccount = { key, id, email, password, name, session: data.session, sb, ...(signInName ? { signInName } : {}) };
+  const who: NewAccount = { key, id, email, password, name, session: data.session, sb };
   return { world: { ...world, accounts: { ...world.accounts, [key]: { id, email, password, name, session: data.session } } }, who };
 }
 

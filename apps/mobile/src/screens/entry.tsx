@@ -312,13 +312,11 @@ export function ForgotPassword(ctx: Ctx) {
  * changes. Setting it signs the account's other phones out (Supabase Auth);
  * their unsent work waits there until they sign in again. "A phone of mine
  * was lost or taken", off unless turned on, first revokes the person's
- * nearby keys (decisions.md 200, docs/nearby-sync-plan.md section 6). The
- * password is typed twice, as on Create Account and Edit Profile (LAN-304).
+ * nearby keys (decisions.md 200, docs/nearby-sync-plan.md section 6).
  */
 export function NewPassword(ctx: Ctx) {
   const code = ctx.params['code'] ?? '';
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
   const [lost, setLost] = useState(false);
   const [error, setError] = useState(() => /^[0-9a-f]{64}$/.test(code) ? '' : t('entry.newPassword.expired'));
   const [expired, setExpired] = useState(() => !/^[0-9a-f]{64}$/.test(code));
@@ -326,7 +324,7 @@ export function NewPassword(ctx: Ctx) {
   const [changedFor, setChangedFor] = useState<string | null>(null);
   const guest = ctx.session.isGuest;
   const holdsPasses = useHoldsPasses(guest ? null : ctx.session.actorId);
-  const ready = password.length >= MIN_PASSWORD && confirm === password && !busy && !expired;
+  const ready = password.length >= MIN_PASSWORD && !busy && !expired;
 
   // Opened from a link, there is nothing under this screen: Back leads where
   // the person would otherwise be, Sign In or their home (as Scan a code does).
@@ -360,11 +358,8 @@ export function NewPassword(ctx: Ctx) {
     <Screen header={<Header title={t('entry.newPassword.title')} onBack={leave} />}>
       <Field value={password} onChangeText={setPassword} placeholder={t('entry.createAccount.passwordPlaceholder')}
         secure autoCapitalize="none" help={t('entry.newPassword.fieldHelp')} onSubmit={() => { if (ready) void choose(); }} />
-      <Field value={confirm} onChangeText={setConfirm} placeholder={t('entry.createAccount.confirmPlaceholder')} accessibilityLabel={t('entry.createAccount.confirmLabel')}
-        secure autoCapitalize="none" help={t('entry.createAccount.confirmHelp')} onSubmit={() => { if (ready) void choose(); }} />
       {/* The placeholder that says so is gone once typing starts: say why the button stays off. */}
       {password.length > 0 && password.length < MIN_PASSWORD ? <Text style={txt.error}>{t('entry.createAccount.tooShort')}</Text> : null}
-      {confirm.length > 0 && password !== confirm ? <Text style={txt.error}>{t('entry.createAccount.mismatch')}</Text> : null}
       {!expired ? (
         <Group>
           <Row icon="phone" label={t('entry.newPassword.lost')} sub={t('entry.newPassword.lostSub')} role="switch" checked={lost} disabled={busy}

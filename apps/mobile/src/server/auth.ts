@@ -74,23 +74,9 @@ export function onAuthChange(listener: (event: AuthChangeEvent, session: Session
   return () => data.subscription.unsubscribe();
 }
 
-/** Set this account's password on Edit Profile: a first one for a looked-after account, or a new one. */
+/** A looked-after account chooses its password (it had none until now). */
 export function choosePassword(password: string) {
   return supabase.auth.updateUser({ password, data: { has_password: true } });
-}
-
-/**
- * Edit Profile's email (supabase/functions/change-email, LAN-304): add one to
- * a looked-after account or change your own. A refusal comes back as `error`
- * with the reply as its context.
- */
-export function changeEmail(email: string) {
-  return supabase.functions.invoke('change-email', { body: { email } });
-}
-
-/** Ask for a new token now, so a change the server made to the account (its email) reaches this session. */
-export function refreshSignIn() {
-  return supabase.auth.refreshSession();
 }
 
 /**

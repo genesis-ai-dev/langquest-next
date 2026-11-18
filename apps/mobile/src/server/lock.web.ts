@@ -16,7 +16,6 @@ const nothing = async () => undefined;
 
 export function onLocksChanged(_listener: () => void): () => void { return () => {}; }
 export const rememberPassword = nothing as (actorId: string, address: string, password: string) => Promise<void>;
-export const rememberAddress = nothing as (actorId: string, address: string) => Promise<void>;
 export const signedInHere = nothing as (actorId: string) => Promise<void>;
 export async function lockWays(_actorId: string): Promise<Wrap['kind'][]> { return []; }
 export async function lockPictures(_actorId: string): Promise<{ taken: number[]; mine: number | null }> { return { taken: [], mine: null }; }
