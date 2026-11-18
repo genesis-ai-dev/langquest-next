@@ -189,6 +189,15 @@
         "stopped": "The code is gone because you left this screen. Make a new one.",
         "noCertificate": "This phone must connect to the internet once before it can let anyone in.",
         "failed": "Something went wrong on this phone. Make a new code."
+      },
+      "keep": {
+        "keeping": "Keeping a copy on this phone…",
+        "kept": "Kept on this phone, ready for Give the app. You can delete the one in Downloads.",
+        "notOurs": "This is not LangQuest's own install file. Get it again while you have internet.",
+        "noSpace": "Not enough room on this phone to keep a copy. Free some space and choose it again.",
+        "unreadable": "This file could not be read. Choose it again.",
+        "failed": "A copy could not be kept. Choose it again.",
+        "unsupported": "Update LangQuest from the store to give the app over Wi-Fi."
       }
     },
     "installFile": {
@@ -253,6 +262,66 @@
         "refused": "This phone could not check your teammate's answer. Ask for a new code.",
         "dropped": "The connection dropped. Ask for a new code.",
         "failed": "Something went wrong on this phone. Ask for a new code."
+      }
+    },
+    "give": {
+      "intro": "Send LangQuest to a new phone over this phone's own Wi-Fi. Neither phone needs the internet.",
+      "rowSub": "Send LangQuest to a new phone over Wi-Fi, without the internet",
+      "rowHelp": "Opens Give the app, where this phone sends LangQuest to a new phone over its own Wi-Fi.",
+      "linkHelp": "Opens Give the app, to send LangQuest to the new phone over this phone's Wi-Fi.",
+      "size": "Install file: {{size}} MB",
+      "start": "Start",
+      "startHelp": "Turns on this phone's own Wi-Fi for the new phone to join, and shows the first code.",
+      "starting": "Starting this phone's Wi-Fi…",
+      "noFile": "First keep the install file on this phone: get it while you have internet, then choose it under Check my file.",
+      "unsupported": "This phone cannot give the app over Wi-Fi. Send the install file by Quick Share, an SD card or a USB cable instead.",
+      "join": {
+        "title": "1. Join this phone's Wi-Fi",
+        "line": "On the new phone, open the camera, point it at this code and tap Join.",
+        "code": "Code for joining this phone's Wi-Fi",
+        "network": "Wi-Fi name: {{name}}",
+        "password": "Password: {{password}}",
+        "typeLine": "No camera that reads codes? In the new phone's Wi-Fi settings, choose this name and type the password."
+      },
+      "next": "Next",
+      "nextHelp": "Shows the second code, for the download page, once the new phone has joined.",
+      "download": {
+        "title": "2. Open the download page",
+        "line": "Point the new phone's camera at this code and open the page. Tap Download.",
+        "code": "Code for the download page",
+        "address": "Or type this address in its browser: {{address}}",
+        "dataLine": "If the page does not open, turn off mobile data on the new phone, or tap Stay connected when it asks."
+      },
+      "backToJoin": "Back to the first code",
+      "backToJoinHelp": "Shows the code for joining this phone's Wi-Fi again.",
+      "sending": "Sending: {{sent}} of {{total}} MB",
+      "sent": "Sent. On the new phone, tap the file to install it.",
+      "sentLine": "It may ask once to allow installs from the browser. Then let them in from this phone.",
+      "letIn": "Let them in",
+      "letInHelp": "Opens Let someone in, to let the new phone join the team.",
+      "stop": "Stop",
+      "stopHelp": "Turns off this phone's Wi-Fi for the new phone.",
+      "stayOpen": "Keep this screen open until the file is sent.",
+      "ended": {
+        "stopped": "Stopped.",
+        "idle": "Stopped after 15 minutes with nothing asked.",
+        "phone": "Stopped: this phone turned its Wi-Fi off, or the app was left."
+      },
+      "failed": {
+        "wifiOff": "Turn on Wi-Fi on this phone, then press Start again.",
+        "permission": "This phone needs permission to use Wi-Fi with nearby devices. Allow it, then press Start again.",
+        "busy": "Share nearby is using this phone's Wi-Fi. Stop it, then press Start again.",
+        "failed": "This phone's Wi-Fi did not start. Press Start to try again.",
+        "locationOff": "Turn on Location on this phone: its Android needs it for this phone's own Wi-Fi. Then press Start again.",
+        "permissionCovered": "Open Share nearby first and allow what it asks. Then come back and press Start."
+      },
+      "page": {
+        "title": "Install LangQuest",
+        "size": "{{size}} MB",
+        "download": "Download",
+        "stepOpen": "Open the downloaded file.",
+        "stepAllow": "Allow installs from this browser, if the phone asks.",
+        "stepInstall": "Tap Install."
       }
     }
   }

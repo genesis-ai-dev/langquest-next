@@ -189,6 +189,15 @@
         "stopped": "O código não vale mais porque você saiu desta tela. Crie um novo.",
         "noCertificate": "Este celular precisa se conectar à internet uma vez antes de poder deixar alguém entrar.",
         "failed": "Algo deu errado neste celular. Crie um código novo."
+      },
+      "keep": {
+        "keeping": "Guardando uma cópia neste celular…",
+        "kept": "Guardado neste celular, pronto para Dar o app. Você pode apagar o que está em Downloads.",
+        "notOurs": "Este não é o arquivo de instalação do próprio LangQuest. Baixe de novo enquanto tem internet.",
+        "noSpace": "Não há espaço suficiente neste celular para guardar uma cópia. Libere espaço e escolha o arquivo de novo.",
+        "unreadable": "Não foi possível ler este arquivo. Escolha o arquivo de novo.",
+        "failed": "Não foi possível guardar uma cópia. Escolha o arquivo de novo.",
+        "unsupported": "Atualize o LangQuest pela loja para dar o app por Wi-Fi."
       }
     },
     "installFile": {
@@ -253,6 +262,66 @@
         "refused": "Este celular não conseguiu conferir a resposta do seu colega. Peça um código novo.",
         "dropped": "A conexão caiu. Peça um código novo.",
         "failed": "Algo deu errado neste celular. Peça um código novo."
+      }
+    },
+    "give": {
+      "intro": "Envie o LangQuest para um celular novo pelo próprio Wi-Fi deste celular. Nenhum dos dois precisa de internet.",
+      "rowSub": "Envie o LangQuest para um celular novo por Wi-Fi, sem internet",
+      "rowHelp": "Abre Dar o app, onde este celular envia o LangQuest para um celular novo pelo próprio Wi-Fi.",
+      "linkHelp": "Abre Dar o app, para enviar o LangQuest ao celular novo pelo Wi-Fi deste celular.",
+      "size": "Arquivo de instalação: {{size}} MB",
+      "start": "Iniciar",
+      "startHelp": "Liga o próprio Wi-Fi deste celular para o celular novo se conectar e mostra o primeiro código.",
+      "starting": "Ligando o Wi-Fi deste celular…",
+      "noFile": "Primeiro guarde o arquivo de instalação neste celular: baixe-o enquanto tem internet e depois escolha-o em Verificar meu arquivo.",
+      "unsupported": "Este celular não consegue dar o app por Wi-Fi. Em vez disso, envie o arquivo de instalação por Quick Share, cartão SD ou cabo USB.",
+      "join": {
+        "title": "1. Conectar ao Wi-Fi deste celular",
+        "line": "No celular novo, abra a câmera, aponte para este código e toque em Conectar.",
+        "code": "Código para conectar ao Wi-Fi deste celular",
+        "network": "Nome do Wi-Fi: {{name}}",
+        "password": "Senha: {{password}}",
+        "typeLine": "A câmera não lê códigos? Nas configurações de Wi-Fi do celular novo, escolha este nome e digite a senha."
+      },
+      "next": "Próximo",
+      "nextHelp": "Mostra o segundo código, da página de download, depois que o celular novo se conectar.",
+      "download": {
+        "title": "2. Abrir a página de download",
+        "line": "Aponte a câmera do celular novo para este código e abra a página. Toque em Baixar.",
+        "code": "Código da página de download",
+        "address": "Ou digite este endereço no navegador dele: {{address}}",
+        "dataLine": "Se a página não abrir, desligue os dados móveis no celular novo ou toque em Manter conexão quando ele perguntar."
+      },
+      "backToJoin": "Voltar ao primeiro código",
+      "backToJoinHelp": "Mostra de novo o código para conectar ao Wi-Fi deste celular.",
+      "sending": "Enviando: {{sent}} de {{total}} MB",
+      "sent": "Enviado. No celular novo, toque no arquivo para instalar.",
+      "sentLine": "Ele pode pedir uma vez para permitir instalações pelo navegador. Depois, deixe a pessoa entrar por este celular.",
+      "letIn": "Deixar a pessoa entrar",
+      "letInHelp": "Abre Deixar alguém entrar, para o celular novo entrar na equipe.",
+      "stop": "Parar",
+      "stopHelp": "Desliga o Wi-Fi deste celular para o celular novo.",
+      "stayOpen": "Deixe esta tela aberta até o arquivo ser enviado.",
+      "ended": {
+        "stopped": "Parado.",
+        "idle": "Parou depois de 15 minutos sem nenhum pedido.",
+        "phone": "Parou: este celular desligou o Wi-Fi, ou você saiu do app."
+      },
+      "failed": {
+        "wifiOff": "Ligue o Wi-Fi neste celular e toque em Iniciar de novo.",
+        "permission": "Este celular precisa de permissão para usar o Wi-Fi com dispositivos por perto. Permita e toque em Iniciar de novo.",
+        "busy": "O Compartilhar por perto está usando o Wi-Fi deste celular. Pare-o e toque em Iniciar de novo.",
+        "failed": "O Wi-Fi deste celular não ligou. Toque em Iniciar para tentar de novo.",
+        "locationOff": "Ative a Localização neste celular: o Android dele precisa dela para o próprio Wi-Fi deste celular. Depois toque em Iniciar de novo.",
+        "permissionCovered": "Primeiro abra o Compartilhar por perto e permita o que ele pedir. Depois volte e toque em Iniciar."
+      },
+      "page": {
+        "title": "Instalar o LangQuest",
+        "size": "{{size}} MB",
+        "download": "Baixar",
+        "stepOpen": "Abra o arquivo baixado.",
+        "stepAllow": "Permita instalações por este navegador, se o celular pedir.",
+        "stepInstall": "Toque em Instalar."
       }
     }
   }

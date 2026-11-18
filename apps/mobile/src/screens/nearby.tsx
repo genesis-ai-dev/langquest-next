@@ -23,10 +23,13 @@ import { joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineM
 import type { LetInEnd, LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
 import { useCarriedApk } from '../nearby/useCarriedApk';
+import { useGiveApp } from '../nearby/useGiveApp';
+import { megabytes, pageAddress, sentShown, wifiCode, type GiveEnd, type GiveFail } from '../nearby/giveAppModel';
+import type { KeepResult } from '../nearby/carriedApkModel';
 import { useLetIn, useLetInOffered } from '../nearby/useLetIn';
 import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { formatDayTime } from '../i18n/format';
+import { formatDayTime, formatNumber } from '../i18n/format';
 import { useNearby } from '../nearby/useNearby';
 import type { NearbyActions, NearbySessionLine, NearbyTeammate, NearbyView } from '../nearby/nearbyRunModel';
 import type { ReadyToCarry } from '../nearby/readyToCarryModel';
@@ -39,7 +42,7 @@ import { LetInCoverNote } from '../shell/LetInCoverNote';
 import { NearbyCoverNotes } from '../shell/NearbyCoverNotes';
 import { contractsFor } from '../shell/screenContracts';
 import { useAppCovered } from '../shell/useAppCovered';
-import { Badge, Banner, Card, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, Row, Screen, SectionLabel, SmallBtn, type IconName } from '../ui/kit';
+import { Badge, Banner, Card, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, SmallBtn, type IconName } from '../ui/kit';
 import { personLook } from '../ui/people';
 import { usePerson } from '../ui/usePerson';
 import { PersonAvatar } from '../ui/UserChip';
@@ -121,6 +124,10 @@ function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean }) {
         {rows.installFile ? (
           <Row icon="download" label={t('screens.get_install_file')} sub={t('nearby.installFile.rowSub')}
             help={t('nearby.installFile.rowHelp')} onPress={() => props.ctx.go('get_install_file')} />
+        ) : null}
+        {/* Give the app (14.5): the new phone gets LangQuest over this phone's own Wi-Fi. */}
+        {rows.installFile ? (
+          <Row icon="send" label={t('screens.give_app')} sub={t('nearby.give.rowSub')} help={t('nearby.give.rowHelp')} onPress={() => props.ctx.go('give_app')} />
         ) : null}
         <Row icon="people" label={t('screens.let_someone_in')} sub={rows.letIn === 'expired' ? t('nearby.letIn.why.expired') : t('nearby.letIn.rowSub')}
           help={t('nearby.letIn.rowHelp')} disabled={rows.letIn !== 'ready'} onPress={() => { if (rows.letIn === 'ready') props.ctx.go('let_someone_in'); }} last />
@@ -436,7 +443,10 @@ export function LetSomeoneIn(ctx: Ctx) {
               <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.letIn.needsApp')}</Text>
             </View>
             {apk.needed !== null ? (
-              <LinkBtn label={t('screens.get_install_file')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} />
+              <>
+                <LinkBtn label={t('screens.give_app')} help={t('nearby.give.linkHelp')} onPress={() => ctx.go('give_app', { from: 'let_someone_in' })} />
+                <LinkBtn label={t('screens.get_install_file')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} />
+              </>
             ) : null}
             <LetInCoverNote worn={worn} part="look" />
           </>
@@ -548,7 +558,7 @@ export function GetInstallFile(ctx: Ctx) {
             {get === 'offline' ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('nearby.letIn.getOffline')}</Text> : null}
           </Card>
           <Card>
-            <GhostBtn label={t('nearby.letIn.check')} icon="folder" help={t('nearby.letIn.checkHelp')} onPress={apk.actions.check} />
+            <GhostBtn label={t('nearby.letIn.check')} icon="folder" help={t('nearby.letIn.checkHelp')} onPress={apk.actions.check} disabled={apk.checked?.keep === 'keeping'} />
             {apk.checked ? (
               <View style={styles.line}>
                 <Ico name={apk.checked.result === 'right' ? 'check' : 'warning'} size={20} color={apk.checked.result === 'right' ? TINT.greenText : TINT.amberText} />
@@ -558,6 +568,7 @@ export function GetInstallFile(ctx: Ctx) {
                 </View>
               </View>
             ) : null}
+            {apk.checked?.keep ? <KeepLine keep={apk.checked.keep} /> : null}
           </Card>
           <Card>
             <Text style={txt.sm}>{t('nearby.letIn.getLine')}</Text>
@@ -566,6 +577,148 @@ export function GetInstallFile(ctx: Ctx) {
           </Card>
         </>
       ) : null}
+    </Screen>
+  );
+}
+
+/** What keeping a copy of the chosen file came to, under Check my file (14.5). */
+const KEEP_WORDS = {
+  keeping: 'nearby.letIn.keep.keeping',
+  kept: 'nearby.letIn.keep.kept',
+  'not-ours': 'nearby.letIn.keep.notOurs',
+  'no-space': 'nearby.letIn.keep.noSpace',
+  unreadable: 'nearby.letIn.keep.unreadable',
+  failed: 'nearby.letIn.keep.failed',
+  unsupported: 'nearby.letIn.keep.unsupported'
+} as const satisfies Record<KeepResult, string>;
+
+function KeepLine(props: { keep: KeepResult }) {
+  const { keep } = props;
+  const good = keep === 'kept';
+  return (
+    <View style={styles.line}>
+      {keep === 'keeping' ? <ActivityIndicator color={C.primary} />
+        : <Ico name={good ? 'check' : 'warning'} size={20} color={good ? TINT.greenText : TINT.amberText} />}
+      <Text style={[txt.sm, { flex: 1 }]}>{t(KEEP_WORDS[keep])}</Text>
+    </View>
+  );
+}
+
+// ---- Give the app (docs/nearby-sync-plan.md 14.5) ------------------------------------------
+
+const GIVE_END = {
+  stopped: 'nearby.give.ended.stopped',
+  idle: 'nearby.give.ended.idle',
+  phone: 'nearby.give.ended.phone'
+} as const satisfies Record<GiveEnd, string>;
+
+const GIVE_FAIL = {
+  'wifi-off': 'nearby.give.failed.wifiOff',
+  'location-off': 'nearby.give.failed.locationOff',
+  permission: 'nearby.give.failed.permission',
+  blocked: 'nearby.permission.settings',
+  'permission-covered': 'nearby.give.failed.permissionCovered',
+  busy: 'nearby.give.failed.busy',
+  'no-file': 'nearby.give.noFile',
+  failed: 'nearby.give.failed.failed'
+} as const satisfies Record<GiveFail, string>;
+
+/**
+ * Give the app, from Share nearby's A new person and Let someone in: this phone forms its own
+ * Wi-Fi and serves the kept install file from a small page, so a new phone gets LangQuest with no
+ * internet and no Google services on either phone. Code 1 joins the Wi-Fi, code 2 opens the page;
+ * then the count of what is sent, and the way on to Let someone in. The app downloads nothing: the
+ * file is the one kept under Check my file. Android only; elsewhere it says what to do instead.
+ */
+export function GiveApp(ctx: Ctx) {
+  const give = useGiveApp();
+  const { stage, giving, kept, actions, worn } = give;
+  const live = stage.t === 'join' || stage.t === 'download' || stage.t === 'sending' || stage.t === 'starting';
+  // Opened from Let someone in: Let them in goes back there, not to a second one on the stack.
+  const letIn = () => { actions.stop(); if (ctx.params['from'] === 'let_someone_in') ctx.back(); else ctx.go('let_someone_in'); };
+  const startable = give.canGive && (stage.t === 'ready' || stage.t === 'ended' || (stage.t === 'failed' && stage.why !== 'no-file'));
+  let footer: ReactNode = null;
+  if (startable && stage.t === 'failed' && stage.why === 'blocked') {
+    footer = (
+      <>
+        <PrimaryBtn label={t('nearby.permission.openSettings')} icon="settings" help={t('nearby.permission.openSettingsHelp')} onPress={actions.openSettings} />
+        <GhostBtn label={t('nearby.give.start')} help={t('nearby.give.startHelp')} onPress={actions.start} />
+      </>
+    );
+  } else if (startable) {
+    footer = <PrimaryBtn label={t('nearby.give.start')} icon="send" help={t('nearby.give.startHelp')} onPress={actions.start} />;
+  } else if (stage.t === 'join') {
+    footer = (
+      <>
+        <PrimaryBtn label={t('nearby.give.next')} icon="arrowR" help={t('nearby.give.nextHelp')} onPress={actions.next} />
+        <GhostBtn label={t('nearby.give.stop')} help={t('nearby.give.stopHelp')} onPress={actions.stop} />
+      </>
+    );
+  } else if (stage.t === 'download' || stage.t === 'sending' || stage.t === 'starting') {
+    footer = <GhostBtn label={t('nearby.give.stop')} help={t('nearby.give.stopHelp')} onPress={actions.stop} />;
+  } else if (stage.t === 'sent') {
+    footer = (
+      <>
+        <PrimaryBtn label={t('nearby.give.letIn')} icon="people" help={t('nearby.give.letInHelp')} onPress={letIn} />
+        <GhostBtn label={t('nearby.give.stop')} help={t('nearby.give.stopHelp')} onPress={actions.stop} />
+      </>
+    );
+  }
+  // Code 2 stays up while the file goes, so a stalled download or a second phone can start again.
+  const pageCode = giving && (stage.t === 'download' || stage.t === 'sending' || stage.t === 'sent') ? (
+    <Card>
+      <Text style={txt.h3}>{t('nearby.give.download.title')}</Text>
+      <LetInCode value={pageAddress(giving)} label={t('nearby.give.download.code')} />
+      <Text style={txt.body}>{t('nearby.give.download.line')}</Text>
+      <Text style={txt.sm} selectable>{t('nearby.give.download.address', { address: pageAddress(giving) })}</Text>
+      <Text style={[txt.sm, { color: TINT.amberText }]}>{t('nearby.give.download.dataLine')}</Text>
+      <LinkBtn label={t('nearby.give.backToJoin')} help={t('nearby.give.backToJoinHelp')} onPress={actions.back} />
+    </Card>
+  ) : null;
+  return (
+    <Screen header={<Header title={t('screens.give_app')} onBack={ctx.back} />} footer={footer}>
+      <Card>
+        <View style={styles.line}>
+          <Ico name="send" size={22} color={C.primary} />
+          <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{t('screens.give_app')}</Text>
+          <Badge label={t('nearby.experimental')} tone="amber" />
+        </View>
+        <Text style={txt.sm}>{t('nearby.give.intro')}</Text>
+        {kept ? <Text style={txt.smMuted}>{t('nearby.give.size', { size: formatNumber(megabytes(kept.size)) })}</Text> : null}
+        <LetInCoverNote worn={worn} part="look" />
+      </Card>
+      {!give.canGive ? (
+        <Banner icon="info" tone="amber" title={t('nearby.give.unsupported')} />
+      ) : stage.t === 'reading' ? (
+        <Card><ActivityIndicator color={C.primary} /></Card>
+      ) : stage.t === 'none' || (stage.t === 'failed' && stage.why === 'no-file') ? (
+        <Card>
+          <Text style={txt.body}>{t('nearby.give.noFile')}</Text>
+          <LinkBtn label={t('screens.get_install_file')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} />
+        </Card>
+      ) : null}
+      {stage.t === 'starting' ? <Waiting text={t('nearby.give.starting')} /> : null}
+      {stage.t === 'join' && giving ? (
+        <Card>
+          <Text style={txt.h3}>{t('nearby.give.join.title')}</Text>
+          <LetInCode value={wifiCode(giving)} label={t('nearby.give.join.code')} />
+          <Text style={txt.body}>{t('nearby.give.join.line')}</Text>
+          <Text style={[txt.body, { fontWeight: '700' }]} selectable>{t('nearby.give.join.network', { name: giving.ssid })}</Text>
+          <Text style={[txt.body, { fontWeight: '700' }]} selectable>{t('nearby.give.join.password', { password: giving.passphrase })}</Text>
+          <Text style={txt.smMuted}>{t('nearby.give.join.typeLine')}</Text>
+        </Card>
+      ) : null}
+      {stage.t === 'sending' ? (
+        <Card>
+          <Text style={txt.body}>{t('nearby.give.sending', { sent: formatNumber(megabytes(sentShown(stage.sent, stage.total))), total: formatNumber(megabytes(stage.total)) })}</Text>
+          <ProgressBar value={stage.total ? (sentShown(stage.sent, stage.total) / stage.total) * 100 : 0} />
+        </Card>
+      ) : null}
+      {stage.t === 'sent' ? <Banner icon="check" tone="green" title={t('nearby.give.sent')} body={t('nearby.give.sentLine')} /> : null}
+      {pageCode}
+      {stage.t === 'ended' ? <Banner icon="info" tone="amber" title={t(GIVE_END[stage.why])} /> : null}
+      {stage.t === 'failed' && stage.why !== 'no-file' ? <Banner icon="warning" tone="amber" title={t(GIVE_FAIL[stage.why])} /> : null}
+      {live ? <Text style={txt.smMuted}>{t('nearby.give.stayOpen')}</Text> : null}
     </Screen>
   );
 }
@@ -664,4 +817,4 @@ export function JoinOffline(ctx: Ctx) {
   );
 }
 
-export const contracts = contractsFor('share_nearby', 'let_someone_in', 'join_offline', 'get_install_file');
+export const contracts = contractsFor('share_nearby', 'let_someone_in', 'join_offline', 'get_install_file', 'give_app');

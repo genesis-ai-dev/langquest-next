@@ -358,7 +358,8 @@
     "share_nearby": "Compartilhar por perto",
     "let_someone_in": "Deixar alguém entrar",
     "join_offline": "Participar sem internet",
-    "get_install_file": "Baixar o arquivo de instalação"
+    "get_install_file": "Baixar o arquivo de instalação",
+    "give_app": "Dar o app"
   },
   "native": {
     "microphone": "O LangQuest grava a sua voz para traduzir passagens.",

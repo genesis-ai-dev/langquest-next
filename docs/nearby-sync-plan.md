@@ -110,6 +110,14 @@ the same way.
 | --- | --- | --- | --- |
 | 28 | Must phase 5 wait for its real-phone test before it merges? | No. It merges once its checks pass and the App Store's answers are in (export compliance, App Privacy's Device ID, `nearby` on LangQuest Sample), and the real-phone test runs on the store builds it makes: TestFlight and Play's internal testing, as soon as each is built and before either store approves it. Only Carl's organization has nearby on in production, so only its phones can open Share nearby, and Android's nearby merged the same way (#403). A native fix the test finds costs another store build and review. | Section 7, phase 5 |
 
+**Carl's answers of 2026-11-18,** on Give the app (14.5).
+
+| # | Question | Answer | Where |
+| --- | --- | --- | --- |
+| 29 | Give the app: its own screen, or a step inside Let someone in? | Its own screen, opened from Share nearby's A new person and from Let someone in's line that the new phone needs LangQuest first. | Section 14.5 |
+| 30 | Which language is the download page in? | The carrier's app language, with three pictures that carry the install steps for someone who does not read it. | Section 14.5 |
+| 31 | How long does the carrier's phone keep the install file it chose? | Until a newer version is needed; no picking it again before each trip. | Section 14.5 |
+
 ## 3. Why this fits the app
 
 Most of the hard part already exists.
@@ -3251,13 +3259,9 @@ belongs: section 2 for Carl's answers, and sections 5 to 14 for the rest.
 | Is the amber upload bar right on a phone holding backups? | Carl, when it ships | It counts them, as true of this phone (section 5.8). He should be told, so he can object. |
 | Is decision 168's amendment acceptable? | Caleb | Carl's answer stands: the pre-merge security review (2026-11-10) found no reason against it (section 5.5). A copied key with a live pass can let in a new person with no manage privilege, and he should know that too. |
 | A teammate holding any of the Worker's attestations can push a phone's claim mark past rows it never got. Fix it, or accept it? | Carl | Open (security review, 2026-11-10). Honest teammates then send that phone no claims below the mark, so work confirmed in town reaches it only from the server; nothing is lost or wrongly confirmed. A fix signs `afterSeq` into the attestation and moves the mark only over rows held or on the page, which changes the Worker's answer, so it waits for his word. |
-| Check my file says "This is the right file" from the name alone. Check the file's signer, or change the words? | Carl | Section 14.3 accepts that a newcomer cannot verify an APK, but the carrier's phone runs the real app and could compare the file's signing certificate with its own (`PackageManager.getPackageArchiveInfo`), a native call. Short of that, the words could say the name is right. Nothing changed (security review, 2026-11-10). Planned with 14.5: keeping the file for Give the app is the time to check its signer. |
 | Smaller items the pre-merge security review left open | Carl, after the first release | A certificate call racing a revocation could sign a fresh key within about 100 ms (both could take one lock on the person). A phone serves a file by hash from any language whose fold names it, looser than the server's rule per stream, though the asker must know the hash. A member could backdate one-event batches so every carrier delivers theirs first, 25 a sync. Teammates' certificates show a newcomer their other languages before first contact, as the organization stream shows members. |
 | Follow-up issue, "A lost shared phone: other people's keys stay good" (section 6). Should a helper's code say a shared phone is gone? | Carl raises it with Caleb, after the first release | Only the named person is revoked for now (answer 20), and the list holds pairs. A taken shared phone's private key is gone for all of its people, but the others' rows stay good. A third question in a new `issue_sign_in_code_v3`, "Was the shared phone lost too?", with v2 left as no, would revoke every row with that key. It changes the helper flow (decision 59), so it needs Caleb. The issue does not exist yet. |
 | A pass fetched late in its 90-day window has little time left, so should an answer also hold the next window's pass in that window's last 30 days? | Carl | Answer 17 is built as worded, so a phone that last reached the server near a window's end can hold a pass with days left, and every pass ends on the same date. Holding the next window's too would keep a team leaving town able to let someone in, at the cost of up to 20 uses in that time. Not built unless he says so (section 14.1). |
-| Give the app (14.5): its own screen, from Let someone in and Share nearby? | Carl | Draft: yes, so Let someone in keeps only the field's steps. |
-| Give the app's page (14.5): in the carrier's app language, or a choice on the page? | Carl | Draft: the carrier's language, with pictures that carry the steps. A choice adds words in 16 languages to a page the new person sees once. |
-| Give the app (14.5): keep the picked file's grant until a newer version is needed, or ask each trip? | Carl | Draft: keep it until the name this phone needs changes; asking again each trip is one more step before leaving town. |
 | What ends the experiment? | Carl, later | A follow-up issue, as decision 53 asks. A suggested test: teams have used it offline for a month, the test's numbers hold in the field, and no work was lost or wrongly confirmed. |
 | When admins get the toggle, may they turn it on without staff? | Later | Yes, once it is no longer experimental. Until then, staff choose who tries it. |
 | Can an iPhone that already has the app join offline? | Later | Optional, as phase 5's last step (answer 25). Only the install is impossible, and with no carried build the reducer version is the real limit. |
@@ -3771,10 +3775,11 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   `com.pairip`, before writing anything
   (`docs/decisions/2026-11-18-play-protection-off-for-carried-builds.md`).
 
-### 14.5 Handing the install file over Wi-Fi (planned)
+### 14.5 Handing the install file over Wi-Fi
 
-Not built. Carl's choice, 2026-11-18, after his own offline install test worked but took too
-many steps for people who are not technical: the browser's warning on an app file, finding
+Built 2026-11-18, not yet tried between two real phones (section 11). Carl's choice, after his
+own offline install test worked but took too many steps for people who are not technical
+(answers 29 to 31, docs/decisions/2026-11-18-give-the-app-over-wifi.md): the browser's warning on an app file, finding
 the file in Downloads, sending it by Quick Share from a files app, and Quick Share needing
 Google Play services on both phones, which phones in China do not have.
 
@@ -3794,12 +3799,16 @@ codes, one after the other, as Let someone in shows two pictures.
 
 **The carrier's phone.**
 1. **Before the trip, online.** Get the install file opens the browser as now. Check my file
-   then also keeps the file: the pick holds a lasting read grant
-   (`takePersistableUriPermission` on the `ACTION_OPEN_DOCUMENT` result), and the phone checks
-   the file, not only its name: the package name and signing certificate must be the running
-   app's own (`PackageManager.getPackageArchiveInfo` with its signing info), and its versions
-   the ones its name says. That answers section 13's question on checking the signer. A file
-   that fails is not kept, and the screen says it is not LangQuest's own file.
+   then also keeps the file: a right name is copied into the app's own folder
+   (`filesDir/install-file/`, `keepInstallFile`), and native keeps the copy only if it is this
+   app's own: the same package and the same signing certificates as the running app
+   (`PackageManager.getPackageArchiveInfo`). The module sends files only from the app's own
+   folders, and that check needs a real path, so a copy, not a lasting grant on the chosen file.
+   That settles section 13's old question on checking the signer. A file that fails is not
+   kept, and the screen says it is not LangQuest's own; with too little room it says so (100 MB
+   stays free). The copy stays until this phone needs other versions, then goes (answer 31,
+   `keptStale`), and the screen says the one in Downloads may be deleted. An older binary under
+   this update has the module without these functions, and says to update from the store.
 2. **In the field: Give the app** (`give_app`, a new screen, from Let someone in's line that
    the new phone needs LangQuest first, and from Share nearby's A new person). One main
    button, Start:

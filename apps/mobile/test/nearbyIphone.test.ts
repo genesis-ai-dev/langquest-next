@@ -27,7 +27,7 @@ describe('Share nearby on an iPhone', () => {
   it('carries no .android file: joining offline, the install file and the disguise are their plain stubs', () => {
     expect(files.filter((f) => /\.android\.[jt]sx?$/.test(f))).toEqual([]);
     expect(files).toEqual(expect.arrayContaining([
-      'src/nearby/useLetIn.ts', 'src/nearby/useJoinOffline.ts', 'src/nearby/useCarriedApk.ts', 'src/nearby/nearbyCopySource.ts', 'src/nearby/useChainMembership.ts',
+      'src/nearby/useLetIn.ts', 'src/nearby/useJoinOffline.ts', 'src/nearby/useCarriedApk.ts', 'src/nearby/useGiveApp.ts', 'src/nearby/nearbyCopySource.ts', 'src/nearby/useChainMembership.ts',
       'src/sync/firstContactGate.ts', 'src/shell/useAppCovered.ts', 'src/shell/NearbyCoverNotes.tsx'
     ]));
   });
