@@ -13,8 +13,9 @@
 //       next merge this way
 //   npx tsx scripts/carried-build.mjs --publish --version-code <n> --fingerprint <hash> --build-fingerprint <hash> [--dry-run]
 //       asks Google Play for the Play-signed universal APK of that version
-//       code (Android Publisher `generatedApks`), checks it, puts it in the
-//       APK bucket under its name, and records it as current
+//       code (Android Publisher `generatedApks`), checks it (an APK, and
+//       without Play's automatic protection), puts it in the APK bucket under
+//       its name, and records it as current
 //
 // It runs under tsx, since it takes the versions and the name from core's
 // TypeScript. The EAS workflow runs it (.eas/workflows/deploy-to-testers.yml,
@@ -22,8 +23,9 @@
 // holds up publish_android_update.
 //
 // It fails closed. A missing bucket setting or key, a fingerprint that is not
-// the build's, or an answer from Google or the bucket that is not what it
-// expects exits non-zero with a plain message, before anything is written.
+// the build's, an answer from Google or the bucket that is not what it
+// expects, or an APK holding Play's automatic protection exits non-zero with
+// a plain message, before anything is written.
 // It never prints a key.
 //
 // What it reads, from EAS's production environment (docs/environments.md,
@@ -37,7 +39,8 @@ import { createHash, createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LINES_VERSION, NEARBY_PROTOCOL, REDUCER_VERSION, carriedApkName } from '@langquest-next/core';
+import { inflateRawSync } from 'node:zlib';
+import { CARRIED_APK_VERSION_CODE, LINES_VERSION, NEARBY_PROTOCOL, REDUCER_VERSION, carriedApkName } from '@langquest-next/core';
 import { parseJsonc, root, wranglerFor } from './env-files.mjs';
 import { API, PACKAGE, TOKEN_URL, assertion, playKey } from './play-review.mjs';
 
@@ -259,10 +262,109 @@ export function universalApk(body) {
   return id;
 }
 
-/** Whether these bytes look like an APK: a zip of a believable size. */
+const unreadable = (why) => new Refusal(`the APK Google Play gave cannot be read as a zip (${why}), so whether Play's automatic protection is in it is not known`);
+
+/**
+ * The entries of a zip, from its central directory: name, compression
+ * method, sizes and where each one's local header is. A refusal for a zip
+ * this script cannot read, such as a ZIP64 one (an APK is under MAX_BYTES).
+ */
+export function zipEntries(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let end = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 0xffff); i--) {
+    if (view.getUint32(i, true) === 0x06054b50) {
+      end = i;
+      break;
+    }
+  }
+  if (end < 0) throw unreadable('it has no end of central directory');
+  const count = view.getUint16(end + 10, true);
+  const size = view.getUint32(end + 12, true);
+  let at = view.getUint32(end + 16, true);
+  if (count === 0xffff || at === 0xffffffff || at + size > end) throw unreadable('its central directory is not one this script reads');
+  const names = new TextDecoder();
+  const entries = [];
+  for (let n = 1; n <= count; n++) {
+    if (at + 46 > end || view.getUint32(at, true) !== 0x02014b50) throw unreadable(`entry ${n} of ${count} is not where its directory says`);
+    const nameLength = view.getUint16(at + 28, true);
+    entries.push({
+      name: names.decode(bytes.subarray(at + 46, at + 46 + nameLength)),
+      method: view.getUint16(at + 10, true),
+      compressedSize: view.getUint32(at + 20, true),
+      size: view.getUint32(at + 24, true),
+      offset: view.getUint32(at + 42, true)
+    });
+    at += 46 + nameLength + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
+  }
+  return entries;
+}
+
+/** One entry's bytes, inflated if they are deflated; a refusal for any it cannot read. */
+function entryBytes(bytes, entry) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (entry.offset + 30 > bytes.length || view.getUint32(entry.offset, true) !== 0x04034b50) throw unreadable(`${entry.name} is not where its directory says`);
+  const start = entry.offset + 30 + view.getUint16(entry.offset + 26, true) + view.getUint16(entry.offset + 28, true);
+  const data = bytes.subarray(start, start + entry.compressedSize);
+  if (data.length !== entry.compressedSize) throw unreadable(`${entry.name} runs past the end of the file`);
+  if (entry.method === 0) return Buffer.from(data.buffer, data.byteOffset, data.length);
+  if (entry.method !== 8) throw unreadable(`${entry.name} is compressed with method ${entry.method}`);
+  try {
+    return inflateRawSync(data, { maxOutputLength: Math.max(1, entry.size) });
+  } catch {
+    throw unreadable(`${entry.name} does not inflate to its size`);
+  }
+}
+
+/**
+ * What Play's automatic protection (PairIP) puts in an APK, as bytes to look
+ * for: its package as the manifest names it (a binary manifest keeps its
+ * strings in UTF-16 or UTF-8) and as compiled code spells it. Its installer
+ * check, the part this app had, is `com.pairip.licensecheck.LicenseActivity`,
+ * which sends an app installed from a file to the Play Store and closes it
+ * (docs/decisions/2026-11-18-play-protection-off-for-carried-builds.md).
+ */
+const PROTECTION = [Buffer.from('com.pairip', 'utf16le'), Buffer.from('com.pairip', 'utf8'), Buffer.from('com/pairip/', 'utf8')];
+
+/**
+ * Where an APK holds Play's automatic protection, as a few words for a
+ * refusal, or null when it does not. It looks at the files' names (its
+ * native library, `libpairipcore.so`, comes with anti-tamper), the manifest
+ * and the code (`classes*.dex`). An APK with no manifest, or one it cannot
+ * read, is a refusal: not knowing is not a pass.
+ */
+export function protection(bytes) {
+  let entries;
+  try {
+    entries = zipEntries(bytes);
+  } catch (err) {
+    if (err instanceof Refusal) throw err;
+    throw unreadable('its directory runs past the end of the file');
+  }
+  const named = entries.find((e) => /pairip/i.test(e.name));
+  if (named) return `it holds ${named.name}`;
+  const manifests = entries.filter((e) => e.name === 'AndroidManifest.xml');
+  if (manifests.length !== 1) throw unreadable(manifests.length ? 'it has more than one AndroidManifest.xml' : 'it has no AndroidManifest.xml');
+  for (const entry of [...manifests, ...entries.filter((e) => /^classes\d*\.dex$/.test(e.name))]) {
+    const data = entryBytes(bytes, entry);
+    if (PROTECTION.some((mark) => data.includes(mark))) return `its ${entry.name} names com.pairip`;
+  }
+  return null;
+}
+
+/**
+ * Whether these bytes are an APK a carrier can install from a file: a zip of
+ * a believable size, with a manifest, and without Play's automatic
+ * protection, whose installer check would send the new phone to the Play
+ * Store, which it may not have or cannot reach.
+ */
 export function checkApk(bytes) {
   if (bytes.length < MIN_BYTES || bytes.length > MAX_BYTES) throw new Refusal(`the APK Google Play gave is ${bytes.length} bytes, outside ${MIN_BYTES} to ${MAX_BYTES}`);
   if (!(bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04)) throw new Refusal('the file Google Play gave is not a zip, so not an APK');
+  const found = protection(bytes);
+  if (found) {
+    throw new Refusal(`the APK Google Play gave has Play's automatic protection in it (${found}): installed from a file, it opens the Play Store and closes, so it is not carried. A person turns automatic protection off in Play Console, and the next merge makes the carried build again (docs/environments.md, "The carried build")`);
+  }
 }
 
 /** Whether a carried build is due: true when the bucket has no file of this build's name. */
@@ -333,7 +435,8 @@ export async function publish({
   }
   if (already) log(`${name} is in the APK bucket already; it and the current record are left as they are.`);
   else {
-    await bucket.put(name, bytes, APK_TYPE, { 'content-disposition': `attachment; filename="${name}"` });
+    // The version code goes with the file, so the Worker can send a phone whose own build has no file to the newest for its versions.
+    await bucket.put(name, bytes, APK_TYPE, { 'content-disposition': `attachment; filename="${name}"`, [`x-amz-meta-${CARRIED_APK_VERSION_CODE}`]: String(code) });
     const stored = await bucket.head(name);
     if (stored?.size !== bytes.length) throw new Refusal(`the APK bucket holds ${stored?.size ?? 'nothing'} bytes under ${name}, not ${bytes.length}`);
     log(`${name} is in the APK bucket: version code ${code}, ${bytes.length} bytes, sha256 ${hash}.`);

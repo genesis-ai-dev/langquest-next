@@ -181,9 +181,13 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised by 1 KB when nearby sync on iPhones (Carl, 2026-11-17, decision 256) merged with main: the
 // production export came out 437 bytes past and Workers Builds refused to deploy it, though the
 // development export CI measured then was 59 bytes under. CI now measures the production export.
+// Raised by 1 KB with carried files matched by their versions (Carl, 2026-11-18,
+// docs/decisions/2026-11-18-carried-file-matches-by-versions.md), 365 bytes past then: core's two
+// name rules (a name's versions start, and whether two names share it) that Check my file and the
+// Worker share, and the nearby chunk's showing of that start, which the web never opens.
 // Raised by 12 KB with the Key words chip's tiles (Caleb Koster, 2026-11-17, LAN-233), 10 KB past
 // then with main merged in: the first visit's raise below, which every chunk counts too.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 133 * 1024;
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 134 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

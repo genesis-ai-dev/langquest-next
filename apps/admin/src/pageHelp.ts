@@ -13,7 +13,7 @@ export const GROUP_HELP: Record<string, string> = {
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
   safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
   phones: 'Everything phones and browsers tell us about themselves: syncs, errors and crashes, files, recording, signing in, which builds they run and how often each crashes, and phones that are stuck or have gone quiet. Counts and codes only, never content.',
-  releases: 'Where each new store build and over-the-air update is now, what is on main and whether CI passed, how last night\'s tests went, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
+  releases: 'Where each new store build and over-the-air update is now, what is on main and whether CI passed, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
   jobs: 'The server\'s own scheduled work: each job\'s runs and failures and whether it runs now (Run now starts one), the database\'s own timers (pg_cron), push notifications, and the import from LangQuest v2.',
   database: 'The database\'s health (connections, cache, deadlocks, slowest calls), where its space goes, long-open queries and transactions, and the Supabase project\'s services, logs and Edge Functions.',
   traffic: 'Requests each Cloudflare Worker answered in the last day with errors, CPU and its latest build, and the app Worker\'s requests by kind with how long they took and how many a limit refused.',
@@ -22,6 +22,7 @@ export const GROUP_HELP: Record<string, string> = {
   support: 'Work waiting on LangQuest staff: content reports (the Terms promise action within 24 hours), suspensions, deletions, feedback from the help button, and what was done from this page.',
   access: 'Who can see every organization (Global Viewers), limits that refused requests, other apps connected through tokens, device sign-ins, webhooks and review links, and what stops working on a date.',
   stores: 'How the app does in the stores: Android crash and freeze rates as Google Play measures them, App Store review state and builds, and recent reviews.',
+  nightly: 'How last night\'s test suites went on main: for each suite, how many tests ran and passed, why a suite broke as a whole, and the Linear issue of each failed test with its fix.',
   tutorials: 'The how-to videos on YouTube, one channel for each app language. First what an admin must do and what the workers do now and tonight; then every video in a language with its state and a timeline of its films, uploads, comments and fixes; then each channel, the films not on YouTube yet with Publish, and what came in about the videos.',
 };
 

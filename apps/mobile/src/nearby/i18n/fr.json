@@ -163,7 +163,7 @@
       "turnedAway": "Un autre téléphone a essayé ce code et a été refusé.",
       "stayOpen": "Gardez cet écran ouvert jusqu’à la fin.",
       "file": "Fichier d’installation de cette version : {{file}}",
-      "fileExact": "Le fichier dans vos Téléchargements doit avoir exactement ce nom. Tout autre nom correspond à la mauvaise version.",
+      "fileStart": "Le fichier dans vos Téléchargements doit avoir un nom qui commence par {{start}}. Un nom qui commence autrement correspond à une autre version.",
       "fileOld": "Le fichier d’installation que vous avez obtenu avant est pour une version plus ancienne. Obtenez le nouveau avant d’être sans internet.",
       "get": "Obtenir le fichier d’installation",
       "getHelp": "Ouvre le navigateur du téléphone, qui télécharge le fichier d’installation de cette version.",
