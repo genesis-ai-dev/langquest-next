@@ -378,10 +378,10 @@ Object.assign(RENDER, {
       stat(num(now.length), 'worker jobs running', '', NOW) + stat(num(d.worker.length - now.length), 'worker jobs waiting', '', 'now or tonight') +
       stat(num(d.videos.filter((v) => v.language === 'en' && v.states[0].key === 'current').length) + ' of ' + num(d.videos.filter((v) => v.language === 'en').length), 'English videos up to date', '', NOW) + '</div>';
     if (d.missing.length) h += '<p class="muted">Not read: ' + esc(d.missing.join('; ')) + '. The lists leave those out.</p>';
-    h += '<div class="vl"><div><h3>For an admin</h3>' +
+    h += '<h3>For an admin</h3>' +
       (needYou ? '<p>' + num(needYou) + (needYou === 1 ? ' video waits' : ' videos wait') + ' on you. Each has a <span class="warnmk you">!</span> at the right of its row, under By video.</p>' : '') +
-      (general.length ? general.map(adminCard).join('') : needYou ? '' : '<p class="muted">Nothing.</p>') + '</div>' +
-      '<div><h3>Workers, now and tonight</h3>' + (d.worker.length ? d.worker.map((w) => item(w, w.when === 'now' ? 'info' : '')).join('') : '<p class="muted">Nothing queued.</p>') + '</div></div>';
+      (general.length ? '<div class="icards">' + general.map(adminCard).join('') + '</div>' : needYou ? '' : '<p class="muted">Nothing.</p>') +
+      '<h3>Workers, now and tonight</h3>' + (d.worker.length ? '<div class="vl">' + d.worker.map((w) => item(w, w.when === 'now' ? 'info' : '')).join('') + '</div>' : '<p class="muted">Nothing queued.</p>');
     const changes = d.changes || [];
     h += '<details class="vchanges"><summary><b>Changes Claude made to the videos</b> <small class="muted">(' + num(changes.length) + ', last 30 days)</small></summary>' +
       '<p class="muted">A clear fix merges itself and is not asked of anyone. Each change is here, with its pull request.</p>' + table([
@@ -455,19 +455,7 @@ Object.assign(RENDER, {
     return h;
   },
   // What the watch for user issues filed, closed or found already fixed, with the pull request (decisions.md 202).
-  userissues(d) {
-    const out = (href, text) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
-    const h = '<div class="stats">' + stat(num(d.open), 'open in Linear', d.open ? 'warn' : '', NOW) + stat(num(d.closed), 'closed in Linear', '', '90 days') +
-      stat(num(d.fixed), 'already fixed when seen', '', '90 days') + stat(num(d.noiseWeek), 'judged noise', '', LAST_WEEK) +
-      stat(d.last ? when(d.last.at) : 'never', 'last look', d.last && d.last.outcome !== 'ok' ? 'bad' : '', d.last ? d.last.outcome : '') + '</div>';
-    return h + table([
-      { h: 'Issue', v: (r) => r.issue ? out(r.issueUrl, esc(r.issue)) : '<span class="muted">not filed</span>' },
-      { h: 'What people hit', v: (r) => esc(r.title || r.keys[0]) + '<br><small>' + r.keys.slice(0, 3).map((k) => '<code>' + esc(k) + '</code>').join(' · ') + (r.keys.length > 3 ? ' …' : '') + '</small>' },
-      { h: 'In Linear', v: (r) => r.issue ? '<span class="' + (r.closedAt ? 'good' : 'warn') + '">' + esc(r.state || (r.closedAt ? 'closed' : 'open')) + '</span>' : '' },
-      { h: 'Fixed by', v: (r) => r.fixedBy ? out('https://github.com/genesis-ai-dev/langquest-next/pull/' + r.fixedBy, 'PR ' + esc(r.fixedBy)) + '<br><small>' + when(r.fixedAt) + '</small>' : r.closedAt ? '<span class="muted">no PR named</span>' : '' },
-      { h: 'Found', v: (r) => when(r.firstAt) }
-    ], d.issues);
-  },
+  userissues(d) { return userIssuesHtml(d); },
   // Last night's tests, every suite together (sources/nightly.ts, decisions.md 209): counts and Linear issues; the detail is in Linear.
   nightly(d) {
     const issue = (i) => /^https:\/\/linear\.app\//.test(String(i.url || '')) ? '<a href="' + esc(i.url) + '" target="_blank" rel="noopener noreferrer">' + esc(i.id) + '</a>' : esc(i.id);
@@ -603,20 +591,6 @@ const FIX_STATE = { working: 'Claude writes the change now.', open: 'Claude\'s p
 const CHANGE_BY = { claude: 'Claude (clear fix)', admin: 'An admin accepted it', instruction: 'An admin\'s instruction' };
 const CHANGE_STATE = { working: 'Being written', open: 'Merges when checks pass', merged: 'Merged', closed: 'Closed', failed: 'Failed', unneeded: 'No change needed' };
 const CHANGE_LEVEL = { working: 'info', open: 'info', merged: 'good', closed: '', failed: 'bad', unneeded: '' };
-/** One thing for an admin: the problem, who acts next, what happens next, and where it applies, the box to tell Claude what to do. */
-function adminCard(a) {
-  const ins = a.instructed;
-  return '<div class="vi ' + (a.who === 'you' ? ADMIN_LEVEL[a.kind] || 'warn' : 'info') + '">' +
-    '<p><span class="tag ' + (a.who === 'you' ? 'warn' : 'info') + '">' + (a.who === 'you' ? 'Waits on you' : 'Claude acts next') + '</span>' + (a.at ? '<small>' + when(a.at) + '</small>' : '') + '</p>' +
-    '<p><b>' + esc(a.title) + '</b></p>' + detailHtml(a.detail) + pictureStrip(a.pictures) +
-    (ins ? '' : '<p class="setup"><small><b>Next:</b> ' + esc(a.next) + '</small></p>') + (a.link ? '<p>' + cardLink(a) + '</p>' : '') +
-    (a.suggestion ? suggestionButtons(a.suggestion) : '') +
-    (ins ? '<p class="setup"><small><b>Your instruction</b> (' + when(ins.at) + '):</small><br>' + esc(ins.text) + '</p>' +
-      '<p class="setup"><small><b>Next:</b> ' + esc(ins.fix ? FIX_STATE[ins.fix.state] || ins.fix.state : ins.looked ? 'Claude starts the change at its next fix run (:20 and :50 each hour), as a pull request that merges itself when its checks pass.' : 'Claude reads it at its next run.') + '</small></p>' : '') +
-    (a.instruct ? '<details' + (a.who === 'you' && !ins ? ' open' : '') + '><summary>' + (ins ? 'Send another instruction' : 'Tell Claude what to do') + '</summary>' +
-      '<label for="ins-' + esc(cardId(a)) + '">What Claude must do</label><textarea id="ins-' + esc(cardId(a)) + '" maxlength="2000" rows="3" placeholder="For example: the button is now called On this device. Change step 4 to tap it."></textarea>' +
-      '<p><button type="button" class="primary" data-instruct="' + esc(cardId(a)) + '">Send to Claude</button></p></details>' : '') + '</div>';
-}
 const cardId = (a) => (a.kind + '-' + (a.tutorial || '') + '-' + (a.language || '')).replace(/[^a-zA-Z0-9-]/g, '');
 /**
  * A suggestion's words: what an admin reads first, and the technical part for the fix, after a line that starts
@@ -709,13 +683,6 @@ const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run', 
 const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
 const MARKS = { film: 'New film', up: 'On YouTube', comment: 'Comment', suggested: 'Suggestion', decided: 'Accepted or rejected', fix: 'Fix PR', held: 'Held', failed: 'Film failed' };
 const CAUSES = { app: 'app change', script: 'script change', tool: 'film tool change', new: 'first film', asked: 'asked by hand', unknown: 'cause not recorded' };
-function suggestionButtons(s) {
-  return (s.inputs.length ? '<ul>' + s.inputs.map((i) => '<li><small>' + esc(i.kind === 'comment' ? 'Comment' : i.kind === 'code' ? 'Code change' : 'Note') + ' · ' + when(i.at) + '</small><br>' + esc(i.english || i.text) + '</li>').join('') + '</ul>' : '') +
-    '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="accept" data-kind="' + esc(s.kind) + '">Accept</button> ' +
-    '<button type="button" data-sg="' + esc(s.id) + '" data-decision="reject">Reject</button></p>' +
-    '<details><summary>Edit</summary><label for="sg-' + esc(s.id) + '">What to change</label><textarea id="sg-' + esc(s.id) + '" maxlength="4000" rows="6">' + esc(s.detail) + '</textarea>' +
-    '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="edit">Save</button></p></details>';
-}
 const timelineStart = () => { const end = new Date(); end.setUTCHours(0, 0, 0, 0); return end.getTime() - (TIMELINE_DAYS - 1) * 86400000; };
 function videoRows() {
   const d = VIDEOS;
@@ -749,7 +716,7 @@ function videoRows() {
       (v.film ? '<br><small class="muted">Film ' + when(v.film.madeAt) + (v.film.why ? ': ' + esc(v.film.why) : '') + '</small>' : '') + '</div>' +
       '<div class="tlw"><div class="tl">' + cells.map((c, i) => '<span' + (days[i].getUTCDay() === 0 ? ' class="wk"' : '') + '>' + c.map(mark).join('') + '</span>').join('') + '</div></div>' + warnMark(cardsOf(v), r) + '</div>' +
       '<div class="vdet" id="vdet-' + r + '" hidden></div>' +
-      (cardsOf(v).length ? '<div class="vcards" id="vcards-' + r + '"' + (openCards === v.tutorial + '/' + v.language ? '' : ' hidden') + ' data-key="' + esc(v.tutorial + '/' + v.language) + '">' + cardsOf(v).map(adminCard).join('') + '</div>' : '');
+      (cardsOf(v).length ? '<div class="vcards icards" id="vcards-' + r + '"' + (openCards === v.tutorial + '/' + v.language ? '' : ' hidden') + ' data-key="' + esc(v.tutorial + '/' + v.language) + '">' + cardsOf(v).map(adminCard).join('') + '</div>' : '');
   });
   return h;
 }

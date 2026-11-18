@@ -546,10 +546,33 @@ buttons) sit in a closed `details.numbers` ("Show the numbers") under its
 picture, so the section shows pictures first. A part with no picture and no
 history line (`METRIC`) shows its table open. So does a part whose body holds
 a queue control (`QUEUE_CONTROLS` in `pageLists.ts`: Grant, Accept, Send to
-Claude, Add a note, Connect or Publish, Seen or Done); Not an issue and Run
-now may wait behind the tap (`FOLDED_CONTROLS`). `test/meters.test.ts` fails
+Claude, Add a note, Connect or Publish, Seen or Done, an issue tab); Not an
+issue and Run now may wait behind the tap (`FOLDED_CONTROLS`). `test/meters.test.ts` fails
 on a control in neither list. The page remembers which parts are open while
 it refreshes.
+
+What a person answers is one card format (`apps/admin/src/pageIssues.ts`,
+`issueCard`), on two pages. A card has its pictures when it has them, its
+title with Context, Issue and Solution lines, and at the right who acts next,
+its steps as dots with the step it waits at in words, the talk (what an admin
+said, then where Claude is with it) and the box to tell Claude what to do.
+
+- **User issues**: tabs with counts (Waits on you, No fix yet, Merged,
+  Closed, All), then one card for each issue. `issueWay` places an issue from
+  its Linear state and the pull requests that name it (`/ops/api/fixes`):
+  Found, In Linear, Fix written, Merged, Live. It waits on a person only when
+  a pull request that names it is open; the card then links that pull
+  request. Before the pull requests are read, or when they could not be, an
+  open issue says only Open. A card has no box yet: an answer goes on the
+  pull request or in Linear.
+- **Tutorial videos**: each thing for an admin (`adminCard`, from
+  `sources/videos.ts` `AdminItem`) is such a card: a suggestion with Accept,
+  Reject and Edit, a held or failing film, a comment, a changed screen. Its
+  steps are Found, Claude looks, You answer, Claude changes the video, Merged
+  (`videoWay`). An instruction sent from the box shows as the admin's words,
+  and under it the state of Claude's change, its note and its pull request.
+
+`apps/admin/test/issues.test.ts` holds both.
 
 A tap on a bar or a point asks
 `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,
