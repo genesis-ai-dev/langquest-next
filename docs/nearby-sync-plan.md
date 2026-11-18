@@ -882,10 +882,9 @@ protocol version.
   line names both jobs on the same terms, else teammates' phones alone, and a reason while it
   cannot run (`nearbyRowWords`). Its words say work goes both ways (Carl's words, 2026-11-09):
   "Share work progress with teammates, or bring in a new person, without the internet", else
-  "Share work progress with teammates without the internet", with help to match. While it can
-  be pressed, online, and this phone lacks the install file it needs now, a small amber line
-  under it says "Get the install file before you go offline" (14.4, "Reminded while online");
-  tapping the row still opens Share nearby.
+  "Share work progress with teammates without the internet", with help to match. The install
+  file is not reminded here: it is an item of Sync and offline's Ready for offline list (14.4,
+  "Reminded while online"; docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
 - It asks for its permissions with a line saying why (section 9), and shows teammates who
   also have it open, with name and picture. Phones with equal summaries never connect, so
   a phone works out who it sees from the tag in the broadcast, and from what it already
@@ -2719,9 +2718,122 @@ first real number comes from the branch APK.
    4 clause in `nearbyConverges`. Decision entries, amend 11, 97, 152, 154 and 200, and PLAN
    section 9.
 
-**Phase 5: iPhones.** Not on this branch. iPhones join an Android phone's group, and
-iPhone to iPhone goes over Network framework, or Wi-Fi Aware if it has matured. The
-protocol is unchanged, and `NearbyLink` gains implementations.
+**Phase 5: iPhones.** After the first release. Sharing between an iPhone and an Android and
+between two iPhones comes first; joining offline on an iPhone is optional and comes last
+(Carl's answer 25). It merges before its real-phone test, which runs on the store builds
+(answer 28).
+The protocol stays at 1, so the carried file's name does not change: a new link kind is
+named in `arrange`'s radios, whose fields older phones drop when they do not know them
+(`nearbyWire.ts`), and a plan offers it only when both phones name it. What an iPhone can
+do decides the design:
+
+- **Find.** It scans and connects as any phone does, but it cannot send the scan response.
+  Apple's documentation for `startAdvertising` gives an app 28 bytes of advert for service
+  UUIDs and a scan response for the local name only, and puts a UUID that does not fit in an
+  overflow area that only an iPhone scanning for that exact UUID sees. Find's UUIDs change
+  with every salt and `r`, so nobody could scan for them. So an iPhone advertises the advert
+  alone, and serves the same GATT service under it. A phone that hears a teammate's advert
+  with no scan response (`onAdvert`) knows it only by its salt until Hello: no tag, summary
+  or echo. It still echoes that salt, so an iPhone can check an Android's echo and connects
+  to an Android only once echoed, as Androids do. Reading anything more would take a
+  connection before the echo, which is what the echo exists to stop (section 5.12, The
+  echo). An iPhone cannot choose when its Bluetooth address changes (reportedly about every
+  15 minutes), so on an iPhone salt and address do not change together, and two salts can be
+  linked through one address. The decision entry says so.
+- **Move.** An iPhone has no Wi-Fi Direct API and no way for an app to host a network. It
+  joins one by name and passphrase (`NEHotspotConfiguration`, with `joinOnce`), after a
+  system prompt each time. It sends `radios: { directByName: false, band5: false, hotspot:
+  false, joinHotspot: true }`, and `arrangePlan` already has an Android host a local-only
+  hotspot for that. Between two iPhones a new link kind, `awdl`, uses Apple's own direct
+  Wi-Fi: the host opens a Network framework listener with `includePeerToPeer`, as a Bonjour
+  service under a one-time name it sends in `host` (as `ssid`), and the other connects to that
+  name. The service type is fixed in `Info.plist` (`NSBonjourServices`), and is on the air
+  only while a link comes up, as Android's `DIRECT-` name is. Anyone could connect to it, so
+  the host gives each connection in turn as a hotspot does (`nextLink`), and only the one that
+  proves the attempt's keys becomes the link. `arrangePlan` offers `awdl` only when both
+  phones say `awdl` in their radios. An iPhone also says `joinDirect`: it can join an
+  Android's Wi-Fi Direct group as a plain client, by name and passphrase, which is faster
+  than the hotspot and is tried first; the real-phone test says whether it holds, and a
+  tunable turns it off. Not MultipeerConnectivity (section 4). Wi-Fi Aware (iOS 26,
+  iPhone 12 and later) is worth another look once it has matured, as a link to Androids that
+  have it. Failing all of these, events move over Bluetooth while audio waits, as today.
+- **Androids must hear iPhones too.** Only the phone with the newer discovery key can hear
+  the other, so it starts the session (section 5.12, Generations), and a new generation
+  comes at least every 90 days. An Android ahead of an iPhone hears nothing today, because
+  `FindMatcher.hear` drops a matching advert that has no scan response, and the iPhone
+  cannot match the newer advert, so the two cannot meet until the iPhone reaches the server.
+  So `hear` hands up a matching advert alone (`onAdvert`), and the room echoes its salt.
+  That is Kotlin, so an Android store build, and it moves the Android fingerprint, which
+  makes a carried build (decision 246).
+- **Who connects.** A phone heard by its advert alone is in the room under `@` and its salt.
+  An Android leaves such a phone on its own generation to connect, since it can check the
+  Android's echo, and only echoes it. Heard under an older generation, it cannot hear the
+  Android, so the Android offers answer 21's tap and connects after it. An iPhone cannot get
+  an echo from another iPhone, or from an Android without the change, so after a while it
+  shows "A teammate may be nearby", and one tap covers every such teammate until the screen
+  closes (answer 26). Of two iPhones that both tapped, the lower salt connects at once and
+  the other waits, as the lower tag does today. With no summary to compare, a phone heard
+  only by its advert is tried once per salt: after a session with it the room waits for its
+  next salt, so new work between two iPhones can wait up to one rotation (4 to 6 minutes).
+  An Android cannot see an iPhone's summary either, so it can say "Up to date" while an
+  iPhone in range still has something; the iPhone connects when it sees the summaries
+  differ.
+
+1. **The real-phone test,** on the store builds after the merge (answer 28): TestFlight
+   and Play's internal testing, since the simulator has no Bluetooth. Its questions are in
+   section 11. Steps 2 to 7 were built before it, so what it finds is fixed after: by an
+   update in JavaScript, by another store build in Swift or Kotlin.
+2. Core and sync, which reach Androids by update: `onAdvert` and the `@` entries in
+   `NearbyRoom`, with the tap that covers every such teammate and the salt order between two
+   iPhones; `awdl` and `joinDirect` in the radios, `awdl` in `NearbyLink` and `host`, and
+   both in `arrangePlan`. The fake radio gains an iPhone's radios, and `arrangePlan` cases and
+   fleet scenarios cover both pairs, an iPhone behind on its generation and a mixed room of
+   five.
+3. The Swift half of `nearby-link`, with `ios` in `expo-module.config.json`: Find (the scan,
+   the advert, the GATT service, both ends of a pipe), the join, the
+   `awdl` host and join, `secure` with CryptoKit's AES-GCM on the same wire format, frames,
+   streams and file parts, the codes in `src/codes.ts`, every tunable from JavaScript,
+   nothing logged and nothing done at construction, as decision 224 holds the Kotlin to.
+   `Info.plist` gains `NSBluetoothAlwaysUsageDescription`, `NSLocalNetworkUsageDescription`
+   and `NSBonjourServices`, and the app the entitlement
+   `com.apple.developer.networking.HotspotConfiguration`. Each of these moves the iPhone
+   fingerprint, so this costs an iPhone store build and review.
+4. Kotlin: `FindMatcher.hear` hands up a matching advert with no scan response as `onAdvert`,
+   with JUnit cases. Its store build goes public before the iPhone's, or with it.
+5. The app. Each `.android` file is sorted. The exchange's move to `.native` files, which
+   Metro resolves for both phones, while the web keeps the plain stub: `useNearby`,
+   `nearbyRun`, `nearbyLink`, `nearbyIdentity`, `nearbyKey`, `nearbyRelay`, `NearbyRow` and
+   the like, and whatever an iPhone needs to take an Android newcomer's work
+   (`useChainMembership` may be one). These stay Android only: the disguise's (`AppCover`,
+   `useAppCovered`, `NearbyCoverNotes`, `LetInCoverNote`, `AppIconRow`), the carried file's
+   (`useCarriedApk`) and joining offline's, until step 8. An iPhone
+   gets its own permissions file: Bluetooth's state and permission; Local Network, which has
+   no way to ask ahead and prompts at the first connection; and the Wi-Fi prompt at each
+   join. The install key goes in the Keychain for this device only, so a restored iPhone
+   makes a new key as a restored Android does (decision 217). Every new line goes in all 16
+   catalogs, with help lines. iPhones carry no disguise, so Share nearby shows on them
+   undisguised, and `disguiseIphone.test.ts` still passes.
+6. Stores. Nothing records the App Store's answers as `docs/play-store-declarations.md` does
+   Play's, so this starts `docs/app-store-declarations.md`: App Privacy, the review notes
+   with a video of two phones, and `nearby` on LangQuest Sample. `app.json` says
+   `ITSAppUsesNonExemptEncryption: false`, and an iPhone will now carry its own encryption
+   between phones (AES-GCM, X25519, Ed25519), so that answer is checked before the build.
+   While either store build is in review, hold merges touching these files (decision 155).
+7. CI: `ios-native`, scoped as `android-native` is and in `gate.needs`, on a macOS runner,
+   builds the module and runs its XCTest against `test-vectors.json`.
+   `nearbyNative.test.ts` holds the Swift files and the `Info.plist` keys to the same text
+   guards. Decision entries: a new one for the iPhone link, and amend 150, 217, 224 and 231.
+8. Optional, last: joining offline on an iPhone that already has the app from the App Store.
+   The newcomer only has to join a network, so an Android lets an iPhone in over a hotspot
+   (or its group, after step 1), and an iPhone can let in only another iPhone, over `awdl`.
+   "Give them the app" stays Android only. The limit is the reducer version: a starting copy
+   needs the same `REDUCER_VERSION` (decision 110), and with no carried build an iPhone runs
+   the JavaScript of its last update, so this likely waits on section 14.3's fallback.
+
+**Phase 5's gate.** The real-phone test again, with iPhones, on the store builds after the
+merge (answer 28): an iPhone with each kind of Android in the gate's list below, two
+iPhones, a mixed room of five, an iPhone behind on its generation meeting an Android ahead,
+and a disguised Android hosting for an iPhone.
 
 **Phase 6: joining offline.** Section 14: carried builds, join passes, the screen that
 lets someone in, the starting copy, the local person and the join route. Someone with
@@ -3545,8 +3657,8 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   `docs/decisions/2026-11-18-carried-file-matches-by-versions.md`). Share nearby opens it from
   a row above Let someone in, on the same terms (a pass held, joining on, Android), with a
   line saying it is for before going offline; Let someone in opens it from a line at its
-  top saying the new phone needs LangQuest installed first; and Sync's Ready for offline
-  card opens it from its reminder line (below). Let someone in keeps only the
+  top saying the new phone needs LangQuest installed first; and Sync and offline's Ready for
+  offline list opens it from its install file item (below). Let someone in keeps only the
   field: the role, Show the code, the code, the pictures, the one tap and the words of a
   version refusal.
   - *Getting it.* While online, Get the install file, that screen's one main button, opens `<Worker>/apk/<name>` in the
@@ -3561,18 +3673,19 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     get the new one before going offline, and Share nearby says the same as a line while
     online, under A new person, above its Get the install file row. The words go when the two match again; the
     row stays, so the next version is caught too.
-  - *Reminded while online* (Carl's choice, 2026-11-09). Sync reminds a carrier before they
-    leave, on Share nearby's terms for A new person (`joinRows`), only while online (the
-    server just reached and the file can be got, `apkGet`), and only while this phone has
-    not got the file it needs now: never got (no `carriedApkOpened`) or got for an older
-    version (`apkStale`); nothing shows before the meta row is read. Its Ready for offline
-    card gets a line, "Install file for a new person: not got yet" or "Install file for a
-    new person: for an older version", with a Get it link to Get the install file
-    (`sync_status → get_install_file`), and the Share nearby row a small amber line, "Get the
-    install file before you go offline" (5.8). Both go once the right file is got, by
-    pressing Get the install file or a right file under Check my file. The rule is
-    `apkReminder` in `carriedApkModel.ts`; what reads nearby state is in `.android` files
-    (`InstallFileReminder`, `NearbyRow`) with plain stubs elsewhere.
+  - *Reminded while online* (Carl's choice, 2026-11-09; one place since 2026-11-18,
+    docs/decisions/2026-11-18-sync-and-offline-one-screen.md). The install file is an item
+    of Sync and offline's Ready for offline list, a packing list for a trip, on Share
+    nearby's terms for A new person (`joinRows`), online or not: got ("Got: r21-l1-p1-….apk",
+    with the line to delete it when everyone is in), never got (no `carriedApkOpened`), or
+    got for an older version (`apkStale`); nothing shows before the meta row is read. Never
+    got or too old turns the fold's line amber ("Install file for a new person: not got
+    yet", "…: for an older version"), and while online the item has Get the install file
+    (`sync_status → get_install_file`); offline it says getting it needs the internet. The
+    rule is `installFileItem` in `carriedApkModel.ts`, read by `useInstallFile`; on an iPhone
+    and the web its hooks are plain stubs, so the item never shows. The Share nearby row's
+    amber line and the Ready for offline card's line it replaces said the same at the same
+    moments (Carl, 2026-11-18).
   - *Check my file.* Opens Android's system file picker (`expo-document-picker`, which needs
     no permission; the file is not copied) and compares only the chosen file's name with the
     versions needed, whatever fingerprint ends it: "This is the right file", which is then

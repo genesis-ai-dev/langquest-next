@@ -1,6 +1,6 @@
 // What waits on this device to upload and what went up, by passage (decisions.md
-// 166): the bar over every screen while anything waits, and the top of the Sync
-// screen with its "Waiting to upload" and "Uploaded" lists. The words count
+// 166): the bar over every screen while anything waits, and Sync's Uploads fold
+// with its "Waiting to upload" and "Uploaded" lists. The words count
 // recordings and changes, never the event names a sync speaks in.
 import { unitTitle } from '@langquest-next/core';
 import type { SentEntry } from '@langquest-next/sync';
@@ -15,7 +15,7 @@ import { txt } from '../ui/textStyles';
 import { t } from '../i18n';
 import { formatDay } from '../i18n/format';
 import { C, radius, space, TINT } from '../ui/theme';
-import { PackageBoxes, TransitScene, WaveArrow } from './transit';
+import { PackageBoxes, WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
 import { useWaitingElsewhere } from './useWaitingElsewhere';
 import { barState, dayKind, isOffline, sentDays, sentWords, uploadsSummary, waitingRows, waitingWords } from './uploadsModel';
@@ -60,32 +60,6 @@ export function UploadBar(props: { ctx: Ctx; screenKey: string; onOpen: (() => v
       {body}
       <HelpBadge spot={spot} />
     </Pressable>
-  );
-}
-
-/**
- * The top of the Sync screen: recordings as packages between this device
- * and the cloud, with how many wait to go up and to come down (transit.tsx),
- * then everything uploaded and when it last went, or how much waits and
- * whether it is going up now.
- */
-export function UploadsCard(props: { ctx: Ctx }) {
-  const status = useSyncStatus();
-  const { counts, offline, moving: movingUp } = useUploadState(props.ctx);
-  const last = status.sent.reduce((m, e) => Math.max(m, e.at), 0);
-  const { waiting, title, sub } = uploadsSummary(counts, movingUp, last, Date.now());
-  return (
-    <Card>
-      <TransitScene up={counts.recordings > 0 ? counts.recordings : counts.changes} down={status.pendingDown} offline={offline}
-        movingUp={movingUp} movingDown={!offline && status.downloading.size > 0} />
-      <View style={styles.head} accessible accessibilityLabel={[title, sub].filter(Boolean).join('. ')}>
-        {waiting ? null : <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="check" size={22} color={TINT.greenText} /></View>}
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={[txt.body, { fontWeight: '800' }]}>{title}</Text>
-          {sub ? <Text style={txt.smMuted}>{sub}</Text> : null}
-        </View>
-      </View>
-    </Card>
   );
 }
 

@@ -31,13 +31,14 @@ Expected:
 - The header says "Me" and has no Back button.
 - One card holds five rows, in this order:
   - The account's display name, with "Name and photo" under it.
-  - "Ready for offline", with one of: "Checking this device…", "No passages
+  - "Sync and offline", with one of: "Checking this device…", "No passages
     kept on this device yet", "{n} passage(s) on this device", or
-    "{ready} of {n} passage(s) ready on this device".
+    "{ready} of {n} passage(s) ready on this device" (nothing is waiting
+    or refused here; ACCT-011 has those lines).
   - "How LangQuest works", with "Listen to a short tour".
   - "Language", with the name of the language the app shows, in that
     language ("English").
-  - "More settings", with "Password, notifications, sync, account" and no
+  - "More settings", with "Password, notifications, account" and no
     count.
 - Below the card, a red "Sign out" link.
 - The tab bar shows, with "Me" lit.
@@ -71,7 +72,7 @@ Preconditions: None.
 
 Steps:
 1. On Me, tap the name row. Then tap Back.
-2. Tap "Ready for offline". Then tap Back.
+2. Tap "Sync and offline". Then tap Back.
 3. Tap "How LangQuest works". Then tap Back.
 4. Tap "Language". Then close the sheet with its ✕.
 5. Tap "More settings". Then tap Back.
@@ -79,8 +80,8 @@ Steps:
 
 Expected:
 - Step 1 opens "Edit Profile".
-- Step 2 opens the Sync screen titled "Ready for offline", with what this
-  device keeps first (its contents are in SYNC; UI audit, finding 120).
+- Step 2 opens "Sync and offline", titled as the row that opened it (its
+  contents are in SYNC; UI audit, finding 120).
 - Step 3 opens "What is LangQuest?" with "1 of {n}" under the title.
 - Step 4 opens the "Language" sheet over Me.
 - Step 5 opens "More settings".
@@ -89,7 +90,7 @@ Expected:
 - No step shows "That can't be opened from here." or "You don't have
   permission to open that."
 
-### ACCT-004 Waiting work shows on Me's "More settings" row
+### ACCT-004 Waiting work shows on Me's "Sync and offline" row
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -103,11 +104,15 @@ Steps:
 3. Turn the network back on and wait 30 seconds.
 
 Expected:
-- After step 2, "More settings" has a count badge {n} (the events waiting:
-  1 for the note), and its sub-line says "{n} waiting to send · password,
-  notifications, sync, account".
-- After step 3, the badge is gone and the sub-line is "Password,
-  notifications, sync, account" again.
+- After step 2, "Sync and offline" has a count badge {n} (the events
+  waiting: 1 for the note), and its sub-line says "{n} change(s) waiting
+  to send" (with a recording: "{total} waiting to send · recordings:
+  {n}").
+- "More settings" still says "Password, notifications, account", with no
+  count.
+- After step 3, the badge is gone and the sub-line says how ready the
+  device is again ("{n} passages on this device" or the like, as in
+  ACCT-001).
 
 Resets: P-SUBMITTED has one more note.
 
@@ -131,9 +136,9 @@ Expected:
   - VIEW: "Viewer · UI Test Org".
   - LADMIN: "Language Lead · UI Test Org".
 - Rows follow: "Switch Organization" (these accounts are in one
-  organization; ACCT-010), then the section "This device" with
-  "Sync" and "Send diagnostics", then a red "Delete account" with "Your
-  account and your name, for good".
+  organization; ACCT-010), then the section "This device" with "Send
+  diagnostics" (no "Sync" row: it is Me's "Sync and offline"), then a red
+  "Delete account" with "Your account and your name, for good".
 - On iOS and Android there is also "Notifications" with "Hear about
   requests and feedback". On the web there is none (WEB-021).
 - No "Set a password" row (these accounts have email).
@@ -247,27 +252,34 @@ Expected:
 - TRANS (in ORG only): Me has no "Switch Organization" row. More settings
   has "Switch Organization" with "UI Test Org · or start a new one".
 
-### ACCT-011 The Sync row says how sync stands
+### ACCT-011 The Sync and offline row on Me says what needs noticing, else how ready the device is
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions: None.
 
 Steps:
-1. Tap "Me", then "More settings". Read the "Sync" row.
-2. Turn the network off. Wait 10 seconds and read it again.
-3. Still offline, add a note to P-SUBMITTED (PASS). Return to More settings.
+1. Tap "Me". Read the "Sync and offline" row. Open "More settings", then
+   go Back.
+2. Turn the network off. Wait 10 seconds. Tap "Sync and offline", then
+   Back, and read the row again.
+3. Still offline, add a note to P-SUBMITTED (PASS). Return to Me.
 4. Turn the network on and wait 30 seconds.
 
 Expected:
-- Step 1: "Live: changes arrive as they happen", or "Up to date" if the
-  live channel is not open.
-- Step 2: "Offline: work is kept on this device". A browser has no network
-  signal the app listens to: there the row turns when the live channel's
-  heartbeat goes unanswered, after up to a minute.
-- Step 3: "{n} change(s) waiting to send", with a count badge {n} on the row.
-- Step 4: back to "Live: changes arrive as they happen" or "Up to date",
-  with no badge.
-- Tapping the row at any point opens "Sync".
+- Step 1: how ready the device is: "Checking this device…", "No passages
+  kept on this device yet", "{n} passage(s) on this device" or "{ready} of
+  {n} passage(s) ready on this device". More settings has no "Sync" row.
+- Step 2: the screen says "Offline". A browser has no network signal the
+  app listens to: there it turns when the live channel's heartbeat goes
+  unanswered, after up to a minute. With nothing waiting, the row on Me
+  still says how ready the device is.
+- Step 3: "{n} change(s) waiting to send", with a count badge {n} on the
+  row.
+- Step 4: back to how ready the device is, with no badge.
+- When the server refuses the account, the row says "This account cannot
+  sync this organization" (PEOPLE-046, SYNC-018); when it refuses some
+  work, "Refused · {n}" (SYNC-019). These come before waiting work.
+- Tapping the row at any point opens "Sync and offline".
 
 ### ACCT-012 Send diagnostics is on by default and can be turned off
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Manual
@@ -625,7 +637,7 @@ Preconditions: None.
 
 Steps:
 1. For each of the fifteen languages: pick it in Me → "Language", then
-   visit My Work, a passage record, Me, More settings and Sync.
+   visit My Work, a passage record, Me, Sync and offline, and More settings.
 2. Set the language back to "Same as this phone".
 
 Expected:
@@ -758,9 +770,9 @@ Expected:
 - Step 1: the screen dims. Each part (at least the five rows and "Sign out")
   stays lit with a number, in reading order, top to bottom. The "?" stays
   lit, so help can be turned off.
-- Step 2: a tooltip beside the row says "More settings" and its sub-line
-  "Password, notifications, sync, account". The app does not open More
-  settings.
+- Step 2: a tooltip beside the row says "More settings" and what tapping
+  it does ("Opens your password, notifications, sync and account
+  settings. …"). The app does not open More settings.
 - Step 3: the tooltip closes. Help stays on.
 - Step 4: the tooltip says "Sign out" and "Leaves this account on this
   device. Work not yet sent is kept until it is." The app does not leave Me.
@@ -778,7 +790,7 @@ Preconditions:
 
 Steps:
 1. Open the app online once, then turn the network off.
-2. On Me, turn help on and tap "Ready for offline".
+2. On Me, turn help on and tap "Sync and offline".
 3. Tap "Listen" in the tooltip, then "Stop" while it plays.
 
 Expected:
@@ -941,8 +953,9 @@ Expected:
 - Step 2: an amber cloud icon, the title "Not yet", and "Still to send: 1
   change. This device is offline. Sign out once they have synced so they
   are not stranded here." "Sign Out" is disabled. "Cancel" works.
-- Under it, "See what is waiting" opens the Sync screen, with Sync now and
-  the change by passage; Back returns here (UI audit, finding 115).
+- Under it, "See what is waiting" opens "Sync and offline" with "Uploads"
+  open: the change by passage, and Sync now. Back returns here (UI audit,
+  finding 115).
 - If the browser is online but the work has not gone yet, the text is
   "Still to send: 1 change. Sign out once they have synced so they are not
   stranded here.", with a spinner and "Sending…"
@@ -979,11 +992,10 @@ Preconditions:
   offline, with work queued).
 
 Steps:
-1. Tap "Me". Read "More settings". Tap "Sign out".
+1. Tap "Me". Read "Sync and offline". Tap "Sign out".
 
 Expected:
-- "More settings" says "This account cannot sync · password,
-  notifications, account".
+- "Sync and offline" says "This account cannot sync this organization".
 - The sign-out screen says "This account cannot sync this organization:
   the server refused it. Signing out is safe; anything queued stays on this
   device." "Sign Out" is enabled, also on the web.
