@@ -185,10 +185,65 @@ export async function playReader(key, { fetch: fetchImpl = fetch, now = Date.now
 }
 
 /**
+ * The longest download id taken. Google documents the id only as an opaque
+ * string, so this is a bound on what to put in a URL, not Google's limit.
+ */
+export const MAX_DOWNLOAD_ID = 4096;
+
+/** One to MAX_DOWNLOAD_ID characters, none of them whitespace, control or otherwise unprintable (Unicode's "Other"). */
+const DOWNLOAD_ID = new RegExp(`^[^\\s\\p{C}]{1,${MAX_DOWNLOAD_ID}}$`, 'u');
+
+const codePoint = (c) => `U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`;
+/**
+ * Kinds of character a refusal names, each character counted in the first
+ * that matches. Those with `list` also say which ones they saw: punctuation
+ * as itself, the rest as code points, so the log stays one plain line.
+ */
+const CHARACTER_KINDS = [
+  { name: 'letters', test: /[A-Za-z]/ },
+  { name: 'digits', test: /[0-9]/ },
+  { name: 'punctuation', test: /[!-~]/, list: (c) => c },
+  { name: 'whitespace', test: /\s/u, list: codePoint },
+  { name: 'control or unprintable characters', test: /\p{C}/u, list: codePoint },
+  { name: 'non-ASCII characters', test: /./su }
+];
+const typeOf = (value) => (value === null ? 'null' : Array.isArray(value) ? 'a list' : typeof value === 'object' ? 'an object' : `a ${typeof value}`);
+
+/**
+ * What a value from Google looks like without saying what it is: its type,
+ * its length and the kinds of characters in it. A refusal says this, so the
+ * job's log shows what Google sent and never holds the download id.
+ */
+function shape(value) {
+  if (typeof value !== 'string') return `${typeOf(value)}, not a string`;
+  if (!value) return 'an empty string';
+  const chars = [...value];
+  const seen = new Map();
+  for (const c of chars) {
+    const kind = CHARACTER_KINDS.find((k) => k.test.test(c));
+    seen.set(kind, (seen.get(kind) ?? new Set()).add(c));
+  }
+  const kinds = CHARACTER_KINDS.filter((k) => seen.has(k)).map((k) => {
+    if (!k.list) return k.name;
+    const which = [...seen.get(k)].sort((a, b) => a.codePointAt(0) - b.codePointAt(0)).map(k.list);
+    return `${k.name} ${which.slice(0, 12).join(' ')}${which.length > 12 ? ` and ${which.length - 12} more` : ''}`;
+  });
+  return `a string of ${chars.length} characters${chars.length > MAX_DOWNLOAD_ID ? `, more than ${MAX_DOWNLOAD_ID}` : ''}: ${kinds.join(', ')}`;
+}
+
+/**
  * The download id of the one Play-signed universal APK in a `generatedApks`
- * answer; null while Play has not made it yet (no entry), a refusal for any
- * answer that is not one entry with one universal APK. More than one entry
- * means more than one signing key, and which to carry is a person's choice.
+ * answer; null while Play has not made it yet (no entry, no universal APK,
+ * or a universal APK with no download id); a refusal for any answer that is
+ * not one entry with one universal APK. More than one entry means more than
+ * one signing key, and which to carry is a person's choice.
+ *
+ * Google documents the id only as an opaque string, with no set of
+ * characters, so any printable characters are taken (`/`, `+`, `=`, `:` and
+ * the like too); `publish` percent-encodes it into the download's path, as
+ * Google's own client libraries do. An id that is not a string, is empty, is
+ * longer than MAX_DOWNLOAD_ID or has whitespace, control or other unprintable
+ * characters is refused, with its shape and never the id itself.
  */
 export function universalApk(body) {
   const list = body?.generatedApks;
@@ -197,8 +252,10 @@ export function universalApk(body) {
   if (list.length !== 1) throw new Refusal(`Google Play's generatedApks answer has ${list.length} signing keys, not one, so which APK to carry is a person's choice`);
   const universal = list[0]?.generatedUniversalApk;
   if (universal === undefined) return null;
-  const id = universal?.downloadId;
-  if (typeof id !== 'string' || !/^[A-Za-z0-9_.~-]{1,512}$/.test(id)) throw new Refusal('Google Play\'s universal APK has no download id this script can read');
+  if (!universal || typeof universal !== 'object' || Array.isArray(universal)) throw new Refusal(`Google Play's universal APK is ${typeOf(universal)}, not an object`);
+  const id = universal.downloadId;
+  if (id === undefined) return null;
+  if (typeof id !== 'string' || !DOWNLOAD_ID.test(id)) throw new Refusal(`Google Play's universal APK has a download id this script cannot use: ${shape(id)}`);
   return id;
 }
 
@@ -251,6 +308,7 @@ export async function publish({
     log(`Google Play has not made the APKs of version code ${code} yet; trying again in a minute (${i} of ${tries}).`);
     await sleep(60_000);
   }
+  // The id is opaque and may hold `/`, `+`, `=` or `:`, so it is percent-encoded into one path segment, as Google's client libraries do.
   const bytes = await play.bytes(`/generatedApks/${code}/downloads/${encodeURIComponent(downloadId)}:download?alt=media`);
   checkApk(bytes);
   const hash = sha256(bytes);

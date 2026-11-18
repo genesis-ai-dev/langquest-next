@@ -3,9 +3,13 @@
  * `server/blobReconciler.ts` without `--verify` (no hashing of every
  * object), run by the job container, which records a `blob_reconcile` job
  * run: `objects` (files in R2), `missing` (files a language's log holds as
- * stored that R2 does not have: work that may be lost) and `orphaned` (files
- * in R2 the log did not hold as stored; each is confirmed, as the reconciler
- * always does). The run is `partial` when anything is missing.
+ * stored that R2 does not have, after the run's repairs: work that may be
+ * lost), `orphaned` (files in R2 the log did not hold as stored; each is
+ * confirmed, as the reconciler always does) and `repaired` (files copied to
+ * the file type the log names, from one under another type) and
+ * `unreadable` (copies that failed after their retries; the next run tries
+ * again). The run is `partial` when anything is missing, or when it stopped
+ * before the end.
  * The job runner starts it from the Worker's job tick (apps/web/worker/jobsModel.ts;
  * scripts/build-jobs.mjs bundles this file); it needs API_URL, the Worker that
  * lists R2. The log prints counts, never names.
@@ -34,7 +38,7 @@ process.once('SIGTERM', () => {
   console.error('SIGTERM: finishing the stream in hand');
 });
 // The reconciler counts as it goes (streams, objects, missing, confirmed), so a run cut short still reports what it saw.
-const report: ReconcileReport = { streams: 0, objects: 0, missing: 0, confirmed: 0, verified: 0, invalidated: 0, unreadable: [] };
+const report: ReconcileReport = { streams: 0, objects: 0, missing: 0, confirmed: 0, verified: 0, invalidated: 0, unreadable: [], repaired: 0 };
 
 let error: unknown;
 try {
@@ -42,15 +46,15 @@ try {
 } catch (e) {
   error = e;
 }
-const counts = { streams: report.streams, objects: report.objects, missing: report.missing, orphaned: report.confirmed };
+const counts = { streams: report.streams, objects: report.objects, missing: report.missing, orphaned: report.confirmed, repaired: report.repaired ?? 0, unreadable: report.unreadable.length };
 const incomplete = stopping || error !== undefined;
 await record({
   job: 'blob_reconcile', startedAt: started, ms: Date.now() - started,
   outcome: error !== undefined && counts.streams <= 1 ? 'error' : incomplete || counts.missing > 0 ? 'partial' : 'ok',
-  n: { streams: counts.streams, objects: counts.objects, missing: counts.missing, orphaned: counts.orphaned },
+  n: { streams: counts.streams, objects: counts.objects, missing: counts.missing, orphaned: counts.orphaned, repaired: counts.repaired, unreadable: counts.unreadable },
   ...(error !== undefined ? { errorClass: errorClassOf(error) } : stopping ? { errorClass: 'sigterm' } : {})
 });
-console.log(`reconcile: ${counts.streams} streams, ${counts.objects} objects, ${counts.missing} missing, ${counts.orphaned} orphaned, ${Math.round((Date.now() - started) / 1000)} s`);
+console.log(`reconcile: ${counts.streams} streams, ${counts.objects} objects, ${counts.missing} missing, ${counts.orphaned} orphaned, ${counts.repaired} repaired, ${counts.unreadable} unreadable, ${Math.round((Date.now() - started) / 1000)} s`);
 if (error !== undefined) {
   console.error(`failed: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);

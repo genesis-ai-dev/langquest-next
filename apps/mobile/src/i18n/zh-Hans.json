@@ -358,7 +358,9 @@
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
-    "camera": "LangQuest 使用相机扫描邀请二维码。"
+    "camera": "LangQuest 使用相机扫描邀请二维码。",
+    "bluetooth": "LangQuest 使用蓝牙查找附近队友的手机，并与他们共享工作。",
+    "localNetwork": "LangQuest 使用本地网络与附近队友的手机共享工作。"
   },
   "library": {
     "sourceLine": {
@@ -3506,6 +3508,19 @@
       "drawAgain": "再画一次",
       "newPattern": "绘制新图案",
       "choosePatternHelp": "选一张图片和一个图案，用来在这部手机上重新登录，即使没有网络也行。"
+    },
+    "appLock": {
+      "row": "锁定应用",
+      "rowHelp": "开启后，每次打开应用和每次回到应用时，都会要求你画出图案。开启或关闭前，也会先要求你画出图案。",
+      "on": "现在打开应用时会要求你画出图案。",
+      "off": "应用不再要求你画出图案。",
+      "opening": "正在打开……",
+      "checking": "正在检查……",
+      "forgot": "忘记了？",
+      "forgotHelp": "忘记图案了？请退出登录，再用密码或团队成员给你的登录码重新登录。你的工作仍保留在这部手机上。",
+      "signOutHelp": "退出这部手机的登录。你的工作仍保留在手机上，并会在可以时发送。",
+      "backHelp": "返回点。",
+      "waitFor_other": "尝试次数太多。请 {{count, number}} 分钟后再试。"
     }
   },
   "study": {

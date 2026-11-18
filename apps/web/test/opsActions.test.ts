@@ -13,6 +13,7 @@ const REQUEST = '22222222-2222-4222-8222-222222222222';
 const SUGGESTION = '33333333-3333-4333-8333-333333333333';
 const CODE = '44444444-4444-4444-8444-444444444444';
 const ANSWERED = '55555555-5555-4555-8555-555555555555';
+const QUIET = '66666666-6666-4666-8666-666666666666';
 const NOW = Date.parse('2026-10-28T09:00:00Z');
 const CLIENT = { clientId: 'client.apps.googleusercontent.com', clientSecret: 'client-secret' };
 const REDIRECT = 'https://next.langquest.org/ops/api/youtube/callback';
@@ -32,6 +33,7 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     connectChannel: async (row) => { done.push(`connect ${row.language} ${row.channelId} ${row.title} ${row.refreshToken} by ${row.by} section ${row.section}`); },
     approveTutorials: async (items, by) => { done.push(`approve ${items.length} by ${by}`); return items.length; },
     addNote: async (tutorial, text, by) => { done.push(`note ${tutorial} ${text} by ${by}`); },
+    markQuietAccount: async (profile, ok, by) => { done.push(`quiet ${profile} ${ok} by ${by}`); return profile === QUIET ? (ok ? 'marked' : 'unmarked') : 'not_found'; },
     instruct: async (row, by) => { done.push(`instruct ${JSON.stringify(row)} by ${by}`); return SUGGESTION; },
     decideSuggestion: async (id, decision, detail, reason, by) => {
       done.push(`${decision} ${id} ${detail} ${reason} by ${by}`);
@@ -50,6 +52,36 @@ describe('the ops dashboard\'s actions', () => {
     for (const bad of [null, {}, { kind: 'run', key: 'drop-tables' }, { kind: 'feedback', id: 'x', status: 'done' }, { kind: 'feedback', id: FEEDBACK, status: 'deleted' }, { kind: 'suspend', id: VIEWER }]) {
       expect(parseAction(bad)).toBeNull();
     }
+  });
+
+  it('takes an account\'s quiet installs marked not an issue or counted again, with its id checked', () => {
+    expect(parseAction({ kind: 'quiet-account', profile: QUIET, ok: true })).toEqual({ kind: 'quiet-account', profile: QUIET, ok: true });
+    expect(parseAction({ kind: 'quiet-account', profile: QUIET.toUpperCase(), ok: false })).toEqual({ kind: 'quiet-account', profile: QUIET, ok: false });
+    for (const bad of [{ kind: 'quiet-account' }, { kind: 'quiet-account', profile: 'x', ok: true }, { kind: 'quiet-account', profile: QUIET }, { kind: 'quiet-account', profile: QUIET, ok: 'yes' }]) {
+      expect(parseAction(bad)).toBeNull();
+    }
+  });
+
+  it('marks an account\'s quiet installs as the staff member who pressed it, and records it', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'quiet-account', profile: QUIET, ok: true })).toEqual({ ok: true, result: 'marked' });
+    expect(await act(d, 'aal2', { kind: 'quiet-account', profile: QUIET, ok: false })).toEqual({ ok: true, result: 'unmarked' });
+    expect(d.done).toEqual([`quiet ${QUIET} true by ${VIEWER}`, `quiet ${QUIET} false by ${VIEWER}`]);
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'quiet_ok', target: QUIET, result: 'ok' },
+      { profileId: VIEWER, action: 'quiet_ok_undo', target: QUIET, result: 'ok' }
+    ]);
+  });
+
+  it('says an account that is not there is not found, refuses a password-only session, and records both', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'quiet-account', profile: FEEDBACK, ok: true })).toMatchObject({ ok: false, status: 404 });
+    expect(await act(d, 'aal1', { kind: 'quiet-account', profile: QUIET, ok: true })).toMatchObject({ ok: false, status: 403 });
+    expect(d.done).toEqual([`quiet ${FEEDBACK} true by ${VIEWER}`]);
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'quiet_ok', target: FEEDBACK, result: 'refused', detail: 'not_found' },
+      { profileId: VIEWER, action: 'quiet_ok', target: QUIET, result: 'refused' }
+    ]);
   });
 
   it('marks feedback for a Global Viewer on an aal2 session, and records it', async () => {

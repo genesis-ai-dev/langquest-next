@@ -14,8 +14,9 @@ import { issueOf, type Suggestion } from '../../../server/tutorialFeedback';
  * The few things the ops dashboard may do (docs/ops-dashboard-plan.md
  * section 6, decisions.md 162): mark feedback seen or done, run a server
  * job now, grant or decline an organization's blue check (173), connect
- * a tutorial channel on YouTube and publish its videos (180), and add a note
- * on a tutorial video or answer Claude's suggestion for one (186). The dashboard's own Worker holds no writer's key; it
+ * a tutorial channel on YouTube and publish its videos (180), add a note
+ * on a tutorial video or answer Claude's suggestion for one (186), and mark an
+ * account's quiet installs not an issue. The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
  * and this Worker checks that token itself (a live session, a Global Viewer
  * on an `aal2` session) before acting with the service role. Every attempt
@@ -41,7 +42,9 @@ export type Action =
    */
   | { kind: 'tutorial-instruction'; tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }
   /** A person's answer to Claude's suggestion: accept or reject it (as edited), or only edit its detail. */
-  | { kind: 'tutorial-suggestion'; id: string; decision: 'accept' | 'reject' | 'edit'; detail: string | null; reason: string | null };
+  | { kind: 'tutorial-suggestion'; id: string; decision: 'accept' | 'reject' | 'edit'; detail: string | null; reason: string | null }
+  /** An account's quiet installs marked not an issue, or counted again. */
+  | { kind: 'quiet-account'; profile: string; ok: boolean };
 
 export type ActionResult =
   | { ok: true; result: string }
@@ -69,6 +72,8 @@ export interface ActionDeps {
   instruct(row: { tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }, by: string): Promise<string>;
   /** A suggestion answered (`ops_suggestion_decide`): what happened, and the suggestion's kind. */
   decideSuggestion(id: string, decision: 'accepted' | 'rejected' | 'edited', detail: string | null, reason: string | null, by: string): Promise<{ result: string; kind?: string }>;
+  /** An account's quiet installs marked not an issue or counted again, by this staff member: `marked`, `unmarked`, or `not_found` (`ops_quiet_account_mark`). */
+  markQuietAccount(profile: string, ok: boolean, by: string): Promise<string>;
   /** An accepted code change filed in Linear: its issue, or null without a Linear key (the comments job files it later). */
   fileSuggestion(id: string): Promise<string | null>;
   now(): number;
@@ -98,11 +103,14 @@ function tutorialItems(items: unknown): [string, string, string][] | null {
 /** What the dashboard sent, checked; anything else is refused before anyone is asked. */
 export function parseAction(input: unknown): Action | null {
   if (typeof input !== 'object' || input === null) return null;
-  const a = input as { kind?: unknown; id?: unknown; status?: unknown; key?: unknown };
+  const a = input as { kind?: unknown; id?: unknown; status?: unknown; key?: unknown; profile?: unknown; ok?: unknown };
   if (a.kind === 'feedback' && typeof a.id === 'string' && UUID.test(a.id) && (a.status === 'new' || a.status === 'seen' || a.status === 'done')) {
     return { kind: 'feedback', id: a.id, status: a.status };
   }
   if (a.kind === 'run' && typeof a.key === 'string' && isJobKey(a.key)) return { kind: 'run', key: a.key };
+  if (a.kind === 'quiet-account' && typeof a.profile === 'string' && UUID.test(a.profile) && typeof a.ok === 'boolean') {
+    return { kind: 'quiet-account', profile: a.profile.toLowerCase(), ok: a.ok };
+  }
   const d = (input as { decision?: unknown }).decision;
   if (a.kind === 'verification' && typeof a.id === 'string' && UUID.test(a.id) && (d === 'grant' || d === 'decline')) return { kind: 'verification', id: a.id, decision: d };
   if (a.kind === 'youtube-start') return { kind: 'youtube-start' };
@@ -151,6 +159,7 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'tutorial-note': return { name: NAMES[action.kind], target: action.tutorial ?? 'no video' };
     case 'tutorial-instruction': return { name: NAMES['tutorial-note'], target: action.tutorial };
     case 'tutorial-suggestion': return { name: `suggestion_${DECIDED[action.decision]}`, target: action.id };
+    case 'quiet-account': return { name: action.ok ? 'quiet_ok' : 'quiet_ok_undo', target: action.profile };
     default: return { name: NAMES[action.kind], target: 'youtube' };
   }
 }
@@ -180,6 +189,12 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       await deps.record({ profileId: who.profileId, action: name, target, result: done ? 'ok' : 'refused', ...(done ? {} : { detail: answer }) });
       return done ? { ok: true, result: answer } : answer === 'not_found' ? { ok: false, status: 404, error: 'No request has that id.' }
         : { ok: false, status: 400, error: 'That request is not waiting for staff.' };
+    }
+    if (action.kind === 'quiet-account') {
+      const answer = await deps.markQuietAccount(action.profile, action.ok, who.profileId);
+      const found = answer !== 'not_found';
+      await deps.record({ profileId: who.profileId, action: name, target, result: found ? 'ok' : 'refused', ...(found ? {} : { detail: answer }) });
+      return found ? { ok: true, result: answer } : { ok: false, status: 404, error: 'No account has that id.' };
     }
     if (action.kind === 'youtube-start' || action.kind === 'youtube-connect') {
       if (!deps.youtube) {
@@ -323,6 +338,11 @@ export function actionDeps(env: Env): ActionDeps {
     addNote: async (tutorial, text, by) => {
       const { error } = await db().rpc('ops_tutorial_note', { p_tutorial: tutorial, p_text: text, p_by: by });
       if (error) throw new Error(`ops_tutorial_note: ${error.message}`);
+    },
+    markQuietAccount: async (profile, ok, by) => {
+      const { data, error } = await db().rpc('ops_quiet_account_mark', { p_profile: profile, p_ok: ok, p_by: by });
+      if (error) throw new Error(`ops_quiet_account_mark: ${error.message}`);
+      return String(data);
     },
     instruct: async ({ tutorial, text, problem, language, inputs }, by) => {
       const { data, error } = await db().rpc('ops_tutorial_instruct', {

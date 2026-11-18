@@ -50,24 +50,64 @@ export interface Suggestion {
   decision: 'accepted' | 'rejected' | null;
   decidedAt: string | null;
   reason: string | null;
+  /**
+   * Claude accepted it itself, as a clear fix (decisions.md 186, amended 2026-11-16): a change to a video's script,
+   * screens or voice with one right answer that Claude checked. `decidedAt` is when; no person decided it.
+   */
+  clear?: boolean;
   issue: string | null;
   issueUrl: string | null;
   /** Where Claude's draft pull request for an accepted change to a video is, or null before one is started. */
   fix?: Fix | null;
+  /** What the suggestion is about, as the last film run showed it, picked by Claude (decisions.md 186, amended 2026-11-17). */
+  pictures?: Picture[];
+  /** The same places after its fix was merged and the video filmed again. */
+  after?: Picture[];
   inputs: FeedbackInput[];
 }
 
 /**
- * Where Claude's fix for an accepted change to a video's script, screens or voice is (decisions.md 186,
- * amended 2026-11-13): `working`, a run is writing it; `open`, its draft pull request waits for a person
- * to merge it; `merged`, the film run after the merge films the video again; `closed`, closed without a
- * merge; `failed`, Claude wrote no fix, and `note` says why.
+ * A picture of what a suggestion is about (decisions.md 186, amended 2026-11-17), from the last film run in a
+ * language (the `tutorials-<language>` artifact of tutorials.yml): a step's screen as the night's try saw it
+ * (`step`, steps/NN.png), a still of the film the frame check found wrong (`still`, check/NN.jpg, `at` seconds
+ * into the film), or the screen where a film stopped (`stopped`, failed-step-N.png). Claude picks it, says in
+ * `caption` what to look at, and may ring that place: `ring` is x, y, width and height as parts of the picture,
+ * from its top left. The file is kept by its bytes' hash (`picture`) and served at /api/tutorial-pictures/.
  */
-export const FIX_STATES = ['working', 'open', 'merged', 'closed', 'failed'] as const;
+export const PICTURE_KINDS = ['step', 'still', 'stopped'] as const;
+export type PictureKind = (typeof PICTURE_KINDS)[number];
+export interface Picture {
+  picture: string;
+  language: string;
+  tutorial: string;
+  kind: PictureKind;
+  /** The step's number from 1, or the still's. */
+  n: number;
+  /** A still's time in the film, in seconds. */
+  at?: number;
+  caption: string;
+  ring?: [number, number, number, number];
+}
+/** At most this many pictures for a suggestion, before or after; a caption's length; a picture's size. */
+export const PICTURE_MAX = { pictures: 6, caption: 300, bytes: 3 * 1024 * 1024 } as const;
+/** A picture's name: its bytes' SHA-256 and its kind of file. */
+export const PICTURE_FILE = /^([0-9a-f]{64})\.(png|jpg)$/;
+/** Where a picture is served, to anyone: it is a still of a public video, or a screen of its test data. */
+export const pictureUrl = (name: string, origin = 'https://next.langquest.org') => `${origin}/api/tutorial-pictures/${name}`;
+
+/**
+ * Where Claude's fix for an accepted change to a video's script, screens or voice is (decisions.md 186,
+ * amended 2026-11-13 and 2026-11-16): `working`, a run is writing it; `open`, its pull request runs its
+ * checks and merges itself when they pass; `merged`, the film run after the merge films the video again;
+ * `closed`, closed without a merge by a person; `failed`, Claude wrote no fix, the second check stopped it,
+ * or its checks failed (the run closed it), and `note` says why; `unneeded`, the video already does what
+ * the suggestion says, and `note` says how.
+ */
+export const FIX_STATES = ['working', 'open', 'merged', 'closed', 'failed', 'unneeded'] as const;
 export type FixState = (typeof FIX_STATES)[number];
 export interface Fix {
   state: FixState;
-  /** The draft pull request: null while working, and when no fix was opened. */
+  /** The pull request: null while working, and when no fix was opened. */
   pr: number | null;
   at: string;
   /** The Actions run that wrote it. */
@@ -118,6 +158,9 @@ const TUTORIAL = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA = /^[0-9a-f]{40}$/;
 const KEY = /^[A-Za-z0-9_-]{1,40}$/;
+const LANGUAGE = /^[a-z]{2,3}(-[A-Z][a-z]{3})?$/;
+/** The suggestions Claude may accept itself as clear, and make: a change to a video, never the app or a new video. */
+export const CLEAR_KINDS: readonly SuggestionKind[] = ['script', 'screen', 'voice'];
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /**
  * The phone's disguise (decisions.md 171): a calculator or notepad in front of the app that a code opens. No video,
@@ -130,7 +173,7 @@ const noDisguise = (s: string, where: string): string => {
   return s;
 };
 /** More than a night could bring; a look past them is refused whole. */
-export const REVIEW_MAX = { code: 200, comments: 2000, looked: 4000, suggestions: 200, attach: 200, inputs: 100 } as const;
+export const REVIEW_MAX = { code: 200, comments: 2000, looked: 4000, suggestions: 200, attach: 200, inputs: 100, pictures: 400 } as const;
 
 /** A code change Claude found, under a key its suggestions can name. */
 export interface CodeInput { key: string; sha: string; tutorial: string; pr: number | null; title: string; english: string; at: string }
@@ -142,8 +185,18 @@ export interface Review {
   code: CodeInput[];
   comments: { id: string; english: string; reply: string; replyEnglish: string }[];
   looked: { input: string; outcome: string | null }[];
-  suggestions: { kind: SuggestionKind; tutorial: string | null; title: string; detail: string; inputs: string[] }[];
+  /**
+   * `clear`: Claude accepts it itself (only a change to a video's script, screens or voice); `language`: the film
+   * it is about, when that is not English (a film that fails or is held in one language).
+   */
+  suggestions: { kind: SuggestionKind; tutorial: string | null; language: string | null; clear: boolean; title: string; detail: string; inputs: string[]; pictures: Picture[] }[];
   attach: { suggestion: string; inputs: string[] }[];
+  /**
+   * Pictures for a suggestion made before: `now`, for one that has none yet or still waits for a person; `after`,
+   * for one whose fix was merged, from a film run after the merge. A `now` entry may also say a waiting
+   * suggestion's `title` and `detail` again in plain words, which the database keeps unless an admin edited it.
+   */
+  pictures: { suggestion: string; when: 'now' | 'after'; pictures: Picture[]; title?: string; detail?: string }[];
 }
 
 export class ReviewError extends Error {
@@ -166,6 +219,39 @@ function list(o: Obj, field: string, max: number): unknown[] {
   const v = o[field] ?? [];
   if (!Array.isArray(v) || v.length > max) throw new ReviewError(`${field}: a list of at most ${max}`);
   return v;
+}
+
+const isPart = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
+
+/** A suggestion's pictures, as the workflow sends them (named by hash); a ReviewError says the first thing wrong. */
+export function parsePictures(o: Obj, where: string): Picture[] {
+  return list(o, 'pictures', PICTURE_MAX.pictures).map((p, n) => {
+    const at = `${where}.pictures[${n}]`;
+    if (!isObj(p)) throw new ReviewError(`${at}: an object`);
+    const picture = p['picture'];
+    if (typeof picture !== 'string' || !PICTURE_FILE.test(picture)) throw new ReviewError(`${at}.picture: a picture's file from the last film run`);
+    const language = p['language'];
+    if (typeof language !== 'string' || !LANGUAGE.test(language)) throw new ReviewError(`${at}.language: an app language's code`);
+    const tutorial = p['tutorial'];
+    if (typeof tutorial !== 'string' || !TUTORIAL.test(tutorial) || tutorial.length > 80) throw new ReviewError(`${at}.tutorial: a video's id`);
+    const kind = p['kind'];
+    if (typeof kind !== 'string' || !(PICTURE_KINDS as readonly string[]).includes(kind)) throw new ReviewError(`${at}.kind: one of ${PICTURE_KINDS.join(', ')}`);
+    const num = p['n'];
+    if (!Number.isInteger(num) || (num as number) < 1 || (num as number) > 500) throw new ReviewError(`${at}.n: a step's or still's number`);
+    const time = p['at'];
+    if (time !== undefined && time !== null && !(typeof time === 'number' && Number.isFinite(time) && time >= 0 && time < 36_000)) throw new ReviewError(`${at}.at: seconds into the film`);
+    const ring = p['ring'];
+    if (ring !== undefined && ring !== null && !(Array.isArray(ring) && ring.length === 4 && ring.every(isPart)
+      && (ring[2] as number) > 0 && (ring[3] as number) > 0 && (ring[0] as number) + (ring[2] as number) <= 1.001 && (ring[1] as number) + (ring[3] as number) <= 1.001)) {
+      throw new ReviewError(`${at}.ring: x, y, width and height, each a part of the picture from 0 to 1, inside it`);
+    }
+    return {
+      picture, language, tutorial, kind: kind as PictureKind, n: num as number,
+      ...(typeof time === 'number' ? { at: Math.round(time * 100) / 100 } : {}),
+      caption: noDisguise(text(p, 'caption', at, PICTURE_MAX.caption), `${at}.caption`),
+      ...(Array.isArray(ring) ? { ring: ring.map((x) => Math.round((x as number) * 1000) / 1000) as [number, number, number, number] } : {})
+    };
+  });
 }
 
 /** What Claude's look sent, checked; a ReviewError says the first thing wrong. */
@@ -217,9 +303,17 @@ export function parseReview(input: unknown): Review {
     if (kind === 'new' ? tutorial !== null : tutorial !== null && (typeof tutorial !== 'string' || !TUTORIAL.test(tutorial) || tutorial.length > 80)) {
       throw new ReviewError(`${where}.tutorial: ${kind === 'new' ? 'null for a new video' : "a video's id, or null"}`);
     }
+    const clear = s['clear'] ?? false;
+    if (typeof clear !== 'boolean') throw new ReviewError(`${where}.clear: true or false`);
+    if (clear && !(CLEAR_KINDS.includes(kind as SuggestionKind) && tutorial !== null)) throw new ReviewError(`${where}.clear: only a change to one video's ${CLEAR_KINDS.join(', ')}`);
+    const language = s['language'] ?? null;
+    if (language !== null && (typeof language !== 'string' || !LANGUAGE.test(language) || tutorial === null)) throw new ReviewError(`${where}.language: an app language's code for the video's film, or null`);
+    const pictures = parsePictures(s, where);
+    if (pictures.length && tutorial === null) throw new ReviewError(`${where}.pictures: only for a suggestion about a video`);
     return {
-      kind: kind as SuggestionKind, tutorial: tutorial as string | null, title: noDisguise(text(s, 'title', where, 200), `${where}.title`),
-      detail: noDisguise(text(s, 'detail', where, 4000), `${where}.detail`), inputs: refs(s, where)
+      kind: kind as SuggestionKind, tutorial: tutorial as string | null, language: language as string | null, clear,
+      title: noDisguise(text(s, 'title', where, 200), `${where}.title`),
+      detail: noDisguise(text(s, 'detail', where, 4000), `${where}.detail`), inputs: refs(s, where), pictures
     };
   });
   const attach = list(input, 'attach', REVIEW_MAX.attach).map((a, n) => {
@@ -227,7 +321,21 @@ export function parseReview(input: unknown): Review {
     if (!isObj(a) || typeof a['suggestion'] !== 'string' || !UUID.test(a['suggestion'])) throw new ReviewError(`${where}.suggestion: an open suggestion's id`);
     return { suggestion: a['suggestion'], inputs: refs(a, where) };
   });
-  return { sha: input['sha'], runUrl: input['runUrl'], code, comments, looked, suggestions, attach };
+  const pictures = list(input, 'pictures', REVIEW_MAX.pictures).map((p, n) => {
+    const where = `pictures[${n}]`;
+    if (!isObj(p) || typeof p['suggestion'] !== 'string' || !UUID.test(p['suggestion'])) throw new ReviewError(`${where}.suggestion: a suggestion's id`);
+    const when = p['when'] ?? 'now';
+    if (when !== 'now' && when !== 'after') throw new ReviewError(`${where}.when: now or after`);
+    const shown = parsePictures(p, where);
+    const words = {
+      ...(p['title'] === undefined ? {} : { title: noDisguise(text(p, 'title', where, 200), `${where}.title`) }),
+      ...(p['detail'] === undefined ? {} : { detail: noDisguise(text(p, 'detail', where, 4000), `${where}.detail`) })
+    };
+    if (when === 'after' && Object.keys(words).length) throw new ReviewError(`${where}: new words only with when now`);
+    if (!shown.length && !Object.keys(words).length) throw new ReviewError(`${where}.pictures: at least one, or new words`);
+    return { suggestion: p['suggestion'], when: when as 'now' | 'after', pictures: shown, ...words };
+  });
+  return { sha: input['sha'], runUrl: input['runUrl'], code, comments, looked, suggestions, attach, pictures };
 }
 
 // ---- where each fix is, as the fix jobs say it (POST /api/tutorial-review/fixes) -------------------

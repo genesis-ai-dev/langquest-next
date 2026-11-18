@@ -122,3 +122,62 @@ describe('whether the phone can share at all', () => {
     expect(radiosOffOf({ ...ok, sdk: 31 })).toEqual([]);
   });
 });
+
+describe('on an iPhone (section 7, phase 5)', () => {
+  // An iPhone's `sdk` is its iOS version: 17 is below every Android API level these rules compare.
+  const IOS = 17;
+  const iphone: PhoneFacts = { sdk: IOS, bluetoothLe: true, directByName: false, bluetoothOn: true, wifiOn: true, locationOn: false, granted: true };
+
+  it('asks for Bluetooth alone, whatever its iOS version', () => {
+    for (const sdk of [IOS, 18, 26, 33]) expect(nearbyPermissionsFor(sdk, 'ios')).toEqual(['BLUETOOTH']);
+    expect(missingPermissions(IOS, {}, 'ios')).toEqual(['BLUETOOTH']);
+    expect(missingPermissions(IOS, { BLUETOOTH: 'granted' }, 'ios')).toEqual([]);
+  });
+
+  it('is needed until allowed, blocked once refused, since iOS asks only once, and never none or approximate', () => {
+    expect(permissionsStateOf(IOS, {}, 'ios')).toBe('needed');
+    expect(permissionsStateOf(IOS, { BLUETOOTH: 'denied' }, 'ios')).toBe('needed');
+    expect(permissionsStateOf(IOS, { BLUETOOTH: 'never_ask_again' }, 'ios')).toBe('blocked');
+    expect(permissionsStateOf(IOS, { BLUETOOTH: 'granted' }, 'ios')).toBe('granted');
+    // Android's grants mean nothing here, and the 12L rule for "Approximate" never applies, at any version.
+    expect(permissionsStateOf(IOS, ALL, 'ios')).toBe('needed');
+    for (const sdk of [31, 32]) expect(permissionsStateOf(sdk, { ACCESS_COARSE_LOCATION: 'granted', BLUETOOTH: 'denied' }, 'ios')).toBe('needed');
+  });
+
+  it('says its own line before the prompt, then sends a refusal to the settings', () => {
+    expect(permissionReasonOf(IOS, 'needed', 'ios')).toBe('bluetooth');
+    expect(permissionReasonOf(IOS, 'blocked', 'ios')).toBe('settings');
+    expect(permissionReasonOf(IOS, 'granted', 'ios')).toBeNull();
+    expect(permissionStepOf({ sdk: IOS, os: 'ios', answers: {}, worn: false, warned: false, firstPress: true }))
+      .toEqual({ t: 'explain', reason: 'bluetooth', permissions: ['BLUETOOTH'] });
+    expect(permissionStepOf({ sdk: IOS, os: 'ios', answers: afterPrompt({ BLUETOOTH: 'denied' }, { BLUETOOTH: 'never_ask_again' }), worn: false, warned: false, firstPress: false }))
+      .toEqual({ t: 'settings' });
+    expect(permissionStepOf({ sdk: IOS, os: 'ios', answers: { BLUETOOTH: 'granted' }, worn: false, warned: false, firstPress: true })).toEqual({ t: 'ready' });
+  });
+
+  it('is never too old for Android or short of Wi-Fi Direct, and lacks only Bluetooth LE or the module', () => {
+    // Read as Android, an iPhone's version and its missing Wi-Fi Direct would each disable it.
+    expect(unavailableReasonOf(iphone, true, IOS)).toBe('android-too-old');
+    expect(unavailableReasonOf(iphone, true, IOS, 'ios')).toBeNull();
+    expect(unavailableReasonOf(null, true, IOS, 'ios')).toBeNull();
+    expect(unavailableReasonOf(null, false, IOS, 'ios')).toBe('not-in-build');
+    expect(unavailableReasonOf({ ...iphone, bluetoothLe: false }, true, IOS, 'ios')).toBe('no-bluetooth-le');
+  });
+
+  it('never asks for Location, and names Bluetooth off only once Bluetooth is allowed, so the prompt comes first', () => {
+    expect(radiosOffOf(iphone, 'ios')).toEqual([]);
+    // Read as Android, its version would ask for Location to be on.
+    expect(radiosOffOf(iphone)).toEqual(['location']);
+    expect(radiosOffOf({ ...iphone, bluetoothOn: false, wifiOn: false }, 'ios')).toEqual(['bluetooth', 'wifi']);
+    // Before the Bluetooth prompt an iPhone cannot say whether Bluetooth is on.
+    expect(radiosOffOf({ ...iphone, bluetoothOn: false, granted: false }, 'ios')).toEqual([]);
+    expect(radiosOffOf({ ...iphone, bluetoothOn: false }, 'ios')).toEqual(['bluetooth']);
+  });
+
+  it('keeps Android as it was when no system is named', () => {
+    expect(nearbyPermissionsFor(33)).toEqual(nearbyPermissionsFor(33, 'android'));
+    expect(permissionsStateOf(31, { ...ALL, ACCESS_FINE_LOCATION: 'denied' })).toBe(permissionsStateOf(31, { ...ALL, ACCESS_FINE_LOCATION: 'denied' }, 'android'));
+    // Android counts Bluetooth off whatever `granted` says.
+    expect(radiosOffOf({ sdk: 33, bluetoothLe: true, directByName: true, bluetoothOn: false, wifiOn: true, locationOn: true, granted: false })).toEqual(['bluetooth']);
+  });
+});

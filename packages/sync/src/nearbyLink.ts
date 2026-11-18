@@ -11,7 +11,7 @@ import type { Verify } from '@langquest-next/core/nearby';
 export const NEARBY_MESSAGE_MAX = 1024 * 1024;
 
 export interface NearbyLink {
-  readonly kind: 'wifi-direct' | 'hotspot' | 'bluetooth' | 'memory';
+  readonly kind: 'wifi-direct' | 'hotspot' | 'awdl' | 'bluetooth' | 'memory';
   /** False on 'bluetooth'. */
   readonly canMoveFiles: boolean;
   /** One whole message, resolved when taken, so a full queue slows the sender. */
@@ -43,6 +43,20 @@ export interface SeenPhone {
   scan: number;
 }
 
+/**
+ * A teammate heard by its advert alone, with no scan response: an iPhone, which cannot send one
+ * (docs/nearby-sync-plan.md section 7, phase 5). Known only by its salt until Hello: no tag,
+ * summary or echo.
+ */
+export interface HeardAdvert {
+  peer: string;
+  salt: string;
+  connectable: boolean;
+  rssi?: number;
+  /** The place in `scanKeys` of the key it matched. */
+  scan: number;
+}
+
 export interface NearbyCapabilities {
   sdk: number;
   advertise: boolean;
@@ -53,6 +67,12 @@ export interface NearbyCapabilities {
   bluetoothOn: boolean;
   wifiOn: boolean;
   locationOn: boolean;
+  /** False where this phone's advert goes out alone (an iPhone); left out, true. */
+  scanResponse?: boolean;
+  /** Apple's own direct Wi-Fi between two iPhones (phase 5). */
+  awdl?: boolean;
+  /** Joins an Android's Wi-Fi Direct group as a plain client, by name and passphrase, though it cannot host one (an iPhone). */
+  joinDirect?: boolean;
 }
 
 /** Find's times and retries, all set from JavaScript so that the real-phone test can move them. */
@@ -78,16 +98,16 @@ export interface FindTunables {
   connectTimeoutMs?: number;
 }
 
-/** No name or passphrase for a hotspot, because the system chooses them. */
+/** No name or passphrase for a hotspot, because the system chooses them. For `awdl`, `ssid` is the one-time service name. */
 export interface HostOptions {
   ssid?: string;
   passphrase?: string;
   band5: boolean;
 }
 
-/** The `host` message without its `t`. */
+/** The `host` message without its `t`. For `awdl`, `ssid` is the Bonjour service's one-time name. */
 export interface HostDetails {
-  kind: 'wifi-direct' | 'hotspot' | 'bluetooth';
+  kind: 'wifi-direct' | 'hotspot' | 'awdl' | 'bluetooth';
   ssid?: string;
   passphrase?: string;
   port?: number;
@@ -108,6 +128,8 @@ export interface NearbyRadio {
   /** True once an opening passed on a pipe to this phone: rotation waits, and runs as soon as it is released (5.12, Rotation). */
   holdSalt(held: boolean): Promise<void>;
   onFound(hear: (seen: SeenPhone) => void): () => void;
+  /** A teammate's advert heard alone, with no scan response (an iPhone's). A radio that cannot tell leaves it out. */
+  onAdvert?(hear: (heard: HeardAdvert) => void): () => void;
   /** The salt of an advert of this form that no key in `scanKeys` matches. */
   onFormSalt(hear: (salt: string, rssi?: number) => void): () => void;
   /** This phone's salt, at each start and rotation. */
@@ -119,15 +141,16 @@ export interface NearbyRadio {
   /**
    * The first connection takes the link, where the host's server is bound to the group's own
    * network (Wi-Fi Direct). Where it cannot be (a hotspot, whose address cannot be found
-   * reliably), anyone on another network of this phone's could connect first, so `nextLink`
+   * reliably, or `awdl`, whose service anyone nearby can reach), anyone else could connect
+   * first, so `nextLink`
    * gives each later connection in turn, and the session tries every one: the link is the one
    * that proves the attempt's keys, and the rest are closed. It rejects once there will be no
    * more. A phone that connects after the link is settled is refused, and reported so the inviter
    * can be told. `takeDown` ends a group hosted for an attempt that was abandoned; a link it
    * already gave keeps running.
    */
-  host(kind: 'wifi-direct' | 'hotspot', opts: HostOptions): Promise<HostDetails & HostedGroup>;
-  join(kind: 'wifi-direct' | 'hotspot', details: HostDetails): Promise<NearbyLink>;
+  host(kind: 'wifi-direct' | 'hotspot' | 'awdl', opts: HostOptions): Promise<HostDetails & HostedGroup>;
+  join(kind: 'wifi-direct' | 'hotspot' | 'awdl', details: HostDetails): Promise<NearbyLink>;
   stopAll(): Promise<void>;
 }
 

@@ -75,6 +75,29 @@ export const OPS_SECTIONS = [
 export const OPS_SCRIPT = String.raw`
 const orgLink = (id, name) => '<button class="link" data-org="' + esc(id) + '">' + esc(name || String(id).slice(0, 8)) + '</button>';
 const installLink = (id) => id ? '<button class="link" data-q="' + esc(id) + '"><code>' + esc(String(id).slice(0, 8)) + '</code></button>' : '–';
+/** Quiet installs by account (decisions.md 162): which accounts the warning counts, and the ones a person marked not an issue. */
+function silentPhones(q) {
+  if (!q) return '<p class="muted">Could not read them (the database lacks diag.ops_quiet_accounts).</p>';
+  const devices = (a) => Object.entries(a.devices || {}).sort((x, y) => y[1] - x[1]).map(([k, n]) => num(n) + ' ' + esc(k)).join(', ');
+  let h = '<p>' + num(q.count) + ' quiet for 3 days while another device of the same person reports.' +
+    (q.markedCount ? ' ' + num(q.markedCount) + ' more on accounts marked not an issue.' : '') + '</p>';
+  if (q.accounts.length) {
+    h += table([
+      { h: 'Account', v: (a) => accountLink(a.profile) }, { h: 'Quiet', n: true, v: (a) => num(a.quiet) }, { h: 'Reporting', n: true, v: (a) => num(a.reporting) },
+      { h: 'Quiet devices', v: devices }, { h: 'Last heard', v: (a) => ageOf(a.lastSeen) },
+      { h: '', v: (a) => '<button type="button" data-quiet="' + esc(a.profile) + '" data-ok="yes">Not an issue</button>' }
+    ], q.accounts);
+  }
+  if (q.marked.length) {
+    h += '<details><summary>Marked not an issue (' + num(q.marked.length) + ')</summary>' + table([
+      { h: 'Account', v: (a) => accountLink(a.profile) }, { h: 'Quiet', n: true, v: (a) => num(a.quiet) },
+      { h: 'Marked by', v: (a) => short(a.by) }, { h: 'When', v: (a) => when(a.at) },
+      { h: '', v: (a) => '<button type="button" data-quiet="' + esc(a.profile) + '" data-ok="no">Undo</button>' }
+    ], q.marked) + '</details>';
+  }
+  return h;
+}
+const accountLink = (id) => '<button class="link" data-q="' + esc(id) + '"><code>' + esc(id) + '</code></button>';
 const share = (a, b) => b ? ((a / b) * 100).toFixed(1) + '%' : '–';
 const hours = (msv) => msv === null || msv === undefined ? '–' : ms(Number(msv));
 const ageOf = (iso) => iso ? ago(iso) : '–';
@@ -155,9 +178,7 @@ Object.assign(RENDER, {
       { h: 'Lost', n: true, v: (s) => '<span class="' + (s.lostRecordings ? 'bad' : '') + '">' + num(s.lostFiles || 0) + (s.lostRecordings ? ' (' + num(s.lostRecordings) + ' rec.)' : '') + '</span>' },
       { h: 'Reported', v: (s) => when(s.at) }
     ], d.stuck);
-    h += '<h3>Silent phones</h3><p>' + num(d.silent.count) + ' quiet for 3 days while another device of the same person reports.</p>' +
-      (d.silent.installs.length ? '<p>' + d.silent.installs.map((s) => installLink(s.install) + ' <small>' + ageOf(s.lastSeen) + '</small>').join(' · ') + '</p>' : '');
-    return h;
+    return h + '<h3>Silent phones</h3>' + silentPhones(d.quiet);
   },
   pipeline(d) {
     // Each store build sits in the stage it is in now, an arrow to the next; inside it, the over-the-air updates it takes.
@@ -342,7 +363,8 @@ Object.assign(RENDER, {
     }
     return h;
   },
-  // The tutorial videos as three lists (sources/videos.ts): what an admin must do, what the workers do, and each video with its states and timeline.
+  // The tutorial videos as three lists (sources/videos.ts): what an admin must do, what the workers do, and each video with its states and timeline;
+  // then the record of each change Claude made to a video (a clear fix merges itself, so this is where a person sees it).
   videos(d) {
     VIDEOS = d;
     const item = (x, level) => '<div class="vi ' + level + '"><p><b>' + esc(x.title) + '</b>' + (x.at ? ' <small>' + when(x.at) + '</small>' : '') + '</p>' +
@@ -359,6 +381,17 @@ Object.assign(RENDER, {
       (needYou ? '<p>' + num(needYou) + (needYou === 1 ? ' video waits' : ' videos wait') + ' on you. Each has a <span class="warnmk you">!</span> at the right of its row, under By video.</p>' : '') +
       (general.length ? general.map(adminCard).join('') : needYou ? '' : '<p class="muted">Nothing.</p>') + '</div>' +
       '<div><h3>Workers, now and tonight</h3>' + (d.worker.length ? d.worker.map((w) => item(w, w.when === 'now' ? 'info' : '')).join('') : '<p class="muted">Nothing queued.</p>') + '</div></div>';
+    const changes = d.changes || [];
+    h += '<details class="vchanges"><summary><b>Changes Claude made to the videos</b> <small class="muted">(' + num(changes.length) + ', last 30 days)</small></summary>' +
+      '<p class="muted">A clear fix merges itself and is not asked of anyone. Each change is here, with its pull request.</p>' + table([
+        { h: 'When', v: (c) => when(c.at) },
+        { h: 'Video', v: (c) => esc(c.video) + ' <small class="muted">' + esc(languageName(c.language)) + '</small>' },
+        { h: 'Change', v: (c) => esc(detailParts(c.change)[0]) + (c.note ? '<br><small class="' + (c.state === 'failed' ? 'bad' : 'muted') + '">' + esc(c.note) + '</small>' : '') +
+          ((c.pictures || []).length || (c.after || []).length ? '<details class="vtech"><summary>Pictures' + ((c.after || []).length ? ', before and after' : '') + '</summary>' + pictureStrip(c.pictures, c.after) + '</details>' : '') },
+        { h: 'Yes from', v: (c) => esc(CHANGE_BY[c.by] || c.by) },
+        { h: 'State', v: (c) => '<span class="tag ' + (CHANGE_LEVEL[c.state] || '') + '">' + esc(CHANGE_STATE[c.state] || c.state) + '</span>' },
+        { h: '', v: (c) => c.link ? '<a href="' + esc(c.link) + '" target="_blank" rel="noopener noreferrer">' + (c.pr ? 'PR ' + num(c.pr) : 'The run') + '</a>' : '' }
+      ], changes) + '</details>';
     setTimeout(() => layoutTimelines(), 0);
     return h + '<h3>By video</h3><div id="video-rows">' + videoRows() + '</div>';
   },
@@ -472,6 +505,7 @@ async function perform(action, button) {
       : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
       : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
       : action.kind === 'tutorial-note' ? (body.result === 'instructed' ? 'Sent. Claude starts the fix at its next fix run (:20 and :50 each hour).' : 'Sent. Claude reads it at its next look (10:00 UTC).')
+      : action.kind === 'quiet-account' ? (action.ok ? 'Marked not an issue. Its quiet installs no longer count in the warning.' : 'Its quiet installs count in the warning again.')
       : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
       : 'Feedback marked ' + body.result + '.');
     load(false);
@@ -516,6 +550,11 @@ document.addEventListener('click', (e) => {
   if (run && confirm('Run ' + run.dataset.run + ' now?')) perform({ kind: 'run', key: run.dataset.run }, run);
   const fb = e.target.closest && e.target.closest('[data-fb]');
   if (fb) perform({ kind: 'feedback', id: fb.dataset.fb, status: fb.dataset.status }, fb);
+  const qa = e.target.closest && e.target.closest('[data-quiet]');
+  if (qa) {
+    const ok = qa.dataset.ok === 'yes';
+    if (!ok || confirm('Mark this account not an issue? Its quiet installs stop counting in the warning, now and later.')) perform({ kind: 'quiet-account', profile: qa.dataset.quiet, ok }, qa);
+  }
   const ver = e.target.closest && e.target.closest('[data-ver]');
   if (ver && confirm((ver.dataset.decision === 'grant' ? 'Grant' : 'Decline') + ' this blue check?')) perform({ kind: 'verification', id: ver.dataset.ver, decision: ver.dataset.decision }, ver);
 });
@@ -525,7 +564,7 @@ document.addEventListener('click', (e) => {
   const sg = e.target.closest && e.target.closest('[data-sg]');
   if (sg) {
     const id = sg.dataset.sg, d = sg.dataset.decision;
-    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : sg.dataset.kind === 'new' ? '' : ' Claude writes it as a draft pull request for you to merge.'))) perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg);
+    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : sg.dataset.kind === 'new' ? '' : ' Claude makes the change as a pull request that merges itself when its checks pass.'))) perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg);
     if (d === 'reject') {
       const reason = prompt('Why not? Claude reads this before suggesting it again. (You may leave it empty.)', '');
       if (reason !== null) perform({ kind: 'tutorial-suggestion', id, decision: 'reject', detail: null, reason: reason.slice(0, 500) }, sg);
@@ -556,24 +595,104 @@ function warnMark(cards, r) {
   return '<button type="button" class="warnmk ' + (mine ? 'you' : 'claude') + '" data-cards="' + r + '" title="' + esc(t) + '" aria-label="' + esc(t) + '">' + (mine ? '!' + (mine > 1 ? ' ' + mine : '') : 'i') + '</button>';
 }
 const TIMELINE_DAYS = 60;
-const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', merge: 'warn', approve: 'warn', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
+const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', approve: 'warn', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
 const cardLink = (x) => x.link ? '<a href="' + esc(x.link) + '"' + (x.link.startsWith('#') ? '' : ' target="_blank" rel="noopener noreferrer"') + '>' + esc(ADMIN_LINKS[x.kind] || WORKER_LINKS[x.kind] || 'Open') + '</a>' : '';
-const FIX_STATE = { working: 'Claude writes the fix now.', open: 'Claude\'s fix waits for your merge.', merged: 'The fix is merged. The next night films the video again.', closed: 'The fix PR was closed without a merge.', failed: 'Claude could not write the fix.' };
+const FIX_STATE = { working: 'Claude writes the change now.', open: 'Claude\'s pull request merges itself when its checks pass.', merged: 'The change is merged. The next night films the video again.', closed: 'The pull request was closed without a merge.', failed: 'Claude could not make the change.', unneeded: 'No change was needed: the video already does this.' };
+// The record of changes Claude made (sources/videos.ts ChangeItem).
+const CHANGE_BY = { claude: 'Claude (clear fix)', admin: 'An admin accepted it', instruction: 'An admin\'s instruction' };
+const CHANGE_STATE = { working: 'Being written', open: 'Merges when checks pass', merged: 'Merged', closed: 'Closed', failed: 'Failed', unneeded: 'No change needed' };
+const CHANGE_LEVEL = { working: 'info', open: 'info', merged: 'good', closed: '', failed: 'bad', unneeded: '' };
 /** One thing for an admin: the problem, who acts next, what happens next, and where it applies, the box to tell Claude what to do. */
 function adminCard(a) {
   const ins = a.instructed;
   return '<div class="vi ' + (a.who === 'you' ? ADMIN_LEVEL[a.kind] || 'warn' : 'info') + '">' +
     '<p><span class="tag ' + (a.who === 'you' ? 'warn' : 'info') + '">' + (a.who === 'you' ? 'Waits on you' : 'Claude acts next') + '</span>' + (a.at ? '<small>' + when(a.at) + '</small>' : '') + '</p>' +
-    '<p><b>' + esc(a.title) + '</b></p>' + (a.detail ? '<p class="setup">' + esc(a.detail) + '</p>' : '') +
+    '<p><b>' + esc(a.title) + '</b></p>' + detailHtml(a.detail) + pictureStrip(a.pictures) +
     (ins ? '' : '<p class="setup"><small><b>Next:</b> ' + esc(a.next) + '</small></p>') + (a.link ? '<p>' + cardLink(a) + '</p>' : '') +
     (a.suggestion ? suggestionButtons(a.suggestion) : '') +
     (ins ? '<p class="setup"><small><b>Your instruction</b> (' + when(ins.at) + '):</small><br>' + esc(ins.text) + '</p>' +
-      '<p class="setup"><small><b>Next:</b> ' + esc(ins.fix ? FIX_STATE[ins.fix.state] || ins.fix.state : ins.looked ? 'Claude starts the fix at its next fix run (:20 and :50 each hour), as a pull request for your merge.' : 'Claude reads it at its next run.') + '</small></p>' : '') +
+      '<p class="setup"><small><b>Next:</b> ' + esc(ins.fix ? FIX_STATE[ins.fix.state] || ins.fix.state : ins.looked ? 'Claude starts the change at its next fix run (:20 and :50 each hour), as a pull request that merges itself when its checks pass.' : 'Claude reads it at its next run.') + '</small></p>' : '') +
     (a.instruct ? '<details' + (a.who === 'you' && !ins ? ' open' : '') + '><summary>' + (ins ? 'Send another instruction' : 'Tell Claude what to do') + '</summary>' +
       '<label for="ins-' + esc(cardId(a)) + '">What Claude must do</label><textarea id="ins-' + esc(cardId(a)) + '" maxlength="2000" rows="3" placeholder="For example: the button is now called On this device. Change step 4 to tap it."></textarea>' +
       '<p><button type="button" class="primary" data-instruct="' + esc(cardId(a)) + '">Send to Claude</button></p></details>' : '') + '</div>';
 }
 const cardId = (a) => (a.kind + '-' + (a.tutorial || '') + '-' + (a.language || '')).replace(/[^a-zA-Z0-9-]/g, '');
+/**
+ * A suggestion's words: what an admin reads first, and the technical part for the fix, after a line that starts
+ * "For the fix:" (the tutorial-review skill writes both), folded away.
+ */
+function detailParts(t) {
+  const text = String(t || '');
+  const i = text.search(/^For the fix:/m);
+  return i < 0 ? [text.trim(), ''] : [text.slice(0, i).trim(), text.slice(i).replace(/^For the fix:\s*/, '').trim()];
+}
+function detailHtml(t) {
+  const [plain, technical] = detailParts(t);
+  return (plain ? '<p class="setup">' + esc(plain) + '</p>' : '') +
+    (technical ? '<details class="vtech"><summary>Technical details for the fix</summary><p class="setup">' + esc(technical) + '</p></details>' : '');
+}
+/** Where a picture is from, in words: its language, and its step, or its time in the film. */
+function pictureLabel(p) {
+  const clock = (t) => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+  const where = p.kind === 'step' ? 'step ' + p.n : p.kind === 'stopped' ? 'step ' + p.n + ', where the film stopped'
+    : typeof p.at === 'number' ? 'the film at ' + clock(p.at) : 'still ' + p.n;
+  return languageName(p.language) + ', ' + where;
+}
+/**
+ * The part of a picture to show when its ring is small (a phone in a wide film frame): the ring with space round it,
+ * at least 40% of the picture each way. Null when that is most of the picture anyway.
+ */
+function zoomOf(ring) {
+  const [x, y, w, h] = ring;
+  const span = (at, size) => {
+    const pad = Math.max(size * 0.4, 0.05);
+    let a = Math.max(0, at - pad), b = Math.min(1, at + size + pad);
+    if (b - a < 0.4) { const c = (a + b) / 2; a = Math.max(0, Math.min(0.6, c - 0.2)); b = a + 0.4; }
+    return [a, b - a];
+  };
+  const [zx, zw] = span(x, w), [zy, zh] = span(y, h);
+  return zw * zh <= 0.5 ? [zx, zy, zw, zh] : null;
+}
+/**
+ * One picture: numbered, ringed where Claude saw the place (an SVG over it, so no inline style), with its place and
+ * caption. A small ring's picture shows that part zoomed in (zoomPicture, when it loads); a click opens all of it.
+ */
+function pictureFigure(p, n) {
+  const src = '/api/tutorial-pictures/' + encodeURIComponent(p.picture);
+  const ring = Array.isArray(p.ring) && p.ring.length === 4 ? p.ring.map((x) => Math.max(0, Math.min(1, Number(x) || 0))) : null;
+  const r = ring ? ring.map((x) => (x * 100).toFixed(2) + '%') : null;
+  const zoom = ring ? zoomOf(ring) : null;
+  return '<figure class="vpic' + (zoom ? ' zoom' : '') + '"><a class="vpicbox' + (zoom ? ' zoom' : '') + '" href="' + esc(src) + '" target="_blank" rel="noopener noreferrer" title="Open the picture full size"' +
+    (zoom ? ' data-zoom="' + zoom.map((x) => x.toFixed(4)).join(',') + '"' : '') + '><span class="vpicin">' +
+    '<img src="' + esc(src) + '" alt="' + esc(p.caption) + '" loading="lazy">' +
+    (r ? '<svg class="vring" aria-hidden="true"><rect class="halo" x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] + '" rx="8"></rect>' +
+      '<rect x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] + '" rx="8"></rect></svg>' : '') +
+    '</span><span class="vnum">' + n + '</span></a>' +
+    '<figcaption><b>' + n + '. ' + esc(pictureLabel(p)) + '</b>' + (zoom ? ' <small>(zoomed in: click to see all of it)</small>' : '') + '<br>' + esc(p.caption) + '</figcaption></figure>';
+}
+/** Shows a zoomed picture's part: the box takes that part's shape (at most 400 px high), and the picture moves inside it. Set through the CSSOM, which the page's CSP allows. */
+function zoomPicture(img) {
+  const box = img.closest('[data-zoom]');
+  if (!box || !img.naturalWidth || !img.naturalHeight) return;
+  const [x, y, w, h] = box.dataset.zoom.split(',').map(Number);
+  const shape = (w * img.naturalWidth) / (h * img.naturalHeight);
+  box.style.aspectRatio = String(shape);
+  box.closest('.vpic').style.width = Math.round(Math.min(340, 400 * shape)) + 'px';
+  const inner = img.parentNode;
+  inner.style.width = (100 / w) + '%';
+  inner.style.left = (-100 * x / w) + '%';
+  inner.style.top = (-100 * y / h) + '%';
+  box.classList.add('ready');
+}
+document.addEventListener('load', (e) => { if (e.target && e.target.tagName === 'IMG' && e.target.closest('[data-zoom]')) zoomPicture(e.target); }, true);
+/** The pictures of what a suggestion is about; with the same places after its fix, the two side by side. */
+function pictureStrip(pictures, after) {
+  const now = Array.isArray(pictures) ? pictures : [];
+  const then = Array.isArray(after) ? after : [];
+  if (!now.length && !then.length) return '';
+  const group = (title, list) => '<div class="vpicgroup">' + (title ? '<p class="vpichead">' + esc(title) + '</p>' : '') + '<div class="vpicrow">' + list.map((p, i) => pictureFigure(p, i + 1)).join('') + '</div></div>';
+  return '<div class="vpics">' + (then.length ? group(now.length ? 'Before the fix' : '', now) + group('After the fix (filmed again)', then) : group('', now)) + '</div>';
+}
 // "Tell Claude what to do": an instruction on the video for Claude's next fix run, with the problem it answers and the inputs the card shows.
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('[data-instruct]');
@@ -585,8 +704,8 @@ document.addEventListener('click', (e) => {
   perform({ kind: 'tutorial-note', tutorial: a.tutorial, text: text.slice(0, 2000), instruct: true, problem: a.instruct.slice(0, 200),
     language: a.language || 'en', inputs: (a.inputIds || []).slice(0, 20) }, b);
 });
-const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run' };
-const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'Open the run', merge: 'Open the PR', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
+const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run', merging: 'Open the PR' };
+const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
 const MARKS = { film: 'New film', up: 'On YouTube', comment: 'Comment', suggested: 'Suggestion', decided: 'Accepted or rejected', fix: 'Fix PR', held: 'Held', failed: 'Film failed' };
 const CAUSES = { app: 'app change', script: 'script change', tool: 'film tool change', new: 'first film', asked: 'asked by hand', unknown: 'cause not recorded' };
 function suggestionButtons(s) {
@@ -687,7 +806,7 @@ document.addEventListener('gestureend', () => { gestureWidth = 0; });
 function markDetail(m) {
   const d = m.detail || { title: m.text, lines: [], links: [], films: [] };
   return '<div class="head"><b>' + esc(d.title) + '</b> <small class="muted">' + esc(new Date(m.at).toLocaleString()) + '</small><button type="button" data-vclose>Close</button></div>' +
-    d.lines.map((l) => '<p class="setup">' + esc(l) + '</p>').join('') +
+    d.lines.map((l) => detailHtml(l)).join('') + pictureStrip(d.pictures, d.after) +
     (d.quote ? '<blockquote>' + esc(d.quote) + '</blockquote>' : '') +
     (d.links.length ? '<p>' + d.links.map((l) => '<a href="' + esc(l.href) + '" target="_blank" rel="noopener noreferrer">' + esc(l.text) + '</a>').join(' · ') + '</p>' : '') +
     (d.films.length ? '<div class="vfilms">' + d.films.map((f) => '<figure><figcaption>' + esc(f.label) + '</figcaption><video controls preload="metadata" src="' + esc(f.href) + '"></video></figure>').join('') + '</div>' : '');

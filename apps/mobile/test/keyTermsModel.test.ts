@@ -125,7 +125,7 @@ describe('an adjustment', () => {
   });
 });
 
-// The team's words on the recorder's tiles and in the Bible's text (LAN-233, decision 253).
+// The team's words on the recorder's tiles and in the Bible's text (LAN-233, docs/decisions/2026-11-17-key-words-tiles-sheet-in-place.md).
 describe('the team\'s word for a key word', () => {
   const rendering = (id: string, rendering: string, context = '') => ({ renderingId: `rendering:${id}`, rendering, context });
   const change = (id: string, hlc: string, extra: { blobHash?: string; duringTakeId?: string } = {}) => ({ adjustmentId: `adjustment:${id}`, note: 'n', actorId: 'a', hlc, ...extra });
