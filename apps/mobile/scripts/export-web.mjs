@@ -181,7 +181,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised by 1 KB when nearby sync on iPhones (Carl, 2026-11-17, decision 256) merged with main: the
 // production export came out 437 bytes past and Workers Builds refused to deploy it, though the
 // development export CI measured then was 59 bytes under. CI now measures the production export.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 121 * 1024;
+// Raised by 1 KB with "All uploaded" leaving the upload bar in the draw that brings the next screen
+// (Caleb Koster, 2026-11-18, LAN-284), 397 bytes past then: the shell's dispatches go through one
+// function that says a move as it starts (shell/nav.ts), and the bar's mark is a small store
+// (sync/useJustEmptied.ts). A first visit stays under its own budget (124 bytes left).
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 122 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
