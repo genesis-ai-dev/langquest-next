@@ -309,13 +309,7 @@ jobs:
           cp "$SERVER/world.json" "$RESULTS/world.json"
       - name: The phone flows
         id: flows
-        run: |
-          # TEMPORARY, for one test run of this branch, taken out again in the next commit: stop
-          # Maestro's driver 40 s after the third flow ended, as XCTest stopped it on 2026-11-17.
-          (until [ "$(find "$RESULTS" -mindepth 2 -maxdepth 2 -type d 2>/dev/null | wc -l)" -ge 3 ]; do sleep 5; done
-           sleep 40; date -u; pgrep -fl maestro-driver || true
-           pkill -9 -f maestro-driver-iosUITests-Runner; echo "pkill: $?") > "$RUNNER_TEMP/stop-driver.log" 2>&1 &
-          npm run test:ui:phone -- --platform ios --device "$UDID" --label nightly --reuse-world ${FLOW_TAGS:+--tags "$FLOW_TAGS"}
+        run: npm run test:ui:phone -- --platform ios --device "$UDID" --label nightly --reuse-world ${FLOW_TAGS:+--tags "$FLOW_TAGS"}
       - name: Keep the logs
         if: always()
         env:
@@ -323,7 +317,6 @@ jobs:
         run: |
           mkdir -p "$RESULTS/logs"
           cp "$RUNNER_TEMP"/tunnel.log "$RESULTS/logs/" 2>/dev/null || true
-          cp "$RUNNER_TEMP"/stop-driver.log "$RESULTS/logs/" 2>/dev/null || true
           [ -n "${UDID:-}" ] && xcrun simctl spawn "$UDID" log show --last 30m --style compact --predicate 'process == "LangQuestNext"' > "$RESULTS/logs/simulator.log" 2>/dev/null || true
           rm -f "$RESULTS/world.json"
           node scripts/phone-tests.mjs stopped ios "$RESULTS" || true
