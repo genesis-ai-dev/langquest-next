@@ -185,7 +185,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // docs/decisions/2026-11-18-carried-file-matches-by-versions.md), 365 bytes past then: core's two
 // name rules (a name's versions start, and whether two names share it) that Check my file and the
 // Worker share, and the nearby chunk's showing of that start, which the web never opens.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 122 * 1024;
+// Raised by 41 KB with uploaded USFM Bibles (Caleb Koster, 2026-11-17, LAN-229 and LAN-230), 41,766
+// bytes past then: the first visit's growth below, and the upload sheet's code in the Setup chunk.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 163 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -263,7 +265,11 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 122 * 1024;
 // Raised by 1 KB with the passage row's download button beside the row, not inside it (Caleb Koster,
 // 2026-11-17, LAN-158), 250 bytes past then: Row's action slot, its wrapper and three styles, in the
 // kit every visit carries. All chunks still fit their own budget.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 96 * 1024;
+// Raised by 28 KB with uploaded USFM Bibles (Caleb Koster, 2026-11-17, LAN-229 and LAN-230), 28,053
+// bytes past then: reading a book's file (core `usfmRead.ts`) and the upload's check (`usfm.ts`) come
+// with core, which a passage's Bible text needs on a first visit; the reader's verse parts; and the
+// upload's English words in the catalog every visit carries.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 124 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

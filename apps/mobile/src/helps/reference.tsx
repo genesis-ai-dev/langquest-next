@@ -49,6 +49,8 @@ import { ListWordRow } from '../keyTerms/KeyWordRows';
 import { ownTermId, shortName, type KeyWordList, type WordHere } from '../keyTerms/listsModel';
 import { a11yState } from '../ui/a11yModel';
 import { useFollowVerse } from './useFollowVerse';
+import { stackOf } from '../usfm/readerModel';
+import { UsfmAbove, UsfmFitNote, UsfmLines, UsfmNotes } from '../usfm/UsfmVerse';
 
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
@@ -98,6 +100,15 @@ export function BiblePane(props: {
   // While help is on a key word does not open: the verse around it explains it instead.
   const helpOn = useHelpOn();
   const onTerm = helpOn ? undefined : props.onTerm;
+  const marked = (text: string) => markTerms(text, terms).map((part, i) => {
+    if (!part.termId) return <Text key={i}>{part.text}</Text>;
+    const tied = props.tied?.has(part.termId) ?? false;
+    return (
+      <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
+        accessibilityLabel={tied ? t('reference.bible.keyWordTied', { word: part.text }) : t('reference.bible.keyWord', { word: part.text })}
+        style={[styles.term, tied && { color: TINT.greenText }]}>{part.text}{tied ? ' ✓' : ''}</Text>
+    );
+  });
   const gap = !option
     ? emptyBibleText({ loading: bible.passage.loading, notOnDevice: bible.passage.notOnDevice }, t('sources.reader.noBible'))
     : bible.audioAbsent ? t('recording.player.notOnDeviceYet')
@@ -142,6 +153,7 @@ export function BiblePane(props: {
         </VerseDots>
       ) : src?.rows ? (
         <View style={{ gap: space.xs }} onLayout={follow.onList}>
+          <UsfmFitNote fit={src.usfmFit} />
           {src.rows.map((row) => {
             const here = player.started && player.current?.key === row.key;
             const sel = props.selected === row.key;
@@ -150,21 +162,13 @@ export function BiblePane(props: {
             const termIds = parts.flatMap((p) => (p.termId ? [p.termId] : []));
             return (
               <View key={row.key} onLayout={follow.onRow(row.key)}>
+              <UsfmAbove row={row} />
               <HelpRow of="reference.verse">
                 <Verse row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.hasAudio && bible.timed}
                   {...(sel && props.canNote ? { below: <AddNoteHere label={noteHereLabel(row.key)} onPress={note} /> } : {})}
-                  terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))}>
-                  {parts.map((part, i) => {
-                    if (!part.termId) return <Text key={i}>{part.text}</Text>;
-                    const tied = props.tied?.has(part.termId) ?? false;
-                    return (
-                      <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
-                        accessibilityLabel={tied ? t('reference.bible.keyWordTied', { word: part.text }) : t('reference.bible.keyWord', { word: part.text })}
-                        style={[styles.term, tied && { color: TINT.greenText }]}>{part.text}{tied ? ' ✓' : ''}</Text>
-                    );
-                  })}
-                </Verse>
+                  terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))} words={marked} />
               </HelpRow>
+              <UsfmNotes row={row} />
               </View>
             );
           })}
@@ -230,7 +234,9 @@ function AddNoteHere(props: { label: string; onPress: () => void }) {
 }
 
 function Verse(props: {
-  row: VerseRow; here: boolean; selected: boolean; notes: number; timed: boolean; onPress: () => void; children: ReactNode;
+  row: VerseRow; here: boolean; selected: boolean; notes: number; timed: boolean; onPress: () => void;
+  /** Draws a run of the verse's words, with its key words marked. */
+  words: (text: string) => ReactNode;
   /** Drawn under the verse: Add a note here, when it is chosen. */
   below?: ReactNode;
   /** Key words in it: `open` when a tap opens one, `marked` when they are only underlined. */
@@ -251,11 +257,16 @@ function Verse(props: {
       <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.here || props.selected }, 'button')}
         accessibilityLabel={props.notes ? t('reference.bible.verseLabelNotes', { verse: r.key, text: r.text, count: props.notes }) : t('sources.reader.verseLabel', { verse: r.key, text: r.text })}
         style={({ pressed }) => [styles.verse, props.here && styles.versePlaying, props.selected && styles.verseSelected, pressed && ps.pressed]}>
-        <Text style={styles.verseText}>
-          <Text style={styles.verseNum}>{verse} </Text>
-          {props.children}
-          {props.notes ? <Text style={styles.verseNotes}>  ● {formatNumber(props.notes)}</Text> : null}
-        </Text>
+        {r.usfm ? (
+          <UsfmLines pieces={stackOf(r.usfm.verse).body} style={styles.verseText} words={props.words} number={<Text style={styles.verseNum}>{verse} </Text>}
+            end={props.notes ? <Text style={styles.verseNotes}>  ● {formatNumber(props.notes)}</Text> : null} />
+        ) : (
+          <Text style={styles.verseText}>
+            <Text style={styles.verseNum}>{verse} </Text>
+            {props.words(r.text)}
+            {props.notes ? <Text style={styles.verseNotes}>  ● {formatNumber(props.notes)}</Text> : null}
+          </Text>
+        )}
         <HelpBadge spot={spot} />
       </Pressable>
       {props.below}

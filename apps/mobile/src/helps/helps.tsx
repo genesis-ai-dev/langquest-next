@@ -34,6 +34,8 @@ import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
 import { a11yState } from '../ui/a11yModel';
+import { stackOf } from '../usfm/readerModel';
+import { UsfmAbove, UsfmFitNote, UsfmLines, UsfmReading } from '../usfm/UsfmVerse';
 
 /** A chosen verse or a found word: soft grey, never loud purple (Caleb, 2026-10-10). */
 const SOFT_MARK = withAlpha(C.dark, 0.1);
@@ -131,7 +133,14 @@ export function PassageTextBar(props: {
         <View style={styles.textBody}>
           <BibleChips ctx={props.ctx} bible={bible} />
           <ScrollView style={styles.textScroll} nestedScrollEnabled showsVerticalScrollIndicator>
-            {rows ? (
+            <UsfmFitNote fit={bible.src?.usfmFit} />
+            {rows?.[0]?.usfm ? (
+              <UsfmReading rows={rows} style={styles.reading} numberStyle={styles.num} number={verseOf}
+                lead={(_, i) => (noted.has(i) ? <Text><Text style={styles.noteTag}>{t('reference.passageText.noteTag')}</Text>{' '}</Text> : null)}
+                words={(text) => markTerms(text, props.terms).map((p, j) => (p.termId
+                  ? <Text key={j} style={styles.word} accessibilityLabel={t('reference.bible.keyWord', { word: p.text })}>{p.text}</Text>
+                  : <Text key={j}>{p.text}</Text>))} />
+            ) : rows ? (
               <Text style={styles.reading}>
                 {rows.map((row, i) => (
                   <Text key={row.key}>
@@ -293,7 +302,7 @@ export function PassageNoteEditor({ ctx }: { ctx: Ctx }) {
             const on = !!run && i >= Math.min(run[0], run[1]) && i <= Math.max(run[0], run[1]);
             const top = on && i === Math.min(run[0], run[1]);
             const bottom = on && i === Math.max(run[0], run[1]);
-            return <HelpRow key={row.key} of="notes.verse"><VerseTap row={row} on={on} top={top} bottom={bottom} onPress={() => setRun(tapVerse(run, i))} /></HelpRow>;
+            return <HelpRow key={row.key} of="notes.verse"><UsfmAbove row={row} /><VerseTap row={row} on={on} top={top} bottom={bottom} onPress={() => setRun(tapVerse(run, i))} /></HelpRow>;
           })}
         </View>
       ) : <Text style={txt.smMuted}>{textMissing(bible)}</Text>}
@@ -308,10 +317,14 @@ function VerseTap(props: { row: VerseRow; on: boolean; top: boolean; bottom: boo
     <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.on }, 'button')}
       accessibilityLabel={t('sources.reader.verseLabel', { verse: r.key, text: r.text })}
       style={({ pressed }) => [styles.verse, props.on && styles.verseOn, props.top && styles.verseTop, props.bottom && styles.verseBottom, pressed && ps.pressed]}>
-      <Text style={styles.reading}>
-        <Text style={styles.num}>{verseOf(r)} </Text>
-        {r.text}
-      </Text>
+      {r.usfm ? (
+        <UsfmLines pieces={stackOf(r.usfm.verse).body} style={styles.reading} number={<Text style={styles.num}>{verseOf(r)} </Text>} />
+      ) : (
+        <Text style={styles.reading}>
+          <Text style={styles.num}>{verseOf(r)} </Text>
+          {r.text}
+        </Text>
+      )}
       <HelpBadge spot={spot} />
     </Pressable>
   );

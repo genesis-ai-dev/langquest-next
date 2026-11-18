@@ -8,8 +8,8 @@
 // study guides do), and when nothing at all has this passage's text, the
 // text the app carries is the last resort, labelled as built in.
 import {
-  bookIdOf, libraryItemView, linkedTo, passageLink, recommendedFor, sourceAudioUrl, SOURCE_BIBLES, followerItemId, versesInChapter,
-  type LibraryDoc, type SourceBookDoc, type SourceDoc, type TemplateDoc, type TimingDoc, type VerseRange, type VersificationDoc
+  bookIdOf, libraryItemView, linkedTo, passageLink, recommendedFor, sourceAudioUrl, sourceOf, SOURCE_BIBLES, followerItemId, versesInChapter,
+  type LibraryDoc, type SourceBookDoc, type TemplateDoc, type TimingDoc, type UsfmBookDoc, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import type { Ctx } from '../shell/ctx';
@@ -27,6 +27,7 @@ import { PlayError } from './player';
 import { BUILTIN_AUDIO_ID, bibleBrainFacts, builtinCopyright, builtinFacts, libraryFacts } from './passageSourceModel';
 import { bibleBrain, textKept } from './store';
 import { useKeptRevision, useMyBibles } from './useMyBibles';
+import { renumberedAs, usfmRows, versesNotIn, type UsfmFit } from '../usfm/readerModel';
 
 type Get = <T extends LibraryDoc = LibraryDoc>(hash: string | null | undefined) => T | null;
 
@@ -121,8 +122,8 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
     const sourceLanguages = teamLanguages(ctx.org.state, languageId === openLanguage ? openState : null, languageId);
     const fromLibrary = (itemId: string, from: SourceFrom) => {
       const hash = libraryItemView(library ?? {}, itemId)?.current;
-      const doc = get<SourceDoc>(hash);
-      if (!hash || !doc || doc.format !== 'source@1') return;
+      const doc = sourceOf(get(hash));
+      if (!hash || !doc) return;
       const bible = doc.provider.kind === 'biblebrain' ? details[doc.provider.bibleId] : undefined;
       out.push({ itemId, kind: 'library', from, name: doc.name, abbreviation: doc.abbreviation, language: doc.language, doc, docHash: hash, ...(bible ? { bible } : {}) });
     };
@@ -136,8 +137,8 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
     }
     if (recs.size === 0 || (wholeBook && out.length === 0)) {
       for (const r of shared.rows) {
-        const doc = get<SourceDoc>(r.latest_hash);
-        if (!doc || doc.format !== 'source@1' || !doc.language || !inLanguages(doc.language, sourceLanguages)) continue;
+        const doc = sourceOf(get(r.latest_hash));
+        if (!doc || !doc.language || !inLanguages(doc.language, sourceLanguages)) continue;
         out.push({ itemId: followerItemId(ctx.org.state?.library ?? {}, r.org_id, r.item_id), kind: 'library', from: 'shared', name: doc.name, abbreviation: doc.abbreviation, language: doc.language, doc, docHash: r.latest_hash, sharedBy: r.org_name });
       }
     }
@@ -211,6 +212,8 @@ interface PassageSource {
   copyright: { text?: string; audio?: string };
   /** Bible Brain's terms apply (DBP). */
   bibleBrain: boolean;
+  /** An uploaded Bible's numbering against the passage: where it differs, and the verses it lacks. */
+  usfmFit?: UsfmFit;
 }
 
 const audioLinks = new Map<string, { url: string; expires: number }>();
@@ -246,7 +249,9 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
   const range = useMemo(() => (passage.range ? inSourceNumbering(passage.range, passage.versification, sourceV11n) : null), [passage.range, passage.versification, sourceV11n]);
   const bookHash = option?.doc && range ? option.doc.books.find((b) => b.book === range.book)?.doc : undefined;
   const books = useLibraryDocs(ctx.language.orgId, [bookHash], { deps: false });
-  const book = books.get<SourceBookDoc>(bookHash);
+  const anyBook = books.get<SourceBookDoc | UsfmBookDoc>(bookHash);
+  const uploaded = anyBook?.format === 'usfmBook@1' ? anyBook : null;
+  const book = anyBook?.format === 'usfmBook@1' ? null : anyBook;
   // Only the passage's chapters' timings, not the whole book's.
   const timingHashes = useMemo(() => (book && range ? chaptersOf(range).map((c) => book.chapters.find((x) => x.chapter === c)?.timing) : []), [book, range]);
   const timings = useLibraryDocs(ctx.language.orgId, timingHashes, { deps: false });
@@ -311,6 +316,12 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
       };
     }
     // Library text and audio from the source's book document.
+    if (uploaded) {
+      const rows = usfmRows(range, uploaded);
+      const { loading, audioNotHere, textProblem } = libraryFacts({ bookHash, hasBook: true, booksFailed: false, rows });
+      const usfmFit: UsfmFit = { renumbered: passage.range ? renumberedAs(passage.range, range) : null, missing: versesNotIn(rows, range, sourceV11n) };
+      return { loading, range, rows, audioNotHere, textProblem, plan: null, chapters: [], filesets: [], copyright, bibleBrain: false, usfmFit };
+    }
     if (option.doc?.provider.kind === 'library') {
       const rows = book ? passageRows(range, new Map(chapters.map((c) => [c, book.chapters.find((x) => x.chapter === c)?.verses ?? []]))) : null;
       const audio: AudioChapter[] = [];
@@ -355,7 +366,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
       filesets: [filesets.text, filesets.audio].filter((x): x is string => !!x), copyright, bibleBrain: true
     };
     // `setFiles` revisions re-run this through the store and index reads.
-  }, [option, range, book, bookHash, books.error, bb, bbKeyNow, filesets, get, getTiming, online, store, keptTick, files]); // eslint-disable-line react-hooks/exhaustive-deps -- get, keptTick and files change when documents arrive or a file is kept on this device, which changes what is ready
+  }, [option, range, book, uploaded, sourceV11n, passage.range, bookHash, books.error, bb, bbKeyNow, filesets, get, getTiming, online, store, keptTick, files]); // eslint-disable-line react-hooks/exhaustive-deps -- get, keptTick and files change when documents arrive or a file is kept on this device, which changes what is ready
 }
 
 /** The marks on each version chip for this passage. */

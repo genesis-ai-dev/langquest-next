@@ -47,6 +47,8 @@ import { SavedMark } from '../ui/SavedMark';
 import type { BackgroundData } from './reviewText';
 import { NotedRow, NotesUnder } from './notesOn';
 import { a11yState } from '../ui/a11yModel';
+import { stackOf } from '../usfm/readerModel';
+import { UsfmAbove, UsfmFitNote, UsfmLines, UsfmNotes } from '../usfm/UsfmVerse';
 
 // ---- the strip of steps ----------------------------------------------------------------------
 
@@ -402,6 +404,7 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
         ) : <Text style={[txt.smMuted, styles.empty]}>{src?.loading || !src ? t('common.loading') : src.textProblem}</Text>
       ) : option ? (
         <View style={{ gap: 2 }}>
+          <UsfmFitNote fit={src?.usfmFit} />
           {src?.rows ? src.rows.map((row) => {
             const notes = verseNotes.get(row.key) ?? [];
             const here = player.started && player.current?.key === row.key;
@@ -411,6 +414,7 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
             return (
               <HelpRow key={row.key} of={open ? 'review.openVerse' : notes.length ? 'review.notedVerse' : 'review.verse'}>
                 <View style={[styles.verse, notes.length ? styles.verseNoted : here ? styles.versePlaying : null, isPicked && styles.versePicked]}>
+                  <UsfmAbove row={row} />
                   <VerseTap verse={row.key} selected={isPicked} plays={!!plan}
                     accessibilityLabel={notes.length ? t('review.simple.verseWithNotes', { verse: row.key, text: row.text, count: notes.length }) : t('review.simple.verseA11y', { verse: row.key, text: row.text })}
                     onPress={() => {
@@ -418,10 +422,15 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
                       setPicked(isPicked ? null : row.key);
                       if (notes.length) setOpenVerse(open ? null : row.key);
                     }}>
-                    <Text style={styles.verseText}>
-                      <Text style={styles.verseNum}>{row.key.split(':')[1] ?? row.key} </Text>{row.text}
-                    </Text>
+                    {row.usfm ? (
+                      <UsfmLines pieces={stackOf(row.usfm.verse).body} style={styles.verseText} number={<Text style={styles.verseNum}>{row.key.split(':')[1] ?? row.key} </Text>} />
+                    ) : (
+                      <Text style={styles.verseText}>
+                        <Text style={styles.verseNum}>{row.key.split(':')[1] ?? row.key} </Text>{row.text}
+                      </Text>
+                    )}
                   </VerseTap>
+                  <UsfmNotes row={row} />
                   {notes.length ? (
                     <NotesBy open={open} label={open ? t('review.simple.hideNotes', { count: notes.length, verse: row.key }) : t('review.simple.showNotes', { count: notes.length, verse: row.key })}
                       names={[...new Set(notes.map((n) => ctx.name(n.by).split(' ')[0]))].join(', ')} onPress={() => setOpenVerse(open ? null : row.key)} />

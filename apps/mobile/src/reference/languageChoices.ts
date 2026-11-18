@@ -51,9 +51,9 @@ export function languageChoices(sets: readonly GuideSet[], docs: readonly (Libra
   for (const doc of docs) {
     const language = docLanguage(doc);
     if (!doc || !language) continue;
-    if (doc.format === 'source@1') {
+    if (doc.format === 'source@1' || doc.format === 'usfmBible@1') {
       const c = at(language);
-      if (doc.provider.kind === 'biblebrain') {
+      if (doc.format === 'source@1' && doc.provider.kind === 'biblebrain') {
         // The organization's own copy of a Bible LangQuest shares too is one Bible.
         if (c.bibleIds.includes(doc.provider.bibleId)) continue;
         c.bibleIds.push(doc.provider.bibleId);

@@ -3,7 +3,7 @@
 // Not recommended, which of LangQuest's ready sources can still be added, how
 // a Bible Brain search result reads, and the languages Bible Brain offers.
 // Pure: no React, so it is tested.
-import type { LanguageState, LibraryDoc, LibraryItemView, Register } from '@langquest-next/core';
+import { sourceOf, type LanguageState, type LibraryDoc, type LibraryItemView, type Register, type BibleSource } from '@langquest-next/core';
 import { t } from '../i18n';
 import type { BibleLanguage, BibleSummary } from '../sources/bibleBrain';
 import type { SharedItem } from '../library/model';
@@ -16,6 +16,9 @@ export const list = (items: string[]) => items.join(t('reference.listSeparator')
 
 /** Where a source comes from, for its line: Bible Brain or the library. */
 export const providerName = (kind: 'library' | 'biblebrain') => (kind === 'biblebrain' ? t('reference.provider.bibleBrain') : t('reference.provider.library'));
+
+/** Where a Bible's text comes from, an upload saying so. */
+export const sourceProviderName = (doc: BibleSource) => (doc.uploaded ? t('reference.provider.uploaded') : providerName(doc.provider.kind));
 
 interface SourceRow { it: { itemId: string; archived: boolean }; doc: LibraryDoc | null; kind: RefKind | null }
 
@@ -47,7 +50,7 @@ export function readySources(
   shared: SharedItem[], docs: { get(hash: string): LibraryDoc | null | undefined },
   followed: readonly Pick<LibraryItemView, 'subscription'>[]
 ): SharedItem[] {
-  return shared.filter((s) => docs.get(s.latest_hash)?.format === 'source@1')
+  return shared.filter((s) => !!sourceOf(docs.get(s.latest_hash)))
     .filter((s) => !followed.some((it) => it.subscription?.sourceItemId === s.item_id && it.subscription.sourceOrgId === s.org_id && it.subscription.active));
 }
 

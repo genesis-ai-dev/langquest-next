@@ -4,7 +4,7 @@
 // admin sees them, publishing a change to a template for the languages
 // chosen, and the names to offer when a language names a book (demo
 // ADR-042). Pure parts are in model.ts.
-import { followerItemId, isTemplateDoc, languageName, libraryItemView, orgLanguages, recommendedFor, verseNumbering, type SourceDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { followerItemId, isTemplateDoc, languageName, libraryItemView, orgLanguages, recommendedFor, sourceOf, verseNumbering, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplatesModel';
@@ -126,8 +126,8 @@ export function useVerseNumbering(ctx: Ctx) {
     const bibles: { name: string; versification: VersificationDoc }[] = [];
     let english: VersificationDoc | null = null;
     for (const h of hashes) {
-      const d = docs.get(h);
-      if (d?.format !== 'source@1') continue;
+      const d = sourceOf(docs.get(h));
+      if (!d) continue;
       const v = docs.get<VersificationDoc>(d.versification);
       if (!v) continue;
       bibles.push({ name: d.abbreviation || d.name, versification: v });
@@ -173,8 +173,8 @@ export function useBookNameChoices(ctx: Ctx, book: string, open: boolean) {
     .map((id) => (org ? libraryItemView(org.library, id)?.current : null)), [org, state]);
   const docs = useLibraryDocs(orgId, hashes, { deps: false });
   const bibles = useMemo(() => groupNames(hashes.flatMap((h) => {
-    const d = docs.get<SourceDoc>(h);
-    const b = d?.format === 'source@1' ? d.books.find((x) => x.book === book) : undefined;
+    const d = sourceOf(docs.get(h));
+    const b = d?.books.find((x) => x.book === book);
     return d && b ? [{ name: b.name, from: d.name }] : [];
   })),
   // eslint-disable-next-line react-hooks/exhaustive-deps -- docs.get changes when documents arrive

@@ -5,7 +5,7 @@
 // what each says there), the ones hidden, the ones to add and the event that
 // shows or hides one. Pure: no React, so it is tested.
 import {
-  libraryUnitRange, linkedTo, languagePassages, passageLink, recommendedFor, unitTitle, versesInChapter,
+  libraryUnitRange, linkedTo, languagePassages, passageLink, recommendedFor, sourceOf, unitTitle, versesInChapter,
   type Indexes, type KeyTermView, type LanguageState, type LibraryDoc, type MaterialView, type OrgState, type PassageNote,
   type RecommendationSource, type TemplateDoc, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
@@ -93,7 +93,7 @@ export function coverageRow(reach: Reach[], names: Map<string, string>): { what:
 
 /** What each item is called on the coverage list: a Bible by its abbreviation, anything else by name. */
 export function coverageNames(rows: RefItem[]): Map<string, string> {
-  return new Map(rows.map((r) => [r.it.itemId, r.doc?.format === 'source@1' ? r.doc.abbreviation : r.it.name]));
+  return new Map(rows.map((r) => [r.it.itemId, sourceOf(r.doc)?.abbreviation ?? r.it.name]));
 }
 
 // ---- one passage ------------------------------------------------------------------------
@@ -171,6 +171,7 @@ export function helpPreview(c: {
   if (!doc) return null;
   switch (doc.format) {
     case 'source@1': return { text: sourceSummary(sourceFacts(doc, c.get, doc.provider.kind === 'biblebrain' ? c.detail(doc.provider.bibleId) : null)) };
+    case 'usfmBible@1': return { text: sourceSummary(sourceFacts(sourceOf(doc)!, c.get, null)) };
     case 'study@1': case 'study@2': case 'collection@1': {
       const first = studyOf(c.study)?.steps[0];
       return first ? { lead: t('reference.passageText.step', { n: 1 }), text: plain(first.title) } : null;
