@@ -18,7 +18,7 @@ import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LetInCode } from '../nearby/LetInCode';
 import { ChosenPicture } from '../auth/patternPad';
-import { apkGet, joinRows, letInVersionsWords } from '../nearby/carriedApkModel';
+import { apkGet, apkShown, apkStart, joinRows, letInVersionsWords } from '../nearby/carriedApkModel';
 import { joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
 import type { LetInEnd, LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
@@ -537,8 +537,8 @@ export function GetInstallFile(ctx: Ctx) {
       {apk.needed !== null ? (
         <>
           <Card>
-            <Text style={txt.body}>{t('nearby.letIn.file', { file: apk.needed })}</Text>
-            <Text style={txt.sm}>{t('nearby.letIn.fileExact')}</Text>
+            <Text style={txt.body}>{t('nearby.letIn.file', { file: apkShown(apk.needed) })}</Text>
+            <Text style={txt.sm}>{t('nearby.letIn.fileStart', { start: apkStart(apk.needed) })}</Text>
             {apk.stale ? (
               <View style={styles.line}>
                 <Ico name="warning" size={20} color={TINT.amberText} />
@@ -553,7 +553,7 @@ export function GetInstallFile(ctx: Ctx) {
               <View style={styles.line}>
                 <Ico name={apk.checked.result === 'right' ? 'check' : 'warning'} size={20} color={apk.checked.result === 'right' ? TINT.greenText : TINT.amberText} />
                 <View style={{ flex: 1 }}>
-                  <Text style={txt.sm}>{apk.checked.result === 'right' ? t('nearby.letIn.checkRight') : t('nearby.letIn.checkOther', { file: apk.needed })}</Text>
+                  <Text style={txt.sm}>{apk.checked.result === 'right' ? t('nearby.letIn.checkRight') : t('nearby.letIn.checkOther', { file: apkShown(apk.needed) })}</Text>
                   <Text style={txt.smMuted}>{t('nearby.letIn.checkChose', { name: apk.checked.name })}</Text>
                 </View>
               </View>

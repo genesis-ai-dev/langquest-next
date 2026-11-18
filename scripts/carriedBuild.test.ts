@@ -92,7 +92,7 @@ function apk(size = MIN_BYTES + 10, files: ZipFile[] = APP_FILES): Uint8Array {
 interface Call { method: string; url: string; headers: Record<string, string> }
 
 /** Google's token endpoint, generatedApks and its download, and R2's S3 API for one bucket, in one fetch. */
-function fakes(o: { generated?: (n: number) => { status: number; body?: unknown }; download?: string; file?: Uint8Array; bucket?: Map<string, { body: Uint8Array | string; type: string; disposition?: string }>; bucketStatus?: number } = {}) {
+function fakes(o: { generated?: (n: number) => { status: number; body?: unknown }; download?: string; file?: Uint8Array; bucket?: Map<string, { body: Uint8Array | string; type: string; disposition?: string; versionCode?: string }>; bucketStatus?: number } = {}) {
   const calls: Call[] = [];
   const bucket = o.bucket ?? new Map();
   let generatedAsked = 0;
@@ -121,7 +121,7 @@ function fakes(o: { generated?: (n: number) => { status: number; body?: unknown 
       const obj = bucket.get(key);
       if (method === 'PUT') {
         const body = init.body as Uint8Array | string;
-        bucket.set(key, { body, type: headers['content-type']!, disposition: headers['content-disposition'] });
+        bucket.set(key, { body, type: headers['content-type']!, disposition: headers['content-disposition'], versionCode: headers['x-amz-meta-version-code'] });
         return new Response(null, { status: 200 });
       }
       if (!obj) return new Response('<Code>NoSuchKey</Code>', { status: 404 });
@@ -209,6 +209,8 @@ describe('--publish', () => {
     const stored = f.bucket.get(NAME)!;
     expect(stored.type).toBe('application/vnd.android.package-archive');
     expect(stored.disposition).toBe(`attachment; filename="${NAME}"`);
+    // The Worker reads it as the file's custom metadata, to find the newest file for a phone's versions.
+    expect(stored.versionCode).toBe('42');
     expect((stored.body as Uint8Array).length).toBe(MIN_BYTES + 10);
     const current = JSON.parse(f.bucket.get(CURRENT)!.body as string);
     expect(current).toMatchObject({ name: NAME, versionCode: 42, fingerprint: FP, bytes: MIN_BYTES + 10, publishedAt: '2026-11-08T12:00:00.000Z' });
