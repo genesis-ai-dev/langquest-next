@@ -6,6 +6,10 @@ passage", "Invite your team"), in every app language. Each is a script in
 frame, with a computer voice saying the script's lines. Decision 177 says why
 they are made this way.
 
+A few videos are general and introductory: they show the whole app and teach
+no taps ("How LangQuest works"). Only those have a tune under the voice
+(`docs/decisions/2026-11-18-tune-on-introductory-videos.md`).
+
 ## Making them
 
 ```sh
@@ -39,6 +43,7 @@ GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
 | `camera.ts` | where the camera looks: in on each lit part (its words about twice their size), further out where a close shot would be mostly empty screen, back out to the whole page where a step lights nothing or something most of the screen's height, at the start and at the end |
 | `frame-check.ts` | a new film's stills, one while each line is said, looked at by Claude (Sonnet, through Claude Code) for what is drawn wrong |
 | `gemini-voice.mjs` | says lines with Gemini's text-to-speech, through the Batch API |
+| `tune.ts`, `tune/` | the tune under the voice of a general, introductory video (a script with `tune: true`), how quiet it is, and its credit |
 | `translate-lines.ts` | translates each video's title and lines into `lines/<language>.json` |
 | `readings.ts`, `make-readings.ts` | what the people in the videos say, and saying it into WAV files |
 | `ui.ts` | finds what a script names in English on a screen in any app language |
@@ -91,6 +96,17 @@ parts where it asks for five. A reading is made again only when what it is
 made from changes (its words, voice, speed or pauses, or `MAKING` in
 `make-readings.ts`); `speech/<language>/made.json` says what each was made
 from, and the release keeps it with the readings.
+
+## Tune
+
+A script with `tune: true` is a general, introductory video, and `compose.ts`
+puts the tune under its voice. A video of one task or one setting has no
+tune. The tune is "Carefree" by Kevin MacLeod (`tune/carefree.m4a`), under
+Creative Commons Attribution 4.0. It plays about 16 dB below the voice, comes
+in over 1.2 seconds and goes over the film's last 3.6 (`tune.ts`). The licence
+asks for a credit: `playlists.ts` puts it last in the video's description on
+YouTube, and `compose.ts` writes it in the film's `comment` tag, which goes
+with a download. `look.test.ts` lists the videos that have the tune.
 
 ## Other languages
 

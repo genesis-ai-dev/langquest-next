@@ -10,6 +10,7 @@ import { createAnAccount } from './create-an-account';
 import { answerFeedback } from './answer-feedback';
 import { doACheck } from './do-a-check';
 import { findYourWayAround } from './find-your-way-around';
+import { howLangQuestWorks } from './how-langquest-works';
 import { finishAndAskForACheck } from './finish-and-ask-for-a-check';
 import { giveEachPartItsVerse } from './give-each-part-its-verse';
 import { hearMoveDeleteParts } from './hear-move-delete-parts';
@@ -52,7 +53,7 @@ import { readAnyOrganization } from './read-any-organization';
 
 /** Who each video is for, which is its playlist on YouTube (playlists.ts), each in the plan's order. */
 export const GROUPS: { who: Who; videos: Tutorial[] }[] = [
-  { who: 'everyone', videos: [joinYourTeam, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount, reportOrBlockSomeone] },
+  { who: 'everyone', videos: [howLangQuestWorks, joinYourTeam, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount, reportOrBlockSomeone] },
   {
     who: 'admins',
     videos: [startAnOrganization, addALanguage, getALanguageReady, inviteYourTeam, letPeopleIn, changeARole, makeARole, showALanguageToThePublic, groupLanguagesIntoACluster,
