@@ -11,7 +11,17 @@ import { expoSection } from './expo';
  * never authors.
  */
 
-export interface TimelineEvent { at: string; kind: 'merge' | 'deploy' | 'update'; text: string }
+/** `pr` and `title` are a merge commit's pull request and that pull request's title, when GitHub wrote them in the commit ("Merge pull request #504 from …", then the title; or "Title (#504)"). */
+export interface TimelineEvent { at: string; kind: 'merge' | 'deploy' | 'update'; text: string; pr?: number; title?: string }
+
+/** The pull request a commit on main merged, from its message, or nothing when the message names none. */
+export function mergedPull(message: string): { pr: number; title: string } | null {
+  const lines = message.split('\n').map((l) => l.trim()).filter(Boolean);
+  const merge = /^Merge pull request #(\d+) from \S+$/.exec(lines[0] ?? '');
+  if (merge) return { pr: Number(merge[1]), title: (lines[1] ?? `Pull request ${merge[1]}`).slice(0, 140) };
+  const squash = /^(.*\S)\s+\(#(\d+)\)$/.exec(lines[0] ?? '');
+  return squash ? { pr: Number(squash[2]), title: squash[1]!.slice(0, 140) } : null;
+}
 export interface Releases {
   timeline: TimelineEvent[];
   errorsByDay: { day: string; errors: number; crashes: number; installs: number }[];
@@ -74,7 +84,7 @@ export async function releasesSection(env: Env, fetcher: typeof fetch = fetch, n
   const merges = getJson<{ sha: string; commit: { message: string; committer?: { date?: string } | null }; parents: unknown[] }[]>(fetcher,
     `${api}/commits?sha=main&since=${since}&per_page=100`, { headers: gh }, 'GitHub commits')
     .then((cs) => cs.filter((c) => isMerge(c.commit.message.split('\n')[0]!, c.parents.length))
-      .map((c): TimelineEvent => ({ at: c.commit.committer?.date ?? since, kind: 'merge', text: `${c.sha.slice(0, 7)} ${c.commit.message.split('\n')[0]!.slice(0, 100)}` })))
+      .map((c): TimelineEvent => ({ at: c.commit.committer?.date ?? since, kind: 'merge', text: `${c.sha.slice(0, 7)} ${c.commit.message.split('\n')[0]!.slice(0, 100)}`, ...mergedPull(c.commit.message) })))
     .catch((e: unknown) => { note(e); return [] as TimelineEvent[]; });
   const deploys = env.ADMIN_CLOUDFLARE_TOKEN
     ? Promise.all(env.CLOUDFLARE_WORKERS.split(',').map((s) => s.trim()).filter(Boolean).map((name) =>

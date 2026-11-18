@@ -102,7 +102,7 @@ file (`get_install_file`, from Share nearby, from Let someone in's line
 that the new phone needs the app first, and from the Get it link on Sync's
 Ready for offline card while online and this phone lacks the file it needs;
 docs/nearby-sync-plan.md 14.4) is the
-part done online before a trip: the file's exact name, Get the install file
+part done online before a trip: the start of the file's name (its versions), Get the install file
 as its one main button, Check my file, the too-old word and how to pass the
 file on. Let someone in keeps only the field: role, code, pictures, one tap.
 
