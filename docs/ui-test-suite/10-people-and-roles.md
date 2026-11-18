@@ -1124,7 +1124,7 @@ Steps:
 
 Expected:
 - The refusal is shown, never silent (PLAN.md invariant 1): My Work's chip
-  reads "Not syncing"; Me reads "This account cannot sync · password,
+  reads "Not syncing"; Me reads "This account cannot sync ·
   notifications, account"; More settings reads "This account cannot sync
   this organization"; Sync says "The server refused this account for this
   organization."

@@ -442,8 +442,8 @@ Expected:
   and the server's reason (for example "not a member").
 - "waiting to upload" does not count them, and they are not deleted: "{n}
   events on this device" is not lower than before step 3.
-- Me's "More settings" says "This account cannot sync · password,
-  notifications, account" when the whole language is refused.
+- Me's "More settings" says "This account cannot sync · notifications,
+  account" when the whole language is refused.
 - Step 5: Device 1 no longer shows Version 1 as published (refused work
   leaves the passage), but it is still listed under Refused.
 - Device 2 never shows Version 1 of P-Q1.

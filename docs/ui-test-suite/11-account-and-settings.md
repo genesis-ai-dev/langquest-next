@@ -104,10 +104,10 @@ Steps:
 
 Expected:
 - After step 2, "More settings" has a count badge {n} (the events waiting:
-  1 for the note), and its sub-line says "{n} waiting to send · password,
+  1 for the note), and its sub-line says "{n} waiting to send ·
   notifications, sync, account".
-- After step 3, the badge is gone and the sub-line is "Password,
-  notifications, sync, account" again.
+- After step 3, the badge is gone and the sub-line is "Notifications,
+  sync, account" again.
 
 Resets: P-SUBMITTED has one more note.
 
@@ -1076,8 +1076,8 @@ Steps:
 1. Tap "Me". Read "More settings". Tap "Sign out".
 
 Expected:
-- "More settings" says "This account cannot sync · password,
-  notifications, account".
+- "More settings" says "This account cannot sync · notifications,
+  account".
 - The sign-out screen says "This account cannot sync this organization:
   the server refused it. Signing out is safe; anything queued stays on this
   device." "Sign Out" is enabled, also on the web.

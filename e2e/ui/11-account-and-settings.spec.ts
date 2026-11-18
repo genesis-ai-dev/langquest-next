@@ -670,7 +670,7 @@ test('ACCT-034 The ? explains each part of the screen', async ({ page }) => {
   await byId(page, 'header-help').click();
   await expect(byId(page, 'header-help')).toHaveAccessibleName('Turn help off');
   await row(page, 'More settings').click();
-  const tip = button(page, /^More settings\. Opens your password, notifications, sync and account settings\./);
+  const tip = button(page, /^More settings\. Opens your notifications, sync and account settings\./);
   await expect(tip).toBeVisible();
   await expect(heading(page, 'Me')).toBeVisible();
   await tip.click();

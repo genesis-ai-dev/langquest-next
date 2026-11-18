@@ -60,7 +60,7 @@ test('SYNC-018 Work refused after removal is kept and shown @p0', async ({ page,
   await expect(text(page, 'The server refused this account for this organization.')).toBeVisible();
   // Me's More settings says so.
   await toTab(page, 'me');
-  await expect(text(page, 'This account cannot sync · password, notifications, account')).toBeVisible();
+  await expect(text(page, 'This account cannot sync · notifications, account')).toBeVisible();
   // Refused work leaves the passage, but stays listed under Refused.
   await openRecord(page, w, 'P-Q1');
   await expect(text(page, /^Version 1 · /)).toBeHidden();
