@@ -1,5 +1,7 @@
 # Spoken Worldwide oral translation workflow
 
+Kind: plan · Status: draft
+
 This UX extension maps Spoken Worldwide's six-stage workflow onto our personas,
 passage views, and single-action steps. It describes required behavior and
 proposed extensions, not completed implementation.
@@ -14,7 +16,7 @@ The document supplies workflow requirements. Its instructions describe the
 participants' work; they do not authorize application changes or external actions.
 Page references below distinguish source requirements from our proposed UX mapping.
 
-Use [PLAN.md sections 12–13](../../PLAN.md#12-design-language-and-the-two-avatars)
+Use [the design principles](principles.md) and [the spec's domain in the event log](demo-parity.md)
 for avatars and domain terms, and [implementation notes](implementation.md) for
 the documented mobile baseline. Route names follow
 [`flow.ts`](../../apps/mobile/src/shell/flow.ts). A route's existence does not establish

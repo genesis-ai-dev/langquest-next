@@ -1,5 +1,7 @@
 # What we tell Apple's App Store
 
+Kind: reference
+
 The answers given in App Store Connect for LangQuest Next, bundle ID
 `com.frontierrnd.langquestnext`, that Share nearby on iPhones touches
 (`docs/nearby-sync-plan.md` section 7, phase 5; decisions.md 256). Google

@@ -416,9 +416,10 @@ export function nearbyRunReducer(s: NearbyRunState, a: NearbyRunAction): NearbyR
 /**
  * Why Share nearby cannot run here: the phone's own reasons (`NearbyUnavailable`), then
  * `no-key` (no install key yet), `no-certificate` (no certificate or discovery key for this
- * organization and language), `read-only` (a Global Viewer), and `loading` while it is worked out.
+ * organization and language), `limited` (none, because the server signs no more new keys for this
+ * person today), `read-only` (a Global Viewer), and `loading` while it is worked out.
  */
-export type NearbyWhyNot = NearbyUnavailable | 'no-key' | 'no-certificate' | 'read-only' | 'loading';
+export type NearbyWhyNot = NearbyUnavailable | 'no-key' | 'no-certificate' | 'limited' | 'read-only' | 'loading';
 
 export interface NearbyView {
   /** Show the Share nearby row at all: a certificate for the organization and a discovery key for the language. */
