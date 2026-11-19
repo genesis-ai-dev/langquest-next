@@ -8,10 +8,15 @@
  */
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
+import { VIDEO_CSS, VIDEO_LOGIC, VIDEO_SCRIPT } from './pageVideos';
 import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
 import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
+import { HOVER_CSS, HOVER_LOGIC, HOVER_SCRIPT } from './pageHover';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
+import { ICONS, NAV, SHELL_CSS, SHELL_HTML, SHELL_LOGIC, SHELL_SCRIPT } from './pageShell';
+import { OVERVIEW_CSS, OVERVIEW_HTML, OVERVIEW_LOGIC, OVERVIEW_SCRIPT } from './pageOverview';
 import { FIX_CSS, FIX_LOGIC, FIX_SCRIPT } from './pageFixes';
+import { ISSUE_CSS, ISSUE_LOGIC, ISSUE_SCRIPT } from './pageIssues';
 import { KINDS } from './alertKinds';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
@@ -26,15 +31,11 @@ export function page(cfg: { supabaseUrl: string; anonKey: string }, nonce: strin
 <meta name="robots" content="noindex, nofollow">
 <title>LangQuest operations</title>
 <style nonce="${nonce}">
-:root { --primary:#6B48C8; --bg:#F4F2FA; --card:#fff; --ink:#1E1636; --muted:#6E629E; --line:#E3DEF3; --red:#B42318; --redbg:#FDECEA; --amber:#9A5B00; --amberbg:#FFF4E0; --green:#1F7A4D; --greenbg:#E6F4EC; --grey:#8A82A8; color-scheme: light; }
-@media (prefers-color-scheme: dark) { :root { --primary:#A48BF0; --bg:#14101F; --card:#1E1830; --ink:#F1EEFA; --muted:#B4A9D8; --line:#332A4D; --red:#FF8A80; --redbg:#3A1C1F; --amber:#F5C26B; --amberbg:#352A14; --green:#7FD6A4; --greenbg:#15301F; --grey:#8F86AE; color-scheme: dark; } }
+:root { --primary:#6B48C8; --bg:#F4F4F1; --card:#FCFCFB; --raised:#fff; --soft:#ECEBE6; --ink:#121417; --ink2:#52514E; --muted:#6F6D68; --line:#E1E0D9; --red:#B42318; --redbg:#FBE6E3; --orange:#EC835A; --yellow:#FAB219; --blue:#2A78D6; --amber:#9A5B00; --amberbg:#FCF1D6; --green:#1F7A4D; --greenbg:#E5F4E3; --grey:#898781; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --primary:#A48BF0; --bg:#0F0F0E; --card:#1A1A19; --raised:#20201F; --soft:#242422; --ink:#F0EFEC; --ink2:#C3C2B7; --muted:#A3A198; --line:#2C2C2A; --red:#F07A6E; --redbg:#3A1C19; --orange:#EC835A; --yellow:#FAB219; --blue:#3987E5; --amber:#FAB219; --amberbg:#31270F; --green:#5CC28C; --greenbg:#15291A; --grey:#898781; color-scheme: dark; } }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-header { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); }
-.bar { max-width: 1280px; margin: 0 auto; padding: 12px 16px; display:flex; gap:12px; align-items:center; flex-wrap: wrap; }
-.bar h1 { font-size: 20px; margin: 0; flex: 1; min-width: 200px; }
-.bar small { color: var(--muted); }
-main { max-width: 1280px; margin: 0 auto; padding: 16px 16px 64px; }
+main { max-width: 1280px; margin: 0 auto; }
 h2 { font-size: 17px; margin: 0; } h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); font-weight: 600; }
 p { margin: 6px 0; } .muted { color: var(--muted); } small { color: var(--muted); }
 section.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; }
@@ -52,10 +53,13 @@ section.card { background: var(--card); border: 1px solid var(--line); border-ra
 #attention li { display:flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
 #attention li:first-child { border-top: 0; }
 .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: var(--grey); }
-.dot.problem { background: var(--red); } .dot.watch { background: var(--amber); } .dot.ok { background: var(--green); }
+.dot.problem { background: var(--red); } .dot.watch { background: var(--yellow); } .dot.ok { background: var(--green); }
 .dot.urgent { background: var(--red); box-shadow: 0 0 0 3px var(--redbg); }
 #attention li.level { display: block; padding: 12px 0 2px; border-top: 0; font-size: 13px; font-weight: 600; }
 #attention li.level small { font-weight: 400; color: var(--muted); }
+ul.plines { list-style: none; margin: 6px 0 10px; padding: 0; display: grid; gap: 6px; }
+ul.plines li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+ul.plines li b { margin-inline-end: 4px; }
 .where { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .stats { display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
 .stat { flex: 1 1 90px; background: var(--bg); border-radius: 10px; padding: 8px 10px; }
@@ -182,10 +186,6 @@ h3.part { font-size: 15px; color: var(--ink); margin: 18px 0 4px; padding-top: 1
 td button { white-space: nowrap; }
 /* A phone: the header scrolls away, and each table row is a block of its own, each value under its column's name. */
 @media (max-width: 640px) {
-  header { position: static; }
-  .bar { padding: 10px 12px; gap: 8px; }
-  .bar h1 { flex-basis: 100%; font-size: 18px; }
-  main { padding: 12px 8px 48px; }
   section.card { padding: 12px; }
   .scroll table, .scroll tbody, .scroll tr, .scroll td { display: block; }
   .scroll thead { display: none; }
@@ -201,21 +201,29 @@ td button { white-space: nowrap; }
   .pa { width: auto; }
   .pa::before { content: '↓'; }
 }
+${SHELL_CSS}
 ${START_CSS}
+${OVERVIEW_CSS}
 ${FIX_CSS}
+${ISSUE_CSS}
 ${LISTS_CSS}
 ${METERS_CSS}
+${VIDEO_CSS}
+${HOVER_CSS}
 </style>
 </head>
 <body>
-<header><div class="bar">
-  <h1>LangQuest operations</h1>
-  <nav class="views" aria-label="Views"><a href="#">What needs you</a><a href="#all">All sections</a></nav>
-  <small id="checked"></small>
+<div class="shell">
+${SHELL_HTML}
+<div class="mainw">
+<header class="top">
+  <h1 id="view-title">LangQuest operations</h1>
+  <form class="look" id="start-look" role="search"><label for="start-q" hidden>Look up</label>
+    <input id="start-q" type="search" placeholder="Look up E-7K2Q01, an install id, an email or a name" required><button type="submit">Look up</button></form>
   <span class="tools"><button id="expand-all" type="button" hidden>Expand all</button><button id="collapse-all" type="button" hidden>Collapse all</button></span>
-  <button id="refresh" type="button" hidden>Refresh</button>
+  <button id="refresh" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS.refresh}</svg>Refresh <small id="checked"></small></button>
   <button id="signout" type="button" hidden>Sign out</button>
-</div></header>
+</header>
 <main>
   <div id="out" role="status" aria-live="polite"></div>
   <form id="signin" class="signin" hidden>
@@ -232,6 +240,7 @@ ${METERS_CSS}
     <p><button class="primary" type="submit">Continue</button></p>
   </form>
   <div id="board" hidden>
+${OVERVIEW_HTML}
 ${START_HTML}
     <section class="card" id="attention">
       <div class="head"><h2>Needs attention</h2><span class="pill wait" id="attention-pill">Checking…</span></div>
@@ -241,6 +250,8 @@ ${START_HTML}
     <div class="grid" id="grid"></div>
   </div>
 </main>
+</div>
+</div>
 <div id="tip" role="tooltip" hidden></div>
 <script nonce="${nonce}">
 const CFG = ${config};
@@ -255,7 +266,7 @@ const APP_KEY = 'sb-' + new URL(CFG.supabaseUrl).hostname.split('.')[0] + '-auth
 // ---- formatting ----------------------------------------------------------------
 const num = (n) => (n === null || n === undefined || n === '') ? '–' : Number(n).toLocaleString('en');
 const pct = (x) => (x === null || x === undefined) ? '–' : (x * 100).toFixed(x < 0.01 ? 2 : 1) + '%';
-const ms = (n) => n === null || n === undefined ? '–' : n >= 60000 ? (n / 60000).toFixed(1) + ' min' : n >= 1000 ? (n / 1000).toFixed(1) + ' s' : Math.round(n) + ' ms';
+const ms = (n) => n === null || n === undefined ? '–' : n >= 60000 ? (Math.round(n / 60000) >= 60 ? longTime(n) : (n / 60000).toFixed(1) + ' min') : n >= 1000 ? (n / 1000).toFixed(1) + ' s' : Math.round(n) + ' ms';
 const bytes = (b) => { if (b === null || b === undefined) return '–'; const u = ['B','KB','MB','GB','TB']; let i = 0; let v = Number(b); while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; } return v.toFixed(v >= 10 || i === 0 ? 0 : 1) + ' ' + u[i]; };
 function ago(iso) {
   if (!iso) return 'never';
@@ -420,7 +431,7 @@ function layout() {
   $('grid').innerHTML = SECTIONS.map((s) => '<section class="card' + (s.wide ? ' wide' : '') + '" id="card-' + s.id + '"><div class="head" data-toggle="' + s.id + '"><div><h2>' +
     '<button type="button" class="toggle" id="toggle-' + s.id + '" aria-expanded="true" aria-controls="body-' + s.id + '"><span class="chev" aria-hidden="true">▾</span><span data-help-key="group:' + s.id + '">' + esc(s.title) + '</span></button>' +
     '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div>' +
-    '<div class="hist" id="hist-' + s.id + '" hidden></div><div class="body" id="body-' + s.id + '"></div></section>').join('');
+    '<div class="body" id="body-' + s.id + '"></div><div class="hist" id="hist-' + s.id + '" hidden></div></section>').join('');
   for (const s of SECTIONS) applyOpen(s.id);
   annotate($('grid'));
   $('pill-lookup').hidden = true;
@@ -470,15 +481,32 @@ function partHtml(g, id) {
   const head = g.parts.length > 1 ? '<h3 class="part"><span data-help-key="section:' + id + '">' + esc(PART_TITLE[id] || id) + '</span></h3>' : '';
   if (!s) return head + '<p class="muted">Loading…</p>';
   if (s.state === 'off') return head + '<p class="setup muted">Not connected. ' + esc(s.setup) + '</p>';
-  if (s.state === 'error') return head + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
+  // The container's answer has no part of its own (show), so its lines read with the jobs'.
+  const lines = partLines(id === 'jobs' && results.container ? (s.alerts || []).concat(results.container.alerts || []) : s.alerts);
+  if (s.state === 'error') return head + lines + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
   try {
-    if (id === 'jobs') return head + numbers(id, renderJobs(s.data, results.container));
+    if (id === 'jobs') return head + lines + numbers(id, renderJobs(s.data, results.container));
     // A picture leads its part (pageLists.ts, pageMeters.ts); its numbers and tables wait behind one tap.
     const pic = listPicture(id, s.data);
     const html = (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
     // A part that nothing draws (no picture, no line over time) keeps its table open, and so does one that holds a queue for a person.
-    return head + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + ((pic || METRIC[id]) && !QUEUE.test(html) ? numbers(id, html) : html);
-  } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
+    return head + lines + counted(s.data) + (pic ? '<div class="part-pic">' + pic + '</div>' : '') + ((pic || METRIC[id]) && !QUEUE.test(html) ? numbers(id, html) : html);
+  } catch (err) { return head + lines + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
+}
+
+/**
+ * A part's lines in words, at the part: what its section's status counts. A
+ * picture cannot mark every line (a transaction open for an hour is no bar),
+ * so the words lead, and nobody opens the numbers to learn what a status is about.
+ * Each line's Linear issue and fix stay on the Overview (pageFixes.ts).
+ */
+function partLines(alerts) {
+  if (!alerts || !alerts.length) return '';
+  const link = (a) => String(a.link || '').startsWith('https://') ? ' <a href="' + esc(a.link) + '" target="_blank" rel="noopener">Open</a>' : '';
+  return '<ul class="plines">' + alerts.map((a) => {
+    const l = a.level in LEVEL ? a.level : 'watch';
+    return '<li><span class="dot ' + l + '"></span><span><b>' + LEVEL[l].title + '</b> ' + esc(tidy(a.text)) + link(a) + '</span></li>';
+  }).join('') + '</ul>';
 }
 
 /**
@@ -612,10 +640,12 @@ const RENDER = {
     h += '<h3>Phones (latest state of each, this week)</h3><div class="stats">' + stat(num(d.reporting), 'reporting', '', LAST_WEEK) +
       stat(num(d.lostRecordings), 'lost recordings', d.lostRecordings ? 'bad' : '', latest) + stat(num(d.unsentOverDay), 'recording unsent > 1 day', d.unsentOverDay ? 'warn' : '', latest) +
       stat(num(d.downloadStuckOverDay), 'download stuck > 1 day', d.downloadStuckOverDay ? 'warn' : '', latest) + stat(num(d.lowDisk), 'under 500 MB free', d.lowDisk ? 'warn' : '', latest) + '</div>';
-    if (c.auth.length) h += '<h3>Sign-in trouble this week</h3>' + table([
-      { h: 'Step', v: (a) => esc(a.op || '?') }, { h: 'Ended', v: (a) => esc(a.outcome || '?') + (a.code ? ' <code>' + esc(a.code) + '</code>' : '') },
-      { h: 'Times', n: true, v: (a) => num(a.records) }, { h: 'Installs', n: true, v: (a) => num(a.installs) }, { h: 'Last', v: (a) => when(a.lastAt) }
-    ], c.auth);
+    // Trouble is what the server or the app failed at, and each row is a line on the Overview; the rest is no fault of either (diag.sign_in_class).
+    const signIn = [{ h: 'Step', v: (a) => esc(a.op || '?') }, { h: 'Ended', v: (a) => esc(a.outcome || '?') + (a.code ? ' <code>' + esc(a.code) + '</code>' : '') },
+      { h: 'Times', n: true, v: (a) => num(a.records) }, { h: 'Installs', n: true, v: (a) => num(a.installs) }, { h: 'Last', v: (a) => when(a.lastAt) }];
+    const noFault = c.auth.filter((a) => a.class === 'no_fault'), trouble = c.auth.filter((a) => a.class !== 'no_fault');
+    if (trouble.length) h += '<h3>Sign-in trouble this week</h3>' + table(signIn, trouble);
+    if (noFault.length) h += '<h3>Sign-in steps refused or with no connection, this week</h3>' + table(signIn, noFault);
     if (c.expected.length) h += '<h3>Failures already shown to people, this week</h3>' + table([
       { h: 'Where', v: (x) => esc(x.where || '?') + '<br><small>' + esc(x.name || '') + (x.code ? ' · ' + esc(x.code) : '') + '</small>' },
       { h: 'Times', n: true, v: (x) => num(x.count) }, { h: 'Installs', n: true, v: (x) => num(x.installs) }, { h: 'Last', v: (x) => when(x.lastAt) }
@@ -926,20 +956,36 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideTip();
 window.addEventListener('scroll', hideTip, { passive: true });
 
 ${OPS_SCRIPT}
+// ---- the Tutorial videos page's tabs, cards' buttons and rows (pageVideos.ts) ----
+${VIDEO_LOGIC}
+${VIDEO_SCRIPT}
 
 // ---- the start page, each section's numbers over a range, and the detail panel (pageStart.ts) ----
 const METRIC = ${JSON.stringify(METRICS).replace(/</g, '\\u003c')};
 const GLANCE = ${JSON.stringify(GLANCE)};
 ${START_LOGIC}
 ${START_SCRIPT}
+// ---- the menu and the top line (pageShell.ts), and the Overview (pageOverview.ts) ----
+const NAV = ${JSON.stringify(NAV)};
+const SHAPES = ${JSON.stringify(ICONS).replace(/</g, '\\u003c')};
+${SHELL_LOGIC}
+${SHELL_SCRIPT}
+${OVERVIEW_LOGIC}
+${OVERVIEW_SCRIPT}
 // ---- each line's Linear issue and fix, and the lines resolved (pageFixes.ts) ----
 const KINDS = ${JSON.stringify(KINDS).replace(/</g, '\\u003c')};
 ${FIX_LOGIC}
 ${FIX_SCRIPT}
+// ---- the cards of the User issues page and of a tutorial video's questions (pageIssues.ts) ----
+${ISSUE_LOGIC}
+${ISSUE_SCRIPT}
 ${LISTS_LOGIC}
 ${METERS_LOGIC}
 ${LISTS_SCRIPT}
 ${METERS_SCRIPT}
+// ---- what a chart says under the pointer: a line and its values (pageHover.ts) ----
+${HOVER_LOGIC}
+${HOVER_SCRIPT}
 
 let loading = false;
 async function load(fresh) {
@@ -963,11 +1009,12 @@ async function load(fresh) {
     // The start page's pictures: without them it still shows every card and line.
     api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {}),
     // The pull requests that name a line's Linear issue: without them each line still shows its issue.
-    api('/ops/api/fixes' + q).then((d) => { fixData = d; renderStart(); attention(); })
-      .catch((err) => { fixData = { state: 'error', error: err.message }; renderStart(); })
+    // The User issues page says each issue's pull request, so it is drawn again with them.
+    api('/ops/api/fixes' + q).then((d) => { fixData = d; if (results.userissues) show('userissues', results.userissues); else { renderStart(); attention(); } })
+      .catch((err) => { fixData = { state: 'error', error: err.message }; if (results.userissues) show('userissues', results.userissues); else renderStart(); })
   ];
   await Promise.all(jobs);
-  $('checked').textContent = 'Checked ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  $('checked').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   $('refresh').disabled = false;
   loading = false;
 }

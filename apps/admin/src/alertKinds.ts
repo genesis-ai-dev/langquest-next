@@ -84,7 +84,7 @@ export const KINDS = {
   'download-waiting': { part: 'clients', title: 'A download was wanted for over a day', recheck: { ...COUNTED, ...WEEK_PHONES } },
   'low-disk': { part: 'clients', title: 'Phones with little free space', recheck: { ...COUNTED, ...WEEK_PHONES }, person: true },
   'recording-fails': { part: 'clients', title: 'Recording failed to start, stop, save or compress', recheck: { ...COUNTED, ...DAY_PHONES } },
-  'sign-in-step': { part: 'clients', title: 'A sign-in step failed on many phones', recheck: { ...COUNTED, ...WEEK_PHONES } },
+  'sign-in-step': { part: 'clients', title: 'A sign-in step failed', recheck: { ...COUNTED, ...WEEK_PHONES } },
 
   // ---- Builds in the field and stuck phones (counted every 10 minutes) ----
   'update-crashes': { part: 'fleet', title: 'An update crashes often', recheck: { ...COUNTED, phones: true } },

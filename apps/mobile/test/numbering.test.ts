@@ -1,7 +1,7 @@
 import { baseWay, NUMBERING_ITEMS } from '../src/breakup/model';
 import fs from 'node:fs';
 import path from 'node:path';
-import { factsOf, QUIZ, resolveNumbering } from '../src/breakup/numberingGuide';
+import { factsOf, numberingsWait, QUIZ, resolveNumbering } from '../src/breakup/numberingGuide';
 import { bibleBrainBible, bibleBrainBibles, COMMON_BIBLES, firstBibles, KNOWN_BIBLES, withBibleBrain } from '../src/breakup/knownBiblesModel';
 
 const offered = Object.keys(NUMBERING_ITEMS);
@@ -22,6 +22,17 @@ describe('finding a Bible\'s numbering (decision 80)', () => {
     }
     expect(resolveNumbering('custom', 'eng', offered)).toEqual({ code: 'eng', note: expect.stringMatching(/mixes/) });
     expect(resolveNumbering('unknown', undefined, offered).code).toBeNull();
+  });
+
+  it('offers no way to find a numbering before the numberings are here (LAN-299)', () => {
+    // With none to match, every Bible reads as one nobody is sure of: the tap that came before the list did.
+    expect(resolveNumbering('eng', undefined, [])).toEqual({ code: null, note: expect.stringMatching(/Not sure/) });
+    expect(numberingsWait(0, false)).toBe('loading');
+    // The read ended without them (no connection, a busy server): the page says what it needs.
+    expect(numberingsWait(0, true)).toBe('connect');
+    // The last list this phone saw is enough, while the server is asked again.
+    expect(numberingsWait(offered.length, false)).toBeNull();
+    expect(numberingsWait(offered.length, true)).toBeNull();
   });
 
   it('ends every way through the quiz on an answer, within five questions', () => {

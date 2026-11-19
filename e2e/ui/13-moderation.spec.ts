@@ -313,7 +313,7 @@ test('MOD-008 Block someone, then Unblock', async ({ page }) => {
   await expectToast(page, `Unblocked ${nameOf('TRANS')}.`);
   await expect(button(page, 'Play Version 1')).toBeVisible();
   await openMore(page);
-  await expect(text(page, 'Sync')).toBeVisible();
+  await expect(text(page, 'Send diagnostics')).toBeVisible();
   expect(await screenText(page)).not.toContain('Blocked people');
   // Block again and let the toast go (about 3.5 seconds).
   await openVersion(page);

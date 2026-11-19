@@ -101,7 +101,27 @@ export interface Watch {
   grew: GrownKind[];
   /** Every Linear issue the watch filed or commented on in 180 days, with the state last read (the workflow reads them again each run). */
   issues: { issue: string; state: string | null; closed: boolean }[];
+  /**
+   * The open issues an admin left an instruction on from the ops dashboard, the oldest first, with the notes'
+   * ids (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md). Absent before
+   * migration 20261118073000_user_issue_notes.sql.
+   */
+  notes?: { issue: string; ids: string[] }[];
 }
+
+/** One issue's instructions for the run that writes its fix (`GET /api/user-issues?notes=LAN-12`). */
+export interface IssueNotes {
+  /** Not answered yet, the oldest first: an admin's words. */
+  waiting: { id: string; at: string; text: string }[];
+  /** The last answered ones, the oldest first: what was said before. */
+  before: { at: string; text: string; result: NoteResult; answer: string | null }[];
+}
+
+/** What a run did with an instruction: changed the draft fix (or wrote one), answered in words only, or neither. */
+export const NOTE_RESULTS = ['changed', 'answered', 'none'] as const;
+export type NoteResult = (typeof NOTE_RESULTS)[number];
+/** The longest answer a run sends back for an instruction. */
+export const ANSWER_MAX = 1000;
 
 /** At most this many kinds are handed to one look; the rest wait for the next run. */
 export const LOOK_MAX = 20;
@@ -121,7 +141,7 @@ const ISSUE_URL = /^https:\/\/linear\.app\/[A-Za-z0-9/_.-]{1,300}$/;
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /** No address may ride along in a note: the database keeps none (docs/diagnostics.md). */
 export const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-export const LOOKED_MAX = { looked: 200, grew: 200, states: 100 } as const;
+export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60 } as const;
 /** A Linear state's name (Backlog, In Progress, Live). */
 const STATE = /^[A-Za-z][A-Za-z0-9 ._()-]{0,59}$/;
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
@@ -133,12 +153,23 @@ export interface Looked {
     key: string; verdict: Verdict; issue: string | null; issueUrl: string | null; people: number; count: number; note: string | null;
     /** What a person sees go wrong (filed or fixed), for the ops dashboard. */
     title: string | null;
+    /**
+     * The issue in three lines for its card on the ops dashboard (decisions.md 202, amended 2026-11-18): what the
+     * person was doing and where, what goes wrong, and what would fix it or what a person must decide. Claude's
+     * words, never what someone wrote. A look that sends none keeps the lines the kind has.
+     */
+    context: string | null; problem: string | null; solution: string | null;
     /** `fixed` only: the pull request on main that fixed it (when known), and when it merged or its issue closed. */
     fixedBy: number | null; fixedAt: string | null;
   }[];
   grew: { key: string; people: number; count: number }[];
   /** Issues whose state in Linear changed since the watch last read it: closed (with the pull request that fixed it, when named) or open again. */
   states: { issue: string; state: string; closed: boolean; closedAt: string | null; fixedBy: number | null; fixedAt: string | null; title: string | null }[];
+  /**
+   * An admin's instructions this run has: `taken` when the run starts on one, then what it did (`result`),
+   * Claude's answer (never an address) and the draft fix's pull request.
+   */
+  notes: ({ id: string; taken: true } | { id: string; taken: false; result: NoteResult; answer: string | null; pr: number | null })[];
 }
 
 export class LookedError extends Error {
@@ -181,14 +212,19 @@ export interface Phone {
 export const FEEDBACK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const INSTALL_ID = /^[A-Za-z0-9_.-]{1,64}$/;
 
-export type EvidenceAsk = { media: string } | { phone: string; at: string | null };
+export type EvidenceAsk = { media: string } | { phone: string; at: string | null } | { notes: string };
 
 /** What a GET asks for besides what is new: null for the watch itself, or a LookedError for what is wrong. */
 export function evidenceAsked(params: URLSearchParams): EvidenceAsk | null {
   const media = params.get('media');
   const phone = params.get('phone');
-  if (media === null && phone === null) return null;
-  if (media !== null && phone !== null) throw new LookedError('media or phone, not both');
+  const notes = params.get('notes');
+  if (media === null && phone === null && notes === null) return null;
+  if ([media, phone, notes].filter((v) => v !== null).length > 1) throw new LookedError('media, phone or notes: one of them');
+  if (notes !== null) {
+    if (!ISSUE.test(notes)) throw new LookedError('notes: a Linear issue (LAN-12)');
+    return { notes };
+  }
   if (media !== null) {
     if (!FEEDBACK_ID.test(media)) throw new LookedError('media: the id of a problem sent from help mode');
     return { media };
@@ -244,6 +280,17 @@ function titleOf(o: Obj, where: string): string | null {
   return v;
 }
 
+/** The longest line of an issue's card. */
+export const LINE_MAX = 300;
+
+/** One of an issue's three lines for its card: at most LINE_MAX characters and never an address. */
+function lineOf(o: Obj, field: 'context' | 'problem' | 'solution', where: string): string | null {
+  const v = o[field];
+  if (absent(v) || v === '') return null;
+  if (typeof v !== 'string' || v.length > LINE_MAX || EMAIL.test(v)) throw new LookedError(`${where}.${field}: at most ${LINE_MAX} characters, no address`);
+  return v;
+}
+
 /** What the workflow sent, checked; a LookedError says the first thing wrong. */
 export function parseLooked(input: unknown): Looked {
   if (!isObj(input)) throw new LookedError('not an object');
@@ -276,7 +323,7 @@ export function parseLooked(input: unknown): Looked {
     }
     return {
       key: k, verdict: verdict as Verdict, issue: issue as string | null, issueUrl: issueUrl as string | null, people: count(l, 'people', where), count: count(l, 'count', where),
-      note: note as string | null, title, fixedBy, fixedAt
+      note: note as string | null, title, context: lineOf(l, 'context', where), problem: lineOf(l, 'problem', where), solution: lineOf(l, 'solution', where), fixedBy, fixedAt
     };
   });
   const grew = list(input, 'grew', LOOKED_MAX.grew).map((g, n) => {
@@ -301,5 +348,19 @@ export function parseLooked(input: unknown): Looked {
     if (!closed && (closedAt !== null || fixedBy !== null || fixedAt !== null)) throw new LookedError(`${where}: an open issue has no closedAt or fix`);
     return { issue, state, closed, closedAt, fixedBy, fixedAt, title: titleOf(s, where) };
   });
-  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states };
+  const noted = new Set<string>();
+  const notes = list(input, 'notes', LOOKED_MAX.notes).map((x, n): Looked['notes'][number] => {
+    const where = `notes[${n}]`;
+    if (!isObj(x)) throw new LookedError(`${where}: an object`);
+    const id = x['id'];
+    if (typeof id !== 'string' || !FEEDBACK_ID.test(id) || noted.has(id)) throw new LookedError(`${where}.id: an instruction's id, once`);
+    noted.add(id);
+    if (x['taken'] === true) return { id, taken: true };
+    const result = x['result'];
+    if (typeof result !== 'string' || !(NOTE_RESULTS as readonly string[]).includes(result)) throw new LookedError(`${where}.result: one of ${NOTE_RESULTS.join(', ')}, or taken: true`);
+    const answer = absent(x['answer']) || x['answer'] === '' ? null : x['answer'];
+    if (answer !== null && (typeof answer !== 'string' || answer.length > ANSWER_MAX || EMAIL.test(answer))) throw new LookedError(`${where}.answer: at most ${ANSWER_MAX} characters, no address`);
+    return { id, taken: false, result: result as NoteResult, answer: answer as string | null, pr: pr(x, 'pr', where) };
+  });
+  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes };
 }

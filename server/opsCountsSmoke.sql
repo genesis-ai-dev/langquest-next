@@ -137,6 +137,10 @@ from (values
   ('oc-5', 'oc-b', 'oc-profile-2', null, null, 'error', interval '3 days', null, '{}', '{"name":"OcError","where":"record","fatal":"no","errorId":"E-OC0002"}'),
   ('oc-6', 'oc-b', 'oc-profile-2', null, null, 'error', interval '10 days', 'fedcba9876543210', '{}', '{"name":"OcOld","where":"record","fatal":"yes"}'),
   ('oc-7', 'oc-a', 'oc-profile-1', null, null, 'auth', interval '4 hours', 'oc0c0c0c12345678', '{}', '{"op":"renew","outcome":"failed","code":"E_NET"}'),
+  -- Sign-in records by class (migration *_sign_in_trouble.sql): oc-7 is trouble, these are no fault, no fault and as designed.
+  ('oc-7b', 'oc-a', 'oc-profile-1', null, null, 'auth', interval '4 hours', 'oc0c0c0c12345678', '{}', '{"op":"sign_in","outcome":"refused","code":"oc_wrong_password"}'),
+  ('oc-7c', 'oc-b', 'oc-profile-2', null, null, 'auth', interval '2 days', null, '{}', '{"op":"renew","outcome":"offline","code":"oc_offline"}'),
+  ('oc-7d', 'oc-b', 'oc-profile-2', null, null, 'auth', interval '2 days', null, '{}', '{"op":"route","outcome":"no_org","code":"oc_no_org"}'),
   ('oc-8', 'oc-a', 'oc-profile-1', null, null, 'expected', interval '5 hours', 'oc0c0c0c12345678', '{"count":3}', '{"where":"home","name":"Offline"}'),
   ('oc-9', 'oc-a', 'oc-profile-1', null, null, 'transfer', interval '6 hours', 'oc0c0c0c12345678', '{"count":5,"failHttp5xx":1}', '{"dir":"down"}'),
   ('oc-10', 'oc-a', 'oc-profile-1', null, null, 'audio', interval '7 hours', 'oc0c0c0c12345678', '{"takes":2}', '{}'),
@@ -144,7 +148,7 @@ from (values
   ('oc-12', 'oc-a', 'oc-profile-1', null, null, 'device', interval '8 hours', 'oc0c0c0c12345678', '{"freeDiskMb":300,"oldestUnsentMin":2000}', '{}'),
   ('oc-13', 'oc-b', 'oc-profile-2', null, null, 'device', interval '2 days', null, '{"freeDiskMb":8000,"lostFiles":1}', '{}'),
   ('oc-14', 'oc-d', 'oc-profile-3', null, null, 'device', interval '9 days', 'oc0c0c0c12345678', '{"lostRecordings":2}', '{}'),
-  ('oc-15', 'oc-a', 'oc-profile-1', null, null, 'open', interval '9 hours', 'oc0c0c0c12345678', '{"ms":800}', '{}'),
+  ('oc-15', 'oc-a', 'oc-profile-1', 'oc-org', 'oc-lang', 'open', interval '9 hours', 'oc0c0c0c12345678', '{"ms":800}', '{"cold":"yes"}'),
   ('oc-16', 'oc-a', 'oc-profile-1', null, null, 'fill', interval '10 hours', 'oc0c0c0c12345678', '{"msToMap":4000}', '{"event":"start"}'),
   ('oc-17', 'oc-b', 'oc-profile-2', null, null, 'fill', interval '11 days', null, '{}', '{"event":"fallback","reason":"timeout"}'),
   ('oc-18', 'oc-b', 'oc-profile-2', 'oc-org', 'oc-lang', 'snapshot', interval '12 hours', null, '{}', '{"outcome":"none"}'),
@@ -166,9 +170,23 @@ begin
   if (r->>'updates')::int <> 0 or (r->>'devices')::int <> 0 then raise exception 'a second add changed rows: %', r; end if;
   old_c := pg_temp.old_clients(); new_c := diag.ops_clients();
   old_f := pg_temp.old_fleet(); new_f := diag.ops_fleet();
+  -- The old read had no wait: what the new one says of it (slow, waited, waitMaxMs) has its own test below.
+  new_f := jsonb_set(new_f, '{toMap}', (select coalesce(jsonb_agg(x.v - 'slow' - 'waited' - 'waitMaxMs' order by x.i), '[]'::jsonb)
+    from jsonb_array_elements(new_f->'toMap') with ordinality x(v, i)));
+  -- The old read called every sign-in record that did not end ok trouble: the classes have their own test below.
   for k in select jsonb_object_keys(old_c || new_c) loop
-    if old_c->k is distinct from new_c->k then raise exception 'clients %: % against %', k, old_c->k, new_c->k; end if;
+    if k <> 'auth' and old_c->k is distinct from new_c->k then raise exception 'clients %: % against %', k, old_c->k, new_c->k; end if;
   end loop;
+  -- A sign-in record has a class (migration *_sign_in_trouble.sql): a renewal given up is trouble, a wrong
+  -- password and a step with no connection are no fault, and a new person with no organization is in neither.
+  -- Trouble leads, since each kind of it is a line on the Overview.
+  if (select jsonb_object_agg(a->>'code', a->>'class') from jsonb_array_elements(new_c->'auth') a where a->>'code' in ('E_NET', 'oc_wrong_password', 'oc_offline', 'oc_no_org'))
+       is distinct from '{"E_NET": "trouble", "oc_wrong_password": "no_fault", "oc_offline": "no_fault"}'::jsonb
+     or exists (select 1 from jsonb_array_elements(new_c->'auth') a where a->>'class' not in ('trouble', 'no_fault') or a->>'class' is null)
+     or exists (select 1 from jsonb_array_elements(new_c->'auth') with ordinality a(v, i), jsonb_array_elements(new_c->'auth') with ordinality b(v, i)
+                where a.i < b.i and a.v->>'class' = 'no_fault' and b.v->>'class' = 'trouble') then
+    raise exception 'sign-in records are in the wrong class: %', new_c->'auth';
+  end if;
   for k in select jsonb_object_keys(old_f || new_f) loop
     if old_f->k is distinct from new_f->k then raise exception 'fleet %: % against %', k, old_f->k, new_f->k; end if;
   end loop;
@@ -177,6 +195,42 @@ begin
     raise exception 'update oc0c0c0c is not 2 installs and 1 crash: %', diag.ops_fleet()->'updates';
   end if;
 end $$;
+
+-- An open is a language's first download only when the phone had no rows of that language
+-- (migration *_first_download_wait.sql): not an open of rows it has, of the organization's
+-- stream or of a person's, and not one that does not say. Each of these took 18 minutes.
+insert into diag.records (id, install_id, delivered_by, org_id, stream_id, kind, at, received_at, n, t)
+select x.id, 'oc-a', 'oc-profile-1', x.org, x.stream, 'open', now() - interval '9 hours', now() - interval '9 hours', '{"ms":1080000}', x.t::jsonb
+from (values
+  ('oc-open-warm', 'oc-org', 'oc-lang', '{"cold":"no"}'),
+  ('oc-open-org', 'oc-org', '_org', '{"cold":"yes"}'),
+  ('oc-open-person', '_person', 'oc-profile-1', '{"cold":"yes"}'),
+  ('oc-open-untold', null, null, '{}')
+) x(id, org, stream, t);
+-- A first download that waited 21 minutes with no connection and then took 0.2 seconds (the
+-- phone of 18 November 2026): its sync record holds the wait, and its time is the rest. The
+-- same phone's spell on another language, and one an hour before, are not this open's wait.
+insert into diag.records (id, install_id, delivered_by, org_id, stream_id, kind, at, received_at, n, t)
+select x.id, 'oc-a', 'oc-profile-1', 'oc-org', x.stream, x.kind, now() - interval '9 hours' - x.ago, now() - interval '9 hours', x.n::jsonb, x.t::jsonb
+from (values
+  ('oc-open-waited', 'oc-lang-2', 'open', interval '0', '{"ms":1281294}', '{"cold":"yes"}'),
+  ('oc-open-sync', 'oc-lang-2', 'sync', interval '1 second', '{"ms":200,"offlineMs":1281078}', '{"outcome":"ok"}'),
+  ('oc-open-sync-other', 'oc-lang-3', 'sync', interval '1 second', '{"ms":200,"offlineMs":900000}', '{"outcome":"ok"}'),
+  ('oc-open-sync-before', 'oc-lang-2', 'sync', interval '1 hour', '{"ms":200,"offlineMs":900000}', '{"outcome":"ok"}')
+) x(id, stream, kind, ago, n, t);
+do $$
+declare v jsonb;
+begin
+  select jsonb_agg(x) into v from jsonb_array_elements(diag.ops_fleet()->'toMap') x where x->>'kind' = 'open';
+  if jsonb_array_length(v) <> 1 or (v->0->>'count')::int <> 2 or (v->0->>'p95Ms')::numeric <> 771 or (v->0->>'slow')::int <> 0
+     or (v->0->>'waited')::int <> 1 or (v->0->>'waitMaxMs')::numeric <> 1281078 then
+    raise exception 'toMap counts an open that is not a first download, or a wait as download time: %', v;
+  end if;
+  if diag.open_wait_ms('oc-a', 'oc-org', 'oc-lang-2', now() - interval '9 hours', 1000) <> 1000 then
+    raise exception 'a wait is longer than its open';
+  end if;
+end $$;
+delete from diag.records where id like 'oc-open-%';
 
 -- The stuck phones are the last device record of the week of each (only
 -- this fixture's, so a big local seed does not fill the 25).

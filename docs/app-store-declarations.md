@@ -36,9 +36,26 @@ No background modes: the radios run only while Share nearby is open.
 | --- | --- | --- |
 | Hotspot Configuration (`com.apple.developer.networking.HotspotConfiguration`) | phase 5 | An iPhone joins an Android teammate's Wi-Fi network by name and passphrase, with a system prompt each time. |
 
-The App ID must have the capability on. EAS turns it on when it builds with
-the entitlement in `app.json`; a person checks it in the Apple Developer
-account after the first such build.
+The App ID must have the capability on, and the App Store provisioning
+profile EAS keeps must include it, before a build with the entitlement runs.
+Store builds come only from the EAS workflow on main (decisions.md 156),
+which signs with the profile EAS already holds and has no Apple sign-in, so
+it cannot turn a capability on or make a new profile. The first build after
+phase 5 merged failed this way (2026-11-17: the profile "doesn't include the
+Hotspot capability"). So a person, signed in to the Apple developer team,
+does it once for every new capability, before the change that adds it
+merges:
+
+1. Apple Developer > Certificates, Identifiers & Profiles > Identifiers >
+   `com.frontierrnd.langquestnext`: tick the capability (here **Hotspot**)
+   and Save. Apple marks the existing profiles invalid.
+2. In `apps/mobile`, `npx eas credentials -p ios`, profile `production`,
+   then Build Credentials > All: set up all the required credentials, and
+   sign in to Apple when asked. EAS makes a new App Store profile. If it
+   says the profile is valid, delete the provisioning profile from the same
+   menu and run All again.
+3. Run the failed `build_ios` job again from the workflow run on expo.dev,
+   or let the next merge into main build it.
 
 ## App Privacy
 

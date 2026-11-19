@@ -3,7 +3,8 @@
 // video's title (or, filmed wide, in a browser window under the title), the
 // voice's lines where they were said, the speaker's recordings where they were
 // spoken and what the app played aloud, both quieter under the voice, evened
-// to -16 LUFS. The camera moves in on the part each step lit (camera.ts), so
+// to -16 LUFS, and under all of it, in a general, introductory video alone,
+// the tune (tune.ts). The camera moves in on the part each step lit (camera.ts), so
 // the app's words are big enough to read. Never a tall page: YouTube makes a
 // tall video under three minutes a Short, whose links cannot be clicked and
 // which the channel lists apart from its videos (decisions.md 191).
@@ -17,6 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { cameraPath, titleShows, viewExpression, type Focus } from './camera';
+import { TUNE, tuneChain } from './tune';
 
 type Film = {
   title: string;
@@ -28,6 +30,8 @@ type Film = {
   said: { t: number; file: string; seconds: number }[];
   spoken?: { t: number; file: string }[];
   heard?: { t: number; file: string; from: number; to: number }[];
+  /** A general, introductory video: the tune plays quietly under its voice (tune.ts). */
+  tune?: boolean;
 };
 
 const [folder, out] = process.argv.slice(2);
@@ -206,9 +210,15 @@ const titled = title && moves.length
   : '';
 const video = `${titled}[0:v]fps=30,scale=${K * SW}:${K * SH}:flags=lanczos,format=yuva420p[s];[s][2:v]alphamerge[sm];` +
   `[${titled ? 'page' : '1:v'}][sm]overlay=${K * SX}:${K * SY}:shortest=1:format=yuv420${camera},format=yuv420p[v]`;
-const audio = `${chains.join(';')};${mix.join('')}amix=inputs=${mix.length}:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,apad,` +
-  `atrim=0:${end.toFixed(2)},afade=t=out:st=${(end - 1.2).toFixed(2)}:d=1.2[a]`;
+// The tune goes in after the voice is evened, so it is as quiet under every video's voice, and is not itself
+// made louder where nobody speaks. It is played round again if the film outlasts it.
+if (film.tune) inputs.push('-stream_loop', '-1', '-i', TUNE.file);
+const voice = `${chains.join(';')};${mix.join('')}amix=inputs=${mix.length}:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,apad,atrim=0:${end.toFixed(2)}`;
+const audio = (film.tune ? `${voice}[said];${tuneChain(n++, end, 'tune')};[said][tune]amix=inputs=2:duration=first:normalize=0,` : `${voice},`) +
+  `afade=t=out:st=${(end - 1.2).toFixed(2)}:d=1.2[a]`;
 execFileSync('ffmpeg', ['-y', '-v', 'error', ...inputs, '-filter_complex', `${video};${audio}`, '-map', '[v]', '-map', '[a]',
   '-t', end.toFixed(2), '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-r', '30', '-c:a', 'aac', '-b:a', '160k', '-ac', '2',
+  // The tune's credit goes with the file, for a video downloaded from LangQuest and not seen with its description.
+  ...(film.tune ? ['-metadata', `comment=${TUNE.credit}`] : []),
   '-movflags', '+faststart', out], { stdio: 'inherit' });
 console.log(`${out} ${end.toFixed(1)} s`);

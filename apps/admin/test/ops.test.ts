@@ -38,6 +38,21 @@ describe('builds and stuck phones', () => {
     expect(fleetAlerts(fleet({ updates: [{ update: 'abc', runtime: 'abc', channel: 'web', installs: 100, crashed: 50, firstSeen: hoursAgo(1), lastSeen: hoursAgo(1) }] }))).toEqual([]);
   });
 
+  it('says a language\'s first download was slow from its download time, with counts, never from the wait for a connection', () => {
+    // 18 November 2026: one phone opened a language with no connection for 21 minutes; the download took 0.2 s.
+    const waited = fleet({ toMap: [{ day: '2026-11-18', kind: 'open', count: 6, p50Ms: 900, p95Ms: 5200, slow: 0, waited: 1, waitMaxMs: 1_281_078 }] });
+    expect(fleetAlerts(waited)).toEqual([]);
+    const slow = fleet({ toMap: [
+      { day: '2026-11-17', kind: 'open', count: 9, p50Ms: 900, p95Ms: 1_200_000, slow: 3, waited: 0, waitMaxMs: null },
+      { day: '2026-11-18', kind: 'fill', count: 2, p50Ms: 4000, p95Ms: 4000, slow: 0, waited: null, waitMaxMs: null },
+      { day: '2026-11-18', kind: 'open', count: 8, p50Ms: 900, p95Ms: 1_080_000, slow: 2, waited: 1, waitMaxMs: 60_000 }
+    ] });
+    expect(fleetAlerts(slow)).toEqual([{ level: 'watch', key: 'first-download-slow', text: '2 of 8 first downloads of a language took over 15 minutes on 2026-11-18, without the time a phone waited with no connection.' }]);
+    // Under 5 first downloads a day says too little, and a database before the migration still gives a count.
+    expect(fleetAlerts(fleet({ toMap: [{ day: '2026-11-18', kind: 'open', count: 4, p50Ms: 900, p95Ms: 1_080_000, slow: 1 }] }))).toEqual([]);
+    expect(fleetAlerts(fleet({ toMap: [{ day: '2026-11-18', kind: 'open', count: 5, p50Ms: 900, p95Ms: 1_080_000 }] }))[0]!.text).toContain('1 of 5 first downloads');
+  });
+
   it('names installs on an older reducer and lost recordings', () => {
     const alerts = fleetAlerts(fleet({
       versions: [{ reducer: '18', protocol: '1', installs: 4 }, { reducer: '19', protocol: '1', installs: 40 }],
@@ -502,5 +517,14 @@ describe('the watch for user issues (decisions.md 202)', () => {
   it('reads diag.ops_user_issues into its section, with the pull request that fixed each', async () => {
     const s = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })]]));
     expect(s.userissues).toMatchObject({ state: 'ok', data: { closed: 1, issues: [{ issue: 'LAN-220', fixedBy: 312, state: 'Live' }] } });
+  });
+
+  it('adds each issue\'s instructions from an admin, and shows the issues without them before their migration', async () => {
+    const notes = { 'LAN-220': [{ at: hoursAgo(2), text: 'Wait for the passage first.', state: 'answered', answeredAt: hoursAgo(1), result: 'changed', answer: 'I moved the wait.', pr: 512, runUrl: null }] };
+    const s = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })], ['ops_user_issue_notes', notes]]));
+    expect(s.userissues).toMatchObject({ state: 'ok', data: { closed: 1, notes } });
+    const before = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })]]));
+    expect(before.userissues.state).toBe('ok');
+    expect((before.userissues.data as { notes?: unknown }).notes).toBeUndefined();
   });
 });

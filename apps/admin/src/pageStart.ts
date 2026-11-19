@@ -1,12 +1,13 @@
 /**
- * The ops dashboard's start page, "What needs you first" (decisions.md 254,
- * docs/ops-dashboard-plan.md 5.0), each section's own page with its numbers
- * over a range of days, and the detail panel a tapped bar opens. Plain
+ * What the ops dashboard's first page decides (decisions.md 254,
+ * docs/ops-dashboard-plan.md 5.0; pageOverview.ts draws it), each section's
+ * own page with its numbers over a range of days, and the detail panel a
+ * tapped bar opens. Plain
  * JavaScript run inside page.ts's script, after its helpers (esc, num, ms,
  * bytes, ago, api, short, results, SECTIONS, PART_TITLE, LEVEL, LEVELS,
  * setOpen, annotate), like pageOps.ts. Everything shown is escaped.
  *
- * Three views, by the address's hash: '' the start page, '#g/<section>' one
+ * Three views, by the address's hash: '' the Overview, '#g/<section>' one
  * section with its pictures and every table it had, '#all' every section on
  * one page as before. Nothing the page showed before goes away: a section's
  * own page and All hold every table.
@@ -14,41 +15,8 @@
 
 /** The start page's and the panel's look, inside page.ts's style element. */
 export const START_CSS = String.raw`
-.views { display: flex; gap: 4px; }
-.views a { min-height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--ink); text-decoration: none; font-weight: 600; }
-.views a[aria-current="page"] { background: var(--card); border: 1px solid var(--line); }
-#start .hero { display: flex; gap: 16px; align-items: center; margin: 4px 0 12px; }
-#start .hero b { font-size: 56px; line-height: 1; color: var(--primary); min-width: 40px; }
-#start .hero b.none { color: var(--green); }
-#start .hero h2 { font-size: 24px; }
 form.look { display: flex; gap: 8px; margin: 0 0 16px; }
 form.look input { flex: 1; }
-.cols { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.colh { display: flex; gap: 8px; align-items: center; margin: 0 0 8px; font-size: 13px; color: var(--muted); }
-.who { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink); background: var(--card); }
-.nc { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
-.nc.urgent { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); } .nc.problem { border-color: var(--red); }
-.nc h4 { margin: 6px 0 4px; font-size: 16px; }
-.nc ul.also { margin: 4px 0; padding-inline-start: 18px; font-size: 13px; } .nc ul.also li { margin: 2px 0; }
-.nc p { margin: 4px 0; } .nc .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-.nc .acts a { display: inline-flex; align-items: center; text-decoration: none; }
-a.button.primary { min-height: 40px; background: var(--primary); border-color: var(--primary); color: #fff; }
-.badge { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.badge.urgent, .badge.problem { color: var(--red); background: var(--redbg); } .badge.watch { color: var(--amber); background: var(--amberbg); }
-.pic { background: var(--bg); border-radius: 10px; padding: 8px; align-self: start; }
-.pic small { display: block; font-size: 11px; margin-top: 4px; }
-.side .item { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
-.side .item b { display: block; font-size: 14px; } .side .item a { color: var(--primary); }
-.side a.item { display: block; color: var(--ink); text-decoration: none; min-height: 48px; }
-.side a.item b { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } .side a.item:hover b, .side a.item:focus-visible b { color: var(--primary); }
-.side a.item .badge { margin-bottom: 4px; }
-.side .none { margin: 0 0 12px; }
-.okh { display: flex; gap: 8px; align-items: center; font-size: 15px; color: var(--ink); margin: 20px 0 8px; }
-.oklist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 0 24px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px 16px; }
-.okline { display: grid; grid-template-columns: 14px minmax(0, 1fr) 124px 12px; gap: 12px; align-items: center; min-height: 56px; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
-.okline .dot { margin-top: 0; } .okline b { display: block; font-size: 14px; } .okline small { display: block; }
-.okline::after { content: '›'; color: var(--muted); font-size: 20px; }
-.okline:hover b, .okline:focus-visible b { color: var(--primary); }
 svg.mini { display: block; width: 100%; height: auto; overflow: visible; }
 svg.mini .b { fill: var(--primary); } svg.mini .b.z { fill: var(--line); } svg.mini .b.n { fill: none; }
 svg.mini .ln { fill: none; stroke: var(--primary); stroke-width: 2; } svg.mini .ar { fill: var(--primary); opacity: .12; }
@@ -60,7 +28,7 @@ svg.mini .base { stroke: var(--line); stroke-width: 1; }
 .charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; margin: 8px 0 12px; align-items: start; }
 .chart { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-width: 0; }
 .chart .ct { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
-.chart .ct span { font-size: 13px; font-weight: 600; } .chart .ct b { font-size: 16px; white-space: nowrap; }
+.chart .ct span { font-size: 13px; font-weight: 600; } .chart .ct b { font-size: 16px; white-space: nowrap; } .chart .ct b small { font-size: 12px; font-weight: 400; color: var(--muted); }
 .chart svg { display: block; width: 100%; height: auto; margin: 6px 0 2px; cursor: pointer; touch-action: manipulation; }
 .chart svg:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
 .chart svg .b { fill: var(--primary); } .chart svg .b.z { fill: var(--line); }
@@ -92,37 +60,16 @@ svg.sq .mk { fill: none; stroke: var(--card); stroke-width: 1.6; stroke-linecap:
 #detail table { margin: 6px 0; } #detail td code { font-size: 11px; word-break: break-all; } #detail .when { white-space: nowrap; }
 #detail details summary { cursor: pointer; color: var(--primary); }
 @media (max-width: 640px) {
-  .cols { grid-template-columns: minmax(0, 1fr); }
-  .nc { grid-template-columns: minmax(0, 1fr); }
-  .okline { grid-template-columns: 14px minmax(0, 1fr) 84px 12px; }
   .sqrow { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  #start .hero b { font-size: 44px; }
   #detail { inset: auto 0 0 0; width: 100%; max-height: 82vh; border-inline-start: 0; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,.2); }
-  .views a { padding: 0 8px; }
   #detail .keyed table { display: table; } #detail .keyed thead { display: table-header-group; } #detail .keyed tbody { display: table-row-group; }
   #detail .keyed tr { display: table-row; padding: 0; } #detail .keyed td, #detail .keyed td.n { display: table-cell; padding: 6px 8px; border-bottom: 1px solid var(--line); }
   #detail .keyed td.n { text-align: end; } #detail .keyed td::before { content: none; }
 }
 `;
 
-/** The start page's markup and the detail panel, inside page.ts's #board. */
+/** The detail panel, inside page.ts's #board. */
 export const START_HTML = String.raw`
-    <section id="start" hidden aria-labelledby="hero-title">
-      <div class="hero"><b id="hero-n" aria-hidden="true">…</b><div><h2 id="hero-title">Checking…</h2><p class="muted" id="hero-line"></p></div></div>
-      <form class="look" id="start-look" role="search"><label for="start-q" hidden>Look up</label>
-        <input id="start-q" type="search" placeholder="Look up E-7K2Q01, an install id, an email or a name" required><button type="submit">Look up</button></form>
-      <div class="cols">
-        <div><h3 class="colh"><span class="who">You</span>Needs you</h3><div id="start-you"></div></div>
-        <div class="side">
-          <h3 class="colh"><span class="who">Claude</span>Works on it</h3><div id="start-claude"></div>
-          <h3 class="colh"><span class="who">Apple or Google</span>Waits on a store</h3><div id="start-store"></div>
-          <h3 class="colh">Watch, no action now</h3><div id="start-watch"></div>
-        </div>
-      </div>
-      <details class="resolved" id="start-resolved" hidden></details>
-      <h3 class="okh"><span class="dot ok"></span>OK</h3>
-      <div class="oklist" id="start-ok"></div>
-    </section>
     <aside id="detail" hidden role="dialog" aria-labelledby="detail-title"></aside>`;
 
 /**
@@ -215,6 +162,42 @@ function runSquares(hst, sq) {
   return rows;
 }
 
+/**
+ * The series one chart draws, from all of its number's series: the total and
+ * its keys. A number counted only by key has no total (a first download's
+ * time is counted for open and for fill, and the two never add up): its
+ * chart then leads with its largest key, so the number still has a chart.
+ */
+function chartSeries(all, wanted) {
+  const total = all.find((s) => s.key === '') || null;
+  const size = (s) => (s.values || []).reduce((a, v) => a + (Number(v) || 0), 0);
+  const lead = total || all.filter((s) => s.key !== '').sort((a, b) => size(b) - size(a))[0] || null;
+  const shown = all.find((s) => s.key === (wanted || '')) || lead;
+  // A key that counted nothing over the range has no button (ten buttons that say 0 hide the two that say something); the one shown keeps its own.
+  const keys = all.filter((s) => s.key !== '' && (s === shown || (s.values || []).some((v) => Number(v) > 0)));
+  return { total, keys, shown };
+}
+
+/**
+ * What a chart's large number is of, said after it: a count's is the total of
+ * the range ('in 14 days'); a level's is its newest bucket's ('today'), which
+ * rangeTotal takes. at is the bucket that value is from and n how many buckets
+ * there are: a level whose newest bucket has no value yet says nothing here,
+ * and the page names the bucket it is from.
+ */
+function totalOf(agg, range, step, at, n) {
+  if (agg !== 'max') return { '24h': 'in 24 h', '14d': 'in 14 days', '90d': 'in 90 days', '1y': 'in 1 year', all: 'in all time' }[range] || '';
+  return at === n - 1 ? { hour: 'this hour', day: 'today', week: 'this week', month: 'this month' }[step] || '' : '';
+}
+
+/** A time of an hour or more in its two largest units ('16 h', '1 h 5 min', '3 days 4 h'): 960.0 min says little. */
+function longTime(t) {
+  const min = Math.round(t / 60000);
+  if (min < 48 * 60) return Math.floor(min / 60) + ' h' + (min % 60 ? ' ' + (min % 60) + ' min' : '');
+  const h = Math.round(t / 3600000);
+  return Math.floor(h / 24) + ' days' + (h % 24 ? ' ' + (h % 24) + ' h' : '');
+}
+
 /** A bucket's end: the next bucket's start, or one step after the last. */
 function bucketEnd(buckets, i, step) {
   if (i + 1 < buckets.length) return buckets[i + 1];
@@ -250,9 +233,7 @@ function route() {
   $('attention').hidden = v.name !== 'all';
   $('grid').hidden = v.name === 'start';
   $('expand-all').hidden = v.name !== 'all'; $('collapse-all').hidden = v.name !== 'all';
-  for (const a of document.querySelectorAll('.views a')) a.toggleAttribute('aria-current', false);
-  const here = document.querySelector('.views a[href="' + (v.name === 'all' ? '#all' : '#') + '"]');
-  if (here && v.name !== 'group') here.setAttribute('aria-current', 'page');
+  drawNav();
   for (const s of SECTIONS) {
     const card = $('card-' + s.id);
     if (!card) continue;
@@ -272,19 +253,20 @@ window.addEventListener('hashchange', route);
 const titleOf = (id) => (SECTIONS.find((s) => s.id === id) || {}).title || id;
 const safeLink = (l) => String(l || '').startsWith('https://') ? l : '';
 
-/** A small picture of a section's number over the last 14 days: bars for a count, a line for a level. */
-function miniSvg(values, agg, w, h) {
+/** A small picture of a section's number over the last 14 days: bars for a count, a line for a level. say has each day and the number's name and format, for the pointer (pageHover.ts). */
+function miniSvg(values, agg, w, h, say) {
   const v = (values || []).map((x) => x === null || x === undefined ? null : Number(x));
   const max = Math.max(0, ...v.filter((x) => x !== null));
   if (!v.length) return '';
   const n = v.length, bw = w / n;
+  const hv = say ? hvAttr(0, bw, say.heads, [['', say.name, v.map(say.fmt)]], 0, h) : '';
   if (agg === 'max') {
     const pts = v.map((x, i) => x === null ? null : [(i + 0.5) * bw, h - 2 - (max ? (x / max) * (h - 6) : 0)]).filter(Boolean);
     if (!pts.length) return '';
     const line = pts.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-    return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"><polygon class="ar" points="' + pts[0][0].toFixed(1) + ',' + h + ' ' + line + ' ' + pts[pts.length - 1][0].toFixed(1) + ',' + h + '"/><polyline class="ln" points="' + line + '"/></svg>';
+    return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"' + hv + '><polygon class="ar" points="' + pts[0][0].toFixed(1) + ',' + h + ' ' + line + ' ' + pts[pts.length - 1][0].toFixed(1) + ',' + h + '"/><polyline class="ln" points="' + line + '"/></svg>';
   }
-  return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"><line class="base" x1="0" x2="' + w + '" y1="' + (h - 0.5) + '" y2="' + (h - 0.5) + '"/>' +
+  return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"' + hv + '><line class="base" x1="0" x2="' + w + '" y1="' + (h - 0.5) + '" y2="' + (h - 0.5) + '"/>' +
     v.map((x, i) => {
       const bh = x === null ? 0 : max ? Math.max(2, (x / max) * (h - 2)) : 2;
       return '<rect class="b' + (x === null ? ' n' : x === 0 ? ' z' : '') + '" x="' + (i * bw + 1).toFixed(1) + '" y="' + (h - bh).toFixed(1) + '" width="' + Math.max(1, bw - 2).toFixed(1) + '" height="' + bh.toFixed(1) + '"/>';
@@ -301,115 +283,10 @@ function glanceOf(groupId) {
   const total = rangeTotal(s.agg, s.values);
   const fmt = (x) => x === null ? '–' : m.unit === 'bytes' ? bytes(x) : m.unit === 'ms' ? ms(x) : num(x);
   const said = s.agg === 'max' ? m.label + ': ' + fmt(total) + ' today' : m.label + ': ' + fmt(total) + ' in 14 days';
-  return { s, said };
+  return { s, said, say: { heads: (glanceData.buckets || []).map((b) => bucketLabel(b, 'day') + ' UTC'), name: m.label, fmt } };
 }
 
 const whereOf = (c) => titleOf(c.group) + (c.part && PART_TITLE[c.part] && c.part !== c.group ? ' · ' + PART_TITLE[c.part] : '');
-const ALSO_SHOWN = 3;
-
-/** A card for one part's alerts that need a person: the most urgent leads, up to 3 more follow, the rest are counted. */
-function cardHtml(c) {
-  const t = splitAlert(tidy(c.text));
-  const gl = glanceOf(c.group);
-  const sq = SQUARES[c.part] ? squarePic(c.part, c.text) : listCardPic(c.part);
-  const link = safeLink(c.link);
-  const lines = c.alerts || [];
-  const also = c.more.slice(0, ALSO_SHOWN).map((x, i) => '<li>' + esc(splitAlert(tidy(x)).title) + fixHtml(lines[i + 1], true) + '</li>').join('');
-  const rest = c.more.length - ALSO_SHOWN;
-  return '<article class="nc ' + c.level + (fixing(c) ? ' fixing' : '') + '"><div>' +
-    '<span class="badge ' + c.level + '">' + esc(LEVEL[c.level].title) + '</span>' +
-    '<h4>' + esc(t.title) + '</h4>' + fixHtml(lines[0]) +
-    '<p class="muted">' + esc(whereOf(c)) + '</p>' +
-    (also ? '<ul class="also">' + also + (rest > 0 ? '<li>' + num(rest) + ' more in ' + esc(titleOf(c.group)) + '</li>' : '') + '</ul>' : '') +
-    (t.next ? '<p><b>Next:</b> ' + esc(t.next) + '</p>' : '') +
-    '<p class="acts"><a class="button primary" href="#g/' + esc(c.group) + '">Open ' + esc(titleOf(c.group)) + '</a>' +
-    (link ? '<a class="button" href="' + esc(link) + '" target="_blank" rel="noopener">Open the page</a>' : '') + '</p></div>' +
-    (sq ? '<div class="pic">' + sq + '</div>' : gl ? '<div class="pic">' + miniSvg(gl.s.values, gl.s.agg, 200, 64) + '<small>' + esc(gl.said) + '</small></div>' : '<div></div>') +
-    '</article>';
-}
-
-/** One line for a part's alerts to watch, beside the cards; it opens the part's section. */
-function watchHtml(c) {
-  return '<div class="item wl"><a class="go" href="#g/' + esc(c.group) + '"><b>' + esc(splitAlert(tidy(c.text)).title) + '</b><small class="muted">' + esc(whereOf(c)) +
-    (c.more.length ? ' · ' + num(c.more.length) + ' more' : '') + '</small></a>' + fixHtml((c.alerts || [])[0], true) + '</div>';
-}
-
-function okLineHtml(groupId, state) {
-  const gl = glanceOf(groupId);
-  const said = state === 'wait' ? 'Loading…' : state.length ? 'Not connected: ' + state.map((p) => PART_TITLE[p] || p).join(', ') + '.' : gl ? gl.said : 'Every part answered with nothing to fix.';
-  return '<a class="okline" href="#g/' + esc(groupId) + '"><span class="dot ' + (state === 'wait' ? '' : state.length ? '' : 'ok') + '"></span>' +
-    '<span><b>' + esc(titleOf(groupId)) + '</b><small>' + esc(said) + '</small></span>' +
-    '<span>' + (gl ? miniSvg(gl.s.values, gl.s.agg, 120, 28) : '') + '</span></a>';
-}
-
-let startQueued = false;
-function renderStart() {
-  if (startQueued) return;
-  startQueued = true;
-  requestAnimationFrame(() => { startQueued = false; drawStart(); });
-}
-function drawStart() {
-  if ($('start').hidden) return;
-  const plan = startPlan(SECTIONS, results, LEVELS);
-  // A card whose every line waits for its check after a merged fix needs nobody now: it goes last, dashed.
-  const needs = plan.cards.filter((c) => c.level !== 'watch').sort((a, b) => Number(fixing(a)) - Number(fixing(b)));
-  const watch = plan.cards.filter((c) => c.level === 'watch');
-  const count = (cs) => cs.reduce((n, c) => n + 1 + c.more.length, 0);
-  const fixed = waitingFixes(needs.flatMap((c) => c.alerts || []));
-  const needN = count(needs) - fixed, watchN = count(watch);
-  const claude = claudeWork(results.userissues && results.userissues.state === 'ok' ? results.userissues.data : null);
-  const store = storeWaits(results.pipeline && results.pipeline.state === 'ok' ? results.pipeline.data : null);
-  const loading = plan.waiting.length;
-  $('hero-n').textContent = String(needN);
-  $('hero-n').className = needN ? '' : 'none';
-  $('hero-title').textContent = needN === 1 ? 'thing needs you' : needN ? 'things need you' : loading ? 'Checking…' : 'Nothing needs you now';
-  const okCount = plan.ok.filter((o) => !o.off.length).length;
-  $('hero-line').textContent = [
-    fixed ? fixed + (fixed === 1 ? ' has a fix merged and waits' : ' have a fix merged and wait') + ' for a check.' : '',
-    watchN ? watchN + ' to watch.' : '',
-    claude.length ? claude.length + ' Claude works on.' : '',
-    store.length ? store.length + (store.length === 1 ? ' waits' : ' wait') + ' on Apple or Google.' : '',
-    okCount + (okCount === 1 ? ' section is OK.' : ' sections are OK.'),
-    loading ? loading + ' still loading.' : ''
-  ].filter(Boolean).join(' ');
-  $('start-you').innerHTML = needs.length ? needs.map(cardHtml).join('') : '<p class="muted">' + (loading ? 'Checking each section…' : 'Nothing needs you. Each section is below.') + '</p>';
-  $('start-watch').innerHTML = watch.length ? watch.map(watchHtml).join('') : '<p class="muted none">' + (loading ? 'Loading…' : 'Nothing to watch.') + '</p>';
-  $('start-claude').innerHTML = claude.length ? claude.map((i) => '<div class="item"><b>' + esc(i.title || i.issue || 'An issue') + '</b><small>' +
-      (safeLink(i.issueUrl) ? '<a href="' + esc(i.issueUrl) + '" target="_blank" rel="noopener">' + esc(i.issue || 'Linear') + '</a> · ' : '') +
-      'filed ' + esc(ago(i.firstAt)) + (i.people ? ' · ' + num(i.people) + (i.people === 1 ? ' person' : ' people') : '') + '</small></div>').join('')
-    : '<p class="muted none">' + (results.userissues ? 'No open issue from the watch.' : 'Loading…') + '</p>';
-  $('start-store').innerHTML = store.length ? store.map((w) => '<div class="item"><b>' + esc(w.lane + ' ' + (w.title || '')) + '</b><small>' + esc(w.stage) + (w.at ? ' · ' + esc(ago(w.at)) : '') + (w.state ? ' · ' + esc(w.state) : '') + '</small></div>').join('')
-    : '<p class="muted none">' + (results.pipeline ? 'No build in review.' : 'Loading…') + '</p>';
-  $('start-ok').innerHTML = plan.ok.map((o) => okLineHtml(o.group, o.off)).concat(plan.waiting.map((id) => okLineHtml(id, 'wait'))).join('') ||
-    '<p class="muted">Every section has something above.</p>';
-  drawResolved();
-}
-
-/** Every card line is a merged fix that waits for its check. */
-const fixing = (c) => Boolean(c.alerts && c.alerts.length) && waitingFixes(c.alerts) === c.alerts.length;
-
-/** The lines the watch tied to Linear that this page no longer shows, under one closed heading. */
-function drawResolved() {
-  const ud = userIssuesData(), el = $('start-resolved');
-  el.hidden = !ud || !ud.lines;
-  if (el.hidden) return;
-  const now = new Set(PARTS.flatMap((p) => ((results[p] && results[p].alerts) || []).map(watchKeyOf)));
-  const answered = (part) => Boolean(results[part]) && results[part].state === 'ok';
-  el.innerHTML = resolvedHtml(resolvedLines(ud, now, answered, KINDS, Date.now()));
-}
-
-$('start-look').addEventListener('submit', (e) => {
-  e.preventDefault();
-  lookUp($('start-q').value.trim());
-});
-/** Opens Look up with this text, from the start page or a detail row. */
-function lookUp(text) {
-  if (!text) return;
-  closeDetail();
-  location.hash = 'g/lookup';
-  $('q').value = text;
-  $('lookup-form').requestSubmit();
-}
 
 // ---- a section's numbers over a range -------------------------------------------------------
 const partsWithNumbers = (groupId) => (SECTIONS.find((s) => s.id === groupId) || { parts: [] }).parts.filter((p) => METRIC[p]);
@@ -421,7 +298,7 @@ function renderHist(groupId) {
   if (!parts.length) { el.innerHTML = ''; return; }
   el.innerHTML = '<div class="ranges" role="group" aria-label="Range of days">' + Object.keys(RANGE_NAMES).map((r) =>
     '<button type="button" data-range="' + r + '" aria-pressed="' + (r === range) + '">' + RANGE_NAMES[r] + '</button>').join('') + '</div>' +
-    parts.map((p) => '<div id="charts-' + p + '"><h3 class="part">' + esc(PART_TITLE[p] || p) + ', ' + esc(RANGE_NAMES[range]) + '</h3><p class="muted">Loading…</p></div>').join('') +
+    parts.map((p) => '<div id="charts-' + p + '"><h3 class="part">' + esc(chartTitle(p)) + '</h3><p class="muted">Loading…</p></div>').join('') +
     '<p class="muted">Tap a bar or a point for the records behind it.</p>';
   for (const p of parts) loadHistory(p, range).then((hst) => drawPart(p, hst)).catch((err) => {
     const box = $('charts-' + p);
@@ -435,7 +312,20 @@ function loadHistory(part, r) {
   return histories[k];
 }
 
-const keyName = (k) => k === '' ? 'All' : k === '_other' ? 'Others' : k;
+/** A key as the page says it. A number can name its keys (keys in METRICS, as the kinds of a diagnostics record): part and m say which number. */
+const keyName = (k, part, m) => k === '' ? 'All' : k === '_other' ? 'Others' : (((METRIC[part] || {})[m] || {}).keys || {})[k] || k;
+/** A part's title over its charts. A title that names its own time gives it up there: the range says the time. */
+function chartTitle(part) {
+  const t = String(PART_TITLE[part] || part), own = ', ' + LAST_DAY;
+  return (t.endsWith(own) ? t.slice(0, -own.length) : t) + ', ' + RANGE_NAMES[range];
+}
+/** The words after a chart's large number (totalOf): a level whose newest bucket has no value yet names the bucket its value is from. */
+function totalSaid(s, hst) {
+  let at = s.values.length - 1;
+  while (at >= 0 && (s.values[at] === null || s.values[at] === undefined)) at--;
+  if (at < 0) return '';
+  return totalOf(s.agg, hst.range, hst.step, at, s.values.length) || (hst.step === 'hour' ? 'at ' : hst.step === 'day' ? 'on ' : 'in ') + bucketLabel(hst.buckets[at], hst.step);
+}
 const shownKey = {};
 
 // ---- a square for each run (plan 5c) --------------------------------------------------------
@@ -444,6 +334,7 @@ const SQUARES = {
   cron: { runs: 'runs', failed: 'failed', one: 'database job', many: 'database jobs' }
 };
 const SQ_SAID = { ok: 'ran', part: 'did part of the work', fail: 'failed', none: 'no run', gap: 'not counted yet' };
+const sqSaid = (c) => SQ_SAID[c].charAt(0).toUpperCase() + SQ_SAID[c].slice(1);
 const STEP_ONE = { hour: 'hour', day: 'day', week: 'week', month: 'month' };
 
 /** One job's row: a square for each bucket. A failure has an x and part of the work a dot, so neither rests on color alone. */
@@ -458,8 +349,10 @@ function squareSvg(row, hst, r) {
   });
   const said = [row.failed ? num(row.failed) + ' failed' : '', row.partial ? num(row.partial) + ' did part of the work' : ''].filter(Boolean).join(', ') || 'no failure';
   const label = keyName(row.key) + ', one square for each ' + STEP_ONE[hst.step] + ': ' + said + '. Tap a square, or use the arrow keys and Enter, for its runs.';
+  // For the pointer: each square's bucket and what its color says, in the words of the key under the rows.
+  const hv = hvAttr(-gap / 2, s, hst.buckets.map((b, i) => bucketWhen(b, bucketEnd(hst.buckets, i, hst.step), hst.step) + ' UTC'), [['', keyName(row.key), row.cells.map(sqSaid)]]);
   return '<svg class="sq" width="' + (n * 15) + '" height="' + Math.round((size + 2) * 1.25) + '" viewBox="0 0 ' + w + ' ' + (size + 2) + '" tabindex="0" role="img" aria-label="' + esc(label) + '" data-key="' + esc(row.key) + '" data-n="' + n + '"' +
-    (r ? ' data-range="' + esc(r) + '"' : '') + '>' + body + '</svg>';
+    (r ? ' data-range="' + esc(r) + '"' : '') + hv + '>' + body + '</svg>';
 }
 
 /**
@@ -483,7 +376,7 @@ function squaresBox(part, hst, r, max, alert, only) {
     '<div class="sqrows">' + shown.map((row) => '<div class="sqrow"><span title="' + esc(keyName(row.key)) + '">' + esc(keyName(row.key)) + '</span>' + squareSvg(row, hst, r) + '</div>').join('') +
     '<div class="sqrow"><span></span><div class="ax"><span>' + esc(bucketLabel(hst.buckets[0], hst.step)) + '</span><span>' + esc(bucketLabel(hst.buckets[hst.buckets.length - 1], hst.step)) + ' UTC</span></div></div></div>' +
     (rows.length > shown.length ? '<p class="muted">' + num(rows.length - shown.length) + ' more ' + esc(sq.many) + ' in ' + esc(PART_TITLE[part] || part) + '.</p>' : '') +
-    '<div class="sqleg">' + states.map((c) => '<span><i class="' + c + '"></i>' + esc(SQ_SAID[c].charAt(0).toUpperCase() + SQ_SAID[c].slice(1)) + '</span>').join('') + '</div></div>';
+    '<div class="sqleg">' + states.map((c) => '<span><i class="' + c + '"></i>' + esc(sqSaid(c)) + '</span>').join('') + '</div></div>';
 }
 
 /** The last 24 hours of a part's runs as squares, for its card on the start page; '' when they cannot be read. */
@@ -503,22 +396,18 @@ function drawPart(part, hst) {
   if (!box || hst.range !== range) return;
   const metrics = Object.keys(METRIC[part]);
   const charts = metrics.map((m) => {
-    const all = hst.series.filter((s) => s.metric === m);
-    const total = all.find((s) => s.key === '');
-    if (!total) return '';
-    const key = shownKey[part + '.' + m] || '';
-    const s = all.find((x) => x.key === key) || total;
+    const { total, keys, shown: s } = chartSeries(hst.series.filter((x) => x.metric === m), shownKey[part + '.' + m]);
+    if (!s) return '';
     const unit = METRIC[part][m].unit;
     const fmt = (x) => x === null ? '–' : unit === 'bytes' ? bytes(x) : unit === 'ms' ? ms(x) : num(x);
-    const keys = all.filter((x) => x.key !== '');
-    return '<div class="chart" data-part="' + esc(part) + '" data-metric="' + esc(m) + '"><div class="ct"><span data-help-key="metric:' + esc(part + '.' + m) + '">' + esc(METRIC[part][m].label) + '</span><b>' + esc(fmt(rangeTotal(s.agg, s.values))) + '</b></div>' +
+    return '<div class="chart" data-part="' + esc(part) + '" data-metric="' + esc(m) + '"><div class="ct"><span data-help-key="metric:' + esc(part + '.' + m) + '">' + esc(METRIC[part][m].label) + '</span><b>' + esc(fmt(rangeTotal(s.agg, s.values))) + (totalSaid(s, hst) ? ' <small>' + esc(totalSaid(s, hst)) + '</small>' : '') + '</b></div>' +
       chartSvg(s, hst, part, m) +
       '<div class="ax"><span>' + esc(bucketLabel(hst.buckets[0], hst.step)) + '</span><span>' + esc(bucketLabel(hst.buckets[hst.buckets.length - 1], hst.step)) + '</span></div>' +
-      (keys.length ? '<div class="keys">' + [total].concat(keys).map((x) => '<button type="button" data-key="' + esc(x.key) + '" aria-pressed="' + (x.key === s.key) + '" title="' + esc(keyName(x.key)) + '">' +
-        esc(keyName(x.key)) + ' · ' + esc(fmt(rangeTotal(x.agg, x.values))) + '</button>').join('') + '</div>' : '') +
+      (keys.length ? '<div class="keys">' + (total ? [total] : []).concat(keys).map((x) => '<button type="button" data-key="' + esc(x.key) + '" aria-pressed="' + (x.key === s.key) + '" title="' + esc(keyName(x.key, part, m)) + '">' +
+        esc(keyName(x.key, part, m)) + ' · ' + esc(fmt(rangeTotal(x.agg, x.values))) + '</button>').join('') + '</div>' : '') +
       '</div>';
   }).join('');
-  box.innerHTML = '<h3 class="part">' + esc(PART_TITLE[part] || part) + ', ' + esc(RANGE_NAMES[range]) + '</h3>' +
+  box.innerHTML = '<h3 class="part">' + esc(chartTitle(part)) + '</h3>' +
     (hst.counted.some((c) => !c) ? '<p class="muted">Some ' + (hst.step === 'hour' ? 'hours' : 'days') + ' are not counted yet: the job counts the last 90 days a few at a time.</p>' : '') +
     '<div class="charts">' + (SQUARES[part] ? squaresBox(part, hst, null, 0) : '') + (charts || '<p class="muted">Nothing counted yet.</p>') + '</div>';
 }
@@ -531,12 +420,24 @@ function bucketLabel(iso, step) {
   return d.toLocaleDateString([], { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
-/** One number over the range: a bar a bucket for a count, a line for a level; each bucket can be tapped. */
+/** A bucket in words: its day, its hour of a day, its week's first and last day, or its month. */
+function bucketWhen(from, to, step) {
+  return step === 'hour' ? bucketLabel(from, 'day') + ', ' + bucketLabel(from, 'hour') + ' to ' + bucketLabel(to, 'hour')
+    : step === 'week' ? bucketLabel(from, 'day') + ' to ' + bucketLabel(new Date(new Date(to).getTime() - 1).toISOString(), 'day')
+    : bucketLabel(from, step);
+}
+
+/** One number over the range: a bar a bucket for a count, a line for a level; each bucket can be tapped, and says its value under the pointer (pageHover.ts). */
 function chartSvg(s, hst, part, m) {
   const w = 300, h = 96, n = s.values.length, bw = w / n;
   const v = s.values.map((x) => x === null ? null : Number(x));
   const max = Math.max(0, ...v.filter((x) => x !== null));
-  const label = METRIC[part][m].label + ', ' + RANGE_NAMES[range] + (s.key ? ', ' + keyName(s.key) : '');
+  const label = METRIC[part][m].label + ', ' + RANGE_NAMES[range] + (s.key ? ', ' + keyName(s.key, part, m) : '');
+  const unit = METRIC[part][m].unit;
+  // A bucket the job has not counted says so; one with no value says no number, never 0.
+  const said = (x, i) => hst.counted[i] === false ? 'Not counted yet' : x === null ? '–' : unit === 'bytes' ? bytes(x) : unit === 'ms' ? ms(x) : num(x);
+  const hv = hvAttr(0, bw, hst.buckets.map((b, i) => bucketWhen(b, bucketEnd(hst.buckets, i, hst.step), hst.step) + ' UTC'),
+    [['', s.key ? keyName(s.key, part, m) : METRIC[part][m].label, v.map(said)]], 0, h);
   let body = '';
   hst.counted.forEach((c, i) => { if (!c) body += '<rect class="gap" x="' + (i * bw).toFixed(2) + '" y="0" width="' + bw.toFixed(2) + '" height="' + h + '"/>'; });
   if (s.agg === 'max') {
@@ -549,7 +450,7 @@ function chartSvg(s, hst, part, m) {
       return x === null ? '' : '<rect class="b' + (x === 0 ? ' z' : '') + '" data-i="' + i + '" x="' + (i * bw + (bw > 4 ? 0.5 : 0)).toFixed(2) + '" y="' + (h - bh).toFixed(2) + '" width="' + Math.max(0.6, bw - (bw > 4 ? 1 : 0)).toFixed(2) + '" height="' + bh.toFixed(2) + '"/>';
     }).join('');
   }
-  return '<svg viewBox="0 0 ' + w + ' ' + h + '" tabindex="0" role="img" aria-label="' + esc(label) + '. Tap a bucket, or use the arrow keys and Enter, for its records." data-key="' + esc(s.key) + '" data-n="' + n + '">' + body + '</svg>';
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" tabindex="0" role="img" aria-label="' + esc(label) + '. Tap a bucket, or use the arrow keys and Enter, for its records." data-key="' + esc(s.key) + '" data-n="' + n + '"' + hv + '>' + body + '</svg>';
 }
 
 /** Which bucket a tap or click is over, from where it is across the chart. */
@@ -635,15 +536,13 @@ function drawDetail() {
   const m = METRIC[d.part][d.metric];
   const unit = m.unit;
   const fmt = (x) => x === null || x === undefined ? '–' : unit === 'bytes' ? bytes(x) : unit === 'ms' ? ms(x) : num(x);
-  const when = (d.step === 'hour' ? bucketLabel(d.from, 'day') + ', ' + bucketLabel(d.from, 'hour') + ' to ' + bucketLabel(d.to, 'hour')
-    : d.step === 'week' ? bucketLabel(d.from, 'day') + ' to ' + bucketLabel(new Date(new Date(d.to).getTime() - 1).toISOString(), 'day')
-    : bucketLabel(d.from, d.step)) + ' (UTC)';
+  const when = bucketWhen(d.from, d.to, d.step) + ' (UTC)';
   const vals = bucketValues(d.hst, d.metric, d.i);
-  $('detail').innerHTML = '<div class="head"><h2 id="detail-title">' + esc(m.label) + (d.key ? ' · ' + esc(keyName(d.key)) : '') + '</h2>' +
+  $('detail').innerHTML = '<div class="head"><h2 id="detail-title">' + esc(m.label) + (d.key ? ' · ' + esc(keyName(d.key, d.part, d.metric)) : '') + '</h2>' +
     '<button type="button" id="detail-close" aria-label="Close the details">Close</button></div>' +
     '<p class="muted">' + esc(PART_TITLE[d.part] || d.part) + ' · ' + esc(when) + '</p>' +
     '<h3>In this ' + (d.step === 'hour' ? 'hour' : d.step === 'day' ? 'day' : d.step) + '</h3>' +
-    '<div class="keyed">' + table([{ h: 'Which', v: (v) => esc(keyName(v.key)) }, { h: 'Number', n: true, v: (v) => esc(fmt(v.value)) }], vals) + '</div>' +
+    '<div class="keyed">' + table([{ h: 'Which', v: (v) => esc(keyName(v.key, d.part, d.metric)) }, { h: 'Number', n: true, v: (v) => esc(fmt(v.value)) }], vals) + '</div>' +
     '<h3>Records behind it</h3><div id="detail-rows"><p class="muted">Loading…</p></div>';
   $('detail-close').addEventListener('click', closeDetail);
 }
