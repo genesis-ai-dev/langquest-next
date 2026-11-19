@@ -653,11 +653,8 @@ SQL and fails when the counts answer differently; change both together.
 
 - iOS crash counts: App Store Connect gives them only as daily analytics
   reports, which have to be requested once and read the next day.
-- Pictures over a range of days on the page. The totals they read are
-  built (below); the start page and its pictures come next
-  (`docs/ops-dashboard-plan.md` 7).
 - Telling anyone: the page shows problems to whoever opens it; nothing
-  sends them (`OpsWatch`, phase 5).
+  sends them (`OpsWatch`, phase 5d of `docs/ops-dashboard-plan.md`).
 - Container time in Capacity and cost: Cloudflare's public analytics do not
   give it; read it in the Cloudflare dashboard.
 - Not tried against the real services yet: the R2, usage, backups,

@@ -22,5 +22,9 @@ npm run db:stop
 
 Mobile app: see `apps/mobile/README.md`.
 
-This repo is never linked to a hosted Supabase project. `supabase link` is
-not used here; do not run it against the LangQuest v2 projects.
+A checkout may be linked to one of this app's own hosted Supabase projects
+(`npx supabase link --project-ref <ref>`, with the refs under `[remotes.*]` in
+`supabase/config.toml` and `docs/environments.md`): `npm run db:apply`,
+`db:check`, `secrets` and the staff scripts' `--hosted` need it. Never link
+it to a LangQuest v2 project; `scripts/v2-access.sh` reads v2 through a
+throwaway working directory, so the checkout's own link is untouched.
