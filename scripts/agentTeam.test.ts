@@ -105,7 +105,7 @@ describe('the gate', () => {
       expect(pathRefusal(p), p).toBeNull();
     }
     for (const p of ['supabase/migrations/20261119000001_x.sql', 'packages/sync/src/push.ts', 'apps/web/worker/index.ts', 'server/userIssues.ts', 'apps/mobile/app.json',
-      'apps/mobile/modules/nearby-link/ios/Link.swift', 'docs/decisions/2026-11-19-x.md', 'scripts/diag.ts', 'e2e/ui/record.spec.ts', 'apps/mobile/src/server/v2.ts',
+      'apps/mobile/modules/nearby-link/ios/Link.swift', 'docs/decisions/README.md', 'scripts/diag.ts', 'e2e/ui/record.spec.ts', 'apps/mobile/src/server/v2.ts',
       'apps/mobile/src/diagnostics/send.ts', 'packages/core/src/events.ts', 'packages/core/src/reducer.ts', 'packages/core/src/validate.ts', 'apps/admin/src/auth.ts',
       'apps/mobile/src/recording/recorder.test.ts', 'apps/mobile/src/sync/session.ts', 'apps/mobile/src/auth/signIn.ts', 'apps/mobile/src/roles/model.ts',
       'apps/mobile/src/disguise/model.ts', 'packages/core/src/nearbySigning.ts', 'packages/core/src/snapshot.ts', 'apps/admin/src/db.ts']) {
