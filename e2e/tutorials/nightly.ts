@@ -32,6 +32,7 @@ import path from 'node:path';
 import { filmName, manifestName, readManifest, type Film } from '../../server/tutorialIntakeModel';
 import { TRAILER, type ChannelLanguage } from '../../server/youtube';
 import { GROUPS, TUTORIALS } from './all';
+import { videosNamed } from './tutorial';
 import { checkFilm, problemLines } from './frame-check';
 import { lookOf, stepLooks, tryAgain } from './look';
 import { firstSentence, FRAME, PLAYLISTS, TRAILER_FRAME, youtubeText } from './playlists';
@@ -211,7 +212,8 @@ for (const id of filmed) {
   const who = GROUPS.find((g) => g.videos.includes(tutorial))!.who;
   const opening = tutorial.steps.find((s) => s.say)?.say;
   const text = youtubeText(
-    say(tutorial.title), opening ? firstSentence(say(opening)) : '', { language, tutorial: id, ...(tutorial.notIn ? { notIn: tutorial.notIn } : {}) },
+    say(tutorial.title), opening ? firstSentence(say(opening)) : '',
+    { language, tutorial: id, ...(tutorial.notIn ? { notIn: tutorial.notIn } : {}), names: videosNamed(tutorial).map((v) => ({ tutorial: v, title: say(TUTORIALS[v]!.title) })) },
     tutorial.tune ? TUNE.credit : undefined
   );
   kept.set(id, {

@@ -233,7 +233,8 @@ export const thePathOfAPassage: Tutorial = {
     },
     {
       screen: 'map_home',
-      say: 'That is the path of a passage in Lumari. In your language, your team chooses the checks. The next videos show each part, step by step.',
+      say: 'That is the path of a passage in Lumari. In your language, your team chooses the checks. Four videos show each part, step by step. These videos are linked in the description below.',
+      videos: ['record-a-passage', 'finish-and-ask-for-a-check', 'do-a-check', 'answer-feedback'],
       stay: 2
     }
   ]

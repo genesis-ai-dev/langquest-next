@@ -20,6 +20,17 @@ video that shows a passage's checks says whose they are ("the checks that
 Lumari chose") and that another language has others, fewer or none
 (`look.test.ts` holds it).
 
+A video never sends the viewer to "another video" or "the next videos". A
+line that speaks of another video names it by its title, and says that the
+video is linked in the description below: "The video 'Start an organization'
+shows how. That video is linked in the description below." The step lists
+the videos that its line names (`videos: ['start-an-organization']`), and the
+video's description on YouTube links each one
+(`docs/decisions/2026-11-19-a-video-links-the-videos-it-names.md`). A line
+that names more than two videos counts them ("Four videos show each part")
+and the description lists them. A video names only videos that exist:
+`look.test.ts` holds all of this, in every language's lines too.
+
 ## Making them
 
 ```sh
@@ -283,6 +294,9 @@ passage."), then its links, each group apart with a blank line between:
 ```
 Here's how to record a passage.
 
+Videos named in this video:
+Finish and ask for a check: https://next.langquest.org/v/en/finish-and-ask-for-a-check
+
 Download this video: https://next.langquest.org/v/en/record-a-passage.mp4
 Watch or download every video: https://next.langquest.org/videos?lang=en
 LangQuest: https://next.langquest.org
@@ -291,6 +305,12 @@ This video in other languages:
 Español: https://next.langquest.org/v/es/record-a-passage
 ...
 ```
+
+The videos that the voice names come first, straight after the first
+sentence, where a viewer whom the voice sent to "the description below"
+looks. Each is named by its title in the video's language, with the same
+lasting link as below, to that video in the same language. A video whose
+voice names none has no such group.
 
 YouTube makes a description's links clickable only on a channel with its
 advanced features (Studio → Settings → Channel → Feature eligibility). A
