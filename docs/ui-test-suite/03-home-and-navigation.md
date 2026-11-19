@@ -726,12 +726,13 @@ Expected:
 Roles: TRANS · Priority: P1 · Platforms: Android · Run: Auto
 
 Steps:
-1. Open P-ASIDE from Alpha's map (Luke, chapter 16). Tap "Something else?".
+1. Open P-ASIDE from Alpha's map (Luke, then its row among the book's
+   passages, shown 25 at a time, decisions.md 166). Tap "Something else?".
 2. Press the system back button.
 3. Tap "Versions and history", then press back.
 4. Tap "Something else?", "Someone else should do this", then press back
    twice.
-5. Press back on the record, then on the chapter grid, then on the map.
+5. Press back on the record, then on the book's passages, then on the map.
 6. Press back on My Work, then again straight away.
 
 Expected:
@@ -739,7 +740,7 @@ Expected:
   path. It does not leave the record.
 - Back from Ask someone returns to "Something else?", where it was opened,
   with nothing sent; back again returns to the path.
-- Back from the record returns to the chapter grid, then to the map.
+- Back from the record returns to the book's passages, then to the map.
 - Back on a tab's own page (the map, which is TRANS's Map tab) goes to My
   Work, TRANS's first screen (decision 137). It never leaves the app or
   shows a blank screen.

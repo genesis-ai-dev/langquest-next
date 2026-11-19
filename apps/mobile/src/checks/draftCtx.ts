@@ -4,7 +4,7 @@
 // stream; the organization lists the draft by its name and reference
 // language; and what this person may do there is what they may do across
 // the organization, since the language is added under those privileges.
-import { privilegesFor, type EventPayloads, type EventSpec, type EventType, type Privilege } from '@langquest-next/core';
+import { newCommandId, privilegesFor, type EventPayloads, type EventSpec, type EventType, type Privilege } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import type { Ctx } from '../shell/ctx';
 import { addToDraft, type DraftSnapshot } from './draft';
@@ -14,7 +14,7 @@ export function draftCtx(ctx: Ctx, snap: DraftSnapshot): Ctx {
   const org = ctx.org.state;
   const mine: ReadonlySet<Privilege> = org ? privilegesFor(org, ctx.session.actorId) : new Set<Privilege>();
   const run = (specs: EventSpec[]) => { addToDraft(specs); return Promise.resolve(); };
-  const spec = <T extends EventType>(type: T, payload: EventPayloads[T]) => ({ id: Crypto.randomUUID(), type, payload }) as EventSpec;
+  const spec = <T extends EventType>(type: T, payload: EventPayloads[T]) => ({ id: newCommandId(ctx.session.actorId, Crypto.randomUUID()), type, payload }) as EventSpec;
   return {
     ...ctx,
     org: { ...ctx.org, state: orgWithDraft(org, snap.draft) },

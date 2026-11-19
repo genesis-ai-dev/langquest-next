@@ -4,7 +4,7 @@
 // 'language'`, or New language's draft with `draft: '1'`); `CheckEditor` is
 // one check. Every change saves as it is made; the list's header Undo takes a
 // save back, one made here too, and removing a check asks first (decision 134).
-import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, commands, deriveFlow, formatQuestionField, kindOf, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, RECORD_STEP, scopeCovers, shownFrom, type CheckHelp, type EventSpec, type LanguageState, type OrgState, type LibraryDoc, type QuestionSpec, type ShownWhat } from '@langquest-next/core';
+import { newCommandId, checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, commands, deriveFlow, formatQuestionField, kindOf, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, RECORD_STEP, scopeCovers, shownFrom, type CheckHelp, type EventSpec, type LanguageState, type OrgState, type LibraryDoc, type QuestionSpec, type ShownWhat } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -162,7 +162,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   async function setHelp(help: CheckHelp, linked: boolean, before: EventSpec[] = []) {
     const s = ctx.language.state;
     if (!s) return;
-    const commandId = Crypto.randomUUID();
+    const commandId = newCommandId(ctx.session.actorId, Crypto.randomUUID());
     const specs = [...before, ...checkHelpSpecs(s, { commandId, kindId, help, linked })];
     if (!specs.length) return;
     // No Undo: the help is put back from Add a help (no timed undo toasts, Caleb 2026-10-16).
@@ -175,7 +175,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
     const materialId = `note-${Crypto.randomUUID()}`;
     let define: EventSpec[];
     try {
-      define = commands(s, indexesFor(s)).defineMaterial({ commandId: Crypto.randomUUID(), materialId, kind: 'note', title: w.title, scope: {}, fields: [{ fieldId: 'body', text: w.text }] });
+      define = commands(s, indexesFor(s)).defineMaterial({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), materialId, kind: 'note', title: w.title, scope: {}, fields: [{ fieldId: 'body', text: w.text }] });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('write note', e) }), 'problem'); // i18n-ignore: log label
       return;
@@ -193,9 +193,9 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
       : null;
     const checkedBy = own ? own.id : target;
     const before = [
-      ...(own ? c.defineKind({ commandId: Crypto.randomUUID(), kindId: own.id, name: own.name, description: '', usualReviewer: '' }) : []),
+      ...(own ? c.defineKind({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), kindId: own.id, name: own.name, description: '', usualReviewer: '' }) : []),
       ...c.defineKind({
-        commandId: Crypto.randomUUID(), kindId, name: kind.name, description: kind.description, usualReviewer: kind.usualReviewer,
+        commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), kindId, name: kind.name, description: kind.description, usualReviewer: kind.usualReviewer,
         ...(kind.withholdsContext ? { withholdsContext: true } : {}), produces: { ...kind.produces, checkedBy }
       })
     ];
@@ -209,7 +209,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
     const s = ctx.language.state;
     if (!s || !kind.produces || into === kind.produces.into) return;
     const specs = commands(s, indexesFor(s)).defineKind({
-      commandId: Crypto.randomUUID(), kindId, name: kind.name, description: kind.description, usualReviewer: kind.usualReviewer,
+      commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), kindId, name: kind.name, description: kind.description, usualReviewer: kind.usualReviewer,
       ...(kind.withholdsContext ? { withholdsContext: true } : {}), produces: { ...kind.produces, into }
     });
     void ctx.act(specs, t('checks.into.saved', { check: name, language: into })).catch(() => {});
@@ -415,7 +415,7 @@ function PeoplePage({ ctx }: { ctx: Ctx }) {
   async function setPeople(next: string[]) {
     const s = ctx.language.state;
     if (!s) return;
-    const plan = checkPeopleSpecs(s, { commandId: Crypto.randomUUID(), kindId, people: next, kinds: rows.map((r) => r.kindId), nameOf: (k) => checkName(k, known) });
+    const plan = checkPeopleSpecs(s, { commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), kindId, people: next, kinds: rows.map((r) => r.kindId), nameOf: (k) => checkName(k, known) });
     if (!plan.specs.length) return;
     // No Undo: whoever was taken off is added back from Add people (no timed undo toasts).
     await ctx.act(plan.specs, t('checks.peopleSaved', { check: name, count: next.length })).catch(() => {});
@@ -471,16 +471,16 @@ function QuestionsPage({ ctx }: { ctx: Ctx }) {
     let specs: EventSpec[];
     try {
       if (q.materialId && q.fieldId) {
-        specs = c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: q.materialId, fields: [{ fieldId: q.fieldId, text }] });
+        specs = c.setMaterialFields({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), materialId: q.materialId, fields: [{ fieldId: q.fieldId, text }] });
       } else {
         // The language's set for this check, or a new one made for it.
         const set = Object.entries(s.materials).find(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId && !m.locked.value);
         if (set) {
           const fieldId = nextFieldId(Object.keys(set[1].fields));
-          specs = c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: set[0], fields: [{ fieldId, text }] });
+          specs = c.setMaterialFields({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), materialId: set[0], fields: [{ fieldId, text }] });
         } else {
           specs = c.defineMaterial({
-            commandId: Crypto.randomUUID(), materialId: `questions-${Crypto.randomUUID()}`, kind: 'questions',
+            commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), materialId: `questions-${Crypto.randomUUID()}`, kind: 'questions',
             title: t('checks.questionsTitle', { check: name }), scope: { stepId: kindId }, fields: [{ fieldId: 'q1', text }]
           });
         }

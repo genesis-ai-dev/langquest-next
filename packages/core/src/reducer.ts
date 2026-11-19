@@ -328,6 +328,15 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       break;
     }
 
+    case 'v1.KeyTermAudioRenderingAdded': {
+      const { termId, renderingId, blobHash, durationMs, wayId, duringTakeId } = event.payload;
+      const audio = (keyTerm(state, termId).audioRenderings ??= {});
+      const prior = audio[renderingId];
+      if (prior && !earlier(event, { blobHash, durationMs, wayId, duringTakeId }, prior, { blobHash: prior.blobHash, durationMs: prior.durationMs, wayId: prior.wayId, duringTakeId: prior.duringTakeId })) break;
+      audio[renderingId] = { blobHash, durationMs, actorId: event.actorId, hlc: event.hlc, wayId, ...(duringTakeId !== undefined ? { duringTakeId } : {}) };
+      break;
+    }
+
     case 'v1.KeyTermAdjusted': {
       const { termId, adjustmentId, note, blobHash, duringTakeId } = event.payload;
       const adjustments = keyTerm(state, termId).adjustments;
@@ -502,7 +511,7 @@ function material(state: LanguageState, materialId: string): Material {
 }
 
 function keyTerm(state: LanguageState, termId: string) {
-  return (state.keyTerms[termId] ??= { term: '', gloss: '', unitScope: [], hlc: '', renderings: {}, adjustments: {} });
+  return (state.keyTerms[termId] ??= { term: '', gloss: '', unitScope: [], hlc: '', renderings: {}, audioRenderings: {}, adjustments: {} });
 }
 
 /** A unit's content without its clock, for `earlier`. */

@@ -136,6 +136,7 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dC', 'r1', 'v1.MaterialFieldSet', { materialId: 'tg', fieldId: 'general', text: 'Use the eastern dialect for narration.' });
   emit('dA', 'lead', 'v1.KeyTermDefined', { termId: 'kt-logos', term: 'Word (Logos)', gloss: 'The eternal Word of God', unitScope: ['luke'] });
   emit('dA', 'lead', 'v1.KeyTermRenderingAdded', { termId: 'kt-logos', renderingId: 'r1', rendering: 'Wët Nhialic', context: "God's own Word" });
+  emit('dA', 'lead', 'v1.KeyTermAudioRenderingAdded', { termId: 'kt-logos', renderingId: 'ra1', blobHash: 'sha256:logos1', durationMs: 900, wayId: 'r1' });
   emit('dB', 't1', 'v1.KeyTermAdjusted', { termId: 'kt-logos', adjustmentId: 'adj1', note: 'Standardized on Wët Nhialic.', duringTakeId: 'take2' });
   emit('dB', 't1', 'v1.KeyTermLinked', { takeId: 'take2', termId: 'kt-logos', note: 'Used the divine sense.', adjustmentId: 'adj1' });
   emit('dA', 'lead', 'v1.KeyTermDefined', { termId: 'kt-sarx', term: 'flesh (sarx)', gloss: 'Body, or sinful nature', unitScope: ['romans'] });

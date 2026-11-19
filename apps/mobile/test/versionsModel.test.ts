@@ -1,4 +1,4 @@
-import { draftName, draftOf, startedFrom } from '../src/passage/versionsModel';
+import { deletesAny, draftName, draftOf, startedFrom } from '../src/passage/versionsModel';
 
 describe('what drafts are called (decisions.md 83)', () => {
   const d = (rootTakeId: string, takeId = rootTakeId, hlc = '1') => ({ rootTakeId, takeId, hlc });
@@ -17,5 +17,17 @@ describe('what drafts are called (decisions.md 83)', () => {
   it('names the version a draft started from', () => {
     expect(startedFrom([{ takeId: 'v1', n: 1 }, { takeId: 'v2', n: 2 }], 'v1')).toBe(1);
     expect(startedFrom([{ takeId: 'v1', n: 1 }], undefined)).toBeNull();
+  });
+});
+
+describe("who may delete anyone's version (decisions.md 124, amended 2026-11-13)", () => {
+  const session = (privileges: string[], readOnly = false) => ({ readOnly, can: (p: string) => privileges.includes(p) });
+
+  it('an admin of the language may; a coordinator, a translator and an admin looking in read-only may not', () => {
+    expect(deletesAny(session(['manage_roles', 'translate']))).toBe(true);
+    // A coordinator holds every privilege but manage_roles.
+    expect(deletesAny(session(['assign_work', 'override_checkpoints', 'manage_structure', 'translate']))).toBe(false);
+    expect(deletesAny(session(['translate', 'review']))).toBe(false);
+    expect(deletesAny(session(['manage_roles', 'translate'], true))).toBe(false);
   });
 });

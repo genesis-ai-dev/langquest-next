@@ -69,7 +69,7 @@ export const findYourWayAround: Tutorial = {
     },
     {
       screen: 'settings_home',
-      part: (page) => [button(page, /Name and photo$/), button(page, /^More settings/)],
+      part: (page) => [button(page, /Name, email and password$/), button(page, /^More settings/)],
       say: 'Me has your name, what this phone keeps for when there is no internet, and your settings.'
     },
     {

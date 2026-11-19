@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.119.0';
 
 /** What the phone needs to be signed in: it hands these to `supabase.auth.setSession`. */
 export interface Tokens { access_token: string; refresh_token: string }

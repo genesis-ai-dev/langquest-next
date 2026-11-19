@@ -5,7 +5,9 @@ import { forgetKeyInAddress } from '../web/appUrl';
 import type { Ctx } from './ctx';
 import { nextStep } from '../invites/heldInvite';
 import { parseKey } from '../invites/inviteCode';
+import { holdJoinCode } from '../invites/heldJoinCode';
 import { navRef, type Nav } from './nav';
+import { joinLinkRoute } from './routingModel';
 import { findNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
 import { onNotificationOpened } from '../notifications/push';
@@ -21,12 +23,14 @@ let initialLinkRead = false;
  * tapped push.
  */
 export function useIncoming(o: {
-  nav: Nav; invite: InviteHandle; signedIn: boolean; onboardingLoaded: boolean; actorId: string; orgId: string; homeIsWork: boolean;
+  nav: Nav; invite: InviteHandle; signedIn: boolean; guest: boolean; onboardingLoaded: boolean; actorId: string; orgId: string; homeIsWork: boolean;
   toast: (message: string) => void; openTask: (languageId: string, unitId: string) => void; openOrganization: Ctx['openOrganization'];
 }) {
   const { nav, invite, signedIn, onboardingLoaded, actorId, toast, homeIsWork, openTask, openOrganization, orgId: thisOrg } = o;
   const resetNav = nav.reset;
   const scanInvite = invite.scan;
+  const guest = useRef(o.guest);
+  guest.current = o.guest;
   useEffect(() => {
     const receive = (url: string) => {
       const key = parseKey(url);
@@ -35,6 +39,9 @@ export function useIncoming(o: {
       if (key.kind === 'signin') { resetNav({ screen: 'scan_qr', params: { code: url } }); return; }
       // A Forgot password link (flow G): choose the new password, signed in or not.
       if (key.kind === 'reset') { resetNav({ screen: 'new_password', params: { code: key.code } }); return; }
+      // A teammate's Let someone in code (docs/nearby-sync-plan.md 14.1, 3): never an invite, which the scan screen
+      // would refuse a new person offline. It is held for joining their phone, which a phone with nobody on it opens.
+      if (key.kind === 'join') { holdJoinCode(key); resetNav(joinLinkRoute(!guest.current, url)); return; }
       void scanInvite(key).then(() => resetNav({ screen: 'scan_qr' }));
     };
     if (!initialLinkRead) {

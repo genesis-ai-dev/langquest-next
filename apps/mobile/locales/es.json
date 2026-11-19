@@ -1,6 +1,8 @@
 {
   "ios": {
     "NSMicrophoneUsageDescription": "LangQuest graba tu voz para traducir pasajes.",
-    "NSCameraUsageDescription": "LangQuest usa la cámara para escanear códigos QR de invitación."
+    "NSCameraUsageDescription": "LangQuest usa la cámara para escanear códigos QR de invitación.",
+    "NSBluetoothAlwaysUsageDescription": "LangQuest usa Bluetooth para encontrar los teléfonos de tus compañeros cercanos y compartir el trabajo con ellos.",
+    "NSLocalNetworkUsageDescription": "LangQuest usa la red local para compartir el trabajo con los teléfonos de tus compañeros cercanos."
   }
 }

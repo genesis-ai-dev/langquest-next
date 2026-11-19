@@ -1,6 +1,8 @@
 {
   "ios": {
     "NSMicrophoneUsageDescription": "खण्डहरू अनुवाद गर्न LangQuestले तपाईंको आवाज रेकर्ड गर्छ।",
-    "NSCameraUsageDescription": "निम्तोका QR कोड स्क्यान गर्न LangQuestले क्यामेरा प्रयोग गर्छ।"
+    "NSCameraUsageDescription": "निम्तोका QR कोड स्क्यान गर्न LangQuestले क्यामेरा प्रयोग गर्छ।",
+    "NSBluetoothAlwaysUsageDescription": "नजिकका टोलीका साथीहरूका फोन खोज्न र तिनसँग काम सेयर गर्न LangQuestले Bluetooth प्रयोग गर्छ।",
+    "NSLocalNetworkUsageDescription": "नजिकका टोलीका साथीहरूका फोनसँग काम सेयर गर्न LangQuestले लोकल नेटवर्क प्रयोग गर्छ।"
   }
 }

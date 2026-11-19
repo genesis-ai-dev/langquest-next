@@ -40,6 +40,11 @@ async function handOvers(): Promise<HandOver[]> {
   return parseHandOvers(await AsyncStorage.getItem(LIST_KEY));
 }
 
+/** Does anyone's hand-over wait here? Then it is no phone with nobody on it (docs/nearby-sync-plan.md 14.1, 3). */
+export async function anyHandOvers(): Promise<boolean> {
+  return (await handOvers()).length > 0;
+}
+
 /**
  * One thing at a time with a person's hand-over: a delivery, or their
  * coming back from the lock (takeBackHandOver), so the courier and the
