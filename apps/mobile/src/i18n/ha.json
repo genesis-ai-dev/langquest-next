@@ -6094,6 +6094,7 @@
       "couldNotRead": "An kasa karanta rahoton",
       "notVisible": "Wannan harshe ba shi da rahoton da za ku iya gani",
       "notVisibleBody": "Wataƙila matsayinku bai haɗa da wannan harshe ba, ko an ƙara shi bayan rahotanni sun loda (ku kamo daga Rahotanni don dubawa).",
+      "template": "Samfuri: <b>{{template}}</b>",
       "reviewFlow": "Tsarin bita: <b>{{flow}}</b>",
       "bottleneck": "Inda aiki ya maƙale: <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{count, number}} a {{step}}",

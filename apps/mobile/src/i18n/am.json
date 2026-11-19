@@ -6094,6 +6094,7 @@
       "couldNotRead": "ሪፖርቱን ማንበብ አልተቻለም",
       "notVisible": "ይህ ቋንቋ እርስዎ ሊያዩት የሚችሉት ሪፖርት የለውም",
       "notVisibleBody": "ሚናዎ ይህን ቋንቋ ላያካትት ይችላል፣ ወይም ሪፖርቶቹ ከተጫኑ በኋላ ታክሏል (ለመፈተሽ ከ«ሪፖርቶች» ወቅታዊ ይሁኑ)።",
+      "template": "አብነት፦ <b>{{template}}</b>",
       "reviewFlow": "የግምገማ ሂደት፦ <b>{{flow}}</b>",
       "bottleneck": "ማነቆ፦ <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{count, number}} በ{{step}} ላይ",

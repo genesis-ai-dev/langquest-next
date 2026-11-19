@@ -5842,6 +5842,7 @@
       "couldNotRead": "Laporan tidak dapat dibaca",
       "notVisible": "Bahasa ini tidak punya laporan yang dapat Anda lihat",
       "notVisibleBody": "Peran Anda mungkin tidak mencakup bahasa ini, atau bahasa ini ditambahkan setelah laporan dimuat (perbarui dari Laporan untuk memeriksa).",
+      "template": "Templat: <b>{{template}}</b>",
       "reviewFlow": "Alur pemeriksaan: <b>{{flow}}</b>",
       "bottleneck": "Hambatan: <b>{{bottleneck}}</b>",
       "bottleneckValue_other": "{{count, number}} di {{step}}",

@@ -6346,6 +6346,7 @@
       "couldNotRead": "No se pudo leer el informe",
       "notVisible": "Este idioma no tiene ningún informe que puedas ver",
       "notVisibleBody": "Puede que tu rol no incluya este idioma, o que se haya agregado después de cargar los informes (ponte al día desde Informes para comprobarlo).",
+      "template": "Plantilla: <b>{{template}}</b>",
       "reviewFlow": "Flujo de revisión: <b>{{flow}}</b>",
       "bottleneck": "Cuello de botella: <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{count, number}} en {{step}}",
