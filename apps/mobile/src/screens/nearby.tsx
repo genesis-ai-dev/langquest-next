@@ -15,8 +15,9 @@
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LetInCode } from '../nearby/LetInCode';
+import { GetInstallFileScreen } from '../nearby/GetInstallFileScreen';
 import { ChosenPicture } from '../auth/patternPad';
-import { apkGet, apkShown, apkStart, joinRows, letInVersionsWords } from '../nearby/carriedApkModel';
+import { joinRows, letInVersionsWords } from '../nearby/carriedApkModel';
 import { joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
 import type { LetInEnd, LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
@@ -35,7 +36,6 @@ import type { Ctx } from '../shell/ctx';
 import { LetInCoverNote } from '../shell/LetInCoverNote';
 import { NearbyCoverNotes } from '../shell/NearbyCoverNotes';
 import { contractsFor } from '../shell/screenContracts';
-import { useAppCovered } from '../shell/useAppCovered';
 import { Badge, Banner, Card, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, Row, Screen, SectionLabel, SmallBtn, type IconName } from '../ui/kit';
 import { personLook } from '../ui/people';
 import { usePerson } from '../ui/usePerson';
@@ -510,61 +510,12 @@ function versionsWords(installFile: string | null): string {
 // ---- Get the install file (docs/nearby-sync-plan.md 14.4) --------------------------------
 
 /**
- * Get the install file, from Share nearby and Let someone in: the job done online before a trip.
- * The carried build this phone's versions need, by its exact name, so a carrier can compare it with
- * the file they hold; the browser download while online, its one main button; a check of a file
- * they hold, by its name alone; a word when the file they got before is for an older version; and
- * how the file reaches the new phone. Nothing here downloads or installs anything.
+ * Get the install file, from Share nearby and Let someone in (docs/nearby-sync-plan.md 14.4). Only
+ * an Android phone lets someone in, so the screen is GetInstallFileScreen.android.tsx, and the web
+ * and an iPhone, which never open it, get a plain stub, so their bundles carry none of it.
  */
 export function GetInstallFile(ctx: Ctx) {
-  const apk = useCarriedApk();
-  const { worn } = useAppCovered();
-  const get = apkGet({ needed: apk.needed, url: apk.url, online: ctx.language.online });
-  return (
-    <Screen header={<Header title={t('screens.get_install_file')} onBack={ctx.back} />}
-      footer={get !== null ? <PrimaryBtn label={t('nearby.letIn.get')} icon="download" disabled={get === 'offline'} help={t('nearby.letIn.getHelp')} onPress={apk.actions.get} /> : undefined}>
-      <Card>
-        <View style={styles.line}>
-          <Ico name="download" size={22} color={C.primary} />
-          <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{t('screens.get_install_file')}</Text>
-          <Badge label={t('nearby.experimental')} tone="amber" />
-        </View>
-        <Text style={txt.sm}>{t('nearby.installFile.intro')}</Text>
-      </Card>
-      {apk.needed !== null ? (
-        <>
-          <Card>
-            <Text style={txt.body}>{t('nearby.letIn.file', { file: apkShown(apk.needed) })}</Text>
-            <Text style={txt.sm}>{t('nearby.letIn.fileStart', { start: apkStart(apk.needed) })}</Text>
-            {apk.stale ? (
-              <View style={styles.line}>
-                <Ico name="warning" size={20} color={TINT.amberText} />
-                <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.letIn.fileOld')}</Text>
-              </View>
-            ) : null}
-            {get === 'offline' ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('nearby.letIn.getOffline')}</Text> : null}
-          </Card>
-          <Card>
-            <GhostBtn label={t('nearby.letIn.check')} icon="folder" help={t('nearby.letIn.checkHelp')} onPress={apk.actions.check} />
-            {apk.checked ? (
-              <View style={styles.line}>
-                <Ico name={apk.checked.result === 'right' ? 'check' : 'warning'} size={20} color={apk.checked.result === 'right' ? TINT.greenText : TINT.amberText} />
-                <View style={{ flex: 1 }}>
-                  <Text style={txt.sm}>{apk.checked.result === 'right' ? t('nearby.letIn.checkRight') : t('nearby.letIn.checkOther', { file: apkShown(apk.needed) })}</Text>
-                  <Text style={txt.smMuted}>{t('nearby.letIn.checkChose', { name: apk.checked.name })}</Text>
-                </View>
-              </View>
-            ) : null}
-          </Card>
-          <Card>
-            <Text style={txt.sm}>{t('nearby.letIn.getLine')}</Text>
-            <Text style={txt.smMuted}>{t('nearby.letIn.fileHelp')}</Text>
-            <LetInCoverNote worn={worn} part="file" />
-          </Card>
-        </>
-      ) : null}
-    </Screen>
-  );
+  return <GetInstallFileScreen {...ctx} />;
 }
 
 function Waiting(props: { text: string }) {
