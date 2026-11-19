@@ -167,7 +167,12 @@ them is collected from people or their phones.
 Caleb picked the start page "What needs you first" on 2026-11-17 (decisions.md
 254), with three conditions: every other number stays reachable for 14 days
 and more, any square, bar or point opens the technical detail behind it, and
-the pictures keep working at tens of thousands of people and over years. So:
+the pictures keep working at tens of thousands of people and over years. On
+2026-11-18 he asked for the layout of the prayer-robin console: a menu of
+sections on the left with a count and a dot for each, and the first page as
+an Overview of rows, eight numbers, a map of the parts, two charts and the
+newest merges (`docs/decisions/2026-11-18-ops-dashboard-menu-and-overview.md`).
+The cards below are now rows, and the menu took the place of the OK lines. So:
 
 - **The start page** (built, 5b) shows a count of what needs a person and one
   card for each part whose alerts need a person: its most urgent alert leads,
@@ -279,7 +284,24 @@ New:
   (`diag.ops_snapshot_copies`, decisions.md 88, 204).
 - **Time to a usable Map**: a language's first full download (`open` and
   `fill` records, decision 147), p50 and p95 per day, by language size. It
-  is the slowest moment a new person has.
+  is the slowest moment a new person has. Three rules
+  (migration `20261118234300_first_download_wait.sql`):
+  - An `open` record is a first download only when the phone had no rows of
+    that language (`cold` yes) and the stream is a language
+    (`diag.first_download`). A phone writes an `open` record for every open
+    of a language or of the organization.
+  - An `open` record's `ms` runs from the open to the first full sync, so it
+    holds the time the phone waited with no connection and the download
+    together. The wait is the `offlineMs` of that phone's `sync` records of
+    the stream during the open (`diag.open_wait_ms`); the download time is
+    `ms` less the wait. The dashboard shows the two apart (columns Waited and
+    Longest wait, numbers `first_download_waits` and
+    `first_download_wait_max_ms`), and the line "first downloads of a
+    language took over 15 minutes" reads the download time only, with counts
+    ("2 of 8"). No record is changed or left out.
+  - "First downloads of a language" counts each first download once, by its
+    `open` record. A big language also writes a `fill` record, which gives
+    the time to its Map but is not a second download.
 - **Phones by build**: installs reporting per platform and app version, over
   a day, 7 days and 14 days, with the reducers they run.
 - **First downloads that fell back or started over**: `fill` records with
@@ -526,6 +548,7 @@ changes an organization stay in the CLIs, run on a call.
 | 5c2 | **Built (2026-11-17)**: a square for each item of a fixed list: nightly suites, EAS builds, submissions and updates, v2 projects, user issues, feedback, channels, videos, what came in about the videos, and the nightly R2 check; a tap opens the item (5.0) | 5c1 merged |
 | 5c3 | **Built (2026-11-17)**: lanes and lines: store builds, App Store, code and deploys, what shipped, expiry dates; a tap opens the stage, the version, the workflow, the day or the key (5.0) | 5c2 merged |
 | 5c4 | **Built (2026-11-17)**: meters and shares: capacity, database, largest tables, Google Play, limits, the report queue, Workers, routes, syncs, updates in the field, accounts, Supabase services (5.0) | 5c3 merged |
+| 5e | **Built (2026-11-18)**: the menu on the left, Nightly tests as a section, and the Overview (rows, eight numbers, the map, two charts, merged lately) (docs/decisions/2026-11-18-ops-dashboard-menu-and-overview.md) | 5c4 merged |
 | 5d | `OpsWatch` (section 11.4) | phase 3 |
 
 Each phase is one pull request, with the guardrails green (`--web` for

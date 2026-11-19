@@ -8,7 +8,8 @@ import { START_LOGIC } from '../src/pageStart';
 import { detailAsk, GLANCE, METRICS, PART_IDS } from '../src/sources/history';
 
 /** The start page's pure helpers, as the page runs them (pageStart.ts START_LOGIC). */
-const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, rangeTotal, bucketEnd, runSquares };`)() as {
+const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, rangeTotal, bucketEnd, runSquares, chartSeries };`)() as {
+  chartSeries: (all: Hst['series'], wanted?: string) => { total: Hst['series'][number] | null; keys: Hst['series']; shown: Hst['series'][number] | null };
   splitAlert: (t: string) => { title: string; next: string };
   startPlan: (sections: typeof GROUPS, results: Record<string, unknown>, levels: string[]) => {
     cards: { level: string; group: string; part: string; text: string; more: string[] }[]; ok: { group: string; off: string[] }[]; waiting: string[];
@@ -23,7 +24,7 @@ type Hst = { counted?: boolean[]; series: { metric: string; key: string; values:
 const LEVELS = ['urgent', 'problem', 'watch'];
 const okSection = { state: 'ok', alerts: [], checkedAt: '' };
 
-describe('the start page, What needs you first', () => {
+describe('the Overview, what needs you first', () => {
   it('puts every section with parts somewhere, so every part stays one tap away, whatever has answered', () => {
     const parts = GROUPS.flatMap((g) => [...g.parts]);
     const states = [undefined, okSection, { state: 'off', alerts: [], setup: 'x', checkedAt: '' }, { state: 'error', alerts: [], error: 'down', checkedAt: '' },
@@ -40,8 +41,9 @@ describe('the start page, What needs you first', () => {
   it('opens every section on a page that holds all its parts', async () => {
     const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
     expect(html).toContain(`'<div class="hist" id="hist-' + s.id + '" hidden></div><div class="body" id="body-' + s.id + '"></div></section>'`);
-    expect(html).toContain('<a class="okline" href="#g/');
-    expect(html).toContain('<a href="#all">All sections</a>');
+    // The menu has a line for each section and one for all of them (pageShell.ts).
+    expect(html).toContain("navLine('#g/' + id, id, titleOf(id)");
+    expect(html).toContain("navLine('#all', 'all', 'All sections'");
   });
 
   it('shows the most urgent first, an unreadable part as one to watch, and a section with no alert as OK', () => {
@@ -97,6 +99,19 @@ describe('the start page, What needs you first', () => {
     expect(logic.bucketEnd(['2026-01-01T00:00:00.000Z'], 0, 'month')).toBe('2026-02-01T00:00:00.000Z');
   });
 
+  it('draws a number that is counted only by key, leading with its largest key', () => {
+    // A first download's time is counted for open and for fill, never as one total (diag.daily_compute).
+    const times = [{ metric: 'first_download_p95_ms', key: 'fill', values: [4800, null, 4000] }, { metric: 'first_download_p95_ms', key: 'open', values: [9200, 14100, 1083000] }];
+    const c = logic.chartSeries(times);
+    expect([c.total, c.keys.map((k) => k.key), c.shown?.key]).toEqual([null, ['fill', 'open'], 'open']);
+    expect(logic.chartSeries(times, 'fill').shown?.key).toBe('fill');
+    // A number with a total leads with it, and a key the range no longer has falls back to it.
+    const counts = [{ metric: 'first_downloads', key: '', values: [3, 1] }, { metric: 'first_downloads', key: 'open', values: [2, 1] }];
+    expect(logic.chartSeries(counts).shown?.key).toBe('');
+    expect(logic.chartSeries(counts, 'gone').shown?.key).toBe('');
+    expect(logic.chartSeries([]).shown).toBeNull();
+  });
+
   it('gives each job a row of squares: failed over part of the work over ran, an empty bucket and one not counted yet apart', () => {
     const hst: Hst = {
       counted: [true, true, true, true, false],
@@ -148,7 +163,8 @@ describe('a tapped bucket', () => {
   });
 
   it('has a raw source or says it keeps totals only, for every number', () => {
-    const sql = readFileSync('supabase/migrations/20261117143000_ops_detail.sql', 'utf8');
+    // The migration of the detail panel, and the later one that adds a first download's wait.
+    const sql = ['20261117143000_ops_detail.sql', '20261118234300_first_download_wait.sql'].map((f) => readFileSync('supabase/migrations/' + f, 'utf8')).join('\n');
     const filtered = new Set([...sql.matchAll(/\('([a-z0-9_]+)', '([a-z0-9_]+)', '(records|job_runs)'/g)].map((m) => `${m[1]}.${m[2]}`));
     const own = new Set(['cron.runs', 'cron.failed', 'support.feedback', 'support.content_reports', 'userissues.looked_at_first']);
     for (const [part, ms] of Object.entries(METRICS)) for (const metric of Object.keys(ms)) {

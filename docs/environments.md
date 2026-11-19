@@ -347,7 +347,10 @@ A carried build is the APK a teammate carries to a phone with no internet
 or no Play Store (docs/nearby-sync-plan.md 14.4). The EAS workflow on main
 makes one when the APK bucket has no file named for that merge's reducer,
 lines and protocol versions and Android fingerprint
-(`.eas/workflows/deploy-to-testers.yml`, the `carried_*` jobs), uploads it
+(`.eas/workflows/deploy-to-testers.yml`, the `carried_*` jobs), and once a
+day in place of main's file when main's app code has moved on
+(`.eas/workflows/refresh-carried.yml`, 08:30 GMT,
+docs/decisions/2026-11-19-carried-build-refreshed-daily.md), uploads it
 to Play's alpha track as a draft, and `scripts/carried-build.mjs` fetches
 its Play-signed universal APK from Google (`generatedApks`) and puts it in
 the bucket, where the app's Worker serves it at
@@ -395,6 +398,30 @@ Once, as a person (agents may not do these):
    `npx dotenvx run -f .env.production -fk .env.keys --quiet -- npx tsx
    scripts/carried-build.mjs --publish --dry-run --version-code <code>
    --fingerprint <its runtime version> --build-fingerprint <the same>`.
+5. Keep Play's automatic protection off for the app: Play Console > the
+   app > Protected with Play (also Test and release > App integrity) >
+   Automatic protection, turned off and saved. Its installer check sends an
+   app installed from a file to the Play Store and closes it, so a carried
+   build would never open on a phone with no Play Store or no internet
+   (`docs/decisions/2026-11-18-play-protection-off-for-carried-builds.md`).
+   Play has no API for it, so this line is its record. With it on, the
+   publish refuses the APK ("has Play's automatic protection in it") and
+   writes nothing.
+
+A carried file that reached the bucket while protection was on (version
+codes 54 and 56, `r21-l1-p1-3f882a53.apk` and `r21-l1-p1-401de22e.apk`,
+2026-11-17) is deleted by a person, signed in to Cloudflare. The next merge
+then makes the file for main's fingerprint again; a phone still on an older
+fingerprint finds no file until it updates, which is better than a file that
+will not open:
+
+```
+npx wrangler r2 object delete langquest-next-apks/r21-l1-p1-401de22e.apk --remote
+npx wrangler r2 object delete langquest-next-apks/r21-l1-p1-3f882a53.apk --remote
+```
+
+`current.json` stays: it is never served, and the next publish replaces it,
+since its version code is higher.
 
 Each run prints a line that starts with what it found:
 
@@ -402,7 +429,7 @@ Each run prints a line that starts with what it found:
 | --- | --- |
 | `due:` | no file of this build's name is in the bucket, so the carried build runs |
 | `none:` | the file is there; nothing to build |
-| `no carried build:` | a setting or key is missing, or Google or the bucket answered something unexpected; the job failed and changed nothing. The next merge that changes the app checks again |
+| `no carried build:` | a setting or key is missing, Google or the bucket answered something unexpected, or Play's automatic protection is in the APK (step 5); the job failed and changed nothing. The next merge that changes the app checks again |
 
 ## Replacing a build in review
 

@@ -1,12 +1,13 @@
 /**
- * The ops dashboard's start page, "What needs you first" (decisions.md 254,
- * docs/ops-dashboard-plan.md 5.0), each section's own page with its numbers
- * over a range of days, and the detail panel a tapped bar opens. Plain
+ * What the ops dashboard's first page decides (decisions.md 254,
+ * docs/ops-dashboard-plan.md 5.0; pageOverview.ts draws it), each section's
+ * own page with its numbers over a range of days, and the detail panel a
+ * tapped bar opens. Plain
  * JavaScript run inside page.ts's script, after its helpers (esc, num, ms,
  * bytes, ago, api, short, results, SECTIONS, PART_TITLE, LEVEL, LEVELS,
  * setOpen, annotate), like pageOps.ts. Everything shown is escaped.
  *
- * Three views, by the address's hash: '' the start page, '#g/<section>' one
+ * Three views, by the address's hash: '' the Overview, '#g/<section>' one
  * section with its pictures and every table it had, '#all' every section on
  * one page as before. Nothing the page showed before goes away: a section's
  * own page and All hold every table.
@@ -14,41 +15,8 @@
 
 /** The start page's and the panel's look, inside page.ts's style element. */
 export const START_CSS = String.raw`
-.views { display: flex; gap: 4px; }
-.views a { min-height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--ink); text-decoration: none; font-weight: 600; }
-.views a[aria-current="page"] { background: var(--card); border: 1px solid var(--line); }
-#start .hero { display: flex; gap: 16px; align-items: center; margin: 4px 0 12px; }
-#start .hero b { font-size: 56px; line-height: 1; color: var(--primary); min-width: 40px; }
-#start .hero b.none { color: var(--green); }
-#start .hero h2 { font-size: 24px; }
 form.look { display: flex; gap: 8px; margin: 0 0 16px; }
 form.look input { flex: 1; }
-.cols { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.colh { display: flex; gap: 8px; align-items: center; margin: 0 0 8px; font-size: 13px; color: var(--muted); }
-.who { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink); background: var(--card); }
-.nc { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
-.nc.urgent { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); } .nc.problem { border-color: var(--red); }
-.nc h4 { margin: 6px 0 4px; font-size: 16px; }
-.nc ul.also { margin: 4px 0; padding-inline-start: 18px; font-size: 13px; } .nc ul.also li { margin: 2px 0; }
-.nc p { margin: 4px 0; } .nc .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-.nc .acts a { display: inline-flex; align-items: center; text-decoration: none; }
-a.button.primary { min-height: 40px; background: var(--primary); border-color: var(--primary); color: #fff; }
-.badge { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.badge.urgent, .badge.problem { color: var(--red); background: var(--redbg); } .badge.watch { color: var(--amber); background: var(--amberbg); }
-.pic { background: var(--bg); border-radius: 10px; padding: 8px; align-self: start; }
-.pic small { display: block; font-size: 11px; margin-top: 4px; }
-.side .item { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
-.side .item b { display: block; font-size: 14px; } .side .item a { color: var(--primary); }
-.side a.item { display: block; color: var(--ink); text-decoration: none; min-height: 48px; }
-.side a.item b { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } .side a.item:hover b, .side a.item:focus-visible b { color: var(--primary); }
-.side a.item .badge { margin-bottom: 4px; }
-.side .none { margin: 0 0 12px; }
-.okh { display: flex; gap: 8px; align-items: center; font-size: 15px; color: var(--ink); margin: 20px 0 8px; }
-.oklist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 0 24px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px 16px; }
-.okline { display: grid; grid-template-columns: 14px minmax(0, 1fr) 124px 12px; gap: 12px; align-items: center; min-height: 56px; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
-.okline .dot { margin-top: 0; } .okline b { display: block; font-size: 14px; } .okline small { display: block; }
-.okline::after { content: '›'; color: var(--muted); font-size: 20px; }
-.okline:hover b, .okline:focus-visible b { color: var(--primary); }
 svg.mini { display: block; width: 100%; height: auto; overflow: visible; }
 svg.mini .b { fill: var(--primary); } svg.mini .b.z { fill: var(--line); } svg.mini .b.n { fill: none; }
 svg.mini .ln { fill: none; stroke: var(--primary); stroke-width: 2; } svg.mini .ar { fill: var(--primary); opacity: .12; }
@@ -92,37 +60,16 @@ svg.sq .mk { fill: none; stroke: var(--card); stroke-width: 1.6; stroke-linecap:
 #detail table { margin: 6px 0; } #detail td code { font-size: 11px; word-break: break-all; } #detail .when { white-space: nowrap; }
 #detail details summary { cursor: pointer; color: var(--primary); }
 @media (max-width: 640px) {
-  .cols { grid-template-columns: minmax(0, 1fr); }
-  .nc { grid-template-columns: minmax(0, 1fr); }
-  .okline { grid-template-columns: 14px minmax(0, 1fr) 84px 12px; }
   .sqrow { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  #start .hero b { font-size: 44px; }
   #detail { inset: auto 0 0 0; width: 100%; max-height: 82vh; border-inline-start: 0; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,.2); }
-  .views a { padding: 0 8px; }
   #detail .keyed table { display: table; } #detail .keyed thead { display: table-header-group; } #detail .keyed tbody { display: table-row-group; }
   #detail .keyed tr { display: table-row; padding: 0; } #detail .keyed td, #detail .keyed td.n { display: table-cell; padding: 6px 8px; border-bottom: 1px solid var(--line); }
   #detail .keyed td.n { text-align: end; } #detail .keyed td::before { content: none; }
 }
 `;
 
-/** The start page's markup and the detail panel, inside page.ts's #board. */
+/** The detail panel, inside page.ts's #board. */
 export const START_HTML = String.raw`
-    <section id="start" hidden aria-labelledby="hero-title">
-      <div class="hero"><b id="hero-n" aria-hidden="true">…</b><div><h2 id="hero-title">Checking…</h2><p class="muted" id="hero-line"></p></div></div>
-      <form class="look" id="start-look" role="search"><label for="start-q" hidden>Look up</label>
-        <input id="start-q" type="search" placeholder="Look up E-7K2Q01, an install id, an email or a name" required><button type="submit">Look up</button></form>
-      <div class="cols">
-        <div><h3 class="colh"><span class="who">You</span>Needs you</h3><div id="start-you"></div></div>
-        <div class="side">
-          <h3 class="colh"><span class="who">Claude</span>Works on it</h3><div id="start-claude"></div>
-          <h3 class="colh"><span class="who">Apple or Google</span>Waits on a store</h3><div id="start-store"></div>
-          <h3 class="colh">Watch, no action now</h3><div id="start-watch"></div>
-        </div>
-      </div>
-      <details class="resolved" id="start-resolved" hidden></details>
-      <h3 class="okh"><span class="dot ok"></span>OK</h3>
-      <div class="oklist" id="start-ok"></div>
-    </section>
     <aside id="detail" hidden role="dialog" aria-labelledby="detail-title"></aside>`;
 
 /**
@@ -215,6 +162,20 @@ function runSquares(hst, sq) {
   return rows;
 }
 
+/**
+ * The series one chart draws, from all of its number's series: the total and
+ * its keys. A number counted only by key has no total (a first download's
+ * time is counted for open and for fill, and the two never add up): its
+ * chart then leads with its largest key, so the number still has a chart.
+ */
+function chartSeries(all, wanted) {
+  const total = all.find((s) => s.key === '') || null;
+  const keys = all.filter((s) => s.key !== '');
+  const size = (s) => (s.values || []).reduce((a, v) => a + (Number(v) || 0), 0);
+  const lead = total || keys.slice().sort((a, b) => size(b) - size(a))[0] || null;
+  return { total, keys, shown: all.find((s) => s.key === (wanted || '')) || lead };
+}
+
 /** A bucket's end: the next bucket's start, or one step after the last. */
 function bucketEnd(buckets, i, step) {
   if (i + 1 < buckets.length) return buckets[i + 1];
@@ -250,9 +211,7 @@ function route() {
   $('attention').hidden = v.name !== 'all';
   $('grid').hidden = v.name === 'start';
   $('expand-all').hidden = v.name !== 'all'; $('collapse-all').hidden = v.name !== 'all';
-  for (const a of document.querySelectorAll('.views a')) a.toggleAttribute('aria-current', false);
-  const here = document.querySelector('.views a[href="' + (v.name === 'all' ? '#all' : '#') + '"]');
-  if (here && v.name !== 'group') here.setAttribute('aria-current', 'page');
+  drawNav();
   for (const s of SECTIONS) {
     const card = $('card-' + s.id);
     if (!card) continue;
@@ -305,111 +264,6 @@ function glanceOf(groupId) {
 }
 
 const whereOf = (c) => titleOf(c.group) + (c.part && PART_TITLE[c.part] && c.part !== c.group ? ' · ' + PART_TITLE[c.part] : '');
-const ALSO_SHOWN = 3;
-
-/** A card for one part's alerts that need a person: the most urgent leads, up to 3 more follow, the rest are counted. */
-function cardHtml(c) {
-  const t = splitAlert(tidy(c.text));
-  const gl = glanceOf(c.group);
-  const sq = SQUARES[c.part] ? squarePic(c.part, c.text) : listCardPic(c.part);
-  const link = safeLink(c.link);
-  const lines = c.alerts || [];
-  const also = c.more.slice(0, ALSO_SHOWN).map((x, i) => '<li>' + esc(splitAlert(tidy(x)).title) + fixHtml(lines[i + 1], true) + '</li>').join('');
-  const rest = c.more.length - ALSO_SHOWN;
-  return '<article class="nc ' + c.level + (fixing(c) ? ' fixing' : '') + '"><div>' +
-    '<span class="badge ' + c.level + '">' + esc(LEVEL[c.level].title) + '</span>' +
-    '<h4>' + esc(t.title) + '</h4>' + fixHtml(lines[0]) +
-    '<p class="muted">' + esc(whereOf(c)) + '</p>' +
-    (also ? '<ul class="also">' + also + (rest > 0 ? '<li>' + num(rest) + ' more in ' + esc(titleOf(c.group)) + '</li>' : '') + '</ul>' : '') +
-    (t.next ? '<p><b>Next:</b> ' + esc(t.next) + '</p>' : '') +
-    '<p class="acts"><a class="button primary" href="#g/' + esc(c.group) + '">Open ' + esc(titleOf(c.group)) + '</a>' +
-    (link ? '<a class="button" href="' + esc(link) + '" target="_blank" rel="noopener">Open the page</a>' : '') + '</p></div>' +
-    (sq ? '<div class="pic">' + sq + '</div>' : gl ? '<div class="pic">' + miniSvg(gl.s.values, gl.s.agg, 200, 64) + '<small>' + esc(gl.said) + '</small></div>' : '<div></div>') +
-    '</article>';
-}
-
-/** One line for a part's alerts to watch, beside the cards; it opens the part's section. */
-function watchHtml(c) {
-  return '<div class="item wl"><a class="go" href="#g/' + esc(c.group) + '"><b>' + esc(splitAlert(tidy(c.text)).title) + '</b><small class="muted">' + esc(whereOf(c)) +
-    (c.more.length ? ' · ' + num(c.more.length) + ' more' : '') + '</small></a>' + fixHtml((c.alerts || [])[0], true) + '</div>';
-}
-
-function okLineHtml(groupId, state) {
-  const gl = glanceOf(groupId);
-  const said = state === 'wait' ? 'Loading…' : state.length ? 'Not connected: ' + state.map((p) => PART_TITLE[p] || p).join(', ') + '.' : gl ? gl.said : 'Every part answered with nothing to fix.';
-  return '<a class="okline" href="#g/' + esc(groupId) + '"><span class="dot ' + (state === 'wait' ? '' : state.length ? '' : 'ok') + '"></span>' +
-    '<span><b>' + esc(titleOf(groupId)) + '</b><small>' + esc(said) + '</small></span>' +
-    '<span>' + (gl ? miniSvg(gl.s.values, gl.s.agg, 120, 28) : '') + '</span></a>';
-}
-
-let startQueued = false;
-function renderStart() {
-  if (startQueued) return;
-  startQueued = true;
-  requestAnimationFrame(() => { startQueued = false; drawStart(); });
-}
-function drawStart() {
-  if ($('start').hidden) return;
-  const plan = startPlan(SECTIONS, results, LEVELS);
-  // A card whose every line waits for its check after a merged fix needs nobody now: it goes last, dashed.
-  const needs = plan.cards.filter((c) => c.level !== 'watch').sort((a, b) => Number(fixing(a)) - Number(fixing(b)));
-  const watch = plan.cards.filter((c) => c.level === 'watch');
-  const count = (cs) => cs.reduce((n, c) => n + 1 + c.more.length, 0);
-  const fixed = waitingFixes(needs.flatMap((c) => c.alerts || []));
-  const needN = count(needs) - fixed, watchN = count(watch);
-  const claude = claudeWork(results.userissues && results.userissues.state === 'ok' ? results.userissues.data : null);
-  const store = storeWaits(results.pipeline && results.pipeline.state === 'ok' ? results.pipeline.data : null);
-  const loading = plan.waiting.length;
-  $('hero-n').textContent = String(needN);
-  $('hero-n').className = needN ? '' : 'none';
-  $('hero-title').textContent = needN === 1 ? 'thing needs you' : needN ? 'things need you' : loading ? 'Checking…' : 'Nothing needs you now';
-  const okCount = plan.ok.filter((o) => !o.off.length).length;
-  $('hero-line').textContent = [
-    fixed ? fixed + (fixed === 1 ? ' has a fix merged and waits' : ' have a fix merged and wait') + ' for a check.' : '',
-    watchN ? watchN + ' to watch.' : '',
-    claude.length ? claude.length + ' Claude works on.' : '',
-    store.length ? store.length + (store.length === 1 ? ' waits' : ' wait') + ' on Apple or Google.' : '',
-    okCount + (okCount === 1 ? ' section is OK.' : ' sections are OK.'),
-    loading ? loading + ' still loading.' : ''
-  ].filter(Boolean).join(' ');
-  $('start-you').innerHTML = needs.length ? needs.map(cardHtml).join('') : '<p class="muted">' + (loading ? 'Checking each section…' : 'Nothing needs you. Each section is below.') + '</p>';
-  $('start-watch').innerHTML = watch.length ? watch.map(watchHtml).join('') : '<p class="muted none">' + (loading ? 'Loading…' : 'Nothing to watch.') + '</p>';
-  $('start-claude').innerHTML = claude.length ? claude.map((i) => '<div class="item"><b>' + esc(i.title || i.issue || 'An issue') + '</b><small>' +
-      (safeLink(i.issueUrl) ? '<a href="' + esc(i.issueUrl) + '" target="_blank" rel="noopener">' + esc(i.issue || 'Linear') + '</a> · ' : '') +
-      'filed ' + esc(ago(i.firstAt)) + (i.people ? ' · ' + num(i.people) + (i.people === 1 ? ' person' : ' people') : '') + '</small></div>').join('')
-    : '<p class="muted none">' + (results.userissues ? 'No open issue from the watch.' : 'Loading…') + '</p>';
-  $('start-store').innerHTML = store.length ? store.map((w) => '<div class="item"><b>' + esc(w.lane + ' ' + (w.title || '')) + '</b><small>' + esc(w.stage) + (w.at ? ' · ' + esc(ago(w.at)) : '') + (w.state ? ' · ' + esc(w.state) : '') + '</small></div>').join('')
-    : '<p class="muted none">' + (results.pipeline ? 'No build in review.' : 'Loading…') + '</p>';
-  $('start-ok').innerHTML = plan.ok.map((o) => okLineHtml(o.group, o.off)).concat(plan.waiting.map((id) => okLineHtml(id, 'wait'))).join('') ||
-    '<p class="muted">Every section has something above.</p>';
-  drawResolved();
-}
-
-/** Every card line is a merged fix that waits for its check. */
-const fixing = (c) => Boolean(c.alerts && c.alerts.length) && waitingFixes(c.alerts) === c.alerts.length;
-
-/** The lines the watch tied to Linear that this page no longer shows, under one closed heading. */
-function drawResolved() {
-  const ud = userIssuesData(), el = $('start-resolved');
-  el.hidden = !ud || !ud.lines;
-  if (el.hidden) return;
-  const now = new Set(PARTS.flatMap((p) => ((results[p] && results[p].alerts) || []).map(watchKeyOf)));
-  const answered = (part) => Boolean(results[part]) && results[part].state === 'ok';
-  el.innerHTML = resolvedHtml(resolvedLines(ud, now, answered, KINDS, Date.now()));
-}
-
-$('start-look').addEventListener('submit', (e) => {
-  e.preventDefault();
-  lookUp($('start-q').value.trim());
-});
-/** Opens Look up with this text, from the start page or a detail row. */
-function lookUp(text) {
-  if (!text) return;
-  closeDetail();
-  location.hash = 'g/lookup';
-  $('q').value = text;
-  $('lookup-form').requestSubmit();
-}
 
 // ---- a section's numbers over a range -------------------------------------------------------
 const partsWithNumbers = (groupId) => (SECTIONS.find((s) => s.id === groupId) || { parts: [] }).parts.filter((p) => METRIC[p]);
@@ -503,18 +357,14 @@ function drawPart(part, hst) {
   if (!box || hst.range !== range) return;
   const metrics = Object.keys(METRIC[part]);
   const charts = metrics.map((m) => {
-    const all = hst.series.filter((s) => s.metric === m);
-    const total = all.find((s) => s.key === '');
-    if (!total) return '';
-    const key = shownKey[part + '.' + m] || '';
-    const s = all.find((x) => x.key === key) || total;
+    const { total, keys, shown: s } = chartSeries(hst.series.filter((x) => x.metric === m), shownKey[part + '.' + m]);
+    if (!s) return '';
     const unit = METRIC[part][m].unit;
     const fmt = (x) => x === null ? '–' : unit === 'bytes' ? bytes(x) : unit === 'ms' ? ms(x) : num(x);
-    const keys = all.filter((x) => x.key !== '');
     return '<div class="chart" data-part="' + esc(part) + '" data-metric="' + esc(m) + '"><div class="ct"><span data-help-key="metric:' + esc(part + '.' + m) + '">' + esc(METRIC[part][m].label) + '</span><b>' + esc(fmt(rangeTotal(s.agg, s.values))) + '</b></div>' +
       chartSvg(s, hst, part, m) +
       '<div class="ax"><span>' + esc(bucketLabel(hst.buckets[0], hst.step)) + '</span><span>' + esc(bucketLabel(hst.buckets[hst.buckets.length - 1], hst.step)) + '</span></div>' +
-      (keys.length ? '<div class="keys">' + [total].concat(keys).map((x) => '<button type="button" data-key="' + esc(x.key) + '" aria-pressed="' + (x.key === s.key) + '" title="' + esc(keyName(x.key)) + '">' +
+      (keys.length ? '<div class="keys">' + (total ? [total] : []).concat(keys).map((x) => '<button type="button" data-key="' + esc(x.key) + '" aria-pressed="' + (x.key === s.key) + '" title="' + esc(keyName(x.key)) + '">' +
         esc(keyName(x.key)) + ' · ' + esc(fmt(rangeTotal(x.agg, x.values))) + '</button>').join('') + '</div>' : '') +
       '</div>';
   }).join('');

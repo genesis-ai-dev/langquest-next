@@ -1,5 +1,8 @@
 import { lookOf, saving, steadyLine, steadyStep, tryAgain } from './look';
+import { existsSync } from 'node:fs';
 import { APP_LINK, firstSentence, OTHER_LANGUAGES, PLAYLISTS, watchLink, youtubeText } from './playlists';
+import { TUNE, tuneChain } from './tune';
+import { TUTORIALS } from './all';
 import { UI_LANGUAGES } from '@langquest-next/core';
 import { CHANNELS, downloadLink, WORDS } from '../../server/youtube';
 
@@ -22,11 +25,11 @@ describe('a video\'s look', () => {
     expect(saving('- img "Saved"')).toBe(false);
     expect(saving('- img "Guardando"', 'es')).toBe(true);
     // Me counting what the phone keeps reads as it settles: one dry run read it at "Checking this device…" (2026-11-13).
-    expect(saving('- button "Ready for offline Checking this device…":')).toBe(true);
+    expect(saving('- button "Sync and offline Checking this device…":')).toBe(true);
     expect(saving('- button "جاهز للعمل بدون اتصال جارٍ فحص هذا الجهاز…":', 'ar')).toBe(true);
     // An English film that shows the app in Arabic for a while (choose-the-app-language).
     expect(saving('- button "جاهز للعمل بدون اتصال جارٍ فحص هذا الجهاز…":')).toBe(true);
-    expect(saving('- button "Ready for offline 12 passages on this device":')).toBe(false);
+    expect(saving('- button "Sync and offline 12 passages on this device":')).toBe(false);
   });
 
   it('stays the same through what changes each run though the app did not', () => {
@@ -111,6 +114,35 @@ describe('a video on YouTube', () => {
     expect(links[1]).toBe(`English: ${APP_LINK}/v/en/record-a-passage`);
     expect(downloadLink('zh-Hans', 'record-a-passage')).toBe(`${APP_LINK}/v/zh-Hans/record-a-passage.mp4`);
     expect(Object.keys(WORDS).sort()).toEqual(Object.keys(PLAYLISTS).sort());
+  });
+
+  it('credits the tune last, only in a video that has it (docs/decisions/2026-11-18-tune-on-introductory-videos.md)', () => {
+    const credited = youtubeText('How LangQuest works', 'This is LangQuest.', { language: 'en', tutorial: 'how-langquest-works' }, TUNE.credit).description.split('\n\n');
+    expect(credited[credited.length - 1]).toBe(TUNE.credit);
+    expect(credited.slice(0, -1).join('\n\n')).toBe(youtubeText('How LangQuest works', 'This is LangQuest.', { language: 'en', tutorial: 'how-langquest-works' }).description);
+    // The licence asks for the tune's name, its author, its source and the licence.
+    for (const part of ['Carefree', 'Kevin MacLeod', 'incompetech.com', 'https://creativecommons.org/licenses/by/4.0/']) expect(TUNE.credit).toContain(part);
+    expect(existsSync(TUNE.file)).toBe(true);
+    // A general, introductory video has the tune. A video of one task or one setting has none.
+    expect(Object.values(TUTORIALS).filter((t) => t.tune).map((t) => t.id)).toEqual(['how-langquest-works', 'the-path-of-a-passage']);
+  });
+
+  it('never says that passages all take the same path or the same checks: each language chooses its own', () => {
+    // Why: Caleb, 2026-11-18, on "The path of a passage" as first written: it gave "the impression that every single passage
+    // that's submitted in LangQuest by every language and every organization goes through the exact same checks, and that's
+    // the exact opposite of what we're trying to communicate".
+    const said = Object.values(TUTORIALS).flatMap((t) => t.steps.flatMap((s) => (s.say ? [s.say] : [])));
+    expect(said.filter((line) => /\bthe same (path|checks?|steps)\b/i.test(line))).toEqual([]);
+    // A video that shows a passage's checks says whose they are.
+    for (const id of ['how-langquest-works', 'the-path-of-a-passage']) {
+      expect(TUTORIALS[id]!.steps.some((s) => /its language chose|Each language in LangQuest chooses/.test(s.say ?? ''))).toBe(true);
+    }
+  });
+
+  it('plays the tune quietly under the voice, and takes it out as the film ends', () => {
+    expect(TUNE.decibels).toBeLessThanOrEqual(-12);
+    expect(tuneChain(27, 155.5, 'tune')).toBe('[27:a]aresample=48000,volume=-12dB,afade=t=in:st=0:d=1.2,afade=t=out:st=151.90:d=3.6[tune]');
+    expect(tuneChain(3, 2, 'tune')).toContain('afade=t=out:st=0.00:d=3.6');
   });
 
   it('keeps within what YouTube takes', () => {

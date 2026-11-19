@@ -13,7 +13,7 @@ export const GROUP_HELP: Record<string, string> = {
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
   safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
   phones: 'Everything phones and browsers tell us about themselves: syncs, errors and crashes, files, recording, signing in, which builds they run and how often each crashes, and phones that are stuck or have gone quiet. Counts and codes only, never content.',
-  releases: 'Where each new store build and over-the-air update is now, what is on main and whether CI passed, how last night\'s tests went, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
+  releases: 'Where each new store build and over-the-air update is now, what is on main and whether CI passed, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
   jobs: 'The server\'s own scheduled work: each job\'s runs and failures and whether it runs now (Run now starts one), the database\'s own timers (pg_cron), push notifications, and the import from LangQuest v2.',
   database: 'The database\'s health (connections, cache, deadlocks, slowest calls), where its space goes, long-open queries and transactions, and the Supabase project\'s services, logs and Edge Functions.',
   traffic: 'Requests each Cloudflare Worker answered in the last day with errors, CPU and its latest build, and the app Worker\'s requests by kind with how long they took and how many a limit refused.',
@@ -22,6 +22,7 @@ export const GROUP_HELP: Record<string, string> = {
   support: 'Work waiting on LangQuest staff: content reports (the Terms promise action within 24 hours), suspensions, deletions, feedback from the help button, and what was done from this page.',
   access: 'Who can see every organization (Global Viewers), limits that refused requests, other apps connected through tokens, device sign-ins, webhooks and review links, and what stops working on a date.',
   stores: 'How the app does in the stores: Android crash and freeze rates as Google Play measures them, App Store review state and builds, and recent reviews.',
+  nightly: 'How last night\'s test suites went on main: for each suite, how many tests ran and passed, why a suite broke as a whole, and the Linear issue of each failed test with its fix.',
   tutorials: 'The how-to videos on YouTube, one channel for each app language. First what an admin must do and what the workers do now and tonight; then every video in a language with its state and a timeline of its films, uploads, comments and fixes; then each channel, the films not on YouTube yet with Publish, and what came in about the videos.',
 };
 
@@ -130,7 +131,9 @@ export const HELP: Record<string, string> = {
   Protocol: 'The version of the format phones and the server sync in.',
   'Browsers by web commit, this week': 'Which version of the web app browsers are running. Old ones update when the page reloads.',
   'Phones by build': 'Phones that reported, per platform and app version, as each last said: how many in the last day, 7 days and 14 days. Reducer is the data logic those phones run; an update can change it without a new build. A phone is an install that sends diagnostics, so a reinstall counts again, and development builds and browsers are left out.',
-  'Time to a usable Map': 'How long until a language is usable after a first download. open: a whole language downloaded. fill: a big language, until its Map shows (the rest fills in behind).',
+  'Time to a usable Map': 'How long until a language is usable after a first download. open: a whole language downloaded, on a phone that had none of it. Its time is the download alone: the time the phone waited with no connection is apart, under Waited and Longest wait. fill: a big language, until its Map shows (the rest fills in behind).',
+  Waited: 'First downloads that began with no connection: the phone waited before it could download.',
+  'Longest wait': 'The longest time a phone waited with no connection before its first download of a language. It is not part of p50 or p95.',
   'First downloads that fell back or started over': 'First downloads that did not go the quick way, last 14 days. Took the whole snapshot: the phone could not fill from the server\'s cut (no_cut: no cut for its version; no_lines or old_lines: the passage lines are missing or older than the cut; error: the server failed). Started over: the cut it was filling from went away. No snapshot for reducer: the phone pulled the whole log. That is normal for a new language or minutes after a deploy; on an older reducer it means that version\'s snapshots were purged. Installs tells one phone retrying from a wider problem.',
   'What went wrong': 'What happened to the first download, with the reason the phone reported or, for no snapshot, the reducer it runs.',
   'Stuck phones': 'Phones with unsent work over a day old, a stuck download, little storage or lost files. Open one to see its last three days.',

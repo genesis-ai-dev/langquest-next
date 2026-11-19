@@ -76,11 +76,11 @@ class WifiDirect(private val context: Context, private val handler: Handler) {
     override fun onFailure(reason: Int) { future.completeExceptionally(failure(reason)) }
   }
 
-  private fun config(ssid: String, passphrase: String, band5: Boolean): WifiP2pConfig = try {
+  private fun config(ssid: String, passphrase: String, band: Int): WifiP2pConfig = try {
     WifiP2pConfig.Builder()
       .setNetworkName(ssid)
       .setPassphrase(passphrase)
-      .setGroupOperatingBand(if (band5) WifiP2pConfig.GROUP_OWNER_BAND_5GHZ else WifiP2pConfig.GROUP_OWNER_BAND_AUTO)
+      .setGroupOperatingBand(band)
       .enablePersistentMode(false)
       .build()
   } catch (e: IllegalArgumentException) {
@@ -99,10 +99,15 @@ class WifiDirect(private val context: Context, private val handler: Handler) {
     throw NearbyException(if (owner) NearbyCode.GROUP_FAILED else NearbyCode.JOIN_TIMEOUT, "the group did not form")
   }
 
-  fun host(
-    id: String, ssid: String, passphrase: String, band5: Boolean, deadlineMs: Long,
-    adopt: (Socket, Hosted) -> LinkSession, refused: (Hosted) -> Unit,
-  ): Hosted {
+  /** A group this phone owns: its own address, and how to take it down. */
+  class Owned(val address: InetAddress, val down: () -> Unit)
+
+  /**
+   * Forms a group this phone owns, by name and passphrase on `band` (`WifiP2pConfig`'s
+   * `GROUP_OWNER_BAND_*`), and waits until it has its address. Nearby's `host` and Give the app
+   * both form theirs here.
+   */
+  fun form(ssid: String, passphrase: String, band: Int, deadlineMs: Long): Owned {
     val manager = manager()
     val channel = manager.initialize(context, handler.looper, null) ?: throw NearbyException(NearbyCode.P2P_UNSUPPORTED, "no Wi-Fi Direct channel")
     val down = { manager.removeGroup(channel, null); channel.close() }
@@ -115,20 +120,33 @@ class WifiDirect(private val context: Context, private val handler: Handler) {
       })
       try { removed.get(3_000, TimeUnit.MILLISECONDS) } catch (_: Exception) {}
       val created = CompletableFuture<Unit>()
-      manager.createGroup(channel, config(ssid, passphrase, band5), listener(created))
+      manager.createGroup(channel, config(ssid, passphrase, band), listener(created))
       await(created, deadlineMs, NearbyCode.GROUP_FAILED)
       val info = info(manager, channel, System.currentTimeMillis() + deadlineMs, true)
+      return Owned(info.groupOwnerAddress, down)
+    } catch (e: Exception) {
+      try { down() } catch (_: Exception) {}
+      throw e as? NearbyException ?: NearbyException(NearbyCode.GROUP_FAILED, "could not form a group", e)
+    }
+  }
+
+  fun host(
+    id: String, ssid: String, passphrase: String, band5: Boolean, deadlineMs: Long,
+    adopt: (Socket, Hosted) -> LinkSession, refused: (Hosted) -> Unit,
+  ): Hosted {
+    val group = form(ssid, passphrase, if (band5) WifiP2pConfig.GROUP_OWNER_BAND_5GHZ else WifiP2pConfig.GROUP_OWNER_BAND_AUTO, deadlineMs)
+    try {
       // Bound to the group's own address, so nobody on another network this phone is on can take the link.
-      val server = ServerSocket(0, 2, info.groupOwnerAddress)
+      val server = ServerSocket(0, 2, group.address)
       val hosted = Hosted(
         id, "wifi-direct",
         mapOf("kind" to "wifi-direct", "ssid" to ssid, "passphrase" to passphrase, "port" to server.localPort, "band" to if (band5) "5" else "auto"),
-        server, down, adopt, refused,
+        server, group.down, adopt, refused,
       )
       hosted.acceptLoop()
       return hosted
     } catch (e: Exception) {
-      try { down() } catch (_: Exception) {}
+      try { group.down() } catch (_: Exception) {}
       throw e as? NearbyException ?: NearbyException(NearbyCode.GROUP_FAILED, "could not host a group", e)
     }
   }
@@ -141,7 +159,7 @@ class WifiDirect(private val context: Context, private val handler: Handler) {
     val deadline = System.currentTimeMillis() + deadlineMs
     try {
       val connected = CompletableFuture<Unit>()
-      manager.connect(channel, config(ssid, passphrase, false), listener(connected))
+      manager.connect(channel, config(ssid, passphrase, WifiP2pConfig.GROUP_OWNER_BAND_AUTO), listener(connected))
       await(connected, deadlineMs, NearbyCode.JOIN_TIMEOUT)
       val info = info(manager, channel, deadline, false)
       return connectBy(deadline, { Socket() }, info.groupOwnerAddress, port) to down

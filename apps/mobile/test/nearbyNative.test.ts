@@ -9,7 +9,8 @@ import { NEARBY_DROP_CODES, NEARBY_NATIVE_CODES } from '../modules/nearby-link/s
  * that keep a phone safe are held here on every run: nothing logged, nothing fixed in an advert, no
  * Google Play services, every permission used declared and none past the plan's list, API 29 classes
  * kept off a phone below Android 10, no Bluetooth prompt before the screen asks, no background mode,
- * and the JavaScript face equal to the Kotlin and to the Swift.
+ * Give the app's page served on its group's address alone, and the JavaScript face equal to the
+ * Kotlin and to the Swift.
  */
 
 const MODULE = 'apps/mobile/modules/nearby-link';
@@ -113,8 +114,8 @@ describe('the nearby module logs nothing and puts nothing fixed in the air', () 
     expect(kotlinCode.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi)).toEqual(['00002902-0000-1000-8000-00805f9b34fb']);
     expect(kotlinCode).not.toMatch(/UUID\(\s*-?\d|ParcelUuid\.fromString/);
     for (const name of ['LangQuest', 'langquest', 'frontierrnd', 'nearby-sync']) expect(code(allKotlin.replace(/^package .*$/m, '')).toLowerCase()).not.toContain(name.toLowerCase());
-    // A group's name is chosen in JavaScript in Android's usual form; Kotlin makes none.
-    expect(kotlinCode).not.toMatch(/"DIRECT-/);
+    // A nearby group's name is chosen in JavaScript in Android's usual form; Kotlin makes only Give the app's (14.5).
+    expect([...kotlin].filter(([, text]) => /"DIRECT-/.test(code(text))).map(([f]) => f)).toEqual(['GiveApp.kt']);
   });
 
   it('never makes a persistent group, which would keep the device address', () => {
@@ -206,6 +207,17 @@ describe('the nearby module leaves nothing served or open behind a stop', () => 
     const startSet = /private fun startSet\([\s\S]*?\n  \}\n/.exec(ble)![0];
     const served = /pipes\.serve\(key, newSalt\) \{ served ->([\s\S]*)/.exec(startSet)![1]!;
     expect(served).toMatch(/if \(kFind == null\) \{\s*pipes\.unserve\(\)/);
+  });
+
+  it('stops what is open without a copy that can throw: no toList, toSet or single over a concurrent map or set', () => {
+    // Why: Kotlin's toList() on a collection of one reads the size, then the first element; another
+    // thread removing it between the two throws NoSuchElementException, which made Give the app's
+    // close() throw (CI on PR 527). A concurrent map or set is walked straight, which never throws.
+    const concurrent = [...kotlinCode.matchAll(/va[lr] (\w+)\s*(?::[^=\n]*)?=\s*(?:ConcurrentHashMap\b|ConcurrentHashMap\.newKeySet|ConcurrentLinked|CopyOnWrite)/g)].map((m) => m[1]!);
+    expect(concurrent).toEqual(expect.arrayContaining(['open', 'links', 'hosts']));
+    for (const name of concurrent) {
+      expect(kotlinCode).not.toMatch(new RegExp(`\\b${name}(?:\\.(?:keys|values|entries))?\\.(?:toList|toSet|single)\\(`));
+    }
   });
 
   it('and so does the Swift', () => {
@@ -415,5 +427,113 @@ describe('the nearby module on an iPhone', () => {
       .toEqual(['cachesDirectory', 'documentDirectory', 'libraryDirectory', 'temporaryDirectory']);
     expect(swiftOf('Pure/LinkSession.swift')).toMatch(/if !Paths\.inside\(file, roots\) \{ throw NearbyError\(NearbyCode\.FILE_UNREADABLE/);
     expect(swiftOf('Pure/PartWriter.swift')).toMatch(/if !Paths\.inside\(target, roots\) \{ throw NearbyError\(NearbyCode\.STAGING_REFUSED/);
+  });
+});
+
+describe('Give the app (docs/nearby-sync-plan.md 14.5)', () => {
+  const kit = code(kotlin.get('RadioKit.kt')!);
+  const server = code(kotlin.get('InstallFileServer.kt')!);
+  const keep = code(kotlin.get('InstallFile.kt')!);
+  const kitFun = (name: string) => new RegExp(`\\n {2}fun ${name}\\([\\s\\S]*?\\n {2}\\}\\n`).exec(kit)![0];
+
+  it('serves on the group\'s own address, never on every network this phone is on', () => {
+    const bind = /private fun giveSocket\(address: InetAddress\)[\s\S]*?\n {2}\}\n/.exec(kit)![0];
+    expect([...bind.matchAll(/ServerSocket\(([^)]*)\)/g)].map((m) => m[1])).toEqual(['GIVE_PORT, GIVE_BACKLOG, address', '0, GIVE_BACKLOG, address']);
+    expect(kit).toMatch(/val socket = giveSocket\(group\.address\)/);
+    expect(code(kotlin.get('WifiLinks.kt')!)).toMatch(/return Owned\(info\.groupOwnerAddress, down\)/);
+    // The server binds nothing itself; and every server socket in the module names an address but
+    // the hotspot's, whose own address cannot be found (Hosted.kt).
+    expect(server).not.toMatch(/ServerSocket\(|\.bind\(/);
+    expect([...kotlinCode.matchAll(/ServerSocket\(([^)]*)\)/g)].map((m) => m[1]).filter((args) => args!.split(',').length < 3)).toEqual(['0, 4']);
+  });
+
+  it('answers only phones on the group\'s own network, and stops when the group goes', () => {
+    // Linux takes packets for the group's address that arrive on any interface (the weak host model).
+    expect(server).toMatch(/if \(!peers\.contains\(socket\.inetAddress\)\) \{\s*quietlyClose\(socket\)\s*continue/);
+    expect(kit).toMatch(/val peers = Subnet\(group\.address, groupPrefix\(group\.address\)\)/);
+    expect(kit).toMatch(/NetworkInterface\.getByInetAddress\(address\)\?\.interfaceAddresses\?\.firstOrNull \{ it\.address == address \}\?\.networkPrefixLength/);
+    expect(kit).toMatch(/stillThere = \{ NetworkInterface\.getByInetAddress\(group\.address\) != null \}/);
+    expect(kit).toMatch(/onStopped = \{ session\?\.close\(\) \}/);
+    // And a session ends by itself after 30 minutes, whatever JavaScript does.
+    expect(server).toMatch(/val serveMs: Long = 30 \* 60_000L/);
+  });
+
+  it('serves the page and the one file by exact path, in pure Kotlin on java.* alone, and logs nothing', () => {
+    for (const m of server.matchAll(/^import\s+([\w.]+)/gm)) expect(m[1]).toMatch(/^java\./);
+    expect(server).toMatch(/when \(r\.target\) \{\s*"\/" -> \{\s*asked\(\)\s*answer\([^\n]*\n\s*\}\s*filePath -> \{\s*asked\(\)\s*sendFile\([^\n]*\n\s*\}\s*else -> answer\(out, 404/);
+    expect(server).toMatch(/private val filePath = "\/\$name"/);
+    // Only the page and the file count as asked, so other requests cannot keep a session alive.
+    expect(server.match(/^\s*asked\(\)$/gm)).toHaveLength(2);
+    expect(server).toContain(`"Content-Security-Policy" to "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"`);
+    expect(server).toContain('"Referrer-Policy" to "no-referrer"');
+    // Nothing decodes, resolves or normalises a path, so nothing else on the phone is reachable.
+    expect(server).not.toMatch(/URLDecoder|URI\(|normalize|canonical|\bFile\(/);
+    for (const header of ['"Cache-Control" to "no-store"', '"X-Content-Type-Options" to "nosniff"', '"Connection" to "close"']) expect(server).toContain(header);
+  });
+
+  it('keeps the install file only in the app\'s own files folder, under a carried build\'s name', () => {
+    expect(keep).toMatch(/private val folder: File get\(\) = File\(context\.filesDir, FOLDER\)/);
+    expect(keep).toMatch(/const val FOLDER = "install-file"/);
+    expect(keep).toMatch(/val dir = folder\n/);
+    // It writes only a `.part` copy of its own there, then renames it there.
+    expect([...keep.matchAll(/FileOutputStream\(([^)]*)\)/g)].map((m) => m[1])).toEqual(['part, false']);
+    expect(keep).toMatch(/val part = File\(dir, "\$name\.\$\{UUID\.randomUUID\(\)\}\.part"\)/);
+    expect(keep).toMatch(/val kept = File\(dir, name\)/);
+    // From the picker's content URI alone, a plain file under the size cap, copied outside the lock.
+    expect(keep).toMatch(/if \(source\.scheme != "content"\) throw NearbyException\(NearbyCode\.BAD_ARGUMENT/);
+    expect(keep).toMatch(/if \(!OsConstants\.S_ISREG\(stat\.st_mode\)\) throw NearbyException\(NearbyCode\.FILE_UNREADABLE/);
+    expect(keep).toMatch(/const val MAX_BYTES = 1L shl 30/);
+    expect(keep).toMatch(/writing\.add\(part\.name\)\n\s*\}\n\s*try \{\n\s*openPlainFile\(source, dir, minFreeBytes\)\.use \{ copy\(it, part, dir, minFreeBytes\) \}\n\s*synchronized\(lock\) \{\n\s*if \(!ours\(part, name\)\)/);
+    expect(keep).toMatch(/if \(!nameOk\(name\)\) throw NearbyException\(NearbyCode\.BAD_ARGUMENT/);
+    expect(keep).toContain('Regex("^r[0-9]+-l[0-9]+-p[0-9]+(\\\\.[0-9]+)?-[0-9a-f]{8}\\\\.apk$")');
+    // A copy, not a lasting grant on the person's file, and nowhere outside the app's own folder.
+    expect(keep).not.toMatch(/takePersistableUriPermission|cacheDir|getExternalFilesDir|getExternalStorage|Environment\.|openFileOutput/);
+  });
+
+  it('keeps only this app\'s own file: its package name, exactly its signers, and the build its name says', () => {
+    expect(keep).toMatch(/if \(archive\.packageName != context\.packageName\) return false/);
+    expect(keep).toMatch(/if \(!sameSigners\(signers\(archive\), signers\(own\)\)\) return false/);
+    expect(keep).toMatch(/return runtimeMatches\(name, runtimeVersionOf\(pm, archive, apk\.path\)\)/);
+    expect(keep).toMatch(/if \(!ours\(part, name\)\) throw NearbyException\(NearbyCode\.FILE_REFUSED/);
+    expect(keep).toMatch(/catch \(e: Exception\) \{\s*part\.delete\(\)/);
+    // Android 9 and 10 collect an archive's certificates only for GET_SIGNATURES.
+    expect(keep).toMatch(/Build\.VERSION\.SDK_INT >= Build\.VERSION_CODES\.R -> pm\.getPackageArchiveInfo\(path, PackageManager\.GET_SIGNING_CERTIFICATES or PackageManager\.GET_META_DATA\)\n\s*Build\.VERSION\.SDK_INT >= Build\.VERSION_CODES\.P ->\n\s*pm\.getPackageArchiveInfo\(path, PackageManager\.GET_SIGNATURES or PackageManager\.GET_SIGNING_CERTIFICATES or PackageManager\.GET_META_DATA\)/);
+  });
+
+  it('makes its Wi-Fi name and passphrase with SecureRandom, and nothing in the module uses a weaker one', () => {
+    const give = code(kotlin.get('GiveApp.kt')!);
+    expect(give).toMatch(/fun ssid\(random: SecureRandom\)/);
+    expect(give).toMatch(/fun passphrase\(random: SecureRandom\)/);
+    expect(kit).toMatch(/private val random = SecureRandom\(\)/);
+    expect(kitFun('startGiveApp')).toMatch(/giveOnNewGroup\(/);
+    expect(kit).toMatch(/GiveNames\.ssid\(random\)[\s\S]*GiveNames\.passphrase\(random\)/);
+    expect(kotlinCode).not.toMatch(/java\.util\.Random\b|kotlin\.random|Math\.random|ThreadLocalRandom|\bRandom\(/);
+  });
+
+  it('never runs beside a nearby group, hosted or joined: GROUP_BUSY either way', () => {
+    expect(kit).toMatch(/private fun claimNearby\(\) = synchronized\(groups\) \{\s*if \(giving\?\.isClosed == false \|\| giveForming\) throw NearbyException\(NearbyCode\.GROUP_BUSY/);
+    expect(kitFun('host')).toMatch(/claimNearby\(\)/);
+    expect(kitFun('join')).toMatch(/claimNearby\(\)/);
+    // A join whose link could not be made lets its claim go.
+    expect(kitFun('join')).toMatch(/return registry\.adopt\(SocketTransport\(socket\), kind\) \{ end\(\) \}\n\s*\} catch \(e: Exception\) \{[\s\S]*?end\(\)\n\s*throw e/);
+    expect(kitFun('startGiveApp')).toMatch(/if \(nearbyGroups > 0\) throw NearbyException\(NearbyCode\.GROUP_BUSY/);
+    // Keeping the file needs no radio; serving it does, on Android 10 and later.
+    expect(moduleKt).toMatch(/AsyncFunction\("keepInstallFile"\)[^\n]*\n\s*run\(promise\)/);
+    expect(moduleKt).toMatch(/AsyncFunction\("startGiveApp"\)[^\n]*\n\s*radio\(promise\)/);
+  });
+
+  it('ends with every stop: its own, stopAll, the app leaving the screen, and the module going', () => {
+    expect(kitFun('stopAll')).toMatch(/^\s*fun stopAll\(\) \{\s*stopGiveApp\(\)/);
+    expect(moduleKt).toMatch(/AsyncFunction\("stopGiveApp"\)[^\n]*\n[^\n]*\?\.stopGiveApp\(\)/);
+    expect(moduleKt).toMatch(/OnActivityEntersBackground \{ io\.execute \{ stopAll\(backgrounded = true\) \} \}/);
+    expect(moduleKt).toMatch(/OnDestroy \{\s*stopAll\(\)/);
+    expect(moduleKt).toMatch(/private fun stopAll\(backgrounded: Boolean = false\) \{[\s\S]*?kit\?\.stopAll\(\)/);
+  });
+
+  it('says not available on an iPhone, which has no Android install file to give', () => {
+    for (const f of ['keepInstallFile', 'keptInstallFile', 'dropInstallFile', 'startGiveApp', 'giveAppStatus', 'stopGiveApp']) {
+      expect(moduleSwift).toMatch(new RegExp(`AsyncFunction\\("${f}"\\) \\{ \\([^)]*promise: Promise\\) in\\n\\s*self\\.androidOnly\\(promise\\)\\n\\s*\\}`));
+    }
+    expect(moduleSwift).toMatch(/private func androidOnly\(_ promise: Promise\) \{\s*run\(promise\) \{\s*throw NearbyError\(NearbyCode\.NOT_AVAILABLE, /);
   });
 });

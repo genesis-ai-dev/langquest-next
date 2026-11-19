@@ -492,7 +492,7 @@ Steps:
 
 Expected:
 - Step 2 saves on the device (the device does not yet know the role changed).
-- After step 3, Sync shows the review as refused by the server, with a reason, and the app says so (PLAN.md invariant 1: nothing is dropped silently).
+- After step 3, Sync and offline (Me → "Sync and offline") shows the review as refused by the server, with a reason, and the app says so (PLAN.md invariant 1: nothing is dropped silently).
 - If the device already knew of the change, step 2 shows "Not saved: {reason}" instead and stays on Decide.
 - Resets: COORD gives REV back the Reviewer role; clear the refused item from Sync as the SYNC tests describe.
 

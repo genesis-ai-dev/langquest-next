@@ -531,24 +531,53 @@ function marked(text: string, query: string | undefined): ReactNode {
  * that opens in place. Pass `open`/`onToggle` from `ctx.details(key)` so a
  * card someone opened stays open when they come Back.
  */
-export function Disclosure(props: { icon: IconName; title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode; testID?: string;
+/** A fold's summary needing attention: amber for something to do, red for something refused. */
+export type DisclosureTone = 'amber' | 'red';
+
+/**
+ * A fold: a title, a one-line summary and, tapped, what is inside. With no
+ * `children` it is a fact with nothing more to show, drawn the same with no
+ * Show and no arrow, so it never promises to open. A `tone` colours the
+ * summary and the icon when the line needs attention.
+ */
+export function Disclosure(props: { icon: IconName; title: string; summary: string; open?: boolean; onToggle?: () => void; children?: ReactNode; testID?: string;
+  tone?: DisclosureTone;
   /** What help mode says is inside, where the title alone does not. */ help?: string }) {
-  const spot = useHelpSpot(props.title, props.help ?? (props.open ? t('help.details.disclosureOpen') : t('help.details.disclosure')), props.onToggle);
+  const folds = props.children !== undefined && props.onToggle !== undefined;
+  const open = folds && !!props.open;
+  const spot = useHelpSpot(props.title, props.help ?? (open ? t('help.details.disclosureOpen') : t('help.details.disclosure')), folds ? props.onToggle : undefined);
+  const tint = props.tone === 'red' ? TINT.redText : props.tone === 'amber' ? TINT.amberText : null;
+  const head = (
+    <>
+      <View style={[styles.iconTile, tint ? { backgroundColor: props.tone === 'red' ? TINT.red : TINT.amber } : null]}><Ico name={props.icon} size={20} color={tint ?? C.primary} /></View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[txt.body, { fontWeight: '600' }]}>{props.title}</Text>
+        <Text style={[txt.xs, { marginTop: 2 }, tint ? { color: tint, fontWeight: '600' } : null]}>{props.summary}</Text>
+      </View>
+    </>
+  );
+  const label = t('shell.a11y.labelDetail', { label: props.title, detail: props.summary });
+  if (!folds) {
+    return (
+      <View style={styles.disclosure}>
+        <View {...(props.testID ? { testID: props.testID } : {})} accessible accessibilityLabel={label} style={styles.disclosureHead}>
+          {head}
+          <HelpBadge spot={spot} inset />
+        </View>
+      </View>
+    );
+  }
   return (
     <View style={styles.disclosure}>
-      <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')}
-        accessibilityLabel={t('shell.a11y.labelDetail', { label: props.title, detail: props.summary })} accessibilityHint={props.open ? t('shell.kit.hidesDetails') : t('shell.kit.showsDetails')}
+      <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" {...a11yState({ expanded: open }, 'button')}
+        accessibilityLabel={label} accessibilityHint={open ? t('shell.kit.hidesDetails') : t('shell.kit.showsDetails')}
         style={({ pressed }) => [styles.disclosureHead, pressed && styles.pressed]}>
-        <View style={styles.iconTile}><Ico name={props.icon} size={20} color={C.primary} /></View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.body, { fontWeight: '600' }]}>{props.title}</Text>
-          <Text style={[txt.xs, { marginTop: 2 }]}>{props.summary}</Text>
-        </View>
-        <Text style={txt.link}>{props.open ? t('shell.kit.hide') : t('shell.kit.show')}</Text>
-        <Ico name={props.open ? 'up' : 'down'} size={20} color={C.primary} />
+        {head}
+        <Text style={txt.link}>{open ? t('shell.kit.hide') : t('shell.kit.show')}</Text>
+        <Ico name={open ? 'up' : 'down'} size={20} color={C.primary} />
         <HelpBadge spot={spot} inset />
       </Pressable>
-      {props.open ? <View style={styles.disclosureBody}>{props.children}</View> : null}
+      {open ? <View style={styles.disclosureBody}>{props.children}</View> : null}
     </View>
   );
 }
