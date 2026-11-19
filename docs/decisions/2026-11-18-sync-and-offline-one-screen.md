@@ -75,3 +75,5 @@ Reverse if: people look for Sync under More settings and do not find it on
 Me; the folds hide something people need without opening them (field
 reports, or support asking for screenshots of opened folds); or the strip
 reads as decoration rather than status on 2 GB phones.
+
+Amended (2026-11-19, Carl Sauder): Ready for offline's install file item says ready only once the file is in hand, not for a press that only opened the browser: never got, for an older version, downloaded but not chosen yet, or ready (`installFileItem`, `installBlock`; docs/decisions/0246-a-carried-build-is-the-newcomers.md, amended the same day). Its link goes to the screen, now called Download the install file, and for a file downloaded but not chosen it shows offline too, since choosing a file needs no internet.

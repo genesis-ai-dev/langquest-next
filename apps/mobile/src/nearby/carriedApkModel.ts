@@ -16,7 +16,15 @@ import type { LetInWhyNot } from './letInModel';
  */
 export const CARRIED_APK_OPENED_KEY = 'carriedApkOpened';
 
-/** How "Get the install file" shows: pressable, disabled because the phone is offline, or not at all. */
+/**
+ * A second phone-wide meta row, for the name of the file last found right under Check my file or
+ * Choose the downloaded file. It tells a file in hand from a press that only opened the browser,
+ * on a phone that keeps no copy (docs/decisions/0246-a-carried-build-is-the-newcomers.md, amended
+ * 2026-11-19). Like the first, it holds a carried build's name and nothing else.
+ */
+export const CARRIED_APK_RIGHT_KEY = 'carriedApkRight';
+
+/** How the browser download shows: pressable, disabled because the phone is offline, or not at all. */
 export type ApkGet = 'ready' | 'offline' | null;
 
 /**
@@ -30,25 +38,37 @@ export function apkGet(o: { needed: string | null; url: string | null; online: b
 }
 
 /**
- * Get the install file's step, which decides its main button (Carl's choice, 2026-11-18):
+ * The install file screen's step, which decides its main button (Carl's choice, 2026-11-18):
  * - `get`: the browser download, until the person has gone to get the file for this phone's
  *   versions (`opened`, which the press keeps).
  * - `choose`: then the picker, to choose the file the browser downloaded, until it is in hand,
  *   with the download offered again beside it.
- * - `done`: in hand, as a copy kept for Give the app (14.5), or, on a phone that cannot keep one,
- *   a file found right this visit (`right`); no main button then.
- * Null until the remembered name and the kept copy are read, so the button never changes under a
- * finger. The app still downloads nothing: the browser does, and the person chooses the file.
+ * - `done`: in hand, as a copy kept for Give the app (14.5), or, on a phone that keeps no copy,
+ *   a file found right by its name (`right`, remembered); no main button then.
+ * Null until what it rests on is read, so the button never changes under a finger. The app still
+ * downloads nothing: the browser does, and the person chooses the file.
  */
 export type ApkStep = 'get' | 'choose' | 'done';
 
 export function apkStep(o: {
-  needed: string | null; opened: string | null | undefined; kept: KeptFile | null | undefined; canGive: boolean; right: boolean;
+  needed: string | null; opened: string | null | undefined; kept: KeptFile | null | undefined; canGive: boolean; right: string | null | undefined;
 }): ApkStep | null {
-  if (o.needed === null || o.opened === undefined || (o.canGive && o.kept === undefined)) return null;
-  const inHand = o.canGive ? !!o.kept && !keptStale(o.kept, o.needed) : o.right;
+  if (o.needed === null || o.opened === undefined || (o.canGive ? o.kept === undefined : o.right === undefined)) return null;
+  const inHand = o.canGive ? !!o.kept && !keptStale(o.kept, o.needed) : !!o.right && !apkStale(o.needed, o.right);
   if (inHand) return 'done';
   return o.opened !== null && !apkStale(o.needed, o.opened) ? 'choose' : 'get';
+}
+
+/**
+ * Why this phone cannot give the app over Wi-Fi, so the screens say what would mend it: Android
+ * before 10, which no update mends, or an older build of the app whose native module lacks Give
+ * the app's functions, which an update from the store does (Carl, 2026-11-19).
+ */
+export type CannotGive = 'android' | 'update';
+
+export function cannotGive(o: { sdk: number; native: boolean }): CannotGive | null {
+  if (o.sdk < 29) return 'android';
+  return o.native ? null : 'update';
 }
 
 /**
@@ -81,18 +101,15 @@ export function chosenName(chosen: string): string {
 }
 
 /**
- * How the screens show the file this phone needs: the start of its name that must match and the
- * rest left open, as `r21-l1-p1-….apk`, since the file got may end in another build's
- * fingerprint. A name core does not write is shown as it is.
+ * How the screens name the file this phone needs, where they must: the start of its name that
+ * must match and the rest left open, as `r21-l1-p1-….apk`, since the file got may end in another
+ * build's fingerprint. A name core does not write is shown as it is. Shown only when a wrong file
+ * is chosen or a new phone runs other versions: the app checks the file, not the person
+ * (docs/decisions/2026-11-18-carried-file-matches-by-versions.md, amended 2026-11-19).
  */
 export function apkShown(needed: string): string {
   const start = carriedApkVersionsPart(needed);
   return start === null ? needed : `${start}….apk`;
-}
-
-/** The start a file's name must have to fit this phone, such as `r21-l1-p1-`; a name core does not write, whole. */
-export function apkStart(needed: string): string {
-  return carriedApkVersionsPart(needed) ?? needed;
 }
 
 /**
@@ -119,17 +136,24 @@ export function joinRows(whyNot: LetInWhyNot | null, needed: string | null): { l
 
 /**
  * The install file as an item of Sync's Ready for offline checklist (docs/nearby-sync-plan.md 14.4,
- * docs/decisions/2026-11-18-sync-and-offline-one-screen.md): got, never got, or got for older
- * versions. Shown only where Share nearby shows A new person and Get the install file (`joinRows`),
- * online or not, since packing for a trip is checked before leaving and offline it says getting it
- * needs the internet. Null until the remembered name is read, so nothing shows before then.
+ * docs/decisions/2026-11-18-sync-and-offline-one-screen.md), by the screen's own step (`apkStep`):
+ * never got, got for older versions, downloaded but not chosen yet, or ready, which it says only
+ * once the file is in hand, never for a press that only opened the browser (Carl, 2026-11-19).
+ * Shown only where Share nearby shows A new person (`joinRows`), online or not, since packing for
+ * a trip is checked before leaving. Null until what it rests on is read.
  */
-export type InstallItem = 'got' | 'not-got' | 'older';
+export type InstallItem = 'not-got' | 'older' | 'downloaded' | 'ready';
 
-export function installFileItem(o: { letIn: LetInWhyNot | null; needed: string | null; opened: string | null | undefined }): InstallItem | null {
-  if (!joinRows(o.letIn, o.needed).installFile || o.opened === undefined) return null;
-  if (o.opened === null) return 'not-got';
-  return apkStale(o.needed, o.opened) ? 'older' : 'got';
+export function installFileItem(o: {
+  letIn: LetInWhyNot | null; needed: string | null; opened: string | null | undefined;
+  kept: KeptFile | null | undefined; canGive: boolean; right: string | null | undefined;
+}): InstallItem | null {
+  if (!joinRows(o.letIn, o.needed).installFile) return null;
+  const step = apkStep(o);
+  if (step === null) return null;
+  if (step === 'done') return 'ready';
+  if (step === 'choose') return 'downloaded';
+  return apkStale(o.needed, o.opened) ? 'older' : 'not-got';
 }
 
 /**
@@ -147,13 +171,13 @@ export const KEEP_MIN_FREE_BYTES = 100 * 1024 * 1024;
 
 /**
  * What keeping a chosen file came to: kept; not this app's own file (another app, or a file
- * signed by someone else); no room for it; unreadable; failed otherwise; or a build whose
- * native module cannot keep files yet (an older binary under this update).
+ * signed by someone else); no room for it; unreadable; failed otherwise; or a phone that keeps
+ * no copy, by why (`cannotGive`): Android before 10, or an older build of the app.
  */
-export type KeepResult = 'keeping' | 'kept' | 'not-ours' | 'no-space' | 'unreadable' | 'failed' | 'unsupported';
+export type KeepResult = 'keeping' | 'kept' | 'not-ours' | 'no-space' | 'unreadable' | 'failed' | 'needs-android' | 'needs-update';
 
 /** A native rejection's code as a keep result. */
-export function keepResultOf(code: string | null): Exclude<KeepResult, 'keeping' | 'kept' | 'unsupported'> {
+export function keepResultOf(code: string | null): Exclude<KeepResult, 'keeping' | 'kept' | 'needs-android' | 'needs-update'> {
   return code === 'FILE_REFUSED' ? 'not-ours' : code === 'FILE_NO_SPACE' ? 'no-space' : code === 'FILE_UNREADABLE' || code === 'BAD_ARGUMENT' ? 'unreadable' : 'failed';
 }
 

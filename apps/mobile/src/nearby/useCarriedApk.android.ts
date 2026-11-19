@@ -5,9 +5,9 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { Linking } from 'react-native';
 import { noteExpected } from '../diagnostics/report';
 import { carriedApkUrl } from '../server/carriedApk';
-import { apkOpenedNow, keepApkOpened, loadApkOpened, subscribeApkOpened } from './carriedApkKept';
+import { apkOpenedNow, apkRightNow, keepApkOpened, keepApkRight, loadApkOpened, loadApkRight, subscribeApkOpened, subscribeApkRight } from './carriedApkKept';
 import { nearbyCodeOf, nearbyLinkNative } from '../../modules/nearby-link';
-import { apkCheck, apkStale, chosenName, KEEP_MIN_FREE_BYTES, keepResultOf, keptStale, type ApkCheck, type KeepResult } from './carriedApkModel';
+import { apkCheck, apkStale, cannotGive, chosenName, KEEP_MIN_FREE_BYTES, keepResultOf, keptStale, type ApkCheck, type KeepResult } from './carriedApkModel';
 import { keptFileNow, setKeptFile, subscribeKeptFile } from './installFileKept';
 import { androidSdk } from './nearbyPermissions.android';
 import type { CarriedApkHandle } from './useCarriedApk';
@@ -19,22 +19,28 @@ const APK_TYPES = ['application/vnd.android.package-archive', 'application/octet
  * The carried build's install file on an Android phone (docs/nearby-sync-plan.md 14.4). Get opens
  * the Worker's address in the phone's browser, which downloads the file; the app downloads and
  * installs nothing, so `REQUEST_INSTALL_PACKAGES` stays out. The press is remembered by name, so a
- * later version can say the file the person holds is too old. Check my file opens Android's own
- * picker, which needs no permission, and checks the chosen file's name. A right one is then copied
- * into the app's own folder and checked by native to be this app's own (its package and signing
- * certificates), so Give the app can hand it to a new phone over Wi-Fi (14.5); the copy goes once
- * this phone needs other versions. The app still downloads nothing: the person chose the file.
+ * later version can say the file the person holds is too old. Choosing a file opens Android's own
+ * picker, which needs no permission, and checks the chosen file's name; a right name is remembered
+ * too, apart from the press. A right one is then copied into the app's own folder and checked by
+ * native to be this app's own (its package and signing certificates), so Give the app can hand it
+ * to a new phone over Wi-Fi (14.5); the copy goes once this phone needs other versions. The app
+ * still downloads nothing: the person chose the file.
  */
 export function useCarriedApk(): CarriedApkHandle {
   const needed = carriedApkNameHere(Updates.runtimeVersion);
   const url = needed ? carriedApkUrl(needed) : null;
   const opened = useSyncExternalStore(subscribeApkOpened, apkOpenedNow);
+  const right = useSyncExternalStore(subscribeApkRight, apkRightNow);
   const [checked, setChecked] = useState<{ result: ApkCheck; name: string; keep?: KeepResult } | null>(null);
-  useEffect(() => { loadApkOpened().catch((e: unknown) => noteExpected('carried apk: read', e)); }, []);
+  useEffect(() => {
+    loadApkOpened().catch((e: unknown) => noteExpected('carried apk: read', e));
+    loadApkRight().catch((e: unknown) => noteExpected('carried apk: read right', e));
+  }, []);
   // An older binary under this update has the module without Give the app's functions, and Give
-  // the app needs Android 10: on either, nothing is kept and the screens say what to do instead.
+  // the app needs Android 10: on either, nothing is kept and the screens say which, and what to do.
   const native = nearbyLinkNative();
-  const canGive = !!native && typeof native.keepInstallFile === 'function' && androidSdk() >= 29;
+  const whyNot = cannotGive({ sdk: androidSdk(), native: !!native && typeof native.keepInstallFile === 'function' });
+  const canGive = whyNot === null;
   const held = useSyncExternalStore(subscribeKeptFile, keptFileNow);
   const kept = canGive ? held : null;
   useEffect(() => {
@@ -74,10 +80,12 @@ export function useCarriedApk(): CarriedApkHandle {
         setChecked({ result, name });
         return;
       }
-      // The right file in hand counts as got: a later version then says it is too old.
+      // The right file in hand counts as got: a later version then says it is too old. Its name
+      // is remembered as right too, which is all a phone that keeps no copy has to go by.
       await keepApkOpened(needed);
-      if (!canGive || !native) {
-        setChecked({ result, name, keep: 'unsupported' });
+      await keepApkRight(needed);
+      if (whyNot !== null || !native) {
+        setChecked({ result, name, keep: whyNot === 'android' ? 'needs-android' : 'needs-update' });
         return;
       }
       setChecked({ result, name, keep: 'keeping' });
@@ -90,8 +98,9 @@ export function useCarriedApk(): CarriedApkHandle {
     } catch (e) {
       noteExpected('carried apk: check', e);
     }
-  }, [needed, canGive, native]);
+  }, [needed, whyNot, native]);
 
   const actions = useMemo(() => ({ get, check: () => { void check(); } }), [get, check]);
-  return useMemo(() => ({ needed, url, opened, stale: apkStale(needed, opened), checked, kept, canGive, actions }), [needed, url, opened, checked, kept, canGive, actions]);
+  return useMemo(() => ({ needed, url, opened, stale: apkStale(needed, opened), checked, kept, right, canGive, cannotGive: whyNot, actions }),
+    [needed, url, opened, checked, kept, right, canGive, whyNot, actions]);
 }

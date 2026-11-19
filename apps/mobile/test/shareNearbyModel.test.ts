@@ -38,10 +38,10 @@ describe('the Share nearby row on Sync', () => {
     for (const k of ['rowSub', 'rowSubJoin', 'rowHelp', 'rowHelpJoin']) expect(has(en, `nearby.${k}`), k).toBe(true);
     // The install file is on Ready for offline's list now, not under this row (Carl, 2026-11-18).
     for (const k of ['rowHelpRemind', 'installFile.remind']) expect(has(en, `nearby.${k}`), k).toBe(false);
-    // Carl's words: work goes both ways.
+    // Carl's words, shortened with him (2026-11-19): "share" is the act, and work goes both ways.
     expect(en.nearby).toMatchObject({
-      rowSub: 'Share work progress with teammates without the internet',
-      rowSubJoin: 'Share work progress with teammates, or bring in a new person, without the internet'
+      rowSub: 'Share work with teammates without internet',
+      rowSubJoin: 'Share work with teammates, or bring in a new person, without internet'
     });
   });
 });

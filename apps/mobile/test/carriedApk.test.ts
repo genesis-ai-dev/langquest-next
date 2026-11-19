@@ -1,7 +1,7 @@
 import { carriedApkName, CARRIED_APK_PATH } from '@langquest-next/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { apkCheck, apkGet, apkShown, apkStale, apkStart, apkStep, installFileItem, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
+import { apkCheck, apkGet, apkShown, apkStale, apkStep, cannotGive, installFileItem, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
 import { carriedApkAddress } from '../src/server/carriedApkModel';
 
 /**
@@ -57,7 +57,7 @@ describe('the step after the browser', () => {
   // that keeps it (Check my file) a small button below (Carl's choice, 2026-11-18). Once they
   // have gone to get the file this phone needs, choosing it is the main button until it is in hand.
   const kept = { name: NOW, size: 212 * 1024 * 1024 };
-  const at = (over: Partial<Parameters<typeof apkStep>[0]> = {}) => apkStep({ needed: NOW, opened: null, kept: null, canGive: true, right: false, ...over });
+  const at = (over: Partial<Parameters<typeof apkStep>[0]> = {}) => apkStep({ needed: NOW, opened: null, kept: null, canGive: true, right: null, ...over });
 
   it('asks to get the file until the person has gone to get the one for these versions', () => {
     expect(at()).toBe('get');
@@ -69,7 +69,7 @@ describe('the step after the browser', () => {
     expect(at({ opened: NOW })).toBe('choose');
     expect(at({ opened: SIBLING })).toBe('choose');
     // A right name whose copy could not be kept (not this app's own, no room) is chosen again.
-    expect(at({ opened: NOW, right: true })).toBe('choose');
+    expect(at({ opened: NOW, right: NOW })).toBe('choose');
   });
 
   it('is done once a copy for these versions is kept, or, where none can be kept, once the file chosen is right', () => {
@@ -79,16 +79,33 @@ describe('the step after the browser', () => {
     expect(at({ opened: null, kept })).toBe('done');
     // A kept copy for older versions is about to go, so it is not in hand.
     expect(at({ opened: NOW, kept: { ...kept, name: OLDER } })).toBe('choose');
-    expect(at({ opened: NOW, canGive: false, right: true })).toBe('done');
+    // Where none can be kept, a file found right is remembered by name, so it holds on a later
+    // visit and on Sync's list, and stops holding once this phone needs other versions.
+    expect(at({ opened: NOW, canGive: false, right: NOW })).toBe('done');
+    expect(at({ opened: NOW, canGive: false, right: SIBLING })).toBe('done');
+    expect(at({ opened: NOW, canGive: false, right: OLDER })).toBe('choose');
     expect(at({ opened: NOW, canGive: false })).toBe('choose');
   });
 
   it('shows no step until what was got and kept is read, so the main button never changes under a finger', () => {
     expect(at({ opened: undefined })).toBeNull();
     expect(at({ opened: NOW, kept: undefined })).toBeNull();
-    // Where nothing can be kept, nothing is waited for.
+    // Where nothing can be kept, the copy is not waited for, but the name found right is.
     expect(at({ opened: NOW, kept: undefined, canGive: false })).toBe('choose');
+    expect(at({ opened: NOW, canGive: false, right: undefined })).toBeNull();
     expect(at({ needed: null })).toBeNull();
+  });
+});
+
+describe('a phone that cannot give the app', () => {
+  // Why: one line used to cover both causes, so a phone on Android 9 was told to update the app,
+  // which cannot help, and a phone one update away was told it never could (Carl, 2026-11-19).
+  it('says which: Android before 10, which no update mends, or an older build of the app', () => {
+    expect(cannotGive({ sdk: 28, native: true })).toBe('android');
+    expect(cannotGive({ sdk: 28, native: false })).toBe('android');
+    expect(cannotGive({ sdk: 29, native: false })).toBe('update');
+    expect(cannotGive({ sdk: 29, native: true })).toBeNull();
+    expect(cannotGive({ sdk: 35, native: true })).toBeNull();
   });
 });
 
@@ -107,33 +124,45 @@ describe('a file got for an older version', () => {
 });
 
 describe('the install file on Ready for offline\'s list', () => {
-  const at = (over: Partial<Parameters<typeof installFileItem>[0]> = {}) => installFileItem({ letIn: null, needed: NOW, opened: null, ...over });
+  // Why: the list said "Got" as soon as Get was pressed, even when the download failed or the
+  // file was never chosen, so a carrier could leave town believing they had it (Carl, 2026-11-19).
+  const kept = { name: NOW, size: 212 * 1024 * 1024 };
+  const at = (over: Partial<Parameters<typeof installFileItem>[0]> = {}) =>
+    installFileItem({ letIn: null, needed: NOW, opened: null, kept: null, canGive: true, right: null, ...over });
 
-  it('says got, never got, or got for older versions, to someone who can let a new person in', () => {
+  it('says ready only once the file is in hand, and downloaded but not chosen in between', () => {
     expect(at()).toBe('not-got');
     expect(at({ opened: OLDER })).toBe('older');
-    expect(at({ opened: NOW })).toBe('got');
-    // Another build's file for the same versions lets a new phone join: got.
-    expect(at({ opened: carriedApkName({ ...base, fingerprint: '401de22e' })! })).toBe('got');
+    // The browser was opened for this version: nothing says the file arrived until it is chosen.
+    expect(at({ opened: NOW })).toBe('downloaded');
+    expect(at({ opened: SIBLING })).toBe('downloaded');
+    expect(at({ opened: NOW, kept })).toBe('ready');
+    // A file from a card, chosen without the browser.
+    expect(at({ kept })).toBe('ready');
+    // A phone that keeps no copy: ready once a file was found right.
+    expect(at({ opened: NOW, canGive: false })).toBe('downloaded');
+    expect(at({ opened: NOW, canGive: false, right: NOW })).toBe('ready');
     // A run-out pass still shows A new person on Share nearby; getting the file online renews it.
     expect(at({ letIn: 'expired' })).toBe('not-got');
   });
 
-  it('shows nothing before the remembered name is read, nor where Share nearby offers no new person or this phone names no file', () => {
+  it('shows nothing before what was got and kept is read, nor where Share nearby offers no new person or this phone names no file', () => {
     expect(at({ opened: undefined })).toBeNull();
+    expect(at({ opened: NOW, kept: undefined })).toBeNull();
     for (const why of ['loading', 'not-in-build', 'no-pass', 'no-role', 'read-only', 'permissions', 'wifi-off'] as const) {
       expect(at({ letIn: why }), why).toBeNull();
     }
     expect(at({ needed: null })).toBeNull();
   });
 
-  it('has its words in English, as Carl gave them', () => {
+  it('has its words in English, as Carl approved them (2026-11-19)', () => {
     const en = JSON.parse(readFileSync(join(import.meta.dirname, '../src/nearby/i18n/en.json'), 'utf8')) as { nearby: { installFile: Record<string, string> } };
     expect(en.nearby.installFile).toMatchObject({
-      title: 'Install file for a new person', got: 'Got: {{file}}', gotShort: 'Install file got',
-      notGot: 'Install file for a new person: not got yet', older: 'Install file for a new person: for an older version'
+      title: 'Install file for a new person', readyShort: 'Install file ready',
+      notGot: 'No install file for a new person yet', older: 'Install file for a new person: for an older version',
+      notChosen: 'Install file for a new person: not chosen yet'
     });
-    expect(Object.keys(en.nearby.installFile).filter((k) => ['remind', 'getIt'].includes(k))).toEqual([]);
+    expect(Object.keys(en.nearby.installFile).filter((k) => ['remind', 'getIt', 'got', 'gotShort'].includes(k))).toEqual([]);
   });
 });
 
@@ -155,18 +184,15 @@ describe('checking a file by its name', () => {
 
   it('shows the start a name must have, with the rest left open, since the file got may be another build\'s', () => {
     expect(apkShown(NOW)).toBe('r21-l1-p1-….apk');
-    expect(apkStart(NOW)).toBe('r21-l1-p1-');
-    expect(SIBLING.startsWith(apkStart(NOW))).toBe(true);
-    expect(OLDER.startsWith(apkStart(NOW))).toBe(false);
-    expect([apkShown('odd.apk'), apkStart('odd.apk')]).toEqual(['odd.apk', 'odd.apk']);
+    expect(apkShown('odd.apk')).toBe('odd.apk');
   });
 
-  it('says so in every language, with the start in each', () => {
+  it('names the file only when a wrong one is chosen, in every language: the app checks the file, not the person', () => {
     const dir = join(import.meta.dirname, '../src/nearby/i18n');
     for (const file of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
       const letIn = JSON.parse(readFileSync(join(dir, file), 'utf8')).nearby.letIn;
-      expect(letIn.fileStart, file).toContain('{{start}}');
-      expect(letIn.fileExact, file).toBeUndefined();
+      expect(letIn.checkOther, file).toContain('{{file}}');
+      for (const gone of ['file', 'fileStart', 'fileExact', 'fileOld']) expect(letIn[gone], `${file} ${gone}`).toBeUndefined();
     }
   });
 });

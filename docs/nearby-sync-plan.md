@@ -899,17 +899,23 @@ protocol version.
   `contractsFor`. PLAN.md section 13 and `docs/ux/demo-parity.md` get a row.
 - **Two jobs, said as two** (Carl's choice, 2026-11-09). Share nearby brings teammates'
   phones up to date, and, with joining without internet (14.1), gives a new person the app
-  and lets them join. A short intro names both; then two headed sections, each with a line
-  saying what it is for. "With teammates": phones that already have LangQuest bring each
-  other up to date, kept open until Up to date; it holds the stage, warnings, teammates, what
-  came across, Ready to carry and Hold teammates' recordings. "A new person", shown only on
-  Let someone in's terms (`joinRows`): give them the app, then let them join from this phone;
-  it holds the install file's too-old line, Get the install file (before going offline) and
+  and lets them join. Two headed sections each have a line saying what the job is for; the
+  intro above them said both again, and since 2026-11-19 says only "Works without internet."
+  beside the Experimental badge, with no second title under the header (the same on every
+  nearby screen, `NearbyIntro.tsx`). "With teammates": phones that already have LangQuest
+  bring each other up to date; it holds the stage, warnings, teammates, what was shared, what
+  this phone holds and Hold teammates' recordings. On screen "What came across" is now "What
+  was shared" and "Ready to carry" is "What this phone holds" (2026-11-19: "share" for the
+  act, "up to date" for the result); this plan keeps the older names. "A new person", shown
+  only on Let someone in's terms (`joinRows`): give them the app, then let them join from this
+  phone; it holds the install file's too-old line and three numbered steps: Download the
+  install file (before you go offline), Give the app (when you are with the new person) and
   Let someone in (once their app is installed). The Sync row keeps its name and badge; its
   line names both jobs on the same terms, else teammates' phones alone, and a reason while it
-  cannot run (`nearbyRowWords`). Its words say work goes both ways (Carl's words, 2026-11-09):
-  "Share work progress with teammates, or bring in a new person, without the internet", else
-  "Share work progress with teammates without the internet", with help to match. The install
+  cannot run (`nearbyRowWords`). Its words say work goes both ways (Carl's words, 2026-11-09,
+  shortened with him 2026-11-19 from "share work progress … without the internet"):
+  "Share work with teammates, or bring in a new person, without internet", else
+  "Share work with teammates without internet", with help to match. The install
   file is not reminded here: it is an item of Sync and offline's Ready for offline list (14.4,
   "Reminded while online"; docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
 - It asks for its permissions with a line saying why (section 9), and shows teammates who
@@ -3699,59 +3705,72 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   APKs, which are not confirmed. Whether China can reach this is untested (section 11).
 - **Checking before leaving town** (decision 246, amended three times 2026-11-09). Getting the
   file is done online before a trip, and letting someone in is done in the field, so each
-  has a screen of its own (Carl's choice). Get the install file (`get_install_file`) names
-  the file this phone needs by those versions alone, shown as the start of its name
-  (`r21-l1-p1-….apk`), and says the file in Downloads must have a name that starts that way:
-  a name that starts any other way is the wrong version (Carl's choice, 2026-11-18,
-  `docs/decisions/2026-11-18-carried-file-matches-by-versions.md`). Share nearby opens it from
-  a row above Let someone in, on the same terms (a pass held, joining on, Android), with a
-  line saying it is for before going offline; Let someone in opens it from a line at its
-  top saying the new phone needs LangQuest installed first; and Sync and offline's Ready for
-  offline list opens it from its install file item (below). Let someone in keeps only the
-  field: the role, Show the code, the code, the pictures, the one tap and the words of a
-  version refusal.
-  - *Getting it.* While online, Get the install file, that screen's one main button, opens `<Worker>/apk/<name>` in the
-    phone's browser (`Linking.openURL`; the address is built in `src/server/carriedApk.ts`),
-    which downloads it. A line says to download it before going offline, that the new phone
-    must allow installing apps from other sources, and to send it by Quick Share (which needs
-    Google Play services on both phones), SD card or USB. Offline the button is disabled,
-    with a line saying it needs the internet. The app requests nothing there itself.
+  has a screen of its own (Carl's choice). The screen (`get_install_file`), titled Download the
+  install file since 2026-11-19 (Get the install file before, which read like Give the app
+  beside it), counts a file by those versions alone
+  (`docs/decisions/2026-11-18-carried-file-matches-by-versions.md`). Until 2026-11-19 it showed
+  the start a name must have (`r21-l1-p1-….apk`) and asked the person to compare names; now
+  the app checks the chosen file, and the start is named only when a wrong one is chosen.
+  Share nearby's A new person lists three numbered steps, each with its moment (2026-11-19):
+  1. Download the install file, before you go offline; 2. Give the app, when you are with the
+  new person; 3. Let someone in, once their app is installed, on the same terms (a pass held,
+  joining on, Android). Let someone in opens the screen from a line at its top saying the new
+  phone needs LangQuest installed first, only while no copy is kept, since downloading needs
+  the internet the field lacks; and Sync and offline's Ready for offline list opens it from its
+  install file item (below). Let someone in keeps only the field: the role, Show the code, the
+  code, the pictures, the one tap and the words of a version refusal.
+  - *Getting it.* While online, Download in the browser, that screen's main button until the
+    browser has been opened, opens `<Worker>/apk/<name>` in the phone's browser
+    (`Linking.openURL`; the address is built in `src/server/carriedApk.ts`), which downloads
+    it. A line says how the file reaches the new phone: with Give the app (14.5), or by Quick
+    Share (which needs Google Play services on both phones), SD card or USB. A phone that
+    cannot give the app is told only those three, and that the new phone may ask to allow
+    installs from this source. Offline the button is disabled, with a line saying it needs the
+    internet. The app requests nothing there itself.
   - *Then choosing it* (Carl's choice, 2026-11-18). A carrier came back from the browser to a
     screen whose main button still said to get the file, with the step that checks and keeps
     it (Check my file) a small button below. So the main button follows the job (`apkStep` in
-    `carriedApkModel.ts`): Get the install file until the person has gone to get the file for
-    this phone's versions (`carriedApkOpened`); then Choose the downloaded file, which opens the
-    same picker as Check my file, with a line saying to choose it once the download has
+    `carriedApkModel.ts`): Download in the browser until the person has gone to get the file
+    for this phone's versions (`carriedApkOpened`); then Choose the downloaded file, which opens
+    the same picker as Check my file, with a line saying to tap it once the download has
     finished (usually first among recent files) and Download it again beside it; and none once
-    the file is in hand, a copy kept for Give the app (14.5), or, on a phone that cannot keep
-    one, a file found right this visit. The kept line then shows on every visit. Nothing shows
-    until the remembered name and the kept copy are read, so the button never changes under a
-    finger. The download stays in the browser (decision 246, Google Play's Device and Network
+    the file is in hand, a copy kept for Give the app (14.5), or, on a phone that keeps no
+    copy, a file found right by its name, remembered in a second meta row (`carriedApkRight`,
+    2026-11-19; before, only for that visit). In hand, a green line says it is ready to take
+    offline, with what was kept or why this phone keeps none: Android before 10, or an older
+    build of the app (`cannotGive`). After a right choice the screen says only what keeping it
+    came to; a wrong one is named, with the start the right file has. Nothing shows until what
+    the step rests on is read, so the button never changes under a finger. The download stays in the browser (decision 246, Google Play's Device and Network
     Abuse policy). The screen is Android only (`src/nearby/GetInstallFileScreen.android.tsx`),
     so the web and an iPhone, which never open it, carry a stub of its header and intro.
   - *Too old.* The press keeps the name in one phone-wide meta row, `carriedApkOpened`,
     which holds no person, organization or time. While the name this phone needs differs
-    from it, Get the install file says the file got before is for an older version and to
-    get the new one before going offline, and Share nearby says the same as a line while
-    online, under A new person, above its Get the install file row. The words go when the two match again; the
-    row stays, so the next version is caught too.
+    from it, the screen says the install file is for an older version and to download the new
+    one, and Share nearby says the same line while online, under A new person, above its rows
+    (one line in all three places since 2026-11-19). The words go when the two match again;
+    the row stays, so the next version is caught too.
   - *Reminded while online* (Carl's choice, 2026-11-09; one place since 2026-11-18,
     docs/decisions/2026-11-18-sync-and-offline-one-screen.md). The install file is an item
     of Sync and offline's Ready for offline list, a packing list for a trip, on Share
-    nearby's terms for A new person (`joinRows`), online or not: got ("Got: r21-l1-p1-….apk",
-    with the line to delete it when everyone is in), never got (no `carriedApkOpened`), or
-    got for an older version (`apkStale`); nothing shows before the meta row is read. Never
-    got or too old turns the fold's line amber ("Install file for a new person: not got
-    yet", "…: for an older version"), and while online the item has Get the install file
-    (`sync_status → get_install_file`); offline it says getting it needs the internet. The
-    rule is `installFileItem` in `carriedApkModel.ts`, read by `useInstallFile`; on an iPhone
-    and the web its hooks are plain stubs, so the item never shows. The Share nearby row's
+    nearby's terms for A new person (`joinRows`), online or not, by the screen's own step
+    (`apkStep`): never got (no `carriedApkOpened`), got for an older version (`apkStale`),
+    downloaded but not chosen yet, or ready, which it says only once the file is in hand.
+    Until 2026-11-19 a press that only opened the browser read as "Got", even when the
+    download failed. Nothing shows before what it rests on is read. Anything but ready turns
+    the fold's line amber ("No install file for a new person yet", "Install file for a new
+    person: for an older version", "…: not chosen yet"). The item links to the screen
+    (`sync_status → get_install_file`): while online for never got and too old, which offline
+    say that downloading needs the internet, and online or not for downloaded, since choosing
+    a file needs none. Ready says when to delete the file only on a phone that keeps no copy
+    (`installBlock` in `syncScreenModel.ts`). The rule is `installFileItem` in
+    `carriedApkModel.ts`, read by `useInstallFile`; on an iPhone and the web its hooks are
+    plain stubs, so the item never shows. The Share nearby row's
     amber line and the Ready for offline card's line it replaces said the same at the same
     moments (Carl, 2026-11-18).
   - *Check my file.* Opens Android's system file picker (`expo-document-picker`, which needs
     no permission; the file is not copied) and compares only the chosen file's name with the
-    versions needed, whatever fingerprint ends it: "This is the right file", which is then
-    remembered as got, or "This file is for a different version: you need
+    versions needed, whatever fingerprint ends it: a right one is remembered as got and as
+    right, and a wrong one says "This file is for a different version: you need
     r21-l1-p1-….apk". `expo-file-system`'s picker was not enough: it gives the picked file's
     address, not its name.
   - *A phone whose build has no file.* Files are made only at merges into main, for main's
@@ -3763,9 +3782,11 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     versions. Carried builds on release branches were turned down: each would take a version
     code above the store build in review, which a phone installed from it could then never
     take from Play.
-  - A help line says: "When everyone you came for is in, delete this file. You need internet
-    to get it again." It gives no reason, and does not mention a disguise (decision 171's
-    amendment of 2026-10-29). A carrier whose own phone wears a disguise sees two more lines,
+  - On a phone that keeps no copy, a help line says: "When everyone you came for is in, delete
+    this file. You need internet to get it again." It gives no reason, and does not mention a
+    disguise (decision 171's amendment of 2026-10-29). A phone that keeps a copy is told
+    instead that it can delete the one in Downloads: until 2026-11-19 it showed both lines,
+    which disagreed on when, and "this file" did not say which of the two copies. A carrier whose own phone wears a disguise sees two more lines,
     only on their screen, through an `.android` stub: on Let someone in, that the new phone
     will show LangQuest until they choose another look under More settings, and on Get the
     install file, that the browser's history and download list show where the file came from. Nothing crosses the link about a disguise.
@@ -3825,25 +3846,34 @@ codes, one after the other, as Let someone in shows two pictures.
    kept, and the screen says it is not LangQuest's own; with too little room it says so (100 MB
    stays free). The copy stays until this phone needs other versions, then goes (answer 31,
    `keptStale`), and the screen says the one in Downloads may be deleted. An older binary under
-   this update has the module without these functions, and says to update from the store.
+   this update has the module without these functions, and says to update from the store; a
+   phone on Android 9 or older is told that no update mends it, and to send the file another
+   way (`cannotGive`, 2026-11-19: one line used to cover both, wrong for one of them).
 2. **In the field: Give the app** (`give_app`, a new screen, from Let someone in's line that
-   the new phone needs LangQuest first, and from Share nearby's A new person). One main
-   button, Start:
+   the new phone needs LangQuest first, and from Share nearby's A new person). Its first line
+   says what is coming: this phone makes its own Wi-Fi network, and the new phone scans two
+   codes with its camera. One main button, Show the first code (Start until 2026-11-19):
    - The phone forms a Wi-Fi Direct group (`WifiDirect` in `WifiLinks.kt`: a name in
      Android's `DIRECT-xx-` form with nothing in it that names the app, and a random
      passphrase) and starts the file server on the group's own address (`groupOwnerAddress`).
    - **Step 1, join:** a QR code of the Wi-Fi login (`WIFI:T:WPA;S:<name>;P:<passphrase>;;`,
-     with `\ ; , : "` escaped), with the name and password in text under it for a phone that
-     cannot read it.
+     with `\ ; , : "` escaped), and a line that ends "When it has joined, tap Next", since
+     nothing else on screen said when to. Under it, for a phone that cannot read the code, a
+     line saying to choose this network in its Wi-Fi settings, then the name and password.
    - **Step 2, download:** after Next, a QR code of the page's address
      (`http://<group address>:<port>/`), with the address in text.
-   - **While it sends:** "Sending: 120 of 212 MB", from the server's count of bytes sent. Then
-     "Sent. On the new phone, tap the file to install it", and the way on to Let someone in.
-   - Stop, leaving the screen, or 15 minutes with nothing asked ends the group and the server.
+   - **While it sends:** "Sending: 120 of 212 MB", from the server's count of bytes sent.
+   - **Step 3, install:** once a download reaches the file's end, "3. Install it": the file
+     is sent, open it on the new phone and tap Install, and the way on to Let someone in.
+     Both codes fold away under Give it to another phone. Back to the first code shows only
+     before the file starts, since after that the stage follows the file, not the step.
+   - Stop, leaving the screen, or 15 minutes with no phone downloading ends the group and the
+     server. A failure says what to do and to try again; a busy Wi-Fi Direct says to wait a
+     moment (it named Share nearby before, which is only one cause, and had no way to stop it).
      A phone holds one Wi-Fi Direct group at a time, so this and a Share nearby session never
      run together.
-   - A carrier with no kept file, or a file for other versions, is sent to Get the install
-     file first (online) and told it is needed before going offline.
+   - A carrier with no kept file, or a file for other versions, is sent to Download the
+     install file first (online).
 
 **The new phone.**
 1. The camera reads code 1 and offers to join (Android 10 and later, in the camera, Google

@@ -11,6 +11,7 @@ import { t } from '../i18n';
 import { STUDY_FILES_OFFLINE } from '../study/studyFiles';
 import { C, onColor, space, TINT } from '../ui/theme';
 import { Block } from './offline';
+import { installBlock } from './syncScreenModel';
 import { offlineLine, sentences, type OfflineOverview } from './offlineText';
 import { isOffline } from './uploadsModel';
 
@@ -19,13 +20,14 @@ import { isOffline } from './uploadsModel';
  * what to pack before a trip, as a short list. Kept passages: how many are on this device, with
  * the first download's progress while it runs (decisions.md 147) and the recordings no device
  * can fetch yet. The install file, for someone who can let a new person in (`installFileItem`):
- * got, never got or too old, with the way to get it while online. Then what always works offline
- * and what needs a connection, folded, since it never changes.
+ * never got, too old, downloaded but not chosen, or ready, with the next step (`installBlock`).
+ * Then what always works offline and what needs a connection, folded, since it never changes.
  */
-export function ReadyForOffline(props: { ctx: Ctx; s: OfflineOverview | null; install: InstallItem | null; installShown: string | null }) {
-  const { ctx, s, install } = props;
+export function ReadyForOffline(props: { ctx: Ctx; s: OfflineOverview | null; install: InstallItem | null; installKeeps: boolean }) {
+  const { ctx, s } = props;
   const [always, setAlways] = useState(false);
   const offline = isOffline(ctx.language.online);
+  const install = props.install ? installBlock(props.install, props.installKeeps, offline) : null;
   const fill = ctx.language.fill;
   const filling = !!fill && fill.total > 0 && fill.filled < fill.total;
   const ready = !!s && s.kept > 0 && s.ready === s.kept;
@@ -53,13 +55,13 @@ export function ReadyForOffline(props: { ctx: Ctx; s: OfflineOverview | null; in
       {s && s.notSent ? <Text style={txt.xs}>{t('offline.card.notSent', { count: s.notSent })}</Text> : null}
       {install ? (
         <>
-          <Block icon={install === 'got' ? 'check' : 'warning'} tint={install === 'got' ? onColor.green : TINT.amberText} bg={install === 'got' ? TINT.green : TINT.amber}
-            title={t('nearby.installFile.title')}
-            body={install === 'got' ? sentences(t('nearby.installFile.got', { file: props.installShown ?? '' }), t('nearby.letIn.fileHelp'))
-              : install === 'older' ? t('nearby.letIn.fileOld') : t('nearby.installFile.lineHelp')} />
-          {offline ? (install === 'got' ? null : <Text style={[txt.xs, { color: TINT.amberText }]}>{t('nearby.letIn.getOffline')}</Text>) : (
-            <LinkBtn label={t('nearby.letIn.get')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} style={{ alignSelf: 'flex-start' }} />
-          )}
+          <Block icon={install.good ? 'check' : 'warning'} tint={install.good ? onColor.green : TINT.amberText} bg={install.good ? TINT.green : TINT.amber}
+            title={t('nearby.installFile.title')} body={install.body} />
+          {install.way === 'offline' ? <Text style={[txt.xs, { color: TINT.amberText }]}>{t('nearby.letIn.getOffline')}</Text>
+            : install.way !== null ? (
+              <LinkBtn label={install.way === 'choose' ? t('nearby.letIn.choose') : t('screens.get_install_file')} help={t('nearby.installFile.linkHelp')}
+                onPress={() => ctx.go('get_install_file')} style={{ alignSelf: 'flex-start' }} />
+            ) : null}
         </>
       ) : null}
       <LinkBtn label={t('offline.card.worksOffline')} help={t('offline.card.worksOfflineHelp')} expanded={always}

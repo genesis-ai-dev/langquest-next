@@ -48,14 +48,34 @@ export function uploadsLine(summary: { waiting: boolean; title: string; sub: str
 
 /**
  * Ready for offline's line: how many kept passages are on this device and, for someone who can
- * let a new person in, whether they have the install file (installFileItem). Amber while either
+ * let a new person in, whether the install file is in hand (installFileItem). Amber while either
  * still needs doing, so a person packing for a trip sees it before leaving.
  */
 export function readyLine(s: { kept: number; ready: number } | null, install: InstallItem | null): { line: string; tone: FoldTone } {
   const passages = offlineCount(s);
   const passagesShort = !!s && s.kept > 0 && s.ready < s.kept;
-  const file = install === 'got' ? t('nearby.installFile.gotShort') : install === 'not-got' ? t('nearby.installFile.notGot') : install === 'older' ? t('nearby.installFile.older') : null;
-  return { line: joined(passages, file), tone: passagesShort || install === 'not-got' || install === 'older' ? 'amber' : null };
+  const file = install === null ? null : t(INSTALL_LINE[install]);
+  return { line: joined(passages, file), tone: passagesShort || (install !== null && install !== 'ready') ? 'amber' : null };
+}
+
+const INSTALL_LINE = {
+  ready: 'nearby.installFile.readyShort', 'not-got': 'nearby.installFile.notGot', older: 'nearby.installFile.older', downloaded: 'nearby.installFile.notChosen'
+} as const satisfies Record<InstallItem, string>;
+
+/**
+ * The install file's item inside Ready for offline: whether it is done, what it says, and the one
+ * way on. Getting the file needs the internet, so offline that way is a line saying so; choosing a
+ * file already downloaded needs none. Ready says when to delete the file only on a phone that
+ * keeps no copy (`keeps` false), where the file in Downloads is the only one (Carl, 2026-11-19).
+ */
+export function installBlock(install: InstallItem, keeps: boolean, offline: boolean): { good: boolean; body: string; way: 'get' | 'choose' | 'offline' | null } {
+  if (install === 'ready') {
+    const ready = t('nearby.installFile.ready');
+    // Two whole sentences, joined as offlineText's `sentences` joins them (not imported: it brings React Native into this model).
+    return { good: true, body: keeps ? ready : `${ready} ${t('nearby.letIn.fileHelp')}`, way: null };
+  }
+  if (install === 'downloaded') return { good: false, body: t('nearby.installFile.downloaded'), way: 'choose' };
+  return { good: false, body: t(install === 'older' ? 'nearby.installFile.old' : 'nearby.installFile.lineHelp'), way: offline ? 'offline' : 'get' };
 }
 
 /** Refused's line: how many changes the server would not take. */

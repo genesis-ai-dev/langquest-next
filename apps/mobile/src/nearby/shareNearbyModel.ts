@@ -81,16 +81,12 @@ export const PERMISSION_WORDS = {
 
 /**
  * Words that name the phone's own question, its settings, or what only Android offers: Android's,
- * and an iPhone's, which never names Android or the install file (section 7's phase 5). `intro`
- * names a new person only where the phone can let one in.
+ * and an iPhone's, which never names Android or the install file (section 7's phase 5). The
+ * screen's first line is the same on both, since its two headings say what each phone can do.
  */
 export const PHONE_WORDS = {
-  android: {
-    intro: 'nearby.intro', settings: 'nearby.permission.settings', allowHelp: 'nearby.permission.allowHelp', newerApp: 'nearby.newerApp'
-  },
-  iphone: {
-    intro: 'nearby.introTeammates', settings: 'nearby.permission.settingsIphone', allowHelp: 'nearby.permission.allowHelpIphone', newerApp: 'nearby.newerAppIphone'
-  }
+  android: { settings: 'nearby.permission.settings', allowHelp: 'nearby.permission.allowHelp', newerApp: 'nearby.newerApp' },
+  iphone: { settings: 'nearby.permission.settingsIphone', allowHelp: 'nearby.permission.allowHelpIphone', newerApp: 'nearby.newerAppIphone' }
 } as const;
 
 export function phoneWords(v: Pick<NearbyView, 'iphone'>): (typeof PHONE_WORDS)[keyof typeof PHONE_WORDS] {
@@ -109,7 +105,8 @@ export function connectHelp(v: Pick<NearbyView, 'tapCoversAll'>): 'nearby.connec
 export const STOP_WORDS = {
   idle: 'nearby.stopped.idle',
   wait: 'nearby.stopped.wait',
-  'no-key': 'nearby.stopped.noKey',
+  // The same line as when it cannot start for want of a key: one thing, said one way.
+  'no-key': 'nearby.why.noKey',
   failed: 'nearby.stopped.failed',
   run: null,
   level: null,

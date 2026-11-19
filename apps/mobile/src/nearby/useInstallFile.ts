@@ -1,20 +1,21 @@
 import { useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
-import { apkShown, installFileItem, type InstallItem } from './carriedApkModel';
+import { installFileItem, type InstallItem } from './carriedApkModel';
 import { useCarriedApk } from './useCarriedApk';
 import { useLetInOffered } from './useLetIn';
 
 /**
  * The install file as an item of Sync's Ready for offline list (`installFileItem`,
- * docs/nearby-sync-plan.md 14.4): got, never got or too old, and the name's start this phone
- * needs. Only an Android phone lets someone in, so elsewhere `useLetInOffered` and
- * `useCarriedApk` are their plain stubs and the item is null.
+ * docs/nearby-sync-plan.md 14.4): never got, too old, downloaded but not chosen, or ready, and
+ * whether this phone keeps a copy of it, which decides what Ready says to do with the file. Only
+ * an Android phone lets someone in, so elsewhere `useLetInOffered` and `useCarriedApk` are their
+ * plain stubs and the item is null.
  */
-export function useInstallFile(ctx: Ctx): { item: InstallItem | null; shown: string | null } {
+export function useInstallFile(ctx: Ctx): { item: InstallItem | null; keeps: boolean } {
   const letIn = useLetInOffered(ctx);
   const apk = useCarriedApk();
   return useMemo(() => ({
-    item: installFileItem({ letIn, needed: apk.needed, opened: apk.opened }),
-    shown: apk.needed ? apkShown(apk.needed) : null
-  }), [letIn, apk.needed, apk.opened]);
+    item: installFileItem({ letIn, needed: apk.needed, opened: apk.opened, kept: apk.kept, canGive: apk.canGive, right: apk.right }),
+    keeps: apk.canGive
+  }), [letIn, apk.needed, apk.opened, apk.kept, apk.canGive, apk.right]);
 }
