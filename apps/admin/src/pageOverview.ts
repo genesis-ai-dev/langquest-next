@@ -123,7 +123,7 @@ function tilesOf(results) {
       : { group, label, value: null, sub: partSaid(results, part) || 'No number', small: false, spark: null });
   };
   add('people', 'people', 'People active today', (d) => [nf(d.activeProfiles.day), nf(d.activeProfiles.week) + ' this week · ' + nf(d.orgs.total) + ' organizations'], 'people');
-  add('clients', 'phones', 'Installs that reported today', (d) => [nf(d.installs.day), nf(d.installs.week) + ' this week']);
+  add('clients', 'phones', 'Phones and browsers that reported today', (d) => [nf(d.installs.day), nf(d.installs.week) + ' this week']);
   add('clients', 'phones', 'Errors today', (d) => {
     const crashes = d.errors.filter((e) => e.fatal).reduce((a, e) => a + Number(e.day || 0), 0);
     return [nf(d.errors.reduce((a, e) => a + Number(e.day || 0), 0)), crashes === 1 ? '1 crash' : nf(crashes) + ' crashes'];
@@ -371,7 +371,7 @@ function drawOvCharts() {
   const errs = (d) => Math.max(0, Number(d.errors || 0) - Number(d.crashes || 0)), crashes = (d) => Number(d.crashes || 0), installs = (d) => Number(d.installs || 0);
   $('start-charts').innerHTML =
     '<a class="ovchart" href="#g/phones"><h3>Errors and crashes</h3><div class="keys"><span><i class="a"></i>Errors <b>' + num(sum(errs)) + '</b></span><span><i class="b"></i>Crashes <b>' + num(sum(crashes)) + '</b></span></div>' + daysSvg(days, errs, crashes, 'Errors', 'Crashes') + '</a>' +
-    '<a class="ovchart" href="#g/phones"><h3>Installs with an error</h3><div class="keys"><span><i class="a"></i>Installs, each day</span></div>' + daysSvg(days, installs, null, 'Installs') + '</a>';
+    '<a class="ovchart" href="#g/phones"><h3>Phones and browsers with an error</h3><div class="keys"><span><i class="a"></i>Phones and browsers, each day</span></div>' + daysSvg(days, installs, null, 'Phones and browsers') + '</a>';
 }
 
 function drawShipped() {
