@@ -231,19 +231,20 @@ window.addEventListener('hashchange', route);
 const titleOf = (id) => (SECTIONS.find((s) => s.id === id) || {}).title || id;
 const safeLink = (l) => String(l || '').startsWith('https://') ? l : '';
 
-/** A small picture of a section's number over the last 14 days: bars for a count, a line for a level. */
-function miniSvg(values, agg, w, h) {
+/** A small picture of a section's number over the last 14 days: bars for a count, a line for a level. say has each day and the number's name and format, for the pointer (pageHover.ts). */
+function miniSvg(values, agg, w, h, say) {
   const v = (values || []).map((x) => x === null || x === undefined ? null : Number(x));
   const max = Math.max(0, ...v.filter((x) => x !== null));
   if (!v.length) return '';
   const n = v.length, bw = w / n;
+  const hv = say ? hvAttr(0, bw, say.heads, [['', say.name, v.map(say.fmt)]], 0, h) : '';
   if (agg === 'max') {
     const pts = v.map((x, i) => x === null ? null : [(i + 0.5) * bw, h - 2 - (max ? (x / max) * (h - 6) : 0)]).filter(Boolean);
     if (!pts.length) return '';
     const line = pts.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-    return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"><polygon class="ar" points="' + pts[0][0].toFixed(1) + ',' + h + ' ' + line + ' ' + pts[pts.length - 1][0].toFixed(1) + ',' + h + '"/><polyline class="ln" points="' + line + '"/></svg>';
+    return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"' + hv + '><polygon class="ar" points="' + pts[0][0].toFixed(1) + ',' + h + ' ' + line + ' ' + pts[pts.length - 1][0].toFixed(1) + ',' + h + '"/><polyline class="ln" points="' + line + '"/></svg>';
   }
-  return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"><line class="base" x1="0" x2="' + w + '" y1="' + (h - 0.5) + '" y2="' + (h - 0.5) + '"/>' +
+  return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"' + hv + '><line class="base" x1="0" x2="' + w + '" y1="' + (h - 0.5) + '" y2="' + (h - 0.5) + '"/>' +
     v.map((x, i) => {
       const bh = x === null ? 0 : max ? Math.max(2, (x / max) * (h - 2)) : 2;
       return '<rect class="b' + (x === null ? ' n' : x === 0 ? ' z' : '') + '" x="' + (i * bw + 1).toFixed(1) + '" y="' + (h - bh).toFixed(1) + '" width="' + Math.max(1, bw - 2).toFixed(1) + '" height="' + bh.toFixed(1) + '"/>';
@@ -260,7 +261,7 @@ function glanceOf(groupId) {
   const total = rangeTotal(s.agg, s.values);
   const fmt = (x) => x === null ? '–' : m.unit === 'bytes' ? bytes(x) : m.unit === 'ms' ? ms(x) : num(x);
   const said = s.agg === 'max' ? m.label + ': ' + fmt(total) + ' today' : m.label + ': ' + fmt(total) + ' in 14 days';
-  return { s, said };
+  return { s, said, say: { heads: (glanceData.buckets || []).map((b) => bucketLabel(b, 'day') + ' UTC'), name: m.label, fmt } };
 }
 
 const whereOf = (c) => titleOf(c.group) + (c.part && PART_TITLE[c.part] && c.part !== c.group ? ' · ' + PART_TITLE[c.part] : '');
@@ -298,6 +299,7 @@ const SQUARES = {
   cron: { runs: 'runs', failed: 'failed', one: 'database job', many: 'database jobs' }
 };
 const SQ_SAID = { ok: 'ran', part: 'did part of the work', fail: 'failed', none: 'no run', gap: 'not counted yet' };
+const sqSaid = (c) => SQ_SAID[c].charAt(0).toUpperCase() + SQ_SAID[c].slice(1);
 const STEP_ONE = { hour: 'hour', day: 'day', week: 'week', month: 'month' };
 
 /** One job's row: a square for each bucket. A failure has an x and part of the work a dot, so neither rests on color alone. */
@@ -312,8 +314,10 @@ function squareSvg(row, hst, r) {
   });
   const said = [row.failed ? num(row.failed) + ' failed' : '', row.partial ? num(row.partial) + ' did part of the work' : ''].filter(Boolean).join(', ') || 'no failure';
   const label = keyName(row.key) + ', one square for each ' + STEP_ONE[hst.step] + ': ' + said + '. Tap a square, or use the arrow keys and Enter, for its runs.';
+  // For the pointer: each square's bucket and what its color says, in the words of the key under the rows.
+  const hv = hvAttr(-gap / 2, s, hst.buckets.map((b, i) => bucketWhen(b, bucketEnd(hst.buckets, i, hst.step), hst.step) + ' UTC'), [['', keyName(row.key), row.cells.map(sqSaid)]]);
   return '<svg class="sq" width="' + (n * 15) + '" height="' + Math.round((size + 2) * 1.25) + '" viewBox="0 0 ' + w + ' ' + (size + 2) + '" tabindex="0" role="img" aria-label="' + esc(label) + '" data-key="' + esc(row.key) + '" data-n="' + n + '"' +
-    (r ? ' data-range="' + esc(r) + '"' : '') + '>' + body + '</svg>';
+    (r ? ' data-range="' + esc(r) + '"' : '') + hv + '>' + body + '</svg>';
 }
 
 /**
@@ -337,7 +341,7 @@ function squaresBox(part, hst, r, max, alert, only) {
     '<div class="sqrows">' + shown.map((row) => '<div class="sqrow"><span title="' + esc(keyName(row.key)) + '">' + esc(keyName(row.key)) + '</span>' + squareSvg(row, hst, r) + '</div>').join('') +
     '<div class="sqrow"><span></span><div class="ax"><span>' + esc(bucketLabel(hst.buckets[0], hst.step)) + '</span><span>' + esc(bucketLabel(hst.buckets[hst.buckets.length - 1], hst.step)) + ' UTC</span></div></div></div>' +
     (rows.length > shown.length ? '<p class="muted">' + num(rows.length - shown.length) + ' more ' + esc(sq.many) + ' in ' + esc(PART_TITLE[part] || part) + '.</p>' : '') +
-    '<div class="sqleg">' + states.map((c) => '<span><i class="' + c + '"></i>' + esc(SQ_SAID[c].charAt(0).toUpperCase() + SQ_SAID[c].slice(1)) + '</span>').join('') + '</div></div>';
+    '<div class="sqleg">' + states.map((c) => '<span><i class="' + c + '"></i>' + esc(sqSaid(c)) + '</span>').join('') + '</div></div>';
 }
 
 /** The last 24 hours of a part's runs as squares, for its card on the start page; '' when they cannot be read. */
@@ -381,12 +385,24 @@ function bucketLabel(iso, step) {
   return d.toLocaleDateString([], { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
-/** One number over the range: a bar a bucket for a count, a line for a level; each bucket can be tapped. */
+/** A bucket in words: its day, its hour of a day, its week's first and last day, or its month. */
+function bucketWhen(from, to, step) {
+  return step === 'hour' ? bucketLabel(from, 'day') + ', ' + bucketLabel(from, 'hour') + ' to ' + bucketLabel(to, 'hour')
+    : step === 'week' ? bucketLabel(from, 'day') + ' to ' + bucketLabel(new Date(new Date(to).getTime() - 1).toISOString(), 'day')
+    : bucketLabel(from, step);
+}
+
+/** One number over the range: a bar a bucket for a count, a line for a level; each bucket can be tapped, and says its value under the pointer (pageHover.ts). */
 function chartSvg(s, hst, part, m) {
   const w = 300, h = 96, n = s.values.length, bw = w / n;
   const v = s.values.map((x) => x === null ? null : Number(x));
   const max = Math.max(0, ...v.filter((x) => x !== null));
   const label = METRIC[part][m].label + ', ' + RANGE_NAMES[range] + (s.key ? ', ' + keyName(s.key) : '');
+  const unit = METRIC[part][m].unit;
+  // A bucket the job has not counted says so; one with no value says no number, never 0.
+  const said = (x, i) => hst.counted[i] === false ? 'Not counted yet' : x === null ? '–' : unit === 'bytes' ? bytes(x) : unit === 'ms' ? ms(x) : num(x);
+  const hv = hvAttr(0, bw, hst.buckets.map((b, i) => bucketWhen(b, bucketEnd(hst.buckets, i, hst.step), hst.step) + ' UTC'),
+    [['', s.key ? keyName(s.key) : METRIC[part][m].label, v.map(said)]], 0, h);
   let body = '';
   hst.counted.forEach((c, i) => { if (!c) body += '<rect class="gap" x="' + (i * bw).toFixed(2) + '" y="0" width="' + bw.toFixed(2) + '" height="' + h + '"/>'; });
   if (s.agg === 'max') {
@@ -399,7 +415,7 @@ function chartSvg(s, hst, part, m) {
       return x === null ? '' : '<rect class="b' + (x === 0 ? ' z' : '') + '" data-i="' + i + '" x="' + (i * bw + (bw > 4 ? 0.5 : 0)).toFixed(2) + '" y="' + (h - bh).toFixed(2) + '" width="' + Math.max(0.6, bw - (bw > 4 ? 1 : 0)).toFixed(2) + '" height="' + bh.toFixed(2) + '"/>';
     }).join('');
   }
-  return '<svg viewBox="0 0 ' + w + ' ' + h + '" tabindex="0" role="img" aria-label="' + esc(label) + '. Tap a bucket, or use the arrow keys and Enter, for its records." data-key="' + esc(s.key) + '" data-n="' + n + '">' + body + '</svg>';
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" tabindex="0" role="img" aria-label="' + esc(label) + '. Tap a bucket, or use the arrow keys and Enter, for its records." data-key="' + esc(s.key) + '" data-n="' + n + '"' + hv + '>' + body + '</svg>';
 }
 
 /** Which bucket a tap or click is over, from where it is across the chart. */
@@ -485,9 +501,7 @@ function drawDetail() {
   const m = METRIC[d.part][d.metric];
   const unit = m.unit;
   const fmt = (x) => x === null || x === undefined ? '–' : unit === 'bytes' ? bytes(x) : unit === 'ms' ? ms(x) : num(x);
-  const when = (d.step === 'hour' ? bucketLabel(d.from, 'day') + ', ' + bucketLabel(d.from, 'hour') + ' to ' + bucketLabel(d.to, 'hour')
-    : d.step === 'week' ? bucketLabel(d.from, 'day') + ' to ' + bucketLabel(new Date(new Date(d.to).getTime() - 1).toISOString(), 'day')
-    : bucketLabel(d.from, d.step)) + ' (UTC)';
+  const when = bucketWhen(d.from, d.to, d.step) + ' (UTC)';
   const vals = bucketValues(d.hst, d.metric, d.i);
   $('detail').innerHTML = '<div class="head"><h2 id="detail-title">' + esc(m.label) + (d.key ? ' · ' + esc(keyName(d.key)) : '') + '</h2>' +
     '<button type="button" id="detail-close" aria-label="Close the details">Close</button></div>' +

@@ -555,6 +555,22 @@ only by key (a first download's time, for `open` and for `fill`) leads with
 its largest key (`chartSeries` in `pageStart.ts`), so every number in
 `METRICS` has a chart.
 
+Every chart says its values under the pointer (`pageHover.ts`): a line at the
+bucket the pointer is over, and a box above the chart with that bucket's day
+or hour (UTC) and each value drawn there. A drawer hands its values to
+`hvAttr`, which puts them on the svg (`data-hv`), so one script serves the
+section charts, the Overview's two charts and small pictures, the rows of
+squares (the box only, no line) and What shipped. A mark of a list (a dot, a
+square, a bar, a part of a bar) carries its words on itself (`data-tip`) and
+shows them in the same box; no chart keeps an svg `<title>`, which the
+browser would show as a second, late box. A value that is missing shows as
+"–" and a bucket the fill has not reached as "Not counted yet", never as 0.
+A finger has no hover: a press shows the line and the box, a slide along the
+chart moves them, and a lift takes them away (`touch-action: pan-y`, so a
+slide up or down still scrolls the page). A tap does what it did: a section's
+chart opens the records behind the bucket. The arrow keys that move over a
+chart's buckets show the same box.
+
 In a section, a part's tables (`RENDER`, and the Jobs table with its Run now
 buttons) sit in a closed `details.numbers` ("Show the numbers") under its
 picture, so the section shows pictures first. A part with no picture and no

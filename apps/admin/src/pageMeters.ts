@@ -212,7 +212,7 @@ function meterSvg(part, at, r, mini) {
       body += (x.half ? '<path class="hl" d="M' + (L + (x.line / 2 / x.max) * (R - L)).toFixed(1) + ' ' + (y + 17) + 'v6"/>' : '') + '<path class="ml" d="M' + lx.toFixed(1) + ' ' + (y + 13) + 'v14"/>';
     }
     // The tap covers the whole line, on top of what it draws.
-    body += '<rect class="hit" data-i="' + i + '" x="0" y="' + y + '" width="' + w + '" height="' + LH + '"><title>' + esc(x.name + ': ' + x.value) + '</title></rect>';
+    body += '<rect class="hit" data-i="' + i + '" x="0" y="' + y + '" width="' + w + '" height="' + LH + '" data-tip="' + esc(x.name + ': ' + x.value) + '"/>';
   });
   return rowSvg(part, at, r, w, h, n, 1, body, 'a bar for each', mini ? 1 : 0);
 }
@@ -225,8 +225,8 @@ function shareSvg(part, at, r, mini) {
   let x0 = L, body = '';
   r.items.forEach((x, i) => {
     const wd = 3 + (x.v / total) * Math.max(0, room);
-    body += '<rect class="q ' + x.s + '" data-i="' + i + '" x="' + x0.toFixed(1) + '" y="2" width="' + wd.toFixed(1) + '" height="14" rx="2"><title>' +
-      esc(itemName(x) + ': ' + Number(x.v).toLocaleString('en') + ' (' + ((x.v / total) * 100).toFixed(1) + '%)') + '</title></rect>' +
+    body += '<rect class="q ' + x.s + '" data-i="' + i + '" x="' + x0.toFixed(1) + '" y="2" width="' + wd.toFixed(1) + '" height="14" rx="2" data-tip="' +
+      esc(itemName(x) + ': ' + Number(x.v).toLocaleString('en') + ' (' + ((x.v / total) * 100).toFixed(1) + '%)') + '"/>' +
       (wd >= 12 ? markAt(x.s, Number((x0 + wd / 2).toFixed(1)), 9, 1) : '') +
       (wd >= 44 ? '<text class="tx" x="' + (x0 + 1).toFixed(1) + '" y="28">' + esc(String(itemName(x)).slice(0, Math.floor(wd / 5.5))) + '</text>' : '');
     x0 += wd + gap;
