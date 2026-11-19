@@ -195,7 +195,12 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Sync and offline merged in: its words in all 16 catalogs, the email and confirm fields, and New
 // password's confirm field. Edit Profile moved to a chunk of its own, loaded when opened, so a
 // first visit stays under its own budget (17,240 bytes left with Sync and offline's chunk too).
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 131 * 1024;
+// Raised by 14 KB with six changes made ready together on main (Caleb Koster, 2026-11-19): the Key
+// words chip's tiles (LAN-233), "All uploaded" leaving the upload bar (LAN-284), French elision
+// before a name (LAN-295), Welcome back's Continue without it (LAN-250), a library read asked again
+// (LAN-254) and Reports naming a language's template (LAN-114). This branch carries the copies of
+// them that fit the public build; lower this by what one that is left out adds.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 145 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
