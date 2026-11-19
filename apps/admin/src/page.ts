@@ -640,10 +640,12 @@ const RENDER = {
     h += '<h3>Phones (latest state of each, this week)</h3><div class="stats">' + stat(num(d.reporting), 'reporting', '', LAST_WEEK) +
       stat(num(d.lostRecordings), 'lost recordings', d.lostRecordings ? 'bad' : '', latest) + stat(num(d.unsentOverDay), 'recording unsent > 1 day', d.unsentOverDay ? 'warn' : '', latest) +
       stat(num(d.downloadStuckOverDay), 'download stuck > 1 day', d.downloadStuckOverDay ? 'warn' : '', latest) + stat(num(d.lowDisk), 'under 500 MB free', d.lowDisk ? 'warn' : '', latest) + '</div>';
-    if (c.auth.length) h += '<h3>Sign-in trouble this week</h3>' + table([
-      { h: 'Step', v: (a) => esc(a.op || '?') }, { h: 'Ended', v: (a) => esc(a.outcome || '?') + (a.code ? ' <code>' + esc(a.code) + '</code>' : '') },
-      { h: 'Times', n: true, v: (a) => num(a.records) }, { h: 'Installs', n: true, v: (a) => num(a.installs) }, { h: 'Last', v: (a) => when(a.lastAt) }
-    ], c.auth);
+    // Trouble is what the server or the app failed at, and each row is a line on the Overview; the rest is no fault of either (diag.sign_in_class).
+    const signIn = [{ h: 'Step', v: (a) => esc(a.op || '?') }, { h: 'Ended', v: (a) => esc(a.outcome || '?') + (a.code ? ' <code>' + esc(a.code) + '</code>' : '') },
+      { h: 'Times', n: true, v: (a) => num(a.records) }, { h: 'Installs', n: true, v: (a) => num(a.installs) }, { h: 'Last', v: (a) => when(a.lastAt) }];
+    const noFault = c.auth.filter((a) => a.class === 'no_fault'), trouble = c.auth.filter((a) => a.class !== 'no_fault');
+    if (trouble.length) h += '<h3>Sign-in trouble this week</h3>' + table(signIn, trouble);
+    if (noFault.length) h += '<h3>Sign-in steps refused or with no connection, this week</h3>' + table(signIn, noFault);
     if (c.expected.length) h += '<h3>Failures already shown to people, this week</h3>' + table([
       { h: 'Where', v: (x) => esc(x.where || '?') + '<br><small>' + esc(x.name || '') + (x.code ? ' · ' + esc(x.code) : '') + '</small>' },
       { h: 'Times', n: true, v: (x) => num(x.count) }, { h: 'Installs', n: true, v: (x) => num(x.installs) }, { h: 'Last', v: (x) => when(x.lastAt) }

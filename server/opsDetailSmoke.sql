@@ -39,6 +39,14 @@ from od_day, (values
   ('od-audio-2', 'od-inst-ios', 'audio', '{"takes":2,"playFail":1}', '{}', 5),
   ('od-auth-1', 'od-inst-ios', 'auth', '{}', '{"op":"renew","outcome":"failed","code":"E_NET"}', 6),
   ('od-auth-2', 'od-inst-ios', 'auth', '{}', '{"op":"renew","outcome":"ok"}', 7),
+  -- Sign-in records by class (migration *_sign_in_trouble.sql): two more of trouble, three of no fault, two that went as designed.
+  ('od-auth-3', 'od-inst-ios', 'auth', '{}', '{"op":"ended"}', 16),
+  ('od-auth-4', 'od-inst-android', 'auth', '{}', '{"op":"join","outcome":"refused","code":"42501"}', 17),
+  ('od-auth-5', 'od-inst-ios', 'auth', '{}', '{"op":"sign_in","outcome":"refused","code":"invalid_credentials"}', 18),
+  ('od-auth-6', 'od-inst-ios', 'auth', '{}', '{"op":"renew","outcome":"offline"}', 19),
+  ('od-auth-7', 'od-inst-android', 'auth', '{}', '{"op":"redeem","outcome":"expired"}', 20),
+  ('od-auth-8', 'od-inst-android', 'auth', '{}', '{"op":"route","outcome":"no_org"}', 26),
+  ('od-auth-9', 'od-inst-android', 'auth', '{}', '{"op":"redeem","outcome":"needs_name"}', 27),
   ('od-exp-1', 'od-inst-ios', 'expected', '{"count":3}', '{"where":"home","name":"Offline"}', 8),
   ('od-dev-1', 'od-inst-android', 'device', '{"lostFiles":2,"lostRecordings":1}', '{}', 9),
   ('od-dev-2', 'od-inst-ios', 'device', '{"lostFiles":0}', '{}', 10),
@@ -105,7 +113,7 @@ begin
       case when (x.part, x.metric) in (('clients', 'installs'), ('clients', 'error_installs'), ('fleet', 'installs_by_update'), ('fleet', 'crashed_by_update'),
                                        ('safety', 'refused_installs'), ('storage', 'lost_files_installs'), ('storage', 'lost_recordings_installs')) then 'installs'
            when (x.part, x.metric) in (('clients', 'records'), ('clients', 'errors'), ('clients', 'crashes'), ('clients', 'syncs'), ('clients', 'sync_errors'),
-                                       ('clients', 'sign_in_trouble'), ('fleet', 'first_downloads'), ('fleet', 'first_download_waits'), ('fleet', 'first_download_trouble'), ('jobs', 'runs'),
+                                       ('clients', 'sign_in_trouble'), ('clients', 'sign_in_no_fault'), ('fleet', 'first_downloads'), ('fleet', 'first_download_waits'), ('fleet', 'first_download_trouble'), ('jobs', 'runs'),
                                        ('jobs', 'failed'), ('jobs', 'partial'), ('safety', 'canary_runs'), ('support', 'feedback'), ('support', 'account_deletions'),
                                        ('userissues', 'looked_at_first')) then 'rows' end as how
     from diag.daily x where x.day = d::date and x.key <> '_other'
@@ -128,6 +136,16 @@ begin
      or (select jsonb_agg(r.item->>'id') from diag.ops_detail_rows('fleet', 'first_download_p95_ms', 'open', d, d + interval '1 day', 0, 100) r) is distinct from '["od-open-6", "od-open-2"]'::jsonb
      or (select jsonb_agg(r.item->>'id') from diag.ops_detail_rows('fleet', 'first_download_wait_max_ms', '', d, d + interval '1 day', 0, 100) r) is distinct from '["od-open-6"]'::jsonb then
     raise exception 'a first download is counted or timed incorrectly: %', (select jsonb_agg(to_jsonb(x)) from diag.daily x where x.day = d::date and x.part = 'fleet' and x.metric like 'first\_download%');
+  end if;
+  -- Of nine sign-in records, three are trouble (a renewal given up, a sign-in that ended, a join the server
+  -- refused) and three are no fault (a wrong password, no connection, an invite that expired). The two that
+  -- went as designed and the one that ended ok are in neither number.
+  if (select jsonb_object_agg(x.metric || '/' || x.key, x.value) from diag.daily x where x.day = d::date and x.part = 'clients' and x.metric like 'sign\_in\_%')
+       is distinct from '{"sign_in_trouble/": 3, "sign_in_trouble/renew:failed:E_NET": 1, "sign_in_trouble/ended:?": 1, "sign_in_trouble/join:refused:42501": 1,
+                          "sign_in_no_fault/": 3, "sign_in_no_fault/sign_in:refused:invalid_credentials": 1, "sign_in_no_fault/renew:offline": 1, "sign_in_no_fault/redeem:expired": 1}'::jsonb
+     or (select jsonb_agg(r.item->>'id' order by r.item->>'id') from diag.ops_detail_rows('clients', 'sign_in_trouble', '', d, d + interval '1 day', 0, 100) r) is distinct from '["od-auth-1", "od-auth-3", "od-auth-4"]'::jsonb
+     or (select jsonb_agg(r.item->>'id' order by r.item->>'id') from diag.ops_detail_rows('clients', 'sign_in_no_fault', '', d, d + interval '1 day', 0, 100) r) is distinct from '["od-auth-5", "od-auth-6", "od-auth-7"]'::jsonb then
+    raise exception 'sign-in records are counted in the wrong number: %', (select jsonb_agg(to_jsonb(x)) from diag.daily x where x.day = d::date and x.part = 'clients' and x.metric like 'sign\_in\_%');
   end if;
   -- The rows that are not plain counts still come from their own records.
   if (select count(*) from diag.ops_detail_rows('clients', 'downloads_failed', '', d, d + interval '1 day', 0, 100)) <> 1

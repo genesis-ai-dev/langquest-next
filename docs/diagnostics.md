@@ -34,6 +34,21 @@ version and the build number, `2026.1030.1319 (48)`, since 2026-11-03),
 runtime version, EAS update id and channel, whether the embedded bundle is
 running, reducer and protocol versions. Feedback carries the same.
 
+**Sign-in records on the ops dashboard:** the database gives each `auth`
+record one class (`diag.sign_in_class`, migration
+`20261119192147_sign_in_trouble.sql`), and the chart, its table, the records
+behind a point and the line on the Overview all read that one rule
+(`docs/decisions/2026-11-19-sign-in-trouble-is-one-rule.md`). A step that
+went as designed (`ok`, `done`, `keep`, `home`, `needs_name`, `no_org`) is
+counted nowhere. "Sign-in steps refused or with no connection" counts what
+is no fault of the server or the app: `offline`, `unreachable`, `retry`,
+`org_unknown`, an entry the server refused (`refused` on `sign_in`,
+`sign_up`, `code`, `v2`) and an invite that cannot be used (`expired`,
+`used`, `not_found`, `retired`). "Sign-in trouble" counts all the rest, and
+each kind of it in the week is a line. An outcome the rule does not name is
+trouble, so add a new one to the rule or to `TROUBLE_OUTCOMES` in
+`scripts/diagSchema.test.ts`, which fails until it is in one.
+
 Every report line about a phone names its build the way support asks it
 (`buildLabel`, `scripts/diagSignals.ts`): `build 48 (2026.1030.1319) · OTA
 update 01a1827 (production)`, or `no OTA update` when it runs the store

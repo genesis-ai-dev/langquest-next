@@ -48,7 +48,14 @@ export interface Clients {
   syncErrors: { code: string; records: number; installs: number }[];
   errors: { name: string | null; where: string | null; code: string | null; fatal: boolean; records: number; day: number; installs: number; lastAt: string; errorId: string | null }[];
   expected: { where: string | null; name: string | null; code: string | null; count: number; installs: number; lastAt: string }[];
-  auth: { op: string | null; outcome: string | null; code: string | null; records: number; installs: number; lastAt: string }[];
+  /**
+   * The week's sign-in steps that did not end well, by kind. `class` is the
+   * database's (diag.sign_in_class, migration 20261119192147): `trouble` when
+   * the server or the app failed, `no_fault` for a wrong password, an invite
+   * that cannot be used, no connection or a step the app tries again. Absent
+   * only on a count made before that migration.
+   */
+  auth: { op: string | null; outcome: string | null; code: string | null; class?: 'trouble' | 'no_fault'; records: number; installs: number; lastAt: string }[];
   transfer: Record<string, Record<string, number>>;
   audio: Record<string, number> | null;
   device: { reporting: number; lowDisk: number; lostFiles: number; lostRecordings: number; unsentOverDay: number; downloadStuckOverDay: number; diagDropped: number };
@@ -101,10 +108,13 @@ export function clientAlerts(c: Clients): Alert[] {
   const audio = c.audio ?? {};
   const audioFails = (audio.saveFail ?? 0) + (audio.startFail ?? 0) + (audio.stopFail ?? 0) + (audio.encodeFail ?? 0);
   if (audioFails > 0) add('watch', 'recording-fails', `Recording failed to start, stop, save or compress ${plural(audioFails, 'time')} in the last day.`);
+  // Each kind the chart "Sign-in trouble" counts this week is a line, so the chart never shows trouble the Overview does not.
   for (const a of c.auth) {
-    if (['server', 'failed', 'unreachable'].includes(a.outcome ?? '') && a.installs >= 3) {
-      add('watch', 'sign-in-step', `Sign-in step ${a.op ?? '?'} ended "${a.outcome}"${a.code ? ` (${a.code})` : ''} on ${plural(a.installs, 'install')} this week.`, `${a.op ?? '?'} ${a.outcome}`, `auth:${a.op ?? '-'}:${a.outcome ?? '-'}:${a.code ?? '-'}`);
-    }
+    if (a.class !== 'trouble') continue;
+    const code = a.code ? ` (${a.code})` : '';
+    const what = a.op === 'ended' ? `A sign-in ended that the person did not end${a.outcome ? `: "${a.outcome}"` : ''}${code}`
+      : `Sign-in step ${a.op ?? '?'} ended "${a.outcome ?? '?'}"${code}`;
+    add('watch', 'sign-in-step', `${what}, ${plural(a.records, 'time')} on ${plural(a.installs, 'install')} this week.`, `${a.op ?? '?'} ${a.outcome ?? '?'}`, `auth:${a.op ?? '-'}:${a.outcome ?? '-'}:${a.code ?? '-'}`);
   }
   return out;
 }

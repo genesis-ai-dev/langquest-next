@@ -77,6 +77,7 @@ export const METRICS: Record<string, Record<string, Metric>> = {
     recordings_failed: { label: 'Recordings that failed' },
     playback_failed: { label: 'Playbacks that failed' },
     sign_in_trouble: { label: 'Sign-in trouble' },
+    sign_in_no_fault: { label: 'Sign-in steps refused or with no connection' },
     shown_failures: { label: 'Failures shown to people' }
   },
   fleet: {

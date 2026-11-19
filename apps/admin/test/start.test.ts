@@ -191,8 +191,8 @@ describe('a tapped bucket', () => {
   });
 
   it('has a raw source or says it keeps totals only, for every number', () => {
-    // The migration of the detail panel, and the later one that adds a first download's wait.
-    const sql = ['20261117143000_ops_detail.sql', '20261118234300_first_download_wait.sql'].map((f) => readFileSync('supabase/migrations/' + f, 'utf8')).join('\n');
+    // The migration of the detail panel, and the later ones that add a first download's wait and sign-in steps that are no fault.
+    const sql = ['20261117143000_ops_detail.sql', '20261118234300_first_download_wait.sql', '20261119192147_sign_in_trouble.sql'].map((f) => readFileSync('supabase/migrations/' + f, 'utf8')).join('\n');
     const filtered = new Set([...sql.matchAll(/\('([a-z0-9_]+)', '([a-z0-9_]+)', '(records|job_runs)'/g)].map((m) => `${m[1]}.${m[2]}`));
     const own = new Set(['cron.runs', 'cron.failed', 'support.feedback', 'support.content_reports', 'userissues.looked_at_first']);
     for (const [part, ms] of Object.entries(METRICS)) for (const metric of Object.keys(ms)) {
