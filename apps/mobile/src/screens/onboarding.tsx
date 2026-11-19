@@ -110,8 +110,9 @@ export function Welcome(ctx: Ctx) {
  * and what it was called in v2), says to record here from now on, and Keep going opens
  * what's waiting for them first, else the passage they recorded last. Until
  * any of it has come over, it says it is on its way and to keep recording in
- * the old app, with Check again, and nothing else (never "What brings you
- * here?"). What they had comes from welcomeBack.ts.
+ * the old app, with Check again, and Continue without it, which opens the
+ * app as it opens for anyone new (LAN-250: the transfer can take days). What
+ * they had comes from welcomeBack.ts.
  *
  * Not ported: Listen, as on Welcome.
  */
@@ -179,7 +180,13 @@ export function WelcomeBack(ctx: Ctx) {
       header={<HelpTop />}
       bodyStyle={styles.body}
       footer={waiting ? (
-        <PrimaryBtn label={t('entry.welcomeBack.checkAgain')} icon="restart" help={t('entry.welcomeBack.checkAgainHelp')} onPress={() => void checkAgain()} busy={busy} />
+        <>
+          <PrimaryBtn label={t('entry.welcomeBack.checkAgain')} icon="restart" help={t('entry.welcomeBack.checkAgainHelp')} onPress={() => void checkAgain()} busy={busy} />
+          {/* Their work waits on the team's transfer, which can take days (LAN-250): the app is still theirs meanwhile.
+              Not welcomed yet, so this screen opens again until their work is here, and then says so. */}
+          <GhostBtn label={t('entry.welcomeBack.continueWithout')} disabled={busy} help={t('entry.welcomeBack.continueWithoutHelp')}
+            onPress={() => ctx.go(homeScreenFor(ctx.session))} />
+        </>
       ) : target ? (
         <>
           <PrimaryBtn label={t('entry.welcomeBack.keepGoing', { passage: target.title })} icon="arrowR" disabled={busy}
