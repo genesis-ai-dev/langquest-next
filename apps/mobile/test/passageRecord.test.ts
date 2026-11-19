@@ -4,7 +4,7 @@ import {
   recordTimeline, SEED_ROLES, type AnyEvent, type EventPayloads, type EventType, type OrgState, type Scope
 } from '@langquest-next/core';
 import {
-  answeredQuestions, askCandidates, currentStepId, describeEntry, feedbackNames, gridKindIds, heroHeadline, historySummary,
+  answerAttachments, answeredQuestions, askCandidates, currentStepId, describeEntry, feedbackNames, gridKindIds, heroHeadline, historySummary,
   kindLineText, kindRowActions, kindRowSub, kindPathState, lastReviewOn, ledTo, listenersOf, madeAfter, nextQuestionType, nobodyElseReviews, oldKindLineText, oldStepState,
   oldStepSummary, openCheckFor, pathState, sendTargetLabel, stepSheetSub, stepSummary, versionCaption
 } from '../src/passage/recordTextModel';
@@ -444,5 +444,20 @@ describe('what listeners heard and said (decisions.md 109)', () => {
     // Taken down: no longer live.
     lang.emit('admin', 'v1.VersionReleased', { takeId: 't1', channel: 'EveryBible', live: false });
     expect(listenersOf(lang.state(), lang.passage()).live).toEqual([]);
+  });
+});
+
+describe('an answer kept with a voice note (LAN-240)', () => {
+  it('hands the voice note and the words to the passage, so the person who gave feedback can play it', () => {
+    const p = language();
+    record(p, 'v1', ['c1']);
+    const take = p.passage().latest!.takeId;
+    p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [take], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Verse 5 is fast.' }));
+    const reviewId = p.passage().awaitingResponse[0]!.id;
+    expect(answerAttachments(p.passage().reviews[0]!)).toEqual({});
+    p.run('akol', (c) => c.depart({ commandId: 'keep', unitId: 'john3', type: 'keep', reviewId, reason: 'That pace is how it is told.', reasonBlobHash: 'voice-hash' }));
+    const kept = p.passage().reviews[0]!;
+    expect(kept.response?.blobHash).toBe('voice-hash');
+    expect(answerAttachments(kept)).toEqual({ note: 'That pace is how it is told.', blobHash: 'voice-hash' });
   });
 });

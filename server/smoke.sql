@@ -220,6 +220,17 @@ do $$ declare r record; begin
   if r.accepted or r.reason not like 'malformed envelope%' then raise exception 'a toString event id should be refused, got %', r; end if;
 end $$;
 
+-- 5e2. A clock every phone can read: `x1:y:z` has digits in its wall, so only the column's check refuses it.
+do $$ declare r record; begin
+  begin
+    select * into r from public.append_events('[
+      {"id":"badclock1","type":"v1.TakeArchived","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"x1:y:z","payload":{"takeId":"tk9"}}
+    ]'::jsonb);
+    raise exception 'a clock in the wrong form should be refused, got %', r;
+  exception when check_violation then null;
+  end;
+end $$;
+
 -- 5f. An event goes on the kind of stream it belongs to (decisions.md 116).
 do $$ declare r record; begin
   select * into r from public.append_events('[

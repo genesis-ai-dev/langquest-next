@@ -2,11 +2,11 @@
 // it scrolls when the finger holds the part near the pane's top or bottom,
 // and stops scrolling under the finger while the part moves.
 import { useMemo, useRef, useState } from 'react';
-import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView } from 'react-native';
+import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollViewInstance } from 'react-native';
 import type { DragScroll } from './useDragRows';
 
 export function useDragScroll() {
-  const ref = useRef<ScrollView>(null);
+  const ref = useRef<ScrollViewInstance>(null);
   const at = useRef<{ y: number; view: number; content: number; edges: { top: number; bottom: number } | null }>({ y: 0, view: 0, content: 0, edges: null });
   const [held, setHeld] = useState(false);
   const scroll = useMemo<DragScroll>(() => ({

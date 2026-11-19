@@ -1,14 +1,16 @@
 // `t('area.key')` only accepts keys that exist in the English catalog, so a
 // typo or a removed key fails `npm run typecheck`. The disguise's words are
-// kept beside it (src/disguise/i18n, added by addWords on Android).
+// kept beside it (src/disguise/i18n, added by addWords on Android), and so are
+// nearby sync's (src/nearby/i18n, nearbyWords.ts), which the web loads only with its screens.
 import 'i18next';
 import type disguise from '../disguise/i18n/en.json';
+import type nearby from '../nearby/i18n/en.json';
 import type en from './en.json';
 
 declare module 'i18next' {
   interface CustomTypeOptions {
     defaultNS: 'translation';
-    resources: { translation: typeof en & typeof disguise };
+    resources: { translation: typeof en & typeof disguise & typeof nearby };
     returnNull: false;
   }
 }

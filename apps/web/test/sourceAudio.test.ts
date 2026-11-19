@@ -60,6 +60,17 @@ describe('the source audio route', () => {
     expect((await setup(() => { throw new TypeError('fetch failed'); }).call(LINK)).status).toBe(502);
   });
 
+  it('passes on bytes of no named kind as the audio the link names (LAN-241: S3 sends binary/octet-stream)', async () => {
+    for (const sent of ['binary/octet-stream', 'application/octet-stream']) {
+      const res = await setup(() => new Response('mp3', { headers: { 'content-type': sent } })).call(LINK);
+      expect(res.status).toBe(200);
+      expect(res.text).toBe('mp3');
+      expect(res.headers.get('content-type')).toBe('audio/mpeg');
+    }
+    // No type at all is still not audio.
+    expect((await setup(() => new Response(new Blob(['mp3']))).call(LINK)).status).toBe(502);
+  });
+
   it('is reached at /api/source-audio through the API router', async () => {
     const deps: ApiDeps = { profileOf: async () => null, reports: async () => null };
     const res = await handleApi(new Request(`https://next.langquest.org/api/source-audio?url=${encodeURIComponent(LINK)}`), deps);

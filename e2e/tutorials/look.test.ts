@@ -1,5 +1,9 @@
 import { lookOf, saving, steadyLine, steadyStep, tryAgain } from './look';
-import { APP_LINK, firstSentence, OTHER_LANGUAGES, PLAYLISTS, watchLink, youtubeText } from './playlists';
+import { existsSync, readFileSync } from 'node:fs';
+import { APP_LINK, firstSentence, NAMED_VIDEOS, OTHER_LANGUAGES, PLAYLISTS, watchLink, youtubeText } from './playlists';
+import { videosNamed } from './tutorial';
+import { TUNE, tuneChain } from './tune';
+import { TUTORIALS } from './all';
 import { UI_LANGUAGES } from '@langquest-next/core';
 import { CHANNELS, downloadLink, WORDS } from '../../server/youtube';
 
@@ -21,6 +25,12 @@ describe('a video\'s look', () => {
     expect(saving('- text: Lumari\n- img "Saving":\n  - progressbar')).toBe(true);
     expect(saving('- img "Saved"')).toBe(false);
     expect(saving('- img "Guardando"', 'es')).toBe(true);
+    // Me counting what the phone keeps reads as it settles: one dry run read it at "Checking this device…" (2026-11-13).
+    expect(saving('- button "Sync and offline Checking this device…":')).toBe(true);
+    expect(saving('- button "جاهز للعمل بدون اتصال جارٍ فحص هذا الجهاز…":', 'ar')).toBe(true);
+    // An English film that shows the app in Arabic for a while (choose-the-app-language).
+    expect(saving('- button "جاهز للعمل بدون اتصال جارٍ فحص هذا الجهاز…":')).toBe(true);
+    expect(saving('- button "Sync and offline 12 passages on this device":')).toBe(false);
   });
 
   it('stays the same through what changes each run though the app did not', () => {
@@ -105,6 +115,87 @@ describe('a video on YouTube', () => {
     expect(links[1]).toBe(`English: ${APP_LINK}/v/en/record-a-passage`);
     expect(downloadLink('zh-Hans', 'record-a-passage')).toBe(`${APP_LINK}/v/zh-Hans/record-a-passage.mp4`);
     expect(Object.keys(WORDS).sort()).toEqual(Object.keys(PLAYLISTS).sort());
+  });
+
+  it('credits the tune last, only in a video that has it (docs/decisions/2026-11-18-tune-on-introductory-videos.md)', () => {
+    const credited = youtubeText('How LangQuest works', 'This is LangQuest.', { language: 'en', tutorial: 'how-langquest-works' }, TUNE.credit).description.split('\n\n');
+    expect(credited[credited.length - 1]).toBe(TUNE.credit);
+    expect(credited.slice(0, -1).join('\n\n')).toBe(youtubeText('How LangQuest works', 'This is LangQuest.', { language: 'en', tutorial: 'how-langquest-works' }).description);
+    // The licence asks for the tune's name, its author, its source and the licence.
+    for (const part of ['Carefree', 'Kevin MacLeod', 'incompetech.com', 'https://creativecommons.org/licenses/by/4.0/']) expect(TUNE.credit).toContain(part);
+    expect(existsSync(TUNE.file)).toBe(true);
+    // A general, introductory video has the tune. A video of one task or one setting has none.
+    expect(Object.values(TUTORIALS).filter((t) => t.tune).map((t) => t.id)).toEqual(['how-langquest-works', 'the-path-of-a-passage']);
+  });
+
+  it('never says that passages all take the same path or the same checks: each language chooses its own', () => {
+    // Why: Caleb, 2026-11-18, on "The path of a passage" as first written: it gave "the impression that every single passage
+    // that's submitted in LangQuest by every language and every organization goes through the exact same checks, and that's
+    // the exact opposite of what we're trying to communicate".
+    const said = Object.values(TUTORIALS).flatMap((t) => t.steps.flatMap((s) => (s.say ? [s.say] : [])));
+    expect(said.filter((line) => /\bthe same (path|checks?|steps)\b/i.test(line))).toEqual([]);
+    // A video that shows a passage's checks says whose they are.
+    for (const id of ['how-langquest-works', 'the-path-of-a-passage']) {
+      expect(TUTORIALS[id]!.steps.some((s) => /its language chose|Each language in LangQuest chooses/.test(s.say ?? ''))).toBe(true);
+    }
+  });
+
+  it('links each video that its voice names, straight after its first line (docs/decisions/2026-11-19-a-video-links-the-videos-it-names.md)', () => {
+    const names = [{ tutorial: 'record-a-passage', title: 'Grabar un pasaje' }, { tutorial: 'do-a-check', title: 'Hacer una revisión' }];
+    const groups = youtubeText('Crea tu cuenta', 'Así se empieza.', { language: 'es', tutorial: 'create-your-account-and-look-around', names }).description.split('\n\n');
+    expect(groups[0]).toBe('Así se empieza.');
+    expect(groups[1]!.split('\n')).toEqual([NAMED_VIDEOS['es'], `Grabar un pasaje: ${APP_LINK}/v/es/record-a-passage`, `Hacer una revisión: ${APP_LINK}/v/es/do-a-check`]);
+    expect(groups[2]).toContain(`LangQuest: ${APP_LINK}`);
+    // A video that names none has no such group.
+    expect(youtubeText('Grabar un pasaje', 'Toca Iniciar.', { language: 'es', tutorial: 'record-a-passage', names: [] }).description).not.toContain(NAMED_VIDEOS['es']);
+    expect(Object.keys(NAMED_VIDEOS).sort()).toEqual(Object.keys(PLAYLISTS).sort());
+  });
+
+  it('never sends the viewer to "another video": a line that speaks of a video names it, says where its link is, and the script links it', () => {
+    // Why: Caleb, 2026-11-19: "Our videos need to say more than just look at how to do this in another video [...] the video
+    // should say, "This video is linked in the description below," and then the video creation pipeline should actually put
+    // a link to that video in the description for that video."
+    for (const tutorial of Object.values(TUTORIALS)) {
+      for (const step of tutorial.steps) {
+        const where = `${tutorial.id}: "${step.say}"`;
+        if (/\bvideos?\b/i.test(step.say ?? '')) {
+          expect(step.videos?.length, where).toBeGreaterThan(0);
+          expect(step.say, where).toMatch(/linked in the description below\.$/);
+          expect(step.say, where).not.toMatch(/\b(another|next|other) videos?\b/i);
+        }
+        if (!step.videos) continue;
+        expect(step.say, where).toMatch(/linked in the description below\.$/);
+        // One or two videos are named by their titles. More are counted, not listed: the description lists them.
+        if (step.videos.length <= 2) for (const id of step.videos) expect(step.say, where).toContain(`'${TUTORIALS[id]?.title}'`);
+        for (const id of step.videos) {
+          const named = TUTORIALS[id];
+          // It is a video on YouTube, another one, made in every language this one is made in.
+          expect(named, `${where} names ${id}`).toBeDefined();
+          expect(id, where).not.toBe(tutorial.id);
+          expect(named!.staff, `${where} names ${id}`).toBeUndefined();
+          expect((named!.notIn ?? []).filter((l) => !tutorial.notIn?.includes(l)), `${where} names ${id}`).toEqual([]);
+        }
+      }
+    }
+    // In each language the line says the named video's title as that language's title has it (translate-lines.ts tells Gemini the titles).
+    for (const { code } of UI_LANGUAGES) {
+      const file = `e2e/tutorials/lines/${code}.json`;
+      if (code === 'en' || !existsSync(file)) continue;
+      const lines = JSON.parse(readFileSync(file, 'utf8')) as Record<string, string>;
+      for (const step of Object.values(TUTORIALS).flatMap((t) => t.steps)) {
+        if (!step.videos || step.videos.length > 2 || !lines[step.say!]) continue;
+        for (const id of step.videos) if (lines[TUTORIALS[id]!.title]) expect(lines[step.say!], `${code}: "${step.say}"`).toContain(lines[TUTORIALS[id]!.title]);
+      }
+    }
+    expect(videosNamed(TUTORIALS['the-path-of-a-passage']!)).toEqual(['record-a-passage', 'finish-and-ask-for-a-check', 'do-a-check', 'answer-feedback']);
+    expect(videosNamed(TUTORIALS['create-your-account-and-look-around']!)).toEqual(['start-an-organization', 'record-a-passage', 'do-a-check']);
+    expect(videosNamed(TUTORIALS['do-a-check']!)).toEqual([]);
+  });
+
+  it('plays the tune quietly under the voice, and takes it out as the film ends', () => {
+    expect(TUNE.decibels).toBeLessThanOrEqual(-12);
+    expect(tuneChain(27, 155.5, 'tune')).toBe('[27:a]aresample=48000,volume=-12dB,afade=t=in:st=0:d=1.2,afade=t=out:st=151.90:d=3.6[tune]');
+    expect(tuneChain(3, 2, 'tune')).toContain('afade=t=out:st=0.00:d=3.6');
   });
 
   it('keeps within what YouTube takes', () => {

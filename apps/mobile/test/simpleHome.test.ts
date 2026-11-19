@@ -3,7 +3,7 @@ import { chapterStage, chapterTone, type PassageFacts } from '../src/reference/c
 import { needsConnection, openableLanguages } from '../src/map/mapModel';
 import { EDGES } from '../src/shell/flow';
 import { edgeAllowed, tabsFor } from '../src/shell/session';
-import { nextSub, readiness, readySteps, updateTarget, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat } from '../src/work/homeModel';
+import { nextSub, readiness, readySteps, updateTarget, waitingWhat, waitingWho, workEmpty, workIcon, workSub, workTarget, workWhat } from '../src/work/homeModel';
 import { offlineCount } from '../src/account/meModel';
 import { inSeveral } from '../src/account/model';
 import { roleSession } from './sessions';
@@ -76,6 +76,22 @@ describe('the simple My Work (decision 71)', () => {
     expect(waitingWhat({ what: 'record' }, opts.checkName)).toBe('Recording');
     expect(waitingWhat({ what: 'review', kindId: 'peer' }, opts.checkName)).toBe('Peer check');
   });
+
+  it('says a language is not on this device even beside a join request (LAN-251)', () => {
+    // Why: a join request or another language's news is the organization's, not
+    // the open language's; with one on screen, offline My Work showed only it
+    // and never said Alpha had not come down yet (NAV-023).
+    const away = { open: 'alpha', pulled: false, online: false, loaded: true, passages: 0, gettingReady: false };
+    expect(workEmpty(away)).toBe('notHere');
+    expect(workEmpty({ ...away, others: 1 })).toBe('notHere');
+    expect(workEmpty({ ...away, loaded: false, others: 2 })).toBe('notHere');
+    // Online, a language with no passages is "not set up" only when nothing else shows.
+    const unset = { ...away, pulled: true, online: true };
+    expect(workEmpty(unset)).toBe('noPassages');
+    expect(workEmpty({ ...unset, others: 1 })).toBeNull();
+    // On this phone, with passages: nothing to explain.
+    expect(workEmpty({ ...away, passages: 3, others: 1 })).toBeNull();
+  });
 });
 
 describe('the simple tabs (decision 71)', () => {
@@ -88,15 +104,20 @@ describe('the simple tabs (decision 71)', () => {
   });
 
   it('keeps everything Settings had one tap under Me', () => {
-    // Why: Me shows five rows; More settings holds the rest (profile, switching
-    // organization, sync, diagnostics, deleting the account), so nothing is lost.
+    // Why: Me shows five rows; More settings holds the rest (switching
+    // organization, diagnostics, deleting the account), so nothing is lost. Sync and
+    // offline is one row on Me, the only one: More settings no longer opens it too
+    // (docs/decisions/2026-11-18-sync-and-offline-one-screen.md). Edit Profile, with the
+    // email and password, opens from Me's name row alone (LAN-304).
     const s = roleSession('translator');
     for (const to of ['settings_more', 'profile_edit', 'sync_status', 'vision', 'sign_out_confirm'] as const) {
       expect(EDGES.some((e) => e.from === 'settings_home' && e.to === to && edgeAllowed(e, s)), to).toBe(true);
     }
-    for (const to of ['org_switcher', 'sync_status', 'delete_account', 'profile_edit'] as const) {
+    expect(EDGES.some((e) => e.from === 'settings_more' && e.to === 'profile_edit')).toBe(false);
+    for (const to of ['org_switcher', 'delete_account'] as const) {
       expect(EDGES.some((e) => e.from === 'settings_more' && e.to === to && edgeAllowed(e, s)), to).toBe(true);
     }
+    expect(EDGES.some((e) => e.from === 'settings_more' && e.to === 'sync_status')).toBe(false);
   });
 
   it('lets someone in several organizations switch from Me, not only under More settings', () => {

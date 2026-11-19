@@ -1,6 +1,6 @@
 import { buildIndexes } from '../src/indexes';
 import { derivePassage } from '../src/passage';
-import { languageLines, passageLine } from '../src/passageLines';
+import { isOpenForReview, languageLines, openForReviewOf, passageLine, upNextOf } from '../src/passageLines';
 import { partEntries, passageInMemory, putEntry, rowId, withoutParts } from '../src/passageParts';
 import { foldLanguage } from '../src/reducer';
 import { emptyLanguageState, type LanguageState } from '../src/state';
@@ -53,5 +53,31 @@ describe('a passage\'s line', () => {
       const hasAny = [...partEntries(whole)].some((e) => passageInMemory(whole, e.part.passage(e.key, e.value as never, e.inner)) === unitId);
       expect(worked.has(unitId), unitId).toBe(hasAny);
     }
+  });
+});
+
+describe('open for review', () => {
+  const line = (over: Partial<{ recorded: boolean; reviewed: boolean; steps: unknown[] }>) => ({ recorded: true, reviewed: false, steps: [{}], ...over }) as Parameters<typeof isOpenForReview>[0];
+
+  it('is a recording nobody has checked, in a language with a flow', () => {
+    expect(isOpenForReview(line({}))).toBe(true);
+    expect(isOpenForReview(line({ recorded: false }))).toBe(false);
+    expect(isOpenForReview(line({ reviewed: true }))).toBe(false);
+    expect(isOpenForReview(line({ steps: [] }))).toBe(false);
+  });
+
+  it('the list and upNextOf share one rule, so what the app suggests is what a phone fetches first', () => {
+    const lines = languageLines(whole);
+    const passages = buildIndexes(whole).passages;
+    const open = openForReviewOf(lines, passages);
+    expect(open).toEqual(passages.filter((id) => isOpenForReview(lines.get(id))));
+    const next = upNextOf(lines, passages, { canRecord: false, canReview: true });
+    expect(next).toEqual(open[0] ? { kind: 'review', unitId: open[0] } : null);
+  });
+
+  it('keeps the order it is given', () => {
+    const lines = { get: (id: string) => ({ ...line({}), recorded: id !== 'skip' }) as ReturnType<typeof languageLines>['get'] extends (id: string) => infer L ? L : never };
+    expect(openForReviewOf(lines, ['c', 'skip', 'a', 'b'])).toEqual(['c', 'a', 'b']);
+    expect(upNextOf({ ...lines, worked: () => [] } as unknown as Parameters<typeof upNextOf>[0], ['skip', 'c', 'a'], { canRecord: false, canReview: true })).toEqual({ kind: 'review', unitId: 'c' });
   });
 });

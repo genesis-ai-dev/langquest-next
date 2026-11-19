@@ -16,13 +16,13 @@ export async function barsOfFile(uri: string, format: 'wav' | 'm4a'): Promise<nu
   if (!file.exists) return null;
   const read = file.open(FileMode.ReadOnly);
   try {
-    const f = readWavHeader(read.readBytes(44));
+    const f = readWavHeader(read.readBytesSync(44));
     if (!f) return null;
     const frameBytes = f.channels * 2;
     const frames = Math.floor(Math.max(0, (file.size ?? 0) - 44) / frameBytes);
     return await barsFromWindows(frames, f.channels, (first, n) => {
       read.offset = 44 + first * frameBytes;
-      return read.readBytes(n * frameBytes);
+      return read.readBytesSync(n * frameBytes);
     }, pause, BAR_COUNT);
   } finally { read.close(); }
 }

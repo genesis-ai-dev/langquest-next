@@ -49,6 +49,18 @@ export function resolveNumbering(code: NumberingCode, nearest: NumberingCode | u
 }
 
 /**
+ * What the ways to find a numbering wait for (LAN-299): nothing once the
+ * numberings are here; their read while it is on its way; a connection once
+ * it has failed. Before they are here a Bible or an answer matches none of
+ * them, so none is offered: a Bible tapped then read "Not sure? Choose from
+ * the list." and went nowhere.
+ */
+export function numberingsWait(offered: number, loaded: boolean): 'loading' | 'connect' | null {
+  if (offered > 0) return null;
+  return loaded ? 'connect' : 'loading';
+}
+
+/**
  * The quiz, one question a screen: a short title, something to look at (a
  * quote, a picture, big numbers), and the answers as big buttons. Answers
  * lead to another question (`next`) or a numbering (`to`).

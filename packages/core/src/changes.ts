@@ -133,6 +133,7 @@ export function touchedBy(state: LanguageState, event: AnyEvent): Touch {
     case 'v1.MaterialLocked':
     case 'v1.KeyTermDefined':
     case 'v1.KeyTermRenderingAdded':
+    case 'v1.KeyTermAudioRenderingAdded':
     case 'v1.KeyTermAdjusted':
     case 'v1.KeyTermLinked':
     case 'v1.ReferenceSet':

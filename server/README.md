@@ -1,7 +1,9 @@
 # server
 
-Local Supabase (Postgres) runs via colima. The repository also links to a
-hosted project; local migrations and hosted deployment are separate steps.
+Local Supabase (Postgres) runs in Docker via colima. A checkout may also be
+linked to one of this app's hosted projects (the root README says when, and
+never to a LangQuest v2 project); local migrations and hosted deployment are
+separate steps (Deploying, below).
 
 The schema is one baseline migration,
 `supabase/migrations/20261006000000_baseline.sql` (decision 63, which reset

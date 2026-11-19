@@ -16,6 +16,7 @@ const nothing = async () => undefined;
 
 export function onLocksChanged(_listener: () => void): () => void { return () => {}; }
 export const rememberPassword = nothing as (actorId: string, address: string, password: string) => Promise<void>;
+export const rememberAddress = nothing as (actorId: string, address: string) => Promise<void>;
 export const signedInHere = nothing as (actorId: string) => Promise<void>;
 export async function lockWays(_actorId: string): Promise<Wrap['kind'][]> { return []; }
 export async function lockPictures(_actorId: string): Promise<{ taken: number[]; mine: number | null }> { return { taken: [], mine: null }; }
@@ -25,7 +26,12 @@ export const sealHandedOver = nothing as (actorId: string, raw: string) => Promi
 export async function keepLockedAfterHandOver(_actorId: string, _raw: string | null): Promise<boolean> { return false; }
 export const dropLockedSession = nothing as (actorId: string) => Promise<void>;
 export async function openLock(_kind: Wrap['kind'], _secret: string, _who: { address?: string; actorId?: string }): Promise<Opened> { return { kind: 'none' }; }
+export type Checked = { kind: 'ok' } | { kind: 'none' } | { kind: 'wrong' } | { kind: 'wait'; ms: number };
+export async function checkPattern(_actorId: string, _dots: readonly number[]): Promise<Checked> { return { kind: 'none' }; }
 export function onUnlocked(_listener: (session: Session) => void): () => void { return () => {}; }
 export async function restoreSession(_actorId: string, _key: string, _kept: string | null): Promise<boolean> { return false; }
 export async function patternPeople(): Promise<{ actorId: string; picture: number }[]> { return []; }
+// A browser never holds discovery keys (only Android writes them, nearbySecrets.ts).
+export async function keepFindKeys(_actorId: string, _raw: string | null): Promise<boolean> { return false; }
 export const forgetLock = nothing as (actorId: string) => Promise<void>;
+export async function anyLocks(): Promise<boolean> { return false; }

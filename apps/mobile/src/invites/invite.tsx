@@ -8,7 +8,7 @@
 // QR uses) works for a whole workshop table and needs no password. Used by
 // Invite Member and by New language's last step, which opens it with "Time
 // to invite people".
-import { checkTeamSpecs, deriveFlow, type Privilege, type Scope } from '@langquest-next/core';
+import { newCommandId, checkTeamSpecs, deriveFlow, type Privilege, type Scope } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -106,7 +106,7 @@ export function InviteSomeone(props: {
     if (!want || ready[want]) return;
     let live = true;
     const s = ctx.language.state;
-    const commandId = Crypto.randomUUID();
+    const commandId = newCommandId(ctx.session.actorId, Crypto.randomUUID());
     const named = s && withChecks ? settled.flatMap((k, i) => checkTeamSpecs(s, { commandId: `${commandId}:${i}`, kindId: k, name: checkName(k, kinds) })) : [];
     const first = named.length ? ctx.language.run(named) : Promise.resolve();
     const done = () => { if (live) setReady((r) => ({ ...r, [want]: true })); };

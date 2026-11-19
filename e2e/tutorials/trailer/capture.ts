@@ -154,7 +154,7 @@ async function fail(page: Page, step: string, error: unknown): Promise<never> {
     await mark(page, take, 'online', kept());
     await words(page, 'All uploaded').waitFor({ timeout: 60_000 });
     await mark(page, take, 'uploaded', kept());
-    await id(page, 'upload-bar').waitFor({ state: 'hidden', timeout: 60_000 }).catch(() => undefined);
+    // "All uploaded" stays until the next screen (decisions.md 166).
     await sleep(1500);
   });
   // 4 Heard: finished, and the Peer check team asked.
