@@ -92,7 +92,8 @@ export const backTranslateAPassage: Tutorial = {
     },
     {
       screen: 'back_translation',
-      part: (page) => page.getByLabel('Or type it — e.g. a word with no English match', { exact: true }).locator('visible=true').first(),
+      // Both ways to tell them are lit, as the voice names neither (the field alone left Say it dimmed); the words go in the field, the first.
+      part: (page) => [page.getByLabel('Or type it — e.g. a word with no English match', { exact: true }).locator('visible=true').first(), button(page, 'Say it')],
       say: 'Tell the consultant about anything that was hard to say.',
       type: 'Our word for salt is also the word for wisdom',
       stay: 0.5

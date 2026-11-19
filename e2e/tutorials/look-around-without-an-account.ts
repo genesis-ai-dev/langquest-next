@@ -13,6 +13,9 @@ const names = recordAPassage.names.languages!;
 const words = (page: Page, s: string | RegExp) => page.getByText(s, { exact: true }).locator('visible=true').first();
 const card = (page: Page, key: LanguageKey) => button(page, new RegExp(`^${names[key]}, \\d+%$`));
 
+/** How much of each language the video shows as recorded, in percent. */
+const RECORDED = { A: 34, B: 8, C: 61 } as const;
+
 /** Lists a language publicly, as the server's projection would, with how much is recorded. */
 async function list(world: UiWorld, key: LanguageKey, pct: number, license: string): Promise<void> {
   const sb = serviceClient();
@@ -34,16 +37,26 @@ export const lookAroundWithoutAnAccount: Tutorial = {
   signedOut: true,
   names: recordAPassage.names,
   prepare: async (world) => {
-    await list(world, 'A', 34, 'all-rights-reserved');
-    await list(world, 'B', 8, 'all-rights-reserved');
-    await list(world, 'C', 61, 'CC-BY-4.0');
+    await list(world, 'A', RECORDED.A, 'all-rights-reserved');
+    await list(world, 'B', RECORDED.B, 'all-rights-reserved');
+    await list(world, 'C', RECORDED.C, 'CC-BY-4.0');
   },
   before: async (page, _mic, world) => {
-    // Every test world lists languages too; the video shows this one's.
-    await page.route('**/rest/v1/public_languages*', (route) => {
+    const recorded = new Map((Object.keys(RECORDED) as (keyof typeof RECORDED)[]).map((key) => [world.languages[key].languageId, RECORDED[key]]));
+    // Every test world lists languages too; the video shows this one's. And it shows how much prepare() said is
+    // recorded: the server's projection writes each language's own count over that (0% and 1% in a test world, an
+    // empty bar while the voice says "how much of it is recorded").
+    await page.route('**/rest/v1/public_languages*', async (route) => {
       const url = new URL(route.request().url());
       url.searchParams.set('org_id', `in.(${world.orgId},${world.org2Id})`);
-      return route.continue({ url: url.toString() });
+      if (route.request().method() !== 'GET') return route.continue({ url: url.toString() });
+      const response = await route.fetch({ url: url.toString() });
+      const rows: unknown = response.ok() ? await response.json().catch(() => null) : null;
+      if (!Array.isArray(rows)) return route.fulfill({ response });
+      return route.fulfill({
+        response,
+        json: (rows as { language_id: string; translated_pct: number }[]).map((row) => ({ ...row, translated_pct: recorded.get(row.language_id) ?? row.translated_pct }))
+      });
     });
     await page.getByText('Create Account', { exact: true }).first().waitFor({ timeout: 120_000 });
   },
