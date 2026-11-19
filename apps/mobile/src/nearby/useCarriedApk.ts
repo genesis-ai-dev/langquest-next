@@ -23,11 +23,13 @@ export interface CarriedApkHandle {
   canGive: boolean;
   /** Why it cannot, where it cannot: Android before 10, or an older build of the app (`cannotGive`). */
   cannotGive: CannotGive | null;
+  /** The kept copy is more than two days older than the app this phone runs, so a newer file is ready (`keptBehind`). */
+  behind: boolean;
   actions: { get(): void; check(): void };
 }
 
 const NOTHING = (): void => undefined;
-const NOT_HERE: CarriedApkHandle = { needed: null, url: null, opened: null, stale: false, checked: null, kept: null, right: null, canGive: false, cannotGive: null, actions: { get: NOTHING, check: NOTHING } };
+const NOT_HERE: CarriedApkHandle = { needed: null, url: null, opened: null, stale: false, checked: null, kept: null, right: null, canGive: false, cannotGive: null, behind: false, actions: { get: NOTHING, check: NOTHING } };
 
 /**
  * Only an Android phone lets someone in, so only Android's file (useCarriedApk.android.ts) names a

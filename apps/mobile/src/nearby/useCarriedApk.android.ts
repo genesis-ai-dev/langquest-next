@@ -7,7 +7,7 @@ import { noteExpected } from '../diagnostics/report';
 import { carriedApkUrl } from '../server/carriedApk';
 import { apkOpenedNow, apkRightNow, keepApkOpened, keepApkRight, loadApkOpened, loadApkRight, subscribeApkOpened, subscribeApkRight } from './carriedApkKept';
 import { nearbyCodeOf, nearbyLinkNative } from '../../modules/nearby-link';
-import { apkCheck, apkStale, cannotGive, chosenName, KEEP_MIN_FREE_BYTES, keepResultOf, keptStale, type ApkCheck, type KeepResult } from './carriedApkModel';
+import { apkCheck, apkStale, cannotGive, chosenName, KEEP_MIN_FREE_BYTES, keepResultOf, keptBehind, keptStale, type ApkCheck, type KeepResult } from './carriedApkModel';
 import { keptFileNow, setKeptFile, subscribeKeptFile } from './installFileKept';
 import { androidSdk } from './nearbyPermissions.android';
 import type { CarriedApkHandle } from './useCarriedApk';
@@ -43,6 +43,9 @@ export function useCarriedApk(): CarriedApkHandle {
   const canGive = whyNot === null;
   const held = useSyncExternalStore(subscribeKeptFile, keptFileNow);
   const kept = canGive ? held : null;
+  // The kept copy against the app this phone runs (an OTA update's time, or the build's own): a
+  // newer file is ready once the copy is two days behind (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
+  const behind = keptBehind(kept, Updates.createdAt?.getTime() ?? null);
   useEffect(() => {
     if (!canGive || !native) return;
     void (async () => {
@@ -101,6 +104,6 @@ export function useCarriedApk(): CarriedApkHandle {
   }, [needed, whyNot, native]);
 
   const actions = useMemo(() => ({ get, check: () => { void check(); } }), [get, check]);
-  return useMemo(() => ({ needed, url, opened, stale: apkStale(needed, opened), checked, kept, right, canGive, cannotGive: whyNot, actions }),
-    [needed, url, opened, checked, kept, right, canGive, whyNot, actions]);
+  return useMemo(() => ({ needed, url, opened, stale: apkStale(needed, opened), checked, kept, right, canGive, cannotGive: whyNot, behind, actions }),
+    [needed, url, opened, checked, kept, right, canGive, whyNot, behind, actions]);
 }

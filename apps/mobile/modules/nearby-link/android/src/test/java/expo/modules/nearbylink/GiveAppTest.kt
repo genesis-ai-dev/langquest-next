@@ -6,7 +6,11 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import java.io.File
+import java.io.FileOutputStream
 import java.security.SecureRandom
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 /** Give the app's names and the install file's checks that need no phone (docs/nearby-sync-plan.md 14.5). */
 class GiveAppTest {
@@ -69,5 +73,38 @@ class GiveAppTest {
     assertFalse(InstallFiles.sameSigners(listOf(a, b), listOf(a)))
     assertFalse(InstallFiles.sameSigners(listOf(a), listOf(a, b)))
     assertFalse(InstallFiles.sameSigners(emptyList(), emptyList()))
+  }
+
+  private fun apkWith(vararg entries: Pair<String, String>): File {
+    val file = File.createTempFile("carried", ".apk")
+    file.deleteOnExit()
+    ZipOutputStream(FileOutputStream(file)).use { zip ->
+      for ((name, text) in entries) {
+        zip.putNextEntry(ZipEntry(name))
+        zip.write(text.toByteArray())
+        zip.closeEntry()
+      }
+    }
+    return file
+  }
+
+  /**
+   * Why: a carrier's kept copy kept its first JavaScript until the versions changed, so the app
+   * compares when the copy was built with when its own app was, to say a newer file is ready
+   * (docs/decisions/2026-11-19-carried-build-refreshed-daily.md). The time is expo-updates'
+   * `commitTime`, written into the build's assets as `app.manifest`.
+   */
+  @Test fun readsWhenAKeptBuildsJavaScriptWasBuiltFromItsUpdatesManifest() {
+    val manifest = "{\"id\":\"6f1c\",\"commitTime\":1763500000000,\"assets\":[{\"name\":\"a\"}]}"
+    assertEquals(1763500000000L, InstallFiles.builtAtOf(apkWith("classes.dex" to "dex", "assets/app.manifest" to manifest)))
+    assertEquals(1763500000000L, InstallFiles.builtAtFrom("{ \"commitTime\" : 1763500000000 }"))
+    // No manifest, one with no time, or a file that is not a zip: unknown, so nothing is said.
+    assertNull(InstallFiles.builtAtOf(apkWith("classes.dex" to "dex")))
+    assertNull(InstallFiles.builtAtOf(apkWith("assets/app.manifest" to "{\"id\":\"6f1c\"}")))
+    assertNull(InstallFiles.builtAtOf(File.createTempFile("not-a-zip", ".apk").apply { writeText("hello"); deleteOnExit() }))
+    assertNull(InstallFiles.builtAtOf(File("/nowhere/at/all.apk")))
+    assertNull(InstallFiles.builtAtFrom("{\"commitTime\":0}"))
+    assertNull(InstallFiles.builtAtFrom("{\"commitTime\":\"soon\"}"))
+    assertNull(InstallFiles.builtAtFrom(null))
   }
 }

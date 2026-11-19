@@ -70,6 +70,18 @@ describe('each fold\'s line', () => {
     expect(installBlock('ready', true, false).body).not.toContain(t('nearby.letIn.fileHelp'));
   });
 
+  it('says a newer file is ready once the kept copy is behind this phone\'s app, while online, and stays ready', () => {
+    // Why: the old copy still lets a new phone join, so nothing turns amber; the carrier is told only
+    // that a fresher app is there to download (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
+    const behind = installBlock('ready', true, false, true);
+    expect(behind).toEqual({ good: true, body: `${t('nearby.installFile.ready')} ${t('nearby.installFile.newer')}`, way: 'newer' });
+    // Offline there is nothing to do about it, so nothing is said.
+    expect(installBlock('ready', true, true, true)).toEqual(installBlock('ready', true, true));
+    expect(installBlock('ready', true, false, false)).toEqual(installBlock('ready', true, false));
+    // Only a ready file can be behind: the other states already say what to do.
+    expect(installBlock('downloaded', true, false, true)).toEqual(installBlock('downloaded', true, false));
+  });
+
   it('counts what the server refused', () => {
     expect(refusedLine(1)).toBe('1 change');
     expect(refusedLine(2)).toBe('2 changes');

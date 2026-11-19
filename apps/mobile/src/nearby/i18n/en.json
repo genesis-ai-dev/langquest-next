@@ -215,7 +215,8 @@
       "title": "Install file for a new person",
       "ready": "Ready to give to a new person.",
       "readyShort": "Install file ready",
-      "done": "Ready. You can take it offline."
+      "done": "Ready. You can take it offline.",
+      "newer": "A newer install file is ready. Download it while you have internet, then choose it."
     },
     "join": {
       "intro": "Join your team from a teammate's phone, without internet. Your account is made the first time your phone reaches the internet.",

@@ -215,7 +215,8 @@
       "title": "Install file para sa bagong tao",
       "ready": "Handa nang ibigay sa bagong tao.",
       "readyShort": "Handa na ang install file",
-      "done": "Handa na. Puwede mo na itong dalhin kahit walang internet."
+      "done": "Handa na. Puwede mo na itong dalhin kahit walang internet.",
+      "newer": "May mas bagong install file na. I-download ito habang may internet ka, saka piliin ito."
     },
     "join": {
       "intro": "Sumali sa pangkat mo mula sa telepono ng isang kasamahan, nang walang internet. Gagawin ang account mo sa unang beses na makakonekta sa internet ang telepono mo.",

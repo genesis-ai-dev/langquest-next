@@ -164,6 +164,26 @@ export function installFileItem(o: {
 export interface KeptFile {
   name: string;
   size: number;
+  /** When its JavaScript was built, in ms since 1970 (`builtAtOf` in native); null or absent when unknown. */
+  builtMs?: number | null;
+}
+
+/**
+ * How far a kept copy may fall behind the app its carrier runs before the screens say a newer file
+ * is ready: longer than the daily refresh can lag behind main, so by then the bucket surely holds a
+ * newer one, and a download never brings back the same file
+ * (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
+ */
+export const KEPT_BEHIND_MS = 2 * 24 * 60 * 60 * 1000;
+
+/**
+ * Whether the kept copy's JavaScript is more than KEPT_BEHIND_MS older than the app this phone runs
+ * (`Updates.createdAt`, from an OTA update or the build itself). Both times come from the build
+ * servers, not this phone's clock. Unknown on either side says nothing.
+ */
+export function keptBehind(kept: KeptFile | null | undefined, runningMs: number | null): boolean {
+  if (!kept || typeof kept.builtMs !== 'number' || runningMs === null) return false;
+  return runningMs - kept.builtMs > KEPT_BEHIND_MS;
 }
 
 /** Room left on the phone after keeping the file, for recordings: about 100 MB. */

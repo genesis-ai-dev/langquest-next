@@ -215,7 +215,8 @@
       "title": "Fichier d’installation pour une nouvelle personne",
       "ready": "Prêt à donner à une nouvelle personne.",
       "readyShort": "Fichier d’installation prêt",
-      "done": "Prêt. Vous pouvez l’emporter avec vous hors ligne."
+      "done": "Prêt. Vous pouvez l’emporter avec vous hors ligne.",
+      "newer": "Un fichier d’installation plus récent est prêt. Téléchargez-le tant que vous avez internet, puis choisissez-le."
     },
     "join": {
       "intro": "Rejoignez votre équipe depuis le téléphone d’un coéquipier, sans Internet. Votre compte est créé la première fois que votre téléphone se connecte à Internet.",

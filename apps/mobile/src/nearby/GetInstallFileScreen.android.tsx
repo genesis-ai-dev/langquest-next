@@ -16,7 +16,10 @@ import { useCarriedApk } from './useCarriedApk';
  * job done online before a trip. Its main button follows the job (`apkStep`): the browser download
  * while online; then, once the person has gone to get it, choosing the downloaded file, which
  * checks it and keeps a copy for Give the app, with the download offered again beside it; and none
- * once the file is in hand, when a green line says it is ready. Check my file stays for a file got
+ * once the file is in hand, when a green line says it is ready. While online, a copy two days
+ * behind this phone's app says a newer file is ready, and Download in the browser is the main
+ * button again, with Choose the downloaded file beside it (`keptBehind`,
+ * docs/decisions/2026-11-19-carried-build-refreshed-daily.md). Check my file stays for a file got
  * another way. The file's name shows only when a wrong one is chosen, since the app checks the
  * file, not the person. Last, how the file reaches the new phone. Nothing here downloads or
  * installs anything.
@@ -29,9 +32,11 @@ export function GetInstallFileScreen(ctx: Ctx) {
   const keeping = apk.checked?.keep === 'keeping';
   // What is said of a file in hand: a copy kept, or why this phone keeps none.
   const inHand: KeepResult = apk.cannotGive === 'android' ? 'needs-android' : apk.cannotGive === 'update' ? 'needs-update' : 'kept';
+  // A kept copy behind this phone's app: a newer file is ready, and only worth saying while it can be downloaded.
+  const newer = step === 'done' && apk.behind && get === 'ready';
   const footer = step === 'choose'
     ? <PrimaryBtn label={t('nearby.letIn.choose')} icon="folder" disabled={keeping} help={t('nearby.letIn.chooseHelp')} onPress={apk.actions.check} />
-    : step === 'get' && get !== null
+    : (step === 'get' && get !== null) || newer
       ? <PrimaryBtn label={t('nearby.letIn.get')} icon="download" disabled={get === 'offline'} help={t('nearby.letIn.getHelp')} onPress={apk.actions.get} />
       : undefined;
   const waiting = step !== null && step !== 'done';
@@ -52,9 +57,14 @@ export function GetInstallFileScreen(ctx: Ctx) {
             </Card>
           ) : null}
           {step === 'done' ? <Banner icon="check" tone="green" title={t('nearby.installFile.done')} body={t(KEEP_WORDS[inHand])} /> : null}
-          {waiting ? (
+          {waiting || newer ? (
             <Card>
-              {step === 'choose' ? (
+              {newer ? (
+                <>
+                  <Text style={txt.sm}>{t('nearby.installFile.newer')}</Text>
+                  <GhostBtn label={t('nearby.letIn.choose')} icon="folder" disabled={keeping} help={t('nearby.letIn.chooseHelp')} onPress={apk.actions.check} />
+                </>
+              ) : step === 'choose' ? (
                 <>
                   <Text style={txt.sm}>{t('nearby.letIn.chooseLine')}</Text>
                   {get !== null ? (

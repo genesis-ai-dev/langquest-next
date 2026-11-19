@@ -79,6 +79,11 @@ export interface NativeKeptFile {
   /** The carried build's name, as core's `carriedApkName` writes it. */
   name: string;
   size: number;
+  /**
+   * When its JavaScript was built (expo-updates' `commitTime` in the file's own manifest), in ms
+   * since 1970; null when it cannot be read, and absent from a build before 2026-11-19.
+   */
+  builtMs?: number | null;
 }
 /** A Give the app session: the Wi-Fi Direct group the new phone joins, and the page's address on it. */
 export interface NativeGiving {
