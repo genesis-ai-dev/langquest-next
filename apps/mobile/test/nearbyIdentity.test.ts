@@ -271,6 +271,25 @@ describe('the nearby identity', () => {
     expect(p.phone.holdsCertificate(ME, 'o1')).toBe(true);
   });
 
+  it('remembers a refusal for too many new keys today, tells who listens, and forgets it at the next answer', async () => {
+    // Why: Sync's row says the account set up too many new phones today rather than vanishing
+    // (Carl, 2026-11-19); it must clear once the server signs again.
+    const p = await load();
+    p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'] } });
+    let told = 0;
+    const off = p.identity.onNearbyHeld(() => { told += 1; });
+    fake.answer = async () => ({ kind: 'later', status: 429, limited: true }) as never;
+    await input(p);
+    expect(p.identity.certificateLimited(ME)).toBe(true);
+    expect(p.phone.holdsCertificate(ME, 'o1')).toBe(false);
+    expect(told).toBeGreaterThan(0);
+    fake.answer = issued();
+    await input(p);
+    expect(p.identity.certificateLimited(ME)).toBe(false);
+    expect(p.phone.holdsCertificate(ME, 'o1')).toBe(true);
+    off();
+  });
+
   it('gives each person and organization one nearby half, and the door real signatures', async () => {
     const p = await load();
     p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'] } });
