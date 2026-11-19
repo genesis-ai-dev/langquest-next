@@ -4,6 +4,7 @@ import type { Query } from '../src/db';
 import { forgetSignIns } from '../src/auth';
 import { handle } from '../src/index';
 import { GROUPS } from '../src/pageOps';
+import { DIAG_SCHEMA } from '@langquest-next/sync';
 import { history, isRange, METRICS, PART_IDS, RANGES, SERIES_SQL } from '../src/sources/history';
 
 const MIGRATION = 'supabase/migrations/20261117060000_diag_daily.sql';
@@ -25,6 +26,14 @@ describe('the numbers kept by day', () => {
     const named = Object.entries(METRICS).flatMap(([p, ms]) => Object.keys(ms).map((m) => `${p}.${m}`)).sort();
     expect(fromSql.length).toBeGreaterThan(40);
     expect(named).toEqual(fromSql);
+  });
+
+  it('names every kind of diagnostics record on its chart\'s buttons', () => {
+    // DIAG_SCHEMA's kinds, and nearby, which a phone's recorder allows beside them (packages/sync/src/diagnostics.ts).
+    const kinds = [...Object.keys(DIAG_SCHEMA), 'nearby'].sort();
+    const named = METRICS.clients!.records!.keys!;
+    expect(Object.keys(named).sort()).toEqual(kinds);
+    expect(new Set(Object.values(named)).size).toBe(kinds.length);
   });
 
   it('keeps each number under a part the page has', () => {

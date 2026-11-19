@@ -485,8 +485,9 @@ eight numbers, a map of the parts with a dot for each, two charts of errors
 over 14 days, and the newest merged pull requests. `GET /ops/api/glance`
 (`diag.ops_glance`) gives a row or a number its 14-day picture: one number
 for each section (`GLANCE` in `sources/history.ts`). `#g/<section>` shows one
-section with a chart for each number over the range, then its tables; `#all`
-shows every section on one page.
+section: each part's lines, picture and tables first, then a chart for each
+number over the range, so what needs a person is in view when the page opens;
+`#all` shows every section on one page.
 
 **Each line's Linear issue and fix** (`apps/admin/src/pageFixes.ts`,
 `docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`). Every alert
@@ -555,7 +556,15 @@ and fix.
 A chart over a range draws a number's total, and a number the totals count
 only by key (a first download's time, for `open` and for `fill`) leads with
 its largest key (`chartSeries` in `pageStart.ts`), so every number in
-`METRICS` has a chart.
+`METRICS` has a chart. A chart's large number says what it is of (`totalOf`):
+a count's is the total of the range ("in 14 days"), a level's is its newest
+bucket's ("today"). A key that counted nothing over the range has no button.
+A number can name its keys in the page's words (`keys` in `METRICS`): the
+kinds of diagnostics record are "Syncs" and "Sign-in steps", not `sync` and
+`auth`, and `test/history.test.ts` fails on a kind without a name. A time of
+an hour or more reads in hours, then days (`longTime`). The title over a
+part's charts ends with the range, and a part title that names its own time
+("App Worker routes, last 24 h") gives that up there (`chartTitle`).
 
 In a section, a part's tables (`RENDER`, and the Jobs table with its Run now
 buttons) sit in a closed `details.numbers` ("Show the numbers") under its
@@ -612,7 +621,7 @@ When a number gets a new filter in `daily_compute`, give it the same row in
 
 ## Phones and builds: counted every 10 minutes
 
-"What installs report" (`clients`) and "Builds in the field" (`fleet`) read a
+"What phones and browsers report" (`clients`) and "Builds in the field" (`fleet`) read a
 week or two of every phone's records, which at tens of thousands of installs
 takes longer than the page may wait. So the database counts them every 10
 minutes (`diag.ops_cache_fill`, pg_cron `langquest-ops-counts`, job
