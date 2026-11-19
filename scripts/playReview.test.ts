@@ -214,7 +214,7 @@ describe('the workflows', () => {
     const writesToPlay = (text: string) => /play-review\.mjs|submit_android|profile: carried/.test(text);
     const files = readdirSync(new URL(`../${dir}`, import.meta.url)).filter((f) => f.endsWith('.yml'));
     const writers = files.filter((f) => writesToPlay(read(`${dir}/${f}`)));
-    expect(writers.sort()).toEqual(['app-store-review.yml', 'deploy-to-testers.yml']);
+    expect(writers.sort()).toEqual(['app-store-review.yml', 'deploy-to-testers.yml', 'refresh-carried.yml']);
     for (const f of writers) {
       const text = read(`${dir}/${f}`);
       expect(text, f).toMatch(/\nconcurrency:\n {2}group: google-play\n {2}queue: max\n/);

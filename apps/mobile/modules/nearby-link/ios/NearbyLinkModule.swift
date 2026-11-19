@@ -103,6 +103,13 @@ public final class NearbyLinkModule: Module, RadioEvents {
 
   private func milliseconds(_ ms: Double) -> Int64 { FindTunables.int64(ms).map { max(0, $0) } ?? 0 }
 
+  /** Give the app hands an Android install file to an Android phone (docs/nearby-sync-plan.md 14.5): an iPhone has none to give. */
+  private func androidOnly(_ promise: Promise) {
+    run(promise) {
+      throw NearbyError(NearbyCode.NOT_AVAILABLE, "Give the app is Android only")
+    }
+  }
+
   private func stopAll(backgrounded: Bool = false) {
     let (registry, kit) = made()
     // The Wi-Fi join's system prompt takes the app off the screen; JavaScript ignores that one pause (5.8).
@@ -268,6 +275,26 @@ public final class NearbyLinkModule: Module, RadioEvents {
         self.stopAll()
         return nil
       }
+    }
+
+    // Give the app (docs/nearby-sync-plan.md 14.5): Android's alone, so each call says not available.
+    AsyncFunction("keepInstallFile") { (uri: String, name: String, minFreeBytes: Double, promise: Promise) in
+      self.androidOnly(promise)
+    }
+    AsyncFunction("keptInstallFile") { (promise: Promise) in
+      self.androidOnly(promise)
+    }
+    AsyncFunction("dropInstallFile") { (promise: Promise) in
+      self.androidOnly(promise)
+    }
+    AsyncFunction("startGiveApp") { (page: String, deadlineMs: Double, promise: Promise) in
+      self.androidOnly(promise)
+    }
+    AsyncFunction("giveAppStatus") { (promise: Promise) in
+      self.androidOnly(promise)
+    }
+    AsyncFunction("stopGiveApp") { (promise: Promise) in
+      self.androidOnly(promise)
     }
   }
 }

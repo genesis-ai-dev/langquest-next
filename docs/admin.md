@@ -13,13 +13,15 @@ app's page from ever answering them. Production only: preview has no
 database of its own for it to read yet, so `/ops-dashboard` there says it
 is not set up.
 
-It reads, with six exceptions (decisions.md 162): marking feedback seen,
+It reads, with eight exceptions (decisions.md 162): marking feedback seen,
 done or open again, running a server job now, granting or declining an
 organization's blue check request (decisions.md 173, docs/verified-organizations.md),
 connecting a tutorial channel on YouTube and choosing the videos to put
 up there (decisions.md 180, below), leaving a note about a tutorial
 video or accepting, editing or rejecting a change Claude suggests for one
-(decisions.md 186), and marking an account's quiet installs not an issue. For those the page posts
+(decisions.md 186), saying what became of a reply Claude suggested for a
+comment (posted by a person, or none needed), telling Claude what to do with a user issue
+(`docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`), and marking an account's quiet installs not an issue. For those the page posts
 to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
 action and the person's own token to the app Worker's `OpsActions`
 entrypoint (`APP_ACTIONS` binding), which checks the token itself (a live
@@ -118,7 +120,7 @@ the page loads to exactly one section.
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
 | Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
 | App Worker | requests by route, server errors, rate-limit refusals and time taken, from the request tally | `DIAG_DATABASE_URL` |
-| User issues | `diag.ops_user_issues`: each Linear issue the watch for user issues filed or commented on and each kind it found already fixed, the last 90 days, open ones first, with its state in Linear, the pull request that fixed it and when, and the last look; and each dashboard line's decision (`lines`, migration `20261117213500_ops_lines_linear.sql`) (`docs/diagnostics.md`, migration `20261103204500_user_issues_fixed.sql`). Issues open in Linear are a watch; a look that failed is a problem | `DIAG_DATABASE_URL`, the migration |
+| User issues | `diag.ops_user_issues`: each Linear issue the watch for user issues filed or commented on and each kind it found already fixed, the last 90 days, open ones first, with its state in Linear, the pull request that fixed it and when, and the last look; each issue's three lines in words (`context`, `problem`, `solution`, migration `20261118070000_user_issue_words.sql`); each issue's instructions from an admin with Claude's answers (`diag.ops_user_issue_notes`, migration `20261118073000_user_issue_notes.sql`; before it, the cards have no box); and each dashboard line's decision (`lines`, migration `20261117213500_ops_lines_linear.sql`) (`docs/diagnostics.md`, migration `20261103204500_user_issues_fixed.sql`). Issues open in Linear are a watch; a look that failed is a problem | `DIAG_DATABASE_URL`, the migration |
 | Tutorial videos | `diag.ops_tutorials`: each app language's YouTube channel and when it was connected, each video's newest version not on YouTube (ready, or chosen and waiting, with the last failure's code), and the count up in each language; never a token (migration `20261028090000_tutorial_videos.sql`). `diag.ops_tutorial_feedback`: Claude's suggestions with what each answers, what came in that it has not looked at or suggested nothing for, and its last look (migration `20261029120000_tutorial_feedback.sql`) | `DIAG_DATABASE_URL`, the migrations; Connect and Publish need `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET` on the app's Worker; filing an accepted code change in Linear at once needs `LINEAR_API_KEY` there |
 | People and organizations | `diag.ops_people` and `ops_orgs`, counted, never named; an organization opens its own page at `/ops-dashboard/org/<id>` (`diag.ops_org` and its installs' sync errors) | `DIAG_DATABASE_URL`, the migration |
 | Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
@@ -483,8 +485,9 @@ eight numbers, a map of the parts with a dot for each, two charts of errors
 over 14 days, and the newest merged pull requests. `GET /ops/api/glance`
 (`diag.ops_glance`) gives a row or a number its 14-day picture: one number
 for each section (`GLANCE` in `sources/history.ts`). `#g/<section>` shows one
-section with a chart for each number over the range, then its tables; `#all`
-shows every section on one page.
+section: each part's lines, picture and tables first, then a chart for each
+number over the range, so what needs a person is in view when the page opens;
+`#all` shows every section on one page.
 
 **Each line's Linear issue and fix** (`apps/admin/src/pageFixes.ts`,
 `docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`). Every alert
@@ -541,15 +544,84 @@ slow-RPC rule), and `apps/admin/test/meters.test.ts` checks that each bar
 turns red or amber exactly when its alert does. A part whose rows are all
 shares sets `sum` in `LIST_SAID`: its head and legend count what it splits.
 
+A line with a limit of its own has a bar that shows it, so no line is only in
+the numbers: the longest query and the oldest transaction against
+`LONG_QUERY_S` and `LONG_XACT_S`, a Supabase project's server errors against
+`SERVER_ERROR_LINE`, and a slow call or a table with many dead rows stays in
+its picture past the 8 largest (`withLined`). Each part also says its lines
+in words above its picture (`partLines` in `page.ts`), so a section's own
+page says what its status counts; the Overview keeps each line's Linear issue
+and fix.
+
+A chart over a range draws a number's total, and a number the totals count
+only by key (a first download's time, for `open` and for `fill`) leads with
+its largest key (`chartSeries` in `pageStart.ts`), so every number in
+`METRICS` has a chart. A chart's large number says what it is of (`totalOf`):
+a count's is the total of the range ("in 14 days"), a level's is its newest
+bucket's ("today"). A key that counted nothing over the range has no button.
+A number can name its keys in the page's words (`keys` in `METRICS`): the
+kinds of diagnostics record are "Syncs" and "Sign-in steps", not `sync` and
+`auth`, and `test/history.test.ts` fails on a kind without a name. A time of
+an hour or more reads in hours, then days (`longTime`). The title over a
+part's charts ends with the range, and a part title that names its own time
+("App Worker routes, last 24 h") gives that up there (`chartTitle`).
+
+Every chart says its values under the pointer (`pageHover.ts`): a line at the
+bucket the pointer is over, and a box above the chart with that bucket's day
+or hour (UTC) and each value drawn there. A drawer hands its values to
+`hvAttr`, which puts them on the svg (`data-hv`), so one script serves the
+section charts, the Overview's two charts and small pictures, the rows of
+squares (the box only, no line) and What shipped. A mark of a list (a dot, a
+square, a bar, a part of a bar) carries its words on itself (`data-tip`) and
+shows them in the same box; no chart keeps an svg `<title>`, which the
+browser would show as a second, late box. A value that is missing shows as
+"–" and a bucket the fill has not reached as "Not counted yet", never as 0.
+A finger has no hover: a press shows the line and the box, a slide along the
+chart moves them, and a lift takes them away (`touch-action: pan-y`, so a
+slide up or down still scrolls the page). A tap does what it did: a section's
+chart opens the records behind the bucket. The arrow keys that move over a
+chart's buckets show the same box.
+
 In a section, a part's tables (`RENDER`, and the Jobs table with its Run now
 buttons) sit in a closed `details.numbers` ("Show the numbers") under its
 picture, so the section shows pictures first. A part with no picture and no
 history line (`METRIC`) shows its table open. So does a part whose body holds
 a queue control (`QUEUE_CONTROLS` in `pageLists.ts`: Grant, Accept, Send to
-Claude, Add a note, Connect or Publish, Seen or Done); Not an issue and Run
-now may wait behind the tap (`FOLDED_CONTROLS`). `test/meters.test.ts` fails
+Claude, Add a note, Connect or Publish, Seen or Done, an issue tab); Not an
+issue and Run now may wait behind the tap (`FOLDED_CONTROLS`). `test/meters.test.ts` fails
 on a control in neither list. The page remembers which parts are open while
 it refreshes.
+
+What a person answers is one card format (`apps/admin/src/pageIssues.ts`,
+`issueCard`), on two pages. A card has its pictures when it has them, its
+title with Context, Issue and Solution lines, and at the right who acts next,
+its steps as dots with the step it waits at in words, the talk (what an admin
+said, then where Claude is with it) and the box to tell Claude what to do.
+
+- **User issues**: tabs with counts (Waits on you, No fix yet, Merged,
+  Closed, All), then one card for each issue. `issueWay` places an issue from
+  its Linear state and the pull requests that name it (`/ops/api/fixes`):
+  Found, In Linear, Fix written, Merged, Live. It waits on a person only when
+  a pull request that names it is open; the card then links that pull
+  request. Before the pull requests are read, or when they could not be, an
+  open issue says only Open. Each line leads with the words Claude wrote
+  when the watch filed the issue (`context`, `problem`, `solution`), and
+  under them what the records say: the people and when, the kind's keys, the
+  pull request. An issue filed before the watch kept words shows only those.
+  An open issue's card has the box (`issueTalk`): what an admin sends
+  (`user-issue-note`) the watch hands to Claude at its next run, and Claude's
+  answer shows under the admin's words, with the pull request it changed
+  (`diag.ops_user_issue_notes`, `docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`).
+  While an instruction waits, the card says Claude acts next. A closed issue
+  keeps the talk and has no box.
+- **Tutorial videos**: each thing for an admin (`adminCard`, from
+  `sources/videos.ts` `AdminItem`) is such a card: a suggestion with Accept,
+  Reject and Edit, a held or failing film, a comment, a changed screen. Its
+  steps are Found, Claude looks, You answer, Claude changes the video, Merged
+  (`videoWay`). An instruction sent from the box shows as the admin's words,
+  and under it the state of Claude's change, its note and its pull request.
+
+`apps/admin/test/issues.test.ts` holds both.
 
 A tap on a bar or a point asks
 `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,
@@ -565,7 +637,7 @@ When a number gets a new filter in `daily_compute`, give it the same row in
 
 ## Phones and builds: counted every 10 minutes
 
-"What installs report" (`clients`) and "Builds in the field" (`fleet`) read a
+"What phones and browsers report" (`clients`) and "Builds in the field" (`fleet`) read a
 week or two of every phone's records, which at tens of thousands of installs
 takes longer than the page may wait. So the database counts them every 10
 minutes (`diag.ops_cache_fill`, pg_cron `langquest-ops-counts`, job
@@ -581,11 +653,8 @@ SQL and fails when the counts answer differently; change both together.
 
 - iOS crash counts: App Store Connect gives them only as daily analytics
   reports, which have to be requested once and read the next day.
-- Pictures over a range of days on the page. The totals they read are
-  built (below); the start page and its pictures come next
-  (`docs/ops-dashboard-plan.md` 7).
 - Telling anyone: the page shows problems to whoever opens it; nothing
-  sends them (`OpsWatch`, phase 5).
+  sends them (`OpsWatch`, phase 5d of `docs/ops-dashboard-plan.md`).
 - Container time in Capacity and cost: Cloudflare's public analytics do not
   give it; read it in the Cloudflare dashboard.
 - Not tried against the real services yet: the R2, usage, backups,

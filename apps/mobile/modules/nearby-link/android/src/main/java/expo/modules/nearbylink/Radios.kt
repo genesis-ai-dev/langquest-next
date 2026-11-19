@@ -46,6 +46,21 @@ object Radios {
 
   fun granted(context: Context): Boolean = needed().all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
+  /**
+   * The one permission forming a Wi-Fi Direct group needs on this Android, for Give the app
+   * (docs/nearby-sync-plan.md 14.5): nearby Wi-Fi devices from Android 13, fine location before.
+   * Bluetooth plays no part, so Give the app never asks for it.
+   */
+  fun wifiDirectNeeded(): String =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.NEARBY_WIFI_DEVICES else Manifest.permission.ACCESS_FINE_LOCATION
+
+  /** As `require` for Give the app: Android 10 or later, Wi-Fi Direct's own permission, Wi-Fi on. */
+  fun requireWifiDirect(context: Context) {
+    if (!supported()) throw NearbyException(NearbyCode.NOT_AVAILABLE, "Give the app needs Android 10 or later")
+    if (context.checkSelfPermission(wifiDirectNeeded()) != PackageManager.PERMISSION_GRANTED) throw NearbyException(NearbyCode.NO_PERMISSION, "the Wi-Fi Direct permission is not granted")
+    if (wifi(context)?.isWifiEnabled != true) throw NearbyException(NearbyCode.WIFI_OFF, "Wi-Fi is off")
+  }
+
   /** Throws the code JavaScript shows a line for: not here, not allowed, or a radio switched off. */
   fun require(context: Context, wifi: Boolean = false, bluetooth: Boolean = true) {
     if (!supported()) throw NearbyException(NearbyCode.NOT_AVAILABLE, "nearby sync needs Android 10 or later")

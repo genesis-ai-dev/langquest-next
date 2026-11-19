@@ -217,12 +217,12 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Tap "Start a new one", type "UI Offline Org {run}", and tap "Create Organization".
-2. Tap Manage, then Me → More settings.
+2. Tap Manage, then Me.
 3. Go online and wait 30 seconds.
 
 Expected:
 - Step 1: the organization is made on the phone. My Work opens with "Get UI Offline Org {run} ready", as in NOORG-009. No error shows.
-- Step 2: the organization's home opens offline. More settings shows changes waiting to send.
+- Step 2: the organization's home opens offline. Me's "Sync and offline" row shows changes waiting to send.
 - Step 3: the waiting count returns to 0 (G10.3). On a second device, the account's "Switch Organization" lists "UI Offline Org {run}".
 
 ### NOORG-011 A name already in use is allowed

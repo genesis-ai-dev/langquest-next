@@ -8,7 +8,10 @@ import { START_LOGIC } from '../src/pageStart';
 import { detailAsk, GLANCE, METRICS, PART_IDS } from '../src/sources/history';
 
 /** The start page's pure helpers, as the page runs them (pageStart.ts START_LOGIC). */
-const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, rangeTotal, bucketEnd, runSquares };`)() as {
+const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, rangeTotal, bucketEnd, runSquares, chartSeries, totalOf, longTime };`)() as {
+  totalOf: (agg: string, range: string, step: string, at: number, n: number) => string;
+  longTime: (ms: number) => string;
+  chartSeries: (all: Hst['series'], wanted?: string) => { total: Hst['series'][number] | null; keys: Hst['series']; shown: Hst['series'][number] | null };
   splitAlert: (t: string) => { title: string; next: string };
   startPlan: (sections: typeof GROUPS, results: Record<string, unknown>, levels: string[]) => {
     cards: { level: string; group: string; part: string; text: string; more: string[] }[]; ok: { group: string; off: string[] }[]; waiting: string[];
@@ -39,7 +42,8 @@ describe('the Overview, what needs you first', () => {
 
   it('opens every section on a page that holds all its parts', async () => {
     const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
-    expect(html).toContain(`'<div class="hist" id="hist-' + s.id + '" hidden></div><div class="body" id="body-' + s.id + '"></div></section>'`);
+    // The parts lead (their lines, pictures and numbers), and the charts over the range come after them.
+    expect(html).toContain(`'<div class="body" id="body-' + s.id + '"></div><div class="hist" id="hist-' + s.id + '" hidden></div></section>'`);
     // The menu has a line for each section and one for all of them (pageShell.ts).
     expect(html).toContain("navLine('#g/' + id, id, titleOf(id)");
     expect(html).toContain("navLine('#all', 'all', 'All sections'");
@@ -98,6 +102,44 @@ describe('the Overview, what needs you first', () => {
     expect(logic.bucketEnd(['2026-01-01T00:00:00.000Z'], 0, 'month')).toBe('2026-02-01T00:00:00.000Z');
   });
 
+  it('draws a number that is counted only by key, leading with its largest key', () => {
+    // A first download's time is counted for open and for fill, never as one total (diag.daily_compute).
+    const times = [{ metric: 'first_download_p95_ms', key: 'fill', values: [4800, null, 4000] }, { metric: 'first_download_p95_ms', key: 'open', values: [9200, 14100, 1083000] }];
+    const c = logic.chartSeries(times);
+    expect([c.total, c.keys.map((k) => k.key), c.shown?.key]).toEqual([null, ['fill', 'open'], 'open']);
+    expect(logic.chartSeries(times, 'fill').shown?.key).toBe('fill');
+    // A number with a total leads with it, and a key the range no longer has falls back to it.
+    const counts = [{ metric: 'first_downloads', key: '', values: [3, 1] }, { metric: 'first_downloads', key: 'open', values: [2, 1] }];
+    expect(logic.chartSeries(counts).shown?.key).toBe('');
+    expect(logic.chartSeries(counts, 'gone').shown?.key).toBe('');
+    expect(logic.chartSeries([]).shown).toBeNull();
+  });
+
+  it('gives a button only to a key that counted something over the range, and to the key shown', () => {
+    const runs = [{ metric: 'failed', key: '', values: [0, 2, 1] }, { metric: 'failed', key: 'v2_import', values: [0, 2, 0] }, { metric: 'failed', key: 'fold_canary', values: [0, 0, 1] },
+      { metric: 'failed', key: 'snapshot', values: [0, 0, 0] }, { metric: 'failed', key: 'projection', values: [null, null, null] }];
+    expect(logic.chartSeries(runs).keys.map((k) => k.key)).toEqual(['v2_import', 'fold_canary']);
+    // The key a person chose keeps its button when its count falls to nothing, so the way back to All stays beside it.
+    const chosen = logic.chartSeries(runs, 'snapshot');
+    expect([chosen.shown?.key, chosen.keys.map((k) => k.key)]).toEqual(['snapshot', ['v2_import', 'fold_canary', 'snapshot']]);
+    // A number where no key counted anything has no buttons under its total.
+    expect(logic.chartSeries([{ metric: 'failed', key: '', values: [0, 0] }, { metric: 'failed', key: 'snapshot', values: [0, 0] }]).keys).toEqual([]);
+  });
+
+  it('says what a chart\'s large number is of: the range for a count, the newest bucket for a level', () => {
+    expect(['24h', '14d', '90d', '1y', 'all'].map((r) => logic.totalOf('sum', r, 'day', 13, 14))).toEqual(['in 24 h', 'in 14 days', 'in 90 days', 'in 1 year', 'in all time']);
+    expect(['hour', 'day', 'week', 'month'].map((s) => logic.totalOf('max', '14d', s, 13, 14))).toEqual(['this hour', 'today', 'this week', 'this month']);
+    // A level whose newest bucket has no value yet is not today's: the page names the bucket it is from.
+    expect(logic.totalOf('max', '14d', 'day', 12, 14)).toBe('');
+  });
+
+  it('writes a time of an hour or more in hours, and of two days or more in days', () => {
+    expect([3600000, 3900000, 57600000, 172800000 - 60000, 172800000, 1836000000].map(logic.longTime)).toEqual(['1 h', '1 h 5 min', '16 h', '47 h 59 min', '2 days', '21 days 6 h']);
+    // The page's ms hands over to it at 60 minutes, as rounded: 59.96 minutes is 1 h, not 60.0 min.
+    const ms = new Function(`${START_LOGIC}; ${/const ms = [^\n]+/.exec(readFileSync('apps/admin/src/page.ts', 'utf8'))![0]} return ms;`)() as (n: number | null) => string;
+    expect([null, 420, 5400, 754000, 3597600, 3900000, 57600000].map(ms)).toEqual(['–', '420 ms', '5.4 s', '12.6 min', '1 h', '1 h 5 min', '16 h']);
+  });
+
   it('gives each job a row of squares: failed over part of the work over ran, an empty bucket and one not counted yet apart', () => {
     const hst: Hst = {
       counted: [true, true, true, true, false],
@@ -149,7 +191,8 @@ describe('a tapped bucket', () => {
   });
 
   it('has a raw source or says it keeps totals only, for every number', () => {
-    const sql = readFileSync('supabase/migrations/20261117143000_ops_detail.sql', 'utf8');
+    // The migration of the detail panel, and the later ones that add a first download's wait and sign-in steps that are no fault.
+    const sql = ['20261117143000_ops_detail.sql', '20261118234300_first_download_wait.sql', '20261119192147_sign_in_trouble.sql'].map((f) => readFileSync('supabase/migrations/' + f, 'utf8')).join('\n');
     const filtered = new Set([...sql.matchAll(/\('([a-z0-9_]+)', '([a-z0-9_]+)', '(records|job_runs)'/g)].map((m) => `${m[1]}.${m[2]}`));
     const own = new Set(['cron.runs', 'cron.failed', 'support.feedback', 'support.content_reports', 'userissues.looked_at_first']);
     for (const [part, ms] of Object.entries(METRICS)) for (const metric of Object.keys(ms)) {

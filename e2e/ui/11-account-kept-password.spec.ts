@@ -16,17 +16,15 @@ test('ACCT-021 A looked-after account sets a password', async ({ page }) => {
   const password = 'kept-pw-8';
   await openOnce(page, stateFor(w, 'KEPT'));
   await tab(page, 'me').click();
-  await row(page, 'More settings').click();
-  await expect(text(page, kept.name)).toBeVisible();
-  await row(page, 'Set a password').click();
+  // Edit Profile, from Me's name row: the one place for a password (LAN-304).
+  await row(page, kept.name).click();
   await field(page, 'Password (optional)').fill(password);
+  await field(page, 'Confirm password').fill(password);
   await primary(page).click();
   await expect(page.getByTestId('toast').locator('visible=true').last())
-    .toContainText('Saved. You can sign in with your sign-in name and this password.', { timeout: 30_000 });
-  await expect(page.getByRole('heading', { name: 'More settings', exact: true })).toBeVisible();
-  await expect(row(page, 'Set a password')).toHaveCount(0);
-  // Edit Profile again, from Me's name row.
-  await back(page).click();
+    .toContainText(`Saved. You sign in with ${kept.signInName} and this password.`, { timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: 'Me', exact: true })).toBeVisible();
+  // Edit Profile again.
   await row(page, kept.name).click();
   await expect(field(page, 'New password (optional)')).toBeVisible();
   await expect(text(page, `You sign in with ${kept.signInName} and this password. Write the name down.`)).toBeVisible();

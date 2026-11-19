@@ -99,12 +99,13 @@ the language), whose code, one tap and two pictures let a new phone in, and
 Join without internet (`join_offline`, a guest screen from Scan a code), the
 new phone's progress through the ask and the starting copy. Get the install
 file (`get_install_file`, from Share nearby, from Let someone in's line
-that the new phone needs the app first, and from the Get it link on Sync's
-Ready for offline card while online and this phone lacks the file it needs;
-docs/nearby-sync-plan.md 14.4) is the
+that the new phone needs the app first, and from the install file item on
+Sync and offline's Ready for offline list; docs/nearby-sync-plan.md 14.4) is the
 part done online before a trip: the start of the file's name (its versions), Get the install file
 as its one main button, Check my file, the too-old word and how to pass the
-file on. Let someone in keeps only the field: role, code, pictures, one tap.
+file on. Give the app (`give_app`, from Share nearby and Let someone in;
+docs/nearby-sync-plan.md 14.5) hands the file to a new phone over this phone's own Wi-Fi.
+Let someone in keeps only the field: role, code, pictures, one tap.
 
 ### Not ported yet
 

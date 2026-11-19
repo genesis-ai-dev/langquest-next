@@ -1,18 +1,17 @@
 {
   "nearby": {
     "experimental": "Experimental",
-    "intro": "Works without the internet: bring teammates' phones up to date, or give a new person the app and let them join the team.",
-    "introTeammates": "Works without the internet: bring teammates' phones up to date.",
+    "intro": "Works without internet.",
     "withTeammates": "With teammates",
-    "withTeammatesLine": "Phones that already have LangQuest bring each other up to date. Keep this open until it says Up to date.",
+    "withTeammatesLine": "Phones that already have LangQuest bring each other up to date.",
     "newPerson": "A new person",
     "newPersonLine": "Give a new person the app, then let them join the team from this phone.",
+    "step": "{{n}}. {{label}}",
     "row": "Share nearby",
-    "rowSub": "Share work progress with teammates without the internet",
-    "rowSubJoin": "Share work progress with teammates, or bring in a new person, without the internet",
-    "rowHelp": "Opens Share nearby, where phones near each other send and receive each other's work progress without the internet.",
-    "rowHelpJoin": "Opens Share nearby, where phones near each other send and receive each other's work progress without the internet, and where you give a new person the app and let them join the team.",
-    "rowHelpRemind": "Opens Share nearby, where phones near each other send and receive each other's work progress without the internet, and where you give a new person the app and let them join the team. This phone does not have the install file a new person's phone needs now: get it there before you go offline.",
+    "rowSub": "Share work with teammates without internet",
+    "rowSubJoin": "Share work with teammates, or bring in a new person, without internet",
+    "rowHelp": "Opens Share nearby, where phones near each other share work without internet.",
+    "rowHelpJoin": "Opens Share nearby, where phones near each other share work without internet, and where you give a new person the app and let them join the team.",
     "why": {
       "loading": "Checking this phone…",
       "notInBuild": "This version of the app cannot share nearby. Update it from the store.",
@@ -21,6 +20,7 @@
       "noWifiDirect": "This phone has no Wi-Fi Direct, which Share nearby needs.",
       "noKey": "This phone is not ready to share yet. Connect to the internet once, then come back.",
       "noCertificate": "To share nearby, this phone must connect to the internet once while your organization has Share nearby turned on.",
+      "limited": "This account set up too many new phones today. Share nearby works on this phone from tomorrow.",
       "readOnly": "Accounts that only view organizations do not share nearby."
     },
     "radios": {
@@ -46,7 +46,6 @@
     "stopped": {
       "idle": "Stopped after a while with nobody new nearby.",
       "wait": "Stopped after waiting a long time for a busy teammate.",
-      "noKey": "This phone cannot share yet. Connect to the internet once, then come back.",
       "failed": "Share nearby could not start Bluetooth and Wi-Fi.",
       "lookAgainLine": "If a teammate arrives, tap Look again."
     },
@@ -71,7 +70,7 @@
     "connectHelp": "Connects to this phone. Use it when a teammate is nearby but the phones have not found each other.",
     "connectHelpAll": "Connects to every teammate's phone nearby that has not found this one. One tap covers them all until you leave this screen.",
     "came": {
-      "title": "What came across",
+      "title": "What was shared",
       "changesIn": "Changes received: {{n}}",
       "changesOut": "Changes sent: {{n}}",
       "filesIn": "Recordings received: {{n}}",
@@ -88,16 +87,15 @@
       "failed": "Something went wrong. It will try again."
     },
     "clockOff": "A teammate's clock and this phone's differ by more than five minutes. Check the date and time on both phones.",
-    "newerApp": "A teammate's phone needs a newer version of the app to share with this one. Update the app from the store, or get the newer version from a teammate.",
-    "newerAppIphone": "A teammate's phone needs a newer version of the app to share with this one. Update the app from the store.",
-    "apkOld": "The install file you got is for an older version. Get the new one before you go offline.",
+    "newerApp": "This phone's app and a teammate's are too far apart in version to share. Update the older one from the store, or from the other phone's install file.",
+    "newerAppIphone": "This phone's app and a teammate's are too far apart in version to share. Update the older one from the store.",
     "tooOld": "This app is too old to share. Update it from the store.",
     "farAhead": "{{name}}'s phone has a date far in the future. Their work waits until it reaches the server.",
     "olderFromServer": "Older work will come from the server.",
     "hold": "Hold teammates' recordings",
     "holdHelp": "On, this phone keeps teammates' recordings until the server has them. Off, it keeps only the ones you need.",
     "carry": {
-      "title": "Ready to carry",
+      "title": "What this phone holds",
       "everything": "This phone holds everything it knows of.",
       "missing": "Recordings missing: {{n}}",
       "coming": "Still coming from teammates nearby: {{n}}",
@@ -125,7 +123,7 @@
     },
     "letIn": {
       "rowSub": "Once their app is installed",
-      "rowHelp": "Opens Let someone in, where a new phone with no internet joins your team from this phone.",
+      "rowHelp": "Opens Let someone in, where a new phone without internet joins your team from this phone.",
       "intro": "A new person with LangQuest on their phone joins your team from this phone, without internet. Choose their role, show them the code, and let them in once the pictures match.",
       "needsApp": "The new phone needs LangQuest installed first.",
       "why": {
@@ -134,7 +132,6 @@
         "noPass": "This phone cannot let anyone in. Your organization must have it turned on, you must be able to invite people to this language, and this phone must have reached the internet since.",
         "expired": "This phone's permission to let people in has run out. Connect to the internet once to renew it.",
         "noRole": "There is no role this phone can give without internet. An admin can give roles after the new person reaches the internet.",
-        "permissions": "Open Share nearby first and allow what Android asks, then come back.",
         "wifiOff": "Turn on Wi-Fi in your phone's settings, then come back."
       },
       "role": "Their role",
@@ -162,16 +159,25 @@
       "anotherHelp": "Starts again with a new code.",
       "turnedAway": "Another phone tried this code and was turned away.",
       "stayOpen": "Keep this screen open until it finishes.",
-      "file": "Install file for this version: {{file}}",
-      "fileStart": "The file in your Downloads must have a name that starts with {{start}}. A name that starts any other way is for a different version.",
-      "fileOld": "The install file you got before is for an older version. Get the new one before you go offline.",
-      "get": "Get the install file",
+      "get": "Download in the browser",
       "getHelp": "Opens your phone's browser, which downloads the install file for this version.",
-      "getLine": "Download it before you go offline. The new phone must allow installing apps from other sources. Send the file to it by Quick Share, an SD card or a USB cable. Quick Share needs Google Play services on both phones.",
-      "getOffline": "Getting the install file needs the internet.",
-      "check": "Check my file",
-      "checkHelp": "Opens your phone's files. Choose the install file you have, and the app compares its name with the one this phone needs. Only the name is read.",
-      "checkRight": "This is the right file.",
+      "getSteps": {
+        "lead": "After you tap {{button}}:",
+        "browser": "Your phone's browser opens and downloads the install file.",
+        "warning": "If the browser warns that the file may be harmful, choose to download it anyway. It is LangQuest's own install file.",
+        "back": "When the download has finished, come back to LangQuest. You do not need to open the file.",
+        "choose": "Tap {{button}}."
+      },
+      "getLine": "In the field, send it with Give the app. Quick Share, an SD card or a USB cable also work, but Quick Share needs Google Play services on both phones.",
+      "getLineOther": "In the field, send it to the new phone by Quick Share, an SD card or a USB cable. Quick Share needs Google Play services on both phones. The new phone may ask to allow installs from this source.",
+      "getOffline": "Downloading the install file needs the internet.",
+      "check": "Choose a file you already have",
+      "checkHelp": "Opens your phone's files. Choose an install file you got another way, such as from a teammate or an SD card, and the app checks it is the one this phone needs.",
+      "choose": "Choose the downloaded file",
+      "chooseHelp": "Opens your phone's files. Choose the install file the browser downloaded, and the app checks it is the one this phone needs.",
+      "chooseLine": "When the download has finished, tap Choose the downloaded file. It is usually first among your recent files.",
+      "getAgain": "Download it again",
+      "getAgainHelp": "Opens your phone's browser again, for when the download did not finish.",
       "checkOther": "This file is for a different version: you need {{file}}",
       "checkChose": "You chose {{name}}",
       "fileHelp": "When everyone you came for is in, delete this file. You need internet to get it again.",
@@ -190,18 +196,35 @@
         "stopped": "The code is gone because you left this screen. Make a new one.",
         "noCertificate": "This phone must connect to the internet once before it can let anyone in.",
         "failed": "Something went wrong on this phone. Make a new code."
+      },
+      "keep": {
+        "keeping": "Keeping a copy on this phone…",
+        "kept": "A copy is kept on this phone for Give the app. You can delete the one in Downloads.",
+        "notOurs": "This is not LangQuest's own install file. Download it again while you have internet.",
+        "noSpace": "Not enough room on this phone to keep a copy. Free some space and choose it again.",
+        "unreadable": "This file could not be read. Choose it again.",
+        "failed": "A copy could not be kept. Choose it again.",
+        "needsAndroid": "This phone keeps no copy: Give the app needs Android 10 or later.",
+        "needsUpdate": "This phone keeps no copy yet. Update the app from the store to give it over Wi-Fi."
       }
     },
     "installFile": {
-      "intro": "A new person's phone needs LangQuest installed before you can let them in. Get the file here while you have internet, and take it with you.",
+      "intro": "A new person's phone needs LangQuest installed before you can let them in. Download the install file here while you have internet, and take it with you.",
       "rowSub": "Before you go offline",
-      "rowHelp": "Opens Get the install file, where you download and check the file a new phone installs LangQuest from. Do it while you have internet.",
-      "linkHelp": "Opens Get the install file, where you download and check the file a new phone installs LangQuest from.",
-      "remind": "Get the install file before you go offline",
-      "notGot": "Install file for a new person: not got yet",
+      "rowHelp": "Opens Download the install file, where you download the file a new phone installs LangQuest from and keep a copy. Do it while you have internet.",
+      "linkHelp": "Opens Download the install file, where you download the file a new phone installs LangQuest from and keep a copy.",
+      "notGot": "No install file for a new person yet",
       "older": "Install file for a new person: for an older version",
-      "getIt": "Get it",
-      "lineHelp": "A new person's phone installs LangQuest from this file. This phone has not got the one for this version yet: get it while you have internet, so you can give it to a new person offline."
+      "notChosen": "Install file for a new person: not chosen yet",
+      "lineHelp": "You need this file to give LangQuest to a new person offline. Download it while you have internet.",
+      "old": "Your install file is for an older version. Download the new one.",
+      "downloaded": "Downloaded. Choose the file to finish.",
+      "title": "Install file for a new person",
+      "ready": "Ready to give to a new person.",
+      "readyShort": "Install file ready",
+      "done": "Ready. You can take it offline.",
+      "newer": "A newer install file is ready. Download it while you have internet, then choose it.",
+      "newerShort": "Install file for a new person: a newer one is ready"
     },
     "join": {
       "intro": "Join your team from a teammate's phone, without internet. Your account is made the first time your phone reaches the internet.",
@@ -223,8 +246,8 @@
       "join": "Join",
       "tryAgain": "Try again",
       "joinHelp": "Reaches your teammate's phone and asks to be let in.",
-      "permission": "LangQuest needs nearby devices to reach your teammate's phone.",
-      "permissionBlocked": "Allow nearby devices for LangQuest in the phone's settings, then come back.",
+      "permission": "LangQuest needs the Nearby devices permission (Location on older phones) to reach your teammate's phone.",
+      "permissionBlocked": "Allow Nearby devices or Location for LangQuest in the phone's settings, then come back.",
       "wifiOff": "Turn on Wi-Fi in your phone's settings, then try again.",
       "connecting": "Reaching your teammate's phone…",
       "asked": "Waiting for your teammate",
@@ -253,6 +276,71 @@
         "refused": "This phone could not check your teammate's answer. Ask for a new code.",
         "dropped": "The connection dropped. Ask for a new code.",
         "failed": "Something went wrong on this phone. Ask for a new code."
+      }
+    },
+    "give": {
+      "intro": "This phone makes its own Wi-Fi network. The new phone scans two codes with its camera: one to join the network, one to download LangQuest. Neither phone needs the internet.",
+      "rowSub": "When you are with the new person",
+      "rowHelp": "Opens Give the app, where this phone sends LangQuest to a new phone over a Wi-Fi network it makes itself.",
+      "linkHelp": "Opens Give the app, to send LangQuest to the new phone over a Wi-Fi network this phone makes.",
+      "size": "Install file: {{size}} MB",
+      "start": "Show the first code",
+      "startHelp": "Makes this phone's Wi-Fi network for the new phone to join, and shows the first code.",
+      "starting": "Making this phone's Wi-Fi network…",
+      "noFile": "First download the install file while you have internet.",
+      "unsupported": {
+        "android": "Give the app needs Android 10 or later, and this phone has an older version. Send the install file by Quick Share, an SD card or a USB cable instead.",
+        "update": "This version of the app cannot give the app. Update it from the store."
+      },
+      "join": {
+        "title": "1. Join this phone's Wi-Fi network",
+        "line": "On the new phone, open the camera, point it at this code and tap Join. When it has joined, tap Next.",
+        "lineAgain": "On the new phone, open the camera, point it at this code and tap Join.",
+        "code": "Code for joining this phone's Wi-Fi network",
+        "network": "Wi-Fi name: {{name}}",
+        "password": "Password: {{password}}",
+        "typeLine": "Or, in the new phone's Wi-Fi settings, choose this network and type the password:"
+      },
+      "next": "Next",
+      "nextHelp": "Shows the second code, for the download page, once the new phone has joined.",
+      "download": {
+        "title": "2. Open the download page",
+        "line": "Point the new phone's camera at this code and open the page. Tap Download.",
+        "code": "Code for the download page",
+        "address": "Or type this address in its browser: {{address}}",
+        "dataLine": "The new phone may say this Wi-Fi has no internet. Tap Stay connected. If the page still does not open, turn off its mobile data."
+      },
+      "backToJoin": "Back to the first code",
+      "backToJoinHelp": "Shows the code for joining this phone's Wi-Fi network again.",
+      "sending": "Sending: {{sent}} of {{total}} MB",
+      "sent": "3. Install it",
+      "sentLine": "The file is sent. On the new phone, open the downloaded file and tap Install. It may ask once to allow installs from this source. Then let them in from this phone.",
+      "another": "Give it to another phone",
+      "anotherHelp": "Shows both codes again, for one more new phone.",
+      "letIn": "Let them in",
+      "letInHelp": "Opens Let someone in, to let the new phone join the team.",
+      "stop": "Stop",
+      "stopHelp": "Turns off this phone's Wi-Fi network.",
+      "stayOpen": "Keep this screen open until the file is sent.",
+      "ended": {
+        "stopped": "Stopped.",
+        "idle": "Stopped after 15 minutes with no phone downloading.",
+        "phone": "Stopped because Wi-Fi turned off or you left the app."
+      },
+      "failed": {
+        "wifiOff": "Turn on Wi-Fi on this phone, then try again.",
+        "permission": "LangQuest needs the Nearby devices permission (Location on older phones) to make its Wi-Fi network. Allow it, then try again.",
+        "busy": "This phone's Wi-Fi is busy. Wait a moment, then try again.",
+        "failed": "This phone's Wi-Fi network did not start. Try again.",
+        "permissionCovered": "Open Share nearby first and allow what it asks. Then come back and try again."
+      },
+      "page": {
+        "title": "Install LangQuest",
+        "size": "{{size}} MB",
+        "download": "Download",
+        "stepOpen": "Open the downloaded file.",
+        "stepAllow": "Allow installs from this source, if the phone asks.",
+        "stepInstall": "Tap Install."
       }
     }
   }

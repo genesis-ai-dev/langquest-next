@@ -347,7 +347,10 @@ A carried build is the APK a teammate carries to a phone with no internet
 or no Play Store (docs/nearby-sync-plan.md 14.4). The EAS workflow on main
 makes one when the APK bucket has no file named for that merge's reducer,
 lines and protocol versions and Android fingerprint
-(`.eas/workflows/deploy-to-testers.yml`, the `carried_*` jobs), uploads it
+(`.eas/workflows/deploy-to-testers.yml`, the `carried_*` jobs), and once a
+day in place of main's file when main's app code has moved on
+(`.eas/workflows/refresh-carried.yml`, 08:30 GMT,
+docs/decisions/2026-11-19-carried-build-refreshed-daily.md), uploads it
 to Play's alpha track as a draft, and `scripts/carried-build.mjs` fetches
 its Play-signed universal APK from Google (`generatedApks`) and puts it in
 the bucket, where the app's Worker serves it at

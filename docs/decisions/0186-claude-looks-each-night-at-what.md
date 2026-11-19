@@ -218,3 +218,14 @@ pictures in the public `tutorials` release (a release holds at most 1000
 files). Reverse if: pictures are wrong for what a card says more than once
 a week, or R2's `tutorial-pictures/` grows past 1 GB (then take out those
 no suggestion of the last year names).
+
+Amended (2026-11-19, Caleb Koster): a suggested reply waits until a person
+says what became of it, in place of showing for 14 days. Caleb (thread
+"Make tutorial videos dashboard page clear") found the reply's card had
+nothing to press. Its card now copies the reply and opens the comment on
+YouTube, and takes Done or No reply needed
+(docs/decisions/2026-11-19-the-tutorial-videos-page-opens-on-what-waits-on-you.md).
+The reply is still posted by a person on YouTube, never from the dashboard:
+the reason above (a comment is untrusted) stands. The answer is kept on the
+comment (`reply_done`, with when and who; migration
+`20261119171500_tutorial_reply_done.sql`) and goes with it after 30 days.

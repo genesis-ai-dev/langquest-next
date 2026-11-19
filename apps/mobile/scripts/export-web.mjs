@@ -185,10 +185,30 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // docs/decisions/2026-11-18-carried-file-matches-by-versions.md), 365 bytes past then: core's two
 // name rules (a name's versions start, and whether two names share it) that Check my file and the
 // Worker share, and the nearby chunk's showing of that start, which the web never opens.
-// Welcome back's Continue without it (Caleb Koster, 2026-11-11, LAN-250) came out 83 bytes past the
-// limit before that raise: the button, its English words and the waiting rows' new words. Both fit
-// in the same 1 KB (322 bytes left with both merged), so it needs no raise of its own.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 122 * 1024;
+// Raised by 4 KB with Sync and offline (Carl, 2026-11-18, docs/decisions/2026-11-18-sync-and-offline-one-screen.md),
+// 3,095 bytes past then: its English words in the catalog every visit carries (the folds' titles and
+// lines, the packing list, the screen's new name), the screen's rules and the sideways strip. The
+// screen itself moved into a chunk of its own (screens/sync.tsx), loaded when opened, so a first
+// visit stays under its own budget.
+// Raised by 5 KB with an email and a password on Edit Profile (Carl, 2026-11-18, LAN-304,
+// docs/decisions/2026-11-18-edit-profile-holds-email-and-password.md), 3,975 bytes past then with
+// Sync and offline merged in: its words in all 16 catalogs, the email and confirm fields, and New
+// password's confirm field. Edit Profile moved to a chunk of its own, loaded when opened, so a
+// first visit stays under its own budget (17,240 bytes left with Sync and offline's chunk too).
+// Raised by 5 KB more with Give the app (Carl, 2026-11-18,
+// docs/decisions/2026-11-18-give-the-app-over-wifi.md), 4,512 bytes past then with Edit Profile's
+// email merged in: its English words and Check my file's in the nearby chunk the web loads with
+// Share nearby (5,037 bytes), and the kept file's rules (840 bytes in the entry, 411 in the shared
+// chunk). The screen itself is Android only (src/nearby/GiveAppScreen.android.tsx), so the web
+// carries a plain stub of it. A first visit has 16,500 bytes left.
+// Raised by 1 KB with the install file's steps, its newer-file notice and Let someone in asking
+// for its own permissions (Carl, 2026-11-19, docs/decisions/2026-11-19-carried-build-refreshed-daily.md),
+// 746 bytes past it: their English words in the nearby chunk the web loads with Share nearby (the
+// steps after Download in the browser, Choose a file you already have, a newer file is ready), the
+// notice's rule on Sync, and Let someone in's permission step on its screen. The rule that decides
+// that step is in a file only Android loads (src/nearby/letInPermitModel.ts), and the screens are
+// Android only; the web never opens them. A first visit has 14,132 bytes left.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 137 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
