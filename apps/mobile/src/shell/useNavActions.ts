@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { Keyboard } from 'react-native';
 import { edgeFor, TAB_SCREENS, type ScreenId } from './flow';
 import { t } from '../i18n';
-import { navRef, type Nav, type Route } from './nav';
+import { dispatchMove, navRef, type Nav, type Route } from './nav';
 import { reportError } from '../diagnostics/report';
 import { edgeAllowed, homeScreenFor, type Session } from './session';
 
@@ -66,7 +66,7 @@ export function useNavActions(o: { nav: Nav; session: Session; toast: (message: 
   const openTask = useCallback((inLanguage: string, unitId: string) => {
     remember(unitId, inLanguage);
     const params = { unitId, languageId: inLanguage };
-    if (navRef.isReady()) navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: homeScreenFor(session) }, { name: 'passage_record', params }] }));
+    if (navRef.isReady()) dispatchMove(CommonActions.reset({ index: 1, routes: [{ name: homeScreenFor(session) }, { name: 'passage_record', params }] }));
     else resetNav({ screen: 'passage_record', params });
   }, [remember, session, resetNav]);
   return { goFrom, go, openPassage, openTask };

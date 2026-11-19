@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { Mode, ScreenId } from './flow';
 import { routesAfter } from './panes';
 import { pushHistoryEntry } from '../web/webPaths';
-import { navRef, type Route } from './nav';
+import { dispatchMove, navRef, type Route } from './nav';
 
 /**
  * Stack navigation in the UX spec's vocabulary (push / replace / back /
@@ -15,8 +15,9 @@ import { navRef, type Route } from './nav';
  *
  * `current` and `stack` mirror the navigator's state and update one render
  * after a dispatch, so callers that read them in effects settle in one extra
- * render. Dispatches before the container is ready are dropped; `ready`
- * flips once so those effects re-run.
+ * render. What must change in the same draw as a move hears it from
+ * `onMove` (shell/nav.ts). Dispatches before the container is ready are
+ * dropped; `ready` flips once so those effects re-run.
  */
 export function useNav(initial: Route) {
   const [stack, setStack] = useState<Route[]>([initial]);
@@ -37,17 +38,17 @@ export function useNav(initial: Route) {
   const push = useCallback((r: Route) => {
     if (!navRef.isReady()) return;
     const depth = navRef.getRootState()?.routes.length ?? 0;
-    navRef.dispatch(StackActions.push(r.screen, r.params));
+    dispatchMove(StackActions.push(r.screen, r.params));
     pushHistoryEntry(depth + 1);
   }, []);
   const replace = useCallback((r: Route) => {
-    if (navRef.isReady()) navRef.dispatch(StackActions.replace(r.screen, r.params));
+    if (navRef.isReady()) dispatchMove(StackActions.replace(r.screen, r.params));
   }, []);
   const reset = useCallback((r: Route) => {
-    if (navRef.isReady()) navRef.dispatch(CommonActions.reset({ index: 0, routes: [{ name: r.screen, params: r.params }] }));
+    if (navRef.isReady()) dispatchMove(CommonActions.reset({ index: 0, routes: [{ name: r.screen, params: r.params }] }));
   }, []);
   const back = useCallback(() => {
-    if (navRef.isReady() && navRef.canGoBack()) navRef.dispatch(CommonActions.goBack());
+    if (navRef.isReady() && navRef.canGoBack()) dispatchMove(CommonActions.goBack());
   }, []);
   /**
    * Pop until `screen` is on top (demo `popTo`); when it is not in the stack,
@@ -56,7 +57,7 @@ export function useNav(initial: Route) {
   const popTo = useCallback((screen: ScreenId, params?: Record<string, string>) => {
     if (!navRef.isReady()) return;
     const inStack = navRef.getRootState()?.routes.some((r) => r.name === screen);
-    navRef.dispatch(inStack ? StackActions.popTo(screen, params, { merge: true }) : StackActions.replace(screen, params));
+    dispatchMove(inStack ? StackActions.popTo(screen, params, { merge: true }) : StackActions.replace(screen, params));
   }, []);
 
   /**
@@ -72,7 +73,7 @@ export function useNav(initial: Route) {
     if (!state || at < 0) return;
     const kept = state.routes.map((x) => ({ key: x.key, name: x.name, params: x.params as object | undefined }));
     const routes = routesAfter<{ name: string; key?: string; params?: object }>(kept, at, mode, { name: r.screen, ...(r.params ? { params: r.params } : {}) });
-    navRef.dispatch(CommonActions.reset({ index: routes.length - 1, routes }));
+    dispatchMove(CommonActions.reset({ index: routes.length - 1, routes }));
   }, []);
 
   return useMemo(
