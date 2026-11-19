@@ -1,7 +1,7 @@
 import { carriedApkName, CARRIED_APK_PATH } from '@langquest-next/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { apkCheck, apkGet, apkShown, apkStale, apkStart, apkStep, installFileItem, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
+import { apkCheck, apkGet, apkShown, apkStale, apkStart, installFileItem, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
 import { carriedApkAddress } from '../src/server/carriedApkModel';
 
 /**
@@ -48,47 +48,6 @@ describe('getting the file', () => {
     expect(apkGet({ needed: NOW, url, online: false })).toBe('offline');
     expect(apkGet({ needed: null, url, online: true })).toBeNull();
     expect(apkGet({ needed: NOW, url: null, online: true })).toBeNull();
-  });
-});
-
-describe('the step after the browser', () => {
-  // Why: Carl's offline install test took too many steps, and after the browser's download a
-  // carrier came back to a screen whose main button still said to get the file, with the step
-  // that keeps it (Check my file) a small button below (Carl's choice, 2026-11-18). Once they
-  // have gone to get the file this phone needs, choosing it is the main button until it is in hand.
-  const kept = { name: NOW, size: 212 * 1024 * 1024 };
-  const at = (over: Partial<Parameters<typeof apkStep>[0]> = {}) => apkStep({ needed: NOW, opened: null, kept: null, canGive: true, right: false, ...over });
-
-  it('asks to get the file until the person has gone to get the one for these versions', () => {
-    expect(at()).toBe('get');
-    expect(at({ opened: OLDER })).toBe('get');
-    expect(at({ opened: 'not a name' })).toBe('get');
-  });
-
-  it('then asks to choose the downloaded file, whichever build of these versions the browser got', () => {
-    expect(at({ opened: NOW })).toBe('choose');
-    expect(at({ opened: SIBLING })).toBe('choose');
-    // A right name whose copy could not be kept (not this app's own, no room) is chosen again.
-    expect(at({ opened: NOW, right: true })).toBe('choose');
-  });
-
-  it('is done once a copy for these versions is kept, or, where none can be kept, once the file chosen is right', () => {
-    expect(at({ opened: NOW, kept })).toBe('done');
-    expect(at({ opened: NOW, kept: { ...kept, name: SIBLING } })).toBe('done');
-    // A file from a card or Quick Share, chosen without the browser, counts the same.
-    expect(at({ opened: null, kept })).toBe('done');
-    // A kept copy for older versions is about to go, so it is not in hand.
-    expect(at({ opened: NOW, kept: { ...kept, name: OLDER } })).toBe('choose');
-    expect(at({ opened: NOW, canGive: false, right: true })).toBe('done');
-    expect(at({ opened: NOW, canGive: false })).toBe('choose');
-  });
-
-  it('shows no step until what was got and kept is read, so the main button never changes under a finger', () => {
-    expect(at({ opened: undefined })).toBeNull();
-    expect(at({ opened: NOW, kept: undefined })).toBeNull();
-    // Where nothing can be kept, nothing is waited for.
-    expect(at({ opened: NOW, kept: undefined, canGive: false })).toBe('choose');
-    expect(at({ needed: null })).toBeNull();
   });
 });
 

@@ -30,28 +30,6 @@ export function apkGet(o: { needed: string | null; url: string | null; online: b
 }
 
 /**
- * Get the install file's step, which decides its main button (Carl's choice, 2026-11-18):
- * - `get`: the browser download, until the person has gone to get the file for this phone's
- *   versions (`opened`, which the press keeps).
- * - `choose`: then the picker, to choose the file the browser downloaded, until it is in hand,
- *   with the download offered again beside it.
- * - `done`: in hand, as a copy kept for Give the app (14.5), or, on a phone that cannot keep one,
- *   a file found right this visit (`right`); no main button then.
- * Null until the remembered name and the kept copy are read, so the button never changes under a
- * finger. The app still downloads nothing: the browser does, and the person chooses the file.
- */
-export type ApkStep = 'get' | 'choose' | 'done';
-
-export function apkStep(o: {
-  needed: string | null; opened: string | null | undefined; kept: KeptFile | null | undefined; canGive: boolean; right: boolean;
-}): ApkStep | null {
-  if (o.needed === null || o.opened === undefined || (o.canGive && o.kept === undefined)) return null;
-  const inHand = o.canGive ? !!o.kept && !keptStale(o.kept, o.needed) : o.right;
-  if (inHand) return 'done';
-  return o.opened !== null && !apkStale(o.needed, o.opened) ? 'choose' : 'get';
-}
-
-/**
  * The file the person got before is for older versions: a name remembered, and not for the
  * versions this phone needs now. Only the versions count, not the fingerprint, since any file for
  * them lets a new phone join this one (core `sameCarriedVersions`). The words go when the two
