@@ -485,7 +485,15 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         // The issues an admin left an instruction on. Before its migration is there, the watch goes on without them.
         const notes = await serviceClient(env).rpc('ops_user_issue_notes_waiting');
         if (notes.error) console.error(`ops_user_issue_notes_waiting: ${notes.error.code ?? 'unknown'}`);
-        return { ...data, notes: notes.error ? [] : notes.data };
+        // The research's issues that wait for the fix team (docs/agent-team.md). Before its migration is there, none.
+        const research = await serviceClient(env).rpc('ops_research_waiting');
+        if (research.error) console.error(`ops_research_waiting: ${research.error.code ?? 'unknown'}`);
+        return { ...data, notes: notes.error ? [] : notes.data, research: research.error ? [] : research.data };
+      },
+      research: async () => {
+        const { data, error } = await serviceClient(env).rpc('ops_research_context');
+        if (error) throw new Error(`ops_research_context: ${error.message}`);
+        return data;
       },
       notes: async (issue) => {
         const { data, error } = await serviceClient(env).rpc('ops_user_issue_notes', { p_issue: issue });
@@ -503,13 +511,16 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return data;
       },
       looked: async (looked) => {
-        const { notes, fixes, ...rest } = looked;
+        const { notes, fixes, research, handed, ...rest } = looked;
         const { data, error } = await serviceClient(env).rpc('ops_user_issues_looked', { p: rest });
         if (error) throw new Error(`ops_user_issues_looked: ${error.message}`);
         // The agent team's record of each fix (docs/agent-team.md). Before its migration is there, the run goes on without it.
         const kept = fixes.length ? await serviceClient(env).rpc('ops_user_issue_fixes_done', { p: { runUrl: looked.runUrl, fixes } }) : null;
         if (kept?.error) console.error(`ops_user_issue_fixes_done: ${kept.error.code ?? 'unknown'}`);
-        const recorded = { fixes: kept && !kept.error ? Number(kept.data) || 0 : 0 };
+        // What the research team found, and its issues handed to the fix team.
+        const found = research.length || handed.length ? await serviceClient(env).rpc('ops_research_done', { p: { runUrl: looked.runUrl, research, handed } }) : null;
+        if (found?.error) throw new Error(`ops_research_done: ${found.error.message}`);
+        const recorded = { fixes: kept && !kept.error ? Number(kept.data) || 0 : 0, ...(found?.data ?? {}) };
         if (!notes.length) return { ...data, ...recorded };
         const done = await serviceClient(env).rpc('ops_user_issue_notes_done', { p: { runUrl: looked.runUrl, notes } });
         if (done.error) throw new Error(`ops_user_issue_notes_done: ${done.error.message}`);

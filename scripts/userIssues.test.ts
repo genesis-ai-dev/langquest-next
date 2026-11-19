@@ -57,14 +57,15 @@ describe('user-issues.mjs', () => {
     // Before Claude, from the checkout; after Claude, from the copy made before it.
     expect(steps.filter((s) => s.includes('LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}')).map((s) => /run: (.+)/.exec(s)?.[1])).toEqual([
       'node scripts/user-issues.mjs fetch .user-issues', 'node "$RUNNER_TEMP/watch/user-issues.mjs" file .user-issues',
-      'node scripts/user-issues.mjs fix-context .user-issues "$ISSUE"', 'node scripts/user-issues.mjs fix-open .user-issues "$ISSUE"'
+      'node scripts/user-issues.mjs fix-context .user-issues "$ISSUE"', 'node scripts/user-issues.mjs fix-open .user-issues "$ISSUE"',
+      'node "$RUNNER_TEMP/watch/agent-research.mjs" report .research'
     ]);
   });
 
   it('writes a draft fix in jobs that trust each other less: Claude with no key, the checks with none, the push running nothing of it', () => {
     const yml = read('.github/workflows/user-issues.yml');
     const jobs = Object.fromEntries(yml.slice(yml.search(/^jobs:$/m)).split(/^ {2}(?=[\w-]+:$)/m).slice(1).map((b) => [b.match(/^([\w-]+):/)![1], b]));
-    expect(Object.keys(jobs)).toEqual(['watch', 'fix', 'check', 'picture', 'vet', 'open', 'follow']);
+    expect(Object.keys(jobs)).toEqual(['watch', 'fix', 'check', 'picture', 'vet', 'open', 'follow', 'research']);
     const perms = (job: string) => /^ {4}permissions:\n((?: {6}.+\n)+)/m.exec(jobs[job]!)?.[1]?.trim().split(/\n\s*/);
     expect(yml).toMatch(/^permissions:\n {2}contents: read\n\n/m);
     expect(perms('watch')).toEqual(['contents: read', 'id-token: write']);
@@ -94,6 +95,24 @@ describe('user-issues.mjs', () => {
     expect(fix.find((s) => s.includes('fix-patch'))).toContain('FIX_NOTES: ${{ runner.temp }}/notes.json');
     expect(claude).toContain('When an admin sent an instruction');
     expect(read('.agents/skills/user-issues/SKILL.md')).toContain('### When an admin sent an instruction');
+    // The research: one time each day in place of the watch, in a line of its own. Its lead has no key, no shell
+    // besides git and no Edit; the report is checked with the scripts and the repository copied before it.
+    const research = jobs['research']!.split(/\n {6}- /);
+    const lead = research.find((s) => s.includes('anthropics/claude-code-action'))!;
+    expect(perms('research')).toEqual(['contents: read', 'id-token: write']);
+    expect(yml).toContain("- cron: '23 13 * * *'");
+    for (const job of ['watch', 'follow']) expect(jobs[job], job).toContain("if: ${{ github.event.schedule != '23 13 * * *' && !inputs.research }}");
+    expect(jobs['research']).toContain("if: ${{ github.event.schedule == '23 13 * * *' || inputs.research }}");
+    expect(yml).toContain("group: user-issues${{ (github.event.schedule == '23 13 * * *' || inputs.research) && '-research' || '' }}");
+    expect(lead).toContain('--model opus --allowedTools "Read,Glob,Grep,Write,Agent,Task,Bash(git log:*),Bash(git show:*)"');
+    expect(lead).not.toMatch(/LINEAR_API_KEY|show_full_output|display_report/);
+    expect(lead).toContain('"The research team"');
+    expect(read('.agents/skills/user-issues/SKILL.md')).toContain('## The research team');
+    expect(research.findIndex((s) => s.includes('cp -a .git "$RUNNER_TEMP/base.git"'))).toBeLessThan(research.indexOf(lead));
+    expect(research.find((s) => s.includes('agent-research.mjs" report'))).toContain('GIT_DIR: ${{ runner.temp }}/base.git');
+    expect(jobs['research']!.match(/actions\/checkout@/g)?.length).toBe(jobs['research']!.match(/persist-credentials: false/g)?.length);
+    // The file step runs for a research issue alone, so it reaches the fix jobs.
+    expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('file .user-issues'))).toContain("steps.watch.outputs.research != '0'");
     // The file step runs for an instruction alone, so its issue reaches the fix jobs.
     expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('file .user-issues'))).toContain("steps.watch.outputs.notes != '0'");
     expect(claude).toContain('.user-issues/evidence');

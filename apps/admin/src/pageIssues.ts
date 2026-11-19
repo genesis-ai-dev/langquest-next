@@ -23,6 +23,7 @@ export const ISSUE_CSS = String.raw`
 .icard[hidden] { display: none; }
 .ipics { min-width: 0; } .ipics .vpics { margin: 0; } .ipics .vpic, .ipics .vpic.zoom { max-width: 100%; }
 .ipics > p { margin: 0 0 6px; } .ipics > img { display: block; max-width: 100%; margin: 0 0 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.iresearch { margin-top: 28px; } .iresearch h3 { margin: 0 0 4px; }
 .ifix p { margin: 0 0 6px; } .ifix b { font-weight: 600; }
 .ifixpics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 10px; }
 .ifixpics figure { margin: 0; min-width: 0; } .ifixpics figcaption { font-size: 12px; font-weight: 600; color: var(--ink2); margin: 0 0 4px; }
@@ -154,6 +155,19 @@ function noteSaid(n) {
   return n.state === 'answered' ? n.answer || NOTE_STATE[n.result] || NOTE_STATE.none : NOTE_STATE[n.state] || NOTE_STATE.waiting;
 }
 
+/**
+ * One thing the research team found (sources/ops.ts ResearchItem), as its card says it: the pill,
+ * and whether the card shows. A rejected item is kept only so it is not found again. fix is the
+ * agent team's record of its issue, when the fix team wrote one.
+ */
+function researchWay(item, fix) {
+  if (item.decision === 'reject') return { show: false, pill: ['Rejected', ''] };
+  if (item.decision === 'watch') return { show: true, pill: ['Claude watches it', ''] };
+  if (item.action === 'ask') return { show: true, pill: ['Waits on you', 'warn'] };
+  if (fix) return { show: true, pill: fix.decision === 'merge' ? ['Claude fixes it', 'ok'] : ['Waits on you', 'warn'] };
+  return { show: true, pill: item.handedAt ? ['The fix team has it', ''] : ['Waits on the fix team', ''] };
+}
+
 /** The tabs of the User issues page, in order; Open shows only while the pull requests are not read. */
 const ISSUE_TABS = [['you', 'Waits on you'], ['nofix', 'No fix yet'], ['open', 'Open'], ['claude', 'Fixed by Claude'], ['merged', 'Merged'], ['closed', 'Closed'], ['all', 'All']];
 /** Whether a card shows on a tab. Fixed by Claude holds each fix that merges, or merged, without a person, in whatever state its issue is. */
@@ -283,6 +297,36 @@ function issueTalk(r, notes) {
     (r.closedAt ? '' : '<div class="tell"><textarea id="uin-' + id + '" maxlength="2000" rows="3" aria-label="What Claude must do" placeholder="' + (list.length ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
       '<small>Claude starts at the next run of the watch (each 15 minutes).</small><button type="button" class="primary" data-uinote="' + id + '">Send to Claude</button></div>');
 }
+/** A place in the code as a link to that file on main, at its line. */
+function placeLink(place) {
+  const m = /^([A-Za-z0-9_@.()[\]\/-]+?)(?::([0-9]+))?$/.exec(String(place));
+  return m ? outLink('https://github.com/genesis-ai-dev/langquest-next/blob/main/' + m[1].split('/').map(encodeURIComponent).join('/') + (m[2] ? '#L' + m[2] : ''), '<code>' + esc(place) + '</code>') : '<code>' + esc(place) + '</code>';
+}
+/** What the research team found: one card for each thing it recommends or watches, the newest first. */
+function researchHtml(d) {
+  const res = d.research;
+  if (!res) return '';
+  const rows = (res.items || []).map((item) => ({ item, fix: item.issue && d.fixes ? d.fixes[item.issue] || null : null }))
+    .map((x) => ({ item: x.item, fix: x.fix, way: researchWay(x.item, x.fix) }));
+  const shown = rows.filter((x) => x.way.show);
+  const n = (decision) => rows.filter((x) => x.item.decision === decision).length;
+  const head = '<h3 id="research">Research: the same mistake in other places</h3><p class="muted">' +
+    [res.lastAt ? 'Last found ' + when(res.lastAt) : 'Nothing found yet', num(n('recommend')) + ' recommended', num(n('watch')) + ' watched', num(n('reject')) + ' rejected'].join(' · ') + '</p>';
+  return '<div class="iresearch">' + head + '<div class="icards">' + shown.map((x) => issueCard({
+    tags: (x.item.issue ? (safeLink(x.item.issueUrl) ? outLink(x.item.issueUrl, esc(x.item.issue), 'lin') : '<b>' + esc(x.item.issue) + '</b>') : '') +
+      '<span class="tag">Research</span>' + (x.item.like ? '<span>Like ' + esc(x.item.like) + '</span>' : ''),
+    title: x.item.title,
+    lines: [
+      ['Found', '<p>' + esc(x.item.found) + '</p><small class="muted">First found ' + when(x.item.firstAt) + (safeLink(x.item.runUrl) ? ' · ' + outLink(x.item.runUrl, 'The run') : '') + '</small>'],
+      ['Why', '<p>' + esc(x.item.why) + '</p>'],
+      ['Where', (x.item.places || []).map(placeLink).join('<br>')],
+      ['Claude', fixLine(x.fix, { tab: '' })]
+    ],
+    pill: x.way.pill,
+    side: (x.fix && x.fix.pr ? outLink(PR_URL + x.fix.pr, 'Open pull request ' + esc(x.fix.pr), 'button') : '') +
+      (x.item.issue && safeLink(x.item.issueUrl) ? outLink(x.item.issueUrl, 'Open ' + esc(x.item.issue) + ' in Linear', 'button') : '')
+  })).join('') + '</div></div>';
+}
 function userIssuesHtml(d) {
   const prs = fixData && fixData.state === 'ok' && fixData.data ? fixData.data.prs : null;
   const rows = (d.issues || []).map((r) => ({ r, way: issueWay(r, prs, r.issue && d.notes ? d.notes[r.issue] : null, r.issue && d.fixes ? d.fixes[r.issue] : null) }));
@@ -290,11 +334,11 @@ function userIssuesHtml(d) {
   const stats = '<div class="stats">' + stat(num(d.open), 'open in Linear', d.open ? 'warn' : '', NOW) + stat(num(d.closed), 'closed in Linear', '', '90 days') +
     stat(num(d.fixed), 'already fixed when seen', '', '90 days') + stat(num(d.noiseWeek), 'judged noise', '', LAST_WEEK) +
     stat(d.last ? when(d.last.at) : 'never', 'last look', d.last && d.last.outcome !== 'ok' ? 'bad' : '', d.last ? d.last.outcome : '') + '</div>';
-  if (!rows.length) return stats + '<p class="muted">No issues in the last 90 days.</p>';
+  if (!rows.length) return stats + '<p class="muted">No issues in the last 90 days.</p>' + researchHtml(d);
   return stats + '<div class="issues"><div class="itabs" role="group" aria-label="Issues by state">' +
     ISSUE_TABS.filter((x) => x[0] !== 'open' || t.count.open).map((x) =>
       '<button type="button" data-itab="' + x[0] + '" aria-pressed="' + (x[0] === t.tab) + '">' + esc(x[1]) + '<span class="count">' + num(t.count[x[0]]) + '</span></button>').join('') + '</div>' +
-    '<div class="icards">' + rows.map((x) => userIssueCard(x.r, x.way, t.tab, d.notes, d.fixes)).join('') + '</div></div>';
+    '<div class="icards">' + rows.map((x) => userIssueCard(x.r, x.way, t.tab, d.notes, d.fixes)).join('') + '</div></div>' + researchHtml(d);
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('[data-itab]');

@@ -4,7 +4,8 @@ import { ISSUE_LOGIC, ISSUE_SCRIPT } from '../src/pageIssues';
 
 interface Way { tab: string; pill: string; level: string; at: number; pr: { number: number } | null; claude?: boolean }
 type Row = Record<string, unknown>;
-const logic = new Function(`${ISSUE_LOGIC}; return { issueSource, issueWay, issueTabs, videoWay, noteSaid, fixFor, fixSaid, FIX_REASON, ISSUE_STEPS, VIDEO_STEPS };`)() as {
+const logic = new Function(`${ISSUE_LOGIC}; return { issueSource, issueWay, issueTabs, videoWay, noteSaid, fixFor, fixSaid, researchWay, FIX_REASON, ISSUE_STEPS, VIDEO_STEPS };`)() as {
+  researchWay: (item: Row, fix: Row | null) => { show: boolean; pill: [string, string] };
   issueSource: (keys: string[]) => string;
   issueWay: (r: Row, prs: Row[] | null, notes?: Row[] | null, fix?: Row | null) => Way;
   fixFor: (fix: Row | null, pr: Row | null) => Row | null;
@@ -324,5 +325,22 @@ describe('the cards', () => {
     expect(html).toContain('function issueCard(c)');
     expect(html).toContain('userissues(d) { return userIssuesHtml(d); }');
     expect(html).not.toMatch(/<[a-z][^>]*\sstyle=/);
+  });
+});
+
+describe('what the research team found, on its card', () => {
+  const item = (over: Row = {}): Row => ({ tag: 'fixed-width-label', decision: 'recommend', action: 'fix', issue: 'LAN-50', handedAt: null, ...over });
+
+  it('says who it waits on', () => {
+    expect(logic.researchWay(item(), null)).toEqual({ show: true, pill: ['Waits on the fix team', ''] });
+    expect(logic.researchWay(item({ handedAt: '2026-11-19T14:00:00Z' }), null).pill).toEqual(['The fix team has it', '']);
+    expect(logic.researchWay(item({ action: 'ask' }), null).pill).toEqual(['Waits on you', 'warn']);
+    expect(logic.researchWay(item(), { decision: 'waits' }).pill).toEqual(['Waits on you', 'warn']);
+    expect(logic.researchWay(item(), { decision: 'merge' }).pill).toEqual(['Claude fixes it', 'ok']);
+    expect(logic.researchWay(item({ decision: 'watch', action: 'none' }), null).pill).toEqual(['Claude watches it', '']);
+  });
+
+  it('does not show what it rejected', () => {
+    expect(logic.researchWay(item({ decision: 'reject', action: 'none' }), null).show).toBe(false);
   });
 });

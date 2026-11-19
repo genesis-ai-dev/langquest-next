@@ -1,4 +1,4 @@
-import { evidenceAsked, LookedError, parseLooked, type EvidenceAsk, type IssueNotes, type Looked, type Media, type Phone, type Watch } from '../../../server/userIssues';
+import { evidenceAsked, LookedError, parseLooked, type EvidenceAsk, type IssueNotes, type Looked, type Media, type Phone, type ResearchContext, type Watch } from '../../../server/userIssues';
 import { REPOSITORY } from '../../../server/tutorialFeedback';
 import type { JobRun } from '../../../server/jobRuns';
 import type { GithubRun, OidcRule } from './githubOidc';
@@ -26,6 +26,12 @@ import type { GithubRun, OidcRule } from './githubOidc';
  * its card on the ops dashboard, for the run that writes its fix, and a POST's
  * `notes` what the run did with each
  * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md).
+ *
+ * `GET ?research=1` is what the research team's lead reads one time each day
+ * (docs/agent-team.md "The research team"): the watch's issues and the record
+ * of each fix in Claude's own words, and the items of earlier runs. A POST's
+ * `research` is what it found, and `handed` the issues of it that the watch
+ * gave to the fix team.
  */
 export const USER_ISSUES_PATH = '/api/user-issues';
 export const USER_ISSUES_RULE: OidcRule = {
@@ -44,7 +50,9 @@ export interface UserIssuesDeps {
   phone(install: string, at: string | null): Promise<Phone | null>;
   /** One issue's instructions from the dashboard: those that wait, and the last answered ones. */
   notes(issue: string): Promise<IssueNotes>;
-  looked(looked: Looked): Promise<{ looked: number; grew: number; closed?: number; reopened?: number; taken?: number; answered?: number; fixes?: number }>;
+  /** What the research team's lead reads. */
+  research(): Promise<ResearchContext>;
+  looked(looked: Looked): Promise<{ looked: number; grew: number; closed?: number; reopened?: number; taken?: number; answered?: number; fixes?: number; research?: number; handed?: number }>;
   record(run: JobRun): Promise<void>;
   now(): number;
 }
@@ -67,6 +75,7 @@ export async function handleUserIssues(request: Request, deps: UserIssuesDeps): 
     }
     if (ask) {
       if ('notes' in ask) return json(200, await deps.notes(ask.notes));
+      if ('research' in ask) return json(200, await deps.research());
       const found = 'media' in ask ? await deps.media(ask.media) : await deps.phone(ask.phone, ask.at);
       return found ? json(200, found) : json(404, { error: 'Not there, or not one the watch hands over.' });
     }
@@ -104,7 +113,7 @@ export async function handleUserIssues(request: Request, deps: UserIssuesDeps): 
   for (const l of looked.looked) verdicts[l.verdict] += 1;
   await deps.record({
     job: 'user_issue_look', startedAt: started, ms: deps.now() - started, outcome: 'ok',
-    n: { looked: done.looked, ...verdicts, grew: done.grew, closed: done.closed ?? 0, reopened: done.reopened ?? 0, notesTaken: done.taken ?? 0, notesAnswered: done.answered ?? 0, fixes: done.fixes ?? 0 }
+    n: { looked: done.looked, ...verdicts, grew: done.grew, closed: done.closed ?? 0, reopened: done.reopened ?? 0, notesTaken: done.taken ?? 0, notesAnswered: done.answered ?? 0, fixes: done.fixes ?? 0, research: done.research ?? 0, handed: done.handed ?? 0 }
   });
   return json(200, done);
 }

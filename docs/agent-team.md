@@ -1,10 +1,13 @@
 # The agent team
 
+Kind: reference
+
 A team of Claude agents fixes the issues people hit in the app
 (`docs/decisions/2026-11-19-an-agent-team-fixes-user-issues.md`). It is the
-watch for user issues (`docs/diagnostics.md`, decisions.md 202) with four
+watch for user issues (`docs/diagnostics.md`, decisions.md 202) with five
 additions: a manager for each issue, a reviewer, a rule in code that decides
-whether a fix merges without a person, and a record on the ops dashboard.
+whether a fix merges without a person, a record on the ops dashboard, and a
+research team that looks for the same mistake in other places.
 
 ```mermaid
 flowchart TD
@@ -26,6 +29,13 @@ flowchart TD
   A --> O["Ops dashboard, User issues:<br/>the record of each fix"]
   D --> O
   O -->|"Tell Claude what to do"| M
+  subgraph day ["The same workflow, one time each day"]
+    L["Research lead (opus)<br/>reads what the team fixed, in the team's words"]
+    L -.starts.-> SC["Scouts<br/>haiku or sonnet"]
+    L --> RC["Script<br/>checks each place, files in Linear"]
+  end
+  RC --> O
+  RC -->|"recommended, action fix"| M
 ```
 
 ## Who does what
@@ -38,10 +48,12 @@ flowchart TD
 | Pictures | job `picture` | none: Playwright in the UI suite's local stack | run the manager's steps to a screen on main, then on main with the patch, and keep one picture each time | hold a secret, write a cache, show a person's work (the world is the suite's fixture world) |
 | Reviewer | job `vet` | `opus` | read the change and the checkout, look at the two pictures, write `verdict.json` | see the issue or what a person wrote, change the patch |
 | Gate | job `open` | none: `gate()` in `scripts/agent-team.mjs` | open the pull request, turn on its merge | be changed by a fix (`FIX_REFUSED`) |
+| Research lead | job `research`, one time each day | `opus` | read the team's own words and the code, start scouts, write `report.json` | change code, see what a person wrote, run a shell, reach the network |
+| Scouts | inside the lead's run | `haiku` or `sonnet`, as the lead chooses for each search | what the lead can | what the lead cannot |
 
 The skill `.agents/skills/user-issues/SKILL.md` holds each agent's
 instructions ("Choosing the issue's manager", "The issue manager", "Reading
-a change before it merges").
+a change before it merges", "The research team").
 
 ## The rule
 
@@ -137,6 +149,42 @@ A pull request that merges without a person carries the label `agent-merge`;
 one that waits, `agent-waits`. The job `follow` looks at the first kind each
 run: when its checks failed, or it did not merge in 24 hours, it becomes a
 draft that waits for a developer, and its record says why.
+
+## The research team
+
+The fix team repairs one issue in one place. One time each day (13:23 UTC,
+or a manual run of `user-issues.yml` with `research` on) the job `research`
+looks for the same mistake in the other places, before a person hits it,
+and presents what it finds on the ops dashboard.
+
+1. `scripts/agent-research.mjs facts` asks the Worker for what the team
+   knows (`GET /api/user-issues?research=1`, `ops_research_context()`): the
+   watch's issues of the last 30 days with each card's lines and the record
+   of its fix, and the items of earlier runs. All of it is Claude's own
+   words. Nothing a person wrote reaches this job.
+2. The lead names the mistake behind each fix as a pattern in the code and
+   starts scouts (at most 6) that search one part of the code each. It
+   opens each place a scout names and keeps only what it can show with
+   `file:line`.
+3. It gives each thing found a decision: `recommend` (with the action `fix`
+   or `ask`), `watch` (not proven) or `reject` (looked at, nothing to do;
+   kept so that it is not found again).
+4. `scripts/agent-research.mjs report` checks the report in code: a place
+   must be a file of main, and a recommended item with no place left
+   becomes `watch`. It files a Linear issue (`Research: ...`) for each
+   recommended item that has none, and tells the Worker (`research` in
+   `server/userIssues.ts`, table `ops.research_items`).
+5. The next run of the watch hands each recommended issue with the action
+   `fix` to the fix team, after the new issues and the issues with an
+   instruction, while a run has room (3 issues). The same rule then decides
+   whether its fix merges without a person or waits for a developer. An
+   item with the action `ask` waits for a developer.
+
+**User issues** on the ops dashboard shows them under the cards, in
+**Research: the same mistake in other places**: what was found, why it
+matters, where (each place a link to the file on main), its Linear issue,
+and the record of its fix when the fix team wrote one. In mode `off` there
+is no research.
 
 ## What it needs
 

@@ -1,6 +1,6 @@
 ---
 name: user-issues
-description: Judge the problems the watch for user issues found (new kinds of failure the phones and browsers reported, server jobs in trouble, problems people sent from help mode) and decide for each whether to file a new Linear issue, add to one the team already has, say which pull request on main already fixed it, or call it noise, written as one decisions.json; then, as the agent team (docs/agent-team.md), write a fix for each new issue with a verdict, and read such a change before it merges without a person. Use in .github/workflows/user-issues.yml, or when changing what the watch reads, files or fixes (server/userIssues.ts, scripts/user-issues.mjs, scripts/agent-team.mjs, the user_issues migrations).
+description: Judge the problems the watch for user issues found (new kinds of failure the phones and browsers reported, server jobs in trouble, problems people sent from help mode) and decide for each whether to file a new Linear issue, add to one the team already has, say which pull request on main already fixed it, or call it noise, written as one decisions.json; then, as the agent team (docs/agent-team.md), write a fix for each new issue with a verdict, read such a change before it merges without a person, and, as its research, look for the same mistake in other places. Use in .github/workflows/user-issues.yml, or when changing what the watch reads, files or fixes (server/userIssues.ts, scripts/user-issues.mjs, scripts/agent-team.mjs, scripts/agent-research.mjs, the user_issues migrations).
 license: MIT
 ---
 
@@ -589,3 +589,84 @@ Write `.user-issues-vet/verdict.json` and nothing else:
 `why` (at most 600 characters) goes on the ops dashboard: when you agree,
 what you checked; when you do not, what the developer must look at. Write
 it in ASD-STE100 Simplified Technical English.
+
+## The research team
+
+One time each day you are the lead of the team's research
+(`docs/agent-team.md` "The research team"). The fix team repairs one issue
+in one place. You look for the same mistake in the other places, before a
+person hits it, and present what you find to the developers on the ops
+dashboard. You change no code.
+
+You are given `.research/facts.json`, in the team's own words (nothing a
+person wrote):
+
+- `issues`: the watch's issues of the last 30 days. Each has its card's
+  lines (`context`, `problem`, `solution`), whether it is `closed`, the pull
+  request that fixed it (`fixedBy`), and the record of its fix when the team
+  wrote one (`summary`, `cause`, `twins`).
+- `items`: what earlier runs found, by `tag`, with each one's decision and
+  its Linear issue.
+
+How to work:
+
+1. Choose the issues with a cause you can name: a `cause` in the record, or
+   a pull request you can read (`git show`). Leave the others.
+2. For each cause, say the mistake as a pattern in the code (for example "a
+   label with a fixed width and no shrink", "a promise whose failure nothing
+   catches", "a list that reads a record that can be absent").
+3. Start scouts with the Agent tool, at most 6 a run, each with one pattern
+   and one part of the code. Give a scout the pattern, the fixed place as
+   the example and the folders to read, never the whole of `facts.json`.
+   Use `model: "haiku"` for a search by words and shape, and
+   `model: "sonnet"` when the scout must follow the code to know whether
+   the mistake is there.
+4. A scout's answer is a claim. Open each place it names and read the code
+   yourself. Keep only what you can show with `file:line`.
+5. Look in `items` before you write: an item an earlier run found keeps its
+   `tag`, so it is not presented twice. Write it again only when something
+   changed (a new place, or the place is gone).
+
+Give each thing found a decision:
+
+| `decision` | When | `action` |
+| --- | --- | --- |
+| `recommend` | The mistake is in the code at the places you name, and a person can hit it. | `fix`: the fix team can write the change by its own rule (a bug with one clear repair). `ask`: a developer must decide first (a product choice, the sync, the server, sign-in, an event's shape, a package, native code). |
+| `watch` | It can be the same mistake, and you cannot show it from the code. | `none` |
+| `reject` | You looked, and it is not a mistake there. Written so the next run does not look again. | `none` |
+
+Recommend little. Each recommended item becomes a Linear issue, and a
+`fix` one a change that a developer or the reviewer reads. A style point, a
+missing test, a clean-up or a thing no person can hit is not an item.
+
+Write `.research/report.json` and nothing else:
+
+```json
+{
+  "items": [
+    {
+      "tag": "fixed-width-label-invite-row",
+      "title": "Words are cut off on the invite row's button in long languages",
+      "like": "LAN-12",
+      "found": "The button's label has a fixed width of 96 and one line, as the Save button had before its fix.",
+      "why": "In Spanish and Tagalog the label is longer than 96, so a person sees half a word.",
+      "places": ["apps/mobile/src/screens/invite.tsx:142"],
+      "decision": "recommend",
+      "action": "fix"
+    }
+  ]
+}
+```
+
+- `tag`: small letters, digits and `-`, 3 to 60 characters, the same in
+  each run for the same thing.
+- `title`: what a person would see go wrong, at most 200 characters.
+- `like`: the issue in `facts.json` whose mistake this repeats, or leave
+  it out.
+- `found` and `why`: at most 600 characters each, about the code, in plain
+  words.
+- `places`: at most 8, each a file of main with its line. The script drops
+  a place that is not a file, and a recommended item with no place left is
+  kept as `watch`.
+
+With nothing found, write `{"items": []}`.

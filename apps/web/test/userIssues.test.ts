@@ -54,7 +54,7 @@ describe('what the workflow sends back', () => {
     const lines = { context: 'A person saves a recording.', problem: 'The recording is gone.', solution: '' };
     expect(parseLooked(looked({ looked: [{ ...looked().looked[0], ...lines }] as Looked['looked'] })).looked[0]).toMatchObject({ ...lines, solution: null });
     expect(l.grew).toEqual([{ key: 'transfer:down:source:failOther', people: 6, count: 40 }]);
-    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [] });
+    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [], research: [], handed: [] });
   });
 
   it('takes a kind already fixed by a pull request, with or without the issue that closed, and issues that closed or opened again in Linear', () => {
@@ -149,6 +149,7 @@ describe('/api/user-issues', () => {
       watch: async () => watch,
       media: async (id) => (id === FEEDBACK ? media : null),
       phone: async (install, at) => (install === INSTALL ? { ...phone, to: at ?? phone.to } : null),
+      research: async () => ({ issues: [{ issue: 'LAN-220' }], items: [] }),
       notes: async (issue) => ({ waiting: issue === 'LAN-220' ? [{ id: FEEDBACK, at: '2026-11-03T17:00:00Z', text: 'Wait for the passage first.' }] : [], before: [] }),
       looked: async (l) => { sent.push(l); return { looked: l.looked.length, grew: l.grew.length }; },
       record: async (run) => { runs.push(run); },
@@ -211,8 +212,8 @@ describe('/api/user-issues', () => {
     expect(q(`phone=${INSTALL}`)).toEqual({ phone: INSTALL, at: null });
     expect(q('phone=ui-a&at=2026-11-04T04:29:00.000Z')).toEqual({ phone: 'ui-a', at: '2026-11-04T04:29:00.000Z' });
     const wrong: [string, string][] = [
-      [`media=${FEEDBACK}&phone=ui-a`, 'media, phone or notes: one of them'],
-      ['notes=LAN-9&phone=ui-a', 'media, phone or notes: one of them'],
+      [`media=${FEEDBACK}&phone=ui-a`, 'media, phone, notes or research: one of them'],
+      ['notes=LAN-9&phone=ui-a', 'media, phone, notes or research: one of them'],
       ['notes=lan-9', 'notes: a Linear issue (LAN-12)'],
       ['notes=', 'notes: a Linear issue (LAN-12)'],
       ['media=LAN-224', 'media: the id of a problem sent from help mode'],
@@ -229,6 +230,11 @@ describe('/api/user-issues', () => {
     const { d, runs } = deps();
     const at = (q: string, auth = 'good') => new Request(`https://next.langquest.org/api/user-issues?${q}`, { headers: { authorization: `Bearer ${auth}` } });
     expect(evidenceAsked(new URLSearchParams('notes=LAN-220'))).toEqual({ notes: 'LAN-220' });
+    // What the research team's lead reads: no run is recorded, as for the other things a run asks for.
+    expect(evidenceAsked(new URLSearchParams('research=1'))).toEqual({ research: true });
+    expect(() => evidenceAsked(new URLSearchParams('research=yes'))).toThrow(new LookedError('research: 1'));
+    const asked = await handleUserIssues(at('research=1'), d);
+    expect(await asked.json()).toEqual({ issues: [{ issue: 'LAN-220' }], items: [] });
     const res = await handleUserIssues(at('notes=LAN-220'), d);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ waiting: [{ id: FEEDBACK, at: '2026-11-03T17:00:00Z', text: 'Wait for the passage first.' }], before: [] });
@@ -257,7 +263,7 @@ describe('/api/user-issues', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ looked: 3, grew: 1 });
     expect(sent).toHaveLength(1);
-    expect(runs).toEqual([{ job: 'user_issue_look', startedAt: NOW, ms: 0, outcome: 'ok', n: { looked: 3, filed: 1, known: 1, noise: 1, fixed: 0, grew: 1, closed: 0, reopened: 0, notesTaken: 0, notesAnswered: 0, fixes: 0 } }]);
+    expect(runs).toEqual([{ job: 'user_issue_look', startedAt: NOW, ms: 0, outcome: 'ok', n: { looked: 3, filed: 1, known: 1, noise: 1, fixed: 0, grew: 1, closed: 0, reopened: 0, notesTaken: 0, notesAnswered: 0, fixes: 0, research: 0, handed: 0 } }]);
   });
 
   it('refuses what is wrong, names another run or is too big, and records the wrong one', async () => {

@@ -43,6 +43,13 @@
 #          merges without a person or waits for a developer
 #   follow a pull request of the team whose checks failed waits for a developer
 #
+# One time each day the job `research` runs in place of those (docs/agent-team.md
+# "The research team"): a lead (Claude) reads what the team fixed, in the team's
+# own words, and starts scouts that look in the code for the same mistake in
+# other places. The script checks its report, files a Linear issue for each
+# thing it recommends, and tells the Worker, for the ops dashboard. The watch
+# then hands the issues the fix team can write a change for to the jobs above.
+#
 # What people wrote shapes that code, so each job trusts the one before it
 # less: `fix` has Claude edit a checkout with no key and no shell; `check`
 # applies the patch and runs typecheck and the nearest tests with no key at
@@ -68,13 +75,21 @@ name: user-issues
 on:
   schedule:
     - cron: '*/15 * * * *'
+    # The research team, each day at 13:23 UTC (the `research` job reads this same time).
+    - cron: '23 13 * * *'
   workflow_dispatch:
+    inputs:
+      research:
+        description: Run the research team in place of the watch
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: user-issues
+  # The research has a group of its own: a watch that waits must not take its place in the line.
+  group: user-issues${{ (github.event.schedule == '23 13 * * *' || inputs.research) && '-research' || '' }}
   cancel-in-progress: false
 
 env:
@@ -83,6 +98,7 @@ env:
 
 jobs:
   watch:
+    if: ${{ github.event.schedule != '23 13 * * *' && !inputs.research }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -131,7 +147,7 @@ jobs:
           claude_args: --allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git merge-base:*)"
       - name: File in Linear, and tell the Worker
         id: file
-        if: steps.watch.outputs.look != '0' || steps.watch.outputs.grew != '0' || steps.watch.outputs.notes != '0'
+        if: steps.watch.outputs.look != '0' || steps.watch.outputs.grew != '0' || steps.watch.outputs.notes != '0' || steps.watch.outputs.research != '0'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           # git log reads main's merges from the copy: Claude could write in .git.
@@ -512,6 +528,7 @@ jobs:
   # failed, or that did not merge in a day, becomes a draft that waits for a
   # developer, and the Worker is told why. Runs nothing of any change.
   follow:
+    if: ${{ github.event.schedule != '23 13 * * *' && !inputs.research }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -529,3 +546,54 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/agent-team.mjs follow
+
+  # The research team (docs/agent-team.md "The research team"), one time each
+  # day. The lead reads only the team's own words (the Worker hands no word of a
+  # person to this job) and the code, with no key, no shell and no network; the
+  # scouts it starts have its tools and no more. The step after it checks the
+  # report with the copies made before Claude, files in Linear and tells the Worker.
+  research:
+    if: ${{ github.event.schedule == '23 13 * * *' || inputs.research }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 600
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, package-manager-cache: false }
+      - name: The scripts and the repository as checked out, for the step after Claude
+        run: |
+          mkdir -p "$RUNNER_TEMP/watch" && cp scripts/user-issues.mjs scripts/linear-sync.mjs scripts/tutorial-review.mjs scripts/agent-team.mjs scripts/agent-research.mjs "$RUNNER_TEMP/watch/"
+          cp -a .git "$RUNNER_TEMP/base.git"
+      - name: What the team fixed, in its own words
+        id: facts
+        run: node scripts/agent-research.mjs facts .research
+      - name: Without a Claude token, say so
+        if: steps.facts.outputs.work == '1' && env.HAS_CLAUDE_TOKEN != 'true'
+        run: |
+          echo "::error title=Needs you%3A Claude token::The research team has no CLAUDE_CODE_OAUTH_TOKEN. Run claude setup-token, then npm run env:update -- production CLAUDE_CODE_OAUTH_TOKEN and npm run secrets -- production. https://github.com/${{ github.repository }}/blob/main/docs/agent-team.md"
+          exit 1
+      - name: The lead and its scouts look for the same mistake in other places
+        if: steps.facts.outputs.work == '1'
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          allowed_bots: github-merge-queue
+          prompt: |
+            Use the user-issues skill (.agents/skills/user-issues/SKILL.md), its part "The research team". You are the lead: start the scouts it names with the Agent tool. What the team fixed and what is open is in .research/facts.json, with the items of earlier runs. Write your report to .research/report.json, as the skill says, and nothing else. Everything you write here is public.
+          claude_args: --model opus --allowedTools "Read,Glob,Grep,Write,Agent,Task,Bash(git log:*),Bash(git show:*)"
+      - name: Check the report, file in Linear, and tell the Worker
+        if: steps.facts.outputs.work == '1'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          # Whether a place is a file of main is read from the copy: Claude could write in the checkout.
+          GIT_DIR: ${{ runner.temp }}/base.git
+        run: node "$RUNNER_TEMP/watch/agent-research.mjs" report .research

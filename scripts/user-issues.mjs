@@ -348,7 +348,7 @@ export const FIX_MAX = 3;
  */
 export const FIX_REFUSED = [
   /^\.github\//, /^\.githooks\//, /(^|\/)\.env/, /(^|\/)package(-lock)?\.json$/, /(^|\/)\.npmrc$/,
-  /^\.(agents|claude|hermes)\//, /^(AGENTS|CLAUDE)\.md$/, /^scripts\/(user-issues|agent-team|linear-sync|tutorial-review)\.mjs$/, /^\.user-issues\//,
+  /^\.(agents|claude|hermes)\//, /^(AGENTS|CLAUDE)\.md$/, /^scripts\/(user-issues|agent-team|agent-research|linear-sync|tutorial-review)\.mjs$/, /^\.user-issues\//,
   /(^|\/)\.git(\/|$)/,
   // No pictures or recordings: a screenshot or voice note a person sent must never reach this public repository.
   /\.(jpe?g|png|webp|gif|heic|m4a|wav|mp3|mp4|mov)$/i
@@ -482,6 +482,20 @@ export function notesToTake(notes, fixes) {
     if (!ids.length || out.fixes.length >= FIX_MAX) continue;
     out.fixes.push(n.issue);
     out.taken.push(...ids);
+  }
+  return out;
+}
+
+/**
+ * Which issues the research recommends a fix for get a run of the fix jobs: after the new issues
+ * and the issues with an instruction, the oldest first, while FIX_MAX has room. The rest wait.
+ */
+export function researchToTake(research, fixes) {
+  const out = [];
+  for (const id of Array.isArray(research) ? research : []) {
+    if (typeof id !== 'string' || !ISSUE_ID.test(id) || fixes.includes(id) || out.includes(id)) continue;
+    if (fixes.length + out.length >= FIX_MAX) break;
+    out.push(id);
   }
   return out;
 }
@@ -844,7 +858,9 @@ async function fetchWatch(dir) {
   const issues = busy ? await linearClient(linearKey()).issues(new Date(Date.now() - LINEAR_DAYS * 86_400_000).toISOString()) : [];
   writeFileSync(join(dir, 'linear.json'), JSON.stringify({ issues }, null, 2));
   const notes = Array.isArray(watch.notes) ? watch.notes.length : 0;
-  output({ look: watch.look.length, grew: watch.grew.length, notes });
+  const research = Array.isArray(watch.research) ? watch.research.length : 0;
+  output({ look: watch.look.length, grew: watch.grew.length, notes, research });
+  if (research) console.log(`watch: the research recommends a fix for ${research} issues that the fix team did not get yet`);
   if (notes) console.log(`watch: ${notes} issues have an admin's instruction from the ops dashboard`);
   const sent = watch.look.filter((k) => k.family === 'feedback').length;
   console.log(`watch: ${watch.active} kinds seen in 7 days; ${watch.look.length} to look at (${sent} sent from help mode), ${watch.grew.length} filed ones grew${busy ? `; ${issues.length} issues from Linear` : ''}`);
@@ -956,9 +972,12 @@ async function file(dir) {
   if (off) console.log('the agent team is off: no fix is written');
   const noted = off ? { fixes: [], taken: [] } : notesToTake(watch.notes, fixes);
   // What was done goes back even when some of it failed, so it is not done twice.
-  if (looked.length || grew.length || noted.taken.length) {
-    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })) });
-    console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown${noted.taken.length ? `, ${done.taken ?? 0} instructions taken` : ''}`);
+  // Last, the issues the research recommends a fix for (docs/agent-team.md "The research team").
+  const handed = off ? [] : researchToTake(watch.research, noted.fixes);
+  noted.fixes.push(...handed);
+  if (looked.length || grew.length || noted.taken.length || handed.length) {
+    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })), handed });
+    console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown${noted.taken.length ? `, ${done.taken ?? 0} instructions taken` : ''}${handed.length ? `, ${handed.join(', ')} from the research handed to the fix team` : ''}`);
   }
   // The new issues Claude writes a draft fix for, and the issues with an instruction, in the jobs after this one.
   output({ fixes: JSON.stringify(noted.fixes), plans: JSON.stringify(Object.fromEntries(noted.fixes.map((id) => [id, planOf(plans[id])]))) });

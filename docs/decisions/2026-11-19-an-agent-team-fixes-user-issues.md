@@ -36,3 +36,15 @@ Reverse if: a fix that merged without a person breaks the app for people
 and the rule would have let the same kind through again (then narrow the
 rule or set the mode to `ask`); or developers do not read the record and
 want each fix before it merges.
+
+Amended (2026-11-19, Caleb Koster): the team has a research team. One time
+each day a lead (Claude) reads what the team fixed, in the team's own words,
+and starts scouts that look in the code for the same mistake in other
+places. Code checks each place it names, files a Linear issue for each thing
+it recommends, and keeps the items in `ops.research_items` for the ops
+dashboard. The watch hands a recommended issue that needs only a fix to the
+fix team, and the same rule decides whether that fix merges without a
+person. Reason: a fix repairs one place, and the developers asked for a
+team "who looks at similar issues and presents them to us". The research
+reads nothing a person wrote, so nothing of a person's can reach a public
+log or a pull request through it. Mode `off` stops it.

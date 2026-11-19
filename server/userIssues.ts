@@ -107,6 +107,8 @@ export interface Watch {
    * migration 20261118073000_user_issue_notes.sql.
    */
   notes?: { issue: string; ids: string[] }[];
+  /** The issues the research recommends a fix for, which the fix team did not get yet, the oldest first. */
+  research?: string[];
 }
 
 /** One issue's instructions for the run that writes its fix (`GET /api/user-issues?notes=LAN-12`). */
@@ -141,7 +143,7 @@ const ISSUE_URL = /^https:\/\/linear\.app\/[A-Za-z0-9/_.-]{1,300}$/;
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /** No address may ride along in a note: the database keeps none (docs/diagnostics.md). */
 export const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20 } as const;
+export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 30, handed: 10 } as const;
 
 // ---- what the agent team did with an issue (docs/agent-team.md, scripts/agent-team.mjs) -----------
 
@@ -174,6 +176,32 @@ export interface FixRecord {
 }
 /** A JPEG in base64, of at most 150 000 bytes (scripts/agent-team.mjs PICTURES). */
 export const FIX_PICTURE = /^\/9j\/[A-Za-z0-9+/]{100,200000}={0,2}$/;
+
+// ---- what the research team found (docs/agent-team.md "The research team", scripts/agent-research.mjs) ----
+
+/** `recommend`: do something about it. `watch`: not sure yet. `reject`: looked at, nothing to do. */
+export const RESEARCH_DECISIONS = ['recommend', 'watch', 'reject'] as const;
+/** `fix`: the fix team can write the change. `ask`: a developer must decide first. `none`: nothing to do. */
+export const RESEARCH_ACTIONS = ['fix', 'ask', 'none'] as const;
+export const RESEARCH_TAG = /^[a-z0-9][a-z0-9-]{2,59}$/;
+/** Where in the code: a path in this repository, with or without a line. */
+export const RESEARCH_PLACE = /^[A-Za-z0-9_@.()[\]/-]{1,200}(:[0-9]{1,6})?$/;
+export const RESEARCH_TEXT = { title: 200, found: 600, why: 600, places: 8 } as const;
+
+/**
+ * One thing the research found: the same mistake as an issue the team fixed,
+ * in another place. Claude's words about the code only: the research reads
+ * the team's own words and the code, never what a person wrote.
+ */
+export interface ResearchItem {
+  tag: string; title: string; like: string | null; found: string; why: string; places: string[];
+  decision: (typeof RESEARCH_DECISIONS)[number]; action: (typeof RESEARCH_ACTIONS)[number];
+  /** The Linear issue filed for a recommended item. */
+  issue: string | null; issueUrl: string | null;
+}
+/** What the lead reads before it starts (`GET /api/user-issues?research=1`, `ops_research_context`). */
+export interface ResearchContext { issues: unknown[]; items: unknown[] }
+
 /** A Linear state's name (Backlog, In Progress, Live). */
 const STATE = /^[A-Za-z][A-Za-z0-9 ._()-]{0,59}$/;
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
@@ -204,6 +232,10 @@ export interface Looked {
   notes: ({ id: string; taken: true } | { id: string; taken: false; result: NoteResult; answer: string | null; pr: number | null })[];
   /** What the agent team did with each issue this run wrote a fix for. Absent from a run before the team. */
   fixes: FixRecord[];
+  /** What the research team found this run. Absent from every other run. */
+  research: ResearchItem[];
+  /** The research's issues this run hands to the fix team. */
+  handed: string[];
 }
 
 export class LookedError extends Error {
@@ -246,15 +278,20 @@ export interface Phone {
 export const FEEDBACK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const INSTALL_ID = /^[A-Za-z0-9_.-]{1,64}$/;
 
-export type EvidenceAsk = { media: string } | { phone: string; at: string | null } | { notes: string };
+export type EvidenceAsk = { media: string } | { phone: string; at: string | null } | { notes: string } | { research: true };
 
 /** What a GET asks for besides what is new: null for the watch itself, or a LookedError for what is wrong. */
 export function evidenceAsked(params: URLSearchParams): EvidenceAsk | null {
   const media = params.get('media');
   const phone = params.get('phone');
   const notes = params.get('notes');
-  if (media === null && phone === null && notes === null) return null;
-  if ([media, phone, notes].filter((v) => v !== null).length > 1) throw new LookedError('media, phone or notes: one of them');
+  const research = params.get('research');
+  if (media === null && phone === null && notes === null && research === null) return null;
+  if ([media, phone, notes, research].filter((v) => v !== null).length > 1) throw new LookedError('media, phone, notes or research: one of them');
+  if (research !== null) {
+    if (research !== '1') throw new LookedError('research: 1');
+    return { research: true };
+  }
   if (notes !== null) {
     if (!ISSUE.test(notes)) throw new LookedError('notes: a Linear issue (LAN-12)');
     return { notes };
@@ -439,5 +476,43 @@ export function parseLooked(input: unknown): Looked {
       summary: words(f, 'summary', where), cause: words(f, 'cause', where), proof: words(f, 'proof', where), review: words(f, 'review', where), twins: words(f, 'twins', where)
     };
   });
-  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes };
+  const tags = new Set<string>();
+  const research = list(input, 'research', LOOKED_MAX.research).map((r, n): ResearchItem => {
+    const where = `research[${n}]`;
+    if (!isObj(r)) throw new LookedError(`${where}: an object`);
+    const tag = r['tag'];
+    if (typeof tag !== 'string' || !RESEARCH_TAG.test(tag) || tags.has(tag)) throw new LookedError(`${where}.tag: a short name in small letters, once`);
+    tags.add(tag);
+    const said = (field: 'title' | 'found' | 'why'): string => {
+      const v = r[field];
+      if (typeof v !== 'string' || !v.trim() || v.length > RESEARCH_TEXT[field] || EMAIL.test(v)) throw new LookedError(`${where}.${field}: 1 to ${RESEARCH_TEXT[field]} characters, no address`);
+      return v;
+    };
+    const issueOf = (field: 'like' | 'issue'): string | null => {
+      const v = r[field];
+      if (absent(v) || v === '') return null;
+      if (typeof v !== 'string' || !ISSUE.test(v)) throw new LookedError(`${where}.${field}: a Linear issue (LAN-12)`);
+      return v;
+    };
+    const places = list(r, 'places', RESEARCH_TEXT.places).map((x) => {
+      if (typeof x !== 'string' || !RESEARCH_PLACE.test(x) || x.includes('..')) throw new LookedError(`${where}.places: each a path in the repository, with or without :line`);
+      return x;
+    });
+    const decision = oneOf(r, 'decision', RESEARCH_DECISIONS, where);
+    const action = oneOf(r, 'action', RESEARCH_ACTIONS, where);
+    if (!decision || !action) throw new LookedError(`${where}: decision (${RESEARCH_DECISIONS.join(', ')}) and action (${RESEARCH_ACTIONS.join(', ')})`);
+    // Only something recommended has work to do, and something to do is somewhere in the code.
+    if (decision !== 'recommend' && action !== 'none') throw new LookedError(`${where}.action: none unless recommended`);
+    if (decision === 'recommend' && (action === 'none' || !places.length)) throw new LookedError(`${where}: a recommended item has an action and a place`);
+    const issue = issueOf('issue');
+    const issueUrl = absent(r['issueUrl']) || r['issueUrl'] === '' ? null : r['issueUrl'];
+    if (issueUrl !== null && (typeof issueUrl !== 'string' || !ISSUE_URL.test(issueUrl))) throw new LookedError(`${where}.issueUrl: the issue in Linear`);
+    if ((issue === null) !== (issueUrl === null)) throw new LookedError(`${where}: an issue with its address, or neither`);
+    return { tag, title: said('title'), like: issueOf('like'), found: said('found'), why: said('why'), places, decision, action, issue, issueUrl: issueUrl as string | null };
+  });
+  const handed = list(input, 'handed', LOOKED_MAX.handed).map((x, n) => {
+    if (typeof x !== 'string' || !ISSUE.test(x)) throw new LookedError(`handed[${n}]: a Linear issue (LAN-12)`);
+    return x;
+  });
+  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, handed };
 }
