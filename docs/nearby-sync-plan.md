@@ -1,6 +1,12 @@
 # Plan: nearby sync between phones
 
-Status: ready to build, 2026-11-07 (Carl Sauder). Nothing is built. The purposes and the
+Status: built and on `main`, while an organization has it on, labelled experimental:
+phases 1 to 4 and 6 since 2026-11-13 (pull request 403, decisions 211 to 246), and phase 5,
+iPhones sharing with Androids and with each other, since 2026-11-17 (pull request 481,
+decision 256). Joining offline stays Android only; Give the app (section 14.5) joined it on
+2026-11-19 (pull request 527, `docs/decisions/2026-11-18-give-the-app-over-wifi.md`).
+Section 11's real-phone test has no results written in yet. What follows is the plan as it
+stood on 2026-11-07 (Carl Sauder), with the answers and sections added since. The purposes and the
 future requirement in section 1, and the choices in section 2, are Carl's, and his answers
 of 2026-11-06 and 2026-11-07 override anything older here. Everything else was checked
 against the code at commit `bc1e7522` by reading it, and the second round's additions at

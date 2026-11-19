@@ -649,5 +649,6 @@ The gate is the same run on the slowest partner Android.
   the database (decision 36, docs/library.md). The
   canon (book ids and order) and the versification engine are core
   reference data. Languoids are still open.
-- Decided for now: local Supabase (Postgres) via colima, never linked to a
-  hosted project. Cloudflare Workers plus Neon remains an option; the protocol fits both.
+- Decided: Supabase (Postgres), locally in Docker via colima and hosted for
+  preview and production (`docs/environments.md`, decisions.md 42 and 50).
+  Cloudflare Workers plus Neon remains an option; the protocol fits both.
