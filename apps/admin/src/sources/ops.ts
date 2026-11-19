@@ -508,6 +508,12 @@ export interface UserIssueRow {
   /** The pull request on main that fixed it, and when it merged. */
   fixedBy: number | null; fixedAt: string | null;
   keys: string[]; people: number; firstAt: string; lookedAt: string;
+  /**
+   * The issue in three lines, as Claude wrote them when the watch filed it (decisions.md 202, amended 2026-11-18):
+   * what the person was doing, what goes wrong, and what would fix it. Absent before migration
+   * 20261118070000_user_issue_words.sql, and null for an issue filed before it.
+   */
+  context?: string | null; problem?: string | null; solution?: string | null;
 }
 
 /**
@@ -519,9 +525,22 @@ export interface UserIssueLine {
   state: string | null; closedAt: string | null; fixedBy: number | null; fixedAt: string | null; lookedAt: string;
 }
 
+/**
+ * What an admin told Claude to do with an issue from its card, and Claude's answer
+ * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md). Never who wrote it.
+ */
+export interface UserIssueNote {
+  at: string; text: string;
+  /** waiting: no run took it yet; working: a run has it; answered; stopped: two runs took it and neither answered. */
+  state: 'waiting' | 'working' | 'answered' | 'stopped';
+  answeredAt: string | null; result: 'changed' | 'answered' | 'none' | null; answer: string | null; pr: number | null; runUrl: string | null;
+}
+
 /** diag.ops_user_issues(): the last 90 days, open issues first; counts; the last look; each dashboard line's decision. */
 export interface UserIssues {
   issues: UserIssueRow[];
+  /** diag.ops_user_issue_notes(): each issue's last instructions, the oldest first. Absent before migration 20261118073000_user_issue_notes.sql. */
+  notes?: Record<string, UserIssueNote[]>;
   /** Absent before migration 20261117213500_ops_lines_linear.sql. */
   lines?: UserIssueLine[];
   open: number; closed: number; fixed: number; noiseWeek: number;
@@ -552,7 +571,7 @@ export interface OpsSections {
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes] = await Promise.all([
     part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -578,7 +597,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<TutorialsRow>(query, `select diag.ops_tutorials() as v`),
     part<Feedback>(query, `select diag.ops_tutorial_feedback() as v`),
     part<UserIssues>(query, `select diag.ops_user_issues() as v`),
-    part<QuietAccounts>(query, `select diag.ops_quiet_accounts() as v`)
+    part<QuietAccounts>(query, `select diag.ops_quiet_accounts() as v`),
+    part<Record<string, UserIssueNote[]>>(query, `select diag.ops_user_issue_notes() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -644,7 +664,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
       return ok(f, feedbackAlerts(f));
     }),
     userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
-      const u = userIssuesOf(val(userissues));
+      // Before its migration the cards show without the box.
+      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}) };
       return ok(u, userIssueAlerts(u));
     })
   };

@@ -15,7 +15,9 @@ import { issueOf, type Suggestion } from '../../../server/tutorialFeedback';
  * section 6, decisions.md 162): mark feedback seen or done, run a server
  * job now, grant or decline an organization's blue check (173), connect
  * a tutorial channel on YouTube and publish its videos (180), add a note
- * on a tutorial video or answer Claude's suggestion for one (186), and mark an
+ * on a tutorial video or answer Claude's suggestion for one (186), tell Claude
+ * what to do with a user issue
+ * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md), and mark an
  * account's quiet installs not an issue. The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
  * and this Worker checks that token itself (a live session, a Global Viewer
@@ -43,6 +45,8 @@ export type Action =
   | { kind: 'tutorial-instruction'; tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }
   /** A person's answer to Claude's suggestion: accept or reject it (as edited), or only edit its detail. */
   | { kind: 'tutorial-suggestion'; id: string; decision: 'accept' | 'reject' | 'edit'; detail: string | null; reason: string | null }
+  /** What an admin told Claude to do with a user issue, from its card on the dashboard: for the watch's next run. */
+  | { kind: 'user-issue-note'; issue: string; text: string }
   /** An account's quiet installs marked not an issue, or counted again. */
   | { kind: 'quiet-account'; profile: string; ok: boolean };
 
@@ -70,6 +74,8 @@ export interface ActionDeps {
   addNote(tutorial: string | null, text: string, by: string): Promise<void>;
   /** An admin's instruction kept as an accepted suggestion (`ops_tutorial_instruct`): its id. */
   instruct(row: { tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }, by: string): Promise<string>;
+  /** An admin's instruction on a user issue kept for the watch (`ops_user_issue_instruct`): its id, `not_found` or `full`. */
+  instructIssue(issue: string, text: string, by: string): Promise<string>;
   /** A suggestion answered (`ops_suggestion_decide`): what happened, and the suggestion's kind. */
   decideSuggestion(id: string, decision: 'accepted' | 'rejected' | 'edited', detail: string | null, reason: string | null, by: string): Promise<{ result: string; kind?: string }>;
   /** An account's quiet installs marked not an issue or counted again, by this staff member: `marked`, `unmarked`, or `not_found` (`ops_quiet_account_mark`). */
@@ -83,6 +89,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TUTORIAL = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const LANGUAGE = /^[a-z]{2,3}(-[A-Z][a-z]{3})?$/;
 const SHA256 = /^[0-9a-f]{64}$/;
+/** A Linear issue's id (LAN-12). */
+const ISSUE = /^[A-Z]{1,10}-[0-9]{1,7}$/;
 /** More than every video in every language at once (47 × 15), so one Publish can send them all. */
 export const PUBLISH_MAX = 2000;
 /** The longest note, edited detail and reason the dashboard sends. */
@@ -136,6 +144,11 @@ export function parseAction(input: unknown): Action | null {
     if (i.instruct !== true || !tutorial || problem === undefined || language === undefined || !inputs) return null;
     return { kind: 'tutorial-instruction', tutorial, text, problem, language, inputs };
   }
+  if (a.kind === 'user-issue-note') {
+    const issue = (input as { issue?: unknown }).issue;
+    const text = optional(t.text, NOTE_MAX);
+    return typeof issue === 'string' && ISSUE.test(issue) && text ? { kind: 'user-issue-note', issue, text } : null;
+  }
   if (a.kind === 'tutorial-suggestion' && typeof a.id === 'string' && UUID.test(a.id) && (d === 'accept' || d === 'reject' || d === 'edit')) {
     const detail = optional(t.detail, DETAIL_MAX);
     const reason = optional(t.reason, REASON_MAX);
@@ -159,6 +172,7 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'tutorial-note': return { name: NAMES[action.kind], target: action.tutorial ?? 'no video' };
     case 'tutorial-instruction': return { name: NAMES['tutorial-note'], target: action.tutorial };
     case 'tutorial-suggestion': return { name: `suggestion_${DECIDED[action.decision]}`, target: action.id };
+    case 'user-issue-note': return { name: 'user_issue_note', target: action.issue };
     case 'quiet-account': return { name: action.ok ? 'quiet_ok' : 'quiet_ok_undo', target: action.profile };
     default: return { name: NAMES[action.kind], target: 'youtube' };
   }
@@ -219,6 +233,14 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       const id = await deps.instruct(row, who.profileId);
       await deps.record({ profileId: who.profileId, action: name, target, result: 'ok', detail: `instruction:${id}` });
       return { ok: true, result: 'instructed' };
+    }
+    if (action.kind === 'user-issue-note') {
+      const answer = await deps.instructIssue(action.issue, action.text, who.profileId);
+      const kept = answer !== 'not_found' && answer !== 'full';
+      await deps.record({ profileId: who.profileId, action: name, target, result: kept ? 'ok' : 'refused', detail: kept ? `note:${answer}` : answer });
+      return kept ? { ok: true, result: 'instructed' }
+        : answer === 'full' ? { ok: false, status: 400, error: 'Three instructions on that issue wait for Claude already. Wait for its answer.' }
+          : { ok: false, status: 404, error: 'The watch has no open issue with that id.' };
     }
     if (action.kind === 'tutorial-suggestion') return await answerSuggestion(deps, who.profileId, action, name, target);
     const result = await deps.runJob(action.key);
@@ -349,6 +371,11 @@ export function actionDeps(env: Env): ActionDeps {
         p_tutorial: tutorial, p_language: language, p_problem: problem, p_text: text, p_inputs: inputs, p_by: by
       });
       if (error) throw new Error(`ops_tutorial_instruct: ${error.message}`);
+      return String(data);
+    },
+    instructIssue: async (issue, text, by) => {
+      const { data, error } = await db().rpc('ops_user_issue_instruct', { p_issue: issue, p_text: text, p_by: by });
+      if (error) throw new Error(`ops_user_issue_instruct: ${error.message}`);
       return String(data);
     },
     decideSuggestion: async (id, decision, detail, reason, by) => {
