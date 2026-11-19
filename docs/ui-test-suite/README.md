@@ -1,5 +1,7 @@
 # The Expo app's UI test suite
 
+Kind: reference
+
 The end-to-end UI tests for the LangQuest app (`apps/mobile`): iOS, Android
 and its web export. Each test drives the real app, signed in as a real
 account, against a real server. Every role's workflows are covered.

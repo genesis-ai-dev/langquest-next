@@ -1,5 +1,7 @@
 # Testing strategy
 
+Kind: reference
+
 How this repo is tested, which layer a new test belongs in, and what runs
 where. Decision 102 records why. The UI test suite's own manual is
 [ui-test-suite/README.md](./ui-test-suite/README.md); this page is the

@@ -125,7 +125,7 @@ decisions.md 68). Staff see every report, with the reporter, through
 Supabase CLI login): `remove <id>` and `dismiss <id>` call
 `staff_resolve_report`, and `suspend <profileId>` sets `banned_until` on the
 sign-in. Check the queue at least daily; the terms promise action within 24
-hours. Removed audio stays in the bucket (PLAN.md section 14, known gap).
+hours. Removed audio stays in the bucket (`docs/blobs.md`, known gap).
 `moderation-smoke.sql` covers it in `npm run db:test`.
 
 Still deferred: profile photos, and the remaining content/audio gaps in
