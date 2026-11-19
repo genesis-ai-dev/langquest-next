@@ -46,18 +46,18 @@ describe('nearby diagnostics: the fields', () => {
   });
 
   it('a room says why it stopped, what it heard and what the radio can do', () => {
-    const tally = { heard: 2, echoed: 1, maybe: 1, taps: 0, maxUnmatched: 3, pipeFails: 1, strangers: 4, busy: 0, noAnswer: 0, sessions: 1, done: 1, levelMs: 9_000, code: 'PIPE_TIMEOUT' as const };
+    const tally = { heard: 2, echoed: 1, alone: 2, maybe: 1, taps: 0, maxUnmatched: 3, pipeFails: 1, strangers: 4, busy: 0, noAnswer: 0, sessions: 1, done: 1, levelMs: 9_000, code: 'PIPE_TIMEOUT' as const };
     const caps = { sdk: 33, advertise: false, directByName: true, band5: false, hotspot: true, joinHotspot: true, bluetoothOn: true, wifiOn: true, locationOn: true };
     const d = roomDiagOf(tally, 'idle', 60_000, caps);
     expect(d.t).toEqual({ event: 'room', stop: 'idle', code: 'PIPE_TIMEOUT', adv: 'no', direct: 'yes', hotspot: 'yes' });
-    expect(d.n).toEqual({ ms: 60_000, levelMs: 9_000, heard: 2, echoed: 1, maybe: 1, taps: 0, maxUnmatched: 3, pipeFails: 1, strangers: 4, busy: 0, noAnswer: 0, sessions: 1, done: 1 });
+    expect(d.n).toEqual({ ms: 60_000, levelMs: 9_000, heard: 2, echoed: 1, alone: 2, maybe: 1, taps: 0, maxUnmatched: 3, pipeFails: 1, strangers: 4, busy: 0, noAnswer: 0, sessions: 1, done: 1 });
     expect(clean(d)).toMatchObject(d);
   });
 
   it('a room stopped by the run limit or at "Up to date" reads as one stopped by asking, and no record runs past ten minutes', () => {
     // Why: only a disguised phone has a run limit or stops when level, so either stop, or a run
     // ending at exactly ten minutes, would mark the person in records support and Claude read.
-    const tally = { heard: 1, echoed: 1, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 1, done: 1, levelMs: 700_000, code: null };
+    const tally = { heard: 1, echoed: 1, alone: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 1, done: 1, levelMs: 700_000, code: null };
     const caps = { sdk: 33, advertise: true, directByName: true, band5: false, hotspot: true, joinHotspot: true, bluetoothOn: true, wifiOn: true, locationOn: true };
     const plain = roomDiagOf(tally, 'asked', 2 * NEARBY_ROOM_MS_CAP, caps);
     expect(roomDiagOf(tally, 'run', NEARBY_ROOM_MS_CAP + 1_999, caps)).toEqual(plain);
