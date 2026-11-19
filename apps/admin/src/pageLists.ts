@@ -236,13 +236,13 @@ function markAt(c, cx, cy, k) {
 }
 
 /** The svg around a row's marks, with what a screen reader says and what the keys move over. */
-function rowSvg(part, at, r, w, h, n, cols, body, how, k) {
+function rowSvg(part, at, r, w, h, n, cols, body, how, k, hv) {
   const said = LIST_SAID[part];
   const counts = LIST_ORDER.filter((s) => said[s]).map((s) => [s, r.items.filter((x) => x.s === s).length]).filter((p) => p[1]);
   const label = rowName(r) + ': ' + counts.map((p) => num(p[1]) + ' ' + said[p[0]].toLowerCase()).join(', ') + (how ? ', ' + how : '') +
     '. Tap a mark, or use the arrow keys and Enter, for its detail.';
   return '<svg class="sq' + (r.draw ? ' ' + r.draw : '') + '" width="' + Math.round(w * (k || 1.25)) + '" height="' + Math.round(h * (k || 1.25)) + '" viewBox="0 0 ' + w + ' ' + h + '" tabindex="0" role="img" aria-label="' + esc(label) + '"' +
-    ' data-part="' + esc(part) + '" data-row="' + at + '" data-n="' + n + '" data-cols="' + cols + '">' + body + '</svg>';
+    ' data-part="' + esc(part) + '" data-row="' + at + '" data-n="' + n + '" data-cols="' + cols + '"' + (hv || '') + '>' + body + '</svg>';
 }
 
 /** A lane's stages, or main and what the web host serves: a dot on a track for each, what it holds above, its name below. */
@@ -257,7 +257,7 @@ function trackSvg(part, at, r, mini) {
   let body = '<path class="tk" d="M' + X(0) + ' 24H' + X(n - 1) + '"/>';
   r.items.forEach((x, i) => {
     const big = x.s !== 'none';
-    body += '<circle class="q ' + x.s + '" data-i="' + i + '" cx="' + X(i) + '" cy="24" r="' + (big ? 7 : 4) + '"><title>' + esc(itemName(x) + ' · ' + (said[x.s] || x.s)) + '</title></circle>' +
+    body += '<circle class="q ' + x.s + '" data-i="' + i + '" cx="' + X(i) + '" cy="24" r="' + (big ? 7 : 4) + '" data-tip="' + esc(itemName(x) + ' · ' + (said[x.s] || x.s)) + '"/>' +
       markAt(x.s, X(i), 24, 1) +
       (x.short ? '<text class="tx b" x="' + X(i) + '" y="10" text-anchor="middle">' + esc(String(x.short).slice(0, 12)) + '</text>' : '') +
       name(x, X(i));
@@ -275,14 +275,16 @@ function lineSvg(part, at, r, mini) {
     '<path class="bl" d="M4 ' + base + 'H' + (w - 4) + '"/><path class="ln" d="' + line + '"/>';
   r.items.forEach((x, i) => {
     const cx = X(i);
-    body += '<rect class="hit" data-i="' + i + '" x="' + (cx - step / 2).toFixed(1) + '" y="0" width="' + step.toFixed(1) + '" height="' + (base + 22) + '"><title>' +
-      esc(x.name + ': ' + num(x.v) + ' errors' + (x.crashes ? ', ' + num(x.crashes) + ' crashes' : '') + (x.shipped ? ', ' + num(x.shipped) + ' shipped' : '')) + '</title></rect>';
+    body += '<rect class="hit" data-i="' + i + '" x="' + (cx - step / 2).toFixed(1) + '" y="0" width="' + step.toFixed(1) + '" height="' + (base + 22) + '"/>';
     if (x.crashes) body += '<path class="cx" d="M' + (cx - 3.5) + ' ' + (base - 11.5) + 'l7 7M' + (cx + 3.5) + ' ' + (base - 11.5) + 'l-7 7"/>';
     if (x.shipped) body += '<rect class="tick" x="' + (cx - 2).toFixed(1) + '" y="' + (base + 5) + '" width="4" height="' + Math.min(14, 3 + x.shipped * 1.2).toFixed(1) + '" rx="1"/>';
   });
   body += '<text class="tx" x="' + X(0) + '" y="' + (h - 2) + '">' + esc(r.items[0].name.slice(5)) + '</text>' +
     '<text class="tx" x="' + X(n - 1) + '" y="' + (h - 2) + '" text-anchor="end">' + esc(r.items[n - 1].name.slice(5)) + ' UTC</text>';
-  return rowSvg(part, at, r, w, h, n, n, body, 'a day a step', mini ? 1 : 0);
+  // For the pointer: each day's errors, crashes and what shipped (pageHover.ts).
+  const hv = hvAttr(X(0) - step / 2, step, r.items.map((x) => bucketLabel(x.name + 'T00:00:00Z', 'day') + ' UTC'),
+    [['', 'Errors', r.items.map((x) => num(x.v))], ['', 'Crashes', r.items.map((x) => num(x.crashes))], ['', 'Shipped', r.items.map((x) => num(x.shipped))]], 0, base + 20);
+  return rowSvg(part, at, r, w, h, n, n, body, 'a day a step', mini ? 1 : 0, hv);
 }
 
 /** Each key as a dot on a line of days left, 0 to 120; the zones under 7 and 30 days are its alerts. */
@@ -301,13 +303,13 @@ function axisSvg(part, at, r, mini) {
     while (used.some((u) => Math.abs(u[0] - cx) < 11 && u[1] === k)) k += 1;
     used.push([cx, k]);
     const cy = 38 - (k % 3) * 12;
-    body += '<circle class="q ' + x.s + '" data-i="' + i + '" cx="' + cx.toFixed(1) + '" cy="' + cy + '" r="5"><title>' +
-      esc(x.name + ' · ' + (x.days === null ? 'no date' : x.days < 0 ? 'expired' : Math.ceil(x.days) + ' days left')) + '</title></circle>' + markAt(x.s, Number(cx.toFixed(1)), cy, 0.8);
+    body += '<circle class="q ' + x.s + '" data-i="' + i + '" cx="' + cx.toFixed(1) + '" cy="' + cy + '" r="5" data-tip="' +
+      esc(x.name + ' · ' + (x.days === null ? 'no date' : x.days < 0 ? 'expired' : Math.ceil(x.days) + ' days left')) + '"/>' + markAt(x.s, Number(cx.toFixed(1)), cy, 0.8);
   });
   return rowSvg(part, at, r, w, h, n, n, body, 'on a line of days left', mini ? 1 : 0);
 }
 
-/** One row's squares, wrapped; each has its name for a pointer, and a mark for failed, waits and runs, so none rests on color alone. */
+/** One row's squares, wrapped; each has its name for a pointer (data-tip, pageHover.ts), and a mark for failed, waits and runs, so none rests on color alone. */
 function listSvg(part, at, r, wrap, mini) {
   if (r.draw === 'track') return trackSvg(part, at, r, mini);
   if (r.draw === 'line') return lineSvg(part, at, r, mini);
@@ -323,7 +325,7 @@ function listSvg(part, at, r, wrap, mini) {
   cells.forEach((c, i) => {
     const x = (i % cols) * st, y = Math.floor(i / cols) * st;
     const tip = share ? (said[c] || c) + ': 1% of ' + num(r.items.length) : itemName(r.items[i]) + ' · ' + (said[c] || c);
-    body += '<rect class="q ' + c + '" data-i="' + i + '" x="' + x + '" y="' + y + '" width="' + size + '" height="' + size + '" rx="2"><title>' + esc(tip) + '</title></rect>' + markAt(c, x + 5, y + 5, 1);
+    body += '<rect class="q ' + c + '" data-i="' + i + '" x="' + x + '" y="' + y + '" width="' + size + '" height="' + size + '" rx="2" data-tip="' + esc(tip) + '"/>' + markAt(c, x + 5, y + 5, 1);
   });
   return rowSvg(part, at, r, w, h, n, cols, body, share ? 'one square for each 1%' : '');
 }

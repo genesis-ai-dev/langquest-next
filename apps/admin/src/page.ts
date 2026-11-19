@@ -10,6 +10,7 @@ import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
 import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
 import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
+import { HOVER_CSS, HOVER_LOGIC, HOVER_SCRIPT } from './pageHover';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
 import { ICONS, NAV, SHELL_CSS, SHELL_HTML, SHELL_LOGIC, SHELL_SCRIPT } from './pageShell';
 import { OVERVIEW_CSS, OVERVIEW_HTML, OVERVIEW_LOGIC, OVERVIEW_SCRIPT } from './pageOverview';
@@ -206,6 +207,7 @@ ${FIX_CSS}
 ${ISSUE_CSS}
 ${LISTS_CSS}
 ${METERS_CSS}
+${HOVER_CSS}
 </style>
 </head>
 <body>
@@ -974,6 +976,9 @@ ${LISTS_LOGIC}
 ${METERS_LOGIC}
 ${LISTS_SCRIPT}
 ${METERS_SCRIPT}
+// ---- what a chart says under the pointer: a line and its values (pageHover.ts) ----
+${HOVER_LOGIC}
+${HOVER_SCRIPT}
 
 let loading = false;
 async function load(fresh) {
