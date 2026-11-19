@@ -96,6 +96,7 @@ import { usePassagesInMemory } from './src/shell/usePassagesInMemory';
 import { usePassageReady } from './src/shell/usePassageReady';
 import { PassageNotHere } from './src/sync/offline';
 import { useRouting } from './src/shell/useRouting';
+import { awaitingFirstScreen } from './src/shell/routingModel';
 import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
@@ -707,6 +708,13 @@ function OrgWork(props: Who & {
                 ))}
               </Stack.Navigator>
             </NavigationContainer>
+            {/* Signed in but not yet routed: the spinner, not the Sign In the stack starts on (routingModel.ts awaitingFirstScreen).
+                Over the stack, not instead of it, so the navigator is ready for routing's reset. */}
+            {awaitingFirstScreen(props.signedIn, screen) ? (
+              <View style={[StyleSheet.absoluteFill, styles.root, styles.waiting]} accessible accessibilityViewIsModal accessibilityLabel={t('common.loading')}>
+                <ActivityIndicator size="large" color={C.muted} />
+              </View>
+            ) : null}
             {toastHost(toastAbove)}
             {/* Feedback from help mode, in the strip a screen leaves at its foot (decisions.md 145). */}
             {/* A local person's feedback waits on the phone as a signed-out person's does, and goes as theirs after first contact. */}
