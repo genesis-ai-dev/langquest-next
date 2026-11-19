@@ -541,6 +541,20 @@ slow-RPC rule), and `apps/admin/test/meters.test.ts` checks that each bar
 turns red or amber exactly when its alert does. A part whose rows are all
 shares sets `sum` in `LIST_SAID`: its head and legend count what it splits.
 
+A line with a limit of its own has a bar that shows it, so no line is only in
+the numbers: the longest query and the oldest transaction against
+`LONG_QUERY_S` and `LONG_XACT_S`, a Supabase project's server errors against
+`SERVER_ERROR_LINE`, and a slow call or a table with many dead rows stays in
+its picture past the 8 largest (`withLined`). Each part also says its lines
+in words above its picture (`partLines` in `page.ts`), so a section's own
+page says what its status counts; the Overview keeps each line's Linear issue
+and fix.
+
+A chart over a range draws a number's total, and a number the totals count
+only by key (a first download's time, for `open` and for `fill`) leads with
+its largest key (`chartSeries` in `pageStart.ts`), so every number in
+`METRICS` has a chart.
+
 In a section, a part's tables (`RENDER`, and the Jobs table with its Run now
 buttons) sit in a closed `details.numbers` ("Show the numbers") under its
 picture, so the section shows pictures first. A part with no picture and no

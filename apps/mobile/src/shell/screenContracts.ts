@@ -128,6 +128,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     reads:['materialView','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   inbox_home: { reads:['updatesFor','notifications','join_requests','profiles'],
     rpcs:['decide_join_request_v2','org_content_reports','remove_content','dismiss_reports'] },
+  // Its email goes through the change-email Edge Function and its password through Auth, no RPC (LAN-304).
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
   // A Global Viewer's tab (decision 158): their access, and every organization.

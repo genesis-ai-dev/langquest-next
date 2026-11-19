@@ -1,5 +1,8 @@
 import { lookOf, saving, steadyLine, steadyStep, tryAgain } from './look';
+import { existsSync } from 'node:fs';
 import { APP_LINK, firstSentence, OTHER_LANGUAGES, PLAYLISTS, watchLink, youtubeText } from './playlists';
+import { TUNE, tuneChain } from './tune';
+import { TUTORIALS } from './all';
 import { UI_LANGUAGES } from '@langquest-next/core';
 import { CHANNELS, downloadLink, WORDS } from '../../server/youtube';
 
@@ -111,6 +114,23 @@ describe('a video on YouTube', () => {
     expect(links[1]).toBe(`English: ${APP_LINK}/v/en/record-a-passage`);
     expect(downloadLink('zh-Hans', 'record-a-passage')).toBe(`${APP_LINK}/v/zh-Hans/record-a-passage.mp4`);
     expect(Object.keys(WORDS).sort()).toEqual(Object.keys(PLAYLISTS).sort());
+  });
+
+  it('credits the tune last, only in a video that has it (docs/decisions/2026-11-18-tune-on-introductory-videos.md)', () => {
+    const credited = youtubeText('How LangQuest works', 'This is LangQuest.', { language: 'en', tutorial: 'how-langquest-works' }, TUNE.credit).description.split('\n\n');
+    expect(credited[credited.length - 1]).toBe(TUNE.credit);
+    expect(credited.slice(0, -1).join('\n\n')).toBe(youtubeText('How LangQuest works', 'This is LangQuest.', { language: 'en', tutorial: 'how-langquest-works' }).description);
+    // The licence asks for the tune's name, its author, its source and the licence.
+    for (const part of ['Carefree', 'Kevin MacLeod', 'incompetech.com', 'https://creativecommons.org/licenses/by/4.0/']) expect(TUNE.credit).toContain(part);
+    expect(existsSync(TUNE.file)).toBe(true);
+    // A general, introductory video has the tune. A video of one task or one setting has none.
+    expect(Object.values(TUTORIALS).filter((t) => t.tune).map((t) => t.id)).toEqual(['how-langquest-works']);
+  });
+
+  it('plays the tune quietly under the voice, and takes it out as the film ends', () => {
+    expect(TUNE.decibels).toBeLessThanOrEqual(-12);
+    expect(tuneChain(27, 155.5, 'tune')).toBe('[27:a]aresample=48000,volume=-12dB,afade=t=in:st=0:d=1.2,afade=t=out:st=151.90:d=3.6[tune]');
+    expect(tuneChain(3, 2, 'tune')).toContain('afade=t=out:st=0.00:d=3.6');
   });
 
   it('keeps within what YouTube takes', () => {

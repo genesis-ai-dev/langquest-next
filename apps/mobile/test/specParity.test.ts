@@ -90,7 +90,6 @@ const APP_ONLY: Record<string, string> = {
   'edit_member->role_editor': 'Something else: make a new role while admitting or editing someone (demo ADR-039, amended 2026-10-08)',
   'my_work->edit_member': "a coordinator's Home lists people asking to join under Get ready; a row opens Assign role & accept (decision 71, demo ADR-039)",
   'settings_home->settings_more': 'Me keeps five rows; everything else Settings had is under More settings (decision 71, demo ADR-032)',
-  'settings_more->profile_edit': 'More settings: setting a password on a looked-after account (decisions.md 59)',
   'settings_more->org_switcher': 'More settings: Switch Organization for someone in one organization, where it starts a new one (decision 71)',
   'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)',
   'intent_chooser->global_viewer': 'a Global Viewer account belongs to no organization: it sets up its authenticator and finds organizations from here (decision 158)',
