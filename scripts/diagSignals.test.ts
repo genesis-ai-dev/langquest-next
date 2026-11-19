@@ -169,6 +169,16 @@ describe('diagnostic signals', () => {
     expect(texts({ b: install({ nearby: { rooms: [{ at: 'T', stop: 'asked', heard: 1, echoed: 1, sessions: 1, done: 1 }], ends: { done: 1 }, links: { 'wifi-direct': 1 } } }) })).toEqual([]);
   });
 
+  it('counts an iPhone that heard another by its bare advert as hearing someone, and says when it left before Connect was offered', () => {
+    // Why: two iPhones hear only each other's bare adverts, which `heard` leaves out, so a room that
+    // heard another iPhone read as "heard no teammate" (first real-phone test, 2026-11-19).
+    const left = texts({ a: install({ nearby: { rooms: [{ at: 'T', stop: 'asked', heard: 0, echoed: 0, alone: 2, maybe: 0, taps: 0 }] } }) }).join('\n');
+    expect(left).not.toMatch(/heard no teammate's phone/);
+    expect(left).toMatch(/watch: Share nearby heard another iPhone by its advert alone in 1 room but closed before Connect was offered/);
+    // Offered and tapped: a session followed, and nothing needs saying.
+    expect(texts({ b: install({ nearby: { rooms: [{ at: 'T', stop: 'asked', heard: 0, echoed: 0, alone: 1, maybe: 1, taps: 1, sessions: 1, done: 1 }], ends: { done: 1 }, links: { awdl: 1 } } }) })).toEqual([]);
+  });
+
   it("names Share nearby's expected failures, and an attestation that did not match as a problem", () => {
     const t = texts({ a: install({ expected: [
       { where: 'nearby_attest', name: 'mismatch', code: null, count: 1, lastAt: 'T' },

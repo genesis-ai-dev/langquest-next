@@ -562,7 +562,7 @@ this block.
       "error": ["code", "errorId", "fatal", "name", "where"],
       "expected": ["code", "count", "name", "where"],
       "fill": ["event", "headKb", "ms", "msToMap", "passages", "reason", "rows", "why"],
-      "nearby": ["adv", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "heard", "hotspot", "keyRefused", "levelMs", "link", "maxUnmatched", "maybe", "ms", "newerApp", "noAnswer", "noRoom", "older", "overBudget", "pipeFails", "refused", "role", "sent", "served", "sessions", "stop", "strangers", "taps", "why"],
+      "nearby": ["adv", "alone", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "heard", "hotspot", "keyRefused", "levelMs", "link", "maxUnmatched", "maybe", "ms", "newerApp", "noAnswer", "noRoom", "older", "overBudget", "pipeFails", "refused", "role", "sent", "served", "sessions", "stop", "strangers", "taps", "why"],
       "load": ["checkpoint", "events", "foldMs", "fromSnapshot", "ms", "readMs", "reason", "staleCheckpointSeq"],
       "open": ["cold", "loadMs", "ms", "pulled", "snapshotMs", "syncs"],
       "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq", "why"],
