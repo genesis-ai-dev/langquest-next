@@ -1,5 +1,7 @@
 # What we have told Google Play
 
+Kind: reference
+
 The answers given in Play Console for LangQuest Next, Android package
 `com.frontierrnd.langquestnext`, so the next person does not have to
 reconstruct them, and so a change to the app that makes one of them untrue is

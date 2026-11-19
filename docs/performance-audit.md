@@ -1,5 +1,7 @@
 # Event system performance audit
 
+Kind: report
+
 Date: 2026-10-12. By: Carl Sauder, with Claude. Sources: this repo at
 commit `df1ad11`; measurements taken that day on a laptop (Node 24, V8) and
 the local Supabase Postgres. Nothing was measured on a phone.

@@ -49,6 +49,11 @@ Reverse if: the evidence that would change our mind.
   new one that says "Supersedes 35" (or the file name) and set the old one's
   status. If it only narrows or extends, append a dated paragraph to its
   file: `Amended (YYYY-MM-DD, Full Name): what changed and why.`
+- A decision records a choice and its reason, not the feature built from it.
+  What was built, and how it works, goes in the reference doc the decision
+  names (`docs/README.md` lists them), edited in the same pull request. An
+  amendment changes the choice: it narrows it, extends it, or records a new
+  reason; it does not log the next part of the work.
 - Never add a numbered file. Decision 256 is the last number.
 - Land the decision in the same commit or pull request as the change it
   explains. `scripts/decisions.test.ts` checks the format, and that every
