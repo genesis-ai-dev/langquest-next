@@ -6,7 +6,7 @@ import type { Ctx } from './ctx';
 import { nextStep } from '../invites/heldInvite';
 import { parseKey } from '../invites/inviteCode';
 import { holdJoinCode } from '../invites/heldJoinCode';
-import { navRef, type Nav } from './nav';
+import { dispatchMove, navRef, type Nav } from './nav';
 import { joinLinkRoute } from './routingModel';
 import { findNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
@@ -76,7 +76,7 @@ export function useIncoming(o: {
     // People with a My Work reach the Inbox from its bell, so it opens over My Work with Back (no Inbox tab).
     const inbox = () => {
       if (homeIsWork && navRef.isReady()) {
-        navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: 'my_work' }, { name: 'inbox_home', params: { from: 'my_work' } }] }));
+        dispatchMove(CommonActions.reset({ index: 1, routes: [{ name: 'my_work' }, { name: 'inbox_home', params: { from: 'my_work' } }] }));
       } else resetNav({ screen: 'inbox_home' });
     };
     // The push names only its Inbox row; the row says what it is about, and that opens (design principle 11).
