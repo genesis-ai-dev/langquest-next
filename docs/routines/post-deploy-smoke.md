@@ -18,11 +18,15 @@ Check that what reached Live actually works, and undo it if not.
 4. Pass: comment `Smoke <sha> ok` with the spec file names. Fail: comment
    `Smoke <sha> failed` with what broke and the evidence, and move the issue
    to Outage.
-5. On a failure, revert first: `git revert` the commit (message `Revert "..."
-   (LAN-n)`), run `npm run typecheck` and `npx vitest run`, push to main. A
-   revert that touches a guarded path (docs/routines/README.md) is not pushed:
-   open a pull request and ask for a person. Do not try a forward fix in this
-   run; the executor takes that as a new issue.
+5. On a failure, revert first: `git revert` the commit on a branch of its own
+   (message `Revert "..." (LAN-n)`), run `npm run typecheck` and
+   `npx vitest run`, push the branch, open a pull request with the same title,
+   and turn on auto-merge (`gh pr merge --auto --merge`): `main` takes no
+   direct push, and the merge queue lands the revert once the `gate` check
+   passes (decisions.md 150). A revert that touches a guarded path
+   (docs/routines/README.md) gets no auto-merge: comment its link and ask for
+   a person. Do not try a forward fix in this run; the executor takes that as
+   a new issue.
 6. If more than two issues failed in one run, stop reverting and report: the spec itself may be broken.
 
 Never change anything but comments, status and reverts.

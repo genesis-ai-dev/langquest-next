@@ -1,5 +1,7 @@
 # Cloudflare
 
+Kind: reference
+
 Cloudflare Workers Builds deploys the invite-email Worker and the app's
 Worker, `langquest-next`, which serves the app's web export, the reports
 API, every recording and guide file the app moves, the access-token API,

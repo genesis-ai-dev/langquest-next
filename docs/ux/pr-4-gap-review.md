@@ -1,5 +1,7 @@
 # PR #4 gap review and implementation plan
 
+Kind: report
+
 Reviewed 2026-09-17 against remote main at `119c66f` and the current local
 workspace. Local HEAD is `515913e`, with additional uncommitted changes.
 Local implementation does not prove deployment or successful user journeys.
