@@ -38,6 +38,20 @@ changes how the first page and the frame look. Decided:
   emails (people stay counted, never named); and its own issue list (Linear
   stays the list).
 
+Amended (2026-11-18, Caleb Koster): what a person answers is one card
+format, as prayer-robin's issue cards (`apps/admin/src/pageIssues.ts`). Caleb
+asked that the questions about the tutorial videos have the same format of
+prompting and response as the user issues. A card has its pictures, its title
+with Context, Issue and Solution lines, who acts next, its steps as dots, the
+talk (what an admin said, then where Claude is with it) and the box to tell
+Claude what to do. The User issues page has tabs with counts and one card for
+each issue; each thing for an admin on the Tutorial videos page is the same
+card. A card shows a step only when a record says it happened: an issue's
+steps come from its Linear state and the pull requests that name it, a video
+question's from its suggestion, instruction and fix. A user issue's card has
+no box yet, because nothing reads an answer written there; its card links the
+pull request and the Linear issue.
+
 Reverse if: the menu's counts and the rows disagree often enough to confuse
 (then one of them goes), or the team stops using the map (then it gives its
 place to the sections' own pictures).
