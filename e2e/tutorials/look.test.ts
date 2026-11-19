@@ -127,6 +127,18 @@ describe('a video on YouTube', () => {
     expect(Object.values(TUTORIALS).filter((t) => t.tune).map((t) => t.id)).toEqual(['how-langquest-works', 'the-path-of-a-passage']);
   });
 
+  it('never says that passages all take the same path or the same checks: each language chooses its own', () => {
+    // Why: Caleb, 2026-11-18, on "The path of a passage" as first written: it gave "the impression that every single passage
+    // that's submitted in LangQuest by every language and every organization goes through the exact same checks, and that's
+    // the exact opposite of what we're trying to communicate".
+    const said = Object.values(TUTORIALS).flatMap((t) => t.steps.flatMap((s) => (s.say ? [s.say] : [])));
+    expect(said.filter((line) => /\bthe same (path|checks?|steps)\b/i.test(line))).toEqual([]);
+    // A video that shows a passage's checks says whose they are.
+    for (const id of ['how-langquest-works', 'the-path-of-a-passage']) {
+      expect(TUTORIALS[id]!.steps.some((s) => /its language chose|Each language in LangQuest chooses/.test(s.say ?? ''))).toBe(true);
+    }
+  });
+
   it('plays the tune quietly under the voice, and takes it out as the film ends', () => {
     expect(TUNE.decibels).toBeLessThanOrEqual(-12);
     expect(tuneChain(27, 155.5, 'tune')).toBe('[27:a]aresample=48000,volume=-12dB,afade=t=in:st=0:d=1.2,afade=t=out:st=151.90:d=3.6[tune]');

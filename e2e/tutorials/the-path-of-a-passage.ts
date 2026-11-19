@@ -1,15 +1,25 @@
 // "The path of a passage", for everyone: the second general video, with no
-// taps taught. Samuel opens Luke in Lumari and goes from passage to passage,
-// each one further along the path: not started, recording, waiting on a
-// check, waiting on the translator to answer feedback, between two checks,
-// done. It says who does each part (Daniel asks, Grace translates, Ruth
-// checks), and ends back on the map.
+// taps taught. Each language chooses its own checks, so the path is not the
+// same from one language to the next: the video says so first, on Lumari's
+// Review flow (the checks this team chose, and the other sets a language can
+// choose: fewer checks, none, more, or its own). Then Samuel opens Luke in
+// Lumari and goes from passage to passage, each one further along the path
+// Lumari chose: not started, recording, waiting on a check, waiting on the
+// translator to answer feedback, between two checks, done. It says who does
+// each part (Daniel asks, Grace translates, Ruth checks), and ends back on
+// the map.
 import type { Page } from 'playwright';
 import type { Step, Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
 import { button } from './workspace';
 
 const tab = (page: Page, name: string | RegExp) => page.getByRole('tab', { name }).locator('visible=true').first();
+/**
+ * The ready-made sets of checks on Review flow, in the order every app language shows them: No checks,
+ * Consultant-only, Oral Review Path, Quick Check, Spoken Oral Method. By place, because a set's name is
+ * its checks joined by arrows, which no line of the app holds whole in another language.
+ */
+const sets = (page: Page) => page.getByRole('radio').locator('visible=true');
 /** A passage's row on the book's map (its label starts with its name and where it is). */
 const row = (page: Page, ref: string) => button(page, new RegExp(`^${ref}\\. `));
 /** Opens a passage from the book's map, with what is said on the way in. */
@@ -39,12 +49,63 @@ export const thePathOfAPassage: Tutorial = {
   steps: [
     {
       screen: 'my_work',
-      say: 'Every passage in LangQuest takes the same path, from not started to done. This video follows that path, and shows who does each part.',
+      say: 'Each language in LangQuest chooses how its passages are checked. So the path of a passage is not the same in every language.',
       stay: 0.4
     },
     {
       screen: 'my_work',
+      part: (page) => tab(page, 'Manage'),
+      tap: true,
+      until: (page) => button(page, /^Lumari /).waitFor({ timeout: 30_000 }),
+      stay: 0.6
+    },
+    {
+      screen: 'org_home',
+      part: (page) => button(page, /^Lumari /),
+      say: 'This team translates into Lumari.',
+      tap: true,
+      until: (page) => button(page, /^Review flow/).waitFor({ timeout: 30_000 }),
+      stay: 0.6
+    },
+    {
+      screen: 'language_home',
+      part: (page) => button(page, /^Review flow/),
+      tap: true,
+      until: (page) => button(page, 'All review flows').waitFor({ timeout: 30_000 }),
+      stay: 0.6
+    },
+    {
+      screen: 'flows_home',
+      // Lumari's own checks: the card with Edit in it.
+      part: (page) => button(page, 'Edit').locator('..'),
+      say: 'For Lumari, the team chose these checks: a peer check with a back translation, then the community, then a consultant, then the final approval.'
+    },
+    {
+      screen: 'flows_home',
+      part: (page) => sets(page).nth(3),
+      say: 'Another language can choose fewer checks.'
+    },
+    {
+      screen: 'flows_home',
+      part: (page) => sets(page).first(),
+      say: 'Or no checks. In that case, a passage is done once it is recorded.'
+    },
+    {
+      screen: 'flows_home',
+      part: (page) => sets(page).last(),
+      say: 'Or other checks, in a different order. A team can also make its own set.'
+    },
+    {
+      screen: 'flows_home',
+      part: (page) => button(page, 'Back'),
+      tap: true,
+      until: (page) => button(page, /^Review flow/).waitFor({ timeout: 30_000 }),
+      stay: 0.4
+    },
+    {
+      screen: 'language_home',
       part: (page) => tab(page, 'Map'),
+      say: 'Now follow a passage on the path that Lumari chose.',
       tap: true,
       until: (page) => button(page, /^Lumari: /).waitFor({ timeout: 30_000 }),
       stay: 0.6
@@ -59,7 +120,7 @@ export const thePathOfAPassage: Tutorial = {
     {
       screen: 'map_home',
       part: (page) => button(page, /^Luke/),
-      say: 'This team translates the book of Luke. Daniel leads the work, Grace translates, and Ruth checks.',
+      say: 'The team translates the book of Luke. Daniel leads the work, Grace translates, and Ruth checks.',
       tap: true,
       until: (page) => page.getByText(/^Luke 1:1–4/).locator('visible=true').first().waitFor({ timeout: 30_000 }),
       stay: 0.6,
@@ -93,7 +154,7 @@ export const thePathOfAPassage: Tutorial = {
     {
       screen: 'passage_record',
       part: (page) => [button(page, /^Peer check/), button(page, /^Community check/)],
-      say: 'Then the team checks her work. The path shows each check, and who does it.'
+      say: 'Then come the checks that Lumari chose. The path shows each check, and who does it.'
     },
     back,
     open('Luke 14:1–14', 'Here, Grace has started.'),
@@ -108,7 +169,7 @@ export const thePathOfAPassage: Tutorial = {
       screen: 'passage_record',
       // Done alone: lit with Record, the box's edge would cut the player's handle, which stands at the start.
       part: (page) => button(page, /^2\. Done/),
-      say: 'Grace finished her first version, and asked Ruth for the first check. Now the team can hear it.'
+      say: 'Grace finished her first version, and asked Ruth for the peer check. Now the team can hear it.'
     },
     {
       screen: 'passage_record',
@@ -137,19 +198,19 @@ export const thePathOfAPassage: Tutorial = {
     {
       screen: 'passage_record',
       part: (page) => [button(page, /^Back translation · make it/), button(page, /^Back translation · check it/)],
-      say: 'Next is the back translation. A teammate says the passage back in a language the consultant knows. That shows what the recording means.'
+      say: 'In Lumari, the back translation is next. A teammate says the passage back in a language the consultant knows. That shows what the recording means.'
     },
     {
       screen: 'passage_record',
       part: (page) => [button(page, /^Community check/), button(page, /^Final approval/)],
-      say: 'Then come the community check, the consultant check, and the final approval. Each language chooses its own checks, and their order.'
+      say: 'Then come the community check, the consultant check, and the final approval. Another language has other checks here.'
     },
     back,
-    open('Luke 16:19–31', 'And this passage has every check.'),
+    open('Luke 16:19–31', 'And this passage has every check that Lumari chose.'),
     {
       screen: 'passage_record',
       part: (page) => button(page, /^Final approval/),
-      say: 'After the final approval, the passage is done.'
+      say: 'After the last check, the passage is done.'
     },
     back,
     {
@@ -171,7 +232,7 @@ export const thePathOfAPassage: Tutorial = {
     },
     {
       screen: 'map_home',
-      say: 'That is the path of a passage. The next videos show each part, step by step.',
+      say: 'That is the path of a passage in Lumari. In your language, your team chooses the checks. The next videos show each part, step by step.',
       stay: 2
     }
   ]

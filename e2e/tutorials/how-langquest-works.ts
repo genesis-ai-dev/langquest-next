@@ -2,7 +2,7 @@
 // taps taught. Samuel goes through what an organization holds (languages,
 // their people), the three choices each language has (what to translate, what
 // helps, how it is checked: ready-made, and each can be changed), the map
-// down to one passage, and the path every passage takes.
+// down to one passage, and the path that its language chose for it.
 import type { Page } from 'playwright';
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
@@ -183,7 +183,7 @@ export const howLangQuestWorks: Tutorial = {
     {
       screen: 'book_map',
       part: (page) => page.getByText(/^Luke 14:25–35/).locator('visible=true').first(),
-      say: 'Every passage takes the same path.',
+      say: 'A passage follows the path its language chose.',
       tap: true,
       stay: 1
     },

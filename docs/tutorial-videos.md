@@ -14,6 +14,12 @@ through one whole task from its start to its end, and take in what several
 short videos each show ("Create your account and look around": the account,
 the invite, the look around). They have no tune.
 
+Each language chooses its own checks, their order and who does each one. So
+no video says that passages all take the same path or the same checks. A
+video that shows a passage's checks says whose they are ("the checks that
+Lumari chose") and that another language has others, fewer or none
+(`look.test.ts` holds it).
+
 ## Making them
 
 ```sh
