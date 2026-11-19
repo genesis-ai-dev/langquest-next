@@ -1,5 +1,17 @@
 import type { ScreenId } from './flow';
-import { tabsFor, type Session } from './session';
+import { AUTH_SCREENS, tabsFor, type Session } from './session';
+
+/**
+ * Signed in, but still on the screen the shell starts on (Sign In), because
+ * useRouting has no home to send them to yet: a phone new to this account
+ * or organization waits for the organization's first sync. The shell draws
+ * the waiting spinner over it, never the sign-in form, which read as being
+ * signed out: after a reinstall, on switching organizations, and just after
+ * signing in.
+ */
+export function awaitingFirstScreen(signedIn: boolean, screen: ScreenId): boolean {
+  return signedIn && AUTH_SCREENS.includes(screen);
+}
 
 /**
  * The section a web address named (a refresh), if this person may open it

@@ -1,5 +1,5 @@
-import { deriveSession, tabsFor } from '../src/shell/session';
-import { addressSection, joinLinkRoute, leaveLateWelcome } from '../src/shell/routingModel';
+import { deriveSession, GUEST_SCREENS, tabsFor } from '../src/shell/session';
+import { addressSection, awaitingFirstScreen, joinLinkRoute, leaveLateWelcome } from '../src/shell/routingModel';
 import { pathFor, sectionOfPath } from '../src/web/webPaths';
 import { ORG, roleSession } from './sessions';
 
@@ -104,5 +104,18 @@ describe('a welcome the server answered late (AUTH-058, LAN-252)', () => {
   it('never moves someone already past it', () => {
     expect(leaveLateWelcome('vision', 2, false, true)).toBe(false);
     expect(leaveLateWelcome('my_work', 1, false, true)).toBe(false);
+  });
+});
+
+describe('signed in, before the first screen (after a reinstall, on switching organizations)', () => {
+  it('waits on a spinner rather than show Sign In or Create account to someone signed in', () => {
+    expect(awaitingFirstScreen(true, 'sign_in')).toBe(true);
+    expect(awaitingFirstScreen(true, 'create_account')).toBe(true);
+  });
+  it('shows every screen to someone signed in once routing has placed them', () => {
+    for (const s of ['my_work', 'welcome', 'intent_chooser', 'status_home'] as const) expect(awaitingFirstScreen(true, s)).toBe(false);
+  });
+  it('shows the guest screens to someone signed out', () => {
+    for (const s of GUEST_SCREENS) expect(awaitingFirstScreen(false, s)).toBe(false);
   });
 });
