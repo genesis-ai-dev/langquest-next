@@ -7,8 +7,18 @@ frame, with a computer voice saying the script's lines. Decision 177 says why
 they are made this way.
 
 A few videos are general and introductory: they show the whole app and teach
-no taps ("How LangQuest works"). Only those have a tune under the voice
-(`docs/decisions/2026-11-18-tune-on-introductory-videos.md`).
+no taps ("How LangQuest works", "The path of a passage"). Only those have a
+tune under the voice
+(`docs/decisions/2026-11-18-tune-on-introductory-videos.md`). Some videos walk
+through one whole task from its start to its end, and take in what several
+short videos each show ("Create your account and look around": the account,
+the invite, the look around). They have no tune.
+
+Each language chooses its own checks, their order and who does each one. So
+no video says that passages all take the same path or the same checks. A
+video that shows a passage's checks says whose they are ("the checks that
+Lumari chose") and that another language has others, fewer or none
+(`look.test.ts` holds it).
 
 ## Making them
 
