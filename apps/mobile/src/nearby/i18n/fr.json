@@ -20,6 +20,7 @@
       "noWifiDirect": "Ce téléphone n’a pas Wi-Fi Direct, dont Partager à proximité a besoin.",
       "noKey": "Ce téléphone n’est pas encore prêt à partager. Connectez-vous à Internet une fois, puis revenez.",
       "noCertificate": "Pour partager à proximité, ce téléphone doit se connecter une fois à Internet pendant que votre organisation a activé Partager à proximité.",
+      "limited": "Ce compte a configuré trop de nouveaux téléphones aujourd’hui. Partager à proximité fonctionnera sur ce téléphone à partir de demain.",
       "readOnly": "Les comptes qui consultent seulement les organisations ne partagent pas à proximité."
     },
     "radios": {
