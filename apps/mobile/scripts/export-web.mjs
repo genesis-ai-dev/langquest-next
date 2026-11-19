@@ -195,7 +195,13 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Sync and offline merged in: its words in all 16 catalogs, the email and confirm fields, and New
 // password's confirm field. Edit Profile moved to a chunk of its own, loaded when opened, so a
 // first visit stays under its own budget (17,240 bytes left with Sync and offline's chunk too).
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 131 * 1024;
+// Raised by 5 KB more with Give the app (Carl, 2026-11-18,
+// docs/decisions/2026-11-18-give-the-app-over-wifi.md), 4,512 bytes past then with Edit Profile's
+// email merged in: its English words and Check my file's in the nearby chunk the web loads with
+// Share nearby (5,037 bytes), and the kept file's rules (840 bytes in the entry, 411 in the shared
+// chunk). The screen itself is Android only (src/nearby/GiveAppScreen.android.tsx), so the web
+// carries a plain stub of it. A first visit has 16,500 bytes left.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 136 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

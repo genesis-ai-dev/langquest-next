@@ -189,6 +189,15 @@
         "stopped": "Lambar ta tafi saboda ka bar wannan shafin. Ka yi sabuwa.",
         "noCertificate": "Dole wannan waya ta haɗa da intanet sau ɗaya kafin ta iya shigar da kowa.",
         "failed": "Wani abu ya lalace a wannan waya. Ka yi sabuwar lamba."
+      },
+      "keep": {
+        "keeping": "Ana ajiye kwafi a wannan waya…",
+        "kept": "An ajiye a wannan waya, a shirye don Ba da manhajar. Za ka iya goge wanda ke cikin Abubuwan da aka sauke.",
+        "notOurs": "Wannan ba fayil ɗin girkawa na LangQuest na ainihi ba ne. Ka sake samun sa yayin da kake da intanet.",
+        "noSpace": "Babu isasshen wuri a wannan waya don ajiye kwafi. Ka goge wasu abubuwa don samun wuri, sannan ka sake zaɓar sa.",
+        "unreadable": "Ba a iya karanta wannan fayil ɗin ba. Ka sake zaɓar sa.",
+        "failed": "Ba a iya ajiye kwafi ba. Ka sake zaɓar sa.",
+        "unsupported": "Ka sabunta LangQuest daga shago don ba da manhajar ta Wi-Fi."
       }
     },
     "installFile": {
@@ -253,6 +262,65 @@
         "refused": "Wannan waya ba ta iya duba amsar abokin aikinka ba. Ka nemi sabuwar lamba.",
         "dropped": "Haɗin ya yanke. Ka nemi sabuwar lamba.",
         "failed": "Wani abu ya lalace a wannan waya. Ka nemi sabuwar lamba."
+      }
+    },
+    "give": {
+      "intro": "Ka aika LangQuest zuwa sabuwar waya ta Wi-Fi na wannan waya kanta. Babu ɗaya daga cikin wayoyin da ke buƙatar intanet.",
+      "rowSub": "Aika LangQuest zuwa sabuwar waya ta Wi-Fi, ba tare da intanet ba",
+      "rowHelp": "Yana buɗe Ba da manhajar, inda wannan waya ke aika LangQuest zuwa sabuwar waya ta Wi-Fi nata.",
+      "linkHelp": "Yana buɗe Ba da manhajar, don aika LangQuest zuwa sabuwar wayar ta Wi-Fi na wannan waya.",
+      "size": "Fayil ɗin girkawa: {{size}} MB",
+      "start": "Fara",
+      "startHelp": "Yana kunna Wi-Fi na wannan waya kanta don sabuwar wayar ta haɗa, kuma yana nuna lamba ta farko.",
+      "starting": "Ana kunna Wi-Fi na wannan waya…",
+      "noFile": "Da farko ka ajiye fayil ɗin girkawa a wannan waya: ka samu shi yayin da kake da intanet, sannan ka zaɓe shi a Duba fayil ɗina.",
+      "unsupported": "Wannan waya ba za ta iya ba da manhajar ta Wi-Fi ba. A maimakon haka, ka aika fayil ɗin girkawa ta Quick Share, katin SD ko waya ta USB.",
+      "join": {
+        "title": "1. Haɗa da Wi-Fi na wannan waya",
+        "line": "A sabuwar wayar, buɗe kyamara, ka nuna ta ga wannan lamba, sannan ka taɓa Haɗa.",
+        "code": "Lambar haɗawa da Wi-Fi na wannan waya",
+        "network": "Sunan Wi-Fi: {{name}}",
+        "password": "Kalmar sirri: {{password}}",
+        "typeLine": "Kyamarar ba ta karanta lambobi? A saitunan Wi-Fi na sabuwar wayar, zaɓi wannan suna sannan ka rubuta kalmar sirri."
+      },
+      "next": "Gaba",
+      "nextHelp": "Yana nuna lamba ta biyu, ta shafin saukewa, bayan sabuwar wayar ta haɗa.",
+      "download": {
+        "title": "2. Buɗe shafin saukewa",
+        "line": "Ka nuna kyamarar sabuwar wayar ga wannan lamba ka buɗe shafin. Taɓa Sauke.",
+        "code": "Lambar shafin saukewa",
+        "address": "Ko ka rubuta wannan adireshin a burauzarta: {{address}}",
+        "dataLine": "Idan shafin bai buɗe ba, kashe data ta wayar hannu a sabuwar wayar, ko ka taɓa Ci gaba da haɗi idan ta tambaya."
+      },
+      "backToJoin": "Koma ga lamba ta farko",
+      "backToJoinHelp": "Yana sake nuna lambar haɗawa da Wi-Fi na wannan waya.",
+      "sending": "Ana aikawa: {{sent}} cikin {{total}} MB",
+      "sent": "An aika. A sabuwar wayar, taɓa fayil ɗin don girka shi.",
+      "sentLine": "Tana iya tambaya sau ɗaya ko za a yarda a girka daga burauzar. Sannan ka shigar da shi daga wannan waya.",
+      "letIn": "Shigar da shi",
+      "letInHelp": "Yana buɗe Shigar da wani, don sabuwar wayar ta shiga tawagar.",
+      "stop": "Tsaya",
+      "stopHelp": "Yana kashe Wi-Fi na wannan waya don sabuwar wayar.",
+      "stayOpen": "Ka bar wannan shafin a buɗe har sai an aika fayil ɗin.",
+      "ended": {
+        "stopped": "An tsaya.",
+        "idle": "An tsaya bayan minti 15 ba tare da wata buƙata ba.",
+        "phone": "An tsaya: wannan waya ta kashe Wi-Fi nata, ko an bar manhajar."
+      },
+      "failed": {
+        "wifiOff": "Ka kunna Wi-Fi a wannan waya, sannan ka sake taɓa Fara.",
+        "permission": "Wannan waya na buƙatar izinin amfani da Wi-Fi tare da na'urorin da ke kusa. Ka ba da izini, sannan ka sake taɓa Fara.",
+        "busy": "Raba da na kusa yana amfani da Wi-Fi na wannan waya. Ka tsayar da shi, sannan ka sake taɓa Fara.",
+        "failed": "Wi-Fi na wannan waya bai fara ba. Taɓa Fara don sake gwadawa.",
+        "permissionCovered": "Ka fara buɗe Raba da na kusa ka ba da izinin abin da ya tambaya. Sannan ka dawo ka taɓa Fara."
+      },
+      "page": {
+        "title": "Girka LangQuest",
+        "size": "{{size}} MB",
+        "download": "Sauke",
+        "stepOpen": "Buɗe fayil ɗin da aka sauke.",
+        "stepAllow": "Ka yarda a girka daga wannan burauzar, idan wayar ta tambaya.",
+        "stepInstall": "Taɓa Girka."
       }
     }
   }

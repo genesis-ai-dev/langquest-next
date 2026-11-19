@@ -356,7 +356,8 @@
     "share_nearby": "पास में शेयर करें",
     "let_someone_in": "किसी को शामिल करें",
     "join_offline": "बिना इंटरनेट के जुड़ें",
-    "get_install_file": "इंस्टॉल फ़ाइल लें"
+    "get_install_file": "इंस्टॉल फ़ाइल लें",
+    "give_app": "ऐप दें"
   },
   "native": {
     "microphone": "LangQuest अंशों का अनुवाद करने के लिए आपकी आवाज़ रिकॉर्ड करता है।",

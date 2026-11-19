@@ -50,7 +50,12 @@ export function apkStale(needed: string | null, opened: string | null | undefine
 export type ApkCheck = 'right' | 'other';
 
 export function apkCheck(chosen: string, needed: string): ApkCheck {
-  return sameCarriedVersions(chosen.replace(/ ?\(\d+\)(?=\.apk$)/, ''), needed) ? 'right' : 'other';
+  return sameCarriedVersions(chosenName(chosen), needed) ? 'right' : 'other';
+}
+
+/** A chosen file's name without the number a browser adds to a second download of it ("name (1).apk"). */
+export function chosenName(chosen: string): string {
+  return chosen.replace(/ ?\(\d+\)(?=\.apk$)/, '');
 }
 
 /**
@@ -103,4 +108,38 @@ export function installFileItem(o: { letIn: LetInWhyNot | null; needed: string |
   if (!joinRows(o.letIn, o.needed).installFile || o.opened === undefined) return null;
   if (o.opened === null) return 'not-got';
   return apkStale(o.needed, o.opened) ? 'older' : 'got';
+}
+
+/**
+ * The install file Check my file keeps in the app's own folder for Give the app
+ * (docs/nearby-sync-plan.md 14.5): a copy, checked to be this app's own (its package and signing
+ * certificates), so the phone can hand it to a new phone over its own Wi-Fi.
+ */
+export interface KeptFile {
+  name: string;
+  size: number;
+}
+
+/** Room left on the phone after keeping the file, for recordings: about 100 MB. */
+export const KEEP_MIN_FREE_BYTES = 100 * 1024 * 1024;
+
+/**
+ * What keeping a chosen file came to: kept; not this app's own file (another app, or a file
+ * signed by someone else); no room for it; unreadable; failed otherwise; or a build whose
+ * native module cannot keep files yet (an older binary under this update).
+ */
+export type KeepResult = 'keeping' | 'kept' | 'not-ours' | 'no-space' | 'unreadable' | 'failed' | 'unsupported';
+
+/** A native rejection's code as a keep result. */
+export function keepResultOf(code: string | null): Exclude<KeepResult, 'keeping' | 'kept' | 'unsupported'> {
+  return code === 'FILE_REFUSED' ? 'not-ours' : code === 'FILE_NO_SPACE' ? 'no-space' : code === 'FILE_UNREADABLE' || code === 'BAD_ARGUMENT' ? 'unreadable' : 'failed';
+}
+
+/**
+ * Whether the kept copy has gone out of date: kept for versions other than this phone needs now.
+ * It is then deleted, so a carrier never hands over a file a new phone could not join with
+ * (Carl's answer, 2026-11-18: kept until a newer version is needed).
+ */
+export function keptStale(kept: KeptFile | null | undefined, needed: string | null): boolean {
+  return !!kept && needed !== null && !sameCarriedVersions(kept.name, needed);
 }

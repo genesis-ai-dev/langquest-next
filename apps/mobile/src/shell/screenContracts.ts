@@ -145,6 +145,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // Get the install file (docs/nearby-sync-plan.md 14.4), from Share nearby, Let someone in and Sync's Ready for offline card: no event,
   // no call; the browser gets the file, and the name is kept in a meta row.
   get_install_file: {},
+  // Give the app (docs/nearby-sync-plan.md 14.5): no event, no call to the server; the phone's own Wi-Fi serves the kept file.
+  give_app: {},
   delete_account: { rpcs:['delete_my_account'] },
   // Read from the app's Worker, not the local fold (decisions.md 44, 57).
   // A language's country and target go straight to the organization's

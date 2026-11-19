@@ -356,7 +356,8 @@
     "share_nearby": "Share nearby",
     "let_someone_in": "Let someone in",
     "join_offline": "Join without internet",
-    "get_install_file": "Get the install file"
+    "get_install_file": "Get the install file",
+    "give_app": "Give the app"
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",

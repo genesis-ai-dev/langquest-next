@@ -356,7 +356,8 @@
     "share_nearby": "Ibahagi sa malapit",
     "let_someone_in": "Magpapasok ng isang tao",
     "join_offline": "Sumali nang walang internet",
-    "get_install_file": "Kunin ang install file"
+    "get_install_file": "Kunin ang install file",
+    "give_app": "Ibigay ang app"
   },
   "native": {
     "microphone": "Nire-record ng LangQuest ang iyong boses para isalin ang mga sipi.",

@@ -157,7 +157,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   share_nearby: lazyScreen(loadNearby, 'ShareNearby'),
   let_someone_in: lazyScreen(loadNearby, 'LetSomeoneIn'),
   join_offline: lazyScreen(loadNearby, 'JoinOffline'),
-  get_install_file: lazyScreen(loadNearby, 'GetInstallFile')
+  get_install_file: lazyScreen(loadNearby, 'GetInstallFile'),
+  give_app: lazyScreen(loadNearby, 'GiveApp')
 };
 
 /**
@@ -686,10 +687,10 @@ function OrgWork(props: Who & {
             {/* Its own box, so the native stack ends where the tab bar begins
                 rather than drawing screens underneath it. */}
             <View style={{ flex: 1, overflow: 'hidden' }}>
-            {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166) and Share
-                nearby, where its tap would push Sync over the radios (docs/nearby-sync-plan.md 5.8). It goes only as
+            {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166), Share
+                nearby and Give the app, where its tap would push Sync over the radios (docs/nearby-sync-plan.md 5.8, 14.5). It goes only as
                 the top route changes, so it never moves the screen below it while someone uses it. */}
-            {screen === 'sync_status' || screen === 'share_nearby' ? null
+            {screen === 'sync_status' || screen === 'share_nearby' || screen === 'give_app' ? null
               : <UploadBar ctx={ctx} screenKey={nav.current.key ?? screen} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
             <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>

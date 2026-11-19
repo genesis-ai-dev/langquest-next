@@ -189,6 +189,15 @@
         "stopped": "Kode hilang karena Anda meninggalkan layar ini. Buat kode baru.",
         "noCertificate": "Ponsel ini harus tersambung ke internet sekali sebelum bisa mengizinkan siapa pun masuk.",
         "failed": "Ada yang salah di ponsel ini. Buat kode baru."
+      },
+      "keep": {
+        "keeping": "Menyimpan salinan di ponsel ini…",
+        "kept": "Tersimpan di ponsel ini, siap untuk Berikan aplikasi. Anda bisa menghapus yang ada di folder Download.",
+        "notOurs": "Ini bukan file instalasi milik LangQuest sendiri. Dapatkan lagi selagi ada internet.",
+        "noSpace": "Ruang di ponsel ini tidak cukup untuk menyimpan salinan. Kosongkan sebagian ruang, lalu pilih lagi.",
+        "unreadable": "File ini tidak bisa dibaca. Pilih lagi.",
+        "failed": "Salinan tidak bisa disimpan. Pilih lagi.",
+        "unsupported": "Perbarui LangQuest dari toko aplikasi untuk memberikan aplikasi lewat Wi-Fi."
       }
     },
     "installFile": {
@@ -253,6 +262,65 @@
         "refused": "Ponsel ini tidak bisa memeriksa jawaban rekan tim Anda. Minta kode baru.",
         "dropped": "Sambungan terputus. Minta kode baru.",
         "failed": "Ada yang salah di ponsel ini. Minta kode baru."
+      }
+    },
+    "give": {
+      "intro": "Kirim LangQuest ke ponsel baru lewat Wi-Fi ponsel ini sendiri. Kedua ponsel tidak perlu internet.",
+      "rowSub": "Kirim LangQuest ke ponsel baru lewat Wi-Fi, tanpa internet",
+      "rowHelp": "Membuka Berikan aplikasi, tempat ponsel ini mengirim LangQuest ke ponsel baru lewat Wi-Fi-nya sendiri.",
+      "linkHelp": "Membuka Berikan aplikasi, untuk mengirim LangQuest ke ponsel baru lewat Wi-Fi ponsel ini.",
+      "size": "File instalasi: {{size}} MB",
+      "start": "Mulai",
+      "startHelp": "Menyalakan Wi-Fi ponsel ini sendiri agar ponsel baru bisa terhubung, dan menampilkan kode pertama.",
+      "starting": "Menyalakan Wi-Fi ponsel ini…",
+      "noFile": "Simpan dulu file instalasi di ponsel ini: dapatkan selagi ada internet, lalu pilih di Periksa file saya.",
+      "unsupported": "Ponsel ini tidak bisa memberikan aplikasi lewat Wi-Fi. Sebagai gantinya, kirim file instalasi lewat Quick Share, kartu SD, atau kabel USB.",
+      "join": {
+        "title": "1. Hubungkan ke Wi-Fi ponsel ini",
+        "line": "Di ponsel baru, buka kamera, arahkan ke kode ini, lalu ketuk Hubungkan.",
+        "code": "Kode untuk terhubung ke Wi-Fi ponsel ini",
+        "network": "Nama Wi-Fi: {{name}}",
+        "password": "Kata sandi: {{password}}",
+        "typeLine": "Kamera tidak bisa membaca kode? Di pengaturan Wi-Fi ponsel baru, pilih nama ini dan ketik kata sandinya."
+      },
+      "next": "Lanjut",
+      "nextHelp": "Menampilkan kode kedua, untuk halaman unduhan, setelah ponsel baru terhubung.",
+      "download": {
+        "title": "2. Buka halaman unduhan",
+        "line": "Arahkan kamera ponsel baru ke kode ini dan buka halamannya. Ketuk Unduh.",
+        "code": "Kode untuk halaman unduhan",
+        "address": "Atau ketik alamat ini di browser-nya: {{address}}",
+        "dataLine": "Jika halaman tidak terbuka, matikan data seluler di ponsel baru, atau ketuk Tetap terhubung saat ditanya."
+      },
+      "backToJoin": "Kembali ke kode pertama",
+      "backToJoinHelp": "Menampilkan lagi kode untuk terhubung ke Wi-Fi ponsel ini.",
+      "sending": "Mengirim: {{sent}} dari {{total}} MB",
+      "sent": "Terkirim. Di ponsel baru, ketuk file untuk memasangnya.",
+      "sentLine": "Ponsel itu mungkin sekali meminta izin untuk memasang dari browser. Lalu izinkan mereka masuk dari ponsel ini.",
+      "letIn": "Izinkan mereka masuk",
+      "letInHelp": "Membuka Izinkan seseorang masuk, agar ponsel baru bisa bergabung dengan tim.",
+      "stop": "Berhenti",
+      "stopHelp": "Mematikan Wi-Fi ponsel ini untuk ponsel baru.",
+      "stayOpen": "Biarkan layar ini terbuka sampai file terkirim.",
+      "ended": {
+        "stopped": "Dihentikan.",
+        "idle": "Dihentikan setelah 15 menit tanpa permintaan apa pun.",
+        "phone": "Dihentikan: ponsel ini mematikan Wi-Fi-nya, atau aplikasi ditinggalkan."
+      },
+      "failed": {
+        "wifiOff": "Nyalakan Wi-Fi di ponsel ini, lalu ketuk Mulai lagi.",
+        "permission": "Ponsel ini perlu izin untuk memakai Wi-Fi dengan perangkat di sekitar. Izinkan, lalu ketuk Mulai lagi.",
+        "busy": "Berbagi di sekitar sedang memakai Wi-Fi ponsel ini. Hentikan dulu, lalu ketuk Mulai lagi.",
+        "failed": "Wi-Fi ponsel ini tidak menyala. Ketuk Mulai untuk mencoba lagi.",
+        "permissionCovered": "Buka Berbagi di sekitar dulu dan izinkan yang dimintanya. Lalu kembali ke sini dan ketuk Mulai."
+      },
+      "page": {
+        "title": "Pasang LangQuest",
+        "size": "{{size}} MB",
+        "download": "Unduh",
+        "stepOpen": "Buka file yang sudah diunduh.",
+        "stepAllow": "Izinkan pemasangan dari browser ini, jika ponsel meminta.",
+        "stepInstall": "Ketuk Instal."
       }
     }
   }

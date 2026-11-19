@@ -115,6 +115,10 @@ const APP_ONLY: Record<string, string> = {
   'share_nearby->get_install_file': 'Get the install file: the file a new phone installs LangQuest from, got and checked online before a trip; the demo has no such flow (docs/nearby-sync-plan.md 14.4)',
   'let_someone_in->get_install_file': 'the new phone needs LangQuest installed first: Let someone in links to where the file is got (docs/nearby-sync-plan.md 14.4)',
   'sync_status->get_install_file': "Ready for offline lists the install file a new person needs for someone who can let them in, and Get the install file opens where it is got (docs/nearby-sync-plan.md 14.4)",
+  'share_nearby->give_app': "Give the app: the carrier's phone hands LangQuest to a new phone over its own Wi-Fi, two codes and a download page; the demo has no such flow (docs/nearby-sync-plan.md 14.5)",
+  'let_someone_in->give_app': 'the new phone needs LangQuest installed first: Let someone in links to Give the app as well as to where the file is got (docs/nearby-sync-plan.md 14.5)',
+  'give_app->get_install_file': 'no kept install file yet: Give the app sends the carrier to get one first (docs/nearby-sync-plan.md 14.5)',
+  'give_app->let_someone_in': 'the file is sent: Let them in goes on to letting the new phone join (docs/nearby-sync-plan.md 14.5)',
   'scan_qr->join_offline': 'a scanned Let someone in code opens the new phone\'s progress screen (docs/nearby-sync-plan.md 14.1, 3)',
   'join_offline->scan_qr': 'a code that did not let them in: scan a new one from the teammate\'s phone (docs/nearby-sync-plan.md 14.1, 3)',
   'sign_in->join_offline': 'a starting copy a drop left unfinished: Sign In leads back to finishing it, and no other account signs in over it (docs/nearby-sync-plan.md 14.1)',
@@ -134,7 +138,7 @@ const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
   it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles, a check, a cluster, Forgot password, Share nearby, joining without internet and its install file, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'global_viewer', 'forgot_password', 'new_password', 'share_nearby', 'let_someone_in', 'join_offline', 'get_install_file'].sort());
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'global_viewer', 'forgot_password', 'new_password', 'share_nearby', 'let_someone_in', 'join_offline', 'get_install_file', 'give_app'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });
