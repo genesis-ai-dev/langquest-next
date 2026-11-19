@@ -1,5 +1,7 @@
 # Field diagnostics
 
+Kind: reference
+
 When a translator somewhere without reliable signal says "downloading is
 really slow", support should be able to answer from records instead of from
 a phone call: which phone, which build, how long it spent on the network and

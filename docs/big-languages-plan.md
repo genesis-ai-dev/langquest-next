@@ -1,6 +1,6 @@
 # Plan: big languages on a 2 GB phone
 
-Status: E on main (PR 177, decision 143) and F on main (PR 185, decision 147; heads measured in production on 2026-10-20, decision 147 amended) · Carl Sauder, with Claude · 2026-10-16
+Kind: plan · Status: built: E on main (PR 177, decision 143) and F on main (PR 185, decision 147; heads measured in production on 2026-10-20, decision 147 amended) · Carl Sauder, with Claude · 2026-10-16
 
 Written against `origin/main` at `583f744c` and pull request 120
 (`caleb/unit-loading` at `ded635a1`). Companion to the server host plan

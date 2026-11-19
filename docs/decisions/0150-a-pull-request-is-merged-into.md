@@ -105,3 +105,9 @@ contract, the vectors, the module's config), and for `apps/mobile/package.json`
 and the root lockfile, as `android-native` does; a Kotlin-only change no
 longer compiles Swift, nor a Swift-only one Kotlin. `SHARED` leaves out both.
 AGENTS.md's Guardrails table has its row.
+
+Amended (2026-11-19, Carl Sauder): the Guardrails table, and the steps
+before a push, moved from AGENTS.md to `CONTRIBUTING.md`, since they bind
+people and agents alike; a new job gets its row there. AGENTS.md keeps the
+steps an agent takes before it pushes
+(`docs/decisions/2026-11-19-each-doc-answers-one-question.md`).

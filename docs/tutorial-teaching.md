@@ -1,5 +1,7 @@
 # What a LangQuest tutorial owes the person watching
 
+Kind: reference
+
 A person opens a tutorial because they want something done: their team's words
 recorded, a brother's translation made better, a month in the hills without
 losing work. The video exists for that person and that goal. It is not a tour of

@@ -1,6 +1,6 @@
 # Plan: the server's jobs, and where the heavy ones run
 
-Status: built: steps one to three and the report inputs (decisions 141, 142), and F, the server cut, with the big-languages plan (pull request 185, decision 147) · Carl Sauder, with Claude · 2026-10-16, 2026-10-19
+Kind: plan · Status: built: steps one to three and the report inputs (decisions 141, 142), and F, the server cut, with the big-languages plan (pull request 185, decision 147) · Carl Sauder, with Claude · 2026-10-16, 2026-10-19
 
 Companion to `docs/big-languages-plan.md`, the phone side, whose option F
 (the server folds a language whole and cuts the snapshot by passage) is
