@@ -238,15 +238,12 @@ do $$ declare v jsonb; n int; note uuid; bug uuid; thanks uuid; s1 uuid; s2 uuid
       jsonb_build_object('kind', 'code', 'tutorial', 'record-a-passage', 'title', 'Save does nothing on Record', 'detail', 'A viewer says Save does nothing.', 'inputs', jsonb_build_array(bug)))));
   assert (r->>'code')::int = 1 and (r->>'looked')::int = 1 and (r->>'suggested')::int = 2 and (r->>'skipped')::int = 1, 'what the look did: %', r;
 
-  -- What became of the suggested reply (migration *_tutorial_reply_done.sql): a person posted it, chose to
-  -- post none, or takes that back. Only a comment with a suggested reply takes an answer.
+  -- What became of the suggested reply (migration *_tutorial_reply_done.sql): a person posted it, or chose to
+  -- post none. Only a comment with a suggested reply takes an answer.
   assert public.ops_tutorial_reply_done(bug, 'posted', '0d000000-0000-0000-0000-0000000000aa') = 'ok', 'the reply is marked posted';
-  assert (select reply_done = 'posted' and reply_done_at is not null and reply_done_by = '0d000000-0000-0000-0000-0000000000aa'
-    from ops.tutorial_inputs where id = bug), 'kept with when and who';
-  assert (select x->>'replyDone' from jsonb_array_elements(public.ops_tutorial_review_state()->'inputs') x where (x->>'id')::uuid = bug) = 'posted', 'an input says it';
+  assert (select x->>'replyDone' = 'posted' and x->>'replyDoneAt' is not null
+    from jsonb_array_elements(public.ops_tutorial_review_state()->'inputs') x where (x->>'id')::uuid = bug), 'an input says it, and when';
   assert public.ops_tutorial_reply_done(bug, 'none', '0d000000-0000-0000-0000-0000000000aa') = 'ok', 'or that none is needed';
-  assert public.ops_tutorial_reply_done(bug, 'open', '0d000000-0000-0000-0000-0000000000aa') = 'ok', 'or taken back';
-  assert (select reply_done is null and reply_done_at is null and reply_done_by is null from ops.tutorial_inputs where id = bug), 'taken back, it waits again';
   assert public.ops_tutorial_reply_done(thanks, 'posted', '0d000000-0000-0000-0000-0000000000aa') = 'not_found', 'a comment with no suggested reply takes none';
   assert public.ops_tutorial_reply_done(note, 'posted', '0d000000-0000-0000-0000-0000000000aa') = 'not_found', 'nor does a note';
   assert public.ops_tutorial_reply_done(gen_random_uuid(), 'none', '0d000000-0000-0000-0000-0000000000aa') = 'not_found', 'nor an id that is not there';
@@ -318,6 +315,10 @@ do $$ begin
   assert (select reason = 'worth a look' and issue = 'LAN-170' from ops.tutorial_suggestions where kind = 'code'), 'the reason and the issue';
   assert (select count(*) from ops.tutorial_inputs where kind = 'code') = 1, 'one code change';
   assert (select count(*) from ops.tutorial_reviews) = 2, 'two looks';
+  assert (select count(*) = 1 and bool_and(reply_done = 'none' and reply_done_at is not null and reply_done_by = '0d000000-0000-0000-0000-0000000000aa')
+    from ops.tutorial_inputs where reply_done is not null), 'what became of the reply is kept, with when and who';
+  assert public.ops_tutorial_reply_done((select id from ops.tutorial_inputs where reply_done is not null), 'open', '0d000000-0000-0000-0000-0000000000aa') = 'ok', 'taken back';
+  assert not exists (select 1 from ops.tutorial_inputs where reply_done is not null or reply_done_at is not null or reply_done_by is not null), 'taken back, it waits again';
   begin
     insert into ops.tutorial_suggestions (kind, tutorial, title, detail) values ('new', 'record-a-passage', 'x', 'y');
     raise exception 'a new video named an old one';
