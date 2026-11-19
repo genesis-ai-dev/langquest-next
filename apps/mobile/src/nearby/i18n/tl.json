@@ -20,6 +20,7 @@
       "noWifiDirect": "Walang Wi-Fi Direct ang teleponong ito, na kailangan ng Ibahagi sa malapit.",
       "noKey": "Hindi pa handang magbahagi ang teleponong ito. Kumonekta sa internet nang isang beses, saka bumalik.",
       "noCertificate": "Para makapagbahagi sa malapit, kailangang kumonekta sa internet nang isang beses ang teleponong ito habang naka-on ang Ibahagi sa malapit sa iyong organisasyon.",
+      "limited": "Masyadong marami nang bagong telepono ang na-set up ng account na ito ngayong araw. Gagana ang Ibahagi sa malapit sa teleponong ito simula bukas.",
       "readOnly": "Hindi nakapagbabahagi sa malapit ang mga account na tumitingin lang sa mga organisasyon."
     },
     "radios": {
