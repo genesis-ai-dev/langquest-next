@@ -9,6 +9,7 @@ import { consultantCheck } from './consultant-check';
 import { createAnAccount } from './create-an-account';
 import { answerFeedback } from './answer-feedback';
 import { doACheck } from './do-a-check';
+import { editAFinishedVersion } from './edit-a-finished-version';
 import { findYourWayAround } from './find-your-way-around';
 import { howLangQuestWorks } from './how-langquest-works';
 import { thePathOfAPassage } from './the-path-of-a-passage';
@@ -64,7 +65,8 @@ export const GROUPS: { who: Who; videos: Tutorial[] }[] = [
   { who: 'leads', videos: [setUpTheReviewChecks, askSomeone, moveAPassageAlong, chooseReferenceMaterial, chooseAContentTemplate, divideBooksIntoPassages, followALanguage, writeAStudyGuide] },
   {
     who: 'translators',
-    videos: [studyAPassage, recordAPassage, hearMoveDeleteParts, giveEachPartItsVerse, finishAndAskForACheck, answerFeedback, keyWords, readBiblesBesideAPassage, versionsAndHistory, somethingElse]
+    videos: [studyAPassage, recordAPassage, hearMoveDeleteParts, giveEachPartItsVerse, finishAndAskForACheck, answerFeedback, keyWords, readBiblesBesideAPassage, versionsAndHistory, editAFinishedVersion,
+      somethingElse]
   },
   { who: 'reviewers', videos: [doACheck, backTranslateAPassage, consultantCheck, takeBackAReview] },
   { who: 'followers', videos: [lookAroundWithoutAnAccount, followProgressAsAViewer, reportsOnTheWeb, bringInYourOwnMaterial, readAnyOrganization] }
