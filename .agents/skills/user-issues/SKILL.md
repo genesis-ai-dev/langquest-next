@@ -446,7 +446,8 @@ the rules below hold for them too.
   `.claude/`, `AGENTS.md`, `CLAUDE.md`, or the watch's own scripts: the
   workflow refuses a change that does, and the issue gets no fix. No new
   dependencies.
-- **Keep the repository's rules** (`AGENTS.md`): what may import what, where
+- **Keep the repository's rules** (`AGENTS.md`, `CONTRIBUTING.md`, and the
+  README or `AGENTS.md` of the folder you change): what may import what, where
   a file belongs and what it is named, 48pt touch targets, no explanatory
   text in the app, every string in all app languages. A change that needs a
   migration gets a new one with a fresh 14-digit version.

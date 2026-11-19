@@ -1,5 +1,7 @@
 # Bringing LangQuest v2 into this app, and keeping it coming
 
+Kind: reference
+
 Status: accepted, 2026-10-12 (Caleb Koster), decision 94. Caleb chose 1a–4a,
 6a and 7a; written work (5) waits on written translations in Next.
 
