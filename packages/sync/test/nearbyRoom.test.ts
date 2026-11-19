@@ -1,6 +1,6 @@
 import { base64urlEncode, concatBytes, utf8Encode } from '@langquest-next/core/nearby';
 import { channelKeysOf } from '../src/nearbyOpening';
-import { ALONE_TAG } from '../src/nearbyRoom';
+import { ALONE_TAG, NEARBY_ROOM_DEFAULTS } from '../src/nearbyRoom';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256, fakeSigner, memoryNearbyAir, type MemoryFiles, type MemoryNearbyAir } from '../src/testing/memoryNearbyLink';
 import type { EventStore } from '../src/types';
@@ -362,6 +362,27 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
       const ids = await idsOf(x!.phone.store);
       expect(ids.length).toBe(3);
       for (const r of all) expect(await idsOf(r.phone.store)).toEqual(ids);
+    });
+
+    // Why: two iPhones hear only each other's bare adverts, and no echo can ever come from an
+    // iPhone, so waiting the full minute for one only delayed Connect; in the first real-phone
+    // test (Carl, 2026-11-19) people gave up before it showed.
+    it('an iPhone offers a tap for another iPhone after a short while, since no echo can come from one', async () => {
+      const [x, y] = await rooms(2, [IPHONE, IPHONE]);
+      const from = time.now();
+      await until([x!, y!], () => maybeOf(x!) !== undefined);
+      const after = time.now() - from;
+      expect(NEARBY_ROOM_DEFAULTS.tapAfterAloneMs).toBeLessThan(NEARBY_ROOM_DEFAULTS.tapAfterMs);
+      expect(after).toBeGreaterThanOrEqual(NEARBY_ROOM_DEFAULTS.tapAfterAloneMs);
+      expect(after).toBeLessThan(NEARBY_ROOM_DEFAULTS.tapAfterAloneMs + 8_000);
+    });
+
+    it('an iPhone still waits the full while for an Android, whose echo may yet come', async () => {
+      const [android, iphone] = await rooms(2, [{ knobs: { noAdvertAlone: true } }, IPHONE]);
+      await unit(android!.phone, 'a1');
+      const from = time.now();
+      await until([android!, iphone!], () => maybeOf(iphone!) !== undefined);
+      expect(time.now() - from).toBeGreaterThanOrEqual(NEARBY_ROOM_DEFAULTS.tapAfterMs);
     });
 
     it('of two iPhones that both tapped, the lower salt connects', async () => {
