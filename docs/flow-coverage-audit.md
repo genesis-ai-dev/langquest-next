@@ -1,5 +1,7 @@
 # Flow coverage audit and gap architecture
 
+Kind: report
+
 Implementation update: 2026-09-17. Section 6 records the current status.
 The names below predate decision 63: partitions and lanes are now an
 organization's languages, each its own stream (`docs/streams-and-languages.md`).

@@ -1,5 +1,7 @@
 # Which language each v2 project really is
 
+Kind: reference
+
 LangQuest v2 asked people for their project's "target language". Many didn't
 see that it meant the language they translate into. They picked English (or
 made their own copy of English, or picked their country's national language)

@@ -1,5 +1,7 @@
 # Breaking up the Bible
 
+Kind: plan · Status: in progress: decision 74 built the first part, below.
+
 How a language's Bible is set up, so translators know exactly what they
 translate: first its numbering, then how each book is divided into sections.
 Agreed with Caleb on 2026-10-09 (decision 80). Decision 74 built the first

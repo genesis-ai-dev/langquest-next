@@ -1,6 +1,8 @@
 # Simple redesign: what changes in the app
 
-**Status: agreed with Caleb 2026-10-07; mostly built 2026-10-08 (below).** The specification is the partner demo's proposed ADR-032 to 040
+Kind: plan · Status: in progress: agreed with Caleb 2026-10-07; mostly built 2026-10-08 (below).
+
+The specification is the partner demo's proposed ADR-032 to 040
 and requirements SIMPLE-1 to 16 (`ng-langquest-ux`, branch
 `caleb-simple-translator`, open the demo with `?simple=<screen>`). The
 before/after page with every screen is
