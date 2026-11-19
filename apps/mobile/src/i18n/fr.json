@@ -6345,6 +6345,7 @@
       "couldNotRead": "Impossible de lire le rapport",
       "notVisible": "Cette langue n’a pas de rapport que vous pouvez voir",
       "notVisibleBody": "Votre rôle ne comprend peut-être pas cette langue, ou elle a été ajoutée après le chargement des rapports (mettez à jour depuis Rapports pour vérifier).",
+      "template": "Modèle : <b>{{template}}</b>",
       "reviewFlow": "Circuit de révision : <b>{{flow}}</b>",
       "bottleneck": "Point de blocage : <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{count, number}} à l’étape {{step}}",
