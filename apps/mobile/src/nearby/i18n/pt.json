@@ -20,6 +20,7 @@
       "noWifiDirect": "Este celular não tem Wi-Fi Direct, e o Compartilhar por perto precisa dele.",
       "noKey": "Este celular ainda não está pronto para compartilhar. Conecte-se à internet uma vez e depois volte.",
       "noCertificate": "Para compartilhar por perto, este celular precisa se conectar à internet uma vez enquanto a sua organização estiver com o Compartilhar por perto ligado.",
+      "limited": "Esta conta configurou celulares novos demais hoje. O Compartilhar por perto vai funcionar neste celular a partir de amanhã.",
       "readOnly": "Contas que só visualizam organizações não compartilham por perto."
     },
     "radios": {
