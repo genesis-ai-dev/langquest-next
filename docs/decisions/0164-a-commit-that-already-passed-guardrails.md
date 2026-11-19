@@ -62,3 +62,29 @@ runs every job again); pull requests miss main's caches after a key
 change (then `warm-caches` is not filling them); or a browser job fails
 because both ECR and `ghcr.io` refused its pulls (then the browser jobs
 restore the image cache again, loading it in the background).
+
+Amended (2026-11-19, Carl Sauder): the pre-push hook does not run its
+checks again on files that `npm run guardrails` just passed. Carl asked
+(2026-11-19) which of the runs in a fix's way to main could be skipped. An
+agent ran `npm run guardrails` and then pushed, and the hook ran its
+typecheck, lint, unit suite and bundle check on the same files again: 184
+seconds measured here (the hook said "about 15 s"), on every push, and
+guardrails' `checks` level holds all four. When those checks pass on a run
+that began and ended with nothing uncommitted or untracked on the same tree,
+`scripts/guardrails-passed.mjs` records the tree in the worktree's git
+folder; the hook reads what git is pushing and skips when every commit
+pushed has that tree, and runs as before otherwise, or on any error. The
+tree, not the commit, because the same files give the same results (an
+amended message changes nothing tested), and the unit suite reads nothing
+else that a push changes. `scripts/guardrailsPassed.test.ts` holds that the
+hook checks nothing guardrails does not. The other runs stay. The pull
+request run is the one check main requires and the only test of the change
+merged with main. Of the last 30 merge queue entries, 11 took the pull
+request's run; about 12 ran because main had moved, which is what the queue
+is for; about 4 ran only because that run was over an hour old, which the
+limit above keeps for the store builds read from EAS. All of the last 30
+pushes to main ran no tests.
+Reverse if: a push the hook skipped fails `checks`, `unit` or `coverage` in
+its pull request's run where the same commit's guardrails passed and main
+had not moved (then something outside the tree decides a result, and the
+hook runs every time again).

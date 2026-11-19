@@ -118,12 +118,16 @@ Before pushing:
    branch started: `git fetch origin main && git log --oneline HEAD..origin/main
    -- .github .githooks vitest.config.ts e2e scripts/*.test.ts`. A new rule
    or a raised limit there is often why a check fails.
-2. Merge `origin/main`, then run `npm run guardrails` (add `--web` when the
-   change touches the app's code or dependencies, `--all` when it touches the
-   server, sync or a screen a `@p0` test covers). It says when the branch is
-   behind `main`.
+2. Merge `origin/main` and commit, then run `npm run guardrails` (add `--web`
+   when the change touches the app's code or dependencies, `--all` when it
+   touches the server, sync or a screen a `@p0` test covers). It says when
+   the branch is behind `main`.
 3. Push without `--no-verify`. The git hooks in `.githooks` (enabled by
-   `npm install`) rebuild the worker bundle and run the fast checks.
+   `npm install`) rebuild the worker bundle and run the fast checks. When
+   step 2 passed with nothing uncommitted or untracked and the push sends
+   that commit's files, the pre-push hook says so and does not run them
+   again (`scripts/guardrails-passed.mjs`); commit after step 2 and it runs
+   them.
 
 Things parallel branches collide on, which only show on the merge with
 `main`: a migration's 14-digit version (`scripts/migrations.test.ts`), the

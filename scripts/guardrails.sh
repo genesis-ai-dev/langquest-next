@@ -14,6 +14,10 @@
 #
 # CI tests the pull request merged with main, not the branch alone, so this
 # first says when origin/main has commits the branch does not.
+#
+# Run it on committed work: when the checks pass and nothing was uncommitted
+# or untracked, the pre-push hook does not run them again on a push of that
+# commit (decisions.md 164, amended 2026-11-19).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -26,6 +30,11 @@ case "${1:-}" in
 esac
 
 step() { printf '\n== %s\n' "$1"; }
+
+# The tree these checks run on, when nothing is uncommitted or untracked:
+# when they pass, it is recorded, and the pre-push hook skips the same checks
+# on a commit with this tree (scripts/guardrails-passed.mjs). Empty otherwise.
+before=$(node scripts/guardrails-passed.mjs state 2>/dev/null || true)
 
 step "Is the branch up to date with main?"
 if git fetch -q origin main 2>/dev/null; then
@@ -73,6 +82,9 @@ if ! git diff --quiet -- supabase/functions; then
   exit 1
 fi
 echo "yes"
+
+# Everything the pre-push hook checks has passed on this tree.
+node scripts/guardrails-passed.mjs record "$before" || true
 
 [ "$level" = checks ] && { printf '\nchecks: passed\n'; exit 0; }
 
