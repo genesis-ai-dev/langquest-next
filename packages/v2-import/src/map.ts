@@ -1,6 +1,6 @@
-import { CUSTOM_FLOW, ORG_STREAM, parseRef, refId, templateUnits, type Card, type Role, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
-import type { Fact, Said } from './reconcile';
-import { bucketName, isoTime, metadataOf, type V2Asset, type V2ProjectRows, type V2Quest } from './rows';
+import { CUSTOM_FLOW, ORG_STREAM, parseRef, refId, templateUnits, type Card, type EventPayloads, type Role, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { comparedOf, type Fact, type Said, type Statement } from './reconcile';
+import { bucketName, isoTime, metadataOf, recordedInApp, type V2Asset, type V2ProjectRows, type V2Quest } from './rows';
 
 /**
  * One v2 project as facts (docs/v2-import.md section 4): what it says now,
@@ -154,6 +154,21 @@ const newest = (a: string | null | undefined, b: string | null | undefined): str
   return x && y ? (y > x ? y : x) : x ?? y;
 };
 
+/**
+ * Cards as the import said them until 2026-11-16, when only a WAV card named its file type. A card
+ * that names none is WAV to every reader (`referencedBlobs`), so phones asked R2 for a WAV the
+ * import never put there. Facts that carry cards are compared by these, so naming M4A says no
+ * recording again: one said before keeps its WAV name, which the nightly reconciler fills from the
+ * M4A (`repairFormats`), and a change in its parts says it again with the file type.
+ */
+const asFirstSaid = (cards: readonly Card[]): Card[] => cards.map(({ format, ...card }) => (format === 'wav' ? { ...card, format } : card));
+/** A recording fact's `value`: its first statement, its cards `asFirstSaid`. */
+const recordingCompared = (said: Said[]): unknown => comparedOf(said.map((s): Said => {
+  if (s.type !== 'v1.RecordingAdded') return s;
+  const payload = s.payload as EventPayloads['v1.RecordingAdded'];
+  return { ...s, payload: { ...payload, cards: asFirstSaid(payload.cards) } };
+}));
+
 export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   const languageId = ctx.languageId ?? rows.project.id;
   const report: MapReport = {
@@ -224,7 +239,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
       for (const raw of c.audio ?? []) {
         const name = bucketName(raw);
         const file = name ? ctx.files.get(name) : undefined;
-        if (file) cards.push({ hash: file.hash, durationMs: file.durationMs, ...(file.format === 'wav' ? { format: 'wav' as const } : {}) });
+        if (file) cards.push({ hash: file.hash, durationMs: file.durationMs, format: file.format });
         else if (name && ctx.now - since < (ctx.waitMs ?? WAIT_MS)) waiting = true;
         else lost.push(raw);
       }
@@ -243,7 +258,9 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
    * When v2's server got a part's files (decisions.md 188): each file's
    * segment (`segment:<hash>`, its `uploaded_at`) and its audio
    * (`file:<hash>`, `audio_uploaded_at`), the earliest where two segments
-   * name one file; null where v2 has no stamp.
+   * name one file; null where v2 has no stamp. A file that v2's app did
+   * not record (an upload) also has `upload:<hash>`, so the API can tell it
+   * from a recording.
    */
   const fileStamps = (a: V2Asset) => (): Record<string, string | null> => {
     const out: Record<string, string | null> = {};
@@ -253,6 +270,8 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         if (!file) continue;
         out[`segment:${file.hash}`] = earliest(out[`segment:${file.hash}`], c.uploaded_at);
         out[`file:${file.hash}`] = earliest(out[`file:${file.hash}`], c.audio_uploaded_at);
+        // The uploader set the asset's created_at, so it stands in when the segment has no stamp.
+        if (!recordedInApp(raw)) out[`upload:${file.hash}`] = earliest(out[`upload:${file.hash}`], c.uploaded_at ?? a.created_at);
       }
     }
     return out;
@@ -385,17 +404,17 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         parts.push({ a, cards: r.cards });
         recorded.add(v2Actor(a.creator_id));
         const verse = verses.get(a.id) ?? null;
+        const say = (s: Statement): Said[] => [
+          { type: 'v1.RecordingAdded', payload: { recordingId: `rec:${a.id}:${q.id}#${s.n}`, unitId, kind: 'target', cards: r.cards } },
+          // Which verses it holds, when v2 says: the first card is set to them and the rest join it.
+          ...(verse ? r.cards.map((c, i): Said => ({
+            type: 'v1.CardVerseSet',
+            payload: i === 0 ? { unitId, hash: c.hash, mark: 'set', from: verse.from, to: verse.to } : { unitId, hash: c.hash, mark: 'join' }
+          })) : [])
+        ];
         facts.push({
           key: `rec:${q.id}:${a.id}`, streamId: languageId, actorId: actor(a.creator_id), at: at(a.created_at), unsay: 'redact', hold: r.waiting,
-          stamps: fileStamps(a),
-          say: (s) => [
-            { type: 'v1.RecordingAdded', payload: { recordingId: `rec:${a.id}:${q.id}#${s.n}`, unitId, kind: 'target', cards: r.cards } },
-            // Which verses it holds, when v2 says: the first card is set to them and the rest join it.
-            ...(verse ? r.cards.map((c, i): Said => ({
-              type: 'v1.CardVerseSet',
-              payload: i === 0 ? { unitId, hash: c.hash, mark: 'set', from: verse.from, to: verse.to } : { unitId, hash: c.hash, mark: 'join' }
-            })) : [])
-          ]
+          stamps: fileStamps(a), value: recordingCompared(say({ n: 0, lastSaid: null })), say
         });
         report.recordings += 1;
       }
@@ -490,10 +509,10 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
           continue;
         }
         recorded.add(v2Actor(t.creator_id));
+        const say = (s: Statement): Said[] => [{ type: 'v1.RecordingAdded', payload: { recordingId: `rec:${t.id}#${s.n}`, unitId: passage, kind: 'target', cards: r.cards } }];
         facts.push({
           key: `rec:${t.id}`, streamId: languageId, actorId: actor(t.creator_id), at: at(t.created_at), unsay: 'redact', hold: r.waiting,
-          stamps: fileStamps(t),
-          say: (s) => [{ type: 'v1.RecordingAdded', payload: { recordingId: `rec:${t.id}#${s.n}`, unitId: passage, kind: 'target', cards: r.cards } }]
+          stamps: fileStamps(t), value: recordingCompared(say({ n: 0, lastSaid: null })), say
         });
         facts.push(takeFact(`take:${t.id}`, passage, r.cards.map((c) => c.hash), actor(t.creator_id), at(t.created_at), r.waiting));
         report.recordings += 1;
@@ -613,7 +632,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
 
   function backTranslationFact(key: string, takeKey: string, actorId: string, when: string, cards: Card[], text: string, hold: boolean): Fact {
     return {
-      key, streamId: languageId, actorId, at: when, unsay: 'redact', hold, value: { cards, text },
+      key, streamId: languageId, actorId, at: when, unsay: 'redact', hold, value: { cards: asFirstSaid(cards), text },
       say: (s, look) => {
         const take = look(takeKey);
         if (!take?.lastSaid) return [];

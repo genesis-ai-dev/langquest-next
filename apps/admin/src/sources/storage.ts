@@ -140,11 +140,13 @@ export function storageAlerts(s: Storage, now = Date.now()): Alert[] {
   const out: Alert[] = [];
   if (s.backups && !s.backups.error) {
     const hours = s.backups.latest ? (now - Date.parse(s.backups.latest)) / 3_600_000 : null;
-    if (!s.backups.pitr && (hours === null || hours > 36)) out.push({ level: 'urgent', text: `The database's latest backup is ${hours === null ? 'missing' : `${Math.round(hours)} hours old`}, and point-in-time recovery is off.` });
+    if (!s.backups.pitr && (hours === null || hours > 36)) out.push({ level: 'urgent', key: 'backup-old', text: `The database's latest backup is ${hours === null ? 'missing' : `${Math.round(hours)} hours old`}, and point-in-time recovery is off.` });
   }
-  if (s.reconcile && num(s.reconcile.n.missing) > 0) out.push({ level: 'urgent', text: `The R2 reconciliation found ${plural(num(s.reconcile.n.missing), 'recording')} the log names but R2 does not have.` });
+  if (s.reconcile && num(s.reconcile.n.missing) > 0) out.push({ level: 'urgent', key: 'r2-missing', text: `The R2 reconciliation found ${plural(num(s.reconcile.n.missing), 'recording')} the log names but R2 does not have.` });
+  // Copied files are safe, but something uploads or imports recordings under the wrong file type.
+  if (s.reconcile && num(s.reconcile.n.repaired) > 0) out.push({ level: 'watch', key: 'r2-repaired', text: `The R2 reconciliation copied ${plural(num(s.reconcile.n.repaired), 'recording')} to the file type the log names: something saved ${num(s.reconcile.n.repaired) === 1 ? 'it' : 'them'} under another type.` });
   const lost = s.lostFiles.slice(-1)[0];
-  if (lost && lost.installs >= 3) out.push({ level: 'watch', text: `${plural(lost.installs, 'install')} reported files lost behind the app's back on ${lost.day} (decision 92).` });
+  if (lost && lost.installs >= 3) out.push({ level: 'watch', key: 'files-lost', text: `${plural(lost.installs, 'install')} reported files lost behind the app's back on ${lost.day} (decision 92).` });
   return out;
 }
 
@@ -197,14 +199,14 @@ export function capacityAlerts(c: Capacity): Alert[] {
   const out: Alert[] = [];
   const gb = (n: number) => Math.round(n / 1024 ** 3);
   if (c.now && c.now.dbBytes >= c.limitBytes * DB_FULL_SHARE) {
-    out.push({ level: 'problem', text: `The database (${gb(c.now.dbBytes)} GB) fills ${Math.round((c.now.dbBytes / c.limitBytes) * 100)}% of its ${gb(c.limitBytes)} GB disk: Supabase grows the disk past 90%, at most once every 6 hours, and a disk that fills first leaves the database read-only.` });
-  } else if (c.weeksLeft !== null && c.weeksLeft < 4) out.push({ level: 'problem', text: `At this rate the database fills its ${gb(c.limitBytes)} GB disk in ${Math.max(0, Math.round(c.weeksLeft))} weeks.` });
-  else if (c.weeksLeft !== null && c.weeksLeft < 12) out.push({ level: 'watch', text: `At this rate the database fills its ${gb(c.limitBytes)} GB disk in about ${Math.round(c.weeksLeft)} weeks.` });
+    out.push({ level: 'problem', key: 'db-disk-full', text: `The database (${gb(c.now.dbBytes)} GB) fills ${Math.round((c.now.dbBytes / c.limitBytes) * 100)}% of its ${gb(c.limitBytes)} GB disk: Supabase grows the disk past 90%, at most once every 6 hours, and a disk that fills first leaves the database read-only.` });
+  } else if (c.weeksLeft !== null && c.weeksLeft < 4) out.push({ level: 'problem', key: 'db-disk-weeks', text: `At this rate the database fills its ${gb(c.limitBytes)} GB disk in ${Math.max(0, Math.round(c.weeksLeft))} weeks.` });
+  else if (c.weeksLeft !== null && c.weeksLeft < 12) out.push({ level: 'watch', key: 'db-disk-weeks', text: `At this rate the database fills its ${gb(c.limitBytes)} GB disk in about ${Math.round(c.weeksLeft)} weeks.` });
   const u = c.usage;
   if (u && !u.error) {
     for (const [key, label] of [['workersRequests', 'Workers requests'], ['doRequests', 'Durable Object requests'], ['r2ClassA', 'R2 class A operations'], ['r2ClassB', 'R2 class B operations']] as const) {
       const cost = extraUsd(u[key], u.allowance[key], PRICE_USD[key]);
-      if (cost >= COST_WATCH_USD) out.push({ level: 'watch', text: `${label} this month (${u[key].toLocaleString('en')}) are past what the plan includes (${u.allowance[key].toLocaleString('en')}); the rest is billed, ${usd(cost)} so far.` });
+      if (cost >= COST_WATCH_USD) out.push({ level: 'watch', key: 'usage-billed', subject: label, text: `${label} this month (${u[key].toLocaleString('en')}) are past what the plan includes (${u.allowance[key].toLocaleString('en')}); the rest is billed, ${usd(cost)} so far.` });
     }
   }
   return out;

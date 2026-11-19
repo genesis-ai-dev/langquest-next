@@ -17,7 +17,7 @@ import type { Scenario } from './types';
 export const reducerBump: Scenario = {
   name: 'reducerBump',
   summary: 'Every phone cold-starts through the server snapshot while the team keeps working.',
-  defaults: { seed: 1, passages: 600, translators: 8, reviewers: 5, historyDays: 3, slowShare: 0.3, slowKBps: 20, snapshotEveryMin: 5, snapshotMinNew: 200, snapshotMaxAgeMin: 60, snapshotRetainHours: 24, chunkKB: 256, keepStore: 1 },
+  defaults: { seed: 1, passages: 600, translators: 8, reviewers: 5, historyDays: 3, slowShare: 0.3, slowKBps: 20, snapshotEveryMin: 5, snapshotMinNew: 200, snapshotMaxAgeMin: 60, snapshotRetainHours: 6, chunkKB: 256, keepStore: 1 },
   async run(k) {
     const started = performance.now();
     const slow = { ...NETWORKS.slow, bytesPerSecond: k.slowKBps! * 1000 };

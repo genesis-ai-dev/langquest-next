@@ -1,9 +1,12 @@
 # Plan: the operations dashboard at next.langquest.org/ops-dashboard
 
-Status: phases 1 to 4 built on `carl/ops-dashboard`; four choices settled · Carl Sauder · 2026-10-21
+Status: phases 1 to 4 built and on `main` since 2026-10-23 (pull request 204, decisions 160
+to 162), and phase 5's history, pages and cards, 5a to 5h, since 2026-11-17 and
+2026-11-18 (section 7), except 5d, `OpsWatch`, which tells people and is not built. How the dashboard works now
+is `docs/admin.md` · Carl Sauder · 2026-10-21
 
-Written against `origin/main` at `683289d9` (decision 149 is the latest on
-`main`). Nothing here is built yet. Section 9 says what is settled and what is open.
+Written against `origin/main` at `683289d9` (decision 149 was then the latest on
+`main`), before any of it was built. Section 9 says what was settled and what was open.
 
 ## 1. What we are building
 
@@ -162,6 +165,98 @@ one new migration per phase. Almost all of it reads what is recorded
 already; the few things that must be recorded first say so, and none of
 them is collected from people or their phones.
 
+### 5.0 How the page shows it (2026-11-17)
+
+Caleb picked the start page "What needs you first" on 2026-11-17 (decisions.md
+254), with three conditions: every other number stays reachable for 14 days
+and more, any square, bar or point opens the technical detail behind it, and
+the pictures keep working at tens of thousands of people and over years. On
+2026-11-18 he asked for the layout of the prayer-robin console: a menu of
+sections on the left with a count and a dot for each, and the first page as
+an Overview of rows, eight numbers, a map of the parts, two charts and the
+newest merges (`docs/decisions/2026-11-18-ops-dashboard-menu-and-overview.md`).
+The cards below are now rows, and the menu took the place of the OK lines. So:
+
+- **The start page** (built, 5b) shows a count of what needs a person and one
+  card for each part whose alerts need a person: its most urgent alert leads,
+  with its section's 14-day picture, a "Next:" line and its actions; 3 more
+  follow and the rest are counted, so 30 new error kinds stay one card. Beside
+  them: Claude works on it (open issues the watch filed), Waits on Apple or
+  Google (builds in review), and Watch, one line for each part's alerts to
+  watch. Every section with no alert is one OK line with its 14-day picture
+  (`GET /ops/api/glance`, decisions.md 255). The levels in 5.1 stay.
+- **A section** (`#g/<section>`) opens from its card or its OK line, with a
+  chart for each number of each part and a range: 24 h, 14 days, 90 days,
+  1 year, All (by hour, day, day, week, month), then every table it had.
+  A count is bars; a level is a line with points. Each number's top keys are
+  buttons that show one key. All sections (`#all`) is the page as before.
+- **A tap on a bar or point** (or arrow keys and Enter) opens a panel: that
+  bucket's number for each key, then the records behind it, 50 at a time,
+  read from the raw records inside 90 days and as totals past that
+  (`GET /ops/api/<part>/detail`, decisions.md 255). Each record shows its
+  install with Look up, its codes and numbers, and its stack.
+- **Scale**: a thing with a fixed count (suites, jobs, videos, stores,
+  Workers) keeps one square each; a thing that grows with people (phones,
+  browsers, people, organizations) becomes a share, one square 1% past 200;
+  events become counts per bucket; a list shows its top 10, then Show all, a
+  table the server pages. The start page never draws a mark for each person
+  or install. The two reads that grow with phones ("What installs
+  report", "Builds in the field") are counted by the database every 10
+  minutes, and the page reads that count (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md).
+- **A square for each job run** (built, 5c1): Jobs and pg_cron show a row of
+  squares for each job, one square for each bucket: red with an x when a run
+  failed, amber with a dot when a run did part of its work, green when it
+  ran, an outline when it did not run, dashed when the bucket is not counted
+  yet. Jobs with a failure lead. The card shows the last 24 h, led by the
+  job its alert names, 6 rows at most; the section shows the chosen range. A
+  tap on a red square opens that bucket's failed runs, on an amber square its
+  partial runs. The rows come from the same totals as the charts, so a job
+  that runs every minute for a year is still one row of buckets.
+- **A square for each item of a fixed list** (built, 5c2): nightly suites,
+  EAS builds, submissions and updates, v2 projects, user issues, feedback,
+  YouTube channels, what came in about the videos, and the videos (a row
+  for each app language, a column for each video) each draw a square for
+  each item, from the data the part already read: red with an x when it
+  failed, amber with a dot when it waits, purple with a ring when it runs,
+  green when done, grey when there is nothing to do. The squares lead the
+  part, and the card when the part has an alert. A tap opens the item: its
+  fields and its page (Linear, GitHub, EAS, YouTube). A row past 200 items
+  (feedback, issues and v2 projects grow with people) draws 100 squares of
+  1% each, and a state with any item keeps a square; a tap on one lists
+  its items, 50 at a time. The nightly R2 check is blob_reconcile's row of
+  the job squares, a square a night for 14 nights.
+- **Lanes and lines** (built, 5c3): from the data each part already read.
+  Store builds and updates draw a lane for each platform, a dot for each
+  stage with its build above; Code and deploys draws main and what the web
+  host serves on a track (red when the host is behind main with a change
+  for the web app), and a square for each workflow on main; App Store draws
+  a square for each version and build; What shipped draws errors a day as a
+  line, an x on a day with a crash and a tick on a day with a merge, a
+  deploy or an update; Expiry dates draws each key as a dot on a line of
+  days left, with the 7- and 30-day zones of its alerts. A tap on a dot, a
+  square or a day opens its fields. On a card a picture fits about 200 px
+  at full size.
+- **Meters and shares** (built, 5c4): a thing with a limit draws a bar
+  filled as far as it is used, red or amber exactly when its alert is
+  (the database disk and Cloudflare's plan, connections and the slowest
+  calls, Google's crash and ANR lines, the rate limits, the oldest open
+  report, the largest tables, each Worker's requests). What grows with
+  people draws one bar split by share, each part as wide as its count and
+  at least a tap wide (syncs by how they ended, each route's requests by
+  time, installs by update, accounts by when they were last active), so the
+  bar keeps its size at any count. The Supabase project draws a square for
+  each service. A tap on a bar or a part opens its fields.
+- **Pictures first** (built with 5c4): in a section, each part's tables wait
+  behind one tap ("Show the numbers"), so a section reads as its charts and
+  pictures. A part that nothing draws (no picture, no line over time) keeps
+  its table open, and so does a part that holds a queue for a person (Grant,
+  Accept, Send to Claude, Add a note, Connect or Publish, Seen or Done), so an
+  answer never waits behind a tap. An opened part stays open when the page
+  refreshes.
+- **History** comes from totals by hour and day, never from raw records
+  (section 7, phase 5): `diag.hourly`, `diag.daily` and `diag.monthly`, read by
+  `GET /ops/api/<part>?range=`, built first (`docs/admin.md`, History).
+
 ### 5.1 Needs attention (built, extended)
 
 The alerts from every section, problems first. New: each alert links to the
@@ -187,9 +282,34 @@ New:
 - **Silent phones**: installs that were active and have not been heard from
   in 3 days while their person's events still arrive from elsewhere
   (diagnostics off, or delivery broken).
+- **Snapshot copies** (Sync and data safety): how many copies exist per
+  reducer version and for the languages holding the most
+  (`diag.ops_snapshot_copies`, decisions.md 88, 204).
 - **Time to a usable Map**: a language's first full download (`open` and
   `fill` records, decision 147), p50 and p95 per day, by language size. It
-  is the slowest moment a new person has.
+  is the slowest moment a new person has. Three rules
+  (migration `20261118234300_first_download_wait.sql`):
+  - An `open` record is a first download only when the phone had no rows of
+    that language (`cold` yes) and the stream is a language
+    (`diag.first_download`). A phone writes an `open` record for every open
+    of a language or of the organization.
+  - An `open` record's `ms` runs from the open to the first full sync, so it
+    holds the time the phone waited with no connection and the download
+    together. The wait is the `offlineMs` of that phone's `sync` records of
+    the stream during the open (`diag.open_wait_ms`); the download time is
+    `ms` less the wait. The dashboard shows the two apart (columns Waited and
+    Longest wait, numbers `first_download_waits` and
+    `first_download_wait_max_ms`), and the line "first downloads of a
+    language took over 15 minutes" reads the download time only, with counts
+    ("2 of 8"). No record is changed or left out.
+  - "First downloads of a language" counts each first download once, by its
+    `open` record. A big language also writes a `fill` record, which gives
+    the time to its Map but is not a second download.
+- **Phones by build**: installs reporting per platform and app version, over
+  a day, 7 days and 14 days, with the reducers they run.
+- **First downloads that fell back or started over**: `fill` records with
+  `fallback` or `restart`, and a language's `snapshot` records with `none`,
+  per day by reason, with how many installs (decisions.md 147, 204).
 - **Version drift**: reducer and protocol versions in the field against the
   server's, and browsers still running an older web commit than
   `version.json` (on the web the runtime version is the commit).
@@ -424,6 +544,18 @@ changes an organization stay in the CLIs, run on a call.
 | 3 | New reads: the extensions in 5.2 to 5.7 and sections 5.10 to 5.13, with one migration of `diag` functions; `/ops/api/attention`. The few things recorded first land here too: the projection pass's upload-delay and clock-skew numbers, the fold canary, the request tally's duration buckets and `rate_limited` classes, and `account_delete` runs. Several pull requests, one per group, so each can be reviewed alone | phase 1 |
 | 4 | Actions (section 6) and `ops.actions` | phase 2, its decision |
 | 5 | History and telling people: a daily rollup (`diag.daily`, by pg_cron) for trends past 7 days, and the `OpsWatch` Durable Object (section 11.4), which sends a problem to Slack or Linear when it stays for 15 minutes | phase 3 |
+| 5a | **Built (2026-11-17)**: totals by hour (`diag.hourly`, 14 days), by day (`diag.daily`, all time) and by month (`diag.monthly`, for All), filled every 10 minutes by pg_cron (`langquest-daily-totals`), and `GET /ops/api/<part>?range=24h\|14d\|90d\|1y\|all` (decisions.md 254) | phase 3 |
+| 5b | **Built (2026-11-17)**: the start page "What needs you first" (5.0), each section's charts over a range, and the detail panel for a bucket (`/ops/api/<part>/detail`, raw records, 90 days at most; `/ops/api/glance`) (decisions.md 255) | 5a merged |
+| 5b2 | **Built (2026-11-17)**: speed at 40,000 installs: "What installs report" and "Builds in the field" counted every 10 minutes by pg_cron (`langquest-ops-counts`) from each kind's index and two small tables for each install, read by the page in 1 to 25 ms (docs/decisions/2026-11-17-ops-phone-counts-every-10-minutes.md) | 5b merged |
+| 5c1 | **Built (2026-11-17)**: a square for each job run, in Jobs and pg_cron, on the card (24 h) and in the section (the range); a tap on a failed or partial square opens those runs (5.0) | 5b2 merged |
+| 5c2 | **Built (2026-11-17)**: a square for each item of a fixed list: nightly suites, EAS builds, submissions and updates, v2 projects, user issues, feedback, channels, videos, what came in about the videos, and the nightly R2 check; a tap opens the item (5.0) | 5c1 merged |
+| 5c3 | **Built (2026-11-17)**: lanes and lines: store builds, App Store, code and deploys, what shipped, expiry dates; a tap opens the stage, the version, the workflow, the day or the key (5.0) | 5c2 merged |
+| 5c4 | **Built (2026-11-17)**: meters and shares: capacity, database, largest tables, Google Play, limits, the report queue, Workers, routes, syncs, updates in the field, accounts, Supabase services (5.0) | 5c3 merged |
+| 5e | **Built (2026-11-18)**: the menu on the left, Nightly tests as a section, and the Overview (rows, eight numbers, the map, two charts, merged lately) (docs/decisions/2026-11-18-ops-dashboard-menu-and-overview.md) | 5c4 merged |
+| 5f | **Built (2026-11-18)**: one card format for what a person answers (`apps/admin/src/pageIssues.ts`): the User issues page as tabs and cards, and each thing for an admin on the Tutorial videos page as the same card with the talk and the box to tell Claude what to do (the same decision, amended) | 5e merged |
+| 5g | **Built (2026-11-18)**: the watch for user issues keeps Context, Issue and Solution in words for each new issue (`20261118070000_user_issue_words.sql`, decisions.md 202 amended), and the card leads with them | 5f merged |
+| 5h | **Built (2026-11-18)**: the box on a user issue's card. The watch hands what an admin writes there to Claude, which answers and can change the draft fix (`20261118073000_user_issue_notes.sql`, `docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`) | 5g merged |
+| 5d | `OpsWatch` (section 11.4) | phase 3 |
 
 Each phase is one pull request, with the guardrails green (`--web` for
 phase 1, since it touches the app Worker; `--all` for phases with a

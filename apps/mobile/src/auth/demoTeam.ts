@@ -2,7 +2,7 @@
 // The demo team for the developer menu (shell/DevMenu.tsx): seed the persona
 // accounts with their roles and some work, and sign in as one. Personas exist
 // only on a local Supabase (dev.ts `personasAvailable`).
-import { commands, membershipsOf, selectFlowSpecs, type FlowDoc } from '@langquest-next/core';
+import { newCommandId, commands, membershipsOf, selectFlowSpecs, type FlowDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { maySeedDemoTeam, PERSONAS, type Persona } from '../session/dev';
 import { ensurePersonaAccount, joinAsPersona, switchToPersona } from '../server/personas';
@@ -15,7 +15,7 @@ import type { OrgHandle } from '../sync/useOrg';
 import type { LanguageHandle } from '../sync/useLanguage';
 
 /** What the demo team is seeded into. */
-export interface DemoTarget { org: OrgHandle; language: LanguageHandle; isDev: boolean }
+export interface DemoTarget { org: OrgHandle; language: LanguageHandle; isDev: boolean; actorId: string }
 
 /** Sign in as a persona (a real sign-in). */
 export function signInAs(p: Persona): Promise<void> {
@@ -40,7 +40,7 @@ export async function adoptStandardFlow(d: DemoTarget): Promise<void> {
   const doc = (await loadDocs(orgId, [shared.latest_hash])).get(shared.latest_hash) as FlowDoc | undefined;
   const state = d.language.state;
   if (!doc || !state) throw new Error('The flow could not be read.');
-  await d.language.run(selectFlowSpecs(state, { commandId: `seed-flow:${Crypto.randomUUID()}`, itemId, docHash: shared.latest_hash, doc }));
+  await d.language.run(selectFlowSpecs(state, { commandId: newCommandId(d.actorId, `seed-flow:${Crypto.randomUUID()}`), itemId, docHash: shared.latest_hash, doc }));
 }
 
 /**
@@ -65,7 +65,7 @@ export async function seedDemoTeam(d: DemoTarget): Promise<void> {
     await joinAsPersona(p, invite.token);
     if (languageId && p.role === 'translator') {
       const c = commands(state, indexesFor(state));
-      for (const unitId of units) await d.language.run(c.ask({ commandId: `seed-ask:${Crypto.randomUUID()}`, unitId, what: 'record', profileId: id }));
+      for (const unitId of units) await d.language.run(c.ask({ commandId: newCommandId(d.actorId, `seed-ask:${Crypto.randomUUID()}`), unitId, what: 'record', profileId: id }));
     }
   }
   if (languageId && !state.flow) await adoptStandardFlow(d);

@@ -1,10 +1,10 @@
-import { HlcClock, ORG_STREAM, REDUCER_VERSION, derivePassage, emptyLanguageState, foldLanguage, type LanguageState, type OrgState } from '@langquest-next/core';
+import { HlcClock, isHlc, ORG_STREAM, REDUCER_VERSION, derivePassage, emptyLanguageState, foldLanguage, type LanguageState, type OrgState } from '@langquest-next/core';
 import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
 import { MemoryStore } from '../src/memoryStore';
 import { LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
 import { ORG_MATERIALIZER } from '../src/orgSession';
 import { FakeServer } from '../src/testing/fakeServer';
-import { EventTooLargeError, rejectCodeOf, type Transport } from '../src/types';
+import { EventTooLargeError, rejectCodeOf, type Transport, type WriteBatch } from '../src/types';
 
 /** The organization stream's fold, as the app wires it (apps/mobile useOrg). */
 const unit = (i: number | string, label = `P${i}`) =>
@@ -1048,7 +1048,7 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     const second = await b.client.sync();
     expect(second.pushed).toBe(1);
     expect(second.rejected).toBe(0);
-    expect(server.log.some((e) => e.id === 'dB-1')).toBe(true);
+    expect(server.log.some((e) => e.id === 'by:t1:dB-1')).toBe(true);
   });
 
   it('the organization stream re-queues its own refused events when the actor is re-admitted', async () => {
@@ -1079,6 +1079,24 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     expect(await coord.pendingCount()).toBe(1);
     expect((await coord.sync()).pushed).toBe(1);
     expect(Object.keys(coord.getState().languages)).toEqual(['p9']);
+  });
+
+  it.each(['123', 'x1:y:z'])('a clock of %s on the server neither stops a pull nor spoils this phone\'s clock', async (hlc) => {
+    // Why: `append_events` only strips non-digits from the wall, so any member could put these in the log, and
+    // every phone in the language then failed every pull (`123`) or saved a NaN clock (`x1:y:z`).
+    const server = new FakeServer();
+    const store = new MemoryStore();
+    const writer = new SyncClient({ orgId: 'o', streamId: 'p', actorId: 'a', deviceId: 'dA', store: new MemoryStore(), transport: server.transportFor(), clock: new HlcClock('dA', () => 5), newId: () => 'bad' });
+    await writer.load();
+    await writer.append('v1.UnitAdded', { unitId: 'u1', parentUnitId: null, kind: 'passage', label: 'P', order: 'a' });
+    await writer.sync();
+    (server.stream('o', 'p')[0] as { hlc: string }).hlc = hlc;
+    const client = new SyncClient({ orgId: 'o', streamId: 'p', actorId: 'b', deviceId: 'dB', store, transport: server.transportFor(), clock: new HlcClock('dB', () => 9), newId: () => 'mine' });
+    await client.load();
+    await client.pull();
+    expect(client.getState().units['u1']).toBeDefined();
+    await client.append('v1.UnitAdded', { unitId: 'u2', parentUnitId: null, kind: 'passage', label: 'Q', order: 'b' });
+    expect(isHlc((await store.get('by:b:mine'))?.event.hlc)).toBe(true);
   });
 
   it('a device whose clock runs ahead is re-stamped from server time and pushed again with the same ids', async () => {
@@ -1363,6 +1381,21 @@ describe('SyncClient when the server refuses this actor', () => {
 });
 
 describe('SyncClient single writer', () => {
+  it('a commit holding only empty nearby fields never reaches the store', async () => {
+    // Why: a page where every row was refused or already here must cost no transaction, or a sync loop writes on every pass.
+    const { client, store } = device(new FakeServer(), 'dA', 'lead', { t: 0 });
+    await client.load();
+    const writes = vi.spyOn(store, 'commit');
+    const stream = { orgId: 'org1', streamId: 'p1' };
+    const commit = (batch: WriteBatch) => client['commit'](batch);
+    await commit({ receive: [], dropNearby: { ...stream, ids: [] }, batches: [], dropBatches: { ...stream, keys: [] }, attests: [] });
+    expect(writes).not.toHaveBeenCalled();
+    // An attestation's drop has no list to be empty: it always says something.
+    await commit({ receive: [], dropAttests: { ...stream, upToSeq: 5 } });
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect(writes.mock.calls[0]![0]).toEqual({ dropAttests: { ...stream, upToSeq: 5 } });
+  });
+
   it('publishes a revision before the disk write and reports saving until the commit lands', async () => {
     // Why: the screen must move on the tap (next frame) and must be able to
     // say "saved locally" only when that is true.
@@ -1405,7 +1438,7 @@ describe('SyncClient single writer', () => {
       client.append('v1.UnitAdded', unit(1)),
       client.append('v1.UnitAdded', unit(2))
     ]);
-    expect(order).toEqual(['start:dA-1', 'end:dA-1', 'start:dA-2', 'end:dA-2']);
+    expect(order).toEqual(['start:by:lead:dA-1', 'end:by:lead:dA-1', 'start:by:lead:dA-2', 'end:by:lead:dA-2']);
   });
 
   it('two syncs asked for at once send a published take once, and it stays in the fold (REC-016)', async () => {

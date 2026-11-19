@@ -79,7 +79,7 @@ tags:
 - tapOn:
     id: "header-close"
 - assertVisible: "Versions and history"
-- tapOn: "Do the peer (check|review)"
+- tapOn: "(Do|Continue) the peer (check|review)"
 - extendedWaitUntil:
     visible: "Is it accurate and natural\\?"
     timeout: 30000

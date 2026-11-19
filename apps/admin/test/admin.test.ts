@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { access, forgetSignIns, viewerState } from '../src/auth';
 import { csp, page } from '../src/page';
 import { GROUPS, OPS_IDS, OWN_CALL_IDS } from '../src/pageOps';
-import { GROUP_HELP, SECTION_HELP } from '../src/pageHelp';
+import { GROUP_HELP, HELP, SECTION_HELP } from '../src/pageHelp';
 import { ok, settle } from '../src/section';
 import { handle } from '../src/index';
 import type { Env } from '../src/env';
@@ -110,7 +110,7 @@ describe('the page', () => {
     expect(policy).toContain("script-src 'nonce-n0nce'");
     expect(policy).toContain("connect-src 'self' https://example.supabase.co");
     expect(policy).toContain("frame-ancestors 'none'");
-    expect(policy).toContain('media-src blob:');
+    expect(policy).toContain("media-src 'self' blob:");
     const html = await response.text();
     expect(html).toContain('<script nonce="n0nce">');
     expect(html).not.toMatch(/ style="/);
@@ -168,6 +168,26 @@ describe('the API', () => {
     expect(sessionStorageKey('https://abc.supabase.co')).toBe('sb-abc-auth-token');
   });
 
+  it('shows first downloads that went wrong beside how long first downloads take, with hover text', async () => {
+    const html = await (await handle(new Request('https://next.langquest.org/ops-dashboard'), fullEnv)).text();
+    const table = html.indexOf('<h3>First downloads that fell back or started over</h3>');
+    expect(table).toBeGreaterThan(html.indexOf('<h3>Time to a usable Map</h3>'));
+    expect(table).toBeLessThan(html.indexOf('<h3>Stuck phones</h3>'));
+    expect(HELP['First downloads that fell back or started over']).toBeTruthy();
+    // A first download's wait for a connection has its own columns beside the download time.
+    const map = html.slice(html.indexOf('<h3>Time to a usable Map</h3>'), table);
+    for (const h of ['Waited', 'Longest wait']) { expect(map, h).toContain("h: '" + h + "'"); expect(HELP[h], h).toBeTruthy(); }
+  });
+
+  it('shows phones by build first among the builds, and snapshot copies beside the snapshots, with hover text', async () => {
+    const html = await (await handle(new Request('https://next.langquest.org/ops-dashboard'), fullEnv)).text();
+    expect(html.indexOf('<h3>Phones by build</h3>')).toBeGreaterThan(0);
+    expect(html.indexOf('<h3>Phones by build</h3>')).toBeLessThan(html.indexOf('<h3>Updates in the field, 14 days</h3>'));
+    expect(html.indexOf('<h3>Snapshot copies</h3>')).toBeGreaterThan(html.indexOf('<h3>Snapshots</h3>'));
+    expect(html.indexOf('<h3>Snapshot copies</h3>')).toBeLessThan(html.indexOf('<h3>Largest languages</h3>'));
+    for (const heading of ['Phones by build', 'Snapshot copies', 'Languages with the most copies']) expect(HELP[heading], heading).toBeTruthy();
+  });
+
   it('describes every section and every part, for their hover text', () => {
     for (const g of GROUPS) expect(GROUP_HELP[g.id], g.id).toBeTruthy();
     for (const part of GROUPS.flatMap((g) => g.parts)) expect(SECTION_HELP[part], part).toBeTruthy();
@@ -193,8 +213,9 @@ describe('the API', () => {
 
   it('calls only /ops/api from the page', async () => {
     const html = await (await handle(new Request('https://next.langquest.org/ops-dashboard'), fullEnv)).text();
-    // Only links to the app's public tutorial videos, opened in a tab of their own to watch, leave it (decisions.md 180).
-    expect(html).not.toMatch(/['"]\/api\/(?!tutorials\/)/);
+    // Only the app's public tutorial videos (decisions.md 180) and the pictures of what Claude suggests for them
+    // (decisions.md 186, amended 2026-11-17), shown or opened in a tab of their own, leave it.
+    expect(html).not.toMatch(/['"]\/api\/(?!tutorials\/|tutorial-pictures\/)/);
     expect(html).toContain("'/ops/api/");
   });
 

@@ -2,20 +2,50 @@ import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { SESSION_KEY, signOutHere, supabase, supabaseConfigError } from './supabase';
 import { secureStorage } from './secureStorage';
 import { signingOutByChoice } from '../session/signOutCause';
+import { tokenSubject } from '../session/tokenModel';
+import { readLocalPerson } from './localPerson';
 
 /** Where the session is kept on this device (sessionKey.ts), and why this build cannot reach a server, if it cannot. */
 export { SESSION_KEY, signOutHere, supabaseConfigError as serverConfigError };
 
-export function signInWithPassword(email: string, password: string) {
+/**
+ * Someone let in offline holds this phone (docs/nearby-sync-plan.md 14.1, 5): from the grant on,
+ * no other account may sign in here, or the local person's unsent work would wait under another
+ * account's session and their copy would be read as someone else's. Only a session for their own
+ * id goes on (first contact, or a helper's code made for them). Thrown before anything is asked.
+ */
+export class LocalPersonHere extends Error {
+  constructor() {
+    // i18n-ignore: the error's message, for diagnostics; screens say it in their own words (entry.signIn.localHere)
+    super('Someone let in offline works on this phone.');
+    this.name = 'LocalPersonHere';
+  }
+}
+
+/** The local person granted on this phone, if any: a leftover `asking` record holds nothing. */
+export async function localPersonHere(): Promise<{ profileId: string; name: string } | null> {
+  const p = await readLocalPerson();
+  return p && p.stage !== 'asking' ? { profileId: p.profileId, name: p.name } : null;
+}
+
+async function refuseUnlessLocal(subject: string | null): Promise<void> {
+  const here = await localPersonHere();
+  if (here && subject !== here.profileId) throw new LocalPersonHere();
+}
+
+export async function signInWithPassword(email: string, password: string) {
+  await refuseUnlessLocal(null);
   return supabase.auth.signInWithPassword({ email, password });
 }
 
-export function signUp(email: string, password: string) {
+export async function signUp(email: string, password: string) {
+  await refuseUnlessLocal(null);
   return supabase.auth.signUp({ email, password });
 }
 
-/** Sign in with a session made elsewhere: a v2 account, a sign-in code, an invite. */
-export function setSession(session: { access_token: string; refresh_token: string }) {
+/** Sign in with a session made elsewhere: a v2 account, a sign-in code, an invite, or first contact's for a local person. */
+export async function setSession(session: { access_token: string; refresh_token: string }) {
+  await refuseUnlessLocal(tokenSubject(session.access_token));
   return supabase.auth.setSession(session);
 }
 
@@ -44,17 +74,32 @@ export function onAuthChange(listener: (event: AuthChangeEvent, session: Session
   return () => data.subscription.unsubscribe();
 }
 
-/** A looked-after account chooses its password (it had none until now). */
+/** Set this account's password on Edit Profile: a first one for a looked-after account, or a new one. */
 export function choosePassword(password: string) {
   return supabase.auth.updateUser({ password, data: { has_password: true } });
 }
 
 /**
- * Forgot password (supabase/functions/password-reset), signed out: ask for
- * a link to be emailed, or set a new password with a link's code. A refusal
- * comes back as `error` with the reply as its context.
+ * Edit Profile's email (supabase/functions/change-email, LAN-304): add one to
+ * a looked-after account or change your own. A refusal comes back as `error`
+ * with the reply as its context.
  */
-export function passwordReset(body: { email: string; locale: string } | { code: string; password: string }) {
+export function changeEmail(email: string) {
+  return supabase.functions.invoke('change-email', { body: { email } });
+}
+
+/** Ask for a new token now, so a change the server made to the account (its email) reaches this session. */
+export function refreshSignIn() {
+  return supabase.auth.refreshSession();
+}
+
+/**
+ * Forgot password (supabase/functions/password-reset), signed out: ask for
+ * a link to be emailed, or set a new password with a link's code, and with
+ * `lost` revoke the person's nearby keys first (docs/nearby-sync-plan.md
+ * section 6). A refusal comes back as `error` with the reply as its context.
+ */
+export function passwordReset(body: { email: string; locale: string } | { code: string; password: string; lost?: boolean }) {
   return supabase.functions.invoke('password-reset', { body });
 }
 

@@ -19,7 +19,7 @@ import { t } from '../i18n';
 import { Ico, PlayGlyph } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { cardDurations } from '../recording/workspaceModel';
-import { mmss, partLabel } from '../recording/model';
+import { mmss, partLabel, totalMs } from '../recording/model';
 import { styles as ps } from '../recording/blockStyles';
 import { useClip } from '../audio/useClip';
 import { usePlayingPart } from '../audio/usePlayingPart';
@@ -33,7 +33,7 @@ import { usePartVerses } from './useVerses';
 export function VersionRecording(props: { ctx: Ctx; state: LanguageState; unitId: string; title: string; hashes: string[] }) {
   const { ctx, state, unitId, hashes } = props;
   const durations = useMemo(() => cardDurations(state, unitId), [state, unitId]);
-  const total = hashes.reduce((sum, h) => sum + (durations.get(h) ?? 0), 0);
+  const total = totalMs(hashes.map((h) => durations.get(h) ?? 0));
   return (
     <>
       <ClipPlayer language={ctx.language} hashes={hashes} title={props.title}

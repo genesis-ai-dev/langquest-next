@@ -6,8 +6,8 @@ import { containerAlerts, containerSection } from '../src/sources/container';
 import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import {
-  dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, userIssueAlerts,
-  userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type Safety, type Tutorials, type UserIssues
+  FLEET_SQL, dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, userIssueAlerts,
+  userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type QuietAccounts, type Safety, type Tutorials, type UserIssues
 } from '../src/sources/ops';
 import { CHANNELS } from '../../../server/youtube';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
@@ -18,8 +18,10 @@ import { ALLOWANCE, PRICE_USD, capacityAlerts, capacitySection, extraUsd, growth
 const NOW = Date.parse('2026-10-22T12:00:00Z');
 const hoursAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
 
+const quiet = (over: Partial<QuietAccounts> = {}): QuietAccounts => ({ count: 0, markedCount: 0, accounts: [], marked: [], ...over });
+
 const fleet = (over: Partial<Fleet> = {}): Fleet => ({
-  updates: [], versions: [], web: [], toMap: [], stuck: [], silent: { count: 0, installs: [] }, ...over
+  updates: [], versions: [], web: [], builds: [], toMap: [], firstDownloads: [], stuck: [], quiet: quiet(), ...over
 });
 
 describe('builds and stuck phones', () => {
@@ -36,6 +38,21 @@ describe('builds and stuck phones', () => {
     expect(fleetAlerts(fleet({ updates: [{ update: 'abc', runtime: 'abc', channel: 'web', installs: 100, crashed: 50, firstSeen: hoursAgo(1), lastSeen: hoursAgo(1) }] }))).toEqual([]);
   });
 
+  it('says a language\'s first download was slow from its download time, with counts, never from the wait for a connection', () => {
+    // 18 November 2026: one phone opened a language with no connection for 21 minutes; the download took 0.2 s.
+    const waited = fleet({ toMap: [{ day: '2026-11-18', kind: 'open', count: 6, p50Ms: 900, p95Ms: 5200, slow: 0, waited: 1, waitMaxMs: 1_281_078 }] });
+    expect(fleetAlerts(waited)).toEqual([]);
+    const slow = fleet({ toMap: [
+      { day: '2026-11-17', kind: 'open', count: 9, p50Ms: 900, p95Ms: 1_200_000, slow: 3, waited: 0, waitMaxMs: null },
+      { day: '2026-11-18', kind: 'fill', count: 2, p50Ms: 4000, p95Ms: 4000, slow: 0, waited: null, waitMaxMs: null },
+      { day: '2026-11-18', kind: 'open', count: 8, p50Ms: 900, p95Ms: 1_080_000, slow: 2, waited: 1, waitMaxMs: 60_000 }
+    ] });
+    expect(fleetAlerts(slow)).toEqual([{ level: 'watch', key: 'first-download-slow', text: '2 of 8 first downloads of a language took over 15 minutes on 2026-11-18, without the time a phone waited with no connection.' }]);
+    // Under 5 first downloads a day says too little, and a database before the migration still gives a count.
+    expect(fleetAlerts(fleet({ toMap: [{ day: '2026-11-18', kind: 'open', count: 4, p50Ms: 900, p95Ms: 1_080_000, slow: 1 }] }))).toEqual([]);
+    expect(fleetAlerts(fleet({ toMap: [{ day: '2026-11-18', kind: 'open', count: 5, p50Ms: 900, p95Ms: 1_080_000 }] }))[0]!.text).toContain('1 of 5 first downloads');
+  });
+
   it('names installs on an older reducer and lost recordings', () => {
     const alerts = fleetAlerts(fleet({
       versions: [{ reducer: '18', protocol: '1', installs: 4 }, { reducer: '19', protocol: '1', installs: 40 }],
@@ -43,6 +60,13 @@ describe('builds and stuck phones', () => {
     }), 19);
     expect(alerts.map((a) => a.level).sort()).toEqual(['urgent', 'watch']);
     expect(alerts.find((a) => a.level === 'watch')!.text).toContain('4 installs');
+  });
+
+  it('warns about quiet installs only from 5 on accounts nobody marked not an issue', () => {
+    const text = (f: Fleet) => fleetAlerts(f).map((a) => a.text);
+    expect(text(fleet({ quiet: quiet({ count: 5 }) }))).toEqual(['5 installs went quiet for 3 days while another device of the same person still reports: diagnostics off, or delivery broken (Silent phones).']);
+    expect(text(fleet({ quiet: quiet({ count: 4, markedCount: 40 }) }))).toEqual([]);
+    expect(text(fleet({ quiet: null }))).toEqual([]);
   });
 });
 
@@ -83,6 +107,11 @@ describe('the app Worker and support', () => {
     expect(workerAlerts(rows).map((a) => a.level).sort()).toEqual(['problem', 'watch']);
     // The dashboard's own requests wait on the providers it asks; they are no sign the app is slow.
     expect(workerAlerts(routeRows({ ops_2xx: 100, ops_lt1s: 50, ops_lt10s: 50 }))).toEqual([]);
+    // A partner paging through every language waits seconds a page by design (2026-11-17); a page that fails still warns.
+    expect(workerAlerts(routeRows({ agent_list_2xx: 100, agent_list_lt1s: 40, agent_list_lt10s: 50, agent_list_over10s: 10 }))).toEqual([]);
+    expect(workerAlerts(routeRows({ agent_list_2xx: 90, agent_list_5xx: 10 })).map((a) => a.level)).toEqual(['problem']);
+    // The API's quick calls still warn when slow.
+    expect(workerAlerts(routeRows({ agent_api_2xx: 100, agent_api_lt1s: 90, agent_api_lt10s: 10 })).map((a) => a.level)).toEqual(['watch']);
   });
 
   it('warns before a content report passes the 24 hours the Terms promise', () => {
@@ -95,7 +124,7 @@ describe('the app Worker and support', () => {
   it('says when organizations wait for a blue check (decisions.md 173), and not for decided ones', () => {
     const s = { reports: { open: 0, oldestAt: null, staffOnly: 0, resolvedWeek: 0 }, suspended: { total: 0, week: 0 }, deletions: [], feedbackOpen: { open: 0, oldestAt: null }, actions: [] };
     const row = (status: 'waiting' | 'granted' | 'declined') => ({ id: 'r', orgId: 'o', orgName: 'Org', domain: 'org.example', emailDomain: 'org.example', status, createdAt: hoursAgo(3), confirmedAt: hoursAgo(3), decidedAt: null, verified: false });
-    expect(supportAlerts({ ...s, verifications: [row('waiting'), row('waiting'), row('granted')] }, NOW)).toEqual([{ level: 'watch', text: '2 organizations waiting for a blue check (Support, Blue check requests).' }]);
+    expect(supportAlerts({ ...s, verifications: [row('waiting'), row('waiting'), row('granted')] }, NOW)).toEqual([{ level: 'watch', key: 'blue-check-waiting', text: '2 organizations waiting for a blue check (Support, Blue check requests).' }]);
     expect(supportAlerts({ ...s, verifications: [row('declined')] }, NOW)).toEqual([]);
     expect(supportAlerts({ ...s, verifications: null }, NOW)).toEqual([]);
   });
@@ -137,6 +166,12 @@ describe('storage, capacity and releases', () => {
     expect(storageAlerts(storage({ reconcile: { at: hoursAgo(3), outcome: 'partial', n: { missing: 2 } } }), NOW)[0]).toMatchObject({ level: 'urgent', text: expect.stringContaining('2 recordings') });
   });
 
+  it('says to watch recordings the R2 reconciliation copied to the file type the log names, which are safe', () => {
+    expect(storageAlerts(storage({ reconcile: { at: hoursAgo(3), outcome: 'ok', n: { missing: 0, repaired: 45 } } }), NOW))
+      .toEqual([{ level: 'watch', key: 'r2-repaired', text: expect.stringContaining('copied 45 recordings') }]);
+    expect(storageAlerts(storage({ reconcile: { at: hoursAgo(3), outcome: 'ok', n: { missing: 0, repaired: 0 } } }), NOW)).toEqual([]);
+  });
+
   it('takes the newest backup from the daily list or, with point-in-time recovery, from the physical one', () => {
     expect(latestBackup({ pitr_enabled: true, backups: [], physical_backup_data: { latest_physical_backup_date_unix: 1792695536 } }))
       .toEqual({ pitr: true, latest: new Date(1792695536 * 1000).toISOString(), count: 1 });
@@ -156,7 +191,7 @@ describe('storage, capacity and releases', () => {
     const size = (gb: number) => ({ dbBytes: gb * 1024 ** 3, eventsBytes: 0, eventsRows: 0, snapshotsBytes: 0 });
     // October 2026: 13 GB of a 64 GB disk is nothing to say.
     expect(capacityAlerts({ ...base, weeksLeft: null, now: size(13) })).toEqual([]);
-    expect(capacityAlerts({ ...base, weeksLeft: null, now: size(60) })).toEqual([{ level: 'problem', text: expect.stringMatching(/^The database \(60 GB\) fills 94% of its 64 GB disk/) }]);
+    expect(capacityAlerts({ ...base, weeksLeft: null, now: size(60) })).toEqual([{ level: 'problem', key: 'db-disk-full', text: expect.stringMatching(/^The database \(60 GB\) fills 94% of its 64 GB disk/) }]);
   });
 
   describe('the disk the database is measured against', () => {
@@ -248,11 +283,13 @@ function fakeQuery(answers: [string, unknown][]): Query {
 describe('reading as diag_reader', () => {
   it('turns off only the sections whose functions a database lacks', async () => {
     const s = await opsSections(fakeQuery([
-      ['jsonb_build_object(\n  \'updates\'', fleet()],
+      ['ops_cached(\'fleet\')', fleet()],
       ['rejNotMember', []], ['arrivalsSampled', []], ['fold_canary', []], ['totals', {}]
     ]));
     expect(s.fleet.state).toBe('ok');
     expect(s.safety.state).toBe('ok');
+    // Before its migration the rest of the section still shows.
+    expect(s.safety.data!.copies).toBeNull();
     expect(s.worker.state).toBe('ok');
     for (const id of ['people', 'cron', 'dbdetail', 'push', 'integrations', 'support', 'security'] as const) {
       expect(s[id]).toMatchObject({ state: 'off', setup: expect.stringContaining('20261023100000_ops_dashboard.sql') });
@@ -260,6 +297,12 @@ describe('reading as diag_reader', () => {
     expect(s.tutorials).toMatchObject({ state: 'off', setup: expect.stringContaining('20261028090000_tutorial_videos.sql') });
     expect(s.videofeedback).toMatchObject({ state: 'off', setup: expect.stringContaining('20261029120000_tutorial_feedback.sql') });
     expect(s.userissues).toMatchObject({ state: 'off', setup: expect.stringContaining('20261103204500_user_issues_fixed.sql') });
+  });
+
+  it('reads the builds from the count the database makes every 10 minutes, and says which migration it lacks', async () => {
+    const s = await opsSections(fakeQuery([['rejNotMember', []], ['arrivalsSampled', []], ['fold_canary', []], ['totals', {}]]));
+    expect(s.fleet).toMatchObject({ state: 'off', setup: expect.stringContaining('20261117200000_ops_phone_counts.sql') });
+    expect(FLEET_SQL).toBe(`select diag.ops_cached('fleet') as v`);
   });
 
   it('looks a person up by email and answers with their id and installs, never the address', async () => {
@@ -343,7 +386,7 @@ describe('the longest query and oldest transaction', () => {
   });
 
   it('still reads a database from before the migration, which named no one', () => {
-    expect(dbDetailAlerts(db({ longestQueryS: 600 }))).toEqual([{ level: 'watch', text: 'A query has been running for 10 minutes.' }]);
+    expect(dbDetailAlerts(db({ longestQueryS: 600 }))).toEqual([{ level: 'watch', key: 'long-query', text: 'A query has been running for 10 minutes.' }]);
   });
 });
 
@@ -374,22 +417,22 @@ describe('tutorial videos (decisions.md 180)', () => {
     });
     expect(t.channels.find((c) => c.language === 'es')).toMatchObject({ branded: true, held: 2 });
     expect(tutorialAlerts(t, NOW)).toEqual([
-      { level: 'problem', text: 'YouTube refused the fr channel: connect again (Tutorial videos).' },
-      { level: 'watch', text: '3 comments held for review on YouTube: approve or remove in YouTube Studio (Tutorial videos).' }
+      { level: 'problem', key: 'youtube-refused', text: 'YouTube refused the fr channel: connect again (Tutorial videos).' },
+      { level: 'watch', key: 'comments-held', text: '3 comments held for review on YouTube: approve or remove in YouTube Studio (Tutorial videos).' }
     ]);
   });
 
   it('asks for a Publish, a Connect again, or a look, each when it is due', () => {
     const t = (w: Tutorials['waiting']): Tutorials => ({ channels: [], waiting: w });
     expect(tutorialAlerts(t([]), NOW)).toEqual([]);
-    expect(tutorialAlerts(t([waiting(), waiting({ language: 'fr' })]), NOW)).toEqual([{ level: 'watch', text: '2 tutorial videos ready to publish (Tutorial videos).' }]);
+    expect(tutorialAlerts(t([waiting(), waiting({ language: 'fr' })]), NOW)).toEqual([{ level: 'watch', key: 'videos-ready', text: '2 tutorial videos ready to publish (Tutorial videos).' }]);
     expect(tutorialAlerts(t([waiting({ chosenAt: hoursAgo(2), failed: 'youtube_invalid_grant' })]), NOW)).toEqual([
-      { level: 'problem', text: 'YouTube refused the es channel: connect again (Tutorial videos).' }
+      { level: 'problem', key: 'youtube-refused', text: 'YouTube refused the es channel: connect again (Tutorial videos).' }
     ]);
     // A day's limit is no problem until the video has waited past a day and more.
     expect(tutorialAlerts(t([waiting({ chosenAt: hoursAgo(10), failed: 'youtube_uploadLimitExceeded' })]), NOW)).toEqual([]);
     expect(tutorialAlerts(t([waiting({ chosenAt: hoursAgo(31), failed: 'youtube_uploadLimitExceeded' })]), NOW)).toEqual([
-      { level: 'problem', text: '1 tutorial video chosen more than 30 hours ago is still not on YouTube (Tutorial videos).' }
+      { level: 'problem', key: 'videos-stuck', text: '1 tutorial video chosen more than 30 hours ago is still not on YouTube (Tutorial videos).' }
     ]);
     // A long queue on a channel that put videos up today is waiting its turn, not stuck.
     const es = { language: 'es', channelId: CHANNELS.es, title: null, connectedAt: hoursAgo(50), section: 'made', branded: true, brandFailed: null, held: 0, videos: 10 } as const;
@@ -407,10 +450,10 @@ describe('feedback on the tutorial videos (decisions.md 186)', () => {
 
   it('says when suggestions wait for a yes or no, and when accepted code changes are not in Linear', () => {
     expect(feedbackAlerts(feedback({ waiting: 12 }))).toEqual([]);
-    expect(feedbackAlerts(feedback({ open: 1 }))).toEqual([{ level: 'watch', text: '1 suggestion for the tutorial videos waits for a yes or no (Tutorial videos).' }]);
+    expect(feedbackAlerts(feedback({ open: 1 }))).toEqual([{ level: 'watch', key: 'suggestions-wait', text: '1 suggestion for the tutorial videos waits for a yes or no (Tutorial videos).' }]);
     expect(feedbackAlerts(feedback({ open: 4, unfiled: 2 }))).toEqual([
-      { level: 'watch', text: '4 suggestions for the tutorial videos wait for a yes or no (Tutorial videos).' },
-      { level: 'watch', text: '2 accepted code changes not in Linear yet (Tutorial videos).' }
+      { level: 'watch', key: 'suggestions-wait', text: '4 suggestions for the tutorial videos wait for a yes or no (Tutorial videos).' },
+      { level: 'watch', key: 'changes-not-filed', text: '2 accepted code changes not in Linear yet (Tutorial videos).' }
     ]);
   });
 
@@ -418,6 +461,24 @@ describe('feedback on the tutorial videos (decisions.md 186)', () => {
     const row = feedback({ open: 1, videos: [{ tutorial: 'record-a-passage', title: 'Record a passage' }] });
     const s = await opsSections(fakeQuery([['ops_tutorial_feedback', row]]));
     expect(s.videofeedback).toMatchObject({ state: 'ok', data: { open: 1, videos: row.videos } });
+  });
+});
+
+describe('quiet installs by account (decisions.md 162)', () => {
+  const row = {
+    count: '3', markedCount: '34',
+    accounts: [{ profile: '11111111-1111-4111-8111-111111111111', quiet: 3, reporting: 1, devices: { OnePlus8Pro: 2, ios: 1 }, lastSeen: hoursAgo(90) }],
+    marked: [{ profile: '22222222-2222-4222-8222-222222222222', quiet: 34, by: '0857d1bc-0000-4000-8000-000000000001', at: hoursAgo(1) }]
+  };
+
+  it('reads diag.ops_quiet_accounts into the fleet section, and counts what the database sends as numbers', async () => {
+    const s = await opsSections(fakeQuery([['ops_cached(\'fleet\')', { ...fleet(), quiet: undefined }], ['ops_quiet_accounts', row]]));
+    expect(s.fleet).toMatchObject({ state: 'ok', data: { quiet: { count: 3, markedCount: 34, accounts: row.accounts, marked: row.marked } } });
+  });
+
+  it('keeps the fleet section when a database lacks the function, without a quiet count', async () => {
+    const s = await opsSections(fakeQuery([['ops_cached(\'fleet\')', { ...fleet(), quiet: undefined }]]));
+    expect(s.fleet).toMatchObject({ state: 'ok', data: { quiet: null } });
   });
 });
 
@@ -435,15 +496,24 @@ describe('the watch for user issues (decisions.md 202)', () => {
 
   it('says how many issues are open in Linear, and when a look failed', () => {
     expect(userIssueAlerts(issues({ closed: 3, fixed: 1, last: { at: hoursAgo(1), outcome: 'ok', n: { looked: 2 } } }))).toEqual([]);
-    expect(userIssueAlerts(issues({ open: 1 }))).toEqual([{ level: 'watch', text: '1 user issue open in Linear (User issues).' }]);
+    expect(userIssueAlerts(issues({ open: 1 }))).toEqual([{ level: 'watch', key: 'user-issues-open', text: '1 user issue open in Linear (User issues).' }]);
     expect(userIssueAlerts(issues({ open: 3, last: { at: hoursAgo(1), outcome: 'error', n: null } }))).toEqual([
-      { level: 'watch', text: '3 user issues open in Linear (User issues).' },
-      { level: 'problem', text: 'The watch for user issues failed to look at or file what it found (User issues).' }
+      { level: 'watch', key: 'user-issues-open', text: '3 user issues open in Linear (User issues).' },
+      { level: 'problem', key: 'user-issue-watch-failed', text: 'The watch for user issues failed to look at or file what it found (User issues).' }
     ]);
   });
 
   it('reads diag.ops_user_issues into its section, with the pull request that fixed each', async () => {
     const s = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })]]));
     expect(s.userissues).toMatchObject({ state: 'ok', data: { closed: 1, issues: [{ issue: 'LAN-220', fixedBy: 312, state: 'Live' }] } });
+  });
+
+  it('adds each issue\'s instructions from an admin, and shows the issues without them before their migration', async () => {
+    const notes = { 'LAN-220': [{ at: hoursAgo(2), text: 'Wait for the passage first.', state: 'answered', answeredAt: hoursAgo(1), result: 'changed', answer: 'I moved the wait.', pr: 512, runUrl: null }] };
+    const s = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })], ['ops_user_issue_notes', notes]]));
+    expect(s.userissues).toMatchObject({ state: 'ok', data: { closed: 1, notes } });
+    const before = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })]]));
+    expect(before.userissues.state).toBe('ok');
+    expect((before.userissues.data as { notes?: unknown }).notes).toBeUndefined();
   });
 });

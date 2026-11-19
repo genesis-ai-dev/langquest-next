@@ -1,4 +1,5 @@
 import type { AnyEvent, LocalEventStatus } from '@langquest-next/core';
+import type { NearbyVia } from '@langquest-next/core/nearby';
 
 /**
  * One atomic local write: events, outbox state, cursor, clock and other
@@ -18,6 +19,20 @@ export interface WriteBatch {
    * them in the same commit as its new checkpoint.
    */
   kept?: { orgId: string; streamId: string; clear?: boolean; replaceFrom?: string; upsert?: KeptRecord[] };
+  /**
+   * Events from a teammate's phone, applied after `events`. Insert only: `events`
+   * would overwrite a row's status, and a nearby copy must never downgrade a
+   * confirmed, pending or rejected one.
+   */
+  receive?: LocalEvent[];
+  /** Removes these ids from this stream, only where they are still `nearby`. */
+  dropNearby?: { orgId: string; streamId: string; ids: string[] };
+  /** Insert only: the first signature for a number stays. */
+  batches?: NearbyBatchRow[];
+  dropBatches?: { orgId: string; streamId: string; keys: { key: string; n: number }[] };
+  /** Insert only. */
+  attests?: NearbyAttestRow[];
+  dropAttests?: { orgId: string; streamId: string; upToSeq: number };
 }
 
 /**
@@ -46,6 +61,37 @@ export interface LocalEvent {
   event: AnyEvent;
   status: LocalEventStatus;
   rejectReason?: string;
+  /** How it got here from a teammate's phone. A row written without one has it cleared, so a confirm or a restamp leaves none. */
+  via?: NearbyVia;
+}
+
+/** One signed batch (docs/nearby-sync-plan.md 5.12). A manifest cannot live on a row: it holds up to 200 ids and digests. */
+export interface NearbyBatchRow {
+  orgId: string;
+  streamId: string;
+  /** The signer's install key. */
+  key: string;
+  n: number;
+  deviceId: string;
+  actorId: string;
+  /** Its oldest event's clock, for delivery's order; null with no events. */
+  firstHlc: string | null;
+  /** The canonical text as signed, so nobody has to reproduce it. */
+  manifest: string;
+  sig: string;
+  /** The signer's chain at signing, as JSON. */
+  chain: string;
+}
+
+/** The Worker's word for rows this phone pulled, kept until `prune` passes them. */
+export interface NearbyAttestRow {
+  orgId: string;
+  streamId: string;
+  lastSeq: number;
+  /** The canonical text as signed. */
+  text: string;
+  kid: string;
+  sig: string;
 }
 
 /**
@@ -119,6 +165,54 @@ export interface EventStore {
   /** Small device-level key/value state: device id, persisted clocks. */
   meta(key: string): Promise<string | undefined>;
   setMeta(key: string, value: string): Promise<void>;
+  /** Removes every meta row whose key starts with this, exactly and in this case. An empty prefix removes nothing, since the device id lives here. */
+  clearMeta(prefix: string): Promise<void>;
+  // All required below, so a store missing one cannot silently break a trap in docs/nearby-sync-plan.md 5.4.
+  /** Pending and nearby together: what the checkpoint's fast path must not save as confirmed. */
+  unconfirmedCount(orgId: string, streamId: string): Promise<number>;
+  nearbyCount(orgId: string, streamId: string): Promise<number>;
+  /** Nearby rows in id order, after `afterId` (null for the first page). */
+  nearbyPage(orgId: string, streamId: string, afterId: string | null, limit: number): Promise<LocalEvent[]>;
+  /** Nearby rows that withdraw or undo one of these reviews, notes or departures: the three undo types, by the id each names. */
+  nearbyUndoing(orgId: string, streamId: string, targetIds: readonly string[]): Promise<LocalEvent[]>;
+  /** The rows holding these ids, of any status and any stream, in no set order. */
+  getMany(ids: readonly string[]): Promise<LocalEvent[]>;
+  /** Pending rows no batch speaks for yet, oldest first, strictly after `afterHlc` (null for the first page). */
+  unsignedPage(orgId: string, streamId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]>;
+  /** Confirmed rows past `afterSeq`, in `serverSeq` order. */
+  confirmedAfter(orgId: string, streamId: string, afterSeq: number, limit: number): Promise<LocalEvent[]>;
+  /** Every batch held, without its manifest, by signer and then number. */
+  batchKeys(orgId: string, streamId: string): Promise<{ key: string; n: number; actorId: string; firstHlc: string | null }[]>;
+  /** One signer's batches past `afterN`, in number order. */
+  batchesAfter(orgId: string, streamId: string, key: string, afterN: number, limit: number): Promise<NearbyBatchRow[]>;
+  /** Every attestation held, by `lastSeq`. */
+  attestedUpTo(orgId: string, streamId: string): Promise<NearbyAttestRow[]>;
+  /** One grouped read of what nearby rows cost, by whose budget they spend (`nearbyBudgetOf`). */
+  nearbyUse(orgId: string, streamId: string): Promise<NearbyUse[]>;
+}
+
+/** Rows and characters of JSON held as nearby under one budget, and characters of manifest text kept for it. */
+export interface NearbyUse {
+  who: string;
+  rows: number;
+  bytes: number;
+  manifestBytes: number;
+  /** The signer keys whose manifests are kept under it: for a pass, its newcomers here. */
+  keys: string[];
+}
+
+/**
+ * Whose budget a nearby row spends: a claim its claimer's, never the event's author, so that
+ * a teammate cannot spend Sam's budget by naming him; a batch row under a newcomer's chain its
+ * pass's, since one inviter can mint any number of newcomers offline; any other its author's.
+ */
+export const nearbyBudgetOf = (actorId: string, via: NearbyVia | undefined, passId?: string | null): string =>
+  (via && 'claim' in via ? `claim:${via.claim.key}` : passId ? `pass:${passId}` : `actor:${actorId}`);
+
+/** A two-link chain's pass id, as written, checked by nothing here: which budget a newcomer's batches spend. */
+export function passIdOfChain(chain: unknown): string | null {
+  const id = Array.isArray(chain) && chain.length === 2 ? (chain[1] as { body?: { pass?: { body?: { passId?: unknown } } } } | null)?.body?.pass?.body?.passId : null;
+  return typeof id === 'string' ? id : null;
 }
 
 export interface AppendResult {
@@ -159,6 +253,50 @@ export interface Transport {
   snapshotRows?(orgId: string, streamId: string, reducerVersion: number, minSeq: number, unitIds: readonly string[], after: RowCursor | null, limit: number): Promise<SnapshotRowsPage | null>;
   /** Which passage each of these takes, reviews, departures, requests or notes is in, by the newest snapshot; absent when it has none. */
   snapshotPassages?(orgId: string, streamId: string, reducerVersion: number, items: readonly { kind: string; id: string }[]): Promise<{ kind: string; id: string; unitId: string }[]>;
+  /**
+   * What the server holds of these ids, at most 500 (docs/nearby-sync-plan.md 5.7). Null
+   * when the database is behind. An id it does not hold is not in the answer. Optional, and
+   * in every list that wraps a transport by hand: a list that misses it turns the sweep off
+   * and says nothing (`nearbySweep.test.ts`).
+   */
+  knownEvents?(orgId: string, streamId: string, ids: readonly string[]): Promise<KnownEvent[] | null>;
+  /**
+   * The Worker's word for up to 200 rows past `afterSeq`, over rows it read itself (docs/nearby-sync-plan.md
+   * 5.12, Claims). Null when off, or not yet.
+   */
+  attest?(orgId: string, streamId: string, afterSeq: number): Promise<{ text: string; kid: string; sig: string } | null>;
+  /**
+   * Teammates' signed batches, delivered on their authors' behalf (docs/nearby-sync-plan.md
+   * section 6, the Worker's `POST /api/relay`): one answer per batch, `refused` when it was
+   * not tried, else a verdict per event as `append_events` words it. Null when not yet (no
+   * key on the Worker, a database behind); LQ001 throws `ClientTooOldError`. Optional, and in
+   * every list that wraps a transport by hand.
+   */
+  relay?(orgId: string, streamId: string, batches: RelayBatch[]): Promise<RelayAnswer[] | null>;
+}
+
+/** One signed batch as it is kept here: its manifest as signed, the signature, the signer's chain, and the rows still here it speaks for. */
+export interface RelayBatch {
+  manifest: string;
+  sig: string;
+  chain: unknown[];
+  events: AnyEvent[];
+}
+
+/** The relay's answer for one batch, named by its signer's key and number. */
+export interface RelayAnswer {
+  key: string;
+  n: number;
+  refused?: string;
+  verdicts?: AppendResult[];
+}
+
+/** One id as the server holds it. */
+export interface KnownEvent {
+  id: string;
+  serverSeq: number;
+  hlc: string;
+  actorId: string;
 }
 
 /** Where a page of a snapshot's rows ends: the next page starts after it. */
@@ -178,6 +316,23 @@ export interface SnapshotHead {
   lines: { seq: number; lines: unknown[] } | null;
 }
 
+/**
+ * A starting copy of one stream, as a teammate's phone sends it to a newcomer
+ * (docs/nearby-sync-plan.md 14.1, 4). It is only ever a stand-in: the server's first
+ * download replaces it, and nothing is pulled on top of it.
+ */
+export interface StartingCopy {
+  /** The server's seq the sender's checkpoint holds to. */
+  serverSeq: number;
+  /** The checkpoint's state: for a language kept on disk what the whole language shares; for the organization, `newcomerOrgState`. */
+  state: unknown;
+  /** A language kept on disk: each passage's line, and the passages whose rows follow, with `''` for the file verdicts. */
+  kept?: { lines: PassageLineRow[]; units: { unitId: string; rows: number }[] };
+}
+
+/** A line as a starting copy carries it: core's `PassageLine`, checked when it is adopted. */
+export type PassageLineRow = { unitId: string } & Record<string, unknown>;
+
 export interface SnapshotRowsPage {
   /** The snapshot these rows are from. */
   serverSeq: number;
@@ -195,6 +350,8 @@ export interface WatchHandlers {
 export interface SyncInspection {
   pending: LocalEvent[];
   rejected: LocalEvent[];
+  /** Rows held for teammates, which `total` also counts. */
+  nearby: number;
   total: number;
   cursor: number;
   checkpointSeq: number | null;

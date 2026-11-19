@@ -1,4 +1,4 @@
-import { emptyLanguageState, isStored, type LanguageState } from '@langquest-next/core';
+import { emptyLanguageState, isStored, referencedBlobs, type LanguageState } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseTransport } from './supabaseTransport';
 import { foldStream } from './foldStream';
@@ -28,6 +28,12 @@ export interface ReconcilerDeps {
   hasStoredBlobs?(orgId: string, streamId: string): Promise<boolean>;
   download(o: BlobObject): Promise<Uint8Array>;
   remove(o: BlobObject): Promise<void>;
+  /**
+   * Put an object's bytes under another key of the same hash: a file stored under a format the
+   * log does not name, with nothing under the name it does (docs/nearby-sync-plan.md section 6,
+   * Repair). Absent: nothing is repaired.
+   */
+  copy?(from: BlobObject, to: BlobObject): Promise<void>;
   recordBlob(orgId: string, streamId: string, hash: string, size: number): Promise<void>;
   invalidateBlob(orgId: string, streamId: string, hash: string, reason: string): Promise<void>;
   /** SHA-256 hex. */
@@ -37,19 +43,36 @@ export interface ReconcilerDeps {
 export interface ReconcileReport {
   streams: number;
   objects: number;
-  /** Files the log holds as stored (its latest verdict) that the bucket does not list: work that may be lost. Counted only with `countMissing`. */
+  /** Files the log holds as stored (its latest verdict) that the bucket does not list once this pass has repaired what it can: work that may be lost. Counted only with `countMissing`. */
   missing: number;
   confirmed: number;
   verified: number;
   invalidated: number;
   /** Objects whose bytes could not be fetched this pass: left alone, listed here. */
   unreadable: string[];
+  /** Files copied to the name the log gives them, from one under another format. */
+  repaired?: number;
 }
 
-/** The hashes the log holds as stored that none of the listed objects has. */
-export function missingHashes(state: LanguageState, listed: Iterable<string>): string[] {
-  const have = new Set(listed);
-  return Object.keys(state.blobs).filter((hash) => isStored(state, hash) && !have.has(hash));
+/**
+ * The hashes the log holds as stored that none of the listed objects has under the name the log
+ * gives it (`<hash>.<format>`, from `referencedBlobs`), or under any name when the log names no
+ * format for it. A recording whose bytes sit only under another extension counts as missing,
+ * since phones ask for the name and would find nothing, until the reconciler repairs it.
+ */
+export function missingHashes(state: LanguageState, listed: Iterable<{ hash: string; format: string }>): string[] {
+  const names = new Set<string>();
+  const hashes = new Set<string>();
+  for (const o of listed) {
+    names.add(`${o.hash}.${o.format}`);
+    hashes.add(o.hash);
+  }
+  const refs = referencedBlobs(state);
+  return Object.keys(state.blobs).filter((hash) => {
+    if (!isStored(state, hash)) return false;
+    const ref = refs.get(hash);
+    return ref ? !names.has(`${hash}.${ref.format}`) : !hashes.has(hash);
+  });
 }
 
 /**
@@ -64,20 +87,23 @@ export function missingHashes(state: LanguageState, listed: Iterable<string>): s
  *
  * Idempotent: a second pass over an unchanged bucket does nothing.
  */
-export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boolean; pageSize?: number; countMissing?: boolean; shouldStop?: () => boolean; report?: ReconcileReport }): Promise<ReconcileReport> {
+export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boolean; pageSize?: number; countMissing?: boolean; shouldStop?: () => boolean; report?: ReconcileReport; copyRetryMs?: readonly number[] }): Promise<ReconcileReport> {
   const report: ReconcileReport = opts.report ?? { streams: 0, objects: 0, missing: 0, confirmed: 0, verified: 0, invalidated: 0, unreadable: [] };
   for (const { orgId, streamId } of await deps.streams()) {
     if (opts.shouldStop?.()) break;
     report.streams += 1;
     // The files first: a stream with none has nothing to confirm or verify, so it is not folded,
     // unless the caller counts what is missing (a stream whose files all went is the worst case).
-    const objects = await deps.listObjects(orgId, streamId);
+    const objects = [...await deps.listObjects(orgId, streamId)];
     if (objects.length === 0 && !opts.countMissing) continue;
     // A log with no BlobStored holds nothing as stored: nothing to fold, and nothing can be missing.
     const stored = (await deps.hasStoredBlobs?.(orgId, streamId)) !== false;
     if (objects.length === 0 && !stored) continue;
-    const state = stored ? await foldStream(deps.transport, orgId, streamId, opts.pageSize ?? 1000) : emptyLanguageState();
-    if (opts.countMissing) report.missing += missingHashes(state, objects.map((o) => o.hash)).length;
+    // A stream with files is folded when it can be repaired, confirmations or not: a file under the wrong format would be confirmed otherwise.
+    const state = stored || (objects.length > 0 && deps.copy) ? await foldStream(deps.transport, orgId, streamId, opts.pageSize ?? 1000) : emptyLanguageState();
+    // Repair before counting: a file this pass copies to the name the log gives it is not missing.
+    if (deps.copy) objects.push(...await repairFormats(deps.copy, state, objects, report, opts.copyRetryMs ?? COPY_RETRY_MS));
+    if (opts.countMissing) report.missing += missingHashes(state, objects).length;
     const unconfirmed: BlobObject[] = [];
     for (const o of objects) {
       report.objects += 1;
@@ -110,6 +136,55 @@ export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boole
   }
   return report;
 }
+
+/**
+ * A file whose bytes sit under another format than the log's `referencedBlobs` names, with
+ * nothing under the right name, is copied across (docs/nearby-sync-plan.md section 6, Repair):
+ * a writer's PUT names no event, so `blob_named_by` cannot hold the extension for them, and
+ * `v1.BlobStored` records only hash and size. The bytes never leave R2's side of the Worker,
+ * and a second pass finds the right name there and does nothing. A few copies go at once, so
+ * a night with thousands to make stays inside the job's time limit. A copy that fails is tried
+ * again after each wait in `retryMs`, then left for the next night. Answers the objects made.
+ */
+async function repairFormats(copy: NonNullable<ReconcilerDeps['copy']>, state: LanguageState, objects: readonly BlobObject[], report: ReconcileReport, retryMs: readonly number[]): Promise<BlobObject[]> {
+  const refs = referencedBlobs(state);
+  const names = new Set(objects.map((o) => `${o.hash}.${o.format}`));
+  // One copy for each name the bucket lacks, even when the bytes sit under two other formats.
+  const wanted = new Map<string, { from: BlobObject; to: BlobObject }>();
+  for (const o of objects) {
+    const ref = refs.get(o.hash);
+    if (!ref || ref.format === o.format) continue;
+    const name = `${o.hash}.${ref.format}`;
+    if (!names.has(name) && !wanted.has(name)) wanted.set(name, { from: o, to: { ...o, format: ref.format } });
+  }
+  const made: BlobObject[] = [];
+  await inParallel([...wanted.values()], COPY_AT_ONCE, async ({ from, to }) => {
+    for (let tries = 0; ; tries += 1) {
+      try {
+        await copy(from, to);
+        break;
+      } catch (err) {
+        if (tries >= retryMs.length) {
+          report.unreadable.push(`${from.orgId}/${from.streamId}/${from.hash}: ${(err as Error).message}`);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, retryMs[tries]));
+      }
+    }
+    made.push(to);
+    report.repaired = (report.repaired ?? 0) + 1;
+  });
+  return made;
+}
+
+/** Copies in flight at once for one stream. */
+const COPY_AT_ONCE = 4;
+
+/**
+ * The waits before a failed copy is tried again. R2 refused 7 of 222 copies in one minute on
+ * Nov 17, 2026 (the Worker's 502 "Try again"), after none in 56,000 uploads over 10 days.
+ */
+const COPY_RETRY_MS = [2_000, 10_000] as const;
 
 /** Confirmations in flight at once for one stream. */
 const RECORD_AT_ONCE = 4;
@@ -155,6 +230,7 @@ export function reconcilerDeps(service: SupabaseClient, files: BlobFiles): Recon
     },
     download: (o) => files.get(key(o)),
     remove: (o) => files.remove(key(o)),
+    copy: async (from, to) => files.put(key(to), await files.get(key(from))),
     recordBlob: async (orgId, streamId, hash, size) => {
       const { error } = await service.rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
       if (error) throw new Error(`record_blob: ${error.message}`);

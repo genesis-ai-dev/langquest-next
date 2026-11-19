@@ -41,8 +41,9 @@ export interface PassageSummary {
    * `submittedAt` is the publishing phone's clock; `uploadedAt` the server's,
    * when the publish reached it (decisions.md 188); `v2UploadedAt`, for a
    * version brought over from LangQuest v2, when v2's server had all of it.
+   * `origin` says how its parts were made (`VersionOrigin`).
    */
-  version: { n: number; takeId: string; submittedAt: string; uploadedAt: string | null; v2UploadedAt: string | null; durationMs: number } | null;
+  version: { n: number; takeId: string; submittedAt: string; uploadedAt: string | null; v2UploadedAt: string | null; origin: VersionOrigin; durationMs: number } | null;
   /** The newest version every step approved on its own (core approvedVersion); what a listening app should play. */
   approvedVersion: { n: number; takeId: string } | null;
   /** Where a version is live, one entry per channel (core releasesOf). */
@@ -52,6 +53,15 @@ export interface PassageSummary {
   /** The newest thing that happened to the passage's versions or reviews. */
   updatedAt: string | null;
 }
+
+/**
+ * How a part was made: recorded in an app (LangQuest Next, or v2's app), or
+ * a file uploaded to LangQuest v2's website instead (decisions.md 188,
+ * amended 2026-11-12). Next takes no uploaded audio yet.
+ */
+export type Origin = 'app_recording' | 'web_upload';
+/** A version's parts: all recorded, all uploaded, or some of each. */
+export type VersionOrigin = Origin | 'mixed';
 
 export interface AudioCard {
   hash: string;
@@ -64,6 +74,7 @@ export interface AudioCard {
   uploadedAt: string | null;
   /** For audio brought over from LangQuest v2: when v2's server had the file. Null for audio made here, or where v2 kept no time. */
   v2UploadedAt: string | null;
+  origin: Origin;
 }
 
 export interface ReviewOut {
@@ -102,7 +113,7 @@ export interface PassageDetail extends PassageSummary {
    * `kindId` answers it.
    */
   requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; note?: string; askedAt: string; uploadedAt: string | null }[];
-  versions?: { n: number; takeId: string; submittedAt: string; uploadedAt: string | null; v2UploadedAt: string | null }[];
+  versions?: { n: number; takeId: string; submittedAt: string; uploadedAt: string | null; v2UploadedAt: string | null; origin: VersionOrigin }[];
   /**
    * With `read`: `approvedVersion`'s cards, so a listening app keeps playing what it
    * published while a newer recording is in review. Empty when nothing is approved.
@@ -182,6 +193,22 @@ function wantV2Version(arrivals: Arrivals, ver: Version, item: { v2UploadedAt: s
     for (const key of [`v2:segment:${hash}`, `v2:file:${hash}`]) {
       arrivals.on(key, (at) => { if (!item.v2UploadedAt || at > item.v2UploadedAt) item.v2UploadedAt = at; });
     }
+  }
+}
+
+/**
+ * A version's `origin`, from the parts the import marked as uploads to v2
+ * (`v2:upload:<hash>`); a part without that mark was recorded. Asked only in
+ * a passage the import brought over.
+ */
+function wantOrigin(arrivals: Arrivals, ver: Version, item: { origin: VersionOrigin }): void {
+  const parts = new Set(ver.cardHashes);
+  let uploaded = 0;
+  for (const hash of parts) {
+    arrivals.on(`v2:upload:${hash}`, () => {
+      uploaded += 1;
+      item.origin = uploaded === parts.size ? 'web_upload' : 'mixed';
+    });
   }
 }
 
@@ -290,7 +317,7 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
     reference: referenceOf(s.unitId),
     status: statusOf(s),
     version: v
-      ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), uploadedAt: null, v2UploadedAt: null, durationMs: v.cardHashes.reduce((t, h) => t + (recordedCard(state, h)?.durationMs ?? 0), 0) }
+      ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), uploadedAt: null, v2UploadedAt: null, origin: 'app_recording', durationMs: v.cardHashes.reduce((t, h) => t + (recordedCard(state, h)?.durationMs ?? 0), 0) }
       : null,
     approvedVersion: approved ? { n: approved.n, takeId: approved.takeId } : null,
     releases: releases.map((r) => ({ channel: r.channel, versionN: r.versionN, takeId: r.takeId, at: iso(r.hlc), ...(r.url !== undefined ? { url: r.url } : {}), uploadedAt: null })),
@@ -421,12 +448,13 @@ async function passageOut(
 ): Promise<PassageListItem> {
   const out: PassageListItem = { ...sum };
   const v = heard(grant, s);
+  // A passage the import brought over may hold v2's audio in any version, a later one made here too.
+  const fromV2 = s.versions.some((ver) => byImport(ver.hlc));
   if (out.version && v) {
     arrivals.want(`submitted:${out.version.takeId}`, out.version);
     wantV2Version(arrivals, v, out.version);
+    if (fromV2) wantOrigin(arrivals, v, out.version);
   }
-  // A passage the import brought over may hold v2's audio in any version, a later one made here too.
-  const fromV2 = s.versions.some((ver) => byImport(ver.hlc));
   for (const r of out.releases) {
     const reg = state.releases?.[r.takeId]?.[r.channel];
     if (reg) arrivals.want(`event:${reg.eventId}`, r);
@@ -440,8 +468,11 @@ async function passageOut(
     for (const hash of ver?.cardHashes ?? []) {
       const card = recordedCard(state, hash);
       const format = card?.format ?? 'wav';
-      const item: AudioCard = { hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)), uploadedAt: fileUploadedAt(state, hash), v2UploadedAt: null };
-      if (fromV2) arrivals.on(`v2:file:${hash}`, (at) => { item.v2UploadedAt = at; });
+      const item: AudioCard = { hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)), uploadedAt: fileUploadedAt(state, hash), v2UploadedAt: null, origin: 'app_recording' };
+      if (fromV2) {
+        arrivals.on(`v2:file:${hash}`, (at) => { item.v2UploadedAt = at; });
+        arrivals.on(`v2:upload:${hash}`, () => { item.origin = 'web_upload'; });
+      }
       audio.push(item);
     }
     return audio;
@@ -497,9 +528,10 @@ async function passageOut(
   }
   if (include.has('versions')) {
     out.versions = s.versions.map((ver) => {
-      const version: NonNullable<PassageDetail['versions']>[number] = { n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc), uploadedAt: null, v2UploadedAt: null };
+      const version: NonNullable<PassageDetail['versions']>[number] = { n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc), uploadedAt: null, v2UploadedAt: null, origin: 'app_recording' };
       arrivals.want(`submitted:${ver.takeId}`, version);
       wantV2Version(arrivals, ver, version);
+      if (fromV2) wantOrigin(arrivals, ver, version);
       return version;
     });
   }
@@ -885,7 +917,7 @@ export interface LinkView {
   kind: { id: string; name: string; description: string };
   counts: boolean;
   version: number;
-  audio: Omit<AudioCard, 'v2UploadedAt'>[];
+  audio: Omit<AudioCard, 'v2UploadedAt' | 'origin'>[];
   expiresAt: string;
   open: boolean;
 }

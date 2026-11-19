@@ -1,18 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import { DONE_SHOWN_MS, emptiedStep } from './uploadsModel';
+import { doneAfterCount, doneAfterMove, type DoneMark } from './uploadsModel';
 
-/** True for a moment after `total` (what waits to upload) falls to zero from something (uploadsModel.ts `emptiedStep`). */
-export function useJustEmptied(total: number): boolean {
-  const [justEmptied, setJustEmptied] = useState(false);
+/**
+ * True once `total` (what waits to upload) falls to zero from something, until
+ * `screenKey` changes at least DONE_SHOWN_MS later (uploadsModel.ts `DoneMark`):
+ * the bar goes as one screen gives way to the next, never under someone's tap.
+ */
+export function useJustEmptied(total: number, screenKey: string): boolean {
+  const [done, setDone] = useState<DoneMark>(null);
   const was = useRef(total);
   useEffect(() => {
-    const step = emptiedStep(was.current, total);
+    const before = was.current;
     was.current = total;
-    if (step === 'hide') { setJustEmptied(false); return undefined; }
-    if (step === 'keep') return undefined;
-    setJustEmptied(true);
-    const timer = setTimeout(() => setJustEmptied(false), DONE_SHOWN_MS);
-    return () => clearTimeout(timer);
+    setDone((d) => doneAfterCount(d, before, total, Date.now()));
   }, [total]);
-  return justEmptied;
+  const on = useRef(screenKey);
+  useEffect(() => {
+    if (on.current === screenKey) return;
+    on.current = screenKey;
+    setDone((d) => doneAfterMove(d, Date.now()));
+  }, [screenKey]);
+  return done !== null;
 }

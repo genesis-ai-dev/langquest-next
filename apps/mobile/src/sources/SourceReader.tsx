@@ -8,7 +8,7 @@
 // source's copyright. States are honest: no audio says so, nothing is
 // simulated, and the built-in text says it is a last resort.
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
@@ -63,7 +63,7 @@ interface SourceReaderProps {
   onMoreBibles?: () => void;
   verse?: VerseExtras;
   /** The pane's scroll view, so the verse playing stays in view; the reader must sit directly in its content. */
-  scrollRef?: RefObject<ScrollView | null>;
+  scrollRef?: RefObject<ScrollViewInstance | null>;
 }
 
 export function SourceReader(props: SourceReaderProps) {
@@ -112,7 +112,7 @@ export function SourceView(props: SourceReaderProps & {
   useEffect(() => { onText?.(text); }, [text, onText]);
 
   // Keep the verse playing in view.
-  const ownScroll = useRef<ScrollView>(null);
+  const ownScroll = useRef<ScrollViewInstance>(null);
   const scroll = props.layout === 'screen' ? ownScroll : props.scrollRef;
   const readerY = useRef(0);
   const listY = useRef(0);

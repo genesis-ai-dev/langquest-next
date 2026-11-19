@@ -8,6 +8,6 @@ Apache License 2.0 (https://github.com/OAI/OpenAPI-Specification):
 - `meta.json`: https://spec.openapis.org/oas/3.1/meta/base
 
 `agentApi.test.ts` checks the API's OpenAPI document against them
-(decisions.md 81). Ajv does not follow `schema.json`'s `$dynamicRef: "#meta"`,
+(decisions.md 86). Ajv does not follow `schema.json`'s `$dynamicRef: "#meta"`,
 so `openapiCheck.ts` points it at `dialect.json` instead, which is what it
 resolves to.

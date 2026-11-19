@@ -1,6 +1,8 @@
 {
   "ios": {
     "NSMicrophoneUsageDescription": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
-    "NSCameraUsageDescription": "LangQuest hutumia kamera kusoma misimbo ya QR ya mialiko."
+    "NSCameraUsageDescription": "LangQuest hutumia kamera kusoma misimbo ya QR ya mialiko.",
+    "NSBluetoothAlwaysUsageDescription": "LangQuest hutumia Bluetooth kutafuta simu za wenzako wa timu walio karibu na kushiriki kazi nao.",
+    "NSLocalNetworkUsageDescription": "LangQuest hutumia mtandao wa karibu kushiriki kazi na simu za wenzako wa timu walio karibu."
   }
 }
