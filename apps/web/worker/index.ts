@@ -503,13 +503,17 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return data;
       },
       looked: async (looked) => {
-        const { notes, ...rest } = looked;
+        const { notes, fixes, ...rest } = looked;
         const { data, error } = await serviceClient(env).rpc('ops_user_issues_looked', { p: rest });
         if (error) throw new Error(`ops_user_issues_looked: ${error.message}`);
-        if (!notes.length) return data;
+        // The agent team's record of each fix (docs/agent-team.md). Before its migration is there, the run goes on without it.
+        const kept = fixes.length ? await serviceClient(env).rpc('ops_user_issue_fixes_done', { p: { runUrl: looked.runUrl, fixes } }) : null;
+        if (kept?.error) console.error(`ops_user_issue_fixes_done: ${kept.error.code ?? 'unknown'}`);
+        const recorded = { fixes: kept && !kept.error ? Number(kept.data) || 0 : 0 };
+        if (!notes.length) return { ...data, ...recorded };
         const done = await serviceClient(env).rpc('ops_user_issue_notes_done', { p: { runUrl: looked.runUrl, notes } });
         if (done.error) throw new Error(`ops_user_issue_notes_done: ${done.error.message}`);
-        return { ...data, ...done.data };
+        return { ...data, ...done.data, ...recorded };
       },
       record: jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
       now: () => Date.now()

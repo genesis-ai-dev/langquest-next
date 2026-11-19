@@ -536,11 +536,26 @@ export interface UserIssueNote {
   answeredAt: string | null; result: 'changed' | 'answered' | 'none' | null; answer: string | null; pr: number | null; runUrl: string | null;
 }
 
+/**
+ * The agent team's record of one issue's fix (docs/agent-team.md, server/userIssues.ts FixRecord): what the
+ * gate decided and why, the team's reasoning in its own words, and which problems sent from help mode among
+ * the issue's kinds came with a screenshot or a picture (the page asks for each file by its id).
+ */
+export interface UserIssueFix {
+  decision: 'merge' | 'waits' | 'none'; reason: string | null; why: string | null; pr: number | null;
+  verdict: string | null; model: string | null; effort: string | null;
+  summary: string | null; cause: string | null; proof: string | null; review: string | null; twins: string | null;
+  runUrl: string | null; at: string;
+  pictures: { id: string; screenshot: boolean; picture: boolean }[];
+}
+
 /** diag.ops_user_issues(): the last 90 days, open issues first; counts; the last look; each dashboard line's decision. */
 export interface UserIssues {
   issues: UserIssueRow[];
   /** diag.ops_user_issue_notes(): each issue's last instructions, the oldest first. Absent before migration 20261118073000_user_issue_notes.sql. */
   notes?: Record<string, UserIssueNote[]>;
+  /** diag.ops_user_issue_fixes(): each issue's fix record. Absent before migration 20261119211347_user_issue_fix_record.sql. */
+  fixes?: Record<string, UserIssueFix>;
   /** Absent before migration 20261117213500_ops_lines_linear.sql. */
   lines?: UserIssueLine[];
   open: number; closed: number; fixed: number; noiseWeek: number;
@@ -571,7 +586,7 @@ export interface OpsSections {
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes] = await Promise.all([
     part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -598,7 +613,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Feedback>(query, `select diag.ops_tutorial_feedback() as v`),
     part<UserIssues>(query, `select diag.ops_user_issues() as v`),
     part<QuietAccounts>(query, `select diag.ops_quiet_accounts() as v`),
-    part<Record<string, UserIssueNote[]>>(query, `select diag.ops_user_issue_notes() as v`)
+    part<Record<string, UserIssueNote[]>>(query, `select diag.ops_user_issue_notes() as v`),
+    part<Record<string, UserIssueFix>>(query, `select diag.ops_user_issue_fixes() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -664,8 +680,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
       return ok(f, feedbackAlerts(f));
     }),
     userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
-      // Before its migration the cards show without the box.
-      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}) };
+      // Before its migration the cards show without the box, and without the agent team's record.
+      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: userfixes.value } : {}) };
       return ok(u, userIssueAlerts(u));
     })
   };

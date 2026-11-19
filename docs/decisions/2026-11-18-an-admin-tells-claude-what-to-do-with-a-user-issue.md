@@ -55,3 +55,5 @@ draft fix by hand).
 Reverse if: instructions use too much of the Claude plan (each one is a fix
 run), or Claude's changes to a draft fix cost a developer more review than
 the change by hand. Then keep the answers and stop the changes.
+
+Amended (2026-11-19, Caleb Koster): an instruction that says to merge the draft fix as it is now merges it when its checks pass; the script checks the admin's words and that the draft fix did not change (`docs/decisions/2026-11-19-an-agent-team-fixes-user-issues.md`).

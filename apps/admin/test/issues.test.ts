@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { page } from '../src/page';
 import { ISSUE_LOGIC, ISSUE_SCRIPT } from '../src/pageIssues';
 
-interface Way { tab: string; pill: string; level: string; at: number; pr: { number: number } | null }
+interface Way { tab: string; pill: string; level: string; at: number; pr: { number: number } | null; claude?: boolean }
 type Row = Record<string, unknown>;
-const logic = new Function(`${ISSUE_LOGIC}; return { issueSource, issueWay, issueTabs, videoWay, noteSaid, ISSUE_STEPS, VIDEO_STEPS };`)() as {
+const logic = new Function(`${ISSUE_LOGIC}; return { issueSource, issueWay, issueTabs, videoWay, noteSaid, fixFor, fixSaid, FIX_REASON, ISSUE_STEPS, VIDEO_STEPS };`)() as {
   issueSource: (keys: string[]) => string;
-  issueWay: (r: Row, prs: Row[] | null, notes?: Row[] | null) => Way;
+  issueWay: (r: Row, prs: Row[] | null, notes?: Row[] | null, fix?: Row | null) => Way;
+  fixFor: (fix: Row | null, pr: Row | null) => Row | null;
+  fixSaid: (fix: Row, merged: boolean) => { decision: [string, string]; reasons: [string, string][]; manager: string };
+  FIX_REASON: Record<string, string>;
   noteSaid: (n: Row) => string;
-  issueTabs: (ways: { tab: string }[], chosen: string | null) => { count: Record<string, number>; tab: string };
+  issueTabs: (ways: { tab: string; claude?: boolean }[], chosen: string | null) => { count: Record<string, number>; tab: string };
   videoWay: (a: Row) => { at: number };
   ISSUE_STEPS: [string, string][]; VIDEO_STEPS: [string, string][];
 };
@@ -74,7 +77,7 @@ describe('where a user issue is', () => {
 
   it('opens the first tab that holds an issue, and keeps a chosen tab while it holds one', () => {
     const ways = [{ tab: 'nofix' }, { tab: 'nofix' }, { tab: 'closed' }];
-    expect(logic.issueTabs(ways, null)).toEqual({ count: { you: 0, nofix: 2, open: 0, merged: 0, closed: 1, all: 3 }, tab: 'nofix' });
+    expect(logic.issueTabs(ways, null)).toEqual({ count: { you: 0, nofix: 2, open: 0, claude: 0, merged: 0, closed: 1, all: 3 }, tab: 'nofix' });
     expect(logic.issueTabs(ways, 'closed').tab).toBe('closed');
     expect(logic.issueTabs(ways, 'all').tab).toBe('all');
     expect(logic.issueTabs(ways, 'you').tab).toBe('nofix');
@@ -247,6 +250,68 @@ describe('the cards', () => {
     expect(logic.noteSaid({ state: 'answered', result: 'answered', answer: 'Yes.' })).toBe('Yes.');
     expect(logic.issueWay(issue(), [], [{ state: 'working' }])).toMatchObject({ tab: 'nofix', pill: 'Claude acts next', level: 'claude' });
     expect(logic.issueWay(issue(), [], [{ state: 'answered' }])).toMatchObject({ pill: 'No fix yet' });
+  });
+
+  it("show the agent team's record: what was decided, Claude's reasons, and what came with the problem", () => {
+    const record = (over: Row = {}): Row => ({
+      decision: 'merge', reason: null, why: 'The change does what it says.', pr: 7, verdict: 'fix', model: 'sonnet', effort: 'medium',
+      summary: 'Chapters sort by <number>.', cause: 'listModel.ts line 42 sorts labels as text.', proof: 'The new case fails on main.', review: 'The change does what it says.',
+      twins: null, runUrl: 'https://github.com/o/r/actions/runs/9', at: '2026-11-19T20:00:00Z', pictures: [{ id: 'f1', screenshot: true, picture: false }], ...over
+    });
+    const open = [pr(7, 'open', ['LAN-9'])];
+    // A fix that merges without a person does not wait on a developer.
+    expect(logic.issueWay(issue(), open, null, record())).toMatchObject({ tab: 'claude', pill: 'Merges when checks pass', level: 'claude', at: 4, claude: true });
+    expect(logic.issueWay(issue(), [pr(7, 'merged', ['LAN-9'], '2026-11-19T21:00:00Z')], null, record())).toMatchObject({ tab: 'merged', pill: 'Merged by Claude', claude: true });
+    expect(logic.issueWay(issue({ closedAt: '2026-11-19T22:00:00Z', state: 'Live', fixedBy: 7 }), [], null, record())).toMatchObject({ tab: 'closed', claude: true });
+    // One that waits is where every open pull request is; the record is never read for another pull request.
+    expect(logic.issueWay(issue(), open, null, record({ decision: 'waits', reason: 'mode' }))).toMatchObject({ tab: 'you', pill: 'Waits on you' });
+    expect(logic.issueWay(issue(), [pr(8, 'open', ['LAN-9'])], null, record())).toMatchObject({ tab: 'you', pill: 'Waits on you' });
+    expect(logic.issueWay(issue(), [pr(8, 'merged', ['LAN-9'], '2026-11-19T21:00:00Z')], null, record())).toMatchObject({ pill: 'Merged', claude: false });
+    expect(logic.fixFor(record(), { number: 8 })).toBeNull();
+    // Claude changed nothing: a developer decides, so it waits on them.
+    const none = record({ decision: 'none', reason: 'unconfirmed', why: 'The cause is not proven.', pr: null, summary: null, cause: null, proof: null, review: null });
+    expect(logic.issueWay(issue(), [], null, none)).toMatchObject({ tab: 'you', pill: 'Waits on you', at: 3, pr: null });
+    expect(logic.issueWay(issue(), [], null, null)).toMatchObject({ tab: 'nofix' });
+    // The tab Fixed by Claude holds them in whatever state the issue is.
+    expect(logic.issueTabs([{ tab: 'claude', claude: true }, { tab: 'merged', claude: true }, { tab: 'merged' }, { tab: 'closed', claude: true }], 'claude'))
+      .toEqual({ count: { you: 0, nofix: 0, open: 0, claude: 3, merged: 2, closed: 1, all: 4 }, tab: 'claude' });
+
+    expect(logic.fixSaid(record(), false)).toEqual({ decision: ['This fix merges without a person when its checks pass.', ''], manager: 'sonnet, medium effort',
+      reasons: [['Change', 'Chapters sort by <number>.'], ['Cause', 'listModel.ts line 42 sorts labels as text.'], ['Test', 'The new case fails on main.'], ['Reviewer', 'The change does what it says.']] });
+    expect(logic.fixSaid(record(), true).decision[0]).toBe('Claude merged this fix without a person.');
+    expect(logic.fixSaid(none, false)).toEqual({ decision: ['The cause is not proven.', 'The cause is not proven.'], reasons: [], manager: 'sonnet, medium effort' });
+
+    draw.fixes({ state: 'ok', data: { prs: open } });
+    const html = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record() }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
+    expect(html).toContain('data-itab="claude" aria-pressed="true">Fixed by Claude<span class="count">1</span>');
+    expect(html).toContain('<article class="icard pics" data-tab="claude" data-claude="1">');
+    expect(html).toContain('<dt>Claude</dt>');
+    expect(html).toContain('PR 7 merges without a person when its checks pass.');
+    expect(html).toContain('>Open pull request 7</a>');
+    expect(html).not.toContain('Review pull request');
+    expect(html).toContain('<b>This fix merges without a person when its checks pass.</b>');
+    expect(html).toContain('<p><b>Change.</b> Chapters sort by &#60;number&#62;.</p>');
+    expect(html).toContain('<p><b>Test.</b> The new case fails on main.</p>');
+    expect(html).toContain('Issue manager: sonnet, medium effort');
+    expect(html).toContain('<button type="button" class="link" data-shot="f1" data-what="screenshot">Show screenshot</button>');
+    expect(html).not.toContain('Show picture');
+    // A record of another pull request: its reasons are not under this one, the pictures of the problem still are.
+    const other = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record({ pr: 5 }) }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
+    expect(other).not.toContain('<dt>Claude</dt>');
+    expect(other).toContain('data-shot="f1"');
+    draw.fixes({ state: 'ok', data: { prs: [] } });
+    const waits = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': none }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
+    expect(waits).toContain('<span class="ipill you">Waits on you</span>');
+    expect(waits).toContain('Claude wrote no fix. A developer decides what happens next.');
+    expect(waits).toContain('<b>The cause is not proven.</b> The cause is not proven.');
+    // Before the database keeps records, a card is as it was.
+    expect(draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toMatch(/<dt>Claude<\/dt>|data-shot/);
+    draw.fixes(null);
+  });
+
+  it('says each reason a fix waits, as the gate names them', async () => {
+    const { REASONS } = await import('../../../scripts/agent-team.mjs');
+    expect(Object.keys(logic.FIX_REASON)).toEqual(REASONS);
   });
 
   it('are in the page, which still has no style attribute', async () => {

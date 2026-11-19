@@ -493,4 +493,12 @@ describe('the watch for user issues (decisions.md 202)', () => {
     expect(before.userissues.state).toBe('ok');
     expect((before.userissues.data as { notes?: unknown }).notes).toBeUndefined();
   });
+
+  it('adds the agent team\'s record of each fix, and shows the issues without it before its migration', async () => {
+    const fixes = { 'LAN-220': { decision: 'waits', reason: 'paths', why: 'It changes sync.', pr: 512, verdict: 'fix', model: 'opus', effort: 'high', summary: 'The save waits.', cause: 'The file went first.', proof: 'A test.', review: null, twins: null, runUrl: null, at: hoursAgo(1), pictures: [] } };
+    const s = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })], ['ops_user_issue_fixes', fixes]]));
+    expect(s.userissues).toMatchObject({ state: 'ok', data: { fixes } });
+    const before = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })]]));
+    expect((before.userissues.data as { fixes?: unknown }).fixes).toBeUndefined();
+  });
 });

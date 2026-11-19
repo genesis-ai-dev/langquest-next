@@ -184,3 +184,5 @@ dashboard. Claude starts from the draft fix the issue has, answers, and may
 change it; `open` pushes the change to the draft fix's branch and gets
 `id-token: write` to send the answer back through the Worker
 (`docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`).
+
+Amended (2026-11-19, Caleb Koster): the draft fix is now the work of an agent team, and a rule in code lets some fixes merge without a person (`docs/decisions/2026-11-19-an-agent-team-fixes-user-issues.md`, `docs/agent-team.md`).

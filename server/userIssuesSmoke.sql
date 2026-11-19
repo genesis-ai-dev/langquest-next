@@ -369,6 +369,46 @@ begin
   perform public.ops_record_action(admin, 'user_issue_note', 'LAN-12', 'ok', 'note:' || a);
 end $$;
 
+-- The agent team's record of a fix (migration *_user_issue_fix_record.sql): one for each issue, the
+-- newest; a later record that sends no words keeps the reasoning; the dashboard reads it with the
+-- pictures that came with the problem.
+do $$
+declare
+  v jsonb;
+  run text := 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/150';
+begin
+  assert public.ops_user_issue_fixes_done(jsonb_build_object('runUrl', run)) = 0, 'a run with none';
+  assert public.ops_user_issue_fixes_done(jsonb_build_object('runUrl', run, 'fixes', jsonb_build_array(
+    jsonb_build_object('issue', 'LAN-300', 'decision', 'merge', 'reason', null, 'why', 'The change does what it says.', 'pr', 560, 'verdict', 'fix',
+      'model', 'sonnet', 'effort', 'medium', 'summary', 'Saves the part before closing.', 'cause', 'save() closes the file first.',
+      'proof', 'recorder.test.ts fails without it.', 'review', 'The change does what it says.', 'twins', null),
+    jsonb_build_object('issue', 'LAN-12', 'decision', 'none', 'reason', 'unconfirmed', 'why', 'The cause is not proven.', 'pr', null, 'verdict', 'unconfirmed')))) = 2, 'two kept';
+  v := diag.ops_user_issue_fixes();
+  assert v->'LAN-300'->>'decision' = 'merge' and v->'LAN-300'->>'pr' = '560' and v->'LAN-300'->>'model' = 'sonnet' and v->'LAN-300'->>'runUrl' = run, 'as sent: %', v->'LAN-300';
+  assert v->'LAN-300'->'pictures' = jsonb_build_array(jsonb_build_object('id', '0d000000-0000-4000-8000-0000000000f1', 'screenshot', true, 'picture', false)),
+    'with the screenshot that came with the problem: %', v->'LAN-300'->'pictures';
+  assert v->'LAN-12'->>'decision' = 'none' and v->'LAN-12'->'pictures' = '[]'::jsonb and v->'LAN-12'->>'summary' is null, 'no change, no pictures';
+  assert v::text not like '%ui-p1%' and v::text not like '%My recording vanished%', 'never who, never their words';
+  -- Its checks failed: the job that follows it sends only the decision, and the reasoning stays.
+  perform public.ops_user_issue_fixes_done(jsonb_build_object('runUrl', run, 'fixes', jsonb_build_array(
+    jsonb_build_object('issue', 'LAN-300', 'decision', 'waits', 'reason', 'stalled', 'why', 'Its checks failed (gate: failure).', 'pr', 560))));
+  v := diag.ops_user_issue_fixes()->'LAN-300';
+  assert v->>'decision' = 'waits' and v->>'reason' = 'stalled' and v->>'cause' = 'save() closes the file first.' and v->>'verdict' = 'fix', 'the decision changes, the reasoning stays: %', v;
+  begin
+    perform public.ops_user_issue_fixes_done(jsonb_build_object('runUrl', run, 'fixes', jsonb_build_array(jsonb_build_object('issue', 'LAN-300', 'decision', 'merge', 'reason', 'mode', 'pr', 560))));
+    assert false, 'a merge with a reason to wait was kept';
+  exception when check_violation then null;
+  end;
+  begin
+    perform public.ops_user_issue_fixes_done(jsonb_build_object('runUrl', 'https://github.com/someone/else/actions/runs/1', 'fixes', '[]'::jsonb));
+    assert false, 'a run of another repository was taken';
+  exception when sqlstate '22023' then null;
+  end;
+  assert not has_function_privilege('authenticated', 'public.ops_user_issue_fixes_done(jsonb)', 'execute')
+    and not has_function_privilege('anon', 'public.ops_user_issue_fixes_done(jsonb)', 'execute')
+    and not has_function_privilege('authenticated', 'diag.ops_user_issue_fixes()', 'execute'), 'only the service role writes, only the dashboard reads';
+end $$;
+
 -- Kinds found fixed are taken out 90 days after they were looked at, like noise.
 update ops.user_issues set looked_at = now() - interval '91 days' where key = 'transfer:down:source:failOther';
 select public.ops_user_issues_looked(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/131')) is not null as looked;

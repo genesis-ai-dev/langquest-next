@@ -44,7 +44,7 @@ export interface UserIssuesDeps {
   phone(install: string, at: string | null): Promise<Phone | null>;
   /** One issue's instructions from the dashboard: those that wait, and the last answered ones. */
   notes(issue: string): Promise<IssueNotes>;
-  looked(looked: Looked): Promise<{ looked: number; grew: number; closed?: number; reopened?: number; taken?: number; answered?: number }>;
+  looked(looked: Looked): Promise<{ looked: number; grew: number; closed?: number; reopened?: number; taken?: number; answered?: number; fixes?: number }>;
   record(run: JobRun): Promise<void>;
   now(): number;
 }
@@ -104,7 +104,7 @@ export async function handleUserIssues(request: Request, deps: UserIssuesDeps): 
   for (const l of looked.looked) verdicts[l.verdict] += 1;
   await deps.record({
     job: 'user_issue_look', startedAt: started, ms: deps.now() - started, outcome: 'ok',
-    n: { looked: done.looked, ...verdicts, grew: done.grew, closed: done.closed ?? 0, reopened: done.reopened ?? 0, notesTaken: done.taken ?? 0, notesAnswered: done.answered ?? 0 }
+    n: { looked: done.looked, ...verdicts, grew: done.grew, closed: done.closed ?? 0, reopened: done.reopened ?? 0, notesTaken: done.taken ?? 0, notesAnswered: done.answered ?? 0, fixes: done.fixes ?? 0 }
   });
   return json(200, done);
 }

@@ -553,7 +553,7 @@ function show(id, s) {
   const el = $('pill-' + g.id); el.className = 'pill ' + cls; el.textContent = text;
   // The container's answer lives in the Jobs table, not as a part of its own.
   $('body-' + g.id).innerHTML = g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join('');
-  if (g.parts.includes('feedback')) wireScreenshots();
+  if (g.parts.includes('feedback') || g.parts.includes('userissues')) wireScreenshots();
   annotate($('body-' + g.id));
   if (view().name === 'all') applyOpen(g.id);
   attention();
@@ -840,6 +840,9 @@ document.addEventListener('click', (e) => {
 function wireScreenshots() {
   // Show and hide, under the button; the screenshot (or the picture the person chose) is fetched once and kept while the page is open.
   for (const b of document.querySelectorAll('[data-shot]')) {
+    // Two cards call this (Feedback, User issues): a button is wired once.
+    if (b.dataset.wired) continue;
+    b.dataset.wired = '1';
     let img = null;
     const what = b.dataset.what === 'picture' ? 'picture' : 'screenshot';
     b.setAttribute('aria-expanded', 'false');
@@ -868,6 +871,8 @@ function wireScreenshots() {
     });
   }
   for (const b of document.querySelectorAll('[data-voice]')) {
+    if (b.dataset.wired) continue;
+    b.dataset.wired = '1';
     b.addEventListener('click', async () => {
       b.disabled = true;
       try {
