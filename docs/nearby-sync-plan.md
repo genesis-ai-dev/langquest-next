@@ -3716,6 +3716,19 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     must allow installing apps from other sources, and to send it by Quick Share (which needs
     Google Play services on both phones), SD card or USB. Offline the button is disabled,
     with a line saying it needs the internet. The app requests nothing there itself.
+  - *Then choosing it* (Carl's choice, 2026-11-18). A carrier came back from the browser to a
+    screen whose main button still said to get the file, with the step that checks and keeps
+    it (Check my file) a small button below. So the main button follows the job (`apkStep` in
+    `carriedApkModel.ts`): Get the install file until the person has gone to get the file for
+    this phone's versions (`carriedApkOpened`); then Choose the downloaded file, which opens the
+    same picker as Check my file, with a line saying to choose it once the download has
+    finished (usually first among recent files) and Download it again beside it; and none once
+    the file is in hand, a copy kept for Give the app (14.5), or, on a phone that cannot keep
+    one, a file found right this visit. The kept line then shows on every visit. Nothing shows
+    until the remembered name and the kept copy are read, so the button never changes under a
+    finger. The download stays in the browser (decision 246, Google Play's Device and Network
+    Abuse policy). The screen is Android only (`src/nearby/GetInstallFileScreen.android.tsx`),
+    so the web and an iPhone, which never open it, carry a stub of its header and intro.
   - *Too old.* The press keeps the name in one phone-wide meta row, `carriedApkOpened`,
     which holds no person, organization or time. While the name this phone needs differs
     from it, Get the install file says the file got before is for an older version and to
@@ -3798,7 +3811,8 @@ server on port 53, which an app cannot open without root. So the carrier's scree
 codes, one after the other, as Let someone in shows two pictures.
 
 **The carrier's phone.**
-1. **Before the trip, online.** Get the install file opens the browser as now. Check my file
+1. **Before the trip, online.** Get the install file opens the browser as now. Check my file,
+   or Choose the downloaded file, the main button once the browser has been opened (14.4),
    then also keeps the file: a right name is copied into the app's own folder
    (`filesDir/install-file/`, `keepInstallFile`), and native keeps the copy only if it is this
    app's own: the same package and the same signing certificates as the running app
