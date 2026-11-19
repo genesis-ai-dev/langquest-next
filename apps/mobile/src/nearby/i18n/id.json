@@ -131,7 +131,6 @@
         "noPass": "Ponsel ini tidak bisa mengizinkan siapa pun masuk. Organisasi Anda harus menyalakannya, Anda harus bisa mengundang orang ke bahasa ini, dan ponsel ini harus sudah tersambung ke internet sejak itu.",
         "expired": "Izin ponsel ini untuk mengizinkan orang masuk sudah habis. Sambungkan ke internet sekali untuk memperbaruinya.",
         "noRole": "Tidak ada peran yang bisa diberikan ponsel ini tanpa internet. Admin bisa memberi peran setelah orang baru itu tersambung ke internet.",
-        "permissions": "Buka Berbagi di sekitar dulu dan izinkan yang diminta Android, lalu kembali ke sini.",
         "wifiOff": "Nyalakan Wi-Fi di pengaturan ponsel Anda, lalu kembali ke sini."
       },
       "role": "Perannya",
@@ -161,11 +160,18 @@
       "stayOpen": "Biarkan layar ini terbuka sampai selesai.",
       "get": "Unduh di browser",
       "getHelp": "Membuka browser ponsel, yang mengunduh file instalasi untuk versi ini.",
+      "getSteps": {
+        "lead": "Setelah Anda mengetuk {{button}}:",
+        "browser": "Browser ponsel terbuka dan mengunduh file instalasi.",
+        "warning": "Jika browser memperingatkan bahwa file mungkin berbahaya, pilih untuk tetap mengunduhnya. Ini file instalasi milik LangQuest sendiri.",
+        "back": "Setelah unduhan selesai, kembali ke LangQuest. Anda tidak perlu membuka file itu.",
+        "choose": "Ketuk {{button}}."
+      },
       "getLine": "Di lapangan, kirim file-nya lewat Berikan aplikasi. Quick Share, kartu SD, atau kabel USB juga bisa, tetapi Quick Share memerlukan layanan Google Play di kedua ponsel.",
       "getLineOther": "Di lapangan, kirim file-nya ke ponsel baru lewat Quick Share, kartu SD, atau kabel USB. Quick Share memerlukan layanan Google Play di kedua ponsel. Ponsel baru mungkin meminta izin untuk memasang dari sumber ini.",
       "getOffline": "Mengunduh file instalasi memerlukan internet.",
-      "check": "Periksa file saya",
-      "checkHelp": "Membuka file di ponsel. Pilih file instalasi yang Anda punya, lalu aplikasi memeriksa bahwa itu file yang diperlukan ponsel ini.",
+      "check": "Pilih file yang sudah Anda punya",
+      "checkHelp": "Membuka file di ponsel. Pilih file instalasi yang Anda dapat dengan cara lain, misalnya dari rekan tim atau kartu SD, lalu aplikasi memeriksa bahwa itu file yang diperlukan ponsel ini.",
       "choose": "Pilih file yang diunduh",
       "chooseHelp": "Membuka file di ponsel. Pilih file instalasi yang diunduh browser, lalu aplikasi memeriksa bahwa itu file yang diperlukan ponsel ini.",
       "chooseLine": "Setelah unduhan selesai, ketuk Pilih file yang diunduh. Biasanya file itu paling atas di file terbaru Anda.",
@@ -216,7 +222,8 @@
       "ready": "Siap diberikan kepada orang baru.",
       "readyShort": "File instalasi siap",
       "done": "Siap. Anda bisa membawanya ke tempat tanpa internet.",
-      "newer": "File instalasi yang lebih baru sudah siap. Unduh selagi Anda punya internet, lalu pilih file-nya."
+      "newer": "File instalasi yang lebih baru sudah siap. Unduh selagi Anda punya internet, lalu pilih file-nya.",
+      "newerShort": "File instalasi untuk orang baru: yang lebih baru sudah siap"
     },
     "join": {
       "intro": "Bergabung dengan tim Anda dari ponsel rekan tim, tanpa internet. Akun Anda dibuat saat ponsel Anda pertama kali tersambung ke internet.",

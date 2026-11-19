@@ -201,7 +201,14 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Share nearby (5,037 bytes), and the kept file's rules (840 bytes in the entry, 411 in the shared
 // chunk). The screen itself is Android only (src/nearby/GiveAppScreen.android.tsx), so the web
 // carries a plain stub of it. A first visit has 16,500 bytes left.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 136 * 1024;
+// Raised by 1 KB with the install file's steps, its newer-file notice and Let someone in asking
+// for its own permissions (Carl, 2026-11-19, docs/decisions/2026-11-19-carried-build-refreshed-daily.md),
+// 746 bytes past it: their English words in the nearby chunk the web loads with Share nearby (the
+// steps after Download in the browser, Choose a file you already have, a newer file is ready), the
+// notice's rule on Sync, and Let someone in's permission step on its screen. The rule that decides
+// that step is in a file only Android loads (src/nearby/letInPermitModel.ts), and the screens are
+// Android only; the web never opens them. A first visit has 14,132 bytes left.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 137 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

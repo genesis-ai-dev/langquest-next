@@ -131,7 +131,6 @@
         "noPass": "Este teléfono no puede dejar entrar a nadie. Tu organización debe tenerlo activado, tú debes poder invitar personas a este idioma, y este teléfono debe haberse conectado a internet desde entonces.",
         "expired": "El permiso de este teléfono para dejar entrar a personas venció. Conéctate a internet una vez para renovarlo.",
         "noRole": "No hay ningún rol que este teléfono pueda dar sin internet. Un administrador puede dar roles cuando la persona nueva se conecte a internet.",
-        "permissions": "Primero abre Compartir cerca y permite lo que pida Android, luego vuelve.",
         "wifiOff": "Enciende el Wi-Fi en los ajustes del teléfono, luego vuelve."
       },
       "role": "Su rol",
@@ -161,11 +160,18 @@
       "stayOpen": "Deja esta pantalla abierta hasta que termine.",
       "get": "Descargar en el navegador",
       "getHelp": "Abre el navegador del teléfono, que descarga el archivo de instalación de esta versión.",
+      "getSteps": {
+        "lead": "Después de tocar {{button}}:",
+        "browser": "Se abre el navegador del teléfono y descarga el archivo de instalación.",
+        "warning": "Si el navegador avisa de que el archivo puede ser dañino, elige descargarlo de todos modos. Es el archivo de instalación propio de LangQuest.",
+        "back": "Cuando termine la descarga, vuelve a LangQuest. No hace falta abrir el archivo.",
+        "choose": "Toca {{button}}."
+      },
       "getLine": "En el campo, envíalo con Dar la app. También sirven Quick Share, una tarjeta SD o un cable USB, pero Quick Share necesita los servicios de Google Play en los dos teléfonos.",
       "getLineOther": "En el campo, envíalo al teléfono nuevo por Quick Share, una tarjeta SD o un cable USB. Quick Share necesita los servicios de Google Play en los dos teléfonos. Puede que el teléfono nuevo pida permitir instalaciones desde esta fuente.",
       "getOffline": "Para descargar el archivo de instalación se necesita internet.",
-      "check": "Revisar mi archivo",
-      "checkHelp": "Abre los archivos del teléfono. Elige el archivo de instalación que tienes y la app comprueba que es el que necesita este teléfono.",
+      "check": "Elegir un archivo que ya tienes",
+      "checkHelp": "Abre los archivos del teléfono. Elige un archivo de instalación que conseguiste de otra forma, por ejemplo de un compañero o de una tarjeta SD, y la app comprueba que es el que necesita este teléfono.",
       "choose": "Elegir el archivo descargado",
       "chooseHelp": "Abre los archivos del teléfono. Elige el archivo de instalación que descargó el navegador y la app comprueba que es el que necesita este teléfono.",
       "chooseLine": "Cuando termine la descarga, toca Elegir el archivo descargado. Suele ser el primero de tus archivos recientes.",
@@ -216,7 +222,8 @@
       "ready": "Listo para dárselo a una persona nueva.",
       "readyShort": "Archivo de instalación listo",
       "done": "Listo. Puedes llevarlo contigo sin internet.",
-      "newer": "Ya hay un archivo de instalación más nuevo. Descárgalo mientras tienes internet y luego elígelo."
+      "newer": "Ya hay un archivo de instalación más nuevo. Descárgalo mientras tienes internet y luego elígelo.",
+      "newerShort": "Archivo de instalación para una persona nueva: ya hay uno más nuevo"
     },
     "join": {
       "intro": "Únete a tu equipo desde el teléfono de un compañero, sin internet. Tu cuenta se crea la primera vez que tu teléfono se conecte a internet.",

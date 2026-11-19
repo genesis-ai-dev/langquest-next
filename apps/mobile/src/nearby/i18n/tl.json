@@ -131,7 +131,6 @@
         "noPass": "Hindi makapagpapapasok ng kahit sino ang teleponong ito. Kailangang naka-on ito sa iyong organisasyon, kailangang makapag-imbita ka ng mga tao sa wikang ito, at kailangang nakakonekta na sa internet ang teleponong ito mula noon.",
         "expired": "Paso na ang pahintulot ng teleponong ito na magpapasok ng mga tao. Kumonekta sa internet nang isang beses para i-renew ito.",
         "noRole": "Walang tungkuling maibibigay ang teleponong ito nang walang internet. Makapagbibigay ng tungkulin ang isang admin kapag nakakonekta na sa internet ang bagong tao.",
-        "permissions": "Buksan muna ang Ibahagi sa malapit at payagan ang hinihingi ng Android, saka bumalik.",
         "wifiOff": "I-on ang Wi-Fi sa settings ng iyong telepono, saka bumalik."
       },
       "role": "Ang tungkulin niya",
@@ -161,11 +160,18 @@
       "stayOpen": "Panatilihing bukas ang screen na ito hanggang matapos.",
       "get": "I-download sa browser",
       "getHelp": "Binubuksan ang browser ng telepono, na magda-download ng install file para sa bersiyong ito.",
+      "getSteps": {
+        "lead": "Pagkatapos mong i-tap ang {{button}}:",
+        "browser": "Magbubukas ang browser ng telepono at ida-download nito ang install file.",
+        "warning": "Kung magbabala ang browser na maaaring mapanganib ang file, piliing i-download pa rin ito. Ito ang sariling install file ng LangQuest.",
+        "back": "Kapag tapos na ang download, bumalik sa LangQuest. Hindi mo kailangang buksan ang file.",
+        "choose": "I-tap ang {{button}}."
+      },
       "getLine": "Sa field, ipadala ito gamit ang Ibigay ang app. Puwede rin ang Quick Share, SD card o USB cable, pero kailangan ng Quick Share ang Google Play services sa dalawang telepono.",
       "getLineOther": "Sa field, ipadala ito sa bagong telepono sa Quick Share, SD card o USB cable. Kailangan ng Quick Share ang Google Play services sa dalawang telepono. Baka magtanong ang bagong telepono kung papayagan ang pag-install mula sa source na ito.",
       "getOffline": "Kailangan ng internet para ma-download ang install file.",
-      "check": "Suriin ang file ko",
-      "checkHelp": "Binubuksan ang mga file ng telepono. Piliin ang install file na hawak mo, at titingnan ng app kung ito ang kailangan ng teleponong ito.",
+      "check": "Piliin ang file na mayroon ka na",
+      "checkHelp": "Binubuksan ang mga file ng telepono. Piliin ang install file na nakuha mo sa ibang paraan, gaya ng mula sa isang kasamahan o sa SD card, at titingnan ng app kung ito ang kailangan ng teleponong ito.",
       "choose": "Piliin ang na-download na file",
       "chooseHelp": "Binubuksan ang mga file ng telepono. Piliin ang install file na na-download ng browser, at titingnan ng app kung ito ang kailangan ng teleponong ito.",
       "chooseLine": "Kapag tapos na ang download, i-tap ang Piliin ang na-download na file. Kadalasan ito ang una sa mga kamakailang file mo.",
@@ -216,7 +222,8 @@
       "ready": "Handa nang ibigay sa bagong tao.",
       "readyShort": "Handa na ang install file",
       "done": "Handa na. Puwede mo na itong dalhin kahit walang internet.",
-      "newer": "May mas bagong install file na. I-download ito habang may internet ka, saka piliin ito."
+      "newer": "May mas bagong install file na. I-download ito habang may internet ka, saka piliin ito.",
+      "newerShort": "Install file para sa bagong tao: may mas bago na"
     },
     "join": {
       "intro": "Sumali sa pangkat mo mula sa telepono ng isang kasamahan, nang walang internet. Gagawin ang account mo sa unang beses na makakonekta sa internet ang telepono mo.",

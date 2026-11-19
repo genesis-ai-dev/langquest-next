@@ -131,7 +131,6 @@
         "noPass": "Este celular não pode deixar ninguém entrar. A sua organização precisa ter isso ligado, você precisa poder convidar pessoas para este idioma, e este celular precisa ter se conectado à internet depois disso.",
         "expired": "A permissão deste celular para deixar pessoas entrarem venceu. Conecte-se à internet uma vez para renová-la.",
         "noRole": "Não há nenhuma função que este celular possa dar sem internet. Um administrador pode dar funções depois que a pessoa nova se conectar à internet.",
-        "permissions": "Primeiro abra o Compartilhar por perto e permita o que o Android pedir, depois volte.",
         "wifiOff": "Ligue o Wi-Fi nas configurações do celular, depois volte."
       },
       "role": "A função dela",
@@ -161,11 +160,18 @@
       "stayOpen": "Deixe esta tela aberta até terminar.",
       "get": "Baixar no navegador",
       "getHelp": "Abre o navegador do celular, que baixa o arquivo de instalação desta versão.",
+      "getSteps": {
+        "lead": "Depois de tocar em {{button}}:",
+        "browser": "O navegador do celular abre e baixa o arquivo de instalação.",
+        "warning": "Se o navegador avisar que o arquivo pode ser perigoso, escolha baixar mesmo assim. É o arquivo de instalação do próprio LangQuest.",
+        "back": "Quando o download terminar, volte para o LangQuest. Não precisa abrir o arquivo.",
+        "choose": "Toque em {{button}}."
+      },
       "getLine": "Em campo, envie o arquivo com Dar o app. Quick Share, cartão SD ou cabo USB também funcionam, mas o Quick Share precisa dos serviços do Google Play nos dois celulares.",
       "getLineOther": "Em campo, envie o arquivo para o celular novo por Quick Share, cartão SD ou cabo USB. O Quick Share precisa dos serviços do Google Play nos dois celulares. O celular novo pode pedir para permitir instalações desta fonte.",
       "getOffline": "Para baixar o arquivo de instalação é preciso internet.",
-      "check": "Verificar meu arquivo",
-      "checkHelp": "Abre os arquivos do celular. Escolha o arquivo de instalação que você tem, e o app confere se é o que este celular precisa.",
+      "check": "Escolher um arquivo que você já tem",
+      "checkHelp": "Abre os arquivos do celular. Escolha um arquivo de instalação que você conseguiu de outro jeito, por exemplo com um colega ou de um cartão SD, e o app confere se é o que este celular precisa.",
       "choose": "Escolher o arquivo baixado",
       "chooseHelp": "Abre os arquivos do celular. Escolha o arquivo de instalação que o navegador baixou, e o app confere se é o que este celular precisa.",
       "chooseLine": "Quando o download terminar, toque em Escolher o arquivo baixado. Ele costuma ser o primeiro dos seus arquivos recentes.",
@@ -216,7 +222,8 @@
       "ready": "Pronto para dar a uma pessoa nova.",
       "readyShort": "Arquivo de instalação pronto",
       "done": "Pronto. Você pode levá-lo para onde não há internet.",
-      "newer": "Um arquivo de instalação mais novo está pronto. Baixe-o enquanto tem internet e depois escolha-o."
+      "newer": "Um arquivo de instalação mais novo está pronto. Baixe-o enquanto tem internet e depois escolha-o.",
+      "newerShort": "Arquivo de instalação para uma pessoa nova: um mais novo está pronto"
     },
     "join": {
       "intro": "Entre na sua equipe pelo celular de um colega, sem internet. A sua conta é criada na primeira vez que o seu celular se conectar à internet.",

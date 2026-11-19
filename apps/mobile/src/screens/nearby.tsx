@@ -73,7 +73,7 @@ export function ShareNearby(ctx: Ctx) {
         <Row icon="layers" label={t('nearby.hold')} help={t('nearby.holdHelp')} role="switch" checked={view.hold}
           onPress={() => { void actions.setHold(!view.hold); }} last />
       </Group>
-      <JoinRows ctx={ctx} needed={apk.needed} apkOld={apk.stale && ctx.language.online === true} />
+      <JoinRows ctx={ctx} needed={apk.needed} apkOld={apk.stale && ctx.language.online === true} apkNewer={apk.behind && ctx.language.online === true} />
     </Screen>
   );
 }
@@ -94,11 +94,12 @@ function Job(props: { label: string; line: string }) {
  * 14.4); hidden otherwise (`joinRows`). They are three steps at three moments, numbered: Download
  * the install file before going offline; Give the app, with the new person; Let someone in, once
  * their app is installed. While online, an install file got for an older version says so above
- * them (14.4). A run-out
+ * them (14.4), and so does a kept copy more than two days behind this phone's app (`keptBehind`,
+ * docs/decisions/2026-11-19-carried-build-refreshed-daily.md). A run-out
  * pass keeps Let someone in, disabled, saying the phone needs the server again; the row keeps its
  * onPress so help mode can explain it.
  */
-function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean }) {
+function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean; apkNewer: boolean }) {
   const whyNot = useLetInOffered(props.ctx);
   const rows = joinRows(whyNot, props.needed);
   if (rows.letIn === null) return null;
@@ -107,11 +108,12 @@ function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean }) {
   return (
     <>
       <Job label={t('nearby.newPerson')} line={t('nearby.newPersonLine')} />
-      {props.apkOld ? (
+      {props.apkOld || props.apkNewer ? (
         <Card>
           <View style={styles.line}>
             <Ico name="warning" size={20} color={TINT.amberText} />
-            <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.installFile.old')}</Text>
+            {/* A kept copy behind this phone's app may lack fixes the newcomer needs (keptBehind, Carl 2026-11-19). */}
+            <Text style={[txt.sm, { flex: 1 }]}>{t(props.apkOld ? 'nearby.installFile.old' : 'nearby.installFile.newer')}</Text>
           </View>
         </Card>
       ) : null}
@@ -357,7 +359,7 @@ const styles = StyleSheet.create({
 
 // ---- Let someone in (docs/nearby-sync-plan.md 14.1, 3) ----------------------------------
 
-/** Why Let someone in cannot run here, in words. */
+/** Why Let someone in cannot run here, in words. Missing permissions have their own lines and buttons (`letInPermit`). */
 const LET_IN_WHY = {
   'loading': 'nearby.letIn.why.loading',
   'not-in-build': 'nearby.letIn.why.notInBuild',
@@ -365,9 +367,8 @@ const LET_IN_WHY = {
   'expired': 'nearby.letIn.why.expired',
   'no-role': 'nearby.letIn.why.noRole',
   'read-only': 'nearby.letIn.why.noPass',
-  'permissions': 'nearby.letIn.why.permissions',
   'wifi-off': 'nearby.letIn.why.wifiOff'
-} as const satisfies Record<LetInWhyNot, string>;
+} as const satisfies Record<Exclude<LetInWhyNot, 'permissions'>, string>;
 
 /** How a link with a newcomer ended, in words. */
 const LET_IN_END = {
@@ -402,14 +403,19 @@ function TwoPictures(props: { pictures: [number, number] }) {
  * Then this phone sends them a starting copy. Nothing runs until Show the code is pressed.
  */
 export function LetSomeoneIn(ctx: Ctx) {
-  const { whyNot, roles, state, code, secondsLeft, worn, actions } = useLetIn(ctx);
+  const { whyNot, roles, state, code, secondsLeft, worn, permit, actions } = useLetIn(ctx);
   const apk = useCarriedApk();
   const { stage } = state;
   const running = stage.t === 'starting' || stage.t === 'showing' || stage.t === 'connected' || stage.t === 'copying';
   // Away while a code is up or a phone is on the line, so the code and the one tap stay in view.
   const between = whyNot !== 'not-in-build' && (whyNot !== null || stage.t === 'choose' || stage.t === 'ended' || stage.t === 'done');
   let footer: ReactNode = null;
-  if (whyNot === null && stage.t === 'asked') {
+  // Missing permissions are asked here, as Give the app asks (letInPermit, Carl 2026-11-19).
+  if (whyNot === 'permissions' && permit?.t === 'explain') {
+    footer = <PrimaryBtn label={t('nearby.permission.allow')} icon="arrowR" help={t('nearby.permission.allowHelp')} onPress={actions.askPermissions} />;
+  } else if (whyNot === 'permissions' && permit?.t === 'settings') {
+    footer = <PrimaryBtn label={t('nearby.permission.openSettings')} icon="settings" help={t('nearby.permission.openSettingsHelp')} onPress={actions.openSettings} />;
+  } else if (whyNot === null && stage.t === 'asked') {
     footer = (
       <>
         <PrimaryBtn label={t('nearby.letIn.letIn', { name: stage.name })} icon="check" help={t('nearby.letIn.letInHelp')} onPress={() => actions.answer(true)} />
@@ -442,7 +448,12 @@ export function LetSomeoneIn(ctx: Ctx) {
           </>
         ) : null}
       </NearbyIntro>
-      {whyNot !== null ? (
+      {whyNot === 'permissions' ? (
+        permit?.t === 'explain' ? <Banner icon="info" title={t(PERMISSION_WORDS[permit.reason])} />
+          : permit?.t === 'settings' ? <Banner icon="lock" tone="amber" title={t('nearby.permission.settings')} />
+            // A phone that wears a cover: its own line, in the cover's words, sends the person to Share nearby's warning.
+            : <Card><LetInCoverNote worn={worn} part="permissions" /></Card>
+      ) : whyNot !== null ? (
         <Card>
           <View style={styles.line}>
             {whyNot === 'loading' ? <ActivityIndicator color={C.primary} /> : <Ico name="info" size={22} color={C.muted} />}

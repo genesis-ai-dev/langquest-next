@@ -64,7 +64,8 @@ export function SyncStatus(ctx: Ctx) {
   const lastSent = sync.sent.reduce((m, e) => Math.max(m, e.at), 0);
   const uploads = uploadsLine(uploadsSummary(counts, movingUp, lastSent, Date.now()), offline);
   const install = useInstallFile(ctx);
-  const ready = readyLine(offlineSummaryNow, install.item);
+  // A newer install file is worth saying only while it can be downloaded (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
+  const ready = readyLine(offlineSummaryNow, install.item, install.behind && !offline);
   const syncNow = async () => {
     setBusy(true);
     try { await Promise.all([language.sync(), org.sync()]); language.triggerUpload(); }

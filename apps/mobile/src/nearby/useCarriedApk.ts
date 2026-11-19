@@ -11,7 +11,7 @@ export interface CarriedApkHandle {
   /** The file the person got before is for an older version (`apkStale`). */
   stale: boolean;
   /**
-   * What the file last chosen under Check my file said, with its name, until the screen closes;
+   * What the file last chosen (Choose a file you already have, or Choose the downloaded file) said, with its name, until the screen closes;
    * for a right name, also what keeping a copy for Give the app came to (14.5).
    */
   checked: { result: ApkCheck; name: string; keep?: KeepResult } | null;

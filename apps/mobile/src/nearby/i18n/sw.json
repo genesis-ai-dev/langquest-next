@@ -131,7 +131,6 @@
         "noPass": "Simu hii haiwezi kumruhusu mtu yeyote aingie. Shirika lako lazima liwe limewasha hili, lazima uweze kualika watu kwenye lugha hii, na simu hii lazima iwe imefika kwenye intaneti tangu wakati huo.",
         "expired": "Ruhusa ya simu hii kuwaruhusu watu waingie imeisha muda. Unganisha kwenye intaneti mara moja ili kuifanya upya.",
         "noRole": "Hakuna jukumu ambalo simu hii inaweza kutoa bila intaneti. Msimamizi anaweza kutoa majukumu baada ya mtu mpya kufika kwenye intaneti.",
-        "permissions": "Fungua Shiriki karibu kwanza na uruhusu kile Android inachouliza, kisha urudi.",
         "wifiOff": "Washa Wi-Fi kwenye mipangilio ya simu yako, kisha urudi."
       },
       "role": "Jukumu lake",
@@ -161,11 +160,18 @@
       "stayOpen": "Acha skrini hii wazi hadi imalize.",
       "get": "Pakua kwenye kivinjari",
       "getHelp": "Hufungua kivinjari cha simu, kinachopakua faili ya kusakinisha ya toleo hili.",
+      "getSteps": {
+        "lead": "Baada ya kugusa {{button}}:",
+        "browser": "Kivinjari cha simu kinafunguka na kupakua faili ya kusakinisha.",
+        "warning": "Kivinjari kikionya kwamba faili inaweza kuwa hatari, chagua kuipakua hata hivyo. Ni faili ya kusakinisha ya LangQuest yenyewe.",
+        "back": "Upakuaji ukiisha, rudi kwenye LangQuest. Huhitaji kufungua faili.",
+        "choose": "Gusa {{button}}."
+      },
       "getLine": "Ukiwa uwanjani, itume kwa Mpe mtu programu. Quick Share, kadi ya SD au kebo ya USB pia zinafaa, lakini Quick Share inahitaji huduma za Google Play kwenye simu zote mbili.",
       "getLineOther": "Ukiwa uwanjani, itume kwenye simu mpya kwa Quick Share, kadi ya SD au kebo ya USB. Quick Share inahitaji huduma za Google Play kwenye simu zote mbili. Huenda simu mpya ikaomba kuruhusu kusakinisha kutoka chanzo hiki.",
       "getOffline": "Kupakua faili ya kusakinisha kunahitaji intaneti.",
-      "check": "Kagua faili yangu",
-      "checkHelp": "Hufungua faili za simu. Chagua faili ya kusakinisha uliyo nayo, na programu inakagua kwamba ndiyo ambayo simu hii inahitaji.",
+      "check": "Chagua faili uliyo nayo tayari",
+      "checkHelp": "Hufungua faili za simu. Chagua faili ya kusakinisha uliyoipata kwa njia nyingine, kama kutoka kwa mwenzako au kwenye kadi ya SD, na programu inakagua kwamba ndiyo ambayo simu hii inahitaji.",
       "choose": "Chagua faili iliyopakuliwa",
       "chooseHelp": "Hufungua faili za simu. Chagua faili ya kusakinisha ambayo kivinjari kilipakua, na programu inakagua kwamba ndiyo ambayo simu hii inahitaji.",
       "chooseLine": "Upakuaji ukiisha, gusa Chagua faili iliyopakuliwa. Kwa kawaida huwa ya kwanza kati ya faili zako za hivi karibuni.",
@@ -216,7 +222,8 @@
       "ready": "Iko tayari kumpa mtu mpya.",
       "readyShort": "Faili ya kusakinisha iko tayari",
       "done": "Iko tayari. Unaweza kwenda nayo mahali pasipo intaneti.",
-      "newer": "Faili mpya zaidi ya kusakinisha iko tayari. Ipakue ukiwa bado na intaneti, kisha uichague."
+      "newer": "Faili mpya zaidi ya kusakinisha iko tayari. Ipakue ukiwa bado na intaneti, kisha uichague.",
+      "newerShort": "Faili ya kusakinisha kwa mtu mpya: faili mpya zaidi iko tayari"
     },
     "join": {
       "intro": "Jiunge na timu yako kupitia simu ya mwenzako wa timu, bila intaneti. Akaunti yako inatengenezwa mara ya kwanza simu yako itakapofika kwenye intaneti.",

@@ -49,6 +49,11 @@ describe('each fold\'s line', () => {
     expect(readyLine(some, 'older').tone).toBe('amber');
     // Downloaded is not in hand: the file is still to choose, so the line stays amber.
     expect(readyLine(all, 'downloaded')).toEqual({ line: joined(offlineCount(all), t('nearby.installFile.notChosen')), tone: 'amber' });
+    // A kept copy behind this phone's app, while online: amber on the folded line, since the newer app
+    // may hold fixes the newcomer needs (Carl, 2026-11-19). The caller says so only while online.
+    expect(readyLine(all, 'ready', true)).toEqual({ line: joined(offlineCount(all), t('nearby.installFile.newerShort')), tone: 'amber' });
+    expect(readyLine(all, 'ready', false)).toEqual(readyLine(all, 'ready'));
+    expect(readyLine(all, 'older', true)).toEqual(readyLine(all, 'older'));
     // Nothing kept is nothing to finish, and an unread count is not a problem yet.
     expect(readyLine({ kept: 0, ready: 0 }, null).tone).toBeNull();
     expect(readyLine(null, null).tone).toBeNull();
@@ -70,11 +75,12 @@ describe('each fold\'s line', () => {
     expect(installBlock('ready', true, false).body).not.toContain(t('nearby.letIn.fileHelp'));
   });
 
-  it('says a newer file is ready once the kept copy is behind this phone\'s app, while online, and stays ready', () => {
-    // Why: the old copy still lets a new phone join, so nothing turns amber; the carrier is told only
-    // that a fresher app is there to download (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
+  it('says a newer file is ready once the kept copy is behind this phone\'s app, in amber, while online', () => {
+    // Why: the old copy still lets a new phone join, but the newer app may hold fixes or features the
+    // newcomer needs offline, so it is as hard to miss as a file for an older version (Carl,
+    // 2026-11-19; docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended).
     const behind = installBlock('ready', true, false, true);
-    expect(behind).toEqual({ good: true, body: `${t('nearby.installFile.ready')} ${t('nearby.installFile.newer')}`, way: 'newer' });
+    expect(behind).toEqual({ good: false, body: `${t('nearby.installFile.ready')} ${t('nearby.installFile.newer')}`, way: 'newer' });
     // Offline there is nothing to do about it, so nothing is said.
     expect(installBlock('ready', true, true, true)).toEqual(installBlock('ready', true, true));
     expect(installBlock('ready', true, false, false)).toEqual(installBlock('ready', true, false));

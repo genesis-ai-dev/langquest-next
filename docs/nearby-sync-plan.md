@@ -3719,10 +3719,26 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   the internet the field lacks; and Sync and offline's Ready for offline list opens it from its
   install file item (below). Let someone in keeps only the field: the role, Show the code, the
   code, the pictures, the one tap and the words of a version refusal.
+  - *Its permissions* (Carl, 2026-11-19, `letInPermit` in `letInModel.ts`). Let someone in used
+    only to check the nearby permissions and say to open Share nearby, allow what Android asks
+    and come back, with no way there; a carrier coming from Give the app, which asks only for
+    its own Wi-Fi permission, was stuck. It now asks Android itself, as Give the app does:
+    Share nearby's line for the Android version with Continue, which asks for what is missing,
+    or, once Android will not ask again, its settings line with Open settings. A phone that
+    wears a cover asks nothing here, since Share nearby's warning comes before any prompt
+    (decision 231): a line in the cover's own words (`src/disguise/i18n`, `LetInCover`) says
+    to go back to Share nearby, tap Start sharing, allow what Android asks and come back.
   - *Getting it.* While online, Download in the browser, that screen's main button until the
     browser has been opened, opens `<Worker>/apk/<name>` in the phone's browser
     (`Linking.openURL`; the address is built in `src/server/carriedApk.ts`), which downloads
-    it. A line says how the file reaches the new phone: with Give the app (14.5), or by Quick
+    it. Before it is pressed, numbered steps say what follows (Carl, 2026-11-19): the browser
+    opens and downloads the file; it may warn that the file may be harmful, and to download it
+    anyway; come back to LangQuest when it has finished, without opening the file (on the
+    carrier's phone that offers to install the carried build over their app); then Choose the
+    downloaded file. Each step's other way on (Choose a file you already have, Download it again)
+    sits under its main button in the footer. Check my file was renamed Choose a file you already
+    have (2026-11-19): it is the way in for a file got from a teammate, a card or a cable, and it
+    chooses and keeps the file as well as checking it. A line says how the file reaches the new phone: with Give the app (14.5), or by Quick
     Share (which needs Google Play services on both phones), SD card or USB. A phone that
     cannot give the app is told only those three, and that the new phone may ask to allow
     installs from this source. Offline the button is disabled, with a line saying it needs the
@@ -3781,8 +3797,10 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     moved on, builds, uploads and publishes one in its place under the same name. Native reads
     when a kept copy's JavaScript was built (expo-updates' `commitTime`, `builtMs`), and when it
     is more than two days older than the app the carrier runs (`keptBehind`), Download the
-    install file and Ready for offline say, while online, that a newer file is ready, without
-    turning amber: the older copy still lets a new phone join.
+    install file, Ready for offline and Share nearby's A new person say, while online, that a
+    newer file is ready. Since 2026-11-19 it is amber, on Sync's folded line too ("Install file
+    for a new person: a newer one is ready"): the older copy still lets a new phone join, but
+    the newer app may hold fixes the newcomer needs offline (Carl).
   - *A phone whose build has no file.* Files are made only at merges into main, for main's
     fingerprint, so a phone on another build (a store build from before publishing worked, or
     a release branch's) asks for a name the bucket lacks. The Worker sends it, by a 302 that

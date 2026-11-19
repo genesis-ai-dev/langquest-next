@@ -79,3 +79,5 @@ Reverse if: any of these holds.
 - the daily build or its Play upload often fails, or holds up merges' deploys enough to matter;
 - carriers ignore the line, or find downloading again too costly on their connection;
 - newcomers' first launch online shows the OTA update closes the gap well enough on its own.
+
+Amended (2026-11-19, Carl Sauder): the newer-file notice is amber and harder to miss, since the updates in a newer file may hold fixes or features the newcomer needs offline. While online, a kept copy two days behind this phone's app turns Sync's folded Ready for offline line amber ("Install file for a new person: a newer one is ready", `readyLine`), makes the Ready for offline item amber (`installBlock`), and shows the same line on Share nearby under A new person, where the line for a file of an older version shows (`JoinRows`). It still says nothing offline, and the old copy still counts as right.

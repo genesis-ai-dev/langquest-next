@@ -131,7 +131,6 @@
         "noPass": "Ce téléphone ne peut faire entrer personne. Votre organisation doit l’avoir activé, vous devez pouvoir inviter des personnes dans cette langue, et ce téléphone doit s’être connecté à Internet depuis.",
         "expired": "L’autorisation de ce téléphone pour faire entrer des personnes a expiré. Connectez-vous une fois à Internet pour la renouveler.",
         "noRole": "Il n’y a aucun rôle que ce téléphone peut donner sans Internet. Un administrateur pourra donner des rôles quand la nouvelle personne se sera connectée à Internet.",
-        "permissions": "Ouvrez d’abord Partager à proximité et autorisez ce qu’Android demande, puis revenez.",
         "wifiOff": "Activez le Wi-Fi dans les réglages du téléphone, puis revenez."
       },
       "role": "Son rôle",
@@ -161,11 +160,18 @@
       "stayOpen": "Gardez cet écran ouvert jusqu’à la fin.",
       "get": "Télécharger dans le navigateur",
       "getHelp": "Ouvre le navigateur du téléphone, qui télécharge le fichier d’installation de cette version.",
+      "getSteps": {
+        "lead": "Après avoir touché {{button}} :",
+        "browser": "Le navigateur du téléphone s’ouvre et télécharge le fichier d’installation.",
+        "warning": "Si le navigateur prévient que le fichier peut être dangereux, choisissez de le télécharger quand même. C’est le fichier d’installation de LangQuest.",
+        "back": "Quand le téléchargement est terminé, revenez dans LangQuest. Vous n’avez pas besoin d’ouvrir le fichier.",
+        "choose": "Touchez {{button}}."
+      },
       "getLine": "Sur le terrain, envoyez-le avec Donner l’application. Quick Share, une carte SD ou un câble USB marchent aussi, mais Quick Share a besoin des services Google Play sur les deux téléphones.",
       "getLineOther": "Sur le terrain, envoyez-le sur le nouveau téléphone par Quick Share, une carte SD ou un câble USB. Quick Share a besoin des services Google Play sur les deux téléphones. Le nouveau téléphone peut demander d’autoriser les installations depuis cette source.",
       "getOffline": "Il faut internet pour télécharger le fichier d’installation.",
-      "check": "Vérifier mon fichier",
-      "checkHelp": "Ouvre les fichiers du téléphone. Choisissez le fichier d’installation que vous avez, et l’application vérifie que c’est celui dont ce téléphone a besoin.",
+      "check": "Choisir un fichier que vous avez déjà",
+      "checkHelp": "Ouvre les fichiers du téléphone. Choisissez un fichier d’installation obtenu autrement, par exemple auprès d’un collègue ou sur une carte SD, et l’application vérifie que c’est celui dont ce téléphone a besoin.",
       "choose": "Choisir le fichier téléchargé",
       "chooseHelp": "Ouvre les fichiers du téléphone. Choisissez le fichier d’installation que le navigateur a téléchargé, et l’application vérifie que c’est celui dont ce téléphone a besoin.",
       "chooseLine": "Quand le téléchargement est terminé, touchez Choisir le fichier téléchargé. C’est en général le premier de vos fichiers récents.",
@@ -216,7 +222,8 @@
       "ready": "Prêt à donner à une nouvelle personne.",
       "readyShort": "Fichier d’installation prêt",
       "done": "Prêt. Vous pouvez l’emporter avec vous hors ligne.",
-      "newer": "Un fichier d’installation plus récent est prêt. Téléchargez-le tant que vous avez internet, puis choisissez-le."
+      "newer": "Un fichier d’installation plus récent est prêt. Téléchargez-le tant que vous avez internet, puis choisissez-le.",
+      "newerShort": "Fichier d’installation pour une nouvelle personne : un plus récent est prêt"
     },
     "join": {
       "intro": "Rejoignez votre équipe depuis le téléphone d’un coéquipier, sans Internet. Votre compte est créé la première fois que votre téléphone se connecte à Internet.",
