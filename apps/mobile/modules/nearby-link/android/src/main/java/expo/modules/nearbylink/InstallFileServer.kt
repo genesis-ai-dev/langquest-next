@@ -169,7 +169,9 @@ class InstallFileServer(
     try { server.close() } catch (_: IOException) {}
     sweeper.shutdown()
     refuser.shutdownNow()
-    for (c in open.toList()) c.close()
+    // Straight over the set, never `toList()`: that reads the size, then takes the first element, and
+    // the accept thread can remove a connection between the two (NoSuchElementException, CI 2026-11-19).
+    for (c in open) c.close()
   }
 
   /** On the timer: the session's own limits, then each connection's. */

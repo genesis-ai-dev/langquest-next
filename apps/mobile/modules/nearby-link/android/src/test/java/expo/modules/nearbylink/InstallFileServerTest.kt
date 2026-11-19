@@ -452,6 +452,17 @@ class InstallFileServerTest {
     assertEquals(0, stopped.get())
   }
 
+  @Test fun closeWhileAConnectionArrivesNeverThrows() {
+    // Why: close() took a copy of the open connections with toList(), which threw when the accept
+    // thread dropped one between the copy's size and its first element (CI on PR 527). This loop
+    // threw before the fix.
+    repeat(400) {
+      val s = serving()
+      Socket(loopback, ports.getValue(s)).also { opened.add(it) }
+      s.close()
+    }
+  }
+
   @Test fun refusesANameThatIsNotPlain() {
     for (bad in listOf("", "a b.apk", "x\".apk", "a/b.apk", "a\r\nb.apk")) {
       try {

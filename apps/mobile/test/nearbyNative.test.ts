@@ -209,6 +209,17 @@ describe('the nearby module leaves nothing served or open behind a stop', () => 
     expect(served).toMatch(/if \(kFind == null\) \{\s*pipes\.unserve\(\)/);
   });
 
+  it('stops what is open without a copy that can throw: no toList, toSet or single over a concurrent map or set', () => {
+    // Why: Kotlin's toList() on a collection of one reads the size, then the first element; another
+    // thread removing it between the two throws NoSuchElementException, which made Give the app's
+    // close() throw (CI on PR 527). A concurrent map or set is walked straight, which never throws.
+    const concurrent = [...kotlinCode.matchAll(/va[lr] (\w+)\s*(?::[^=\n]*)?=\s*(?:ConcurrentHashMap\b|ConcurrentHashMap\.newKeySet|ConcurrentLinked|CopyOnWrite)/g)].map((m) => m[1]!);
+    expect(concurrent).toEqual(expect.arrayContaining(['open', 'links', 'hosts']));
+    for (const name of concurrent) {
+      expect(kotlinCode).not.toMatch(new RegExp(`\\b${name}(?:\\.(?:keys|values|entries))?\\.(?:toList|toSet|single)\\(`));
+    }
+  });
+
   it('and so does the Swift', () => {
     const ble = swiftOf('BleFind.swift');
     const startSet = /private func startSet\([\s\S]*?\n  \}\n/.exec(ble)![0];

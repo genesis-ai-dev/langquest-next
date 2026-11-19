@@ -57,7 +57,8 @@ class LinkRegistry(
   fun get(id: String): LinkSession = links[id] ?: throw NearbyException(NearbyCode.LINK_UNKNOWN, "no such link")
 
   fun closeAll() {
-    for (link in links.values.toList()) link.close()
+    // Straight over the map, never `toList()`, which can throw when a link ends between its size and its first element.
+    for (link in links.values) link.close()
   }
 }
 
@@ -338,7 +339,7 @@ class RadioKit(
 
   fun stopAll() {
     stopGiveApp()
-    for (id in hosts.keys.toList()) takeDown(id)
+    for (id in hosts.keys) takeDown(id)
     val stopped = CompletableFuture<Unit>()
     handler.post {
       try { find.stop() } catch (_: Exception) {}
