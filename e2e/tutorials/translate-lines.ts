@@ -33,15 +33,22 @@ function flat(c: Catalog, prefix = '', into = new Map<string, string>()): Map<st
 const linesFile = (code: string) => path.join('e2e', 'tutorials', 'lines', `${code}.json`);
 const english = flat(catalog('en'));
 
+/** The "…" that ends a button which asks before it acts, and words that say the app is busy. */
+const ELLIPSIS = /\s*(…|\.\.\.)$/;
+
 /** The app's words that a video's lines name, with what the app says for each in this language. */
 function glossary(lines: string[], target: Map<string, string>): string[] {
   const said = new Map<string, Set<string>>();
   for (const [key, en] of english) {
-    const words = en.trim();
+    // A button that asks before it acts ends with "…" on the screen ("Move past this checkpoint…"), and a line names
+    // it without ("Tap Move past this checkpoint."). Words that say the app is busy end the same way ("Creating…")
+    // and are no name, so such words count only where a line says to tap them.
+    const asks = ELLIPSIS.test(en.trim());
+    const words = en.trim().replace(ELLIPSIS, '');
     // A name on the screen: capitalised, more than a little word, not a sentence.
     if (!/^[A-Z0-9]/.test(words) || words.length < 4 || words.length > 40 || words.includes('{{') || words.split(' ').length > 5) continue;
-    const pattern = new RegExp(`(^|[^\\w])${words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w])`);
-    const theirs = target.get(key);
+    const pattern = new RegExp(`${asks ? '(^|[^\\w])[Tt]ap ' : '(^|[^\\w])'}${words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w])`);
+    const theirs = target.get(key)?.trim().replace(ELLIPSIS, '');
     if (!theirs || !lines.some((l) => pattern.test(l))) continue;
     said.set(words, (said.get(words) ?? new Set()).add(theirs));
   }

@@ -2208,7 +2208,7 @@
       },
       "chooseFromListHelp": "Toutes les numérotations, chacune avec trois caractéristiques qui les distinguent.",
       "why": {
-        "question": "Les Bibles ne numérotent pas toutes les versets de la même façon",
+        "question": "Les Bibles ne numérotent pas tous les versets de la même façon",
         "english": "Bible anglaise",
         "hebrew": "Bible hébraïque",
         "verse": "{{book}} {{chapter}}:{{verse}}",

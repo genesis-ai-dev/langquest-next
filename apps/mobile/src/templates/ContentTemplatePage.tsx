@@ -97,7 +97,7 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
         </>
       ) : undefined}>
       {sel ? (
-        <PickCard title={item?.name ?? doc?.name ?? t('content.language.itsTemplate')} sub={bibleLine ?? countsLine} links={links}>
+        <PickCard title={item ? itemName(labels, item) : doc?.name ?? t('content.language.itsTemplate')} sub={bibleLine ?? countsLine} links={links}>
           {bibleLine ? <Text style={txt.sm}>{countsLine}</Text> : null}
           {versionLine ? <Text style={txt.smMuted}>{versionLine}</Text> : null}
           {newer ? (
