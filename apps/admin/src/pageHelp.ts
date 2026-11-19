@@ -146,7 +146,10 @@ export const HELP: Record<string, string> = {
   Free: 'Storage left on the phone.',
   Lost: 'Files that vanished from the phone without the app removing them (and how many were unsent recordings).',
   'Builds in the field (this week)': 'Which builds and updates installs ran this week.',
-  'Sign-in trouble this week': 'Sign-in steps that did not end well, by step and outcome, with how many installs.',
+  'Sign-in trouble this week': 'Sign-in steps the server or the app failed at, by step and outcome, with how many installs: a server failure, a change the app gave up, a sign-in that ended without the person ending it, a refusal that no entry of a person explains. Each row is a line on the Overview.',
+  'Sign-in steps refused or with no connection, this week': 'Sign-in steps that did not finish with no fault of the server or the app: a wrong password or code, an email that has an account, an invite that expired, was used or is not known, no connection, a change the app tries again. They make no line on the Overview. The watch for user issues still reads each new kind.',
+  'metric:clients.sign_in_trouble': 'Sign-in steps the server or the app failed at. Each kind counted here this week is a line on the Overview. A wrong password, an invite that cannot be used and a step with no connection are not here: the next chart counts them.',
+  'metric:clients.sign_in_no_fault': 'Sign-in steps that did not finish with no fault of the server or the app: a wrong password or code, an email that has an account, an invite that expired, was used or is not known, no connection, a change the app tries again. They make no line on the Overview.',
   'Failures already shown to people, this week': 'Errors the app showed the person and handled (wrong password, no signal), counted so a rise is visible.',
   'Phones (latest state of each, this week)': 'Each install\'s latest report of its own state, counted.',
 

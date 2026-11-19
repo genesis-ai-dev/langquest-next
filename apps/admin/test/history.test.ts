@@ -8,8 +8,8 @@ import { history, isRange, METRICS, PART_IDS, RANGES, SERIES_SQL } from '../src/
 
 const MIGRATION = 'supabase/migrations/20261117060000_diag_daily.sql';
 
-/** A later migration that adds numbers: a first download's wait for a connection. */
-const LATER = ['supabase/migrations/20261118234300_first_download_wait.sql'];
+/** Later migrations that add numbers: a first download's wait for a connection, sign-in steps that are no fault. */
+const LATER = ['supabase/migrations/20261118234300_first_download_wait.sql', 'supabase/migrations/20261119171500_sign_in_trouble.sql'];
 
 /** The (part, metric, agg) rows the migrations put in diag.daily_metrics. */
 function sqlMetrics(): [string, string, string][] {

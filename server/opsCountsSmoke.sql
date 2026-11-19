@@ -137,6 +137,10 @@ from (values
   ('oc-5', 'oc-b', 'oc-profile-2', null, null, 'error', interval '3 days', null, '{}', '{"name":"OcError","where":"record","fatal":"no","errorId":"E-OC0002"}'),
   ('oc-6', 'oc-b', 'oc-profile-2', null, null, 'error', interval '10 days', 'fedcba9876543210', '{}', '{"name":"OcOld","where":"record","fatal":"yes"}'),
   ('oc-7', 'oc-a', 'oc-profile-1', null, null, 'auth', interval '4 hours', 'oc0c0c0c12345678', '{}', '{"op":"renew","outcome":"failed","code":"E_NET"}'),
+  -- Sign-in records by class (migration *_sign_in_trouble.sql): oc-7 is trouble, these are no fault, no fault and as designed.
+  ('oc-7b', 'oc-a', 'oc-profile-1', null, null, 'auth', interval '4 hours', 'oc0c0c0c12345678', '{}', '{"op":"sign_in","outcome":"refused","code":"oc_wrong_password"}'),
+  ('oc-7c', 'oc-b', 'oc-profile-2', null, null, 'auth', interval '2 days', null, '{}', '{"op":"renew","outcome":"offline","code":"oc_offline"}'),
+  ('oc-7d', 'oc-b', 'oc-profile-2', null, null, 'auth', interval '2 days', null, '{}', '{"op":"route","outcome":"no_org","code":"oc_no_org"}'),
   ('oc-8', 'oc-a', 'oc-profile-1', null, null, 'expected', interval '5 hours', 'oc0c0c0c12345678', '{"count":3}', '{"where":"home","name":"Offline"}'),
   ('oc-9', 'oc-a', 'oc-profile-1', null, null, 'transfer', interval '6 hours', 'oc0c0c0c12345678', '{"count":5,"failHttp5xx":1}', '{"dir":"down"}'),
   ('oc-10', 'oc-a', 'oc-profile-1', null, null, 'audio', interval '7 hours', 'oc0c0c0c12345678', '{"takes":2}', '{}'),
@@ -169,9 +173,20 @@ begin
   -- The old read had no wait: what the new one says of it (slow, waited, waitMaxMs) has its own test below.
   new_f := jsonb_set(new_f, '{toMap}', (select coalesce(jsonb_agg(x.v - 'slow' - 'waited' - 'waitMaxMs' order by x.i), '[]'::jsonb)
     from jsonb_array_elements(new_f->'toMap') with ordinality x(v, i)));
+  -- The old read called every sign-in record that did not end ok trouble: the classes have their own test below.
   for k in select jsonb_object_keys(old_c || new_c) loop
-    if old_c->k is distinct from new_c->k then raise exception 'clients %: % against %', k, old_c->k, new_c->k; end if;
+    if k <> 'auth' and old_c->k is distinct from new_c->k then raise exception 'clients %: % against %', k, old_c->k, new_c->k; end if;
   end loop;
+  -- A sign-in record has a class (migration *_sign_in_trouble.sql): a renewal given up is trouble, a wrong
+  -- password and a step with no connection are no fault, and a new person with no organization is in neither.
+  -- Trouble leads, since each kind of it is a line on the Overview.
+  if (select jsonb_object_agg(a->>'code', a->>'class') from jsonb_array_elements(new_c->'auth') a where a->>'code' in ('E_NET', 'oc_wrong_password', 'oc_offline', 'oc_no_org'))
+       is distinct from '{"E_NET": "trouble", "oc_wrong_password": "no_fault", "oc_offline": "no_fault"}'::jsonb
+     or exists (select 1 from jsonb_array_elements(new_c->'auth') a where a->>'class' not in ('trouble', 'no_fault') or a->>'class' is null)
+     or exists (select 1 from jsonb_array_elements(new_c->'auth') with ordinality a(v, i), jsonb_array_elements(new_c->'auth') with ordinality b(v, i)
+                where a.i < b.i and a.v->>'class' = 'no_fault' and b.v->>'class' = 'trouble') then
+    raise exception 'sign-in records are in the wrong class: %', new_c->'auth';
+  end if;
   for k in select jsonb_object_keys(old_f || new_f) loop
     if old_f->k is distinct from new_f->k then raise exception 'fleet %: % against %', k, old_f->k, new_f->k; end if;
   end loop;
