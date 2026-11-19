@@ -1,0 +1,4 @@
+# What `swift test` leaves beside Package.swift when run here rather than with --scratch-path.
+.build/
+.swiftpm/
+Package.resolved

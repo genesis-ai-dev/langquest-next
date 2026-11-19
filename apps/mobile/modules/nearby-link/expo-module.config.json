@@ -1,0 +1,10 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["NearbyLinkModule"],
+    "podspecPath": "NearbyLink.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.nearbylink.NearbyLinkModule"]
+  }
+}

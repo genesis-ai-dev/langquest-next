@@ -11,6 +11,9 @@ import { answerFeedback } from './answer-feedback';
 import { doACheck } from './do-a-check';
 import { editAFinishedVersion } from './edit-a-finished-version';
 import { findYourWayAround } from './find-your-way-around';
+import { howLangQuestWorks } from './how-langquest-works';
+import { thePathOfAPassage } from './the-path-of-a-passage';
+import { createYourAccountAndLookAround } from './create-your-account-and-look-around';
 import { finishAndAskForACheck } from './finish-and-ask-for-a-check';
 import { giveEachPartItsVerse } from './give-each-part-its-verse';
 import { hearMoveDeleteParts } from './hear-move-delete-parts';
@@ -53,7 +56,7 @@ import { readAnyOrganization } from './read-any-organization';
 
 /** Who each video is for, which is its playlist on YouTube (playlists.ts), each in the plan's order. */
 export const GROUPS: { who: Who; videos: Tutorial[] }[] = [
-  { who: 'everyone', videos: [joinYourTeam, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount, reportOrBlockSomeone] },
+  { who: 'everyone', videos: [howLangQuestWorks, thePathOfAPassage, createYourAccountAndLookAround, joinYourTeam, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount, reportOrBlockSomeone] },
   {
     who: 'admins',
     videos: [startAnOrganization, addALanguage, getALanguageReady, inviteYourTeam, letPeopleIn, changeARole, makeARole, showALanguageToThePublic, groupLanguagesIntoACluster,

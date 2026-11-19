@@ -15,10 +15,7 @@ import {
   ChevronsUpDown, CloudAlert, CloudDownload, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply, Ear
 } from './icons';
 import { Fragment, isValidElement, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  AccessibilityInfo, ActivityIndicator, Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
-  type StyleProp, type TextStyle, type ViewStyle
-} from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Modal, Platform, Pressable, ScrollView, type ScrollViewInstance, type StyleProp, StyleSheet, Switch, type SwitchInstance, TextInput, type TextStyle, View, type ViewInstance, type ViewStyle } from 'react-native';
 import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
@@ -146,7 +143,7 @@ export function Screen(props: {
   // Something drawn on with a finger stops the body scrolling meanwhile (scrollHoldContext.ts).
   const [held, setHeld] = useState(false);
   // Before the new page is drawn, so it never shows at the last page's scroll.
-  const body = useRef<ScrollView>(null);
+  const body = useRef<ScrollViewInstance>(null);
   const page = props.page;
   useLayoutEffect(() => {
     if (page !== undefined) body.current?.scrollTo({ y: 0, animated: false });
@@ -460,6 +457,11 @@ export function Row(props: {
   help?: string;
   /** Drawn right after the label, in its line: an organization's blue check (decisions.md 173). */
   afterLabel?: ReactNode;
+  /**
+   * A button at the end of the row that is not the row's own tap (a download disc). It sits beside the
+   * pressable row, not inside it: a button in a button is read as one by a screen reader and fails axe.
+   */
+  action?: ReactNode;
 }) {
   const state = {
     ...(props.selected !== undefined ? { selected: props.selected } : props.current ? { selected: true } : {}),
@@ -495,17 +497,26 @@ export function Row(props: {
   );
   const style = [styles.row, !props.last && styles.rowBorder, props.current && styles.rowCurrent];
   const id = props.testID ? { testID: props.testID } : {};
-  if (!props.onPress) return <View {...id} style={style}>{body}</View>;
-  return (
+  if (!props.onPress) return <View {...id} style={style}>{body}{props.action}</View>;
+  const beside = !!props.action;
+  const rowStyle = beside ? [styles.row, styles.rowBeside] : style;
+  const pressable = (
     <Pressable {...id} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole={props.role ?? 'button'} {...a11yState(state, props.role ?? 'button', 'current')} accessibilityLabel={props.accessibilityLabel}
       // react-native-web drops accessibilityState.selected, and aria-selected is not allowed on a button: a current row says aria-current.
       aria-current={props.current ? true : undefined}
       // The web reads only aria-*: a radio, checkbox or switch says whether it is on.
       aria-checked={props.role === 'radio' ? !!(props.selected ?? props.current) : props.role === 'switch' || props.role === 'checkbox' ? props.checked === true : undefined}
-      style={({ pressed }) => [...style, pressed && styles.pressed]}>
+      style={({ pressed }) => [...rowStyle, pressed && styles.pressed]}>
       {body}
       <HelpBadge spot={spot} inset />
     </Pressable>
+  );
+  if (!beside) return pressable;
+  return (
+    <View style={[styles.rowWithAction, !props.last && styles.rowBorder, props.current && styles.rowCurrent]}>
+      {pressable}
+      <View style={styles.rowAction}>{props.action}</View>
+    </View>
   );
 }
 
@@ -520,24 +531,53 @@ function marked(text: string, query: string | undefined): ReactNode {
  * that opens in place. Pass `open`/`onToggle` from `ctx.details(key)` so a
  * card someone opened stays open when they come Back.
  */
-export function Disclosure(props: { icon: IconName; title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode; testID?: string;
+/** A fold's summary needing attention: amber for something to do, red for something refused. */
+export type DisclosureTone = 'amber' | 'red';
+
+/**
+ * A fold: a title, a one-line summary and, tapped, what is inside. With no
+ * `children` it is a fact with nothing more to show, drawn the same with no
+ * Show and no arrow, so it never promises to open. A `tone` colours the
+ * summary and the icon when the line needs attention.
+ */
+export function Disclosure(props: { icon: IconName; title: string; summary: string; open?: boolean; onToggle?: () => void; children?: ReactNode; testID?: string;
+  tone?: DisclosureTone;
   /** What help mode says is inside, where the title alone does not. */ help?: string }) {
-  const spot = useHelpSpot(props.title, props.help ?? (props.open ? t('help.details.disclosureOpen') : t('help.details.disclosure')), props.onToggle);
+  const folds = props.children !== undefined && props.onToggle !== undefined;
+  const open = folds && !!props.open;
+  const spot = useHelpSpot(props.title, props.help ?? (open ? t('help.details.disclosureOpen') : t('help.details.disclosure')), folds ? props.onToggle : undefined);
+  const tint = props.tone === 'red' ? TINT.redText : props.tone === 'amber' ? TINT.amberText : null;
+  const head = (
+    <>
+      <View style={[styles.iconTile, tint ? { backgroundColor: props.tone === 'red' ? TINT.red : TINT.amber } : null]}><Ico name={props.icon} size={20} color={tint ?? C.primary} /></View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[txt.body, { fontWeight: '600' }]}>{props.title}</Text>
+        <Text style={[txt.xs, { marginTop: 2 }, tint ? { color: tint, fontWeight: '600' } : null]}>{props.summary}</Text>
+      </View>
+    </>
+  );
+  const label = t('shell.a11y.labelDetail', { label: props.title, detail: props.summary });
+  if (!folds) {
+    return (
+      <View style={styles.disclosure}>
+        <View {...(props.testID ? { testID: props.testID } : {})} accessible accessibilityLabel={label} style={styles.disclosureHead}>
+          {head}
+          <HelpBadge spot={spot} inset />
+        </View>
+      </View>
+    );
+  }
   return (
     <View style={styles.disclosure}>
-      <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')}
-        accessibilityLabel={t('shell.a11y.labelDetail', { label: props.title, detail: props.summary })} accessibilityHint={props.open ? t('shell.kit.hidesDetails') : t('shell.kit.showsDetails')}
+      <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" {...a11yState({ expanded: open }, 'button')}
+        accessibilityLabel={label} accessibilityHint={open ? t('shell.kit.hidesDetails') : t('shell.kit.showsDetails')}
         style={({ pressed }) => [styles.disclosureHead, pressed && styles.pressed]}>
-        <View style={styles.iconTile}><Ico name={props.icon} size={20} color={C.primary} /></View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.body, { fontWeight: '600' }]}>{props.title}</Text>
-          <Text style={[txt.xs, { marginTop: 2 }]}>{props.summary}</Text>
-        </View>
-        <Text style={txt.link}>{props.open ? t('shell.kit.hide') : t('shell.kit.show')}</Text>
-        <Ico name={props.open ? 'up' : 'down'} size={20} color={C.primary} />
+        {head}
+        <Text style={txt.link}>{open ? t('shell.kit.hide') : t('shell.kit.show')}</Text>
+        <Ico name={open ? 'up' : 'down'} size={20} color={C.primary} />
         <HelpBadge spot={spot} inset />
       </Pressable>
-      {props.open ? <View style={styles.disclosureBody}>{props.children}</View> : null}
+      {open ? <View style={styles.disclosureBody}>{props.children}</View> : null}
     </View>
   );
 }
@@ -653,7 +693,7 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
   const size = props.size ?? 48;
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   // On the web an icon names itself on hover, as a button with words would (UI audit, findings 75 and 76).
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   useEffect(() => {
     if (Platform.OS === 'web') (ref.current as unknown as { setAttribute?: (k: string, v: string) => void } | null)?.setAttribute?.('title', props.label);
   }, [props.label]);
@@ -718,7 +758,7 @@ export function Toggle(props: { on: boolean; onToggle: () => void; label: string
   /** What help mode says it turns on. */ help?: string;
   /** Drawn inside a row that is the switch (Row's `role="switch"`): the row explains it. */ drawnOnly?: boolean }) {
   const spot = useHelpSpot(props.label, props.help ?? (props.on ? t('help.details.switchOn') : t('help.details.switchOff')), props.drawnOnly ? undefined : props.onToggle);
-  const input = useRef<Switch>(null);
+  const input = useRef<SwitchInstance>(null);
   const drawnOnWeb = !!props.drawnOnly && Platform.OS === 'web';
   useEffect(() => { if (drawnOnWeb) unfocusable(input.current); });
   return (
@@ -1206,6 +1246,9 @@ const styles = StyleSheet.create({
   orDivider: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.xs },
   orRule: { flex: 1, height: StyleSheet.hairlineWidth * 2, backgroundColor: C.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card },
+  rowWithAction: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card },
+  rowBeside: { flex: 1, minWidth: 0, backgroundColor: 'transparent', paddingRight: space.sm },
+  rowAction: { paddingRight: space.lg },
   rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   rowCurrent: { backgroundColor: C.light },
   iconTile: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },

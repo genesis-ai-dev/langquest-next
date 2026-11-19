@@ -87,7 +87,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
       expect(rec, who).not.toContain('beside you');
       expect(r.path[1], who).toBe('2. Done. Then ask for the peer check');
       expect(r.team, who).toEqual([
-        "Peer check, once you're done", 'Back translation, same time', 'Community check, after the peer check',
+        "Peer check, once you're done", 'Back translation · make it, same time', 'Back translation · check it, after it is made', 'Community check, after the peer check',
         'Consultant check, after the community check', 'Final approval, after the consultant check'
       ]);
       // Nothing is recorded yet, so no check can be chosen: the rows say when each comes and do not open (LAN-127).
@@ -115,7 +115,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
     expect(trans.path[0]).toMatch(/^1\. Record\. Version 1/);
     expect(trans.path[1]).toMatch(new RegExp(`^2\\. Done\\. Published .+ · asked ${name('REV')}$`));
     expect(trans.team).toEqual([
-      `Peer check, asked ${name('REV')}`, 'Back translation, same time', 'Community check, after the peer check',
+      `Peer check, asked ${name('REV')}`, 'Back translation · make it, same time', 'Back translation · check it, after it is made', 'Community check, after the peer check',
       'Consultant check, after the community check', 'Final approval, after the consultant check'
     ]);
     expect(each(['TRANS', 'REV', 'TREV', 'COORD', 'LADMIN', 'KEPT', 'VIEW'] as const, (who) => record(who, 'P-SUBMITTED').main)).toEqual({
@@ -149,7 +149,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
   });
 
   it('PASS-005 P-BT: Back translation asked of REV', () => {
-    expect(record('TRANS', 'P-BT').team.slice(0, 2)).toEqual(['Peer check, looks good', `Back translation, asked ${name('REV')}`]);
+    expect(record('TRANS', 'P-BT').team.slice(0, 3)).toEqual(['Peer check, looks good', `Back translation · make it, asked ${name('REV')}`, 'Back translation · check it, after it is made']);
     expect(each(['TRANS', 'REV', 'TREV', 'COORD', 'LADMIN', 'KEPT', 'VIEW'] as const, (who) => record(who, 'P-BT').main)).toEqual({
       TRANS: null, REV: 'Back-translate it', TREV: 'Back-translate it', COORD: 'Back-translate it', LADMIN: 'Back-translate it',
       KEPT: 'Back-translate it', VIEW: null
@@ -158,7 +158,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
 
   it('PASS-006 P-CHECK: at the Consultant check checkpoint', () => {
     expect(record('TRANS', 'P-CHECK').team).toEqual([
-      'Peer check, looks good', 'Back translation, looks good', 'Community check, looks good', 'Consultant check, next',
+      'Peer check, looks good', 'Back translation · make it, made', 'Back translation · check it, in the consultant check', 'Community check, looks good', 'Consultant check, next',
       'Final approval, after the consultant check'
     ]);
     expect(each(['TRANS', 'REV', 'TREV', 'COORD', 'LADMIN', 'KEPT', 'VIEW'] as const, (who) => record(who, 'P-CHECK').main)).toEqual({
@@ -170,7 +170,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
   it('PASS-007 P-ASIDE: Community check set aside', () => {
     for (const who of ['TRANS', 'REV', 'COORD', 'LADMIN', 'VIEW'] as const) {
       const r = record(who, 'P-ASIDE');
-      expect(r.team[2], who).toBe('Community check, set aside');
+      expect(r.team[3], who).toBe('Community check, set aside');
       // The viewer's row is not a button: it cannot open the sheet.
       expect(r.teamOpens, who).toBe(who !== 'VIEW');
       if (who !== 'VIEW') {
@@ -188,7 +188,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
     for (const who of ['TRANS', 'REV', 'COORD', 'LADMIN', 'VIEW'] as const) {
       const r = record(who, 'P-DONE');
       expect(r.team, who).toEqual([
-        'Peer check, looks good', 'Back translation, looks good', 'Community check, looks good', 'Consultant check, looks good', 'Final approval, looks good'
+        'Peer check, looks good', 'Back translation · make it, made', 'Back translation · check it, checked', 'Community check, looks good', 'Consultant check, looks good', 'Final approval, looks good'
       ]);
       expect(r.main, who).toBeNull();
       const all = r.else.options.join('\n');
@@ -305,7 +305,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
   it('PASS-052 A checkpoint is a hard stop', () => {
     for (const who of ['TRANS', 'REV', 'TREV', 'KEPT'] as const) {
       const r = record(who, 'P-CHECK');
-      expect(r.team[4], who).toBe('Final approval, after the consultant check');
+      expect(r.team[5], who).toBe('Final approval, after the consultant check');
       const final = r.sheet('final');
       expect(final.text, who).toBe('Final approval Waits for the Consultant check checkpoint. Final approval Starts after the Consultant check checkpoint');
       expect(final.buttons, who).toEqual([]);
@@ -321,7 +321,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
     const r = record('LADMIN', 'P-CHECK');
     expect(r.main).toBe('Do the consultant check');
     expect(r.sheet('consultant').buttons).toEqual(['Review it now', 'Already happened', 'Ask someone']);
-    expect(r.team[4]).toBe('Final approval, after the consultant check');
+    expect(r.team[5]).toBe('Final approval, after the consultant check');
     expect(r.else.ids).not.toContain('movePast');
     // Whoever may override is offered it, on the sheet and on Something else?.
     const coord = record('COORD', 'P-CHECK');

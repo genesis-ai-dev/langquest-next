@@ -335,7 +335,7 @@
     "book_structure": "Raba Littafi",
     "reference_home": "Ɗakin Kayan Bincike",
     "material_editor": "Gyara Kaya",
-    "sync_status": "Daidaitawa",
+    "sync_status": "Daidaitawa da amfani ba intanet",
     "delete_account": "Goge Asusu",
     "reports_home": "Rahotanni",
     "reports_language": "Rahoton Harshe",
@@ -352,11 +352,18 @@
     "cluster_home": "Rukuni",
     "global_viewer": "Mai Kallo na Duniya",
     "forgot_password": "Kalmar Sirri da Aka Manta",
-    "new_password": "Sabuwar Kalmar Sirri"
+    "new_password": "Sabuwar Kalmar Sirri",
+    "share_nearby": "Raba da na kusa",
+    "let_someone_in": "Shigar da wani",
+    "join_offline": "Shiga ba tare da intanet ba",
+    "get_install_file": "Sauke fayil ɗin girkawa",
+    "give_app": "Ba da manhajar"
   },
   "native": {
     "microphone": "LangQuest yana naɗar muryarku don fassara nassosi.",
-    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata."
+    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata.",
+    "bluetooth": "LangQuest yana amfani da Bluetooth don nemo wayoyin abokan aikinka na kusa da raba aiki da su.",
+    "localNetwork": "LangQuest yana amfani da cibiyar sadarwa ta gida don raba aiki da wayoyin abokan aikinka na kusa."
   },
   "library": {
     "sourceLine": {
@@ -727,7 +734,6 @@
       "newLanguage": "Sabon harshe",
       "noLanguages": "Babu harsuna tukuna. Ku ƙara na farko da tawagarku za ta naɗa.",
       "openToBring": "Buɗe shi don kawo shi kan wannan na'ura",
-      "newLanguageOrCluster": "Sabon harshe ko rukuni",
       "inviteHelp": "Ku zaɓi abin da za su yi, sannan ku nuna musu lamba su karanta.",
       "languageHelp": "Yana buɗe shafinsa: ku shirya shi, ku ga aikinsa da mutanensa.",
       "licenseHelp": "Lasisin da aikin tawagarku yake ƙarƙashinsa. Tsari yana faɗin abin da ya yarda da shi.",
@@ -2792,6 +2798,17 @@
       "changes_other": "Canje-canje {{count, number}}",
       "latestBy": "na ƙarshe ta hannun {{name}}, {{when}}",
       "playExplanation": "Kunna bayanin",
+      "examples": "Faɗa shi da {{language}}",
+      "examplesCount": "An yi rikodin: {{count, number}} cikin {{want, number}}",
+      "wayN": "Hanya ta {{n, number}}",
+      "recordThisWay": "Yi rikodin wannan hanya",
+      "recordAgain": "Sake yin rikodin wannan hanya",
+      "addWay": "Ƙara wata hanyar faɗinta",
+      "addWayHelp": "Ƙara wata hanyar da ƙungiyarku ke faɗin wannan kalma a wani wuri, misali idan tana nufin wani abu dabam.",
+      "wayUsedIn": "Ana amfani a",
+      "wayPassageHelp": "Buɗe {{passage}} don jin wannan hanya a wurinta",
+      "playExample": "Kunna misali na {{n, number}}",
+      "exampleSaved": "An ajiye misalin",
       "openVersion": "Buɗe Siga ta {{n, number}}",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "An rubuta a matsayin ɓangaren {{passage}}, kuma an haɗa da daftarinku.",
@@ -2869,7 +2886,11 @@
       "createAccountHelp": "Yana buɗe fom don imel ɗinku da sabuwar kalmar sirri.",
       "browseHelp": "Ku ga ayyukan fassara da ƙungiyoyi suke rabawa a fili. Ba a buƙatar asusu.",
       "forgot": "Kun manta kalmar sirri?",
-      "forgotHelp": "Yana buɗe shafin da za ku sami mahaɗi ta imel don zaɓar sabuwar kalmar sirri."
+      "forgotHelp": "Yana buɗe shafin da za ku sami mahaɗi ta imel don zaɓar sabuwar kalmar sirri.",
+      "localHere": "Wani ya shiga tawagar a wannan wayar ba tare da intanet ba. Babu wani da zai iya shiga a nan har sai wayarsa ta sami intanet sau ɗaya.",
+      "joiningTitle": "{{name}} yana shiga a wannan wayar",
+      "goOnJoining": "Ci gaba da shiga",
+      "goOnJoiningHelp": "Yana buɗe shafin da ke kammala shiga tawagar daga wayar abokin aiki."
     },
     "terms": {
       "title": "Sharuɗɗa da Sirri",
@@ -2998,7 +3019,9 @@
       "notNowHelp": "Yana share wannan gayyata, ya koma aikinku.",
       "whoJoins": "Wa zai shiga?",
       "someoneNew": "Sabon mutum",
-      "someoneNewHelp": "Ga wanda bai riga ya kasance a wannan wayar ba: sabon asusu. Sannan, rubuta sunansa."
+      "someoneNewHelp": "Ga wanda bai riga ya kasance a wannan wayar ba: sabon asusu. Sannan, rubuta sunansa.",
+      "joinNotGuest": "Wannan lambar tana bar sabuwar waya ta shiga tawaga. Akwai wani a wannan wayar tuni.",
+      "localJoined": "An gama. Aikinku zai tafi sabar a matsayin naku."
     },
     "signInKey": {
       "notGuestTitle": "Wannan lambar shiga ce",
@@ -3014,6 +3037,7 @@
       "notValid": "Wannan lamba ba ta da inganci.",
       "expiredOrUsed": "Wannan lamba ta ƙare ko an riga an yi amfani da ita. Ku nemi sabuwa.",
       "codeBusy": "An kasa amfani da wannan lamba. Ku sake gwadawa.",
+      "forSomeoneElse": "An yi wannan lamba ne don wani mutum dabam. Ku nemi lambar da aka yi muku.",
       "scanElseHelp": "Yana barin wannan lamba, ya sake buɗe kyamarar karanta lamba.",
       "signOutHelp": "Yana buɗe fita, domin wanda aka yi wannan lambar dominsa ya shiga a wannan na’ura.",
       "buttonHelp": "Yana shigar da ku a wannan na'ura da wannan lamba. Babu abin da za a rubuta.",
@@ -3223,7 +3247,10 @@
       "signInFailed": "Sabuwar kalmar sirrinku ta shirya. Ku shiga da ita.",
       "changedTitle": "An canja kalmar sirri",
       "changedBody": "Daga yanzu, {{email}} zai shiga da sabuwar kalmar sirri.",
-      "doneHelp": "Koma babban shafinku."
+      "doneHelp": "Koma babban shafinku.",
+      "lost": "Ɗaya daga cikin wayoyina ya ɓace ko an ɗauke shi",
+      "lostSub": "Wayoyin abokan aiki za su daina amincewa da aikin wannan wayar da aka sa wa kwanan wata bayan yanzu, kuma sauran wayoyinku za su buƙaci sake shiga kafin su raba da na kusa.",
+      "lostLetIn": "Idan kun shigar da wani daga wannan wayar wanda bai sami intanet ba tukuna, sabar za ta ƙi karɓar sa. Aikinsa zai zauna a wayarsa, kuma wanda zai iya gayyatar mutane zai iya sake shigar da shi da gayyata."
     }
   },
   "account": {
@@ -3242,7 +3269,8 @@
       "downloading": "Ana sauke sabuntawa…",
       "downloadingPercent": "Ana sauke sabuntawa… {{percent}}",
       "webReady": "Sabuwar sigar LangQuest ta shirya. Ku sake loda shafin don amfani da ita.",
-      "storeBuild": "ginin shago",
+      "storeBuild": "ginin shago {{version}}",
+      "noUpdate": "babu sabuntawa",
       "updateBuild": "sabuntawa {{id}}",
       "unknownBuild": "sabuntawa ba a sani ba"
     },
@@ -3348,21 +3376,41 @@
     },
     "me": {
       "title": "Ni",
-      "nameSub": "Suna da hoto",
-      "offline": "Shirye don amfani ba intanet",
+      "nameSub": "Suna, imel da kalmar sirri",
       "tour": "Yadda LangQuest yake aiki",
       "tourSub": "Saurari gajeren bayani",
       "more": "Ƙarin saituna",
-      "moreRefused": "Wannan asusu ba zai iya daidaitawa ba · kalmar sirri, sanarwa, asusu",
-      "moreRefusedEvents": "An ƙi · {{n, number}} · kalmar sirri, sanarwa, daidaitawa, asusu",
-      "morePending_one": "{{count, number}} yana jiran a aika · kalmar sirri, sanarwa, daidaitawa, asusu",
-      "morePending_other": "{{count, number}} suna jiran a aika · kalmar sirri, sanarwa, daidaitawa, asusu",
       "signOut": "Fita",
       "signOutHelp": "Yana fita daga wannan asusu a wannan na'ura. Ana riƙe aikin da ba a aika ba har sai an aika shi.",
-      "nameHelp": "Yana buɗe bayanan kanku, don canja sunan da tawagarku take gani.",
-      "offlineHelp": "Yana nuna abin da wannan na'ura take riƙewa don aiki ba tare da intanet ba.",
+      "nameHelp": "Yana buɗe bayanan kanku, don canza sunanku, imel ɗinku ko kalmar sirrinku.",
       "tourHelp": "Yana buɗe gajerun katuna uku game da amfanin LangQuest.",
-      "moreHelp": "Yana buɗe saitunan kalmar sirri, sanarwa, daidaitawa da asusunku. Lamba tana nufin akwai canje-canje da ke jiran a aika."
+      "moreHelp": "Yana buɗe saitunan sanarwa da asusunku.",
+      "local": {
+        "title": "{{name}}, kun shiga ba tare da intanet ba",
+        "letInBy": "{{name}} ya shigar da ku daga wayarsa.",
+        "letIn": "Wani abokin aiki ya shigar da ku daga wayarsa.",
+        "waiting": "Za a buɗe asusunku a karon farko da wannan waya ta sami intanet. Kafin nan aikinku zai jira a nan.",
+        "joining": "Ana kai wa sabar…",
+        "finishing": "An shiga. Ana kammala shirya wannan waya…",
+        "needsCode": "Asusunku ya shirya. Ku shiga a matsayin {{name}} da lamba daga wani a tawagarku.",
+        "needsCodeLine": "Ku roƙi abokin aiki ya buɗe Taimaka musu shiga, sannan ku karanta lambarsa a nan.",
+        "keyLost": "Wannan waya ta rasa makullin da aka shigar da ita da shi. Aikinku yana nan. Ku nemi taimako daga wani a tawagarku.",
+        "otherAccount": "Wani daban ya shiga a wannan wayar. Aikinku yana nan.",
+        "refusedLine": "Aikinku yana lafiya a wannan wayar. Ku nemi gayyata daga wanda zai iya gayyatar mutane, sannan ku karanta ta a nan.",
+        "workSafe": "Ana ajiye aikinku a wannan waya da a wayoyin abokan aiki har sai ya iso sabar.",
+        "retry": "Gwada yanzu",
+        "retryHelp": "Yana sake tambayar sabar yanzu, idan wannan waya tana da intanet.",
+        "scan": "Karanta lamba",
+        "scanHelp": "Yana buɗe kyamarar karanta lamba don gayyata ko lambar shiga ta abokin aiki.",
+        "refused": {
+          "expired": "Sabar ta ƙi karɓar ku: izinin shigar da aka ba ku ya ƙare.",
+          "used": "Sabar ta ƙi karɓar ku: an riga an yi amfani da izinin shigar da aka ba ku.",
+          "off": "Sabar ta ƙi karɓar ku: ƙungiyarku ta kashe shiga ba tare da intanet ba.",
+          "notFound": "Sabar ta ƙi karɓar ku: ba ta san izinin shigar da aka ba ku ba.",
+          "retired": "Sabar ta ƙi karɓar ku: ba a amfani da matsayinku kuma, ko abokin aikin da ya shigar da ku ba zai iya ba da shi ba kuma.",
+          "other": "Sabar ta ƙi karɓar ku."
+        }
+      }
     },
     "more": {
       "noEmail": "Babu imel tukuna",
@@ -3371,8 +3419,6 @@
       "newDeviceNoName": "Sabuwar na'ura? Wanda ya gayyace ku ko mai kula na iya taimaka muku shiga.",
       "helpedBy": "An shiga a wannan na'ura da taimakon {{name}} · {{date}}",
       "helpedBySomeone": "An shiga a wannan na'ura da taimakon wani · {{date}}",
-      "setPassword": "Sa kalmar sirri",
-      "setPasswordSub": "Idan wasu mutane suna amfani da wannan na'ura",
       "notifications": "Sanarwa",
       "notificationsSub": "Ji labarin buƙatu da sharhi",
       "notificationsBlocked": "An kashe a saitunan wannan waya",
@@ -3384,7 +3430,6 @@
       "switchActive": "{{org}} (mai aiki)",
       "switchOrStart": "{{org}} · ko ku kafa sabuwa",
       "thisDevice": "Wannan na'ura",
-      "sync": "Daidaitawa",
       "syncRefused": "Wannan asusu ba zai iya daidaita wannan ƙungiya ba",
       "syncPending_one": "Canji {{count, number}} yana jiran a aika",
       "syncPending_other": "Canje-canje {{count, number}} suna jiran a aika",
@@ -3401,9 +3446,18 @@
       "blockedCount_other": "Mutane {{count, number}}",
       "deleteAccount": "Goge asusu",
       "deleteSub": "Asusunku da sunanku, har abada",
+      "removeMe": "Cire ni daga wannan wayar",
+      "removeMeSub": "A maimakon fita: wannan wayar za ta manta da ku",
+      "removeMeHelp": "Tana tambaya da farko. Sannan wannan wayar ta manta da ku ta koma Shiga.",
+      "removeMeTitle": "A cire {{name}} daga wannan wayar?",
+      "removeMeUnsent": "Ba a aika daga wannan wayar ba tukuna: {{things}}. Sai dai idan wayar abokin aiki ta ɗauka, zai ɓace.",
+      "removeMeBody": "Wannan wayar za ta manta da ku da maɓallinku, ta koma Shiga. Don ku sake aiki a nan, dole wani ya sake shigar da ku, a matsayin sabon mutum.",
+      "removeMeButton": "Cire ni",
+      "removing": "Ana cirewa…",
+      "lostPhoneSub": "Yana aiko muku da mahaɗi ta imel don zaɓar sabuwar kalmar sirri da daina amincewa da wannan wayar",
+      "lostPhoneSent": "An aika mahaɗi zuwa {{email}}. Buɗe shi, zaɓi sabuwar kalmar sirri, sannan ku kunna “Ɗaya daga cikin wayoyina ya ɓace ko an ɗauke shi”.",
       "testing": "Gwaji",
       "personaSub": "Shiga a matsayin mai fassara, mai bita ko mai kula na gwaji",
-      "syncHelp": "Yana nuna abin da ke jiran a aika ko a sauke. Lamba tana nufin akwai canje-canje da ke jiran a aika.",
       "blockedHelp": "Yana nuna waɗanda kuka toshe, don cire toshewarsu.",
       "switchOrgHelp": "Yana buɗe ƙungiyoyinku, don sauyawa zuwa wata ko kafa sabuwa."
     },
@@ -3425,18 +3479,27 @@
       "passwordNeedsConnection": "Sa kalmar sirri yana buƙatar haɗi.",
       "nameSaved": "An adana sunan.",
       "passwordFailed": "An kasa sa kalmar sirri. Ku sake gwadawa.",
-      "savedWithPassword": "An ajiye. Kuna iya shiga da sunan shigarku da wannan kalmar sirri.",
+      "passwordSaved": "An ajiye kalmar sirri.",
+      "savedWithPassword": "An ajiye. Kuna shiga da {{name}} da wannan kalmar sirri.",
       "saved": "An ajiye bayanan kai. Za a daidaita idan an haɗa.",
       "newPassword": "Sabuwar kalmar sirri (ba dole ba)",
       "password": "Kalmar sirri (ba dole ba)",
       "passwordPlaceholder": "Haruffa 6 ko fiye",
       "signInWith": "Kuna shiga da {{name}} da wannan kalmar sirri. Ku rubuta sunan a wani wuri.",
-      "signInWithYourName": "Kuna shiga da sunan shigarku da wannan kalmar sirri. Ku rubuta sunan a wani wuri.",
-      "setOne": "Ku sa ɗaya idan wasu mutane suna amfani da wannan na'ura, don ku iya sake shiga bayan sun yi amfani.",
+      "signInWithEmail": "Kuna shiga da {{email}} da wannan kalmar sirri.",
+      "setOne": "Ku sa ɗaya don ku iya shiga a wata na'ura.",
       "lastChangeRefused": "Ba a karɓi canjinku na ƙarshe ba",
       "savedBody": "Za a aika idan an haɗa.",
       "nameHelp": "Sunan da tawagarku take ganin ku da shi. Za a aika shi idan an haɗa.",
-      "passwordHelp": "Yana ba ku damar sake shiga bayan wani ya yi amfani da wannan na'ura."
+      "passwordHelp": "Yana ba ku damar shiga a wata na'ura, da sake shiga a wannan ba tare da intanet ba.",
+      "emailHelp": "Kuna shiga da wannan adireshi, kuma Kalmar Sirri da Aka Manta tana aika hanyar haɗinta nan. Canza shi yana buƙatar haɗi.",
+      "addEmail": "Da imel, kuna shiga da shi maimakon {{name}}, kuma Kalmar Sirri da Aka Manta za ta iya aiko muku da hanyar haɗi. Lambar mai taimako ba za ta ƙara shigar da ku ba.",
+      "emailRequired": "Ku rubuta imel ɗin da kuke shiga da shi.",
+      "passwordWithEmail": "Ku zaɓi kalmar sirri ma: da imel, lambar mai taimako ba za ta ƙara shigar da ku ba.",
+      "emailNeedsConnection": "Canza imel ɗinku yana buƙatar haɗi.",
+      "emailTaken": "Wani asusu yana amfani da wannan imel tuni.",
+      "emailFailed": "An kasa ajiye imel ɗin. Ku sake gwadawa.",
+      "savedWithEmail": "An ajiye. Daga yanzu kuna shiga da {{email}}."
     },
     "orgs": {
       "stale": "An kasa sabuntawa. Ƙungiyoyin da aka ajiye suna nan.",
@@ -3465,7 +3528,7 @@
       "blocked": "Saura a aika: {{things}}. Ku fita bayan an daidaita su don kada su maƙale a nan.",
       "blockedOffline": "Saura a aika: {{things}}. Wannan na'ura ba ta da intanet. Ku fita bayan an daidaita su don kada su maƙale a nan.",
       "refused": "Wannan asusu ba zai iya daidaita wannan ƙungiya ba: sabar ta ƙi. Fita ba shi da haɗari; duk abin da ke jira zai zauna a wannan na'ura.",
-      "setPasswordFirst": "Idan wasu mutane suna amfani da wannan na'ura, ku fara sa kalmar sirri a Gyara Bayanan Kai.",
+      "setPasswordFirst": "Don sake shiga ba tare da taimako ba, ku fara ƙara imel ɗinku ko kalmar sirri a Gyara Bayanan Kai.",
       "forgets": "Kuna iya sake shiga kowane lokaci. Wannan burauza za ta manta duk abin da ta riƙe muku, don mutum na gaba a nan kada ya ga komai.",
       "anytime": "Kuna iya sake shiga kowane lokaci.",
       "offlineBackIn": "Wannan na'ura ba ta da intanet, don haka sake shiga sai an samu intanet.",
@@ -3533,17 +3596,31 @@
         "refused": "Sabar ba ta karɓar canje-canje daga wannan na'ura. Aikinka yana nan a ajiye.",
         "tooOld": "Wannan manhaja ta tsufa da yawa don karɓar sauye-sauyen ƙungiyarka. Sabunta ta daga shago.",
         "toReceive": "Rikodin wasu da wannan na'ura har yanzu take saukewa.",
-        "refusedLine": "Canje-canjen da sabar ta ƙi karɓa, yawanci saboda izini ya canza. Suna nan a wannan na'ura; buɗe Cikakkun bayanai don ganin kowanne.",
         "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "Don karɓa",
-      "refusedLine": "An ƙi",
-      "none": "Babu",
-      "moreInfo": "Ƙarin bayani",
       "details": "Cikakkun bayanai",
       "syncNowHelp": "Yana aika abin da ke jira, ya samo abin da yake sabo, nan take.",
       "detailsHelp": "Kowane canji da ke jira ko aka ƙi, da tura sauti: don wanda ke gyara matsala.",
-      "eventHelp": "Yana buɗe nassin da wannan canji ya shafa."
+      "eventHelp": "Yana buɗe nassin da wannan canji ya shafa.",
+      "title": "Daidaitawa da amfani ba intanet",
+      "rowHelp": "Yana buɗe abin da wannan na'ura take aikawa da karɓa, da abin da take riƙewa don aiki ba tare da intanet ba.",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "Sabar ta ƙi karɓa",
+        "refusedCount_one": "Canji {{count, number}}",
+        "refusedCount_other": "Canje-canje {{count, number}}",
+        "refusedNote": "Suna nan a wannan na'ura. Wanda ke kula da ƙungiyarku yawanci zai iya taimaka.",
+        "refusedHelp": "Canje-canjen da sabar ta ƙi karɓa, kowanne da dalilinsa. Suna nan a wannan na'ura.",
+        "uploads": "Ɗorawa",
+        "uploadsHelp": "Abin da ke jiran ɗorawa a wannan na'ura, bisa nassi, da abin da aka ɗora.",
+        "downloads": "Saukewa",
+        "readyHelp": "Ko wannan waya tana da abin da kuke buƙata kafin ku rasa intanet."
+      },
+      "down": {
+        "count_one": "Naɗi {{count, number}} don karɓa",
+        "count_other": "Naɗe-naɗe {{count, number}} don karɓa",
+        "offline": "Za a duba sabon aiki idan kun dawo kan intanet"
+      }
     },
     "lock": {
       "tooShort": "Haɗa aƙalla ɗigo {{n}}.",
@@ -3555,6 +3632,20 @@
       "drawAgain": "Sake zana shi",
       "newPattern": "Zana sabon zane",
       "choosePatternHelp": "Zaɓi hoto da zane don sake shiga a wannan waya, ko babu intanet."
+    },
+    "appLock": {
+      "row": "Kulle manhajar",
+      "rowHelp": "Idan an kunna, manhajar tana tambayar zanenku duk lokacin da aka buɗe ta, da duk lokacin da kuka koma gare ta. Kunna ko kashe ta yana tambayar zanenku tukuna.",
+      "on": "Yanzu manhajar tana tambayar zanenku lokacin da aka buɗe ta.",
+      "off": "Manhajar ba ta tambayar zanenku kuma.",
+      "opening": "Ana buɗewa…",
+      "checking": "Ana dubawa…",
+      "forgot": "Kun manta?",
+      "forgotHelp": "Kun manta zanenku? Ku fita, sannan ku sake shiga da kalmar sirrinku, ko da lambar shiga daga wani a tawagarku. Aikinku yana nan a wannan waya.",
+      "signOutHelp": "Yana fitar da ku daga wannan waya. Aikinku yana nan a cikinta, kuma za a aika shi idan an samu dama.",
+      "backHelp": "Yana komawa kan ɗigogin.",
+      "waitFor_one": "Gwaje-gwaje sun yi yawa. Ku sake gwadawa bayan minti {{count, number}}.",
+      "waitFor_other": "Gwaje-gwaje sun yi yawa. Ku sake gwadawa bayan mintuna {{count, number}}."
     }
   },
   "study": {
@@ -3916,7 +4007,11 @@
         "askedWho": "an roƙi {{who}}",
         "asked": "an roƙa",
         "next": "na gaba",
-        "afterDone": "bayan kun gama"
+        "afterDone": "bayan kun gama",
+        "made": "an yi ta",
+        "checked": "an duba ta",
+        "afterMade": "bayan an yi ta",
+        "checkedBy": "a cikin {{check}}"
       },
       "help": {
         "study": "Ku bi jagorar nazari tare kafin ku naɗa. Babu abin da ke jiran sa.",
@@ -3936,7 +4031,9 @@
         "checkpoint": "Alamar kulle: dole a wuce shi kafin matakan da ke bayansa."
       },
       "thenTheTeam": "Sannan tawagar",
-      "teamHears": "Sannan tawagar za ta iya jin sa"
+      "teamHears": "Sannan tawagar za ta iya jin sa",
+      "makeIt": "{{what}} · yin ta",
+      "checkIt": "{{what}} · duba ta"
     },
     "quote": "“{{text}}”",
     "journey": {
@@ -4709,7 +4806,10 @@
       "bullet": "• {{line}}",
       "notSent_one": "Naɗi {{count, number}} a cikin nassosin da kuka adana bai aiku ba tukuna daga na'urar da ta yi shi, don haka babu na'urar da za ta iya sauke shi.",
       "notSent_other": "Naɗe-naɗe {{count, number}} a cikin nassosin da kuka adana ba su aiku ba tukuna daga na'urar da ta yi su, don haka babu na'urar da za ta iya sauke su.",
-      "barHelp": "Nawa ne daga cikin nassosin da kuka adana suke cikakku a wannan na'ura."
+      "barHelp": "Nawa ne daga cikin nassosin da kuka adana suke cikakku a wannan na'ura.",
+      "keptTitle": "Nassosin da kuka adana",
+      "worksOffline": "Abin da ke aiki ba intanet",
+      "worksOfflineHelp": "Yana nuna abin da ke kullum a wannan na'ura, da abin da ke buƙatar intanet."
     },
     "keepHelp": "Yana adana sautinsa a wannan na'ura, don ya yi aiki ba tare da intanet ba.",
     "stopKeepingHelp": "Yana bar wannan na'ura ta sake cire sautinsa idan tana buƙatar wuri.",
@@ -5205,7 +5305,7 @@
       "kept_other": "Nassosi {{count, number}} a wannan na'ura",
       "ready_one": "Nassi {{ready}} cikin {{count, number}} ya shirya a wannan na'ura",
       "ready_other": "Nassosi {{ready}} cikin {{count, number}} sun shirya a wannan na'ura",
-      "moreSettingsSub": "Kalmar sirri, sanarwa, daidaitawa, asusu"
+      "moreSettingsSub": "Sanarwa, asusu"
     },
     "waiting": "Yana jiran a raba shi",
     "parts": {
@@ -7978,5 +8078,28 @@
       "badItem": "Ku zaɓi ɗaya daga cikin abubuwanku na iri ɗaya.",
       "offline": "Ba a iya kaiwa ga LangQuest ba. Ku duba haɗinku ku sake gwadawa."
     }
+  },
+  "orgExport": {
+    "title": "Fitar da duk bayanai",
+    "sub": "Zip ɗaya: rikodi a cikin manyan fayiloli, jerin kowane rikodi, takardun ci gaba da cikakken tarihi.",
+    "whole": "Dukan ƙungiyar",
+    "some": "Wasu harsuna kawai",
+    "start": "Yi zip",
+    "waiting": "Ana jiran farawa",
+    "reading": "Ana karanta ƙungiyar",
+    "audio": "Ana ƙara rikodi: {{done}} daga {{total}}",
+    "log": "Ana ƙara cikakken tarihi",
+    "ready": "A shirye don saukewa",
+    "download": "Zazzage",
+    "failed": "Fitarwar ba ta ƙare ba. Sake gwadawa.",
+    "started": "Fitarwar ta fara.",
+    "problem": "Ba a iya fara fitarwar ba.",
+    "expired": "An cire bayan kwana 7.",
+    "keep": "Zip da aka gama yana zama kwana 7.",
+    "help": "Yana buɗe shafi don sauke duk bayanan ƙungiyar a zip ɗaya.",
+    "wholeHelp": "Fitar da duk harsunan ƙungiyar.",
+    "someHelp": "Zaɓi harsunan da za a fitar.",
+    "languageHelp": "Haɗa ko bar wannan harshe.",
+    "downloadHelp": "Yana saukar da zip ɗin da aka gama."
   }
 }

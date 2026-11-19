@@ -55,7 +55,9 @@ test('REC-030 A five-minute part, and a five-minute session of many parts', asyn
     await expectParts(page, 2 + i, 10_000);
     if (i % 5 === 4) slow.push(await tapLatency(page));
   }
-  await leaveSession(page);
+  // The thirty parts are saved one after another once the session is left: about 20 s on an idle runner, more on a
+  // busy one, where the default 20 s ran out with 28 of them saved (LAN-156). The saving gets the minute the parts get.
+  await leaveSession(page, 60_000);
   await expectParts(page, 31, 60_000);
   // About ten minutes: the pauses trimmed off each part (half of each kept at its end) leave a little under.
   await expect(page.getByRole('button', { name: /^Parts 1–31, 31 parts · (9:[3-5]\d|10:\d\d)$/ })).toBeVisible();

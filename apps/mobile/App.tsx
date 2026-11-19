@@ -57,7 +57,14 @@ import { deriveSession, foldsSettled, homeScreenFor, tabsFor, type TabId } from 
 import { onAuthChange, savedSignIn, serverConfigError } from './src/server/auth';
 import { onUnlocked, signedInHere } from './src/server/lock';
 import { afterAuthEvent, savedSession } from './src/session/authState';
+import { identityOf } from './src/session/identityModel';
+import { localOrgOf, type LocalPerson } from './src/server/localPerson';
+import { useLocalPerson } from './src/shell/useLocalPerson';
+import { useChainMembership } from './src/nearby/useChainMembership';
+import { useFirstContact } from './src/nearby/useFirstContact';
+import type { FirstContactView } from './src/session/firstContactModel';
 import { noteAuthEvent } from './src/diagnostics/authDiag';
+import { nearbyAfterAuthEvent } from './src/nearby/nearbySignOut';
 import { watchRenewals } from './src/server/renewalWatch';
 import { C, space } from './src/ui/theme';
 import { recordUserEvent } from './src/account/accountData';
@@ -89,6 +96,7 @@ import { usePassagesInMemory } from './src/shell/usePassagesInMemory';
 import { usePassageReady } from './src/shell/usePassageReady';
 import { PassageNotHere } from './src/sync/offline';
 import { useRouting } from './src/shell/useRouting';
+import { awaitingFirstScreen } from './src/shell/routingModel';
 import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
@@ -96,6 +104,8 @@ import { useReadOnlyHandles } from './src/shell/useReadOnlyHandles';
 import { ReadOnlyContext } from './src/session/useReadOnly';
 import { wireBase } from './src/shell/wiring';
 import { AppCover } from './src/shell/AppCover';
+import { AppLockGate } from './src/shell/AppLockGate';
+import { useAppLockSignOut } from './src/shell/useAppLockSignOut';
 
 // What the base folders need from folders above them (decisions.md 105), once, before anything draws.
 wireBase();
@@ -113,6 +123,9 @@ const loadReports = () => import('./src/screens/reports');
 const loadSources = () => import('./src/screens/sources');
 const loadGlobalViewer = () => import('./src/screens/globalViewer');
 const loadGuideEditor = () => import('./src/screens/guideEditor');
+const loadNearby = () => import('./src/screens/nearby');
+const loadProfileEdit = () => import('./src/screens/profileEdit');
+const loadSync = () => import('./src/screens/sync');
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
@@ -126,8 +139,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   study_guide: Study.StudyGuide, study_step: Study.StudyStep, guide_editor: lazyScreen(loadGuideEditor, 'GuideEditor'),
   workspace: Translate.Workspace, back_translation: Translate.BackTranslation,
   key_terms: lazyScreen(loadConfig, 'KeyTerms'), key_term_detail: lazyScreen(loadConfig, 'KeyTermDetail'),
-  inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: Account.ProfileEdit,
-  org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm, delete_account: Account.DeleteAccount, sync_status: Account.SyncStatus,
+  inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: lazyScreen(loadProfileEdit, 'ProfileEdit'),
+  org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm, delete_account: Account.DeleteAccount, sync_status: lazyScreen(loadSync, 'SyncStatus'),
   org_home: lazyScreen(loadOrg, 'OrgHome'), cluster_home: lazyScreen(loadOrg, 'ClusterHome'), language_home: lazyScreen(loadOrg, 'LanguageHome'),
   new_language: lazyScreen(loadOrg, 'NewLanguage'), members_list: lazyScreen(loadOrg, 'MembersList'), invite_member: lazyScreen(loadOrg, 'InviteMember'), invite_qr: lazyScreen(loadOrg, 'InviteQr'),
   edit_member: lazyScreen(loadOrg, 'EditMember'), check_editor: lazyScreen(loadChecks, 'CheckEditor'),
@@ -141,7 +154,12 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   bible_explore: lazyScreen(loadSources, 'BibleExplore'),
   get_ready: Ready.GetReady,
   settings_more: Account.SettingsMore,
-  global_viewer: lazyScreen(loadGlobalViewer, 'GlobalViewer')
+  global_viewer: lazyScreen(loadGlobalViewer, 'GlobalViewer'),
+  share_nearby: lazyScreen(loadNearby, 'ShareNearby'),
+  let_someone_in: lazyScreen(loadNearby, 'LetSomeoneIn'),
+  join_offline: lazyScreen(loadNearby, 'JoinOffline'),
+  get_install_file: lazyScreen(loadNearby, 'GetInstallFile'),
+  give_app: lazyScreen(loadNearby, 'GiveApp')
 };
 
 /**
@@ -348,6 +366,8 @@ export default function App() {
     savedSignIn().then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
     const unsubscribe = onAuthChange((event, s) => {
       noteAuthEvent(event, authNow.current, s);
+      // At any sign-out, chosen or forced by the server, nearby leaves no discovery key in the clear and no nearbyPeers (5.12).
+      void nearbyAfterAuthEvent(event, authNow.current);
       setAuth((now) => afterAuthEvent(now, event, s));
       // In by a password, a code or an invite: an older lock of theirs here is not theirs to come back to (decisions.md 168).
       if (event === 'SIGNED_IN' && s) void signedInHere(s.user.id);
@@ -359,47 +379,67 @@ export default function App() {
   }, []);
   // "New version available", and below the minimum version "Please update the app" with sync stopped (decisions.md 154).
   const appVersion = useAppVersion(!!auth);
+  // Someone let in offline works as a local person until first contact (docs/nearby-sync-plan.md 14.1, 5): read beside the sign-in.
+  const local = useLocalPerson();
+  const who = identityOf(auth === undefined ? undefined : auth ? { id: auth.user.id, email: auth.user.email ?? null } : null, local);
   return (
     <SafeAreaProvider>
       {/* On Android, a disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 171). */}
       <AppCover>
+      {/* On a phone, whoever turned the app lock on draws their pattern each time the app opens (decisions.md 253). */}
+      <AppLockGate actorId={who === undefined ? undefined : who.signedIn ? who.actorId : null}>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
         <UpdateBanner />
         <AppVersionPrompt offer={appVersion.offer} onUpdate={appVersion.openStore} onDismiss={appVersion.dismiss} />
         {serverConfigError ? (
           <Fatal title={t('shell.errors.notConfigured')} detail={serverConfigError} />
-        ) : !updateLooked || auth === undefined || !wordsReady ? (
-          // Looking for an update, reading the saved sign-in or the words: the same spinner, not a blank screen.
+        ) : !updateLooked || !who || !wordsReady ? (
+          // Looking for an update, reading the saved sign-in, the local person or the words: the same spinner, not a blank screen.
           <View style={styles.waiting}><ActivityIndicator size="large" color={C.muted} /></View>
         ) : (
           <ErrorBoundary>
             {/* Help mode: a ? on every screen's header; while on, taps explain (demo ADR-038). */}
             <HelpModeProvider>
             <StorageGate>
-              <Shell key={auth?.user.id ?? 'guest'} actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} fromV2={isFromV2(auth?.user)} />
+              {/* Keyed on the actor id: first contact keeps the local person's id, so nothing remounts then; a copy finishes before
+                  the person is set (docs/nearby-sync-plan.md section 7, phase 6). */}
+              <Shell key={who.actorId} actorId={who.actorId} email={who.email} signedIn={who.signedIn} serverSession={who.serverSession}
+                local={who.local} fromV2={isFromV2(auth?.user)} />
             </StorageGate>
             </HelpModeProvider>
           </ErrorBoundary>
         )}
       </SafeAreaView>
+      </AppLockGate>
       </AppCover>
     </SafeAreaProvider>
   );
 }
 
 /**
+ * Who is on the phone, as the shell and everything under it take it (docs/nearby-sync-plan.md
+ * 14.1, 5 "Identity"): `signedIn` for routing, tabs and chrome, and `serverSession` for anything
+ * that calls the server, which a local person waits for until first contact while their work goes on.
+ */
+interface Who { actorId: string; email: string | null; signedIn: boolean; serverSession: boolean; local: LocalPerson | null; fromV2: boolean }
+
+/**
  * Which organization is open. An organization is the unit people switch
  * between: its own stream plus the open language's (decision 63).
  */
-function Shell(props: { actorId: string; email: string | null; signedIn: boolean; fromV2: boolean }) {
-  const { orgId, decided, selectionRevision, noOrganizations, arrival, openOrganization } = useOpenOrganization(props.actorId, props.signedIn);
+function Shell(props: Who) {
+  // A local person's one organization is the one their chain names: the server's list is not theirs to ask yet.
+  const { orgId, decided, selectionRevision, noOrganizations, arrival, openOrganization } = useOpenOrganization(props.actorId, props.signedIn,
+    props.serverSession ? null : localOrgOf(props.local));
   // The held invite is used here, above the organization, so opening the
-  // organization it joined cannot interrupt it.
-  const invite = useHeldInvite(props.signedIn ? props.actorId : null, openOrganization);
+  // organization it joined cannot interrupt it. It redeems through the server.
+  const invite = useHeldInvite(props.serverSession ? props.actorId : null, openOrganization);
+  // A local person's first contact, here for the same reason: the session it adopts must not remount what is open (14.1, 6).
+  const firstContact = useFirstContact({ serverAs: props.serverSession ? props.actorId : null });
   if (!decided) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
   return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} noOrganizations={noOrganizations} openOrganization={openOrganization} invite={invite}
-    arrival={arrival?.orgId === orgId ? arrival : null} />;
+    firstContact={firstContact} arrival={arrival?.orgId === orgId ? arrival : null} />;
 }
 
 /**
@@ -408,8 +448,10 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
  * the first sync has had its chance), which languages it has is unknown, so
  * nothing is opened yet.
  */
-function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; fromV2: boolean; orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
-  const org = useOrg(props.orgId, props.actorId);
+function Workspace(props: Who & { orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle; firstContact: FirstContactView;
+  arrival: Arrival | null; }) {
+  // A local person's membership is their chain's until the fold has any entry for them (docs/nearby-sync-plan.md 14.1, 5).
+  const org = useChainMembership(useOrg(props.orgId, props.actorId), props.orgId, props.local);
   // Help audio waits for this organization's first sync (src/helpMode/useKeepHelpAudio.ts).
   useKeepHelpAudio(org.settled);
   // So is fetching the screens that load when opened, on the web (src/shell/lazyScreens.tsx).
@@ -426,12 +468,12 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
  * language's, and a screen about another language opens that one, in
  * place, without leaving the screen.
  */
-function OrgWork(props: { actorId: string; email: string | null; signedIn: boolean; fromV2: boolean;
-  orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
+function OrgWork(props: Who & {
+  orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle; firstContact: FirstContactView; arrival: Arrival | null }) {
   const liveOrg = props.org;
   const nav = useNav({ screen: 'sign_in' });
   // A Global Viewer whose access is on reads every organization, as a Viewer (decisions.md 158).
-  const globalViewer = useGlobalViewer(props.actorId, props.signedIn).access;
+  const globalViewer = useGlobalViewer(props.actorId, props.serverSession).access;
   const { languageId, setLanguage, languages } = useWorkingLanguage(liveOrg.state, props.actorId, props.orgId, nav.current.params?.['languageId'],
     globalViewer === 'on');
   const liveLanguage = useLanguage(props.orgId, languageId, props.actorId, liveOrg.membershipEpoch);
@@ -453,12 +495,14 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     return () => clearTimeout(timer);
   }, [unnamed, askedAgain]);
   const [devOpen, setDevOpen] = useState(false);
-  const onboarding = useOnboarding(props.actorId, props.signedIn);
+  // Asks the server whether this account was welcomed elsewhere; a local person has no account to ask about yet.
+  const onboarding = useOnboarding(props.actorId, props.serverSession);
   // Someone from v2 is welcomed back to their work instead (demo ADR-043).
-  const welcomeBack = useWelcomeBack(props.actorId, props.fromV2 && props.signedIn && onboarding.loaded && !onboarding.welcomed);
+  const welcomeBack = useWelcomeBack(props.actorId, props.fromV2 && props.serverSession && onboarding.loaded && !onboarding.welcomed);
+  const isLocal = !props.serverSession && props.local !== null;
   const session = useMemo(
-    () => deriveSession(props.actorId, props.email, onboarding.welcomed, liveOrg.state, languageId, hasWelcome(welcomeBack.data), globalViewer),
-    [props.actorId, props.email, onboarding.welcomed, liveOrg.state, languageId, welcomeBack.data, globalViewer]
+    () => deriveSession(props.actorId, props.email, onboarding.welcomed, liveOrg.state, languageId, hasWelcome(welcomeBack.data), globalViewer, isLocal),
+    [props.actorId, props.email, onboarding.welcomed, liveOrg.state, languageId, welcomeBack.data, globalViewer, isLocal]
   );
   // A read-only session (a Global Viewer looking in) writes nothing, from any screen or hook (readOnly.ts).
   const { readOnly } = session;
@@ -480,18 +524,19 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     // A person whose name this account cannot see is "someone", never their picture's colour and shape (LAN-129).
     return people[id] ?? viewedNames[id] ?? t(lower ? 'shell.person.someoneInSentence' : 'shell.person.someone');
   }, [people, viewedNames, props.actorId]);
-  const inbox = useInbox({ language, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
+  const inbox = useInbox({ language, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.serverSession });
 
   const { goFrom, go, openPassage, openTask } = useNavActions({ nav, session, toast, remember });
   useRouting({
     nav, session, signedIn: props.signedIn, actorId: props.actorId, orgId: props.orgId, noOrganizations: props.noOrganizations, arrival: props.arrival, openTask, setLanguage,
     loaded: foldsSettled(org.state !== null && org.settled, language.state !== null, props.noOrganizations),
-    ready: onboarding.loaded && welcomeBack.loaded
+    ready: onboarding.loaded && welcomeBack.loaded, welcomedLate: onboarding.welcomedLate
   });
   const homeIsWork = homeScreenFor(session) === 'my_work';
-  const { invite } = props;
+  const { invite, firstContact } = props;
+  // Links still open screens for a local person; asking "Join as you?" and the Inbox's pushes wait for a server session.
   useIncoming({
-    nav, invite, signedIn: props.signedIn, onboardingLoaded: onboarding.loaded, actorId: props.actorId, orgId: props.orgId,
+    nav, invite, signedIn: props.serverSession, guest: session.isGuest, onboardingLoaded: onboarding.loaded, actorId: props.actorId, orgId: props.orgId,
     homeIsWork, toast, openTask, openOrganization: props.openOrganization
   });
   useTestProbes({ org, language, languageId, orgId: props.orgId, go, openTask });
@@ -540,12 +585,15 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     acceptTerms,
     markJoined,
     invite,
+    firstContact,
     openOrganization,
     openDev,
     isDev: IS_DEV,
     canSwitchPersona
   }), [language, org, session, params, go, back, home, languageId, setLanguage, languages, act, toast, details, recent, openPassage,
-    name, blocks, inboxView, welcomeView, markWelcomed, acceptTerms, invite, openOrganization, openDev, canSwitchPersona]);
+    name, blocks, inboxView, welcomeView, markWelcomed, acceptTerms, invite, firstContact, openOrganization, openDev, canSwitchPersona]);
+  // The app lock's Forgot? signs out as Sign Out does (decisions.md 253).
+  useAppLockSignOut(ctx);
   const syncSources = useMemo(() => ({ language: language.syncStatus, org: org.syncStatus }), [language.syncStatus, org.syncStatus]);
 
   const screen = nav.current.screen;
@@ -556,8 +604,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const viewingName = session.viewingAsGlobalViewer ? org.state?.org?.value.name ?? '' : '';
   const navPush = nav.push;
   // The upload bar opens Sync from wherever it is shown, as chrome, like a tab (decisions.md 166).
-  const openChrome = useCallback((screen: ScreenId) => { if (navRef.isReady() && navRef.getCurrentRoute()?.name !== screen) navPush({ screen }); }, [navPush]);
-  const openSync = useCallback(() => openChrome('sync_status'), [openChrome]);
+  const openChrome = useCallback((screen: ScreenId, params?: Record<string, string>) => {
+    if (navRef.isReady() && navRef.getCurrentRoute()?.name !== screen) navPush(params ? { screen, params } : { screen });
+  }, [navPush]);
+  // The bar says what waits to upload: Sync and offline opens with Uploads open (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
+  const openSync = useCallback(() => openChrome('sync_status', { open: 'uploads' }), [openChrome]);
   const headerExtra = useMemo(() => (!showLink ? null : (
     <GlobalViewerLink orgName={viewingName} onPress={() => openChrome('global_viewer')} />
   )), [showLink, viewingName, openChrome]);
@@ -622,7 +673,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     <View style={{ flex: 1 }}>
       <ReadOnlyContext.Provider value={readOnly}>
       <SyncStatusContext.Provider value={syncSources}>
-      <SyncEffects orgId={props.orgId} orgPulled={org.pulled} refused={language.refused} />
+      <SyncEffects orgId={props.orgId} orgPulled={org.pulled} refused={language.refused}
+        actorId={props.actorId} signedIn={props.serverSession} org={liveOrg.state} languageId={languageId} />
       <PeopleContext.Provider value={people}>
       <HeaderExtraContext.Provider value={headerExtra}>
         <View style={{ flex: 1, flexDirection: 'row' }}>
@@ -636,8 +688,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
             {/* Its own box, so the native stack ends where the tab bar begins
                 rather than drawing screens underneath it. */}
             <View style={{ flex: 1, overflow: 'hidden' }}>
-            {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166). */}
-            {screen === 'sync_status' ? null : <UploadBar ctx={ctx} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
+            {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166), Share
+                nearby and Give the app, where its tap would push Sync over the radios (docs/nearby-sync-plan.md 5.8, 14.5). It goes only as
+                the top route changes, so it never moves the screen below it while someone uses it. */}
+            {screen === 'sync_status' || screen === 'share_nearby' || screen === 'give_app' ? null
+              : <UploadBar ctx={ctx} screenKey={nav.current.key ?? screen} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
             <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
               <Stack.Navigator
@@ -654,9 +709,17 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
                 ))}
               </Stack.Navigator>
             </NavigationContainer>
+            {/* Signed in but not yet routed: the spinner, not the Sign In the stack starts on (routingModel.ts awaitingFirstScreen).
+                Over the stack, not instead of it, so the navigator is ready for routing's reset. */}
+            {awaitingFirstScreen(props.signedIn, screen) ? (
+              <View style={[StyleSheet.absoluteFill, styles.root, styles.waiting]} accessible accessibilityViewIsModal accessibilityLabel={t('common.loading')}>
+                <ActivityIndicator size="large" color={C.muted} />
+              </View>
+            ) : null}
             {toastHost(toastAbove)}
             {/* Feedback from help mode, in the strip a screen leaves at its foot (decisions.md 145). */}
-            <FeedbackHost ctx={ctx} screen={screen} signedIn={props.signedIn} />
+            {/* A local person's feedback waits on the phone as a signed-out person's does, and goes as theirs after first contact. */}
+            <FeedbackHost ctx={ctx} screen={screen} signedIn={props.serverSession} />
             </View>
           </CtxContext.Provider>
           </FooterReportContext.Provider>
@@ -671,7 +734,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       {/* Files this device deleted behind the app's back (decisions.md 92): over every screen until seen. */}
       <LostFilesAlert state={language.state} whatWere={language.blobs.lost} />
       {canSwitchPersona ? (
-        <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
+        <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} actorId={session.actorId} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}
     </View>
   );

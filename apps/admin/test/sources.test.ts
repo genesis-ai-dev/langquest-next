@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { byWorker, cloudflareAlerts, cloudflareSection } from '../src/sources/cloudflare';
 import { clientAlerts, databaseAlerts, diagSections, errorText, jobsSection, mediaType, v2Section, type Clients, type JobRow, type V2Project } from '../src/sources/diag';
 import { expoAlerts, expoFrom } from '../src/sources/expo';
 import { filmingRun, filmingSection, filmJobs, type Filming } from '../src/sources/filming';
-import { APP_BUILD_PATHS, changesApp, codeAlerts, codeSection, FREQUENT_WORKFLOWS, latestPerWorkflow, needsYouOf, type Code } from '../src/sources/github';
+import { APP_BUILD_PATHS, changesApp, codeAlerts, codeSection, latestPerWorkflow, needsYouOf, ownWorkflows, saidByNightly, type Code } from '../src/sources/github';
 import { SQLSTATE, errorGroups, httpErrorsSql, pathShape, pgErrorsSql, projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
 
 const NOW = Date.parse('2026-10-19T22:00:00Z');
@@ -34,13 +34,31 @@ describe('phones and browsers', () => {
   it('calls a crash in the last day a problem, with the code people read out', () => {
     const c = quietClients();
     c.errors = [{ name: 'TypeError', where: 'passage', code: null, fatal: true, records: 3, day: 2, installs: 2, lastAt: hAgo(1), errorId: 'E-7K2Q01' }];
-    expect(clientAlerts(c)).toEqual([{ level: 'problem', text: expect.stringContaining('E-7K2Q01') }]);
+    expect(clientAlerts(c)).toEqual([{ level: 'problem', key: 'app-crash', subject: 'TypeError in passage', watchKey: 'error:TypeError@passage:-', text: expect.stringContaining('E-7K2Q01') }]);
   });
 
   it('notices when nothing has reported for a day, which means delivery may be broken', () => {
     const c = quietClients();
     c.installs.day = 0;
     expect(clientAlerts(c)[0]).toMatchObject({ level: 'problem', text: expect.stringContaining('No phone or browser has reported') });
+  });
+
+  it('makes a line of each kind of sign-in trouble, on one phone too, and none of a step that is no fault', () => {
+    const c = quietClients();
+    const row = { records: 1, installs: 1, lastAt: hAgo(2) };
+    c.auth = [
+      { op: 'renew', outcome: 'http', code: 'http503', class: 'trouble', ...row },
+      { op: 'ended', outcome: null, code: null, class: 'trouble', records: 4, installs: 2, lastAt: hAgo(3) },
+      // A wrong password on 40 phones, a step with no connection: the chart "Sign-in trouble" does not count them, so no line does.
+      { op: 'sign_in', outcome: 'refused', code: 'invalid_credentials', class: 'no_fault', records: 90, installs: 40, lastAt: hAgo(1) },
+      { op: 'renew', outcome: 'offline', code: null, class: 'no_fault', records: 300, installs: 25, lastAt: hAgo(1) },
+      // A count made before the database gave each row its class says nothing.
+      { op: 'outbox', outcome: 'failed', code: null, records: 9, installs: 5, lastAt: hAgo(1) }
+    ];
+    expect(clientAlerts(c)).toEqual([
+      { level: 'watch', key: 'sign-in-step', subject: 'renew http', watchKey: 'auth:renew:http:http503', text: 'Sign-in step renew ended "http" (http503), 1 time on 1 install this week.' },
+      { level: 'watch', key: 'sign-in-step', subject: 'ended ?', watchKey: 'auth:ended:-:-', text: 'A sign-in ended that the person did not end, 4 times on 2 installs this week.' }
+    ]);
   });
 
   it('watches syncs in error, old builds, failed transfers and lost recordings', () => {
@@ -68,7 +86,8 @@ describe('server jobs', () => {
 
   it("uses the CLI's own judgement: a stopped job is a problem", () => {
     const s = jobsSection([job({}), job({ job: 'projection', stale: true, last_ok_at: hAgo(3), last_outcome: 'error', last_error_class: 'DbError:57014' })]);
-    expect(s.alerts).toEqual([{ level: 'problem', text: expect.stringMatching(/^Server job projection has not run successfully.*DbError:57014/) }]);
+    expect(s.alerts).toEqual([{ level: 'problem', key: 'job-stopped', subject: 'projection', watchKey: 'job:projection:stopped', recheck: { everyMin: 1, last: '2026-10-19T21:59:24.000Z' },
+      text: expect.stringMatching(/^Server job projection has not run successfully.*DbError:57014/) }]);
   });
 });
 
@@ -120,9 +139,24 @@ describe('the database and the v2 import', () => {
     expect(s.feedback).toMatchObject({ state: 'off', setup: expect.stringContaining('not on this database yet') });
     expect([s.jobs.state, s.clients.state, s.database.state, s.v2.state]).toEqual(['ok', 'ok', 'ok', 'ok']);
   });
+
+  it('reads the phones from the count the database makes every 10 minutes, and says which migration it lacks', async () => {
+    const asked: string[] = [];
+    const query = vi.fn(async (sql: string) => {
+      asked.push(sql);
+      if (sql.includes('ops_cached')) throw Object.assign(new Error('function diag.ops_cached(unknown) does not exist'), { code: '42883' });
+      if (sql.includes('pg_database_size')) return { sizeBytes: 1, connections: 1, maxConnections: 60, stats: null, rpc: [] };
+      return [];
+    });
+    const s = await diagSections(query as never);
+    expect(asked).toContain(`select diag.ops_cached('clients') as v`);
+    expect(asked.some((q) => q.includes('diag.records'))).toBe(false);
+    expect(s.clients).toMatchObject({ state: 'off', setup: expect.stringContaining('20261117200000_ops_phone_counts.sql') });
+  });
 });
 
 describe('code and deploys', () => {
+  const workflow = (id: number, name: string) => ({ id, name, path: `.github/workflows/${name}.yml`, state: 'active' });
   const code = (over: Partial<Code>): Code => ({
     repo: 'o/r', main: { sha: 'abcdef1234567890', at: hAgo(2), title: 'x' }, live: { url: 'https://next.langquest.org', build: 'abcdef123456' }, behind: 0, appChanged: null, runs: [], needsYou: [], ...over
   });
@@ -169,7 +203,7 @@ describe('code and deploys', () => {
       { id: 1, name: 'guardrails', status: 'completed', conclusion: 'success', head_sha: 'bbbbbbbbbb', created_at: hAgo(2), html_url: 'u2', event: 'push', run_number: 8 }
     ]);
     expect(runs).toHaveLength(1);
-    expect(codeAlerts(code({ runs }), NOW)).toEqual([{ level: 'watch', text: 'GitHub workflow "guardrails" failed on main (run 9, push).', link: 'u1' }]);
+    expect(codeAlerts(code({ runs }), NOW)).toEqual([{ level: 'watch', key: 'workflow-failed', subject: 'guardrails', text: 'GitHub workflow "guardrails" failed on main (run 9, push).', link: 'u1' }]);
   });
 
   // 2026-10-29: Gemini's prepaid credit ran out mid-filming, and the dashboard said only that "tutorials" failed.
@@ -187,7 +221,7 @@ describe('code and deploys', () => {
 
   it('says it as a problem with its link, in place of the plain failure', () => {
     const alerts = codeAlerts(code({ runs: [tutorials], needsYou: needsYouOf(tutorials, [credit]) }), NOW);
-    expect(alerts).toEqual([{ level: 'problem', text: 'Gemini credit: Google refused the voice: the prepaid credit is used up. (GitHub workflow "tutorials")', link: 'https://aistudio.google.com/projects' }]);
+    expect(alerts).toEqual([{ level: 'problem', key: 'needs-you', subject: 'Gemini credit', text: 'Gemini credit: Google refused the voice: the prepaid credit is used up. (GitHub workflow "tutorials")', link: 'https://aistudio.google.com/projects' }]);
   });
 
   it("reads the failed jobs' annotations of the repository's own runs, never a pull request's", async () => {
@@ -200,32 +234,67 @@ describe('code and deploys', () => {
       ['/actions/runs/8/jobs', { jobs: [{ id: 80, conclusion: 'failure' }] }],
       ['/check-runs/71/annotations', [credit]],
       ['/check-runs/80/annotations', [{ ...credit, title: 'Needs you: Click here', message: 'https://example.com' }]],
-      ['/actions/runs', { workflow_runs: [own, fork] }]
+      ['/actions/workflows/1/runs', { workflow_runs: [own] }],
+      ['/actions/workflows/2/runs', { workflow_runs: [fork] }],
+      ['/actions/workflows?', { workflows: [workflow(1, 'tutorials'), workflow(2, 'guardrails')] }]
     ]);
     const s = await codeSection({ GITHUB_REPO: 'o/r', APP_URL: 'https://next.langquest.org' }, fetcher);
     expect((s.data as Code).needsYou.map((n) => n.what)).toEqual(['Gemini credit']);
     expect(s.alerts.map((a) => a.level)).toEqual(['problem', 'watch']);
   });
 
-  it('reads a workflow that runs every few minutes on its own, so it does not crowd out the rest', async () => {
-    const watch = (id: number, conclusion: string) => ({ id, name: 'user-issues', path: '.github/workflows/user-issues.yml', status: 'completed', conclusion, head_sha: 'eeeeeeeeee', created_at: hAgo(id / 100), html_url: `u${id}`, event: 'schedule', run_number: id });
-    const guardrails = { id: 5, name: 'guardrails', path: '.github/workflows/guardrails.yml', status: 'completed', conclusion: 'success', head_sha: 'aaaaaaaaaa', created_at: hAgo(5), html_url: 'u5', event: 'push', run_number: 5 };
+  // 2026-11-12: the watch for user issues (every 15 minutes) and release-branches (hourly) filled main's latest 40
+  // runs, so a run older than about 8 hours, the nightly tests' among them, never showed.
+  it('reads the latest run of each of its own workflows on its own, so none crowds out the rest', async () => {
+    const watch = { id: 30, name: 'user-issues', path: '.github/workflows/user-issues.yml', status: 'completed', conclusion: 'success', head_sha: 'eeeeeeeeee', created_at: hAgo(0.1), html_url: 'u30', event: 'schedule', run_number: 30 };
+    const nightly = { id: 5, name: 'guardrails', path: '.github/workflows/guardrails.yml', status: 'completed', conclusion: 'success', head_sha: 'aaaaaaaaaa', created_at: hAgo(20), html_url: 'u5', event: 'schedule', run_number: 5 };
     const fetcher = routes([
       ['/version.json', { build: 'fedcba987654' }],
       ['/commits/main', { sha: 'fedcba9876543210', commit: { message: 'x', committer: { date: hAgo(3) } } }],
-      ['/actions/workflows/user-issues.yml/runs', { workflow_runs: [watch(1, 'success')] }],
-      ['/actions/runs', { workflow_runs: [watch(2, 'failure'), watch(3, 'success'), guardrails] }]
+      ['/actions/workflows/3/runs', { workflow_runs: [watch] }],
+      ['/actions/workflows/1/runs', { workflow_runs: [nightly] }],
+      ['/actions/workflows?', { workflows: [workflow(3, 'user-issues'), workflow(1, 'guardrails'), { id: 4, name: 'CodeQL', path: 'dynamic/github-code-scanning/codeql', state: 'active' }, { ...workflow(5, 'old'), state: 'disabled_manually' }] }]
     ]);
     const s = await codeSection({ GITHUB_REPO: 'o/r', APP_URL: 'https://next.langquest.org' }, fetcher);
-    expect((s.data as Code).runs.map((r) => [r.workflow, r.number])).toEqual([['user-issues', 1], ['guardrails', 5]]);
-    expect(FREQUENT_WORKFLOWS.every((f) => existsSync(new URL(`../../../.github/workflows/${f}`, import.meta.url)))).toBe(true);
+    expect((s.data as Code).runs.map((r) => [r.workflow, r.number])).toEqual([['user-issues', 30], ['guardrails', 5]]);
+    expect(vi.mocked(fetcher).mock.calls.some(([u]) => /\/actions\/workflows\/(4|5)\//.test(String(u)))).toBe(false);
+    expect(ownWorkflows([workflow(1, 'a'), { id: 2, name: 'b', path: 'dynamic/x', state: 'active' }]).map((w) => w.id)).toEqual([1]);
+  });
+
+  it('leaves a failed nightly to the Nightly tests part only when its lines cover every failed job', () => {
+    const guardrails = { event: 'schedule', path: '.github/workflows/guardrails.yml' };
+    expect(saidByNightly(guardrails, ['nightly-ui-web', 'nightly-mutation-shard (2)', 'nightly-mutation'])).toBe(true);
+    expect(saidByNightly(guardrails, ['nightly-ui-web', 'nightly-flakes'])).toBe(false);
+    expect(saidByNightly(guardrails, ['checks'])).toBe(false);
+    expect(saidByNightly(guardrails, [])).toBe(false);
+    expect(saidByNightly({ ...guardrails, event: 'push' }, ['nightly-ui-web'])).toBe(false);
+    expect(saidByNightly({ event: 'schedule', path: '.github/workflows/phone-tests.yml' }, ['iPhone test server', 'iPhone simulator'])).toBe(true);
+    expect(saidByNightly({ event: 'schedule', path: '.github/workflows/tutorials.yml' }, ['film (de)'])).toBe(false);
+    const run = (nightly: boolean) => ({ id: 1, workflow: 'guardrails', status: 'completed', conclusion: 'failure', sha: 'aaaaaaaa', at: hAgo(1), url: 'u', event: 'schedule', number: 1, nightly });
+    expect(codeAlerts(code({ runs: [run(true)] }), NOW)).toEqual([]);
+    expect(codeAlerts(code({ runs: [run(false)] }), NOW)).toHaveLength(1);
+  });
+
+  it('reads a failed nightly\'s jobs to tell whether Nightly tests says it', async () => {
+    const nightly = { id: 6, name: 'guardrails', path: '.github/workflows/guardrails.yml', status: 'completed', conclusion: 'failure', head_sha: 'aaaaaaaaaa', created_at: hAgo(9), html_url: 'u6', event: 'schedule', run_number: 6 };
+    const fetcher = routes([
+      ['/version.json', { build: 'fedcba987654' }],
+      ['/commits/main', { sha: 'fedcba9876543210', commit: { message: 'x', committer: { date: hAgo(3) } } }],
+      ['/actions/runs/6/jobs', { jobs: [{ id: 60, name: 'nightly-ui-web', conclusion: 'failure' }, { id: 61, name: 'checks', conclusion: 'success' }] }],
+      ['/check-runs/60/annotations', []],
+      ['/actions/workflows/1/runs', { workflow_runs: [nightly] }],
+      ['/actions/workflows?', { workflows: [workflow(1, 'guardrails')] }]
+    ]);
+    const s = await codeSection({ GITHUB_REPO: 'o/r', APP_URL: 'https://next.langquest.org' }, fetcher);
+    expect((s.data as Code).runs[0]).toMatchObject({ workflow: 'guardrails', nightly: true });
+    expect(s.alerts).toEqual([]);
   });
 
   it('compares the served commit with main through GitHub', async () => {
     const fetcher = routes([
       ['/version.json', { build: '0123456789ab' }],
       ['/commits/main', { sha: 'fedcba9876543210', commit: { message: 'Merge pull request #9\n\nbody', committer: { date: hAgo(3) } } }],
-      ['/actions/runs', { workflow_runs: [] }],
+      ['/actions/workflows?', { workflows: [] }],
       ['/compare/0123456789ab...fedcba9876543210', { status: 'ahead', ahead_by: 2, behind_by: 0, files: [{ filename: 'apps/web/worker/index.ts' }] }]
     ]);
     const s = await codeSection({ GITHUB_REPO: 'o/r', APP_URL: 'https://next.langquest.org' }, fetcher);
@@ -378,8 +447,8 @@ describe('Expo', () => {
     expect(e.updates).toEqual([{ branch: 'production', platform: 'android, ios', runtime: '1.0.2', group: 'g1', at: hAgo(2) }]);
     expect(e.submissions[0]).toEqual({ platform: 'IOS', status: 'ERRORED', at: hAgo(3), error: 'SUBMISSION_SERVICE_ERROR: App Store Connect refused the build', version: '1.0.3' });
     expect(expoAlerts(e)).toEqual([
-      { level: 'watch', text: 'The latest android production build failed on EAS.' },
-      { level: 'watch', text: 'The latest ios store submission failed on EAS (SUBMISSION_SERVICE_ERROR).' }
+      { level: 'watch', key: 'eas-build-failed', subject: 'android production', text: 'The latest android production build failed on EAS.' },
+      { level: 'watch', key: 'eas-submit-failed', subject: 'ios', text: 'The latest ios store submission failed on EAS (SUBMISSION_SERVICE_ERROR).' }
     ]);
   });
 });

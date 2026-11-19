@@ -9,7 +9,7 @@
 // can be kept offline.
 import { chaptersInBook, libraryItems, testamentOf, type SourceDoc, type VersificationDoc, type VerseRange } from '@langquest-next/core';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, type ScrollViewInstance, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { teamLanguage } from '../reference/languages';
@@ -154,7 +154,7 @@ export function BibleExplore(ctx: Ctx) {
 
 /** A sideways row of chips that keeps the lit one in view, as RefChips does (recording/blocks.tsx). */
 function LitInView(props: { lit: string | null; keys: string[]; children: (key: string) => ReactNode }) {
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const xs = useRef(new Map<string, number>());
   useEffect(() => {
     const x = props.lit === null ? undefined : xs.current.get(props.lit);

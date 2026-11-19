@@ -9,9 +9,11 @@
  *                it is cut from the chunk first, LAN-82)
  *   ingested  -> file is in the blob store as `hash`; event not yet appended
  *
- * `id` is the recordingId the event will carry, chosen when the entry is
- * created, so resuming after a crash between "event written" and "entry
- * removed" appends nothing twice: the fold already has that id.
+ * `id` is chosen when the entry is created and names nobody. The event's
+ * recordingId is this id named for whoever is signed in when it is written
+ * (core `newCommandId`), and this phone may be someone else's by then. Resuming
+ * after a crash between "event written" and "entry removed" appends nothing
+ * twice: the fold already has it, under whichever name.
  */
 /** Where the recording goes: the language's stream, and the passage in it. */
 export interface JournalTarget {
@@ -74,7 +76,7 @@ export interface ResumeDeps {
   ingest: (uri: string, format: JournalEntry['format'], beforeMove: (hash: string, size: number) => Promise<void>) => Promise<{ hash: string; size: number }>;
   blobExists: (hash: string, format: JournalEntry['format']) => boolean;
   /** Has the fold already got this recording? A language kept on disk looks there too (decisions.md 143). */
-  hasRecording: (id: string) => boolean | Promise<boolean>;
+  hasRecording: (id: string, unitId: string) => boolean | Promise<boolean>;
   /** Append RecordingAdded for a fully ingested entry. */
   append: (entry: JournalEntry & { hash: string; target: JournalTarget }) => Promise<void>;
   /** Persist a partial step so a second interruption resumes from here. */
@@ -104,7 +106,7 @@ export async function resumeEntries(
     if (!t || t.orgId !== language.orgId || t.languageId !== language.languageId) continue;
     let entry = original;
     try {
-      if (await deps.hasRecording(entry.id)) {
+      if (await deps.hasRecording(entry.id, t.unitId)) {
         result.resumed.push(entry.id);
         continue;
       }
@@ -131,7 +133,7 @@ export async function resumeEntries(
       if (!entry.hash || !deps.blobExists(entry.hash, entry.format)) {
         throw new Error('Recorded audio is unavailable; keep the journal for recovery.');
       }
-      if (!(await deps.hasRecording(entry.id))) await deps.append({ ...entry, hash: entry.hash, target: t });
+      if (!(await deps.hasRecording(entry.id, t.unitId))) await deps.append({ ...entry, hash: entry.hash, target: t });
       result.resumed.push(entry.id);
     } catch (err) {
       result.failed.push({ id: entry.id, error: err instanceof Error ? err.message : String(err) });

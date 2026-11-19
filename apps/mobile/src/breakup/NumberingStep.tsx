@@ -21,7 +21,7 @@ import { sameCodes } from '../reference/languages';
 import { useBibleBrainSummaries } from '../sources/useBibleBrainBibles';
 import { useNumberedBibles } from '../sources/useNumberedBibles';
 import {
-  bibleLanguage, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
+  bibleLanguage, numberingsWait, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
 } from './numberingGuide';
 
 // The Bibles to find load with this page, not with the web app's first visit (decision 123).
@@ -329,6 +329,8 @@ export function WhyNumberingPage() {
  */
 export function FindWaysPage(props: {
   numberings: NumberingChoice[];
+  /** The numberings' read has ended: without any, the page asks for a connection; before, it says it is loading. */
+  loaded: boolean;
   usedIn: Record<string, string[]>;
   onPick: (code: string) => void;
   onFind: () => void;
@@ -336,6 +338,16 @@ export function FindWaysPage(props: {
   onList: () => void;
 }) {
   const used = Object.entries(props.usedIn).map(([code, langs]) => ({ n: props.numberings.find((x) => x.code === code), langs })).filter((x) => x.n);
+  // Every way ends on one of the numberings: none is offered before they are here (numberingGuide.ts `numberingsWait`).
+  const wait = numberingsWait(props.numberings.length, props.loaded);
+  if (wait) {
+    return (
+      <>
+        <Question>{t('breakup.numberingStep.how.question')}</Question>
+        <Text style={txt2.muted}>{wait === 'loading' ? t('common.loading') : t('breakup.numberingStep.list.connect')}</Text>
+      </>
+    );
+  }
   return (
     <>
       <Question>{t('breakup.numberingStep.how.question')}</Question>

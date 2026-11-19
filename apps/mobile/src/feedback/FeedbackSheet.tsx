@@ -10,7 +10,7 @@
 // go too, on Android and the web: chosen from the phone's files and made
 // smaller (LAN-198, pictureFile.ts). Saved as an account change, it goes when the phone is online.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, PanResponder, StyleSheet, View } from 'react-native';
+import { Image, PanResponder, StyleSheet, View, type ViewInstance } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { Chip, ChipWrap, Field, GhostBtn, Group, HELP_FOOT_ROOM, Ico, PrimaryBtn, Row, Sheet } from '../ui/kit';
@@ -149,7 +149,7 @@ function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; sig
   }
 
   // Shown on the sheet: one that does not fit yet is taken from there as a smaller JPEG.
-  function shown(chosen: ChosenPicture, view: View, size: Size) {
+  function shown(chosen: ChosenPicture, view: ViewInstance, size: Size) {
     if (chosen.base64) return;
     const taking = shrinkPicture(view, size).catch((e: unknown) => { noteExpected('feedback: shrink picture', e); return null; });
     shrinking.current = taking;
@@ -223,8 +223,8 @@ function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; sig
 const PREVIEW_HEIGHT = 360;
 
 /** The chosen picture, as wide as the sheet, and the way to take it off the report. */
-function PicturePreview(props: { picture: ChosenPicture; last: boolean; onShown: (view: View, size: Size) => void; onRemove: () => void }) {
-  const frame = useRef<View>(null);
+function PicturePreview(props: { picture: ChosenPicture; last: boolean; onShown: (view: ViewInstance, size: Size) => void; onRemove: () => void }) {
+  const frame = useRef<ViewInstance>(null);
   const [width, setWidth] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const size = width > 0 ? previewSize(props.picture, width, PREVIEW_HEIGHT) : null;

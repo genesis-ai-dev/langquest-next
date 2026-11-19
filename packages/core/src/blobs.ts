@@ -20,6 +20,11 @@ export interface BlobRef {
    * and which no phone downloads while the note names this file (decisions.md 176).
    */
   replaces?: string;
+  /**
+   * For an upload by someone who only views: the accepted event that names this file, which
+   * lets them put a teammate's recording up (docs/nearby-sync-plan.md section 6, `x-named-by`).
+   */
+  namedBy?: string;
 }
 
 /** Where each event that can name a voice note keeps its hash. */
@@ -29,6 +34,7 @@ const VOICE_NOTE_FIELD: Partial<Record<EventType, string>> = {
   'v1.DepartureRecorded': 'reasonBlobHash',
   'v1.NoteAdded': 'blobHash',
   'v1.ResponseRecorded': 'blobHash',
+  'v1.KeyTermAudioRenderingAdded': 'blobHash',
   'v1.KeyTermAdjusted': 'blobHash',
   'v1.MaterialFieldSet': 'blobHash'
 };
@@ -142,7 +148,7 @@ export function referencedBlobs(state: LanguageState): ReadonlyMap<string, BlobR
 }
 
 /** What a scope needs, worked out once per plan: the workers and the reclaimer ask with the same scope after every file. */
-function forScope(plan: FilePlan, scope: ReadonlySet<string>): { needed: ReadonlySet<string>; stored: readonly BlobRef[] } {
+export function forScope(plan: FilePlan, scope: ReadonlySet<string>): { needed: ReadonlySet<string>; stored: readonly BlobRef[] } {
   // A scope Set is not changed once it has been passed in here (the session keeps one per revision).
   const same = plan.byScope.get(scope);
   if (same) return same;
@@ -235,6 +241,9 @@ function collectRefs(state: LanguageState): Map<string, BlobRef> {
       const unitId = a.duringTakeId ? state.takes[a.duringTakeId]?.unitId ?? '' : '';
       if (a.blobHash && !out.has(a.blobHash)) out.set(a.blobHash, { hash: a.blobHash, format: voice(a.blobHash), unitId });
     }
+  }
+  for (const t of Object.values(state.keyTerms)) {
+    for (const a of Object.values(t.audioRenderings ?? {})) if (!out.has(a.blobHash)) out.set(a.blobHash, { hash: a.blobHash, format: voice(a.blobHash), unitId: a.duringTakeId ? state.takes[a.duringTakeId]?.unitId ?? '' : '' });
   }
   for (const [takeId, r] of Object.entries(state.responses)) {
     const unitId = state.takes[takeId]?.unitId ?? '';
@@ -344,6 +353,10 @@ function audioIndex(state: Pick<LanguageState, 'materials' | 'keyTerms'>, refs: 
       if (term.unitScope.length === 0) everywhere.push(adjustment.blobHash);
       else for (const unitId of term.unitScope) add(byScope, unitId, adjustment.blobHash);
     }
+    for (const a of Object.values(term.audioRenderings ?? {})) {
+      if (term.unitScope.length === 0) everywhere.push(a.blobHash);
+      else for (const unitId of term.unitScope) add(byScope, unitId, a.blobHash);
+    }
   }
   return { own, byScope, everywhere };
 }
@@ -420,12 +433,13 @@ export function lostFilesView(state: LanguageState, hashes: Iterable<string>): L
   return lostFilesOf(planOf(state), hashes);
 }
 
-export function lostFilesOf(plan: FilePlan, hashes: Iterable<string>): LostFilesView {
+/** `nearby`: files a teammate's phone sent here (the ledger's marks), which are not this person's to record again, so they count in neither total (decision 92, docs/nearby-sync-plan.md 5.4). */
+export function lostFilesOf(plan: FilePlan, hashes: Iterable<string>, nearby?: ReadonlySet<string>): LostFilesView {
   const out: LostFilesView = { safe: 0, unsent: 0, unitIds: [] };
   const units = new Set<string>();
   for (const hash of hashes) {
     const ref = plan.refs.get(hash);
-    if (!ref) continue;
+    if (!ref || nearby?.has(hash)) continue;
     if (plan.verdict(hash)?.stored) { out.safe++; continue; }
     out.unsent++;
     if (ref.unitId && !units.has(ref.unitId)) { units.add(ref.unitId); out.unitIds.push(ref.unitId); }

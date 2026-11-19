@@ -59,12 +59,19 @@ Every account has somebody who can get it back in.
 
 | | Own email | Looked after |
 | --- | --- | --- |
-| Signs in with | email and password | nothing: the phone stays signed in (a sign-in name and an optional password, for a shared phone) |
+| Signs in with | email and password | nothing: the phone stays signed in (a sign-in name and an optional password, set on Edit Profile, for another device) |
 | Made by | Create Account | joining with an invite, as a new person, with no password (59) |
-| Gets back in through | a sign-in key sent to their email (section 8: next) | a sign-in key from anyone with their own email who can invite them where they are, shown as a QR (59) |
+| Gets back in through | Forgot password: a link sent to their email (flow G) | a sign-in key from anyone with their own email who can invite them where they are, shown as a QR (59) |
 | May invite others | when their role holds Invite | when their role holds Invite (decisions.md 67) |
 | May help others sign in | when their role holds Invite where that person is | no |
-| Becomes the other kind | n/a | by adding and proving their own email (section 8) |
+| Becomes the other kind | n/a | by adding their own email on Edit Profile (flow H) |
+
+A third way in makes a looked-after account too: **joining offline**
+(flow I, docs/nearby-sync-plan.md section 14). Its id is not the server's
+choice but follows from the newcomer's install key, its `app_metadata`
+holds that key as `chain_key`, and until that key's first session, proof
+of the key signs it in (decision 75 as amended by Carl's answer 10); after
+that it gets back in like any looked-after account, through a helper's code.
 
 A looked-after account's address is `<sign-in name>@people.langquest.org`.
 Nothing is delivered there: the domain has no mail server, and the app never
@@ -139,6 +146,14 @@ Server functions:
   and never emailed, and returns the session and who helped. A key marked
   lost signs every other session of the account out. Builds from before 59
   send a password with the key; the function then sets it, as before.
+- `change-email` Edge Function (LAN-304, flow H): the signed-in person's
+  new address, which it sets with the service role and marks confirmed, so
+  Auth sends no confirmation mail; nothing proves the address, as sign-up
+  proves none. It refuses an address that is not one, a looked-after
+  address, one another account has in any case (`email_taken`, service
+  role only; `email_exists`), and any email for an account with no password
+  yet (`password_required`). An account that was looked after loses its
+  steward row.
 - `join` Edge Function (59): a signed-out phone sends an invite, a request
   id and, for a group invite, the person's name. It makes the looked-after
   account (a random password nobody sees), adds the membership with
@@ -147,6 +162,38 @@ Server functions:
   (`invite_join_requests`) signs the same account in again, for an hour and
   only while the account is still looked after with no password (75); after
   that, getting back in is a helper's code.
+
+Joining offline adds (docs/nearby-sync-plan.md 14.1, 5.12):
+
+- **Join passes.** The Worker's certificate answer holds one for each
+  language a person's phone named where they hold Invite, looked after or
+  not, when their organization has both `nearby` and `nearby_join` on:
+  the organization, language, inviter and inviter's key, the roles with no
+  manage privilege they may grant, 10 uses, and an expiry at the end of a
+  90-day window, which also fixes its id. Nothing is written when one is
+  issued.
+- **The pass's invites row,** made by its first use at the server
+  (`redeem_pass_for`), under the hash `pass:<passId>`, which no token's
+  SHA-256 can equal, so `preview_invite`, `redeem_invite_v2` and the `join`
+  function never reach it, and `issue_invite_v3` refuses it as a hash. Its
+  first use appends `v1.InviteIssued` as the inviter; each use then redeems
+  through `_redeem_invite_row` (redeem_invite_for's body, which
+  `redeem_invite_for` now wraps) under the role the newcomer's link chose.
+  `pass_refusal` holds every stop: past expiry or uses, either feature off,
+  the inviter's key revoked, the inviter no longer able to grant the role,
+  the role retired or given a manage privilege.
+- **`deleted_profile_ids`**, the bare id of every deleted account
+  (`_delete_account`), so a chain cannot bring a deleted newcomer back.
+- **`POST /api/nearby/join`** on the Worker, signed out: the chain, proof of
+  the key, the profile id, a request id and, for someone a pass no longer
+  takes, an ordinary invite's token. It refuses any id but the one the key
+  gives, and one someone already holds (an account, an imported v2 person's
+  membership, a profile, a redemption, a join request, a v2 link) or that
+  was deleted (`nearby_join_state`), asks the pass before making anything,
+  makes the account with that id, records the key and redeems
+  (`nearby_join_finish`), and returns a session only until the key's first
+  session. The relay makes the same account for a newcomer whose work a
+  teammate carries.
 
 Phone state: one value, the **held key**, in `AsyncStorage` under
 `held-invite`:
@@ -193,8 +240,9 @@ The key is held, and the scan screen opens on the card: flow A, B or C.
 
 **E. Offline.** Scanning works offline. The card says "Saved. You'll join
 when you're connected" for an existing account; a new person needs a
-connection to create the account, and the button says so. The key stays
-held across restarts until it can be used.
+connection to create the account, and the button says so, unless a
+teammate lets them in with Share nearby (I). The key stays held across
+restarts until it can be used.
 
 **F. New phone, reinstalled, or signed out (looked-after account).**
 A helper opens Members → the person → **Help {name} sign in on a new
@@ -212,11 +260,45 @@ where the new password is set and they are signed
 in. It works once, for an hour. The answer is the same whether or not the
 address has an account; an address unknown here is passed to LangQuest v2,
 which sends its own reset email (decisions.md 200). A sign-in name has no
-email: Forgot password says so and offers Scan a code, for F.
+email: Forgot password says so and offers Scan a code, for F. On New
+password, "A phone of mine was lost or taken", off unless turned on, also
+revokes the person's nearby keys, and More settings has a row of that name
+that only emails this link (docs/nearby-sync-plan.md section 6).
 
-**H. Adding your own email (looked-after → own).** Section 8: Settings →
-Add your email → a sign-in key sent there proves it → the address changes
-and the steward row is removed.
+**I. Joining offline** (Android, an organization with `nearby_join` on;
+docs/nearby-sync-plan.md section 14). On a phone with nobody on it, the
+newcomer scans the QR on a teammate's Let someone in screen and types their
+name; the teammate taps "Let Nyibol in?" after comparing two pictures; the
+newcomer's phone takes a starting copy of the language from them and works
+as a local person with no account. The first time it reaches the server it
+calls `POST /api/nearby/join`: the account is made with the id its key
+gives, the pass's role is granted, and the phone is signed in, then asks
+for its certificate at once, which ends key sign-in. If the pass has
+stopped meanwhile, the work stays on the phone, and anyone with Invite
+there can let the same id in with an ordinary invite, scanned on Me or
+Sync. If a teammate's phone reaches the server first carrying the
+newcomer's work, the relay makes the same account while the pass allows.
+The app itself comes to the new phone as a carried build: an APK the
+carrier downloaded while online from `https://next.langquest.org/apk/<name>`
+and passes on by Quick Share, SD card or USB, named by versions alone, which
+Let someone in names so the carrier can compare (docs/nearby-sync-plan.md
+14.4, decisions.md 246). The app never downloads or installs it.
+
+**H. Adding or changing your email, and your password.** Me → your name
+→ Edit Profile, the one place for both (LAN-304,
+docs/decisions/2026-11-18-edit-profile-holds-email-and-password.md). Type
+an email and Save: the `change-email` function makes it the account's
+address at once, with nothing sent to prove it, as Create Account sends
+nothing. A looked-after account becomes an own-email account: it signs in
+with the email from then on, not its sign-in name; helpers' codes stop
+(59) and Forgot password reaches it; its steward row goes. An account with
+no password must choose one with its first email, set before the email so a
+failure leaves it the sign-in name and the password. Someone with an email
+changes it the same way, and an email cannot be taken away. The password
+field below it sets a first password or a new one, for any account, typed
+twice. Both need a connection; the name saves offline as before. The
+phone renews its session so the new address shows at once, and the offline
+lock (168) is found by the new address.
 
 ## 6. How each situation falls out
 
@@ -226,7 +308,7 @@ and the steward row is removed.
 | Leaves the scan screen, signs up elsewhere | Still joins | The key is held, not the screen |
 | Translator without email | A: a looked-after account | Section 3 |
 | A new phone, or signed out | F, from anyone who can invite them where they are | Every account has someone who can get it back in |
-| Phone lost or stolen | F with "Their old phone is lost": the old phone is signed out | The code ends every other session (59) |
+| Phone lost or stolen | F with "Their old phone is lost", or G with "A phone of mine was lost or taken": the old phone is signed out and its nearby keys revoked | The code or new password ends every other session (59, 200) |
 | Inviter leaves the organization | They can no longer help; anyone else with Invite there can | `may_help_sign_in` follows current roles (59) |
 | The reply to Join is lost | Tapping Join again within the hour signs the same account in | One request id per join (59, 75) |
 | Shared phone, several translators | Each picks a picture and draws a pattern (or uses their password) at sign-out; Sign In shows the pictures, never names | The session is locked on the phone under their pattern or password (168) |
@@ -243,6 +325,10 @@ and the steward row is removed.
 | Looked-after account tries to invite | No Invite button; the server refuses too | The privilege is removed in the session and in SQL |
 | Account deleted | Memberships end as before; steward rows go | Foreign keys cascade from `auth.users` |
 | The invite's role was retired | "This invite can no longer be used" | Server check, unchanged |
+| Let in offline, then reaches the server | I: the account is made with the id their key gives, and signed in | `POST /api/nearby/join`, under the pass's stops |
+| The join reply is lost | The phone asks again whenever it next gets a signal, and is signed in until the key's first session | The id is fixed, and a redemption already made answers the organization |
+| Offline newcomer's pass ran out first | Their work stays on the phone; an ordinary invite from anyone with Invite lets the same id in | `pass_refusal`; the token is the permission (59) |
+| Someone else's chain, an imported person's id, or a deleted account's id | Refused, and no account is made | The id follows from the key; `nearby_join_state` and `deleted_profile_ids` |
 
 ## 7. Requirements from the brief, and what became of them
 
@@ -251,10 +337,11 @@ and the steward row is removed.
 - **Inviting is a role permission.** Already true: `invite_members`
   (decision 23). Looked-after accounts never hold it, whatever their role.
 - **Only email-verified users can invite.** Looked-after accounts cannot
-  invite now. Sign-up does not prove an address today (confirmation is off
-  and there is no mail server), so "verified" cannot mean anything yet.
-  Section 8 adds proving an address with an emailed sign-in key, then the
-  rule tightens to proven addresses.
+  invite now. Sign-up does not prove an address (confirmation is off and
+  Auth has no mail server), and since LAN-304 neither does adding or
+  changing one on Edit Profile, so "verified" cannot mean anything; Carl
+  chose (2026-11-18) that changing an email is no stricter than signing up
+  with one.
 - **Signed out: new account first, existing account second.** Flow A and B.
 - **Signed in: join with the current account.** Flow C, with a guard for
   shared phones.
@@ -272,9 +359,8 @@ Built in this branch:
   `sign-in-code` function for stewards.
 - Sign in by sign-in name.
 
-Built later: G, Forgot password (decisions.md 200).
+Built later: G, Forgot password (decisions.md 200); H, an email and a
+password on Edit Profile, without proving the address (LAN-304).
 
-Next, because they need email delivery through the Cloudflare worker
-(`apps/invite-email`) and so a deploy of their own:
-
-- H, and proving an address; then "only proven addresses may invite".
+Not planned: proving an address, and "only proven addresses may invite"
+with it (section 7).

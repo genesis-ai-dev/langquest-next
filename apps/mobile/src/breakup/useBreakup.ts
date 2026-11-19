@@ -105,7 +105,11 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
     const row = numberingRows.rows.find((r) => r.org_id === 'langquest' && r.item_id === itemId);
     return row ? [{ code, itemId, name: sharedName(labels, row), description: row.description, hash: row.latest_hash }] : [];
   }), [numberingRows.rows, labels]);
-  return { lib, rows, choices, docOf, v11nOf, way, numberings, usedInByNumbering: usedByNumbering, loaded: shared.loaded, error: shared.error };
+  return {
+    lib, rows, choices, docOf, v11nOf, way, numberings, usedInByNumbering: usedByNumbering, loaded: shared.loaded, error: shared.error,
+    /** The numberings' read has ended (with them or without), and a way to ask again after one that failed. */
+    numberingsLoaded: numberingRows.loaded, reloadNumberings: numberingRows.refresh
+  };
 }
 
 /**
