@@ -225,7 +225,8 @@ export const howLangQuestWorks: Tutorial = {
     },
     {
       screen: 'my_work',
-      say: 'LangQuest is on Android, on iPhone, and in a web browser. The next videos show how to get it, and how to start.',
+      say: "LangQuest is on Android, on iPhone, and in a web browser. The video 'Create your account and look around' shows how to start. The video 'The path of a passage' follows a passage to its last check. Both videos are linked in the description below.",
+      videos: ['create-your-account-and-look-around', 'the-path-of-a-passage'],
       stay: 2
     }
   ]

@@ -154,7 +154,9 @@ export const thePathOfAPassage: Tutorial = {
     },
     {
       screen: 'passage_record',
-      part: (page) => [button(page, /^Peer check/), button(page, /^Community check/)],
+      // Every check of the path, to the last one: with the light on some of them only, the frame check held the film
+      // ("leaves out the Consultant check card", tutorials run 57).
+      part: (page) => [button(page, /^Peer check/), button(page, /^Final approval/)],
       say: 'Then come the checks that Lumari chose. The path shows each check, and who does it.'
     },
     back,
@@ -233,7 +235,8 @@ export const thePathOfAPassage: Tutorial = {
     },
     {
       screen: 'map_home',
-      say: 'That is the path of a passage in Lumari. In your language, your team chooses the checks. The next videos show each part, step by step.',
+      say: 'That is the path of a passage in Lumari. In your language, your team chooses the checks. Four videos show each part, step by step. These videos are linked in the description below.',
+      videos: ['record-a-passage', 'finish-and-ask-for-a-check', 'do-a-check', 'answer-feedback'],
       stay: 2
     }
   ]

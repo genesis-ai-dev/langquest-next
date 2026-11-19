@@ -98,7 +98,8 @@ export const createYourAccountAndLookAround: Tutorial = {
     {
       screen: 'intent_chooser',
       part: (page) => button(page, /^Start a new one/),
-      say: 'If you lead the work, and your organization is not in LangQuest yet, start a new one. Another video shows how.'
+      say: "If you lead the work, and your organization is not in LangQuest yet, start a new one. The video 'Start an organization' shows how. That video is linked in the description below.",
+      videos: ['start-an-organization']
     },
     {
       screen: 'intent_chooser',
@@ -135,7 +136,8 @@ export const createYourAccountAndLookAround: Tutorial = {
     },
     {
       screen: 'welcome',
-      part: (page) => page.getByText(/^You're a Translator/).locator('visible=true').first(),
+      // Both lines that the voice speaks of, lit as one box: who invited you, and your part in the team.
+      part: (page) => [page.getByText(/invited you$/).locator('visible=true').first(), page.getByText(/^You're a Translator/).locator('visible=true').first()],
       say: "You're in. The welcome says who invited you, and your part in the team."
     },
     {
@@ -219,7 +221,8 @@ export const createYourAccountAndLookAround: Tutorial = {
     },
     {
       screen: 'my_work',
-      say: 'Now you are ready. The next videos show how to translate a passage, and how to check one.',
+      say: "Now you are ready. The video 'Record a passage' shows how to translate. The video 'Do a check' shows how to check. Both videos are linked in the description below.",
+      videos: ['record-a-passage', 'do-a-check'],
       stay: 2
     }
   ]

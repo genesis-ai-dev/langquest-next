@@ -57,6 +57,26 @@ export const OTHER_LANGUAGES: Record<string, string> = {
   tl: 'Ang video na ito sa ibang wika:'
 };
 
+/** The heading over a video's links to the other videos that its voice names. */
+export const NAMED_VIDEOS: Record<string, string> = {
+  en: 'Videos named in this video:',
+  es: 'Videos que se nombran en este video:',
+  pt: 'Vídeos citados neste vídeo:',
+  fr: 'Vidéos citées dans cette vidéo :',
+  ar: 'الفيديوهات المذكورة في هذا الفيديو:',
+  sw: 'Video zinazotajwa katika video hii:',
+  ha: 'Bidiyoyin da aka ambata a wannan bidiyon:',
+  am: 'በዚህ ቪዲዮ የተጠቀሱ ቪዲዮዎች፦',
+  hi: 'इस वीडियो में बताए गए वीडियो:',
+  bn: 'এই ভিডিওতে উল্লেখ করা ভিডিওগুলো:',
+  ne: 'यो भिडियोमा उल्लेख गरिएका भिडियोहरू:',
+  id: 'Video yang disebut dalam video ini:',
+  th: 'วิดีโอที่กล่าวถึงในวิดีโอนี้:',
+  my: 'ဤဗီဒီယိုတွင် ဖော်ပြထားသော ဗီဒီယိုများ-',
+  'zh-Hans': '本视频提到的视频：',
+  tl: 'Mga video na binanggit sa video na ito:'
+};
+
 const YOUTUBE_TITLE = 100;
 const YOUTUBE_DESCRIPTION_BYTES = 5000;
 const bytes = (text: string) => new TextEncoder().encode(text).length;
@@ -72,6 +92,8 @@ export interface Elsewhere {
   tutorial: string;
   /** The languages it is not made in (the script's `notIn`). */
   notIn?: string[];
+  /** The other videos that its voice names (the script's `videos`), each with its title in this language. */
+  names?: { tutorial: string; title: string }[];
 }
 
 /**
@@ -86,9 +108,11 @@ export function firstSentence(line: string): string {
 
 /**
  * A video's title and description on YouTube (decisions.md 191): one line on
- * what it shows, then, each group apart, the link to download it from
- * LangQuest (decisions.md 187), every video and the app, and the same video
- * in each other language. Never what the voice says, line by line: the
+ * what it shows, then, each group apart, the videos that its voice names
+ * (first, where "linked in the description below" is looked for:
+ * docs/decisions/2026-11-19-a-video-links-the-videos-it-names.md), the link
+ * to download it from LangQuest (decisions.md 187), every video and the app,
+ * and the same video in each other language. Never what the voice says, line by line: the
  * video says it, and a description is read at a glance. A summary too long
  * for YouTube is cut. A video with the tune ends with the tune's credit,
  * which its licence asks for (tune.ts).
@@ -103,7 +127,10 @@ export function youtubeText(title: string, summary: string, elsewhere?: Elsewher
   const languages = elsewhere && others.length
     ? [OTHER_LANGUAGES[elsewhere.language] ?? OTHER_LANGUAGES['en'], ...others.map((l) => `${l.name}: ${watchLink(l.code, elsewhere.tutorial)}`)].join('\n')
     : '';
-  const end = ['', links, ...(languages ? [languages] : []), ...(credit ? [plain(credit)] : [])].join('\n\n');
+  const named = elsewhere?.names?.length
+    ? [NAMED_VIDEOS[elsewhere.language] ?? NAMED_VIDEOS['en'], ...elsewhere.names.map((n) => `${plain(n.title)}: ${watchLink(elsewhere.language, n.tutorial)}`)].join('\n')
+    : '';
+  const end = ['', ...(named ? [named] : []), links, ...(languages ? [languages] : []), ...(credit ? [plain(credit)] : [])].join('\n\n');
   let first = plain(summary);
   while (first && bytes(first + end) > YOUTUBE_DESCRIPTION_BYTES) first = [...first].slice(0, -1).join('');
   return { title: [...plain(title)].slice(0, YOUTUBE_TITLE).join(''), description: (first + end).trim() };
