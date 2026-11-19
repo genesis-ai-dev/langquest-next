@@ -43,7 +43,7 @@ test('PASS-001 TRANS P-NEW: not started, asked of TRANS @p0', async ({ browser }
   expect(rec).not.toContain('beside you');
   expect(await screenText(page)).toContain('Done Then ask for the peer check');
   expect(await teamRows(page)).toEqual([
-    "Peer check, once you're done", 'Back translation, same time', 'Community check, after the peer check',
+    "Peer check, once you're done", 'Back translation · make it, same time', 'Community check, after the peer check',
     'Consultant check, after the community check', 'Final approval, after the consultant check'
   ]);
   // Nothing to check yet: the cards do not open (LAN-127).
@@ -72,7 +72,7 @@ test('PASS-003 TRANS P-SUBMITTED: Version 1, Peer check asked of REV @p0', async
   // Version 1 plays on the passage itself, under Record (LAN-128).
   expect(await screenText(page)).toMatch(/Record Version 1 · \d+:\d\d Version 1 \d+:\d\d \d+:\d\d 10 Done Published .+ · asked Rita Reviewer/);
   expect(await teamRows(page)).toEqual([
-    `Peer check, asked ${rev}`, 'Back translation, same time', 'Community check, after the peer check',
+    `Peer check, asked ${rev}`, 'Back translation · make it, same time', 'Community check, after the peer check',
     'Consultant check, after the community check', 'Final approval, after the consultant check'
   ]);
   // TRANS's button goes to the ask page.
@@ -122,7 +122,7 @@ test('PASS-005 REV P-BT: Back translation asked of REV @p0', async ({ browser })
 test('PASS-006 TRANS P-CHECK: at the Consultant check checkpoint @p0', async ({ browser }) => {
   const page = await recordAs(browser, world(), 'TRANS', 'P-CHECK');
   expect(await teamRows(page)).toEqual([
-    'Peer check, looks good', 'Back translation, looks good', 'Community check, looks good', 'Consultant check, next',
+    'Peer check, looks good', 'Back translation · make it, made', 'Community check, looks good', 'Consultant check, next',
     'Final approval, after the consultant check'
   ]);
   expect(await mainButton(page)).toBe('Ask for the consultant check');
@@ -141,7 +141,7 @@ test('PASS-007 TRANS P-ASIDE: Community check set aside @p0', async ({ browser }
 test('PASS-008 TRANS P-DONE: every check complete @p0', async ({ browser }) => {
   const page = await recordAs(browser, world(), 'TRANS', 'P-DONE');
   expect(await teamRows(page)).toEqual([
-    'Peer check, looks good', 'Back translation, looks good', 'Community check, looks good', 'Consultant check, looks good', 'Final approval, looks good'
+    'Peer check, looks good', 'Back translation · make it, made', 'Community check, looks good', 'Consultant check, looks good', 'Final approval, looks good'
   ]);
   expect(await mainButton(page)).toBeNull();
   await somethingElse(page);

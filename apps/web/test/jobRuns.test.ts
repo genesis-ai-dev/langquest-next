@@ -55,10 +55,15 @@ describe('the Worker request tally', () => {
     expect(routeClass('GET', '/api/orgs/o/reports')).toBe('reports');
     expect(routeClass('POST', '/api/v1/mcp')).toBe('mcp');
     expect(routeClass('GET', '/api/v1/languages')).toBe('agent_api');
+    expect(routeClass('GET', '/api/v1/languages/l/changes')).toBe('agent_api');
+    expect(routeClass('GET', '/api/v1/languages/l/passages/u')).toBe('agent_api');
+    // A page of passages, which a partner pages through a whole language with, counts apart from the quick calls.
+    expect(routeClass('GET', '/api/v1/languages/l/passages')).toBe('agent_list');
     expect(routeClass('POST', '/api/internal/poke')).toBe('webhook');
     expect(routeClass('POST', '/api/v1/device/code')).toBe('device');
     expect(routeClass('POST', '/api/v1/device/token')).toBe('device');
     expect(routeClass('GET', '/api/v1/links/abc')).toBe('links');
+    expect(routeClass('POST', '/api/nearby/certificate')).toBe('nearby');
     expect(routeClass('GET', '/r/abc')).toBe('other');
     expect(routeClass('GET', '/v/es/record-a-passage')).toBe('other');
     expect(routeClass('GET', '/ops-dashboard')).toBe('ops');

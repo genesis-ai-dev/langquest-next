@@ -12,6 +12,7 @@ import { formatNumber } from '../i18n/format';
 import { HelpInfo, Ico, PrimaryBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, onColor, radius, space, target, type as T } from '../ui/theme';
+import { badgeShape } from '../shell/badgeModel';
 import { touches } from '../ui/touches';
 
 /**
@@ -19,7 +20,8 @@ import { touches } from '../ui/touches';
  * of the Inbox tab for everyone with a My Work. The count is what the Inbox
  * tab used to show: unread updates, open reports and people asking to join.
  */
-export function Bell(props: { count: number; onPress: () => void }) {
+export function Bell(props: { count: number; stale?: boolean; onPress: () => void }) {
+  const shape = badgeShape(props.count, props.stale === true);
   const label = props.count ? t('work.bell.labelNew', { count: props.count }) : t('work.bell.label');
   // The number on it says how many are new (rule 3).
   const spot = useHelpSpot(t('work.bell.label'), props.count > 0 ? `${t('work.bell.help')} ${t('work.bell.countHelp')}` : t('work.bell.help'), props.onPress);
@@ -27,11 +29,11 @@ export function Bell(props: { count: number; onPress: () => void }) {
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.bell, pressed && styles.pressed]}>
       <Ico name="notif" size={24} color={C.dark} />
-      {props.count > 0 ? (
-        <View style={[styles.badge, touches.none]}>
-          <Text style={styles.badgeText}>{props.count > 99 ? t('work.bell.overMax', { max: formatNumber(99) }) : formatNumber(props.count)}</Text>
+      {shape.kind === 'count' ? (
+        <View style={[styles.badge, shape.grey && styles.badgeStale, touches.none]}>
+          <Text style={styles.badgeText}>{shape.n > 99 ? t('work.bell.overMax', { max: formatNumber(99) }) : formatNumber(shape.n)}</Text>
         </View>
-      ) : null}
+      ) : shape.kind === 'dot' ? <View style={[styles.badge, styles.badgeStale, styles.badgeDot, touches.none]} /> : null}
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -105,6 +107,8 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   bell: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   badge: { position: 'absolute', top: -4, right: -4, minWidth: 22, minHeight: 22, paddingHorizontal: 5, borderRadius: 11, backgroundColor: onColor.amber, borderWidth: 2, borderColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  badgeStale: { backgroundColor: C.muted },
+  badgeDot: { minWidth: 14, minHeight: 14, borderRadius: 7, paddingHorizontal: 0 },
   badgeText: { color: C.white, fontSize: T.xs, fontWeight: '800' },
   next: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 2, borderColor: C.primary, padding: space.lg, gap: space.md },
   nextLabel: { fontSize: T.xs, fontWeight: '800', letterSpacing: 1.4, color: C.primary, textTransform: 'uppercase', marginBottom: space.xs },

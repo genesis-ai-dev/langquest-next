@@ -110,7 +110,7 @@ describe('the page', () => {
     expect(policy).toContain("script-src 'nonce-n0nce'");
     expect(policy).toContain("connect-src 'self' https://example.supabase.co");
     expect(policy).toContain("frame-ancestors 'none'");
-    expect(policy).toContain('media-src blob:');
+    expect(policy).toContain("media-src 'self' blob:");
     const html = await response.text();
     expect(html).toContain('<script nonce="n0nce">');
     expect(html).not.toMatch(/ style="/);
@@ -174,6 +174,9 @@ describe('the API', () => {
     expect(table).toBeGreaterThan(html.indexOf('<h3>Time to a usable Map</h3>'));
     expect(table).toBeLessThan(html.indexOf('<h3>Stuck phones</h3>'));
     expect(HELP['First downloads that fell back or started over']).toBeTruthy();
+    // A first download's wait for a connection has its own columns beside the download time.
+    const map = html.slice(html.indexOf('<h3>Time to a usable Map</h3>'), table);
+    for (const h of ['Waited', 'Longest wait']) { expect(map, h).toContain("h: '" + h + "'"); expect(HELP[h], h).toBeTruthy(); }
   });
 
   it('shows phones by build first among the builds, and snapshot copies beside the snapshots, with hover text', async () => {
@@ -210,8 +213,9 @@ describe('the API', () => {
 
   it('calls only /ops/api from the page', async () => {
     const html = await (await handle(new Request('https://next.langquest.org/ops-dashboard'), fullEnv)).text();
-    // Only links to the app's public tutorial videos, opened in a tab of their own to watch, leave it (decisions.md 180).
-    expect(html).not.toMatch(/['"]\/api\/(?!tutorials\/)/);
+    // Only the app's public tutorial videos (decisions.md 180) and the pictures of what Claude suggests for them
+    // (decisions.md 186, amended 2026-11-17), shown or opened in a tab of their own, leave it.
+    expect(html).not.toMatch(/['"]\/api\/(?!tutorials\/|tutorial-pictures\/)/);
     expect(html).toContain("'/ops/api/");
   });
 

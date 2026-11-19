@@ -6,7 +6,7 @@
 // shows over it, so its keys carry no help.
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, type TextInputInstance, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../i18n';
 import { Text } from '../ui/text';
@@ -141,7 +141,7 @@ function NotesFace(props: FaceProps) {
       });
     }
   }, [keep, length, onCandidate]);
-  const input = useRef<TextInput>(null);
+  const input = useRef<TextInputInstance>(null);
   useEffect(() => {
     const id = setTimeout(() => input.current?.focus(), 300);
     return () => clearTimeout(id);

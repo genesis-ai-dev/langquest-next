@@ -3,7 +3,7 @@
 // which takes background noise out of the parts, and Delete every part,
 // which asks first as the bin did.
 import { useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, StyleSheet, useWindowDimensions, View, type ViewInstance } from 'react-native';
 import { Text } from '../ui/text';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -19,7 +19,7 @@ const MENU_WIDTH = 280;
 const MENU_HEIGHT = 140;
 
 export function PartsMenu(props: { disabled: boolean; onCleanUp?: () => void; onDeleteAll?: () => void }) {
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   const [at, setAt] = useState<{ right: number; y: number } | null>(null);
   const { width, height } = useWindowDimensions();
   // Under the ⋯, its right edge with the ⋯'s; above it when too close to the bottom.

@@ -1,5 +1,4 @@
-import {
-  CommandError, emptyLanguageState, isTemplateDoc, privilegesFor, selectBookNamesSpec,
+import { newCommandId, CommandError, emptyLanguageState, isTemplateDoc, privilegesFor, selectBookNamesSpec,
   type EventPayloads, type EventSpec, type LanguageState, type LibraryDoc, type NamesDoc, type OrgState
 } from '@langquest-next/core';
 import { draftSpecsFor } from '../checks/languageDraftModel';
@@ -47,11 +46,11 @@ export function newLanguageParts(offering: boolean, opts: { each?: number; clust
  * chosen language, with ids derived from the language so a retry appends
  * nothing twice.
  */
-export function offerSpecs(languageId: string, offered: string[], setSays: ReferenceSay[], recommendations: OrgState['recommendations'] | undefined): EventSpec[] {
+export function offerSpecs(languageId: string, offered: string[], setSays: ReferenceSay[], recommendations: OrgState['recommendations'] | undefined, actorId: string): EventSpec[] {
   return [
     ...offered.filter((id) => recommendations?.[id]?.value !== true).map((itemId) => ({ itemId, state: 'recommended' as const })),
     ...setSays
-  ].map((payload, i) => ({ id: `${languageId}:offer:${i}`, type: 'v1.ReferenceSet', payload } as EventSpec));
+  ].map((payload, i) => ({ id: newCommandId(actorId, `${languageId}:offer:${i}`), type: 'v1.ReferenceSet', payload } as EventSpec));
 }
 
 /** What adding a language needs from the app: the library, the organization's stream and the new language's. */
@@ -175,7 +174,7 @@ export async function createLanguages(input: NewLanguageInput & {
     const plan = addLanguage(input.org, {
       languageId, code: languoid, name: languageName, languoidId: one.languoidId, sourceCode: input.reads,
       template: await deps.applySpecs(use.itemId, { docHash: use.docHash, into: fresh, ...(books ? { books } : {}) }),
-      flow: draftSpecsFor(languageId, input.checks)
+      flow: draftSpecsFor(languageId, input.checks, input.actorId)
     });
     await deps.appendOrg('v1.LanguageAdded', plan.added);
     if (plan.link) await deps.appendOrg('v1.LanguageCodeSet', plan.link);
@@ -183,10 +182,10 @@ export async function createLanguages(input: NewLanguageInput & {
     // i18n-ignore: a diagnostics label (noteExpected), never shown
     await deps.syncOrg().catch((e: unknown) => deps.note('new language listing', e));
     if (!input.each) await deps.onPart('saving');
-    const also = (input.alsoReads ?? []).map((language, i): EventSpec => ({ id: `${languageId}:reads:${i}`, type: 'v1.ReferenceLanguageAdded', payload: { language, added: true } }));
+    const also = (input.alsoReads ?? []).map((language, i): EventSpec => ({ id: newCommandId(input.actorId, `${languageId}:reads:${i}`), type: 'v1.ReferenceLanguageAdded', payload: { language, added: true } }));
     const names = namesItem && input.bookNames
-      ? [selectBookNamesSpec({ commandId: `${languageId}:names`, itemId: namesItem, docHash: input.bookNames.docHash, doc: input.bookNames.doc })] : [];
-    await deps.appendToLanguage(languageId, [...plan.specs, ...names, ...offerSpecs(languageId, offered, setSays, input.org?.recommendations), ...also]);
+      ? [selectBookNamesSpec({ commandId: newCommandId(input.actorId, `${languageId}:names`), itemId: namesItem, docHash: input.bookNames.docHash, doc: input.bookNames.doc })] : [];
+    await deps.appendToLanguage(languageId, [...plan.specs, ...names, ...offerSpecs(languageId, offered, setSays, input.org?.recommendations, input.actorId), ...also]);
     input.done?.set(one.key, { languageId, name: languageName });
     made.push({ languageId, name: languageName });
   }

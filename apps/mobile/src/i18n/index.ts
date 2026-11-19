@@ -2,7 +2,9 @@
 //
 // Every word the app shows or says is a key in `en.json` (English is the
 // source) and reaches the screen through `t('area.key')`. The other
-// catalogs beside it hold the same keys. apps/mobile/test/i18n.test.ts
+// catalogs beside it hold the same keys. Two parts keep their words apart,
+// under the same rules: the disguise (src/disguise/i18n) and nearby sync
+// (src/nearby/i18n), which the web loads only with its screens. apps/mobile/test/i18n.test.ts
 // fails on a word written straight into the code, a key used but missing,
 // a key no code uses, or a catalog that lacks or adds keys.
 //

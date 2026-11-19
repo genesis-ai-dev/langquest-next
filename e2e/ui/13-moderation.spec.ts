@@ -313,7 +313,7 @@ test('MOD-008 Block someone, then Unblock', async ({ page }) => {
   await expectToast(page, `Unblocked ${nameOf('TRANS')}.`);
   await expect(button(page, 'Play Version 1')).toBeVisible();
   await openMore(page);
-  await expect(text(page, 'Sync')).toBeVisible();
+  await expect(text(page, 'Send diagnostics')).toBeVisible();
   expect(await screenText(page)).not.toContain('Blocked people');
   // Block again and let the toast go (about 3.5 seconds).
   await openVersion(page);
@@ -672,6 +672,9 @@ test('MOD-020 A moderator acts on a content report', async ({ page, browser }) =
   const noteId = await noteAs(w, 'TREV', 'P-BT', 'MOD-020 disposable note');
   await reportAs(w, 'REV', { kind: 'note', id: noteId, profileId: w.accounts.TREV.id, unitId: w.passages['P-BT'].unitId }, 'spam');
   await openAs(page, w, 'ADMIN');
+  // The Inbox lists reports from the server at once, before this fresh device has its language: opened then, the
+  // version reads "Nothing recorded" until the passage arrives (LAN-279). The moderator acts on a device that has it.
+  await languageArrived(page);
   await openBell(page);
   await row(page, 'A version was reported').click();
   // The reported version itself opens, over its passage.
@@ -766,7 +769,8 @@ test('MOD-022 Nobody sees a report about themselves', async ({ page, browser }) 
   await expectAccountSent(page, w.accounts.TREV.id);
   const admin = await quietDevice(browser, w, 'ADMIN');
   await openBell(admin.page);
-  await row(admin.page, 'A note was reported').click();
+  // This report's own row, by its reason: another note's report may still be open, and this one may not be listed yet (LAN-280).
+  await row(admin.page, 'A note was reported Hateful or offensive').click();
   await expect(text(admin.page, `Someone reported this for Hateful or offensive. It was made by ${nameOf('COORD')}. Look at it, then remove it from the record or keep it.`))
     .toBeVisible();
   expect(await screenText(admin.page)).not.toContain(nameOf('TREV'));

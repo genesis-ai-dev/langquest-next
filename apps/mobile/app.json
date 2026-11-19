@@ -19,11 +19,17 @@
       "bundleIdentifier": "com.frontierrnd.langquestnext",
       "buildNumber": "4",
       "associatedDomains": [
+        "applinks:app.langquest.org",
         "applinks:next.langquest.org",
         "applinks:next-preview.langquest.org"
       ],
       "infoPlist": {
         "NSMicrophoneUsageDescription": "LangQuest records your voice to translate passages.",
+        "NSBluetoothAlwaysUsageDescription": "LangQuest uses Bluetooth to find your teammates' phones nearby and share work with them.",
+        "NSLocalNetworkUsageDescription": "LangQuest uses the local network to share work with your teammates' phones nearby.",
+        "NSBonjourServices": [
+          "_nlink._tcp"
+        ],
         "ITSAppUsesNonExemptEncryption": false,
         "UISupportedInterfaceOrientations": [
           "UIInterfaceOrientationPortrait",
@@ -35,6 +41,9 @@
           "UIInterfaceOrientationLandscapeLeft",
           "UIInterfaceOrientationLandscapeRight"
         ]
+      },
+      "entitlements": {
+        "com.apple.developer.networking.HotspotConfiguration": true
       }
     },
     "android": {
@@ -55,6 +64,16 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
+            {
+              "scheme": "https",
+              "host": "app.langquest.org",
+              "pathPrefix": "/invite"
+            },
+            {
+              "scheme": "https",
+              "host": "app.langquest.org",
+              "pathPrefix": "/signin"
+            },
             {
               "scheme": "https",
               "host": "next.langquest.org",
@@ -106,7 +125,6 @@
         }
       ],
       "expo-notifications",
-      "./plugins/withSceneLifecycle",
       "./plugins/withAndroidAppIcons",
       [
         "expo-localization",

@@ -3,7 +3,7 @@
 // documents, the organization's versification by code, and timing jobs
 // (asking for them, following their progress, publishing their results).
 // Pure decisions are in model.ts, timings.ts and coverage.ts.
-import { libraryItems, type LibraryDoc, type LibraryItemView } from '@langquest-next/core';
+import { newCommandId, libraryItems, type LibraryDoc, type LibraryItemView } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Ctx } from '../shell/ctx';
@@ -18,7 +18,7 @@ import { publishTimingJob } from './referenceActions';
 
 async function write(ctx: Ctx, w: RecWrite, message: string): Promise<boolean> {
   if (w.to === 'language') {
-    const spec = (x: RecWrite) => [{ id: Crypto.randomUUID(), type: x.type, payload: x.payload }] as Parameters<Ctx['act']>[0];
+    const spec = (x: RecWrite) => [{ id: newCommandId(ctx.session.actorId, Crypto.randomUUID()), type: x.type, payload: x.payload }] as Parameters<Ctx['act']>[0];
     try {
       await ctx.act(spec(w), message);
       return true;

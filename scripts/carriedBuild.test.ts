@@ -1,0 +1,623 @@
+import { generateKeyPairSync } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { crc32, deflateRawSync } from 'node:zlib';
+import { describe, expect, it } from 'vitest';
+import { carriedApkNameHere } from '@langquest-next/core';
+import {
+  APK_TYPE, APP_PATHS, BINDING, CURRENT, MAX_DOWNLOAD_ID, MIN_BYTES, Refusal, appHash, bucketConfig, check, checkApk, fileName, protection, publish, run, signV4,
+  universalApk, zipEntries
+} from './carried-build.mjs';
+import { look } from './play-review.mjs';
+import { EAS_KEYS, FILE_KEYS } from './secrets.mjs';
+import { parseJsonc } from './env-files.mjs';
+
+/**
+ * The carried build's pipeline (scripts/carried-build.mjs, docs/nearby-sync-plan.md 14.4) against a
+ * fake Google Play and a fake R2 bucket: it first runs in EAS after the merge, so every answer it
+ * does not expect must stop it before it writes anything, with a plain message and no key printed.
+ */
+
+const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+const { privateKey: pem } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+const keyText = pem.export({ type: 'pkcs8', format: 'pem' }) as string;
+const playKeyFile = JSON.stringify({ type: 'service_account', client_email: 'review@p.iam.gserviceaccount.com', private_key: keyText });
+const env = { PLAY_REVIEW_KEY: playKeyFile, APK_R2_ACCESS_KEY_ID: 'AKID', APK_R2_SECRET_ACCESS_KEY: 'r2-secret-value' };
+const config = { account_id: 'acct', r2_buckets: [{ binding: 'BLOBS', bucket_name: 'blobs' }, { binding: BINDING, bucket_name: 'apks' }] };
+const FP = '0a1b2c3d4e5f60718293a4b5c6d7e8f901234567';
+const NAME = fileName(FP);
+
+type ZipFile = [name: string, data: string | Uint8Array, deflated?: boolean];
+
+/** A zip of these files, each deflated unless it says otherwise, as Play lays out an APK. */
+function zip(files: ZipFile[]): Uint8Array {
+  const parts: Buffer[] = [];
+  const directory: Buffer[] = [];
+  let offset = 0;
+  for (const [name, data, deflated = true] of files) {
+    const raw = typeof data === 'string' ? Buffer.from(data, 'utf8') : Buffer.from(data);
+    const body = deflated ? deflateRawSync(raw) : raw;
+    const fileName = Buffer.from(name, 'utf8');
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(deflated ? 8 : 0, 8);
+    local.writeUInt32LE(crc32(raw), 14);
+    local.writeUInt32LE(body.length, 18);
+    local.writeUInt32LE(raw.length, 22);
+    local.writeUInt16LE(fileName.length, 26);
+    const entry = Buffer.alloc(46);
+    entry.writeUInt32LE(0x02014b50, 0);
+    entry.writeUInt16LE(20, 4);
+    entry.writeUInt16LE(20, 6);
+    entry.writeUInt16LE(deflated ? 8 : 0, 10);
+    entry.writeUInt32LE(crc32(raw), 16);
+    entry.writeUInt32LE(body.length, 20);
+    entry.writeUInt32LE(raw.length, 24);
+    entry.writeUInt16LE(fileName.length, 28);
+    entry.writeUInt32LE(offset, 42);
+    parts.push(local, fileName, body);
+    directory.push(entry, fileName);
+    offset += local.length + fileName.length + body.length;
+  }
+  const dir = Buffer.concat(directory);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(files.length, 8);
+  end.writeUInt16LE(files.length, 10);
+  end.writeUInt32LE(dir.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return new Uint8Array(Buffer.concat([...parts, dir, end]));
+}
+
+/** A binary manifest's strings are UTF-16 (aapt2's manifests, and Play's) or UTF-8. */
+const utf16 = (s: string) => new Uint8Array(Buffer.from(s, 'utf16le'));
+const MANIFEST = utf16('manifest package com.frontierrnd.langquestnext application com.frontierrnd.langquestnext.MainApplication');
+/** What Play's automatic protection put in version code 56's manifest and code (2026-11-17). */
+const PROTECTED_MANIFEST = utf16('manifest application com.pairip.application.Application activity com.pairip.licensecheck.LicenseActivity');
+const PROTECTED_CODE = 'Lcom/pairip/licensecheck/LicenseActivity;';
+const APP_FILES: ZipFile[] = [['AndroidManifest.xml', MANIFEST], ['classes.dex', 'dex\n035 Lcom/frontierrnd/langquestnext/MainApplication;'], ['classes2.dex', 'dex\n035 Lexpo/modules/ExpoModulesPackage;']];
+
+/** An APK as Play gives one: these files, padded to `size` bytes with a stored file. Below a zip's size, the zip header alone. */
+function apk(size = MIN_BYTES + 10, files: ZipFile[] = APP_FILES): Uint8Array {
+  const pad = (n: number) => zip([...files, ['res/raw/padding.bin', new Uint8Array(n), false]]);
+  const bare = pad(0).length;
+  if (size < bare) {
+    const bytes = new Uint8Array(size);
+    bytes.set([0x50, 0x4b, 0x03, 0x04]);
+    return bytes;
+  }
+  return pad(size - bare);
+}
+
+interface Call { method: string; url: string; headers: Record<string, string> }
+/** An object in the fake bucket, with the custom metadata the script writes. */
+interface Stored { body: Uint8Array | string; type: string; disposition?: string; versionCode?: string; appHash?: string }
+
+/** Google's token endpoint, generatedApks and its download, and R2's S3 API for one bucket, in one fetch. */
+function fakes(o: { generated?: (n: number) => { status: number; body?: unknown }; download?: string; file?: Uint8Array; bucket?: Map<string, Stored>; bucketStatus?: number } = {}) {
+  const calls: Call[] = [];
+  const bucket = o.bucket ?? new Map();
+  let generatedAsked = 0;
+  const fetch = async (input: string | URL, init: RequestInit = {}) => {
+    const url = String(input);
+    const method = init.method ?? 'GET';
+    const headers = Object.fromEntries(Object.entries((init.headers ?? {}) as Record<string, string>).map(([k, v]) => [k.toLowerCase(), v]));
+    calls.push({ method, url, headers });
+    if (url === 'https://oauth2.googleapis.com/token') return Response.json({ access_token: 'tok' });
+    const play = /^https:\/\/androidpublisher\.googleapis\.com\/androidpublisher\/v3\/applications\/com\.frontierrnd\.langquestnext(\/.*)$/.exec(url);
+    if (play) {
+      if (headers.authorization !== 'Bearer tok') return new Response('no', { status: 401 });
+      if (/^\/generatedApks\/\d+$/.test(play[1]!)) {
+        generatedAsked += 1;
+        const a = o.generated?.(generatedAsked) ?? { status: 200, body: { generatedApks: [{ certificateSha256Hash: 'c', generatedUniversalApk: { downloadId: 'dl-1' } }] } };
+        return typeof a.body === 'string' ? new Response(a.body, { status: a.status }) : Response.json(a.body ?? {}, { status: a.status });
+      }
+      if (play[1] === (o.download ?? '/generatedApks/42/downloads/dl-1:download?alt=media')) return new Response(o.file ?? apk());
+      return new Response('?', { status: 404 });
+    }
+    const r2 = /^https:\/\/acct\.r2\.cloudflarestorage\.com\/apks\/(.+)$/.exec(url);
+    if (r2) {
+      if (!headers.authorization?.startsWith('AWS4-HMAC-SHA256 Credential=AKID/')) return new Response('<Code>AccessDenied</Code>', { status: 403 });
+      if (o.bucketStatus) return new Response('<Error><Code>InternalError</Code></Error>', { status: o.bucketStatus });
+      const key = decodeURIComponent(r2[1]!);
+      const obj = bucket.get(key);
+      if (method === 'PUT') {
+        const body = init.body as Uint8Array | string;
+        bucket.set(key, { body, type: headers['content-type']!, disposition: headers['content-disposition'], versionCode: headers['x-amz-meta-version-code'], appHash: headers['x-amz-meta-app-hash'] });
+        return new Response(null, { status: 200 });
+      }
+      if (!obj) return new Response('<Code>NoSuchKey</Code>', { status: 404 });
+      const size = typeof obj.body === 'string' ? Buffer.byteLength(obj.body) : obj.body.length;
+      if (method === 'HEAD') {
+        const meta = { ...(obj.versionCode ? { 'x-amz-meta-version-code': obj.versionCode } : {}), ...(obj.appHash ? { 'x-amz-meta-app-hash': obj.appHash } : {}) };
+        return new Response(null, { status: 200, headers: { 'content-length': String(size), ...meta } });
+      }
+      return new Response(obj.body, { status: 200 });
+    }
+    throw new Error(`unexpected ${method} ${url}`);
+  };
+  return { fetch, calls, bucket, writes: () => calls.filter((c) => c.method !== 'GET' && c.method !== 'HEAD' && !c.url.includes('oauth2')), asked: () => generatedAsked };
+}
+
+const quiet = () => {};
+/** The app code the checkout holds, as appHash gives it (a test's own, so no test reads the real tree). */
+const HASH = 'a'.repeat(32);
+const base = { versionCode: '42', fingerprint: FP, buildFingerprint: FP, env, config, log: quiet, sleep: async () => {}, hash: HASH };
+
+describe('the carried build\'s name and the bucket it lives in', () => {
+  it('is core\'s name for this checkout\'s versions, the one Let someone in shows and the route serves', () => {
+    expect(NAME).toBe(carriedApkNameHere(FP));
+    expect(NAME).toMatch(/^r\d+-l\d+-p\d+(\.\d+)?-0a1b2c3d\.apk$/);
+    expect(() => fileName('')).toThrow(Refusal);
+    expect(() => fileName(undefined)).toThrow(/is not an Android fingerprint/);
+  });
+
+  it('reads the bucket from the Worker\'s APKS binding and the credentials from the environment, and refuses while any is missing', () => {
+    expect(bucketConfig(env, config)).toEqual({ endpoint: 'https://acct.r2.cloudflarestorage.com', bucket: 'apks', accessKeyId: 'AKID', secretAccessKey: 'r2-secret-value' });
+    expect(() => bucketConfig({ ...env, APK_R2_SECRET_ACCESS_KEY: ' ' }, config)).toThrow(/the APK bucket is not configured \(no APK_R2_SECRET_ACCESS_KEY\)/);
+    expect(() => bucketConfig(env, { account_id: 'acct', r2_buckets: [] })).toThrow(/no the APKS binding/);
+    const wrangler = parseJsonc(read('apps/web/wrangler.jsonc'));
+    expect(bucketConfig(env, wrangler).bucket).toBe('langquest-next-apks');
+  });
+
+  it('signs with Signature Version 4 as AWS documents it (GET Object example)', () => {
+    const headers = signV4({
+      method: 'GET', url: 'https://examplebucket.s3.amazonaws.com/test.txt', headers: { Range: 'bytes=0-9' },
+      payloadHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      accessKeyId: 'AKIAIOSFODNN7EXAMPLE', secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      region: 'us-east-1', now: new Date('2013-05-24T00:00:00Z')
+    });
+    expect(headers.authorization).toBe('AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request, '
+      + 'SignedHeaders=host;range;x-amz-content-sha256;x-amz-date, Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41');
+    expect(headers).not.toHaveProperty('host');
+  });
+});
+
+describe('which app code a checkout holds', () => {
+  // Why: the daily refresh rebuilds only when main's app code differs from the file's, and EAS
+  // clones one commit, so the hash is read from the files. It must not move for what a build or a
+  // local run leaves beside the code, and must move for any change to it.
+  it('changes with any file under the app paths, by its bytes or its name, and with nothing else', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'carried-hash-'));
+    try {
+      const put = (rel: string, text: string) => { mkdirSync(join(dir, rel, '..'), { recursive: true }); writeFileSync(join(dir, rel), text); };
+      put('apps/mobile/src/a.ts', 'export const a = 1;\n');
+      put('packages/core/src/b.ts', 'export const b = 2;\n');
+      put('package-lock.json', '{}\n');
+      const first = appHash(dir);
+      expect(first).toMatch(/^[0-9a-f]{32}$/);
+      expect(appHash(dir)).toBe(first);
+      // Not the app: tests, scripts, a build's leftovers.
+      put('apps/mobile/test/a.test.ts', 'x');
+      put('apps/mobile/scripts/tool.mjs', 'x');
+      put('apps/mobile/modules/nearby-link/android/build/out.bin', 'x');
+      put('apps/mobile/src/node_modules/x.js', 'x');
+      expect(appHash(dir)).toBe(first);
+      put('apps/mobile/src/a.ts', 'export const a = 2;\n');
+      const second = appHash(dir);
+      expect(second).not.toBe(first);
+      put('apps/mobile/src/a.ts', 'export const a = 1;\n');
+      expect(appHash(dir)).toBe(first);
+      rmSync(join(dir, 'apps/mobile/src/a.ts'));
+      put('apps/mobile/src/c.ts', 'export const a = 1;\n');
+      expect(appHash(dir)).not.toBe(first);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('covers the app and the packages it bundles, and every path it names is in this repo', () => {
+    for (const p of APP_PATHS) expect(existsSync(new URL(`../${p}`, import.meta.url)), p).toBe(true);
+    expect(APP_PATHS).toEqual(expect.arrayContaining(['apps/mobile/src', 'packages/core/src', 'packages/sync/src', 'package-lock.json']));
+  });
+});
+
+describe('--check', () => {
+  it('is due when the bucket has no file of this build\'s name, and not when it has', async () => {
+    const f = fakes();
+    expect(await check({ fingerprint: FP, env, config, fetch: f.fetch, log: quiet })).toEqual({ due: true, name: NAME });
+    f.bucket.set(NAME, { body: apk(), type: APK_TYPE });
+    expect(await check({ fingerprint: FP, env, config, fetch: f.fetch, log: quiet })).toEqual({ due: false, name: NAME });
+    expect(f.writes()).toEqual([]);
+    expect(f.calls.every((c) => c.method === 'HEAD')).toBe(true);
+  });
+
+  // The daily refresh (docs/decisions/2026-11-19-carried-build-refreshed-daily.md): a carried
+  // file kept its first JavaScript until the versions changed, which can be weeks, while every
+  // OTA fix reached phones installed from the store. With --refresh, a file holding other app
+  // code than this checkout's is due too; one written before the app code was recorded counts as other.
+  it('with --refresh, is due too when the file holds other app code than this checkout, and not when it holds the same', async () => {
+    const f = fakes();
+    const at = (o: { refresh?: boolean; hash?: string }) => check({ fingerprint: FP, env, config, fetch: f.fetch, log: quiet, hash: HASH, ...o });
+    expect(await at({ refresh: true })).toEqual({ due: true, name: NAME });
+    f.bucket.set(NAME, { body: apk(), type: APK_TYPE, versionCode: '42', appHash: HASH });
+    expect(await at({ refresh: true })).toEqual({ due: false, name: NAME });
+    expect(await at({ refresh: true, hash: 'b'.repeat(32) })).toEqual({ due: true, name: NAME });
+    f.bucket.set(NAME, { body: apk(), type: APK_TYPE, versionCode: '42' });
+    expect(await at({ refresh: true })).toEqual({ due: true, name: NAME });
+    // Without it, as on a merge, only a missing file is due: the merge's own store build and OTA update carry its code.
+    expect(await at({ hash: 'b'.repeat(32) })).toEqual({ due: false, name: NAME });
+    expect(f.writes()).toEqual([]);
+  });
+
+  it('fails closed on any other answer, and asks nothing while the bucket is not configured', async () => {
+    const denied = fakes();
+    await expect(check({ fingerprint: FP, env: { ...env, APK_R2_ACCESS_KEY_ID: 'other' }, config, fetch: denied.fetch, log: quiet })).rejects.toThrow(/answered 403 AccessDenied to HEAD/);
+    const broken = fakes({ bucketStatus: 500 });
+    await expect(check({ fingerprint: FP, env, config, fetch: broken.fetch, log: quiet })).rejects.toThrow(/answered 500 InternalError/);
+    const none = fakes();
+    await expect(check({ fingerprint: FP, env: {}, config, fetch: none.fetch, log: quiet })).rejects.toThrow(/not configured/);
+    expect(none.calls).toEqual([]);
+  });
+
+  it('prints true or false alone on stdout, and exits 1 with a plain message when it cannot tell', async () => {
+    const f = fakes();
+    const out: string[] = [];
+    const log: string[] = [];
+    expect(await run(['--check', '--fingerprint', FP], { env, config, fetch: f.fetch, out: (s) => out.push(s), log: (s) => log.push(s) })).toBe(0);
+    expect(out).toEqual(['true']);
+    const stopped: string[] = [];
+    expect(await run(['--check', '--fingerprint', FP], { env: {}, config, fetch: f.fetch, out: (s) => out.push(s), log: (s) => stopped.push(s) })).toBe(1);
+    expect(out).toEqual(['true']);
+    expect(stopped.join('\n')).toMatch(/^no carried build: the APK bucket is not configured/);
+    expect(await run([], { env, fetch: f.fetch, out: quiet, log: quiet })).toBe(2);
+  });
+});
+
+describe('--publish', () => {
+  it('fetches the Play-signed universal APK read-only, puts it under its name with a neutral download name, and records it as current', async () => {
+    const f = fakes();
+    const lines: string[] = [];
+    const { name, wrote } = await publish({ ...base, fetch: f.fetch, log: (s: string) => lines.push(s), now: () => new Date('2026-11-08T12:00:00Z') });
+    expect([name, wrote]).toEqual([NAME, true]);
+    const stored = f.bucket.get(NAME)!;
+    expect(stored.type).toBe('application/vnd.android.package-archive');
+    expect(stored.disposition).toBe(`attachment; filename="${NAME}"`);
+    // The Worker reads it as the file's custom metadata, to find the newest file for a phone's versions,
+    // and the daily refresh reads which app code the file holds.
+    expect(stored.versionCode).toBe('42');
+    expect(stored.appHash).toBe(HASH);
+    expect((stored.body as Uint8Array).length).toBe(MIN_BYTES + 10);
+    const current = JSON.parse(f.bucket.get(CURRENT)!.body as string);
+    expect(current).toMatchObject({ name: NAME, versionCode: 42, fingerprint: FP, bytes: MIN_BYTES + 10, publishedAt: '2026-11-08T12:00:00.000Z' });
+    // Google is only read; the one POST is the token.
+    const google = f.calls.filter((c) => c.url.includes('googleapis.com'));
+    expect(google.filter((c) => c.method !== 'GET').map((c) => c.url)).toEqual(['https://oauth2.googleapis.com/token']);
+    expect(f.writes().map((c) => `${c.method} ${c.url.replace(/^.*\/apks\//, '')}`)).toEqual([`PUT ${NAME}`, `PUT ${CURRENT}`]);
+    // No key or secret in what it says.
+    const said = lines.join('\n');
+    for (const secret of ['r2-secret-value', 'PRIVATE KEY', 'tok']) expect(said).not.toContain(secret);
+  });
+
+  it('waits for Play to make the APKs of a bundle just uploaded, then gives up having written nothing', async () => {
+    const later = fakes({ generated: (n) => (n < 3 ? { status: 404, body: {} } : n < 4 ? { status: 200, body: { generatedApks: [] } } : { status: 200, body: { generatedApks: [{ generatedUniversalApk: { downloadId: 'dl-1' } }] } }) });
+    let slept = 0;
+    await publish({ ...base, fetch: later.fetch, sleep: async () => { slept += 1; } });
+    expect([later.asked(), slept]).toEqual([4, 3]);
+    const never = fakes({ generated: () => ({ status: 404, body: {} }) });
+    await expect(publish({ ...base, fetch: never.fetch, tries: 3 })).rejects.toThrow(/no universal APK for version code 42 after 3 tries/);
+    expect(never.writes()).toEqual([]);
+  });
+
+  it('fails closed on any generatedApks answer it does not expect, writing nothing', async () => {
+    const answers: { status: number; body?: unknown }[] = [
+      { status: 500, body: {} },
+      { status: 403, body: {} },
+      { status: 200, body: 'not json' },
+      { status: 200, body: { generatedApks: 'x' } },
+      { status: 200, body: { generatedApks: [{ generatedUniversalApk: { downloadId: 'dl-1' } }, { generatedUniversalApk: { downloadId: 'dl-2' } }] } },
+      { status: 200, body: { generatedApks: [{ generatedUniversalApk: { downloadId: 7 } }] } },
+      { status: 200, body: { generatedApks: [{ generatedUniversalApk: { downloadId: '../../x y' } }] } }
+    ];
+    for (const a of answers) {
+      const f = fakes({ generated: () => a });
+      await expect(publish({ ...base, fetch: f.fetch }), JSON.stringify(a)).rejects.toThrow(Refusal);
+      expect(f.writes(), JSON.stringify(a)).toEqual([]);
+      expect(f.bucket.size).toBe(0);
+    }
+  });
+
+  it('reads a generatedApks answer: one signing key with its universal APK, nothing yet, or a refusal', () => {
+    expect(universalApk({ generatedApks: [{ generatedUniversalApk: { downloadId: 'a_b-1' } }] })).toBe('a_b-1');
+    expect(universalApk({})).toBeNull();
+    expect(universalApk({ generatedApks: [] })).toBeNull();
+    expect(universalApk({ generatedApks: [{ generatedSplitApks: [] }] })).toBeNull();
+    expect(() => universalApk({ generatedApks: [{}, {}] })).toThrow(/2 signing keys/);
+  });
+
+  it('takes Play\'s download id as the opaque string Google documents, / + = and : too, and asks for the download with it percent-encoded', async () => {
+    const id = 'Cg+4bW9yZS9pZA==/vc:52';
+    const download = '/generatedApks/42/downloads/Cg%2B4bW9yZS9pZA%3D%3D%2Fvc%3A52:download?alt=media';
+    const f = fakes({ generated: () => ({ status: 200, body: { generatedApks: [{ generatedUniversalApk: { downloadId: id } }] } }), download });
+    expect((await publish({ ...base, fetch: f.fetch })).wrote).toBe(true);
+    expect(f.bucket.has(NAME)).toBe(true);
+    expect(f.calls.filter((c) => c.url.includes('/downloads/')).map((c) => c.url.replace(/^.*\/applications\/[^/]+/, ''))).toEqual([download]);
+    for (const one of ['a/b', 'a+b', 'ab==', 'a:b', 'é~!*()\'', 'x'.repeat(MAX_DOWNLOAD_ID)]) {
+      expect(universalApk({ generatedApks: [{ generatedUniversalApk: { downloadId: one } }] }), one.slice(0, 9)).toBe(one);
+    }
+  });
+
+  it('counts a universal APK with no download id as not made yet, so it asks again, and gives up having written nothing', async () => {
+    expect(universalApk({ generatedApks: [{ generatedUniversalApk: {} }] })).toBeNull();
+    const later = fakes({ generated: (n) => ({ status: 200, body: { generatedApks: [{ generatedUniversalApk: n < 2 ? {} : { downloadId: 'dl-1' } }] } }) });
+    await publish({ ...base, fetch: later.fetch });
+    expect([later.asked(), later.bucket.has(NAME)]).toEqual([2, true]);
+    const never = fakes({ generated: () => ({ status: 200, body: { generatedApks: [{ generatedUniversalApk: {} }] } }) });
+    let slept = 0;
+    await expect(publish({ ...base, fetch: never.fetch, tries: 3, sleep: async () => { slept += 1; } })).rejects.toThrow(/no universal APK for version code 42 after 3 tries/);
+    expect([never.asked(), slept]).toEqual([3, 2]);
+    expect(never.writes()).toEqual([]);
+  });
+
+  it('refuses a download id it cannot put in a URL, saying what it looks like and never what it is', async () => {
+    const said = (generatedUniversalApk: unknown) => {
+      try {
+        universalApk({ generatedApks: [{ generatedUniversalApk }] });
+      } catch (err) {
+        expect(err).toBeInstanceOf(Refusal);
+        return (err as Error).message;
+      }
+      throw new Error('not refused');
+    };
+    const cannot = 'Google Play\'s universal APK has a download id this script cannot use: ';
+    const cases: [unknown, string][] = [
+      ['Cg+4bW9y ZS9pZA==/vc:52', 'a string of 23 characters: letters, digits, punctuation + / : =, whitespace U+0020'],
+      ['Cg+4bW9yZS9p\nZA==', 'a string of 17 characters: letters, digits, punctuation + =, whitespace U+000A'],
+      ['Cg4bW9y\u0000ZS9pZA', 'a string of 14 characters: letters, digits, control or unprintable characters U+0000'],
+      ['Cg4bW9y​ZS9pZA', 'a string of 14 characters: letters, digits, control or unprintable characters U+200B'],
+      ['A'.repeat(MAX_DOWNLOAD_ID + 1), `a string of ${MAX_DOWNLOAD_ID + 1} characters, more than ${MAX_DOWNLOAD_ID}: letters`],
+      ['', 'an empty string'],
+      [7, 'a number, not a string'],
+      [null, 'null, not a string'],
+      [{}, 'an object, not a string'],
+      [['dl-1'], 'a list, not a string']
+    ];
+    for (const [downloadId, shape] of cases) {
+      const message = said({ downloadId });
+      expect(message).toBe(cannot + shape);
+      if (typeof downloadId === 'string' && downloadId) {
+        for (const part of downloadId.split(/[\s\p{C}]/u)) expect(message, shape).not.toContain(part);
+      }
+    }
+    const controls = String.fromCharCode(1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 16, 17, 18, 19, 20);
+    expect(said({ downloadId: controls })).toMatch(/control or unprintable characters U\+0001 .* U\+0011 and 3 more$/);
+    expect(said('dl-1')).toBe('Google Play\'s universal APK is a string, not an object');
+    expect(said(null)).toBe('Google Play\'s universal APK is null, not an object');
+
+    // What the publish_carried job prints.
+    const f = fakes({ generated: () => ({ status: 200, body: { generatedApks: [{ generatedUniversalApk: { downloadId: 'Cg+4bW9yZS9p\nZA==' } }] } }) });
+    const log: string[] = [];
+    expect(await run(['--publish', '--version-code', '42', '--fingerprint', FP, '--build-fingerprint', FP], { env, config, fetch: f.fetch, out: quiet, log: (s) => log.push(s) })).toBe(1);
+    expect(log).toEqual([`no carried build: ${cannot}a string of 17 characters: letters, digits, punctuation + =, whitespace U+000A.`]);
+    expect(f.writes()).toEqual([]);
+  });
+
+  it('refuses an APK holding Play\'s automatic protection, wherever it shows, before writing anything', async () => {
+    const cases: [ZipFile[], string][] = [
+      [[['AndroidManifest.xml', PROTECTED_MANIFEST], ...APP_FILES.slice(1)], 'its AndroidManifest.xml names com.pairip'],
+      [[['AndroidManifest.xml', 'manifest com.pairip.licensecheck.LicenseActivity'], ...APP_FILES.slice(1)], 'its AndroidManifest.xml names com.pairip'],
+      [[...APP_FILES.slice(0, 2), ['classes2.dex', `dex\n035 ${PROTECTED_CODE}`]], 'its classes2.dex names com.pairip'],
+      [[...APP_FILES, ['lib/arm64-v8a/libpairipcore.so', 'ELF', false]], 'it holds lib/arm64-v8a/libpairipcore.so']
+    ];
+    for (const [files, where] of cases) {
+      expect(protection(apk(MIN_BYTES + 10, files))).toBe(where);
+      const f = fakes({ file: apk(MIN_BYTES + 10, files) });
+      const log: string[] = [];
+      expect(await run(['--publish', '--version-code', '42', '--fingerprint', FP, '--build-fingerprint', FP], { env, config, fetch: f.fetch, out: quiet, log: (s) => log.push(s) })).toBe(1);
+      expect(log).toEqual([
+        `no carried build: the APK Google Play gave has Play's automatic protection in it (${where}): installed from a file, it opens the Play Store and closes, so it is not carried. A person turns automatic protection off in Play Console, and the next merge makes the carried build again (docs/environments.md, "The carried build").`
+      ]);
+      expect(f.writes()).toEqual([]);
+    }
+    expect(protection(apk())).toBeNull();
+  });
+
+  it('reads an APK\'s entries from its directory, deflated or stored, and refuses one it cannot read rather than pass it', () => {
+    expect(zipEntries(apk()).map((e) => [e.name, e.method])).toEqual([['AndroidManifest.xml', 8], ['classes.dex', 8], ['classes2.dex', 8], ['res/raw/padding.bin', 0]]);
+    expect(protection(apk(MIN_BYTES + 10, [['AndroidManifest.xml', PROTECTED_MANIFEST, false]]))).toBe('its AndroidManifest.xml names com.pairip');
+    const unreadable = (bytes: Uint8Array, why: RegExp) => {
+      expect(() => checkApk(bytes)).toThrow(Refusal);
+      expect(() => checkApk(bytes)).toThrow(why);
+      expect(() => checkApk(bytes)).toThrow(/so whether Play's automatic protection is in it is not known/);
+    };
+    unreadable(apk(MIN_BYTES + 10, APP_FILES.slice(1)), /it has no AndroidManifest\.xml/);
+    unreadable(apk(MIN_BYTES + 10, [...APP_FILES, ['AndroidManifest.xml', MANIFEST]]), /more than one AndroidManifest\.xml/);
+    const cut = apk(MIN_BYTES + 100);
+    unreadable(cut.subarray(0, cut.length - 22 - 1), /no end of central directory/);
+    const moved = apk().slice();
+    const end = moved.length - 22;
+    new DataView(moved.buffer).setUint32(end + 16, 5, true);
+    unreadable(moved, /entry 1 of 4 is not where its directory says/);
+    const garbled = apk().slice();
+    garbled.set([0xff, 0xff, 0xff, 0xff], 30 + 'AndroidManifest.xml'.length);
+    unreadable(garbled, /AndroidManifest\.xml does not inflate to its size/);
+    const bzip = apk().slice();
+    const view = new DataView(bzip.buffer);
+    view.setUint16(view.getUint32(bzip.length - 22 + 16, true) + 10, 12, true);
+    unreadable(bzip, /AndroidManifest\.xml is compressed with method 12/);
+  });
+
+  it('refuses a file that is not an APK, writing nothing', async () => {
+    expect(() => checkApk(apk(100))).toThrow(/outside/);
+    const notZip = apk();
+    notZip[0] = 0x3c;
+    const f = fakes({ file: notZip });
+    await expect(publish({ ...base, fetch: f.fetch })).rejects.toThrow(/not a zip/);
+    expect(f.writes()).toEqual([]);
+  });
+
+  it('asks nothing for a version code, fingerprint, bucket or key that is not there, or a build whose fingerprint is not the one checked', async () => {
+    const cases = [
+      [{ versionCode: '' }, /is not a version code/],
+      [{ versionCode: '4x' }, /is not a version code/],
+      [{ fingerprint: '' }, /is not an Android fingerprint/],
+      [{ buildFingerprint: '' }, /is not the one the check named/],
+      [{ buildFingerprint: `f${FP.slice(1)}` }, /is not the one the check named/],
+      [{ env: { PLAY_REVIEW_KEY: playKeyFile } }, /the APK bucket is not configured/],
+      [{ env: { ...env, PLAY_REVIEW_KEY: '' } }, /no Google Play key/]
+    ] as const;
+    for (const [change, why] of cases) {
+      const f = fakes();
+      await expect(publish({ ...base, ...change, fetch: f.fetch }), String(why)).rejects.toThrow(why);
+      expect(f.calls, String(why)).toEqual([]);
+    }
+  });
+
+  it('replaces a file holding older app code with this build, under the same name, and never with a build older than it', async () => {
+    const old = fakes();
+    old.bucket.set(NAME, { body: apk(MIN_BYTES + 3), type: APK_TYPE, versionCode: '30', appHash: 'b'.repeat(32) });
+    old.bucket.set(CURRENT, { body: JSON.stringify({ name: NAME, versionCode: 30, sha256: 'old', bytes: 7 }), type: 'application/json' });
+    const lines: string[] = [];
+    expect((await publish({ ...base, fetch: old.fetch, log: (s: string) => lines.push(s) })).wrote).toBe(true);
+    expect(old.bucket.get(NAME)).toMatchObject({ versionCode: '42', appHash: HASH, disposition: `attachment; filename="${NAME}"` });
+    expect((old.bucket.get(NAME)!.body as Uint8Array).length).toBe(MIN_BYTES + 10);
+    expect(JSON.parse(old.bucket.get(CURRENT)!.body as string)).toMatchObject({ name: NAME, versionCode: 42, bytes: MIN_BYTES + 10 });
+    expect(lines.join('\n')).toMatch(/replaced/);
+
+    // A file written before the app code was recorded is replaced once.
+    const unmarked = fakes();
+    unmarked.bucket.set(NAME, { body: apk(MIN_BYTES + 3), type: APK_TYPE, versionCode: '30' });
+    await publish({ ...base, fetch: unmarked.fetch });
+    expect(unmarked.bucket.get(NAME)).toMatchObject({ versionCode: '42', appHash: HASH });
+
+    // Two runs racing: the one with the lower version code leaves the newer file and its record alone.
+    const newer = fakes();
+    newer.bucket.set(NAME, { body: apk(MIN_BYTES + 3), type: APK_TYPE, versionCode: '50', appHash: 'b'.repeat(32) });
+    await publish({ ...base, fetch: newer.fetch });
+    expect(newer.writes()).toEqual([]);
+    expect(newer.bucket.get(NAME)!.versionCode).toBe('50');
+  });
+
+  it('keeps a newer current build, leaves a file already there and the record that describes it, refuses a current record it did not write, and writes nothing on a dry run', async () => {
+    const newer = fakes();
+    newer.bucket.set(CURRENT, { body: JSON.stringify({ name: 'r30-l1-p1-ffffffff.apk', versionCode: 99 }), type: 'application/json' });
+    await publish({ ...base, fetch: newer.fetch });
+    expect(JSON.parse(newer.bucket.get(CURRENT)!.body as string).versionCode).toBe(99);
+    expect(newer.bucket.has(NAME)).toBe(true);
+
+    // A file already there with this app code is the one current.json describes, or none: the record never takes this build's sha256 and size for another's bytes.
+    const there = fakes();
+    there.bucket.set(NAME, { body: apk(), type: APK_TYPE, versionCode: '30', appHash: HASH });
+    there.bucket.set(CURRENT, { body: JSON.stringify({ name: NAME, versionCode: 30, sha256: 'old', bytes: 7 }), type: 'application/json' });
+    await publish({ ...base, fetch: there.fetch });
+    expect(there.writes()).toEqual([]);
+    expect(JSON.parse(there.bucket.get(CURRENT)!.body as string)).toEqual({ name: NAME, versionCode: 30, sha256: 'old', bytes: 7 });
+
+    const odd = fakes();
+    odd.bucket.set(CURRENT, { body: 'hello', type: 'text/plain' });
+    await expect(publish({ ...base, fetch: odd.fetch })).rejects.toThrow(/is not what this script writes/);
+    expect(odd.writes()).toEqual([]);
+
+    const dry = fakes();
+    const lines: string[] = [];
+    await publish({ ...base, fetch: dry.fetch, dryRun: true, log: (s: string) => lines.push(s) });
+    expect(dry.writes()).toEqual([]);
+    expect(lines.at(-1)).toMatch(/^dry run: would put r\d+-l\d+-p\d+-0a1b2c3d\.apk/);
+  });
+});
+
+describe('the carried build in the pipeline', () => {
+  const deploy = read('apps/mobile/.eas/workflows/deploy-to-testers.yml');
+  const job = (name: string) => deploy.split(/\n(?=  \w+:\n)/).find((part) => part.startsWith(`  ${name}:\n`)) ?? '';
+  const needs = (name: string) => (/\n {4}needs: \[([^\]]*)\]/.exec(job(name))?.[1] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const after = (name: string) => (/\n {4}after: \[([^\]]*)\]/.exec(job(name))?.[1] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+
+  it('checks, builds on the carried profile, uploads to the alpha track as a draft, and publishes the APK, in jobs of its own', () => {
+    expect(needs('carried_check')).toEqual(['fingerprint']);
+    expect(job('carried_check')).toMatch(/environment: production[\s\S]*due="\$\(npx tsx scripts\/carried-build\.mjs --check --fingerprint '\$\{\{ needs\.fingerprint\.outputs\.android_fingerprint_hash \}\}'\)" \|\| exit 1/);
+    expect(needs('build_carried')).toEqual(['carried_check']);
+    expect(job('build_carried')).toContain("if: ${{ needs.carried_check.outputs.due == 'true' }}");
+    expect(job('build_carried')).toMatch(/platform: android\n\s*profile: carried/);
+    expect(job('build_carried')).toContain('LQ_STORE_BUILD_REF: ${{ github.ref }}');
+    expect(needs('submit_carried')).toEqual(['build_carried']);
+    expect(job('submit_carried')).toMatch(/type: submit[\s\S]*profile: carried/);
+    expect(needs('publish_carried')).toEqual(['fingerprint', 'build_carried', 'submit_carried']);
+    expect(job('publish_carried')).toMatch(/environment: production[\s\S]*npx tsx scripts\/carried-build\.mjs --publish --version-code '\$\{\{ needs\.build_carried\.outputs\.app_build_version \}\}'/);
+    expect(job('publish_carried')).toContain("--build-fingerprint '${{ needs.build_carried.outputs.fingerprint_hash }}'");
+  });
+
+  it('stands apart from the store build, so a failure there cannot stall publish_android_update or a store upload', () => {
+    const carried = ['carried_check', 'build_carried', 'submit_carried', 'publish_carried'];
+    const jobs = [...deploy.matchAll(/\n {2}(\w+):\n/g)].map((m) => m[1]!);
+    for (const name of jobs.filter((j) => !carried.includes(j))) expect(needs(name).filter((n) => carried.includes(n)), name).toEqual([]);
+    for (const name of carried) expect(needs(name).filter((n) => !carried.includes(n) && n !== 'fingerprint'), name).toEqual([]);
+    expect(needs('publish_android_update')).toEqual(['get_android_build']);
+    // get-build matches on profile, so a carried build never satisfies the store build's check (14.4).
+    expect(job('get_android_build')).toMatch(/profile: production/);
+  });
+
+  // Play keeps one edit open at a time, so the carried upload opening its edit deleted the store
+  // build's mid-upload (build 55, 2026-11-17). It waits for every job of the run that writes to
+  // Play, however they end (`after`, not `needs`), so the store's jobs still never depend on it.
+  it('uploads only once the store build has gone up and its review step is done', () => {
+    const jobs = [...deploy.matchAll(/\n {2}(\w+):\n/g)].map((m) => m[1]!);
+    const playWriters = jobs.filter((j) => j !== 'submit_carried' && (/^submit_android/.test(j) || job(j).includes('node scripts/play-review.mjs')));
+    expect(playWriters.sort()).toEqual(['review_android', 'submit_android', 'submit_android_internal']);
+    expect(after('submit_carried').sort()).toEqual(playWriters);
+    expect(needs('submit_carried')).toEqual(['build_carried']);
+    for (const name of jobs) expect(after(name).length === 0 || name === 'submit_carried', name).toBe(true);
+  });
+
+  it('goes on the alpha track as a draft, which play-review.mjs never reads, so it is never promoted', async () => {
+    const submit = JSON.parse(read('apps/mobile/eas.json')).submit;
+    expect(submit.carried).toEqual({ extends: 'production', android: { track: 'alpha', releaseStatus: 'draft' } });
+    const tracks = [
+      { track: 'production', releases: [{ versionCodes: ['40'], status: 'completed' }] },
+      { track: 'internal', releases: [{ versionCodes: ['41'], status: 'completed' }] },
+      { track: 'alpha', releases: [{ versionCodes: ['42'], status: 'draft' }] }
+    ];
+    const api = async (method: string, path: string) => (path === '/edits' ? { id: 'e' } : method === 'GET' ? { tracks } : null);
+    expect(await look(api)).toEqual({ production: tracks[0]!.releases, internal: tracks[1]!.releases });
+  });
+
+  it('reads its keys from EAS\'s production environment, where npm run secrets puts them', () => {
+    for (const key of ['APK_R2_ACCESS_KEY_ID', 'APK_R2_SECRET_ACCESS_KEY', 'PLAY_REVIEW_KEY']) {
+      expect(EAS_KEYS).toContain(key);
+      expect(FILE_KEYS).toContain(key);
+    }
+  });
+});
+
+describe('the daily refresh', () => {
+  // Why: a merge makes a carried build only when the versions or the fingerprint change, so a file
+  // kept its first JavaScript for weeks while every fix reached store phones as an OTA update
+  // (docs/decisions/2026-11-19-carried-build-refreshed-daily.md). Once a day, main's file is
+  // checked by its app code and rebuilt in place when main has moved on.
+  const refresh = read('apps/mobile/.eas/workflows/refresh-carried.yml');
+  const deploy = read('apps/mobile/.eas/workflows/deploy-to-testers.yml');
+  const jobOf = (text: string, name: string) => text.split(/\n(?=  \w+:\n)/).find((part) => part.startsWith(`  ${name}:\n`)) ?? '';
+  const job = (name: string) => jobOf(refresh, name);
+  const needs = (name: string) => (/\n {4}needs: \[([^\]]*)\]/.exec(job(name))?.[1] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+
+  it('runs once a day on a schedule, which EAS runs on main only', () => {
+    expect(refresh).toMatch(/\non:\n {2}schedule:\n(?: {4}#.*\n)? {4}- cron: '\d{1,2} \d{1,2} \* \* \*'\n/);
+    expect(refresh).not.toMatch(/\n {2}push:/);
+  });
+
+  it('checks main\'s file by its app code, and builds, uploads and publishes in its place only when that is due', () => {
+    expect(needs('carried_check')).toEqual(['fingerprint']);
+    expect(job('fingerprint')).toMatch(/type: fingerprint/);
+    expect(job('carried_check')).toMatch(/environment: production[\s\S]*due="\$\(npx tsx scripts\/carried-build\.mjs --check --refresh --fingerprint '\$\{\{ needs\.fingerprint\.outputs\.android_fingerprint_hash \}\}'\)" \|\| exit 1/);
+    expect(needs('build_carried')).toEqual(['carried_check']);
+    expect(job('build_carried')).toContain("if: ${{ needs.carried_check.outputs.due == 'true' }}");
+    expect(job('build_carried')).toMatch(/platform: android\n\s*profile: carried/);
+    expect(needs('submit_carried')).toEqual(['build_carried']);
+    expect(job('submit_carried')).toMatch(/type: submit[\s\S]*profile: carried/);
+    expect(needs('publish_carried')).toEqual(['fingerprint', 'build_carried', 'submit_carried']);
+    // The same publish as a merge's, which replaces a file holding other app code.
+    const publishLine = (text: string) => /npx tsx scripts\/carried-build\.mjs --publish .*/.exec(jobOf(text, 'publish_carried'))?.[0];
+    expect(publishLine(refresh)).toBeDefined();
+    expect(publishLine(refresh)).toBe(publishLine(deploy));
+  });
+
+  it('gives the build guard main\'s ref for a scheduled run, and a run started by hand its own, which the guard refuses unless it is main\'s', () => {
+    expect(job('build_carried')).toContain('LQ_STORE_BUILD_REF: ${{ needs.carried_check.outputs.ref }}');
+    expect(job('carried_check')).toContain("if [ '${{ github.event_name }}' = 'schedule' ]; then ref='refs/heads/main'; else ref='${{ github.ref }}'; fi");
+    expect(job('carried_check')).toContain('set-output ref "$ref"');
+    // Versioned from when the check ran, as a merge's build is from its merge time (app.config.js).
+    expect(job('build_carried')).toContain('LQ_STORE_VERSION_TIME: ${{ needs.carried_check.outputs.time }}');
+    expect(job('carried_check')).toContain('set-output time "$(date -u +%Y-%m-%dT%H:%M:%SZ)"');
+  });
+});

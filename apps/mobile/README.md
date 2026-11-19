@@ -1,18 +1,22 @@
 # apps/mobile
 
-Expo 57 app, run as a development build (the native recorder module does not load in Expo Go). Owns exactly three things:
+Expo 58 app, run as a development build (the native recorder module does not load in Expo Go). Its main parts, beside
+`src/server/`, which holds every call to Supabase and the Worker
+(its README, decisions.md 105):
 
 1. `src/storage/store.ts`: the expo-sqlite driver behind `SqliteStore` from
    `@langquest-next/sync`. The store logic itself lives in the sync
    package and is contract-tested there against node:sqlite.
-2. `src/usePartition.ts`: one `SyncClient` on the open language's partition
-   with `SupabaseTransport`, sync on open and every 15 s, a pending count.
-   `src/sync/useOrg.ts`: the same client on the org partition (`_org`) with the
-   org materializer. An organization holds its languages directly and is
-   what you switch between (docs/decisions.md 34); each language is its own
-   partition, listed in `_org`, and a phone pulls the ones it opens
-   (decision 37, `src/shell/languages.ts`; `src/partitionWriter.ts` starts a new
-   one). `src/org/createOrg.ts` starts an organization; `src/shell/session.ts` derives privileges from both folds
+2. `src/sync/useLanguage.ts`: opens the open language's stream, a
+   `LanguageSession` from `@langquest-next/sync` (its `SyncClient`,
+   transfers and scheduler, decisions.md 104), with the phone's store, files
+   and transport, and follows it into React state.
+   `src/sync/useOrg.ts`: the same for the organization stream (`_org`), an
+   `OrgSession`. An organization holds its languages directly and is
+   what you switch between; each language is its own stream, listed in
+   `_org`, and a phone pulls the ones it opens (decisions.md 63 and 37,
+   `src/shell/languages.ts`; `src/org/newLanguage.ts` starts a new one).
+   `src/org/createOrg.ts` starts an organization; `src/shell/session.ts` derives privileges from both folds
    (`can(privilege)`, `adminScope`), and Home follows the admin scope.
 3. Screens, one file per UX demo domain under `src/screens/`, every demo
    screen id present (`src/shell/flow.ts` is the registry, generated from the
@@ -28,7 +32,14 @@ Expo 57 app, run as a development build (the native recorder module does not loa
    - `org.tsx`: org and language homes; members; invites; teams.
    - `config.tsx`: roles, reference, key terms, review flows.
      `content.tsx`: content templates and dividing a book.
-   - `account.tsx`: inbox, settings, profile, org switcher, sign out, sync.
+   - `account.tsx`: inbox, Me and settings, org switcher, sign out.
+     `profileEdit.tsx`: Edit Profile (name, email and password).
+   - `getReady.tsx`: Get ‹language› ready. `checks.tsx`: a language's checks.
+   - App-only, not in the demo: `sync.tsx` (Sync and offline),
+     `reference.tsx` (reference material by level), `sources.tsx` (More
+     Bibles), `guideEditor.tsx` (write a guide), `reports.tsx` (Reports),
+     `globalViewer.tsx` (Global Viewers) and `nearby.tsx` (Share nearby, on
+     Android phones and iPhones, never the web).
    Shared: `src/ui/kit.tsx` (the demo's UI primitives), `src/ui/theme.ts`,
    `src/passage/passageView.ts`, `src/audio/voiceNote.tsx`; `docs/ux/demo-parity.md`.
    Navigation is `src/shell/nav.ts` (stack) driven by `ctx.go`, which only follows
@@ -43,17 +54,18 @@ Expo 57 app, run as a development build (the native recorder module does not loa
    a dev build can jump to any screen. Personas work only against a local
    Supabase and only when `EXPO_PUBLIC_DEV_PASSWORD` is set (there is no
    built-in password: `EXPO_PUBLIC_*` values are public); seeding also needs a
-   dev build. The testers named in `src/auth/dev.ts` (`EXPO_PUBLIC_PERSONA_EMAILS`)
+   dev build. The testers named in `src/session/dev.ts` (`EXPO_PUBLIC_PERSONA_EMAILS`)
    may use it in a release build pointed at a local server.
-   `src/invites/invites.ts` holds the writes a non-member may make: `issue_invite`,
-   `redeem_invite_v2` and the `join_requests` table (migration
-   20260915120000). They end in the ordinary `v1.OrgMemberAdded`, recorded
+   `src/invites/invites.ts` holds the invite writes, including those a
+   non-member may make, through `src/server/invites.ts`: `issue_invite_v3`
+   (or `_v4` with checks), `redeem_invite_v2` and the `join_requests` table.
+   They end in the ordinary `v1.MemberAdded`, recorded
    alongside `v1.InviteIssued`, `v1.InviteRedeemed` and `v1.JoinDecided`.
 
 No sync logic lives here. Screens read `state` through core derivations
 (`derivePassage`, `highlightsFor`, `languageProgress` and the rest in
 `packages/core/src/passage.ts`) and write through core `commands()`. A few
-screen models build org-partition events core has no commands for
+screen models build organization-stream events core has no commands for
 (`src/org/orgAdmin.ts`, `src/config/model.ts`, `src/templates/contentTemplatesModel.ts`);
 they are listed in `docs/ux/demo-parity.md`.
 
@@ -66,8 +78,8 @@ scripts, not `npx expo` directly: they load `.env.development` and turn off
 Expo's own `.env` loading. Your
 own dev login goes in `.env.development.local` (git ignores it).
 Recording lives in `src/recording/useRecorder.ts` (native VAD plus expo-audio),
-`src/sync/blobs.ts` (content-addressed store), `src/server/blobTransport.ts` (Supabase
-Storage), and `src/screens/translate.tsx` with `src/recording/`. `EXPO_PUBLIC_DEV_EMAIL`
+`src/sync/blobs.ts` (content-addressed store), `src/server/blobTransport.ts` (through
+the app's Worker into Cloudflare R2, decisions.md 69), and `src/screens/translate.tsx` with `src/recording/`. `EXPO_PUBLIC_DEV_EMAIL`
 and `EXPO_PUBLIC_DEV_PASSWORD` prefill the auth screen in dev builds only.
 Event ids come from expo-crypto because Hermes has no `crypto.randomUUID`.
 

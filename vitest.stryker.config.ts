@@ -10,14 +10,20 @@ import base from './vitest.config';
 // linesVersion.test.ts hashes passage.ts as written, and the sandbox holds it instrumented,
 // so it fails the initial run and with it every nightly mutation run; it holds no mutant.
 // stryker.config.json leaves scripts/ out of the sandbox, all but scripts/unit-shards.ts,
-// which vitest.config.ts imports.
+// which vitest.config.ts imports, and library/ out, all but library/versifications, which
+// core's versification tests read. noStoredStatus.test.ts reads supabase/, apps/ and
+// packages/sync, which stay out of the sandbox; it scans files and kills no mutant.
 // Used only by stryker.config.json. Drop it when the runner supports vitest 5.
 export default mergeConfig(
   base,
   defineConfig({
     test: {
       setupFiles: [`./stryker-setup-${process.env.STRYKER_MUTATOR_WORKER ?? 0}.js`, './stryker-names.ts'],
-      exclude: ['**/node_modules/**', 'packages/core/test/linesVersion.test.ts']
+      exclude: [
+        '**/node_modules/**',
+        'packages/core/test/linesVersion.test.ts',
+        'packages/core/test/noStoredStatus.test.ts'
+      ]
     }
   })
 );

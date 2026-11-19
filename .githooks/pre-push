@@ -3,13 +3,22 @@
 # (order-independence and idempotence property tests, the event registry's
 # "no shipped event removed" checks, the rest of the unit suite), the
 # typecheck, the lint that holds what may import what (eslint.config.mjs),
-# and the push delivery function's bundle against its source. About 15 s, no
-# keys, no servers. The UI suite runs in CI (.github/workflows/guardrails.yml)
-# and before `npm run ship`; `npm run guardrails` runs the CI jobs here
-# (docs/testing.md).
+# and the push delivery function's bundle against its source. About three
+# minutes, no keys, no servers. The UI suite runs in CI
+# (.github/workflows/guardrails.yml) and before `npm run ship`;
+# `npm run guardrails` runs the CI jobs here (docs/testing.md).
+# `npm run guardrails` runs all of these too: when it passed on committed work
+# and every commit pushed has the same files (tree), they are not run again
+# (scripts/guardrails-passed.mjs, decisions.md 164, amended 2026-11-19).
 # Skip once with `git push --no-verify`; never make that the habit.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
+# What is pushed: one line per ref, `<local ref> <local sha> <remote ref> <remote sha>`.
+pushed=""
+[ -t 0 ] || pushed=$(cat)
+if printf '%s\n' "$pushed" | node scripts/guardrails-passed.mjs covers; then
+  exit 0
+fi
 echo "pre-push: typecheck + lint + tests"
 npm run --silent typecheck
 npm run --silent lint

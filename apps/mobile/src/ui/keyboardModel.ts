@@ -24,3 +24,22 @@ export function keyboardTop(frame: KeyboardFrame | null | undefined, windowHeigh
 export function keyboardCover(view: OnScreen, top: number | null): number {
   return top === null ? 0 : Math.max(0, Math.round(view.y + view.height - top));
 }
+
+/** A keyboard event a view follows: the keyboard arriving or going, and whether it moves the padding with the keyboard. */
+export interface KeyboardCue { event: 'keyboardWillShow' | 'keyboardDidShow' | 'keyboardWillHide' | 'keyboardDidHide'; shows: boolean; moves: boolean }
+
+/**
+ * The keyboard events a view follows. iOS says where the keyboard is going
+ * before it moves, and the padding moves with it; and it says so again once
+ * the keyboard is there. A screen that opens in between (a search typed, the
+ * keyboard put away, a result tapped at once) missed the first and took its
+ * start from `Keyboard.isVisible()`, which stays true until the keyboard has
+ * gone, so it kept the keyboard's padding, its footer halfway up a blank
+ * screen (the phone tests on iPhone, P0-coordinator-ask-override and JRN-006,
+ * 2026-11-12). The second says where the keyboard ended up. Android says once,
+ * when it is there.
+ */
+export function keyboardCues(os: string): KeyboardCue[] {
+  const did: KeyboardCue[] = [{ event: 'keyboardDidShow', shows: true, moves: false }, { event: 'keyboardDidHide', shows: false, moves: false }];
+  return os === 'ios' ? [{ event: 'keyboardWillShow', shows: true, moves: true }, { event: 'keyboardWillHide', shows: false, moves: true }, ...did] : did;
+}

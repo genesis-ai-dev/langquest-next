@@ -7,7 +7,9 @@
 # files into M4A (server/audioConvert.ts, decisions.md 94). The JobRunner
 # Durable Object (apps/web/worker/jobs.ts) starts a job by naming its bundle
 # as the entrypoint and passes the database URL and key as environment.
-FROM node:24-slim
+# The Node version is the repository's .node-version, held equal by
+# scripts/toolchain.test.ts (decisions.md 247).
+FROM node:24.22.3-slim
 RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY dist/ ./
