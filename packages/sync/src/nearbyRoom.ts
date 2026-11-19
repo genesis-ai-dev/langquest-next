@@ -63,6 +63,12 @@ export interface NearbyRoomTunables {
   heardForMs: number;
   /** After this with no echo, the screen offers a tap. */
   tapAfterMs: number;
+  /**
+   * The same for a phone heard by its advert alone on a phone whose own advert goes alone: an
+   * iPhone hearing an iPhone, from which no echo can ever come, so only the tap would connect them
+   * (Carl, 2026-11-19, after the first real-phone test). Long enough to be sure it is there.
+   */
+  tapAfterAloneMs: number;
   /** The higher tag waits this long for the lower to connect, then may connect itself. */
   waitToConnectMs: number;
   /** A failed connect backs off from this, doubling, so a replay cannot hold off "Up to date". */
@@ -75,7 +81,7 @@ export interface NearbyRoomTunables {
 }
 
 export const NEARBY_ROOM_DEFAULTS: NearbyRoomTunables = {
-  scanKeysMax: 16, formSaltsMax: 8, heardForMs: 30_000, tapAfterMs: 60_000, waitToConnectMs: 20_000, retryMs: 15_000, retryMaxMs: 300_000, dueAfterMs: 30 * 60_000, scanOnlyConnects: true
+  scanKeysMax: 16, formSaltsMax: 8, heardForMs: 30_000, tapAfterMs: 60_000, tapAfterAloneMs: 10_000, waitToConnectMs: 20_000, retryMs: 15_000, retryMaxMs: 300_000, dueAfterMs: 30 * 60_000, scanOnlyConnects: true
 };
 
 export type NearbyRoomStop = 'asked' | 'idle' | 'wait' | 'run' | 'level' | 'no-key';
@@ -206,6 +212,8 @@ export class NearbyRoom {
   /** What diagnostics count over one run: numbers, and the tags only to count them once. */
   private tally: NearbyRoomTally = emptyRoomTally();
   private readonly heardTags = new Set<string>();
+  /** Bare adverts heard this run, one per salt, for diagnostics (`alone`). */
+  private readonly aloneTags = new Set<string>();
   private readonly echoedTags = new Set<string>();
   private readonly began = new Map<NearbyRoomSession, number>();
   private startWait: 'summary' | 'peers' | 'find' | null = null;
@@ -237,6 +245,7 @@ export class NearbyRoom {
     this.level = false;
     this.tally = emptyRoomTally();
     this.heardTags.clear();
+    this.aloneTags.clear();
     this.echoedTags.clear();
     this.tappedAll = false;
     this.caps = await this.opt.radio.capabilities();
@@ -452,6 +461,7 @@ export class NearbyRoom {
     h.lastAt = this.now;
     if (this.scanOnly()) h.echoed = true;
     this.heard.set(tag, h);
+    this.aloneTags.add(tag);
     this.showTeammates();
   }
 
@@ -502,7 +512,9 @@ export class NearbyRoom {
       // Heard alone on this phone's own generation, it can check this phone's echo and connects itself; only an iPhone, which it cannot echo, connects to it.
       if (h.alone && scan === 0 && !this.advertAlone()) continue;
       const echoed = h.echoed || h.tapped;
-      if (!echoed && this.now - h.firstAt >= this.tune.tapAfterMs) {
+      // An iPhone hearing an iPhone: neither can see the other's echo, so waiting for one only delays the tap.
+      const tapAfter = h.alone && this.advertAlone() ? this.tune.tapAfterAloneMs : this.tune.tapAfterMs;
+      if (!echoed && this.now - h.firstAt >= tapAfter) {
         // A recording waits here for a tap and holds off nothing.
         if (!h.offered) {
           this.opt.report({ t: 'maybe', tag });
@@ -715,7 +727,7 @@ export class NearbyRoom {
     this.saltRelease = null;
     this.scanHeld = false;
     await this.opt.radio.stopAll();
-    this.note(roomDiagOf({ ...this.tally, heard: this.heardTags.size, echoed: this.echoedTags.size }, why, Math.max(0, this.now - this.startedAt), this.caps));
+    this.note(roomDiagOf({ ...this.tally, heard: this.heardTags.size, echoed: this.echoedTags.size, alone: this.aloneTags.size }, why, Math.max(0, this.now - this.startedAt), this.caps));
     this.opt.report({ t: 'stopped', why });
   }
 

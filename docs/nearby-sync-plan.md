@@ -2804,7 +2804,11 @@ do decides the design:
   Android, so the Android offers answer 21's tap and connects after it. An iPhone cannot get
   an echo from another iPhone, or from an Android without the change, so after a while it
   shows "A teammate may be nearby", and one tap covers every such teammate until the screen
-  closes (answer 26). Of two iPhones that both tapped, the lower salt connects at once and
+  closes (answer 26). The while is a minute (`tapAfterMs`) where an echo may yet come, and 10
+  seconds (`tapAfterAloneMs`) for an iPhone hearing another iPhone by its advert alone, from
+  which none can: in the first real-phone test (2026-11-19) people left after 30 to 60 seconds
+  before Connect showed. Room records count those bare adverts (`alone`), which `heard` leaves
+  out, so a report tells an iPhone that heard another from one that heard nothing. Of two iPhones that both tapped, the lower salt connects at once and
   the other waits, as the lower tag does today. With no summary to compare, a phone heard
   only by its advert is tried once per salt: after a session with it the room waits for its
   next salt, so new work between two iPhones can wait up to one rotation (4 to 6 minutes).
