@@ -136,7 +136,8 @@ export const createYourAccountAndLookAround: Tutorial = {
     },
     {
       screen: 'welcome',
-      part: (page) => page.getByText(/^You're a Translator/).locator('visible=true').first(),
+      // Both lines that the voice speaks of, lit as one box: who invited you, and your part in the team.
+      part: (page) => [page.getByText(/invited you$/).locator('visible=true').first(), page.getByText(/^You're a Translator/).locator('visible=true').first()],
       say: "You're in. The welcome says who invited you, and your part in the team."
     },
     {
