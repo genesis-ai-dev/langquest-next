@@ -557,42 +557,57 @@ on the dashboard.
 
 ### On the ops dashboard
 
-Tutorial videos → Videos, your list and the workers' list
-(`apps/admin/src/sources/videos.ts`):
+Tutorial videos → Videos and what waits on you
+(`apps/admin/src/sources/videos.ts`, drawn by `apps/admin/src/pageVideos.ts`;
+docs/decisions/2026-11-19-the-tutorial-videos-page-opens-on-what-waits-on-you.md).
+Four tabs with counts; the page opens on the first when something waits:
 
-- **By video**: in one app language (the list says how many of its videos
-  wait on an admin), each video's states, a timeline (Ctrl and the scroll
-  wheel, or a pinch, zooms it; a click on a mark shows the change, the
-  films before and after, the comment as written, the PR or the log), and
-  at the right a mark: **!** when something waits on an admin, **i** when
-  Claude acts next. The mark opens that video's cards: the problem, who acts
-  next, what happens if nobody does, Accept, Edit and Reject on a
-  suggestion, and **Tell Claude what to do**. A suggestion's card, its
-  timeline marks and its line in the changes Claude made show its pictures:
-  numbered, ringed where Claude saw the place, with a caption under each,
-  and, once the fix is filmed, the same places after it, side by side. A
-  picture with a small ring shows that part zoomed in. A click opens a
-  picture full size. An instruction sent there is
-  an accepted suggestion of kind `instruction`: Claude's next fix run writes
-  it as a pull request, with no second Accept.
-- **For an admin**: what is not one video's: films to publish, channels to
-  connect, paused languages (not in `NIGHTLY_LANGUAGES`).
-- **Workers, now and tonight**: the filming run, or the next one at 20:10
-  UTC; videos a screen change slots for tonight's check; fixes Claude
-  writes, and pull requests that merge themselves when their checks pass;
-  comments Claude reads; films waiting for YouTube's daily limit.
-- **Changes Claude made to the videos**: the record of each fix of the last
-  30 days, with who said yes (Claude for a clear fix, an admin, or an
-  admin's instruction), its state and its pull request. A clear fix is
-  seen nowhere else.
+- **Waits on you**: each thing an admin must answer, in every app language,
+  most urgent first, as a card with its buttons: Accept, Edit and Reject on
+  a suggestion; **Try again** and **Tell Claude what to do** on a change
+  Claude could not make; **Tell Claude what to do** on a held or failing
+  film that Claude's look did not fix; the two steps of a reply (below);
+  films to publish and channels to connect. A suggestion's card shows its
+  pictures: numbered, ringed where Claude saw the place, with a caption
+  under each. A picture with a small ring shows that part zoomed in. A click
+  opens a picture full size. An instruction sent from a card is an accepted
+  suggestion of kind `instruction`: Claude's next fix run writes it as a
+  pull request, with no second Accept.
+- **Automatic**: what needs no answer. Claude acts next: a held or failing
+  film before Claude's look, a new comment, a changed screen (an admin may
+  still tell Claude what to do there). Jobs, now and tonight: the filming
+  run, or the next one at 20:10 UTC; videos a screen change slots for
+  tonight's check; changes Claude writes, and pull requests that merge
+  themselves when their checks pass; comments Claude reads; films waiting
+  for YouTube's daily limit.
+- **All videos**: in one app language (the list says how many of its videos
+  wait on an admin), each video's states, its newest film and why it was
+  made (a screen by its name, never its id in the app's flow), and a
+  timeline. Each mark on the timeline is a small picture of what happened
+  (a film, an upload, a comment, a suggestion, an answer, a change, a hold,
+  a failure); the key above names the kinds on the page, pointing at a mark
+  says what and when, and a click shows the change, the films before and
+  after, the comment as written, the PR or the log. Ctrl and the scroll
+  wheel, or a pinch, zooms it; narrow days show dots. A button under a
+  video's name opens its cards in place. Paused languages (not in
+  `NIGHTLY_LANGUAGES`) are a line under the list.
+- **Changes made**: the record of each change Claude made in the last 30
+  days, with who said yes (Claude for a clear fix, an admin, or an admin's
+  instruction), its state, its pull request, and its pictures before and,
+  once the fix is filmed, after. A clear fix is seen nowhere else.
 
-A held or failing film waits on Claude's next look first (**i**); it waits
-on an admin (**!**) when a look after it made nothing for it, or what it
-made was rejected. A fix that failed, or whose pull request was closed, waits
+A held or failing film waits on Claude's next look first (Automatic); it
+waits on an admin when a look after it made nothing for it, or what it made
+was rejected. A change that failed, or whose pull request was closed, waits
 on an admin.
 
-A suggested reply shows for 14 days, since nothing records that someone
-posted it.
+**A reply to a comment** is posted by a person on YouTube, never from the
+dashboard (decisions.md 186). Its card shows the comment and the reply
+Claude suggests, in a box to change. Step 1 copies the reply and opens the
+comment on YouTube; step 2 is **Done**, beside **No reply needed**. The
+answer is kept on the comment (migration
+`20261119171500_tutorial_reply_done.sql`), so the card leaves for every
+admin; until then it waits, while the comment is kept (30 days).
 
 It reads `diag.ops_tutorial_films()`, `ops_tutorial_feedback()` and
 `ops_tutorials()`, each language's `status-<language>.json` from the

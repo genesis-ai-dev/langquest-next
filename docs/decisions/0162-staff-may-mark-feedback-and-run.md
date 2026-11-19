@@ -77,3 +77,11 @@ with a user issue from its card (`user-issue-note`, logged as
 `user_issue_note` with the issue and the note's id, never the words). The
 watch for user issues hands it to Claude
 (`docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`).
+
+Amended (2026-11-19, Caleb Koster): one more kind, `tutorial-reply`: what
+became of the reply Claude suggested for a comment on a tutorial video,
+which a person posts on YouTube themselves (decision 186, amended
+2026-11-19): `posted`, `none` (no reply needed) or `open` (taken back),
+recorded as `reply_posted`, `reply_none` or `reply_open` with the comment's
+input id. It records only; it posts nothing and changes no organization's
+work.

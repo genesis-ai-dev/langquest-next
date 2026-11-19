@@ -34,6 +34,12 @@ export interface FeedbackInput {
   replyEnglish: string | null;
   lookedAt: string | null;
   outcome: string | null;
+  /**
+   * What a person did with the suggested reply (migration *_tutorial_reply_done.sql): posted it on YouTube, or chose to
+   * post none. Null or absent while the reply waits.
+   */
+  replyDone?: 'posted' | 'none' | null;
+  replyDoneAt?: string | null;
 }
 
 /** A suggestion as `ops.tutorial_suggestion_json` gives it, with the inputs it answers. */
