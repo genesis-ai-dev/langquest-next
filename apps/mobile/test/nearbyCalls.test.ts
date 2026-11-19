@@ -42,8 +42,16 @@ describe('the certificate call', () => {
     const { requestCertificate, NearbyCallError } = await load();
     for (const status of [429, 503]) {
       reply = () => new Response('{}', { status });
-      expect(await requestCertificate(request)).toEqual({ kind: 'later', status });
+      expect(await requestCertificate(request)).toEqual({ kind: 'later', status, limited: false });
     }
+    // Why: the Worker's 429 for too many new keys today says so, and Sync's row tells the person
+    // (Carl, 2026-11-19); an ordinary rate limit, or a body that is not JSON, is not that.
+    reply = () => new Response(JSON.stringify({ error: 'Too many new keys today. Try again tomorrow.', limited: true }), { status: 429 });
+    expect(await requestCertificate(request)).toEqual({ kind: 'later', status: 429, limited: true });
+    reply = () => new Response('Too many requests', { status: 429 });
+    expect(await requestCertificate(request)).toEqual({ kind: 'later', status: 429, limited: false });
+    reply = () => new Response(JSON.stringify({ limited: true }), { status: 503 });
+    expect(await requestCertificate(request)).toEqual({ kind: 'later', status: 503, limited: false });
     reply = () => new Response('{}', { status: 401 });
     await expect(requestCertificate(request)).rejects.toBeInstanceOf(NearbyCallError);
     reply = () => { throw new TypeError('Network request failed'); };

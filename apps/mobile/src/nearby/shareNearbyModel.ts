@@ -48,6 +48,7 @@ export const WHY_NOT_WORDS = {
   'no-wifi-direct': 'nearby.why.noWifiDirect',
   'no-key': 'nearby.why.noKey',
   'no-certificate': 'nearby.why.noCertificate',
+  limited: 'nearby.why.limited',
   'read-only': 'nearby.why.readOnly'
 } as const satisfies Record<NearbyWhyNot, string>;
 
