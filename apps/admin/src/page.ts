@@ -10,6 +10,7 @@ import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
 import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
 import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
+import { HOVER_CSS, HOVER_LOGIC, HOVER_SCRIPT } from './pageHover';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
 import { ICONS, NAV, SHELL_CSS, SHELL_HTML, SHELL_LOGIC, SHELL_SCRIPT } from './pageShell';
 import { OVERVIEW_CSS, OVERVIEW_HTML, OVERVIEW_LOGIC, OVERVIEW_SCRIPT } from './pageOverview';
@@ -206,6 +207,7 @@ ${FIX_CSS}
 ${ISSUE_CSS}
 ${LISTS_CSS}
 ${METERS_CSS}
+${HOVER_CSS}
 </style>
 </head>
 <body>
@@ -262,7 +264,7 @@ const APP_KEY = 'sb-' + new URL(CFG.supabaseUrl).hostname.split('.')[0] + '-auth
 // ---- formatting ----------------------------------------------------------------
 const num = (n) => (n === null || n === undefined || n === '') ? '–' : Number(n).toLocaleString('en');
 const pct = (x) => (x === null || x === undefined) ? '–' : (x * 100).toFixed(x < 0.01 ? 2 : 1) + '%';
-const ms = (n) => n === null || n === undefined ? '–' : n >= 60000 ? (n / 60000).toFixed(1) + ' min' : n >= 1000 ? (n / 1000).toFixed(1) + ' s' : Math.round(n) + ' ms';
+const ms = (n) => n === null || n === undefined ? '–' : n >= 60000 ? (Math.round(n / 60000) >= 60 ? longTime(n) : (n / 60000).toFixed(1) + ' min') : n >= 1000 ? (n / 1000).toFixed(1) + ' s' : Math.round(n) + ' ms';
 const bytes = (b) => { if (b === null || b === undefined) return '–'; const u = ['B','KB','MB','GB','TB']; let i = 0; let v = Number(b); while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; } return v.toFixed(v >= 10 || i === 0 ? 0 : 1) + ' ' + u[i]; };
 function ago(iso) {
   if (!iso) return 'never';
@@ -427,7 +429,7 @@ function layout() {
   $('grid').innerHTML = SECTIONS.map((s) => '<section class="card' + (s.wide ? ' wide' : '') + '" id="card-' + s.id + '"><div class="head" data-toggle="' + s.id + '"><div><h2>' +
     '<button type="button" class="toggle" id="toggle-' + s.id + '" aria-expanded="true" aria-controls="body-' + s.id + '"><span class="chev" aria-hidden="true">▾</span><span data-help-key="group:' + s.id + '">' + esc(s.title) + '</span></button>' +
     '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div>' +
-    '<div class="hist" id="hist-' + s.id + '" hidden></div><div class="body" id="body-' + s.id + '"></div></section>').join('');
+    '<div class="body" id="body-' + s.id + '"></div><div class="hist" id="hist-' + s.id + '" hidden></div></section>').join('');
   for (const s of SECTIONS) applyOpen(s.id);
   annotate($('grid'));
   $('pill-lookup').hidden = true;
@@ -974,6 +976,9 @@ ${LISTS_LOGIC}
 ${METERS_LOGIC}
 ${LISTS_SCRIPT}
 ${METERS_SCRIPT}
+// ---- what a chart says under the pointer: a line and its values (pageHover.ts) ----
+${HOVER_LOGIC}
+${HOVER_SCRIPT}
 
 let loading = false;
 async function load(fresh) {

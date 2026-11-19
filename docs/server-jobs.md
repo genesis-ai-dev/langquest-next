@@ -135,8 +135,15 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
   it people come over by id) and its concurrency. The import runs only
   while the Worker's `V2_IMPORT_ENABLED` is "true" and refuses to start
   without v2's key.
-- **Instance type** `standard-1` (4 GiB) for all four, one instance each
-  (`max_instances` 4: pass, import, canary, reconciliation), with Node's heap at 3 GiB. Under F (decision 147)
+- **A start the platform refuses is recorded and tried again**
+  (`docs/decisions/2026-11-19-a-refused-job-start-is-tried-again.md`): the
+  job's object writes a job run at once (`start:max_instances` when no
+  instance was free, else `start:failed`), keeps no run, and its alarm tries
+  the start again every five minutes, for an hour at most
+  (`jobsModel.ts` `retryAt`, `jobs.ts` `startRefused`).
+- **Instance type** `standard-1` (4 GiB) for every job, one instance each
+  (`max_instances` 8, the number of jobs in `jobsModel.ts` `JOBS`;
+  `scripts/cloudflare-deploy.test.ts` fails when a job is added without it), with Node's heap at 3 GiB. Under F (decision 147)
   the pass holds the fold and then builds the rows, a batch at a time, and
   the lines from it: on a Santhali-size synthetic fixture the peak went from
   318 MB of heap (533 MB resident) to 353 MB (679 MB)
@@ -243,6 +250,7 @@ What this plan takes from that one, under F:
 | The job container, its object, the job tick and the import's switch are declared for production and preview, one instance per job | `scripts/cloudflare-deploy.test.ts` | in place |
 | The image installs no npm package; psql and ffmpeg are its system packages | `scripts/cloudflare-deploy.test.ts` | in place |
 | Which jobs a tick starts, what each container gets, and that a process killed, out of memory or stopped at the time limit leaves a job run | `apps/web/test/jobs.test.ts` | in place |
+| A start the platform refuses leaves a job run at once and is tried again every five minutes, for an hour; the limit of instances is at least the number of jobs | `apps/web/test/jobRunner.test.ts`, `apps/web/test/jobs.test.ts`, `scripts/cloudflare-deploy.test.ts` | in place |
 | The object, made again mid-run, drained, killed or past its limit, writes one row only when the process could not, and keeps a cut-off whole read owed | `apps/web/test/jobRunner.test.ts` | in place |
 | A rollout leaves a run alone longer than the whole read takes | `scripts/cloudflare-deploy.test.ts` | in place |
 | A whole read stopped within a day resumes; a missing file is asked for every pass only in its first hour | `packages/v2-import/test/resume.test.ts` | in place |

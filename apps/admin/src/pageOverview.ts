@@ -123,7 +123,7 @@ function tilesOf(results) {
       : { group, label, value: null, sub: partSaid(results, part) || 'No number', small: false, spark: null });
   };
   add('people', 'people', 'People active today', (d) => [nf(d.activeProfiles.day), nf(d.activeProfiles.week) + ' this week · ' + nf(d.orgs.total) + ' organizations'], 'people');
-  add('clients', 'phones', 'Installs that reported today', (d) => [nf(d.installs.day), nf(d.installs.week) + ' this week']);
+  add('clients', 'phones', 'Phones and browsers that reported today', (d) => [nf(d.installs.day), nf(d.installs.week) + ' this week']);
   add('clients', 'phones', 'Errors today', (d) => {
     const crashes = d.errors.filter((e) => e.fatal).reduce((a, e) => a + Number(e.day || 0), 0);
     return [nf(d.errors.reduce((a, e) => a + Number(e.day || 0), 0)), crashes === 1 ? '1 crash' : nf(crashes) + ' crashes'];
@@ -248,7 +248,7 @@ function alertRow(c) {
   const rest = c.more.length - ALSO_SHOWN;
   // A row that needs a person has its part's own picture, on a wide screen: its runs or its list as squares, or its number over 14 days.
   const gl = c.level === 'watch' ? null : glanceOf(c.group);
-  const pic = c.level === 'watch' ? '' : (SQUARES[c.part] ? squarePic(c.part, c.text) : listCardPic(c.part)) || (gl ? miniSvg(gl.s.values, gl.s.agg, 200, 48) + '<small>' + esc(gl.said) + '</small>' : '');
+  const pic = c.level === 'watch' ? '' : (SQUARES[c.part] ? squarePic(c.part, c.text) : listCardPic(c.part)) || (gl ? miniSvg(gl.s.values, gl.s.agg, 200, 48, gl.say) + '<small>' + esc(gl.said) + '</small>' : '');
   return '<div class="alert ' + c.level + (fixing(c) ? ' fixing' : '') + '">' + lvl(c.level, LEVEL[c.level].title) +
     '<div class="text"><b>' + esc(t.title) + '</b>' + fixHtml(lines[0]) +
     (also ? '<ul class="also">' + also + (rest > 0 ? '<li>' + num(rest) + ' more in ' + esc(titleOf(c.group)) + '</li>' : '') + '</ul>' : '') +
@@ -316,7 +316,7 @@ function drawTiles() {
     const gl = t.spark ? glanceOf(t.spark) : null;
     return '<a class="tile" href="#g/' + esc(t.group) + '"><span class="l">' + esc(t.label) + '</span>' +
       '<span class="v' + (t.value === null ? ' none' : t.small ? ' sm' : '') + '">' + esc(t.value === null ? '–' : t.value) + '</span>' +
-      '<span class="s">' + esc(t.sub) + '</span>' + (gl ? miniSvg(gl.s.values, gl.s.agg, 120, 24) : '') + '</a>';
+      '<span class="s">' + esc(t.sub) + '</span>' + (gl ? miniSvg(gl.s.values, gl.s.agg, 120, 24, gl.say) : '') + '</a>';
   }).join('');
 }
 
@@ -344,13 +344,15 @@ function drawWires() {
 let wireTimer = 0;
 window.addEventListener('resize', () => { clearTimeout(wireTimer); wireTimer = setTimeout(drawWires, 150); });
 
-/** One bar for each day, the second number stacked on the first; the scale and the first and last day are written. */
-function daysSvg(days, a, b) {
+/** One bar for each day, the second number stacked on the first; the scale and the first and last day are written, and each day says its numbers under the pointer (pageHover.ts). */
+function daysSvg(days, a, b, an, bn) {
   const w = 560, h = 190, left = 34, bottom = 22, top = 8;
   const max = Math.max(1, ...days.map((d) => a(d) + (b ? b(d) : 0)));
   const step = (w - left) / Math.max(1, days.length), bw = Math.max(2, step - 4), ph = h - bottom - top;
   const y = (v) => top + ph - (v / max) * ph;
-  let s = '<svg class="days" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true">';
+  const hv = hvAttr(left, step, days.map((d) => day(d.day + 'T12:00:00Z') + ' UTC'),
+    [['a', an, days.map((d) => num(a(d)))]].concat(b ? [['b', bn, days.map((d) => num(b(d)))]] : []), top, h - bottom);
+  let s = '<svg class="days" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"' + hv + '>';
   for (const g of [0, max / 2, max]) s += '<line class="gl" x1="' + left + '" x2="' + w + '" y1="' + y(g).toFixed(1) + '" y2="' + y(g).toFixed(1) + '"/><text x="' + (left - 6) + '" y="' + (y(g) + 4).toFixed(1) + '" text-anchor="end">' + esc(num(Math.round(g))) + '</text>';
   days.forEach((d, i) => {
     const x = left + i * step + 2, va = a(d), vb = b ? b(d) : 0;
@@ -368,8 +370,8 @@ function drawOvCharts() {
   const sum = (f) => days.reduce((n, d) => n + f(d), 0);
   const errs = (d) => Math.max(0, Number(d.errors || 0) - Number(d.crashes || 0)), crashes = (d) => Number(d.crashes || 0), installs = (d) => Number(d.installs || 0);
   $('start-charts').innerHTML =
-    '<a class="ovchart" href="#g/phones"><h3>Errors and crashes</h3><div class="keys"><span><i class="a"></i>Errors <b>' + num(sum(errs)) + '</b></span><span><i class="b"></i>Crashes <b>' + num(sum(crashes)) + '</b></span></div>' + daysSvg(days, errs, crashes) + '</a>' +
-    '<a class="ovchart" href="#g/phones"><h3>Installs with an error</h3><div class="keys"><span><i class="a"></i>Installs, each day</span></div>' + daysSvg(days, installs, null) + '</a>';
+    '<a class="ovchart" href="#g/phones"><h3>Errors and crashes</h3><div class="keys"><span><i class="a"></i>Errors <b>' + num(sum(errs)) + '</b></span><span><i class="b"></i>Crashes <b>' + num(sum(crashes)) + '</b></span></div>' + daysSvg(days, errs, crashes, 'Errors', 'Crashes') + '</a>' +
+    '<a class="ovchart" href="#g/phones"><h3>Phones and browsers with an error</h3><div class="keys"><span><i class="a"></i>Phones and browsers, each day</span></div>' + daysSvg(days, installs, null, 'Phones and browsers') + '</a>';
 }
 
 function drawShipped() {

@@ -1,5 +1,5 @@
 import type { JobRun } from '../../../server/jobRuns';
-import { HEARTBEAT_MS, JOBS, STOPPED_EARLY, type JobKey, type RunMark } from '../worker/jobsModel';
+import { HEARTBEAT_MS, JOBS, START_RETRY_MS, START_TRIES, STOPPED_EARLY, type JobKey, type RunMark } from '../worker/jobsModel';
 
 /**
  * The job runner's Durable Object (worker/jobs.ts, decision 141) against
@@ -25,6 +25,9 @@ const { JobRunner } = await import('../worker/jobs');
  * other code rejects them as Cloudflare does. A monitor asked for by an
  * object instance since dropped never settles, as that instance is gone.
  */
+/** What Cloudflare said at 08:07:13 UTC on 2026-11-19, from the Worker's log. */
+const REFUSED = 'Maximum number of running container instances exceeded. Try again later, or try configuring a higher value for max_instances';
+
 class FakeContainer {
   running = false;
   starts: { entrypoint?: string[]; env?: Record<string, string> }[] = [];
@@ -32,12 +35,24 @@ class FakeContainer {
   timeouts: number[] = [];
   /** Which object instance is alive; monitors of earlier ones never settle. */
   instance = 0;
+  /**
+   * How many of the next starts the platform refuses, as it did on 2026-11-19:
+   * `start` returns, the container never runs, and the call after it rejects
+   * with the platform's words.
+   */
+  refuse = 0;
+  private refused = false;
   private lastExit: number | null = null;
   private waiting: { instance: number; settle: (code: number) => void }[] = [];
   start(opts: { entrypoint?: string[]; env?: Record<string, string> }) {
+    this.starts.push(opts);
+    if (this.refuse > 0) {
+      this.refuse -= 1;
+      this.refused = true;
+      return;
+    }
     this.running = true;
     this.lastExit = null;
-    this.starts.push(opts);
   }
   monitor(): Promise<void> {
     const p = new Promise<void>((resolve, reject) => {
@@ -49,7 +64,13 @@ class FakeContainer {
     return p;
   }
   signal(n: number) { this.signals.push(n); }
-  async setInactivityTimeout(ms: number) { this.timeouts.push(ms); }
+  async setInactivityTimeout(ms: number) {
+    if (this.refused) {
+      this.refused = false;
+      throw new Error(REFUSED);
+    }
+    this.timeouts.push(ms);
+  }
   exit(code: number) {
     this.running = false;
     this.lastExit = code;
@@ -72,7 +93,7 @@ class FakeStorage {
 const followed: { name: string; opts: unknown }[] = [];
 const env = {
   SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'service', API_URL: 'https://next.langquest.org',
-  V2_IMPORT_ENABLED: 'true', V2_SUPABASE_ANON_KEY: 'anon',
+  V2_IMPORT_ENABLED: 'true', V2_SUPABASE_ANON_KEY: 'anon', YOUTUBE_CLIENT_ID: 'client.apps.googleusercontent.com', YOUTUBE_CLIENT_SECRET: 'shh',
   JOBS: {
     idFromName: (name: string) => name,
     get: (name: string) => ({ run: async (opts: unknown) => { followed.push({ name, opts }); return 'started'; } })
@@ -253,6 +274,91 @@ describe('the job runner object', () => {
     await o.alarm();
     expect(container.signals).toEqual([15]);
     expect(storage.alarm).toBe(Date.now() + HEARTBEAT_MS);
+  });
+});
+
+describe('a start the platform refuses', () => {
+  it('leaves a row at once, keeps no run, and tries again five minutes on', async () => {
+    // Why: 2026-11-19, the upload run after the midnight intake. The mark stayed with no alarm, no row was
+    // written, nothing tried again, and no video went up on any channel that day.
+    const { container, object, storage } = job('tutorial-publish');
+    container.refuse = 1;
+    const o = object();
+    const at = Date.now();
+    await expect(o.run({ again: true })).rejects.toThrow(/Maximum number of running container instances/);
+    expect(rows).toEqual([{ job: 'tutorial_publish', startedAt: at, ms: 0, outcome: 'error', errorClass: 'start:max_instances' }]);
+    expect(storage.data.has('run')).toBe(false);
+    expect(storage.alarm).toBe(at + START_RETRY_MS);
+    // Five minutes on the instances are free: the alarm starts the run, and the heartbeat takes over.
+    vi.setSystemTime(at + START_RETRY_MS);
+    await o.alarm();
+    expect(container.running).toBe(true);
+    expect(container.starts).toHaveLength(2);
+    expect(storage.data.has('startTries')).toBe(false);
+    expect(storage.data.get('run')).toEqual({ startedAt: at + START_RETRY_MS });
+    expect(storage.alarm).toBe(at + START_RETRY_MS + HEARTBEAT_MS);
+    expect(rows).toHaveLength(1);
+  });
+
+  it('is tried again by a new object too: the alarm and the count are in storage', async () => {
+    const { container, object, storage } = job('tutorial-publish');
+    container.refuse = 1;
+    await expect(object().run()).rejects.toThrow();
+    vi.setSystemTime(Date.now() + START_RETRY_MS);
+    await object().alarm();
+    expect(container.running).toBe(true);
+    expect(storage.data.has('startTries')).toBe(false);
+  });
+
+  it('gives up after an hour of tries, a row for each, and starts again when next asked', async () => {
+    const { container, object, storage } = job('tutorial-publish');
+    container.refuse = START_TRIES;
+    const o = object();
+    await expect(o.run()).rejects.toThrow();
+    for (let i = 1; i < START_TRIES; i++) {
+      expect(storage.alarm, String(i)).toBe(Date.now() + START_RETRY_MS);
+      vi.setSystemTime(Date.now() + START_RETRY_MS);
+      await o.alarm();
+    }
+    expect(rows).toHaveLength(START_TRIES);
+    expect(rows.every((r) => r.errorClass === 'start:max_instances')).toBe(true);
+    expect(storage.alarm).toBeNull();
+    expect(storage.data.has('startTries')).toBe(false);
+    expect(storage.data.has('run')).toBe(false);
+    // An alarm with nothing owed starts nothing.
+    await o.alarm();
+    expect(container.starts).toHaveLength(START_TRIES);
+    expect(await o.run()).toBe('started');
+  });
+
+  it('keeps the whole read owed, and the tick that comes before the alarm takes it', async () => {
+    const { container, object, storage } = job('v2-import');
+    container.refuse = 1;
+    const o = object();
+    await expect(o.run({ all: true })).rejects.toThrow();
+    expect(storage.data.get('allDue')).toBe(true);
+    expect(await o.run()).toBe('started');
+    expect(container.starts[1]!.entrypoint).toEqual(['node', 'v2.mjs', 'sync', '--all']);
+    expect(storage.data.has('allDue')).toBe(false);
+    expect(storage.data.has('startTries')).toBe(false);
+    // The alarm is the run's heartbeat now, not a second start.
+    expect(storage.alarm).toBe(Date.now() + HEARTBEAT_MS);
+    await o.alarm();
+    expect(container.starts).toHaveLength(2);
+  });
+
+  it('tells the job before it, which logs that what follows it did not start', async () => {
+    // The intake's end asks the upload run to start (decision 192); here the fake of that object stands for a refusal.
+    const { container, settle } = job('tutorial-intake');
+    const refusing = { ...env, JOBS: { idFromName: (name: string) => name, get: () => ({ run: async () => { throw new Error(REFUSED); } }) } };
+    container.instance += 1;
+    const o = new JobRunner({ id: { name: 'tutorial-intake' }, storage: new FakeStorage(), container, waitUntil: () => {}, blockConcurrencyWhile: async <T>(fn: () => Promise<T>) => fn() } as never, refusing as never);
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await o.run();
+    container.exit(0);
+    await settle();
+    expect(logged.mock.calls.map((c) => String(c[0]))).toContain('job tutorial-intake: what follows it did not start');
+    logged.mockRestore();
   });
 });
 

@@ -28,7 +28,7 @@ svg.mini .base { stroke: var(--line); stroke-width: 1; }
 .charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; margin: 8px 0 12px; align-items: start; }
 .chart { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-width: 0; }
 .chart .ct { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
-.chart .ct span { font-size: 13px; font-weight: 600; } .chart .ct b { font-size: 16px; white-space: nowrap; }
+.chart .ct span { font-size: 13px; font-weight: 600; } .chart .ct b { font-size: 16px; white-space: nowrap; } .chart .ct b small { font-size: 12px; font-weight: 400; color: var(--muted); }
 .chart svg { display: block; width: 100%; height: auto; margin: 6px 0 2px; cursor: pointer; touch-action: manipulation; }
 .chart svg:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
 .chart svg .b { fill: var(--primary); } .chart svg .b.z { fill: var(--line); }
@@ -170,10 +170,32 @@ function runSquares(hst, sq) {
  */
 function chartSeries(all, wanted) {
   const total = all.find((s) => s.key === '') || null;
-  const keys = all.filter((s) => s.key !== '');
   const size = (s) => (s.values || []).reduce((a, v) => a + (Number(v) || 0), 0);
-  const lead = total || keys.slice().sort((a, b) => size(b) - size(a))[0] || null;
-  return { total, keys, shown: all.find((s) => s.key === (wanted || '')) || lead };
+  const lead = total || all.filter((s) => s.key !== '').sort((a, b) => size(b) - size(a))[0] || null;
+  const shown = all.find((s) => s.key === (wanted || '')) || lead;
+  // A key that counted nothing over the range has no button (ten buttons that say 0 hide the two that say something); the one shown keeps its own.
+  const keys = all.filter((s) => s.key !== '' && (s === shown || (s.values || []).some((v) => Number(v) > 0)));
+  return { total, keys, shown };
+}
+
+/**
+ * What a chart's large number is of, said after it: a count's is the total of
+ * the range ('in 14 days'); a level's is its newest bucket's ('today'), which
+ * rangeTotal takes. at is the bucket that value is from and n how many buckets
+ * there are: a level whose newest bucket has no value yet says nothing here,
+ * and the page names the bucket it is from.
+ */
+function totalOf(agg, range, step, at, n) {
+  if (agg !== 'max') return { '24h': 'in 24 h', '14d': 'in 14 days', '90d': 'in 90 days', '1y': 'in 1 year', all: 'in all time' }[range] || '';
+  return at === n - 1 ? { hour: 'this hour', day: 'today', week: 'this week', month: 'this month' }[step] || '' : '';
+}
+
+/** A time of an hour or more in its two largest units ('16 h', '1 h 5 min', '3 days 4 h'): 960.0 min says little. */
+function longTime(t) {
+  const min = Math.round(t / 60000);
+  if (min < 48 * 60) return Math.floor(min / 60) + ' h' + (min % 60 ? ' ' + (min % 60) + ' min' : '');
+  const h = Math.round(t / 3600000);
+  return Math.floor(h / 24) + ' days' + (h % 24 ? ' ' + (h % 24) + ' h' : '');
 }
 
 /** A bucket's end: the next bucket's start, or one step after the last. */
@@ -231,19 +253,20 @@ window.addEventListener('hashchange', route);
 const titleOf = (id) => (SECTIONS.find((s) => s.id === id) || {}).title || id;
 const safeLink = (l) => String(l || '').startsWith('https://') ? l : '';
 
-/** A small picture of a section's number over the last 14 days: bars for a count, a line for a level. */
-function miniSvg(values, agg, w, h) {
+/** A small picture of a section's number over the last 14 days: bars for a count, a line for a level. say has each day and the number's name and format, for the pointer (pageHover.ts). */
+function miniSvg(values, agg, w, h, say) {
   const v = (values || []).map((x) => x === null || x === undefined ? null : Number(x));
   const max = Math.max(0, ...v.filter((x) => x !== null));
   if (!v.length) return '';
   const n = v.length, bw = w / n;
+  const hv = say ? hvAttr(0, bw, say.heads, [['', say.name, v.map(say.fmt)]], 0, h) : '';
   if (agg === 'max') {
     const pts = v.map((x, i) => x === null ? null : [(i + 0.5) * bw, h - 2 - (max ? (x / max) * (h - 6) : 0)]).filter(Boolean);
     if (!pts.length) return '';
     const line = pts.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-    return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"><polygon class="ar" points="' + pts[0][0].toFixed(1) + ',' + h + ' ' + line + ' ' + pts[pts.length - 1][0].toFixed(1) + ',' + h + '"/><polyline class="ln" points="' + line + '"/></svg>';
+    return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"' + hv + '><polygon class="ar" points="' + pts[0][0].toFixed(1) + ',' + h + ' ' + line + ' ' + pts[pts.length - 1][0].toFixed(1) + ',' + h + '"/><polyline class="ln" points="' + line + '"/></svg>';
   }
-  return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"><line class="base" x1="0" x2="' + w + '" y1="' + (h - 0.5) + '" y2="' + (h - 0.5) + '"/>' +
+  return '<svg class="mini" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="true"' + hv + '><line class="base" x1="0" x2="' + w + '" y1="' + (h - 0.5) + '" y2="' + (h - 0.5) + '"/>' +
     v.map((x, i) => {
       const bh = x === null ? 0 : max ? Math.max(2, (x / max) * (h - 2)) : 2;
       return '<rect class="b' + (x === null ? ' n' : x === 0 ? ' z' : '') + '" x="' + (i * bw + 1).toFixed(1) + '" y="' + (h - bh).toFixed(1) + '" width="' + Math.max(1, bw - 2).toFixed(1) + '" height="' + bh.toFixed(1) + '"/>';
@@ -260,7 +283,7 @@ function glanceOf(groupId) {
   const total = rangeTotal(s.agg, s.values);
   const fmt = (x) => x === null ? '–' : m.unit === 'bytes' ? bytes(x) : m.unit === 'ms' ? ms(x) : num(x);
   const said = s.agg === 'max' ? m.label + ': ' + fmt(total) + ' today' : m.label + ': ' + fmt(total) + ' in 14 days';
-  return { s, said };
+  return { s, said, say: { heads: (glanceData.buckets || []).map((b) => bucketLabel(b, 'day') + ' UTC'), name: m.label, fmt } };
 }
 
 const whereOf = (c) => titleOf(c.group) + (c.part && PART_TITLE[c.part] && c.part !== c.group ? ' · ' + PART_TITLE[c.part] : '');
@@ -275,7 +298,7 @@ function renderHist(groupId) {
   if (!parts.length) { el.innerHTML = ''; return; }
   el.innerHTML = '<div class="ranges" role="group" aria-label="Range of days">' + Object.keys(RANGE_NAMES).map((r) =>
     '<button type="button" data-range="' + r + '" aria-pressed="' + (r === range) + '">' + RANGE_NAMES[r] + '</button>').join('') + '</div>' +
-    parts.map((p) => '<div id="charts-' + p + '"><h3 class="part">' + esc(PART_TITLE[p] || p) + ', ' + esc(RANGE_NAMES[range]) + '</h3><p class="muted">Loading…</p></div>').join('') +
+    parts.map((p) => '<div id="charts-' + p + '"><h3 class="part">' + esc(chartTitle(p)) + '</h3><p class="muted">Loading…</p></div>').join('') +
     '<p class="muted">Tap a bar or a point for the records behind it.</p>';
   for (const p of parts) loadHistory(p, range).then((hst) => drawPart(p, hst)).catch((err) => {
     const box = $('charts-' + p);
@@ -289,7 +312,20 @@ function loadHistory(part, r) {
   return histories[k];
 }
 
-const keyName = (k) => k === '' ? 'All' : k === '_other' ? 'Others' : k;
+/** A key as the page says it. A number can name its keys (keys in METRICS, as the kinds of a diagnostics record): part and m say which number. */
+const keyName = (k, part, m) => k === '' ? 'All' : k === '_other' ? 'Others' : (((METRIC[part] || {})[m] || {}).keys || {})[k] || k;
+/** A part's title over its charts. A title that names its own time gives it up there: the range says the time. */
+function chartTitle(part) {
+  const t = String(PART_TITLE[part] || part), own = ', ' + LAST_DAY;
+  return (t.endsWith(own) ? t.slice(0, -own.length) : t) + ', ' + RANGE_NAMES[range];
+}
+/** The words after a chart's large number (totalOf): a level whose newest bucket has no value yet names the bucket its value is from. */
+function totalSaid(s, hst) {
+  let at = s.values.length - 1;
+  while (at >= 0 && (s.values[at] === null || s.values[at] === undefined)) at--;
+  if (at < 0) return '';
+  return totalOf(s.agg, hst.range, hst.step, at, s.values.length) || (hst.step === 'hour' ? 'at ' : hst.step === 'day' ? 'on ' : 'in ') + bucketLabel(hst.buckets[at], hst.step);
+}
 const shownKey = {};
 
 // ---- a square for each run (plan 5c) --------------------------------------------------------
@@ -298,6 +334,7 @@ const SQUARES = {
   cron: { runs: 'runs', failed: 'failed', one: 'database job', many: 'database jobs' }
 };
 const SQ_SAID = { ok: 'ran', part: 'did part of the work', fail: 'failed', none: 'no run', gap: 'not counted yet' };
+const sqSaid = (c) => SQ_SAID[c].charAt(0).toUpperCase() + SQ_SAID[c].slice(1);
 const STEP_ONE = { hour: 'hour', day: 'day', week: 'week', month: 'month' };
 
 /** One job's row: a square for each bucket. A failure has an x and part of the work a dot, so neither rests on color alone. */
@@ -312,8 +349,10 @@ function squareSvg(row, hst, r) {
   });
   const said = [row.failed ? num(row.failed) + ' failed' : '', row.partial ? num(row.partial) + ' did part of the work' : ''].filter(Boolean).join(', ') || 'no failure';
   const label = keyName(row.key) + ', one square for each ' + STEP_ONE[hst.step] + ': ' + said + '. Tap a square, or use the arrow keys and Enter, for its runs.';
+  // For the pointer: each square's bucket and what its color says, in the words of the key under the rows.
+  const hv = hvAttr(-gap / 2, s, hst.buckets.map((b, i) => bucketWhen(b, bucketEnd(hst.buckets, i, hst.step), hst.step) + ' UTC'), [['', keyName(row.key), row.cells.map(sqSaid)]]);
   return '<svg class="sq" width="' + (n * 15) + '" height="' + Math.round((size + 2) * 1.25) + '" viewBox="0 0 ' + w + ' ' + (size + 2) + '" tabindex="0" role="img" aria-label="' + esc(label) + '" data-key="' + esc(row.key) + '" data-n="' + n + '"' +
-    (r ? ' data-range="' + esc(r) + '"' : '') + '>' + body + '</svg>';
+    (r ? ' data-range="' + esc(r) + '"' : '') + hv + '>' + body + '</svg>';
 }
 
 /**
@@ -337,7 +376,7 @@ function squaresBox(part, hst, r, max, alert, only) {
     '<div class="sqrows">' + shown.map((row) => '<div class="sqrow"><span title="' + esc(keyName(row.key)) + '">' + esc(keyName(row.key)) + '</span>' + squareSvg(row, hst, r) + '</div>').join('') +
     '<div class="sqrow"><span></span><div class="ax"><span>' + esc(bucketLabel(hst.buckets[0], hst.step)) + '</span><span>' + esc(bucketLabel(hst.buckets[hst.buckets.length - 1], hst.step)) + ' UTC</span></div></div></div>' +
     (rows.length > shown.length ? '<p class="muted">' + num(rows.length - shown.length) + ' more ' + esc(sq.many) + ' in ' + esc(PART_TITLE[part] || part) + '.</p>' : '') +
-    '<div class="sqleg">' + states.map((c) => '<span><i class="' + c + '"></i>' + esc(SQ_SAID[c].charAt(0).toUpperCase() + SQ_SAID[c].slice(1)) + '</span>').join('') + '</div></div>';
+    '<div class="sqleg">' + states.map((c) => '<span><i class="' + c + '"></i>' + esc(sqSaid(c)) + '</span>').join('') + '</div></div>';
 }
 
 /** The last 24 hours of a part's runs as squares, for its card on the start page; '' when they cannot be read. */
@@ -361,14 +400,14 @@ function drawPart(part, hst) {
     if (!s) return '';
     const unit = METRIC[part][m].unit;
     const fmt = (x) => x === null ? '–' : unit === 'bytes' ? bytes(x) : unit === 'ms' ? ms(x) : num(x);
-    return '<div class="chart" data-part="' + esc(part) + '" data-metric="' + esc(m) + '"><div class="ct"><span data-help-key="metric:' + esc(part + '.' + m) + '">' + esc(METRIC[part][m].label) + '</span><b>' + esc(fmt(rangeTotal(s.agg, s.values))) + '</b></div>' +
+    return '<div class="chart" data-part="' + esc(part) + '" data-metric="' + esc(m) + '"><div class="ct"><span data-help-key="metric:' + esc(part + '.' + m) + '">' + esc(METRIC[part][m].label) + '</span><b>' + esc(fmt(rangeTotal(s.agg, s.values))) + (totalSaid(s, hst) ? ' <small>' + esc(totalSaid(s, hst)) + '</small>' : '') + '</b></div>' +
       chartSvg(s, hst, part, m) +
       '<div class="ax"><span>' + esc(bucketLabel(hst.buckets[0], hst.step)) + '</span><span>' + esc(bucketLabel(hst.buckets[hst.buckets.length - 1], hst.step)) + '</span></div>' +
-      (keys.length ? '<div class="keys">' + (total ? [total] : []).concat(keys).map((x) => '<button type="button" data-key="' + esc(x.key) + '" aria-pressed="' + (x.key === s.key) + '" title="' + esc(keyName(x.key)) + '">' +
-        esc(keyName(x.key)) + ' · ' + esc(fmt(rangeTotal(x.agg, x.values))) + '</button>').join('') + '</div>' : '') +
+      (keys.length ? '<div class="keys">' + (total ? [total] : []).concat(keys).map((x) => '<button type="button" data-key="' + esc(x.key) + '" aria-pressed="' + (x.key === s.key) + '" title="' + esc(keyName(x.key, part, m)) + '">' +
+        esc(keyName(x.key, part, m)) + ' · ' + esc(fmt(rangeTotal(x.agg, x.values))) + '</button>').join('') + '</div>' : '') +
       '</div>';
   }).join('');
-  box.innerHTML = '<h3 class="part">' + esc(PART_TITLE[part] || part) + ', ' + esc(RANGE_NAMES[range]) + '</h3>' +
+  box.innerHTML = '<h3 class="part">' + esc(chartTitle(part)) + '</h3>' +
     (hst.counted.some((c) => !c) ? '<p class="muted">Some ' + (hst.step === 'hour' ? 'hours' : 'days') + ' are not counted yet: the job counts the last 90 days a few at a time.</p>' : '') +
     '<div class="charts">' + (SQUARES[part] ? squaresBox(part, hst, null, 0) : '') + (charts || '<p class="muted">Nothing counted yet.</p>') + '</div>';
 }
@@ -381,12 +420,24 @@ function bucketLabel(iso, step) {
   return d.toLocaleDateString([], { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
-/** One number over the range: a bar a bucket for a count, a line for a level; each bucket can be tapped. */
+/** A bucket in words: its day, its hour of a day, its week's first and last day, or its month. */
+function bucketWhen(from, to, step) {
+  return step === 'hour' ? bucketLabel(from, 'day') + ', ' + bucketLabel(from, 'hour') + ' to ' + bucketLabel(to, 'hour')
+    : step === 'week' ? bucketLabel(from, 'day') + ' to ' + bucketLabel(new Date(new Date(to).getTime() - 1).toISOString(), 'day')
+    : bucketLabel(from, step);
+}
+
+/** One number over the range: a bar a bucket for a count, a line for a level; each bucket can be tapped, and says its value under the pointer (pageHover.ts). */
 function chartSvg(s, hst, part, m) {
   const w = 300, h = 96, n = s.values.length, bw = w / n;
   const v = s.values.map((x) => x === null ? null : Number(x));
   const max = Math.max(0, ...v.filter((x) => x !== null));
-  const label = METRIC[part][m].label + ', ' + RANGE_NAMES[range] + (s.key ? ', ' + keyName(s.key) : '');
+  const label = METRIC[part][m].label + ', ' + RANGE_NAMES[range] + (s.key ? ', ' + keyName(s.key, part, m) : '');
+  const unit = METRIC[part][m].unit;
+  // A bucket the job has not counted says so; one with no value says no number, never 0.
+  const said = (x, i) => hst.counted[i] === false ? 'Not counted yet' : x === null ? '–' : unit === 'bytes' ? bytes(x) : unit === 'ms' ? ms(x) : num(x);
+  const hv = hvAttr(0, bw, hst.buckets.map((b, i) => bucketWhen(b, bucketEnd(hst.buckets, i, hst.step), hst.step) + ' UTC'),
+    [['', s.key ? keyName(s.key, part, m) : METRIC[part][m].label, v.map(said)]], 0, h);
   let body = '';
   hst.counted.forEach((c, i) => { if (!c) body += '<rect class="gap" x="' + (i * bw).toFixed(2) + '" y="0" width="' + bw.toFixed(2) + '" height="' + h + '"/>'; });
   if (s.agg === 'max') {
@@ -399,7 +450,7 @@ function chartSvg(s, hst, part, m) {
       return x === null ? '' : '<rect class="b' + (x === 0 ? ' z' : '') + '" data-i="' + i + '" x="' + (i * bw + (bw > 4 ? 0.5 : 0)).toFixed(2) + '" y="' + (h - bh).toFixed(2) + '" width="' + Math.max(0.6, bw - (bw > 4 ? 1 : 0)).toFixed(2) + '" height="' + bh.toFixed(2) + '"/>';
     }).join('');
   }
-  return '<svg viewBox="0 0 ' + w + ' ' + h + '" tabindex="0" role="img" aria-label="' + esc(label) + '. Tap a bucket, or use the arrow keys and Enter, for its records." data-key="' + esc(s.key) + '" data-n="' + n + '">' + body + '</svg>';
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" tabindex="0" role="img" aria-label="' + esc(label) + '. Tap a bucket, or use the arrow keys and Enter, for its records." data-key="' + esc(s.key) + '" data-n="' + n + '"' + hv + '>' + body + '</svg>';
 }
 
 /** Which bucket a tap or click is over, from where it is across the chart. */
@@ -485,15 +536,13 @@ function drawDetail() {
   const m = METRIC[d.part][d.metric];
   const unit = m.unit;
   const fmt = (x) => x === null || x === undefined ? '–' : unit === 'bytes' ? bytes(x) : unit === 'ms' ? ms(x) : num(x);
-  const when = (d.step === 'hour' ? bucketLabel(d.from, 'day') + ', ' + bucketLabel(d.from, 'hour') + ' to ' + bucketLabel(d.to, 'hour')
-    : d.step === 'week' ? bucketLabel(d.from, 'day') + ' to ' + bucketLabel(new Date(new Date(d.to).getTime() - 1).toISOString(), 'day')
-    : bucketLabel(d.from, d.step)) + ' (UTC)';
+  const when = bucketWhen(d.from, d.to, d.step) + ' (UTC)';
   const vals = bucketValues(d.hst, d.metric, d.i);
-  $('detail').innerHTML = '<div class="head"><h2 id="detail-title">' + esc(m.label) + (d.key ? ' · ' + esc(keyName(d.key)) : '') + '</h2>' +
+  $('detail').innerHTML = '<div class="head"><h2 id="detail-title">' + esc(m.label) + (d.key ? ' · ' + esc(keyName(d.key, d.part, d.metric)) : '') + '</h2>' +
     '<button type="button" id="detail-close" aria-label="Close the details">Close</button></div>' +
     '<p class="muted">' + esc(PART_TITLE[d.part] || d.part) + ' · ' + esc(when) + '</p>' +
     '<h3>In this ' + (d.step === 'hour' ? 'hour' : d.step === 'day' ? 'day' : d.step) + '</h3>' +
-    '<div class="keyed">' + table([{ h: 'Which', v: (v) => esc(keyName(v.key)) }, { h: 'Number', n: true, v: (v) => esc(fmt(v.value)) }], vals) + '</div>' +
+    '<div class="keyed">' + table([{ h: 'Which', v: (v) => esc(keyName(v.key, d.part, d.metric)) }, { h: 'Number', n: true, v: (v) => esc(fmt(v.value)) }], vals) + '</div>' +
     '<h3>Records behind it</h3><div id="detail-rows"><p class="muted">Loading…</p></div>';
   $('detail-close').addEventListener('click', closeDetail);
 }
