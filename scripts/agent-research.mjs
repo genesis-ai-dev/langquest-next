@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
 import { runUrl } from './tutorial-review.mjs';
 import { modeHere } from './agent-team.mjs';
-import { call, linearClient, redact } from './user-issues.mjs';
+import { call, linearClient, redact, stepsOf } from './user-issues.mjs';
 
 export const DECISIONS = ['recommend', 'watch', 'reject'];
 export const ACTIONS = ['fix', 'ask', 'none'];
@@ -77,7 +77,7 @@ export function checkReport(raw, context, isFile) {
     }
     const before = known.get(r.tag);
     const issue = typeof before?.issue === 'string' && ISSUE_ID.test(before.issue) ? before.issue : null;
-    out.items.push({ tag: r.tag, title, like: typeof r.like === 'string' && issues.has(r.like) ? r.like : null, found, why, places, decision, action, issue });
+    out.items.push({ tag: r.tag, title, like: typeof r.like === 'string' && issues.has(r.like) ? r.like : null, found, why, places, steps: stepsOf(r.steps), decision, action, issue });
   }
   return out;
 }

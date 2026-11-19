@@ -140,7 +140,7 @@ screenshot or picture that a person sent with the problem is on the card,
 for a signed-in admin only.
 
 The record is `ops.user_issue_fixes` (migration
-`20261119211347_user_issue_fix_record.sql`), written through the Worker's
+`20261119234117_user_issue_fix_record.sql`), written through the Worker's
 door `/api/user-issues` (`fixes` in `server/userIssues.ts`), read by
 `diag.ops_user_issue_fixes()`. Its words are Claude's own, as in the public
 pull request: never what a person wrote.
@@ -185,6 +185,31 @@ and presents what it finds on the ops dashboard.
 matters, where (each place a link to the file on main), its Linear issue,
 and the record of its fix when the fix team wrote one. In mode `off` there
 is no research.
+
+## An image on each card
+
+A developer must see what an issue is without reading code. Each card on
+**User issues** has one image at its left:
+
+1. **The screen where the problem shows**, when a person can see the
+   problem on a screen of the UI suite's fixture world. The issue manager
+   writes the steps to that screen (`.user-issues/picture.spec.ts`), also
+   when it changes nothing, and the job `picture` makes the picture on
+   main. A display fix has two: Before the fix and After the fix.
+2. **A diagram**, for every other issue (a failed sync, a server job). The
+   coordinator writes 2 to 6 steps for each issue it files (`steps` in
+   `decisions.json`): where each happens, what happens, and which step goes
+   wrong. The dashboard draws one box for each step, as text, and the step
+   that goes wrong in red (`ops.user_issue_diagrams`, migration
+   `20261119234541_user_issue_diagrams.sql`). The research lead writes the
+   same for each item.
+
+A screenshot or picture that a person sent with the problem stays behind
+its button on the card. An issue filed before this change has no diagram.
+
+Each open issue's card, and each recommended research item's card, has the
+box **Tell Claude what to do**
+(`docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`).
 
 ## What it needs
 

@@ -141,6 +141,9 @@ describe('user-issues.mjs', () => {
     expect(jobs['picture']).not.toMatch(/secrets\.|(?<!package-manager-)cache:|actions\/cache|claude-code-action/);
     expect(jobs['picture']).toContain('package-manager-cache: false');
     expect(jobs['picture']!.indexOf('fix-paths')).toBeLessThan(jobs['picture']!.indexOf('npm ci'));
+    // An issue with no change gets one picture, of main: nothing of a patch is checked or applied then.
+    expect(jobs['picture']).toContain('if [ -f "$RUNNER_TEMP/fix/picture.spec.ts" ]; then echo "yes=true"');
+    expect(jobs['picture']!.match(/if: steps\.spec\.outputs\.yes == 'true' && steps\.spec\.outputs\.patch == 'true'/g)).toHaveLength(2);
     // The first picture is of main as it is; the patch goes on only after it.
     expect(jobs['picture']!.indexOf('npm run test:ui:web')).toBeLessThan(jobs['picture']!.indexOf('git apply'));
     expect(jobs['picture']!.indexOf('git apply')).toBeLessThan(jobs['picture']!.lastIndexOf('npm run test:ui:web'));
@@ -242,7 +245,7 @@ describe("Claude's decisions", () => {
     }, watch, linear);
     // The three lines of its card: one line each, cut to their limit, an address out; null where Claude wrote none.
     expect(plan.file).toEqual([{ keys: [ERR.key, FB.key], title: 'Recordings vanish', priority: 1, summary: 's', cause: 'c',
-      context: 'A person saves a recording. On Android.', problem: expect.stringMatching(/^Ask \[address\]\. It is gone\. .*…$/), solution: null, manager: { model: 'opus', effort: 'high' } }]);
+      context: 'A person saves a recording. On Android.', problem: expect.stringMatching(/^Ask \[address\]\. It is gone\. .*…$/), solution: null, steps: null, manager: { model: 'opus', effort: 'high' } }]);
     expect(plan.file[0]?.problem).toHaveLength(LIMITS.line);
     expect(plan.noise).toEqual([{ key: NOISE.key, note: 'A wrong password, once.' }]);
     expect(plan.dropped).toEqual([]);

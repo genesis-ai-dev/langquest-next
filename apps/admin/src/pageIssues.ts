@@ -23,6 +23,14 @@ export const ISSUE_CSS = String.raw`
 .icard[hidden] { display: none; }
 .ipics { min-width: 0; } .ipics .vpics { margin: 0; } .ipics .vpic, .ipics .vpic.zoom { max-width: 100%; }
 .ipics > p { margin: 0 0 6px; } .ipics > img { display: block; max-width: 100%; margin: 0 0 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.idiagram { list-style: none; margin: 0 0 10px; padding: 0; }
+.idiagram li { position: relative; margin: 0 0 22px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 13px; line-height: 1.35; }
+.idiagram li:last-child { margin-bottom: 0; }
+.idiagram li:not(:last-child)::after { content: "↓"; position: absolute; left: 50%; bottom: -21px; transform: translateX(-50%); color: var(--muted); font-size: 15px; line-height: 20px; }
+.idiagram li b { display: block; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
+.idiagram li.wrong { border: 2px solid var(--red); background: var(--redbg); } .idiagram li.wrong b { color: var(--red); }
+.ipics figure { margin: 0 0 10px; } .ipics figcaption { font-size: 12px; font-weight: 600; color: var(--ink2); margin: 0 0 4px; }
+.ipics figure img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); min-height: 60px; }
 .iresearch { margin-top: 28px; } .iresearch h3 { margin: 0 0 4px; }
 .ifix p { margin: 0 0 6px; } .ifix b { font-weight: 600; }
 .ifixpics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 10px; }
@@ -235,16 +243,29 @@ function fixLine(fix, way) {
     f.reasons.map((x) => '<p><b>' + esc(x[0]) + '.</b> ' + esc(x[1]) + '</p>').join('') +
     '<small class="muted">' + [f.manager ? 'Issue manager: ' + esc(f.manager) : '', when(fix.at), safeLink(fix.runUrl) ? outLink(fix.runUrl, 'The run') : ''].filter(Boolean).join(' · ') + '</small></div>';
 }
-/** What came with the problem from help mode: a button for each screenshot and picture, which loads it for a signed-in admin. */
-function fixPictures(fix, issue, shown) {
-  // A display fix: the screen before the fix and after it, as the picture job made them. Only under the pull request they are of.
+/** An issue's diagram: one box for each step, in order, the step that goes wrong in red. Drawn as text. */
+function diagramHtml(steps) {
+  if (!Array.isArray(steps) || steps.length < 2) return '';
+  const says = steps.map((s, i) => (i + 1) + '. ' + (s.where ? s.where + ': ' : '') + s.text + (s.wrong ? ' (this goes wrong)' : '')).join(' ');
+  return '<ol class="idiagram" aria-label="' + esc('The issue in ' + steps.length + ' steps. ' + says) + '">' +
+    steps.map((s) => '<li' + (s.wrong ? ' class="wrong"' : '') + '>' + (s.where ? '<b>' + esc(s.where) + '</b>' : '') + esc(s.text) + '</li>').join('') + '</ol>';
+}
+/**
+ * The image of an issue at the left of its card: the screen where the problem shows, as the picture job made
+ * it (with the screen after the fix, for a display fix), or else the issue's diagram. Under it, a button for
+ * each screenshot and picture that came with the problem from help mode, which loads it for a signed-in admin.
+ */
+function fixPictures(fix, issue, shown, steps) {
+  // The pictures are only under the pull request they are of.
   const pair = shown && fix && fix.beforeAfter ? '<div class="ifixpics">' + [['before', 'Before the fix'], ['after', 'After the fix']].map((w) =>
-    '<figure><figcaption>' + w[1] + '</figcaption><img alt="The screen ' + w[0] + ' the fix" data-fixpic="' + esc(issue) + '" data-what="' + w[0] + '"></figure>').join('') + '</div>' : '';
+    '<figure><figcaption>' + w[1] + '</figcaption><img alt="The screen ' + w[0] + ' the fix" data-fixpic="' + esc(issue) + '" data-what="' + w[0] + '"></figure>').join('') + '</div>'
+    : shown && fix && fix.before ? '<figure><figcaption>The problem on the screen</figcaption><img alt="The screen where the problem shows" data-fixpic="' + esc(issue) + '" data-what="before"></figure>'
+    : diagramHtml(steps);
   return pair + ((fix && fix.pictures) || []).map((p) =>
     (p.screenshot ? '<p><button type="button" class="link" data-shot="' + esc(p.id) + '" data-what="screenshot">Show screenshot</button></p>' : '') +
     (p.picture ? '<p><button type="button" class="link" data-shot="' + esc(p.id) + '" data-what="picture">Show picture</button></p>' : '')).join('');
 }
-function userIssueCard(r, way, tab, notes, fixes) {
+function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const record = r.issue && fixes ? fixes[r.issue] || null : null;
   const source = issueSource(r.keys);
   const pr = way.pr;
@@ -263,7 +284,7 @@ function userIssueCard(r, way, tab, notes, fixes) {
   const seen = [r.people ? num(r.people) + (Number(r.people) === 1 ? ' person' : ' people') : '', 'First seen ' + when(r.firstAt)].filter(Boolean).join(' · ');
   return issueCard({
     tab: way.tab, claude: way.claude, hidden: !onTab(way, tab),
-    pics: fixPictures(record, r.issue, !!fixFor(record, way.pr)),
+    pics: fixPictures(record, r.issue, !!fixFor(record, way.pr), r.issue && diagrams ? diagrams[r.issue] : null),
     tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : '') +
       (r.issue && r.state ? '<span>' + esc(r.state) + ' in Linear</span>' : ''),
     title: r.title || (r.keys || [])[0] || 'A problem with no name',
@@ -313,6 +334,7 @@ function researchHtml(d) {
   const head = '<h3 id="research">Research: the same mistake in other places</h3><p class="muted">' +
     [res.lastAt ? 'Last found ' + when(res.lastAt) : 'Nothing found yet', num(n('recommend')) + ' recommended', num(n('watch')) + ' watched', num(n('reject')) + ' rejected'].join(' · ') + '</p>';
   return '<div class="iresearch">' + head + '<div class="icards">' + shown.map((x) => issueCard({
+    pics: fixPictures(x.fix, x.item.issue, !!x.fix, x.item.steps),
     tags: (x.item.issue ? (safeLink(x.item.issueUrl) ? outLink(x.item.issueUrl, esc(x.item.issue), 'lin') : '<b>' + esc(x.item.issue) + '</b>') : '') +
       '<span class="tag">Research</span>' + (x.item.like ? '<span>Like ' + esc(x.item.like) + '</span>' : ''),
     title: x.item.title,
@@ -324,7 +346,9 @@ function researchHtml(d) {
     ],
     pill: x.way.pill,
     side: (x.fix && x.fix.pr ? outLink(PR_URL + x.fix.pr, 'Open pull request ' + esc(x.fix.pr), 'button') : '') +
-      (x.item.issue && safeLink(x.item.issueUrl) ? outLink(x.item.issueUrl, 'Open ' + esc(x.item.issue) + ' in Linear', 'button') : '')
+      (x.item.issue && safeLink(x.item.issueUrl) ? outLink(x.item.issueUrl, 'Open ' + esc(x.item.issue) + ' in Linear', 'button') : '') +
+      // Tell Claude what to do with a recommended item, as on a user issue's card: by its Linear issue.
+      (x.item.decision === 'recommend' && x.item.issue ? issueTalk({ issue: x.item.issue, closedAt: null }, d.notes) : '')
   })).join('') + '</div></div>';
 }
 function userIssuesHtml(d) {
@@ -338,7 +362,7 @@ function userIssuesHtml(d) {
   return stats + '<div class="issues"><div class="itabs" role="group" aria-label="Issues by state">' +
     ISSUE_TABS.filter((x) => x[0] !== 'open' || t.count.open).map((x) =>
       '<button type="button" data-itab="' + x[0] + '" aria-pressed="' + (x[0] === t.tab) + '">' + esc(x[1]) + '<span class="count">' + num(t.count[x[0]]) + '</span></button>').join('') + '</div>' +
-    '<div class="icards">' + rows.map((x) => userIssueCard(x.r, x.way, t.tab, d.notes, d.fixes)).join('') + '</div></div>' + researchHtml(d);
+    '<div class="icards">' + rows.map((x) => userIssueCard(x.r, x.way, t.tab, d.notes, d.fixes, d.diagrams)).join('') + '</div></div>' + researchHtml(d);
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('[data-itab]');

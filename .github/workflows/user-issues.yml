@@ -315,6 +315,9 @@ jobs:
   # fixture world, so a picture never shows a person's work. The patch's code
   # runs here, so the job holds no secret, writes no cache and its token reads
   # only. The reviewer looks at both pictures, and the ops dashboard shows them.
+  # The manager writes the same steps for any problem a person can see on a
+  # screen, also with no change: the job then makes one picture, of main, and
+  # the issue's card on the ops dashboard shows it.
   picture:
     needs: [watch, fix]
     if: ${{ !cancelled() && needs.watch.outputs.fixes != '' && needs.watch.outputs.fixes != '[]' }}
@@ -340,7 +343,10 @@ jobs:
           path: ${{ runner.temp }}/fix
       - name: Are there steps to a screen
         id: spec
-        run: if [ -f "$RUNNER_TEMP/fix/fix.patch" ] && [ -f "$RUNNER_TEMP/fix/picture.spec.ts" ]; then echo "yes=true" >> "$GITHUB_OUTPUT"; else echo "yes=false" >> "$GITHUB_OUTPUT"; fi
+        # With no change there is one picture: the screen where the problem shows.
+        run: |
+          if [ -f "$RUNNER_TEMP/fix/picture.spec.ts" ]; then echo "yes=true" >> "$GITHUB_OUTPUT"; else echo "yes=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -f "$RUNNER_TEMP/fix/fix.patch" ]; then echo "patch=true" >> "$GITHUB_OUTPUT"; else echo "patch=false" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.spec.outputs.yes == 'true'
         with:
@@ -349,7 +355,7 @@ jobs:
         if: steps.spec.outputs.yes == 'true'
         with: { node-version-file: .node-version, package-manager-cache: false }
       - name: Only what a draft fix may change
-        if: steps.spec.outputs.yes == 'true'
+        if: steps.spec.outputs.yes == 'true' && steps.spec.outputs.patch == 'true'
         run: node scripts/user-issues.mjs fix-paths "$RUNNER_TEMP/fix/fix.patch"
       - name: Install, and start the local stack in the background
         if: steps.spec.outputs.yes == 'true'
@@ -369,7 +375,7 @@ jobs:
           cp "$RUNNER_TEMP/fix/picture.spec.ts" e2e/ui/zz-picture.spec.ts
           npm run test:ui:web -- e2e/ui/zz-picture.spec.ts --project phone
       - name: The screen with the change
-        if: steps.spec.outputs.yes == 'true'
+        if: steps.spec.outputs.yes == 'true' && steps.spec.outputs.patch == 'true'
         continue-on-error: true
         env:
           PICTURE_NAME: after

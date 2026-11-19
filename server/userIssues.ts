@@ -143,7 +143,7 @@ const ISSUE_URL = /^https:\/\/linear\.app\/[A-Za-z0-9/_.-]{1,300}$/;
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /** No address may ride along in a note: the database keeps none (docs/diagnostics.md). */
 export const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 30, handed: 10 } as const;
+export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 30, handed: 10, diagrams: 20 } as const;
 
 // ---- what the agent team did with an issue (docs/agent-team.md, scripts/agent-team.mjs) -----------
 
@@ -171,11 +171,39 @@ export interface FixRecord {
   issue: string; decision: FixDecision; reason: FixReason | null; why: string | null; pr: number | null;
   verdict: (typeof FIX_VERDICTS)[number] | null; model: (typeof FIX_MODELS)[number] | null; effort: (typeof FIX_EFFORTS)[number] | null;
   summary: string | null; cause: string | null; proof: string | null; review: string | null; twins: string | null;
-  /** A display fix's proof: the screen without the change and with it, each a JPEG in base64. Both, or neither. */
+  /**
+   * The screen where the problem shows, without the change (`before`) and with it (`after`), each a JPEG in
+   * base64. Both are a display fix's proof; `before` alone shows the problem of an issue with no fix. Never `after` alone.
+   */
   before: string | null; after: string | null;
 }
 /** A JPEG in base64, of at most 150 000 bytes (scripts/agent-team.mjs PICTURES). */
 export const FIX_PICTURE = /^\/9j\/[A-Za-z0-9+/]{100,200000}={0,2}$/;
+
+// ---- a small diagram on an issue's card (docs/agent-team.md "An image on each card") ----------------
+
+/** How many steps a diagram has, and the longest of a step's words. */
+export const DIAGRAM = { min: 2, max: 6, text: 90, where: 20 } as const;
+/**
+ * One step of an issue's diagram: where it happens (Phone, Server), what
+ * happens, and whether this is the step that goes wrong. Claude's words about
+ * the app, never what a person wrote; the dashboard draws them as text.
+ */
+export interface DiagramStep { where: string | null; text: string; wrong: boolean }
+
+/** A diagram's steps, checked: 2 to 6, at least one that goes wrong, no address. */
+export function parseSteps(v: unknown, at: string): DiagramStep[] {
+  if (!Array.isArray(v) || v.length < DIAGRAM.min || v.length > DIAGRAM.max) throw new LookedError(`${at}: ${DIAGRAM.min} to ${DIAGRAM.max} steps`);
+  const steps = v.map((s, n): DiagramStep => {
+    if (!isObj(s)) throw new LookedError(`${at}[${n}]: an object`);
+    const text = s['text'], where = absent(s['where']) || s['where'] === '' ? null : s['where'];
+    if (typeof text !== 'string' || !text.trim() || text.length > DIAGRAM.text || EMAIL.test(text)) throw new LookedError(`${at}[${n}].text: 1 to ${DIAGRAM.text} characters, no address`);
+    if (where !== null && (typeof where !== 'string' || where.length > DIAGRAM.where || EMAIL.test(where))) throw new LookedError(`${at}[${n}].where: at most ${DIAGRAM.where} characters`);
+    return { where: where as string | null, text, wrong: s['wrong'] === true };
+  });
+  if (!steps.some((s) => s.wrong)) throw new LookedError(`${at}: one step that goes wrong`);
+  return steps;
+}
 
 // ---- what the research team found (docs/agent-team.md "The research team", scripts/agent-research.mjs) ----
 
@@ -195,6 +223,8 @@ export const RESEARCH_TEXT = { title: 200, found: 600, why: 600, places: 8 } as 
  */
 export interface ResearchItem {
   tag: string; title: string; like: string | null; found: string; why: string; places: string[];
+  /** The mistake as a small diagram for its card, when the lead drew one. */
+  steps: DiagramStep[] | null;
   decision: (typeof RESEARCH_DECISIONS)[number]; action: (typeof RESEARCH_ACTIONS)[number];
   /** The Linear issue filed for a recommended item. */
   issue: string | null; issueUrl: string | null;
@@ -236,6 +266,8 @@ export interface Looked {
   research: ResearchItem[];
   /** The research's issues this run hands to the fix team. */
   handed: string[];
+  /** The diagram of each issue this run filed, for its card. */
+  diagrams: { issue: string; steps: DiagramStep[] }[];
 }
 
 export class LookedError extends Error {
@@ -468,7 +500,7 @@ export function parseLooked(input: unknown): Looked {
       return v;
     };
     const before = picture('before'), after = picture('after');
-    if ((before === null) !== (after === null)) throw new LookedError(`${where}: both pictures, or neither`);
+    if (before === null && after !== null) throw new LookedError(`${where}: no picture after the fix without the one before it`);
     return {
       before, after,
       issue, decision, reason, why: words(f, 'why', where), pr: number, verdict: oneOf(f, 'verdict', FIX_VERDICTS, where),
@@ -508,11 +540,21 @@ export function parseLooked(input: unknown): Looked {
     const issueUrl = absent(r['issueUrl']) || r['issueUrl'] === '' ? null : r['issueUrl'];
     if (issueUrl !== null && (typeof issueUrl !== 'string' || !ISSUE_URL.test(issueUrl))) throw new LookedError(`${where}.issueUrl: the issue in Linear`);
     if ((issue === null) !== (issueUrl === null)) throw new LookedError(`${where}: an issue with its address, or neither`);
-    return { tag, title: said('title'), like: issueOf('like'), found: said('found'), why: said('why'), places, decision, action, issue, issueUrl: issueUrl as string | null };
+    const steps = absent(r['steps']) ? null : parseSteps(r['steps'], `${where}.steps`);
+    return { tag, title: said('title'), like: issueOf('like'), found: said('found'), why: said('why'), places, steps, decision, action, issue, issueUrl: issueUrl as string | null };
   });
   const handed = list(input, 'handed', LOOKED_MAX.handed).map((x, n) => {
     if (typeof x !== 'string' || !ISSUE.test(x)) throw new LookedError(`handed[${n}]: a Linear issue (LAN-12)`);
     return x;
   });
-  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, handed };
+  const drawn = new Set<string>();
+  const diagrams = list(input, 'diagrams', LOOKED_MAX.diagrams).map((d, n) => {
+    const where = `diagrams[${n}]`;
+    if (!isObj(d)) throw new LookedError(`${where}: an object`);
+    const issue = d['issue'];
+    if (typeof issue !== 'string' || !ISSUE.test(issue) || drawn.has(issue)) throw new LookedError(`${where}.issue: a Linear issue (LAN-12), once`);
+    drawn.add(issue);
+    return { issue, steps: parseSteps(d['steps'], `${where}.steps`) };
+  });
+  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, handed, diagrams };
 }

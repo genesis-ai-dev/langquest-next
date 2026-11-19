@@ -219,7 +219,7 @@ export function checkDecisions(decisions, watch, linear) {
     }
     const priority = [1, 2, 3, 4].includes(f.priority) ? f.priority : 3;
     // The coordinator chooses the model and effort of the issue's manager (docs/agent-team.md).
-    out.file.push({ keys, title: cut(text(f.title).replace(/\s+/g, ' ').replace(/^User issue:\s*/i, ''), LIMITS.title), priority, summary: text(f.summary), cause: text(f.cause), ...linesOf(f), manager: planOf(f.manager) });
+    out.file.push({ keys, title: cut(text(f.title).replace(/\s+/g, ' ').replace(/^User issue:\s*/i, ''), LIMITS.title), priority, summary: text(f.summary), cause: text(f.cause), ...linesOf(f), steps: stepsOf(f.steps), manager: planOf(f.manager) });
   });
   (Array.isArray(d.known) ? d.known : []).forEach((k, n) => {
     const where = `known[${n}]`;
@@ -251,6 +251,20 @@ export function checkDecisions(decisions, watch, linear) {
 export function linesOf(entry) {
   const line = (v) => cut(redact(text(v)).replace(/\s+/g, ' ').trim(), LIMITS.line) || null;
   return { context: line(entry.context), problem: line(entry.problem), solution: line(entry.solution) };
+}
+
+/** How many steps a diagram has, and the longest of a step's words (server/userIssues.ts DIAGRAM). */
+export const DIAGRAM = { min: 2, max: 6, text: 90, where: 20 };
+/**
+ * An issue's small diagram for its card (docs/agent-team.md "An image on each card"): 2 to 6 steps of
+ * { where, text, wrong }, each cut to its limit, addresses out. Null when Claude wrote none, or one
+ * with no step that goes wrong.
+ */
+export function stepsOf(raw) {
+  const line = (v, max) => cut(redact(text(v)).replace(/\s+/g, ' ').trim(), max);
+  const steps = (Array.isArray(raw) ? raw : []).filter(isObj).map((s) => ({ where: line(s.where, DIAGRAM.where) || null, text: line(s.text, DIAGRAM.text), wrong: s.wrong === true }))
+    .filter((s) => s.text).slice(0, DIAGRAM.max);
+  return steps.length >= DIAGRAM.min && steps.some((s) => s.wrong) ? steps : null;
 }
 
 /**
@@ -460,8 +474,8 @@ const ANY_ADDRESS = /[^\s@]+@[^\s@]+\.[^\s@]+/;
 export function fixRecord(issue, { decision, reason = null, why = null, pr = null }, fix = {}, plan = {}, vet = null, pictures = null) {
   const word = (v, max) => cut(String(v ?? '').replace(/\s+/g, ' '), max).replace(ANY_ADDRESS, '[address]') || null;
   return {
-    // The screen without the change and with it (base64 JPEG), when the picture job made both.
-    ...(pictures?.before && pictures?.after ? { before: pictures.before.toString('base64'), after: pictures.after.toString('base64') } : {}),
+    // The screen without the change and, when there is a change, with it (base64 JPEG), as the picture job made them.
+    ...(pictures?.before ? { before: pictures.before.toString('base64'), ...(pictures.after ? { after: pictures.after.toString('base64') } : {}) } : {}),
     issue, decision, reason, why: word(why, 600), pr, verdict: fix.verdict ?? null, model: plan.model ?? null, effort: plan.effort ?? null,
     summary: word(fix.summary, 1000), cause: word(fix.cause, 600), proof: word(fix.proof, 400), review: word(vet?.why, 1000), twins: word(fix.twins, 1000)
   };
@@ -886,6 +900,7 @@ async function file(dir) {
   const merges = plan.fixed.length ? gitMerges() : null;
   const fixes = [];
   const plans = {};
+  const diagrams = [];
 
   for (const f of plan.file) {
     const kinds = f.keys.map((k) => kindOf.get(k));
@@ -903,6 +918,7 @@ async function file(dir) {
       for (const k of kinds) looked.push(lookedOf(k, 'filed', issue, null, { title: f.title, context: f.context, problem: f.problem, solution: f.solution }));
       if (fixes.length < FIX_MAX) fixes.push(issue.identifier);
       plans[issue.identifier] = f.manager;
+      if (f.steps) diagrams.push({ issue: issue.identifier, steps: f.steps });
       console.log(`filed ${issue.identifier}, priority ${f.priority}: ${f.keys.join(', ')}`);
     } catch (e) {
       failed += 1;
@@ -976,7 +992,7 @@ async function file(dir) {
   const handed = off ? [] : researchToTake(watch.research, noted.fixes);
   noted.fixes.push(...handed);
   if (looked.length || grew.length || noted.taken.length || handed.length) {
-    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })), handed });
+    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })), handed, diagrams });
     console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown${noted.taken.length ? `, ${done.taken ?? 0} instructions taken` : ''}${handed.length ? `, ${handed.join(', ')} from the research handed to the fix team` : ''}`);
   }
   // The new issues Claude writes a draft fix for, and the issues with an instruction, in the jobs after this one.
@@ -1095,10 +1111,11 @@ function fixPatch(dir) {
   // "Merge it as it is": the admin's words say so, the manager's verdict is `approved`, and the draft fix is as it was.
   const approved = noteIds.length > 0 && notes?.saysMerge === true && fix.verdict === 'approved' && Boolean(patch) && !changed;
   if (fix.verdict === 'approved' && !approved) fix.verdict = 'review';
-  // A display fix: the steps to the screen, which the picture job runs without the change and with it.
+  // The steps to the screen where the problem shows, which the picture job runs without the change and,
+  // when there is one, with it: the issue's picture on its card, and a display fix's proof.
   // They are not part of the change. Like the change, they may carry nothing of what was sent.
   const specPath = join(dir, PICTURE_SPEC);
-  if (patch && fix.display && existsSync(specPath) && readFileSync(specPath).length < 20_000) {
+  if (existsSync(specPath) && readFileSync(specPath).length < 20_000) {
     const spec = readFileSync(specPath, 'utf8');
     if (!priv || !leaks(spec, priv)) writeFileSync(join(out, PICTURE_SPEC), spec);
   }

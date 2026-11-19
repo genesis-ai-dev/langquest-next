@@ -231,6 +231,14 @@ The developer reads the issue on their phone, between other things.
 - `cause`: for a developer or an agent fixing it: the file and line, what
   happens there, the commit that may have caused it, and what to check
   next. Mark a guess as a guess. It goes in the issue's Agent notes.
+- `steps`: the issue as a small diagram, for its card on the ops dashboard.
+  The dashboard draws one box for each step, in order, and the step that
+  goes wrong in red. Write 2 to 6 steps, from what the person does to what
+  goes wrong. Each step has `text` (what happens, at most 90 characters, in
+  the same plain words as the three lines), `where` (where it happens, at
+  most 20 characters: `Person`, `Phone`, `Browser`, `Server`, or the
+  screen's name) and `"wrong": true` on the step that goes wrong. Your own
+  words only, as for the three lines.
 - `context`, `problem`, `solution`: the issue in three lines, for its card
   on the ops dashboard. An admin reads the card without the code and decides
   what to do. Each is one or two short sentences, at most 300 characters, in
@@ -267,6 +275,12 @@ or empty.
       "context": "A person opens a passage in the web app and plays the reference audio.",
       "problem": "The audio does not download. The play button stays grey. 3 people hit it since Nov 1.",
       "solution": "Let the web page read audio from the reference audio host.",
+      "steps": [
+        { "where": "Person", "text": "Opens a passage and taps Play on the reference audio." },
+        { "where": "Browser", "text": "Asks the reference audio host for the file." },
+        { "where": "Browser", "text": "The page's own rule refuses the request.", "wrong": true },
+        { "where": "Person", "text": "Sees a grey Play button. No audio plays." }
+      ],
       "cause": "apps/web/worker/index.ts sets a Content-Security-Policy whose connect-src leaves out the reference audio host (line 210), so fetch() fails before any request (failOther, not failHttp). It came with commit abc1234 (Oct 31). Check: the CSP header on next.langquest.org/app.",
       "manager": { "model": "sonnet", "effort": "medium" }
     }
@@ -411,6 +425,17 @@ you write the steps to the screen, and a job runs them both times:
   depend on what you changed. Nothing a person wrote or showed goes into it.
 - When the job makes no picture (your steps fail), the fix waits for a
   developer, as a change with no test does.
+
+**A picture of each problem a person can see.** Write
+`.user-issues/picture.spec.ts` also when the problem is not a display bug,
+whenever a person can see it on a screen of the suite's fixture world (a
+list in the wrong order, a button that stays grey, a wrong number), and
+also when you change nothing. The job then makes the picture of the screen
+on main, and the issue's card on the ops dashboard shows it. Leave
+`display` out: the picture is then not a proof, and your verdict needs
+what it needed without it. Write no steps when the problem shows on no
+screen (a failed sync, a server job), or only with a person's own data:
+the card then shows the diagram of the issue.
 
 Be honest in the verdict. `fix` on a change you are not sure of puts a
 wrong change into every person's app with nobody reading it; `review` costs
@@ -651,6 +676,11 @@ Write `.research/report.json` and nothing else:
       "found": "The button's label has a fixed width of 96 and one line, as the Save button had before its fix.",
       "why": "In Spanish and Tagalog the label is longer than 96, so a person sees half a word.",
       "places": ["apps/mobile/src/screens/invite.tsx:142"],
+      "steps": [
+        { "where": "Person", "text": "Opens the invite screen in Spanish." },
+        { "where": "Phone", "text": "Draws the button 96 wide, on one line.", "wrong": true },
+        { "where": "Person", "text": "Sees half of the button's word." }
+      ],
       "decision": "recommend",
       "action": "fix"
     }
@@ -665,6 +695,9 @@ Write `.research/report.json` and nothing else:
   it out.
 - `found` and `why`: at most 600 characters each, about the code, in plain
   words.
+- `steps`: the mistake as a small diagram for its card, as in
+  `decisions.json`: 2 to 6 steps of `where`, `text` and `"wrong": true` on
+  the step that goes wrong, from what a person does to what they see.
 - `places`: at most 8, each a file of main with its line. The script drops
   a place that is not a file, and a recommended item with no place left is
   kept as `watch`.

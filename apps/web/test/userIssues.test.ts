@@ -38,7 +38,8 @@ describe('what the workflow sends back', () => {
     const one = (over: Record<string, unknown>) => parseLooked({ sha: SHA, runUrl: RUN, fixes: [{ ...fix, ...over }] }).fixes[0];
     expect(one({})).toMatchObject({ issue: 'LAN-9', decision: 'waits', reason: 'mode', pr: 7, before: null, after: null, review: null });
     expect(one({ before: jpeg, after: jpeg })).toMatchObject({ before: jpeg, after: jpeg });
-    expect(() => one({ before: jpeg })).toThrow(/both pictures, or neither/);
+    expect(one({ before: jpeg })).toMatchObject({ before: jpeg, after: null });
+    expect(() => one({ after: jpeg })).toThrow(/no picture after the fix without the one before it/);
     expect(() => one({ before: 'PHN2Zz4=' + 'A'.repeat(200), after: jpeg })).toThrow(/a JPEG in base64/);
     expect(() => one({ decision: 'merge' })).toThrow(/reason/);
     expect(() => one({ decision: 'none' })).toThrow(/pr/);
@@ -54,7 +55,7 @@ describe('what the workflow sends back', () => {
     const lines = { context: 'A person saves a recording.', problem: 'The recording is gone.', solution: '' };
     expect(parseLooked(looked({ looked: [{ ...looked().looked[0], ...lines }] as Looked['looked'] })).looked[0]).toMatchObject({ ...lines, solution: null });
     expect(l.grew).toEqual([{ key: 'transfer:down:source:failOther', people: 6, count: 40 }]);
-    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [], research: [], handed: [] });
+    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [], research: [], handed: [], diagrams: [] });
   });
 
   it('takes a kind already fixed by a pull request, with or without the issue that closed, and issues that closed or opened again in Linear', () => {

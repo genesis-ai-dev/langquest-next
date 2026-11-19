@@ -48,3 +48,13 @@ person. Reason: a fix repairs one place, and the developers asked for a
 team "who looks at similar issues and presents them to us". The research
 reads nothing a person wrote, so nothing of a person's can reach a public
 log or a pull request through it. Mode `off` stops it.
+
+Amended (2026-11-19, Caleb Koster): each issue's card has an image. A
+problem that a person can see gets a picture of its screen, made by the
+`picture` job on main in the test data, also when there is no fix. Every
+other issue gets a small diagram: Claude writes 2 to 6 steps and the
+dashboard draws them as text, the step that goes wrong in red. Reason: a
+developer must understand an issue from its card without the code. The
+diagram is steps and not a drawing by Claude, so nothing Claude writes
+runs or is shown as markup on the admin page. A recommended research item
+has the same box to tell Claude what to do as a user issue.

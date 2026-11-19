@@ -22,6 +22,8 @@ create table if not exists ops.research_items (
   why text not null check (length(why) between 1 and 600),
   -- Where in the code: at most 8 of `path` or `path:line`.
   places jsonb not null default '[]'::jsonb check (jsonb_typeof(places) = 'array' and jsonb_array_length(places) <= 8),
+  -- The mistake as a small diagram for its card: 2 to 6 steps, as ops.user_issue_diagrams.
+  steps jsonb check (steps is null or (jsonb_typeof(steps) = 'array' and jsonb_array_length(steps) between 2 and 6)),
   -- recommend: do something about it. watch: not sure yet. reject: looked at, nothing to do (kept so it is not found again).
   decision text not null check (decision in ('recommend', 'watch', 'reject')),
   -- fix: the fix team can write the change. ask: a developer must decide first. none: nothing to do.
@@ -77,11 +79,11 @@ begin
   end if;
   delete from ops.research_items where at < now() - interval '365 days';
   for i in select value from jsonb_array_elements(coalesce(p->'research', '[]'::jsonb)) loop
-    insert into ops.research_items (tag, title, like_issue, found, why, places, decision, action, issue, issue_url, run_url)
-    values (i->>'tag', i->>'title', nullif(i->>'like', ''), i->>'found', i->>'why', coalesce(i->'places', '[]'::jsonb),
+    insert into ops.research_items (tag, title, like_issue, found, why, places, steps, decision, action, issue, issue_url, run_url)
+    values (i->>'tag', i->>'title', nullif(i->>'like', ''), i->>'found', i->>'why', coalesce(i->'places', '[]'::jsonb), nullif(i->'steps', 'null'::jsonb),
             i->>'decision', i->>'action', nullif(i->>'issue', ''), nullif(i->>'issueUrl', ''), p->>'runUrl')
     on conflict (tag) do update set title = excluded.title, like_issue = excluded.like_issue, found = excluded.found, why = excluded.why,
-      places = excluded.places, decision = excluded.decision, action = excluded.action,
+      places = excluded.places, steps = excluded.steps, decision = excluded.decision, action = excluded.action,
       issue = coalesce(excluded.issue, ops.research_items.issue), issue_url = coalesce(excluded.issue_url, ops.research_items.issue_url),
       run_url = excluded.run_url, at = now();
     v_kept := v_kept + 1;
@@ -110,10 +112,50 @@ create or replace function diag.ops_research() returns jsonb
 language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
     'items', coalesce((select jsonb_agg(jsonb_build_object('tag', r.tag, 'title', r.title, 'like', r.like_issue, 'found', r.found, 'why', r.why,
-        'places', r.places, 'decision', r.decision, 'action', r.action, 'issue', r.issue, 'issueUrl', r.issue_url,
+        'places', r.places, 'steps', r.steps, 'decision', r.decision, 'action', r.action, 'issue', r.issue, 'issueUrl', r.issue_url,
         'handedAt', r.handed_at, 'firstAt', r.first_at, 'at', r.at, 'runUrl', r.run_url) order by r.first_at desc)
       from (select * from ops.research_items where at > now() - interval '90 days' order by first_at desc limit 100) r), '[]'::jsonb),
     'lastAt', (select max(at) from ops.research_items))
 $$;
 revoke all on function diag.ops_research from public;
 grant execute on function diag.ops_research to diag_reader;
+
+-- An admin tells Claude what to do with a recommended item too, from its card, as with a user issue
+-- (migration 20261118073000_user_issue_notes.sql): the two functions below now also know the Linear
+-- issue of a research item. The rest of the way is the same: the watch hands the issue to the fix
+-- jobs, and Claude answers under the admin's words.
+create or replace function public.ops_user_issue_instruct(p_issue text, p_text text, p_by uuid) returns text
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_id uuid;
+begin
+  if not exists (select 1 from ops.user_issues u where u.issue = p_issue and u.verdict in ('filed', 'known') and u.closed_at is null)
+     and not exists (select 1 from ops.research_items r where r.issue = p_issue and r.decision = 'recommend') then
+    return 'not_found';
+  end if;
+  if (select count(*) from ops.user_issue_notes n
+      where n.issue = p_issue and n.answered_at is null and n.tries < ops._user_issue_note_tries()) >= 3 then
+    return 'full';
+  end if;
+  insert into ops.user_issue_notes (issue, text, by) values (p_issue, btrim(p_text), p_by) returning id into v_id;
+  return v_id::text;
+end $$;
+revoke all on function public.ops_user_issue_instruct from public, anon, authenticated;
+grant execute on function public.ops_user_issue_instruct to service_role;
+
+create or replace function public.ops_user_issue_notes_waiting() returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(jsonb_build_object('issue', w.issue, 'ids', w.ids) order by w.first_at), '[]'::jsonb)
+  from (
+    select n.issue, min(n.at) as first_at, jsonb_agg(n.id order by n.at) as ids
+    from ops.user_issue_notes n
+    where n.answered_at is null and n.tries < ops._user_issue_note_tries()
+      and (exists (select 1 from ops.user_issues u where u.issue = n.issue and u.verdict in ('filed', 'known') and u.closed_at is null)
+        or exists (select 1 from ops.research_items r where r.issue = n.issue and r.decision = 'recommend'))
+    group by n.issue
+    order by min(n.at)
+    limit 20
+  ) w
+$$;
+revoke all on function public.ops_user_issue_notes_waiting from public, anon, authenticated;
+grant execute on function public.ops_user_issue_notes_waiting to service_role;

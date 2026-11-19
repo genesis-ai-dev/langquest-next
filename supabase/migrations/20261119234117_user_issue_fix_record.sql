@@ -35,14 +35,15 @@ create table if not exists ops.user_issue_fixes (
   proof text check (proof is null or length(proof) between 1 and 400),
   review text check (review is null or length(review) between 1 and 1000),
   twins text check (twins is null or length(twins) between 1 and 1000),
-  -- A display fix's proof: the screen without the change and with it (JPEG), from the local test world, never a person's phone.
+  -- The screen where the problem shows, without the change (before) and with it (after): JPEGs from the local test
+  -- world, never a person's phone. Both are a display fix's proof. `before` alone shows the problem of an issue with no fix yet.
   before_jpg bytea check (before_jpg is null or length(before_jpg) <= 150000),
   after_jpg bytea check (after_jpg is null or length(after_jpg) <= 150000),
   run_url text check (run_url is null or run_url ~ '^https://github\.com/genesis-ai-dev/langquest-next/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$'),
   at timestamptz not null default now(),
   check ((decision = 'merge') = (reason is null)),
   check ((decision = 'none') = (pr is null)),
-  check ((before_jpg is null) = (after_jpg is null))
+  check (after_jpg is null or before_jpg is not null)
 );
 alter table ops.user_issue_fixes enable row level security;
 
@@ -85,7 +86,7 @@ create or replace function diag.ops_user_issue_fixes() returns jsonb
 language sql stable security definer set search_path = '' as $$
   select coalesce(jsonb_object_agg(x.issue, jsonb_build_object('decision', x.decision, 'reason', x.reason, 'why', x.why, 'pr', x.pr,
       'verdict', x.verdict, 'model', x.model, 'effort', x.effort, 'summary', x.summary, 'cause', x.cause, 'proof', x.proof,
-      'review', x.review, 'twins', x.twins, 'runUrl', x.run_url, 'at', x.at, 'beforeAfter', x.before_jpg is not null,
+      'review', x.review, 'twins', x.twins, 'runUrl', x.run_url, 'at', x.at, 'before', x.before_jpg is not null, 'beforeAfter', x.after_jpg is not null,
       'pictures', coalesce((
         select jsonb_agg(jsonb_build_object('id', f.id, 'screenshot', f.screenshot is not null, 'picture', f.picture is not null) order by f.created_at)
         from ops.user_issues u join diag.feedback f on u.key = 'feedback:' || f.id::text
@@ -96,7 +97,7 @@ $$;
 revoke all on function diag.ops_user_issue_fixes from public;
 grant execute on function diag.ops_user_issue_fixes to diag_reader;
 
--- One picture of a display fix, for a signed-in admin: 'before' or 'after'.
+-- One picture of the screen, for a signed-in admin: 'before' or 'after'.
 create or replace function diag.ops_user_issue_fix_picture(p_issue text, p_which text) returns bytea
 language sql stable security definer set search_path = '' as $$
   select case p_which when 'before' then before_jpg when 'after' then after_jpg end from ops.user_issue_fixes where issue = p_issue

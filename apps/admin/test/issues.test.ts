@@ -344,3 +344,37 @@ describe('what the research team found, on its card', () => {
     expect(logic.researchWay(item({ decision: 'reject', action: 'none' }), null).show).toBe(false);
   });
 });
+
+describe('an image on each card', () => {
+  const base = { open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null };
+  const steps = [{ where: 'Person', text: 'Taps <Play>.', wrong: false }, { where: 'Browser', text: 'The request is refused.', wrong: true }];
+  const waits = (over: Row = {}): Row => ({ decision: 'none', reason: 'decision', why: 'A developer decides.', pr: null, verdict: 'decision', model: 'opus', effort: 'high', summary: null, cause: null,
+    proof: null, review: null, twins: null, runUrl: null, at: '2026-11-19T00:00:00Z', pictures: [], ...over });
+
+  it('draws the diagram of an issue with no picture of the screen: each step as text, the wrong one marked', () => {
+    const html = draw.userIssuesHtml({ ...base, issues: [issue()], diagrams: { 'LAN-9': steps } });
+    expect(html).toContain('<ol class="idiagram"');
+    expect(html).toContain('<li><b>Person</b>Taps &#60;Play&#62;.</li><li class="wrong"><b>Browser</b>The request is refused.</li>');
+    expect(html).toContain('(this goes wrong)');
+    expect(draw.userIssuesHtml({ ...base, issues: [issue()] })).not.toContain('idiagram');
+  });
+
+  it('shows the picture of the screen in place of the diagram when the picture job made one', () => {
+    const html = draw.userIssuesHtml({ ...base, issues: [issue()], diagrams: { 'LAN-9': steps }, fixes: { 'LAN-9': waits({ before: true }) } });
+    expect(html).toContain('<figcaption>The problem on the screen</figcaption><img alt="The screen where the problem shows" data-fixpic="LAN-9" data-what="before">');
+    expect(html).not.toContain('idiagram');
+    expect(html).not.toContain('After the fix');
+  });
+
+  it('gives a research item its diagram, and a recommended one the box to tell Claude what to do', () => {
+    const item = (over: Row = {}): Row => ({ tag: 'fixed-width-label', title: 'Words are cut off', like: 'LAN-9', found: 'A fixed width.', why: 'Half a word.', places: ['apps/mobile/src/a.tsx:3'], steps,
+      decision: 'recommend', action: 'ask', issue: 'LAN-50', issueUrl: 'https://linear.app/t/issue/LAN-50', handedAt: null, firstAt: '2026-11-19T00:00:00Z', at: '2026-11-19T00:00:00Z', runUrl: null, ...over });
+    const html = draw.userIssuesHtml({ ...base, issues: [], notes: {}, research: { lastAt: '2026-11-19T00:00:00Z', items: [item(), item({ tag: 'not-proven', decision: 'watch', action: 'none', issue: null, issueUrl: null, steps: null })] } });
+    expect(html).toContain('Research: the same mistake in other places');
+    expect(html.match(/class="idiagram"/g)).toHaveLength(1);
+    expect(html).toContain('href="https://github.com/genesis-ai-dev/langquest-next/blob/main/apps/mobile/src/a.tsx#L3"');
+    expect(html.match(/data-uinote="LAN-50"/g)).toHaveLength(1);
+    expect(html.match(/data-uinote=/g)).toHaveLength(1);
+  });
+});
+

@@ -419,6 +419,42 @@ begin
     and not has_function_privilege('authenticated', 'diag.ops_user_issue_fix_picture(text, text)', 'execute'), 'only the service role writes, only the dashboard reads';
 end $$;
 
+-- Each new issue's diagram (migration *_user_issue_diagrams.sql): one for each issue, the newest.
+do $$
+declare
+  run constant text := 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/142';
+  steps jsonb := jsonb_build_array(jsonb_build_object('where', 'Person', 'text', 'Taps Play.', 'wrong', false), jsonb_build_object('where', 'Browser', 'text', 'The request is refused.', 'wrong', true));
+begin
+  assert public.ops_user_issue_diagrams_done(jsonb_build_object('runUrl', run)) = 0, 'a run with none';
+  assert public.ops_user_issue_diagrams_done(jsonb_build_object('runUrl', run, 'diagrams', jsonb_build_array(jsonb_build_object('issue', 'LAN-320', 'steps', steps)))) = 1, 'kept';
+  perform public.ops_user_issue_diagrams_done(jsonb_build_object('runUrl', run, 'diagrams', jsonb_build_array(jsonb_build_object('issue', 'LAN-320', 'steps', steps || steps))));
+  assert jsonb_array_length(diag.ops_user_issue_diagrams()->'LAN-320') = 4, 'the newest diagram of an issue';
+  begin
+    perform public.ops_user_issue_diagrams_done(jsonb_build_object('runUrl', run, 'diagrams', jsonb_build_array(jsonb_build_object('issue', 'LAN-321', 'steps', steps->0))));
+    assert false, 'a diagram that is no list was kept';
+  exception when check_violation then null;
+  end;
+  assert not has_function_privilege('authenticated', 'public.ops_user_issue_diagrams_done(jsonb)', 'execute')
+    and not has_function_privilege('authenticated', 'diag.ops_user_issue_diagrams()', 'execute'), 'only the service role writes, only the dashboard reads';
+end $$;
+
+-- A picture of the screen where the problem shows, for an issue with no change: `before` alone.
+do $$
+declare
+  run constant text := 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/143';
+begin
+  perform public.ops_user_issue_fixes_done(jsonb_build_object('runUrl', run, 'fixes', jsonb_build_array(
+    jsonb_build_object('issue', 'LAN-330', 'decision', 'none', 'reason', 'decision', 'before', encode('\xffd8ffe000'::bytea, 'base64')))));
+  assert (diag.ops_user_issue_fixes()->'LAN-330'->>'before')::boolean and not (diag.ops_user_issue_fixes()->'LAN-330'->>'beforeAfter')::boolean
+    and diag.ops_user_issue_fix_picture('LAN-330', 'before') = '\xffd8ffe000'::bytea and diag.ops_user_issue_fix_picture('LAN-330', 'after') is null, 'one picture, of the problem';
+  begin
+    perform public.ops_user_issue_fixes_done(jsonb_build_object('runUrl', run, 'fixes', jsonb_build_array(
+      jsonb_build_object('issue', 'LAN-331', 'decision', 'none', 'reason', 'decision', 'after', encode('\xffd8ffe000'::bytea, 'base64')))));
+    assert false, 'a picture after the fix with none before it was kept';
+  exception when check_violation then null;
+  end;
+end $$;
+
 -- What the research team found (migration *_agent_research.sql): one record for each tag; an item found
 -- again keeps its first time, its issue and when it went to the fix team.
 do $$
@@ -443,6 +479,19 @@ begin
   v := (select x from jsonb_array_elements(diag.ops_research()->'items') x where x->>'tag' = 'fixed-width-label');
   assert v->>'issue' = 'LAN-310' and v->>'title' = 'Words are cut off' and v->>'handedAt' is not null and v->'places'->>0 = 'apps/mobile/src/screens/invite.tsx:142'
     and v->>'like' = 'LAN-300' and v->>'runUrl' = run, 'found again: new words, the same issue';
+  -- An admin tells Claude what to do with a recommended item, by its issue; not with one the research does not have.
+  declare n text := public.ops_user_issue_instruct('LAN-310', 'Fix the second button too.', '0d000000-0000-0000-0000-0000000000aa');
+  begin
+    assert n ~ '^[0-9a-f-]{36}$', 'an instruction on a research item is kept';
+    assert exists (select 1 from jsonb_array_elements(public.ops_user_issue_notes_waiting()) w where w->>'issue' = 'LAN-310'), 'and the watch is handed its issue';
+    delete from ops.user_issue_notes where id = n::uuid;
+  end;
+  assert public.ops_user_issue_instruct('LAN-998', 'Fix it.', '0d000000-0000-0000-0000-0000000000aa') = 'not_found', 'not on an issue nobody has';
+  -- The mistake as a diagram: kept with the item, and replaced when it is found again.
+  perform public.ops_research_done(jsonb_build_object('runUrl', run, 'research', jsonb_build_array(item || jsonb_build_object('steps', jsonb_build_array(
+    jsonb_build_object('where', 'Person', 'text', 'Opens the invite screen.', 'wrong', false), jsonb_build_object('where', 'Phone', 'text', 'Draws the button 96 wide.', 'wrong', true))))));
+  v := (select x from jsonb_array_elements(diag.ops_research()->'items') x where x->>'tag' = 'fixed-width-label');
+  assert jsonb_array_length(v->'steps') = 2 and (v->'steps'->1->>'wrong')::boolean, 'the item keeps its diagram';
   assert diag.ops_research()->>'lastAt' is not null and jsonb_array_length(diag.ops_research()->'items') = 2, 'the dashboard reads both';
   begin
     perform public.ops_research_done(jsonb_build_object('runUrl', run, 'research', jsonb_build_array(item || jsonb_build_object('tag', 'Not A Tag'))));
