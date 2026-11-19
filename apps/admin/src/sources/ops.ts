@@ -52,7 +52,14 @@ export interface Fleet {
   updates: { update: string; runtime: string | null; channel: string | null; installs: number; crashed: number; firstSeen: string; lastSeen: string }[];
   versions: { reducer: string | null; protocol: string | null; installs: number }[];
   web: { commit: string | null; installs: number }[];
-  toMap: { day: string; kind: 'open' | 'fill'; count: number; p50Ms: number | null; p95Ms: number | null }[];
+  /**
+   * A language's first downloads, per day. `open`: each first download, its
+   * time without the wait for a connection; `fill`: a big language, until its
+   * Map shows. `slow` are the ones over FIRST_DOWNLOAD_SLOW_MS; `waited` the
+   * opens that waited with no connection, and `waitMaxMs` the longest wait
+   * (migration 20261118234300_first_download_wait.sql; absent before it).
+   */
+  toMap: { day: string; kind: 'open' | 'fill'; count: number; p50Ms: number | null; p95Ms: number | null; slow?: number | null; waited?: number | null; waitMaxMs?: number | null }[];
   /**
    * First downloads that went wrong, per day: `fallback` took the whole
    * snapshot and `restart` lost its cut (`reason` from the `fill` record), and
@@ -85,6 +92,9 @@ export const FLEET_SQL = `select diag.ops_cached('fleet') as v`;
 /** A crash on more than this share of an update's installs is a reason to roll it back. */
 export const CRASH_ROLLBACK_SHARE = 0.02;
 
+/** A language's first download over this, without the wait for a connection, is slow (diag.ops_fleet counts them as `slow`). */
+export const FIRST_DOWNLOAD_SLOW_MS = 15 * 60_000;
+
 export function fleetAlerts(f: Fleet, reducer = REDUCER_VERSION): Alert[] {
   const out: Alert[] = [];
   const [latest, before] = f.updates.filter((u) => u.channel !== 'web');
@@ -99,8 +109,10 @@ export function fleetAlerts(f: Fleet, reducer = REDUCER_VERSION): Alert[] {
   if (lost > 0) out.push({ level: 'urgent', key: 'stuck-lost-recordings', watchKey: 'device:lostRecordings', text: `${plural(lost, 'install')} lost recordings before sending them (Stuck phones).` });
   if (f.quiet && f.quiet.count >= 5) out.push({ level: 'watch', key: 'phones-quiet', text: `${plural(f.quiet.count, 'install')} went quiet for 3 days while another device of the same person still reports: diagnostics off, or delivery broken (Silent phones).` });
   const recent = f.toMap.filter((d) => d.kind === 'open').slice(-1)[0];
-  if (recent && recent.count >= 5 && num(recent.p95Ms) > 15 * 60_000) {
-    out.push({ level: 'watch', key: 'first-download-slow', text: `A language's first download took over ${Math.round(num(recent.p95Ms) / 60_000)} minutes for one in twenty on ${recent.day}.` });
+  // The time is the download alone: a phone that opens a language with no connection waits, and that wait is not a slow download.
+  if (recent && recent.count >= 5 && num(recent.p95Ms) > FIRST_DOWNLOAD_SLOW_MS) {
+    const slow = Math.max(1, num(recent.slow));
+    out.push({ level: 'watch', key: 'first-download-slow', text: `${slow} of ${recent.count} first downloads of a language took over ${FIRST_DOWNLOAD_SLOW_MS / 60_000} minutes on ${recent.day}, without the time a phone waited with no connection.` });
   }
   return out;
 }

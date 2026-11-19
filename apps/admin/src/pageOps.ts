@@ -165,8 +165,9 @@ Object.assign(RENDER, {
     ], d.updates);
     h += '<h3>Reducer and protocol, installs this week</h3>' + table([{ h: 'Reducer', v: (v) => esc(v.reducer || '?') }, { h: 'Protocol', v: (v) => esc(v.protocol || '?') }, { h: 'Installs', n: true, v: (v) => num(v.installs) }], d.versions);
     h += '<h3>Browsers by web commit, this week</h3>' + table([{ h: 'Commit', v: (w) => '<code>' + esc(String(w.commit || '?').slice(0, 8)) + '</code>' }, { h: 'Installs', n: true, v: (w) => num(w.installs) }], d.web);
-    h += '<h3>Time to a usable Map</h3><p class="muted">open: a language\'s first full download; fill: a big language, until its Map shows.</p>' + table([
-      { h: 'Day', v: (r) => esc(r.day) }, { h: 'Kind', v: (r) => esc(r.kind) }, { h: 'Count', n: true, v: (r) => num(r.count) }, { h: 'p50', n: true, v: (r) => hours(r.p50Ms) }, { h: 'p95', n: true, v: (r) => hours(r.p95Ms) }
+    h += '<h3>Time to a usable Map</h3><p class="muted">open: a language\'s first full download, without the wait for a connection; fill: a big language, until its Map shows.</p>' + table([
+      { h: 'Day', v: (r) => esc(r.day) }, { h: 'Kind', v: (r) => esc(r.kind) }, { h: 'Count', n: true, v: (r) => num(r.count) }, { h: 'p50', n: true, v: (r) => hours(r.p50Ms) }, { h: 'p95', n: true, v: (r) => hours(r.p95Ms) },
+      { h: 'Waited', n: true, v: (r) => r.kind === 'open' && r.waited !== null && r.waited !== undefined ? num(r.waited) : '–' }, { h: 'Longest wait', n: true, v: (r) => hours(r.waitMaxMs) }
     ], d.toMap.slice().reverse().slice(0, 14));
     h += '<h3>First downloads that fell back or started over</h3>' + table([
       { h: 'Day', v: (r) => esc(r.day) },

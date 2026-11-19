@@ -48,6 +48,19 @@ from od_day, (values
   ('od-fill-3', 'od-inst-android', 'fill', '{}', '{"event":"restart","reason":"crash"}', 14),
   ('od-snap-1', 'od-inst-ios', 'snapshot', '{}', '{"outcome":"none"}', 15)
 ) x(id, inst, kind, n, t, s);
+-- Opens: od-open-2 and od-open-6 are a language's first download (migration *_first_download_wait.sql).
+-- od-open-1 above does not say, and the others are rows the phone has, the organization's stream and a
+-- person's. od-open-6 waited 1,281,078 ms with no connection (its sync record), so it took 216 ms.
+insert into diag.records (id, install_id, delivered_by, org_id, stream_id, kind, at, received_at, n, t)
+select x.id, 'od-inst-ios', 'od-profile-2', x.org, x.stream, x.kind, d + interval '12 hours', d + interval '12 hours' + x.s * interval '1 second', x.n::jsonb, x.t::jsonb
+from od_day, (values
+  ('od-open-2', 'od-org', 'od-lang', 'open', '{"ms":700}', '{"cold":"yes"}', 21),
+  ('od-open-3', 'od-org', 'od-lang', 'open', '{"ms":1080000}', '{"cold":"no"}', 22),
+  ('od-open-4', 'od-org', '_org', 'open', '{"ms":1080000}', '{"cold":"yes"}', 23),
+  ('od-open-5', '_person', 'od-profile-2', 'open', '{"ms":1080000}', '{"cold":"yes"}', 24),
+  ('od-open-6', 'od-org', 'od-lang-2', 'open', '{"ms":1281294}', '{"cold":"yes"}', 25),
+  ('od-open-6-sync', 'od-org', 'od-lang-2', 'sync', '{"ms":200,"offlineMs":1281078}', '{"outcome":"ok"}', 25)
+) x(id, org, stream, kind, n, t, s);
 
 insert into diag.job_runs (job, started_at, ms, outcome, n, received_at)
 select x.job, d + interval '13 hours' + x.s * interval '1 minute', x.ms, x.outcome, x.n::jsonb, d + interval '13 hours' + x.s * interval '1 minute'
@@ -92,7 +105,7 @@ begin
       case when (x.part, x.metric) in (('clients', 'installs'), ('clients', 'error_installs'), ('fleet', 'installs_by_update'), ('fleet', 'crashed_by_update'),
                                        ('safety', 'refused_installs'), ('storage', 'lost_files_installs'), ('storage', 'lost_recordings_installs')) then 'installs'
            when (x.part, x.metric) in (('clients', 'records'), ('clients', 'errors'), ('clients', 'crashes'), ('clients', 'syncs'), ('clients', 'sync_errors'),
-                                       ('clients', 'sign_in_trouble'), ('fleet', 'first_downloads'), ('fleet', 'first_download_trouble'), ('jobs', 'runs'),
+                                       ('clients', 'sign_in_trouble'), ('fleet', 'first_downloads'), ('fleet', 'first_download_waits'), ('fleet', 'first_download_trouble'), ('jobs', 'runs'),
                                        ('jobs', 'failed'), ('jobs', 'partial'), ('safety', 'canary_runs'), ('support', 'feedback'), ('support', 'account_deletions'),
                                        ('userissues', 'looked_at_first')) then 'rows' end as how
     from diag.daily x where x.day = d::date and x.key <> '_other'
@@ -107,6 +120,15 @@ begin
   if bad is not null then raise exception 'rows do not add up to their totals: %', bad; end if;
   if checked < 40 then raise exception 'only % totals checked', checked; end if;
 
+  -- Of six opens, two are a language's first download, and each counts once (its fill record does not
+  -- count again). One waited with no connection: its time is the download alone, and its wait is apart.
+  if (select jsonb_object_agg(x.metric || '/' || x.key, x.value) from diag.daily x where x.day = d::date and x.part = 'fleet' and x.metric like 'first\_download%' and x.metric <> 'first_download_trouble')
+       is distinct from '{"first_downloads/": 2, "first_download_p50_ms/open": 458, "first_download_p95_ms/open": 676, "first_download_p50_ms/fill": 4000, "first_download_p95_ms/fill": 4000,
+                          "first_download_waits/": 1, "first_download_wait_max_ms/": 1281078}'::jsonb
+     or (select jsonb_agg(r.item->>'id') from diag.ops_detail_rows('fleet', 'first_download_p95_ms', 'open', d, d + interval '1 day', 0, 100) r) is distinct from '["od-open-6", "od-open-2"]'::jsonb
+     or (select jsonb_agg(r.item->>'id') from diag.ops_detail_rows('fleet', 'first_download_wait_max_ms', '', d, d + interval '1 day', 0, 100) r) is distinct from '["od-open-6"]'::jsonb then
+    raise exception 'a first download is counted or timed incorrectly: %', (select jsonb_agg(to_jsonb(x)) from diag.daily x where x.day = d::date and x.part = 'fleet' and x.metric like 'first\_download%');
+  end if;
   -- The rows that are not plain counts still come from their own records.
   if (select count(*) from diag.ops_detail_rows('clients', 'downloads_failed', '', d, d + interval '1 day', 0, 100)) <> 1
      or (select count(*) from diag.ops_detail_rows('clients', 'uploads_failed', '', d, d + interval '1 day', 0, 100)) <> 1
@@ -153,7 +175,8 @@ declare d timestamptz := (select od_day.d from od_day); p0 jsonb; p1 jsonb; x js
 begin
   p0 := diag.ops_detail('clients', 'syncs', '', d, d + interval '1 day', 0);
   p1 := diag.ops_detail('clients', 'syncs', '', d, d + interval '1 day', 1);
-  if jsonb_array_length(p0->'rows') <> 50 or not (p0->>'more')::boolean or jsonb_array_length(p1->'rows') <> 10 or (p1->>'more')::boolean then
+  -- 61 syncs: the 60 above and the one that holds od-open-6's wait.
+  if jsonb_array_length(p0->'rows') <> 50 or not (p0->>'more')::boolean or jsonb_array_length(p1->'rows') <> 11 or (p1->>'more')::boolean then
     raise exception 'pages: % then %', jsonb_array_length(p0->'rows'), jsonb_array_length(p1->'rows');
   end if;
   if exists (select 1 from jsonb_array_elements(p0->'rows') a, jsonb_array_elements(p1->'rows') b where a->>'id' = b->>'id') then

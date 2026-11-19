@@ -73,6 +73,8 @@ export const METRICS: Record<string, Record<string, Metric>> = {
     first_downloads: { label: 'First downloads of a language' },
     first_download_p50_ms: { label: 'First download, typical time', unit: 'ms' },
     first_download_p95_ms: { label: 'First download, slowest 1 in 20', unit: 'ms' },
+    first_download_waits: { label: 'First downloads that waited with no connection' },
+    first_download_wait_max_ms: { label: 'First download, longest wait with no connection', unit: 'ms' },
     first_download_trouble: { label: 'First downloads that fell back or started over' }
   },
   safety: {
