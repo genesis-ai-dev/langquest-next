@@ -9,8 +9,9 @@
  */
 import { BACKGROUND_RPCS, RPC_MIN_CALLS, RPC_SLOW_MS } from '../../../scripts/diagSignals';
 import { ANR_LINE, CRASH_LINE } from './sources/googleplay';
-import { CRASH_ROLLBACK_SHARE, REPORT_DUE_HOURS } from './sources/ops';
+import { CRASH_ROLLBACK_SHARE, DEAD_ROWS_MIN, DEAD_ROWS_SHARE, LONG_QUERY_S, LONG_XACT_S, REPORT_DUE_HOURS } from './sources/ops';
 import { DB_FULL_SHARE } from './sources/storage';
+import { SERVER_ERROR_LINE } from './sources/supabase';
 
 /** Pure helpers, no page state: apps/admin/test/meters.test.ts runs them with new Function. */
 export const METERS_LOGIC = String.raw`
@@ -19,6 +20,12 @@ const RPC_SLOW = { ms: ${RPC_SLOW_MS}, calls: ${RPC_MIN_CALLS}, background: ${JS
 const PLAY_LINE = { crash: ${CRASH_LINE}, anr: ${ANR_LINE} };
 const LIMIT_LINE = { deviceRefused: 100, linksRefused: 300, v2SignInFailures24h: 100 };
 const CRASH_ROLLBACK = ${CRASH_ROLLBACK_SHARE}, REPORT_DUE_H = ${REPORT_DUE_HOURS}, DB_FULL = ${DB_FULL_SHARE};
+/** The Database lines' own limits (sources/ops.ts dbDetailAlerts, sources/supabase.ts supabaseAlerts), so each line has a bar that shows it. */
+const DB_LINE = { xactS: ${LONG_XACT_S}, queryS: ${LONG_QUERY_S}, deadShare: ${DEAD_ROWS_SHARE}, deadRows: ${DEAD_ROWS_MIN} };
+const SERVER_ERRORS = ${JSON.stringify(SERVER_ERROR_LINE)};
+const lastsOf = (s) => s === null || s === undefined ? 'none now' : s >= 3600 ? (s / 3600).toFixed(1) + ' h' : s >= 60 ? Math.round(s / 60) + ' min' : Math.round(s) + ' s';
+/** The largest few of a list, and after them each one past them that has a line: a line's bar never falls off the picture. */
+const withLined = (xs, n, lined) => xs.slice(0, n).concat(xs.slice(n).filter(lined));
 const nOf = (n) => n === null || n === undefined ? '–' : Number(n).toLocaleString('en');
 const sizeOf = (b) => { if (b === null || b === undefined) return '–'; const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0, v = Number(b); while (v >= 1024 && i < u.length - 1) { v /= 1024; i += 1; } return v.toFixed(v >= 10 || i === 0 ? 0 : 1) + ' ' + u[i]; };
 const pctOf = (x, d) => x === null || x === undefined || !isFinite(x) ? '–' : (x * 100).toFixed(d === undefined ? (x < 0.1 ? 1 : 0) : d) + '%';
@@ -59,21 +66,32 @@ function meterRows(part, d) {
       rows.push({ label: 'Connections', draw: 'meter', items: [meterItem('Connections in use', d.connections, d.maxConnections, d.connections >= d.maxConnections * 0.8 ? 'part' : 'ok',
         nOf(d.connections) + ' of ' + nOf(d.maxConnections), [['In use', nOf(d.connections)], ['Most the database takes', nOf(d.maxConnections)], ['Cache hits', d.stats ? pctOf(d.stats.hitRatio, 1) : null], ['Deadlocks', d.stats ? nOf(d.stats.deadlocks) : null]])] });
     }
-    const rpc = (d.rpc || []).slice(0, 8);
+    const isSlow = (r) => !RPC_SLOW.background.includes(r.rpc) && r.calls >= RPC_SLOW.calls && r.mean_ms > RPC_SLOW.ms;
+    const rpc = withLined(d.rpc || [], 8, isSlow);
     const most = Math.max.apply(null, [1].concat(rpc.map((r) => Number(r.total_s) || 0)));
     if (rpc.length) rows.push({ label: 'Calls by total time', draw: 'meter', items: rpc.map((r) => {
-      const slow = !RPC_SLOW.background.includes(r.rpc) && r.calls >= RPC_SLOW.calls && r.mean_ms > RPC_SLOW.ms;
+      const slow = isSlow(r);
       return meterItem(r.rpc, r.total_s, most, slow ? 'fail' : 'ok', nOf(r.total_s) + ' s',
         [['Calls', nOf(r.calls)], ['Mean', nOf(r.mean_ms) + ' ms'], ['Longest', nOf(r.max_ms) + ' ms'], ['Total', nOf(r.total_s) + ' s'], ['Counted since', d.rpcSince || 'the last reset']], { mono: true });
     }) });
     return rows;
   }
   if (part === 'dbdetail') {
-    const t = (d.tables || []).slice(0, 8);
-    const most = Math.max.apply(null, [1].concat(t.map((x) => Number(x.bytes) || 0)));
-    return t.length ? [{ label: 'Largest tables', draw: 'meter', items: t.map((x) => meterItem(x.name, x.bytes, most,
-      Number(x.deadRatio) >= 0.3 && x.rows >= 10000 ? 'part' : 'ok', sizeOf(x.bytes),
-      [['Size', sizeOf(x.bytes)], ['Rows', nOf(x.rows)], ['Dead rows', x.deadRatio === null || x.deadRatio === undefined ? null : pctOf(Number(x.deadRatio), 0)]], { mono: true })) }] : [];
+    const who = (a) => a ? [a.role || '?', a.client].filter(Boolean).join(' · ') : null;
+    // The longest query and the oldest transaction, each against the time from which it is a line.
+    const now = (name, secs, line, a, extra) => meterItem(name, secs || 0, line * 1.5, Number(secs) > line ? 'part' : 'ok', lastsOf(secs),
+      [['Lasts', lastsOf(secs)], ['A line from', lastsOf(line)], ['Whose', who(a)]].concat(extra), { line });
+    const q = d.longestQuery, x = d.oldestXact;
+    const rows = [{ label: 'Running now', draw: 'meter', items: [
+      now('Longest query', d.longestQueryS, DB_LINE.queryS, q, [['Waits on', q ? q.waitingOn || null : null]]),
+      now('Oldest transaction', d.oldestXactS, DB_LINE.xactS, x, [['State', x ? x.state || null : null]])] }];
+    const dead = (t) => Number(t.deadRatio) >= DB_LINE.deadShare && t.rows >= DB_LINE.deadRows;
+    const t = withLined(d.tables || [], 8, dead);
+    const most = Math.max.apply(null, [1].concat(t.map((y) => Number(y.bytes) || 0)));
+    if (t.length) rows.push({ label: 'Largest tables', draw: 'meter', items: t.map((y) => meterItem(y.name, y.bytes, most,
+      dead(y) ? 'part' : 'ok', sizeOf(y.bytes) + (dead(y) ? ' · ' + pctOf(Number(y.deadRatio), 0) + ' dead rows' : ''),
+      [['Size', sizeOf(y.bytes)], ['Rows', nOf(y.rows)], ['Dead rows', y.deadRatio === null || y.deadRatio === undefined ? null : pctOf(Number(y.deadRatio), 0)]], { mono: true })) });
+    return rows;
   }
   if (part === 'googleplay') {
     const rate = (m, line, name) => m ? meterItem(name, m.userPerceived, line * 1.5, m.userPerceived >= line ? 'fail' : m.userPerceived >= line / 2 ? 'part' : 'ok', pctOf(m.userPerceived, 2),
@@ -107,8 +125,21 @@ function meterRows(part, d) {
     }) }] : [];
   }
   if (part === 'supabase') {
-    return (d.projects || []).map((p) => ({ label: p.name, items: (p.health || []).map((s) => ({ s: s.healthy ? 'ok' : 'fail', name: s.name, at: null,
-      fields: [['Service', s.name], ['State', s.healthy ? 'healthy' : s.status || 'unhealthy'], ['Project', p.ref]] })) })).filter((r) => r.items.length);
+    const rows = [];
+    for (const p of d.projects || []) {
+      const health = (p.health || []).map((s) => ({ s: s.healthy ? 'ok' : 'fail', name: s.name, at: null,
+        fields: [['Service', s.name], ['State', s.healthy ? 'healthy' : s.status || 'unhealthy'], ['Project', p.ref]] }));
+      // An Edge Function that is throttled is a line of its own: a square beside the services.
+      const throttled = (p.functions || []).filter((f) => f.status === 'THROTTLED').map((f) => ({ s: 'part', name: 'Edge Function ' + f.slug, at: f.updatedAt || null,
+        fields: [['Edge Function', f.slug], ['State', 'throttled'], ['Project', p.ref]] }));
+      if (health.length + throttled.length) rows.push({ label: p.name, items: health.concat(throttled) });
+      // Server errors in the last day, each against the count from which it is a line.
+      const l = p.logs;
+      if (l) rows.push({ label: 'Server errors, last day', draw: 'meter', count: false, items: [['gateway5xx', 'API'], ['function5xx', 'Edge Functions'], ['authErrors', 'Auth']].map(([k, name]) =>
+        meterItem(name, l[k], SERVER_ERRORS[k] * 1.5, l[k] >= SERVER_ERRORS[k] ? 'part' : 'ok', nOf(l[k]),
+          [['Server errors, last day', nOf(l[k])], ['A line from', nOf(SERVER_ERRORS[k])], ['All API requests', k === 'gateway5xx' ? nOf(l.gatewayTotal) : null], ['Project', p.ref]], { line: SERVER_ERRORS[k] })) });
+    }
+    return rows;
   }
   if (part === 'worker') {
     const B = [['lt100ms', 'Under 100 ms', 'ok'], ['lt1s', 'Under 1 s', 'run'], ['lt10s', 'Under 10 s', 'part'], ['over10s', '10 s or more', 'fail']];
@@ -153,12 +184,12 @@ export const METERS_SCRIPT = String.raw`
 Object.assign(LIST_SAID, {
   capacity: { one: 'limit', many: 'limits', pic: 'a bar for each limit, filled as far as it is used', fail: 'Full soon', part: 'Past the plan, or fills in 12 weeks', ok: 'Room left' },
   database: { one: 'bar', many: 'bars', pic: 'connections in use, and the calls that take the most time', fail: 'Slow: people wait', part: 'Near the limit', ok: 'Normal' },
-  dbdetail: { one: 'table', many: 'tables', pic: 'a bar for each of the largest tables', part: 'Many dead rows', ok: 'Normal' },
+  dbdetail: { one: 'bar', many: 'bars', pic: 'the longest query, the oldest transaction, and the largest tables', part: 'Past its line, or many dead rows', ok: 'Normal' },
   googleplay: { one: 'rate', many: 'rates', pic: "crashes and ANRs against Google's line", fail: "Past Google's line", part: 'Past half the line', ok: 'Under half the line' },
   security: { one: 'limit', many: 'limits', pic: 'a bar for each limit, full at its alert', part: 'At the alert', ok: 'Under the alert' },
   support: { one: 'report', many: 'reports', pic: 'how long the oldest open report waits, of 24 hours', fail: 'Act now', part: 'Only staff can act', ok: 'In time' },
   cloudflare: { one: 'Worker', many: 'Workers', pic: 'a bar for each Worker, its requests in 24 hours', fail: 'Last build failed', part: 'Errors', ok: 'No errors' },
-  supabase: { one: 'service', many: 'services', fail: 'Not healthy', ok: 'Healthy' },
+  supabase: { one: 'service', many: 'services', pic: 'a square for each service, and server errors against their line', fail: 'Not healthy', part: 'Throttled, or at its line', ok: 'Healthy' },
   worker: { one: 'request', many: 'requests', pic: 'a bar for each route, split by how long its requests took', sum: true, ok: 'Under 100 ms', run: 'Under 1 s', part: 'Under 10 s', fail: '10 s or more' },
   clients: { one: 'sync', many: 'syncs', pic: 'one bar split by how each sync ended', sum: true, fail: 'Error', part: 'Refused or too old', ok: 'OK', off: 'Offline' },
   fleet: { one: 'install', many: 'installs', pic: 'one bar split by the update each install runs', sum: true, fail: 'Crashed on 2% or more', part: 'Crashed', ok: 'Newest update', off: 'Older update' },
@@ -181,7 +212,7 @@ function meterSvg(part, at, r, mini) {
       body += (x.half ? '<path class="hl" d="M' + (L + (x.line / 2 / x.max) * (R - L)).toFixed(1) + ' ' + (y + 17) + 'v6"/>' : '') + '<path class="ml" d="M' + lx.toFixed(1) + ' ' + (y + 13) + 'v14"/>';
     }
     // The tap covers the whole line, on top of what it draws.
-    body += '<rect class="hit" data-i="' + i + '" x="0" y="' + y + '" width="' + w + '" height="' + LH + '"><title>' + esc(x.name + ': ' + x.value) + '</title></rect>';
+    body += '<rect class="hit" data-i="' + i + '" x="0" y="' + y + '" width="' + w + '" height="' + LH + '" data-tip="' + esc(x.name + ': ' + x.value) + '"/>';
   });
   return rowSvg(part, at, r, w, h, n, 1, body, 'a bar for each', mini ? 1 : 0);
 }
@@ -194,8 +225,8 @@ function shareSvg(part, at, r, mini) {
   let x0 = L, body = '';
   r.items.forEach((x, i) => {
     const wd = 3 + (x.v / total) * Math.max(0, room);
-    body += '<rect class="q ' + x.s + '" data-i="' + i + '" x="' + x0.toFixed(1) + '" y="2" width="' + wd.toFixed(1) + '" height="14" rx="2"><title>' +
-      esc(itemName(x) + ': ' + Number(x.v).toLocaleString('en') + ' (' + ((x.v / total) * 100).toFixed(1) + '%)') + '</title></rect>' +
+    body += '<rect class="q ' + x.s + '" data-i="' + i + '" x="' + x0.toFixed(1) + '" y="2" width="' + wd.toFixed(1) + '" height="14" rx="2" data-tip="' +
+      esc(itemName(x) + ': ' + Number(x.v).toLocaleString('en') + ' (' + ((x.v / total) * 100).toFixed(1) + '%)') + '"/>' +
       (wd >= 12 ? markAt(x.s, Number((x0 + wd / 2).toFixed(1)), 9, 1) : '') +
       (wd >= 44 ? '<text class="tx" x="' + (x0 + 1).toFixed(1) + '" y="28">' + esc(String(itemName(x)).slice(0, Math.floor(wd / 5.5))) + '</text>' : '');
     x0 += wd + gap;

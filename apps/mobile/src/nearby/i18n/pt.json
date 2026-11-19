@@ -1,18 +1,17 @@
 {
   "nearby": {
     "experimental": "Experimental",
-    "intro": "Funciona sem internet: atualize os celulares dos colegas de equipe, ou dê o app a uma pessoa nova e deixe-a entrar na equipe.",
-    "introTeammates": "Funciona sem internet: atualize os celulares dos colegas de equipe.",
+    "intro": "Funciona sem internet.",
     "withTeammates": "Com colegas de equipe",
-    "withTeammatesLine": "Celulares que já têm o LangQuest se atualizam entre si. Deixe isto aberto até aparecer Atualizado.",
+    "withTeammatesLine": "Celulares que já têm o LangQuest se atualizam entre si.",
     "newPerson": "Uma pessoa nova",
     "newPersonLine": "Dê o app a uma pessoa nova e depois deixe-a entrar na equipe por este celular.",
+    "step": "{{n}}. {{label}}",
     "row": "Compartilhar por perto",
-    "rowSub": "Compartilhe o progresso do trabalho com os colegas de equipe sem internet",
-    "rowSubJoin": "Compartilhe o progresso do trabalho com os colegas de equipe, ou deixe uma pessoa nova entrar, sem internet",
-    "rowHelp": "Abre Compartilhar por perto, onde celulares próximos enviam e recebem o progresso do trabalho uns dos outros sem internet.",
-    "rowHelpJoin": "Abre Compartilhar por perto, onde celulares próximos enviam e recebem o progresso do trabalho uns dos outros sem internet, e onde você dá o app a uma pessoa nova e a deixa entrar na equipe.",
-    "rowHelpRemind": "Abre Compartilhar por perto, onde celulares próximos enviam e recebem o progresso do trabalho uns dos outros sem internet, e onde você dá o app a uma pessoa nova e a deixa entrar na equipe. Este celular ainda não tem o arquivo de instalação de que o celular de uma pessoa nova precisa agora: baixe-o lá antes de ficar sem internet.",
+    "rowSub": "Compartilhe o trabalho com os colegas de equipe sem internet",
+    "rowSubJoin": "Compartilhe o trabalho com os colegas de equipe, ou deixe uma pessoa nova entrar, sem internet",
+    "rowHelp": "Abre Compartilhar por perto, onde celulares próximos compartilham o trabalho sem internet.",
+    "rowHelpJoin": "Abre Compartilhar por perto, onde celulares próximos compartilham o trabalho sem internet, e onde você dá o app a uma pessoa nova e a deixa entrar na equipe.",
     "why": {
       "loading": "Verificando este celular…",
       "notInBuild": "Esta versão do app não consegue compartilhar por perto. Atualize pela loja.",
@@ -21,6 +20,7 @@
       "noWifiDirect": "Este celular não tem Wi-Fi Direct, e o Compartilhar por perto precisa dele.",
       "noKey": "Este celular ainda não está pronto para compartilhar. Conecte-se à internet uma vez e depois volte.",
       "noCertificate": "Para compartilhar por perto, este celular precisa se conectar à internet uma vez enquanto a sua organização estiver com o Compartilhar por perto ligado.",
+      "limited": "Esta conta configurou celulares novos demais hoje. O Compartilhar por perto vai funcionar neste celular a partir de amanhã.",
       "readOnly": "Contas que só visualizam organizações não compartilham por perto."
     },
     "radios": {
@@ -46,7 +46,6 @@
     "stopped": {
       "idle": "Parou depois de um tempo sem ninguém novo por perto.",
       "wait": "Parou depois de esperar muito por um colega ocupado.",
-      "noKey": "Este celular ainda não pode compartilhar. Conecte-se à internet uma vez e depois volte.",
       "failed": "O Compartilhar por perto não conseguiu ligar o Bluetooth e o Wi-Fi.",
       "lookAgainLine": "Se um colega chegar, toque em Procurar de novo."
     },
@@ -71,7 +70,7 @@
     "connectHelp": "Conecta a este celular. Use quando um colega estiver por perto, mas os celulares não tiverem se encontrado.",
     "connectHelpAll": "Conecta a todos os celulares de colegas por perto que ainda não encontraram este. Um toque vale para todos até você sair desta tela.",
     "came": {
-      "title": "O que foi trocado",
+      "title": "O que foi compartilhado",
       "changesIn": "Mudanças recebidas: {{n}}",
       "changesOut": "Mudanças enviadas: {{n}}",
       "filesIn": "Gravações recebidas: {{n}}",
@@ -88,16 +87,15 @@
       "failed": "Algo deu errado. Vai tentar de novo."
     },
     "clockOff": "O relógio de um colega e o deste celular estão diferentes em mais de cinco minutos. Confira a data e a hora nos dois celulares.",
-    "newerApp": "O celular de um colega precisa de uma versão mais nova do app para compartilhar com este. Atualize o app pela loja ou pegue a versão mais nova com um colega.",
-    "newerAppIphone": "O celular de um colega precisa de uma versão mais nova do app para compartilhar com este. Atualize o app pela loja.",
-    "apkOld": "O arquivo de instalação que você pegou é de uma versão anterior. Pegue o novo antes de ficar sem internet.",
+    "newerApp": "O app deste celular e o de um colega têm versões diferentes demais para compartilhar. Atualize o mais antigo pela loja ou com o arquivo de instalação do outro celular.",
+    "newerAppIphone": "O app deste celular e o de um colega têm versões diferentes demais para compartilhar. Atualize o mais antigo pela loja.",
     "tooOld": "Este app é antigo demais para compartilhar. Atualize pela loja.",
     "farAhead": "O celular de {{name}} está com uma data muito no futuro. O trabalho dessa pessoa espera até chegar ao servidor.",
     "olderFromServer": "O trabalho mais antigo virá do servidor.",
     "hold": "Guardar gravações dos colegas",
     "holdHelp": "Ligado: este celular guarda as gravações dos colegas até o servidor recebê-las. Desligado: guarda só as de que você precisa.",
     "carry": {
-      "title": "Pronto para levar",
+      "title": "O que este celular tem",
       "everything": "Este celular tem tudo o que conhece.",
       "missing": "Gravações faltando: {{n}}",
       "coming": "Ainda chegando de colegas por perto: {{n}}",
@@ -134,7 +132,6 @@
         "noPass": "Este celular não pode deixar ninguém entrar. A sua organização precisa ter isso ligado, você precisa poder convidar pessoas para este idioma, e este celular precisa ter se conectado à internet depois disso.",
         "expired": "A permissão deste celular para deixar pessoas entrarem venceu. Conecte-se à internet uma vez para renová-la.",
         "noRole": "Não há nenhuma função que este celular possa dar sem internet. Um administrador pode dar funções depois que a pessoa nova se conectar à internet.",
-        "permissions": "Primeiro abra o Compartilhar por perto e permita o que o Android pedir, depois volte.",
         "wifiOff": "Ligue o Wi-Fi nas configurações do celular, depois volte."
       },
       "role": "A função dela",
@@ -162,16 +159,25 @@
       "anotherHelp": "Começa de novo com um código novo.",
       "turnedAway": "Outro celular tentou usar este código e foi recusado.",
       "stayOpen": "Deixe esta tela aberta até terminar.",
-      "file": "Arquivo de instalação desta versão: {{file}}",
-      "fileStart": "O arquivo na sua pasta Downloads precisa ter um nome que comece com {{start}}. Um nome que comece de outro jeito é de outra versão.",
-      "fileOld": "O arquivo de instalação que você pegou antes é de uma versão anterior. Pegue o novo antes de ficar sem internet.",
-      "get": "Baixar o arquivo de instalação",
+      "get": "Baixar no navegador",
       "getHelp": "Abre o navegador do celular, que baixa o arquivo de instalação desta versão.",
-      "getLine": "Baixe antes de ficar sem internet. O celular novo precisa permitir instalar apps de outras fontes. Envie o arquivo para ele por Quick Share, cartão SD ou cabo USB. O Quick Share precisa dos serviços do Google Play nos dois celulares.",
+      "getSteps": {
+        "lead": "Depois de tocar em {{button}}:",
+        "browser": "O navegador do celular abre e baixa o arquivo de instalação.",
+        "warning": "Se o navegador avisar que o arquivo pode ser perigoso, escolha baixar mesmo assim. É o arquivo de instalação do próprio LangQuest.",
+        "back": "Quando o download terminar, volte para o LangQuest. Não precisa abrir o arquivo.",
+        "choose": "Toque em {{button}}."
+      },
+      "getLine": "Em campo, envie o arquivo com Dar o app. Quick Share, cartão SD ou cabo USB também funcionam, mas o Quick Share precisa dos serviços do Google Play nos dois celulares.",
+      "getLineOther": "Em campo, envie o arquivo para o celular novo por Quick Share, cartão SD ou cabo USB. O Quick Share precisa dos serviços do Google Play nos dois celulares. O celular novo pode pedir para permitir instalações desta fonte.",
       "getOffline": "Para baixar o arquivo de instalação é preciso internet.",
-      "check": "Verificar meu arquivo",
-      "checkHelp": "Abre os arquivos do celular. Escolha o arquivo de instalação que você tem, e o app compara o nome dele com o que este celular precisa. Só o nome é lido.",
-      "checkRight": "Este é o arquivo certo.",
+      "check": "Escolher um arquivo que você já tem",
+      "checkHelp": "Abre os arquivos do celular. Escolha um arquivo de instalação que você conseguiu de outro jeito, por exemplo com um colega ou de um cartão SD, e o app confere se é o que este celular precisa.",
+      "choose": "Escolher o arquivo baixado",
+      "chooseHelp": "Abre os arquivos do celular. Escolha o arquivo de instalação que o navegador baixou, e o app confere se é o que este celular precisa.",
+      "chooseLine": "Quando o download terminar, toque em Escolher o arquivo baixado. Ele costuma ser o primeiro dos seus arquivos recentes.",
+      "getAgain": "Baixar de novo",
+      "getAgainHelp": "Abre o navegador do celular de novo, caso o download não tenha terminado.",
       "checkOther": "Este arquivo é de outra versão: você precisa de {{file}}",
       "checkChose": "Você escolheu {{name}}",
       "fileHelp": "Quando todos por quem você veio tiverem entrado, apague este arquivo. Você precisa de internet para obtê-lo de novo.",
@@ -190,18 +196,35 @@
         "stopped": "O código não vale mais porque você saiu desta tela. Crie um novo.",
         "noCertificate": "Este celular precisa se conectar à internet uma vez antes de poder deixar alguém entrar.",
         "failed": "Algo deu errado neste celular. Crie um código novo."
+      },
+      "keep": {
+        "keeping": "Guardando uma cópia neste celular…",
+        "kept": "Uma cópia fica guardada neste celular para Dar o app. Você pode apagar o arquivo que está em Downloads.",
+        "notOurs": "Este não é o arquivo de instalação do próprio LangQuest. Baixe de novo enquanto tem internet.",
+        "noSpace": "Não há espaço suficiente neste celular para guardar uma cópia. Libere espaço e escolha o arquivo de novo.",
+        "unreadable": "Não foi possível ler este arquivo. Escolha o arquivo de novo.",
+        "failed": "Não foi possível guardar uma cópia. Escolha o arquivo de novo.",
+        "needsAndroid": "Este celular não guarda uma cópia: Dar o app precisa do Android 10 ou mais recente.",
+        "needsUpdate": "Este celular ainda não guarda uma cópia. Atualize o app pela loja para dá-lo por Wi-Fi."
       }
     },
     "installFile": {
-      "intro": "Um celular novo precisa ter o LangQuest instalado antes que você possa deixar a pessoa entrar. Pegue o arquivo aqui enquanto tem internet e leve-o com você.",
+      "intro": "Um celular novo precisa ter o LangQuest instalado antes que você possa deixar a pessoa entrar. Baixe o arquivo de instalação aqui enquanto tem internet e leve-o com você.",
       "rowSub": "Antes de ficar sem internet",
-      "rowHelp": "Abre Baixar o arquivo de instalação, onde você baixa e verifica o arquivo com que um celular novo instala o LangQuest. Faça isso enquanto tem internet.",
-      "linkHelp": "Abre Baixar o arquivo de instalação, onde você baixa e verifica o arquivo com que um celular novo instala o LangQuest.",
-      "remind": "Baixe o arquivo de instalação antes de ficar sem internet",
-      "notGot": "Arquivo de instalação para uma pessoa nova: ainda não baixado",
+      "rowHelp": "Abre Baixar o arquivo de instalação, onde você baixa e guarda uma cópia do arquivo com que um celular novo instala o LangQuest. Faça isso enquanto tem internet.",
+      "linkHelp": "Abre Baixar o arquivo de instalação, onde você baixa e guarda uma cópia do arquivo com que um celular novo instala o LangQuest.",
+      "notGot": "Ainda não há arquivo de instalação para uma pessoa nova",
       "older": "Arquivo de instalação para uma pessoa nova: de uma versão anterior",
-      "getIt": "Baixar",
-      "lineHelp": "O celular de uma pessoa nova instala o LangQuest a partir deste arquivo. Este celular ainda não baixou o desta versão: baixe-o enquanto tem internet, para poder passá-lo a uma pessoa nova sem internet."
+      "notChosen": "Arquivo de instalação para uma pessoa nova: ainda não escolhido",
+      "lineHelp": "Você precisa deste arquivo para dar o LangQuest a uma pessoa nova sem internet. Baixe-o enquanto tem internet.",
+      "old": "O seu arquivo de instalação é de uma versão anterior. Baixe o novo.",
+      "downloaded": "Baixado. Escolha o arquivo para terminar.",
+      "title": "Arquivo de instalação para uma pessoa nova",
+      "ready": "Pronto para dar a uma pessoa nova.",
+      "readyShort": "Arquivo de instalação pronto",
+      "done": "Pronto. Você pode levá-lo para onde não há internet.",
+      "newer": "Um arquivo de instalação mais novo está pronto. Baixe-o enquanto tem internet e depois escolha-o.",
+      "newerShort": "Arquivo de instalação para uma pessoa nova: um mais novo está pronto"
     },
     "join": {
       "intro": "Entre na sua equipe pelo celular de um colega, sem internet. A sua conta é criada na primeira vez que o seu celular se conectar à internet.",
@@ -223,8 +246,8 @@
       "join": "Participar",
       "tryAgain": "Tentar de novo",
       "joinHelp": "Conecta ao celular do seu colega e pede para entrar.",
-      "permission": "O LangQuest precisa de dispositivos por perto para chegar ao celular do seu colega.",
-      "permissionBlocked": "Permita dispositivos por perto para o LangQuest nas configurações do celular, depois volte.",
+      "permission": "O LangQuest precisa da permissão Dispositivos por perto (Localização em celulares mais antigos) para chegar ao celular do seu colega.",
+      "permissionBlocked": "Permita Dispositivos por perto ou Localização para o LangQuest nas configurações do celular, depois volte.",
       "wifiOff": "Ligue o Wi-Fi nas configurações do celular e tente de novo.",
       "connecting": "Conectando ao celular do seu colega…",
       "asked": "Esperando o seu colega",
@@ -253,6 +276,71 @@
         "refused": "Este celular não conseguiu conferir a resposta do seu colega. Peça um código novo.",
         "dropped": "A conexão caiu. Peça um código novo.",
         "failed": "Algo deu errado neste celular. Peça um código novo."
+      }
+    },
+    "give": {
+      "intro": "Este celular cria a própria rede Wi-Fi. O celular novo lê dois códigos com a câmera: um para se conectar à rede, outro para baixar o LangQuest. Nenhum dos dois precisa de internet.",
+      "rowSub": "Quando você estiver com a pessoa nova",
+      "rowHelp": "Abre Dar o app, onde este celular envia o LangQuest para um celular novo por uma rede Wi-Fi que ele mesmo cria.",
+      "linkHelp": "Abre Dar o app, para enviar o LangQuest ao celular novo por uma rede Wi-Fi que este celular cria.",
+      "size": "Arquivo de instalação: {{size}} MB",
+      "start": "Mostrar o primeiro código",
+      "startHelp": "Cria a rede Wi-Fi deste celular para o celular novo se conectar e mostra o primeiro código.",
+      "starting": "Criando a rede Wi-Fi deste celular…",
+      "noFile": "Primeiro baixe o arquivo de instalação enquanto tem internet.",
+      "unsupported": {
+        "android": "Dar o app precisa do Android 10 ou mais recente, e este celular tem uma versão mais antiga. Em vez disso, envie o arquivo de instalação por Quick Share, cartão SD ou cabo USB.",
+        "update": "Esta versão do app não consegue dar o app. Atualize pela loja."
+      },
+      "join": {
+        "title": "1. Conectar à rede Wi-Fi deste celular",
+        "line": "No celular novo, abra a câmera, aponte para este código e toque em Conectar. Quando ele se conectar, toque em Próximo.",
+        "lineAgain": "No celular novo, abra a câmera, aponte para este código e toque em Conectar.",
+        "code": "Código para conectar à rede Wi-Fi deste celular",
+        "network": "Nome do Wi-Fi: {{name}}",
+        "password": "Senha: {{password}}",
+        "typeLine": "Ou, nas configurações de Wi-Fi do celular novo, escolha esta rede e digite a senha:"
+      },
+      "next": "Próximo",
+      "nextHelp": "Mostra o segundo código, da página de download, depois que o celular novo se conectar.",
+      "download": {
+        "title": "2. Abrir a página de download",
+        "line": "Aponte a câmera do celular novo para este código e abra a página. Toque em Baixar.",
+        "code": "Código da página de download",
+        "address": "Ou digite este endereço no navegador dele: {{address}}",
+        "dataLine": "O celular novo pode dizer que este Wi-Fi não tem internet. Toque em Permanecer conectado. Se a página ainda não abrir, desligue os dados móveis dele."
+      },
+      "backToJoin": "Voltar ao primeiro código",
+      "backToJoinHelp": "Mostra de novo o código para conectar à rede Wi-Fi deste celular.",
+      "sending": "Enviando: {{sent}} de {{total}} MB",
+      "sent": "3. Instalar o app",
+      "sentLine": "O arquivo foi enviado. No celular novo, abra o arquivo baixado e toque em Instalar. Ele pode pedir uma vez para permitir instalações desta fonte. Depois, deixe a pessoa entrar por este celular.",
+      "another": "Dar o app a outro celular",
+      "anotherHelp": "Mostra os dois códigos de novo, para mais um celular novo.",
+      "letIn": "Deixar a pessoa entrar",
+      "letInHelp": "Abre Deixar alguém entrar, para o celular novo entrar na equipe.",
+      "stop": "Parar",
+      "stopHelp": "Desliga a rede Wi-Fi deste celular.",
+      "stayOpen": "Deixe esta tela aberta até o arquivo ser enviado.",
+      "ended": {
+        "stopped": "Parado.",
+        "idle": "Parou depois de 15 minutos sem nenhum celular baixando.",
+        "phone": "Parou porque o Wi-Fi desligou ou você saiu do app."
+      },
+      "failed": {
+        "wifiOff": "Ligue o Wi-Fi neste celular e tente de novo.",
+        "permission": "O LangQuest precisa da permissão Dispositivos por perto (Localização em celulares mais antigos) para criar a própria rede Wi-Fi. Permita e tente de novo.",
+        "busy": "O Wi-Fi deste celular está ocupado. Espere um momento e tente de novo.",
+        "failed": "A rede Wi-Fi deste celular não iniciou. Tente de novo.",
+        "permissionCovered": "Primeiro abra o Compartilhar por perto e permita o que ele pedir. Depois volte e tente de novo."
+      },
+      "page": {
+        "title": "Instalar o LangQuest",
+        "size": "{{size}} MB",
+        "download": "Baixar",
+        "stepOpen": "Abra o arquivo baixado.",
+        "stepAllow": "Permita instalações desta fonte, se o celular pedir.",
+        "stepInstall": "Toque em Instalar."
       }
     }
   }

@@ -43,6 +43,24 @@ describe('phones and browsers', () => {
     expect(clientAlerts(c)[0]).toMatchObject({ level: 'problem', text: expect.stringContaining('No phone or browser has reported') });
   });
 
+  it('makes a line of each kind of sign-in trouble, on one phone too, and none of a step that is no fault', () => {
+    const c = quietClients();
+    const row = { records: 1, installs: 1, lastAt: hAgo(2) };
+    c.auth = [
+      { op: 'renew', outcome: 'http', code: 'http503', class: 'trouble', ...row },
+      { op: 'ended', outcome: null, code: null, class: 'trouble', records: 4, installs: 2, lastAt: hAgo(3) },
+      // A wrong password on 40 phones, a step with no connection: the chart "Sign-in trouble" does not count them, so no line does.
+      { op: 'sign_in', outcome: 'refused', code: 'invalid_credentials', class: 'no_fault', records: 90, installs: 40, lastAt: hAgo(1) },
+      { op: 'renew', outcome: 'offline', code: null, class: 'no_fault', records: 300, installs: 25, lastAt: hAgo(1) },
+      // A count made before the database gave each row its class says nothing.
+      { op: 'outbox', outcome: 'failed', code: null, records: 9, installs: 5, lastAt: hAgo(1) }
+    ];
+    expect(clientAlerts(c)).toEqual([
+      { level: 'watch', key: 'sign-in-step', subject: 'renew http', watchKey: 'auth:renew:http:http503', text: 'Sign-in step renew ended "http" (http503), 1 time on 1 install this week.' },
+      { level: 'watch', key: 'sign-in-step', subject: 'ended ?', watchKey: 'auth:ended:-:-', text: 'A sign-in ended that the person did not end, 4 times on 2 installs this week.' }
+    ]);
+  });
+
   it('watches syncs in error, old builds, failed transfers and lost recordings', () => {
     const c = quietClients();
     c.sync.error = { records: 9, installs: 4 };

@@ -15,6 +15,12 @@ export interface Step {
   say?: string;
   /** The help line (catalog key in apps/mobile/src/i18n/en.json) that the words follow. */
   help?: string;
+  /**
+   * The other videos that the words name, by their ids. The words say that each is linked in the description below, and
+   * the video's description on YouTube links each (playlists.ts `youtubeText`). A line never sends the viewer to
+   * "another video" with no name and no link (docs/decisions/2026-11-19-a-video-links-the-videos-it-names.md).
+   */
+  videos?: string[];
   /** Wait until the speaker's last recording has played this many seconds (a step said while they speak). */
   atSpeech?: number;
   /** The finger taps the lit part. */
@@ -59,6 +65,8 @@ export interface Tutorial {
   notIn?: string[];
   /** For LangQuest staff, not the public: filmed only by hand, never each night or on YouTube (nightly.ts). */
   staff?: true;
+  /** A general, introductory video: a quiet tune plays under the voice (tune.ts). A video of one task or one setting has none. */
+  tune?: true;
   /** Nobody is signed in when the app opens: the video signs in, or makes an account. */
   signedOut?: boolean;
   /** The window, when it is not a phone's (430 by 932): a computer's, for what is done on the web. */
@@ -72,3 +80,6 @@ export interface Tutorial {
   before?: (page: Page, mic: Mic, world: UiWorld) => Promise<void>;
   steps: Step[];
 }
+
+/** The other videos that a video's voice names, in the order it names them, each once. */
+export const videosNamed = (tutorial: Tutorial): string[] => [...new Set(tutorial.steps.flatMap((s) => s.videos ?? []))];

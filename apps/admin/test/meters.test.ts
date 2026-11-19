@@ -6,8 +6,9 @@ import { METERS_LOGIC, METERS_SCRIPT } from '../src/pageMeters';
 import { OPS_SECTIONS, PART_TITLES } from '../src/pageOps';
 import { databaseAlerts, type Database } from '../src/sources/diag';
 import { playAlerts, type GooglePlay } from '../src/sources/googleplay';
-import { securityAlerts, supportAlerts, type Security, type Support } from '../src/sources/ops';
+import { dbDetailAlerts, securityAlerts, supportAlerts, type DbDetail, type Security, type Support } from '../src/sources/ops';
 import { capacityAlerts, type Capacity } from '../src/sources/storage';
+import { supabaseAlerts, type Supabase } from '../src/sources/supabase';
 
 interface Item { s: string; name: string; v: number; max?: number; value?: string; line?: number; fields: [string, unknown][] }
 interface Row { label: string; draw?: string; items: Item[] }
@@ -73,6 +74,44 @@ describe('meters and shares (plan 5c4)', () => {
       }));
   });
 
+  it('marks a bar amber for each line Where the space goes raises, however small its table is', () => {
+    const table = fc.record({ bytes: fc.nat(8 * GB), rows: fc.nat(50_000), deadRatio: fc.option(fc.double({ min: 0, max: 1, noNaN: true })) });
+    fc.assert(fc.property(fc.option(fc.nat(900)), fc.option(fc.nat(9000)), fc.array(table, { maxLength: 14 }), (longestQueryS, oldestXactS, tables) => {
+      // Largest first, as the database answers (diag.ops_database_detail).
+      const d = { bytes: 0, connections: 1, longestQueryS, oldestXactS, indexes: [],
+        tables: tables.sort((a, b) => b.bytes - a.bytes).map((t, i) => ({ ...t, name: `public.t${i}` })) } as DbDetail;
+      const alerts = dbDetailAlerts(d);
+      const amber = rows('dbdetail', d).flatMap((r) => r.items).filter((x) => x.s === 'part').map((x) => x.name);
+      expect(amber.length).toBe(alerts.length);
+      expect(amber.includes('Oldest transaction')).toBe(alerts.some((a) => a.key === 'long-transaction'));
+      expect(amber.includes('Longest query')).toBe(alerts.some((a) => a.key === 'long-query'));
+      for (const a of alerts.filter((x) => x.key === 'dead-rows')) expect(amber).toContain(a.subject);
+    }));
+    const long = item('dbdetail', { oldestXactS: 4500, oldestXact: { role: 'postgres', client: 'psql', state: 'idle in transaction' }, tables: [] }, 'Oldest transaction')!;
+    expect([long.s, long.value, long.line, field(long, 'Whose'), field(long, 'State')]).toEqual(['part', '1.3 h', 3600, 'postgres · psql', 'idle in transaction']);
+    expect(item('dbdetail', { tables: [] }, 'Longest query')).toMatchObject({ s: 'ok', value: 'none now' });
+  });
+
+  it('keeps a slow call in the picture when 8 calls take more time in total', () => {
+    const rpc = Array.from({ length: 11 }, (_, i) => ({ rpc: `call_${i}`, calls: 500, mean_ms: i === 10 ? 2400 : 20, max_ms: 3000, total_s: 1000 - i * 50, rows_per_call: 1 }));
+    const db = { sizeBytes: 0, connections: 3, maxConnections: 100, stats: null, rpc } as Database;
+    expect(databaseAlerts(db).map((a) => a.subject)).toEqual(['call_10']);
+    const calls = rows('database', db).find((r) => r.label === 'Calls by total time')!.items;
+    expect(calls.map((x) => x.name)).toEqual([...rpc.slice(0, 8).map((r) => r.rpc), 'call_10']);
+    expect(calls.at(-1)!.s).toBe('fail');
+  });
+
+  it('marks a bar or a square amber for each watch line the Supabase project raises', () => {
+    fc.assert(fc.property(fc.nat(120), fc.nat(30), fc.nat(30), fc.boolean(), (gateway5xx, function5xx, authErrors, throttled) => {
+      const sb = { projects: [{ name: 'p', ref: 'r', status: 'ACTIVE_HEALTHY', health: [{ name: 'db', healthy: true, status: 'ACTIVE_HEALTHY' }],
+        functions: [{ slug: 'f', status: throttled ? 'THROTTLED' : 'ACTIVE', version: 1, updatedAt: null }],
+        logs: { gatewayTotal: 9000, gateway5xx, function5xx, postgresErrors: 0, authErrors } }] } as unknown as Supabase;
+      const amber = rows('supabase', sb).flatMap((r) => r.items).filter((x) => x.s === 'part').length;
+      expect(amber).toBe(supabaseAlerts(sb).filter((a) => a.level === 'watch').length);
+    }));
+    expect(item('supabase', { projects: [{ name: 'p', ref: 'r', health: [], logs: { gatewayTotal: 10, gateway5xx: 50, function5xx: 0, authErrors: 0 } }] }, 'API')).toMatchObject({ s: 'part', value: '50', line: 50 });
+  });
+
   it('turns the oldest report red when it waits past the promise, as the alert does', () => {
     for (const hours of [0, 5, 19.5, 20.5, 30]) {
       const s = { reports: { open: 1, oldestAt: new Date(Date.now() - hours * 3600e3).toISOString(), staffOnly: 0, resolvedWeek: 0 }, suspended: { total: 0 }, deletions: [], verifications: [] } as unknown as Support;
@@ -130,6 +169,21 @@ describe('meters and shares (plan 5c4)', () => {
     for (const c of QUEUE_CONTROLS) expect(queue.test(`<button ${c}="x">`) && queue.test(`<input type="checkbox" ${c}>`), c).toBe(true);
     for (const c of FOLDED_CONTROLS) expect(queue.test(`<button ${c}="x">`), c).toBe(false);
     expect(html).toContain('!QUEUE.test(html) ? numbers(id, html)');
+  });
+
+  it('says each line of a part in words at the part, so a status never waits behind the numbers', async () => {
+    const html = await page({ supabaseUrl: 'https://x.supabase.co', anonKey: 'k' }, 'n').text();
+    const src = /function partLines\(alerts\) \{[\s\S]*?\n\}\n/.exec(html)![0];
+    const esc = (t: string) => t.replace(/</g, '&lt;');
+    const partLines = new Function('LEVEL', 'esc', 'tidy', `${src}; return partLines;`)({ urgent: { title: 'Act now' }, problem: { title: 'Fix soon' }, watch: { title: 'Watch' } }, esc, (t: string) => t) as (a: unknown) => string;
+    expect(partLines([])).toBe('');
+    const said = partLines([{ level: 'watch', key: 'long-transaction', text: 'A database transaction <x> has been open for 75 minutes.' }, { level: 'problem', key: 'slow-rpc', text: 'Slow.', link: 'https://example.org/run' }, { level: 'odd', text: 'Odd.', link: 'javascript:alert(1)' }]);
+    expect(said).toContain('<span class="dot watch"></span><span><b>Watch</b> A database transaction &lt;x> has been open for 75 minutes.</span>');
+    expect(said).toContain('<b>Fix soon</b> Slow. <a href="https://example.org/run"');
+    expect(said).toContain('<span class="dot watch"></span><span><b>Watch</b> Odd.</span>');
+    // The part draws them above its picture and its numbers, and the Jobs part reads the job container's lines too.
+    expect(html).toContain("head + lines + counted(s.data)");
+    expect(html).toContain("(s.alerts || []).concat(results.container.alerts || [])");
   });
 
   it('puts the drawing on the page with no inline style', async () => {

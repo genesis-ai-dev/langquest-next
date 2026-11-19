@@ -5,22 +5,29 @@
 // one; other merges do not need one. The file's name holds those versions
 // alone (core `carriedApkName`, which the Worker's /apk/* route and Let
 // someone in use too), so asking for that name answers whether one is due:
-// EAS clones only the latest commit, so this cannot diff.
+// EAS clones only the latest commit, so this cannot diff. Once a day, the
+// refresh makes one too when the file under that name holds other app code
+// than main (`appHash`, recorded with each file), and replaces it under the
+// same name, so a newcomer gets at most a day-old app rather than the one
+// from the last version change (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
 //
-//   npx tsx scripts/carried-build.mjs --check --fingerprint <android fingerprint>
+//   npx tsx scripts/carried-build.mjs --check [--refresh] --fingerprint <android fingerprint>
 //       prints true when no file of that name is in the APK bucket (a build
 //       is due), false when it is there; a failed publish is retried by the
-//       next merge this way
+//       next merge this way. With --refresh, also true when the file there
+//       holds other app code than this checkout
 //   npx tsx scripts/carried-build.mjs --publish --version-code <n> --fingerprint <hash> --build-fingerprint <hash> [--dry-run]
 //       asks Google Play for the Play-signed universal APK of that version
 //       code (Android Publisher `generatedApks`), checks it (an APK, and
 //       without Play's automatic protection), puts it in the APK bucket under
-//       its name, and records it as current
+//       its name with the app code it holds, replacing a file there that holds
+//       other app code under a lower version code, and records it as current
 //
 // It runs under tsx, since it takes the versions and the name from core's
-// TypeScript. The EAS workflow runs it (.eas/workflows/deploy-to-testers.yml,
-// the carried_* jobs), apart from the store build's jobs, so its failure never
-// holds up publish_android_update.
+// TypeScript. The EAS workflows run it (.eas/workflows/deploy-to-testers.yml,
+// the carried_* jobs, apart from the store build's jobs, so its failure never
+// holds up publish_android_update; and .eas/workflows/refresh-carried.yml,
+// once a day).
 //
 // It fails closed. A missing bucket setting or key, a fingerprint that is not
 // the build's, an answer from Google or the bucket that is not what it
@@ -36,7 +43,7 @@
 // apps/web/wrangler.jsonc (the APKS binding), so the Worker and this script
 // read one bucket.
 import { createHash, createHmac } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync } from 'node:zlib';
@@ -61,6 +68,54 @@ export class Refusal extends Error {}
 
 /** The versions this checkout's core holds. */
 export const VERSIONS = { reducer: REDUCER_VERSION, lines: LINES_VERSION, protocol: NEARBY_PROTOCOL };
+
+/** The custom metadata key that records which app code a carried file holds (`appHash`). */
+export const APP_HASH_META = 'app-hash';
+
+/**
+ * What a phone build's JavaScript and assets are made from: the app's own code, its config, the
+ * packages it bundles and the lockfile. A file anywhere under these counts, so a change that does
+ * not reach the bundle can make one refresh too many in a day, never one too few. Tests, scripts
+ * and the web's own pages are left out, as deploy-to-testers' paths filter leaves out what never
+ * ships. Native code is here only because it sits beside its JavaScript in `modules`: a native
+ * change moves the fingerprint, which names a new file anyway.
+ */
+export const APP_PATHS = [
+  'apps/mobile/src', 'apps/mobile/assets', 'apps/mobile/modules', 'apps/mobile/plugins', 'apps/mobile/locales',
+  'apps/mobile/index.ts', 'apps/mobile/App.tsx', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/metro.config.js',
+  'apps/mobile/package.json', 'packages/core/src', 'packages/core/package.json', 'packages/sync/src', 'packages/sync/package.json',
+  'package.json', 'package-lock.json'
+];
+/** Folders a build or a local run leaves under APP_PATHS that git does not hold. */
+const NOT_SOURCE = new Set(['node_modules', 'build', '.gradle', '.cxx', '.build', 'Pods', '.expo']);
+
+/**
+ * Which app code this checkout holds: a SHA-256 over every file under APP_PATHS, each by its path
+ * and bytes, in a fixed order, cut to 32 hex digits. EAS clones only the latest commit, so it is
+ * read from the files, not from git. A path the checkout lacks counts as empty.
+ */
+export function appHash(base = root) {
+  const files = [];
+  const walk = (rel) => {
+    let st;
+    try {
+      st = statSync(join(base, rel));
+    } catch {
+      return;
+    }
+    if (st.isDirectory()) {
+      for (const name of readdirSync(join(base, rel)).sort()) if (!NOT_SOURCE.has(name)) walk(`${rel}/${name}`);
+    } else if (st.isFile()) files.push(rel);
+  };
+  for (const path of APP_PATHS) walk(path);
+  const hash = createHash('sha256');
+  for (const rel of files.sort()) {
+    const bytes = readFileSync(join(base, rel));
+    hash.update(`${rel}\0${bytes.length}\0`);
+    hash.update(bytes);
+  }
+  return hash.digest('hex').slice(0, 32);
+}
 
 /** The file name for this checkout's versions and an Android fingerprint; a refusal for a fingerprint that is not one. */
 export function fileName(fingerprint, versions = VERSIONS) {
@@ -134,14 +189,15 @@ export function bucketClient(config, { fetch: fetchImpl = fetch, now = () => new
   };
   const refuse = async (what, res) => new Refusal(`the APK bucket answered ${res.status}${(await s3Code(res)).replace(/^./, ' $&')} to ${what}, so nothing more was done`);
   return {
-    /** The object's size, or null when the bucket has no such name. */
+    /** The object's size and the metadata this script writes (null where absent), or null when the bucket has no such name. */
     async head(key) {
       const res = await call('HEAD', key);
       if (res.status === 404) return null;
       if (res.status !== 200) throw await refuse(`HEAD ${key}`, res);
       const size = Number(res.headers.get('content-length'));
       if (!Number.isSafeInteger(size)) throw new Refusal(`the APK bucket gave no size for ${key}`);
-      return { size };
+      const code = Number(res.headers.get(`x-amz-meta-${CARRIED_APK_VERSION_CODE}`));
+      return { size, versionCode: Number.isSafeInteger(code) && code > 0 ? code : null, appHash: res.headers.get(`x-amz-meta-${APP_HASH_META}`) };
     },
     /** The object's text, or null when the bucket has no such name. */
     async getText(key) {
@@ -367,13 +423,25 @@ export function checkApk(bytes) {
   }
 }
 
-/** Whether a carried build is due: true when the bucket has no file of this build's name. */
-export async function check({ fingerprint, env = process.env, fetch: fetchImpl = fetch, log = console.error, config, versions = VERSIONS }) {
+/**
+ * Whether a carried build is due: true when the bucket has no file of this build's name, and with
+ * `refresh` also when the file there holds other app code than this checkout (`appHash`); a file
+ * written before the app code was recorded counts as other, so it is refreshed once.
+ */
+export async function check({ fingerprint, refresh = false, env = process.env, fetch: fetchImpl = fetch, log = console.error, config, versions = VERSIONS, hash }) {
   const name = fileName(fingerprint, versions);
   const bucket = bucketClient(bucketConfig(env, config), { fetch: fetchImpl });
   const there = await bucket.head(name);
-  log(there ? `none: ${name} is in the APK bucket, so no carried build is due.` : `due: ${name} is not in the APK bucket, so a carried build is due.`);
-  return { due: !there, name };
+  if (!there) {
+    log(`due: ${name} is not in the APK bucket, so a carried build is due.`);
+    return { due: true, name };
+  }
+  if (refresh && there.appHash !== (hash ?? appHash())) {
+    log(`due: ${name} is in the APK bucket, but it holds other app code than this checkout${there.appHash ? '' : ' (it was written before the app code was recorded)'}, so a fresh one is due.`);
+    return { due: true, name };
+  }
+  log(`none: ${name} is in the APK bucket${refresh ? ' and holds this checkout\'s app code' : ''}, so no carried build is due.`);
+  return { due: false, name };
 }
 
 const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
@@ -386,7 +454,7 @@ const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
  */
 export async function publish({
   versionCode, fingerprint, buildFingerprint, env = process.env, fetch: fetchImpl = fetch, log = console.log, dryRun = false,
-  config, versions = VERSIONS, tries = TRIES, sleep = wait, now = () => new Date()
+  config, versions = VERSIONS, tries = TRIES, sleep = wait, now = () => new Date(), hash
 }) {
   const code = Number(versionCode);
   if (!/^\d{1,10}$/.test(String(versionCode ?? '')) || !Number.isSafeInteger(code) || code < 1) {
@@ -413,7 +481,7 @@ export async function publish({
   // The id is opaque and may hold `/`, `+`, `=` or `:`, so it is percent-encoded into one path segment, as Google's client libraries do.
   const bytes = await play.bytes(`/generatedApks/${code}/downloads/${encodeURIComponent(downloadId)}:download?alt=media`);
   checkApk(bytes);
-  const hash = sha256(bytes);
+  const digest = sha256(bytes);
 
   const currentText = await bucket.getText(CURRENT);
   let current = null;
@@ -425,26 +493,34 @@ export async function publish({
     }
     if (!current || !Number.isSafeInteger(current.versionCode)) throw new Refusal(`${CURRENT} in the APK bucket is not what this script writes, so a person looks at it first`);
   }
+  const app = hash ?? appHash();
   const already = await bucket.head(name);
-  const record = { name, versionCode: code, fingerprint: String(fingerprint).toLowerCase(), ...versions, sha256: hash, bytes: bytes.length, publishedAt: now().toISOString() };
-  // A file already there was published with its own record: this build's sha256 and size describe other bytes.
-  const moves = !already && (!current || current.versionCode < code);
+  const record = { name, versionCode: code, fingerprint: String(fingerprint).toLowerCase(), ...versions, sha256: digest, bytes: bytes.length, publishedAt: now().toISOString() };
+  // A file there with this app code was published with its own record, and this build's sha256 and size describe other bytes,
+  // so it stays. One holding other app code is replaced (the daily refresh), but never by a build older than it: two runs racing
+  // leave the newer file.
+  const replaces = !!already && already.appHash !== app && (already.versionCode ?? 0) < code;
+  const writes = !already || replaces;
+  const moves = writes && (!current || current.versionCode < code);
   if (dryRun) {
-    log(`dry run: would put ${name} (${bytes.length} bytes, sha256 ${hash}) in the APK bucket${already ? ', which has it already' : ''}${moves ? `, and record version code ${code} as current` : ''}.`);
+    log(`dry run: would ${replaces ? 'replace' : already ? 'leave' : 'put'} ${name} (${bytes.length} bytes, sha256 ${digest}) in the APK bucket${moves ? `, and record version code ${code} as current` : ''}.`);
     return { name, record, wrote: false };
   }
-  if (already) log(`${name} is in the APK bucket already; it and the current record are left as they are.`);
+  if (!writes) log(`${name} is in the APK bucket already${already.appHash === app ? ' with this app code' : ' from a newer build'}; it and the current record are left as they are.`);
   else {
-    // The version code goes with the file, so the Worker can send a phone whose own build has no file to the newest for its versions.
-    await bucket.put(name, bytes, APK_TYPE, { 'content-disposition': `attachment; filename="${name}"`, [`x-amz-meta-${CARRIED_APK_VERSION_CODE}`]: String(code) });
+    // The version code goes with the file, so the Worker can send a phone whose own build has no file to the newest for its
+    // versions, and the app code, so the daily refresh can tell whether main has moved on.
+    await bucket.put(name, bytes, APK_TYPE, {
+      'content-disposition': `attachment; filename="${name}"`, [`x-amz-meta-${CARRIED_APK_VERSION_CODE}`]: String(code), [`x-amz-meta-${APP_HASH_META}`]: app
+    });
     const stored = await bucket.head(name);
     if (stored?.size !== bytes.length) throw new Refusal(`the APK bucket holds ${stored?.size ?? 'nothing'} bytes under ${name}, not ${bytes.length}`);
-    log(`${name} is in the APK bucket: version code ${code}, ${bytes.length} bytes, sha256 ${hash}.`);
+    log(`${name} is in the APK bucket${replaces ? `, replaced: it held version code ${already.versionCode ?? 'unknown'} with other app code` : ''}: version code ${code}, ${bytes.length} bytes, sha256 ${digest}.`);
   }
   if (moves) {
     await bucket.put(CURRENT, JSON.stringify(record, null, 2), 'application/json');
     log(`Version code ${code} is the current carried build.`);
-  } else if (!already) {
+  } else if (writes) {
     log(`Version code ${current.versionCode} stays the current carried build, as it is newer than ${code}.`);
   }
   return { name, record, wrote: true };
@@ -460,7 +536,7 @@ function flag(args, name) {
 export async function run(args, { env = process.env, fetch: fetchImpl = fetch, out = (s) => process.stdout.write(`${s}\n`), log = console.error, config } = {}) {
   try {
     if (args.includes('--check')) {
-      const { due } = await check({ fingerprint: flag(args, '--fingerprint'), env, fetch: fetchImpl, log, config });
+      const { due } = await check({ fingerprint: flag(args, '--fingerprint'), refresh: args.includes('--refresh'), env, fetch: fetchImpl, log, config });
       out(String(due));
       return 0;
     }
@@ -471,7 +547,7 @@ export async function run(args, { env = process.env, fetch: fetchImpl = fetch, o
       });
       return 0;
     }
-    log('usage: npx tsx scripts/carried-build.mjs --check --fingerprint <hash> | --publish --version-code <n> --fingerprint <hash> --build-fingerprint <hash> [--dry-run]');
+    log('usage: npx tsx scripts/carried-build.mjs --check [--refresh] --fingerprint <hash> | --publish --version-code <n> --fingerprint <hash> --build-fingerprint <hash> [--dry-run]');
     return 2;
   } catch (err) {
     // A refusal is a plain sentence; anything else (a network failure) is said as briefly, never with a request's headers.

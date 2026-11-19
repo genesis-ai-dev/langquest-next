@@ -23,7 +23,7 @@ export const GROUP_HELP: Record<string, string> = {
   access: 'Who can see every organization (Global Viewers), limits that refused requests, other apps connected through tokens, device sign-ins, webhooks and review links, and what stops working on a date.',
   stores: 'How the app does in the stores: Android crash and freeze rates as Google Play measures them, App Store review state and builds, and recent reviews.',
   nightly: 'How last night\'s test suites went on main: for each suite, how many tests ran and passed, why a suite broke as a whole, and the Linear issue of each failed test with its fix.',
-  tutorials: 'The how-to videos on YouTube, one channel for each app language. First what an admin must do and what the workers do now and tonight; then every video in a language with its state and a timeline of its films, uploads, comments and fixes; then each channel, the films not on YouTube yet with Publish, and what came in about the videos.',
+  tutorials: 'The how-to videos on YouTube, one channel for each app language. First what waits on an admin, each thing with its buttons; behind the other tabs, what goes on by itself, every video in a language with its state and a timeline of its films, uploads, comments and changes, and the changes Claude made; then each channel, the films not on YouTube yet with Publish, and what came in about the videos.',
 };
 
 /** Each part of a section (one source's answer), on its sub-heading. */
@@ -58,10 +58,10 @@ export const SECTION_HELP: Record<string, string> = {
   appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',
   v2: 'The import from LangQuest v2: each v2 project\'s latest transfer, and whether it finished, stopped part way or failed.',
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
-  videos: 'For an admin: suggestions to accept, edit or reject, fix pull requests to merge, held or failing films to look at, replies to post, films to publish, channels to connect, paused languages. Workers: the filming run now, or the next one at 20:10 UTC, videos a screen change slots for tonight\'s check, fixes Claude writes, comments Claude reads, uploads waiting for YouTube. By video: each video\'s state (the first chip is the most urgent) and what happened to it each day. Point at a mark to read it.',
+  videos: 'Four tabs. Waits on you: each thing an admin must answer, as a card with its buttons (a suggestion to accept or reject, a change Claude could not make, a held or failing film, a reply to post, films to publish, a channel to connect). Automatic: what Claude and the workers do next with no one\'s answer. All videos: each video\'s state and what happened to it each day. Changes made: each change Claude made to a video. The page opens on Waits on you when something does.',
   tutorials: 'Each app language\'s YouTube channel and whether LangQuest may post to it, and every video made that is not on YouTube yet: ready to choose, or chosen and waiting for its turn.',
-  userissues: 'One row for each Linear issue the watch filed or added to, open ones first, and one for each problem it found already fixed. Fixed by is the pull request Linear links to the issue, or the newest merge into main that names it.',
-  videofeedback: 'What came in about the videos (comments on YouTube, code changes merged into main, notes left here) and what Claude suggests doing about it each night: a change to a video\'s script, screens or voice, to the app\'s code, or a new video. Answer each suggestion at the ! on its video\'s row, or in For an admin. An accepted change to a video becomes Claude\'s draft pull request; merge it, and the next night films the video again. An accepted code change goes to Linear. Reply to comments in YouTube Studio.'
+  userissues: 'One card for each Linear issue the watch filed or added to, and one for each problem it found already fixed. The tabs sort them: Waits on you (a pull request that names the issue is open), No fix yet, Merged (the fix merged and the issue is still open in Linear) and Closed. The dots are its steps: Found, In Linear, Fix written, Merged, Live. The pull request is the one that names the issue, open or merged in the last 14 days, or the one Linear links to a closed issue. Tell Claude what to do: on an open issue, write an instruction or a question and send it. The watch hands it to Claude at its next run (each 15 minutes). Claude answers under your words, and can change the draft fix or write one.',
+  videofeedback: 'What came in about the videos (comments on YouTube, code changes merged into main, notes left here) and what Claude suggests doing about it each night: a change to a video\'s script, screens or voice, to the app\'s code, or a new video. Answer each suggestion under Waits on you, or on its video\'s row under All videos. An accepted change to a video becomes Claude\'s draft pull request; merge it, and the next night films the video again. An accepted code change goes to Linear. Reply to comments in YouTube Studio.'
 };
 
 export const HELP: Record<string, string> = {
@@ -131,7 +131,9 @@ export const HELP: Record<string, string> = {
   Protocol: 'The version of the format phones and the server sync in.',
   'Browsers by web commit, this week': 'Which version of the web app browsers are running. Old ones update when the page reloads.',
   'Phones by build': 'Phones that reported, per platform and app version, as each last said: how many in the last day, 7 days and 14 days. Reducer is the data logic those phones run; an update can change it without a new build. A phone is an install that sends diagnostics, so a reinstall counts again, and development builds and browsers are left out.',
-  'Time to a usable Map': 'How long until a language is usable after a first download. open: a whole language downloaded. fill: a big language, until its Map shows (the rest fills in behind).',
+  'Time to a usable Map': 'How long until a language is usable after a first download. open: a whole language downloaded, on a phone that had none of it. Its time is the download alone: the time the phone waited with no connection is apart, under Waited and Longest wait. fill: a big language, until its Map shows (the rest fills in behind).',
+  Waited: 'First downloads that began with no connection: the phone waited before it could download.',
+  'Longest wait': 'The longest time a phone waited with no connection before its first download of a language. It is not part of p50 or p95.',
   'First downloads that fell back or started over': 'First downloads that did not go the quick way, last 14 days. Took the whole snapshot: the phone could not fill from the server\'s cut (no_cut: no cut for its version; no_lines or old_lines: the passage lines are missing or older than the cut; error: the server failed). Started over: the cut it was filling from went away. No snapshot for reducer: the phone pulled the whole log. That is normal for a new language or minutes after a deploy; on an older reducer it means that version\'s snapshots were purged. Installs tells one phone retrying from a wider problem.',
   'What went wrong': 'What happened to the first download, with the reason the phone reported or, for no snapshot, the reducer it runs.',
   'Stuck phones': 'Phones with unsent work over a day old, a stuck download, little storage or lost files. Open one to see its last three days.',
@@ -144,7 +146,10 @@ export const HELP: Record<string, string> = {
   Free: 'Storage left on the phone.',
   Lost: 'Files that vanished from the phone without the app removing them (and how many were unsent recordings).',
   'Builds in the field (this week)': 'Which builds and updates installs ran this week.',
-  'Sign-in trouble this week': 'Sign-in steps that did not end well, by step and outcome, with how many installs.',
+  'Sign-in trouble this week': 'Sign-in steps the server or the app failed at, by step and outcome, with how many installs: a server failure, a change the app gave up, a sign-in that ended without the person ending it, a refusal that no entry of a person explains. Each row is a line on the Overview.',
+  'Sign-in steps refused or with no connection, this week': 'Sign-in steps that did not finish with no fault of the server or the app: a wrong password or code, an email that has an account, an invite that expired, was used or is not known, no connection, a change the app tries again. They make no line on the Overview. The watch for user issues still reads each new kind.',
+  'metric:clients.sign_in_trouble': 'Sign-in steps the server or the app failed at. Each kind counted here this week is a line on the Overview. A wrong password, an invite that cannot be used and a step with no connection are not here: the next chart counts them.',
+  'metric:clients.sign_in_no_fault': 'Sign-in steps that did not finish with no fault of the server or the app: a wrong password or code, an email that has an account, an invite that expired, was used or is not known, no connection, a change the app tries again. They make no line on the Overview.',
   'Failures already shown to people, this week': 'Errors the app showed the person and handled (wrong password, no signal), counted so a rise is visible.',
   'Phones (latest state of each, this week)': 'Each install\'s latest report of its own state, counted.',
 
@@ -226,6 +231,13 @@ export const HELP: Record<string, string> = {
   'New this week': 'Credentials made this week.',
 
   // ---- tutorial videos
+  'Waits on you': 'Each thing an admin must answer, most urgent first, in every app language. A card leaves when it is answered.',
+  Automatic: 'What goes on with no answer from anyone: what Claude looks at next, and the workers\' jobs now and tonight. An admin may still tell Claude what to do on a card here.',
+  'All videos': 'Every video in one app language: its state, its newest film and why it was made, and a timeline of what happened to it.',
+  'Changes made': 'Each change Claude made to a video in the last 30 days, with who said yes (Claude for a clear fix, an admin, or an admin\'s instruction), its state and its pull request.',
+  'Claude acts next': 'Things Claude looks at by itself at its next run: a held or failing film, a new comment, a changed screen. To skip that wait, tell Claude what to do on the card.',
+  'Jobs, now and tonight': 'The filming run now, or the next one at 20:10 UTC; videos a screen change slots for tonight\'s check; changes Claude writes; comments Claude reads at 10:00 UTC; films that wait for YouTube\'s daily limit.',
+  'The marks': 'Each mark on a timeline is one thing that happened to the video that day. Point at a mark to read what and when; click it for the details, the films before and after, and the links.',
   'languages done': 'App languages whose filming job finished: every video tried, and those that changed filmed and put in the release.',
   'languages filming now': 'App languages whose job runs now. Five run at once; under each, the step it is on.',
   'languages waiting': 'App languages waiting their turn: five film at once.',

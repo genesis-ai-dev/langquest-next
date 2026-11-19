@@ -54,3 +54,5 @@ Reverse if: joining comes to depend on native code that the fingerprint
 stands for, so that two builds of the same versions cannot join; or
 carriers are confused by a downloaded name that differs from the one their
 phone asked for.
+
+Amended (2026-11-19, Carl Sauder): the screens no longer show the start a name must have before anything is chosen. Download the install file showed "Install file for this version: r21-l1-p1-….apk" and a line saying the file in Downloads must have a name that starts that way, which asked the person to compare names before a file was even downloaded. Since Choose the downloaded file (2026-11-18) the app checks the file itself: its name by the versions, and, where it keeps a copy, its package, signers and runtime version. So the start is shown only when a wrong file is chosen ("This file is for a different version: you need r21-l1-p1-….apk") and when a new phone runs other versions; `nearby.letIn.file` and `nearby.letIn.fileStart` are gone from all 16 languages. What counts as the right file is unchanged.

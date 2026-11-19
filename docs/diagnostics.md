@@ -17,7 +17,7 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | `sync` | A sync that moved events, took over 2 s, ended a spell offline, or changed outcome. A repeated offline or refused outcome at most once an hour. | total ms; network ms for push and pull; phone ms (fold and write); pushed, rejected (and by reason: not a member, not allowed, language not listed, invalid, other; clock-ahead refusals are counted apart, as they are stamped again rather than rejected), requeued, pulled; pages; outbox size; how long it was offline; outcome (`ok`, `offline`, `unrenewed`: the sign-in could not be renewed, `refused`, `too_old`, `error`); on an error its class, its SQLSTATE or PostgREST code or `http<status>`, and the phase (push, pull, snapshot, checkpoint, load, store) |
 | `load` | A language's (or the org's) log is folded | ms, split into reading the store and folding; events folded; whether from a checkpoint (`none`, `ok`, `old_reducer`); why it ran (`open`, `rejected`, `requeue`, `redaction`, `snapshot`, `membership`, `other`); `staleCheckpointSeq` when an update dropped the checkpoint (decision 110) |
 | `checkpoint` | The phone rolls its confirmed prefix into a checkpoint and prunes | ms, size in KB, seq, events pruned, fast or slow path |
-| `open` | A stream is opened, until its first full pull | ms, syncs, events pulled, snapshot and load ms, whether it started cold |
+| `open` | A stream is opened, until its first full pull | ms, syncs, events pulled, snapshot and load ms, whether it started cold. The ms holds the time the phone waited with no connection: the `sync` record of the same moment gives that wait (`offlineMs`), and the ops dashboard takes it off a first download's time (`diag.open_wait_ms`) |
 | `snapshot` | A server snapshot is fetched | fetch ms, pieces, pieces resumed after a dropped link, bytes, seq; `none` when there was none to use; why (`cold`, `redaction`, `reducer`) |
 | `fill` | A big language's first download by fill (decisions.md 147) | `start` when the Map opens: ms to the Map, head size in KB, passages and rows to fill, why (`cold`, `redaction`, `reducer`); `done` when every passage's rows are here: ms since the start, across sessions; `fallback` when the phone downloads the whole snapshot instead, with the reason (`no_rpc`, `no_cut`, `no_lines`, `old_lines`, `error`); `restart` when the cut it filled from went away (`cut_gone`) |
 | `transfer` | Blob uploads or downloads, tallied per minute or 50 files, per source | files, bytes, ms, slowest; download split into signing, network and verifying on the phone; failures by cause (link, sign-in refused 401/403, not found 404, too large 413, bad digest 422, other 4xx, 5xx, hash, gone from the device, disk, other); source (`lang`, `guide`, `handover`, `stream`, `source`, `help`, `study`) |
@@ -33,6 +33,21 @@ model (Android), the store build installed (`appVersion`: the store's
 version and the build number, `2026.1030.1319 (48)`, since 2026-11-03),
 runtime version, EAS update id and channel, whether the embedded bundle is
 running, reducer and protocol versions. Feedback carries the same.
+
+**Sign-in records on the ops dashboard:** the database gives each `auth`
+record one class (`diag.sign_in_class`, migration
+`20261119192147_sign_in_trouble.sql`), and the chart, its table, the records
+behind a point and the line on the Overview all read that one rule
+(`docs/decisions/2026-11-19-sign-in-trouble-is-one-rule.md`). A step that
+went as designed (`ok`, `done`, `keep`, `home`, `needs_name`, `no_org`) is
+counted nowhere. "Sign-in steps refused or with no connection" counts what
+is no fault of the server or the app: `offline`, `unreachable`, `retry`,
+`org_unknown`, an entry the server refused (`refused` on `sign_in`,
+`sign_up`, `code`, `v2`) and an invite that cannot be used (`expired`,
+`used`, `not_found`, `retired`). "Sign-in trouble" counts all the rest, and
+each kind of it in the week is a line. An outcome the rule does not name is
+trouble, so add a new one to the rule or to `TROUBLE_OUTCOMES` in
+`scripts/diagSchema.test.ts`, which fails until it is in one.
 
 Every report line about a phone names its build the way support asks it
 (`buildLabel`, `scripts/diagSignals.ts`): `build 48 (2026.1030.1319) · OTA
@@ -395,6 +410,32 @@ fixed it and when, and the last look. Its `lines` say what the watch decided
 about each kind a dashboard line can name (`ops`, `job` and `worker` keys):
 the start page shows each line's Linear issue from them, and lists the lines
 gone from the page under Resolved.
+
+**Each issue in three lines** (decisions.md 202, amended 2026-11-18;
+migration `20261118070000_user_issue_words.sql`). With a new issue Claude
+writes `context` (what the person was doing, and where), `problem` (what
+goes wrong) and `solution` (what fixes it, or what a person must decide),
+each at most 300 characters, in its own words: never what a person wrote,
+an id or an address (`linesOf` in `scripts/user-issues.mjs` cuts an address
+out, `parseLooked` refuses one). The database keeps them with the issue's
+kind, and the dashboard's card for the issue leads with them. A later look
+that sends none keeps them. An issue filed before this has none: its card
+shows the counts and the kind's keys.
+
+**An admin's instruction** (`docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`,
+migration `20261118073000_user_issue_notes.sql`). An open issue's card on
+the ops dashboard has a box, "Tell Claude what to do". What an admin sends
+there is kept in `ops.user_issue_notes`. At its next run the watch names the
+issue (`notes` in what `GET /api/user-issues` answers), and `file` hands it
+to the fix jobs after the new issues, at most three issues a run. The step
+before Claude reads the instruction (`GET /api/user-issues?notes=<issue>`)
+and puts the issue's draft fix on the checkout. Claude answers in
+`fix.json` (`answer`) and may change the draft fix or write one. `open`
+then pushes one commit to the draft fix's branch, makes its pull request a
+draft again when it was not, and posts the answer to the Worker (`notes` in
+the POST), for the card. A run takes an instruction at most twice: when two
+runs stop before they answer, the card says so and the admin sends it
+again. The admin's words go to Claude and stay out of GitHub and Linear.
 
 **Claude sees what came with each problem** (decisions.md 202, amended
 2026-11-04). Before Claude looks, the step before it asks the Worker for

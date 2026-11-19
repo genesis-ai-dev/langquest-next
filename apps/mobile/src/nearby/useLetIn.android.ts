@@ -8,13 +8,14 @@ import { noteExpected } from '../diagnostics/report';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
 import { codeShown, LET_IN_CODE_MS, LET_IN_START, letInEndOf, letInReducer, letInRoles, letInWhyNot, type LetInWhyNot } from './letInModel';
+import { letInPermit } from './letInPermitModel';
 import type { PassShape } from './nearbyModel';
 import { radiosMayRun } from './nearbyModel';
 import { letInWithPass } from './nearbyJoin.android';
 import { nearbyRadio } from './nearbyLink.native';
 import { nearbyFlag } from './nearbyFlag';
-import { androidSdk, checkNearbyPermissions } from './nearbyPermissions.android';
-import { permissionsStateOf } from './nearbyPermissionsModel';
+import { androidSdk, askNearbyPermissions, checkNearbyPermissions, openNearbySettings } from './nearbyPermissions.android';
+import { afterPrompt, permissionsStateOf, type PermissionAnswers } from './nearbyPermissionsModel';
 import { joinPassFor } from './nearbyPhone.native';
 import { useFocus } from './useNearby.native';
 import type { LetInHandle } from './useLetIn';
@@ -35,14 +36,13 @@ export function useLetIn(ctx: Ctx): LetInHandle {
   const { covered, worn } = useAppCovered();
   const [state, dispatch] = useReducer(letInReducer, LET_IN_START);
   const [pass, setPass] = useState<PassShape | null | undefined>(undefined);
-  const [permitted, setPermitted] = useState<boolean | undefined>(undefined);
+  const [answers, setAnswers] = useState<PermissionAnswers | undefined>(undefined);
   const [wifiOn, setWifiOn] = useState<boolean | undefined>(undefined);
   const [now, setNow] = useState(() => Date.now());
 
   const refresh = useCallback(() => {
     joinPassFor(actorId, orgId, languageId).then((p) => setPass(p as PassShape | null)).catch((e: unknown) => { noteExpected('let in: pass', e); setPass(null); });
-    checkNearbyPermissions().then((a) => { const s = permissionsStateOf(androidSdk(), a); setPermitted(s === 'granted' || s === 'none'); })
-      .catch((e: unknown) => noteExpected('let in: permissions', e));
+    checkNearbyPermissions().then(setAnswers).catch((e: unknown) => noteExpected('let in: permissions', e));
     radio?.facts().then((f) => setWifiOn(f.wifiOn)).catch((e: unknown) => noteExpected('let in: capabilities', e));
   }, [actorId, orgId, languageId, radio]);
   useEffect(refresh, [refresh]);
@@ -55,6 +55,10 @@ export function useLetIn(ctx: Ctx): LetInHandle {
 
   const roles = useMemo(() => letInRoles(pass ?? null, ctx.org.state), [pass, ctx.org.state]);
   const features = nearbyFlag(actorId).features;
+  const sdk = androidSdk();
+  const permitted = answers === undefined ? undefined : ['granted', 'none'].includes(permissionsStateOf(sdk, answers));
+  // Asked here, as Give the app asks, except on a phone that wears a cover (letInPermit, Carl 2026-11-19).
+  const permit = useMemo(() => letInPermit({ sdk, answers, worn }), [sdk, answers, worn]);
   const whyNot = letInWhyNot({
     inBuild: radio !== null, readOnly: readOnly || isLocal, pass, features: features ? features[orgId] ?? [] : null, roles, now, permitted, wifiOn
   });
@@ -148,13 +152,20 @@ export function useLetIn(ctx: Ctx): LetInHandle {
       // A No sends nothing: the session says goodbye and the link closes (14.1, 3).
       a?.(yes);
     },
-    newCode: () => { stop(); dispatch({ t: 'new-code' }); }
-  }), [show, stop]);
+    newCode: () => { stop(); dispatch({ t: 'new-code' }); },
+    // Android's question for what is missing; its answers count at once, and a return from settings reads them again (refresh).
+    askPermissions: () => {
+      if (permit?.t !== 'explain') return;
+      askNearbyPermissions(permit.permissions).then((a) => setAnswers((held) => afterPrompt(held ?? {}, a)))
+        .catch((e: unknown) => noteExpected('let in: ask permissions', e));
+    },
+    openSettings: () => { openNearbySettings().catch((e: unknown) => noteExpected('let in: settings', e)); }
+  }), [show, stop, permit]);
 
   return useMemo(() => ({
     whyNot, roles, state, code: codeShown(state.stage, now), secondsLeft: state.stage.t === 'showing' ? Math.max(0, Math.ceil((state.stage.until - now) / 1000)) : 0,
-    worn, actions
-  }), [whyNot, roles, state, now, worn, actions]);
+    worn, permit, actions
+  }), [whyNot, roles, state, now, worn, permit, actions]);
 }
 
 /** Whether Share nearby offers Let someone in, or why not, from the pass and the flag alone; starts nothing. */

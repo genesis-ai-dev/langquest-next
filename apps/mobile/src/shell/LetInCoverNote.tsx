@@ -6,6 +6,6 @@
  * disguiseIphone.test.ts). Android's file (LetInCoverNote.android.tsx) has the words, in
  * src/disguise/i18n. Nothing crosses the link about a cover.
  */
-export function LetInCoverNote(_props: { worn: boolean; part: 'look' | 'file' }) {
+export function LetInCoverNote(_props: { worn: boolean; part: 'look' | 'file' | 'permissions' }) {
   return null;
 }

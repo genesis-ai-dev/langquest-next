@@ -57,7 +57,7 @@ export const SCREEN_IDS = [
   // App only: a teammate's phone lets a new person in with no internet, and the new phone's progress (docs/nearby-sync-plan.md 14.1)
   'let_someone_in', 'join_offline',
   // App only: getting and checking the install file a new phone needs, online before a trip (docs/nearby-sync-plan.md 14.4)
-  'get_install_file'
+  'get_install_file', 'give_app'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -384,12 +384,8 @@ export const EDGES: Edge[] = [
   e('edit_member', 'my_work', 'back'),
   e('settings_home', 'settings_more'),
   e('settings_more', 'settings_home', 'back'),
-  e('settings_more', 'profile_edit'),
-  e('profile_edit', 'settings_more', 'back'),
   e('settings_more', 'org_switcher'),
   e('org_switcher', 'settings_more', 'back'),
-  e('settings_more', 'sync_status'),
-  e('sync_status', 'settings_more', 'back'),
   e('settings_more', 'delete_account'),
   e('delete_account', 'settings_more', 'back'),
   // App only: the four questions, one screen each, and where each answer is made in full (decision 71, demo ADR-039)
@@ -467,7 +463,14 @@ export const EDGES: Edge[] = [
   e('get_install_file', 'share_nearby', 'back'),
   e('let_someone_in', 'get_install_file'), // tap Get the install file under the new phone needing the app first
   e('get_install_file', 'let_someone_in', 'back'),
-  e('sync_status', 'get_install_file'), // tap Get it on Ready for offline's line that this phone lacks the install file it needs
+  e('share_nearby', 'give_app'), // tap Give the app under A new person
+  e('give_app', 'share_nearby', 'back'),
+  e('let_someone_in', 'give_app'), // tap Give the app under the new phone needing the app first
+  e('give_app', 'let_someone_in', 'back'),
+  e('give_app', 'get_install_file'), // no kept file yet: get it first
+  e('get_install_file', 'give_app', 'back'),
+  e('give_app', 'let_someone_in'), // sent: tap Let them in
+  e('sync_status', 'get_install_file'), // tap Get the install file on Ready for offline's list
   e('get_install_file', 'sync_status', 'back'),
   e('scan_qr', 'join_offline', undefined, 'guest'), // scan a teammate's Let someone in code
   e('join_offline', 'scan_qr', undefined, 'guest'), // tap Scan a new code
