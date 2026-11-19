@@ -1,9 +1,12 @@
 # Plan: the operations dashboard at next.langquest.org/ops-dashboard
 
-Status: phases 1 to 4 built on `carl/ops-dashboard`; four choices settled · Carl Sauder · 2026-10-21
+Status: phases 1 to 4 built and on `main` since 2026-10-23 (pull request 204, decisions 160
+to 162), and phase 5's history, pages and cards, 5a to 5h, since 2026-11-17 and
+2026-11-18 (section 7), except 5d, `OpsWatch`, which tells people and is not built. How the dashboard works now
+is `docs/admin.md` · Carl Sauder · 2026-10-21
 
-Written against `origin/main` at `683289d9` (decision 149 is the latest on
-`main`). Nothing here is built yet. Section 9 says what is settled and what is open.
+Written against `origin/main` at `683289d9` (decision 149 was then the latest on
+`main`), before any of it was built. Section 9 says what was settled and what was open.
 
 ## 1. What we are building
 

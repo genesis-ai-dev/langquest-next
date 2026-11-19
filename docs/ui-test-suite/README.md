@@ -7,7 +7,7 @@ account, against a real server. Every role's workflows are covered.
 This suite sits on top of the existing automated tests and does not repeat
 them:
 - `npm test` covers the reducer, validation and the flow parity tests
-  (`specParity.test.ts` holds every edge of `src/flow.ts`).
+  (`specParity.test.ts` holds every edge of `src/shell/flow.ts`).
 - `npm run test:web-smoke` runs the web smoke test.
 - `e2e/` holds this suite (`ui/`), the web smoke (`web-smoke/`) and their fixtures.
 
