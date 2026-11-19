@@ -1,5 +1,7 @@
 # Verified organizations
 
+Kind: reference
+
 A blue check after an organization's name tells people it is the real
 organization: that an admin of it proved they have an email address at its
 website, and LangQuest staff checked the website is theirs (decisions.md

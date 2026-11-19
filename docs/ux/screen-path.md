@@ -1,5 +1,7 @@
 # The path through every screen
 
+Kind: reference
+
 Every screen has one main action, at most one or two secondary actions, and a
 way back. The main action is the likeliest next step, like the next slide in a
 slideshow; rarer actions are one labelled tap away (More, Options for this

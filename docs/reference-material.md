@@ -1,5 +1,7 @@
 # Reference material
 
+Kind: reference
+
 Everything a translator consults beside the recorder: Bible text and audio
 to read and hear, study guides (FIA and guides an organization writes), and
 notes for translators. Decision 62 in `docs/decisions.md` says why it is
