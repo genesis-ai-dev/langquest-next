@@ -62,7 +62,6 @@ export const thePathOfAPassage: Tutorial = {
     {
       screen: 'org_home',
       part: (page) => button(page, /^Lumari /),
-      say: 'This team translates into Lumari.',
       tap: true,
       until: (page) => button(page, /^Review flow/).waitFor({ timeout: 30_000 }),
       stay: 0.6
@@ -70,15 +69,17 @@ export const thePathOfAPassage: Tutorial = {
     {
       screen: 'language_home',
       part: (page) => button(page, /^Review flow/),
+      say: 'This team translates into Lumari. Here are the checks it chose.',
       tap: true,
       until: (page) => button(page, 'All review flows').waitFor({ timeout: 30_000 }),
       stay: 0.6
     },
     {
       screen: 'flows_home',
-      // Lumari's own checks: the card with Edit in it.
-      part: (page) => button(page, 'Edit').locator('..'),
-      say: 'For Lumari, the team chose these checks: a peer check with a back translation, then the community, then a consultant, then the final approval.'
+      // Lumari's own checks: the card with Edit in it. The card itself, not Edit's row in it: in French the card's
+      // name takes four lines, the card is then over a third of the screen, and the light would stay on Edit's row.
+      part: (page) => button(page, 'Edit').locator('../..'),
+      say: 'A peer check with a back translation, then the community, then a consultant, then the final approval.'
     },
     {
       screen: 'flows_home',

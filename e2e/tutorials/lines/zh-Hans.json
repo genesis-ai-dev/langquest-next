@@ -550,8 +550,6 @@
  "Tap Work to go back to your work.": "点“工作”回到你的工作。",
  "Now you are ready. The next videos show how to translate a passage, and how to check one.": "现在你准备好了。接下来的视频会教你怎样翻译经段，以及怎样检查经段。",
  "Each language in LangQuest chooses how its passages are checked. So the path of a passage is not the same in every language.": "在 LangQuest 中，每种语言都能自己选择怎样检查经段。所以，每种语言里经段的路线都不一样。",
- "This team translates into Lumari.": "这个团队翻译成 Lumari。",
- "For Lumari, the team chose these checks: a peer check with a back translation, then the community, then a consultant, then the final approval.": "对于 Lumari，团队选择了这些检查：带回译的互查，然后是社区，然后是顾问，然后是最终批准。",
  "Another language can choose fewer checks.": "其他语言可以选择少一些检查。",
  "Or no checks. In that case, a passage is done once it is recorded.": "或者不检查。那样的话，经段一录完就完成了。",
  "Or other checks, in a different order. A team can also make its own set.": "或者选择其他检查，顺序也可以不同。一个团队还可以自己定制一套。",
@@ -564,5 +562,7 @@
  "And this passage has every check that Lumari chose.": "而这个经段包含了 Lumari 选择的所有检查。",
  "After the last check, the passage is done.": "最后一项检查之后，经段就完成了。",
  "That is the path of a passage in Lumari. In your language, your team chooses the checks. The next videos show each part, step by step.": "这就是 Lumari 中经段的路线。在你的语言里，由你的团队来选择检查。接下来的视频会一步步展示每个环节。",
- "A passage follows the path its language chose.": "一个经段会按照它的语言选定的流程来进行。"
+ "A passage follows the path its language chose.": "一个经段会按照它的语言选定的流程来进行。",
+ "This team translates into Lumari. Here are the checks it chose.": "这个团队翻译成 Lumari 语。这是他们选择的检查。",
+ "A peer check with a back translation, then the community, then a consultant, then the final approval.": "带有回译的同工检查，然后是社区，然后是顾问，然后是最终批准。"
 }

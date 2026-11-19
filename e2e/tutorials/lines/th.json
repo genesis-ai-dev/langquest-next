@@ -550,8 +550,6 @@
  "Tap Work to go back to your work.": "แตะงานเพื่อกลับไปที่งานของคุณ",
  "Now you are ready. The next videos show how to translate a passage, and how to check one.": "ตอนนี้คุณพร้อมแล้ว วิดีโอถัดไปจะแสดงวิธีแปลตอนหนึ่ง และวิธีตรวจ",
  "Each language in LangQuest chooses how its passages are checked. So the path of a passage is not the same in every language.": "แต่ละภาษาใน LangQuest เลือกวิธีตรวจตอนพระคัมภีร์ของตน ดังนั้นเส้นทางของตอนพระคัมภีร์จึงไม่เหมือนกันในทุกภาษา",
- "This team translates into Lumari.": "ทีมนี้แปลเป็นภาษาลูมารี",
- "For Lumari, the team chose these checks: a peer check with a back translation, then the community, then a consultant, then the final approval.": "สำหรับลูมารี ทีมเลือกการตรวจเหล่านี้: การตรวจโดยเพื่อนร่วมงานพร้อมการแปลกลับ จากนั้นเป็นชุมชน จากนั้นเป็นที่ปรึกษา จากนั้นเป็นการอนุมัติขั้นสุดท้าย",
  "Another language can choose fewer checks.": "ภาษาอื่นอาจเลือกการตรวจน้อยกว่านี้",
  "Or no checks. In that case, a passage is done once it is recorded.": "หรือไม่มีการตรวจ ในกรณีนั้น ตอนพระคัมภีร์จะเสร็จทันทีที่อัดเสียง",
  "Or other checks, in a different order. A team can also make its own set.": "หรือการตรวจแบบอื่นในลำดับที่ต่างไป ทีมยังสามารถสร้างชุดการตรวจของตนเองได้",
@@ -564,5 +562,7 @@
  "And this passage has every check that Lumari chose.": "และตอนพระคัมภีร์นี้มีการตรวจทุกขั้นที่ลูมารีเลือก",
  "After the last check, the passage is done.": "หลังจากการตรวจครั้งสุดท้าย ตอนพระคัมภีร์ก็เสร็จสมบูรณ์",
  "That is the path of a passage in Lumari. In your language, your team chooses the checks. The next videos show each part, step by step.": "นั่นคือเส้นทางของตอนพระคัมภีร์ในลูมารี ในภาษาของคุณ ทีมของคุณจะเป็นผู้เลือกการตรวจ วิดีโอถัดไปจะแสดงแต่ละส่วนทีละขั้นตอน",
- "A passage follows the path its language chose.": "แต่ละตอนจะไปตามเส้นทางที่ภาษานั้นเลือกไว้"
+ "A passage follows the path its language chose.": "แต่ละตอนจะไปตามเส้นทางที่ภาษานั้นเลือกไว้",
+ "This team translates into Lumari. Here are the checks it chose.": "ทีมนี้แปลเป็นภาษาลูมารี นี่คือการตรวจสอบที่ทีมเลือกไว้",
+ "A peer check with a back translation, then the community, then a consultant, then the final approval.": "การตรวจโดยเพื่อนร่วมทีมพร้อมการแปลกลับ จากนั้นโดยชุมชน จากนั้นโดยที่ปรึกษา จากนั้นอนุมัติขั้นสุดท้าย"
 }

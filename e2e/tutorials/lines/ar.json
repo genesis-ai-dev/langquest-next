@@ -550,8 +550,6 @@
  "Tap Work to go back to your work.": "اضغط العمل للعودة إلى عملك.",
  "Now you are ready. The next videos show how to translate a passage, and how to check one.": "الآن أنت مستعد. تعرض الفيديوهات التالية طريقة ترجمة مقطع، وطريقة فحصه.",
  "Each language in LangQuest chooses how its passages are checked. So the path of a passage is not the same in every language.": "تختار كل لغة في LangQuest طريقة فحص مقاطعها. لذا فإن مسار المقطع ليس نفسه في كل لغة.",
- "This team translates into Lumari.": "يُترجم هذا الفريق إلى لوماري.",
- "For Lumari, the team chose these checks: a peer check with a back translation, then the community, then a consultant, then the final approval.": "بالنسبة للوماري، اختار الفريق هذه الفحوصات: فحص النظراء مع ترجمة عكسية، ثم المجتمع، ثم المستشار، ثم الموافقة النهائية.",
  "Another language can choose fewer checks.": "لغة أخرى يمكنها اختيار فحوصات أقل.",
  "Or no checks. In that case, a passage is done once it is recorded.": "أو بدون فحوصات. في هذه الحالة، يكتمل المقطع بمجرد تسجيله.",
  "Or other checks, in a different order. A team can also make its own set.": "أو فحوصات أخرى، بترتيب مختلف. يمكن للفريق أيضًا إنشاء مجموعته الخاصة.",
@@ -564,5 +562,7 @@
  "And this passage has every check that Lumari chose.": "ويحتوي هذا المقطع على كل فحص اختارته لوماري.",
  "After the last check, the passage is done.": "بعد الفحص الأخير، يكتمل المقطع.",
  "That is the path of a passage in Lumari. In your language, your team chooses the checks. The next videos show each part, step by step.": "هذا هو مسار المقطع في لوماري. في لغتك، يختار فريقك الفحوصات. توضح الفيديوهات التالية كل جزء، خطوة بخطوة.",
- "A passage follows the path its language chose.": "يتبع المقطع المسار الذي اختارته لغته."
+ "A passage follows the path its language chose.": "يتبع المقطع المسار الذي اختارته لغته.",
+ "This team translates into Lumari. Here are the checks it chose.": "يترجم هذا الفريق إلى لوماري. هذه هي الفحوصات التي اختارها.",
+ "A peer check with a back translation, then the community, then a consultant, then the final approval.": "فحص الزملاء مع ترجمة عكسية، ثم المجتمع، ثم مستشار، ثم الموافقة النهائية."
 }
