@@ -437,7 +437,9 @@ member taps once after both compare two pictures.
   `expo-document-picker`, Expo's module for it, and checks the chosen file's name. Since 2026-11-18 (docs/nearby-sync-plan.md 14.5), a
   right one is also copied into the app's own storage and read on the phone, to keep it only if
   it is this app's own: its package name and signing certificates are compared with the running
-  app's (`PackageManager.getPackageArchiveInfo`). Nothing about the file is sent to our server or
+  app's (`PackageManager.getPackageArchiveInfo`). Since 2026-11-19 the phone also reads, from that
+  copy, when its JavaScript was built, to say when a newer file is ready
+  (docs/decisions/2026-11-19-carried-build-refreshed-daily.md). Nothing about the file is sent to our server or
   anyone else. The picker needs no permission (the module adds only a `<queries>` entry for the
   `OPEN_DOCUMENT` intent, which is not a permission) and has no config plugin; it is linked on
   Android only (`expo.autolinking.ios.exclude`). It collects nothing: Data safety "Files and docs"

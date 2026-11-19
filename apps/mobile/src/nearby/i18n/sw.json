@@ -215,7 +215,8 @@
       "title": "Faili ya kusakinisha kwa mtu mpya",
       "ready": "Iko tayari kumpa mtu mpya.",
       "readyShort": "Faili ya kusakinisha iko tayari",
-      "done": "Iko tayari. Unaweza kwenda nayo mahali pasipo intaneti."
+      "done": "Iko tayari. Unaweza kwenda nayo mahali pasipo intaneti.",
+      "newer": "Faili mpya zaidi ya kusakinisha iko tayari. Ipakue ukiwa bado na intaneti, kisha uichague."
     },
     "join": {
       "intro": "Jiunge na timu yako kupitia simu ya mwenzako wa timu, bila intaneti. Akaunti yako inatengenezwa mara ya kwanza simu yako itakapofika kwenye intaneti.",

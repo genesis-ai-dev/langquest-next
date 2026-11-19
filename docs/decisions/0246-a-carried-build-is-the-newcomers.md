@@ -106,3 +106,5 @@ Amended (2026-11-19, Carl Sauder): after a review of the words and steps of gett
 - **How the file travels** now leads with Give the app; Quick Share, an SD card and a USB cable follow.
 - **Why a phone cannot give the app** is said by cause (`cannotGive`): Android before 10, which no update mends, or an older build of the app, which one does. One line covered both and was wrong for one of them.
 The download stays in the browser, as amended on 2026-11-18. The file's name on the screen is in docs/decisions/2026-11-18-carried-file-matches-by-versions.md, and the rest of the words in plan 14.4 and 14.5.
+
+Amended (2026-11-19, Carl Sauder): a merge still makes a carried build only when the versions or the fingerprint change, but once a day main's file is also rebuilt in place when main's app code has moved on, and a carrier whose kept copy is two days behind their own app is told a newer file is ready (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).

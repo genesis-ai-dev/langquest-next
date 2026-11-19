@@ -3773,6 +3773,16 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     right, and a wrong one says "This file is for a different version: you need
     r21-l1-p1-….apk". `expo-file-system`'s picker was not enough: it gives the picked file's
     address, not its name.
+  - *Refreshed daily* (Carl's choice, 2026-11-19,
+    docs/decisions/2026-11-19-carried-build-refreshed-daily.md). A merge makes a file only when
+    the versions or the fingerprint change, so a file kept its first JavaScript for weeks while
+    OTA updates reached store phones. Once a day, `.eas/workflows/refresh-carried.yml` checks
+    main's file by its recorded app code (`appHash`, R2 metadata `app-hash`) and, when main has
+    moved on, builds, uploads and publishes one in its place under the same name. Native reads
+    when a kept copy's JavaScript was built (expo-updates' `commitTime`, `builtMs`), and when it
+    is more than two days older than the app the carrier runs (`keptBehind`), Download the
+    install file and Ready for offline say, while online, that a newer file is ready, without
+    turning amber: the older copy still lets a new phone join.
   - *A phone whose build has no file.* Files are made only at merges into main, for main's
     fingerprint, so a phone on another build (a store build from before publishing worked, or
     a release branch's) asks for a name the bucket lacks. The Worker sends it, by a 302 that

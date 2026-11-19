@@ -131,7 +131,7 @@ export function SyncStatus(ctx: Ctx) {
       {/* What to pack before a trip (decisions.md 61): kept passages and, for someone who can let a new person in, the install file. */}
       <Disclosure testID="sync-ready" icon="onPhone" tone={ready.tone ?? undefined} title={t('offline.card.readyTitle')} summary={ready.line}
         help={t('account.sync.fold.readyHelp')} open={folds.isOpen('ready')} onToggle={() => folds.toggle('ready')}>
-        <ReadyForOffline ctx={ctx} s={offlineSummaryNow} install={install.item} installKeeps={install.keeps} />
+        <ReadyForOffline ctx={ctx} s={offlineSummaryNow} install={install.item} installKeeps={install.keeps} installBehind={install.behind} />
       </Disclosure>
       {/* Share nearby, where this phone may share it (Android, the organization on; docs/nearby-sync-plan.md 5.8). */}
       <NearbyRow ctx={ctx} />

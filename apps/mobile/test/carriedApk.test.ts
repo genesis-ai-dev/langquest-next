@@ -1,7 +1,7 @@
 import { carriedApkName, CARRIED_APK_PATH } from '@langquest-next/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { apkCheck, apkGet, apkShown, apkStale, apkStep, cannotGive, installFileItem, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
+import { apkCheck, apkGet, apkShown, apkStale, apkStep, cannotGive, installFileItem, joinRows, KEPT_BEHIND_MS, keptBehind, letInVersionsWords } from '../src/nearby/carriedApkModel';
 import { carriedApkAddress } from '../src/server/carriedApkModel';
 
 /**
@@ -94,6 +94,38 @@ describe('the step after the browser', () => {
     expect(at({ opened: NOW, kept: undefined, canGive: false })).toBe('choose');
     expect(at({ opened: NOW, canGive: false, right: undefined })).toBeNull();
     expect(at({ needed: null })).toBeNull();
+  });
+});
+
+describe('a kept copy older than this phone\'s own app', () => {
+  // Why: a carried file kept its first JavaScript until the versions changed, and a carrier's kept
+  // copy keeps whatever they last downloaded, so a newcomer got an ever older app. The file is now
+  // rebuilt daily, and the carrier is told once their copy falls behind their own app by more than
+  // the refresh can lag, so a newer file is surely there to download
+  // (docs/decisions/2026-11-19-carried-build-refreshed-daily.md, Carl 2026-11-19).
+  const DAY = 24 * 60 * 60 * 1000;
+  const app = Date.UTC(2026, 10, 19, 9);
+  const kept = (builtMs: number | null | undefined) => ({ name: NOW, size: 212 * 1024 * 1024, ...(builtMs === undefined ? {} : { builtMs }) });
+
+  it('is behind once its JavaScript is more than two days older than the app this phone runs', () => {
+    expect(KEPT_BEHIND_MS).toBe(2 * DAY);
+    expect(keptBehind(kept(app - 3 * DAY), app)).toBe(true);
+    expect(keptBehind(kept(app - 2 * DAY - 1), app)).toBe(true);
+    // Within the refresh's lag the server may hold nothing newer yet: a download would bring the same file.
+    expect(keptBehind(kept(app - 2 * DAY), app)).toBe(false);
+    expect(keptBehind(kept(app - DAY), app)).toBe(false);
+    // Newer than the app: the carrier downloaded after their phone last updated.
+    expect(keptBehind(kept(app + DAY), app)).toBe(false);
+  });
+
+  it('says nothing when either time is unknown or there is no copy', () => {
+    expect(keptBehind(kept(null), app)).toBe(false);
+    // A build before 2026-11-19 sends no time.
+    expect(keptBehind(kept(undefined), app)).toBe(false);
+    // A development build runs no update.
+    expect(keptBehind(kept(app - 10 * DAY), null)).toBe(false);
+    expect(keptBehind(null, app)).toBe(false);
+    expect(keptBehind(undefined, app)).toBe(false);
   });
 });
 

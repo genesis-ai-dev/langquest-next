@@ -66,12 +66,18 @@ const INSTALL_LINE = {
  * The install file's item inside Ready for offline: whether it is done, what it says, and the one
  * way on. Getting the file needs the internet, so offline that way is a line saying so; choosing a
  * file already downloaded needs none. Ready says when to delete the file only on a phone that
- * keeps no copy (`keeps` false), where the file in Downloads is the only one (Carl, 2026-11-19).
+ * keeps no copy (`keeps` false), where the file in Downloads is the only one (Carl, 2026-11-19),
+ * and, online, that a newer file is ready when the kept copy is `behind` this phone's app.
  */
-export function installBlock(install: InstallItem, keeps: boolean, offline: boolean): { good: boolean; body: string; way: 'get' | 'choose' | 'offline' | null } {
+export function installBlock(install: InstallItem, keeps: boolean, offline: boolean, behind = false): {
+  good: boolean; body: string; way: 'get' | 'choose' | 'newer' | 'offline' | null;
+} {
   if (install === 'ready') {
     const ready = t('nearby.installFile.ready');
+    // A kept copy behind this phone's app still works, so it stays ready; while online it says a newer
+    // file is there to download (keptBehind, docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
     // Two whole sentences, joined as offlineText's `sentences` joins them (not imported: it brings React Native into this model).
+    if (behind && !offline) return { good: true, body: `${ready} ${t('nearby.installFile.newer')}`, way: 'newer' };
     return { good: true, body: keeps ? ready : `${ready} ${t('nearby.letIn.fileHelp')}`, way: null };
   }
   if (install === 'downloaded') return { good: false, body: t('nearby.installFile.downloaded'), way: 'choose' };

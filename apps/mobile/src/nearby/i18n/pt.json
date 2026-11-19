@@ -215,7 +215,8 @@
       "title": "Arquivo de instalação para uma pessoa nova",
       "ready": "Pronto para dar a uma pessoa nova.",
       "readyShort": "Arquivo de instalação pronto",
-      "done": "Pronto. Você pode levá-lo para onde não há internet."
+      "done": "Pronto. Você pode levá-lo para onde não há internet.",
+      "newer": "Um arquivo de instalação mais novo está pronto. Baixe-o enquanto tem internet e depois escolha-o."
     },
     "join": {
       "intro": "Entre na sua equipe pelo celular de um colega, sem internet. A sua conta é criada na primeira vez que o seu celular se conectar à internet.",

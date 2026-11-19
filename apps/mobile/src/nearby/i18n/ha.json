@@ -215,7 +215,8 @@
       "title": "Fayil ɗin girkawa don sabon mutum",
       "ready": "A shirye yake don ba sabon mutum.",
       "readyShort": "Fayil ɗin girkawa ya shirya",
-      "done": "A shirye yake. Za ka iya tafiya da shi inda babu intanet."
+      "done": "A shirye yake. Za ka iya tafiya da shi inda babu intanet.",
+      "newer": "Sabon fayil ɗin girkawa ya shirya. Ka sauke shi yayin da kake da intanet, sannan ka zaɓe shi."
     },
     "join": {
       "intro": "Ka shiga tawagarka daga wayar abokin aiki, ba tare da intanet ba. Za a buɗe asusunka a karon farko da wayarka ta sami intanet.",

@@ -20,14 +20,15 @@ import { isOffline } from './uploadsModel';
  * what to pack before a trip, as a short list. Kept passages: how many are on this device, with
  * the first download's progress while it runs (decisions.md 147) and the recordings no device
  * can fetch yet. The install file, for someone who can let a new person in (`installFileItem`):
- * never got, too old, downloaded but not chosen, or ready, with the next step (`installBlock`).
+ * never got, too old, downloaded but not chosen, or ready, with the next step (`installBlock`),
+ * and, while online, a line when the kept copy is behind this phone's app.
  * Then what always works offline and what needs a connection, folded, since it never changes.
  */
-export function ReadyForOffline(props: { ctx: Ctx; s: OfflineOverview | null; install: InstallItem | null; installKeeps: boolean }) {
+export function ReadyForOffline(props: { ctx: Ctx; s: OfflineOverview | null; install: InstallItem | null; installKeeps: boolean; installBehind: boolean }) {
   const { ctx, s } = props;
   const [always, setAlways] = useState(false);
   const offline = isOffline(ctx.language.online);
-  const install = props.install ? installBlock(props.install, props.installKeeps, offline) : null;
+  const install = props.install ? installBlock(props.install, props.installKeeps, offline, props.installBehind) : null;
   const fill = ctx.language.fill;
   const filling = !!fill && fill.total > 0 && fill.filled < fill.total;
   const ready = !!s && s.kept > 0 && s.ready === s.kept;

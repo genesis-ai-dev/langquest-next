@@ -18,7 +18,7 @@ export function subscribeKeptFile(fn: () => void): () => void {
 }
 
 export function setKeptFile(next: KeptFile | null): void {
-  if (kept !== undefined && next?.name === kept?.name && next?.size === kept?.size) return;
+  if (kept !== undefined && next?.name === kept?.name && next?.size === kept?.size && next?.builtMs === kept?.builtMs) return;
   kept = next;
   for (const fn of listeners) fn();
 }

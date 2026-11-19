@@ -15,12 +15,17 @@ import java.io.IOException
 import java.io.InputStream
 import java.security.MessageDigest
 import java.util.UUID
+import java.util.zip.ZipFile
 
-/** The install file Give the app hands over (`NativeKeptFile` in src/NearbyLinkModule.ts). */
+/**
+ * The install file Give the app hands over (`NativeKeptFile` in src/NearbyLinkModule.ts), with when
+ * its JavaScript was built, so the app can say a newer file is ready
+ * (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
+ */
 class KeptFile(val name: String, val file: File) {
   val size: Long get() = file.length()
 
-  fun toMap(): Map<String, Any?> = mapOf("name" to name, "size" to size.toDouble())
+  fun toMap(): Map<String, Any?> = mapOf("name" to name, "size" to size.toDouble(), "builtMs" to InstallFiles.builtAtOf(file)?.toDouble())
 }
 
 /**
@@ -253,6 +258,44 @@ class InstallFiles(private val context: Context) {
       val value = meta?.removePrefix("string:")?.trim() ?: return null
       val version = if (value == FINGERPRINT_SENTINEL) fingerprintAsset()?.trim() else value
       return version?.takeIf { it.isNotEmpty() }
+    }
+
+    /** expo-updates' manifest of the JavaScript a build holds, written into its assets when it is built. */
+    private const val UPDATES_MANIFEST = "assets/app.manifest"
+    /** Far past any manifest's size; its `commitTime` comes near the start anyway. */
+    private const val MAX_MANIFEST_BYTES = 8 shl 20
+    private val COMMIT_TIME = Regex("\"commitTime\"\\s*:\\s*([0-9]{1,15})")
+
+    /**
+     * When a build's JavaScript was built: the `commitTime` of expo-updates' manifest in its assets
+     * (`app.manifest`), in milliseconds since 1970, as `Updates.createdAt` gives the running app's.
+     * Null when the file is not a zip, has no manifest, or the manifest holds no time.
+     */
+    fun builtAtOf(apk: File): Long? {
+      return try {
+        ZipFile(apk).use { zip ->
+          val entry = zip.getEntry(UPDATES_MANIFEST) ?: return null
+          if (entry.size > MAX_MANIFEST_BYTES) return null
+          zip.getInputStream(entry).use { input ->
+            val out = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(64 * 1024)
+            while (out.size() <= MAX_MANIFEST_BYTES) {
+              val n = input.read(buffer)
+              if (n < 0) break
+              out.write(buffer, 0, n)
+            }
+            if (out.size() > MAX_MANIFEST_BYTES) null else builtAtFrom(out.toString(Charsets.UTF_8.name()))
+          }
+        }
+      } catch (e: Exception) {
+        null
+      }
+    }
+
+    /** The `commitTime` in expo-updates' manifest text, a positive whole number of milliseconds, or null. */
+    fun builtAtFrom(manifest: String?): Long? {
+      val found = COMMIT_TIME.find(manifest ?: return null) ?: return null
+      return found.groupValues[1].toLongOrNull()?.takeIf { it > 0 }
     }
 
     /** The fingerprint a carried build's name holds: its last `-xxxxxxxx` before `.apk`. */

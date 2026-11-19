@@ -215,7 +215,8 @@
       "title": "File instalasi untuk orang baru",
       "ready": "Siap diberikan kepada orang baru.",
       "readyShort": "File instalasi siap",
-      "done": "Siap. Anda bisa membawanya ke tempat tanpa internet."
+      "done": "Siap. Anda bisa membawanya ke tempat tanpa internet.",
+      "newer": "File instalasi yang lebih baru sudah siap. Unduh selagi Anda punya internet, lalu pilih file-nya."
     },
     "join": {
       "intro": "Bergabung dengan tim Anda dari ponsel rekan tim, tanpa internet. Akun Anda dibuat saat ponsel Anda pertama kali tersambung ke internet.",
