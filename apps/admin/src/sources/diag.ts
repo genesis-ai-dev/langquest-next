@@ -50,7 +50,7 @@ export interface Clients {
   expected: { where: string | null; name: string | null; code: string | null; count: number; installs: number; lastAt: string }[];
   /**
    * The week's sign-in steps that did not end well, by kind. `class` is the
-   * database's (diag.sign_in_class, migration 20261119171500): `trouble` when
+   * database's (diag.sign_in_class, migration 20261119192147): `trouble` when
    * the server or the app failed, `no_fault` for a wrong password, an invite
    * that cannot be used, no connection or a step the app tries again. Absent
    * only on a count made before that migration.

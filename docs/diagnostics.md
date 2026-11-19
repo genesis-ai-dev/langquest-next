@@ -36,7 +36,7 @@ running, reducer and protocol versions. Feedback carries the same.
 
 **Sign-in records on the ops dashboard:** the database gives each `auth`
 record one class (`diag.sign_in_class`, migration
-`20261119171500_sign_in_trouble.sql`), and the chart, its table, the records
+`20261119192147_sign_in_trouble.sql`), and the chart, its table, the records
 behind a point and the line on the Overview all read that one rule
 (`docs/decisions/2026-11-19-sign-in-trouble-is-one-rule.md`). A step that
 went as designed (`ok`, `done`, `keep`, `home`, `needs_name`, `no_org`) is
