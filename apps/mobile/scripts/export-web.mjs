@@ -195,7 +195,27 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Sync and offline merged in: its words in all 16 catalogs, the email and confirm fields, and New
 // password's confirm field. Edit Profile moved to a chunk of its own, loaded when opened, so a
 // first visit stays under its own budget (17,240 bytes left with Sync and offline's chunk too).
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 131 * 1024;
+// Raised by 5 KB more with Give the app (Carl, 2026-11-18,
+// docs/decisions/2026-11-18-give-the-app-over-wifi.md), 4,512 bytes past then with Edit Profile's
+// email merged in: its English words and Check my file's in the nearby chunk the web loads with
+// Share nearby (5,037 bytes), and the kept file's rules (840 bytes in the entry, 411 in the shared
+// chunk). The screen itself is Android only (src/nearby/GiveAppScreen.android.tsx), so the web
+// carries a plain stub of it. A first visit has 16,500 bytes left.
+// Raised by 1 KB with the install file's steps, its newer-file notice and Let someone in asking
+// for its own permissions (Carl, 2026-11-19, docs/decisions/2026-11-19-carried-build-refreshed-daily.md),
+// 746 bytes past it: their English words in the nearby chunk the web loads with Share nearby (the
+// steps after Download in the browser, Choose a file you already have, a newer file is ready), the
+// notice's rule on Sync, and Let someone in's permission step on its screen. The rule that decides
+// that step is in a file only Android loads (src/nearby/letInPermitModel.ts), and the screens are
+// Android only; the web never opens them. A first visit has 14,132 bytes left.
+// Raised by 14 KB with six changes that were made ready together (Caleb Koster, 2026-11-19), so that
+// they merge in any order: each carries this same raise, and the first to merge brings it. Together
+// they came out 13,152 bytes past main, which had 44 bytes left: the Key words chip's tiles (LAN-233,
+// about 12 KB), "All uploaded" leaving the upload bar in the draw that brings the next screen
+// (LAN-284), French elision before a name (LAN-295), Welcome back's Continue without it (LAN-250),
+// a library read asked again (LAN-254) and Reports naming a language's template (LAN-114).
+// 1,228 bytes are left with all six. If one of them does not merge, lower this by what it adds.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 151 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

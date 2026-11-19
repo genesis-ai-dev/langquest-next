@@ -7101,6 +7101,7 @@
       "couldNotRead": "تعذّرت قراءة التقرير",
       "notVisible": "هذه اللغة ليس لها تقرير يمكنك رؤيته",
       "notVisibleBody": "ربما لا يشمل دورك هذه اللغة، أو أُضيفت بعد تحميل التقارير (حدّث البيانات من «التقارير» لتتحقق).",
+      "template": "القالب: <b>{{template}}</b>",
       "reviewFlow": "مسار المراجعة: <b>{{flow}}</b>",
       "bottleneck": "نقطة الاختناق: <b>{{bottleneck}}</b>",
       "bottleneckValue_zero": "{{count, number}} في {{step}}",

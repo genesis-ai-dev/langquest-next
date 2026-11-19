@@ -6093,6 +6093,7 @@
       "couldNotRead": "रिपोर्ट पढ़ी नहीं जा सकी",
       "notVisible": "इस भाषा की कोई रिपोर्ट नहीं जो आप देख सकें",
       "notVisibleBody": "हो सकता है आपकी भूमिका में यह भाषा न हो, या यह रिपोर्ट लोड होने के बाद जोड़ी गई हो (जाँचने के लिए “रिपोर्ट” से ताज़ा जानकारी लें)।",
+      "template": "टेम्पलेट: <b>{{template}}</b>",
       "reviewFlow": "समीक्षा क्रम: <b>{{flow}}</b>",
       "bottleneck": "रुकावट: <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{step}} में {{count, number}}",
