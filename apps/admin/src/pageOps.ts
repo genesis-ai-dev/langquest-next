@@ -429,19 +429,7 @@ Object.assign(RENDER, {
     return h;
   },
   // What the watch for user issues filed, closed or found already fixed, with the pull request (decisions.md 202).
-  userissues(d) {
-    const out = (href, text) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
-    const h = '<div class="stats">' + stat(num(d.open), 'open in Linear', d.open ? 'warn' : '', NOW) + stat(num(d.closed), 'closed in Linear', '', '90 days') +
-      stat(num(d.fixed), 'already fixed when seen', '', '90 days') + stat(num(d.noiseWeek), 'judged noise', '', LAST_WEEK) +
-      stat(d.last ? when(d.last.at) : 'never', 'last look', d.last && d.last.outcome !== 'ok' ? 'bad' : '', d.last ? d.last.outcome : '') + '</div>';
-    return h + table([
-      { h: 'Issue', v: (r) => r.issue ? out(r.issueUrl, esc(r.issue)) : '<span class="muted">not filed</span>' },
-      { h: 'What people hit', v: (r) => esc(r.title || r.keys[0]) + '<br><small>' + r.keys.slice(0, 3).map((k) => '<code>' + esc(k) + '</code>').join(' · ') + (r.keys.length > 3 ? ' …' : '') + '</small>' },
-      { h: 'In Linear', v: (r) => r.issue ? '<span class="' + (r.closedAt ? 'good' : 'warn') + '">' + esc(r.state || (r.closedAt ? 'closed' : 'open')) + '</span>' : '' },
-      { h: 'Fixed by', v: (r) => r.fixedBy ? out('https://github.com/genesis-ai-dev/langquest-next/pull/' + r.fixedBy, 'PR ' + esc(r.fixedBy)) + '<br><small>' + when(r.fixedAt) + '</small>' : r.closedAt ? '<span class="muted">no PR named</span>' : '' },
-      { h: 'Found', v: (r) => when(r.firstAt) }
-    ], d.issues);
-  },
+  userissues(d) { return userIssuesHtml(d); },
   // Last night's tests, every suite together (sources/nightly.ts, decisions.md 209): counts and Linear issues; the detail is in Linear.
   nightly(d) {
     const issue = (i) => /^https:\/\/linear\.app\//.test(String(i.url || '')) ? '<a href="' + esc(i.url) + '" target="_blank" rel="noopener noreferrer">' + esc(i.id) + '</a>' : esc(i.id);
@@ -480,6 +468,7 @@ async function perform(action, button) {
       : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
       : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
       : action.kind === 'tutorial-note' ? (body.result === 'instructed' ? 'Sent. Claude starts the fix at its next fix run (:20 and :50 each hour).' : 'Sent. Claude reads it at its next look (10:00 UTC).')
+      : action.kind === 'user-issue-note' ? 'Sent. Claude starts at the next run of the watch (each 15 minutes).'
       : action.kind === 'quiet-account' ? (action.ok ? 'Marked not an issue. Its quiet installs no longer count in the warning.' : 'Its quiet installs count in the warning again.')
       : action.kind === 'tutorial-reply' ? (body.result === 'posted' ? 'Marked as posted.' : body.result === 'none' ? 'Marked: no reply needed.' : 'The reply waits again.')
       : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
@@ -571,20 +560,6 @@ const FIX_STATE = { working: 'Claude writes the change now.', open: 'Claude\'s p
 const CHANGE_BY = { claude: 'Claude (clear fix)', admin: 'An admin accepted it', instruction: 'An admin\'s instruction' };
 const CHANGE_STATE = { working: 'Being written', open: 'Merges when checks pass', merged: 'Merged', closed: 'Closed', failed: 'Failed', unneeded: 'No change needed' };
 const CHANGE_LEVEL = { working: 'info', open: 'info', merged: 'good', closed: '', failed: 'bad', unneeded: '' };
-/** One thing for an admin: the problem, who acts next, what happens next, and where it applies, the box to tell Claude what to do. */
-function adminCard(a) {
-  const ins = a.instructed;
-  return '<div class="vi ' + (a.who === 'you' ? ADMIN_LEVEL[a.kind] || 'warn' : 'info') + '">' +
-    '<p><span class="tag ' + (a.who === 'you' ? 'warn' : 'info') + '">' + (a.who === 'you' ? 'Waits on you' : 'Claude acts next') + '</span>' + (a.at ? '<small>' + when(a.at) + '</small>' : '') + '</p>' +
-    '<p><b>' + esc(a.title) + '</b></p>' + (a.reply ? '<div class="vreplyrow"><div>' + commentSaid(a) + '</div>' + replyBox(a) + '</div>' : detailHtml(a.detail)) + pictureStrip(a.pictures) +
-    (ins || a.reply ? '' : '<p class="setup"><small><b>Next:</b> ' + esc(a.next) + '</small></p>') + (a.link && !a.reply ? '<p>' + cardLink(a) + '</p>' : '') + retryButton(a) +
-    (a.suggestion ? suggestionButtons(a.suggestion) : '') +
-    (ins ? '<p class="setup"><small><b>Your instruction</b> (' + when(ins.at) + '):</small><br>' + esc(ins.text) + '</p>' +
-      '<p class="setup"><small><b>Next:</b> ' + esc(ins.fix ? FIX_STATE[ins.fix.state] || ins.fix.state : ins.looked ? 'Claude starts the change at its next fix run (:20 and :50 each hour), as a pull request that merges itself when its checks pass.' : 'Claude reads it at its next run.') + '</small></p>' : '') +
-    (a.instruct ? '<details' + (a.who === 'you' && !ins && !a.retry ? ' open' : '') + '><summary>' + (ins ? 'Send another instruction' : a.retry ? 'Tell Claude what to do instead' : 'Tell Claude what to do') + '</summary>' +
-      '<label for="ins-' + esc(cardId(a)) + '">What Claude must do</label><textarea id="ins-' + esc(cardId(a)) + '" maxlength="2000" rows="3" placeholder="For example: the button is now called On this device. Change step 4 to tap it."></textarea>' +
-      '<p><button type="button" class="primary" data-instruct="' + esc(cardId(a)) + '">Send to Claude</button></p></details>' : '') + '</div>';
-}
 const cardId = (a) => (a.kind + '-' + (a.tutorial || '') + '-' + (a.language || '')).replace(/[^a-zA-Z0-9-]/g, '');
 /**
  * A suggestion's words: what an admin reads first, and the technical part for the fix, after a line that starts
@@ -675,13 +650,6 @@ document.addEventListener('click', (e) => {
 });
 const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run', merging: 'Open the PR' };
 const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
-function suggestionButtons(s) {
-  return (s.inputs.length ? '<ul>' + s.inputs.map((i) => '<li><small>' + esc(i.kind === 'comment' ? 'Comment' : i.kind === 'code' ? 'Code change' : 'Note') + ' · ' + when(i.at) + '</small><br>' + esc(i.english || i.text) + '</li>').join('') + '</ul>' : '') +
-    '<p><button type="button" class="primary" data-sg="' + esc(s.id) + '" data-decision="accept" data-kind="' + esc(s.kind) + '">Accept</button> ' +
-    '<button type="button" data-sg="' + esc(s.id) + '" data-decision="reject">Reject</button></p>' +
-    '<details><summary>Edit</summary><label for="sg-' + esc(s.id) + '">What to change</label><textarea id="sg-' + esc(s.id) + '" maxlength="4000" rows="6">' + esc(s.detail) + '</textarea>' +
-    '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="edit">Save</button></p></details>';
-}
 const timelineStart = () => { const end = new Date(); end.setUTCHours(0, 0, 0, 0); return end.getTime() - (TIMELINE_DAYS - 1) * 86400000; };
 /** Each timeline's width from the zoom; when a day is wide enough, each mark sits at its time of day. */
 function layoutTimelines(keepAt) {

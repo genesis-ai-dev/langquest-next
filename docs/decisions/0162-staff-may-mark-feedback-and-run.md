@@ -72,6 +72,12 @@ problem on a marked account's phone is still a problem. It changes only this
 count, never an organization's work. The page shows the account's id and no
 name or email, as diagnostics do (38); its Look up opens the account's installs.
 
+Amended (2026-11-18, Caleb Koster): staff may also tell Claude what to do
+with a user issue from its card (`user-issue-note`, logged as
+`user_issue_note` with the issue and the note's id, never the words). The
+watch for user issues hands it to Claude
+(`docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`).
+
 Amended (2026-11-19, Caleb Koster): one more kind, `tutorial-reply`: what
 became of the reply Claude suggested for a comment on a tutorial video,
 which a person posts on YouTube themselves (decision 186, amended

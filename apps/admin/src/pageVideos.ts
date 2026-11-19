@@ -7,7 +7,7 @@
  * Claude suggests for a comment is copied from its card and posted by a
  * person on YouTube; the card then takes Done, or No reply needed.
  * Plain JavaScript inside page.ts's script, like pageFixes.ts, after
- * pageOps.ts (its VIDEOS, adminCard, markDetail, perform and the timeline's
+ * pageOps.ts (its VIDEOS, markDetail, perform and the timeline's
  * zoom); everything shown is escaped.
  */
 
@@ -20,7 +20,6 @@ export const VIDEO_CSS = String.raw`
 .vtabs .count.you { background: var(--amber); color: #fff; }
 .vnone { display: flex; gap: 12px; align-items: center; padding: 20px 4px; font-size: 16px; font-weight: 600; }
 .vnone svg { width: 36px; height: 36px; flex: none; fill: none; stroke: var(--green); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.vq { container-type: inline-size; }
 .vjobs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 16px; }
 .vjob { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }
 .vjob p { margin: 0 0 2px; } .vjob small { color: var(--muted); }
@@ -68,7 +67,9 @@ export const VIDEO_CSS = String.raw`
 .vreply .vsteps { display: grid; gap: 8px; }
 .vreply .vsteps button, .vretry { min-height: 48px; display: inline-flex; gap: 8px; align-items: center; justify-content: center; text-align: start; }
 .vretry { justify-self: start; margin: 4px 0; }
-.vreplyrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px 24px; align-items: start; margin: 6px 0; }
+/* A reply to post is a card (pageIssues.ts issueCard) whose right side is as wide as the comment: it holds the reply. */
+.icard.reply { grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); }
+@container (max-width: 760px) { .icard.reply { grid-template-columns: minmax(0, 1fr); } }
 .vreply .vsteps .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .vreply .n { width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--line); color: var(--ink); flex: none; }
 .vreply button.primary .n { background: #fff; color: var(--primary); }
@@ -214,29 +215,6 @@ function videoRows() {
       (cards.length ? '<div class="vcards icards" id="vcards-' + r + '"' + (open ? '' : ' hidden') + ' data-key="' + esc(v.tutorial + '/' + v.language) + '">' + cards.map(adminCard).join('') + '</div>' : '');
   });
   return h;
-}
-
-/** A comment as its writer's words, in English, with the words as written folded under it and the way to it on YouTube. */
-function commentSaid(a) {
-  const r = a.reply;
-  return '<p class="vsaidby">' + vicon('comment') + 'A viewer wrote' + (a.at ? ', ' + when(a.at) : '') + ' · <a href="' + esc(r.link) + '" target="_blank" rel="noopener noreferrer">See it on YouTube</a></p>' +
-    '<blockquote class="vsaid">' + esc(r.comment) + (r.original ? '<details><summary>As written</summary>' + esc(r.original) + '</details>' : '') + '</blockquote>';
-}
-/**
- * The reply Claude suggests, for the admin to change, and the two steps: copy it and open the comment on YouTube (the
- * admin posts it there: nothing is posted from this page), then say what became of it. The card leaves when they do.
- */
-function replyBox(a) {
-  const r = a.reply, id = esc(r.id);
-  return '<div class="vreply"><label for="rp-' + id + '">Your reply</label><textarea id="rp-' + id + '" maxlength="2000" rows="4">' + esc(r.text) + '</textarea>' +
-    (r.english ? '<small>In English: ' + esc(r.english) + '</small>' : '') +
-    '<div class="vsteps"><button type="button" class="primary" data-reply-copy="' + id + '" data-href="' + esc(r.link) + '"><span class="n">1</span>Copy the reply and open YouTube</button>' +
-    '<div class="pair"><button type="button" data-reply-done="' + id + '" data-done="posted"><span class="n">2</span>Done</button>' +
-    '<button type="button" data-reply-done="' + id + '" data-done="none">No reply needed</button></div></div></div>';
-}
-/** For a change Claude could not make: the same change again, as an instruction that names it in full. */
-function retryButton(a) {
-  return a.retry && a.instruct && !a.instructed ? '<button type="button" class="vretry primary" data-retry="' + esc(cardId(a)) + '">' + vicon('now') + 'Try again</button>' : '';
 }
 
 document.addEventListener('click', (e) => {

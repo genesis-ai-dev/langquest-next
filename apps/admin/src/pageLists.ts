@@ -445,10 +445,10 @@ document.addEventListener('keydown', (e) => {
 /**
  * The controls with which a person answers a queue: Grant or Deny, Accept, Reject or Edit, Send to
  * Claude, a video's cards, the Tutorial videos tabs (which open on what waits on the admin), a reply
- * copied or marked done, Try again, Add a note, Connect or Publish, Seen or Done. A part that shows one
- * keeps its body open under its picture, so an answer never waits behind "Show the numbers".
+ * copied or marked done, Try again, Add a note, Connect or Publish, Seen or Done, an issue tab. A part that
+ * shows one keeps its body open under its picture, so an answer never waits behind "Show the numbers".
  */
-export const QUEUE_CONTROLS = ['data-decision', 'data-sg', 'data-instruct', 'data-cards', 'data-note', 'data-yt-connect', 'data-yt-publish', 'data-yt-item', 'data-yt-all', 'data-fb',
+export const QUEUE_CONTROLS = ['data-decision', 'data-sg', 'data-instruct', 'data-cards', 'data-note', 'data-yt-connect', 'data-yt-publish', 'data-yt-item', 'data-yt-all', 'data-fb', 'data-itab', 'data-uinote',
   'data-vtab', 'data-reply-copy', 'data-reply-done', 'data-retry'];
 /**
  * The controls that may wait behind "Show the numbers": they open, look, move or zoom, or only quiet a

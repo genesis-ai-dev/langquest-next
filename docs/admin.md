@@ -13,14 +13,15 @@ app's page from ever answering them. Production only: preview has no
 database of its own for it to read yet, so `/ops-dashboard` there says it
 is not set up.
 
-It reads, with seven exceptions (decisions.md 162): marking feedback seen,
+It reads, with eight exceptions (decisions.md 162): marking feedback seen,
 done or open again, running a server job now, granting or declining an
 organization's blue check request (decisions.md 173, docs/verified-organizations.md),
 connecting a tutorial channel on YouTube and choosing the videos to put
 up there (decisions.md 180, below), leaving a note about a tutorial
 video or accepting, editing or rejecting a change Claude suggests for one
 (decisions.md 186), saying what became of a reply Claude suggested for a
-comment (posted by a person, or none needed), and marking an account's quiet installs not an issue. For those the page posts
+comment (posted by a person, or none needed), telling Claude what to do with a user issue
+(`docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`), and marking an account's quiet installs not an issue. For those the page posts
 to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
 action and the person's own token to the app Worker's `OpsActions`
 entrypoint (`APP_ACTIONS` binding), which checks the token itself (a live
@@ -119,7 +120,7 @@ the page loads to exactly one section.
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
 | Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
 | App Worker | requests by route, server errors, rate-limit refusals and time taken, from the request tally | `DIAG_DATABASE_URL` |
-| User issues | `diag.ops_user_issues`: each Linear issue the watch for user issues filed or commented on and each kind it found already fixed, the last 90 days, open ones first, with its state in Linear, the pull request that fixed it and when, and the last look; and each dashboard line's decision (`lines`, migration `20261117213500_ops_lines_linear.sql`) (`docs/diagnostics.md`, migration `20261103204500_user_issues_fixed.sql`). Issues open in Linear are a watch; a look that failed is a problem | `DIAG_DATABASE_URL`, the migration |
+| User issues | `diag.ops_user_issues`: each Linear issue the watch for user issues filed or commented on and each kind it found already fixed, the last 90 days, open ones first, with its state in Linear, the pull request that fixed it and when, and the last look; each issue's three lines in words (`context`, `problem`, `solution`, migration `20261118070000_user_issue_words.sql`); each issue's instructions from an admin with Claude's answers (`diag.ops_user_issue_notes`, migration `20261118073000_user_issue_notes.sql`; before it, the cards have no box); and each dashboard line's decision (`lines`, migration `20261117213500_ops_lines_linear.sql`) (`docs/diagnostics.md`, migration `20261103204500_user_issues_fixed.sql`). Issues open in Linear are a watch; a look that failed is a problem | `DIAG_DATABASE_URL`, the migration |
 | Tutorial videos | `diag.ops_tutorials`: each app language's YouTube channel and when it was connected, each video's newest version not on YouTube (ready, or chosen and waiting, with the last failure's code), and the count up in each language; never a token (migration `20261028090000_tutorial_videos.sql`). `diag.ops_tutorial_feedback`: Claude's suggestions with what each answers, what came in that it has not looked at or suggested nothing for, and its last look (migration `20261029120000_tutorial_feedback.sql`) | `DIAG_DATABASE_URL`, the migrations; Connect and Publish need `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET` on the app's Worker; filing an accepted code change in Linear at once needs `LINEAR_API_KEY` there |
 | People and organizations | `diag.ops_people` and `ops_orgs`, counted, never named; an organization opens its own page at `/ops-dashboard/org/<id>` (`diag.ops_org` and its installs' sync errors) | `DIAG_DATABASE_URL`, the migration |
 | Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
@@ -561,10 +562,41 @@ buttons) sit in a closed `details.numbers` ("Show the numbers") under its
 picture, so the section shows pictures first. A part with no picture and no
 history line (`METRIC`) shows its table open. So does a part whose body holds
 a queue control (`QUEUE_CONTROLS` in `pageLists.ts`: Grant, Accept, Send to
-Claude, Add a note, Connect or Publish, Seen or Done); Not an issue and Run
-now may wait behind the tap (`FOLDED_CONTROLS`). `test/meters.test.ts` fails
+Claude, Add a note, Connect or Publish, Seen or Done, an issue tab); Not an
+issue and Run now may wait behind the tap (`FOLDED_CONTROLS`). `test/meters.test.ts` fails
 on a control in neither list. The page remembers which parts are open while
 it refreshes.
+
+What a person answers is one card format (`apps/admin/src/pageIssues.ts`,
+`issueCard`), on two pages. A card has its pictures when it has them, its
+title with Context, Issue and Solution lines, and at the right who acts next,
+its steps as dots with the step it waits at in words, the talk (what an admin
+said, then where Claude is with it) and the box to tell Claude what to do.
+
+- **User issues**: tabs with counts (Waits on you, No fix yet, Merged,
+  Closed, All), then one card for each issue. `issueWay` places an issue from
+  its Linear state and the pull requests that name it (`/ops/api/fixes`):
+  Found, In Linear, Fix written, Merged, Live. It waits on a person only when
+  a pull request that names it is open; the card then links that pull
+  request. Before the pull requests are read, or when they could not be, an
+  open issue says only Open. Each line leads with the words Claude wrote
+  when the watch filed the issue (`context`, `problem`, `solution`), and
+  under them what the records say: the people and when, the kind's keys, the
+  pull request. An issue filed before the watch kept words shows only those.
+  An open issue's card has the box (`issueTalk`): what an admin sends
+  (`user-issue-note`) the watch hands to Claude at its next run, and Claude's
+  answer shows under the admin's words, with the pull request it changed
+  (`diag.ops_user_issue_notes`, `docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`).
+  While an instruction waits, the card says Claude acts next. A closed issue
+  keeps the talk and has no box.
+- **Tutorial videos**: each thing for an admin (`adminCard`, from
+  `sources/videos.ts` `AdminItem`) is such a card: a suggestion with Accept,
+  Reject and Edit, a held or failing film, a comment, a changed screen. Its
+  steps are Found, Claude looks, You answer, Claude changes the video, Merged
+  (`videoWay`). An instruction sent from the box shows as the admin's words,
+  and under it the state of Claude's change, its note and its pull request.
+
+`apps/admin/test/issues.test.ts` holds both.
 
 A tap on a bar or a point asks
 `GET /ops/api/<part>/detail?metric=&key=&from=&to=&page=` (`diag.ops_detail`,

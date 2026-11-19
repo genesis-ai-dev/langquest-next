@@ -15,6 +15,7 @@ import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
 import { ICONS, NAV, SHELL_CSS, SHELL_HTML, SHELL_LOGIC, SHELL_SCRIPT } from './pageShell';
 import { OVERVIEW_CSS, OVERVIEW_HTML, OVERVIEW_LOGIC, OVERVIEW_SCRIPT } from './pageOverview';
 import { FIX_CSS, FIX_LOGIC, FIX_SCRIPT } from './pageFixes';
+import { ISSUE_CSS, ISSUE_LOGIC, ISSUE_SCRIPT } from './pageIssues';
 import { KINDS } from './alertKinds';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
@@ -203,6 +204,7 @@ ${SHELL_CSS}
 ${START_CSS}
 ${OVERVIEW_CSS}
 ${FIX_CSS}
+${ISSUE_CSS}
 ${LISTS_CSS}
 ${METERS_CSS}
 ${VIDEO_CSS}
@@ -970,6 +972,9 @@ ${OVERVIEW_SCRIPT}
 const KINDS = ${JSON.stringify(KINDS).replace(/</g, '\\u003c')};
 ${FIX_LOGIC}
 ${FIX_SCRIPT}
+// ---- the cards of the User issues page and of a tutorial video's questions (pageIssues.ts) ----
+${ISSUE_LOGIC}
+${ISSUE_SCRIPT}
 ${LISTS_LOGIC}
 ${METERS_LOGIC}
 ${LISTS_SCRIPT}
@@ -997,8 +1002,9 @@ async function load(fresh) {
     // The start page's pictures: without them it still shows every card and line.
     api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {}),
     // The pull requests that name a line's Linear issue: without them each line still shows its issue.
-    api('/ops/api/fixes' + q).then((d) => { fixData = d; renderStart(); attention(); })
-      .catch((err) => { fixData = { state: 'error', error: err.message }; renderStart(); })
+    // The User issues page says each issue's pull request, so it is drawn again with them.
+    api('/ops/api/fixes' + q).then((d) => { fixData = d; if (results.userissues) show('userissues', results.userissues); else { renderStart(); attention(); } })
+      .catch((err) => { fixData = { state: 'error', error: err.message }; if (results.userissues) show('userissues', results.userissues); else renderStart(); })
   ];
   await Promise.all(jobs);
   $('checked').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

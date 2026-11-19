@@ -36,6 +36,7 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     replyDone: async (id, state, by) => { done.push(`reply ${id} ${state} by ${by}`); return id === REQUEST ? 'ok' : 'not_found'; },
     markQuietAccount: async (profile, ok, by) => { done.push(`quiet ${profile} ${ok} by ${by}`); return profile === QUIET ? (ok ? 'marked' : 'unmarked') : 'not_found'; },
     instruct: async (row, by) => { done.push(`instruct ${JSON.stringify(row)} by ${by}`); return SUGGESTION; },
+    instructIssue: async (issue, text, by) => { done.push(`issue ${issue} ${text} by ${by}`); return issue === 'LAN-284' ? SUGGESTION : issue === 'LAN-285' ? 'full' : 'not_found'; },
     decideSuggestion: async (id, decision, detail, reason, by) => {
       done.push(`${decision} ${id} ${detail} ${reason} by ${by}`);
       return id === SUGGESTION ? { result: decision, kind: 'script' } : id === CODE ? { result: decision, kind: 'code' } : id === ANSWERED ? { result: 'decided', kind: 'script' } : { result: 'not_found' };
@@ -253,6 +254,35 @@ describe('tutorial videos on YouTube (decisions.md 180)', () => {
     expect(d.rows).toEqual([{ profileId: VIEWER, action: 'tutorials_publish', target: '2 videos', result: 'ok', detail: 'marked:2:started' }]);
     const aal1 = deps();
     expect(await act(aal1, 'aal1', { kind: 'tutorials-publish', items })).toMatchObject({ ok: false, status: 403 });
+    expect(aal1.done).toEqual([]);
+  });
+});
+
+describe('an instruction on a user issue (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md)', () => {
+  it('takes an issue and the words, checked', () => {
+    expect(parseAction({ kind: 'user-issue-note', issue: 'LAN-284', text: '  Wait for the passage first.  ' })).toEqual({ kind: 'user-issue-note', issue: 'LAN-284', text: 'Wait for the passage first.' });
+    for (const bad of [
+      { kind: 'user-issue-note', issue: 'lan-284', text: 'x' }, { kind: 'user-issue-note', issue: 'LAN-284; drop', text: 'x' }, { kind: 'user-issue-note', text: 'x' },
+      { kind: 'user-issue-note', issue: 'LAN-284', text: ' ' }, { kind: 'user-issue-note', issue: 'LAN-284', text: 'x'.repeat(2001) }, { kind: 'user-issue-note', issue: 'LAN-284', text: 7 }
+    ]) {
+      expect(parseAction(bad)).toBeNull();
+    }
+  });
+
+  it('keeps it as this person for the watch, records it, and refuses an issue that is not open or has three waiting', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'user-issue-note', issue: 'LAN-284', text: 'Wait for the passage first.' })).toEqual({ ok: true, result: 'instructed' });
+    expect(await act(d, 'aal2', { kind: 'user-issue-note', issue: 'LAN-285', text: 'One more.' })).toMatchObject({ ok: false, status: 400 });
+    expect(await act(d, 'aal2', { kind: 'user-issue-note', issue: 'LAN-1', text: 'Fix it.' })).toMatchObject({ ok: false, status: 404 });
+    expect(d.done).toEqual([`issue LAN-284 Wait for the passage first. by ${VIEWER}`, `issue LAN-285 One more. by ${VIEWER}`, `issue LAN-1 Fix it. by ${VIEWER}`]);
+    // The log keeps the issue and the note's id, never the words.
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'user_issue_note', target: 'LAN-284', result: 'ok', detail: `note:${SUGGESTION}` },
+      { profileId: VIEWER, action: 'user_issue_note', target: 'LAN-285', result: 'refused', detail: 'full' },
+      { profileId: VIEWER, action: 'user_issue_note', target: 'LAN-1', result: 'refused', detail: 'not_found' }
+    ]);
+    const aal1 = deps();
+    expect(await act(aal1, 'aal1', { kind: 'user-issue-note', issue: 'LAN-284', text: 'Fix it.' })).toMatchObject({ ok: false, status: 403 });
     expect(aal1.done).toEqual([]);
   });
 });
