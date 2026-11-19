@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 
+import { JOBS } from '../apps/web/worker/jobsModel';
 import { deployArgs } from './cloudflare-deploy.mjs';
 import { parseJsonc, projectRef, wranglerFor } from './env-files.mjs';
 
@@ -84,8 +85,11 @@ describe('cloudflare deploy', () => {
     for (const env of ['production', 'preview']) {
       const c = wranglerFor(config, env);
       expect(c.containers, env).toEqual([
-        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 4, constraints: { regions: ['ENAM'] }, rollout_active_grace_period: 5400 }
+        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 8, constraints: { regions: ['ENAM'] }, rollout_active_grace_period: 5400 }
       ]);
+      // Why: the limit stayed at 4 while the jobs grew to 8; on 2026-11-19 Cloudflare refused the upload run
+      // after the midnight intake ("Maximum number of running container instances exceeded") and no video went up.
+      expect(c.containers[0].max_instances, env).toBeGreaterThanOrEqual(Object.keys(JOBS).length);
       expect(c.durable_objects?.bindings, env).toContainEqual({ name: 'JOBS', class_name: 'JobRunner' });
       // Why: evening merges' rollouts cut off the 03:15 whole read again and again (2026-10-20);
       // the grace covers its 40 to 70 minutes on GitHub, plus the drain's 15 after SIGTERM.
