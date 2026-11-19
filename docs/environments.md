@@ -1,5 +1,7 @@
 # Environments
 
+Kind: reference
+
 Three environments, one git branch each (decisions.md 50). Public settings are
 plain, in each platform's own file. Secrets are encrypted in one file per
 hosted environment, and a person applies them with one command when they

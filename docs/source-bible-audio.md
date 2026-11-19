@@ -1,5 +1,7 @@
 # Source Bible audio
 
+Kind: reference
+
 The passage recording view keeps source playback and recording together.
 Play or pause the source, seek ten seconds, and record another part without
 leaving the view. Playback pauses before microphone startup. Keep composes

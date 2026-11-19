@@ -1,5 +1,7 @@
 # Fleet baselines
 
+Kind: report
+
 Date: 2026-10-12. By: Carl Sauder, with Claude. Measured on an Apple M5 Pro
 (48 GB, Node 24.18.0) with `npm run fleet:baselines`, at commit `df1ad11`
 plus this branch's uncommitted work, which includes the checkpoint seq fix

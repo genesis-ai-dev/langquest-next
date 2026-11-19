@@ -1,5 +1,7 @@
 # Performance audit, 2026-10-26
 
+Kind: report
+
 Date: 2026-10-26. By: Carl Sauder, with Claude. Sources: this repo at
 commit `f9814bef`; `npm run bench:core` run on that commit and on
 `cda46db` (the commit `performance-audit-app.md` used), interleaved, three

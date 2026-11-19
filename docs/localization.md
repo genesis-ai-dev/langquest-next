@@ -1,5 +1,7 @@
 # Localization
 
+Kind: reference
+
 The app's own words are in the person's language (LAN-42, decisions.md 81).
 English is the source. Library documents (templates, flows, reference
 material, study guides) are the organization's content and are shown as

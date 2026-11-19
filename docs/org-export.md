@@ -1,5 +1,7 @@
 # The organization export
 
+Kind: reference
+
 An organization admin can take everything the organization holds out of
 LangQuest as one zip, without the app, an engineer or a request to us
 (LAN-227, decisions.md 206). This page is the format: partners may rely on it.
