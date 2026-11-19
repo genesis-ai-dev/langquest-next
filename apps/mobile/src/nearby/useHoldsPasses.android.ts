@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { noteExpected } from '../diagnostics/report';
-import { chainPeople, readPasses } from './nearbyPhone.android';
+import { chainPeople, readPasses } from './nearbyPhone.native';
 
 /**
  * Does this person hold a join pass, or, with no one signed in (a Forgot password link names its

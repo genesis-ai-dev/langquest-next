@@ -26,6 +26,10 @@ import java.util.concurrent.ThreadFactory
  * `src/NearbyLinkModule.ts` is its JavaScript face, read through `requireOptionalNativeModule`, so
  * a build without it (the web, an iPhone, a development client made before it) has none and
  * never crashes. apps/mobile/test/nearbyNative.test.ts holds the two lists of functions equal.
+ *
+ * It also gives the app to a new phone (docs/nearby-sync-plan.md 14.5): it keeps a checked copy
+ * of the install file in the app's own files folder (`InstallFiles`), and serves it with a page
+ * on a Wi-Fi Direct group of its own (`RadioKit.startGiveApp`), which every stop below ends.
  */
 class NearbyLinkModule : Module() {
   private val main = Handler(Looper.getMainLooper())
@@ -45,6 +49,7 @@ class NearbyLinkModule : Module() {
 
   private val events = object : RadioEvents {
     override fun found(seen: Map<String, Any?>) = emit("onFound", seen)
+    override fun advert(heard: Map<String, Any?>) = emit("onAdvert", heard)
     override fun formSalt(salt: String, rssi: Int) = emit("onFormSalt", mapOf("salt" to salt, "rssi" to rssi))
     override fun salt(salt: String) = emit("onSalt", mapOf("salt" to salt))
     override fun pipe(linkId: String, salt: String) = emit("onPipe", mapOf("linkId" to linkId, "salt" to salt))
@@ -105,7 +110,7 @@ class NearbyLinkModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("NearbyLink")
-    Events("onFound", "onFormSalt", "onSalt", "onPipe", "onRefused", "onLinkDown", "onFindError")
+    Events("onFound", "onAdvert", "onFormSalt", "onSalt", "onPipe", "onRefused", "onLinkDown", "onFindError")
 
     // So a JavaScript thread that hung, or an app that went, cannot leave the radios on.
     OnDestroy {
@@ -117,6 +122,10 @@ class NearbyLinkModule : Module() {
     OnActivityEntersBackground { io.execute { stopAll(backgrounded = true) } }
 
     AsyncFunction("capabilities") { promise: Promise -> run(promise) { Radios.capabilities(context) } }
+
+    // An iPhone shows its Bluetooth prompt here (phase 5). On Android JavaScript asks for the
+    // permissions itself (src/nearby/nearbyPermissions.android.ts), so this only says whether they are granted.
+    AsyncFunction("askPermission") { promise: Promise -> run(promise) { Radios.granted(context) } }
 
     AsyncFunction("configureLinks") { tunables: Map<String, Any?>, promise: Promise ->
       run(promise) { linkTune = FindTunables.links(tunables); null }
@@ -195,5 +204,27 @@ class NearbyLinkModule : Module() {
       }
     }
     AsyncFunction("stopAll") { promise: Promise -> run(promise) { stopAll(); null } }
+
+    // Give the app (docs/nearby-sync-plan.md 14.5). Keeping the file needs no radio, so it works on every Android the app runs on.
+    AsyncFunction("keepInstallFile") { uri: String, name: String, minFreeBytes: Double, promise: Promise ->
+      run(promise) {
+        if (minFreeBytes.isNaN()) throw NearbyException(NearbyCode.BAD_ARGUMENT, "limits are numbers")
+        InstallFiles(context).keep(uri, name, minFreeBytes.toLong()).toMap()
+      }
+    }
+    AsyncFunction("keptInstallFile") { promise: Promise -> run(promise) { InstallFiles(context).kept()?.toMap() } }
+    AsyncFunction("dropInstallFile") { promise: Promise -> run(promise) { InstallFiles(context).drop(); null } }
+    AsyncFunction("startGiveApp") { page: String, deadlineMs: Double, promise: Promise ->
+      radio(promise) { kit ->
+        val kept = InstallFiles(context).kept() ?: throw NearbyException(NearbyCode.FILE_UNREADABLE, "no install file is kept")
+        kit.startGiveApp(page.toByteArray(Charsets.UTF_8), kept, deadlineMs.toLong())
+      }
+    }
+    AsyncFunction("giveAppStatus") { promise: Promise ->
+      run(promise) { (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) (kitHeld as? RadioKit)?.giveAppStatus() else null) ?: GiveApp.IDLE }
+    }
+    AsyncFunction("stopGiveApp") { promise: Promise ->
+      run(promise) { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) (kitHeld as? RadioKit)?.stopGiveApp(); null }
+    }
   }
 }

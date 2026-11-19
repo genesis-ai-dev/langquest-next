@@ -13,7 +13,7 @@ const tag = () => world().run.slice(-4);
 
 /** Open New language: its six steps, then Start (decision 146). */
 async function startNewLanguage(page: Page): Promise<void> {
-  await text(page, 'New language or cluster').click();
+  await text(page, 'New language').click();
   await expectOnScreen(page, '6 steps', 'Language', 'Content', 'Divide into sections', 'Reference material', 'Review flow', 'People');
   await primary(page).click();
 }
@@ -431,7 +431,7 @@ test('SETUP-021 Only organization-scope setters add languages', async ({ page, b
   await tab(p, 'manage').click();
   await byId(p, 'header-up').click();
   await expect(text(p, w.orgName).first()).toBeVisible();
-  await expect(text(p, 'New language or cluster')).toHaveCount(0);
+  await expect(text(p, 'New language')).toHaveCount(0);
   await tab(p, 'work').click();
   await expectNotOnScreen(p, 'Add a language');
   await lead.context.close();

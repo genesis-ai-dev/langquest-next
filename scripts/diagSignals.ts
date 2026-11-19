@@ -152,6 +152,9 @@ interface Signal {
   /** Install the signal is about, or null for the language or the server. */
   install: string | null;
   text: string;
+  /** For a job's signal: its kind and job, the ops dashboard's name for the line (apps/admin/src/alertKinds.ts). */
+  key?: 'job-stopped' | 'job-failing' | 'job-failures' | 'job-partial' | 'push-delivery-low';
+  job?: string;
 }
 
 /** How a report names a transfer source. */
@@ -452,16 +455,16 @@ export interface JobStat {
  */
 export function jobSignals(jobs: JobStat[]): Signal[] {
   const out: Signal[] = [];
-  const add = (level: Signal['level'], text: string) => out.push({ level, install: null, text });
   for (const j of jobs) {
+    const add = (level: Signal['level'], key: NonNullable<Signal['key']>, text: string) => out.push({ level, install: null, text, key, job: j.job });
     const why = j.last_error_class ? ` (${j.last_error_class})` : '';
-    if (j.stale) add('problem', `Server job ${j.job} has not run successfully since ${j.last_ok_at ?? 'the window began'} (every ${j.every ?? '?'}): it stopped. Last run ${j.last_at ?? 'never'}, ${j.last_outcome ?? '?'}${why}.`);
-    else if (j.streak >= 3) add('problem', `Server job ${j.job} failed its last ${j.streak} runs${why}.`);
-    else if (j.failures > 0 && j.failures >= j.runs * 0.2) add('watch', `Server job ${j.job} failed ${j.failures} of ${j.runs} runs in the window${why}.`);
-    else if (j.partials > 0 && j.partials >= j.runs * 0.5) add('watch', `Server job ${j.job} did only part of its work in ${j.partials} of ${j.runs} runs.`);
+    if (j.stale) add('problem', 'job-stopped', `Server job ${j.job} has not run successfully since ${j.last_ok_at ?? 'the window began'} (every ${j.every ?? '?'}): it stopped. Last run ${j.last_at ?? 'never'}, ${j.last_outcome ?? '?'}${why}.`);
+    else if (j.streak >= 3) add('problem', 'job-failing', `Server job ${j.job} failed its last ${j.streak} runs${why}.`);
+    else if (j.failures > 0 && j.failures >= j.runs * 0.2) add('watch', 'job-failures', `Server job ${j.job} failed ${j.failures} of ${j.runs} runs in the window${why}.`);
+    else if (j.partials > 0 && j.partials >= j.runs * 0.5) add('watch', 'job-partial', `Server job ${j.job} did only part of its work in ${j.partials} of ${j.runs} runs.`);
     const t = j.totals ?? {};
     if (j.job === 'push_delivery' && (t.claimed ?? 0) >= 10 && (t.sent ?? 0) < (t.claimed ?? 0) * 0.5) {
-      add('watch', `Push delivery sent ${t.sent ?? 0} of ${t.claimed} notifications it claimed (${t.noToken ?? 0} with no push token, ${t.failed ?? 0} failed).`);
+      add('watch', 'push-delivery-low', `Push delivery sent ${t.sent ?? 0} of ${t.claimed} notifications it claimed (${t.noToken ?? 0} with no push token, ${t.failed ?? 0} failed).`);
     }
   }
   const rank = { problem: 0, watch: 1, info: 2 };

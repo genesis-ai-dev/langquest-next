@@ -1,17 +1,17 @@
 {
   "nearby": {
     "experimental": "Na gwaji",
-    "intro": "Yana aiki ba tare da intanet ba: sabunta wayoyin abokan aiki, ko ka ba sabon mutum manhajar ka bar shi ya shiga tawagar.",
+    "intro": "Yana aiki ba tare da intanet ba.",
     "withTeammates": "Tare da abokan aiki",
-    "withTeammatesLine": "Wayoyin da tuni suke da LangQuest suna sabunta juna. Ka bar wannan a buɗe har sai ya ce Komai sabo ne.",
+    "withTeammatesLine": "Wayoyin da tuni suke da LangQuest suna sabunta juna.",
     "newPerson": "Sabon mutum",
     "newPersonLine": "Ka ba sabon mutum manhajar, sannan ka bar shi ya shiga tawagar daga wannan waya.",
+    "step": "{{n}}. {{label}}",
     "row": "Raba da na kusa",
-    "rowSub": "Raba ci gaban aiki da abokan aiki ba tare da intanet ba",
-    "rowSubJoin": "Raba ci gaban aiki da abokan aiki, ko shigar da sabon mutum, ba tare da intanet ba",
-    "rowHelp": "Yana buɗe Raba da na kusa, inda wayoyin da ke kusa da juna suke aika wa juna ci gaban aiki kuma suna karɓa ba tare da intanet ba.",
-    "rowHelpJoin": "Yana buɗe Raba da na kusa, inda wayoyin da ke kusa da juna suke aika wa juna ci gaban aiki kuma suna karɓa ba tare da intanet ba, kuma inda kake ba sabon mutum manhajar ka bar shi ya shiga tawagar.",
-    "rowHelpRemind": "Yana buɗe Raba da na kusa, inda wayoyin da ke kusa da juna suke aika wa juna ci gaban aiki kuma suna karɓa ba tare da intanet ba, kuma inda kake ba sabon mutum manhajar ka bar shi ya shiga tawagar. Wannan wayar ba ta da fayil ɗin girkawa da wayar sabon mutum ke buƙata yanzu tukuna: ka samu shi a can kafin ka rasa intanet.",
+    "rowSub": "Raba aiki da abokan aiki ba tare da intanet ba",
+    "rowSubJoin": "Raba aiki da abokan aiki, ko shigar da sabon mutum, ba tare da intanet ba",
+    "rowHelp": "Yana buɗe Raba da na kusa, inda wayoyin da ke kusa da juna suke raba aiki ba tare da intanet ba.",
+    "rowHelpJoin": "Yana buɗe Raba da na kusa, inda wayoyin da ke kusa da juna suke raba aiki ba tare da intanet ba, kuma inda kake ba sabon mutum manhajar ka bar shi ya shiga tawagar.",
     "why": {
       "loading": "Ana duba wannan waya…",
       "notInBuild": "Wannan sigar manhajar ba za ta iya rabawa da na kusa ba. Sabunta ta daga shago.",
@@ -20,6 +20,7 @@
       "noWifiDirect": "Wannan waya ba ta da Wi-Fi Direct, wanda Raba da na kusa ke buƙata.",
       "noKey": "Wannan waya ba ta shirya rabawa ba tukuna. Ka haɗa da intanet sau ɗaya, sannan ka dawo.",
       "noCertificate": "Don rabawa da na kusa, dole wannan waya ta haɗa da intanet sau ɗaya yayin da ƙungiyarka ta kunna Raba da na kusa.",
+      "limited": "Wannan asusu ya saita sababbin wayoyi da yawa fiye da kima a yau. Raba da na kusa zai yi aiki a wannan waya daga gobe.",
       "readOnly": "Asusun da ke kallon ƙungiyoyi kawai ba sa rabawa da na kusa."
     },
     "radios": {
@@ -33,16 +34,18 @@
       "nearbyAndLocation": "Android za ta tambaya sau biyu: don nemo na'urorin da ke kusa, sannan don wuri, wanda Wi-Fi Direct ke buƙata. LangQuest ba ya rubuta inda kake.",
       "nearbyDevices": "Android za ta nemi ka bar LangQuest ya nemo kuma ya haɗa da na'urorin da ke kusa. Yana amfani da wannan ne kawai yayin da wannan shafin yake a buɗe.",
       "precise": "Android ta ba da wuri na kusan-kusan kawai, amma Wi-Fi Direct yana buƙatar ainihin wuri don haɗawa. Har yanzu LangQuest ba ya rubuta inda kake.",
+      "bluetooth": "iPhone ɗinka za ta nemi ka bar LangQuest ya yi amfani da Bluetooth don nemo wayoyin abokan aiki. Yana amfani da wannan ne kawai yayin da wannan shafin yake a buɗe. Idan wayoyin suka haɗu, za ta iya kuma neman izinin nemo na'urori a cibiyar sadarwarka ta gida da kuma shiga Wi-Fi na abokin aiki. Ka ba da izinin waɗannan ma, don naɗe-naɗe su iya wucewa.",
       "settings": "Android ba za ta sake tambaya ba. Buɗe saitunan wannan manhaja, sannan Izini, ka ba da izinin Na'urorin da ke kusa ko Wuri.",
+      "settingsIphone": "iPhone ɗinka ba za ta sake tambaya ba. Buɗe saitunan wannan manhaja ka kunna Bluetooth, da kuma Local Network idan yana nan.",
       "allow": "Ci gaba",
       "allowHelp": "Yana nuna tambayar Android. Zaɓi Ba da izini don rabawa da abokan aiki na kusa.",
+      "allowHelpIphone": "Yana nuna tambayar iPhone ɗinka. Zaɓi Ba da izini (Allow) don rabawa da abokan aiki na kusa.",
       "openSettings": "Buɗe saituna",
       "openSettingsHelp": "Yana buɗe shafin wannan manhaja a saitunan wayarka, inda za ka iya ba ta izini."
     },
     "stopped": {
       "idle": "Ya tsaya bayan ɗan lokaci ba tare da sabon mutum a kusa ba.",
       "wait": "Ya tsaya bayan an daɗe ana jiran abokin aikin da ke cikin aiki.",
-      "noKey": "Wannan waya ba za ta iya rabawa ba tukuna. Ka haɗa da intanet sau ɗaya, sannan ka dawo.",
       "failed": "Raba da na kusa bai iya kunna Bluetooth da Wi-Fi ba.",
       "lookAgainLine": "Idan abokin aiki ya iso, taɓa Sake dubawa."
     },
@@ -65,8 +68,9 @@
     },
     "connect": "Haɗa",
     "connectHelp": "Yana haɗawa da wannan waya. Yi amfani da shi idan abokin aiki yana kusa amma wayoyin ba su sami juna ba.",
+    "connectHelpAll": "Yana haɗawa da duk wayoyin abokan aiki na kusa da ba su sami wannan ba. Taɓawa ɗaya ta isa ga duka har sai ka bar wannan shafin.",
     "came": {
-      "title": "Abin da aka yi musaya",
+      "title": "Abin da aka raba",
       "changesIn": "Canje-canjen da aka karɓa: {{n}}",
       "changesOut": "Canje-canjen da aka aika: {{n}}",
       "filesIn": "Naɗe-naɗen da aka karɓa: {{n}}",
@@ -83,15 +87,15 @@
       "failed": "Wani abu ya lalace. Zai sake gwadawa."
     },
     "clockOff": "Agogon wani abokin aiki da na wannan waya sun bambanta da fiye da minti biyar. Duba kwanan wata da lokaci a wayoyin biyu.",
-    "newerApp": "Wayar wani abokin aiki tana buƙatar sabuwar sigar manhajar kafin ta raba da wannan. Sabunta manhajar daga shago, ko ka karɓi sabuwar sigar daga abokin aiki.",
-    "apkOld": "Fayil ɗin girkawa da ka samu na tsohuwar sigar ne. Ka samu sabon kafin ka rasa intanet.",
+    "newerApp": "Sigogin manhajar wannan waya da ta wani abokin aiki sun yi nisa da juna sosai, don haka ba za su iya rabawa ba. Sabunta tsohuwar daga shago, ko daga fayil ɗin girkawa na ɗayar wayar.",
+    "newerAppIphone": "Sigogin manhajar wannan waya da ta wani abokin aiki sun yi nisa da juna sosai, don haka ba za su iya rabawa ba. Sabunta tsohuwar daga shago.",
     "tooOld": "Wannan manhaja ta tsufa da yawa don rabawa. Sabunta ta daga shago.",
     "farAhead": "Wayar {{name}} tana da kwanan wata mai nisa a nan gaba. Aikinsu zai jira har sai ya iso sabar.",
     "olderFromServer": "Tsohon aiki zai zo daga sabar.",
     "hold": "Riƙe naɗe-naɗen abokan aiki",
     "holdHelp": "Idan a kunne, wannan waya tana riƙe naɗe-naɗen abokan aiki har sai sabar ta samu su. Idan a kashe, tana riƙe waɗanda kake buƙata kawai.",
     "carry": {
-      "title": "A shirye don ɗauka",
+      "title": "Abin da wannan waya ke ɗauke da shi",
       "everything": "Wannan waya tana riƙe da duk abin da ta sani.",
       "missing": "Naɗe-naɗen da ba su nan: {{n}}",
       "coming": "Har yanzu suna zuwa daga abokan aiki na kusa: {{n}}",
@@ -128,7 +132,6 @@
         "noPass": "Wannan waya ba za ta iya shigar da kowa ba. Dole ƙungiyarka ta kunna shi, dole ka iya gayyatar mutane zuwa wannan harshe, kuma dole wannan waya ta sami intanet tun daga lokacin.",
         "expired": "Izinin wannan waya na shigar da mutane ya ƙare. Ka haɗa da intanet sau ɗaya don sabunta shi.",
         "noRole": "Babu matsayin da wannan waya za ta iya bayarwa ba tare da intanet ba. Mai kula zai iya ba da matsayi bayan sabon mutumin ya sami intanet.",
-        "permissions": "Ka fara buɗe Raba da na kusa ka ba da izinin abin da Android ta tambaya, sannan ka dawo.",
         "wifiOff": "Ka kunna Wi-Fi a saitunan wayarka, sannan ka dawo."
       },
       "role": "Matsayinsa",
@@ -156,16 +159,25 @@
       "anotherHelp": "Yana sake farawa da sabuwar lamba.",
       "turnedAway": "Wata waya ta gwada wannan lambar kuma an ƙi karɓar ta.",
       "stayOpen": "Ka bar wannan shafin a buɗe har sai ya gama.",
-      "file": "Fayil ɗin girkawa na wannan sigar: {{file}}",
-      "fileExact": "Fayil ɗin da ke cikin Abubuwan da aka sauke dole ne ya kasance da wannan suna daidai. Duk wani suna dabam sigar da ba daidai ba ce.",
-      "fileOld": "Fayil ɗin girkawa da ka samu a baya na tsohuwar sigar ne. Ka samu sabon kafin ka rasa intanet.",
-      "get": "Samu fayil ɗin girkawa",
+      "get": "Sauke a burauza",
       "getHelp": "Yana buɗe burauzar wayar, wadda ke sauke fayil ɗin girkawa na wannan sigar.",
-      "getLine": "Ka sauke shi kafin ka rasa intanet. Dole sabuwar wayar ta yarda a girka manhajoji daga wasu wurare. Ka aika mata fayil ɗin ta Quick Share, katin SD ko waya ta USB. Quick Share yana buƙatar ayyukan Google Play a wayoyin biyu.",
-      "getOffline": "Samun fayil ɗin girkawa yana buƙatar intanet.",
-      "check": "Duba fayil ɗina",
-      "checkHelp": "Yana buɗe fayilolin wayar. Ka zaɓi fayil ɗin girkawa da kake da shi, manhajar kuma ta kwatanta sunansa da wanda wannan waya ke buƙata. Suna kaɗai ake karantawa.",
-      "checkRight": "Wannan shi ne fayil ɗin da ya dace.",
+      "getSteps": {
+        "lead": "Bayan ka taɓa {{button}}:",
+        "browser": "Burauzar wayar za ta buɗe, ta sauke fayil ɗin girkawa.",
+        "warning": "Idan burauzar ta yi gargaɗin cewa fayil ɗin na iya yin illa, ka zaɓi ka sauke shi duk da haka. Shi ne fayil ɗin girkawa na LangQuest na ainihi.",
+        "back": "Idan saukewar ta gama, ka koma LangQuest. Ba sai ka buɗe fayil ɗin ba.",
+        "choose": "Ka taɓa {{button}}."
+      },
+      "getLine": "A filin aiki, ka aika shi ta Ba da manhajar. Quick Share, katin SD ko waya ta USB ma suna aiki, amma Quick Share yana buƙatar ayyukan Google Play a wayoyin biyu.",
+      "getLineOther": "A filin aiki, ka aika shi zuwa sabuwar wayar ta Quick Share, katin SD ko waya ta USB. Quick Share yana buƙatar ayyukan Google Play a wayoyin biyu. Sabuwar wayar tana iya tambaya ko za a yarda a girka daga wannan wuri.",
+      "getOffline": "Sauke fayil ɗin girkawa yana buƙatar intanet.",
+      "check": "Zaɓi fayil da kake da shi tuni",
+      "checkHelp": "Yana buɗe fayilolin wayar. Ka zaɓi fayil ɗin girkawa da ka samu ta wata hanya, kamar daga abokin aiki ko daga katin SD, manhajar kuma ta tabbatar cewa shi ne wanda wannan waya ke buƙata.",
+      "choose": "Zaɓi fayil ɗin da aka sauke",
+      "chooseHelp": "Yana buɗe fayilolin wayar. Ka zaɓi fayil ɗin girkawa da burauzar ta sauke, manhajar kuma ta tabbatar cewa shi ne wanda wannan waya ke buƙata.",
+      "chooseLine": "Idan saukewar ta gama, ka taɓa Zaɓi fayil ɗin da aka sauke. Yawanci shi ne na farko cikin fayilolinka na kwanan nan.",
+      "getAgain": "Sake sauke shi",
+      "getAgainHelp": "Yana sake buɗe burauzar wayar, idan saukewar ba ta gama ba.",
       "checkOther": "Wannan fayil na wata sigar dabam ne: kana buƙatar {{file}}",
       "checkChose": "Ka zaɓi {{name}}",
       "fileHelp": "Idan duk waɗanda ka zo don su sun shiga, goge wannan fayil ɗin. Kana buƙatar intanet don sake samun sa.",
@@ -184,18 +196,35 @@
         "stopped": "Lambar ta tafi saboda ka bar wannan shafin. Ka yi sabuwa.",
         "noCertificate": "Dole wannan waya ta haɗa da intanet sau ɗaya kafin ta iya shigar da kowa.",
         "failed": "Wani abu ya lalace a wannan waya. Ka yi sabuwar lamba."
+      },
+      "keep": {
+        "keeping": "Ana ajiye kwafi a wannan waya…",
+        "kept": "An ajiye kwafi a wannan waya don Ba da manhajar. Za ka iya goge wanda ke cikin Abubuwan da aka sauke.",
+        "notOurs": "Wannan ba fayil ɗin girkawa na LangQuest na ainihi ba ne. Ka sake sauke shi yayin da kake da intanet.",
+        "noSpace": "Babu isasshen wuri a wannan waya don ajiye kwafi. Ka goge wasu abubuwa don samun wuri, sannan ka sake zaɓar sa.",
+        "unreadable": "Ba a iya karanta wannan fayil ɗin ba. Ka sake zaɓar sa.",
+        "failed": "Ba a iya ajiye kwafi ba. Ka sake zaɓar sa.",
+        "needsAndroid": "Wannan waya ba ta ajiye kwafi ba: Ba da manhajar yana buƙatar Android 10 ko sama da haka.",
+        "needsUpdate": "Wannan waya ba ta ajiye kwafi ba tukuna. Ka sabunta manhajar daga shago don ba da ita ta Wi-Fi."
       }
     },
     "installFile": {
-      "intro": "Sabuwar waya tana buƙatar an girka LangQuest a kanta kafin ka shigar da mai ita. Ka samu fayil ɗin a nan yayin da kake da intanet, ka tafi da shi.",
+      "intro": "Sabuwar waya tana buƙatar an girka LangQuest a kanta kafin ka shigar da mai ita. Ka sauke fayil ɗin girkawa a nan yayin da kake da intanet, ka tafi da shi.",
       "rowSub": "Kafin ka rasa intanet",
-      "rowHelp": "Yana buɗe Samu fayil ɗin girkawa, inda kake sauke kuma ka duba fayil ɗin da sabuwar waya ke girka LangQuest da shi. Ka yi haka yayin da kake da intanet.",
-      "linkHelp": "Yana buɗe Samu fayil ɗin girkawa, inda kake sauke kuma ka duba fayil ɗin da sabuwar waya ke girka LangQuest da shi.",
-      "remind": "Ka samu fayil ɗin girkawa kafin ka rasa intanet",
-      "notGot": "Fayil ɗin girkawa don sabon mutum: ba a samu ba tukuna",
+      "rowHelp": "Yana buɗe Sauke fayil ɗin girkawa, inda kake sauke fayil ɗin da sabuwar waya ke girka LangQuest da shi kuma ka ajiye kwafi. Ka yi haka yayin da kake da intanet.",
+      "linkHelp": "Yana buɗe Sauke fayil ɗin girkawa, inda kake sauke fayil ɗin da sabuwar waya ke girka LangQuest da shi kuma ka ajiye kwafi.",
+      "notGot": "Babu fayil ɗin girkawa don sabon mutum tukuna",
       "older": "Fayil ɗin girkawa don sabon mutum: na tsohuwar sigar ne",
-      "getIt": "Samu shi",
-      "lineHelp": "Wayar sabon mutum tana girka LangQuest daga wannan fayil. Wannan wayar ba ta samu na wannan sigar ba tukuna: ka samu shi yayin da kake da intanet, don ka iya ba sabon mutum shi ba tare da intanet ba."
+      "notChosen": "Fayil ɗin girkawa don sabon mutum: ba a zaɓa ba tukuna",
+      "lineHelp": "Kana buƙatar wannan fayil don ba sabon mutum LangQuest ba tare da intanet ba. Ka sauke shi yayin da kake da intanet.",
+      "old": "Fayil ɗin girkawa da kake da shi na tsohuwar sigar ne. Ka sauke sabon.",
+      "downloaded": "An sauke. Zaɓi fayil ɗin don kammalawa.",
+      "title": "Fayil ɗin girkawa don sabon mutum",
+      "ready": "A shirye yake don ba sabon mutum.",
+      "readyShort": "Fayil ɗin girkawa ya shirya",
+      "done": "A shirye yake. Za ka iya tafiya da shi inda babu intanet.",
+      "newer": "Sabon fayil ɗin girkawa ya shirya. Ka sauke shi yayin da kake da intanet, sannan ka zaɓe shi.",
+      "newerShort": "Fayil ɗin girkawa don sabon mutum: sabon fayil ya shirya"
     },
     "join": {
       "intro": "Ka shiga tawagarka daga wayar abokin aiki, ba tare da intanet ba. Za a buɗe asusunka a karon farko da wayarka ta sami intanet.",
@@ -217,8 +246,8 @@
       "join": "Shiga",
       "tryAgain": "Sake gwadawa",
       "joinHelp": "Yana kai wayar abokin aikinka kuma yana neman a shigar da kai.",
-      "permission": "LangQuest yana buƙatar na'urorin da ke kusa don ya kai wayar abokin aikinka.",
-      "permissionBlocked": "Ka ba LangQuest izinin Na'urorin da ke kusa a saitunan wayar, sannan ka dawo.",
+      "permission": "LangQuest yana buƙatar izinin Na'urorin da ke kusa (Wuri a tsofaffin wayoyi) don ya kai wayar abokin aikinka.",
+      "permissionBlocked": "Ka ba LangQuest izinin Na'urorin da ke kusa ko Wuri a saitunan wayar, sannan ka dawo.",
       "wifiOff": "Ka kunna Wi-Fi a saitunan wayarka, sannan ka sake gwadawa.",
       "connecting": "Ana kai wayar abokin aikinka…",
       "asked": "Ana jiran abokin aikinka",
@@ -247,6 +276,71 @@
         "refused": "Wannan waya ba ta iya duba amsar abokin aikinka ba. Ka nemi sabuwar lamba.",
         "dropped": "Haɗin ya yanke. Ka nemi sabuwar lamba.",
         "failed": "Wani abu ya lalace a wannan waya. Ka nemi sabuwar lamba."
+      }
+    },
+    "give": {
+      "intro": "Wannan waya tana ƙirƙirar hanyar sadarwar Wi-Fi ta kanta. Sabuwar wayar tana karanta lambobi biyu da kyamararta: ɗaya don haɗawa da hanyar sadarwar, ɗaya don sauke LangQuest. Babu ɗaya daga cikin wayoyin da ke buƙatar intanet.",
+      "rowSub": "Idan kana tare da sabon mutumin",
+      "rowHelp": "Yana buɗe Ba da manhajar, inda wannan waya ke aika LangQuest zuwa sabuwar waya ta hanyar sadarwar Wi-Fi da ta ƙirƙira da kanta.",
+      "linkHelp": "Yana buɗe Ba da manhajar, don aika LangQuest zuwa sabuwar wayar ta hanyar sadarwar Wi-Fi da wannan waya ke ƙirƙira.",
+      "size": "Fayil ɗin girkawa: {{size}} MB",
+      "start": "Nuna lamba ta farko",
+      "startHelp": "Yana ƙirƙirar hanyar sadarwar Wi-Fi ta wannan waya don sabuwar wayar ta haɗa, kuma yana nuna lamba ta farko.",
+      "starting": "Ana ƙirƙirar hanyar sadarwar Wi-Fi ta wannan waya…",
+      "noFile": "Da farko ka sauke fayil ɗin girkawa yayin da kake da intanet.",
+      "unsupported": {
+        "android": "Ba da manhajar yana buƙatar Android 10 ko sama da haka, amma wannan waya tana da tsohuwar siga. A maimakon haka, ka aika fayil ɗin girkawa ta Quick Share, katin SD ko waya ta USB.",
+        "update": "Wannan sigar manhajar ba za ta iya ba da manhajar ba. Sabunta ta daga shago."
+      },
+      "join": {
+        "title": "1. Haɗa da hanyar sadarwar Wi-Fi ta wannan waya",
+        "line": "A sabuwar wayar, buɗe kyamara, ka nuna ta ga wannan lamba, sannan ka taɓa Haɗa. Idan ta haɗa, ka taɓa Gaba.",
+        "lineAgain": "A sabuwar wayar, buɗe kyamara, ka nuna ta ga wannan lamba, sannan ka taɓa Haɗa.",
+        "code": "Lambar haɗawa da hanyar sadarwar Wi-Fi ta wannan waya",
+        "network": "Sunan Wi-Fi: {{name}}",
+        "password": "Kalmar sirri: {{password}}",
+        "typeLine": "Ko kuma, a saitunan Wi-Fi na sabuwar wayar, zaɓi wannan hanyar sadarwa sannan ka rubuta kalmar sirri:"
+      },
+      "next": "Gaba",
+      "nextHelp": "Yana nuna lamba ta biyu, ta shafin saukewa, bayan sabuwar wayar ta haɗa.",
+      "download": {
+        "title": "2. Buɗe shafin saukewa",
+        "line": "Ka nuna kyamarar sabuwar wayar ga wannan lamba ka buɗe shafin. Taɓa Sauke.",
+        "code": "Lambar shafin saukewa",
+        "address": "Ko ka rubuta wannan adireshin a burauzarta: {{address}}",
+        "dataLine": "Sabuwar wayar tana iya cewa wannan Wi-Fi ba shi da intanet. Taɓa Ci gaba da haɗi. Idan har yanzu shafin bai buɗe ba, kashe data ta wayar hannu a sabuwar wayar."
+      },
+      "backToJoin": "Koma ga lamba ta farko",
+      "backToJoinHelp": "Yana sake nuna lambar haɗawa da hanyar sadarwar Wi-Fi ta wannan waya.",
+      "sending": "Ana aikawa: {{sent}} cikin {{total}} MB",
+      "sent": "3. Girka shi",
+      "sentLine": "An aika fayil ɗin. A sabuwar wayar, buɗe fayil ɗin da aka sauke sannan ka taɓa Girka. Tana iya tambaya sau ɗaya ko za a yarda a girka daga wannan wuri. Sannan ka shigar da shi daga wannan waya.",
+      "another": "Ba da ita ga wata waya",
+      "anotherHelp": "Yana sake nuna lambobin biyu, don ƙarin sabuwar waya ɗaya.",
+      "letIn": "Shigar da shi",
+      "letInHelp": "Yana buɗe Shigar da wani, don sabuwar wayar ta shiga tawagar.",
+      "stop": "Tsaya",
+      "stopHelp": "Yana kashe hanyar sadarwar Wi-Fi ta wannan waya.",
+      "stayOpen": "Ka bar wannan shafin a buɗe har sai an aika fayil ɗin.",
+      "ended": {
+        "stopped": "An tsaya.",
+        "idle": "An tsaya bayan minti 15 ba tare da wata waya ta sauke ba.",
+        "phone": "An tsaya saboda an kashe Wi-Fi ko ka bar manhajar."
+      },
+      "failed": {
+        "wifiOff": "Ka kunna Wi-Fi a wannan waya, sannan ka sake gwadawa.",
+        "permission": "LangQuest yana buƙatar izinin Na'urorin da ke kusa (Wuri a tsofaffin wayoyi) don ya ƙirƙiri hanyar sadarwar Wi-Fi tasa. Ka ba da izini, sannan ka sake gwadawa.",
+        "busy": "Wi-Fi na wannan waya yana wani aiki a yanzu. Ka ɗan jira, sannan ka sake gwadawa.",
+        "failed": "Hanyar sadarwar Wi-Fi ta wannan waya ba ta fara ba. Ka sake gwadawa.",
+        "permissionCovered": "Ka fara buɗe Raba da na kusa ka ba da izinin abin da ya tambaya. Sannan ka dawo ka sake gwadawa."
+      },
+      "page": {
+        "title": "Girka LangQuest",
+        "size": "{{size}} MB",
+        "download": "Sauke",
+        "stepOpen": "Buɗe fayil ɗin da aka sauke.",
+        "stepAllow": "Ka yarda a girka daga wannan wuri, idan wayar ta tambaya.",
+        "stepInstall": "Taɓa Girka."
       }
     }
   }

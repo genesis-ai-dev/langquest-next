@@ -270,7 +270,8 @@ test('WEB-010 Where the tabs show @wide', async ({ page }) => {
     await toTab(page, 'me');
     await text(page, 'More settings').click();
     expect(await tabsOn(), `more settings at ${width}`).toBe(!phone);
-    await button(page, /^Sync[ ,.]/).click();
+    await back(page).click();
+    await button(page, /^Sync and offline[ ,.]/).click();
     expect(await tabsOn(), `sync at ${width}`).toBe(!phone);
     if (!phone) {
       await expect(tab(page, 'me')).toHaveAttribute('aria-selected', 'true');
@@ -512,11 +513,11 @@ test('WEB-020 The tab title names the screen', async ({ page }) => {
   await expect(page).toHaveTitle('Passage Record · LangQuest');
   await toTab(page, 'me');
   await expect(page).toHaveTitle('Me · LangQuest');
+  await button(page, /^Sync and offline[ ,.]/).click();
+  await expect(page).toHaveTitle('Sync and offline · LangQuest');
+  await back(page).click();
   await text(page, 'More settings').click();
   await expect(page).toHaveTitle('More settings · LangQuest');
-  await button(page, /^Sync[ ,.]/).click();
-  await expect(page).toHaveTitle('Sync · LangQuest');
-  await back(page).click();
   await button(page, /^Switch Organization/).click();
   await expect(page).toHaveTitle('Switch Org · LangQuest');
   await toTab(page, 'me');

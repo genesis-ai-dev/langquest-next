@@ -18,8 +18,8 @@ export const GROUPS = [
   { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name', parts: [] },
   { id: 'userissues', title: 'User issues', src: 'What the watch for user issues filed in Linear or found already fixed, each issue\'s state and the pull request that fixed it', wide: true, parts: ['userissues'] },
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
-  { id: 'phones', title: 'Phones and browsers', src: 'What installs report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
-  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, last night\'s tests, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'nightly', 'releases', 'expo', 'adoption'] },
+  { id: 'phones', title: 'Phones and browsers', src: 'What phones and browsers report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
+  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
   { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, pg_cron, push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
   { id: 'database', title: 'Database', src: 'Connections, cache, slow calls, largest tables, long transactions, and the Supabase project', parts: ['database', 'dbdetail', 'supabase'] },
   { id: 'traffic', title: 'Workers and traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
@@ -28,16 +28,17 @@ export const GROUPS = [
   { id: 'support', title: 'Support', src: 'Content reports, suspensions, deletions, feedback, and what was done from this page', wide: true, parts: ['support', 'feedback'] },
   { id: 'access', title: 'Access and integrations', src: 'Global Viewers, limits hit, tokens, device grants, webhooks, review links, and what expires', parts: ['security', 'integrations', 'expiry'] },
   { id: 'stores', title: 'App stores', src: 'Google Play vitals and reviews, App Store review state, builds and reviews', parts: ['googleplay', 'appstore'] },
-  { id: 'tutorials', title: 'Tutorial videos', src: 'Filming now, each app language\'s YouTube channel, the videos made and not up yet, Publish, and what Claude suggests from comments, code changes and notes', wide: true, parts: ['filming', 'tutorials', 'videofeedback'] }
+  { id: 'nightly', title: 'Nightly tests', src: 'The line each nightly suite left on its latest scheduled run on main: what ran, what passed, and the Linear issue of each test that failed', wide: true, parts: ['nightly'] },
+  { id: 'tutorials', title: 'Tutorial videos', src: 'Each video\'s state and timeline in each app language, what an admin must do, what the workers do now and tonight, each channel, Publish, and what came in', wide: true, parts: ['videos', 'tutorials', 'videofeedback'] }
 ] as const;
 
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
 export const PART_TITLES: Record<string, string> = {
-  pipeline: 'Where each build and update is', clients: 'What installs report', fleet: 'Builds in the field and stuck phones', code: 'Code and deploys', releases: 'What shipped',
+  pipeline: 'Where each build and update is', clients: 'What phones and browsers report', fleet: 'Builds in the field and stuck phones', code: 'Code and deploys', releases: 'What shipped',
   expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
-  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', filming: 'Filming', tutorials: 'Channels and videos', videofeedback: 'Feedback and suggestions',
+  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', videos: 'Videos and what waits on you', tutorials: 'Channels and videos', videofeedback: 'What came in, and notes',
   userissues: 'Problems people hit', nightly: 'Nightly tests'
 };
 
@@ -45,7 +46,7 @@ export const PART_TITLES: Record<string, string> = {
 export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
-export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'filming', 'pipeline', 'nightly'] as const;
+export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'videos', 'pipeline', 'nightly'] as const;
 
 export const OPS_SECTIONS = [
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
@@ -65,7 +66,7 @@ export const OPS_SECTIONS = [
   { id: 'security', title: 'Security and limits', src: 'Global Viewers, limits hit, new credentials' },
   { id: 'expiry', title: 'Expiry dates', src: 'Tokens, Apple certificates and profiles, and dates kept in apps/admin/expiry.json' },
   { id: 'capacity', title: 'Capacity and cost', src: 'Database and R2 growth against the plan, Cloudflare usage this month' },
-  { id: 'filming', title: 'Filming', src: 'GitHub: the run of tutorials.yml on main filming now, or the latest, and each language\'s job (decisions.md 183)' },
+  { id: 'videos', title: 'Tutorial video lists', src: 'diag.ops_tutorial_films, ops_tutorial_feedback and ops_tutorials; status-<language>.json in the tutorials release; the filming run and NIGHTLY_LANGUAGES on GitHub (decisions.md 186)' },
   { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
   { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' },
   { id: 'userissues', title: 'User issues', src: 'ops.user_issues: what the watch filed in Linear, closed there, or found already fixed, with the pull request (decisions.md 202)' },
@@ -75,6 +76,29 @@ export const OPS_SECTIONS = [
 export const OPS_SCRIPT = String.raw`
 const orgLink = (id, name) => '<button class="link" data-org="' + esc(id) + '">' + esc(name || String(id).slice(0, 8)) + '</button>';
 const installLink = (id) => id ? '<button class="link" data-q="' + esc(id) + '"><code>' + esc(String(id).slice(0, 8)) + '</code></button>' : '–';
+/** Quiet installs by account (decisions.md 162): which accounts the warning counts, and the ones a person marked not an issue. */
+function silentPhones(q) {
+  if (!q) return '<p class="muted">Could not read them (the database lacks diag.ops_quiet_accounts).</p>';
+  const devices = (a) => Object.entries(a.devices || {}).sort((x, y) => y[1] - x[1]).map(([k, n]) => num(n) + ' ' + esc(k)).join(', ');
+  let h = '<p>' + num(q.count) + ' quiet for 3 days while another device of the same person reports.' +
+    (q.markedCount ? ' ' + num(q.markedCount) + ' more on accounts marked not an issue.' : '') + '</p>';
+  if (q.accounts.length) {
+    h += table([
+      { h: 'Account', v: (a) => accountLink(a.profile) }, { h: 'Quiet', n: true, v: (a) => num(a.quiet) }, { h: 'Reporting', n: true, v: (a) => num(a.reporting) },
+      { h: 'Quiet devices', v: devices }, { h: 'Last heard', v: (a) => ageOf(a.lastSeen) },
+      { h: '', v: (a) => '<button type="button" data-quiet="' + esc(a.profile) + '" data-ok="yes">Not an issue</button>' }
+    ], q.accounts);
+  }
+  if (q.marked.length) {
+    h += '<details><summary>Marked not an issue (' + num(q.marked.length) + ')</summary>' + table([
+      { h: 'Account', v: (a) => accountLink(a.profile) }, { h: 'Quiet', n: true, v: (a) => num(a.quiet) },
+      { h: 'Marked by', v: (a) => short(a.by) }, { h: 'When', v: (a) => when(a.at) },
+      { h: '', v: (a) => '<button type="button" data-quiet="' + esc(a.profile) + '" data-ok="no">Undo</button>' }
+    ], q.marked) + '</details>';
+  }
+  return h;
+}
+const accountLink = (id) => '<button class="link" data-q="' + esc(id) + '"><code>' + esc(id) + '</code></button>';
 const share = (a, b) => b ? ((a / b) * 100).toFixed(1) + '%' : '–';
 const hours = (msv) => msv === null || msv === undefined ? '–' : ms(Number(msv));
 const ageOf = (iso) => iso ? ago(iso) : '–';
@@ -141,8 +165,9 @@ Object.assign(RENDER, {
     ], d.updates);
     h += '<h3>Reducer and protocol, installs this week</h3>' + table([{ h: 'Reducer', v: (v) => esc(v.reducer || '?') }, { h: 'Protocol', v: (v) => esc(v.protocol || '?') }, { h: 'Installs', n: true, v: (v) => num(v.installs) }], d.versions);
     h += '<h3>Browsers by web commit, this week</h3>' + table([{ h: 'Commit', v: (w) => '<code>' + esc(String(w.commit || '?').slice(0, 8)) + '</code>' }, { h: 'Installs', n: true, v: (w) => num(w.installs) }], d.web);
-    h += '<h3>Time to a usable Map</h3><p class="muted">open: a language\'s first full download; fill: a big language, until its Map shows.</p>' + table([
-      { h: 'Day', v: (r) => esc(r.day) }, { h: 'Kind', v: (r) => esc(r.kind) }, { h: 'Count', n: true, v: (r) => num(r.count) }, { h: 'p50', n: true, v: (r) => hours(r.p50Ms) }, { h: 'p95', n: true, v: (r) => hours(r.p95Ms) }
+    h += '<h3>Time to a usable Map</h3><p class="muted">open: a language\'s first full download, without the wait for a connection; fill: a big language, until its Map shows.</p>' + table([
+      { h: 'Day', v: (r) => esc(r.day) }, { h: 'Kind', v: (r) => esc(r.kind) }, { h: 'Count', n: true, v: (r) => num(r.count) }, { h: 'p50', n: true, v: (r) => hours(r.p50Ms) }, { h: 'p95', n: true, v: (r) => hours(r.p95Ms) },
+      { h: 'Waited', n: true, v: (r) => r.kind === 'open' && r.waited !== null && r.waited !== undefined ? num(r.waited) : '–' }, { h: 'Longest wait', n: true, v: (r) => hours(r.waitMaxMs) }
     ], d.toMap.slice().reverse().slice(0, 14));
     h += '<h3>First downloads that fell back or started over</h3>' + table([
       { h: 'Day', v: (r) => esc(r.day) },
@@ -155,9 +180,7 @@ Object.assign(RENDER, {
       { h: 'Lost', n: true, v: (s) => '<span class="' + (s.lostRecordings ? 'bad' : '') + '">' + num(s.lostFiles || 0) + (s.lostRecordings ? ' (' + num(s.lostRecordings) + ' rec.)' : '') + '</span>' },
       { h: 'Reported', v: (s) => when(s.at) }
     ], d.stuck);
-    h += '<h3>Silent phones</h3><p>' + num(d.silent.count) + ' quiet for 3 days while another device of the same person reports.</p>' +
-      (d.silent.installs.length ? '<p>' + d.silent.installs.map((s) => installLink(s.install) + ' <small>' + ageOf(s.lastSeen) + '</small>').join(' · ') + '</p>' : '');
-    return h;
+    return h + '<h3>Silent phones</h3>' + silentPhones(d.quiet);
   },
   pipeline(d) {
     // Each store build sits in the stage it is in now, an arrow to the next; inside it, the over-the-air updates it takes.
@@ -342,29 +365,10 @@ Object.assign(RENDER, {
     }
     return h;
   },
-  // The run of tutorials.yml filming now, or the latest (sources/filming.ts): where each language's job is.
-  filming(d) {
-    if (!d.run) return '<p class="muted">No filming run on main yet.</p>';
-    const films = d.jobs.filter((j) => j.language);
-    const count = (state) => films.filter((j) => j.state === state).length;
-    const running = d.run.status !== 'completed';
-    const by = { push: 'a merge into main', schedule: 'the nightly schedule', workflow_dispatch: 'Run workflow on GitHub' }[d.run.event] || d.run.event;
-    let h = '<div class="stats">' + stat(count('done') + ' of ' + films.length, 'languages done', '', running ? NOW : 'run ' + d.run.number) +
-      stat(num(count('running')), 'languages filming now', '', NOW) + stat(num(count('waiting')), 'languages waiting', '', NOW) +
-      stat(num(count('failed')), 'languages failed', count('failed') ? 'bad' : '', running ? NOW : 'run ' + d.run.number) + '</div>';
-    h += '<p><a href="' + esc(d.run.url) + '" target="_blank" rel="noopener">Run ' + num(d.run.number) + '</a>, started by ' + esc(by) + ' ' + when(d.run.at) + ' on <code>' + esc(d.run.sha) + '</code>: ' +
-      '<span class="' + (running ? 'warn' : d.run.conclusion === 'success' ? 'good' : 'bad') + '">' + esc(running ? 'filming' : d.run.conclusion || d.run.status) + '</span>' +
-      (d.queued ? ' · ' + num(d.queued) + ' more ' + (d.queued === 1 ? 'run waits' : 'runs wait') + ' behind it' : '') + '</p>';
-    if (running && !films.length) h += '<p class="muted">The languages start once Grace\'s pieces are said.</p>';
-    const name = (j) => j.language ? esc(languageName(j.language)) + ' <small><code>' + esc(j.language) + '</code></small>' : j.job === 'grace' ? 'Grace\'s pieces <small>(every language)</small>' : esc(j.job);
-    const now = (j) => j.state === 'running' ? '<span class="warn">' + (j.language ? 'filming' : 'running') + '</span>' + (j.step ? '<br><small>' + esc(j.step) + (j.stepAt ? ', ' + esc(ago(j.stepAt)) : '') + '</small>' : '')
-      : j.state === 'done' ? '<span class="good">done</span>' : j.state === 'failed' ? '<span class="bad">failed</span>' : '<span class="muted">' + esc(j.state === 'waiting' ? 'waiting its turn' : j.state) + '</span>';
-    const took = (j) => !j.startedAt ? '–' : j.finishedAt ? ms(Date.parse(j.finishedAt) - Date.parse(j.startedAt)) : ms(Date.now() - Date.parse(j.startedAt)) + ' so far';
-    h += table([
-      { h: 'Language', v: name }, { h: 'Now', v: now }, { h: 'Started', v: (j) => j.startedAt ? when(j.startedAt) : '–' }, { h: 'Took', n: true, v: took },
-      { h: '', v: (j) => j.url ? '<a href="' + esc(j.url) + '" target="_blank" rel="noopener">Log</a>' : '' }
-    ], d.jobs.filter((j) => j.language || j.job === 'grace' || j.state !== 'done'));
-    return h;
+  // The tutorial videos (sources/videos.ts) as tabs, opening on what waits on an admin: pageVideos.ts videosHtml.
+  videos(d) {
+    VIDEOS = d;
+    return videosHtml(d);
   },
   tutorials(d) {
     const connected = d.channels.filter((c) => c.connectedAt).length;
@@ -405,24 +409,11 @@ Object.assign(RENDER, {
       : i.kind === 'code' ? (i.pr ? 'https://github.com/genesis-ai-dev/langquest-next/pull/' + i.pr : i.ref ? 'https://github.com/genesis-ai-dev/langquest-next/commit/' + i.ref : null) : null;
     const where = (i) => i.kind === 'comment' ? 'Comment' + (i.language ? ', ' + esc(languageName(i.language)) : '') : i.kind === 'code' ? 'Code change' + (i.pr ? ' #' + i.pr : '') : 'Note';
     const said = (i) => esc(i.english || i.text) + (i.kind === 'comment' && i.english && i.language !== 'en' ? '<details><summary>As written</summary>' + esc(i.text) + '</details>' : '');
-    const answers = (s) => s.inputs.length ? '<ul>' + s.inputs.map((i) => '<li><small>' + where(i) + ' · ' + when(i.at) + (link(i) ? ' · ' + out(link(i), 'open') : '') + '</small><br>' + said(i) +
-      (i.reply ? '<br><small>Reply suggested: ' + esc(i.replyEnglish || i.reply) + '</small>' + (i.language !== 'en' ? '<details><summary>In ' + esc(languageName(i.language)) + '</summary>' + esc(i.reply) + '</details>' : '') : '') + '</li>').join('') + '</ul>' : '';
     let h = '<div class="stats">' + stat(num(d.open), 'suggestions waiting', d.open ? 'warn' : '', NOW) + stat(num(d.waiting), 'not looked at yet', '', 'Claude looks at 10:00 UTC') +
       stat(num(d.unfiled), 'not in Linear yet', d.unfiled ? 'warn' : '', NOW) +
       stat(d.last ? when(d.last.at) : 'never', 'last look', '', d.last ? num(d.last.looked) + ' looked at, ' + num(d.last.suggested) + ' suggested' : '') + '</div>';
     if (d.last) h += '<p class="muted">' + out(d.last.runUrl, 'The last look\'s run on GitHub') + ', up to ' + out('https://github.com/genesis-ai-dev/langquest-next/commit/' + d.last.sha, '<code>' + esc(d.last.sha.slice(0, 8)) + '</code>') + '.</p>';
-    h += '<h3>Suggestions</h3>';
-    h += d.suggestions.length ? d.suggestions.map((s) => '<div class="fb"><span class="tag">' + esc(SUGGESTION_KINDS[s.kind] || s.kind) + '</span>' +
-      (s.decision ? '<span class="tag ' + (s.decision === 'accepted' ? 'good' : '') + '">' + esc(s.decision) + '</span>' : '<span class="tag bad">waiting</span>') +
-      '<small>' + (s.tutorial ? video(s.tutorial) + ' · ' : '') + 'suggested ' + when(s.madeAt) + (s.editedAt ? ' · edited ' + when(s.editedAt) : '') + (s.decidedAt ? ' · ' + esc(s.decision) + ' ' + when(s.decidedAt) : '') + '</small>' +
-      '<p><b>' + esc(s.title) + '</b></p><p class="setup">' + esc(s.detail) + '</p>' + answers(s) +
-      (s.reason ? '<p><small>' + (s.decision === 'rejected' ? 'Why not: ' : 'Note: ') + esc(s.reason) + '</small></p>' : '') +
-      (s.issue ? '<p><small>Linear: ' + out(s.issueUrl, esc(s.issue)) + '</small></p>' : s.kind === 'code' && s.decision === 'accepted' ? '<p><small class="muted">Linear: tonight, with the comments job</small></p>' : '') +
-      (s.decision ? '' : '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="accept" data-kind="' + esc(s.kind) + '">Accept</button> ' +
-        '<button type="button" data-sg="' + esc(s.id) + '" data-decision="reject">Reject</button></p>' +
-        '<details><summary>Edit</summary><label for="sg-' + esc(s.id) + '">What to change</label><textarea id="sg-' + esc(s.id) + '" maxlength="4000" rows="6">' + esc(s.detail) + '</textarea>' +
-        '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="edit">Save</button></p></details>') +
-      '</div>').join('') : '<p class="muted">Nothing here.</p>';
+    h += '<p class="muted">Suggestions waiting for a yes or no are under Waits on you, above.</p>';
     h += '<h3>What came in</h3>' + table([
       { h: 'When', v: (i) => when(i.at) },
       { h: 'Kind', v: (i) => where(i) },
@@ -438,19 +429,7 @@ Object.assign(RENDER, {
     return h;
   },
   // What the watch for user issues filed, closed or found already fixed, with the pull request (decisions.md 202).
-  userissues(d) {
-    const out = (href, text) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
-    const h = '<div class="stats">' + stat(num(d.open), 'open in Linear', d.open ? 'warn' : '', NOW) + stat(num(d.closed), 'closed in Linear', '', '90 days') +
-      stat(num(d.fixed), 'already fixed when seen', '', '90 days') + stat(num(d.noiseWeek), 'judged noise', '', LAST_WEEK) +
-      stat(d.last ? when(d.last.at) : 'never', 'last look', d.last && d.last.outcome !== 'ok' ? 'bad' : '', d.last ? d.last.outcome : '') + '</div>';
-    return h + table([
-      { h: 'Issue', v: (r) => r.issue ? out(r.issueUrl, esc(r.issue)) : '<span class="muted">not filed</span>' },
-      { h: 'What people hit', v: (r) => esc(r.title || r.keys[0]) + '<br><small>' + r.keys.slice(0, 3).map((k) => '<code>' + esc(k) + '</code>').join(' · ') + (r.keys.length > 3 ? ' …' : '') + '</small>' },
-      { h: 'In Linear', v: (r) => r.issue ? '<span class="' + (r.closedAt ? 'good' : 'warn') + '">' + esc(r.state || (r.closedAt ? 'closed' : 'open')) + '</span>' : '' },
-      { h: 'Fixed by', v: (r) => r.fixedBy ? out('https://github.com/genesis-ai-dev/langquest-next/pull/' + r.fixedBy, 'PR ' + esc(r.fixedBy)) + '<br><small>' + when(r.fixedAt) + '</small>' : r.closedAt ? '<span class="muted">no PR named</span>' : '' },
-      { h: 'Found', v: (r) => when(r.firstAt) }
-    ], d.issues);
-  },
+  userissues(d) { return userIssuesHtml(d); },
   // Last night's tests, every suite together (sources/nightly.ts, decisions.md 209): counts and Linear issues; the detail is in Linear.
   nightly(d) {
     const issue = (i) => /^https:\/\/linear\.app\//.test(String(i.url || '')) ? '<a href="' + esc(i.url) + '" target="_blank" rel="noopener noreferrer">' + esc(i.id) + '</a>' : esc(i.id);
@@ -488,7 +467,10 @@ async function perform(action, button) {
     say(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.')
       : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
       : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
-      : action.kind === 'tutorial-note' ? 'Note added. Claude looks at it at the next look.'
+      : action.kind === 'tutorial-note' ? (body.result === 'instructed' ? 'Sent. Claude starts the fix at its next fix run (:20 and :50 each hour).' : 'Sent. Claude reads it at its next look (10:00 UTC).')
+      : action.kind === 'user-issue-note' ? 'Sent. Claude starts at the next run of the watch (each 15 minutes).'
+      : action.kind === 'quiet-account' ? (action.ok ? 'Marked not an issue. Its quiet installs no longer count in the warning.' : 'Its quiet installs count in the warning again.')
+      : action.kind === 'tutorial-reply' ? (body.result === 'posted' ? 'Marked as posted.' : body.result === 'none' ? 'Marked: no reply needed.' : 'The reply waits again.')
       : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
       : 'Feedback marked ' + body.result + '.');
     load(false);
@@ -533,6 +515,11 @@ document.addEventListener('click', (e) => {
   if (run && confirm('Run ' + run.dataset.run + ' now?')) perform({ kind: 'run', key: run.dataset.run }, run);
   const fb = e.target.closest && e.target.closest('[data-fb]');
   if (fb) perform({ kind: 'feedback', id: fb.dataset.fb, status: fb.dataset.status }, fb);
+  const qa = e.target.closest && e.target.closest('[data-quiet]');
+  if (qa) {
+    const ok = qa.dataset.ok === 'yes';
+    if (!ok || confirm('Mark this account not an issue? Its quiet installs stop counting in the warning, now and later.')) perform({ kind: 'quiet-account', profile: qa.dataset.quiet, ok }, qa);
+  }
   const ver = e.target.closest && e.target.closest('[data-ver]');
   if (ver && confirm((ver.dataset.decision === 'grant' ? 'Grant' : 'Decline') + ' this blue check?')) perform({ kind: 'verification', id: ver.dataset.ver, decision: ver.dataset.decision }, ver);
 });
@@ -542,7 +529,7 @@ document.addEventListener('click', (e) => {
   const sg = e.target.closest && e.target.closest('[data-sg]');
   if (sg) {
     const id = sg.dataset.sg, d = sg.dataset.decision;
-    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : ''))) perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg);
+    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : sg.dataset.kind === 'new' ? '' : ' Claude makes the change as a pull request that merges itself when its checks pass.'))) perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg);
     if (d === 'reject') {
       const reason = prompt('Why not? Claude reads this before suggesting it again. (You may leave it empty.)', '');
       if (reason !== null) perform({ kind: 'tutorial-suggestion', id, decision: 'reject', detail: null, reason: reason.slice(0, 500) }, sg);
@@ -560,6 +547,194 @@ document.addEventListener('click', (e) => {
     else say('Write the note first.', 'red');
   }
 });
+
+// ---- the tutorial video lists (sources/videos.ts): a language and a span chosen here, and Accept, Edit and Reject on a suggestion ----
+let VIDEOS = null;
+// The timeline shows 60 days; its zoom is how wide a day is. A pinch on a touchpad (or Ctrl and the scroll wheel) zooms it; it opens at the last 14 days.
+let videoLanguage = 'en', dayWidth = 0, shownMarks = [], onlyMine = false, openCards = null;
+const TIMELINE_DAYS = 60;
+const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', approve: 'warn', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
+const cardLink = (x) => x.link ? '<a href="' + esc(x.link) + '"' + (x.link.startsWith('#') ? '' : ' target="_blank" rel="noopener noreferrer"') + '>' + esc(ADMIN_LINKS[x.kind] || WORKER_LINKS[x.kind] || 'Open') + '</a>' : '';
+const FIX_STATE = { working: 'Claude writes the change now.', open: 'Claude\'s pull request merges itself when its checks pass.', merged: 'The change is merged. The next night films the video again.', closed: 'The pull request was closed without a merge.', failed: 'Claude could not make the change.', unneeded: 'No change was needed: the video already does this.' };
+// The record of changes Claude made (sources/videos.ts ChangeItem).
+const CHANGE_BY = { claude: 'Claude (clear fix)', admin: 'An admin accepted it', instruction: 'An admin\'s instruction' };
+const CHANGE_STATE = { working: 'Being written', open: 'Merges when checks pass', merged: 'Merged', closed: 'Closed', failed: 'Failed', unneeded: 'No change needed' };
+const CHANGE_LEVEL = { working: 'info', open: 'info', merged: 'good', closed: '', failed: 'bad', unneeded: '' };
+const cardId = (a) => (a.kind + '-' + (a.tutorial || '') + '-' + (a.language || '')).replace(/[^a-zA-Z0-9-]/g, '');
+/**
+ * A suggestion's words: what an admin reads first, and the technical part for the fix, after a line that starts
+ * "For the fix:" (the tutorial-review skill writes both), folded away.
+ */
+function detailParts(t) {
+  const text = String(t || '');
+  const i = text.search(/^For the fix:/m);
+  return i < 0 ? [text.trim(), ''] : [text.slice(0, i).trim(), text.slice(i).replace(/^For the fix:\s*/, '').trim()];
+}
+function detailHtml(t) {
+  const [plain, technical] = detailParts(t);
+  return (plain ? '<p class="setup">' + esc(plain) + '</p>' : '') +
+    (technical ? '<details class="vtech"><summary>Technical details for the fix</summary><p class="setup">' + esc(technical) + '</p></details>' : '');
+}
+/** Where a picture is from, in words: its language, and its step, or its time in the film. */
+function pictureLabel(p) {
+  const clock = (t) => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+  const where = p.kind === 'step' ? 'step ' + p.n : p.kind === 'stopped' ? 'step ' + p.n + ', where the film stopped'
+    : typeof p.at === 'number' ? 'the film at ' + clock(p.at) : 'still ' + p.n;
+  return languageName(p.language) + ', ' + where;
+}
+/**
+ * The part of a picture to show when its ring is small (a phone in a wide film frame): the ring with space round it,
+ * at least 40% of the picture each way. Null when that is most of the picture anyway.
+ */
+function zoomOf(ring) {
+  const [x, y, w, h] = ring;
+  const span = (at, size) => {
+    const pad = Math.max(size * 0.4, 0.05);
+    let a = Math.max(0, at - pad), b = Math.min(1, at + size + pad);
+    if (b - a < 0.4) { const c = (a + b) / 2; a = Math.max(0, Math.min(0.6, c - 0.2)); b = a + 0.4; }
+    return [a, b - a];
+  };
+  const [zx, zw] = span(x, w), [zy, zh] = span(y, h);
+  return zw * zh <= 0.5 ? [zx, zy, zw, zh] : null;
+}
+/**
+ * One picture: numbered, ringed where Claude saw the place (an SVG over it, so no inline style), with its place and
+ * caption. A small ring's picture shows that part zoomed in (zoomPicture, when it loads); a click opens all of it.
+ */
+function pictureFigure(p, n) {
+  const src = '/api/tutorial-pictures/' + encodeURIComponent(p.picture);
+  const ring = Array.isArray(p.ring) && p.ring.length === 4 ? p.ring.map((x) => Math.max(0, Math.min(1, Number(x) || 0))) : null;
+  const r = ring ? ring.map((x) => (x * 100).toFixed(2) + '%') : null;
+  const zoom = ring ? zoomOf(ring) : null;
+  return '<figure class="vpic' + (zoom ? ' zoom' : '') + '"><a class="vpicbox' + (zoom ? ' zoom' : '') + '" href="' + esc(src) + '" target="_blank" rel="noopener noreferrer" title="Open the picture full size"' +
+    (zoom ? ' data-zoom="' + zoom.map((x) => x.toFixed(4)).join(',') + '"' : '') + '><span class="vpicin">' +
+    '<img src="' + esc(src) + '" alt="' + esc(p.caption) + '" loading="lazy">' +
+    (r ? '<svg class="vring" aria-hidden="true"><rect class="halo" x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] + '" rx="8"></rect>' +
+      '<rect x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] + '" rx="8"></rect></svg>' : '') +
+    '</span><span class="vnum">' + n + '</span></a>' +
+    '<figcaption><b>' + n + '. ' + esc(pictureLabel(p)) + '</b>' + (zoom ? ' <small>(zoomed in: click to see all of it)</small>' : '') + '<br>' + esc(p.caption) + '</figcaption></figure>';
+}
+/** Shows a zoomed picture's part: the box takes that part's shape (at most 400 px high), and the picture moves inside it. Set through the CSSOM, which the page's CSP allows. */
+function zoomPicture(img) {
+  const box = img.closest('[data-zoom]');
+  if (!box || !img.naturalWidth || !img.naturalHeight) return;
+  const [x, y, w, h] = box.dataset.zoom.split(',').map(Number);
+  const shape = (w * img.naturalWidth) / (h * img.naturalHeight);
+  box.style.aspectRatio = String(shape);
+  box.closest('.vpic').style.width = Math.round(Math.min(340, 400 * shape)) + 'px';
+  const inner = img.parentNode;
+  inner.style.width = (100 / w) + '%';
+  inner.style.left = (-100 * x / w) + '%';
+  inner.style.top = (-100 * y / h) + '%';
+  box.classList.add('ready');
+}
+document.addEventListener('load', (e) => { if (e.target && e.target.tagName === 'IMG' && e.target.closest('[data-zoom]')) zoomPicture(e.target); }, true);
+/** The pictures of what a suggestion is about; with the same places after its fix, the two side by side. */
+function pictureStrip(pictures, after) {
+  const now = Array.isArray(pictures) ? pictures : [];
+  const then = Array.isArray(after) ? after : [];
+  if (!now.length && !then.length) return '';
+  const group = (title, list) => '<div class="vpicgroup">' + (title ? '<p class="vpichead">' + esc(title) + '</p>' : '') + '<div class="vpicrow">' + list.map((p, i) => pictureFigure(p, i + 1)).join('') + '</div></div>';
+  return '<div class="vpics">' + (then.length ? group(now.length ? 'Before the fix' : '', now) + group('After the fix (filmed again)', then) : group('', now)) + '</div>';
+}
+// "Tell Claude what to do": an instruction on the video for Claude's next fix run, with the problem it answers and the inputs the card shows.
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-instruct]');
+  if (!b || !VIDEOS) return;
+  const a = VIDEOS.admin.find((x) => cardId(x) === b.dataset.instruct);
+  const text = (($('ins-' + b.dataset.instruct) || {}).value || '').trim();
+  if (!a) return;
+  if (!text) { say('Write what Claude must do first.', 'red'); return; }
+  perform({ kind: 'tutorial-note', tutorial: a.tutorial, text: text.slice(0, 2000), instruct: true, problem: a.instruct.slice(0, 200),
+    language: a.language || 'en', inputs: (a.inputIds || []).slice(0, 20) }, b);
+});
+const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run', merging: 'Open the PR' };
+const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
+const timelineStart = () => { const end = new Date(); end.setUTCHours(0, 0, 0, 0); return end.getTime() - (TIMELINE_DAYS - 1) * 86400000; };
+/** Each timeline's width from the zoom; when a day is wide enough, each mark sits at its time of day. */
+function layoutTimelines(keepAt) {
+  const box = $('video-rows');
+  if (!box) return;
+  const wraps = [...box.querySelectorAll('.tlw')];
+  if (!wraps.length) return;
+  const view = wraps[0].clientWidth || 600;
+  if (!dayWidth) dayWidth = view / 14;
+  dayWidth = Math.max(view / TIMELINE_DAYS, Math.min(2400, dayWidth));
+  for (const tl of box.querySelectorAll('.tl')) tl.style.width = Math.round(dayWidth * TIMELINE_DAYS) + 'px';
+  const timed = dayWidth >= 160;
+  box.classList.toggle('timed', timed);
+  // Narrow days hold a dot for each mark, wide ones its picture (pageVideos.ts).
+  box.classList.toggle('dense', dayWidth < 28);
+  for (const b of box.querySelectorAll('.mk[data-h]')) b.style.left = timed ? 'calc(' + (Number(b.dataset.h) * 100) + '% - 10px)' : '';
+  const left = keepAt === undefined ? dayWidth * TIMELINE_DAYS - view : keepAt;
+  for (const w of wraps) w.scrollLeft = left;
+}
+function redrawVideos() { const box = $('video-rows'); if (box) { box.innerHTML = videoRows(); annotate(box); layoutTimelines(); } }
+/** Zoom by factor about the point x pixels into the timeline's view. */
+function zoomTimelines(factor, x) {
+  const w = document.querySelector('#video-rows .tlw');
+  if (!w) return;
+  const at = (w.scrollLeft + x) / dayWidth;
+  dayWidth *= factor;
+  layoutTimelines(0);
+  const view = w.clientWidth;
+  dayWidth = Math.max(view / TIMELINE_DAYS, Math.min(2400, dayWidth));
+  layoutTimelines(Math.max(0, at * dayWidth - x));
+}
+let syncing = false;
+document.addEventListener('scroll', (e) => {
+  if (syncing || !e.target.classList || !e.target.classList.contains('tlw')) return;
+  syncing = true;
+  for (const w of document.querySelectorAll('#video-rows .tlw')) if (w !== e.target) w.scrollLeft = e.target.scrollLeft;
+  syncing = false;
+}, true);
+document.addEventListener('wheel', (e) => {
+  const w = e.target.closest && e.target.closest('#video-rows .tlw');
+  if (!w || !e.ctrlKey) return;
+  e.preventDefault();
+  zoomTimelines(Math.exp(-e.deltaY / 200), e.clientX - w.getBoundingClientRect().left);
+}, { passive: false });
+// Safari's own pinch.
+let gestureWidth = 0;
+document.addEventListener('gesturestart', (e) => { if (e.target.closest && e.target.closest('#video-rows .tlw')) { e.preventDefault(); gestureWidth = dayWidth; } });
+document.addEventListener('gesturechange', (e) => {
+  const w = e.target.closest && e.target.closest('#video-rows .tlw');
+  if (!w || !gestureWidth) return;
+  e.preventDefault();
+  zoomTimelines(gestureWidth * e.scale / dayWidth, e.clientX - w.getBoundingClientRect().left);
+});
+document.addEventListener('gestureend', () => { gestureWidth = 0; });
+function markDetail(m) {
+  const d = m.detail || { title: m.text, lines: [], links: [], films: [] };
+  return '<div class="head"><b>' + esc(d.title) + '</b> <small class="muted">' + esc(new Date(m.at).toLocaleString()) + '</small><button type="button" data-vclose>Close</button></div>' +
+    d.lines.map((l) => detailHtml(l)).join('') + pictureStrip(d.pictures, d.after) +
+    (d.quote ? '<blockquote>' + esc(d.quote) + '</blockquote>' : '') +
+    (d.links.length ? '<p>' + d.links.map((l) => '<a href="' + esc(l.href) + '" target="_blank" rel="noopener noreferrer">' + esc(l.text) + '</a>').join(' · ') + '</p>' : '') +
+    (d.films.length ? '<div class="vfilms">' + d.films.map((f) => '<figure><figcaption>' + esc(f.label) + '</figcaption><video controls preload="metadata" src="' + esc(f.href) + '"></video></figure>').join('') + '</div>' : '');
+}
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'video-lang') { videoLanguage = e.target.value; redrawVideos(); }
+  if (e.target && e.target.id === 'video-mine') { onlyMine = e.target.checked; redrawVideos(); }
+});
+document.addEventListener('click', (e) => {
+  const t = e.target.closest ? e.target : null;
+  if (!t) return;
+  const fit = t.closest('[data-vfit]');
+  if (fit) { const w = document.querySelector('#video-rows .tlw'); dayWidth = (w ? w.clientWidth : 600) / Number(fit.dataset.vfit); layoutTimelines(); }
+  const z = t.closest('[data-vzoom]');
+  if (z) { const w = document.querySelector('#video-rows .tlw'); zoomTimelines(z.dataset.vzoom === 'in' ? 1.6 : 1 / 1.6, w ? w.clientWidth / 2 : 0); }
+  const mk = t.closest('[data-mark]');
+  if (mk) {
+    const { m, row } = shownMarks[Number(mk.dataset.mark)] || {};
+    const box = $('vdet-' + row);
+    if (m && box) { for (const o of document.querySelectorAll('.vdet')) if (o !== box) o.hidden = true; box.innerHTML = markDetail(m); box.hidden = false; }
+  }
+  const wm = t.closest('[data-cards]');
+  if (wm) { const box = $('vcards-' + wm.dataset.cards); if (box) { box.hidden = !box.hidden; openCards = box.hidden ? null : box.dataset.key; wm.setAttribute('aria-expanded', String(!box.hidden)); } }
+  const close = t.closest('[data-vclose]');
+  if (close) close.closest('.vdet').hidden = true;
+});
+window.addEventListener('resize', () => layoutTimelines());
 
 // ---- one install's diagnostics, readable --------------------------------------------------
 const pairs = (o) => Object.entries(o || {}).map(([k, v]) => '<span class="nowrap">' + esc(k === 'ms' ? 'took' : k) + ' <b>' + esc(typeof v === 'number' && /ms$/i.test(k) ? ms(v) : v) + '</b></span>').join(' · ');

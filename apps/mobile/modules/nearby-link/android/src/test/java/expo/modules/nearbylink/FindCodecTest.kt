@@ -53,8 +53,12 @@ class FindCodecTest {
       assertEquals(unmasked.getString("summary"), Bytes.hex(heard.response.summary))
       assertEquals(unmasked.getString("echo"), Bytes.hex(heard.response.echo))
     }
-    // No scan response yet: nothing to hand up.
-    assertNull(FindMatcher(keys).hear(listOf(id), false))
+    // No scan response: the advert alone (an iPhone's, phase 5), under its key and with its salt.
+    val alone = FindMatcher(keys).hear(listOf(id), false)
+    assertTrue(alone is Heard.Advert)
+    alone as Heard.Advert
+    assertEquals(scan, alone.scan)
+    assertArrayEquals(salt, alone.salt)
   }
 
   @Test fun theScanResponseIsMadeAsTheVectorsSay() {

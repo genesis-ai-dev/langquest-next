@@ -337,7 +337,7 @@
     "book_structure": "Dividir un libro",
     "reference_home": "Biblioteca de referencia",
     "material_editor": "Editar material",
-    "sync_status": "Sincronización",
+    "sync_status": "Sincronización y uso sin conexión",
     "delete_account": "Eliminar cuenta",
     "reports_home": "Informes",
     "reports_language": "Informe del idioma",
@@ -358,11 +358,14 @@
     "share_nearby": "Compartir cerca",
     "let_someone_in": "Dejar entrar a alguien",
     "join_offline": "Unirse sin internet",
-    "get_install_file": "Conseguir el archivo de instalación"
+    "get_install_file": "Descargar el archivo de instalación",
+    "give_app": "Dar la app"
   },
   "native": {
     "microphone": "LangQuest graba tu voz para traducir pasajes.",
-    "camera": "LangQuest usa la cámara para escanear códigos QR de invitación."
+    "camera": "LangQuest usa la cámara para escanear códigos QR de invitación.",
+    "bluetooth": "LangQuest usa Bluetooth para encontrar los teléfonos de tus compañeros cercanos y compartir el trabajo con ellos.",
+    "localNetwork": "LangQuest usa la red local para compartir el trabajo con los teléfonos de tus compañeros cercanos."
   },
   "library": {
     "sourceLine": {
@@ -744,7 +747,6 @@
       "newLanguage": "Nuevo idioma",
       "noLanguages": "Todavía no hay idiomas. Agrega el primero que grabará tu equipo.",
       "openToBring": "Ábrelo para traerlo a este dispositivo",
-      "newLanguageOrCluster": "Idioma o grupo nuevo",
       "inviteHelp": "Elige qué hará y luego muéstrale un código para escanear.",
       "languageHelp": "Abre su página: prepáralo, ve su trabajo y su gente.",
       "licenseHelp": "La licencia del trabajo de tu equipo. Configuración dice qué permite.",
@@ -3475,22 +3477,15 @@
     },
     "me": {
       "title": "Yo",
-      "nameSub": "Nombre y foto",
-      "offline": "Listo para usar sin conexión",
+      "nameSub": "Nombre, correo y contraseña",
       "tour": "Cómo funciona LangQuest",
       "tourSub": "Escucha un recorrido corto",
       "more": "Más ajustes",
-      "moreRefused": "Esta cuenta no puede sincronizar · contraseña, notificaciones, cuenta",
-      "moreRefusedEvents": "Rechazados · {{n, number}} · contraseña, notificaciones, sincronización, cuenta",
-      "morePending_one": "{{count, number}} esperando para enviar · contraseña, notificaciones, sincronización, cuenta",
-      "morePending_many": "{{count, number}} esperando para enviar · contraseña, notificaciones, sincronización, cuenta",
-      "morePending_other": "{{count, number}} esperando para enviar · contraseña, notificaciones, sincronización, cuenta",
       "signOut": "Cerrar sesión",
       "signOutHelp": "Sale de esta cuenta en este dispositivo. El trabajo que todavía no se envió se guarda hasta que se envíe.",
-      "nameHelp": "Abre tu perfil, para cambiar el nombre que ve tu equipo.",
-      "offlineHelp": "Muestra lo que guarda este dispositivo para trabajar sin conexión.",
+      "nameHelp": "Abre tu perfil, para cambiar tu nombre, tu correo o tu contraseña.",
       "tourHelp": "Abre tres tarjetas cortas sobre para qué sirve LangQuest.",
-      "moreHelp": "Abre los ajustes de tu contraseña, notificaciones, sincronización y cuenta. Un número indica cambios esperando para enviarse.",
+      "moreHelp": "Abre los ajustes de notificaciones y cuenta.",
       "local": {
         "title": "{{name}}, te uniste sin internet",
         "letInBy": "{{name}} te dejó entrar desde su teléfono.",
@@ -3525,8 +3520,6 @@
       "newDeviceNoName": "¿Dispositivo nuevo? La persona que te invitó o un administrador puede ayudarte a iniciar sesión.",
       "helpedBy": "Sesión iniciada en este dispositivo con la ayuda de {{name}} · {{date}}",
       "helpedBySomeone": "Sesión iniciada en este dispositivo con la ayuda de alguien · {{date}}",
-      "setPassword": "Poner una contraseña",
-      "setPasswordSub": "Si otras personas usan este dispositivo",
       "notifications": "Notificaciones",
       "notificationsSub": "Recibe avisos de solicitudes y comentarios",
       "notificationsBlocked": "Desactivadas en los ajustes de este teléfono",
@@ -3538,7 +3531,6 @@
       "switchActive": "{{org}} (activa)",
       "switchOrStart": "{{org}} · o empieza una nueva",
       "thisDevice": "Este dispositivo",
-      "sync": "Sincronización",
       "syncRefused": "Esta cuenta no puede sincronizar esta organización",
       "syncPending_one": "{{count, number}} cambio esperando para enviarse",
       "syncPending_many": "{{count, number}} cambios esperando para enviarse",
@@ -3569,7 +3561,6 @@
       "lostPhoneSent": "Enlace enviado a {{email}}. Ábrelo, elige una contraseña nueva y activa “Perdí un teléfono mío o me lo quitaron”.",
       "testing": "Pruebas",
       "personaSub": "Iniciar sesión como traductor, revisor o administrador de prueba",
-      "syncHelp": "Muestra lo que espera para enviarse o descargarse. Un número indica cambios esperando para enviarse.",
       "blockedHelp": "Muestra a quién bloqueaste, para desbloquearlo.",
       "switchOrgHelp": "Abre tus organizaciones, para cambiar a otra o empezar una nueva."
     },
@@ -3591,18 +3582,27 @@
       "passwordNeedsConnection": "Para poner una contraseña necesitas conexión.",
       "nameSaved": "Nombre guardado.",
       "passwordFailed": "No se pudo poner la contraseña. Inténtalo de nuevo.",
-      "savedWithPassword": "Guardado. Puedes iniciar sesión con tu nombre de usuario y esta contraseña.",
+      "passwordSaved": "Contraseña guardada.",
+      "savedWithPassword": "Guardado. Inicias sesión con {{name}} y esta contraseña.",
       "saved": "Perfil guardado. Se sincroniza cuando tengas conexión.",
       "newPassword": "Contraseña nueva (opcional)",
       "password": "Contraseña (opcional)",
       "passwordPlaceholder": "6 caracteres o más",
       "signInWith": "Inicias sesión con {{name}} y esta contraseña. Anota el nombre.",
-      "signInWithYourName": "Inicias sesión con tu nombre de usuario y esta contraseña. Anota el nombre.",
-      "setOne": "Pon una si otras personas usan este dispositivo, para que puedas volver a entrar después de que lo usen.",
+      "signInWithEmail": "Inicias sesión con {{email}} y esta contraseña.",
+      "setOne": "Pon una para poder iniciar sesión en otro dispositivo.",
       "lastChangeRefused": "Tu último cambio no se aceptó",
       "savedBody": "Se envía cuando tengas conexión.",
       "nameHelp": "El nombre con el que te ve tu equipo. Se envía cuando tengas conexión.",
-      "passwordHelp": "Te permite volver a entrar después de que otra persona use este dispositivo."
+      "passwordHelp": "Te permite iniciar sesión en otro dispositivo, y volver a entrar en este sin internet.",
+      "emailHelp": "Inicias sesión con esta dirección, y Olvidé mi contraseña envía su enlace aquí. Cambiarla necesita conexión.",
+      "addEmail": "Con un correo, inicias sesión con él en lugar de {{name}}, y Olvidé mi contraseña puede enviarte un enlace. El código de quien te ayuda ya no te hace entrar.",
+      "emailRequired": "Escribe el correo con el que inicias sesión.",
+      "passwordWithEmail": "Elige también una contraseña: con un correo, el código de quien te ayuda ya no te hace entrar.",
+      "emailNeedsConnection": "Cambiar tu correo necesita conexión.",
+      "emailTaken": "Otra cuenta ya usa este correo.",
+      "emailFailed": "No se pudo guardar el correo. Inténtalo de nuevo.",
+      "savedWithEmail": "Guardado. Desde ahora inicias sesión con {{email}}."
     },
     "orgs": {
       "stale": "No se pudo actualizar. Las organizaciones guardadas siguen disponibles.",
@@ -3635,7 +3635,7 @@
       "blocked": "Falta enviar: {{things}}. Cierra sesión cuando se hayan sincronizado, para que no se queden atrapados aquí.",
       "blockedOffline": "Falta enviar: {{things}}. Este dispositivo no tiene conexión. Cierra sesión cuando se hayan sincronizado, para que no se queden atrapados aquí.",
       "refused": "Esta cuenta no puede sincronizar esta organización: el servidor lo rechazó. Puedes cerrar sesión sin peligro; lo que esté en cola se queda en este dispositivo.",
-      "setPasswordFirst": "Si otras personas usan este dispositivo, primero pon una contraseña en Editar perfil.",
+      "setPasswordFirst": "Para volver a entrar sin ayuda, primero añade tu correo o una contraseña en Editar perfil.",
       "forgets": "Puedes volver a iniciar sesión cuando quieras. Este navegador olvida todo lo que guardó para ti, así que la próxima persona no verá nada.",
       "anytime": "Puedes volver a iniciar sesión cuando quieras.",
       "offlineBackIn": "Este dispositivo no tiene conexión, así que para volver a iniciar sesión tendrás que esperar a tenerla.",
@@ -3705,17 +3705,33 @@
         "refused": "El servidor no acepta cambios de este dispositivo. Su trabajo sigue guardado aquí.",
         "tooOld": "Esta app es demasiado antigua para recibir los cambios de tu equipo. Actualízala desde la tienda.",
         "toReceive": "Grabaciones de otras personas que este dispositivo todavía está descargando.",
-        "refusedLine": "Cambios que el servidor no aceptó, normalmente porque cambió un permiso. Se quedan en este dispositivo; abra Detalles para ver cada uno.",
         "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "Por recibir",
-      "refusedLine": "Rechazados",
-      "none": "Ninguno",
-      "moreInfo": "Más información",
       "details": "Detalles",
       "syncNowHelp": "Envía lo que está esperando y recibe lo nuevo, enseguida.",
       "detailsHelp": "Cada cambio en espera o rechazado, y las transferencias de audio: para quien esté arreglando un problema.",
-      "eventHelp": "Abre el pasaje del que trata este cambio."
+      "eventHelp": "Abre el pasaje del que trata este cambio.",
+      "title": "Sincronización y uso sin conexión",
+      "rowHelp": "Abre lo que este dispositivo envía y recibe, y lo que guarda para trabajar sin conexión.",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "Rechazados por el servidor",
+        "refusedCount_one": "{{count, number}} cambio",
+        "refusedCount_many": "{{count, number}} cambios",
+        "refusedCount_other": "{{count, number}} cambios",
+        "refusedNote": "Se quedan en este dispositivo. Alguien que administra tu equipo normalmente puede ayudar.",
+        "refusedHelp": "Cambios que el servidor no aceptó, cada uno con su motivo. Se quedan en este dispositivo.",
+        "uploads": "Subidas",
+        "uploadsHelp": "Lo que espera en este dispositivo para subir, por pasaje, y lo que ya se subió.",
+        "downloads": "Descargas",
+        "readyHelp": "Si este teléfono tiene lo que necesitas antes de quedarte sin conexión."
+      },
+      "down": {
+        "count_one": "{{count, number}} grabación por recibir",
+        "count_many": "{{count, number}} grabaciones por recibir",
+        "count_other": "{{count, number}} grabaciones por recibir",
+        "offline": "Busca trabajo nuevo cuando vuelvas a tener conexión"
+      }
     },
     "lock": {
       "tooShort": "Une al menos {{n}} puntos.",
@@ -3727,6 +3743,21 @@
       "drawAgain": "Dibújalo otra vez",
       "newPattern": "Dibujar un patrón nuevo",
       "choosePatternHelp": "Elige una imagen y un patrón para volver a iniciar sesión en este teléfono, incluso sin conexión."
+    },
+    "appLock": {
+      "row": "Bloquear la app",
+      "rowHelp": "Si está activado, la app te pide tu patrón cada vez que se abre y cada vez que vuelves a ella. Activarlo o desactivarlo te pide primero tu patrón.",
+      "on": "Ahora la app te pide tu patrón al abrirse.",
+      "off": "La app ya no te pide tu patrón.",
+      "opening": "Abriendo…",
+      "checking": "Comprobando…",
+      "forgot": "¿Lo olvidaste?",
+      "forgotHelp": "¿Olvidaste tu patrón? Cierra sesión y vuelve a iniciarla con tu contraseña o con un código de acceso de alguien de tu equipo. Tu trabajo se queda en este teléfono.",
+      "signOutHelp": "Cierra la sesión en este teléfono. Tu trabajo se queda en él y se envía cuando se pueda.",
+      "backHelp": "Vuelve a los puntos.",
+      "waitFor_one": "Demasiados intentos. Vuelve a intentarlo en {{count, number}} minuto.",
+      "waitFor_many": "Demasiados intentos. Vuelve a intentarlo en {{count, number}} minutos.",
+      "waitFor_other": "Demasiados intentos. Vuelve a intentarlo en {{count, number}} minutos."
     }
   },
   "study": {
@@ -4933,7 +4964,10 @@
       "notSent_one": "{{count, number}} grabación de tus pasajes guardados todavía no se ha enviado desde el dispositivo que la hizo, así que ningún dispositivo puede descargarla.",
       "notSent_many": "{{count, number}} grabaciones de tus pasajes guardados todavía no se han enviado desde el dispositivo que las hizo, así que ningún dispositivo puede descargarlas.",
       "notSent_other": "{{count, number}} grabaciones de tus pasajes guardados todavía no se han enviado desde el dispositivo que las hizo, así que ningún dispositivo puede descargarlas.",
-      "barHelp": "Cuántos de tus pasajes guardados están completos en este dispositivo."
+      "barHelp": "Cuántos de tus pasajes guardados están completos en este dispositivo.",
+      "keptTitle": "Pasajes guardados",
+      "worksOffline": "Lo que funciona sin conexión",
+      "worksOfflineHelp": "Muestra lo que está siempre en este dispositivo y lo que necesita conexión."
     },
     "keepHelp": "Guarda su audio en este dispositivo, para que funcione sin conexión.",
     "stopKeepingHelp": "Permite que este dispositivo vuelva a quitar su audio cuando necesite espacio.",
@@ -5445,7 +5479,7 @@
       "ready_one": "{{ready}} de {{count, number}} pasaje listo en este dispositivo",
       "ready_many": "{{ready}} de {{count, number}} pasajes listos en este dispositivo",
       "ready_other": "{{ready}} de {{count, number}} pasajes listos en este dispositivo",
-      "moreSettingsSub": "Contraseña, notificaciones, sincronización, cuenta"
+      "moreSettingsSub": "Notificaciones, cuenta"
     },
     "waiting": "Esperando a que lo dividan",
     "parts": {

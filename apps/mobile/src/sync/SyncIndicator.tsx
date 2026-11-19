@@ -58,7 +58,7 @@ export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org'
     : receiving ? t('help.sync.withReceiving', { standing: standingHelp(standing) }) : standingHelp(standing);
   const spot = useHelpSpot(label, help, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={t('account.more.sync')} testID="sync-indicator" hitSlop={4}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={t('account.sync.title')} testID="sync-indicator" hitSlop={4}
       style={({ pressed }) => [styles.tap, pressed && { opacity: 0.6 }]}>
       <View style={styles.box}>
         <Svg width={SIZE} height={SIZE} style={StyleSheet.absoluteFill}>

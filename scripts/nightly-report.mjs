@@ -68,7 +68,8 @@ export function testsOf(report) {
       for (const t of spec.tests ?? []) {
         const ran = (t.results ?? []).filter((r) => r.status !== 'skipped');
         if (!ran.length) continue;
-        const failed = ran.find((r) => r.status !== 'passed');
+        // A test marked test.fail that fails is as expected (Playwright's expectedStatus), not a failure.
+        const failed = ran.find((r) => r.status !== (t.expectedStatus ?? 'passed'));
         out.push({
           key: `${spec.title}${t.projectName ? ` [${t.projectName}]` : ''}`,
           title: spec.title,

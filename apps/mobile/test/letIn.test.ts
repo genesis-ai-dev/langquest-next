@@ -1,6 +1,8 @@
 import { emptyOrgState } from '@langquest-next/core';
 import { codeShown, LET_IN_START, letInEndOf, letInReducer, letInRoles, letInWhyNot, type LetInAction, type LetInState } from '../src/nearby/letInModel';
+import { letInPermit } from '../src/nearby/letInPermitModel';
 import type { PassShape } from '../src/nearby/nearbyModel';
+import { nearbyPermissionsFor } from '../src/nearby/nearbyPermissionsModel';
 
 /**
  * Let someone in on the inviter's phone (docs/nearby-sync-plan.md 14.1, 3). Why these tests: a
@@ -42,6 +44,38 @@ describe('which roles a pass offers, and when it is offered', () => {
     expect(letInWhyNot({ ...base, inBuild: false })).toBe('not-in-build');
     expect(letInWhyNot({ ...base, permitted: false })).toBe('permissions');
     expect(letInWhyNot({ ...base, wifiOn: false })).toBe('wifi-off');
+  });
+});
+
+describe('the nearby permissions, asked where they are missing', () => {
+  // Why: Let someone in only checked them, and told the person to open Share nearby and come back,
+  // with no way there. A carrier coming from Give the app, which asks only for its own Wi-Fi
+  // permission, was stuck (Carl, 2026-11-19). It now asks Android itself, as Give the app does;
+  // only a phone that wears a cover is sent to Share nearby, whose warning comes before any
+  // prompt (decision 231).
+  it('asks Android here, with the line Share nearby gives for this Android version', () => {
+    expect(letInPermit({ sdk: 34, answers: {}, worn: false })).toEqual({ t: 'explain', reason: 'nearby-devices', permissions: [...nearbyPermissionsFor(34)] });
+    expect(letInPermit({ sdk: 30, answers: {}, worn: false })?.t).toBe('explain');
+    expect(letInPermit({ sdk: 30, answers: {}, worn: false })).toMatchObject({ reason: 'location' });
+    // Only what is missing is asked: Give the app may have had Nearby devices allowed already.
+    const some = letInPermit({ sdk: 34, answers: { NEARBY_WIFI_DEVICES: 'granted' }, worn: false });
+    expect(some).toMatchObject({ t: 'explain', reason: 'nearby-devices' });
+    expect(some && some.t === 'explain' ? some.permissions : []).not.toContain('NEARBY_WIFI_DEVICES');
+  });
+
+  it('sends to the app\'s settings once Android will not ask again, and says nothing once all is allowed', () => {
+    expect(letInPermit({ sdk: 34, answers: { BLUETOOTH_SCAN: 'never_ask_again' }, worn: false })).toEqual({ t: 'settings' });
+    const all = { NEARBY_WIFI_DEVICES: 'granted', BLUETOOTH_SCAN: 'granted', BLUETOOTH_ADVERTISE: 'granted', BLUETOOTH_CONNECT: 'granted' } as const;
+    expect(letInPermit({ sdk: 34, answers: all, worn: false })).toBeNull();
+    // Below Android 10 nothing is asked (Share nearby is not offered there).
+    expect(letInPermit({ sdk: 28, answers: {}, worn: false })).toBeNull();
+    // Not read yet: nothing is said.
+    expect(letInPermit({ sdk: 34, answers: undefined, worn: false })).toBeNull();
+  });
+
+  it('asks nothing on a phone that wears a cover, which goes to Share nearby for its warning first', () => {
+    expect(letInPermit({ sdk: 34, answers: {}, worn: true })).toEqual({ t: 'covered' });
+    expect(letInPermit({ sdk: 34, answers: { BLUETOOTH_SCAN: 'never_ask_again' }, worn: true })).toEqual({ t: 'covered' });
   });
 });
 

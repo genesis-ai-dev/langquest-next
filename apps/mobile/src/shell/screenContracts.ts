@@ -128,6 +128,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     reads:['materialView','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   inbox_home: { reads:['updatesFor','notifications','join_requests','profiles'],
     rpcs:['decide_join_request_v2','org_content_reports','remove_content','dismiss_reports'] },
+  // Its email goes through the change-email Edge Function and its password through Auth, no RPC (LAN-304).
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
   // A Global Viewer's tab (decision 158): their access, and every organization.
@@ -144,6 +145,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // Get the install file (docs/nearby-sync-plan.md 14.4), from Share nearby, Let someone in and Sync's Ready for offline card: no event,
   // no call; the browser gets the file, and the name is kept in a meta row.
   get_install_file: {},
+  // Give the app (docs/nearby-sync-plan.md 14.5): no event, no call to the server; the phone's own Wi-Fi serves the kept file.
+  give_app: {},
   delete_account: { rpcs:['delete_my_account'] },
   // Read from the app's Worker, not the local fold (decisions.md 44, 57).
   // A language's country and target go straight to the organization's

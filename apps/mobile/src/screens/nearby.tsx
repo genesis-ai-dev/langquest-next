@@ -4,19 +4,24 @@
 // the app and joins the team from this phone. Opened from Sync while the organization has it on;
 // labelled experimental (section 5.10). The radios
 // run only while this screen is open and on screen (useNearby, `radiosMayRun`); nothing here asks
-// Android for anything until a button is pressed. A phone that wears a cover waits for a press,
+// the phone for anything until a button is pressed. A phone that wears a cover waits for a press,
 // and its own words stay in src/disguise/i18n behind NearbyCoverNotes (decision 171 as amended).
 // Joining without internet (14.1) adds Let someone in, from here, and the new phone's progress
-// screen, a guest screen from Scan a code; both are app only and labelled experimental. Get the
-// install file (14.4), from here and from Let someone in, is the job done online before a trip,
-// apart from Let someone in's in the field.
-// Not split by platform: only Android offers the way in (NearbyRow.android.tsx), and elsewhere
-// useNearby says it is not in this build. Loads the first time it is opened (lazyScreens.tsx).
+// screen, a guest screen from Scan a code; both are app only, Android only for now, and labelled
+// experimental. Get the install file (14.4), from here and from Let someone in, is the job done
+// online before a trip, apart from Let someone in's in the field.
+// Not split by platform: a phone offers the way in (NearbyRow.native.tsx), and on the web useNearby
+// says it is not in this build. On an iPhone (section 7's phase 5) the joining and install file
+// hooks are their plain stubs, so A new person never shows, and words that would name Android or
+// the install file come from `phoneWords`. Loads the first time it is opened (lazyScreens.tsx).
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LetInCode } from '../nearby/LetInCode';
+import { NearbyIntro } from '../nearby/NearbyIntro';
+import { GetInstallFileScreen } from '../nearby/GetInstallFileScreen';
+import { GiveAppScreen } from '../nearby/GiveAppScreen';
 import { ChosenPicture } from '../auth/patternPad';
-import { apkGet, joinRows, letInVersionsWords } from '../nearby/carriedApkModel';
+import { joinRows, letInVersionsWords } from '../nearby/carriedApkModel';
 import { joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
 import type { LetInEnd, LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
@@ -29,14 +34,14 @@ import { useNearby } from '../nearby/useNearby';
 import type { NearbyActions, NearbySessionLine, NearbyTeammate, NearbyView } from '../nearby/nearbyRunModel';
 import type { ReadyToCarry } from '../nearby/readyToCarryModel';
 import {
-  endedWords, linesShown, PERMISSION_WORDS, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS, WHY_NOT_WORDS, type NearbyStage
+  connectHelp, endedWords, linesShown, PERMISSION_WORDS, phoneWords, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS, WHY_NOT_WORDS,
+  type NearbyStage
 } from '../nearby/shareNearbyModel';
 import type { Ctx } from '../shell/ctx';
 import { LetInCoverNote } from '../shell/LetInCoverNote';
 import { NearbyCoverNotes } from '../shell/NearbyCoverNotes';
 import { contractsFor } from '../shell/screenContracts';
-import { useAppCovered } from '../shell/useAppCovered';
-import { Badge, Banner, Card, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, Row, Screen, SectionLabel, SmallBtn, type IconName } from '../ui/kit';
+import { Banner, Card, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, Row, Screen, SectionLabel, SmallBtn, type IconName } from '../ui/kit';
 import { personLook } from '../ui/people';
 import { usePerson } from '../ui/usePerson';
 import { PersonAvatar } from '../ui/UserChip';
@@ -52,19 +57,12 @@ export function ShareNearby(ctx: Ctx) {
   const look = usePerson();
   /** A person by name and picture; someone this phone cannot put a name to is "A teammate" (5.8). */
   const who = (profileId: string | null) => (profileId ? ctx.name(profileId) : t('nearby.aTeammate'));
-  const main = mainAction(stage, actions);
+  const main = mainAction(stage, view, actions);
   const apk = useCarriedApk();
   return (
     <Screen header={<Header title={t('screens.share_nearby')} onBack={ctx.back} />}
       footer={main ? <PrimaryBtn label={main.label} icon={main.icon} help={main.help} onPress={main.onPress} /> : undefined}>
-      <Card>
-        <View style={styles.line}>
-          <Ico name="swap" size={22} color={C.primary} />
-          <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{t('screens.share_nearby')}</Text>
-          <Badge label={t('nearby.experimental')} tone="amber" />
-        </View>
-        <Text style={txt.sm}>{t('nearby.intro')}</Text>
-      </Card>
+      <NearbyIntro icon="swap" text={t('nearby.intro')} />
       <Job label={t('nearby.withTeammates')} line={t('nearby.withTeammatesLine')} />
       <StageCard stage={stage} view={view} actions={actions} who={who} />
       <Warnings ctx={ctx} view={view} />
@@ -75,7 +73,7 @@ export function ShareNearby(ctx: Ctx) {
         <Row icon="layers" label={t('nearby.hold')} help={t('nearby.holdHelp')} role="switch" checked={view.hold}
           onPress={() => { void actions.setHold(!view.hold); }} last />
       </Group>
-      <JoinRows ctx={ctx} needed={apk.needed} apkOld={apk.stale && ctx.language.online === true} />
+      <JoinRows ctx={ctx} needed={apk.needed} apkOld={apk.stale && ctx.language.online === true} apkNewer={apk.behind && ctx.language.online === true} />
     </Screen>
   );
 }
@@ -91,44 +89,53 @@ function Job(props: { label: string; line: string }) {
 }
 
 /**
- * A new person: joining without internet's two rows under their heading, for a person holding a
+ * A new person: joining without internet's rows under their heading, for a person holding a
  * pass for this language while the organization has joining on (docs/nearby-sync-plan.md 14.1, 3;
- * 14.4); hidden otherwise (`joinRows`). Get the install file is done before going offline; Let
- * someone in, in the field, once the new phone has the app. While online, an install file got for
- * an older version says so above them (14.4), with Get the install file the row below. A run-out
+ * 14.4); hidden otherwise (`joinRows`). They are three steps at three moments, numbered: Download
+ * the install file before going offline; Give the app, with the new person; Let someone in, once
+ * their app is installed. While online, an install file got for an older version says so above
+ * them (14.4), and so does a kept copy more than two days behind this phone's app (`keptBehind`,
+ * docs/decisions/2026-11-19-carried-build-refreshed-daily.md). A run-out
  * pass keeps Let someone in, disabled, saying the phone needs the server again; the row keeps its
  * onPress so help mode can explain it.
  */
-function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean }) {
+function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean; apkNewer: boolean }) {
   const whyNot = useLetInOffered(props.ctx);
   const rows = joinRows(whyNot, props.needed);
   if (rows.letIn === null) return null;
+  // Three steps at three moments, so they are numbered where all three show; one row alone is not.
+  const step = (n: number, label: string) => (rows.installFile ? t('nearby.step', { n, label }) : label);
   return (
     <>
       <Job label={t('nearby.newPerson')} line={t('nearby.newPersonLine')} />
-      {props.apkOld ? (
+      {props.apkOld || props.apkNewer ? (
         <Card>
           <View style={styles.line}>
             <Ico name="warning" size={20} color={TINT.amberText} />
-            <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.apkOld')}</Text>
+            {/* A kept copy behind this phone's app may lack fixes the newcomer needs (keptBehind, Carl 2026-11-19). */}
+            <Text style={[txt.sm, { flex: 1 }]}>{t(props.apkOld ? 'nearby.installFile.old' : 'nearby.installFile.newer')}</Text>
           </View>
         </Card>
       ) : null}
       <Group>
         {rows.installFile ? (
-          <Row icon="download" label={t('screens.get_install_file')} sub={t('nearby.installFile.rowSub')}
+          <Row icon="download" label={step(1, t('screens.get_install_file'))} sub={t('nearby.installFile.rowSub')}
             help={t('nearby.installFile.rowHelp')} onPress={() => props.ctx.go('get_install_file')} />
         ) : null}
-        <Row icon="people" label={t('screens.let_someone_in')} sub={rows.letIn === 'expired' ? t('nearby.letIn.why.expired') : t('nearby.letIn.rowSub')}
+        {/* Give the app (14.5): the new phone gets LangQuest over this phone's own Wi-Fi. */}
+        {rows.installFile ? (
+          <Row icon="send" label={step(2, t('screens.give_app'))} sub={t('nearby.give.rowSub')} help={t('nearby.give.rowHelp')} onPress={() => props.ctx.go('give_app')} />
+        ) : null}
+        <Row icon="people" label={step(3, t('screens.let_someone_in'))} sub={rows.letIn === 'expired' ? t('nearby.letIn.why.expired') : t('nearby.letIn.rowSub')}
           help={t('nearby.letIn.rowHelp')} disabled={rows.letIn !== 'ready'} onPress={() => { if (rows.letIn === 'ready') props.ctx.go('let_someone_in'); }} last />
       </Group>
     </>
   );
 }
 
-/** The one main thing to do now, as a 56 pt button: Continue to Android's question, Open settings, or Look again. */
-function mainAction(stage: NearbyStage, actions: NearbyActions): { label: string; icon: IconName; help: string; onPress: () => void } | null {
-  if (stage.t === 'permission') return { label: t('nearby.permission.allow'), icon: 'arrowR', help: t('nearby.permission.allowHelp'), onPress: () => { void actions.askPermissions(); } };
+/** The one main thing to do now, as a 56 pt button: Continue to the phone's question, Open settings, or Look again. */
+function mainAction(stage: NearbyStage, view: NearbyView, actions: NearbyActions): { label: string; icon: IconName; help: string; onPress: () => void } | null {
+  if (stage.t === 'permission') return { label: t('nearby.permission.allow'), icon: 'arrowR', help: t(phoneWords(view).allowHelp), onPress: () => { void actions.askPermissions(); } };
   if (stage.t === 'settings') return { label: t('nearby.permission.openSettings'), icon: 'settings', help: t('nearby.permission.openSettingsHelp'), onPress: () => { void actions.openSettings(); } };
   if (stage.t === 'stopped') return { label: t('nearby.lookAgain'), icon: 'search', help: t('nearby.lookAgainHelp'), onPress: actions.lookAgain };
   return null;
@@ -166,7 +173,7 @@ function StageCard(props: { stage: NearbyStage; view: NearbyView; actions: Nearb
     case 'permission':
       return <Banner icon="info" title={t(PERMISSION_WORDS[stage.reason])} />;
     case 'settings':
-      return <Banner icon="lock" tone="amber" title={t(PERMISSION_WORDS.settings)} />;
+      return <Banner icon="lock" tone="amber" title={t(phoneWords(view).settings)} />;
     case 'stopped': {
       const words = STOP_WORDS[stage.why];
       return (
@@ -220,7 +227,7 @@ function Warnings(props: { ctx: Ctx; view: NearbyView }) {
   const { view, ctx } = props;
   const lines = [
     ctx.language.tooOld ? t('nearby.tooOld') : null,
-    view.newerAppNeeded ? t('nearby.newerApp') : null,
+    view.newerAppNeeded ? t(phoneWords(view).newerApp) : null,
     view.clockOff ? t('nearby.clockOff') : null,
     ...view.farAhead.map((f) => t('nearby.farAhead', { name: ctx.name(f.actorId) }))
   ].filter((l): l is string => l !== null);
@@ -238,7 +245,7 @@ function Warnings(props: { ctx: Ctx; view: NearbyView }) {
 }
 
 function Teammates(props: { view: NearbyView; actions: NearbyActions; who: (p: string | null) => string; look: ReturnType<typeof usePerson> }) {
-  const shown = teammatesShown(props.view.teammates);
+  const shown = teammatesShown(props.view.teammates, props.view.tapCoversAll);
   if (shown.length === 0) return null;
   return (
     <>
@@ -252,7 +259,7 @@ function Teammates(props: { view: NearbyView; actions: NearbyActions; who: (p: s
               <Row label={m.state === 'maybe' ? state : name} sub={m.state === 'maybe' ? undefined : state} last={i === shown.length - 1}
                 accessibilityLabel={m.state === 'maybe' ? state : `${name}, ${state}`}
                 leading={<PersonAvatar look={m.profileId ? props.look(m.profileId) : personLook(m.tag)} size={40} />}
-                right={m.state === 'maybe' ? <SmallBtn label={t('nearby.connect')} help={t('nearby.connectHelp')} onPress={() => props.actions.tap(m.tag)} /> : undefined} />
+                right={m.state === 'maybe' ? <SmallBtn label={t('nearby.connect')} help={t(connectHelp(props.view))} onPress={() => props.actions.tap(m.tag)} /> : undefined} />
             </HelpRow>
           );
         })}
@@ -352,7 +359,7 @@ const styles = StyleSheet.create({
 
 // ---- Let someone in (docs/nearby-sync-plan.md 14.1, 3) ----------------------------------
 
-/** Why Let someone in cannot run here, in words. */
+/** Why Let someone in cannot run here, in words. Missing permissions have their own lines and buttons (`letInPermit`). */
 const LET_IN_WHY = {
   'loading': 'nearby.letIn.why.loading',
   'not-in-build': 'nearby.letIn.why.notInBuild',
@@ -360,9 +367,8 @@ const LET_IN_WHY = {
   'expired': 'nearby.letIn.why.expired',
   'no-role': 'nearby.letIn.why.noRole',
   'read-only': 'nearby.letIn.why.noPass',
-  'permissions': 'nearby.letIn.why.permissions',
   'wifi-off': 'nearby.letIn.why.wifiOff'
-} as const satisfies Record<LetInWhyNot, string>;
+} as const satisfies Record<Exclude<LetInWhyNot, 'permissions'>, string>;
 
 /** How a link with a newcomer ended, in words. */
 const LET_IN_END = {
@@ -397,14 +403,19 @@ function TwoPictures(props: { pictures: [number, number] }) {
  * Then this phone sends them a starting copy. Nothing runs until Show the code is pressed.
  */
 export function LetSomeoneIn(ctx: Ctx) {
-  const { whyNot, roles, state, code, secondsLeft, worn, actions } = useLetIn(ctx);
+  const { whyNot, roles, state, code, secondsLeft, worn, permit, actions } = useLetIn(ctx);
   const apk = useCarriedApk();
   const { stage } = state;
   const running = stage.t === 'starting' || stage.t === 'showing' || stage.t === 'connected' || stage.t === 'copying';
   // Away while a code is up or a phone is on the line, so the code and the one tap stay in view.
   const between = whyNot !== 'not-in-build' && (whyNot !== null || stage.t === 'choose' || stage.t === 'ended' || stage.t === 'done');
   let footer: ReactNode = null;
-  if (whyNot === null && stage.t === 'asked') {
+  // Missing permissions are asked here, as Give the app asks (letInPermit, Carl 2026-11-19).
+  if (whyNot === 'permissions' && permit?.t === 'explain') {
+    footer = <PrimaryBtn label={t('nearby.permission.allow')} icon="arrowR" help={t('nearby.permission.allowHelp')} onPress={actions.askPermissions} />;
+  } else if (whyNot === 'permissions' && permit?.t === 'settings') {
+    footer = <PrimaryBtn label={t('nearby.permission.openSettings')} icon="settings" help={t('nearby.permission.openSettingsHelp')} onPress={actions.openSettings} />;
+  } else if (whyNot === null && stage.t === 'asked') {
     footer = (
       <>
         <PrimaryBtn label={t('nearby.letIn.letIn', { name: stage.name })} icon="check" help={t('nearby.letIn.letInHelp')} onPress={() => actions.answer(true)} />
@@ -419,13 +430,7 @@ export function LetSomeoneIn(ctx: Ctx) {
   }
   return (
     <Screen header={<Header title={t('screens.let_someone_in')} onBack={ctx.back} />} footer={footer}>
-      <Card>
-        <View style={styles.line}>
-          <Ico name="people" size={22} color={C.primary} />
-          <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{t('screens.let_someone_in')}</Text>
-          <Badge label={t('nearby.experimental')} tone="amber" />
-        </View>
-        <Text style={txt.sm}>{t('nearby.letIn.intro')}</Text>
+      <NearbyIntro icon="people" text={t('nearby.letIn.intro')}>
         {between ? (
           <>
             <View style={styles.line}>
@@ -433,13 +438,22 @@ export function LetSomeoneIn(ctx: Ctx) {
               <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.letIn.needsApp')}</Text>
             </View>
             {apk.needed !== null ? (
-              <LinkBtn label={t('screens.get_install_file')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} />
+              <>
+                <LinkBtn label={t('screens.give_app')} help={t('nearby.give.linkHelp')} onPress={() => ctx.go('give_app', { from: 'let_someone_in' })} />
+                {/* Downloading needs the internet, which the field lacks: offered only while no copy is kept. */}
+                {apk.kept ? null : <LinkBtn label={t('screens.get_install_file')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} />}
+              </>
             ) : null}
             <LetInCoverNote worn={worn} part="look" />
           </>
         ) : null}
-      </Card>
-      {whyNot !== null ? (
+      </NearbyIntro>
+      {whyNot === 'permissions' ? (
+        permit?.t === 'explain' ? <Banner icon="info" title={t(PERMISSION_WORDS[permit.reason])} />
+          : permit?.t === 'settings' ? <Banner icon="lock" tone="amber" title={t('nearby.permission.settings')} />
+            // A phone that wears a cover: its own line, in the cover's words, sends the person to Share nearby's warning.
+            : <Card><LetInCoverNote worn={worn} part="permissions" /></Card>
+      ) : whyNot !== null ? (
         <Card>
           <View style={styles.line}>
             {whyNot === 'loading' ? <ActivityIndicator color={C.primary} /> : <Ico name="info" size={22} color={C.muted} />}
@@ -510,61 +524,23 @@ function versionsWords(installFile: string | null): string {
 // ---- Get the install file (docs/nearby-sync-plan.md 14.4) --------------------------------
 
 /**
- * Get the install file, from Share nearby and Let someone in: the job done online before a trip.
- * The carried build this phone's versions need, by its exact name, so a carrier can compare it with
- * the file they hold; the browser download while online, its one main button; a check of a file
- * they hold, by its name alone; a word when the file they got before is for an older version; and
- * how the file reaches the new phone. Nothing here downloads or installs anything.
+ * Get the install file, from Share nearby and Let someone in (docs/nearby-sync-plan.md 14.4). Only
+ * an Android phone lets someone in, so the screen is GetInstallFileScreen.android.tsx, and the web
+ * and an iPhone, which never open it, get a plain stub, so their bundles carry none of it.
  */
 export function GetInstallFile(ctx: Ctx) {
-  const apk = useCarriedApk();
-  const { worn } = useAppCovered();
-  const get = apkGet({ needed: apk.needed, url: apk.url, online: ctx.language.online });
-  return (
-    <Screen header={<Header title={t('screens.get_install_file')} onBack={ctx.back} />}
-      footer={get !== null ? <PrimaryBtn label={t('nearby.letIn.get')} icon="download" disabled={get === 'offline'} help={t('nearby.letIn.getHelp')} onPress={apk.actions.get} /> : undefined}>
-      <Card>
-        <View style={styles.line}>
-          <Ico name="download" size={22} color={C.primary} />
-          <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{t('screens.get_install_file')}</Text>
-          <Badge label={t('nearby.experimental')} tone="amber" />
-        </View>
-        <Text style={txt.sm}>{t('nearby.installFile.intro')}</Text>
-      </Card>
-      {apk.needed !== null ? (
-        <>
-          <Card>
-            <Text style={txt.body}>{t('nearby.letIn.file', { file: apk.needed })}</Text>
-            <Text style={txt.sm}>{t('nearby.letIn.fileExact')}</Text>
-            {apk.stale ? (
-              <View style={styles.line}>
-                <Ico name="warning" size={20} color={TINT.amberText} />
-                <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.letIn.fileOld')}</Text>
-              </View>
-            ) : null}
-            {get === 'offline' ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('nearby.letIn.getOffline')}</Text> : null}
-          </Card>
-          <Card>
-            <GhostBtn label={t('nearby.letIn.check')} icon="folder" help={t('nearby.letIn.checkHelp')} onPress={apk.actions.check} />
-            {apk.checked ? (
-              <View style={styles.line}>
-                <Ico name={apk.checked.result === 'right' ? 'check' : 'warning'} size={20} color={apk.checked.result === 'right' ? TINT.greenText : TINT.amberText} />
-                <View style={{ flex: 1 }}>
-                  <Text style={txt.sm}>{apk.checked.result === 'right' ? t('nearby.letIn.checkRight') : t('nearby.letIn.checkOther', { file: apk.needed })}</Text>
-                  <Text style={txt.smMuted}>{t('nearby.letIn.checkChose', { name: apk.checked.name })}</Text>
-                </View>
-              </View>
-            ) : null}
-          </Card>
-          <Card>
-            <Text style={txt.sm}>{t('nearby.letIn.getLine')}</Text>
-            <Text style={txt.smMuted}>{t('nearby.letIn.fileHelp')}</Text>
-            <LetInCoverNote worn={worn} part="file" />
-          </Card>
-        </>
-      ) : null}
-    </Screen>
-  );
+  return <GetInstallFileScreen {...ctx} />;
+}
+
+// ---- Give the app (docs/nearby-sync-plan.md 14.5) ------------------------------------------
+
+/**
+ * Give the app, from Share nearby's A new person and Let someone in. Android only: the screen is
+ * GiveAppScreen.android.tsx, and the web and an iPhone get a plain stub, so their bundles carry
+ * none of it.
+ */
+export function GiveApp(ctx: Ctx) {
+  return <GiveAppScreen {...ctx} />;
 }
 
 function Waiting(props: { text: string }) {
@@ -620,14 +596,7 @@ export function JoinOffline(ctx: Ctx) {
   else if (stage.t === 'not-empty' || stage.t === 'not-in-build') footer = <GhostBtn label={t('nearby.join.back')} help={t('nearby.join.backHelp')} onPress={() => ctx.go('sign_in')} />;
   return (
     <Screen header={<Header title={t('screens.join_offline')} onBack={() => ctx.go('sign_in')} />} footer={footer}>
-      <Card>
-        <View style={styles.line}>
-          <Ico name="people" size={22} color={C.primary} />
-          <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{t('screens.join_offline')}</Text>
-          <Badge label={t('nearby.experimental')} tone="amber" />
-        </View>
-        <Text style={txt.sm}>{t('nearby.join.intro')}</Text>
-      </Card>
+      <NearbyIntro icon="people" text={t('nearby.join.intro')} />
       {stage.t === 'checking' ? <Waiting text={t('nearby.join.checking')} /> : null}
       {stage.t === 'not-in-build' ? <Banner icon="info" title={t('nearby.join.notInBuild')} /> : null}
       {stage.t === 'not-empty' ? <Banner icon="lock" tone="amber" title={t('nearby.join.notEmpty.title')} body={t(NOT_EMPTY[stage.why])} /> : null}
@@ -661,4 +630,4 @@ export function JoinOffline(ctx: Ctx) {
   );
 }
 
-export const contracts = contractsFor('share_nearby', 'let_someone_in', 'join_offline', 'get_install_file');
+export const contracts = contractsFor('share_nearby', 'let_someone_in', 'join_offline', 'get_install_file', 'give_app');

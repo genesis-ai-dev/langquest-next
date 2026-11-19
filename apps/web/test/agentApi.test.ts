@@ -4,7 +4,7 @@ import {
 } from '@langquest-next/core';
 import { MemoryStore as EventMemoryStore, type AppendResult } from '@langquest-next/sync';
 import { handleAgentApi, type AgentDeps, type OrgStub } from '../worker/agent/http';
-import { AgentOrg, V2_RECHECK_MS } from '../worker/agent/org';
+import { AgentOrg, SLOW_READ_MS, V2_RECHECK_MS } from '../worker/agent/org';
 import type { AgentStore, DeviceGrant, NewToken, NewWebhook, TokenRecord, WebhookRecord } from '../worker/agent/store';
 import { WebhookDispatcher } from '../worker/agent/dispatch';
 import type { JobRun } from '../../../server/jobRuns';
@@ -258,7 +258,8 @@ interface Received { url: string; headers: Record<string, string>; body: any; ra
 
 const withoutKeys = (o: Record<string, unknown>, keys: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
 
-function setup() {
+/** `receiptsTakeMs`: how long each question to the database about receipts takes, on the test's clock. */
+function setup(opts: { receiptsTakeMs?: number } = {}) {
   const log = world();
   const store = new MemoryStore();
   let now = T0 + 10_000_000;
@@ -295,7 +296,10 @@ function setup() {
     now: () => now,
     webhooks: dispatcher,
     records: (id, fresh) => { recordsAsked.push({ id, fresh }); return keeper.records(id); },
-    received: (id, keys) => log.received(id, keys)
+    received: async (id, keys) => {
+      now += opts.receiptsTakeMs ?? 0;
+      return log.received(id, keys);
+    }
   });
   const deps: AgentDeps = {
     store,
@@ -661,6 +665,24 @@ describe('when the server received it (decisions.md 188)', () => {
     log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d2-late', takeId: 'take-d2', kindId: 'peer', outcome: 'needs_changes', via: 'app' }, 'rev');
     await call('GET', page, t);
     expect(log.receivedAsks.at(-1)).toEqual(['review:peer-d2-late']);
+  });
+
+  it("writes one line to the Worker's log for a slow read, saying where its time went in counts only", async () => {
+    // Why: the ops dashboard counted agent_api reads of a second or more, and only Workers Logs, read by hand, said which
+    // route (2026-11-17). This line says which part of the read to make faster, and carries no ids.
+    const { call, token } = setup({ receiptsTakeMs: SLOW_READ_MS + 500 });
+    const t = await token('admin', { scopes: ['read'] });
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((line: string) => { lines.push(line); });
+    try {
+      await call('GET', '/api/v1/languages/din/passages?include=versions', t);
+      // The same page again: the object remembers every receipt, asks nothing, and is fast.
+      await call('GET', '/api/v1/languages/din/passages?include=versions', t);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(lines).toEqual([expect.stringMatching(/^slow agent read passages: 1500 ms; language 0 ms, receipts 1500 ms \((\d+) of \1 keys asked\), answer 0 ms; \d+ passages, include versions$/)]);
+    expect(lines[0]).not.toMatch(/din|take-|admin/);
   });
 });
 

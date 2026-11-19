@@ -10,12 +10,11 @@
 // in the field that none of it came along.
 import { languageName, offlineByUnit, unitTitle, type UnitOffline } from '@langquest-next/core';
 import { deriveKinds, passageSummary } from '../i18n/coreText';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { InstallFileReminder } from '../shell/InstallFileReminder';
-import { Card, Header, HelpInfo, Ico, ProgressBar, Screen, type IconName } from '../ui/kit';
+import { Card, Header, HelpInfo, Ico, LinkBtn, ProgressBar, Screen, type IconName } from '../ui/kit';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { isOffline } from './uploadsModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -25,8 +24,8 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { STUDY_FILES_OFFLINE } from '../study/studyFiles';
 import { C, onColor, radius, space, TINT } from '../ui/theme';
-import { keptOfflineMap, offlineLine, type KeptOffline, type OfflineOverview } from './offlineText';
-import { offlineLook, type OfflineLook } from './offlineModel';
+import { keptOfflineMap, offlineLine, sentences, type KeptOffline, type OfflineOverview } from './offlineText';
+import { fillBanner, offlineLook, type FillSeen, type OfflineLook } from './offlineModel';
 import { useStudyRevision } from './useOfflineSummary';
 import { WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
@@ -49,8 +48,6 @@ function useOffline(ctx: Ctx, unitId: string): KeptOffline | 'checking' {
   return keptUnits.has(unitId) ? 'checking' : NOT_KEPT;
 }
 
-/** Whole sentences, one after another. */
-const sentences = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ');
 
 /** Why a passage is kept on this device. */
 function reasonText(reason: NonNullable<UnitOffline['reason']>): string {
@@ -166,18 +163,26 @@ export function BookOfflineLine(props: { ready: number; count: number; checking:
  * and the Sync screen show it; it goes once every passage is here.
  */
 export function FillBanner(props: { ctx: Ctx }) {
-  const fill = props.ctx.language.fill;
-  if (!fill || fill.total === 0) return null;
+  const { fill, languageId } = props.ctx.language;
+  // Kept once shown, so the finished fill stays in place, as tall as it was (fillBanner, LAN-253).
+  const [seen, setSeen] = useState<FillSeen | null>(null);
+  const [height, setHeight] = useState(0);
+  if (fill && fill.total > 0 && (seen?.languageId !== languageId || seen.total !== fill.total)) setSeen({ languageId, total: fill.total });
+  const shown = fillBanner(fill, seen, languageId);
+  if (!shown) return null;
   const offline = isOffline(props.ctx.language.online);
-  const count = t('offline.fill.count', { filled: fill.filled, total: fill.total });
-  const body = sentences(count, offline ? t('offline.connectToFinish') : t('offline.stayConnected'));
+  const count = t('offline.fill.count', { filled: shown.filled, total: shown.total });
+  const title = t(shown.done ? 'offline.onDevice' : 'offline.fill.title');
+  const body = shown.done ? count : sentences(count, offline ? t('offline.connectToFinish') : t('offline.stayConnected'));
   return (
-    <Card accessibilityLabel={t('shell.a11y.labelDetail', { label: t('offline.fill.title'), detail: body })}>
-      <Block icon="download" tint={offline ? TINT.amberText : C.primary} bg={offline ? TINT.amber : C.light} title={t('offline.fill.title')} body={body} />
-      <HelpInfo label={t('offline.fill.title')} detail={t('offline.fill.barHelp')}>
-        <ProgressBar value={(fill.filled / fill.total) * 100} />
-      </HelpInfo>
-    </Card>
+    <View onLayout={(e) => { if (!shown.done) setHeight(e.nativeEvent.layout.height); }} style={{ minHeight: shown.done ? height : 0 }}>
+      <Card style={{ flexGrow: 1 }} accessibilityLabel={t('shell.a11y.labelDetail', { label: title, detail: body })}>
+        <Block icon={shown.done ? 'check' : 'download'} tint={shown.done ? TINT.greenText : offline ? TINT.amberText : C.primary} bg={shown.done ? TINT.green : offline ? TINT.amber : C.light} title={title} body={body} />
+        <HelpInfo label={title} detail={t('offline.fill.barHelp')}>
+          <ProgressBar value={(shown.filled / shown.total) * 100} />
+        </HelpInfo>
+      </Card>
+    </View>
   );
 }
 
@@ -211,47 +216,8 @@ export function PassageNotHere(props: { ctx: Ctx; unitId: string }) {
   );
 }
 
-/** The Sync screen's card: how ready this phone is, and what never comes along. */
-export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
-  const { ctx, s } = props;
-  const offline = isOffline(ctx.language.online);
-  const ready = !!s && s.kept > 0 && s.ready === s.kept;
-  const language = ctx.languageId ? languageName(ctx.org.state, ctx.languageId) : t('offline.card.thisLanguage');
-  const head = ready
-    ? { icon: 'onPhone' as IconName, tint: onColor.green, bg: TINT.green }
-    : s?.kept && !offline ? { icon: 'download' as IconName, tint: C.primary, bg: C.light }
-    : { icon: 'notOnPhone' as IconName, tint: TINT.amberText, bg: TINT.amber };
-  const finish = s && s.kept && !ready ? (offline ? t('offline.connectToFinish') : t('offline.stayConnected')) : null;
-  // Settings' line, as a sentence here.
-  const line = offlineLine(s);
-  return (
-    <Card>
-      <Block icon={head.icon} tint={head.tint} bg={head.bg} title={t('offline.card.readyTitle')}
-        body={sentences(endsSentence(line) ? line : t('offline.card.lineAsSentence', { line }), finish)} />
-      {s && s.kept ? (
-        <HelpInfo label={t('offline.card.readyTitle')} detail={t('offline.card.barHelp')}>
-          <ProgressBar value={(s.ready / s.kept) * 100} {...(ready ? { color: onColor.green } : {})} />
-        </HelpInfo>
-      ) : null}
-      {/* A carrier who can let a new person in, reminded while online to get the install file (docs/nearby-sync-plan.md 14.4). */}
-      <InstallFileReminder ctx={ctx} />
-      <Block icon="check" tint={onColor.green} bg={TINT.green} title={t('offline.card.alwaysTitle')}
-        body={STUDY_FILES_OFFLINE ? t('offline.card.alwaysBodyStudy', { language }) : t('offline.card.alwaysBody', { language })} />
-      <Block icon="cloud" tint={TINT.amberText} bg={TINT.amber} title={t('offline.card.needsTitle')}
-        body={[
-          STUDY_FILES_OFFLINE ? t('offline.card.needsNotDownloadedStudy') : t('offline.card.needsNotDownloaded'),
-          STUDY_FILES_OFFLINE ? t('offline.card.needsFilms') : t('offline.card.needsStudyWeb'),
-          t('offline.card.needsReports'),
-          t('offline.card.needsOtherLanguages')
-        ].map((l) => t('offline.card.bullet', { line: l })).join('\n')} />
-      {s && s.notSent ? (
-        <Text style={txt.xs}>{t('offline.card.notSent', { count: s.notSent })}</Text>
-      ) : null}
-    </Card>
-  );
-}
-
-function Block(props: { icon: IconName; tint: string; bg: string; title: string; body: string }) {
+/** A tile with an icon, a bold title and a line under it: the Map's banners and Sync's Ready for offline list. */
+export function Block(props: { icon: IconName; tint: string; bg: string; title: string; body: string }) {
   return (
     <View style={styles.head} accessible accessibilityLabel={t('shell.a11y.labelDetail', { label: props.title, detail: props.body })}>
       <View style={[styles.tile, { backgroundColor: props.bg }]}><Ico name={props.icon} size={22} color={props.tint} /></View>

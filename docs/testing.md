@@ -141,7 +141,7 @@ These keep the suite fast enough to run and stable enough to trust.
   `ui-web-p0-results-*` artifacts of the last 40 pull request and push runs,
   prints the tests under 95% of their runs (seen in at least 5) and keeps
   one Linear issue for them, `Nightly: the web UI tests that do not pass
-  every run`, commenting when the list changes. A pull request that broke a
+  every run`, commenting when the list changes. Runs on `release/*` and `copy/*` branches are left out: they run the older code the public build was cut from, so a race main already fixed still fails there (LAN-242). A pull request that broke a
   test and fixed it later counts as failures there, so read the failing runs
   before quarantining. Run it by hand with `--dry-run` (it uses the `gh`
   sign-in). A report in which more than 15 tests failed is left out: that is
@@ -166,7 +166,7 @@ These keep the suite fast enough to run and stable enough to trust.
 
 | When | What | Budget |
 | --- | --- | --- |
-| Pre-push hook | typecheck, `npm test`, worker bundle parity | under 30 s |
+| Pre-push hook | typecheck, lint, `npm test`, worker bundle parity; none of it when `npm run guardrails` passed on the commit's files (`scripts/guardrails-passed.mjs`) | about 3 min, or under a second after guardrails |
 | `npm run guardrails` | the CI `checks` job here; `--web` adds the export and its budget, `--all` the server and `ui-web` jobs | |
 | PR (CI `checks`) | typecheck, lint, server calls, worker bundle parity | under 10 min |
 | PR (CI `unit`, `coverage`) | `npm test` in three shards dealt by weight (`scripts/unit-shards.ts`), then the coverage thresholds on the merged report | under 10 min |
