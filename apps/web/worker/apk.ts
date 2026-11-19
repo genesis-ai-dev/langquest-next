@@ -1,11 +1,14 @@
-import { CARRIED_APK_PATH, parseCarriedApkName } from '@langquest-next/core';
+import { CARRIED_APK_PATH, CARRIED_APK_VERSION_CODE, carriedApkVersionsPart, parseCarriedApkName, sameCarriedVersions } from '@langquest-next/core';
 
 /**
  * Carried builds (docs/nearby-sync-plan.md 14.4): `GET /apk/<name>` serves the Play-signed
  * universal APK that scripts/carried-build.mjs put in the APK bucket, for a carrier to download
  * with their browser while online. Only names core's `carriedApkName` writes are asked of the
  * bucket, so nothing else there (its `current.json`) is ever served, and there is no listing:
- * `/apk/` and every other path under it answer 404. Public by design and apart from teams'
+ * `/apk/` and every other path under it answer 404. A name the bucket lacks is sent on to the
+ * newest file for the same versions, whatever its fingerprint, since that installs an app that can
+ * join a phone on those versions; the bucket is listed for that, by the versions' start alone, and
+ * the list is never shown (docs/decisions/2026-11-18-carried-file-matches-by-versions.md). Public by design and apart from teams'
  * recordings and their auth. The download name is the file's own, which holds only versions, so
  * a file kept in Downloads or on an SD card says nothing about the app. Ranges are passed to R2,
  * so a download cut off on a poor link can go on where it stopped.
@@ -15,7 +18,7 @@ import { CARRIED_APK_PATH, parseCarriedApkName } from '@langquest-next/core';
 export const APK_CONTENT_TYPE = 'application/vnd.android.package-archive';
 
 /** The part of the APK binding this route uses. */
-export type ApkBucket = Pick<R2Bucket, 'get' | 'head'>;
+export type ApkBucket = Pick<R2Bucket, 'get' | 'head' | 'list'>;
 
 const notFound = () => new Response('Not found.', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 
@@ -38,7 +41,37 @@ function headersFor(name: string, object: R2Object): Headers {
   return headers;
 }
 
-/** `GET` or `HEAD /apk/<name>`: the file from the APK bucket, or 404. */
+/**
+ * The newest file in the bucket for the same versions as `name`, by the Play version code each
+ * file records and then by when it was put there; null when the bucket has none. A phone's own
+ * build may have no file (one made before carried builds were published, or on a release branch),
+ * and any file for its versions lets a new phone join it.
+ */
+export async function newestFitting(bucket: ApkBucket, name: string): Promise<string | null> {
+  const start = carriedApkVersionsPart(name);
+  if (!start) return null;
+  const listed = await bucket.list({ prefix: start, include: ['customMetadata'] });
+  const code = (o: R2Object) => {
+    const n = Number(o.customMetadata?.[CARRIED_APK_VERSION_CODE]);
+    return Number.isSafeInteger(n) && n > 0 ? n : 0;
+  };
+  const fits = listed.objects.filter((o) => sameCarriedVersions(o.key, name));
+  fits.sort((a, b) => code(b) - code(a) || b.uploaded.getTime() - a.uploaded.getTime());
+  return fits[0]?.key ?? null;
+}
+
+/** Sends the browser to another carried build's file, so it downloads under that file's own name. Never cached: the newest changes. */
+function sendTo(name: string): Response {
+  return new Response(null, { status: 302, headers: { location: `${CARRIED_APK_PATH}${name}`, 'cache-control': 'private, no-store' } });
+}
+
+/** A file the bucket lacks: sent to the newest for the same versions, or 404 when there is none. */
+async function fitting(bucket: ApkBucket, name: string): Promise<Response> {
+  const newest = await newestFitting(bucket, name);
+  return newest && newest !== name ? sendTo(newest) : notFound();
+}
+
+/** `GET` or `HEAD /apk/<name>`: the file from the APK bucket, the newest for the same versions when it lacks that one, or 404. */
 export async function serveApk(request: Request, bucket: ApkBucket | undefined): Promise<Response> {
   const name = apkNameOf(new URL(request.url).pathname);
   if (!name || (request.method !== 'GET' && request.method !== 'HEAD')) return notFound();
@@ -46,13 +79,13 @@ export async function serveApk(request: Request, bucket: ApkBucket | undefined):
   if (!bucket) return new Response('Carried builds are not set up here.', { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } });
   if (request.method === 'HEAD') {
     const object = await bucket.head(name);
-    if (!object) return notFound();
+    if (!object) return fitting(bucket, name);
     const headers = headersFor(name, object);
     headers.set('content-length', String(object.size));
     return new Response(null, { status: 200, headers });
   }
   const object = await bucket.get(name, { range: request.headers });
-  if (!object) return notFound();
+  if (!object) return fitting(bucket, name);
   const headers = headersFor(name, object);
   const range = object.range as { offset?: number; length?: number; suffix?: number } | undefined;
   if (range && request.headers.has('range')) {

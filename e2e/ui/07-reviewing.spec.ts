@@ -593,12 +593,11 @@ test('REV-023 A review the server refuses is not lost silently', async ({ page, 
     await context.setOffline(false);
     await expect.poll(async () => (await deviceEvents(page, w.languages.A.orgId, w.languages.A.languageId)).filter((e) => e.status === 'rejected').length,
       { timeout: 60_000 }).toBeGreaterThan(0);
-    // The Sync screen (Me → More settings → Sync) shows it refused (PLAN.md invariant 1). Whether My Work or Me
-    // say so too is SYNC-019's (a known issue: they do not).
+    // Sync and offline (Me → Sync and offline) shows it refused (PLAN.md invariant 1). Whether My Work
+    // says so too is SYNC-019's (a known issue: it does not).
     await toTabs(page);
     await tab(page, 'me').click();
-    await button(page, /^More settings/).click();
-    await button(page, /^Sync/).first().click();
+    await button(page, /^Sync and offline/).first().click();
     await openSyncDetails(page);
     // The screen polls the log once a second.
     await expect.poll(() => screenText(page), { timeout: 15_000 }).toMatch(/Refused · [1-9]|[1-9]\d* refused by the server/);

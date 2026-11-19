@@ -112,7 +112,8 @@ export const recordAPassage: Tutorial = {
     {
       screen: 'workspace',
       part: (page) => id(page, 'publish-button'),
-      say: 'When every part is recorded, tap Done to finish this version and send it to its next check. The next video shows how.',
+      say: "When every part is recorded, tap Done to finish this version and send it to its next check. The video 'Finish and ask for a check' shows how. That video is linked in the description below.",
+      videos: ['finish-and-ask-for-a-check'],
       help: 'recording.recorder.doneHelp',
       stay: 1.2
     }

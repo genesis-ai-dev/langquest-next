@@ -39,6 +39,7 @@
       "run": "Partage arrêté après dix minutes.",
       "level": "À jour. Partage arrêté.",
       "letInLook": "Le nouveau téléphone affichera LangQuest jusqu’à ce qu’on choisisse une autre apparence dans Autres réglages.",
+      "letInPermissions": "Retournez dans Partager à proximité et appuyez sur Commencer le partage. Autorisez ce qu’Android demande, puis revenez ici.",
       "apkTrace": "L’historique et la liste des téléchargements du navigateur montrent d’où vient le fichier d’installation. Vous pourrez les effacer ensuite."
     }
   },

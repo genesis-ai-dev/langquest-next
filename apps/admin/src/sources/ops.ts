@@ -52,7 +52,14 @@ export interface Fleet {
   updates: { update: string; runtime: string | null; channel: string | null; installs: number; crashed: number; firstSeen: string; lastSeen: string }[];
   versions: { reducer: string | null; protocol: string | null; installs: number }[];
   web: { commit: string | null; installs: number }[];
-  toMap: { day: string; kind: 'open' | 'fill'; count: number; p50Ms: number | null; p95Ms: number | null }[];
+  /**
+   * A language's first downloads, per day. `open`: each first download, its
+   * time without the wait for a connection; `fill`: a big language, until its
+   * Map shows. `slow` are the ones over FIRST_DOWNLOAD_SLOW_MS; `waited` the
+   * opens that waited with no connection, and `waitMaxMs` the longest wait
+   * (migration 20261118234300_first_download_wait.sql; absent before it).
+   */
+  toMap: { day: string; kind: 'open' | 'fill'; count: number; p50Ms: number | null; p95Ms: number | null; slow?: number | null; waited?: number | null; waitMaxMs?: number | null }[];
   /**
    * First downloads that went wrong, per day: `fallback` took the whole
    * snapshot and `restart` lost its cut (`reason` from the `fill` record), and
@@ -85,6 +92,9 @@ export const FLEET_SQL = `select diag.ops_cached('fleet') as v`;
 /** A crash on more than this share of an update's installs is a reason to roll it back. */
 export const CRASH_ROLLBACK_SHARE = 0.02;
 
+/** A language's first download over this, without the wait for a connection, is slow (diag.ops_fleet counts them as `slow`). */
+export const FIRST_DOWNLOAD_SLOW_MS = 15 * 60_000;
+
 export function fleetAlerts(f: Fleet, reducer = REDUCER_VERSION): Alert[] {
   const out: Alert[] = [];
   const [latest, before] = f.updates.filter((u) => u.channel !== 'web');
@@ -99,8 +109,10 @@ export function fleetAlerts(f: Fleet, reducer = REDUCER_VERSION): Alert[] {
   if (lost > 0) out.push({ level: 'urgent', key: 'stuck-lost-recordings', watchKey: 'device:lostRecordings', text: `${plural(lost, 'install')} lost recordings before sending them (Stuck phones).` });
   if (f.quiet && f.quiet.count >= 5) out.push({ level: 'watch', key: 'phones-quiet', text: `${plural(f.quiet.count, 'install')} went quiet for 3 days while another device of the same person still reports: diagnostics off, or delivery broken (Silent phones).` });
   const recent = f.toMap.filter((d) => d.kind === 'open').slice(-1)[0];
-  if (recent && recent.count >= 5 && num(recent.p95Ms) > 15 * 60_000) {
-    out.push({ level: 'watch', key: 'first-download-slow', text: `A language's first download took over ${Math.round(num(recent.p95Ms) / 60_000)} minutes for one in twenty on ${recent.day}.` });
+  // The time is the download alone: a phone that opens a language with no connection waits, and that wait is not a slow download.
+  if (recent && recent.count >= 5 && num(recent.p95Ms) > FIRST_DOWNLOAD_SLOW_MS) {
+    const slow = Math.max(1, num(recent.slow));
+    out.push({ level: 'watch', key: 'first-download-slow', text: `${slow} of ${recent.count} first downloads of a language took over ${FIRST_DOWNLOAD_SLOW_MS / 60_000} minutes on ${recent.day}, without the time a phone waited with no connection.` });
   }
   return out;
 }
@@ -287,17 +299,24 @@ export function cronAlerts(c: Cron): Alert[] {
 export const whose = (a: Activity | null | undefined): string =>
   a ? `${a.role ?? 'an unknown role'}${a.client ? ` (${a.client})` : ''}` : '';
 
+/** A transaction open longer than this, or a query running longer, is a line; the Database pictures draw each against it (pageMeters.ts). */
+export const LONG_XACT_S = 3600;
+export const LONG_QUERY_S = 300;
+/** A table with this share of dead rows, of at least this many rows, is a line. */
+export const DEAD_ROWS_SHARE = 0.3;
+export const DEAD_ROWS_MIN = 10_000;
+
 export function dbDetailAlerts(d: DbDetail): Alert[] {
   const out: Alert[] = [];
-  if (num(d.oldestXactS) > 3600) {
+  if (num(d.oldestXactS) > LONG_XACT_S) {
     const x = d.oldestXact;
     out.push({ level: 'watch', key: 'long-transaction', text: `A database transaction${x ? ` by ${whose(x)}` : ''}${x?.state && x.state !== 'active' ? `, ${x.state},` : ''} has been open for ${Math.round(num(d.oldestXactS) / 60)} minutes: it holds back vacuum.` });
   }
-  if (num(d.longestQueryS) > 300) {
+  if (num(d.longestQueryS) > LONG_QUERY_S) {
     const q = d.longestQuery;
     out.push({ level: 'watch', key: 'long-query', text: `A query${q ? ` by ${whose(q)}` : ''} has been running for ${Math.round(num(d.longestQueryS) / 60)} minutes${q?.waitingOn === 'Lock' ? ', blocked by a lock' : ''}.` });
   }
-  for (const t of d.tables) if (num(t.deadRatio) >= 0.3 && t.rows >= 10_000) out.push({ level: 'watch', key: 'dead-rows', subject: t.name, text: `${t.name} is ${Math.round(num(t.deadRatio) * 100)}% dead rows: autovacuum is behind.` });
+  for (const t of d.tables) if (num(t.deadRatio) >= DEAD_ROWS_SHARE && t.rows >= DEAD_ROWS_MIN) out.push({ level: 'watch', key: 'dead-rows', subject: t.name, text: `${t.name} is ${Math.round(num(t.deadRatio) * 100)}% dead rows: autovacuum is behind.` });
   return out;
 }
 
@@ -489,6 +508,12 @@ export interface UserIssueRow {
   /** The pull request on main that fixed it, and when it merged. */
   fixedBy: number | null; fixedAt: string | null;
   keys: string[]; people: number; firstAt: string; lookedAt: string;
+  /**
+   * The issue in three lines, as Claude wrote them when the watch filed it (decisions.md 202, amended 2026-11-18):
+   * what the person was doing, what goes wrong, and what would fix it. Absent before migration
+   * 20261118070000_user_issue_words.sql, and null for an issue filed before it.
+   */
+  context?: string | null; problem?: string | null; solution?: string | null;
 }
 
 /**
@@ -500,9 +525,22 @@ export interface UserIssueLine {
   state: string | null; closedAt: string | null; fixedBy: number | null; fixedAt: string | null; lookedAt: string;
 }
 
+/**
+ * What an admin told Claude to do with an issue from its card, and Claude's answer
+ * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md). Never who wrote it.
+ */
+export interface UserIssueNote {
+  at: string; text: string;
+  /** waiting: no run took it yet; working: a run has it; answered; stopped: two runs took it and neither answered. */
+  state: 'waiting' | 'working' | 'answered' | 'stopped';
+  answeredAt: string | null; result: 'changed' | 'answered' | 'none' | null; answer: string | null; pr: number | null; runUrl: string | null;
+}
+
 /** diag.ops_user_issues(): the last 90 days, open issues first; counts; the last look; each dashboard line's decision. */
 export interface UserIssues {
   issues: UserIssueRow[];
+  /** diag.ops_user_issue_notes(): each issue's last instructions, the oldest first. Absent before migration 20261118073000_user_issue_notes.sql. */
+  notes?: Record<string, UserIssueNote[]>;
   /** Absent before migration 20261117213500_ops_lines_linear.sql. */
   lines?: UserIssueLine[];
   open: number; closed: number; fixed: number; noiseWeek: number;
@@ -533,7 +571,7 @@ export interface OpsSections {
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes] = await Promise.all([
     part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -559,7 +597,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<TutorialsRow>(query, `select diag.ops_tutorials() as v`),
     part<Feedback>(query, `select diag.ops_tutorial_feedback() as v`),
     part<UserIssues>(query, `select diag.ops_user_issues() as v`),
-    part<QuietAccounts>(query, `select diag.ops_quiet_accounts() as v`)
+    part<QuietAccounts>(query, `select diag.ops_quiet_accounts() as v`),
+    part<Record<string, UserIssueNote[]>>(query, `select diag.ops_user_issue_notes() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -625,7 +664,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
       return ok(f, feedbackAlerts(f));
     }),
     userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
-      const u = userIssuesOf(val(userissues));
+      // Before its migration the cards show without the box.
+      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}) };
       return ok(u, userIssueAlerts(u));
     })
   };

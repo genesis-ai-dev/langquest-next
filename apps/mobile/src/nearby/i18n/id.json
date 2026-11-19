@@ -1,18 +1,17 @@
 {
   "nearby": {
     "experimental": "Uji coba",
-    "intro": "Berfungsi tanpa internet: perbarui ponsel rekan tim, atau berikan aplikasi kepada orang baru dan izinkan mereka bergabung dengan tim.",
-    "introTeammates": "Berfungsi tanpa internet: perbarui ponsel rekan tim.",
+    "intro": "Berfungsi tanpa internet.",
     "withTeammates": "Dengan rekan tim",
-    "withTeammatesLine": "Ponsel yang sudah memiliki LangQuest saling memperbarui. Biarkan ini terbuka sampai muncul tulisan Sudah terbaru.",
+    "withTeammatesLine": "Ponsel yang sudah memiliki LangQuest saling memperbarui.",
     "newPerson": "Orang baru",
     "newPersonLine": "Berikan aplikasi kepada orang baru, lalu izinkan mereka bergabung dengan tim dari ponsel ini.",
+    "step": "{{n}}. {{label}}",
     "row": "Berbagi di sekitar",
-    "rowSub": "Bagikan kemajuan kerja dengan rekan tim tanpa internet",
-    "rowSubJoin": "Bagikan kemajuan kerja dengan rekan tim, atau izinkan orang baru masuk, tanpa internet",
-    "rowHelp": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling mengirim dan menerima kemajuan kerja tanpa internet.",
-    "rowHelpJoin": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling mengirim dan menerima kemajuan kerja tanpa internet, dan tempat Anda memberikan aplikasi kepada orang baru serta mengizinkan mereka bergabung dengan tim.",
-    "rowHelpRemind": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling mengirim dan menerima kemajuan kerja tanpa internet, dan tempat Anda memberikan aplikasi kepada orang baru serta mengizinkan mereka bergabung dengan tim. Ponsel ini belum memiliki file instalasi yang kini diperlukan ponsel orang baru: dapatkan di sana sebelum Anda tanpa internet.",
+    "rowSub": "Bagikan pekerjaan dengan rekan tim tanpa internet",
+    "rowSubJoin": "Bagikan pekerjaan dengan rekan tim, atau izinkan orang baru masuk, tanpa internet",
+    "rowHelp": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling berbagi pekerjaan tanpa internet.",
+    "rowHelpJoin": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling berbagi pekerjaan tanpa internet, dan tempat Anda memberikan aplikasi kepada orang baru serta mengizinkan mereka bergabung dengan tim.",
     "why": {
       "loading": "Memeriksa ponsel ini…",
       "notInBuild": "Versi aplikasi ini tidak bisa berbagi di sekitar. Perbarui dari toko aplikasi.",
@@ -21,6 +20,7 @@
       "noWifiDirect": "Ponsel ini tidak punya Wi-Fi Direct, yang diperlukan Berbagi di sekitar.",
       "noKey": "Ponsel ini belum siap berbagi. Sambungkan ke internet sekali, lalu kembali ke sini.",
       "noCertificate": "Untuk berbagi di sekitar, ponsel ini harus tersambung ke internet sekali saat organisasi Anda menyalakan Berbagi di sekitar.",
+      "limited": "Akun ini sudah menyiapkan terlalu banyak ponsel baru hari ini. Berbagi di sekitar akan berfungsi di ponsel ini mulai besok.",
       "readOnly": "Akun yang hanya melihat organisasi tidak bisa berbagi di sekitar."
     },
     "radios": {
@@ -46,7 +46,6 @@
     "stopped": {
       "idle": "Berhenti setelah beberapa saat karena tidak ada orang baru di sekitar.",
       "wait": "Berhenti setelah lama menunggu rekan tim yang sedang sibuk.",
-      "noKey": "Ponsel ini belum bisa berbagi. Sambungkan ke internet sekali, lalu kembali ke sini.",
       "failed": "Berbagi di sekitar tidak bisa menyalakan Bluetooth dan Wi-Fi.",
       "lookAgainLine": "Jika ada rekan tim yang datang, ketuk Cari lagi."
     },
@@ -71,7 +70,7 @@
     "connectHelp": "Menyambung ke ponsel ini. Gunakan saat ada rekan tim di dekat Anda tetapi kedua ponsel belum saling menemukan.",
     "connectHelpAll": "Menyambung ke semua ponsel rekan tim di sekitar yang belum menemukan ponsel ini. Satu ketukan berlaku untuk semuanya sampai Anda keluar dari layar ini.",
     "came": {
-      "title": "Yang sudah berpindah",
+      "title": "Yang sudah dibagikan",
       "changesIn": "Perubahan diterima: {{n}}",
       "changesOut": "Perubahan dikirim: {{n}}",
       "filesIn": "Rekaman diterima: {{n}}",
@@ -88,16 +87,15 @@
       "failed": "Ada yang salah. Akan dicoba lagi."
     },
     "clockOff": "Jam ponsel rekan tim dan jam ponsel ini berbeda lebih dari lima menit. Periksa tanggal dan jam di kedua ponsel.",
-    "newerApp": "Ponsel rekan tim memerlukan versi aplikasi yang lebih baru untuk berbagi dengan ponsel ini. Perbarui aplikasi dari toko aplikasi, atau dapatkan versi yang lebih baru dari rekan tim.",
-    "newerAppIphone": "Ponsel rekan tim memerlukan versi aplikasi yang lebih baru untuk berbagi dengan ponsel ini. Perbarui aplikasi dari toko aplikasi.",
-    "apkOld": "File instalasi yang Anda dapatkan adalah untuk versi lama. Dapatkan yang baru sebelum Anda tanpa internet.",
+    "newerApp": "Versi aplikasi di ponsel ini dan di ponsel rekan tim terlalu jauh berbeda untuk berbagi. Perbarui aplikasi yang lebih lama lewat toko aplikasi, atau lewat file instalasi dari ponsel yang lain.",
+    "newerAppIphone": "Versi aplikasi di ponsel ini dan di ponsel rekan tim terlalu jauh berbeda untuk berbagi. Perbarui aplikasi yang lebih lama lewat toko aplikasi.",
     "tooOld": "Aplikasi ini terlalu lama untuk berbagi. Perbarui dari toko aplikasi.",
     "farAhead": "Ponsel {{name}} memakai tanggal yang jauh di masa depan. Pekerjaannya menunggu sampai tiba di server.",
     "olderFromServer": "Pekerjaan yang lebih lama akan datang dari server.",
     "hold": "Simpan rekaman rekan tim",
     "holdHelp": "Jika aktif, ponsel ini menyimpan rekaman rekan tim sampai server menerimanya. Jika mati, hanya rekaman yang Anda perlukan yang disimpan.",
     "carry": {
-      "title": "Siap dibawa",
+      "title": "Yang disimpan ponsel ini",
       "everything": "Ponsel ini menyimpan semua yang diketahuinya.",
       "missing": "Rekaman yang belum ada: {{n}}",
       "coming": "Masih datang dari rekan tim di sekitar: {{n}}",
@@ -134,7 +132,6 @@
         "noPass": "Ponsel ini tidak bisa mengizinkan siapa pun masuk. Organisasi Anda harus menyalakannya, Anda harus bisa mengundang orang ke bahasa ini, dan ponsel ini harus sudah tersambung ke internet sejak itu.",
         "expired": "Izin ponsel ini untuk mengizinkan orang masuk sudah habis. Sambungkan ke internet sekali untuk memperbaruinya.",
         "noRole": "Tidak ada peran yang bisa diberikan ponsel ini tanpa internet. Admin bisa memberi peran setelah orang baru itu tersambung ke internet.",
-        "permissions": "Buka Berbagi di sekitar dulu dan izinkan yang diminta Android, lalu kembali ke sini.",
         "wifiOff": "Nyalakan Wi-Fi di pengaturan ponsel Anda, lalu kembali ke sini."
       },
       "role": "Perannya",
@@ -162,16 +159,25 @@
       "anotherHelp": "Mulai lagi dengan kode baru.",
       "turnedAway": "Ponsel lain mencoba kode ini dan ditolak.",
       "stayOpen": "Biarkan layar ini terbuka sampai selesai.",
-      "file": "File instalasi untuk versi ini: {{file}}",
-      "fileExact": "File di folder Download Anda harus bernama persis seperti ini. Nama lain berarti versi yang salah.",
-      "fileOld": "File instalasi yang Anda dapatkan sebelumnya adalah untuk versi lama. Dapatkan yang baru sebelum Anda tanpa internet.",
-      "get": "Dapatkan file instalasi",
+      "get": "Unduh di browser",
       "getHelp": "Membuka browser ponsel, yang mengunduh file instalasi untuk versi ini.",
-      "getLine": "Unduh sebelum Anda tanpa internet. Ponsel baru harus mengizinkan pemasangan aplikasi dari sumber lain. Kirim file ke ponsel itu lewat Quick Share, kartu SD, atau kabel USB. Quick Share memerlukan layanan Google Play di kedua ponsel.",
-      "getOffline": "Mendapatkan file instalasi memerlukan internet.",
-      "check": "Periksa file saya",
-      "checkHelp": "Membuka file di ponsel. Pilih file instalasi yang Anda punya, lalu aplikasi membandingkan namanya dengan nama yang diperlukan ponsel ini. Hanya namanya yang dibaca.",
-      "checkRight": "Ini file yang benar.",
+      "getSteps": {
+        "lead": "Setelah Anda mengetuk {{button}}:",
+        "browser": "Browser ponsel terbuka dan mengunduh file instalasi.",
+        "warning": "Jika browser memperingatkan bahwa file mungkin berbahaya, pilih untuk tetap mengunduhnya. Ini file instalasi milik LangQuest sendiri.",
+        "back": "Setelah unduhan selesai, kembali ke LangQuest. Anda tidak perlu membuka file itu.",
+        "choose": "Ketuk {{button}}."
+      },
+      "getLine": "Di lapangan, kirim file-nya lewat Berikan aplikasi. Quick Share, kartu SD, atau kabel USB juga bisa, tetapi Quick Share memerlukan layanan Google Play di kedua ponsel.",
+      "getLineOther": "Di lapangan, kirim file-nya ke ponsel baru lewat Quick Share, kartu SD, atau kabel USB. Quick Share memerlukan layanan Google Play di kedua ponsel. Ponsel baru mungkin meminta izin untuk memasang dari sumber ini.",
+      "getOffline": "Mengunduh file instalasi memerlukan internet.",
+      "check": "Pilih file yang sudah Anda punya",
+      "checkHelp": "Membuka file di ponsel. Pilih file instalasi yang Anda dapat dengan cara lain, misalnya dari rekan tim atau kartu SD, lalu aplikasi memeriksa bahwa itu file yang diperlukan ponsel ini.",
+      "choose": "Pilih file yang diunduh",
+      "chooseHelp": "Membuka file di ponsel. Pilih file instalasi yang diunduh browser, lalu aplikasi memeriksa bahwa itu file yang diperlukan ponsel ini.",
+      "chooseLine": "Setelah unduhan selesai, ketuk Pilih file yang diunduh. Biasanya file itu paling atas di file terbaru Anda.",
+      "getAgain": "Unduh lagi",
+      "getAgainHelp": "Membuka browser ponsel lagi, kalau unduhan tidak selesai.",
       "checkOther": "File ini untuk versi lain: Anda memerlukan {{file}}",
       "checkChose": "Anda memilih {{name}}",
       "fileHelp": "Setelah semua orang yang Anda datangi sudah masuk, hapus file ini. Anda perlu internet untuk mendapatkannya lagi.",
@@ -190,18 +196,35 @@
         "stopped": "Kode hilang karena Anda meninggalkan layar ini. Buat kode baru.",
         "noCertificate": "Ponsel ini harus tersambung ke internet sekali sebelum bisa mengizinkan siapa pun masuk.",
         "failed": "Ada yang salah di ponsel ini. Buat kode baru."
+      },
+      "keep": {
+        "keeping": "Menyimpan salinan di ponsel ini…",
+        "kept": "Salinannya tersimpan di ponsel ini untuk Berikan aplikasi. Anda bisa menghapus yang ada di folder Download.",
+        "notOurs": "Ini bukan file instalasi milik LangQuest sendiri. Unduh lagi selagi ada internet.",
+        "noSpace": "Ruang di ponsel ini tidak cukup untuk menyimpan salinan. Kosongkan sebagian ruang, lalu pilih lagi.",
+        "unreadable": "File ini tidak bisa dibaca. Pilih lagi.",
+        "failed": "Salinan tidak bisa disimpan. Pilih lagi.",
+        "needsAndroid": "Ponsel ini tidak menyimpan salinan: Berikan aplikasi memerlukan Android 10 atau yang lebih baru.",
+        "needsUpdate": "Ponsel ini belum menyimpan salinan. Perbarui aplikasi dari toko aplikasi untuk memberikannya lewat Wi-Fi."
       }
     },
     "installFile": {
-      "intro": "Ponsel baru perlu LangQuest terpasang sebelum Anda dapat mengizinkan pemiliknya masuk. Dapatkan file-nya di sini selagi ada internet, lalu bawa.",
+      "intro": "Ponsel baru perlu LangQuest terpasang sebelum Anda dapat mengizinkan pemiliknya masuk. Unduh file instalasi di sini selagi ada internet, lalu bawa.",
       "rowSub": "Sebelum Anda tanpa internet",
-      "rowHelp": "Membuka Dapatkan file instalasi, tempat Anda mengunduh dan memeriksa file untuk memasang LangQuest di ponsel baru. Lakukan selagi ada internet.",
-      "linkHelp": "Membuka Dapatkan file instalasi, tempat Anda mengunduh dan memeriksa file untuk memasang LangQuest di ponsel baru.",
-      "remind": "Dapatkan file instalasi sebelum Anda tanpa internet",
-      "notGot": "File instalasi untuk orang baru: belum didapatkan",
+      "rowHelp": "Membuka Unduh file instalasi, tempat Anda mengunduh file untuk memasang LangQuest di ponsel baru dan menyimpan salinannya. Lakukan selagi ada internet.",
+      "linkHelp": "Membuka Unduh file instalasi, tempat Anda mengunduh file untuk memasang LangQuest di ponsel baru dan menyimpan salinannya.",
+      "notGot": "Belum ada file instalasi untuk orang baru",
       "older": "File instalasi untuk orang baru: untuk versi lama",
-      "getIt": "Dapatkan",
-      "lineHelp": "Ponsel orang baru memasang LangQuest dari file ini. Ponsel ini belum mendapatkan file untuk versi ini: dapatkan selagi Anda punya internet, agar bisa memberikannya kepada orang baru tanpa internet."
+      "notChosen": "File instalasi untuk orang baru: belum dipilih",
+      "lineHelp": "Anda memerlukan file ini untuk memberikan LangQuest kepada orang baru tanpa internet. Unduh selagi Anda punya internet.",
+      "old": "File instalasi Anda adalah untuk versi lama. Unduh yang baru.",
+      "downloaded": "Sudah diunduh. Pilih file-nya untuk menyelesaikan.",
+      "title": "File instalasi untuk orang baru",
+      "ready": "Siap diberikan kepada orang baru.",
+      "readyShort": "File instalasi siap",
+      "done": "Siap. Anda bisa membawanya ke tempat tanpa internet.",
+      "newer": "File instalasi yang lebih baru sudah siap. Unduh selagi Anda punya internet, lalu pilih file-nya.",
+      "newerShort": "File instalasi untuk orang baru: yang lebih baru sudah siap"
     },
     "join": {
       "intro": "Bergabung dengan tim Anda dari ponsel rekan tim, tanpa internet. Akun Anda dibuat saat ponsel Anda pertama kali tersambung ke internet.",
@@ -223,8 +246,8 @@
       "join": "Gabung",
       "tryAgain": "Coba lagi",
       "joinHelp": "Menghubungi ponsel rekan tim Anda dan meminta izin masuk.",
-      "permission": "LangQuest memerlukan izin perangkat di sekitar untuk menghubungi ponsel rekan tim Anda.",
-      "permissionBlocked": "Izinkan Perangkat di sekitar untuk LangQuest di pengaturan ponsel, lalu kembali ke sini.",
+      "permission": "LangQuest memerlukan izin Perangkat di sekitar (Lokasi di ponsel yang lebih lama) untuk menghubungi ponsel rekan tim Anda.",
+      "permissionBlocked": "Izinkan Perangkat di sekitar atau Lokasi untuk LangQuest di pengaturan ponsel, lalu kembali ke sini.",
       "wifiOff": "Nyalakan Wi-Fi di pengaturan ponsel Anda, lalu coba lagi.",
       "connecting": "Menghubungi ponsel rekan tim Anda…",
       "asked": "Menunggu rekan tim Anda",
@@ -253,6 +276,71 @@
         "refused": "Ponsel ini tidak bisa memeriksa jawaban rekan tim Anda. Minta kode baru.",
         "dropped": "Sambungan terputus. Minta kode baru.",
         "failed": "Ada yang salah di ponsel ini. Minta kode baru."
+      }
+    },
+    "give": {
+      "intro": "Ponsel ini membuat jaringan Wi-Fi sendiri. Ponsel baru memindai dua kode dengan kameranya: satu untuk terhubung ke jaringan itu, satu untuk mengunduh LangQuest. Kedua ponsel tidak perlu internet.",
+      "rowSub": "Saat Anda bersama orang baru",
+      "rowHelp": "Membuka Berikan aplikasi, tempat ponsel ini mengirim LangQuest ke ponsel baru lewat jaringan Wi-Fi yang dibuatnya sendiri.",
+      "linkHelp": "Membuka Berikan aplikasi, untuk mengirim LangQuest ke ponsel baru lewat jaringan Wi-Fi yang dibuat ponsel ini.",
+      "size": "File instalasi: {{size}} MB",
+      "start": "Tunjukkan kode pertama",
+      "startHelp": "Membuat jaringan Wi-Fi ponsel ini agar ponsel baru bisa terhubung, dan menampilkan kode pertama.",
+      "starting": "Membuat jaringan Wi-Fi ponsel ini…",
+      "noFile": "Unduh dulu file instalasi selagi ada internet.",
+      "unsupported": {
+        "android": "Berikan aplikasi memerlukan Android 10 atau yang lebih baru, sedangkan ponsel ini memakai versi yang lebih lama. Sebagai gantinya, kirim file instalasi lewat Quick Share, kartu SD, atau kabel USB.",
+        "update": "Versi aplikasi ini tidak bisa memberikan aplikasi. Perbarui dari toko aplikasi."
+      },
+      "join": {
+        "title": "1. Hubungkan ke jaringan Wi-Fi ponsel ini",
+        "line": "Di ponsel baru, buka kamera, arahkan ke kode ini, lalu ketuk Hubungkan. Setelah ponsel itu terhubung, ketuk Lanjut.",
+        "lineAgain": "Di ponsel baru, buka kamera, arahkan ke kode ini, lalu ketuk Hubungkan.",
+        "code": "Kode untuk terhubung ke jaringan Wi-Fi ponsel ini",
+        "network": "Nama Wi-Fi: {{name}}",
+        "password": "Kata sandi: {{password}}",
+        "typeLine": "Atau, di pengaturan Wi-Fi ponsel baru, pilih jaringan ini dan ketik kata sandinya:"
+      },
+      "next": "Lanjut",
+      "nextHelp": "Menampilkan kode kedua, untuk halaman unduhan, setelah ponsel baru terhubung.",
+      "download": {
+        "title": "2. Buka halaman unduhan",
+        "line": "Arahkan kamera ponsel baru ke kode ini dan buka halamannya. Ketuk Unduh.",
+        "code": "Kode untuk halaman unduhan",
+        "address": "Atau ketik alamat ini di browser-nya: {{address}}",
+        "dataLine": "Ponsel baru mungkin mengatakan Wi-Fi ini tidak punya internet. Ketuk Tetap terhubung. Jika halaman masih tidak terbuka, matikan data selulernya."
+      },
+      "backToJoin": "Kembali ke kode pertama",
+      "backToJoinHelp": "Menampilkan lagi kode untuk terhubung ke jaringan Wi-Fi ponsel ini.",
+      "sending": "Mengirim: {{sent}} dari {{total}} MB",
+      "sent": "3. Pasang aplikasinya",
+      "sentLine": "File sudah terkirim. Di ponsel baru, buka file yang sudah diunduh dan ketuk Instal. Ponsel itu mungkin sekali meminta izin untuk memasang dari sumber ini. Lalu izinkan mereka masuk dari ponsel ini.",
+      "another": "Berikan ke ponsel lain",
+      "anotherHelp": "Menampilkan lagi kedua kode, untuk satu ponsel baru lagi.",
+      "letIn": "Izinkan mereka masuk",
+      "letInHelp": "Membuka Izinkan seseorang masuk, agar ponsel baru bisa bergabung dengan tim.",
+      "stop": "Berhenti",
+      "stopHelp": "Mematikan jaringan Wi-Fi ponsel ini.",
+      "stayOpen": "Biarkan layar ini terbuka sampai file terkirim.",
+      "ended": {
+        "stopped": "Dihentikan.",
+        "idle": "Dihentikan setelah 15 menit tanpa ada ponsel yang mengunduh.",
+        "phone": "Dihentikan karena Wi-Fi mati atau Anda meninggalkan aplikasi."
+      },
+      "failed": {
+        "wifiOff": "Nyalakan Wi-Fi di ponsel ini, lalu coba lagi.",
+        "permission": "LangQuest memerlukan izin Perangkat di sekitar (Lokasi di ponsel yang lebih lama) untuk membuat jaringan Wi-Fi-nya. Izinkan, lalu coba lagi.",
+        "busy": "Wi-Fi ponsel ini sedang sibuk. Tunggu sebentar, lalu coba lagi.",
+        "failed": "Jaringan Wi-Fi ponsel ini tidak menyala. Coba lagi.",
+        "permissionCovered": "Buka Berbagi di sekitar dulu dan izinkan yang dimintanya. Lalu kembali ke sini dan coba lagi."
+      },
+      "page": {
+        "title": "Pasang LangQuest",
+        "size": "{{size}} MB",
+        "download": "Unduh",
+        "stepOpen": "Buka file yang sudah diunduh.",
+        "stepAllow": "Izinkan pemasangan dari sumber ini, jika ponsel meminta.",
+        "stepInstall": "Ketuk Instal."
       }
     }
   }

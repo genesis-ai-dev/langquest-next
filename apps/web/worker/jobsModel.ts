@@ -205,6 +205,36 @@ export function deadRun(key: JobKey, mark: RunMark | undefined, exit: Exit, now:
   };
 }
 
+/**
+ * A start the platform refused is tried again by the job's own object
+ * (docs/decisions/2026-11-19-a-refused-job-start-is-tried-again.md): five
+ * minutes on, when the runs that held the instances have had time to end,
+ * and for an hour at most. Why: on 2026-11-19 the upload run that follows
+ * the midnight intake was refused ("Maximum number of running container
+ * instances exceeded"), nothing tried again, and no video went up that day.
+ */
+export const START_RETRY_MS = 5 * 60_000;
+export const START_TRIES = 12;
+
+/** When to try again after `tries` refused starts in a row, or null once the hour of tries is spent. */
+export function retryAt(tries: number, now: number): number | null {
+  return tries < START_TRIES ? now + START_RETRY_MS : null;
+}
+
+/**
+ * The run of a start that was refused: written at once by the object, since
+ * no process began to write one. `start:max_instances` is the platform's
+ * limit of running instances (wrangler.jsonc `max_instances`), read from its
+ * message because the Error carries no code; `start:failed` is any other.
+ */
+export function refusedStart(key: JobKey, startedAt: number, now: number, error: unknown): JobRun {
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    job: JOBS[key].job, startedAt, ms: now - startedAt, outcome: 'error',
+    errorClass: /maximum number of running container instances/i.test(message) ? 'start:max_instances' : 'start:failed'
+  };
+}
+
 /** What the Worker hands a job's container: the database for every job, v2's keys and the Worker's address for the import, and the OAuth client for publishing. */
 export interface JobSettings {
   SUPABASE_URL: string;
