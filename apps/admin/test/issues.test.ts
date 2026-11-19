@@ -295,6 +295,11 @@ describe('the cards', () => {
     expect(html).toContain('Issue manager: sonnet, medium effort');
     expect(html).toContain('<button type="button" class="link" data-shot="f1" data-what="screenshot">Show screenshot</button>');
     expect(html).not.toContain('Show picture');
+    // A display fix: the screen before the fix and after it, each loaded for the signed-in admin.
+    const shown = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record({ beforeAfter: true }) }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
+    expect(shown).toContain('<figcaption>Before the fix</figcaption><img alt="The screen before the fix" data-fixpic="LAN-9" data-what="before">');
+    expect(shown).toContain('<figcaption>After the fix</figcaption><img alt="The screen after the fix" data-fixpic="LAN-9" data-what="after">');
+    expect(draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record({ pr: 5, beforeAfter: true }) }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toContain('data-fixpic');
     // A record of another pull request: its reasons are not under this one, the pictures of the problem still are.
     const other = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record({ pr: 5 }) }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
     expect(other).not.toContain('<dt>Claude</dt>');

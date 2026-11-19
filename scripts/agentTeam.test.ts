@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import {
-  causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isTest, LABELS, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, OPEN_HOURS, pathRefusal,
-  planOf, REASONS, reviewNeeded, saysMerge, stalled, VERDICTS, verdictOf
+  causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, OPEN_HOURS, pathRefusal,
+  PICTURES, planOf, REASONS, reviewNeeded, saysMerge, stalled, VERDICTS, verdictOf
 } from './agent-team.mjs';
 import * as model from '../server/userIssues';
 
@@ -45,7 +45,8 @@ describe('the manager', () => {
   it('gives a verdict the script checks: an odd one waits for a developer', () => {
     expect(VERDICTS).toEqual([...model.FIX_VERDICTS]);
     expect(verdictOf({ verdict: 'merge it now' }).verdict).toBe('review');
-    expect(verdictOf(null)).toEqual({ verdict: 'review', cause: '', proof: '', why: '', twins: '' });
+    expect(verdictOf(null)).toEqual({ verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false });
+    expect(verdictOf({ display: 'yes' }).display).toBe(false);
     expect(verdictOf({ verdict: 'fix', cause: ' a\nb ', twins: 'x'.repeat(5000) })).toMatchObject({ cause: 'a b', twins: expect.stringMatching(/^x{999}…$/) });
     expect(causeProven(verdict())).toBe(true);
     expect(causeProven(verdict({ proof: '' }))).toBe(false);
@@ -98,6 +99,29 @@ describe('the gate', () => {
     expect(saysMerge(['Move the wait.', 'Looks good, merge it.'])).toBe(true);
     expect(saysMerge(['Move the wait before the emerge call.'])).toBe(false);
     expect(saysMerge(undefined)).toBe(false);
+  });
+
+  it('takes two pictures of the screen as the proof of a display fix, in place of a test', () => {
+    const display = { verdict: verdict({ display: true, proof: 'Before: the label of Save is cut off. After: the whole word shows.' }), changes: [{ file: 'apps/mobile/src/ui/kit.tsx', lines: 2 }] };
+    const both = { before: true, after: true };
+    expect(gate(all({ ...display, pictures: both, checks: { typecheck: 'passed', tests: 'none' } })).merge).toBe(true);
+    expect(gate(all({ ...display, pictures: both })).merge).toBe(true);
+    expect(gate(all({ ...display, pictures: { before: true, after: false } }))).toMatchObject({ merge: false, reason: 'cause' });
+    expect(gate(all({ ...display })).reason).toBe('cause');
+    expect(gate(all({ ...display, pictures: both, checks: { typecheck: 'passed', tests: 'failed' } })).reason).toBe('checks');
+    expect(gate(all({ ...display, pictures: both, checks: { typecheck: 'not run', tests: 'none' } })).reason).toBe('checks');
+    // The other parts of the rule hold as for any fix: the paths, the reviewer, the mode.
+    expect(gate(all({ ...display, pictures: both, changes: [{ file: 'apps/mobile/app.json', lines: 1 }] })).reason).toBe('paths');
+    expect(gate(all({ ...display, pictures: both, vet: { ok: false, why: 'The second picture also moves the title.' } })).reason).toBe('reviewer');
+    expect(gate(all({ ...display, pictures: both, mode: 'ask' })).reason).toBe('mode');
+    // Pictures do not stand in for a test on a fix that is not a display fix.
+    expect(gate(all({ changes: [CHANGES[0]], pictures: both })).reason).toBe('cause');
+    expect(reviewNeeded({ ...display, checks: { typecheck: 'passed', tests: 'none' }, pictures: both })).toBe(true);
+    // The picture job runs the change's code: a file counts only when it is a JPEG of a sane size.
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(200)]);
+    expect(isJpeg(jpeg)).toBe(true);
+    expect(isJpeg(Buffer.from('<svg onload="x">'.repeat(20)))).toBe(false);
+    expect(isJpeg(Buffer.concat([jpeg, Buffer.alloc(PICTURES.maxBytes)]))).toBe(false);
   });
 
   it('keeps a fix that merges without a person to the screens, the ops dashboard and the core, with tests in their folders', () => {

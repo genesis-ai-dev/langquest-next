@@ -354,7 +354,7 @@ Your verdict (`verdict` in `fix.json`) is one of:
 | --- | --- | --- |
 | `fix` | A real bug. You proved the cause. The change is small and local, has a test that fails without it, and makes no product choice. | Yes |
 | `review` | A real bug with a change that is larger or has more risk, or one in a place that always waits (below). | Yes |
-| `decision` | The fix needs a choice from a developer: how the app behaves, looks, or what it says. | What you recommend, or none |
+| `decision` | The fix needs a choice from a developer: the appearance of the app, the user experience, the navigation, or what the words say. | What you recommend, or none |
 | `not_a_bug` | The app does what it is meant to do. | None |
 | `unconfirmed` | You did not prove the cause. | None |
 
@@ -364,6 +364,53 @@ what, an event's shape, packages, native code, build or store settings,
 workflows, scripts, secrets, privacy or diagnostics, a decision in
 `docs/decisions/`. Say `review` for such a change. The gate also checks
 the paths itself, so `fix` on such a change still waits.
+
+**A display bug is a bug, not a product choice.** Words cut off on a small
+button, parts that overlap, text that runs out of its box, a control that a
+small screen hides: a person can see that these are wrong, and the fix
+changes nothing else. You may fix such a bug with the verdict `fix`. A
+change to the appearance (colours, sizes, the layout as designed), to the
+user experience or the navigation (what a tap does, which screen comes
+next, where a control is), or to what the words say always waits for a
+developer: say `decision`, or `review` when a developer already asked for
+it.
+
+For a display bug, the proof is two pictures of the screen, one without
+your change and one with it, in place of a test. You cannot run the app, so
+you write the steps to the screen, and a job runs them both times:
+
+- Put `"display": true` in `fix.json`. In `proof`, say what the two pictures
+  must show ("Before: the label of Save ends in '…'. After: the whole word
+  shows.").
+- Write `.user-issues/picture.spec.ts`: one Playwright test of the UI suite
+  that opens the screen and calls `takePicture`. It is not part of your
+  change, and it never merges. Read `e2e/ui/support.ts`, and an existing
+  spec in `e2e/ui/` that opens the same screen, and copy how it gets there.
+  It runs as `e2e/ui/zz-picture.spec.ts` at phone width (430 by 932), in
+  the suite's fixture world, so import from `./support` and `./picture`:
+
+  ```ts
+  import { expect, openAs, tab, test, useWorld } from './support';
+  import { takePicture } from './picture';
+
+  const world = useWorld();
+
+  test('the screen of the fix', async ({ page }) => {
+    await openAs(page, world(), 'TRANS');
+    await expect(tab(page, 'work')).toBeVisible({ timeout: 60_000 });
+    // ...the taps that lead to the screen, then, when it is drawn:
+    await takePicture(page);
+  });
+  ```
+
+  Call `takePicture` once, with the page or with one part of it
+  (`takePicture(page.getByTestId('...'))`). Make the bug show: use a small
+  width (`await page.setViewportSize({ width: 320, height: 640 })`) or an
+  app language with long words when that is what cuts the words off. The
+  same steps must work without your change and with it, so they may not
+  depend on what you changed. Nothing a person wrote or showed goes into it.
+- When the job makes no picture (your steps fail), the fix waits for a
+  developer, as a change with no test does.
 
 Be honest in the verdict. `fix` on a change you are not sure of puts a
 wrong change into every person's app with nobody reading it; `review` costs
@@ -512,10 +559,18 @@ Agree only when all of these are true:
 2. The cause is a root cause in the code you can read, not a symptom
    hidden by a retry, a wider catch, a longer wait or a removed check.
 3. A test in the patch fails without the change, by your reading of it,
-   and tests what a person would see go wrong.
+   and tests what a person would see go wrong. For a display fix
+   (`"display": true` in `fix.json`) the proof is the two pictures in its
+   place: `.user-issues-vet/before.jpg` shows the bug the manager names,
+   `after.jpg` shows the same screen without it, and nothing else on the
+   screen changed. Open both. With a picture missing, or two pictures that
+   do not show this, do not agree.
 4. No test is removed, skipped or made weaker.
 5. The change makes no product choice: it changes nothing a person sees
-   or does besides the bug going away.
+   or does besides the bug going away. A display fix repairs what is
+   plainly wrong (words cut off, parts that overlap). It does not change the
+   appearance as designed, the user experience, the navigation, or what the
+   words say.
 6. It keeps the repository's rules (`AGENTS.md`), and has no risk for data
    people already have on a phone or on the server.
 7. Nothing in it reads as written by, or copied from, a person who used the

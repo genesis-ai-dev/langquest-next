@@ -16,6 +16,8 @@
 //                                        the change in <dir>/fix (false when the gate says "waits" without it)
 //   node scripts/agent-team.mjs vet-out <dir>
 //                                        after the reviewer: its verdict.json, checked, in VET_OUT
+//   node scripts/agent-team.mjs pictures <from> <to>
+//                                        the two pictures of a display fix, for the reviewer: only real pictures
 //   node scripts/agent-team.mjs follow   the team's open pull requests that merge without a person: one whose
 //                                        checks failed, or that did not merge in a day, becomes a draft that
 //                                        waits for a developer, and the Worker is told
@@ -86,7 +88,10 @@ export function verdictOf(raw) {
     cause: cut(said(o.cause), VERDICT_LIMITS.cause),
     proof: cut(said(o.proof), VERDICT_LIMITS.proof),
     why: cut(said(o.why), VERDICT_LIMITS.why),
-    twins: cut(said(o.twins), VERDICT_LIMITS.twins)
+    twins: cut(said(o.twins), VERDICT_LIMITS.twins),
+    // A display fix: what a person sees is wrong (words cut off, parts that overlap), and nothing else changes.
+    // Its proof is a picture of the screen before the fix and one after it, not a test.
+    display: o.display === true
   };
 }
 
@@ -165,8 +170,9 @@ export const saysMerge = (texts) => (Array.isArray(texts) ? texts : []).some((t)
  *   approved     that instruction says to merge the draft fix, the manager's verdict is `approved`, and the
  *                manager left the draft fix as it was
  *   app          the job holds LangQuest's GitHub App's token (it opens the pull request so its checks start)
+ *   pictures     { before, after }: the picture job made a picture of the screen without the change and with it
  */
-export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = null, instructed = false, approved = false, app = true }) {
+export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = null, instructed = false, approved = false, app = true, pictures = {} }) {
   const wait = (reason, why) => ({ merge: false, reason, why: cut(said(why), 600) });
   if (!verdict) return wait('unconfirmed', 'The manager gave no verdict.');
   if (!changes.length) {
@@ -185,8 +191,14 @@ export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = n
   if (!causeProven(verdict)) return wait('cause', 'The manager did not say the cause and the test that proves it.');
   const refused = changes.map((c) => pathRefusal(c.file)).find(Boolean);
   if (refused) return wait('paths', `${refused}.`);
-  if (!changes.some((c) => isTest(c.file) && c.lines > 0)) return wait('cause', 'The change has no test that proves the cause.');
-  if (checks.typecheck !== 'passed' || checks.tests !== 'passed') return wait('checks', 'Typecheck and the tests near the change did not both run and pass.');
+  if (verdict.display) {
+    // A display fix is proven by the two pictures, which the reviewer looks at. It needs no test, and none may fail.
+    if (!pictures.before || !pictures.after) return wait('cause', 'There is no picture of the screen before the fix and after it.');
+    if (checks.typecheck !== 'passed' || !['passed', 'none'].includes(checks.tests)) return wait('checks', 'Typecheck did not run and pass, or the tests near the change did not run.');
+  } else {
+    if (!changes.some((c) => isTest(c.file) && c.lines > 0)) return wait('cause', 'The change has no test that proves the cause.');
+    if (checks.typecheck !== 'passed' || checks.tests !== 'passed') return wait('checks', 'Typecheck and the tests near the change did not both run and pass.');
+  }
   if (!vet) return wait('reviewer', 'The reviewer did not run.');
   if (!vet.ok) return wait('reviewer', `The reviewer asks a developer to look: ${vet.why}`);
   if (mode !== 'on') return wait('mode', 'The agent team is in mode ask: every fix waits for a developer. This fix passed every other part of the rule.');
@@ -244,6 +256,23 @@ const output = (values) => {
 };
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 
+/**
+ * The pictures of a display fix: the screen without the change and with it, as the picture job made
+ * them (JPEG, so both fit in what the Worker takes). The job runs the change's code, so a file is
+ * read only when it is a JPEG of a sane size.
+ */
+export const PICTURES = { before: 'before.jpg', after: 'after.jpg', maxBytes: 150_000 };
+export const isJpeg = (bytes) => bytes.length > 100 && bytes.length <= PICTURES.maxBytes && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+/** The picture at a path, or null when there is none or it is not one. */
+export function pictureOf(path) {
+  try {
+    const bytes = existsSync(path) ? readFileSync(path) : null;
+    return bytes && isJpeg(bytes) ? bytes : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The mode on this checkout of main. */
 export const modeHere = (root = '.') => modeOf(existsSync(join(root, MODE_FILE)) ? readFileSync(join(root, MODE_FILE), 'utf8') : '');
 
@@ -261,10 +290,21 @@ export function gateInput(dir) {
   const one = (v) => (['passed', 'failed', 'none'].includes(v) ? v : 'not run');
   const notes = readJson(join(dir, 'fix', 'notes.json'));
   const vetRaw = readJson(join(dir, 'vet', 'verdict.json'));
+  const pictures = { before: Boolean(pictureOf(join(dir, 'picture', PICTURES.before))), after: Boolean(pictureOf(join(dir, 'picture', PICTURES.after))) };
   return {
+    pictures,
     verdict: fix ? verdictOf(fix) : null, changes, checks: { typecheck: one(check.typecheck), tests: one(check.tests) },
     vet: vetRaw ? checkVet(vetRaw) : null, instructed: Array.isArray(notes?.ids) && notes.ids.length > 0, approved: notes?.approved === true
   };
+}
+
+/** The two pictures of a display fix, copied for the reviewer: only files that are pictures, under their fixed names. */
+function picturesStep(from, to) {
+  mkdirSync(to, { recursive: true });
+  for (const name of [PICTURES.before, PICTURES.after]) {
+    const bytes = pictureOf(join(from, name));
+    if (bytes) writeFileSync(join(to, name), bytes);
+  }
 }
 
 function reviewNeededStep(dir) {
@@ -343,8 +383,8 @@ async function follow() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [command, dir] = process.argv.slice(2);
-  const commands = { 'review-needed': reviewNeededStep, 'vet-out': vetOut, follow };
+  const [command, dir, to] = process.argv.slice(2);
+  const commands = { 'review-needed': reviewNeededStep, 'vet-out': vetOut, pictures: () => picturesStep(dir, to ?? '.'), follow };
   if (!Object.hasOwn(commands, command) || (command !== 'follow' && !dir)) {
     console.error(`usage: node scripts/agent-team.mjs <${Object.keys(commands).join('|')}> [dir]`);
     process.exit(2);

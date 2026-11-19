@@ -32,6 +32,19 @@ describe('a kind of problem', () => {
 });
 
 describe('what the workflow sends back', () => {
+  it("takes the agent team's record of a fix, with the two pictures of a display fix or neither", () => {
+    const jpeg = '/9j/' + 'A'.repeat(200);
+    const fix = { issue: 'LAN-9', decision: 'waits', reason: 'mode', why: 'Mode ask.', pr: 7, verdict: 'fix', model: 'sonnet', effort: 'medium', summary: 'S.', cause: 'C.', proof: 'P.' };
+    const one = (over: Record<string, unknown>) => parseLooked({ sha: SHA, runUrl: RUN, fixes: [{ ...fix, ...over }] }).fixes[0];
+    expect(one({})).toMatchObject({ issue: 'LAN-9', decision: 'waits', reason: 'mode', pr: 7, before: null, after: null, review: null });
+    expect(one({ before: jpeg, after: jpeg })).toMatchObject({ before: jpeg, after: jpeg });
+    expect(() => one({ before: jpeg })).toThrow(/both pictures, or neither/);
+    expect(() => one({ before: 'PHN2Zz4=' + 'A'.repeat(200), after: jpeg })).toThrow(/a JPEG in base64/);
+    expect(() => one({ decision: 'merge' })).toThrow(/reason/);
+    expect(() => one({ decision: 'none' })).toThrow(/pr/);
+    expect(() => one({ why: 'Write to a@b.org' })).toThrow();
+  });
+
   it('takes new issues, known ones, noise and grown kinds', () => {
     const l = parseLooked(looked());
     expect(l.looked.map((x) => x.verdict)).toEqual(['filed', 'noise', 'known']);

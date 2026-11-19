@@ -48,7 +48,10 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
 import { oldPathsOf, pathsOf, runUrl } from './tutorial-review.mjs';
-import { decisionLines, gate, gateInput, github as githubAs, graphql, LABELS, modeHere, planOf, saysMerge, toDraft, verdictOf } from './agent-team.mjs';
+import { decisionLines, gate, gateInput, github as githubAs, graphql, LABELS, modeHere, PICTURES, pictureOf, planOf, saysMerge, toDraft, verdictOf } from './agent-team.mjs';
+
+/** The steps to the screen of a display fix, as the manager writes them beside fix.json (never part of the change). */
+export const PICTURE_SPEC = 'picture.spec.ts';
 
 export { oldPathsOf, pathsOf };
 
@@ -386,7 +389,7 @@ export function checkFix(raw) {
   const summary = cut(text(o.summary), FIX_LIMITS.summary);
   // The manager's verdict and reasoning (scripts/agent-team.mjs verdictOf), addresses out.
   const v = verdictOf(o);
-  const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins) };
+  const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display };
   return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), answer: cut(text(o.answer).replace(/\s+/g, ' '), FIX_LIMITS.answer), ...team };
 }
 
@@ -454,9 +457,11 @@ const ANY_ADDRESS = /[^\s@]+@[^\s@]+\.[^\s@]+/;
  * The agent team's record of an issue's fix for the Worker (server/userIssues.ts FixRecord): the gate's
  * decision, and the reasoning in Claude's words, each cut to what the Worker takes.
  */
-export function fixRecord(issue, { decision, reason = null, why = null, pr = null }, fix = {}, plan = {}, vet = null) {
+export function fixRecord(issue, { decision, reason = null, why = null, pr = null }, fix = {}, plan = {}, vet = null, pictures = null) {
   const word = (v, max) => cut(String(v ?? '').replace(/\s+/g, ' '), max).replace(ANY_ADDRESS, '[address]') || null;
   return {
+    // The screen without the change and with it (base64 JPEG), when the picture job made both.
+    ...(pictures?.before && pictures?.after ? { before: pictures.before.toString('base64'), after: pictures.after.toString('base64') } : {}),
     issue, decision, reason, why: word(why, 600), pr, verdict: fix.verdict ?? null, model: plan.model ?? null, effort: plan.effort ?? null,
     summary: word(fix.summary, 1000), cause: word(fix.cause, 600), proof: word(fix.proof, 400), review: word(vet?.why, 1000), twins: word(fix.twins, 1000)
   };
@@ -1071,6 +1076,13 @@ function fixPatch(dir) {
   // "Merge it as it is": the admin's words say so, the manager's verdict is `approved`, and the draft fix is as it was.
   const approved = noteIds.length > 0 && notes?.saysMerge === true && fix.verdict === 'approved' && Boolean(patch) && !changed;
   if (fix.verdict === 'approved' && !approved) fix.verdict = 'review';
+  // A display fix: the steps to the screen, which the picture job runs without the change and with it.
+  // They are not part of the change. Like the change, they may carry nothing of what was sent.
+  const specPath = join(dir, PICTURE_SPEC);
+  if (patch && fix.display && existsSync(specPath) && readFileSync(specPath).length < 20_000) {
+    const spec = readFileSync(specPath, 'utf8');
+    if (!priv || !leaks(spec, priv)) writeFileSync(join(out, PICTURE_SPEC), spec);
+  }
   if (noteIds.length) writeFileSync(join(out, 'notes.json'), JSON.stringify({ ids: noteIds, changed: changed && Boolean(patch), approved }));
   // The manager's model and effort, as the workflow set them for this job.
   writeFileSync(join(out, 'plan.json'), JSON.stringify(planOf({ model: process.env.FIX_MODEL, effort: process.env.FIX_EFFORT })));
@@ -1140,6 +1152,7 @@ async function fixOpen(dir, id) {
   const notes = existsSync(notesPath) ? readJson(notesPath) : null;
   const noteIds = noteIdsOf(notes);
   const input = gateInput(dir);
+  const shots = { before: pictureOf(join(dir, 'picture', PICTURES.before)), after: pictureOf(join(dir, 'picture', PICTURES.after)) };
   const decision = gate({ mode: modeHere(), ...input, app: Boolean(process.env.PR_TOKEN) });
   const team = { decision, vet: input.vet };
   /** One message to the Worker: the record of the fix, and Claude's answer to the instructions. */
@@ -1149,7 +1162,7 @@ async function fixOpen(dir, id) {
     const done = await call('POST', { sha: headSha(), runUrl: run, looked: [], grew: [], states: [], notes: answers, fixes: record ? [record] : [] });
     console.log(`${id}: told the Worker${record ? ` the fix ${record.decision === 'merge' ? 'merges without a person' : record.decision === 'waits' ? `waits (${record.reason})` : `has no change (${record.reason})`}` : ''}${answers.length ? `${record ? ' and' : ''} Claude's answer to ${plural(done.answered ?? 0, 'instruction')} (${result})` : ''}`);
   };
-  const waits = (pr, d = decision) => fixRecord(id, { decision: 'waits', reason: d.reason ?? 'review', why: d.why, pr }, fix, plan, input.vet);
+  const waits = (pr, d = decision) => fixRecord(id, { decision: 'waits', reason: d.reason ?? 'review', why: d.why, pr }, fix, plan, input.vet, shots);
 
   let reason = fix.noFix || (existsSync(ownPath) ? null : 'Its patch is missing.');
   if (!reason) {
@@ -1165,7 +1178,7 @@ async function fixOpen(dir, id) {
     else {
       await api.comment(issue.id, noFixComment(reason, run));
       const why = input.changes.length ? reason : decision.why || reason;
-      await tell({ record: fixRecord(id, { decision: 'none', reason: input.changes.length ? 'paths' : decision.reason ?? 'unconfirmed', why }, fix, plan, input.vet) });
+      await tell({ record: fixRecord(id, { decision: 'none', reason: input.changes.length ? 'paths' : decision.reason ?? 'unconfirmed', why }, fix, plan, input.vet, shots) });
     }
     console.log(`${id}: no fix (${reason.slice(0, 200)})`);
     return;
@@ -1204,7 +1217,7 @@ A fix Claude wrote for the watch for user issues: ${run}
       }
       await label(pr.number, true);
       await api.comment(issue.id, fixComment(pr, checks, decision));
-      await tell({ record: fixRecord(id, { decision: 'merge', why: decision.why, pr: pr.number }, fix, plan, input.vet), result: 'answered', pr: pr.number, extra: 'The draft fix merges when its checks pass.' });
+      await tell({ record: fixRecord(id, { decision: 'merge', why: decision.why, pr: pr.number }, fix, plan, input.vet, shots), result: 'answered', pr: pr.number, extra: 'The draft fix merges when its checks pass.' });
       console.log(`${id}: PR ${pr.number} merges without a person, as an admin said`);
       return;
     }
@@ -1265,7 +1278,7 @@ A fix Claude wrote for the watch for user issues: ${run}
   await label(pr.number, final.merge);
   await api.attach(issue.id, pr.url, `PR ${pr.number}: ${final.merge ? 'fix' : 'draft fix'} by Claude`);
   await api.comment(issue.id, fixComment(pr, checks, final));
-  await tell({ record: final.merge ? fixRecord(id, { decision: 'merge', why: final.why, pr: pr.number }, fix, plan, input.vet) : waits(pr.number, final), result: 'changed', pr: pr.number });
+  await tell({ record: final.merge ? fixRecord(id, { decision: 'merge', why: final.why, pr: pr.number }, fix, plan, input.vet, shots) : waits(pr.number, final), result: 'changed', pr: pr.number });
   console.log(`${id}: PR ${pr.number} ${final.merge ? 'merges without a person' : `waits for a developer (${final.reason})`}`);
 }
 

@@ -381,12 +381,16 @@ begin
   assert public.ops_user_issue_fixes_done(jsonb_build_object('runUrl', run, 'fixes', jsonb_build_array(
     jsonb_build_object('issue', 'LAN-300', 'decision', 'merge', 'reason', null, 'why', 'The change does what it says.', 'pr', 560, 'verdict', 'fix',
       'model', 'sonnet', 'effort', 'medium', 'summary', 'Saves the part before closing.', 'cause', 'save() closes the file first.',
-      'proof', 'recorder.test.ts fails without it.', 'review', 'The change does what it says.', 'twins', null),
+      'proof', 'recorder.test.ts fails without it.', 'review', 'The change does what it says.', 'twins', null,
+      'before', encode('\xffd8ffe000'::bytea, 'base64'), 'after', encode('\xffd8ffe001'::bytea, 'base64')),
     jsonb_build_object('issue', 'LAN-12', 'decision', 'none', 'reason', 'unconfirmed', 'why', 'The cause is not proven.', 'pr', null, 'verdict', 'unconfirmed')))) = 2, 'two kept';
   v := diag.ops_user_issue_fixes();
   assert v->'LAN-300'->>'decision' = 'merge' and v->'LAN-300'->>'pr' = '560' and v->'LAN-300'->>'model' = 'sonnet' and v->'LAN-300'->>'runUrl' = run, 'as sent: %', v->'LAN-300';
   assert v->'LAN-300'->'pictures' = jsonb_build_array(jsonb_build_object('id', '0d000000-0000-4000-8000-0000000000f1', 'screenshot', true, 'picture', false)),
     'with the screenshot that came with the problem: %', v->'LAN-300'->'pictures';
+  assert (v->'LAN-300'->>'beforeAfter')::boolean and not (v->'LAN-12'->>'beforeAfter')::boolean, 'which have the two pictures';
+  assert diag.ops_user_issue_fix_picture('LAN-300', 'before') = '\xffd8ffe000'::bytea and diag.ops_user_issue_fix_picture('LAN-300', 'after') = '\xffd8ffe001'::bytea
+    and diag.ops_user_issue_fix_picture('LAN-300', 'other') is null and diag.ops_user_issue_fix_picture('LAN-12', 'before') is null, 'each picture by its name';
   assert v->'LAN-12'->>'decision' = 'none' and v->'LAN-12'->'pictures' = '[]'::jsonb and v->'LAN-12'->>'summary' is null, 'no change, no pictures';
   assert v::text not like '%ui-p1%' and v::text not like '%My recording vanished%', 'never who, never their words';
   -- Its checks failed: the job that follows it sends only the decision, and the reasoning stays.
@@ -394,6 +398,11 @@ begin
     jsonb_build_object('issue', 'LAN-300', 'decision', 'waits', 'reason', 'stalled', 'why', 'Its checks failed (gate: failure).', 'pr', 560))));
   v := diag.ops_user_issue_fixes()->'LAN-300';
   assert v->>'decision' = 'waits' and v->>'reason' = 'stalled' and v->>'cause' = 'save() closes the file first.' and v->>'verdict' = 'fix', 'the decision changes, the reasoning stays: %', v;
+  assert (v->>'beforeAfter')::boolean, 'and its pictures';
+  -- Another pull request for the issue: the pictures of the first one go.
+  perform public.ops_user_issue_fixes_done(jsonb_build_object('runUrl', run, 'fixes', jsonb_build_array(
+    jsonb_build_object('issue', 'LAN-300', 'decision', 'waits', 'reason', 'review', 'why', 'A second fix.', 'pr', 561))));
+  assert not (diag.ops_user_issue_fixes()->'LAN-300'->>'beforeAfter')::boolean, 'pictures are of one pull request';
   begin
     perform public.ops_user_issue_fixes_done(jsonb_build_object('runUrl', run, 'fixes', jsonb_build_array(jsonb_build_object('issue', 'LAN-300', 'decision', 'merge', 'reason', 'mode', 'pr', 560))));
     assert false, 'a merge with a reason to wait was kept';
@@ -406,7 +415,8 @@ begin
   end;
   assert not has_function_privilege('authenticated', 'public.ops_user_issue_fixes_done(jsonb)', 'execute')
     and not has_function_privilege('anon', 'public.ops_user_issue_fixes_done(jsonb)', 'execute')
-    and not has_function_privilege('authenticated', 'diag.ops_user_issue_fixes()', 'execute'), 'only the service role writes, only the dashboard reads';
+    and not has_function_privilege('authenticated', 'diag.ops_user_issue_fixes()', 'execute')
+    and not has_function_privilege('authenticated', 'diag.ops_user_issue_fix_picture(text, text)', 'execute'), 'only the service role writes, only the dashboard reads';
 end $$;
 
 -- Kinds found fixed are taken out 90 days after they were looked at, like noise.

@@ -16,7 +16,9 @@ flowchart TD
     M -.starts.-> X["Fixer<br/>sonnet or opus"]
     M -.starts.-> T["Twin finder<br/>sonnet"]
     M --> C["Checks<br/>typecheck and the nearest tests,<br/>in a job with no key"]
-    C --> R["Reviewer (opus)<br/>reads only the change"]
+    M --> S["Pictures (a display fix only)<br/>the screen without the change and with it,<br/>in a job with no key"]
+    C --> R["Reviewer (opus)<br/>reads only the change,<br/>looks at the two pictures"]
+    S --> R
     R --> G{"Gate<br/>scripts/agent-team.mjs<br/>code, not an agent"}
   end
   G -->|every part of the rule holds<br/>and the mode is on| A["Pull request that merges without a person<br/>guardrails, then the merge queue"]
@@ -33,7 +35,8 @@ flowchart TD
 | Coordinator | job `watch` | the action's default | read the code, write `decisions.json` | change code, reach Linear or the network |
 | Issue manager | job `fix` | `sonnet` or `opus`, effort `low` to `high`, as the coordinator chose (`manager` in `decisions.json`) | read and change the checkout, start workers | run a shell, reach the network, hold a key besides Claude's |
 | Workers (finder, fixer, twin finder) | inside the manager's run | the manager chooses for each task | what the manager can | what the manager cannot |
-| Reviewer | job `vet` | `opus` | read the change and the checkout, write `verdict.json` | see the issue or what a person wrote, change the patch |
+| Pictures | job `picture` | none: Playwright in the UI suite's local stack | run the manager's steps to a screen on main, then on main with the patch, and keep one picture each time | hold a secret, write a cache, show a person's work (the world is the suite's fixture world) |
+| Reviewer | job `vet` | `opus` | read the change and the checkout, look at the two pictures, write `verdict.json` | see the issue or what a person wrote, change the patch |
 | Gate | job `open` | none: `gate()` in `scripts/agent-team.mjs` | open the pull request, turn on its merge | be changed by a fix (`FIX_REFUSED`) |
 
 The skill `.agents/skills/user-issues/SKILL.md` holds each agent's
@@ -49,10 +52,12 @@ checks each one in code.
 2. The manager's verdict is `fix`: a real bug, its cause proven, no product
    choice.
 3. The manager named the cause and the test that proves it, and the change
-   holds a test.
+   holds a test. For a display fix the proof is two pictures in place of
+   the test (below).
 4. The change stays in `apps/mobile/src`, `apps/admin/src`,
    `packages/core/src`, and tests in `apps/*/test` and `packages/*/test`.
-5. Typecheck and the tests nearest the change ran and passed.
+5. Typecheck and the tests nearest the change ran and passed (for a display
+   fix: typecheck passed and no test failed).
 6. The reviewer agrees.
 7. No instruction from a developer waits on the issue.
 8. Guardrails pass on the pull request and again in the merge queue
@@ -69,6 +74,29 @@ diagnostics; store answers; `docs/decisions/`. `MERGE_PATHS` and
 `MERGE_REFUSED` in `scripts/agent-team.mjs` are the list. So does a fix that
 needs a product choice, and one whose cause is not proven (then the manager
 changes nothing).
+
+### Display fixes
+
+Caleb Koster, 2026-11-19: "agents can change ui things on their own if its
+an obvious bug fix, like words getting cut off on small buttons. But things
+that change the appearance or user experience/navigation should wait on a
+dev."
+
+| The fix | What happens |
+| --- | --- |
+| Repairs what is plainly wrong on a screen: words cut off, parts that overlap, text out of its box | It can merge without a person |
+| Changes the appearance as designed, the user experience, the navigation, or what the words say | It waits for a developer |
+
+A display bug has no unit test, so its proof is a picture of the screen
+before the fix and one after it. The manager cannot run the app. It writes
+the steps to the screen as one Playwright test (`picture.spec.ts`, beside
+`fix.json`, never part of the change) that calls `takePicture`
+(`e2e/ui/picture.ts`). The job `picture` runs those steps on main, then on
+main with the patch. The reviewer looks at both pictures, and agrees only
+when the first shows the bug, the second shows the same screen without it,
+and nothing else changed. The gate wants both pictures
+(`gate()`, `verdict.display`). They are JPEG files of at most 150 KB, kept
+with the record and shown on the issue's card.
 
 A developer can also merge a draft fix from the ops dashboard: write "merge
 it" in the box on the issue's card. The manager then says `approved` and
@@ -93,7 +121,8 @@ Only a pull request that a person merges changes the file: no fix may touch
 Each issue's card on **User issues** has a line **Claude**: what the team
 decided (it merges without a person, or the reason it waits), then what
 changed, the cause, the test, what the reviewer said, the same mistake in
-other places, the manager's model and effort, and the run. The tab **Fixed
+other places, the manager's model and effort, and the run. A display fix
+shows its two pictures, Before the fix and After the fix. The tab **Fixed
 by Claude** holds each fix that merges, or merged, without a person. A
 screenshot or picture that a person sent with the problem is on the card,
 for a signed-in admin only.
@@ -126,5 +155,8 @@ draft that waits for a developer, and its record says why.
   code runs only in a job with no key.
 - The gate reads the manager's own patch, never the copy that came back from
   the job where its code ran.
+- The two pictures come from a job where the change's code ran, so they are
+  evidence for the reviewer, who also reads the change itself; a file counts
+  only when it is a JPEG of a sane size.
 - An agent's word alone merges nothing: the verdict, the paths, the test and
   the reviewer's answer are each checked in code, and guardrails still run.

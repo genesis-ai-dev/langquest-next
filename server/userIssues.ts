@@ -169,7 +169,11 @@ export interface FixRecord {
   issue: string; decision: FixDecision; reason: FixReason | null; why: string | null; pr: number | null;
   verdict: (typeof FIX_VERDICTS)[number] | null; model: (typeof FIX_MODELS)[number] | null; effort: (typeof FIX_EFFORTS)[number] | null;
   summary: string | null; cause: string | null; proof: string | null; review: string | null; twins: string | null;
+  /** A display fix's proof: the screen without the change and with it, each a JPEG in base64. Both, or neither. */
+  before: string | null; after: string | null;
 }
+/** A JPEG in base64, of at most 150 000 bytes (scripts/agent-team.mjs PICTURES). */
+export const FIX_PICTURE = /^\/9j\/[A-Za-z0-9+/]{100,200000}={0,2}$/;
 /** A Linear state's name (Backlog, In Progress, Live). */
 const STATE = /^[A-Za-z][A-Za-z0-9 ._()-]{0,59}$/;
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
@@ -420,7 +424,16 @@ export function parseLooked(input: unknown): Looked {
     if ((decision === 'merge') !== (reason === null)) throw new LookedError(`${where}.reason: ${decision === 'merge' ? 'none for merge' : `one of ${FIX_REASONS.join(', ')}`}`);
     const number = pr(f, 'pr', where);
     if ((decision === 'none') !== (number === null)) throw new LookedError(`${where}.pr: ${decision === 'none' ? 'none for none' : 'its pull request'}`);
+    const picture = (field: 'before' | 'after'): string | null => {
+      const v = f[field];
+      if (v === undefined || v === null) return null;
+      if (typeof v !== 'string' || !FIX_PICTURE.test(v)) throw new LookedError(`${where}.${field}: a JPEG in base64`);
+      return v;
+    };
+    const before = picture('before'), after = picture('after');
+    if ((before === null) !== (after === null)) throw new LookedError(`${where}: both pictures, or neither`);
     return {
+      before, after,
       issue, decision, reason, why: words(f, 'why', where), pr: number, verdict: oneOf(f, 'verdict', FIX_VERDICTS, where),
       model: oneOf(f, 'model', FIX_MODELS, where), effort: oneOf(f, 'effort', FIX_EFFORTS, where),
       summary: words(f, 'summary', where), cause: words(f, 'cause', where), proof: words(f, 'proof', where), review: words(f, 'review', where), twins: words(f, 'twins', where)

@@ -547,6 +547,8 @@ export interface UserIssueFix {
   summary: string | null; cause: string | null; proof: string | null; review: string | null; twins: string | null;
   runUrl: string | null; at: string;
   pictures: { id: string; screenshot: boolean; picture: boolean }[];
+  /** A display fix: the record holds a picture of the screen before the fix and one after it. */
+  beforeAfter?: boolean;
 }
 
 /** diag.ops_user_issues(): the last 90 days, open issues first; counts; the last look; each dashboard line's decision. */

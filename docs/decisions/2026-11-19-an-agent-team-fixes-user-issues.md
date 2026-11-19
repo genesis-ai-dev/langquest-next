@@ -17,7 +17,12 @@ the reviewer agrees and guardrails pass in the merge queue. Migrations,
 sync, servers, sign-in, permissions, event shapes, packages, native code,
 build and store settings, workflows, scripts, secrets, privacy and product
 choices always wait for a developer. There is no limit on the size of a
-change or on merges in a day: Caleb judged such numbers arbitrary. The
+change or on merges in a day: Caleb judged such numbers arbitrary. A
+display bug (words cut off on a small button) may merge with two pictures
+of the screen, before the fix and after it, as its proof in place of a
+test, which the job `picture` makes in the UI suite's fixture world; a
+change to the appearance, the user experience or the navigation waits for
+a developer. The
 ops dashboard keeps a record of each fix with Claude's reasons
 (`ops.user_issue_fixes`), so a developer can read afterwards what merged
 and why. The mode is a file on main (`.github/agent-team.json`), which

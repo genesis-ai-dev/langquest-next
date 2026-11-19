@@ -24,6 +24,9 @@ export const ISSUE_CSS = String.raw`
 .ipics { min-width: 0; } .ipics .vpics { margin: 0; } .ipics .vpic, .ipics .vpic.zoom { max-width: 100%; }
 .ipics > p { margin: 0 0 6px; } .ipics > img { display: block; max-width: 100%; margin: 0 0 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
 .ifix p { margin: 0 0 6px; } .ifix b { font-weight: 600; }
+.ifixpics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 10px; }
+.ifixpics figure { margin: 0; min-width: 0; } .ifixpics figcaption { font-size: 12px; font-weight: 600; color: var(--ink2); margin: 0 0 4px; }
+.ifixpics img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); min-height: 60px; }
 .ibody { min-width: 0; }
 .itags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 6px; font-size: 12px; color: var(--muted); }
 .itags .tag { margin: 0; background: var(--soft); color: var(--ink2); } .itags .tag.bad { color: var(--red); background: var(--redbg); }
@@ -135,7 +138,7 @@ function fixSaid(fix, merged) {
   const decision = fix.decision === 'merge'
     ? [merged ? 'Claude merged this fix without a person.' : 'This fix merges without a person when its checks pass.', '']
     : [(FIX_REASON[fix.reason] || 'It waits for a developer') + '.', fix.why || ''];
-  const reasons = [['Change', fix.summary], ['Cause', fix.cause], ['Test', fix.proof], ['Reviewer', fix.review], ['Same mistake in other places', fix.twins]].filter((x) => x[1]);
+  const reasons = [['Change', fix.summary], ['Cause', fix.cause], [fix.beforeAfter ? 'Pictures' : 'Test', fix.proof], ['Reviewer', fix.review], ['Same mistake in other places', fix.twins]].filter((x) => x[1]);
   return { decision, reasons, manager: fix.model ? fix.model + (fix.effort ? ', ' + fix.effort + ' effort' : '') : '' };
 }
 
@@ -219,8 +222,11 @@ function fixLine(fix, way) {
     '<small class="muted">' + [f.manager ? 'Issue manager: ' + esc(f.manager) : '', when(fix.at), safeLink(fix.runUrl) ? outLink(fix.runUrl, 'The run') : ''].filter(Boolean).join(' · ') + '</small></div>';
 }
 /** What came with the problem from help mode: a button for each screenshot and picture, which loads it for a signed-in admin. */
-function fixPictures(fix) {
-  return ((fix && fix.pictures) || []).map((p) =>
+function fixPictures(fix, issue, shown) {
+  // A display fix: the screen before the fix and after it, as the picture job made them. Only under the pull request they are of.
+  const pair = shown && fix && fix.beforeAfter ? '<div class="ifixpics">' + [['before', 'Before the fix'], ['after', 'After the fix']].map((w) =>
+    '<figure><figcaption>' + w[1] + '</figcaption><img alt="The screen ' + w[0] + ' the fix" data-fixpic="' + esc(issue) + '" data-what="' + w[0] + '"></figure>').join('') + '</div>' : '';
+  return pair + ((fix && fix.pictures) || []).map((p) =>
     (p.screenshot ? '<p><button type="button" class="link" data-shot="' + esc(p.id) + '" data-what="screenshot">Show screenshot</button></p>' : '') +
     (p.picture ? '<p><button type="button" class="link" data-shot="' + esc(p.id) + '" data-what="picture">Show picture</button></p>' : '')).join('');
 }
@@ -243,7 +249,7 @@ function userIssueCard(r, way, tab, notes, fixes) {
   const seen = [r.people ? num(r.people) + (Number(r.people) === 1 ? ' person' : ' people') : '', 'First seen ' + when(r.firstAt)].filter(Boolean).join(' · ');
   return issueCard({
     tab: way.tab, claude: way.claude, hidden: !onTab(way, tab),
-    pics: fixPictures(record),
+    pics: fixPictures(record, r.issue, !!fixFor(record, way.pr)),
     tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : '') +
       (r.issue && r.state ? '<span>' + esc(r.state) + ' in Linear</span>' : ''),
     title: r.title || (r.keys || [])[0] || 'A problem with no name',
