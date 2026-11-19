@@ -5841,6 +5841,7 @@
       "couldNotRead": "อ่านรายงานไม่ได้",
       "notVisible": "ภาษานี้ไม่มีรายงานที่คุณดูได้",
       "notVisibleBody": "บทบาทของคุณอาจไม่ครอบคลุมภาษานี้ หรือภาษานี้ถูกเพิ่มหลังจากโหลดรายงานแล้ว (อัปเดตจากหน้ารายงานเพื่อตรวจดู)",
+      "template": "แม่แบบ: <b>{{template}}</b>",
       "reviewFlow": "ลำดับการตรวจ: <b>{{flow}}</b>",
       "bottleneck": "คอขวด: <b>{{bottleneck}}</b>",
       "bottleneckValue_other": "{{count, number}} ตอนที่ {{step}}",
