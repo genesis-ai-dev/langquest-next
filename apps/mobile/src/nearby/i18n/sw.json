@@ -20,6 +20,7 @@
       "noWifiDirect": "Simu hii haina Wi-Fi Direct, ambayo Shiriki karibu inahitaji.",
       "noKey": "Simu hii bado haiko tayari kushiriki. Unganisha kwenye intaneti mara moja, kisha urudi.",
       "noCertificate": "Ili kushiriki karibu, simu hii lazima iunganishwe kwenye intaneti mara moja wakati shirika lako limewasha Shiriki karibu.",
+      "limited": "Akaunti hii imetumiwa kwenye simu mpya nyingi mno leo. Shiriki karibu itafanya kazi kwenye simu hii kuanzia kesho.",
       "readOnly": "Akaunti zinazotazama mashirika tu hazishiriki karibu."
     },
     "radios": {

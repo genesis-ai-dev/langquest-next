@@ -51,12 +51,16 @@ export interface CertificateRequest {
 /**
  * `POST /api/nearby/certificate`: the answer's body, which src/nearby checks before keeping
  * anything, or `later` on 429 and 503, when the phone keeps what it holds and asks again at its
- * next check. Anything else throws: `OfflineError` with no connection, `NearbyCallError` with
- * the status otherwise.
+ * next check. A 429 says `limited` when the server signs no more new keys for this person today
+ * (five a day, `nearby_certificate_facts`), so the Sync row can say so. Anything else throws:
+ * `OfflineError` with no connection, `NearbyCallError` with the status otherwise.
  */
-export async function requestCertificate(request: CertificateRequest): Promise<{ kind: 'answer'; body: unknown } | { kind: 'later'; status: number }> {
+export async function requestCertificate(request: CertificateRequest): Promise<{ kind: 'answer'; body: unknown } | { kind: 'later'; status: number; limited: boolean }> {
   const res = await post('/api/nearby/certificate', request);
-  if (res.status === 429 || res.status === 503) return { kind: 'later', status: res.status };
+  if (res.status === 429 || res.status === 503) {
+    const body = res.status === 429 ? await res.json().catch(() => null) as unknown : null;
+    return { kind: 'later', status: res.status, limited: typeof body === 'object' && body !== null && (body as Record<string, unknown>)['limited'] === true };
+  }
   if (res.status !== 200) throw new NearbyCallError(res.status);
   return { kind: 'answer', body: await res.json() as unknown };
 }
