@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { originsOf, originWords } from '../src/nearby/nearbyHistoryModel';
 import { nearbyViewOf, NEARBY_RUN_START, type NearbyRunState, type NearbyView } from '../src/nearby/nearbyRunModel';
 import { NOTHING_TO_CARRY } from '../src/nearby/readyToCarryModel';
+import { nearbyRowShown } from '../src/nearby/nearbyRowModel';
 import {
   connectHelp, endedWords, linesShown, nearbyRowWords, PERMISSION_WORDS, PHONE_WORDS, phoneWords, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS,
   WHY_NOT_WORDS
@@ -21,6 +22,36 @@ const view = (over: Partial<Omit<Parameters<typeof nearbyViewOf>[0], 'run'>> = {
   offered: true, iphone: false, tapCoversAll: false, whyNot: null, radiosOff: [], permissions: { state: 'granted', step: { t: 'ready' } }, worn: false, holding: 0, hold: true,
   carry: NOTHING_TO_CARRY,
   ...over, run: { ...NEARBY_RUN_START, ...run }
+});
+
+describe('whether Sync shows the Share nearby row', () => {
+  // Why: the row vanished on a carrier's phone that had set up too many new phones in a day (the
+  // server signs at most five new keys a day for one person), with nothing saying why (Carl,
+  // 2026-11-19). Where the organization has nearby on, it now stays, disabled, saying what is missing.
+  const at = (o: Partial<Parameters<typeof nearbyRowShown>[0]> = {}) => nearbyRowShown({ offered: false, orgOn: true, limited: false, readOnly: false, ...o });
+
+  it('shows the row with nothing missing once the phone holds what it needs', () => {
+    expect(at({ offered: true })).toEqual({ shown: true, missing: null });
+    expect(at({ offered: true, orgOn: null })).toEqual({ shown: true, missing: null });
+  });
+
+  it('keeps the row, disabled, with why, where the organization has nearby on and the phone lacks a certificate or key', () => {
+    expect(at()).toEqual({ shown: true, missing: 'no-certificate' });
+    expect(at({ limited: true })).toEqual({ shown: true, missing: 'limited' });
+  });
+
+  it('hides it where nearby is off for the organization, before the server has said, and for someone who only views', () => {
+    expect(at({ orgOn: false })).toEqual({ shown: false, missing: null });
+    expect(at({ orgOn: null })).toEqual({ shown: false, missing: null });
+    expect(at({ readOnly: true })).toEqual({ shown: false, missing: null });
+  });
+
+  it('words each reason, and the limit says it mends by itself', () => {
+    expect(nearbyRowWords('limited', null)).toEqual({ sub: 'nearby.why.limited', help: 'nearby.rowHelp' });
+    expect(nearbyRowWords('no-certificate', null)).toEqual({ sub: 'nearby.why.noCertificate', help: 'nearby.rowHelp' });
+    const line = 'nearby.why.limited'.split('.').reduce<Tree | string | undefined>((at, k) => (typeof at === 'object' ? at[k] : undefined), en);
+    expect(line).toMatch(/tomorrow/);
+  });
 });
 
 describe('the Share nearby row on Sync', () => {
