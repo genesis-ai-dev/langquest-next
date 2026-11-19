@@ -18,7 +18,7 @@ import { HelpRow } from '../helpMode/helpBadge';
 import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
 import { FindBiblePage, FindWaysPage, NumberingChosenPage, NumberingContext, NumberingListPage, QuizPage, WhyNumberingPage, type NumberingChoice } from './NumberingStep';
-import { factsOf } from './numberingGuide';
+import { factsOf, numberingsWait } from './numberingGuide';
 import { ChoiceCard, Question, QuietLink } from '../admin/admin';
 import { space } from '../ui/theme';
 import { emptyLine, WAY_ITEMS, type WayRow } from './model';
@@ -47,6 +47,10 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
   const fiaV11n = q.ways.v11nOf(wayDoc(WAY_ITEMS[0]));
   const nDocs = useLibraryDocs(props.ctx.language.orgId, q.ways.numberings.map((n) => n.hash));
   const factsFor = (n: NumberingChoice) => factsOf(nDocs.get<VersificationDoc>(n.hash));
+  // The numberings' read failed before this page opened (no connection then, or a busy server): the page asks once more (LAN-299).
+  const askAgain = q.page === 'how' && numberingsWait(q.ways.numberings.length, q.ways.numberingsLoaded) === 'connect';
+  const reloadNumberings = q.ways.reloadNumberings;
+  useEffect(() => { if (askAgain) void reloadNumberings(); }, [askAgain, reloadNumberings]);
   // Templates written in languages the team does not use wait one tap away (decision 193).
   const otherLanguages = q.hiddenLanguages > 0
     ? <QuietLink icon="globe" label={t('breakup.translate.otherLanguages')} detail={t('breakup.translate.otherLanguagesDetail')} onPress={q.showEveryLanguage} /> : null;
@@ -61,7 +65,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
   // Why the numbering matters, then three ways to find it, none buried under the Bibles (LAN-193).
   if (q.page === 'why') return <WhyNumberingPage />;
   if (q.page === 'how') {
-    return <FindWaysPage numberings={q.ways.numberings} usedIn={q.ways.usedInByNumbering} onPick={(c) => q.choose(c)}
+    return <FindWaysPage numberings={q.ways.numberings} loaded={q.ways.numberingsLoaded} usedIn={q.ways.usedInByNumbering} onPick={(c) => q.choose(c)}
       onFind={() => q.setPage('find')} onQuiz={() => q.setPage('quiz')} onList={() => q.setPage('list')} />;
   }
   if (q.page === 'numbered' && q.numbering) {
