@@ -6094,6 +6094,7 @@
       "couldNotRead": "Ripoti haikuweza kusomwa",
       "notVisible": "Lugha hii haina ripoti unayoweza kuona",
       "notVisibleBody": "Huenda jukumu lako halihusu lugha hii, au iliongezwa baada ya ripoti kupakia (sawazisha kutoka Ripoti ili kuangalia).",
+      "template": "Kiolezo: <b>{{template}}</b>",
       "reviewFlow": "Mtiririko wa ukaguzi: <b>{{flow}}</b>",
       "bottleneck": "Kizuizi: <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{count, number}} katika {{step}}",

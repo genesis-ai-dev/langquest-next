@@ -6094,6 +6094,7 @@
       "couldNotRead": "रिपोर्ट पढ्न सकिएन",
       "notVisible": "यो भाषाको तपाईंले हेर्न सक्ने कुनै रिपोर्ट छैन",
       "notVisibleBody": "तपाईंको भूमिकामा यो भाषा नपर्न सक्छ, वा रिपोर्टहरू लोड भएपछि यो थपिएको हुन सक्छ (जाँच्न ‘रिपोर्टहरू’ बाट सर्भरसँग मिलाउनुहोस्)।",
+      "template": "ढाँचा: <b>{{template}}</b>",
       "reviewFlow": "जाँच क्रम: <b>{{flow}}</b>",
       "bottleneck": "अड्चन: <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{step}} मा {{count, number}}",
