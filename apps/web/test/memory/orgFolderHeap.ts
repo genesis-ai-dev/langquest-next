@@ -32,7 +32,11 @@
  * one passage at a time from the generator, as the projection pass makes it
  * from a fold: the API and webhook paths read languages as records from it.
  *
- * Usage: orgFolderHeap.ts <path> <languages> <passagesPerLanguage> [takes=<n>] [unbounded]
+ * Usage: orgFolderHeap.ts <path> <languages> <passagesPerLanguage> [takes=<n>] [unbounded] [dir=<folder>]
+ * `dir` is where saved folds and the object's SQLite go: the test makes it and
+ * removes it, since a run that the heap cap or the time limit kills never
+ * reaches this script's own clean-up. Without it, the script makes its own and
+ * removes it when it ends.
  * Prints one JSON line: { ok, path, peakHeapMb, retainedHeapMb, heldLanguages, foldMb, ... }.
  * Run with --expose-gc for retainedHeapMb.
  */
@@ -178,7 +182,8 @@ type RecordsCut = {
 };
 
 /** Saved folds live on disk, as they do in the Durable Object's SQLite. */
-const dir = mkdtempSync(join(tmpdir(), 'org-folder-heap-'));
+const given = rest.find((a) => a.startsWith('dir='))?.slice('dir='.length);
+const dir = given ?? mkdtempSync(join(tmpdir(), 'org-folder-heap-'));
 const cache: OrgCache = {
   async get(key) {
     const file = join(dir, encodeURIComponent(key));
@@ -362,5 +367,6 @@ try {
   }));
 } finally {
   clearInterval(sample);
-  rmSync(dir, { recursive: true, force: true });
+  // A folder the test gave is the test's to remove, whatever happened here.
+  if (!given) rmSync(dir, { recursive: true, force: true });
 }

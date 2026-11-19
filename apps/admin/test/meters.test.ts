@@ -1,0 +1,194 @@
+import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
+import { page } from '../src/page';
+import { FOLDED_CONTROLS, LISTS_LOGIC, QUEUE_CONTROLS, QUEUE_SOURCE } from '../src/pageLists';
+import { METERS_LOGIC, METERS_SCRIPT } from '../src/pageMeters';
+import { OPS_SECTIONS, PART_TITLES } from '../src/pageOps';
+import { databaseAlerts, type Database } from '../src/sources/diag';
+import { playAlerts, type GooglePlay } from '../src/sources/googleplay';
+import { dbDetailAlerts, securityAlerts, supportAlerts, type DbDetail, type Security, type Support } from '../src/sources/ops';
+import { capacityAlerts, type Capacity } from '../src/sources/storage';
+import { supabaseAlerts, type Supabase } from '../src/sources/supabase';
+
+interface Item { s: string; name: string; v: number; max?: number; value?: string; line?: number; fields: [string, unknown][] }
+interface Row { label: string; draw?: string; items: Item[] }
+
+/** The meters' pure helpers with the lists', as the page runs them. */
+const logic = new Function(`${LISTS_LOGIC}; ${METERS_LOGIC}; return { listRows };`)() as { listRows: (part: string, d: unknown) => Row[] | null };
+const rows = (part: string, d: unknown) => logic.listRows(part, d) ?? [];
+const item = (part: string, d: unknown, name: string) => rows(part, d).flatMap((r) => r.items).find((x) => x.name === name);
+const field = (x: Item | undefined, name: string) => x?.fields.find((f) => f[0] === name)?.[1];
+/** What a bar says against what its alert says: red for a problem, amber for a watch, green for none. */
+const levelOf = (s: string | undefined) => (s === 'fail' ? 'problem' : s === 'part' ? 'watch' : 'none');
+const METERED = ['capacity', 'database', 'dbdetail', 'googleplay', 'security', 'support', 'cloudflare', 'supabase', 'worker', 'clients', 'fleet', 'people'];
+const GB = 1024 ** 3;
+
+describe('meters and shares (plan 5c4)', () => {
+  it('draws a picture for each part it names, each with a title and a legend', () => {
+    for (const p of METERED) {
+      expect(PART_TITLES[p] ?? OPS_SECTIONS.find((x) => x.id === p)?.title, p).toBeTruthy();
+      expect(METERS_SCRIPT, p).toContain(`  ${p}: { one: '`);
+      expect(Array.isArray(logic.listRows(p, {})), p).toBe(true);
+    }
+  });
+
+  it('turns the database disk red or amber exactly when its alert does', () => {
+    fc.assert(fc.property(fc.integer({ min: 1, max: 64 }), fc.double({ min: 0, max: 1.2, noNaN: true }), fc.option(fc.double({ min: 0, max: 60, noNaN: true })), (limitGb, share, weeksLeft) => {
+      const c = { now: { dbBytes: Math.round(limitGb * GB * share), eventsBytes: 0, eventsRows: 0, snapshotsBytes: 0 }, limitBytes: limitGb * GB, dbGrowthPerDay: null, weeksLeft, history: [], r2: null, usage: undefined } as unknown as Capacity;
+      const alert = capacityAlerts(c).find((a) => a.text.includes('disk'));
+      expect(levelOf(item('capacity', c, 'Database disk')?.s)).toBe(alert ? alert.level : 'none');
+    }));
+  });
+
+  it("turns Google Play's rates red past Google's line and amber past half of it, as the alerts do", () => {
+    fc.assert(fc.property(fc.double({ min: 0, max: 0.03, noNaN: true }), fc.double({ min: 0, max: 0.01, noNaN: true }), (crash, anr) => {
+      const p = { crash: { userPerceived: crash, rate: crash, users: 1 }, anr: { userPerceived: anr, rate: anr, users: 1 }, reviews: null } as unknown as GooglePlay;
+      const alerts = playAlerts(p);
+      expect(levelOf(item('googleplay', p, 'Crash rate, 7 days')?.s)).toBe(alerts.find((a) => a.text.includes('crash'))?.level ?? 'none');
+      expect(levelOf(item('googleplay', p, 'ANR rate, 7 days')?.s)).toBe(alerts.find((a) => a.text.includes('ANR'))?.level ?? 'none');
+    }));
+    const line = item('googleplay', { crash: { userPerceived: 0.002 } }, 'Crash rate, 7 days')!;
+    expect([line.line, line.max, line.value]).toEqual([0.0109, 0.0109 * 1.5, '0.20%']);
+  });
+
+  it('fills each rate limit to its alert, and turns amber when the alert says so', () => {
+    const names: [keyof Security['limits'], string][] = [['deviceRefused', 'Device codes refused, 24 h'], ['linksRefused', 'Review links refused, 24 h'],
+      ['v2SignInFailures24h', 'Failed v2 sign-ins, 24 h'], ['installsAtDiagCap', 'Installs at the diagnostics cap']];
+    fc.assert(fc.property(fc.record({ deviceRefused: fc.nat(400), linksRefused: fc.nat(900), v2SignInFailures24h: fc.nat(400), installsAtDiagCap: fc.nat(3) }), (limits) => {
+      const s = { globalViewers: null, limits, credentials: null } as Security;
+      const watched = securityAlerts(s).length;
+      const amber = names.filter(([, n]) => item('security', s, n)?.s === 'part').length;
+      expect(amber).toBe(watched);
+      for (const [key, n] of names) expect(item('security', s, n)?.s === 'part', n).toBe(key === 'installsAtDiagCap' ? limits[key] > 0 : limits[key] >= Number(item('security', s, n)!.max));
+    }));
+  });
+
+  it('marks a call red when the database alert names it as slow, and connections amber at 80%', () => {
+    fc.assert(fc.property(fc.array(fc.record({ rpc: fc.constantFrom('my_organizations', 'record_blob', 'put_snapshot', 'blob_access'), calls: fc.nat(100), mean_ms: fc.nat(2000), max_ms: fc.nat(5000), total_s: fc.nat(500) }), { maxLength: 4 }),
+      fc.integer({ min: 1, max: 100 }), fc.nat(100), (rpc, maxConnections, used) => {
+        const unique = [...new Map(rpc.map((r) => [r.rpc, r])).values()];
+        const db = { sizeBytes: 0, connections: Math.min(used, maxConnections), maxConnections, stats: null, rpc: unique } as unknown as Database;
+        const alerts = databaseAlerts(db);
+        for (const r of unique) expect(item('database', db, r.rpc)?.s === 'fail', r.rpc).toBe(alerts.some((a) => a.level === 'problem' && a.text.startsWith(r.rpc + ' ')));
+        expect(item('database', db, 'Connections in use')?.s === 'part').toBe(alerts.some((a) => a.text.includes('connections in use')));
+      }));
+  });
+
+  it('marks a bar amber for each line Where the space goes raises, however small its table is', () => {
+    const table = fc.record({ bytes: fc.nat(8 * GB), rows: fc.nat(50_000), deadRatio: fc.option(fc.double({ min: 0, max: 1, noNaN: true })) });
+    fc.assert(fc.property(fc.option(fc.nat(900)), fc.option(fc.nat(9000)), fc.array(table, { maxLength: 14 }), (longestQueryS, oldestXactS, tables) => {
+      // Largest first, as the database answers (diag.ops_database_detail).
+      const d = { bytes: 0, connections: 1, longestQueryS, oldestXactS, indexes: [],
+        tables: tables.sort((a, b) => b.bytes - a.bytes).map((t, i) => ({ ...t, name: `public.t${i}` })) } as DbDetail;
+      const alerts = dbDetailAlerts(d);
+      const amber = rows('dbdetail', d).flatMap((r) => r.items).filter((x) => x.s === 'part').map((x) => x.name);
+      expect(amber.length).toBe(alerts.length);
+      expect(amber.includes('Oldest transaction')).toBe(alerts.some((a) => a.key === 'long-transaction'));
+      expect(amber.includes('Longest query')).toBe(alerts.some((a) => a.key === 'long-query'));
+      for (const a of alerts.filter((x) => x.key === 'dead-rows')) expect(amber).toContain(a.subject);
+    }));
+    const long = item('dbdetail', { oldestXactS: 4500, oldestXact: { role: 'postgres', client: 'psql', state: 'idle in transaction' }, tables: [] }, 'Oldest transaction')!;
+    expect([long.s, long.value, long.line, field(long, 'Whose'), field(long, 'State')]).toEqual(['part', '1.3 h', 3600, 'postgres · psql', 'idle in transaction']);
+    expect(item('dbdetail', { tables: [] }, 'Longest query')).toMatchObject({ s: 'ok', value: 'none now' });
+  });
+
+  it('keeps a slow call in the picture when 8 calls take more time in total', () => {
+    const rpc = Array.from({ length: 11 }, (_, i) => ({ rpc: `call_${i}`, calls: 500, mean_ms: i === 10 ? 2400 : 20, max_ms: 3000, total_s: 1000 - i * 50, rows_per_call: 1 }));
+    const db = { sizeBytes: 0, connections: 3, maxConnections: 100, stats: null, rpc } as Database;
+    expect(databaseAlerts(db).map((a) => a.subject)).toEqual(['call_10']);
+    const calls = rows('database', db).find((r) => r.label === 'Calls by total time')!.items;
+    expect(calls.map((x) => x.name)).toEqual([...rpc.slice(0, 8).map((r) => r.rpc), 'call_10']);
+    expect(calls.at(-1)!.s).toBe('fail');
+  });
+
+  it('marks a bar or a square amber for each watch line the Supabase project raises', () => {
+    fc.assert(fc.property(fc.nat(120), fc.nat(30), fc.nat(30), fc.boolean(), (gateway5xx, function5xx, authErrors, throttled) => {
+      const sb = { projects: [{ name: 'p', ref: 'r', status: 'ACTIVE_HEALTHY', health: [{ name: 'db', healthy: true, status: 'ACTIVE_HEALTHY' }],
+        functions: [{ slug: 'f', status: throttled ? 'THROTTLED' : 'ACTIVE', version: 1, updatedAt: null }],
+        logs: { gatewayTotal: 9000, gateway5xx, function5xx, postgresErrors: 0, authErrors } }] } as unknown as Supabase;
+      const amber = rows('supabase', sb).flatMap((r) => r.items).filter((x) => x.s === 'part').length;
+      expect(amber).toBe(supabaseAlerts(sb).filter((a) => a.level === 'watch').length);
+    }));
+    expect(item('supabase', { projects: [{ name: 'p', ref: 'r', health: [], logs: { gatewayTotal: 10, gateway5xx: 50, function5xx: 0, authErrors: 0 } }] }, 'API')).toMatchObject({ s: 'part', value: '50', line: 50 });
+  });
+
+  it('turns the oldest report red when it waits past the promise, as the alert does', () => {
+    for (const hours of [0, 5, 19.5, 20.5, 30]) {
+      const s = { reports: { open: 1, oldestAt: new Date(Date.now() - hours * 3600e3).toISOString(), staffOnly: 0, resolvedWeek: 0 }, suspended: { total: 0 }, deletions: [], verifications: [] } as unknown as Support;
+      expect(levelOf(item('support', s, 'Waits, of 24 hours')?.s), String(hours)).toBe(supportAlerts(s).find((a) => a.text.includes('content report'))?.level ?? 'none');
+    }
+  });
+
+  it('splits each route by time, the busiest route first, and keeps what the detail needs', () => {
+    const r = rows('worker', { routes: [
+      { route: 'reports', requests: 10, s4xx: 0, s5xx: 0, s429: 0, lt100ms: 10, lt1s: 0, lt10s: 0, over10s: 0 },
+      { route: 'blobs_get', requests: 100, s4xx: 0, s5xx: 2, s429: 1, lt100ms: 80, lt1s: 15, lt10s: 4, over10s: 1 },
+      { route: 'idle', requests: 0, s4xx: 0, s5xx: 0, s429: 0, lt100ms: 0, lt1s: 0, lt10s: 0, over10s: 0 }] });
+    expect(r.map((x) => [x.label, x.draw])).toEqual([['blobs_get', 'share'], ['reports', 'share']]);
+    expect(r[0]!.items.map((x) => [x.s, x.v])).toEqual([['ok', 80], ['run', 15], ['part', 4], ['fail', 1]]);
+    expect(field(r[0]!.items[3], 'Server errors (5xx)')).toBe('2');
+    expect(field(r[0]!.items[3], 'Share of the route')).toBe('1.0%');
+  });
+
+  it('splits syncs by how they ended, errors first, and keeps every outcome a sync had', () => {
+    const r = rows('clients', { sync: { ok: { records: 2140, installs: 50 }, offline: { records: 300, installs: 20 }, error: { records: 12, installs: 4 }, refused: { records: 3, installs: 1 }, empty: { records: 0, installs: 0 } } });
+    expect(r[0]!.items.map((x) => [x.name, x.s, x.v])).toEqual([['Error', 'fail', 12], ['Refused', 'part', 3], ['OK', 'ok', 2140], ['Offline', 'off', 300]]);
+  });
+
+  it('marks an update red at the rollback share, amber with any crash, green for the newest phone update', () => {
+    const u = (update: string, installs: number, crashed: number, channel = 'production') => ({ update, runtime: '1', channel, installs, crashed, firstSeen: '2026-11-10T00:00:00Z', lastSeen: '2026-11-17T00:00:00Z' });
+    const r = rows('fleet', { updates: [u('web00001', 40, 0, 'web'), u('aaaa1111', 100, 2), u('bbbb2222', 60, 1), u('cccc3333', 10, 0), u('dddd4444', 5, 1)] });
+    expect(r[0]!.items.map((x) => [x.name, x.s])).toEqual([['web00001', 'off'], ['aaaa1111', 'fail'], ['bbbb2222', 'part'], ['cccc3333', 'off'], ['dddd4444', 'part']]);
+    expect(rows('fleet', { updates: [u('aaaa1111', 100, 0)] })[0]!.items[0]!.s).toBe('ok');
+  });
+
+  it('splits accounts so the parts add up to all accounts', () => {
+    fc.assert(fc.property(fc.nat(50000), fc.nat(50000), fc.nat(50000), (total, week, day) => {
+      const r = rows('people', { accounts: { total, suspended: 0, managed: 0 }, activeProfiles: { day: Math.min(day, week, total), week: Math.min(week, total) } });
+      const sum = r.flatMap((x) => x.items).reduce((a, x) => a + x.v, 0);
+      expect(sum).toBe(total);
+      for (const x of r.flatMap((y) => y.items)) expect(x.v).toBeGreaterThan(0);
+    }));
+  });
+
+  it('shows the plan against what Cloudflare counted, and nothing when it could not read', () => {
+    const allowance = { workersRequests: 10, doRequests: 10, r2ClassA: 10, r2ClassB: 10, r2Bytes: 10 * GB };
+    const c = { now: null, limitBytes: GB, dbGrowthPerDay: null, weeksLeft: null, history: [], r2: { bytes: 12 * GB, growthPerDay: null },
+      usage: { workersRequests: 5, doRequests: 12, r2ClassA: 0, r2ClassB: 10, allowance, price: { workersRequests: 1, doRequests: 1, r2ClassA: 1, r2ClassB: 1 } } };
+    expect(rows('capacity', c)[0]!.items.map((x) => [x.name, x.s, x.value])).toEqual([['Workers requests', 'ok', '50%'], ['Durable Object requests', 'part', '120%'],
+      ['R2 class A operations', 'ok', '0.0%'], ['R2 class B operations', 'ok', '100%'], ['R2 storage', 'part', '12 GB']]);
+    expect(field(item('capacity', c, 'Durable Object requests'), 'Extra cost so far')).toBe('$2.00');
+    expect(rows('capacity', { ...c, r2: null, usage: { ...c.usage, error: 'refused' } })).toEqual([]);
+  });
+
+  it('keeps a part open when it holds a queue for a person, and names every control as one or the other', async () => {
+    const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
+    const used = new Set([...html.matchAll(/<(?:button|textarea|input|select)\b[^>]*/g)].flatMap((m) => [...m[0].matchAll(/data-[a-z-]+/g)].map((x) => x[0])));
+    expect([...used].filter((a) => !QUEUE_CONTROLS.includes(a) && !FOLDED_CONTROLS.includes(a)).sort(), 'a new control: put it in QUEUE_CONTROLS or FOLDED_CONTROLS').toEqual([]);
+    const queue = new RegExp(QUEUE_SOURCE);
+    for (const c of QUEUE_CONTROLS) expect(queue.test(`<button ${c}="x">`) && queue.test(`<input type="checkbox" ${c}>`), c).toBe(true);
+    for (const c of FOLDED_CONTROLS) expect(queue.test(`<button ${c}="x">`), c).toBe(false);
+    expect(html).toContain('!QUEUE.test(html) ? numbers(id, html)');
+  });
+
+  it('says each line of a part in words at the part, so a status never waits behind the numbers', async () => {
+    const html = await page({ supabaseUrl: 'https://x.supabase.co', anonKey: 'k' }, 'n').text();
+    const src = /function partLines\(alerts\) \{[\s\S]*?\n\}\n/.exec(html)![0];
+    const esc = (t: string) => t.replace(/</g, '&lt;');
+    const partLines = new Function('LEVEL', 'esc', 'tidy', `${src}; return partLines;`)({ urgent: { title: 'Act now' }, problem: { title: 'Fix soon' }, watch: { title: 'Watch' } }, esc, (t: string) => t) as (a: unknown) => string;
+    expect(partLines([])).toBe('');
+    const said = partLines([{ level: 'watch', key: 'long-transaction', text: 'A database transaction <x> has been open for 75 minutes.' }, { level: 'problem', key: 'slow-rpc', text: 'Slow.', link: 'https://example.org/run' }, { level: 'odd', text: 'Odd.', link: 'javascript:alert(1)' }]);
+    expect(said).toContain('<span class="dot watch"></span><span><b>Watch</b> A database transaction &lt;x> has been open for 75 minutes.</span>');
+    expect(said).toContain('<b>Fix soon</b> Slow. <a href="https://example.org/run"');
+    expect(said).toContain('<span class="dot watch"></span><span><b>Watch</b> Odd.</span>');
+    // The part draws them above its picture and its numbers, and the Jobs part reads the job container's lines too.
+    expect(html).toContain("head + lines + counted(s.data)");
+    expect(html).toContain("(s.alerts || []).concat(results.container.alerts || [])");
+  });
+
+  it('puts the drawing on the page with no inline style', async () => {
+    const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
+    for (const f of ['function meterRows(', 'function meterSvg(', 'function shareSvg(', 'function numbers(', 'Show the numbers']) expect(html).toContain(f);
+    expect(html).not.toMatch(/ style="/);
+  });
+});

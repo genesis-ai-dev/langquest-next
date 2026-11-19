@@ -39,6 +39,7 @@
       "run": "O compartilhamento parou depois de dez minutos.",
       "level": "Atualizado. O compartilhamento parou.",
       "letInLook": "O celular novo vai mostrar LangQuest até escolherem outra aparência em Mais configurações.",
+      "letInPermissions": "Volte para o Compartilhar por perto e toque em Começar a compartilhar. Permita o que o Android pedir e depois volte aqui.",
       "apkTrace": "O histórico e a lista de downloads do navegador mostram de onde veio o arquivo de instalação. Você pode apagá-los depois."
     }
   },

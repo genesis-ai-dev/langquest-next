@@ -36,7 +36,10 @@ test('SYNC-001 The Sync screen, online', async ({ page }) => {
   await expectSyncIdle(page);
   await expect(text(page, LIVE).or(text(page, POLLING)).first()).toBeVisible();
   await expect(text(page, 'The server refused this account for this organization.')).toBeHidden();
-  await expect(text(page, 'Ready for offline')).toBeVisible();
+  // Folded: Ready for offline's line, then what always works offline under its own link.
+  await expect(text(page, 'Always on this device')).toHaveCount(0);
+  await button(page, /^Ready for offline/).click();
+  await button(page, 'What works offline').click();
   await expect(text(page, 'Always on this device')).toBeVisible();
   await expect(text(page, 'Needs a connection')).toBeVisible();
   expect(await tile(page, 'waiting to upload')).toBe(0);
@@ -145,7 +148,7 @@ test('SYNC-007 My Work\'s sync icon says the state and what waits', async ({ pag
   const box = await chip.boundingBox();
   expect(box!.height).toBeGreaterThanOrEqual(48);
   await chip.click();
-  await expect(page.getByRole('heading', { name: 'Sync', exact: true }).locator('visible=true')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sync and offline', exact: true }).locator('visible=true')).toBeVisible();
   await setOffline(context, false);
   await expectSent(page, w);
   await toTab(page, 'work');
@@ -347,7 +350,7 @@ test('SYNC-033 Offline, nothing claims a download, an upload or that nothing is 
   // Sync: what is new on the server cannot be known offline. Files this
   // device already knows it must fetch are counted; never "None".
   await openSync(page);
-  await expect(page.getByLabel(/^To receive: (Offline|[\d,]+)$/).locator('visible=true')).toBeVisible();
+  await expect(page.getByLabel(/^Downloads\. (Checks for new work when back online|[\d,]+ recordings? to receive)$/).locator('visible=true')).toBeVisible();
   await expect(page.getByLabel('Audio downloading. Offline', { exact: true }).locator('visible=true')).toBeVisible();
   await expect(text(page, 'All uploaded')).toHaveCount(0);
 });

@@ -333,7 +333,7 @@
     "book_structure": "划分书卷",
     "reference_home": "参考资料库",
     "material_editor": "编辑资料",
-    "sync_status": "同步",
+    "sync_status": "同步与离线",
     "delete_account": "删除账号",
     "reports_home": "报告",
     "reports_language": "语言报告",
@@ -354,11 +354,14 @@
     "share_nearby": "附近共享",
     "let_someone_in": "让人加入",
     "join_offline": "不用互联网加入",
-    "get_install_file": "获取安装文件"
+    "get_install_file": "下载安装文件",
+    "give_app": "发送应用"
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
-    "camera": "LangQuest 使用相机扫描邀请二维码。"
+    "camera": "LangQuest 使用相机扫描邀请二维码。",
+    "bluetooth": "LangQuest 使用蓝牙查找附近队友的手机，并与他们共享工作。",
+    "localNetwork": "LangQuest 使用本地网络与附近队友的手机共享工作。"
   },
   "library": {
     "sourceLine": {
@@ -3272,20 +3275,15 @@
     },
     "me": {
       "title": "我",
-      "nameSub": "名字和照片",
-      "offline": "可以离线使用",
+      "nameSub": "名字、邮箱和密码",
       "tour": "LangQuest 是怎么运作的",
       "tourSub": "听一段简短的介绍",
       "more": "更多设置",
-      "moreRefused": "这个账号无法同步 · 密码、通知、账号",
-      "moreRefusedEvents": "被拒绝 · {{n, number}} · 密码、通知、同步、账号",
-      "morePending_other": "{{count, number}} 项等待发送 · 密码、通知、同步、账号",
       "signOut": "退出登录",
       "signOutHelp": "在本设备上退出这个账号。还没发送的工作会保留到发送完成为止。",
-      "nameHelp": "打开你的个人资料，可以更改团队看到的名字。",
-      "offlineHelp": "显示本设备为离线工作保存了哪些内容。",
+      "nameHelp": "打开你的个人资料，修改名字、邮箱或密码。",
       "tourHelp": "打开三张简短的卡片，介绍 LangQuest 的用途。",
-      "moreHelp": "打开密码、通知、同步和账号设置。数字表示有等待发送的更改。",
+      "moreHelp": "打开通知和账号设置。",
       "local": {
         "title": "{{name}}，你是不用互联网加入的",
         "letInBy": "{{name}}从他的手机让你加入了。",
@@ -3320,8 +3318,6 @@
       "newDeviceNoName": "换了新设备？邀请你的人或管理员可以帮你登录。",
       "helpedBy": "在{{name}}的帮助下在本设备上登录 · {{date}}",
       "helpedBySomeone": "在别人的帮助下在本设备上登录 · {{date}}",
-      "setPassword": "设置密码",
-      "setPasswordSub": "如果其他人也使用这台设备",
       "notifications": "通知",
       "notificationsSub": "接收关于请求和反馈的通知",
       "notificationsBlocked": "在这部手机的设置里已关闭",
@@ -3333,7 +3329,6 @@
       "switchActive": "{{org}}（当前）",
       "switchOrStart": "{{org}} · 或者新建一个",
       "thisDevice": "本设备",
-      "sync": "同步",
       "syncRefused": "这个账号无法同步这个机构",
       "syncPending_other": "{{count, number}} 项更改等待发送",
       "syncPendingMixed": "{{total, number}} 项待发送 · 录音：{{recordings, number}}",
@@ -3360,7 +3355,6 @@
       "lostPhoneSent": "链接已发送到 {{email}}。打开它，设置新密码，并打开“我的一部手机丢了或被拿走了”。",
       "testing": "测试",
       "personaSub": "以演示用的译者、审核人或管理员身份登录",
-      "syncHelp": "显示等待发送或下载的内容。数字表示有等待发送的更改。",
       "blockedHelp": "显示你屏蔽了谁，可以取消屏蔽。",
       "switchOrgHelp": "打开你的机构，可以切换到另一个，或者新建一个。"
     },
@@ -3382,18 +3376,27 @@
       "passwordNeedsConnection": "设置密码需要联网。",
       "nameSaved": "名字已保存。",
       "passwordFailed": "无法设置密码。请重试。",
-      "savedWithPassword": "已保存。你可以用你的登录名和这个密码登录。",
+      "passwordSaved": "密码已保存。",
+      "savedWithPassword": "已保存。你用 {{name}} 和这个密码登录。",
       "saved": "个人资料已保存。联网后会同步。",
       "newPassword": "新密码（选填）",
       "password": "密码（选填）",
       "passwordPlaceholder": "至少 6 个字符",
       "signInWith": "你用 {{name}} 和这个密码登录。请把这个名字记下来。",
-      "signInWithYourName": "你用你的登录名和这个密码登录。请把这个名字记下来。",
-      "setOne": "如果其他人也使用这台设备，请设置一个密码，这样他们用过之后你还能重新登录。",
+      "signInWithEmail": "你用 {{email}} 和这个密码登录。",
+      "setOne": "设置一个，就能在别的设备上登录。",
       "lastChangeRefused": "你上一次的更改没有被接受",
       "savedBody": "联网后会发送。",
       "nameHelp": "你的团队看到的你的名字。联网后会发送。",
-      "passwordHelp": "别人用过这台设备后，你可以用它重新登录。"
+      "passwordHelp": "让你能在别的设备上登录，也能在这台设备上不联网重新登录。",
+      "emailHelp": "你用这个地址登录，“忘记密码”也会把链接发到这里。更改需要联网。",
+      "addEmail": "有了邮箱，你就用它登录，不再用 {{name}}；“忘记密码”也能给你发链接。之后帮手的代码不能再让你登录。",
+      "emailRequired": "请输入你登录用的邮箱。",
+      "passwordWithEmail": "也请设置密码：有了邮箱后，帮手的代码不能再让你登录。",
+      "emailNeedsConnection": "更改邮箱需要联网。",
+      "emailTaken": "另一个账号已经在用这个邮箱。",
+      "emailFailed": "无法保存邮箱。请重试。",
+      "savedWithEmail": "已保存。从现在起你用 {{email}} 登录。"
     },
     "orgs": {
       "stale": "无法刷新。已保存的机构仍然可以使用。",
@@ -3418,7 +3421,7 @@
       "blocked": "还要发送：{{things}}。请等它们同步完成后再退出登录，以免滞留在这里。",
       "blockedOffline": "还要发送：{{things}}。本设备处于离线状态。请等它们同步完成后再退出登录，以免滞留在这里。",
       "refused": "这个账号无法同步这个机构：服务器拒绝了。退出登录是安全的；排队等待的内容会留在本设备上。",
-      "setPasswordFirst": "如果其他人也使用这台设备，请先在“编辑个人资料”中设置密码。",
+      "setPasswordFirst": "要在没人帮忙的情况下重新登录，请先在“编辑个人资料”中添加邮箱或密码。",
       "forgets": "你随时可以重新登录。这个浏览器会清除为你保存的所有内容，下一个使用的人什么都看不到。",
       "anytime": "你随时可以重新登录。",
       "offlineBackIn": "本设备处于离线状态，需要等到有网络连接后才能重新登录。",
@@ -3484,17 +3487,29 @@
         "refused": "服务器不接受本设备的更改。你的工作仍保存在这里。",
         "tooOld": "这个应用版本太旧，收不到团队的更改。请到应用商店更新。",
         "toReceive": "本设备仍在下载的他人录音。",
-        "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。",
         "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "待接收",
-      "refusedLine": "被拒绝",
-      "none": "无",
-      "moreInfo": "了解更多",
       "details": "详细信息",
       "syncNowHelp": "立即发送等待中的内容，并获取新内容。",
       "detailsHelp": "每一项等待中或被拒绝的更改，以及音频传输：供排查问题的人查看。",
-      "eventHelp": "打开这项更改所涉及的经段。"
+      "eventHelp": "打开这项更改所涉及的经段。",
+      "title": "同步与离线",
+      "rowHelp": "打开本设备发送和接收的内容，以及为离线工作保存的内容。",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "被服务器拒绝",
+        "refusedCount_other": "{{count, number}} 项更改",
+        "refusedNote": "它们留在本设备上。管理你团队的人通常可以帮忙。",
+        "refusedHelp": "服务器未接受的更改，每项都附有原因。它们留在本设备上。",
+        "uploads": "上传",
+        "uploadsHelp": "本设备上按经段列出的等待上传的内容，以及已上传的内容。",
+        "downloads": "下载",
+        "readyHelp": "离线之前，这部手机上是否已有你需要的内容。"
+      },
+      "down": {
+        "count_other": "{{count, number}} 段录音待接收",
+        "offline": "重新联网后会检查新工作"
+      }
     },
     "lock": {
       "tooShort": "至少连接 {{n}} 个点。",
@@ -3506,6 +3521,19 @@
       "drawAgain": "再画一次",
       "newPattern": "绘制新图案",
       "choosePatternHelp": "选一张图片和一个图案，用来在这部手机上重新登录，即使没有网络也行。"
+    },
+    "appLock": {
+      "row": "锁定应用",
+      "rowHelp": "开启后，每次打开应用和每次回到应用时，都会要求你画出图案。开启或关闭前，也会先要求你画出图案。",
+      "on": "现在打开应用时会要求你画出图案。",
+      "off": "应用不再要求你画出图案。",
+      "opening": "正在打开……",
+      "checking": "正在检查……",
+      "forgot": "忘记了？",
+      "forgotHelp": "忘记图案了？请退出登录，再用密码或团队成员给你的登录码重新登录。你的工作仍保留在这部手机上。",
+      "signOutHelp": "退出这部手机的登录。你的工作仍保留在手机上，并会在可以时发送。",
+      "backHelp": "返回点。",
+      "waitFor_other": "尝试次数太多。请 {{count, number}} 分钟后再试。"
     }
   },
   "study": {
@@ -4620,7 +4648,10 @@
       "needsOtherLanguages": "其他语言。联网时打开一个语言，就能把它更新到最新。",
       "bullet": "• {{line}}",
       "notSent_other": "你保存的经段中有 {{count, number}} 段录音还没有从录制它们的设备上发送出来，所以任何设备都还无法下载。",
-      "barHelp": "你保存的经段中，有多少已完整下载到本设备上。"
+      "barHelp": "你保存的经段中，有多少已完整下载到本设备上。",
+      "keptTitle": "保存的经段",
+      "worksOffline": "离线能用什么",
+      "worksOfflineHelp": "显示始终在本设备上的内容，以及需要联网的内容。"
     },
     "keepHelp": "把它的音频保存在本设备上，不联网也能用。",
     "stopKeepingHelp": "本设备需要空间时，可以再次删除它的音频。",
@@ -5100,7 +5131,7 @@
       "noneKept": "本设备上还没有保存经段",
       "kept_other": "本设备上有 {{count, number}} 个经段",
       "ready_other": "{{count, number}} 个经段中有 {{ready}} 个已在本设备上就绪",
-      "moreSettingsSub": "密码、通知、同步、账号"
+      "moreSettingsSub": "通知、账号"
     },
     "waiting": "等待划分",
     "parts": {

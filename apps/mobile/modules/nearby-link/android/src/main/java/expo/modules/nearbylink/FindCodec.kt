@@ -74,6 +74,13 @@ sealed class Heard {
 
   /** An advert of this form that no key matched: its salt and nothing else. */
   class FormSalt(val salt: ByteArray) : Heard()
+
+  /**
+   * A teammate's advert under `scanKeys[scan]` with no scan response: an iPhone's, which cannot
+   * send one (docs/nearby-sync-plan.md section 7, phase 5), or an Android's whose response has not
+   * come yet. Its salt alone, so the room can echo it.
+   */
+  class Advert(val scan: Int, val salt: ByteArray) : Heard()
 }
 
 /**
@@ -113,17 +120,17 @@ class FindMatcher(scanKeys: List<ByteArray>, private val cacheSize: Int = 256) {
   }
 
   /**
-   * A teammate when one UUID is an advert under a key and the other its scan response; the salt
-   * alone when the record has this form and no key matches; null otherwise, and for a match
-   * whose scan response has not arrived yet.
+   * A teammate when one UUID is an advert under a key and the other its scan response; a
+   * teammate's advert alone when it matches a key with no scan response (an iPhone's, phase 5);
+   * the salt alone when the record has this form and no key matches; null otherwise.
    */
   fun hear(uuids: List<ByteArray>, otherData: Boolean): Heard? {
     if (otherData || uuids.isEmpty() || uuids.size > 2 || !uuids.all { FindCodec.isV4(it) }) return null
     for ((i, id) in uuids.withIndex()) {
       val scan = scanOf(id)
       if (scan < 0) continue
-      if (uuids.size < 2) return null
       val salt = id.copyOfRange(0, FindCodec.SALT_BYTES)
+      if (uuids.size < 2) return Heard.Advert(scan, salt)
       return Heard.Match(scan, salt, FindCodec.unmask(keys[scan], salt, uuids[1 - i]))
     }
     return Heard.FormSalt(uuids[0].copyOfRange(0, FindCodec.SALT_BYTES))

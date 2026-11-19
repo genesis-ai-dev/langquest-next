@@ -4,7 +4,8 @@ import { originsOf, originWords } from '../src/nearby/nearbyHistoryModel';
 import { nearbyViewOf, NEARBY_RUN_START, type NearbyRunState, type NearbyView } from '../src/nearby/nearbyRunModel';
 import { NOTHING_TO_CARRY } from '../src/nearby/readyToCarryModel';
 import {
-  endedWords, linesShown, nearbyRowWords, PERMISSION_WORDS, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS, WHY_NOT_WORDS
+  connectHelp, endedWords, linesShown, nearbyRowWords, PERMISSION_WORDS, PHONE_WORDS, phoneWords, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS,
+  WHY_NOT_WORDS
 } from '../src/nearby/shareNearbyModel';
 
 // Share nearby's states (docs/nearby-sync-plan.md 5.8, section 8): tested through the model, since
@@ -17,37 +18,31 @@ const disguiseEn = JSON.parse(readFileSync(join(ROOT, 'src/disguise/i18n/en.json
 const has = (tree: Tree, key: string) => typeof key.split('.').reduce<Tree | string | undefined>((at, k) => (typeof at === 'object' ? at[k] : undefined), tree) === 'string';
 
 const view = (over: Partial<Omit<Parameters<typeof nearbyViewOf>[0], 'run'>> = {}, run: Partial<NearbyRunState> = {}): NearbyView => nearbyViewOf({
-  offered: true, whyNot: null, radiosOff: [], permissions: { state: 'granted', step: { t: 'ready' } }, worn: false, holding: 0, hold: true, carry: NOTHING_TO_CARRY,
+  offered: true, iphone: false, tapCoversAll: false, whyNot: null, radiosOff: [], permissions: { state: 'granted', step: { t: 'ready' } }, worn: false, holding: 0, hold: true,
+  carry: NOTHING_TO_CARRY,
   ...over, run: { ...NEARBY_RUN_START, ...run }
 });
 
 describe('the Share nearby row on Sync', () => {
   it('names a new person only where Share nearby offers Let someone in, and says why not while it cannot run', () => {
-    const plain = { sub: 'nearby.rowSub', help: 'nearby.rowHelp', remind: null };
-    const join = { sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpJoin', remind: null };
-    expect(nearbyRowWords(null, null, null)).toEqual(join);
+    const plain = { sub: 'nearby.rowSub', help: 'nearby.rowHelp' };
+    const join = { sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpJoin' };
+    expect(nearbyRowWords(null, null)).toEqual(join);
     // A run-out pass still shows Let someone in on Share nearby, disabled, so the row still names it.
-    expect(nearbyRowWords(null, 'expired', null)).toEqual(join);
+    expect(nearbyRowWords(null, 'expired')).toEqual(join);
     for (const why of ['loading', 'not-in-build', 'no-pass', 'no-role', 'read-only'] as const) {
-      expect(nearbyRowWords(null, why, null), why).toEqual(plain);
+      expect(nearbyRowWords(null, why), why).toEqual(plain);
     }
-    expect(nearbyRowWords('android-too-old', null, null)).toEqual({ sub: 'nearby.why.androidTooOld', help: 'nearby.rowHelp', remind: null });
-    expect(nearbyRowWords('no-key', 'no-pass', null)).toEqual({ sub: 'nearby.why.noKey', help: 'nearby.rowHelp', remind: null });
-    for (const k of ['rowSub', 'rowSubJoin', 'rowHelp', 'rowHelpJoin', 'rowHelpRemind', 'installFile.remind']) expect(has(en, `nearby.${k}`), k).toBe(true);
-    // Carl's words: work goes both ways.
+    expect(nearbyRowWords('android-too-old', null)).toEqual({ sub: 'nearby.why.androidTooOld', help: 'nearby.rowHelp' });
+    expect(nearbyRowWords('no-key', 'no-pass')).toEqual({ sub: 'nearby.why.noKey', help: 'nearby.rowHelp' });
+    for (const k of ['rowSub', 'rowSubJoin', 'rowHelp', 'rowHelpJoin']) expect(has(en, `nearby.${k}`), k).toBe(true);
+    // The install file is on Ready for offline's list now, not under this row (Carl, 2026-11-18).
+    for (const k of ['rowHelpRemind', 'installFile.remind']) expect(has(en, `nearby.${k}`), k).toBe(false);
+    // Carl's words, shortened with him (2026-11-19): "share" is the act, and work goes both ways.
     expect(en.nearby).toMatchObject({
-      rowSub: 'Share work progress with teammates without the internet',
-      rowSubJoin: 'Share work progress with teammates, or bring in a new person, without the internet'
+      rowSub: 'Share work with teammates without internet',
+      rowSubJoin: 'Share work with teammates, or bring in a new person, without internet'
     });
-  });
-
-  it('adds the amber reminder to get the install file while the row can be pressed, and says so in help', () => {
-    for (const reminder of ['not-got', 'older'] as const) {
-      expect(nearbyRowWords(null, null, reminder), reminder).toEqual({ sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpRemind', remind: 'nearby.installFile.remind' });
-      expect(nearbyRowWords(null, 'expired', reminder).remind, reminder).toBe('nearby.installFile.remind');
-      // A row that cannot run is disabled: its reason, not a reminder.
-      expect(nearbyRowWords('android-too-old', null, reminder).remind, reminder).toBeNull();
-    }
   });
 });
 
@@ -98,6 +93,38 @@ describe('Share nearby\'s states', () => {
     expect(linesShown([line])).toEqual([]);
     expect(linesShown([line, { ...line, profileId: 'sam', how: 'done' }, { ...line, eventsIn: 2 }]).map((l) => l.profileId ?? l.eventsIn)).toEqual([2, 'sam']);
     expect(teammatesShown([{ tag: 'a', key: null, profileId: null, older: false, state: 'missed' }, { tag: 'b', key: null, profileId: null, older: false, state: 'maybe' }]).map((m) => m.tag)).toEqual(['b']);
+  });
+});
+
+describe('Share nearby on an iPhone (section 7, phase 5)', () => {
+  const iphone = { iphone: true, tapCoversAll: true };
+  const words = (tree: Tree, key: string) => key.split('.').reduce<Tree | string | undefined>((at, k) => (typeof at === 'object' ? at[k] : undefined), tree) as string;
+
+  it("says why before the Bluetooth prompt, and sends a refusal to the settings in the iPhone's words", () => {
+    const explain = { t: 'explain' as const, reason: 'bluetooth' as const, permissions: ['BLUETOOTH' as const] };
+    expect(stageOf(view({ ...iphone, permissions: { state: 'needed', step: explain } }))).toEqual({ t: 'permission', reason: 'bluetooth', permissions: ['BLUETOOTH'] });
+    expect(stageOf(view({ ...iphone, permissions: { state: 'blocked', step: { t: 'settings' } } }))).toEqual({ t: 'settings' });
+    expect(phoneWords(view(iphone))).toBe(PHONE_WORDS.iphone);
+    expect(phoneWords(view())).toBe(PHONE_WORDS.android);
+  });
+
+  it('never names Android, the install file or giving a new person the app, in English', () => {
+    const shown = [...Object.values(PHONE_WORDS.iphone), PERMISSION_WORDS.bluetooth, connectHelp(view(iphone))];
+    expect(shown.filter((k) => !has(en, k))).toEqual([]);
+    for (const k of shown) expect(words(en, k), k).not.toMatch(/Android|install file|new person|Wi-Fi Direct/);
+    // Android keeps its own.
+    for (const k of Object.values(PHONE_WORDS.android)) expect(has(en, k), k).toBe(true);
+    expect(words(en, PHONE_WORDS.android.settings)).toMatch(/Android/);
+  });
+
+  it('shows one "A teammate may be nearby" for every teammate without an echo, since one tap covers them all', () => {
+    const maybe = (tag: string) => ({ tag, key: null, profileId: null, older: false, state: 'maybe' as const });
+    const here = { tag: 't1', key: 'K1', profileId: 'sam', older: false, state: 'here' as const };
+    const teammates = [maybe('@salt1'), here, maybe('@salt2'), maybe('t3')];
+    expect(teammatesShown(teammates, true).map((m) => m.tag)).toEqual(['@salt1', 't1']);
+    expect(teammatesShown(teammates).map((m) => m.tag)).toEqual(['@salt1', 't1', '@salt2', 't3']);
+    expect(connectHelp(view(iphone))).toBe('nearby.connectHelpAll');
+    expect(connectHelp(view())).toBe('nearby.connectHelp');
   });
 });
 

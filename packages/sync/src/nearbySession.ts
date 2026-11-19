@@ -317,14 +317,29 @@ export interface NearbyAttempt {
   band5: boolean;
 }
 
-export function arrangePlan(i: Radios, r: Radios, order: readonly Exclude<HostKind, 'bluetooth'>[] = ['wifi-direct', 'hotspot']): NearbyAttempt[] {
+/** Hello's ability that says this phone's plan lets a phone that cannot host join a Wi-Fi Direct group as a plain client (phase 5). */
+export const JOIN_DIRECT_ABILITY = 'join-direct';
+
+/**
+ * `joinDirect` is true only when both Hellos list `JOIN_DIRECT_ABILITY`: a phone on older
+ * code works out the plan without it, and both sides must agree attempt by attempt.
+ */
+export function arrangePlan(
+  i: Radios, r: Radios, order: readonly Exclude<HostKind, 'bluetooth'>[] = ['wifi-direct', 'awdl', 'hotspot'], opts: { joinDirect?: boolean } = {}
+): NearbyAttempt[] {
   const plan: NearbyAttempt[] = [];
+  const plain = opts.joinDirect === true;
   for (const kind of order) {
     if (kind === 'wifi-direct') {
-      if (!i.directByName || !r.directByName) continue;
+      // Both host and join by name, or one hosts and the other joins as a plain client (an iPhone).
+      const host: NearbyRole | null = i.directByName && r.directByName ? 'r' : plain && r.directByName && i.joinDirect ? 'r' : plain && i.directByName && r.joinDirect ? 'i' : null;
+      if (!host) continue;
       // 5 GHz only when both report it, then any band.
-      if (i.band5 && r.band5) plan.push({ kind, host: 'r', band5: true });
-      plan.push({ kind, host: 'r', band5: false });
+      if (i.band5 && r.band5) plan.push({ kind, host, band5: true });
+      plan.push({ kind, host, band5: false });
+    } else if (kind === 'awdl') {
+      // Two iPhones, over Apple's own direct Wi-Fi; a phone that does not name it never has it.
+      if (i.awdl && r.awdl) plan.push({ kind, host: 'r', band5: false });
     } else if (r.hotspot && i.joinHotspot) plan.push({ kind, host: 'r', band5: false });
     else if (i.hotspot && r.joinHotspot) plan.push({ kind, host: 'i', band5: false });
   }
@@ -343,6 +358,12 @@ export function wifiDirectOptions(crypto: Pick<NearbyCrypto, 'randomBytes'>, ban
   const word = (size: number, letters: string) => [...crypto.randomBytes(size)].map((b) => letters[b % letters.length]!).join('');
   const alnum = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   return { ssid: `DIRECT-${word(2, alnum)}-Android_${word(4, 'abcdef0123456789')}`, passphrase: base64urlEncode(crypto.randomBytes(16)), band5 };
+}
+
+/** A Bonjour service name used once, so nothing in it marks this phone or this app; the service type is `Info.plist`'s. */
+export function awdlOptions(crypto: Pick<NearbyCrypto, 'randomBytes'>): HostOptions {
+  const letters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  return { ssid: [...crypto.randomBytes(12)].map((b) => letters[b % letters.length]!).join(''), band5: false };
 }
 
 /** What a `host` message carries: the radio's answer without its link, or the message without its `t`. */
@@ -694,7 +715,7 @@ export class NearbySession {
 
   private async myHello(): Promise<HelloMessage> {
     const { crypto, opt } = this;
-    const can = [...(opt.files && !opt.join ? ['files'] : []), ...(opt.join?.as === 'inviter' ? ['let-in'] : []), ...(opt.copy ? ['starting-copy'] : [])];
+    const can = [...(opt.files && !opt.join ? ['files'] : []), ...(opt.join?.as === 'inviter' ? ['let-in'] : []), ...(opt.copy ? ['starting-copy'] : []), JOIN_DIRECT_ABILITY];
     const base = { t: 'hello' as const, protocol: { ...NEARBY_PROTOCOL }, can, reducerVersion: REDUCER_VERSION, linesVersion: LINES_VERSION, wallMs: opt.port.nearbyWallNow };
     // On a QR link a QR holder learns nothing of the inviter until the tap: no chain, proof or device id from either side.
     if (opt.join) return { ...base, deviceId: '', chain: [], proof: '' };
@@ -1006,7 +1027,9 @@ export class NearbySession {
     // Their `arrange` says they passed this phone's `hello`.
     const handed = opt.role === 'i' ? this.handOnNow() : null;
     if (handed) await this.send({ t: 'discovery-key', ...handed });
-    const plan = opt.role === 'i' ? arrangePlan(mine, theirs.radios, opt.arrange?.order) : arrangePlan(theirs.radios, mine, opt.arrange?.order);
+    // This phone's Hello always lists it, so theirs decides.
+    const joinDirect = !!this.theirHello?.can.includes(JOIN_DIRECT_ABILITY);
+    const plan = opt.role === 'i' ? arrangePlan(mine, theirs.radios, opt.arrange?.order, { joinDirect }) : arrangePlan(theirs.radios, mine, opt.arrange?.order, { joinDirect });
     this.link = await this.bringUp(this.link, plan);
   }
 
@@ -1161,7 +1184,7 @@ export class NearbySession {
       if (host !== me) return null;
       let hosted: Awaited<ReturnType<NearbyArrangeOptions['radio']['host']>> | null = null;
       try {
-        hosted = await opt.arrange!.radio.host(kind, kind === 'wifi-direct' ? wifiDirectOptions(this.crypto, band5) : { band5 });
+        hosted = await opt.arrange!.radio.host(kind, kind === 'wifi-direct' ? wifiDirectOptions(this.crypto, band5) : kind === 'awdl' ? awdlOptions(this.crypto) : { band5 });
       } catch {
         // Its radio would not host. When the next turn is its own it moves straight on, and otherwise the other's time runs out.
         const turn = myNext(attempt);

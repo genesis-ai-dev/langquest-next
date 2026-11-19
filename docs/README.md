@@ -1,26 +1,45 @@
 # Documentation
 
 - [testing.md](./testing.md) — The testing strategy: five layers, which one a test belongs in, the end-to-end rules, and what runs on a PR, nightly and before a release
-- [decisions.md](./decisions.md) — The ADR log: every design decision, who made it and when, with reasoning and reversal conditions
+- [decisions/](./decisions/README.md) — The ADR log, one file per decision: every design decision, who made it and when, with reasoning and reversal conditions
+- [streams-and-languages.md](./streams-and-languages.md) — Built (decision 63): below an organization there are only languages, each its own stream, beside the organization's stream and each person's
 - [cloudflare.md](./cloudflare.md) — Workers Builds: what merging to develop and main deploys; builds hold no secrets
 - [environments.md](./environments.md) — Development, preview and production: branches, where public settings and secrets live, `npm run secrets`, setup
+- [server-jobs.md](./server-jobs.md) — Plan, built: the server's jobs, and where the heavy ones run (decisions 141, 142, 147)
+- [admin.md](./admin.md) — The ops dashboard at next.langquest.org/ops-dashboard: what it shows staff, where each part comes from, who may open it, and what is not built yet
+- [ops-dashboard-plan.md](./ops-dashboard-plan.md) — Plan for the ops dashboard: phases 1 to 4 and phase 5's history, pages and cards built; 5d, telling people, not yet
+- [diagnostics.md](./diagnostics.md) — Field diagnostics: the content-free records a phone keeps and sends, so support can answer a field report from records (decision 39)
+- [routines/](./routines/README.md) — Drafts of the routines that run the Linear board without a person: each one's prompt, when it runs and what it may change
 - [flow-coverage-audit.md](./flow-coverage-audit.md) — Flow coverage audit
 - [performance-audit.md](./performance-audit.md) — Event system performance: today's baseline, how to measure it, and ranked improvements with the metric for each
 - [performance-audit-app.md](./performance-audit-app.md) — App and server performance (rendering, startup, web bundle, Worker, SQL), and the event audit's open items, ranked with a fix and a metric each
 - [performance-audit-2026-10-26.md](./performance-audit-2026-10-26.md) — Re-measure after big languages and Global Viewers: the web bundle's icons, the kept-on-disk path, the server's passes, and both earlier audits' open items
-- [nearby-sync-plan.md](./nearby-sync-plan.md) — Proposed: phones near each other swap events and audio with no internet: transport, the `nearby` status, trust, audio, phases, and joining offline as a future requirement
+- [big-languages-plan.md](./big-languages-plan.md) — Plan, built (options E and F, decisions 143 and 147): big languages on a 2 GB phone
+- [nearby-sync-plan.md](./nearby-sync-plan.md) — Built (Android and iPhones, experimental, decisions 211 to 246 and 256): phones near each other swap events and audio with no internet: transport, the `nearby` status, trust, audio, phases, and joining offline
 - [fleet-simulation.md](./fleet-simulation.md) — Many phones on simulated time against the in-memory server: `npm run fleet`, the scenarios, and how to read them
 - [fleet-baselines.md](./fleet-baselines.md) — Baseline numbers for every fleet scenario at several sizes, to compare before and after a performance change (`npm run fleet:baselines`)
+- [invites-and-accounts.md](./invites-and-accounts.md) — Invites, accounts and getting back in: the design behind decisions 54 and 59, and what was built
+- [invitation-rollout.md](./invitation-rollout.md) — The hosted rollout of invitations and accounts as of 2026-09-17: what was verified and what was pending
 - [global-viewers.md](./global-viewers.md) — Global Viewers: LangQuest support who read every organization, as its admins see it, on an authenticator-verified session; making one on a call, revoking, a lost authenticator, how it works
 - [verified-organizations.md](./verified-organizations.md) — the blue check after an organization's name: an admin asks with a code emailed to its domain, staff grant it on the ops dashboard, and where it shows
 - [publisher-imports.md](./publisher-imports.md) — importers staff turn on for a publisher's organization: its admins bring in their own material (FIA from Bible Aquifer), the server builds it, they publish it
 - [org-export.md](./org-export.md) — the organization export: one zip of every recording, its metadata, progress sheets and the raw log, and who may take it
+- [agent-api.md](./agent-api.md) — The LangQuest API, review links and MCP: how partner apps, AI agents and people without an account take part in a review
 - [library.md](./library.md) — The library: templates, flows and reference material as versioned documents
+- [reference-material.md](./reference-material.md) — Reference material: Bible text and audio, study guides and notes, as library documents placed by where they apply (decision 62)
+- [source-bible-audio.md](./source-bible-audio.md) — Source Bible audio beside the recorder, and the source Bibles an organization manager adds
+- [breaking-up-the-bible.md](./breaking-up-the-bible.md) — How a language's Bible is set up: its numbering, then how each book is divided into sections (decisions 74 and 80)
 - [languoids.md](./languoids.md) — Languages and regions: v2's reference tables filled from Glottolog, the explorer, search, and the interface-language proposal
+- [v2-import.md](./v2-import.md) — Bringing LangQuest v2 into this app, one way, and keeping it coming while v2 runs (decision 94)
 - [v2-project-languages.md](./v2-project-languages.md) — The language each v2 project should get here (many picked English), and the records that follow it
 - [licensing.md](./licensing.md) — An organization's license, why it only opens, and the plan for what outsiders can see
+- [localization.md](./localization.md) — The app's own words in each person's language: the catalogs, how a word reaches the screen, and what is shown as written (decision 81)
+- [play-store-declarations.md](./play-store-declarations.md) — Every answer given to Google Play (data safety, content rating, permissions, the listing), kept true in the same change as the app (decision 49)
+- [app-store-declarations.md](./app-store-declarations.md) — Its counterpart for Apple: the App Store Connect answers that Share nearby on iPhones touches (decision 256)
+- [tutorial-videos.md](./tutorial-videos.md) — The how-to videos: scripts the app plays through on the web export, filmed and voiced in every app language (decision 177)
+- [agent-skills.md](./agent-skills.md) — Which skills coding agents get here, where they come from, and what was considered and left out
 - [ux/demo-parity.md](./ux/demo-parity.md) — How the app follows the partner demo, and what is not ported yet
 - [ux/](./ux/) — Earlier interactive mocks (slideshow workflow, one yellow action, VAD takeover), kept as history
   - [ux/follow-ups.md](./ux/follow-ups.md) — Remaining UX-vision alignment work (updated after each fix)
-- [ui-test-suite/](./ui-test-suite/README.md) — The Expo app's UI test suite: 653 tests in 17 areas covering every role, with the fixture world, global preconditions and the known issues found while writing it
+- [ui-test-suite/](./ui-test-suite/README.md) — The Expo app's UI test suite: its tests in 17 areas covering every role, with the fixture world, global preconditions and the known issues found while writing it
 - [journey-tests/](./journey-tests/) — Historical: UX journey findings of 2026-09-15 against the ng-langquest-ux blueprint, before the UI test suite
