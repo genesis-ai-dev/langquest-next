@@ -4,7 +4,7 @@ import { csp, page } from '../src/page';
 import { GROUPS, OPS_IDS, OWN_CALL_IDS } from '../src/pageOps';
 import { GROUP_HELP, HELP, SECTION_HELP } from '../src/pageHelp';
 import { ok, settle } from '../src/section';
-import { handle } from '../src/index';
+import { guarded, handle } from '../src/index';
 import type { Env } from '../src/env';
 import { sessionStorageKey } from '../../mobile/src/server/sessionKey';
 
@@ -229,6 +229,17 @@ describe('a section that hangs or throws', () => {
   it('becomes an error section, so the others still show', async () => {
     expect(await settle('slow', () => new Promise(() => {}), 10)).toMatchObject({ state: 'error', error: 'slow did not answer within 0 s' });
     expect(await settle('boom', async () => { throw new Error('HTTP 500'); })).toMatchObject({ state: 'error', error: 'HTTP 500' });
+  });
+});
+
+describe('a call that throws outside every section', () => {
+  it('is answered with an error instead of an uncaught exception', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const response = await guarded(new Request('https://next.langquest.org/ops/api/ops'), {} as Env, async () => { throw new Error('binding went away'); });
+    expect(response.status).toBe(502);
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining('binding went away') });
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
   });
 });
 

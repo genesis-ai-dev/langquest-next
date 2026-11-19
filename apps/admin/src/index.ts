@@ -220,6 +220,21 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   return json({ error: 'Not found' }, 404);
 }
 
+/**
+ * A call that throws outside every section's own catch (the rate limiter, the
+ * actions binding, reading the body) is answered and logged here, so it is
+ * an error answer the page shows, not an uncaught exception that Cloudflare
+ * counts as a failed request with no message.
+ */
+export async function guarded(request: Request, env: Env, run: typeof handle = handle): Promise<Response> {
+  try {
+    return await run(request, env);
+  } catch (e) {
+    console.error(`ops dashboard: ${request.method} ${new URL(request.url).pathname} threw: ${errorText(e)}`);
+    return json({ error: `The ops dashboard could not answer: ${errorText(e)}` }, 502);
+  }
+}
+
 export default {
-  fetch: (request, env) => handle(request, env)
+  fetch: (request, env) => guarded(request, env)
 } satisfies ExportedHandler<Env>;
