@@ -82,3 +82,6 @@ and the Android emulator. Before the merge, the App Store's answers go in
 ID, `nearby` on LangQuest Sample). The cost: a Swift or Kotlin fix the test
 finds needs another store build and review, not an update, and an App Review
 that cannot reach Share nearby may hold later iPhone builds.
+
+Amended (2026-11-19, Carl Sauder): the first real-phone test of two iPhones (build 60) found nothing in 30 to 60 seconds, because the tap was offered only after the minute a phone waits for an echo, which can never come from an iPhone. Between two iPhones it is now offered after 10 seconds (`tapAfterAloneMs` in `packages/sync/src/nearbyRoom.ts`); an iPhone still waits the minute for an Android, whose echo may yet come. Room records also count the bare adverts heard (`alone`, migration `20261119233000_diag_nearby_alone.sql`), since `heard` counts only full matches and read as nothing heard between two iPhones.
+
