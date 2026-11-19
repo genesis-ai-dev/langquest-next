@@ -23,6 +23,10 @@ before you push. `README.md` says which file answers which question.
   it may import.
 - `docs/README.md` lists every doc by kind. A plan is not the reference for
   what is built: the reference doc it names is.
+- Before you write or change a script in `e2e/tutorials/`, read
+  `docs/tutorial-teaching.md`. A video exists for a person with a goal: it
+  orients them, carries them through the whole job, and leaves them able to
+  do it. It is not a tour of buttons. Check every line against the app.
 - The parent repository is LangQuest v2. Do not import from it.
 
 ## Ask the developer first
