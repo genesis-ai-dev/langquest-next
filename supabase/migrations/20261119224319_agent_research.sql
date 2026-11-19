@@ -28,7 +28,7 @@ create table if not exists ops.research_items (
   action text not null check (action in ('fix', 'ask', 'none')),
   -- The Linear issue filed for a recommended item.
   issue text check (issue is null or issue ~ '^[A-Z]{1,10}-[0-9]{1,7}$'),
-  issue_url text check (issue_url is null or issue_url ~ '^https://linear\.app/[A-Za-z0-9/_.-]{1,300}$'),
+  issue_url text check (issue_url is null or (issue_url ~ '^https://linear\.app/[A-Za-z0-9/_.-]+$' and length(issue_url) <= 320)),
   -- When its issue went to the fix team.
   handed_at timestamptz,
   first_at timestamptz not null default now(),
