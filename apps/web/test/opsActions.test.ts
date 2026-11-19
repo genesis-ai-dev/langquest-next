@@ -33,6 +33,7 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     connectChannel: async (row) => { done.push(`connect ${row.language} ${row.channelId} ${row.title} ${row.refreshToken} by ${row.by} section ${row.section}`); },
     approveTutorials: async (items, by) => { done.push(`approve ${items.length} by ${by}`); return items.length; },
     addNote: async (tutorial, text, by) => { done.push(`note ${tutorial} ${text} by ${by}`); },
+    replyDone: async (id, state, by) => { done.push(`reply ${id} ${state} by ${by}`); return id === REQUEST ? 'ok' : 'not_found'; },
     markQuietAccount: async (profile, ok, by) => { done.push(`quiet ${profile} ${ok} by ${by}`); return profile === QUIET ? (ok ? 'marked' : 'unmarked') : 'not_found'; },
     instruct: async (row, by) => { done.push(`instruct ${JSON.stringify(row)} by ${by}`); return SUGGESTION; },
     decideSuggestion: async (id, decision, detail, reason, by) => {
@@ -306,6 +307,28 @@ describe('feedback on the tutorial videos (decisions.md 186)', () => {
     expect(await act(d, 'aal2', { kind: 'tutorial-note', tutorial: 'record-a-passage', text: 'Says Save, shows Done.' })).toEqual({ ok: true, result: 'noted' });
     expect(d.done).toEqual([`note record-a-passage Says Save, shows Done. by ${VIEWER}`]);
     expect(d.rows).toEqual([{ profileId: VIEWER, action: 'tutorial_note', target: 'record-a-passage', result: 'ok' }]);
+  });
+
+  it('records what became of a comment\'s suggested reply, and posts nothing', async () => {
+    expect(parseAction({ kind: 'tutorial-reply', id: REQUEST.toUpperCase(), done: 'posted' })).toEqual({ kind: 'tutorial-reply', id: REQUEST, done: 'posted' });
+    for (const bad of [{ kind: 'tutorial-reply' }, { kind: 'tutorial-reply', id: 'x', done: 'posted' }, { kind: 'tutorial-reply', id: REQUEST }, { kind: 'tutorial-reply', id: REQUEST, done: 'send' },
+      { kind: 'tutorial-reply', id: REQUEST, done: true }]) {
+      expect(parseAction(bad)).toBeNull();
+    }
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'tutorial-reply', id: REQUEST, done: 'posted' })).toEqual({ ok: true, result: 'posted' });
+    expect(await act(d, 'aal2', { kind: 'tutorial-reply', id: REQUEST, done: 'none' })).toEqual({ ok: true, result: 'none' });
+    expect(await act(d, 'aal2', { kind: 'tutorial-reply', id: REQUEST, done: 'open' })).toEqual({ ok: true, result: 'open' });
+    expect(await act(d, 'aal2', { kind: 'tutorial-reply', id: SUGGESTION, done: 'posted' })).toMatchObject({ ok: false, status: 404 });
+    expect(d.done).toEqual([`reply ${REQUEST} posted by ${VIEWER}`, `reply ${REQUEST} none by ${VIEWER}`, `reply ${REQUEST} open by ${VIEWER}`, `reply ${SUGGESTION} posted by ${VIEWER}`]);
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'reply_posted', target: REQUEST, result: 'ok' }, { profileId: VIEWER, action: 'reply_none', target: REQUEST, result: 'ok' },
+      { profileId: VIEWER, action: 'reply_open', target: REQUEST, result: 'ok' }, { profileId: VIEWER, action: 'reply_posted', target: SUGGESTION, result: 'refused', detail: 'not_found' }
+    ]);
+    // Not a Global Viewer on a verified session: nothing is written.
+    const aal1 = deps();
+    expect(await act(aal1, 'aal1', { kind: 'tutorial-reply', id: REQUEST, done: 'posted' })).toMatchObject({ ok: false, status: 403 });
+    expect(aal1.done).toEqual([]);
   });
 
   it('accepts, edits or rejects a suggestion once, and records each', async () => {

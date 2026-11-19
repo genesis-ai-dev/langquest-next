@@ -238,6 +238,24 @@ do $$ declare v jsonb; n int; note uuid; bug uuid; thanks uuid; s1 uuid; s2 uuid
       jsonb_build_object('kind', 'code', 'tutorial', 'record-a-passage', 'title', 'Save does nothing on Record', 'detail', 'A viewer says Save does nothing.', 'inputs', jsonb_build_array(bug)))));
   assert (r->>'code')::int = 1 and (r->>'looked')::int = 1 and (r->>'suggested')::int = 2 and (r->>'skipped')::int = 1, 'what the look did: %', r;
 
+  -- What became of the suggested reply (migration *_tutorial_reply_done.sql): a person posted it, chose to
+  -- post none, or takes that back. Only a comment with a suggested reply takes an answer.
+  assert public.ops_tutorial_reply_done(bug, 'posted', '0d000000-0000-0000-0000-0000000000aa') = 'ok', 'the reply is marked posted';
+  assert (select reply_done = 'posted' and reply_done_at is not null and reply_done_by = '0d000000-0000-0000-0000-0000000000aa'
+    from ops.tutorial_inputs where id = bug), 'kept with when and who';
+  assert (select x->>'replyDone' from jsonb_array_elements(public.ops_tutorial_review_state()->'inputs') x where (x->>'id')::uuid = bug) = 'posted', 'an input says it';
+  assert public.ops_tutorial_reply_done(bug, 'none', '0d000000-0000-0000-0000-0000000000aa') = 'ok', 'or that none is needed';
+  assert public.ops_tutorial_reply_done(bug, 'open', '0d000000-0000-0000-0000-0000000000aa') = 'ok', 'or taken back';
+  assert (select reply_done is null and reply_done_at is null and reply_done_by is null from ops.tutorial_inputs where id = bug), 'taken back, it waits again';
+  assert public.ops_tutorial_reply_done(thanks, 'posted', '0d000000-0000-0000-0000-0000000000aa') = 'not_found', 'a comment with no suggested reply takes none';
+  assert public.ops_tutorial_reply_done(note, 'posted', '0d000000-0000-0000-0000-0000000000aa') = 'not_found', 'nor does a note';
+  assert public.ops_tutorial_reply_done(gen_random_uuid(), 'none', '0d000000-0000-0000-0000-0000000000aa') = 'not_found', 'nor an id that is not there';
+  begin
+    perform public.ops_tutorial_reply_done(bug, 'deleted', '0d000000-0000-0000-0000-0000000000aa');
+    raise exception 'an answer off the list was taken';
+  exception when invalid_parameter_value then null;
+  end;
+
   v := public.ops_tutorial_review_state();
   assert v->'last'->>'sha' = repeat('1', 40), 'the look is remembered: %', v->'last';
   assert jsonb_array_length(v->'inputs') = 3, 'three inputs wait on the two suggestions (the thanks is done): %', v->'inputs';
@@ -529,6 +547,11 @@ do $$ begin
   exception when insufficient_privilege then null;
   end;
   begin
+    perform public.ops_tutorial_reply_done(gen_random_uuid(), 'posted', gen_random_uuid());
+    raise exception 'authenticated answered for a reply';
+  exception when insufficient_privilege then null;
+  end;
+  begin
     perform diag.ops_tutorial_feedback();
     raise exception 'authenticated read the feedback';
   exception when insufficient_privilege then null;
@@ -551,6 +574,9 @@ do $$ begin
 end $$;
 reset role;
 select public.ops_record_action('0d000000-0000-0000-0000-0000000000aa', 'suggestion_accepted', '0d000000-0000-0000-0000-0000000000bb', 'ok', 'script');
+select public.ops_record_action('0d000000-0000-0000-0000-0000000000aa', 'reply_posted', '0d000000-0000-0000-0000-0000000000bb', 'ok', null);
+select public.ops_record_action('0d000000-0000-0000-0000-0000000000aa', 'reply_none', '0d000000-0000-0000-0000-0000000000bb', 'ok', null);
+select public.ops_record_action('0d000000-0000-0000-0000-0000000000aa', 'reply_open', '0d000000-0000-0000-0000-0000000000bb', 'refused', 'not_found');
 do $$ begin
   assert (select every from diag.job_schedule where job = 'tutorial_comments') = interval '1 day', 'the comments job is on the schedule';
   assert (select every from diag.job_schedule where job = 'tutorial_review') = interval '1 day', 'so is Claude''s look';

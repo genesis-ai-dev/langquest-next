@@ -8,6 +8,7 @@
  */
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
+import { VIDEO_CSS, VIDEO_LOGIC, VIDEO_SCRIPT } from './pageVideos';
 import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
 import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
@@ -204,6 +205,7 @@ ${OVERVIEW_CSS}
 ${FIX_CSS}
 ${LISTS_CSS}
 ${METERS_CSS}
+${VIDEO_CSS}
 </style>
 </head>
 <body>
@@ -948,6 +950,9 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideTip();
 window.addEventListener('scroll', hideTip, { passive: true });
 
 ${OPS_SCRIPT}
+// ---- the Tutorial videos page's tabs, cards' buttons and rows (pageVideos.ts) ----
+${VIDEO_LOGIC}
+${VIDEO_SCRIPT}
 
 // ---- the start page, each section's numbers over a range, and the detail panel (pageStart.ts) ----
 const METRIC = ${JSON.stringify(METRICS).replace(/</g, '\\u003c')};

@@ -71,3 +71,11 @@ also leaves the account out of the watch for user issues (202), and a
 problem on a marked account's phone is still a problem. It changes only this
 count, never an organization's work. The page shows the account's id and no
 name or email, as diagnostics do (38); its Look up opens the account's installs.
+
+Amended (2026-11-19, Caleb Koster): one more kind, `tutorial-reply`: what
+became of the reply Claude suggested for a comment on a tutorial video,
+which a person posts on YouTube themselves (decision 186, amended
+2026-11-19): `posted`, `none` (no reply needed) or `open` (taken back),
+recorded as `reply_posted`, `reply_none` or `reply_open` with the comment's
+input id. It records only; it posts nothing and changes no organization's
+work.

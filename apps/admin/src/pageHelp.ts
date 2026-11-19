@@ -23,7 +23,7 @@ export const GROUP_HELP: Record<string, string> = {
   access: 'Who can see every organization (Global Viewers), limits that refused requests, other apps connected through tokens, device sign-ins, webhooks and review links, and what stops working on a date.',
   stores: 'How the app does in the stores: Android crash and freeze rates as Google Play measures them, App Store review state and builds, and recent reviews.',
   nightly: 'How last night\'s test suites went on main: for each suite, how many tests ran and passed, why a suite broke as a whole, and the Linear issue of each failed test with its fix.',
-  tutorials: 'The how-to videos on YouTube, one channel for each app language. First what an admin must do and what the workers do now and tonight; then every video in a language with its state and a timeline of its films, uploads, comments and fixes; then each channel, the films not on YouTube yet with Publish, and what came in about the videos.',
+  tutorials: 'The how-to videos on YouTube, one channel for each app language. First what waits on an admin, each thing with its buttons; behind the other tabs, what goes on by itself, every video in a language with its state and a timeline of its films, uploads, comments and changes, and the changes Claude made; then each channel, the films not on YouTube yet with Publish, and what came in about the videos.',
 };
 
 /** Each part of a section (one source's answer), on its sub-heading. */
@@ -58,10 +58,10 @@ export const SECTION_HELP: Record<string, string> = {
   appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',
   v2: 'The import from LangQuest v2: each v2 project\'s latest transfer, and whether it finished, stopped part way or failed.',
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
-  videos: 'For an admin: suggestions to accept, edit or reject, fix pull requests to merge, held or failing films to look at, replies to post, films to publish, channels to connect, paused languages. Workers: the filming run now, or the next one at 20:10 UTC, videos a screen change slots for tonight\'s check, fixes Claude writes, comments Claude reads, uploads waiting for YouTube. By video: each video\'s state (the first chip is the most urgent) and what happened to it each day. Point at a mark to read it.',
+  videos: 'Four tabs. Waits on you: each thing an admin must answer, as a card with its buttons (a suggestion to accept or reject, a change Claude could not make, a held or failing film, a reply to post, films to publish, a channel to connect). Automatic: what Claude and the workers do next with no one\'s answer. All videos: each video\'s state and what happened to it each day. Changes made: each change Claude made to a video. The page opens on Waits on you when something does.',
   tutorials: 'Each app language\'s YouTube channel and whether LangQuest may post to it, and every video made that is not on YouTube yet: ready to choose, or chosen and waiting for its turn.',
   userissues: 'One row for each Linear issue the watch filed or added to, open ones first, and one for each problem it found already fixed. Fixed by is the pull request Linear links to the issue, or the newest merge into main that names it.',
-  videofeedback: 'What came in about the videos (comments on YouTube, code changes merged into main, notes left here) and what Claude suggests doing about it each night: a change to a video\'s script, screens or voice, to the app\'s code, or a new video. Answer each suggestion at the ! on its video\'s row, or in For an admin. An accepted change to a video becomes Claude\'s draft pull request; merge it, and the next night films the video again. An accepted code change goes to Linear. Reply to comments in YouTube Studio.'
+  videofeedback: 'What came in about the videos (comments on YouTube, code changes merged into main, notes left here) and what Claude suggests doing about it each night: a change to a video\'s script, screens or voice, to the app\'s code, or a new video. Answer each suggestion under Waits on you, or on its video\'s row under All videos. An accepted change to a video becomes Claude\'s draft pull request; merge it, and the next night films the video again. An accepted code change goes to Linear. Reply to comments in YouTube Studio.'
 };
 
 export const HELP: Record<string, string> = {
@@ -228,6 +228,13 @@ export const HELP: Record<string, string> = {
   'New this week': 'Credentials made this week.',
 
   // ---- tutorial videos
+  'Waits on you': 'Each thing an admin must answer, most urgent first, in every app language. A card leaves when it is answered.',
+  Automatic: 'What goes on with no answer from anyone: what Claude looks at next, and the workers\' jobs now and tonight. An admin may still tell Claude what to do on a card here.',
+  'All videos': 'Every video in one app language: its state, its newest film and why it was made, and a timeline of what happened to it.',
+  'Changes made': 'Each change Claude made to a video in the last 30 days, with who said yes (Claude for a clear fix, an admin, or an admin\'s instruction), its state and its pull request.',
+  'Claude acts next': 'Things Claude looks at by itself at its next run: a held or failing film, a new comment, a changed screen. To skip that wait, tell Claude what to do on the card.',
+  'Jobs, now and tonight': 'The filming run now, or the next one at 20:10 UTC; videos a screen change slots for tonight\'s check; changes Claude writes; comments Claude reads at 10:00 UTC; films that wait for YouTube\'s daily limit.',
+  'The marks': 'Each mark on a timeline is one thing that happened to the video that day. Point at a mark to read what and when; click it for the details, the films before and after, and the links.',
   'languages done': 'App languages whose filming job finished: every video tried, and those that changed filmed and put in the release.',
   'languages filming now': 'App languages whose job runs now. Five run at once; under each, the step it is on.',
   'languages waiting': 'App languages waiting their turn: five film at once.',
