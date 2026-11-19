@@ -1,7 +1,7 @@
 import { t } from '../src/i18n';
 import { syncSummary } from '../src/account/model';
 import { offlineCount } from '../src/account/meModel';
-import { downloadsLine, foldsOpenAtFirst, joined, meSyncLine, readyLine, refusedLine, stripLink, uploadsLine } from '../src/sync/syncScreenModel';
+import { downloadsLine, foldsOpenAtFirst, installBlock, joined, meSyncLine, readyLine, refusedLine, stripLink, uploadsLine } from '../src/sync/syncScreenModel';
 
 /**
  * Sync and offline (docs/decisions/2026-11-18-sync-and-offline-one-screen.md). Why these tests: the
@@ -44,12 +44,30 @@ describe('each fold\'s line', () => {
     const some = { kept: 14, ready: 12 };
     expect(readyLine(all, null)).toEqual({ line: offlineCount(all), tone: null });
     expect(readyLine(some, null)).toEqual({ line: offlineCount(some), tone: 'amber' });
-    expect(readyLine(all, 'got')).toEqual({ line: joined(offlineCount(all), t('nearby.installFile.gotShort')), tone: null });
+    expect(readyLine(all, 'ready')).toEqual({ line: joined(offlineCount(all), t('nearby.installFile.readyShort')), tone: null });
     expect(readyLine(all, 'not-got')).toEqual({ line: joined(offlineCount(all), t('nearby.installFile.notGot')), tone: 'amber' });
     expect(readyLine(some, 'older').tone).toBe('amber');
+    // Downloaded is not in hand: the file is still to choose, so the line stays amber.
+    expect(readyLine(all, 'downloaded')).toEqual({ line: joined(offlineCount(all), t('nearby.installFile.notChosen')), tone: 'amber' });
     // Nothing kept is nothing to finish, and an unread count is not a problem yet.
     expect(readyLine({ kept: 0, ready: 0 }, null).tone).toBeNull();
     expect(readyLine(null, null).tone).toBeNull();
+  });
+
+  it('says of the install file only what is so, and offers the step that is next', () => {
+    // Why: the item said "Got" for a press that only opened the browser, and told a carrier with a
+    // kept copy to delete "this file" without saying which (Carl, 2026-11-19).
+    expect(installBlock('not-got', true, false)).toEqual({ good: false, body: t('nearby.installFile.lineHelp'), way: 'get' });
+    expect(installBlock('older', true, false)).toEqual({ good: false, body: t('nearby.installFile.old'), way: 'get' });
+    // Getting it needs the internet; choosing a file already downloaded does not.
+    expect(installBlock('not-got', true, true).way).toBe('offline');
+    expect(installBlock('older', true, true).way).toBe('offline');
+    expect(installBlock('downloaded', true, false)).toEqual({ good: false, body: t('nearby.installFile.downloaded'), way: 'choose' });
+    expect(installBlock('downloaded', true, true).way).toBe('choose');
+    expect(installBlock('ready', true, false)).toEqual({ good: true, body: t('nearby.installFile.ready'), way: null });
+    // A phone that keeps no copy has one file, in Downloads: only there is it told when to delete it.
+    expect(installBlock('ready', false, false).body).toContain(t('nearby.letIn.fileHelp'));
+    expect(installBlock('ready', true, false).body).not.toContain(t('nearby.letIn.fileHelp'));
   });
 
   it('counts what the server refused', () => {

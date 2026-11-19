@@ -427,12 +427,14 @@ member taps once after both compare two pictures.
   passes it on by Quick Share, SD card, USB or Give the app (below); the app never downloads or
   installs an APK, and `REQUEST_INSTALL_PACKAGES` stays out of it. Carried builds use the alpha
   track, as drafts.
-- **Finding and checking the file** (decision 246, amended 2026-11-09). Get the install file,
-  a screen opened from Share nearby and Let someone in, opens that address in the phone's own
-  browser; the app makes no request to it. It remembers the name of the file last opened, in one row on the phone holding only that
-  name (no person, organization or time), to say when the file is for an older version. Check
-  my file opens Android's system file picker through `expo-document-picker`, Expo's module for
-  it, and checks the chosen file's name. Since 2026-11-18 (docs/nearby-sync-plan.md 14.5), a
+- **Finding and checking the file** (decision 246, amended 2026-11-09 and 2026-11-19). Download
+  the install file (Get the install file until 2026-11-19), a screen opened from Share nearby,
+  Let someone in and Sync, opens that address in the phone's own browser; the app makes no
+  request to it. It remembers two names, each in one row on the phone holding only that name
+  (no person, organization or time): the file last opened, to say when it is for an older
+  version, and since 2026-11-19 the file last found right, to say when one is in hand. Neither
+  leaves the phone. Choosing a file opens Android's system file picker through
+  `expo-document-picker`, Expo's module for it, and checks the chosen file's name. Since 2026-11-18 (docs/nearby-sync-plan.md 14.5), a
   right one is also copied into the app's own storage and read on the phone, to keep it only if
   it is this app's own: its package name and signing certificates are compared with the running
   app's (`PackageManager.getPackageArchiveInfo`). Nothing about the file is sent to our server or

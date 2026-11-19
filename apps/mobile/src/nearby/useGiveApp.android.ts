@@ -169,5 +169,7 @@ export function useGiveApp(): GiveAppHandle {
     openSettings: () => { openNearbySettings().catch((e: unknown) => noteExpected('give app: settings', e)); }
   }), [start, halt]);
   const stage = giveStage({ kept: apk.kept, started: running, step, status: giving ? status : null, ended, failed });
-  return useMemo(() => ({ stage, giving, kept: apk.kept, canGive, worn, actions }), [stage, giving, apk.kept, canGive, worn, actions]);
+  // A build with no native module at all is one an update mends, as one that lacks these functions is.
+  const whyNot = canGive ? null : apk.cannotGive ?? 'update';
+  return useMemo(() => ({ stage, giving, kept: apk.kept, canGive, cannotGive: whyNot, worn, actions }), [stage, giving, apk.kept, canGive, whyNot, worn, actions]);
 }
