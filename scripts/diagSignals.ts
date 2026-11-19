@@ -61,14 +61,14 @@ export interface InstallSummary {
 /** One Share nearby room as it stopped (docs/nearby-sync-plan.md section 11): why, its codes and counts. */
 export interface NearbyRoom {
   at: string; stop: string; code?: string | null; adv?: string | null; direct?: string | null; hotspot?: string | null;
-  ms?: number; levelMs?: number; heard?: number; echoed?: number; maybe?: number; taps?: number; maxUnmatched?: number;
+  ms?: number; levelMs?: number; heard?: number; echoed?: number; alone?: number; maybe?: number; taps?: number; maxUnmatched?: number;
   pipeFails?: number; strangers?: number; busy?: number; noAnswer?: number; sessions?: number; done?: number;
 }
 
 /** What an install's Share nearby recorded over the window (`diag.install_summary`'s `nearby`). Counts and codes, never who. */
 export interface NearbySummary {
   rooms?: NearbyRoom[] | null;
-  roomTotals?: Partial<Record<'ms' | 'heard' | 'echoed' | 'maybe' | 'taps' | 'pipeFails' | 'strangers' | 'busy' | 'noAnswer' | 'sessions' | 'done', number>> | null;
+  roomTotals?: Partial<Record<'ms' | 'heard' | 'echoed' | 'alone' | 'maybe' | 'taps' | 'pipeFails' | 'strangers' | 'busy' | 'noAnswer' | 'sessions' | 'done', number>> | null;
   sessionTotals?: Partial<Record<'count' | 'ms' | 'fallbacks' | 'events' | 'sent' | 'files' | 'served' | 'fileFails' | 'refused' | 'overBudget'
     | 'keyRefused' | 'farAhead' | 'noRoom' | 'cutBackups' | 'older' | 'clockOff' | 'newerApp', number>> | null;
   /** `end` or `end:bye`. */
@@ -222,9 +222,14 @@ export function nearbySignals(x: NearbySummary | null | undefined): { level: Sig
   const times = (n: number) => (n === 1 ? 'once' : `${n} times`);
   for (const [why, n] of Object.entries(x.blocked ?? {})) add('problem', `Share nearby could not run ${times(n)}: ${BLOCKED[why] ?? why}.`);
   const rooms = x.rooms ?? [];
-  const deaf = rooms.filter((r) => !r.heard);
+  // A bare advert heard alone (an iPhone's) is someone heard too: `heard` counts only full matches (2026-11-19).
+  const deaf = rooms.filter((r) => !r.heard && !r.alone);
   if (deaf.length) {
     add('problem', `Share nearby ran ${deaf.length} time${deaf.length === 1 ? '' : 's'} and heard no teammate's phone (stopped ${[...new Set(deaf.map((r) => r.stop))].join(', ')}): nobody else had it open on this language, or this phone's scan hears nothing (Bluetooth, a maker that holds back scan results, the scan limit).`);
+  }
+  const leftEarly = rooms.filter((r) => (r.alone ?? 0) > 0 && !r.heard && !r.maybe && !r.sessions);
+  if (leftEarly.length) {
+    add('watch', `Share nearby heard another iPhone by its advert alone in ${leftEarly.length} room${leftEarly.length === 1 ? '' : 's'} but closed before Connect was offered: two iPhones connect only by a tap, offered after a short while (tapAfterAloneMs).`);
   }
   if (rooms.some((r) => r.adv === 'no')) add('problem', `This phone cannot advertise over Bluetooth LE: teammates never hear it, and it meets only phones that can (plan section 11).`);
   const unechoed = rooms.filter((r) => (r.heard ?? 0) > 0 && !r.echoed);
