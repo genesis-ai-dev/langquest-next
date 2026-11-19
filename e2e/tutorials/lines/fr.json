@@ -550,8 +550,6 @@
  "Tap Work to go back to your work.": "Touchez Travail pour retourner à votre travail.",
  "Now you are ready. The next videos show how to translate a passage, and how to check one.": "Maintenant, vous êtes prêt. Les prochaines vidéos montrent comment traduire un passage, et comment en vérifier un.",
  "Each language in LangQuest chooses how its passages are checked. So the path of a passage is not the same in every language.": "Chaque langue dans LangQuest choisit comment ses passages sont vérifiés. Le chemin d'un passage n'est donc pas le même dans toutes les langues.",
- "This team translates into Lumari.": "Cette équipe traduit en Lumari.",
- "For Lumari, the team chose these checks: a peer check with a back translation, then the community, then a consultant, then the final approval.": "Pour le Lumari, l'équipe a choisi ces vérifications : une vérification par les pairs avec une traduction inverse, ensuite la communauté, ensuite un consultant, ensuite l'approbation finale.",
  "Another language can choose fewer checks.": "Une autre langue peut choisir moins de vérifications.",
  "Or no checks. In that case, a passage is done once it is recorded.": "Ou aucune vérification. Dans ce cas, un passage est terminé dès qu'il est enregistré.",
  "Or other checks, in a different order. A team can also make its own set.": "Ou d'autres vérifications, dans un ordre différent. Une équipe peut aussi créer sa propre série.",
@@ -564,5 +562,7 @@
  "And this passage has every check that Lumari chose.": "Et ce passage a toutes les vérifications que le Lumari a choisies.",
  "After the last check, the passage is done.": "Après la dernière vérification, le passage est terminé.",
  "That is the path of a passage in Lumari. In your language, your team chooses the checks. The next videos show each part, step by step.": "C'est le chemin d'un passage en Lumari. Dans votre langue, votre équipe choisit les vérifications. Les vidéos suivantes montrent chaque partie, étape par étape.",
- "A passage follows the path its language chose.": "Un passage suit le chemin que sa langue a choisi."
+ "A passage follows the path its language chose.": "Un passage suit le chemin que sa langue a choisi.",
+ "This team translates into Lumari. Here are the checks it chose.": "Cette équipe traduit en Lumari. Voici les vérifications qu'elle a choisies.",
+ "A peer check with a back translation, then the community, then a consultant, then the final approval.": "Une vérification par les pairs avec une traduction inverse, ensuite la communauté, ensuite un consultant, ensuite l'approbation finale."
 }

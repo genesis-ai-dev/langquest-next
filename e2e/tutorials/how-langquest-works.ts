@@ -127,7 +127,9 @@ export const howLangQuestWorks: Tutorial = {
     },
     {
       screen: 'flows_home',
-      part: (page) => button(page, 'Edit').locator('..'),
+      // The card itself, not Edit's row in it: in French and Spanish the card's name takes four lines, the card is
+      // then over a third of the screen, and the light stayed on Edit's row (the frame check held both films).
+      part: (page) => button(page, 'Edit').locator('../..'),
       say: 'A ready-made set of checks is in place.'
     },
     {
@@ -189,7 +191,7 @@ export const howLangQuestWorks: Tutorial = {
     },
     {
       screen: 'passage_record',
-      part: (page) => [button(page, /^1\. Record/), button(page, /^2\. Done/)],
+      // Nothing lit: Record and Done lit as one box cut the player's handle, which stands at the box's left edge.
       say: 'A translator studies the passage, records it, and finishes it.'
     },
     {

@@ -550,8 +550,6 @@
  "Tap Work to go back to your work.": "သင့်အလုပ်ဆီ ပြန်သွားဖို့ အလုပ် ကို နှိပ်ပါ။",
  "Now you are ready. The next videos show how to translate a passage, and how to check one.": "အခု သင် အသင့်ဖြစ်ပါပြီ။ နောက်ဗီဒီယိုတွေမှာ ကျမ်းပိုဒ်တစ်ခုကို ဘယ်လို ဘာသာပြန်ရမလဲ ဆိုတာနဲ့ ဘယ်လို စစ်ဆေးရမလဲ ဆိုတာကို ပြထားပါတယ်။",
  "Each language in LangQuest chooses how its passages are checked. So the path of a passage is not the same in every language.": "LangQuest ရှိ ဘာသာစကားတိုင်းက ၎င်း၏ ကျမ်းပိုဒ်များကို ဘယ်လိုစစ်ဆေးမလဲဆိုတာကို ရွေးချယ်ပါတယ်။ ဒါကြောင့် ကျမ်းပိုဒ် တစ်ခုရဲ့ လမ်းကြောင်းက ဘာသာစကားတိုင်းမှာ မတူညီပါဘူး။",
- "This team translates into Lumari.": "ဒီအဖွဲ့က Lumari ဘာသာစကားသို့ ဘာသာပြန်ပါတယ်။",
- "For Lumari, the team chose these checks: a peer check with a back translation, then the community, then a consultant, then the final approval.": "Lumari အတွက်၊ အဖွဲ့က ဤစစ်ဆေးမှုများကို ရွေးချယ်ခဲ့ပါတယ်- နောက်ပြန်ဘာသာပြန်ခြင်းပါဝင်တဲ့ လုပ်ဖော်ကိုင်ဖက် စစ်ဆေးခြင်း၊ ထို့နောက် အသိုင်းအဝိုင်း၊ ထို့နောက် အကြံပေးပုဂ္ဂိုလ်၊ ထို့နောက် အပြီးသတ် အတည်ပြုချက် တို့ဖြစ်ပါတယ်။",
  "Another language can choose fewer checks.": "အခြား ဘာသာစကား က စစ်ဆေးမှု ပိုနည်းအောင် ရွေးချယ်နိုင်ပါတယ်။",
  "Or no checks. In that case, a passage is done once it is recorded.": "ဒါမှမဟုတ် ဘာစစ်ဆေးမှုမှ မရှိတာလည်း ဖြစ်နိုင်ပါတယ်။ အဲဒီလိုဆိုရင်တော့ ကျမ်းပိုဒ်ကို အသံသွင်းပြီးတာနဲ့ ပြီးသွားပါပြီ။",
  "Or other checks, in a different order. A team can also make its own set.": "ဒါမှမဟုတ် မတူညီတဲ့ အစီအစဉ်နဲ့ တခြား စစ်ဆေးမှုတွေပါ။ အဖွဲ့တစ်ခုက သူတို့ရဲ့ ကိုယ်ပိုင် စစ်ဆေးမှုအစုအဝေးကိုလည်း ဖန်တီးနိုင်ပါတယ်။",
@@ -564,5 +562,7 @@
  "And this passage has every check that Lumari chose.": "ပြီးတော့ ဒီ ကျမ်းပိုဒ် မှာ Lumari ရွေးချယ်ထားတဲ့ စစ်ဆေးမှုတိုင်း ပါဝင်ပါတယ်။",
  "After the last check, the passage is done.": "နောက်ဆုံး စစ်ဆေးမှုပြီးနောက်၊ ကျမ်းပိုဒ် ပြီးစီးသွားပါပြီ။",
  "That is the path of a passage in Lumari. In your language, your team chooses the checks. The next videos show each part, step by step.": "အဲဒါက Lumari မှာရှိတဲ့ ကျမ်းပိုဒ် တစ်ခုရဲ့ လမ်းကြောင်းဖြစ်ပါတယ်။ သင့်ဘာသာစကားမှာတော့ သင့်အဖွဲ့က စစ်ဆေးမှုတွေကို ရွေးချယ်ရမှာပါ။ နောက်ဗီဒီယိုတွေက အပိုင်းတစ်ခုချင်းစီကို အဆင့်ဆင့် ပြသသွားမှာပါ။",
- "A passage follows the path its language chose.": "ကျမ်းပိုဒ်တစ်ခုဟာ သူ့ဘာသာစကားက ရွေးချယ်ထားတဲ့ လမ်းကြောင်းအတိုင်း သွားပါတယ်။"
+ "A passage follows the path its language chose.": "ကျမ်းပိုဒ်တစ်ခုဟာ သူ့ဘာသာစကားက ရွေးချယ်ထားတဲ့ လမ်းကြောင်းအတိုင်း သွားပါတယ်။",
+ "This team translates into Lumari. Here are the checks it chose.": "ဒီအဖွဲ့က Lumari ဘာသာစကားသို့ ဘာသာပြန်ပါတယ်။ ဒါတွေကတော့ သူတို့ ရွေးချယ်ထားတဲ့ စစ်ဆေးမှုတွေပါ။",
+ "A peer check with a back translation, then the community, then a consultant, then the final approval.": "နောက်ပြန် ဘာသာပြန်ဆိုချက်နဲ့ အချင်းချင်း စစ်ဆေးခြင်း၊ ထို့နောက် အသိုင်းအဝိုင်း၊ ထို့နောက် အကြံပေးပုဂ္ဂိုလ်၊ ထို့နောက် နောက်ဆုံး အတည်ပြုချက်။"
 }

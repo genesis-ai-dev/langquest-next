@@ -550,8 +550,6 @@
  "Tap Work to go back to your work.": "आफ्नो काममा फर्कन काम थिच्नुहोस्।",
  "Now you are ready. The next videos show how to translate a passage, and how to check one.": "अब तपाईं तयार हुनुहुन्छ। अर्का भिडियोहरूले खण्ड कसरी अनुवाद गर्ने, र कसरी जाँच गर्ने भनेर देखाउँछन्।",
  "Each language in LangQuest chooses how its passages are checked. So the path of a passage is not the same in every language.": "ल्याङ्गक्वेस्टमा हरेक भाषाले आफ्ना खण्डहरू कसरी जाँच गरिन्छन् भनेर रोज्छ। त्यसैले खण्डको बाटो सबै भाषामा एउटै हुँदैन।",
- "This team translates into Lumari.": "यो टोलीले लुमारीमा अनुवाद गर्छ।",
- "For Lumari, the team chose these checks: a peer check with a back translation, then the community, then a consultant, then the final approval.": "लुमारीका लागि, टोलीले यी जाँचहरू रोजेको छ: ब्याक ट्रान्सलेसनसहित सहकर्मी जाँच, त्यसपछि समुदाय, त्यसपछि परामर्शदाता, र त्यसपछि अन्तिम स्वीकृति।",
  "Another language can choose fewer checks.": "अर्को भाषाले थोरै जाँचहरू रोज्न सक्छ।",
  "Or no checks. In that case, a passage is done once it is recorded.": "वा कुनै जाँच नहुन सक्छ। त्यस्तो अवस्थामा, खण्ड रेकर्ड भएपछि सकिन्छ।",
  "Or other checks, in a different order. A team can also make its own set.": "वा फरक क्रममा अन्य जाँचहरू रोज्न सक्छ। टोलीले आफ्नै सेट पनि बनाउन सक्छ।",
@@ -564,5 +562,7 @@
  "And this passage has every check that Lumari chose.": "र यो खण्डमा लुमारीले रोजेका सबै जाँचहरू छन्।",
  "After the last check, the passage is done.": "अन्तिम जाँचपछि, खण्ड सकिन्छ।",
  "That is the path of a passage in Lumari. In your language, your team chooses the checks. The next videos show each part, step by step.": "लुमारीमा एउटा खण्डको बाटो यही हो। तपाईंको भाषामा, तपाईंको टोलीले जाँचहरू रोज्छ। अब आउने भिडियोहरूले हरेक भाग चरण-दर-चरण देखाउनेछन्।",
- "A passage follows the path its language chose.": "एउटा खण्डले आफ्नो भाषाले रोजेको बाटो पछ्याउँछ।"
+ "A passage follows the path its language chose.": "एउटा खण्डले आफ्नो भाषाले रोजेको बाटो पछ्याउँछ।",
+ "This team translates into Lumari. Here are the checks it chose.": "यो टोलीले लुमारीमा अनुवाद गर्छ। यसले छानेका जाँचहरू यहाँ छन्।",
+ "A peer check with a back translation, then the community, then a consultant, then the final approval.": "उल्टो अनुवादसहित सहकर्मी जाँच, त्यसपछि समुदाय, त्यसपछि परामर्शदाता, त्यसपछि अन्तिम स्वीकृति।"
 }

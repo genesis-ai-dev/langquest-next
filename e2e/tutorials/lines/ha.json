@@ -550,8 +550,6 @@
  "Tap Work to go back to your work.": "Ku taɓa Aiki don komawa kan aikinku.",
  "Now you are ready. The next videos show how to translate a passage, and how to check one.": "Yanzu kun shirya. Bidiyoyi na gaba za su nuna yadda ake fassara nassi, da kuma yadda ake duba shi.",
  "Each language in LangQuest chooses how its passages are checked. So the path of a passage is not the same in every language.": "Kowane harshe a LangQuest yana zaɓar yadda ake duba nassosinsa. Don haka hanyar nassi ba ɗaya ba ce a kowane harshe.",
- "This team translates into Lumari.": "Wannan ƙungiya tana fassara zuwa Lumari.",
- "For Lumari, the team chose these checks: a peer check with a back translation, then the community, then a consultant, then the final approval.": "Don Lumari, ƙungiyar ta zaɓi waɗannan matakan dubawa: dubawar abokan aiki tare da mayar da fassara, sannan al'umma, sannan masani, sannan amincewa ta ƙarshe.",
  "Another language can choose fewer checks.": "Wani harshe zai iya zaɓar dubawa kaɗan.",
  "Or no checks. In that case, a passage is done once it is recorded.": "Ko kuma babu dubawa. Idan haka ne, an gama nassi da zarar an naɗa shi.",
  "Or other checks, in a different order. A team can also make its own set.": "Ko wasu dubawar a tsari daban. Ƙungiya kuma za ta iya yin tsarinta.",
@@ -564,5 +562,7 @@
  "And this passage has every check that Lumari chose.": "Kuma wannan nassin yana da kowace dubawa da Lumari ya zaɓa.",
  "After the last check, the passage is done.": "Bayan dubawa ta ƙarshe, an gama nassin.",
  "That is the path of a passage in Lumari. In your language, your team chooses the checks. The next videos show each part, step by step.": "Wannan ita ce hanyar nassi a Lumari. A naku harshen, ƙungiyarku ce take zaɓar matakan dubawar. Bidiyoyi na gaba za su nuna kowane sashe, daki-daki.",
- "A passage follows the path its language chose.": "Nassi yana bin hanyar da harshensa ya zaɓa."
+ "A passage follows the path its language chose.": "Nassi yana bin hanyar da harshensa ya zaɓa.",
+ "This team translates into Lumari. Here are the checks it chose.": "Wannan ƙungiya tana fassara zuwa Lumari. Ga dubawar da ta zaɓa.",
+ "A peer check with a back translation, then the community, then a consultant, then the final approval.": "Dubawar abokin aiki tare da fassarar baya, sannan al'umma, sannan mai ba da shawara, sannan amincewa ta ƙarshe."
 }
