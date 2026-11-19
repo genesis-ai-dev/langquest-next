@@ -62,10 +62,10 @@ export function cloudflareAlerts(cf: Cloudflare): Alert[] {
   const out: Alert[] = [];
   for (const w of cf.workers) {
     if (w.lastBuild?.outcome === 'fail') {
-      out.push({ level: 'problem', text: `The latest Workers Build of ${w.name} failed${w.lastBuild.commit ? ` (commit ${w.lastBuild.commit.slice(0, 8)})` : ''}, so main is not deployed there.` });
+      out.push({ level: 'problem', key: 'worker-build-failed', subject: w.name, text: `The latest Workers Build of ${w.name} failed${w.lastBuild.commit ? ` (commit ${w.lastBuild.commit.slice(0, 8)})` : ''}, so main is not deployed there.` });
     }
     if (w.requests >= 100 && w.errorRate !== null && w.errorRate >= 0.01) {
-      out.push({ level: w.errorRate >= 0.05 ? 'problem' : 'watch', text: `${w.name}: ${(w.errorRate * 100).toFixed(1)}% of ${w.requests.toLocaleString('en')} requests failed in the last day (${Object.entries(w.statuses).filter(([s]) => s !== 'success' && s !== 'clientDisconnected').map(([s, n]) => `${s} ${n}`).join(', ')}).` });
+      out.push({ level: w.errorRate >= 0.05 ? 'problem' : 'watch', key: 'worker-errors', subject: w.name, text: `${w.name}: ${(w.errorRate * 100).toFixed(1)}% of ${w.requests.toLocaleString('en')} requests failed in the last day (${Object.entries(w.statuses).filter(([s]) => s !== 'success' && s !== 'clientDisconnected').map(([s, n]) => `${s} ${n}`).join(', ')}).` });
     }
   }
   return out;

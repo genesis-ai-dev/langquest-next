@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { InteractionManager } from 'react-native';
 import { useNetworkState } from 'expo-network';
 import { keepHelpAudio } from './helpAudio';
 import { isUnmetered } from './networkModel';
+import { whenIdle } from '../ui/whenIdle';
 
 /**
  * Help speaks offline too: keep the recorded help lines of the app's language
@@ -17,7 +17,6 @@ export function useKeepHelpAudio(settled: boolean): void {
   const go = settled && isUnmetered(type);
   useEffect(() => {
     if (!go) return;
-    const task = InteractionManager.runAfterInteractions(() => { void keepHelpAudio(); });
-    return () => task.cancel();
+    return whenIdle(() => { void keepHelpAudio(); });
   }, [go]);
 }

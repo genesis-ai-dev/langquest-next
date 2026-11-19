@@ -4,9 +4,10 @@
 // The EAS workflow on main passes the merge commit's time to its build jobs
 // as LQ_STORE_VERSION_TIME, and the version is that time in UTC as
 // year.monthday.hourminute (2026-10-22T18:30:00Z is 2026.1022.1830), which
-// only grows. Every other build keeps app.json's version. The fingerprint
-// leaves the version out (fingerprint.config.js), so a new version number
-// never needs a rebuild by itself.
+// only grows; the Sync screen reads the time back from it (storeVersionTime,
+// src/shell/updateStatus.ts). Every other build keeps app.json's version.
+// The fingerprint leaves the version out (fingerprint.config.js), so a new
+// version number never needs a rebuild by itself.
 
 /** The store version for an ISO time, or null when there is none. */
 function storeVersion(time) {

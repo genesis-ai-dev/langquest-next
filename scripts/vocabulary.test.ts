@@ -29,6 +29,9 @@ const ALLOWED: { path: string; words: RegExp; why: string }[] = [
   { path: 'supabase/migrations/20261006000001_schedule_projections.sql', words: /^partition$/i, why: 'unscheduling the job by its old name' },
   { path: 'supabase/migrations/20261106120000_snapshot_window_and_copies.sql', words: /^partition$/i, why: 'SQL window clauses (partition by)' },
   { path: 'supabase/migrations/20261104120000_snapshot_purge.sql', words: /^partition$/i, why: 'SQL window clauses (partition by)' },
+  { path: 'supabase/migrations/20261117060000_diag_daily.sql', words: /^partition$/i, why: 'SQL window clauses (partition by)' },
+  { path: 'supabase/migrations/20261118234300_first_download_wait.sql', words: /^partition$/i, why: 'SQL window clauses (partition by), in diag.daily_compute restated' },
+  { path: 'supabase/migrations/20261119192147_sign_in_trouble.sql', words: /^partition$/i, why: 'SQL window clauses (partition by), in diag.daily_compute restated' },
   { path: 'supabase/migrations/20261009000000_languoids.sql', words: /^(partition|projects)$/i, why: 'SQL window clauses (partition by), and the v2 projects whose languages it keeps' },
   { path: 'packages/sync/src/sqliteStore.ts', words: /^lane$/i, why: 'dropping a table older apps made' },
   { path: 'server/delete-account-smoke.sql', words: /^projects$/, why: "v2_import.arrivals' column of v2 projects" }

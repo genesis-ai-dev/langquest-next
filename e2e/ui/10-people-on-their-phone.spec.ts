@@ -26,9 +26,17 @@ test.afterEach(async ({ page }, info) => {
 test('PEOPLE-045 A member\'s new role reaches their phone', async ({ page, browser }) => {
   const w = world();
   const tom = w.accounts.TRANS.name;
-  const trans = await deviceAs(browser, w, 'TRANS');
+  const trans = await deviceAs(browser, w, 'TRANS', { before: installMicControl });
   await expect(tab(trans.page, 'work')).toBeVisible({ timeout: 60_000 });
   expect(await tabsShown(trans.page)).toEqual(['work', 'map', 'me']);
+  // TRANS records on this phone, so there is something of theirs on its record to keep. The events
+  // the seed wrote are not a stand-in: CI's snapshot worker cuts Alpha every minute, and a phone
+  // opened after a cut starts from it and stores none of the events before it (decision 88; LAN-247).
+  await openWorkspace(trans.page, w, 'P-NEW');
+  await recordParts(trans.page, 1);
+  const recorded = (await deviceEvents(trans.page, w.orgId, w.languages.A.languageId)).length;
+  expect(recorded).toBeGreaterThan(0);
+  await toTabs(trans.page);
 
   await openAs(page, w, 'ADMIN');
   await alphaMembers(page, w);
@@ -42,7 +50,8 @@ test('PEOPLE-045 A member\'s new role reaches their phone', async ({ page, brows
   await expect.poll(() => tabsShown(trans.page), { timeout: 60_000 }).toEqual(['map', 'inbox', 'me']);
   // What TRANS recorded stays on the record.
   const rows = await deviceEvents(trans.page, w.orgId, w.languages.A.languageId);
-  expect(rows.filter((r) => r.type === 'v1.VersionPublished' || r.type === 'v1.TakeComposed').length).toBeGreaterThan(0);
+  expect(rows.length).toBeGreaterThanOrEqual(recorded);
+  expect(rows.some((r) => r.type === 'v1.TakeComposed')).toBe(true);
 
   // No toast offers Undo (decision 134): TRANS's role is given back the same way it was changed.
   await text(page, tom).click();
@@ -92,10 +101,9 @@ test('PEOPLE-046 A removed member\'s next sync is refused, and they are told', a
   // The header's sync icon says it in its name ("Not syncing, 2 to send").
   await expect(button(p, /^Not syncing/)).toBeVisible({ timeout: 60_000 });
   await tab(p, 'me').click();
-  await expect(text(p, 'This account cannot sync · password, notifications, account')).toBeVisible();
-  await text(p, 'More settings').click();
+  // Me's Sync and offline row says so (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
   await expect(text(p, 'This account cannot sync this organization')).toBeVisible();
-  await text(p, 'Sync').click();
+  await text(p, 'Sync and offline').click();
   await expect(text(p, 'The server refused this account for this organization.')).toBeVisible();
   // The recording stays on the device, counted, not dropped: still waiting, or kept as refused with the server's reason (SYNC, refused work).
   const mine = (await deviceEvents(p, w.orgId, w.languages.A.languageId)).filter((r) => r.status !== 'confirmed');

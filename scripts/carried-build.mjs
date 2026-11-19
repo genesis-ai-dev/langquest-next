@@ -1,0 +1,561 @@
+// The carried build (docs/nearby-sync-plan.md 14.4): an APK a teammate
+// carries to a phone that has no internet or no Play Store, holding the
+// team's latest JavaScript. A merge into main that changes REDUCER_VERSION,
+// LINES_VERSION, the nearby protocol range or the Android fingerprint makes
+// one; other merges do not need one. The file's name holds those versions
+// alone (core `carriedApkName`, which the Worker's /apk/* route and Let
+// someone in use too), so asking for that name answers whether one is due:
+// EAS clones only the latest commit, so this cannot diff. Once a day, the
+// refresh makes one too when the file under that name holds other app code
+// than main (`appHash`, recorded with each file), and replaces it under the
+// same name, so a newcomer gets at most a day-old app rather than the one
+// from the last version change (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
+//
+//   npx tsx scripts/carried-build.mjs --check [--refresh] --fingerprint <android fingerprint>
+//       prints true when no file of that name is in the APK bucket (a build
+//       is due), false when it is there; a failed publish is retried by the
+//       next merge this way. With --refresh, also true when the file there
+//       holds other app code than this checkout
+//   npx tsx scripts/carried-build.mjs --publish --version-code <n> --fingerprint <hash> --build-fingerprint <hash> [--dry-run]
+//       asks Google Play for the Play-signed universal APK of that version
+//       code (Android Publisher `generatedApks`), checks it (an APK, and
+//       without Play's automatic protection), puts it in the APK bucket under
+//       its name with the app code it holds, replacing a file there that holds
+//       other app code under a lower version code, and records it as current
+//
+// It runs under tsx, since it takes the versions and the name from core's
+// TypeScript. The EAS workflows run it (.eas/workflows/deploy-to-testers.yml,
+// the carried_* jobs, apart from the store build's jobs, so its failure never
+// holds up publish_android_update; and .eas/workflows/refresh-carried.yml,
+// once a day).
+//
+// It fails closed. A missing bucket setting or key, a fingerprint that is not
+// the build's, an answer from Google or the bucket that is not what it
+// expects, or an APK holding Play's automatic protection exits non-zero with
+// a plain message, before anything is written.
+// It never prints a key.
+//
+// What it reads, from EAS's production environment (docs/environments.md,
+// "The carried build"): PLAY_REVIEW_KEY, the Play service account key that
+// play-review.mjs uses, for GET requests only; APK_R2_ACCESS_KEY_ID and
+// APK_R2_SECRET_ACCESS_KEY, the S3 credentials of an R2 token limited to the
+// APK bucket. The bucket's name and the account come from
+// apps/web/wrangler.jsonc (the APKS binding), so the Worker and this script
+// read one bucket.
+import { createHash, createHmac } from 'node:crypto';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { inflateRawSync } from 'node:zlib';
+import { CARRIED_APK_VERSION_CODE, LINES_VERSION, NEARBY_PROTOCOL, REDUCER_VERSION, carriedApkName } from '@langquest-next/core';
+import { parseJsonc, root, wranglerFor } from './env-files.mjs';
+import { API, PACKAGE, TOKEN_URL, assertion, playKey } from './play-review.mjs';
+
+/** The Worker binding that serves carried builds (apps/web/wrangler.jsonc). */
+export const BINDING = 'APKS';
+/** Where this script records which carried build is current. Not an APK's name, so the route never serves it. */
+export const CURRENT = 'current.json';
+export const APK_TYPE = 'application/vnd.android.package-archive';
+/** An APK smaller than this is not the app; larger than that is not one either. */
+export const MIN_BYTES = 1 << 20;
+export const MAX_BYTES = 1 << 30;
+/** How long Play may take to make the APKs of a bundle just uploaded: tries, a minute apart. */
+export const TRIES = 15;
+const CONFIG = 'apps/web/wrangler.jsonc';
+
+/** A refusal: the plain message the job prints before it exits non-zero, having changed nothing. */
+export class Refusal extends Error {}
+
+/** The versions this checkout's core holds. */
+export const VERSIONS = { reducer: REDUCER_VERSION, lines: LINES_VERSION, protocol: NEARBY_PROTOCOL };
+
+/** The custom metadata key that records which app code a carried file holds (`appHash`). */
+export const APP_HASH_META = 'app-hash';
+
+/**
+ * What a phone build's JavaScript and assets are made from: the app's own code, its config, the
+ * packages it bundles and the lockfile. A file anywhere under these counts, so a change that does
+ * not reach the bundle can make one refresh too many in a day, never one too few. Tests, scripts
+ * and the web's own pages are left out, as deploy-to-testers' paths filter leaves out what never
+ * ships. Native code is here only because it sits beside its JavaScript in `modules`: a native
+ * change moves the fingerprint, which names a new file anyway.
+ */
+export const APP_PATHS = [
+  'apps/mobile/src', 'apps/mobile/assets', 'apps/mobile/modules', 'apps/mobile/plugins', 'apps/mobile/locales',
+  'apps/mobile/index.ts', 'apps/mobile/App.tsx', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/metro.config.js',
+  'apps/mobile/package.json', 'packages/core/src', 'packages/core/package.json', 'packages/sync/src', 'packages/sync/package.json',
+  'package.json', 'package-lock.json'
+];
+/** Folders a build or a local run leaves under APP_PATHS that git does not hold. */
+const NOT_SOURCE = new Set(['node_modules', 'build', '.gradle', '.cxx', '.build', 'Pods', '.expo']);
+
+/**
+ * Which app code this checkout holds: a SHA-256 over every file under APP_PATHS, each by its path
+ * and bytes, in a fixed order, cut to 32 hex digits. EAS clones only the latest commit, so it is
+ * read from the files, not from git. A path the checkout lacks counts as empty.
+ */
+export function appHash(base = root) {
+  const files = [];
+  const walk = (rel) => {
+    let st;
+    try {
+      st = statSync(join(base, rel));
+    } catch {
+      return;
+    }
+    if (st.isDirectory()) {
+      for (const name of readdirSync(join(base, rel)).sort()) if (!NOT_SOURCE.has(name)) walk(`${rel}/${name}`);
+    } else if (st.isFile()) files.push(rel);
+  };
+  for (const path of APP_PATHS) walk(path);
+  const hash = createHash('sha256');
+  for (const rel of files.sort()) {
+    const bytes = readFileSync(join(base, rel));
+    hash.update(`${rel}\0${bytes.length}\0`);
+    hash.update(bytes);
+  }
+  return hash.digest('hex').slice(0, 32);
+}
+
+/** The file name for this checkout's versions and an Android fingerprint; a refusal for a fingerprint that is not one. */
+export function fileName(fingerprint, versions = VERSIONS) {
+  const name = typeof fingerprint === 'string' ? carriedApkName({ ...versions, fingerprint }) : null;
+  if (!name) throw new Refusal(`"${fingerprint ?? ''}" is not an Android fingerprint (the fingerprint job's android_fingerprint_hash), so no carried build's name can be made`);
+  return name;
+}
+
+/**
+ * The APK bucket: its name and account from the Worker's config, its
+ * credentials from the environment. A refusal while any is missing.
+ */
+export function bucketConfig(env, config = parseJsonc(readFileSync(join(root, CONFIG), 'utf8'))) {
+  const bucket = (wranglerFor(config, 'production').r2_buckets ?? []).find((b) => b.binding === BINDING)?.bucket_name;
+  const account = config.account_id;
+  const accessKeyId = env.APK_R2_ACCESS_KEY_ID?.trim();
+  const secretAccessKey = env.APK_R2_SECRET_ACCESS_KEY?.trim();
+  const missing = [
+    !bucket && `the ${BINDING} binding in ${CONFIG}`, !account && `account_id in ${CONFIG}`,
+    !accessKeyId && 'APK_R2_ACCESS_KEY_ID', !secretAccessKey && 'APK_R2_SECRET_ACCESS_KEY'
+  ].filter(Boolean);
+  if (missing.length) {
+    throw new Refusal(`the APK bucket is not configured (no ${missing.join(', ')}). A person creates the bucket and its token and applies them (docs/environments.md, "The carried build"); until then no carried build is checked or published`);
+  }
+  return { endpoint: `https://${account}.r2.cloudflarestorage.com`, bucket, accessKeyId, secretAccessKey };
+}
+
+const sha256 = (data) => createHash('sha256').update(data).digest('hex');
+const hmac = (key, text) => createHmac('sha256', key).update(text).digest();
+/** RFC 3986 encoding, as Signature Version 4 asks (encodeURIComponent leaves !'()* alone). */
+const encode = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+
+/**
+ * The headers that sign a request to R2's S3 API with Signature Version 4
+ * (region `auto`, as R2 asks). `headers` are the request's own; `host`,
+ * `x-amz-date` and `x-amz-content-sha256` are added and signed.
+ */
+export function signV4({ method, url, headers = {}, payloadHash, accessKeyId, secretAccessKey, region = 'auto', service = 's3', now = new Date() }) {
+  const u = new URL(url);
+  const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const day = amzDate.slice(0, 8);
+  const all = Object.fromEntries([
+    ...Object.entries(headers).map(([k, v]) => [k.toLowerCase(), String(v).trim()]),
+    ['host', u.host], ['x-amz-content-sha256', payloadHash], ['x-amz-date', amzDate]
+  ]);
+  const names = Object.keys(all).sort();
+  const path = u.pathname.split('/').map((seg) => encode(decodeURIComponent(seg))).join('/');
+  const query = [...u.searchParams].map(([k, v]) => [encode(k), encode(v)]).sort(([a, x], [b, y]) => (a === b ? (x < y ? -1 : 1) : a < b ? -1 : 1))
+    .map(([k, v]) => `${k}=${v}`).join('&');
+  const request = [method, path, query, names.map((n) => `${n}:${all[n]}\n`).join(''), names.join(';'), payloadHash].join('\n');
+  const scope = `${day}/${region}/${service}/aws4_request`;
+  const toSign = ['AWS4-HMAC-SHA256', amzDate, scope, sha256(request)].join('\n');
+  const key = hmac(hmac(hmac(hmac(`AWS4${secretAccessKey}`, day), region), service), 'aws4_request');
+  const signature = createHmac('sha256', key).update(toSign).digest('hex');
+  const { host: _host, ...sent } = all;
+  return { ...sent, authorization: `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${scope}, SignedHeaders=${names.join(';')}, Signature=${signature}` };
+}
+
+/** R2's own words for a refusal (`<Code>AccessDenied</Code>`), never the request's headers. */
+async function s3Code(res) {
+  return /<Code>([^<]{1,64})<\/Code>/.exec(await res.text().catch(() => ''))?.[1] ?? '';
+}
+
+/** The APK bucket through R2's S3 API: head, get and put, each refusing any answer it does not expect. */
+export function bucketClient(config, { fetch: fetchImpl = fetch, now = () => new Date() } = {}) {
+  const call = (method, key, { body, headers = {} } = {}) => {
+    const url = `${config.endpoint}/${encode(config.bucket)}/${key.split('/').map(encode).join('/')}`;
+    const payloadHash = body ? sha256(body) : sha256('');
+    const signed = signV4({ method, url, headers, payloadHash, accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey, now: now() });
+    return fetchImpl(url, { method, headers: signed, body, signal: AbortSignal.timeout(method === 'PUT' ? 600_000 : 30_000) });
+  };
+  const refuse = async (what, res) => new Refusal(`the APK bucket answered ${res.status}${(await s3Code(res)).replace(/^./, ' $&')} to ${what}, so nothing more was done`);
+  return {
+    /** The object's size and the metadata this script writes (null where absent), or null when the bucket has no such name. */
+    async head(key) {
+      const res = await call('HEAD', key);
+      if (res.status === 404) return null;
+      if (res.status !== 200) throw await refuse(`HEAD ${key}`, res);
+      const size = Number(res.headers.get('content-length'));
+      if (!Number.isSafeInteger(size)) throw new Refusal(`the APK bucket gave no size for ${key}`);
+      const code = Number(res.headers.get(`x-amz-meta-${CARRIED_APK_VERSION_CODE}`));
+      return { size, versionCode: Number.isSafeInteger(code) && code > 0 ? code : null, appHash: res.headers.get(`x-amz-meta-${APP_HASH_META}`) };
+    },
+    /** The object's text, or null when the bucket has no such name. */
+    async getText(key) {
+      const res = await call('GET', key);
+      if (res.status === 404) return null;
+      if (res.status !== 200) throw await refuse(`GET ${key}`, res);
+      return res.text();
+    },
+    async put(key, body, contentType, extra = {}) {
+      const res = await call('PUT', key, { body, headers: { 'content-type': contentType, ...extra } });
+      if (res.status !== 200) throw await refuse(`PUT ${key}`, res);
+    }
+  };
+}
+
+/** Google Play's API for this app, read-only: JSON answers and file downloads, each a refusal on any other status. */
+export async function playReader(key, { fetch: fetchImpl = fetch, now = Date.now } = {}) {
+  const res = await fetchImpl(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: assertion(key, now()) }).toString(),
+    signal: AbortSignal.timeout(30_000)
+  });
+  if (!res.ok) throw new Refusal(`Google refused the Play key (${res.status})`);
+  const token = (await res.json().catch(() => null))?.access_token;
+  if (typeof token !== 'string' || !token) throw new Refusal('Google answered the Play key with no access token');
+  const get = (path) => fetchImpl(`${API}/${PACKAGE}${path}`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(600_000) });
+  return {
+    /** The JSON at a path, `{ status }` alone for a 404 (not there yet), a refusal for anything else. */
+    async json(path) {
+      const answer = await get(path);
+      if (answer.status === 404) return { status: 404 };
+      if (!answer.ok) throw new Refusal(`Google Play answered ${answer.status} to GET ${path}`);
+      const body = await answer.json().catch(() => undefined);
+      if (!body || typeof body !== 'object') throw new Refusal(`Google Play's answer to GET ${path} is not JSON`);
+      return { status: answer.status, body };
+    },
+    async bytes(path) {
+      const answer = await get(path);
+      if (!answer.ok) throw new Refusal(`Google Play answered ${answer.status} to GET ${path}`);
+      return new Uint8Array(await answer.arrayBuffer());
+    }
+  };
+}
+
+/**
+ * The longest download id taken. Google documents the id only as an opaque
+ * string, so this is a bound on what to put in a URL, not Google's limit.
+ */
+export const MAX_DOWNLOAD_ID = 4096;
+
+/** One to MAX_DOWNLOAD_ID characters, none of them whitespace, control or otherwise unprintable (Unicode's "Other"). */
+const DOWNLOAD_ID = new RegExp(`^[^\\s\\p{C}]{1,${MAX_DOWNLOAD_ID}}$`, 'u');
+
+const codePoint = (c) => `U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`;
+/**
+ * Kinds of character a refusal names, each character counted in the first
+ * that matches. Those with `list` also say which ones they saw: punctuation
+ * as itself, the rest as code points, so the log stays one plain line.
+ */
+const CHARACTER_KINDS = [
+  { name: 'letters', test: /[A-Za-z]/ },
+  { name: 'digits', test: /[0-9]/ },
+  { name: 'punctuation', test: /[!-~]/, list: (c) => c },
+  { name: 'whitespace', test: /\s/u, list: codePoint },
+  { name: 'control or unprintable characters', test: /\p{C}/u, list: codePoint },
+  { name: 'non-ASCII characters', test: /./su }
+];
+const typeOf = (value) => (value === null ? 'null' : Array.isArray(value) ? 'a list' : typeof value === 'object' ? 'an object' : `a ${typeof value}`);
+
+/**
+ * What a value from Google looks like without saying what it is: its type,
+ * its length and the kinds of characters in it. A refusal says this, so the
+ * job's log shows what Google sent and never holds the download id.
+ */
+function shape(value) {
+  if (typeof value !== 'string') return `${typeOf(value)}, not a string`;
+  if (!value) return 'an empty string';
+  const chars = [...value];
+  const seen = new Map();
+  for (const c of chars) {
+    const kind = CHARACTER_KINDS.find((k) => k.test.test(c));
+    seen.set(kind, (seen.get(kind) ?? new Set()).add(c));
+  }
+  const kinds = CHARACTER_KINDS.filter((k) => seen.has(k)).map((k) => {
+    if (!k.list) return k.name;
+    const which = [...seen.get(k)].sort((a, b) => a.codePointAt(0) - b.codePointAt(0)).map(k.list);
+    return `${k.name} ${which.slice(0, 12).join(' ')}${which.length > 12 ? ` and ${which.length - 12} more` : ''}`;
+  });
+  return `a string of ${chars.length} characters${chars.length > MAX_DOWNLOAD_ID ? `, more than ${MAX_DOWNLOAD_ID}` : ''}: ${kinds.join(', ')}`;
+}
+
+/**
+ * The download id of the one Play-signed universal APK in a `generatedApks`
+ * answer; null while Play has not made it yet (no entry, no universal APK,
+ * or a universal APK with no download id); a refusal for any answer that is
+ * not one entry with one universal APK. More than one entry means more than
+ * one signing key, and which to carry is a person's choice.
+ *
+ * Google documents the id only as an opaque string, with no set of
+ * characters, so any printable characters are taken (`/`, `+`, `=`, `:` and
+ * the like too); `publish` percent-encodes it into the download's path, as
+ * Google's own client libraries do. An id that is not a string, is empty, is
+ * longer than MAX_DOWNLOAD_ID or has whitespace, control or other unprintable
+ * characters is refused, with its shape and never the id itself.
+ */
+export function universalApk(body) {
+  const list = body?.generatedApks;
+  if (list === undefined || (Array.isArray(list) && list.length === 0)) return null;
+  if (!Array.isArray(list)) throw new Refusal('Google Play\'s generatedApks answer has no list of APKs');
+  if (list.length !== 1) throw new Refusal(`Google Play's generatedApks answer has ${list.length} signing keys, not one, so which APK to carry is a person's choice`);
+  const universal = list[0]?.generatedUniversalApk;
+  if (universal === undefined) return null;
+  if (!universal || typeof universal !== 'object' || Array.isArray(universal)) throw new Refusal(`Google Play's universal APK is ${typeOf(universal)}, not an object`);
+  const id = universal.downloadId;
+  if (id === undefined) return null;
+  if (typeof id !== 'string' || !DOWNLOAD_ID.test(id)) throw new Refusal(`Google Play's universal APK has a download id this script cannot use: ${shape(id)}`);
+  return id;
+}
+
+const unreadable = (why) => new Refusal(`the APK Google Play gave cannot be read as a zip (${why}), so whether Play's automatic protection is in it is not known`);
+
+/**
+ * The entries of a zip, from its central directory: name, compression
+ * method, sizes and where each one's local header is. A refusal for a zip
+ * this script cannot read, such as a ZIP64 one (an APK is under MAX_BYTES).
+ */
+export function zipEntries(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let end = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 0xffff); i--) {
+    if (view.getUint32(i, true) === 0x06054b50) {
+      end = i;
+      break;
+    }
+  }
+  if (end < 0) throw unreadable('it has no end of central directory');
+  const count = view.getUint16(end + 10, true);
+  const size = view.getUint32(end + 12, true);
+  let at = view.getUint32(end + 16, true);
+  if (count === 0xffff || at === 0xffffffff || at + size > end) throw unreadable('its central directory is not one this script reads');
+  const names = new TextDecoder();
+  const entries = [];
+  for (let n = 1; n <= count; n++) {
+    if (at + 46 > end || view.getUint32(at, true) !== 0x02014b50) throw unreadable(`entry ${n} of ${count} is not where its directory says`);
+    const nameLength = view.getUint16(at + 28, true);
+    entries.push({
+      name: names.decode(bytes.subarray(at + 46, at + 46 + nameLength)),
+      method: view.getUint16(at + 10, true),
+      compressedSize: view.getUint32(at + 20, true),
+      size: view.getUint32(at + 24, true),
+      offset: view.getUint32(at + 42, true)
+    });
+    at += 46 + nameLength + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
+  }
+  return entries;
+}
+
+/** One entry's bytes, inflated if they are deflated; a refusal for any it cannot read. */
+function entryBytes(bytes, entry) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (entry.offset + 30 > bytes.length || view.getUint32(entry.offset, true) !== 0x04034b50) throw unreadable(`${entry.name} is not where its directory says`);
+  const start = entry.offset + 30 + view.getUint16(entry.offset + 26, true) + view.getUint16(entry.offset + 28, true);
+  const data = bytes.subarray(start, start + entry.compressedSize);
+  if (data.length !== entry.compressedSize) throw unreadable(`${entry.name} runs past the end of the file`);
+  if (entry.method === 0) return Buffer.from(data.buffer, data.byteOffset, data.length);
+  if (entry.method !== 8) throw unreadable(`${entry.name} is compressed with method ${entry.method}`);
+  try {
+    return inflateRawSync(data, { maxOutputLength: Math.max(1, entry.size) });
+  } catch {
+    throw unreadable(`${entry.name} does not inflate to its size`);
+  }
+}
+
+/**
+ * What Play's automatic protection (PairIP) puts in an APK, as bytes to look
+ * for: its package as the manifest names it (a binary manifest keeps its
+ * strings in UTF-16 or UTF-8) and as compiled code spells it. Its installer
+ * check, the part this app had, is `com.pairip.licensecheck.LicenseActivity`,
+ * which sends an app installed from a file to the Play Store and closes it
+ * (docs/decisions/2026-11-18-play-protection-off-for-carried-builds.md).
+ */
+const PROTECTION = [Buffer.from('com.pairip', 'utf16le'), Buffer.from('com.pairip', 'utf8'), Buffer.from('com/pairip/', 'utf8')];
+
+/**
+ * Where an APK holds Play's automatic protection, as a few words for a
+ * refusal, or null when it does not. It looks at the files' names (its
+ * native library, `libpairipcore.so`, comes with anti-tamper), the manifest
+ * and the code (`classes*.dex`). An APK with no manifest, or one it cannot
+ * read, is a refusal: not knowing is not a pass.
+ */
+export function protection(bytes) {
+  let entries;
+  try {
+    entries = zipEntries(bytes);
+  } catch (err) {
+    if (err instanceof Refusal) throw err;
+    throw unreadable('its directory runs past the end of the file');
+  }
+  const named = entries.find((e) => /pairip/i.test(e.name));
+  if (named) return `it holds ${named.name}`;
+  const manifests = entries.filter((e) => e.name === 'AndroidManifest.xml');
+  if (manifests.length !== 1) throw unreadable(manifests.length ? 'it has more than one AndroidManifest.xml' : 'it has no AndroidManifest.xml');
+  for (const entry of [...manifests, ...entries.filter((e) => /^classes\d*\.dex$/.test(e.name))]) {
+    const data = entryBytes(bytes, entry);
+    if (PROTECTION.some((mark) => data.includes(mark))) return `its ${entry.name} names com.pairip`;
+  }
+  return null;
+}
+
+/**
+ * Whether these bytes are an APK a carrier can install from a file: a zip of
+ * a believable size, with a manifest, and without Play's automatic
+ * protection, whose installer check would send the new phone to the Play
+ * Store, which it may not have or cannot reach.
+ */
+export function checkApk(bytes) {
+  if (bytes.length < MIN_BYTES || bytes.length > MAX_BYTES) throw new Refusal(`the APK Google Play gave is ${bytes.length} bytes, outside ${MIN_BYTES} to ${MAX_BYTES}`);
+  if (!(bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04)) throw new Refusal('the file Google Play gave is not a zip, so not an APK');
+  const found = protection(bytes);
+  if (found) {
+    throw new Refusal(`the APK Google Play gave has Play's automatic protection in it (${found}): installed from a file, it opens the Play Store and closes, so it is not carried. A person turns automatic protection off in Play Console, and the next merge makes the carried build again (docs/environments.md, "The carried build")`);
+  }
+}
+
+/**
+ * Whether a carried build is due: true when the bucket has no file of this build's name, and with
+ * `refresh` also when the file there holds other app code than this checkout (`appHash`); a file
+ * written before the app code was recorded counts as other, so it is refreshed once.
+ */
+export async function check({ fingerprint, refresh = false, env = process.env, fetch: fetchImpl = fetch, log = console.error, config, versions = VERSIONS, hash }) {
+  const name = fileName(fingerprint, versions);
+  const bucket = bucketClient(bucketConfig(env, config), { fetch: fetchImpl });
+  const there = await bucket.head(name);
+  if (!there) {
+    log(`due: ${name} is not in the APK bucket, so a carried build is due.`);
+    return { due: true, name };
+  }
+  if (refresh && there.appHash !== (hash ?? appHash())) {
+    log(`due: ${name} is in the APK bucket, but it holds other app code than this checkout${there.appHash ? '' : ' (it was written before the app code was recorded)'}, so a fresh one is due.`);
+    return { due: true, name };
+  }
+  log(`none: ${name} is in the APK bucket${refresh ? ' and holds this checkout\'s app code' : ''}, so no carried build is due.`);
+  return { due: false, name };
+}
+
+const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+/**
+ * Puts the carried build of a version code in the APK bucket. Everything
+ * that could refuse is asked first: the arguments, the bucket's settings,
+ * the key, Google's answer, the file and what is recorded as current. Only
+ * then is anything written: the APK under its name, then `current.json`.
+ */
+export async function publish({
+  versionCode, fingerprint, buildFingerprint, env = process.env, fetch: fetchImpl = fetch, log = console.log, dryRun = false,
+  config, versions = VERSIONS, tries = TRIES, sleep = wait, now = () => new Date(), hash
+}) {
+  const code = Number(versionCode);
+  if (!/^\d{1,10}$/.test(String(versionCode ?? '')) || !Number.isSafeInteger(code) || code < 1) {
+    throw new Refusal(`"${versionCode ?? ''}" is not a version code (the build job's app_build_version)`);
+  }
+  const name = fileName(fingerprint, versions);
+  if (typeof buildFingerprint !== 'string' || buildFingerprint.toLowerCase() !== String(fingerprint).toLowerCase()) {
+    throw new Refusal(`the carried build's fingerprint "${buildFingerprint ?? ''}" is not the one the check named (${fingerprint}), so the file's name would not match what phones on it ask for`);
+  }
+  const bucket = bucketClient(bucketConfig(env, config), { fetch: fetchImpl });
+  const key = playKey(env);
+  if (!key) throw new Refusal('no Google Play key (PLAY_REVIEW_KEY is not in EAS\'s production environment), so the carried build\'s APK cannot be fetched');
+  const play = await playReader(key, { fetch: fetchImpl });
+
+  let downloadId = null;
+  for (let i = 1; downloadId === null; i++) {
+    const answer = await play.json(`/generatedApks/${code}`);
+    downloadId = answer.status === 404 ? null : universalApk(answer.body);
+    if (downloadId !== null) break;
+    if (i >= tries) throw new Refusal(`Google Play has no universal APK for version code ${code} after ${tries} tries; the next merge that needs one tries again`);
+    log(`Google Play has not made the APKs of version code ${code} yet; trying again in a minute (${i} of ${tries}).`);
+    await sleep(60_000);
+  }
+  // The id is opaque and may hold `/`, `+`, `=` or `:`, so it is percent-encoded into one path segment, as Google's client libraries do.
+  const bytes = await play.bytes(`/generatedApks/${code}/downloads/${encodeURIComponent(downloadId)}:download?alt=media`);
+  checkApk(bytes);
+  const digest = sha256(bytes);
+
+  const currentText = await bucket.getText(CURRENT);
+  let current = null;
+  if (currentText !== null) {
+    try {
+      current = JSON.parse(currentText);
+    } catch {
+      current = undefined;
+    }
+    if (!current || !Number.isSafeInteger(current.versionCode)) throw new Refusal(`${CURRENT} in the APK bucket is not what this script writes, so a person looks at it first`);
+  }
+  const app = hash ?? appHash();
+  const already = await bucket.head(name);
+  const record = { name, versionCode: code, fingerprint: String(fingerprint).toLowerCase(), ...versions, sha256: digest, bytes: bytes.length, publishedAt: now().toISOString() };
+  // A file there with this app code was published with its own record, and this build's sha256 and size describe other bytes,
+  // so it stays. One holding other app code is replaced (the daily refresh), but never by a build older than it: two runs racing
+  // leave the newer file.
+  const replaces = !!already && already.appHash !== app && (already.versionCode ?? 0) < code;
+  const writes = !already || replaces;
+  const moves = writes && (!current || current.versionCode < code);
+  if (dryRun) {
+    log(`dry run: would ${replaces ? 'replace' : already ? 'leave' : 'put'} ${name} (${bytes.length} bytes, sha256 ${digest}) in the APK bucket${moves ? `, and record version code ${code} as current` : ''}.`);
+    return { name, record, wrote: false };
+  }
+  if (!writes) log(`${name} is in the APK bucket already${already.appHash === app ? ' with this app code' : ' from a newer build'}; it and the current record are left as they are.`);
+  else {
+    // The version code goes with the file, so the Worker can send a phone whose own build has no file to the newest for its
+    // versions, and the app code, so the daily refresh can tell whether main has moved on.
+    await bucket.put(name, bytes, APK_TYPE, {
+      'content-disposition': `attachment; filename="${name}"`, [`x-amz-meta-${CARRIED_APK_VERSION_CODE}`]: String(code), [`x-amz-meta-${APP_HASH_META}`]: app
+    });
+    const stored = await bucket.head(name);
+    if (stored?.size !== bytes.length) throw new Refusal(`the APK bucket holds ${stored?.size ?? 'nothing'} bytes under ${name}, not ${bytes.length}`);
+    log(`${name} is in the APK bucket${replaces ? `, replaced: it held version code ${already.versionCode ?? 'unknown'} with other app code` : ''}: version code ${code}, ${bytes.length} bytes, sha256 ${digest}.`);
+  }
+  if (moves) {
+    await bucket.put(CURRENT, JSON.stringify(record, null, 2), 'application/json');
+    log(`Version code ${code} is the current carried build.`);
+  } else if (writes) {
+    log(`Version code ${current.versionCode} stays the current carried build, as it is newer than ${code}.`);
+  }
+  return { name, record, wrote: true };
+}
+
+/** The value after a flag, or undefined. */
+function flag(args, name) {
+  const i = args.indexOf(name);
+  return i >= 0 ? args[i + 1] : undefined;
+}
+
+/** One run from the command line: 0, or 1 with a plain message. `--check` prints true or false alone on stdout. */
+export async function run(args, { env = process.env, fetch: fetchImpl = fetch, out = (s) => process.stdout.write(`${s}\n`), log = console.error, config } = {}) {
+  try {
+    if (args.includes('--check')) {
+      const { due } = await check({ fingerprint: flag(args, '--fingerprint'), refresh: args.includes('--refresh'), env, fetch: fetchImpl, log, config });
+      out(String(due));
+      return 0;
+    }
+    if (args.includes('--publish')) {
+      await publish({
+        versionCode: flag(args, '--version-code'), fingerprint: flag(args, '--fingerprint'), buildFingerprint: flag(args, '--build-fingerprint'),
+        env, fetch: fetchImpl, log, dryRun: args.includes('--dry-run'), config
+      });
+      return 0;
+    }
+    log('usage: npx tsx scripts/carried-build.mjs --check [--refresh] --fingerprint <hash> | --publish --version-code <n> --fingerprint <hash> --build-fingerprint <hash> [--dry-run]');
+    return 2;
+  } catch (err) {
+    // A refusal is a plain sentence; anything else (a network failure) is said as briefly, never with a request's headers.
+    log(`no carried build: ${err instanceof Refusal ? err.message : `${err?.name ?? 'Error'}: ${err?.message ?? err}`}.`);
+    return 1;
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  run(process.argv.slice(2)).then((code) => { process.exitCode = code; });
+}

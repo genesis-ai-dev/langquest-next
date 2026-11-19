@@ -9,7 +9,7 @@ import { ownsResponse } from '../worker/securityHeaders';
 
 const config = parseJsonc(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8')) as {
   assets: { run_worker_first: string[] };
-  services?: { binding: string; service: string }[];
+  services?: { binding: string; service: string; entrypoint?: string }[];
   env: { preview: { services?: unknown } };
 };
 
@@ -28,7 +28,10 @@ describe('the ops dashboard on the app host', () => {
   });
 
   it('binds the admin Worker in production only', () => {
-    expect(config.services).toEqual([{ binding: 'OPS', service: 'langquest-next-admin' }]);
+    expect(config.services).toEqual([
+      { binding: 'OPS', service: 'langquest-next-admin' },
+      { binding: 'OPS_LINES', service: 'langquest-next-admin', entrypoint: 'OpsLines' }
+    ]);
     expect(config.env.preview.services).toBeUndefined();
   });
 

@@ -22,16 +22,19 @@ tags:
     id: "tab-map"
 - tapOn: "Luke.*"
 # Kept (asked of TRANS) and downloaded: each row's download button, and its spoken label, say so.
-- scrollUntilVisible:
-    element: "${P_NEW}\\..*"
-    direction: DOWN
-    timeout: 60000
+- runFlow:
+    file: ../common/show-passage.yaml
+    env:
+      ROW: "${P_NEW}\\..*"
 - extendedWaitUntil:
     visible: "${P_NEW}\\..*On this device.*"
     timeout: 180000
-- scrollUntilVisible:
-    element: "${P_Q4}\\..*On this device.*"
-    direction: DOWN
+- runFlow:
+    file: ../common/show-passage.yaml
+    env:
+      ROW: "${P_Q4}\\..*"
+- extendedWaitUntil:
+    visible: "${P_Q4}\\..*On this device.*"
     timeout: 180000
 
 # VIEW keeps nothing at first.
@@ -47,10 +50,10 @@ tags:
     timeout: 60000
 - tapOn: "Alpha:.*"
 - tapOn: "Luke.*"
-- scrollUntilVisible:
-    element: "${P_DONE}\\..*"
-    direction: DOWN
-    timeout: 60000
+- runFlow:
+    file: ../common/show-passage.yaml
+    env:
+      ROW: "${P_DONE}\\..*"
 - assertVisible: "${P_DONE}\\..*Audio not kept on this device.*"
 - tapOn:
     text: "${P_DONE}\\..*"
@@ -66,7 +69,10 @@ tags:
     timeout: 180000
 - tapOn:
     id: "header-back"
-- scrollUntilVisible:
-    element: "${P_DONE}\\..*On this device.*"
-    direction: DOWN
+- runFlow:
+    file: ../common/show-passage.yaml
+    env:
+      ROW: "${P_DONE}\\..*"
+- extendedWaitUntil:
+    visible: "${P_DONE}\\..*On this device.*"
     timeout: 180000

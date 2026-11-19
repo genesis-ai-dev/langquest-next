@@ -1,5 +1,6 @@
 import {
-  AFTER, deadRun, entrypointFor, exitCodeOf, HEAP_LIMIT_MB, heartbeat, HEARTBEAT_MS, isJobKey, JOB_TICK, jobEnv, JOBS, jobsDue, stillOwesWholeRead, STOPPED_EARLY
+  AFTER, deadRun, entrypointFor, exitCodeOf, HEAP_LIMIT_MB, heartbeat, HEARTBEAT_MS, isJobKey, JOB_TICK, jobEnv, JOBS, jobsDue, refusedStart, retryAt,
+  START_RETRY_MS, START_TRIES, stillOwesWholeRead, STOPPED_EARLY
 } from '../worker/jobsModel';
 
 /**
@@ -48,8 +49,12 @@ describe('job runner', () => {
     expect(jobsDue(Date.UTC(2026, 9, 19, 23, 40))).toEqual([{ key: 'projection' }]);
     expect(JOBS['tutorial-publish']).toMatchObject({ job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 });
     expect(JOBS['tutorial-intake']).toMatchObject({ job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 });
-    // The day's comments on the videos, after the publish job (decision 186).
-    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 50))).toEqual([{ key: 'projection' }, { key: 'tutorial-comments' }]);
+    // The day's comments on the videos, first as YouTube's day begins, before the intake and the uploads after it use
+    // up the day's units (decision 186, amended 2026-11-13: read at 23:50 UTC, 4 to 9 November found none left).
+    expect(jobsDue(Date.UTC(2026, 9, 19, 7, 0))).toEqual([{ key: 'projection' }, { key: 'v2-import' }, { key: 'tutorial-comments' }]);
+    expect(jobsDue(Date.UTC(2026, 10, 2, 8, 0))).toEqual([{ key: 'projection' }, { key: 'v2-import' }, { key: 'tutorial-comments' }]);
+    expect(jobsDue(Date.UTC(2026, 10, 2, 7, 0))).toEqual([{ key: 'projection' }, { key: 'v2-import' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 50))).toEqual([{ key: 'projection' }]);
     expect(JOBS['tutorial-comments']).toMatchObject({ job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['fold-canary']).toMatchObject({ job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['blob-reconcile']).toMatchObject({ job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 });
@@ -199,6 +204,21 @@ describe('job runner', () => {
     for (const exit of [137, 143, 255, null]) {
       expect(deadRun('projection', mark, exit, 5_000)?.errorClass).toMatch(/^[A-Za-z0-9_.:#/-]{1,80}$/);
     }
+  });
+
+  it('tries a refused start again five minutes on, for an hour, and names the platform\'s limit in its row', () => {
+    // Why: 2026-11-19 08:07 UTC, the Worker's log: "Maximum number of running container instances exceeded.
+    // Try again later, or try configuring a higher value for max_instances". Nothing tried again.
+    expect(START_RETRY_MS).toBe(5 * 60_000);
+    expect(retryAt(1, 1_000)).toBe(1_000 + START_RETRY_MS);
+    expect(retryAt(START_TRIES - 1, 1_000)).toBe(1_000 + START_RETRY_MS);
+    expect(retryAt(START_TRIES, 1_000)).toBeNull();
+    const refused = new Error('Maximum number of running container instances exceeded. Try again later, or try configuring a higher value for max_instances');
+    expect(refusedStart('tutorial-publish', 1_000, 12_000, refused))
+      .toEqual({ job: 'tutorial_publish', startedAt: 1_000, ms: 11_000, outcome: 'error', errorClass: 'start:max_instances' });
+    expect(refusedStart('projection', 1_000, 1_500, new Error('something else')).errorClass).toBe('start:failed');
+    expect(refusedStart('projection', 1_000, 1_500, 'not an error').errorClass).toBe('start:failed');
+    for (const e of [refused, new Error('x'), null]) expect(refusedStart('projection', 1, 2, e).errorClass).toMatch(/^[A-Za-z0-9_.:#/-]{1,80}$/);
   });
 
   it('names only the jobs the image has bundles for', () => {

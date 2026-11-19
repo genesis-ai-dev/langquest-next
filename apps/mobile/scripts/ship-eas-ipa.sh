@@ -53,7 +53,9 @@ fi
 [[ -n "${ALTOOL_APP_SPECIFIC_PASSWORD:-}" ]] || die "ALTOOL_APP_SPECIFIC_PASSWORD is not set"
 command -v xcrun >/dev/null || die "xcrun not found; install Xcode and run xcode-select --switch"
 
-EAS=(npx --yes eas-cli@latest)
+# The repository's eas-cli, the version every other script uses, not whatever
+# npx finds as latest that day.
+EAS=("$APP_DIR/../../node_modules/.bin/eas")
 
 # eas-cli has no `submit:cancel`, so cancelling goes through the GraphQL API
 # with the session the CLI already holds.

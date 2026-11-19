@@ -21,7 +21,9 @@ file and PLAN.md disagree, PLAN.md wins; fix this file.
    `passage.ts`, never stored.
 4. The device **materializes on append**, pushes pending events from the
    outbox, and pulls the stream's tail by `serverSeq` cursor. Sync status is a
-   column on the events table (`pending | confirmed | rejected`).
+   column on the events table (`pending | confirmed | rejected | nearby`;
+   `nearby` is a teammate's row from their phone that the server has not
+   confirmed: folded, never pushed, decisions.md 212).
 5. **Audio is immutable and content-addressed**; blobs sync independently of the
    events that reference them.
 
@@ -35,7 +37,7 @@ Ask these in order. If an answer is "no", redesign before writing code.
 - **Which merge shape?** Pick from the shapes already in the catalog: once,
   grow-only set (earliest wins where there is a tie), register keyed by an
   explicit tuple (later HLC wins, parent pointer for stale detection), add-wins
-  flag or undo. A new merge shape needs a `docs/decisions.md` entry.
+  flag or undo. A new merge shape needs a decision (a file in `docs/decisions/`).
 - **Does the reducer case write only its own registers?** A case that reads
   existing state to decide what to write breaks order independence (the
   `MemberRemoved` bug in PLAN.md section 6). Derive combinations at read time instead.
@@ -95,7 +97,7 @@ permutation and idempotence tests then cover it), and
 ## Outside advice that does NOT apply here
 
 Common event-sourcing and sync guidance assumes ordered streams and a single
-writer. Reject it here unless a `docs/decisions.md` entry says otherwise:
+writer. Reject it here unless a decision in `docs/decisions/` says otherwise:
 
 | Advice you will see | Why it is wrong here |
 | --- | --- |

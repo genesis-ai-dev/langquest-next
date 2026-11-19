@@ -45,6 +45,7 @@ export const eventsThatCannotChangeInbox: ReadonlySet<EventType> = new Set<Event
   'v1.MaterialLocked',
   'v1.KeyTermDefined',
   'v1.KeyTermRenderingAdded',
+  'v1.KeyTermAudioRenderingAdded',
   'v1.KeyTermAdjusted',
   'v1.KeyTermLinked',
   'v1.ReferenceSet',

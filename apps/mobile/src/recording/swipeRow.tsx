@@ -9,7 +9,7 @@
 // is on, one part stands open on it, and the bin explains itself (Caleb,
 // 2026-10-20: "is the swipe to delete explained in the question mark icon").
 import { useEffect, useRef, type ReactNode } from 'react';
-import { AccessibilityInfo, Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Animated, PanResponder, Platform, Pressable, StyleSheet, View, type ViewInstance } from 'react-native';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpQuiet, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
@@ -101,7 +101,7 @@ export function SwipeRow(props: {
   })).current;
 
   // The web: pointer events in the capture phase, as a Pressable keeps mouse presses from the responder system there.
-  const box = useRef<View>(null);
+  const box = useRef<ViewInstance>(null);
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const el = box.current as unknown as HTMLElement | null;

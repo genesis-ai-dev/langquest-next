@@ -9,8 +9,12 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 settings="$ROOT/apps/mobile/.env.development"
+#
+# The export in dist must itself hold the stack's URL: `npm run guardrails --
+# --web` leaves the production export there, which no test may serve.
 if [ "${WEB_EXPORTED:-}" = 1 ] && [ -f "$ROOT/apps/mobile/dist/version.json" ] &&
   grep -qxF "EXPO_PUBLIC_SUPABASE_URL=\"$EXPO_PUBLIC_SUPABASE_URL\"" "$settings" &&
+  grep -rqF "$EXPO_PUBLIC_SUPABASE_URL" "$ROOT/apps/mobile/dist/_expo" &&
   grep -qxF "EXPO_PUBLIC_SUPABASE_ANON_KEY=\"$EXPO_PUBLIC_SUPABASE_ANON_KEY\"" "$settings"; then
   echo "using the export built while the stack started (WEB_EXPORTED=1)" >&2
   exit 0

@@ -55,13 +55,13 @@ export function expoAlerts(e: Expo): Alert[] {
     const key = `${b.platform}:${b.profile}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    if (b.status === 'ERRORED') out.push({ level: 'watch', text: `The latest ${b.platform.toLowerCase()} ${b.profile ?? ''} build failed on EAS.` });
+    if (b.status === 'ERRORED') out.push({ level: 'watch', key: 'eas-build-failed', subject: `${b.platform.toLowerCase()} ${b.profile ?? ''}`.trim(), text: `The latest ${b.platform.toLowerCase()} ${b.profile ?? ''} build failed on EAS.` });
   }
   const latest = new Set<string>();
   for (const s of e.submissions) {
     if (latest.has(s.platform)) continue;
     latest.add(s.platform);
-    if (s.status === 'ERRORED') out.push({ level: 'watch', text: `The latest ${s.platform.toLowerCase()} store submission failed on EAS${s.error ? ` (${s.error.split(':')[0]})` : ''}.` });
+    if (s.status === 'ERRORED') out.push({ level: 'watch', key: 'eas-submit-failed', subject: s.platform.toLowerCase(), text: `The latest ${s.platform.toLowerCase()} store submission failed on EAS${s.error ? ` (${s.error.split(':')[0]})` : ''}.` });
   }
   return out;
 }

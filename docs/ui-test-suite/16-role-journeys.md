@@ -11,8 +11,8 @@ Run them last, on a fresh fixture. They change shared state.
   emulators or browsers.
 - Each device is signed in as its own account.
 - Both devices are online unless a step says otherwise.
-- "Sync" means: pull down on My Work, or Me → More settings → Sync →
-  "Sync now". Then wait until "waiting to upload" is 0.
+- "Sync" means: pull down on My Work, or Me → "Sync and offline" →
+  "Sync now". Then wait until "waiting to upload" (under "Details") is 0.
 
 **Words since decision 91.** A review stage is a "check" on every screen,
 and a check carries its own people: the fixture's Peer check has REV and
@@ -262,7 +262,8 @@ Expected:
   - The Map shows the books in scope.
 - Step 6: the role is listed. Inviting offers it as a choice.
 - Step 8: Checks lists Peer check, Back translation (same time), Community check, Consultant check and Final approval.
-- All writes are accepted: Sync shows "refused by the server" at 0.
+- All writes are accepted: Me → "Sync and offline" → "Details" shows
+  "refused by the server" at 0.
 
 ### JRN-008 A language lead runs one language and meets their limits
 Roles: LADMIN · Priority: P1 · Platforms: iOS, Android · Run: Auto
