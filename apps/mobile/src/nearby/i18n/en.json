@@ -131,7 +131,6 @@
         "noPass": "This phone cannot let anyone in. Your organization must have it turned on, you must be able to invite people to this language, and this phone must have reached the internet since.",
         "expired": "This phone's permission to let people in has run out. Connect to the internet once to renew it.",
         "noRole": "There is no role this phone can give without internet. An admin can give roles after the new person reaches the internet.",
-        "permissions": "Open Share nearby first and allow what Android asks, then come back.",
         "wifiOff": "Turn on Wi-Fi in your phone's settings, then come back."
       },
       "role": "Their role",
@@ -161,11 +160,18 @@
       "stayOpen": "Keep this screen open until it finishes.",
       "get": "Download in the browser",
       "getHelp": "Opens your phone's browser, which downloads the install file for this version.",
+      "getSteps": {
+        "lead": "After you tap {{button}}:",
+        "browser": "Your phone's browser opens and downloads the install file.",
+        "warning": "If the browser warns that the file may be harmful, choose to download it anyway. It is LangQuest's own install file.",
+        "back": "When the download has finished, come back to LangQuest. You do not need to open the file.",
+        "choose": "Tap {{button}}."
+      },
       "getLine": "In the field, send it with Give the app. Quick Share, an SD card or a USB cable also work, but Quick Share needs Google Play services on both phones.",
       "getLineOther": "In the field, send it to the new phone by Quick Share, an SD card or a USB cable. Quick Share needs Google Play services on both phones. The new phone may ask to allow installs from this source.",
       "getOffline": "Downloading the install file needs the internet.",
-      "check": "Check my file",
-      "checkHelp": "Opens your phone's files. Choose the install file you have, and the app checks it is the one this phone needs.",
+      "check": "Choose a file you already have",
+      "checkHelp": "Opens your phone's files. Choose an install file you got another way, such as from a teammate or an SD card, and the app checks it is the one this phone needs.",
       "choose": "Choose the downloaded file",
       "chooseHelp": "Opens your phone's files. Choose the install file the browser downloaded, and the app checks it is the one this phone needs.",
       "chooseLine": "When the download has finished, tap Choose the downloaded file. It is usually first among your recent files.",
@@ -216,7 +222,8 @@
       "ready": "Ready to give to a new person.",
       "readyShort": "Install file ready",
       "done": "Ready. You can take it offline.",
-      "newer": "A newer install file is ready. Download it while you have internet, then choose it."
+      "newer": "A newer install file is ready. Download it while you have internet, then choose it.",
+      "newerShort": "Install file for a new person: a newer one is ready"
     },
     "join": {
       "intro": "Join your team from a teammate's phone, without internet. Your account is made the first time your phone reaches the internet.",

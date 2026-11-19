@@ -17,7 +17,7 @@ import type { LetInWhyNot } from './letInModel';
 export const CARRIED_APK_OPENED_KEY = 'carriedApkOpened';
 
 /**
- * A second phone-wide meta row, for the name of the file last found right under Check my file or
+ * A second phone-wide meta row, for the name of the file last found right under Choose a file you already have or
  * Choose the downloaded file. It tells a file in hand from a press that only opened the browser,
  * on a phone that keeps no copy (docs/decisions/0246-a-carried-build-is-the-newcomers.md, amended
  * 2026-11-19). Like the first, it holds a carried build's name and nothing else.
@@ -157,7 +157,7 @@ export function installFileItem(o: {
 }
 
 /**
- * The install file Check my file keeps in the app's own folder for Give the app
+ * The install file a choice keeps in the app's own folder for Give the app
  * (docs/nearby-sync-plan.md 14.5): a copy, checked to be this app's own (its package and signing
  * certificates), so the phone can hand it to a new phone over its own Wi-Fi.
  */

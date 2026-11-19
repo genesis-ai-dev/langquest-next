@@ -39,6 +39,7 @@
       "run": "Berbagi berhenti setelah sepuluh menit.",
       "level": "Sudah terbaru. Berbagi berhenti.",
       "letInLook": "Ponsel baru akan menampilkan LangQuest sampai pemiliknya memilih tampilan lain di Pengaturan lain.",
+      "letInPermissions": "Kembali ke Berbagi di sekitar dan ketuk Mulai berbagi. Izinkan yang diminta Android, lalu kembali ke sini.",
       "apkTrace": "Riwayat browser dan daftar unduhannya menunjukkan asal file instalasi. Anda bisa menghapusnya setelah itu."
     }
   },

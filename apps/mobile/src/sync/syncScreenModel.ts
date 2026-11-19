@@ -48,14 +48,17 @@ export function uploadsLine(summary: { waiting: boolean; title: string; sub: str
 
 /**
  * Ready for offline's line: how many kept passages are on this device and, for someone who can
- * let a new person in, whether the install file is in hand (installFileItem). Amber while either
- * still needs doing, so a person packing for a trip sees it before leaving.
+ * let a new person in, whether the install file is in hand (installFileItem), or, `newer`, that a
+ * newer one is ready (keptBehind, which the caller passes only while online). Amber while any of
+ * them still needs doing, so a person packing for a trip sees it before leaving: a newer file
+ * counts, since its app may hold fixes the newcomer needs offline (Carl, 2026-11-19).
  */
-export function readyLine(s: { kept: number; ready: number } | null, install: InstallItem | null): { line: string; tone: FoldTone } {
+export function readyLine(s: { kept: number; ready: number } | null, install: InstallItem | null, newer = false): { line: string; tone: FoldTone } {
   const passages = offlineCount(s);
   const passagesShort = !!s && s.kept > 0 && s.ready < s.kept;
-  const file = install === null ? null : t(INSTALL_LINE[install]);
-  return { line: joined(passages, file), tone: passagesShort || (install !== null && install !== 'ready') ? 'amber' : null };
+  const fresh = newer && install === 'ready';
+  const file = install === null ? null : t(fresh ? 'nearby.installFile.newerShort' : INSTALL_LINE[install]);
+  return { line: joined(passages, file), tone: passagesShort || (install !== null && install !== 'ready') || fresh ? 'amber' : null };
 }
 
 const INSTALL_LINE = {
@@ -67,17 +70,18 @@ const INSTALL_LINE = {
  * way on. Getting the file needs the internet, so offline that way is a line saying so; choosing a
  * file already downloaded needs none. Ready says when to delete the file only on a phone that
  * keeps no copy (`keeps` false), where the file in Downloads is the only one (Carl, 2026-11-19),
- * and, online, that a newer file is ready when the kept copy is `behind` this phone's app.
+ * and, online and in amber, that a newer file is ready when the kept copy is `behind` this phone's app.
  */
 export function installBlock(install: InstallItem, keeps: boolean, offline: boolean, behind = false): {
   good: boolean; body: string; way: 'get' | 'choose' | 'newer' | 'offline' | null;
 } {
   if (install === 'ready') {
     const ready = t('nearby.installFile.ready');
-    // A kept copy behind this phone's app still works, so it stays ready; while online it says a newer
-    // file is there to download (keptBehind, docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
+    // A kept copy behind this phone's app still works, but the newer app may hold fixes the newcomer
+    // needs, so while online it is amber and says a newer file is there to download (keptBehind;
+    // docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended 2026-11-19).
     // Two whole sentences, joined as offlineText's `sentences` joins them (not imported: it brings React Native into this model).
-    if (behind && !offline) return { good: true, body: `${ready} ${t('nearby.installFile.newer')}`, way: 'newer' };
+    if (behind && !offline) return { good: false, body: `${ready} ${t('nearby.installFile.newer')}`, way: 'newer' };
     return { good: true, body: keeps ? ready : `${ready} ${t('nearby.letIn.fileHelp')}`, way: null };
   }
   if (install === 'downloaded') return { good: false, body: t('nearby.installFile.downloaded'), way: 'choose' };

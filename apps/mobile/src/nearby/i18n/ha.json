@@ -131,7 +131,6 @@
         "noPass": "Wannan waya ba za ta iya shigar da kowa ba. Dole ƙungiyarka ta kunna shi, dole ka iya gayyatar mutane zuwa wannan harshe, kuma dole wannan waya ta sami intanet tun daga lokacin.",
         "expired": "Izinin wannan waya na shigar da mutane ya ƙare. Ka haɗa da intanet sau ɗaya don sabunta shi.",
         "noRole": "Babu matsayin da wannan waya za ta iya bayarwa ba tare da intanet ba. Mai kula zai iya ba da matsayi bayan sabon mutumin ya sami intanet.",
-        "permissions": "Ka fara buɗe Raba da na kusa ka ba da izinin abin da Android ta tambaya, sannan ka dawo.",
         "wifiOff": "Ka kunna Wi-Fi a saitunan wayarka, sannan ka dawo."
       },
       "role": "Matsayinsa",
@@ -161,11 +160,18 @@
       "stayOpen": "Ka bar wannan shafin a buɗe har sai ya gama.",
       "get": "Sauke a burauza",
       "getHelp": "Yana buɗe burauzar wayar, wadda ke sauke fayil ɗin girkawa na wannan sigar.",
+      "getSteps": {
+        "lead": "Bayan ka taɓa {{button}}:",
+        "browser": "Burauzar wayar za ta buɗe, ta sauke fayil ɗin girkawa.",
+        "warning": "Idan burauzar ta yi gargaɗin cewa fayil ɗin na iya yin illa, ka zaɓi ka sauke shi duk da haka. Shi ne fayil ɗin girkawa na LangQuest na ainihi.",
+        "back": "Idan saukewar ta gama, ka koma LangQuest. Ba sai ka buɗe fayil ɗin ba.",
+        "choose": "Ka taɓa {{button}}."
+      },
       "getLine": "A filin aiki, ka aika shi ta Ba da manhajar. Quick Share, katin SD ko waya ta USB ma suna aiki, amma Quick Share yana buƙatar ayyukan Google Play a wayoyin biyu.",
       "getLineOther": "A filin aiki, ka aika shi zuwa sabuwar wayar ta Quick Share, katin SD ko waya ta USB. Quick Share yana buƙatar ayyukan Google Play a wayoyin biyu. Sabuwar wayar tana iya tambaya ko za a yarda a girka daga wannan wuri.",
       "getOffline": "Sauke fayil ɗin girkawa yana buƙatar intanet.",
-      "check": "Duba fayil ɗina",
-      "checkHelp": "Yana buɗe fayilolin wayar. Ka zaɓi fayil ɗin girkawa da kake da shi, manhajar kuma ta tabbatar cewa shi ne wanda wannan waya ke buƙata.",
+      "check": "Zaɓi fayil da kake da shi tuni",
+      "checkHelp": "Yana buɗe fayilolin wayar. Ka zaɓi fayil ɗin girkawa da ka samu ta wata hanya, kamar daga abokin aiki ko daga katin SD, manhajar kuma ta tabbatar cewa shi ne wanda wannan waya ke buƙata.",
       "choose": "Zaɓi fayil ɗin da aka sauke",
       "chooseHelp": "Yana buɗe fayilolin wayar. Ka zaɓi fayil ɗin girkawa da burauzar ta sauke, manhajar kuma ta tabbatar cewa shi ne wanda wannan waya ke buƙata.",
       "chooseLine": "Idan saukewar ta gama, ka taɓa Zaɓi fayil ɗin da aka sauke. Yawanci shi ne na farko cikin fayilolinka na kwanan nan.",
@@ -216,7 +222,8 @@
       "ready": "A shirye yake don ba sabon mutum.",
       "readyShort": "Fayil ɗin girkawa ya shirya",
       "done": "A shirye yake. Za ka iya tafiya da shi inda babu intanet.",
-      "newer": "Sabon fayil ɗin girkawa ya shirya. Ka sauke shi yayin da kake da intanet, sannan ka zaɓe shi."
+      "newer": "Sabon fayil ɗin girkawa ya shirya. Ka sauke shi yayin da kake da intanet, sannan ka zaɓe shi.",
+      "newerShort": "Fayil ɗin girkawa don sabon mutum: sabon fayil ya shirya"
     },
     "join": {
       "intro": "Ka shiga tawagarka daga wayar abokin aiki, ba tare da intanet ba. Za a buɗe asusunka a karon farko da wayarka ta sami intanet.",

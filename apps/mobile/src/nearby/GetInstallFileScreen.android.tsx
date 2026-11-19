@@ -16,10 +16,13 @@ import { useCarriedApk } from './useCarriedApk';
  * job done online before a trip. Its main button follows the job (`apkStep`): the browser download
  * while online; then, once the person has gone to get it, choosing the downloaded file, which
  * checks it and keeps a copy for Give the app, with the download offered again beside it; and none
- * once the file is in hand, when a green line says it is ready. While online, a copy two days
- * behind this phone's app says a newer file is ready, and Download in the browser is the main
- * button again, with Choose the downloaded file beside it (`keptBehind`,
- * docs/decisions/2026-11-19-carried-build-refreshed-daily.md). Check my file stays for a file got
+ * once the file is in hand, when a green line says it is ready. Each step's other way on (Check
+ * my file, Download it again, Choose the downloaded file) sits under its main button in the
+ * footer. Before the browser opens, numbered steps say what follows: the browser downloads the
+ * file, may warn that it is harmful, then back to LangQuest without opening it, and choose it.
+ * While online, a copy two days behind this phone's app says a newer file is ready, and
+ * Download in the browser is the main button again, with Choose the downloaded file under it (`keptBehind`,
+ * docs/decisions/2026-11-19-carried-build-refreshed-daily.md). Choose a file you already have (Check my file until 2026-11-19) stays for a file got
  * another way. The file's name shows only when a wrong one is chosen, since the app checks the
  * file, not the person. Last, how the file reaches the new phone. Nothing here downloads or
  * installs anything.
@@ -34,12 +37,40 @@ export function GetInstallFileScreen(ctx: Ctx) {
   const inHand: KeepResult = apk.cannotGive === 'android' ? 'needs-android' : apk.cannotGive === 'update' ? 'needs-update' : 'kept';
   // A kept copy behind this phone's app: a newer file is ready, and only worth saying while it can be downloaded.
   const newer = step === 'done' && apk.behind && get === 'ready';
-  const footer = step === 'choose'
-    ? <PrimaryBtn label={t('nearby.letIn.choose')} icon="folder" disabled={keeping} help={t('nearby.letIn.chooseHelp')} onPress={apk.actions.check} />
-    : (step === 'get' && get !== null) || newer
-      ? <PrimaryBtn label={t('nearby.letIn.get')} icon="download" disabled={get === 'offline'} help={t('nearby.letIn.getHelp')} onPress={apk.actions.get} />
-      : undefined;
+  // The step's two ways on sit together in the footer, the main one and under it the other, as on
+  // Give the app and Let someone in (Carl, 2026-11-19): getting the file and choosing it are one job.
+  const download = (label: string, help: string, primary: boolean) => {
+    const Btn = primary ? PrimaryBtn : GhostBtn;
+    return <Btn label={label} icon="download" disabled={get === 'offline'} help={help} onPress={apk.actions.get} />;
+  };
+  const choose = (label: string, help: string, primary: boolean) => {
+    const Btn = primary ? PrimaryBtn : GhostBtn;
+    return <Btn label={label} icon="folder" disabled={keeping} help={help} onPress={apk.actions.check} />;
+  };
+  const buttons = newer
+    ? [download(t('nearby.letIn.get'), t('nearby.letIn.getHelp'), true), choose(t('nearby.letIn.choose'), t('nearby.letIn.chooseHelp'), false)]
+    : step === 'choose'
+      ? [choose(t('nearby.letIn.choose'), t('nearby.letIn.chooseHelp'), true), get !== null ? download(t('nearby.letIn.getAgain'), t('nearby.letIn.getAgainHelp'), false) : null]
+      : step === 'get'
+        // With no address to download from (a development build), Choose a file you already have is all there is.
+        ? [get !== null ? download(t('nearby.letIn.get'), t('nearby.letIn.getHelp'), true) : null, choose(t('nearby.letIn.check'), t('nearby.letIn.checkHelp'), false)]
+        : [];
+  const [first, second] = buttons;
+  const footer = first || second ? <>{first}{second}</> : undefined;
   const waiting = step !== null && step !== 'done';
+  // What the card between them says: when to choose, that a newer file is ready, and what a choice came to.
+  const line = newer ? t('nearby.installFile.newer') : step === 'choose' ? t('nearby.letIn.chooseLine') : null;
+  // What happens after Download in the browser, before it is pressed: the browser, its warning on an
+  // app file, coming back, and choosing the file (Carl, 2026-11-19). Not to open the file: on this
+  // phone that offers to install the carried build over the app.
+  const steps = (newer || step === 'get') && get !== null ? [
+    t('nearby.letIn.getSteps.browser'),
+    t('nearby.letIn.getSteps.warning'),
+    t('nearby.letIn.getSteps.back'),
+    t('nearby.letIn.getSteps.choose', { button: t('nearby.letIn.choose') })
+  ] : null;
+  const wrong = apk.checked?.result === 'other' ? apk.checked : null;
+  const kept = apk.checked?.result === 'right' ? apk.checked.keep ?? null : null;
   return (
     <Screen header={<Header title={t('screens.get_install_file')} onBack={ctx.back} />} footer={footer}>
       <NearbyIntro icon="download" text={t('nearby.installFile.intro')} />
@@ -57,34 +88,26 @@ export function GetInstallFileScreen(ctx: Ctx) {
             </Card>
           ) : null}
           {step === 'done' ? <Banner icon="check" tone="green" title={t('nearby.installFile.done')} body={t(KEEP_WORDS[inHand])} /> : null}
-          {waiting || newer ? (
+          {(waiting || newer) && (line || steps || wrong || kept) ? (
             <Card>
-              {newer ? (
-                <>
-                  <Text style={txt.sm}>{t('nearby.installFile.newer')}</Text>
-                  <GhostBtn label={t('nearby.letIn.choose')} icon="folder" disabled={keeping} help={t('nearby.letIn.chooseHelp')} onPress={apk.actions.check} />
-                </>
-              ) : step === 'choose' ? (
-                <>
-                  <Text style={txt.sm}>{t('nearby.letIn.chooseLine')}</Text>
-                  {get !== null ? (
-                    <GhostBtn label={t('nearby.letIn.getAgain')} icon="download" disabled={get === 'offline'} help={t('nearby.letIn.getAgainHelp')} onPress={apk.actions.get} />
-                  ) : null}
-                </>
-              ) : (
-                <GhostBtn label={t('nearby.letIn.check')} icon="folder" help={t('nearby.letIn.checkHelp')} onPress={apk.actions.check} disabled={keeping} />
-              )}
-              {apk.checked?.result === 'other' ? (
+              {line ? <Text style={txt.sm}>{line}</Text> : null}
+              {steps ? (
+                <View style={{ gap: space.xs }}>
+                  <Text style={[txt.sm, { fontWeight: '700' }]}>{t('nearby.letIn.getSteps.lead', { button: t('nearby.letIn.get') })}</Text>
+                  {steps.map((label, i) => <Text key={label} style={txt.sm}>{t('nearby.step', { n: i + 1, label })}</Text>)}
+                </View>
+              ) : null}
+              {wrong ? (
                 <View style={styles.line}>
                   <Ico name="warning" size={20} color={TINT.amberText} />
                   <View style={{ flex: 1 }}>
                     <Text style={txt.sm}>{t('nearby.letIn.checkOther', { file: apkShown(apk.needed) })}</Text>
-                    <Text style={txt.smMuted}>{t('nearby.letIn.checkChose', { name: apk.checked.name })}</Text>
+                    <Text style={txt.smMuted}>{t('nearby.letIn.checkChose', { name: wrong.name })}</Text>
                   </View>
                 </View>
               ) : null}
               {/* A right name: only what keeping it came to, since a kept copy says the rest. */}
-              {apk.checked?.result === 'right' && apk.checked.keep ? <KeepLine keep={apk.checked.keep} /> : null}
+              {kept ? <KeepLine keep={kept} /> : null}
             </Card>
           ) : null}
           <Card>
