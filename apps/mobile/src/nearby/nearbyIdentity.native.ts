@@ -47,9 +47,34 @@ function forgetAskedBy(actorId: string): void {
 
 let turn: Promise<void> = Promise.resolve();
 
-/** One refresh at a time; a failure is noted and costs nothing but the call. */
+/**
+ * People whose certificate the server would not sign this run because they set up too many new
+ * phones today (a 429 saying `limited`), so Sync's row says so rather than vanishing (Carl,
+ * 2026-11-19, `nearbyRowShown`). Not kept on the device: the next answer settles it either way.
+ */
+const limitedNow = new Set<string>();
+const heldListeners = new Set<() => void>();
+const heldChanged = () => { for (const hear of heldListeners) hear(); };
+
+export function certificateLimited(actorId: string): boolean {
+  return limitedNow.has(actorId);
+}
+
+/** Be told when what this phone holds for nearby sync may have changed, or the limit did. Returns the unsubscribe. */
+export function onNearbyHeld(hear: () => void): () => void {
+  heldListeners.add(hear);
+  return () => { heldListeners.delete(hear); };
+}
+
+function noteLimited(actorId: string, limited: boolean): void {
+  if (limited === limitedNow.has(actorId)) return;
+  if (limited) limitedNow.add(actorId);
+  else limitedNow.delete(actorId);
+}
+
+/** One refresh at a time; a failure is noted and costs nothing but the call. Each one ends by telling who listens. */
 export function refreshNearbyIdentity(input: IdentityInput): Promise<void> {
-  turn = turn.then(() => refresh(input)).catch((e: unknown) => noteExpected('nearby identity', e));
+  turn = turn.then(() => refresh(input)).catch((e: unknown) => noteExpected('nearby identity', e)).finally(heldChanged);
   return turn;
 }
 
@@ -143,7 +168,7 @@ export function firstCertificate(input: IdentityInput): Promise<boolean> {
     const languages = input.languageId ? [`${input.orgId}/${input.languageId}`] : [];
     return ask(input, key, languages, find, last, membershipMarkOf(input.org, input.actorId), false);
   });
-  turn = run.then(() => undefined, () => undefined);
+  turn = run.then(() => undefined, () => undefined).finally(heldChanged);
   return run;
 }
 
@@ -158,10 +183,12 @@ async function ask(input: IdentityInput, key: InstallKey, languages: string[], f
   // signing key, which never mends by itself, so it is noted: otherwise nearby sync fails silently.
   if (call.kind === 'later') {
     if (call.status === 503) noteExpected('nearby certificate', new Error('the Worker cannot sign certificates yet (503)'));
+    if (call.limited) noteLimited(actorId, true);
     return false;
   }
   const answer = certificateAnswerOf(call.body);
   if (!answer) { noteExpected('nearby certificate', new Error('an answer the Worker would not send')); return false; }
+  noteLimited(actorId, false);
 
   if (answer.revoked) {
     // This person's key was revoked (a phone marked lost): a new key, and every chain naming the old one goes (5.12).

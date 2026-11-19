@@ -916,7 +916,15 @@ protocol version.
   only on Let someone in's terms (`joinRows`): give them the app, then let them join from this
   phone; it holds the install file's too-old line and three numbered steps: Download the
   install file (before you go offline), Give the app (when you are with the new person) and
-  Let someone in (once their app is installed). The Sync row keeps its name and badge; its
+  Let someone in (once their app is installed). Where the organization has nearby on and the
+  phone holds no certificate or discovery key yet, the Sync row stays, disabled, saying what is
+  missing, rather than vanishing (Carl, 2026-11-19, `nearbyRowShown` in `nearbyRowModel.ts`):
+  the server signs at most five new install keys a day for one person (`nearby_certificate_facts`,
+  a 429 saying `limited`), so a day of reinstalls left a carrier's phone with no row and nothing
+  saying why; it now says the account set up too many new phones today and that it works from
+  tomorrow, and otherwise that the phone must reach the internet while nearby is on. The row
+  checks again whenever the server's flag or what the phone holds changes, so a certificate that
+  arrives while Sync is open shows at once. The Sync row keeps its name and badge; its
   line names both jobs on the same terms, else teammates' phones alone, and a reason while it
   cannot run (`nearbyRowWords`). Its words say work goes both ways (Carl's words, 2026-11-09,
   shortened with him 2026-11-19 from "share work progress … without the internet"):

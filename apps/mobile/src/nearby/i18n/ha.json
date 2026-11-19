@@ -20,6 +20,7 @@
       "noWifiDirect": "Wannan waya ba ta da Wi-Fi Direct, wanda Raba da na kusa ke buƙata.",
       "noKey": "Wannan waya ba ta shirya rabawa ba tukuna. Ka haɗa da intanet sau ɗaya, sannan ka dawo.",
       "noCertificate": "Don rabawa da na kusa, dole wannan waya ta haɗa da intanet sau ɗaya yayin da ƙungiyarka ta kunna Raba da na kusa.",
+      "limited": "Wannan asusu ya saita sababbin wayoyi da yawa fiye da kima a yau. Raba da na kusa zai yi aiki a wannan waya daga gobe.",
       "readOnly": "Asusun da ke kallon ƙungiyoyi kawai ba sa rabawa da na kusa."
     },
     "radios": {
