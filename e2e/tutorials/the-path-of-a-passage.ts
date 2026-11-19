@@ -154,7 +154,9 @@ export const thePathOfAPassage: Tutorial = {
     },
     {
       screen: 'passage_record',
-      part: (page) => [button(page, /^Peer check/), button(page, /^Community check/)],
+      // Every check of the path, to the last one: with the light on some of them only, the frame check held the film
+      // ("leaves out the Consultant check card", tutorials run 57).
+      part: (page) => [button(page, /^Peer check/), button(page, /^Final approval/)],
       say: 'Then come the checks that Lumari chose. The path shows each check, and who does it.'
     },
     back,
