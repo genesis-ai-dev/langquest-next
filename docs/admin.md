@@ -13,13 +13,14 @@ app's page from ever answering them. Production only: preview has no
 database of its own for it to read yet, so `/ops-dashboard` there says it
 is not set up.
 
-It reads, with seven exceptions (decisions.md 162): marking feedback seen,
+It reads, with eight exceptions (decisions.md 162): marking feedback seen,
 done or open again, running a server job now, granting or declining an
 organization's blue check request (decisions.md 173, docs/verified-organizations.md),
 connecting a tutorial channel on YouTube and choosing the videos to put
 up there (decisions.md 180, below), leaving a note about a tutorial
 video or accepting, editing or rejecting a change Claude suggests for one
-(decisions.md 186), telling Claude what to do with a user issue
+(decisions.md 186), saying what became of a reply Claude suggested for a
+comment (posted by a person, or none needed), telling Claude what to do with a user issue
 (`docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`), and marking an account's quiet installs not an issue. For those the page posts
 to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
 action and the person's own token to the app Worker's `OpsActions`

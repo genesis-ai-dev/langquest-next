@@ -21,7 +21,7 @@ const draw = new Function(`
   const PR_URL = 'https://github.com/o/r/pull/', prLink = (p) => 'PR ' + p.number;
   const pictureStrip = (p) => p && p.length ? '<i>pictures</i>' : '';
   const detailParts = (t) => String(t || '').split('|'), cardId = (a) => a.kind, languageName = (c) => 'language ' + c;
-  const cardLink = (x) => '<a href="' + x.link + '">Open</a>';
+  const cardLink = (x) => '<a href="' + x.link + '">Open</a>', vicon = (k) => '<i>' + k + '</i>';
   const FIX_STATE = { open: 'It merges itself.', working: 'Claude writes it.' }, ADMIN_LEVEL = { fails: 'bad' }, SUGGESTION_KINDS = { voice: 'Voice' };
   const document = { addEventListener() {}, getElementById() { return null; } };
   let fixData = null;
@@ -172,6 +172,37 @@ describe('the cards', () => {
     expect(html).toContain('Step 3 of 5: waits on your answer');
     expect(html).toContain('placeholder="Tell Claude what to do…"');
     expect(html).not.toContain('class="talk"');
+  });
+
+  it('draws a reply to post with the comment, the reply to change, and its two steps', () => {
+    const html = draw.adminCard({
+      kind: 'reply', title: 'Record (fr): a reply to post', detail: 'Comment: x', at: '2026-11-17T00:00:00Z', who: 'you', next: 'Copy the reply.', tutorial: 'record', language: 'fr',
+      link: 'https://www.youtube.com/watch?v=v1&lc=c1',
+      reply: { id: 'r1', comment: 'Can I record <offline>?', original: 'Puis-je ?', text: 'Oui.', english: 'Yes.', link: 'https://www.youtube.com/watch?v=v1&lc=c1' }
+    });
+    expect(html).toContain('<article class="icard reply">');
+    expect(html).toContain('<dt>Comment</dt>');
+    expect(html).toContain('Can I record &#60;offline&#62;?');
+    expect(html).toContain('<details><summary>As written</summary>Puis-je ?</details>');
+    expect(html).toContain('<textarea id="rp-r1" maxlength="2000" rows="4">Oui.</textarea>');
+    expect(html).toContain('In English: Yes.');
+    expect(html).toContain('data-reply-copy="r1" data-href="https://www.youtube.com/watch?v=v1&#38;lc=c1"');
+    expect(html).toContain('data-reply-done="r1" data-done="posted"');
+    expect(html).toContain('data-reply-done="r1" data-done="none"');
+    // The steps are the card's own; the line written for a card without them is not shown too.
+    expect(html).not.toContain('<dt>Solution</dt>');
+    expect(html).not.toContain('class="steps"');
+  });
+
+  it('gives a change Claude could not make Try again, with the box behind "instead"', () => {
+    const card = { kind: 'fixFailed', title: 'Record: Claude could not make the change', detail: 'Its checks failed.', at: '2026-11-17T00:00:00Z', who: 'you', next: 'Try again.',
+      tutorial: 'record', language: 'en', instruct: 'Claude could not make a change.', retry: 'Try this change again: say Done.' };
+    const html = draw.adminCard(card);
+    expect(html).toContain('<button type="button" class="vretry primary" data-retry="fixFailed">');
+    expect(html).toContain('<details><summary>Tell Claude what to do instead</summary><div class="tell">');
+    expect(html).toContain('<button type="button" data-instruct="fixFailed">Send to Claude</button>');
+    // Once an instruction is sent, Claude has it: no second Try again.
+    expect(draw.adminCard({ ...card, instructed: { at: '2026-11-17T01:00:00Z', text: 'Try this change again: say Done.', looked: false, fix: null } })).not.toContain('data-retry');
   });
 
   it('draws a card with nothing to tell Claude without steps or a box', () => {

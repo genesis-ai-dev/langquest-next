@@ -162,7 +162,7 @@ function stepsHtml(steps, at) {
  */
 function issueCard(c) {
   const lines = (c.lines || []).filter((l) => l[1]);
-  return '<article class="icard' + (c.pics ? ' pics' : '') + '"' + (c.tab ? ' data-tab="' + esc(c.tab) + '"' + (c.hidden ? ' hidden' : '') : '') + '>' +
+  return '<article class="icard' + (c.pics ? ' pics' : '') + (c.cls ? ' ' + esc(c.cls) : '') + '"' + (c.tab ? ' data-tab="' + esc(c.tab) + '"' + (c.hidden ? ' hidden' : '') : '') + '>' +
     (c.pics ? '<div class="ipics">' + c.pics + '</div>' : '') +
     '<div class="ibody">' + (c.tags ? '<p class="itags">' + c.tags + '</p>' : '') + '<h4>' + esc(c.title) + '</h4>' + (c.meta ? '<p class="imeta">' + c.meta + '</p>' : '') +
     (lines.length ? '<dl class="kv">' + lines.map((l) => '<dt>' + esc(l[0]) + '</dt><dd>' + l[1] + '</dd>').join('') + '</dl>' : '') + '</div>' +
@@ -272,27 +272,54 @@ function suggestionSide(s) {
     '<details><summary>Edit</summary><label for="sg-' + esc(s.id) + '">What to change</label><textarea id="sg-' + esc(s.id) + '" maxlength="4000" rows="6">' + esc(s.detail) + '</textarea>' +
     '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="edit">Save</button></p></details>';
 }
+/** A comment as its writer's words, in English, with the words as written folded under it and the way to it on YouTube. */
+function commentSaid(a) {
+  const r = a.reply;
+  return '<p class="vsaidby">' + vicon('comment') + 'A viewer wrote' + (a.at ? ', ' + when(a.at) : '') + ' · <a href="' + esc(r.link) + '" target="_blank" rel="noopener noreferrer">See it on YouTube</a></p>' +
+    '<blockquote class="vsaid">' + esc(r.comment) + (r.original ? '<details><summary>As written</summary>' + esc(r.original) + '</details>' : '') + '</blockquote>';
+}
+/**
+ * The reply Claude suggests, for the admin to change, and the two steps: copy it and open the comment on YouTube (the
+ * admin posts it there: nothing is posted from this page), then say what became of it. The card leaves when they do.
+ */
+function replyBox(a) {
+  const r = a.reply, id = esc(r.id);
+  return '<div class="vreply"><label for="rp-' + id + '">Your reply</label><textarea id="rp-' + id + '" maxlength="2000" rows="4">' + esc(r.text) + '</textarea>' +
+    (r.english ? '<small>In English: ' + esc(r.english) + '</small>' : '') +
+    '<div class="vsteps"><button type="button" class="primary" data-reply-copy="' + id + '" data-href="' + esc(r.link) + '"><span class="n">1</span>Copy the reply and open YouTube</button>' +
+    '<div class="pair"><button type="button" data-reply-done="' + id + '" data-done="posted"><span class="n">2</span>Done</button>' +
+    '<button type="button" data-reply-done="' + id + '" data-done="none">No reply needed</button></div></div></div>';
+}
+/** For a change Claude could not make: the same change again, as an instruction that names it in full. */
+function retryButton(a) {
+  return a.retry && a.instruct && !a.instructed ? '<button type="button" class="vretry primary" data-retry="' + esc(cardId(a)) + '">' + vicon('now') + 'Try again</button>' : '';
+}
 /** One thing for an admin: what it is and where it came from, who acts next, the talk so far, and where it applies, the box to tell Claude what to do. */
 function adminCard(a) {
   const ins = a.instructed, id = esc(cardId(a));
   const [plain, technical] = detailParts(a.detail);
   const inputs = a.suggestion && a.suggestion.inputs.length ? '<ul>' + a.suggestion.inputs.map(inputSaid).join('') + '</ul>' : '';
   const from = ADMIN_FROM[a.kind] ? esc(ADMIN_FROM[a.kind]) + (a.at ? ' · ' + when(a.at) : '') : '';
+  const retry = retryButton(a);
+  const tell = a.instruct ? '<div class="tell"><textarea id="ins-' + id + '" maxlength="2000" rows="3" aria-label="What Claude must do" placeholder="' + (ins ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
+    '<small>Claude starts at its next fix run (:20 and :50 each hour).</small><button type="button"' + (retry ? '' : ' class="primary"') + ' data-instruct="' + id + '">Send to Claude</button></div>' : '';
   return issueCard({
     pics: pictureStrip(a.pictures),
     tags: '<span class="tag ' + (ADMIN_LEVEL[a.kind] === 'bad' ? 'bad' : '') + '">' + esc(ADMIN_KIND[a.kind] || a.kind) + '</span>' +
       (a.tutorial && a.language ? '<span>' + esc(languageName(a.language)) + '</span>' : '') + (a.suggestion ? '<span>' + esc(SUGGESTION_KINDS[a.suggestion.kind] || a.suggestion.kind) + '</span>' : ''),
     title: a.title,
-    lines: [
+    cls: a.reply ? 'reply' : '',
+    // A reply to post: the viewer's comment, then the reply and its two steps at the right.
+    lines: a.reply ? [['Comment', commentSaid(a)]] : [
       ['Context', from + inputs],
       ['Issue', (plain ? '<p class="setup">' + esc(plain) + '</p>' : '') + (technical ? '<details class="vtech"><summary>Technical details for the fix</summary><p class="setup">' + esc(technical) + '</p></details>' : '')],
       [ins ? '' : 'Solution', ins ? '' : esc(a.next)]
     ],
     pill: a.who === 'you' ? ['Waits on you', 'you'] : ['Claude acts next', 'claude'],
     steps: [VIDEO_STEPS, videoWay(a).at],
-    side: (a.suggestion ? suggestionSide(a.suggestion) : '') + talkHtml(ins) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
-      (a.instruct ? '<div class="tell"><textarea id="ins-' + id + '" maxlength="2000" rows="3" aria-label="What Claude must do" placeholder="' + (ins ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
-        '<small>Claude starts at its next fix run (:20 and :50 each hour).</small><button type="button" class="primary" data-instruct="' + id + '">Send to Claude</button></div>' : '')
+    side: a.reply ? replyBox(a) : (a.suggestion ? suggestionSide(a.suggestion) : '') + talkHtml(ins) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
+      // A change Claude could not make: Try again is the main button, and the box is behind "instead".
+      retry + (retry && tell ? '<details><summary>Tell Claude what to do instead</summary>' + tell + '</details>' : tell)
   });
 }
 `;

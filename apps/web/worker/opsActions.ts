@@ -15,8 +15,9 @@ import { issueOf, type Suggestion } from '../../../server/tutorialFeedback';
  * section 6, decisions.md 162): mark feedback seen or done, run a server
  * job now, grant or decline an organization's blue check (173), connect
  * a tutorial channel on YouTube and publish its videos (180), add a note
- * on a tutorial video or answer Claude's suggestion for one (186), tell Claude
- * what to do with a user issue
+ * on a tutorial video or answer Claude's suggestion for one (186), say what
+ * became of the reply Claude suggested for a comment (posted by a person, or
+ * none needed), tell Claude what to do with a user issue
  * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md), and mark an
  * account's quiet installs not an issue. The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
@@ -45,6 +46,11 @@ export type Action =
   | { kind: 'tutorial-instruction'; tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }
   /** A person's answer to Claude's suggestion: accept or reject it (as edited), or only edit its detail. */
   | { kind: 'tutorial-suggestion'; id: string; decision: 'accept' | 'reject' | 'edit'; detail: string | null; reason: string | null }
+  /**
+   * What became of the reply Claude suggested for a comment on YouTube: a person posted it there (`posted`), chose to
+   * post none (`none`), or takes that back (`open`). It records only; nothing is posted from here (186).
+   */
+  | { kind: 'tutorial-reply'; id: string; done: 'posted' | 'none' | 'open' }
   /** What an admin told Claude to do with a user issue, from its card on the dashboard: for the watch's next run. */
   | { kind: 'user-issue-note'; issue: string; text: string }
   /** An account's quiet installs marked not an issue, or counted again. */
@@ -78,6 +84,8 @@ export interface ActionDeps {
   instructIssue(issue: string, text: string, by: string): Promise<string>;
   /** A suggestion answered (`ops_suggestion_decide`): what happened, and the suggestion's kind. */
   decideSuggestion(id: string, decision: 'accepted' | 'rejected' | 'edited', detail: string | null, reason: string | null, by: string): Promise<{ result: string; kind?: string }>;
+  /** A comment's suggested reply marked posted, not needed, or waiting again, by this person: `ok`, or `not_found` (`ops_tutorial_reply_done`). */
+  replyDone(id: string, done: 'posted' | 'none' | 'open', by: string): Promise<string>;
   /** An account's quiet installs marked not an issue or counted again, by this staff member: `marked`, `unmarked`, or `not_found` (`ops_quiet_account_mark`). */
   markQuietAccount(profile: string, ok: boolean, by: string): Promise<string>;
   /** An accepted code change filed in Linear: its issue, or null without a Linear key (the comments job files it later). */
@@ -144,6 +152,10 @@ export function parseAction(input: unknown): Action | null {
     if (i.instruct !== true || !tutorial || problem === undefined || language === undefined || !inputs) return null;
     return { kind: 'tutorial-instruction', tutorial, text, problem, language, inputs };
   }
+  const done = (input as { done?: unknown }).done;
+  if (a.kind === 'tutorial-reply' && typeof a.id === 'string' && UUID.test(a.id) && (done === 'posted' || done === 'none' || done === 'open')) {
+    return { kind: 'tutorial-reply', id: a.id.toLowerCase(), done };
+  }
   if (a.kind === 'user-issue-note') {
     const issue = (input as { issue?: unknown }).issue;
     const text = optional(t.text, NOTE_MAX);
@@ -172,6 +184,7 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'tutorial-note': return { name: NAMES[action.kind], target: action.tutorial ?? 'no video' };
     case 'tutorial-instruction': return { name: NAMES['tutorial-note'], target: action.tutorial };
     case 'tutorial-suggestion': return { name: `suggestion_${DECIDED[action.decision]}`, target: action.id };
+    case 'tutorial-reply': return { name: `reply_${action.done}`, target: action.id };
     case 'user-issue-note': return { name: 'user_issue_note', target: action.issue };
     case 'quiet-account': return { name: action.ok ? 'quiet_ok' : 'quiet_ok_undo', target: action.profile };
     default: return { name: NAMES[action.kind], target: 'youtube' };
@@ -243,6 +256,12 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
           : { ok: false, status: 404, error: 'The watch has no open issue with that id.' };
     }
     if (action.kind === 'tutorial-suggestion') return await answerSuggestion(deps, who.profileId, action, name, target);
+    if (action.kind === 'tutorial-reply') {
+      const answer = await deps.replyDone(action.id, action.done, who.profileId);
+      const found = answer === 'ok';
+      await deps.record({ profileId: who.profileId, action: name, target, result: found ? 'ok' : 'refused', ...(found ? {} : { detail: answer }) });
+      return found ? { ok: true, result: action.done } : { ok: false, status: 404, error: 'No comment with a suggested reply has that id.' };
+    }
     const result = await deps.runJob(action.key);
     await deps.record({ profileId: who.profileId, action: name, target, result: result === 'started' ? 'ok' : 'refused', detail: result });
     return { ok: true, result };
@@ -360,6 +379,11 @@ export function actionDeps(env: Env): ActionDeps {
     addNote: async (tutorial, text, by) => {
       const { error } = await db().rpc('ops_tutorial_note', { p_tutorial: tutorial, p_text: text, p_by: by });
       if (error) throw new Error(`ops_tutorial_note: ${error.message}`);
+    },
+    replyDone: async (id, done, by) => {
+      const { data, error } = await db().rpc('ops_tutorial_reply_done', { p_id: id, p_done: done, p_by: by });
+      if (error) throw new Error(`ops_tutorial_reply_done: ${error.message}`);
+      return String(data);
     },
     markQuietAccount: async (profile, ok, by) => {
       const { data, error } = await db().rpc('ops_quiet_account_mark', { p_profile: profile, p_ok: ok, p_by: by });
