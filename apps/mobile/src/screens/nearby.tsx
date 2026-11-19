@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
 
 // ---- Let someone in (docs/nearby-sync-plan.md 14.1, 3) ----------------------------------
 
-/** Why Let someone in cannot run here, in words. */
+/** Why Let someone in cannot run here, in words. Missing permissions have their own lines and buttons (`letInPermit`). */
 const LET_IN_WHY = {
   'loading': 'nearby.letIn.why.loading',
   'not-in-build': 'nearby.letIn.why.notInBuild',
@@ -363,9 +363,8 @@ const LET_IN_WHY = {
   'expired': 'nearby.letIn.why.expired',
   'no-role': 'nearby.letIn.why.noRole',
   'read-only': 'nearby.letIn.why.noPass',
-  'permissions': 'nearby.letIn.why.permissions',
   'wifi-off': 'nearby.letIn.why.wifiOff'
-} as const satisfies Record<LetInWhyNot, string>;
+} as const satisfies Record<Exclude<LetInWhyNot, 'permissions'>, string>;
 
 /** How a link with a newcomer ended, in words. */
 const LET_IN_END = {
@@ -400,14 +399,19 @@ function TwoPictures(props: { pictures: [number, number] }) {
  * Then this phone sends them a starting copy. Nothing runs until Show the code is pressed.
  */
 export function LetSomeoneIn(ctx: Ctx) {
-  const { whyNot, roles, state, code, secondsLeft, worn, actions } = useLetIn(ctx);
+  const { whyNot, roles, state, code, secondsLeft, worn, permit, actions } = useLetIn(ctx);
   const apk = useCarriedApk();
   const { stage } = state;
   const running = stage.t === 'starting' || stage.t === 'showing' || stage.t === 'connected' || stage.t === 'copying';
   // Away while a code is up or a phone is on the line, so the code and the one tap stay in view.
   const between = whyNot !== 'not-in-build' && (whyNot !== null || stage.t === 'choose' || stage.t === 'ended' || stage.t === 'done');
   let footer: ReactNode = null;
-  if (whyNot === null && stage.t === 'asked') {
+  // Missing permissions are asked here, as Give the app asks (letInPermit, Carl 2026-11-19).
+  if (whyNot === 'permissions' && permit?.t === 'explain') {
+    footer = <PrimaryBtn label={t('nearby.permission.allow')} icon="arrowR" help={t('nearby.permission.allowHelp')} onPress={actions.askPermissions} />;
+  } else if (whyNot === 'permissions' && permit?.t === 'settings') {
+    footer = <PrimaryBtn label={t('nearby.permission.openSettings')} icon="settings" help={t('nearby.permission.openSettingsHelp')} onPress={actions.openSettings} />;
+  } else if (whyNot === null && stage.t === 'asked') {
     footer = (
       <>
         <PrimaryBtn label={t('nearby.letIn.letIn', { name: stage.name })} icon="check" help={t('nearby.letIn.letInHelp')} onPress={() => actions.answer(true)} />
@@ -442,7 +446,12 @@ export function LetSomeoneIn(ctx: Ctx) {
           </>
         ) : null}
       </Card>
-      {whyNot !== null ? (
+      {whyNot === 'permissions' ? (
+        permit?.t === 'explain' ? <Banner icon="info" title={t(PERMISSION_WORDS[permit.reason])} />
+          : permit?.t === 'settings' ? <Banner icon="lock" tone="amber" title={t('nearby.permission.settings')} />
+            // A phone that wears a cover: its own line, in the cover's words, sends the person to Share nearby's warning.
+            : <Card><LetInCoverNote worn={worn} part="permissions" /></Card>
+      ) : whyNot !== null ? (
         <Card>
           <View style={styles.line}>
             {whyNot === 'loading' ? <ActivityIndicator color={C.primary} /> : <Ico name="info" size={22} color={C.muted} />}
