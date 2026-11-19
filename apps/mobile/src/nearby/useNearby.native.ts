@@ -10,7 +10,9 @@ import type { NativeCapabilities } from '../../modules/nearby-link';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
 import { currentHoldChoice } from './holdChoice.native';
-import { pressHoldChoice } from './nearbyIdentity.native';
+import { certificateLimited, onNearbyHeld, pressHoldChoice } from './nearbyIdentity.native';
+import { nearbyFlag, onNearbyFlag } from './nearbyFlag';
+import { nearbyRowShown } from './nearbyRowModel';
 import { nearbyRadio } from './nearbyLink.native';
 import { carryFactsOf, type StoredCarryFacts } from './nearbyCarry.native';
 import { copySourceOf } from './nearbyCopySource';
@@ -120,7 +122,7 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   }), [radio, diag]);
 
   const whyNot: NearbyWhyNot | null = readOnly ? 'read-only'
-    : unavailableReasonOf(facts, radio !== null, sdk, os) ?? (facts === null || offered === null ? 'loading' : offered ? null : 'no-certificate');
+    : unavailableReasonOf(facts, radio !== null, sdk, os) ?? (facts === null || offered === null ? 'loading' : offered ? null : certificateLimited(actorId) ? 'limited' : 'no-certificate');
   const radiosOff = useMemo(() => radiosOffOf(facts, os), [facts, os]);
   const state = permissionsStateOf(sdk, answers, os);
   const step = useMemo(
@@ -273,20 +275,35 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   return useMemo(() => ({ view, actions }), [view, actions]);
 }
 
-/** For the Sync screen's row: whether to show Share nearby, and why it is disabled (5.8, Carl's answer 7). Starts nothing and asks nothing. */
+/**
+ * For the Sync screen's row: whether to show Share nearby, and why it is disabled (5.8, Carl's
+ * answer 7). Shown once the phone holds a certificate and the language's discovery key, and, where
+ * the organization has nearby on, disabled with what is missing while it does not (`nearbyRowShown`,
+ * 2026-11-19). Checked again whenever the server's flag or what the phone holds may have changed, so
+ * a certificate that arrives while Sync is open shows at once. Starts nothing and asks nothing.
+ */
 export function useNearbyOffered(ctx: Ctx): { offered: boolean; whyNot: NearbyWhyNot | null } {
   const radio = nearbyRadio();
   const { actorId, readOnly } = ctx.session;
   const { orgId, languageId } = ctx.language;
   const [facts, setFacts] = useState<NativeCapabilities | null>(null);
   const [offered, setOffered] = useState(false);
+  const [heard, setHeard] = useState(0);
+  useEffect(() => {
+    const again = () => setHeard((n) => n + 1);
+    const offHeld = onNearbyHeld(again);
+    const offFlag = onNearbyFlag(again);
+    return () => { offHeld(); offFlag(); };
+  }, []);
   useEffect(() => {
     let live = true;
     radio?.facts().then((f) => { if (live) setFacts(f); }).catch((e: unknown) => noteExpected('nearby: capabilities', e));
     nearbyOfferedFor(actorId, orgId, languageId).then((o) => { if (live) setOffered(o); }).catch((e: unknown) => noteExpected('nearby: offered', e));
     return () => { live = false; };
-  }, [radio, actorId, orgId, languageId]);
+  }, [radio, actorId, orgId, languageId, heard]);
   const { os, sdk } = phoneSystem();
-  const whyNot: NearbyWhyNot | null = readOnly ? 'read-only' : unavailableReasonOf(facts, radio !== null, sdk, os);
-  return useMemo(() => ({ offered, whyNot }), [offered, whyNot]);
+  const features = nearbyFlag(actorId).features;
+  const row = nearbyRowShown({ offered, orgOn: features ? (features[orgId] ?? []).includes('nearby') : null, limited: certificateLimited(actorId), readOnly });
+  const whyNot: NearbyWhyNot | null = readOnly ? 'read-only' : unavailableReasonOf(facts, radio !== null, sdk, os) ?? row.missing;
+  return useMemo(() => ({ offered: row.shown, whyNot }), [row.shown, whyNot]);
 }
