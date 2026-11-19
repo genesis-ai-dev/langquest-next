@@ -1,5 +1,7 @@
 # Bringing the app to the UX demo
 
+Kind: reference
+
 The mobile app follows the partner demo in `ng-langquest-ux` (branch
 `caleb-spoken-mobbin-overhaul`): its flow, look and capabilities. This page
 is how the port is organised and the conventions every screen keeps. The
@@ -158,3 +160,41 @@ Demo-only tools are out of scope (see above). Beyond those:
 - A local native build needs an Xcode whose Swift accepts `weak let`
   (`expo-modules-jsi` in Expo 57); Xcode 26.0.1 does not. EAS builds are
   unaffected.
+
+## The spec's domain in the event log
+
+Moved here from PLAN.md section 13 on 2026-11-19.
+
+The spec's domain (`ng-langquest-ux/src/data.ts`) maps onto the event log
+like this. Where the spec forced a model change, it is noted. The record
+model (kinds, flows, reviews by kind, departures, requests, notes, study) is
+earlier on this page; the role-based workflow model it replaced is
+gone (decision 63).
+
+| Spec concept | Here | Note |
+| --- | --- | --- |
+| Org › Language | `orgId` › one stream per language (`streamId` = the language's id), listed by `LanguageAdded` in the organization stream (`orgLanguages`) | no project and no lane (decision 63); a phone pulls the languages it opens (decision 37) |
+| Content template (FIA, OpenBible…) | a library item's version (docs/library.md) used by the language (`TemplateSelected`); units `<itemId>/<node>`, parts a later version drops hidden (`UnitHidden`); a `template@2` Bible breaks up each book its own way or not yet (decision 74) | pieces are leaf units; a language shows its template's units in the books it covers, plus hand-added ones; a book with none waits to be broken up |
+| Piece / passage | `UnitAdded` with a leaf kind | |
+| Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |
+| Take (audio) | cards (`RecordingAdded`) referenced by a take | |
+| Review flow, stages A→B→C→D | a library flow's version used by the language (`FlowSelected`) instantiated as `FlowStepSet` registers with the kinds it brings | |
+| Review team | `ReviewTeamDefined` + `ReviewTeamMemberSet`, `ReviewTeamKindSet` (the kind it usually does) | a request may go to a team (`RequestMade.teamId`); `usualTarget` suggests one |
+| Stage round: asked, submitted, reviewed | derived from requests, submissions and reviews (`derivePassage`) | never stored |
+| Verdict looks good / needs changes | `ReviewRecorded.outcome` = `looks_good`, `needs_changes` or `recorded` (a producing kind), by kind | suggestions are advisory (A11); a checkpoint step is passed or overridden (`DepartureRecorded`) |
+| Review questions and answers | `TakeSubmitted.questionSetIds` (material ids), the kind's questions (`questionsForKind`) or a request's own, `ReviewRecorded.answers` | question sets are materials of kind `questions` |
+| Translator response to suggestions | a new take with `parentTakeId`, `ResponseRecorded` (note or audio), then `TakeSubmitted` | the `respond` task type |
+| Assignment: what, who, note | `RequestMade` (record or review; a person, a guest or a team) and `RequestWithdrawn` | **added** `note` (`dueDate` too, but it is no longer set or shown, decision 126; old events may still carry it); a request is done when what it asked for happens |
+| To Do / Doing / Done | `upNext`, `highlightsFor` and `waitingOn` (core `passage.ts`) | todo: asked or next; doing: a draft exists; done: the flow is through |
+| Piece work status | derived per passage (`derivePassage`: recorded, steps complete, done) | reports (`languageReport`) |
+| Bottleneck ("3 in Community Check") | passages by the first step not yet complete (`languageProgress.steps`) | reports |
+| Reference material (TMF, Brief, TG, FIA study), key terms | library material (study guides and collections, simple documents, question sets) matched to passages by verses through their versifications; the organization's own working material as `MaterialDefined` + `MaterialFieldSet`; `KeyTerm*` events | a v2 project's source content is imported as material |
+| Inbox | `updatesFor` (core `passage.ts`): what concerns the actor on the record, plus server notifications | read state is per device |
+| Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/shell/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
+| Roles with privilege switches, member scope (org / language) | organization stream: `RoleDefined`, `MemberAdded { scope }` (core `org.ts`); one role per scope | fixed roles are seed roles; `effectiveRole` maps back |
+| Sharing templates, flows and material between organizations | library items: shared / followable per item, copied or followed (`Library*` events, `library_adopt`) | decision 36; recommendations are `ReferenceRecommended` and `ReferenceSet` (decision 62) |
+| Who may use an organization's work, and what outsiders see | `v1.LicenseSet` in the organization stream (`orgLicense`, `LICENSE_INFO[..].terms`); outsiders read a projection, never the log | **added**, not in the demo (decision 38, docs/licensing.md); only ever opens |
+| Whether this phone sends field diagnostics | Settings › App › Send diagnostics, a switch row (`diag:off` in device meta, `src/diagnosticsSetting.ts`); diagnostics are never events | **added**, not in the demo (decision 39, docs/diagnostics.md); on by default, and off deletes what is waiting |
+| Reporting content or a person, and blocking someone | a flag on anything someone else made (`reportSheet.tsx`); `content_reports` and `user_blocks` rows sent through the account outbox, never events; a moderator removes content with `v1.Redacted`, staff act through `npm run moderation`; a blocked person's words and audio are hidden behind Show and their work still counts | **added**, not in the demo (decision 48); Google Play requires it |
+| Sharing work between phones with no internet | Share nearby (`share_nearby`), from Sync while the organization has it on, labelled experimental (`src/screens/nearby.tsx`, `src/nearby/`); rows a teammate's phone sent are `nearby` in the events table until the server confirms them, and "Hold teammates' recordings" is `nearbyHold` in device meta; nothing new is an event | **added**, not in the demo (docs/nearby-sync-plan.md 5.8); Android phones and iPhones (section 7's phase 5), through `.native` files, never the web |
+| A new person joining a team with no internet | Let someone in (`let_someone_in`), from Share nearby for someone holding a join pass for the language, shows a code holding only how to reach the phone, a secret and a pin; the new phone scans it on Scan a code, types a name on Join without internet (`join_offline`, a guest screen), and one tap beside two matching pictures lets them in under a role with no manage privilege; a starting copy follows; they work as a local person (`nearby-local-person` in the Keystore) until first contact makes their account; Get the install file (`get_install_file`, from Share nearby, from Let someone in, and from Sync's Ready for offline card, which reminds a carrier while online when this phone lacks the file it needs) names the install file this phone's versions need (core `carriedApkName`, the carried build the Worker serves at `/apk/<name>`), which a carrier downloads in the browser while online, checks by name, and passes on outside the app; nothing new is an event | **added**, not in the demo (docs/nearby-sync-plan.md 14.1, 14.4); Android only, through `.android` files, behind `nearby_join` |

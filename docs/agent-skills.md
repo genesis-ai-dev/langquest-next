@@ -1,5 +1,7 @@
 # Agent skills
 
+Kind: reference
+
 Which skills this repo gives coding agents, where they come from, and what was
 considered and left out. The index agents read is in `AGENTS.md`; this file is
 the record behind it. Reviewed 2026-09-28.

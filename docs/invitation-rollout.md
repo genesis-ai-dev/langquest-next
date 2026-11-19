@@ -1,5 +1,7 @@
 # Invitation and account flow rollout
 
+Kind: report
+
 Status on 2026-09-17: hosted migrations and mobile RPC contracts verified.
 Cloudflare Email Sending is enabled and the invitation email Worker is
 deployed. The hosted Supabase `send-invite` endpoint is deployed and its
