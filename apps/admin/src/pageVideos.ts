@@ -169,7 +169,9 @@ function videoPart(d) {
 /** One mark on a timeline or in the key: its picture in its colour. On a timeline it is a button that says its name, when and what, and opens the details. */
 function markButton(m, index) {
   const at = new Date(m.at);
-  const says = markName(m) + '. ' + at.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + (m.text && m.kind !== 'film' && m.kind !== 'up' ? '. ' + m.text : m.kind === 'film' && m.text ? '. ' + m.text : '');
+  // The words of the mark follow its name, unless they only say the name again ("new film").
+  const more = m.text && m.kind !== 'up' && m.text.toLowerCase() !== markName(m).toLowerCase() ? '. ' + (m.text.length > 140 ? m.text.slice(0, 139) + '…' : m.text) : '';
+  const says = markName(m) + '. ' + at.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + more;
   return '<button type="button" class="mk ' + markClass(m) + '" data-mark="' + index + '" data-h="' + ((at.getUTCHours() * 60 + at.getUTCMinutes()) / 1440).toFixed(4) + '" data-help="' + esc(says) + '" aria-label="' + esc(says) + '">' + vicon(markKind(m)) + '</button>';
 }
 

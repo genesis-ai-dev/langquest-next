@@ -557,7 +557,7 @@ on the dashboard.
 
 ### On the ops dashboard
 
-Tutorial videos → Videos, your list and the workers' list
+Tutorial videos → Videos and what waits on you
 (`apps/admin/src/sources/videos.ts`, drawn by `apps/admin/src/pageVideos.ts`;
 docs/decisions/2026-11-19-the-tutorial-videos-page-opens-on-what-waits-on-you.md).
 Four tabs with counts; the page opens on the first when something waits:

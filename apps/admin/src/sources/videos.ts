@@ -11,11 +11,14 @@ import { tutorialsOf, type Feedback, type Tutorials } from './ops';
  * dashboard", decisions.md 186 amended 2026-11-13 and 2026-11-16): every video
  * in each app language with its state and a timeline of what happened to it;
  * what an admin must do (answer a suggestion, say what to do when Claude could
- * not make a change, publish, connect a channel, turn a language on); and what
+ * not make a change, post a suggested reply and say so, publish, connect a
+ * channel); and what
  * the workers do now or tonight (filming, checks of slotted videos, fixes being
  * written or merging themselves, comments to read, uploads). A fourth list is
  * the record of every change Claude made to a video, with its pull request:
- * a clear fix merges itself, so no person sees it except here. Read from four places: the database
+ * a clear fix merges itself, so no person sees it except here. The page draws them as four tabs
+ * (pageVideos.ts, docs/decisions/2026-11-19-the-tutorial-videos-page-opens-on-what-waits-on-you.md).
+ * Read from four places: the database
  * (diag.ops_tutorial_films, ops_tutorial_feedback, ops_tutorials), each
  * language's status-<language>.json in the public `tutorials` release (the
  * nightly writes it, e2e/tutorials/nightly.ts), the filming run on GitHub
