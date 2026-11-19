@@ -49,3 +49,25 @@ Reverse if: GitHub's machines make the runs flaky enough that a failure is
 more often the machine than the app (then run them on the team's Mac or a
 device farm), or the repository goes private and the macOS minutes cost more
 than a device farm.
+
+Amended (2026-11-18, Caleb Koster): when Maestro's driver on the phone
+stops, the run starts a new one for the flows it left without a result.
+Maestro drives a phone through a driver it starts there (on an iPhone, one
+XCTest case), and one start of Maestro never starts a second driver. When
+XCTest failed that case, the flow it stopped at and every flow after it
+ended with "Device became unreachable": 13 of 23 flows on 2026-11-15
+(LAN-278) and 7 on 2026-11-17 (LAN-285 to LAN-291), each filed as a failure
+that said nothing about the app. Now the runner starts Maestro again for
+those flows, in the order they first ran, at most three times, and puts
+their results in the run's report (`scripts/maestro-plan.mjs`
+`withNewDrivers`, `scripts/maestro-ui.mjs`); the run's page says where the
+driver stopped. This does not change "zero retries" (docs/testing.md): a
+flow that got a result, pass or fail, never runs again, and a flow the
+driver stops at twice keeps "no result" so that the flows after it get
+theirs. The flow the driver stopped at begins again on what its first run
+did on the test server, so its Linear issue says that the result is of a
+second run. Rejected: a newer Maestro (none up to 2.12 starts a new
+driver), and one start of Maestro for each flow (on 2026-11-17 a start took
+2 minutes 41 seconds to reach its first flow, and a night has 23 flows).
+Reverse if: a flow fails on its second run more often than it passes, or
+Maestro starts a new driver itself.

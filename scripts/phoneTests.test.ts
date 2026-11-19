@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { nightLine, PREFIX } from './nightly-report.mjs';
 import {
-  addLook, file, flowKey, junitFlows, MANY, markdown, nightSummary, phoneNights,
+  addLook, driverNote, driverStops, file, flowKey, junitFlows, MANY, markdown, nightSummary, phoneNights,
   phoneOutcomes, PICTURE, runKey, safeName, safeNames, shotFor, slug, STEPS, stoppedAt
 } from './phone-tests.mjs';
 
@@ -89,6 +89,13 @@ describe('shotFor', () => {
     expect(shotFor(files, 'P0 A reviewer reviews: looks good')).toBe(files[1]);
     expect(shotFor(files, 'P0 Nothing here')).toBeNull();
   });
+  it('takes the picture of the newest start of Maestro when a new driver ran the flow again', () => {
+    const files = [
+      '/r/2026-11-17_085600/REC-020/screenshots/step-090-tapOn.png',
+      '/r/2026-11-17_094010/REC-020/screenshots/step-031-assertVisible.png', '/r/2026-11-17_094010/REC-020/screenshots/step-030-tapOn.png'
+    ];
+    expect(shotFor(files, 'REC-020')).toBe(files[1]);
+  });
   it('finds the picture after its folder and name went through safeName', () => {
     const files = ['/r/2026-11-11_222406/P0 A reviewer reviews- looks good/screenshot-❌-5-(P0 A reviewer reviews- looks good).png'];
     expect(shotFor(files, 'P0 A reviewer reviews: looks good')).toBe(files[0]);
@@ -143,6 +150,39 @@ describe('nightSummary', () => {
     });
     expect(summary.platforms[0]!.broke).toBe('The Android emulator job stopped at "Start the Android emulator", before the flows left a report. The Android emulator started 2 times, and no start was ready for the flows.');
     expect(summary.platforms[1]!.broke).toBe('The iPhone simulator job stopped at "Wait for the test server", before the flows left a report.');
+  });
+
+  it('says where Maestro\'s driver stopped, how many flows a new driver ran, and which result is of a second run', () => {
+    const gone = '<failure>maestro.DeviceUnreachableException: Device became unreachable during deviceInfo</failure>';
+    const junit = JUNIT.replace('status="SUCCESS"></testcase>', `status="ERROR">${gone}</testcase>`);
+    const { summary } = night({ ios: 'failure' }, (root) => {
+      const ios = results(root, 'ios', { junit });
+      writeFileSync(join(ios, 'driver.json'), JSON.stringify({ stops: [{ at: 'REC-020', again: ['REC-020', 'SYNC-015'] }, { at: 'SYNC-015', again: [] }] }));
+    });
+    const [ios] = summary.platforms;
+    expect(ios!.driver).toEqual([{ at: 'REC-020', again: 2 }, { at: 'SYNC-015', again: 0 }]);
+    const [rec, sync, viewer] = ['REC-020', 'SYNC-015', 'P0 A viewer follows a passage to Done'].map((name) => ios!.flows.find((f) => f.name === name)!);
+    // REC-020 failed on its second run; SYNC-015 has no result still; the third flow passed before the driver stopped.
+    expect(rec.secondRun).toBe(true);
+    expect(driverNote(rec)).toMatch(/^Maestro's driver on the phone stopped while this flow first ran\. This result is of its second run/);
+    expect(sync.secondRun).toBeUndefined();
+    expect(driverNote(sync)).toMatch(/so this flow has no result: the failure says nothing about the app\.$/);
+    expect(driverNote(viewer)).toBeNull();
+    const bodies = Object.fromEntries(phoneOutcomes(summary).filter((o) => !o.passed).map((o) => [o.key, o.body]));
+    expect(bodies[flowKey(ios!, rec)]).toContain(driverNote(rec));
+    expect(bodies[flowKey(ios!, sync)]).toContain(driverNote(sync));
+    const md = markdown(summary);
+    expect(md).toContain('**iPhone simulator:** Maestro\'s driver on the phone stopped at "REC-020". A new driver ran the 2 flows it left without a result.');
+    expect(md).toContain('**iPhone simulator:** Maestro\'s driver on the phone stopped at "SYNC-015". No new driver was started after it.');
+  });
+
+  it('takes from driver.json only what it knows, and nothing from a run whose driver did not stop', () => {
+    expect(driverStops({ stops: [{ at: 'A', again: ['A', 7] }, { at: 3 }, 'x', { at: 'B' }] })).toEqual([{ at: 'A', again: ['A'] }, { at: 'B', again: [] }]);
+    expect(driverStops(null)).toEqual([]);
+    expect(driverStops({ stops: 'none' })).toEqual([]);
+    const { summary } = night({ android: 'failure' }, (root) => results(root, 'android'));
+    expect(summary.platforms[0]!.driver).toEqual([]);
+    expect(markdown(summary)).not.toContain('driver');
   });
 
   it('leaves out a phone a manual run left out', () => {
