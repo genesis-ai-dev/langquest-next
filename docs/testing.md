@@ -166,7 +166,7 @@ These keep the suite fast enough to run and stable enough to trust.
 
 | When | What | Budget |
 | --- | --- | --- |
-| Pre-push hook | typecheck, `npm test`, worker bundle parity | under 30 s |
+| Pre-push hook | typecheck, lint, `npm test`, worker bundle parity; none of it when `npm run guardrails` passed on the commit's files (`scripts/guardrails-passed.mjs`) | about 3 min, or under a second after guardrails |
 | `npm run guardrails` | the CI `checks` job here; `--web` adds the export and its budget, `--all` the server and `ui-web` jobs | |
 | PR (CI `checks`) | typecheck, lint, server calls, worker bundle parity | under 10 min |
 | PR (CI `unit`, `coverage`) | `npm test` in three shards dealt by weight (`scripts/unit-shards.ts`), then the coverage thresholds on the merged report | under 10 min |
