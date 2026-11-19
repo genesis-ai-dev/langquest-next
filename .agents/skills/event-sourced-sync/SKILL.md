@@ -21,7 +21,9 @@ file and PLAN.md disagree, PLAN.md wins; fix this file.
    `passage.ts`, never stored.
 4. The device **materializes on append**, pushes pending events from the
    outbox, and pulls the stream's tail by `serverSeq` cursor. Sync status is a
-   column on the events table (`pending | confirmed | rejected`).
+   column on the events table (`pending | confirmed | rejected | nearby`;
+   `nearby` is a teammate's row from their phone that the server has not
+   confirmed: folded, never pushed, decisions.md 212).
 5. **Audio is immutable and content-addressed**; blobs sync independently of the
    events that reference them.
 

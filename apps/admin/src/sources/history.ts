@@ -41,7 +41,19 @@ export interface History {
 export const SERIES_SQL = `select diag.ops_series($1, $2) as v`;
 
 type Unit = 'count' | 'ms' | 'bytes';
-interface Metric { label: string; unit?: Unit }
+interface Metric {
+  label: string;
+  unit?: Unit;
+  /** Its keys in the page's words, where a key is a word from the code (a kind of record); a key not named here shows as it is. */
+  keys?: Record<string, string>;
+}
+
+/** Each kind of diagnostics record (DIAG_SCHEMA in packages/sync/src/diagnostics.ts) in the page's words. */
+const RECORD_KINDS: Record<string, string> = {
+  sync: 'Syncs', transfer: 'File transfers', device: 'Phone state reports', auth: 'Sign-in steps', load: 'Loads of saved work',
+  audio: 'Recording and playback', open: 'Language opens', expected: 'Failures shown to people', error: 'Errors',
+  checkpoint: 'Checkpoints', snapshot: 'Snapshot downloads', fill: 'Big language downloads', nearby: 'Share nearby'
+};
 
 /**
  * What each number is, in the page's words. Exactly the numbers the fill
@@ -51,10 +63,10 @@ interface Metric { label: string; unit?: Unit }
 export const METRICS: Record<string, Record<string, Metric>> = {
   clients: {
     installs: { label: 'Phones and browsers that reported' },
-    records: { label: 'Records received' },
+    records: { label: 'Diagnostics records the server received', keys: RECORD_KINDS },
     errors: { label: 'Errors' },
     crashes: { label: 'Crashes' },
-    error_installs: { label: 'Phones with an error' },
+    error_installs: { label: 'Phones and browsers with an error' },
     syncs: { label: 'Syncs' },
     sync_errors: { label: 'Syncs that ended in an error' },
     downloads: { label: 'Downloads' },
@@ -65,6 +77,7 @@ export const METRICS: Record<string, Record<string, Metric>> = {
     recordings_failed: { label: 'Recordings that failed' },
     playback_failed: { label: 'Playbacks that failed' },
     sign_in_trouble: { label: 'Sign-in trouble' },
+    sign_in_no_fault: { label: 'Sign-in steps refused or with no connection' },
     shown_failures: { label: 'Failures shown to people' }
   },
   fleet: {
@@ -73,12 +86,14 @@ export const METRICS: Record<string, Record<string, Metric>> = {
     first_downloads: { label: 'First downloads of a language' },
     first_download_p50_ms: { label: 'First download, typical time', unit: 'ms' },
     first_download_p95_ms: { label: 'First download, slowest 1 in 20', unit: 'ms' },
+    first_download_waits: { label: 'First downloads that waited with no connection' },
+    first_download_wait_max_ms: { label: 'First download, longest wait with no connection', unit: 'ms' },
     first_download_trouble: { label: 'First downloads that fell back or started over' }
   },
   safety: {
     refused: { label: 'Events the server refused' },
     refused_installs: { label: 'Phones whose work was refused' },
-    new_events: { label: 'Events received' },
+    new_events: { label: 'Work events the server received' },
     upload_delay_p50_ms: { label: 'Upload delay, typical', unit: 'ms' },
     upload_delay_p95_ms: { label: 'Upload delay, slowest 1 in 20', unit: 'ms' },
     upload_delay_max_ms: { label: 'Upload delay, longest', unit: 'ms' },

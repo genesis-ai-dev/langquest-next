@@ -37,6 +37,7 @@ const SMOKES = [
   'server/moderation-smoke.sql',
   'server/inviteKeysSmoke.sql',
   'server/passwordResetSmoke.sql',
+  'server/emailTakenSmoke.sql',
   'server/joinSmoke.sql',
   'server/inviteChecksSmoke.sql',
   'server/grantsSmoke.sql',

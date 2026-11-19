@@ -166,8 +166,7 @@ tags:
 - runFlow: ../common/close-map-keyboard.yaml
 - tapOn:
     id: "tab-me"
-- tapOn: "More settings.*"
-- tapOn: "Sync.*"
+- tapOn: "Sync and offline.*"
 - runFlow: ../common/open-sync-details.yaml
 - scrollUntilVisible:
     element:

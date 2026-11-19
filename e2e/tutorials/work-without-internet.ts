@@ -34,13 +34,13 @@ export const workWithoutInternet: Tutorial = {
       part: (page) => tab(page, 'Me'),
       say: 'Tap Me.',
       tap: true,
-      until: (page) => button(page, /^Ready for offline/).waitFor({ timeout: 30_000 }),
+      until: (page) => button(page, /^Sync and offline/).waitFor({ timeout: 30_000 }),
       stay: 0.6
     },
     {
       screen: 'settings_home',
-      part: (page) => button(page, /^Ready for offline/),
-      say: 'Ready for offline shows how many passages this phone keeps, to work on anywhere.',
+      part: (page) => button(page, /^Sync and offline/),
+      say: 'Sync and offline shows whether your work is sent, and how many passages this phone keeps to work on anywhere.',
       stay: 0
     },
     {
