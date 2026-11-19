@@ -1,5 +1,7 @@
 # The ops dashboard
 
+Kind: reference
+
 `https://app.langquest.org/ops-dashboard` shows staff what is going on
 with LangQuest in one page: what phones and browsers report, how the
 server's own jobs are doing, and what each service LangQuest runs on says
@@ -140,6 +142,30 @@ the page loads to exactly one section.
 A section without its token says "Not connected" and what to add; one whose
 service fails says "Could not read" and why. Neither holds up the others.
 Provider answers are kept a minute per Worker isolate; Refresh skips that.
+
+### Time to a usable Map
+
+A language's first full download (`open` and `fill` records, decision 147)
+is the slowest moment a new person has; Builds and stuck phones shows its
+p50 and p95 per day, by language size. Three rules
+(migration `20261118234300_first_download_wait.sql`):
+
+- An `open` record is a first download only when the phone had no rows of
+  that language (`cold` yes) and the stream is a language
+  (`diag.first_download`). A phone writes an `open` record for every open of
+  a language or of the organization.
+- An `open` record's `ms` runs from the open to the first full sync, so it
+  holds the time the phone waited with no connection and the download
+  together. The wait is the `offlineMs` of that phone's `sync` records of the
+  stream during the open (`diag.open_wait_ms`); the download time is `ms`
+  less the wait. The page shows the two apart (columns Waited and Longest
+  wait, numbers `first_download_waits` and `first_download_wait_max_ms`),
+  and the line "first downloads of a language took over 15 minutes" reads
+  the download time only, with counts ("2 of 8"). No record is changed or
+  left out.
+- "First downloads of a language" counts each first download once, by its
+  `open` record. A big language also writes a `fill` record, which gives the
+  time to its Map but is not a second download.
 
 ## What it never shows
 

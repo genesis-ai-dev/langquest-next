@@ -1,5 +1,7 @@
 # Tutorial videos
 
+Kind: reference
+
 Short how-to videos, one per thing a person does in LangQuest ("Record a
 passage", "Invite your team"), in every app language. Each is a script in
 `e2e/tutorials/` that the app plays through on the web export, filmed frame by
