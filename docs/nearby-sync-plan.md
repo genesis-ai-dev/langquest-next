@@ -1,6 +1,6 @@
 # Plan: nearby sync between phones
 
-Status: built and on `main`, while an organization has it on, labelled experimental:
+Kind: plan · Status: built and on `main`, while an organization has it on, labelled experimental:
 phases 1 to 4 and 6 since 2026-11-13 (pull request 403, decisions 211 to 246), and phase 5,
 iPhones sharing with Androids and with each other, since 2026-11-17 (pull request 481,
 decision 256). Joining offline stays Android only; Give the app (section 14.5) joined it on

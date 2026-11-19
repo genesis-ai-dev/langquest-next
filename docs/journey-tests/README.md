@@ -2,6 +2,8 @@ Historical (2026-10-14): findings from 2026-09-15 against the blueprint, before 
 
 # UX Journey Test Findings
 
+Kind: history
+
 **Test Date:** 2026-09-15  
 **Test Basis:** 14 journeys / 145 test cases from genesis-ai-dev/ng-langquest-ux  
 **Result:** ~107/145 PASS (~74%)  

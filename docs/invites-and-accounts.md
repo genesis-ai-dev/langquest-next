@@ -1,6 +1,6 @@
 # Invites, accounts and getting back in
 
-Status: design, 2026-10-01 (Caleb Koster). Decision 54 records it. Built in
+Kind: plan · Status: in progress: designed 2026-10-01 (Caleb Koster). Decision 54 records it. Built in
 the `invite-onboarding` branch; section 8 says what is built and what is
 next. Updated 2026-10-05 for decision 59: joining by invite needs no
 password, and a helper's code signs the person straight in.

@@ -1,5 +1,7 @@
 # Fleet simulation
 
+Kind: reference
+
 Many phones and one server in one process, on simulated time. Every phone
 runs the app's real sync code: `SyncClient`, `SyncScheduler` and
 `Diagnostics` from `packages/sync`, wired the way

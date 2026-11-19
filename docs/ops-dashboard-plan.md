@@ -1,6 +1,6 @@
 # Plan: the operations dashboard at next.langquest.org/ops-dashboard
 
-Status: phases 1 to 4 built and on `main` since 2026-10-23 (pull request 204, decisions 160
+Kind: plan · Status: in progress: phases 1 to 4 built and on `main` since 2026-10-23 (pull request 204, decisions 160
 to 162), and phase 5's history, pages and cards, 5a to 5h, since 2026-11-17 and
 2026-11-18 (section 7), except 5d, `OpsWatch`, which tells people and is not built. How the dashboard works now
 is `docs/admin.md` · Carl Sauder · 2026-10-21
@@ -287,24 +287,8 @@ New:
   (`diag.ops_snapshot_copies`, decisions.md 88, 204).
 - **Time to a usable Map**: a language's first full download (`open` and
   `fill` records, decision 147), p50 and p95 per day, by language size. It
-  is the slowest moment a new person has. Three rules
-  (migration `20261118234300_first_download_wait.sql`):
-  - An `open` record is a first download only when the phone had no rows of
-    that language (`cold` yes) and the stream is a language
-    (`diag.first_download`). A phone writes an `open` record for every open
-    of a language or of the organization.
-  - An `open` record's `ms` runs from the open to the first full sync, so it
-    holds the time the phone waited with no connection and the download
-    together. The wait is the `offlineMs` of that phone's `sync` records of
-    the stream during the open (`diag.open_wait_ms`); the download time is
-    `ms` less the wait. The dashboard shows the two apart (columns Waited and
-    Longest wait, numbers `first_download_waits` and
-    `first_download_wait_max_ms`), and the line "first downloads of a
-    language took over 15 minutes" reads the download time only, with counts
-    ("2 of 8"). No record is changed or left out.
-  - "First downloads of a language" counts each first download once, by its
-    `open` record. A big language also writes a `fill` record, which gives
-    the time to its Map but is not a second download.
+  is the slowest moment a new person has. Built: how a first download and
+  its wait are counted is in `docs/admin.md` (Time to a usable Map).
 - **Phones by build**: installs reporting per platform and app version, over
   a day, 7 days and 14 days, with the reducers they run.
 - **First downloads that fell back or started over**: `fill` records with

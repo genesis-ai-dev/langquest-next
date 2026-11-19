@@ -1,5 +1,7 @@
 # Routines
 
+Kind: reference
+
 Drafts of the routines that run LangQuest Next's board without a person in the
 loop. Each file is the prompt a routine runs, plus when it runs and what it may
 and may not do. They live here so they are reviewed and versioned like code;
