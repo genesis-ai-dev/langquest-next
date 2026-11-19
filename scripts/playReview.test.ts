@@ -1,5 +1,5 @@
 import { generateKeyPairSync, verify } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { NO_KEY, PACKAGE, assertion, livePlayVersion, newestRelease, nextPlayStep, playKey, run } from './play-review.mjs';
 import { EAS_KEYS, destinations } from './secrets.mjs';
@@ -204,5 +204,21 @@ describe('the workflows', () => {
   it('tries every hour, with the production key', () => {
     const hourly = read('apps/mobile/.eas/workflows/app-store-review.yml');
     expect(hourly).toMatch(/review_android:\n\s*name: [^\n]*\n\s*environment: production[\s\S]*node scripts\/play-review\.mjs/);
+  });
+
+  // Play keeps one edit open at a time and opening one deletes the one before it, so two runs
+  // writing to Play at once broke an upload (build 55, 2026-11-17). Every workflow that writes to
+  // Play shares one concurrency group, waits its turn rather than cancelling, and keeps its place.
+  it('takes turns with every other workflow that writes to Play', () => {
+    const dir = 'apps/mobile/.eas/workflows';
+    const writesToPlay = (text: string) => /play-review\.mjs|submit_android|profile: carried/.test(text);
+    const files = readdirSync(new URL(`../${dir}`, import.meta.url)).filter((f) => f.endsWith('.yml'));
+    const writers = files.filter((f) => writesToPlay(read(`${dir}/${f}`)));
+    expect(writers.sort()).toEqual(['app-store-review.yml', 'deploy-to-testers.yml', 'refresh-carried.yml']);
+    for (const f of writers) {
+      const text = read(`${dir}/${f}`);
+      expect(text, f).toMatch(/\nconcurrency:\n {2}group: google-play\n {2}queue: max\n/);
+      expect(text, f).not.toMatch(/cancel_in_progress/);
+    }
   });
 });

@@ -39,6 +39,7 @@
       "run": "Se dejó de compartir después de diez minutos.",
       "level": "Al día. Se dejó de compartir.",
       "letInLook": "El teléfono nuevo mostrará LangQuest hasta que elijan otro aspecto en Más ajustes.",
+      "letInPermissions": "Vuelve a Compartir cerca y toca Empezar a compartir. Permite lo que pida Android y luego vuelve aquí.",
       "apkTrace": "El historial y la lista de descargas del navegador muestran de dónde vino el archivo de instalación. Puedes borrarlos después."
     }
   },

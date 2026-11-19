@@ -294,7 +294,7 @@ jobs:
     # The web as a published platform (decisions.md 58): the release web
     # build, served by the Worker as in production, against a local Supabase,
     # in Chromium (desktop and phone width), Firefox and WebKit. Deterministic:
-    # no model. The build also holds the bundle-size budget.
+    # no model. The production build, made first, holds the bundle-size budget.
     needs: scope
     if: ${{ !cancelled() && needs.scope.outputs.web-smoke == 'true' }}
     runs-on: ubuntu-latest
@@ -316,11 +316,14 @@ jobs:
       # cache: pulling was faster than loading it (decisions.md 164).
       - name: Start Supabase in the background (pulls its images, applies every migration)
         run: bash scripts/ci-background.sh start stack bash scripts/ci-retry-pull.sh npx supabase start -x "$SUPABASE_EXCLUDE"
-      # The development export needs only the stack's URL and anon key, which
-      # are fixed and in apps/mobile/.env.development; e2e/export-web.sh keeps
-      # it only if the running stack agrees. The build holds the budget.
+      # The production export first, only to hold the budget: Workers Builds
+      # builds that one, and its settings make it about 500 bytes bigger than
+      # the development export (decision 123 as amended). Then the development
+      # export, which needs only the stack's URL and anon key, fixed and in
+      # apps/mobile/.env.development; e2e/export-web.sh keeps it only if the
+      # running stack agrees.
       - name: Build the web export in the background
-        run: bash scripts/ci-background.sh start export env NO_SPEECH_MODEL=1 npm run export:web -w mobile -- development
+        run: bash scripts/ci-background.sh start export env NO_SPEECH_MODEL=1 bash -c 'npm run export:web -w mobile -- production && npm run export:web -w mobile -- development'
       - uses: ./.github/actions/playwright
         with: { browsers: chromium firefox webkit }
       - name: Wait for the web export

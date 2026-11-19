@@ -934,9 +934,20 @@ test('AUTH-065 A Forgot password link sets a new password and signs in @p0', asy
   await expect(text(page, 'The password needs 6 or more characters.')).toBeVisible();
   const chosen = `new-${randomHex(5)}`;
   await password.fill(chosen);
+  // Typed twice, as on Create Account and Edit Profile (LAN-304).
+  const confirm = field(page, 'Confirm password');
+  await expect(confirm).toHaveAttribute('placeholder', 'Re-enter password');
+  await expect(button(page, 'Sign in')).toBeDisabled();
+  await confirm.fill(`${chosen}x`);
+  await expect(text(page, 'Passwords do not match.')).toBeVisible();
+  await expect(button(page, 'Sign in')).toBeDisabled();
+  await confirm.fill(chosen);
+  await expect(text(page, 'Passwords do not match.')).toHaveCount(0);
   await expect(button(page, 'Sign in')).toBeEnabled();
-  await button(page, 'Show password').click();
+  // The first eye is the password's; the confirm field has its own.
+  await page.getByRole('button', { name: 'Show password', exact: true }).locator('visible=true').first().click();
   await expect(password).not.toHaveAttribute('type', 'password');
+  await expect(confirm).toHaveAttribute('type', 'password');
   await expect(button(page, 'Hide password')).toBeVisible();
   await button(page, 'Sign in').click();
   await expect(text(page, 'Join your team')).toBeVisible({ timeout: 60_000 });
@@ -955,6 +966,7 @@ test('AUTH-066 A Forgot password link used twice, or after an hour', async ({ pa
   for (const code of [usedReset, old]) {
     await page.goto(`/signin#reset=${code}`);
     await field(page, NEW_PASSWORD).fill('long-enough-1', { timeout: 120_000 });
+    await field(page, 'Confirm password').fill('long-enough-1');
     await button(page, 'Sign in').click();
     await expect(page.getByRole('alert').locator('visible=true').first()).toHaveText('This link has expired or was already used.');
     await expect(button(page, 'Sign in')).toHaveCount(0);

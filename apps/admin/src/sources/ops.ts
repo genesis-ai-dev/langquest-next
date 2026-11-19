@@ -52,7 +52,14 @@ export interface Fleet {
   updates: { update: string; runtime: string | null; channel: string | null; installs: number; crashed: number; firstSeen: string; lastSeen: string }[];
   versions: { reducer: string | null; protocol: string | null; installs: number }[];
   web: { commit: string | null; installs: number }[];
-  toMap: { day: string; kind: 'open' | 'fill'; count: number; p50Ms: number | null; p95Ms: number | null }[];
+  /**
+   * A language's first downloads, per day. `open`: each first download, its
+   * time without the wait for a connection; `fill`: a big language, until its
+   * Map shows. `slow` are the ones over FIRST_DOWNLOAD_SLOW_MS; `waited` the
+   * opens that waited with no connection, and `waitMaxMs` the longest wait
+   * (migration 20261118234300_first_download_wait.sql; absent before it).
+   */
+  toMap: { day: string; kind: 'open' | 'fill'; count: number; p50Ms: number | null; p95Ms: number | null; slow?: number | null; waited?: number | null; waitMaxMs?: number | null }[];
   /**
    * First downloads that went wrong, per day: `fallback` took the whole
    * snapshot and `restart` lost its cut (`reason` from the `fill` record), and
@@ -63,6 +70,8 @@ export interface Fleet {
   stuck: { install: string; unsentMin: number | null; stuckMin: number | null; freeMb: number | null; lostFiles: number | null; lostRecordings: number | null; at: string }[];
   /** Quiet installs by account; null where the database lacks diag.ops_quiet_accounts. */
   quiet: QuietAccounts | null;
+  /** When the database made this count (every 10 minutes); absent before migration 20261117200000. */
+  countedAt?: string;
 }
 
 /** diag.ops_quiet_accounts(): `count` and `accounts` leave out the accounts a person marked not an issue. */
@@ -74,61 +83,17 @@ export interface QuietAccounts {
 
 export const quietAccountsOf = (row: QuietAccounts): QuietAccounts => ({ ...row, count: num(row.count), markedCount: num(row.markedCount) });
 
-/** Records are kept 90 days and indexed by arrival; installs by when they were last heard from. */
-export const FLEET_SQL = `with r as (
-  select install_id, org_id, stream_id, kind, received_at, update_id, n, t from diag.records where received_at > now() - interval '14 days'
-),
-seen as (select install_id, context, last_seen from diag.installs where last_seen > now() - interval '14 days')
-select jsonb_build_object(
-  'builds', (select coalesce(jsonb_agg(jsonb_build_object('platform', x.os, 'version', x.v, 'reducers', x.rv, 'day', x.d, 'week', x.w, 'fortnight', x.f) order by x.os, x.v desc), '[]'::jsonb)
-    from (select coalesce(context->>'os', '?') as os, coalesce(context->>'appVersion', '?') as v, string_agg(distinct context->>'reducerVersion', ', ') as rv,
-                 count(*) filter (where last_seen > now() - interval '1 day') as d, count(*) filter (where last_seen > now() - interval '7 days') as w, count(*) as f
-          from seen where coalesce(context->>'channel', '') <> 'development' and coalesce(context->>'os', '') <> 'web' group by 1, 2) x),
-  'updates', (select coalesce(jsonb_agg(jsonb_build_object('update', x.up, 'runtime', x.rt, 'channel', x.ch, 'installs', x.i,
-      'crashed', x.cr, 'firstSeen', x.fs, 'lastSeen', x.ls) order by x.fs desc), '[]'::jsonb)
-    from (select coalesce(left(r.update_id, 8), 'embedded') as up, max(s.context->>'runtimeVersion') as rt, max(s.context->>'channel') as ch,
-                 count(distinct r.install_id) as i,
-                 count(distinct r.install_id) filter (where r.kind = 'error' and r.t->>'fatal' = 'yes') as cr,
-                 min(r.received_at) as fs, max(r.received_at) as ls
-          from r left join seen s using (install_id) group by 1 order by min(r.received_at) desc limit 12) x),
-  'versions', (select coalesce(jsonb_agg(jsonb_build_object('reducer', x.rv, 'protocol', x.pv, 'installs', x.c) order by x.c desc), '[]'::jsonb)
-    from (select context->>'reducerVersion' as rv, context->>'protocolVersion' as pv, count(*) as c
-          from seen where last_seen > now() - interval '7 days' group by 1, 2) x),
-  'web', (select coalesce(jsonb_agg(jsonb_build_object('commit', x.cm, 'installs', x.c) order by x.c desc), '[]'::jsonb)
-    from (select context->>'runtimeVersion' as cm, count(*) as c from seen
-          where context->>'channel' = 'web' and last_seen > now() - interval '7 days' group by 1 limit 10) x),
-  'toMap', (select coalesce(jsonb_agg(jsonb_build_object('day', x.d, 'kind', x.k, 'count', x.c, 'p50Ms', x.p50, 'p95Ms', x.p95) order by x.d, x.k), '[]'::jsonb)
-    from (select to_char(date_trunc('day', received_at), 'YYYY-MM-DD') as d, k, count(*) as c,
-                 round(percentile_cont(0.5) within group (order by v)) as p50, round(percentile_cont(0.95) within group (order by v)) as p95
-          from (select received_at,
-                       case when kind = 'open' then 'open' else 'fill' end as k,
-                       case when kind = 'open' then (n->>'ms')::numeric else (n->>'msToMap')::numeric end as v
-                from r where kind = 'open' or (kind = 'fill' and t->>'event' = 'start')) q
-          where v is not null group by 1, 2) x),
-  'firstDownloads', (select coalesce(jsonb_agg(jsonb_build_object('day', x.d, 'what', x.w, 'reason', x.re, 'count', x.c, 'installs', x.i) order by x.d desc, x.c desc, x.w, x.re), '[]'::jsonb)
-    from (select to_char(date_trunc('day', q.received_at), 'YYYY-MM-DD') as d, q.w, q.re, count(*) as c, count(distinct q.install_id) as i
-          from (select r.received_at, r.install_id,
-                       case when r.kind = 'snapshot' then 'no_snapshot' else r.t->>'event' end as w,
-                       case when r.kind = 'snapshot' then coalesce(s.context->>'reducerVersion', '?') else coalesce(r.t->>'reason', '?') end as re
-                from r left join seen s using (install_id)
-                where coalesce(s.context->>'channel', '') <> 'development'
-                  and ((r.kind = 'fill' and r.t->>'event' in ('fallback', 'restart'))
-                    -- The organization's and a person's streams never have a snapshot, so only a language's says anything.
-                    or (r.kind = 'snapshot' and r.t->>'outcome' = 'none' and r.stream_id <> '_org' and r.org_id <> '_person'))) q
-          group by 1, 2, 3 order by 1 desc, 4 desc limit 40) x),
-  'stuck', (select coalesce(jsonb_agg(jsonb_build_object('install', x.install_id, 'unsentMin', x.un, 'stuckMin', x.st, 'freeMb', x.fr,
-      'lostFiles', x.lf, 'lostRecordings', x.lr, 'at', x.received_at) order by x.received_at desc), '[]'::jsonb)
-    from (select install_id, received_at, (n->>'oldestUnsentMin')::numeric as un, (n->>'wantedStuckMin')::numeric as st,
-                 (n->>'freeDiskMb')::numeric as fr, (n->>'lostFiles')::numeric as lf, (n->>'lostRecordings')::numeric as lr
-          from (select distinct on (install_id) install_id, received_at, n from r
-                where kind = 'device' and received_at > now() - interval '7 days' order by install_id, received_at desc) last
-          where (n->>'oldestUnsentMin')::numeric > 1440 or (n->>'wantedStuckMin')::numeric > 1440
-             or (n->>'freeDiskMb')::numeric < 500 or (n->>'lostFiles')::numeric > 0 or (n->>'lostRecordings')::numeric > 0
-          order by received_at desc limit 25) x)
-) as v`;
+/**
+ * Counted by the database every 10 minutes (diag.ops_cache_fill, decisions.md
+ * 257), with the stuck phones read at once; `countedAt` says when.
+ */
+export const FLEET_SQL = `select diag.ops_cached('fleet') as v`;
 
 /** A crash on more than this share of an update's installs is a reason to roll it back. */
 export const CRASH_ROLLBACK_SHARE = 0.02;
+
+/** A language's first download over this, without the wait for a connection, is slow (diag.ops_fleet counts them as `slow`). */
+export const FIRST_DOWNLOAD_SLOW_MS = 15 * 60_000;
 
 export function fleetAlerts(f: Fleet, reducer = REDUCER_VERSION): Alert[] {
   const out: Alert[] = [];
@@ -136,16 +101,18 @@ export function fleetAlerts(f: Fleet, reducer = REDUCER_VERSION): Alert[] {
   const crashFree = (u: Fleet['updates'][number]) => (u.installs ? 1 - u.crashed / u.installs : 1);
   if (latest && latest.installs >= 20 && 1 - crashFree(latest) >= CRASH_ROLLBACK_SHARE
     && (!before || crashFree(latest) < crashFree(before))) {
-    out.push({ level: 'urgent', text: `Update ${latest.update} crashed on ${plural(latest.crashed, 'install')} of ${latest.installs} (${((1 - crashFree(latest)) * 100).toFixed(1)}%)${before ? `, against ${((1 - crashFree(before)) * 100).toFixed(1)}% for ${before.update}` : ''}. Consider rolling it back on EAS.` });
+    out.push({ level: 'urgent', key: 'update-crashes', subject: latest.update, text: `Update ${latest.update} crashed on ${plural(latest.crashed, 'install')} of ${latest.installs} (${((1 - crashFree(latest)) * 100).toFixed(1)}%)${before ? `, against ${((1 - crashFree(before)) * 100).toFixed(1)}% for ${before.update}` : ''}. Consider rolling it back on EAS.` });
   }
   const old = f.versions.filter((v) => v.reducer !== null && Number(v.reducer) < reducer).reduce((s, v) => s + v.installs, 0);
-  if (old > 0) out.push({ level: 'watch', text: `${plural(old, 'install')} heard from this week still run an older reducer than ${reducer}: they need a store update.` });
+  if (old > 0) out.push({ level: 'watch', key: 'old-reducer', text: `${plural(old, 'install')} heard from this week still run an older reducer than ${reducer}: they need a store update.` });
   const lost = f.stuck.filter((s) => num(s.lostRecordings) > 0).length;
-  if (lost > 0) out.push({ level: 'urgent', text: `${plural(lost, 'install')} lost recordings before sending them (Stuck phones).` });
-  if (f.quiet && f.quiet.count >= 5) out.push({ level: 'watch', text: `${plural(f.quiet.count, 'install')} went quiet for 3 days while another device of the same person still reports: diagnostics off, or delivery broken (Silent phones).` });
+  if (lost > 0) out.push({ level: 'urgent', key: 'stuck-lost-recordings', watchKey: 'device:lostRecordings', text: `${plural(lost, 'install')} lost recordings before sending them (Stuck phones).` });
+  if (f.quiet && f.quiet.count >= 5) out.push({ level: 'watch', key: 'phones-quiet', text: `${plural(f.quiet.count, 'install')} went quiet for 3 days while another device of the same person still reports: diagnostics off, or delivery broken (Silent phones).` });
   const recent = f.toMap.filter((d) => d.kind === 'open').slice(-1)[0];
-  if (recent && recent.count >= 5 && num(recent.p95Ms) > 15 * 60_000) {
-    out.push({ level: 'watch', text: `A language's first download took over ${Math.round(num(recent.p95Ms) / 60_000)} minutes for one in twenty on ${recent.day}.` });
+  // The time is the download alone: a phone that opens a language with no connection waits, and that wait is not a slow download.
+  if (recent && recent.count >= 5 && num(recent.p95Ms) > FIRST_DOWNLOAD_SLOW_MS) {
+    const slow = Math.max(1, num(recent.slow));
+    out.push({ level: 'watch', key: 'first-download-slow', text: `${slow} of ${recent.count} first downloads of a language took over ${FIRST_DOWNLOAD_SLOW_MS / 60_000} minutes on ${recent.day}, without the time a phone waited with no connection.` });
   }
   return out;
 }
@@ -204,23 +171,23 @@ export const CANARY_SQL = `select coalesce(jsonb_agg(jsonb_build_object('at', st
 export function safetyAlerts(s: Safety): Alert[] {
   const out: Alert[] = [];
   const today = s.rejected.slice(-1)[0];
-  if (today && today.invalid > 0) out.push({ level: 'urgent', text: `The server refused ${plural(today.invalid, 'event')} as invalid on ${today.day}: a phone wrote work the server's rules do not accept, so it may never arrive.` });
+  if (today && today.invalid > 0) out.push({ level: 'urgent', key: 'events-invalid', text: `The server refused ${plural(today.invalid, 'event')} as invalid on ${today.day}: a phone wrote work the server's rules do not accept, so it may never arrive.` });
   if (today && today.installs >= 3 && today.rejected > today.invalid) {
-    out.push({ level: 'watch', text: `Work was refused from ${plural(today.installs, 'install')} on ${today.day} (${today.rejected} events: ${[['not a member', today.notMember], ['not allowed', today.notAllowed], ['clock ahead', today.clockAhead], ['not listed', today.notListed], ['other', today.other]].filter(([, n]) => Number(n) > 0).map(([w, n]) => `${w} ${n}`).join(', ')}).` });
+    out.push({ level: 'watch', key: 'work-refused', text: `Work was refused from ${plural(today.installs, 'install')} on ${today.day} (${today.rejected} events: ${[['not a member', today.notMember], ['not allowed', today.notAllowed], ['clock ahead', today.clockAhead], ['not listed', today.notListed], ['other', today.other]].filter(([, n]) => Number(n) > 0).map(([w, n]) => `${w} ${n}`).join(', ')}).` });
   }
   const mismatch = s.canary.find((c) => c.mismatched > 0 || c.errorClass === 'mismatch');
-  if (mismatch && s.canary[0] === mismatch) out.push({ level: 'urgent', text: `The fold canary found a language whose fresh fold differs from its stored snapshot (${mismatch.stream ?? 'unnamed'} in ${mismatch.org ?? '?'}). Snapshots or the fold may depend on order.` });
+  if (mismatch && s.canary[0] === mismatch) out.push({ level: 'urgent', key: 'fold-canary-mismatch', text: `The fold canary found a language whose fresh fold differs from its stored snapshot (${mismatch.stream ?? 'unnamed'} in ${mismatch.org ?? '?'}). Snapshots or the fold may depend on order.` });
   const arrivals = s.arrivals.slice(-1)[0];
   if (arrivals && num(arrivals.p95Ms) > 24 * 3_600_000 && arrivals.sampled >= 100) {
-    out.push({ level: 'watch', text: `One in twenty events arriving on ${arrivals.day} was made over a day earlier (p95 upload delay ${Math.round(num(arrivals.p95Ms) / 3_600_000)} h).` });
+    out.push({ level: 'watch', key: 'upload-delay', text: `One in twenty events arriving on ${arrivals.day} was made over a day earlier (p95 upload delay ${Math.round(num(arrivals.p95Ms) / 3_600_000)} h).` });
   }
-  if (arrivals && arrivals.futureInstalls > 0) out.push({ level: 'watch', text: `${plural(arrivals.futureStamped, 'event')} from ${plural(arrivals.futureInstalls, 'install')} were stamped more than 5 minutes ahead of the server's clock on ${arrivals.day}.` });
+  if (arrivals && arrivals.futureInstalls > 0) out.push({ level: 'watch', key: 'clock-ahead', text: `${plural(arrivals.futureStamped, 'event')} from ${plural(arrivals.futureInstalls, 'install')} were stamped more than 5 minutes ahead of the server's clock on ${arrivals.day}.` });
   const p = s.pipeline;
   if (p) {
     const far = p.lag.filter((l) => l.behind >= 200);
-    if (far.length) out.push({ level: 'watch', text: `${plural(far.length, 'language')} ${far.length === 1 ? 'is' : 'are'} 200 or more events behind the projection pass (most: ${far[0]!.name ?? far[0]!.languageId}, ${far[0]!.behind}).` });
-    if (p.snapshots.overdue >= 5) out.push({ level: 'watch', text: `${plural(p.snapshots.overdue, 'language')} have a snapshot older than decision 88 allows.` });
-    if (p.snapshots.oldReducer > 0) out.push({ level: 'watch', text: `${plural(p.snapshots.oldReducer, 'language')} have no snapshot from the current reducer yet.` });
+    if (far.length) out.push({ level: 'watch', key: 'projection-lag', text: `${plural(far.length, 'language')} ${far.length === 1 ? 'is' : 'are'} 200 or more events behind the projection pass (most: ${far[0]!.name ?? far[0]!.languageId}, ${far[0]!.behind}).` });
+    if (p.snapshots.overdue >= 5) out.push({ level: 'watch', key: 'snapshots-overdue', text: `${plural(p.snapshots.overdue, 'language')} have a snapshot older than decision 88 allows.` });
+    if (p.snapshots.oldReducer > 0) out.push({ level: 'watch', key: 'snapshots-old-reducer', text: `${plural(p.snapshots.oldReducer, 'language')} have no snapshot from the current reducer yet.` });
   }
   return out;
 }
@@ -245,7 +212,7 @@ export const EVENTS_BY_DAY_SQL = `select coalesce(jsonb_agg(to_jsonb(x) order by
 export function peopleAlerts(p: People): Alert[] {
   const out: Alert[] = [];
   const hours = p.joining.oldestRequestAt ? (Date.now() - Date.parse(p.joining.oldestRequestAt)) / 3_600_000 : 0;
-  if (p.joining.pendingRequests > 0 && hours >= 72) out.push({ level: 'watch', text: `${plural(p.joining.pendingRequests, 'join request')} waiting, the oldest for ${Math.round(hours / 24)} days.` });
+  if (p.joining.pendingRequests > 0 && hours >= 72) out.push({ level: 'watch', key: 'join-requests-waiting', text: `${plural(p.joining.pendingRequests, 'join request')} waiting, the oldest for ${Math.round(hours / 24)} days.` });
   return out;
 }
 
@@ -287,7 +254,7 @@ export interface Integrations {
 /** The app Worker's request tally over a day (apps/web/worker/requestTally.ts), summed by diag.totals. */
 export const TOTALS_SQL = `select coalesce(diag.totals(array_agg(n)), '{}'::jsonb) as v from diag.job_runs where job = $1 and started_at > now() - interval '1 day'`;
 
-export const ROUTES = ['reports', 'blobs_get', 'blobs_put', 'blob_access', 'r2_put', 'record_blob', 'agent_api', 'mcp', 'device', 'links', 'nearby', 'webhook', 'ops', 'other'] as const;
+export const ROUTES = ['reports', 'blobs_get', 'blobs_put', 'blob_access', 'r2_put', 'record_blob', 'agent_api', 'agent_list', 'mcp', 'device', 'links', 'nearby', 'webhook', 'ops', 'other'] as const;
 
 export interface RouteRow { route: string; requests: number; s4xx: number; s5xx: number; s429: number; lt100ms: number; lt1s: number; lt10s: number; over10s: number }
 
@@ -302,56 +269,71 @@ export function routeRows(totals: Record<string, number>): RouteRow[] {
   })).filter((r) => r.requests > 0);
 }
 
+/**
+ * Routes whose time is no sign that the app is slow: their failures still warn, their time does not.
+ * `agent_list`, a page of a language's passages: a partner paging through every language of its
+ * organization makes the organization's Durable Object open each language from its own storage,
+ * 2 to 19 s a page in the nightly bulk read of 2026-11-17 (making it faster: LAN-292).
+ */
+export const SLOW_BY_DESIGN: ReadonlySet<string> = new Set(['agent_list']);
+
 export function workerAlerts(rows: RouteRow[]): Alert[] {
   const out: Alert[] = [];
   // The ops dashboard's own route waits on the providers it asks (Cloudflare, Supabase, Expo): slow by design, and not the app's.
   for (const r of rows.filter((x) => x.route !== 'ops')) {
     const timed = r.lt100ms + r.lt1s + r.lt10s + r.over10s;
-    if (timed >= 50 && (r.lt10s + r.over10s) / timed >= 0.05) {
-      out.push({ level: 'watch', text: `${r.route}: ${(((r.lt10s + r.over10s) / timed) * 100).toFixed(1)}% of ${timed} timed requests took a second or more in the last day.` });
+    if (!SLOW_BY_DESIGN.has(r.route) && timed >= 50 && (r.lt10s + r.over10s) / timed >= 0.05) {
+      out.push({ level: 'watch', key: 'route-slow', subject: r.route, text: `${r.route}: ${(((r.lt10s + r.over10s) / timed) * 100).toFixed(1)}% of ${timed} timed requests took a second or more in the last day.` });
     }
-    if (r.requests >= 50 && r.s5xx / r.requests >= 0.02) out.push({ level: 'problem', text: `${r.route}: ${r.s5xx} of ${r.requests} requests failed on the server in the last day.` });
+    if (r.requests >= 50 && r.s5xx / r.requests >= 0.02) out.push({ level: 'problem', key: 'route-5xx', subject: r.route, watchKey: `worker:${r.route}:5xx`, text: `${r.route}: ${r.s5xx} of ${r.requests} requests failed on the server in the last day.` });
   }
   return out;
 }
 
 export function cronAlerts(c: Cron): Alert[] {
   return c.jobs.filter((j) => j.active && j.failures24h > 0)
-    .map((j) => ({ level: j.failures24h >= 3 ? 'problem' : 'watch', text: `pg_cron job ${j.jobname} failed ${plural(j.failures24h, 'time')} in the last day.` } as Alert));
+    .map((j): Alert => ({ level: j.failures24h >= 3 ? 'problem' : 'watch', key: 'pg-cron-failed', subject: j.jobname, text: `pg_cron job ${j.jobname} failed ${plural(j.failures24h, 'time')} in the last day.` }));
 }
 
 /** Whose a query or transaction is, as the page says it: `authenticator (PostgREST 14.5)`. */
 export const whose = (a: Activity | null | undefined): string =>
   a ? `${a.role ?? 'an unknown role'}${a.client ? ` (${a.client})` : ''}` : '';
 
+/** A transaction open longer than this, or a query running longer, is a line; the Database pictures draw each against it (pageMeters.ts). */
+export const LONG_XACT_S = 3600;
+export const LONG_QUERY_S = 300;
+/** A table with this share of dead rows, of at least this many rows, is a line. */
+export const DEAD_ROWS_SHARE = 0.3;
+export const DEAD_ROWS_MIN = 10_000;
+
 export function dbDetailAlerts(d: DbDetail): Alert[] {
   const out: Alert[] = [];
-  if (num(d.oldestXactS) > 3600) {
+  if (num(d.oldestXactS) > LONG_XACT_S) {
     const x = d.oldestXact;
-    out.push({ level: 'watch', text: `A database transaction${x ? ` by ${whose(x)}` : ''}${x?.state && x.state !== 'active' ? `, ${x.state},` : ''} has been open for ${Math.round(num(d.oldestXactS) / 60)} minutes: it holds back vacuum.` });
+    out.push({ level: 'watch', key: 'long-transaction', text: `A database transaction${x ? ` by ${whose(x)}` : ''}${x?.state && x.state !== 'active' ? `, ${x.state},` : ''} has been open for ${Math.round(num(d.oldestXactS) / 60)} minutes: it holds back vacuum.` });
   }
-  if (num(d.longestQueryS) > 300) {
+  if (num(d.longestQueryS) > LONG_QUERY_S) {
     const q = d.longestQuery;
-    out.push({ level: 'watch', text: `A query${q ? ` by ${whose(q)}` : ''} has been running for ${Math.round(num(d.longestQueryS) / 60)} minutes${q?.waitingOn === 'Lock' ? ', blocked by a lock' : ''}.` });
+    out.push({ level: 'watch', key: 'long-query', text: `A query${q ? ` by ${whose(q)}` : ''} has been running for ${Math.round(num(d.longestQueryS) / 60)} minutes${q?.waitingOn === 'Lock' ? ', blocked by a lock' : ''}.` });
   }
-  for (const t of d.tables) if (num(t.deadRatio) >= 0.3 && t.rows >= 10_000) out.push({ level: 'watch', text: `${t.name} is ${Math.round(num(t.deadRatio) * 100)}% dead rows: autovacuum is behind.` });
+  for (const t of d.tables) if (num(t.deadRatio) >= DEAD_ROWS_SHARE && t.rows >= DEAD_ROWS_MIN) out.push({ level: 'watch', key: 'dead-rows', subject: t.name, text: `${t.name} is ${Math.round(num(t.deadRatio) * 100)}% dead rows: autovacuum is behind.` });
   return out;
 }
 
 export function pushAlerts(p: Push): Alert[] {
   const out: Alert[] = [];
   const hours = p.oldestPendingAt ? (Date.now() - Date.parse(p.oldestPendingAt)) / 3_600_000 : 0;
-  if (p.pending > 0 && hours >= 1) out.push({ level: 'problem', text: `${plural(p.pending, 'notification')} waiting to be pushed, the oldest for ${Math.round(hours)} h.` });
+  if (p.pending > 0 && hours >= 1) out.push({ level: 'problem', key: 'push-waiting', text: `${plural(p.pending, 'notification')} waiting to be pushed, the oldest for ${Math.round(hours)} h.` });
   const errors = p.errors24h.reduce((s, e) => s + e.n, 0);
-  if (errors >= 20) out.push({ level: 'watch', text: `Pushes failed ${errors} times in the last day (${p.errors24h.slice(0, 3).map((e) => `${e.code} ${e.n}`).join(', ')}).` });
+  if (errors >= 20) out.push({ level: 'watch', key: 'push-errors', text: `Pushes failed ${errors} times in the last day (${p.errors24h.slice(0, 3).map((e) => `${e.code} ${e.n}`).join(', ')}).` });
   return out;
 }
 
 export function integrationAlerts(i: Integrations): Alert[] {
   const out: Alert[] = [];
   const disabled = i.webhooks.disabled.reduce((s, d) => s + d.n, 0);
-  if (disabled > 0) out.push({ level: 'watch', text: `${plural(disabled, 'webhook')} switched off (${i.webhooks.disabled.map((d) => `${d.reason ?? 'no reason'} ${d.n}`).join(', ')}).` });
-  if (num(i.dispatch.failed) >= 10) out.push({ level: 'watch', text: `Webhook deliveries failed ${num(i.dispatch.failed)} times in the last day.` });
+  if (disabled > 0) out.push({ level: 'watch', key: 'webhooks-off', text: `${plural(disabled, 'webhook')} switched off (${i.webhooks.disabled.map((d) => `${d.reason ?? 'no reason'} ${d.n}`).join(', ')}).` });
+  if (num(i.dispatch.failed) >= 10) out.push({ level: 'watch', key: 'webhook-failures', text: `Webhook deliveries failed ${num(i.dispatch.failed)} times in the last day.` });
   return out;
 }
 
@@ -384,11 +366,11 @@ export function supportAlerts(s: Support, now = Date.now()): Alert[] {
   const out: Alert[] = [];
   const hours = s.reports.oldestAt ? (now - Date.parse(s.reports.oldestAt)) / 3_600_000 : 0;
   const waiting = (s.verifications ?? []).filter((v) => v.status === 'waiting').length;
-  if (waiting) out.push({ level: 'watch', text: `${plural(waiting, 'organization')} waiting for a blue check (Support, Blue check requests).` });
+  if (waiting) out.push({ level: 'watch', key: 'blue-check-waiting', text: `${plural(waiting, 'organization')} waiting for a blue check (Support, Blue check requests).` });
   if (s.reports.open > 0 && hours >= REPORT_DUE_HOURS) {
-    out.push({ level: 'problem', text: `A content report has waited ${Math.round(hours)} hours; the Terms promise action within 24 (npm run moderation -- --hosted).` });
+    out.push({ level: 'problem', key: 'content-report-due', text: `A content report has waited ${Math.round(hours)} hours; the Terms promise action within 24 (npm run moderation -- --hosted).` });
   } else if (s.reports.staffOnly > 0) {
-    out.push({ level: 'watch', text: `${plural(s.reports.staffOnly, 'open report')} only LangQuest staff can act on (about someone who moderates).` });
+    out.push({ level: 'watch', key: 'staff-only-reports', text: `${plural(s.reports.staffOnly, 'open report')} only LangQuest staff can act on (about someone who moderates).` });
   }
   return out;
 }
@@ -401,10 +383,10 @@ export interface Security {
 
 export function securityAlerts(s: Security): Alert[] {
   const out: Alert[] = [];
-  if (s.limits.deviceRefused >= 100) out.push({ level: 'watch', text: `The device-code rate limit refused ${s.limits.deviceRefused} requests in the last day: someone may be guessing codes.` });
-  if (s.limits.linksRefused >= 300) out.push({ level: 'watch', text: `The review-link rate limit refused ${s.limits.linksRefused} requests in the last day.` });
-  if (s.limits.v2SignInFailures24h >= 100) out.push({ level: 'watch', text: `${s.limits.v2SignInFailures24h} failed v2 sign-ins in the last day.` });
-  if (s.limits.installsAtDiagCap > 0) out.push({ level: 'watch', text: `${plural(s.limits.installsAtDiagCap, 'install')} hit the diagnostics cap today: a loop on the phone, or a flood.` });
+  if (s.limits.deviceRefused >= 100) out.push({ level: 'watch', key: 'device-code-limit', text: `The device-code rate limit refused ${s.limits.deviceRefused} requests in the last day: someone may be guessing codes.` });
+  if (s.limits.linksRefused >= 300) out.push({ level: 'watch', key: 'review-link-limit', text: `The review-link rate limit refused ${s.limits.linksRefused} requests in the last day.` });
+  if (s.limits.v2SignInFailures24h >= 100) out.push({ level: 'watch', key: 'v2-sign-in-failures', text: `${s.limits.v2SignInFailures24h} failed v2 sign-ins in the last day.` });
+  if (s.limits.installsAtDiagCap > 0) out.push({ level: 'watch', key: 'diag-cap', text: `${plural(s.limits.installsAtDiagCap, 'install')} hit the diagnostics cap today: a loop on the phone, or a flood.` });
   return out;
 }
 
@@ -467,18 +449,18 @@ export const PUBLISH_DUE_HOURS = 30;
 export function tutorialAlerts(t: Tutorials, now = Date.now()): Alert[] {
   const out: Alert[] = [];
   const ready = t.waiting.filter((w) => !w.chosenAt).length;
-  if (ready) out.push({ level: 'watch', text: `${plural(ready, 'tutorial video')} ready to publish (Tutorial videos).` });
+  if (ready) out.push({ level: 'watch', key: 'videos-ready', text: `${plural(ready, 'tutorial video')} ready to publish (Tutorial videos).` });
   const reconnect = [...new Set([
     ...t.waiting.filter((w) => w.chosenAt && w.failed && RECONNECT.test(w.failed)).map((w) => w.language),
     ...t.channels.filter((c) => c.brandFailed && RECONNECT.test(c.brandFailed)).map((c) => c.language)
   ])];
-  if (reconnect.length) out.push({ level: 'problem', text: `YouTube refused the ${reconnect.join(', ')} ${reconnect.length === 1 ? 'channel' : 'channels'}: connect again (Tutorial videos).` });
+  if (reconnect.length) out.push({ level: 'problem', key: 'youtube-refused', text: `YouTube refused the ${reconnect.join(', ')} ${reconnect.length === 1 ? 'channel' : 'channels'}: connect again (Tutorial videos).` });
   const due = PUBLISH_DUE_HOURS * 3_600_000;
   const moving = new Set(t.channels.filter((c) => c.latestAt && now - Date.parse(c.latestAt) <= due).map((c) => c.language as string));
   const stuck = t.waiting.filter((w) => w.chosenAt && !(w.failed && RECONNECT.test(w.failed)) && now - Date.parse(w.chosenAt) > due && !moving.has(w.language)).length;
   const held = t.channels.reduce((n, c) => n + (c.held ?? 0), 0);
-  if (held) out.push({ level: 'watch', text: `${plural(held, 'comment')} held for review on YouTube: approve or remove in YouTube Studio (Tutorial videos).` });
-  if (stuck) out.push({ level: 'problem', text: `${plural(stuck, 'tutorial video')} chosen more than ${PUBLISH_DUE_HOURS} hours ago ${stuck === 1 ? 'is' : 'are'} still not on YouTube (Tutorial videos).` });
+  if (held) out.push({ level: 'watch', key: 'comments-held', text: `${plural(held, 'comment')} held for review on YouTube: approve or remove in YouTube Studio (Tutorial videos).` });
+  if (stuck) out.push({ level: 'problem', key: 'videos-stuck', text: `${plural(stuck, 'tutorial video')} chosen more than ${PUBLISH_DUE_HOURS} hours ago ${stuck === 1 ? 'is' : 'are'} still not on YouTube (Tutorial videos).` });
   return out;
 }
 
@@ -509,8 +491,8 @@ export function feedbackOf(row: Feedback): Feedback {
 
 export function feedbackAlerts(f: Feedback): Alert[] {
   const out: Alert[] = [];
-  if (f.open) out.push({ level: 'watch', text: `${plural(f.open, 'suggestion')} for the tutorial videos ${f.open === 1 ? 'waits' : 'wait'} for a yes or no (Tutorial videos).` });
-  if (f.unfiled) out.push({ level: 'watch', text: `${plural(f.unfiled, 'accepted code change')} not in Linear yet (Tutorial videos).` });
+  if (f.open) out.push({ level: 'watch', key: 'suggestions-wait', text: `${plural(f.open, 'suggestion')} for the tutorial videos ${f.open === 1 ? 'waits' : 'wait'} for a yes or no (Tutorial videos).` });
+  if (f.unfiled) out.push({ level: 'watch', key: 'changes-not-filed', text: `${plural(f.unfiled, 'accepted code change')} not in Linear yet (Tutorial videos).` });
   return out;
 }
 
@@ -526,11 +508,41 @@ export interface UserIssueRow {
   /** The pull request on main that fixed it, and when it merged. */
   fixedBy: number | null; fixedAt: string | null;
   keys: string[]; people: number; firstAt: string; lookedAt: string;
+  /**
+   * The issue in three lines, as Claude wrote them when the watch filed it (decisions.md 202, amended 2026-11-18):
+   * what the person was doing, what goes wrong, and what would fix it. Absent before migration
+   * 20261118070000_user_issue_words.sql, and null for an issue filed before it.
+   */
+  context?: string | null; problem?: string | null; solution?: string | null;
 }
 
-/** diag.ops_user_issues(): the last 90 days, open issues first; counts; the last look. */
+/**
+ * What the watch decided about one kind a dashboard line names (an `ops:` line, a server job, a
+ * Worker route): its Linear issue, or noise (docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md).
+ */
+export interface UserIssueLine {
+  key: string; verdict: 'filed' | 'known' | 'fixed' | 'noise'; issue: string | null; issueUrl: string | null; title: string | null;
+  state: string | null; closedAt: string | null; fixedBy: number | null; fixedAt: string | null; lookedAt: string;
+}
+
+/**
+ * What an admin told Claude to do with an issue from its card, and Claude's answer
+ * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md). Never who wrote it.
+ */
+export interface UserIssueNote {
+  at: string; text: string;
+  /** waiting: no run took it yet; working: a run has it; answered; stopped: two runs took it and neither answered. */
+  state: 'waiting' | 'working' | 'answered' | 'stopped';
+  answeredAt: string | null; result: 'changed' | 'answered' | 'none' | null; answer: string | null; pr: number | null; runUrl: string | null;
+}
+
+/** diag.ops_user_issues(): the last 90 days, open issues first; counts; the last look; each dashboard line's decision. */
 export interface UserIssues {
   issues: UserIssueRow[];
+  /** diag.ops_user_issue_notes(): each issue's last instructions, the oldest first. Absent before migration 20261118073000_user_issue_notes.sql. */
+  notes?: Record<string, UserIssueNote[]>;
+  /** Absent before migration 20261117213500_ops_lines_linear.sql. */
+  lines?: UserIssueLine[];
   open: number; closed: number; fixed: number; noiseWeek: number;
   last: { at: string; outcome: string; n: Record<string, number> | null } | null;
 }
@@ -541,8 +553,8 @@ export function userIssuesOf(row: UserIssues): UserIssues {
 
 export function userIssueAlerts(u: UserIssues): Alert[] {
   const out: Alert[] = [];
-  if (u.open) out.push({ level: 'watch', text: `${plural(u.open, 'user issue')} open in Linear (User issues).` });
-  if (u.last && u.last.outcome !== 'ok') out.push({ level: 'problem', text: 'The watch for user issues failed to look at or file what it found (User issues).' });
+  if (u.open) out.push({ level: 'watch', key: 'user-issues-open', text: `${plural(u.open, 'user issue')} open in Linear (User issues).` });
+  if (u.last && u.last.outcome !== 'ok') out.push({ level: 'problem', key: 'user-issue-watch-failed', text: 'The watch for user issues failed to look at or file what it found (User issues).' });
   return out;
 }
 
@@ -559,7 +571,7 @@ export interface OpsSections {
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes] = await Promise.all([
     part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -585,7 +597,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<TutorialsRow>(query, `select diag.ops_tutorials() as v`),
     part<Feedback>(query, `select diag.ops_tutorial_feedback() as v`),
     part<UserIssues>(query, `select diag.ops_user_issues() as v`),
-    part<QuietAccounts>(query, `select diag.ops_quiet_accounts() as v`)
+    part<QuietAccounts>(query, `select diag.ops_quiet_accounts() as v`),
+    part<Record<string, UserIssueNote[]>>(query, `select diag.ops_user_issue_notes() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -594,7 +607,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
 
   const safetyParts = [rejected, arrivals, canary];
   return {
-    fleet: build([fleet], '', () => {
+    fleet: build([fleet], 'Needs migration 20261117200000_ops_phone_counts.sql on this database.', () => {
       const f: Fleet = { ...val(fleet), quiet: quiet.ok ? quietAccountsOf(quiet.value) : null };
       return ok(f, fleetAlerts(f));
     }),
@@ -619,7 +632,10 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     integrations: build([integrations], MIGRATION, () => {
       const i: Integrations = {
         ...val(integrations), dispatch: dispatch.ok ? dispatch.value : {},
-        api: { agentApi: route('agent_api')?.requests ?? 0, mcp: route('mcp')?.requests ?? 0, errors: (route('agent_api')?.s5xx ?? 0) + (route('mcp')?.s5xx ?? 0) }
+        api: {
+          agentApi: (route('agent_api')?.requests ?? 0) + (route('agent_list')?.requests ?? 0), mcp: route('mcp')?.requests ?? 0,
+          errors: (route('agent_api')?.s5xx ?? 0) + (route('agent_list')?.s5xx ?? 0) + (route('mcp')?.s5xx ?? 0)
+        }
       };
       return ok(i, integrationAlerts(i));
     }),
@@ -648,7 +664,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
       return ok(f, feedbackAlerts(f));
     }),
     userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
-      const u = userIssuesOf(val(userissues));
+      // Before its migration the cards show without the box.
+      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}) };
       return ok(u, userIssueAlerts(u));
     })
   };

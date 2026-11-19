@@ -6,6 +6,31 @@ passage", "Invite your team"), in every app language. Each is a script in
 frame, with a computer voice saying the script's lines. Decision 177 says why
 they are made this way.
 
+A few videos are general and introductory: they show the whole app and teach
+no taps ("How LangQuest works", "The path of a passage"). Only those have a
+tune under the voice
+(`docs/decisions/2026-11-18-tune-on-introductory-videos.md`). Some videos walk
+through one whole task from its start to its end, and take in what several
+short videos each show ("Create your account and look around": the account,
+the invite, the look around). They have no tune.
+
+Each language chooses its own checks, their order and who does each one. So
+no video says that passages all take the same path or the same checks. A
+video that shows a passage's checks says whose they are ("the checks that
+Lumari chose") and that another language has others, fewer or none
+(`look.test.ts` holds it).
+
+A video never sends the viewer to "another video" or "the next videos". A
+line that speaks of another video names it by its title, and says that the
+video is linked in the description below: "The video 'Start an organization'
+shows how. That video is linked in the description below." The step lists
+the videos that its line names (`videos: ['start-an-organization']`), and the
+video's description on YouTube links each one
+(`docs/decisions/2026-11-19-a-video-links-the-videos-it-names.md`). A line
+that names more than two videos counts them ("Four videos show each part")
+and the description lists them. A video names only videos that exist:
+`look.test.ts` holds all of this, in every language's lines too.
+
 ## Making them
 
 ```sh
@@ -39,6 +64,7 @@ GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
 | `camera.ts` | where the camera looks: in on each lit part (its words about twice their size), further out where a close shot would be mostly empty screen, back out to the whole page where a step lights nothing or something most of the screen's height, at the start and at the end |
 | `frame-check.ts` | a new film's stills, one while each line is said, looked at by Claude (Sonnet, through Claude Code) for what is drawn wrong |
 | `gemini-voice.mjs` | says lines with Gemini's text-to-speech, through the Batch API |
+| `tune.ts`, `tune/` | the tune under the voice of a general, introductory video (a script with `tune: true`), how quiet it is, and its credit |
 | `translate-lines.ts` | translates each video's title and lines into `lines/<language>.json` |
 | `readings.ts`, `make-readings.ts` | what the people in the videos say, and saying it into WAV files |
 | `ui.ts` | finds what a script names in English on a screen in any app language |
@@ -91,6 +117,17 @@ parts where it asks for five. A reading is made again only when what it is
 made from changes (its words, voice, speed or pauses, or `MAKING` in
 `make-readings.ts`); `speech/<language>/made.json` says what each was made
 from, and the release keeps it with the readings.
+
+## Tune
+
+A script with `tune: true` is a general, introductory video, and `compose.ts`
+puts the tune under its voice. A video of one task or one setting has no
+tune. The tune is "Carefree" by Kevin MacLeod (`tune/carefree.m4a`), under
+Creative Commons Attribution 4.0. It plays about 16 dB below the voice, comes
+in over 1.2 seconds and goes over the film's last 3.6 (`tune.ts`). The licence
+asks for a credit: `playlists.ts` puts it last in the video's description on
+YouTube, and `compose.ts` writes it in the film's `comment` tag, which goes
+with a download. `look.test.ts` lists the videos that have the tune.
 
 ## Other languages
 
@@ -257,6 +294,9 @@ passage."), then its links, each group apart with a blank line between:
 ```
 Here's how to record a passage.
 
+Videos named in this video:
+Finish and ask for a check: https://next.langquest.org/v/en/finish-and-ask-for-a-check
+
 Download this video: https://next.langquest.org/v/en/record-a-passage.mp4
 Watch or download every video: https://next.langquest.org/videos?lang=en
 LangQuest: https://next.langquest.org
@@ -265,6 +305,12 @@ This video in other languages:
 Español: https://next.langquest.org/v/es/record-a-passage
 ...
 ```
+
+The videos that the voice names come first, straight after the first
+sentence, where a viewer whom the voice sent to "the description below"
+looks. Each is named by its title in the video's language, with the same
+lasting link as below, to that video in the same language. A video whose
+voice names none has no such group.
 
 YouTube makes a description's links clickable only on a channel with its
 advanced features (Studio → Settings → Channel → Feature eligibility). A
@@ -379,6 +425,27 @@ hands the look to the Worker, which checks it (`parseReview` in
 refused is kept with the run for 14 days (`review.json` and
 `problems.txt`), for a person to read.
 
+Each suggestion about a video comes with pictures of what it is about
+(decision 186, amended 2026-11-17): the look downloads the last film run's
+pictures in each language (its `tutorials-<language>` artifact: each step's
+screen, the stills the frame check found wrong, the screen where a film
+stopped) and Claude picks one to six for each suggestion, with a caption in
+plain words and, where it can see the place, a ring. A film keeps the step
+pictures its dry run made (`film.ts`), so a video filmed again has them too.
+`send` puts each picture in R2 through the Worker
+(`PUT /api/tutorial-review/pictures/<sha256>.<png|jpg>`, this workflow only)
+before the look, and the suggestion keeps their names; only a picture whose
+hash was listed before Claude ran is sent. Anyone may read one at
+`/api/tutorial-pictures/<sha256>.<png|jpg>`: a still of a public video, or a
+screen of its test data. A later look adds pictures to a suggestion that
+has none or still waits for a person, and, once its fix is merged and the
+video filmed again, the same places as they look now, so the dashboard and
+the fix's pull request show before and after. Claude writes the start of
+each suggestion for an admin, in plain words; the part for the fix comes
+after a line that starts "For the fix:", which the dashboard folds away. A
+suggestion made before that still waits for a person, and that no admin
+edited, gets its words again in that form from the next look.
+
 A person decides each other suggestion on the dashboard: Accept, Edit (change
 what it says first), or Reject with why, which the next look reads before
 suggesting the same again. An accepted code change becomes a Linear issue,
@@ -490,37 +557,57 @@ on the dashboard.
 
 ### On the ops dashboard
 
-Tutorial videos → Videos, your list and the workers' list
-(`apps/admin/src/sources/videos.ts`):
+Tutorial videos → Videos and what waits on you
+(`apps/admin/src/sources/videos.ts`, drawn by `apps/admin/src/pageVideos.ts`;
+docs/decisions/2026-11-19-the-tutorial-videos-page-opens-on-what-waits-on-you.md).
+Four tabs with counts; the page opens on the first when something waits:
 
-- **By video**: in one app language (the list says how many of its videos
-  wait on an admin), each video's states, a timeline (Ctrl and the scroll
-  wheel, or a pinch, zooms it; a click on a mark shows the change, the
-  films before and after, the comment as written, the PR or the log), and
-  at the right a mark: **!** when something waits on an admin, **i** when
-  Claude acts next. The mark opens that video's cards: the problem, who acts
-  next, what happens if nobody does, Accept, Edit and Reject on a
-  suggestion, and **Tell Claude what to do**. An instruction sent there is
-  an accepted suggestion of kind `instruction`: Claude's next fix run writes
-  it as a pull request, with no second Accept.
-- **For an admin**: what is not one video's: films to publish, channels to
-  connect, paused languages (not in `NIGHTLY_LANGUAGES`).
-- **Workers, now and tonight**: the filming run, or the next one at 20:10
-  UTC; videos a screen change slots for tonight's check; fixes Claude
-  writes, and pull requests that merge themselves when their checks pass;
-  comments Claude reads; films waiting for YouTube's daily limit.
-- **Changes Claude made to the videos**: the record of each fix of the last
-  30 days, with who said yes (Claude for a clear fix, an admin, or an
-  admin's instruction), its state and its pull request. A clear fix is
-  seen nowhere else.
+- **Waits on you**: each thing an admin must answer, in every app language,
+  most urgent first, as a card with its buttons: Accept, Edit and Reject on
+  a suggestion; **Try again** and **Tell Claude what to do** on a change
+  Claude could not make; **Tell Claude what to do** on a held or failing
+  film that Claude's look did not fix; the two steps of a reply (below);
+  films to publish and channels to connect. A suggestion's card shows its
+  pictures: numbered, ringed where Claude saw the place, with a caption
+  under each. A picture with a small ring shows that part zoomed in. A click
+  opens a picture full size. An instruction sent from a card is an accepted
+  suggestion of kind `instruction`: Claude's next fix run writes it as a
+  pull request, with no second Accept.
+- **Automatic**: what needs no answer. Claude acts next: a held or failing
+  film before Claude's look, a new comment, a changed screen (an admin may
+  still tell Claude what to do there). Jobs, now and tonight: the filming
+  run, or the next one at 20:10 UTC; videos a screen change slots for
+  tonight's check; changes Claude writes, and pull requests that merge
+  themselves when their checks pass; comments Claude reads; films waiting
+  for YouTube's daily limit.
+- **All videos**: in one app language (the list says how many of its videos
+  wait on an admin), each video's states, its newest film and why it was
+  made (a screen by its name, never its id in the app's flow), and a
+  timeline. Each mark on the timeline is a small picture of what happened
+  (a film, an upload, a comment, a suggestion, an answer, a change, a hold,
+  a failure); the key above names the kinds on the page, pointing at a mark
+  says what and when, and a click shows the change, the films before and
+  after, the comment as written, the PR or the log. Ctrl and the scroll
+  wheel, or a pinch, zooms it; narrow days show dots. A button under a
+  video's name opens its cards in place. Paused languages (not in
+  `NIGHTLY_LANGUAGES`) are a line under the list.
+- **Changes made**: the record of each change Claude made in the last 30
+  days, with who said yes (Claude for a clear fix, an admin, or an admin's
+  instruction), its state, its pull request, and its pictures before and,
+  once the fix is filmed, after. A clear fix is seen nowhere else.
 
-A held or failing film waits on Claude's next look first (**i**); it waits
-on an admin (**!**) when a look after it made nothing for it, or what it
-made was rejected. A fix that failed, or whose pull request was closed, waits
+A held or failing film waits on Claude's next look first (Automatic); it
+waits on an admin when a look after it made nothing for it, or what it made
+was rejected. A change that failed, or whose pull request was closed, waits
 on an admin.
 
-A suggested reply shows for 14 days, since nothing records that someone
-posted it.
+**A reply to a comment** is posted by a person on YouTube, never from the
+dashboard (decisions.md 186). Its card shows the comment and the reply
+Claude suggests, in a box to change. Step 1 copies the reply and opens the
+comment on YouTube; step 2 is **Done**, beside **No reply needed**. The
+answer is kept on the comment (migration
+`20261119171500_tutorial_reply_done.sql`), so the card leaves for every
+admin; until then it waits, while the comment is kept (30 days).
 
 It reads `diag.ops_tutorial_films()`, `ops_tutorial_feedback()` and
 `ops_tutorials()`, each language's `status-<language>.json` from the

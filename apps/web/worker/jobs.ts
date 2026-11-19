@@ -2,7 +2,8 @@ import { DurableObject } from 'cloudflare:workers';
 import { jobRunSink } from '../../../server/jobRuns';
 import type { Env } from './env';
 import {
-  AFTER, deadRun, entrypointFor, exitCodeOf, heartbeat, HEARTBEAT_MS, isJobKey, jobEnv, JOBS, stillOwesWholeRead, type Exit, type JobKey, type RunMark
+  AFTER, deadRun, entrypointFor, exitCodeOf, heartbeat, HEARTBEAT_MS, isJobKey, jobEnv, JOBS, refusedStart, retryAt, stillOwesWholeRead,
+  type Exit, type JobKey, type RunMark
 } from './jobsModel';
 
 /** How long to wait for a stopped container to say how it ended. */
@@ -16,7 +17,8 @@ const MONITOR_SETTLE_MS = 5_000;
  * started twice: a tick that finds the run still going starts nothing. The
  * process writes its own `diag.job_runs` row, on SIGTERM too; the object
  * writes one when the process died without the chance (killed, out of
- * memory, stopped without a code), so a dead run is never silent.
+ * memory, stopped without a code), so a dead run is never silent. A start
+ * the platform refuses is recorded at once and tried again (`startRefused`).
  *
  * It drives the container through the object's own API (`ctx.container`),
  * not the `@cloudflare/containers` class, which starts containers for
@@ -77,15 +79,52 @@ export class JobRunner extends DurableObject<Env> {
     if (container.running) return 'running';
     await this.ctx.storage.delete('againDue');
     const all = (await this.ctx.storage.get<boolean>('allDue')) === true;
-    await this.ctx.storage.put<RunMark>('run', all ? { startedAt: Date.now(), all: true } : { startedAt: Date.now() });
-    container.start({ entrypoint: entrypointFor(key, all), env: settings.env, enableInternet: true });
+    const startedAt = Date.now();
+    await this.ctx.storage.put<RunMark>('run', all ? { startedAt, all: true } : { startedAt });
+    // The beat is set before the start, so a start that breaks the object still leaves a run the beat records.
+    await this.ctx.storage.setAlarm(startedAt + HEARTBEAT_MS);
+    try {
+      container.start({ entrypoint: entrypointFor(key, all), env: settings.env, enableInternet: true });
+      await container.setInactivityTimeout(JOBS[key].timeLimitMs);
+    } catch (e) {
+      // A container that runs all the same keeps its run: the next beat renews its keep-alive.
+      if (!container.running) {
+        await this.startRefused(startedAt, e);
+        throw e;
+      }
+      console.error(`job ${key}: started, but its keep-alive was not set`, e);
+    }
     if (all) await this.ctx.storage.delete('allDue');
-    await container.setInactivityTimeout(JOBS[key].timeLimitMs);
+    await this.ctx.storage.delete('startTries');
     await this.ctx.storage.setAlarm(Date.now() + HEARTBEAT_MS);
     // Started from the end of the run before (`next`): its watcher is still busy, and watches this one when done.
     if (this.watching) this.watchNext = true;
     else this.watch();
     return 'started';
+  }
+
+  /**
+   * A start the platform refused (no instance free, most often): the run
+   * never began, so its mark goes, a row says so at once, and an alarm tries
+   * again (jobsModel.ts `retryAt`). Before this, the mark stayed with no
+   * alarm: the row came only when the next run started, hours later, as a
+   * `stopped` run, and the job that follows an intake never ran that day.
+   * A whole read the start carried stays owed (`allDue` is still set).
+   */
+  private async startRefused(startedAt: number, error: unknown): Promise<void> {
+    const now = Date.now();
+    await this.ctx.storage.delete('run');
+    const tries = ((await this.ctx.storage.get<number>('startTries')) ?? 0) + 1;
+    const again = retryAt(tries, now);
+    if (again === null) {
+      await this.ctx.storage.delete('startTries');
+      await this.ctx.storage.deleteAlarm();
+    } else {
+      await this.ctx.storage.put('startTries', tries);
+      await this.ctx.storage.setAlarm(again);
+    }
+    console.error(`job ${this.key}: start refused, try ${tries}, ${again === null ? 'giving up' : 'trying again in five minutes'}`, error);
+    await jobRunSink(this.env.SUPABASE_URL, this.env.SUPABASE_SERVICE_ROLE_KEY)(refusedStart(this.key, startedAt, now, error));
   }
 
   /**
@@ -100,9 +139,18 @@ export class JobRunner extends DurableObject<Env> {
     return { running, startedAt: mark?.startedAt ?? null, timeLimitMs: JOBS[key].timeLimitMs, all: mark?.all === true };
   }
 
-  /** The heartbeat (jobsModel.ts): renew, stop at the limit, or record the end. */
+  /** The heartbeat (jobsModel.ts): renew, stop at the limit, or record the end. With no run marked, the try again of a refused start. */
   override async alarm(): Promise<void> {
     const mark = await this.ctx.storage.get<RunMark>('run');
+    if (!mark && !this.container.running && (await this.ctx.storage.get<number>('startTries'))) {
+      try {
+        // Switched off since, or found going: nothing is owed any more.
+        if ((await this.run()) !== 'started') await this.ctx.storage.delete('startTries');
+      } catch {
+        // Refused again: `startRefused` wrote the row and set the next try.
+      }
+      return;
+    }
     const beat = heartbeat(this.key, mark, this.container.running, Date.now());
     if (beat.do === 'none') return;
     if (beat.do === 'record') return this.recordEnd();

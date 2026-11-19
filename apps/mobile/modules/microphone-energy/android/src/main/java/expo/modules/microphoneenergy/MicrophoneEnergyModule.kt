@@ -568,21 +568,31 @@ object AacEncoder {
               }
             }
           }
-          val o = codec.dequeueOutputBuffer(info, TIMEOUT_US)
-          if (o == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-            track = muxer.addTrack(codec.outputFormat)
-            muxer.start()
-            started = true
-          } else if (o >= 0) {
-            val buf = codec.getOutputBuffer(o)!!
-            if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) info.size = 0
-            if (info.size > 0 && started) {
-              buf.position(info.offset)
-              buf.limit(info.offset + info.size)
-              muxer.writeSampleData(track, buf, info)
+          // Every frame the encoder has ready is taken, not one a pass: one input
+          // buffer makes about eight frames, so taking one left the encoder full
+          // and the next pass waited out TIMEOUT_US for an input buffer, about
+          // 10 ms for every 23 ms of audio: on an emulator a 12 s part took about
+          // 6 s to encode, and takes under 1 s this way, with the same frames.
+          var wait = TIMEOUT_US
+          while (!outputDone) {
+            val o = codec.dequeueOutputBuffer(info, wait)
+            wait = 0L
+            if (o == MediaCodec.INFO_TRY_AGAIN_LATER) break
+            if (o == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+              track = muxer.addTrack(codec.outputFormat)
+              muxer.start()
+              started = true
+            } else if (o >= 0) {
+              val buf = codec.getOutputBuffer(o)!!
+              if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) info.size = 0
+              if (info.size > 0 && started) {
+                buf.position(info.offset)
+                buf.limit(info.offset + info.size)
+                muxer.writeSampleData(track, buf, info)
+              }
+              codec.releaseOutputBuffer(o, false)
+              if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
             }
-            codec.releaseOutputBuffer(o, false)
-            if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
           }
         }
         ok = started

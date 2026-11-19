@@ -1,5 +1,6 @@
 import { jobSignals, slowRpcs, type JobStat, type RpcStat } from '../../../../scripts/diagSignals';
 import { isMissing, type Query } from '../db';
+import { intervalMinutes, type AlertKey } from '../alertKinds';
 import { ok, off, type Alert, type Section } from '../section';
 
 /**
@@ -16,9 +17,23 @@ export type JobRow = JobStat & { runs_on: string };
 export const JOBS_SQL = `select coalesce(jsonb_agg(to_jsonb(j) || jsonb_build_object('runs_on', s.runs_on) order by j.job), '[]'::jsonb) as v
 from diag.jobs($1::interval) j join diag.job_schedule s using (job)`;
 
+/** Window of diag.jobs the page reads (JOBS_SQL's parameter), in hours: a failed or partial run counts for this long. */
+export const JOBS_WINDOW_H = 48;
+
 export function jobsSection(jobs: JobRow[]): Section<{ jobs: JobRow[] }> {
   // diagSignals has the CLI's wording and thresholds; `info` is for the CLI only.
-  const alerts = jobSignals(jobs).filter((s) => s.level !== 'info').map((s) => ({ level: s.level as Alert['level'], text: s.text }));
+  const alerts = jobSignals(jobs).filter((s) => s.level !== 'info').map((s): Alert => {
+    const j = jobs.find((x) => x.job === s.job);
+    const every = intervalMinutes(j?.every);
+    // A stopped or failing job clears on its next good run; a share of the window's runs, once the window passes the fix.
+    const windowed = s.key === 'job-failures' || s.key === 'job-partial' || s.key === 'push-delivery-low';
+    return {
+      level: s.level as Alert['level'], text: s.text, key: (s.key ?? 'job-failing') as AlertKey, ...(s.job ? { subject: s.job } : {}),
+      // The watch finds a stopped or failing job itself (ops.user_issue_server), by this key.
+      ...(s.job && s.key === 'job-stopped' ? { watchKey: `job:${s.job}:stopped` } : s.job && s.key === 'job-failing' ? { watchKey: `job:${s.job}:failing` } : {}),
+      recheck: { ...(every ? { everyMin: every, last: j?.last_at ?? null } : {}), ...(windowed ? { windowH: JOBS_WINDOW_H } : {}) }
+    };
+  });
   return ok({ jobs }, alerts);
 }
 
@@ -33,108 +48,73 @@ export interface Clients {
   syncErrors: { code: string; records: number; installs: number }[];
   errors: { name: string | null; where: string | null; code: string | null; fatal: boolean; records: number; day: number; installs: number; lastAt: string; errorId: string | null }[];
   expected: { where: string | null; name: string | null; code: string | null; count: number; installs: number; lastAt: string }[];
-  auth: { op: string | null; outcome: string | null; code: string | null; records: number; installs: number; lastAt: string }[];
+  /**
+   * The week's sign-in steps that did not end well, by kind. `class` is the
+   * database's (diag.sign_in_class, migration 20261119192147): `trouble` when
+   * the server or the app failed, `no_fault` for a wrong password, an invite
+   * that cannot be used, no connection or a step the app tries again. Absent
+   * only on a count made before that migration.
+   */
+  auth: { op: string | null; outcome: string | null; code: string | null; class?: 'trouble' | 'no_fault'; records: number; installs: number; lastAt: string }[];
   transfer: Record<string, Record<string, number>>;
   audio: Record<string, number> | null;
   device: { reporting: number; lowDisk: number; lostFiles: number; lostRecordings: number; unsentOverDay: number; downloadStuckOverDay: number; diagDropped: number };
+  /** When the database made this count (every 10 minutes); absent before migration 20261117200000. */
+  countedAt?: string;
 }
 
 /**
  * Every install together: the last day and week by when records arrived.
- * Records are kept 90 days and indexed by arrival (diag_records_received_idx).
+ * The database counts it every 10 minutes (diag.ops_cache_fill, decisions.md
+ * 257), since at tens of thousands of installs a week of records takes
+ * longer than the page may wait; `countedAt` says when.
  */
-export const CLIENTS_SQL = `with r as (
-  select install_id, kind, received_at, n, t from diag.records where received_at > now() - interval '7 days'
-),
-d as (select * from r where received_at > now() - interval '1 day'),
-seen as (select install_id, context, last_seen from diag.installs where last_seen > now() - interval '7 days')
-select jsonb_build_object(
-  'installs', jsonb_build_object(
-    'day', (select count(*) from seen where last_seen > now() - interval '1 day'),
-    'week', (select count(*) from seen),
-    'all', (select count(*) from diag.installs)),
-  'records', jsonb_build_object('day', (select count(*) from d), 'week', (select count(*) from r)),
-  'platforms', (select coalesce(jsonb_agg(jsonb_build_object('os', x.os, 'installs', x.c) order by x.c desc), '[]'::jsonb)
-    from (select coalesce(context->>'os', 'unknown') as os, count(*) as c from seen group by 1) x),
-  'builds', (select coalesce(jsonb_agg(jsonb_build_object('runtime', x.rt, 'channel', x.ch, 'update', x.up, 'embedded', x.em,
-      'installs', x.c, 'lastSeen', x.ls) order by x.ls desc), '[]'::jsonb)
-    from (select context->>'runtimeVersion' as rt, context->>'channel' as ch, left(context->>'updateId', 8) as up,
-                 context->>'embedded' as em, count(*) as c, max(last_seen) as ls
-          from seen group by 1, 2, 3, 4 order by max(last_seen) desc limit 12) x),
-  'sync', (select coalesce(jsonb_object_agg(x.o, jsonb_build_object('records', x.c, 'installs', x.i)), '{}'::jsonb)
-    from (select coalesce(t->>'outcome', 'unknown') as o, count(*) as c, count(distinct install_id) as i
-          from d where kind = 'sync' group by 1) x),
-  'syncErrors', (select coalesce(jsonb_agg(jsonb_build_object('code', x.k, 'records', x.c, 'installs', x.i) order by x.c desc), '[]'::jsonb)
-    from (select coalesce(t->>'phase', '?') || ':' || coalesce(t->>'code', t->>'error', '?') as k, count(*) as c, count(distinct install_id) as i
-          from d where kind = 'sync' and t->>'outcome' = 'error' group by 1 order by 2 desc limit 8) x),
-  'errors', (select coalesce(jsonb_agg(jsonb_build_object('name', x.nm, 'where', x.wh, 'code', x.cd, 'fatal', x.ft, 'records', x.c,
-      'day', x.cday, 'installs', x.i, 'lastAt', x.la, 'errorId', x.eid) order by x.la desc), '[]'::jsonb)
-    from (select t->>'name' as nm, t->>'where' as wh, t->>'code' as cd, bool_or(t->>'fatal' = 'yes') as ft, count(*) as c,
-                 count(*) filter (where received_at > now() - interval '1 day') as cday,
-                 count(distinct install_id) as i, max(received_at) as la,
-                 (array_agg(t->>'errorId' order by received_at desc))[1] as eid
-          from r where kind = 'error' group by 1, 2, 3 order by max(received_at) desc limit 20) x),
-  'expected', (select coalesce(jsonb_agg(jsonb_build_object('where', x.wh, 'name', x.nm, 'code', x.cd, 'count', x.c,
-      'installs', x.i, 'lastAt', x.la) order by x.c desc), '[]'::jsonb)
-    from (select t->>'where' as wh, t->>'name' as nm, t->>'code' as cd, sum(coalesce((n->>'count')::numeric, 1)) as c,
-                 count(distinct install_id) as i, max(received_at) as la
-          from r where kind = 'expected' group by 1, 2, 3 order by 4 desc limit 12) x),
-  'auth', (select coalesce(jsonb_agg(jsonb_build_object('op', x.op, 'outcome', x.oc, 'code', x.cd, 'records', x.c,
-      'installs', x.i, 'lastAt', x.la) order by x.c desc), '[]'::jsonb)
-    from (select t->>'op' as op, t->>'outcome' as oc, t->>'code' as cd, count(*) as c, count(distinct install_id) as i, max(received_at) as la
-          from r where kind = 'auth' and coalesce(t->>'outcome', '') not in ('ok', 'done', 'keep', 'home')
-          group by 1, 2, 3 order by 4 desc limit 12) x),
-  'transfer', (select coalesce(jsonb_object_agg(x.dir, x.tot), '{}'::jsonb)
-    from (select coalesce(t->>'dir', 'unknown') as dir, diag.totals(array_agg(n)) as tot from d where kind = 'transfer' group by 1) x),
-  'audio', (select diag.totals(array_agg(n)) from d where kind = 'audio'),
-  'device', (select jsonb_build_object(
-      'reporting', count(*),
-      'lowDisk', count(*) filter (where (n->>'freeDiskMb')::numeric < 500),
-      'lostFiles', count(*) filter (where (n->>'lostFiles')::numeric > 0),
-      'lostRecordings', count(*) filter (where (n->>'lostRecordings')::numeric > 0),
-      'unsentOverDay', count(*) filter (where (n->>'oldestUnsentMin')::numeric > 1440),
-      'downloadStuckOverDay', count(*) filter (where (n->>'wantedStuckMin')::numeric > 1440),
-      'diagDropped', count(*) filter (where (n->>'diagDropped')::numeric > 0))
-    from (select distinct on (install_id) install_id, n from r where kind = 'device' order by install_id, received_at desc) x)
-) as v`;
+export const CLIENTS_SQL = `select diag.ops_cached('clients') as v`;
+export const COUNTS_MIGRATION = 'Needs migration 20261117200000_ops_phone_counts.sql on this database.';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export function clientAlerts(c: Clients): Alert[] {
   const out: Alert[] = [];
-  const add = (level: Alert['level'], text: string) => out.push({ level, text });
+  // watchKey: the watch for user issues' key for the same records (ops.user_issue_hits), so the line shares its Linear issue.
+  const add = (level: Alert['level'], key: AlertKey, text: string, subject?: string, watchKey?: string) =>
+    out.push({ level, key, text, ...(subject ? { subject } : {}), ...(watchKey ? { watchKey } : {}) });
   if (c.installs.day === 0 && c.installs.week > 0) {
-    add('problem', `No phone or browser has reported in the last day, though ${plural(c.installs.week, 'install')} did this week. Check that diagnostics still arrive (diag_ingest).`);
+    add('problem', 'no-reports', `No phone or browser has reported in the last day, though ${plural(c.installs.week, 'install')} did this week. Check that diagnostics still arrive (diag_ingest).`);
   }
   for (const e of c.errors) {
     if (e.day === 0) continue;
     const what = `${e.name ?? 'Error'}${e.where ? ` in ${e.where}` : ''}${e.code ? ` (${e.code})` : ''}`;
-    if (e.fatal) add('problem', `Crash: ${what}, ${plural(e.day, 'time')} in the last day on ${plural(e.installs, 'install')} this week${e.errorId ? `, latest ${e.errorId}` : ''}.`);
-    else if (e.installs >= 3) add('watch', `${what} on ${plural(e.installs, 'install')} this week, ${e.day} in the last day${e.errorId ? `, latest ${e.errorId}` : ''}.`);
+    const watchKey = `error:${e.name ?? '-'}@${e.where ?? '-'}:${e.code ?? '-'}`;
+    if (e.fatal) add('problem', 'app-crash', `Crash: ${what}, ${plural(e.day, 'time')} in the last day on ${plural(e.installs, 'install')} this week${e.errorId ? `, latest ${e.errorId}` : ''}.`, what, watchKey);
+    else if (e.installs >= 3) add('watch', 'app-error', `${what} on ${plural(e.installs, 'install')} this week, ${e.day} in the last day${e.errorId ? `, latest ${e.errorId}` : ''}.`, what, watchKey);
   }
   const sync = (o: string) => c.sync[o] ?? { records: 0, installs: 0 };
   const top = c.syncErrors[0];
-  if (sync('error').installs >= 3) add('watch', `Syncs ended in an error on ${plural(sync('error').installs, 'install')} in the last day${top ? `, mostly ${top.code}` : ''}.`);
-  if (sync('too_old').installs > 0) add('watch', `${plural(sync('too_old').installs, 'install')} ran a build the server no longer accepts in the last day.`);
-  if (sync('refused').installs >= 3) add('watch', `The server refused syncs from ${plural(sync('refused').installs, 'install')} in the last day.`);
-  if (sync('unrenewed').installs >= 3) add('watch', `${plural(sync('unrenewed').installs, 'install')} could not renew their sign-in in the last day.`);
+  if (sync('error').installs >= 3) add('watch', 'sync-errors', `Syncs ended in an error on ${plural(sync('error').installs, 'install')} in the last day${top ? `, mostly ${top.code}` : ''}.`);
+  if (sync('too_old').installs > 0) add('watch', 'sync-too-old', `${plural(sync('too_old').installs, 'install')} ran a build the server no longer accepts in the last day.`, undefined, 'sync:too_old');
+  if (sync('refused').installs >= 3) add('watch', 'sync-refused', `The server refused syncs from ${plural(sync('refused').installs, 'install')} in the last day.`, undefined, 'sync:refused');
+  if (sync('unrenewed').installs >= 3) add('watch', 'sign-in-unrenewed', `${plural(sync('unrenewed').installs, 'install')} could not renew their sign-in in the last day.`, undefined, 'sync:unrenewed');
   for (const [dir, t] of Object.entries(c.transfer)) {
     const word = dir === 'up' ? 'Uploads' : 'Downloads';
-    if ((t.failHttp5xx ?? 0) > 0) add('watch', `${word} met a server error ${plural(t.failHttp5xx!, 'time')} in the last day.`);
-    if ((t.failTooLarge ?? 0) > 0) add('watch', `${word} were refused as too large ${plural(t.failTooLarge!, 'time')} in the last day.`);
-    if ((t.failAuth ?? 0) >= 10) add('watch', `${word} were refused for sign-in ${t.failAuth} times in the last day.`);
+    if ((t.failHttp5xx ?? 0) > 0) add('watch', 'transfer-5xx', `${word} met a server error ${plural(t.failHttp5xx!, 'time')} in the last day.`, word);
+    if ((t.failTooLarge ?? 0) > 0) add('watch', 'transfer-too-large', `${word} were refused as too large ${plural(t.failTooLarge!, 'time')} in the last day.`, word);
+    if ((t.failAuth ?? 0) >= 10) add('watch', 'transfer-auth', `${word} were refused for sign-in ${t.failAuth} times in the last day.`, word);
   }
-  if (c.device.lostRecordings > 0) add('urgent', `Recordings were lost before they were sent, on ${plural(c.device.lostRecordings, 'install')}.`);
-  if (c.device.unsentOverDay > 0) add('watch', `A recording has waited over a day to upload, on ${plural(c.device.unsentOverDay, 'install')}.`);
-  if (c.device.downloadStuckOverDay > 0) add('watch', `A download has been wanted for over a day, on ${plural(c.device.downloadStuckOverDay, 'install')}.`);
-  if (c.device.lowDisk > 0) add('watch', `Under 500 MB free, on ${plural(c.device.lowDisk, 'install')}.`);
+  if (c.device.lostRecordings > 0) add('urgent', 'recordings-lost', `Recordings were lost before they were sent, on ${plural(c.device.lostRecordings, 'install')}.`, undefined, 'device:lostRecordings');
+  if (c.device.unsentOverDay > 0) add('watch', 'upload-waiting', `A recording has waited over a day to upload, on ${plural(c.device.unsentOverDay, 'install')}.`, undefined, 'device:uploadWaitingOverADay');
+  if (c.device.downloadStuckOverDay > 0) add('watch', 'download-waiting', `A download has been wanted for over a day, on ${plural(c.device.downloadStuckOverDay, 'install')}.`, undefined, 'device:downloadWantedOverADay');
+  if (c.device.lowDisk > 0) add('watch', 'low-disk', `Under 500 MB free, on ${plural(c.device.lowDisk, 'install')}.`);
   const audio = c.audio ?? {};
   const audioFails = (audio.saveFail ?? 0) + (audio.startFail ?? 0) + (audio.stopFail ?? 0) + (audio.encodeFail ?? 0);
-  if (audioFails > 0) add('watch', `Recording failed to start, stop, save or compress ${plural(audioFails, 'time')} in the last day.`);
+  if (audioFails > 0) add('watch', 'recording-fails', `Recording failed to start, stop, save or compress ${plural(audioFails, 'time')} in the last day.`);
+  // Each kind the chart "Sign-in trouble" counts this week is a line, so the chart never shows trouble the Overview does not.
   for (const a of c.auth) {
-    if (['server', 'failed', 'unreachable'].includes(a.outcome ?? '') && a.installs >= 3) {
-      add('watch', `Sign-in step ${a.op ?? '?'} ended "${a.outcome}"${a.code ? ` (${a.code})` : ''} on ${plural(a.installs, 'install')} this week.`);
-    }
+    if (a.class !== 'trouble') continue;
+    const code = a.code ? ` (${a.code})` : '';
+    const what = a.op === 'ended' ? `A sign-in ended that the person did not end${a.outcome ? `: "${a.outcome}"` : ''}${code}`
+      : `Sign-in step ${a.op ?? '?'} ended "${a.outcome ?? '?'}"${code}`;
+    add('watch', 'sign-in-step', `${what}, ${plural(a.records, 'time')} on ${plural(a.installs, 'install')} this week.`, `${a.op ?? '?'} ${a.outcome ?? '?'}`, `auth:${a.op ?? '-'}:${a.outcome ?? '-'}:${a.code ?? '-'}`);
   }
   return out;
 }
@@ -170,10 +150,10 @@ export const DATABASE_SQL = `select jsonb_build_object(
 export function databaseAlerts(db: Database): Alert[] {
   const out: Alert[] = [];
   for (const r of slowRpcs(db.rpc)) {
-    out.push({ level: 'problem', text: `${r.rpc} averages ${r.mean_ms} ms over ${r.calls} calls (max ${r.max_ms} ms).` });
+    out.push({ level: 'problem', key: 'slow-rpc', subject: r.rpc, text: `${r.rpc} averages ${r.mean_ms} ms over ${r.calls} calls (max ${r.max_ms} ms).` });
   }
   if (db.maxConnections > 0 && db.connections >= db.maxConnections * 0.8) {
-    out.push({ level: 'watch', text: `The database has ${db.connections} of its ${db.maxConnections} connections in use.` });
+    out.push({ level: 'watch', key: 'db-connections', text: `The database has ${db.connections} of its ${db.maxConnections} connections in use.` });
   }
   return out;
 }
@@ -195,8 +175,8 @@ export function v2Section(projects: V2Project[]): Section<{ projects: V2Project[
   const states: Record<string, number> = {};
   for (const p of projects) states[p.state] = (states[p.state] ?? 0) + 1;
   const alerts: Alert[] = [];
-  if (states.error) alerts.push({ level: 'watch', text: `The v2 import's latest transfer failed for ${plural(states.error, 'project')}.` });
-  if (states.cut_off) alerts.push({ level: 'watch', text: `The v2 import's latest transfer stopped part way for ${plural(states.cut_off, 'project')}.` });
+  if (states.error) alerts.push({ level: 'watch', key: 'v2-failed', text: `The v2 import's latest transfer failed for ${plural(states.error, 'project')}.` });
+  if (states.cut_off) alerts.push({ level: 'watch', key: 'v2-cut-off', text: `The v2 import's latest transfer stopped part way for ${plural(states.cut_off, 'project')}.` });
   // Only the projects worth a look, then the latest few; the import has hundreds.
   const shown = [...projects.filter((p) => p.state !== 'done'), ...projects.filter((p) => p.state === 'done').slice(0, 5)];
   return ok({ projects: shown, states }, alerts);
@@ -256,8 +236,8 @@ export async function diagSections(query: Query): Promise<DiagSections> {
     p.catch((e: unknown) => ({ state: 'error', alerts: [], error: errorText(e), checkedAt: new Date().toISOString() }));
   // One connection runs one statement at a time, so these queue there.
   const [jobs, clients, database, v2, feedback] = await Promise.all([
-    guard(one<JobRow[]>(JOBS_SQL, ['2 days'], (rows) => jobsSection(rows))),
-    guard(one<Clients>(CLIENTS_SQL, [], (c) => clientsSection(c))),
+    guard(one<JobRow[]>(JOBS_SQL, [`${JOBS_WINDOW_H} hours`], (rows) => jobsSection(rows))),
+    guard(one<Clients>(CLIENTS_SQL, [], (c) => clientsSection(c), COUNTS_MIGRATION)),
     guard((async () => {
       const db = await query<Database>(DATABASE_SQL);
       // Extra: before its migration the timings show without a date.

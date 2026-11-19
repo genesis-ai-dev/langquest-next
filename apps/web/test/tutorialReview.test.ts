@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { GITHUB_ISSUER, githubOidc } from '../worker/githubOidc';
-import { FIXES_PER_RUN, handleTutorialReview, REVIEW_RULE, type ReviewDeps } from '../worker/tutorialReview';
-import { FIX_UPDATES_MAX, parseFixUpdates, parseReview, ReviewError, type FixUpdate, type Review } from '../../../server/tutorialFeedback';
+import { BadDigest, type BlobBucket } from '../worker/blobs';
+import { FIXES_PER_RUN, handleTutorialPicture, handleTutorialReview, REVIEW_RULE, type ReviewDeps } from '../worker/tutorialReview';
+import { FIX_UPDATES_MAX, parseFixUpdates, parseReview, PICTURE_MAX, ReviewError, type FixUpdate, type Review } from '../../../server/tutorialFeedback';
 import type { JobRun } from '../../../server/jobRuns';
 
 /** Claude's nightly look at the tutorial videos' feedback (decisions.md 186): who gets in, and what it may send. */
@@ -102,7 +103,7 @@ describe('parseReview', () => {
     expect(r.code[0]).toMatchObject({ key: 'pr-272', pr: 272 });
     expect(r.suggestions[1]).toMatchObject({ kind: 'new', tutorial: null });
     expect(parseReview(review({ code: undefined, comments: undefined, looked: undefined, suggestions: undefined, attach: undefined })))
-      .toEqual({ sha: 'a'.repeat(40), runUrl: RUN, code: [], comments: [], looked: [], suggestions: [], attach: [] });
+      .toEqual({ sha: 'a'.repeat(40), runUrl: RUN, code: [], comments: [], looked: [], suggestions: [], attach: [], pictures: [] });
     expect(parseReview(review({ looked: [{ input: INPUT, outcome: '' }] })).looked[0]!.outcome).toBeNull();
   });
 
@@ -112,8 +113,48 @@ describe('parseReview', () => {
     expect(parseReview(review()).suggestions.every((s) => s.clear === false && s.language === null)).toBe(true);
   });
 
+  const picture = (over: Record<string, unknown> = {}) => ({
+    picture: `${'c'.repeat(64)}.jpg`, language: 'fr', tutorial: 'study-a-passage', kind: 'still', n: 14, at: 81.31,
+    caption: 'The end of the French video. The dark band starts in the middle of the words.', ring: [0.61, 0.38, 0.25, 0.35], ...over
+  });
+  const pictured = (pictures: unknown[]) => ({ suggestions: [{ kind: 'screen', tutorial: 'study-a-passage', language: 'fr', title: 't', detail: 'd', inputs: [], pictures }] });
+
+  it('takes the pictures a suggestion is about, and pictures for suggestions made before (decisions.md 186, amended 2026-11-17)', () => {
+    const r = parseReview(review({ ...pictured([picture(), picture({ picture: `${'d'.repeat(64)}.png`, kind: 'step', n: 12, at: undefined, ring: undefined })]),
+      pictures: [{ suggestion: OPEN, pictures: [picture()] }, { suggestion: OPEN, when: 'after', pictures: [picture({ ring: [0.123456, 0, 0.5, 0.5] })] }] }));
+    expect(r.suggestions[0]!.pictures).toEqual([picture(), { picture: `${'d'.repeat(64)}.png`, language: 'fr', tutorial: 'study-a-passage', kind: 'step', n: 12, caption: picture().caption }]);
+    expect(r.pictures).toEqual([{ suggestion: OPEN, when: 'now', pictures: [picture()] }, { suggestion: OPEN, when: 'after', pictures: [picture({ ring: [0.123, 0, 0.5, 0.5] })] }]);
+    expect(parseReview(review()).suggestions.every((s) => s.pictures.length === 0)).toBe(true);
+    // A waiting suggestion's words said again in plain words, with its pictures or alone.
+    expect(parseReview(review({ pictures: [{ suggestion: OPEN, pictures: [picture()], title: ' At the end, the screen is half dark ' }, { suggestion: OPEN, detail: 'Picture 1 shows it.' }] })).pictures)
+      .toEqual([{ suggestion: OPEN, when: 'now', pictures: [picture()], title: 'At the end, the screen is half dark' }, { suggestion: OPEN, when: 'now', pictures: [], detail: 'Picture 1 shows it.' }]);
+  });
+
   it('says the first thing wrong', () => {
     const wrong: [Record<string, unknown>, string][] = [
+      // A picture is named by its hash, from a film run, with a caption and a ring inside it.
+      [pictured([picture({ picture: 'fr/study-a-passage/check/14.jpg' })]), 'suggestions[0].pictures[0].picture'],
+      [pictured([picture({ picture: `${'c'.repeat(64)}.gif` })]), 'suggestions[0].pictures[0].picture'],
+      [pictured([picture({ language: 'French' })]), 'suggestions[0].pictures[0].language'],
+      [pictured([picture({ tutorial: '../x' })]), 'suggestions[0].pictures[0].tutorial'],
+      [pictured([picture({ kind: 'frame' })]), 'suggestions[0].pictures[0].kind'],
+      [pictured([picture({ n: 0 })]), 'suggestions[0].pictures[0].n'],
+      [pictured([picture({ at: -1 })]), 'suggestions[0].pictures[0].at'],
+      [pictured([picture({ caption: '' })]), 'suggestions[0].pictures[0].caption'],
+      [pictured([picture({ caption: 'x'.repeat(PICTURE_MAX.caption + 1) })]), 'suggestions[0].pictures[0].caption'],
+      [pictured([picture({ caption: 'Tap the calculator.' })]), 'suggestions[0].pictures[0].caption'],
+      [pictured([picture({ ring: [0.8, 0.1, 0.5, 0.2] })]), 'suggestions[0].pictures[0].ring'],
+      [pictured([picture({ ring: [0.1, 0.1, 0, 0.2] })]), 'suggestions[0].pictures[0].ring'],
+      [pictured([picture({ ring: [0.1, 0.1, 0.2] })]), 'suggestions[0].pictures[0].ring'],
+      [pictured(Array.from({ length: PICTURE_MAX.pictures + 1 }, () => picture())), 'pictures: a list'],
+      [{ suggestions: [{ kind: 'new', tutorial: null, title: 't', detail: 'd', inputs: [], pictures: [picture()] }] }, 'suggestions[0].pictures'],
+      [{ pictures: [{ suggestion: 'pr-272', pictures: [picture()] }] }, 'pictures[0].suggestion'],
+      [{ pictures: [{ suggestion: OPEN, when: 'later', pictures: [picture()] }] }, 'pictures[0].when'],
+      [{ pictures: [{ suggestion: OPEN, pictures: [] }] }, 'pictures[0].pictures'],
+      [{ pictures: [{ suggestion: OPEN, title: '' }] }, 'pictures[0].title'],
+      [{ pictures: [{ suggestion: OPEN, detail: 'x'.repeat(4001) }] }, 'pictures[0].detail'],
+      [{ pictures: [{ suggestion: OPEN, when: 'after', pictures: [picture()], title: 'New words' }] }, 'pictures[0]: new words'],
+      [{ pictures: [{ suggestion: OPEN, title: 'Turn on the calculator' }] }, 'pictures[0].title'],
       [{ sha: 'main' }, 'sha'],
       [{ runUrl: 'https://github.com/someone/else/actions/runs/1' }, 'runUrl'],
       [{ suggestions: [{ kind: 'rewrite', tutorial: null, title: 't', detail: 'd', inputs: [] }] }, 'suggestions[0].kind'],
@@ -214,6 +255,74 @@ describe('handleTutorialReview', () => {
     expect((await handleTutorialReview(req('POST', 'good', { runUrl: runUrl.replace('123456', '999'), updates: [] }, FIXES), d)).status).toBe(400);
     expect(await (await handleTutorialReview(req('POST', 'good', { runUrl, updates: [{ id, state: 'merged' }] }, FIXES), d)).json()).toEqual({ error: 'updates[0].pr: the pull request, for merged' });
     expect(runs).toEqual([]);
+  });
+});
+
+describe('the look\'s pictures (decisions.md 186, amended 2026-11-17)', () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+  const shaOf = async (b: Uint8Array) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', b))].map((x) => x.toString(16).padStart(2, '0')).join('');
+  function store() {
+    const kept: Record<string, { body: Uint8Array; type: string }> = {};
+    const bucket: BlobBucket = {
+      async get(key) { const o = kept[key]; return o ? { size: o.body.length, body: new Response(o.body).body! } : null; },
+      async head(key) { return kept[key] ? { size: kept[key]!.body.length } : null; },
+      async put(key, body, length, sha256, type) {
+        const bytes = body instanceof Uint8Array ? body : new Uint8Array(await new Response(body).arrayBuffer());
+        if ((await shaOf(bytes)) !== sha256) throw new BadDigest('no');
+        kept[key] = { body: bytes, type };
+        return { size: length };
+      },
+      async delete() {},
+      async list() { return { objects: [] }; }
+    };
+    return { kept, bucket };
+  }
+  const verify: ReviewDeps['verify'] = async (t) => (t === 'good' ? { repository: 'genesis-ai-dev/langquest-next', workflowRef: REVIEW_RULE.workflowRef, runId: '1', runAttempt: '1', eventName: 'schedule' } : null);
+  const deps = (bucket?: BlobBucket) => ({ verify, pictures: bucket } as unknown as ReviewDeps);
+  const put = (d: ReviewDeps, name: string, body: Uint8Array, auth: string | null = 'good', method = 'PUT') => handleTutorialReview(new Request(`https://next.langquest.org/api/tutorial-review/pictures/${name}`, {
+    method, ...(method === 'PUT' ? { body } : {}), headers: { 'content-length': String(body.length), ...(auth ? { authorization: `Bearer ${auth}` } : {}) }
+  }), d);
+
+  it('keeps a picture the review workflow sends, under its hash, once', async () => {
+    const { kept, bucket } = store();
+    const name = `${await shaOf(PNG)}.png`;
+    const r = await put(deps(bucket), name, PNG);
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ picture: name, kept: true });
+    expect(kept[`tutorial-pictures/${name}`]).toEqual({ body: PNG, type: 'image/png' });
+    expect((await put(deps(bucket), name, PNG)).status).toBe(200);
+  });
+
+  it('takes nothing from anyone else, nor what is not a picture of its name', async () => {
+    const { kept, bucket } = store();
+    const name = `${await shaOf(PNG)}.png`;
+    expect((await put(deps(bucket), name, PNG, null)).status).toBe(401);
+    expect((await put(deps(bucket), name, PNG, 'stolen')).status).toBe(401);
+    expect((await put(deps(bucket), name, PNG, 'good', 'POST')).status).toBe(405);
+    expect((await put(deps(bucket), `${'a'.repeat(64)}.png`, PNG)).status).toBe(422);
+    expect((await put(deps(bucket), `${await shaOf(PNG)}.jpg`, PNG)).status).toBe(415);
+    expect((await put(deps(bucket), `..%2Ftutorials%2F${name}`, PNG)).status).toBe(404);
+    expect((await put(deps(bucket), `${await shaOf(PNG)}.svg`, PNG)).status).toBe(404);
+    expect((await put(deps(bucket), name, new Uint8Array(PICTURE_MAX.bytes + 1))).status).toBe(413);
+    expect((await put(deps(), name, PNG)).status).toBe(503);
+    expect(kept).toEqual({});
+  });
+
+  it('shows a kept picture to anyone, as an image that never changes, and nothing else in the bucket', async () => {
+    const { bucket } = store();
+    const name = `${await shaOf(PNG)}.png`;
+    await put(deps(bucket), name, PNG);
+    const get = (path: string, method = 'GET') => handleTutorialPicture(new Request(`https://next.langquest.org${path}`, { method }), bucket);
+    const r = await get(`/api/tutorial-pictures/${name}`);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type')).toBe('image/png');
+    expect(r.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(r.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(new Uint8Array(await r.arrayBuffer())).toEqual(PNG);
+    expect((await get(`/api/tutorial-pictures/${name}`, 'HEAD')).status).toBe(200);
+    expect((await get(`/api/tutorial-pictures/${'b'.repeat(64)}.png`)).status).toBe(404);
+    expect((await get('/api/tutorial-pictures/../tutorials/en/x/a.mp4')).status).toBe(404);
+    expect((await get(`/api/tutorial-pictures/${name}`, 'PUT')).status).toBe(405);
   });
 });
 

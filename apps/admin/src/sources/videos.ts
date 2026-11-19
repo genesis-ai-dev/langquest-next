@@ -1,5 +1,5 @@
 import { CHANNELS, type ChannelLanguage } from '../../../../server/youtube';
-import type { FeedbackInput, Suggestion } from '../../../../server/tutorialFeedback';
+import type { FeedbackInput, Picture, Suggestion } from '../../../../server/tutorialFeedback';
 import { diagConnection, withDiag, type Query } from '../db';
 import { failed, ok, type Section } from '../section';
 import { filmingSection, type Filming } from './filming';
@@ -11,11 +11,14 @@ import { tutorialsOf, type Feedback, type Tutorials } from './ops';
  * dashboard", decisions.md 186 amended 2026-11-13 and 2026-11-16): every video
  * in each app language with its state and a timeline of what happened to it;
  * what an admin must do (answer a suggestion, say what to do when Claude could
- * not make a change, publish, connect a channel, turn a language on); and what
+ * not make a change, post a suggested reply and say so, publish, connect a
+ * channel); and what
  * the workers do now or tonight (filming, checks of slotted videos, fixes being
  * written or merging themselves, comments to read, uploads). A fourth list is
  * the record of every change Claude made to a video, with its pull request:
- * a clear fix merges itself, so no person sees it except here. Read from four places: the database
+ * a clear fix merges itself, so no person sees it except here. The page draws them as four tabs
+ * (pageVideos.ts, docs/decisions/2026-11-19-the-tutorial-videos-page-opens-on-what-waits-on-you.md).
+ * Read from four places: the database
  * (diag.ops_tutorial_films, ops_tutorial_feedback, ops_tutorials), each
  * language's status-<language>.json in the public `tutorials` release (the
  * nightly writes it, e2e/tutorials/nightly.ts), the filming run on GitHub
@@ -85,7 +88,7 @@ export interface Mark {
   kind: 'film' | 'up' | 'comment' | 'suggested' | 'decided' | 'fix' | 'held' | 'failed';
   /** For a film: its causes, in words ('app change', 'script', 'film tool', 'new', 'asked'); else what happened. */
   text: string;
-  /** For a film: what made it ('app' | 'script' | 'tool' | 'new' | 'asked' | 'unknown'). */
+  /** For a film: what made it ('app' | 'script' | 'tool' | 'new' | 'asked' | 'unknown'). For a decision: 'accepted' or 'rejected'. For a fix: its state. */
   cause?: string;
   link?: string;
   /** What a click on the mark opens: lines to read, what was written as written, links, and films to watch side by side. */
@@ -100,13 +103,19 @@ export interface MarkDetail {
   links: { text: string; href: string }[];
   /** Films to play: this film, and the one before it to compare. */
   films: { label: string; href: string }[];
+  /** What a suggestion is about, as Claude picked it from the last film run, and the same places after its fix. */
+  pictures?: Picture[];
+  after?: Picture[];
 }
+
+/** One cause of a film, for the page: the mark it has on the timeline, what happened in words, and the changes that did it. */
+export interface FilmCause { mark: string; text: string; links: { text: string; href: string }[] }
 
 export interface VideoRow {
   tutorial: string; language: string; title: string;
   states: VideoState[];
-  /** The newest film: when it was made and why, and whether YouTube has it. */
-  film: { madeAt: string; why: string | null; up: boolean } | null;
+  /** The newest film: when it was made and why (in a line, and cause by cause for the page), and whether YouTube has it. */
+  film: { madeAt: string; why: string | null; causes: FilmCause[]; up: boolean } | null;
   marks: Mark[];
 }
 
@@ -124,12 +133,23 @@ export interface AdminItem {
   tutorial?: string; language?: string; link?: string;
   /** For `approve`: the suggestion, for its Accept, Edit and Reject. */
   suggestion?: FixedSuggestion;
+  /** What the card is about, as pictures Claude picked from the last film run (decisions.md 186, amended 2026-11-17). */
+  pictures?: Picture[];
   /** Where "Tell Claude what to do" applies: the words that start the note, so Claude knows the problem it answers. */
   instruct?: string;
   /** The admin's newest instruction for this video since the problem began. */
   instructed?: { at: string; text: string; looked: boolean; fix: Fix | null };
   /** The comment or change inputs the card shows, sent with an instruction so the look does not suggest them again. */
   inputIds?: string[];
+  /** The video's title, for a card that is one video's. */
+  video?: string;
+  /**
+   * For `reply`: the comment (in English, and as written when that differs), the reply Claude suggests in the comment's
+   * language (and in English when that differs), and the comment on YouTube. The page copies the reply; a person posts it.
+   */
+  reply?: { id: string; comment: string; original: string | null; text: string; english: string | null; link: string };
+  /** For `fixFailed`: the instruction "Try again" sends, which names the change in full. */
+  retry?: string;
 }
 
 export interface WorkerItem {
@@ -152,6 +172,9 @@ export interface ChangeItem {
   pr: number | null; link: string | null;
   /** Why it failed, or why no change was needed. */
   note: string | null;
+  /** What the change is about, before it, and the same places once the video was filmed again. */
+  pictures: Picture[];
+  after: Picture[];
 }
 
 export interface Videos {
@@ -169,8 +192,6 @@ export interface Videos {
 
 const REPO = 'https://github.com/genesis-ai-dev/langquest-next';
 const pr = (n: number) => `${REPO}/pull/${n}`;
-/** The comments a reply is suggested for, shown for this long: the page cannot tell whether someone posted it. */
-export const REPLY_DAYS = 14;
 /** The timeline goes back this far. */
 export const TIMELINE_DAYS = 60;
 const RECONNECT = /^youtube_(invalid_grant|not_connected|unauthorized|forbidden)/;
@@ -188,19 +209,37 @@ export function causeOf(why: Cause[] | null | undefined): string {
   return 'unknown';
 }
 
-const refs = (r: Ref[]) => (r.length ? ` (${r.map((c) => (c.pr ? `#${c.pr}` : c.sha.slice(0, 7))).join(', ')})` : '');
-/** A film's causes in words. */
+/**
+ * A screen's name as a person reads it, from its id in the app's flow (apps/mobile/src/shell/flow.ts): `my_work` is
+ * My work, `settings_home` is Settings. The page never shows the id.
+ */
+export function screenName(id: string): string {
+  const words = id.replace(/_home$/, '').replace(/[_-]+/g, ' ').trim() || id;
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+const screenNames = (ids: string[]) => [...new Set(ids.map(screenName))].join(', ');
+const refs = (r: Ref[]) => (r.length ? ` (${r.map((c) => (c.pr ? `PR ${c.pr}` : c.sha.slice(0, 7))).join(', ')})` : '');
+/** One cause in words, without the changes that did it. */
+function causeText(c: Cause): string {
+  switch (c.kind) {
+    case 'new': return 'First film';
+    case 'asked': return 'Filmed on request';
+    case 'frame': return 'New film frame';
+    case 'script': return 'Script changed';
+    case 'screen': return `Words changed on ${screenNames(c.screens) || 'a screen'}`;
+  }
+}
+/** A film's causes in a line. */
 export function whyText(why: Cause[] | null | undefined): string | null {
   if (!why || !why.length) return null;
-  return why.map((c) => {
-    switch (c.kind) {
-      case 'new': return 'first film';
-      case 'asked': return 'filmed on request';
-      case 'frame': return 'new film frame';
-      case 'script': return `its script changed${refs(c.changes)}`;
-      case 'screen': return `words on ${c.screens.join(', ') || 'a screen'} changed${c.shared ? ' (shared code)' : ''}${refs(c.changes)}`;
-    }
-  }).join('; ');
+  return why.map((c) => `${causeText(c)}${'changes' in c ? refs(c.changes) : ''}`).join('; ');
+}
+/** A film's causes one by one, each with its timeline mark and its changes as links. */
+export function filmCauses(why: Cause[] | null | undefined): FilmCause[] {
+  return (why ?? []).map((c) => ({
+    mark: causeOf([c]), text: causeText(c),
+    links: 'changes' in c ? c.changes.map((r) => ({ text: r.pr ? `PR ${r.pr}` : r.sha.slice(0, 7), href: r.pr ? `${pr(r.pr)}/files` : `${REPO}/commit/${r.sha}` })) : []
+  }));
 }
 
 /** The languages tutorials.yml films each night, from its NIGHTLY_LANGUAGES line. */
@@ -250,7 +289,9 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
   for (const s of feedback?.suggestions ?? []) for (const i of s.inputs) inputs.set(i.id, i);
   const comments = [...inputs.values()].filter((i) => i.kind === 'comment');
   const commentLink = (i: FeedbackInput) => (i.youtubeId && i.ref ? `https://www.youtube.com/watch?v=${i.youtubeId}&lc=${i.ref}` : 'https://studio.youtube.com');
-  const replyDue = (i: FeedbackInput) => !!i.reply && now - Date.parse(i.at) <= REPLY_DAYS * 86_400_000;
+  // A suggested reply waits until a person says it is posted, or that none is needed (migration *_tutorial_reply_done.sql);
+  // the comment itself is taken out 30 days after it was posted.
+  const replyDue = (i: FeedbackInput) => !!i.reply && !i.replyDone;
 
   const admin: AdminItem[] = [];
   const worker: WorkerItem[] = [];
@@ -263,18 +304,20 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
     const on = s.tutorial ? `${title(s.tutorial)}: ` : '';
     // A suggestion's cards go on its video's row in its film's language (English when it names none).
     const where = s.tutorial ? { tutorial: s.tutorial, language: s.language ?? 'en' } : {};
-    if (!s.decision) admin.push({ kind: 'approve', title: `${on}${s.title}`, detail: s.detail, at: s.madeAt, who: 'you', ...where, suggestion: s,
-      next: FIXABLE.has(s.kind) && s.tutorial ? 'Accept: Claude makes the change as a pull request that merges itself when its checks pass. The next night films the video again. Nothing happens until you answer.'
-        : s.kind === 'code' ? 'Accept: it goes to Linear as an app issue. Nothing happens until you answer.' : 'Accept or reject it. Nothing happens until you answer.' });
+    const pictures = s.pictures?.length ? { pictures: s.pictures } : {};
+    if (!s.decision) admin.push({ kind: 'approve', title: `${on}${s.title}`, detail: s.detail, at: s.madeAt, who: 'you', ...where, suggestion: s, ...pictures,
+      next: FIXABLE.has(s.kind) && s.tutorial ? 'Accept, and Claude changes the video. The next night films it again. Nothing happens until you answer.'
+        : s.kind === 'code' ? 'Accept, and it goes to Linear as an app issue. Nothing happens until you answer.' : 'Accept or reject it. Nothing happens until you answer.' });
     const fix = s.fix;
     const yes = s.kind === 'instruction' ? `Your instruction: ${s.detail}` : s.clear ? `${s.title}. Claude found it clear and accepted it itself.` : `${s.title}. You accepted it.`;
-    if (fix?.state === 'open' && fix.pr) worker.push({ when: 'now', kind: 'merging', title: `${on}Claude's change merges itself when its checks pass (PR ${fix.pr})`, detail: `${yes} If a check fails, or it does not merge within a day, Claude closes it and asks you under For an admin.`, at: fix.at, link: pr(fix.pr) });
-    if (fix?.state === 'failed') admin.push({ kind: 'fixFailed', title: `${on}Claude could not make the change`, detail: fix.note ?? s.title, at: fix.at, who: 'you', ...(fix.pr ? { link: pr(fix.pr) } : fix.run ? { link: fix.run } : {}),
-      next: 'Tell Claude what to do instead. Claude tries again at its next fix run (:20 and :50 each hour). Nothing happens until you do.', ...where, ...(s.tutorial ? { instruct: `Claude could not make the change "${s.title}" (${fix.note ?? 'no reason given'}).` } : {}) });
+    if (fix?.state === 'open' && fix.pr) worker.push({ when: 'now', kind: 'merging', title: `${on}Claude's change merges itself when its checks pass (PR ${fix.pr})`, detail: `${yes} If a check fails, or it does not merge within a day, Claude closes it and asks you under Waits on you.`, at: fix.at, link: pr(fix.pr) });
+    if (fix?.state === 'failed') admin.push({ kind: 'fixFailed', title: `${on}Claude could not make the change`, detail: fix.note ?? s.title, at: fix.at, who: 'you', ...pictures, ...(fix.pr ? { link: pr(fix.pr) } : fix.run ? { link: fix.run } : {}),
+      next: 'Try again, or tell Claude what to do instead. Claude starts at its next fix run (:20 and :50 each hour). Nothing happens until you do.', ...where, ...(s.tutorial ? { instruct: `Claude could not make the change "${s.title}" (${fix.note ?? 'no reason given'}).`, retry: `Try this change again: ${s.title}. ${s.detail}`.slice(0, 2000) } : {}) });
     if (fix?.state === 'working') worker.push({ when: 'now', kind: 'fixing', title: `${on}Claude writes the change now`, detail: `${yes} When done, the pull request merges itself when its checks pass.`, at: fix.at, ...(fix.run ? { link: fix.run } : {}) });
     if (s.decision === 'accepted' && !fix && s.tutorial && FIXABLE.has(s.kind)) worker.push({ when: 'next', kind: 'toFix', title: `${on}Claude starts the change at its next fix run (:20 and :50 each hour)`, detail: `${yes} Claude makes it as a pull request that merges itself when its checks pass.`, at: s.decidedAt });
     if (fix && s.tutorial) changes.push({ at: fix.at, tutorial: s.tutorial, language: s.language ?? 'en', video: title(s.tutorial), change: s.kind === 'instruction' ? s.detail : s.title,
-      by: s.kind === 'instruction' ? 'instruction' : s.clear ? 'claude' : 'admin', state: fix.state, pr: fix.pr, link: fix.pr ? pr(fix.pr) : fix.run, note: fix.note });
+      by: s.kind === 'instruction' ? 'instruction' : s.clear ? 'claude' : 'admin', state: fix.state, pr: fix.pr, link: fix.pr ? pr(fix.pr) : fix.run, note: fix.note,
+      pictures: s.pictures ?? [], after: s.after ?? [] });
   }
   changes.sort((a, b) => b.at.localeCompare(a.at));
 
@@ -292,17 +335,17 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
       const add = (st: VideoState) => { if (!states.some((x) => x.key === st.key)) states.push(st); };
 
       if (sv?.tonight === 'failed') add({ key: 'fails', text: 'Film fails', level: 'bad', ...(j?.url ? { link: j.url } : {}) });
-      if (sv?.tonight === 'held') { add({ key: 'held', text: 'Held by the frame check', level: 'bad', ...(j?.url ? { link: j.url } : {}) }); }
+      if (sv?.tonight === 'held') { add({ key: 'held', text: 'Film held', level: 'bad', ...(j?.url ? { link: j.url } : {}) }); }
       // A suggestion about one language's film (its voice or lines) shows on that language's row; one about the video, on every row.
       const mineSg = (suggestionsOf.get(tutorial) ?? []).filter((sg) => !sg.language || sg.language === language);
       for (const sg of mineSg) {
-        if (!sg.decision) add({ key: 'approve', text: 'Waits for admin approval', level: 'warn' });
-        if (sg.fix?.state === 'failed') add({ key: 'fixFailed', text: 'Fix failed', level: 'bad', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}) });
-        if (sg.fix?.state === 'open') add({ key: 'merge', text: 'Fix PR merges itself when checks pass', level: 'info', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : {}) });
-        if (sg.fix?.state === 'working') add({ key: 'fixing', text: 'Worker is fixing it', level: 'info' });
-        if (sg.decision === 'accepted' && !sg.fix && FIXABLE.has(sg.kind)) add({ key: 'toFix', text: sg.kind === 'instruction' ? 'Claude has your instruction' : sg.clear ? 'Clear fix, Claude starts it next' : 'Accepted, Claude starts the fix next', level: 'info' });
+        if (!sg.decision) add({ key: 'approve', text: 'Suggestion to answer', level: 'warn' });
+        if (sg.fix?.state === 'failed') add({ key: 'fixFailed', text: 'Change failed', level: 'bad', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}) });
+        if (sg.fix?.state === 'open') add({ key: 'merge', text: 'Change waits on its checks', level: 'info', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : {}) });
+        if (sg.fix?.state === 'working') add({ key: 'fixing', text: 'Claude writes the change', level: 'info' });
+        if (sg.decision === 'accepted' && !sg.fix && FIXABLE.has(sg.kind)) add({ key: 'toFix', text: sg.kind === 'instruction' ? 'Claude has your instruction' : sg.clear ? 'Clear fix, Claude starts it next' : 'Accepted, Claude starts the change next', level: 'info' });
         // A fix merged after the last night's status is filmed by the next night.
-        if (sg.fix?.state === 'merged' && isNightly(language) && (!s || Date.parse(sg.fix.at) > Date.parse(s.at))) add({ key: 'tonight', text: 'Fix merged, films tonight', level: 'info' });
+        if (sg.fix?.state === 'merged' && isNightly(language) && (!s || Date.parse(sg.fix.at) > Date.parse(s.at))) add({ key: 'tonight', text: 'Change merged, films tonight', level: 'info' });
       }
       const slots = sv?.slots ?? [];
       if (slots.length) {
@@ -312,8 +355,8 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
           link: slots[0]!.pr ? pr(slots[0]!.pr) : `${REPO}/commit/${slots[0]!.sha}` });
       }
       const mine = comments.filter((i) => i.tutorial === tutorial && (i.language ?? 'en') === language);
-      if (mine.some((i) => !i.lookedAt)) add({ key: 'comment', text: 'Comment not handled yet', level: 'info', link: commentLink(mine.find((i) => !i.lookedAt)!) });
-      if (mine.some(replyDue)) add({ key: 'reply', text: 'Reply suggested', level: 'warn', link: commentLink(mine.find(replyDue)!) });
+      if (mine.some((i) => !i.lookedAt)) add({ key: 'comment', text: 'New comment', level: 'info', link: commentLink(mine.find((i) => !i.lookedAt)!) });
+      if (mine.some(replyDue)) add({ key: 'reply', text: 'Reply to post', level: 'warn', link: commentLink(mine.find(replyDue)!) });
       if (newest && !newest.youtubeId) {
         if (newest.failed && RECONNECT.test(newest.failed)) add({ key: 'upload', text: 'Upload refused: connect the channel again', level: 'bad' });
         else if (!newest.chosenAt) add({ key: 'publish', text: 'Ready to publish', level: 'warn' });
@@ -349,22 +392,24 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
       for (const i of mine) if (recent(i.at)) marks.push({ at: i.at, kind: 'comment', text: i.english ?? i.text, link: commentLink(i), detail: {
         title: `Comment on YouTube (${language})`,
         lines: [...(i.english && i.english !== i.text ? [`In English: ${i.english}`] : []), ...(i.reply ? [`Reply suggested: ${i.replyEnglish ?? i.reply}`] : []),
+          ...(i.replyDone === 'posted' ? ['A person posted the reply.'] : i.replyDone === 'none' ? ['A person chose to post no reply.'] : []),
           i.lookedAt ? `Claude's answer: ${i.outcome ?? 'made a suggestion (see the suggestion mark)'}` : 'Claude has not looked at it yet.'],
         quote: i.text, links: [{ text: 'Open the comment on YouTube', href: commentLink(i) }], films: []
       } });
       for (const sg of mineSg) {
         const about = [sg.detail, ...sg.inputs.map((i) => `Answers: ${i.english ?? i.text}`)];
+        const shown = { ...(sg.pictures?.length ? { pictures: sg.pictures } : {}), ...(sg.after?.length ? { after: sg.after } : {}) };
         // A clear fix is suggested and accepted by Claude at once: one mark says both.
-        if (recent(sg.madeAt) && !sg.clear) marks.push({ at: sg.madeAt, kind: 'suggested', text: `Suggested: ${sg.title}`, detail: { title: `Claude suggested: ${sg.title}`, lines: about, links: [], films: [] } });
+        if (recent(sg.madeAt) && !sg.clear) marks.push({ at: sg.madeAt, kind: 'suggested', text: `Suggested: ${sg.title}`, detail: { title: `Claude suggested: ${sg.title}`, lines: about, links: [], films: [], ...shown } });
         const decided = sg.clear ? 'Clear fix, accepted by Claude' : sg.decision === 'accepted' ? 'Accepted' : 'Rejected';
-        if (sg.decision && recent(sg.decidedAt)) marks.push({ at: sg.decidedAt!, kind: 'decided', text: `${decided}: ${sg.title}`, detail: {
+        if (sg.decision && recent(sg.decidedAt)) marks.push({ at: sg.decidedAt!, kind: 'decided', cause: sg.decision === 'rejected' ? 'rejected' : 'accepted', text: `${decided}: ${sg.title}`, detail: {
           title: `${decided}: ${sg.title}`, lines: [...about, ...(sg.clear ? ['Claude checked that the video is wrong against the app and that there is one right fix, so no person was asked.'] : []), ...(sg.reason ? [`Why: ${sg.reason}`] : [])],
-          links: sg.issueUrl ? [{ text: `Linear ${sg.issue}`, href: sg.issueUrl }] : [], films: []
+          links: sg.issueUrl ? [{ text: `Linear ${sg.issue}`, href: sg.issueUrl }] : [], films: [], ...shown
         } });
         const fixState = sg.fix?.state === 'unneeded' ? 'no change needed' : sg.fix?.state === 'open' ? 'open, merges itself when checks pass' : sg.fix?.state;
-        if (sg.fix && recent(sg.fix.at)) marks.push({ at: sg.fix.at, kind: 'fix', text: `Fix ${fixState}${sg.fix.pr ? ` (PR ${sg.fix.pr})` : ''}`, ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}), detail: {
+        if (sg.fix && recent(sg.fix.at)) marks.push({ at: sg.fix.at, kind: 'fix', cause: sg.fix.state, text: `Fix ${fixState}${sg.fix.pr ? ` (PR ${sg.fix.pr})` : ''}`, ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}), detail: {
           title: `Fix: ${fixState}`, lines: [sg.title, ...(sg.fix.note ? [`${sg.fix.state === 'unneeded' ? 'Why' : 'Error'}: ${sg.fix.note}`] : [])],
-          links: [...(sg.fix.pr ? [{ text: `PR ${sg.fix.pr}: what changed in the script`, href: `${pr(sg.fix.pr)}/files` }] : []), ...(sg.fix.run ? [{ text: 'The run that wrote it', href: sg.fix.run }] : [])], films: []
+          links: [...(sg.fix.pr ? [{ text: `PR ${sg.fix.pr}: what changed in the script`, href: `${pr(sg.fix.pr)}/files` }] : []), ...(sg.fix.run ? [{ text: 'The run that wrote it', href: sg.fix.run }] : [])], films: [], ...shown
         } });
       }
       if (s && (sv?.tonight === 'held' || sv?.tonight === 'failed')) marks.push({ at: s.at, kind: sv.tonight, text: sv.tonight === 'held' ? `Held: ${(sv.held ?? []).join('; ')}` : 'Film failed', detail: {
@@ -377,7 +422,8 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
       const filmWhy = sv?.film && newest && sv.film.sha256 === newest.sha256 ? whyText(sv.film.why) : null;
       videos.push({
         tutorial, language, title: title(tutorial), states, marks,
-        film: newest ? { madeAt: newest.madeAt, why: filmWhy, up: !!newest.youtubeId } : sv?.film?.filmedAt ? { madeAt: sv.film.filmedAt, why: whyText(sv.film.why), up: false } : null
+        film: newest ? { madeAt: newest.madeAt, why: filmWhy, causes: sv?.film && sv.film.sha256 === newest.sha256 ? filmCauses(sv.film.why) : [], up: !!newest.youtubeId }
+          : sv?.film?.filmedAt ? { madeAt: sv.film.filmedAt, why: whyText(sv.film.why), causes: filmCauses(sv.film.why), up: false } : null
       });
       const name = `${title(tutorial)} (${language})`;
       // A held or failing film waits on Claude's next look, which fixes it when the fix is clear or asks a person (a suggestion);
@@ -385,16 +431,17 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
       const answered = (feedback?.suggestions ?? []).filter((x) => x.tutorial === tutorial && (x.language ?? 'en') === language && s && x.madeAt >= s.at);
       const filmWho: AdminItem['who'] = answered.some((x) => x.decision !== 'rejected') || !(s && feedback?.last && feedback.last.at > s.at) ? 'claude' : 'you';
       if (sv?.tonight === 'held') admin.push({ kind: 'held', title: `${name}: the new film was held back`, detail: `The frame check found: ${(sv.held ?? []).join('; ') || 'a problem in a frame'}. YouTube keeps the old film.`, at: s!.at, tutorial, language, who: filmWho,
-        next: filmWho === 'you' ? 'Each night films it again and holds it again until the cause is fixed. Claude\'s look did not fix it. Watch the film in the timeline, then tell Claude what to change.' : 'Claude looks at it at 10:00 UTC. When the fix is clear, Claude changes the video itself; otherwise it asks you here. To skip that, watch the film in the timeline and tell Claude what to change.', instruct: `The new film of "${title(tutorial)}" (${language}) was held by the frame check: ${(sv.held ?? []).join('; ')}.`, ...(j?.url ? { link: j.url } : {}) });
+        next: filmWho === 'you' ? 'Claude\'s look did not fix it. Tell Claude what to change. Each night holds the film again until then.' : 'Claude looks at it at 10:00 UTC, and changes the video or asks you. You can tell Claude now what to change.', instruct: `The new film of "${title(tutorial)}" (${language}) was held by the frame check: ${(sv.held ?? []).join('; ')}.`, ...(j?.url ? { link: j.url } : {}) });
       if (sv?.tonight === 'failed') admin.push({ kind: 'fails', title: `${name}: the film fails`, detail: 'The filming stops at a step: the script expects something the app no longer shows. YouTube keeps the old film.', at: s!.at, tutorial, language, who: filmWho,
-        next: filmWho === 'you' ? 'Each night fails again until the script or the app is fixed. Claude\'s look did not fix it. Tell Claude what changed, or what the script must do now.' : 'Each night fails again until the script or the app is fixed. Claude looks at it at 10:00 UTC. When the fix is clear, Claude changes the video itself; otherwise it asks you here. To skip that, tell Claude what changed, or what the script must do now.', instruct: `The film of "${title(tutorial)}" (${language}) fails each night (see the log of the filming run).`, ...(j?.url ? { link: j.url } : {}) });
+        next: filmWho === 'you' ? 'Claude\'s look did not fix it. Tell Claude what changed in the app. Each night fails again until then.' : 'Claude looks at it at 10:00 UTC, and changes the video or asks you. You can tell Claude now what changed in the app.', instruct: `The film of "${title(tutorial)}" (${language}) fails each night (see the log of the filming run).`, ...(j?.url ? { link: j.url } : {}) });
       for (const i of mine.filter(replyDue)) admin.push({ kind: 'reply', title: `${name}: a reply to post`, detail: `Comment: ${i.english ?? i.text}\nSuggested reply: ${i.replyEnglish ?? i.reply}`, at: i.at, tutorial, language, who: 'you', link: commentLink(i),
-        next: 'Post the reply on YouTube yourself. The app does not post replies. This card goes away after 14 days.' });
+        reply: { id: i.id, comment: i.english ?? i.text, original: i.english && i.english !== i.text ? i.text : null, text: i.reply!, english: i.replyEnglish && i.replyEnglish !== i.reply ? i.replyEnglish : null, link: commentLink(i) },
+        next: 'Copy the reply and post it on YouTube. Then press Done.' });
       for (const i of mine.filter((c) => !c.lookedAt)) admin.push({ kind: 'comment', title: `${name}: a new comment`, detail: i.english ?? i.text, at: i.at, tutorial, language, who: 'claude', link: commentLink(i),
-        next: 'Claude reads it at 10:00 UTC. When a change to the video is clear, Claude makes it itself; otherwise it suggests a change or a reply for you. To skip that step, tell Claude now what to do.', inputIds: [i.id], instruct: `About the comment on "${title(tutorial)}" (${language}): "${i.english ?? i.text}".` });
-      if (slots.length && isNightly(language)) admin.push({ kind: 'screen', title: `${name}: a screen it shows changed`, detail: slots.map((c) => `${c.pr ? `PR ${c.pr}` : c.sha.slice(0, 7)} changed ${c.screens.join(', ')}`).join('; '), at: s?.at ?? null, tutorial, language, who: 'claude',
+        next: 'Claude reads it at 10:00 UTC, and changes the video or suggests a change or a reply. You can tell Claude now what to do.', inputIds: [i.id], instruct: `About the comment on "${title(tutorial)}" (${language}): "${i.english ?? i.text}".` });
+      if (slots.length && isNightly(language)) admin.push({ kind: 'screen', title: `${name}: a screen it shows changed`, detail: slots.map((c) => `${c.pr ? `PR ${c.pr}` : c.sha.slice(0, 7)} changed ${screenNames(c.screens)}`).join('; '), at: s?.at ?? null, tutorial, language, who: 'claude',
         link: slots[0]!.pr ? `${pr(slots[0]!.pr)}/files` : `${REPO}/commit/${slots[0]!.sha}`,
-        next: 'Tonight the filming checks the video. It films again only if the words on its screens changed. If the script must change too, tell Claude now.', instruct: `A screen in "${title(tutorial)}" (${language}) changed: ${slots.map((c) => (c.pr ? `PR ${c.pr}` : c.sha.slice(0, 7))).join(', ')}.` });
+        next: 'Tonight the filming checks the video, and films it again if the words on its screens changed. If the script must change too, tell Claude now.', instruct: `A screen in "${title(tutorial)}" (${language}) changed: ${slots.map((c) => (c.pr ? `PR ${c.pr}` : c.sha.slice(0, 7))).join(', ')}.` });
     }
     // ---- this language's worker queue ----
     const j2 = filmingLanguage(language);
@@ -407,7 +454,7 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
   // ---- the rest of the admin list ----
   const ready = (tutorials?.waiting ?? []).filter((w) => !w.chosenAt);
   if (ready.length) admin.push({ kind: 'publish', title: `${ready.length} ${ready.length === 1 ? 'film waits' : 'films wait'} for Publish`, detail: 'A film made before the videos were wide is not chosen by itself.', at: null, who: 'you', link: '#tutorials',
-    next: 'Tick them under Channels and videos, then Publish. They stay off YouTube until you do.' });
+    next: 'Tick them under Channels and videos, then press Publish. They stay off YouTube until you do.' });
   for (const c of tutorials?.channels ?? []) {
     const needs = !c.connectedAt ? isNightly(c.language) || (tutorials?.waiting ?? []).some((w) => w.language === c.language)
       : (tutorials?.waiting ?? []).some((w) => w.language === c.language && w.failed && RECONNECT.test(w.failed));
@@ -419,9 +466,10 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
     next: 'Their videos stay as they are. To turn one on, add it to NIGHTLY_LANGUAGES in tutorials.yml (a pull request).' });
 
   // ---- the rest of the worker queue ----
-  if (feedback?.waiting) worker.push({ when: 'next', kind: 'comments', title: `10:00 UTC: Claude reads ${feedback.waiting} new ${feedback.waiting === 1 ? 'comment, change or note' : 'comments, changes and notes'}`, detail: 'Claude fixes a video itself when the fix is clear. Anything else becomes a suggestion on its video\'s row, for you to accept or reject.' });
+  if (feedback?.waiting) worker.push({ when: 'next', kind: 'comments', title: `10:00 UTC: Claude reads ${feedback.waiting} new ${feedback.waiting === 1 ? 'comment, change or note' : 'comments, changes and notes'}`, detail: 'Claude fixes a video itself when the fix is clear. Anything else becomes a suggestion under Waits on you, for you to accept or reject.' });
   if (filming?.run && !filmingNow) worker.unshift({ when: 'next', kind: 'filming', title: `20:10 UTC: film the videos that changed (${(nightly ?? ['en']).join(', ')})`, detail: `Each video is tried; one films again only when its script or screen words changed. New films then go up on YouTube. Last run (${filming.run.number}): ${filming.run.conclusion ?? filming.run.status}.`, link: filming.run.url });
 
+  for (const a of admin) if (a.tutorial) a.video = title(a.tutorial);
   // An instruction sent from a card: the newest instruction for that video since the problem began
   // (a suggestion of kind 'instruction', with its fix); before the Worker knew instructions, a note on the video.
   const notes = [...inputs.values()].filter((i) => i.kind === 'note' && i.tutorial);

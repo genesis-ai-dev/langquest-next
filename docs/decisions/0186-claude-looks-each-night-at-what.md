@@ -175,3 +175,57 @@ merge themselves, and it would apply to every repository in the
 organization, which Caleb did not want. Reverse if: a clear fix that merged
 has to be taken back more than once a month, or Claude's fixes fail their
 checks more often than they pass.
+
+Amended (2026-11-17, Caleb Koster): each suggestion about a video shows
+pictures of what it is about, and is written for an admin first. Caleb
+(2026-11-17, thread "Show pictures on tutorial video suggestion cards"): a
+card that said "the dim backdrop is half drawn at the last step in fr and
+es ... status-fr.json (1:21) ... step 12's `until`/`stay`" left him unable
+to tell what it was about, so he could not answer it. Decided (migration
+`20261117193000_tutorial_pictures.sql`, the `tutorial-review` skill):
+- **Claude picks the pictures.** The look downloads the last film run's
+  pictures in each language it reads (`tutorials-<language>`: each step's
+  screen, the stills the frame check found wrong, the screen where a film
+  stopped), and Claude gives each suggestion one to six, each with a plain
+  caption and, where it sees the place, a ring (`ring`, parts of the
+  picture). Claude looked at the pictures; a script that picked "step N"
+  out of the words would show the wrong place whenever the words named
+  none. A film now keeps its dry run's step pictures (`film.ts`), which it
+  used to delete, so the videos that change most have pictures too.
+- **Kept by hash in R2, read by anyone.** `send` puts each picture through
+  the Worker (`PUT /api/tutorial-review/pictures/`, this workflow on main
+  only, by its OIDC token), and only one whose hash the workflow listed
+  before Claude ran. A suggestion keeps the names (`pictures`, and
+  `after_pictures` once its fix is merged and filmed again). They are
+  served at `/api/tutorial-pictures/` with no sign-in, as the films are,
+  so the fix's pull request can show them too: they are stills of public
+  videos and screens of their test data. The ring is drawn by the
+  dashboard over the picture, so the picture stays as the film run made it.
+- **Plain words first.** The skill has Claude write the title and the start
+  of the detail in ASD-STE100 plain English for an admin, naming the
+  pictures, and the technical part after a line "For the fix:", which the
+  dashboard folds away. The fix still reads the whole detail. A suggestion
+  made before that still waits for a person, and that no admin edited, gets
+  its words again from the next look (`title` and `detail` on its
+  `pictures` entry), so the cards Caleb could not answer become readable;
+  an admin's edit is never written over.
+- **A small ring is shown zoomed in.** A film still is a wide frame with the
+  phone in a quarter of it, so a picture whose ring is small shows that
+  part, with space round it, and a click opens all of it.
+Considered: frames cut from the film in R2 at each step's time (a held or
+failed film is never put in R2, and the step times are not kept), and the
+pictures in the public `tutorials` release (a release holds at most 1000
+files). Reverse if: pictures are wrong for what a card says more than once
+a week, or R2's `tutorial-pictures/` grows past 1 GB (then take out those
+no suggestion of the last year names).
+
+Amended (2026-11-19, Caleb Koster): a suggested reply waits until a person
+says what became of it, in place of showing for 14 days. Caleb (thread
+"Make tutorial videos dashboard page clear") found the reply's card had
+nothing to press. Its card now copies the reply and opens the comment on
+YouTube, and takes Done or No reply needed
+(docs/decisions/2026-11-19-the-tutorial-videos-page-opens-on-what-waits-on-you.md).
+The reply is still posted by a person on YouTube, never from the dashboard:
+the reason above (a comment is untrusted) stands. The answer is kept on the
+comment (`reply_done`, with when and who; migration
+`20261119171500_tutorial_reply_done.sql`) and goes with it after 30 days.

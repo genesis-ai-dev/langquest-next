@@ -12,6 +12,12 @@ export interface Env {
    * Production only: preview has no database of its own for it to read yet.
    */
   OPS?: Fetcher;
+  /**
+   * The same Worker's OpsLines entrypoint (apps/admin/src/lines.ts): the
+   * dashboard's lines that need a Linear issue, which the watch for user
+   * issues hands to Claude (userIssues.ts). Production only, as OPS.
+   */
+  OPS_LINES?: { lines(): Promise<{ key: string; level: string; text: string; title: string; part: string; link?: string }[]> };
   /** Recordings and guide media (blobs.ts, decisions.md 69). */
   BLOBS: R2Bucket;
   /**

@@ -165,3 +165,9 @@ update's id and time (`storeVersionTime` in
 store version and nothing else shows the update, so a tester needs both to
 say which code they run. A new form for the version needs that reader
 changed too; a version it cannot read shows no date, never a wrong one.
+
+Amended (2026-11-17, Carl Sauder): the hourly step (`app-store-review.yml`)
+and the deploy on main (`deploy-to-testers.yml`) share the EAS concurrency
+group `google-play`, so the hourly step waits for a deploy that is
+uploading instead of deleting its upload's edit, and deploys take turns
+(`docs/decisions/2026-11-17-play-uploads-take-turns.md`).
