@@ -1,5 +1,7 @@
 # Languages and regions
 
+Kind: reference
+
 The languages the app knows, and where they are spoken, are global
 reference data in the database. They are not events and not in any stream:
 nothing syncs them, and they cost an organization nothing to open

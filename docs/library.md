@@ -1,5 +1,7 @@
 # The library: content templates, review flows, reference material
 
+Kind: reference
+
 Content templates, review flows and reference material live in the database,
 not in the app. Each organization has a **library** of items; each item has
 **published versions**; an organization decides per item whether other
