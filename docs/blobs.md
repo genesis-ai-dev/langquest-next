@@ -75,7 +75,11 @@ below was earned in production there.
     and say why
     (`docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md`).
     A book's download button keeps each of its passages, in one write
-    (`docs/decisions/2026-11-20-a-book-has-its-own-download-button.md`); it
+    (`docs/decisions/2026-11-20-a-book-has-its-own-download-button.md`), for
+    their recordings alone: they go in a list of their own
+    (`LanguageStatus.recordingsOnly`), and a passage's reference material
+    (study guide files, reference audio) follows only the person's own
+    passages and those kept by their own button (`referenceUnits`). It
     says first how much audio would come (`offlineCost`), and is not offered
     when that would not fit in what is free above the 500 MB kept for
     recording (`BlobStore.roomBytes`) and what the device would free by
