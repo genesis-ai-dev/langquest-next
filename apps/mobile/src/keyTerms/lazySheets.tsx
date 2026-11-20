@@ -14,6 +14,11 @@ function LoadedWord(props: ComponentProps<typeof Sheets.KeyWordSheet>) {
   return <Sheet {...props} />;
 }
 
+function LoadedTerm(props: ComponentProps<typeof Sheets.KeyTermSheet>) {
+  const Sheet = readModule(loadSheets).KeyTermSheet;
+  return <Sheet {...props} />;
+}
+
 function LoadedReview(props: ComponentProps<typeof Sheets.ReviewKeyWordsSheet>) {
   const Sheet = readModule(loadSheets).ReviewKeyWordsSheet;
   return <Sheet {...props} />;
@@ -21,6 +26,10 @@ function LoadedReview(props: ComponentProps<typeof Sheets.ReviewKeyWordsSheet>) 
 
 export function KeyWordSheet(props: ComponentProps<typeof Sheets.KeyWordSheet>) {
   return <Suspense fallback={null}><LoadedWord {...props} /></Suspense>;
+}
+
+export function KeyTermSheet(props: ComponentProps<typeof Sheets.KeyTermSheet>) {
+  return <Suspense fallback={null}><LoadedTerm {...props} /></Suspense>;
 }
 
 export function ReviewKeyWordsSheet(props: ComponentProps<typeof Sheets.ReviewKeyWordsSheet>) {

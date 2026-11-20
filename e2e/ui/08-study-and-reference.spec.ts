@@ -400,13 +400,20 @@ test('STUDY-017 Key words in the workspace', async ({ page }) => {
   await open(page, world(), 'TRANS');
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
-  await expect(button(page, /^heaven\. Luke 15:18, 21/)).toBeVisible();
+  // A tile for each word: the word and the team's word (STUDY-016 added "ijuru").
+  await expect(button(page, /^heaven\. Your word: ijuru$/)).toBeVisible();
   await expect(button(page, 'Add a key word')).toBeVisible();
   await expect(button(page, 'All key words')).toBeVisible();
-  // The world's Bible (the built-in BSB) has no verse timings, so no word offers to play its verse (finding 41).
-  await expect(button(page, 'Hear heaven in the Bible')).toHaveCount(0);
+  // The step shows the Bible's text and the team has a word: the switch for putting it in the text is there.
+  await expect(byId(page, 'toggle-our-words-in-bible')).toBeVisible();
   await button(page, /^heaven\. /).click();
-  await expect(text(page, 'heaven')).toBeVisible();
+  // The word opens in a sheet over the workspace, with where it is here, never another screen.
+  await expect(byId(page, 'sheet')).toBeVisible();
+  await expect(text(page, 'Alpha key word')).toBeVisible();
+  await expect(text(page, 'Luke 15:18, 21')).toBeVisible();
+  // The world's Bible (the built-in BSB) has no verse timings, so no verse offers to play (finding 41).
+  await expect(button(page, 'Play Luke 15:18')).toHaveCount(0);
+  await button(page, "Open the word's page").click();
   await expect(text(page, 'Alpha key word')).toBeVisible();
 });
 
@@ -420,7 +427,9 @@ test('STUDY-018 Say your word for a key word', async ({ page }) => {
   await open(page, w, 'TRANS');
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
-  await button(page, 'Say your word for son').click();
+  // The tile opens its sheet, where a word with no word yet offers Say yours.
+  await button(page, /^son\. No word yet\.$/).click();
+  await button(page, 'Say yours').click();
   await expect(text(page, 'Your word for “son”')).toBeVisible();
   await expect(text(page, 'Say how Alpha says it. Your team hears it whenever this word comes up.')).toBeVisible();
   await expect(button(page, 'Add your word')).toBeDisabled();
@@ -503,6 +512,7 @@ test('STUDY-023 A key term\'s page', async ({ page }) => {
   await recordParts(page, 1);
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
+  await button(page, "Open the word's page").click();
   await expect(text(page, 'heaven')).toBeVisible();
   await expect(text(page, 'Alpha key word')).toBeVisible();
   await expect(text(page, 'God\'s dwelling, or God himself')).toBeVisible();
@@ -520,6 +530,7 @@ test('STUDY-024 Tie a key term to the draft', async ({ page }) => {
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
+  await button(page, "Open the word's page").click();
   await button(page, 'Tie to your draft').click();
   await sawToast(page, 'Tied heaven to your draft.');
   await expect(button(page, 'Tied to your draft').or(text(page, 'Tied to your draft')).first()).toBeVisible();
@@ -548,6 +559,7 @@ test('STUDY-025 Tying when someone else is drafting too', async ({ page }) => {
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
   await button(page, /^compassion\. /).click();
+  await button(page, "Open the word's page").click();
   await button(page, 'Tie to your draft').click();
   await sawToast(page, 'Tied compassion to your draft.');
   await expectSent(page, w);
@@ -564,6 +576,7 @@ test('STUDY-026 Adjust or add a rendering, with why', async ({ page }) => {
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
+  await button(page, "Open the word's page").click();
   await button(page, 'Change or add a word').click();
   await expect(text(page, 'Alpha · “heaven”')).toBeVisible();
   await expect(text(page, `Recorded as part of ${world().passages['P-SUBMITTED'].label}, and tied to your draft.`)).toBeVisible();
