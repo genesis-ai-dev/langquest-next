@@ -288,8 +288,8 @@ function drawStart() {
     loading ? loading + (loading === 1 ? ' section still loads.' : ' sections still load.') : ''
   ].filter(Boolean).join(' ');
   const rows = needs.map(alertRow).concat(watch.map(alertRow),
-    claude.map((i) => waitRow('Claude', i.title || i.issue || 'An issue',
-      'Claude works on it · ' + (safeLink(i.issueUrl) ? '<a href="' + esc(i.issueUrl) + '" target="_blank" rel="noopener">' + esc(i.issue || 'Linear') + '</a> · ' : '') +
+    claude.map((i) => waitRow(CLAUDE_WORK[i.state][0], i.title || i.issue || 'An issue',
+      esc(CLAUDE_WORK[i.state][1]) + ' · ' + (i.pr ? '<a href="' + PR_URL + Number(i.pr) + '" target="_blank" rel="noopener">pull request ' + Number(i.pr) + '</a> · ' : '') + (safeLink(i.issueUrl) ? '<a href="' + esc(i.issueUrl) + '" target="_blank" rel="noopener">' + esc(i.issue || 'Linear') + '</a> · ' : '') +
       'filed ' + esc(ago(i.firstAt)) + (i.people ? ' · ' + num(i.people) + (i.people === 1 ? ' person' : ' people') : ''), 'userissues')),
     store.map((w) => waitRow('Store', w.lane + ' ' + (w.title || ''), 'Waits on Apple or Google · ' + esc(w.stage) + (w.at ? ' · ' + esc(ago(w.at)) : '') + (w.state ? ' · ' + esc(w.state) : ''), 'releases')));
   $('start-you').innerHTML = rows.join('') ||
