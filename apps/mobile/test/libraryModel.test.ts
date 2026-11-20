@@ -1,5 +1,5 @@
 import { emptyLanguageState, foldOrg, ORG_STREAM, type AnyEvent } from '@langquest-next/core';
-import { behindLibrary, copyOps, followOps, mayWriteLibrary, newItemId, publishOps, sourceLine, subscribeOps, usesItem, type LibraryOp, type SharedItem } from '../src/library/model';
+import { behindLibrary, copyOps, followOps, mayWriteLibrary, newItemId, publishOps, readRetryMs, sourceLine, subscribeOps, usesItem, type LibraryOp, type SharedItem } from '../src/library/model';
 import { ORG } from './sessions';
 import { libraryItemView } from '@langquest-next/core';
 
@@ -102,5 +102,16 @@ describe('who may write the organization\'s library', () => {
     ].map((e, i) => ({ ...e, id: `l${i}`, orgId: 'o', streamId: ORG_STREAM, actorId: 'a', deviceId: 'd', hlc: `${String(i + 1).padStart(15, '0')}:000000:d` }) as AnyEvent);
     const org = foldOrg(events);
     for (const kind of ['template', 'versification', 'flow', 'material'] as const) expect(mayWriteLibrary(org, 'lena', kind)).toBe(false);
+  });
+});
+
+describe('asking the server again (LAN-254)', () => {
+  it('waits longer after each failed read, then stops', () => {
+    const waits = [1, 2, 3, 4, 5].map(readRetryMs);
+    expect(waits.every((w) => w !== null)).toBe(true);
+    for (let i = 1; i < waits.length; i++) expect(waits[i]!).toBeGreaterThan(waits[i - 1]!);
+    expect(waits.reduce((a, b) => a! + b!, 0)).toBeLessThanOrEqual(20_000);
+    expect(readRetryMs(0)).toBeNull();
+    expect(readRetryMs(6)).toBeNull();
   });
 });
