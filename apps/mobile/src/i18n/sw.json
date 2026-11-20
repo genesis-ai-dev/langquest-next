@@ -6426,6 +6426,7 @@
       "addedAtCheckpoint": "{{kind}} imeongezwa kwenye rekodi. Kituo cha ukaguzi bado kinasubiri ukaguzi uliofanywa ndani ya programu.",
       "keptNotSent": "Ukaguzi wako umehifadhiwa kwenye simu hii. Bado haujatumwa.",
       "notOnPhoneYet": "Rekodi bado haiko kwenye simu hii. Itacheza hapa simu ikiwa mtandaoni.",
+      "notUploadedYet": "Rekodi bado haijapakiwa kutoka kwenye kifaa kilichoirekodi. Itacheza hapa baada ya kifaa hicho kuwa mtandaoni.",
       "previousQuestion": "Swali lililotangulia",
       "previousQuestionHelp": "Hurudi kwenye swali lililotangulia, ili ubadilishe jibu lako.",
       "loggedCheckpoint": "Ukaguzi huu ni kituo cha ukaguzi: ukiandikwa hapa unaingia kwenye rekodi, lakini ni ukaguzi uliofanywa ndani ya programu tu unaofungua hatua zinazofuata.",
@@ -6608,6 +6609,8 @@
     "notPublished": "Haijachapishwa: {{reason}}",
     "partNotSaved": "Sehemu moja haikuhifadhiwa.",
     "retrySaving": "Jaribu kuhifadhi tena",
+    "partNotHere": "Sehemu ya {{n}} bado haipo kwenye kifaa hiki. Unaweza kuisema tena kifaa kikiwa mtandaoni.",
+    "partNotUploaded": "Sehemu ya {{n}} bado haijapakiwa kutoka kwenye kifaa kilichoirekodi. Unaweza kuisema tena baada ya kifaa hicho kuwa mtandaoni.",
     "youDrag": "Wewe · buruta mbele na nyuma mara nyingi upendavyo",
     "nameDrag": "{{name}} · buruta mbele na nyuma mara nyingi upendavyo",
     "part": "Sehemu ya {{n}}",
@@ -6701,7 +6704,10 @@
     "partsCleaned_one": "Safisha kwenye sehemu {{count, number}}.",
     "partsCleaned_other": "Safisha kwenye sehemu {{count, number}}.",
     "redone": "Imerudiwa.",
-    "newRecording": "Rekodi mpya"
+    "newRecording": "Rekodi mpya",
+    "lockedTitle": "Sehemu ya rekodi hii bado haipo kwenye kifaa hiki",
+    "lockedOffline": "Sehemu hiyo haiwezi kubadilishwa wala kutumwa kutoka hapa hadi kifaa hiki kiwe mtandaoni na kiipate. Ili kurekodi bila hiyo, fungua {{versions}} kwenye kifungu na uchague {{newVersion}}.",
+    "lockedNotUploaded": "Sehemu hiyo bado haijapakiwa kutoka kwenye kifaa kilichoirekodi, kwa hiyo haiwezi kubadilishwa wala kutumwa kutoka hapa. Ili kurekodi bila hiyo, fungua {{versions}} kwenye kifungu na uchague {{newVersion}}."
   },
   "reference": {
     "organization": "Shirika",

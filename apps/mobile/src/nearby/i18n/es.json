@@ -284,7 +284,7 @@
       }
     },
     "give": {
-      "intro": "Este teléfono crea su propia red Wi-Fi. El teléfono nuevo escanea dos códigos con su cámara: uno para conectarse a la red y otro para descargar LangQuest. Ninguno de los dos teléfonos necesita internet.",
+      "intro": "Da LangQuest a un teléfono nuevo. Ninguno de los dos teléfonos necesita internet.",
       "rowSub": "Cuando estés con la persona nueva",
       "rowHelp": "Abre Dar la app, donde este teléfono envía LangQuest a un teléfono nuevo por una red Wi-Fi que él mismo crea.",
       "linkHelp": "Abre Dar la app, para enviar LangQuest al teléfono nuevo por una red Wi-Fi que crea este teléfono.",
@@ -343,9 +343,23 @@
       },
       "quickShare": {
         "button": "Enviar con Quick Share",
-        "help": "Abre el menú para compartir de este teléfono con el archivo de instalación. Elige Quick Share y luego el teléfono nuevo.",
-        "line": "Quick Share es otra forma de enviarlo. Necesita los servicios de Google Play en los dos teléfonos, y los teléfonos que se venden en China no los tienen. En el teléfono nuevo, abre Quick Share y haz que el teléfono sea visible para todos los que estén cerca. Acepta el archivo, luego ábrelo y toca Instalar.",
-        "failed": "El menú para compartir no se abrió. Inténtalo de nuevo."
+        "help": "Abre el menú para compartir de este teléfono con el archivo de instalación.",
+        "failed": "El menú para compartir no se abrió. Inténtalo de nuevo.",
+        "letInHelp": "Abre Dejar entrar a alguien, para dejarla entrar cuando LangQuest esté instalado en el teléfono nuevo.",
+        "on": {
+          "newFirst": "Primero, en el teléfono nuevo",
+          "this": "Después, en este teléfono",
+          "newThen": "Después, en el teléfono nuevo",
+          "thisThen": "Por último, en este teléfono"
+        },
+        "steps": {
+          "open": "Desliza hacia abajo desde la parte de arriba de la pantalla y toca Quick Share. Si no aparece, abre Ajustes y busca Quick Share.",
+          "visible": "Elige Todos, para que este teléfono pueda encontrarlo. Tenlo cerca, con la pantalla encendida.",
+          "send": "Toca Enviar con Quick Share. En el menú para compartir, toca Quick Share y luego el nombre del teléfono nuevo.",
+          "accept": "Toca Aceptar. Cuando haya llegado el archivo, toca Abrir. Si Abrir ya no aparece, busca el archivo en la app de archivos, en Descargas.",
+          "letIn": "Cuando LangQuest esté instalado y abierto en el teléfono nuevo, toca Dejarla entrar.",
+          "install": "Permite instalar desde esta fuente, si el teléfono lo pide. Toca Instalar."
+        }
       },
       "page": {
         "title": "Instalar LangQuest",
@@ -357,7 +371,16 @@
         "stepInstall": "Toca Instalar.",
         "stepJoin": "Abre LangQuest. Encuentra solo el teléfono de tu compañero. Si no lo encuentra, vuelve a esta página y toca Unirse.",
         "join": "Unirse"
-      }
+      },
+      "ways": "Elige una forma de enviarlo",
+      "way": {
+        "wifi": "El Wi-Fi de este teléfono",
+        "wifiSub": "El teléfono nuevo escanea dos códigos. Funciona en cualquier teléfono Android.",
+        "quickShare": "Quick Share",
+        "quickShareSub": "Los dos teléfonos necesitan los servicios de Google Play."
+      },
+      "wayHelp": "Elige esta forma de enviar el archivo de instalación. Sus pasos y su botón aparecen abajo.",
+      "wifiLine": "Este teléfono crea su propia red Wi-Fi. El teléfono nuevo escanea dos códigos con su cámara: uno para conectarse a la red y otro para descargar LangQuest."
     }
   }
 }

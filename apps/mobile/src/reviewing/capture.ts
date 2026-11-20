@@ -12,6 +12,7 @@ import {
 import { currentLanguage, t } from '../i18n';
 import { formatClock } from '../i18n/format';
 import { partLabel } from '../recording/model';
+import type { Unheard } from '../audio/clipReachModel';
 
 /**
  * The demo's quick reasons for leaving a required question unanswered
@@ -119,6 +120,22 @@ export function reviewStages(opts: { questions: number; logged: boolean; makes: 
     ...(opts.questions > 0 ? [{ id: 'questions' as const, label: t('review.capture.stages.questions'), icon: 'list' as const }] : []),
     opts.makes ? { id: 'decide', label: t('review.capture.stages.recordIt'), icon: 'mic' } : { id: 'decide', label: t('review.capture.stages.decide'), icon: 'check' }
   ];
+}
+
+/**
+ * Why a review cannot go on from Listen, or null when it can (LAN-317,
+ * docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md):
+ * a version that cannot be heard on this device is not checked from here.
+ * One already played in this review was heard, and one logged afterwards
+ * was heard elsewhere.
+ */
+export function reviewUnheard(o: { logged: boolean; played: boolean; why: Unheard | null }): Unheard | null {
+  return o.logged || o.played ? null : o.why;
+}
+
+/** The stage on screen: a review of a version that cannot be heard here stays on Listen, which says why, wherever its draft was left. */
+export function stageShown(stage: StageId, unheard: boolean): StageId {
+  return unheard ? 'listen' : stage;
 }
 
 /** Where a stage sits on the strip; a stage that is no longer there (its questions went) falls back to the first. */
