@@ -143,6 +143,16 @@ A section without its token says "Not connected" and what to add; one whose
 service fails says "Could not read" and why. Neither holds up the others.
 Provider answers are kept a minute per Worker isolate; Refresh skips that.
 
+The page reads everything again every five minutes while its tab is in front,
+and on Refresh. A refresh keeps the page still: each number, chart, status and
+line stays on the page until its new answer comes, and then changes in place
+(`redraw` in `page.ts`, `refreshCharts` in `pageStart.ts`). Nothing empties
+or says "Loading…", so the page does not move under the reader. A box whose
+HTML is the same is left alone; a box with new HTML keeps what the person
+opened, typed, ticked, focused or scrolled sideways in it, and the pictures
+already fetched. A chart that cannot be read again keeps the old one. Only the
+first load says "Loading…". `test/refresh.test.ts` holds this.
+
 ### Time to a usable Map
 
 A language's first full download (`open` and `fill` records, decision 147)
