@@ -97,6 +97,22 @@ export async function keptHere(page: Page): Promise<void> {
   await expect(page.locator('[aria-label="On this device"]').locator('visible=true').first()).toBeVisible({ timeout: 60_000 });
 }
 
+/**
+ * Keep the open passage on this device and wait until it is: tap its offline
+ * line when it offers the download, then wait for "On this device". A
+ * recording that cannot be heard on a device is not checked, said back or
+ * changed from it (LAN-317), so a test about working offline that is not
+ * about missing audio keeps the passage first.
+ */
+export async function keepOnDevice(page: Page): Promise<void> {
+  const line = byId(page, 'passage-offline');
+  await expect(async () => {
+    const label = (await line.getAttribute('aria-label')) ?? '';
+    if (/^Download for offline/.test(label)) await line.click();
+    expect(label).toMatch(/^On this device/);
+  }).toPass({ timeout: 60_000 });
+}
+
 /** Me, Sync and offline (docs/decisions/2026-11-18-sync-and-offline-one-screen.md), with Details open. */
 export async function openSync(page: Page): Promise<void> {
   await toTab(page, 'me');
