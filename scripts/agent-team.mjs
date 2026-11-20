@@ -18,9 +18,10 @@
 //                                        after the reviewer: its verdict.json, checked, in VET_OUT
 //   node scripts/agent-team.mjs pictures <from> <to>
 //                                        the two pictures of a display fix, for the reviewer: only real pictures
-//   node scripts/agent-team.mjs follow   the team's open pull requests that merge without a person: one whose
-//                                        checks failed, or that did not merge in a day, becomes a draft that
-//                                        waits for a developer, and the Worker is told
+//   node scripts/agent-team.mjs follow   the team's open pull requests that merge without a person: for one in
+//                                        trouble Claude takes a try (run failed jobs again, merge main, or a
+//                                        change by the fix team: repairs=<issues> to GITHUB_OUTPUT); after TRIES
+//                                        it becomes a draft that waits for a developer, and the Worker is told
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
@@ -226,18 +227,75 @@ export function decisionLines(decision) {
     : [`**It waits for a developer.** ${decision.why}`];
 }
 
+/** Claude tries this many times to get a pull request of the team into main; then it waits for a developer. */
+export const TRIES = 3;
+/** At most this many pull requests a run go back to the fix team for a change. */
+export const REPAIR_MAX = 2;
 /**
- * What to do with an open pull request that merges without a person: nothing
- * yet (null), or why it now waits for a developer. Its newest `gate` check
- * finished and did not pass, or it is older than OPEN_HOURS (a conflict with
- * main, most often).
+ * What Claude does in a try. `rerun`: run the failed jobs again (a flaky test). `update`: merge main
+ * into the branch and turn auto-merge on again (it left the merge queue, or it waits too long). `fix`:
+ * the issue's manager reads the failure and changes the code (a conflict with main, or checks that
+ * fail again after a rerun).
  */
-export function stalled(gateRuns, createdAt, now = Date.now()) {
-  const newest = [...(gateRuns ?? [])].sort((a, b) => String(b.started_at ?? '').localeCompare(String(a.started_at ?? '')))[0];
-  if (newest?.status === 'completed' && !['success', 'neutral', 'skipped'].includes(newest.conclusion)) return `Its checks failed (gate: ${newest.conclusion}).`;
-  const opened = Date.parse(createdAt ?? '');
-  if (Number.isFinite(opened) && now - opened > OPEN_HOURS * 3600_000) return `It did not merge within ${OPEN_HOURS} hours.`;
-  return null;
+export const ACTS = ['rerun', 'update', 'fix'];
+const TRY_MARK = /<!-- agent-team: try (\d+) (rerun|update|fix) (\S+) -->/;
+
+/** The tries a pull request's body records: how many, the last act, and when. */
+export function triesOf(body) {
+  const m = TRY_MARK.exec(String(body ?? ''));
+  if (!m) return { count: 0, last: null, at: null };
+  const at = Date.parse(m[3]);
+  return { count: Math.min(Number(m[1]), 99), last: m[2], at: Number.isFinite(at) ? new Date(at).toISOString() : null };
+}
+
+/** The body with the record of a try: it takes the place of the one before. */
+export function withTry(body, { count, last, at }) {
+  const mark = `<!-- agent-team: try ${count} ${last} ${at} -->`;
+  const text = String(body ?? '');
+  return TRY_MARK.test(text) ? text.replace(TRY_MARK, mark) : `${text}\n\n${mark}`;
+}
+
+/**
+ * What to do with an open pull request that merges without a person (docs/agent-team.md "When a fix
+ * does not get into main"): nothing yet (null), a try (`act` from ACTS, with `count`), or `waits`: it
+ * becomes a draft that waits for a developer. Each act is one try; after TRIES it waits.
+ *
+ *   runs        its `gate` check runs (the newest counts)
+ *   mergeable   GitHub's mergeable_state: `dirty` is a conflict with main
+ *   autoMerge   auto-merge is on (GitHub turns it off when the merge queue removes the pull request)
+ *   tries       triesOf(its body)
+ *   createdAt   when it was opened
+ *   team        the fix team can write a change now (mode not off, and its Claude token is there)
+ */
+export function nextStep({ runs = [], mergeable = null, autoMerge = true, tries = { count: 0, last: null, at: null }, createdAt = null, team = true }, now = Date.now()) {
+  const newest = [...(runs ?? [])].sort((a, b) => String(b.started_at ?? '').localeCompare(String(a.started_at ?? '')))[0];
+  const failed = newest?.status === 'completed' && !['success', 'neutral', 'skipped'].includes(newest.conclusion);
+  const running = newest && newest.status !== 'completed';
+  let trouble = null;
+  let act = null;
+  if (mergeable === 'dirty') [trouble, act] = ['It has a conflict with main.', 'fix'];
+  else if (failed) [trouble, act] = [`Its checks failed (gate: ${newest.conclusion}).`, tries.last === 'rerun' ? 'fix' : 'rerun'];
+  else if (running) return null;
+  else if (!autoMerge) [trouble, act] = ['It left the merge queue and did not merge.', 'update'];
+  else {
+    const since = Date.parse(tries.at ?? createdAt ?? '');
+    if (Number.isFinite(since) && now - since > OPEN_HOURS * 3600_000) [trouble, act] = [`It did not merge within ${OPEN_HOURS} hours.`, 'update'];
+  }
+  if (!trouble) return null;
+  if (tries.count >= TRIES) return { act: 'waits', why: `Claude tried ${TRIES} times to get it into main. ${trouble}` };
+  if (act === 'fix' && !team) return { act: 'waits', why: `${trouble} The agent team cannot change the code now (mode off, or no AGENT_TEAM_CLAUDE_TOKEN).` };
+  return { act, why: trouble, count: tries.count + 1 };
+}
+
+/** The last lines of a failed job's log, for the issue's manager: no time stamps, no colour codes. */
+export const LOG_LINES = 120;
+export function logTail(text, lines = LOG_LINES) {
+  const clean = String(text ?? '')
+    .split('\n')
+    .map((l) => l.replace(/\x1b\[[0-9;]*m/g, '').replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z ?/, '').trimEnd())
+    .filter((l) => l && !l.startsWith('##[group]') && !l.startsWith('##[endgroup]'));
+  const tail = clean.slice(-lines).join('\n');
+  return tail.length > 12_000 ? `…${tail.slice(-11_999)}` : tail;
 }
 
 // ---- the steps -------------------------------------------------------------------------------------
@@ -351,35 +409,124 @@ export async function toDraft(nodeId, token = process.env.GITHUB_TOKEN) {
   }
 }
 
+/** A text answer from GitHub (a job's log), or '' when GitHub refused. */
+async function githubText(path, token = process.env.GITHUB_TOKEN) {
+  try {
+    const res = await fetch(`${process.env.GITHUB_API_URL ?? 'https://api.github.com'}/repos/${REPO}${path}`, { headers: { authorization: `Bearer ${token}`, 'x-github-api-version': '2022-11-28' } });
+    return res.ok ? await res.text() : '';
+  } catch {
+    return '';
+  }
+}
+
+/** The workflow run of a check run (its check suite), or null. */
+async function runOf(checkRun) {
+  const suite = checkRun?.check_suite?.id;
+  if (!suite) return null;
+  const got = await github('GET', `/actions/runs?check_suite_id=${suite}&per_page=1`);
+  return got.status === 200 ? got.json.workflow_runs?.[0] ?? null : null;
+}
+
+/** The failed jobs of a workflow run, with the last lines of each log, for the issue's manager. At most 3. */
+async function failuresOf(run) {
+  if (!run) return [];
+  const got = await github('GET', `/actions/runs/${run.id}/jobs?filter=latest&per_page=100`);
+  const failed = (got.status === 200 ? got.json.jobs : []).filter((j) => j.conclusion === 'failure' && j.name !== 'gate').slice(0, 3);
+  const out = [];
+  for (const j of failed) {
+    const steps = (j.steps ?? []).filter((st) => st.conclusion === 'failure').map((st) => st.name);
+    out.push({ job: cut(said(j.name), 200), steps: steps.slice(0, 5).map((st) => cut(said(st), 200)), log: logTail(await githubText(`/actions/jobs/${j.id}/logs`)) });
+  }
+  return out;
+}
+
+/** Auto-merge through the merge queue, as LangQuest's GitHub App. False when GitHub refused. */
+function autoMergeAs(pr, token) {
+  if (!token) return false;
+  try {
+    execFileSync('gh', ['pr', 'merge', String(pr), '--auto', '-R', REPO], { env: { ...process.env, GH_TOKEN: token }, stdio: 'inherit' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The body of a pull request that now waits for a developer: the merge line and its mark out, the reason in. */
+export function waitingBody(body, why) {
+  return String(body ?? '').replace(MERGE_MARK, '').replace(/\*\*This pull request merges without a person[^\n]*\n\nTo stop it[^\n]*/, `**It waits for a developer.** ${why}`);
+}
+
+/** A pull request of the team made a draft that waits for a developer, with labels and body. False when GitHub refused. */
+export async function toWaiting(p, why, token = process.env.GITHUB_TOKEN) {
+  if (!(await toDraft(p.node_id, token))) return false;
+  await github('PATCH', `/pulls/${p.number}`, { body: waitingBody(p.body, why) }, token);
+  await github('POST', `/issues/${p.number}/labels`, { labels: [LABELS.waits] }, token).catch(() => null);
+  await github('DELETE', `/issues/${p.number}/labels/${LABELS.merge}`, undefined, token).catch(() => null);
+  return true;
+}
+
 /**
- * The team's open pull requests that merge without a person. One whose checks
- * failed, or that waited a day, becomes a draft and waits for a developer; the
- * Worker is told, so its card on the ops dashboard says why. Runs nothing of
- * any change.
+ * The team's open pull requests that merge without a person (docs/agent-team.md "When a fix does not
+ * get into main"). For each in trouble, Claude takes a try (nextStep): it runs the failed jobs again,
+ * merges main into the branch and turns auto-merge on again (as LangQuest's GitHub App, PR_TOKEN, so
+ * the checks start), or hands the pull request to the fix team with the failed jobs' logs (written to
+ * REPAIR_DIR, their issues in the output `repairs`). After TRIES it becomes a draft that waits for a
+ * developer, and the Worker is told why. Runs nothing of any change.
  */
 async function follow() {
   const { call, ISSUE_OF_BRANCH } = await import('./user-issues.mjs');
   const got = await github('GET', '/pulls?state=open&per_page=100');
   if (got.status !== 200) throw new Error(`GitHub answered ${got.status} to the list of open pull requests`);
+  const team = modeHere() !== 'off' && process.env.HAS_TEAM_TOKEN === 'true';
+  const app = process.env.PR_TOKEN;
+  const repairDir = process.env.REPAIR_DIR || '.user-issues/repairs';
   const fixes = [];
-  for (const p of got.json) {
-    const issue = ISSUE_OF_BRANCH(p.head?.ref);
-    if (!issue || p.draft || !String(p.body ?? '').includes(MERGE_MARK)) continue;
+  const repairs = [];
+  for (const listed of got.json) {
+    const issue = ISSUE_OF_BRANCH(listed.head?.ref);
+    if (!issue || listed.draft || !String(listed.body ?? '').includes(MERGE_MARK)) continue;
+    const full = await github('GET', `/pulls/${listed.number}`);
+    const p = full.status === 200 ? full.json : listed;
     const runs = await github('GET', `/commits/${p.head.sha}/check-runs?check_name=gate&per_page=20`);
-    const why = stalled(runs.status === 200 ? runs.json.check_runs : [], p.created_at);
-    if (!why) continue;
-    if (!(await toDraft(p.node_id))) {
-      console.log(`::warning::PR ${p.number}: GitHub did not make it a draft`);
+    const gateRuns = runs.status === 200 ? runs.json.check_runs : [];
+    const tries = triesOf(p.body);
+    const step = nextStep({ runs: gateRuns, mergeable: p.mergeable_state ?? null, autoMerge: Boolean(p.auto_merge), tries, createdAt: p.created_at, team });
+    if (!step) continue;
+    if (step.act === 'fix' && repairs.length >= REPAIR_MAX) {
+      console.log(`PR ${p.number} (${issue}): the fix team has no room this run; next run`);
       continue;
     }
-    await github('PATCH', `/pulls/${p.number}`, { body: String(p.body).replace(MERGE_MARK, '').replace(/\*\*This pull request merges without a person[^\n]*\n\nTo stop it[^\n]*/, `**It waits for a developer.** ${why}`) });
-    await github('POST', `/issues/${p.number}/labels`, { labels: [LABELS.waits] }).catch(() => null);
-    await github('DELETE', `/issues/${p.number}/labels/${LABELS.merge}`).catch(() => null);
-    fixes.push({ issue, decision: 'waits', reason: 'stalled', why, pr: p.number, verdict: null, model: null, effort: null });
-    console.log(`PR ${p.number} (${issue}) waits for a developer: ${why}`);
+    if (step.act === 'waits') {
+      if (!(await toWaiting(p, step.why))) {
+        console.log(`::warning::PR ${p.number}: GitHub did not make it a draft`);
+        continue;
+      }
+      fixes.push({ issue, decision: 'waits', reason: 'stalled', why: step.why, pr: p.number, verdict: null, model: null, effort: null });
+      console.log(`PR ${p.number} (${issue}) waits for a developer: ${step.why}`);
+      continue;
+    }
+    const newest = [...gateRuns].sort((x, y) => String(y.started_at ?? '').localeCompare(String(x.started_at ?? '')))[0];
+    if (step.act === 'rerun') {
+      const run = await runOf(newest);
+      const again = run ? await github('POST', `/actions/runs/${run.id}/rerun-failed-jobs`) : { status: 0 };
+      if (again.status !== 201) console.log(`::warning::PR ${p.number}: GitHub did not run the failed jobs again (${again.status})`);
+    } else if (step.act === 'update') {
+      // Main merged into the branch by the App, so the checks start; GitHub says 422 when there is nothing new on main.
+      const upd = app ? await github('PUT', `/pulls/${p.number}/update-branch`, { expected_head_sha: p.head.sha }, app) : { status: 0 };
+      if (![202, 422].includes(upd.status)) console.log(`::warning::PR ${p.number}: GitHub did not merge main into the branch (${upd.status})`);
+      if (!autoMergeAs(p.number, app)) console.log(`::warning::PR ${p.number}: auto-merge is not on again`);
+    } else {
+      const failures = p.mergeable_state === 'dirty' ? [] : await failuresOf(await runOf(newest));
+      mkdirSync(repairDir, { recursive: true });
+      writeFileSync(join(repairDir, `${issue}.json`), JSON.stringify({ issue, pr: p.number, why: step.why, failures }, null, 2));
+      repairs.push(issue);
+    }
+    await github('PATCH', `/pulls/${p.number}`, { body: withTry(p.body, { count: step.count, last: step.act, at: new Date().toISOString() }) });
+    console.log(`PR ${p.number} (${issue}): try ${step.count} of ${TRIES}, ${step.act}: ${step.why}`);
   }
+  output({ repairs: JSON.stringify(repairs) });
   if (fixes.length) await call('POST', { sha: git('rev-parse', 'HEAD').trim(), runUrl: runUrl(process.env), looked: [], grew: [], states: [], notes: [], fixes });
-  else console.log('no pull request of the team stalled');
+  else console.log('no pull request of the team waits for a developer now');
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

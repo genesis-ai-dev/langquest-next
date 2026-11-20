@@ -146,9 +146,47 @@ door `/api/user-issues` (`fixes` in `server/userIssues.ts`), read by
 pull request: never what a person wrote.
 
 A pull request that merges without a person carries the label `agent-merge`;
-one that waits, `agent-waits`. The job `follow` looks at the first kind each
-run: when its checks failed, or it did not merge in 24 hours, it becomes a
-draft that waits for a developer, and its record says why.
+one that waits, `agent-waits`.
+
+## When a fix does not get into main
+
+Trivial fixes often fail on the way into main: a flaky test, a removal
+from the merge queue, a conflict with a newer main. A developer does not
+hear about these. Claude tries to get the fix into main, up to 3 times;
+only then does the pull request wait for a developer (Caleb Koster,
+2026-11-20). This applies only to a pull request that merges without a
+person, which the gate let through.
+
+```mermaid
+flowchart TD
+  F["Job follow, each 15 minutes, first in the run<br/>open pull requests with agent-merge"] --> Q{What is wrong?}
+  Q -->|nothing, or checks still run| N[Nothing]
+  Q -->|checks failed, first time| RR["Run the failed jobs again<br/>(a flaky test)"]
+  Q -->|checks failed again after that| FX
+  Q -->|conflict with main| FX["Back to the issue's manager<br/>with the failed jobs' logs:<br/>it changes the code"]
+  Q -->|out of the merge queue,<br/>or no merge in 24 hours| UP["Merge main into the branch<br/>and turn auto-merge on again"]
+  FX --> G{"The same gate"}
+  G -->|merges| P["The App pushes the change:<br/>checks and the merge queue again"]
+  G -->|waits| D
+  RR & UP & P --> T{"3 tries used?"}
+  T -->|no| F
+  T -->|yes, and still not in main| D["Draft that waits for a developer<br/>label agent-waits, record on the ops dashboard"]
+```
+
+- Each action is one try. The pull request's body keeps the count in a
+  hidden line (`<!-- agent-team: try 2 rerun ... -->`), which
+  `triesOf()` in `scripts/agent-team.mjs` reads; `nextStep()` decides the
+  action, in code.
+- A change by the manager goes through check, pictures, reviewer and gate
+  as a new fix does. The gate reads the whole fix against main, so the
+  rule is the same. LangQuest's GitHub App pushes it, so its checks start.
+- The manager reads the logs of the failed jobs. It never skips or weakens
+  a test; when the failure is not the change's (it also fails on main, or
+  the runner failed), it changes nothing and the pull request waits.
+- In mode `off`, or without `AGENT_TEAM_CLAUDE_TOKEN`, a pull request that
+  needs a change waits for a developer at once.
+- At most 2 pull requests a run go back to the manager; they do not take
+  the room of new issues (`FIX_MAX`).
 
 ## The research team
 

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import {
-  causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, OPEN_HOURS, pathRefusal,
-  PICTURES, planOf, REASONS, reviewNeeded, saysMerge, stalled, VERDICTS, verdictOf
+  ACTS, causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, logTail, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, nextStep, OPEN_HOURS,
+  pathRefusal, PICTURES, planOf, REASONS, reviewNeeded, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
 } from './agent-team.mjs';
 import * as model from '../server/userIssues';
 
@@ -161,15 +161,57 @@ describe('a pull request of the team', () => {
     for (const name of Object.values(LABELS)) expect(labels.map((l) => l.name), name).toContain(name);
   });
 
-  it('becomes a draft that waits when its checks fail or it does not merge in a day', () => {
+  it('gets up to 3 tries by Claude when it does not get into main, then waits for a developer', () => {
     const now = Date.parse('2026-11-20T12:00:00Z');
     const run = (conclusion: string | null, started_at = '2026-11-20T11:00:00Z') => ({ status: conclusion ? 'completed' : 'in_progress', conclusion, started_at });
-    expect(stalled([run('success')], '2026-11-20T10:00:00Z', now)).toBeNull();
-    expect(stalled([run(null)], '2026-11-20T10:00:00Z', now)).toBeNull();
-    expect(stalled([], '2026-11-20T10:00:00Z', now)).toBeNull();
-    expect(stalled([run('failure')], '2026-11-20T10:00:00Z', now)).toBe('Its checks failed (gate: failure).');
+    const fresh = { count: 0, last: null, at: null };
+    const pr = (over: Record<string, unknown> = {}) => nextStep({ runs: [run('success')], mergeable: 'clean', autoMerge: true, tries: fresh, createdAt: '2026-11-20T10:00:00Z', team: true, ...over }, now);
+    expect(TRIES).toBe(3);
+    expect(ACTS).toEqual(['rerun', 'update', 'fix']);
+    // In the merge queue, checks still running, or no check yet: nothing.
+    expect(pr()).toBeNull();
+    expect(pr({ runs: [run(null)] })).toBeNull();
+    expect(pr({ runs: [] })).toBeNull();
+    // Checks failed: first a rerun (a flaky test); failed again after a rerun: the manager changes the code.
+    expect(pr({ runs: [run('failure')] })).toEqual({ act: 'rerun', why: 'Its checks failed (gate: failure).', count: 1 });
+    expect(pr({ runs: [run('failure')], tries: { count: 1, last: 'rerun', at: '2026-11-20T11:00:00Z' } })).toEqual({ act: 'fix', why: 'Its checks failed (gate: failure).', count: 2 });
     // The newest run counts: a failed first run, then a green one.
-    expect(stalled([run('failure', '2026-11-20T09:00:00Z'), run('success')], '2026-11-20T08:00:00Z', now)).toBeNull();
-    expect(stalled([run('success')], '2026-11-19T11:00:00Z', now)).toBe(`It did not merge within ${OPEN_HOURS} hours.`);
+    expect(pr({ runs: [run('failure', '2026-11-20T09:00:00Z'), run('success')] })).toBeNull();
+    // A conflict with main: the manager writes the fix again on main.
+    expect(pr({ mergeable: 'dirty' })).toMatchObject({ act: 'fix', why: 'It has a conflict with main.' });
+    // Out of the merge queue (GitHub turned auto-merge off), or no merge in a day: main merged in, auto-merge on again.
+    expect(pr({ autoMerge: false })).toMatchObject({ act: 'update', why: 'It left the merge queue and did not merge.' });
+    expect(pr({ createdAt: '2026-11-19T11:00:00Z' })).toMatchObject({ act: 'update', why: `It did not merge within ${OPEN_HOURS} hours.` });
+    // The day counts from the last try.
+    expect(pr({ createdAt: '2026-11-18T11:00:00Z', tries: { count: 1, last: 'update', at: '2026-11-20T09:00:00Z' } })).toBeNull();
+    // After 3 tries: a draft that waits for a developer, with the reason.
+    expect(pr({ runs: [run('failure')], tries: { count: 3, last: 'fix', at: '2026-11-20T11:00:00Z' } })).toEqual({ act: 'waits', why: 'Claude tried 3 times to get it into main. Its checks failed (gate: failure).' });
+    // A change needs the fix team: in mode off or without its token, it waits at once. A rerun does not need it.
+    expect(pr({ mergeable: 'dirty', team: false })).toMatchObject({ act: 'waits' });
+    expect(pr({ runs: [run('failure')], team: false })).toMatchObject({ act: 'rerun' });
+  });
+
+  it('keeps the count of tries in a hidden line of its body', () => {
+    const body = `${MERGE_MARK}\n**This pull request merges without a person when its checks pass** (docs/agent-team.md). Why.\n\nTo stop it, make it a draft or close it.\n\nA fix.`;
+    expect(triesOf(body)).toEqual({ count: 0, last: null, at: null });
+    const once = withTry(body, { count: 1, last: 'rerun', at: '2026-11-20T11:00:00.000Z' });
+    expect(triesOf(once)).toEqual({ count: 1, last: 'rerun', at: '2026-11-20T11:00:00.000Z' });
+    const twice = withTry(once, { count: 2, last: 'fix', at: '2026-11-20T12:00:00.000Z' });
+    expect(twice.match(/agent-team: try/g)).toHaveLength(1);
+    expect(triesOf(twice)).toMatchObject({ count: 2, last: 'fix' });
+    // A body that waits: no mark, the reason in place of the merge line, and the count kept.
+    const waiting = waitingBody(twice, 'Claude tried 3 times.');
+    expect(waiting).not.toContain(MERGE_MARK);
+    expect(waiting).toContain('**It waits for a developer.** Claude tried 3 times.');
+    expect(triesOf(waiting).count).toBe(2);
+  });
+
+  it('gives the manager the last lines of a failed job, without time stamps or colour', () => {
+    const log = Array.from({ length: 200 }, (_, i) => `2026-11-20T11:00:00.1234567Z \x1b[31mline ${i}\x1b[0m`).join('\n');
+    const tail = logTail(log);
+    expect(tail.split('\n')).toHaveLength(120);
+    expect(tail.split('\n')[0]).toBe('line 80');
+    expect(tail).not.toMatch(/\x1b|2026-11-20T/);
+    expect(logTail('x'.repeat(20_000)).length).toBe(12_000);
   });
 });
