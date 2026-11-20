@@ -99,8 +99,31 @@ class WifiDirect(private val context: Context, private val handler: Handler) {
     throw NearbyException(if (owner) NearbyCode.GROUP_FAILED else NearbyCode.JOIN_TIMEOUT, "the group did not form")
   }
 
-  /** A group this phone owns: its own address, and how to take it down. */
-  class Owned(val address: InetAddress, val down: () -> Unit)
+  /**
+   * A group this phone owns: its own address, how to take it down, and how many phones are in it
+   * now (`joined`, waiting at most the milliseconds given; null where it cannot tell).
+   */
+  class Owned(val address: InetAddress, val down: () -> Unit, val joined: (Long) -> Int? = { null })
+
+  /**
+   * The phones in this phone's group now, as the framework lists its clients
+   * (`WifiP2pGroup.getClientList`); null when it has no group it owns, will not say (no
+   * permission, or a SecurityException where a phone's Android throws one), or does not answer
+   * within `waitMs`. A phone that joined as plain Wi-Fi by name and passphrase is listed too:
+   * Android adds every station the group lets in, by its Wi-Fi address when it has no Wi-Fi Direct
+   * one (AOSP's `createStaEventDevice`, and the group owner's AP_STA_CONNECTED_EVENT). It needs
+   * what forming the group needed, and not Location turned on. The answer comes on the radio
+   * thread; this waits on the caller's.
+   */
+  private fun clientsIn(manager: WifiP2pManager, channel: WifiP2pManager.Channel, waitMs: Long): Int? {
+    val answer = CompletableFuture<Int?>()
+    try {
+      manager.requestGroupInfo(channel) { group -> answer.complete(group?.takeIf { it.isGroupOwner }?.clientList?.size) }
+    } catch (e: Exception) {
+      return null
+    }
+    return try { answer.get(waitMs, TimeUnit.MILLISECONDS) } catch (e: Exception) { null }
+  }
 
   /**
    * Forms a group this phone owns, by name and passphrase on `band` (`WifiP2pConfig`'s
@@ -123,7 +146,7 @@ class WifiDirect(private val context: Context, private val handler: Handler) {
       manager.createGroup(channel, config(ssid, passphrase, band), listener(created))
       await(created, deadlineMs, NearbyCode.GROUP_FAILED)
       val info = info(manager, channel, System.currentTimeMillis() + deadlineMs, true)
-      return Owned(info.groupOwnerAddress, down)
+      return Owned(info.groupOwnerAddress, down) { waitMs -> clientsIn(manager, channel, waitMs) }
     } catch (e: Exception) {
       try { down() } catch (_: Exception) {}
       throw e as? NearbyException ?: NearbyException(NearbyCode.GROUP_FAILED, "could not form a group", e)
@@ -136,7 +159,9 @@ class WifiDirect(private val context: Context, private val handler: Handler) {
   ): Hosted {
     val group = form(ssid, passphrase, if (band5) WifiP2pConfig.GROUP_OWNER_BAND_5GHZ else WifiP2pConfig.GROUP_OWNER_BAND_AUTO, deadlineMs)
     try {
-      // Bound to the group's own address, so nobody on another network this phone is on can take the link.
+      // Bound to the group's own address. That alone does not keep out a device on another network
+      // this phone is on (Linux takes packets for the address on any interface): such a caller could
+      // take the one link and end the attempt, no more, since the link's keys come from the code.
       val server = ServerSocket(0, 2, group.address)
       val hosted = Hosted(
         id, "wifi-direct",
@@ -151,22 +176,56 @@ class WifiDirect(private val context: Context, private val handler: Handler) {
     }
   }
 
-  /** Joins by name and passphrase, then connects to the group owner. `onGone` takes the group down when the link ends. */
+  /**
+   * Joins by name and passphrase, then connects to the group owner. The function given back takes
+   * the group down when the link ends.
+   *
+   * First, a phone already on a group as plain Wi-Fi (a new phone still on Give the app's group,
+   * docs/nearby-sync-plan.md 14.5) connects through that network: a Wi-Fi Direct join of the group
+   * it is already on would fail. Only where a Wi-Fi network that may be such a group
+   * (`GiveJoin.candidates`) has a gateway that answers `/join` with a link naming this very
+   * group (`ssid`), and then takes a connection on `port`, all within `ALREADY_ON_MS`; its end
+   * closes only the socket, since no network was asked for. Anywhere else (no such network, a
+   * captive portal or offline router that takes any port, another group) the join goes on as
+   * before, with what is left of the deadline. The opening must still match the link's pin.
+   */
   fun join(ssid: String, passphrase: String, port: Int, deadlineMs: Long): Pair<Socket, () -> Unit> {
+    val deadline = System.currentTimeMillis() + deadlineMs
+    alreadyOn(ssid, port, deadlineMs)?.let { socket ->
+      return socket to { try { socket.close() } catch (_: IOException) {} }
+    }
+    val left = deadline - System.currentTimeMillis()
+    if (left <= 0) throw NearbyException(NearbyCode.JOIN_TIMEOUT, "no time left to join")
     val manager = manager()
     val channel = manager.initialize(context, handler.looper, null) ?: throw NearbyException(NearbyCode.P2P_UNSUPPORTED, "no Wi-Fi Direct channel")
     val down = { manager.removeGroup(channel, null); channel.close() }
-    val deadline = System.currentTimeMillis() + deadlineMs
     try {
       val connected = CompletableFuture<Unit>()
       manager.connect(channel, config(ssid, passphrase, WifiP2pConfig.GROUP_OWNER_BAND_AUTO), listener(connected))
-      await(connected, deadlineMs, NearbyCode.JOIN_TIMEOUT)
+      await(connected, left, NearbyCode.JOIN_TIMEOUT)
       val info = info(manager, channel, deadline, false)
       return connectBy(deadline, { Socket() }, info.groupOwnerAddress, port) to down
     } catch (e: Exception) {
       try { down() } catch (_: Exception) {}
       throw e as? NearbyException ?: NearbyException(NearbyCode.JOIN_FAILED, "could not join the group", e)
     }
+  }
+
+  /**
+   * A connection on `port` to the owner of the group named `ssid`, through that group when this
+   * phone is already on it as plain Wi-Fi: only where a candidate's gateway answers `/join` with a
+   * link for this very group (`GiveJoinNetwork.connectOnGroup`), all within `ALREADY_ON_MS`; null
+   * otherwise, and the join goes on as before.
+   */
+  private fun alreadyOn(ssid: String, port: Int, deadlineMs: Long): Socket? {
+    val socket = GiveJoinNetwork.connectOnGroup(context, ssid, port, minOf(ALREADY_ON_MS, deadlineMs)) ?: return null
+    tune(socket)
+    return socket
+  }
+
+  private companion object {
+    /** How long a connection through the network this phone is already on may take before the usual join. */
+    const val ALREADY_ON_MS = 3_000L
   }
 }
 

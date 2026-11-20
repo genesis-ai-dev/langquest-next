@@ -181,7 +181,9 @@ The cards below are now rows, and the menu took the place of the OK lines. So:
   card for each part whose alerts need a person: its most urgent alert leads,
   with its section's 14-day picture, a "Next:" line and its actions; 3 more
   follow and the rest are counted, so 30 new error kinds stay one card. Beside
-  them: Claude works on it (open issues the watch filed), Waits on Apple or
+  them: open issues the watch filed, each saying only what is verified
+  (Claude works on it now, Claude wrote a fix, Claude looked and wrote no
+  fix, or Filed in Linear, no fix yet), Waits on Apple or
   Google (builds in review), and Watch, one line for each part's alerts to
   watch. Every section with no alert is one OK line with its 14-day picture
   (`GET /ops/api/glance`, decisions.md 255). The levels in 5.1 stay.

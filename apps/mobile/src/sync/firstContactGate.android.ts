@@ -2,6 +2,25 @@ import { OfflineError, type SupabaseTransport } from '@langquest-next/sync';
 import { onAuthChange, savedSignIn } from '../server/auth';
 import { localPersonHolds } from '../server/localPerson';
 
+const opened = new Set<() => void>();
+
+/**
+ * Be told when first contact saves the session and the gate opens. Until then every sync was
+ * turned away as offline, so each stream waits out its offline backoff, 15 seconds or more:
+ * Sync said Offline that long after a newcomer's phone came back online, where a signed-in
+ * phone said Online at once (Carl's test, 2026-11-20). Told, a stream syncs at once. Not
+ * `onWake`, which would wake first contact too, in the middle of the turn that saved the session.
+ */
+export function onGateOpen(fn: () => void): () => void {
+  opened.add(fn);
+  return () => { opened.delete(fn); };
+}
+
+/** First contact saved the session: the streams the gate turned away sync now. */
+export function gateOpened(): void {
+  for (const fn of [...opened]) fn();
+}
+
 /**
  * While a local person holds the phone with no session saved (docs/nearby-sync-plan.md 14.1, 5
  * "Requests"), the transport asks the server nothing: each call fails as offline, so their

@@ -3167,7 +3167,8 @@ For joining offline (section 14):
 | Does a phone installed that way take Play updates later? | It has to reach the normal update path when it first gets online. |
 | Does Android developer verification get in the way of installing offline? | It expands globally in 2027, and Google's page does not cover this. On 2026-11-17 the verifier passed carried build 56 on an Android 16 phone that was online; offline, the install finished, but whether the verifier ran is not known. |
 | Do phones join a Wi-Fi Direct group as plain Wi-Fi from a QR code (14.5)? | Give the app depends on it. Pixels should; makers vary, and phones in China most of all. Android 8 and 9 have no Wi-Fi QR reader, so their people type the name and password. |
-| Does a new phone's browser download an app file from the carrier's page over plain `http`, and what does it warn (14.5)? | Chrome warns about app files and may warn about `http`. Makers' own browsers, common in China, are untested. Each warning is one more tap for someone not technical. |
+| Does a new phone's browser download an app file from the carrier's page over plain `http`, and what does it warn (14.5)? | Chrome does, after two warnings (Carl's test, 2026-11-20): the file can't be downloaded securely, and it may be harmful. Code 2 now says to keep it and download it anyway. Makers' own browsers, common in China, are untested. Each warning is one more tap for someone not technical. |
+| Does the carrier's browser hand the `.carried` file to the app with its Open (14.4)? | Chrome 113 on an Android 14 emulator did, with no warning (2026-11-20). Today's Chrome, makers' own browsers and Samsung Internet are untested; where Open finds nothing, Choose the downloaded file still works. |
 | With mobile data on, does the new phone open the carrier's page at all (14.5)? | A Wi-Fi with no internet can lose the browser to mobile data. The screen would then say to tap "Stay connected" or turn mobile data off. |
 | Does `GET generatedApks` give a universal APK on the `alpha` track without waiting for review, may `PLAY_REVIEW_KEY` read it, and how big is the file? | Section 14.4 depends on it. Someone with the key tries it first on an existing build (Carl's answer, 2026-11-06). The file holds four ABIs and the speech models, and carriers download it on town connections. |
 | Does a QR code with this payload scan on 2 GB phones in poor light, and does the camera's scanner work with no Play services? | Section 14.1 keeps the payload small for this reason. |
@@ -3349,7 +3350,9 @@ it does today (decision 54).
    newcomer refuses any opening that does not match the pin, so a rogue group cannot pose as
    the inviter. The pass, its chain and the discovery key travel over the link only after the
    inviter's tap, because a photo of the QR gives anyone all they need to get that far, and
-   the key cannot be taken back once it is out.
+   the key cannot be taken back once it is out. After Give the app the same link also reaches
+   the new phone over the carrier's own Wi-Fi, with no code to scan, and the link is hosted on
+   that group (14.5, The new phone, 4; 2026-11-20).
    - The newcomer scans it with the scanner already on Sign In and types their name.
      `parseKey` in `inviteCode.ts` gains a third kind of key, `langquestnext://join?...`
      only, because the `https` form would need app.json `intentFilters`. `ScanQr.read` and
@@ -3489,7 +3492,10 @@ it does today (decision 54).
      server answers as rejected. Events stay `pending`. The live channel, asked for once
      when a stream opens, waits for the sign-in to change and opens once first contact
      saves a session; checked only at the start, it never opened, and Sync said Connected
-     until the app started again (Carl's test, 2026-11-18).
+     until the app started again (Carl's test, 2026-11-18). The streams' syncs are woken
+     then too (`onGateOpen`): turned away as offline until then, each waited out its offline
+     backoff, and Sync said Offline 15 seconds or more after the phone came back online
+     (Carl's test, 2026-11-20).
    - **Teammates.** Their events are `pending` here and reach teammates as `nearby`, shown
      under the name in their chain: the session reports it (`peer.name`, from a two-link
      chain only), so does the inviter's tap, and the app keeps it under
@@ -3777,6 +3783,41 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     the step rests on is read, so the button never changes under a finger. The download stays in the browser (decision 246, Google Play's Device and Network
     Abuse policy). The screen is Android only (`src/nearby/GetInstallFileScreen.android.tsx`),
     so the web and an iPhone, which never open it, carry a stub of its header and intro.
+  - *Handed over by the browser's Open* (Carl's choice, 2026-11-20). Getting the file still
+    took the browser, its warning that the file may be harmful, finding the way back to
+    LangQuest and the system picker: too many steps outside the app for someone not technical.
+    So the Worker also serves the same file as `/apk/<versions>.carried`, under a type of the
+    app's own, `application/x-carried-build` (core `carriedFileName`, `CARRIED_FILE_TYPE`), and
+    the Android app opens that type (a filter in app.json, which `withAndroidAppIcons` copies
+    onto each disguise's alias). When the download finishes, the browser's own Open hands the
+    file to the app as a content address: `useIncoming` holds it (`src/nearby/handedFile.android.ts`)
+    and opens Download the install file once routing is past signing in
+    (`openForHandedFile`), and the screen takes it once. Native reads its name from the
+    provider (`installFileName`), since the address holds only a number, and it is then
+    checked and kept exactly as a file chosen in the picker, `.carried` read as the install
+    file's own name (`chosenName`). The steps now say: the browser downloads the file; when it
+    finishes, tap Open, and LangQuest opens and checks it; if Open has gone, come back and tap
+    Choose the downloaded file, whose picker offers the type too. Choose the downloaded file's
+    line says LangQuest does not have the file yet if Open was not tapped.
+    - **What it spares:** Chrome 113 on Android 14 (an emulator, 2026-11-20) downloaded the
+      `.carried` file with no question, and its Open sent `VIEW` with the type straight to the
+      app, with no chooser. The same bytes as `.apk` asked "File might be harmful". Opening the
+      file can no longer offer to install the carried build over the carrier's app, which is
+      why the old steps said not to open it.
+    - **Why that is fair:** the warning is for installing an app, and the carrier's phone never
+      installs this file. The new phone still gets it as `.apk` from Give the app, with its
+      browser's warnings (14.5).
+    - **What stays:** the download stays in the browser, and the person hands the file over, as
+      with the picker (decision 246, amended 2026-11-20). A build without `installFileName`,
+      which ships with the filter, still downloads the `.apk` with the old steps, since Open
+      would find nothing to hand it to.
+  - *How old, and the newest* (Carl's choices, 2026-11-20). The ready line names the day the kept
+    copy was built (`builtMs`), and while online the ready state offers Download the newest file,
+    which the Worker answers with the newest file for these versions, and which replaces the copy
+    once opened or chosen. A kept copy from an older native build than this phone runs, by its
+    name's fingerprint, counts as behind at once (`keptFromOlderBuild`), so the screens say a newer
+    file is ready, until a copy is kept under this build (`carriedApkKeptUnder`). The two-day rule
+    for JavaScript stays (docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended).
   - *Too old.* The press keeps the name in one phone-wide meta row, `carriedApkOpened`,
     which holds no person, organization or time. While the name this phone needs differs
     from it, the screen says the install file is for an older version and to download the new
@@ -3903,14 +3944,22 @@ codes, one after the other, as Let someone in shows two pictures.
      Android's `DIRECT-xx-` form with nothing in it that names the app, and a random
      passphrase) and starts the file server on the group's own address (`groupOwnerAddress`).
    - **Step 1, join:** a QR code of the Wi-Fi login (`WIFI:T:WPA;S:<name>;P:<passphrase>;;`,
-     with `\ ; , : "` escaped), and a line that ends "When it has joined, tap Next", since
-     nothing else on screen said when to. Under it, for a phone that cannot read the code, a
-     line saying to choose this network in its Wi-Fi settings, then the name and password.
+     with `\ ; , : "` escaped), and a line saying the second code shows by itself once the new
+     phone has joined, and to tap Next if it does not (2026-11-20). The status counts the
+     group's clients (`joined`, `requestGroupInfo`), and a rise moves to code 2 (`stepAfterJoined`),
+     so Back to the first code holds while that phone stays. A phone that joins as plain Wi-Fi
+     is listed: the supplicant reports every authorized station, and the framework adds one with
+     no Wi-Fi Direct address by its interface address (traced in AOSP, Android 10 to main). Under
+     it, for a phone that cannot read the code, a line saying to choose this network in its Wi-Fi
+     settings, then the name and password.
    - **Step 2, download:** after Next, a QR code of the page's address
      (`http://<group address>:<port>/`), with the address in text.
    - **While it sends:** "Sending: 120 of 212 MB", from the server's count of bytes sent.
    - **Step 3, install:** once a download reaches the file's end, "3. Install it": the file
      is sent, open it on the new phone and tap Install, and the way on to Let someone in.
+     Where this phone can let people in and its build has the functions, Let them in hands the
+     group to Let someone in instead of stopping it (`handsOver`, `giveHandOver.ts`), and the
+     line says LangQuest on the new phone will find this phone by itself (2026-11-20, below).
      Both codes fold away under Give it to another phone. Back to the first code shows only
      before the file starts, since after that the stage follows the file, not the step.
    - Stop, leaving the screen, or 15 minutes with no phone downloading ends the group and the
@@ -3920,6 +3969,23 @@ codes, one after the other, as Let someone in shows two pictures.
      run together.
    - A carrier with no kept file, or a file for other versions, is sent to Download the
      install file first (online).
+   - **Send with Quick Share** (2026-11-20): Android's share sheet with the kept file
+     (`shareInstallFile`), read through a FileProvider of the module's own
+     (`InstallFileProvider`, not exported, the kept file's folder alone). Not while a group runs,
+     since the sheet sends the app to the background, which stops it.
+   - **One of two ways** (Carl, 2026-11-20). Offered first as a second button under Show the
+     first code, with one line of what the new phone does, Quick Share read neither as one of two
+     ways nor as an order of steps. Before a group runs, the screen now asks "Choose one way to
+     send it" with two radio rows, as Let someone in asks for a role: This phone's Wi-Fi (the
+     new phone scans two codes; any Android phone), chosen first, and Quick Share (both phones
+     need Google Play services). Under them, only the chosen way's steps, and its one main
+     button in the footer: Show the first code, or Send with Quick Share. Quick Share's steps go
+     in the order they are done, numbered right through, under who does them
+     (`quickShareSteps`): first on the new phone, open Quick Share and choose Everyone; then on
+     this phone, send; then on the new phone, accept, open, allow and install; last, where this
+     phone can, tap Let them in, which opens Let someone in (no group runs to hand over). The
+     line saying phones sold in China lack Google Play services is gone from the screen. A build
+     whose module cannot share shows the Wi-Fi way alone.
 
 **The new phone.**
 1. The camera reads code 1 and offers to join (Android 10 and later, in the camera, Google
@@ -3927,9 +3993,57 @@ codes, one after the other, as Let someone in shows two pictures.
 2. The camera reads code 2, and the browser opens the page: what this is ("Install
    LangQuest"), the size, one Download button, and three pictures of what follows on a phone:
    open the file, allow installs from this source, install. The words are in the carrier's
-   app language; the pictures carry the meaning for someone who does not read it.
+   app language; the pictures carry the meaning for someone who does not read it. After
+   Download, Chrome warns twice: that the file can't be downloaded securely (the page is plain
+   `http`), and that it may be harmful (an app file). The carrier's code 2 says to keep it and
+   download it anyway (Carl's test, 2026-11-20). The page's first step says to tap the browser's
+   Open when the download finishes and, since Open goes after a while, where the file is then: in
+   Downloads, from the browser's menu or in the Files app, by its name. A page cannot open the
+   file itself.
+   Since 2026-11-20 the download starts by itself: the page's meta refresh asks for
+   `/<file>?auto=1` a second after it opens, which is not script, so the CSP stands. The
+   server answers that with 204 for a phone that has already asked for the file, since in
+   Chrome 113 (an emulator) a Download tapped in that first second started a second download,
+   whose "download multiple files?" question can block the address for good, and a reload or a
+   restored tab downloaded again behind "Download file again?". The button stays for a browser
+   that does not follow the refresh, and the page's steps say so. Chrome 113 showed only "File
+   might be harmful" for both, and the same over an address it treats as not secure.
 3. The download takes about a minute at 4 to 10 MB/s. The person taps the file, allows the
-   browser once, and installs. Then Join without internet goes on as now (14.1).
+   browser once, and installs.
+4. **Joining with no third code** (Carl's choice, 2026-11-20). The new phone is still on the
+   carrier's Wi-Fi, so:
+   - **The carrier's side.** Let someone in, given the group by Let them in, hosts its link on
+     it (`hostOnGiveGroup`: a listener on the group's address, under its name and passphrase)
+     and has Give the app's server answer `/join` with a 302 to the join link (`setGiveJoin`).
+     The code is still shown, with a line saying the new phone finds this phone by itself, and
+     it lives 15 minutes, Give the app's idle limit (`LET_IN_GIVE_CODE_MS`), not two. Let
+     someone in then owns the session and stops it when its attempt ends or the screen is left
+     before the press. The group stays up while the link lives (the starting copy runs over it),
+     after the page has stopped.
+   - **The new phone's side.** Newly installed LangQuest, on a phone with nobody on it
+     (`guest`, and `phoneNotEmpty` finds nothing) and on a newcomer's screen, asks
+     `findGiveJoin` every 4 seconds (`useGiveJoinFinder`). Native asks the gateway of each
+     Wi-Fi network that is a candidate (`GiveJoin.candidates`): 192.168.49.1, Android's usual
+     group owner, first, then any network with no internet (not `VALIDATED`) and a private
+     gateway, since the first tethering module of Android 11 gives the owner a random
+     `192.168.x.1`. A router with working internet is never asked. It asks port 8080 for `/join`
+     through that network with a raw socket, so the app's cleartext policy is not involved, and
+     takes only a 302 whose Location has a join link's shape. A `join` key goes the way a scanned
+     code goes (`useIncoming`), once. Native's `join` then tries the same candidates' gateways on
+     the link's port, within 3 seconds, before asking for a network, so no system dialog shows.
+     It takes that shortcut only when the gateway's `/join` link names the same Wi-Fi as the join,
+     so no other join, a teammate's sync included, is caught by a captive portal that accepts any
+     port. The pin in the link makes it refuse any phone but the one whose link it holds. A
+     server on some other network with no internet could hand it a link of its own and learn the
+     name typed, but it can grant nothing without an inviter's chain to the root keys, so the
+     finder opens one link a run and none behind a cover (review, 2026-11-20).
+   - **Fallbacks.** The page's fourth step: open LangQuest, and if it does not find the
+     teammate's phone, come back and tap Join (`/join`, which opens the app with the link). And
+     the code on the carrier's screen.
+   - **What it costs.** Anyone on the group, which needs code 1, can read the join link, as
+     anyone could photograph the code before. The inviter's one tap with the two pictures still
+     decides (14.1, 3).
+   - **Not tried on two real phones:** emulators have no Wi-Fi Direct.
 
 **What exists already.**
 - The Wi-Fi Direct group with a chosen name and passphrase, Android 10 and later

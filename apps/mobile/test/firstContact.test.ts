@@ -69,7 +69,8 @@ async function load() {
   // By the name the app imports it under, so the test and the app share the one held record.
   const local = await import('../src/server/localPerson');
   const contact = await import('../src/nearby/firstContact.android');
-  return { key, local, contact };
+  const gate = await import('../src/sync/firstContactGate.android');
+  return { key, local, contact, gate };
 }
 
 /** A phone with a local person on it: the install key in the Keystore, and the record a grant and a whole copy left. */
@@ -199,6 +200,27 @@ describe('first contact on an Android phone', () => {
     expect(await p.contact.firstContactTurn(p.profileId)).toEqual({ offline: false });
     expect(fake.joins).toHaveLength(3);
     expect(fake.certs).toBe(2);
+  });
+
+  it('opens the streams\' gate once, when the session is saved, so they sync then rather than after their offline backoff', async () => {
+    const p = await phoneWithLocalPerson();
+    let opened = 0;
+    p.gate.onGateOpen(() => { opened += 1; });
+    fake.join = () => { throw new TypeError('Network request failed'); };
+    await p.contact.firstContactTurn(null);
+    fake.join = () => json(200, { session: { access_token: jwt(p.profileId), refresh_token: 'r' }, orgId: 'org-1', signInName: 'x' });
+    fake.sessionError = { message: 'Network request failed' };
+    await p.contact.firstContactTurn(null);
+    expect(opened).toBe(0);
+    // The session is saved: the streams the gate turned away as offline are told, before the certificate route answers.
+    fake.sessionError = null;
+    fake.cert = () => json(503, { error: 'later' });
+    await p.contact.firstContactTurn(null);
+    expect(opened).toBe(1);
+    // The certificate route afterwards opens nothing more.
+    fake.cert = () => new Response(JSON.stringify({ chains: [], discoveryKeys: [], passes: [], revocations: [] }));
+    await p.contact.firstContactTurn(p.profileId);
+    expect(opened).toBe(1);
   });
 
   it('a refusal keeps the person and their work, says why, and sends nothing more until an invite\'s token', async () => {

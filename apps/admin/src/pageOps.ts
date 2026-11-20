@@ -654,6 +654,7 @@ const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run', 
 const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
 const timelineStart = () => { const end = new Date(); end.setUTCHours(0, 0, 0, 0); return end.getTime() - (TIMELINE_DAYS - 1) * 86400000; };
 /** Each timeline's width from the zoom; when a day is wide enough, each mark sits at its time of day. */
+let timelineLeft = null, timelineSet = null;
 function layoutTimelines(keepAt) {
   const box = $('video-rows');
   if (!box) return;
@@ -668,7 +669,10 @@ function layoutTimelines(keepAt) {
   // Narrow days hold a dot for each mark, wide ones its picture (pageVideos.ts).
   box.classList.toggle('dense', dayWidth < 28);
   for (const b of box.querySelectorAll('.mk[data-h]')) b.style.left = timed ? 'calc(' + (Number(b.dataset.h) * 100) + '% - 10px)' : '';
-  const left = keepAt === undefined ? dayWidth * TIMELINE_DAYS - view : keepAt;
+  // A timeline opens at today; once the person scrolls it, a refresh or a new width keeps it where they left it.
+  const left = keepAt !== undefined ? keepAt : timelineLeft !== null ? timelineLeft : dayWidth * TIMELINE_DAYS - view;
+  if (keepAt !== undefined) timelineLeft = keepAt;
+  timelineSet = Math.round(left);
   for (const w of wraps) w.scrollLeft = left;
 }
 function redrawVideos() { const box = $('video-rows'); if (box) { box.innerHTML = videoRows(); annotate(box); layoutTimelines(); } }
@@ -686,6 +690,8 @@ function zoomTimelines(factor, x) {
 let syncing = false;
 document.addEventListener('scroll', (e) => {
   if (syncing || !e.target.classList || !e.target.classList.contains('tlw')) return;
+  // A scroll this page did not make is the person's: the timeline keeps it (layoutTimelines).
+  if (timelineSet === null || Math.abs(e.target.scrollLeft - timelineSet) > 1) timelineLeft = e.target.scrollLeft;
   syncing = true;
   for (const w of document.querySelectorAll('#video-rows .tlw')) if (w !== e.target) w.scrollLeft = e.target.scrollLeft;
   syncing = false;

@@ -143,6 +143,16 @@ A section without its token says "Not connected" and what to add; one whose
 service fails says "Could not read" and why. Neither holds up the others.
 Provider answers are kept a minute per Worker isolate; Refresh skips that.
 
+The page reads everything again every five minutes while its tab is in front,
+and on Refresh. A refresh keeps the page still: each number, chart, status and
+line stays on the page until its new answer comes, and then changes in place
+(`redraw` in `page.ts`, `refreshCharts` in `pageStart.ts`). Nothing empties
+or says "Loading…", so the page does not move under the reader. A box whose
+HTML is the same is left alone; a box with new HTML keeps what the person
+opened, typed, ticked, focused or scrolled sideways in it, and the pictures
+already fetched. A chart that cannot be read again keeps the old one. Only the
+first load says "Loading…". `test/refresh.test.ts` holds this.
+
 ### Time to a usable Map
 
 A language's first full download (`open` and `fill` records, decision 147)
@@ -507,7 +517,9 @@ shows how many of its section's lines need a person and a dot for its most
 urgent level. The page opens on the Overview (`apps/admin/src/pageOverview.ts`;
 what it decides is `startPlan` in `pageStart.ts`, `docs/ops-dashboard-plan.md`
 5.0): one row for each part's alerts that need a person, one for each part's
-alerts to watch, rows for what Claude works on and what waits on a store,
+alerts to watch, a row for each open issue the watch filed (saying only what
+is verified: Claude works on it now only while a run works on an admin's
+instruction on it), rows for what waits on a store,
 eight numbers, a map of the parts with a dot for each, two charts of errors
 over 14 days, and the newest merged pull requests. `GET /ops/api/glance`
 (`diag.ops_glance`) gives a row or a number its 14-day picture: one number

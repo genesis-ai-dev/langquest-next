@@ -139,7 +139,7 @@
       "asRole": "Zai shiga a matsayin {{role}}. Mai kula zai iya canja shi bayan ya sami intanet.",
       "show": "Nuna lambar",
       "newCode": "Sabuwar lamba",
-      "showHelp": "Yana yin lamba don sabuwar wayar ta karanta. Tana aiki na minti biyu, don waya ɗaya.",
+      "showHelp": "Yana yin lamba don sabuwar wayar ta karanta. Tana aiki na minti biyu, don waya ɗaya. Idan wannan wayar tana ba da manhajar ta Wi-Fi ɗinta, tana aiki na minti 15, kuma sabuwar wayar za ta same ta da kanta.",
       "starting": "Ana shirya lambar…",
       "codeLabel": "Lambar da sabuwar wayar za ta karanta",
       "scanLine": "A sabuwar wayar, buɗe LangQuest, taɓa Karanta lamba, sannan ka nuna ta nan.",
@@ -166,7 +166,9 @@
         "browser": "Burauzar wayar za ta buɗe, ta sauke fayil ɗin girkawa.",
         "warning": "Idan burauzar ta yi gargaɗin cewa fayil ɗin na iya yin illa, ka zaɓi ka sauke shi duk da haka. Shi ne fayil ɗin girkawa na LangQuest na ainihi.",
         "back": "Idan saukewar ta gama, ka koma LangQuest. Ba sai ka buɗe fayil ɗin ba.",
-        "choose": "Ka taɓa {{button}}."
+        "choose": "Ka taɓa {{button}}.",
+        "open": "Idan saukewar ta ƙare, taɓa Buɗe. LangQuest zai buɗe ya duba fayil ɗin.",
+        "openGone": "Idan Buɗe ta ɓace, ka koma LangQuest ka taɓa {{button}}."
       },
       "getLine": "A filin aiki, ka aika shi ta Ba da manhajar. Quick Share, katin SD ko waya ta USB ma suna aiki, amma Quick Share yana buƙatar ayyukan Google Play a wayoyin biyu.",
       "getLineOther": "A filin aiki, ka aika shi zuwa sabuwar wayar ta Quick Share, katin SD ko waya ta USB. Quick Share yana buƙatar ayyukan Google Play a wayoyin biyu. Sabuwar wayar tana iya tambaya ko za a yarda a girka daga wannan wuri.",
@@ -176,6 +178,7 @@
       "choose": "Zaɓi fayil ɗin da aka sauke",
       "chooseHelp": "Yana buɗe fayilolin wayar. Ka zaɓi fayil ɗin girkawa da burauzar ta sauke, manhajar kuma ta tabbatar cewa shi ne wanda wannan waya ke buƙata.",
       "chooseLine": "Idan saukewar ta gama, ka taɓa Zaɓi fayil ɗin da aka sauke. Yawanci shi ne na farko cikin fayilolinka na kwanan nan.",
+      "chooseLineOpen": "Idan ba ka taɓa Buɗe a burauza ba, LangQuest ba ta da fayil ɗin tukuna. Idan saukewar ta gama, ka taɓa Zaɓi fayil ɗin da aka sauke. Yawanci shi ne na farko cikin fayilolinka na kwanan nan.",
       "getAgain": "Sake sauke shi",
       "getAgainHelp": "Yana sake buɗe burauzar wayar, idan saukewar ba ta gama ba.",
       "checkOther": "Wannan fayil na wata sigar dabam ne: kana buƙatar {{file}}",
@@ -205,8 +208,11 @@
         "unreadable": "Ba a iya karanta wannan fayil ɗin ba. Ka sake zaɓar sa.",
         "failed": "Ba a iya ajiye kwafi ba. Ka sake zaɓar sa.",
         "needsAndroid": "Wannan waya ba ta ajiye kwafi ba: Ba da manhajar yana buƙatar Android 10 ko sama da haka.",
-        "needsUpdate": "Wannan waya ba ta ajiye kwafi ba tukuna. Ka sabunta manhajar daga shago don ba da ita ta Wi-Fi."
-      }
+        "needsUpdate": "Wannan waya ba ta ajiye kwafi ba tukuna. Ka sabunta manhajar daga shago don ba da ita ta Wi-Fi.",
+        "keptBuilt": "An ajiye kwafi da aka gina a {{date}} a wannan waya don Ba da manhajar. Za ka iya goge wanda ke cikin Abubuwan da aka sauke."
+      },
+      "scanLineGive": "A sabuwar wayar, buɗe LangQuest. Za ta sami wannan wayar da kanta. Idan ba ta samu ba, taɓa Karanta lamba, sannan ka nuna ta nan.",
+      "minutesLeft": "Sauran mintoci: {{n, number}}"
     },
     "installFile": {
       "intro": "Sabuwar waya tana buƙatar an girka LangQuest a kanta kafin ka shigar da mai ita. Ka sauke fayil ɗin girkawa a nan yayin da kake da intanet, ka tafi da shi.",
@@ -224,7 +230,10 @@
       "readyShort": "Fayil ɗin girkawa ya shirya",
       "done": "A shirye yake. Za ka iya tafiya da shi inda babu intanet.",
       "newer": "Sabon fayil ɗin girkawa ya shirya. Ka sauke shi yayin da kake da intanet, sannan ka zaɓe shi.",
-      "newerShort": "Fayil ɗin girkawa don sabon mutum: sabon fayil ya shirya"
+      "newerShort": "Fayil ɗin girkawa don sabon mutum: sabon fayil ya shirya",
+      "getNewest": "Sauke sabon fayil",
+      "getNewestHelp": "Yana buɗe burauzar wayar, wadda ke sauke sabon fayil ɗin girkawa na wannan sigar. Sai ka taɓa Zaɓi fayil ɗin da aka sauke, zai maye gurbin kwafin da ke nan.",
+      "getNewestHelpOpen": "Yana buɗe burauzar wayar, wadda ke sauke sabon fayil ɗin girkawa na wannan sigar. Idan saukewar ta ƙare, taɓa Buɗe, zai maye gurbin kwafin da ke nan."
     },
     "join": {
       "intro": "Ka shiga tawagarka daga wayar abokin aiki, ba tare da intanet ba. Za a buɗe asusunka a karon farko da wayarka ta sami intanet.",
@@ -279,7 +288,7 @@
       }
     },
     "give": {
-      "intro": "Wannan waya tana ƙirƙirar hanyar sadarwar Wi-Fi ta kanta. Sabuwar wayar tana karanta lambobi biyu da kyamararta: ɗaya don haɗawa da hanyar sadarwar, ɗaya don sauke LangQuest. Babu ɗaya daga cikin wayoyin da ke buƙatar intanet.",
+      "intro": "Ba da LangQuest ga sabuwar waya. Babu ɗaya daga cikin wayoyin da ke buƙatar intanet.",
       "rowSub": "Idan kana tare da sabon mutumin",
       "rowHelp": "Yana buɗe Ba da manhajar, inda wannan waya ke aika LangQuest zuwa sabuwar waya ta hanyar sadarwar Wi-Fi da ta ƙirƙira da kanta.",
       "linkHelp": "Yana buɗe Ba da manhajar, don aika LangQuest zuwa sabuwar wayar ta hanyar sadarwar Wi-Fi da wannan waya ke ƙirƙira.",
@@ -294,7 +303,7 @@
       },
       "join": {
         "title": "1. Haɗa da hanyar sadarwar Wi-Fi ta wannan waya",
-        "line": "A sabuwar wayar, buɗe kyamara, ka nuna ta ga wannan lamba, sannan ka taɓa Haɗa. Idan ta haɗa, ka taɓa Gaba.",
+        "line": "A sabuwar wayar, buɗe kyamara, ka nuna ta ga wannan lamba, sannan ka taɓa Haɗa. Idan ta haɗa, lamba ta biyu za ta bayyana da kanta. Idan ba ta bayyana ba, ka taɓa Gaba.",
         "lineAgain": "A sabuwar wayar, buɗe kyamara, ka nuna ta ga wannan lamba, sannan ka taɓa Haɗa.",
         "code": "Lambar haɗawa da hanyar sadarwar Wi-Fi ta wannan waya",
         "network": "Sunan Wi-Fi: {{name}}",
@@ -305,7 +314,8 @@
       "nextHelp": "Yana nuna lamba ta biyu, ta shafin saukewa, bayan sabuwar wayar ta haɗa.",
       "download": {
         "title": "2. Buɗe shafin saukewa",
-        "line": "Ka nuna kyamarar sabuwar wayar ga wannan lamba ka buɗe shafin. Taɓa Sauke.",
+        "line": "Ka nuna kyamarar sabuwar wayar ga wannan lamba ka buɗe shafin. Saukewa za ta fara da kanta. Idan ba ta fara ba, taɓa Sauke.",
+        "warnings": "Idan burauzar sabuwar wayar ta ce ba za a iya sauke fayil ɗin cikin aminci ba, ka zaɓi ka ajiye shi. Idan burauzar ta yi gargaɗin cewa fayil ɗin na iya yin illa, ka zaɓi ka sauke shi duk da haka. Shi ne fayil ɗin girkawa na LangQuest na ainihi.",
         "code": "Lambar shafin saukewa",
         "address": "Ko ka rubuta wannan adireshin a burauzarta: {{address}}",
         "dataLine": "Sabuwar wayar tana iya cewa wannan Wi-Fi ba shi da intanet. Taɓa Ci gaba da haɗi. Idan har yanzu shafin bai buɗe ba, kashe data ta wayar hannu a sabuwar wayar."
@@ -315,6 +325,7 @@
       "sending": "Ana aikawa: {{sent}} cikin {{total}} MB",
       "sent": "3. Girka shi",
       "sentLine": "An aika fayil ɗin. A sabuwar wayar, buɗe fayil ɗin da aka sauke sannan ka taɓa Girka. Tana iya tambaya sau ɗaya ko za a yarda a girka daga wannan wuri. Sannan ka shigar da shi daga wannan waya.",
+      "sentLineFinds": "An aika fayil ɗin. A sabuwar wayar, buɗe fayil ɗin da aka sauke sannan ka taɓa Girka. Tana iya tambaya sau ɗaya ko za a yarda a girka daga wannan wuri. Idan an girka LangQuest kuma an buɗe shi a sabuwar wayar, zai sami wannan waya da kansa. Taɓa Shigar da shi ka zaɓi matsayinsa.",
       "another": "Ba da ita ga wata waya",
       "anotherHelp": "Yana sake nuna lambobin biyu, don ƙarin sabuwar waya ɗaya.",
       "letIn": "Shigar da shi",
@@ -334,14 +345,46 @@
         "failed": "Hanyar sadarwar Wi-Fi ta wannan waya ba ta fara ba. Ka sake gwadawa.",
         "permissionCovered": "Ka fara buɗe Raba da na kusa ka ba da izinin abin da ya tambaya. Sannan ka dawo ka sake gwadawa."
       },
+      "quickShare": {
+        "button": "Aika ta Quick Share",
+        "help": "Yana buɗe zaɓin rabawa na wannan waya da fayil ɗin girkawa.",
+        "failed": "Zaɓin rabawa bai buɗe ba. Ka sake gwadawa.",
+        "letInHelp": "Yana buɗe Shigar da wani, don ka shigar da shi idan an girka LangQuest a sabuwar wayar.",
+        "on": {
+          "newFirst": "Da farko, a sabuwar wayar",
+          "this": "Sannan, a wannan waya",
+          "newThen": "Sannan, a sabuwar wayar",
+          "thisThen": "A ƙarshe, a wannan waya"
+        },
+        "steps": {
+          "open": "Ja yatsanka daga saman allon zuwa ƙasa, sannan ka taɓa Quick Share. Idan babu shi, buɗe Saituna ka nemi Quick Share.",
+          "visible": "Zaɓi Kowa, don wannan waya ta same ta. Ka ajiye ta kusa, da allonta a kunne.",
+          "send": "Taɓa Aika ta Quick Share. A zaɓin rabawa, taɓa Quick Share, sannan sunan sabuwar wayar.",
+          "accept": "Taɓa Karɓa. Idan fayil ɗin ya iso, taɓa Buɗe. Idan Buɗe ta ɓace, nemo fayil ɗin a manhajar fayiloli, a cikin abubuwan da aka sauke.",
+          "letIn": "Idan an girka LangQuest kuma an buɗe shi a sabuwar wayar, taɓa Shigar da shi.",
+          "install": "Ka yarda a girka daga wannan wuri, idan wayar ta tambaya. Taɓa Girka."
+        }
+      },
       "page": {
         "title": "Girka LangQuest",
         "size": "{{size}} MB",
         "download": "Sauke",
-        "stepOpen": "Buɗe fayil ɗin da aka sauke.",
+        "stepOpen": "Saukewa za ta fara da kanta. Idan ba ta fara ba, taɓa Sauke. Idan saukewar ta ƙare, taɓa Buɗe.",
+        "stepFind": "Idan Buɗe ta ɓace, nemo {{name}} a cikin abubuwan da aka sauke, a menu ⋮ na burauza ko a manhajar fayiloli, sai ka taɓa shi.",
         "stepAllow": "Ka yarda a girka daga wannan wuri, idan wayar ta tambaya.",
-        "stepInstall": "Taɓa Girka."
-      }
+        "stepInstall": "Taɓa Girka.",
+        "stepJoin": "Buɗe LangQuest. Zai sami wayar abokin aikinka da kansa. Idan bai samu ba, koma wannan shafin ka taɓa Shiga.",
+        "join": "Shiga"
+      },
+      "ways": "Zaɓi hanya ɗaya ta aika shi",
+      "way": {
+        "wifi": "Wi-Fi na wannan waya",
+        "wifiSub": "Sabuwar wayar tana karanta lambobi biyu. Yana aiki a kowace wayar Android.",
+        "quickShare": "Quick Share",
+        "quickShareSub": "Wayoyin biyu suna buƙatar ayyukan Google Play."
+      },
+      "wayHelp": "Yana zaɓar wannan hanyar don aika fayil ɗin girkawa. Matakanta da maɓallinta suna bayyana a ƙasa.",
+      "wifiLine": "Wannan waya tana ƙirƙirar hanyar sadarwar Wi-Fi ta kanta. Sabuwar wayar tana karanta lambobi biyu da kyamararta: ɗaya don haɗawa da hanyar sadarwar, ɗaya don sauke LangQuest."
     }
   }
 }

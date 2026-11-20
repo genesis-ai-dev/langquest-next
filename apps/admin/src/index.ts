@@ -7,7 +7,7 @@ import { page, SECURITY_HEADERS } from './page';
 import { alertId, watchKeyOf } from './alertKinds';
 import { LEVELS, settle, type Level, type Section } from './section';
 import { cloudflareSection } from './sources/cloudflare';
-import { diagSections, errorText, lookup, mediaType, PICTURE_SQL, SCREENSHOT_SQL, VOICE_SQL } from './sources/diag';
+import { diagSections, errorText, FIX_PICTURE_SQL, lookup, mediaType, PICTURE_SQL, SCREENSHOT_SQL, VOICE_SQL } from './sources/diag';
 import { appStoreSection } from './sources/appstore';
 import { expoSection } from './sources/expo';
 import { googlePlaySection } from './sources/googleplay';
@@ -209,6 +209,18 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       const type = mediaType(bytes);
       if (!type || (file[2] === 'voice') !== type.startsWith('audio/')) return json({ error: 'Not a file this page shows' }, 415);
       return new Response(bytes, { headers: { 'content-type': type, 'cache-control': 'private, max-age=300', ...SECURITY_HEADERS } });
+    } catch (e) {
+      return json({ error: errorText(e) }, 502);
+    }
+  }
+  // A display fix of the agent team: the screen before the fix, or after it, from the local test world (docs/agent-team.md).
+  const shot = /^user-issue-fix\/([A-Z]{1,10}-[0-9]{1,7})\/(before|after)$/.exec(section);
+  if (shot) {
+    try {
+      const bytes = await withDiag(diagConnection(env), (query) => query<Uint8Array | null>(FIX_PICTURE_SQL, [shot[1]!, shot[2]!]));
+      if (!bytes) return json({ error: `No picture ${shot[2]} the fix` }, 404);
+      if (mediaType(bytes) !== 'image/jpeg') return json({ error: 'Not a file this page shows' }, 415);
+      return new Response(bytes, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=300', ...SECURITY_HEADERS } });
     } catch (e) {
       return json({ error: errorText(e) }, 502);
     }

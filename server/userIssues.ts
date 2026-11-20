@@ -107,6 +107,8 @@ export interface Watch {
    * migration 20261118073000_user_issue_notes.sql.
    */
   notes?: { issue: string; ids: string[] }[];
+  /** The issues the research recommends a fix for, which the fix team did not get yet, the oldest first. */
+  research?: string[];
 }
 
 /** One issue's instructions for the run that writes its fix (`GET /api/user-issues?notes=LAN-12`). */
@@ -141,7 +143,95 @@ const ISSUE_URL = /^https:\/\/linear\.app\/[A-Za-z0-9/_.-]{1,300}$/;
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /** No address may ride along in a note: the database keeps none (docs/diagnostics.md). */
 export const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60 } as const;
+export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 30, handed: 10, diagrams: 20 } as const;
+
+// ---- what the agent team did with an issue (docs/agent-team.md, scripts/agent-team.mjs) -----------
+
+/** `merge`: its pull request merges without a person. `waits`: a draft pull request waits for a developer. `none`: no change; a developer decides. */
+export const FIX_DECISIONS = ['merge', 'waits', 'none'] as const;
+export type FixDecision = (typeof FIX_DECISIONS)[number];
+/** Why a fix waits, as the gate says it (scripts/agent-team.mjs REASONS; scripts/agentTeam.test.ts holds them equal). */
+export const FIX_REASONS = ['mode', 'review', 'decision', 'not_a_bug', 'unconfirmed', 'cause', 'paths', 'checks', 'reviewer', 'instruction', 'app', 'stalled'] as const;
+export type FixReason = (typeof FIX_REASONS)[number];
+/** The manager's verdict (scripts/agent-team.mjs VERDICTS). */
+export const FIX_VERDICTS = ['fix', 'review', 'decision', 'not_a_bug', 'unconfirmed', 'approved'] as const;
+export const FIX_MODELS = ['sonnet', 'opus'] as const;
+export const FIX_EFFORTS = ['low', 'medium', 'high'] as const;
+/** The longest of each of the record's words. */
+export const FIX_TEXT = { why: 600, summary: 1000, cause: 600, proof: 400, review: 1000, twins: 1000 } as const;
+
+/**
+ * The record of one issue's fix for the ops dashboard: what was decided and
+ * why, and the reasoning in the team's own words (what changed, the cause, the
+ * test that proves it, what the reviewer said, the same mistake in other
+ * places). Claude's words only, never what a person wrote, and no address.
+ * A later record of the same issue replaces the words it sends and keeps the rest.
+ */
+export interface FixRecord {
+  issue: string; decision: FixDecision; reason: FixReason | null; why: string | null; pr: number | null;
+  verdict: (typeof FIX_VERDICTS)[number] | null; model: (typeof FIX_MODELS)[number] | null; effort: (typeof FIX_EFFORTS)[number] | null;
+  summary: string | null; cause: string | null; proof: string | null; review: string | null; twins: string | null;
+  /**
+   * The screen where the problem shows, without the change (`before`) and with it (`after`), each a JPEG in
+   * base64. Both are a display fix's proof; `before` alone shows the problem of an issue with no fix. Never `after` alone.
+   */
+  before: string | null; after: string | null;
+}
+/** A JPEG in base64, of at most 150 000 bytes (scripts/agent-team.mjs PICTURES). */
+export const FIX_PICTURE = /^\/9j\/[A-Za-z0-9+/]{100,200000}={0,2}$/;
+
+// ---- a small diagram on an issue's card (docs/agent-team.md "An image on each card") ----------------
+
+/** How many steps a diagram has, and the longest of a step's words. */
+export const DIAGRAM = { min: 2, max: 6, text: 90, where: 20 } as const;
+/**
+ * One step of an issue's diagram: where it happens (Phone, Server), what
+ * happens, and whether this is the step that goes wrong. Claude's words about
+ * the app, never what a person wrote; the dashboard draws them as text.
+ */
+export interface DiagramStep { where: string | null; text: string; wrong: boolean }
+
+/** A diagram's steps, checked: 2 to 6, at least one that goes wrong, no address. */
+export function parseSteps(v: unknown, at: string): DiagramStep[] {
+  if (!Array.isArray(v) || v.length < DIAGRAM.min || v.length > DIAGRAM.max) throw new LookedError(`${at}: ${DIAGRAM.min} to ${DIAGRAM.max} steps`);
+  const steps = v.map((s, n): DiagramStep => {
+    if (!isObj(s)) throw new LookedError(`${at}[${n}]: an object`);
+    const text = s['text'], where = absent(s['where']) || s['where'] === '' ? null : s['where'];
+    if (typeof text !== 'string' || !text.trim() || text.length > DIAGRAM.text || EMAIL.test(text)) throw new LookedError(`${at}[${n}].text: 1 to ${DIAGRAM.text} characters, no address`);
+    if (where !== null && (typeof where !== 'string' || where.length > DIAGRAM.where || EMAIL.test(where))) throw new LookedError(`${at}[${n}].where: at most ${DIAGRAM.where} characters`);
+    return { where: where as string | null, text, wrong: s['wrong'] === true };
+  });
+  if (!steps.some((s) => s.wrong)) throw new LookedError(`${at}: one step that goes wrong`);
+  return steps;
+}
+
+// ---- what the research team found (docs/agent-team.md "The research team", scripts/agent-research.mjs) ----
+
+/** `recommend`: do something about it. `watch`: not sure yet. `reject`: looked at, nothing to do. */
+export const RESEARCH_DECISIONS = ['recommend', 'watch', 'reject'] as const;
+/** `fix`: the fix team can write the change. `ask`: a developer must decide first. `none`: nothing to do. */
+export const RESEARCH_ACTIONS = ['fix', 'ask', 'none'] as const;
+export const RESEARCH_TAG = /^[a-z0-9][a-z0-9-]{2,59}$/;
+/** Where in the code: a path in this repository, with or without a line. */
+export const RESEARCH_PLACE = /^[A-Za-z0-9_@.()[\]/-]{1,200}(:[0-9]{1,6})?$/;
+export const RESEARCH_TEXT = { title: 200, found: 600, why: 600, places: 8 } as const;
+
+/**
+ * One thing the research found: the same mistake as an issue the team fixed,
+ * in another place. Claude's words about the code only: the research reads
+ * the team's own words and the code, never what a person wrote.
+ */
+export interface ResearchItem {
+  tag: string; title: string; like: string | null; found: string; why: string; places: string[];
+  /** The mistake as a small diagram for its card, when the lead drew one. */
+  steps: DiagramStep[] | null;
+  decision: (typeof RESEARCH_DECISIONS)[number]; action: (typeof RESEARCH_ACTIONS)[number];
+  /** The Linear issue filed for a recommended item. */
+  issue: string | null; issueUrl: string | null;
+}
+/** What the lead reads before it starts (`GET /api/user-issues?research=1`, `ops_research_context`). */
+export interface ResearchContext { issues: unknown[]; items: unknown[] }
+
 /** A Linear state's name (Backlog, In Progress, Live). */
 const STATE = /^[A-Za-z][A-Za-z0-9 ._()-]{0,59}$/;
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
@@ -170,6 +260,14 @@ export interface Looked {
    * Claude's answer (never an address) and the draft fix's pull request.
    */
   notes: ({ id: string; taken: true } | { id: string; taken: false; result: NoteResult; answer: string | null; pr: number | null })[];
+  /** What the agent team did with each issue this run wrote a fix for. Absent from a run before the team. */
+  fixes: FixRecord[];
+  /** What the research team found this run. Absent from every other run. */
+  research: ResearchItem[];
+  /** The research's issues this run hands to the fix team. */
+  handed: string[];
+  /** The diagram of each issue this run filed, for its card. */
+  diagrams: { issue: string; steps: DiagramStep[] }[];
 }
 
 export class LookedError extends Error {
@@ -212,15 +310,20 @@ export interface Phone {
 export const FEEDBACK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const INSTALL_ID = /^[A-Za-z0-9_.-]{1,64}$/;
 
-export type EvidenceAsk = { media: string } | { phone: string; at: string | null } | { notes: string };
+export type EvidenceAsk = { media: string } | { phone: string; at: string | null } | { notes: string } | { research: true };
 
 /** What a GET asks for besides what is new: null for the watch itself, or a LookedError for what is wrong. */
 export function evidenceAsked(params: URLSearchParams): EvidenceAsk | null {
   const media = params.get('media');
   const phone = params.get('phone');
   const notes = params.get('notes');
-  if (media === null && phone === null && notes === null) return null;
-  if ([media, phone, notes].filter((v) => v !== null).length > 1) throw new LookedError('media, phone or notes: one of them');
+  const research = params.get('research');
+  if (media === null && phone === null && notes === null && research === null) return null;
+  if ([media, phone, notes, research].filter((v) => v !== null).length > 1) throw new LookedError('media, phone, notes or research: one of them');
+  if (research !== null) {
+    if (research !== '1') throw new LookedError('research: 1');
+    return { research: true };
+  }
   if (notes !== null) {
     if (!ISSUE.test(notes)) throw new LookedError('notes: a Linear issue (LAN-12)');
     return { notes };
@@ -288,6 +391,20 @@ function lineOf(o: Obj, field: 'context' | 'problem' | 'solution', where: string
   const v = o[field];
   if (absent(v) || v === '') return null;
   if (typeof v !== 'string' || v.length > LINE_MAX || EMAIL.test(v)) throw new LookedError(`${where}.${field}: at most ${LINE_MAX} characters, no address`);
+  return v;
+}
+
+function oneOf<T extends string>(o: Obj, field: string, values: readonly T[], where: string): T | null {
+  const v = o[field];
+  if (absent(v)) return null;
+  if (typeof v !== 'string' || !(values as readonly string[]).includes(v)) throw new LookedError(`${where}.${field}: one of ${values.join(', ')}`);
+  return v as T;
+}
+
+function words(o: Obj, field: keyof typeof FIX_TEXT, where: string): string | null {
+  const v = o[field];
+  if (absent(v) || v === '') return null;
+  if (typeof v !== 'string' || v.length > FIX_TEXT[field] || EMAIL.test(v)) throw new LookedError(`${where}.${field}: at most ${FIX_TEXT[field]} characters, no address`);
   return v;
 }
 
@@ -362,5 +479,82 @@ export function parseLooked(input: unknown): Looked {
     if (answer !== null && (typeof answer !== 'string' || answer.length > ANSWER_MAX || EMAIL.test(answer))) throw new LookedError(`${where}.answer: at most ${ANSWER_MAX} characters, no address`);
     return { id, taken: false, result: result as NoteResult, answer: answer as string | null, pr: pr(x, 'pr', where) };
   });
-  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes };
+  const fixed = new Set<string>();
+  const fixes = list(input, 'fixes', LOOKED_MAX.fixes).map((f, n): FixRecord => {
+    const where = `fixes[${n}]`;
+    if (!isObj(f)) throw new LookedError(`${where}: an object`);
+    const issue = f['issue'];
+    if (typeof issue !== 'string' || !ISSUE.test(issue) || fixed.has(issue)) throw new LookedError(`${where}.issue: a Linear issue (LAN-12), once`);
+    fixed.add(issue);
+    const decision = oneOf(f, 'decision', FIX_DECISIONS, where);
+    if (!decision) throw new LookedError(`${where}.decision: one of ${FIX_DECISIONS.join(', ')}`);
+    const reason = oneOf(f, 'reason', FIX_REASONS, where);
+    // A fix that merges without a person has no reason to wait; any other has one.
+    if ((decision === 'merge') !== (reason === null)) throw new LookedError(`${where}.reason: ${decision === 'merge' ? 'none for merge' : `one of ${FIX_REASONS.join(', ')}`}`);
+    const number = pr(f, 'pr', where);
+    if ((decision === 'none') !== (number === null)) throw new LookedError(`${where}.pr: ${decision === 'none' ? 'none for none' : 'its pull request'}`);
+    const picture = (field: 'before' | 'after'): string | null => {
+      const v = f[field];
+      if (v === undefined || v === null) return null;
+      if (typeof v !== 'string' || !FIX_PICTURE.test(v)) throw new LookedError(`${where}.${field}: a JPEG in base64`);
+      return v;
+    };
+    const before = picture('before'), after = picture('after');
+    if (before === null && after !== null) throw new LookedError(`${where}: no picture after the fix without the one before it`);
+    return {
+      before, after,
+      issue, decision, reason, why: words(f, 'why', where), pr: number, verdict: oneOf(f, 'verdict', FIX_VERDICTS, where),
+      model: oneOf(f, 'model', FIX_MODELS, where), effort: oneOf(f, 'effort', FIX_EFFORTS, where),
+      summary: words(f, 'summary', where), cause: words(f, 'cause', where), proof: words(f, 'proof', where), review: words(f, 'review', where), twins: words(f, 'twins', where)
+    };
+  });
+  const tags = new Set<string>();
+  const research = list(input, 'research', LOOKED_MAX.research).map((r, n): ResearchItem => {
+    const where = `research[${n}]`;
+    if (!isObj(r)) throw new LookedError(`${where}: an object`);
+    const tag = r['tag'];
+    if (typeof tag !== 'string' || !RESEARCH_TAG.test(tag) || tags.has(tag)) throw new LookedError(`${where}.tag: a short name in small letters, once`);
+    tags.add(tag);
+    const said = (field: 'title' | 'found' | 'why'): string => {
+      const v = r[field];
+      if (typeof v !== 'string' || !v.trim() || v.length > RESEARCH_TEXT[field] || EMAIL.test(v)) throw new LookedError(`${where}.${field}: 1 to ${RESEARCH_TEXT[field]} characters, no address`);
+      return v;
+    };
+    const issueOf = (field: 'like' | 'issue'): string | null => {
+      const v = r[field];
+      if (absent(v) || v === '') return null;
+      if (typeof v !== 'string' || !ISSUE.test(v)) throw new LookedError(`${where}.${field}: a Linear issue (LAN-12)`);
+      return v;
+    };
+    const places = list(r, 'places', RESEARCH_TEXT.places).map((x) => {
+      if (typeof x !== 'string' || !RESEARCH_PLACE.test(x) || x.includes('..')) throw new LookedError(`${where}.places: each a path in the repository, with or without :line`);
+      return x;
+    });
+    const decision = oneOf(r, 'decision', RESEARCH_DECISIONS, where);
+    const action = oneOf(r, 'action', RESEARCH_ACTIONS, where);
+    if (!decision || !action) throw new LookedError(`${where}: decision (${RESEARCH_DECISIONS.join(', ')}) and action (${RESEARCH_ACTIONS.join(', ')})`);
+    // Only something recommended has work to do, and something to do is somewhere in the code.
+    if (decision !== 'recommend' && action !== 'none') throw new LookedError(`${where}.action: none unless recommended`);
+    if (decision === 'recommend' && (action === 'none' || !places.length)) throw new LookedError(`${where}: a recommended item has an action and a place`);
+    const issue = issueOf('issue');
+    const issueUrl = absent(r['issueUrl']) || r['issueUrl'] === '' ? null : r['issueUrl'];
+    if (issueUrl !== null && (typeof issueUrl !== 'string' || !ISSUE_URL.test(issueUrl))) throw new LookedError(`${where}.issueUrl: the issue in Linear`);
+    if ((issue === null) !== (issueUrl === null)) throw new LookedError(`${where}: an issue with its address, or neither`);
+    const steps = absent(r['steps']) ? null : parseSteps(r['steps'], `${where}.steps`);
+    return { tag, title: said('title'), like: issueOf('like'), found: said('found'), why: said('why'), places, steps, decision, action, issue, issueUrl: issueUrl as string | null };
+  });
+  const handed = list(input, 'handed', LOOKED_MAX.handed).map((x, n) => {
+    if (typeof x !== 'string' || !ISSUE.test(x)) throw new LookedError(`handed[${n}]: a Linear issue (LAN-12)`);
+    return x;
+  });
+  const drawn = new Set<string>();
+  const diagrams = list(input, 'diagrams', LOOKED_MAX.diagrams).map((d, n) => {
+    const where = `diagrams[${n}]`;
+    if (!isObj(d)) throw new LookedError(`${where}: an object`);
+    const issue = d['issue'];
+    if (typeof issue !== 'string' || !ISSUE.test(issue) || drawn.has(issue)) throw new LookedError(`${where}.issue: a Linear issue (LAN-12), once`);
+    drawn.add(issue);
+    return { issue, steps: parseSteps(d['steps'], `${where}.steps`) };
+  });
+  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, handed, diagrams };
 }

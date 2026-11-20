@@ -6,6 +6,11 @@ export interface CarriedApkHandle {
   needed: string | null;
   /** Where the phone's browser gets it, or null with no Worker for this build. */
   url: string | null;
+  /**
+   * The browser's own Open hands the downloaded file to the app, which takes and keeps it (a build
+   * that opens the app's own file type); false where the person comes back and chooses it.
+   */
+  handOff: boolean;
   /** The name of the file the person last got, or checked and found right: null if none, undefined until it is read. */
   opened: string | null | undefined;
   /** The file the person got before is for an older version (`apkStale`). */
@@ -25,11 +30,15 @@ export interface CarriedApkHandle {
   cannotGive: CannotGive | null;
   /** The kept copy is more than two days older than the app this phone runs, so a newer file is ready (`keptBehind`). */
   behind: boolean;
-  actions: { get(): void; check(): void };
+  /** `take`: a file the browser handed over with its Open (src/nearby/handedFile.android.ts), checked and kept as one chosen. */
+  actions: { get(): void; check(): void; take(uri: string): void };
 }
 
 const NOTHING = (): void => undefined;
-const NOT_HERE: CarriedApkHandle = { needed: null, url: null, opened: null, stale: false, checked: null, kept: null, right: null, canGive: false, cannotGive: null, behind: false, actions: { get: NOTHING, check: NOTHING } };
+const NOT_HERE: CarriedApkHandle = {
+  needed: null, url: null, handOff: false, opened: null, stale: false, checked: null, kept: null, right: null, canGive: false, cannotGive: null, behind: false,
+  actions: { get: NOTHING, check: NOTHING, take: NOTHING }
+};
 
 /**
  * Only an Android phone lets someone in, so only Android's file (useCarriedApk.android.ts) names a
