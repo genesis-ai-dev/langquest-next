@@ -208,7 +208,8 @@
         "unreadable": "Ba a iya karanta wannan fayil ɗin ba. Ka sake zaɓar sa.",
         "failed": "Ba a iya ajiye kwafi ba. Ka sake zaɓar sa.",
         "needsAndroid": "Wannan waya ba ta ajiye kwafi ba: Ba da manhajar yana buƙatar Android 10 ko sama da haka.",
-        "needsUpdate": "Wannan waya ba ta ajiye kwafi ba tukuna. Ka sabunta manhajar daga shago don ba da ita ta Wi-Fi."
+        "needsUpdate": "Wannan waya ba ta ajiye kwafi ba tukuna. Ka sabunta manhajar daga shago don ba da ita ta Wi-Fi.",
+        "keptBuilt": "An ajiye kwafi da aka gina a {{date}} a wannan waya don Ba da manhajar. Za ka iya goge wanda ke cikin Abubuwan da aka sauke."
       },
       "scanLineGive": "A sabuwar wayar, buɗe LangQuest. Za ta sami wannan wayar da kanta. Idan ba ta samu ba, taɓa Karanta lamba, sannan ka nuna ta nan.",
       "minutesLeft": "Sauran mintoci: {{n, number}}"
@@ -229,7 +230,10 @@
       "readyShort": "Fayil ɗin girkawa ya shirya",
       "done": "A shirye yake. Za ka iya tafiya da shi inda babu intanet.",
       "newer": "Sabon fayil ɗin girkawa ya shirya. Ka sauke shi yayin da kake da intanet, sannan ka zaɓe shi.",
-      "newerShort": "Fayil ɗin girkawa don sabon mutum: sabon fayil ya shirya"
+      "newerShort": "Fayil ɗin girkawa don sabon mutum: sabon fayil ya shirya",
+      "getNewest": "Sauke sabon fayil",
+      "getNewestHelp": "Yana buɗe burauzar wayar, wadda ke sauke sabon fayil ɗin girkawa na wannan sigar. Sai ka taɓa Zaɓi fayil ɗin da aka sauke, zai maye gurbin kwafin da ke nan.",
+      "getNewestHelpOpen": "Yana buɗe burauzar wayar, wadda ke sauke sabon fayil ɗin girkawa na wannan sigar. Idan saukewar ta ƙare, taɓa Buɗe, zai maye gurbin kwafin da ke nan."
     },
     "join": {
       "intro": "Ka shiga tawagarka daga wayar abokin aiki, ba tare da intanet ba. Za a buɗe asusunka a karon farko da wayarka ta sami intanet.",
