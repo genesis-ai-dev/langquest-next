@@ -41,7 +41,14 @@
 // Publish) opens a last look that sends the version to the people who do its
 // next check in the same tap. A person may keep several
 // drafts of a passage (decisions.md 83): the workspace opens one of them, a
-// new one from a version's parts, or a new empty one, and publishes that one. Back translation: the same tools, but you
+// new one from a version's parts, or a new empty one, and publishes that one.
+// While any part of the draft cannot be heard on this device (not here
+// offline, or not yet sent from the phone it was said on), the whole draft
+// is locked until it is: nothing changes it, nothing new is recorded into
+// it and Done waits. The parts that are here still play, a banner says why
+// and how to record without it, and a new empty draft is never locked (LAN-317,
+// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md).
+// Back translation: the same tools, but you
 // listen to the latest version and what you save is content for the next
 // check, not a version.
 import {
@@ -119,6 +126,8 @@ import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
+import { useClipsReach } from '../audio/useClipsReach';
+import { unheardOf } from '../audio/clipReachModel';
 import { NoteStepContext } from '../checks/noteStep';
 import { PartNotesProvider } from '../passage/PartNotes';
 import { anyFrom, fromFilter } from '../checks/showsModel';
@@ -240,6 +249,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const over = aim.kind === 'over' && said.length > 0 ? 1 : 0;
     return [...rest.slice(0, at), ...said, ...rest.slice(at + over)];
   }, [draftCards, startCards, pending, cleared, insertBefore, aim.kind]);
+  // Part of the draft cannot be heard here: nothing changes it and Done waits until it is (LAN-317).
+  const locked = unheardOf(useClipsReach(ctx.language, list));
   const changed = canPublish(list, latest?.cardHashes);
   // While the parts are still the version's they started from, the card is named for it (LAN-83).
   const fromVersion = startedFrom(p.versions, startFrom);
@@ -248,6 +259,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // Publish from the Versions page opens the publish screen at once.
   const publishParam = ctx.params['publish'] === '1';
   const [confirming, setConfirming] = useState(publishParam);
+  // Done asked for while the draft is locked is dropped, not kept waiting: its screen would open by itself, later, when the audio arrives.
+  useEffect(() => { if (locked) setConfirming(false); }, [locked]);
 
   // Cards arrive from the recorder already saved (addRecording, id chosen
   // before any save step, journaled against this passage). The latest
@@ -365,7 +378,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     } finally { if (!quiet) setWorking(false); }
   }
   async function remove(hash: string, label = partLabel(Math.max(0, list.indexOf(hash)))) {
-    if (blocked) return;
+    if (blocked || locked) return;
     // Its place stays open, chosen: what is said next goes there, taking its verses (LAN-83).
     const at = list.indexOf(hash);
     const was = { aim, hole };
@@ -388,7 +401,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   /** Every part off the list, to start over (LAN-83), once the person said yes. Undo brings them all back. */
   const [askingAll, setAskingAll] = useState(false);
   async function removeAll() {
-    if (blocked || list.length === 0) return;
+    if (blocked || locked || list.length === 0) return;
     const label = recorderLines(list.length).group;
     const specs = clearListSpecs(state, idx, {
       commandId: newCommandId(me, Crypto.randomUUID()), unitId, list, pending: new Set(pending), parentTakeId: parentNow(), ...(draft ? { draftTakeId: draft.takeId } : {})
@@ -404,7 +417,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
    * again where it is now; every other part keeps the verses it showed.
    */
   async function move(from: number, to: number) {
-    if (blocked || from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return;
+    if (blocked || locked || from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return;
     const before = snapNow();
     const moved = movedList(list, from, to);
     const hash = list[from]!;
@@ -424,7 +437,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // when it opened; the picks become one change, which Undo takes back.
   const [cleaningUp, setCleaningUp] = useState<{ parts: CleanUpPart[]; before: number } | null>(null);
   async function keepCleanUp(choices: CleanUpChoice[], limitDb: number | null): Promise<boolean> {
-    if (blocked || choices.length === 0) return false;
+    if (blocked || locked || choices.length === 0) return false;
     const how = { tool: CLEAN_UP_TOOL, ...(limitDb === null ? {} : { limitDb }) };
     let specs: EventSpec[];
     try {
@@ -462,7 +475,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const dragScroll = useDragScroll();
   const snapNow = (): PartsSnap => ({ list: [...list], marks: list.map((_, i) => marks[i] ?? null) });
   async function travel(which: 'undo' | 'redo') {
-    if (blocked || !historyLoaded) return;
+    if (blocked || locked || !historyLoaded) return;
     const step = which === 'undo' ? undoStep(history) : redoStep(history);
     if (!step) return;
     const s = stateRef.current;
@@ -510,7 +523,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const usage = useUsage();
   // What the recorder shows is the language's to say (decisions.md 130).
   const shows = useMemo(() => checkShows(state, RECORD_STEP), [state]);
-  const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: confirming, shows: { audio: shows.bibleAudio, text: shows.bibleText } });
+  const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: confirming && !locked, shows: { audio: shows.bibleAudio, text: shows.bibleText } });
   const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
   // ---- verse labels on the parts (decisions.md 82) ----
   const v11n = bible.passage.versification;
@@ -546,6 +559,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   }, [sessionNew?.join(), settling, list, marks]); // eslint-disable-line react-hooks/exhaustive-deps -- sessionNew is read by its joined value
   // A verse label is plain to see and easy to change again, so it says nothing (Caleb, 2026-10-16); Undo takes it back.
   const setMarks = (next: PartMark[], message: string) => {
+    if (locked) return;
     const before = snapNow();
     const cards = list;
     let specs: EventSpec[];
@@ -561,7 +575,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   };
   // Tapping the end, a gap or a part chooses where what is said next goes; tapping it again goes back to the end.
   const choose = (to: RecordTarget) => {
-    if (blocked) return;
+    if (blocked || locked) return;
     const same = (to.kind === 'end' && aim.kind === 'end') || (to.kind === 'gap' && aim.kind === 'gap' && aim.before === list[to.before])
       || (to.kind === 'over' && aim.kind === 'over' && aim.hash === list[to.index]);
     if (same || to.kind === 'end') { setAim({ kind: 'end' }); return; }
@@ -647,6 +661,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // Nobody else here could check it: Done does the next check now (decisions.md 178).
   const selfCheck = useMemo(() => !!nextUp && can.review && nobodyElseReviews(state, orgState, { languageId, me, lines }), [nextUp, can.review, state, orgState, languageId, me, lines]);
   async function publish(note: string, noteBlobHash: string | null, ask: DoneAsk): Promise<boolean> {
+    if (locked) return false;
     const commandId = newCommandId(me, Crypto.randomUUID());
     let specs: EventSpec[];
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
@@ -713,7 +728,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const nextIndex = targetN - 1;
   // The ⋯ opens Clean up for every part it is offered for; a noisy part's warning, for that part alone.
   const openCleanUp = (which: readonly number[] = offer.offered) => {
-    if (blocked) return;
+    if (blocked || locked) return;
     const names = new Map(rows.flatMap((r) => (r.kind === 'part' ? [[r.index, partLabel(r.n - 1)] as const] : [])));
     setCleaningUp({ parts: which.map((i) => ({ hash: list[i]!, label: names.get(i) ?? partLabel(i), ...(parts[i]?.durationMs !== undefined ? { durationMs: parts[i].durationMs } : {}) })),
       before: which === offer.offered ? offer.before.length : 0 });
@@ -734,7 +749,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const lastDone = history.done[history.done.length - 1];
   const lastUndone = history.undone[history.undone.length - 1];
   const undoRedo: UndoRedoProps = {
-    canUndo: !!lastDone && !blocked && historyLoaded, canRedo: !!lastUndone && !blocked && historyLoaded,
+    canUndo: !!lastDone && !blocked && !locked && historyLoaded, canRedo: !!lastUndone && !blocked && !locked && historyLoaded,
     ...(lastDone?.what ? { undoWhat: lastDone.what } : {}), ...(lastUndone?.what ? { redoWhat: lastUndone.what } : {}),
     onUndo: () => void travel('undo'), onRedo: () => void travel('redo')
   };
@@ -742,7 +757,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // Every change is kept as it happens: the mark turns from a spinner to a check as each part is kept.
   const savedStatus = useSaveStatus(saving, list.length > 0 && !(startCards && sameCards(list, startCards)) || !!draft, rec.failureCount > 0 || !!composeError);
 
-  if (confirming) {
+  // Done's screen waits while the draft is locked, even when the Versions page asked for it.
+  if (confirming && !locked) {
     return (
       <PublishScreen ctx={ctx} v={v} n={nextN} first={isFirst} cards={list} totalMs={totalMs(parts.map((x) => x.durationMs))}
         bible={bible.option?.abbreviation} busy={publishing} answers={answers} tied={canTie ? tied.size : 0}
@@ -765,8 +781,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       header={<HelpQuiet><Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
         action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} /></HelpQuiet>}
       footer={recorderLine ? undefined : (
-        <RecorderFooter count={list.length} nextIndex={sessionIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
-          publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} undo={undoRedo}
+        <RecorderFooter count={list.length} nextIndex={sessionIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0 || (!!locked && !session)}
+          publishDisabled={!changed || blocked || !!locked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} undo={undoRedo}
           silence={{ on: rec.silence, onToggle: () => rec.setSilence(!rec.silence) }} />
       )}>
       <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM} onFraction={setSplit}
@@ -821,13 +837,17 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
           <RecordingView rec={rec} phase={loop.phase} partNumber={targetN} count={list.length + rec.sessionKept} noun="part" onLeave={() => void loop.finish()} onResume={loop.resumeNow} onStop={loop.stop} onDiscard={() => void loop.discard()}
             {...(slotTile ? { tile: slotTile } : {})} />
         ) : compact ? (
-          <RecorderBar count={list.length} nextIndex={nextIndex} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} undo={undoRedo} />
+          <RecorderBar count={list.length} nextIndex={nextIndex} phase={loop.phase} disabled={saving || rec.failureCount > 0 || !!locked} locked={!!locked} onRecord={record} onOpen={open} undo={undoRedo} />
         ) : (
           <HelpClip style={{ flex: 1 }}>
             <DragScrollContext.Provider value={dragScroll.scroll}>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.recordBody} accessibilityLabel={t('translate.yourRecording')} {...dragScroll.props}>
+                {locked ? (
+                  <Banner icon="notOnPhone" tone="amber" title={t('translate.lockedTitle')}
+                    body={t(locked === 'offline' ? 'translate.lockedOffline' : 'translate.lockedNotUploaded', { versions: t('passage.page.history'), newVersion: t('passage.versions.newVersion') })} />
+                ) : null}
                 {problem}
-                <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
+                <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked} locked={!!locked}
                   onDelete={(h, label) => void remove(h, label)} onDeleteAll={() => setAskingAll(true)} onRoom={room} onResume={loop.resumeNow}
                   {...(offer.offered.length > 0 ? { onCleanUp: () => openCleanUp() } : {})}
                   {...(recorderGroupTitle ? { title: recorderGroupTitle } : {})}
