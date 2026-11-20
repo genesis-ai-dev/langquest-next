@@ -3962,12 +3962,23 @@ codes, one after the other, as Let someone in shows two pictures.
      run together.
    - A carrier with no kept file, or a file for other versions, is sent to Download the
      install file first (online).
-   - **Send with Quick Share** (2026-11-20), a second button while no group runs: Android's
-     share sheet with the kept file (`shareInstallFile`), read through a FileProvider of the
-     module's own (`InstallFileProvider`, not exported, the kept file's folder alone). A line
-     says both phones need Google Play services, and what the new phone does: make itself
-     visible in Quick Share, accept, open the file and install. Not while a group runs, since
-     the sheet sends the app to the background, which stops it.
+   - **Send with Quick Share** (2026-11-20): Android's share sheet with the kept file
+     (`shareInstallFile`), read through a FileProvider of the module's own
+     (`InstallFileProvider`, not exported, the kept file's folder alone). Not while a group runs,
+     since the sheet sends the app to the background, which stops it.
+   - **One of two ways** (Carl, 2026-11-20). Offered first as a second button under Show the
+     first code, with one line of what the new phone does, Quick Share read neither as one of two
+     ways nor as an order of steps. Before a group runs, the screen now asks "Choose one way to
+     send it" with two radio rows, as Let someone in asks for a role: This phone's Wi-Fi (the
+     new phone scans two codes; any Android phone), chosen first, and Quick Share (both phones
+     need Google Play services). Under them, only the chosen way's steps, and its one main
+     button in the footer: Show the first code, or Send with Quick Share. Quick Share's steps go
+     in the order they are done, numbered right through, under who does them
+     (`quickShareSteps`): first on the new phone, open Quick Share and choose Everyone; then on
+     this phone, send; then on the new phone, accept, open, allow and install; last, where this
+     phone can, tap Let them in, which opens Let someone in (no group runs to hand over). The
+     line saying phones sold in China lack Google Play services is gone from the screen. A build
+     whose module cannot share shows the Wi-Fi way alone.
 
 **The new phone.**
 1. The camera reads code 1 and offers to join (Android 10 and later, in the camera, Google
