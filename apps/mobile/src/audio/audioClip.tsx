@@ -15,6 +15,7 @@ import { countAudio, countWait } from './audioTally';
 import { C, target } from '../ui/theme';
 import { playerInRow, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { audioFormat } from './audioFormat';
+import { clipsAvailable } from './clipsAvailable';
 import { playable, prepare, READY_MS } from './levelStore';
 import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from './recordingPlayer';
 
@@ -65,13 +66,8 @@ export function AudioClip(props: {
       player.current = null;
     };
   }, [signature]);
-  const state = props.language.state;
-  const here = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
-    !!props.language.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
   // Not on this phone (a passage outside the offline scope) but on the server: play it from there while connected.
-  const streamable = !here && !!state && props.hashes.length > 0 && props.language.online !== false
-    && props.hashes.every((hash) => isStored(state, hash));
-  const available = here || streamable;
+  const available = !!props.uri || clipsAvailable(props.language, props.hashes);
 
   async function toggle() {
     if (props.disabled) return;

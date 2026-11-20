@@ -9,6 +9,9 @@
 // Undo and Redo work as on the recording screen: a session of recording, or
 // clearing a part, is one step, and the parts that changed are shaded; no
 // toast offers an Undo that runs out (Caleb, 2026-10-16).
+// A part that cannot be heard on this device (offline and not kept here, or
+// not uploaded yet) is not said back from here: Record and Note wait, and
+// the footer says why (LAN-317).
 //
 // The parts are kept on this device until Done (decision 30): each
 // recorded piece goes to a local draft with the moment in the version its
@@ -24,6 +27,8 @@ import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import { ClipPlayer } from '../audio/clipPlayer';
+import { unheardOf } from '../audio/clipReachModel';
+import { useClipsReach } from '../audio/useClipsReach';
 import { usePartVerses } from '../passage/useVerses';
 import { localKind } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
@@ -79,6 +84,9 @@ import { GuideNav, GuideStep } from '../study/guide';
 import { a11yState } from '../ui/a11yModel';
 import { SilenceSwitch } from './silenceSwitch';
 
+/** No part to say: nothing to ask the file store about. */
+const NO_PARTS: readonly string[] = [];
+
 export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
   const { state, unitId, languageId, p } = v;
   const produces = kind.produces!;
@@ -130,6 +138,10 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const [picked, setPicked] = useState<number | null>(null);
   const focus = Math.min(picked ?? nextPart(parts), Math.max(0, parts.length - 1));
   const part = parts[focus];
+  // A part that cannot be heard on this device is not said back from here (LAN-317,
+  // docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md): Record and Note wait, and the footer says why.
+  // What was said before stays, and Done still sends it.
+  const partUnheard = unheardOf(useClipsReach(ctx.language, part ? [part.hash] : NO_PARTS));
   const focusRef = useRef(focus);
   focusRef.current = focus;
   const sourceRef = useRef(source);
@@ -309,6 +321,10 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
           <View style={styles.footSide}>{silence}</View>
         </View>
       ) : (
+        <>
+        {partUnheard && partN ? (
+          <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t(partUnheard === 'offline' ? 'backTranslation.partNotHere' : 'backTranslation.partNotUploaded', { n: partN })}</Text>
+        ) : null}
         <View style={styles.footer}>
           <View style={[styles.footSide, { alignItems: 'flex-end' }]}>
             <UndoRedo hidden={session} canUndo={!!lastDone && !blocked && historyLoaded} canRedo={!!lastUndone && !blocked && historyLoaded}
@@ -316,12 +332,13 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
               onUndo={() => void travel('undo')} onRedo={() => void travel('redo')}
               help={{ undo: t('recording.recorder.undoHelp'), redo: t('common.redoHelp') }} />
           </View>
-          <BigRecord disabled={blocked || rec.failureCount > 0 || !part} part={partN} onPress={() => void loop.toggle()} />
+          <BigRecord disabled={blocked || rec.failureCount > 0 || !part || !!partUnheard} part={partN} onPress={() => void loop.toggle()} />
           <View style={styles.footSide}>
             {/* A session open but stopped (decision 129) has the recording view's Done. */}
             {session ? silence : <PublishBtn disabled={pieces.length === 0 || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />}
           </View>
         </View>
+        </>
       )}>
       <SplitPane memoryKey="back_translation" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM}
         topStyle={styles.topPane} bottomStyle={styles.bottomPane}

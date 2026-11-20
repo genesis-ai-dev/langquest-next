@@ -254,3 +254,16 @@ Authorization headers, and GitHub refused it. The copy workflow's checkout now
 keeps no credential (`persist-credentials: false`, as `user-issues.yml`
 already did), and `scripts/releaseBranches.test.ts` holds it there. The
 repository is public, so the workflow's fetches need none.
+
+Amended (2026-11-20, Caleb Koster): from the Dependabot bump of Claude's
+action to v1.0.276 (2026-11-16) on, the action refuses every command that runs
+code from the checkout when it cannot confirm that the pull request's author
+may write to the repository, and the release App is such an author. On copies
+#549, #559 and #564 Claude could not run `npm ci` or the guardrails, so its
+three tries checked nothing, and #549 said "copied in part" and turned on
+auto-merge unchecked. A Claude run that was refused a command is now never a
+finished copy: the workflow passes the count to `finish-copy --denied`, which
+leaves the copy unfinished and labels it `copy-claude-blocked`, and the ops
+dashboard then says that the copy workflow needs a fix, not the copy. Whether
+to turn the action's check off for copies (`restrict_untrusted_prs`) is
+Caleb's choice, not made here.

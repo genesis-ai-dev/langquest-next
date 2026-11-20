@@ -43,7 +43,7 @@ if git fetch -q origin main 2>/dev/null; then
     echo "! origin/main has $behind commit(s) this branch does not. CI runs on the merge, so merge main"
     echo "  first (git merge origin/main) or a check can fail there that passes here."
     echo "  Recent changes to the guardrails themselves:"
-    git log --format='    %h %s' HEAD..origin/main -- .github/workflows .githooks vitest.config.ts e2e/ui.config.ts e2e/web-smoke.config.ts apps/mobile/scripts/export-web.mjs | head -10
+    git log --format='    %h %s' HEAD..origin/main -- .github/workflows .githooks vitest.config.ts e2e/ui.config.ts e2e/web-smoke.config.ts apps/mobile/scripts/export-web.mjs | head -10 || true  # head closes the pipe early (SIGPIPE, 141) on a branch far behind main, such as a release copy
   else
     echo "yes"
   fi
