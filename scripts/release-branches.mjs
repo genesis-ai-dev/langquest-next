@@ -34,7 +34,7 @@
 //                                                           start Claude on copies whose checks failed
 //   node scripts/release-branches.mjs conflict-note --branch <copy branch> --pr <n>
 //                                                           without Claude: name the files in conflict
-//   node scripts/release-branches.mjs finish-copy --branch <copy branch> --pr <n> --start <commit>
+//   node scripts/release-branches.mjs finish-copy --branch <copy branch> --pr <n> --start <commit> [--denied <n>]
 //                                                           after Claude: push its commits, comment, and
 //                                                           turn on auto-merge, or try again within the hour
 //
@@ -115,6 +115,12 @@ export const CLAUDE_LABEL = 'copy-claude';
 export const CONFLICT_LABEL = 'copy-conflict';
 /** The label of a copy that is still not finished, or still fails its checks, after Claude's tries: a person fixes it. */
 export const PERSON_LABEL = 'copy-needs-person';
+/**
+ * The label of a copy whose last Claude run was not allowed to run a command
+ * it needed (npm ci, the guardrails): its tries then check nothing, and the
+ * fix is in the workflow, not in the copy. The ops dashboard says so.
+ */
+export const BLOCKED_LABEL = 'copy-claude-blocked';
 /** How many times the hourly run starts Claude again on a copy before a person must finish it. */
 export const FIX_TRIES = 3;
 /** How long one Claude run may take: release-copy-conflict.yml's timeout-minutes. */
@@ -363,6 +369,7 @@ function makeLabel(name) {
     [CLAUDE_LABEL]: ['5319E7', 'A copy onto a release branch that Claude examines, finishes or fixes'],
     [CONFLICT_LABEL]: ['D93F0B', 'A copy onto a release branch that Claude has not finished'],
     [PERSON_LABEL]: ['B60205', 'A copy onto a release branch that a person must fix'],
+    [BLOCKED_LABEL]: ['B60205', 'The copy workflow did not let Claude run a command it needed'],
   }[name];
   run('gh', ['label', 'create', name, '--force', '--color', color, '--description', description]);
 }
@@ -700,7 +707,7 @@ function pushCopy(branch, start) {
  * failed), the copy is labelled CONFLICT_LABEL alone, and the hourly run
  * starts Claude again (fixFailedCopies).
  */
-function finishCopy(branch, pr, start, file = RESULT_FILE) {
+function finishCopy(branch, pr, start, denied = 0, file = RESULT_FILE) {
   if (!commitOfCopy(branch)) throw new Error(`${branch} is not a copy branch`);
   const view = JSON.parse(run('gh', ['pr', 'view', pr, '--json', 'state,body']).stdout);
   if (view.state !== 'OPEN') return console.log(`#${pr}: ${String(view.state).toLowerCase()}, so there is nothing to finish`);
@@ -715,6 +722,15 @@ function finishCopy(branch, pr, start, file = RESULT_FILE) {
     || git('status', '--porcelain', '--untracked-files=no') !== '';
   let outcome = midway ? { done: false, why: 'Claude left changes that are not committed' }
     : copyResult({ listed: commitsOfCopy(view.body), names, result, onBranch: copied });
+  // A run that could not run what it needed checked nothing, whatever Claude wrote (#549, #559 and
+  // #564, 2026-11-19: the action refused npm ci on every copy, and #549 merged itself unchecked).
+  if (denied > 0) {
+    outcome = { done: false, why: `the workflow did not let Claude run ${denied} command(s) it needed (such as npm ci), so nothing was checked; the workflow needs a fix (release-copy-conflict.yml)` };
+    makeLabel(BLOCKED_LABEL);
+    run('gh', ['pr', 'edit', pr, '--add-label', BLOCKED_LABEL]);
+  } else {
+    run('gh', ['pr', 'edit', pr, '--remove-label', BLOCKED_LABEL], { allowFail: true });
+  }
   const head = git('rev-parse', 'HEAD');
   if (head !== start) {
     // Pushed even when not finished, so that the next try starts from Claude's commits.
@@ -748,7 +764,7 @@ async function main() {
   const opt = (name) => rest[rest.indexOf(`--${name}`) + 1];
   if (command === 'tidy') return tidy();
   if (command === 'conflict-note') return noteConflict(opt('branch'), opt('pr'));
-  if (command === 'finish-copy') return finishCopy(opt('branch'), opt('pr'), opt('start'));
+  if (command === 'finish-copy') return finishCopy(opt('branch'), opt('pr'), opt('start'), rest.includes('--denied') ? Number(opt('denied')) || 0 : 0);
   if (command !== 'after-merge') throw new Error('usage: release-branches.mjs after-merge --platform <p> --old <fp> --new <fp> --sha <commit> | tidy | conflict-note | finish-copy');
   const platform = opt('platform');
   const sha = opt('sha');
