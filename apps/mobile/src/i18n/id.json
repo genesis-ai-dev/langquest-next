@@ -7779,6 +7779,11 @@
       "offline": "Tidak bisa menghubungi LangQuest. Periksa koneksi Anda dan coba lagi."
     }
   },
+  "tutorial": {
+    "open": "Lihat caranya",
+    "watch": "Tonton di YouTube",
+    "download": "Unduh video"
+  },
   "orgExport": {
     "title": "Ekspor semua data",
     "sub": "Satu zip: rekaman dalam folder, daftar setiap rekaman, lembar kemajuan, dan catatan lengkap.",
