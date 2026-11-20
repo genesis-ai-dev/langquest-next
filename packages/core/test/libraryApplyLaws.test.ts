@@ -124,6 +124,48 @@ describe('studyEntriesFor', () => {
       { numRuns: 100 },
     );
   });
+
+  // The entries' references are read once per collection and kept by book: the answers must not change.
+  it('answers every passage of a whole Bible collection as reading each entry every time did', () => {
+    // FIA's passages (library/fia/pericopes.tsv), as a collection holds them.
+    const rows = fs.readFileSync(path.resolve(__dirname, '../../../library/fia/pericopes.tsv'), 'utf8').split('\n').slice(1).map((l) => l.split('\t')).filter((r) => r[1]);
+    const refOf = (r: string[]) => {
+      const [sc, sv] = r[5]!.split(':');
+      const [ec, ev] = r[6]!.split(':');
+      return sc === ec ? `${r[1]!.toUpperCase()} ${sc}:${sv}-${ev}` : `${r[1]!.toUpperCase()} ${sc}:${sv}-${ec}:${ev}`;
+    };
+    const refs = rows.map(refOf);
+    expect(refs.length).toBeGreaterThan(2000);
+    const doc = collection([...refs, 'nonsense']);
+    const slow = (p: ReturnType<typeof passage>) => doc.entries
+      .map((entry) => ({ entry, range: parseRef(entry.ref) }))
+      .filter((e) => e.range && e.range.book === p.range.book)
+      .map((e) => ({ entry: e.entry, shared: sharedVerses({ doc: eng, range: p.range }, { doc: eng, range: e.range! }) }))
+      .filter((e) => e.shared > 0)
+      .sort((a, b) => b.shared - a.shared || (a.entry.ref < b.entry.ref ? -1 : 1));
+    // Every 17th passage, and some that run across FIA's own divisions.
+    const asked = [...refs.filter((_, i) => i % 17 === 0), 'LUK 1:1-80', 'GEN 1:20-3:5', 'PSA 23:1-6', 'REV 22:1-21'].filter((r) => parseRef(r));
+    expect(asked.length).toBeGreaterThan(100);
+    for (const ref of asked) {
+      const p = passage(ref);
+      expect(studyEntriesFor(p, { doc, versification: eng }), ref).toEqual(slow(p));
+    }
+  });
+
+  it('reads a collection again for another versification, and finds verses a numbering moves into a neighbouring book', () => {
+    const doc = collection(['DAG 3:24-30', 'DAN 3:1-23', 'EST 1:1-5']);
+    // Daniel's additions sit in DAG in one numbering and in DAN in another: the passage's book and its neighbours are both looked in.
+    const got = studyEntriesFor(passage('DAN 3:1-30'), { doc, versification: eng });
+    expect(got.map((g) => g.entry.ref)).toContain('DAN 3:1-23');
+    expect(got.every((g) => g.shared > 0)).toBe(true);
+    // The same document read in a numbering with other chapter lengths is read afresh, not answered from the first reading.
+    const short: VersificationDoc = { ...eng, maxVerses: { ...eng.maxVerses, JOL: ['5', '5', '5'].map(Number) } };
+    const joel = collection(['JOL 2']);
+    const whole = studyEntriesFor(passage('JOL 2:1-32'), { doc: joel, versification: eng })[0]!.shared;
+    const cut = studyEntriesFor({ range: parseRef('JOL 2:1-32')!, versification: short }, { doc: joel, versification: short })[0]!.shared;
+    expect(whole).toBeGreaterThan(cut);
+    expect(studyEntriesFor(passage('JOL 2:1-32'), { doc: joel, versification: eng })[0]!.shared).toBe(whole);
+  });
 });
 
 describe('materialApplies', () => {

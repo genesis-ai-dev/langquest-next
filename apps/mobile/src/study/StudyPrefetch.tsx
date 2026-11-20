@@ -7,12 +7,16 @@
 // those kept by their own button. A book's or a section's button keeps its
 // passages for their recordings alone (`referenceUnits`,
 // docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended):
-// one guide can name sixty files, so a whole book's would be thousands.
+// one guide names about a dozen files, so a whole book's would be over a thousand.
 import { useEffect, useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { referenceUnits } from '../sync/offlineModel';
 import { useStudyGuideSet } from './useStudyGuides';
 import { setStudyWanted, STUDY_FILES_OFFLINE, studyUrls } from './studyFiles';
+import { useSlowly } from '../ui/useSlowly';
+
+/** How far behind the language the looking up may run. */
+const FOLLOW_MS = 3000;
 
 export function StudyPrefetch(props: { ctx: Ctx }) {
   const { ctx } = props;
@@ -26,7 +30,12 @@ export function StudyPrefetch(props: { ctx: Ctx }) {
   }, [state, scope, keptUnits, recordingsOnly]);
   // Keyed by the scope's members, so a new fold with the same scope finds the same guides.
   const unitIds = useMemo(() => (key ? key.split(',') : []), [key]);
-  const { guides, lookedUp } = useStudyGuideSet(ctx, unitIds);
+  // The looking up follows the language a few seconds behind: a sync changes it many times a second,
+  // and what a guide is chosen by (the template, what is recommended or linked) seldom changes at all.
+  // Matching 97 passages on every change took most of half a second each time. The first state is
+  // taken at once, so nothing waits when the language opens.
+  const slow = useSlowly(state, FOLLOW_MS);
+  const { guides, lookedUp } = useStudyGuideSet(ctx, unitIds, { state: slow ?? state });
   const online = ctx.language.online !== false;
   const { orgId, languageId } = ctx.language;
   useEffect(() => {
