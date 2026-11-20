@@ -1,5 +1,5 @@
 import { saysOffline } from '../src/sync/networkWake';
-import { fillBanner, offlineLook } from '../src/sync/offlineModel';
+import { fillBanner, fits, groupLook, groupOffline, groupSpoken, letGoWords, noRoomWords, offlineLook } from '../src/sync/offlineModel';
 import type { KeptOffline } from '../src/sync/offlineText';
 import { waitingCounts } from '../src/sync/uploadsModel';
 
@@ -32,6 +32,103 @@ describe('the download line tells the truth', () => {
     expect(offlineLook(kept({}), idle)).toMatchObject({ kind: 'partial', label: 'Only 1 of 3 files on this device' });
     expect(offlineLook(kept({}), { offline: false, downloading: true })).toMatchObject({ kind: 'downloading', label: 'Downloading for offline · 1 of 3' });
     expect(offlineLook(kept({}), { offline: true, downloading: true }).kind).toBe('partial');
+  });
+});
+
+// LAN-316: a book's or a section's passages as one download, by the same rules as one passage's.
+describe("a book's download button tells the truth", () => {
+  const MB = 1024 * 1024;
+  const ids = ['GEN.1', 'GEN.2', 'GEN.3'];
+  const counted = (o: Record<string, KeptOffline>) => new Map(Object.entries(o));
+  const online = { offline: false, downloading: false, cost: null, room: null };
+  const none = groupOffline(ids, counted({}), new Set());
+  const some = groupOffline(ids, counted({ 'GEN.1': kept({ reason: 'worked', ready: true }) }), new Set());
+  const all = (o: Partial<KeptOffline>[]) => groupOffline(ids, counted(Object.fromEntries(ids.map((id, i) => [id, kept(o[i] ?? {})]))), new Set(ids));
+
+  it('counts the passages from their own counts: what a tap would keep, and what the person chose', () => {
+    expect(none).toEqual({ count: 3, ready: 0, toKeep: ids, chosen: [], checking: false });
+    expect(some).toEqual({ count: 3, ready: 1, toKeep: ['GEN.2', 'GEN.3'], chosen: [], checking: false });
+    expect(all([{ ready: true }, { reason: 'asked' }, {}])).toEqual({ count: 3, ready: 1, toKeep: [], chosen: ['GEN.1', 'GEN.3'], checking: false });
+  });
+
+  it('says checking until the device has counted, and while a passage just chosen is not counted yet', () => {
+    expect(groupOffline(ids, null, new Set()).checking).toBe(true);
+    const justKept = groupOffline(ids, counted({}), new Set(['GEN.2']));
+    expect(justKept).toMatchObject({ checking: true, toKeep: ['GEN.1', 'GEN.3'] });
+    expect(groupLook(justKept, online)).toMatchObject({ kind: 'checking', label: 'Checking this device…', tap: null });
+  });
+
+  it('offers the whole book, and says how much audio would come once the device has worked it out', () => {
+    expect(groupLook(none, online)).toMatchObject({ kind: 'none', label: 'Download all 3 passages for offline', notes: [], tap: 'keep' });
+    expect(groupLook(none, { ...online, cost: { bytes: 240 * MB } }).notes).toEqual(['240 MB of audio to download']);
+    // Nothing of theirs is on the server to fetch: no size to say.
+    expect(groupLook(none, { ...online, cost: { bytes: 0 } }).notes).toEqual([]);
+    expect(groupLook(groupOffline(['GEN.1'], counted({}), new Set()), online).label).toBe('Download 1 passage for offline');
+  });
+
+  it('is still checking while the size is worked out, so the offer never changes after it shows', () => {
+    expect(groupLook(none, { ...online, sizing: true })).toMatchObject({ kind: 'checking', label: 'Checking this device…', tap: null });
+    // Offline nothing is offered, so there is no size to wait for; and what is kept already needs none.
+    expect(groupLook(none, { ...online, offline: true, sizing: true }).kind).toBe('noConnection');
+    expect(groupLook(all([{ ready: true }, { ready: true }, { ready: true }]), { ...online, sizing: true }).kind).toBe('ready');
+  });
+
+  it('offers the rest when some are kept already, and says how far those are', () => {
+    expect(groupLook(some, { ...online, cost: { bytes: 3 * MB } })).toMatchObject({
+      kind: 'none', label: 'Download the other 2 passages', notes: ['1 of 3 passages ready on this device', '3 MB of audio to download'], tap: 'keep'
+    });
+  });
+
+  it('offers no download while the device is offline', () => {
+    expect(groupLook(none, { ...online, offline: true })).toMatchObject({ kind: 'noConnection', label: 'Download needs a connection', notes: [], tap: null });
+    expect(groupLook(some, { ...online, offline: true })).toMatchObject({ kind: 'noConnection', notes: ['1 of 3 passages ready on this device'], tap: null });
+  });
+
+  it('offers no group while a first download still fills the language in: the device cannot tell whether it would fit', () => {
+    expect(groupLook(none, { ...online, filling: true, cost: { bytes: 3 * MB } })).toMatchObject({ kind: 'checking', label: 'Downloading this language', notes: [], tap: null });
+    expect(groupLook(some, { ...online, filling: true })).toMatchObject({ kind: 'checking', label: 'Downloading this language', notes: ['1 of 3 passages ready on this device'], tap: null });
+    // What is kept already still says where it stands, and can be let go.
+    expect(groupLook(all([{ ready: true }, {}, {}]), { ...online, filling: true })).toMatchObject({ kind: 'partial', tap: 'letGo' });
+  });
+
+  it('offers no download that would leave no room for recording, and a tap asks again', () => {
+    // Not offered: the line says why. The tap asks afresh, since room changes, and keeps them only if they fit by then.
+    expect(groupLook(none, { ...online, cost: { bytes: 900 * MB }, room: 300 * MB })).toMatchObject({
+      kind: 'noRoom', label: 'Not enough room on this device', notes: ['Its audio is 900 MB. This device has room for 300 MB.'], tap: 'keep',
+      help: 'Free up room on this device, or download fewer passages at a time.'
+    });
+    // It fits exactly, and a device that cannot say how much room it has (a browser) is not held back.
+    expect(groupLook(none, { ...online, cost: { bytes: 300 * MB }, room: 300 * MB }).tap).toBe('keep');
+    expect(groupLook(none, { ...online, cost: { bytes: 900 * MB }, room: null }).tap).toBe('keep');
+    expect(fits(1, 0)).toBe(false);
+    expect(fits(0, 0)).toBe(true);
+    expect(noRoomWords(900 * MB, 300 * MB)).toBe('Not enough room on this device. Its audio is 900 MB. This device has room for 300 MB.');
+  });
+
+  it('says on this device only when every passage is, and downloading only while a file is coming down', () => {
+    const ready = all([{ ready: true }, { ready: true }, { ready: true }]);
+    expect(groupLook(ready, online)).toMatchObject({ kind: 'ready', label: 'All 3 kept passages are on this device', notes: [] });
+    const part = all([{ ready: true }, {}, {}]);
+    expect(groupLook(part, online)).toMatchObject({ kind: 'partial', label: '1 of 3 passages ready on this device', notes: [] });
+    expect(groupLook(part, { ...online, downloading: true })).toMatchObject({ kind: 'downloading', label: 'Downloading for offline · 1 of 3', notes: ['Stay connected until this finishes.'] });
+    expect(groupLook(part, { ...online, offline: true, downloading: true })).toMatchObject({ kind: 'partial', notes: ['Connect to finish before you travel.'] });
+  });
+
+  it('once every passage is kept, a tap lets go what the person chose, or says why none of it was a choice', () => {
+    const chosen = all([{ ready: true }, {}, {}]);
+    expect(groupLook(chosen, online)).toMatchObject({ tap: 'letGo', help: 'Lets this device remove their audio again when it needs room. Passages that are your work stay.' });
+    expect(letGoWords(chosen)).toBe('No longer kept. Their audio may be removed to make room.');
+    const mixed = all([{ reason: 'asked' }, { reason: 'worked' }, {}]);
+    expect(groupLook(mixed, online).tap).toBe('letGo');
+    expect(letGoWords(mixed)).toBe('No longer kept, except 2 passages that are your work.');
+    expect(letGoWords(all([{ reason: 'asked' }, {}, {}]))).toBe('No longer kept, except 1 passage that is your work.');
+    const work = all([{ reason: 'asked' }, { reason: 'worked' }, { reason: 'worked' }]);
+    expect(groupLook(work, online)).toMatchObject({ tap: 'why', help: 'Kept because you were asked to work on these passages, or have worked on them.' });
+  });
+
+  it('is spoken as its line and what is under it', () => {
+    expect(groupSpoken(groupLook(some, { ...online, cost: { bytes: 3 * MB } }))).toBe('Download the other 2 passages. 1 of 3 passages ready on this device. 3 MB of audio to download');
+    expect(groupSpoken(groupLook(none, online))).toBe('Download all 3 passages for offline');
   });
 });
 

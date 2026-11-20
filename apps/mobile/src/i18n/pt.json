@@ -4986,7 +4986,28 @@
     "download": "Baixar para usar sem internet",
     "needsConnection": "Para baixar é preciso internet",
     "needsConnectionHelp": "Não está neste aparelho. Pode ser baixado quando o aparelho estiver conectado.",
-    "checkingHelp": "Este aparelho está contando quanto desta passagem ele tem."
+    "checkingHelp": "Este aparelho está contando quanto desta passagem ele tem.",
+    "group": {
+      "download_one": "Baixar {{count, number}} passagem para usar sem internet",
+      "download_many": "Baixar todas as {{count, number}} de passagens para usar sem internet",
+      "download_other": "Baixar todas as {{count, number}} passagens para usar sem internet",
+      "downloadRest_one": "Baixar {{count, number}} passagem restante",
+      "downloadRest_many": "Baixar as outras {{count, number}} de passagens",
+      "downloadRest_other": "Baixar as outras {{count, number}} passagens",
+      "size": "{{size}} de áudio para baixar",
+      "noRoom": "Não há espaço suficiente neste aparelho",
+      "noRoomNeeds": "O áudio delas tem {{size}}. Este aparelho tem espaço para {{room}}.",
+      "noRoomHelp": "Libere espaço neste aparelho, ou baixe menos passagens de cada vez.",
+      "keepHelp": "Guarda o áudio de cada passagem neste aparelho, para funcionarem sem internet.",
+      "letGoHelp": "Deixa este aparelho remover o áudio delas de novo quando precisar de espaço. As passagens que são o seu trabalho ficam.",
+      "reason": "Guardadas porque pediram para você trabalhar nestas passagens, ou porque você trabalhou nelas.",
+      "toast": {
+        "letGo": "Não estão mais guardadas. O áudio delas pode ser removido para liberar espaço.",
+        "someStay_one": "Não estão mais guardadas, exceto {{count, number}} passagem que é o seu trabalho.",
+        "someStay_many": "Não estão mais guardadas, exceto {{count, number}} de passagens que são o seu trabalho.",
+        "someStay_other": "Não estão mais guardadas, exceto {{count, number}} passagens que são o seu trabalho."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "Denunciar ou bloquear {{name}}",
