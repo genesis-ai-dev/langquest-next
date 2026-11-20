@@ -8,14 +8,22 @@ import type { KeptOffline } from './offlineText';
  * line say it (decisions.md 61, 166). Each says only what the device knows:
  * "On this device" once its own count says every file is here, "Downloading"
  * only while a file of it is coming down, and no download offered while the
- * device is offline.
+ * device is offline. `recordings`: kept for its recordings alone, through its
+ * book's or section's button, and they are here; `ready` is a passage kept
+ * with its reference material, all of it here. The two look and read apart
+ * (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended).
  */
-export type OfflineLook = { kind: 'checking' | 'none' | 'noConnection' | 'downloading' | 'partial' | 'ready'; label: string };
+export type OfflineLook = { kind: 'checking' | 'none' | 'noConnection' | 'downloading' | 'partial' | 'ready' | 'recordings'; label: string };
 
 export function offlineLook(u: KeptOffline | 'checking', o: { offline: boolean; downloading: boolean }): OfflineLook {
   if (u === 'checking') return { kind: 'checking', label: t('offline.summary.checking') };
   if (!u.reason) return o.offline ? { kind: 'noConnection', label: t('offline.needsConnection') } : { kind: 'none', label: t('offline.download') };
-  if (u.ready) return { kind: 'ready', label: t('offline.onDevice') };
+  if (u.ready) return u.recordingsOnly ? { kind: 'recordings', label: t('offline.recordingsHere') } : { kind: 'ready', label: t('offline.onDevice') };
+  // Its recordings are here, and its study guide has not been looked up yet: the device cannot say its files are
+  // here. Online that is a moment's checking; offline the guide cannot be looked up at all, so it is not here yet.
+  if (u.studyUnknown && u.toFetch === 0) {
+    return o.offline ? { kind: 'partial', label: t('offline.notHere.title') } : { kind: 'checking', label: t('offline.summary.checking') };
+  }
   const here = u.here + u.studyHere;
   const total = u.audio + u.studyTotal;
   // Kept, but its rows have not reached this device yet (decisions.md 147).
@@ -23,6 +31,19 @@ export function offlineLook(u: KeptOffline | 'checking', o: { offline: boolean; 
   return o.downloading && !o.offline
     ? { kind: 'downloading', label: t('offline.passage.downloadingCount', { here, total }) }
     : { kind: 'partial', label: t('offline.passage.onlySomeHere', { here, count: total }) };
+}
+
+/**
+ * The passages whose reference material comes along (study guide files,
+ * reference audio): the person's own (asked of them or worked on) and those
+ * kept by their own button, not those kept only for their recordings through
+ * a book's or a section's button
+ * (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended).
+ */
+export function referenceUnits(blobs: { scope: ReadonlySet<string>; keptUnits: ReadonlySet<string>; recordingsOnly: ReadonlySet<string> }): Set<string> {
+  const units = new Set(blobs.scope);
+  for (const u of blobs.keptUnits) if (!blobs.recordingsOnly.has(u)) units.add(u);
+  return units;
 }
 
 /**
@@ -91,7 +112,7 @@ export interface GroupLook {
  */
 export function groupLook(
   g: GroupOffline,
-  o: { offline: boolean; downloading: boolean; cost: { bytes: number } | null; room: number | null; sizing?: boolean; filling?: boolean }
+  o: { offline: boolean; downloading: boolean; cost: { bytes: number; files?: number } | null; room: number | null; sizing?: boolean; filling?: boolean }
 ): GroupLook {
   // Where a tap does nothing, help mode has nothing to light, so there are no help words.
   const checking: GroupLook = { kind: 'checking', label: t('offline.summary.checking'), notes: [], help: '', tap: null };
@@ -111,17 +132,22 @@ export function groupLook(
         help: t('offline.group.noRoomHelp'), tap: 'keep'
       };
     }
+    // The button keeps recordings only, and says how much of them would come: the size once worked out, or that
+    // there is none yet, so a book nobody has recorded does not look like a download that never starts. Files
+    // whose size is not known are neither: nothing is said of them.
+    const coming = bytes > 0 ? [t('offline.group.size', { size: formatBytes(bytes) })] : o.cost?.files === 0 ? [t('offline.group.nothingYet')] : [];
     return {
       kind: 'none',
       label: notes.length ? t('offline.group.downloadRest', { count: g.toKeep.length }) : t('offline.group.download', { count: g.count }),
-      notes: bytes > 0 ? [...notes, t('offline.group.size', { size: formatBytes(bytes) })] : notes,
+      notes: [...notes, ...coming],
       help: t('offline.group.keepHelp'), tap: 'keep'
     };
   }
   // Every passage is kept: a tap lets go what the person chose, or says why none of it was a choice.
   const tap: GroupTap = g.chosen.length ? 'letGo' : 'why';
   const help = g.chosen.length ? t('offline.group.letGoHelp') : t('offline.group.reason');
-  if (g.ready === g.count) return { kind: 'ready', label: t('offline.summary.allReady', { count: g.count }), notes: [], help, tap };
+  // What a group promises is recordings, so its mark when they are all here is the recordings mark, not "On this device"'s.
+  if (g.ready === g.count) return { kind: 'recordings', label: t('offline.group.allHere', { count: g.count }), notes: [], help, tap };
   if (o.downloading && !o.offline) {
     return { kind: 'downloading', label: t('offline.passage.downloadingCount', { here: g.ready, total: g.count }), notes: [t('offline.stayConnected')], help, tap };
   }
