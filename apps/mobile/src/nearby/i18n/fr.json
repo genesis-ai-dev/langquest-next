@@ -134,7 +134,6 @@
         "noPass": "Ce téléphone ne peut faire entrer personne. Votre organisation doit l’avoir activé, vous devez pouvoir inviter des personnes dans cette langue, et ce téléphone doit s’être connecté à Internet depuis.",
         "expired": "L’autorisation de ce téléphone pour faire entrer des personnes a expiré. Connectez-vous une fois à Internet pour la renouveler.",
         "noRole": "Il n’y a aucun rôle que ce téléphone peut donner sans Internet. Un administrateur pourra donner des rôles quand la nouvelle personne se sera connectée à Internet.",
-        "permissions": "Ouvrez d’abord Partager à proximité et autorisez ce qu’Android demande, puis revenez.",
         "wifiOff": "Activez le Wi-Fi dans les réglages du téléphone, puis revenez."
       },
       "role": "Son rôle",

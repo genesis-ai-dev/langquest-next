@@ -134,7 +134,6 @@
         "noPass": "This phone cannot let anyone in. Your organization must have it turned on, you must be able to invite people to this language, and this phone must have reached the internet since.",
         "expired": "This phone's permission to let people in has run out. Connect to the internet once to renew it.",
         "noRole": "There is no role this phone can give without internet. An admin can give roles after the new person reaches the internet.",
-        "permissions": "Open Share nearby first and allow what Android asks, then come back.",
         "wifiOff": "Turn on Wi-Fi in your phone's settings, then come back."
       },
       "role": "Their role",

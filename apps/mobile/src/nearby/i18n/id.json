@@ -134,7 +134,6 @@
         "noPass": "Ponsel ini tidak bisa mengizinkan siapa pun masuk. Organisasi Anda harus menyalakannya, Anda harus bisa mengundang orang ke bahasa ini, dan ponsel ini harus sudah tersambung ke internet sejak itu.",
         "expired": "Izin ponsel ini untuk mengizinkan orang masuk sudah habis. Sambungkan ke internet sekali untuk memperbaruinya.",
         "noRole": "Tidak ada peran yang bisa diberikan ponsel ini tanpa internet. Admin bisa memberi peran setelah orang baru itu tersambung ke internet.",
-        "permissions": "Buka Berbagi di sekitar dulu dan izinkan yang diminta Android, lalu kembali ke sini.",
         "wifiOff": "Nyalakan Wi-Fi di pengaturan ponsel Anda, lalu kembali ke sini."
       },
       "role": "Perannya",

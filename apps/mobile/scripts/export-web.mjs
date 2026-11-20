@@ -201,7 +201,12 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised by 1 KB with a newcomer saying Online once first contact ends (LAN-216), 1 KB past then: the
 // gate's wake hook in the two sync hooks and its stub, which every chunk counts. A first visit stays
 // under its own budget.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 134 * 1024;
+// Raised by 13 KB on the iPhone build's release branch with the copies of three changes that main
+// raised its own limit for on 2026-11-19: the Key words chip's tiles (LAN-233, #423, 10,100 bytes
+// past then), Reports naming a language's template (LAN-114, #397, 353 bytes) and Let someone in
+// asking for its own permissions (LAN-148, LAN-216, #548, 262 bytes). Each copy carries this same
+// raise, so that they merge in any order; with all three, 2,233 bytes are left.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 147 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

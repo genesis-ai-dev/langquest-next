@@ -134,7 +134,6 @@
         "noPass": "Hindi makapagpapapasok ng kahit sino ang teleponong ito. Kailangang naka-on ito sa iyong organisasyon, kailangang makapag-imbita ka ng mga tao sa wikang ito, at kailangang nakakonekta na sa internet ang teleponong ito mula noon.",
         "expired": "Paso na ang pahintulot ng teleponong ito na magpapasok ng mga tao. Kumonekta sa internet nang isang beses para i-renew ito.",
         "noRole": "Walang tungkuling maibibigay ang teleponong ito nang walang internet. Makapagbibigay ng tungkulin ang isang admin kapag nakakonekta na sa internet ang bagong tao.",
-        "permissions": "Buksan muna ang Ibahagi sa malapit at payagan ang hinihingi ng Android, saka bumalik.",
         "wifiOff": "I-on ang Wi-Fi sa settings ng iyong telepono, saka bumalik."
       },
       "role": "Ang tungkulin niya",
