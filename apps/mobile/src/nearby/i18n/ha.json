@@ -284,7 +284,7 @@
       }
     },
     "give": {
-      "intro": "Wannan waya tana ƙirƙirar hanyar sadarwar Wi-Fi ta kanta. Sabuwar wayar tana karanta lambobi biyu da kyamararta: ɗaya don haɗawa da hanyar sadarwar, ɗaya don sauke LangQuest. Babu ɗaya daga cikin wayoyin da ke buƙatar intanet.",
+      "intro": "Ba da LangQuest ga sabuwar waya. Babu ɗaya daga cikin wayoyin da ke buƙatar intanet.",
       "rowSub": "Idan kana tare da sabon mutumin",
       "rowHelp": "Yana buɗe Ba da manhajar, inda wannan waya ke aika LangQuest zuwa sabuwar waya ta hanyar sadarwar Wi-Fi da ta ƙirƙira da kanta.",
       "linkHelp": "Yana buɗe Ba da manhajar, don aika LangQuest zuwa sabuwar wayar ta hanyar sadarwar Wi-Fi da wannan waya ke ƙirƙira.",
@@ -343,9 +343,23 @@
       },
       "quickShare": {
         "button": "Aika ta Quick Share",
-        "help": "Yana buɗe zaɓin rabawa na wannan waya da fayil ɗin girkawa. Zaɓi Quick Share, sannan sabuwar wayar.",
-        "line": "Quick Share wata hanya ce ta aika shi. Yana buƙatar ayyukan Google Play a wayoyin biyu, kuma wayoyin da ake sayarwa a China ba su da su. A sabuwar wayar, buɗe Quick Share ka sa wayar ta bayyana ga kowa da ke kusa. Karɓi fayil ɗin, sannan ka buɗe shi ka taɓa Girka.",
-        "failed": "Zaɓin rabawa bai buɗe ba. Ka sake gwadawa."
+        "help": "Yana buɗe zaɓin rabawa na wannan waya da fayil ɗin girkawa.",
+        "failed": "Zaɓin rabawa bai buɗe ba. Ka sake gwadawa.",
+        "letInHelp": "Yana buɗe Shigar da wani, don ka shigar da shi idan an girka LangQuest a sabuwar wayar.",
+        "on": {
+          "newFirst": "Da farko, a sabuwar wayar",
+          "this": "Sannan, a wannan waya",
+          "newThen": "Sannan, a sabuwar wayar",
+          "thisThen": "A ƙarshe, a wannan waya"
+        },
+        "steps": {
+          "open": "Ja yatsanka daga saman allon zuwa ƙasa, sannan ka taɓa Quick Share. Idan babu shi, buɗe Saituna ka nemi Quick Share.",
+          "visible": "Zaɓi Kowa, don wannan waya ta same ta. Ka ajiye ta kusa, da allonta a kunne.",
+          "send": "Taɓa Aika ta Quick Share. A zaɓin rabawa, taɓa Quick Share, sannan sunan sabuwar wayar.",
+          "accept": "Taɓa Karɓa. Idan fayil ɗin ya iso, taɓa Buɗe. Idan Buɗe ta ɓace, nemo fayil ɗin a manhajar fayiloli, a cikin abubuwan da aka sauke.",
+          "letIn": "Idan an girka LangQuest kuma an buɗe shi a sabuwar wayar, taɓa Shigar da shi.",
+          "install": "Ka yarda a girka daga wannan wuri, idan wayar ta tambaya. Taɓa Girka."
+        }
       },
       "page": {
         "title": "Girka LangQuest",
@@ -357,7 +371,16 @@
         "stepInstall": "Taɓa Girka.",
         "stepJoin": "Buɗe LangQuest. Zai sami wayar abokin aikinka da kansa. Idan bai samu ba, koma wannan shafin ka taɓa Shiga.",
         "join": "Shiga"
-      }
+      },
+      "ways": "Zaɓi hanya ɗaya ta aika shi",
+      "way": {
+        "wifi": "Wi-Fi na wannan waya",
+        "wifiSub": "Sabuwar wayar tana karanta lambobi biyu. Yana aiki a kowace wayar Android.",
+        "quickShare": "Quick Share",
+        "quickShareSub": "Wayoyin biyu suna buƙatar ayyukan Google Play."
+      },
+      "wayHelp": "Yana zaɓar wannan hanyar don aika fayil ɗin girkawa. Matakanta da maɓallinta suna bayyana a ƙasa.",
+      "wifiLine": "Wannan waya tana ƙirƙirar hanyar sadarwar Wi-Fi ta kanta. Sabuwar wayar tana karanta lambobi biyu da kyamararta: ɗaya don haɗawa da hanyar sadarwar, ɗaya don sauke LangQuest."
     }
   }
 }
