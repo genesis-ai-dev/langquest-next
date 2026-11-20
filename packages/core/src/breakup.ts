@@ -1,6 +1,6 @@
 import { asTemplateV2, templateBooks, type TemplateBook, type TemplateDoc, type TemplateDocV2 } from './libraryDocs';
 import {
-  libraryUnitRange, mapRange, orgVerses, parseRef, refId, sharedVerses, verseFromOrg, versesOf, verseToOrg, type VerseRange, type VersificationDoc
+  bookOrder, libraryUnitRange, mapRange, orgVerses, parseRef, refId, sharedVerses, verseFromOrg, versesOf, verseToOrg, type VerseRange, type VersificationDoc
 } from './versification';
 
 /**
@@ -48,6 +48,19 @@ export function withBookBrokenUp(doc: TemplateDoc, book: string, way: TemplateDo
   if (way && !from) throw new Error(`${way.name} does not break up ${book}`);
   const books = templateBooks(v2).map((b) => (b.book === book ? partsOf(b, from) : b));
   return { ...v2, bible: { ...v2.bible!, books } };
+}
+
+/**
+ * The template with one more Bible book, waiting to be broken up (decision
+ * 74), in canon order. A book it lists already leaves it as it is.
+ */
+export function withBookAdded(doc: TemplateDoc, book: string, name: string): TemplateDocV2 {
+  const v2 = asTemplateV2(doc);
+  if (!v2.bible) throw new Error(`${doc.name} is not a Bible template`);
+  const books = templateBooks(v2);
+  if (books.some((b) => b.book === book)) return v2;
+  const next = [...books, { book, name }].sort((a, b) => bookOrder(a.book) - bookOrder(b.book));
+  return { ...v2, bible: { ...v2.bible, books: next } };
 }
 
 /**

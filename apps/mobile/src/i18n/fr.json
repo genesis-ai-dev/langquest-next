@@ -5718,6 +5718,31 @@
       "downloadingHelp": "La petite flèche signifie qu’il est encore en cours de téléchargement sur cet appareil.",
       "changedHelp": "Le drapeau signifie que ses sections ont changé après son enregistrement.",
       "stepsHelp": "Les petites marques sont ses vérifications : une coche est faite, une horloge attend, une bulle a des remarques."
+    },
+    "edit": {
+      "addStory": "Ajouter une histoire ici",
+      "addStoryHelp": "Ajoute une histoire à la fin de ce dossier. Seule cette langue la reçoit.",
+      "newFolder": "Nouveau dossier",
+      "newFolderHelp": "Ajoute un dossier vide à la fin de la carte. Seule cette langue le reçoit.",
+      "rename": "Renommer",
+      "renameHelp": "Donne un nouveau nom à ce dossier. Seule cette langue reçoit le nouveau nom.",
+      "storyTitle": "Nouvelle histoire",
+      "folderTitle": "Nouveau dossier",
+      "renameTitle": "Renommer le dossier",
+      "name": "Nom",
+      "nameHelp": "Tapez le nom que les gens voient sur la carte.",
+      "add": "Ajouter",
+      "saveHelp": "L’enregistre dans le modèle de cette langue. Les autres langues gardent leur modèle.",
+      "added": "{{name}} ajouté",
+      "renamed": "Renommé en {{name}}",
+      "noteAdded": "{{name}} ajouté sur la carte",
+      "noteRenamed": "Renommé en {{name}} sur la carte",
+      "addBook": "Ajouter un livre",
+      "addBookHelp": "Ajoute un livre que le modèle n’a pas. Seule cette langue le reçoit. Le livre attend d’être divisé.",
+      "findBook": "Chercher un livre",
+      "findBookHelp": "Tapez le nom d’un livre pour le trouver.",
+      "noBook": "Aucun livre n’a ce nom",
+      "bookHelp": "Ajoute ce livre au modèle de cette langue."
     }
   },
   "reports": {

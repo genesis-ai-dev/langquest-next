@@ -72,6 +72,13 @@ export interface LibraryWorkEvents {
    */
   'v1.BookNameSet': { book: string; name: string };
   /**
+   * A new name for a folder or story of an outline template, for the
+   * language using it. A unit's label comes from the first `v1.UnitAdded`,
+   * which a later version of the template cannot change; the selector
+   * appends this when a version names a part another way. Register per unit.
+   */
+  'v1.UnitRenamed': { unitId: string; label: string };
+  /**
    * The book names a language uses: a version of a library `names` item
    * (decision 193), with every name it holds (USFM code -> name) copied in,
    * so the server and a phone without the library name passages the same

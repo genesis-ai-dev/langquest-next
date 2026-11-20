@@ -5718,6 +5718,31 @@
       "downloadingHelp": "A pequena marca de seta quer dizer que ainda está baixando para este aparelho.",
       "changedHelp": "A bandeira quer dizer que as seções mudaram depois da gravação.",
       "stepsHelp": "As pequenas marcas são as verificações: um visto é pronta, um relógio está esperando, um balão tem comentários."
+    },
+    "edit": {
+      "addStory": "Adicionar uma história aqui",
+      "addStoryHelp": "Adiciona uma história no fim desta pasta. Só este idioma a recebe.",
+      "newFolder": "Nova pasta",
+      "newFolderHelp": "Adiciona uma pasta vazia no fim do mapa. Só este idioma a recebe.",
+      "rename": "Renomear",
+      "renameHelp": "Dá um novo nome a esta pasta. Só este idioma recebe o novo nome.",
+      "storyTitle": "Nova história",
+      "folderTitle": "Nova pasta",
+      "renameTitle": "Renomear pasta",
+      "name": "Nome",
+      "nameHelp": "Digite o nome que as pessoas veem no mapa.",
+      "add": "Adicionar",
+      "saveHelp": "Salva no modelo deste idioma. Os outros idiomas mantêm o seu modelo.",
+      "added": "{{name}} adicionado",
+      "renamed": "Renomeado para {{name}}",
+      "noteAdded": "{{name}} adicionado no mapa",
+      "noteRenamed": "Renomeado para {{name}} no mapa",
+      "addBook": "Adicionar um livro",
+      "addBookHelp": "Adiciona um livro que o modelo não tem. Só este idioma o recebe. O livro espera ser dividido.",
+      "findBook": "Procurar um livro",
+      "findBookHelp": "Digite o nome de um livro para encontrá-lo.",
+      "noBook": "Nenhum livro tem esse nome",
+      "bookHelp": "Adiciona este livro ao modelo deste idioma."
     }
   },
   "reports": {

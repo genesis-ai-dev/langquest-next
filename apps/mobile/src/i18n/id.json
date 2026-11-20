@@ -5326,6 +5326,31 @@
       "downloadingHelp": "Tanda panah kecil berarti masih diunduh ke perangkat ini.",
       "changedHelp": "Bendera berarti bagian-bagiannya berubah setelah direkam.",
       "stepsHelp": "Tanda-tanda kecil adalah pemeriksaannya: centang berarti selesai, jam berarti menunggu, balon berarti ada masukan."
+    },
+    "edit": {
+      "addStory": "Tambahkan cerita di sini",
+      "addStoryHelp": "Menambahkan cerita di akhir folder ini. Hanya bahasa ini yang mendapatkannya.",
+      "newFolder": "Folder baru",
+      "newFolderHelp": "Menambahkan folder kosong di akhir peta. Hanya bahasa ini yang mendapatkannya.",
+      "rename": "Ganti nama",
+      "renameHelp": "Memberi nama baru untuk folder ini. Hanya bahasa ini yang mendapatkan nama baru.",
+      "storyTitle": "Cerita baru",
+      "folderTitle": "Folder baru",
+      "renameTitle": "Ganti nama folder",
+      "name": "Nama",
+      "nameHelp": "Ketik nama yang dilihat orang di peta.",
+      "add": "Tambah",
+      "saveHelp": "Menyimpannya di templat bahasa ini. Bahasa lain tetap memakai templatnya.",
+      "added": "{{name}} ditambahkan",
+      "renamed": "Nama diganti menjadi {{name}}",
+      "noteAdded": "{{name}} ditambahkan di peta",
+      "noteRenamed": "Nama diganti menjadi {{name}} di peta",
+      "addBook": "Tambahkan kitab",
+      "addBookHelp": "Menambahkan kitab yang tidak ada di templat. Hanya bahasa ini yang mendapatkannya. Kitab itu menunggu untuk dibagi.",
+      "findBook": "Cari kitab",
+      "findBookHelp": "Ketik nama kitab untuk menemukannya.",
+      "noBook": "Tidak ada kitab dengan nama itu",
+      "bookHelp": "Menambahkan kitab ini ke templat bahasa ini."
     }
   },
   "reports": {

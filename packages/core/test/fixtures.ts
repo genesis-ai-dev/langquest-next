@@ -104,6 +104,9 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.UnitHidden', { unitId: 'langquest.fia-eng/LUK.2.1-7', hidden: true });
   emit('dA', 'lead', 'v1.BookNameSet', { book: 'LUK', name: 'Luka' });
   emit('dE', 'lead2', 'v1.BookNameSet', { book: 'LUK', name: 'Luqaas' });
+  // A folder renamed on the map by two admins offline: a register per unit.
+  emit('dA', 'lead', 'v1.UnitRenamed', { unitId: 'langquest.fia-eng/LUK.2.1-7', label: 'The birth' });
+  emit('dE', 'lead2', 'v1.UnitRenamed', { unitId: 'langquest.fia-eng/LUK.2.1-7', label: 'Jesus is born' });
   // Library book names (decision 193): two admins pick different ones offline; one register.
   emit('dA', 'lead', 'v1.BookNamesSelected', { itemId: 'langquest.names.npi', docHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', language: 'npi', names: { LUK: 'लूका', JHN: 'यूहन्ना' } });
   emit('dE', 'lead2', 'v1.BookNamesSelected', { itemId: 'langquest.names.hin', docHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', language: 'hin', names: { LUK: 'लूका' } });

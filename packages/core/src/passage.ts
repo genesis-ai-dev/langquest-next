@@ -984,10 +984,10 @@ export function unitPlace(state: LanguageState, unitId: string): UnitPlace {
   const canon = bookId ? BIBLE_BOOKS.findIndex((b) => b.itemId === bookId) : -1;
   // What the language calls the book (decisions 74, 193), else its template's name for it (the book unit's label).
   const lib = libraryUnitRange(unitId);
-  const ownBook = lib ? bookNameOf(state, lib.book) || state.units[state.units[unitId]?.parentUnitId ?? unitId]?.label : undefined;
+  const ownBook = lib ? bookNameOf(state, lib.book) || unitLabel(state, state.units[unitId]?.parentUnitId ?? unitId) : undefined;
   return {
     bookId,
-    bookLabel: ownBook ?? (canon >= 0 ? BIBLE_BOOKS[canon]!.label : state.units[state.units[unitId]?.parentUnitId ?? '']?.label ?? 'Other'),
+    bookLabel: ownBook ?? (canon >= 0 ? BIBLE_BOOKS[canon]!.label : unitLabel(state, state.units[unitId]?.parentUnitId ?? '') ?? 'Other'),
     chapters: chapters.map((c) => c.chapter),
     canon: canon >= 0 ? canon : 999,
     testament: canon < 0 ? null : canon < 39 ? 'ot' : 'nt'
@@ -996,8 +996,17 @@ export function unitPlace(state: LanguageState, unitId: string): UnitPlace {
 
 /** A unit's reference as people say it: "Luke 15:11-32", "Genesis 3", with the book as the language names it. */
 export function unitTitle(state: LanguageState, unitId: string): string {
-  const label = state.units[unitId]?.label ?? unitId;
+  const label = unitLabel(state, unitId) ?? unitId;
   return withBookName(state, unitId, label);
+}
+
+/**
+ * A unit's label: the name a later template version gave it
+ * (`v1.UnitRenamed`, a folder or story renamed on the map), else the one it
+ * was added with. Undefined for a unit the language does not have.
+ */
+export function unitLabel(state: LanguageState, unitId: string): string | undefined {
+  return state.unitLabels?.[unitId]?.value || state.units[unitId]?.label;
 }
 
 /**

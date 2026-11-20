@@ -111,14 +111,29 @@ offline agree:
 
 - Template: `v1.TemplateSelected {itemId, docHash, unitPrefix, books?}`,
   `v1.UnitAdded` for parts not yet in the log (id `<itemId>/<node>`: `GEN`,
-  `GEN.1`, `GEN.1.1-2.3`, or an outline id), and `v1.UnitHidden` for
-  parts the version no longer has (hidden, never deleted; TPL-7).
+  `GEN.1`, `GEN.1.1-2.3`, or an outline id), `v1.UnitHidden` for
+  parts the version no longer has (hidden, never deleted; TPL-7), and
+  `v1.UnitRenamed {unitId, label}` for an outline folder or story the
+  version names another way (the first `UnitAdded` keeps its label). An
+  outline node with `children`, even none, is a folder, never a passage.
 - Flow: `v1.ReviewKindDefined` for kinds the language lacks,
   `v1.FlowStepSet` under the version's flow id (`libraryFlowId`, steps
   `<flowId>/<step>`), and `v1.FlowSelected {flowId, itemId, docHash, name}`.
 
 When an item a language uses moves to a new version (an edit here, or a
 subscription update), the next device of someone who may apply it does so.
+
+### Adding folders, stories and books on the map
+
+Someone who may edit templates adds a story at the end of a folder, a new
+folder at the end, or renames a folder, on an outline language's map, and
+adds a Bible book at the end of a Bible language's book list
+(`apps/mobile/src/map/OutlineMap.tsx`). Each change is for the open language
+only: it is published as a book divided from the map is, with only that
+language chosen, so a template another language uses (or another
+organization's) is copied for it on its first change, and later changes are
+versions of that copy
+(`docs/decisions/2026-11-20-add-folders-and-stories-on-the-map.md`).
 
 ### Breaking up the Bible book by book (decision 74)
 

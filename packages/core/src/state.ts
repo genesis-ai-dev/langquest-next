@@ -177,6 +177,8 @@ export interface LanguageState extends RecordState, ReferenceState {
   hiddenUnits: Record<string, Register<boolean>>;
   /** USFM book -> what this language calls it (v1.BookNameSet, decision 74); absent in older snapshots. */
   bookNames?: Record<string, Register<string>>;
+  /** Unit id -> the label a later template version gave it (v1.UnitRenamed); absent in older snapshots. */
+  unitLabels?: Record<string, Register<string>>;
   /** The library book names the language uses (v1.BookNamesSelected, decision 193); absent in older snapshots. */
   bookNamesFrom?: Register<BookNamesSelection> | null;
   flow: Register<FlowSelection> | null;

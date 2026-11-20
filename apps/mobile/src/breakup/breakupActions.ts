@@ -51,6 +51,8 @@ export async function ownTemplate(ctx: Ctx, lib: ReturnType<typeof useLibrary>, 
  */
 export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>, c: {
   item: LibraryItemView; doc: TemplateDoc; users: TemplateUser[] | null; chosen: Set<string>; label: string;
+  /** The open language's books after the change, where it covers only some (a book added on its map). */
+  books?: string[];
 }): Promise<EventSpec[]> {
   const state = ctx.language.state;
   const sel = state?.template?.value;
@@ -81,6 +83,6 @@ export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>
   if (c.doc.bible && !v11n) throw new CommandError(t('breakup.errors.versificationMissing'));
   return selectTemplateSpecs(state, {
     commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), itemId, docHash, doc: c.doc, versification: v11n, unitPrefix: sel.unitPrefix,
-    ...(sel.books ? { books: sel.books } : {})
+    ...(c.books ?? sel.books ? { books: c.books ?? sel.books } : {})
   });
 }

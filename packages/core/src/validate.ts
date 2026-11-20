@@ -165,6 +165,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('unitId') ?? bool('hidden');
     case 'v1.BookNameSet':
       return str('book', 'name') ?? (/^[A-Z0-9]{3}$/.test(p['book'] as string) ? null : 'book must be a USFM book code');
+    case 'v1.UnitRenamed':
+      return str('unitId', 'label');
     case 'v1.BookNamesSelected':
       return str('itemId', 'language') ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest') ??
         (/^[a-z0-9-]{2,40}$/.test(p['language'] as string) ? null : 'language must be a language code') ??

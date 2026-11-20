@@ -4,6 +4,7 @@ import { unitPrefixOf } from './indexes';
 import { templateBooks, type CollectionDoc, type FlowDoc, type MaterialDoc, type NamesDoc, type StudyDoc, type TemplateDoc } from './libraryDocs';
 import { flowStepPrefix } from './record';
 import type { LanguageState } from './state';
+import { unitLabel } from './passage';
 import {
   bookOrder, chaptersInBook, parseRef, refId, sharedVerses, versesInChapter, type VerseRange, type VersificationDoc
 } from './versification';
@@ -44,7 +45,8 @@ export function templateUnits(doc: TemplateDoc, unitPrefix: string, versificatio
       (nodes ?? []).forEach((n, i) => {
         const o = `${order}o${pad(i, 4)}`;
         const kids = n.children ?? [];
-        out.push({ unitId: id(n.id), parentUnitId: parent, kind: kids.length ? 'folder' : 'item', label: n.title, order: o });
+        // A node with children is a folder even while empty, as the template editor has it: a folder just made on the map.
+        out.push({ unitId: id(n.id), parentUnitId: parent, kind: n.children ? 'folder' : 'item', label: n.title, order: o });
         walk(kids, id(n.id), o);
       });
     };
@@ -157,7 +159,13 @@ export function selectTemplateSpecs(
       payload: { itemId: c.itemId, docHash: c.docHash, unitPrefix: prefix, ...(c.books ? { books: [...c.books].sort() } : {}) }
     } as EventSpec
   ];
-  for (const u of units) if (!state.units[u.unitId]) specs.push({ id: next(), type: 'v1.UnitAdded', payload: u } as EventSpec);
+  for (const u of units) {
+    if (!state.units[u.unitId]) specs.push({ id: next(), type: 'v1.UnitAdded', payload: u } as EventSpec);
+    // A folder or story the version names another way: the first UnitAdded keeps its label, so the new name is a register of its own.
+    else if (c.doc.structure === 'outline' && unitLabel(state, u.unitId) !== u.label) {
+      specs.push({ id: next(), type: 'v1.UnitRenamed', payload: { unitId: u.unitId, label: u.label } } as EventSpec);
+    }
+  }
   const hidden = state.hiddenUnits;
   for (const unitId of Object.keys(state.units).sort()) {
     if (unitPrefixOf(unitId) !== prefix) continue;

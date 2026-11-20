@@ -63,7 +63,8 @@ export function buildIndexes(state: LanguageState): Indexes {
       if (parents.has(id)) containers.push(id);
       continue;
     }
-    if (parents.has(id)) {
+    // A folder is never a passage, even while nothing is in it yet (one just made on the map).
+    if (parents.has(id) || u.kind === 'folder') {
       containers.push(id);
       continue;
     }

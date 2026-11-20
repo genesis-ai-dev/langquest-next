@@ -32,7 +32,7 @@ import { Badge, Card, Chip, ChipRow, EmptyState, Group, Header, HelpInfo, Ico, I
 import { txt } from '../ui/textStyles';
 import { useLayout, useOpenDetail, useOrgInChrome } from '../ui/useLayout';
 import { mayWriteLibrary } from '../library/model';
-import { agoWords, bookEntries, chaptersAreWhole, bookRowWords, chapterRows, chapterTiles, clauses, clusterView, filterEntries, filterLabel, flowLabel, funnelLayers, funnelRows, isOutline, languageEntries, mapSearch, mapShelf, needsConnection, openableLanguages as openableIn, openState, OTHER, outlineSections, PAGE, searchLanguages, sentences, statusLanguages, statusTotals, summarizeBooks, tileLabel, tileHelp, waitingBooks, type BookSummary, type ChapterTile, type Entry } from '../map/mapModel';
+import { agoWords, bookEntries, chaptersAreWhole, bookRowWords, chapterRows, chapterTiles, clauses, clusterView, filterEntries, filterLabel, flowLabel, funnelLayers, funnelRows, isOutline, languageEntries, mapSearch, mapShelf, needsConnection, openableLanguages as openableIn, openState, OTHER, PAGE, searchLanguages, sentences, statusLanguages, statusTotals, summarizeBooks, tileLabel, tileHelp, waitingBooks, type BookSummary, type ChapterTile, type Entry } from '../map/mapModel';
 import { useForYou, useNextPassage } from '../map/useMapLanguage';
 import { NumberingNote } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
@@ -40,6 +40,7 @@ import { ChangedMark } from '../breakup/earlier';
 import { useEarlierSections } from '../breakup/useEarlierSections';
 import { BookBar, BookColumn, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../map/mapParts';
 import { HelpRow } from '../helpMode/helpBadge';
+import { AddBook, OutlineMap } from '../map/OutlineMap';
 import { chapterColumns } from '../ui/layout';
 import type { ClusterFilter } from '../clusters/model';
 import { contractsFor } from '../shell/screenContracts';
@@ -388,36 +389,6 @@ function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPr
   );
 }
 
-/** An outline language (lessons, stories): its folders and their items instead of books and chapters (MAP-6). */
-function OutlineMap(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; languageId: string; entries: Entry[]; forYou: Set<string> }) {
-  const [limits, setLimits] = useState<Record<string, number>>({});
-  const sections = useMemo(() => outlineSections(props.entries), [props.entries]);
-  return (
-    <>
-      {sections.map(([name, list]) => {
-        const limit = limits[name] ?? PAGE;
-        const shown = list.slice(0, limit);
-        return (
-          <HelpRow key={name} of="map.section">
-            <View style={{ gap: space.sm }}>
-              <SectionLabel label={name} />
-              <Group>
-                {shown.map((e, i) => (
-                  <HelpRow key={e.unitId} of="map.passage">
-                    <PassageRow ctx={props.ctx} state={props.state} kinds={props.kinds} e={e} mine={props.forYou.has(e.unitId)}
-                      last={i === shown.length - 1} onPress={() => props.ctx.openPassage(e.unitId, props.languageId)} />
-                  </HelpRow>
-                ))}
-              </Group>
-              <ShowMore remaining={list.length - limit} step={PAGE} onMore={() => setLimits((l) => ({ ...l, [name]: limit + PAGE }))} />
-            </View>
-          </HelpRow>
-        );
-      })}
-    </>
-  );
-}
-
 /** Languages this person may open: those a role of theirs covers, at org scope or the language's own (simple/mapModel.ts). */
 function openableLanguages(ctx: Ctx): { languageId: string; name: string }[] {
   return openableIn(ctx.org.state, ctx.session.actorId, ctx.languages, ctx.session.readOnly);
@@ -518,6 +489,8 @@ export function MapHome(ctx: Ctx) {
     );
   }
 
+  // Adding a folder, a story or a book changes the language's template, for it alone (LAN-239): whoever may edit templates.
+  const canEdit = ctx.language.languageId === languageId && !ctx.session.readOnly && mayWriteLibrary(ctx.org.state, ctx.session.actorId, 'template');
   const nextLink = next ? <NextLink title={unitTitle(state, next.unitId)} icon={next.icon} onPress={() => ctx.openPassage(next.unitId, languageId)} /> : null;
 
   if (outline) {
@@ -526,7 +499,8 @@ export function MapHome(ctx: Ctx) {
         {languageChips}
         <FillBanner ctx={ctx} />
         {nextLink}
-        <OutlineMap ctx={ctx} state={state} kinds={kinds} languageId={languageId} entries={entries} forYou={forYou} />
+        <OutlineMap ctx={ctx} state={state} entries={entries} canEdit={canEdit}
+          row={(e, last) => <PassageRow ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={last} onPress={() => ctx.openPassage(e.unitId, languageId)} />} />
       </Screen>
     );
   }
@@ -614,6 +588,7 @@ export function MapHome(ctx: Ctx) {
                 <Group><BookRow b={other} filter={filter} last onPress={() => openBook(OTHER)} /></Group>
               </View>
             ) : null}
+            {canEdit && filter === 'all' ? <AddBook ctx={ctx} state={state} /> : null}
           </BookColumn>
         </>
       )}
