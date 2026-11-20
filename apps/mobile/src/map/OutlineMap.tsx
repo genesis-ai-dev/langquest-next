@@ -45,10 +45,12 @@ function Folders(props: { ctx: Ctx; state: LanguageState; entries: Entry[]; row:
   return (
     <>
       {folders.map((f) => (
-        <FolderView key={f.unitId ?? ''} f={f} row={props.row} limit={limits[f.unitId ?? ''] ?? PAGE}
-          onMore={(n) => setLimits((l) => ({ ...l, [f.unitId ?? '']: n }))}
-          {...(edit && f.nodeId ? { onRename: () => setNaming({ kind: 'rename', nodeId: f.nodeId!, was: f.name }) } : {})}
-          {...(edit && adds.storyIn(f.nodeId) ? { onAdd: () => setNaming({ kind: 'story', parentId: f.nodeId }) } : {})} />
+        <HelpRow key={f.unitId ?? ''} of="map.section">
+          <FolderView f={f} row={props.row} limit={limits[f.unitId ?? ''] ?? PAGE}
+            onMore={(n) => setLimits((l) => ({ ...l, [f.unitId ?? '']: n }))}
+            {...(edit && f.nodeId ? { onRename: () => setNaming({ kind: 'rename', nodeId: f.nodeId!, was: f.name }) } : {})}
+            {...(edit && adds.storyIn(f.nodeId) ? { onAdd: () => setNaming({ kind: 'story', parentId: f.nodeId }) } : {})} />
+        </HelpRow>
       ))}
       {edit && adds.newFolder ? (
         <HelpRow of="map.edit.newFolder">
@@ -67,22 +69,20 @@ function FolderView(props: { f: MapFolder; row: StoryRow; limit: number; onMore:
     ? <QuietIconLink icon="edit" label={t('map.edit.rename')} color={C.primary} detail={t('map.edit.renameHelp')} onPress={props.onRename} />
     : undefined;
   return (
-    <HelpRow of="map.section">
-      <View style={{ gap: space.sm }}>
-        {f.name || rename ? <SectionLabel label={f.name} {...(rename ? { action: rename } : {})} /> : null}
-        {shown.length > 0 ? (
-          <Group>
-            {shown.map((e, i) => <HelpRow key={e.unitId} of="map.passage">{props.row(e, i === shown.length - 1)}</HelpRow>)}
-          </Group>
-        ) : null}
-        <ShowMore remaining={f.entries.length - limit} step={PAGE} onMore={() => props.onMore(limit + PAGE)} />
-        {props.onAdd ? (
-          <HelpRow of="map.edit.addStory">
-            <AddSlot label={t('map.edit.addStory')} help={t('map.edit.addStoryHelp')} icon="plus" testID={`map-add-story-${f.nodeId ?? 'top'}`} onPress={props.onAdd} />
-          </HelpRow>
-        ) : null}
-      </View>
-    </HelpRow>
+    <View style={{ gap: space.sm }}>
+      {f.name || rename ? <SectionLabel label={f.name} {...(rename ? { action: rename } : {})} /> : null}
+      {shown.length > 0 ? (
+        <Group>
+          {shown.map((e, i) => <HelpRow key={e.unitId} of="map.passage">{props.row(e, i === shown.length - 1)}</HelpRow>)}
+        </Group>
+      ) : null}
+      <ShowMore remaining={f.entries.length - limit} step={PAGE} onMore={() => props.onMore(limit + PAGE)} />
+      {props.onAdd ? (
+        <HelpRow of="map.edit.addStory">
+          <AddSlot label={t('map.edit.addStory')} help={t('map.edit.addStoryHelp')} icon="plus" testID={`map-add-story-${f.nodeId ?? 'top'}`} onPress={props.onAdd} />
+        </HelpRow>
+      ) : null}
+    </View>
   );
 }
 
