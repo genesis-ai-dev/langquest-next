@@ -303,7 +303,11 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 162 * 1024;
 // grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
 // words in the catalog every visit carries. They show on the recording screen as it opens; the word's
 // sheet loads when first opened (keyTerms/lazySheets.tsx).
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
+// Raised by 4 KB with folders, stories and books added on the map (Caleb Koster, 2026-11-20, LAN-239,
+// docs/decisions/2026-11-20-add-folders-and-stories-on-the-map.md), a few hundred bytes past then: the
+// Map opens on a first visit, so its folders, the add buttons, their rules and their English words come
+// with it; the naming sheet and the book picker draw only for someone who may edit templates.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 116 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
