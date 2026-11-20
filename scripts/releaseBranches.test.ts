@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, BLOCKED_LABEL, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -328,6 +328,19 @@ describe('a copy with a conflict', () => {
     expect(copyFn).not.toContain("'--auto'");
   });
 
+  it('a Claude run that was not allowed to run a command is never a finished copy, and says so with a label', () => {
+    // 2026-11-19: the action refused npm ci on #549, #559 and #564; #549 still said "copied in part" and merged itself unchecked.
+    expect(BLOCKED_LABEL).toBe('copy-claude-blocked');
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toContain('--denied "$DENIED"');
+    expect(yml).toContain('steps.denied.outputs.count');
+    const script = readFileSync('scripts/release-branches.mjs', 'utf8');
+    const finish = script.slice(script.indexOf('function finishCopy('), script.indexOf('async function main'));
+    expect(finish.indexOf('if (denied > 0)')).toBeGreaterThan(-1);
+    expect(finish.indexOf('if (denied > 0)')).toBeLessThan(finish.indexOf('if (!outcome.done)'));
+    expect(finish).toContain("'--add-label', BLOCKED_LABEL");
+  });
+
   it('Claude reads the failed checks and fixes them, and never skips a test', () => {
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toContain('gh run view <run id> --log-failed');
@@ -389,6 +402,16 @@ describe('a copy with a conflict', () => {
     // Without it, the first iPhone catch-up (2026-11-05) failed: "Workflow initiated by non-human actor".
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toMatch(/claude-code-action@[0-9a-f]{40} # v1\.[0-9.]+\n[\s\S]*?\n\s+allowed_bots: langquest-release-branches\n/);
+  });
+
+  it('Claude may run npm ci and the guardrails on a copy, which the release bot opens from merged code', () => {
+    // From v1.0.276 (2026-11-16) the action refused them on every copy, so Claude's tries on #549, #559 and #564 checked nothing.
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toMatch(/\n\s+restrict_untrusted_prs: "false"\n/);
+    // Only the copy workflow: every other Claude job keeps the action's default.
+    for (const other of ['user-issues.yml', 'tutorials.yml', 'tutorial-review.yml', 'phone-tests.yml']) {
+      expect(readFileSync(`.github/workflows/${other}`, 'utf8')).not.toContain('restrict_untrusted_prs');
+    }
   });
 
   it('the workflow keeps a release branch for both platforms', () => {
