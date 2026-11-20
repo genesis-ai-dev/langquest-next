@@ -58,11 +58,17 @@ tags:
 - tapOn:
     id: "primary-action"
     waitToSettleTimeoutMs: 0
-# One assertion on the toast itself: it is gone a few seconds after the tap.
+# The toast goes by in 3.5 s, and a slow emulator can read the screen after
+# it has gone (run 11, 2026-11-12): the toast is looked for, and the screen's
+# lasting line says the same thing.
 - extendedWaitUntil:
     visible:
       id: "toast"
       text: ".*Feedback sent to ${TRANS_NAME}.*"
+    timeout: 5000
+    optional: true
+- extendedWaitUntil:
+    visible: "Waiting on ${TRANS_NAME} to answer the Peer check feedback\\."
     timeout: 20000
 # Back on the record: the check reads as needs changes.
 - assertVisible: "Peer check, needs changes"

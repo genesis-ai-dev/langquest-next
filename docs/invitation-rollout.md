@@ -1,5 +1,7 @@
 # Invitation and account flow rollout
 
+Kind: report
+
 Status on 2026-09-17: hosted migrations and mobile RPC contracts verified.
 Cloudflare Email Sending is enabled and the invitation email Worker is
 deployed. The hosted Supabase `send-invite` endpoint is deployed and its
@@ -58,6 +60,7 @@ are removed after verification.
 ## Cloudflare email deployment
 
 - Sender: `LangQuest <invites@frontierrnd.com>`.
+- Links: invitation and Forgot password emails link to `APP_URL`, which stays `https://next.langquest.org` after the web app moved to `app.langquest.org`, until older phones can read `app.` links (decisions.md 210).
 - Worker: `langquest-next-invite-email` in the Frontier R&D account (`langquest-invite-email` until 2026-10-01).
 - Endpoint: `https://langquest-next-invite-email.blue-darkness-7674.workers.dev/send-invite`.
 - Wrangler profile for a deploy from a laptop: `langquest-email`. Workers Builds uses its own token and does not use the profile.

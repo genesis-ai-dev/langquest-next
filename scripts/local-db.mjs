@@ -47,6 +47,7 @@ import { CRON_JOB, SCHEDULE_MIGRATION, vaultSql } from './secrets.mjs';
 import { root } from './env-files.mjs';
 
 const DB = 'supabase_db_langquest-next';
+const FUNCTIONS = 'supabase_edge_runtime_langquest-next';
 /** The gateway as the database container reaches it (pg_net runs there). */
 const FROM_DB = 'http://kong:8000';
 const FUNCTIONS_ENV = join(root, 'supabase/functions/.env');
@@ -71,6 +72,18 @@ function sh(cmd, args, input) {
 }
 const psql = (sql) => sh('docker', ['exec', '-i', DB, 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-qAt'], sql);
 const running = () => sh('docker', ['ps', '--format', '{{.Names}}']).split('\n').includes(DB);
+/**
+ * The database up and the Edge Functions not. When Docker starts again (a
+ * machine or Docker Desktop restarted), it restarts the database's containers
+ * but not the edge runtime's, and `supabase start` counts that stack as
+ * running and leaves it so: every function call then fails (a cloud machine,
+ * 2026-10-28, all P0 UI tests that sign someone in).
+ */
+function partial() {
+  if (EXCLUDE?.split(',').includes('edge-runtime')) return false;
+  const names = sh('docker', ['ps', '--format', '{{.Names}}']).split('\n');
+  return names.includes(DB) && !names.includes(FUNCTIONS);
+}
 
 /** The local secret, made once. True when it is new. */
 function ensureSecret() {
@@ -145,9 +158,11 @@ async function serveWeb() {
 async function main() {
   if (mode !== 'start' && mode !== 'reset' && mode !== 'dev') throw new Error('usage: local-db.mjs start|reset|dev');
   const { secret, fresh } = ensureSecret();
-  // The functions read their .env when the stack starts; one started without it must start again (keeps the database).
-  if (mode === 'start' || mode === 'dev' || (fresh && running())) {
-    if (fresh && running()) sh('npx', ['supabase', 'stop']);
+  // The functions read their .env when the stack starts; one started without it must start again, as must one
+  // without its functions (both keep the database).
+  const restart = (fresh && running()) || partial();
+  if (mode === 'start' || mode === 'dev' || restart) {
+    if (restart) sh('npx', ['supabase', 'stop']);
     sh('npx', ['supabase', 'start', ...(EXCLUDE ? ['-x', EXCLUDE] : [])]);
   }
   if (mode === 'reset') sh('npx', ['supabase', 'db', 'reset']);

@@ -4,7 +4,7 @@ import {
 } from '@langquest-next/core';
 import { MemoryStore as EventMemoryStore, type AppendResult } from '@langquest-next/sync';
 import { handleAgentApi, type AgentDeps, type OrgStub } from '../worker/agent/http';
-import { AgentOrg, V2_RECHECK_MS } from '../worker/agent/org';
+import { AgentOrg, SLOW_READ_MS, V2_RECHECK_MS } from '../worker/agent/org';
 import type { AgentStore, DeviceGrant, NewToken, NewWebhook, TokenRecord, WebhookRecord } from '../worker/agent/store';
 import { WebhookDispatcher } from '../worker/agent/dispatch';
 import type { JobRun } from '../../../server/jobRuns';
@@ -258,7 +258,8 @@ interface Received { url: string; headers: Record<string, string>; body: any; ra
 
 const withoutKeys = (o: Record<string, unknown>, keys: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
 
-function setup() {
+/** `receiptsTakeMs`: how long each question to the database about receipts takes, on the test's clock. */
+function setup(opts: { receiptsTakeMs?: number } = {}) {
   const log = world();
   const store = new MemoryStore();
   let now = T0 + 10_000_000;
@@ -295,7 +296,10 @@ function setup() {
     now: () => now,
     webhooks: dispatcher,
     records: (id, fresh) => { recordsAsked.push({ id, fresh }); return keeper.records(id); },
-    received: (id, keys) => log.received(id, keys)
+    received: async (id, keys) => {
+      now += opts.receiptsTakeMs ?? 0;
+      return log.received(id, keys);
+    }
   });
   const deps: AgentDeps = {
     store,
@@ -557,7 +561,7 @@ describe('when the server received it (decisions.md 188)', () => {
     expect(d4.version.submittedAt).toBe(iso(decodeHlc(submitted.hlc).wallMs));
     expect(d4.version.uploadedAt).toBe(arrivalOf(log, submitted));
     expect(Date.parse(d4.version.uploadedAt) - Date.parse(d4.version.submittedAt)).toBe(DAYS_3);
-    expect(d4.versions).toEqual([{ n: 1, takeId: 'take-d4', submittedAt: d4.version.submittedAt, uploadedAt: d4.version.uploadedAt, v2UploadedAt: null }]);
+    expect(d4.versions).toEqual([{ n: 1, takeId: 'take-d4', submittedAt: d4.version.submittedAt, uploadedAt: d4.version.uploadedAt, v2UploadedAt: null, origin: 'app_recording' }]);
     expect(d4.requests).toMatchObject([{ requestId: 'q-d4', uploadedAt: arrivalOf(log, eventOf(log, 'v1.RequestMade', (p) => p['requestId'] === 'q-d4')) }]);
     expect(d4.reviews).toMatchObject([{ kindId: 'peer', uploadedAt: arrivalOf(log, eventOf(log, 'v1.ReviewRecorded', (p) => p['reviewId'] === 'peer-d4')) }]);
     // The list gives the same, for the version it summarizes.
@@ -619,6 +623,35 @@ describe('when the server received it (decisions.md 188)', () => {
     expect(later.version.v2UploadedAt).toBe('2025-02-10T00:00:00.000Z');
   });
 
+  it("says whether each part was recorded or uploaded through v2's web uploader, and a version with both is mixed", async () => {
+    // Why: Every Language pays recording teams per chapter, and its staff upload old archives through v2's website (2026-11-12).
+    const { call, token, log, advance } = setup();
+    log.device = 'v2import';
+    recorded(log, 'din', 'd4');
+    log.device = 'd';
+    const [a, b] = [card('d4a').hash, card('d4b').hash];
+    const t = await token('admin', { scopes: ['read'] });
+    const origins = async () => {
+      const d4 = (await call('GET', '/api/v1/languages/din/passages/d4', t)).body;
+      const listed = (await call('GET', '/api/v1/languages/din/passages', t)).body.passages.find((p: { unitId: string }) => p.unitId === 'd4');
+      return { version: d4.version.origin, versions: d4.versions.map((v: { origin: string }) => v.origin), audio: d4.audio.map((x: { origin: string }) => x.origin), listed: listed.version.origin };
+    };
+    // Nothing marked: both parts were recorded in an app.
+    expect(await origins()).toEqual({ version: 'app_recording', versions: ['app_recording'], audio: ['app_recording', 'app_recording'], listed: 'app_recording' });
+    // The import marks b as uploaded (its next pass, or the whole read for work that came over before).
+    log.v2Stamps.set(`din\nupload:${b}`, '2025-02-03T08:00:00.000Z');
+    advance(V2_RECHECK_MS);
+    expect(await origins()).toEqual({ version: 'mixed', versions: ['mixed'], audio: ['app_recording', 'web_upload'], listed: 'mixed' });
+    log.v2Stamps.set(`din\nupload:${a}`, '2025-02-03T08:00:00.000Z');
+    advance(V2_RECHECK_MS);
+    expect(await origins()).toEqual({ version: 'web_upload', versions: ['web_upload'], audio: ['web_upload', 'web_upload'], listed: 'web_upload' });
+    // Work made in Next was recorded, and costs no question about v2.
+    const asked = log.receivedAsks.length;
+    const d2 = (await call('GET', '/api/v1/languages/din/passages/d2', t)).body;
+    expect([d2.version.origin, ...d2.audio.map((x: { origin: string }) => x.origin)]).toEqual(['app_recording', 'app_recording', 'app_recording']);
+    expect(log.receivedAsks.slice(asked).flat().filter((k) => k.startsWith('v2:'))).toEqual([]);
+  });
+
   it('asks the database once for a page, and after that only about what it has not seen', async () => {
     const { call, token, log } = setup();
     const t = await token('admin', { scopes: ['read'] });
@@ -632,6 +665,24 @@ describe('when the server received it (decisions.md 188)', () => {
     log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d2-late', takeId: 'take-d2', kindId: 'peer', outcome: 'needs_changes', via: 'app' }, 'rev');
     await call('GET', page, t);
     expect(log.receivedAsks.at(-1)).toEqual(['review:peer-d2-late']);
+  });
+
+  it("writes one line to the Worker's log for a slow read, saying where its time went in counts only", async () => {
+    // Why: the ops dashboard counted agent_api reads of a second or more, and only Workers Logs, read by hand, said which
+    // route (2026-11-17). This line says which part of the read to make faster, and carries no ids.
+    const { call, token } = setup({ receiptsTakeMs: SLOW_READ_MS + 500 });
+    const t = await token('admin', { scopes: ['read'] });
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((line: string) => { lines.push(line); });
+    try {
+      await call('GET', '/api/v1/languages/din/passages?include=versions', t);
+      // The same page again: the object remembers every receipt, asks nothing, and is fast.
+      await call('GET', '/api/v1/languages/din/passages?include=versions', t);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(lines).toEqual([expect.stringMatching(/^slow agent read passages: 1500 ms; language 0 ms, receipts 1500 ms \((\d+) of \1 keys asked\), answer 0 ms; \d+ passages, include versions$/)]);
+    expect(lines[0]).not.toMatch(/din|take-|admin/);
   });
 });
 

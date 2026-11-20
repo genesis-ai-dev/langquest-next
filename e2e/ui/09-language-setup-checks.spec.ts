@@ -7,7 +7,7 @@
 // change reversed; no toast offers Undo, decision 134).
 import type { Page } from '@playwright/test';
 import {
-  back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectToast, field, languageArrived, openAs, primary, screenText, tab, test, text,
+  back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectStill, expectToast, field, languageArrived, openAs, primary, screenText, tab, test, text,
   useWorld, type AccountKey, type UiWorld
 } from './support';
 import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, goBack, languageChecks, languagePage, orgRefused, reviewFlow, reviewFlows } from './setup-helpers';
@@ -449,9 +449,15 @@ test('SETUP-072 Start from a ready-made flow', async ({ page }) => {
 test('SETUP-073 Move a check to another place in the order', async ({ page }) => {
   const w = world();
   await checks(page, w, 'ADMIN');
-  // Drag Final approval's grip above Consultant check.
-  const grip = page.getByLabel('Move Final approval').first();
-  const target = page.getByLabel('Move Consultant check').first();
+  // The drag starts from where the grips are on screen, so the list must be whole and still first: a
+  // press taken while rows were still settling picked up another card (nightly 2026-10-31 and 11-03,
+  // both under a loaded runner: Community check ended first). The order is asserted so a different
+  // starting order fails here, not as a wrong drop.
+  await expect.poll(() => listed(page)).toEqual(['Peer check', 'Back translation', 'Community check', 'Consultant check', 'Final approval']);
+  const grip = page.getByLabel('Move Final approval').locator('visible=true').first();
+  const target = page.getByLabel('Move Consultant check').locator('visible=true').first();
+  await expectStill(grip);
+  await expectStill(target);
   const from = await grip.boundingBox();
   const to = await target.boundingBox();
   if (!from || !to) throw new Error('the grips are not on screen');

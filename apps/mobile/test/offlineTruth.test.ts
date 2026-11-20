@@ -1,5 +1,5 @@
 import { saysOffline } from '../src/sync/networkWake';
-import { offlineLook } from '../src/sync/offlineModel';
+import { fillBanner, offlineLook } from '../src/sync/offlineModel';
 import type { KeptOffline } from '../src/sync/offlineText';
 import { waitingCounts } from '../src/sync/uploadsModel';
 
@@ -50,5 +50,19 @@ describe('all uploaded means everywhere', () => {
     const none = { uploads: new Map(), pending: 0, orgPending: 0 };
     expect(waitingCounts(none)).toEqual({ recordings: 0, changes: 0 });
     expect(waitingCounts(none, [{ files: 2, changes: 5 }])).toEqual({ recordings: 2, changes: 5 });
+  });
+});
+
+describe('fillBanner (LAN-253)', () => {
+  it('shows the fill while it runs', () => {
+    expect(fillBanner({ filled: 3, total: 12 }, null, 'L1')).toEqual({ filled: 3, total: 12, done: false });
+  });
+  it('keeps the finished fill in place once this screen has shown it, so the list under it does not move', () => {
+    expect(fillBanner(null, { languageId: 'L1', total: 12 }, 'L1')).toEqual({ filled: 12, total: 12, done: true });
+  });
+  it('shows nothing for a fill this screen never showed, or one of another language', () => {
+    expect(fillBanner(null, null, 'L1')).toBeNull();
+    expect(fillBanner(null, { languageId: 'L1', total: 12 }, 'L2')).toBeNull();
+    expect(fillBanner({ filled: 0, total: 0 }, null, 'L1')).toBeNull();
   });
 });

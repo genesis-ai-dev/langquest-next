@@ -335,7 +335,7 @@
     "book_structure": "Divide a Book",
     "reference_home": "Reference material",
     "material_editor": "Edit Material",
-    "sync_status": "Sync",
+    "sync_status": "Sync and offline",
     "delete_account": "Delete Account",
     "reports_home": "Reports",
     "reports_language": "Language Report",
@@ -352,11 +352,18 @@
     "cluster_home": "Cluster",
     "global_viewer": "Global Viewer",
     "forgot_password": "Forgot Password",
-    "new_password": "New Password"
+    "new_password": "New Password",
+    "share_nearby": "Share nearby",
+    "let_someone_in": "Let someone in",
+    "join_offline": "Join without internet",
+    "get_install_file": "Download the install file",
+    "give_app": "Give the app"
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",
-    "camera": "LangQuest uses the camera to scan invite QR codes."
+    "camera": "LangQuest uses the camera to scan invite QR codes.",
+    "bluetooth": "LangQuest uses Bluetooth to find your teammates' phones nearby and share work with them.",
+    "localNetwork": "LangQuest uses the local network to share work with your teammates' phones nearby."
   },
   "library": {
     "sourceLine": {
@@ -730,7 +737,6 @@
       "newLanguage": "New language",
       "noLanguages": "No languages yet. Add the first one your team will record.",
       "openToBring": "Open it to bring it onto this device",
-      "newLanguageOrCluster": "New language or cluster",
       "inviteHelp": "Choose what they will do, then show them a code to scan.",
       "languageHelp": "Opens its page: get it ready, see its work and its people.",
       "licenseHelp": "The license your team's work is under. Setup says what it allows.",
@@ -2795,6 +2801,17 @@
       "changes_other": "{{count, number}} changes",
       "latestBy": "latest by {{name}}, {{when}}",
       "playExplanation": "Play the explanation",
+      "examples": "Say it in {{language}}",
+      "examplesCount": "Recorded: {{count, number}} of {{want, number}}",
+      "wayN": "Way {{n, number}}",
+      "recordThisWay": "Record this way",
+      "recordAgain": "Record this way again",
+      "addWay": "Add a different way of saying it",
+      "addWayHelp": "Add another way your team says this word in a different place, such as when it means something else.",
+      "wayUsedIn": "Used in",
+      "wayPassageHelp": "Open {{passage}} to hear this way in its place",
+      "playExample": "Play example {{n, number}}",
+      "exampleSaved": "Example saved",
       "openVersion": "Open Version {{n, number}}",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Recorded as part of {{passage}}, and tied to your draft.",
@@ -2872,7 +2889,11 @@
       "createAccountHelp": "Opens a form for your email and a new password.",
       "browseHelp": "See translation work that organizations share publicly. No account needed.",
       "forgot": "Forgot password?",
-      "forgotHelp": "Opens a page where you get a link by email to choose a new password."
+      "forgotHelp": "Opens a page where you get a link by email to choose a new password.",
+      "localHere": "Someone joined the team on this phone without internet. Nobody else can sign in here until their phone has reached the internet once.",
+      "joiningTitle": "{{name}} is joining on this phone",
+      "goOnJoining": "Go on joining",
+      "goOnJoiningHelp": "Opens the screen that finishes joining the team from a teammate's phone."
     },
     "terms": {
       "title": "Terms & Privacy",
@@ -3001,7 +3022,9 @@
       "notNowHelp": "Forgets this invite and goes back to your work.",
       "whoJoins": "Who is joining?",
       "someoneNew": "Someone new",
-      "someoneNewHelp": "For someone not on this phone yet: a new account. Next, type their name."
+      "someoneNewHelp": "For someone not on this phone yet: a new account. Next, type their name.",
+      "joinNotGuest": "This code lets a new phone join a team. This phone already has someone on it.",
+      "localJoined": "Done. Your work goes to the server as yours."
     },
     "signInKey": {
       "notGuestTitle": "This is a sign-in code",
@@ -3017,6 +3040,7 @@
       "notValid": "This code is not valid.",
       "expiredOrUsed": "This code has expired or was already used. Ask for a new one.",
       "codeBusy": "Unable to use this code. Please retry.",
+      "forSomeoneElse": "This code was made for someone else. Ask for a code made for you.",
       "scanElseHelp": "Leaves this code and opens the scanner again.",
       "signOutHelp": "Opens sign out, so the person this code is for can sign in on this device.",
       "buttonHelp": "Signs you in on this device with this code. Nothing to type.",
@@ -3132,9 +3156,9 @@
       "onItsWay": "Your work from LangQuest is on its way.",
       "wasProject": "{{org}} · was your project “{{project}}”",
       "counts": "{{recordings}} · {{passages}}",
-      "onItsWayRow": "On its way. It shows up here by itself.",
+      "onItsWayRow": "On its way. The LangQuest team is moving it here.",
       "recordHere": "<b>Record here from now on.</b> Recordings you make in the old app still come here, but what you record here doesn't go back.",
-      "keepOldApp": "<b>Keep recording in the old app until it's here.</b> Everything you record there comes over, and it shows up here by itself.",
+      "keepOldApp": "<b>Keep recording in the old app until it's here.</b> Everything you record there comes over.",
       "differentTitle": "What's different",
       "differentSummary": "Projects, quests and votes, here",
       "differentProject": "Your <b>project</b> is now a <b>language</b> in an organization.",
@@ -3142,15 +3166,17 @@
       "differentVersions": "What you recorded for a chapter is one <b>version</b> of it. Each time you publish, that's a new version.",
       "differentVotes": "<b>Votes</b> are Community Checks: what people said is on the passage.",
       "checkAgain": "Check again",
-      "notYet": "Not here yet. It shows up here by itself.",
+      "notYet": "Not here yet. The LangQuest team is moving it here.",
       "keepGoing": "Keep going on {{passage}}",
       "goToMyWork": "Go to My Work",
+      "continueWithout": "Continue without it",
       "recordings_one": "{{count, number}} recording",
       "recordings_other": "{{count, number}} recordings",
       "passages_one": "{{count, number}} passage",
       "passages_other": "{{count, number}} passages",
       "checkAgainHelp": "Looks again for your work from the old app.",
       "goToMyWorkHelp": "Opens your list of what to do next.",
+      "continueWithoutHelp": "Opens the app now. Your work from the old app still comes over.",
       "differentHelp": "How the old app's projects, quests and votes look in this one."
     },
     "invite": {
@@ -3226,7 +3252,10 @@
       "signInFailed": "Your new password is set. Sign in with it.",
       "changedTitle": "Password changed",
       "changedBody": "{{email}} signs in with the new password from now on.",
-      "doneHelp": "Back to your home page."
+      "doneHelp": "Back to your home page.",
+      "lost": "A phone of mine was lost or taken",
+      "lostSub": "Teammates' phones stop trusting that phone's work dated after now, and your other phones need a new sign-in to share nearby.",
+      "lostLetIn": "If you let anyone in from that phone who has not reached the internet yet, the server will turn them away. Their work stays on their phone, and someone with Invite can let them in again with an invite."
     }
   },
   "account": {
@@ -3245,7 +3274,8 @@
       "downloading": "Downloading update…",
       "downloadingPercent": "Downloading update… {{percent}}",
       "webReady": "A new version of LangQuest is ready. Reload to use it.",
-      "storeBuild": "store build",
+      "storeBuild": "store build {{version}}",
+      "noUpdate": "no update",
       "updateBuild": "update {{id}}",
       "unknownBuild": "update unknown"
     },
@@ -3351,21 +3381,41 @@
     },
     "me": {
       "title": "Me",
-      "nameSub": "Name and photo",
-      "offline": "Ready for offline",
+      "nameSub": "Name, email and password",
       "tour": "How LangQuest works",
       "tourSub": "Listen to a short tour",
       "more": "More settings",
-      "moreRefused": "This account cannot sync · password, notifications, account",
-      "moreRefusedEvents": "Refused · {{n, number}} · password, notifications, sync, account",
-      "morePending_one": "{{count, number}} waiting to send · password, notifications, sync, account",
-      "morePending_other": "{{count, number}} waiting to send · password, notifications, sync, account",
       "signOut": "Sign out",
       "signOutHelp": "Leaves this account on this device. Work not yet sent is kept until it is.",
-      "nameHelp": "Opens your profile, to change the name your team sees.",
-      "offlineHelp": "Shows what this device keeps for working without a connection.",
+      "nameHelp": "Opens your profile, to change your name, email or password.",
       "tourHelp": "Opens three short cards on what LangQuest is for.",
-      "moreHelp": "Opens your password, notifications, sync and account settings. A number means changes waiting to send."
+      "moreHelp": "Opens your notifications and account settings.",
+      "local": {
+        "title": "{{name}}, you joined without internet",
+        "letInBy": "{{name}} let you in from their phone.",
+        "letIn": "A teammate let you in from their phone.",
+        "waiting": "Your account is made the first time this phone reaches the internet. Until then your work waits here.",
+        "joining": "Reaching the server…",
+        "finishing": "Signed in. Finishing setting up this phone…",
+        "needsCode": "Your account is ready. Sign in as {{name}} with a code from someone on your team.",
+        "needsCodeLine": "Ask a teammate to find you in Members and tap Help them sign in, then scan their code here.",
+        "keyLost": "This phone lost the key it was let in with. Your work is still here. Ask someone on your team for help.",
+        "otherAccount": "Someone else is signed in on this phone. Your work is still here.",
+        "refusedLine": "Your work is safe on this phone. Ask someone with Invite for an invite, then scan it here.",
+        "workSafe": "Your work is kept on this phone and on teammates' phones until it reaches the server.",
+        "retry": "Try now",
+        "retryHelp": "Asks the server again now, if this phone has internet.",
+        "scan": "Scan a code",
+        "scanHelp": "Opens the scanner for an invite or a teammate's sign-in code.",
+        "refused": {
+          "expired": "The server turned you away: the pass you were let in with had run out.",
+          "used": "The server turned you away: the pass you were let in with was used up.",
+          "off": "The server turned you away: your organization has joining without internet turned off.",
+          "notFound": "The server turned you away: it does not know the pass you were let in with.",
+          "retired": "The server turned you away: your role is no longer used, or the teammate who let you in can no longer give it.",
+          "other": "The server turned you away."
+        }
+      }
     },
     "more": {
       "noEmail": "No email yet",
@@ -3374,8 +3424,6 @@
       "newDeviceNoName": "New device? The person who invited you or an admin can help you sign in.",
       "helpedBy": "Signed in on this device with {{name}}'s help · {{date}}",
       "helpedBySomeone": "Signed in on this device with someone's help · {{date}}",
-      "setPassword": "Set a password",
-      "setPasswordSub": "If other people use this device",
       "notifications": "Notifications",
       "notificationsSub": "Hear about requests and feedback",
       "notificationsBlocked": "Off in this phone’s settings",
@@ -3387,7 +3435,6 @@
       "switchActive": "{{org}} (active)",
       "switchOrStart": "{{org}} · or start a new one",
       "thisDevice": "This device",
-      "sync": "Sync",
       "syncRefused": "This account cannot sync this organization",
       "syncPending_one": "{{count, number}} change waiting to send",
       "syncPending_other": "{{count, number}} changes waiting to send",
@@ -3404,9 +3451,18 @@
       "blockedCount_other": "{{count, number}} people",
       "deleteAccount": "Delete account",
       "deleteSub": "Your account and your name, for good",
+      "removeMe": "Remove me from this phone",
+      "removeMeSub": "Instead of signing out: this phone forgets you",
+      "removeMeHelp": "Asks first. Then this phone forgets you and goes back to Sign In.",
+      "removeMeTitle": "Remove {{name}} from this phone?",
+      "removeMeUnsent": "Not sent from this phone yet: {{things}}. Unless a teammate's phone has carried it, it will be lost.",
+      "removeMeBody": "This phone forgets you and your key, and goes back to Sign In. To work here again, someone has to let you in again, as a new person.",
+      "removeMeButton": "Remove me",
+      "removing": "Removing…",
+      "lostPhoneSub": "Emails you a link to choose a new password and stop trusting that phone",
+      "lostPhoneSent": "Link sent to {{email}}. Open it, choose a new password and turn on “A phone of mine was lost or taken”.",
       "testing": "Testing",
       "personaSub": "Sign in as a demo translator, reviewer or admin",
-      "syncHelp": "Shows what waits to send or download. A number means changes waiting to send.",
       "blockedHelp": "Shows who you blocked, to unblock them.",
       "switchOrgHelp": "Opens your organizations, to switch to another or start a new one."
     },
@@ -3428,18 +3484,27 @@
       "passwordNeedsConnection": "Setting a password needs a connection.",
       "nameSaved": "Name saved.",
       "passwordFailed": "The password could not be set. Try again.",
-      "savedWithPassword": "Saved. You can sign in with your sign-in name and this password.",
+      "passwordSaved": "Password saved.",
+      "savedWithPassword": "Saved. You sign in with {{name}} and this password.",
       "saved": "Profile saved. It syncs when you are connected.",
       "newPassword": "New password (optional)",
       "password": "Password (optional)",
       "passwordPlaceholder": "6 or more characters",
       "signInWith": "You sign in with {{name}} and this password. Write the name down.",
-      "signInWithYourName": "You sign in with your sign-in name and this password. Write the name down.",
-      "setOne": "Set one if other people use this device, so you can sign back in after they do.",
+      "signInWithEmail": "You sign in with {{email}} and this password.",
+      "setOne": "Set one so you can sign in on another device.",
       "lastChangeRefused": "Your last change was not accepted",
       "savedBody": "It sends when you are connected.",
       "nameHelp": "The name your team sees you by. It sends when you are connected.",
-      "passwordHelp": "Lets you sign back in after someone else uses this device."
+      "passwordHelp": "Lets you sign in on another device, and back in on this one without internet.",
+      "emailHelp": "You sign in with this address, and Forgot password sends its link here. Changing it needs a connection.",
+      "addEmail": "With an email, you sign in with it instead of {{name}}, and Forgot password can send you a link. A helper's code no longer signs you in.",
+      "emailRequired": "Type the email you sign in with.",
+      "passwordWithEmail": "Choose a password too: with an email, a helper's code no longer signs you in.",
+      "emailNeedsConnection": "Changing your email needs a connection.",
+      "emailTaken": "Another account already uses this email.",
+      "emailFailed": "The email could not be saved. Try again.",
+      "savedWithEmail": "Saved. You sign in with {{email}} from now on."
     },
     "orgs": {
       "stale": "Unable to refresh. Saved organizations remain available.",
@@ -3468,7 +3533,7 @@
       "blocked": "Still to send: {{things}}. Sign out once they have synced so they are not stranded here.",
       "blockedOffline": "Still to send: {{things}}. This device is offline. Sign out once they have synced so they are not stranded here.",
       "refused": "This account cannot sync this organization: the server refused it. Signing out is safe; anything queued stays on this device.",
-      "setPasswordFirst": "If other people use this device, set a password in Edit Profile first.",
+      "setPasswordFirst": "To sign back in without help, add your email or a password in Edit Profile first.",
       "forgets": "You can sign back in anytime. This browser forgets everything it kept for you, so the next person here sees none of it.",
       "anytime": "You can sign back in anytime.",
       "offlineBackIn": "This device is offline, so signing back in will have to wait for a connection.",
@@ -3526,7 +3591,8 @@
         "checking": "Connected",
         "offline": "Offline",
         "refused": "Not syncing",
-        "tooOld": "Update to receive"
+        "tooOld": "Update to receive",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "Changes from your team arrive as they happen, and yours go out right away.",
@@ -3535,16 +3601,31 @@
         "refused": "The server is not accepting changes from this device. Your work is still kept here.",
         "tooOld": "This app is too old to receive your team’s changes. Update it from the store.",
         "toReceive": "Recordings from others that this device is still downloading.",
-        "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one."
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "To receive",
-      "refusedLine": "Refused",
-      "none": "None",
-      "moreInfo": "More about this",
       "details": "Details",
       "syncNowHelp": "Sends what is waiting and gets what is new, right away.",
       "detailsHelp": "Each change waiting or refused, and audio transfers: for someone fixing a problem.",
-      "eventHelp": "Opens the passage this change is about."
+      "eventHelp": "Opens the passage this change is about.",
+      "title": "Sync and offline",
+      "rowHelp": "Opens what this device sends and receives, and what it keeps for working without a connection.",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "Refused by the server",
+        "refusedCount_one": "{{count, number}} change",
+        "refusedCount_other": "{{count, number}} changes",
+        "refusedNote": "They stay on this device. Someone who manages your team can usually help.",
+        "refusedHelp": "Changes the server would not accept, each with its reason. They stay on this device.",
+        "uploads": "Uploads",
+        "uploadsHelp": "What waits on this device to upload, by passage, and what went up.",
+        "downloads": "Downloads",
+        "readyHelp": "Whether this phone has what you need before you go offline."
+      },
+      "down": {
+        "count_one": "{{count, number}} recording to receive",
+        "count_other": "{{count, number}} recordings to receive",
+        "offline": "Checks for new work when back online"
+      }
     },
     "lock": {
       "tooShort": "Join at least {{n}} dots.",
@@ -3556,6 +3637,20 @@
       "drawAgain": "Draw it again",
       "newPattern": "Draw a new pattern",
       "choosePatternHelp": "Choose a picture and a pattern to sign back in with on this phone, even with no connection."
+    },
+    "appLock": {
+      "row": "Lock the app",
+      "rowHelp": "When on, the app asks for your pattern each time it opens, and each time you come back to it. Turning it on or off asks for your pattern first.",
+      "on": "The app now asks for your pattern when it opens.",
+      "off": "The app no longer asks for your pattern.",
+      "opening": "Opening…",
+      "checking": "Checking…",
+      "forgot": "Forgot?",
+      "forgotHelp": "Forgot your pattern? Sign out, then sign in again with your password, or with a sign-in code from someone on your team. Your work stays on this phone.",
+      "signOutHelp": "Signs out of this phone. Your work stays on it and is sent when it can be.",
+      "backHelp": "Goes back to the dots.",
+      "waitFor_one": "Too many tries. Try again in {{count, number}} minute.",
+      "waitFor_other": "Too many tries. Try again in {{count, number}} minutes."
     }
   },
   "study": {
@@ -3917,7 +4012,11 @@
         "askedWho": "asked {{who}}",
         "asked": "asked",
         "next": "next",
-        "afterDone": "once you're done"
+        "afterDone": "once you're done",
+        "made": "made",
+        "checked": "checked",
+        "afterMade": "after it is made",
+        "checkedBy": "in the {{check}}"
       },
       "help": {
         "study": "Go through the study guide together before you record. Nothing waits on it.",
@@ -3937,7 +4036,9 @@
         "checkpoint": "The lock: it must pass before the steps after it."
       },
       "thenTheTeam": "Then the team",
-      "teamHears": "Then the team can hear it"
+      "teamHears": "Then the team can hear it",
+      "makeIt": "{{what}} · make it",
+      "checkIt": "{{what}} · check it"
     },
     "quote": "“{{text}}”",
     "journey": {
@@ -4713,7 +4814,10 @@
       "bullet": "• {{line}}",
       "notSent_one": "{{count, number}} recording in your kept passages hasn't been sent from the device that made it yet, so no device can download it.",
       "notSent_other": "{{count, number}} recordings in your kept passages haven't been sent from the device that made them yet, so no device can download them.",
-      "barHelp": "How many of your kept passages are fully on this device."
+      "barHelp": "How many of your kept passages are fully on this device.",
+      "keptTitle": "Kept passages",
+      "worksOffline": "What works offline",
+      "worksOfflineHelp": "Shows what is always on this device, and what needs a connection."
     },
     "keepHelp": "Keeps its audio on this device, so it works without a connection.",
     "stopKeepingHelp": "Lets this device remove its audio again when it needs room.",
@@ -5209,7 +5313,7 @@
       "kept_other": "{{count, number}} passages on this device",
       "ready_one": "{{ready}} of {{count, number}} passage ready on this device",
       "ready_other": "{{ready}} of {{count, number}} passages ready on this device",
-      "moreSettingsSub": "Password, notifications, sync, account"
+      "moreSettingsSub": "Notifications, account"
     },
     "waiting": "Waiting to be divided",
     "parts": {
@@ -5998,6 +6102,7 @@
       "couldNotRead": "The report could not be read",
       "notVisible": "This language has no report you can see",
       "notVisibleBody": "Your role may not include this language, or it was added after the reports loaded (catch up from Reports to check).",
+      "template": "Template: <b>{{template}}</b>",
       "reviewFlow": "Review flow: <b>{{flow}}</b>",
       "bottleneck": "Bottleneck: <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{count, number}} in {{step}}",
@@ -6560,7 +6665,7 @@
       "guide": "Guide",
       "guideHint": "The study guide's steps for this passage.",
       "terms": "Key words",
-      "termsHint": "Words to say the same way every time: hear each, and say yours.",
+      "termsHint": "Words to say the same way every time: tap one to hear it and see where it is used.",
       "notes": "Notes",
       "notesHint": "The team's notes on this passage.",
       "earlier": "Earlier",
@@ -6894,29 +6999,25 @@
       "verseTermsHelp": "Underlined words are key words: tap one to open it.",
       "verseTermsMarkedHelp": "Underlined words are key words.",
       "verseTiedHelp": "A tick after a key word means it is tied to your draft.",
-      "verseDotHelp": "Plays the Bible from this verse."
+      "verseDotHelp": "Plays the Bible from this verse.",
+      "ourWord": "Your word: {{word}}",
+      "verseOursHelp": "A green word after a key word is how your team says it."
     },
     "keyWords": {
       "none": "No key words in this passage yet.",
       "noneAdd": "No key words in this passage yet. Add one your team should say the same way every time.",
-      "elsewhere": "Elsewhere in the book",
       "add": "Add a key word",
       "addHint": "A word your team should say the same way every time.",
       "all": "All key words",
-      "hear": "Hear {{term}}",
       "hearHelp": "Plays the verse it is in.",
       "noVerseAudio": "This Bible has no audio for that verse.",
-      "hearLabel": "Hear {{term}} in the Bible",
       "openHelp": "What it means, how your team says it, and why.",
-      "termLabel": "{{term}}. {{refs}}",
-      "termLabelWord": "{{term}}. {{refs}}. Your word: {{word}}",
       "yourWord": "Your word",
       "yourWordHelp": "Plays how your team says {{term}}.",
       "pauseYourWord": "Pause your word for {{term}}",
       "playYourWord": "Play your word for {{term}}",
       "sayYours": "Say yours",
       "sayYoursHelp": "Record how your language says {{term}}.",
-      "sayYoursLabel": "Say your word for {{term}}",
       "saved": "Your word for {{term}} is saved.",
       "sayTitle": "Your word for “{{term}}”",
       "saySub": "Say how {{language}} says it. Your team hears it whenever this word comes up.",
@@ -7534,6 +7635,23 @@
       "fromList": "From {{name}}",
       "fromListSub": "What it means, and {{name}}'s recording",
       "fromListHelp": "Opens what {{name}} says the word means, with its recording."
+    },
+    "tiles": {
+      "recorded": "Recorded word",
+      "noWord": "no word yet",
+      "label": "{{term}}. Your word: {{word}}",
+      "labelRecorded": "{{term}}. Your word is recorded.",
+      "labelNone": "{{term}}. No word yet.",
+      "openHelp": "Opens {{term}}: what it means, where it is used, and how your team says it.",
+      "inBible": "Show our words in the Bible text",
+      "inBibleHelp": "Shows your team's word after each key word in the Bible."
+    },
+    "ours": {
+      "afterDone": "You can open the passages and this word's page after you press Done.",
+      "openPage": "Open the word's page",
+      "openPageHelp": "Opens the page for {{term}}, where you can change your word.",
+      "saidIn": "Said in {{where}}",
+      "usedIn": "Used in {{where}}"
     }
   },
   "clusters": {
@@ -7982,5 +8100,28 @@
       "badItem": "Choose one of your own items of the same kind.",
       "offline": "Could not reach LangQuest. Check your connection and try again."
     }
+  },
+  "orgExport": {
+    "title": "Export all data",
+    "sub": "One zip: recordings in folders, a list of every recording, progress sheets and the full record.",
+    "whole": "The whole organization",
+    "some": "Only some languages",
+    "start": "Make the zip",
+    "waiting": "Waiting to start",
+    "reading": "Reading the organization",
+    "audio": "Adding recordings: {{done}} of {{total}}",
+    "log": "Adding the full record",
+    "ready": "Ready to download",
+    "download": "Download",
+    "failed": "The export did not finish. Try again.",
+    "started": "The export has started.",
+    "problem": "The export could not start.",
+    "expired": "Removed after 7 days.",
+    "keep": "A finished zip stays for 7 days.",
+    "help": "Opens a page to download all the organization's data as one zip.",
+    "wholeHelp": "Export every language of the organization.",
+    "someHelp": "Choose which languages to export.",
+    "languageHelp": "Include or leave out this language.",
+    "downloadHelp": "Downloads the finished zip."
   }
 }

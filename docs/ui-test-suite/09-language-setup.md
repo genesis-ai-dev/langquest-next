@@ -314,7 +314,7 @@ Preconditions (in addition to the global ones):
 - Resets: adds a language "Charlie {run}".
 
 Steps:
-1. Open Org home and tap "New language or cluster". Read the six steps,
+1. Open Org home and tap "New language". Read the six steps,
    then tap "Start". Leave "One language" chosen under "What are you
    adding?".
 2. Type "Charlie {run}" in "Its name". Do not pick a list entry. Type
@@ -680,7 +680,7 @@ Preconditions (in addition to the global ones):
   ungroups the cluster, so Bravo ends as it began.
 
 Steps:
-1. Open Org home, tap "New language or cluster", then "Start".
+1. Open Org home, tap "New language", then "Start".
 2. Tap "A cluster of languages". Type "Cluster {run}" in "The cluster's
    name".
 3. Type "Kilo {run}" in "Add a language" and tap "Add “Kilo {run}”" (the
@@ -742,6 +742,25 @@ Expected:
 - Step 4: toast "Group {run} made, with 2 languages." The cluster's page
   opens: "Cluster · 2 languages", with Alpha and Bravo.
 - Step 5: toast "Group {run} ungrouped. Its languages are still here."
+
+### SETUP-080 New language's review step waits out a server that fails once
+Roles: ADMIN · Priority: P1 · Platforms: Web · Run: Auto
+
+Under load a read of the review flows' documents can fail once. One
+failure must not leave the step at "No ways to check to choose from yet."
+(LAN-254).
+
+Preconditions (in addition to the global ones):
+- The library is seeded (G2). (Leave with ✕ at the end.)
+- The first read of a review flow's document fails (the test answers it
+  with a server error).
+
+Steps:
+1. Set up a new language "India {run}" as in SETUP-010, up to "How will
+   recordings get checked?" (step 5).
+
+Expected:
+- "Standard Bible Flow" shows, and Continue can be tapped.
 
 ## Get ready
 

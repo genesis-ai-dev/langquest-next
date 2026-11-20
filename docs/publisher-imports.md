@@ -1,5 +1,7 @@
 # Publisher imports
 
+Kind: reference
+
 A publisher keeps its material in an organization of its own, with its blue
 check (docs/verified-organizations.md), and brings it in with an importer
 LangQuest staff turn on for that organization (decisions.md 174). Other

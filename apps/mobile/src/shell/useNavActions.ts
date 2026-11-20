@@ -1,8 +1,9 @@
 import { CommonActions } from '@react-navigation/native';
 import { useCallback } from 'react';
+import { Keyboard } from 'react-native';
 import { edgeFor, TAB_SCREENS, type ScreenId } from './flow';
 import { t } from '../i18n';
-import { navRef, type Nav, type Route } from './nav';
+import { dispatchMove, navRef, type Nav, type Route } from './nav';
 import { reportError } from '../diagnostics/report';
 import { edgeAllowed, homeScreenFor, type Session } from './session';
 
@@ -31,6 +32,11 @@ export function useNavActions(o: { nav: Nav; session: Session; toast: (message: 
         toast(t('shell.nav.noPermission'));
         return;
       }
+      // The keyboard goes with the screen it was typed on. Left up, iOS hides it
+      // for the next screen and, on the way back, focuses the field again and
+      // puts it back up over the tab bar (a map search, a result opened, Back:
+      // SYNC-016 on iPhone, where the tap on Me landed on the keyboard).
+      Keyboard.dismiss();
       const mode = edge.mode ?? 'push';
       if (fromKey && fromKey !== nav.stack[nav.stack.length - 1]?.key) return nav.fromRoute(fromKey, mode, route);
       switch (mode) {
@@ -60,7 +66,7 @@ export function useNavActions(o: { nav: Nav; session: Session; toast: (message: 
   const openTask = useCallback((inLanguage: string, unitId: string) => {
     remember(unitId, inLanguage);
     const params = { unitId, languageId: inLanguage };
-    if (navRef.isReady()) navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: homeScreenFor(session) }, { name: 'passage_record', params }] }));
+    if (navRef.isReady()) dispatchMove(CommonActions.reset({ index: 1, routes: [{ name: homeScreenFor(session) }, { name: 'passage_record', params }] }));
     else resetNav({ screen: 'passage_record', params });
   }, [remember, session, resetNav]);
   return { goFrom, go, openPassage, openTask };

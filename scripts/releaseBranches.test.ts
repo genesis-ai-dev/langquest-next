@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -218,17 +219,37 @@ describe('a copy with a conflict', () => {
     expect(readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8')).toMatch(/^  pull_request:\n    types: \[labeled\]/m);
   });
 
+  it('pushes Claude\'s commits with one credential, so the checkout keeps none of its own', () => {
+    // PRs 434 to 444 (2026-11-13): actions/checkout v7 keeps its token in a file that an includeIf entry pulls in, which
+    // Claude's action does not remove, so finish-copy's push sent two Authorization headers and GitHub answered 400.
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    const checkout = /\n {6}- uses: actions\/checkout@[^\n]*\n((?: {8}.*\n)+)/.exec(yml)?.[1] ?? '';
+    expect(checkout).toMatch(/^ {10}persist-credentials: false$/m);
+    expect(readFileSync('scripts/release-branches.mjs', 'utf8')).toMatch(/GIT_CONFIG_KEY_0: 'http\.https:\/\/github\.com\/\.extraheader'/);
+  });
+
   it('Claude signs in with the Claude plan token, or an API key, and the workflow comments instead when there is neither', () => {
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toMatch(/HAS_CLAUDE_KEY: \$\{\{ secrets\.CLAUDE_CODE_OAUTH_TOKEN != '' \|\| secrets\.ANTHROPIC_API_KEY != '' \}\}/);
     expect(yml).toMatch(/claude_code_oauth_token: \$\{\{ secrets\.CLAUDE_CODE_OAUTH_TOKEN \}\}/);
     expect(yml).toMatch(/if: env\.HAS_CLAUDE_KEY != 'true'\n\s+env:[\s\S]*?conflict-note/);
-    expect(yml).toMatch(/claude-code-action@v1\n\s+if: env\.HAS_CLAUDE_KEY == 'true'/);
+    expect(yml).toMatch(/claude-code-action@[0-9a-f]{40} # v1\.[0-9.]+\n\s+if: env\.HAS_CLAUDE_KEY == 'true'/);
   });
 
   it('each copy also takes main\'s server-calls check, which reads main\'s server on a release branch', () => {
     // PR 344 (2026-11-05) failed: the release branch's own server-calls check read its old server.
     expect(MACHINERY).toEqual(expect.arrayContaining(['scripts/server-calls.mjs', 'scripts/serverCalls.test.ts']));
+  });
+
+  it('takes every file its machinery imports, so main\'s machinery runs on a branch from before any of main\'s changes', () => {
+    // PRs 437 and 441 (2026-11-13) failed: main's serverCalls.test.ts imported the store build guard, which a copy does not take,
+    // and release/ios's guard, from before carried builds, had no FIELD_PROFILES.
+    const local = /(?:from|import\()\s*'(\.{1,2}\/[^']+)'/g;
+    for (const file of MACHINERY.filter((f) => /\.(m?js|ts)$/.test(f))) {
+      for (const [, spec] of readFileSync(file, 'utf8').matchAll(local)) {
+        expect(MACHINERY, `${file} imports ${spec}`).toContain(posix.normalize(posix.join(posix.dirname(file), spec)));
+      }
+    }
   });
 
   it('a copy whose checks failed, or that Claude did not finish, gets Claude again up to 3 times, then a person', () => {
@@ -246,6 +267,11 @@ describe('a copy with a conflict', () => {
     // GitHub runs no pull_request workflow on a copy with a conflict, so its label started nothing (PR 347, 2026-11-06).
     expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 1, conflicting: true })).toBe('try');
     expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 3, conflicting: true })).toBe('person');
+    expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 1, conflicting: true, sinceTry: 61 })).toBe('try');
+    // Within the hour after a try, the Claude that the try started may still run (PR 347, 2026-11-06 03:26 UTC).
+    expect(CLAUDE_MINUTES).toBe(60);
+    expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 3, conflicting: true, sinceTry: 1 })).toBe('none');
+    expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 1, conflicting: true, sinceTry: 59 })).toBe('none');
     expect(nextForCopy({ labels: [PERSON_LABEL], gate: null, tries: 3, conflicting: true })).toBe('none');
     // Claude is on it, or a person is, or nothing failed (yet).
     expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
@@ -352,6 +378,9 @@ describe('a copy with a conflict', () => {
     expect(yml).toMatch(/- id: copy\n[\s\S]*?PR: \$\{\{ github\.event\.pull_request\.number \|\| github\.event\.client_payload\.pr \}\}[\s\S]*?"\$base" != release\/\*[\s\S]*?exit 1/);
     expect(yml.indexOf('- id: copy')).toBeLessThan(yml.indexOf('actions/checkout@'));
     expect(yml).toContain('ref: ${{ steps.copy.outputs.head }}');
+    // The hourly run waits for a Claude run as long as the workflow lets one run.
+    expect(yml).toContain(`timeout-minutes: ${CLAUDE_MINUTES}\n`);
+    expect(script.slice(script.indexOf('function fixFailedCopies('), script.indexOf('function startClaude('))).toContain("'--json', 'number,headRefName,headRefOid,labels,comments,statusCheckRollup,mergeable'");
     // After the step that finds the copy, nothing reads the pull request from the event.
     expect(yml.slice(yml.indexOf('- uses: actions/checkout@'))).not.toContain('github.event.');
   });
@@ -359,7 +388,7 @@ describe('a copy with a conflict', () => {
   it('Claude\'s action lets the release bot that labels the copy start it', () => {
     // Without it, the first iPhone catch-up (2026-11-05) failed: "Workflow initiated by non-human actor".
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
-    expect(yml).toMatch(/claude-code-action@v1\n[\s\S]*?\n\s+allowed_bots: langquest-release-branches\n/);
+    expect(yml).toMatch(/claude-code-action@[0-9a-f]{40} # v1\.[0-9.]+\n[\s\S]*?\n\s+allowed_bots: langquest-release-branches\n/);
   });
 
   it('the workflow keeps a release branch for both platforms', () => {

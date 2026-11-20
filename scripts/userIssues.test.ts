@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, LIMITS, linearClient, lookedOf, mergesOf,
-  noFixComment, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, when, withEvidence
+  noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -71,7 +71,8 @@ describe('user-issues.mjs', () => {
     // The OpenID Connect token fetches what came with the issue, in the step before Claude, as in the watch job.
     expect(perms('fix')).toEqual(['contents: read', 'id-token: write']);
     expect(perms('check')).toEqual(['contents: read']);
-    expect(perms('open')).toEqual(['contents: write', 'pull-requests: write']);
+    // The push job also tells the Worker Claude's answer to an admin's instruction, by the same door as the watch job.
+    expect(perms('open')).toEqual(['contents: write', 'pull-requests: write', 'id-token: write']);
     // No checkout before Claude or the patch's code keeps a token on disk.
     for (const job of ['watch', 'fix', 'check']) expect(jobs[job]!.match(/actions\/checkout@/g)?.length, job).toBe(jobs[job]!.match(/persist-credentials: false/g)?.length);
     const fix = jobs['fix']!.split(/\n {6}- /);
@@ -87,6 +88,13 @@ describe('user-issues.mjs', () => {
     expect(fix.indexOf(context)).toBeLessThan(fix.indexOf(claude));
     expect(context).toContain('FIX_PRIVATE: ${{ runner.temp }}/private.json');
     expect(fix.find((s) => s.includes('fix-patch'))).toContain('FIX_PRIVATE: ${{ runner.temp }}/private.json');
+    // An admin's instructions: their ids are kept outside the checkout too, and Claude is told where the rules for them are.
+    expect(context).toContain('FIX_NOTES: ${{ runner.temp }}/notes.json');
+    expect(fix.find((s) => s.includes('fix-patch'))).toContain('FIX_NOTES: ${{ runner.temp }}/notes.json');
+    expect(claude).toContain('When an admin sent an instruction');
+    expect(read('.agents/skills/user-issues/SKILL.md')).toContain('### When an admin sent an instruction');
+    // The file step runs for an instruction alone, so its issue reaches the fix jobs.
+    expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('file .user-issues'))).toContain("steps.watch.outputs.notes != '0'");
     expect(claude).toContain('.user-issues/evidence');
     expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('anthropics/claude-code-action'))).toContain('.user-issues/evidence');
     // Nothing that came with a problem leaves the runner: only the patch step's own output is uploaded.
@@ -98,8 +106,11 @@ describe('user-issues.mjs', () => {
     expect(watchSteps.find((s) => s.includes('file .user-issues'))).toContain('GIT_DIR: ${{ runner.temp }}/base.git');
     expect(jobs['fix']).toContain('run: node "$RUNNER_TEMP/watch/user-issues.mjs" fix-patch .user-issues');
     expect(jobs['fix']).toContain('max-parallel: 1');
-    // The checks hold no secret; the paths are refused before anything of the patch runs.
-    expect(jobs['check']).not.toMatch(/secrets\.|cache:/);
+    // The checks hold no secret and share no cache that the patch could write to; setup-node caches on
+    // its own when package.json names a packageManager, so the job turns that off (decisions.md 247).
+    // The paths are refused before anything of the patch runs.
+    expect(jobs['check']).not.toMatch(/secrets\.|(?<!package-manager-)cache:/);
+    expect(jobs['check']).toContain('package-manager-cache: false');
     expect(jobs['check']!.indexOf('fix-paths')).toBeLessThan(jobs['check']!.indexOf('npm ci'));
     // The push runs nothing of the patch.
     expect(jobs['open']).not.toMatch(/\bnpm\b|\bnpx\b|vitest|claude-code-action/);
@@ -111,11 +122,12 @@ describe('user-issues.mjs', () => {
     expect(KEY.source).toBe(model.KEY.source);
     expect(LABEL).toBe(model.ISSUE_LABEL);
     expect(PREFIX).toBe(model.ISSUE_PREFIX);
-    const sql = read('supabase/migrations/20261103180000_user_issues.sql');
+    // The table's check, as the newest migration that sets it: ops lines joined on 2026-11-17.
+    const sql = read('supabase/migrations/20261117213500_ops_lines_linear.sql');
     // Postgres allows no repetition count over 255, so the table says the length on its own.
     expect(sql).toContain(`check (length(key) <= 300 and key ~ '^(${FAMILIES.join('|')}):[A-Za-z0-9 _.:()/#@-]+$')`);
     // A tag a record left out is a dash, which a key may hold; never a question mark.
-    expect(sql).not.toMatch(/coalesce\([rn]\.t->>'\w+', '\?'\)/);
+    expect(read('supabase/migrations/20261103180000_user_issues.sql')).not.toMatch(/coalesce\([rn]\.t->>'\w+', '\?'\)/);
   });
 });
 
@@ -153,6 +165,10 @@ describe('an issue in Linear', () => {
     expect(factsOf(job)).toContain('(error, 57014)');
     expect(factsOf(kind('job:tutorial_review:stopped', { server: { job: 'tutorial_review', streak: 0 } }))).toContain('stopped running');
     expect(factsOf(kind('worker:blobs:5xx', { count: 7, server: { route: 'blobs', answers5xxLastDay: 7 } }))).toContain('answered 7 times with a server error');
+    // A line of the ops dashboard: what it says, where, and its page; the key goes in the agent notes.
+    const line = factsOf(kind('ops:r2-missing', { server: { line: { level: 'urgent', text: 'The R2 reconciliation found 7 recordings the log names but R2 does not have.', title: 'Recordings missing from R2', part: 'storage', link: null } } }));
+    expect(line).toContain('**The ops dashboard shows: Recordings missing from R2** · Act now · in storage');
+    expect(line).toContain('> The R2 reconciliation found 7 recordings');
   });
 
   it('says how many more people hit a filed problem, and that it was closed', () => {
@@ -182,10 +198,13 @@ describe("Claude's decisions", () => {
 
   it('takes one verdict per kind it was handed, and says what it left', () => {
     const plan = checkDecisions({
-      file: [{ keys: [ERR.key, FB.key], title: 'User issue: Recordings\nvanish', priority: 1, summary: 's', cause: 'c' }],
+      file: [{ keys: [ERR.key, FB.key], title: 'User issue: Recordings\nvanish', priority: 1, summary: 's', cause: 'c', context: 'A person saves a recording.\nOn Android.', problem: `Ask x@y.org. ${'It is gone. '.repeat(40)}` }],
       noise: [{ key: NOISE.key, note: 'A wrong password, once.' }]
     }, watch, linear);
-    expect(plan.file).toEqual([{ keys: [ERR.key, FB.key], title: 'Recordings vanish', priority: 1, summary: 's', cause: 'c' }]);
+    // The three lines of its card: one line each, cut to their limit, an address out; null where Claude wrote none.
+    expect(plan.file).toEqual([{ keys: [ERR.key, FB.key], title: 'Recordings vanish', priority: 1, summary: 's', cause: 'c',
+      context: 'A person saves a recording. On Android.', problem: expect.stringMatching(/^Ask \[address\]\. It is gone\. .*…$/), solution: null }]);
+    expect(plan.file[0]?.problem).toHaveLength(LIMITS.line);
     expect(plan.noise).toEqual([{ key: NOISE.key, note: 'A wrong password, once.' }]);
     expect(plan.dropped).toEqual([]);
     expect(plan.undecided).toEqual([]);
@@ -227,9 +246,9 @@ describe("Claude's decisions", () => {
   });
 
   it('tells the Worker the counts each kind was judged at', () => {
-    expect(lookedOf(ERR, 'filed', { identifier: 'LAN-220', url: 'https://linear.app/x/issue/LAN-220' }, null, { title: 'Recordings vanish' })).toEqual({
+    expect(lookedOf(ERR, 'filed', { identifier: 'LAN-220', url: 'https://linear.app/x/issue/LAN-220' }, null, { title: 'Recordings vanish', context: 'c', problem: 'p' })).toEqual({
       key: ERR.key, verdict: 'filed', issue: 'LAN-220', issueUrl: 'https://linear.app/x/issue/LAN-220', people: 3, count: 9, note: null,
-      title: 'Recordings vanish', fixedBy: null, fixedAt: null
+      title: 'Recordings vanish', context: 'c', problem: 'p', solution: null, fixedBy: null, fixedAt: null
     });
     // Found fixed: counted from the fix, so it comes back only when people hit it after the fix.
     expect(lookedOf(ERR, 'fixed', null, 'n', { fixedBy: 312, fixedAt: '2026-11-03T17:09:42.000Z' })).toMatchObject({ people: 0, fixedBy: 312, issue: null });
@@ -395,7 +414,9 @@ describe('a draft fix for each new issue', () => {
   });
 
   it('takes Claude\'s summary or its reason for none, cut and without addresses, and only fixed words from the checks', () => {
-    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '' });
+    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '' });
+    expect(checkFix({ summary: 'S', answer: ' I moved the wait.\nAsk a@b.org ' }).answer).toBe('I moved the wait. Ask [address]');
+    expect(checkFix({ summary: 'S', answer: 'x'.repeat(2000) }).answer).toHaveLength(FIX_LIMITS.answer);
     expect(checkFix({ noFix: 'Needs a store build.' }).noFix).toBe('Needs a store build.');
     expect(checkFix({}).noFix).toBe('Claude wrote no summary of a change.');
     expect(checkFix(null).noFix).toBe('Claude wrote no summary of a change.');
@@ -417,6 +438,46 @@ describe('a draft fix for each new issue', () => {
       .toBe('**Claude wrote a draft fix:** [PR 330](https://github.com/genesis-ai-dev/langquest-next/pull/330).\n\nTypecheck passed; no tests near the change.\n\nReview it, then mark it Ready for review on GitHub to run CI and merge it.');
     expect(noFixComment('Needs a store build.', RUN)).toBe(`**Claude looked for a fix and wrote none.** Needs a store build.\n\nThe watch for user issues: ${RUN}`);
     expect(branchComment('user-issue/lan-230', RUN)).toContain('[Open it](https://github.com/genesis-ai-dev/langquest-next/compare/main...user-issue/lan-230?expand=1)');
+  });
+});
+
+describe("an admin's instructions from the ops dashboard", () => {
+  const A = '0d000000-0000-4000-8000-0000000000a1';
+  const B = '0d000000-0000-4000-8000-0000000000a2';
+  const C = '0d000000-0000-4000-8000-0000000000a3';
+
+  it('hands their issues to the fix jobs after the new issues, while there is room, and takes only those', () => {
+    expect(notesToTake([{ issue: 'LAN-284', ids: [A, B] }, { issue: 'LAN-292', ids: [C] }], ['LAN-300'])).toEqual({ fixes: ['LAN-300', 'LAN-284', 'LAN-292'], taken: [A, B, C] });
+    // Three new issues fill the run: the instructions wait for the next one.
+    expect(notesToTake([{ issue: 'LAN-284', ids: [A] }], ['LAN-300', 'LAN-301', 'LAN-302'])).toEqual({ fixes: ['LAN-300', 'LAN-301', 'LAN-302'], taken: [] });
+    expect(notesToTake([{ issue: 'LAN-284', ids: [A] }, { issue: 'LAN-292', ids: [B] }], ['LAN-300', 'LAN-301'])).toEqual({ fixes: ['LAN-300', 'LAN-301', 'LAN-284'], taken: [A] });
+    // Before the Worker sends any, and for what is not an issue or an id.
+    expect(notesToTake(undefined, ['LAN-300'])).toEqual({ fixes: ['LAN-300'], taken: [] });
+    expect(notesToTake([{ issue: 'x; rm', ids: [A] }, { issue: 'LAN-284', ids: ['x'] }, null, { issue: 'LAN-292' }], [])).toEqual({ fixes: [], taken: [] });
+    expect(noteIdsOf({ ids: [A, A, 'LAN-9', 7, B] })).toEqual([A, B]);
+    expect(noteIdsOf(null)).toEqual([]);
+  });
+
+  it("answers with Claude's words, or fixed ones, then what the workflow adds, and never an address", () => {
+    const fix = (answer = '') => ({ summary: 'S', tests: '', noFix: '', answer });
+    expect(noteAnswer(fix('I moved the wait.'), 'changed')).toBe('I moved the wait.');
+    expect(noteAnswer(fix(), 'changed')).toBe('Claude changed the draft fix.');
+    expect(noteAnswer(fix(), 'answered', 'The pull request of the draft fix is not open, so the draft fix did not change.'))
+      .toBe('Claude changed nothing. The pull request of the draft fix is not open, so the draft fix did not change.');
+    expect(noteAnswer(fix(), 'none', 'refused the draft fix: it changes .github/x.yml, which a draft fix may not')).toBe('refused the draft fix: it changes .github/x.yml, which a draft fix may not');
+    expect(noteAnswer(fix(), 'none')).toBe('');
+    expect(noteAnswer(fix('Ask a@b.org.'), 'answered')).toBe('Ask [address].');
+    // What only the Worker reads as an address goes too, so the answer is never refused.
+    const odd = noteAnswer(fix('See "x"@y.zz in the code.'), 'answered');
+    expect(odd).not.toContain('@');
+    expect(model.EMAIL.test(odd)).toBe(false);
+    expect(noteAnswer(fix('x'.repeat(990)), 'answered', 'y'.repeat(50))).toHaveLength(FIX_LIMITS.answer);
+    expect(FIX_LIMITS.answer).toBe(model.ANSWER_MAX);
+  });
+
+  it('tells the issue when the draft fix changed', () => {
+    expect(updateComment({ number: 330, url: 'https://github.com/genesis-ai-dev/langquest-next/pull/330' }, { typecheck: 'passed', tests: 'passed' }))
+      .toBe('**Claude changed the draft fix** ([PR 330](https://github.com/genesis-ai-dev/langquest-next/pull/330)) after an instruction from the ops dashboard.\n\nTypecheck passed; tests passed.\n\nReview it, then mark it Ready for review on GitHub to run CI and merge it.');
   });
 });
 

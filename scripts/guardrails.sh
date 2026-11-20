@@ -5,13 +5,19 @@
 #   npm run guardrails            the `checks` job: typecheck, the unit suite
 #                                 with coverage, the worker bundle parity
 #   npm run guardrails -- --web   also the release web export and its size
-#                                 budget (what web-smoke and ui-web build first)
+#                                 budget (the production export, which
+#                                 web-smoke builds first and Workers Builds
+#                                 deploys)
 #   npm run guardrails -- --all   also the server job and the P0 web UI tests
 #                                 against the local stack (needs Docker; starts
 #                                 it with npm run db:start if it is down)
 #
 # CI tests the pull request merged with main, not the branch alone, so this
 # first says when origin/main has commits the branch does not.
+#
+# Run it on committed work: when the checks pass and nothing was uncommitted
+# or untracked, the pre-push hook does not run them again on a push of that
+# commit (decisions.md 164, amended 2026-11-19).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -24,6 +30,11 @@ case "${1:-}" in
 esac
 
 step() { printf '\n== %s\n' "$1"; }
+
+# The tree these checks run on, when nothing is uncommitted or untracked:
+# when they pass, it is recorded, and the pre-push hook skips the same checks
+# on a commit with this tree (scripts/guardrails-passed.mjs). Empty otherwise.
+before=$(node scripts/guardrails-passed.mjs state 2>/dev/null || true)
 
 step "Is the branch up to date with main?"
 if git fetch -q origin main 2>/dev/null; then
@@ -39,6 +50,23 @@ if git fetch -q origin main 2>/dev/null; then
 else
   echo "! could not fetch origin/main; skipped"
 fi
+# A shallow clone (a cloud thread's) lacks the commits that store builds were
+# made from, which the server-call check reads; CI fetches them all too.
+if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+  git fetch -q --unshallow origin || echo "! could not fetch the full history; the server-call check needs it"
+fi
+
+# CI and Cloudflare run the Node in .node-version and its npm 11 (decisions.md
+# 246). An older Node or npm here can pass what fails there, or rewrite the
+# lockfile in a shape CI refuses, so this stops on a different major.
+step "Is this the Node and npm that CI uses?"
+want=$(cat .node-version)
+if [ "$(node -p 'process.versions.node.split(".")[0]')" != "${want%%.*}" ] || [ "$(npm -v | cut -d. -f1)" != 11 ]; then
+  echo "x this shell has Node $(node -v) and npm $(npm -v); CI uses Node $want and npm 11."
+  echo "  Install Node $want (a version manager reads .node-version), then run npm ci."
+  exit 1
+fi
+[ "$(node -v)" = "v$want" ] && echo "yes" || echo "yes, Node $(node -v) (CI pins v$want)"
 
 step "Typecheck"
 npm run --silent typecheck
@@ -60,15 +88,28 @@ if ! git diff --quiet -- supabase/functions; then
 fi
 echo "yes"
 
+# Everything the pre-push hook checks has passed on this tree.
+node scripts/guardrails-passed.mjs record "$before" || true
+
 [ "$level" = checks ] && { printf '\nchecks: passed\n'; exit 0; }
 
+# The production export, as Workers Builds builds it: its settings make it
+# bigger than the development export the UI tests serve, which they build
+# again for the local stack (e2e/export-web.sh).
 step "Release web export and its size budget"
-npm run --silent export:web -w mobile -- development
+npm run --silent export:web -w mobile -- production
 
 [ "$level" = web ] && { printf '\nchecks and web export: passed (web-smoke and ui-web still run only with --all or in CI)\n'; exit 0; }
 
 step "Local stack"
-if ! source e2e/env.sh 2>/dev/null; then npm run db:start; fi
+# Started as CI starts it: without the services the tests do not use, and
+# without the language list (db:start leaves it out on CI), which the UI tests
+# expect to be empty (SETUP-074 adds a language the list would offer instead).
+export SUPABASE_EXCLUDE="${SUPABASE_EXCLUDE-studio,imgproxy,vector,logflare,supavisor}"
+# db:start also restarts a stack whose Edge Functions are down (scripts/local-db.mjs).
+if ! source e2e/env.sh 2>/dev/null || ! docker ps --format '{{.Names}}' | grep -q '^supabase_edge_runtime_'; then
+  CI=true npm run db:start
+fi
 
 step "SQL smokes, parity and the client integration test (server)"
 npm run --silent db:test
@@ -80,9 +121,13 @@ npm run --silent test:old-sync
 # job starts from `npm run db:start`, so put back what it leaves (on a running
 # stack that is only scripts/local-db.mjs prepare()).
 step "Library and push delivery back after the reset (npm run db:start)"
-npm run --silent db:start
+CI=true npm run --silent db:start
 
 step "P0 web UI tests on the export (ui-web)"
+# Two browsers at a time on 4 cores or fewer (a cloud thread's machine), as
+# on each CI shard (guardrails.yml, ui-web): with four, pages there loaded
+# past the tests' waits.
+if [ "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 8)" -le 4 ]; then export UI_WORKERS="${UI_WORKERS:-2}"; fi
 npm run test:ui:web -- --grep @p0 --grep-invert @quarantine
 
 printf '\nall guardrails: passed (web-smoke in Firefox and WebKit runs only in CI, or npm run test:web-smoke)\n'

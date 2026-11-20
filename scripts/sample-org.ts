@@ -32,6 +32,7 @@ import { pathToFileURL } from 'node:url';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/sync';
 import {
+  newCommandId,
   applyOrgEvent, emptyLanguageState, emptyOrgState, foldOrg, ORG_STREAM, REDUCER_VERSION, SEED_ROLES, selectFlowSpecs, selectTemplateSpecs,
   subscriptionItemId, type EventSpec, type FlowDoc, type LibraryDoc, type OrgState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
@@ -161,8 +162,8 @@ async function main(argv: string[]) {
     await org.sync();
     const fresh = emptyLanguageState();
     const specs: EventSpec[] = [
-      ...selectTemplateSpecs(fresh, { commandId: randomUUID(), itemId: template.itemId, docHash: template.hash, doc: tdoc, versification: v11n }),
-      ...selectFlowSpecs(fresh, { commandId: randomUUID(), itemId: flow.itemId, docHash: flow.hash, doc: docs.get(flow.hash) as FlowDoc })
+      ...selectTemplateSpecs(fresh, { commandId: newCommandId(userId, randomUUID()), itemId: template.itemId, docHash: template.hash, doc: tdoc, versification: v11n }),
+      ...selectFlowSpecs(fresh, { commandId: newCommandId(userId, randomUUID()), itemId: flow.itemId, docHash: flow.hash, doc: docs.get(flow.hash) as FlowDoc })
     ];
     const work = client(lang.languageId);
     await work.load();

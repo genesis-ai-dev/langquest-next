@@ -206,11 +206,9 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
   }
 });
 
-// The one step of JRN-005 the product does not do yet, on its own so the P0
-// journey above stays green and this flips red the day Reports names the
-// template. Alpha's template is "FIA passages (English)" (the fixture world).
-test('JRN-005 Reports names the language\'s template (known gap) @wide', async ({ page }) => {
-  test.fail(true, 'known product bug: Reports names a language\'s review flow but not its template, found by JRN-005 on 2026-10-14');
+// The step of JRN-005 where Reports names the template, on its own so the P0
+// journey above stays small. Alpha's template is "FIA passages (English)" (the fixture world).
+test('JRN-005 Reports names the language\'s template @wide', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'COORD');
   await tab(page, 'reports').click();

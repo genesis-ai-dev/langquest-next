@@ -46,6 +46,32 @@ describe('the bar and the card, as words and rules', () => {
     expect(emptiedStep(2, 1)).toBe('hide');
   });
 
+  it('keeps "done" on the screen it came to, and lets it go at a move to another screen once it has shown long enough', async () => {
+    const { doneAfterCount, doneAfterMove, DONE_SHOWN_MS } = await import('../src/sync/uploadsModel');
+    const done = doneAfterCount(null, 2, 0, 1000);
+    expect(done).toEqual({ at: 1000 });
+    // Nothing on the screen itself ends it: no clock, and counts that stay at zero keep it.
+    expect(doneAfterCount(done, 0, 0, 1000 + 60_000)).toBe(done);
+    // A move before its time keeps it for the next move; a move after, and it goes.
+    const kept = doneAfterMove(done, 'record', 1000 + DONE_SHOWN_MS - 1);
+    expect(kept).toEqual({ at: 1000, to: 'record' });
+    expect(doneAfterMove(done, 'record', 1000 + DONE_SHOWN_MS)).toBeNull();
+    expect(doneAfterMove(kept, 'review', 1000 + DONE_SHOWN_MS)).toBeNull();
+    // Something waiting again ends it, as the waiting bar takes its place.
+    expect(doneAfterCount(done, 0, 1, 2000)).toBeNull();
+    expect(doneAfterMove(null, 'record', 5000)).toBeNull();
+  });
+
+  it('answers a move once: the shell says it as it starts, and the stack says it again, later', async () => {
+    const { doneAfterCount, doneAfterMove, DONE_SHOWN_MS } = await import('../src/sync/uploadsModel');
+    const done = doneAfterCount(null, 1, 0, 1000);
+    // Said in time to stay; said again after its time, the same move does not end it under the person.
+    const kept = doneAfterMove(done, 'record', 1000 + DONE_SHOWN_MS - 200);
+    expect(doneAfterMove(kept, 'record', 1000 + DONE_SHOWN_MS + 900)).toBe(kept);
+    // The next move does.
+    expect(doneAfterMove(kept, 'home', 1000 + DONE_SHOWN_MS + 900)).toBeNull();
+  });
+
   it('is offline only when told so, not while unknown', async () => {
     const { isOffline } = await import('../src/sync/uploadsModel');
     expect([isOffline(false), isOffline(true), isOffline(null)]).toEqual([true, false, false]);

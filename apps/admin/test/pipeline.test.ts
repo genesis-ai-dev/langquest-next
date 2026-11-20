@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  androidLane, attachUpdates, iosLane, newerVersion, pendingCopies, pipelineAlerts, pipelineFrom, pipelineSection, prFromMessage, PIPELINE_QUERY,
+  androidLane, attachUpdates, expoInputs, iosLane, newerVersion, pendingCopies, pipelineAlerts, pipelineFrom, pipelineSection, prFromMessage, PIPELINE_QUERY,
   type PipelineInputs, type StoreLane
 } from '../src/sources/pipeline';
 
@@ -143,6 +143,44 @@ describe('the Android lane', () => {
     expect(read(androidLane(w)).waiting).toContain('build 53: upload to Google Play failed');
     w.submissions[0] = { ...w.submissions[0]!, status: 'IN_PROGRESS', track: 'production' };
     expect(read(androidLane(w)).review).toContain('build 53: uploading to production');
+  });
+
+  /** Carried builds (eas.json, submit.carried): on Play's alpha track as drafts, only so Play makes their APK. One per merge while their publish failed. */
+  const carried = (status: string, build: string, h: number) =>
+    ({ platform: 'android' as const, status, at: hAgo(h), doneAt: status === 'FINISHED' || status === 'ERRORED' ? hAgo(h - 0.1) : null, track: 'alpha', version: `2026.1104.${2000 + Number(build)}`, build });
+
+  it('leaves out carried builds, finished, uploading or failed, when Play\'s tracks cannot be read', () => {
+    const plain = read(androidLane(world({ play: null })));
+    const w = world({ play: null });
+    w.submissions.unshift(carried('ERRORED', '56', 0.5), carried('IN_PROGRESS', '55', 0.8), carried('FINISHED', '54', 2), carried('FINISHED', '53', 3));
+    expect(read(androidLane(w))).toEqual(plain);
+    expect(plain).toMatchObject({ waiting: ['build 52: waits for the review ahead of it to end'], review: ['build 50: in review, or rejected (Play Console says which)'] });
+    // With build 52 out, only carried builds are newer: nothing waits, so nothing is called stuck.
+    const out = world({ play: null, playLive: '2026.1104.1802' });
+    out.submissions.unshift(carried('FINISHED', '54', 3.5), carried('FINISHED', '53', 4));
+    expect(stage(androidLane(out), 'waiting').cards).toEqual([]);
+    expect(pipelineAlerts(pipelineFrom(out), NOW)).toEqual([]);
+  });
+
+  it('still shows store uploads among carried ones when Play\'s tracks cannot be read: a failed one behind a newer carried failure', () => {
+    const w = world({ play: null });
+    w.submissions.unshift(
+      carried('ERRORED', '57', 0.5),
+      { platform: 'android', status: 'ERRORED', at: hAgo(0.6), doneAt: hAgo(0.55), track: 'production', version: '2026.1104.2156', build: '56' },
+      carried('IN_PROGRESS', '55', 0.8),
+      { platform: 'android', status: 'IN_PROGRESS', at: hAgo(1), doneAt: null, track: 'internal', version: '2026.1104.2154', build: '54' },
+      carried('FINISHED', '53', 3)
+    );
+    expect(read(androidLane(w))).toMatchObject({
+      waiting: ['build 54: uploading to internal testing', 'build 52: waits for the review ahead of it to end'],
+      review: ['build 50: in review, or rejected (Play Console says which)', 'build 56: upload to Google Play failed']
+    });
+  });
+
+  it('lists only the internal track with Play\'s tracks, and no carried upload that runs or failed', () => {
+    const w = world();
+    w.submissions.unshift(carried('ERRORED', '55', 0.5), carried('IN_PROGRESS', '54', 0.8), carried('FINISHED', '53', 3));
+    expect(read(androidLane(w))).toEqual(read(androidLane(world())));
   });
 });
 
@@ -301,6 +339,18 @@ describe('reading the sources', () => {
     expect(s.setup).toContain('ADMIN_EXPO_TOKEN');
   });
 
+  it('reads each platform\'s uploads in a window of its own, newest first, with the track in eas.json\'s lower case', () => {
+    expect(PIPELINE_QUERY).toContain('iosSubmissions: submissions(filter: { platform: IOS }');
+    expect(PIPELINE_QUERY).toContain('androidSubmissions: submissions(filter: { platform: ANDROID }');
+    const sub = (platform: string, createdAt: string, track: string | null, build: string) =>
+      ({ status: 'FINISHED', platform, createdAt, completedAt: createdAt, androidConfig: track ? { track } : null, submittedBuild: { appVersion: '2026.1104.1802', appBuildVersion: build } });
+    const { submissions } = expoInputs({ data: { app: { byId: {
+      iosSubmissions: [sub('IOS', hAgo(4), null, '52')],
+      androidSubmissions: [sub('ANDROID', hAgo(1), 'ALPHA', '53'), sub('ANDROID', hAgo(5), 'INTERNAL', '52')]
+    } } } });
+    expect(submissions.map((s) => `${s.platform} ${s.build} ${s.track}`)).toEqual(['android 53 alpha', 'ios 52 null', 'android 52 internal']);
+  });
+
   it('reads Play\'s tracks in an edit it deletes, never commits, and keeps going when a store does not answer', async () => {
     const asked: string[] = [];
     const fetcher = (async (url: string, init?: RequestInit) => {
@@ -311,7 +361,8 @@ describe('reading the sources', () => {
         expect(JSON.parse(String(init?.body)).query).toBe(PIPELINE_QUERY);
         return json({ data: { app: { byId: {
           builds: [{ status: 'FINISHED', platform: 'ANDROID', createdAt: hAgo(5), completedAt: hAgo(4.5), appVersion: '2026.1104.1802', appBuildVersion: '52', runtime: { version: RT_NEW } }],
-          submissions: [],
+          iosSubmissions: [],
+          androidSubmissions: [],
           updateBranchByName: { updateGroups: [[{ id: 'u1', platform: 'android', createdAt: hAgo(4), message: 'Publish', gitCommitHash: 'abc123', isRollBackToEmbedded: false, runtime: { version: RT_NEW } }]] }
         } } } });
       }

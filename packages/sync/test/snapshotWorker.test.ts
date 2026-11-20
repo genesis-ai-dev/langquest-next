@@ -119,7 +119,7 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
 
     it('a redaction of something inside the snapshot refolds the whole log and writes at once', async () => {
       const { client, fake } = await stored(new Date().toISOString());
-      await client.append('v1.Redacted', { eventId: 'a-e1' });
+      await client.append('v1.Redacted', { eventId: 'by:lead:a-e1' });
       await client.sync();
       const observed: Snapshot[] = [];
       const [r] = await runSnapshotWorker(fake.client, 2, async (s) => { observed.push(s); });
@@ -131,7 +131,7 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
     it('a redaction drops every snapshot from before it, once one past it is stored', async () => {
       // Why: an older snapshot of any version still holds the redacted event, and members can read it (decisions.md 204).
       const { client, fake } = await stored(new Date().toISOString());
-      await client.append('v1.Redacted', { eventId: 'a-e1' });
+      await client.append('v1.Redacted', { eventId: 'by:lead:a-e1' });
       await client.sync();
       await runSnapshotWorker(fake.client);
       const order = fake.calls.filter((c) => c.fn === 'put_snapshot' || c.fn === 'drop_snapshots_before').map((c) => c.fn);
@@ -145,7 +145,7 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
       // take the old version's snapshot from a phone part-way through a fill on it, though that one was folded past the redaction.
       const server = new FakeServer();
       const client = await language(server, 'a', 3);
-      await client.append('v1.Redacted', { eventId: 'a-e1' });
+      await client.append('v1.Redacted', { eventId: 'by:lead:a-e1' });
       await client.append('v1.UnitAdded', unit(9));
       await client.sync();
       const fake = fakeSupabase(server);
@@ -165,7 +165,7 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
 
     it('a drop that fails is raised, as any write is', async () => {
       const { client, fake } = await stored(new Date().toISOString());
-      await client.append('v1.Redacted', { eventId: 'a-e1' });
+      await client.append('v1.Redacted', { eventId: 'by:lead:a-e1' });
       await client.sync();
       fake.fail.set('drop_snapshots_before', 'boom');
       await expect(runSnapshotWorker(fake.client)).rejects.toThrow('drop_snapshots_before org1/a: boom');

@@ -122,18 +122,21 @@ const iso = (t: unknown): string | null => {
   return new Date(t < 1e12 ? t * 1000 : t).toISOString();
 };
 
+/** Server errors in a day from which each is a line; the Supabase picture draws each count against it (pageMeters.ts). */
+export const SERVER_ERROR_LINE = { function5xx: 10, gateway5xx: 50, authErrors: 10 } as const;
+
 export function supabaseAlerts(sb: Supabase): Alert[] {
   const out: Alert[] = [];
   for (const p of sb.projects) {
-    if (p.error) { out.push({ level: 'watch', text: `${p.name}: could not read the project (${p.error}).` }); continue; }
-    if (p.status && p.status !== 'ACTIVE_HEALTHY') out.push({ level: 'urgent', text: `Supabase project ${p.name} is ${p.status}.` });
+    if (p.error) { out.push({ level: 'watch', key: 'supabase-unreadable', subject: p.name, text: `${p.name}: could not read the project (${p.error}).` }); continue; }
+    if (p.status && p.status !== 'ACTIVE_HEALTHY') out.push({ level: 'urgent', key: 'supabase-unhealthy', subject: p.name, text: `Supabase project ${p.name} is ${p.status}.` });
     const down = p.health.filter((h) => !h.healthy);
-    if (down.length) out.push({ level: 'urgent', text: `${p.name}: ${down.map((h) => `${h.name} ${h.status ?? 'unhealthy'}`).join(', ')}.` });
-    for (const f of p.functions ?? []) if (f.status === 'THROTTLED') out.push({ level: 'watch', text: `${p.name}: Edge Function ${f.slug} is throttled.` });
+    if (down.length) out.push({ level: 'urgent', key: 'supabase-services-down', subject: p.name, text: `${p.name}: ${down.map((h) => `${h.name} ${h.status ?? 'unhealthy'}`).join(', ')}.` });
+    for (const f of p.functions ?? []) if (f.status === 'THROTTLED') out.push({ level: 'watch', key: 'edge-throttled', subject: f.slug, text: `${p.name}: Edge Function ${f.slug} is throttled.` });
     if (p.logs) {
-      if (p.logs.function5xx >= 10) out.push({ level: 'watch', text: `${p.name}: Edge Functions answered ${p.logs.function5xx} server errors in the last day.` });
-      if (p.logs.gateway5xx >= 50) out.push({ level: 'watch', text: `${p.name}: the API answered ${p.logs.gateway5xx} server errors of ${p.logs.gatewayTotal.toLocaleString('en')} requests in the last day.` });
-      if (p.logs.authErrors >= 10) out.push({ level: 'watch', text: `${p.name}: Auth answered ${p.logs.authErrors} server errors in the last day.` });
+      if (p.logs.function5xx >= SERVER_ERROR_LINE.function5xx) out.push({ level: 'watch', key: 'edge-5xx', subject: p.name, text: `${p.name}: Edge Functions answered ${p.logs.function5xx} server errors in the last day.` });
+      if (p.logs.gateway5xx >= SERVER_ERROR_LINE.gateway5xx) out.push({ level: 'watch', key: 'api-5xx', subject: p.name, text: `${p.name}: the API answered ${p.logs.gateway5xx} server errors of ${p.logs.gatewayTotal.toLocaleString('en')} requests in the last day.` });
+      if (p.logs.authErrors >= SERVER_ERROR_LINE.authErrors) out.push({ level: 'watch', key: 'auth-5xx', subject: p.name, text: `${p.name}: Auth answered ${p.logs.authErrors} server errors in the last day.` });
     }
   }
   return out;

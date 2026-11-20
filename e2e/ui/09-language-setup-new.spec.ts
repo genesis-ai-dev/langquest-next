@@ -1,5 +1,5 @@
 // SETUP: New language, from Org home (docs/ui-test-suite/09-language-setup.md,
-// SETUP-010 to SETUP-021, SETUP-075 to SETUP-079). Its six steps show first
+// SETUP-010 to SETUP-021, SETUP-075 to SETUP-080). Its six steps show first
 // (decision 146): Start opens the first. Every test adds its own language, named with a
 // run tag, so they leave each other's alone; the world is this file's own.
 import type { Page } from '@playwright/test';
@@ -13,7 +13,7 @@ const tag = () => world().run.slice(-4);
 
 /** Open New language: its six steps, then Start (decision 146). */
 async function startNewLanguage(page: Page): Promise<void> {
-  await text(page, 'New language or cluster').click();
+  await text(page, 'New language').click();
   await expectOnScreen(page, '6 steps', 'Language', 'Content', 'Divide into sections', 'Reference material', 'Review flow', 'People');
   await primary(page).click();
 }
@@ -431,7 +431,7 @@ test('SETUP-021 Only organization-scope setters add languages', async ({ page, b
   await tab(p, 'manage').click();
   await byId(p, 'header-up').click();
   await expect(text(p, w.orgName).first()).toBeVisible();
-  await expect(text(p, 'New language or cluster')).toHaveCount(0);
+  await expect(text(p, 'New language')).toHaveCount(0);
   await tab(p, 'work').click();
   await expectNotOnScreen(p, 'Add a language');
   await lead.context.close();
@@ -515,4 +515,29 @@ test('SETUP-079 A cluster of languages already here, made from Manage', async ({
   await button(page, 'Ungroup').click();
   await button(page, 'Ungroup').click();
   await expectToast(page, `${cluster} ungrouped. Its languages are still here.`);
+});
+
+test('SETUP-080 New language\'s review step waits out a server that fails once', async ({ page }) => {
+  // Under the nightly's load one read of the review flows' documents failed, and the step stayed at
+  // "No ways to check to choose from yet." with Continue off (LAN-254). The first such read fails here.
+  let failed = false;
+  await page.route('**/rest/v1/rpc/library_get_documents*', async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    if (failed || !body.includes('flow@1')) return route.fulfill({ response, body });
+    failed = true;
+    await route.fulfill({ status: 503, json: { message: 'busy' } });
+  });
+  const w = world();
+  await openAs(page, w, 'ADMIN');
+  await orgHome(page, w);
+  await startNewLanguage(page);
+  await nameStep(page, `India ${tag()}`);
+  await bibleStep(page);
+  await materialStep(page);
+  await expectOnScreen(page, 'How will recordings get checked?', 'Standard Bible Flow');
+  expect(failed).toBe(true);
+  await expect(primary(page)).toBeEnabled();
+  await back(page).click();
+  await text(page, 'Leave').click();
 });

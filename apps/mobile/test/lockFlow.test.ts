@@ -119,6 +119,20 @@ describe('signing out of a phone, locked', () => {
     expect(fake.secure.get('sb-session')).toBe(session('akol'));
   });
 
+  it('an email added or changed on Edit Profile finds the lock from then on, and the old address no longer does (LAN-304)', async () => {
+    const lock = await load();
+    fake.secure.set('sb-session', session('akol'));
+    await lock.rememberPassword('akol', 'akol-482@people.langquest.org', 'correct horse');
+    await lock.rememberAddress('akol', 'Akol@Example.org');
+    // Nobody else's lock is touched, and someone with no lock here gets none.
+    await lock.rememberAddress('mary', 'mary@example.org');
+    await lock.lockAndSignOut('akol');
+    expect([...fake.secure.values(), ...fake.plain.values()].join()).not.toMatch(/akol@example/i);
+    expect(await lock.signBackIn('password', 'correct horse', { address: 'akol-482@people.langquest.org' })).toEqual({ kind: 'none' });
+    expect(await lock.signBackIn('password', 'correct horse', { address: 'mary@example.org' })).toEqual({ kind: 'none' });
+    expect(await lock.signBackIn('password', 'correct horse', { address: 'akol@example.org' })).toEqual({ kind: 'ok' });
+  });
+
   it('two people never share a picture, and one person\'s wrong guesses never hold up the other', async () => {
     const lock = await load();
     fake.secure.set('sb-session', session('akol'));
@@ -163,6 +177,46 @@ describe('signing out of a phone, locked', () => {
     await lock.rememberPassword('akol', 'akol@example.org', 'pw-two');
     expect(await lock.lockWays('akol')).toEqual(['password']);
     expect((await lock.lockPictures('akol')).mine).toBe(3);
+  });
+});
+
+describe('the app lock (decisions.md 253)', () => {
+  it('opens with the signed-in person\'s own pattern, under the key they hold now, and counts misses with Sign In', async () => {
+    const lock = await load();
+    fake.secure.set('sb-session', session('akol'));
+    expect(await lock.checkPattern('akol', Z)).toEqual({ kind: 'none' });
+    await lock.setLockPattern('akol', Z, 3);
+    expect(await lock.checkPattern('akol', Z)).toEqual({ kind: 'ok' });
+    // Still signed in: nothing sealed, nothing signed out.
+    expect(fake.secure.get('sb-session')).toBe(session('akol'));
+    expect(fake.signOuts).toEqual([]);
+    // Too short is not a guess; a wrong pattern is, and the fifth waits, as on Sign In.
+    expect(await lock.checkPattern('akol', [0, 1])).toEqual({ kind: 'wrong' });
+    const tries = [];
+    for (let i = 0; i < 5; i++) tries.push((await lock.checkPattern('akol', L)).kind);
+    expect(tries).toEqual(['wrong', 'wrong', 'wrong', 'wrong', 'wrong']);
+    expect((await lock.checkPattern('akol', Z)).kind).toBe('wait');
+    // Signed out after that (Forgot?): Sign In waits too, since it is the same pattern.
+    await lock.lockAndSignOut('akol');
+    expect((await lock.signBackIn('pattern', patternSecret(Z), { actorId: 'akol' })).kind).toBe('wait');
+  });
+
+  it('a pattern made under an older key opens nothing, and someone else\'s pattern never opens this person\'s lock', async () => {
+    const lock = await load();
+    fake.secure.set('sb-session', session('akol'));
+    await lock.rememberPassword('akol', 'akol@example.org', 'pw-one');
+    await lock.setLockPattern('akol', Z, 3);
+    await lock.lockAndSignOut('akol');
+    fake.secure.set('sb-session', session('mary'));
+    await lock.setLockPattern('mary', L, 5);
+    expect(await lock.checkPattern('mary', Z)).toEqual({ kind: 'wrong' });
+    expect(await lock.checkPattern('mary', L)).toEqual({ kind: 'ok' });
+    await lock.lockAndSignOut('mary');
+    // Akol back with a new password: their old pattern's key is gone.
+    fake.secure.set('sb-session', session('akol', 'access-2'));
+    await lock.signedInHere('akol');
+    await lock.rememberPassword('akol', 'akol@example.org', 'pw-two');
+    expect(await lock.checkPattern('akol', Z)).toEqual({ kind: 'none' });
   });
 });
 
@@ -218,5 +272,94 @@ describe('deleting the account', () => {
     await lock.setLockPattern('akol', Z, 3);
     await lock.forgetLock('akol');
     expect([...fake.secure.keys()].filter((k) => k !== 'sb-session')).toEqual([]);
+  });
+});
+
+describe('nearby sync\'s keys (docs/nearby-sync-plan.md 5.5, decisions.md 168 as amended)', () => {
+  const FIND = JSON.stringify({ 'o1/L1': { gen: 2, key: 'iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w', floor: 1, direct: true } });
+
+  it('a person\'s discovery keys are sealed with their session at sign-out and come back at sign-in; the install key stays out', async () => {
+    const lock = await load();
+    fake.secure.set('sb-session', session('akol'));
+    fake.secure.set('nearbyFindKeys:akol', FIND);
+    fake.secure.set('nearbyFindKeys:mary', 'mary\'s, untouched');
+    fake.secure.set('nearby-install-key', 'the install key');
+    await lock.setLockPattern('akol', Z, 3);
+    await lock.lockAndSignOut('akol');
+    expect(fake.secure.has('nearbyFindKeys:akol')).toBe(false);
+    expect([...fake.secure.values(), ...fake.plain.values()].join()).not.toContain('iojj3XQJ8ZX9');
+    expect(fake.secure.get('nearbyFindKeys:mary')).toBe('mary\'s, untouched');
+    expect(fake.secure.get('nearby-install-key')).toBe('the install key');
+    expect(await lock.signBackIn('pattern', patternSecret(Z), { actorId: 'akol' })).toEqual({ kind: 'ok' });
+    expect(fake.secure.get('nearbyFindKeys:akol')).toBe(FIND);
+    expect([...fake.secure.keys()].some((k) => k.startsWith('locked-find-keys:'))).toBe(false);
+  });
+
+  it('handed to the courier: sealed too, or with no lock to seal them under, gone', async () => {
+    const lock = await load();
+    fake.secure.set('sb-session', session('akol'));
+    fake.secure.set('nearbyFindKeys:akol', FIND);
+    await lock.setLockPattern('akol', Z, 3);
+    await lock.sealHandedOver('akol', session('akol'));
+    fake.secure.delete('sb-session');
+    expect(fake.secure.has('nearbyFindKeys:akol')).toBe(false);
+    fake.handOvers.set('akol', { session: session('akol', 'renewed') });
+    expect(await lock.signBackIn('pattern', patternSecret(Z), { actorId: 'akol' })).toEqual({ kind: 'ok' });
+    expect(fake.secure.get('nearbyFindKeys:akol')).toBe(FIND);
+
+    fake.secure.set('nearbyFindKeys:mary', FIND);
+    await lock.sealHandedOver('mary', session('mary'));
+    expect(fake.secure.has('nearbyFindKeys:mary')).toBe(false);
+    expect([...fake.secure.keys()].some((k) => k === 'locked-find-keys:mary')).toBe(false);
+  });
+
+  it('signing in another way, a session the server ended, and deleting the account each drop the sealed copy', async () => {
+    const lock = await load();
+    for (const end of ['signedIn', 'dropped', 'deleted'] as const) {
+      fake.secure.set('sb-session', session('akol'));
+      fake.secure.set('nearbyFindKeys:akol', FIND);
+      await lock.setLockPattern('akol', Z, 3);
+      await lock.lockAndSignOut('akol');
+      expect(fake.secure.has('locked-find-keys:akol')).toBe(true);
+      if (end === 'signedIn') await lock.signedInHere('akol');
+      if (end === 'dropped') await lock.dropLockedSession('akol');
+      if (end === 'deleted') await lock.forgetLock('akol');
+      expect(fake.secure.has('locked-find-keys:akol')).toBe(false);
+    }
+  });
+});
+
+describe('a local person\'s discovery key, with no session (docs/nearby-sync-plan.md 14.1, 3)', () => {
+  const FIND = JSON.stringify({ 'org-1/lang-1': { gen: 4, key: 'iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w', floor: 2, direct: false } });
+
+  it('is kept for the person the grant named, and for nobody else, while no session is stored', async () => {
+    const lock = await load();
+    const { person } = await import('./localPersonFixtures');
+    const { localPersonText } = await import('../src/session/localPersonModel');
+    fake.secure.set('nearby-local-person', localPersonText(person({ profileId: 'newcomer-1', stage: 'filling' })));
+    expect(await lock.keepFindKeys('newcomer-1', FIND)).toBe(true);
+    expect(fake.secure.get('nearbyFindKeys:newcomer-1')).toBe(FIND);
+    expect(await lock.keepFindKeys('someone-else', FIND)).toBe(false);
+    // A leftover record with nothing granted keeps nothing.
+    fake.secure.set('nearby-local-person', localPersonText(person({ profileId: 'newcomer-2', stage: 'asking' })));
+    expect(await lock.keepFindKeys('newcomer-2', FIND)).toBe(false);
+    // Someone else's session here: the local person's key is not written under it.
+    fake.secure.set('nearby-local-person', localPersonText(person({ profileId: 'newcomer-1', stage: 'ready' })));
+    fake.secure.set('sb-session', session('akol'));
+    fake.secure.delete('nearbyFindKeys:newcomer-1');
+    expect(await lock.keepFindKeys('newcomer-1', FIND)).toBe(false);
+    expect(fake.secure.has('nearbyFindKeys:newcomer-1')).toBe(false);
+  });
+
+  it('a lock of someone else\'s cannot be opened while a local person holds the phone', async () => {
+    const lock = await load();
+    fake.secure.set('sb-session', session('akol'));
+    await lock.setLockPattern('akol', Z, 3);
+    await lock.lockAndSignOut('akol');
+    const { person } = await import('./localPersonFixtures');
+    const { localPersonText } = await import('../src/session/localPersonModel');
+    fake.secure.set('nearby-local-person', localPersonText(person({ profileId: 'newcomer-1', stage: 'ready' })));
+    await expect(lock.signBackIn('pattern', patternSecret(Z), { actorId: 'akol' })).rejects.toThrow();
+    expect(fake.secure.has('sb-session')).toBe(false);
   });
 });

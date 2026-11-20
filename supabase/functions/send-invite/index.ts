@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { createClient } from 'npm:@supabase/supabase-js@2.119.0';
 
 const headers = { 'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info' };
