@@ -231,12 +231,7 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // shared let-in model. The hand-over, the new phone's finder and Give the app's rules are in files
 // only Android loads (giveHandOver.ts, useGiveJoinFinder.android.ts, giveAppModel.ts), and the screens
 // are Android only. 486 bytes are left; a first visit has 9,813.
-// Raised by 1 KB with the kept install file's date and Download the newest file (Carl, 2026-11-20,
-// docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended 2026-11-20), 59 bytes past it:
-// their English words in the nearby chunk the web loads with Share nearby. The rule that flags a copy
-// from an older native build is in a file only Android loads (src/nearby/keptBuildModel.ts), and the
-// screen is Android only. 965 bytes are left; a first visit has 9,764.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 155 * 1024;
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 154 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
