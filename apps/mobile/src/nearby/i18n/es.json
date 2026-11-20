@@ -208,7 +208,8 @@
         "unreadable": "No se pudo leer este archivo. Vuelve a elegirlo.",
         "failed": "No se pudo guardar una copia. Vuelve a elegirlo.",
         "needsAndroid": "Este teléfono no guarda ninguna copia: Dar la app necesita Android 10 o posterior.",
-        "needsUpdate": "Este teléfono aún no guarda ninguna copia. Actualiza la app desde la tienda para darla por Wi-Fi."
+        "needsUpdate": "Este teléfono aún no guarda ninguna copia. Actualiza la app desde la tienda para darla por Wi-Fi.",
+        "keptBuilt": "Hay una copia del {{date}} guardada en este teléfono para Dar la app. Puedes borrar la que está en Descargas."
       },
       "scanLineGive": "En el teléfono nuevo, abre LangQuest. Encontrará este teléfono por sí solo. Si no lo encuentra, toca Escanear un código y apunta aquí.",
       "minutesLeft": "Minutos restantes: {{n, number}}"
@@ -229,7 +230,10 @@
       "readyShort": "Archivo de instalación listo",
       "done": "Listo. Puedes llevarlo contigo sin internet.",
       "newer": "Ya hay un archivo de instalación más nuevo. Descárgalo mientras tienes internet y luego elígelo.",
-      "newerShort": "Archivo de instalación para una persona nueva: ya hay uno más nuevo"
+      "newerShort": "Archivo de instalación para una persona nueva: ya hay uno más nuevo",
+      "getNewest": "Descargar el archivo más nuevo",
+      "getNewestHelp": "Abre el navegador del teléfono, que descarga el archivo de instalación más nuevo de esta versión. Luego toca Elegir el archivo descargado, y reemplaza la copia guardada aquí.",
+      "getNewestHelpOpen": "Abre el navegador del teléfono, que descarga el archivo de instalación más nuevo de esta versión. Cuando termine, toca Abrir, y reemplaza la copia guardada aquí."
     },
     "join": {
       "intro": "Únete a tu equipo desde el teléfono de un compañero, sin internet. Tu cuenta se crea la primera vez que tu teléfono se conecte a internet.",
