@@ -4671,7 +4671,22 @@
     "download": "下载以便离线使用",
     "needsConnection": "下载需要网络连接",
     "needsConnectionHelp": "不在本设备上。设备联网后即可下载。",
-    "checkingHelp": "本设备正在清点它有这一段落的哪些内容。"
+    "checkingHelp": "本设备正在清点它有这一段落的哪些内容。",
+    "group": {
+      "download_other": "下载全部 {{count, number}} 个经段以便离线使用",
+      "downloadRest_other": "下载其余 {{count, number}} 个经段",
+      "size": "还要下载 {{size}} 音频",
+      "noRoom": "本设备空间不足",
+      "noRoomNeeds": "它们的音频有 {{size}}。本设备还有 {{room}} 空间。",
+      "noRoomHelp": "请在本设备上腾出空间，或每次少下载几个经段。",
+      "keepHelp": "把每个经段的音频都保存在本设备上，不联网也能用。",
+      "letGoHelp": "本设备需要空间时，可以再次删除它们的音频。属于你工作的经段会保留。",
+      "reason": "已保存，因为有人请你做这些经段，或你做过它们。",
+      "toast": {
+        "letGo": "不再保存。它们的音频可能会被删除以腾出空间。",
+        "someStay_other": "不再保存，但属于你工作的 {{count, number}} 个经段除外。"
+      }
+    }
   },
   "moderation": {
     "flagLabel": "举报或屏蔽{{name}}",
