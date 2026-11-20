@@ -124,4 +124,64 @@ describe('study files kept for offline (decisions.md 61)', () => {
     await vi.advanceTimersByTimeAsync(10);
     expect(f.hasStudyFile('https://x/ok.jpg')).toBe(true);
   });
+
+  // A kept passage showed "On this device" before its guide had been looked up, then turned amber (Carl, 2026-11-20).
+  it('knows a passage only once its guide has been looked up, found or not', async () => {
+    const f = await import('../src/study/studyFiles');
+    expect(f.studyKnown('luke1')).toBe(false);
+    // Looked up, with a guide: its files are wanted. Looked up, with none: nothing to fetch. Still loading: not known.
+    f.setStudyWanted(new Map([['luke1', ['https://x/a.mp3']]]), false, null, ['luke1', 'luke2']);
+    expect(f.studyKnown('luke1')).toBe(true);
+    expect(f.studyKnown('luke2')).toBe(true);
+    expect(f.studyKnown('luke3')).toBe(false);
+    // Left out, the passages on the wish list are the ones looked up.
+    f.setStudyWanted(new Map([['luke3', []]]), false);
+    expect(f.studyKnown('luke3')).toBe(true);
+    expect(f.studyKnown('luke1')).toBe(false);
+  });
+
+  it('the same wishes handed over again tell nobody, so the download buttons do not all redraw after every change', async () => {
+    // Why: the prefetcher hands its list over after every change to the language, and every button listens.
+    const f = await import('../src/study/studyFiles');
+    let told = 0;
+    f.onStudyFiles(() => { told += 1; });
+    const want = () => new Map([['luke1', ['https://x/a.mp3', 'https://x/p.jpg']]]);
+    f.setStudyWanted(want(), false, null, ['luke1', 'luke2']);
+    expect(told).toBe(1);
+    f.setStudyWanted(want(), false, null, ['luke2', 'luke1']);
+    expect(told).toBe(1);
+    // One more passage looked up, a different list, or the connection changing is news.
+    f.setStudyWanted(want(), false, null, ['luke1', 'luke2', 'luke3']);
+    expect(told).toBe(2);
+    f.setStudyWanted(new Map([['luke1', ['https://x/a.mp3']]]), false, null, ['luke1', 'luke2', 'luke3']);
+    expect(told).toBe(3);
+    f.setStudyWanted(new Map([['luke1', ['https://x/a.mp3']]]), true, null, ['luke1', 'luke2', 'luke3']);
+    await settle();
+    expect(told).toBeGreaterThan(3);
+    expect(net.fetched).toEqual(['https://x/a.mp3']);
+  });
+
+  it('a kept passage is ready only when its guide is known and its files are here; one kept for its recordings counts no study files', async () => {
+    const f = await import('../src/study/studyFiles');
+    const { withStudy, offlineWords } = await import('../src/sync/offlineText');
+    const audio = { reason: 'chosen' as const, audio: 1, here: 1, toFetch: 0, bytesToFetch: 0, notSent: 0, ready: true };
+    // Its guide has not been looked up: its recordings are here, and it is not called ready. Nothing is coming down, so its row says checking.
+    expect(withStudy(audio, 'luke1')).toMatchObject({ ready: false, studyUnknown: true, studyTotal: 0, recordingsOnly: false });
+    expect(offlineWords(withStudy(audio, 'luke1'))).toBe('Checking this device…');
+    // Looked up, one file wanted and not here: not ready, and no longer unknown.
+    f.setStudyWanted(new Map([['luke1', ['https://x/a.mp3']]]), false, null, ['luke1', 'luke2']);
+    expect(withStudy(audio, 'luke1')).toMatchObject({ ready: false, studyUnknown: false, studyHere: 0, studyTotal: 1 });
+    // Looked up and it has no guide: ready on its recordings.
+    expect(withStudy(audio, 'luke2')).toMatchObject({ ready: true, studyUnknown: false, studyTotal: 0 });
+    // Kept through its book's button: its recordings alone, whatever its guide would bring.
+    const light = withStudy(audio, 'luke1', true);
+    expect(light).toMatchObject({ ready: true, recordingsOnly: true, studyUnknown: false, studyTotal: 0 });
+    expect(offlineWords(light)).toBe('Recordings on this device');
+    expect(offlineWords(withStudy(audio, 'luke2'))).toBe('On this device');
+    expect(offlineWords(withStudy(audio, 'luke1'))).toBe('Downloading for offline');
+    // The person's own work takes its study guide whatever list it is on.
+    expect(withStudy({ ...audio, reason: 'asked' }, 'luke1', true)).toMatchObject({ ready: false, recordingsOnly: false, studyTotal: 1 });
+    // Not kept: nothing of its study guide is counted.
+    expect(withStudy({ ...audio, reason: null, ready: false }, 'luke1')).toMatchObject({ ready: false, studyTotal: 0, studyUnknown: false });
+  });
 });
