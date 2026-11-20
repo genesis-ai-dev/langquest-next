@@ -284,7 +284,7 @@
       }
     },
     "give": {
-      "intro": "This phone makes its own Wi-Fi network. The new phone scans two codes with its camera: one to join the network, one to download LangQuest. Neither phone needs the internet.",
+      "intro": "Give LangQuest to a new phone. Neither phone needs the internet.",
       "rowSub": "When you are with the new person",
       "rowHelp": "Opens Give the app, where this phone sends LangQuest to a new phone over a Wi-Fi network it makes itself.",
       "linkHelp": "Opens Give the app, to send LangQuest to the new phone over a Wi-Fi network this phone makes.",
@@ -343,9 +343,23 @@
       },
       "quickShare": {
         "button": "Send with Quick Share",
-        "help": "Opens this phone's share sheet with the install file. Choose Quick Share, then the new phone.",
-        "line": "Quick Share is another way to send it. Both phones need Google Play services, which phones sold in China do not have. On the new phone, open Quick Share and make the phone visible to everyone nearby. Accept the file, then open it and tap Install.",
-        "failed": "The share sheet did not open. Try again."
+        "help": "Opens this phone's share sheet with the install file.",
+        "failed": "The share sheet did not open. Try again.",
+        "letInHelp": "Opens Let someone in, to let them in once LangQuest is installed on the new phone.",
+        "on": {
+          "newFirst": "First, on the new phone",
+          "this": "Then, on this phone",
+          "newThen": "Then, on the new phone",
+          "thisThen": "Last, on this phone"
+        },
+        "steps": {
+          "open": "Swipe down from the top of the screen and tap Quick Share. If it is not there, open Settings and search for Quick Share.",
+          "visible": "Choose Everyone, so this phone can find it. Keep it close by, with its screen on.",
+          "send": "Tap Send with Quick Share. In the share sheet, tap Quick Share, then the new phone's name.",
+          "accept": "Tap Accept. When the file has arrived, tap Open. If Open has gone, find the file in the Files app, under Downloads.",
+          "letIn": "When LangQuest is installed and open on the new phone, tap Let them in.",
+          "install": "Allow installs from this source, if the phone asks. Tap Install."
+        }
       },
       "page": {
         "title": "Install LangQuest",
@@ -357,7 +371,16 @@
         "stepInstall": "Tap Install.",
         "stepJoin": "Open LangQuest. It finds your teammate's phone by itself. If it does not, come back to this page and tap Join.",
         "join": "Join"
-      }
+      },
+      "ways": "Choose one way to send it",
+      "way": {
+        "wifi": "This phone's Wi-Fi",
+        "wifiSub": "The new phone scans two codes. Works on any Android phone.",
+        "quickShare": "Quick Share",
+        "quickShareSub": "Both phones need Google Play services."
+      },
+      "wayHelp": "Chooses this way to send the install file. Its steps and its button show below.",
+      "wifiLine": "This phone makes its own Wi-Fi network. The new phone scans two codes with its camera: one to join the network, one to download LangQuest."
     }
   }
 }
