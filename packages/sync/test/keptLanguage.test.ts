@@ -311,6 +311,27 @@ describe('a language that keeps its recordings on disk', () => {
     expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage(server.stream('org1', 'p1'), emptyLanguageState())));
   });
 
+  it('folds what another client on this device wrote to the open language, past a checkpoint', async () => {
+    // Why: New language writes a new language's stream with a client of its own while the language is open
+    // (apps/mobile languageWriter.ts). A Whole Bible template is over 2,000 events and its checks come last:
+    // the checkpoint's guard counted every event in the log as applied, so the pull past it skipped the
+    // checks this client had never folded, and the language asked "Who checks the recordings?" until a reload.
+    const server = new FakeServer();
+    const store = makeStore();
+    const open = phone(server, 'dB', 'lead', { keepOnDisk: true, checkpointEvery: 25, pullPageSize: 10, store });
+    await open.client.load();
+    const writer = phone(server, 'dB', 'lead', { store });
+    await writer.client.load();
+    await writer.client.appendMany([
+      ...Array.from({ length: 60 }, (_, i) => ({ id: `t${i}`, type: 'v1.UnitAdded' as const, payload: { unitId: `n${i}`, parentUnitId: null, kind: 'passage', label: `N${i}`, order: `b${String(i).padStart(3, '0')}` } })),
+      { id: 'flow', type: 'v1.FlowSelected' as const, payload: { flowId: 'standard' } }
+    ]);
+    while ((await writer.client.push()).more) { /* every batch */ }
+    await open.client.pull();
+    expect(open.client.getState().flow?.value.flowId).toBe('standard');
+    expect(comparable(await whole(open.client, store))).toEqual(comparable(foldLanguage(server.stream('org1', 'p1'), emptyLanguageState())));
+  });
+
   it('agrees with a phone that keeps everything in memory, through checkpoints, in any order', async () => {
     const server = new FakeServer();
     await language(server, 30);
