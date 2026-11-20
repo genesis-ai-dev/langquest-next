@@ -1,5 +1,7 @@
 # Agent skills
 
+Kind: reference
+
 Which skills this repo gives coding agents, where they come from, and what was
 considered and left out. The index agents read is in `AGENTS.md`; this file is
 the record behind it. Reviewed 2026-09-28.
@@ -22,7 +24,9 @@ npx skills update -p                                       # update all project 
 ```
 
 Read the diff before committing an update: skills run with the agent's full
-permissions.
+permissions. An update can add instructions, not only change them: the
+2026-11-12 update had Expo's skills ask agents to send Expo a report when a
+task goes wrong, which `AGENTS.md` now overrides.
 
 ## Project skills
 
@@ -53,7 +57,7 @@ without contradicting PLAN.md.
 | `ux-heuristics` | wondelai/skills | MIT | Nielsen's heuristics, Krug, WCAG checklist, cultural UX (RTL, localization). |
 | `react-native-accessibility` | rushatgabhane/react-native-accessibility-skill | MIT | The only React Native-specific accessibility skill found (labels, roles, TalkBack, font scaling). Small author, content checked line by line. Its 44pt target is overridden to 48pt in `AGENTS.md`. |
 | `codebase-design` | mattpocock/skills | MIT | Deep modules and seams; matches the `EventStore` / `Transport` ports. |
-| `domain-modeling` | mattpocock/skills | MIT | Ubiquitous language and sparing decision records. ADRs go in `docs/decisions.md` here. |
+| `domain-modeling` | mattpocock/skills | MIT | Ubiquitous language and sparing decision records. ADRs go in `docs/decisions/` here, one file each. |
 | `clean-code`, `clean-architecture`, `refactoring`, `domain-driven-design-distilled`, `designing-data-intensive-applications` | ciembor/agent-rules-books | MIT | Concise rule sets drawn from Martin, Fowler, Vernon and Kleppmann. The Kleppmann set requires duplicate, replay and reorder safety, which this app depends on. |
 | `test-driven-development`, `systematic-debugging`, `verification-before-completion` | obra/superpowers | MIT | Widely used process skills; verification enforces "run `npm test` and `npm run typecheck`". Cross-references to other superpowers skills that are not installed can be ignored. |
 | `property-based-testing` | trailofbits/skills | CC BY-SA 4.0 | Property catalogue (idempotence, commutativity, invariants) matching the reducer tests. |

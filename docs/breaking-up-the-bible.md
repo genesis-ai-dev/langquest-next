@@ -1,5 +1,7 @@
 # Breaking up the Bible
 
+Kind: plan · Status: in progress: decision 74 built the first part, below.
+
 How a language's Bible is set up, so translators know exactly what they
 translate: first its numbering, then how each book is divided into sections.
 Agreed with Caleb on 2026-10-09 (decision 80). Decision 74 built the first
@@ -226,6 +228,12 @@ questions answered with big buttons and the Bible open ("The Lord is my
 shepherd": 23 or 22?), and the third way is the list of numberings. The answer shows as three facts that tell the numberings
 apart: how many books, Malachi's chapters, and whether psalm headings are
 verse 1. A Bible that mixes numberings gets the closest, with a note.
+
+Every way ends on one of the numberings, so the three ways are offered only
+once the numberings have reached the device. Until then the page says
+"Loading..."; after a read that failed it says "Connect to load the
+numberings." and asks once more when the page opens (`numberingsWait` in
+`numberingGuide.ts`).
 
 Not offered yet:
 

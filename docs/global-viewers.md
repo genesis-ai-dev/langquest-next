@@ -1,5 +1,7 @@
 # Global Viewers
 
+Kind: reference
+
 A Global Viewer is a LangQuest support person who can open any organization
 and see it as its admins do: its work, members and setup. Nothing they do
 changes an organization. Their access works only after they enter a code

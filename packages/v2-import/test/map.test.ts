@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { derivePassage, foldLanguage, foldOrg, ORG_STREAM, validateEvent, withDeps, type AnyEvent, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { derivePassage, foldLanguage, foldOrg, ORG_STREAM, referencedBlobs, validateEvent, withDeps, type AnyEvent, type Card, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { chosenHere, mapProject, type CopiedFile, type MapContext } from '../src/map';
-import { reconcile, type LedgerEntry } from '../src/reconcile';
-import type { V2Asset, V2Content, V2Placement, V2ProjectRows, V2Quest, V2Vote } from '../src/rows';
+import { reconcile, type Fact, type LedgerEntry, type Said } from '../src/reconcile';
+import { recordedInApp, type V2Asset, type V2Content, type V2Placement, type V2ProjectRows, type V2Quest, type V2Vote } from '../src/rows';
 
 const H = (c: string) => c.repeat(64);
 const T = 'target-languoid';
@@ -201,6 +201,32 @@ describe('mapProject: a Bible project', () => {
     expect(Object.keys(state.recordings ?? {}).length).toBeGreaterThan(0);
   });
 
+  it("names an M4A part's file type, so phones ask R2 for the file the import put there", () => {
+    const { all } = run([{ rows: bible() }]);
+    const cards = all.filter((e) => e.type === 'v1.RecordingAdded').flatMap((e) => (e.payload as { cards: Card[] }).cards);
+    expect(cards.map((c) => [c.hash, c.format])).toEqual([[H('1'), 'm4a'], [H('2'), 'wav'], [H('3'), 'wav']]);
+    const refs = referencedBlobs(foldLanguage(all.filter((e) => e.streamId === 'p1')));
+    expect([H('1'), H('2'), H('5')].map((h) => refs.get(h)?.format)).toEqual(['m4a', 'wav', 'wav']);
+  });
+
+  it('says no recording again that it said before M4A parts named their file type, until its parts change', () => {
+    // Before 2026-11-16 a card named its file type only when it was WAV.
+    const firstSaid = (s: Said): Said => s.type !== 'v1.RecordingAdded' ? s
+      : { ...s, payload: { ...(s.payload as { cards: Card[] }), cards: (s.payload as { cards: Card[] }).cards.map(({ format, ...c }) => (format === 'wav' ? { ...c, format } : c)) } as Said['payload'] };
+    const before = mapProject(bible(), ctx()).facts.map((f): Fact => (f.key.startsWith('rec:') ? { ...f, value: undefined, say: (s, look) => f.say(s, look).map(firstSaid) } : f));
+    const opts = { orgId: 'org1', scope: 'p1', now: NOW, takeBackAbsent: chosenHere };
+    const ledger = new Map<string, LedgerEntry>();
+    const first = reconcile(before, ledger, opts);
+    for (const [k, e] of first.entries) ledger.set(k, e);
+    expect(first.events.filter((e) => e.type === 'v1.RecordingAdded').flatMap((e) => (e.payload as { cards: Card[] }).cards).map((c) => c.format)).toEqual([undefined, 'wav', 'wav']);
+    expect(reconcile(mapProject(bible(), ctx()).facts, ledger, opts).events).toEqual([]);
+    // A part that changes in v2 is said again, and now names its M4A file.
+    const more = bible();
+    more.contents.push(content('a1', ['a3.m4a'], { order_index: 2 }));
+    const again = reconcile(mapProject(more, ctx()).facts, ledger, opts).events.filter((e) => e.type === 'v1.RecordingAdded');
+    expect(again.map((e) => e.payload)).toEqual([expect.objectContaining({ recordingId: 'rec:a1:ch1#2', cards: [{ hash: H('1'), durationMs: 1000, format: 'm4a' }, { hash: H('4'), durationMs: 4000, format: 'm4a' }] })]);
+  });
+
   it('holds a version until its files reach v2, then brings it over', () => {
     const waiting = new Map(files);
     waiting.delete('a2-2.wav');
@@ -231,7 +257,8 @@ describe('mapProject: a Bible project', () => {
     const pass = (rows: V2ProjectRows) => {
       const r = reconcile(mapProject(rows, ctx()).facts, ledger, { orgId: 'org1', scope: 'p1', now: NOW, takeBackAbsent: chosenHere });
       for (const [k, e] of r.entries) ledger.set(k, e);
-      return { events: r.events, stamps: Object.fromEntries(r.stamps.map((x) => [x.key, x.at])) };
+      // These files are named as no app names them, so each is also marked an upload: the next test is about that.
+      return { events: r.events, stamps: Object.fromEntries(r.stamps.filter((x) => !x.key.startsWith('upload:')).map((x) => [x.key, x.at])) };
     };
     const first = pass(stamped);
     expect(first.stamps).toEqual({
@@ -245,6 +272,40 @@ describe('mapProject: a Bible project', () => {
     const audio = pass(later);
     expect(audio.events).toEqual([]);
     expect(audio.stamps).toEqual({ [`segment:${H('2')}`]: '2025-02-04T00:00:00.000Z', [`file:${H('2')}`]: '2025-02-20T00:00:00.000Z' });
+  });
+
+  it("marks a file that v2's app did not record, so the API can tell an upload from a recording (decisions.md 188, amended 2026-11-12)", () => {
+    // Why: Every Language pays recording teams per chapter, and its staff upload old archives as files.
+    const [rec1, rec2, rec3] = ['3f2b9c1e-8d4a-4b7f-9a21-6c0e5d8f1a22.wav', '0a4c7e2d-1b3f-4d5e-8f60-7a9b0c1d2e3f.wav', 'recording-1D621B58-F05D-4B8B-B05E-6BE74F1DF5D4.m4a'];
+    const web = '1787932131620-24c26bad-b765-4cb4-bdc3-7b8cc9d08807.m4a';
+    const named = new Map(files).set(web, files.get('a1.m4a')!).set(rec1, files.get('a2-1.wav')!).set(rec2, files.get('a2-2.wav')!).set(rec3, files.get('bt1.wav')!);
+    const rows = bible();
+    rows.contents[0] = { ...rows.contents[0]!, audio: [web], uploaded_at: '2025-02-03T10:00:00+00:00' };
+    rows.contents[1] = { ...rows.contents[1]!, audio: [rec1] };
+    rows.contents[2] = { ...rows.contents[2]!, audio: [rec2] };
+    rows.contents[3] = { ...rows.contents[3]!, audio: [rec3] };
+    const uploads = (r: V2ProjectRows) => {
+      const out = reconcile(mapProject(r, ctx({ files: named })).facts, new Map(), { orgId: 'org1', scope: 'p1', now: NOW, takeBackAbsent: chosenHere });
+      return Object.fromEntries(out.stamps.filter((x) => x.key.startsWith('upload:')).map((x) => [x.key, x.at]));
+    };
+    // a1's file was uploaded: when v2 got it. a2's were recorded in v2's app and have no mark.
+    expect(uploads(rows)).toEqual({ [`upload:${H('1')}`]: '2025-02-03T10:00:00.000Z' });
+    // A segment with no stamp of its own: the uploader set the asset's created_at.
+    rows.contents[0]!.uploaded_at = null;
+    expect(uploads(rows)).toEqual({ [`upload:${H('1')}`]: '2025-02-01T00:00:00.000Z' });
+  });
+
+  it('knows a recording from v2\'s app by its name, a UUID, and anything else as an upload', () => {
+    // The shapes found on v2 production on 2026-11-12.
+    for (const name of ['d6f52d1d-4c1e-4b7a-9f3a-2d6b8e0f1a77.wav', 'local/3f2b9c1e-8d4a-4b7f-9a21-6c0e5d8f1a22.m4a', 'recording-1D621B58-F05D-4B8B-B05E-6BE74F1DF5D4.m4a']) {
+      expect(recordedInApp(name)).toBe(true);
+    }
+    for (const name of [
+      '1787932131620-24c26bad-b765-4cb4-bdc3-7b8cc9d08807.m4a', 'audio/1773506388738-q4owkuaxztr.mp3', '1773506442540-8w2hugxrrp8.m4a',
+      'audio-1780751837177-0.8622204258899305.mp3', '1786556950642-Mark-13-Spv(new).mp3', 'content/line_3815_Brazilian Portuguese_onyx_d6f52d1d-4c1e-4b7a-9f3a-2d6b8e0f1a77.m4a'
+    ]) {
+      expect(recordedInApp(name)).toBe(false);
+    }
   });
 
   it('keeps a review when the vote is removed in v2, and a member when they leave it', () => {

@@ -797,7 +797,7 @@ Steps:
 Expected:
 - All five chips show, in that order.
 - "Guide" shows the step bar ("Previous step", "{n}/{total} {title} ▾", "Next step") and the step's text, then "Open the study".
-- "Key words" lists the words in the passage, or "No key words in this passage yet. Add one your team should say the same way every time.".
+- "Key words" shows a tile for each word in the passage, or "No key words in this passage yet. Add one your team should say the same way every time.".
 - "Notes · N" lists notes, newest first, with "Add a note" at the end.
 - "Earlier" lists Version 2 and Version 1, with "What changed in Version 2".
 - On a passage with nothing recorded (P-Q4 before REC-030), "Earlier" is not offered.
@@ -846,6 +846,7 @@ Expected:
 - Step 7: the divider's label is "Divider between reference and your recording", its hint "Drag up or down to give either one more room", and its value reads "Source 35%" (and so on), "Reference as one line", "Recorder as one line".
 - The divider's touch area is at least 48 points tall.
 - Fixed (2026-10-13): on the web the divider had no value for a screen reader (react-native-web reads `aria-valuetext`, not `accessibilityValue`); `SplitPane.tsx` now gives both. Step 7's swipes are a device check; the web run checks the label and the value at each stop.
+- Fixed (2026-11-13, LAN-117): on the web a mouse drag of the divider selected the page's text, and the next drag (step 3) then dragged that text, so the browser ended the divider's drag where it began. The divider now keeps a mouse press from the browser; the web run checks that step 1 selects no text.
 - When the recorder pane is shorter than 360 points, the parts card shows closed ("Parts 1–4, 4 parts · 0:16"); tapping it opens it and gives the recorder the room (the reference goes to one line). Changed (2026-10-16, LAN-83): the card no longer gives way to "Parts 1–4 recorded · drag up to see them".
 
 ---
@@ -1113,6 +1114,27 @@ Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split 
 
 ### REC-047 Adjust the microphone by hand (retired)
 Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
+
+### REC-061 A key word opens in place while recording, and the recording goes on
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+LAN-233: a tap on a key word's row opened its page and so ended the recording
+session. A key word now opens as a sheet over the workspace (docs/decisions/2026-11-17-key-words-tiles-sheet-in-place.md).
+
+Preconditions:
+- P-Q3's workspace is open on the "Key words" chip. The team has the key word "Lord" with the word "Nkosi" for Luke 13.
+
+Steps:
+1. Tap the red button and speak.
+2. Tap the "Lord" tile.
+3. Close the sheet and carry on speaking, then pause. Tap "Done" on the recording view.
+4. Tap the "Lord" tile again and "Open the word's page".
+
+Expected:
+- Step 2 opens a sheet over the workspace with the meaning and a line saying the passages and the word's page open after Done. The sheet has no "Open the word's page". The status still reads "Recording…" and the red button still reads "Stop recording".
+- Step 3 keeps the part said: the recording was never stopped.
+- Step 4 (not recording) opens the word's page.
+- A word's ▶ in the tile or the sheet pauses the microphone first and lets it carry on when it ends, as the Bible does (REC-036; Device).
 
 ### REC-048 Microphone setup without microphone permission (retired)
 Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set. REC-020 still covers a refused microphone.

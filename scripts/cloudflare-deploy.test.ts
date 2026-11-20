@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 
+import { JOBS } from '../apps/web/worker/jobsModel';
 import { deployArgs } from './cloudflare-deploy.mjs';
 import { parseJsonc, projectRef, wranglerFor } from './env-files.mjs';
 
@@ -84,8 +85,11 @@ describe('cloudflare deploy', () => {
     for (const env of ['production', 'preview']) {
       const c = wranglerFor(config, env);
       expect(c.containers, env).toEqual([
-        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 4, constraints: { regions: ['ENAM'] }, rollout_active_grace_period: 5400 }
+        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 8, constraints: { regions: ['ENAM'] }, rollout_active_grace_period: 5400 }
       ]);
+      // Why: the limit stayed at 4 while the jobs grew to 8; on 2026-11-19 Cloudflare refused the upload run
+      // after the midnight intake ("Maximum number of running container instances exceeded") and no video went up.
+      expect(c.containers[0].max_instances, env).toBeGreaterThanOrEqual(Object.keys(JOBS).length);
       expect(c.durable_objects?.bindings, env).toContainEqual({ name: 'JOBS', class_name: 'JobRunner' });
       // Why: evening merges' rollouts cut off the 03:15 whole read again and again (2026-10-20);
       // the grace covers its 40 to 70 minutes on GitHub, plus the drain's 15 after SIGTERM.
@@ -98,6 +102,25 @@ describe('cloudflare deploy', () => {
     for (const env of ['production', 'preview']) expect(wranglerFor(config, env).vars?.API_URL, env).toBe(`https://${wranglerFor(config, env).routes[0].pattern}`);
     const classes = (config.migrations as { new_sqlite_classes?: string[] }[]).flatMap((m) => m.new_sqlite_classes ?? []);
     expect(classes).toContain('JobRunner');
+  });
+
+  it('serves people at app. and keeps next. as the alias that machines still name (decision 210)', () => {
+    // Why: the first route is API_URL, the webhook poke and the YouTube callback, which do not move with people;
+    // and a phone that does not declare a host the Worker serves opens its links in the browser.
+    const config = parseJsonc(read('apps/web/wrangler.jsonc'));
+    const hosts = wranglerFor(config, 'production').routes.map((r: { pattern: string }) => r.pattern);
+    expect(hosts).toEqual(['next.langquest.org', 'app.langquest.org']);
+    const links = JSON.parse(read('apps/mobile/appLinks.json')) as { hosts: string[] };
+    const app = (JSON.parse(read('apps/mobile/app.json')) as { expo: { ios: { associatedDomains: string[] }; android: { intentFilters: { data: { host: string }[] }[] } } }).expo;
+    for (const host of [...hosts, wranglerFor(config, 'preview').routes[0].pattern]) {
+      expect(links.hosts, host).toContain(host);
+      expect(app.ios.associatedDomains, host).toContain(`applinks:${host}`);
+      expect(app.android.intentFilters[0]!.data.map((d) => d.host), host).toContain(host);
+    }
+    // Auth's own emails go to people's address, and either host may be sent back to.
+    const auth = /^\[remotes\.production\.auth\]\s*$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(read('supabase/config.toml'))?.[1] ?? '';
+    expect(auth).toContain('site_url = "https://app.langquest.org"');
+    for (const host of hosts) expect(auth).toContain(`"https://${host}/**"`);
   });
 
   it('names the app\'s Worker for the app, not the dashboard it once was (decision 144)', () => {

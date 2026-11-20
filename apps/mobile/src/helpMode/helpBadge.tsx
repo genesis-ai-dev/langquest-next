@@ -4,7 +4,7 @@
 // number over everything, so a card that clips its rows never cuts it off.
 // Drawn only: taps go to the part.
 import { useContext, useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { type StyleProp, StyleSheet, View, type ViewInstance, type ViewStyle } from 'react-native';
 import type { HelpLit, HelpRowAt, HelpSpot } from './helpContext';
 import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerContext, HelpQuietContext, HelpRowContext, useHelpOn } from './useHelpMode';
 import { touches } from '../ui/touches';
@@ -12,7 +12,7 @@ import { touches } from '../ui/touches';
 /** Tell the help layer where the view holding this ref is: when it is laid out, and as often as help mode measures (measureModel.ts) while help is on. */
 function useLit(what: HelpLit | null, id: string) {
   const help = useContext(HelpContext);
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   const measureNow = useRef<(() => void) | null>(null);
   const place = help?.place;
   const track = help?.track;

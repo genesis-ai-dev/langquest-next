@@ -16,6 +16,12 @@
  * need a step from outside mid-run (--wrapped, and their headers say which).
  * Flows named with --flow run as asked.
  *
+ * When Maestro's driver on the phone stops, the flow it stopped at and those
+ * after it get no result. The run then starts a new driver for them, up to
+ * three times, and puts their results in report.xml (scripts/maestro-plan.mjs,
+ * decision 208); driver.json says where the driver stopped, report-first.xml
+ * is the report as the first start left it. Not with --shards.
+ *
  * --shards N runs the flows across N devices (name each with a repeated
  * --device; an iOS run with none uses N booted simulators), through Maestro's
  * --shard-split. Maestro keeps flowsOrder only inside one shard, so the flows
@@ -33,10 +39,10 @@
  * go to e2e/results/maestro/<platform>/<label>/.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { flowTags, plannedSkips, skipReport } from './maestro-plan.mjs';
+import { flowTags, NEW_DRIVERS, plannedSkips, reportCases, skippedFlows, skipReport, withNewDrivers } from './maestro-plan.mjs';
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -212,7 +218,10 @@ const flowFiles = readdirSync(join(flowsDir, 'flows')).filter((f) => f.endsWith(
 
 // What this run cannot hold is skipped and said, not failed (scripts/maestro-plan.mjs).
 const skips = plannedSkips({ platform, voice: args.includes('--voice'), mic: args.includes('--mic'), wrapped: args.includes('--wrapped'), flows });
-for (const line of skipReport(skips, flowFiles.map((f) => ({ name: f.replace(/^.*\//, '').replace(/\.yaml$/, ''), tags: flowTags(readFileSync(f, 'utf8')) })))) console.log(line);
+const flowList = flowFiles.map((f) => ({ name: f.replace(/^.*\//, '').replace(/\.yaml$/, ''), tags: flowTags(readFileSync(f, 'utf8')) }));
+for (const line of skipReport(skips, flowList)) console.log(line);
+// What was left out and why, for the nightly report (scripts/phone-tests.mjs).
+writeFileSync(join(results, 'skipped.json'), JSON.stringify(skippedFlows(skips, flowList), null, 2));
 const excludeTags = [...value('exclude-tags', '').split(',').filter(Boolean), ...skips.map((s) => s.tag)].join(',');
 
 // --voice: the simulator and emulator hear the host's input, so loop the voice
@@ -250,17 +259,62 @@ const baseArgs = (deviceIds) => [
 ];
 const report = (name) => ['--format', 'junit', '--output', join(results, name), '--test-output-dir', results];
 
+const files = flows.length ? flows : flowFiles;
+// A file named with --flow that is not there is Maestro's to report.
+const nameOf = (f) => (existsSync(f) ? /^name:\s*"?(.+?)"?\s*$/m.exec(readFileSync(f, 'utf8'))?.[1] : undefined);
+const byName = new Map(files.map((f) => [nameOf(f), f]));
+
 if (shards === 1) {
-  process.exit(run('maestro', [...baseArgs(devices), ...report('report.xml'), ...(flows.length ? flows : [flowsDir])]));
+  // A report an earlier run left here is not this run's.
+  for (const f of readdirSync(results)) if (/^report(-first|-again-\d+)?\.xml$|^driver\.json$/.test(f)) rmSync(join(results, f));
+  const status = run('maestro', [...baseArgs(devices), ...report('report.xml'), ...(flows.length ? flows : [flowsDir])]);
+  process.exit(afterDriverStops(status));
+}
+
+/**
+ * A driver that stops leaves the flow it stopped at, and every flow after
+ * it, without a result (scripts/maestro-plan.mjs). Each new start of Maestro
+ * starts a new driver: run those flows with one, in the order they first
+ * ran, and put their results in the run's report. Named files run in the
+ * order given; config.yaml's order, which the first start kept, is for the
+ * folder. Returns the run's status: that of its report, once a flow ran again.
+ */
+function afterDriverStops(status) {
+  const reportFile = join(results, 'report.xml');
+  if (!existsSync(reportFile)) return status;
+  const first = readFileSync(reportFile, 'utf8');
+  // A flow's file, as the report names it (from the repository's root); its name finds it where the report does not.
+  const fileOf = new Map(reportCases(first).map((c) => {
+    const said = c.file ? (isAbsolute(c.file) ? c.file : join(root, c.file)) : null;
+    return [c.name, said && existsSync(said) ? said : byName.get(c.name)];
+  }));
+  const { report: merged, stops } = withNewDrivers(first, (stop, n) => {
+    const again = stop.again.map((name) => fileOf.get(name)).filter(Boolean);
+    console.log(`Maestro's driver on the phone stopped at "${stop.at}": ${stop.again.length} ${stop.again.length === 1 ? 'flow has' : 'flows have'} no result.`);
+    if (!again.length) return null;
+    console.log(`Starting a new driver for ${again.length === 1 ? 'it' : `these ${again.length}`} (new driver ${n} of at most ${NEW_DRIVERS}).`);
+    const name = `report-again-${n}.xml`;
+    run('maestro', [...baseArgs(devices), ...report(name), ...again]);
+    if (existsSync(join(results, name))) return readFileSync(join(results, name), 'utf8');
+    console.log('That start of Maestro left no report.');
+    return null;
+  });
+  if (!stops.length) return status;
+  const end = stops[stops.length - 1];
+  if (!end.again.length) console.log(`The run starts no new driver now (the driver last stopped at "${end.at}"): what has no result keeps none.`);
+  writeFileSync(join(results, 'report-first.xml'), first);
+  writeFileSync(reportFile, merged);
+  // Where the driver stopped and what ran again, for the nightly report (scripts/phone-tests.mjs).
+  writeFileSync(join(results, 'driver.json'), JSON.stringify({ stops }, null, 2));
+  const failed = reportCases(merged).filter((c) => c.failed).length;
+  console.log(failed ? `${failed} ${failed === 1 ? 'flow' : 'flows'} failed, with what the new drivers ran counted.` : 'Every flow passed, with what the new drivers ran counted.');
+  return failed ? status || 1 : 0;
 }
 
 // Sharded. Maestro orders flows only within a shard, so run the ordered ones
 // first, one after another on the first device, then split the rest.
 const config = readFileSync(join(flowsDir, 'config.yaml'), 'utf8');
 const ordered = [...(config.split('flowsOrder:')[1] ?? '').matchAll(/^\s+-\s+"([^"]+)"/gm)].map((m) => m[1]);
-const files = flows.length ? flows : flowFiles;
-const nameOf = (f) => /^name:\s*"?(.+?)"?\s*$/m.exec(readFileSync(f, 'utf8'))?.[1];
-const byName = new Map(files.map((f) => [nameOf(f), f]));
 const first = ordered.map((n) => byName.get(n)).filter(Boolean);
 const rest = files.filter((f) => !first.includes(f));
 let status = 0;

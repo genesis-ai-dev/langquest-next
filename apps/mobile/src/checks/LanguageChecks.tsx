@@ -1,7 +1,7 @@
 // A language's own checks (decision 91): the list, with who is on each and its
 // helps, as the flow editor and New language show it (screens/config.tsx).
 // screens/checks.tsx edits one check.
-import { checkHelps, checkPeople, checkShows, commands, deriveFlow, kindOf, languageName, questionsForKind, RECORD_STEP, type EventSpec, type KindDef, type LanguageState } from '@langquest-next/core';
+import { newCommandId, checkHelps, checkPeople, checkShows, commands, deriveFlow, kindOf, languageName, questionsForKind, RECORD_STEP, type EventSpec, type KindDef, type LanguageState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useContext, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View, type PanResponderInstance } from 'react-native';
@@ -336,7 +336,7 @@ export function ChecksContent({ ctx, undo, startFrom = true }: { ctx: Ctx; undo:
       <AddCheckSheet visible={adding} kinds={known} taken={rows.map((r) => r.kindId)} onClose={() => setAdding(false)} onPick={(k, isNew) => {
         setAdding(false);
         const c = commands(state, indexesFor(state));
-        const define = isNew ? c.defineKind({ commandId: Crypto.randomUUID(), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer }) : [];
+        const define = isNew ? c.defineKind({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer }) : [];
         save(addRow(rows, k.id), define);
       }} />
       <FlowsSheet ctx={ctx} visible={flows} kinds={known} language={language} onClose={() => setFlows(false)} onUse={(e, kinds) => {
@@ -344,7 +344,7 @@ export function ChecksContent({ ctx, undo, startFrom = true }: { ctx: Ctx; undo:
         const previous = { flow: state.flow?.value ?? null, steps: deriveFlow(state).steps };
         let specs: EventSpec[];
         try {
-          specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: e.c.name, kinds, steps: e.doc.steps });
+          specs = commands(state, indexesFor(state)).copyFlow({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), name: e.c.name, kinds, steps: e.doc.steps });
         } catch (err) {
           ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) }), 'problem'); // i18n-ignore: log label
           return;

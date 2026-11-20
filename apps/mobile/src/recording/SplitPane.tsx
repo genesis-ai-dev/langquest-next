@@ -6,7 +6,7 @@
 // it one snap at a time. A pane at an end snap shows a one-line version of
 // itself, so neither is ever hidden (splitModel.ts).
 import { useRef, useState, type ReactNode } from 'react';
-import { PanResponder, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { PanResponder, Platform, Pressable, StyleSheet, View, type KeyDownEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { HelpBadge, HelpQuiet } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
@@ -60,7 +60,17 @@ export function SplitPane(props: {
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: () => { start.current = shown(); setDragging(true); },
+    onPanResponderGrant: (e) => {
+      // A mouse press on the web would start selecting the page's text, and a press on text already selected starts
+      // the browser's own drag of it, which ends this drag back where it began (REC-040, LAN-117). Keep the press
+      // from the browser, and give the divider the focus the press would have given it, for its arrow keys.
+      if (Platform.OS === 'web' && (e.nativeEvent as { type?: string }).type === 'mousedown') {
+        e.preventDefault();
+        (e.currentTarget as unknown as { focus?: (o: { preventScroll: boolean }) => void } | null)?.focus?.({ preventScroll: true });
+      }
+      start.current = shown();
+      setDragging(true);
+    },
     onPanResponderMove: (_, g) => setFraction(fractionAfterDrag(start.current, g.dy, latest.current.available)),
     onPanResponderRelease: (_, g) => { setDragging(false); settle(fractionAfterDrag(start.current, g.dy, latest.current.available)); },
     onPanResponderTerminate: () => { setDragging(false); settle(start.current); }
@@ -68,11 +78,11 @@ export function SplitPane(props: {
 
   // The web has no screen-reader swipe for everyone: the arrow keys move the divider a stop, Home and End to its ends.
   const keys = Platform.OS === 'web' ? {
-    onKeyDown: (e: { key: string; preventDefault(): void }) => {
-      const to = ({ ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 } as Record<string, 1 | -1>)[e.key];
+    onKeyDown: (e: KeyDownEvent) => {
+      const to = ({ ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 } as Record<string, 1 | -1>)[e.nativeEvent.key];
       if (to !== undefined) { e.preventDefault(); settle(stepSnap(shown(), to)); }
-      else if (e.key === 'Home') { e.preventDefault(); settle(0); }
-      else if (e.key === 'End') { e.preventDefault(); settle(1); }
+      else if (e.nativeEvent.key === 'Home') { e.preventDefault(); settle(0); }
+      else if (e.nativeEvent.key === 'End') { e.preventDefault(); settle(1); }
     }
   } : {};
   // While help is on, a tap on the divider explains it and a drag moves nothing.

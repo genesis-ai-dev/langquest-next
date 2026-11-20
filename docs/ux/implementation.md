@@ -1,5 +1,7 @@
 # Mobile workflow implementation
 
+Kind: history
+
 **History.** This describes the one-next-action journey the app implemented
 before it followed the partner demo (docs/decisions.md 28); see
 `docs/ux/demo-parity.md` for the current screens.

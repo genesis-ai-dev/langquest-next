@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { addCatalog, currentLanguage, showLanguage, t } from '../src/i18n';
+import { elide } from '../src/i18n/elision';
 import { formatClock, formatDay, formatNumber } from '../src/i18n/format';
 import { catalogFor, pickLanguage, UI_LANGUAGES } from '../src/i18n/languages';
 import { fallbackRule } from '../src/i18n/plurals';
@@ -10,11 +11,14 @@ import { appFiles, findModuleScopeT, findUiText, keysNamed } from './uiText';
 // every key used and defined, and every language holding the same keys as
 // English, with the plural forms that language needs. The Android phone's
 // disguise keeps its words apart (src/disguise/i18n, decisions.md 171), so
-// that an iPhone build carries none of them; they are held to the same rules.
+// that an iPhone build carries none of them, and nearby sync keeps its own
+// apart (src/nearby/i18n, decision 233), so that the web need not carry them
+// on every visit; both are held to the same rules.
 
 const ROOT = join(import.meta.dirname, '..');
 const DIR = join(ROOT, 'src/i18n');
 const DISGUISE_DIR = join(ROOT, 'src/disguise/i18n');
+const NEARBY_DIR = join(ROOT, 'src/nearby/i18n');
 type Tree = { [k: string]: string | Tree };
 const catalog = (code: string, dir = DIR): Tree => JSON.parse(readFileSync(join(dir, `${code}.json`), 'utf8')) as Tree;
 
@@ -35,6 +39,8 @@ const en = leaves(catalog('en'));
 const enBases = basesOf(en);
 const disguiseEn = leaves(catalog('en', DISGUISE_DIR));
 const disguiseBases = basesOf(disguiseEn);
+const nearbyEn = leaves(catalog('en', NEARBY_DIR));
+const nearbyBases = basesOf(nearbyEn);
 const placeholders = (s: string) => new Set([...s.matchAll(/\{\{\s*([\w.]+)[^}]*\}\}/g)].map((m) => m[1]!));
 const tags = (s: string) => [...s.matchAll(/<\/?(\w+)\s*\/?>/g)].map((m) => m[0]).sort();
 
@@ -72,11 +78,11 @@ describe('the app writes no words into its code (LAN-42)', { timeout: 30_000 }, 
     }
     // A string literal that is a key is a use (t('a.b'), or a key kept in a table and passed to t later).
     // `native.*` is read by iOS from apps/mobile/locales (checked below), not by the code.
-    const unused = [...enBases, ...disguiseBases].filter((k) => !k.startsWith('native.') && !literals.has(k) && ![...prefixes].some((p) => k.startsWith(p)));
+    const unused = [...enBases, ...disguiseBases, ...nearbyBases].filter((k) => !k.startsWith('native.') && !literals.has(k) && ![...prefixes].some((p) => k.startsWith(p)));
     expect(unused).toEqual([]);
     // Every `t('…')` names a key English has (the typecheck says so too, unless a key is built at run time).
     const tCalls = files.flatMap((path) => [...readFileSync(path, 'utf8').matchAll(/\bt\(\s*'([^'$]+)'/g)].map((m) => m[1]!));
-    expect(tCalls.filter((k) => !enBases.has(k) && !disguiseBases.has(k))).toEqual([]);
+    expect(tCalls.filter((k) => !enBases.has(k) && !disguiseBases.has(k) && !nearbyBases.has(k))).toEqual([]);
     // The disguise's words are used only where an iPhone build never goes (disguiseIphone.test.ts).
     const disguiseUsers = files.filter((path) => [...readFileSync(path, 'utf8').matchAll(/\bt\(\s*'([^'$]+)'/g)].some((m) => disguiseBases.has(m[1]!)));
     expect(disguiseUsers.map((p) => p.slice(ROOT.length + 1)).filter((p) => !p.startsWith('src/disguise/'))).toEqual([]);
@@ -100,22 +106,43 @@ describe('the catalogs', () => {
     for (const l of UI_LANGUAGES) expect([...leaves(catalog(l.code)).keys()].filter((k) => disguiseBases.has(k.replace(PLURAL, ''))), l.code).toEqual([]);
   });
 
-  it('gives iOS the microphone and camera questions in each language (scripts/native-locales.mjs)', () => {
+  it("has nearby sync's words for each language too, a loader for each, and none in the catalogs every visit carries", () => {
+    const files = readdirSync(NEARBY_DIR).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')).sort();
+    expect(files).toEqual(UI_LANGUAGES.map((l) => l.code).sort());
+    const loaders = readFileSync(join(ROOT, 'src/nearby/nearbyWords.ts'), 'utf8');
+    for (const l of UI_LANGUAGES) if (l.code !== 'en') expect(loaders).toContain(`case '${l.code}': return require('./i18n/${l.code}.json');`);
+    for (const l of UI_LANGUAGES) expect([...leaves(catalog(l.code)).keys()].filter((k) => nearbyBases.has(k.replace(PLURAL, ''))), l.code).toEqual([]);
+    // A phone loads them with its catalogs; the web, with the nearby screens only.
+    expect(readFileSync(join(ROOT, 'src/shell/wiring.ts'), 'utf8')).toContain("import '../nearby/nearbyWordsAtStart';");
+    expect(readFileSync(join(ROOT, 'src/nearby/nearbyWordsAtStart.ts'), 'utf8')).toContain("import './nearbyWords';");
+    expect(readFileSync(join(ROOT, 'src/nearby/nearbyWordsAtStart.web.ts'), 'utf8')).not.toContain('import');
+    expect(readFileSync(join(ROOT, 'src/screens/nearby.tsx'), 'utf8')).toContain("import '../nearby/nearbyWords';");
+  });
+
+  it('gives iOS the microphone, camera, Bluetooth and local network questions in each language (scripts/native-locales.mjs)', () => {
     const app = JSON.parse(readFileSync(join(ROOT, 'app.json'), 'utf8')).expo as { locales?: Record<string, string>; ios: { infoPlist: Record<string, string> } };
     const english = catalog('en').native as Tree;
     expect(app.ios.infoPlist.NSMicrophoneUsageDescription).toBe(english.microphone);
+    expect(app.ios.infoPlist.NSBluetoothAlwaysUsageDescription).toBe(english.bluetooth);
+    expect(app.ios.infoPlist.NSLocalNetworkUsageDescription).toBe(english.localNetwork);
     for (const lang of UI_LANGUAGES.filter((l) => l.code !== 'en')) {
       const name = ({ pt: 'pt-BR', tl: 'fil' } as Record<string, string>)[lang.code] ?? lang.code;
       expect(app.locales?.[name], name).toBe(`./locales/${name}.json`);
       const native = catalog(lang.code).native as Tree;
       expect(JSON.parse(readFileSync(join(ROOT, 'locales', `${name}.json`), 'utf8')), name)
-        .toEqual({ ios: { NSMicrophoneUsageDescription: native.microphone, NSCameraUsageDescription: native.camera } });
+        .toEqual({
+          ios: {
+            NSMicrophoneUsageDescription: native.microphone, NSCameraUsageDescription: native.camera,
+            NSBluetoothAlwaysUsageDescription: native.bluetooth, NSLocalNetworkUsageDescription: native.localNetwork
+          }
+        });
     }
   });
 
   const sources = [
     { where: 'src/i18n', dir: DIR, en, enBases, pluralBases: pluralsOf(en) },
-    { where: 'src/disguise/i18n', dir: DISGUISE_DIR, en: disguiseEn, enBases: disguiseBases, pluralBases: pluralsOf(disguiseEn) }
+    { where: 'src/disguise/i18n', dir: DISGUISE_DIR, en: disguiseEn, enBases: disguiseBases, pluralBases: pluralsOf(disguiseEn) },
+    { where: 'src/nearby/i18n', dir: NEARBY_DIR, en: nearbyEn, enBases: nearbyBases, pluralBases: pluralsOf(nearbyEn) }
   ];
   for (const { where, dir, en, enBases, pluralBases } of sources) for (const lang of UI_LANGUAGES.filter((l) => l.code !== 'en')) {
     describe(`${lang.english} (${lang.code}) in ${where}`, () => {
@@ -218,5 +245,54 @@ describe('plurals, dates and numbers', () => {
       showLanguage('en');
     }
     expect(t('common.done')).toBe('Done');
+  });
+});
+
+describe('French elision before a name put into a sentence', () => {
+  it('makes "le" and "la" before a name that starts with a vowel "l’"', () => {
+    expect(elide('Faire la approbation finale', ['approbation finale'])).toBe('Faire l’approbation finale');
+    expect(elide('En attente à la étude, qui doit passer d’abord', ['étude'])).toBe('En attente à l’étude, qui doit passer d’abord');
+    expect(elide('Comment le dit le anglais', ['anglais'])).toBe('Comment le dit l’anglais');
+    expect(elide('La approbation finale', ['approbation finale'])).toBe('L’approbation finale');
+    expect(elide('Vérification de la ESV, puis de la ESV', ['ESV'])).toBe('Vérification de l’ESV, puis de l’ESV');
+    expect(elide('Faire la approbation, puis la écoute', ['approbation', 'écoute'])).toBe('Faire l’approbation, puis l’écoute');
+  });
+
+  it('leaves the rest as the catalog writes it', () => {
+    // A consonant, an h (aspirated or not, nobody can tell from the letters), a y, "onze" and "oui".
+    expect(elide('Faire la rétrotraduction', ['rétrotraduction'])).toBe('Faire la rétrotraduction');
+    expect(elide('Faire la harmonisation', ['harmonisation'])).toBe('Faire la harmonisation');
+    expect(elide('Avant le 8 nov.', ['8 nov.'])).toBe('Avant le 8 nov.');
+    expect(elide('Avant le onze', ['onze'])).toBe('Avant le onze');
+    // Only right before the name: the catalog's own words, and a name elsewhere in the sentence, stay.
+    expect(elide('Écouter la version de Anna', ['Anna'])).toBe('Écouter la version de Anna');
+    expect(elide('Anna la écoute', ['Anna'])).toBe('Anna la écoute');
+    // "le" and "la" after a verb, or the end of another word, are no article.
+    expect(elide('Appelez-la Anna', ['Anna'])).toBe('Appelez-la Anna');
+    expect(elide('Ruth appela Anna', ['Anna'])).toBe('Ruth appela Anna');
+    expect(elide('', ['Anna'])).toBe('');
+    expect(elide('Faire la approbation', [])).toBe('Faire la approbation');
+  });
+
+  it('is done in French only, on what t() returns', () => {
+    addCatalog('fr', catalog('fr'));
+    showLanguage('fr');
+    try {
+      expect(t('passage.page.main.doCheck', { check: 'approbation finale' })).toBe('Faire l’approbation finale');
+      expect(t('passage.page.main.doCheck', { check: 'rétrotraduction' })).toBe('Faire la rétrotraduction');
+      expect(t('passage.page.heldAt', { check: 'approbation finale' })).toContain('à l’approbation finale,');
+    } finally {
+      showLanguage('en');
+    }
+    addCatalog('es', catalog('es'));
+    showLanguage('es');
+    try {
+      // Spanish keeps its article whole ("la aprobación").
+      expect(t('passage.page.main.doCheck', { check: 'aprobación final' })).toContain('aprobación final');
+      expect(t('passage.page.main.doCheck', { check: 'aprobación final' })).not.toContain('’');
+    } finally {
+      showLanguage('en');
+    }
+    expect(t('passage.page.main.doCheck', { check: 'approval' })).toBe('Do the approval');
   });
 });

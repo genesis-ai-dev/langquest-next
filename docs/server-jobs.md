@@ -1,6 +1,6 @@
 # Plan: the server's jobs, and where the heavy ones run
 
-Status: steps one to three and the report inputs built (decisions 141, 142); F waits for the big-languages plan · Carl Sauder, with Claude · 2026-10-16, 2026-10-19
+Kind: plan · Status: built: steps one to three and the report inputs (decisions 141, 142), and F, the server cut, with the big-languages plan (pull request 185, decision 147) · Carl Sauder, with Claude · 2026-10-16, 2026-10-19
 
 Companion to `docs/big-languages-plan.md`, the phone side, whose option F
 (the server folds a language whole and cuts the snapshot by passage) is
@@ -30,7 +30,8 @@ Now, on a hosted project (decisions 141, 142):
 | R2 reconciliation without hashing, missing and orphaned files counted (`server/reconcileJob.ts`) | job container `JobRunner` blob-reconcile | 4 GiB | daily, 04:35 UTC | the Worker's job tick |
 | Tutorial videos chosen by the intake or on the ops dashboard, put up on YouTube (`server/tutorialPublish.ts`, decisions 180, 192) | job container `JobRunner` tutorial-publish | 4 GiB | after each intake, and on Publish | the end of an intake run (`AFTER`); the dashboard's Publish |
 | Tutorial films the nightly filming on GitHub made, brought into R2, the wide ones chosen for YouTube (`server/tutorialIntake.ts`, decisions 183, 192) | job container `JobRunner` tutorial-intake | 4 GiB | when the filming's films are in, and daily at 00:05 Pacific | `/api/tutorial-filmed` from `tutorials.yml`; the Worker's job tick |
-| Comments on the tutorial videos, kept for Claude's nightly look; accepted code changes filed in Linear (`server/tutorialComments.ts`, decision 186) | job container `JobRunner` tutorial-comments | 4 GiB | daily, 23:50 UTC | the Worker's job tick |
+| Comments on the tutorial videos, kept for Claude's nightly look; accepted code changes filed in Linear (`server/tutorialComments.ts`, decision 186) | job container `JobRunner` tutorial-comments | 4 GiB | daily at 00:00 Pacific, first in YouTube's day | the Worker's job tick |
+| Organization export: a zip of an organization's recordings, manifest, sheets and event log, built when an admin asks (`server/orgExport.ts`, decision 206) | job container `JobRunner` org-export | 4 GiB | on request | an organization admin's request (`/api/orgs/:org/exports`) |
 | Push delivery | Edge Function `push-delivery` | 256 MB | 1 min | pg_cron |
 | Reports | Durable Object `OrgSnapshot`, rendering stored report inputs | 128 MB isolate | on request | HTTP |
 | The agent API, MCP, review links, webhooks | Durable Object `OrgSnapshot`, reading each passage's records from the server's cut, never a whole language (decision 147) | 128 MB isolate | on request | HTTP |
@@ -134,8 +135,15 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
   it people come over by id) and its concurrency. The import runs only
   while the Worker's `V2_IMPORT_ENABLED` is "true" and refuses to start
   without v2's key.
-- **Instance type** `standard-1` (4 GiB) for all four, one instance each
-  (`max_instances` 4: pass, import, canary, reconciliation), with Node's heap at 3 GiB. Under F (decision 147)
+- **A start the platform refuses is recorded and tried again**
+  (`docs/decisions/2026-11-19-a-refused-job-start-is-tried-again.md`): the
+  job's object writes a job run at once (`start:max_instances` when no
+  instance was free, else `start:failed`), keeps no run, and its alarm tries
+  the start again every five minutes, for an hour at most
+  (`jobsModel.ts` `retryAt`, `jobs.ts` `startRefused`).
+- **Instance type** `standard-1` (4 GiB) for every job, one instance each
+  (`max_instances` 8, the number of jobs in `jobsModel.ts` `JOBS`;
+  `scripts/cloudflare-deploy.test.ts` fails when a job is added without it), with Node's heap at 3 GiB. Under F (decision 147)
   the pass holds the fold and then builds the rows, a batch at a time, and
   the lines from it: on a Santhali-size synthetic fixture the peak went from
   318 MB of heap (533 MB resident) to 353 MB (679 MB)
@@ -242,6 +250,7 @@ What this plan takes from that one, under F:
 | The job container, its object, the job tick and the import's switch are declared for production and preview, one instance per job | `scripts/cloudflare-deploy.test.ts` | in place |
 | The image installs no npm package; psql and ffmpeg are its system packages | `scripts/cloudflare-deploy.test.ts` | in place |
 | Which jobs a tick starts, what each container gets, and that a process killed, out of memory or stopped at the time limit leaves a job run | `apps/web/test/jobs.test.ts` | in place |
+| A start the platform refuses leaves a job run at once and is tried again every five minutes, for an hour; the limit of instances is at least the number of jobs | `apps/web/test/jobRunner.test.ts`, `apps/web/test/jobs.test.ts`, `scripts/cloudflare-deploy.test.ts` | in place |
 | The object, made again mid-run, drained, killed or past its limit, writes one row only when the process could not, and keeps a cut-off whole read owed | `apps/web/test/jobRunner.test.ts` | in place |
 | A rollout leaves a run alone longer than the whole read takes | `scripts/cloudflare-deploy.test.ts` | in place |
 | A whole read stopped within a day resumes; a missing file is asked for every pass only in its first hour | `packages/v2-import/test/resume.test.ts` | in place |

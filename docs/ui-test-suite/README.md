@@ -1,5 +1,7 @@
 # The Expo app's UI test suite
 
+Kind: reference
+
 The end-to-end UI tests for the LangQuest app (`apps/mobile`): iOS, Android
 and its web export. Each test drives the real app, signed in as a real
 account, against a real server. Every role's workflows are covered.
@@ -7,7 +9,7 @@ account, against a real server. Every role's workflows are covered.
 This suite sits on top of the existing automated tests and does not repeat
 them:
 - `npm test` covers the reducer, validation and the flow parity tests
-  (`specParity.test.ts` holds every edge of `src/flow.ts`).
+  (`specParity.test.ts` holds every edge of `src/shell/flow.ts`).
 - `npm run test:web-smoke` runs the web smoke test.
 - `e2e/` holds this suite (`ui/`), the web smoke (`web-smoke/`) and their fixtures.
 
@@ -27,21 +29,21 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 02 | [02-no-organization.md](02-no-organization.md) | "Join your team", starting an organization, asking to join | `NOORG` | 28 |
 | 03 | [03-home-and-navigation.md](03-home-and-navigation.md) | Tabs per role, My Work, the bell, the Inbox, the viewer's overview, flow gates | `NAV` | 38 |
 | 04 | [04-map.md](04-map.md) | All languages, a language's map, books, chapters, search, filter | `MAP` | 21 |
-| 05 | [05-passage-record.md](05-passage-record.md) | The passage record, Something else?, Ask someone, Already happened, versions and history, set aside, checkpoints, Undo and Withdraw in History | `PASS` | 64 |
-| 06 | [06-recording.md](06-recording.md) | The recording workspace, voice detection, parts, Done, interruptions | `REC` | 55 |
+| 05 | [05-passage-record.md](05-passage-record.md) | The passage record, Something else?, Ask someone, Already happened, versions and history, set aside, checkpoints, Undo and Withdraw in History | `PASS` | 65 |
+| 06 | [06-recording.md](06-recording.md) | The recording workspace, voice detection, parts, Done, interruptions | `REC` | 56 |
 | 07 | [07-reviewing.md](07-reviewing.md) | Review it, questions, verdicts, feedback, back translation, answering feedback | `REV` | 51 |
 | 08 | [08-study-and-reference.md](08-study-and-reference.md) | The study, key words, Bibles beside a passage, reference for one passage | `STUDY` | 36 |
-| 09 | [09-language-setup.md](09-language-setup.md) | New language and clusters, Get ready, templates, dividing books, review flows, reference material, the guide editor, licence | `SETUP` | 69 |
+| 09 | [09-language-setup.md](09-language-setup.md) | New language and clusters, Get ready, templates, dividing books, review flows, reference material, the guide editor, licence | `SETUP` | 70 |
 | 10 | [10-people-and-roles.md](10-people-and-roles.md) | Members, invites, join requests, editing members, roles, review teams, the limits on granting | `PEOPLE` | 48 |
-| 11 | [11-account-and-settings.md](11-account-and-settings.md) | Me, More settings, profile, notifications, switching organization, app language, help mode, signing out, deleting an account, Global Viewers, the app icon disguise | `ACCT` | 58 |
-| 12 | [12-sync-and-offline.md](12-sync-and-offline.md) | The Sync screen, offline work, Ready for offline, handing over, two devices, refused work, the update banner | `SYNC` | 34 |
+| 11 | [11-account-and-settings.md](11-account-and-settings.md) | Me, More settings, profile, notifications, switching organization, app language, help mode, signing out, deleting an account, Global Viewers, the app icon disguise, adding or changing an email | `ACCT` | 61 |
+| 12 | [12-sync-and-offline.md](12-sync-and-offline.md) | The Sync and offline screen, offline work, Ready for offline, handing over, two devices, refused work, the update banner | `SYNC` | 34 |
 | 13 | [13-moderation.md](13-moderation.md) | Reporting, blocking, hidden content, removal, reports in the Inbox | `MOD` | 24 |
 | 14 | [14-reports.md](14-reports.md) | The Reports section on wide windows | `RPT` | 22 |
 | 15 | [15-web-and-wide.md](15-web-and-wide.md) | Wide layouts, panes, one tab at a time, browser history, forgetting the browser | `WEB` | 28 |
 | 16 | [16-role-journeys.md](16-role-journeys.md) | Whole jobs per role, and the passage lifecycle across every role | `JRN` | 14 |
 | 17 | [17-accessibility-and-field-use.md](17-accessibility-and-field-use.md) | Screen readers, target sizes, text size, colour, RTL, outdoor and low-end use | `A11Y` | 24 |
 
-**686 tests in all.**
+**692 tests in all.**
 
 ## How a test is written
 
@@ -145,7 +147,7 @@ These hold for every test unless the test says otherwise.
 **G7. Starting point**
 - The test starts on the role's home screen, with the tab bar showing.
 - Nothing is waiting to send: My Work shows no sync chip, and Me shows no
-  count on "More settings".
+  count on "Sync and offline".
 - No toast is showing.
 
 **G8. Audio**
@@ -426,6 +428,27 @@ is also running (the runner otherwise takes the one booted simulator). SYNC-027 
 cut the network on iOS, and SYNC-026's "N of M" line passes too fast on a
 local stack to catch; both stay manual there.
 
+**Phone results (2026-11-10, Android, the nearby-sync branch with main
+merged), test build:** the first full run passed 16 of the 25 flows it can
+hold. The nine others had fallen behind main since 2026-10-25, not broken by
+the branch: a checkpoint row that now names its reason, "Continue the peer
+check" for a review kept on the phone, an offline ask's toast (decision
+166), a book of passages listed 25 at a time instead of a chapter grid
+(decision 166), the invite code under the checks to choose, one language's
+Map opening straight on its books, cards under the passage's player, and two
+flows that need a passage another changes first (now in `config.yaml`'s
+`flowsOrder`). Updated, a full run on a fresh world passed 23 of 25:
+NAV-061's paging needed more than 20 s to scroll a page of rows (now 60 s,
+`common/show-passage.yaml`), and the sign-out flow failed once, its note
+uploaded before the runner's airplane-mode cut caught up; both then passed
+on a fresh world. SYNC-027 passes whole with the runner's airplane-mode cut. SYNC-026 reaches "N of M" but not the speed
+line, which passes too fast on a local stack. The voice flows were tried on
+WSL with a PulseAudio null sink as the default source and the emulator's
+`-allow-host-audio`: the emulator read the sink, but the recorder heard no
+speech, and WSLg's audio server stopped answering afterwards (`wsl
+--shutdown` brings it back). A slow emulator shows "System UI isn't
+responding" right after a cold boot: let its load fall below 3 before a run.
+
 **Quarantine and flake rates.** Retries are off, so a test that fails without
 a product cause is tagged `@quarantine` (with an issue and an owner in a
 comment), runs on its own in the nightly workflow, and is left out of the
@@ -479,7 +502,8 @@ the world under the tests after it: the world is kept for the whole run
   `else-reference` for its tiles); `person-<profileId>` on a member's row;
   `toggle-must-pass`, `toggle-same-time` and `toggle-required` on the checks
   setup switches; `sync-tile-<waiting|refused|confirmed|checkpoint>` on the
-  Sync screen's tiles; `invite-role-<title>` on a role's card in Invite
+  Sync screen's tiles and `sync-<refused|uploads|downloads|ready|details>`
+  on its folds; `invite-role-<title>` on a role's card in Invite
   someone and `invite-role-<title>-invite` on its Invite (phone
   accessibility trees list the button beside the card, so Maestro's
   `childOf` cannot find it).
@@ -503,7 +527,7 @@ Which files exercise each role's jobs:
 | --- | --- |
 | GUEST | AUTH, NOORG (Explore), WEB, A11Y |
 | NOORG | NOORG, AUTH (joining), ACCT (Delete account), JRN-005 |
-| NEW | AUTH (creating an account, joining), JRN-001, JRN-005, JRN-007 |
+| NEW | AUTH (creating an account, joining), ACCT (an email and a password on Edit Profile), JRN-001, JRN-005, JRN-007 |
 | TRANS | NAV, MAP, PASS, REC, REV (answering feedback), STUDY, SYNC, MOD, JRN-002, JRN-011, JRN-012, JRN-013 |
 | KEPT | AUTH (sign-in codes), ACCT (password, sign out), PEOPLE (helping someone sign in), JRN-014 |
 | REV | NAV, PASS, REV, STUDY, MOD, JRN-003, JRN-011 |

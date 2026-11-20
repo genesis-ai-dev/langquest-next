@@ -185,6 +185,13 @@ function installLines(install: string, x: InstallSummary & { roles?: string; lan
   }
   if (x.audio) out.push(`- audio: ${Object.entries(x.audio).filter(([, n]) => n).map(([k, n]) => `${k} ${k.endsWith('Ms') ? s(n) : n}`).join(', ')}`);
   for (const g of x.auth ?? []) out.push(`- auth ${g.op}${g.action ? `/${g.action}` : ''}: ${g.outcome}${g.code ? ` (${g.code})` : ''} ×${g.count}, last ${g.lastAt}${g.last ? ` ${JSON.stringify(g.last)}` : ''}`);
+  if (x.nearby) {
+    const n = x.nearby;
+    const rt = n.roomTotals ?? {};
+    out.push(`- share nearby: ${n.rooms?.length ?? 0} rooms (last ${n.lastAt ?? '?'}), stopped ${(n.rooms ?? []).map((r) => r.stop).join(', ') || '-'}; heard ${rt.heard ?? 0}, echoed ${rt.echoed ?? 0}, bare adverts ${rt.alone ?? 0}, taps ${rt.taps ?? 0}/${rt.maybe ?? 0}, pipes failed ${rt.pipeFails ?? 0}, strangers ${rt.strangers ?? 0}`);
+    if (n.sessionTotals) out.push(`- nearby sessions: ${n.sessionTotals.count ?? 0}, ended ${JSON.stringify(n.ends ?? {})}, links ${JSON.stringify(n.links ?? {})}, fallbacks ${n.sessionTotals.fallbacks ?? 0}; events ${n.sessionTotals.events ?? 0} in, ${n.sessionTotals.sent ?? 0} out; files ${n.sessionTotals.files ?? 0} in, ${n.sessionTotals.served ?? 0} out, ${n.sessionTotals.fileFails ?? 0} failed`);
+    if (n.codes || n.blocked) out.push(`- nearby codes ${JSON.stringify(n.codes ?? {})}${n.blocked ? `, could not run ${JSON.stringify(n.blocked)}` : ''}`);
+  }
   for (const e of x.expected ?? []) out.push(`- expected: ${e.count}× "${e.where}" ${e.name}${e.code ? ` (${e.code})` : ''}, last ${e.lastAt}`);
   for (const e of x.errors ?? []) out.push(`- error: ${e.count}× ${e.name}${e.code ? ` (${e.code})` : ''} at "${e.where}", latest ${e.lastErrorId}`);
   return out;
@@ -221,8 +228,10 @@ function personReport(profileId: string): void {
   const installs = query<Record<string, InstallSummary & { orgs?: string[] | null }>>(`select diag.person(:'p', :'since'::interval)`, { p: profileId, since: `${Number(days)} days` });
   const withProfile = Object.fromEntries(Object.entries(installs).map(([k, v]) => [k, { ...v, profileId }]));
   const found = signals(null, [], withProfile, []);
+  // Someone from v2: where each of their projects stands, as Welcome back sees it (LAN-250).
+  const v2 = query<V2Project[]>(`select coalesce(jsonb_agg(v), '[]') from diag.v2_person(:'p') v`, { p: profileId });
   if (asJson) {
-    console.log(JSON.stringify({ profileId, installs, signals: found }, null, 2));
+    console.log(JSON.stringify({ profileId, installs, signals: found, v2 }, null, 2));
     return;
   }
   const out = [`# Profile ${profileId}`, '', `last ${days} days · ${Object.keys(installs).length} installs`, '', '## Signals', ''];
@@ -230,8 +239,28 @@ function personReport(profileId: string): void {
   else if (found.length === 0) out.push('Nothing stands out.');
   for (const f of found) out.push(`- **${f.level}**${f.install ? ` [${f.install}]` : ''} ${f.text}`);
   for (const [install, x] of Object.entries(withProfile)) out.push(...installLines(install, { ...x, languages: null }), ...(x.orgs?.length ? [`- organizations: ${x.orgs.join(', ')}`] : []));
+  if (v2.length) {
+    out.push('', `## LangQuest v2 projects (noted at sign-up ${v2[0]!.arrived_at})`, '', '| project | stands | org | confirmed | last transfer |', '|---|---|---|---|---|');
+    for (const p of v2) out.push(`| ${p.project_id} | ${V2_STATES[p.state] ?? p.state} | ${p.org_id ?? ''} | ${p.confirmed_at ?? 'no'} | ${p.last_pass_at ? `${p.last_pass_state} ${p.last_pass_at}` : 'never'} |`);
+  }
   console.log(out.join('\n'));
 }
+
+interface V2Project {
+  project_id: string; state: string; org_id: string | null; language_id: string | null; confirmed_at: string | null;
+  last_pass_at: string | null; last_pass_state: string | null; arrived_at: string;
+}
+
+/** diag.v2_person's states, as support reads them; all but `here` show on Welcome back as on its way, or not at all. */
+const V2_STATES: Record<string, string> = {
+  not_on_board: 'not on the transfer board: place and transfer it there',
+  not_coming_over: 'Not coming over (not shown to them)',
+  unconfirmed: 'on the board, not transferred: press Transfer',
+  not_transferred: 'confirmed, waiting for its first transfer',
+  not_projected: 'transferred, language not projected yet',
+  not_member: 'here, but they are not a member (not shown to them)',
+  here: 'here'
+};
 
 interface Feedback {
   id: string; created_at: string; kind: 'bug' | 'idea'; body: string; status: string; install_id: string;
@@ -327,8 +356,9 @@ function main(): void {
       const vars = { install: rest[0] ?? '', since: `${Number(flag('days', '2'))} days` };
       // Which phone and build first; each record also names the update it was made under.
       const phone = asJson ? null
-        : query<{ context: Record<string, string>; lastSeen: string } | null>(`select jsonb_build_object('context', i.context, 'lastSeen', i.last_seen) from diag.installs i where i.install_id = :'install'`, vars);
-      if (phone) console.log(`# Install ${vars.install} · ${phoneLine(phone.context)} · last seen ${phone.lastSeen}\n`);
+        : query<{ context: Record<string, string>; lastSeen: string; profileId: string | null } | null>(`select jsonb_build_object('context', i.context, 'lastSeen', i.last_seen, 'profileId', i.profile_id) from diag.installs i where i.install_id = :'install'`, vars);
+      // The account names the next step for someone in no organization: `person <profileId>`.
+      if (phone) console.log(`# Install ${vars.install} · ${phoneLine(phone.context)} · last seen ${phone.lastSeen}${phone.profileId ? ` · profile ${phone.profileId}` : ''}\n`);
       console.log(JSON.stringify(query(`select coalesce(jsonb_agg(x), '[]') from diag.timeline(:'install', :'since'::interval) x`, vars), null, 2));
       return;
     }

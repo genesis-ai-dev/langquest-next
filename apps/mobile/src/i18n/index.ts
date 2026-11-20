@@ -2,7 +2,9 @@
 //
 // Every word the app shows or says is a key in `en.json` (English is the
 // source) and reaches the screen through `t('area.key')`. The other
-// catalogs beside it hold the same keys. apps/mobile/test/i18n.test.ts
+// catalogs beside it hold the same keys. Two parts keep their words apart,
+// under the same rules: the disguise (src/disguise/i18n) and nearby sync
+// (src/nearby/i18n), which the web loads only with its screens. apps/mobile/test/i18n.test.ts
 // fails on a word written straight into the code, a key used but missing,
 // a key no code uses, or a catalog that lacks or adds keys.
 //
@@ -14,6 +16,8 @@
 // - Never call `t` at module scope: the language is known only once the app
 //   starts. Wrap fixed lists in a function.
 // - Dates and numbers go through `format.ts` (Intl), not hand-made strings.
+// - French "le" and "la" before a name the sentence is given become "l’"
+//   when the name starts with a vowel (`elision.ts`); write the whole article.
 //
 // This module reads nothing from the device, so tests and pure models can
 // import it; it starts in English. `start.ts` picks the language on a phone
@@ -23,12 +27,13 @@ import { initReactI18next } from 'react-i18next';
 import en from './en.json';
 import { languageInfo, SOURCE_LANGUAGE, UI_LANGUAGES, type UiLanguage } from './languages';
 import { installPluralFallback } from './plurals';
+import { frenchElision } from './elision';
 
 export type Catalog = typeof en;
 
 installPluralFallback();
 
-void i18next.use(initReactI18next).init({
+void i18next.use(initReactI18next).use(frenchElision).init({
   lng: SOURCE_LANGUAGE,
   fallbackLng: SOURCE_LANGUAGE,
   supportedLngs: UI_LANGUAGES.map((l) => l.code),
@@ -39,6 +44,7 @@ void i18next.use(initReactI18next).init({
   returnNull: false,
   returnEmptyString: false,
   interpolation: { escapeValue: false },
+  postProcess: [frenchElision.name],
   react: { useSuspense: false }
 });
 

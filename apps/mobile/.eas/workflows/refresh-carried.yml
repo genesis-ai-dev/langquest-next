@@ -1,0 +1,95 @@
+# Once a day: a fresh carried build when main's app code has moved on from the
+# file in the APK bucket (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
+# A merge makes a carried build only when the reducer, lines or protocol
+# version or the Android fingerprint changes (deploy-to-testers.yml, the
+# carried_* jobs), so a file kept the JavaScript of the merge that first named
+# it, sometimes for weeks, while every fix after it reached store phones as an
+# OTA update. This run checks main's file by its recorded app code
+# (scripts/carried-build.mjs --check --refresh) and, when it differs, builds,
+# uploads and publishes one in its place under the same name, so the Worker
+# serves an app at most about a day old. A carrier whose kept copy falls two
+# days behind their own app is told a newer file is ready (Download the
+# install file, and Sync's Ready for offline).
+#
+# Its jobs are the carried_* jobs of deploy-to-testers.yml, from a schedule:
+# EAS runs scheduled workflows on the default branch only, so the build guard
+# (scripts/store-build-guard.mjs) is given refs/heads/main for a scheduled run,
+# and a run started by hand keeps its own ref, which the guard refuses unless
+# it is main's. The version people see is the time the check ran, as a merge's
+# build takes its merge time (app.config.js).
+name: Refresh the carried build
+
+on:
+  schedule:
+    # 08:30 GMT: 03:30 in the eastern United States, when few merges wait behind it.
+    - cron: '30 8 * * *'
+
+# Google Play keeps one edit open at a time, and this run uploads to Play like
+# deploy-to-testers.yml and app-store-review.yml, so it takes its turn in the
+# same group: a merge's deploy that starts meanwhile waits for it, about 40
+# minutes when a build is due and a few minutes when none is
+# (docs/decisions/2026-11-17-play-uploads-take-turns.md).
+concurrency:
+  group: google-play
+  queue: max
+
+defaults:
+  tools:
+    node: '24.22.3'
+
+jobs:
+  fingerprint:
+    name: Fingerprint
+    type: fingerprint
+    environment: production
+  carried_check:
+    name: Check whether the carried build holds main's app code
+    needs: [fingerprint]
+    environment: production
+    outputs:
+      due: ${{ steps.check.outputs.due }}
+      ref: ${{ steps.check.outputs.ref }}
+      time: ${{ steps.check.outputs.time }}
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - id: check
+        name: Ask the APK bucket which app code main's file holds
+        run: |
+          cd ../..
+          due="$(npx tsx scripts/carried-build.mjs --check --refresh --fingerprint '${{ needs.fingerprint.outputs.android_fingerprint_hash }}')" || exit 1
+          set-output due "$due"
+          if [ '${{ github.event_name }}' = 'schedule' ]; then ref='refs/heads/main'; else ref='${{ github.ref }}'; fi
+          set-output ref "$ref"
+          set-output time "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  build_carried:
+    name: Build the carried build
+    needs: [carried_check]
+    if: ${{ needs.carried_check.outputs.due == 'true' }}
+    type: build
+    # Held by the same guard as a store build (scripts/store-build-guard.mjs).
+    # It uses up a version code, so later store builds simply number higher.
+    env:
+      LQ_STORE_BUILD_REF: ${{ needs.carried_check.outputs.ref }}
+      LQ_STORE_VERSION_TIME: ${{ needs.carried_check.outputs.time }}
+    params:
+      platform: android
+      profile: carried
+  submit_carried:
+    name: Upload the carried build to Play's alpha track as a draft
+    needs: [build_carried]
+    type: submit
+    params:
+      build_id: ${{ needs.build_carried.outputs.build_id }}
+      profile: carried
+  publish_carried:
+    name: Put the carried build's signed universal APK in the APK bucket in place of the older one
+    needs: [fingerprint, build_carried, submit_carried]
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Fetch the Play-signed universal APK and put it in the APK bucket under its name
+        run: |
+          cd ../..
+          npx tsx scripts/carried-build.mjs --publish --version-code '${{ needs.build_carried.outputs.app_build_version }}' --fingerprint '${{ needs.fingerprint.outputs.android_fingerprint_hash }}' --build-fingerprint '${{ needs.build_carried.outputs.fingerprint_hash }}'

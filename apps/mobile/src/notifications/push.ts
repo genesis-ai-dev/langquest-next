@@ -9,6 +9,13 @@ import { t } from '../i18n';
  * push-token listener as soon as it is imported.
  */
 
+// From Expo SDK 58 a notification that arrives while the app is open is shown
+// unless a handler says otherwise. The app showed none before, and still does
+// not; it loads this module at launch (useIncoming.ts), before any arrives.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({ shouldShowBanner: false, shouldShowList: false, shouldPlaySound: false, shouldSetBadge: false })
+});
+
 /** Asks for permission and returns this phone's Expo push token. */
 export async function requestPushToken(): Promise<string> {
   if (Platform.OS === 'android') await Notifications.setNotificationChannelAsync('work', {

@@ -2,7 +2,7 @@
 // Caleb's mockup 15, 2026-10-28), so whoever hears it next knows noise
 // removal was tried and turned down. A tap says who tried it, and when.
 import { useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, StyleSheet, useWindowDimensions, View, type ViewInstance } from 'react-native';
 import { Text } from '../ui/text';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -21,7 +21,7 @@ const TIP_WIDTH = 280;
 const TIP_HEIGHT = 120;
 
 export function KeptMark(props: { kept: Kept; part: string }) {
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const { width, height } = useWindowDimensions();
   const open = () => ref.current?.measureInWindow((x, y, w, h) =>

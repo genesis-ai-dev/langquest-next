@@ -1,10 +1,11 @@
+import { CommonActions } from '@react-navigation/native';
 import { useCallback, useEffect, useRef } from 'react';
 import { BackHandler, Platform } from 'react-native';
 import { takeHardwareBack } from '../ui/hardwareBack';
 import { toastTime } from '../ui/toastTime';
 import { t } from '../i18n';
 import { backAtRoot, leavesNow } from './backModel';
-import { navRef, type Nav } from './nav';
+import { dispatchMove, navRef, type Nav } from './nav';
 import type { Session } from './session';
 
 /**
@@ -43,7 +44,7 @@ export function useRootBack(nav: Nav, session: Session, toast: (message: string)
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (takeHardwareBack()) return true;
       if (!navRef.isReady()) return false;
-      if (navRef.canGoBack()) { navRef.goBack(); return true; }
+      if (navRef.canGoBack()) { dispatchMove(CommonActions.goBack()); return true; }
       const moved = fromRoot();
       if (moved !== 'leave') return moved === 'moved';
       const now = Date.now();

@@ -21,6 +21,9 @@ describe('the recorder cards (decision 71, demo ADR-036)', () => {
   it('adds lengths only when every one is known', () => {
     expect(totalMs([12_000, 20_000, 20_000])).toBe(52_000);
     expect(totalMs([12_000, undefined])).toBeUndefined();
+    // Each part as its row shows it: three rows of 0:09 add up to 0:27, whatever 25.8 seconds rounds to.
+    expect(mmss(totalMs([8_600, 8_600, 8_600]))).toBe('0:27');
+    expect(mmss(totalMs([8_400, 9_400, 9_400]))).toBe('0:26');
     expect(mmss(84_000)).toBe('1:24');
     expect(mmss(undefined)).toBe('–:––');
   });

@@ -1,8 +1,11 @@
 # Streams and languages: the plan
 
-Status: accepted, 2026-10-06 (Carl Sauder): decision 63, which also replaces
-the parts of decisions 23, 25, 32, 34, 37 and 62 listed at the end of this
-document.
+Kind: plan · Status: built, on `main` since 2026-10-06 (pull request 48). Accepted
+that day (Carl Sauder) as decision 63, which also replaces the parts of
+decisions 23, 25, 32, 34, 37 and 62 listed at the end of this document. How
+the model works now is PLAN.md sections 3 and 4 and `docs/events.md`; where
+this plan says what the code "still" does, it means the code before that
+change.
 
 The app's central model still carries two levels that no longer exist.
 

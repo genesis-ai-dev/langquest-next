@@ -11,9 +11,9 @@
 // languages directly (docs/decisions.md 63). A cluster (decision 108, demo
 // ADR-045) is a name on some of them, with a page of its own (ClusterHome).
 import {
-  clusterName, mayManageClusters, orgClusters,
+  newCommandId, clusterName, mayManageClusters, orgClusters,
   commands, decodeHlc, deriveFlow, emptyLanguageState, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, progressOf as linesProgress,
-  leavesNoRoleManager, libraryItems, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
+  leavesNoRoleManager, libraryItems, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLanguages, orgLicense, orgName, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type LibraryKind, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -52,6 +52,8 @@ import {
 } from '../org/orgAdmin';
 import { noteExpected, reportError, failureMessage } from '../diagnostics/report';
 import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
+import { ExportSheet } from '../org/ExportSheet';
+import { canExport } from '../org/orgExports';
 import { appendToLanguage } from '../sync/languageWriter';
 import { createLanguages, newLanguageParts, type Making, type MaterialChoice, type NewOne } from '../org/newLanguage';
 import { emailInvite } from '../org/emailInvite';
@@ -317,7 +319,7 @@ export function OrgHome(ctx: Ctx) {
   const canInvite = edgeAllowed(edgeFor('org_home', 'invite_member')!, ctx.session) && ctx.session.can('invite_members');
   // With clusters, the languages are grouped under them, then those in none (decision 108, amended 2026-10-20).
   const groups = languageGroups(v.org, v.languages);
-  const addLanguage = mayAdd ? { label: t('org.home.newLanguageOrCluster'), help: t('org.home.newLanguageHelp'), onPress: () => ctx.go('new_language') } : undefined;
+  const addLanguage = mayAdd ? { label: t('org.home.newLanguage'), help: t('org.home.newLanguageHelp'), onPress: () => ctx.go('new_language') } : undefined;
   // Languages already here grouped under a name, without adding one (LAN-140): its own row, not found only inside New language.
   const addCluster: AddRow | undefined = mayAdd && v.languages.length > 0
     ? { label: t('org.home.newCluster'), help: t('org.home.newClusterHelp'), icon: 'layers', onPress: () => ctx.go('new_language', { cluster: 'new' }) } : undefined;
@@ -664,7 +666,7 @@ function LanguagesRow(props: { ctx: Ctx; languageId: string; name: string; code:
  */
 function OrgNameAndLicense(props: { ctx: Ctx }) {
   const { ctx } = props;
-  const [open, setOpen] = useState<'name' | 'license' | 'verified' | null>(null);
+  const [open, setOpen] = useState<'name' | 'license' | 'verified' | 'export' | null>(null);
   const [busy, setBusy] = useState(false);
   const name = orgName(ctx.org.state) ?? '';
   const mayRename = mayRenameOrg(ctx.org.state, ctx.session.actorId);
@@ -678,6 +680,7 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
   // Asking for it is the admin's, as renaming is: manage_roles at the organization's level, as the server asks.
   const mayVerify = mayRename;
   const sealLabel = badge ? t('verified.sealLabelDomain', { domain: badge.domain }) : t('verified.row.ask');
+  const exportSpot = useHelpSpot(t('orgExport.title'), t('orgExport.help'), () => setOpen('export'));
   const sealSpot = useHelpSpot(sealLabel, badge ? t('verified.row.verifiedHelp') : t('verified.row.askHelp'), badge || mayVerify ? () => setOpen('verified') : undefined);
   async function openTo(next: License) {
     // Someone else may have opened it further while the sheet was up.
@@ -718,6 +721,17 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
         <Text style={[txt.xs, { color: C.primary, fontWeight: '700' }]}>{licenseText(current).name} · {licenseText(current).short}</Text>
         <HelpBadge spot={license} />
       </Pressable>
+      {mayRename && canExport ? (
+        <>
+          <Pressable testID="org-export" onPress={exportSpot.onPress} accessibilityRole="button" accessibilityLabel={t('orgExport.title')}
+            style={({ pressed }) => [{ alignSelf: 'flex-start', minHeight: target.min, justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
+            <Text style={[txt.xs, { color: C.primary, fontWeight: '700' }]}>{t('orgExport.title')}</Text>
+            <HelpBadge spot={exportSpot} />
+          </Pressable>
+          <ExportSheet visible={open === 'export'} onClose={() => setOpen(null)} orgId={ctx.language.orgId} toast={ctx.toast}
+            languages={orgLanguages(ctx.org.state).map((l) => ({ id: l.languageId, name: l.name }))} />
+        </>
+      ) : null}
       {badge ? <VerifiedSheet visible={open === 'verified'} onClose={() => setOpen(null)} orgName={name} badge={badge} />
         : mayVerify ? (
           <VerificationSheet visible={open === 'verified'} onClose={() => setOpen(null)} orgId={ctx.language.orgId} orgName={name}
@@ -1614,7 +1628,7 @@ export function NewLanguage(ctx: Ctx) {
     if (plan === 'ask') { setStartAgain(true); return; }
     let specs: EventSpec[];
     try {
-      specs = startingSpecs({ commandId: Crypto.randomUUID(), flow: choosing || !flow ? null : { name: flow.c.name, kinds: chk.kindsOf(flow.doc), steps: flow.doc.steps } });
+      specs = startingSpecs({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), flow: choosing || !flow ? null : { name: flow.c.name, kinds: chk.kindsOf(flow.doc), steps: flow.doc.steps } });
     } catch (e) {
       setError(failure('new language checks', e));
       return;

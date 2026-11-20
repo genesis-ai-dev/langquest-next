@@ -8,7 +8,7 @@ import { failureMessage, noteExpected, reportError } from '../diagnostics/report
 import { t } from '../i18n';
 import { inviteOutcome } from '../invites/inviteOutcome';
 import { redeemSignInCode } from '../invites/invites';
-import { setSession, signInWithPassword, signUp } from '../server/auth';
+import { LocalPersonHere, localPersonHere, setSession, signInWithPassword, signUp } from '../server/auth';
 import { rememberPassword } from '../server/lock';
 import { recreateDevAccount } from '../server/personas';
 import { signInWithV2Account } from '../server/v2';
@@ -47,10 +47,16 @@ export function waitText(ms: number): string {
   return t('entry.lock.waitFor', { count: Math.max(1, Math.ceil(ms / 60_000)) });
 }
 
+/** Someone let in offline holds this phone: no other account signs in here (docs/nearby-sync-plan.md 14.1, 5; server/auth.ts). */
+function localHere(e: unknown): AuthResult | null {
+  return e instanceof LocalPersonHere ? { kind: 'error', text: t('entry.signIn.localHere') } : null;
+}
+
 /** Email or sign-in name and password. Signing in accepts the terms (the session the screen was given is the guest's, so the terms go to the account that just signed in). */
 export async function signInWithEmail(email: string, password: string, host: AuthHost): Promise<AuthResult> {
   const started = Date.now();
   try {
+    if (await localPersonHere()) return { kind: 'error', text: t('entry.signIn.localHere') };
     // Signed out of this phone before: the password opens the lock, with no connection (decisions.md 168).
     const local = await signBackIn('password', password, { address: signInAddress(email) });
     if (local.kind === 'ok') return { kind: 'done' };
@@ -72,6 +78,8 @@ export async function signInWithEmail(email: string, password: string, host: Aut
     if (outcome.userId) await recordTerms(host, outcome.userId);
     return { kind: 'done' };
   } catch (e) {
+    const here = localHere(e);
+    if (here) return here;
     recordAuthFailure('sign_in', e, { ms: since(started) });
     return { kind: 'error', text: failureMessage('sign in', e) };
   }
@@ -98,16 +106,24 @@ export async function createAccountWithEmail(email: string, password: string, ho
     }
     return { kind: 'check-email' };
   } catch (e) {
+    const here = localHere(e);
+    if (here) return here;
     recordAuthFailure('sign_up', e, { ms: since(started) });
     return { kind: 'error', text: failureMessage('sign up', e) };
   }
 }
 
-/** Sign in with a code a teammate made on a phone that is signed in (the function's reply is English: said in the language showing). */
+/**
+ * Sign in with a code a teammate made on a phone that is signed in (the function's reply is
+ * English: said in the language showing). Someone let in offline names their id, so a code made
+ * for anyone else is refused before the server takes it: this phone would refuse that session
+ * (server/auth.ts), and the code would be spent for nothing.
+ */
 export async function signInWithKey(code: string, host: AuthHost): Promise<AuthResult> {
   const started = Date.now();
   try {
-    const help = await redeemSignInCode(code);
+    const local = await localPersonHere();
+    const help = await redeemSignInCode(code, local?.profileId);
     const { data, error } = await setSession(help.session);
     if (error) {
       noteExpected('sign in with code', error);
@@ -123,6 +139,8 @@ export async function signInWithKey(code: string, host: AuthHost): Promise<AuthR
       : help.helper ? t('entry.signInKey.signedInWith', { name: help.helper }) : t('entry.signInKey.signedIn'));
     return { kind: 'done' };
   } catch (e) {
+    const here = localHere(e);
+    if (here) return here;
     noteExpected('sign-in code', e);
     // The function says "expired or already used" in its reply, as an invite does.
     recordAuthFailure('code', e, { ms: since(started) }, inviteOutcome);
@@ -156,11 +174,13 @@ export type ResetResult = { kind: 'done' } | { kind: 'changed'; email: string } 
  * new password ended the old one); signed in as someone else
  * (`signedInAs`), their sign-in stays and only the password changes. The
  * phone remembers the new password for signing back in offline (decisions.md
- * 168).
+ * 168). `lost` is "A phone of mine was lost or taken" (decisions.md 200).
  */
-export async function resetPassword(code: string, password: string, signedInAs: string | null, host: AuthHost): Promise<ResetResult> {
+export async function resetPassword(code: string, password: string, signedInAs: string | null, host: AuthHost, lost = false): Promise<ResetResult> {
   try {
-    const done = await chooseNewPassword(code, password);
+    // Signed out with someone let in offline here: the new password would sign in another account over their work.
+    if (!signedInAs && await localPersonHere()) return { kind: 'error', text: t('entry.signIn.localHere') };
+    const done = await chooseNewPassword(code, password, lost);
     if (signedInAs && done.userId !== signedInAs) return { kind: 'changed', email: done.email };
     const { data, error } = done.session ? await setSession(done.session) : await signInWithPassword(done.email, password);
     if (error) {

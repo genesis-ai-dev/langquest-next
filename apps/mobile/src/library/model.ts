@@ -176,3 +176,16 @@ export function sourceLine(it: ReturnType<typeof libraryItemView>): string {
   }
   return n ? t('library.sourceLine.version', { version: n }) : t('library.sourceLine.notPublished');
 }
+
+const READ_RETRY_MS = [500, 1_000, 2_000, 4_000, 8_000];
+
+/**
+ * How long to wait before asking the server again after `failures` failed
+ * reads of the shared library or its documents; null once it has asked
+ * enough (about 15 seconds in all). A read can fail while the server is busy
+ * or the sign-in is being renewed, and one failure must not leave a list
+ * empty for good (LAN-254).
+ */
+export function readRetryMs(failures: number): number | null {
+  return failures >= 1 && failures <= READ_RETRY_MS.length ? READ_RETRY_MS[failures - 1]! : null;
+}

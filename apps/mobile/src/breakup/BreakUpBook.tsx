@@ -5,7 +5,7 @@
 // template other languages use asks which of them it goes to. Naming the
 // book offers what the team's Bibles and the organization's other
 // languages call it (demo ADR-042, `?simple=helpsBookName`).
-import { wayCovers, type EventSpec, type LibraryItemView, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { newCommandId, wayCovers, type EventSpec, type LibraryItemView, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
@@ -50,7 +50,7 @@ export function BookHead(props: {
     const trimmed = name.trim();
     if (!trimmed) return;
     try {
-      await ctx.act([{ id: Crypto.randomUUID(), type: 'v1.BookNameSet', payload: { book, name: trimmed } } as EventSpec], t('breakup.book.namedToast', { language: props.language, name: trimmed }));
+      await ctx.act([{ id: newCommandId(ctx.session.actorId, Crypto.randomUUID()), type: 'v1.BookNameSet', payload: { book, name: trimmed } } as EventSpec], t('breakup.book.namedToast', { language: props.language, name: trimmed }));
       setNaming(false);
     } catch (e) {
       ctx.toast(failureMessage('book name', e), 'problem');

@@ -2,7 +2,7 @@
 
 Translators record outdoors, on low-end Android phones, often with little
 reading. Some use a screen reader, large text, or Arabic. These tests hold
-the app to the field rules in PLAN.md section 12:
+the app to the field rules in `docs/ux/principles.md`:
 - touch targets of at least 48 pt, and 56 pt for primary actions
   (`target` in `theme.ts`);
 - text of at least 13 pt;

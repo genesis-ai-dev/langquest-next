@@ -251,7 +251,12 @@ export function reconcile(facts: readonly Fact[], ledger: ReadonlyMap<string, Le
 
 /** A stable digest of what a fact says: its events' types and payloads, keys sorted. */
 export function digestOf(said: readonly Said[]): string {
-  return hash53(canonical(said.map((s) => [s.type, s.actorId ?? null, s.payload])));
+  return hash53(canonical(comparedOf(said)));
+}
+
+/** What `digestOf` hashes: a fact whose `value` is this for its first statement is compared as if it had no `value`. */
+export function comparedOf(said: readonly Said[]): unknown {
+  return said.map((s) => [s.type, s.actorId ?? null, s.payload]);
 }
 
 export function canonical(value: unknown): string {

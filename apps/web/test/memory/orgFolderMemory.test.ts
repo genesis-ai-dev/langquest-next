@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
+import { rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ownTempDirs, sweepTempDirs, testTempDir } from '../../../../scripts/testTempDirs';
 
 /**
  * An organization's Durable Object runs in an isolate Cloudflare resets past
@@ -22,6 +24,14 @@ import { describe, expect, it } from 'vitest';
 const HARNESS = fileURLToPath(new URL('./orgFolderHeap.ts', import.meta.url));
 /** Below the isolate's 128 MB, for the memory the isolate spends outside V8's old space. */
 const HEAP_MB = 112;
+/**
+ * The young generation, which V8 sizes apart from the old space. Node 24 lets
+ * it grow to 64 MB a semi-space (heap limit 304 MB at HEAP_MB, against 160 MB
+ * on Node 22), so the heap was no longer capped near the isolate, and the
+ * 6 × 5,000 API case took 84 s alone instead of 50 s (a cloud machine,
+ * 2026-10-28). 8 MB keeps the whole heap at 136 MB on either.
+ */
+const SEMI_SPACE_MB = 8;
 /** Held between requests: the fold budget (about twice its bytes once parsed) and the rest of the object, with room to spare. */
 const RETAINED_MB = 48;
 /**
@@ -39,17 +49,28 @@ const CASE_MS = 240_000;
 type Path = 'fold' | 'webhooks' | 'api' | 'reports' | 'writes';
 interface Out { retainedHeapMb: number; peakHeapMb: number }
 
+/** Each case's folder for the child's saved folds and SQLite (scripts/testTempDirs.ts). */
+const TEMP = 'org-folder-heap';
+
+/**
+ * One case in a child under the capped heap. Its folder is made and removed
+ * here, since a child that runs out of heap (as every regression case must) or
+ * hits the time limit is killed before its own clean-up runs.
+ */
 function run(path: Path, a: number, b: number, unbounded = false, takes?: number): Promise<{ status: number | null; signal: string | null; out: Out | null; stderr: string }> {
   return new Promise((resolve) => {
+    const dir = testTempDir(TEMP);
     const child = spawn(process.execPath, [
-      `--max-old-space-size=${HEAP_MB}`, '--expose-gc', '--no-warnings', '--import', 'tsx', HARNESS, path, String(a), String(b),
-      ...(takes ? [`takes=${takes}`] : []), ...(unbounded ? ['unbounded'] : [])
+      `--max-old-space-size=${HEAP_MB}`, `--max-semi-space-size=${SEMI_SPACE_MB}`, '--expose-gc', '--no-warnings', '--import', 'tsx', HARNESS, path, String(a), String(b),
+      ...(takes ? [`takes=${takes}`] : []), ...(unbounded ? ['unbounded'] : []), `dir=${dir}`
     ], { timeout: CASE_MS });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
+    child.on('error', () => { rmSync(dir, { recursive: true, force: true }); });
     child.on('close', (status, signal) => {
+      rmSync(dir, { recursive: true, force: true });
       const line = stdout.trim().split('\n').at(-1) ?? '';
       resolve({ status, signal, out: line.startsWith('{') ? (JSON.parse(line) as Out) : null, stderr: stderr.slice(0, 2000) });
     });
@@ -110,6 +131,11 @@ const PATHS: { path: Path; what: string; shapes: [number, number, number?][]; re
 ];
 
 describe.concurrent('an organization Durable Object stays inside its isolate', () => {
+  // What a run that was itself killed left behind goes first; a run going on beside this one keeps its own.
+  beforeAll(() => { sweepTempDirs(TEMP); });
+  // Every case removed its folder, the regressions' killed children's too.
+  afterAll(() => { expect(ownTempDirs(TEMP)).toEqual([]); });
+
   for (const { path, what, shapes, regression } of PATHS) {
     for (const [a, b, takes] of shapes) {
       it(`${path}: ${what} (${a} × ${b}${takes ? ` × ${takes} versions` : ''})`, async () => {
