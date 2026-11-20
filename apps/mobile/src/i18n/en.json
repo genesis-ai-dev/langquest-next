@@ -6407,6 +6407,7 @@
       "addedAtCheckpoint": "{{kind}} added to the record. The checkpoint still waits for a check done in the app.",
       "keptNotSent": "Your review is kept on this phone. It is not sent yet.",
       "notOnPhoneYet": "The recording is not on this phone yet. It plays here once the phone is online.",
+      "notUploadedYet": "The recording has not been uploaded yet from the device it was made on. It plays here once that device has been online.",
       "previousQuestion": "Previous question",
       "previousQuestionHelp": "Goes back to the question before, to change your answer.",
       "loggedCheckpoint": "This check is a checkpoint: logged here, it goes on the record, but only a check done in the app opens the steps after it.",
@@ -6589,6 +6590,8 @@
     "notPublished": "Not published: {{reason}}",
     "partNotSaved": "A part did not save.",
     "retrySaving": "Retry saving",
+    "partNotHere": "Part {{n}} is not on this device yet. You can say it back once the device is online.",
+    "partNotUploaded": "Part {{n}} has not been uploaded yet from the device it was made on. You can say it back once that device has been online.",
     "youDrag": "You · drag back and forth as often as you like",
     "nameDrag": "{{name}} · drag back and forth as often as you like",
     "part": "Part {{n}}",
@@ -6682,7 +6685,10 @@
     "partsCleaned_one": "Clean up on {{count, number}} part.",
     "partsCleaned_other": "Clean up on {{count, number}} parts.",
     "redone": "Redone.",
-    "newRecording": "New recording"
+    "newRecording": "New recording",
+    "lockedTitle": "Part of this recording is not on this device yet",
+    "lockedOffline": "It cannot be changed or sent from here until this device is online and has it. To record without it, open {{versions}} on the passage and choose {{newVersion}}.",
+    "lockedNotUploaded": "It has not been uploaded yet from the device it was made on, so it cannot be changed or sent from here. To record without it, open {{versions}} on the passage and choose {{newVersion}}."
   },
   "reference": {
     "organization": "Organization",
