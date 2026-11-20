@@ -4828,7 +4828,25 @@
     "download": "I-download para sa offline",
     "needsConnection": "Kailangan ng koneksiyon para mag-download",
     "needsConnectionHelp": "Wala sa device na ito. Maaari itong i-download kapag nakakonekta na ang device na ito.",
-    "checkingHelp": "Binibilang ng device na ito kung ano ang mayroon ito sa siping ito."
+    "checkingHelp": "Binibilang ng device na ito kung ano ang mayroon ito sa siping ito.",
+    "group": {
+      "download_one": "I-download ang lahat ng {{count, number}} sipi para sa offline",
+      "download_other": "I-download ang lahat ng {{count, number}} sipi para sa offline",
+      "downloadRest_one": "I-download ang iba pang {{count, number}} sipi",
+      "downloadRest_other": "I-download ang iba pang {{count, number}} sipi",
+      "size": "{{size}} na audio ang ida-download",
+      "noRoom": "Kulang ang puwang sa device na ito",
+      "noRoomNeeds": "{{size}} ang audio ng mga ito. May puwang ang device na ito para sa {{room}}.",
+      "noRoomHelp": "Magbakante ng puwang sa device na ito, o mag-download ng mas kaunting sipi nang sabay-sabay.",
+      "keepHelp": "Itinatago ang audio ng bawat sipi sa device na ito, para gumana ang mga ito nang walang koneksiyon.",
+      "letGoHelp": "Pinapayagan ulit ang device na ito na alisin ang audio ng mga ito kapag kailangan nito ng puwang. Mananatili ang mga siping gawain mo.",
+      "reason": "Itinatago dahil hiniling sa iyong gawin ang mga siping ito, o ginawa mo na ang mga ito.",
+      "toast": {
+        "letGo": "Hindi na itinatago. Maaaring alisin ang audio ng mga ito para magkaroon ng puwang.",
+        "someStay_one": "Hindi na itinatago, maliban sa {{count, number}} siping gawain mo.",
+        "someStay_other": "Hindi na itinatago, maliban sa {{count, number}} siping gawain mo."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "I-report o i-block si {{name}}",

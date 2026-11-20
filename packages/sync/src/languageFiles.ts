@@ -79,6 +79,19 @@ export class LanguageFiles {
     return offlineSummaryOf(await this.plan({ units }), present, chosen, why);
   }
 
+  /**
+   * What keeping these passages would bring down: the files the server has
+   * that they play and this phone lacks, counted by file, so one that two of
+   * them share is counted once. Asked of nobody's reasons: it is the cost of
+   * the passages themselves.
+   */
+  async cost(unitIds: readonly string[], present: ReadonlySet<string>): Promise<{ files: number; bytes: number }> {
+    const units = new Set(unitIds);
+    const none: ReadonlySet<string> = new Set();
+    const s = offlineSummaryOf(await this.plan({ units }), present, units, { mine: none, asked: none });
+    return { files: s.filesToFetch, bytes: s.bytesToFetch };
+  }
+
   /** What the files a phone lost behind the app's back were (decisions.md 92). `nearby`: teammates' files, which count in neither total. */
   async lost(hashes: readonly string[], nearby?: ReadonlySet<string>): Promise<LostFilesView> {
     return lostFilesOf(await this.plan({ hashes }), hashes, nearby);

@@ -4986,7 +4986,28 @@
     "download": "Télécharger pour le hors-ligne",
     "needsConnection": "Le téléchargement demande une connexion",
     "needsConnectionHelp": "Pas sur cet appareil. Il pourra être téléchargé une fois l’appareil connecté.",
-    "checkingHelp": "Cet appareil compte ce qu’il a de ce passage."
+    "checkingHelp": "Cet appareil compte ce qu’il a de ce passage.",
+    "group": {
+      "download_one": "Télécharger {{count, number}} passage pour le hors-ligne",
+      "download_many": "Télécharger les {{count, number}} passages pour le hors-ligne",
+      "download_other": "Télécharger les {{count, number}} passages pour le hors-ligne",
+      "downloadRest_one": "Télécharger {{count, number}} autre passage",
+      "downloadRest_many": "Télécharger les {{count, number}} autres passages",
+      "downloadRest_other": "Télécharger les {{count, number}} autres passages",
+      "size": "{{size}} d’audio à télécharger",
+      "noRoom": "Pas assez de place sur cet appareil",
+      "noRoomNeeds": "Leur audio fait {{size}}. Cet appareil a de la place pour {{room}}.",
+      "noRoomHelp": "Libérez de la place sur cet appareil, ou téléchargez moins de passages à la fois.",
+      "keepHelp": "Garde l’audio de chaque passage sur cet appareil, pour qu’ils fonctionnent sans connexion.",
+      "letGoHelp": "Laisse cet appareil retirer à nouveau leur audio quand il a besoin de place. Les passages qui sont votre travail restent.",
+      "reason": "Gardés parce qu’on vous a demandé de travailler sur ces passages, ou parce que vous y avez travaillé.",
+      "toast": {
+        "letGo": "Ne sont plus gardés. Leur audio peut être retiré pour faire de la place.",
+        "someStay_one": "Ne sont plus gardés, sauf {{count, number}} passage qui est votre travail.",
+        "someStay_many": "Ne sont plus gardés, sauf {{count, number}} passages qui sont votre travail.",
+        "someStay_other": "Ne sont plus gardés, sauf {{count, number}} passages qui sont votre travail."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "Signaler ou bloquer {{name}}",
