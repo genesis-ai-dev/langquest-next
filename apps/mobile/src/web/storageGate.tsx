@@ -8,6 +8,7 @@ import { reportError } from '../diagnostics/report';
 import { allowStorage, onStoreFailure } from '../storage/store';
 import { startTab, type TabDeps, type TabState } from './tabLock';
 import { tabBusy } from './tabBusy';
+import { fillSqlitePool } from './sqlitePool';
 import { C, space } from '../ui/theme';
 
 const WEB = Platform.OS === 'web';
@@ -42,7 +43,8 @@ let openedAt: number | null = null;
 let reloading = false;
 function openStorage(): void {
   openedAt = Date.now();
-  allowStorage();
+  // A pool left short by a first visit cut off never opens: top it up first (sqlitePool.ts).
+  void fillSqlitePool().catch(() => 0).finally(allowStorage);
 }
 
 /** A failed first open reloads once, after the page before has had time to let go; true when it will. */
