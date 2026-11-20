@@ -64,6 +64,20 @@ let voiceN = 1000;
 
 /** A distinct WAV (a voiced burst, then silence), uploaded where the app keeps the language's files. */
 export async function uploadVoice(world: UiWorld, who: AccountKey, voicedSeconds = 1.5, totalSeconds = 3) {
+  const w = voiceWav(voicedSeconds, totalSeconds);
+  await putVoice(world, who, w.hash, w.bytes);
+  return { hash: w.hash, durationMs: w.durationMs, format: w.format };
+}
+
+/** Put a WAV where the app keeps LANG-A's files, as `who`: the Worker confirms it with v1.BlobStored before it answers. */
+async function putVoice(world: UiWorld, who: AccountKey, hash: string, bytes: Uint8Array): Promise<void> {
+  const { session } = await signIn(world, who);
+  const A = world.languages.A;
+  await setupBlobs(world.apiUrl, session.access_token).put(blobKey(A.orgId, A.languageId, hash, 'wav'), bytes);
+}
+
+/** A distinct WAV and its card, not uploaded anywhere. */
+function voiceWav(voicedSeconds = 1.5, totalSeconds = 3) {
   const rate = 16000;
   const total = Math.round(totalSeconds * rate);
   const voiced = Math.round(voicedSeconds * rate);
@@ -80,10 +94,40 @@ export async function uploadVoice(world: UiWorld, who: AccountKey, voicedSeconds
     view.setInt16(44 + k * 2, Math.round((0.45 + 0.15 * Math.sin(2 * Math.PI * 4 * t)) * Math.sin(2 * Math.PI * carrier * t) * 32767), true);
   }
   const hash = createHash('sha256').update(bytes).digest('hex');
-  const { session } = await signIn(world, who);
-  const A = world.languages.A;
-  await setupBlobs(world.apiUrl, session.access_token).put(blobKey(A.orgId, A.languageId, hash, 'wav'), bytes);
-  return { hash, durationMs: Math.round(totalSeconds * 1000), format: 'wav' as const };
+  return { bytes, hash, durationMs: Math.round(totalSeconds * 1000), format: 'wav' as const };
+}
+
+/**
+ * `who` records `parts` parts of a passage on another device that has not
+ * been online since (LAN-317): the events reach the server, the files do
+ * not, so no device can play them until `upload` sends them as that device
+ * would. With `publish` the parts are its next version, else a draft.
+ */
+export async function recordNotUploaded(world: UiWorld, who: AccountKey, key: PassageKey | { label: string }, opts: { parts?: number; publish?: boolean } = {}): Promise<{ hashes: string[]; upload: () => Promise<void> }> {
+  const c = await langAs(world, who);
+  const unitId = typeof key === 'string' ? world.passages[key].unitId : unitByLabel(c.getState(), key.label);
+  const wavs = Array.from({ length: opts.parts ?? 2 }, () => voiceWav());
+  const cards = wavs.map((w) => ({ hash: w.hash, durationMs: w.durationMs, format: w.format }));
+  const hashes = cards.map((x) => x.hash);
+  const actorId = world.accounts[who].id;
+  for (const card of cards) {
+    const recordingId = id();
+    await c.appendMany(commands(c.getState()).addRecording({ commandId: recordingId, recordingId, unitId, kind: 'target', card }) as never);
+  }
+  await c.appendMany(commands(c.getState()).keepTake({ commandId: id(), unitId, cardHashes: hashes, actorId }) as never);
+  if (opts.publish) await c.appendMany(commands(c.getState()).publishVersion({ commandId: id(), unitId, cardHashes: hashes, actorId }) as never);
+  await send(c as SyncClient<unknown>, `${who} records ${typeof key === 'string' ? key : key.label} without uploading`);
+  return { hashes, upload: async () => { for (const w of wavs) await putVoice(world, who, w.hash, w.bytes); } };
+}
+
+/** A passage of LANG-A nobody has recorded and the fixture does not name, other than `except` ("Luke 17:1–10"). */
+export async function untouchedPassage(world: UiWorld, except: string[] = []): Promise<string> {
+  const s = (await langAs(world, 'COORD')).getState();
+  const named = new Set(Object.values(world.passages).map((p) => p.unitId));
+  const found = Object.entries(s.units).find(([unitId, u]) => u.kind === 'passage' && !named.has(unitId) && !except.includes(u.label)
+    && !Object.values(s.takes).some((t) => t.unitId === unitId));
+  if (!found) throw new Error('LANG-A has no passage left that nobody has recorded');
+  return found[1].label;
 }
 
 /** A passage of LANG-A by its label on the map ("John 3:9–21"). */

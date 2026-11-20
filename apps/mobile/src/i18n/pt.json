@@ -6670,6 +6670,7 @@
       "addedAtCheckpoint": "{{kind}} adicionada ao histórico. O ponto de controle ainda espera uma verificação feita no app.",
       "keptNotSent": "Sua revisão está guardada neste telefone. Ainda não foi enviada.",
       "notOnPhoneYet": "A gravação ainda não está neste telefone. Ela toca aqui quando o telefone estiver online.",
+      "notUploadedYet": "A gravação ainda não foi enviada do aparelho em que foi feita. Ela toca aqui depois que esse aparelho ficar online.",
       "previousQuestion": "Pergunta anterior",
       "previousQuestionHelp": "Volta à pergunta anterior, para mudar sua resposta.",
       "loggedCheckpoint": "Esta verificação é um ponto de controle: registrada aqui, ela vai para o histórico, mas só uma verificação feita no app abre as etapas seguintes.",
@@ -6856,6 +6857,8 @@
     "notPublished": "Não foi publicado: {{reason}}",
     "partNotSaved": "Uma parte não foi salva.",
     "retrySaving": "Tentar salvar de novo",
+    "partNotHere": "A parte {{n}} ainda não está neste aparelho. Você pode dizê-la de volta quando o aparelho estiver online.",
+    "partNotUploaded": "A parte {{n}} ainda não foi enviada do aparelho em que foi feita. Você pode dizê-la de volta depois que esse aparelho ficar online.",
     "youDrag": "Você · arraste para trás e para a frente quantas vezes quiser",
     "nameDrag": "{{name}} · arraste para trás e para a frente quantas vezes quiser",
     "part": "Parte {{n}}",
@@ -6953,7 +6956,10 @@
     "partsCleaned_many": "Limpar em {{count, number}} de partes.",
     "partsCleaned_other": "Limpar em {{count, number}} partes.",
     "redone": "Refeito.",
-    "newRecording": "Gravação nova"
+    "newRecording": "Gravação nova",
+    "lockedTitle": "Parte desta gravação ainda não está neste aparelho",
+    "lockedOffline": "Essa parte não pode ser mudada nem enviada daqui até que este aparelho esteja online e a receba. Para gravar sem ela, abra {{versions}} na passagem e escolha {{newVersion}}.",
+    "lockedNotUploaded": "Essa parte ainda não foi enviada do aparelho em que foi feita, então não pode ser mudada nem enviada daqui. Para gravar sem ela, abra {{versions}} na passagem e escolha {{newVersion}}."
   },
   "reference": {
     "organization": "Organização",
