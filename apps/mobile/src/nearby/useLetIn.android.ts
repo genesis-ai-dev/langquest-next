@@ -7,7 +7,8 @@ import { noteChainName } from '../account/chainNames';
 import { noteExpected } from '../diagnostics/report';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
-import { codeShown, LET_IN_CODE_MS, LET_IN_START, letInEndOf, letInReducer, letInRoles, letInWhyNot, type LetInWhyNot } from './letInModel';
+import { takeGiveHandOver } from './giveHandOver';
+import { codeShown, LET_IN_START, letInCodeMs, letInEndOf, letInReducer, letInRoles, letInWhyNot, type LetInWhyNot } from './letInModel';
 import { letInPermit } from './letInPermitModel';
 import type { PassShape } from './nearbyModel';
 import { radiosMayRun } from './nearbyModel';
@@ -21,13 +22,19 @@ import { useFocus } from './useNearby.native';
 import type { LetInHandle } from './useLetIn';
 
 const KEEP_AWAKE = 'nearby-let-in';
+/** While Give the app's handed group waits for the press: the screen sleeping would send the app to the background and end it. */
+const KEEP_AWAKE_HANDED = 'nearby-let-in-handed';
 
 /**
  * Let someone in on an Android phone (docs/nearby-sync-plan.md 14.1, 3; 5.8). Nothing runs until
  * the person chooses a role and presses Show the code, which is the press a phone that wears a
  * cover needs. The group, the code and the link run only while `radiosMayRun` holds: a blur, the
- * background or a lock takes the group down and the code away, and only a new press makes a new one.
- * The one tap waits on the person; a No sends nothing. Progress stays in this hook's state.
+ * background or a lock takes the group down and the code away at once, and only a new press makes
+ * a new one. The one tap waits on the person; a No sends nothing. Progress stays in this hook's state.
+ *
+ * While Give the app serves, the code runs on its group (14.5, `letInWithPass`). When Give the app's
+ * Let them in handed its session here (giveHandOver.ts), this screen owns it from opening: leaving
+ * before Show the code ends it, and from the press the attempt owns it and ends it with itself.
  */
 export function useLetIn(ctx: Ctx): LetInHandle {
   const radio = nearbyRadio();
@@ -80,6 +87,10 @@ export function useLetIn(ctx: Ctx): LetInHandle {
   const attempt = useRef(0);
   const session = useRef<NearbySession | null>(null);
   const answer = useRef<((yes: boolean) => void) | null>(null);
+  /** Brings the current attempt's code down at once, rather than at its end. */
+  const leaveCode = useRef<(() => void) | null>(null);
+  /** Give the app's session, handed to this screen and not yet to an attempt. */
+  const heldGive = useRef(false);
 
   // A countdown for the code, ticking only while one is up.
   useEffect(() => {
@@ -90,6 +101,8 @@ export function useLetIn(ctx: Ctx): LetInHandle {
 
   const stop = useCallback(() => {
     attempt.current += 1;
+    leaveCode.current?.();
+    leaveCode.current = null;
     session.current?.stop();
     answer.current?.(false);
     answer.current = null;
@@ -100,6 +113,24 @@ export function useLetIn(ctx: Ctx): LetInHandle {
     if (running && !mayRun) { stop(); dispatch({ t: 'ended', why: 'stopped' }); }
   }, [running, mayRun, stop]);
   useEffect(() => () => stop(), [stop]);
+
+  // Give the app's session, when its Let them in handed it here, is this screen's to end if it is left before the press.
+  const dropGive = useCallback(() => {
+    if (!heldGive.current) return;
+    heldGive.current = false;
+    deactivateKeepAwake(KEEP_AWAKE_HANDED).catch((e: unknown) => noteExpected('let in: keep awake', e));
+    radio?.stopGiveApp().catch((e: unknown) => noteExpected('let in: stop give the app', e));
+  }, [radio]);
+  // Taken each time the screen comes into view, not only when it mounts: opened from here, Give the
+  // app's Let them in goes back to this same screen, still mounted, so its hand-over comes later
+  // (review, 2026-11-20).
+  useEffect(() => {
+    if (!focused || heldGive.current || !takeGiveHandOver()) return;
+    heldGive.current = true;
+    activateKeepAwakeAsync(KEEP_AWAKE_HANDED).catch((e: unknown) => noteExpected('let in: keep awake', e));
+  }, [focused]);
+  useEffect(() => { if (!openOnPress) dropGive(); }, [openOnPress, dropGive]);
+  useEffect(() => () => dropGive(), [dropGive]);
 
   const orgState = useRef(ctx.org.state);
   orgState.current = ctx.org.state;
@@ -114,13 +145,21 @@ export function useLetIn(ctx: Ctx): LetInHandle {
     dispatch({ t: 'host' });
     activateKeepAwakeAsync(KEEP_AWAKE).catch((e: unknown) => noteExpected('let in: keep awake', e));
     const asked: { who: { profileId: string; name: string } | null } = { who: null };
+    // From here the attempt owns a handed-over Give the app session, and ends it with itself.
+    const giveHandedOver = heldGive.current;
+    heldGive.current = false;
+    // The attempt keeps the screen awake from here (KEEP_AWAKE).
+    if (giveHandedOver) deactivateKeepAwake(KEEP_AWAKE_HANDED).catch((e: unknown) => noteExpected('let in: keep awake', e));
+    let left: () => void = () => undefined;
+    const stopped = new Promise<void>((resolve) => { left = resolve; });
+    leaveCode.current = left;
     try {
       const out = await letInWithPass({
         radio, actorId, orgId, languageId, roleId, pass: pass as unknown as JoinPass, org, inspectOrg: () => ctx.org.inspect(),
-        language: open, orgClient: ctx.org.client(), codeMs: LET_IN_CODE_MS,
+        language: open, orgClient: ctx.org.client(), codeMs: letInCodeMs, giveHandedOver, stopped,
         onSession: (s) => { session.current = s; },
         hooks: {
-          showing: (uri, until) => { setNow(Date.now()); dispatch({ t: 'showing', uri, until }); },
+          showing: (uri, until, onGiveGroup) => { setNow(Date.now()); dispatch({ t: 'showing', uri, until, onGiveGroup }); },
           connected: () => dispatch({ t: 'connected' }),
           tap: (who) => new Promise<boolean>((resolve) => {
             asked.who = who;
@@ -141,6 +180,7 @@ export function useLetIn(ctx: Ctx): LetInHandle {
       noteExpected('let in', e);
       if (mine === attempt.current) dispatch({ t: 'ended', why: 'failed' });
     } finally {
+      if (leaveCode.current === left) leaveCode.current = null;
       session.current = null;
       answer.current = null;
       deactivateKeepAwake(KEEP_AWAKE).catch((e: unknown) => noteExpected('let in: keep awake', e));

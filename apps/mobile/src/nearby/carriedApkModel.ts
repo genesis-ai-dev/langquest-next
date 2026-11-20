@@ -1,4 +1,4 @@
-import { carriedApkVersionsPart, sameCarriedVersions } from '@langquest-next/core';
+import { carriedApkNameOf, carriedApkVersionsPart, sameCarriedVersions } from '@langquest-next/core';
 import type { LetInWhyNot } from './letInModel';
 
 /**
@@ -95,10 +95,17 @@ export function apkCheck(chosen: string, needed: string): ApkCheck {
   return sameCarriedVersions(chosenName(chosen), needed) ? 'right' : 'other';
 }
 
-/** A chosen file's name without the number a browser adds to a second download of it ("name (1).apk"). */
+/**
+ * A chosen file's name as the install file it is: without the number a browser adds to a second
+ * download of it ("name (1).apk"), and a file the browser downloaded for the app ("name.carried",
+ * core `carriedFileName`) under the install file's own name, which the kept copy goes by. Any other
+ * name is left as it is, which `apkCheck` never takes for the right file.
+ */
 export function chosenName(chosen: string): string {
-  return chosen.replace(/ ?\(\d+\)(?=\.apk$)/, '');
+  const plain = chosen.replace(/ ?\(\d+\)(?=\.(apk|carried)$)/, '');
+  return carriedApkNameOf(plain) ?? plain;
 }
+
 
 /**
  * How the screens name the file this phone needs, where they must: the start of its name that

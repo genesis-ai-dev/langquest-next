@@ -12,6 +12,7 @@ import { megabytes, pageAddress, sentShown, wifiCode, type GiveEnd, type GiveFai
 import { LetInCode } from './LetInCode';
 import { NearbyIntro } from './NearbyIntro';
 import { useGiveApp } from './useGiveApp';
+import { useLetInOffered } from './useLetIn';
 
 const GIVE_END = {
   stopped: 'nearby.give.ended.stopped',
@@ -34,29 +35,44 @@ const GIVE_FAIL = {
  * Wi-Fi network and serves the kept install file from a small page, so a new phone gets LangQuest
  * with no internet and no Google services on either phone. Three numbered steps: code 1 joins the
  * network, code 2 opens the page, and once the file is sent, installing it; then the way on to Let
- * someone in. Both codes come back under Give it to another phone. The app downloads nothing: the
- * file is the copy kept when the person chose it. Android only; elsewhere a stub.
+ * someone in, which takes over the running group so the new phone's LangQuest finds this phone by
+ * itself (no third code). Code 2 follows by itself once the new phone joins, with Next for a phone
+ * Android does not list. Both codes come back under Give it to another phone. Before the first
+ * code, or after a stop, Send with Quick Share is the other way, under the main button, for two
+ * phones with Google Play services. The app downloads nothing: the file is the copy kept when the
+ * person chose it. Android only; elsewhere a stub.
  */
 export function GiveAppScreen(ctx: Ctx) {
-  const give = useGiveApp();
+  const give = useGiveApp(useLetInOffered(ctx));
   const { stage, giving, kept, actions, worn } = give;
   const live = stage.t === 'join' || stage.t === 'download' || stage.t === 'sending' || stage.t === 'starting';
   // Both codes again after a file is sent, for one more new phone; folded until asked for.
   const [another, setAnother] = useState(false);
   useEffect(() => { if (stage.t !== 'sent') setAnother(false); }, [stage.t]);
-  // Opened from Let someone in: Let them in goes back there, not to a second one on the stack.
-  const letIn = () => { actions.stop(); if (ctx.params['from'] === 'let_someone_in') ctx.back(); else ctx.go('let_someone_in'); };
+  // Opened from Let someone in: Let them in goes back there, not to a second one on the stack. The
+  // hook hands the running group over first where it can (`handsOver`), or stops it.
+  const letIn = () => { actions.letIn(); if (ctx.params['from'] === 'let_someone_in') ctx.back(); else ctx.go('let_someone_in'); };
   const startable = give.canGive && (stage.t === 'ready' || stage.t === 'ended' || (stage.t === 'failed' && stage.why !== 'no-file'));
+  // The other way, under the main one, only where no group runs (the share sheet would stop it).
+  const quickShare = give.canShare
+    ? <GhostBtn label={t('nearby.give.quickShare.button')} icon="share" help={t('nearby.give.quickShare.help')} onPress={actions.share} />
+    : null;
   let footer: ReactNode = null;
   if (startable && stage.t === 'failed' && stage.why === 'blocked') {
     footer = (
       <>
         <PrimaryBtn label={t('nearby.permission.openSettings')} icon="settings" help={t('nearby.permission.openSettingsHelp')} onPress={actions.openSettings} />
         <GhostBtn label={t('nearby.give.start')} help={t('nearby.give.startHelp')} onPress={actions.start} />
+        {quickShare}
       </>
     );
   } else if (startable) {
-    footer = <PrimaryBtn label={t('nearby.give.start')} icon="qr" help={t('nearby.give.startHelp')} onPress={actions.start} />;
+    footer = (
+      <>
+        <PrimaryBtn label={t('nearby.give.start')} icon="qr" help={t('nearby.give.startHelp')} onPress={actions.start} />
+        {quickShare}
+      </>
+    );
   } else if (stage.t === 'join') {
     footer = (
       <>
@@ -125,7 +141,8 @@ export function GiveAppScreen(ctx: Ctx) {
       ) : null}
       {stage.t === 'sent' ? (
         <>
-          <Banner icon="check" tone="green" title={t('nearby.give.sent')} body={t('nearby.give.sentLine')} />
+          {/* Where the group goes to Let someone in, the new phone's LangQuest finds this phone by itself. */}
+          <Banner icon="check" tone="green" title={t('nearby.give.sent')} body={t(give.handsOver ? 'nearby.give.sentLineFinds' : 'nearby.give.sentLine')} />
           <LinkBtn label={t('nearby.give.another')} help={t('nearby.give.anotherHelp')} expanded={another} onPress={() => setAnother((o) => !o)} style={{ alignSelf: 'flex-start' }} />
         </>
       ) : null}
@@ -133,6 +150,9 @@ export function GiveAppScreen(ctx: Ctx) {
       {pageCode}
       {stage.t === 'ended' ? <Banner icon="info" tone="amber" title={t(GIVE_END[stage.why])} /> : null}
       {stage.t === 'failed' && stage.why !== 'no-file' ? <Banner icon="warning" tone="amber" title={t(GIVE_FAIL[stage.why])} /> : null}
+      {/* What Quick Share needs and what the new phone does, right above its button in the footer. */}
+      {give.canShare ? <Text style={txt.sm}>{t('nearby.give.quickShare.line')}</Text> : null}
+      {give.shareFailed ? <Banner icon="warning" tone="amber" title={t('nearby.give.quickShare.failed')} /> : null}
       {live ? <Text style={txt.smMuted}>{t('nearby.give.stayOpen')}</Text> : null}
     </Screen>
   );

@@ -1,5 +1,5 @@
 import { OfflineError } from '@langquest-next/sync';
-import type { FindTunables, HeardAdvert, HostDetails, HostOptions, NearbyCapabilities, NearbyLink, NearbyRadio, SeenPhone } from '@langquest-next/sync/nearby';
+import type { FindTunables, HeardAdvert, HostDetails, HostedGroup, HostOptions, NearbyCapabilities, NearbyLink, NearbyRadio, SeenPhone } from '@langquest-next/sync/nearby';
 import {
   NEARBY_DROP_CODES, nearbyCodeOf, nearbyLinkNative, type NativeCapabilities, type NativeHeardAdvert, type NativeHosted, type NativeSeenPhone, type NearbyLinkEvents,
   type NearbyLinkNative, type NearbyNativeCode
@@ -40,6 +40,19 @@ export interface PhoneRadio extends NearbyRadio {
   onFindError(hear: (code: NearbyNativeCode) => void): () => void;
   /** A join with a system dialog is under way (a hotspot, or any network on an iPhone): the dialog takes the app to the background, which is not leaving (5.8). */
   joiningHotspot(): boolean;
+  // Give the app's group (docs/nearby-sync-plan.md 14.5), Android only, so a new phone that installed from it joins with
+  // no third code. Each answers "none" in a build without it (an older binary under a newer update): Let someone in then
+  // hosts a group of its own, as before.
+  /** Whether Let someone in can run on Give the app's group now: a session serves, and this build hosts there. */
+  giveGroupServing(): Promise<boolean>;
+  /** A let-in listener on Give the app's running group, as `host('wifi-direct')` answers; NOT_AVAILABLE in a build without it. */
+  hostOnGiveGroup(): Promise<HostDetails & HostedGroup>;
+  /** What Give the app's server answers at `/join`: this join link, or null for nothing. */
+  setGiveJoin(link: string | null): Promise<void>;
+  /** Ends Give the app's session: its server, and its group once no let-in listener holds it. */
+  stopGiveApp(): Promise<void>;
+  /** The new phone: the join link a Give the app server on the Wi-Fi it is on offers, or null. */
+  findGiveJoin(): Promise<string | null>;
 }
 
 /**
@@ -211,6 +224,22 @@ export function nearbyRadioOver(native: NearbyBinding, options: Partial<NearbyRa
     return () => sub.remove();
   };
 
+  /** A group hosted, as sync's radio answers `host`: its details, its first link, refusals for it alone, and take down. */
+  function hostedOf(hosted: NativeHosted, kind: 'wifi-direct' | 'hotspot' | 'awdl'): HostDetails & HostedGroup {
+    const nextLink = () => call(async () => linkOf(await native.hostLink(hosted.hostId), kind));
+    const link = nextLink();
+    // Nobody may ever come: an abandoned attempt's link is not an unhandled rejection.
+    link.catch(() => undefined);
+    return {
+      ...hostDetailsOf(hosted),
+      link,
+      // Neither a hotspot's server nor awdl's is bound to a network of its own, so native hands up every connection in turn (Hosted.kt).
+      ...(kind !== 'wifi-direct' ? { nextLink } : {}),
+      onRefused: (hear) => listen((h) => native.addListener('onRefused', (e) => { if (e.hostId === hosted.hostId) h(); }), hear),
+      takeDown: () => call(() => native.takeDown(hosted.hostId))
+    };
+  }
+
   return {
     capabilities: () => call(async () => capabilitiesOf(await read())),
     facts: () => call(read),
@@ -227,21 +256,7 @@ export function nearbyRadioOver(native: NearbyBinding, options: Partial<NearbyRa
     onPipe: (hear) => listen((h) => native.addListener('onPipe', (e) => h(linkOf(e.linkId, 'bluetooth'), e.salt)), hear),
     onFindError: (hear) => listen((h) => native.addListener('onFindError', (e) => h(e.code)), hear),
     openPipe: (peer, salt, scan) => call(async () => linkOf(await native.openPipe(peer, salt, scan), 'bluetooth')),
-    host: async (kind, opts) => {
-      const hosted = await call(() => native.host(kind, hostOptionsOf(opts), o.hostDeadlineMs));
-      const nextLink = () => call(async () => linkOf(await native.hostLink(hosted.hostId), kind));
-      const link = nextLink();
-      // Nobody may ever come: an abandoned attempt's link is not an unhandled rejection.
-      link.catch(() => undefined);
-      return {
-        ...hostDetailsOf(hosted),
-        link,
-        // Neither a hotspot's server nor awdl's is bound to a network of its own, so native hands up every connection in turn (Hosted.kt).
-        ...(kind !== 'wifi-direct' ? { nextLink } : {}),
-        onRefused: (hear) => listen((h) => native.addListener('onRefused', (e) => { if (e.hostId === hosted.hostId) h(); }), hear),
-        takeDown: () => call(() => native.takeDown(hosted.hostId))
-      };
-    },
+    host: async (kind, opts) => hostedOf(await call(() => native.host(kind, hostOptionsOf(opts), o.hostDeadlineMs)), kind),
     join: async (kind, details) => {
       const asks = asksToJoin(kind, iphone);
       if (asks) joining += 1;
@@ -257,8 +272,33 @@ export function nearbyRadioOver(native: NearbyBinding, options: Partial<NearbyRa
       for (const held of links.values()) held.down ??= 'STOPPED';
       links.clear();
       await call(() => native.stopAll());
+    },
+    giveGroupServing: async () => {
+      if (!givesGroup(native) || typeof native.giveAppStatus !== 'function') return false;
+      return (await call(() => native.giveAppStatus())).serving === true;
+    },
+    hostOnGiveGroup: async () => {
+      if (!givesGroup(native)) throw new NearbyNativeError('NOT_AVAILABLE');
+      // Give the app's group is Wi-Fi Direct: one link, and the group's own name and passphrase in the details.
+      return hostedOf(await call(() => native.hostOnGiveGroup(o.hostDeadlineMs)), 'wifi-direct');
+    },
+    setGiveJoin: async (link) => {
+      if (typeof native.setGiveJoin === 'function') await call(() => native.setGiveJoin(link));
+    },
+    stopGiveApp: async () => {
+      if (typeof native.stopGiveApp === 'function') await call(() => native.stopGiveApp());
+    },
+    findGiveJoin: async () => {
+      if (typeof native.findGiveJoin !== 'function') return null;
+      const found: unknown = await call(() => native.findGiveJoin());
+      return typeof found === 'string' ? found : null;
     }
   };
+}
+
+/** Whether this build can run Let someone in on Give the app's group: hosting there and publishing the link both. */
+function givesGroup(native: NearbyBinding): boolean {
+  return typeof native.hostOnGiveGroup === 'function' && typeof native.setGiveJoin === 'function';
 }
 
 let radio: PhoneRadio | null | undefined;

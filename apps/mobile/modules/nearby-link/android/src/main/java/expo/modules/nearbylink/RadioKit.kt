@@ -104,20 +104,36 @@ class RadioKit(
   private val hotspot = Hotspot(context, handler)
   private val random = SecureRandom()
 
-  /** Guards the three below: nearby's groups and Give the app's never at once. */
+  /** Guards the ones below: nearby's groups and Give the app's never at once. */
   private val groups = Any()
-  /** Nearby's groups hosted or joined, and those forming. */
+  /** Nearby's groups hosted or joined, and those forming. Hosts on Give the app's group are not among them. */
   private var nearbyGroups = 0
   /** Give the app's session, once it serves; it holds the group until it is closed. */
   private var giving: GiveApp? = null
+  /**
+   * Give the app's group, from when its session serves until the last hold on it lets go: the
+   * session's, or a host or link Let someone in made on it (`hostOnGiveGroup`), which may outlive
+   * the page. While it is up, no nearby group and no new Give the app can start.
+   */
+  private var giveGroup: GiveGroup? = null
   /** Give the app's group is forming. */
   private var giveForming = false
   /** Moves on at each stop, so a session that finishes forming after one is taken down at once. */
   private var giveStops = 0L
+  /** The hosts in `hosts` made on Give the app's group: they hold that group, not a nearby one. */
+  private val onGiveGroup = ConcurrentHashMap.newKeySet<String>()
 
-  /** A nearby group may start forming: none while Give the app runs. */
+  /** Whether Give the app's group is still up; forgets it once it has gone. Under `groups`. */
+  private fun giveGroupUp(): Boolean {
+    val g = giveGroup ?: return false
+    if (g.isDown) giveGroup = null
+    return !g.isDown
+  }
+
+  /** A nearby group may start forming: none while Give the app runs or its group is still up. */
   private fun claimNearby() = synchronized(groups) {
     if (giving?.isClosed == false || giveForming) throw NearbyException(NearbyCode.GROUP_BUSY, "Give the app holds the Wi-Fi Direct group")
+    if (giveGroupUp()) throw NearbyException(NearbyCode.GROUP_BUSY, "Give the app's group still carries a link")
     nearbyGroups += 1
   }
 
@@ -194,10 +210,15 @@ class RadioKit(
   /** The group's next link: its only one on Wi-Fi Direct, each candidate in turn on a hotspot (Hosted). */
   fun hostLink(hostId: String): LinkSession = (hosts[hostId] ?: throw NearbyException(NearbyCode.HOST_TAKEN_DOWN, "no such group")).nextLink()
 
-  /** Takes down a group hosted for an attempt that was abandoned; a link it already gave keeps running. */
+  /**
+   * Takes down a group hosted for an attempt that was abandoned; a link it already gave keeps
+   * running. A host on Give the app's group closes only its own listener and lets go of its hold
+   * on that group (`GiveGroup.host`).
+   */
   fun takeDown(hostId: String) {
     val hosted = hosts.remove(hostId) ?: return
-    try { hosted.takeDown() } finally { releaseNearby() }
+    val onGive = onGiveGroup.remove(hostId)
+    try { hosted.takeDown() } finally { if (!onGive) releaseNearby() }
   }
 
   fun join(kind: String, details: Map<String, Any?>, deadlineMs: Long): LinkSession {
@@ -245,19 +266,20 @@ class RadioKit(
   /**
    * Give the app (docs/nearby-sync-plan.md 14.5): forms a Wi-Fi Direct group under a fresh name
    * and passphrase, and serves `page` and the kept file on the group's own address. GROUP_BUSY
-   * while nearby holds a group or a session already runs; STOPPED when a stop came while the
-   * group formed.
+   * while nearby holds a group, a session already runs, or the last session's group still carries
+   * a host or link of Let someone in's; STOPPED when a stop came while the group formed.
    */
   fun startGiveApp(page: ByteArray, kept: KeptFile, deadlineMs: Long): Map<String, Any?> {
     // Only Wi-Fi Direct's own permission: Give the app uses no Bluetooth (docs/nearby-sync-plan.md 14.5).
     Radios.requireWifiDirect(context)
     val stopsBefore = synchronized(groups) {
       if (giving?.isClosed == false || giveForming) throw NearbyException(NearbyCode.GROUP_BUSY, "Give the app is already running")
+      if (giveGroupUp()) throw NearbyException(NearbyCode.GROUP_BUSY, "the last Give the app group still carries a link")
       if (nearbyGroups > 0) throw NearbyException(NearbyCode.GROUP_BUSY, "a nearby group holds Wi-Fi Direct")
       giveForming = true
       giveStops
     }
-    val session = try {
+    val (session, group) = try {
       giveOnNewGroup(page, kept, deadlineMs)
     } catch (e: Exception) {
       synchronized(groups) { giveForming = false }
@@ -265,22 +287,35 @@ class RadioKit(
     }
     val stillWanted = synchronized(groups) {
       giveForming = false
-      (giveStops == stopsBefore).also { if (it) giving = session }
+      (giveStops == stopsBefore).also {
+        if (it) {
+          giving = session
+          giveGroup = group
+        }
+      }
     }
+    if (stillWanted) watchGiveGroup(group)
     if (!stillWanted) {
+      // Nothing else holds the group yet, so letting go of the session's hold takes it down.
       session.close()
       throw NearbyException(NearbyCode.STOPPED, "stopped while the group formed")
     }
     return session.details
   }
 
-  private fun giveOnNewGroup(page: ByteArray, kept: KeptFile, deadlineMs: Long): GiveApp {
+  /** A session serving on a new group, and the group, which the session holds until it closes. */
+  private fun giveOnNewGroup(page: ByteArray, kept: KeptFile, deadlineMs: Long): Pair<GiveApp, GiveGroup> {
     val ssid = GiveNames.ssid(random)
     val passphrase = GiveNames.passphrase(random)
     // 2.4 GHz, which every phone that joins as plain Wi-Fi can see; some cannot see 5 GHz.
     val group = wifiDirect.form(ssid, passphrase, WifiP2pConfig.GROUP_OWNER_BAND_2GHZ, deadlineMs)
+    // What takes the group down if serving on it fails: `GiveGroup`'s, once there is one, so its hosts go too.
+    var downOnFailure: () -> Unit = group.down
     try {
       val peers = Subnet(group.address, groupPrefix(group.address))
+      val shared = GiveGroup(ssid, passphrase, group.address, peers, group.down)
+      downOnFailure = shared::takeDown
+      val sessionHold = shared.hold() ?: throw NearbyException(NearbyCode.GROUP_FAILED, "the group went as it formed")
       val socket = giveSocket(group.address)
       var session: GiveApp? = null
       val server = try {
@@ -295,14 +330,30 @@ class RadioKit(
         throw e
       }
       val details = mapOf("ssid" to ssid, "passphrase" to passphrase, "address" to group.address.hostAddress, "port" to socket.localPort)
-      val made = GiveApp(details, server, group.down)
+      // Closing the session lets go of its hold: the group goes then unless Let someone in still holds it.
+      val made = GiveApp(details, server, sessionHold) { group.joined(JOINED_WAIT_MS) }
       session = made
       server.start()
-      return made
+      return made to shared
     } catch (e: Exception) {
-      try { group.down() } catch (_: Exception) {}
+      try { downOnFailure() } catch (_: Exception) {}
       throw e as? NearbyException ?: NearbyException(NearbyCode.GROUP_FAILED, "could not serve on the group", e)
     }
+  }
+
+  /**
+   * Looks every `GIVE_WATCH_MS`, on the radio thread, while Give the app's group is up: once its
+   * interface has gone, the group is taken down with every host on it (`GiveGroup.watch`). The
+   * page's server stops by itself then, but a let-in host would otherwise wait on a dead address,
+   * holding Wi-Fi Direct busy, for as long as its code lasts.
+   */
+  private fun watchGiveGroup(group: GiveGroup) {
+    val look = object : Runnable {
+      override fun run() {
+        if (group.watch { NetworkInterface.getByInetAddress(group.address) != null }) handler.postDelayed(this, GIVE_WATCH_MS)
+      }
+    }
+    handler.postDelayed(look, GIVE_WATCH_MS)
   }
 
   /** The group's network prefix, from its own interface: only phones on that network are answered. */
@@ -326,9 +377,13 @@ class RadioKit(
     }
   }
 
+  /** The session's status, or `GiveApp.IDLE`; outside the lock, since counting the group's phones may wait `JOINED_WAIT_MS`. */
   fun giveAppStatus(): Map<String, Any?> = synchronized(groups) { giving }?.status() ?: GiveApp.IDLE
 
-  /** Ends Give the app's session, or one still forming; nothing when there is none. */
+  /**
+   * Ends Give the app's session, or one still forming; nothing when there is none. The page stops
+   * at once; the group stays while a host or link Let someone in made on it lives.
+   */
   fun stopGiveApp() {
     val session = synchronized(groups) {
       giveStops += 1
@@ -337,9 +392,52 @@ class RadioKit(
     session?.close()
   }
 
+  /**
+   * Let someone in on Give the app's group (docs/nearby-sync-plan.md 14.5): a host whose listener
+   * is on the group's own address and a free port, under the group's name and passphrase, taken
+   * with `hostLink` and ended with `takeDown` like any host (`GiveGroup.host`). Nothing forms, so
+   * nothing waits for a deadline. HOST_TAKEN_DOWN with no session serving.
+   */
+  fun hostOnGiveGroup(): Hosted {
+    val group = synchronized(groups) { giveGroup.takeIf { giving?.isClosed == false } }
+      ?: throw NearbyException(NearbyCode.HOST_TAKEN_DOWN, "Give the app is not serving")
+    val server = try {
+      ServerSocket(0, 2, group.address)
+    } catch (e: IOException) {
+      throw NearbyException(NearbyCode.GROUP_FAILED, "no port on Give the app's group", e)
+    }
+    val id = "host-${hostIds.incrementAndGet()}"
+    val hosted = group.host(
+      id, server,
+      adopt = { socket, gone -> registry.adopt(SocketTransport(socket), "wifi-direct") { s -> gone(s) } },
+      // The link's end takes its host down, as for any Wi-Fi Direct link; the group goes once nothing holds it.
+      linkEnded = { h, s -> if (h.endTakesDown(s)) takeDown(h.id) },
+      refused = { h -> events.refused(h.id) },
+    ) ?: run {
+      try { server.close() } catch (_: IOException) {}
+      throw NearbyException(NearbyCode.HOST_TAKEN_DOWN, "Give the app's group went")
+    }
+    onGiveGroup.add(id)
+    hosts[id] = hosted
+    hosted.acceptLoop()
+    // A stop of everything between the two lines above found no such host: this one goes now.
+    if (group.isDown) {
+      takeDown(id)
+      throw NearbyException(NearbyCode.HOST_TAKEN_DOWN, "Give the app's group went")
+    }
+    return hosted
+  }
+
+  /** What Give the app's server answers at `/join`; nothing with no session. `link` is checked by the caller (`GiveJoin.ok`). */
+  fun setGiveJoin(link: String?) {
+    synchronized(groups) { giving }?.setJoin(link)
+  }
+
   fun stopAll() {
     stopGiveApp()
     for (id in hosts.keys) takeDown(id)
+    // Whatever still holds Give the app's group ends with it: a link Let someone in made on it closes below and in the module.
+    synchronized(groups) { giveGroup.also { giveGroup = null } }?.takeDown()
     val stopped = CompletableFuture<Unit>()
     handler.post {
       try { find.stop() } catch (_: Exception) {}
@@ -356,8 +454,15 @@ class RadioKit(
   }
 
   private companion object {
-    /** The page's usual port, so its address reads the same each time; any free one if it is taken. */
-    const val GIVE_PORT = 8080
+    /** The page's usual port, so its address reads the same each time, and where a new phone asks for the join link; any free one if it is taken. */
+    const val GIVE_PORT = GiveJoin.PORT
     const val GIVE_BACKLOG = 8
+    /**
+     * How long a status waits for the framework's list of the group's phones before saying 0:
+     * JavaScript asks about once a second, and the list usually comes in a few milliseconds.
+     */
+    const val JOINED_WAIT_MS = 500L
+    /** How often a look checks that Give the app's group is still there, as the page's server does. */
+    const val GIVE_WATCH_MS = 1_000L
   }
 }

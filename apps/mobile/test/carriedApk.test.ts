@@ -1,4 +1,4 @@
-import { carriedApkName, CARRIED_APK_PATH } from '@langquest-next/core';
+import { carriedApkName, carriedFileName, CARRIED_APK_PATH } from '@langquest-next/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { apkCheck, apkGet, apkShown, apkStale, apkStep, cannotGive, installFileItem, joinRows, KEPT_BEHIND_MS, keptBehind, letInVersionsWords } from '../src/nearby/carriedApkModel';
@@ -39,6 +39,12 @@ describe('getting the file', () => {
     expect(carriedApkAddress('', NOW)).toBeNull();
     expect(carriedApkAddress('https://next.example', '../current.json')).toBeNull();
     expect(carriedApkAddress('https://next.example', `${NOW}?x=1`)).toBeNull();
+  });
+
+  it('builds the address of the same file for the app to take, as .carried, and of nothing else ending so', () => {
+    expect(carriedApkAddress('https://next.example', carriedFileName(NOW)!)).toBe(`https://next.example/apk/${carriedFileName(NOW)}`);
+    expect(carriedApkAddress('https://next.example', 'current.carried')).toBeNull();
+    expect(carriedApkAddress('https://next.example', `${NOW}.carried`)).toBeNull();
   });
 
   it('offers the browser download while not known to be offline, disables it offline, and hides it with no name or address', () => {

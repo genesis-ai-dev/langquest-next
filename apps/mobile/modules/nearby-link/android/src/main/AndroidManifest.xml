@@ -2,8 +2,9 @@
   <!--
     Nearby sync's permissions (docs/nearby-sync-plan.md section 9), here and not in app.json:
     app.json cannot say these attributes, and an edit there moves the iPhone build's fingerprint.
-    Every one is asked for at run time only when Share nearby opens. No components: no service,
-    receiver or provider. Not ACCESS_LOCAL_NETWORK, FOREGROUND_SERVICE or REQUEST_INSTALL_PACKAGES.
+    Every one is asked for at run time only when Share nearby opens. One component, the provider
+    below, and no service or receiver. Not ACCESS_LOCAL_NETWORK, FOREGROUND_SERVICE or
+    REQUEST_INSTALL_PACKAGES.
   -->
 
   <!-- Android 11 and earlier: Bluetooth as a normal permission. -->
@@ -31,4 +32,19 @@
   <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
   <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
   <uses-feature android:name="android.hardware.wifi.direct" android:required="false" />
+
+  <application>
+    <!--
+      Give the app's share sheet (InstallFileShare.kt): the kept install file alone, read only by
+      the app the person picks, through the grant the sheet hands on. Not exported, and a class of
+      the module's own, so it never merges with another library's FileProvider.
+    -->
+    <provider
+      android:name="expo.modules.nearbylink.InstallFileProvider"
+      android:authorities="${applicationId}.nearbylink.installfile"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/nearby_link_install_file" />
+    </provider>
+  </application>
 </manifest>

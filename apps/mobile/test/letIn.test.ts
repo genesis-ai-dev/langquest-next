@@ -1,5 +1,9 @@
 import { emptyOrgState } from '@langquest-next/core';
-import { codeShown, LET_IN_START, letInEndOf, letInReducer, letInRoles, letInWhyNot, type LetInAction, type LetInState } from '../src/nearby/letInModel';
+import { GIVE_IDLE_MS } from '../src/nearby/giveAppModel';
+import {
+  codeLeft, codeShown, LET_IN_CODE_MS, LET_IN_GIVE_CODE_MS, LET_IN_START, letInCodeMs, letInEndOf, letInReducer, letInRoles, letInWhyNot, type LetInAction,
+  type LetInState
+} from '../src/nearby/letInModel';
 import { letInPermit } from '../src/nearby/letInPermitModel';
 import type { PassShape } from '../src/nearby/nearbyModel';
 import { nearbyPermissionsFor } from '../src/nearby/nearbyPermissionsModel';
@@ -127,5 +131,37 @@ describe('the screen', () => {
     expect(letInEndOf({ ...base, versionsDiffer: true, ended: { how: 'said', reason: 'protocol' } })).toBe('versions');
     expect(letInEndOf({ ...base, ended: { how: 'silent' } })).toBe('no-answer');
     expect(letInEndOf({ ...base, ended: { how: 'said', reason: 'stopped', detail: 'no tap in time' } })).toBe('said-no');
+  });
+});
+
+describe('a code on Give the app\'s group (docs/nearby-sync-plan.md 14.5)', () => {
+  const run = (...actions: LetInAction[]): LetInState => actions.reduce(letInReducer, LET_IN_START);
+  const shown = (onGiveGroup?: boolean) => run(
+    { t: 'role', roleId: 'translator' }, { t: 'host' }, { t: 'showing', uri: 'u', until: 900_000, ...(onGiveGroup === undefined ? {} : { onGiveGroup }) }
+  ).stage;
+
+  it('lives as long as Give the app waits for a phone, since the new phone is still installing; a code of this phone\'s own, two minutes', () => {
+    expect(letInCodeMs(false)).toBe(LET_IN_CODE_MS);
+    expect(LET_IN_CODE_MS).toBe(120_000);
+    expect(letInCodeMs(true)).toBe(LET_IN_GIVE_CODE_MS);
+    expect(LET_IN_GIVE_CODE_MS).toBe(GIVE_IDLE_MS);
+    expect(LET_IN_GIVE_CODE_MS).toBe(15 * 60_000);
+  });
+
+  it('the screen knows which group the code is on while it is up', () => {
+    expect(shown(true)).toEqual({ t: 'showing', uri: 'u', until: 900_000, onGiveGroup: true });
+    expect(shown(false)).toEqual({ t: 'showing', uri: 'u', until: 900_000, onGiveGroup: false });
+    expect(shown()).toEqual({ t: 'showing', uri: 'u', until: 900_000, onGiveGroup: false });
+    expect(codeShown(shown(true), 899_999)).toBe('u');
+    expect(codeShown(shown(true), 900_000)).toBeNull();
+  });
+
+  it('counts down in seconds for two minutes, and in whole minutes, rounded up, for Give the app\'s fifteen', () => {
+    expect(codeLeft(90, false)).toEqual({ unit: 'seconds', n: 90 });
+    expect(codeLeft(900, true)).toEqual({ unit: 'minutes', n: 15 });
+    expect(codeLeft(841, true)).toEqual({ unit: 'minutes', n: 15 });
+    expect(codeLeft(61, true)).toEqual({ unit: 'minutes', n: 2 });
+    expect(codeLeft(1, true)).toEqual({ unit: 'minutes', n: 1 });
+    expect(codeLeft(0, true)).toEqual({ unit: 'minutes', n: 0 });
   });
 });
