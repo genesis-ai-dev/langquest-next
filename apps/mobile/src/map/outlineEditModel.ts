@@ -3,7 +3,8 @@
 // docs/decisions/2026-11-20-add-folders-and-stories-on-the-map.md). Pure:
 // the folders the map lists, and the template each change makes. Publishing
 // it for this language only is breakup/breakupActions.ts `publishChange`.
-import { templateBooks, unitLabel, unitPrefixOf, type LanguageState, type TemplateDoc } from '@langquest-next/core';
+import { templateBooks, unitLabel, unitPrefixOf, type LanguageState, type LibraryItemView, type TemplateDoc } from '@langquest-next/core';
+import { copyName } from '../breakup/model';
 import { addNode, findNode, renameNode } from '../templates/contentTemplatesModel';
 import { indexesFor } from '../sync/indexes';
 import { outlineHolds } from '../templates/model';
@@ -94,9 +95,28 @@ export function nameReady(typed: string, was = ''): boolean {
   return name.length > 0 && name !== was.trim();
 }
 
-/** Books the team's Bible numbering has that the template leaves out, in canon order, for "Add a book". */
-export function booksToAdd(doc: TemplateDoc | null, numberingBooks: readonly string[]): string[] {
+/**
+ * Books the team's Bible numbering has that the language does not, in canon
+ * order, for "Add a book": those its template leaves out, and those the
+ * template has but the language does not cover (`covered`, a New Testament
+ * team on a whole-Bible template).
+ */
+export function booksToAdd(doc: TemplateDoc | null, numberingBooks: readonly string[], covered?: readonly string[]): string[] {
   if (!doc?.bible) return [];
-  const have = new Set(templateBooks(doc).map((b) => b.book));
+  const have = new Set(covered ?? templateBooks(doc).map((b) => b.book));
   return numberingBooks.filter((b) => !have.has(b));
+}
+
+/** Whether the template already has a book, so adding it only widens the books the language covers. */
+export function templateHasBook(doc: TemplateDoc, book: string): boolean {
+  return templateBooks(doc).some((b) => b.book === book);
+}
+
+/**
+ * Whether a template is the language's own copy, made by its first change on
+ * the map ("Village stories (Tessa)"): this organization's, named for the
+ * language alone. Any other template is copied for the language first.
+ */
+export function ownCopy(item: Pick<LibraryItemView, 'name' | 'source'>, language: string): boolean {
+  return item.source !== 'subscription' && !!language && item.name === copyName(item.name, [language]);
 }

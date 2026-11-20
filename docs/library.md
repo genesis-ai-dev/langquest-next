@@ -130,9 +130,9 @@ folder at the end, or renames a folder, on an outline language's map, and
 adds a Bible book at the end of a Bible language's book list
 (`apps/mobile/src/map/OutlineMap.tsx`). Each change is for the open language
 only: it is published as a book divided from the map is, with only that
-language chosen, so a template another language uses (or another
-organization's) is copied for it on its first change, and later changes are
-versions of that copy
+language chosen, and the first change copies the template for it ("Village
+stories (Tessa)"), so the library's template and every other language keep
+what they had; later changes are versions of that copy
 (`docs/decisions/2026-11-20-add-folders-and-stories-on-the-map.md`).
 
 ### Breaking up the Bible book by book (decision 74)

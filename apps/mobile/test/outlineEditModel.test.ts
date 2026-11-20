@@ -1,6 +1,6 @@
 import { emptyLanguageState, foldLanguage, selectTemplateSpecs, type AnyEvent, type EventSpec, type LanguageState, type TemplateDoc } from '@langquest-next/core';
 import { languageEntries } from '../src/map/mapModel';
-import { booksToAdd, mapFolders, nameReady, newNodeId, outlineAdds, withOutlineAdded, withOutlineRenamed } from '../src/map/outlineEditModel';
+import { booksToAdd, mapFolders, nameReady, newNodeId, outlineAdds, ownCopy, withOutlineAdded, withOutlineRenamed } from '../src/map/outlineEditModel';
 
 const H = (c: string) => c.repeat(64);
 const outline = (nodes: NonNullable<TemplateDoc['outline']>): TemplateDoc =>
@@ -54,5 +54,15 @@ describe('folders and stories added on the map (LAN-239)', () => {
     const bible: TemplateDoc = { format: 'template@2', name: 'B', description: '', structure: 'bible', levels: [{ name: 'Book' }], bible: { versification: H('e'), books: [{ book: 'MAT', name: 'Matthew' }] }, deps: [] };
     expect(booksToAdd(bible, ['MAT', 'MRK', 'LUK'])).toEqual(['MRK', 'LUK']);
     expect(booksToAdd(start, ['MAT'])).toEqual([]);
+    // A New Testament team on a whole-Bible template is offered the books it does not cover.
+    expect(booksToAdd(bible, ['GEN', 'MAT', 'MRK'], ['MAT'])).toEqual(['GEN', 'MRK']);
+  });
+
+  it("copies a template for the language on its first change, and changes the language's own copy after", () => {
+    // Why: Caleb chose "only this language": the library's template must stay as it was for the next language.
+    expect(ownCopy({ name: 'Village stories', source: 'own' }, 'Tessa')).toBe(false);
+    expect(ownCopy({ name: 'Village stories (Tessa)', source: 'copy' }, 'Tessa')).toBe(true);
+    expect(ownCopy({ name: 'Village stories (Tessa and Oscar)', source: 'copy' }, 'Tessa')).toBe(false);
+    expect(ownCopy({ name: 'FIA passages (Tessa)', source: 'subscription' }, 'Tessa')).toBe(false);
   });
 });

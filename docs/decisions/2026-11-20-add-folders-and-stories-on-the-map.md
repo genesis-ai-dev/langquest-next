@@ -16,16 +16,21 @@ a choice that is almost always "this language").
   "Rename" on each folder; a short sheet takes the name
   (`apps/mobile/src/map/OutlineMap.tsx`). A Bible language's book list ends
   with "Add a book", which offers the books the team's numbering has and the
-  template leaves out; the book waits to be divided (decision 74). A folder
+  language does not. A book the template leaves out is added to it and waits
+  to be divided (decision 74); a book the template has but the language does
+  not cover (a New Testament team on a whole-Bible template) only widens the
+  language's `books`, and the template stays as it is. A folder
   holds folders or stories, never both, as the template editor has it.
 - **Who.** Only someone who may edit templates sees the buttons
   (`mayWriteLibrary(…, 'template')`, as for dividing a book from the map).
 - **This language only.** The change is published as dividing a book from
   the map publishes one for the languages chosen (decision 74), with only
-  the open language chosen (`useMapTemplateEdit.ts`, `publishChange`): a
-  template another language uses, or another organization's, is copied for
-  this language ("Stories (Hadiyya)"), keeping its part ids; a template only
-  this language uses gets a new version.
+  the open language chosen (`useMapTemplateEdit.ts`, `publishChange`). The
+  first change copies the template for this language ("Village stories
+  (Tessa)"), keeping its part ids, even when no other language uses it, so
+  the library's template stays as it was for the next language that picks
+  it. Later changes are new versions of that copy (`ownCopy`: this
+  organization's, named for this language alone).
 - **A rename reaches the language.** A unit's label comes from its first
   `v1.UnitAdded` (earliest wins, decision 36), so a later version could add
   parts but never rename one. `v1.UnitRenamed { unitId, label }`, a register
