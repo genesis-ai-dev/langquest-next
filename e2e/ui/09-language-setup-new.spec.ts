@@ -219,7 +219,7 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   await text(page, 'FIA passages').click();
   await expectOnScreen(page, '3 of 6 · Divide into sections', 'Which part of the Bible?', 'New Testament', 'Old Testament', 'Whole Bible', 'Choose books');
   // The step starts on Whole Bible (LAN-232); Choose books starts from the part picked, so pick the New Testament first.
-  await expect(page.getByRole('radio', { name: /^Whole Bible/ }).locator('visible=true').first()).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Whole Bible', exact: true, pressed: true })).toBeVisible();
   await text(page, 'New Testament').click();
   await text(page, 'Choose books').click();
   await expectOnScreen(page, 'Mark', 'Luke');
