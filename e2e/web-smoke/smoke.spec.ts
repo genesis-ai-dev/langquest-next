@@ -67,9 +67,9 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await expect(button(page, 'Share as a link')).toBeVisible({ timeout: 60_000 });
   await button(page, 'Done').click({ timeout: 60_000 });
   // A template, checks and an invite: Dinka is ready, so My Work offers no Get ready card and leads with its
-  // first passage (decision 71).
+  // first passage (decision 71): New language starts on Whole Bible (LAN-232), so Genesis.
   await expect(page.getByText('A good place to start', { exact: true }).locator('visible=true').first()).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByRole('heading', { name: 'Matthew 1:1–17' }).locator('visible=true').first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Genesis 1:1–2:3' }).locator('visible=true').first()).toBeVisible();
   await expect(page.getByText(/^Get Dinka ready/)).toHaveCount(0);
 }
 
