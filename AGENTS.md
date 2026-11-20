@@ -23,6 +23,10 @@ before you push. `README.md` says which file answers which question.
   it may import.
 - `docs/README.md` lists every doc by kind. A plan is not the reference for
   what is built: the reference doc it names is.
+- Before you write or change a script in `e2e/tutorials/`, read
+  `docs/tutorial-teaching.md`. A video exists for a person with a goal: it
+  orients them, carries them through the whole job, and leaves them able to
+  do it. It is not a tour of buttons. Check every line against the app.
 - The parent repository is LangQuest v2. Do not import from it.
 
 ## Ask the developer first
@@ -49,6 +53,39 @@ cause is the change, `main`, or a flaky test.
 Commit messages and pull request titles and text name a Linear ID (`LAN-12`)
 only for the issues the work fixes or is part of: the ops dashboard reads
 every ID named as a fix (`CONTRIBUTING.md`, Commit messages and Linear).
+
+## Cloud threads (Claude Code on a cloud machine)
+
+Coding threads run on Claude Code's cloud machines, not on a developer's Mac
+(`docs/decisions/2026-11-17-coding-threads-run-in-the-cloud.md`). A cloud
+machine is Linux with 4 CPUs, 16 GB and Docker, and no iPhone simulator or
+Android emulator. When `CLAUDE_CODE_REMOTE` is `true`:
+
+- Run `bash scripts/cloud-setup.sh` before anything else, and again after
+  merging a `main` that changed `package-lock.json`. It gives the machine
+  Node 24, the full git history, the packages, Docker, the local stack's
+  images and Playwright's browsers, so `npm run guardrails -- --all` and
+  `npm run test:web-smoke` run as on a Mac. It takes seconds when the
+  environment's snapshot already has them. The project's cloud environment
+  runs it as its setup script (`--snapshot`); change the steps in the script.
+- The machine's disk is about 40 GB, and the setup leaves about 14 GB of it
+  (it says how much at the end). The local stack's images are 8 GB of what
+  it takes. A thread that needs other large tools and not the local stack
+  frees those 8 GB with `docker system prune -af`; the setup pulls them
+  again when it next runs. A full disk shows up as SQLite's "database or
+  disk is full" in unit tests.
+- A project's threads load neither `.claude/skills` nor the repo's hooks.
+  Read a skill from `.agents/skills/<name>/SKILL.md` when the task calls for
+  it.
+- Check a screen in the web build on the local stack (`npm run db:start`,
+  then `bash e2e/web.sh` and Playwright), or with a UI test
+  (`npm run test:ui:web -- e2e/ui/<file>`). What only a phone shows (native
+  modules, gestures, the keyboard, permissions, audio, a store build) goes to
+  one phone-check thread on the Mac, which runs one simulator at a time
+  (`run-app`); say what it should look at and on which screens.
+- The machine has no `.env.keys`: nothing there decrypts env files, pushes to
+  EAS, applies secrets or touches a hosted database. Those steps stay on the
+  Mac.
 
 ## Store declarations
 

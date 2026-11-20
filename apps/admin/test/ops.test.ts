@@ -7,11 +7,11 @@ import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import {
   FLEET_SQL, dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, userIssueAlerts,
-  userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type QuietAccounts, type Safety, type Tutorials, type UserIssues
+  userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type LagRow, type Pipeline, type QuietAccounts, type Safety, type Tutorials, type UserIssues
 } from '../src/sources/ops';
 import { CHANNELS } from '../../../server/youtube';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
-import { ALLOWANCE, PRICE_USD, capacityAlerts, extraUsd, growthPerDay, latestBackup, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
+import { ALLOWANCE, PRICE_USD, capacityAlerts, capacitySection, extraUsd, growthPerDay, latestBackup, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
 
 /** The sections the ops dashboard plan added (docs/ops-dashboard-plan.md 5): what each calls a problem. */
 
@@ -95,6 +95,29 @@ describe('sync and data safety', () => {
   it('watches events stamped ahead of the clock and long upload delays', () => {
     const alerts = safetyAlerts(safety({ arrivals: [{ day: '2026-10-22', sampled: 500, newEvents: 900, p50Ms: 1000, p95Ms: 30 * 3_600_000, maxMs: 1, futureStamped: 3, futureInstalls: 1 }] }));
     expect(alerts).toHaveLength(2);
+  });
+
+  // What diag.ops_pipeline answers: Bhujel on 2026-11-18, 988 events from one v2 import between two passes.
+  const lag = (over: Partial<LagRow> = {}): LagRow => ({
+    orgId: 'o', languageId: 'l', name: 'Bhujel', head: 174220, projectedSeq: 173232, behind: 988,
+    projectedAt: '2026-11-18T04:45:58Z', waitingSince: '2026-11-18T04:51:10Z', passesSince: 0, ...over
+  });
+  const pipeline = (rows: LagRow[]): Pipeline => ({ lagging: rows.length, lag: rows, snapshots: { overdue: 0, oldReducer: 0, noCut: 0, worst: [] }, largest: [] });
+
+  it('says nothing of a language that waits for its first projection pass, however many events it has', () => {
+    expect(safetyAlerts(safety({ pipeline: pipeline([lag()]) }))).toEqual([]);
+    // One pass since can be a pass that a deploy stopped before it reached the language.
+    expect(safetyAlerts(safety({ pipeline: pipeline([lag({ passesSince: 1 })]) }))).toEqual([]);
+    // A database before the migration does not count passes: no line, rather than a guess.
+    const { waitingSince: _w, passesSince: _p, ...before } = lag();
+    expect(safetyAlerts(safety({ pipeline: pipeline([before]) }))).toEqual([]);
+  });
+
+  it('names the languages that two or more projection passes left behind, however few their events', () => {
+    const alerts = safetyAlerts(safety({ pipeline: pipeline([lag({ name: 'Koro', passesSince: 7, behind: 3 }), lag({ passesSince: 2 }), lag()]) }));
+    expect(alerts).toEqual([{ level: 'watch', key: 'projection-lag', text: '2 languages still wait after 2 or more projection passes (longest: Koro, 7 passes, 3 events behind).' }]);
+    expect(safetyAlerts(safety({ pipeline: pipeline([lag({ name: null, languageId: 'l-9', passesSince: 2, behind: 1 })]) }))[0]!.text)
+      .toBe('1 language still waits after 2 or more projection passes (longest: l-9, 2 passes, 1 event behind).');
   });
 });
 
@@ -194,6 +217,29 @@ describe('storage, capacity and releases', () => {
     expect(capacityAlerts({ ...base, weeksLeft: null, now: size(60) })).toEqual([{ level: 'problem', key: 'db-disk-full', text: expect.stringMatching(/^The database \(60 GB\) fills 94% of its 64 GB disk/) }]);
   });
 
+  describe('the disk the database is measured against', () => {
+    const GB = 1024 ** 3;
+    // 23 GB, growing 0.8 GB a day: under 12 weeks on 64 GB, far over it on 256 GB.
+    const history = [{ at: '2026-10-24T04:00:00Z', dbBytes: 13.4 * GB }, { at: '2026-11-05T04:00:00Z', dbBytes: 23 * GB }];
+    const diag = <T>(fn: (q: Query) => Promise<T>) => fn((async (text: string) => (text.includes('ops_sizes') ? { dbBytes: 23 * GB, eventsBytes: 0, eventsRows: 0, snapshotsBytes: 0 } : history)) as Query);
+    const env = { ADMIN_SUPABASE_TOKEN: 'token', SUPABASE_PROJECTS: 'abc:LangQuest Next', CLOUDFLARE_ACCOUNT_ID: 'a', R2_BUCKET: 'b', SUPABASE_DB_LIMIT_GB: '64' };
+    const answering = (body: unknown, status = 200) => vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+
+    it('is the size Supabase says, so a resized disk needs no change here', async () => {
+      const fetcher = answering({ attributes: { size_gb: 256, type: 'gp3' }, last_modified_at: '2026-11-01T00:00:00Z' });
+      const s = await capacitySection(env, fetcher, NOW, diag);
+      expect(fetcher).toHaveBeenCalledWith('https://api.supabase.com/v1/projects/abc/config/disk', expect.anything());
+      expect(s.data).toMatchObject({ limitBytes: 256 * GB, limitFrom: 'supabase' });
+      expect(s.alerts).toEqual([]);
+    });
+
+    it('is the setting when the token may not read the disk, and the section says so', async () => {
+      const s = await capacitySection(env, answering({ message: 'forbidden' }, 403), NOW, diag);
+      expect(s.data).toMatchObject({ limitBytes: 64 * GB, limitFrom: 'setting' });
+      expect(s.alerts[0]).toMatchObject({ level: 'watch', text: expect.stringContaining('64 GB disk') });
+    });
+  });
+
   it('raises an overage only once it costs five dollars this month', () => {
     const base: Capacity = { now: null, limitBytes: 64 * 1024 ** 3, dbGrowthPerDay: null, weeksLeft: null, history: [], r2: null, usage: null };
     // October 2026: Durable Object requests 4% over (under a cent), R2 class A 2.5 times over (about $6.72).
@@ -267,6 +313,7 @@ describe('reading as diag_reader', () => {
     expect(s.safety.state).toBe('ok');
     // Before its migration the rest of the section still shows.
     expect(s.safety.data!.copies).toBeNull();
+    expect(s.safety.data!.pipeline).toBeNull();
     expect(s.worker.state).toBe('ok');
     for (const id of ['people', 'cron', 'dbdetail', 'push', 'integrations', 'support', 'security'] as const) {
       expect(s[id]).toMatchObject({ state: 'off', setup: expect.stringContaining('20261023100000_ops_dashboard.sql') });
@@ -274,6 +321,16 @@ describe('reading as diag_reader', () => {
     expect(s.tutorials).toMatchObject({ state: 'off', setup: expect.stringContaining('20261028090000_tutorial_videos.sql') });
     expect(s.videofeedback).toMatchObject({ state: 'off', setup: expect.stringContaining('20261029120000_tutorial_feedback.sql') });
     expect(s.userissues).toMatchObject({ state: 'off', setup: expect.stringContaining('20261103204500_user_issues_fixed.sql') });
+  });
+
+  it('marks for the page the languages that the projection passes left behind', async () => {
+    const row = { orgId: 'o', name: 'Bhujel', head: 10, projectedSeq: 4, behind: 6, projectedAt: null, waitingSince: hoursAgo(1) };
+    const s = await opsSections(fakeQuery([
+      ['rejNotMember', []], ['arrivalsSampled', []], ['fold_canary', []],
+      ['ops_pipeline', { lagging: 2, lag: [{ ...row, languageId: 'a', passesSince: 12 }, { ...row, languageId: 'b', passesSince: 0 }], snapshots: { overdue: 0, oldReducer: 0, noCut: 0, worst: [] }, largest: [] }]
+    ]));
+    expect(s.safety.data!.pipeline!.lag.map((l) => [l.languageId, l.left])).toEqual([['a', true], ['b', false]]);
+    expect(s.safety.alerts.map((a) => a.key)).toEqual(['projection-lag']);
   });
 
   it('reads the builds from the count the database makes every 10 minutes, and says which migration it lacks', async () => {

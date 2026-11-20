@@ -37,8 +37,9 @@
     "R2_BUCKET": "langquest-next-blobs",
     // The production database's provisioned disk, GB (Supabase > Settings >
     // Compute and Disk), for the capacity section's weeks left and its alert
-    // past 90%. Change it here when the disk is resized.
-    "SUPABASE_DB_LIMIT_GB": "64",
+    // past 90%, only when Supabase's API does not say it
+    // (sources/storage.ts diskBytes). 256 since Caleb resized it, November 2026.
+    "SUPABASE_DB_LIMIT_GB": "256",
     "GITHUB_REPO": "genesis-ai-dev/langquest-next",
     // apps/mobile/app.json extra.eas.projectId
     "EXPO_PROJECT_ID": "582d3757-4245-419a-9087-e269e3bf4c4d",

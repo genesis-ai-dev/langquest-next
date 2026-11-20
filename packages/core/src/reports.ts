@@ -23,7 +23,7 @@ import type { LanguageState } from './state';
  */
 
 /** Bump when the report's shape or meaning changes. */
-export const REPORT_VERSION = 5;
+export const REPORT_VERSION = 6;
 
 /** Weeks of activity and coverage history a report carries, ending with the week that holds `now`. */
 export const REPORT_WEEKS = 53;
@@ -133,6 +133,8 @@ export interface LanguageReport {
   /** ISO 3166-1 alpha-2, or null when nobody set it. */
   country: string | null;
   flowName: string;
+  /** The library item of the template the language uses (its name is in the organization's library), or null when none. */
+  templateItemId: string | null;
   target: LanguageTarget | null;
   progress: LanguageProgress;
   work: Record<PassageWork, number>;
@@ -222,6 +224,7 @@ export interface ReportInputs {
   /** Start of the first day the upload log holds: the log's first day when it was extracted. */
   logFrom: number;
   flowName: string;
+  templateItemId: string | null;
   progress: LanguageProgress;
   work: Record<PassageWork, number>;
   stages: StageCount[];
@@ -436,6 +439,7 @@ export function reportInputs(state: LanguageState, asOf: number, idx: Indexes = 
     v: REPORT_VERSION,
     logFrom,
     flowName: flow.name,
+    templateItemId: state.template?.value.itemId ?? null,
     progress: languageProgress(state, idx),
     work,
     stages,
@@ -542,6 +546,7 @@ export function renderLanguageReport(inputs: ReportInputs, info: LanguageInfo, n
     code: info.code,
     country: info.country,
     flowName: inputs.flowName,
+    templateItemId: inputs.templateItemId,
     target: info.target ? { ...info.target } : null,
     progress: inputs.progress,
     work: inputs.work,

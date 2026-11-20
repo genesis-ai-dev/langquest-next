@@ -54,6 +54,11 @@ export const READINGS: Record<string, Reading> = {
   'study-answer': part('grace', ['Nicodème vient voir Jésus la nuit.', 'Il veut comprendre, mais il a peur des autres.']),
   // Luke 14:17-18 again, slower: the fix for Ruth's feedback.
   'needs-2-again': part('grace', NEEDS_2, 0.95),
+  // Luke 16:22-23, Part 2 of the finished Luke 16:19-31 said again (Edit a finished version).
+  'done-2-again': part('grace', [
+    "Le pauvre mourut, et il fut porté par les anges dans le sein d'Abraham. Le riche mourut aussi, et il fut enseveli.",
+    "Dans le séjour des morts, il leva les yeux ; et, tandis qu'il était en proie aux tourments, il vit de loin Abraham, et Lazare dans son sein."
+  ]),
   // Ruth's feedback in Do a check.
   'check-feedback': part('ruth', ['Verse twelve is a little fast. Please slow down there, so people can follow who is speaking.']),
   // Ruth says each part of Luke 14:25-35 again in her own language.
