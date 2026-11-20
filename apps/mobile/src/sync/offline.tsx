@@ -30,6 +30,7 @@ import { useStudyRevision } from './useOfflineSummary';
 import { WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
 import { a11yState } from '../ui/a11yModel';
+import { useSlowly } from '../ui/useSlowly';
 import { noteExpected } from '../diagnostics/report';
 
 /**
@@ -184,20 +185,6 @@ function ReferenceSwitch(props: { ctx: Ctx; unitId: string; on: boolean; offline
   );
 }
 
-/** A value that can change many times a second, followed at most once every `ms`: the latest is taken when the wait ends. */
-function useSlowly<T>(value: T, ms: number): T {
-  const [slow, setSlow] = useState(value);
-  const latest = useRef(value);
-  latest.current = value;
-  const waiting = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (Object.is(value, slow) || waiting.current) return;
-    waiting.current = setTimeout(() => { waiting.current = null; setSlow(latest.current); }, ms);
-  }, [value, slow, ms]);
-  useEffect(() => () => { if (waiting.current) clearTimeout(waiting.current); waiting.current = null; }, []);
-  return slow;
-}
-
 /**
  * What keeping some passages would take: `bytes` of audio to bring down in
  * `files` (both null when the device could not work it out), and the `room`
@@ -270,7 +257,7 @@ function useGroup(ctx: Ctx, unitIds: readonly string[], sized: boolean): { look:
     const now = await ask();
     const bytes = now.bytes ?? 0;
     if (!fits(bytes, now.room)) { ctx.toast(noRoomWords(bytes, now.room ?? 0)); return; }
-    // For their recordings alone: a whole book's study guides would be thousands of files (decision amended 2026-11-20).
+    // For their recordings alone: a whole book's study guides would be over a thousand files (decision amended 2026-11-20).
     await keepOffline(g.toKeep, true, { recordingsOnly: true });
   };
   const onPress = look.tap === 'keep' ? () => { void keep(); }
