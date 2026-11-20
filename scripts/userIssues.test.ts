@@ -104,6 +104,15 @@ describe('user-issues.mjs', () => {
     for (const job of ['watch', 'follow']) expect(jobs[job], job).toContain("if: ${{ github.event.schedule != '23 13 * * *' && !inputs.research }}");
     expect(jobs['research']).toContain("if: ${{ github.event.schedule == '23 13 * * *' || inputs.research }}");
     expect(yml).toContain("group: user-issues${{ (github.event.schedule == '23 13 * * *' || inputs.research) && '-research' || '' }}");
+    // The agent team signs in with its own token, billed to the organization; without it, it does nothing.
+    for (const job of ['fix', 'vet', 'research']) {
+      expect(jobs[job], job).toContain('claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}');
+      expect(jobs[job], job).not.toContain('secrets.CLAUDE_CODE_OAUTH_TOKEN');
+    }
+    expect(jobs['watch']).toContain("HAS_TEAM_TOKEN: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN != '' }}");
+    expect(jobs['research']).toContain("HAS_TEAM_TOKEN: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN != '' }}");
+    expect(read('scripts/user-issues.mjs')).toContain("const off = modeHere() === 'off' || noToken;");
+    expect(read('scripts/agent-research.mjs')).toContain("process.env.HAS_TEAM_TOKEN !== 'true'");
     expect(lead).toContain('--model opus --allowedTools "Read,Glob,Grep,Write,Agent,Task,Bash(git log:*),Bash(git show:*)"');
     expect(lead).not.toMatch(/LINEAR_API_KEY|show_full_output|display_report/);
     expect(lead).toContain('"The research team"');

@@ -110,8 +110,9 @@ const git = (args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ign
 
 async function facts(dir) {
   mkdirSync(dir, { recursive: true });
-  if (modeHere() === 'off') {
-    console.log('the agent team is off: no research');
+  // Without its own Claude token (AGENT_TEAM_CLAUDE_TOKEN, docs/agent-team.md) the team does nothing, as when off.
+  if (modeHere() === 'off' || process.env.HAS_TEAM_TOKEN !== 'true') {
+    console.log(modeHere() === 'off' ? 'the agent team is off: no research' : 'the agent team has no AGENT_TEAM_CLAUDE_TOKEN: no research');
     output({ work: 0 });
     return;
   }

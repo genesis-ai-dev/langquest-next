@@ -984,8 +984,10 @@ async function file(dir) {
 
   // The issues an admin left an instruction on go to the fix jobs too, after the new issues.
   // In mode off the team writes no fix and reads no instruction (scripts/agent-team.mjs MODES).
-  const off = modeHere() === 'off';
-  if (off) console.log('the agent team is off: no fix is written');
+  // Without its own Claude token (AGENT_TEAM_CLAUDE_TOKEN, docs/agent-team.md) the team does nothing, as when off.
+  const noToken = process.env.HAS_TEAM_TOKEN !== 'true';
+  const off = modeHere() === 'off' || noToken;
+  if (off) console.log(noToken ? 'the agent team has no AGENT_TEAM_CLAUDE_TOKEN: no fix is written, and instructions wait' : 'the agent team is off: no fix is written');
   const noted = off ? { fixes: [], taken: [] } : notesToTake(watch.notes, fixes);
   // What was done goes back even when some of it failed, so it is not done twice.
   // Last, the issues the research recommends a fix for (docs/agent-team.md "The research team").

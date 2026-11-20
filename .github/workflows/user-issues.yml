@@ -25,6 +25,12 @@
 # the disk). The step before Claude asks the Worker for them and keeps them
 # in .user-issues/evidence on the runner: never in a log or an artifact.
 #
+# The agent team (the jobs fix, vet and research) signs in with a token of
+# its own, AGENT_TEAM_CLAUDE_TOKEN, from a Claude account billed to the
+# organization, not a developer's plan. Without it the team does nothing: no
+# fix is written, an admin's instruction waits, and no research runs. The
+# watch's own look below keeps the token it had.
+#
 # Claude signs in with a Claude plan's token (CLAUDE_CODE_OAUTH_TOKEN), as
 # tutorial-review.yml does; without it, or when Claude refuses it, the run
 # fails with "Needs you: Claude token" for the ops dashboard.
@@ -110,6 +116,8 @@ jobs:
       plans: ${{ steps.file.outputs.plans }}
     env:
       HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+      # Without the agent team's own token, the file step hands no issue to the fix jobs.
+      HAS_TEAM_TOKEN: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -217,7 +225,7 @@ jobs:
           # The manager's effort. A Claude Code that does not know the name runs at its own.
           CLAUDE_CODE_EFFORT_LEVEL: ${{ env.FIX_EFFORT }}
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}
           github_token: ${{ github.token }}
           allowed_bots: github-merge-queue
           prompt: |
@@ -444,7 +452,7 @@ jobs:
         env:
           CLAUDE_CODE_EFFORT_LEVEL: high
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}
           github_token: ${{ github.token }}
           allowed_bots: github-merge-queue
           prompt: |
@@ -566,7 +574,8 @@ jobs:
       contents: read
       id-token: write
     env:
-      HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+      # Without the agent team's own token the facts step says there is no work, and nothing runs.
+      HAS_TEAM_TOKEN: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -581,16 +590,11 @@ jobs:
       - name: What the team fixed, in its own words
         id: facts
         run: node scripts/agent-research.mjs facts .research
-      - name: Without a Claude token, say so
-        if: steps.facts.outputs.work == '1' && env.HAS_CLAUDE_TOKEN != 'true'
-        run: |
-          echo "::error title=Needs you%3A Claude token::The research team has no CLAUDE_CODE_OAUTH_TOKEN. Run claude setup-token, then npm run env:update -- production CLAUDE_CODE_OAUTH_TOKEN and npm run secrets -- production. https://github.com/${{ github.repository }}/blob/main/docs/agent-team.md"
-          exit 1
       - name: The lead and its scouts look for the same mistake in other places
         if: steps.facts.outputs.work == '1'
         uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}
           github_token: ${{ github.token }}
           allowed_bots: github-merge-queue
           prompt: |

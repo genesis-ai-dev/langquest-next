@@ -213,9 +213,15 @@ box **Tell Claude what to do**
 
 ## What it needs
 
-- `CLAUDE_CODE_OAUTH_TOKEN` (repository secret): the Claude plan's token,
-  from `claude setup-token`. Set it with `npm run env:update -- production
-  CLAUDE_CODE_OAUTH_TOKEN`, then `npm run secrets -- production`.
+- `AGENT_TEAM_CLAUDE_TOKEN` (repository secret): the agent team's own
+  Claude token, from a Claude account billed to the organization, not a
+  developer's plan. Make it with `claude setup-token` while signed in to
+  that account. Set it with `npm run env:update -- production
+  AGENT_TEAM_CLAUDE_TOKEN`, then `npm run secrets -- production`. The jobs
+  `fix`, `vet` and `research` use it. **Without it the team does nothing**:
+  no fix is written, an admin's instruction waits on its card, and no
+  research runs. The watch still judges and files each problem, with its
+  own token (`CLAUDE_CODE_OAUTH_TOKEN`), as before the team.
 - `RELEASE_APP_ID` (variable) and `RELEASE_APP_PRIVATE_KEY` (secret):
   LangQuest's GitHub App, which the tutorial videos' fixes already use. It
   opens the pull request so that its checks start, and turns on its merge.

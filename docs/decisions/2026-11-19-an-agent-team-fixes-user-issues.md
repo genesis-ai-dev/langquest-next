@@ -58,3 +58,10 @@ developer must understand an issue from its card without the code. The
 diagram is steps and not a drawing by Claude, so nothing Claude writes
 runs or is shown as markup on the admin page. A recommended research item
 has the same box to tell Claude what to do as a user issue.
+
+Amended (2026-11-20, Caleb Koster): the agent team signs in with a token of
+its own, `AGENT_TEAM_CLAUDE_TOKEN`, from a Claude account billed to Frontier,
+and not with a developer's plan token. Until that secret exists, the team
+does nothing: no fix, no research, and an admin's instruction waits. Reason:
+the agent runs must be billed to the organization. The watch's own look
+keeps `CLAUDE_CODE_OAUTH_TOKEN`, as before the team.
