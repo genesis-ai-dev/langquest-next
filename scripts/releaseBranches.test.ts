@@ -334,6 +334,14 @@ describe('a copy with a conflict', () => {
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toContain('--denied "$DENIED"');
     expect(yml).toContain('steps.denied.outputs.count');
+    // Only a refused npm, npx or node counts: a refused echo or python3 left #578 and #588 unfinished although Claude checked them.
+    const counter = yml.slice(yml.indexOf('- id: denied'), yml.indexOf("- name: Push Claude's commits"));
+    const source = String.raw`(^|[;&|(]\s*)(npm|npx|node)\s`;
+    expect(counter).toContain(`/${source}/.test(`);
+    const re = new RegExp(source);
+    for (const c of ['npm ci', 'cd apps/mobile && npx tsc -b', 'node scripts/x.mjs']) expect(re.test(c)).toBe(true);
+    for (const c of ["echo '{}' > .release-copy.json", "python3 - <<'E'", 'cd apps/mobile; grep -n BUDGET x']) expect(re.test(c)).toBe(false);
+    expect(counter).toContain('count=${blocked.length}');
     const script = readFileSync('scripts/release-branches.mjs', 'utf8');
     const finish = script.slice(script.indexOf('function finishCopy('), script.indexOf('async function main'));
     expect(finish.indexOf('if (denied > 0)')).toBeGreaterThan(-1);
