@@ -284,7 +284,7 @@
       }
     },
     "give": {
-      "intro": "Ponsel ini membuat jaringan Wi-Fi sendiri. Ponsel baru memindai dua kode dengan kameranya: satu untuk terhubung ke jaringan itu, satu untuk mengunduh LangQuest. Kedua ponsel tidak perlu internet.",
+      "intro": "Berikan LangQuest ke ponsel baru. Kedua ponsel tidak perlu internet.",
       "rowSub": "Saat Anda bersama orang baru",
       "rowHelp": "Membuka Berikan aplikasi, tempat ponsel ini mengirim LangQuest ke ponsel baru lewat jaringan Wi-Fi yang dibuatnya sendiri.",
       "linkHelp": "Membuka Berikan aplikasi, untuk mengirim LangQuest ke ponsel baru lewat jaringan Wi-Fi yang dibuat ponsel ini.",
@@ -343,9 +343,23 @@
       },
       "quickShare": {
         "button": "Kirim lewat Quick Share",
-        "help": "Membuka lembar berbagi ponsel ini dengan file instalasi. Pilih Quick Share, lalu ponsel baru.",
-        "line": "Quick Share adalah cara lain untuk mengirimnya. Quick Share memerlukan layanan Google Play di kedua ponsel, yang tidak ada di ponsel yang dijual di Tiongkok. Di ponsel baru, buka Quick Share dan buat ponsel itu terlihat oleh semua orang di sekitar. Terima file-nya, lalu buka dan ketuk Instal.",
-        "failed": "Lembar berbagi tidak terbuka. Coba lagi."
+        "help": "Membuka lembar berbagi ponsel ini dengan file instalasi.",
+        "failed": "Lembar berbagi tidak terbuka. Coba lagi.",
+        "letInHelp": "Membuka Izinkan seseorang masuk, untuk mengizinkan mereka masuk setelah LangQuest terpasang di ponsel baru.",
+        "on": {
+          "newFirst": "Pertama, di ponsel baru",
+          "this": "Lalu, di ponsel ini",
+          "newThen": "Lalu, di ponsel baru",
+          "thisThen": "Terakhir, di ponsel ini"
+        },
+        "steps": {
+          "open": "Geser ke bawah dari bagian atas layar, lalu ketuk Quick Share. Jika tidak ada, buka Pengaturan dan cari Quick Share.",
+          "visible": "Pilih Semua orang, agar ponsel ini bisa menemukannya. Taruh di dekat sini, dengan layar tetap menyala.",
+          "send": "Ketuk Kirim lewat Quick Share. Di lembar berbagi, ketuk Quick Share, lalu nama ponsel baru.",
+          "accept": "Ketuk Terima. Setelah file sampai, ketuk Buka. Jika Buka sudah hilang, cari file-nya di aplikasi file, di Download.",
+          "letIn": "Setelah LangQuest terpasang dan dibuka di ponsel baru, ketuk Izinkan mereka masuk.",
+          "install": "Izinkan pemasangan dari sumber ini, jika ponsel meminta. Ketuk Instal."
+        }
       },
       "page": {
         "title": "Pasang LangQuest",
@@ -357,7 +371,16 @@
         "stepInstall": "Ketuk Instal.",
         "stepJoin": "Buka LangQuest. LangQuest menemukan ponsel rekan tim Anda dengan sendirinya. Jika tidak, kembali ke halaman ini dan ketuk Gabung.",
         "join": "Gabung"
-      }
+      },
+      "ways": "Pilih satu cara untuk mengirimnya",
+      "way": {
+        "wifi": "Wi-Fi ponsel ini",
+        "wifiSub": "Ponsel baru memindai dua kode. Bisa dipakai di ponsel Android apa pun.",
+        "quickShare": "Quick Share",
+        "quickShareSub": "Kedua ponsel memerlukan layanan Google Play."
+      },
+      "wayHelp": "Memilih cara ini untuk mengirim file instalasi. Langkah dan tombolnya muncul di bawah.",
+      "wifiLine": "Ponsel ini membuat jaringan Wi-Fi sendiri. Ponsel baru memindai dua kode dengan kameranya: satu untuk terhubung ke jaringan itu, satu untuk mengunduh LangQuest."
     }
   }
 }
