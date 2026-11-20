@@ -74,6 +74,12 @@ export interface LanguageStatus {
   /** Units this person chose to keep offline, beyond their own work. */
   keptUnits: ReadonlySet<string>;
   /**
+   * Of `keptUnits`, those kept for their recordings alone: a book's or a
+   * section's passages, kept together. The rest were kept one by one, and
+   * take their reference material along (study guide, reference audio).
+   */
+  recordingsOnly: ReadonlySet<string>;
+  /**
    * The passages kept offline and how much of each one's audio is here,
    * the whole scope at a glance, and the passages this person keeps by
    * default (asked of them or worked in); worked out after changes, so a
@@ -179,6 +185,8 @@ const INBOX_PASSAGES_PER_READ = 25;
 export const FILE_NEWS_MS = 500;
 
 const keepKey = (orgId: string, languageId: string) => `keep:${orgId}/${languageId}`;
+/** The passages kept for their recordings alone (a book's button), beside `keepKey`'s, which are kept with their reference material. */
+const keepRecordingsKey = (orgId: string, languageId: string) => `keep-recordings:${orgId}/${languageId}`;
 const sentKey = (orgId: string, languageId: string) => `sent:${orgId}/${languageId}`;
 /** Recordings of a language still to upload, as its session last counted them: what other languages' screens say is waiting there. */
 export const filesWaitingKey = (orgId: string, languageId: string) => `files-waiting:${orgId}/${languageId}`;
@@ -242,9 +250,10 @@ export class LanguageSession {
     });
     await client.trackOpen();
     await client.load('open');
-    const kept = new Set<string>(JSON.parse((await o.store.meta(keepKey(o.orgId, o.languageId))) || '[]') as string[]);
+    const light = new Set<string>(JSON.parse((await o.store.meta(keepRecordingsKey(o.orgId, o.languageId))) || '[]') as string[]);
+    const kept = new Set<string>([...JSON.parse((await o.store.meta(keepKey(o.orgId, o.languageId))) || '[]') as string[], ...light]);
     const sent = readSentLog(await o.store.meta(sentKey(o.orgId, o.languageId)));
-    session = new LanguageSession(o, client, kept, sent);
+    session = new LanguageSession(o, client, kept, light, sent);
     await session.near?.load();
     return session;
   }
@@ -255,11 +264,13 @@ export class LanguageSession {
     return [...this.current.scope, ...this.current.keptUnits, ...concerning(lines, this.o.actorId)];
   }
 
-  private constructor(private readonly o: LanguageSessionOptions, readonly client: SyncClient, kept: ReadonlySet<string>, sent: readonly SentEntry[]) {
+  private constructor(
+    private readonly o: LanguageSessionOptions, readonly client: SyncClient, kept: ReadonlySet<string>, recordingsOnly: ReadonlySet<string>, sent: readonly SentEntry[]
+  ) {
     this.current = {
       revision: client.publishedRevision, pending: 0, refusedEvents: 0, lastSync: 'never',
       online: null, tooOld: false, refused: null, pulled: false, live: false,
-      pendingUp: 0, pendingDown: 0, holding: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept,
+      pendingUp: 0, pendingDown: 0, holding: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept, recordingsOnly,
       keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines(), fill: client.fillProgress(),
       uploads: new Map(), sent, uploading: new Set(), downloading: new Set()
     };
@@ -497,22 +508,82 @@ export class LanguageSession {
    * Keep a passage offline, or stop keeping it. A book's or a section's
    * passages go as one list (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md):
    * one write, one download pass and one recount, however many they are.
+   *
+   * `recordingsOnly`: keep them for their recordings alone, as a book's
+   * button does, so that a whole book does not bring every passage's study
+   * guide and reference audio with it. It changes nothing for a passage
+   * kept already: one kept with its reference material is not made lighter
+   * by its book. Without it, as a passage's own button keeps one, the
+   * passage is kept with its reference material, whether or not it was kept
+   * for its recordings before.
    */
-  async keepOffline(unitIds: string | readonly string[], keep: boolean): Promise<void> {
-    const next = new Set(this.current.keptUnits);
-    let changed = false;
+  async keepOffline(unitIds: string | readonly string[], keep: boolean, how: { recordingsOnly?: boolean } = {}): Promise<void> {
+    const kept = new Set(this.current.keptUnits);
+    const light = new Set(this.current.recordingsOnly);
+    let whole = false;
+    let lighter = false;
     for (const unitId of typeof unitIds === 'string' ? [unitIds] : unitIds) {
-      if (next.has(unitId) === keep) continue;
-      if (keep) next.add(unitId);
-      else next.delete(unitId);
-      changed = true;
+      if (!keep) {
+        if (!kept.delete(unitId)) continue;
+        if (light.delete(unitId)) lighter = true;
+        else whole = true;
+      } else if (how.recordingsOnly) {
+        if (kept.has(unitId)) continue;
+        kept.add(unitId);
+        light.add(unitId);
+        lighter = true;
+      } else {
+        if (light.delete(unitId)) lighter = true;
+        else if (kept.has(unitId)) continue;
+        kept.add(unitId);
+        whole = true;
+      }
     }
     // Nothing to write: a second tap on a book already kept, or one let go.
-    if (!changed) return;
-    this.set({ keptUnits: next });
-    await this.o.store.setMeta(keepKey(this.o.orgId, this.o.languageId), JSON.stringify([...next]));
+    if (!whole && !lighter) return;
+    this.set({ keptUnits: kept, recordingsOnly: light });
+    await this.saveKept(kept, light, { whole, lighter });
     this.down.nudge();
     this.recount();
+  }
+
+  /**
+   * Switch a passage kept by choice between its recordings alone and its
+   * recordings with its reference material: the switch on a passage's
+   * screen, which goes both ways. Its recordings stay kept either way, so
+   * nothing is fetched or counted again here; the app's study guide and
+   * reference audio follow the list. Nothing for a passage not kept.
+   */
+  async keepReference(unitIds: string | readonly string[], withReference: boolean): Promise<void> {
+    const kept = this.current.keptUnits;
+    const light = new Set(this.current.recordingsOnly);
+    let changed = false;
+    for (const unitId of typeof unitIds === 'string' ? [unitIds] : unitIds) {
+      if (!kept.has(unitId) || light.has(unitId) !== withReference) continue;
+      if (withReference) light.delete(unitId);
+      else light.add(unitId);
+      changed = true;
+    }
+    if (!changed) return;
+    this.set({ recordingsOnly: light });
+    // A passage that changes lists leaves one and joins the other: the one it joins is written first.
+    await this.saveKept(kept, light, { whole: true, lighter: true, lighterFirst: !withReference });
+  }
+
+  /**
+   * The two kept lists on disk, each written only when it changed: a book
+   * kept is one write, of the list it joined. A passage that moves between
+   * them is written to the list it joins before the one it leaves
+   * (`lighterFirst`: it joins the recordings list), so an app stopped
+   * between the two writes finds it in both and still kept, never in neither.
+   */
+  private async saveKept(kept: ReadonlySet<string>, light: ReadonlySet<string>, changed: { whole: boolean; lighter: boolean; lighterFirst?: boolean }): Promise<void> {
+    const { store, orgId, languageId } = this.o;
+    const whole = () => store.setMeta(keepKey(orgId, languageId), JSON.stringify([...kept].filter((u) => !light.has(u))));
+    const lighter = () => store.setMeta(keepRecordingsKey(orgId, languageId), JSON.stringify([...light]));
+    if (changed.lighter && changed.lighterFirst) await lighter();
+    if (changed.whole) await whole();
+    if (changed.lighter && !changed.lighterFirst) await lighter();
   }
 
   /**
