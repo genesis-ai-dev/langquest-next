@@ -267,3 +267,12 @@ leaves the copy unfinished and labels it `copy-claude-blocked`, and the ops
 dashboard then says that the copy workflow needs a fix, not the copy. Whether
 to turn the action's check off for copies (`restrict_untrusted_prs`) is
 Caleb's choice, not made here.
+
+Amended (2026-11-20, Caleb Koster): only a refused `npm`, `npx` or `node`
+command makes a copy unfinished and labels it `copy-claude-blocked`. After
+the copy workflow let Claude run the tests
+(`docs/decisions/2026-11-20-copies-let-claude-run-the-tests.md`), Claude
+checked copies #578 and #588, but it also tried an `echo`, a `python3` and a
+`cd` chain that its allowed tools do not include, and did those steps another
+way. The count of every refused command held both checked copies back, and
+the ops dashboard said that the workflow still blocked Claude.
