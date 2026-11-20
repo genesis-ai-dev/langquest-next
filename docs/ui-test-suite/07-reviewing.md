@@ -23,6 +23,9 @@ Code under test: `src/screens/review.tsx` (ReviewCapture),
   TRANS keeps it in REV-043.
 - P-Q2 (TRANS's Versions 1 and 2, what changed said by voice) gets "Needs
   changes" in REV-006, a fix in REV-042 and a kept reason in REV-045.
+- REV-052 to REV-056 each take a passage nobody has recorded and the fixture
+  does not name, and give it a version of TRANS's that REV's device does not
+  hold (LAN-317).
 - P-Q3 (TRANS's Version 1) gets "Needs changes" with a retelling in REV-007
   and is back-translated in REV-034 to REV-039.
 - P-NEW (Versions 1 and 2, what changed typed) is opened in REV-008, REV-010
@@ -477,7 +480,9 @@ Expected:
 - Step 1 works as online, and the toast says when it goes: "Looks good. {TRANS-name} gets it when this device is connected." (decision 166).
 - My Work shows the sync chip until step 2.
 - After step 2 nothing waits to upload, and TRANS sees the review after Sync now.
-- If the version's audio is not on the device, the player is disabled with a download icon and "Audio is not on this device yet." instead of failing to play, and "Next" stays off with "The recording is not on this phone yet. It plays here once the phone is online." (UI audit, finding 9). The automated test keeps P-S on the device first.
+- If the version's audio is not on the device and it was not played in this review, the review is held on Listen (LAN-317): REV-052. The automated test keeps P-S on the device first, so this test is about working offline, not about missing audio.
+
+Changed (2026-11-20, LAN-317): until then only Next waited while the audio was away (UI audit, finding 9); now the player's Note waits too, a draft left past Listen opens on Listen, and the footer says which of two reasons it is (REV-052 to REV-055).
 
 ### REV-023 A review the server refuses is not lost silently
 Roles: REV, COORD · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -519,6 +524,79 @@ Expected:
 - The phone steps are in the Maestro flow `flows/REV-008.yaml` (after REV-008's Back).
 
 Changed (2026-10-15, decision 127): "Leave without saving?" with "Keep reviewing" and "Leave" is gone; leaving keeps the review instead (`reviewing/reviewDraft.ts`). Still open: if the app is killed, voice notes and big-mic recordings are not resumed, because the recording journal only resumes parts that have a passage target (`src/recording/`, REC-023).
+
+### REV-052 Offline, a version not on this device is not checked; online again, it opens by itself
+Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Decided 2026-11-20 (LAN-317, `docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md`): a version that cannot be heard on this device is not checked from it.
+
+Preconditions:
+- A passage nobody asked REV about and REV never worked on, with TRANS's Version 1 (the automated test takes one the fixture does not name). Its record reads "Download for offline": the audio is not on the device.
+- The device is up to date, then airplane mode on.
+
+Steps:
+1. Open the passage and tap "Do the peer check".
+2. Turn airplane mode off, and stay on the screen.
+3. Tap "Next: decide".
+
+Expected:
+- Step 1 opens on Listen. The big player is off: its play button reads "Audio is not on this device yet" with a download icon, and its "Note" is off.
+- Above the footer: "The recording is not on this phone yet. It plays here once the phone is online.", and "Next: decide" is off.
+- After step 2, without opening the review again, the player plays from the server, "Note" works, the sentence goes and "Next: decide" comes on.
+- Step 3 opens Decide.
+
+### REV-053 A version not uploaded yet from the device it was made on is not checked until it is
+Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- A passage nobody asked REV about, with TRANS's Version 1 made on a phone that has not been online since: its events reached the server, its parts did not (the automated test sends the events through the server and keeps the files back).
+- Online.
+
+Steps:
+1. Open the passage and tap "Do the peer check".
+2. TRANS's phone comes online and uploads the parts. Stay on the screen.
+
+Expected:
+- Step 1 holds Listen as in REV-052, with the other reason: "The recording has not been uploaded yet from the device it was made on. It plays here once that device has been online."
+- After step 2, without opening the review again, the player plays, "Note" works, the sentence goes and "Next: decide" comes on.
+
+### REV-054 A review left past Listen opens on Listen when the version cannot be heard
+Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- As REV-052, online.
+
+Steps:
+1. Tap "Do the peer check" and, without playing the version, "Next: decide", "Needs changes", "Or type it", and type "Verse 3 is hard to follow".
+2. Tap the header's back arrow (to Decide), then ✕.
+3. Turn airplane mode on, then tap "Continue the peer check".
+4. Turn airplane mode off and stay on the screen. Then tap "Needs changes".
+
+Expected:
+- Step 3 opens on Listen, not on Decide where it was left: Listen is held as in REV-052, and Decide's "Is it accurate and natural?" does not show.
+- Step 4: once the version plays, the review goes back by itself to Decide, where it was left, and after "Needs changes" the typed words are still in the field (the draft is kept as it was, decision 127).
+- Opened on a question, a draft opens on Listen the same way. `apps/mobile/test/reviewCapture.test.ts` holds both ("keeps the review on Listen, wherever its draft was left").
+
+### REV-055 A version played in the review can be checked offline without its audio
+Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- As REV-052, online.
+
+Steps:
+1. Tap "Do the peer check", play the version, then "Next: decide", "Needs changes", "Or type it", and type "Clear enough".
+2. Tap the header's back arrow (to Decide), then ✕.
+3. Turn airplane mode on, then tap "Continue the peer check".
+4. Tap "Listen, done. Go back".
+5. Tap "Next: decide", then "Looks good", and "Leave it out" (the typed words were about what should change).
+6. Turn airplane mode off.
+
+Expected:
+- Step 3 opens on Decide, where it was left: the version was heard in this review, so it is not held.
+- Step 4: the player is off ("Audio is not on this device yet"), and still no sentence holds "Next: decide", which is on.
+- Step 5 saves on the device: "Looks good. {TRANS-name} gets it when this device is connected."
+- After step 6 nothing waits to upload and nothing is refused.
+- A check logged with "Already happened" was heard elsewhere and is not held either; `apps/mobile/test/reviewCapture.test.ts` holds that case ("holds nothing for a review logged afterwards").
 
 ### REV-025 A phone call while recording feedback
 Roles: REV · Priority: P2 · Platforms: iOS, Android · Run: Device
@@ -817,6 +895,26 @@ Expected:
 - An amber banner reads "Your parts were made from Version 1" with "Version 2 is out now, and publishing puts your back translation with it. Listen again and redo any part that changed."
 - The player now plays Version 2.
 
+### REV-056 A part that cannot be heard on this device is not said back from it
+Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Decided 2026-11-20 (LAN-317): Record and Note wait for a part that cannot be heard on this device; what was already said stays, and Done still sends it.
+
+Preconditions:
+- A passage with TRANS's Version 1 of two parts, made on a phone that has not been online since (its events reached the server, its parts did not), and Back translation asked of REV. (A passage asked of REV is kept on REV's device, so with its parts uploaded they would come down before REV went offline.)
+- REV's device is up to date, then airplane mode on.
+
+Steps:
+1. Open the passage and tap "Back-translate it".
+2. Turn airplane mode off, and stay on the screen.
+3. TRANS's phone comes online and uploads the parts. Stay on the screen.
+
+Expected:
+- Step 1: the player shows "Alpha · Version 1 · part 1", and its "Note" is off. Above the footer: "Part 1 is not on this device yet. You can say it back once the device is online.", and the big "Record part 1" is off.
+- After step 2: "Part 1 has not been uploaded yet from the device it was made on. You can say it back once that device has been online.", and "Record part 1" is still off.
+- After step 3, without leaving the screen, the sentence goes, and "Record part 1" and "Note" come on.
+- Done with what was already said is not held (REV-036): the automated test does not say a part first, since every part of its version is away.
+
 ---
 
 ## Answering feedback
@@ -867,7 +965,9 @@ Expected:
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- P-Q2's Version 2 has REV's needs-changes feedback (REV-006). Airplane mode on.
+- P-Q2's Version 2 has REV's needs-changes feedback (REV-006).
+- P-Q2 is kept on the device ("Download for offline" on its record, until it reads "On this device"): a fix starts from Version 2's parts, and a draft with a part that is not on the device is locked offline (REC-062).
+- Airplane mode on.
 
 Steps:
 1. Open P-Q2, "Hear the feedback", "Record a fix".
