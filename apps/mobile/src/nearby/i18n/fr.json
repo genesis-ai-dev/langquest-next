@@ -208,7 +208,8 @@
         "unreadable": "Ce fichier n’a pas pu être lu. Choisissez-le à nouveau.",
         "failed": "Impossible de garder une copie. Choisissez-le à nouveau.",
         "needsAndroid": "Ce téléphone ne garde pas de copie : Donner l’application nécessite Android 10 ou plus récent.",
-        "needsUpdate": "Ce téléphone ne garde pas encore de copie. Mettez à jour l’application depuis le store pour la donner par Wi-Fi."
+        "needsUpdate": "Ce téléphone ne garde pas encore de copie. Mettez à jour l’application depuis le store pour la donner par Wi-Fi.",
+        "keptBuilt": "Une copie construite le {{date}} est gardée sur ce téléphone pour Donner l’application. Vous pouvez supprimer celle des Téléchargements."
       },
       "scanLineGive": "Sur le nouveau téléphone, ouvrez LangQuest. Il trouve ce téléphone tout seul. Sinon, touchez Scanner un code, et pointez-le ici.",
       "minutesLeft": "Minutes restantes : {{n, number}}"
@@ -229,7 +230,10 @@
       "readyShort": "Fichier d’installation prêt",
       "done": "Prêt. Vous pouvez l’emporter avec vous hors ligne.",
       "newer": "Un fichier d’installation plus récent est prêt. Téléchargez-le tant que vous avez internet, puis choisissez-le.",
-      "newerShort": "Fichier d’installation pour une nouvelle personne : un plus récent est prêt"
+      "newerShort": "Fichier d’installation pour une nouvelle personne : un plus récent est prêt",
+      "getNewest": "Télécharger le fichier le plus récent",
+      "getNewestHelp": "Ouvre le navigateur du téléphone, qui télécharge le fichier d’installation le plus récent de cette version. Touchez ensuite Choisir le fichier téléchargé, et il remplace la copie gardée ici.",
+      "getNewestHelpOpen": "Ouvre le navigateur du téléphone, qui télécharge le fichier d’installation le plus récent de cette version. Quand le téléchargement est terminé, touchez Ouvrir, et il remplace la copie gardée ici."
     },
     "join": {
       "intro": "Rejoignez votre équipe depuis le téléphone d’un coéquipier, sans Internet. Votre compte est créé la première fois que votre téléphone se connecte à Internet.",
