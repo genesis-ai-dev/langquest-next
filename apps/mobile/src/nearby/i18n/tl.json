@@ -139,7 +139,7 @@
       "asRole": "Sasali siya bilang {{role}}. Mapapalitan ito ng isang admin kapag nakakonekta na siya sa internet.",
       "show": "Ipakita ang code",
       "newCode": "Bagong code",
-      "showHelp": "Gumagawa ng code na ii-scan ng bagong telepono. Gumagana ito nang dalawang minuto, para sa isang telepono.",
+      "showHelp": "Gumagawa ng code na ii-scan ng bagong telepono. Gumagana ito nang dalawang minuto, para sa isang telepono. Kung nagbibigay pa ang teleponong ito ng app sa sarili nitong Wi-Fi, gumagana ito nang 15 minuto, at kusa itong mahahanap ng bagong telepono.",
       "starting": "Inihahanda ang code…",
       "codeLabel": "Ang code na ii-scan ng bagong telepono",
       "scanLine": "Sa bagong telepono, buksan ang LangQuest, i-tap ang I-scan ang code, at itutok ito rito.",
@@ -166,7 +166,9 @@
         "browser": "Magbubukas ang browser ng telepono at ida-download nito ang install file.",
         "warning": "Kung magbabala ang browser na maaaring mapanganib ang file, piliing i-download pa rin ito. Ito ang sariling install file ng LangQuest.",
         "back": "Kapag tapos na ang download, bumalik sa LangQuest. Hindi mo kailangang buksan ang file.",
-        "choose": "I-tap ang {{button}}."
+        "choose": "I-tap ang {{button}}.",
+        "open": "Kapag tapos na ang pag-download, i-tap ang Buksan. Magbubukas ang LangQuest at susuriin ang file.",
+        "openGone": "Kung wala na ang Buksan, bumalik sa LangQuest at i-tap ang {{button}}."
       },
       "getLine": "Sa field, ipadala ito gamit ang Ibigay ang app. Puwede rin ang Quick Share, SD card o USB cable, pero kailangan ng Quick Share ang Google Play services sa dalawang telepono.",
       "getLineOther": "Sa field, ipadala ito sa bagong telepono sa Quick Share, SD card o USB cable. Kailangan ng Quick Share ang Google Play services sa dalawang telepono. Baka magtanong ang bagong telepono kung papayagan ang pag-install mula sa source na ito.",
@@ -176,6 +178,7 @@
       "choose": "Piliin ang na-download na file",
       "chooseHelp": "Binubuksan ang mga file ng telepono. Piliin ang install file na na-download ng browser, at titingnan ng app kung ito ang kailangan ng teleponong ito.",
       "chooseLine": "Kapag tapos na ang download, i-tap ang Piliin ang na-download na file. Kadalasan ito ang una sa mga kamakailang file mo.",
+      "chooseLineOpen": "Kung hindi mo na-tap ang Buksan sa browser, wala pa sa LangQuest ang file. Kapag tapos na ang download, i-tap ang Piliin ang na-download na file. Kadalasan ito ang una sa mga kamakailang file mo.",
       "getAgain": "I-download ulit",
       "getAgainHelp": "Binubuksan ulit ang browser ng telepono, kung hindi natapos ang download.",
       "checkOther": "Para sa ibang bersiyon ang file na ito: kailangan mo ang {{file}}",
@@ -206,7 +209,9 @@
         "failed": "Hindi makapagtabi ng kopya. Piliin ito ulit.",
         "needsAndroid": "Hindi nagtatabi ng kopya ang teleponong ito: kailangan ng Ibigay ang app ang Android 10 o mas bago.",
         "needsUpdate": "Hindi pa nagtatabi ng kopya ang teleponong ito. I-update ang app mula sa store para maibigay ito sa Wi-Fi."
-      }
+      },
+      "scanLineGive": "Sa bagong telepono, buksan ang LangQuest. Kusa nitong mahahanap ang teleponong ito. Kung hindi, i-tap ang I-scan ang code, at itutok ito rito.",
+      "minutesLeft": "Natitirang minuto: {{n, number}}"
     },
     "installFile": {
       "intro": "Kailangang may naka-install na LangQuest ang bagong telepono bago mo mapapasok ang may-ari nito. I-download dito ang install file habang may internet ka, at dalhin mo.",
@@ -294,7 +299,7 @@
       },
       "join": {
         "title": "1. Kumonekta sa Wi-Fi network ng teleponong ito",
-        "line": "Sa bagong telepono, buksan ang camera, itutok ito sa code na ito, at i-tap ang Kumonekta. Kapag nakakonekta na ito, i-tap ang Susunod.",
+        "line": "Sa bagong telepono, buksan ang camera, itutok ito sa code na ito, at i-tap ang Kumonekta. Kapag nakakonekta na ito, kusang lalabas ang ikalawang code. Kung hindi ito lumabas, i-tap ang Susunod.",
         "lineAgain": "Sa bagong telepono, buksan ang camera, itutok ito sa code na ito, at i-tap ang Kumonekta.",
         "code": "Code para kumonekta sa Wi-Fi network ng teleponong ito",
         "network": "Pangalan ng Wi-Fi: {{name}}",
@@ -305,7 +310,7 @@
       "nextHelp": "Ipinapakita ang ikalawang code, para sa download page, kapag nakakonekta na ang bagong telepono.",
       "download": {
         "title": "2. Buksan ang download page",
-        "line": "Itutok ang camera ng bagong telepono sa code na ito at buksan ang page. I-tap ang I-download.",
+        "line": "Itutok ang camera ng bagong telepono sa code na ito at buksan ang page. Kusang magsisimula ang pag-download. Kung hindi ito magsimula, i-tap ang I-download.",
         "warnings": "Kung sabihin ng browser ng bagong telepono na hindi ma-download nang ligtas ang file, piliing panatilihin ito. Kung magbabala ang browser na maaaring mapanganib ang file, piliing i-download pa rin ito. Ito ang sariling install file ng LangQuest.",
         "code": "Code para sa download page",
         "address": "O i-type ang address na ito sa browser nito: {{address}}",
@@ -316,6 +321,7 @@
       "sending": "Ipinapadala: {{sent}} sa {{total}} MB",
       "sent": "3. I-install ito",
       "sentLine": "Naipadala na ang file. Sa bagong telepono, buksan ang na-download na file at i-tap ang I-install. Baka magtanong ito nang isang beses kung papayagan ang pag-install mula sa source na ito. Pagkatapos, papasukin siya mula sa teleponong ito.",
+      "sentLineFinds": "Naipadala na ang file. Sa bagong telepono, buksan ang na-download na file at i-tap ang I-install. Baka magtanong ito nang isang beses kung papayagan ang pag-install mula sa source na ito. Kapag naka-install at nakabukas na ang LangQuest sa bagong telepono, kusa nitong mahahanap ang teleponong ito. I-tap ang Papasukin siya at piliin ang tungkulin niya.",
       "another": "Ibigay ito sa isa pang telepono",
       "anotherHelp": "Ipinapakita ulit ang dalawang code, para sa isa pang bagong telepono.",
       "letIn": "Papasukin siya",
@@ -335,14 +341,22 @@
         "failed": "Hindi nagsimula ang Wi-Fi network ng teleponong ito. Subukan ulit.",
         "permissionCovered": "Buksan muna ang Ibahagi sa malapit at payagan ang hinihingi nito. Saka bumalik at subukan ulit."
       },
+      "quickShare": {
+        "button": "Ipadala sa Quick Share",
+        "help": "Binubuksan ang share sheet ng teleponong ito na may install file. Piliin ang Quick Share, saka ang bagong telepono.",
+        "line": "Isa pang paraan ng pagpapadala ang Quick Share. Kailangan nito ang Google Play services sa dalawang telepono, na wala sa mga teleponong ibinebenta sa China. Sa bagong telepono, buksan ang Quick Share at gawing nakikita ng lahat ng nasa malapit ang telepono. Tanggapin ang file, saka buksan ito at i-tap ang I-install.",
+        "failed": "Hindi bumukas ang share sheet. Subukan ulit."
+      },
       "page": {
         "title": "I-install ang LangQuest",
         "size": "{{size}} MB",
         "download": "I-download",
-        "stepOpen": "Kapag tapos na ang pag-download, i-tap ang Buksan.",
+        "stepOpen": "Kusang magsisimula ang pag-download. Kung hindi ito magsimula, i-tap ang I-download. Kapag tapos na ang pag-download, i-tap ang Buksan.",
         "stepFind": "Kung wala na ang Buksan, hanapin ang {{name}} sa Mga Download, sa menu ⋮ ng browser o sa app ng mga file, at i-tap ito.",
         "stepAllow": "Payagan ang pag-install mula sa source na ito, kung magtanong ang telepono.",
-        "stepInstall": "I-tap ang I-install."
+        "stepInstall": "I-tap ang I-install.",
+        "stepJoin": "Buksan ang LangQuest. Kusa nitong mahahanap ang telepono ng kasamahan mo. Kung hindi, bumalik sa page na ito at i-tap ang Sumali.",
+        "join": "Sumali"
       }
     }
   }

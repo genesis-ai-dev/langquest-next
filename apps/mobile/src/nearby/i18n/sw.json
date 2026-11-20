@@ -139,7 +139,7 @@
       "asRole": "Anajiunga kama {{role}}. Msimamizi anaweza kulibadilisha baada ya yeye kufika kwenye intaneti.",
       "show": "Onyesha msimbo",
       "newCode": "Msimbo mpya",
-      "showHelp": "Hutengeneza msimbo wa simu mpya kusoma. Unafanya kazi kwa dakika mbili, kwa simu moja.",
+      "showHelp": "Hutengeneza msimbo wa simu mpya kusoma. Unafanya kazi kwa dakika mbili, kwa simu moja. Kama simu hii bado inatoa programu kupitia Wi-Fi yake yenyewe, unafanya kazi kwa dakika 15, na simu mpya inauona yenyewe.",
       "starting": "Inaandaa msimbo…",
       "codeLabel": "Msimbo wa simu mpya kusoma",
       "scanLine": "Kwenye simu mpya, fungua LangQuest, gusa Soma msimbo, na uielekeze hapa.",
@@ -166,7 +166,9 @@
         "browser": "Kivinjari cha simu kinafunguka na kupakua faili ya kusakinisha.",
         "warning": "Kivinjari kikionya kwamba faili inaweza kuwa hatari, chagua kuipakua hata hivyo. Ni faili ya kusakinisha ya LangQuest yenyewe.",
         "back": "Upakuaji ukiisha, rudi kwenye LangQuest. Huhitaji kufungua faili.",
-        "choose": "Gusa {{button}}."
+        "choose": "Gusa {{button}}.",
+        "open": "Upakuaji ukikamilika, gusa Fungua. LangQuest itafunguka na kukagua faili.",
+        "openGone": "Ikiwa Fungua imetoweka, rudi kwenye LangQuest kisha gusa {{button}}."
       },
       "getLine": "Ukiwa uwanjani, itume kwa Mpe mtu programu. Quick Share, kadi ya SD au kebo ya USB pia zinafaa, lakini Quick Share inahitaji huduma za Google Play kwenye simu zote mbili.",
       "getLineOther": "Ukiwa uwanjani, itume kwenye simu mpya kwa Quick Share, kadi ya SD au kebo ya USB. Quick Share inahitaji huduma za Google Play kwenye simu zote mbili. Huenda simu mpya ikaomba kuruhusu kusakinisha kutoka chanzo hiki.",
@@ -176,6 +178,7 @@
       "choose": "Chagua faili iliyopakuliwa",
       "chooseHelp": "Hufungua faili za simu. Chagua faili ya kusakinisha ambayo kivinjari kilipakua, na programu inakagua kwamba ndiyo ambayo simu hii inahitaji.",
       "chooseLine": "Upakuaji ukiisha, gusa Chagua faili iliyopakuliwa. Kwa kawaida huwa ya kwanza kati ya faili zako za hivi karibuni.",
+      "chooseLineOpen": "Kama hukugusa Fungua kwenye kivinjari, LangQuest bado haina faili. Upakuaji ukiisha, gusa Chagua faili iliyopakuliwa. Kwa kawaida huwa ya kwanza kati ya faili zako za hivi karibuni.",
       "getAgain": "Ipakue tena",
       "getAgainHelp": "Hufungua kivinjari cha simu tena, ikiwa upakuaji haukuisha.",
       "checkOther": "Faili hii ni ya toleo tofauti: unahitaji {{file}}",
@@ -206,7 +209,9 @@
         "failed": "Nakala haikuweza kuhifadhiwa. Ichague tena.",
         "needsAndroid": "Simu hii haihifadhi nakala: Mpe mtu programu inahitaji Android 10 au mpya zaidi.",
         "needsUpdate": "Simu hii bado haihifadhi nakala. Sasisha programu kutoka dukani ili kumpa mtu programu kupitia Wi-Fi."
-      }
+      },
+      "scanLineGive": "Kwenye simu mpya, fungua LangQuest. Itaipata simu hii yenyewe. Isipoipata, gusa Soma msimbo, na uielekeze hapa.",
+      "minutesLeft": "Dakika zilizobaki: {{n, number}}"
     },
     "installFile": {
       "intro": "Simu mpya inahitaji LangQuest iwe imesakinishwa kabla hujamruhusu mwenye simu aingie. Pakua faili ya kusakinisha hapa ukiwa bado na intaneti, na uende nayo.",
@@ -294,7 +299,7 @@
       },
       "join": {
         "title": "1. Unganisha kwenye mtandao wa Wi-Fi wa simu hii",
-        "line": "Kwenye simu mpya, fungua kamera, ielekeze kwenye msimbo huu na uguse Unganisha. Ikishaunganishwa, gusa Endelea.",
+        "line": "Kwenye simu mpya, fungua kamera, ielekeze kwenye msimbo huu na uguse Unganisha. Ikishaunganishwa, msimbo wa pili utaonekana wenyewe. Usipoonekana, gusa Endelea.",
         "lineAgain": "Kwenye simu mpya, fungua kamera, ielekeze kwenye msimbo huu na uguse Unganisha.",
         "code": "Msimbo wa kuunganisha kwenye mtandao wa Wi-Fi wa simu hii",
         "network": "Jina la Wi-Fi: {{name}}",
@@ -305,7 +310,7 @@
       "nextHelp": "Huonyesha msimbo wa pili, wa ukurasa wa kupakua, baada ya simu mpya kuunganishwa.",
       "download": {
         "title": "2. Fungua ukurasa wa kupakua",
-        "line": "Elekeza kamera ya simu mpya kwenye msimbo huu na ufungue ukurasa. Gusa Pakua.",
+        "line": "Elekeza kamera ya simu mpya kwenye msimbo huu na ufungue ukurasa. Upakuaji utaanza wenyewe. Usipoanza, gusa Pakua.",
         "warnings": "Kivinjari cha simu mpya kikisema kwamba faili haiwezi kupakuliwa kwa usalama, chagua kuihifadhi. Kivinjari kikionya kwamba faili inaweza kuwa hatari, chagua kuipakua hata hivyo. Ni faili ya kusakinisha ya LangQuest yenyewe.",
         "code": "Msimbo wa ukurasa wa kupakua",
         "address": "Au andika anwani hii kwenye kivinjari chake: {{address}}",
@@ -316,6 +321,7 @@
       "sending": "Inatuma: {{sent}} kati ya {{total}} MB",
       "sent": "3. Isakinishe",
       "sentLine": "Faili imetumwa. Kwenye simu mpya, fungua faili iliyopakuliwa na uguse Sakinisha. Huenda ikaomba mara moja kuruhusu kusakinisha kutoka chanzo hiki. Kisha mruhusu aingie kupitia simu hii.",
+      "sentLineFinds": "Faili imetumwa. Kwenye simu mpya, fungua faili iliyopakuliwa na uguse Sakinisha. Huenda ikaomba mara moja kuruhusu kusakinisha kutoka chanzo hiki. LangQuest ikishasakinishwa na kufunguliwa kwenye simu mpya, itaipata simu hii yenyewe. Gusa Mruhusu aingie na uchague jukumu lake.",
       "another": "Ipe simu nyingine programu",
       "anotherHelp": "Huonyesha tena misimbo yote miwili, kwa ajili ya simu nyingine mpya.",
       "letIn": "Mruhusu aingie",
@@ -335,14 +341,22 @@
         "failed": "Mtandao wa Wi-Fi wa simu hii haukuwaka. Jaribu tena.",
         "permissionCovered": "Fungua Shiriki karibu kwanza na uruhusu kile inachouliza. Kisha urudi na ujaribu tena."
       },
+      "quickShare": {
+        "button": "Tuma kwa Quick Share",
+        "help": "Hufungua ukurasa wa kushiriki wa simu hii na faili ya kusakinisha. Chagua Quick Share, kisha simu mpya.",
+        "line": "Quick Share ni njia nyingine ya kuituma. Inahitaji huduma za Google Play kwenye simu zote mbili, na simu zinazouzwa China hazina huduma hizo. Kwenye simu mpya, fungua Quick Share na uifanye simu ionekane kwa kila mtu aliye karibu. Kubali faili, kisha uifungue na uguse Sakinisha.",
+        "failed": "Ukurasa wa kushiriki haukufunguka. Jaribu tena."
+      },
       "page": {
         "title": "Sakinisha LangQuest",
         "size": "{{size}} MB",
         "download": "Pakua",
-        "stepOpen": "Upakuaji ukikamilika, gusa Fungua.",
+        "stepOpen": "Upakuaji utaanza wenyewe. Usipoanza, gusa Pakua. Upakuaji ukikamilika, gusa Fungua.",
         "stepFind": "Ikiwa Fungua imetoweka, tafuta {{name}} kwenye Vipakuliwa, katika menyu ⋮ ya kivinjari au katika programu ya faili, kisha uiguse.",
         "stepAllow": "Ruhusu kusakinisha kutoka chanzo hiki, simu ikiuliza.",
-        "stepInstall": "Gusa Sakinisha."
+        "stepInstall": "Gusa Sakinisha.",
+        "stepJoin": "Fungua LangQuest. Itaipata simu ya mwenzako wa timu yenyewe. Isipoipata, rudi kwenye ukurasa huu na uguse Jiunge.",
+        "join": "Jiunge"
       }
     }
   }

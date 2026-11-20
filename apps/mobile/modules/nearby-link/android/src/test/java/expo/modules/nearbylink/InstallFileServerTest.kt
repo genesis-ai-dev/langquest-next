@@ -7,12 +7,14 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.net.ConnectException
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
@@ -470,5 +472,133 @@ class InstallFileServerTest {
         fail("took $bad")
       } catch (e: IllegalArgumentException) {}
     }
+  }
+
+  private val joinLink = "langquestnext://join?v=1&t=wifi-direct&s=DIRECT-ab-Android_12cd&p=abcdefghjk&h=40123&k=AAAAAAAAAAAAAAAAAAAAAA&c=BBBBBBBBBBBBBBBBBBBBBB"
+
+  /**
+   * Why: the new phone's LangQuest, and the page's Join link, read the join link at `/join`
+   * (docs/nearby-sync-plan.md 14.5); with none set there is nothing to find. A link given counts
+   * as asked, as the page does; a 404 does not, or a new phone looking every few seconds before
+   * there is a link would keep an idle session from ever stopping.
+   */
+  @Test fun answersTheJoinLinkWithA302OnceSetAnd404Otherwise() {
+    val s = serving()
+    val before = ask(s, "GET", "/join")
+    assertEquals(404, before.status)
+    assertCommon(before)
+    s.setJoin(joinLink)
+    val a = ask(s, "GET", "/join")
+    assertEquals(302, a.status)
+    assertEquals(joinLink, a.header("Location"))
+    assertEquals(0, a.body.size)
+    assertCommon(a)
+    val head = ask(s, "HEAD", "/join")
+    assertEquals(302, head.status)
+    assertEquals(joinLink, head.header("Location"))
+    // Only the exact path, as everywhere else.
+    for (path in listOf("/join?x=1", "/join/", "/JOIN", "//join")) assertEquals(path, 404, ask(s, "GET", path).status)
+    s.setJoin(null)
+    assertEquals(404, ask(s, "GET", "/join").status)
+    assertEquals("only the two 302s", 2L, s.status().asked)
+    assertEquals(0L, s.status().sent)
+  }
+
+  /** Why: the link goes into a header as it is, so anything that is not a join link, or could end the header, is refused and the link set stays. */
+  @Test fun refusesAnythingButAJoinLink() {
+    val s = serving()
+    s.setJoin(joinLink)
+    for (bad in listOf("", "https://example.org/", "langquestnext://other?x=1", "$joinLink\r\nSet-Cookie: x=1", "langquestnext://join?" + "a".repeat(600), "langquestnext://join?a b")) {
+      try {
+        s.setJoin(bad)
+        fail(bad)
+      } catch (e: IllegalArgumentException) {}
+    }
+    assertEquals(joinLink, ask(s, "GET", "/join").header("Location"))
+  }
+
+  private val auto = "/$name?auto=1"
+
+  /**
+   * Why: the page's refresh starts the download by itself; a second download (a tap first, a
+   * reload, Chrome restoring the tab) makes Chrome ask "download multiple files?" or "download
+   * again?", and a Block holds against every session's address for good.
+   */
+  @Test fun theAutomaticDownloadGivesTheFileOnceAndThenNoContent() {
+    val s = serving()
+    val first = ask(s, "GET", auto)
+    assertEquals(200, first.status)
+    assertArrayEquals(bytes, first.body)
+    assertEquals("attachment; filename=\"$name\"", first.header("Content-Disposition"))
+    val again = ask(s, "GET", auto)
+    assertEquals(204, again.status)
+    assertEquals(0, again.body.size)
+    assertNull(again.header("Content-Length"))
+    assertNull(again.header("Content-Type"))
+    assertEquals("no-store", again.header("Cache-Control"))
+    assertEquals(204, ask(s, "HEAD", auto).status)
+    // Any other query on the file stays 404.
+    for (path in listOf("/$name?auto=2", "/$name?auto=1&x=1", "/$name?Auto=1")) assertEquals(path, 404, ask(s, "GET", path).status)
+    assertEquals(bytes.size.toLong(), s.status().sent)
+    assertEquals(1L, s.status().downloads)
+  }
+
+  /** Why: Chrome's parallel slices and a resume reuse the download's address with a `Range`; they continue the one download and must get their bytes. */
+  @Test fun aRangeOnTheAutomaticAddressIsStillServed() {
+    val s = serving()
+    assertEquals(200, ask(s, "GET", auto).status)
+    val slice = ask(s, "GET", auto, "Range: bytes=100000-")
+    assertEquals(206, slice.status)
+    assertArrayEquals(bytes.copyOfRange(100_000, bytes.size), slice.body)
+  }
+
+  /** Why: a tap on Download before the refresh fires is the first download; the refresh must not start a second. The button's own link still works. */
+  @Test fun aTapOnDownloadBeforeTheRefreshCountsAsHavingAsked() {
+    val s = serving()
+    assertEquals(200, ask(s, "GET", "/$name").status)
+    assertEquals(204, ask(s, "GET", auto).status)
+    assertEquals(200, ask(s, "GET", "/$name").status)
+  }
+
+  /** Why: a HEAD downloads nothing, so it does not stand in for the download. */
+  @Test fun aHeadDoesNotCountAsHavingAsked() {
+    val s = serving()
+    assertEquals(200, ask(s, "HEAD", auto).status)
+    assertEquals(200, ask(s, "GET", auto).status)
+  }
+
+  /** A connection to `s` from `from`, another loopback address; skipped where the machine has only 127.0.0.1. */
+  private fun connectFrom(s: InstallFileServer, from: String): Socket {
+    val socket = Socket()
+    opened.add(socket)
+    try {
+      socket.bind(InetSocketAddress(InetAddress.getByName(from), 0))
+    } catch (e: IOException) {
+      assumeTrue("no loopback address $from here", false)
+    }
+    socket.connect(InetSocketAddress(loopback, ports.getValue(s)), 5_000)
+    socket.soTimeout = 5_000
+    return socket
+  }
+
+  /** Why: each phone is remembered by its own address; another phone in the group still gets the file. */
+  @Test fun anotherPhoneStillGetsTheFile() {
+    val s = serving()
+    assertEquals(200, send(connectFrom(s, "127.0.0.2"), request("GET", auto)).status)
+    assertEquals(204, send(connectFrom(s, "127.0.0.2"), request("GET", auto)).status)
+    val other = send(connectFrom(s, "127.0.0.3"), request("GET", auto))
+    assertEquals(200, other.status)
+    assertArrayEquals(bytes, other.body)
+  }
+
+  /** Why: the set lives as long as the session, so it is bounded: past `MAX_ASKERS` the phone that asked longest ago is forgotten. */
+  @Test fun remembersAtMostSixtyFourPhonesForgettingTheOldest() {
+    val s = serving()
+    val phones = (0..InstallFileServer.MAX_ASKERS).map { "127.0.1.${it + 1}" }
+    for (p in phones) assertEquals(p, 206, send(connectFrom(s, p), request("GET", "/$name", "Range: bytes=0-0")).status)
+    assertEquals(204, send(connectFrom(s, phones.last()), request("GET", auto)).status)
+    // The first phone was forgotten: it gets the file again, and is remembered from then on.
+    assertEquals(200, send(connectFrom(s, phones.first()), request("GET", auto)).status)
+    assertEquals(204, send(connectFrom(s, phones.first()), request("GET", auto)).status)
   }
 }

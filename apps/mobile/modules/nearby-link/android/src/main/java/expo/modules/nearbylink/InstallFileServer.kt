@@ -28,18 +28,28 @@ import java.util.concurrent.atomic.AtomicLong
  * Give the app's page and file (docs/nearby-sync-plan.md 14.5): a small HTTP/1.1 server on the
  * Wi-Fi Direct group's own address, so only a phone in the group, which knows its passphrase,
  * reaches it. `GET /` is the page JavaScript wrote, `GET /<name>` the kept install file, with one
- * `Range` honoured (and `If-Range` against its validators) so a cut-off download resumes. Paths
- * are matched as exact strings and never normalised, so nothing else on the phone is ever
- * reachable: any other path is 404, any other method 405, and a request line and headers over
- * 8 KiB, or malformed, 400. Every answer closes its connection.
+ * `Range` honoured (and `If-Range` against its validators) so a cut-off download resumes.
+ * `GET /<name>?auto=1` is the page's own refresh starting the download: the file as `/<name>`
+ * gives it, except that a phone which has already asked for the file this session gets
+ * `204 No Content` unless it asks for a range (a parallel slice or a resume, which reuse the
+ * address). So a tap on Download before the refresh, a reload, or Chrome restoring the tab does
+ * not start a second download, whose "download multiple files?" a Block would hold against every
+ * session's address for good. `GET /join` is the join link JavaScript set (`setJoin`, `GiveJoin`)
+ * as a `302` to it, so the new phone's LangQuest finds it and the page's Join link opens it; 404
+ * while there is none. Paths are matched as exact strings and never normalised, so nothing else
+ * on the phone is ever reachable: any other path is 404, any other method 405, and a request line
+ * and headers over 8 KiB, or malformed, 400. Every answer closes its connection.
  *
  * It answers only `peers`, the group's own network: Linux takes packets for the group's address
  * that arrive on any interface, so the bound address alone does not keep other networks out.
  * At most `Limits.connections` are served at once; a further one is answered 503. A sweep on a
  * timer holds each connection to `Limits` (its whole life, and a floor on how fast an answer
  * moves), and stops serving altogether once the session's time is up or the group has gone
- * (`stillThere`), calling `onStopped`. Only requests for the page and the file count as asked,
- * so other requests cannot keep a session alive. It logs nothing. Pure Kotlin on `java.*`, so
+ * (`stillThere`), calling `onStopped`. Only requests for the page, the file and the join link
+ * (once one is set: a 404 there is a new phone looking too early) count as asked, so other
+ * requests cannot keep a session alive. The phones that asked for the
+ * file are remembered by address, at most `MAX_ASKERS`, the oldest forgotten first, for the
+ * session's life. It logs nothing. Pure Kotlin on `java.*`, so
  * JUnit runs it over loopback; the caller binds the socket, and `close` closes it.
  */
 class InstallFileServer(
@@ -74,6 +84,11 @@ class InstallFileServer(
 
   private val page = page.copyOf()
   private val filePath = "/$name"
+  private val autoPath = "/$name?auto=1"
+  /** What `/join` redirects to; null answers 404. */
+  @Volatile private var joinLink: String? = null
+  /** The addresses that asked for the file this session, oldest first (`askedFileBefore`). */
+  private val fileAskers = LinkedHashSet<InetAddress>()
   /** The file's size when serving began: what `Content-Length` and `total` say. */
   val total: Long = file.length()
   /** The file's validators, so a browser can resume a download: its name holds a hash, so name and size are enough. */
@@ -104,6 +119,12 @@ class InstallFileServer(
   data class Status(val serving: Boolean, val sent: Long, val total: Long, val downloads: Long, val asked: Long, val lastAskedMs: Long)
 
   fun status(): Status = Status(accepting && !closed, sentBytes.get(), total, downloadsDone.get(), askedCount.get(), lastAsked.get())
+
+  /** What `/join` answers from now on: a 302 to `link`, or 404 for null. Only a link `GiveJoin.ok` passes. */
+  fun setJoin(link: String?) {
+    require(link == null || GiveJoin.ok(link)) { "a join link" }
+    joinLink = link
+  }
 
   private class Connection(val socket: Socket) {
     val since = System.nanoTime()
@@ -281,7 +302,8 @@ class InstallFileServer(
     }
   }
 
-  private class Request(val method: String, val target: String, val range: String?, val ifRange: String?)
+  /** `ranged`: some `Range` came, used or not, so the request continues a download rather than starting one. */
+  private class Request(val method: String, val target: String, val range: String?, val ifRange: String?, val ranged: Boolean)
 
   /** The request, or null when it is malformed. */
   private fun parse(lines: List<String>): Request? {
@@ -305,7 +327,7 @@ class InstallFileServer(
     }
     // Two If-Range headers cannot both hold: the whole file then.
     val range = if (ifRanges.size > 1) null else ranges.singleOrNull()
-    return Request(method, target, range, ifRanges.singleOrNull())
+    return Request(method, target, range, ifRanges.singleOrNull(), ranges.isNotEmpty())
   }
 
   private fun respond(conn: Connection, out: OutputStream, r: Request) {
@@ -319,11 +341,45 @@ class InstallFileServer(
         asked()
         answer(out, 200, "OK", PAGE_HEADERS, Body("text/html; charset=utf-8", page), head)
       }
-      filePath -> {
+      "/join" -> {
+        val link = joinLink
+        if (link == null) {
+          // Not asked: a new phone looking every few seconds before there is a link must not keep the session alive.
+          answer(out, 404, "Not Found", emptyList(), text("Not found"), head)
+        } else {
+          asked()
+          answer(out, 302, "Found", listOf("Location" to link), Body(TEXT, ByteArray(0)), head)
+        }
+      }
+      filePath, autoPath -> {
         asked()
-        sendFile(conn, out, r, head)
+        val before = askedFileBefore(conn.socket.inetAddress, record = !head)
+        if (r.target == autoPath && !r.ranged && before) {
+          // Nothing to send and no Content-Length (RFC 9110 15.3.5): the browser stays on the page.
+          out.write(status(204, "No Content", emptyList(), null))
+          out.flush()
+        } else {
+          sendFile(conn, out, r, head)
+        }
       }
       else -> answer(out, 404, "Not Found", emptyList(), text("Not found"), head)
+    }
+  }
+
+  /**
+   * Whether `caller` had asked for the file before in this session, by either path. A GET also
+   * counts as asking now (a HEAD downloads nothing); the newest asker goes to the end, and past
+   * `MAX_ASKERS` the oldest is forgotten.
+   */
+  private fun askedFileBefore(caller: InetAddress?, record: Boolean): Boolean {
+    if (caller == null) return false
+    synchronized(fileAskers) {
+      val before = fileAskers.remove(caller)
+      if (before || record) {
+        fileAskers.add(caller)
+        while (fileAskers.size > MAX_ASKERS) fileAskers.remove(fileAskers.first())
+      }
+      return before
     }
   }
 
@@ -389,9 +445,11 @@ class InstallFileServer(
     out.flush()
   }
 
-  private fun status(code: Int, reason: String, headers: List<Pair<String, String>>, type: String): ByteArray {
+  /** The status line and headers; no `Content-Type` for a null `type` (a 204, which has no content). */
+  private fun status(code: Int, reason: String, headers: List<Pair<String, String>>, type: String?): ByteArray {
     val s = StringBuilder("HTTP/1.1 ").append(code).append(' ').append(reason).append("\r\n")
-    for ((k, v) in listOf("Content-Type" to type) + headers + COMMON) s.append(k).append(": ").append(v).append("\r\n")
+    val typed = if (type == null) emptyList() else listOf("Content-Type" to type)
+    for ((k, v) in typed + headers + COMMON) s.append(k).append(": ").append(v).append("\r\n")
     s.append("\r\n")
     return s.toString().toByteArray(Charsets.US_ASCII)
   }
@@ -426,6 +484,8 @@ class InstallFileServer(
   companion object {
     /** The request line and headers, blank line and all. */
     const val MAX_HEAD = 8_192
+    /** Phones remembered as having asked for the file: far past any group's. */
+    const val MAX_ASKERS = 64
     private const val CHUNK = 64 * 1024
     private const val ACCEPT_BACKOFF_MS = 250L
     private const val REFUSE_LINGER_MS = 200L

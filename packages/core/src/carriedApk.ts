@@ -79,3 +79,36 @@ export function carriedApkNameHere(fingerprint: string | null | undefined): stri
   if (!fingerprint) return null;
   return carriedApkName({ reducer: REDUCER_VERSION, lines: LINES_VERSION, protocol: NEARBY_PROTOCOL, fingerprint });
 }
+
+/**
+ * The content type the Worker gives a carried build that a carrier's browser downloads for
+ * LangQuest itself (docs/decisions/0246-a-carried-build-is-the-newcomers.md, amended 2026-11-20).
+ * The Android app opens this type, so the browser's own Open, when the download finishes, hands
+ * the file to the app, which checks it and keeps a copy for Give the app: no system picker, and no
+ * finding the way back. Not an install file's type, so the carrier's browser does not warn that it
+ * may be harmful, and Open does not offer to install it over the app. The bytes are the same.
+ */
+export const CARRIED_FILE_TYPE = 'application/x-carried-build';
+
+const APK_END = '.apk';
+const FILE_END = '.carried';
+
+/**
+ * The name a carrier's browser downloads a carried build under for the app to take, as
+ * `r21-l1-p1-0a1b2c3d.carried`: the same versions as `apkName`, so it names nothing either. Null
+ * for a name `carriedApkName` does not write.
+ */
+export function carriedFileName(apkName: string): string | null {
+  return parseCarriedApkName(apkName) ? `${apkName.slice(0, -APK_END.length)}${FILE_END}` : null;
+}
+
+/**
+ * The carried build a file's name stands for: an install file's own name as it is, or one
+ * `carriedFileName` writes as the install file's name; null for any other.
+ */
+export function carriedApkNameOf(fileName: string): string | null {
+  if (parseCarriedApkName(fileName)) return fileName;
+  if (!fileName.endsWith(FILE_END)) return null;
+  const name = `${fileName.slice(0, -FILE_END.length)}${APK_END}`;
+  return parseCarriedApkName(name) ? name : null;
+}

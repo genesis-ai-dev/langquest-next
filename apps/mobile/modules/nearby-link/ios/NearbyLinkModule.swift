@@ -281,6 +281,9 @@ public final class NearbyLinkModule: Module, RadioEvents {
     AsyncFunction("keepInstallFile") { (uri: String, name: String, minFreeBytes: Double, promise: Promise) in
       self.androidOnly(promise)
     }
+    AsyncFunction("installFileName") { (uri: String, promise: Promise) in
+      self.androidOnly(promise)
+    }
     AsyncFunction("keptInstallFile") { (promise: Promise) in
       self.androidOnly(promise)
     }
@@ -291,6 +294,18 @@ public final class NearbyLinkModule: Module, RadioEvents {
       self.androidOnly(promise)
     }
     AsyncFunction("giveAppStatus") { (promise: Promise) in
+      self.androidOnly(promise)
+    }
+    AsyncFunction("shareInstallFile") { (promise: Promise) in
+      self.androidOnly(promise)
+    }
+    AsyncFunction("hostOnGiveGroup") { (deadlineMs: Double, promise: Promise) in
+      self.androidOnly(promise)
+    }
+    AsyncFunction("setGiveJoin") { (link: String?, promise: Promise) in
+      self.androidOnly(promise)
+    }
+    AsyncFunction("findGiveJoin") { (promise: Promise) in
       self.androidOnly(promise)
     }
     AsyncFunction("stopGiveApp") { (promise: Promise) in

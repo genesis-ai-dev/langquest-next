@@ -1,3 +1,4 @@
+import { useEffect, useSyncExternalStore } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { t } from '../i18n';
 import type { Ctx } from '../shell/ctx';
@@ -8,6 +9,7 @@ import { Text } from '../ui/text';
 import { txt } from '../ui/textStyles';
 import { C, space, TINT } from '../ui/theme';
 import { apkGet, apkShown, apkStep, type KeepResult } from './carriedApkModel';
+import { handedFileNow, subscribeHandedFile, takeHandedFile } from './handedFile';
 import { NearbyIntro } from './NearbyIntro';
 import { useCarriedApk } from './useCarriedApk';
 
@@ -19,7 +21,11 @@ import { useCarriedApk } from './useCarriedApk';
  * once the file is in hand, when a green line says it is ready. Each step's other way on (Check
  * my file, Download it again, Choose the downloaded file) sits under its main button in the
  * footer. Before the browser opens, numbered steps say what follows: the browser downloads the
- * file, may warn that it is harmful, then back to LangQuest without opening it, and choose it.
+ * file, may warn that it is harmful, then back to LangQuest without opening it, and choose it. On
+ * a build the browser can hand the file to (`handOff`), the browser downloads it as the app's own
+ * type, with no warning, and its Open brings it here: this screen takes it (src/nearby/handedFile.android.ts)
+ * and checks and keeps it as one chosen, and the steps say to tap Open, or to come back and choose
+ * it if Open has gone (docs/decisions/0246-a-carried-build-is-the-newcomers.md, amended 2026-11-20).
  * While online, a copy two days behind this phone's app says a newer file is ready, and
  * Download in the browser is the main button again, with Choose the downloaded file under it (`keptBehind`,
  * docs/decisions/2026-11-19-carried-build-refreshed-daily.md). Choose a file you already have (Check my file until 2026-11-19) stays for a file got
@@ -30,6 +36,14 @@ import { useCarriedApk } from './useCarriedApk';
 export function GetInstallFileScreen(ctx: Ctx) {
   const apk = useCarriedApk();
   const { worn } = useAppCovered();
+  // A file the browser's Open handed over: taken once, and checked and kept here, which shows what came of it.
+  const handed = useSyncExternalStore(subscribeHandedFile, handedFileNow);
+  const { take } = apk.actions;
+  useEffect(() => {
+    if (handed === null) return;
+    const uri = takeHandedFile();
+    if (uri) take(uri);
+  }, [handed, take]);
   const get = apkGet({ needed: apk.needed, url: apk.url, online: ctx.language.online });
   const step = apkStep({ needed: apk.needed, opened: apk.opened, kept: apk.kept, canGive: apk.canGive, right: apk.right });
   const keeping = apk.checked?.keep === 'keeping';
@@ -59,16 +73,23 @@ export function GetInstallFileScreen(ctx: Ctx) {
   const footer = first || second ? <>{first}{second}</> : undefined;
   const waiting = step !== null && step !== 'done';
   // What the card between them says: when to choose, that a newer file is ready, and what a choice came to.
-  const line = newer ? t('nearby.installFile.newer') : step === 'choose' ? t('nearby.letIn.chooseLine') : null;
-  // What happens after Download in the browser, before it is pressed: the browser, its warning on an
-  // app file, coming back, and choosing the file (Carl, 2026-11-19). Not to open the file: on this
-  // phone that offers to install the carried build over the app.
-  const steps = (newer || step === 'get') && get !== null ? [
+  const line = newer ? t('nearby.installFile.newer') : step === 'choose' ? t(apk.handOff ? 'nearby.letIn.chooseLineOpen' : 'nearby.letIn.chooseLine') : null;
+  // What happens after Download in the browser, before it is pressed. Where the browser hands the
+  // file over: it downloads, Open brings it to LangQuest, and if Open has gone, come back and choose
+  // it (Carl, 2026-11-20). Elsewhere: the browser, its warning on an app file, coming back, and
+  // choosing the file (Carl, 2026-11-19), not opening it, which on this phone offers to install the
+  // carried build over the app.
+  const chooseLabel = t('nearby.letIn.choose');
+  const steps = (newer || step === 'get') && get !== null ? (apk.handOff ? [
+    t('nearby.letIn.getSteps.browser'),
+    t('nearby.letIn.getSteps.open'),
+    t('nearby.letIn.getSteps.openGone', { button: chooseLabel })
+  ] : [
     t('nearby.letIn.getSteps.browser'),
     t('nearby.letIn.getSteps.warning'),
     t('nearby.letIn.getSteps.back'),
-    t('nearby.letIn.getSteps.choose', { button: t('nearby.letIn.choose') })
-  ] : null;
+    t('nearby.letIn.getSteps.choose', { button: chooseLabel })
+  ]) : null;
   const wrong = apk.checked?.result === 'other' ? apk.checked : null;
   const kept = apk.checked?.result === 'right' ? apk.checked.keep ?? null : null;
   return (

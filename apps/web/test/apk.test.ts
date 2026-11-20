@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { CARRIED_APK_VERSION_CODE, carriedApkName, carriedApkNameHere } from '@langquest-next/core';
+import { CARRIED_APK_VERSION_CODE, CARRIED_FILE_TYPE, carriedApkName, carriedApkNameHere, carriedFileName } from '@langquest-next/core';
 import { APK_CONTENT_TYPE, apkNameOf, newestFitting, serveApk, type ApkBucket } from '../worker/apk';
 import { ownsResponse } from '../worker/securityHeaders';
 import { routeClass } from '../worker/requestTally';
@@ -116,13 +116,47 @@ describe('the APK route', () => {
     expect(none.asked).toEqual([`get ${mine}`, 'list r21-l1-p1-']);
   });
 
+  it('serves the same file for the app to take, under the same versions ending .carried and the app\'s own type, so the carrier\'s browser hands it to the app', async () => {
+    const { bucket, asked } = fakeBucket({ [NAME]: apk });
+    const file = carriedFileName(NAME)!;
+    const res = await serveApk(ask(`/apk/${file}`), bucket);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe(CARRIED_FILE_TYPE);
+    expect(res.headers.get('content-disposition')).toBe(`attachment; filename="${file}"`);
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(apk);
+    const part = await serveApk(ask(`/apk/${file}`, { headers: { range: 'bytes=4-' } }), bucket);
+    expect([part.status, part.headers.get('content-type'), part.headers.get('content-range')]).toEqual([206, CARRIED_FILE_TYPE, `bytes 4-9/${apk.length}`]);
+    const head = await serveApk(ask(`/apk/${file}`, { method: 'HEAD' }), bucket);
+    expect([head.status, head.headers.get('content-type'), head.headers.get('content-length')]).toEqual([200, CARRIED_FILE_TYPE, String(apk.length)]);
+    // The bucket holds one file per build, asked for by the install file's name.
+    expect(asked).toEqual([`get ${NAME}`, `get ${NAME}`, `head ${NAME}`]);
+    for (const path of [`/apk/${file}.apk`, `/apk/${NAME}.carried`, `/apk/${file.toUpperCase()}`, '/apk/current.carried', `/apk/${file.replace('.carried', ' (1).carried')}`]) {
+      expect((await serveApk(ask(path), bucket)).status, path).toBe(404);
+    }
+  });
+
+  it('sends a .carried name the bucket lacks to the newest file for the same versions, as .carried', async () => {
+    const fp = (f: string) => carriedApkName({ reducer: 21, lines: 1, protocol: { min: 1, max: 1 }, fingerprint: f })!;
+    const [mine, newest] = [fp('52e6dfee'), fp('401de22e')];
+    const { bucket } = fakeBucket({ [newest]: apk }, { [newest]: { code: '56', at: 2 } });
+    for (const method of ['GET', 'HEAD']) {
+      const res = await serveApk(ask(`/apk/${carriedFileName(mine)}`, { method }), bucket);
+      expect([res.status, res.headers.get('location')], method).toEqual([302, `/apk/${carriedFileName(newest)}`]);
+    }
+    // The install file's own name still goes to the install file.
+    expect((await serveApk(ask(`/apk/${mine}`), bucket)).headers.get('location')).toBe(`/apk/${newest}`);
+  });
+
   it('says it is not set up where the Worker has no APK bucket', async () => {
     expect((await serveApk(ask(`/apk/${NAME}`), undefined)).status).toBe(503);
     expect((await serveApk(ask('/apk/nothing'), undefined)).status).toBe(404);
   });
 
   it('reads names with the same function that names the file for the script and Let someone in', () => {
-    expect(apkNameOf(`/apk/${carriedApkNameHere('0a1b2c3d4e5f')}`)).toBe(carriedApkNameHere('0a1b2c3d4e5f'));
+    const here = carriedApkNameHere('0a1b2c3d4e5f')!;
+    expect(apkNameOf(`/apk/${here}`)).toEqual({ key: here, served: here, type: APK_CONTENT_TYPE });
+    expect(apkNameOf(`/apk/${carriedFileName(here)}`)).toEqual({ key: here, served: carriedFileName(here), type: CARRIED_FILE_TYPE });
     expect(apkNameOf('/api/apk/x')).toBeNull();
   });
 

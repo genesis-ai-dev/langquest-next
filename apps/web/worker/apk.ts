@@ -1,4 +1,4 @@
-import { CARRIED_APK_PATH, CARRIED_APK_VERSION_CODE, carriedApkVersionsPart, parseCarriedApkName, sameCarriedVersions } from '@langquest-next/core';
+import { CARRIED_APK_PATH, CARRIED_APK_VERSION_CODE, CARRIED_FILE_TYPE, carriedApkNameOf, carriedApkVersionsPart, carriedFileName, parseCarriedApkName, sameCarriedVersions } from '@langquest-next/core';
 
 /**
  * Carried builds (docs/nearby-sync-plan.md 14.4): `GET /apk/<name>` serves the Play-signed
@@ -12,6 +12,12 @@ import { CARRIED_APK_PATH, CARRIED_APK_VERSION_CODE, carriedApkVersionsPart, par
  * recordings and their auth. The download name is the file's own, which holds only versions, so
  * a file kept in Downloads or on an SD card says nothing about the app. Ranges are passed to R2,
  * so a download cut off on a poor link can go on where it stopped.
+ *
+ * The same file is also served as `/apk/<versions>.carried`, under the app's own type
+ * (`CARRIED_FILE_TYPE`), for a carrier's browser to hand to the app with its Open: the app opens
+ * that type, checks the file and keeps a copy for Give the app. Not an install file's name or type,
+ * so the browser does not warn that it may be harmful (docs/decisions/0246-a-carried-build-is-the-newcomers.md,
+ * amended 2026-11-20). The bucket holds one file per build, under the install file's name.
  */
 
 /** The content type Android installs from. */
@@ -22,17 +28,30 @@ export type ApkBucket = Pick<R2Bucket, 'get' | 'head' | 'list'>;
 
 const notFound = () => new Response('Not found.', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 
-/** The name a path asks for, when it is a carried build's name, else null. */
-export function apkNameOf(pathname: string): string | null {
+/** What a path asks for: the file in the bucket (`key`), and the name and type it is served under. */
+export interface ApkAsked { key: string; served: string; type: string }
+
+/**
+ * What a path asks for, when it names a carried build: as an install file (`<versions>.apk`, its
+ * own name in the bucket) or for the app to take (`<versions>.carried`, `carriedFileName`); else null.
+ */
+export function apkNameOf(pathname: string): ApkAsked | null {
   if (!pathname.startsWith(CARRIED_APK_PATH)) return null;
   const name = pathname.slice(CARRIED_APK_PATH.length);
-  return parseCarriedApkName(name) ? name : null;
+  const key = carriedApkNameOf(name);
+  if (!key) return null;
+  return { key, served: name, type: parseCarriedApkName(name) ? APK_CONTENT_TYPE : CARRIED_FILE_TYPE };
 }
 
-function headersFor(name: string, object: R2Object): Headers {
+/** The path another build's file is served under, in the same form as `asked`. */
+function pathFor(key: string, asked: ApkAsked): string {
+  return `${CARRIED_APK_PATH}${asked.type === CARRIED_FILE_TYPE ? carriedFileName(key) : key}`;
+}
+
+function headersFor(asked: ApkAsked, object: R2Object): Headers {
   const headers = new Headers();
-  headers.set('content-type', APK_CONTENT_TYPE);
-  headers.set('content-disposition', `attachment; filename="${name}"`);
+  headers.set('content-type', asked.type);
+  headers.set('content-disposition', `attachment; filename="${asked.served}"`);
   headers.set('etag', object.httpEtag);
   headers.set('accept-ranges', 'bytes');
   // Kept in no cache: the download list is trace enough on a carrier's phone, which may wear a disguise
@@ -61,32 +80,32 @@ export async function newestFitting(bucket: ApkBucket, name: string): Promise<st
 }
 
 /** Sends the browser to another carried build's file, so it downloads under that file's own name. Never cached: the newest changes. */
-function sendTo(name: string): Response {
-  return new Response(null, { status: 302, headers: { location: `${CARRIED_APK_PATH}${name}`, 'cache-control': 'private, no-store' } });
+function sendTo(path: string): Response {
+  return new Response(null, { status: 302, headers: { location: path, 'cache-control': 'private, no-store' } });
 }
 
-/** A file the bucket lacks: sent to the newest for the same versions, or 404 when there is none. */
-async function fitting(bucket: ApkBucket, name: string): Promise<Response> {
-  const newest = await newestFitting(bucket, name);
-  return newest && newest !== name ? sendTo(newest) : notFound();
+/** A file the bucket lacks: sent to the newest for the same versions, in the form asked for, or 404 when there is none. */
+async function fitting(bucket: ApkBucket, asked: ApkAsked): Promise<Response> {
+  const newest = await newestFitting(bucket, asked.key);
+  return newest && newest !== asked.key ? sendTo(pathFor(newest, asked)) : notFound();
 }
 
 /** `GET` or `HEAD /apk/<name>`: the file from the APK bucket, the newest for the same versions when it lacks that one, or 404. */
 export async function serveApk(request: Request, bucket: ApkBucket | undefined): Promise<Response> {
-  const name = apkNameOf(new URL(request.url).pathname);
-  if (!name || (request.method !== 'GET' && request.method !== 'HEAD')) return notFound();
+  const asked = apkNameOf(new URL(request.url).pathname);
+  if (!asked || (request.method !== 'GET' && request.method !== 'HEAD')) return notFound();
   // No binding is a Worker set up without the bucket (local development): nothing is served.
   if (!bucket) return new Response('Carried builds are not set up here.', { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } });
   if (request.method === 'HEAD') {
-    const object = await bucket.head(name);
-    if (!object) return fitting(bucket, name);
-    const headers = headersFor(name, object);
+    const object = await bucket.head(asked.key);
+    if (!object) return fitting(bucket, asked);
+    const headers = headersFor(asked, object);
     headers.set('content-length', String(object.size));
     return new Response(null, { status: 200, headers });
   }
-  const object = await bucket.get(name, { range: request.headers });
-  if (!object) return fitting(bucket, name);
-  const headers = headersFor(name, object);
+  const object = await bucket.get(asked.key, { range: request.headers });
+  if (!object) return fitting(bucket, asked);
+  const headers = headersFor(asked, object);
   const range = object.range as { offset?: number; length?: number; suffix?: number } | undefined;
   if (range && request.headers.has('range')) {
     const offset = range.suffix !== undefined ? object.size - range.suffix : range.offset ?? 0;

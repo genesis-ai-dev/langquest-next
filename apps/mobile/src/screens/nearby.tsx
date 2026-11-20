@@ -23,7 +23,7 @@ import { GiveAppScreen } from '../nearby/GiveAppScreen';
 import { ChosenPicture } from '../auth/patternPad';
 import { joinRows, letInVersionsWords } from '../nearby/carriedApkModel';
 import { joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
-import type { LetInEnd, LetInWhyNot } from '../nearby/letInModel';
+import { codeLeft, type LetInEnd, type LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
 import { useCarriedApk } from '../nearby/useCarriedApk';
 import { useLetIn, useLetInOffered } from '../nearby/useLetIn';
@@ -400,7 +400,9 @@ function TwoPictures(props: { pictures: [number, number] }) {
  * Let someone in: an inviter with a pass for this language shows a code that holds only how to
  * reach this phone, a secret and a pin; a new phone scans it, asks with the name its person typed,
  * and one tap here, after both people compare the two pictures, lets them in under the role chosen.
- * Then this phone sends them a starting copy. Nothing runs until Show the code is pressed.
+ * Then this phone sends them a starting copy. Nothing runs until Show the code is pressed. While
+ * Give the app serves, the code runs on its Wi-Fi, which the new phone is still on after installing,
+ * and its LangQuest finds this phone by itself (docs/nearby-sync-plan.md 14.5).
  */
 export function LetSomeoneIn(ctx: Ctx) {
   const { whyNot, roles, state, code, secondsLeft, worn, permit, actions } = useLetIn(ctx);
@@ -482,8 +484,9 @@ export function LetSomeoneIn(ctx: Ctx) {
           {stage.t === 'showing' && code ? (
             <Card>
               <LetInCode value={code} label={t('nearby.letIn.codeLabel')} />
-              <Text style={txt.body}>{t('nearby.letIn.scanLine')}</Text>
-              <Text style={txt.smMuted}>{t('nearby.letIn.secondsLeft', { n: secondsLeft })}</Text>
+              {/* On Give the app's group the new phone's LangQuest finds this phone by itself; the code is for one that does not. */}
+              <Text style={txt.body}>{stage.onGiveGroup ? t('nearby.letIn.scanLineGive') : t('nearby.letIn.scanLine')}</Text>
+              <Text style={txt.smMuted}>{timeLeftWords(secondsLeft, stage.onGiveGroup)}</Text>
             </Card>
           ) : null}
           {stage.t === 'connected' ? <Waiting text={t('nearby.letIn.connected')} /> : null}
@@ -513,6 +516,12 @@ export function LetSomeoneIn(ctx: Ctx) {
       )}
     </Screen>
   );
+}
+
+/** The countdown under a code: seconds for two minutes, minutes for Give the app's fifteen. */
+function timeLeftWords(seconds: number, onGiveGroup: boolean): string {
+  const left = codeLeft(seconds, onGiveGroup);
+  return left.unit === 'minutes' ? t('nearby.letIn.minutesLeft', { n: left.n }) : t('nearby.letIn.secondsLeft', { n: left.n });
 }
 
 /** The new phone runs other versions: the file it needs, by this phone's name for it. */

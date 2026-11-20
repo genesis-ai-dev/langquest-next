@@ -55,4 +55,9 @@ describe('a Let someone in code', () => {
     expect(heard).toEqual([1]);
     takeJoinCode();
   });
+
+  it('keeps how long it lives when that is not two minutes: found on Give the app\'s Wi-Fi, as long as Give the app waits', () => {
+    holdJoinCode({ kind: 'join', ...code }, 5, 15 * 60_000);
+    expect(takeJoinCode()).toEqual({ code: { kind: 'join', ...code }, at: 5, freshMs: 15 * 60_000 });
+  });
 });

@@ -1,6 +1,7 @@
 package expo.modules.nearbylink
 
 import java.io.IOException
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 
@@ -8,9 +9,12 @@ import java.net.Socket
  * A group or hotspot this phone hosts, and the links that connect to it (docs/nearby-sync-plan.md
  * 5.12, The link and the radio). Pure Kotlin on `java.*`, so JUnit runs it over loopback.
  *
- * A Wi-Fi Direct group's server is bound to the group's own address, so only a phone in the
- * group, which knows its passphrase, can reach it: the first connection takes the link, and a
- * later one is closed and reported. A local-only hotspot's address cannot be found reliably (no
+ * A Wi-Fi Direct group's server is bound to the group's own address: the first connection takes
+ * the link, and a later one is closed and reported. The binding alone does not keep out a device
+ * on another network this phone is on, since Linux takes packets for the address that arrive on
+ * any interface; `admits` does, where the group's network is known (Give the app's group).
+ * Elsewhere such a caller could take the one link and end the attempt, and no further: the
+ * link's keys come from the code it was not shown. A local-only hotspot's address cannot be found reliably (no
  * public API names its interface, and another app can share the same hotspot), so its server
  * listens on every network this phone is on, and anyone there could connect first. So with
  * `candidates` every connection is handed up in turn, and JavaScript tries each: the link is the
@@ -28,6 +32,12 @@ class Hosted(
   val candidates: Boolean = false,
   /** Candidates held at once, unproven and not ended; past this a connection is closed. */
   private val maxCandidates: Int = 4,
+  /**
+   * Whether a caller's address may connect at all: Linux takes packets for the bound address that
+   * arrive on any interface, so a host that knows its network closes a caller from outside it
+   * unanswered, and that caller never becomes the link (`GiveGroup.host`).
+   */
+  private val admits: (InetAddress?) -> Boolean = { true },
 ) {
   private val lock = Object()
   @Volatile private var down = false
@@ -50,6 +60,10 @@ class Hosted(
     Thread({
       while (!down) {
         val socket = try { server.accept() } catch (e: IOException) { break }
+        if (!admits(socket.inetAddress)) {
+          try { socket.close() } catch (_: IOException) {}
+          continue
+        }
         val verdict = synchronized(lock) {
           // A candidate that ended unproven is forgotten, so strangers coming and going hold nothing.
           if (candidates) adopted.removeAll { it.isEnded && !it.isProven }
@@ -67,8 +81,14 @@ class Hosted(
           if (verdict == Verdict.REFUSE) refused(this)
           continue
         }
-        tune(socket)
-        val session = adopt(socket, this)
+        // A connection that could not be made a link is closed, and the next is still taken.
+        val session = try {
+          tune(socket)
+          adopt(socket, this)
+        } catch (e: Exception) {
+          try { socket.close() } catch (_: IOException) {}
+          continue
+        }
         if (candidates) session.firstProof = { claimProof(session) }
         val kept = synchronized(lock) {
           if (down) {

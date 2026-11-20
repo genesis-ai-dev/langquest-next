@@ -69,6 +69,24 @@ export function letInWhyNot(o: {
 /** How long a QR code nobody has used stays up (14.1, 3, "How long"). */
 export const LET_IN_CODE_MS = 120_000;
 
+/**
+ * How long a code on Give the app's group stays up (14.5): the new phone is still installing when
+ * it is shown, so it lasts as long as Give the app itself waits for a phone with nothing asked
+ * (`GIVE_IDLE_MS`, held equal by letIn.test.ts; not imported, so the web bundle, which carries
+ * this file, does not carry Give the app's page).
+ */
+export const LET_IN_GIVE_CODE_MS = 15 * 60 * 1000;
+
+/** How long a code nobody used stays up: on Give the app's group, or on a group of this phone's own. */
+export function letInCodeMs(onGiveGroup: boolean): number {
+  return onGiveGroup ? LET_IN_GIVE_CODE_MS : LET_IN_CODE_MS;
+}
+
+/** What the countdown under a code says: seconds for two minutes, and whole minutes, rounded up, on Give the app's group. */
+export function codeLeft(seconds: number, onGiveGroup: boolean): { unit: 'seconds' | 'minutes'; n: number } {
+  return onGiveGroup ? { unit: 'minutes', n: Math.ceil(seconds / 60) } : { unit: 'seconds', n: seconds };
+}
+
 /** How a link with a newcomer ended, as the screen words it. */
 export type LetInEnd =
   /** Nobody used the code in time. */
@@ -117,8 +135,8 @@ export function letInEndOf(r: {
 export type LetInStage =
   | { t: 'choose' }
   | { t: 'starting' }
-  /** The code is up until `until`. */
-  | { t: 'showing'; uri: string; until: number }
+  /** The code is up until `until`; on Give the app's group, the new phone's LangQuest also finds it by itself (14.5). */
+  | { t: 'showing'; uri: string; until: number; onGiveGroup: boolean }
   /** A phone opened the link: waiting for its ask. */
   | { t: 'connected' }
   /** The one tap: "Let Nyibol in?", beside the two pictures. */
@@ -138,7 +156,7 @@ export const LET_IN_START: LetInState = { stage: { t: 'choose' }, roleId: null, 
 export type LetInAction =
   | { t: 'role'; roleId: string }
   | { t: 'host' }
-  | { t: 'showing'; uri: string; until: number }
+  | { t: 'showing'; uri: string; until: number; onGiveGroup?: boolean }
   | { t: 'connected' }
   | { t: 'asked'; name: string; pictures: [number, number] }
   | { t: 'answered'; yes: boolean }
@@ -158,7 +176,7 @@ export function letInReducer(s: LetInState, a: LetInAction): LetInState {
     case 'host':
       return s.roleId && (stage.t === 'choose' || stage.t === 'ended') ? { ...s, stage: { t: 'starting' }, turnedAway: false } : s;
     case 'showing':
-      return stage.t === 'starting' ? { ...s, stage: { t: 'showing', uri: a.uri, until: a.until } } : s;
+      return stage.t === 'starting' ? { ...s, stage: { t: 'showing', uri: a.uri, until: a.until, onGiveGroup: a.onGiveGroup === true } } : s;
     case 'connected':
       return stage.t === 'showing' ? { ...s, stage: { t: 'connected' } } : s;
     case 'asked':
@@ -183,7 +201,7 @@ export function letInReducer(s: LetInState, a: LetInAction): LetInState {
   }
 }
 
-/** The QR code is shown only while it can still be used: up, and not past its two minutes. */
+/** The QR code is shown only while it can still be used: up, and not past its time (two minutes, or Give the app's fifteen). */
 export function codeShown(s: LetInStage, now: number): string | null {
   return s.t === 'showing' && now < s.until ? s.uri : null;
 }

@@ -139,7 +139,7 @@
       "asRole": "Dia bergabung sebagai {{role}}. Admin bisa mengubahnya setelah dia tersambung ke internet.",
       "show": "Tunjukkan kode",
       "newCode": "Kode baru",
-      "showHelp": "Membuat kode untuk dipindai ponsel baru. Kode berlaku dua menit, untuk satu ponsel.",
+      "showHelp": "Membuat kode untuk dipindai ponsel baru. Kode berlaku dua menit, untuk satu ponsel. Jika ponsel ini masih memberikan aplikasi lewat Wi-Fi-nya sendiri, kode berlaku 15 menit, dan ponsel baru menemukannya sendiri.",
       "starting": "Menyiapkan kode…",
       "codeLabel": "Kode untuk dipindai ponsel baru",
       "scanLine": "Di ponsel baru, buka LangQuest, ketuk Pindai kode, lalu arahkan ke sini.",
@@ -166,7 +166,9 @@
         "browser": "Browser ponsel terbuka dan mengunduh file instalasi.",
         "warning": "Jika browser memperingatkan bahwa file mungkin berbahaya, pilih untuk tetap mengunduhnya. Ini file instalasi milik LangQuest sendiri.",
         "back": "Setelah unduhan selesai, kembali ke LangQuest. Anda tidak perlu membuka file itu.",
-        "choose": "Ketuk {{button}}."
+        "choose": "Ketuk {{button}}.",
+        "open": "Setelah unduhan selesai, ketuk Buka. LangQuest akan terbuka dan memeriksa file itu.",
+        "openGone": "Jika Buka sudah hilang, kembali ke LangQuest lalu ketuk {{button}}."
       },
       "getLine": "Di lapangan, kirim file-nya lewat Berikan aplikasi. Quick Share, kartu SD, atau kabel USB juga bisa, tetapi Quick Share memerlukan layanan Google Play di kedua ponsel.",
       "getLineOther": "Di lapangan, kirim file-nya ke ponsel baru lewat Quick Share, kartu SD, atau kabel USB. Quick Share memerlukan layanan Google Play di kedua ponsel. Ponsel baru mungkin meminta izin untuk memasang dari sumber ini.",
@@ -176,6 +178,7 @@
       "choose": "Pilih file yang diunduh",
       "chooseHelp": "Membuka file di ponsel. Pilih file instalasi yang diunduh browser, lalu aplikasi memeriksa bahwa itu file yang diperlukan ponsel ini.",
       "chooseLine": "Setelah unduhan selesai, ketuk Pilih file yang diunduh. Biasanya file itu paling atas di file terbaru Anda.",
+      "chooseLineOpen": "Jika Anda tidak mengetuk Buka di browser, file itu belum ada di LangQuest. Setelah unduhan selesai, ketuk Pilih file yang diunduh. Biasanya file itu paling atas di file terbaru Anda.",
       "getAgain": "Unduh lagi",
       "getAgainHelp": "Membuka browser ponsel lagi, kalau unduhan tidak selesai.",
       "checkOther": "File ini untuk versi lain: Anda memerlukan {{file}}",
@@ -206,7 +209,9 @@
         "failed": "Salinan tidak bisa disimpan. Pilih lagi.",
         "needsAndroid": "Ponsel ini tidak menyimpan salinan: Berikan aplikasi memerlukan Android 10 atau yang lebih baru.",
         "needsUpdate": "Ponsel ini belum menyimpan salinan. Perbarui aplikasi dari toko aplikasi untuk memberikannya lewat Wi-Fi."
-      }
+      },
+      "scanLineGive": "Di ponsel baru, buka LangQuest. Aplikasi itu akan menemukan ponsel ini sendiri. Jika tidak, ketuk Pindai kode, lalu arahkan ke sini.",
+      "minutesLeft": "Sisa menit: {{n, number}}"
     },
     "installFile": {
       "intro": "Ponsel baru perlu LangQuest terpasang sebelum Anda dapat mengizinkan pemiliknya masuk. Unduh file instalasi di sini selagi ada internet, lalu bawa.",
@@ -294,7 +299,7 @@
       },
       "join": {
         "title": "1. Hubungkan ke jaringan Wi-Fi ponsel ini",
-        "line": "Di ponsel baru, buka kamera, arahkan ke kode ini, lalu ketuk Hubungkan. Setelah ponsel itu terhubung, ketuk Lanjut.",
+        "line": "Di ponsel baru, buka kamera, arahkan ke kode ini, lalu ketuk Hubungkan. Setelah ponsel itu terhubung, kode kedua muncul dengan sendirinya. Jika tidak muncul, ketuk Lanjut.",
         "lineAgain": "Di ponsel baru, buka kamera, arahkan ke kode ini, lalu ketuk Hubungkan.",
         "code": "Kode untuk terhubung ke jaringan Wi-Fi ponsel ini",
         "network": "Nama Wi-Fi: {{name}}",
@@ -305,7 +310,7 @@
       "nextHelp": "Menampilkan kode kedua, untuk halaman unduhan, setelah ponsel baru terhubung.",
       "download": {
         "title": "2. Buka halaman unduhan",
-        "line": "Arahkan kamera ponsel baru ke kode ini dan buka halamannya. Ketuk Unduh.",
+        "line": "Arahkan kamera ponsel baru ke kode ini dan buka halamannya. Unduhan dimulai dengan sendirinya. Jika tidak dimulai, ketuk Unduh.",
         "warnings": "Jika browser ponsel baru mengatakan bahwa file tidak dapat diunduh dengan aman, pilih untuk menyimpannya. Jika browser memperingatkan bahwa file mungkin berbahaya, pilih untuk tetap mengunduhnya. Ini file instalasi milik LangQuest sendiri.",
         "code": "Kode untuk halaman unduhan",
         "address": "Atau ketik alamat ini di browser-nya: {{address}}",
@@ -316,6 +321,7 @@
       "sending": "Mengirim: {{sent}} dari {{total}} MB",
       "sent": "3. Pasang aplikasinya",
       "sentLine": "File sudah terkirim. Di ponsel baru, buka file yang sudah diunduh dan ketuk Instal. Ponsel itu mungkin sekali meminta izin untuk memasang dari sumber ini. Lalu izinkan mereka masuk dari ponsel ini.",
+      "sentLineFinds": "File sudah terkirim. Di ponsel baru, buka file yang sudah diunduh dan ketuk Instal. Ponsel itu mungkin sekali meminta izin untuk memasang dari sumber ini. Setelah LangQuest terpasang dan dibuka di ponsel baru, LangQuest menemukan ponsel ini dengan sendirinya. Ketuk Izinkan mereka masuk lalu pilih perannya.",
       "another": "Berikan ke ponsel lain",
       "anotherHelp": "Menampilkan lagi kedua kode, untuk satu ponsel baru lagi.",
       "letIn": "Izinkan mereka masuk",
@@ -335,14 +341,22 @@
         "failed": "Jaringan Wi-Fi ponsel ini tidak menyala. Coba lagi.",
         "permissionCovered": "Buka Berbagi di sekitar dulu dan izinkan yang dimintanya. Lalu kembali ke sini dan coba lagi."
       },
+      "quickShare": {
+        "button": "Kirim lewat Quick Share",
+        "help": "Membuka lembar berbagi ponsel ini dengan file instalasi. Pilih Quick Share, lalu ponsel baru.",
+        "line": "Quick Share adalah cara lain untuk mengirimnya. Quick Share memerlukan layanan Google Play di kedua ponsel, yang tidak ada di ponsel yang dijual di Tiongkok. Di ponsel baru, buka Quick Share dan buat ponsel itu terlihat oleh semua orang di sekitar. Terima file-nya, lalu buka dan ketuk Instal.",
+        "failed": "Lembar berbagi tidak terbuka. Coba lagi."
+      },
       "page": {
         "title": "Pasang LangQuest",
         "size": "{{size}} MB",
         "download": "Unduh",
-        "stepOpen": "Setelah unduhan selesai, ketuk Buka.",
+        "stepOpen": "Unduhan dimulai dengan sendirinya. Jika tidak dimulai, ketuk Unduh. Setelah unduhan selesai, ketuk Buka.",
         "stepFind": "Jika Buka sudah hilang, cari {{name}} di Download, lewat menu ⋮ browser atau di aplikasi file, lalu ketuk.",
         "stepAllow": "Izinkan pemasangan dari sumber ini, jika ponsel meminta.",
-        "stepInstall": "Ketuk Instal."
+        "stepInstall": "Ketuk Instal.",
+        "stepJoin": "Buka LangQuest. LangQuest menemukan ponsel rekan tim Anda dengan sendirinya. Jika tidak, kembali ke halaman ini dan ketuk Gabung.",
+        "join": "Gabung"
       }
     }
   }

@@ -1,4 +1,4 @@
-import { carriedApkNameHere } from '@langquest-next/core';
+import { CARRIED_FILE_TYPE, carriedApkNameHere, carriedFileName } from '@langquest-next/core';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Updates from 'expo-updates';
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
@@ -12,8 +12,11 @@ import { keptFileNow, setKeptFile, subscribeKeptFile } from './installFileKept';
 import { androidSdk } from './nearbyPermissions.android';
 import type { CarriedApkHandle } from './useCarriedApk';
 
-/** What Android's picker offers: install files, and files a card or cable left with no type. */
-const APK_TYPES = ['application/vnd.android.package-archive', 'application/octet-stream'];
+/**
+ * What Android's picker offers: install files, the app's own type that a browser downloaded the
+ * file under for the app (core `CARRIED_FILE_TYPE`), and files a card or cable left with no type.
+ */
+const APK_TYPES = ['application/vnd.android.package-archive', CARRIED_FILE_TYPE, 'application/octet-stream'];
 
 /**
  * The carried build's install file on an Android phone (docs/nearby-sync-plan.md 14.4). Get opens
@@ -25,10 +28,19 @@ const APK_TYPES = ['application/vnd.android.package-archive', 'application/octet
  * native to be this app's own (its package and signing certificates), so Give the app can hand it
  * to a new phone over Wi-Fi (14.5); the copy goes once this phone needs other versions. The app
  * still downloads nothing: the person chose the file.
+ *
+ * On a build that opens the app's own file type (`handOff`: native has `installFileName`, which
+ * ships with app.json's filter for it), the browser downloads the same file as `.carried`, under
+ * that type, so its own Open hands the file to the app (`take`), which checks and keeps it as one
+ * chosen in the picker: no picker, no finding the way back, and no warning that it may be harmful
+ * (docs/decisions/0246-a-carried-build-is-the-newcomers.md, amended 2026-11-20). An older build
+ * downloads the install file as before, since Open would find nothing to hand it to.
  */
 export function useCarriedApk(): CarriedApkHandle {
   const needed = carriedApkNameHere(Updates.runtimeVersion);
-  const url = needed ? carriedApkUrl(needed) : null;
+  const native = nearbyLinkNative();
+  const handOff = !!native && typeof native.installFileName === 'function';
+  const url = needed ? carriedApkUrl(handOff ? carriedFileName(needed) ?? needed : needed) : null;
   const opened = useSyncExternalStore(subscribeApkOpened, apkOpenedNow);
   const right = useSyncExternalStore(subscribeApkRight, apkRightNow);
   const [checked, setChecked] = useState<{ result: ApkCheck; name: string; keep?: KeepResult } | null>(null);
@@ -38,7 +50,6 @@ export function useCarriedApk(): CarriedApkHandle {
   }, []);
   // An older binary under this update has the module without Give the app's functions, and Give
   // the app needs Android 10: on either, nothing is kept and the screens say which, and what to do.
-  const native = nearbyLinkNative();
   const whyNot = cannotGive({ sdk: androidSdk(), native: !!native && typeof native.keepInstallFile === 'function' });
   const canGive = whyNot === null;
   const held = useSyncExternalStore(subscribeKeptFile, keptFileNow);
@@ -70,40 +81,61 @@ export function useCarriedApk(): CarriedApkHandle {
     Linking.openURL(url).catch((e: unknown) => noteExpected('carried apk: open', e));
   }, [needed, url]);
 
+  /** A file chosen in the picker or handed over by the browser: its name checked, and a right one kept for Give the app (14.5). */
+  const keepChosen = useCallback(async (uri: string, name: string) => {
+    if (!needed) return;
+    const result = apkCheck(name, needed);
+    if (result !== 'right') {
+      setChecked({ result, name });
+      return;
+    }
+    // The right file in hand counts as got: a later version then says it is too old. Its name
+    // is remembered as right too, which is all a phone that keeps no copy has to go by.
+    await keepApkOpened(needed);
+    await keepApkRight(needed);
+    if (whyNot !== null || !native) {
+      setChecked({ result, name, keep: whyNot === 'android' ? 'needs-android' : 'needs-update' });
+      return;
+    }
+    setChecked({ result, name, keep: 'keeping' });
+    try {
+      setKeptFile(await native.keepInstallFile(uri, chosenName(name), KEEP_MIN_FREE_BYTES));
+      setChecked({ result, name, keep: 'kept' });
+    } catch (e) {
+      setChecked({ result, name, keep: keepResultOf(nearbyCodeOf(e)) });
+    }
+  }, [needed, whyNot, native]);
+
   const check = useCallback(async () => {
     if (!needed) return;
     try {
       // Not copied by the picker: native copies a right one itself, into the app's own folder.
       const picked = await DocumentPicker.getDocumentAsync({ type: APK_TYPES, copyToCacheDirectory: false, multiple: false });
       const asset = picked.canceled ? null : picked.assets[0] ?? null;
-      const name = asset?.name ?? null;
-      if (name === null || !asset) return;
-      const result = apkCheck(name, needed);
-      if (result !== 'right') {
-        setChecked({ result, name });
-        return;
-      }
-      // The right file in hand counts as got: a later version then says it is too old. Its name
-      // is remembered as right too, which is all a phone that keeps no copy has to go by.
-      await keepApkOpened(needed);
-      await keepApkRight(needed);
-      if (whyNot !== null || !native) {
-        setChecked({ result, name, keep: whyNot === 'android' ? 'needs-android' : 'needs-update' });
-        return;
-      }
-      setChecked({ result, name, keep: 'keeping' });
-      try {
-        setKeptFile(await native.keepInstallFile(asset.uri, chosenName(name), KEEP_MIN_FREE_BYTES));
-        setChecked({ result, name, keep: 'kept' });
-      } catch (e) {
-        setChecked({ result, name, keep: keepResultOf(nearbyCodeOf(e)) });
-      }
+      if (!asset?.name) return;
+      await keepChosen(asset.uri, asset.name);
     } catch (e) {
       noteExpected('carried apk: check', e);
     }
-  }, [needed, whyNot, native]);
+  }, [needed, keepChosen]);
 
-  const actions = useMemo(() => ({ get, check: () => { void check(); } }), [get, check]);
-  return useMemo(() => ({ needed, url, opened, stale: apkStale(needed, opened), checked, kept, right, canGive, cannotGive: whyNot, behind, actions }),
-    [needed, url, opened, checked, kept, right, canGive, whyNot, behind, actions]);
+  // The browser's Open gives an address with no name in it (content://media/external/downloads/<n>):
+  // native asks the provider for it, as the picker does. With none, nothing says which versions it is for.
+  const take = useCallback(async (uri: string) => {
+    if (!needed || !handOff || !native) return;
+    try {
+      const name = await native.installFileName(uri);
+      if (name) {
+        await keepChosen(uri, name);
+        return;
+      }
+    } catch (e) {
+      noteExpected('carried apk: take', e);
+    }
+    setChecked({ result: 'right', name: '', keep: 'unreadable' });
+  }, [needed, handOff, native, keepChosen]);
+
+  const actions = useMemo(() => ({ get, check: () => { void check(); }, take: (uri: string) => { void take(uri); } }), [get, check, take]);
+  return useMemo(() => ({ needed, url, handOff, opened, stale: apkStale(needed, opened), checked, kept, right, canGive, cannotGive: whyNot, behind, actions }),
+    [needed, url, handOff, opened, checked, kept, right, canGive, whyNot, behind, actions]);
 }

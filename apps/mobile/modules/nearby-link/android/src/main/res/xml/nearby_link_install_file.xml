@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  InstallFileProvider's paths (InstallFileShare.kt): the kept install file's folder,
+  files/install-file/ (InstallFiles.FOLDER), and nothing else in the app's folders.
+-->
+<paths>
+  <files-path name="install-file" path="install-file/" />
+</paths>
