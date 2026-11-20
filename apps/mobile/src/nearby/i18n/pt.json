@@ -208,7 +208,8 @@
         "unreadable": "Não foi possível ler este arquivo. Escolha o arquivo de novo.",
         "failed": "Não foi possível guardar uma cópia. Escolha o arquivo de novo.",
         "needsAndroid": "Este celular não guarda uma cópia: Dar o app precisa do Android 10 ou mais recente.",
-        "needsUpdate": "Este celular ainda não guarda uma cópia. Atualize o app pela loja para dá-lo por Wi-Fi."
+        "needsUpdate": "Este celular ainda não guarda uma cópia. Atualize o app pela loja para dá-lo por Wi-Fi.",
+        "keptBuilt": "Uma cópia de {{date}} fica guardada neste celular para Dar o app. Você pode apagar o arquivo que está em Downloads."
       },
       "scanLineGive": "No celular novo, abra o LangQuest. Ele encontra este celular sozinho. Se não encontrar, toque em Ler um código e aponte para cá.",
       "minutesLeft": "Minutos restantes: {{n, number}}"
@@ -229,7 +230,10 @@
       "readyShort": "Arquivo de instalação pronto",
       "done": "Pronto. Você pode levá-lo para onde não há internet.",
       "newer": "Um arquivo de instalação mais novo está pronto. Baixe-o enquanto tem internet e depois escolha-o.",
-      "newerShort": "Arquivo de instalação para uma pessoa nova: um mais novo está pronto"
+      "newerShort": "Arquivo de instalação para uma pessoa nova: um mais novo está pronto",
+      "getNewest": "Baixar o arquivo mais novo",
+      "getNewestHelp": "Abre o navegador do celular, que baixa o arquivo de instalação mais novo desta versão. Depois toque em Escolher o arquivo baixado, e ele substitui a cópia guardada aqui.",
+      "getNewestHelpOpen": "Abre o navegador do celular, que baixa o arquivo de instalação mais novo desta versão. Quando o download terminar, toque em Abrir, e ele substitui a cópia guardada aqui."
     },
     "join": {
       "intro": "Entre na sua equipe pelo celular de um colega, sem internet. A sua conta é criada na primeira vez que o seu celular se conectar à internet.",
