@@ -9,6 +9,7 @@ import { teamLanguage } from '../reference/languages';
 import { offeredGuideSources } from '../reference/offered';
 import { bestGuide, guideFromDoc, passageVerses, type GuideSource } from './guideMatch';
 import type { StudyGuide } from './guides';
+import { lookedUp } from './prefetchModel';
 
 /** The guide for a passage, or null while its documents load or when none covers it. */
 export function useStudyGuide(ctx: Ctx, unitId: string | null | undefined): StudyGuide | null {
@@ -21,6 +22,17 @@ export function useStudyGuide(ctx: Ctx, unitId: string | null | undefined): Stud
  * A passage missing from the map has no guide, or its documents have not loaded.
  */
 export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string, StudyGuide> {
+  return useStudyGuideSet(ctx, unitIds).guides;
+}
+
+/**
+ * The same, with the passages whose guide has been looked up, found or not
+ * (`lookedUp`, study/prefetchModel.ts). A passage missing from `guides` and
+ * not looked up may only not have loaded, and the prefetch must not count
+ * its study files as here (decisions.md 166). A read that failed is asked
+ * again when the device comes back online.
+ */
+export function useStudyGuideSet(ctx: Ctx, unitIds: readonly string[]): { guides: Map<string, StudyGuide>; lookedUp: Set<string> } {
   const state = ctx.language.state;
   const orgId = ctx.language.orgId;
   // What each passage is offered: recommended or linked to it first, then the organization's own (reference/offered.ts).
@@ -43,7 +55,9 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
   const reads = teamLanguage(ctx.org.state, state, ctx.language.languageId);
   const hashes = useMemo(() => [...new Set([...offered.values()].flatMap((o) => [...o.recommended, ...o.own].map((s) => s.hash)))], [offered]);
   // Nothing to match, nothing to load: the prefetch on the web, or a screen with no passage yet.
-  const { get } = useLibraryDocs(orgId, unitIds.length ? [...hashes, sel?.docHash] : []);
+  const online = ctx.language.online !== false;
+  const offeredDocs = useLibraryDocs(orgId, unitIds.length ? [...hashes, sel?.docHash] : [], { again: online });
+  const { get } = offeredDocs;
 
   const choices = useMemo(() => {
     const out = new Map<string, NonNullable<ReturnType<typeof bestGuide>>>();
@@ -61,9 +75,9 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
   }, [state, unitIds, offered, get, reads]);
 
   // The chosen guides' own documents (a collection's entries) load on demand.
-  const entry = useLibraryDocs(orgId, [...choices.values()].map((c) => c.hash));
+  const entry = useLibraryDocs(orgId, [...choices.values()].map((c) => c.hash), { again: online });
   const entryGet = entry.get;
-  return useMemo(() => {
+  const guides = useMemo(() => {
     const out = new Map<string, StudyGuide>();
     for (const [unitId, choice] of choices) {
       const doc = entryGet(choice.hash);
@@ -75,4 +89,12 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
     }
     return out;
   }, [choices, entryGet]);
+  const offeredRead = offeredDocs.read;
+  const entryRead = entry.read;
+  const known = useMemo(() => lookedUp({
+    unitIds, found: guides, template: sel?.docHash, read: offeredRead, entryRead,
+    offered: new Map([...offered].map(([unitId, o]) => [unitId, [...o.recommended, ...o.own].map((s) => s.hash)])),
+    chosen: new Map([...choices].map(([unitId, c]) => [unitId, c.hash]))
+  }), [unitIds, guides, sel?.docHash, offeredRead, entryRead, offered, choices]);
+  return useMemo(() => ({ guides, lookedUp: known }), [guides, known]);
 }
