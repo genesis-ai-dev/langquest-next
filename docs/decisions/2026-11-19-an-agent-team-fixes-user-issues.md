@@ -65,3 +65,20 @@ and not with a developer's plan token. Until that secret exists, the team
 does nothing: no fix, no research, and an admin's instruction waits. Reason:
 the agent runs must be billed to the organization. The watch's own look
 keeps `CLAUDE_CODE_OAUTH_TOKEN`, as before the team.
+
+Amended (2026-11-20, Caleb Koster): a fix that merges without a person and
+does not get into main gets up to 3 tries by Claude before a developer
+hears of it (`docs/agent-team.md` "When a fix does not get into main").
+The job `follow` runs first in each 15-minute run. When the checks failed
+the first time, it runs the failed jobs again; when they fail again, or the
+branch has a conflict with main, the issue's manager reads the failed
+jobs' logs and changes the code, and the same gate decides again; when the
+merge queue removed the pull request or it did not merge in 24 hours, it
+merges main into the branch and turns auto-merge on again. After 3 tries
+the pull request becomes a draft that waits for a developer, as before.
+Reason: Caleb said that trivial fixes often fail to get into main (a flaky
+test, a removal from the merge queue) and he does not want a developer to
+hear of each one: "I just want Claude to fix it and get it into main. Maybe
+try 3 times and then ask a dev if all those times fail." It applies only
+to pull requests the gate let through, so a change Claude makes on the way
+in keeps the same rule. The manager may never skip or weaken a test.

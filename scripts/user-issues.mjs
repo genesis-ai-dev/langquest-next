@@ -48,7 +48,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
 import { oldPathsOf, pathsOf, runUrl } from './tutorial-review.mjs';
-import { decisionLines, gate, gateInput, github as githubAs, graphql, LABELS, modeHere, PICTURES, pictureOf, planOf, saysMerge, toDraft, verdictOf } from './agent-team.mjs';
+import { decisionLines, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planOf, REPAIR_MAX, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
 
 /** The steps to the screen of a display fix, as the manager writes them beside fix.json (never part of the change). */
 export const PICTURE_SPEC = 'picture.spec.ts';
@@ -512,6 +512,29 @@ export function researchToTake(research, fixes) {
     out.push(id);
   }
   return out;
+}
+
+/** The issues the job `follow` hands back to the fix team (its output `repairs`): ids only, at most REPAIR_MAX. */
+export function repairsOf(raw) {
+  let list = [];
+  try {
+    list = JSON.parse(String(raw ?? '[]'));
+  } catch {
+    return [];
+  }
+  return Array.isArray(list) ? [...new Set(list.filter((id) => typeof id === 'string' && ISSUE_ID.test(id)))].slice(0, REPAIR_MAX) : [];
+}
+
+/**
+ * What the job `follow` wrote for an issue it hands back: the pull request, why it did not get into
+ * main, and the failed jobs with the last lines of their logs. Null when there is none for the issue.
+ */
+export function repairOf(raw, id) {
+  if (!isObj(raw) || raw.issue !== id || !Number.isInteger(raw.pr) || raw.pr < 1) return null;
+  const failures = (Array.isArray(raw.failures) ? raw.failures : []).filter(isObj).slice(0, 3).map((f) => ({
+    job: cut(text(f.job), 200), steps: (Array.isArray(f.steps) ? f.steps : []).map((st) => cut(text(st), 200)).slice(0, 5), log: cut(text(f.log), 12_000)
+  }));
+  return { pr: raw.pr, why: cut(text(raw.why), 600), failures };
 }
 
 /**
@@ -993,6 +1016,11 @@ async function file(dir) {
   // Last, the issues the research recommends a fix for (docs/agent-team.md "The research team").
   const handed = off ? [] : researchToTake(watch.research, noted.fixes);
   noted.fixes.push(...handed);
+  // First, the team's pull requests that did not get into main and that the job `follow` hands back
+  // for a change (docs/agent-team.md "When a fix does not get into main"). They have room of their own.
+  const repairs = off ? [] : repairsOf(process.env.REPAIRS).filter((id) => !noted.fixes.includes(id));
+  noted.fixes.unshift(...repairs);
+  if (repairs.length) console.log(`${repairs.join(', ')}: back to the fix team, since the pull request did not get into main`);
   if (looked.length || grew.length || noted.taken.length || handed.length) {
     const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })), handed, diagrams });
     console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown${noted.taken.length ? `, ${done.taken ?? 0} instructions taken` : ''}${handed.length ? `, ${handed.join(', ')} from the research handed to the fix team` : ''}`);
@@ -1019,6 +1047,18 @@ async function fixContext(dir, id) {
     pictures: Object.values(got.media).flatMap((m) => [m.screenshot, m.picture]).filter(Boolean),
     phones: Object.values(got.phones).map((p) => p.path)
   };
+  // A pull request of the team that did not get into main, handed back by the job `follow`: Claude starts
+  // from its change, with why and the failed jobs' logs. An admin's instructions wait for the next run.
+  const repairPath = process.env.FIX_REPAIR ? join(process.env.FIX_REPAIR, `${id}.json`) : '';
+  const repair = repairPath && existsSync(repairPath) && readFileSync(repairPath).length < 200_000 ? repairOf((() => { try { return readJson(repairPath); } catch { return null; } })(), id) : null;
+  if (repair) {
+    const draft = draftOnto(dir, fixBranch(id));
+    const before = draft.applied ? worktreeHash(dir) : null;
+    if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: [], repair: { pr: repair.pr, draft: before } }));
+    writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, repair: { ...repair, draft } }, null, 2));
+    console.log(`${id}: handed to Claude to get PR ${repair.pr} into main (${draft.applied ? 'its change applied' : 'its change does not apply to main'}, ${plural(repair.failures.length, 'failed job')})`);
+    return;
+  }
   // What an admin told Claude to do with it from the ops dashboard, and the draft fix it has, to start from.
   const notes = await ask(`?notes=${id}`).catch((e) => {
     console.log(`${id}: no instructions read (${String(e instanceof Error ? e.message : e).slice(0, 80)})`);
@@ -1122,6 +1162,8 @@ function fixPatch(dir) {
     if (!priv || !leaks(spec, priv)) writeFileSync(join(out, PICTURE_SPEC), spec);
   }
   if (noteIds.length) writeFileSync(join(out, 'notes.json'), JSON.stringify({ ids: noteIds, changed: changed && Boolean(patch), approved }));
+  // A pull request handed back by the job `follow`: which, and whether Claude changed its change.
+  if (Number.isInteger(notes?.repair?.pr)) writeFileSync(join(out, 'repair.json'), JSON.stringify({ pr: notes.repair.pr, changed: Boolean(patch) && notes.repair.draft !== worktreeHash(dir) }));
   // The manager's model and effort, as the workflow set them for this job.
   writeFileSync(join(out, 'plan.json'), JSON.stringify(planOf({ model: process.env.FIX_MODEL, effort: process.env.FIX_EFFORT })));
   writeFileSync(join(out, 'fix.json'), JSON.stringify(fix, null, 2));
@@ -1201,6 +1243,9 @@ async function fixOpen(dir, id) {
     console.log(`${id}: told the Worker${record ? ` the fix ${record.decision === 'merge' ? 'merges without a person' : record.decision === 'waits' ? `waits (${record.reason})` : `has no change (${record.reason})`}` : ''}${answers.length ? `${record ? ' and' : ''} Claude's answer to ${plural(done.answered ?? 0, 'instruction')} (${result})` : ''}`);
   };
   const waits = (pr, d = decision) => fixRecord(id, { decision: 'waits', reason: d.reason ?? 'review', why: d.why, pr }, fix, plan, input.vet, shots);
+
+  const repairPath = join(dir, 'fix', 'repair.json');
+  if (existsSync(repairPath)) return repairOpen({ id, issue, fix, checks, plan, input, decision, shots, run, repair: readJson(repairPath), ownPath, tell });
 
   let reason = fix.noFix || (existsSync(ownPath) ? null : 'Its patch is missing.');
   if (!reason) {
@@ -1318,6 +1363,83 @@ A fix Claude wrote for the watch for user issues: ${run}
   await api.comment(issue.id, fixComment(pr, checks, final));
   await tell({ record: final.merge ? fixRecord(id, { decision: 'merge', why: final.why, pr: pr.number }, fix, plan, input.vet, shots) : waits(pr.number, final), result: 'changed', pr: pr.number });
   console.log(`${id}: PR ${pr.number} ${final.merge ? 'merges without a person' : `waits for a developer (${final.reason})`}`);
+}
+
+/**
+ * A push as LangQuest's GitHub App, so the pull request's checks start (a push by the built-in token
+ * starts none). The App's token goes to git in the environment, never as an argument: the first entry
+ * empties the header the checkout set, the second sets the App's.
+ */
+function pushAsApp(commit, branch) {
+  const header = 'http.https://github.com/.extraheader';
+  const basic = Buffer.from(`x-access-token:${process.env.PR_TOKEN}`).toString('base64');
+  execFileSync('git', ['push', '-q', 'origin', `${commit}:refs/heads/${branch}`], {
+    env: { ...process.env, GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_0: header, GIT_CONFIG_VALUE_0: '', GIT_CONFIG_KEY_1: header, GIT_CONFIG_VALUE_1: `AUTHORIZATION: basic ${basic}` },
+    stdio: ['ignore', 'inherit', 'inherit']
+  });
+}
+
+/**
+ * A pull request of the team that did not get into main, after the issue's manager read why
+ * (docs/agent-team.md "When a fix does not get into main"). When the gate still says it merges, the
+ * change goes on the branch as LangQuest's GitHub App, so its checks start, and auto-merge is on
+ * again. Anything else: it becomes a draft that waits for a developer, with the change on it to read.
+ * A pull request a person took (a draft, closed, or without the mark) is left as it is.
+ */
+async function repairOpen({ id, issue, fix, checks, plan, input, decision, shots, run, repair, ownPath, tell }) {
+  const branch = fixBranch(id);
+  const got = Number.isInteger(repair?.pr) ? await github('GET', `/pulls/${repair.pr}`) : { status: 0 };
+  const p = got.status === 200 ? got.json : null;
+  if (!p || p.state !== 'open' || p.draft || p.head?.ref !== branch || !String(p.body ?? '').includes(MERGE_MARK)) {
+    console.log(`${id}: PR ${repair?.pr} is not open as a pull request that merges without a person; nothing done`);
+    return;
+  }
+  const tries = triesOf(p.body);
+  const waitsNow = async (why, pushed = false) => {
+    const all = `Claude tried ${plural(tries.count, 'time')} of ${TRIES} to get it into main. ${why}`;
+    const body = withTry(fixBody(issue, fix, checks, run, { decision: { merge: false, reason: 'stalled', why: all }, vet: input.vet }), tries);
+    // A draft with the labels of one that waits; then the body says why, in full.
+    if (!(await toWaiting(p, all))) console.log(`::warning::PR ${p.number}: GitHub did not make it a draft`);
+    await github('PATCH', `/pulls/${p.number}`, { body });
+    await tell({ record: fixRecord(id, { decision: 'waits', reason: 'stalled', why: all, pr: p.number }, fix, plan, input.vet, shots) });
+    console.log(`${id}: PR ${p.number} waits for a developer${pushed ? ', with Claude\'s change on it' : ''}: ${why}`);
+  };
+  const reason = fix.noFix || (existsSync(ownPath) ? null : 'Its patch is missing.');
+  if (reason) return waitsNow(`Claude wrote no change: ${reason}`);
+  if (repair.changed !== true) return waitsNow(`Claude read why and found nothing to change in the code.${fix.answer ? ` ${fix.answer}` : ''}`);
+  try {
+    fixPaths(ownPath);
+  } catch (e) {
+    return waitsNow(e instanceof Error ? e.message : String(e));
+  }
+  const title = `${id}: ${String(issue.title ?? '').replace(PREFIX, '').slice(0, 120)}`;
+  const message = `${title}
+
+${fix.summary}
+
+Claude changed the fix to get it into main, try ${tries.count} (the watch for user issues): ${run}
+`;
+  // One commit on the branch with the change as it is now on main: the branch's head and main are its parents.
+  const ref = `refs/remotes/origin/${branch}`;
+  git(['fetch', '-q', '--depth=1', 'origin', `+refs/heads/${branch}:${ref}`]);
+  git(['apply', '--index', ownPath]);
+  const author = ['-c', `user.name=${FIX_BOT.name}`, '-c', `user.email=${FIX_BOT.email}`];
+  const commit = git([...author, 'commit-tree', git(['write-tree']).trim(), '-p', git(['rev-parse', ref]).trim(), '-p', 'HEAD', '-F', '-'], message).trim();
+  if (!decision.merge || !process.env.PR_TOKEN) {
+    // The developer reads the change Claude made, on the draft.
+    git(['push', '-q', 'origin', `${commit}:refs/heads/${branch}`]);
+    return waitsNow(decision.merge ? 'The job has no token of LangQuest\'s GitHub App.' : decision.why, true);
+  }
+  try {
+    pushAsApp(commit, branch);
+  } catch {
+    git(['push', '-q', 'origin', `${commit}:refs/heads/${branch}`]);
+    return waitsNow('GitHub did not let LangQuest\'s GitHub App push the change, so its checks did not start.', true);
+  }
+  await github('PATCH', `/pulls/${p.number}`, { body: withTry(fixBody(issue, fix, checks, run, { decision, vet: input.vet }), tries) });
+  if (!autoMerge(p.number)) return waitsNow('GitHub did not turn on auto-merge again.', true);
+  await tell({ record: fixRecord(id, { decision: 'merge', why: `Claude changed the fix to get it into main (try ${tries.count} of ${TRIES}). ${decision.why}`, pr: p.number }, fix, plan, input.vet, shots) });
+  console.log(`${id}: PR ${p.number} changed (try ${tries.count}); it merges without a person when its checks pass`);
 }
 
 const COMMANDS = { fetch: fetchWatch, file, 'fix-context': fixContext, 'fix-patch': fixPatch, 'fix-paths': fixPaths, 'fix-open': fixOpen };

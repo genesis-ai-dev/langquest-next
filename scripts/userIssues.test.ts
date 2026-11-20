@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, LIMITS, linearClient, lookedOf, mergesOf,
-  noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence
+  noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
+  repairOf, repairsOf
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -101,7 +102,10 @@ describe('user-issues.mjs', () => {
     const lead = research.find((s) => s.includes('anthropics/claude-code-action'))!;
     expect(perms('research')).toEqual(['contents: read', 'id-token: write']);
     expect(yml).toContain("- cron: '23 13 * * *'");
-    for (const job of ['watch', 'follow']) expect(jobs[job], job).toContain("if: ${{ github.event.schedule != '23 13 * * *' && !inputs.research }}");
+    expect(jobs['follow']).toContain("if: ${{ github.event.schedule != '23 13 * * *' && !inputs.research }}");
+    // The watch runs after `follow`, also when it failed, so a pull request it hands back reaches the fix jobs.
+    expect(jobs['watch']).toContain('needs: follow');
+    expect(jobs['watch']).toContain("if: ${{ !cancelled() && github.event.schedule != '23 13 * * *' && !inputs.research }}");
     expect(jobs['research']).toContain("if: ${{ github.event.schedule == '23 13 * * *' || inputs.research }}");
     expect(yml).toContain("group: user-issues${{ (github.event.schedule == '23 13 * * *' || inputs.research) && '-research' || '' }}");
     // The agent team signs in with its own token, billed to the organization; without it, it does nothing.
@@ -124,11 +128,19 @@ describe('user-issues.mjs', () => {
     expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('file .user-issues'))).toContain("steps.watch.outputs.research != '0'");
     // The file step runs for an instruction alone, so its issue reaches the fix jobs.
     expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('file .user-issues'))).toContain("steps.watch.outputs.notes != '0'");
+    // The file step runs for a pull request `follow` hands back alone, and Claude is told where the rules for it are.
+    const fileStep = watchStepsOf(jobs['watch']!).find((s) => s.includes('file .user-issues'))!;
+    expect(fileStep).toContain("(needs.follow.outputs.repairs != '' && needs.follow.outputs.repairs != '[]')");
+    expect(fileStep).toContain('REPAIRS: ${{ needs.follow.outputs.repairs }}');
+    expect(context).toContain('FIX_REPAIR: ${{ runner.temp }}/repairs');
+    expect(claude).toContain('When a fix did not get into main');
+    expect(read('.agents/skills/user-issues/SKILL.md')).toContain('### When a fix did not get into main');
     expect(claude).toContain('.user-issues/evidence');
     expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('anthropics/claude-code-action'))).toContain('.user-issues/evidence');
     // Nothing that came with a problem leaves the runner: only the patch step's own output is uploaded.
     const uploads = yml.split(/\n {6}- /).filter((s) => s.includes('actions/upload-artifact')).map((s) => /path: (.+)/.exec(s)?.[1]);
-    expect(uploads).toEqual(['${{ runner.temp }}/fix-out/', '${{ runner.temp }}/check/', '${{ runner.temp }}/picture/*.jpg', '${{ runner.temp }}/vet-out/']);
+    // `follow` uploads the failed jobs' logs of the team's own pull requests: public already, nothing a person sent.
+    expect(uploads).toEqual(['${{ runner.temp }}/fix-out/', '${{ runner.temp }}/check/', '${{ runner.temp }}/picture/*.jpg', '${{ runner.temp }}/vet-out/', '${{ runner.temp }}/repairs/']);
     const watchSteps = jobs['watch']!.split(/\n {6}- /);
     const look = watchSteps.findIndex((s) => s.includes('anthropics/claude-code-action'));
     expect(watchSteps.findIndex((s) => s.includes('cp -a .git "$RUNNER_TEMP/base.git"'))).toBeLessThan(look);
@@ -161,11 +173,14 @@ describe('user-issues.mjs', () => {
     const reviewer = jobs['vet']!.split(/\n {6}- /).find((s) => s.includes('anthropics/claude-code-action'))!;
     expect(reviewer).toContain('--allowedTools "Read,Glob,Grep,Write"');
     expect(jobs['vet']).not.toMatch(/LINEAR_API_KEY|RELEASE_APP|id-token|\bnpm\b|\bnpx\b/);
-    // Only the job that opens the pull request holds LangQuest's GitHub App's token, and the gate runs there, in code.
-    expect(Object.entries(jobs).filter(([, b]) => b.includes('RELEASE_APP_PRIVATE_KEY')).map(([n]) => n)).toEqual(['open']);
-    // The job that follows the team's pull requests can make one a draft and tell the Worker; it runs nothing of a change.
-    expect(perms('follow')).toEqual(['contents: read', 'pull-requests: write', 'checks: read', 'id-token: write']);
-    expect(jobs['follow']).not.toMatch(/\bnpm\b|\bnpx\b|claude-code-action|secrets\./);
+    // Only the job that opens the pull request and the job that follows it hold LangQuest's GitHub App's token;
+    // both run nothing of a change, and the gate runs in code.
+    expect(Object.entries(jobs).filter(([, b]) => b.includes('RELEASE_APP_PRIVATE_KEY')).map(([n]) => n)).toEqual(['open', 'follow']);
+    // The job that follows the team's pull requests runs failed jobs again, merges main, makes one a draft and
+    // tells the Worker; it runs nothing of a change and holds no key but the App's.
+    expect(perms('follow')).toEqual(['contents: read', 'pull-requests: write', 'checks: read', 'actions: write', 'id-token: write']);
+    expect(jobs['follow']).not.toMatch(/\bnpm\b|\bnpx\b|claude-code-action|LINEAR_API_KEY|CLAUDE_CODE_OAUTH_TOKEN|claude_code_oauth_token/);
+    expect(jobs['follow']!.match(/secrets\.\w+/g)?.sort()).toEqual(['secrets.AGENT_TEAM_CLAUDE_TOKEN', 'secrets.RELEASE_APP_ID', 'secrets.RELEASE_APP_ID', 'secrets.RELEASE_APP_PRIVATE_KEY']);
   });
 
   it('names kinds as the Worker and the database do', () => {
@@ -632,3 +647,22 @@ describe('what Claude looks at besides the counts', () => {
     expect(leaks('Playback on slow phones starts at once.', priv)).toBe(false);
   });
 });
+
+describe('a pull request of the team that did not get into main', () => {
+  it('goes back to the fix team by its issue id only, at most 2 a run', () => {
+    expect(repairsOf('["LAN-1","LAN-2","LAN-3"]')).toEqual(['LAN-1', 'LAN-2']);
+    expect(repairsOf('["LAN-1","LAN-1","x; rm -rf /",7]')).toEqual(['LAN-1']);
+    for (const odd of ['', '{', 'null', '{"a":1}', undefined]) expect(repairsOf(odd), String(odd)).toEqual([]);
+  });
+
+  it('comes with its pull request, why, and the failed jobs, cut to size; none for another issue', () => {
+    const raw = { issue: 'LAN-5', pr: 612, why: 'Its checks failed (gate: failure).', failures: [{ job: 'unit', steps: ['Test'], log: 'x'.repeat(20_000) }, 'odd'] };
+    const got = repairOf(raw, 'LAN-5')!;
+    expect(got.pr).toBe(612);
+    expect(got.failures).toHaveLength(1);
+    expect(got.failures[0]!.log.length).toBeLessThanOrEqual(12_000);
+    expect(repairOf(raw, 'LAN-6')).toBeNull();
+    expect(repairOf({ ...raw, pr: '612' }, 'LAN-5')).toBeNull();
+  });
+});
+
