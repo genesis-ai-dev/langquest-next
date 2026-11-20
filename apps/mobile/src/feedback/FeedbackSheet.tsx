@@ -15,7 +15,7 @@ import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { Chip, ChipWrap, Field, GhostBtn, Group, HELP_FOOT_ROOM, Ico, IconBtn, PrimaryBtn, Row, Sheet } from '../ui/kit';
 import { VoiceNote } from '../audio/voiceNote';
-import { HelpLit } from '../helpMode/helpBadge';
+import { HelpLit, HelpRow } from '../helpMode/helpBadge';
 import { useHelpMode } from '../helpMode/useHelpMode';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { ownName } from '../account/accountText';
@@ -130,9 +130,9 @@ export function FeedbackHost(props: { ctx: Ctx; screen: string; signedIn: boolea
           {/* Every video that shows this screen, the one with the most of it first: a tap watches it on YouTube, the disc downloads it. */}
           <Group>
             {videos.map((v, i) => (
-              <Row key={v.tutorial} icon="play" label={v.title} role="link" last={i === videos.length - 1} testID={`help-video-${v.tutorial}`}
+              <HelpRow key={v.tutorial} of="tutorial.video"><Row icon="play" label={v.title} role="link" last={i === videos.length - 1} testID={`help-video-${v.tutorial}`}
                 help={v.watch ? t('tutorial.watch') : t('tutorial.download')} onPress={() => void Linking.openURL(v.watch ?? v.download)}
-                {...(v.watch ? { action: <IconBtn name="download" label={`${t('tutorial.download')}: ${v.title}`} help={t('tutorial.download')} onPress={() => void Linking.openURL(v.download)} /> } : {})} />
+                {...(v.watch ? { action: <IconBtn name="download" label={`${t('tutorial.download')}: ${v.title}`} help={t('tutorial.download')} onPress={() => void Linking.openURL(v.download)} /> } : {})} /></HelpRow>
             ))}
           </Group>
         </Sheet>
