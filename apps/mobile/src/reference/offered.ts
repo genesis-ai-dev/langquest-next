@@ -22,25 +22,51 @@ interface OfferedSource {
   origin: string;
 }
 
+export interface Offered { recommended: OfferedSource[]; own: OfferedSource[] }
+
 export function offeredGuideSources(
   library: Record<string, LibraryItemState>,
   orgRecs: Record<string, Register<boolean>> | undefined,
   state: LanguageState | null,
   unitId: string | null | undefined
-): { recommended: OfferedSource[]; own: OfferedSource[] } {
+): Offered {
+  return guideOffer(library, orgRecs, state)(unitId);
+}
+
+/**
+ * `offeredGuideSources` for many passages of one language: the library is
+ * read once, not once for each passage (the offline prefetch asks for every
+ * passage a person keeps, study/StudyPrefetch.tsx). Passages nobody linked
+ * or hid anything on are offered the same, so they get the same answer, the
+ * very same object: a caller that works something out from it can keep that
+ * by the object. Read-only.
+ */
+export function guideOffer(
+  library: Record<string, LibraryItemState>,
+  orgRecs: Record<string, Register<boolean>> | undefined,
+  state: LanguageState | null
+): (unitId: string | null | undefined) => Offered {
   const items = libraryItems(library, 'material').filter((i) => i.current && !i.archived);
   const byId = new Map(items.map((i) => [i.itemId, i]));
-  const rec = recommendedFor(orgRecs, state);
+  const recommended = [...recommendedFor(orgRecs, state).keys()].sort();
   const languageSay = state?.languageReferences ?? {};
-  const hiddenHere = (id: string) => !!(state && unitId && passageLink(state, unitId, id) === false);
-  const linked = state && unitId ? linkedTo(state, unitId) : [];
-  const first = [...new Set([...linked, ...[...rec.keys()].sort()])].filter((id) => byId.has(id) && !hiddenHere(id));
-  const taken = new Set(first);
-  const own = items.filter((i) => !taken.has(i.itemId) && languageSay[i.itemId]?.value !== 'hidden' && !hiddenHere(i.itemId));
   const src = (id: string) => {
     const it = byId.get(id)!;
     const sub = it.subscription;
     return { key: sub ? `${sub.sourceOrgId}.${sub.sourceItemId}` : id, hash: it.current!, origin: originOf(it) };
   };
-  return { recommended: first.map(src), own: own.map((i) => src(i.itemId)) };
+  const offer = (unitId: string | null | undefined): Offered => {
+    const hiddenHere = (id: string) => !!(state && unitId && passageLink(state, unitId, id) === false);
+    const linked = state && unitId ? linkedTo(state, unitId) : [];
+    const first = [...new Set([...linked, ...recommended])].filter((id) => byId.has(id) && !hiddenHere(id));
+    const taken = new Set(first);
+    const own = items.filter((i) => !taken.has(i.itemId) && languageSay[i.itemId]?.value !== 'hidden' && !hiddenHere(i.itemId));
+    return { recommended: first.map(src), own: own.map((i) => src(i.itemId)) };
+  };
+  let plain: Offered | null = null;
+  return (unitId) => {
+    // An admin linked or hid something on this passage: its own answer.
+    if (state && unitId && Object.keys(state.passageLinks[unitId] ?? {}).length > 0) return offer(unitId);
+    return (plain ??= offer(null));
+  };
 }
