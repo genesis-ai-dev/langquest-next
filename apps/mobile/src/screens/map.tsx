@@ -23,7 +23,7 @@ import { t } from '../i18n';
 import { useLabels } from '../library/useLabels';
 import { itemName } from '../library/labelsModel';
 import { formatNumber, formatPercent } from '../i18n/format';
-import { BookOfflineLine, DownloadButton, FillBanner } from '../sync/offline';
+import { DownloadButton, FillBanner, GroupDownloadButton, GroupOfflineBar } from '../sync/offline';
 
 import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
 import { indexesFor } from '../sync/indexes';
@@ -391,16 +391,17 @@ function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPr
 /** An outline language (lessons, stories): its folders and their items instead of books and chapters (MAP-6). */
 function OutlineMap(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; languageId: string; entries: Entry[]; forYou: Set<string> }) {
   const [limits, setLimits] = useState<Record<string, number>>({});
-  const sections = useMemo(() => outlineSections(props.entries), [props.entries]);
+  // Each section with its passages' ids, for the button that downloads them all (LAN-316).
+  const sections = useMemo(() => outlineSections(props.entries).map(([name, list]) => ({ name, list, unitIds: list.map((e) => e.unitId) })), [props.entries]);
   return (
     <>
-      {sections.map(([name, list]) => {
+      {sections.map(({ name, list, unitIds }, s) => {
         const limit = limits[name] ?? PAGE;
         const shown = list.slice(0, limit);
         return (
           <HelpRow key={name} of="map.section">
             <View style={{ gap: space.sm }}>
-              <SectionLabel label={name} />
+              <SectionLabel label={name} action={<GroupDownloadButton ctx={props.ctx} unitIds={unitIds} name={name} testID={`download-section-${s}`} />} />
               <Group>
                 {shown.map((e, i) => (
                   <HelpRow key={e.unitId} of="map.passage">
@@ -663,6 +664,8 @@ export function BookMap(ctx: Ctx) {
   const beside = useOpenDetail();
   const book = canonBook(bookId);
   const entries = useMemo(() => (state ? bookEntries(languageEntries(state, ctx.language.lines), bookId) : []), [state, ctx.language.lines, bookId]);
+  // Every passage of the book, whatever the filter shows: what its download button keeps (LAN-316).
+  const unitIds = useMemo(() => entries.map((e) => e.unitId), [entries]);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const chapters = useMemo(() => (book ? chapterTiles(book, entries, forYou, filter) : []), [book, entries, forYou, filter]);
@@ -727,11 +730,15 @@ export function BookMap(ctx: Ctx) {
     </View>
   ) : null;
 
+  // Over the book's passages: how many are on this device, and the button that downloads them all (decisions.md 166, LAN-316).
+  const bookOffline = <GroupOfflineBar ctx={ctx} unitIds={unitIds} testID="book-offline" />;
+
   // Passages that sit in no book have no chapters to lay out: a list, 25 at a time.
   if (!book) {
     const shown = filterEntries(entries, filter);
     return (
       <Screen header={header}>
+        {bookOffline}
         <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
         {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>{t('map.nothingMatches')}</Text> : (
           <Group>
@@ -749,15 +756,12 @@ export function BookMap(ctx: Ctx) {
     );
   }
 
-  // How many of the book's passages are on this device, over them (decisions.md 166).
-  const ready = entries.filter((e) => offline.get(e.unitId)?.ready).length;
-
   // Divided into passages, which may run across chapters: every passage, as a row (decisions.md 166), as the grid showed every chapter.
   if (!tiles) {
     const shown = filterEntries(entries, filter);
     return (
       <Screen header={header}>
-        <BookOfflineLine ready={ready} count={entries.length} checking={!ctx.language.blobs.keptOffline} />
+        {bookOffline}
         <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => { setFilter('all'); setLimit(PAGE); }} />
         {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>{t('map.nothingMatches')}</Text> : (
           <Group>
@@ -782,7 +786,7 @@ export function BookMap(ctx: Ctx) {
 
   return (
     <Screen header={header}>
-      <BookOfflineLine ready={ready} count={entries.length} checking={!ctx.language.blobs.keptOffline} />
+      {bookOffline}
       <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
       {/* The key beside the tiles it explains, not after the last of them (UI audit, finding 123). */}
       <ShortKey />

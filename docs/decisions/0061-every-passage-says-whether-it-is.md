@@ -56,3 +56,5 @@ line and "Not on this device yet". The person's offline scope fills first,
 after whatever a screen opens.
 
 Amended (2026-11-18, Carl Sauder): Me's "Ready for offline" row and More settings' "Sync" are one row on Me, "Sync and offline", opening one screen with one title and one order; Ready for offline is a fold on it, a packing list of kept passages and, for someone who can let a new person in, the install file, with what always works offline folded under it (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
+
+Amended (2026-11-20, Carl Sauder): a book, and a section of a language with its own outline, has a download button of its own, because someone who will be offline for a while may want all the work on one or more books on their device (LAN-316). The choice stays each unit's own, as above: the button keeps each of the book's passages, and each passage's button still shows and changes its own (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md).

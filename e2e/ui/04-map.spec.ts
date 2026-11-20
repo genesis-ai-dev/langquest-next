@@ -9,7 +9,7 @@ import {
   addLanguages, chapterUnits, createEmptyOrg, finishPassages, headerTitle, headings, invite, labels, leaveBookWaiting, settled
 } from './nav-helpers';
 import {
-  back, bookRow, button, byId, expect, openAs, primary, screenText, syncNow, tab, tabsShown, test, text, useWorld,
+  back, bookRow, button, byId, expect, expectToast, openAs, primary, screenText, syncNow, tab, tabsShown, test, text, useWorld,
   type AccountKey, type PassageKey
 } from './support';
 
@@ -65,6 +65,10 @@ async function wholeBook(page: Page): Promise<void> {
   await expect(more).toBeVisible();
   while (await more.isVisible()) await more.click();
 }
+/** What Luke's download button says once the device has counted (MAP-036): what it offers, or where its passages stand. */
+const BOOK_OFFERS = /^(Download all 97 passages for offline|Download the other \d+ passages?\. \d+ of 97 passages ready on this device)/;
+const BOOK_KEPT = /^(All 97 kept passages are on this device|Downloading for offline · \d+ of 97|\d+ of 97 passages ready on this device)/;
+const BOOK_OFFLINE = new RegExp(`${BOOK_OFFERS.source}|${BOOK_KEPT.source}`);
 const closeSheet = (page: Page) => page.getByRole('button', { name: 'Close' }).locator('visible=true').first().click({ position: { x: 10, y: 10 } });
 
 // ---- All languages -------------------------------------------------------------------------
@@ -298,7 +302,8 @@ for (const who of ['TRANS', 'VIEW'] as const) {
     // On a phone the sub-line names the language, as the crumbs do on a wide window (UI audit, finding 124).
     await expect(text(page, 'Alpha · 9 of 97 passages')).toBeVisible();
     await expect(byId(page, 'header-back')).toBeVisible();
-    await expect(text(page, /^[\d,]+ of 97 passages? ready on this device$/)).toBeVisible();
+    // The line over the list is the book's download button (MAP-036): all of it when none is kept, the rest when some are.
+    await expect(byId(page, 'book-offline')).toHaveAttribute('aria-label', BOOK_OFFLINE);
     // 25 at a time (UI audit, finding 122), then the rest.
     expect((await labels(page)).filter((l) => /^Luke \d+:\d+/.test(l))).toHaveLength(25);
     await expect(button(page, 'Show 25 more · 72 left')).toBeVisible();
@@ -475,4 +480,25 @@ test('MAP-035 The viewer\'s map is read-only', async ({ page }) => {
   expect(all).not.toMatch(/Keep offline/);
   for (const not of ['Say it instead', 'Someone else should do this', 'Add a note', 'Record a new version']) expect(all).not.toContain(not);
   expect(await tabsShown(page)).toEqual([]);
+});
+
+// A book has its own download button (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, LAN-316).
+test('MAP-036 A whole book downloads for offline with one button', async ({ browser }) => {
+  // A device of its own: what is kept is the device's, and VIEW keeps nothing by default.
+  const { context, page } = await device(browser, 'VIEW');
+  await alphaMap(page);
+  await button(page, /^Luke\./).click();
+  await expect.poll(() => headerTitle(page)).toBe('Luke');
+  const book = byId(page, 'book-offline');
+  await expect(book).toHaveAttribute('aria-label', /^Download all 97 passages for offline/);
+  await book.click();
+  // Every passage is kept: the line says where they stand, and no row offers a download any more.
+  await expect(book).toHaveAttribute('aria-label', BOOK_KEPT);
+  await wholeBook(page);
+  await expect.poll(async () => (await labels(page)).filter((l) => /^Download for offline/.test(l))).toHaveLength(0);
+  // Again lets them go: its audio may be removed, and the whole book is on offer again.
+  await book.click();
+  await expectToast(page, 'No longer kept. Their audio may be removed to make room.');
+  await expect(book).toHaveAttribute('aria-label', /^Download all 97 passages for offline/);
+  await context.close();
 });

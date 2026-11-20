@@ -82,7 +82,10 @@ export interface LanguageHandle {
     streamUri: (ref: BlobFile) => Promise<string>;
     store: BlobStore | null;
     keptUnits: ReadonlySet<string>;
-    keepOffline: (unitId: string, keep: boolean) => Promise<void>;
+    /** Keep a passage offline or stop keeping it; a book's or a section's passages go as one list. */
+    keepOffline: (unitIds: string | readonly string[], keep: boolean) => Promise<void>;
+    /** What keeping these passages would bring down (the session's `offlineCost`); null before a session is open. */
+    offlineCost: (unitIds: readonly string[]) => Promise<{ files: number; bytes: number; freeable: number } | null>;
     /** Recordings here the server has not confirmed: what a hand-over must still send (handOver.ts). */
     unsent: () => Promise<BlobRef[]>;
     /**
@@ -273,9 +276,10 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     await session.run(specs);
   }, []);
 
-  const keepOffline = useCallback(async (unitId: string, keep: boolean) => {
-    await sessionRef.current?.keepOffline(unitId, keep);
+  const keepOffline = useCallback(async (unitIds: string | readonly string[], keep: boolean) => {
+    await sessionRef.current?.keepOffline(unitIds, keep);
   }, []);
+  const offlineCost = useCallback(async (unitIds: readonly string[]) => (await sessionRef.current?.offlineCost(unitIds)) ?? null, []);
 
   // Stable, so the lost-files alert asks again only when what was lost changes.
   const lost = useCallback(async (hashes: readonly string[]): Promise<LostFilesView> =>
@@ -298,8 +302,8 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const { keptUnits, keptOffline, offlineSummary, scope } = status;
   // One object until something it shows changes. The offline counts come worked out from the phone's table (decisions.md 143).
   const blobs = useMemo(
-    () => ({ uriFor, streamUri, store: files, keptUnits, keepOffline, rates, unsent, keptOffline, offlineSummary, scope, lost }),
-    [uriFor, streamUri, files, keptUnits, keepOffline, rates, unsent, keptOffline, offlineSummary, scope, lost]
+    () => ({ uriFor, streamUri, store: files, keptUnits, keepOffline, offlineCost, rates, unsent, keptOffline, offlineSummary, scope, lost }),
+    [uriFor, streamUri, files, keptUnits, keepOffline, offlineCost, rates, unsent, keptOffline, offlineSummary, scope, lost]
   );
   const triggerUpload = useCallback(() => sessionRef.current?.triggerUpload(), []);
   const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
