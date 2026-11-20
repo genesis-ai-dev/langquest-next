@@ -5843,6 +5843,7 @@
       "couldNotRead": "无法读取报告",
       "notVisible": "这个语言没有你可以查看的报告",
       "notVisibleBody": "你的角色可能不包括这个语言，或者它是在报告加载之后才添加的（可以在“报告”中同步最新数据后再查看）。",
+      "template": "模板：<b>{{template}}</b>",
       "reviewFlow": "审核流程：<b>{{flow}}</b>",
       "bottleneck": "瓶颈：<b>{{bottleneck}}</b>",
       "bottleneckValue_other": "{{step}}中有 {{count, number}} 个",

@@ -6347,6 +6347,7 @@
       "couldNotRead": "Não foi possível ler o relatório",
       "notVisible": "Este idioma não tem um relatório que você possa ver",
       "notVisibleBody": "A sua função pode não incluir este idioma, ou ele foi adicionado depois que os relatórios carregaram (atualize em Relatórios para conferir).",
+      "template": "Modelo: <b>{{template}}</b>",
       "reviewFlow": "Fluxo de revisão: <b>{{flow}}</b>",
       "bottleneck": "Gargalo: <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{count, number}} em {{step}}",

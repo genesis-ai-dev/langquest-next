@@ -6095,6 +6095,7 @@
       "couldNotRead": "Hindi mabasa ang ulat",
       "notVisible": "Walang ulat ang wikang ito na makikita mo",
       "notVisibleBody": "Maaaring hindi kasama sa iyong tungkulin ang wikang ito, o idinagdag ito pagkatapos mag-load ng mga ulat (humabol mula sa Mga ulat para tingnan).",
+      "template": "Template: <b>{{template}}</b>",
       "reviewFlow": "Daloy ng pagrepaso: <b>{{flow}}</b>",
       "bottleneck": "Bara: <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{count, number}} sa {{step}}",

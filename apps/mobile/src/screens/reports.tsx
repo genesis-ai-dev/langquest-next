@@ -25,6 +25,7 @@ import { saveLanguageSetting } from '../reports/languageSettings';
 import { C, measure, space } from '../ui/theme';
 import { ActivityChart, DayBars, ProgressLine, WorkBar } from '../reports/charts';
 import { countryCodes, countryName } from '../reports/countries';
+import { useLibrary } from '../library/useLibrary';
 import { useReports } from '../reports/useReports';
 import { bottleneckText, milestoneText, paceAdvice, paceLabel, PACE_TONE, recencyAdvice, recencyLabel, RECENCY_TONE, scopeLabel, stageName } from '../reports/labels';
 import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, Overview, Pace, type SectionProps } from '../reports/sections';
@@ -223,11 +224,13 @@ function LanguageBody(props: { ctx: Ctx; row: LanguageRow }) {
   const pace = paceOf(r, now);
   const sevenAgo = new Date(now - 6 * 86_400_000).toISOString().slice(0, 10);
   const bottleneck = bottleneckText(r);
+  const templateName = useLibrary(ctx).item(r.templateItemId ?? '')?.name ?? null;
   return (
     <>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'center' }}>
         <ToneBadge tone="brand" label={r.code.toUpperCase()} />
         <Text style={txt.sm}>{countryName(r.country)}</Text>
+        {templateName ? <Text style={txt.sm}>· <Trans i18nKey="reports.language.template" values={{ template: templateName }} components={{ b: bold }} /></Text> : null}
         <Text style={txt.sm}>· <Trans i18nKey="reports.language.reviewFlow" values={{ flow: r.flowName }} components={{ b: bold }} /></Text>
         {bottleneck ? <Text style={txt.sm}>· <Trans i18nKey="reports.language.bottleneck" values={{ bottleneck }} components={{ b: bold }} /></Text> : null}
         <ToneBadge tone={RECENCY_TONE[recency.band]} label={recencyLabel(recency.band)} />
