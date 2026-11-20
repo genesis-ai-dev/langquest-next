@@ -4,6 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getStore } from '../storage/store';
 import { trackSync } from './syncActivity';
+import { onGateOpen } from './firstContactGate';
 import { onWake } from './wake';
 import { serverTransport } from './serverTransport';
 import { diagnostics, flushDiagnostics } from '../diagnostics/diagnostics';
@@ -57,6 +58,8 @@ export function useOrg(orgId: string | null, actorId: string): OrgHandle {
 
   // Back on screen or back online: sync now rather than at the end of a backoff.
   useEffect(() => onWake(() => sessionRef.current?.wake()), []);
+  // And when a newcomer's first contact opens the gate that turned every sync away (firstContactGate.android.ts).
+  useEffect(() => onGateOpen(() => sessionRef.current?.wake()), []);
 
   useEffect(() => {
     if (!orgId) {
