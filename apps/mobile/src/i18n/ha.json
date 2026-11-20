@@ -5522,6 +5522,31 @@
       "downloadingHelp": "Ƙaramar alamar kibiya tana nufin har yanzu ana sauke shi zuwa wannan na'ura.",
       "changedHelp": "Alamar tuta tana nufin sassansa sun canja bayan an naɗa shi.",
       "stepsHelp": "Ƙananan alamomin dubawarsa ne: ✓ an gama, agogo yana jira, kumfa yana da sharhi."
+    },
+    "edit": {
+      "addStory": "Ƙara labari a nan",
+      "addStoryHelp": "Yana ƙara labari a ƙarshen wannan babban fayil. Wannan harshe kaɗai yake samu.",
+      "newFolder": "Sabon babban fayil",
+      "newFolderHelp": "Yana ƙara babban fayil marar komai a ƙarshen taswira. Wannan harshe kaɗai yake samu.",
+      "rename": "Sauya suna",
+      "renameHelp": "Yana ba wannan babban fayil sabon suna. Wannan harshe kaɗai yake samun sabon sunan.",
+      "storyTitle": "Sabon labari",
+      "folderTitle": "Sabon babban fayil",
+      "renameTitle": "Sauya sunan babban fayil",
+      "name": "Suna",
+      "nameHelp": "Rubuta sunan da mutane suke gani a taswira.",
+      "add": "Ƙara",
+      "saveHelp": "Yana ajiye shi a samfurin wannan harshe. Sauran harsuna suna riƙe samfurinsu.",
+      "added": "An ƙara {{name}}",
+      "renamed": "An sauya suna zuwa {{name}}",
+      "noteAdded": "An ƙara {{name}} a taswira",
+      "noteRenamed": "An sauya suna zuwa {{name}} a taswira",
+      "addBook": "Ƙara littafi",
+      "addBookHelp": "Yana ƙara littafin da samfurin ba shi da shi. Wannan harshe kaɗai yake samu. Littafin yana jiran a raba shi.",
+      "findBook": "Nemi littafi",
+      "findBookHelp": "Rubuta sunan littafi don ka same shi.",
+      "noBook": "Babu littafi mai wannan suna",
+      "bookHelp": "Yana ƙara wannan littafi a samfurin wannan harshe."
     }
   },
   "reports": {

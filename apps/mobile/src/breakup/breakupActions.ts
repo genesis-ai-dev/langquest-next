@@ -51,11 +51,15 @@ export async function ownTemplate(ctx: Ctx, lib: ReturnType<typeof useLibrary>, 
  */
 export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>, c: {
   item: LibraryItemView; doc: TemplateDoc; users: TemplateUser[] | null; chosen: Set<string>; label: string;
+  /** The open language's books after the change, where it covers only some (a book added on its map). */
+  books?: string[];
+  /** Copy it for the chosen languages even when they are all that use it (a change on the map, for one language). */
+  copy?: boolean;
 }): Promise<EventSpec[]> {
   const state = ctx.language.state;
   const sel = state?.template?.value;
   if (!state || !sel) throw new CommandError(t('breakup.errors.noTemplate'));
-  const plan = planChange({ item: c.item, users: c.users, chosen: c.chosen });
+  const plan = c.copy ? 'copy' : planChange({ item: c.item, users: c.users, chosen: c.chosen });
   let itemId = c.item.itemId;
   let docHash: string;
   if (plan === 'version') {
@@ -81,6 +85,6 @@ export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>
   if (c.doc.bible && !v11n) throw new CommandError(t('breakup.errors.versificationMissing'));
   return selectTemplateSpecs(state, {
     commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), itemId, docHash, doc: c.doc, versification: v11n, unitPrefix: sel.unitPrefix,
-    ...(sel.books ? { books: sel.books } : {})
+    ...(c.books ?? sel.books ? { books: c.books ?? sel.books } : {})
   });
 }

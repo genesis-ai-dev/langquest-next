@@ -201,6 +201,7 @@ export function eventPassage(e: AnyEvent): PassageOf | 'settings' | null {
     case 'v1.ReferencesUsed':
     case 'v1.UnitAdded':
     case 'v1.UnitHidden':
+    case 'v1.UnitRenamed':
       return { unitId: e.payload.unitId };
     case 'v1.TakeArchived':
     case 'v1.TakeSubmitted':

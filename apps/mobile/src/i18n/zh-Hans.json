@@ -5326,6 +5326,31 @@
       "downloadingHelp": "小箭头标记表示它还在下载到本设备上。",
       "changedHelp": "旗帜表示录音之后它的划分改变了。",
       "stepsHelp": "这些小标记是它的检查：勾表示已完成，时钟表示在等待，气泡表示有反馈。"
+    },
+    "edit": {
+      "addStory": "在这里添加故事",
+      "addStoryHelp": "在这个文件夹末尾添加一个故事。只有这个语言得到它。",
+      "newFolder": "新文件夹",
+      "newFolderHelp": "在地图末尾添加一个空文件夹。只有这个语言得到它。",
+      "rename": "重命名",
+      "renameHelp": "给这个文件夹一个新名称。只有这个语言得到新名称。",
+      "storyTitle": "新故事",
+      "folderTitle": "新文件夹",
+      "renameTitle": "重命名文件夹",
+      "name": "名称",
+      "nameHelp": "输入大家在地图上看到的名称。",
+      "add": "添加",
+      "saveHelp": "保存到这个语言的模板中。其他语言保留它们的模板。",
+      "added": "已添加 {{name}}",
+      "renamed": "已重命名为 {{name}}",
+      "noteAdded": "在地图上添加了 {{name}}",
+      "noteRenamed": "在地图上重命名为 {{name}}",
+      "addBook": "添加书卷",
+      "addBookHelp": "添加模板中没有的书卷。只有这个语言得到它。这卷书等待划分。",
+      "findBook": "查找书卷",
+      "findBookHelp": "输入书卷名称来查找。",
+      "noBook": "没有这个名称的书卷",
+      "bookHelp": "把这卷书添加到这个语言的模板中。"
     }
   },
   "reports": {

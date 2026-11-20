@@ -4,7 +4,7 @@ import { foldLanguage as fold } from '../src/reducer';
 import { emptyLanguageState, type LanguageState } from '../src/state';
 import { asTemplateV2, templateBooks, validateDoc, withDeps, type NamesDoc, type TemplateDocV1, type TemplateDocV2 } from '../src/libraryDocs';
 import { selectBookNamesSpec, selectTemplateSpecs, templateUnits } from '../src/libraryApply';
-import { bookParts, emptyBooks, goesWith, partCount, sameParts, verseNumbering, wayCovers, withBookBrokenUp, withEmptyBooksFilled } from '../src/breakup';
+import { bookParts, emptyBooks, goesWith, partCount, sameParts, verseNumbering, wayCovers, withBookAdded, withBookBrokenUp, withEmptyBooksFilled } from '../src/breakup';
 import { booksWaiting, buildIndexes, languagePassages } from '../src/indexes';
 import { bookNameOf, unitPlace, unitTitle } from '../src/passage';
 import type { VersificationDoc } from '../src/versification';
@@ -91,6 +91,17 @@ describe('a template that breaks up each book its own way (decision 74)', () => 
     expect(partCount(chapters, 'RUT', eng)).toBe(4);
     expect(sameParts(next, fia, 'RUT')).toBe(true);
     expect(sameParts(next, chapters, 'RUT')).toBe(false);
+  });
+
+  it('adds a book from the map in canon order, waiting to be broken up, and leaves a book it lists as it is', () => {
+    // Why: "Add a book" on a Bible language's map puts a book the template
+    // leaves out into the language's template, where the book list shows it as waiting.
+    const next = withBookAdded(fia, 'MRK', 'Mark');
+    expect(templateBooks(next).map((b) => b.book)).toEqual(['RUT', 'MRK', 'LUK', 'ROM']);
+    expect(bookParts(next, 'MRK')).toBeNull();
+    expect(bookParts(next, 'LUK')).toEqual(bookParts(fia, 'LUK'));
+    expect(withBookAdded(fia, 'LUK', 'Luka')).toEqual(fia);
+    expect(validateDoc(next)).toBeNull();
   });
 
   it("fills only the empty books from a second way (FIA's passages, then chapters)", () => {

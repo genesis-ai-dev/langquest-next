@@ -47,6 +47,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.UnitAdded` | unitId, parentUnitId, kind, label, order | grow-only set |
 | `v1.UnitHidden` | unitId, hidden | register per unit; a part the template's version no longer has |
 | `v1.BookNameSet` | book, name | register per book (USFM); what this language calls a Bible book, whatever its template calls it (decision 74) |
+| `v1.UnitRenamed` | unitId, label | register per unit; a new name for an outline folder or story, for this language, which the first `UnitAdded`'s label cannot take (`docs/decisions/2026-11-20-add-folders-and-stories-on-the-map.md`) |
 | `v1.BookNamesSelected` | itemId, docHash, language, names | register; the library book names (one set per language) this language uses, every name carried in; a book's own `BookNameSet` stays on top (decision 193) |
 | `v1.FlowSelected` | flowId, itemId, docHash, name | register; the selector emits kinds and `FlowStepSet` under `<flowId>/` |
 | `v1.FlowStepSet` / `v1.FlowStepRemoved` | stepId, order, kindIds[], checkpoint / stepId | register per step; removal is add-wins; kinds in one step run in parallel, a checkpoint is the only gate |

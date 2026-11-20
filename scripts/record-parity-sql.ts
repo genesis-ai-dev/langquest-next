@@ -134,6 +134,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.BookNameSet':
       variants.push({ ...p, book: 'luk' }, { ...p, book: 'LUKE' }, { ...p, book: '1 SA' });
       break;
+    case 'v1.UnitRenamed':
+      variants.push({ ...p, label: '' }, { ...p, unitId: '' }, { ...p, label: 7 }, { unitId: p['unitId'] });
+      break;
     case 'v1.BookNamesSelected':
       variants.push({ ...p, names: { luk: 'Luka' } }, { ...p, names: { LUK: '' } }, { ...p, names: { LUK: 7 } }, { ...p, names: [] }, { ...p, names: 'Luka' },
         { ...p, names: {} }, { ...p, language: 'Nepali' }, { ...p, language: '' }, { ...p, docHash: 'x' }, { ...p, itemId: '' });

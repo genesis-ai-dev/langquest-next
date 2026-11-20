@@ -5718,6 +5718,31 @@
       "downloadingHelp": "La pequeña marca de flecha significa que todavía se está descargando en este dispositivo.",
       "changedHelp": "La bandera significa que sus secciones cambiaron después de que se grabó.",
       "stepsHelp": "Los símbolos pequeños son sus verificaciones: una marca significa lista; un reloj, en espera; un globo, con comentarios."
+    },
+    "edit": {
+      "addStory": "Añadir una historia aquí",
+      "addStoryHelp": "Añade una historia al final de esta carpeta. Solo este idioma la recibe.",
+      "newFolder": "Nueva carpeta",
+      "newFolderHelp": "Añade una carpeta vacía al final del mapa. Solo este idioma la recibe.",
+      "rename": "Cambiar nombre",
+      "renameHelp": "Da un nombre nuevo a esta carpeta. Solo este idioma recibe el nombre nuevo.",
+      "storyTitle": "Nueva historia",
+      "folderTitle": "Nueva carpeta",
+      "renameTitle": "Cambiar nombre de la carpeta",
+      "name": "Nombre",
+      "nameHelp": "Escribe el nombre que la gente ve en el mapa.",
+      "add": "Añadir",
+      "saveHelp": "Lo guarda en la plantilla de este idioma. Los otros idiomas conservan su plantilla.",
+      "added": "{{name}} añadido",
+      "renamed": "Nombre cambiado a {{name}}",
+      "noteAdded": "Se añadió {{name}} en el mapa",
+      "noteRenamed": "Nombre cambiado a {{name}} en el mapa",
+      "addBook": "Añadir un libro",
+      "addBookHelp": "Añade un libro que la plantilla no tiene. Solo este idioma lo recibe. El libro espera a ser dividido.",
+      "findBook": "Buscar un libro",
+      "findBookHelp": "Escribe el nombre de un libro para encontrarlo.",
+      "noBook": "Ningún libro tiene ese nombre",
+      "bookHelp": "Añade este libro a la plantilla de este idioma."
     }
   },
   "reports": {

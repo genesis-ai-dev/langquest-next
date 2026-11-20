@@ -5522,6 +5522,31 @@
       "downloadingHelp": "Alama ndogo ya mshale inamaanisha bado kinapakuliwa kwenye kifaa hiki.",
       "changedHelp": "Bendera inamaanisha sehemu zake zilibadilika baada ya kurekodiwa.",
       "stepsHelp": "Alama ndogo ni kaguzi zake: alama ya vema imekamilika, saa inasubiri, kiputo kina maoni."
+    },
+    "edit": {
+      "addStory": "Ongeza hadithi hapa",
+      "addStoryHelp": "Inaongeza hadithi mwishoni mwa folda hii. Lugha hii pekee inaipata.",
+      "newFolder": "Folda mpya",
+      "newFolderHelp": "Inaongeza folda tupu mwishoni mwa ramani. Lugha hii pekee inaipata.",
+      "rename": "Badilisha jina",
+      "renameHelp": "Inaipa folda hii jina jipya. Lugha hii pekee inapata jina jipya.",
+      "storyTitle": "Hadithi mpya",
+      "folderTitle": "Folda mpya",
+      "renameTitle": "Badilisha jina la folda",
+      "name": "Jina",
+      "nameHelp": "Andika jina ambalo watu wanaona kwenye ramani.",
+      "add": "Ongeza",
+      "saveHelp": "Inahifadhi kwenye kiolezo cha lugha hii. Lugha nyingine zinabaki na kiolezo chao.",
+      "added": "{{name}} imeongezwa",
+      "renamed": "Jina limebadilishwa kuwa {{name}}",
+      "noteAdded": "{{name}} imeongezwa kwenye ramani",
+      "noteRenamed": "Jina limebadilishwa kuwa {{name}} kwenye ramani",
+      "addBook": "Ongeza kitabu",
+      "addBookHelp": "Inaongeza kitabu ambacho kiolezo hakina. Lugha hii pekee inakipata. Kitabu kinasubiri kugawanywa.",
+      "findBook": "Tafuta kitabu",
+      "findBookHelp": "Andika jina la kitabu ili kukipata.",
+      "noBook": "Hakuna kitabu chenye jina hilo",
+      "bookHelp": "Inaongeza kitabu hiki kwenye kiolezo cha lugha hii."
     }
   },
   "reports": {

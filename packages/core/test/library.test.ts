@@ -7,7 +7,7 @@ import { buildOrgFixture, shuffle } from './fixtures';
 import { followerItemId, libraryItems, libraryItemView, subscriptionItemId, type LibraryItemState } from '../src/library';
 import { canonicalJson, kindOfDoc, validateDoc, withDeps, type CollectionDoc, type FlowDoc, type LabelsDoc, type MaterialDoc, type TemplateDoc } from '../src/libraryDocs';
 import { libraryFlowId, selectFlowSpecs, selectTemplateSpecs, studyEntriesFor, templateUnits } from '../src/libraryApply';
-import { deriveFlow, unitPlace } from '../src/passage';
+import { deriveFlow, unitPlace, unitTitle } from '../src/passage';
 import { languagePassages, buildIndexes } from '../src/indexes';
 import { parseRef, type VersificationDoc } from '../src/versification';
 import type { AnyEvent } from '../src/events';
@@ -144,6 +144,35 @@ describe('a language using library versions', () => {
 
     state = apply(state, selectTemplateSpecs(state, { commandId: 'c3', itemId: 'ruth', docHash: H('1'), doc: v1, versification: eng }), 200);
     expect(leaves()).toEqual(['ruth/RUT.1.1-16', 'ruth/RUT.1.17-22']);
+  });
+
+  it('adds and renames folders and stories of an outline template as the map changes it', () => {
+    // Why: a folder or story renamed on the map must read its new name in the
+    // language, though the first UnitAdded keeps the label it was added with;
+    // and a folder just made, with nothing in it yet, is a folder, not a story.
+    const apply = (state: ReturnType<typeof emptyLanguageState>, specs: EventSpec[], at: number) =>
+      fold(specs.map((s, i) => ({ ...s, orgId: 'o', streamId: 'L1', actorId: 'a', deviceId: 'd', hlc: `${String(at + i).padStart(15, '0')}:000000:d` }) as AnyEvent), state);
+    const outline = (nodes: NonNullable<TemplateDoc['outline']>): TemplateDoc =>
+      ({ format: 'template@1', name: 'Stories', description: '', structure: 'outline', levels: [{ name: 'Folder' }, { name: 'Story' }], outline: nodes, deps: [] });
+    const one = outline([{ id: 'f1', title: 'Beginnings', children: [{ id: 's1', title: 'Creation' }] }]);
+    let state = emptyLanguageState();
+    state = apply(state, selectTemplateSpecs(state, { commandId: 'c1', itemId: 'st', docHash: H('1'), doc: one, versification: null }), 10);
+    expect(unitTitle(state, 'st/f1')).toBe('Beginnings');
+
+    const two = outline([
+      { id: 'f1', title: 'How it began', children: [{ id: 's1', title: 'Creation' }, { id: 's2', title: 'The flood' }] },
+      { id: 'f2', title: 'Healing', children: [] }
+    ]);
+    const specs = selectTemplateSpecs(state, { commandId: 'c2', itemId: 'st', docHash: H('2'), doc: two, versification: null });
+    expect(specs.filter((s) => s.type === 'v1.UnitRenamed').map((s) => s.payload)).toEqual([{ unitId: 'st/f1', label: 'How it began' }]);
+    state = apply(state, specs, 100);
+    expect(unitTitle(state, 'st/f1')).toBe('How it began');
+    expect(state.units['st/f1']?.label).toBe('Beginnings');
+    expect(unitPlace(state, 'st/s2').bookLabel).toBe('How it began');
+    expect(state.units['st/f2']?.kind).toBe('folder');
+    expect(languagePassages(state, buildIndexes(state))).toEqual(['st/s1', 'st/s2']);
+    // The same version again renames nothing.
+    expect(selectTemplateSpecs(state, { commandId: 'c3', itemId: 'st', docHash: H('2'), doc: two, versification: null }).some((s) => s.type === 'v1.UnitRenamed')).toBe(false);
   });
 
   it('places a library unit on the Map by its id, with the book named in the language', () => {

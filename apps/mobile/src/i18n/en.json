@@ -5522,6 +5522,31 @@
       "downloadingHelp": "The small arrow mark means it is still downloading to this device.",
       "changedHelp": "The flag means its sections changed after it was recorded.",
       "stepsHelp": "The small marks are its checks: a tick is done, a clock is waiting, a bubble has feedback."
+    },
+    "edit": {
+      "addStory": "Add a story here",
+      "addStoryHelp": "Adds a story at the end of this folder. Only this language gets it.",
+      "newFolder": "New folder",
+      "newFolderHelp": "Adds an empty folder at the end of the map. Only this language gets it.",
+      "rename": "Rename",
+      "renameHelp": "Gives this folder a new name. Only this language gets the new name.",
+      "storyTitle": "New story",
+      "folderTitle": "New folder",
+      "renameTitle": "Rename folder",
+      "name": "Name",
+      "nameHelp": "Type the name people see on the map.",
+      "add": "Add",
+      "saveHelp": "Saves it in this language’s template. Other languages keep their template.",
+      "added": "{{name}} added",
+      "renamed": "Renamed to {{name}}",
+      "noteAdded": "Added {{name}} on the map",
+      "noteRenamed": "Renamed to {{name}} on the map",
+      "addBook": "Add a book",
+      "addBookHelp": "Adds a book that the template does not have. Only this language gets it. The book waits to be divided.",
+      "findBook": "Find a book",
+      "findBookHelp": "Type a book name to find it.",
+      "noBook": "No book has that name",
+      "bookHelp": "Adds this book to this language’s template."
     }
   },
   "reports": {

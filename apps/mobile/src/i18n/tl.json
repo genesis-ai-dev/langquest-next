@@ -5522,6 +5522,31 @@
       "downloadingHelp": "Ibig sabihin ng maliit na marka ng palaso ay dina-download pa ito sa device na ito.",
       "changedHelp": "Ibig sabihin ng bandila ay nagbago ang mga seksiyon nito pagkatapos itong ma-record.",
       "stepsHelp": "Ang maliliit na marka ay ang mga pagsusuri nito: tapos na ang may tsek, naghihintay ang may orasan, may puna ang may bula."
+    },
+    "edit": {
+      "addStory": "Magdagdag ng kuwento rito",
+      "addStoryHelp": "Nagdadagdag ng kuwento sa dulo ng folder na ito. Ang wikang ito lang ang makakakuha nito.",
+      "newFolder": "Bagong folder",
+      "newFolderHelp": "Nagdadagdag ng walang lamang folder sa dulo ng mapa. Ang wikang ito lang ang makakakuha nito.",
+      "rename": "Palitan ang pangalan",
+      "renameHelp": "Binibigyan ng bagong pangalan ang folder na ito. Ang wikang ito lang ang makakakuha ng bagong pangalan.",
+      "storyTitle": "Bagong kuwento",
+      "folderTitle": "Bagong folder",
+      "renameTitle": "Palitan ang pangalan ng folder",
+      "name": "Pangalan",
+      "nameHelp": "I-type ang pangalang nakikita ng mga tao sa mapa.",
+      "add": "Idagdag",
+      "saveHelp": "Sine-save ito sa template ng wikang ito. Pinananatili ng ibang wika ang kanilang template.",
+      "added": "Naidagdag ang {{name}}",
+      "renamed": "Pinalitan ang pangalan ng {{name}}",
+      "noteAdded": "Naidagdag ang {{name}} sa mapa",
+      "noteRenamed": "Pinalitan ang pangalan ng {{name}} sa mapa",
+      "addBook": "Magdagdag ng aklat",
+      "addBookHelp": "Nagdadagdag ng aklat na wala sa template. Ang wikang ito lang ang makakakuha nito. Naghihintay ang aklat na mahati.",
+      "findBook": "Maghanap ng aklat",
+      "findBookHelp": "I-type ang pangalan ng aklat para mahanap ito.",
+      "noBook": "Walang aklat na may ganoong pangalan",
+      "bookHelp": "Idinadagdag ang aklat na ito sa template ng wikang ito."
     }
   },
   "reports": {
