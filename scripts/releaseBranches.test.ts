@@ -391,6 +391,16 @@ describe('a copy with a conflict', () => {
     expect(yml).toMatch(/claude-code-action@[0-9a-f]{40} # v1\.[0-9.]+\n[\s\S]*?\n\s+allowed_bots: langquest-release-branches\n/);
   });
 
+  it('Claude may run npm ci and the guardrails on a copy, which the release bot opens from merged code', () => {
+    // From v1.0.276 (2026-11-16) the action refused them on every copy, so Claude's tries on #549, #559 and #564 checked nothing.
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toMatch(/\n\s+restrict_untrusted_prs: "false"\n/);
+    // Only the copy workflow: every other Claude job keeps the action's default.
+    for (const other of ['user-issues.yml', 'tutorials.yml', 'tutorial-review.yml', 'phone-tests.yml']) {
+      expect(readFileSync(`.github/workflows/${other}`, 'utf8')).not.toContain('restrict_untrusted_prs');
+    }
+  });
+
   it('the workflow keeps a release branch for both platforms', () => {
     expect(readFileSync('.github/workflows/release-branches.yml', 'utf8')).not.toContain('RELEASE_BRANCH_PLATFORMS: ${{');
   });
