@@ -367,10 +367,10 @@ jobs:
           # A scheduled run starts as the merge queue, the last to change this file.
           allowed_bots: github-merge-queue
           prompt: |
-            Tonight some phone UI test flows failed. .phone-tests/failures.json lists them: the phone (android or ios), the flow's name, its file in apps/mobile/test/maestro/flows, Maestro's error, and the picture of the screen when it failed (.phone-tests/shots/<shot>; it can be null). The pictures show a test server with made-up people and data.
+            Tonight some phone UI test flows failed. .phone-tests/failures.json lists them: the phone (android or ios), the flow's name, its file in apps/mobile/test/maestro/flows, Maestro's error, the picture of the screen when it failed (.phone-tests/shots/<shot>; it can be null), and a note (null for most) when Maestro's driver on the phone stopped in the run. The pictures show a test server with made-up people and data.
             For each failed flow, read the flow file and the error, and look at the picture. Then write .phone-tests/look.json: a JSON array with one object for each failed flow, {"platform": "<as given>", "flow": "<the name as given>", "what": "<one sentence>", "cause": "app" | "test" | "machine"}.
             "what" says what the screen shows and what the flow expected to find there. Write it in ASD-STE100 Simplified Technical English: at most 25 words, active voice, words a person on the team understands without the code, no file names.
-            "cause" is "app" when the app did something wrong, "test" when the app looks right and the flow expected something that is no longer there, and "machine" when the phone or the test server failed (a blank screen, a system dialog, no connection).
+            "cause" is "app" when the app did something wrong, "test" when the app looks right and the flow expected something that is no longer there, and "machine" when the phone or the test server failed (a blank screen, a system dialog, no connection, a note that says the flow has no result).
             Write only that file.
           claude_args: --allowedTools "Read,Glob,Grep,Write"
       - name: Add Claude's words
