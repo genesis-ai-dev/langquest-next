@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   ACTS, causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, logTail, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, nextStep, OPEN_HOURS,
@@ -213,5 +214,16 @@ describe('a pull request of the team', () => {
     expect(tail.split('\n')[0]).toBe('line 80');
     expect(tail).not.toMatch(/\x1b|2026-11-20T/);
     expect(logTail('x'.repeat(20_000)).length).toBe(12_000);
+  });
+});
+
+describe('the follow command', () => {
+  it('runs to its end: it imports user-issues.mjs, which imports agent-team.mjs', () => {
+    const env = { ...process.env };
+    delete env['GITHUB_TOKEN'];
+    const run = spawnSync(process.execPath, [new URL('./agent-team.mjs', import.meta.url).pathname, 'follow'], { encoding: 'utf8', env });
+    // Without a token it stops at its first call to GitHub, not in the import (exit 13).
+    expect(run.stderr).toContain('No GITHUB_TOKEN');
+    expect(run.status).toBe(1);
   });
 });

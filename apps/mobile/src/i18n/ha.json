@@ -4829,7 +4829,25 @@
     "download": "Sauke don amfani ba intanet",
     "needsConnection": "Saukewa na bukatar intanet",
     "needsConnectionHelp": "Ba ya a wannan na'ura. Za a iya sauke shi idan na'urar ta samu intanet.",
-    "checkingHelp": "Wannan na'ura tana ƙidaya abin da take da shi na wannan sashe."
+    "checkingHelp": "Wannan na'ura tana ƙidaya abin da take da shi na wannan sashe.",
+    "group": {
+      "download_one": "Sauke nassi {{count, number}} don amfani ba intanet",
+      "download_other": "Sauke duk nassosi {{count, number}} don amfani ba intanet",
+      "downloadRest_one": "Sauke sauran nassi {{count, number}}",
+      "downloadRest_other": "Sauke sauran nassosi {{count, number}}",
+      "size": "Sauti {{size}} da za a sauke",
+      "noRoom": "Babu isasshen wuri a wannan na'ura",
+      "noRoomNeeds": "Sautinsu {{size}} ne. Wannan na'ura tana da wuri na {{room}}.",
+      "noRoomHelp": "Samar da wuri a wannan na'ura, ko ku sauke nassosi kaɗan a lokaci ɗaya.",
+      "keepHelp": "Yana adana sautin kowane nassi a wannan na'ura, don su yi aiki ba tare da intanet ba.",
+      "letGoHelp": "Yana bar wannan na'ura ta sake cire sautinsu idan tana buƙatar wuri. Nassosin da suke aikinku za su zauna.",
+      "reason": "An adana saboda an roƙe ku ku yi aiki a kan waɗannan nassosi, ko kun yi aiki a kansu.",
+      "toast": {
+        "letGo": "Ba a adana su yanzu. Ana iya cire sautinsu don samar da wuri.",
+        "someStay_one": "Ba a adana su yanzu, sai dai nassi {{count, number}} da yake aikinku.",
+        "someStay_other": "Ba a adana su yanzu, sai dai nassosi {{count, number}} da suke aikinku."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "Kai ƙara ko toshe {{name}}",

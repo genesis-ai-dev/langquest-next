@@ -493,14 +493,46 @@ export class LanguageSession {
     await this.written();
   }
 
-  async keepOffline(unitId: string, keep: boolean): Promise<void> {
+  /**
+   * Keep a passage offline, or stop keeping it. A book's or a section's
+   * passages go as one list (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md):
+   * one write, one download pass and one recount, however many they are.
+   */
+  async keepOffline(unitIds: string | readonly string[], keep: boolean): Promise<void> {
     const next = new Set(this.current.keptUnits);
-    if (keep) next.add(unitId);
-    else next.delete(unitId);
+    let changed = false;
+    for (const unitId of typeof unitIds === 'string' ? [unitIds] : unitIds) {
+      if (next.has(unitId) === keep) continue;
+      if (keep) next.add(unitId);
+      else next.delete(unitId);
+      changed = true;
+    }
+    // Nothing to write: a second tap on a book already kept, or one let go.
+    if (!changed) return;
     this.set({ keptUnits: next });
     await this.o.store.setMeta(keepKey(this.o.orgId, this.o.languageId), JSON.stringify([...next]));
     this.down.nudge();
     this.recount();
+  }
+
+  /**
+   * What keeping these passages would bring down: the files of theirs the
+   * server has and this device does not, each counted once however many of
+   * the passages play it. Said before a whole book is kept, so the size is
+   * known before the tap. `freeable`: the bytes this device would free for
+   * them by itself when space ran short (level 1: files here that the server
+   * has and no kept passage would need, these passages kept too), so a book
+   * is not refused for want of room the device would make. Nothing is kept
+   * by asking.
+   */
+  async offlineCost(unitIds: readonly string[]): Promise<{ files: number; bytes: number; freeable: number }> {
+    const present = this.here();
+    const cost = await this.plan.cost(unitIds, present);
+    const scope = await this.scope();
+    for (const unitId of unitIds) scope.add(unitId);
+    const sizes = this.o.files.sizes();
+    const freeable = (await this.plan.evictable(present, scope, sizes)).reduce((bytes, ref) => bytes + (sizes.get(ref.hash) ?? 0), 0);
+    return { ...cost, freeable };
   }
 
   /**

@@ -1,5 +1,5 @@
 // Whether a source is kept on this phone, for a screen to follow (sources/offline.ts).
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { noteExpected } from '../diagnostics/report';
 import type { Session } from '../shell/session';
 import type { OrgHandle } from '../sync/useOrg';
@@ -19,9 +19,12 @@ export function useSourceOffline(language: LanguageHandle, org: OrgHandle, sessi
   latest.current = { language, org, session };
   const revision = language.revision;
   const libraryKey = org.state ? Object.keys(org.state.recommendations ?? {}).length + ':' + Object.keys(org.state.library ?? {}).length : '';
-  const kept = [...language.blobs.keptUnits].sort().join(',');
+  // Worked out when the sets change, not on every render of the app root: a whole book kept is a hundred ids or more (LAN-316).
+  const keptUnits = language.blobs.keptUnits;
+  const kept = useMemo(() => [...keptUnits].sort().join(','), [keptUnits]);
   // The default scope comes worked out from the phone's table (decisions.md 143), so a pass runs when it changes.
-  const scope = [...language.blobs.scope].sort().join(',');
+  const scopeUnits = language.blobs.scope;
+  const scope = useMemo(() => [...scopeUnits].sort().join(','), [scopeUnits]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

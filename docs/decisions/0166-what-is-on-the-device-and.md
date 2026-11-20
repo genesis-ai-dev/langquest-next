@@ -141,3 +141,5 @@ and moving it into the headers (the reversal above) would lose its words
 and leave screens without a header without it.
 
 Amended (2026-11-18, Carl Sauder): the Sync screen's packages scene is turned on its side into the status card's strip (`TransitStrip`), whose line is the status, and the uploads card and the To receive card are gone; Uploads is a fold with the Waiting and Uploaded lists, and Downloads a line that offline still never says "Up to date" (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
+
+Amended (2026-11-20, Carl Sauder): the reversal named above came: people who will be offline for a while want a whole book on their device (LAN-316). The line over a book's passages, which said how many are ready, is now the button that downloads them all, and says how much audio would come before the tap; an outline section has the same button beside its name. It keeps to this decision's rule that a line says only what the device knows (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md).
