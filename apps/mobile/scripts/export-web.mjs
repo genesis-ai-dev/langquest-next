@@ -231,7 +231,12 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // shared let-in model. The hand-over, the new phone's finder and Give the app's rules are in files
 // only Android loads (giveHandOver.ts, useGiveJoinFinder.android.ts, giveAppModel.ts), and the screens
 // are Android only. 486 bytes are left; a first visit has 9,813.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 154 * 1024;
+// Raised by 6 KB with two changes made ready together (Caleb Koster, 2026-11-20), so that they merge
+// in any order: each carries this same raise, and the first to merge brings it. Help mode's list of
+// each screen's tutorial videos (LAN-244) adds about 3.4 KB and Connect's web button and Setup row
+// (LAN-237) about 1.5 KB, with their words in 16 languages. If one of them does not merge, lower this
+// by what it adds.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 160 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
