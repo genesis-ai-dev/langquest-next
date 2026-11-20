@@ -85,25 +85,25 @@
     "@axe-core/playwright": "^4.14.0",
     "@dotenvx/dotenvx": "^2.38.2",
     "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
-    "@playwright/test": "^1.65.0",
+    "@playwright/test": "^1.65.1",
     "@stryker-mutator/core": "^10.1.1",
     "@stryker-mutator/vitest-runner": "^10.1.1",
     "@types/node": "^24.19.2",
     "@typescript/native": "npm:typescript@7.0.2",
     "@vitest/coverage-v8": "^5.1.0",
-    "eas-cli": "^27.9.0",
-    "eslint": "10.14.0",
-    "eslint-plugin-boundaries": "7.4.3",
+    "eas-cli": "^27.10.0",
+    "eslint": "10.15.0",
+    "eslint-plugin-boundaries": "7.4.4",
     "eslint-plugin-react-hooks": "7.1.1",
-    "eslint-plugin-react-refresh": "0.5.7",
+    "eslint-plugin-react-refresh": "0.5.8",
     "fast-check": "^4.10.2",
     "postgres": "^3.4.9",
     "supabase": "^2.122.1",
     "tsx": "^4.23.15",
     "typescript": "npm:@typescript/typescript6@~6.0.2",
-    "typescript-eslint": "8.72.2",
+    "typescript-eslint": "8.73.0",
     "vitest": "^5.1.0",
-    "wrangler": "^4.162.0"
+    "wrangler": "^4.164.0"
   },
   "overrides": {
     "eas-cli": {
@@ -113,6 +113,9 @@
     },
     "joi": "17.13.9",
     "node-forge": "1.4.3",
-    "tar": "7.5.22"
+    "tar": "7.5.22",
+    "typed-rest-client": {
+      "qs": "6.17.1"
+    }
   }
 }
