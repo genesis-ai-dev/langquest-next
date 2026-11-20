@@ -4835,7 +4835,25 @@
     "download": "Download for offline",
     "needsConnection": "Download needs a connection",
     "needsConnectionHelp": "Not on this device. It can be downloaded once this device is connected.",
-    "checkingHelp": "This device is counting what of this passage it has."
+    "checkingHelp": "This device is counting what of this passage it has.",
+    "group": {
+      "download_one": "Download {{count, number}} passage for offline",
+      "download_other": "Download all {{count, number}} passages for offline",
+      "downloadRest_one": "Download the other {{count, number}} passage",
+      "downloadRest_other": "Download the other {{count, number}} passages",
+      "size": "{{size}} of audio to download",
+      "noRoom": "Not enough room on this device",
+      "noRoomNeeds": "Its audio is {{size}}. This device has room for {{room}}.",
+      "noRoomHelp": "Free up room on this device, or download fewer passages at a time.",
+      "keepHelp": "Keeps the audio of every passage here on this device, so they work without a connection.",
+      "letGoHelp": "Lets this device remove their audio again when it needs room. Passages that are your work stay.",
+      "reason": "Kept because you were asked to work on these passages, or have worked on them.",
+      "toast": {
+        "letGo": "No longer kept. Their audio may be removed to make room.",
+        "someStay_one": "No longer kept, except {{count, number}} passage that is your work.",
+        "someStay_other": "No longer kept, except {{count, number}} passages that are your work."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "Report or block {{name}}",
@@ -6414,6 +6432,7 @@
       "addedAtCheckpoint": "{{kind}} added to the record. The checkpoint still waits for a check done in the app.",
       "keptNotSent": "Your review is kept on this phone. It is not sent yet.",
       "notOnPhoneYet": "The recording is not on this phone yet. It plays here once the phone is online.",
+      "notUploadedYet": "The recording has not been uploaded yet from the device it was made on. It plays here once that device has been online.",
       "previousQuestion": "Previous question",
       "previousQuestionHelp": "Goes back to the question before, to change your answer.",
       "loggedCheckpoint": "This check is a checkpoint: logged here, it goes on the record, but only a check done in the app opens the steps after it.",
@@ -6596,6 +6615,8 @@
     "notPublished": "Not published: {{reason}}",
     "partNotSaved": "A part did not save.",
     "retrySaving": "Retry saving",
+    "partNotHere": "Part {{n}} is not on this device yet. You can say it back once the device is online.",
+    "partNotUploaded": "Part {{n}} has not been uploaded yet from the device it was made on. You can say it back once that device has been online.",
     "youDrag": "You · drag back and forth as often as you like",
     "nameDrag": "{{name}} · drag back and forth as often as you like",
     "part": "Part {{n}}",
@@ -6689,7 +6710,10 @@
     "partsCleaned_one": "Clean up on {{count, number}} part.",
     "partsCleaned_other": "Clean up on {{count, number}} parts.",
     "redone": "Redone.",
-    "newRecording": "New recording"
+    "newRecording": "New recording",
+    "lockedTitle": "Part of this recording is not on this device yet",
+    "lockedOffline": "It cannot be changed or sent from here until this device is online and has it. To record without it, open {{versions}} on the passage and choose {{newVersion}}.",
+    "lockedNotUploaded": "It has not been uploaded yet from the device it was made on, so it cannot be changed or sent from here. To record without it, open {{versions}} on the passage and choose {{newVersion}}."
   },
   "reference": {
     "organization": "Organization",

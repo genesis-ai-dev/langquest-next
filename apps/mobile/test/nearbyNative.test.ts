@@ -16,6 +16,7 @@ import { NEARBY_DROP_CODES, NEARBY_NATIVE_CODES } from '../modules/nearby-link/s
 const MODULE = 'apps/mobile/modules/nearby-link';
 const KOTLIN = `${MODULE}/android/src/main/java/expo/modules/nearbylink`;
 const MANIFEST = `${MODULE}/android/src/main/AndroidManifest.xml`;
+const MODULE_ANDROID_RES = `${MODULE}/android/src/main/res`;
 
 const kotlinFiles = readdirSync(KOTLIN).filter((f) => f.endsWith('.kt'));
 const kotlin = new Map(kotlinFiles.map((f) => [f, readFileSync(join(KOTLIN, f), 'utf8')]));
@@ -182,11 +183,21 @@ describe('the nearby module\'s permissions', () => {
     expect(new Set(asked)).toEqual(new Set(['BLUETOOTH_SCAN', 'BLUETOOTH_ADVERTISE', 'BLUETOOTH_CONNECT', 'NEARBY_WIFI_DEVICES', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION']));
   });
 
-  it('do not keep the app from phones without the radios, and the manifest has no components', () => {
+  it('do not keep the app from phones without the radios, and the manifest runs nothing of its own', () => {
     for (const f of ['android.hardware.bluetooth', 'android.hardware.bluetooth_le', 'android.hardware.wifi.direct']) {
       expect(manifestCode).toMatch(new RegExp(`<uses-feature android:name="${f.replace(/\./g, '\\.')}" android:required="false" />`));
     }
-    expect(manifestCode).not.toMatch(/<(application|activity|service|receiver|provider)\b/);
+    // Nothing that runs: no activity, service or receiver, so nearby works only while its screen shows.
+    expect(manifestCode).not.toMatch(/<(activity|activity-alias|service|receiver)\b/);
+    // One component, which runs nothing: Give the app's share sheet reads the kept install file
+    // through it (Quick Share, 2026-11-20). Not exported, and a class of the module's own.
+    const providers = [...manifestCode.matchAll(/<provider\b([^>]*)>/g)].map((m) => m[1]!);
+    expect(providers).toHaveLength(1);
+    for (const attr of ['android:name="expo.modules.nearbylink.InstallFileProvider"', 'android:authorities="${applicationId}.nearbylink.installfile"',
+      'android:exported="false"', 'android:grantUriPermissions="true"']) expect(providers[0]).toContain(attr);
+    // It shows the kept file's folder and nothing else of the app's.
+    const paths = readFileSync(join(MODULE_ANDROID_RES, 'xml', 'nearby_link_install_file.xml'), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    expect([...paths.matchAll(/<([a-z-]+-path)\b[^>]*\/>/g)].map((m) => m[0])).toEqual(['<files-path name="install-file" path="install-file/" />']);
     expect(manifestCode).not.toMatch(/android:required="true"/);
   });
 
@@ -458,12 +469,16 @@ describe('Give the app (docs/nearby-sync-plan.md 14.5)', () => {
     expect(server).toMatch(/val serveMs: Long = 30 \* 60_000L/);
   });
 
-  it('serves the page and the one file by exact path, in pure Kotlin on java.* alone, and logs nothing', () => {
+  it('serves the page, the join link and the one file by exact path, in pure Kotlin on java.* alone, and logs nothing', () => {
     for (const m of server.matchAll(/^import\s+([\w.]+)/gm)) expect(m[1]).toMatch(/^java\./);
-    expect(server).toMatch(/when \(r\.target\) \{\s*"\/" -> \{\s*asked\(\)\s*answer\([^\n]*\n\s*\}\s*filePath -> \{\s*asked\(\)\s*sendFile\([^\n]*\n\s*\}\s*else -> answer\(out, 404/);
+    // The page, the join link (2026-11-20: a new phone finds the carrier with no third code), the file and
+    // the file asked for by the page's automatic download, which answers 204 to a phone that already asked.
+    // The join link keeps a session alive only once there is one to give: a new phone asking before it does not (review, 2026-11-20).
+    expect(server).toMatch(/when \(r\.target\) \{\s*"\/" -> \{\s*asked\(\)\s*answer\([^\n]*\n\s*\}\s*"\/join" -> \{\s*val link = joinLink\s*if \(link == null\) \{\s*answer\(out, 404[^\n]*\n\s*\} else \{\s*asked\(\)\s*answer\(out, 302[^\n]*\n\s*\}\s*\}\s*filePath, autoPath -> \{\s*asked\(\)[\s\S]*?sendFile\(conn, out, r, head\)[\s\S]*?else -> answer\(out, 404/);
     expect(server).toMatch(/private val filePath = "\/\$name"/);
-    // Only the page and the file count as asked, so other requests cannot keep a session alive.
-    expect(server.match(/^\s*asked\(\)$/gm)).toHaveLength(2);
+    expect(server).toMatch(/private val autoPath = "\/\$name\?auto=1"/);
+    // Only the page, the join link and the file count as asked, so other requests cannot keep a session alive.
+    expect(server.match(/^\s*asked\(\)$/gm)).toHaveLength(3);
     expect(server).toContain(`"Content-Security-Policy" to "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"`);
     expect(server).toContain('"Referrer-Policy" to "no-referrer"');
     // Nothing decodes, resolves or normalises a path, so nothing else on the phone is reachable.

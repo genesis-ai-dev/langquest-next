@@ -106,6 +106,11 @@ export interface NativeGiveStatus {
   asked: number;
   /** When the last request came, in epoch milliseconds; 0 before any. */
   lastAskedMs: number;
+  /**
+   * Phones in the group now, as Android's Wi-Fi Direct framework lists its clients (a phone that
+   * joined as plain Wi-Fi from code 1 counts); 0 before any, with no session, or where it cannot tell.
+   */
+  joined: number;
 }
 /** `SeenPhone` in packages/sync/src/nearbyLink.ts, field for field. */
 export interface NativeSeenPhone {
@@ -188,6 +193,14 @@ export interface NearbyLinkNative extends NativeModule<NearbyLinkEvents> {
    * kept before goes. Android only.
    */
   keepInstallFile(uri: string, name: string, minFreeBytes: number): Promise<NativeKeptFile>;
+  /**
+   * The name the provider gives the file at `uri` (a content URI; anything else is BAD_ARGUMENT),
+   * as the system picker reads it, or null when it gives none. For the file a carrier's browser
+   * hands the app with its Open, whose address holds no name. A build without it does not open the
+   * app's own file type either (app.json), so its absence says the browser cannot hand the file over.
+   * Android only.
+   */
+  installFileName(uri: string): Promise<string | null>;
   /** The install file kept, or null. */
   keptInstallFile(): Promise<NativeKeptFile | null>;
   /** Deletes the kept install file. */
@@ -201,6 +214,38 @@ export interface NearbyLinkNative extends NativeModule<NearbyLinkEvents> {
   startGiveApp(page: string, deadlineMs: number): Promise<NativeGiving>;
   giveAppStatus(): Promise<NativeGiveStatus>;
   stopGiveApp(): Promise<void>;
+  /**
+   * Opens Android's share sheet with the kept install file, as an install file
+   * (`application/vnd.android.package-archive`) under its own neutral name, read through this
+   * module's FileProvider with a read grant for the app chosen, so Quick Share can send it.
+   * Resolves once the sheet is shown; what the person picks is not known. FILE_UNREADABLE with no
+   * kept file. Needs no radio and no permission. Android only.
+   */
+  shareInstallFile(): Promise<void>;
+  /**
+   * Let someone in on Give the app's running group, so a new phone that installed from it joins
+   * with no third code (docs/nearby-sync-plan.md 14.5): a listener on the group's own address and
+   * a port of its own, under the group's name and passphrase, as `kind: 'wifi-direct'`, taken
+   * with `hostLink` and ended with `takeDown` like any host. The group stays up while this host or
+   * its link lives, even once Give the app's page has stopped. HOST_TAKEN_DOWN with no Give the
+   * app session serving. Android only.
+   */
+  hostOnGiveGroup(deadlineMs: number): Promise<NativeHosted>;
+  /**
+   * What Give the app's server answers at `/join`: this join link, for the new phone's LangQuest
+   * to find (`findGiveJoin`) or the page's Join link to open; null answers 404 again. BAD_ARGUMENT
+   * for anything but a `langquestnext://join?` link; nothing with no session. Android only.
+   */
+  setGiveJoin(link: string | null): Promise<void>;
+  /**
+   * The new phone: asks Give the app's server (its usual port, 8080) for its join link, through
+   * each Wi-Fi network that may be a Give the app group: one whose gateway is 192.168.49.1,
+   * Android's usual group owner, or one with no internet and a private gateway (Android 11's first
+   * tethering module gives the owner a random `192.168.x.1`); never a router with working
+   * internet. Null when there is no such network, no server or no link. Short timeouts, no prompt
+   * and no permission. Android only.
+   */
+  findGiveJoin(): Promise<string | null>;
 }
 
 const native = requireOptionalNativeModule<NearbyLinkNative>('NearbyLink');

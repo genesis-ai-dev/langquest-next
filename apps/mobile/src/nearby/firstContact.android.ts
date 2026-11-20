@@ -8,6 +8,7 @@ import { joinNearby } from '../server/nearby';
 import { installKey } from '../server/nearbyKey';
 import { afterJoin, firstContactStep, joinAnswerOf, tokenSubject, type FirstContactBlock } from '../session/firstContactModel';
 import { membershipOf, type LocalPerson } from '../session/localPersonModel';
+import { gateOpened } from '../sync/firstContactGate.android';
 import { nobleSha256, signWith } from './nearbyCryptoModel';
 import { firstCertificate } from './nearbyIdentity.native';
 
@@ -103,6 +104,8 @@ async function join(person: LocalPerson, token: string | undefined): Promise<Tur
   // Not adopted: the key's first session is not recorded until the certificate route answers, so a repeat signs in again.
   if (error) throw new OfflineError(error.message);
   const kept = await updateLocalPerson(person.profileId, () => ({ ...next.person, stage: 'joined' }));
+  // The streams were turned away as offline until now: they sync at once, not after their backoff.
+  gateOpened();
   return { offline: false, person: kept ?? { ...next.person, stage: 'joined' } };
 }
 

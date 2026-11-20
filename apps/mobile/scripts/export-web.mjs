@@ -215,9 +215,28 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // (LAN-284), French elision before a name (LAN-295), Welcome back's Continue without it (LAN-250),
 // a library read asked again (LAN-254) and Reports naming a language's template (LAN-114).
 // 1,228 bytes are left with all six. If one of them does not merge, lower this by what it adds.
-// Raised by 2 KB for Connect (LAN-237, Caleb Koster, 2026-11-19): the web side menu's Connect button and
-// Setup's "Connect an app" row, with their words in 16 languages, came out 231 bytes past it.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 153 * 1024;
+// Raised by 1 KB with the browser handing the install file to the app (Carl, 2026-11-20,
+// docs/decisions/0246-a-carried-build-is-the-newcomers.md, amended 2026-11-20), 603 bytes past it:
+// the new steps' English words in the nearby chunk the web loads with Share nearby (tap Open, and
+// if it has gone, come back and choose the file), and core's second name for the file, which the
+// Worker serves it under. The rules, the store and the hook that take the file are in files only
+// Android loads (src/nearby/handedFile.android.ts, useHandedFile.android.ts, handedFileModel.ts),
+// since the web never gets one, and the screen is Android only. 421 bytes are left; a first visit
+// has 10,297.
+// Raised by 2 KB with the new phone's fewer steps (Carl, 2026-11-20,
+// docs/decisions/2026-11-18-give-the-app-over-wifi.md, amended 2026-11-20), 1,562 bytes past it:
+// their English words in the nearby chunk the web loads with Share nearby (Send with Quick Share and
+// its line, the line that the new phone finds this phone by itself, the page's Join step, the code's
+// minutes left and its help), and Let someone in's code lifetime on Give the app's group in the
+// shared let-in model. The hand-over, the new phone's finder and Give the app's rules are in files
+// only Android loads (giveHandOver.ts, useGiveJoinFinder.android.ts, giveAppModel.ts), and the screens
+// are Android only. 486 bytes are left; a first visit has 9,813.
+// Raised by 6 KB with two changes made ready together (Caleb Koster, 2026-11-20), so that they merge
+// in any order: each carries this same raise, and the first to merge brings it. Help mode's list of
+// each screen's tutorial videos (LAN-244) adds about 3.4 KB and Connect's web button and Setup row
+// (LAN-237) about 1.5 KB, with their words in 16 languages. If one of them does not merge, lower this
+// by what it adds.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 160 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

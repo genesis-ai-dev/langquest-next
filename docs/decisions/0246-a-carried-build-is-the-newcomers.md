@@ -108,3 +108,13 @@ Amended (2026-11-19, Carl Sauder): after a review of the words and steps of gett
 The download stays in the browser, as amended on 2026-11-18. The file's name on the screen is in docs/decisions/2026-11-18-carried-file-matches-by-versions.md, and the rest of the words in plan 14.4 and 14.5.
 
 Amended (2026-11-19, Carl Sauder): a merge still makes a carried build only when the versions or the fingerprint change, but once a day main's file is also rebuilt in place when main's app code has moved on, and a carrier whose kept copy is two days behind their own app is told a newer file is ready (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
+
+Amended (2026-11-20, Carl Sauder): a carrier's browser now downloads the file for the app to take, so getting it no longer needs the warning that it may be harmful, finding the way back to LangQuest, or the system picker (Carl's choice, after asking how to cut the steps outside the app for people who are not technical).
+- **Two names for one file.** The Worker also serves each carried build as `/apk/<versions>.carried`, under a type of the app's own, `application/x-carried-build` (core `carriedFileName`, `CARRIED_FILE_TYPE`). The bucket still holds one file per build, under the install file's name. The name still holds only versions, and the type names nothing either.
+- **Handed over by Open.** The Android app opens that type (app.json, copied onto each disguise's alias). When the download finishes, the browser's own Open hands the file to Download the install file, which reads its name from the provider and checks and keeps it as a file chosen in the picker. The picker stays for a missed Open, a browser that hands nothing over, and a file got another way.
+- **Why no warning.** Not being an install file's name or type is what spares the warning. The carrier's phone never installs this file, and opening it can no longer offer to install the carried build over the app. A new phone still gets the `.apk` from Give the app, with its browser's warnings.
+- **Still not the app's download.** The browser downloads, and the person hands the file over with Open, as with the picker, so Google Play's Device and Network Abuse policy holds as before.
+- **Older builds.** A build without native `installFileName`, which ships with the filter, downloads the `.apk` with the old steps.
+- **Tested so far:** Chrome 113 on an Android 14 emulator (2026-11-20). Today's Chrome and makers' browsers are not (plan 14.4).
+
+Reverse if: Google Play objects to the type, or browsers start warning on it or stop handing it over (then the `.apk` and the picker are still there).

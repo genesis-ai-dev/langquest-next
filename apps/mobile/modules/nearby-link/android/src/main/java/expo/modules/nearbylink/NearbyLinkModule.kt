@@ -29,7 +29,8 @@ import java.util.concurrent.ThreadFactory
  *
  * It also gives the app to a new phone (docs/nearby-sync-plan.md 14.5): it keeps a checked copy
  * of the install file in the app's own files folder (`InstallFiles`), and serves it with a page
- * on a Wi-Fi Direct group of its own (`RadioKit.startGiveApp`), which every stop below ends.
+ * on a Wi-Fi Direct group of its own (`RadioKit.startGiveApp`), which every stop below ends, or
+ * hands it to the share sheet (`InstallFileShare`).
  */
 class NearbyLinkModule : Module() {
   private val main = Handler(Looper.getMainLooper())
@@ -212,6 +213,7 @@ class NearbyLinkModule : Module() {
         InstallFiles(context).keep(uri, name, minFreeBytes.toLong()).toMap()
       }
     }
+    AsyncFunction("installFileName") { uri: String, promise: Promise -> run(promise) { InstallFiles(context).nameOf(uri) } }
     AsyncFunction("keptInstallFile") { promise: Promise -> run(promise) { InstallFiles(context).kept()?.toMap() } }
     AsyncFunction("dropInstallFile") { promise: Promise -> run(promise) { InstallFiles(context).drop(); null } }
     AsyncFunction("startGiveApp") { page: String, deadlineMs: Double, promise: Promise ->
@@ -225,6 +227,31 @@ class NearbyLinkModule : Module() {
     }
     AsyncFunction("stopGiveApp") { promise: Promise ->
       run(promise) { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) (kitHeld as? RadioKit)?.stopGiveApp(); null }
+    }
+    // Let someone in on Give the app's group, so the new phone joins with no third code (docs/nearby-sync-plan.md 14.5).
+    // Nothing forms, so the deadline waits for nothing.
+    AsyncFunction("hostOnGiveGroup") { _: Double, promise: Promise ->
+      radio(promise) { kit ->
+        val hosted = kit.hostOnGiveGroup()
+        hosted.details + ("hostId" to hosted.id)
+      }
+    }
+    AsyncFunction("setGiveJoin") { link: String?, promise: Promise ->
+      run(promise) {
+        if (link != null && !GiveJoin.ok(link)) throw NearbyException(NearbyCode.BAD_ARGUMENT, "not a join link")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) (kitHeld as? RadioKit)?.setGiveJoin(link)
+        null
+      }
+    }
+    // The new phone, on the group's Wi-Fi: a short ask through the network it is on, with no radio, prompt or permission.
+    AsyncFunction("findGiveJoin") { promise: Promise -> run(promise) { GiveJoinNetwork.findLink(context) } }
+    // The share sheet, for Quick Share: no radio and no permission, so every Android the app runs on.
+    AsyncFunction("shareInstallFile") { promise: Promise ->
+      run(promise) {
+        val kept = InstallFiles(context).kept() ?: throw NearbyException(NearbyCode.FILE_UNREADABLE, "no install file is kept")
+        InstallFileShare.open(context, appContext.currentActivity, kept)
+        null
+      }
     }
   }
 }

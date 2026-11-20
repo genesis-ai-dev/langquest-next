@@ -4835,7 +4835,25 @@
     "download": "Sauke don amfani ba intanet",
     "needsConnection": "Saukewa na bukatar intanet",
     "needsConnectionHelp": "Ba ya a wannan na'ura. Za a iya sauke shi idan na'urar ta samu intanet.",
-    "checkingHelp": "Wannan na'ura tana ƙidaya abin da take da shi na wannan sashe."
+    "checkingHelp": "Wannan na'ura tana ƙidaya abin da take da shi na wannan sashe.",
+    "group": {
+      "download_one": "Sauke nassi {{count, number}} don amfani ba intanet",
+      "download_other": "Sauke duk nassosi {{count, number}} don amfani ba intanet",
+      "downloadRest_one": "Sauke sauran nassi {{count, number}}",
+      "downloadRest_other": "Sauke sauran nassosi {{count, number}}",
+      "size": "Sauti {{size}} da za a sauke",
+      "noRoom": "Babu isasshen wuri a wannan na'ura",
+      "noRoomNeeds": "Sautinsu {{size}} ne. Wannan na'ura tana da wuri na {{room}}.",
+      "noRoomHelp": "Samar da wuri a wannan na'ura, ko ku sauke nassosi kaɗan a lokaci ɗaya.",
+      "keepHelp": "Yana adana sautin kowane nassi a wannan na'ura, don su yi aiki ba tare da intanet ba.",
+      "letGoHelp": "Yana bar wannan na'ura ta sake cire sautinsu idan tana buƙatar wuri. Nassosin da suke aikinku za su zauna.",
+      "reason": "An adana saboda an roƙe ku ku yi aiki a kan waɗannan nassosi, ko kun yi aiki a kansu.",
+      "toast": {
+        "letGo": "Ba a adana su yanzu. Ana iya cire sautinsu don samar da wuri.",
+        "someStay_one": "Ba a adana su yanzu, sai dai nassi {{count, number}} da yake aikinku.",
+        "someStay_other": "Ba a adana su yanzu, sai dai nassosi {{count, number}} da suke aikinku."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "Kai ƙara ko toshe {{name}}",
@@ -6414,6 +6432,7 @@
       "addedAtCheckpoint": "An ƙara {{kind}} cikin rikodin. Wurin dubawar har yanzu yana jiran dubawar da aka yi a cikin manhajar.",
       "keptNotSent": "An ajiye bitarka a wannan wayar. Ba a aika ta ba tukuna.",
       "notOnPhoneYet": "Naɗin bai zo wannan wayar ba tukuna. Zai kunnu a nan da zarar wayar ta haɗu da intanet.",
+      "notUploadedYet": "Ba a ɗora naɗin ba tukuna daga na'urar da aka yi shi. Zai kunnu a nan da zarar waccan na'urar ta haɗu da intanet.",
       "previousQuestion": "Tambayar da ta gabata",
       "previousQuestionHelp": "Yana komawa tambayar da ta gabata, don ka canza amsarka.",
       "loggedCheckpoint": "Wannan dubawa wurin dubawa ne: idan aka rubuta ta nan, za ta shiga rikodin, amma dubawar da aka yi a cikin manhaja ce kaɗai ke buɗe matakan da ke biye.",
@@ -6596,6 +6615,8 @@
     "notPublished": "Ba a wallafa ba: {{reason}}",
     "partNotSaved": "Wani sashe bai ajiyu ba.",
     "retrySaving": "Sake gwada ajiyewa",
+    "partNotHere": "Sashe na {{n}} bai zo wannan na'ura ba tukuna. Za ku iya faɗa shi a baya da zarar na'urar ta haɗu da intanet.",
+    "partNotUploaded": "Ba a ɗora Sashe na {{n}} ba tukuna daga na'urar da aka yi shi. Za ku iya faɗa shi a baya da zarar waccan na'urar ta haɗu da intanet.",
     "youDrag": "Ku · ja gaba da baya duk yadda kuke so",
     "nameDrag": "{{name}} · ja gaba da baya duk yadda kuke so",
     "part": "Sashe na {{n}}",
@@ -6689,7 +6710,10 @@
     "partsCleaned_one": "Tsaftace a kan sashe {{count, number}}.",
     "partsCleaned_other": "Tsaftace a kan sassa {{count, number}}.",
     "redone": "An maimaita.",
-    "newRecording": "Sabon naɗi"
+    "newRecording": "Sabon naɗi",
+    "lockedTitle": "Wani sashe na wannan naɗin bai zo wannan na'ura ba tukuna",
+    "lockedOffline": "Ba za a iya canza sashen ko a aika shi daga nan ba har sai wannan na'ura ta haɗu da intanet kuma ta samu shi. Don ku naɗa ba tare da shi ba, ku buɗe {{versions}} a cikin nassin ku zaɓi {{newVersion}}.",
+    "lockedNotUploaded": "Ba a ɗora sashen ba tukuna daga na'urar da aka yi shi, don haka ba za a iya canza shi ko a aika shi daga nan ba. Don ku naɗa ba tare da shi ba, ku buɗe {{versions}} a cikin nassin ku zaɓi {{newVersion}}."
   },
   "reference": {
     "organization": "Ƙungiya",

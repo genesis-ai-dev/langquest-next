@@ -99,6 +99,18 @@
             "BROWSABLE",
             "DEFAULT"
           ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "content",
+              "mimeType": "application/x-carried-build"
+            }
+          ],
+          "category": [
+            "DEFAULT"
+          ]
         }
       ]
     },

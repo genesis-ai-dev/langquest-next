@@ -505,6 +505,14 @@ stale after an hour without one) and `user_issue_look`. Without
 "Needs you: Claude token". To run it by hand: Actions → user-issues → Run
 workflow.
 
+**The agent team** (`docs/agent-team.md`,
+`docs/decisions/2026-11-19-an-agent-team-fixes-user-issues.md`). The look is
+the team's coordinator; each issue has a manager that starts workers; the
+job `vet` is a reviewer that reads only the change; and `gate()` in
+`scripts/agent-team.mjs` decides whether the fix merges without a person or
+waits for a developer. The mode is `.github/agent-team.json` (`ask`, `on`,
+`off`). Each fix's record is on the issue's card on the ops dashboard.
+
 ## Not built yet
 
 - **A phone that never reaches the server** delivers nothing. A "send

@@ -4993,7 +4993,28 @@
     "download": "Descargar para usar sin conexión",
     "needsConnection": "Para descargar hace falta conexión",
     "needsConnectionHelp": "No está en este dispositivo. Se puede descargar cuando el dispositivo tenga conexión.",
-    "checkingHelp": "Este dispositivo está contando cuánto de este pasaje tiene."
+    "checkingHelp": "Este dispositivo está contando cuánto de este pasaje tiene.",
+    "group": {
+      "download_one": "Descargar {{count, number}} pasaje para usar sin conexión",
+      "download_many": "Descargar los {{count, number}} pasajes para usar sin conexión",
+      "download_other": "Descargar los {{count, number}} pasajes para usar sin conexión",
+      "downloadRest_one": "Descargar {{count, number}} pasaje restante",
+      "downloadRest_many": "Descargar los {{count, number}} pasajes restantes",
+      "downloadRest_other": "Descargar los {{count, number}} pasajes restantes",
+      "size": "{{size}} de audio por descargar",
+      "noRoom": "No hay suficiente espacio en este dispositivo",
+      "noRoomNeeds": "Su audio ocupa {{size}}. Este dispositivo tiene espacio para {{room}}.",
+      "noRoomHelp": "Libera espacio en este dispositivo, o descarga menos pasajes a la vez.",
+      "keepHelp": "Guarda el audio de cada pasaje en este dispositivo, para que funcionen sin conexión.",
+      "letGoHelp": "Permite que este dispositivo vuelva a quitar su audio cuando necesite espacio. Los pasajes que son tu trabajo se quedan.",
+      "reason": "Se guardan porque te pidieron trabajar en estos pasajes, o trabajaste en ellos.",
+      "toast": {
+        "letGo": "Ya no se guardan. Su audio puede borrarse para hacer espacio.",
+        "someStay_one": "Ya no se guardan, excepto {{count, number}} pasaje que es tu trabajo.",
+        "someStay_many": "Ya no se guardan, excepto {{count, number}} pasajes que son tu trabajo.",
+        "someStay_other": "Ya no se guardan, excepto {{count, number}} pasajes que son tu trabajo."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "Reportar o bloquear a {{name}}",
@@ -6677,6 +6698,7 @@
       "addedAtCheckpoint": "{{kind}} añadida al historial. El punto de control aún espera una revisión hecha en la app.",
       "keptNotSent": "Tu revisión está guardada en este teléfono. Todavía no se ha enviado.",
       "notOnPhoneYet": "La grabación todavía no está en este teléfono. Se podrá oír aquí cuando el teléfono tenga conexión.",
+      "notUploadedYet": "La grabación todavía no se ha subido desde el dispositivo donde se hizo. Se podrá oír aquí cuando ese dispositivo haya tenido conexión.",
       "previousQuestion": "Pregunta anterior",
       "previousQuestionHelp": "Vuelve a la pregunta anterior para cambiar tu respuesta.",
       "loggedCheckpoint": "Esta revisión es un punto de control: anotada aquí, queda en el historial, pero solo una revisión hecha en la app abre los pasos siguientes.",
@@ -6863,6 +6885,8 @@
     "notPublished": "No se publicó: {{reason}}",
     "partNotSaved": "Una parte no se guardó.",
     "retrySaving": "Volver a guardar",
+    "partNotHere": "La parte {{n}} todavía no está en este dispositivo. Podrás decirla de vuelta cuando el dispositivo tenga conexión.",
+    "partNotUploaded": "La parte {{n}} todavía no se ha subido desde el dispositivo donde se hizo. Podrás decirla de vuelta cuando ese dispositivo haya tenido conexión.",
     "youDrag": "Tú · desliza hacia atrás y adelante todas las veces que quieras",
     "nameDrag": "{{name}} · desliza hacia atrás y adelante todas las veces que quieras",
     "part": "Parte {{n}}",
@@ -6960,7 +6984,10 @@
     "partsCleaned_many": "Limpiar en {{count, number}} de partes.",
     "partsCleaned_other": "Limpiar en {{count, number}} partes.",
     "redone": "Rehecho.",
-    "newRecording": "Grabación nueva"
+    "newRecording": "Grabación nueva",
+    "lockedTitle": "Parte de esta grabación todavía no está en este dispositivo",
+    "lockedOffline": "Esa parte no se puede cambiar ni enviar desde aquí hasta que este dispositivo tenga conexión y la reciba. Para grabar sin ella, abre {{versions}} en el pasaje y elige {{newVersion}}.",
+    "lockedNotUploaded": "Esa parte todavía no se ha subido desde el dispositivo donde se hizo, así que no se puede cambiar ni enviar desde aquí. Para grabar sin ella, abre {{versions}} en el pasaje y elige {{newVersion}}."
   },
   "reference": {
     "organization": "Organización",

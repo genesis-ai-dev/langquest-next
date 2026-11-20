@@ -58,7 +58,10 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * (.github/workflows/tutorial-review.yml) and the nightly filming's frame check (tutorials.yml,
  * e2e/tutorials/frame-check.ts) in to a Claude plan: made by `claude setup-token`,
  * it lasts a year, and production's goes to this repository's GitHub Actions secrets. Anyone
- * on the team can replace it with their own plan's. APP_STORE_REVIEW_KEY is the App Store
+ * on the team can replace it with their own plan's. AGENT_TEAM_CLAUDE_TOKEN is the same kind of
+ * token from a Claude account billed to the organization, for the agent team that fixes user issues
+ * (.github/workflows/user-issues.yml, docs/agent-team.md); production's goes to GitHub too, and the
+ * team does nothing without it. APP_STORE_REVIEW_KEY is the App Store
  * Connect key (App Manager) that sends new iPhone builds to App Review, and PLAY_REVIEW_KEY the
  * Google Play service account key that moves new Android builds from internal testing to
  * production review: production's go to EAS (EAS_KEYS). NEARBY_SIGNING_KEY is the app Worker's
@@ -69,7 +72,7 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * bucket, with which scripts/carried-build.mjs checks for and puts each carried APK
  * (docs/nearby-sync-plan.md 14.4): production's go to EAS (EAS_KEYS).
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', 'APK_R2_ACCESS_KEY_ID', 'APK_R2_SECRET_ACCESS_KEY', 'NEARBY_SIGNING_KEY', ...ADMIN_KEYS];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'AGENT_TEAM_CLAUDE_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', 'APK_R2_ACCESS_KEY_ID', 'APK_R2_SECRET_ACCESS_KEY', 'NEARBY_SIGNING_KEY', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
@@ -202,7 +205,9 @@ export function destinations(environment, values, ref, serviceRoleKey) {
     github: environment === 'production' ? {
       ...(values.GEMINI_API_KEY ? { GEMINI_API_KEY: values.GEMINI_API_KEY } : {}),
       ...(values.BIBLE_BRAIN_ACCESS_KEY ? { BIBLE_BRAIN_ACCESS_KEY: values.BIBLE_BRAIN_ACCESS_KEY } : {}),
-      ...(values.CLAUDE_CODE_OAUTH_TOKEN ? { CLAUDE_CODE_OAUTH_TOKEN: values.CLAUDE_CODE_OAUTH_TOKEN } : {})
+      ...(values.CLAUDE_CODE_OAUTH_TOKEN ? { CLAUDE_CODE_OAUTH_TOKEN: values.CLAUDE_CODE_OAUTH_TOKEN } : {}),
+      // The agent team's own Claude token (docs/agent-team.md), from an account billed to the organization.
+      ...(values.AGENT_TEAM_CLAUDE_TOKEN ? { AGENT_TEAM_CLAUDE_TOKEN: values.AGENT_TEAM_CLAUDE_TOKEN } : {})
     } : {},
     // EAS's production environment: the store keys for the App Review and Play review steps (decisions.md 157).
     eas: environment === 'production' ? Object.fromEntries(EAS_KEYS.filter((key) => values[key]).map((key) => [key, values[key]])) : {},
@@ -562,7 +567,7 @@ async function main() {
     process.exit(1);
   }
   if (args.only === 'eas') return applyEasOnly(environment, file, decrypt(file, EAS_KEYS), args);
-  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', 'GEMINI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', ...EAS_KEYS, ...ADMIN_KEYS] : [])]);
+  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', 'GEMINI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'AGENT_TEAM_CLAUDE_TOKEN', ...EAS_KEYS, ...ADMIN_KEYS] : [])]);
   const missing = REQUIRED_KEYS.filter((name) => !values[name]);
   if (missing.length) {
     console.error(`x ${file} is missing ${missing.join(', ')}.`);

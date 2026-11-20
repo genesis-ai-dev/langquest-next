@@ -139,7 +139,7 @@
       "asRole": "They join as {{role}}. An admin can change it after they reach the internet.",
       "show": "Show the code",
       "newCode": "New code",
-      "showHelp": "Makes a code for the new phone to scan. It works for two minutes, for one phone.",
+      "showHelp": "Makes a code for the new phone to scan. It works for two minutes, for one phone. When this phone is still giving the app over its own Wi-Fi, it works for 15 minutes, and the new phone finds it by itself.",
       "starting": "Getting the code ready…",
       "codeLabel": "The code for the new phone to scan",
       "scanLine": "On the new phone, open LangQuest, tap Scan a code, and point it here.",
@@ -166,7 +166,9 @@
         "browser": "Your phone's browser opens and downloads the install file.",
         "warning": "If the browser warns that the file may be harmful, choose to download it anyway. It is LangQuest's own install file.",
         "back": "When the download has finished, come back to LangQuest. You do not need to open the file.",
-        "choose": "Tap {{button}}."
+        "choose": "Tap {{button}}.",
+        "open": "When the download finishes, tap Open. LangQuest opens and checks the file.",
+        "openGone": "If Open has gone, come back to LangQuest and tap {{button}}."
       },
       "getLine": "In the field, send it with Give the app. Quick Share, an SD card or a USB cable also work, but Quick Share needs Google Play services on both phones.",
       "getLineOther": "In the field, send it to the new phone by Quick Share, an SD card or a USB cable. Quick Share needs Google Play services on both phones. The new phone may ask to allow installs from this source.",
@@ -176,6 +178,7 @@
       "choose": "Choose the downloaded file",
       "chooseHelp": "Opens your phone's files. Choose the install file the browser downloaded, and the app checks it is the one this phone needs.",
       "chooseLine": "When the download has finished, tap Choose the downloaded file. It is usually first among your recent files.",
+      "chooseLineOpen": "If you did not tap Open in the browser, LangQuest does not have the file yet. When the download has finished, tap Choose the downloaded file. It is usually first among your recent files.",
       "getAgain": "Download it again",
       "getAgainHelp": "Opens your phone's browser again, for when the download did not finish.",
       "checkOther": "This file is for a different version: you need {{file}}",
@@ -205,8 +208,11 @@
         "unreadable": "This file could not be read. Choose it again.",
         "failed": "A copy could not be kept. Choose it again.",
         "needsAndroid": "This phone keeps no copy: Give the app needs Android 10 or later.",
-        "needsUpdate": "This phone keeps no copy yet. Update the app from the store to give it over Wi-Fi."
-      }
+        "needsUpdate": "This phone keeps no copy yet. Update the app from the store to give it over Wi-Fi.",
+        "keptBuilt": "A copy built on {{date}} is kept on this phone for Give the app. You can delete the one in Downloads."
+      },
+      "scanLineGive": "On the new phone, open LangQuest. It finds this phone by itself. If it does not, tap Scan a code and point it here.",
+      "minutesLeft": "Minutes left: {{n, number}}"
     },
     "installFile": {
       "intro": "A new person's phone needs LangQuest installed before you can let them in. Download the install file here while you have internet, and take it with you.",
@@ -224,7 +230,10 @@
       "readyShort": "Install file ready",
       "done": "Ready. You can take it offline.",
       "newer": "A newer install file is ready. Download it while you have internet, then choose it.",
-      "newerShort": "Install file for a new person: a newer one is ready"
+      "newerShort": "Install file for a new person: a newer one is ready",
+      "getNewest": "Download the newest file",
+      "getNewestHelp": "Opens your phone's browser, which downloads the newest install file for this version. Then tap Choose the downloaded file, and it replaces the copy kept here.",
+      "getNewestHelpOpen": "Opens your phone's browser, which downloads the newest install file for this version. When it finishes, tap Open, and it replaces the copy kept here."
     },
     "join": {
       "intro": "Join your team from a teammate's phone, without internet. Your account is made the first time your phone reaches the internet.",
@@ -279,7 +288,7 @@
       }
     },
     "give": {
-      "intro": "This phone makes its own Wi-Fi network. The new phone scans two codes with its camera: one to join the network, one to download LangQuest. Neither phone needs the internet.",
+      "intro": "Give LangQuest to a new phone. Neither phone needs the internet.",
       "rowSub": "When you are with the new person",
       "rowHelp": "Opens Give the app, where this phone sends LangQuest to a new phone over a Wi-Fi network it makes itself.",
       "linkHelp": "Opens Give the app, to send LangQuest to the new phone over a Wi-Fi network this phone makes.",
@@ -294,7 +303,7 @@
       },
       "join": {
         "title": "1. Join this phone's Wi-Fi network",
-        "line": "On the new phone, open the camera, point it at this code and tap Join. When it has joined, tap Next.",
+        "line": "On the new phone, open the camera, point it at this code and tap Join. When it has joined, the second code shows by itself. If it does not, tap Next.",
         "lineAgain": "On the new phone, open the camera, point it at this code and tap Join.",
         "code": "Code for joining this phone's Wi-Fi network",
         "network": "Wi-Fi name: {{name}}",
@@ -305,7 +314,8 @@
       "nextHelp": "Shows the second code, for the download page, once the new phone has joined.",
       "download": {
         "title": "2. Open the download page",
-        "line": "Point the new phone's camera at this code and open the page. Tap Download.",
+        "line": "Point the new phone's camera at this code and open the page. The download starts by itself. If it does not, tap Download.",
+        "warnings": "If the new phone's browser says the file can't be downloaded securely, choose to keep it. If it warns that the file may be harmful, choose to download it anyway. It is LangQuest's own install file.",
         "code": "Code for the download page",
         "address": "Or type this address in its browser: {{address}}",
         "dataLine": "The new phone may say this Wi-Fi has no internet. Tap Stay connected. If the page still does not open, turn off its mobile data."
@@ -315,6 +325,7 @@
       "sending": "Sending: {{sent}} of {{total}} MB",
       "sent": "3. Install it",
       "sentLine": "The file is sent. On the new phone, open the downloaded file and tap Install. It may ask once to allow installs from this source. Then let them in from this phone.",
+      "sentLineFinds": "The file is sent. On the new phone, open the downloaded file and tap Install. It may ask once to allow installs from this source. When LangQuest is installed and open on the new phone, it finds this phone by itself. Tap Let them in and choose their role.",
       "another": "Give it to another phone",
       "anotherHelp": "Shows both codes again, for one more new phone.",
       "letIn": "Let them in",
@@ -334,14 +345,46 @@
         "failed": "This phone's Wi-Fi network did not start. Try again.",
         "permissionCovered": "Open Share nearby first and allow what it asks. Then come back and try again."
       },
+      "quickShare": {
+        "button": "Send with Quick Share",
+        "help": "Opens this phone's share sheet with the install file.",
+        "failed": "The share sheet did not open. Try again.",
+        "letInHelp": "Opens Let someone in, to let them in once LangQuest is installed on the new phone.",
+        "on": {
+          "newFirst": "First, on the new phone",
+          "this": "Then, on this phone",
+          "newThen": "Then, on the new phone",
+          "thisThen": "Last, on this phone"
+        },
+        "steps": {
+          "open": "Swipe down from the top of the screen and tap Quick Share. If it is not there, open Settings and search for Quick Share.",
+          "visible": "Choose Everyone, so this phone can find it. Keep it close by, with its screen on.",
+          "send": "Tap Send with Quick Share. In the share sheet, tap Quick Share, then the new phone's name.",
+          "accept": "Tap Accept. When the file has arrived, tap Open. If Open has gone, find the file in the Files app, under Downloads.",
+          "letIn": "When LangQuest is installed and open on the new phone, tap Let them in.",
+          "install": "Allow installs from this source, if the phone asks. Tap Install."
+        }
+      },
       "page": {
         "title": "Install LangQuest",
         "size": "{{size}} MB",
         "download": "Download",
-        "stepOpen": "Open the downloaded file.",
+        "stepOpen": "The download starts by itself. If it does not, tap Download. When it finishes, tap Open.",
+        "stepFind": "If Open has gone, find {{name}} in Downloads, in the browser's menu ⋮ or in the Files app, and tap it.",
         "stepAllow": "Allow installs from this source, if the phone asks.",
-        "stepInstall": "Tap Install."
-      }
+        "stepInstall": "Tap Install.",
+        "stepJoin": "Open LangQuest. It finds your teammate's phone by itself. If it does not, come back to this page and tap Join.",
+        "join": "Join"
+      },
+      "ways": "Choose one way to send it",
+      "way": {
+        "wifi": "This phone's Wi-Fi",
+        "wifiSub": "The new phone scans two codes. Works on any Android phone.",
+        "quickShare": "Quick Share",
+        "quickShareSub": "Both phones need Google Play services."
+      },
+      "wayHelp": "Chooses this way to send the install file. Its steps and its button show below.",
+      "wifiLine": "This phone makes its own Wi-Fi network. The new phone scans two codes with its camera: one to join the network, one to download LangQuest."
     }
   }
 }

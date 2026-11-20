@@ -4993,7 +4993,28 @@
     "download": "Télécharger pour le hors-ligne",
     "needsConnection": "Le téléchargement demande une connexion",
     "needsConnectionHelp": "Pas sur cet appareil. Il pourra être téléchargé une fois l’appareil connecté.",
-    "checkingHelp": "Cet appareil compte ce qu’il a de ce passage."
+    "checkingHelp": "Cet appareil compte ce qu’il a de ce passage.",
+    "group": {
+      "download_one": "Télécharger {{count, number}} passage pour le hors-ligne",
+      "download_many": "Télécharger les {{count, number}} passages pour le hors-ligne",
+      "download_other": "Télécharger les {{count, number}} passages pour le hors-ligne",
+      "downloadRest_one": "Télécharger {{count, number}} autre passage",
+      "downloadRest_many": "Télécharger les {{count, number}} autres passages",
+      "downloadRest_other": "Télécharger les {{count, number}} autres passages",
+      "size": "{{size}} d’audio à télécharger",
+      "noRoom": "Pas assez de place sur cet appareil",
+      "noRoomNeeds": "Leur audio fait {{size}}. Cet appareil a de la place pour {{room}}.",
+      "noRoomHelp": "Libérez de la place sur cet appareil, ou téléchargez moins de passages à la fois.",
+      "keepHelp": "Garde l’audio de chaque passage sur cet appareil, pour qu’ils fonctionnent sans connexion.",
+      "letGoHelp": "Laisse cet appareil retirer à nouveau leur audio quand il a besoin de place. Les passages qui sont votre travail restent.",
+      "reason": "Gardés parce qu’on vous a demandé de travailler sur ces passages, ou parce que vous y avez travaillé.",
+      "toast": {
+        "letGo": "Ne sont plus gardés. Leur audio peut être retiré pour faire de la place.",
+        "someStay_one": "Ne sont plus gardés, sauf {{count, number}} passage qui est votre travail.",
+        "someStay_many": "Ne sont plus gardés, sauf {{count, number}} passages qui sont votre travail.",
+        "someStay_other": "Ne sont plus gardés, sauf {{count, number}} passages qui sont votre travail."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "Signaler ou bloquer {{name}}",
@@ -6677,6 +6698,7 @@
       "addedAtCheckpoint": "{{kind}} : ajouté à l’historique. Le point de contrôle attend toujours une vérification faite dans l’app.",
       "keptNotSent": "Votre vérification est gardée sur ce téléphone. Elle n’est pas encore envoyée.",
       "notOnPhoneYet": "L’enregistrement n’est pas encore sur ce téléphone. Il se lira ici une fois le téléphone connecté.",
+      "notUploadedYet": "L’enregistrement n’a pas encore été envoyé depuis l’appareil où il a été fait. Il se lira ici une fois que cet appareil aura été connecté.",
       "previousQuestion": "Question précédente",
       "previousQuestionHelp": "Revient à la question d’avant, pour changer votre réponse.",
       "loggedCheckpoint": "Cette vérification est un point de contrôle : notée ici, elle va dans l’historique, mais seule une vérification faite dans l’app ouvre les étapes suivantes.",
@@ -6863,6 +6885,8 @@
     "notPublished": "Non publié : {{reason}}",
     "partNotSaved": "Une partie n’a pas été sauvegardée.",
     "retrySaving": "Réessayer de sauvegarder",
+    "partNotHere": "La partie {{n}} n’est pas encore sur cet appareil. Vous pourrez la redire une fois l’appareil connecté.",
+    "partNotUploaded": "La partie {{n}} n’a pas encore été envoyée depuis l’appareil où elle a été faite. Vous pourrez la redire une fois que cet appareil aura été connecté.",
     "youDrag": "Vous · faites glisser d’avant en arrière autant que vous voulez",
     "nameDrag": "{{name}} · faites glisser d’avant en arrière autant que vous voulez",
     "part": "Partie {{n}}",
@@ -6960,7 +6984,10 @@
     "partsCleaned_many": "Nettoyer sur {{count, number}} de parties.",
     "partsCleaned_other": "Nettoyer sur {{count, number}} parties.",
     "redone": "Rétabli.",
-    "newRecording": "Nouvel enregistrement"
+    "newRecording": "Nouvel enregistrement",
+    "lockedTitle": "Une partie de cet enregistrement n’est pas encore sur cet appareil",
+    "lockedOffline": "Cette partie ne peut être ni modifiée ni transmise d’ici tant que cet appareil n’est pas connecté et ne l’a pas reçue. Pour enregistrer sans elle, ouvrez {{versions}} dans le passage et choisissez {{newVersion}}.",
+    "lockedNotUploaded": "Cette partie n’a pas encore été envoyée depuis l’appareil où elle a été faite, elle ne peut donc être ni modifiée ni transmise d’ici. Pour enregistrer sans elle, ouvrez {{versions}} dans le passage et choisissez {{newVersion}}."
   },
   "reference": {
     "organization": "Organisation",

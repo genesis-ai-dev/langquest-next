@@ -4835,7 +4835,25 @@
     "download": "I-download para sa offline",
     "needsConnection": "Kailangan ng koneksiyon para mag-download",
     "needsConnectionHelp": "Wala sa device na ito. Maaari itong i-download kapag nakakonekta na ang device na ito.",
-    "checkingHelp": "Binibilang ng device na ito kung ano ang mayroon ito sa siping ito."
+    "checkingHelp": "Binibilang ng device na ito kung ano ang mayroon ito sa siping ito.",
+    "group": {
+      "download_one": "I-download ang lahat ng {{count, number}} sipi para sa offline",
+      "download_other": "I-download ang lahat ng {{count, number}} sipi para sa offline",
+      "downloadRest_one": "I-download ang iba pang {{count, number}} sipi",
+      "downloadRest_other": "I-download ang iba pang {{count, number}} sipi",
+      "size": "{{size}} na audio ang ida-download",
+      "noRoom": "Kulang ang puwang sa device na ito",
+      "noRoomNeeds": "{{size}} ang audio ng mga ito. May puwang ang device na ito para sa {{room}}.",
+      "noRoomHelp": "Magbakante ng puwang sa device na ito, o mag-download ng mas kaunting sipi nang sabay-sabay.",
+      "keepHelp": "Itinatago ang audio ng bawat sipi sa device na ito, para gumana ang mga ito nang walang koneksiyon.",
+      "letGoHelp": "Pinapayagan ulit ang device na ito na alisin ang audio ng mga ito kapag kailangan nito ng puwang. Mananatili ang mga siping gawain mo.",
+      "reason": "Itinatago dahil hiniling sa iyong gawin ang mga siping ito, o ginawa mo na ang mga ito.",
+      "toast": {
+        "letGo": "Hindi na itinatago. Maaaring alisin ang audio ng mga ito para magkaroon ng puwang.",
+        "someStay_one": "Hindi na itinatago, maliban sa {{count, number}} siping gawain mo.",
+        "someStay_other": "Hindi na itinatago, maliban sa {{count, number}} siping gawain mo."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "I-report o i-block si {{name}}",
@@ -6414,6 +6432,7 @@
       "addedAtCheckpoint": "Naidagdag sa tala ang {{kind}}. Naghihintay pa rin ang checkpoint ng pagsusuring ginawa sa app.",
       "keptNotSent": "Nakatago sa teleponong ito ang iyong pagrepaso. Hindi pa ito naipapadala.",
       "notOnPhoneYet": "Wala pa sa teleponong ito ang rekording. Tutugtog ito rito kapag online na ang telepono.",
+      "notUploadedYet": "Hindi pa na-upload ang rekording mula sa device kung saan ito ginawa. Tutugtog ito rito kapag nag-online na ang device na iyon.",
       "previousQuestion": "Nakaraang tanong",
       "previousQuestionHelp": "Bumabalik sa naunang tanong, para baguhin ang iyong sagot.",
       "loggedCheckpoint": "Checkpoint ang pagsusuring ito: kapag itinala rito, mapupunta ito sa tala, pero ang pagsusuring ginawa sa app lang ang nagbubukas sa mga hakbang pagkatapos nito.",
@@ -6596,6 +6615,8 @@
     "notPublished": "Hindi na-publish: {{reason}}",
     "partNotSaved": "May bahaging hindi na-save.",
     "retrySaving": "Subukang i-save ulit",
+    "partNotHere": "Wala pa sa device na ito ang Bahagi {{n}}. Masasabi mo itong muli kapag online na ang device.",
+    "partNotUploaded": "Hindi pa na-upload ang Bahagi {{n}} mula sa device kung saan ito ginawa. Masasabi mo itong muli kapag nag-online na ang device na iyon.",
     "youDrag": "Ikaw · i-drag pabalik-balik nang kahit ilang ulit mo gusto",
     "nameDrag": "{{name}} · i-drag pabalik-balik nang kahit ilang ulit mo gusto",
     "part": "Bahagi {{n}}",
@@ -6689,7 +6710,10 @@
     "partsCleaned_one": "Linisin sa {{count, number}} bahagi.",
     "partsCleaned_other": "Linisin sa {{count, number}} bahagi.",
     "redone": "Inulit.",
-    "newRecording": "Bagong rekording"
+    "newRecording": "Bagong rekording",
+    "lockedTitle": "Wala pa sa device na ito ang isang bahagi ng rekording na ito",
+    "lockedOffline": "Hindi mababago o maipapadala mula rito ang bahaging iyon hangga't hindi pa online ang device na ito at hindi pa ito nakukuha. Para mag-record nang wala ito, buksan ang {{versions}} sa sipi at piliin ang {{newVersion}}.",
+    "lockedNotUploaded": "Hindi pa na-upload ang bahaging iyon mula sa device kung saan ito ginawa, kaya hindi ito mababago o maipapadala mula rito. Para mag-record nang wala ito, buksan ang {{versions}} sa sipi at piliin ang {{newVersion}}."
   },
   "reference": {
     "organization": "Organisasyon",

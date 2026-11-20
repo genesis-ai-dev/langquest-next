@@ -139,7 +139,7 @@
       "asRole": "A pessoa entra como {{role}}. Um administrador pode mudar isso depois que ela se conectar à internet.",
       "show": "Mostrar o código",
       "newCode": "Código novo",
-      "showHelp": "Cria um código para o celular novo ler. Ele vale por dois minutos, para um celular.",
+      "showHelp": "Cria um código para o celular novo ler. Ele vale por dois minutos, para um celular. Se este celular ainda estiver dando o app pelo próprio Wi-Fi, ele vale por 15 minutos e o celular novo o encontra sozinho.",
       "starting": "Preparando o código…",
       "codeLabel": "O código para o celular novo ler",
       "scanLine": "No celular novo, abra o LangQuest, toque em Ler um código e aponte para cá.",
@@ -166,7 +166,9 @@
         "browser": "O navegador do celular abre e baixa o arquivo de instalação.",
         "warning": "Se o navegador avisar que o arquivo pode ser perigoso, escolha baixar mesmo assim. É o arquivo de instalação do próprio LangQuest.",
         "back": "Quando o download terminar, volte para o LangQuest. Não precisa abrir o arquivo.",
-        "choose": "Toque em {{button}}."
+        "choose": "Toque em {{button}}.",
+        "open": "Quando o download terminar, toque em Abrir. O LangQuest abre e confere o arquivo.",
+        "openGone": "Se Abrir sumiu, volte para o LangQuest e toque em {{button}}."
       },
       "getLine": "Em campo, envie o arquivo com Dar o app. Quick Share, cartão SD ou cabo USB também funcionam, mas o Quick Share precisa dos serviços do Google Play nos dois celulares.",
       "getLineOther": "Em campo, envie o arquivo para o celular novo por Quick Share, cartão SD ou cabo USB. O Quick Share precisa dos serviços do Google Play nos dois celulares. O celular novo pode pedir para permitir instalações desta fonte.",
@@ -176,6 +178,7 @@
       "choose": "Escolher o arquivo baixado",
       "chooseHelp": "Abre os arquivos do celular. Escolha o arquivo de instalação que o navegador baixou, e o app confere se é o que este celular precisa.",
       "chooseLine": "Quando o download terminar, toque em Escolher o arquivo baixado. Ele costuma ser o primeiro dos seus arquivos recentes.",
+      "chooseLineOpen": "Se você não tocou em Abrir no navegador, o LangQuest ainda não tem o arquivo. Quando o download terminar, toque em Escolher o arquivo baixado. Ele costuma ser o primeiro dos seus arquivos recentes.",
       "getAgain": "Baixar de novo",
       "getAgainHelp": "Abre o navegador do celular de novo, caso o download não tenha terminado.",
       "checkOther": "Este arquivo é de outra versão: você precisa de {{file}}",
@@ -205,8 +208,11 @@
         "unreadable": "Não foi possível ler este arquivo. Escolha o arquivo de novo.",
         "failed": "Não foi possível guardar uma cópia. Escolha o arquivo de novo.",
         "needsAndroid": "Este celular não guarda uma cópia: Dar o app precisa do Android 10 ou mais recente.",
-        "needsUpdate": "Este celular ainda não guarda uma cópia. Atualize o app pela loja para dá-lo por Wi-Fi."
-      }
+        "needsUpdate": "Este celular ainda não guarda uma cópia. Atualize o app pela loja para dá-lo por Wi-Fi.",
+        "keptBuilt": "Uma cópia de {{date}} fica guardada neste celular para Dar o app. Você pode apagar o arquivo que está em Downloads."
+      },
+      "scanLineGive": "No celular novo, abra o LangQuest. Ele encontra este celular sozinho. Se não encontrar, toque em Ler um código e aponte para cá.",
+      "minutesLeft": "Minutos restantes: {{n, number}}"
     },
     "installFile": {
       "intro": "Um celular novo precisa ter o LangQuest instalado antes que você possa deixar a pessoa entrar. Baixe o arquivo de instalação aqui enquanto tem internet e leve-o com você.",
@@ -224,7 +230,10 @@
       "readyShort": "Arquivo de instalação pronto",
       "done": "Pronto. Você pode levá-lo para onde não há internet.",
       "newer": "Um arquivo de instalação mais novo está pronto. Baixe-o enquanto tem internet e depois escolha-o.",
-      "newerShort": "Arquivo de instalação para uma pessoa nova: um mais novo está pronto"
+      "newerShort": "Arquivo de instalação para uma pessoa nova: um mais novo está pronto",
+      "getNewest": "Baixar o arquivo mais novo",
+      "getNewestHelp": "Abre o navegador do celular, que baixa o arquivo de instalação mais novo desta versão. Depois toque em Escolher o arquivo baixado, e ele substitui a cópia guardada aqui.",
+      "getNewestHelpOpen": "Abre o navegador do celular, que baixa o arquivo de instalação mais novo desta versão. Quando o download terminar, toque em Abrir, e ele substitui a cópia guardada aqui."
     },
     "join": {
       "intro": "Entre na sua equipe pelo celular de um colega, sem internet. A sua conta é criada na primeira vez que o seu celular se conectar à internet.",
@@ -279,7 +288,7 @@
       }
     },
     "give": {
-      "intro": "Este celular cria a própria rede Wi-Fi. O celular novo lê dois códigos com a câmera: um para se conectar à rede, outro para baixar o LangQuest. Nenhum dos dois precisa de internet.",
+      "intro": "Dê o LangQuest a um celular novo. Nenhum dos dois precisa de internet.",
       "rowSub": "Quando você estiver com a pessoa nova",
       "rowHelp": "Abre Dar o app, onde este celular envia o LangQuest para um celular novo por uma rede Wi-Fi que ele mesmo cria.",
       "linkHelp": "Abre Dar o app, para enviar o LangQuest ao celular novo por uma rede Wi-Fi que este celular cria.",
@@ -294,7 +303,7 @@
       },
       "join": {
         "title": "1. Conectar à rede Wi-Fi deste celular",
-        "line": "No celular novo, abra a câmera, aponte para este código e toque em Conectar. Quando ele se conectar, toque em Próximo.",
+        "line": "No celular novo, abra a câmera, aponte para este código e toque em Conectar. Quando ele se conectar, o segundo código aparece sozinho. Se não aparecer, toque em Próximo.",
         "lineAgain": "No celular novo, abra a câmera, aponte para este código e toque em Conectar.",
         "code": "Código para conectar à rede Wi-Fi deste celular",
         "network": "Nome do Wi-Fi: {{name}}",
@@ -305,7 +314,8 @@
       "nextHelp": "Mostra o segundo código, da página de download, depois que o celular novo se conectar.",
       "download": {
         "title": "2. Abrir a página de download",
-        "line": "Aponte a câmera do celular novo para este código e abra a página. Toque em Baixar.",
+        "line": "Aponte a câmera do celular novo para este código e abra a página. O download começa sozinho. Se não começar, toque em Baixar.",
+        "warnings": "Se o navegador do celular novo disser que o arquivo não pode ser baixado com segurança, escolha mantê-lo. Se o navegador avisar que o arquivo pode ser perigoso, escolha baixar mesmo assim. É o arquivo de instalação do próprio LangQuest.",
         "code": "Código da página de download",
         "address": "Ou digite este endereço no navegador dele: {{address}}",
         "dataLine": "O celular novo pode dizer que este Wi-Fi não tem internet. Toque em Permanecer conectado. Se a página ainda não abrir, desligue os dados móveis dele."
@@ -315,6 +325,7 @@
       "sending": "Enviando: {{sent}} de {{total}} MB",
       "sent": "3. Instalar o app",
       "sentLine": "O arquivo foi enviado. No celular novo, abra o arquivo baixado e toque em Instalar. Ele pode pedir uma vez para permitir instalações desta fonte. Depois, deixe a pessoa entrar por este celular.",
+      "sentLineFinds": "O arquivo foi enviado. No celular novo, abra o arquivo baixado e toque em Instalar. Ele pode pedir uma vez para permitir instalações desta fonte. Quando o LangQuest estiver instalado e aberto no celular novo, ele encontra este celular sozinho. Toque em Deixar a pessoa entrar e escolha a função dela.",
       "another": "Dar o app a outro celular",
       "anotherHelp": "Mostra os dois códigos de novo, para mais um celular novo.",
       "letIn": "Deixar a pessoa entrar",
@@ -334,14 +345,46 @@
         "failed": "A rede Wi-Fi deste celular não iniciou. Tente de novo.",
         "permissionCovered": "Primeiro abra o Compartilhar por perto e permita o que ele pedir. Depois volte e tente de novo."
       },
+      "quickShare": {
+        "button": "Enviar pelo Quick Share",
+        "help": "Abre o menu de compartilhar deste celular com o arquivo de instalação.",
+        "failed": "O menu de compartilhar não abriu. Tente de novo.",
+        "letInHelp": "Abre Deixar alguém entrar, para deixar a pessoa entrar quando o LangQuest estiver instalado no celular novo.",
+        "on": {
+          "newFirst": "Primeiro, no celular novo",
+          "this": "Depois, neste celular",
+          "newThen": "Depois, no celular novo",
+          "thisThen": "Por último, neste celular"
+        },
+        "steps": {
+          "open": "Deslize de cima para baixo na tela e toque em Quick Share. Se não estiver lá, abra o app Configurações e pesquise Quick Share.",
+          "visible": "Escolha Todos, para que este celular o encontre. Deixe-o por perto, com a tela ligada.",
+          "send": "Toque em Enviar pelo Quick Share. No menu de compartilhar, toque em Quick Share e depois no nome do celular novo.",
+          "accept": "Toque em Aceitar. Quando o arquivo chegar, toque em Abrir. Se Abrir sumiu, procure o arquivo no app de arquivos, em Downloads.",
+          "letIn": "Quando o LangQuest estiver instalado e aberto no celular novo, toque em Deixar a pessoa entrar.",
+          "install": "Permita instalações desta fonte, se o celular pedir. Toque em Instalar."
+        }
+      },
       "page": {
         "title": "Instalar o LangQuest",
         "size": "{{size}} MB",
         "download": "Baixar",
-        "stepOpen": "Abra o arquivo baixado.",
+        "stepOpen": "O download começa sozinho. Se não começar, toque em Baixar. Quando o download terminar, toque em Abrir.",
+        "stepFind": "Se Abrir sumiu, procure {{name}} em Downloads, no menu ⋮ do navegador ou no app de arquivos, e toque nele.",
         "stepAllow": "Permita instalações desta fonte, se o celular pedir.",
-        "stepInstall": "Toque em Instalar."
-      }
+        "stepInstall": "Toque em Instalar.",
+        "stepJoin": "Abra o LangQuest. Ele encontra sozinho o celular do seu colega. Se não encontrar, volte a esta página e toque em Participar.",
+        "join": "Participar"
+      },
+      "ways": "Escolha um jeito de enviar",
+      "way": {
+        "wifi": "Wi-Fi deste celular",
+        "wifiSub": "O celular novo lê dois códigos. Funciona em qualquer celular Android.",
+        "quickShare": "Quick Share",
+        "quickShareSub": "Os dois celulares precisam dos serviços do Google Play."
+      },
+      "wayHelp": "Escolhe este jeito de enviar o arquivo de instalação. Os passos e o botão dele aparecem abaixo.",
+      "wifiLine": "Este celular cria a própria rede Wi-Fi. O celular novo lê dois códigos com a câmera: um para se conectar à rede, outro para baixar o LangQuest."
     }
   }
 }

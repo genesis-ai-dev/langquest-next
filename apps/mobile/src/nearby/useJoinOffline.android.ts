@@ -39,7 +39,7 @@ export function useJoinOffline(): JoinOfflineHandle {
   const radio = nearbyRadio();
   const { covered, worn } = useAppCovered();
   const [stage, dispatch] = useReducer(joinReducer, JOIN_START);
-  const [code, setCode] = useState<{ code: JoinCode; at: number } | null>(() => heldJoinCode());
+  const [code, setCode] = useState<{ code: JoinCode; at: number; freshMs?: number } | null>(() => heldJoinCode());
   const [pictures, setPictures] = useState<[number, number] | null>(null);
   useEffect(() => onJoinCode(() => setCode(heldJoinCode())), []);
 
@@ -212,7 +212,7 @@ export function useJoinOffline(): JoinOfflineHandle {
     return () => { live = false; clearInterval(timer); unwake(); };
   }, [leftToFinish, open, stopRoom]);
 
-  const stale = code !== null && Date.now() - code.at > CODE_FRESH_MS;
+  const stale = code !== null && Date.now() - code.at > (code.freshMs ?? CODE_FRESH_MS);
   const actions = useMemo(() => ({
     join: (name: string) => { void join(name); },
     again: () => { setCode(heldJoinCode()); dispatch({ t: 'again', code: heldJoinCode() !== null }); },
