@@ -324,6 +324,9 @@ export function prFromMessage(message: string | null): Named | null {
 /** An open pull request onto a release branch, as GitHub lists it; `failed` when its guardrails gate failed. */
 export interface OpenCopy { number: number; title: string; body: string | null; created_at: string; labels?: { name: string }[]; head?: { sha: string }; failed?: boolean }
 
+/** What a copy waits for when the copy workflow did not let Claude run the tests (scripts/release-branches.mjs, BLOCKED_LABEL). */
+export const BLOCKED_WAIT = 'is not checked: the copy workflow did not let Claude run its tests, so Claude\'s tries did nothing';
+
 /** How long a copy may stay open before it needs a person: Claude's step has an hour, the checks under one. */
 export const COPY_HOURS = 3;
 
@@ -339,6 +342,8 @@ export const COPY_HOURS = 3;
  */
 function copyWaits(o: OpenCopy, slow: boolean): { waiting: string; needsPerson: boolean } {
   const labels = (o.labels ?? []).map((l) => l.name);
+  // Claude's tries check nothing while the workflow refuses its commands: the copy itself may be fine.
+  if (labels.includes('copy-claude-blocked')) return { waiting: BLOCKED_WAIT, needsPerson: true };
   if (labels.includes('copy-needs-person')) {
     return { waiting: o.failed ? 'failed its tests after 3 tries by Claude, so it needs a person' : 'is not finished after 3 tries by Claude, so it needs a person', needsPerson: true };
   }
@@ -445,7 +450,7 @@ export function pipelineAlerts(p: Pipeline, now = Date.now()): Alert[] {
       const named = prs.length > 3 ? `${prs.slice(0, 2).join(', ')} and ${prs.length - 2} more` : prs.join(' and ');
       out.push({
         level: 'problem', key: 'copy-needs-person', subject: `${lane.id} PR ${u.copy}`,
-        text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${live!.title} does not have ${named} yet: copy PR ${u.copy} ${u.waiting}. Open it to finish it (decisions.md 155).`,
+        text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${live!.title} does not have ${named} yet: copy PR ${u.copy} ${u.waiting}. ${u.waiting === BLOCKED_WAIT ? 'Fix the copy workflow (release-copy-conflict.yml), then the copy' : 'Open it to finish it'} (decisions.md 155).`,
         link: `https://github.com/${p.repo}/pull/${u.copy}`
       });
     }

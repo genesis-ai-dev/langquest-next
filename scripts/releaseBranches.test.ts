@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, BLOCKED_LABEL, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -326,6 +326,19 @@ describe('a copy with a conflict', () => {
     const copyFn = script.slice(script.indexOf('function copy('), script.indexOf('async function liveVersion'));
     expect(copyFn).toContain("'--label', CLAUDE_LABEL");
     expect(copyFn).not.toContain("'--auto'");
+  });
+
+  it('a Claude run that was not allowed to run a command is never a finished copy, and says so with a label', () => {
+    // 2026-11-19: the action refused npm ci on #549, #559 and #564; #549 still said "copied in part" and merged itself unchecked.
+    expect(BLOCKED_LABEL).toBe('copy-claude-blocked');
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toContain('--denied "$DENIED"');
+    expect(yml).toContain('steps.denied.outputs.count');
+    const script = readFileSync('scripts/release-branches.mjs', 'utf8');
+    const finish = script.slice(script.indexOf('function finishCopy('), script.indexOf('async function main'));
+    expect(finish.indexOf('if (denied > 0)')).toBeGreaterThan(-1);
+    expect(finish.indexOf('if (denied > 0)')).toBeLessThan(finish.indexOf('if (!outcome.done)'));
+    expect(finish).toContain("'--add-label', BLOCKED_LABEL");
   });
 
   it('Claude reads the failed checks and fixes them, and never skips a test', () => {

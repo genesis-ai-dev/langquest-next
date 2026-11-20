@@ -259,6 +259,20 @@ describe('over-the-air updates', () => {
     ]);
   });
 
+  it('say when the copy workflow did not let Claude run the tests, instead of blaming the copy', () => {
+    const lane = pipelineFrom(world()).lanes[1]!;
+    pendingCopies(lane, [
+      { number: 380, title: 'release/android: Fix (#379)', body: '- 7777777777777777777777777777777777777777 #379 Fix', created_at: hAgo(1), labels: [{ name: 'copy-conflict' }, { name: 'copy-needs-person' }, { name: 'copy-claude-blocked' }], failed: true }
+    ], NOW);
+    const live = lane.stages.find((st) => st.id === 'live')!.cards[0]!;
+    expect(live.updates.filter((u) => u.waiting).map((u) => [u.copy, u.waiting, u.needsPerson])).toEqual([
+      [380, "is not checked: the copy workflow did not let Claude run its tests, so Claude's tries did nothing", true]
+    ]);
+    expect(pipelineAlerts({ ...pipelineFrom(world()), lanes: [pipelineFrom(world()).lanes[0]!, lane] }, NOW).map((a) => a.text)).toEqual([
+      "Android build 48 does not have PR 379 yet: copy PR 380 is not checked: the copy workflow did not let Claude run its tests, so Claude's tries did nothing. Fix the copy workflow (release-copy-conflict.yml), then the copy (decisions.md 155)."
+    ]);
+  });
+
   it('let Claude fix a copy whose tests failed, with no person asked until Claude stops or hours pass', () => {
     const lane = pipelineFrom(world()).lanes[1]!;
     const fix = (n: number, labels: string[], hours: number) => ({ number: n, title: `release/android: Fix (#${n - 1})`, body: `- ${'5'.repeat(40)} #${n - 1} Fix`, created_at: hAgo(hours), labels: labels.map((name) => ({ name })), failed: true });
