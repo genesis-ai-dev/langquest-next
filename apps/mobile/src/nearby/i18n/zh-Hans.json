@@ -284,7 +284,7 @@
       }
     },
     "give": {
-      "intro": "这部手机会建立自己的 Wi-Fi 网络。新手机用相机扫两个码：一个用来连接这个网络，一个用来下载 LangQuest。两部手机都不需要互联网。",
+      "intro": "把 LangQuest 给一部新手机。两部手机都不需要互联网。",
       "rowSub": "和新成员在一起时",
       "rowHelp": "打开“发送应用”，这部手机会通过自己建立的 Wi-Fi 网络把 LangQuest 发送到新手机。",
       "linkHelp": "打开“发送应用”，通过这部手机建立的 Wi-Fi 网络把 LangQuest 发送到新手机。",
@@ -343,9 +343,23 @@
       },
       "quickShare": {
         "button": "用 Quick Share 发送",
-        "help": "用安装文件打开这部手机的分享面板。选择 Quick Share，再选择新手机。",
-        "line": "Quick Share 是另一种发送方式。两部手机都需要 Google Play 服务，在中国销售的手机没有这项服务。在新手机上打开 Quick Share，并让附近的所有人都能看到这部手机。接受文件，然后打开它并点“安装”。",
-        "failed": "分享面板没有打开。请再试一次。"
+        "help": "用安装文件打开这部手机的分享面板。",
+        "failed": "分享面板没有打开。请再试一次。",
+        "letInHelp": "打开“让人加入”，等新手机装好 LangQuest 后让对方加入。",
+        "on": {
+          "newFirst": "首先，在新手机上",
+          "this": "然后，在这部手机上",
+          "newThen": "然后，在新手机上",
+          "thisThen": "最后，在这部手机上"
+        },
+        "steps": {
+          "open": "从屏幕顶部向下滑动，点 Quick Share。如果没有，请打开“设置”，搜索 Quick Share。",
+          "visible": "选择“所有人”，让这部手机能找到它。把它放在附近，屏幕保持亮着。",
+          "send": "点“用 Quick Share 发送”。在分享面板中点 Quick Share，再点新手机的名称。",
+          "accept": "点“接受”。文件收到后，点“打开”。如果“打开”已经消失，请在文件应用的“下载”文件夹中找到这个文件。",
+          "letIn": "新手机装好并打开 LangQuest 后，点“让对方加入”。",
+          "install": "如果手机询问，请允许从这个来源安装。点“安装”。"
+        }
       },
       "page": {
         "title": "安装 LangQuest",
@@ -357,7 +371,16 @@
         "stepInstall": "点“安装”。",
         "stepJoin": "打开 LangQuest。它会自动找到队友的手机。如果没有找到，回到这个页面，点“加入”。",
         "join": "加入"
-      }
+      },
+      "ways": "选择一种发送方式",
+      "way": {
+        "wifi": "这部手机的 Wi-Fi",
+        "wifiSub": "新手机扫两个码。任何 Android 手机都能用。",
+        "quickShare": "Quick Share",
+        "quickShareSub": "两部手机都需要 Google Play 服务。"
+      },
+      "wayHelp": "选择用这种方式发送安装文件。它的步骤和按钮显示在下方。",
+      "wifiLine": "这部手机会建立自己的 Wi-Fi 网络。新手机用相机扫两个码：一个用来连接这个网络，一个用来下载 LangQuest。"
     }
   }
 }
