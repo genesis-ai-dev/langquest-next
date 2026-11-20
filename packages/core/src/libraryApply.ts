@@ -5,7 +5,7 @@ import { templateBooks, type CollectionDoc, type FlowDoc, type MaterialDoc, type
 import { flowStepPrefix } from './record';
 import type { LanguageState } from './state';
 import {
-  bookOrder, chaptersInBook, parseRef, refId, sharedVerses, versesInChapter, type VerseRange, type VersificationDoc
+  bookOrder, chaptersInBook, orgVerses, parseRef, refId, sharedVerses, versesInChapter, type VerseRange, type VersificationDoc
 } from './versification';
 
 /**
@@ -244,21 +244,71 @@ export function studyEntriesFor(
   passage: { range: VerseRange; versification: VersificationDoc },
   collection: { doc: CollectionDoc; versification: VersificationDoc }
 ): { entry: CollectionDoc['entries'][number]; shared: number }[] {
-  const out: { entry: CollectionDoc['entries'][number]; shared: number }[] = [];
-  for (const entry of collection.doc.entries) {
-    const r = parseRef(entry.ref, (b, c) => versesInChapter(collection.versification, b, c));
-    if (!r || r.book !== passage.range.book && !sameBookAcross(r.book, passage.range.book)) continue;
-    const shared = sharedVerses({ doc: passage.versification, range: passage.range }, { doc: collection.versification, range: r });
-    if (shared > 0) out.push({ entry, shared });
+  const byBook = entriesByBook(collection);
+  // The passage's verses, once, in the numbering both sides are read through.
+  const verses = orgVerses(passage.versification, passage.range);
+  // The passage's own book, and any a versification may move its verses into.
+  const near = [passage.range.book, ...BOOKS_ACROSS.filter(([x, y]) => x === passage.range.book || y === passage.range.book).map(([x, y]) => (x === passage.range.book ? y : x))];
+  const shared = new Map<CollectionDoc['entries'][number], number>();
+  for (const book of near) {
+    const entries = byBook.get(book);
+    if (!entries) continue;
+    const byVerse = (entries.byVerse ??= versesOfEntries(entries.list, collection.versification));
+    for (const verse of verses) for (const entry of byVerse.get(verse) ?? []) shared.set(entry, (shared.get(entry) ?? 0) + 1);
   }
-  return out.sort((a, b) => b.shared - a.shared || (a.entry.ref < b.entry.ref ? -1 : 1));
+  return [...shared].map(([entry, n]) => ({ entry, shared: n })).sort((a, b) => b.shared - a.shared || (a.entry.ref < b.entry.ref ? -1 : 1));
+}
+
+type Entry = CollectionDoc['entries'][number];
+/** One book's entries, and, once a passage of that book has been asked about, which of them hold each verse. */
+interface BookEntries { list: { entry: Entry; range: VerseRange }[]; byVerse: Map<string, Entry[]> | null }
+
+/**
+ * A collection's entries with their references read once, by book, and each
+ * book's entries by the verses they hold, in the numbering every side is
+ * read through (`orgVerses`). A collection can hold every passage of the
+ * Bible (FIA has 2,376), and the app asks for each passage a person keeps,
+ * in each language the collection comes in. Reading every reference and
+ * listing every entry's verses again for each passage took half a second
+ * for one book's 97 passages, after every change to the language
+ * (apps/mobile/src/study/StudyPrefetch.tsx). With the verses kept, a passage
+ * meets only the entries that share one with it. A book's verses are listed
+ * the first time a passage of it is asked about, so a person's few books
+ * cost what they hold and no more. Documents are never changed once made,
+ * so all of it is kept with the document, for the versification it was read
+ * in.
+ */
+const ENTRIES = new WeakMap<CollectionDoc, { versification: VersificationDoc; byBook: Map<string, BookEntries> }>();
+
+function entriesByBook(collection: { doc: CollectionDoc; versification: VersificationDoc }): Map<string, BookEntries> {
+  const held = ENTRIES.get(collection.doc);
+  if (held && held.versification === collection.versification) return held.byBook;
+  const byBook = new Map<string, BookEntries>();
+  for (const entry of collection.doc.entries) {
+    const range = parseRef(entry.ref, (b, c) => versesInChapter(collection.versification, b, c));
+    if (!range) continue;
+    const book = byBook.get(range.book);
+    if (book) book.list.push({ entry, range });
+    else byBook.set(range.book, { list: [{ entry, range }], byVerse: null });
+  }
+  ENTRIES.set(collection.doc, { versification: collection.versification, byBook });
+  return byBook;
+}
+
+function versesOfEntries(list: BookEntries['list'], versification: VersificationDoc): Map<string, Entry[]> {
+  const byVerse = new Map<string, Entry[]>();
+  for (const { entry, range } of list) {
+    for (const verse of orgVerses(versification, range)) {
+      const holders = byVerse.get(verse);
+      if (holders) holders.push(entry);
+      else byVerse.set(verse, [entry]);
+    }
+  }
+  return byVerse;
 }
 
 /** Books whose verses a versification may move into each other (Daniel's additions, Esther's Greek parts). */
-function sameBookAcross(a: string, b: string): boolean {
-  const pairs = [['DAN', 'DAG'], ['EST', 'ESG'], ['DAG', 'S3Y'], ['DAG', 'SUS'], ['DAG', 'BEL']];
-  return pairs.some(([x, y]) => (a === x && b === y) || (a === y && b === x));
-}
+const BOOKS_ACROSS: readonly (readonly [string, string])[] = [['DAN', 'DAG'], ['EST', 'ESG'], ['DAG', 'S3Y'], ['DAG', 'SUS'], ['DAG', 'BEL']];
 
 /** Does a single study guide or simple material apply to a passage? */
 export function materialApplies(
