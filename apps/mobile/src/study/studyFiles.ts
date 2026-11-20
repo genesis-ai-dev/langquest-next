@@ -37,11 +37,23 @@ let online = false;
 let retry: ReturnType<typeof setTimeout> | null = null;
 /** Per kept passage, the study addresses it wants; set by the prefetcher, read by the offline counts. */
 let wanted = new Map<string, string[]>();
+/** The passages whose guide the prefetcher has looked up, found or not: only of these can the counts say their study files are here. */
+let known = new Set<string>();
+/** Each address's file name, worked out once: the counts ask for every kept passage's every address after each file that arrives. */
+const names = new Map<string, string>();
 /** The language whose kept passages want them: field diagnostics tally the downloads under it. */
 let tallyAs: { orgId: string; streamId: string } | null = null;
 
 /** FNV-1a, 52 bits: a stable file name from an address, without waiting on crypto. */
 function nameOf(url: string): string {
+  const held = names.get(url);
+  if (held) return held;
+  const name = hashedName(url);
+  names.set(url, name);
+  return name;
+}
+
+function hashedName(url: string): string {
   let h1 = 0x811c9dc5;
   let h2 = 0x01000193;
   for (let i = 0; i < url.length; i++) {
@@ -99,13 +111,44 @@ export function studyWanted(): ReadonlyMap<string, string[]> {
   return wanted;
 }
 
-/** The prefetcher's latest wish list; downloads what is missing while `online`. */
-export function setStudyWanted(next: Map<string, string[]>, isOnline: boolean, language?: { orgId: string; languageId: string } | null): void {
-  wanted = next;
-  online = isOnline;
+/**
+ * Has this passage's guide been looked up, so that `studyCounts` is the
+ * whole answer? Until it has, a kept passage is not called ready: its guide
+ * may bring files this device does not have (decisions.md 166). Always on
+ * the web, which keeps no study files.
+ */
+export function studyKnown(unitId: string): boolean {
+  return !DIR || known.has(unitId);
+}
+
+/**
+ * The prefetcher's latest wish list; downloads what is missing while
+ * `online`. `lookedUp`: the passages whose guide it has looked up, found or
+ * not; those on the wish list when it is left out.
+ */
+export function setStudyWanted(
+  next: Map<string, string[]>, isOnline: boolean, language?: { orgId: string; languageId: string } | null, lookedUp: Iterable<string> = next.keys()
+): void {
+  const nowKnown = new Set(lookedUp);
   tallyAs = language?.orgId && language.languageId ? { orgId: language.orgId, streamId: language.languageId } : null;
+  // The same wishes again (the prefetcher hands them over after every change to the language): nobody
+  // is told, so the download buttons do not all redraw, and nothing is queued twice.
+  if (isOnline === online && sameWishes(wanted, next) && nowKnown.size === known.size && [...nowKnown].every((u) => known.has(u))) return;
+  wanted = next;
+  known = nowKnown;
+  online = isOnline;
   changed();
   enqueue();
+}
+
+/** The same passages wanting the same addresses in the same order. */
+function sameWishes(a: ReadonlyMap<string, readonly string[]>, b: ReadonlyMap<string, readonly string[]>): boolean {
+  if (a.size !== b.size) return false;
+  for (const [unitId, urls] of a) {
+    const other = b.get(unitId);
+    if (!other || other.length !== urls.length || urls.some((url, i) => url !== other[i])) return false;
+  }
+  return true;
 }
 
 function enqueue(): void {

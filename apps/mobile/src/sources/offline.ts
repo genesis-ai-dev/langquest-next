@@ -4,8 +4,9 @@
 // document says `offline: 'allowed'`, or a Bible Brain fileset the Worker
 // says `/download` allows (`offline: true` on its audio link). Stream-only
 // sources are never written to disk. Chapters are fetched for the passages
-// in the person's offline scope (core `defaultOfflineScope` plus the units
-// they keep offline), hashed after download and kept in the app's
+// whose reference material is kept (`referenceUnits`: core
+// `defaultOfflineScope` plus the units kept by their own button, not a book's
+// passages kept for their recordings alone), hashed after download and kept in the app's
 // hash-addressed blob store under that hash; playback reads the file when
 // it is there and streams otherwise. When the Worker later says a fileset
 // may no longer be kept, its files are deleted.
@@ -23,6 +24,7 @@ import * as Crypto from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { BlobStore, getBlobStore, type BlobFile } from '../sync/blobs';
+import { referenceUnits } from '../sync/offlineModel';
 import { loadDocs } from '../library/docStore';
 import { noteExpected } from '../diagnostics/report';
 import { timedTransfer } from '../diagnostics/diagnostics';
@@ -162,9 +164,10 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
   if (!state || !language.languageId || language.online === false || isRecording()) return;
   const store = language.blobs.store ?? (await getBlobStore());
   const idx = await loadIndex();
-  // The default scope comes worked out from the phone's table too (decisions.md 143).
-  const scope = new Set(language.blobs.scope);
-  for (const u of language.blobs.keptUnits) scope.add(u);
+  // The default scope comes worked out from the phone's table too (decisions.md 143). Reference audio is
+  // reference material: it comes with the person's own passages and those kept by their own button, not
+  // with a book's passages kept for their recordings alone (`referenceUnits`).
+  const scope = referenceUnits(language.blobs);
 
   const languageId = language.languageId;
   const mineRaw = await AsyncStorage.getItem(`my-bibles:${session.actorId}:${language.orgId}:${languageId}`).catch(() => null);
