@@ -48,7 +48,9 @@ export const inviteYourTeam: Tutorial = {
     },
     {
       screen: 'invite_member',
-      part: (page) => words(page, 'Peer check'),
+      // Every check to choose from is lit while the voice says to tap the ones they will do (the first and the last:
+      // the light takes in the chips between them); the finger taps the first, Peer check.
+      part: (page) => [words(page, 'Peer check'), words(page, 'Final approval')],
       say: "Translators check each other's work too. Tap the checks they will do.",
       tap: true,
       until: until('Ask them to scan this', 30_000),
