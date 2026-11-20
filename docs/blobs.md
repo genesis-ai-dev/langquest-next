@@ -68,7 +68,12 @@ below was earned in production there.
     user is assigned to or has worked in (`defaultOfflineScope`) plus units
     they chose to keep offline (`keepOffline`); playback resolves the local
     path or streams. Nothing marks a download done except the file being on
-    disk.
+    disk. A book's download button keeps each of its passages, in one write
+    (`docs/decisions/2026-11-20-a-book-has-its-own-download-button.md`); it
+    says first how much audio would come (`offlineCost`), and is not offered
+    when that would not fit in what is free above the 500 MB kept for
+    recording (`BlobStore.roomBytes`) and what the device would free by
+    itself (`freeable`), since kept files are never deleted to make room.
 11. **Audio is immutable.** Already PLAN.md invariant 4. It is what makes the
     confirmation monotonic and the upsert safe; v2 had to document the
     re-record-in-place case as unhandled.

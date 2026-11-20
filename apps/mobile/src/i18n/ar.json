@@ -5461,7 +5461,37 @@
     "download": "نزّله للعمل بدون اتصال",
     "needsConnection": "التنزيل يحتاج إلى اتصال",
     "needsConnectionHelp": "ليس على هذا الجهاز. يمكن تنزيله عندما يتصل هذا الجهاز.",
-    "checkingHelp": "يحصي هذا الجهاز ما لديه من هذا المقطع."
+    "checkingHelp": "يحصي هذا الجهاز ما لديه من هذا المقطع.",
+    "group": {
+      "download_zero": "نزّل كل المقاطع ({{count, number}}) للعمل بدون اتصال",
+      "download_one": "نزّل المقطع ({{count, number}}) للعمل بدون اتصال",
+      "download_two": "نزّل المقطعين ({{count, number}}) للعمل بدون اتصال",
+      "download_few": "نزّل كل المقاطع ({{count, number}}) للعمل بدون اتصال",
+      "download_many": "نزّل كل المقاطع ({{count, number}}) للعمل بدون اتصال",
+      "download_other": "نزّل كل المقاطع ({{count, number}}) للعمل بدون اتصال",
+      "downloadRest_zero": "نزّل المقاطع المتبقية ({{count, number}})",
+      "downloadRest_one": "نزّل المقطع المتبقي ({{count, number}})",
+      "downloadRest_two": "نزّل المقطعين المتبقيين ({{count, number}})",
+      "downloadRest_few": "نزّل المقاطع المتبقية ({{count, number}})",
+      "downloadRest_many": "نزّل المقاطع المتبقية ({{count, number}})",
+      "downloadRest_other": "نزّل المقاطع المتبقية ({{count, number}})",
+      "size": "{{size}} من الصوت للتنزيل",
+      "noRoom": "لا توجد مساحة كافية على هذا الجهاز",
+      "noRoomNeeds": "حجم صوتها {{size}}. وعلى هذا الجهاز مساحة تكفي {{room}}.",
+      "noRoomHelp": "وفّر مساحة على هذا الجهاز، أو نزّل مقاطع أقل في كل مرة.",
+      "keepHelp": "يحفظ صوت كل مقطع على هذا الجهاز، لتعمل بدون اتصال.",
+      "letGoHelp": "يسمح لهذا الجهاز بإزالة صوتها مرة أخرى عندما يحتاج إلى مساحة. المقاطع التي هي من عملك تبقى.",
+      "reason": "محفوظة لأنه طُلب منك العمل على هذه المقاطع، أو لأنك عملت عليها.",
+      "toast": {
+        "letGo": "لم تعد محفوظة. قد يُزال صوتها لتوفير المساحة.",
+        "someStay_zero": "لم تعد محفوظة، ما عدا المقاطع التي هي من عملك ({{count, number}}).",
+        "someStay_one": "لم تعد محفوظة، ما عدا المقطع الذي هو من عملك ({{count, number}}).",
+        "someStay_two": "لم تعد محفوظة، ما عدا المقطعين اللذين هما من عملك ({{count, number}}).",
+        "someStay_few": "لم تعد محفوظة، ما عدا المقاطع التي هي من عملك ({{count, number}}).",
+        "someStay_many": "لم تعد محفوظة، ما عدا المقاطع التي هي من عملك ({{count, number}}).",
+        "someStay_other": "لم تعد محفوظة، ما عدا المقاطع التي هي من عملك ({{count, number}})."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "أبلغ عن {{name}} أو احظره",

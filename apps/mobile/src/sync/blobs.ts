@@ -88,6 +88,9 @@ function parseName(name: string): StoredFile | null {
   return hash && HASH_NAME.test(hash) && isStoredFormat(ext) && more === undefined ? { hash, format: ext } : null;
 }
 
+/** Kept free for recording: downloads never take the device under this (appLanguage.ts `LIMITS`). */
+export const RECORDING_RESERVE_BYTES = 500 * 1024 * 1024;
+
 export class BlobStore {
   /** Null on web, where `files` holds them instead. */
   private readonly dir: Directory | null;
@@ -284,6 +287,22 @@ export class BlobStore {
     if (dest.exists) staged.delete();
     else staged.move(dest);
     this.markPresent(ref.hash, size, ref.format);
+  }
+
+  /**
+   * Room for more files on this device, with what recording keeps free
+   * (`RECORDING_RESERVE_BYTES`) taken off; null in a browser, which reports
+   * no free space synchronously, and on a device whose disk will not say
+   * (some refuse the question). Asked before a whole book is kept offline,
+   * so a download that cannot fit is never offered (LAN-316).
+   */
+  roomBytes(): number | null {
+    if (!this.dir) return null;
+    try {
+      return Math.max(0, Paths.availableDiskSpace - RECORDING_RESERVE_BYTES);
+    } catch {
+      return null;
+    }
   }
 
   /**

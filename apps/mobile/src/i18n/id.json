@@ -4671,7 +4671,22 @@
     "download": "Unduh untuk offline",
     "needsConnection": "Mengunduh perlu koneksi",
     "needsConnectionHelp": "Tidak ada di perangkat ini. Bisa diunduh setelah perangkat ini terhubung.",
-    "checkingHelp": "Perangkat ini sedang menghitung bagian perikop ini yang ada padanya."
+    "checkingHelp": "Perangkat ini sedang menghitung bagian perikop ini yang ada padanya.",
+    "group": {
+      "download_other": "Unduh semua {{count, number}} perikop untuk offline",
+      "downloadRest_other": "Unduh {{count, number}} perikop lainnya",
+      "size": "{{size}} audio perlu diunduh",
+      "noRoom": "Ruang di perangkat ini tidak cukup",
+      "noRoomNeeds": "Audionya {{size}}. Perangkat ini punya ruang untuk {{room}}.",
+      "noRoomHelp": "Kosongkan ruang di perangkat ini, atau unduh lebih sedikit perikop sekaligus.",
+      "keepHelp": "Menyimpan audio setiap perikop di perangkat ini, agar bisa dipakai tanpa koneksi.",
+      "letGoHelp": "Membiarkan perangkat ini menghapus audionya lagi saat perlu ruang. Perikop yang merupakan pekerjaan Anda tetap disimpan.",
+      "reason": "Disimpan karena Anda diminta mengerjakan perikop-perikop ini, atau sudah mengerjakannya.",
+      "toast": {
+        "letGo": "Tidak lagi disimpan. Audionya mungkin dihapus untuk memberi ruang.",
+        "someStay_other": "Tidak lagi disimpan, kecuali {{count, number}} perikop yang merupakan pekerjaan Anda."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "Laporkan atau blokir {{name}}",
