@@ -306,6 +306,7 @@
       "download": {
         "title": "2. Buka halaman unduhan",
         "line": "Arahkan kamera ponsel baru ke kode ini dan buka halamannya. Ketuk Unduh.",
+        "warnings": "Jika browser ponsel baru mengatakan bahwa file tidak dapat diunduh dengan aman, pilih untuk menyimpannya. Jika browser memperingatkan bahwa file mungkin berbahaya, pilih untuk tetap mengunduhnya. Ini file instalasi milik LangQuest sendiri.",
         "code": "Kode untuk halaman unduhan",
         "address": "Atau ketik alamat ini di browser-nya: {{address}}",
         "dataLine": "Ponsel baru mungkin mengatakan Wi-Fi ini tidak punya internet. Ketuk Tetap terhubung. Jika halaman masih tidak terbuka, matikan data selulernya."
@@ -338,7 +339,8 @@
         "title": "Pasang LangQuest",
         "size": "{{size}} MB",
         "download": "Unduh",
-        "stepOpen": "Buka file yang sudah diunduh.",
+        "stepOpen": "Setelah unduhan selesai, ketuk Buka.",
+        "stepFind": "Jika Buka sudah hilang, cari {{name}} di Download, lewat menu ⋮ browser atau di aplikasi file, lalu ketuk.",
         "stepAllow": "Izinkan pemasangan dari sumber ini, jika ponsel meminta.",
         "stepInstall": "Ketuk Instal."
       }

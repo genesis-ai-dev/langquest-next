@@ -8,7 +8,7 @@ import { formatNumber } from '../i18n/format';
 import { useAppCovered } from '../shell/useAppCovered';
 import { giveIdle, giveMustHave, givePermissions, giveStage, megabytes, pageHtml, type GiveEnd, type GiveFail, type GiveStatus, type Giving } from './giveAppModel';
 import { radiosMayRun } from './nearbyModel';
-import { androidSdk, askNearbyPermissions, checkNearbyPermissions, openNearbySettings } from './nearbyPermissions.android';
+import { androidSdk, askingForNearby, askNearbyPermissions, checkNearbyPermissions, openNearbySettings } from './nearbyPermissions.android';
 import { useCarriedApk } from './useCarriedApk';
 import type { GiveAppHandle } from './useGiveApp';
 import { useFocus } from './useNearby.native';
@@ -53,7 +53,11 @@ export function useGiveApp(): GiveAppHandle {
   const focused = useFocus(() => undefined);
   const [onScreen, setOnScreen] = useState(() => AppState.currentState === 'active');
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => setOnScreen(s === 'active'));
+    const sub = AppState.addEventListener('change', (s) => {
+      // Android's own question, asked after Show the first code, takes the app to the background, which is not leaving (5.8).
+      if (s !== 'active' && askingForNearby()) return;
+      setOnScreen(s === 'active');
+    });
     return () => sub.remove();
   }, []);
   const running = busy || giving !== null;
@@ -108,6 +112,7 @@ export function useGiveApp(): GiveAppHandle {
         size: t('nearby.give.page.size', { size: formatNumber(megabytes(kept.size)) }),
         download: t('nearby.give.page.download'),
         stepOpen: t('nearby.give.page.stepOpen'),
+        stepFind: t('nearby.give.page.stepFind', { name: kept.name }),
         stepAllow: t('nearby.give.page.stepAllow'),
         stepInstall: t('nearby.give.page.stepInstall')
       }, kept.name);

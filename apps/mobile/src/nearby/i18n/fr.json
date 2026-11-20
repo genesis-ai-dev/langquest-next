@@ -306,6 +306,7 @@
       "download": {
         "title": "2. Ouvrir la page de téléchargement",
         "line": "Pointez l’appareil photo du nouveau téléphone vers ce code et ouvrez la page. Touchez Télécharger.",
+        "warnings": "Si le navigateur du nouveau téléphone indique que le fichier ne peut pas être téléchargé de manière sécurisée, choisissez de le conserver. Si le navigateur prévient que le fichier peut être dangereux, choisissez de le télécharger quand même. C’est le fichier d’installation de LangQuest.",
         "code": "Code de la page de téléchargement",
         "address": "Ou tapez cette adresse dans son navigateur : {{address}}",
         "dataLine": "Le nouveau téléphone peut dire que ce Wi-Fi n’a pas d’accès à Internet. Touchez Rester connecté. Si la page ne s’ouvre toujours pas, désactivez ses données mobiles."
@@ -338,7 +339,8 @@
         "title": "Installer LangQuest",
         "size": "{{size}} Mo",
         "download": "Télécharger",
-        "stepOpen": "Ouvrez le fichier téléchargé.",
+        "stepOpen": "Quand le téléchargement est terminé, touchez Ouvrir.",
+        "stepFind": "Si Ouvrir a disparu, cherchez {{name}} dans Téléchargements, dans le menu ⋮ du navigateur ou dans l’application de fichiers, et touchez-le.",
         "stepAllow": "Autorisez les installations depuis cette source, si le téléphone le demande.",
         "stepInstall": "Touchez Installer."
       }

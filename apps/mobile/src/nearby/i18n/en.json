@@ -306,6 +306,7 @@
       "download": {
         "title": "2. Open the download page",
         "line": "Point the new phone's camera at this code and open the page. Tap Download.",
+        "warnings": "If the new phone's browser says the file can't be downloaded securely, choose to keep it. If it warns that the file may be harmful, choose to download it anyway. It is LangQuest's own install file.",
         "code": "Code for the download page",
         "address": "Or type this address in its browser: {{address}}",
         "dataLine": "The new phone may say this Wi-Fi has no internet. Tap Stay connected. If the page still does not open, turn off its mobile data."
@@ -338,7 +339,8 @@
         "title": "Install LangQuest",
         "size": "{{size}} MB",
         "download": "Download",
-        "stepOpen": "Open the downloaded file.",
+        "stepOpen": "When the download finishes, tap Open.",
+        "stepFind": "If Open has gone, find {{name}} in Downloads, in the browser's menu ⋮ or in the Files app, and tap it.",
         "stepAllow": "Allow installs from this source, if the phone asks.",
         "stepInstall": "Tap Install."
       }

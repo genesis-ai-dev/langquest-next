@@ -139,6 +139,8 @@ export interface PageWords {
   size: string;
   download: string;
   stepOpen: string;
+  /** Under the first step: where the file is once the browser's Open, which goes after a while, has gone. */
+  stepFind: string;
   stepAllow: string;
   stepInstall: string;
 }
@@ -164,12 +166,12 @@ export function pageHtml(words: PageWords, fileName: string): string {
   const w = Object.fromEntries(Object.entries(words).map(([k, v]) => [k, escapeHtml(v)])) as unknown as PageWords;
   const href = `/${encodeURIComponent(fileName)}`;
   const steps = [w.stepOpen, w.stepAllow, w.stepInstall]
-    .map((text, i) => `<li>${PICTURES[i]}<span>${text}</span></li>`).join('');
+    .map((text, i) => `<li>${PICTURES[i]}<span>${text}${i === 0 ? `<small>${w.stepFind}</small>` : ''}</span></li>`).join('');
   // i18n-ignore: the page's markup; its words come from `words`, out of the catalog
   return `<!doctype html><html lang="${w.lang}" dir="${w.dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${w.title}</title>`
     + '<style>body{font-family:sans-serif;margin:0;padding:24px;background:#F5F3FF;color:#1E1B3A}h1{font-size:24px;margin:0 0 8px}p{margin:0 0 20px;color:#5B5675}'
     + 'a.go{display:block;text-align:center;background:#5B3FD9;color:#fff;font-size:20px;font-weight:700;padding:18px;border-radius:14px;text-decoration:none}'
-    + 'ol{list-style:none;padding:0;margin:28px 0 0}li{display:flex;align-items:center;gap:14px;margin:0 0 16px;font-size:17px}svg{flex:none}</style></head>'
+    + 'ol{list-style:none;padding:0;margin:28px 0 0}li{display:flex;align-items:center;gap:14px;margin:0 0 16px;font-size:17px}small{display:block;margin-top:6px;font-size:15px;color:#5B5675}svg{flex:none}</style></head>'
     // i18n-ignore: markup around the catalog's words
     + `<body><h1>${w.title}</h1><p>${w.size}</p><a class="go" href="${href}" download="${escapeHtml(fileName)}">${w.download}</a><ol>${steps}</ol></body></html>`;
 }

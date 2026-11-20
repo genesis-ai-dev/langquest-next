@@ -14,7 +14,7 @@ import { radiosMayRun } from './nearbyModel';
 import { letInWithPass } from './nearbyJoin.android';
 import { nearbyRadio } from './nearbyLink.native';
 import { nearbyFlag } from './nearbyFlag';
-import { androidSdk, askNearbyPermissions, checkNearbyPermissions, openNearbySettings } from './nearbyPermissions.android';
+import { androidSdk, askingForNearby, askNearbyPermissions, checkNearbyPermissions, openNearbySettings } from './nearbyPermissions.android';
 import { afterPrompt, permissionsStateOf, type PermissionAnswers } from './nearbyPermissionsModel';
 import { joinPassFor } from './nearbyPhone.native';
 import { useFocus } from './useNearby.native';
@@ -49,7 +49,12 @@ export function useLetIn(ctx: Ctx): LetInHandle {
   const focused = useFocus(refresh);
   const [onScreen, setOnScreen] = useState(() => AppState.currentState === 'active');
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => { setOnScreen(s === 'active'); if (s === 'active') refresh(); });
+    const sub = AppState.addEventListener('change', (s) => {
+      // Android's own question takes the app to the background, which is not leaving (5.8).
+      if (s !== 'active' && askingForNearby()) return;
+      setOnScreen(s === 'active');
+      if (s === 'active') refresh();
+    });
     return () => sub.remove();
   }, [refresh]);
 

@@ -92,6 +92,8 @@ export function GiveAppScreen(ctx: Ctx) {
       <Text style={txt.h3}>{t('nearby.give.download.title')}</Text>
       <LetInCode value={pageAddress(giving)} label={t('nearby.give.download.code')} />
       <Text style={txt.body}>{t('nearby.give.download.line')}</Text>
+      {/* Served over the group's own address with no HTTPS, the file draws Chrome's insecure-download warning, and as an APK its harmful-file one. */}
+      <Text style={txt.body}>{t('nearby.give.download.warnings')}</Text>
       <Text style={txt.sm} selectable>{t('nearby.give.download.address', { address: pageAddress(giving) })}</Text>
       <Text style={[txt.sm, { color: TINT.amberText }]}>{t('nearby.give.download.dataLine')}</Text>
       {/* Back works only before the file starts: after that the stage follows the file, not the step. */}
