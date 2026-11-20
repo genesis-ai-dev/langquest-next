@@ -208,7 +208,8 @@
         "unreadable": "File ini tidak bisa dibaca. Pilih lagi.",
         "failed": "Salinan tidak bisa disimpan. Pilih lagi.",
         "needsAndroid": "Ponsel ini tidak menyimpan salinan: Berikan aplikasi memerlukan Android 10 atau yang lebih baru.",
-        "needsUpdate": "Ponsel ini belum menyimpan salinan. Perbarui aplikasi dari toko aplikasi untuk memberikannya lewat Wi-Fi."
+        "needsUpdate": "Ponsel ini belum menyimpan salinan. Perbarui aplikasi dari toko aplikasi untuk memberikannya lewat Wi-Fi.",
+        "keptBuilt": "Salinan yang dibuat pada {{date}} tersimpan di ponsel ini untuk Berikan aplikasi. Anda bisa menghapus yang ada di folder Download."
       },
       "scanLineGive": "Di ponsel baru, buka LangQuest. Aplikasi itu akan menemukan ponsel ini sendiri. Jika tidak, ketuk Pindai kode, lalu arahkan ke sini.",
       "minutesLeft": "Sisa menit: {{n, number}}"
@@ -229,7 +230,10 @@
       "readyShort": "File instalasi siap",
       "done": "Siap. Anda bisa membawanya ke tempat tanpa internet.",
       "newer": "File instalasi yang lebih baru sudah siap. Unduh selagi Anda punya internet, lalu pilih file-nya.",
-      "newerShort": "File instalasi untuk orang baru: yang lebih baru sudah siap"
+      "newerShort": "File instalasi untuk orang baru: yang lebih baru sudah siap",
+      "getNewest": "Unduh file terbaru",
+      "getNewestHelp": "Membuka browser ponsel, yang mengunduh file instalasi terbaru untuk versi ini. Lalu ketuk Pilih file yang diunduh, dan file itu menggantikan salinan yang tersimpan di sini.",
+      "getNewestHelpOpen": "Membuka browser ponsel, yang mengunduh file instalasi terbaru untuk versi ini. Setelah unduhan selesai, ketuk Buka, dan file itu menggantikan salinan yang tersimpan di sini."
     },
     "join": {
       "intro": "Bergabung dengan tim Anda dari ponsel rekan tim, tanpa internet. Akun Anda dibuat saat ponsel Anda pertama kali tersambung ke internet.",

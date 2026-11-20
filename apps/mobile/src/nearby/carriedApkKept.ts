@@ -1,12 +1,15 @@
 import { getStore } from '../storage/store';
 import { CARRIED_APK_OPENED_KEY, CARRIED_APK_RIGHT_KEY } from './carriedApkModel';
+import { CARRIED_APK_KEPT_UNDER_KEY } from './keptBuildModel';
 
 /**
- * Two names of the carried build's file, each in a phone-wide meta row that holds nothing but that
+ * Three names of the carried build's file, each in a phone-wide meta row that holds nothing but that
  * name (docs/nearby-sync-plan.md 14.4): the file the person last went to get, or checked and found
- * right (`opened`), and the file last found right (`right`), which tells a file in hand from a
- * press that only opened the browser. Each is read once, then held here, so the install file's
- * screen, Share nearby and Sync see a press at once.
+ * right (`opened`), the file last found right (`right`), which tells a file in hand from a press
+ * that only opened the browser, and the file this phone needed when a copy was last kept
+ * (`keptUnder`, 2026-11-20), which says whether a copy from an older build was kept again under
+ * this one. Each is read once, then held here, so the install file's screen, Share nearby and Sync
+ * see a press at once.
  */
 function remembered(key: string) {
   let name: string | null | undefined;
@@ -37,6 +40,7 @@ function remembered(key: string) {
 
 const opened = remembered(CARRIED_APK_OPENED_KEY);
 const right = remembered(CARRIED_APK_RIGHT_KEY);
+const keptUnder = remembered(CARRIED_APK_KEPT_UNDER_KEY);
 
 export const apkOpenedNow = opened.now;
 export const subscribeApkOpened = opened.subscribe;
@@ -47,3 +51,8 @@ export const apkRightNow = right.now;
 export const subscribeApkRight = right.subscribe;
 export const loadApkRight = right.load;
 export const keepApkRight = right.keep;
+
+export const apkKeptUnderNow = keptUnder.now;
+export const subscribeApkKeptUnder = keptUnder.subscribe;
+export const loadApkKeptUnder = keptUnder.load;
+export const keepApkKeptUnder = keptUnder.keep;
