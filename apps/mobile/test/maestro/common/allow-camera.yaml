@@ -1,0 +1,14 @@
+# Answer the iPhone's camera question if it shows. Maestro allows every
+# permission before the app starts, so the question normally never shows. On a
+# slow Mac the simulator can drop that answer after the app starts (it clears
+# the app's permissions late, for the removal that a clear start does), and the
+# app's camera then asks. Unanswered, the box covers the app and stays over the
+# next flow (phone-tests run 62, 2026-11-17, and run 56).
+appId: com.frontierrnd.langquestnext
+---
+- runFlow:
+    when:
+      platform: iOS
+      visible: "Don.t Allow"
+    commands:
+      - tapOn: "Allow"

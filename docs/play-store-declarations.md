@@ -1,5 +1,7 @@
 # What we have told Google Play
 
+Kind: reference
+
 The answers given in Play Console for LangQuest Next, Android package
 `com.frontierrnd.langquestnext`, so the next person does not have to
 reconstruct them, and so a change to the app that makes one of them untrue is
@@ -109,7 +111,7 @@ Expected rating: about Teen / 12+ with "Users Interact".
 | --- | --- |
 | Collects or shares required data types | Yes |
 | Encrypted in transit | Yes: Supabase, the app's Cloudflare Worker (reports, decisions.md 44; recordings and guide media, kept in Cloudflare R2, decisions.md 69), Bible text and audio (Bible Brain's CDN, OpenBible) over HTTPS; no cleartext allowed. Phone to phone (Share nearby, Android), every message and file is encrypted with the app's own protocol, AES-256-GCM under keys from an X25519 exchange that only phones holding the language's discovery key can open, over Bluetooth LE, Wi-Fi Direct or a local-only hotspot; nothing readable goes out before the other phone proves it holds that key |
-| Account creation | Username, password and other authentication: an email and password (someone with a LangQuest v2 account signs in with that account's email and password, which our server checks with LangQuest v2, our own app, once; decisions.md 94); or, for someone joining by invite with no email, the invite itself (a one-time QR code) makes the account, and they get back in with a one-time code from someone who can invite them, or with their sign-in name and a password if they set one (docs/invites-and-accounts.md, decisions.md 59); or, on Android in an organization with joining offline on, for someone a teammate let in with no internet, an account made the first time their phone reaches our server, from the teammate's signed invitation, with an id that follows from a key their phone made, and signed in once by proof of that key, after which they get back in as other looked-after accounts do (decisions.md 243, 244); no OAuth. LangQuest's own Global Viewer accounts (support staff, decisions.md 158) also enter a code from an authenticator app; no user of the app is asked for one, and nothing new is collected from users |
+| Account creation | Username, password and other authentication: an email and password (someone with a LangQuest v2 account signs in with that account's email and password, which our server checks with LangQuest v2, our own app, once; decisions.md 94); or, for someone joining by invite with no email, the invite itself (a one-time QR code) makes the account, and they get back in with a one-time code from someone who can invite them, or with their sign-in name and a password if they set one (docs/invites-and-accounts.md, decisions.md 59), until they add an email of their own on Edit Profile, which they then sign in with (LAN-304); or, on Android in an organization with joining offline on, for someone a teammate let in with no internet, an account made the first time their phone reaches our server, from the teammate's signed invitation, with an id that follows from a key their phone made, and signed in once by proof of that key, after which they get back in as other looked-after accounts do (decisions.md 243, 244); no OAuth. LangQuest's own Global Viewer accounts (support staff, decisions.md 158) also enter a code from an authenticator app; no user of the app is asked for one, and nothing new is collected from users |
 | Account deletion URL | https://next.langquest.org/delete-account |
 | Delete some data without deleting the account | No. Account data is deleted with the account; an organization's work belongs to it, and requests about it go to its admins |
 
@@ -194,6 +196,13 @@ or Keystore with the session itself. The password and pattern are checked on
 the phone and never stored or sent; an email or sign-in name is kept only as
 a hash salted per phone. Nothing new leaves the phone, so no data type
 changes, and account creation and sign-in methods are unchanged.
+
+The app lock (decisions.md 253), a switch in More settings that is off until
+the person turns it on, asks for that same pattern each time the app opens or
+is come back to. The pattern is checked on the phone against the sign-out
+lock above; the app keeps only which people on the phone turned it on (their
+account ids, in the app's own storage), and nothing is sent. No data type,
+permission or sign-in method changes, so no Play Console answer changes.
 
 Recordings (decisions.md 106) are kept and uploaded as AAC (`.m4a`) on a
 phone instead of WAV: the same voice recordings in a smaller file, so the
@@ -417,18 +426,35 @@ member taps once after both compare two pictures.
   `https://next.langquest.org/apk/<name>`, the Play-signed universal APK of a carried build,
   which Play Console offers for each build and Google says may be distributed elsewhere, under a
   name that holds only version numbers. A carrier downloads it with a browser while online and
-  passes it on by Quick Share, SD card or USB; the app never downloads or installs an APK, and
-  `REQUEST_INSTALL_PACKAGES` stays out of it. Carried builds use the alpha track, as drafts.
-- **Finding and checking the file** (decision 246, amended 2026-11-09). Get the install file,
-  a screen opened from Share nearby and Let someone in, opens that address in the phone's own
-  browser; the app makes no request to it. It remembers the name of the file last opened, in one row on the phone holding only that
-  name (no person, organization or time), to say when the file is for an older version. Check
-  my file opens Android's system file picker through `expo-document-picker`, Expo's module for
-  it, and reads only the chosen file's name: the file is not copied, opened or read, and nothing
-  about it leaves the phone. The picker needs no permission (the module adds only a `<queries>`
-  entry for the `OPEN_DOCUMENT` intent, which is not a permission) and has no config plugin; it
-  is linked on Android only (`expo.autolinking.ios.exclude`). It collects nothing: Data safety
-  "Files and docs" stays not collected, since nothing is sent off the phone.
+  passes it on by Quick Share, SD card, USB or Give the app (below); the app never downloads or
+  installs an APK, and `REQUEST_INSTALL_PACKAGES` stays out of it. Carried builds use the alpha
+  track, as drafts.
+- **Finding and checking the file** (decision 246, amended 2026-11-09 and 2026-11-19). Download
+  the install file (Get the install file until 2026-11-19), a screen opened from Share nearby,
+  Let someone in and Sync, opens that address in the phone's own browser; the app makes no
+  request to it. It remembers two names, each in one row on the phone holding only that name
+  (no person, organization or time): the file last opened, to say when it is for an older
+  version, and since 2026-11-19 the file last found right, to say when one is in hand. Neither
+  leaves the phone. Choosing a file opens Android's system file picker through
+  `expo-document-picker`, Expo's module for it, and checks the chosen file's name. Since 2026-11-18 (docs/nearby-sync-plan.md 14.5), a
+  right one is also copied into the app's own storage and read on the phone, to keep it only if
+  it is this app's own: its package name and signing certificates are compared with the running
+  app's (`PackageManager.getPackageArchiveInfo`). Since 2026-11-19 the phone also reads, from that
+  copy, when its JavaScript was built, to say when a newer file is ready
+  (docs/decisions/2026-11-19-carried-build-refreshed-daily.md). Nothing about the file is sent to our server or
+  anyone else. The picker needs no permission (the module adds only a `<queries>` entry for the
+  `OPEN_DOCUMENT` intent, which is not a permission) and has no config plugin; it is linked on
+  Android only (`expo.autolinking.ios.exclude`). It collects nothing: Data safety "Files and docs"
+  stays not collected, since the file is the app's own installer, not the person's data, and
+  nothing is sent to us.
+- **Give the app** (docs/nearby-sync-plan.md 14.5,
+  docs/decisions/2026-11-18-give-the-app-over-wifi.md), a screen from Share nearby and Let someone
+  in: the member's phone forms a Wi-Fi Direct group (the permissions Share nearby already declares)
+  and serves the kept copy of the app's own install file, with a small page, to the phone that
+  joins it from a QR code, while the screen is open. The new phone installs it through its own
+  system dialog after its person taps the file; the app installs nothing. It carries the app's
+  public install file, no personal data, and is a transfer the person starts and sees, so no
+  Data safety answer changes, and no permission is added.
 - **Permissions, content and audience** are unchanged: no permission or diagnostic is added,
   only that SDK, which sends nothing, and the new person joins the same organization's work by
   invitation, as before.
@@ -467,8 +493,8 @@ team's own data. That
 is mass-market encryption of the kind the US Export Administration
 Regulations treat under 5D992.c; the developer must confirm that
 classification, and whether a self-classification report is due, before the
-build with it goes to review. iPhone builds carry none of the module, so
-`ITSAppUsesNonExemptEncryption` stays `false` until phase 5 looks again.
+build with it goes to review. From phase 5 iPhones carry the same protocol;
+Apple's side of it is in `docs/app-store-declarations.md`, "Encryption".
 
 ## Store listing
 
@@ -536,7 +562,7 @@ this block.
       "error": ["code", "errorId", "fatal", "name", "where"],
       "expected": ["code", "count", "name", "where"],
       "fill": ["event", "headKb", "ms", "msToMap", "passages", "reason", "rows", "why"],
-      "nearby": ["adv", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "heard", "hotspot", "keyRefused", "levelMs", "link", "maxUnmatched", "maybe", "ms", "newerApp", "noAnswer", "noRoom", "older", "overBudget", "pipeFails", "refused", "role", "sent", "served", "sessions", "stop", "strangers", "taps", "why"],
+      "nearby": ["adv", "alone", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "heard", "hotspot", "keyRefused", "levelMs", "link", "maxUnmatched", "maybe", "ms", "newerApp", "noAnswer", "noRoom", "older", "overBudget", "pipeFails", "refused", "role", "sent", "served", "sessions", "stop", "strangers", "taps", "why"],
       "load": ["checkpoint", "events", "foldMs", "fromSnapshot", "ms", "readMs", "reason", "staleCheckpointSeq"],
       "open": ["cold", "loadMs", "ms", "pulled", "snapshotMs", "syncs"],
       "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq", "why"],

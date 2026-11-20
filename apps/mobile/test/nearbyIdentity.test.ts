@@ -8,7 +8,7 @@ import { fakeSigner, fakeWorker } from '../../../packages/sync/src/testing/memor
 import { nobleVerify } from '../src/nearby/nearbyCryptoModel';
 
 /**
- * A phone's nearby identity (src/nearby/nearbyIdentity.android.ts; docs/nearby-sync-plan.md 5.5,
+ * A phone's nearby identity (src/nearby/nearbyIdentity.native.ts; docs/nearby-sync-plan.md 5.5,
  * 5.10, 5.12): the flag from get_user_state, the install key, the certificate call and what is
  * kept of its answer, against a Worker that signs with real Ed25519 (the fleet's `fakeWorker`).
  * The Keystore, the device store and the call are faked; nothing else is.
@@ -24,13 +24,15 @@ const fake = vi.hoisted(() => ({
 
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 vi.mock('expo-crypto', () => ({ getRandomBytes: (n: number) => new Uint8Array(randomBytes(n)), randomUUID: () => randomUUID() }));
-vi.mock('../src/server/secureStorage', () => ({
-  secureStorage: {
+// One Keychain or Keystore: the install key's device-only entries sit beside the rest.
+vi.mock('../src/server/secureStorage', () => {
+  const kv = {
     getItem: async (k: string) => fake.secure.get(k) ?? null,
     setItem: async (k: string, v: string) => { fake.secure.set(k, v); },
     removeItem: async (k: string) => { fake.secure.delete(k); }
-  }
-}));
+  };
+  return { secureStorage: kv, deviceOnlyStorage: kv };
+});
 vi.mock('../src/storage/store', () => ({ getStore: async () => fake.store }));
 // The phone's nearby files share the module, and none of this touches them.
 vi.mock('expo-file-system', () => ({ File: class {}, Paths: { availableDiskSpace: 0 } }));
@@ -45,9 +47,9 @@ vi.mock('../src/server/supabase', () => ({
 vi.mock('../src/server/nearby', () => ({
   requestCertificate: async (req: (typeof fake.calls)[number]) => { fake.calls.push(req); return fake.answer!(req); }
 }));
-// The Android key, as Metro gives it to the Android files.
-vi.mock('../src/server/nearbyKey', () => import('../src/server/nearbyKey.android'));
-vi.mock('../src/nearby/holdChoice', () => import('../src/nearby/holdChoice.android'));
+// A phone's key, as Metro gives it to the phone's files.
+vi.mock('../src/server/nearbyKey', () => import('../src/server/nearbyKey.native'));
+vi.mock('../src/nearby/holdChoice', () => import('../src/nearby/holdChoice.native'));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: (where: string, e: unknown) => { fake.noted.push(`${where}: ${e instanceof Error ? e.message : String(e)}`); } }));
 
 const ME = '11111111-1111-4111-8111-111111111111';
@@ -62,10 +64,10 @@ type Phone = Awaited<ReturnType<typeof load>>;
 async function load() {
   vi.resetModules();
   vi.stubEnv('EXPO_PUBLIC_NEARBY_CERT_KEYS', `k1:${worker.rootKeys.get('k1')}`);
-  const identity = await import('../src/nearby/nearbyIdentity.android');
+  const identity = await import('../src/nearby/nearbyIdentity.native');
   const flag = await import('../src/nearby/nearbyFlag');
-  const phone = await import('../src/nearby/nearbyPhone.android');
-  const key = await import('../src/server/nearbyKey.android');
+  const phone = await import('../src/nearby/nearbyPhone.native');
+  const key = await import('../src/server/nearbyKey.native');
   const hold = await import('../src/nearby/holdChoice');
   const lock = await import('../src/server/lock');
   const signOut = await import('../src/nearby/nearbySignOut');
@@ -267,6 +269,25 @@ describe('the nearby identity', () => {
     await input(p);
     expect(fake.calls).toHaveLength(2);
     expect(p.phone.holdsCertificate(ME, 'o1')).toBe(true);
+  });
+
+  it('remembers a refusal for too many new keys today, tells who listens, and forgets it at the next answer', async () => {
+    // Why: Sync's row says the account set up too many new phones today rather than vanishing
+    // (Carl, 2026-11-19); it must clear once the server signs again.
+    const p = await load();
+    p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'] } });
+    let told = 0;
+    const off = p.identity.onNearbyHeld(() => { told += 1; });
+    fake.answer = async () => ({ kind: 'later', status: 429, limited: true }) as never;
+    await input(p);
+    expect(p.identity.certificateLimited(ME)).toBe(true);
+    expect(p.phone.holdsCertificate(ME, 'o1')).toBe(false);
+    expect(told).toBeGreaterThan(0);
+    fake.answer = issued();
+    await input(p);
+    expect(p.identity.certificateLimited(ME)).toBe(false);
+    expect(p.phone.holdsCertificate(ME, 'o1')).toBe(true);
+    off();
   });
 
   it('gives each person and organization one nearby half, and the door real signatures', async () => {

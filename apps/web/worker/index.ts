@@ -474,8 +474,22 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     userIssues: {
       verify: githubOidcCached ??= githubOidc((input, init) => fetch(input, init)),
       watch: async () => {
-        const { data, error } = await serviceClient(env).rpc('ops_user_issue_watch');
+        // The dashboard's lines that need a Linear issue; without them the watch still reads the records.
+        // Before the admin Worker has OpsLines, the call fails: the watch goes on without them.
+        const lines = await Promise.resolve().then(() => env.OPS_LINES?.lines() ?? []).catch((e: unknown) => {
+          console.error(`ops lines: ${e instanceof Error ? e.name : 'unknown'}`);
+          return [];
+        });
+        const { data, error } = await serviceClient(env).rpc('ops_user_issue_watch', { p_lines: lines });
         if (error) throw new Error(`ops_user_issue_watch: ${error.message}`);
+        // The issues an admin left an instruction on. Before its migration is there, the watch goes on without them.
+        const notes = await serviceClient(env).rpc('ops_user_issue_notes_waiting');
+        if (notes.error) console.error(`ops_user_issue_notes_waiting: ${notes.error.code ?? 'unknown'}`);
+        return { ...data, notes: notes.error ? [] : notes.data };
+      },
+      notes: async (issue) => {
+        const { data, error } = await serviceClient(env).rpc('ops_user_issue_notes', { p_issue: issue });
+        if (error) throw new Error(`ops_user_issue_notes: ${error.message}`);
         return data;
       },
       media: async (id) => {
@@ -489,9 +503,13 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return data;
       },
       looked: async (looked) => {
-        const { data, error } = await serviceClient(env).rpc('ops_user_issues_looked', { p: looked });
+        const { notes, ...rest } = looked;
+        const { data, error } = await serviceClient(env).rpc('ops_user_issues_looked', { p: rest });
         if (error) throw new Error(`ops_user_issues_looked: ${error.message}`);
-        return data;
+        if (!notes.length) return data;
+        const done = await serviceClient(env).rpc('ops_user_issue_notes_done', { p: { runUrl: looked.runUrl, notes } });
+        if (done.error) throw new Error(`ops_user_issue_notes_done: ${done.error.message}`);
+        return { ...data, ...done.data };
       },
       record: jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
       now: () => Date.now()

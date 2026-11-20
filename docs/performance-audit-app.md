@@ -1,5 +1,7 @@
 # App and server performance audit
 
+Kind: report
+
 Date: 2026-10-15. By: Carl Sauder, with Claude. Sources: this repo at
 commit `cda46db`; `npm run bench:core` run that day on an Apple Mac (Node,
 V8); the web export in `apps/mobile/dist` built the same day; a throwaway

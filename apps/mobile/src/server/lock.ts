@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { savedSession } from '../session/authState';
-import { afterMiss, isPicture, lockFor, parseLocks, parseMisses, patternSecret, takenPictures, waitLeft, type Lock, type Wrap } from '../session/lockModel';
+import { afterMiss, isPattern, isPicture, lockFor, parseLocks, parseMisses, patternSecret, takenPictures, waitLeft, type Lock, type Wrap } from '../session/lockModel';
 import { addressHash, newDataKey, openWrap, seal, unseal, withWrap, type Random } from '../session/sealModel';
 import { signingOutByChoice } from '../session/signOutCause';
 import { noteExpected } from '../diagnostics/report';
@@ -114,6 +114,22 @@ export function rememberPassword(actorId: string, address: string, password: str
     }
     await addWrap(actorId, 'password', password, address);
   }).catch((e: unknown) => noteExpected('remember password', e));
+}
+
+/**
+ * Their email changed on Edit Profile (LAN-304): the password they sign back
+ * in with here is typed beside the new address from now on, so the lock is
+ * found by that. Nothing else changes, so a pattern stays good.
+ */
+export function rememberAddress(actorId: string, address: string): Promise<void> {
+  if (!LOCKS_ON_SIGN_OUT) return Promise.resolve();
+  return serial(async () => {
+    const list = await readLocks();
+    const lock = list.find((l) => l.actorId === actorId);
+    if (!lock) return;
+    const hashed = addressHash(await phoneSalt(), address);
+    await writeLocks(list.map((l) => (l === lock ? { ...l, address: hashed } : l)));
+  }).catch((e: unknown) => noteExpected('lock: new address', e));
 }
 
 /**
@@ -308,6 +324,34 @@ export function openLock(kind: Wrap['kind'], secret: string, who: { address?: st
       return { kind: 'wrong' };
     }
     return { kind: 'ok', actorId: lock.actorId, key };
+  });
+}
+
+export type Checked = { kind: 'ok' } | { kind: 'none' } | { kind: 'wrong' } | { kind: 'wait'; ms: number };
+
+/**
+ * The app lock (decisions.md 253): does this pattern open the lock of the
+ * person signed in here? It opens their pattern's wrap and finds the key
+ * they hold now. `none`: they have no pattern under that key. Wrong guesses
+ * count with Sign In's, since it is the same pattern; too short a pattern
+ * is not a guess.
+ */
+export function checkPattern(actorId: string, dots: readonly number[]): Promise<Checked> {
+  if (!LOCKS_ON_SIGN_OUT) return Promise.resolve({ kind: 'none' });
+  return serial(async (): Promise<Checked> => {
+    const key = await secureStorage.getItem(keyFor(actorId));
+    const lock = lockFor(await readLocks(), 'pattern', { actorId });
+    if (!key || !lock) return { kind: 'none' };
+    const misses = parseMisses(await AsyncStorage.getItem(missesFor(actorId)));
+    const ms = waitLeft(misses, Date.now());
+    if (ms > 0) return { kind: 'wait', ms };
+    if (!isPattern(dots)) return { kind: 'wrong' };
+    if (await openWrap(lock, 'pattern', patternSecret(dots)) !== key) {
+      await AsyncStorage.setItem(missesFor(actorId), JSON.stringify(afterMiss(misses, Date.now())));
+      return { kind: 'wrong' };
+    }
+    await AsyncStorage.removeItem(missesFor(actorId));
+    return { kind: 'ok' };
   });
 }
 

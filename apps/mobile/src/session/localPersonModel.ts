@@ -5,7 +5,7 @@
  * decision 168's lock, one to an install, because a local person cannot sign out and Sign In is
  * unreachable for them. Pure: what is stored comes in as text, and what to store goes out as a
  * value, so every rule is tested without a phone. Nothing here holds or logs a key: the install
- * key stays in the Keystore (server/nearbyKey.android.ts), and this names only its public half.
+ * key stays in the Keystore (server/nearbyKey.native.ts), and this names only its public half.
  */
 
 /** Where the record is kept in `secureStorage`. */

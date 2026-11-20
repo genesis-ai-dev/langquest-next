@@ -42,8 +42,16 @@ describe('the certificate call', () => {
     const { requestCertificate, NearbyCallError } = await load();
     for (const status of [429, 503]) {
       reply = () => new Response('{}', { status });
-      expect(await requestCertificate(request)).toEqual({ kind: 'later', status });
+      expect(await requestCertificate(request)).toEqual({ kind: 'later', status, limited: false });
     }
+    // Why: the Worker's 429 for too many new keys today says so, and Sync's row tells the person
+    // (Carl, 2026-11-19); an ordinary rate limit, or a body that is not JSON, is not that.
+    reply = () => new Response(JSON.stringify({ error: 'Too many new keys today. Try again tomorrow.', limited: true }), { status: 429 });
+    expect(await requestCertificate(request)).toEqual({ kind: 'later', status: 429, limited: true });
+    reply = () => new Response('Too many requests', { status: 429 });
+    expect(await requestCertificate(request)).toEqual({ kind: 'later', status: 429, limited: false });
+    reply = () => new Response(JSON.stringify({ limited: true }), { status: 503 });
+    expect(await requestCertificate(request)).toEqual({ kind: 'later', status: 503, limited: false });
     reply = () => new Response('{}', { status: 401 });
     await expect(requestCertificate(request)).rejects.toBeInstanceOf(NearbyCallError);
     reply = () => { throw new TypeError('Network request failed'); };
@@ -95,7 +103,7 @@ describe('the relay call (docs/nearby-sync-plan.md section 6)', () => {
   const batch = { manifest: '{}', sig: 's', chain: [], events: [] };
 
   it('posts the batches with this build\'s protocol version, and hands back each batch\'s answer', async () => {
-    const { relayBatches } = await import('../src/server/nearbyRelay.android');
+    const { relayBatches } = await import('../src/server/nearbyRelay.native');
     const { CLIENT_PROTOCOL_VERSION } = await import('@langquest-next/core');
     const answer = [{ key: 'k', n: 1, verdicts: [{ id: 'e1', accepted: true, serverSeq: 4, reason: null }] }];
     reply = () => new Response(JSON.stringify({ batches: answer }));
@@ -106,7 +114,7 @@ describe('the relay call (docs/nearby-sync-plan.md section 6)', () => {
 
   it('503 is not yet, 426 is too old, a body it cannot read or another status throws, no network is offline', async () => {
     vi.resetModules();
-    const { relayBatches } = await import('../src/server/nearbyRelay.android');
+    const { relayBatches } = await import('../src/server/nearbyRelay.native');
     reply = () => new Response('{}', { status: 503 });
     expect(await relayBatches('o1', 'L1', [batch])).toBeNull();
     reply = () => new Response(JSON.stringify({ code: 'LQ001' }), { status: 426 });

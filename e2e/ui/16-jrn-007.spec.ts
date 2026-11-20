@@ -133,9 +133,10 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await expect(button(page, `${orgName}, active`)).toBeVisible();
   expect(await page.getByRole('button', { name: /^(UI Test Org|UI Second Org)/ }).count()).toBe(0);
 
-  // Every write accepted.
+  // Every write accepted: Sync and offline, from Me.
   await back(page).click();
-  await button(page, /^Sync/).click();
+  await back(page).click();
+  await button(page, /^Sync and offline/).click();
   await openSyncDetails(page);
   await expect.poll(async () => (await screenText(page)).match(/(\d+)\s*refused by the server/)?.[1]).toBe('0');
   // And on this device's log, across every stream it holds (G10.2).

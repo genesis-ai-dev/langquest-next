@@ -67,5 +67,7 @@ export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined
   const single = entries.find((e) => e !== first && titleOf(e.doc) === community) ?? null;
   const main = [first, single, ...entries.filter((e) => e !== first && e !== single && e.c.source === 'ours')].filter((e): e is FlowEntry => !!e);
   const rest = entries.filter((e) => !main.includes(e));
-  return { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, loaded: shared.loaded };
+  // Still loading while a flow's document is on its way: "No ways to check" only once the server has answered (LAN-254).
+  const docsPending = docs.pending && choices.some((c) => !!c.hash && !docs.get(c.hash));
+  return { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, loaded: shared.loaded && !docsPending };
 }

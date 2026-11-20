@@ -42,7 +42,7 @@ const APP_ONLY: Record<string, string> = {
   'templates_home->templates_home': "Content Templates' By language rows open that language's template view (TPL-1, SETUP-032)",
   'org_home->new_language': 'no project level (decision 63): languages are added from the organization',
   'org_home->language_home': 'no project level (decision 63): the organization lists its languages',
-  'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
+  'settings_home->sync_status': 'Sync and offline: what this device sends and receives and what it keeps for working offline, in one place (docs/decisions/2026-11-18-sync-and-offline-one-screen.md)',
   'sign_out_confirm->sync_status': "a browser's sign-out waits for unsent work; See what is waiting opens it, with Sync now (UI audit, finding 115)",
   'sync_status->passage_record': 'a change waiting to send, or refused, opens the passage it is about (design principle 11)',
   'my_work->sync_status': 'the cloud chip on My Work opens the sync status screen',
@@ -90,9 +90,7 @@ const APP_ONLY: Record<string, string> = {
   'edit_member->role_editor': 'Something else: make a new role while admitting or editing someone (demo ADR-039, amended 2026-10-08)',
   'my_work->edit_member': "a coordinator's Home lists people asking to join under Get ready; a row opens Assign role & accept (decision 71, demo ADR-039)",
   'settings_home->settings_more': 'Me keeps five rows; everything else Settings had is under More settings (decision 71, demo ADR-032)',
-  'settings_more->profile_edit': 'More settings: setting a password on a looked-after account (decisions.md 59)',
   'settings_more->org_switcher': 'More settings: Switch Organization for someone in one organization, where it starts a new one (decision 71)',
-  'settings_more->sync_status': 'More settings: Sync, moved from Settings › Advanced (decision 71)',
   'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)',
   'intent_chooser->global_viewer': 'a Global Viewer account belongs to no organization: it sets up its authenticator and finds organizations from here (decision 158)',
   'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 91)",
@@ -116,7 +114,11 @@ const APP_ONLY: Record<string, string> = {
   'share_nearby->let_someone_in': 'Let someone in: a new phone with no internet joins the team from a teammate\'s; the demo has no such flow (docs/nearby-sync-plan.md 14.1)',
   'share_nearby->get_install_file': 'Get the install file: the file a new phone installs LangQuest from, got and checked online before a trip; the demo has no such flow (docs/nearby-sync-plan.md 14.4)',
   'let_someone_in->get_install_file': 'the new phone needs LangQuest installed first: Let someone in links to where the file is got (docs/nearby-sync-plan.md 14.4)',
-  'sync_status->get_install_file': 'while online, Ready for offline says when this phone lacks the install file a new person needs, and Get it opens where it is got (docs/nearby-sync-plan.md 14.4)',
+  'sync_status->get_install_file': "Ready for offline lists the install file a new person needs for someone who can let them in, and Get the install file opens where it is got (docs/nearby-sync-plan.md 14.4)",
+  'share_nearby->give_app': "Give the app: the carrier's phone hands LangQuest to a new phone over its own Wi-Fi, two codes and a download page; the demo has no such flow (docs/nearby-sync-plan.md 14.5)",
+  'let_someone_in->give_app': 'the new phone needs LangQuest installed first: Let someone in links to Give the app as well as to where the file is got (docs/nearby-sync-plan.md 14.5)',
+  'give_app->get_install_file': 'no kept install file yet: Give the app sends the carrier to get one first (docs/nearby-sync-plan.md 14.5)',
+  'give_app->let_someone_in': 'the file is sent: Let them in goes on to letting the new phone join (docs/nearby-sync-plan.md 14.5)',
   'scan_qr->join_offline': 'a scanned Let someone in code opens the new phone\'s progress screen (docs/nearby-sync-plan.md 14.1, 3)',
   'join_offline->scan_qr': 'a code that did not let them in: scan a new one from the teammate\'s phone (docs/nearby-sync-plan.md 14.1, 3)',
   'sign_in->join_offline': 'a starting copy a drop left unfinished: Sign In leads back to finishing it, and no other account signs in over it (docs/nearby-sync-plan.md 14.1)',
@@ -136,7 +138,7 @@ const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
   it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles, a check, a cluster, Forgot password, Share nearby, joining without internet and its install file, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'global_viewer', 'forgot_password', 'new_password', 'share_nearby', 'let_someone_in', 'join_offline', 'get_install_file'].sort());
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'global_viewer', 'forgot_password', 'new_password', 'share_nearby', 'let_someone_in', 'join_offline', 'get_install_file', 'give_app'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

@@ -61,14 +61,14 @@ export interface InstallSummary {
 /** One Share nearby room as it stopped (docs/nearby-sync-plan.md section 11): why, its codes and counts. */
 export interface NearbyRoom {
   at: string; stop: string; code?: string | null; adv?: string | null; direct?: string | null; hotspot?: string | null;
-  ms?: number; levelMs?: number; heard?: number; echoed?: number; maybe?: number; taps?: number; maxUnmatched?: number;
+  ms?: number; levelMs?: number; heard?: number; echoed?: number; alone?: number; maybe?: number; taps?: number; maxUnmatched?: number;
   pipeFails?: number; strangers?: number; busy?: number; noAnswer?: number; sessions?: number; done?: number;
 }
 
 /** What an install's Share nearby recorded over the window (`diag.install_summary`'s `nearby`). Counts and codes, never who. */
 export interface NearbySummary {
   rooms?: NearbyRoom[] | null;
-  roomTotals?: Partial<Record<'ms' | 'heard' | 'echoed' | 'maybe' | 'taps' | 'pipeFails' | 'strangers' | 'busy' | 'noAnswer' | 'sessions' | 'done', number>> | null;
+  roomTotals?: Partial<Record<'ms' | 'heard' | 'echoed' | 'alone' | 'maybe' | 'taps' | 'pipeFails' | 'strangers' | 'busy' | 'noAnswer' | 'sessions' | 'done', number>> | null;
   sessionTotals?: Partial<Record<'count' | 'ms' | 'fallbacks' | 'events' | 'sent' | 'files' | 'served' | 'fileFails' | 'refused' | 'overBudget'
     | 'keyRefused' | 'farAhead' | 'noRoom' | 'cutBackups' | 'older' | 'clockOff' | 'newerApp', number>> | null;
   /** `end` or `end:bye`. */
@@ -152,6 +152,9 @@ interface Signal {
   /** Install the signal is about, or null for the language or the server. */
   install: string | null;
   text: string;
+  /** For a job's signal: its kind and job, the ops dashboard's name for the line (apps/admin/src/alertKinds.ts). */
+  key?: 'job-stopped' | 'job-failing' | 'job-failures' | 'job-partial' | 'push-delivery-low';
+  job?: string;
 }
 
 /** How a report names a transfer source. */
@@ -219,9 +222,14 @@ export function nearbySignals(x: NearbySummary | null | undefined): { level: Sig
   const times = (n: number) => (n === 1 ? 'once' : `${n} times`);
   for (const [why, n] of Object.entries(x.blocked ?? {})) add('problem', `Share nearby could not run ${times(n)}: ${BLOCKED[why] ?? why}.`);
   const rooms = x.rooms ?? [];
-  const deaf = rooms.filter((r) => !r.heard);
+  // A bare advert heard alone (an iPhone's) is someone heard too: `heard` counts only full matches (2026-11-19).
+  const deaf = rooms.filter((r) => !r.heard && !r.alone);
   if (deaf.length) {
     add('problem', `Share nearby ran ${deaf.length} time${deaf.length === 1 ? '' : 's'} and heard no teammate's phone (stopped ${[...new Set(deaf.map((r) => r.stop))].join(', ')}): nobody else had it open on this language, or this phone's scan hears nothing (Bluetooth, a maker that holds back scan results, the scan limit).`);
+  }
+  const leftEarly = rooms.filter((r) => (r.alone ?? 0) > 0 && !r.heard && !r.maybe && !r.sessions);
+  if (leftEarly.length) {
+    add('watch', `Share nearby heard another iPhone by its advert alone in ${leftEarly.length} room${leftEarly.length === 1 ? '' : 's'} but closed before Connect was offered: two iPhones connect only by a tap, offered after a short while (tapAfterAloneMs).`);
   }
   if (rooms.some((r) => r.adv === 'no')) add('problem', `This phone cannot advertise over Bluetooth LE: teammates never hear it, and it meets only phones that can (plan section 11).`);
   const unechoed = rooms.filter((r) => (r.heard ?? 0) > 0 && !r.echoed);
@@ -452,16 +460,16 @@ export interface JobStat {
  */
 export function jobSignals(jobs: JobStat[]): Signal[] {
   const out: Signal[] = [];
-  const add = (level: Signal['level'], text: string) => out.push({ level, install: null, text });
   for (const j of jobs) {
+    const add = (level: Signal['level'], key: NonNullable<Signal['key']>, text: string) => out.push({ level, install: null, text, key, job: j.job });
     const why = j.last_error_class ? ` (${j.last_error_class})` : '';
-    if (j.stale) add('problem', `Server job ${j.job} has not run successfully since ${j.last_ok_at ?? 'the window began'} (every ${j.every ?? '?'}): it stopped. Last run ${j.last_at ?? 'never'}, ${j.last_outcome ?? '?'}${why}.`);
-    else if (j.streak >= 3) add('problem', `Server job ${j.job} failed its last ${j.streak} runs${why}.`);
-    else if (j.failures > 0 && j.failures >= j.runs * 0.2) add('watch', `Server job ${j.job} failed ${j.failures} of ${j.runs} runs in the window${why}.`);
-    else if (j.partials > 0 && j.partials >= j.runs * 0.5) add('watch', `Server job ${j.job} did only part of its work in ${j.partials} of ${j.runs} runs.`);
+    if (j.stale) add('problem', 'job-stopped', `Server job ${j.job} has not run successfully since ${j.last_ok_at ?? 'the window began'} (every ${j.every ?? '?'}): it stopped. Last run ${j.last_at ?? 'never'}, ${j.last_outcome ?? '?'}${why}.`);
+    else if (j.streak >= 3) add('problem', 'job-failing', `Server job ${j.job} failed its last ${j.streak} runs${why}.`);
+    else if (j.failures > 0 && j.failures >= j.runs * 0.2) add('watch', 'job-failures', `Server job ${j.job} failed ${j.failures} of ${j.runs} runs in the window${why}.`);
+    else if (j.partials > 0 && j.partials >= j.runs * 0.5) add('watch', 'job-partial', `Server job ${j.job} did only part of its work in ${j.partials} of ${j.runs} runs.`);
     const t = j.totals ?? {};
     if (j.job === 'push_delivery' && (t.claimed ?? 0) >= 10 && (t.sent ?? 0) < (t.claimed ?? 0) * 0.5) {
-      add('watch', `Push delivery sent ${t.sent ?? 0} of ${t.claimed} notifications it claimed (${t.noToken ?? 0} with no push token, ${t.failed ?? 0} failed).`);
+      add('watch', 'push-delivery-low', `Push delivery sent ${t.sent ?? 0} of ${t.claimed} notifications it claimed (${t.noToken ?? 0} with no push token, ${t.failed ?? 0} failed).`);
     }
   }
   const rank = { problem: 0, watch: 1, info: 2 };

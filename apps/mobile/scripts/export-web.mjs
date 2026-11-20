@@ -88,7 +88,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Two fitness functions (decisions.md 58): the JavaScript a first visit
 // downloads (the files index.html loads), and all of it (every chunk, loaded
 // or not). They were one number until screens were split into chunks that
-// load when opened (src/shell/lazyScreens.tsx).
+// load when opened (src/shell/lazyScreens.tsx). The production export is the
+// one held to them: Workers Builds builds it, and its settings make it about
+// 500 bytes bigger than the development export the tests serve, so CI's
+// web-smoke and `npm run guardrails -- --web` build it too (decision 123).
 // 4.8 MB when this was set (catalog data, study texts, the map's shapes); a
 // rise past it is a change someone should notice, not drift. Raised to 6 MB
 // with localization (decision 81): the app's words moved from the code into
@@ -173,7 +176,46 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // bytes over nearby sync's 65 KB, 1,762 bytes under the two together.
 // Raised by 3 KB with back translation's two rows (Caleb Koster, 2026-11-13, LAN-234), 1 KB past then:
 // the same words and rows' model as the first visit's raise below, which every chunk counts too.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 118 * 1024;
+// Raised by 2 KB with the app lock (Caleb Koster, 2026-11-16, LAN-255), 35 bytes past then with main
+// merged in (the Map's download card, LAN-253): the first visit's raise below, which every chunk counts too.
+// Raised by 1 KB when nearby sync on iPhones (Carl, 2026-11-17, decision 256) merged with main: the
+// production export came out 437 bytes past and Workers Builds refused to deploy it, though the
+// development export CI measured then was 59 bytes under. CI now measures the production export.
+// Raised by 1 KB with carried files matched by their versions (Carl, 2026-11-18,
+// docs/decisions/2026-11-18-carried-file-matches-by-versions.md), 365 bytes past then: core's two
+// name rules (a name's versions start, and whether two names share it) that Check my file and the
+// Worker share, and the nearby chunk's showing of that start, which the web never opens.
+// Raised by 4 KB with Sync and offline (Carl, 2026-11-18, docs/decisions/2026-11-18-sync-and-offline-one-screen.md),
+// 3,095 bytes past then: its English words in the catalog every visit carries (the folds' titles and
+// lines, the packing list, the screen's new name), the screen's rules and the sideways strip. The
+// screen itself moved into a chunk of its own (screens/sync.tsx), loaded when opened, so a first
+// visit stays under its own budget.
+// Raised by 5 KB with an email and a password on Edit Profile (Carl, 2026-11-18, LAN-304,
+// docs/decisions/2026-11-18-edit-profile-holds-email-and-password.md), 3,975 bytes past then with
+// Sync and offline merged in: its words in all 16 catalogs, the email and confirm fields, and New
+// password's confirm field. Edit Profile moved to a chunk of its own, loaded when opened, so a
+// first visit stays under its own budget (17,240 bytes left with Sync and offline's chunk too).
+// Raised by 5 KB more with Give the app (Carl, 2026-11-18,
+// docs/decisions/2026-11-18-give-the-app-over-wifi.md), 4,512 bytes past then with Edit Profile's
+// email merged in: its English words and Check my file's in the nearby chunk the web loads with
+// Share nearby (5,037 bytes), and the kept file's rules (840 bytes in the entry, 411 in the shared
+// chunk). The screen itself is Android only (src/nearby/GiveAppScreen.android.tsx), so the web
+// carries a plain stub of it. A first visit has 16,500 bytes left.
+// Raised by 1 KB with the install file's steps, its newer-file notice and Let someone in asking
+// for its own permissions (Carl, 2026-11-19, docs/decisions/2026-11-19-carried-build-refreshed-daily.md),
+// 746 bytes past it: their English words in the nearby chunk the web loads with Share nearby (the
+// steps after Download in the browser, Choose a file you already have, a newer file is ready), the
+// notice's rule on Sync, and Let someone in's permission step on its screen. The rule that decides
+// that step is in a file only Android loads (src/nearby/letInPermitModel.ts), and the screens are
+// Android only; the web never opens them. A first visit has 14,132 bytes left.
+// Raised by 14 KB with six changes that were made ready together (Caleb Koster, 2026-11-19), so that
+// they merge in any order: each carries this same raise, and the first to merge brings it. Together
+// they came out 13,152 bytes past main, which had 44 bytes left: the Key words chip's tiles (LAN-233,
+// about 12 KB), "All uploaded" leaving the upload bar in the draw that brings the next screen
+// (LAN-284), French elision before a name (LAN-295), Welcome back's Continue without it (LAN-250),
+// a library read asked again (LAN-254) and Reports naming a language's template (LAN-114).
+// 1,228 bytes are left with all six. If one of them does not merge, lower this by what it adds.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 151 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -245,7 +287,19 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 118 * 1024;
 // bytes over nearby sync's 19 KB, 1,677 bytes under the two together.
 // Raised by 2 KB with back translation's two rows (Caleb Koster, 2026-11-13, LAN-234), 1 KB past then
 // with main merged in: the six new English words in the catalog every visit carries, and the rows' model.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 93 * 1024;
+// Raised by 2 KB with the app lock (Caleb Koster, 2026-11-16, LAN-255, decision 253), a few hundred bytes
+// past then with main merged in: its English words in the catalog every visit carries, and Sign Out's
+// steps moved into one function the lock shares. The lock itself is phones only; the web takes stubs.
+// Raised by 1 KB with the passage row's download button beside the row, not inside it (Caleb Koster,
+// 2026-11-17, LAN-158), 250 bytes past then: Row's action slot, its wrapper and three styles, in the
+// kit every visit carries. All chunks still fit their own budget.
+// Raised by 16 KB with the Key words chip's tiles (Caleb Koster, 2026-11-17, LAN-233,
+// docs/decisions/2026-11-17-key-words-tiles-sheet-in-place.md), 15 KB past then with main merged in:
+// the tiles, the switch for the team's words in the Bible text and their chips in a verse, the word
+// grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
+// words in the catalog every visit carries. They show on the recording screen as it opens; the word's
+// sheet loads when first opened (keyTerms/lazySheets.tsx).
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

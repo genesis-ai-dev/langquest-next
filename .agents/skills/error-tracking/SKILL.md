@@ -15,7 +15,7 @@ There is no third-party tracker. Faults and field behaviour are recorded as
 content-free diagnostics in our own database (`docs/diagnostics.md`,
 decisions.md 39; `reportError` in `apps/mobile/src/diagnostics/report.ts` feeds it), and
 the `field-diagnosis` skill reads them. Adding a tracker, for native crashes
-for example, is a new `docs/decisions.md` entry (see "Adopting a tracker"
+for example, is a new decision in `docs/decisions/` (see "Adopting a tracker"
 below). Everything else in this skill applies now.
 
 ## 1. Classify before you catch
@@ -121,7 +121,7 @@ screenshots, view hierarchies and session replay.
 ## Adopting a tracker
 
 Sentry is the most common choice for Expo, which documents it officially; BugSnag and Datadog also
-support Expo. Whichever is chosen, record it in `docs/decisions.md`, then check
+support Expo. Whichever is chosen, record it in `docs/decisions/`, then check
 these, because vendor setup wizards get several wrong for this app:
 
 - Turn off default PII (Sentry's wizard sets `sendDefaultPii: true`; set it

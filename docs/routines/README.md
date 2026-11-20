@@ -1,5 +1,7 @@
 # Routines
 
+Kind: reference
+
 Drafts of the routines that run LangQuest Next's board without a person in the
 loop. Each file is the prompt a routine runs, plus when it runs and what it may
 and may not do. They live here so they are reviewed and versioned like code;
@@ -12,8 +14,8 @@ stuck.
 
 | File | Runs | May change |
 | --- | --- | --- |
-| `agent-executor.md` | on demand, one Todo issue per run | code on main (outside guarded paths), issue status up to Verifying |
-| `post-deploy-smoke.md` | every 15 minutes | issue comments, Outage, a revert |
+| `agent-executor.md` | on demand, one Todo issue per run | code, through a pull request the merge queue lands once its checks pass (outside guarded paths), issue status up to Verifying |
+| `post-deploy-smoke.md` | every 15 minutes | issue comments, Outage, a revert through a pull request the merge queue lands |
 | `deploy-watchdog.md` | hourly | issue comments, and an issue for a hosted database behind main or a server job in trouble |
 | `do-memory-canary.md` (proposed, not running) | after each production Worker deploy | comments on LAN-33, and an issue when a large organization's Durable Object fails or is reset for memory |
 
@@ -23,14 +25,19 @@ files each new problem people hit, and each server job in trouble, as a
 Linear issue labeled User issue (`docs/diagnostics.md`). The watchdog's
 server-job issues overlap it.
 
+A routine never pushes to `main`, which takes no direct push (decisions.md
+150). It lands a change as any pull request does: it opens one, turns on
+auto-merge, and the merge queue merges it once the `gate` check passes
+(`docs/decisions/2026-11-19-routines-land-through-the-merge-queue.md`).
+
 ## Guarded paths
 
-A change that touches one of these is never pushed to main by a routine. It
-goes to a pull request and waits for a person. The list should also be a
+A change that touches one of these is never merged by a routine. Its pull
+request gets no auto-merge and waits for a person. The list should also be a
 GitHub ruleset with restricted file paths, so a routine cannot skip it.
 
 - `supabase/migrations/**`, `server/**`
 - `packages/core/src/events.ts`, `packages/core/src/record.ts`, `packages/core/src/validate.ts`
 - `apps/mobile/app.json`, `apps/mobile/eas.json`, `apps/mobile/modules/**`
 - `.github/**`, `apps/mobile/.eas/**`, `.githooks/**`
-- `.env*`, anything in `docs/decisions.md` that changes or supersedes an entry
+- `.env*`, anything in `docs/decisions/` that changes or supersedes a decision

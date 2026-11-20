@@ -744,6 +744,53 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       expect(arrangePlan(worn, worn)).toEqual([{ kind: 'bluetooth', host: 'r', band5: false }]);
     });
 
+    it('offers awdl only between two phones that name it, and a plain client in a Wi-Fi Direct group only when both Hellos know it (phase 5)', () => {
+      const android = { directByName: true, band5: true, hotspot: true, joinHotspot: true };
+      const iphone = { directByName: false, band5: true, hotspot: false, joinHotspot: true, awdl: true, joinDirect: true };
+      const pipe = { kind: 'bluetooth', host: 'r', band5: false };
+      expect(arrangePlan(iphone, iphone, undefined, { joinDirect: true })).toEqual([{ kind: 'awdl', host: 'r', band5: false }, pipe]);
+      // An Android on older code works the plan out without the plain client, so the iPhone does too, and both agree.
+      expect(arrangePlan(iphone, android)).toEqual([{ kind: 'hotspot', host: 'r', band5: false }, pipe]);
+      expect(arrangePlan(iphone, android, undefined, { joinDirect: true })).toEqual([
+        { kind: 'wifi-direct', host: 'r', band5: true }, { kind: 'wifi-direct', host: 'r', band5: false }, { kind: 'hotspot', host: 'r', band5: false }, pipe
+      ]);
+      // An Android ahead on its key connects to an iPhone behind, and still hosts.
+      expect(arrangePlan(android, iphone, undefined, { joinDirect: true })).toEqual([
+        { kind: 'wifi-direct', host: 'i', band5: true }, { kind: 'wifi-direct', host: 'i', band5: false }, { kind: 'hotspot', host: 'i', band5: false }, pipe
+      ]);
+      // Two Androids and an iPhone that names nothing new are as before.
+      expect(arrangePlan(android, android, undefined, { joinDirect: true })).toEqual(arrangePlan(android, android));
+      expect(arrangePlan({ ...iphone, awdl: false }, iphone, undefined, { joinDirect: true })).toEqual([pipe]);
+    });
+
+    it('two iPhones arrange awdl and move files over it (phase 5)', async () => {
+      const [a, b] = await two();
+      await record(a, shelf, 'ra');
+      const air = memoryNearbyAir({ time, files: shelf });
+      const radios = { directByName: false, band5: true, hotspot: false, joinHotspot: true, awdl: true, joinDirect: true };
+      const [ra, rb] = await run(a, b, pairOf({ kind: 'bluetooth' }), { arrange: { radio: air.radio('a'), radios } }, { arrange: { radio: air.radio('b'), radios } });
+      expect([ra.ended.how, rb.ended.how]).toEqual(['done', 'done']);
+      expect(ra.linkKind).toBe('awdl');
+      expect(b.files.here.size).toBe(1);
+    });
+
+    it('an iPhone joins an Android\'s Wi-Fi Direct group as a plain client, and falls back to its hotspot (phase 5)', async () => {
+      const [a, b] = await two();
+      await record(a, shelf, 'ra');
+      const air = memoryNearbyAir({ time, files: shelf });
+      const iphone = { directByName: false, band5: true, hotspot: false, joinHotspot: true, awdl: true, joinDirect: true };
+      const android = { directByName: true, band5: true, hotspot: true, joinHotspot: true };
+      const [ra, rb] = await run(a, b, pairOf({ kind: 'bluetooth' }), { arrange: { radio: air.radio('a'), radios: iphone } }, { arrange: { radio: air.radio('b'), radios: android } });
+      expect([ra.ended.how, rb.ended.how]).toEqual(['done', 'done']);
+      expect(ra.linkKind).toBe('wifi-direct');
+      expect(b.files.here.size).toBe(1);
+      const [c, d] = await two();
+      await record(c, shelf, 'rc');
+      const stuck = { neverUp: ['wifi-direct'] as ('wifi-direct' | 'hotspot')[] };
+      const [rc] = await run(c, d, pairOf({ kind: 'bluetooth' }), { arrange: { radio: air.radio('c', {}, stuck), radios: iphone } }, { arrange: { radio: air.radio('d', {}, stuck), radios: android } });
+      expect(rc.linkKind).toBe('hotspot');
+    });
+
     it('hands on a newer generation once the other\'s arrange has come, and the receiver checks it', async () => {
       const [a, b] = await two();
       const sha = (x: Uint8Array) => fakeSigner('h').sha256(x);

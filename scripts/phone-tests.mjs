@@ -9,8 +9,9 @@
  *   summary  --in <dir> --out <dir> --sha <sha> --url <run> [--event <e>] [--status android=success,ios=failure]
  *            reads <in>/android and <in>/ios (each phone job's results:
  *            Maestro's junit report, its output with the screenshot it takes
- *            when a flow fails, skipped.json, device.json) and writes
- *            <out>/summary.json and <out>/shots/
+ *            when a flow fails, skipped.json, device.json, and driver.json
+ *            when Maestro's driver stopped) and writes <out>/summary.json
+ *            and <out>/shots/
  *   look     --out <dir>   adds Claude's words (<out>/look.json) to the summary
  *   linear   --out <dir> [--dry-run]   files failures in Linear, as the web
  *            suite's nightly does (scripts/nightly-report.mjs): one issue per
@@ -25,6 +26,10 @@
  *   safe-names <dir>       renames what Maestro wrote there so GitHub takes it
  *            as an artifact: no " : < > | * ? in a name (a flow's name, which
  *            Maestro puts in its folders, may hold a colon)
+ *   stopped <android|ios> <dir>   when a step of the phone's job failed, writes
+ *            <dir>/stopped.json: the first such step (from the STEPS env,
+ *            the job's `toJSON(steps)`) and why, when the step wrote why.txt
+ *            there. The summary gives it as the reason a phone left no report.
  *
  * The pictures go to Linear and to the run's artifacts, which are public as
  * the repository is: they show the test server's made-up organization and
@@ -33,6 +38,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { noDriver } from './maestro-plan.mjs';
 import { dryApi, flags, linearApi, nightNotice, plan, PREFIX } from './nightly-report.mjs';
 
 export const PLATFORMS = {
@@ -45,6 +51,38 @@ export const MANY = 10;
 export const PARENT = 'LAN-210';
 export const CAUSES = ['app', 'test', 'machine'];
 const FLOWS_DIR = 'apps/mobile/test/maestro/flows';
+
+/**
+ * The steps of a phone's job that can stop it before the flows leave a
+ * report: each step's id in phone-tests.yml, and its name there, which the
+ * summary quotes so a reader finds the step in the run's log.
+ */
+export const STEPS = {
+  kvm: 'Give the runner KVM (the emulator needs it)',
+  build: { android: 'Build the Android test app', ios: 'Build the iPhone test app' },
+  server: 'Start the test server (local Supabase, the library, push delivery)',
+  emulator: 'Start the Android emulator',
+  simulator: 'Start the iPhone simulator',
+  maestro: 'Install Maestro',
+  worker: 'Wait for the Worker',
+  install: 'Install the app',
+  'wait-server': 'Wait for the test server',
+  tunnel: 'Reach the test server through the tunnel',
+  flows: 'The phone flows'
+};
+const stepName = (id, platform) => (typeof STEPS[id] === 'string' ? STEPS[id] : STEPS[id]?.[platform]) ?? id;
+
+/**
+ * Where a phone's job stopped: the first step, in the job's order, that
+ * failed or was cancelled (`steps` is the job's `toJSON(steps)`), with why
+ * when the step said (why.txt). Null when none did.
+ */
+export function stoppedAt(platform, steps, why = null) {
+  const id = Object.keys(steps ?? {}).find((k) => ['failure', 'cancelled'].includes(steps[k]?.outcome));
+  if (!id) return null;
+  const said = typeof why === 'string' ? why.replace(/\s+/g, ' ').trim() : '';
+  return { step: stepName(id, platform), why: said || null };
+}
 
 const unescapeXml = (s) => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, '&');
@@ -120,7 +158,9 @@ export function safeNames(dir) {
 /**
  * The picture of the screen where a flow failed. Maestro 2.8 keeps a folder
  * per flow, named after it, with `screenshots/step-<n>-<command>.png` for the
- * step that failed: the highest step wins. Older Maestro wrote
+ * step that failed: the highest step wins. A flow that ran again with a new
+ * driver (driver.json) has such a folder for each start of Maestro, under
+ * that start's own folder, named by its time: the newest start wins. Older Maestro wrote
  * `screenshot-❌-<time>-(<flow>).png`: the failed one wins, else the newest
  * that names the flow. The name may have gone through safeName on its way here.
  */
@@ -131,13 +171,26 @@ export function shotFor(files, name) {
     const parts = f.split(/[\\/]/);
     return parts.at(-2) === 'screenshots' && names.has(parts.at(-3) ?? '') && /^step-\d+/.test(basename(f));
   });
-  if (steps.length) return [...steps].sort((a, b) => stepOf(b) - stepOf(a))[0];
+  if (steps.length) return [...steps].sort((a, b) => startOf(b).localeCompare(startOf(a)) || stepOf(b) - stepOf(a))[0];
   const named = pngs.filter((f) => [...names].some((n) => basename(f).includes(`(${n})`)));
   const failed = named.filter((f) => basename(f).includes('❌'));
   const pick = (list) => [...list].sort((a, b) => basename(b).localeCompare(basename(a)))[0] ?? null;
   return pick(failed) ?? pick(named);
 }
 const stepOf = (f) => Number(/^step-(\d+)/.exec(basename(f))?.[1] ?? -1);
+/** The folder of the start of Maestro a step's picture is from (`2026-11-17_085600`). */
+const startOf = (f) => f.split(/[\\/]/).at(-4) ?? '';
+
+/**
+ * Where Maestro's driver on the phone stopped in a run, and how many flows a
+ * new driver then ran (driver.json, which scripts/maestro-ui.mjs writes;
+ * scripts/maestro-plan.mjs says why). Anything else in the file is left out.
+ */
+export function driverStops(json) {
+  if (!Array.isArray(json?.stops)) return [];
+  return json.stops.filter((s) => typeof s?.at === 'string')
+    .map((s) => ({ at: s.at, again: Array.isArray(s.again) ? s.again.filter((name) => typeof name === 'string') : [] }));
+}
 
 const readJson = (file, fallback) => {
   try {
@@ -158,6 +211,10 @@ export function platformSummary(platform, dir, status, { day, files = new Map(),
   const tests = reports.length ? reports.flatMap((f) => junitFlows(readFileSync(f, 'utf8'))) : null;
   const all = walk(dir);
   const device = readJson(join(dir, 'device.json'), {});
+  const stopped = readJson(join(dir, 'stopped.json'), null);
+  const driver = driverStops(readJson(join(dir, 'driver.json'), null));
+  // The driver stopped at these and a new one ran them: each result is of a second run.
+  const secondRun = new Set(driver.filter((s) => s.again.includes(s.at)).map((s) => s.at));
   const notRun = readJson(join(dir, 'skipped.json'), []).map((s) => ({ flow: s.flow, why: s.why }));
   const flows = (tests ?? []).map((t) => {
     let shot = null;
@@ -168,11 +225,13 @@ export function platformSummary(platform, dir, status, { day, files = new Map(),
         if (shotsOut) copyFileSync(found, join(shotsOut, shot));
       }
     }
-    return { name: t.name, file: files.get(t.name) ?? null, passed: t.passed, seconds: t.seconds, error: t.error, shot };
+    return { name: t.name, file: files.get(t.name) ?? null, passed: t.passed, seconds: t.seconds, error: t.error, shot, ...(secondRun.has(t.name) ? { secondRun: true } : {}) };
   }).sort((a, b) => Number(a.passed) - Number(b.passed));
   const failed = flows.filter((f) => !f.passed).length;
   let broke = null;
-  if (!tests) broke = `The ${PLATFORMS[platform].label} job ${said(status)} before the flows ran to the end, and left no report.`;
+  if (!tests && typeof stopped?.step === 'string') {
+    broke = `The ${PLATFORMS[platform].label} job stopped at "${stopped.step}", before the flows left a report.${typeof stopped.why === 'string' && stopped.why ? ` ${stopped.why}` : ''}`;
+  } else if (!tests) broke = `The ${PLATFORMS[platform].label} job ${said(status)} before the flows ran to the end, and left no report.`;
   else if (!flows.length) broke = `The ${PLATFORMS[platform].label} job ${said(status)} and no flow ran.`;
   else if (failed > MANY) broke = `${failed} of ${flows.length} flows failed on the ${PLATFORMS[platform].label}: one cause, most likely the test server or the phone, rather than ${failed}.`;
   else if (status !== 'success' && !failed) broke = `The ${PLATFORMS[platform].label} job ${said(status)} with every flow that ran passing: a step around the flows broke.`;
@@ -183,6 +242,7 @@ export function platformSummary(platform, dir, status, { day, files = new Map(),
     status: status ?? 'unknown', broke,
     ran: flows.length, passed: flows.length - failed, failed,
     seconds: flows.reduce((s, f) => s + (f.seconds ?? 0), 0) || null,
+    driver: driver.map((s) => ({ at: s.at, again: s.again.length })),
     notRun, flows
   };
 }
@@ -218,6 +278,18 @@ export const runKey = (p) => `the ${PLATFORMS[p.platform].label} phone tests`;
 export const flowKey = (p, flow) => `${flow.name} [${PLATFORMS[p.platform].label}]`;
 export const PICTURE = '{{picture}}';
 
+/**
+ * What a failed flow's reader must know when Maestro's driver stopped: the
+ * flow has no result at all, or its result is of a second run, which began
+ * with what the first had done on the test server.
+ */
+export function driverNote(flow) {
+  if (flow.passed) return null;
+  if (noDriver(flow.error)) return 'Maestro\'s driver on the phone stopped, so this flow has no result: the failure says nothing about the app.';
+  if (flow.secondRun) return 'Maestro\'s driver on the phone stopped while this flow first ran. This result is of its second run, with a new driver, which began with what the first run had done on the test server.';
+  return null;
+}
+
 const NEXT = 'Fix it and name this issue in the commit. If the flow fails without a product cause, fix the flow, or tag it `quarantine` and name this issue beside the tag (docs/testing.md).';
 
 function flowBody(p, flow, summary) {
@@ -228,6 +300,7 @@ function flowBody(p, flow, summary) {
     `The phone flow ${file ? `\`${file}\`` : `"${flow.name}"`} failed on the ${p.label}${p.os ? ` (${p.os})` : ''} in the nightly run at ${summary.sha.slice(0, 7)}: ${summary.url}`,
     '',
     ...(flow.shot ? [PICTURE, ''] : []),
+    ...(driverNote(flow) ? [driverNote(flow), ''] : []),
     '```',
     flow.error ?? 'failed',
     '```',
@@ -377,6 +450,10 @@ export function markdown(summary) {
   for (const p of summary.platforms) lines.push(`| ${p.label}${p.os ? ` (${p.os})` : ''} | ${p.passed} | ${p.failed} | ${p.notRun.length} |`);
   for (const p of summary.platforms) {
     if (p.broke) lines.push('', `**${p.label}:** ${p.broke}`);
+    for (const s of p.driver ?? []) {
+      lines.push('', `**${p.label}:** Maestro's driver on the phone stopped at "${s.at}". ${s.again
+        ? `A new driver ran the ${s.again === 1 ? 'flow' : `${s.again} flows`} it left without a result.` : 'No new driver was started after it.'}`);
+    }
     const failed = p.flows.filter((f) => !f.passed);
     if (!failed.length) continue;
     lines.push('', `### Failed on the ${p.label}`, '');
@@ -394,10 +471,31 @@ async function main() {
     console.log(`Renamed ${safeNames(rest[0])} names GitHub's artifacts refuse.`);
     return;
   }
+  if (command === 'stopped') {
+    const [platform, dir] = rest;
+    if (!PLATFORMS[platform] || !dir) throw new Error('stopped needs a phone (android or ios) and a folder');
+    let steps = {};
+    try {
+      steps = JSON.parse(process.env.STEPS ?? '{}');
+    } catch {
+      // No steps to read: nothing to say.
+    }
+    let why = null;
+    try {
+      why = readFileSync(join(dir, 'why.txt'), 'utf8');
+    } catch {
+      // The step said nothing more.
+    }
+    const stopped = stoppedAt(platform, steps, why);
+    mkdirSync(dir, { recursive: true });
+    if (stopped) writeFileSync(join(dir, 'stopped.json'), JSON.stringify(stopped, null, 2));
+    console.log(stopped ? `Stopped at "${stopped.step}"${stopped.why ? `: ${stopped.why}` : ''}` : 'No step failed before the flows.');
+    return;
+  }
   const opt = flags(rest);
   const out = opt.out;
   if (!out || !['summary', 'look', 'linear', 'notices', 'markdown'].includes(command)) {
-    console.error('usage: phone-tests.mjs summary|look|linear|notices|markdown --out <dir>, or safe-names <dir> (see the file\'s header)');
+    console.error('usage: phone-tests.mjs summary|look|linear|notices|markdown --out <dir>, or safe-names <dir>, or stopped <phone> <dir> (see the file\'s header)');
     process.exit(2);
   }
   const summaryFile = join(out, 'summary.json');
@@ -408,7 +506,7 @@ async function main() {
     const summary = nightSummary({ inDir: opt.in, sha: opt.sha, url: opt.url, event: opt.event, statuses, shotsOut: join(out, 'shots') });
     writeFileSync(summaryFile, JSON.stringify(summary, null, 2));
     // What Claude looks at: the failed flows alone.
-    const failures = summary.platforms.flatMap((p) => p.flows.filter((f) => !f.passed).map((f) => ({ platform: p.platform, flow: f.name, file: f.file, error: f.error, shot: f.shot })));
+    const failures = summary.platforms.flatMap((p) => p.flows.filter((f) => !f.passed).map((f) => ({ platform: p.platform, flow: f.name, file: f.file, error: f.error, shot: f.shot, note: driverNote(f) })));
     writeFileSync(join(out, 'failures.json'), JSON.stringify(failures, null, 2));
     for (const p of summary.platforms) console.log(`${p.label}: ${p.passed} passed, ${p.failed} failed, ${p.notRun.length} not run${p.broke ? ` (${p.broke})` : ''}`);
     if (process.env.GITHUB_OUTPUT) writeFileSync(process.env.GITHUB_OUTPUT, `failures=${failures.length}\n`, { flag: 'a' });

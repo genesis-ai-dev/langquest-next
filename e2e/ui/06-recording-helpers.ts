@@ -160,10 +160,13 @@ export async function expectParts(page: Page, count: number, timeout = 20_000): 
   await expect.poll(() => partCount(page), { timeout, message: `the parts card counts ${count}` }).toBe(count);
 }
 
-/** The recorder idle: the button says Record, nothing is saving. */
-export async function expectIdle(page: Page): Promise<void> {
+/**
+ * The recorder idle: the button says Record, nothing is saving. `saving`: how long the saving may take, where the
+ * default is too short (a session's parts are saved one after another when it is left, about half a second each).
+ */
+export async function expectIdle(page: Page, saving?: number): Promise<void> {
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
-  await expect(recordButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(recordButton(page)).not.toHaveAttribute('aria-disabled', 'true', saving ? { timeout: saving } : {});
 }
 
 /** Stop recording (LAN-82): the session stays open, its parts boxes to hear, move or drop until Done. */
@@ -173,11 +176,14 @@ export async function stopRecording(page: Page): Promise<void> {
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
 }
 
-/** Leave the recording session: Done stops recording if it still is, and keeps every part as its box stands; only then are they saved. */
-export async function leaveSession(page: Page): Promise<void> {
+/**
+ * Leave the recording session: Done stops recording if it still is, and keeps every part as its box stands; only then
+ * are they saved. `saving`: how long that may take (expectIdle), for a session of many parts.
+ */
+export async function leaveSession(page: Page, saving?: number): Promise<void> {
   await button(page, 'Done').click();
   await expect(text(page, 'Stopped')).toHaveCount(0);
-  await expectIdle(page);
+  await expectIdle(page, saving);
 }
 
 /**

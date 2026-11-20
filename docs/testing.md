@@ -1,5 +1,7 @@
 # Testing strategy
 
+Kind: reference
+
 How this repo is tested, which layer a new test belongs in, and what runs
 where. Decision 102 records why. The UI test suite's own manual is
 [ui-test-suite/README.md](./ui-test-suite/README.md); this page is the
@@ -161,12 +163,24 @@ These keep the suite fast enough to run and stable enough to trust.
   The runner skips the flows a run cannot hold and prints which: flows
   tagged `voice` without `--voice` or `--mic`, `android-only` flows on iOS,
   `wrapped` flows without `--wrapped`. A skipped flow is not a finding.
+- **A driver that stops costs no flow its result.** Maestro drives a phone
+  through a driver it starts there, and one start of Maestro never starts a
+  second driver: when the driver stops, the flow it stopped at and every
+  flow after it end with `Device became unreachable`, which says nothing
+  about the app. The runner then starts Maestro again for those flows, in
+  the order they first ran, at most three times, and puts their results in
+  `report.xml` (`scripts/maestro-plan.mjs` `withNewDrivers`; `driver.json`
+  and the run's page say where the driver stopped). This is not a retry: a
+  flow that got a result, pass or fail, never runs again. A flow the driver
+  stops at twice keeps "no result", so the flows after it get theirs. The
+  flow the driver stopped at starts again on what its first run did on the
+  test server, and its Linear issue says so when it then fails.
 
 ## What runs where
 
 | When | What | Budget |
 | --- | --- | --- |
-| Pre-push hook | typecheck, `npm test`, worker bundle parity | under 30 s |
+| Pre-push hook | typecheck, lint, `npm test`, worker bundle parity; none of it when `npm run guardrails` passed on the commit's files (`scripts/guardrails-passed.mjs`) | about 3 min, or under a second after guardrails |
 | `npm run guardrails` | the CI `checks` job here; `--web` adds the export and its budget, `--all` the server and `ui-web` jobs | |
 | PR (CI `checks`) | typecheck, lint, server calls, worker bundle parity | under 10 min |
 | PR (CI `unit`, `coverage`) | `npm test` in three shards dealt by weight (`scripts/unit-shards.ts`), then the coverage thresholds on the merged report | under 10 min |

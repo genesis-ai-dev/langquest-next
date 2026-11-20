@@ -1,4 +1,4 @@
-import { evidenceAsked, LookedError, parseLooked, type EvidenceAsk, type Looked, type Media, type Phone, type Watch } from '../../../server/userIssues';
+import { evidenceAsked, LookedError, parseLooked, type EvidenceAsk, type IssueNotes, type Looked, type Media, type Phone, type Watch } from '../../../server/userIssues';
 import { REPOSITORY } from '../../../server/tutorialFeedback';
 import type { JobRun } from '../../../server/jobRuns';
 import type { GithubRun, OidcRule } from './githubOidc';
@@ -21,6 +21,11 @@ import type { GithubRun, OidcRule } from './githubOidc';
  * that phone's build and records around the time (server/userIssues.ts
  * `evidenceAsked`, decisions.md 202 amended 2026-11-04). Not recorded as runs:
  * one look asks for several.
+ *
+ * `GET ?notes=<issue>` is what an admin told Claude to do with that issue from
+ * its card on the ops dashboard, for the run that writes its fix, and a POST's
+ * `notes` what the run did with each
+ * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md).
  */
 export const USER_ISSUES_PATH = '/api/user-issues';
 export const USER_ISSUES_RULE: OidcRule = {
@@ -37,7 +42,9 @@ export interface UserIssuesDeps {
   media(id: string): Promise<Media | null>;
   /** null: no such install. */
   phone(install: string, at: string | null): Promise<Phone | null>;
-  looked(looked: Looked): Promise<{ looked: number; grew: number; closed?: number; reopened?: number }>;
+  /** One issue's instructions from the dashboard: those that wait, and the last answered ones. */
+  notes(issue: string): Promise<IssueNotes>;
+  looked(looked: Looked): Promise<{ looked: number; grew: number; closed?: number; reopened?: number; taken?: number; answered?: number }>;
   record(run: JobRun): Promise<void>;
   now(): number;
 }
@@ -59,6 +66,7 @@ export async function handleUserIssues(request: Request, deps: UserIssuesDeps): 
       return json(400, { error: e instanceof LookedError ? e.message : 'bad request' });
     }
     if (ask) {
+      if ('notes' in ask) return json(200, await deps.notes(ask.notes));
       const found = 'media' in ask ? await deps.media(ask.media) : await deps.phone(ask.phone, ask.at);
       return found ? json(200, found) : json(404, { error: 'Not there, or not one the watch hands over.' });
     }
@@ -96,7 +104,7 @@ export async function handleUserIssues(request: Request, deps: UserIssuesDeps): 
   for (const l of looked.looked) verdicts[l.verdict] += 1;
   await deps.record({
     job: 'user_issue_look', startedAt: started, ms: deps.now() - started, outcome: 'ok',
-    n: { looked: done.looked, ...verdicts, grew: done.grew, closed: done.closed ?? 0, reopened: done.reopened ?? 0 }
+    n: { looked: done.looked, ...verdicts, grew: done.grew, closed: done.closed ?? 0, reopened: done.reopened ?? 0, notesTaken: done.taken ?? 0, notesAnswered: done.answered ?? 0 }
   });
   return json(200, done);
 }

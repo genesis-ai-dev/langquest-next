@@ -16,6 +16,7 @@ import { UI_LANGUAGES } from '@langquest-next/core';
 import { TUTORIALS } from './all';
 import { geminiNeedsYou, needsYou } from './needs-you.mjs';
 import { RUTHS_WORDS } from './readings';
+import { videosNamed } from './tutorial';
 
 const MODEL = process.env['TUTORIAL_TRANSLATE_MODEL'] ?? 'gemini-pro-latest';
 const API = 'https://generativelanguage.googleapis.com/v1beta';
@@ -32,22 +33,29 @@ function flat(c: Catalog, prefix = '', into = new Map<string, string>()): Map<st
 const linesFile = (code: string) => path.join('e2e', 'tutorials', 'lines', `${code}.json`);
 const english = flat(catalog('en'));
 
+/** The "…" that ends a button which asks before it acts, and words that say the app is busy. */
+const ELLIPSIS = /\s*(…|\.\.\.)$/;
+
 /** The app's words that a video's lines name, with what the app says for each in this language. */
 function glossary(lines: string[], target: Map<string, string>): string[] {
   const said = new Map<string, Set<string>>();
   for (const [key, en] of english) {
-    const words = en.trim();
+    // A button that asks before it acts ends with "…" on the screen ("Move past this checkpoint…"), and a line names
+    // it without ("Tap Move past this checkpoint."). Words that say the app is busy end the same way ("Creating…")
+    // and are no name, so such words count only where a line says to tap them.
+    const asks = ELLIPSIS.test(en.trim());
+    const words = en.trim().replace(ELLIPSIS, '');
     // A name on the screen: capitalised, more than a little word, not a sentence.
     if (!/^[A-Z0-9]/.test(words) || words.length < 4 || words.length > 40 || words.includes('{{') || words.split(' ').length > 5) continue;
-    const pattern = new RegExp(`(^|[^\\w])${words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w])`);
-    const theirs = target.get(key);
+    const pattern = new RegExp(`${asks ? '(^|[^\\w])[Tt]ap ' : '(^|[^\\w])'}${words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w])`);
+    const theirs = target.get(key)?.trim().replace(ELLIPSIS, '');
     if (!theirs || !lines.some((l) => pattern.test(l))) continue;
     said.set(words, (said.get(words) ?? new Set()).add(theirs));
   }
   return [...said].sort((a, b) => b[0].length - a[0].length).slice(0, 120).map(([en, t]) => `"${en}" → ${[...t].map((x) => `"${x}"`).join(' or ')}`);
 }
 
-function prompt(language: string, title: string, lines: string[], missing: string[], example: Record<string, string>, words: string[]): string {
+function prompt(language: string, title: string, lines: string[], missing: string[], example: Record<string, string>, words: string[], named: string[]): string {
   return [
     `Translate the narration of a short how-to video about the LangQuest app into ${language}. LangQuest is a phone app that teams use to record Bible translations in their own languages. The narration is spoken by a computer voice over a screen recording of the app in ${language}, to people new to phones, so it must be short, plain, natural spoken ${language}.`,
     '',
@@ -57,6 +65,7 @@ function prompt(language: string, title: string, lines: string[], missing: strin
     `- Write book names of the Bible in ${language}; write numbers as they are said aloud in ${language} where the English spells them out.`,
     '- Address the viewer the way the examples do. Say "tap" the way the examples do.',
     '- Translate the meaning, not word for word. Do not add or drop information.',
+    ...(named.length ? [`- When a line names another video by its title, in quotation marks, use exactly that video's ${language} title, from the list below, in the quotation marks that ${language} uses. "The description below" is the text under the video on YouTube.`] : []),
     '',
     `The video: "${title}". All its lines, in order:`,
     ...lines.map((l, i) => `${i + 1}. ${l}`),
@@ -64,6 +73,7 @@ function prompt(language: string, title: string, lines: string[], missing: strin
     `The app's own ${language} words for what the lines name:`,
     ...(words.length ? words : ['(none)']),
     '',
+    ...(named.length ? [`The ${language} titles of the other videos that the lines name:`, ...named, ''] : []),
     `Examples of lines already translated into ${language} for another video:`,
     ...Object.entries(example).slice(0, 8).map(([en, t]) => `"${en}" → "${t}"`),
     '',
@@ -98,14 +108,14 @@ for (const language of languages) {
   const target = flat(catalog(language.code));
   // Each video's lines, and what Ruth says into the microphone in them.
   const videos = [
-    ...Object.values(TUTORIALS).map((t) => ({ title: t.title, lines: [...new Set(t.steps.filter((s) => s.say).map((s) => s.say!))], titled: true })),
-    { title: 'What a reviewer says into the microphone: her feedback, and passages said again in her own language', lines: RUTHS_WORDS, titled: false }
+    ...Object.values(TUTORIALS).map((t) => ({ title: t.title, lines: [...new Set(t.steps.filter((s) => s.say).map((s) => s.say!))], titled: true, names: videosNamed(t).map((id) => TUTORIALS[id]!.title) })),
+    { title: 'What a reviewer says into the microphone: her feedback, and passages said again in her own language', lines: RUTHS_WORDS, titled: false, names: [] }
   ];
   for (const tutorial of videos) {
     const lines = tutorial.lines;
     const missing = [...(tutorial.titled ? [tutorial.title] : []), ...lines].filter((l) => !have[l]);
     if (!missing.length) continue;
-    jobs.push({ code: language.code, missing, text: prompt(`${language.english} (${language.name})`, tutorial.title, lines, missing, have, glossary([tutorial.title, ...lines], target)) });
+    jobs.push({ code: language.code, missing, text: prompt(`${language.english} (${language.name})`, tutorial.title, lines, missing, have, glossary([tutorial.title, ...lines], target), tutorial.names.filter((n) => have[n]).map((n) => `"${n}" → "${have[n]}"`)) });
   }
 }
 if (!jobs.length) { console.log('Every line is translated.'); process.exit(0); }

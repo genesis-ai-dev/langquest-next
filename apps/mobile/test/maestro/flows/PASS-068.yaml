@@ -42,7 +42,8 @@ tags:
       - extendedWaitUntil:
           visible: "(?i)Then the team"
           timeout: 30000
-      - tapOn: "Back translation, .*"
+      # The row that makes it (decision 252): its sheet sets the Back translation aside (LAN-274).
+      - tapOn: "Back translation · make it, .*"
       # The Back translation's own Set aside is the sheet's second.
       - tapOn:
           text: "Set aside"

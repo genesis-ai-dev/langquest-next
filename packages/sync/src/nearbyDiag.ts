@@ -44,7 +44,8 @@ const YES_NO = ['yes', 'no'] as const;
  * The `nearby` kind. `event` says which record: `room` when a room stops (`stop` why, never
  * `run` or `level`, which read as `asked`; `ms` it ran and `levelMs` to its first "Up to date",
  * each at most `NEARBY_ROOM_MS_CAP`; the phones `heard` that matched a key and how many
- * `echoed`, `maybe` offers of a tap and the `taps`, `maxUnmatched` salts of this form no key
+ * `echoed`, the bare adverts heard `alone` (an iPhone's, one per salt, which `heard` leaves out,
+ * so a report tells an iPhone that heard another from one that heard nothing; 2026-11-19), `maybe` offers of a tap and the `taps`, `maxUnmatched` salts of this form no key
  * matched at once, `pipeFails` with the last `code`, `strangers` whose opening never checked,
  * `busy` turned away while in a session, `noAnswer`, `sessions` and `done`, and what the radio
  * can do: `adv`, `direct`, `hotspot`); `session` when one of this phone's sessions ends (`role`,
@@ -58,7 +59,7 @@ const YES_NO = ['yes', 'no'] as const;
  */
 export const NEARBY_DIAG_SCHEMA = {
   nearby: {
-    n: ['ms', 'levelMs', 'heard', 'echoed', 'maybe', 'taps', 'maxUnmatched', 'pipeFails', 'strangers', 'busy', 'noAnswer', 'sessions', 'done',
+    n: ['ms', 'levelMs', 'heard', 'echoed', 'alone', 'maybe', 'taps', 'maxUnmatched', 'pipeFails', 'strangers', 'busy', 'noAnswer', 'sessions', 'done',
       'fallbacks', 'events', 'sent', 'refused', 'overBudget', 'files', 'served', 'fileFails', 'keyRefused', 'farAhead',
       'noRoom', 'cutBackups', 'older', 'clockOff', 'newerApp'],
     t: {
@@ -67,7 +68,7 @@ export const NEARBY_DIAG_SCHEMA = {
       role: ['i', 'r'],
       end: ['done', 'silent', 'no-answer', 'said', 'heard', 'dropped', 'stalled', 'failed'],
       bye: ['done', 'nothing', 'busy', 'protocol', 'identity', 'not-member', 'stopped'],
-      link: ['wifi-direct', 'hotspot', 'bluetooth'],
+      link: ['wifi-direct', 'hotspot', 'awdl', 'bluetooth'],
       code: NEARBY_DIAG_CODES,
       error: 'token',
       why: NEARBY_DIAG_BLOCKED,
@@ -120,6 +121,8 @@ export function sessionDiagOf(report: NearbySessionReport, ms: number): NearbyDi
 export interface NearbyRoomTally {
   heard: number;
   echoed: number;
+  /** Bare adverts heard (an iPhone's), one per salt: `heard` counts only phones that matched with a scan response. */
+  alone: number;
   maybe: number;
   taps: number;
   maxUnmatched: number;
@@ -135,7 +138,7 @@ export interface NearbyRoomTally {
 }
 
 export const emptyRoomTally = (): NearbyRoomTally => ({
-  heard: 0, echoed: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 0, done: 0, levelMs: null, code: null
+  heard: 0, echoed: 0, alone: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 0, done: 0, levelMs: null, code: null
 });
 
 /**

@@ -96,6 +96,7 @@ import { usePassagesInMemory } from './src/shell/usePassagesInMemory';
 import { usePassageReady } from './src/shell/usePassageReady';
 import { PassageNotHere } from './src/sync/offline';
 import { useRouting } from './src/shell/useRouting';
+import { awaitingFirstScreen } from './src/shell/routingModel';
 import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
@@ -103,6 +104,8 @@ import { useReadOnlyHandles } from './src/shell/useReadOnlyHandles';
 import { ReadOnlyContext } from './src/session/useReadOnly';
 import { wireBase } from './src/shell/wiring';
 import { AppCover } from './src/shell/AppCover';
+import { AppLockGate } from './src/shell/AppLockGate';
+import { useAppLockSignOut } from './src/shell/useAppLockSignOut';
 
 // What the base folders need from folders above them (decisions.md 105), once, before anything draws.
 wireBase();
@@ -121,6 +124,8 @@ const loadSources = () => import('./src/screens/sources');
 const loadGlobalViewer = () => import('./src/screens/globalViewer');
 const loadGuideEditor = () => import('./src/screens/guideEditor');
 const loadNearby = () => import('./src/screens/nearby');
+const loadProfileEdit = () => import('./src/screens/profileEdit');
+const loadSync = () => import('./src/screens/sync');
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
@@ -134,8 +139,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   study_guide: Study.StudyGuide, study_step: Study.StudyStep, guide_editor: lazyScreen(loadGuideEditor, 'GuideEditor'),
   workspace: Translate.Workspace, back_translation: Translate.BackTranslation,
   key_terms: lazyScreen(loadConfig, 'KeyTerms'), key_term_detail: lazyScreen(loadConfig, 'KeyTermDetail'),
-  inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: Account.ProfileEdit,
-  org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm, delete_account: Account.DeleteAccount, sync_status: Account.SyncStatus,
+  inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: lazyScreen(loadProfileEdit, 'ProfileEdit'),
+  org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm, delete_account: Account.DeleteAccount, sync_status: lazyScreen(loadSync, 'SyncStatus'),
   org_home: lazyScreen(loadOrg, 'OrgHome'), cluster_home: lazyScreen(loadOrg, 'ClusterHome'), language_home: lazyScreen(loadOrg, 'LanguageHome'),
   new_language: lazyScreen(loadOrg, 'NewLanguage'), members_list: lazyScreen(loadOrg, 'MembersList'), invite_member: lazyScreen(loadOrg, 'InviteMember'), invite_qr: lazyScreen(loadOrg, 'InviteQr'),
   edit_member: lazyScreen(loadOrg, 'EditMember'), check_editor: lazyScreen(loadChecks, 'CheckEditor'),
@@ -153,7 +158,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   share_nearby: lazyScreen(loadNearby, 'ShareNearby'),
   let_someone_in: lazyScreen(loadNearby, 'LetSomeoneIn'),
   join_offline: lazyScreen(loadNearby, 'JoinOffline'),
-  get_install_file: lazyScreen(loadNearby, 'GetInstallFile')
+  get_install_file: lazyScreen(loadNearby, 'GetInstallFile'),
+  give_app: lazyScreen(loadNearby, 'GiveApp')
 };
 
 /**
@@ -380,6 +386,8 @@ export default function App() {
     <SafeAreaProvider>
       {/* On Android, a disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 171). */}
       <AppCover>
+      {/* On a phone, whoever turned the app lock on draws their pattern each time the app opens (decisions.md 253). */}
+      <AppLockGate actorId={who === undefined ? undefined : who.signedIn ? who.actorId : null}>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
         <UpdateBanner />
@@ -403,6 +411,7 @@ export default function App() {
           </ErrorBoundary>
         )}
       </SafeAreaView>
+      </AppLockGate>
       </AppCover>
     </SafeAreaProvider>
   );
@@ -583,6 +592,8 @@ function OrgWork(props: Who & {
     canSwitchPersona
   }), [language, org, session, params, go, back, home, languageId, setLanguage, languages, act, toast, details, recent, openPassage,
     name, blocks, inboxView, welcomeView, markWelcomed, acceptTerms, invite, firstContact, openOrganization, openDev, canSwitchPersona]);
+  // The app lock's Forgot? signs out as Sign Out does (decisions.md 253).
+  useAppLockSignOut(ctx);
   const syncSources = useMemo(() => ({ language: language.syncStatus, org: org.syncStatus }), [language.syncStatus, org.syncStatus]);
 
   const screen = nav.current.screen;
@@ -593,8 +604,11 @@ function OrgWork(props: Who & {
   const viewingName = session.viewingAsGlobalViewer ? org.state?.org?.value.name ?? '' : '';
   const navPush = nav.push;
   // The upload bar opens Sync from wherever it is shown, as chrome, like a tab (decisions.md 166).
-  const openChrome = useCallback((screen: ScreenId) => { if (navRef.isReady() && navRef.getCurrentRoute()?.name !== screen) navPush({ screen }); }, [navPush]);
-  const openSync = useCallback(() => openChrome('sync_status'), [openChrome]);
+  const openChrome = useCallback((screen: ScreenId, params?: Record<string, string>) => {
+    if (navRef.isReady() && navRef.getCurrentRoute()?.name !== screen) navPush(params ? { screen, params } : { screen });
+  }, [navPush]);
+  // The bar says what waits to upload: Sync and offline opens with Uploads open (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
+  const openSync = useCallback(() => openChrome('sync_status', { open: 'uploads' }), [openChrome]);
   const headerExtra = useMemo(() => (!showLink ? null : (
     <GlobalViewerLink orgName={viewingName} onPress={() => openChrome('global_viewer')} />
   )), [showLink, viewingName, openChrome]);
@@ -674,10 +688,10 @@ function OrgWork(props: Who & {
             {/* Its own box, so the native stack ends where the tab bar begins
                 rather than drawing screens underneath it. */}
             <View style={{ flex: 1, overflow: 'hidden' }}>
-            {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166) and Share
-                nearby, where its tap would push Sync over the radios (docs/nearby-sync-plan.md 5.8). It goes only as
+            {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166), Share
+                nearby and Give the app, where its tap would push Sync over the radios (docs/nearby-sync-plan.md 5.8, 14.5). It goes only as
                 the top route changes, so it never moves the screen below it while someone uses it. */}
-            {screen === 'sync_status' || screen === 'share_nearby' ? null
+            {screen === 'sync_status' || screen === 'share_nearby' || screen === 'give_app' ? null
               : <UploadBar ctx={ctx} screenKey={nav.current.key ?? screen} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
             <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
@@ -695,6 +709,13 @@ function OrgWork(props: Who & {
                 ))}
               </Stack.Navigator>
             </NavigationContainer>
+            {/* Signed in but not yet routed: the spinner, not the Sign In the stack starts on (routingModel.ts awaitingFirstScreen).
+                Over the stack, not instead of it, so the navigator is ready for routing's reset. */}
+            {awaitingFirstScreen(props.signedIn, screen) ? (
+              <View style={[StyleSheet.absoluteFill, styles.root, styles.waiting]} accessible accessibilityViewIsModal accessibilityLabel={t('common.loading')}>
+                <ActivityIndicator size="large" color={C.muted} />
+              </View>
+            ) : null}
             {toastHost(toastAbove)}
             {/* Feedback from help mode, in the strip a screen leaves at its foot (decisions.md 145). */}
             {/* A local person's feedback waits on the phone as a signed-out person's does, and goes as theirs after first contact. */}

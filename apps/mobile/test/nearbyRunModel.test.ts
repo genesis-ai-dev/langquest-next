@@ -1,8 +1,8 @@
 import { NOTHING_TO_CARRY } from '../src/nearby/readyToCarryModel';
 import { radiosMayRun, type RadiosGate } from '../src/nearby/nearbyModel';
 import {
-  certOrgSeqOf, listedKey, mergeFarAhead, NearbyStartHeld, startWithin, namesOf, NEARBY_RUN_LIMIT_MS, NEARBY_RUN_START, NEARBY_SESSIONS_KEPT, nearbyOffered, nearbyRunReducer, nearbyViewOf,
-  orgSeqHereOf, radiosFor, roomLimitsFor, sessionLineOf, swapOf, type NearbyRunAction, type NearbyRunState, type SessionReportLike
+  certOrgSeqOf, listedKey, mergeFarAhead, NearbyStartHeld, startWithin, namesOf, NEARBY_RADIO_TUNABLES, NEARBY_RUN_LIMIT_MS, NEARBY_RUN_START, NEARBY_SESSIONS_KEPT, nearbyOffered,
+  nearbyRunReducer, nearbyViewOf, orgSeqHereOf, radiosFor, roomLimitsFor, sessionLineOf, swapOf, type NearbyRunAction, type NearbyRunState, type SessionReportLike
 } from '../src/nearby/nearbyRunModel';
 
 /**
@@ -260,12 +260,15 @@ describe('what the room is given', () => {
 describe('what the screen is handed', () => {
   it('asks a worn phone for a press until it has one, and passes the run through', () => {
     const facts = {
-      offered: true, whyNot: null, radiosOff: [], permissions: { state: 'granted' as const, step: { t: 'ready' as const } }, worn: true, holding: 3, hold: false, carry: NOTHING_TO_CARRY
+      offered: true, iphone: false, tapCoversAll: false, whyNot: null, radiosOff: [], permissions: { state: 'granted' as const, step: { t: 'ready' as const } }, worn: true,
+      holding: 3, hold: false, carry: NOTHING_TO_CARRY
     };
     expect(nearbyViewOf({ ...facts, run: NEARBY_RUN_START })).toMatchObject({ needsPress: true, holding: 3, hold: false, running: false });
     const pressed = run({ t: 'press', worn: true }, { t: 'started' });
     expect(nearbyViewOf({ ...facts, run: pressed })).toMatchObject({ needsPress: false, running: true });
     expect(nearbyViewOf({ ...facts, worn: false, run: NEARBY_RUN_START }).needsPress).toBe(false);
+    // An iPhone: its words, and its one tap for every teammate without an echo.
+    expect(nearbyViewOf({ ...facts, worn: false, iphone: true, tapCoversAll: true, run: NEARBY_RUN_START })).toMatchObject({ iphone: true, tapCoversAll: true, needsPress: false });
   });
 });
 
@@ -282,5 +285,33 @@ describe('a start that does not finish in time', () => {
   it('a start in time goes on, and its own failure is its own', async () => {
     await expect(startWithin(Promise.resolve(), new Promise<void>(() => undefined), () => null)).resolves.toBeUndefined();
     await expect(startWithin(Promise.reject(new Error('BLUETOOTH_OFF')), new Promise<void>(() => undefined), () => 'find')).rejects.toThrow('BLUETOOTH_OFF');
+  });
+});
+
+describe('an iPhone (section 7, phase 5)', () => {
+  const worn = false;
+  const android = { directByName: true, band5: true, hotspot: true, joinHotspot: true };
+  const iphone = { directByName: false, band5: false, hotspot: false, joinHotspot: true, awdl: true, joinDirect: true };
+
+  it("says awdl and joinDirect in arrange's radios when the module does, and Android's radios stay as they were", () => {
+    expect(radiosFor(iphone, worn)).toEqual(iphone);
+    expect(radiosFor(android, worn)).toEqual(android);
+    expect(Object.keys(radiosFor({ ...android, awdl: false, joinDirect: false }, worn)).sort()).toEqual(['band5', 'directByName', 'hotspot', 'joinHotspot']);
+  });
+
+  it('leaves joinDirect out when the tunable turns it off, and keeps awdl and the hotspot', () => {
+    expect(NEARBY_RADIO_TUNABLES.joinDirect).toBe(true);
+    expect(radiosFor(iphone, worn, { joinDirect: false })).toEqual({ directByName: false, band5: false, hotspot: false, joinHotspot: true, awdl: true });
+  });
+
+  it('marks every teammate waiting on a tap as here with one tap, where one tap covers them all', () => {
+    const maybe = (tag: string): NearbyRunAction => ({ t: 'room', report: { t: 'maybe', tag }, worn });
+    const s = run({ t: 'started' }, maybe('@salt1'), maybe('@salt2'), maybe('t3'));
+    expect(s.teammates.map((t) => t.state)).toEqual(['maybe', 'maybe', 'maybe']);
+    // Known only by their salts, they have no key and no name.
+    expect(s.teammates[0]).toMatchObject({ tag: '@salt1', key: null, profileId: null });
+    expect(nearbyRunReducer(s, { t: 'tapped', tag: '@salt1', all: true }).teammates.map((t) => t.state)).toEqual(['here', 'here', 'here']);
+    expect(nearbyRunReducer(s, { t: 'tapped', tag: '@salt1' }).teammates.map((t) => t.state)).toEqual(['here', 'maybe', 'maybe']);
+    expect(nearbyRunReducer(s, { t: 'tapped', tag: '@salt1', all: true }).met).toBe(true);
   });
 });

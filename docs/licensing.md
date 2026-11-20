@@ -1,5 +1,7 @@
 # Licensing: who may use an organization's work
 
+Kind: reference
+
 Every organization chooses a license for the work its members make. The
 license says what people outside the organization may do with that work, and
 so it decides what they can see in the app. It starts fully closed and can

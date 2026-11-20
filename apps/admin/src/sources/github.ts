@@ -1,3 +1,4 @@
+import { WORKFLOW_RECHECK } from '../alertKinds';
 import { hoursAgo, ok, type Alert, type Section } from '../section';
 import { githubApi, type GitHubEnv } from './githubApi';
 import { NIGHTLIES } from './nightly';
@@ -95,20 +96,21 @@ export function codeAlerts(code: Code, now = Date.now()): Alert[] {
   const out: Alert[] = [];
   const host = new URL(code.live.url).host;
   if (code.live.build === null) {
-    out.push({ level: 'urgent', text: `${host}/version.json did not answer${code.live.error ? ` (${code.live.error})` : ''}.` });
+    out.push({ level: 'urgent', key: 'version-json-down', text: `${host}/version.json did not answer${code.live.error ? ` (${code.live.error})` : ''}.` });
   } else if (!code.main.sha.startsWith(code.live.build) && code.behind !== 0 && code.appChanged !== false) {
     const age = hoursAgo(code.main.at, now);
     if (age === null || age > DEPLOY_GRACE_H) {
       const count = code.behind === null ? 'newer commits' : `${code.behind} newer commit${code.behind === 1 ? '' : 's'}`;
-      out.push({ level: 'problem', text: `${host} still serves ${code.live.build.slice(0, 8)}, but main has ${count} (latest ${age === null ? 'at an unknown time' : `${Math.round(age)} h ago`}). The deploy on merge may be failing: check Workers Builds.` });
+      out.push({ level: 'problem', key: 'deploy-behind', text: `${host} still serves ${code.live.build.slice(0, 8)}, but main has ${count} (latest ${age === null ? 'at an unknown time' : `${Math.round(age)} h ago`}). The deploy on merge may be failing: check Workers Builds.` });
     }
   }
   for (const n of code.needsYou) {
-    out.push({ level: 'problem', text: `${n.what}: ${n.text} (GitHub workflow "${n.workflow}")`, link: n.link });
+    out.push({ level: 'problem', key: 'needs-you', subject: n.what, text: `${n.what}: ${n.text} (GitHub workflow "${n.workflow}")`, link: n.link });
   }
   for (const r of code.runs) {
     if (failedRun(r) && !r.nightly && !code.needsYou.some((n) => n.workflow === r.workflow)) {
-      out.push({ level: 'watch', text: `GitHub workflow "${r.workflow}" failed on main (run ${r.number}, ${r.event}).`, link: r.url });
+      const recheck = WORKFLOW_RECHECK[(r.path ?? '').replace('.github/workflows/', '')];
+      out.push({ level: 'watch', key: 'workflow-failed', subject: r.workflow, text: `GitHub workflow "${r.workflow}" failed on main (run ${r.number}, ${r.event}).`, link: r.url, ...(recheck ? { recheck } : {}) });
     }
   }
   return out;

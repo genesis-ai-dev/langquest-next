@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { addCatalog, currentLanguage, showLanguage, t } from '../src/i18n';
+import { elide } from '../src/i18n/elision';
 import { formatClock, formatDay, formatNumber } from '../src/i18n/format';
 import { catalogFor, pickLanguage, UI_LANGUAGES } from '../src/i18n/languages';
 import { fallbackRule } from '../src/i18n/plurals';
@@ -118,16 +119,23 @@ describe('the catalogs', () => {
     expect(readFileSync(join(ROOT, 'src/screens/nearby.tsx'), 'utf8')).toContain("import '../nearby/nearbyWords';");
   });
 
-  it('gives iOS the microphone and camera questions in each language (scripts/native-locales.mjs)', () => {
+  it('gives iOS the microphone, camera, Bluetooth and local network questions in each language (scripts/native-locales.mjs)', () => {
     const app = JSON.parse(readFileSync(join(ROOT, 'app.json'), 'utf8')).expo as { locales?: Record<string, string>; ios: { infoPlist: Record<string, string> } };
     const english = catalog('en').native as Tree;
     expect(app.ios.infoPlist.NSMicrophoneUsageDescription).toBe(english.microphone);
+    expect(app.ios.infoPlist.NSBluetoothAlwaysUsageDescription).toBe(english.bluetooth);
+    expect(app.ios.infoPlist.NSLocalNetworkUsageDescription).toBe(english.localNetwork);
     for (const lang of UI_LANGUAGES.filter((l) => l.code !== 'en')) {
       const name = ({ pt: 'pt-BR', tl: 'fil' } as Record<string, string>)[lang.code] ?? lang.code;
       expect(app.locales?.[name], name).toBe(`./locales/${name}.json`);
       const native = catalog(lang.code).native as Tree;
       expect(JSON.parse(readFileSync(join(ROOT, 'locales', `${name}.json`), 'utf8')), name)
-        .toEqual({ ios: { NSMicrophoneUsageDescription: native.microphone, NSCameraUsageDescription: native.camera } });
+        .toEqual({
+          ios: {
+            NSMicrophoneUsageDescription: native.microphone, NSCameraUsageDescription: native.camera,
+            NSBluetoothAlwaysUsageDescription: native.bluetooth, NSLocalNetworkUsageDescription: native.localNetwork
+          }
+        });
     }
   });
 
@@ -237,5 +245,54 @@ describe('plurals, dates and numbers', () => {
       showLanguage('en');
     }
     expect(t('common.done')).toBe('Done');
+  });
+});
+
+describe('French elision before a name put into a sentence', () => {
+  it('makes "le" and "la" before a name that starts with a vowel "l’"', () => {
+    expect(elide('Faire la approbation finale', ['approbation finale'])).toBe('Faire l’approbation finale');
+    expect(elide('En attente à la étude, qui doit passer d’abord', ['étude'])).toBe('En attente à l’étude, qui doit passer d’abord');
+    expect(elide('Comment le dit le anglais', ['anglais'])).toBe('Comment le dit l’anglais');
+    expect(elide('La approbation finale', ['approbation finale'])).toBe('L’approbation finale');
+    expect(elide('Vérification de la ESV, puis de la ESV', ['ESV'])).toBe('Vérification de l’ESV, puis de l’ESV');
+    expect(elide('Faire la approbation, puis la écoute', ['approbation', 'écoute'])).toBe('Faire l’approbation, puis l’écoute');
+  });
+
+  it('leaves the rest as the catalog writes it', () => {
+    // A consonant, an h (aspirated or not, nobody can tell from the letters), a y, "onze" and "oui".
+    expect(elide('Faire la rétrotraduction', ['rétrotraduction'])).toBe('Faire la rétrotraduction');
+    expect(elide('Faire la harmonisation', ['harmonisation'])).toBe('Faire la harmonisation');
+    expect(elide('Avant le 8 nov.', ['8 nov.'])).toBe('Avant le 8 nov.');
+    expect(elide('Avant le onze', ['onze'])).toBe('Avant le onze');
+    // Only right before the name: the catalog's own words, and a name elsewhere in the sentence, stay.
+    expect(elide('Écouter la version de Anna', ['Anna'])).toBe('Écouter la version de Anna');
+    expect(elide('Anna la écoute', ['Anna'])).toBe('Anna la écoute');
+    // "le" and "la" after a verb, or the end of another word, are no article.
+    expect(elide('Appelez-la Anna', ['Anna'])).toBe('Appelez-la Anna');
+    expect(elide('Ruth appela Anna', ['Anna'])).toBe('Ruth appela Anna');
+    expect(elide('', ['Anna'])).toBe('');
+    expect(elide('Faire la approbation', [])).toBe('Faire la approbation');
+  });
+
+  it('is done in French only, on what t() returns', () => {
+    addCatalog('fr', catalog('fr'));
+    showLanguage('fr');
+    try {
+      expect(t('passage.page.main.doCheck', { check: 'approbation finale' })).toBe('Faire l’approbation finale');
+      expect(t('passage.page.main.doCheck', { check: 'rétrotraduction' })).toBe('Faire la rétrotraduction');
+      expect(t('passage.page.heldAt', { check: 'approbation finale' })).toContain('à l’approbation finale,');
+    } finally {
+      showLanguage('en');
+    }
+    addCatalog('es', catalog('es'));
+    showLanguage('es');
+    try {
+      // Spanish keeps its article whole ("la aprobación").
+      expect(t('passage.page.main.doCheck', { check: 'aprobación final' })).toContain('aprobación final');
+      expect(t('passage.page.main.doCheck', { check: 'aprobación final' })).not.toContain('’');
+    } finally {
+      showLanguage('en');
+    }
+    expect(t('passage.page.main.doCheck', { check: 'approval' })).toBe('Do the approval');
   });
 });

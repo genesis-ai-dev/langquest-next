@@ -337,7 +337,7 @@
     "book_structure": "Dividir um livro",
     "reference_home": "Biblioteca de referência",
     "material_editor": "Editar material",
-    "sync_status": "Sincronizar",
+    "sync_status": "Sincronização e uso sem internet",
     "delete_account": "Excluir conta",
     "reports_home": "Relatórios",
     "reports_language": "Relatório do idioma",
@@ -358,11 +358,14 @@
     "share_nearby": "Compartilhar por perto",
     "let_someone_in": "Deixar alguém entrar",
     "join_offline": "Participar sem internet",
-    "get_install_file": "Baixar o arquivo de instalação"
+    "get_install_file": "Baixar o arquivo de instalação",
+    "give_app": "Dar o app"
   },
   "native": {
     "microphone": "O LangQuest grava a sua voz para traduzir passagens.",
-    "camera": "O LangQuest usa a câmera para ler códigos QR de convite."
+    "camera": "O LangQuest usa a câmera para ler códigos QR de convite.",
+    "bluetooth": "O LangQuest usa o Bluetooth para encontrar os celulares dos seus colegas por perto e compartilhar o trabalho com eles.",
+    "localNetwork": "O LangQuest usa a rede local para compartilhar o trabalho com os celulares dos seus colegas por perto."
   },
   "library": {
     "sourceLine": {
@@ -3248,9 +3251,9 @@
       "onItsWay": "Seu trabalho do LangQuest está a caminho.",
       "wasProject": "{{org}} · era seu projeto “{{project}}”",
       "counts": "{{recordings}} · {{passages}}",
-      "onItsWayRow": "A caminho. Vai aparecer aqui sozinho.",
+      "onItsWayRow": "A caminho. A equipe do LangQuest está trazendo para cá.",
       "recordHere": "<b>De agora em diante, grave aqui.</b> O que você gravar no app antigo continua vindo para cá, mas o que você grava aqui não volta para lá.",
-      "keepOldApp": "<b>Continue gravando no app antigo até que chegue.</b> Tudo o que você grava lá vem para cá e aparece aqui sozinho.",
+      "keepOldApp": "<b>Continue gravando no app antigo até que chegue.</b> Tudo o que você grava lá vem para cá.",
       "differentTitle": "O que muda",
       "differentSummary": "Projetos, missões e votos, aqui",
       "differentProject": "Seu <b>projeto</b> agora é um <b>idioma</b> em uma organização.",
@@ -3258,9 +3261,10 @@
       "differentVersions": "O que você gravou para um capítulo é uma <b>versão</b> dele. Cada vez que você publica, é uma nova versão.",
       "differentVotes": "Os <b>votos</b> são verificações com a comunidade: o que as pessoas disseram está na passagem.",
       "checkAgain": "Verificar de novo",
-      "notYet": "Ainda não chegou. Vai aparecer aqui sozinho.",
+      "notYet": "Ainda não chegou. A equipe do LangQuest está trazendo para cá.",
       "keepGoing": "Continuar em {{passage}}",
       "goToMyWork": "Ir para Meu trabalho",
+      "continueWithout": "Continuar sem ele",
       "recordings_one": "{{count, number}} gravação",
       "recordings_many": "{{count, number}} de gravações",
       "recordings_other": "{{count, number}} gravações",
@@ -3269,6 +3273,7 @@
       "passages_other": "{{count, number}} passagens",
       "checkAgainHelp": "Procura de novo o seu trabalho do aplicativo antigo.",
       "goToMyWorkHelp": "Abre a sua lista do que fazer em seguida.",
+      "continueWithoutHelp": "Abre o app agora. O seu trabalho do app antigo continua a chegar.",
       "differentHelp": "Como os projetos, as missões e os votos do aplicativo antigo aparecem neste."
     },
     "invite": {
@@ -3474,22 +3479,15 @@
     },
     "me": {
       "title": "Eu",
-      "nameSub": "Nome e foto",
-      "offline": "Pronto para usar sem internet",
+      "nameSub": "Nome, e-mail e senha",
       "tour": "Como o LangQuest funciona",
       "tourSub": "Ouça uma apresentação curta",
       "more": "Mais configurações",
-      "moreRefused": "Esta conta não pode sincronizar · senha, notificações, conta",
-      "moreRefusedEvents": "Recusados · {{n, number}} · senha, notificações, sincronização, conta",
-      "morePending_one": "{{count, number}} esperando para enviar · senha, notificações, sincronização, conta",
-      "morePending_many": "{{count, number}} esperando para enviar · senha, notificações, sincronização, conta",
-      "morePending_other": "{{count, number}} esperando para enviar · senha, notificações, sincronização, conta",
       "signOut": "Sair",
       "signOutHelp": "Sai desta conta neste aparelho. O trabalho ainda não enviado fica guardado até ser enviado.",
-      "nameHelp": "Abre o seu perfil, para mudar o nome que a sua equipe vê.",
-      "offlineHelp": "Mostra o que este aparelho guarda para trabalhar sem internet.",
+      "nameHelp": "Abre seu perfil, para mudar seu nome, e-mail ou senha.",
       "tourHelp": "Abre três cartões curtos sobre para que serve o LangQuest.",
-      "moreHelp": "Abre as configurações de senha, notificações, sincronização e conta. Um número quer dizer mudanças esperando para enviar.",
+      "moreHelp": "Abre as configurações de notificações e conta.",
       "local": {
         "title": "{{name}}, você entrou sem internet",
         "letInBy": "{{name}} deixou você entrar pelo celular.",
@@ -3524,8 +3522,6 @@
       "newDeviceNoName": "Aparelho novo? A pessoa que convidou você ou um administrador pode ajudar você a entrar.",
       "helpedBy": "Entrou neste aparelho com a ajuda de {{name}} · {{date}}",
       "helpedBySomeone": "Entrou neste aparelho com a ajuda de alguém · {{date}}",
-      "setPassword": "Criar uma senha",
-      "setPasswordSub": "Se outras pessoas usam este aparelho",
       "notifications": "Notificações",
       "notificationsSub": "Saber de pedidos e comentários",
       "notificationsBlocked": "Desativadas nas configurações deste telefone",
@@ -3537,7 +3533,6 @@
       "switchActive": "{{org}} (ativa)",
       "switchOrStart": "{{org}} · ou criar uma nova",
       "thisDevice": "Este aparelho",
-      "sync": "Sincronização",
       "syncRefused": "Esta conta não pode sincronizar esta organização",
       "syncPending_one": "{{count, number}} mudança esperando para enviar",
       "syncPending_many": "{{count, number}} de mudanças esperando para enviar",
@@ -3568,7 +3563,6 @@
       "lostPhoneSent": "Link enviado para {{email}}. Abra-o, escolha uma senha nova e ative “Um celular meu foi perdido ou levado”.",
       "testing": "Testes",
       "personaSub": "Entrar como tradutor, revisor ou administrador de demonstração",
-      "syncHelp": "Mostra o que espera para enviar ou baixar. Um número quer dizer mudanças esperando para enviar.",
       "blockedHelp": "Mostra quem você bloqueou, para desbloquear.",
       "switchOrgHelp": "Abre as suas organizações, para trocar para outra ou criar uma nova."
     },
@@ -3590,18 +3584,27 @@
       "passwordNeedsConnection": "Para criar uma senha, é preciso ter conexão.",
       "nameSaved": "Nome salvo.",
       "passwordFailed": "Não foi possível criar a senha. Tente de novo.",
-      "savedWithPassword": "Salvo. Você pode entrar com o seu nome de acesso e esta senha.",
+      "passwordSaved": "Senha salva.",
+      "savedWithPassword": "Salvo. Você entra com {{name}} e esta senha.",
       "saved": "Perfil salvo. Ele sincroniza quando você estiver conectado.",
       "newPassword": "Nova senha (opcional)",
       "password": "Senha (opcional)",
       "passwordPlaceholder": "6 caracteres ou mais",
       "signInWith": "Você entra com {{name}} e esta senha. Anote o nome.",
-      "signInWithYourName": "Você entra com o seu nome de acesso e esta senha. Anote o nome.",
-      "setOne": "Crie uma se outras pessoas usam este aparelho, para poder entrar de novo depois delas.",
+      "signInWithEmail": "Você entra com {{email}} e esta senha.",
+      "setOne": "Crie uma para poder entrar em outro aparelho.",
       "lastChangeRefused": "A sua última mudança não foi aceita",
       "savedBody": "Será enviada quando você estiver conectado.",
       "nameHelp": "O nome pelo qual a sua equipe vê você. É enviado quando você tiver conexão.",
-      "passwordHelp": "Deixa você entrar de novo depois que outra pessoa usar este aparelho."
+      "passwordHelp": "Deixa você entrar em outro aparelho, e entrar de novo neste sem internet.",
+      "emailHelp": "Você entra com este endereço, e Esqueci a senha envia o link para ele. Mudá-lo precisa de conexão.",
+      "addEmail": "Com um e-mail, você entra com ele em vez de {{name}}, e Esqueci a senha pode enviar um link para você. O código de quem ajuda você não faz mais você entrar.",
+      "emailRequired": "Digite o e-mail com que você entra.",
+      "passwordWithEmail": "Crie também uma senha: com um e-mail, o código de quem ajuda você não faz mais você entrar.",
+      "emailNeedsConnection": "Para mudar seu e-mail, é preciso ter conexão.",
+      "emailTaken": "Outra conta já usa este e-mail.",
+      "emailFailed": "Não foi possível salvar o e-mail. Tente de novo.",
+      "savedWithEmail": "Salvo. A partir de agora você entra com {{email}}."
     },
     "orgs": {
       "stale": "Não foi possível atualizar. As organizações salvas continuam disponíveis.",
@@ -3634,7 +3637,7 @@
       "blocked": "Ainda falta enviar: {{things}}. Saia depois que tudo for sincronizado, para que nada fique preso aqui.",
       "blockedOffline": "Ainda falta enviar: {{things}}. Este aparelho está sem internet. Saia depois que tudo for sincronizado, para que nada fique preso aqui.",
       "refused": "Esta conta não pode sincronizar esta organização: o servidor recusou. Pode sair com segurança; o que está na fila continua neste aparelho.",
-      "setPasswordFirst": "Se outras pessoas usam este aparelho, primeiro crie uma senha em Editar perfil.",
+      "setPasswordFirst": "Para entrar de novo sem ajuda, primeiro adicione seu e-mail ou uma senha em Editar perfil.",
       "forgets": "Você pode entrar de novo quando quiser. Este navegador esquece tudo o que guardou para você, então a próxima pessoa aqui não vê nada disso.",
       "anytime": "Você pode entrar de novo quando quiser.",
       "offlineBackIn": "Este aparelho está sem internet, então para entrar de novo será preciso esperar uma conexão.",
@@ -3704,17 +3707,33 @@
         "refused": "O servidor não está aceitando alterações deste dispositivo. Seu trabalho continua guardado aqui.",
         "tooOld": "Este app é antigo demais para receber as mudanças da sua equipe. Atualize pela loja.",
         "toReceive": "Gravações de outras pessoas que este dispositivo ainda está baixando.",
-        "refusedLine": "Alterações que o servidor não aceitou, geralmente porque uma permissão mudou. Ficam neste dispositivo; abra Detalhes para ver cada uma.",
         "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
-      "toReceive": "A receber",
-      "refusedLine": "Recusadas",
-      "none": "Nenhuma",
-      "moreInfo": "Saiba mais",
       "details": "Detalhes",
       "syncNowHelp": "Envia o que está esperando e recebe o que é novo, na hora.",
       "detailsHelp": "Cada mudança esperando ou recusada, e as transferências de áudio: para quem está resolvendo um problema.",
-      "eventHelp": "Abre a passagem a que esta mudança se refere."
+      "eventHelp": "Abre a passagem a que esta mudança se refere.",
+      "title": "Sincronização e uso sem internet",
+      "rowHelp": "Abre o que este aparelho envia e recebe, e o que ele guarda para trabalhar sem internet.",
+      "fold": {
+        "join": "{{a}} · {{b}}",
+        "refused": "Recusado pelo servidor",
+        "refusedCount_one": "{{count, number}} mudança",
+        "refusedCount_many": "{{count, number}} de mudanças",
+        "refusedCount_other": "{{count, number}} mudanças",
+        "refusedNote": "Elas ficam neste aparelho. Quem administra sua equipe geralmente pode ajudar.",
+        "refusedHelp": "Mudanças que o servidor não aceitou, cada uma com o motivo. Elas ficam neste aparelho.",
+        "uploads": "Envios",
+        "uploadsHelp": "O que espera neste aparelho para enviar, por passagem, e o que já foi enviado.",
+        "downloads": "Downloads",
+        "readyHelp": "Se este celular tem o que você precisa antes de ficar sem internet."
+      },
+      "down": {
+        "count_one": "{{count, number}} gravação a receber",
+        "count_many": "{{count, number}} de gravações a receber",
+        "count_other": "{{count, number}} gravações a receber",
+        "offline": "Procura trabalho novo quando você estiver com internet de novo"
+      }
     },
     "lock": {
       "tooShort": "Ligue pelo menos {{n}} pontos.",
@@ -3726,6 +3745,21 @@
       "drawAgain": "Desenhe de novo",
       "newPattern": "Desenhar um padrão novo",
       "choosePatternHelp": "Escolha uma imagem e um padrão para entrar de novo neste aparelho, mesmo sem internet."
+    },
+    "appLock": {
+      "row": "Bloquear o app",
+      "rowHelp": "Quando ligado, o app pede seu padrão toda vez que abre e toda vez que você volta para ele. Ligar ou desligar pede seu padrão primeiro.",
+      "on": "Agora o app pede seu padrão ao abrir.",
+      "off": "O app não pede mais seu padrão.",
+      "opening": "Abrindo…",
+      "checking": "Verificando…",
+      "forgot": "Esqueceu?",
+      "forgotHelp": "Esqueceu seu padrão? Saia e entre de novo com sua senha ou com um código de acesso de alguém da sua equipe. Seu trabalho fica neste celular.",
+      "signOutHelp": "Sai deste celular. Seu trabalho fica nele e é enviado quando for possível.",
+      "backHelp": "Volta para os pontos.",
+      "waitFor_one": "Tentativas demais. Tente de novo em {{count, number}} minuto.",
+      "waitFor_many": "Tentativas demais. Tente de novo em {{count, number}} minutos.",
+      "waitFor_other": "Tentativas demais. Tente de novo em {{count, number}} minutos."
     }
   },
   "study": {
@@ -4932,7 +4966,10 @@
       "notSent_one": "{{count, number}} gravação nas suas passagens guardadas ainda não foi enviada do aparelho que a fez, então nenhum aparelho consegue baixá-la.",
       "notSent_many": "{{count, number}} de gravações nas suas passagens guardadas ainda não foram enviadas do aparelho que as fez, então nenhum aparelho consegue baixá-las.",
       "notSent_other": "{{count, number}} gravações nas suas passagens guardadas ainda não foram enviadas do aparelho que as fez, então nenhum aparelho consegue baixá-las.",
-      "barHelp": "Quantas das suas passagens guardadas estão inteiras neste aparelho."
+      "barHelp": "Quantas das suas passagens guardadas estão inteiras neste aparelho.",
+      "keptTitle": "Passagens guardadas",
+      "worksOffline": "O que funciona sem internet",
+      "worksOfflineHelp": "Mostra o que está sempre neste aparelho e o que precisa de conexão."
     },
     "keepHelp": "Guarda o áudio dela neste aparelho, para funcionar sem internet.",
     "stopKeepingHelp": "Deixa este aparelho remover o áudio dela de novo quando precisar de espaço.",
@@ -5444,7 +5481,7 @@
       "ready_one": "{{ready}} de {{count, number}} passagem pronta neste aparelho",
       "ready_many": "{{ready}} de {{count, number}} de passagens prontas neste aparelho",
       "ready_other": "{{ready}} de {{count, number}} passagens prontas neste aparelho",
-      "moreSettingsSub": "Senha, notificações, sincronização, conta"
+      "moreSettingsSub": "Notificações, conta"
     },
     "waiting": "Esperando ser dividido",
     "parts": {
@@ -6311,6 +6348,7 @@
       "couldNotRead": "Não foi possível ler o relatório",
       "notVisible": "Este idioma não tem um relatório que você possa ver",
       "notVisibleBody": "A sua função pode não incluir este idioma, ou ele foi adicionado depois que os relatórios carregaram (atualize em Relatórios para conferir).",
+      "template": "Modelo: <b>{{template}}</b>",
       "reviewFlow": "Fluxo de revisão: <b>{{flow}}</b>",
       "bottleneck": "Gargalo: <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{count, number}} em {{step}}",
@@ -6891,7 +6929,7 @@
       "guide": "Guia",
       "guideHint": "As etapas do guia de estudo para esta passagem.",
       "terms": "Palavras-chave",
-      "termsHint": "Palavras para dizer sempre do mesmo jeito: ouça cada uma e diga a sua.",
+      "termsHint": "Palavras para dizer sempre da mesma forma: toque numa para a ouvir e ver onde é usada.",
       "notes": "Notas",
       "notesHint": "As notas da equipe sobre esta passagem.",
       "earlier": "Anteriores",
@@ -7245,29 +7283,25 @@
       "verseTermsHelp": "As palavras sublinhadas são palavras-chave: toque em uma para abrir.",
       "verseTermsMarkedHelp": "As palavras sublinhadas são palavras-chave.",
       "verseTiedHelp": "Um visto depois de uma palavra-chave quer dizer que ela está ligada ao seu rascunho.",
-      "verseDotHelp": "Toca a Bíblia a partir deste versículo."
+      "verseDotHelp": "Toca a Bíblia a partir deste versículo.",
+      "ourWord": "A sua palavra: {{word}}",
+      "verseOursHelp": "Uma palavra verde depois de uma palavra-chave é como a sua equipa a diz."
     },
     "keyWords": {
       "none": "Ainda não há palavras-chave nesta passagem.",
       "noneAdd": "Ainda não há palavras-chave nesta passagem. Adicione uma que a sua equipe deve dizer sempre do mesmo jeito.",
-      "elsewhere": "Em outras partes do livro",
       "add": "Adicionar uma palavra-chave",
       "addHint": "Uma palavra que a sua equipe deve dizer sempre do mesmo jeito.",
       "all": "Todas as palavras-chave",
-      "hear": "Ouvir {{term}}",
       "hearHelp": "Toca o versículo em que ela está.",
       "noVerseAudio": "Esta Bíblia não tem áudio para esse versículo.",
-      "hearLabel": "Ouvir {{term}} na Bíblia",
       "openHelp": "O que significa, como a sua equipe diz e por quê.",
-      "termLabel": "{{term}}. {{refs}}",
-      "termLabelWord": "{{term}}. {{refs}}. A sua palavra: {{word}}",
       "yourWord": "A sua palavra",
       "yourWordHelp": "Toca como a sua equipe diz {{term}}.",
       "pauseYourWord": "Pausar a sua palavra para {{term}}",
       "playYourWord": "Tocar a sua palavra para {{term}}",
       "sayYours": "Dizer a sua",
       "sayYoursHelp": "Gravar como o seu idioma diz {{term}}.",
-      "sayYoursLabel": "Dizer a sua palavra para {{term}}",
       "saved": "A sua palavra para {{term}} foi salva.",
       "sayTitle": "A sua palavra para “{{term}}”",
       "saySub": "Diga como se diz em {{language}}. A sua equipe ouve isso sempre que esta palavra aparecer.",
@@ -7917,6 +7951,23 @@
       "fromList": "De {{name}}",
       "fromListSub": "O que significa e a gravação de {{name}}",
       "fromListHelp": "Abre o que {{name}} diz que a palavra significa, com a gravação."
+    },
+    "tiles": {
+      "recorded": "Palavra gravada",
+      "noWord": "ainda sem palavra",
+      "label": "{{term}}. A sua palavra: {{word}}",
+      "labelRecorded": "{{term}}. A sua palavra está gravada.",
+      "labelNone": "{{term}}. Ainda sem palavra.",
+      "openHelp": "Abre {{term}}: o que significa, onde é usada e como a sua equipa a diz.",
+      "inBible": "Mostrar as nossas palavras no texto da Bíblia",
+      "inBibleHelp": "Mostra a palavra da sua equipa depois de cada palavra-chave na Bíblia."
+    },
+    "ours": {
+      "afterDone": "Pode abrir as passagens e a página desta palavra depois de tocar em Pronto.",
+      "openPage": "Abrir a página da palavra",
+      "openPageHelp": "Abre a página de {{term}}, onde pode mudar a sua palavra.",
+      "saidIn": "Dita em {{where}}",
+      "usedIn": "Usada em {{where}}"
     }
   },
   "clusters": {

@@ -40,6 +40,16 @@ on:
       - '!apps/mobile/public/**'
       - '!**/*.md'
 
+# Google Play keeps one edit (a draft change to the app) open at a time:
+# opening one deletes the one before it, so two uploads at once fail ("This
+# Edit has been deleted": build 55, 2026-11-17). Every workflow that writes
+# to Play is in this group, so their runs take turns: a run waits for the
+# one ahead of it, none is cancelled, and every waiting run keeps its place
+# (docs/decisions/2026-11-17-play-uploads-take-turns.md).
+concurrency:
+  group: google-play
+  queue: max
+
 # Node 24 (.node-version, held by scripts/toolchain.test.ts), as on developer
 # machines and in GitHub CI: its npm 11 wrote the lockfile, and the image's
 # default npm stops at `npm ci` with "Missing: typescript@5.9.3 from lock
@@ -238,6 +248,11 @@ jobs:
   submit_carried:
     name: Upload the carried build to Play's alpha track as a draft
     needs: [build_carried]
+    # Play keeps one edit open at a time, so this upload waits until the
+    # store build's uploads and its review step are done, however they
+    # ended (`after`, not `needs`): the store's jobs still never wait for,
+    # or depend on, the carried ones.
+    after: [submit_android_internal, submit_android, review_android]
     type: submit
     params:
       build_id: ${{ needs.build_carried.outputs.build_id }}

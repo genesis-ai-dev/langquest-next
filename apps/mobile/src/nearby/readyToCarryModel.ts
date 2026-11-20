@@ -4,7 +4,7 @@ import { decodeHlc } from '@langquest-next/core';
  * Ready to carry on Share nearby (docs/nearby-sync-plan.md 5.8): whether this phone holds
  * everything it knows of, or how much is missing and why, and each teammate with how recent the
  * newest work held from them is. Pure, so every rule is tested without radios; the facts come from
- * the language's store (nearbyCarry.android.ts) and the room's run, and the words are the screen's.
+ * the language's store (nearbyCarry.native.ts) and the room's run, and the words are the screen's.
  *
  * Teammates come from the vector, the holdings and the language's members, never from who met
  * whom, since no phone can know about work on a phone it has not met since. The newest work held

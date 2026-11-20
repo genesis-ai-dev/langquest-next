@@ -1,6 +1,12 @@
 # Plan: nearby sync between phones
 
-Status: ready to build, 2026-11-07 (Carl Sauder). Nothing is built. The purposes and the
+Kind: plan · Status: built and on `main`, while an organization has it on, labelled experimental:
+phases 1 to 4 and 6 since 2026-11-13 (pull request 403, decisions 211 to 246), and phase 5,
+iPhones sharing with Androids and with each other, since 2026-11-17 (pull request 481,
+decision 256). Joining offline stays Android only; Give the app (section 14.5) joined it on
+2026-11-19 (pull request 527, `docs/decisions/2026-11-18-give-the-app-over-wifi.md`).
+Section 11's real-phone test has no results written in yet. What follows is the plan as it
+stood on 2026-11-07 (Carl Sauder), with the answers and sections added since. The purposes and the
 future requirement in section 1, and the choices in section 2, are Carl's, and his answers
 of 2026-11-06 and 2026-11-07 override anything older here. Everything else was checked
 against the code at commit `bc1e7522` by reading it, and the second round's additions at
@@ -94,6 +100,30 @@ in the same way.
 | 22 | When does `android-native` run? | Also on changes to `apps/mobile/package.json` and the lockfile, as well as the module's files. This widens answer 3. | Section 7 |
 | 23 | Who may revoke a member's phone? | New password and staff only. No admin action on this branch. | Section 6 |
 
+**Carl's answers of 2026-11-16,** after the merge. These override the rest of this plan in
+the same way.
+
+| # | Question | Answer | Where |
+| --- | --- | --- | --- |
+| 24 | Should nearby sync reach phones below Android 10? | Not now. Production's diagnostics on 2026-11-16 held one install below Android 10, an Android 7 tablet, and none on 8 or 9, out of about ten real Android phones, most of them the team's and testers'. Answer 7 stands. Look again when field phones report. | Sections 5.8, 11 |
+| 25 | What do iPhones need first? | Sharing between an iPhone and an Android, and between two iPhones. Joining offline on an iPhone is optional and comes after them. | Section 7, phase 5 |
+| 26 | Two iPhones cannot see each other's echo without connecting. How does one start a session with the other? | One tap per opening, as answer 21: the iPhone shows "A teammate may be nearby", and one tap lets it connect to every teammate it cannot get an echo from, until the screen closes. | Section 7, phase 5 |
+| 27 | When does phase 5 merge? | On a draft pull request, after a real-phone test with iPhones and Androids, and not before. Replaced by answer 28. | Section 7, phase 5 |
+
+**Carl's answer of 2026-11-17.** It overrides answer 27.
+
+| # | Question | Answer | Where |
+| --- | --- | --- | --- |
+| 28 | Must phase 5 wait for its real-phone test before it merges? | No. It merges once its checks pass and the App Store's answers are in (export compliance, App Privacy's Device ID, `nearby` on LangQuest Sample), and the real-phone test runs on the store builds it makes: TestFlight and Play's internal testing, as soon as each is built and before either store approves it. Only Carl's organization has nearby on in production, so only its phones can open Share nearby, and Android's nearby merged the same way (#403). A native fix the test finds costs another store build and review. | Section 7, phase 5 |
+
+**Carl's answers of 2026-11-18,** on Give the app (14.5).
+
+| # | Question | Answer | Where |
+| --- | --- | --- | --- |
+| 29 | Give the app: its own screen, or a step inside Let someone in? | Its own screen, opened from Share nearby's A new person and from Let someone in's line that the new phone needs LangQuest first. | Section 14.5 |
+| 30 | Which language is the download page in? | The carrier's app language, with three pictures that carry the install steps for someone who does not read it. | Section 14.5 |
+| 31 | How long does the carrier's phone keep the install file it chose? | Until a newer version is needed; no picking it again before each trip. | Section 14.5 |
+
 ## 3. Why this fits the app
 
 Most of the hard part already exists.
@@ -184,7 +214,10 @@ reach the whole team.
 iPhones (phase 5): an iPhone has no Wi-Fi Direct API. It joins an Android phone's group as
 an ordinary Wi-Fi client through `NEHotspotConfiguration`, after a prompt each time. This
 is unproven: one project reports an iPhone 11 on iOS 18 failing to join a Galaxy A05s
-group on 2.4 GHz. A team of only iPhones needs Network framework.
+group on 2.4 GHz. A team of only iPhones needs Network framework. Phase 5 (section 7) has
+the design: an iPhone joins an Android's local-only hotspot, or its group if the real-phone
+test shows that holds, and two iPhones use Apple's own direct Wi-Fi through Network
+framework.
 
 ## 5. The design
 
@@ -872,20 +905,33 @@ protocol version.
   `contractsFor`. PLAN.md section 13 and `docs/ux/demo-parity.md` get a row.
 - **Two jobs, said as two** (Carl's choice, 2026-11-09). Share nearby brings teammates'
   phones up to date, and, with joining without internet (14.1), gives a new person the app
-  and lets them join. A short intro names both; then two headed sections, each with a line
-  saying what it is for. "With teammates": phones that already have LangQuest bring each
-  other up to date, kept open until Up to date; it holds the stage, warnings, teammates, what
-  came across, Ready to carry and Hold teammates' recordings. "A new person", shown only on
-  Let someone in's terms (`joinRows`): give them the app, then let them join from this phone;
-  it holds the install file's too-old line, Get the install file (before going offline) and
-  Let someone in (once their app is installed). The Sync row keeps its name and badge; its
+  and lets them join. Two headed sections each have a line saying what the job is for; the
+  intro above them said both again, and since 2026-11-19 says only "Works without internet."
+  beside the Experimental badge, with no second title under the header (the same on every
+  nearby screen, `NearbyIntro.tsx`). "With teammates": phones that already have LangQuest
+  bring each other up to date; it holds the stage, warnings, teammates, what was shared, what
+  this phone holds and Hold teammates' recordings. On screen "What came across" is now "What
+  was shared" and "Ready to carry" is "What this phone holds" (2026-11-19: "share" for the
+  act, "up to date" for the result); this plan keeps the older names. "A new person", shown
+  only on Let someone in's terms (`joinRows`): give them the app, then let them join from this
+  phone; it holds the install file's too-old line and three numbered steps: Download the
+  install file (before you go offline), Give the app (when you are with the new person) and
+  Let someone in (once their app is installed). Where the organization has nearby on and the
+  phone holds no certificate or discovery key yet, the Sync row stays, disabled, saying what is
+  missing, rather than vanishing (Carl, 2026-11-19, `nearbyRowShown` in `nearbyRowModel.ts`):
+  the server signs at most five new install keys a day for one person (`nearby_certificate_facts`,
+  a 429 saying `limited`), so a day of reinstalls left a carrier's phone with no row and nothing
+  saying why; it now says the account set up too many new phones today and that it works from
+  tomorrow, and otherwise that the phone must reach the internet while nearby is on. The row
+  checks again whenever the server's flag or what the phone holds changes, so a certificate that
+  arrives while Sync is open shows at once. The Sync row keeps its name and badge; its
   line names both jobs on the same terms, else teammates' phones alone, and a reason while it
-  cannot run (`nearbyRowWords`). Its words say work goes both ways (Carl's words, 2026-11-09):
-  "Share work progress with teammates, or bring in a new person, without the internet", else
-  "Share work progress with teammates without the internet", with help to match. While it can
-  be pressed, online, and this phone lacks the install file it needs now, a small amber line
-  under it says "Get the install file before you go offline" (14.4, "Reminded while online");
-  tapping the row still opens Share nearby.
+  cannot run (`nearbyRowWords`). Its words say work goes both ways (Carl's words, 2026-11-09,
+  shortened with him 2026-11-19 from "share work progress … without the internet"):
+  "Share work with teammates, or bring in a new person, without internet", else
+  "Share work with teammates without internet", with help to match. The install
+  file is not reminded here: it is an item of Sync and offline's Ready for offline list (14.4,
+  "Reminded while online"; docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
 - It asks for its permissions with a line saying why (section 9), and shows teammates who
   also have it open, with name and picture. Phones with equal summaries never connect, so
   a phone works out who it sees from the tag in the broadcast, and from what it already
@@ -1015,7 +1061,9 @@ protocol version.
   56 pt targets, and words that wrap at 360 pt (decision 139). On the web and on iPhones,
   for now, it is absent, through a plain stub with `.android` files (`NearbyRow.tsx`,
   `NearbyRow.android.tsx`), as `AppIconRow` does, so those builds carry none of it. A
-  `.web` stub would still ship it on iPhones.
+  `.web` stub would still ship it on iPhones. Phase 5 moved the exchange's files to
+  `.native`, which iPhones and Androids share, so only the web is without it now; the
+  disguise, the install file and joining offline stay `.android` (section 7).
 - **Disabled, with a line saying why** (Carl's answer, 2026-11-06), on an Android phone
   below Android 10, or without Bluetooth LE or Wi-Fi Direct. `minSdk` is 24, and
   `WifiP2pConfig.Builder` is API 29, so the module ships on those phones and does nothing.
@@ -1260,7 +1308,8 @@ route, a QR code or a native callback, such as `idSalt`, a discovery key, a salt
 | worker | `apps/web/worker/nearby.ts`, `relay.ts` | `POST /api/nearby/certificate`, `POST /api/nearby/attest`, `POST /api/nearby/join`, `POST /api/relay`, written as literals so `server-calls` sees them. In phase 6, `GET /apk/*`. |
 
 `@langquest-next/sync/nearby` needs an exception at `eslint.config.mjs:32`, which refuses
-every package subpath from `apps/mobile/src`, and only `.android` files may import it. No
+every package subpath from `apps/mobile/src`, and only `.android` files may import it
+(since phase 5, `.native` and `.ios` files too: `nearbyOnPhones`). No
 app file imports a sync subpath on Metro today, so `expo export -p android` must prove it
 resolves. No `.rpc('known_events')` or `/api/...` text may appear in `apps/mobile/src` or
 `packages/sync/src`, even in a comment, before the migration or Worker route that defines
@@ -1886,8 +1935,11 @@ bits clear wherever they are used, because a receiver clears the same bits after
 unmasking; a golden vector holds equal summaries equal under two salts. A legacy advert
 has room for this and nothing else. There is no manufacturer or service data, because
 their fixed ids would mark the phone, and no device name or transmit power. Core Bluetooth
-can advertise only a local name and service UUIDs, so this form keeps phase 5 from
-changing the protocol. Every UUID is a valid version 4, because the random version and
+can advertise only a local name and service UUIDs, but Apple's documentation says an
+iPhone's scan response holds only a name, and a UUID that does not fit the advert goes to an
+overflow area that only an iPhone scanning for that UUID sees. So an iPhone sends the advert
+alone, other phones know it by its salt until Hello (`onAdvert`), and the protocol does not
+change (section 7, phase 5). Every UUID is a valid version 4, because the random version and
 variant bits of an underived one are themselves a thing to filter on, and that leaves 74
 bits of MAC. Native matches each advert itself, with a cache per salt, and hands up matches,
 unmasked, and the salts of adverts of this form that match no key. So the `kFind` of every
@@ -2719,9 +2771,126 @@ first real number comes from the branch APK.
    4 clause in `nearbyConverges`. Decision entries, amend 11, 97, 152, 154 and 200, and PLAN
    section 9.
 
-**Phase 5: iPhones.** Not on this branch. iPhones join an Android phone's group, and
-iPhone to iPhone goes over Network framework, or Wi-Fi Aware if it has matured. The
-protocol is unchanged, and `NearbyLink` gains implementations.
+**Phase 5: iPhones.** After the first release. Sharing between an iPhone and an Android and
+between two iPhones comes first; joining offline on an iPhone is optional and comes last
+(Carl's answer 25). It merges before its real-phone test, which runs on the store builds
+(answer 28).
+The protocol stays at 1, so the carried file's name does not change: a new link kind is
+named in `arrange`'s radios, whose fields older phones drop when they do not know them
+(`nearbyWire.ts`), and a plan offers it only when both phones name it. What an iPhone can
+do decides the design:
+
+- **Find.** It scans and connects as any phone does, but it cannot send the scan response.
+  Apple's documentation for `startAdvertising` gives an app 28 bytes of advert for service
+  UUIDs and a scan response for the local name only, and puts a UUID that does not fit in an
+  overflow area that only an iPhone scanning for that exact UUID sees. Find's UUIDs change
+  with every salt and `r`, so nobody could scan for them. So an iPhone advertises the advert
+  alone, and serves the same GATT service under it. A phone that hears a teammate's advert
+  with no scan response (`onAdvert`) knows it only by its salt until Hello: no tag, summary
+  or echo. It still echoes that salt, so an iPhone can check an Android's echo and connects
+  to an Android only once echoed, as Androids do. Reading anything more would take a
+  connection before the echo, which is what the echo exists to stop (section 5.12, The
+  echo). An iPhone cannot choose when its Bluetooth address changes (reportedly about every
+  15 minutes), so on an iPhone salt and address do not change together, and two salts can be
+  linked through one address. The decision entry says so.
+- **Move.** An iPhone has no Wi-Fi Direct API and no way for an app to host a network. It
+  joins one by name and passphrase (`NEHotspotConfiguration`, with `joinOnce`), after a
+  system prompt each time. It sends `radios: { directByName: false, band5: false, hotspot:
+  false, joinHotspot: true }`, and `arrangePlan` already has an Android host a local-only
+  hotspot for that. Between two iPhones a new link kind, `awdl`, uses Apple's own direct
+  Wi-Fi: the host opens a Network framework listener with `includePeerToPeer`, as a Bonjour
+  service under a one-time name it sends in `host` (as `ssid`), and the other connects to that
+  name. The service type is fixed in `Info.plist` (`NSBonjourServices`), and is on the air
+  only while a link comes up, as Android's `DIRECT-` name is. Anyone could connect to it, so
+  the host gives each connection in turn as a hotspot does (`nextLink`), and only the one that
+  proves the attempt's keys becomes the link. `arrangePlan` offers `awdl` only when both
+  phones say `awdl` in their radios. An iPhone also says `joinDirect`: it can join an
+  Android's Wi-Fi Direct group as a plain client, by name and passphrase, which is faster
+  than the hotspot and is tried first; the real-phone test says whether it holds, and a
+  tunable turns it off. Not MultipeerConnectivity (section 4). Wi-Fi Aware (iOS 26,
+  iPhone 12 and later) is worth another look once it has matured, as a link to Androids that
+  have it. Failing all of these, events move over Bluetooth while audio waits, as today.
+- **Androids must hear iPhones too.** Only the phone with the newer discovery key can hear
+  the other, so it starts the session (section 5.12, Generations), and a new generation
+  comes at least every 90 days. An Android ahead of an iPhone hears nothing today, because
+  `FindMatcher.hear` drops a matching advert that has no scan response, and the iPhone
+  cannot match the newer advert, so the two cannot meet until the iPhone reaches the server.
+  So `hear` hands up a matching advert alone (`onAdvert`), and the room echoes its salt.
+  That is Kotlin, so an Android store build, and it moves the Android fingerprint, which
+  makes a carried build (decision 246).
+- **Who connects.** A phone heard by its advert alone is in the room under `@` and its salt.
+  An Android leaves such a phone on its own generation to connect, since it can check the
+  Android's echo, and only echoes it. Heard under an older generation, it cannot hear the
+  Android, so the Android offers answer 21's tap and connects after it. An iPhone cannot get
+  an echo from another iPhone, or from an Android without the change, so after a while it
+  shows "A teammate may be nearby", and one tap covers every such teammate until the screen
+  closes (answer 26). The while is a minute (`tapAfterMs`) where an echo may yet come, and 10
+  seconds (`tapAfterAloneMs`) for an iPhone hearing another iPhone by its advert alone, from
+  which none can: in the first real-phone test (2026-11-19) people left after 30 to 60 seconds
+  before Connect showed. Room records count those bare adverts (`alone`), which `heard` leaves
+  out, so a report tells an iPhone that heard another from one that heard nothing. Of two iPhones that both tapped, the lower salt connects at once and
+  the other waits, as the lower tag does today. With no summary to compare, a phone heard
+  only by its advert is tried once per salt: after a session with it the room waits for its
+  next salt, so new work between two iPhones can wait up to one rotation (4 to 6 minutes).
+  An Android cannot see an iPhone's summary either, so it can say "Up to date" while an
+  iPhone in range still has something; the iPhone connects when it sees the summaries
+  differ.
+
+1. **The real-phone test,** on the store builds after the merge (answer 28): TestFlight
+   and Play's internal testing, since the simulator has no Bluetooth. Its questions are in
+   section 11. Steps 2 to 7 were built before it, so what it finds is fixed after: by an
+   update in JavaScript, by another store build in Swift or Kotlin.
+2. Core and sync, which reach Androids by update: `onAdvert` and the `@` entries in
+   `NearbyRoom`, with the tap that covers every such teammate and the salt order between two
+   iPhones; `awdl` and `joinDirect` in the radios, `awdl` in `NearbyLink` and `host`, and
+   both in `arrangePlan`. The fake radio gains an iPhone's radios, and `arrangePlan` cases and
+   fleet scenarios cover both pairs, an iPhone behind on its generation and a mixed room of
+   five.
+3. The Swift half of `nearby-link`, with `ios` in `expo-module.config.json`: Find (the scan,
+   the advert, the GATT service, both ends of a pipe), the join, the
+   `awdl` host and join, `secure` with CryptoKit's AES-GCM on the same wire format, frames,
+   streams and file parts, the codes in `src/codes.ts`, every tunable from JavaScript,
+   nothing logged and nothing done at construction, as decision 224 holds the Kotlin to.
+   `Info.plist` gains `NSBluetoothAlwaysUsageDescription`, `NSLocalNetworkUsageDescription`
+   and `NSBonjourServices`, and the app the entitlement
+   `com.apple.developer.networking.HotspotConfiguration`. Each of these moves the iPhone
+   fingerprint, so this costs an iPhone store build and review.
+4. Kotlin: `FindMatcher.hear` hands up a matching advert with no scan response as `onAdvert`,
+   with JUnit cases. Its store build goes public before the iPhone's, or with it.
+5. The app. Each `.android` file is sorted. The exchange's move to `.native` files, which
+   Metro resolves for both phones, while the web keeps the plain stub: `useNearby`,
+   `nearbyRun`, `nearbyLink`, `nearbyIdentity`, `nearbyKey`, `nearbyRelay`, `NearbyRow` and
+   the like, and whatever an iPhone needs to take an Android newcomer's work
+   (`useChainMembership` may be one). These stay Android only: the disguise's (`AppCover`,
+   `useAppCovered`, `NearbyCoverNotes`, `LetInCoverNote`, `AppIconRow`), the carried file's
+   (`useCarriedApk`) and joining offline's, until step 8. An iPhone
+   gets its own permissions file: Bluetooth's state and permission; Local Network, which has
+   no way to ask ahead and prompts at the first connection; and the Wi-Fi prompt at each
+   join. The install key goes in the Keychain for this device only, so a restored iPhone
+   makes a new key as a restored Android does (decision 217). Every new line goes in all 16
+   catalogs, with help lines. iPhones carry no disguise, so Share nearby shows on them
+   undisguised, and `disguiseIphone.test.ts` still passes.
+6. Stores. Nothing records the App Store's answers as `docs/play-store-declarations.md` does
+   Play's, so this starts `docs/app-store-declarations.md`: App Privacy, the review notes
+   with a video of two phones, and `nearby` on LangQuest Sample. `app.json` says
+   `ITSAppUsesNonExemptEncryption: false`, and an iPhone will now carry its own encryption
+   between phones (AES-GCM, X25519, Ed25519), so that answer is checked before the build.
+   While either store build is in review, hold merges touching these files (decision 155).
+7. CI: `ios-native`, scoped as `android-native` is and in `gate.needs`, on a macOS runner,
+   builds the module and runs its XCTest against `test-vectors.json`.
+   `nearbyNative.test.ts` holds the Swift files and the `Info.plist` keys to the same text
+   guards. Decision entries: a new one for the iPhone link, and amend 150, 217, 224 and 231.
+8. Optional, last: joining offline on an iPhone that already has the app from the App Store.
+   The newcomer only has to join a network, so an Android lets an iPhone in over a hotspot
+   (or its group, after step 1), and an iPhone can let in only another iPhone, over `awdl`.
+   "Give them the app" stays Android only. The limit is the reducer version: a starting copy
+   needs the same `REDUCER_VERSION` (decision 110), and with no carried build an iPhone runs
+   the JavaScript of its last update, so this likely waits on section 14.3's fallback.
+
+**Phase 5's gate.** The real-phone test again, with iPhones, on the store builds after the
+merge (answer 28): an iPhone with each kind of Android in the gate's list below, two
+iPhones, a mixed room of five, an iPhone behind on its generation meeting an Android ahead,
+and a disguised Android hosting for an iPhone.
 
 **Phase 6: joining offline.** Section 14: carried builds, join passes, the screen that
 lets someone in, the starting copy, the local person and the join route. Someone with
@@ -2836,7 +3005,8 @@ Each phase updates `docs/play-store-declarations.md` in the same change. The Pla
 answers change when the branch merges, and a person changes them. Phase 2 puts install
 keys and certificates on the server, and adds `@noble/curves`, so the Device or other IDs
 answer and `mobileDependencies` in the facts block change with it. The rest changes in
-phase 3.
+phase 3. Phase 5 starts `docs/app-store-declarations.md` for the App Store's answers
+(section 7).
 
 The permissions come from Android's pages for Wi-Fi Direct, the local-only hotspot and
 Bluetooth. The real-phone test confirms the list. They go in the module's own
@@ -2963,7 +3133,7 @@ branch (section 7), and its answers and numbers get written in here.
 | --- | --- |
 | Real throughput and discovery time on 2 GB Androids, in a hut and across a room | Everything in section 4 is reported, not measured here. |
 | Does the link hold up on China-market phones with no Play services: Xiaomi, OPPO, vivo, Honor, older Huawei? | The deciding factor (section 4). Nothing has been tested there, and their systems may kill or block what stock Android allows. Whether they deliver unfiltered scan results is unknown; one empty `ScanFilter`, the usual workaround, is an option from JavaScript. |
-| Which Android versions and phone makers does the field use? Query `diag.installs` (`npm run diag`) | The docs say "partner phones are 2 GB Androids", but nothing here has counted them. Phones below Android 10 get a disabled row, so this says how many people that leaves out. |
+| Which Android versions and phone makers does the field use? Query `diag.installs` (`npm run diag`) | The docs say "partner phones are 2 GB Androids", but nothing here has counted them. Phones below Android 10 get a disabled row, so this says how many people that leaves out. On 2026-11-16 production held one install below Android 10 (an Android 7 tablet) and none on 8 or 9, from about ten real Android phones, mostly the team's and testers' (answer 24). Field phones are still uncounted. |
 | Can a phone in China reach next.langquest.org, Supabase, R2 and EAS Update? | Carrying the team's work means nothing if the server cannot be reached from there. Not tested. |
 | How often does the band end up 5 GHz, and what does each band really deliver? | Reports range from 4 to 53 MB/s, and every phone now has to receive everything. |
 | Does a Bluetooth broadcast with a rotating id and no fixed service id work between phone makers, and on iPhones later? Does `neverForLocation` pass a rotating UUID, given it filters some beacons? | It is what keeps a phone from being marked as running this app (decision 171). |
@@ -2992,10 +3162,13 @@ For joining offline (section 14):
 | Question | Why it matters |
 | --- | --- |
 | Does the link work on a factory-fresh phone that has never been online? | It should, since it uses only Android's own APIs, but nothing has tested it. |
-| Does a universal APK file signed with the Play key install offline, sent by Quick Share and copied by SD card? | It is the main route. Answerable only after the merge, since only then is there a Play-signed build of this code. A person can try it on an older build first. |
+| Does a universal APK file signed with the Play key install offline, sent by Quick Share and copied by SD card? | It is the main route. Answerable only after the merge, since only then is there a Play-signed build of this code. A person can try it on an older build first. On 2026-11-17 carried build 56 installed from Files on an Android 16 phone, offline and online, but Play's automatic protection then sent it to the Play Store and closed it (section 14.4). Protection is now off; a file made after that is still to be tried, by Quick Share and SD card too. |
 | Can Quick Share through Files by Google send an installed app as a complete copy? | It would mean nobody has to prepare a file, but production builds are app bundles, so a phone holds split APKs, and Play's own "Share apps" is reported removed. |
 | Does a phone installed that way take Play updates later? | It has to reach the normal update path when it first gets online. |
-| Does Android developer verification get in the way of installing offline? | It expands globally in 2027, and Google's page does not cover this. |
+| Does Android developer verification get in the way of installing offline? | It expands globally in 2027, and Google's page does not cover this. On 2026-11-17 the verifier passed carried build 56 on an Android 16 phone that was online; offline, the install finished, but whether the verifier ran is not known. |
+| Do phones join a Wi-Fi Direct group as plain Wi-Fi from a QR code (14.5)? | Give the app depends on it. Pixels should; makers vary, and phones in China most of all. Android 8 and 9 have no Wi-Fi QR reader, so their people type the name and password. |
+| Does a new phone's browser download an app file from the carrier's page over plain `http`, and what does it warn (14.5)? | Chrome warns about app files and may warn about `http`. Makers' own browsers, common in China, are untested. Each warning is one more tap for someone not technical. |
+| With mobile data on, does the new phone open the carrier's page at all (14.5)? | A Wi-Fi with no internet can lose the browser to mobile data. The screen would then say to tap "Stay connected" or turn mobile data off. |
 | Does `GET generatedApks` give a universal APK on the `alpha` track without waiting for review, may `PLAY_REVIEW_KEY` read it, and how big is the file? | Section 14.4 depends on it. Someone with the key tries it first on an existing build (Carl's answer, 2026-11-06). The file holds four ABIs and the speech models, and carriers download it on town connections. |
 | Does a QR code with this payload scan on 2 GB phones in poor light, and does the camera's scanner work with no Play services? | Section 14.1 keeps the payload small for this reason. |
 | What do Files by Google, common makers' file managers and Chrome's download list show for this APK? | The neutral name only stops a casual look (section 14.4). If a file manager draws the app's own icon beside it, the line a disguised carrier sees (`apkTrace`) must say so (security review, 2026-11-10). |
@@ -3003,6 +3176,19 @@ For joining offline (section 14):
 | How long does a starting copy take for a big language on a 2 GB phone? | Koro Miyan has about 160,000 rows (decision 143). |
 | How large is the largest text in a big language's starting copy? | `COPY_TEXT_MAX_CHARS` lets a sender make a newcomer join 256 million characters, more than a 2 GB phone holds. It should be a few times the largest real one, once measured (security review, 2026-11-10). |
 | Do Bluetooth connections that never turn on notifications use up a phone's connection places, or stop it advertising, or does Android drop them? | The GATT server reacts only to a disconnect, so a stranger's silent connections are held until they leave (security review, 2026-11-10). If they block teammates, the module cancels a connection with no pipe after a few seconds. |
+
+For iPhones (phase 5, section 7), answered by phase 5's own test:
+
+| Question | Why it matters |
+| --- | --- |
+| Does an iPhone's advert really leave out a second service UUID, as Apple's documentation says? | Phase 5's advert-alone form and its taps exist because of it. If an iPhone sends both, an iPhone can send Find as an Android does, with no taps. |
+| Does an iPhone hear an Android's advert and scan response in the foreground, and connect to its GATT service? | iPhone with Android rests on it, with no Android change. |
+| Does an iPhone join an Android's local-only hotspot, and its Wi-Fi Direct group as a plain client, on several makers and both bands, and what does each deliver? | One project saw an iPhone 11 fail to join a Galaxy A05s group (section 4). The group is faster, so it goes first if it holds. |
+| How often does an iPhone change its Bluetooth address, and does stopping and starting the advert change it? | It says how far two salts can be linked on an iPhone (phase 5, Find). |
+| Between two iPhones, how long does `awdl` take to come up, and what does it deliver? | It is the only fast link between iPhones. |
+| How do the Bluetooth, Local Network and Wi-Fi prompts read, in what order do they come, and does Local Network's come back once refused? | Each needs a line before it, and a refused Local Network prompt stops every Wi-Fi link to an iPhone. |
+| Can a phone that connects to an iPhone's GATT service read the iPhone's own name (Generic Access, 0x2A00)? | It would name the person's phone to anyone who connects, as Android's did before `setDiscoverable(false)` (section 5.12). |
+| Does Core Bluetooth on an iPhone report an Android's advert and scan response as two service UUIDs and nothing else, and an iPhone's advert as one? | The Swift matcher refuses a record with a name or other data, as the Kotlin does, so a phone whose stack adds either would never be heard. |
 
 ## 12. Decisions this touches
 
@@ -3097,13 +3283,12 @@ belongs: section 2 for Carl's answers, and sections 5 to 14 for the rest.
 | Is the amber upload bar right on a phone holding backups? | Carl, when it ships | It counts them, as true of this phone (section 5.8). He should be told, so he can object. |
 | Is decision 168's amendment acceptable? | Caleb | Carl's answer stands: the pre-merge security review (2026-11-10) found no reason against it (section 5.5). A copied key with a live pass can let in a new person with no manage privilege, and he should know that too. |
 | A teammate holding any of the Worker's attestations can push a phone's claim mark past rows it never got. Fix it, or accept it? | Carl | Open (security review, 2026-11-10). Honest teammates then send that phone no claims below the mark, so work confirmed in town reaches it only from the server; nothing is lost or wrongly confirmed. A fix signs `afterSeq` into the attestation and moves the mark only over rows held or on the page, which changes the Worker's answer, so it waits for his word. |
-| Check my file says "This is the right file" from the name alone. Check the file's signer, or change the words? | Carl | Section 14.3 accepts that a newcomer cannot verify an APK, but the carrier's phone runs the real app and could compare the file's signing certificate with its own (`PackageManager.getPackageArchiveInfo`), a native call. Short of that, the words could say the name is right. Nothing changed (security review, 2026-11-10). |
 | Smaller items the pre-merge security review left open | Carl, after the first release | A certificate call racing a revocation could sign a fresh key within about 100 ms (both could take one lock on the person). A phone serves a file by hash from any language whose fold names it, looser than the server's rule per stream, though the asker must know the hash. A member could backdate one-event batches so every carrier delivers theirs first, 25 a sync. Teammates' certificates show a newcomer their other languages before first contact, as the organization stream shows members. |
 | Follow-up issue, "A lost shared phone: other people's keys stay good" (section 6). Should a helper's code say a shared phone is gone? | Carl raises it with Caleb, after the first release | Only the named person is revoked for now (answer 20), and the list holds pairs. A taken shared phone's private key is gone for all of its people, but the others' rows stay good. A third question in a new `issue_sign_in_code_v3`, "Was the shared phone lost too?", with v2 left as no, would revoke every row with that key. It changes the helper flow (decision 59), so it needs Caleb. The issue does not exist yet. |
 | A pass fetched late in its 90-day window has little time left, so should an answer also hold the next window's pass in that window's last 30 days? | Carl | Answer 17 is built as worded, so a phone that last reached the server near a window's end can hold a pass with days left, and every pass ends on the same date. Holding the next window's too would keep a team leaving town able to let someone in, at the cost of up to 20 uses in that time. Not built unless he says so (section 14.1). |
 | What ends the experiment? | Carl, later | A follow-up issue, as decision 53 asks. A suggested test: teams have used it offline for a month, the test's numbers hold in the field, and no work was lost or wrongly confirmed. |
 | When admins get the toggle, may they turn it on without staff? | Later | Yes, once it is no longer experimental. Until then, staff choose who tries it. |
-| Can an iPhone that already has the app join offline? | Later | In principle, after phase 5. Only the install is impossible. |
+| Can an iPhone that already has the app join offline? | Later | Optional, as phase 5's last step (answer 25). Only the install is impossible, and with no carried build the reducer version is the real limit. |
 | Could an existing member use a starting copy for a language they never opened? | Later | By the same path. Newcomers come first. |
 
 ## 14. Joining offline
@@ -3301,7 +3486,10 @@ it does today (decision 54).
      sync shows `refused`. So `hasSavedSession` also answers true for a local person, and
      `sessionSafeFetch` turns as-no-one requests into offline failures. Their transport
      throws `OfflineError` until first contact, because `pushNow` marks anything the
-     server answers as rejected. Events stay `pending`.
+     server answers as rejected. Events stay `pending`. The live channel, asked for once
+     when a stream opens, waits for the sign-in to change and opens once first contact
+     saves a session; checked only at the start, it never opened, and Sync said Connected
+     until the app started again (Carl's test, 2026-11-18).
    - **Teammates.** Their events are `pending` here and reach teammates as `nearby`, shown
      under the name in their chain: the session reports it (`peer.name`, from a two-link
      chain only), so does the inviter's tap, and the app keeps it under
@@ -3535,47 +3723,116 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   APKs, which are not confirmed. Whether China can reach this is untested (section 11).
 - **Checking before leaving town** (decision 246, amended three times 2026-11-09). Getting the
   file is done online before a trip, and letting someone in is done in the field, so each
-  has a screen of its own (Carl's choice). Get the install file (`get_install_file`) names
-  the file this phone needs by those versions alone, and says the file in Downloads must
-  have exactly this name: any other name is the wrong version. Share nearby opens it from
-  a row above Let someone in, on the same terms (a pass held, joining on, Android), with a
-  line saying it is for before going offline; Let someone in opens it from a line at its
-  top saying the new phone needs LangQuest installed first; and Sync's Ready for offline
-  card opens it from its reminder line (below). Let someone in keeps only the
-  field: the role, Show the code, the code, the pictures, the one tap and the words of a
-  version refusal.
-  - *Getting it.* While online, Get the install file, that screen's one main button, opens `<Worker>/apk/<name>` in the
-    phone's browser (`Linking.openURL`; the address is built in `src/server/carriedApk.ts`),
-    which downloads it. A line says to download it before going offline, that the new phone
-    must allow installing apps from other sources, and to send it by Quick Share (which needs
-    Google Play services on both phones), SD card or USB. Offline the button is disabled,
-    with a line saying it needs the internet. The app requests nothing there itself.
+  has a screen of its own (Carl's choice). The screen (`get_install_file`), titled Download the
+  install file since 2026-11-19 (Get the install file before, which read like Give the app
+  beside it), counts a file by those versions alone
+  (`docs/decisions/2026-11-18-carried-file-matches-by-versions.md`). Until 2026-11-19 it showed
+  the start a name must have (`r21-l1-p1-….apk`) and asked the person to compare names; now
+  the app checks the chosen file, and the start is named only when a wrong one is chosen.
+  Share nearby's A new person lists three numbered steps, each with its moment (2026-11-19):
+  1. Download the install file, before you go offline; 2. Give the app, when you are with the
+  new person; 3. Let someone in, once their app is installed, on the same terms (a pass held,
+  joining on, Android). Let someone in opens the screen from a line at its top saying the new
+  phone needs LangQuest installed first, only while no copy is kept, since downloading needs
+  the internet the field lacks; and Sync and offline's Ready for offline list opens it from its
+  install file item (below). Let someone in keeps only the field: the role, Show the code, the
+  code, the pictures, the one tap and the words of a version refusal.
+  - *Its permissions* (Carl, 2026-11-19, `letInPermit` in `letInModel.ts`). Let someone in used
+    only to check the nearby permissions and say to open Share nearby, allow what Android asks
+    and come back, with no way there; a carrier coming from Give the app, which asks only for
+    its own Wi-Fi permission, was stuck. It now asks Android itself, as Give the app does:
+    Share nearby's line for the Android version with Continue, which asks for what is missing,
+    or, once Android will not ask again, its settings line with Open settings. A phone that
+    wears a cover asks nothing here, since Share nearby's warning comes before any prompt
+    (decision 231): a line in the cover's own words (`src/disguise/i18n`, `LetInCover`) says
+    to go back to Share nearby, tap Start sharing, allow what Android asks and come back.
+  - *Getting it.* While online, Download in the browser, that screen's main button until the
+    browser has been opened, opens `<Worker>/apk/<name>` in the phone's browser
+    (`Linking.openURL`; the address is built in `src/server/carriedApk.ts`), which downloads
+    it. Before it is pressed, numbered steps say what follows (Carl, 2026-11-19): the browser
+    opens and downloads the file; it may warn that the file may be harmful, and to download it
+    anyway; come back to LangQuest when it has finished, without opening the file (on the
+    carrier's phone that offers to install the carried build over their app); then Choose the
+    downloaded file. Each step's other way on (Choose a file you already have, Download it again)
+    sits under its main button in the footer. Check my file was renamed Choose a file you already
+    have (2026-11-19): it is the way in for a file got from a teammate, a card or a cable, and it
+    chooses and keeps the file as well as checking it. A line says how the file reaches the new phone: with Give the app (14.5), or by Quick
+    Share (which needs Google Play services on both phones), SD card or USB. A phone that
+    cannot give the app is told only those three, and that the new phone may ask to allow
+    installs from this source. Offline the button is disabled, with a line saying it needs the
+    internet. The app requests nothing there itself.
+  - *Then choosing it* (Carl's choice, 2026-11-18). A carrier came back from the browser to a
+    screen whose main button still said to get the file, with the step that checks and keeps
+    it (Check my file) a small button below. So the main button follows the job (`apkStep` in
+    `carriedApkModel.ts`): Download in the browser until the person has gone to get the file
+    for this phone's versions (`carriedApkOpened`); then Choose the downloaded file, which opens
+    the same picker as Check my file, with a line saying to tap it once the download has
+    finished (usually first among recent files) and Download it again beside it; and none once
+    the file is in hand, a copy kept for Give the app (14.5), or, on a phone that keeps no
+    copy, a file found right by its name, remembered in a second meta row (`carriedApkRight`,
+    2026-11-19; before, only for that visit). In hand, a green line says it is ready to take
+    offline, with what was kept or why this phone keeps none: Android before 10, or an older
+    build of the app (`cannotGive`). After a right choice the screen says only what keeping it
+    came to; a wrong one is named, with the start the right file has. Nothing shows until what
+    the step rests on is read, so the button never changes under a finger. The download stays in the browser (decision 246, Google Play's Device and Network
+    Abuse policy). The screen is Android only (`src/nearby/GetInstallFileScreen.android.tsx`),
+    so the web and an iPhone, which never open it, carry a stub of its header and intro.
   - *Too old.* The press keeps the name in one phone-wide meta row, `carriedApkOpened`,
     which holds no person, organization or time. While the name this phone needs differs
-    from it, Get the install file says the file got before is for an older version and to
-    get the new one before going offline, and Share nearby says the same as a line while
-    online, under A new person, above its Get the install file row. The words go when the two match again; the
-    row stays, so the next version is caught too.
-  - *Reminded while online* (Carl's choice, 2026-11-09). Sync reminds a carrier before they
-    leave, on Share nearby's terms for A new person (`joinRows`), only while online (the
-    server just reached and the file can be got, `apkGet`), and only while this phone has
-    not got the file it needs now: never got (no `carriedApkOpened`) or got for an older
-    version (`apkStale`); nothing shows before the meta row is read. Its Ready for offline
-    card gets a line, "Install file for a new person: not got yet" or "Install file for a
-    new person: for an older version", with a Get it link to Get the install file
-    (`sync_status → get_install_file`), and the Share nearby row a small amber line, "Get the
-    install file before you go offline" (5.8). Both go once the right file is got, by
-    pressing Get the install file or a right file under Check my file. The rule is
-    `apkReminder` in `carriedApkModel.ts`; what reads nearby state is in `.android` files
-    (`InstallFileReminder`, `NearbyRow`) with plain stubs elsewhere.
+    from it, the screen says the install file is for an older version and to download the new
+    one, and Share nearby says the same line while online, under A new person, above its rows
+    (one line in all three places since 2026-11-19). The words go when the two match again;
+    the row stays, so the next version is caught too.
+  - *Reminded while online* (Carl's choice, 2026-11-09; one place since 2026-11-18,
+    docs/decisions/2026-11-18-sync-and-offline-one-screen.md). The install file is an item
+    of Sync and offline's Ready for offline list, a packing list for a trip, on Share
+    nearby's terms for A new person (`joinRows`), online or not, by the screen's own step
+    (`apkStep`): never got (no `carriedApkOpened`), got for an older version (`apkStale`),
+    downloaded but not chosen yet, or ready, which it says only once the file is in hand.
+    Until 2026-11-19 a press that only opened the browser read as "Got", even when the
+    download failed. Nothing shows before what it rests on is read. Anything but ready turns
+    the fold's line amber ("No install file for a new person yet", "Install file for a new
+    person: for an older version", "…: not chosen yet"). The item links to the screen
+    (`sync_status → get_install_file`): while online for never got and too old, which offline
+    say that downloading needs the internet, and online or not for downloaded, since choosing
+    a file needs none. Ready says when to delete the file only on a phone that keeps no copy
+    (`installBlock` in `syncScreenModel.ts`). The rule is `installFileItem` in
+    `carriedApkModel.ts`, read by `useInstallFile`; on an iPhone and the web its hooks are
+    plain stubs, so the item never shows. The Share nearby row's
+    amber line and the Ready for offline card's line it replaces said the same at the same
+    moments (Carl, 2026-11-18).
   - *Check my file.* Opens Android's system file picker (`expo-document-picker`, which needs
     no permission; the file is not copied) and compares only the chosen file's name with the
-    one needed: "This is the right file", which is then remembered as got, or "This file is
-    for a different version: you need <name>". `expo-file-system`'s picker was not enough: it
-    gives the picked file's address, not its name.
-  - A help line says: "When everyone you came for is in, delete this file. You need internet
-    to get it again." It gives no reason, and does not mention a disguise (decision 171's
-    amendment of 2026-10-29). A carrier whose own phone wears a disguise sees two more lines,
+    versions needed, whatever fingerprint ends it: a right one is remembered as got and as
+    right, and a wrong one says "This file is for a different version: you need
+    r21-l1-p1-….apk". `expo-file-system`'s picker was not enough: it gives the picked file's
+    address, not its name.
+  - *Refreshed daily* (Carl's choice, 2026-11-19,
+    docs/decisions/2026-11-19-carried-build-refreshed-daily.md). A merge makes a file only when
+    the versions or the fingerprint change, so a file kept its first JavaScript for weeks while
+    OTA updates reached store phones. Once a day, `.eas/workflows/refresh-carried.yml` checks
+    main's file by its recorded app code (`appHash`, R2 metadata `app-hash`) and, when main has
+    moved on, builds, uploads and publishes one in its place under the same name. Native reads
+    when a kept copy's JavaScript was built (expo-updates' `commitTime`, `builtMs`), and when it
+    is more than two days older than the app the carrier runs (`keptBehind`), Download the
+    install file, Ready for offline and Share nearby's A new person say, while online, that a
+    newer file is ready. Since 2026-11-19 it is amber, on Sync's folded line too ("Install file
+    for a new person: a newer one is ready"): the older copy still lets a new phone join, but
+    the newer app may hold fixes the newcomer needs offline (Carl).
+  - *A phone whose build has no file.* Files are made only at merges into main, for main's
+    fingerprint, so a phone on another build (a store build from before publishing worked, or
+    a release branch's) asks for a name the bucket lacks. The Worker sends it, by a 302 that
+    is never cached, to the newest file for the same versions, by the Play version code the
+    publish records on each file, so the browser downloads that file under its own name. Any
+    such file lets a new phone join this one: a join checks only the reducer and lines
+    versions. Carried builds on release branches were turned down: each would take a version
+    code above the store build in review, which a phone installed from it could then never
+    take from Play.
+  - On a phone that keeps no copy, a help line says: "When everyone you came for is in, delete
+    this file. You need internet to get it again." It gives no reason, and does not mention a
+    disguise (decision 171's amendment of 2026-10-29). A phone that keeps a copy is told
+    instead that it can delete the one in Downloads: until 2026-11-19 it showed both lines,
+    which disagreed on when, and "this file" did not say which of the two copies. A carrier whose own phone wears a disguise sees two more lines,
     only on their screen, through an `.android` stub: on Let someone in, that the new phone
     will show LangQuest until they choose another look under More settings, and on Get the
     install file, that the browser's history and download list show where the file came from. Nothing crosses the link about a disguise.
@@ -3588,6 +3845,154 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   once the newcomer has a starting copy.
 - **After install.** A carried build uses the `production` channel, so when the phone gets
   online it takes over-the-air updates like any other.
+- **No automatic protection** (Carl's choice, 2026-11-18). Play's automatic protection adds an
+  installer check to every APK Play makes, this one too: installed from a file, the app
+  opens the Play Store and closes, which a phone with no Play Store or no internet cannot
+  get past (carried build 56, 2026-11-17). Play can turn it off only for the whole app or,
+  by hand, for one release, and its API's unprotected APKs are splits, so it is off for the
+  whole app, a setting in Play Console with no API (`docs/environments.md`, "The carried
+  build"). `carried-build.mjs` refuses an APK whose manifest, code or files name
+  `com.pairip`, before writing anything
+  (`docs/decisions/2026-11-18-play-protection-off-for-carried-builds.md`).
+
+### 14.5 Handing the install file over Wi-Fi
+
+Built 2026-11-18, not yet tried between two real phones (section 11). Carl's choice, after his
+own offline install test worked but took too many steps for people who are not technical
+(answers 29 to 31, docs/decisions/2026-11-18-give-the-app-over-wifi.md): the browser's warning on an app file, finding
+the file in Downloads, sending it by Quick Share from a files app, and Quick Share needing
+Google Play services on both phones, which phones in China do not have.
+
+**The idea.** The carrier's phone hands the file over its own Wi-Fi. The new phone joins that
+Wi-Fi from a QR code and downloads the file from a small page the carrier's phone serves, then
+the person taps it to install. Neither phone needs the internet or Google services. The app
+still never downloads or installs the file (decision 246): it serves a file the carrier got
+with the browser and chose once. Google Play's Device and Network Abuse policy says an app "may
+not download executable code (such as dex, JAR, .so files) from a source other than Google
+Play", which is why the download stays in the browser. Quick Share, an SD card and a USB cable
+stay as other ways.
+
+**Why two codes.** A QR code holds either a Wi-Fi login or a web address, not both. The usual
+way round it, the "Sign in to network" page a phone opens by itself on joining, needs a name
+server on port 53, which an app cannot open without root. So the carrier's screen shows two
+codes, one after the other, as Let someone in shows two pictures.
+
+**The carrier's phone.**
+1. **Before the trip, online.** Get the install file opens the browser as now. Check my file,
+   or Choose the downloaded file, the main button once the browser has been opened (14.4),
+   then also keeps the file: a right name is copied into the app's own folder
+   (`filesDir/install-file/`, `keepInstallFile`), and native keeps the copy only if it is this
+   app's own: the same package and the same signing certificates as the running app
+   (`PackageManager.getPackageArchiveInfo`), and its runtime version, read as expo-updates reads
+   it, must start with the fingerprint its name says, so a real but older build under today's
+   name is refused. The module sends files only from the app's own folders, and that check needs
+   a real path, so a copy (from the picker's content URI, at most 1 GiB), not a lasting grant on
+   the chosen file.
+   That settles section 13's old question on checking the signer. A file that fails is not
+   kept, and the screen says it is not LangQuest's own; with too little room it says so (100 MB
+   stays free). The copy stays until this phone needs other versions, then goes (answer 31,
+   `keptStale`), and the screen says the one in Downloads may be deleted. An older binary under
+   this update has the module without these functions, and says to update from the store; a
+   phone on Android 9 or older is told that no update mends it, and to send the file another
+   way (`cannotGive`, 2026-11-19: one line used to cover both, wrong for one of them).
+2. **In the field: Give the app** (`give_app`, a new screen, from Let someone in's line that
+   the new phone needs LangQuest first, and from Share nearby's A new person). Its first line
+   says what is coming: this phone makes its own Wi-Fi network, and the new phone scans two
+   codes with its camera. One main button, Show the first code (Start until 2026-11-19):
+   - The phone forms a Wi-Fi Direct group (`WifiDirect` in `WifiLinks.kt`: a name in
+     Android's `DIRECT-xx-` form with nothing in it that names the app, and a random
+     passphrase) and starts the file server on the group's own address (`groupOwnerAddress`).
+   - **Step 1, join:** a QR code of the Wi-Fi login (`WIFI:T:WPA;S:<name>;P:<passphrase>;;`,
+     with `\ ; , : "` escaped), and a line that ends "When it has joined, tap Next", since
+     nothing else on screen said when to. Under it, for a phone that cannot read the code, a
+     line saying to choose this network in its Wi-Fi settings, then the name and password.
+   - **Step 2, download:** after Next, a QR code of the page's address
+     (`http://<group address>:<port>/`), with the address in text.
+   - **While it sends:** "Sending: 120 of 212 MB", from the server's count of bytes sent.
+   - **Step 3, install:** once a download reaches the file's end, "3. Install it": the file
+     is sent, open it on the new phone and tap Install, and the way on to Let someone in.
+     Both codes fold away under Give it to another phone. Back to the first code shows only
+     before the file starts, since after that the stage follows the file, not the step.
+   - Stop, leaving the screen, or 15 minutes with no phone downloading ends the group and the
+     server. A failure says what to do and to try again; a busy Wi-Fi Direct says to wait a
+     moment (it named Share nearby before, which is only one cause, and had no way to stop it).
+     A phone holds one Wi-Fi Direct group at a time, so this and a Share nearby session never
+     run together.
+   - A carrier with no kept file, or a file for other versions, is sent to Download the
+     install file first (online).
+
+**The new phone.**
+1. The camera reads code 1 and offers to join (Android 10 and later, in the camera, Google
+   Lens or Wi-Fi settings' QR button). An older phone types the name and password.
+2. The camera reads code 2, and the browser opens the page: what this is ("Install
+   LangQuest"), the size, one Download button, and three pictures of what follows on a phone:
+   open the file, allow installs from this source, install. The words are in the carrier's
+   app language; the pictures carry the meaning for someone who does not read it.
+3. The download takes about a minute at 4 to 10 MB/s. The person taps the file, allows the
+   browser once, and installs. Then Join without internet goes on as now (14.1).
+
+**What exists already.**
+- The Wi-Fi Direct group with a chosen name and passphrase, Android 10 and later
+  (`WifiP2pConfig.Builder`, `WifiLinks.kt`), and its known address. An ordinary phone joins a
+  group as plain Wi-Fi with its passphrase. The local-only hotspot is not used: no public API
+  gives its address (`Hosted.kt`), and the second code needs it.
+- A server socket bound to the group's address, tested over loopback (`Hosted.kt`).
+- The permissions Share nearby already holds for Wi-Fi Direct: `NEARBY_WIFI_DEVICES`
+  (`neverForLocation`), and fine location only up to Android 12.
+- QR codes (`react-native-qrcode-svg`, the kit) and the system file picker
+  (`expo-document-picker`, `ACTION_OPEN_DOCUMENT`).
+
+**What is new.**
+- **Native, in the nearby module (Kotlin):** a small HTTP/1.1 file server on the group's
+  address. `GET /` gives the page (HTML handed over from JavaScript). `GET /<file name>`
+  streams the kept file from its content URI with its length, type
+  `application/vnd.android.package-archive` and its name in `Content-Disposition`, and
+  honours `Range` with an ETag and `If-Range`, so a cut-off download resumes. Anything else is
+  404. It serves that one file and nothing else from the phone, closes unanswered any caller
+  outside the group's subnet, sends the page with a strict Content-Security-Policy, and holds
+  four connections at once (a 503 past them), each at most 15 minutes and at least 16 KiB/s while
+  the file goes. It reports bytes sent, and stops if the group goes and after 30 minutes in any
+  case (security review, 2026-11-18). Pure Kotlin on `java.*` over a stream
+  source, so JUnit runs it over loopback as it does `Hosted`. Also: keep a picked file's grant,
+  and check a file's package, signer and versions.
+- **JavaScript:** `giveAppModel.ts` (the Wi-Fi code's text and its escaping, the address code,
+  the steps, the page's HTML from the words, the timeout); `useGiveApp.android.ts` with a
+  plain stub elsewhere; the screen, lazy, beside Share nearby's; about 20 English lines in
+  16 languages.
+- **The flow:** `give_app` as an app-only screen, with edges from `let_someone_in` and
+  `share_nearby` and their reasons in `specParity.test.ts`, and its contract.
+
+**Privacy and disguise.** The Wi-Fi name says nothing about the app, the organization or
+anyone. The page names LangQuest only to the person installing it, and holds nothing about the
+team. The server answers only phones on the group, which know the passphrase from the code,
+and serves only the install file, which is public anyway (decision 246). A disguised carrier's
+screen says what Let someone in already says, and nothing on the carrier's phone changes.
+
+**Store declarations and policy.** No new permission is expected, and none to install apps:
+`REQUEST_INSTALL_PACKAGES` stays out, and the new phone installs through its own system dialog.
+Nothing is sent to the server or anyone else, so Data safety does not change. To confirm while
+building: whether Android 17's local network access asks anything of a server on a Wi-Fi Direct
+group. The module's links already listen there without `ACCESS_LOCAL_NETWORK`.
+`docs/play-store-declarations.md` is checked at the time.
+
+**Tests.**
+- JUnit for the server: its routes, `Range`, 404 for anything else, one file only, the count
+  of bytes sent, and stop.
+- Unit tests for the model: the Wi-Fi code's escaping, the address code, the steps and the
+  timeout.
+- Screen tests for each step, the stub on other platforms, and the parity edges.
+- Two phones are the real-phone test's (section 11). Maestro drives one phone.
+
+**Phases.** Each one is shippable alone.
+1. Keep and check the file: the lasting grant and the signer check under Check my file.
+2. The server, the group and Give the app.
+3. The real-phone test across makers.
+
+It is native code, so it reaches phones with a store build, not an update. A decision then
+amends 246, which says the newcomer's file travels by Quick Share, SD card or USB.
+
+**Rough size.** About 400 to 600 lines of Kotlin and TypeScript, with tests. Nobody has
+measured that.
 
 ## 15. Sources
 
@@ -3600,5 +4005,6 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
 - Installing offline: [`REQUEST_INSTALL_PACKAGES` policy](https://support.google.com/googleplay/android-developer/answer/12085295?hl=en), [Android Central](https://www.androidcentral.com/apps-software/google-ditches-share-apps-nearby-share-play-store) and [PhoneArena](https://www.phonearena.com/news/google-app-sharing-feature-play-store_id168341) on Play's "Share apps", [Quick Share help](https://support.google.com/googleplay/answer/9283534), [Android developer verification](https://support.google.com/android-developer-console/answer/16561738?hl=en) and [Android Authority on its timeline](https://www.androidauthority.com/android-sideloading-changes-timeline-3679204/)
 - Working without Play services: [Android Wi-Fi Direct](https://developer.android.com/develop/connectivity/wifi/wifip2p), [`WifiP2pConfig.Builder`](https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pConfig.Builder), [local-only hotspot](https://developer.android.com/develop/connectivity/wifi/localonlyhotspot), [Wi-Fi Aware](https://source.android.com/docs/core/connect/wifi-aware), [apps in China](https://appinchina.co/blog/google-play-store-in-china-everything-you-need-to-know/), [google/nearby](https://github.com/google/nearby), [HMS Core devices](https://consumer.huawei.com/en/support/content/en-us15841699/), [HarmonyOS NEXT and Android apps](https://m.gsmarena.com/huaweis_harmonyos_next_beta_launches_officially-news-63397.php), [Bridgefy pricing](https://bridgefy.notion.site/Bridgefy-SDK-Pricing-22cf443f5ef680039882cd88cedac706) and [its iPhone usage notes](https://docs.bridgefy.me/sdk/ios/usage)
 - Reports on the same approach: [nativephp-wifi-direct](https://github.com/protendai/nativephp-wifi-direct) (Android hosts and joins, iPhone joining), [medXfer's notes](https://github.com/Medboy224/medXfer/pull/225) (speeds by band, iPhone approval), [the Mutual Transmission Alliance](https://www.slashgear.com/xiaomi-oppo-and-vivo-form-alliance-for-easy-wireless-file-transfer-02605050) and [SCMP on its growth](https://www.scmp.com/tech/article/3085428/chinas-airdrop-android-now-works-oneplus-and-more)
+- Handing the file over Wi-Fi (14.5): [Device and Network Abuse policy](https://support.google.com/googleplay/android-developer/answer/16273414), [`WifiP2pConfig.Builder`](https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pConfig.Builder), [`PackageManager.getPackageArchiveInfo`](https://developer.android.com/reference/android/content/pm/PackageManager#getPackageArchiveInfo(java.lang.String,%20android.content.pm.PackageManager.PackageInfoFlags)) and the [Wi-Fi QR code format](https://github.com/zxing/zxing/wiki/Barcode-Contents#wi-fi-network-config-android-ios-11)
 - Carried APK and updates: [Play's signed universal APK](https://support.google.com/googleplay/android-developer/answer/9006925), [Android Publisher `generatedapks`](https://developers.google.com/android-publisher/api-ref/rest/v3/generatedapks), [Expo on overriding the update address](https://docs.expo.dev/eas-update/override/), [Expo code signing](https://docs.expo.dev/eas-update/code-signing/) and [`eas.json` tracks](https://docs.expo.dev/eas/json/)
 - Android permissions and scanning: [local network permission](https://developer.android.com/privacy-and-security/local-network-permission), [location at run time](https://developer.android.com/develop/sensors-and-location/location/permissions/runtime), [`uses-feature`](https://developer.android.com/guide/topics/manifest/uses-feature-element), [Punch Through](https://punchthrough.com/android-ble-scan-errors/) and [ProAndroidDev](https://proandroiddev.com/to-find-a-beacon-without-losing-it-my-journey-into-a-realm-of-bluetooth-low-energy-on-android-aa3e2c2923aa) on scan limits, and [Apple on advertising from an iPhone](https://developer.apple.com/library/content/documentation/NetworkingInternetWeb/Conceptual/CoreBluetooth_concepts/BestPracticesForSettingUpYourIOSDeviceAsAPeripheral/BestPracticesForSettingUpYourIOSDeviceAsAPeripheral.html)

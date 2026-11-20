@@ -1,5 +1,6 @@
 import { base64urlEncode, concatBytes, utf8Encode } from '@langquest-next/core/nearby';
 import { channelKeysOf } from '../src/nearbyOpening';
+import { ALONE_TAG, NEARBY_ROOM_DEFAULTS } from '../src/nearbyRoom';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256, fakeSigner, memoryNearbyAir, type MemoryFiles, type MemoryNearbyAir } from '../src/testing/memoryNearbyLink';
 import type { EventStore } from '../src/types';
@@ -303,6 +304,116 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
     await unit(b!.phone, 'b1');
     for (let i = 0; i < 20 && air.pipes.length === 0; i++) await turn(air, time, [a!, b!]);
     expect(air.pipes[0]?.from).toBe(a!.radio.name);
+  });
+
+  // An iPhone's advert goes out with no scan response, so others know it by its salt alone until Hello (docs/nearby-sync-plan.md section 7, phase 5).
+  describe('iPhones', () => {
+    const IPHONE = { caps: { scanResponse: false } };
+    const maybeOf = (r: TestRoom) => r.events.find((e) => e.t === 'maybe') as { tag: string } | undefined;
+    const until = async (all: TestRoom[], done: () => boolean, most = 60) => {
+      for (let i = 0; i < most && !done(); i++) await turn(air, time, all);
+    };
+
+    it('an Android echoes an iPhone heard by its advert alone, and the iPhone connects once echoed, with no tap', async () => {
+      const [android, iphone] = await rooms(2, [{}, IPHONE]);
+      await unit(android!.phone, 'a1');
+      await unit(iphone!.phone, 'i1');
+      await until([android!, iphone!], () => air.pipes.length > 0, 20);
+      expect(air.pipes[0]?.from).toBe(iphone!.radio.name);
+      for (let i = 0; i < 6; i++) await turn(air, time, [android!, iphone!]);
+      expect(await idsOf(android!.phone.store)).toEqual(await idsOf(iphone!.phone.store));
+      expect((await idsOf(android!.phone.store)).length).toBe(2);
+      expect([...android!.events, ...iphone!.events].some((e) => e.t === 'maybe')).toBe(false);
+      // The Android shows nobody it cannot name before a session, and never offers a tap for an iPhone on its own generation.
+      expect(air.pipes.length).toBe(1);
+      expect(air.maskRepeats).toEqual([]);
+    });
+
+    it('an Android on older code never echoes an iPhone: the iPhone offers a tap, and the tap connects', async () => {
+      const [android, iphone] = await rooms(2, [{ knobs: { noAdvertAlone: true } }, IPHONE]);
+      await unit(android!.phone, 'a1');
+      await until([android!, iphone!], () => maybeOf(iphone!) !== undefined);
+      expect(air.pipes).toEqual([]);
+      iphone!.room.tap(maybeOf(iphone!)!.tag);
+      await until([android!, iphone!], () => air.pipes.length > 0, 20);
+      for (let i = 0; i < 6; i++) await turn(air, time, [android!, iphone!]);
+      expect(air.pipes[0]?.from).toBe(iphone!.radio.name);
+      expect(await idsOf(iphone!.phone.store)).toEqual(await idsOf(android!.phone.store));
+    });
+
+    it('iPhones offer a tap for each other, one tap covers every iPhone in range, and each is tried again only under its next salt', async () => {
+      const all = await rooms(3, [IPHONE, IPHONE, IPHONE]);
+      const [x, y, z] = all;
+      for (const [i, r] of all.entries()) await unit(r.phone, `u${i}`);
+      await until(all, () => maybeOf(x!) !== undefined);
+      expect(air.pipes).toEqual([]);
+      expect(maybeOf(x!)!.tag.startsWith(ALONE_TAG)).toBe(true);
+      x!.room.tap(maybeOf(x!)!.tag);
+      await until(all, () => air.pipes.length >= 2, 40);
+      for (let i = 0; i < 10; i++) await turn(air, time, all);
+      // Only Ana's phone tapped, so only it connected, to both others, once each.
+      expect(air.pipes.map((p) => p.from)).toEqual([x!.radio.name, x!.radio.name]);
+      expect(new Set(air.pipes.map((p) => p.to))).toEqual(new Set([y!.radio.name, z!.radio.name]));
+      // Whoever it met first missed the third's work; under that phone's next salt it is tried again.
+      air.rotate(y!.radio.name);
+      air.rotate(z!.radio.name);
+      await until(all, () => air.pipes.length >= 4, 40);
+      for (let i = 0; i < 10; i++) await turn(air, time, all);
+      const ids = await idsOf(x!.phone.store);
+      expect(ids.length).toBe(3);
+      for (const r of all) expect(await idsOf(r.phone.store)).toEqual(ids);
+    });
+
+    // Why: two iPhones hear only each other's bare adverts, and no echo can ever come from an
+    // iPhone, so waiting the full minute for one only delayed Connect; in the first real-phone
+    // test (Carl, 2026-11-19) people gave up before it showed.
+    it('an iPhone offers a tap for another iPhone after a short while, since no echo can come from one', async () => {
+      const [x, y] = await rooms(2, [IPHONE, IPHONE]);
+      const from = time.now();
+      await until([x!, y!], () => maybeOf(x!) !== undefined);
+      const after = time.now() - from;
+      expect(NEARBY_ROOM_DEFAULTS.tapAfterAloneMs).toBeLessThan(NEARBY_ROOM_DEFAULTS.tapAfterMs);
+      expect(after).toBeGreaterThanOrEqual(NEARBY_ROOM_DEFAULTS.tapAfterAloneMs);
+      expect(after).toBeLessThan(NEARBY_ROOM_DEFAULTS.tapAfterAloneMs + 8_000);
+    });
+
+    it('an iPhone still waits the full while for an Android, whose echo may yet come', async () => {
+      const [android, iphone] = await rooms(2, [{ knobs: { noAdvertAlone: true } }, IPHONE]);
+      await unit(android!.phone, 'a1');
+      const from = time.now();
+      await until([android!, iphone!], () => maybeOf(iphone!) !== undefined);
+      expect(time.now() - from).toBeGreaterThanOrEqual(NEARBY_ROOM_DEFAULTS.tapAfterMs);
+    });
+
+    it('of two iPhones that both tapped, the lower salt connects', async () => {
+      const [x, y] = await rooms(2, [IPHONE, IPHONE]);
+      await unit(x!.phone, 'x1');
+      await until([x!, y!], () => maybeOf(x!) !== undefined && maybeOf(y!) !== undefined);
+      x!.room.tap(maybeOf(x!)!.tag);
+      y!.room.tap(maybeOf(y!)!.tag);
+      await until([x!, y!], () => air.pipes.length > 0, 20);
+      const lower = x!.radio.salt! < y!.radio.salt! ? x! : y!;
+      expect(air.pipes[0]?.from).toBe(lower.radio.name);
+    });
+
+    it('an Android ahead on its key hears an iPhone behind by its advert alone, offers a tap, and the tap connects and hands on its key', async () => {
+      const key5 = DISCOVERY;
+      const key4 = fakeSha256(concatBytes(utf8Encode('lq-nearby-gen-v1'), key5));
+      const [android, iphone] = await rooms(2, [
+        { keys: { gen: 5, key: base64urlEncode(key5), floor: 1, direct: true, certOrgSeq: 0 } },
+        { ...IPHONE, keys: { gen: 4, key: base64urlEncode(key4), floor: 1, direct: true, certOrgSeq: 0 } }
+      ]);
+      await unit(iphone!.phone, 'i1');
+      await until([android!, iphone!], () => maybeOf(android!) !== undefined);
+      expect(air.pipes).toEqual([]);
+      expect(maybeOf(android!)!.tag.startsWith(ALONE_TAG)).toBe(true);
+      android!.room.tap(maybeOf(android!)!.tag);
+      await until([android!, iphone!], () => air.pipes.length > 0, 20);
+      for (let i = 0; i < 6; i++) await turn(air, time, [android!, iphone!]);
+      expect(air.pipes[0]?.from).toBe(android!.radio.name);
+      expect(iphone!.keys.current).toMatchObject({ gen: 5, key: base64urlEncode(key5), direct: false });
+      expect(await idsOf(android!.phone.store)).toEqual(await idsOf(iphone!.phone.store));
+    });
   });
 
   describe('stopping by itself', () => {

@@ -1,5 +1,7 @@
 # Bringing LangQuest v2 into this app, and keeping it coming
 
+Kind: reference
+
 Status: accepted, 2026-10-12 (Caleb Koster), decision 94. Caleb chose 1a–4a,
 6a and 7a; written work (5) waits on written translations in Next.
 
@@ -240,6 +242,14 @@ weeks ago, so a wait counted from the recording was over before it began.
   says so. Where there is no ffmpeg (a laptop without it), such a file is
   left unrecorded for a run that has it, and a file in v2's storage that
   is not audio is reported as unreadable rather than missing.
+- **Each part names its file type.** A card that names none is WAV to
+  every reader, and until 2026-11-16 the import named only WAV, so the
+  log asked phones for `<hash>.wav` where R2 held `<hash>.m4a` (21,377
+  files; the nightly reconciler copied them to the WAV name on 2026-11-14
+  to 16, `repairFormats`). Cards now name M4A too. A recording said before
+  that is compared as it was said (`asFirstSaid` in `map.ts`), so the
+  change says none of them again; one is said again, with the file type,
+  only when its parts change in v2.
 - **Where it runs.** The dashboard runs a transfer on the computer it is
   open on; `npm run v2 -- sync` does one pass from the command line; and
   the job container behind the app's Worker runs a pass every 15
@@ -319,8 +329,15 @@ the plain welcome or "What brings you here?":
    go back), a collapsed "What's different", and Keep going, which opens
    what is waiting for them first, else the passage they recorded last.
 4. Nothing here yet: their projects show as on their way, "Keep recording
-   in the old app until it's here", and Check again. When one arrives, its
+   in the old app until it's here", Check again, and Continue without it,
+   which opens the app as it opens for anyone new ("What brings you
+   here?"). A project comes over only once someone confirms it on the
+   transfer board, which can take days (LAN-250), so they are never held
+   on this screen. Continuing does not mark them welcomed: the app opens
+   on Welcome back until their work is here. When one arrives, its
    organization opens and the screen says it is here.
+   `npm run diag -- person <profileId>` tells support where each of their
+   projects stands (`docs/diagnostics.md`).
 
 Someone whose v2 projects all stay behind gets the ordinary welcome. Leaving
 Welcome back (Keep going or Go to My Work) marks them welcomed, as Welcome
