@@ -29,7 +29,7 @@ export function useNewLanguage(fromCluster: string | null, clusterFirst = false)
   const [existing, setExisting] = useState<Set<string>>(new Set());
   // Languages already added by a Continue that failed partway: tried again, they are not added twice.
   const madeRef = useRef(new Map<string, { languageId: string; name: string }>());
-  const [scope, setScope] = useState<LanguageScope>('nt');
+  const [scope, setScope] = useState<LanguageScope>('all');
   const [chosenBooks, setChosenBooks] = useState<Set<string>>(new Set());
   // Reference material: what its team will have, in the languages asked after the name; those can be changed from it.
   const [materialPage, setMaterialPage] = useState<MaterialPage>('material');
