@@ -1,7 +1,9 @@
 # server
 
-Local Supabase (Postgres) runs via colima. The repository also links to a
-hosted project; local migrations and hosted deployment are separate steps.
+Local Supabase (Postgres) runs in Docker via colima. A checkout may also be
+linked to one of this app's hosted projects (the root README says when, and
+never to a LangQuest v2 project); local migrations and hosted deployment are
+separate steps (Deploying, below).
 
 The schema is one baseline migration,
 `supabase/migrations/20261006000000_baseline.sql` (decision 63, which reset
@@ -123,7 +125,7 @@ decisions.md 68). Staff see every report, with the reporter, through
 Supabase CLI login): `remove <id>` and `dismiss <id>` call
 `staff_resolve_report`, and `suspend <profileId>` sets `banned_until` on the
 sign-in. Check the queue at least daily; the terms promise action within 24
-hours. Removed audio stays in the bucket (PLAN.md section 14, known gap).
+hours. Removed audio stays in the bucket (`docs/blobs.md`, known gap).
 `moderation-smoke.sql` covers it in `npm run db:test`.
 
 Still deferred: profile photos, and the remaining content/audio gaps in

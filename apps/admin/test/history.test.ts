@@ -4,15 +4,20 @@ import type { Query } from '../src/db';
 import { forgetSignIns } from '../src/auth';
 import { handle } from '../src/index';
 import { GROUPS } from '../src/pageOps';
+import { DIAG_SCHEMA } from '@langquest-next/sync';
 import { history, isRange, METRICS, PART_IDS, RANGES, SERIES_SQL } from '../src/sources/history';
 
 const MIGRATION = 'supabase/migrations/20261117060000_diag_daily.sql';
 
-/** The (part, metric, agg) rows the migration puts in diag.daily_metrics. */
+/** Later migrations that add numbers: a first download's wait for a connection, sign-in steps that are no fault. */
+const LATER = ['supabase/migrations/20261118234300_first_download_wait.sql', 'supabase/migrations/20261119192147_sign_in_trouble.sql'];
+
+/** The (part, metric, agg) rows the migrations put in diag.daily_metrics. */
 function sqlMetrics(): [string, string, string][] {
-  const sql = readFileSync(MIGRATION, 'utf8');
-  const block = /insert into diag\.daily_metrics \(part, metric, agg\) values([\s\S]*?)on conflict/.exec(sql)![1]!;
-  return [...block.matchAll(/\('([a-z0-9_]+)', '([a-z0-9_]+)', '(sum|max)'\)/g)].map((m) => [m[1]!, m[2]!, m[3]!]);
+  return [MIGRATION, ...LATER].flatMap((file) => {
+    const block = /insert into diag\.daily_metrics \(part, metric, agg\) values([\s\S]*?)on conflict/.exec(readFileSync(file, 'utf8'))![1]!;
+    return [...block.matchAll(/\('([a-z0-9_]+)', '([a-z0-9_]+)', '(sum|max)'\)/g)].map((m): [string, string, string] => [m[1]!, m[2]!, m[3]!]);
+  });
 }
 
 describe('the numbers kept by day', () => {
@@ -21,6 +26,14 @@ describe('the numbers kept by day', () => {
     const named = Object.entries(METRICS).flatMap(([p, ms]) => Object.keys(ms).map((m) => `${p}.${m}`)).sort();
     expect(fromSql.length).toBeGreaterThan(40);
     expect(named).toEqual(fromSql);
+  });
+
+  it('names every kind of diagnostics record on its chart\'s buttons', () => {
+    // DIAG_SCHEMA's kinds, and nearby, which a phone's recorder allows beside them (packages/sync/src/diagnostics.ts).
+    const kinds = [...Object.keys(DIAG_SCHEMA), 'nearby'].sort();
+    const named = METRICS.clients!.records!.keys!;
+    expect(Object.keys(named).sort()).toEqual(kinds);
+    expect(new Set(Object.values(named)).size).toBe(kinds.length);
   });
 
   it('keeps each number under a part the page has', () => {

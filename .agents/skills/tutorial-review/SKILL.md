@@ -44,6 +44,13 @@ changes to the app and new videos always wait for one.
   `reply` and `replyEnglish` empty and say in `looked` that a person
   answers it. A look whose reply or suggestion names it is refused whole
   (`server/tutorialFeedback.ts`).
+- **Every video is for a person with a goal.** `docs/tutorial-teaching.md`
+  says what a video owes the person watching. Read it before a `script`
+  suggestion or a new video. Ask: does this video orient them, carry them
+  through the whole job, and leave them able to do it? "Tap this, type that"
+  is not enough. Where a change or comment shows a video falls short, suggest
+  the line that fixes it, checked against the app. This only ever suggests: it
+  never holds a video.
 - **Follow the app's recorded decisions.** Before a code suggestion, read
   the decisions in `docs/decisions/` and the parts of `PLAN.md` that touch
   it. Never suggest what they rule out (explanatory text on screens, due
@@ -79,6 +86,18 @@ night's run) and `videos`, each with `tutorial`, `tonight` (`filmed`,
 `held`, `failed`, `same`, `not tried`), `held` (the frame check's reasons),
 `why` and `slots` (the changes merged into main that touched its screens,
 with their pull requests). A film is not an input either.
+
+`.tutorial-review/films/<language>/<video>/`, the pictures of that film run
+in each of those languages (none for a language whose run kept none):
+
+- `steps/NN.png` and `steps/NN.txt`: each step's screen as the night's try
+  saw it (NN is the step's number from 1, `01`), and its words.
+- `check/NN.jpg` and `check.json`: the stills of a new film that the frame
+  check found something wrong in; `check.json` lists every still with its
+  time (`t`, seconds), the line said then (`says`) and what is wrong
+  (`problems`). Only the stills with a problem are kept.
+- `failed-step-N.png` and `failed-step-N.txt`: the screen where a film
+  stopped, and its words.
 
 Each video is `e2e/tutorials/<id>.ts` (`all.ts` lists them, `tutorial.ts`
 says what a step is). A step names its `screen`, the `part` it lights, what
@@ -128,10 +147,31 @@ English line.
 ## Suggestions
 
 One suggestion is one change a person can say yes or no to; several inputs
-can share it. Its `title` says the change ("Say Done, not Save, in step
-9"), in at most 200 characters. Its `detail` (at most 4000) says what to
-change and where, and why, so that whoever accepts it can make it without
-reading the inputs again:
+can share it. An admin reads it on the ops dashboard and must understand it
+at once, without the code, the logs or the inputs. Write the `title` and the
+start of the `detail` for that admin, in ASD-STE100 Simplified Technical
+English: short sentences, active voice, common words with one meaning, no
+file names, ids, commit numbers or code words (not `study_step`, `until`,
+`status-fr.json`). Say what a viewer sees wrong in the video, where (the
+video, the language, the step or the time), and what will change. Caleb
+(2026-11-17): a card that said "the dim backdrop is half drawn at the last
+step in fr and es ... status-fr.json (1:21) ... step 12's `until`/`stay`"
+left him with no idea what it was about, so he could not answer it.
+
+The `title` says the change in a line ("Say Done, not Save, in step 9"), in
+at most 200 characters. Do not start it with the video's name: the card
+shows that already. The `detail` (at most 4000) is in two parts:
+
+1. For the admin: what is wrong, as a viewer sees it, and what will change,
+   in two to four short sentences. Name the pictures by their numbers
+   ("Picture 1 shows ...").
+2. A line that starts `For the fix:`, then what to change and where, and
+   why, so that whoever makes the change can do it without reading the
+   inputs again. Here name the files, the steps' fields and the commits.
+   The dashboard folds this part away under "Technical details for the
+   fix".
+
+What the technical part says, by kind:
 
 - `script`: what is said. Name the step (its number from 1, and its line as
   it is now) and give the new English line. A line translated badly in one
@@ -148,6 +188,54 @@ reading the inputs again:
 - `new`: a video not made yet (`tutorial` null): its title, who it is for,
   and its steps in a few lines. Look in `videos` first: an existing video
   that covers it makes this a reply instead.
+
+### Pictures
+
+Every suggestion about a video shows the admin pictures of what it is
+about, from the film run in `.tutorial-review/films/` (decisions.md 186,
+amended 2026-11-17): one to six in `pictures`. Look at each picture before
+you choose it (read the file), and choose the ones that show the problem
+best:
+
+- A film held by the frame check: the still that `check.json` names
+  (`check/NN.jpg`), and the same step in English or in a language that is
+  not held, to compare.
+- A film that failed: the screen where it stopped (`failed-step-N.png`),
+  and the step before it (`steps/NN.png`).
+- A line or a step that no longer fits the app: that step's screen
+  (`steps/NN.png`), in the language the suggestion is about.
+- A comment: the step it is about, when you can tell which.
+
+Each picture is `{ "file": "<language>/<video>/<path>", "caption": "...",
+"ring": [x, y, width, height] }`. `file` is the picture's path under
+`.tutorial-review/films/`. `caption` (at most 300 characters) says in one or
+two short plain sentences what to look at ("The dark band starts in the
+middle of the words. The top of the screen stays bright."). `ring` marks
+that place: x and y are its top left corner, and width and height its size,
+each as a part of the picture from 0 to 1 (so `[0.5, 0.25, 0.5, 0.5]` is
+the right half, from a quarter of the way down to three quarters). Ring
+only what you can see clearly, with some space round it; leave `ring` out
+when the whole picture is the point. A suggestion with nothing to show (a
+new video, a code change with no film) has no pictures.
+
+A suggestion in state.json that still waits for a person, or has no
+`pictures` yet, gets its pictures in the look's `pictures` list:
+`{ "suggestion": "<its id>", "when": "now", "pictures": [...] }`. A
+suggestion whose fix is `merged`, with a film run in its language after the
+fix's `at` (the status file's `at` is later), and no `after` pictures yet,
+gets the same places as they look now: `{ "suggestion": "<its id>",
+"when": "after", "pictures": [...] }`, in the same order as its `pictures`,
+so the admin sees before and after side by side.
+
+A suggestion that still waits for a person and that no admin edited
+(`decision` and `editedAt` are null) but whose `title` or `detail` does not
+follow the rules above (file names, code words, no plain part first, or a
+title that repeats the video's name, which the card shows already) gets its
+words again in the same `now` entry: `"title"` and `"detail"`, written as
+above, saying the same thing with no new claims. The database keeps them in
+place of the old words; it never writes over an admin's edit. An entry may
+have words and no pictures when there is nothing to show. Caleb
+(2026-11-17) could not answer the cards made before these rules.
 
 ### Clear fixes
 
@@ -210,14 +298,27 @@ never a commit, a pull request's number or a video's id.
   ],
   "suggestions": [
     { "kind": "script", "tutorial": "record-a-passage", "clear": true, "title": "Say Done, not Save, in step 9",
-      "detail": "Step 9 says \"Tap Save.\" The button is Done since #272 (apps/mobile/src/i18n/en.json passage.done). Say \"Tap Done.\"",
-      "inputs": ["pr-272-record"] },
-    { "kind": "screen", "tutorial": "answer-feedback", "language": "fr", "clear": true, "title": "The French film fails at step 4",
-      "detail": "status-fr.json: failed. Step 4 waits for \"Sur cet appareil\"; #389 renamed the button (slots). Find the step's new words in the film's failure screen.",
-      "inputs": [] }
+      "detail": "In step 9 the voice says \"Tap Save\". The button now says Done (picture 1). The voice will say \"Tap Done\".\nFor the fix: step 9 says \"Tap Save.\" The button is Done since #272 (apps/mobile/src/i18n/en.json passage.done). Say \"Tap Done.\"",
+      "inputs": ["pr-272-record"],
+      "pictures": [
+        { "file": "en/record-a-passage/steps/09.png", "caption": "Step 9. The button at the bottom says Done, not Save.", "ring": [0.03, 0.85, 0.94, 0.07] }
+      ] },
+    { "kind": "screen", "tutorial": "answer-feedback", "language": "fr", "clear": true, "title": "The French video stops at step 4",
+      "detail": "The French video stops at step 4. The step waits for a button that has a new name (picture 1). The step will wait for the new name.\nFor the fix: status-fr.json: failed. Step 4 waits for \"Sur cet appareil\"; #389 renamed the button (slots). Find the step's new words in the film's failure screen.",
+      "inputs": [],
+      "pictures": [
+        { "file": "fr/answer-feedback/failed-step-4.png", "caption": "Where the French video stopped. The button has a new name.", "ring": [0.05, 0.62, 0.9, 0.08] }
+      ] }
   ],
   "attach": [
     { "suggestion": "<waiting suggestion id>", "inputs": ["<input id>"] }
+  ],
+  "pictures": [
+    { "suggestion": "<suggestion id>", "when": "now", "pictures": [
+      { "file": "fr/study-a-passage/check/14.jpg", "caption": "Wrong: the top of the screen stays bright. The dark part starts in the middle of the text.", "ring": [0.605, 0.055, 0.25, 0.41] },
+      { "file": "en/study-a-passage/steps/12.png", "caption": "Correct: all of the screen above the list of steps is dark.", "ring": [0.02, 0.06, 0.96, 0.32] } ],
+      "title": "In French and Spanish, the screen is only half dark at the end of the video",
+      "detail": "At the end of the video, the list of steps opens. The screen behind the list must go dark. In the French and Spanish films, only the bottom half goes dark (picture 1). In English it is correct (picture 2). If you accept, Claude makes the last step wait until the screen is dark.\nFor the fix: <the old detail's technical part>" }
   ]
 }
 ```
@@ -228,7 +329,9 @@ digits, `-` and `_` (at most 40); a video is named by its id; `code.at` is a
 time; `english` is at most 5000 characters, a reply 2000, an outcome 500;
 `clear` is true only on a `script`, `screen` or `voice` suggestion for one
 video; `language` is an app language's code (`fr`, `zh-Hans`), only with a
-video.
+video. A picture that is not in `.tutorial-review/films/`, has no caption,
+or has a ring outside the picture, is listed as a problem and left out;
+it never stops the look.
 Read the file back once you have written it.
 
 The workflow checks the file after you (`node scripts/tutorial-review.mjs
@@ -261,6 +364,9 @@ one:
   failed, `failed-*.png` and `failed-*.txt`, the screen where it stopped
   and its words (the step number is in the name); for a film held by the
   frame check, `check.json` and `check/`, what it found.
+- `suggestion.json`'s `pictures`: the pictures the look showed the admin
+  (each with its `language`, `kind` (`step`, `still` or `stopped`), number
+  `n` and `caption`): the steps the suggestion is about.
 - `.tutorial-fix/status.json`: the video's state in that language:
   `tonight` (filmed, held, failed, same), `held` (the frame check's
   reasons), `why` and `slots` (the changes merged into main that touched

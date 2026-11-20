@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { causeOf, nightlyLanguages, videoBoard, videosSection, whyText, type FilmRow, type StatusFile, type VideosInput } from '../src/sources/videos';
+import { causeOf, filmCauses, nightlyLanguages, screenName, videoBoard, videosSection, whyText, type FilmRow, type StatusFile, type VideosInput } from '../src/sources/videos';
 
 const NOW = Date.parse('2026-11-14T12:00:00Z');
 const at = (hoursAgo: number) => new Date(NOW - hoursAgo * 3_600_000).toISOString();
@@ -32,7 +32,7 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13 and 2026-11-
   it('is up to date when nothing waits', () => {
     const b = videoBoard(input(), NOW);
     expect(keys(b)).toEqual(['current']);
-    expect(en(b).film).toEqual({ madeAt: at(48), why: 'first film', up: true });
+    expect(en(b).film).toEqual({ madeAt: at(48), why: 'First film', causes: [{ mark: 'new', text: 'First film', links: [] }], up: true });
     expect(b.admin.filter((a) => a.kind !== 'paused')).toEqual([]);
   });
 
@@ -72,7 +72,9 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13 and 2026-11-
     const merged = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ ...accepted, fix: { state: 'merged', pr: 460, at: at(2), run: null, note: null } })] }) }), NOW);
     expect(keys(merged)).toEqual(['tonight']);
     const failedFix = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ ...accepted, fix: { state: 'failed', pr: null, at: at(2), run: 'https://github.com/r/2', note: 'the script would not run' } })] }) }), NOW);
-    expect(failedFix.admin[0]).toMatchObject({ kind: 'fixFailed', who: 'you', detail: 'the script would not run', link: 'https://github.com/r/2' });
+    expect(failedFix.admin[0]).toMatchObject({ kind: 'fixFailed', who: 'you', detail: 'the script would not run', link: 'https://github.com/r/2',
+      retry: 'Try this change again: Say "Language" in full. Step 3 cuts the G.' });
+    expect(en(failedFix).marks.find((m) => m.kind === 'fix')).toMatchObject({ cause: 'failed' });
     // Closed by the fix run (its checks failed, or it waited a day): the card opens the pull request.
     const closed = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ ...accepted, fix: { state: 'failed', pr: 461, at: at(1), run: 'https://github.com/r/3', note: 'Its checks failed (gate: failure), so the pull request is closed.' } })] }) }), NOW);
     expect(closed.admin[0]).toMatchObject({ kind: 'fixFailed', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/461' });
@@ -102,6 +104,23 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13 and 2026-11-
     expect(record[2]).toMatchObject({ link: 'https://github.com/r/5', note: 'Step 3 already says Language.' });
   });
 
+  it('shows the pictures Claude picked on the card, the marks and the record, and the same places after the fix (decisions.md 186, amended 2026-11-17)', () => {
+    const picture = (n: number, c = 'e') => ({ picture: `${sha(c)}.png`, language: 'en', tutorial: 'record-a-passage', kind: 'step' as const, n, caption: `Step ${n}. The G is cut off.`, ring: [0.1, 0.2, 0.5, 0.1] as [number, number, number, number] });
+    const ask = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ pictures: [picture(3)] })] }) }), NOW);
+    expect(ask.admin[0]).toMatchObject({ kind: 'approve', pictures: [picture(3)] });
+    expect(en(ask).marks.find((m) => m.kind === 'suggested')!.detail.pictures).toEqual([picture(3)]);
+    // A fix that failed shows what it was about; one merged and filmed again shows before and after.
+    const failed = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ pictures: [picture(3)], decision: 'accepted', decidedAt: at(6), fix: { state: 'failed', pr: null, at: at(2), run: 'https://github.com/r/5', note: 'No such step.' } })] }) }), NOW);
+    expect(failed.admin.find((a) => a.kind === 'fixFailed')).toMatchObject({ pictures: [picture(3)] });
+    const merged = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ pictures: [picture(3)], after: [picture(3, 'f')], decision: 'accepted', decidedAt: at(6), fix: { state: 'merged', pr: 480, at: at(4), run: null, note: null } })] }) }), NOW);
+    expect(merged.changes[0]).toMatchObject({ pictures: [picture(3)], after: [picture(3, 'f')] });
+    expect(en(merged).marks.find((m) => m.kind === 'fix')!.detail).toMatchObject({ pictures: [picture(3)], after: [picture(3, 'f')] });
+    // Without pictures, none are said.
+    const none = videoBoard(input({ feedback: feedback({ suggestions: [suggestion()] }) }), NOW);
+    expect(none.admin[0]).not.toHaveProperty('pictures');
+    expect(en(none).marks.find((m) => m.kind === 'suggested')!.detail).not.toHaveProperty('pictures');
+  });
+
   it('shows a suggestion about one language\'s film on that language\'s row only', () => {
     const french = suggestion({ kind: 'voice', language: 'fr', decision: 'accepted', decidedAt: at(3), fix: { state: 'failed', pr: 482, at: at(2), run: null, note: 'no' } });
     const b = videoBoard(input({ films: [film(), film({ language: 'fr' })], nightly: ['en', 'fr'], status: { en: status([{}]), fr: status([{}], { language: 'fr' }) }, feedback: feedback({ suggestions: [french] }) }), NOW);
@@ -125,14 +144,27 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13 and 2026-11-
     expect(b.admin).toContainEqual(expect.objectContaining({ kind: 'screen', who: 'claude', instruct: expect.stringContaining('PR 455') }));
   });
 
-  it('shows comments not looked at, and replies to post for two weeks', () => {
+  it('shows comments not looked at, and a reply to post until a person says what became of it', () => {
     const comment = { id: 'c1', kind: 'comment' as const, tutorial: 'record-a-passage', language: 'en', at: at(30), ref: 'Ugx', youtubeId: 'dQw4w9WgXcQ', pr: null, text: 'The G is cut off', english: null, reply: null, replyEnglish: null, lookedAt: null, outcome: null };
     expect(keys(videoBoard(input({ feedback: feedback({ inputs: [comment], waiting: 1 }) }), NOW))).toEqual(['comment']);
     const replied = { ...comment, lookedAt: at(20), reply: 'Thanks, we fix it.', replyEnglish: 'Thanks, we fix it.' };
     const b = videoBoard(input({ feedback: feedback({ inputs: [replied] }) }), NOW);
     expect(keys(b)).toEqual(['reply']);
-    expect(b.admin[0]).toMatchObject({ kind: 'reply', link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&lc=Ugx' });
-    expect(keys(videoBoard(input({ feedback: feedback({ inputs: [{ ...replied, at: at(15 * 24) }] }) }), NOW))).toEqual(['current']);
+    expect(b.admin[0]).toMatchObject({ kind: 'reply', who: 'you', video: 'Record a passage', link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&lc=Ugx',
+      reply: { id: 'c1', comment: 'The G is cut off', original: null, text: 'Thanks, we fix it.', english: null, link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&lc=Ugx' } });
+    // It waits while the comment is kept (30 days), not 14 days: the page now knows what became of it.
+    expect(keys(videoBoard(input({ feedback: feedback({ inputs: [{ ...replied, at: at(15 * 24) }] }) }), NOW))).toEqual(['reply']);
+    // Posted by a person, or none needed: the card and the state go, and the comment's mark says which.
+    for (const replyDone of ['posted', 'none'] as const) {
+      const done = videoBoard(input({ feedback: feedback({ inputs: [{ ...replied, replyDone, replyDoneAt: at(1) }] }) }), NOW);
+      expect(keys(done)).toEqual(['current']);
+      expect(done.admin.filter((a) => a.kind === 'reply')).toEqual([]);
+      expect(en(done).marks.find((m) => m.kind === 'comment')!.detail.lines).toContain(replyDone === 'posted' ? 'A person posted the reply.' : 'A person chose to post no reply.');
+    }
+    // A comment in another language: the reply is in that language, with both in English beside them.
+    const french = { ...replied, language: 'fr', text: 'Le G est coupé', english: 'The G is cut off', reply: 'Merci, nous le corrigeons.', replyEnglish: 'Thanks, we fix it.' };
+    const fr = videoBoard(input({ films: [film(), film({ language: 'fr' })], feedback: feedback({ inputs: [french] }), nightly: ['en', 'fr'] }), NOW);
+    expect(fr.admin.find((a) => a.kind === 'reply')!.reply).toMatchObject({ comment: 'The G is cut off', original: 'Le G est coupé', text: 'Merci, nous le corrigeons.', english: 'Thanks, we fix it.' });
   });
 
   it('says what waits for YouTube: a film to publish, or one chosen and waiting for the day\'s limit', () => {
@@ -212,9 +244,12 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13 and 2026-11-
   });
 
   it('marks each film on the timeline with what made it', () => {
-    const app = { kind: 'screen' as const, steps: [3], screens: ['Language'], changes: [{ sha: 'e'.repeat(40), pr: 403, subject: 'x' }] };
+    const app = { kind: 'screen' as const, steps: [3], screens: ['my_work', 'settings_home'], changes: [{ sha: 'e'.repeat(40), pr: 403, subject: 'x' }] };
     const b = videoBoard(input({ films: [film({ sha256: sha('b'), madeAt: at(3) })], status: { en: status([{ film: { sha256: sha('b'), filmedAt: at(3), commit: null, why: [app] } }]) } }), NOW);
-    expect(en(b).marks.find((m) => m.kind === 'film')).toMatchObject({ cause: 'app', text: 'words on Language changed (#403)' });
+    // A screen is said by its name, never by its id in the app's flow.
+    expect(en(b).marks.find((m) => m.kind === 'film')).toMatchObject({ cause: 'app', text: 'Words changed on My work, Settings (PR 403)' });
+    expect(en(b).film!.causes).toEqual([{ mark: 'app', text: 'Words changed on My work, Settings', links: [{ text: 'PR 403', href: 'https://github.com/genesis-ai-dev/langquest-next/pull/403/files' }] }]);
+    expect(JSON.stringify(b)).not.toMatch(/my_work|settings_home/);
   });
 });
 
@@ -227,7 +262,11 @@ describe('reading', () => {
   it('names causes', () => {
     expect(causeOf(null)).toBe('unknown');
     expect(causeOf([{ kind: 'screen', steps: [1], screens: [], changes: [], shared: true }])).toBe('tool');
-    expect(whyText([{ kind: 'script', changes: [{ sha: 'f'.repeat(40), pr: null, subject: '' }] }])).toBe('its script changed (fffffff)');
+    expect(whyText([{ kind: 'script', changes: [{ sha: 'f'.repeat(40), pr: null, subject: '' }] }])).toBe('Script changed (fffffff)');
+    expect(filmCauses([{ kind: 'script', changes: [{ sha: 'f'.repeat(40), pr: null, subject: '' }] }, { kind: 'new' }])).toEqual([
+      { mark: 'script', text: 'Script changed', links: [{ text: 'fffffff', href: `https://github.com/genesis-ai-dev/langquest-next/commit/${'f'.repeat(40)}` }] }, { mark: 'new', text: 'First film', links: [] }]);
+    expect(filmCauses(null)).toEqual([]);
+    expect(['my_work', 'settings_home', 'map_home', 'review_capture', 'workspace', 'home'].map(screenName)).toEqual(['My work', 'Settings', 'Map', 'Review capture', 'Workspace', 'Home']);
   });
 
   it('builds the lists from GitHub alone when the database cannot be reached', async () => {

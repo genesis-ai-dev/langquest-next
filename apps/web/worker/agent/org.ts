@@ -60,7 +60,11 @@ export const V2_RECHECK_MS = 15 * 60 * 1000;
  * A passage read that takes this long writes one line to the Worker's log
  * saying where the time went (catching up the language, the database's
  * receipts, building the answer), with counts and no ids, so a slow read
- * can be found in Workers Logs by its parts.
+ * can be found in Workers Logs by its parts. It sees network waits only:
+ * a Worker's clock stands still while code runs and while the object's
+ * SQLite answers, so a read slowed by those writes no line. The nightly
+ * bulk read of 2026-11-17 took 2 to 19 s a page in the object and wrote
+ * none; Workers Logs' CPU time for the object's call is the measure there.
  */
 export const SLOW_READ_MS = 1_000;
 

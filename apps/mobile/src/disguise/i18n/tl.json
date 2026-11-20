@@ -39,6 +39,7 @@
       "run": "Huminto ang pagbabahagi pagkalipas ng sampung minuto.",
       "level": "Napapanahon. Huminto ang pagbabahagi.",
       "letInLook": "LangQuest ang ipapakita ng bagong telepono hanggang pumili sila ng ibang itsura sa Iba pang setting.",
+      "letInPermissions": "Bumalik sa Ibahagi sa malapit at i-tap ang Simulan ang pagbabahagi. Payagan ang hinihingi ng Android, saka bumalik dito.",
       "apkTrace": "Makikita sa history at listahan ng download ng browser kung saan galing ang install file. Puwede mo itong burahin pagkatapos."
     }
   },

@@ -6,9 +6,10 @@ license: MIT
 
 # Event-sourced offline sync
 
-PLAN.md sections 3 to 9 are the source of truth; this skill is the working
-checklist and the list of outside advice that does **not** apply here. If this
-file and PLAN.md disagree, PLAN.md wins; fix this file.
+PLAN.md sections 3 to 8, `docs/events.md` and `docs/sync-protocol.md` are the
+source of truth; this skill is the working checklist and the list of outside
+advice that does **not** apply here. If this file and they disagree, they win;
+fix this file.
 
 ## The model in five lines
 
@@ -21,7 +22,9 @@ file and PLAN.md disagree, PLAN.md wins; fix this file.
    `passage.ts`, never stored.
 4. The device **materializes on append**, pushes pending events from the
    outbox, and pulls the stream's tail by `serverSeq` cursor. Sync status is a
-   column on the events table (`pending | confirmed | rejected`).
+   column on the events table (`pending | confirmed | rejected | nearby`;
+   `nearby` is a teammate's row from their phone that the server has not
+   confirmed: folded, never pushed, decisions.md 212).
 5. **Audio is immutable and content-addressed**; blobs sync independently of the
    events that reference them.
 
@@ -38,7 +41,7 @@ Ask these in order. If an answer is "no", redesign before writing code.
   flag or undo. A new merge shape needs a decision (a file in `docs/decisions/`).
 - **Does the reducer case write only its own registers?** A case that reads
   existing state to decide what to write breaks order independence (the
-  `MemberRemoved` bug in PLAN.md section 6). Derive combinations at read time instead.
+  `MemberRemoved` bug in `docs/events.md`). Derive combinations at read time instead.
 - **Is it self-contained in its stream?** It references entities in the same
   stream, the organization's library and identity, or blobs by hash, and a
   work payload never names its language: the stream does (invariant 6).

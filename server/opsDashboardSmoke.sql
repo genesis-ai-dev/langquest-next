@@ -23,7 +23,9 @@ do $$ declare r record; begin
     {"id":"od-1","type":"v1.OrgCreated","orgId":"od-org","streamId":"_org","actorId":"0d000000-0000-0000-0000-00000000000a","deviceId":"dO","hlc":"000000000000001:000000:dO","payload":{"name":"Ops Org"}},
     {"id":"od-2","type":"v1.RoleDefined","orgId":"od-org","streamId":"_org","actorId":"0d000000-0000-0000-0000-00000000000a","deviceId":"dO","hlc":"000000000000002:000000:dO","payload":{"roleId":"org_admin","name":"Organization Admin","privileges":["manage_structure","invite_members","manage_roles","assign_work","translate","view_status"]}},
     {"id":"od-3","type":"v1.MemberAdded","orgId":"od-org","streamId":"_org","actorId":"0d000000-0000-0000-0000-00000000000a","deviceId":"dO","hlc":"000000000000003:000000:dO","payload":{"profileId":"0d000000-0000-0000-0000-00000000000a","roleId":"org_admin","scope":{"level":"org"}}},
-    {"id":"od-4","type":"v1.LanguageAdded","orgId":"od-org","streamId":"_org","actorId":"0d000000-0000-0000-0000-00000000000a","deviceId":"dO","hlc":"000000000000004:000000:dO","payload":{"languageId":"od-L","name":"Opsish","code":"ops","sourceCode":"eng"}}
+    {"id":"od-4","type":"v1.LanguageAdded","orgId":"od-org","streamId":"_org","actorId":"0d000000-0000-0000-0000-00000000000a","deviceId":"dO","hlc":"000000000000004:000000:dO","payload":{"languageId":"od-L","name":"Opsish","code":"ops","sourceCode":"eng"}},
+    {"id":"od-5","type":"v1.NoteAdded","orgId":"od-org","streamId":"od-L","actorId":"0d000000-0000-0000-0000-00000000000a","deviceId":"dO","hlc":"000000000000005:000000:dO","payload":{"noteId":"od-n1","unitId":"u1","anchor":{"kind":"passage"},"text":"one"}},
+    {"id":"od-6","type":"v1.NoteAdded","orgId":"od-org","streamId":"od-L","actorId":"0d000000-0000-0000-0000-00000000000a","deviceId":"dO","hlc":"000000000000006:000000:dO","payload":{"noteId":"od-n2","unitId":"u1","anchor":{"kind":"passage"},"text":"two"}}
   ]'::jsonb) loop
     if not r.accepted then raise exception 'setup event % refused: %', r.id, r.reason; end if;
   end loop;
@@ -45,6 +47,17 @@ insert into public.notifications (id, profile_id, org_id, kind, title)
   values ('od-n2', '0d000000-0000-0000-0000-00000000000b', 'od-org', 'x', 't');
 insert into diag.feedback (id, profile_id, kind, body, install_id) values
   ('0d000000-0000-0000-0000-0000000000f1', '0d000000-0000-0000-0000-00000000000a', 'bug', 'secret feedback text', 'od-inst');
+
+-- The language's two events have no projection mark: it is behind the pass. One projection pass started before
+-- they arrived and two after, and each ended without them. Every other language here counts as projected, so
+-- the one behind is this script's.
+insert into public.projection_marks (org_id, stream_id, seq, org_seq, version)
+  select c.org_id, c.stream_id, c.next_seq - 1, 0, 'od-smoke' from public.stream_cursors c
+   where c.stream_id <> '_org' and c.org_id not in ('_person', 'od-org')
+  on conflict (org_id, stream_id) do update set seq = excluded.seq;
+insert into diag.job_runs (job, started_at, ms, outcome) values
+  ('projection', now() - interval '1 minute', 10, 'ok'),
+  ('projection', now() + interval '1 minute', 10, 'ok'), ('projection', now() + interval '6 minutes', 10, 'error');
 
 -- 1. Every function, as diag_reader; the role still cannot read the tables.
 grant diag_reader to postgres;
@@ -90,6 +103,15 @@ begin
   -- The schedule is the caller's: thresholds nothing can reach count nothing overdue, and the old signature is gone.
   if (diag.ops_pipeline(1, 2000000000, 3000000000000)->'snapshots'->>'overdue')::int <> 0 then raise exception 'ops_pipeline overdue ignores its thresholds'; end if;
   if to_regprocedure('diag.ops_pipeline(integer)') is not null then raise exception 'a stale ops_pipeline(int) is left'; end if;
+  -- A language behind the pass says when its oldest waiting event arrived (this transaction's time), and how many
+  -- projection passes started after that and have ended: the two later runs, not the earlier one.
+  if (v->>'lagging')::int <> 1 or jsonb_array_length(v->'lag') <> 1 then raise exception 'ops_pipeline should find one language behind: %', v->'lag'; end if;
+  v := v->'lag'->0;
+  if v->>'orgId' <> 'od-org' or v->>'languageId' <> 'od-L' or v->>'name' <> 'Opsish' or (v->>'behind')::int <> 2 or (v->>'head')::int <> 2
+     or (v->>'waitingSince')::timestamptz <> now() or (v->>'passesSince')::int < 2
+     or (v->>'passesSince')::int <> (select count(*) from diag.job_runs r where r.job = 'projection' and r.started_at > now()) then
+    raise exception 'ops_pipeline lag row: %', v;
+  end if;
 
   -- cron: no command text
   v := diag.ops_cron();

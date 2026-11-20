@@ -434,7 +434,7 @@ export function pipelineAlerts(p: Pipeline, now = Date.now()): Alert[] {
     const fix = lane.id === 'ios'
       ? 'Check the hourly App Store step (app-store-review.yml) on EAS.'
       : 'Check the Play step (play-review.mjs) on EAS: without PLAY_REVIEW_KEY, promote it in Play Console (docs/environments.md, The Play key).';
-    out.push({ level: 'watch', text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${waiting.title} has waited in ${where} for ${Math.floor(hours)} h with nothing in review. ${fix}` });
+    out.push({ level: 'watch', key: 'store-build-waiting', subject: lane.id, text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${waiting.title} has waited in ${where} for ${Math.floor(hours)} h with nothing in review. ${fix}` });
   }
   // A copy for a public build that needs a person: Claude could not fix its failed tests, or it has been open for hours.
   for (const lane of p.lanes) {
@@ -444,7 +444,7 @@ export function pipelineAlerts(p: Pipeline, now = Date.now()): Alert[] {
       const prs = [u.pr, ...u.also.map((a) => a.pr)].filter((n): n is number => n !== null).map((n) => `PR ${n}`);
       const named = prs.length > 3 ? `${prs.slice(0, 2).join(', ')} and ${prs.length - 2} more` : prs.join(' and ');
       out.push({
-        level: 'problem',
+        level: 'problem', key: 'copy-needs-person', subject: `${lane.id} PR ${u.copy}`,
         text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${live!.title} does not have ${named} yet: copy PR ${u.copy} ${u.waiting}. Open it to finish it (decisions.md 155).`,
         link: `https://github.com/${p.repo}/pull/${u.copy}`
       });

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { addCatalog, currentLanguage, showLanguage, t } from '../src/i18n';
+import { elide } from '../src/i18n/elision';
 import { formatClock, formatDay, formatNumber } from '../src/i18n/format';
 import { catalogFor, pickLanguage, UI_LANGUAGES } from '../src/i18n/languages';
 import { fallbackRule } from '../src/i18n/plurals';
@@ -244,5 +245,54 @@ describe('plurals, dates and numbers', () => {
       showLanguage('en');
     }
     expect(t('common.done')).toBe('Done');
+  });
+});
+
+describe('French elision before a name put into a sentence', () => {
+  it('makes "le" and "la" before a name that starts with a vowel "l’"', () => {
+    expect(elide('Faire la approbation finale', ['approbation finale'])).toBe('Faire l’approbation finale');
+    expect(elide('En attente à la étude, qui doit passer d’abord', ['étude'])).toBe('En attente à l’étude, qui doit passer d’abord');
+    expect(elide('Comment le dit le anglais', ['anglais'])).toBe('Comment le dit l’anglais');
+    expect(elide('La approbation finale', ['approbation finale'])).toBe('L’approbation finale');
+    expect(elide('Vérification de la ESV, puis de la ESV', ['ESV'])).toBe('Vérification de l’ESV, puis de l’ESV');
+    expect(elide('Faire la approbation, puis la écoute', ['approbation', 'écoute'])).toBe('Faire l’approbation, puis l’écoute');
+  });
+
+  it('leaves the rest as the catalog writes it', () => {
+    // A consonant, an h (aspirated or not, nobody can tell from the letters), a y, "onze" and "oui".
+    expect(elide('Faire la rétrotraduction', ['rétrotraduction'])).toBe('Faire la rétrotraduction');
+    expect(elide('Faire la harmonisation', ['harmonisation'])).toBe('Faire la harmonisation');
+    expect(elide('Avant le 8 nov.', ['8 nov.'])).toBe('Avant le 8 nov.');
+    expect(elide('Avant le onze', ['onze'])).toBe('Avant le onze');
+    // Only right before the name: the catalog's own words, and a name elsewhere in the sentence, stay.
+    expect(elide('Écouter la version de Anna', ['Anna'])).toBe('Écouter la version de Anna');
+    expect(elide('Anna la écoute', ['Anna'])).toBe('Anna la écoute');
+    // "le" and "la" after a verb, or the end of another word, are no article.
+    expect(elide('Appelez-la Anna', ['Anna'])).toBe('Appelez-la Anna');
+    expect(elide('Ruth appela Anna', ['Anna'])).toBe('Ruth appela Anna');
+    expect(elide('', ['Anna'])).toBe('');
+    expect(elide('Faire la approbation', [])).toBe('Faire la approbation');
+  });
+
+  it('is done in French only, on what t() returns', () => {
+    addCatalog('fr', catalog('fr'));
+    showLanguage('fr');
+    try {
+      expect(t('passage.page.main.doCheck', { check: 'approbation finale' })).toBe('Faire l’approbation finale');
+      expect(t('passage.page.main.doCheck', { check: 'rétrotraduction' })).toBe('Faire la rétrotraduction');
+      expect(t('passage.page.heldAt', { check: 'approbation finale' })).toContain('à l’approbation finale,');
+    } finally {
+      showLanguage('en');
+    }
+    addCatalog('es', catalog('es'));
+    showLanguage('es');
+    try {
+      // Spanish keeps its article whole ("la aprobación").
+      expect(t('passage.page.main.doCheck', { check: 'aprobación final' })).toContain('aprobación final');
+      expect(t('passage.page.main.doCheck', { check: 'aprobación final' })).not.toContain('’');
+    } finally {
+      showLanguage('en');
+    }
+    expect(t('passage.page.main.doCheck', { check: 'approval' })).toBe('Do the approval');
   });
 });

@@ -1,6 +1,6 @@
 # Invites, accounts and getting back in
 
-Status: design, 2026-10-01 (Caleb Koster). Decision 54 records it. Built in
+Kind: plan · Status: in progress: designed 2026-10-01 (Caleb Koster). Decision 54 records it. Built in
 the `invite-onboarding` branch; section 8 says what is built and what is
 next. Updated 2026-10-05 for decision 59: joining by invite needs no
 password, and a helper's code signs the person straight in.
@@ -59,12 +59,12 @@ Every account has somebody who can get it back in.
 
 | | Own email | Looked after |
 | --- | --- | --- |
-| Signs in with | email and password | nothing: the phone stays signed in (a sign-in name and an optional password, for a shared phone) |
+| Signs in with | email and password | nothing: the phone stays signed in (a sign-in name and an optional password, set on Edit Profile, for another device) |
 | Made by | Create Account | joining with an invite, as a new person, with no password (59) |
-| Gets back in through | a sign-in key sent to their email (section 8: next) | a sign-in key from anyone with their own email who can invite them where they are, shown as a QR (59) |
+| Gets back in through | Forgot password: a link sent to their email (flow G) | a sign-in key from anyone with their own email who can invite them where they are, shown as a QR (59) |
 | May invite others | when their role holds Invite | when their role holds Invite (decisions.md 67) |
 | May help others sign in | when their role holds Invite where that person is | no |
-| Becomes the other kind | n/a | by adding and proving their own email (section 8) |
+| Becomes the other kind | n/a | by adding their own email on Edit Profile (flow H) |
 
 A third way in makes a looked-after account too: **joining offline**
 (flow I, docs/nearby-sync-plan.md section 14). Its id is not the server's
@@ -146,6 +146,14 @@ Server functions:
   and never emailed, and returns the session and who helped. A key marked
   lost signs every other session of the account out. Builds from before 59
   send a password with the key; the function then sets it, as before.
+- `change-email` Edge Function (LAN-304, flow H): the signed-in person's
+  new address, which it sets with the service role and marks confirmed, so
+  Auth sends no confirmation mail; nothing proves the address, as sign-up
+  proves none. It refuses an address that is not one, a looked-after
+  address, one another account has in any case (`email_taken`, service
+  role only; `email_exists`), and any email for an account with no password
+  yet (`password_required`). An account that was looked after loses its
+  steward row.
 - `join` Edge Function (59): a signed-out phone sends an invite, a request
   id and, for a group invite, the person's name. It makes the looked-after
   account (a random password nobody sees), adds the membership with
@@ -276,9 +284,21 @@ and passes on by Quick Share, SD card or USB, named by versions alone, which
 Let someone in names so the carrier can compare (docs/nearby-sync-plan.md
 14.4, decisions.md 246). The app never downloads or installs it.
 
-**H. Adding your own email (looked-after → own).** Section 8: Settings →
-Add your email → a sign-in key sent there proves it → the address changes
-and the steward row is removed.
+**H. Adding or changing your email, and your password.** Me → your name
+→ Edit Profile, the one place for both (LAN-304,
+docs/decisions/2026-11-18-edit-profile-holds-email-and-password.md). Type
+an email and Save: the `change-email` function makes it the account's
+address at once, with nothing sent to prove it, as Create Account sends
+nothing. A looked-after account becomes an own-email account: it signs in
+with the email from then on, not its sign-in name; helpers' codes stop
+(59) and Forgot password reaches it; its steward row goes. An account with
+no password must choose one with its first email, set before the email so a
+failure leaves it the sign-in name and the password. Someone with an email
+changes it the same way, and an email cannot be taken away. The password
+field below it sets a first password or a new one, for any account, typed
+twice. Both need a connection; the name saves offline as before. The
+phone renews its session so the new address shows at once, and the offline
+lock (168) is found by the new address.
 
 ## 6. How each situation falls out
 
@@ -317,10 +337,11 @@ and the steward row is removed.
 - **Inviting is a role permission.** Already true: `invite_members`
   (decision 23). Looked-after accounts never hold it, whatever their role.
 - **Only email-verified users can invite.** Looked-after accounts cannot
-  invite now. Sign-up does not prove an address today (confirmation is off
-  and there is no mail server), so "verified" cannot mean anything yet.
-  Section 8 adds proving an address with an emailed sign-in key, then the
-  rule tightens to proven addresses.
+  invite now. Sign-up does not prove an address (confirmation is off and
+  Auth has no mail server), and since LAN-304 neither does adding or
+  changing one on Edit Profile, so "verified" cannot mean anything; Carl
+  chose (2026-11-18) that changing an email is no stricter than signing up
+  with one.
 - **Signed out: new account first, existing account second.** Flow A and B.
 - **Signed in: join with the current account.** Flow C, with a guard for
   shared phones.
@@ -338,9 +359,8 @@ Built in this branch:
   `sign-in-code` function for stewards.
 - Sign in by sign-in name.
 
-Built later: G, Forgot password (decisions.md 200).
+Built later: G, Forgot password (decisions.md 200); H, an email and a
+password on Edit Profile, without proving the address (LAN-304).
 
-Next, because they need email delivery through the Cloudflare worker
-(`apps/invite-email`) and so a deploy of their own:
-
-- H, and proving an address; then "only proven addresses may invite".
+Not planned: proving an address, and "only proven addresses may invite"
+with it (section 7).

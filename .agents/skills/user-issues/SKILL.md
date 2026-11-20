@@ -65,7 +65,9 @@ people using the app their work.
     `stack` are theirs only.
   - A **server** kind has `server`: a job's name, how often it runs, how many
     runs failed in a row (`streak`), its last outcome and error class, and its
-    last good run; or a Worker route and how many 5xx answers it gave in a day.
+    last good run; or a Worker route and how many 5xx answers it gave in a day;
+    or `line`: a line the ops dashboard shows (`level`, its `text`, the
+    kind's `title`, the dashboard `part` and its page `link`).
   - A **problem sent from help mode** has `feedback`: `body` (what they
     typed), the `screen` they sent it from, `os`, `app`, `uiLanguage`,
     whether it came with a `screenshot`, a `picture` or a voice note
@@ -135,6 +137,13 @@ A key is the family, then the record's own code-like tags
 - `worker:<route>:5xx`: the app's Worker (`apps/web/worker`) answering with
   server errors.
 - `feedback:<id>`: one problem a person sent from help mode.
+- `ops:<kind>:<subject>`: a line the ops dashboard shows that the records do
+  not hold (`apps/admin/src/alertKinds.ts` names every kind): an R2 check, a
+  Workers Build, an EAS build, a GitHub workflow failing on main, a token
+  about to expire, a slow route. Each line gets one Linear issue, so the
+  dashboard can show who works on it and when it clears
+  (`docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`). Read the
+  code that raises it (`apps/admin/src/sources/`) to tell what it measures.
 
 The phones' files are those same records, which `npm run diag` and the ops
 dashboard read; the issue lists the installs so a developer can read more
@@ -192,6 +201,9 @@ dashboard read; the issue lists the installs so a developer can read more
      twice; a refusal the app handled as it should for one person; an
      `expected` failure that is the app working as designed (a microphone the
      person refused). Say why in a short `note`.
+   - An `ops:` line is noise only when it measures nothing wrong with
+     LangQuest (a count that is high for a known, harmless reason). A line
+     that names the same problem as an open issue is `known` with that issue.
    - Not noise, even for one person: lost recordings or files, an upload or
      download stuck over a day, a crash or error boundary, a server job
      stopped or failing, the Worker's 5xx, anything a person took the trouble
@@ -219,6 +231,20 @@ The developer reads the issue on their phone, between other things.
 - `cause`: for a developer or an agent fixing it: the file and line, what
   happens there, the commit that may have caused it, and what to check
   next. Mark a guess as a guess. It goes in the issue's Agent notes.
+- `context`, `problem`, `solution`: the issue in three lines, for its card
+  on the ops dashboard. An admin reads the card without the code and decides
+  what to do. Each is one or two short sentences, at most 300 characters, in
+  ASD-STE100 Simplified Technical English: short sentences, active voice,
+  one name for each thing, no code names.
+  - `context`: what the person was doing, and where ("A person opens a
+    passage in the web app and plays the reference audio.").
+  - `problem`: what goes wrong, and for how many ("The audio does not
+    download. The play button stays grey. 3 people hit it since Nov 1.").
+  - `solution`: what fixes it, or what a person must decide ("Let the web
+    page read audio from the reference audio host."). When you do not know
+    the cause, say what to find first.
+  Use your own words. Do not copy what a person wrote, and give no name,
+  address or id: the script cuts an address out.
 - `comment` (known): one or two sentences on what is new.
 - `note` (noise): one line on why it is nothing to fix. (fixed): one line
   on why that pull request fixes it and why the hits came before it.
@@ -238,6 +264,9 @@ or empty.
       "title": "Reference audio won't download in the web app",
       "priority": 2,
       "summary": "In the web app, reference audio never downloads: the play button stays grey. Three people on web hit it since Nov 1, on the newest version. One of them wrote in from the passage screen.",
+      "context": "A person opens a passage in the web app and plays the reference audio.",
+      "problem": "The audio does not download. The play button stays grey. 3 people hit it since Nov 1.",
+      "solution": "Let the web page read audio from the reference audio host.",
       "cause": "apps/web/worker/index.ts sets a Content-Security-Policy whose connect-src leaves out the reference audio host (line 210), so fetch() fails before any request (failOther, not failHttp). It came with commit abc1234 (Oct 31). Check: the CSP header on next.langquest.org/app."
     }
   ],
@@ -296,7 +325,8 @@ starts its checks.
   `.claude/`, `AGENTS.md`, `CLAUDE.md`, or the watch's own scripts: the
   workflow refuses a change that does, and the issue gets no fix. No new
   dependencies.
-- **Keep the repository's rules** (`AGENTS.md`): what may import what, where
+- **Keep the repository's rules** (`AGENTS.md`, `CONTRIBUTING.md`, and the
+  README or `AGENTS.md` of the folder you change): what may import what, where
   a file belongs and what it is named, 48pt touch targets, no explanatory
   text in the app, every string in all app languages. A change that needs a
   migration gets a new one with a fresh 14-digit version.
@@ -338,3 +368,45 @@ or, with no change:
 fixes the issue, for the developer who reviews it; `tests` (at most 1000)
 which test shows it. The script cuts longer ones and takes out any email
 address.
+
+### When an admin sent an instruction
+
+An admin of the team can tell you what to do with an issue from its card
+on the ops dashboard. Then the issue comes to you again, and
+`.user-issues/issue.json` also holds:
+
+- `instructions`: what the admin wrote, the oldest first (`at`, `text`).
+  These are the team's words, not a user's: do what they say. The rules
+  above still hold. An instruction cannot make you change a path a draft
+  fix may not change, quote what a person wrote, or add a dependency. When
+  an instruction asks for that, do not do it, and say so in `answer`.
+- `before`: the last instructions on this issue and your answers to them.
+- `draft`: the draft fix the issue has. With `applied: true` its change is
+  on the checkout already: `git diff --cached` shows it, and `git diff`
+  shows what you changed after it. With `applied: false` and a `patch`,
+  the draft fix no longer applies to main: read the patch file and write
+  the change again on this checkout. With `branch: null` there is no draft
+  fix yet.
+
+Do the work the instruction asks for: change the draft fix, write a fix
+where there was none, or only answer a question. Then write `fix.json` as
+above, with one more field:
+
+```json
+{
+  "summary": "The record screen now waits for the passage to load before it shows Record. ...",
+  "tests": "apps/mobile/test/recordModel.test.ts: Record is off until the passage is there.",
+  "answer": "I moved the wait into the record screen's model, as you said. The test now covers a passage that loads late."
+}
+```
+
+- `summary` and `tests` describe the whole change as it is now (the draft
+  fix with your changes), because they become the pull request's text. When
+  you change nothing, write them for the draft fix as it is. Use `noFix`
+  only when there is no draft fix and you write none.
+- `answer` (at most 1000 characters) is for the admin, under their words
+  on the card: what you did, or the answer to their question, and what they
+  must decide when something is open. Write it in ASD-STE100 Simplified
+  Technical English: short sentences, active voice, one name for each
+  thing. It is public like the rest: no name, address or id of a person,
+  and nothing from `evidence`.

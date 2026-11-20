@@ -5,7 +5,7 @@
   // Cloudflare, Supabase, GitHub, Expo, Google Play and the App
   // Store say about their part.
   "name": "langquest-next-admin",
-  "main": "src/index.ts",
+  "main": "src/worker.ts",
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
   "compatibility_date": "2026-10-01",
   // global_fetch_strictly_public: app.langquest.org is another Worker on the
@@ -37,8 +37,9 @@
     "R2_BUCKET": "langquest-next-blobs",
     // The production database's provisioned disk, GB (Supabase > Settings >
     // Compute and Disk), for the capacity section's weeks left and its alert
-    // past 90%. Change it here when the disk is resized.
-    "SUPABASE_DB_LIMIT_GB": "64",
+    // past 90%, only when Supabase's API does not say it
+    // (sources/storage.ts diskBytes). 256 since Caleb resized it, November 2026.
+    "SUPABASE_DB_LIMIT_GB": "256",
     "GITHUB_REPO": "genesis-ai-dev/langquest-next",
     // apps/mobile/app.json extra.eas.projectId
     "EXPO_PROJECT_ID": "582d3757-4245-419a-9087-e269e3bf4c4d",

@@ -34,13 +34,31 @@ describe('phones and browsers', () => {
   it('calls a crash in the last day a problem, with the code people read out', () => {
     const c = quietClients();
     c.errors = [{ name: 'TypeError', where: 'passage', code: null, fatal: true, records: 3, day: 2, installs: 2, lastAt: hAgo(1), errorId: 'E-7K2Q01' }];
-    expect(clientAlerts(c)).toEqual([{ level: 'problem', text: expect.stringContaining('E-7K2Q01') }]);
+    expect(clientAlerts(c)).toEqual([{ level: 'problem', key: 'app-crash', subject: 'TypeError in passage', watchKey: 'error:TypeError@passage:-', text: expect.stringContaining('E-7K2Q01') }]);
   });
 
   it('notices when nothing has reported for a day, which means delivery may be broken', () => {
     const c = quietClients();
     c.installs.day = 0;
     expect(clientAlerts(c)[0]).toMatchObject({ level: 'problem', text: expect.stringContaining('No phone or browser has reported') });
+  });
+
+  it('makes a line of each kind of sign-in trouble, on one phone too, and none of a step that is no fault', () => {
+    const c = quietClients();
+    const row = { records: 1, installs: 1, lastAt: hAgo(2) };
+    c.auth = [
+      { op: 'renew', outcome: 'http', code: 'http503', class: 'trouble', ...row },
+      { op: 'ended', outcome: null, code: null, class: 'trouble', records: 4, installs: 2, lastAt: hAgo(3) },
+      // A wrong password on 40 phones, a step with no connection: the chart "Sign-in trouble" does not count them, so no line does.
+      { op: 'sign_in', outcome: 'refused', code: 'invalid_credentials', class: 'no_fault', records: 90, installs: 40, lastAt: hAgo(1) },
+      { op: 'renew', outcome: 'offline', code: null, class: 'no_fault', records: 300, installs: 25, lastAt: hAgo(1) },
+      // A count made before the database gave each row its class says nothing.
+      { op: 'outbox', outcome: 'failed', code: null, records: 9, installs: 5, lastAt: hAgo(1) }
+    ];
+    expect(clientAlerts(c)).toEqual([
+      { level: 'watch', key: 'sign-in-step', subject: 'renew http', watchKey: 'auth:renew:http:http503', text: 'Sign-in step renew ended "http" (http503), 1 time on 1 install this week.' },
+      { level: 'watch', key: 'sign-in-step', subject: 'ended ?', watchKey: 'auth:ended:-:-', text: 'A sign-in ended that the person did not end, 4 times on 2 installs this week.' }
+    ]);
   });
 
   it('watches syncs in error, old builds, failed transfers and lost recordings', () => {
@@ -68,7 +86,8 @@ describe('server jobs', () => {
 
   it("uses the CLI's own judgement: a stopped job is a problem", () => {
     const s = jobsSection([job({}), job({ job: 'projection', stale: true, last_ok_at: hAgo(3), last_outcome: 'error', last_error_class: 'DbError:57014' })]);
-    expect(s.alerts).toEqual([{ level: 'problem', text: expect.stringMatching(/^Server job projection has not run successfully.*DbError:57014/) }]);
+    expect(s.alerts).toEqual([{ level: 'problem', key: 'job-stopped', subject: 'projection', watchKey: 'job:projection:stopped', recheck: { everyMin: 1, last: '2026-10-19T21:59:24.000Z' },
+      text: expect.stringMatching(/^Server job projection has not run successfully.*DbError:57014/) }]);
   });
 });
 
@@ -120,6 +139,20 @@ describe('the database and the v2 import', () => {
     expect(s.feedback).toMatchObject({ state: 'off', setup: expect.stringContaining('not on this database yet') });
     expect([s.jobs.state, s.clients.state, s.database.state, s.v2.state]).toEqual(['ok', 'ok', 'ok', 'ok']);
   });
+
+  it('reads the phones from the count the database makes every 10 minutes, and says which migration it lacks', async () => {
+    const asked: string[] = [];
+    const query = vi.fn(async (sql: string) => {
+      asked.push(sql);
+      if (sql.includes('ops_cached')) throw Object.assign(new Error('function diag.ops_cached(unknown) does not exist'), { code: '42883' });
+      if (sql.includes('pg_database_size')) return { sizeBytes: 1, connections: 1, maxConnections: 60, stats: null, rpc: [] };
+      return [];
+    });
+    const s = await diagSections(query as never);
+    expect(asked).toContain(`select diag.ops_cached('clients') as v`);
+    expect(asked.some((q) => q.includes('diag.records'))).toBe(false);
+    expect(s.clients).toMatchObject({ state: 'off', setup: expect.stringContaining('20261117200000_ops_phone_counts.sql') });
+  });
 });
 
 describe('code and deploys', () => {
@@ -170,7 +203,7 @@ describe('code and deploys', () => {
       { id: 1, name: 'guardrails', status: 'completed', conclusion: 'success', head_sha: 'bbbbbbbbbb', created_at: hAgo(2), html_url: 'u2', event: 'push', run_number: 8 }
     ]);
     expect(runs).toHaveLength(1);
-    expect(codeAlerts(code({ runs }), NOW)).toEqual([{ level: 'watch', text: 'GitHub workflow "guardrails" failed on main (run 9, push).', link: 'u1' }]);
+    expect(codeAlerts(code({ runs }), NOW)).toEqual([{ level: 'watch', key: 'workflow-failed', subject: 'guardrails', text: 'GitHub workflow "guardrails" failed on main (run 9, push).', link: 'u1' }]);
   });
 
   // 2026-10-29: Gemini's prepaid credit ran out mid-filming, and the dashboard said only that "tutorials" failed.
@@ -188,7 +221,7 @@ describe('code and deploys', () => {
 
   it('says it as a problem with its link, in place of the plain failure', () => {
     const alerts = codeAlerts(code({ runs: [tutorials], needsYou: needsYouOf(tutorials, [credit]) }), NOW);
-    expect(alerts).toEqual([{ level: 'problem', text: 'Gemini credit: Google refused the voice: the prepaid credit is used up. (GitHub workflow "tutorials")', link: 'https://aistudio.google.com/projects' }]);
+    expect(alerts).toEqual([{ level: 'problem', key: 'needs-you', subject: 'Gemini credit', text: 'Gemini credit: Google refused the voice: the prepaid credit is used up. (GitHub workflow "tutorials")', link: 'https://aistudio.google.com/projects' }]);
   });
 
   it("reads the failed jobs' annotations of the repository's own runs, never a pull request's", async () => {
@@ -414,8 +447,8 @@ describe('Expo', () => {
     expect(e.updates).toEqual([{ branch: 'production', platform: 'android, ios', runtime: '1.0.2', group: 'g1', at: hAgo(2) }]);
     expect(e.submissions[0]).toEqual({ platform: 'IOS', status: 'ERRORED', at: hAgo(3), error: 'SUBMISSION_SERVICE_ERROR: App Store Connect refused the build', version: '1.0.3' });
     expect(expoAlerts(e)).toEqual([
-      { level: 'watch', text: 'The latest android production build failed on EAS.' },
-      { level: 'watch', text: 'The latest ios store submission failed on EAS (SUBMISSION_SERVICE_ERROR).' }
+      { level: 'watch', key: 'eas-build-failed', subject: 'android production', text: 'The latest android production build failed on EAS.' },
+      { level: 'watch', key: 'eas-submit-failed', subject: 'ios', text: 'The latest ios store submission failed on EAS (SUBMISSION_SERVICE_ERROR).' }
     ]);
   });
 });

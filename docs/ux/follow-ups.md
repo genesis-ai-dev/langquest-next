@@ -1,5 +1,7 @@
 # UX Vision Drift: Follow-Ups After Inbox P0 Fix
 
+Kind: report
+
 **Last Updated:** 2026-09-17 (PR #4)  
 **Audit Source:** drift-summary.md, drift-inventory.md (2026-09-17)
 

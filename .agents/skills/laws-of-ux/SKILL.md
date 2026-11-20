@@ -7,7 +7,7 @@ license: MIT
 # Laws of UX for field use
 
 **The partner demo in `ng-langquest-ux` is the specification for screens**
-(PLAN.md section 12, `docs/ux/demo-parity.md`, and the demo's
+(`docs/ux/principles.md`, `docs/ux/demo-parity.md`, and the demo's
 `docs/design-principles.md`). Use these laws to make choices the spec leaves
 open, to review work, and to argue a case to the UX team. Do not use them to
 diverge from the demo on your own; raise the question instead.

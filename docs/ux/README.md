@@ -1,5 +1,7 @@
 # UX reference mocks
 
+Kind: history
+
 **History.** The screens now follow the partner demo in `ng-langquest-ux`
 (docs/decisions.md 28, `docs/ux/demo-parity.md`). The mocks below record the
 earlier one-next-action design; they are kept for the reasoning they hold

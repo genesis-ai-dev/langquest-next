@@ -1,3 +1,5 @@
+import type { AlertKey, Recheck } from './alertKinds';
+
 /**
  * One part of the page (a source: the server's jobs, phones, Cloudflare...).
  * Every section answers in the same shape, so one failing or unconfigured
@@ -24,6 +26,16 @@ export interface Alert {
   text: string;
   /** The page to act on it: the page that fixes it, or the failed run. */
   link?: string;
+  /** What kind of line it is (alertKinds.ts), which with `subject` names the line. */
+  key: AlertKey;
+  /** The job, workflow, suite, route or project, when a kind has one line for each. */
+  subject?: string;
+  /** Linear issues the line names (LAN-284): a pull request that names one fixes that part. */
+  issues?: string[];
+  /** When its check runs again, when that differs from its kind's (a job's own schedule). */
+  recheck?: Recheck;
+  /** The watch for user issues' own key for the same problem, when it finds it in the records (alertKinds.ts watchKeyOf). */
+  watchKey?: string;
 }
 
 export interface Section<T = unknown> {

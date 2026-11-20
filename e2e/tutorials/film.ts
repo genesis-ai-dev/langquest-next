@@ -596,10 +596,14 @@ if (VOICE_ONLY) process.exit(0);
 
 rmSync(path.join(out, 'frames'), { recursive: true, force: true });
 rmSync(path.join(out, 'heard'), { recursive: true, force: true });
-rmSync(path.join(out, 'steps'), { recursive: true, force: true });
 mkdirSync(path.join(out, 'frames'), { recursive: true });
 mkdirSync(path.join(out, 'heard'), { recursive: true });
-if (DRY) mkdirSync(path.join(out, 'steps'), { recursive: true });
+// A film keeps the step pictures its dry run made just before it: the nightly look at the videos' feedback shows
+// them on the ops dashboard, beside what it suggests (decisions.md 186, amended 2026-11-17).
+if (DRY) {
+  rmSync(path.join(out, 'steps'), { recursive: true, force: true });
+  mkdirSync(path.join(out, 'steps'), { recursive: true });
+}
 const speech = (tutorial.speech ?? []).map((f) => { const file = path.join(speechDir, f); return { file, seconds: wavSeconds(file) }; });
 
 const world = await buildWorld({
@@ -701,17 +705,43 @@ const clock = (at: number) => {
 };
 const now = () => clock(Date.now());
 const cdp = await context.newCDPSession(page);
-cdp.on('Page.screencastFrame', (f) => {
+/** Keeps a picture of the screen (a JPEG in base64) as the video's frame from now on. */
+const keep = (data: string) => {
   const at = Date.now();
   if (!t0) t0 = at;
   const t = clock(at);
   // Inside a cut every frame falls at its start: the last one, what the wait led to, is kept.
   if (frames.at(-1)?.t === t) frames.pop();
   const file = path.join(out, 'frames', `${String(frames.length).padStart(5, '0')}.jpg`);
-  writeFileSync(file, Buffer.from(f.data, 'base64'));
+  writeFileSync(file, Buffer.from(data, 'base64'));
   frames.push({ file, t });
+};
+cdp.on('Page.screencastFrame', (f) => {
+  keep(f.data);
   void cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => undefined);
 });
+/**
+ * The screen as it stands now, as a frame. The screencast sends a frame only while the screen changes, and can leave
+ * out the last ones of a change: the video then held a half-drawn moment until something else moved (the steps sheet
+ * of Study a passage with its backdrop halfway up the page, to the video's end: the frame check held it in tutorials
+ * runs 49 and 50). A picture the browser cannot take within 2 seconds is left out: the screencast's frames are still there.
+ */
+const keepNow = async (): Promise<void> => {
+  let late = false;
+  await Promise.race([
+    cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 92 }).then((shot) => { if (!late) keep(shot.data); }, () => undefined),
+    sleep(2000).then(() => { late = true; })
+  ]);
+};
+/** Waits while the video holds still on what a step led to, with the screen as it stands kept now and then (keepNow). */
+async function hold(ms: number): Promise<void> {
+  const until = Date.now() + ms;
+  while (until - Date.now() > 400) {
+    await sleep(300);
+    await keepNow();
+  }
+  await sleep(Math.max(0, until - Date.now()));
+}
 await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: viewport.width * 2, maxHeight: viewport.height * 2, everyNthFrame: 1 });
 while (!t0) await sleep(50);
 // The screencast sends a frame only when the screen changes: nudge one out now and then hold the opening.
@@ -748,7 +778,9 @@ async function play(step: Step, index: number): Promise<void> {
   if (step.atSpeech !== undefined) {
     const last = spoken.at(-1);
     if (!last) throw new Error(`step ${index + 1} waits on speech that never started`);
-    while (now() < last.t + step.atSpeech) await sleep(20);
+    // 'end': once the recording has played to its end, however long the voice made it.
+    const at = step.atSpeech === 'end' ? speech.find((s) => s.file === last.file)!.seconds + 0.3 : step.atSpeech;
+    while (now() < last.t + at) await sleep(20);
   }
   if (step.first) await step.first(page);
   const parts = step.part?.(page);
@@ -808,7 +840,7 @@ async function play(step: Step, index: number): Promise<void> {
     await page.evaluate(light, null);
   }
   if (step.until) await step.until(page);
-  await sleep((DRY ? Math.min(step.stay ?? 0.4, 1) : step.stay ?? 0.4) * 1000);
+  await hold((DRY ? Math.min(step.stay ?? 0.4, 1) : step.stay ?? 0.4) * 1000);
   if (step.offCamera) {
     const cut = { from: Date.now(), to: Infinity };
     cuts.push(cut);
@@ -833,16 +865,18 @@ for (const [index, step] of tutorial.steps.entries()) {
   }
 }
 await sleep(600);
+// The video's last frame is the screen as it stands, taken once the screencast sends no more (keepNow).
+await cdp.send('Page.stopScreencast');
+await keepNow();
 const end = now();
 await page.evaluate(() => (window as unknown as { __playbackFlush(): void }).__playbackFlush());
 await sleep(300);
-await cdp.send('Page.stopScreencast');
 await browser.close();
 writeFileSync(path.join(out, 'played.json'), JSON.stringify({ t0, played, audio: [...audio.entries()] }, null, 1));
 const heard = played
   .filter((p) => p.at >= t0 && audio.has(p.id) && p.to > p.from)
   .map((p) => ({ t: clock(p.at), file: audio.get(p.id)!, from: p.from, to: p.to }));
 writeFileSync(path.join(out, 'film.json'), JSON.stringify({
-  tutorial: tutorial.id, title: inLanguage(tutorial.title), language: LANGUAGE, end, viewport, frames, said, spoken, heard, focus
+  tutorial: tutorial.id, title: inLanguage(tutorial.title), language: LANGUAGE, ...(tutorial.tune ? { tune: true } : {}), end, viewport, frames, said, spoken, heard, focus
 }, null, 1));
 console.log(`${tutorial.title}: ${frames.length} frames, ${end.toFixed(1)} s, ${said.length} lines, ${heard.length} played → ${out}`);

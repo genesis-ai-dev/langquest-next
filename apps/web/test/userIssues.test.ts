@@ -36,8 +36,12 @@ describe('what the workflow sends back', () => {
     const l = parseLooked(looked());
     expect(l.looked.map((x) => x.verdict)).toEqual(['filed', 'noise', 'known']);
     expect(l.looked[2]?.note).toBeNull();
+    // An issue's three lines for its card: kept as sent, null where none was.
+    expect(l.looked[0]).toMatchObject({ context: null, problem: null, solution: null });
+    const lines = { context: 'A person saves a recording.', problem: 'The recording is gone.', solution: '' };
+    expect(parseLooked(looked({ looked: [{ ...looked().looked[0], ...lines }] as Looked['looked'] })).looked[0]).toMatchObject({ ...lines, solution: null });
     expect(l.grew).toEqual([{ key: 'transfer:down:source:failOther', people: 6, count: 40 }]);
-    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [] });
+    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [] });
   });
 
   it('takes a kind already fixed by a pull request, with or without the issue that closed, and issues that closed or opened again in Linear', () => {
@@ -51,6 +55,27 @@ describe('what the workflow sends back', () => {
     const l = parseLooked(looked({ looked: [fixed, closedKind] as Looked['looked'], grew: [], states }));
     expect(l.looked.map((x) => [x.verdict, x.issue, x.fixedBy, x.title])).toEqual([['fixed', null, 295, 'Play all stops after a few parts'], ['fixed', 'LAN-220', 312, 'Play all stops after a few parts']]);
     expect(l.states).toEqual(states);
+  });
+
+  it('takes the instructions a run started on, and what it did with each', () => {
+    const NOTE = '0d000000-0000-4000-8000-0000000000a1';
+    const OTHER = '0d000000-0000-4000-8000-0000000000a2';
+    const notes = [{ id: NOTE, taken: true }, { id: OTHER, result: 'changed', answer: 'I moved the wait into the model.', pr: 512 }];
+    expect(parseLooked({ sha: SHA, runUrl: RUN, notes }).notes).toEqual([
+      { id: NOTE, taken: true }, { id: OTHER, taken: false, result: 'changed', answer: 'I moved the wait into the model.', pr: 512 }
+    ]);
+    expect(parseLooked({ sha: SHA, runUrl: RUN, notes: [{ id: NOTE, result: 'none', answer: '' }] }).notes).toEqual([{ id: NOTE, taken: false, result: 'none', answer: null, pr: null }]);
+    const wrong: [unknown[], string][] = [
+      [[{ id: 'LAN-9', taken: true }], "notes[0].id: an instruction's id, once"],
+      [[{ id: NOTE, taken: true }, { id: NOTE, taken: true }], "notes[1].id: an instruction's id, once"],
+      [[{ id: NOTE }], 'notes[0].result: one of changed, answered, none, or taken: true'],
+      [[{ id: NOTE, result: 'merged' }], 'notes[0].result: one of changed, answered, none, or taken: true'],
+      [[{ id: NOTE, result: 'answered', answer: 'Ask someone@example.org.' }], 'notes[0].answer: at most 1000 characters, no address'],
+      [[{ id: NOTE, result: 'answered', answer: 'x'.repeat(1001) }], 'notes[0].answer: at most 1000 characters, no address'],
+      [[{ id: NOTE, result: 'changed', pr: 0 }], "notes[0].pr: a pull request's number"],
+      [Array.from({ length: LOOKED_MAX.notes + 1 }, () => ({ id: NOTE, taken: true })), 'notes: a list of at most 60']
+    ];
+    for (const [list, message] of wrong) expect(() => parseLooked({ sha: SHA, runUrl: RUN, notes: list }), message).toThrow(new LookedError(message));
   });
 
   it('says the first thing wrong', () => {
@@ -70,6 +95,9 @@ describe('what the workflow sends back', () => {
       [one({ verdict: 'fixed', issue: null, issueUrl: null, fixedBy: 0, fixedAt: '2026-11-03T17:09:42Z' }), "looked[0].fixedBy: a pull request's number"],
       [one({ verdict: 'fixed', issue: null, issueUrl: null, fixedAt: 'yesterday' }), 'looked[0].fixedAt: a time (ISO 8601)'],
       [one({ title: 'mail me@example.com' }), 'looked[0].title: at most 200 characters, no address'],
+      [one({ context: 'x'.repeat(301) }), 'looked[0].context: at most 300 characters, no address'],
+      [one({ problem: 'Ask me@example.com.' }), 'looked[0].problem: at most 300 characters, no address'],
+      [one({ solution: 7 }), 'looked[0].solution: at most 300 characters, no address'],
       [looked({ states: [{ issue: 'LAN-1', state: 'Live', closed: 'yes' }] as unknown as Looked['states'] }), 'states[0].closed: true or false'],
       [looked({ states: [{ issue: 'LAN-1', state: 'Todo', closed: false, closedAt: '2026-11-03T17:09:42Z' }] as unknown as Looked['states'] }), 'states[0]: an open issue has no closedAt or fix'],
       [looked({ states: [{ issue: 'LAN-1', state: 'Live', closed: true }, { issue: 'LAN-1', state: 'Live', closed: true }] as unknown as Looked['states'] }), 'states[1].issue: a Linear issue (LAN-12), once'],
@@ -108,6 +136,7 @@ describe('/api/user-issues', () => {
       watch: async () => watch,
       media: async (id) => (id === FEEDBACK ? media : null),
       phone: async (install, at) => (install === INSTALL ? { ...phone, to: at ?? phone.to } : null),
+      notes: async (issue) => ({ waiting: issue === 'LAN-220' ? [{ id: FEEDBACK, at: '2026-11-03T17:00:00Z', text: 'Wait for the passage first.' }] : [], before: [] }),
       looked: async (l) => { sent.push(l); return { looked: l.looked.length, grew: l.grew.length }; },
       record: async (run) => { runs.push(run); },
       now: () => NOW,
@@ -169,7 +198,10 @@ describe('/api/user-issues', () => {
     expect(q(`phone=${INSTALL}`)).toEqual({ phone: INSTALL, at: null });
     expect(q('phone=ui-a&at=2026-11-04T04:29:00.000Z')).toEqual({ phone: 'ui-a', at: '2026-11-04T04:29:00.000Z' });
     const wrong: [string, string][] = [
-      [`media=${FEEDBACK}&phone=ui-a`, 'media or phone, not both'],
+      [`media=${FEEDBACK}&phone=ui-a`, 'media, phone or notes: one of them'],
+      ['notes=LAN-9&phone=ui-a', 'media, phone or notes: one of them'],
+      ['notes=lan-9', 'notes: a Linear issue (LAN-12)'],
+      ['notes=', 'notes: a Linear issue (LAN-12)'],
       ['media=LAN-224', 'media: the id of a problem sent from help mode'],
       ['media=0D000000-0000-4000-8000-000000000001', 'media: the id of a problem sent from help mode'],
       ['phone=', "phone: an install's id"],
@@ -178,6 +210,26 @@ describe('/api/user-issues', () => {
       ['phone=ui-a&at=yesterday', 'at: a time (ISO 8601)']
     ];
     for (const [s, message] of wrong) expect(() => q(s), s).toThrow(new LookedError(message));
+  });
+
+  it('hands over what an admin told Claude to do with an issue, to the workflow only, without recording a run', async () => {
+    const { d, runs } = deps();
+    const at = (q: string, auth = 'good') => new Request(`https://next.langquest.org/api/user-issues?${q}`, { headers: { authorization: `Bearer ${auth}` } });
+    expect(evidenceAsked(new URLSearchParams('notes=LAN-220'))).toEqual({ notes: 'LAN-220' });
+    const res = await handleUserIssues(at('notes=LAN-220'), d);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ waiting: [{ id: FEEDBACK, at: '2026-11-03T17:00:00Z', text: 'Wait for the passage first.' }], before: [] });
+    expect(await (await handleUserIssues(at('notes=LAN-1'), d)).json()).toEqual({ waiting: [], before: [] });
+    expect((await handleUserIssues(at('notes=LAN-220', 'other'), d)).status).toBe(401);
+    expect(runs).toEqual([]);
+  });
+
+  it('counts the instructions a run took or answered in its look', async () => {
+    const { d, runs, sent } = deps({ looked: async (l) => ({ looked: 0, grew: 0, taken: l.notes.filter((n) => n.taken).length, answered: l.notes.filter((n) => !n.taken).length }) });
+    const res = await handleUserIssues(req('POST', 'good', { sha: SHA, runUrl: RUN, notes: [{ id: FEEDBACK, result: 'answered', answer: 'The cause is the cache.' }] }), d);
+    expect(await res.json()).toEqual({ looked: 0, grew: 0, taken: 0, answered: 1 });
+    expect(sent).toEqual([]);
+    expect(runs[0]!.n).toMatchObject({ notesTaken: 0, notesAnswered: 1 });
   });
 
   it('records a watch the database could not answer as failed', async () => {
@@ -192,7 +244,7 @@ describe('/api/user-issues', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ looked: 3, grew: 1 });
     expect(sent).toHaveLength(1);
-    expect(runs).toEqual([{ job: 'user_issue_look', startedAt: NOW, ms: 0, outcome: 'ok', n: { looked: 3, filed: 1, known: 1, noise: 1, fixed: 0, grew: 1, closed: 0, reopened: 0 } }]);
+    expect(runs).toEqual([{ job: 'user_issue_look', startedAt: NOW, ms: 0, outcome: 'ok', n: { looked: 3, filed: 1, known: 1, noise: 1, fixed: 0, grew: 1, closed: 0, reopened: 0, notesTaken: 0, notesAnswered: 0 } }]);
   });
 
   it('refuses what is wrong, names another run or is too big, and records the wrong one', async () => {
