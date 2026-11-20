@@ -16,6 +16,7 @@
 // - P-Q4: asked of REV before any version (REV-021). P-T: TREV's own (REV-030). P-BT: REV-031/032. P-NEEDS: REV-029, REV-040/041.
 // - P-DRAFT: published and asked of REV in REV-049, which approves and takes it back three ways.
 // - A passage nobody recorded: REV-050 (notes on the check's help, a key word, a reply).
+// - REV-052 to 056 (LAN-317): each a passage nobody recorded, with a version REV's device does not hold.
 import type { Page } from '@playwright/test';
 import {
   back, button, byId, deviceEvents, expect, expectNothingRefused, expectSent, field, primary,
@@ -23,13 +24,14 @@ import {
 } from './support';
 import { deletePart, publishButton, recordButton, recordParts, undoButton } from './06-recording-helpers';
 import {
-  act, ask, device, doCheck, langAs, offerExampleGuides, open, openLabel, openRecord, passageNow, publishVersion, reviewLatest, sawToast, toTabs, unitByLabel,
-  recordedFor, useRunWorld, visible
+  act, ask, device, doCheck, langAs, offerExampleGuides, open, openLabel, openRecord, passageNow, publishVersion, recordNotUploaded, reviewLatest, sawToast, toTabs,
+  unitByLabel, untouchedPassage, recordedFor, useRunWorld, visible
 } from './reviewing-helpers';
 import { clientAs, send } from './fixture';
 import { checkHelpSpecs, commands } from '@langquest-next/core';
 import { randomUUID } from 'node:crypto';
-import { openSyncDetails } from './sync-helpers';
+import { caughtUp, keepOnDevice, openSyncDetails } from './sync-helpers';
+import { en, say as words } from './account-helpers';
 import { closeSheet, openTeamRow, sheet } from './05-passage-helpers';
 
 // One world for the run, kept when a failed test restarts the worker (reviewing-helpers.ts useRunWorld).
@@ -62,15 +64,6 @@ async function startCheck(page: Page, key: Parameters<typeof openRecord>[2], che
   await expect(text(page, /^Version \d+ · recorded by (you|Tom|Trevor)$/)).toBeVisible();
 }
 
-/** Keep the open passage on this device, so its version plays offline: Listen waits for audio that can play (UI audit, finding 9). */
-async function keepOnDevice(page: Page): Promise<void> {
-  const line = byId(page, 'passage-offline');
-  await expect(async () => {
-    const label = (await line.getAttribute('aria-label')) ?? '';
-    if (/^Download for offline/.test(label)) await line.click();
-    expect(label).toMatch(/^On this device/);
-  }).toPass({ timeout: 60_000 });
-}
 
 /** Tap a big microphone, let the file voice speak, then stop. */
 async function speakInto(page: Page, mic: string, ms = 3500): Promise<void> {
@@ -633,6 +626,139 @@ test('REV-024 Leaving a review keeps it; opening it again brings it back', async
   await expect(field(page, 'Or type it — what worked, what didn\'t')).toHaveValue('Too quiet at the start');
 });
 
+// ---- a version that cannot be heard on this device (LAN-317) ----
+// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md. Each test takes a passage nobody
+// has recorded (untouchedPassage): nobody asked REV about it and REV never worked on it, so its audio is not
+// kept on REV's device, and plays only from the server while connected.
+
+const NOT_HERE = words(en, 'review.screen.notOnPhoneYet');
+const NOT_UPLOADED = words(en, 'review.screen.notUploadedYet');
+const AUDIO_AWAY = words(en, 'recording.player.notOnDevice');
+const NOTE_HERE = words(en, 'recording.player.addNoteAtMoment');
+const DECIDE = 'Is it accurate and natural?';
+const FEEDBACK = 'Or type it — what worked, what didn\'t';
+
+/** REV on the record of a passage of TRANS's that REV's device holds the events of, and not the audio. */
+async function onUnkeptRecord(page: Page, label: string): Promise<void> {
+  await open(page, world(), 'REV');
+  await caughtUp(page, world(), 'REV');
+  await openLabel(page, label);
+  await expect(byId(page, 'passage-offline')).toHaveAttribute('aria-label', /^Download for offline/);
+}
+
+/** Listen holds the way: the player off with its Note, the reason said above Next, and Next off. */
+async function listenHeld(page: Page, reason: string): Promise<void> {
+  // A browser told it is offline says so at once; the app may take a moment to follow.
+  await expect(text(page, reason)).toBeVisible({ timeout: 30_000 });
+  await expect(button(page, AUDIO_AWAY)).toBeDisabled();
+  await expect(button(page, NOTE_HERE)).toBeDisabled();
+  await expect(primary(page)).toHaveText('Next: decide');
+  await expect(primary(page)).toBeDisabled();
+}
+
+/** Listen open again: the version plays, its Note works and Next is on, with no reason said. */
+async function listenOpen(page: Page): Promise<void> {
+  await expect(primary(page)).toBeEnabled({ timeout: 30_000 });
+  await expect(text(page, NOT_HERE)).toHaveCount(0);
+  await expect(text(page, NOT_UPLOADED)).toHaveCount(0);
+  await expect(button(page, /^Play Version 1 · recorded by /)).toBeEnabled();
+  await expect(button(page, NOTE_HERE)).toBeEnabled();
+}
+
+test('REV-052 Offline, a version not on this device is not checked; online again, the review opens by itself', async ({ page, context }) => {
+  const w = world();
+  const label = await untouchedPassage(w, [JOHN]);
+  await publishVersion(w, 'TRANS', { label });
+  await onUnkeptRecord(page, label);
+  await context.setOffline(true);
+  await doCheck(page, 'peer').click();
+  await expect(text(page, /^Version 1 · recorded by /)).toBeVisible();
+  await listenHeld(page, NOT_HERE);
+  // Back online, the version plays from the server: Listen opens up without the review being opened again.
+  await context.setOffline(false);
+  await listenOpen(page);
+  await primary(page).click();
+  await expect(text(page, DECIDE)).toBeVisible();
+});
+
+test('REV-053 A version not uploaded yet from the device it was made on is not checked until it is', async ({ page }) => {
+  const w = world();
+  const label = await untouchedPassage(w, [JOHN]);
+  // TRANS's Version 1 reached the server from a phone that has not been online since: its parts did not.
+  const v = await recordNotUploaded(w, 'TRANS', { label }, { publish: true });
+  await onUnkeptRecord(page, label);
+  await doCheck(page, 'peer').click();
+  await expect(text(page, /^Version 1 · recorded by /)).toBeVisible();
+  await listenHeld(page, NOT_UPLOADED);
+  // That phone comes online and sends them: the server confirms them, and Listen opens up by itself.
+  await v.upload();
+  await listenOpen(page);
+});
+
+test('REV-054 A review left past Listen opens on Listen when the version cannot be heard', async ({ page, context }) => {
+  const w = world();
+  const label = await untouchedPassage(w, [JOHN]);
+  await publishVersion(w, 'TRANS', { label });
+  await onUnkeptRecord(page, label);
+  // Online, without playing it: on to Decide, "Needs changes" with typed words, then left (kept as a draft, decision 127).
+  await doCheck(page, 'peer').click();
+  await listenOpen(page);
+  await primary(page).click();
+  await button(page, 'Needs changes').click();
+  await button(page, 'Or type it').click();
+  await field(page, FEEDBACK).fill('Verse 3 is hard to follow');
+  await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
+  await byId(page, 'header-back').click();
+  await expect(text(page, DECIDE)).toBeVisible();
+  await byId(page, 'header-close').click();
+  await expect(button(page, 'Versions and history')).toBeVisible();
+  // Offline, the draft opens on Listen, not on Decide where it was left, and holds there.
+  await context.setOffline(true);
+  await button(page, 'Continue the peer check').click();
+  await listenHeld(page, NOT_HERE);
+  await expect(text(page, DECIDE)).toHaveCount(0);
+  // Online again the version plays, and the review goes back by itself to Decide, where the draft was left, all there.
+  await context.setOffline(false);
+  await expect(text(page, DECIDE)).toBeVisible({ timeout: 30_000 });
+  await expect(text(page, NOT_HERE)).toHaveCount(0);
+  await button(page, 'Needs changes').click();
+  await expect(field(page, FEEDBACK)).toHaveValue('Verse 3 is hard to follow');
+});
+
+test('REV-055 A version played in the review can be checked offline without its audio', async ({ page, context }) => {
+  const w = world();
+  const label = await untouchedPassage(w, [JOHN]);
+  await publishVersion(w, 'TRANS', { label });
+  await onUnkeptRecord(page, label);
+  // Online: played from the server (so heard in this review), on to Decide, and left with typed words.
+  await doCheck(page, 'peer').click();
+  await button(page, /^Play Version 1 · recorded by /).click();
+  await primary(page).click();
+  await button(page, 'Needs changes').click();
+  await button(page, 'Or type it').click();
+  await field(page, FEEDBACK).fill('Clear enough');
+  await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
+  await byId(page, 'header-back').click();
+  await byId(page, 'header-close').click();
+  await expect(button(page, 'Versions and history')).toBeVisible();
+  // Offline the audio is not here, and the review is not held: it opens where it was left.
+  await context.setOffline(true);
+  await button(page, 'Continue the peer check').click();
+  await expect(text(page, DECIDE)).toBeVisible();
+  await button(page, 'Listen, done. Go back').click();
+  await expect(button(page, AUDIO_AWAY)).toBeDisabled({ timeout: 30_000 });
+  await expect(text(page, NOT_HERE)).toHaveCount(0);
+  await expect(primary(page)).toBeEnabled();
+  await primary(page).click();
+  await button(page, 'Looks good').click();
+  // The typed words were about what should change: Looks good asks whether to send them too.
+  await button(page, 'Leave it out').click();
+  await sawToast(page, `Looks good. ${TOM} gets it when this device is connected.`);
+  await context.setOffline(false);
+  await expectSent(page, w, 'A', 60_000);
+  await expectNothingRefused(page, w);
+});
+
 // ---- who may review ----
 
 const REVIEW_ACTIONS = /^(Do the .+|Back-translate it|Review it now)$/;
@@ -888,6 +1014,38 @@ test('REV-039 Parts made from an older version', async ({ page }) => {
   await expect(text(page, /^Alpha · Version 2 · part \d$/)).toBeVisible();
 });
 
+test('REV-056 A part that cannot be heard on this device is not said back from it', async ({ page, context }) => {
+  const w = world();
+  const label = await untouchedPassage(w, [JOHN]);
+  // TRANS's Version 1 reached the server from a phone that has not been online since: its parts did not.
+  // (A passage asked of REV is kept on REV's device, so its audio would come down before REV goes offline.)
+  const v = await recordNotUploaded(w, 'TRANS', { label }, { publish: true, parts: 2 });
+  const coord = await langAs(w, 'COORD');
+  await act(coord, (s) => commands(s).ask({ commandId: randomUUID(), unitId: unitByLabel(s, label), profileId: w.accounts.REV.id, what: 'review', kindId: 'bt' } as never),
+    'COORD asks REV for the back translation');
+  await open(page, w, 'REV');
+  await caughtUp(page, w, 'REV');
+  await openLabel(page, label);
+  await context.setOffline(true);
+  const bt = page.getByRole('button', { name: 'Back-translate it', exact: true }).locator('visible=true');
+  if (!(await bt.count())) await page.getByRole('button', { name: /^Back translation · make it, / }).locator('visible=true').first().click();
+  await bt.last().click();
+  await expect(text(page, 'Alpha · Version 1 · part 1')).toBeVisible();
+  // Offline: Record and the player's Note wait, and the footer says why and what ends it.
+  await expect(text(page, words(en, 'backTranslation.partNotHere', { n: 1 }))).toBeVisible({ timeout: 30_000 });
+  await expect(button(page, 'Record part 1')).toBeDisabled();
+  await expect(button(page, NOTE_HERE)).toBeDisabled();
+  // Online, the server does not have it yet: the other reason.
+  await context.setOffline(false);
+  await expect(text(page, words(en, 'backTranslation.partNotUploaded', { n: 1 }))).toBeVisible({ timeout: 30_000 });
+  await expect(button(page, 'Record part 1')).toBeDisabled();
+  // The phone it was made on sends it: Record comes on by itself.
+  await v.upload();
+  await expect(button(page, 'Record part 1')).toBeEnabled({ timeout: 30_000 });
+  await expect(text(page, /^Part 1 (is not on this device yet|has not been uploaded yet)/)).toHaveCount(0);
+  await expect(button(page, NOTE_HERE)).toBeEnabled();
+});
+
 // ---- answering feedback ----
 
 test('REV-040 "Hear the feedback" opens what the reviewer said', async ({ page }) => {
@@ -943,6 +1101,9 @@ test('REV-041 Record a fix answers the feedback with Version 2 @p0', async ({ pa
 test('REV-042 Record a fix offline', async ({ page, context }) => {
   await open(page, world(), 'TRANS');
   await openRecord(page, world(), 'P-Q2');
+  // Kept on the device first: a fix starts from Version 2's parts, and a draft with a part that is not here is
+  // locked offline (REC-062). What is missing offline here is only the voice feedback.
+  await keepOnDevice(page);
   await button(page, 'Hear the feedback').click();
   await context.setOffline(true);
   await button(page, 'Record a fix').click();

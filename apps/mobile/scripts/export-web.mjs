@@ -206,10 +206,13 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // past then), Reports naming a language's template (LAN-114, #397, 353 bytes) and Let someone in
 // asking for its own permissions (LAN-148, LAN-216, #548, 262 bytes). Each copy carries this same
 // raise, so that they merge in any order; with all three, 2,233 bytes are left.
-// Raised by 8 KB on the iPhone build's release branch with the copy of the book's own download
+// Raised by 2 KB on the release branch with the copy of an unheard recording not being checked,
+// said back or changed from (LAN-317, #574): its words in all 16 catalogs and the reach check,
+// which every chunk counts, put the total under 1 KB past the budget.
+// Raised by 8 KB more on the iPhone build's release branch with the copy of the book's own download
 // button and the outline section's (LAN-316, #577), 5 KB past then: main fits it in its own limit,
-// but this branch's limit was already tight after the three copies above.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 155 * 1024;
+// but this branch's limit was already tight after the copies above.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 157 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

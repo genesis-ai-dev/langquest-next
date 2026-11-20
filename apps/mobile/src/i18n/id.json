@@ -6159,6 +6159,7 @@
       "addedAtCheckpoint": "{{kind}} ditambahkan ke catatan. Titik periksa masih menunggu pemeriksaan yang dilakukan di aplikasi.",
       "keptNotSent": "Tinjauan Anda disimpan di ponsel ini. Belum dikirim.",
       "notOnPhoneYet": "Rekaman belum ada di ponsel ini. Rekaman diputar di sini setelah ponsel online.",
+      "notUploadedYet": "Rekaman belum diunggah dari perangkat tempat rekaman itu dibuat. Rekaman diputar di sini setelah perangkat itu online.",
       "previousQuestion": "Pertanyaan sebelumnya",
       "previousQuestionHelp": "Kembali ke pertanyaan sebelumnya untuk mengubah jawaban Anda.",
       "loggedCheckpoint": "Pemeriksaan ini adalah titik periksa: dicatat di sini, ia masuk catatan, tetapi hanya pemeriksaan di aplikasi yang membuka langkah sesudahnya.",
@@ -6337,6 +6338,8 @@
     "notPublished": "Tidak diterbitkan: {{reason}}",
     "partNotSaved": "Satu bagian tidak tersimpan.",
     "retrySaving": "Coba simpan lagi",
+    "partNotHere": "Bagian {{n}} belum ada di perangkat ini. Anda bisa mengucapkannya kembali setelah perangkat online.",
+    "partNotUploaded": "Bagian {{n}} belum diunggah dari perangkat tempat bagian itu dibuat. Anda bisa mengucapkannya kembali setelah perangkat itu online.",
     "youDrag": "Anda · geser maju mundur sesering yang Anda mau",
     "nameDrag": "{{name}} · geser maju mundur sesering yang Anda mau",
     "part": "Bagian {{n}}",
@@ -6426,7 +6429,10 @@
     "partKept": "{{part}} disimpan seperti direkam.",
     "partsCleaned_other": "Bersihkan pada {{count, number}} bagian.",
     "redone": "Diulangi.",
-    "newRecording": "Rekaman baru"
+    "newRecording": "Rekaman baru",
+    "lockedTitle": "Sebagian rekaman ini belum ada di perangkat ini",
+    "lockedOffline": "Bagian itu tidak bisa diubah atau dikirim dari sini sampai perangkat ini online dan sudah menerimanya. Untuk merekam tanpanya, buka {{versions}} di perikop dan pilih {{newVersion}}.",
+    "lockedNotUploaded": "Bagian itu belum diunggah dari perangkat tempat bagian itu dibuat, jadi tidak bisa diubah atau dikirim dari sini. Untuk merekam tanpanya, buka {{versions}} di perikop dan pilih {{newVersion}}."
   },
   "reference": {
     "organization": "Organisasi",

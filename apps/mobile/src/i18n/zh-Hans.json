@@ -6159,6 +6159,7 @@
       "addedAtCheckpoint": "已将{{kind}}加入记录。这个关卡仍在等待在应用中完成的检查。",
       "keptNotSent": "你的检查保存在这部手机上，还没有发送。",
       "notOnPhoneYet": "这段录音还不在这部手机上。手机联网后就能在这里播放。",
+      "notUploadedYet": "这段录音还没有从录制它的设备上传。那台设备联网后，就能在这里播放。",
       "previousQuestion": "上一个问题",
       "previousQuestionHelp": "回到上一个问题，修改你的回答。",
       "loggedCheckpoint": "这项检查是一个关卡：在这里登记会写入记录，但只有在应用中完成的检查才能打开后面的步骤。",
@@ -6337,6 +6338,8 @@
     "notPublished": "未发布：{{reason}}",
     "partNotSaved": "有一段没有保存。",
     "retrySaving": "重新保存",
+    "partNotHere": "第 {{n}} 段还不在本设备上。设备联网后就能译回。",
+    "partNotUploaded": "第 {{n}} 段还没有从录制它的设备上传。那台设备联网后就能译回。",
     "youDrag": "你 · 可以随意来回拖动",
     "nameDrag": "{{name}} · 可以随意来回拖动",
     "part": "第 {{n}} 段",
@@ -6426,7 +6429,10 @@
     "partKept": "{{part}}保留原录音。",
     "partsCleaned_other": "清理了 {{count, number}} 段。",
     "redone": "已重做。",
-    "newRecording": "新录音"
+    "newRecording": "新录音",
+    "lockedTitle": "这段录音有一部分还不在本设备上",
+    "lockedOffline": "在本设备联网并收到这部分之前，无法在这里修改或发送。如果不用这部分来录，请在经段中打开{{versions}}，再选择{{newVersion}}。",
+    "lockedNotUploaded": "这部分还没有从录制它的设备上传，所以无法在这里修改或发送。如果不用这部分来录，请在经段中打开{{versions}}，再选择{{newVersion}}。"
   },
   "reference": {
     "organization": "机构",

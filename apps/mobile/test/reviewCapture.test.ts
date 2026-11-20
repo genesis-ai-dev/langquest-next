@@ -6,7 +6,7 @@ import {
 import {
   canLeave, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, footHint, isGroupKind, kindLabel, listenLine,
   clockToMs, momentIn, noteAnchorText, nextLabel, openRequired, partAt, questionSource, readiness, replyAnchor, requestFor, reviewCapture, reviewStages,
-  stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor
+  reviewUnheard, stageAt, stageBack, stageShown, summaryLine, toCompareFor, verdictQuestion, versionFor
 } from '../src/reviewing/capture';
 
 /** A small language on the Standard Bible Flow, with a few passages of John and one of Mark. */
@@ -191,6 +191,29 @@ describe('reviewing is three short steps: Listen, Questions, Decide (REV-0, SIMP
     expect(listenLine('community', false)).toBe('Play it for the group');
     expect(listenLine('peer', false)).toBe('Listen to all of it first');
     expect(listenLine('peer', true)).toBe('The version that was played');
+  });
+});
+
+describe('a version that cannot be heard on this device is not checked from here (LAN-317)', () => {
+  it('holds a review in the app, for either reason', () => {
+    expect(reviewUnheard({ logged: false, played: false, why: 'offline' })).toBe('offline');
+    expect(reviewUnheard({ logged: false, played: false, why: 'notSent' })).toBe('notSent');
+  });
+  it('holds nothing when the version plays here', () => {
+    expect(reviewUnheard({ logged: false, played: false, why: null })).toBeNull();
+  });
+  it('lets a review go on once the version was played in it: it was heard', () => {
+    expect(reviewUnheard({ logged: false, played: true, why: 'offline' })).toBeNull();
+  });
+  it('holds nothing for a review logged afterwards: it was heard elsewhere', () => {
+    expect(reviewUnheard({ logged: true, played: false, why: 'offline' })).toBeNull();
+  });
+  it('keeps the review on Listen, wherever its draft was left, and puts it back when the version plays', () => {
+    expect(stageShown('decide', true)).toBe('listen');
+    expect(stageShown('questions', true)).toBe('listen');
+    expect(stageShown('listen', true)).toBe('listen');
+    expect(stageShown('decide', false)).toBe('decide');
+    expect(stageShown('questions', false)).toBe('questions');
   });
 });
 

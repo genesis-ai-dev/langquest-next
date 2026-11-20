@@ -15,6 +15,9 @@
 // sends it; Needs changes opens "What should change?", voice first, with an
 // optional listener retelling). Already happened is the same screens, with
 // who gave it, where, which version and a retelling behind "Add details".
+// A version that cannot be heard on this device (offline and not kept here,
+// or not uploaded yet) is not checked from here: Listen says why, Next and
+// Note wait, and a draft left further on opens on Listen (LAN-317).
 // A review goes on the one passage it is about (decision 128): the demo's
 // "Also covered in this session" is left out.
 //
@@ -39,7 +42,8 @@ import { useHardwareBack } from '../ui/useHardwareBack';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import { ClipPlayer } from '../audio/clipPlayer';
-import { clipsAvailable } from '../audio/clipsAvailable';
+import { unheardOf } from '../audio/clipReachModel';
+import { useClipsReach } from '../audio/useClipsReach';
 import { ReportFlag } from '../moderation/reportSheet';
 import { recordTarget } from '../moderation/reportTargets';
 import { VersionParts } from '../passage/versionParts';
@@ -57,7 +61,7 @@ import { usePassage } from '../passage/usePassage';
 import { failureMessage } from '../diagnostics/report';
 import {
   canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, footHint, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
-  momentIn, noteAnchorText, partAt, readiness, replyAnchor, requestFor, reviewCapture, reviewStages, stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor,
+  momentIn, noteAnchorText, partAt, readiness, replyAnchor, requestFor, reviewCapture, reviewStages, reviewUnheard, stageAt, stageBack, stageShown, summaryLine, toCompareFor, verdictQuestion, versionFor,
   type AnchorLook, type Answers, type Skips, type StageId, type VoiceAnswer
 } from '../reviewing/capture';
 import { NotedRow, NotesUnder, NotingSheet, ReviewNotes, type Noting } from '../reviewing/notesOn';
@@ -91,6 +95,9 @@ import { a11yState } from '../ui/a11yModel';
 
 /** Close a sheet, then leave: a screen opened under a closing sheet is hidden on some phones. */
 const SHEET_GAP_MS = 400;
+
+/** No version yet: nothing to ask the file store about. */
+const NO_PARTS: readonly string[] = [];
 
 /**
  * A voice note as a card for a review's artifacts, with the length and
@@ -154,7 +161,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   // Where you are in the review, kept with the draft: Back from a key term or the study, or opening it again, returns here.
   const [stageId, setStageId] = useState<StageId>('listen');
   const [qi, setQi] = useState(0);
-  const [why, setWhy] = useState(false);
+  const [whyOn, setWhy] = useState(false);
   const [sheet, setSheet] = useState<'background' | 'who' | 'details' | 'say' | 'retell' | null>(null);
   // A note being written on a part, a help or another note (decisions.md 149).
   const [noting, setNoting] = useState<Noting | null>(null);
@@ -183,6 +190,12 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const wide = useLayout().kind !== 'phone';
 
   const version = v ? versionFor(v.p, takeId) : undefined;
+  // A version that cannot be heard on this device is not checked from here (LAN-317,
+  // docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md): Listen says why and holds the way
+  // forward, and a draft left at a question or at Decide opens on Listen until the recording plays here.
+  const unheard = reviewUnheard({ logged, played, why: unheardOf(useClipsReach(ctx.language, version?.cardHashes ?? NO_PARTS)) });
+  const why = whyOn && !unheard;
+  const stageNow = stageShown(stageId, !!unheard);
 
   // Everything said, answered, chosen or recorded here is a draft only you see, kept as you go
   // (decision 127): Back and ✕ leave it, opening this review again brings it back, sending drops it.
@@ -237,7 +250,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
 
   // A phone's Back goes one step back (decision 137): from "What should change?" to Decide, as its arrow does;
   // else the question before, then the stage before. From Listen it leaves, and the draft stays.
-  const stepBack = stageBack(reviewStages({ questions: questions.length, logged, makes: !!makes }), stageId, qi, questions.length);
+  const stepBack = stageBack(reviewStages({ questions: questions.length, logged, makes: !!makes }), stageNow, qi, questions.length);
   useHardwareBack(why || !!stepBack, () => {
     if (why) setWhy(false);
     else if (stepBack) { setStageId(stepBack.stage); setQi(stepBack.qi); }
@@ -277,7 +290,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const group = isGroupKind(kind.id);
   const asker = request?.by ? ctx.name(request.by) : undefined;
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes });
-  const at = stageAt(stages, stageId);
+  const at = stageAt(stages, stageNow);
   const stage = stages[at]!.id;
   const next = stages[at + 1];
   const latest = v.p.latest;
@@ -436,8 +449,6 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     const back = stageBack(stages, stage, qi, questions.length);
     if (back) { setStageId(back.stage); setQi(back.qi); }
   };
-  // Where the version can be played: on this phone, or online from the server.
-  const audioHere = clipsAvailable(ctx.language, version.cardHashes);
   /** Looks good, asking first when what was said is about what should change. */
   const looksGood = () => {
     if (saidForChange && (comment.trim() || feedback)) { setAskChange(true); return; }
@@ -461,12 +472,11 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       </>
     );
   } else if (stage === 'listen') {
-    // A version that cannot be heard here is not checked from here: one logged afterwards was heard elsewhere.
-    const unheard = !logged && !audioHere;
+    // Why Next is off, said above it: the device is offline, or the recording has not left the device it was made on.
     footer = next ? (
       <>
-        {unheard ? <Text style={[txt.smMuted, styles.center]}>{t('review.screen.notOnPhoneYet')}</Text> : null}
-        <PrimaryBtn label={nextLabel(next)} icon="right" disabled={unheard} onPress={goNext} />
+        {unheard ? <Text style={[txt.smMuted, styles.center]}>{t(unheard === 'offline' ? 'review.screen.notOnPhoneYet' : 'review.screen.notUploadedYet')}</Text> : null}
+        <PrimaryBtn label={nextLabel(next)} icon="right" disabled={!!unheard} onPress={goNext} />
       </>
     ) : null;
   } else if (stage === 'questions' && q) {
