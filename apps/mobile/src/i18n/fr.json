@@ -6671,6 +6671,7 @@
       "addedAtCheckpoint": "{{kind}} : ajouté à l’historique. Le point de contrôle attend toujours une vérification faite dans l’app.",
       "keptNotSent": "Votre vérification est gardée sur ce téléphone. Elle n’est pas encore envoyée.",
       "notOnPhoneYet": "L’enregistrement n’est pas encore sur ce téléphone. Il se lira ici une fois le téléphone connecté.",
+      "notUploadedYet": "L’enregistrement n’a pas encore été envoyé depuis l’appareil où il a été fait. Il se lira ici une fois que cet appareil aura été connecté.",
       "previousQuestion": "Question précédente",
       "previousQuestionHelp": "Revient à la question d’avant, pour changer votre réponse.",
       "loggedCheckpoint": "Cette vérification est un point de contrôle : notée ici, elle va dans l’historique, mais seule une vérification faite dans l’app ouvre les étapes suivantes.",
@@ -6857,6 +6858,8 @@
     "notPublished": "Non publié : {{reason}}",
     "partNotSaved": "Une partie n’a pas été sauvegardée.",
     "retrySaving": "Réessayer de sauvegarder",
+    "partNotHere": "La partie {{n}} n’est pas encore sur cet appareil. Vous pourrez la redire une fois l’appareil connecté.",
+    "partNotUploaded": "La partie {{n}} n’a pas encore été envoyée depuis l’appareil où elle a été faite. Vous pourrez la redire une fois que cet appareil aura été connecté.",
     "youDrag": "Vous · faites glisser d’avant en arrière autant que vous voulez",
     "nameDrag": "{{name}} · faites glisser d’avant en arrière autant que vous voulez",
     "part": "Partie {{n}}",
@@ -6954,7 +6957,10 @@
     "partsCleaned_many": "Nettoyer sur {{count, number}} de parties.",
     "partsCleaned_other": "Nettoyer sur {{count, number}} parties.",
     "redone": "Rétabli.",
-    "newRecording": "Nouvel enregistrement"
+    "newRecording": "Nouvel enregistrement",
+    "lockedTitle": "Une partie de cet enregistrement n’est pas encore sur cet appareil",
+    "lockedOffline": "Cette partie ne peut être ni modifiée ni transmise d’ici tant que cet appareil n’est pas connecté et ne l’a pas reçue. Pour enregistrer sans elle, ouvrez {{versions}} dans le passage et choisissez {{newVersion}}.",
+    "lockedNotUploaded": "Cette partie n’a pas encore été envoyée depuis l’appareil où elle a été faite, elle ne peut donc être ni modifiée ni transmise d’ici. Pour enregistrer sans elle, ouvrez {{versions}} dans le passage et choisissez {{newVersion}}."
   },
   "reference": {
     "organization": "Organisation",
