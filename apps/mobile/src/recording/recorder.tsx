@@ -61,6 +61,12 @@ export interface Part { hash: string; durationMs?: number;
 /** The recorder pane: the parts and their gaps, where the next part goes, and the next part at the end. */
 export function RecorderPane(props: {
   ctx: Ctx; parts: Part[]; phase: LoopPhase; capturing: boolean; small: boolean; disabled: boolean;
+  /**
+   * Nothing changes the parts, though each still plays: part of the draft is
+   * not on this device (LAN-317). Apart from `disabled`, which also stops
+   * playing while the screen is busy or recording.
+   */
+  locked?: boolean;
   onDelete: (hash: string, label: string) => void; onResume: () => void;
   /** The card's title when it is not "Parts 1–n": the version the parts are, while nothing changed. */
   title?: string;
@@ -97,22 +103,22 @@ export function RecorderPane(props: {
       {parts.length > 0 ? (
         <GroupCard
           body={props.verses && props.verses.keys.length > 0 ? (
-            <VerseParts ctx={props.ctx} parts={parts} verses={props.verses.keys} marks={props.verses.marks} disabled={props.disabled}
+            <VerseParts ctx={props.ctx} parts={parts} verses={props.verses.keys} marks={props.verses.marks} disabled={props.disabled} locked={!!props.locked}
               onMarks={props.verses.onMarks} onDelete={props.onDelete} rows={rows} target={props.target} onChoose={props.onChoose} onMove={props.onMove} fresh={props.fresh} show={props.show ?? null} />
           ) : undefined} ctx={props.ctx} parts={parts} title={props.title ?? recorderLines(rows.length).group} sub={lines.groupSub(totalMs(parts.map((p) => p.durationMs)))}
-          open={expanded} onToggle={toggle} disabled={props.disabled} onDelete={props.onDelete} rows={rows} target={props.target} onChoose={props.onChoose}
+          open={expanded} onToggle={toggle} disabled={props.disabled} locked={!!props.locked} onDelete={props.onDelete} rows={rows} target={props.target} onChoose={props.onChoose}
           onMove={props.onMove} fresh={props.fresh} show={props.show ?? null}
           {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} {...(props.onCleanUp ? { onCleanUp: props.onCleanUp } : {})} />
       ) : null}
       <View style={styles.underCard}>
-        <NextCard label={partLabel(endN - 1)} chosen={atEnd} disabled={props.disabled} onChoose={() => props.onChoose({ kind: 'end' })}
+        <NextCard label={partLabel(endN - 1)} chosen={atEnd} disabled={props.disabled || !!props.locked} onChoose={() => props.onChoose({ kind: 'end' })}
           phase={props.phase} capturing={props.capturing} onResume={props.onResume} />
       </View>
     </View>
   );
 }
 
-function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string; open: boolean; onToggle: () => void; disabled: boolean; onDelete: (hash: string, label: string) => void;
+function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string; open: boolean; onToggle: () => void; disabled: boolean; locked: boolean; onDelete: (hash: string, label: string) => void;
   onDeleteAll?: () => void; onCleanUp?: () => void;
   rows: SlotRow[]; target: RecordTarget; onChoose: (to: RecordTarget) => void;
   onMove: (from: number, to: number) => void; fresh: ReadonlySet<string>; show: { hash: string; at: number } | null;
@@ -147,7 +153,7 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
         </Pressable>
         {/* The ⋯ took the place of the card's bin (decision 179): Clean up, and Delete every part. */}
         {props.onDeleteAll || props.onCleanUp ? (
-          <PartsMenu disabled={props.disabled} {...(props.onCleanUp ? { onCleanUp: props.onCleanUp } : {})} {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} />
+          <PartsMenu disabled={props.disabled || props.locked} {...(props.onCleanUp ? { onCleanUp: props.onCleanUp } : {})} {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} />
         ) : null}
         <Pressable onPress={toggle.onPress} accessibilityRole="button" accessibilityLabel={props.open ? t('recording.recorder.hideParts') : t('recording.recorder.showParts')} style={({ pressed }) => [styles.iconTap, pressed && ps.pressed]}>
           <Ico name={props.open ? 'down' : 'right'} size={22} color={C.muted} />
@@ -164,12 +170,14 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
 }
 
 /** The parts without verses: each with play, its bars and length, and its grip, sliding to its bin; and the + marks between them. */
-function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelete: (hash: string, label: string) => void;
+function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; locked: boolean; onDelete: (hash: string, label: string) => void;
   rows: SlotRow[]; target: RecordTarget; onChoose: (to: RecordTarget) => void; onMove: (from: number, to: number) => void; fresh: ReadonlySet<string>;
   show: { hash: string; at: number } | null }) {
   const { rows, target, parts } = props;
+  // Busy, recording or locked: nothing here changes the parts.
+  const off = props.disabled || props.locked;
   const keys = rowKeys(rows, parts.map((p) => p.hash));
-  const drag = useDragRows(keys, !props.disabled, (from, to) => {
+  const drag = useDragRows(keys, !off, (from, to) => {
     const r = rows[from];
     if (r?.kind !== 'part') return;
     const at = partIndexAfter(rows.map((x) => x.kind === 'part'), from, to);
@@ -177,7 +185,7 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
   }, props.show ? { key: `part:${props.show.hash}`, at: props.show.at } : null);
   // One row open on its bin at a time; recording or a drag closes it.
   const [open, setOpen] = useState<{ key: string; side: SwipeSide } | null>(null);
-  const hint = useSwipeHint(parts.length > 0 && !props.disabled);
+  const hint = useSwipeHint(parts.length > 0 && !off);
   const firstPart = rows.findIndex((r) => r.kind === 'part');
   const binRow = helpBinRow(rows);
   return (
@@ -187,18 +195,18 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
         const moved = drag.offset(key);
         const lifted = drag.dragging === key;
         const name = partLabel(r.n - 1);
-        const mark = !props.disabled && !drag.dragging && opensAbove(rows, k)
+        const mark = !off && !drag.dragging && opensAbove(rows, k)
           ? <HelpRow key={`mark-${key}`} of="recording.insert"><InsertMark n={r.n} before={name} onPress={() => props.onChoose({ kind: 'gap', before: r.kind === 'part' ? r.index : r.before })} /></HelpRow> : null;
         const row = r.kind === 'gap' ? (
-          <GapSlot n={r.n} first={k === 0} disabled={props.disabled}
+          <GapSlot n={r.n} first={k === 0} disabled={off}
             chosen={target.kind === 'gap' && target.before === r.before} onPress={() => props.onChoose({ kind: 'gap', before: r.before })} />
         ) : (
-          <PartRow ctx={props.ctx} part={parts[r.index]!} n={r.n} disabled={props.disabled} first={k === 0} last={k === rows.length - 1}
+          <PartRow ctx={props.ctx} part={parts[r.index]!} n={r.n} disabled={props.disabled} locked={props.locked} first={k === 0} last={k === rows.length - 1}
             onDelete={(hash, label) => { setOpen(null); props.onDelete(hash, label); }}
-            open={!props.disabled && !drag.dragging && open?.key === key ? open.side : 0} onOpen={(side) => setOpen(side ? { key, side } : null)}
+            open={!off && !drag.dragging && open?.key === key ? open.side : 0} onOpen={(side) => setOpen(side ? { key, side } : null)}
             hint={hint.show && k === firstPart} onHinted={hint.done} helpBin={k === binRow}
             fresh={props.fresh.has(parts[r.index]!.hash)} lifted={lifted}
-            grip={<PartGrip part={name} handlers={drag.grip(key)} disabled={props.disabled} canUp={r.index > 0} canDown={r.index < parts.length - 1} at={r.index + 1} of={parts.length} nudge={drag.tapped?.key === key ? drag.tapped.at : undefined}
+            grip={<PartGrip part={name} handlers={drag.grip(key)} disabled={off} canUp={r.index > 0} canDown={r.index < parts.length - 1} at={r.index + 1} of={parts.length} nudge={drag.tapped?.key === key ? drag.tapped.at : undefined}
               onStep={(by) => props.onMove(r.index, r.index + by)} />}
             chosen={target.kind === 'over' && target.index === r.index} onChoose={() => props.onChoose({ kind: 'over', index: r.index })} />
         );
@@ -213,10 +221,12 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
   );
 }
 
-function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; chosen: boolean; onChoose: () => void; onDelete: (hash: string, label: string) => void;
+function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; locked: boolean; chosen: boolean; onChoose: () => void; onDelete: (hash: string, label: string) => void;
   first: boolean; last: boolean; fresh: boolean; lifted: boolean; grip: ReactNode;
   open: SwipeSide; onOpen: (side: SwipeSide) => void; hint: boolean; onHinted: () => void; helpBin: boolean }) {
   const label = partLabel(props.n - 1);
+  // Locked, it still plays; only what changes the part is off.
+  const off = props.disabled || props.locked;
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
   const heard = usePlayingPart(props.part.hash, clip);
   const bars = useBars(props.ctx.language, props.part.hash);
@@ -224,7 +234,7 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
   const play = useHelpSpot(heard.playing ? t('common.pause') : t('recording.player.playTitle', { title: label }), undefined, heard.toggle);
   const choose = useHelpSpot(t('recording.recorder.recordOver', { part: label }), t('recording.recorder.recordOverHelp'), props.onChoose);
   return (
-    <SwipeRow name={label} disabled={props.disabled} open={props.open} onOpen={props.onOpen} onDelete={() => props.onDelete(props.part.hash, label)} last={props.last}
+    <SwipeRow name={label} disabled={off} open={props.open} onOpen={props.onOpen} onDelete={() => props.onDelete(props.part.hash, label)} last={props.last}
       {...(props.hint ? { hint: true, onHinted: props.onHinted } : {})} helpBin={props.helpBin}>
     <View style={[styles.partRow, !props.first && styles.rowBorder, props.fresh && styles.fresh, props.chosen && styles.chosenRow, props.lifted && styles.liftedRow]}>
       {heard.now ? <PlayingFill at={heard.now.at} length={heard.now.length} playing={heard.now.playing} /> : null}
@@ -237,9 +247,9 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
       </Pressable>
       {/* Secondary while help is on: dim and unnumbered, and a tap still explains (LAN-135). */}
       <HelpQuiet>
-      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
+      <Pressable onPress={choose.onPress} disabled={off} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
         accessibilityLabel={t('recording.recorder.recordOver', { part: label })}
-        accessibilityActions={props.disabled ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: label }) }]}
+        accessibilityActions={off ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: label }) }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') props.onOpen(1); }}
         style={({ pressed }) => [styles.partPlay, pressed && ps.pressed]}>
         <PartBars bars={bars} progress={heard.share} />
@@ -248,7 +258,7 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
         <HelpBadge spot={choose} />
       </Pressable>
       {/* Tried in Clean up and kept as recorded (decision 179), or noisy (decision 181). */}
-      <CleanUpMark ctx={props.ctx} hash={props.part.hash} disabled={props.disabled} part={label} kept={props.part.kept} cleanUp={props.part.cleanUp} />
+      <CleanUpMark ctx={props.ctx} hash={props.part.hash} disabled={off} part={label} kept={props.part.kept} cleanUp={props.part.cleanUp} />
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={label} />
       {props.grip}
@@ -321,19 +331,21 @@ function Meter(props: { captured: boolean }) {
 const recordingHelp = () => ({ undo: t('recording.recorder.undoHelp'), redo: t('common.redoHelp') });
 
 /** The recorder at one line (a-wsGuide): what is next, how far along, Undo and Redo, and the record button. */
-export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: boolean; onRecord: () => void; onOpen: () => void; nextIndex?: number; undo?: UndoRedoProps }) {
+export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: boolean; onRecord: () => void; onOpen: () => void; nextIndex?: number; undo?: UndoRedoProps;
+  /** Part of the draft is not on this device (LAN-317): the line says so in place of the count, and opening the recorder says the rest. */ locked?: boolean }) {
   const lines = { ...recorderLines(props.count), ...(props.nextIndex !== undefined ? { next: partLabel(props.nextIndex) } : {}) };
   const open = useHelpSpot(t('recording.recorder.yourRecording'), t('recording.recorder.openHelp'), props.onOpen);
   const recording = loopRecording(props.phase);
   return (
     <View style={styles.bar}>
-      <Pressable onPress={open.onPress} accessibilityRole="button" accessibilityLabel={t('recording.recorder.barLabel', { next: lines.next, progress: lines.bar })} style={({ pressed }) => [{ flex: 1 }, pressed && ps.pressed]}>
+      <Pressable onPress={open.onPress} accessibilityRole="button" accessibilityLabel={t('recording.recorder.barLabel', { next: lines.next, progress: props.locked ? t('translate.lockedTitle') : lines.bar })} style={({ pressed }) => [{ flex: 1 }, pressed && ps.pressed]}>
         <Text style={styles.title}>{lines.next}</Text>
-        <Text style={[txt.smMuted, recording && { color: TINT.redText }]}>{props.phase === 'recording' ? t('recording.recorder.recordingNow') : props.phase === 'listening' ? t('recording.recorder.pausedForBible') : lines.bar}</Text>
+        <Text style={[txt.smMuted, recording && { color: TINT.redText }, props.locked && !recording && { color: TINT.amberText }]}>{props.phase === 'recording' ? t('recording.recorder.recordingNow') : props.phase === 'listening' ? t('recording.recorder.pausedForBible')
+          : props.locked ? t('translate.lockedTitle') : lines.bar}</Text>
         <HelpBadge spot={open} />
       </Pressable>
-      {/* Not drawn while recording: the line beside it needs the room (in Swahili, "Listening for you" took four lines). */}
-      {props.undo && props.phase === 'off' ? <UndoRedo {...props.undo} help={recordingHelp()} /> : null}
+      {/* Not drawn while recording: the line beside it needs the room (in Swahili, "Listening for you" took four lines). Nor while locked: both are off, and the line says why. */}
+      {props.undo && props.phase === 'off' && !props.locked ? <UndoRedo {...props.undo} help={recordingHelp()} /> : null}
       <RecordBtn size={56} recording={recording} disabled={props.disabled} onPress={props.onRecord} />
     </View>
   );

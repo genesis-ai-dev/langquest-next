@@ -26,6 +26,7 @@ import { noteExpected, reportError } from '../diagnostics/report';
 import { countAudio, countWait } from './audioTally';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
 import type { LanguageHandle } from '../sync/useLanguage';
+import { a11yState } from '../ui/a11yModel';
 
 /** The timeline's press while help is on: it explains itself; it is moved by tapping and dragging when help is off. */
 const SEEK_ONLY = () => undefined;
@@ -350,8 +351,10 @@ export function ClipPlayer(props: {
           <HelpBadge spot={play} />
         </Pressable>
         {props.onNote ? (
-          <Pressable onPress={note.onPress} accessibilityRole="button" accessibilityLabel={t('recording.player.addNoteAtMoment')}
-            style={({ pressed }) => [styles.side, pressed && styles.pressed]}>
+          // A note is at a moment heard: there is none in a recording that cannot play here (LAN-317).
+          <Pressable onPress={note.onPress} disabled={!available} accessibilityRole="button" accessibilityLabel={t('recording.player.addNoteAtMoment')}
+            {...a11yState({ disabled: !available }, 'button')}
+            style={({ pressed }) => [styles.side, pressed && styles.pressed, !available && styles.off]}>
             <Ico name="note" size={18} color={TINT.amberText} />
             <Text style={[styles.sideLabel, { color: TINT.amberText }]}>{t('recording.player.note')}</Text>
             <HelpBadge spot={note} />
