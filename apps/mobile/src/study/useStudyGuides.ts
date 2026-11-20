@@ -1,12 +1,12 @@
 // Study guides from the library, for screens to follow (study/libraryGuides.ts).
-import { libraryItemView, type StudyDoc, type StudyDoc2 } from '@langquest-next/core';
+import { libraryItemView, type LanguageState, type StudyDoc, type StudyDoc2 } from '@langquest-next/core';
 import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import type { Ctx } from '../shell/ctx';
 import { useLibraryDocs } from '../library/useLibrary';
 import { chosenOnly } from '../reference/guideSets';
 import { teamLanguage } from '../reference/languages';
-import { offeredGuideSources } from '../reference/offered';
+import { guideOffer, type Offered } from '../reference/offered';
 import { bestGuide, guideFromDoc, passageVerses, type GuideSource } from './guideMatch';
 import type { StudyGuide } from './guides';
 
@@ -19,11 +19,16 @@ export function useStudyGuide(ctx: Ctx, unitId: string | null | undefined): Stud
 /**
  * Guides for many passages at once (the offline prefetch, decisions.md 61).
  * A passage missing from the map has no guide, or its documents have not loaded.
+ * `follows`: the language state to look up in, when it is not the one on
+ * screen (the prefetch follows the language a few seconds behind).
  */
-export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string, StudyGuide> {
-  const state = ctx.language.state;
+export function useStudyGuides(
+  ctx: Ctx, unitIds: readonly string[], follows?: { state: LanguageState | null }
+): Map<string, StudyGuide> {
+  const state = follows ? follows.state : ctx.language.state;
   const orgId = ctx.language.orgId;
   // What each passage is offered: recommended or linked to it first, then the organization's own (reference/offered.ts).
+  // The library is read once for them all, and passages offered the same share one answer (`guideOffer`).
   const offered = useMemo(() => {
     const library = ctx.org.state?.library ?? {};
     // An item this organization controls (not a follow) is named, so its single guides offer Edit (guides/GuideEditor.tsx).
@@ -31,10 +36,14 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
       const it = libraryItemView(library, s.key);
       return it && it.source !== 'subscription' ? { ...s, itemId: it.itemId } : s;
     };
+    const offer = guideOffer(library, ctx.org.state?.recommendations, state);
+    const same = new Map<Offered, { recommended: GuideSource[]; own: GuideSource[] }>();
     const out = new Map<string, { recommended: GuideSource[]; own: GuideSource[] }>();
     for (const unitId of unitIds) {
-      const o = offeredGuideSources(library, ctx.org.state?.recommendations, state, unitId);
-      out.set(unitId, { recommended: o.recommended.map(named), own: o.own.map(named) });
+      const o = offer(unitId);
+      let sources = same.get(o);
+      if (!sources) same.set(o, (sources = { recommended: o.recommended.map(named), own: o.own.map(named) }));
+      out.set(unitId, sources);
     }
     return out;
   }, [ctx.org.state, state, unitIds]);
@@ -48,13 +57,16 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
   const choices = useMemo(() => {
     const out = new Map<string, NonNullable<ReturnType<typeof bestGuide>>>();
     if (!state) return out;
+    // A guide set's languages the team did not choose stay out (decision 84): worked out once for passages offered the same.
+    const groupsOf = new Map<object, GuideSource[][]>();
     for (const unitId of unitIds) {
       const o = offered.get(unitId);
       if (!o) continue;
+      let groups = groupsOf.get(o);
+      if (!groups) groupsOf.set(o, (groups = chosenOnly([o.recommended, o.own], get)));
       // A part of an outline template has no verses; guides placed on it by template node still match.
       const passage = passageVerses(state, unitId, get);
-      // A guide set's languages the team did not choose stay out (decision 84).
-      const choice = bestGuide({ unitId, range: passage?.range ?? null, versification: passage?.versification ?? null }, chosenOnly([o.recommended, o.own], get), get, reads);
+      const choice = bestGuide({ unitId, range: passage?.range ?? null, versification: passage?.versification ?? null }, groups, get, reads);
       if (choice) out.set(unitId, choice);
     }
     return out;
