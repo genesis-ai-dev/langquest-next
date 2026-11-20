@@ -3,5 +3,15 @@
     "name": "store: replace review",
     "color": "d93f0b",
     "description": "Its new store builds replace the ones in review on both stores (decisions.md 157)"
+  },
+  {
+    "name": "agent-merge",
+    "color": "0e8a16",
+    "description": "A fix by the agent team that merges without a person when its checks pass (docs/agent-team.md)"
+  },
+  {
+    "name": "agent-waits",
+    "color": "fbca04",
+    "description": "A fix by the agent team that waits for a developer (docs/agent-team.md)"
   }
 ]

@@ -7,6 +7,7 @@ import android.content.pm.Signature
 import android.net.Uri
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.provider.OpenableColumns
 import android.system.Os
 import android.system.OsConstants
 import java.io.File
@@ -79,6 +80,25 @@ class InstallFiles(private val context: Context) {
       throw e as? NearbyException ?: NearbyException(NearbyCode.FILE_WRITE_FAILED, "could not keep the install file", e)
     } finally {
       synchronized(lock) { writing.remove(part.name) }
+    }
+  }
+
+  /**
+   * The name the provider gives the file at `uri` (`OpenableColumns.DISPLAY_NAME`), as the system
+   * picker reads it. What the browser's Open hands the app has only a number in its address
+   * (`content://media/external/downloads/<n>`), and the name is what says which versions it is.
+   * BAD_ARGUMENT for anything but a content URI; null when the provider gives no name or cannot be
+   * asked, or gives one past any carried build's.
+   */
+  fun nameOf(uri: String): String? {
+    val source = Uri.parse(uri)
+    if (source.scheme != "content") throw NearbyException(NearbyCode.BAD_ARGUMENT, "not a content URI")
+    return try {
+      context.contentResolver.query(source, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+        if (c.moveToFirst() && !c.isNull(0)) c.getString(0)?.takeIf { it.isNotBlank() && it.length <= MAX_NAME } else null
+      }
+    } catch (e: Exception) {
+      null
     }
   }
 
@@ -229,6 +249,8 @@ class InstallFiles(private val context: Context) {
     const val FOLDER = "install-file"
     /** Far past any build of the app; a larger file is not one. */
     const val MAX_BYTES = 1L shl 30
+    /** Far past any carried build's name, with a browser's " (12)"; a longer one is not one. */
+    const val MAX_NAME = 256
     const val RUNTIME_VERSION_KEY = "expo.modules.updates.EXPO_RUNTIME_VERSION"
     /** expo-updates' meta-data value for "read the `fingerprint` asset" (the fingerprint policy). */
     const val FINGERPRINT_SENTINEL = "file:fingerprint"

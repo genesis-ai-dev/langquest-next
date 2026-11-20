@@ -545,6 +545,44 @@ function renderJobs(d, container) {
   return RENDER.jobs(d, now) + note + (Object.keys(now).length ? '<p class="muted">Run now starts a job its schedule would start anyway; a job already running is left alone. Each is recorded (Support).</p>' : '');
 }
 
+/**
+ * New HTML into a box, as a refresh must put it: nothing moves that the
+ * person did not move. The same HTML leaves the box as it is. New HTML keeps
+ * what the person opened, typed, ticked and focused in the box, and where
+ * they scrolled a box sideways; the pictures already fetched show at once
+ * (wireFixPictures, wireScreenshots). False when the box did not change.
+ */
+const drawnHtml = new WeakMap();
+function fieldKey(el) {
+  return el.tagName + el.getAttributeNames().filter((a) => !/^(checked|value|style|class|tabindex|aria-|data-help|data-wired)/.test(a)).sort().map((a) => a + '=' + el.getAttribute(a)).join(' ');
+}
+function keyed(els, keyOf) {
+  const seen = {};
+  return els.map((el) => { const k = keyOf(el); seen[k] = (seen[k] || 0) + 1; return [k + '#' + seen[k], el]; });
+}
+function redraw(el, html) {
+  if (!el || drawnHtml.get(el) === html) return false;
+  const summary = (d) => { const s = d.querySelector('summary'); return s ? s.textContent.trim() : ''; };
+  const opened = new Map(keyed([...el.querySelectorAll('details')], summary).map(([k, d]) => [k, d.open]));
+  const fields = new Map(keyed([...el.querySelectorAll('textarea, input, select')], fieldKey).map(([k, f]) => [k, f.type === 'checkbox' || f.type === 'radio' ? f.checked : f.value]));
+  const sideways = [...el.querySelectorAll('*')].filter((x) => x.scrollLeft > 0).map((x) => [fieldKey(x), x.scrollLeft]);
+  const a = document.activeElement, focus = a && a !== el && el.contains(a) ? keyed([...el.querySelectorAll(a.tagName)], fieldKey).find(([, x]) => x === a) : null;
+  const sel = focus && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
+  el.innerHTML = html;
+  drawnHtml.set(el, html);
+  for (const [k, d] of keyed([...el.querySelectorAll('details')], summary)) if (opened.has(k)) d.open = opened.get(k);
+  for (const [k, f] of keyed([...el.querySelectorAll('textarea, input, select')], fieldKey)) {
+    if (!fields.has(k)) continue;
+    if (f.type === 'checkbox' || f.type === 'radio') f.checked = fields.get(k); else f.value = fields.get(k);
+  }
+  for (const [k, left] of sideways) { const x = [...el.querySelectorAll('*')].find((y) => fieldKey(y) === k); if (x) x.scrollLeft = left; }
+  if (focus) {
+    const x = keyed([...el.querySelectorAll(a.tagName)], fieldKey).find(([k]) => k === focus[0]);
+    if (x) { x[1].focus({ preventScroll: true }); if (sel) try { x[1].setSelectionRange(sel[0], sel[1]); } catch {} }
+  }
+  return true;
+}
+
 function show(id, s) {
   results[id] = s;
   const g = groupOf(id);
@@ -552,9 +590,12 @@ function show(id, s) {
   const [cls, text] = pill(g);
   const el = $('pill-' + g.id); el.className = 'pill ' + cls; el.textContent = text;
   // The container's answer lives in the Jobs table, not as a part of its own.
-  $('body-' + g.id).innerHTML = g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join('');
-  if (g.parts.includes('feedback')) wireScreenshots();
-  annotate($('body-' + g.id));
+  if (redraw($('body-' + g.id), g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join(''))) {
+    if (g.parts.includes('feedback') || g.parts.includes('userissues')) wireScreenshots();
+    if (g.parts.includes('userissues')) wireFixPictures();
+    if (g.parts.includes('tutorials')) layoutTimelines();
+    annotate($('body-' + g.id));
+  }
   if (view().name === 'all') applyOpen(g.id);
   attention();
   renderStart();
@@ -577,12 +618,12 @@ function attention() {
   // A link only to https pages: an alert's link comes from what a workflow wrote (apps/admin/src/sources/github.ts).
   const fix = (i) => String(i.link || '').startsWith('https://') ? ' <a href="' + esc(i.link) + '" target="_blank" rel="noopener">Open</a>' : '';
   const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + fix(i) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button>' + fixHtml(i.alert, true) + '</span></li>';
-  $('attention-list').innerHTML = items.length
+  redraw($('attention-list'), items.length
     ? LEVELS.map((l) => {
       const at = items.filter((i) => (i.level in LEVEL ? i.level : 'watch') === l);
       return at.length ? '<li class="level">' + LEVEL[l].title + ' <small>' + LEVEL[l].note + '</small></li>' + at.map(item).join('') : '';
     }).join('')
-    : (loading ? '' : '<li><span class="dot ok"></span><span>Nothing needs attention right now.</span></li>');
+    : (loading ? '' : '<li><span class="dot ok"></span><span>Nothing needs attention right now.</span></li>'));
 }
 
 /** The CLI's alert wording names times as ISO and schedules as 00:10:00; this page says them as people do. */
@@ -837,37 +878,72 @@ document.addEventListener('click', (e) => {
   if (q) { setOpen('lookup', true); $('q').value = q.dataset.q; $('lookup-form').requestSubmit(); $('card-lookup').scrollIntoView({ block: 'start', behavior: 'smooth' }); }
 });
 
+/** The two pictures of a display fix on a user issue's card: each is fetched once, as the signed-in admin, and kept while the page is open, so a refresh shows it at once. */
+const fixPics = {};
+function wireFixPictures() {
+  for (const img of document.querySelectorAll('img[data-fixpic]')) {
+    if (img.dataset.wired) continue;
+    img.dataset.wired = '1';
+    const path = encodeURIComponent(img.dataset.fixpic) + '/' + (img.dataset.what === 'after' ? 'after' : 'before');
+    if (typeof fixPics[path] === 'string') { img.src = fixPics[path]; continue; }
+    if (!fixPics[path]) {
+      fixPics[path] = token().then((t) => fetch('/ops/api/user-issue-fix/' + path, { headers: { authorization: 'Bearer ' + t } }))
+        .then((res) => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.blob(); })
+        .then((blob) => { fixPics[path] = URL.createObjectURL(blob); return fixPics[path]; })
+        .catch((err) => { delete fixPics[path]; throw err; });
+    }
+    fixPics[path].then((url) => { img.src = url; }, (err) => { img.alt = 'Could not load the picture (' + err.message + ')'; });
+  }
+}
+// The screenshots fetched, and the ones shown: a refresh draws the cards again and shows them as they were.
+const shotUrls = {};
+const shotsShown = new Set();
 function wireScreenshots() {
   // Show and hide, under the button; the screenshot (or the picture the person chose) is fetched once and kept while the page is open.
   for (const b of document.querySelectorAll('[data-shot]')) {
+    // Two cards call this (Feedback, User issues): a button is wired once.
+    if (b.dataset.wired) continue;
+    b.dataset.wired = '1';
     let img = null;
     const what = b.dataset.what === 'picture' ? 'picture' : 'screenshot';
+    const path = encodeURIComponent(b.dataset.shot) + '/' + what;
+    const put = (url) => {
+      img = document.createElement('img');
+      img.alt = what === 'picture' ? 'Picture chosen by the person who sent this feedback' : 'Screenshot sent with this feedback';
+      img.title = 'Click to hide';
+      img.src = url;
+      img.addEventListener('click', () => b.click());
+      b.closest('p').after(img);
+      b.textContent = 'Hide ' + what;
+      b.setAttribute('aria-expanded', 'true');
+      shotsShown.add(path);
+    };
     b.setAttribute('aria-expanded', 'false');
+    if (shotsShown.has(path) && shotUrls[path]) put(shotUrls[path]);
     b.addEventListener('click', async () => {
       if (img) {
         img.hidden = !img.hidden;
         b.textContent = (img.hidden ? 'Show ' : 'Hide ') + what;
         b.setAttribute('aria-expanded', String(!img.hidden));
+        if (img.hidden) shotsShown.delete(path); else shotsShown.add(path);
         return;
       }
       b.disabled = true;
       try {
-        const t = await token();
-        const res = await fetch('/ops/api/feedback/' + encodeURIComponent(b.dataset.shot) + '/' + what, { headers: { authorization: 'Bearer ' + t } });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        img = document.createElement('img');
-        img.alt = what === 'picture' ? 'Picture chosen by the person who sent this feedback' : 'Screenshot sent with this feedback';
-        img.title = 'Click to hide';
-        img.src = URL.createObjectURL(await res.blob());
-        img.addEventListener('click', () => b.click());
-        b.closest('p').after(img);
-        b.textContent = 'Hide ' + what;
-        b.setAttribute('aria-expanded', 'true');
+        if (!shotUrls[path]) {
+          const t = await token();
+          const res = await fetch('/ops/api/feedback/' + path, { headers: { authorization: 'Bearer ' + t } });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          shotUrls[path] = URL.createObjectURL(await res.blob());
+        }
+        put(shotUrls[path]);
       } catch (err) { b.textContent = 'Could not load the ' + what + ' (' + err.message + ')'; }
       b.disabled = false;
     });
   }
   for (const b of document.querySelectorAll('[data-voice]')) {
+    if (b.dataset.wired) continue;
+    b.dataset.wired = '1';
     b.addEventListener('click', async () => {
       b.disabled = true;
       try {
@@ -992,14 +1068,9 @@ async function load(fresh) {
   if (loading) return;
   loading = true;
   $('refresh').disabled = true;
-  for (const k of Object.keys(results)) delete results[k];
-  for (const k of Object.keys(histories)) delete histories[k];
-  glanceData = null;
-  fixData = null;
-  const here = view();
-  if (here.name === 'group') renderHist(here.id);
-  for (const s of SECTIONS) if (s.id !== 'lookup') { const p = $('pill-' + s.id); p.className = 'pill wait'; p.textContent = 'Loading…'; }
-  attention();
+  // A refresh keeps every number, chart and status on the page until its new answer comes,
+  // and then changes it in place: nothing empties, so nothing moves (redraw, refreshCharts).
+  refreshCharts();
   const q = fresh ? '?fresh=1' : '';
   const fail = (ids) => (err) => { if (err.message !== 'Signed out' && err.message !== 'Not an admin') for (const id of ids) show(id, { state: 'error', alerts: [], error: err.message }); };
   const jobs = [

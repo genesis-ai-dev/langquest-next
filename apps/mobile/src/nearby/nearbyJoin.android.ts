@@ -233,7 +233,8 @@ export function finishUnfinished(person: LocalPerson, whole: boolean): Promise<b
 // ---- the inviter -------------------------------------------------------------------------
 
 export interface InviterHooks {
-  showing(uri: string, until: number): void;
+  /** The code is up until `until`; `onGiveGroup` when it runs on Give the app's group, whose server also hands it to the new phone. */
+  showing(uri: string, until: number, onGiveGroup: boolean): void;
   connected(): void;
   /** The one tap: the chosen role, or null for No. */
   tap(who: { name: string; profileId: string; pictures: [number, number] }): Promise<boolean>;
@@ -245,17 +246,57 @@ export interface InviterHooks {
 
 export type InviterOutcome = { report: NearbySessionReport | null; why?: 'expired' | 'no-certificate' | 'stopped' | 'failed' };
 
+/** Whether this code runs on Give the app's group: a session serves and this build hosts there; a phone that cannot say hosts its own. */
+async function onGiveGroup(radio: PhoneRadio): Promise<boolean> {
+  try {
+    return await radio.giveGroupServing();
+  } catch (e) {
+    noteExpected('let in: give the app', e);
+    return false;
+  }
+}
+
+function stopGiveApp(radio: PhoneRadio): Promise<void> {
+  return radio.stopGiveApp().catch((e: unknown) => noteExpected('let in: stop give the app', e));
+}
+
 /**
  * Let someone in (14.1, 3): host a Wi-Fi Direct group, show the code (how to reach this phone, a
  * one-time secret and a pin on this phone's opening, no pass or key), take the first link and only
  * it, run the session as the inviter under this person's pass, and serve the starting copy over it.
- * A code nobody used dies at `codeMs`. The radio and the group come down whatever happens.
+ * A code nobody used dies at `codeMs`, and at once when `stopped` settles (the person stopped or
+ * left). The radio and the group come down whatever happens.
+ *
+ * While Give the app serves (14.5), the new phone is still on its Wi-Fi after installing, so the
+ * code runs on that group instead of a new one, lives as long as Give the app waits, and its server
+ * answers `/join` with it, for the new phone's LangQuest to find by itself; the QR code still shows.
+ * The link comes off that server once a phone takes it or the attempt ends. Let someone in owns
+ * that session from the press, so it ends with the attempt, however the attempt ends. A session
+ * Give the app handed to this screen that the code cannot run on (a build without it) is stopped
+ * before this phone's own group forms, since a phone holds one Wi-Fi Direct group at a time.
  */
 export async function letInWithPass(o: {
   radio: PhoneRadio; actorId: string; orgId: string; languageId: string; roleId: string; pass: JoinPass;
   org: OrgState; inspectOrg: () => Promise<import('@langquest-next/sync').SyncInspection | null>;
-  language: NearbyLanguage; orgClient: SyncClient<OrgState> | null; codeMs: number; hooks: InviterHooks; onSession(session: NearbySession | null): void;
+  language: NearbyLanguage; orgClient: SyncClient<OrgState> | null;
+  /** How long a code nobody used stays up, on Give the app's group or on a group of this phone's own (`letInCodeMs`). */
+  codeMs(onGiveGroup: boolean): number;
+  /** Give the app handed its session to this screen (giveHandOver.ts). */
+  giveHandedOver?: boolean;
+  /** Settles when the person stops or leaves: the code comes down then, not at its end. */
+  stopped?: Promise<void>;
+  hooks: InviterHooks; onSession(session: NearbySession | null): void;
 }): Promise<InviterOutcome> {
+  const onGive = await onGiveGroup(o.radio);
+  if (!onGive && o.giveHandedOver) await stopGiveApp(o.radio);
+  try {
+    return await letInOn(onGive, o);
+  } finally {
+    if (onGive) await stopGiveApp(o.radio);
+  }
+}
+
+async function letInOn(onGive: boolean, o: Parameters<typeof letInWithPass>[0]): Promise<InviterOutcome> {
   const { hooks } = o;
   const got = await nearbyPiecesFor({ actorId: o.actorId, orgId: o.orgId, languageId: o.languageId, org: o.org, inspectOrg: o.inspectOrg });
   const findKey = await findKeyFor(o.actorId, o.orgId, o.languageId);
@@ -265,21 +306,39 @@ export async function letInWithPass(o: {
   const secret = random(16);
   const drawn = drawOpening(crypto);
   const pin = openingPinOf(crypto, drawn.eph.public, drawn.nonce);
-  const options = wifiDirectOptions(crypto, false);
-  const hosted = await o.radio.host('wifi-direct', options);
+  // Give the app's group has its own name and passphrase, which native gives with the host.
+  const own = onGive ? null : wifiDirectOptions(crypto, false);
+  const hosted = own ? await o.radio.host('wifi-direct', own) : await o.radio.hostOnGiveGroup();
   const offRefused = hosted.onRefused(() => hooks.turnedAway());
+  let published = false;
+  const unpublish = async () => {
+    if (!published) return;
+    published = false;
+    await o.radio.setGiveJoin(null).catch((e: unknown) => noteExpected('let in: give the app join', e));
+  };
   try {
     if (!hooks.still()) return { report: null, why: 'stopped' };
     // A code with no port reaches nothing: the new phone would read it as no code at all.
     if (!hosted.port) return { report: null, why: 'failed' };
-    const until = Date.now() + o.codeMs;
-    hooks.showing(joinUri({
-      network: 'wifi-direct', ssid: hosted.ssid ?? options.ssid ?? '', passphrase: hosted.passphrase ?? options.passphrase ?? '', port: hosted.port,
+    const codeMs = o.codeMs(onGive);
+    const until = Date.now() + codeMs;
+    const uri = joinUri({
+      network: 'wifi-direct', ssid: hosted.ssid ?? own?.ssid ?? '', passphrase: hosted.passphrase ?? own?.passphrase ?? '', port: hosted.port,
       secret: base64urlEncode(secret), pin: base64urlEncode(pin)
-    }), until);
+    });
+    hooks.showing(uri, until, onGive);
+    if (onGive) {
+      // The new phone's LangQuest asks Give the app's server for it; the QR code stays for one that does not find it.
+      published = true;
+      await o.radio.setGiveJoin(uri).catch((e: unknown) => noteExpected('let in: give the app join', e));
+    }
     let expired: ReturnType<typeof setTimeout> | undefined;
-    const late = new Promise<null>((resolve) => { expired = setTimeout(() => resolve(null), o.codeMs); });
-    const link = await Promise.race([hosted.link, late]).finally(() => clearTimeout(expired));
+    const late = new Promise<null>((resolve) => { expired = setTimeout(() => resolve(null), codeMs); });
+    const left = o.stopped?.then(() => 'left' as const) ?? new Promise<never>(() => undefined);
+    const link = await Promise.race([hosted.link, late, left]).finally(() => clearTimeout(expired));
+    // Taken, or dead: either way no phone is to find it again.
+    await unpublish();
+    if (link === 'left') return { report: null, why: 'stopped' };
     if (!link) return { report: null, why: 'expired' };
     if (!hooks.still()) { await link.close().catch(() => undefined); return { report: null, why: 'stopped' }; }
     hooks.connected();
@@ -304,6 +363,7 @@ export async function letInWithPass(o: {
     o.onSession(null);
     return { report };
   } finally {
+    await unpublish();
     offRefused();
     await hosted.takeDown().catch((e: unknown) => noteExpected('let in: take down', e));
   }

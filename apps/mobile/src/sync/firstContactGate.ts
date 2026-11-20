@@ -8,3 +8,8 @@ import type { SupabaseTransport } from '@langquest-next/sync';
 export function untilFirstContact(transport: SupabaseTransport): SupabaseTransport {
   return transport;
 }
+
+/** Here no local person ever holds the phone, so the gate never opens: nothing to be told. */
+export function onGateOpen(_fn: () => void): () => void {
+  return () => {};
+}

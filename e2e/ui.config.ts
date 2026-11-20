@@ -26,6 +26,11 @@ const mic = {
   permissions: ['microphone'],
   launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${voice}`] }
 };
+// How the run stops a Worker it started. Without this Playwright SIGKILLs it, and
+// wrangler dev never removes its job container and the container's proxy: each run
+// left a pair in Docker. On SIGTERM it removes them by their session label; one still
+// running after 15 seconds is killed as before.
+const gracefulShutdown = { signal: 'SIGTERM' as const, timeout: 15_000 };
 
 export default defineConfig({
   testDir: path.join(directory, 'ui'),
@@ -69,7 +74,8 @@ export default defineConfig({
           cwd: path.join(directory, '..'),
           url: 'http://localhost:8787/api/blobs',
           reuseExistingServer: true,
-          timeout: 120_000
+          timeout: 120_000,
+          gracefulShutdown
         }
       ]
     : [
@@ -80,7 +86,8 @@ export default defineConfig({
           cwd: path.join(directory, '..'),
           url: `http://localhost:${port}/version.json`,
           reuseExistingServer: true,
-          timeout: 600_000
+          timeout: 600_000,
+          gracefulShutdown
         }
       ]
 });

@@ -1131,15 +1131,20 @@ export class SyncClient<S = LanguageState> {
    * refold starts from the checkpoint, whose guard is empty. Kept, the guard
    * grew by an id per event pulled in a session, the most a pull of the
    * whole log held. Our own events pushed but not yet pulled stay in the log
-   * and in the guard, so their pull is not folded twice. Skipped when
+   * and in the guard, so their pull is not folded twice. Only ids the guard
+   * already holds stay: an event in the log this state never folded (another
+   * client on this device wrote it, as New language writes a new language's
+   * stream while it is open) must still fold when its pull comes, or a Whole
+   * Bible language lost its checks past the first checkpoint. Skipped when
    * something was folded while the log was read: the next checkpoint does it.
    */
   private async compactGuard(live: LanguageState, revision: number): Promise<void> {
     const ids: Record<string, true> = {};
+    const held = live.appliedEventIds;
     for (let after: string | null = null; ;) {
       const size = this.opts.logPageSize ?? LOG_PAGE;
       const page = await this.opts.store.page(this.opts.orgId, this.opts.streamId, after, size);
-      for (const l of page) ids[l.event.id] = true;
+      for (const l of page) if (held[l.event.id]) ids[l.event.id] = true;
       if (page.length < size) break;
       after = page[page.length - 1]!.event.id;
     }

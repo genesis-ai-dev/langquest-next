@@ -17,7 +17,7 @@ const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, stor
     cards: { level: string; group: string; part: string; text: string; more: string[] }[]; ok: { group: string; off: string[] }[]; waiting: string[];
   };
   storeWaits: (p: unknown) => { lane: string; title: string }[];
-  claudeWork: (u: unknown) => { issue: string }[];
+  claudeWork: (u: unknown) => { issue: string; state: string; pr: number | null }[];
   rangeTotal: (agg: string, values: (number | null)[]) => number | null;
   bucketEnd: (buckets: string[], i: number, step: string) => string;
   runSquares: (hst: Hst, sq: { runs: string; failed?: string; partial?: string }) => { key: string; cells: string[]; failed: number; partial: number }[];
@@ -89,6 +89,16 @@ describe('the Overview, what needs you first', () => {
     const issues = [{ issue: 'LAN-1', verdict: 'filed', closedAt: null, fixedAt: null }, { issue: 'LAN-2', verdict: 'filed', closedAt: '2026-11-01', fixedAt: null },
       { issue: null, verdict: 'fixed', closedAt: null, fixedAt: '2026-11-01' }, { issue: 'LAN-3', verdict: 'known', closedAt: null, fixedAt: null }];
     expect(logic.claudeWork({ issues }).map((i) => i.issue)).toEqual(['LAN-1']);
+  });
+
+  it('says Claude works on an issue only while a run works on it, and filed in Linear otherwise', () => {
+    const open = (issue: string) => ({ issue, verdict: 'filed', closedAt: null, fixedAt: null });
+    const issues = [open('LAN-1'), open('LAN-2'), open('LAN-3'), open('LAN-4')];
+    const notes = { 'LAN-1': [{ state: 'answered' }, { state: 'working' }], 'LAN-4': [{ state: 'waiting' }] };
+    const fixes = { 'LAN-2': { decision: 'waits', pr: 590 }, 'LAN-3': { decision: 'none', pr: null } };
+    expect(logic.claudeWork({ issues, notes, fixes }).map((i) => [i.issue, i.state, i.pr])).toEqual([
+      ['LAN-1', 'working', null], ['LAN-2', 'fix', 590], ['LAN-3', 'nofix', null], ['LAN-4', 'filed', null]]);
+    expect(logic.claudeWork({ issues: [open('LAN-5')] })[0].state).toBe('filed');
   });
 
   it('adds a count up over a range and shows a level at its latest, and knows where the last bucket ends', () => {

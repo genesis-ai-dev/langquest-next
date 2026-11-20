@@ -107,6 +107,12 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ steps.token.outputs.token }}
           allowed_bots: langquest-release-branches
+          # The release bot opens each copy from code that already merged into main,
+          # and Claude must run npm ci and the guardrails on it. The action's default
+          # refuses those commands on a pull request whose author it cannot confirm
+          # as a writer, and the bot is such an author
+          # (docs/decisions/2026-11-20-copies-let-claude-run-the-tests.md).
+          restrict_untrusted_prs: "false"
           prompt: |
             Pull request #${{ steps.copy.outputs.pr }} (this branch, ${{ steps.copy.outputs.head }}) copies commits from main onto ${{ steps.copy.outputs.base }}, the code of the public build. A newer build, with main's code, is not public yet. The pull request's body lists the commits, oldest first (`- <sha> #<pull request> <title>`); a commit on this branch whose message says "cherry picked from commit <sha>" is a copy already made. Your task is to finish the copy, keep only what fits the public build, and make the checks pass.
             0. If `gh pr view ${{ steps.copy.outputs.pr }} --json mergeable` says CONFLICTING (another copy merged first), run `git merge origin/${{ steps.copy.outputs.base }}` and resolve each conflict as in step 1, keeping both sides' changes to the app. Never rebase, and never force a push.
@@ -118,7 +124,8 @@ jobs:
             6. Last, write `.release-copy.json` in the repository's root (git ignores it), with one entry for each listed commit, oldest first: `{"commits": [{"sha": "<full sha>", "result": "copied", "why": "<one sentence>"}]}`, where result is "copied", "copied in part" or "left out". A commit copied in whole or in part must be on this branch with its "cherry picked from commit" line. When you could not finish (a conflict or a failure you could not resolve), write `{"unfinished": "<one sentence: what is left, and why>"}` instead; Claude tries again later from your commits.
             Never push to any branch.
           claude_args: --allowedTools "Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(gh pr checks:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Read,Edit,Write,Glob,Grep"
-      - name: Name each thing that Claude was not allowed to do
+      - id: denied
+        name: Name each thing that Claude was not allowed to do
         if: always() && steps.claude.outcome != 'skipped'
         continue-on-error: true
         run: |
@@ -129,6 +136,8 @@ jobs:
             const denied = (Array.isArray(log) ? log : []).filter((m) => m.type === "result").flatMap((m) => m.permission_denials ?? []);
             for (const d of denied) console.log(`${d.tool_name}: ${String(d.tool_input?.command ?? d.tool_input?.file_path ?? "").slice(0, 200)}`);
             console.log(`${denied.length} denied`);
+            if (denied.length) console.log(`::error::Claude was not allowed to run ${denied.length} command(s); this copy is not checked`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `count=${denied.filter((d) => d.tool_name === "Bash").length}\n`);
           ' "$RUNNER_TEMP/claude-execution-output.json"
       - name: Push Claude's commits, comment, and turn on auto-merge, or leave the copy for Claude's next try
         if: always() && steps.claude.outcome != 'skipped'
@@ -137,4 +146,5 @@ jobs:
           HEAD: ${{ steps.copy.outputs.head }}
           PR: ${{ steps.copy.outputs.pr }}
           RELEASE_REPO_DIR: ${{ github.workspace }}
-        run: node "$RUNNER_TEMP/copy/release-branches.mjs" finish-copy --branch "$HEAD" --pr "$PR" --start "$(cat "$RUNNER_TEMP/copy/start")"
+          DENIED: ${{ steps.denied.outputs.count || '0' }}
+        run: node "$RUNNER_TEMP/copy/release-branches.mjs" finish-copy --branch "$HEAD" --pr "$PR" --start "$(cat "$RUNNER_TEMP/copy/start")" --denied "$DENIED"

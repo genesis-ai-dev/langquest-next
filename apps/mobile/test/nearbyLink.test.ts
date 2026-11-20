@@ -38,7 +38,8 @@ function fakeBinding() {
   };
   const names = [
     'capabilities', 'configureLinks', 'startFind', 'updateFind', 'stopFind', 'holdScan', 'holdSalt', 'openPipe', 'host', 'hostLink', 'takeDown', 'join',
-    'sendOpening', 'receiveOpening', 'secure', 'send', 'receive', 'sendFile', 'receiveFile', 'cancelFile', 'closeLink', 'stopAll'
+    'sendOpening', 'receiveOpening', 'secure', 'send', 'receive', 'sendFile', 'receiveFile', 'cancelFile', 'closeLink', 'stopAll',
+    'giveAppStatus', 'stopGiveApp', 'hostOnGiveGroup', 'setGiveJoin', 'findGiveJoin'
   ];
   const native = Object.fromEntries(names.map((n) => [n, method(n)])) as unknown as NearbyBinding;
   native.addListener = ((name: string, listener: Listener) => {
@@ -316,5 +317,87 @@ describe('hosting and joining', () => {
     f.fail.set('join', coded('JOIN_TIMEOUT'));
     await expect(radio.join('hotspot', { kind: 'hotspot' })).rejects.toMatchObject({ code: 'JOIN_TIMEOUT' });
     expect(radio.joiningHotspot()).toBe(false);
+  });
+});
+
+describe('Let someone in on Give the app\'s group (docs/nearby-sync-plan.md 14.5)', () => {
+  const status = (serving: boolean) => ({ serving, sent: 0, total: 1, downloads: 1, asked: 2, lastAskedMs: 0, joined: 1 });
+  /** A binding from a build with Give the app but before Let someone in could run on its group. */
+  const older = () => {
+    const f = fakeBinding();
+    const n = f.native as unknown as Record<string, unknown>;
+    for (const name of ['hostOnGiveGroup', 'setGiveJoin', 'findGiveJoin']) delete n[name];
+    return f;
+  };
+
+  it('runs there only while a Give the app session serves and the build can host on its group', async () => {
+    const f = fakeBinding();
+    const radio = nearbyRadioOver(f.native);
+    f.answers.set('giveAppStatus', status(true));
+    expect(await radio.giveGroupServing()).toBe(true);
+    f.answers.set('giveAppStatus', status(false));
+    expect(await radio.giveGroupServing()).toBe(false);
+    // An older binary under this update: a group of its own, whatever its session says.
+    const o = older();
+    o.answers.set('giveAppStatus', status(true));
+    expect(await nearbyRadioOver(o.native).giveGroupServing()).toBe(false);
+    expect(o.calls).toEqual([]);
+    // One with no Give the app at all.
+    const none = fakeBinding();
+    delete (none.native as unknown as Record<string, unknown>)['giveAppStatus'];
+    expect(await nearbyRadioOver(none.native).giveGroupServing()).toBe(false);
+  });
+
+  it('hosts on the group with its deadline, as a Wi-Fi Direct host: its details, its one link, its refusals, and take down', async () => {
+    const f = fakeBinding();
+    f.answers.set('hostOnGiveGroup', { hostId: 'G1', kind: 'wifi-direct', ssid: 'DIRECT-gv', passphrase: 'givepass', port: 4300 });
+    const radio = nearbyRadioOver(f.native, { hostDeadlineMs: 4321 });
+    const hosted = await radio.hostOnGiveGroup();
+    expect(f.calls.find((c) => c[0] === 'hostOnGiveGroup')).toEqual(['hostOnGiveGroup', 4321]);
+    expect({ kind: hosted.kind, ssid: hosted.ssid, passphrase: hosted.passphrase, port: hosted.port }).toEqual({ kind: 'wifi-direct', ssid: 'DIRECT-gv', passphrase: 'givepass', port: 4300 });
+    expect(hosted.nextLink).toBeUndefined();
+    let refused = 0;
+    hosted.onRefused(() => { refused += 1; });
+    f.emit('onRefused', { hostId: 'H9' });
+    f.emit('onRefused', { hostId: 'G1' });
+    expect(refused).toBe(1);
+    f.pending.get('hostLink')!.resolve('L5');
+    expect((await hosted.link).kind).toBe('wifi-direct');
+    expect(f.calls.filter((c) => c[0] === 'hostLink')).toEqual([['hostLink', 'G1']]);
+    await hosted.takeDown();
+    expect(f.calls.at(-1)).toEqual(['takeDown', 'G1']);
+    // No session serving: native says so, by its code.
+    f.fail.set('hostOnGiveGroup', coded('HOST_TAKEN_DOWN'));
+    await expect(radio.hostOnGiveGroup()).rejects.toMatchObject({ code: 'HOST_TAKEN_DOWN' });
+  });
+
+  it('publishes the join link and clears it, stops Give the app, and on the new phone finds a link or none', async () => {
+    const f = fakeBinding();
+    const radio = nearbyRadioOver(f.native);
+    await radio.setGiveJoin('langquestnext://join?v=1');
+    await radio.setGiveJoin(null);
+    await radio.stopGiveApp();
+    expect(f.calls).toEqual([['setGiveJoin', 'langquestnext://join?v=1'], ['setGiveJoin', null], ['stopGiveApp']]);
+    expect(await radio.findGiveJoin()).toBeNull();
+    f.answers.set('findGiveJoin', 'langquestnext://join?v=1&t=wifi-direct');
+    expect(await radio.findGiveJoin()).toBe('langquestnext://join?v=1&t=wifi-direct');
+    // Anything but text is no link.
+    f.answers.set('findGiveJoin', 42);
+    expect(await radio.findGiveJoin()).toBeNull();
+    f.fail.set('setGiveJoin', coded('BAD_ARGUMENT'));
+    await expect(radio.setGiveJoin('nope')).rejects.toBeInstanceOf(NearbyNativeError);
+  });
+
+  it('in a build without them, finds nothing, publishes and stops nothing, and hosts nowhere', async () => {
+    const o = older();
+    const radio = nearbyRadioOver(o.native);
+    expect(await radio.findGiveJoin()).toBeNull();
+    await radio.setGiveJoin('langquestnext://join?v=1');
+    await expect(radio.hostOnGiveGroup()).rejects.toMatchObject({ code: 'NOT_AVAILABLE' });
+    expect(o.calls).toEqual([]);
+    const none = fakeBinding();
+    delete (none.native as unknown as Record<string, unknown>)['stopGiveApp'];
+    await nearbyRadioOver(none.native).stopGiveApp();
+    expect(none.calls).toEqual([]);
   });
 });

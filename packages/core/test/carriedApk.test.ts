@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { CARRIED_APK_PATH, carriedApkName, carriedApkNameHere, carriedApkVersionsPart, parseCarriedApkName, sameCarriedVersions } from '../src/carriedApk';
+import { CARRIED_APK_PATH, CARRIED_FILE_TYPE, carriedApkName, carriedApkNameHere, carriedApkNameOf, carriedApkVersionsPart, carriedFileName, parseCarriedApkName, sameCarriedVersions } from '../src/carriedApk';
 import { LINES_VERSION, NEARBY_PROTOCOL, REDUCER_VERSION } from '../src';
 
 /**
@@ -83,5 +83,38 @@ describe('the carried build\'s file name', () => {
     expect(carriedApkNameHere(null)).toBeNull();
     expect(carriedApkNameHere(undefined)).toBeNull();
     expect(carriedApkNameHere('1.0.0')).toBeNull();
+  });
+});
+
+describe('the name a carrier\'s browser downloads it under for the app', () => {
+  const name = 'r21-l1-p1.2-0a1b2c3d.apk';
+
+  it('is the same versions ending .carried, under a type that is not an install file\'s, and names nothing', () => {
+    expect(carriedFileName(name)).toBe('r21-l1-p1.2-0a1b2c3d.carried');
+    expect(CARRIED_FILE_TYPE).toBe('application/x-carried-build');
+    expect(`${carriedFileName(name)} ${CARRIED_FILE_TYPE}`.toLowerCase()).not.toMatch(/lang|quest|frontier|next|apk|android/);
+  });
+
+  it('stands for the install file it was named from, and an install file\'s own name for itself', () => {
+    expect(carriedApkNameOf(carriedFileName(name)!)).toBe(name);
+    expect(carriedApkNameOf(name)).toBe(name);
+  });
+
+  it('is written only for a carried build\'s name, and read back only from one', () => {
+    for (const bad of ['r21-l1-p1-0a1b2c3d.zip', 'r21-l1-p1-0A1B2C3D.apk', 'r021-l1-p1-0a1b2c3d.apk', 'notes.carried', 'r21-l1-p1-0a1b2c3d.apk.carried', 'r21-l1-p1-0a1b2c3d (1).carried', '../r21-l1-p1-0a1b2c3d.carried', '']) {
+      expect(carriedFileName(bad)).toBeNull();
+      if (bad !== 'r21-l1-p1-0A1B2C3D.apk') expect(carriedApkNameOf(bad)).toBeNull();
+    }
+  });
+
+  it('goes there and back for every name core writes', () => {
+    fc.assert(fc.property(
+      fc.nat(999), fc.nat(999), fc.nat(99), fc.nat(9), fc.stringMatching(/^[0-9a-f]{8,40}$/),
+      (reducer, lines, min, extra, fingerprint) => {
+        const apk = carriedApkName({ reducer, lines, protocol: { min, max: min + extra }, fingerprint })!;
+        expect(carriedApkNameOf(carriedFileName(apk)!)).toBe(apk);
+        expect(sameCarriedVersions(carriedApkNameOf(carriedFileName(apk)!)!, apk)).toBe(true);
+      }
+    ));
   });
 });

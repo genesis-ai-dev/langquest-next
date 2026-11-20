@@ -119,6 +119,10 @@ describe('secrets', () => {
     expect(read('.github/workflows/tutorial-review.yml')).toContain('secrets.CLAUDE_CODE_OAUTH_TOKEN');
     expect(read('.github/workflows/tutorials.yml')).toContain('CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}');
     expect(FILE_KEYS).toContain('CLAUDE_CODE_OAUTH_TOKEN');
+    // The agent team's own token, from an account billed to the organization, goes to GitHub the same way.
+    expect(destinations('production', { ...values, AGENT_TEAM_CLAUDE_TOKEN: 'sk-team' }, 'ref', 'k').github).toEqual({ AGENT_TEAM_CLAUDE_TOKEN: 'sk-team' });
+    expect(destinations('preview', { ...values, AGENT_TEAM_CLAUDE_TOKEN: 'sk-team' }, 'ref', 'k').github).toEqual({});
+    expect(FILE_KEYS).toContain('AGENT_TEAM_CLAUDE_TOKEN');
   });
 
   it('gives GitHub the Bible Brain key for the survey of its numberings, and the app\'s Worker keeps it too', () => {

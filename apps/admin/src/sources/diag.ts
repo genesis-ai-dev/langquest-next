@@ -206,6 +206,8 @@ from diag.feedback($1::interval) f`;
 export const SCREENSHOT_SQL = `select diag.feedback_screenshot($1::uuid) as v`;
 export const PICTURE_SQL = `select diag.feedback_picture($1::uuid) as v`;
 export const VOICE_SQL = `select diag.feedback_voice($1::uuid) as v`;
+/** One picture of a display fix of the agent team: the screen before the fix, or after it (docs/agent-team.md). */
+export const FIX_PICTURE_SQL = `select diag.ops_user_issue_fix_picture($1::text, $2::text) as v`;
 
 /** What a feedback file is, from its first bytes: the app sends JPEG screenshots and m4a or WAV voice notes. */
 export function mediaType(bytes: Uint8Array): string | null {

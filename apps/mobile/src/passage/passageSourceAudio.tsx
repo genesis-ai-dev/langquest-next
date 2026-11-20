@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
 import { audioFormat } from '../audio/audioFormat';
+import { clipsAvailable } from '../audio/clipsAvailable';
 import { LISTEN_PLAYER, registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
@@ -106,12 +107,8 @@ export function SourcePlayer(props: {
       player.current = null;
     };
   }, [signature]);
-  const state = props.language.state;
-  const here = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
-    !!props.language.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
   // As AudioClip: what the server has plays from there while connected.
-  const available = here || (!!state && props.hashes.length > 0 && props.language.online !== false
-    && props.hashes.every((hash) => isStored(state, hash)));
+  const available = !!props.uri || clipsAvailable(props.language, props.hashes);
 
   async function toggle() {
     if (props.disabled) return;
