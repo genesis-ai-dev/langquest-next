@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Card, Header, HelpInfo, Ico, LinkBtn, ProgressBar, Screen, type IconName } from '../ui/kit';
+import { Card, Group, Header, HelpInfo, Ico, LinkBtn, ProgressBar, Row, Screen, type IconName } from '../ui/kit';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { isOffline } from './uploadsModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -77,23 +77,29 @@ function useKeepToggle(ctx: Ctx, unitId: string, u: KeptOffline | 'checking', of
 
 const DISC = 34;
 
-/** The round download mark: an outline to download, an arrow wave while it does (amber offline), green once it is all here. */
+/**
+ * The round download mark: an outline to download, an arrow wave while it does (amber offline), green once it is all
+ * here. A passage kept for its recordings alone is marked apart from one kept with its reference material, by more
+ * than colour: a pale disc with a green ring and a speaker, against the solid green disc with the download arrow.
+ */
 function DownloadDisc(props: { look: OfflineLook | GroupLook; size?: number }) {
   const { look } = props;
   const size = props.size ?? DISC;
   const ready = look.kind === 'ready';
+  const recordings = look.kind === 'recordings';
   const amber = look.kind === 'partial' || look.kind === 'noRoom';
   const quiet = look.kind === 'checking' || look.kind === 'noConnection';
-  const tint = ready ? C.white : amber ? TINT.amberText : quiet ? C.faint : C.primary;
+  const tint = ready ? C.white : recordings ? TINT.greenText : amber ? TINT.amberText : quiet ? C.faint : C.primary;
   return (
     <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2 },
       ready ? { backgroundColor: onColor.green, borderColor: onColor.green }
+        : recordings ? { backgroundColor: TINT.green, borderColor: onColor.green }
         : look.kind === 'none' ? { borderColor: C.primary }
         : quiet ? { borderColor: C.border }
         : { borderColor: 'transparent', backgroundColor: amber ? TINT.amber : C.light }]}>
       {look.kind === 'downloading'
         ? <WaveArrow direction="down" color={C.primary} size={Math.round(size * 0.3)} />
-        : <Ico name={look.kind === 'noConnection' ? 'notOnPhone' : 'download'} size={Math.round(size * 0.5)} color={tint} strokeWidth={ready ? 2.75 : 2.25} />}
+        : <Ico name={look.kind === 'noConnection' ? 'notOnPhone' : recordings ? 'sound' : 'download'} size={Math.round(size * 0.5)} color={tint} strokeWidth={ready ? 2.75 : 2.25} />}
     </View>
   );
 }
@@ -119,12 +125,16 @@ export function DownloadButton(props: { ctx: Ctx; unitId: string; testID?: strin
   );
 }
 
-const NOT_KEPT: KeptOffline = { reason: null, audio: 0, here: 0, toFetch: 0, bytesToFetch: 0, notSent: 0, ready: false, studyHere: 0, studyTotal: 0 };
+const NOT_KEPT: KeptOffline = {
+  reason: null, audio: 0, here: 0, toFetch: 0, bytesToFetch: 0, notSent: 0, ready: false, studyHere: 0, studyTotal: 0, recordingsOnly: false, studyUnknown: false
+};
 
 /**
  * The top of a passage: whether its audio is on this device, and the
  * button that changes it, where nobody has to look for it (decisions.md
- * 61, 166). The whole line is the button.
+ * 61, 166). The whole line is the button. Under it, for a passage kept by
+ * choice, the switch that says whether its reference material is kept too,
+ * and changes that either way (`ReferenceSwitch`).
  */
 export function PassageOfflineBar(props: { ctx: Ctx; unitId: string }) {
   const { ctx, unitId } = props;
@@ -133,16 +143,44 @@ export function PassageOfflineBar(props: { ctx: Ctx; unitId: string }) {
   const look = offlineLook(u, { offline, downloading: useSyncStatus().downloading.has(unitId) });
   const keep = useKeepToggle(ctx, unitId, u, offline);
   const spot = useHelpSpot(look.label, keep.help, keep.onPress);
-  const tone = look.kind === 'ready' ? { bg: TINT.green, fg: TINT.greenText } : look.kind === 'partial' ? { bg: TINT.amber, fg: TINT.amberText }
+  const tone = look.kind === 'ready' || look.kind === 'recordings' ? { bg: TINT.green, fg: TINT.greenText } : look.kind === 'partial' ? { bg: TINT.amber, fg: TINT.amberText }
     : look.kind === 'checking' || look.kind === 'noConnection' ? { bg: C.card, fg: C.muted } : { bg: C.card, fg: C.primary };
   return (
-    <Pressable testID="passage-offline" onPress={spot.onPress} disabled={!keep.onPress && !spot.id} accessibilityRole="button" accessibilityLabel={look.label}
-      {...a11yState({ disabled: !keep.onPress }, 'button')}
-      style={({ pressed }) => [styles.bar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg }, pressed && { opacity: 0.7 }]}>
-      <DownloadDisc look={look} size={30} />
-      <Text style={[txt.sm, { flex: 1, fontWeight: '700', color: tone.fg }]}>{look.label}</Text>
-      <HelpBadge spot={spot} />
-    </Pressable>
+    <View style={{ gap: space.sm }}>
+      <Pressable testID="passage-offline" onPress={spot.onPress} disabled={!keep.onPress && !spot.id} accessibilityRole="button" accessibilityLabel={look.label}
+        {...a11yState({ disabled: !keep.onPress }, 'button')}
+        style={({ pressed }) => [styles.bar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg }, pressed && { opacity: 0.7 }]}>
+        <DownloadDisc look={look} size={30} />
+        <Text style={[txt.sm, { flex: 1, fontWeight: '700', color: tone.fg }]}>{look.label}</Text>
+        <HelpBadge spot={spot} />
+      </Pressable>
+      {u !== 'checking' && u.reason === 'chosen' ? <ReferenceSwitch ctx={ctx} unitId={unitId} on={!u.recordingsOnly} offline={offline} /> : null}
+    </View>
+  );
+}
+
+/**
+ * Under a passage kept by choice: whether its reference material is kept
+ * too (its study guide's files and its reference audio) or only its
+ * recordings, as a switch that goes both ways
+ * (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended).
+ * A book's button keeps recordings only, so this is where one passage of a
+ * downloaded book gets its reference material; a passage kept by its own
+ * button starts with it on. Turning it on needs a download, so it is not
+ * offered offline (decisions.md 166); turning it off needs none. A passage
+ * that is the person's work always takes its reference material, and has no
+ * switch.
+ */
+function ReferenceSwitch(props: { ctx: Ctx; unitId: string; on: boolean; offline: boolean }) {
+  const { ctx, unitId, on } = props;
+  const blocked = !on && props.offline;
+  return (
+    <Group>
+      <Row testID="passage-offline-reference" label={t('offline.reference.label')} last
+        sub={blocked ? t('offline.needsConnection') : on ? t('offline.reference.on') : t('offline.reference.off')}
+        help={t('offline.reference.help')} role="switch" checked={on} disabled={blocked}
+        onPress={() => { void ctx.language.blobs.keepReference(unitId, !on); }} />
+    </Group>
   );
 }
 
@@ -161,13 +199,13 @@ function useSlowly<T>(value: T, ms: number): T {
 }
 
 /**
- * What keeping some passages would take: `bytes` of audio to bring down
- * (null when the device could not work it out), and the `room` it has for
- * them: what is free above what recording keeps (`BlobStore.roomBytes`),
- * and what it would free for them by itself (the session's `freeable`).
- * `room` is null where the device cannot say.
+ * What keeping some passages would take: `bytes` of audio to bring down in
+ * `files` (both null when the device could not work it out), and the `room`
+ * it has for them: what is free above what recording keeps
+ * (`BlobStore.roomBytes`), and what it would free for them by itself (the
+ * session's `freeable`). `room` is null where the device cannot say.
  */
-type GroupCost = { bytes: number | null; room: number | null };
+type GroupCost = { bytes: number | null; files: number | null; room: number | null };
 
 /**
  * A group's cost, asked a beat after its passages are known and again as the
@@ -187,7 +225,7 @@ function useGroupCost(ctx: Ctx, unitIds: readonly string[], shown: boolean): { a
   const ask = useCallback(async (): Promise<GroupCost> => {
     const c = key ? await offlineCost(key.split('\n')).catch((e: unknown) => { noteExpected('offline: group cost', e); return null; }) : null;
     const free = store?.roomBytes() ?? null;
-    const found: GroupCost = { bytes: c ? c.bytes : null, room: free === null ? null : free + (c?.freeable ?? 0) };
+    const found: GroupCost = { bytes: c ? c.bytes : null, files: c ? c.files : null, room: free === null ? null : free + (c?.freeable ?? 0) };
     // Kept only for the passages now asked about: an answer for an earlier set never replaces a later one's.
     if (current.current === key) setCost({ key, ...found });
     return found;
@@ -205,9 +243,9 @@ function useGroupCost(ctx: Ctx, unitIds: readonly string[], shown: boolean): { a
  * A book's or an outline section's passages as one download (LAN-316,
  * docs/decisions/2026-11-20-a-book-has-its-own-download-button.md): what its
  * button says and what a tap does, from each passage's own count (decisions.md
- * 166). A tap keeps the passages not kept yet; once every one is kept it lets
- * go those the person chose, as a passage's button does. `sized`: say how much
- * audio would come before the tap.
+ * 166). A tap keeps the passages not kept yet, for their recordings alone;
+ * once every one is kept it lets go those the person chose, as a passage's
+ * button does. `sized`: say how much audio would come before the tap.
  */
 function useGroup(ctx: Ctx, unitIds: readonly string[], sized: boolean): { look: GroupLook; onPress: (() => void) | undefined } {
   const counted = keptOfflineMap(ctx);
@@ -223,7 +261,7 @@ function useGroup(ctx: Ctx, unitIds: readonly string[], sized: boolean): { look:
   const offering = !filling && !g.checking && !offline && g.toKeep.length > 0;
   // The size is said before the tap: until it is answered the line is still checking.
   const { answer, ask } = useGroupCost(ctx, g.toKeep, sized && offering);
-  const cost = answer && answer.bytes !== null ? { bytes: answer.bytes } : null;
+  const cost = answer && answer.bytes !== null && answer.files !== null ? { bytes: answer.bytes, files: answer.files } : null;
   const look = groupLook(g, {
     offline, filling, downloading: unitIds.some((u) => downloading.has(u)), cost, room: answer?.room ?? null, sizing: sized && offering && !answer
   });
@@ -232,7 +270,8 @@ function useGroup(ctx: Ctx, unitIds: readonly string[], sized: boolean): { look:
     const now = await ask();
     const bytes = now.bytes ?? 0;
     if (!fits(bytes, now.room)) { ctx.toast(noRoomWords(bytes, now.room ?? 0)); return; }
-    await keepOffline(g.toKeep, true);
+    // For their recordings alone: a whole book's study guides would be thousands of files (decision amended 2026-11-20).
+    await keepOffline(g.toKeep, true, { recordingsOnly: true });
   };
   const onPress = look.tap === 'keep' ? () => { void keep(); }
     : look.tap === 'letGo' ? () => { void keepOffline(g.chosen, false); ctx.toast(letGoWords(g)); }
@@ -251,7 +290,7 @@ export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; t
   const { look, onPress } = useGroup(props.ctx, props.unitIds, true);
   const spot = useHelpSpot(look.label, look.help, onPress);
   if (props.unitIds.length === 0) return null;
-  const tone = look.kind === 'ready' ? { bg: TINT.green, fg: TINT.greenText } : look.kind === 'partial' || look.kind === 'noRoom' ? { bg: TINT.amber, fg: TINT.amberText }
+  const tone = look.kind === 'ready' || look.kind === 'recordings' ? { bg: TINT.green, fg: TINT.greenText } : look.kind === 'partial' || look.kind === 'noRoom' ? { bg: TINT.amber, fg: TINT.amberText }
     : look.kind === 'checking' || look.kind === 'noConnection' ? { bg: C.card, fg: C.muted } : { bg: C.card, fg: C.primary };
   return (
     <Pressable testID={props.testID ?? 'group-offline'} onPress={spot.onPress} disabled={!onPress && !spot.id} accessibilityRole="button" accessibilityLabel={groupSpoken(look)}
