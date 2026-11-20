@@ -1,4 +1,4 @@
-import { GIVE_IDLE_MS, giveIdle, giveMustHave, givePermissions, giveStage, giveStatusOf, giveTick, handsOver, megabytes, pageAddress, pageHtml, sentShown, shareOffered, stepAfterJoined, wifiCode, wifiEscape, type GiveStage, type GiveStatus } from '../src/nearby/giveAppModel';
+import { GIVE_IDLE_MS, giveIdle, giveMustHave, givePermissions, giveStage, giveStatusOf, giveTick, handsOver, megabytes, pageAddress, pageHtml, quickShareSteps, sentShown, shareOffered, stepAfterJoined, wifiCode, wifiEscape, type GiveStage, type GiveStatus } from '../src/nearby/giveAppModel';
 import { apkCheck, chosenName, keepResultOf, keptStale } from '../src/nearby/carriedApkModel';
 
 /**
@@ -125,6 +125,25 @@ describe('Send with Quick Share', () => {
     expect(at({ t: 'none' })).toBe(false);
     expect(at({ t: 'failed', why: 'no-file' })).toBe(false);
     expect(at({ t: 'ready' }, false)).toBe(false);
+  });
+});
+
+describe('Quick Share\'s steps', () => {
+  // Why: the screen offered Quick Share under the main button with one line of what the new phone
+  // does, so it read neither as one of two ways nor as an order of steps across two phones (Carl,
+  // 2026-11-20). The steps now go in the order they are done, numbered right through, under who does them.
+  it('starts on the new phone, then this phone, then the new phone again, numbered right through', () => {
+    const groups = quickShareSteps(false);
+    expect(groups.map((g) => g.on)).toEqual(['newFirst', 'this', 'newThen']);
+    expect(groups.flatMap((g) => g.steps)).toEqual([
+      { n: 1, key: 'open' }, { n: 2, key: 'visible' }, { n: 3, key: 'send' }, { n: 4, key: 'accept' }, { n: 5, key: 'install' }
+    ]);
+  });
+
+  it('ends with letting them in from this phone where this phone can', () => {
+    const groups = quickShareSteps(true);
+    expect(groups.map((g) => g.on)).toEqual(['newFirst', 'this', 'newThen', 'thisThen']);
+    expect(groups.at(-1)!.steps).toEqual([{ n: 6, key: 'letIn' }]);
   });
 });
 
