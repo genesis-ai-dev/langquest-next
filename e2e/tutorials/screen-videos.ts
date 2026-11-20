@@ -1,5 +1,6 @@
 // Which tutorial videos show each screen, best first: the table help mode's
-// play button reads (packages/core/src/tutorialScreens.ts, LAN-244). A video
+// play button reads (apps/web/worker/tutorialScreens.ts, LAN-244). The Worker
+// sends it with the videos, so the app's web download does not carry it. A video
 // lists a screen when two or more of its steps are on it; one step is most
 // often the way through to another screen. A screen that no video spends two
 // steps on lists the videos that spend the most. The video with the most
@@ -11,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Tutorial } from './tutorial';
 
-export const OUT = 'packages/core/src/tutorialScreens.ts';
+export const OUT = 'apps/web/worker/tutorialScreens.ts';
 
 export function screenVideos(tutorials: Readonly<Record<string, Pick<Tutorial, 'steps'>>>): Record<string, string[]> {
   const counts = new Map<string, Map<string, number>>();

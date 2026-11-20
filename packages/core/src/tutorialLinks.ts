@@ -4,7 +4,6 @@
  * When nothing fits, nothing shows (Caleb's choice, docs/decisions/2026-11-17-help-page-tutorial-video-links.md): no English
  * stand-in, no warning.
  */
-import { SCREEN_TUTORIALS } from './tutorialScreens';
 
 /** One video the server has chosen for a language, as the Worker lists it. */
 export interface LinkVideo {
@@ -35,14 +34,15 @@ export interface TutorialLink {
 }
 
 /**
- * The videos to link from `screen`, best first (SCREEN_TUTORIALS), or none.
+ * The videos to link from a screen, or none: `order` is the screen's videos,
+ * best first, as the Worker sends them (its table of the videos that show each screen).
  * The videos are those of the app's own language: one in another language
  * never stands in. A video made for a newer update or another store build
  * than the phone's is left out, since its buttons might not be on the
  * phone's screen.
  */
-export function pickTutorialLinks(screen: string, videos: readonly LinkVideo[], build: AppBuildInfo = {}): TutorialLink[] {
-  return (SCREEN_TUTORIALS[screen] ?? []).flatMap((tutorial) => {
+export function pickTutorialLinks(order: readonly string[], videos: readonly LinkVideo[], build: AppBuildInfo = {}): TutorialLink[] {
+  return order.flatMap((tutorial) => {
     const v = videos.find((x) => x.tutorial === tutorial);
     if (!v) return [];
     if (v.runtimes && v.runtimes.length > 0 && build.runtime !== undefined && !v.runtimes.includes(build.runtime)) return [];

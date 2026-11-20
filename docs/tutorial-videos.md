@@ -399,8 +399,9 @@ each video with two or more steps on it, the one with the most first. A tap
 watches a video on YouTube; its disc downloads it. Only videos of the app's
 language, for this build, show, and nothing shows when none fits. The
 Worker's `/api/tutorial-links?lang=` lists the language's chosen videos, and
-`pickTutorialLinks` (`packages/core/src/tutorialLinks.ts`) chooses from the
-table `packages/core/src/tutorialScreens.ts`. After a change to the screens a
+`pickTutorialLinks` (`packages/core/src/tutorialLinks.ts`) chooses, in the
+order of the table `apps/web/worker/tutorialScreens.ts` that the Worker sends
+with them. After a change to the screens a
 video goes through, write the table again:
 `npx tsx e2e/tutorials/screen-videos.ts --write`.
 

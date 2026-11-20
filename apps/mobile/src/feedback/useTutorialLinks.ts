@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import * as Updates from 'expo-updates';
 import { Platform } from 'react-native';
-import { pickTutorialLinks, tutorialLinkUrls, type AppBuildInfo, type LinkVideo } from '@langquest-next/core';
+import { pickTutorialLinks, tutorialLinkUrls, type AppBuildInfo } from '@langquest-next/core';
 import { currentLanguage } from '../i18n';
-import { tutorialVideos } from '../server/tutorialLinks';
+import { tutorialVideos, type TutorialList } from '../server/tutorialLinks';
 import { APP_URL } from '../web/appUrl';
 
 /** What the phone knows of its build: a store build and the update it runs. A browser names none. */
@@ -13,7 +13,7 @@ function thisBuild(): AppBuildInfo {
 }
 
 /** The videos asked for once for each language, while the app runs. */
-const asked = new Map<string, Promise<LinkVideo[] | null>>();
+const asked = new Map<string, Promise<TutorialList | null>>();
 
 /** One video for the screen: its title and its download and watch links. */
 export interface ScreenVideo { tutorial: string; title: string; download: string; watch: string | null }
@@ -25,15 +25,15 @@ export interface ScreenVideo { tutorial: string; title: string; download: string
  */
 export function useTutorialLinks(screen: string): ScreenVideo[] {
   const language = currentLanguage();
-  const [videos, setVideos] = useState<LinkVideo[] | null>(null);
+  const [list, setList] = useState<TutorialList | null>(null);
   useEffect(() => {
     let live = true;
     let p = asked.get(language);
     if (!p) { p = tutorialVideos(APP_URL, language); asked.set(language, p); }
-    void p.then((v) => { if (!v) asked.delete(language); if (live) setVideos(v); });
+    void p.then((v) => { if (!v) asked.delete(language); if (live) setList(v); });
     return () => { live = false; };
   }, [language]);
-  if (!videos || !APP_URL) return [];
+  if (!list || !APP_URL) return [];
   const origin = APP_URL;
-  return pickTutorialLinks(screen, videos, thisBuild()).map((l) => ({ tutorial: l.tutorial, title: l.title, ...tutorialLinkUrls(origin, language, l) }));
+  return pickTutorialLinks(list.screens[screen] ?? [], list.videos, thisBuild()).map((l) => ({ tutorial: l.tutorial, title: l.title, ...tutorialLinkUrls(origin, language, l) }));
 }
