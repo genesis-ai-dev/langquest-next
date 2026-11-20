@@ -134,7 +134,6 @@
         "noPass": "Este celular não pode deixar ninguém entrar. A sua organização precisa ter isso ligado, você precisa poder convidar pessoas para este idioma, e este celular precisa ter se conectado à internet depois disso.",
         "expired": "A permissão deste celular para deixar pessoas entrarem venceu. Conecte-se à internet uma vez para renová-la.",
         "noRole": "Não há nenhuma função que este celular possa dar sem internet. Um administrador pode dar funções depois que a pessoa nova se conectar à internet.",
-        "permissions": "Primeiro abra o Compartilhar por perto e permita o que o Android pedir, depois volte.",
         "wifiOff": "Ligue o Wi-Fi nas configurações do celular, depois volte."
       },
       "role": "A função dela",

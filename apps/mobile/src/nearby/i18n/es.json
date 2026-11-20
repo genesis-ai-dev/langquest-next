@@ -134,7 +134,6 @@
         "noPass": "Este teléfono no puede dejar entrar a nadie. Tu organización debe tenerlo activado, tú debes poder invitar personas a este idioma, y este teléfono debe haberse conectado a internet desde entonces.",
         "expired": "El permiso de este teléfono para dejar entrar a personas venció. Conéctate a internet una vez para renovarlo.",
         "noRole": "No hay ningún rol que este teléfono pueda dar sin internet. Un administrador puede dar roles cuando la persona nueva se conecte a internet.",
-        "permissions": "Primero abre Compartir cerca y permite lo que pida Android, luego vuelve.",
         "wifiOff": "Enciende el Wi-Fi en los ajustes del teléfono, luego vuelve."
       },
       "role": "Su rol",
