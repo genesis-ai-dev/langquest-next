@@ -292,8 +292,8 @@ function drawStart() {
       esc(CLAUDE_WORK[i.state][1]) + ' · ' + (i.pr ? '<a href="' + PR_URL + Number(i.pr) + '" target="_blank" rel="noopener">pull request ' + Number(i.pr) + '</a> · ' : '') + (safeLink(i.issueUrl) ? '<a href="' + esc(i.issueUrl) + '" target="_blank" rel="noopener">' + esc(i.issue || 'Linear') + '</a> · ' : '') +
       'filed ' + esc(ago(i.firstAt)) + (i.people ? ' · ' + num(i.people) + (i.people === 1 ? ' person' : ' people') : ''), 'userissues')),
     store.map((w) => waitRow('Store', w.lane + ' ' + (w.title || ''), 'Waits on Apple or Google · ' + esc(w.stage) + (w.at ? ' · ' + esc(ago(w.at)) : '') + (w.state ? ' · ' + esc(w.state) : ''), 'releases')));
-  $('start-you').innerHTML = rows.join('') ||
-    (loading ? '<p class="muted">Checking each section…</p>' : '<div class="alert clear">' + lvl('clear', 'All clear') + '<div class="text"><b>Nothing needs attention now.</b></div><div class="pic"></div><span></span></div>');
+  redraw($('start-you'), rows.join('') ||
+    (loading ? '<p class="muted">Checking each section…</p>' : '<div class="alert clear">' + lvl('clear', 'All clear') + '<div class="text"><b>Nothing needs attention now.</b></div><div class="pic"></div><span></span></div>'));
   drawResolved();
   drawTiles();
   drawMap();
@@ -312,19 +312,19 @@ function drawResolved() {
 }
 
 function drawTiles() {
-  $('start-tiles').innerHTML = tilesOf(results).map((t) => {
+  redraw($('start-tiles'), tilesOf(results).map((t) => {
     const gl = t.spark ? glanceOf(t.spark) : null;
     return '<a class="tile" href="#g/' + esc(t.group) + '"><span class="l">' + esc(t.label) + '</span>' +
       '<span class="v' + (t.value === null ? ' none' : t.small ? ' sm' : '') + '">' + esc(t.value === null ? '–' : t.value) + '</span>' +
       '<span class="s">' + esc(t.sub) + '</span>' + (gl ? miniSvg(gl.s.values, gl.s.agg, 120, 24, gl.say) : '') + '</a>';
-  }).join('');
+  }).join(''));
 }
 
 function drawMap() {
   const cols = mapOf(results, LEVELS);
-  $('map').innerHTML = '<svg class="wires" aria-hidden="true"></svg>' + cols.map((col) => '<div class="col"><span>' + esc(col.title) + '</span>' +
+  redraw($('map'), '<svg class="wires" aria-hidden="true"></svg>' + cols.map((col) => '<div class="col"><span>' + esc(col.title) + '</span>' +
     col.nodes.map((n) => '<a class="node ' + n.state + '" href="#g/' + esc(n.group) + '" data-node="' + n.id + '"><span class="ic">' + svgIcon(n.icon) + '</span>' +
-      '<span class="txt"><b>' + esc(n.title) + '</b><small>' + esc(n.sub) + '</small></span><span class="dot ' + n.state + '" role="img" aria-label="' + esc(n.said) + '"></span></a>').join('') + '</div>').join('');
+      '<span class="txt"><b>' + esc(n.title) + '</b><small>' + esc(n.sub) + '</small></span><span class="dot ' + n.state + '" role="img" aria-label="' + esc(n.said) + '"></span></a>').join('') + '</div>').join(''));
   drawWires();
 }
 
@@ -366,24 +366,24 @@ function daysSvg(days, a, b, an, bn) {
 function drawOvCharts() {
   const s = results.releases;
   const days = s && s.state === 'ok' && s.data ? s.data.errorsByDay || [] : null;
-  if (!days) { $('start-charts').innerHTML = '<p class="muted">' + esc(s ? (s.state === 'off' ? 'The charts are not connected.' : 'Could not read the charts.') : 'Loading the charts…') + '</p>'; return; }
+  if (!days) { redraw($('start-charts'), '<p class="muted">' + esc(s ? (s.state === 'off' ? 'The charts are not connected.' : 'Could not read the charts.') : 'Loading the charts…') + '</p>'); return; }
   const sum = (f) => days.reduce((n, d) => n + f(d), 0);
   const errs = (d) => Math.max(0, Number(d.errors || 0) - Number(d.crashes || 0)), crashes = (d) => Number(d.crashes || 0), installs = (d) => Number(d.installs || 0);
-  $('start-charts').innerHTML =
+  redraw($('start-charts'),
     '<a class="ovchart" href="#g/phones"><h3>Errors and crashes</h3><div class="keys"><span><i class="a"></i>Errors <b>' + num(sum(errs)) + '</b></span><span><i class="b"></i>Crashes <b>' + num(sum(crashes)) + '</b></span></div>' + daysSvg(days, errs, crashes, 'Errors', 'Crashes') + '</a>' +
-    '<a class="ovchart" href="#g/phones"><h3>Phones and browsers with an error</h3><div class="keys"><span><i class="a"></i>Phones and browsers, each day</span></div>' + daysSvg(days, installs, null, 'Phones and browsers') + '</a>';
+    '<a class="ovchart" href="#g/phones"><h3>Phones and browsers with an error</h3><div class="keys"><span><i class="a"></i>Phones and browsers, each day</span></div>' + daysSvg(days, installs, null, 'Phones and browsers') + '</a>');
 }
 
 function drawShipped() {
   const s = results.releases;
-  if (!s || s.state !== 'ok') { $('start-shipped').innerHTML = '<p class="muted">' + esc(partSaid(results, 'releases')) + '</p>'; return; }
+  if (!s || s.state !== 'ok') { redraw($('start-shipped'), '<p class="muted">' + esc(partSaid(results, 'releases')) + '</p>'); return; }
   const repo = (okData(results, 'pipeline') || okData(results, 'nightly') || {}).repo;
   const list = shippedOf(s.data, 5);
-  $('start-shipped').innerHTML = list.map((e) => {
+  redraw($('start-shipped'), list.map((e) => {
     const href = e.pr && repo ? 'https://github.com/' + repo + '/pull/' + e.pr : '#g/releases';
     return '<a class="node" href="' + esc(href) + '"' + (href.startsWith('https://') ? ' target="_blank" rel="noopener"' : '') + '><span class="ic">' + svgIcon('merge') + '</span>' +
       '<span class="txt"><b>' + (e.pr ? 'PR ' + esc(e.pr) + ' · ' : '') + esc(e.title) + '</b><small>Merged ' + esc(ago(e.at)) + '</small></span></a>';
-  }).join('') || '<p class="muted">Nothing merged in the last 14 days.</p>';
+  }).join('') || '<p class="muted">Nothing merged in the last 14 days.</p>');
 }
 
 $('start-look').addEventListener('submit', (e) => {

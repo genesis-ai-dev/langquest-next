@@ -320,6 +320,17 @@ function renderHist(groupId) {
   });
 }
 
+/**
+ * The five-minute refresh of the charts: each is read again and drawn over the old
+ * one in place when its answer comes. A chart that cannot be read keeps the old one.
+ */
+function refreshCharts() {
+  for (const k of Object.keys(histories)) delete histories[k];
+  const v = view();
+  if (v.name === 'group') for (const p of partsWithNumbers(v.id)) if ($('charts-' + p)) loadHistory(p, range).then((hst) => drawPart(p, hst), () => {});
+  for (const p of Object.keys(dayPics)) if (dayPics[p]) loadHistory(p, '24h').then((h) => { dayPics[p] = h; renderStart(); }, () => {});
+}
+
 function loadHistory(part, r) {
   const k = part + '|' + r;
   if (!histories[k]) histories[k] = api('/ops/api/' + part + '?range=' + r).catch((err) => { delete histories[k]; throw err; });
@@ -421,9 +432,9 @@ function drawPart(part, hst) {
         esc(keyName(x.key, part, m)) + ' · ' + esc(fmt(rangeTotal(x.agg, x.values))) + '</button>').join('') + '</div>' : '') +
       '</div>';
   }).join('');
-  box.innerHTML = '<h3 class="part">' + esc(chartTitle(part)) + '</h3>' +
+  redraw(box, '<h3 class="part">' + esc(chartTitle(part)) + '</h3>' +
     (hst.counted.some((c) => !c) ? '<p class="muted">Some ' + (hst.step === 'hour' ? 'hours' : 'days') + ' are not counted yet: the job counts the last 90 days a few at a time.</p>' : '') +
-    '<div class="charts">' + (SQUARES[part] ? squaresBox(part, hst, null, 0) : '') + (charts || '<p class="muted">Nothing counted yet.</p>') + '</div>';
+    '<div class="charts">' + (SQUARES[part] ? squaresBox(part, hst, null, 0) : '') + (charts || '<p class="muted">Nothing counted yet.</p>') + '</div>');
 }
 
 function bucketLabel(iso, step) {
