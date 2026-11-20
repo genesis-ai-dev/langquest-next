@@ -144,6 +144,31 @@ export function giveStage(o: {
 }
 
 /**
+ * The two ways to send the file, which the screen offers as one choice before a group runs (Carl,
+ * 2026-11-20): this phone's own Wi-Fi, where the new phone scans two codes and needs nothing else,
+ * or Quick Share, where both phones need Google Play services. Wi-Fi is chosen first, since it
+ * works on any phone.
+ */
+export type GiveWay = 'wifi' | 'quick-share';
+
+/** Who does a group of Quick Share's steps, in the order the screen names them. */
+export type QuickShareOn = 'newFirst' | 'this' | 'newThen' | 'thisThen';
+export type QuickShareStep = 'open' | 'visible' | 'send' | 'accept' | 'install' | 'letIn';
+
+/**
+ * Quick Share's steps in the order they are done, across the two phones, numbered right through
+ * (Carl, 2026-11-20): the new phone first opens Quick Share and lets everyone find it, then this
+ * phone sends, then the new phone accepts and installs, and last, where this phone can let people
+ * in (`letIn`), it does. Before, one line under the button said what the new phone does, in no order.
+ */
+export function quickShareSteps(letIn: boolean): { on: QuickShareOn; steps: { n: number; key: QuickShareStep }[] }[] {
+  const plan: [QuickShareOn, QuickShareStep[]][] = [['newFirst', ['open', 'visible']], ['this', ['send']], ['newThen', ['accept', 'install']]];
+  if (letIn) plan.push(['thisThen', ['letIn']]);
+  let n = 0;
+  return plan.map(([on, keys]) => ({ on, steps: keys.map((key) => ({ n: ++n, key })) }));
+}
+
+/**
  * Whether Send with Quick Share is offered: with a kept file and no group running, so before the
  * first code, after a stop and after a failure that left the file. Never mid-run: Android's share
  * sheet takes the app to the background, and that stops a running Give the app. `shareable`: this
