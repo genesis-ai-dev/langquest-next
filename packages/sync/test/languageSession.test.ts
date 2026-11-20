@@ -236,6 +236,100 @@ describe('LanguageSession: commands, waking and what settles', () => {
     expect([...session.status.keptUnits]).toEqual([]);
     session.close();
   });
+
+  // LAN-316: a book's passages are kept as one list.
+  it("a book's passages are kept in one write, and remembered", async () => {
+    const { store, open } = phone();
+    const first = await open();
+    const writes = vi.spyOn(store, 'setMeta');
+    await first.keepOffline(['Luke 1', 'Luke 2', 'Luke 3'], true);
+    expect(writes.mock.calls.filter(([key]) => key.startsWith('keep:'))).toHaveLength(1);
+    expect([...first.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2', 'Luke 3']);
+    first.close();
+    const second = await open();
+    expect([...second.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2', 'Luke 3']);
+    second.close();
+  });
+
+  it('letting a list go leaves the passages kept one by one', async () => {
+    const { open } = phone();
+    const session = await open();
+    await session.keepOffline('Luke 9', true);
+    await session.keepOffline(['Luke 1', 'Luke 2'], true);
+    await session.keepOffline(['Luke 1', 'Luke 2'], false);
+    expect([...session.status.keptUnits]).toEqual(['Luke 9']);
+    session.close();
+  });
+
+  it('keeping what is already kept writes nothing and tells nobody', async () => {
+    const { store, open } = phone();
+    const session = await open();
+    await session.keepOffline(['Luke 1', 'Luke 2'], true);
+    const writes = vi.spyOn(store, 'setMeta');
+    let told = 0;
+    session.subscribe(() => { told += 1; });
+    await session.keepOffline(['Luke 2', 'Luke 1'], true);
+    await session.keepOffline('Luke 7', false);
+    expect(writes.mock.calls.filter(([key]) => key.startsWith('keep:'))).toHaveLength(0);
+    expect(told).toBe(0);
+    session.close();
+  });
+
+  it('says what keeping passages would bring down, each file once, before any is kept', async () => {
+    const { server, files, open } = phone();
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r2', unitId: 'Luke 2', kind: 'target', cards: [{ hash: 'h2', durationMs: 1000, format: 'm4a' }] });
+    // Recorded, and not sent by the phone that made it: no download can bring it.
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r3', unitId: 'Luke 3', kind: 'target', cards: [{ hash: 'h3', durationMs: 1000, format: 'm4a' }] });
+    server.storeBlob('org1', 'luke', 'h1', 1000);
+    server.storeBlob('org1', 'luke', 'h2', 2500);
+    const session = await open();
+    await session.sync();
+    expect(await session.offlineCost(['Luke 1', 'Luke 2', 'Luke 3', 'Luke 1'])).toEqual({ files: 2, bytes: 3500, freeable: 0 });
+    expect(await session.offlineCost([])).toEqual({ files: 0, bytes: 0, freeable: 0 });
+    // Asking keeps nothing.
+    expect([...session.status.keptUnits]).toEqual([]);
+    // One of them is here already.
+    files.put('h1', 1000);
+    expect(await session.offlineCost(['Luke 1', 'Luke 2'])).toMatchObject({ files: 1, bytes: 2500 });
+    session.close();
+  });
+
+  it('counts a file every passage plays once, not once for each passage', async () => {
+    const { server, open } = phone();
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r2', unitId: 'Luke 2', kind: 'target', cards: [{ hash: 'h2', durationMs: 1000, format: 'm4a' }] });
+    // Reference audio for the whole language: each passage plays it, and it comes down once.
+    await from(server, 'bol', 'v1.MaterialDefined', { materialId: 'm1', kind: 'reference', title: 'How to say names', scope: {} });
+    await from(server, 'bol', 'v1.MaterialFieldSet', { materialId: 'm1', fieldId: 'audio', blobHash: 'g1' });
+    server.storeBlob('org1', 'luke', 'h1', 1000);
+    server.storeBlob('org1', 'luke', 'h2', 2500);
+    server.storeBlob('org1', 'luke', 'g1', 700);
+    const session = await open();
+    await session.sync();
+    expect(await session.offlineCost(['Luke 1', 'Luke 2'])).toMatchObject({ files: 3, bytes: 4200 });
+    expect(await session.offlineCost(['Luke 1'])).toMatchObject({ files: 2, bytes: 1700 });
+    session.close();
+  });
+
+  it('says how much this device would free for them by itself: files here that no kept passage needs', async () => {
+    const { server, files, open } = phone();
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r2', unitId: 'Luke 2', kind: 'target', cards: [{ hash: 'h2', durationMs: 1000, format: 'm4a' }] });
+    server.storeBlob('org1', 'luke', 'h1', 1000);
+    server.storeBlob('org1', 'luke', 'h2', 2500);
+    const session = await open();
+    await session.sync();
+    // Luke 1's file is here from an earlier listen, and nothing keeps it.
+    files.put('h1', 1000);
+    // Keeping Luke 2 could push Luke 1's file out to make room; keeping Luke 1 itself could not.
+    expect(await session.offlineCost(['Luke 2'])).toEqual({ files: 1, bytes: 2500, freeable: 1000 });
+    expect(await session.offlineCost(['Luke 1'])).toEqual({ files: 0, bytes: 0, freeable: 0 });
+    // Once Luke 1 is kept, its file is no longer the device's to free.
+    await session.keepOffline('Luke 1', true);
+    expect(await session.offlineCost(['Luke 2'])).toEqual({ files: 1, bytes: 2500, freeable: 0 });
+    session.close();
+  });
 });
 
 describe('LanguageSession: what tells a screen to redraw', () => {

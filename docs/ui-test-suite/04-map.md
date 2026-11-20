@@ -255,8 +255,10 @@ Expected:
   (decision 166), 25 at a time with "Show 25 more · 72 left" under them (UI
   audit, finding 122). A passage across two chapters (Luke 7:36–8:3) is one
   row.
-- The line over the list reads "{ready} of 97 passages ready on this
-  device", with the green download mark.
+- The line over the list is the book's download button (MAP-036): "Download
+  all 97 passages for offline" when none is kept, or "Download the other {n}
+  passages" with "{ready} of 97 passages ready on this device" under it when
+  some are (TRANS's requests).
 - Each row has the passage's disc (dashed mic, steps, ✓ when done), its
   title and where it stands, and its download button at the end: an outline
   ("Download for offline"), an arrow wave while it downloads ("Downloading
@@ -489,3 +491,45 @@ Expected:
 - Team rows are not tappable: tapping one opens nothing.
 - "Something else?" offers only "What helps here" and the offline card, with
   no "Say it instead" footer (PASS-009).
+
+### MAP-036 A whole book downloads for offline with one button
+Roles: VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+A book has its own download button, and so has a section of a language with
+its own outline (`docs/decisions/2026-11-20-a-book-has-its-own-download-button.md`,
+LAN-316). The fixture has no outline language, so a section's button is
+checked by hand on one. Step 4 needs a phone short of storage and is also
+checked by hand; `apps/mobile/test/offlineTruth.test.ts` holds its words.
+
+Steps:
+1. VIEW (nothing kept): on Alpha's map, tap "Luke". Read the line over the
+   list.
+2. Tap it. Read it again, and the rows' download buttons.
+3. Tap it again.
+4. Phone, on a device with little free storage: read the line of a book
+   whose audio is larger than the room left.
+
+Expected:
+- Step 1: "Checking this device…" until the size is worked out, then
+  "Download all 97 passages for offline", with "{size} of audio to download"
+  under it when the server has recordings of Luke this device lacks. The
+  line does not change again until it is tapped.
+- Step 2: "Checking this device…" for a moment, then "Downloading for
+  offline · {ready} of 97" while a file comes down, "{ready} of 97 passages
+  ready on this device" (amber) when none is moving, and "All 97 kept
+  passages are on this device" (green) once every one is here. No row offers
+  "Download for offline" any more.
+- Step 3: the toast "No longer kept. Their audio may be removed to make
+  room.", and the line offers the whole book again. For TRANS, whose
+  requests stay kept, the toast ends "except {n} passages that are your
+  work.", and the line offers "the other {n} passages".
+- Offline, with passages not kept: "Download needs a connection", and a tap
+  does nothing.
+- Step 4: "Not enough room on this device", amber, with "Its audio is
+  {size}. This device has room for {room}." under it. A tap asks again and
+  says the same as a toast while it still does not fit; once room is made,
+  a tap downloads the book. The room is what is free less the 500 MB kept
+  for recording, and what the device would free by itself. A browser cannot
+  say how much room it has, so the web never shows this.
+- While a language's first download is still running: "Downloading this
+  language", and a tap does nothing until it ends.
