@@ -8445,8 +8445,7 @@
   "tutorial": {
     "open": "Voir comment",
     "watch": "Regarder sur YouTube",
-    "download": "Télécharger la vidéo",
-    "help": "La vidéo de cet écran."
+    "download": "Télécharger la vidéo"
   },
   "orgExport": {
     "title": "Exporter toutes les données",

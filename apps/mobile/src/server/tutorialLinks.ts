@@ -12,7 +12,7 @@ export async function tutorialVideos(origin: string | null, language: string): P
     const res = await fetch(`${origin}/api/tutorial-links?lang=${encodeURIComponent(language)}`);
     if (!res.ok) return null;
     const body = (await res.json()) as { videos?: LinkVideo[] };
-    return Array.isArray(body.videos) ? body.videos : null;
+    return Array.isArray(body.videos) ? body.videos.filter((v) => typeof v?.title === 'string') : null;
   } catch {
     return null;
   }

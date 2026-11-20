@@ -8098,8 +8098,7 @@
   "tutorial": {
     "open": "Watch how",
     "watch": "Watch on YouTube",
-    "download": "Download the video",
-    "help": "The video for this screen."
+    "download": "Download the video"
   },
   "orgExport": {
     "title": "Export all data",

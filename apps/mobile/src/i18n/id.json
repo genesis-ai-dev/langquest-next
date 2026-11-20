@@ -7751,8 +7751,7 @@
   "tutorial": {
     "open": "Lihat caranya",
     "watch": "Tonton di YouTube",
-    "download": "Unduh video",
-    "help": "Video untuk layar ini."
+    "download": "Unduh video"
   },
   "orgExport": {
     "title": "Ekspor semua data",

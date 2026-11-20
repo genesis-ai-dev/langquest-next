@@ -8098,8 +8098,7 @@
   "tutorial": {
     "open": "Panoorin kung paano",
     "watch": "Panoorin sa YouTube",
-    "download": "I-download ang video",
-    "help": "Ang video ng screen na ito."
+    "download": "I-download ang video"
   },
   "orgExport": {
     "title": "I-export ang lahat ng data",

@@ -393,11 +393,16 @@ every 48 hours; some countries block YouTube.
 
 ## The help page's link
 
-In help mode a play button at the foot's left opens Watch on YouTube and
-Download for the screen's video (docs/decisions/2026-11-17-help-page-tutorial-video-links.md, LAN-244): the video of the
-app's language, for this build. Nothing shows when none fits. The Worker's
-`/api/tutorial-links?lang=` lists the language's chosen videos, and
-`pickTutorialLink` (`packages/core/src/tutorialLinks.ts`) chooses.
+In help mode a play button at the foot's left lists the videos that show the
+screen (docs/decisions/2026-11-17-help-page-tutorial-video-links.md, LAN-244):
+each video with two or more steps on it, the one with the most first. A tap
+watches a video on YouTube; its disc downloads it. Only videos of the app's
+language, for this build, show, and nothing shows when none fits. The
+Worker's `/api/tutorial-links?lang=` lists the language's chosen videos, and
+`pickTutorialLinks` (`packages/core/src/tutorialLinks.ts`) chooses from the
+table `packages/core/src/tutorialScreens.ts`. After a change to the screens a
+video goes through, write the table again:
+`npx tsx e2e/tutorials/screen-videos.ts --write`.
 
 ## Feedback
 

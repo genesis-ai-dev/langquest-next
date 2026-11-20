@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Linking, PanResponder, Pressable, StyleSheet, View, type ViewInstance } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Chip, ChipWrap, Field, GhostBtn, Group, HELP_FOOT_ROOM, Ico, PrimaryBtn, Row, Sheet } from '../ui/kit';
+import { Chip, ChipWrap, Field, GhostBtn, Group, HELP_FOOT_ROOM, Ico, IconBtn, PrimaryBtn, Row, Sheet } from '../ui/kit';
 import { VoiceNote } from '../audio/voiceNote';
 import { HelpLit } from '../helpMode/helpBadge';
 import { useHelpMode } from '../helpMode/useHelpMode';
@@ -31,7 +31,7 @@ import {
 } from './feedbackModel';
 import { canChoosePicture, choosePicture, shrinkPicture, type ChosenPicture } from './pictureFile';
 import { touches } from '../ui/touches';
-import { useTutorialLink } from './useTutorialLink';
+import { useTutorialLinks } from './useTutorialLinks';
 
 /** Two frames: the dimming has gone from the screen before it is taken. */
 const afterPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -53,7 +53,7 @@ export function FeedbackHost(props: { ctx: Ctx; screen: string; signedIn: boolea
   const [pill, setPill] = useState<Size | null>(null);
   const [drag, setDrag] = useState(kept);
   const { actorId } = props.ctx.session;
-  const video = useTutorialLink(props.screen);
+  const videos = useTutorialLinks(props.screen);
   const [videoOpen, setVideoOpen] = useState(false);
   // What was written before signing in goes as whoever signs in.
   useEffect(() => { if (props.signedIn) void adoptWaitingFeedback(actorId); }, [props.signedIn, actorId]);
@@ -117,7 +117,7 @@ export function FeedbackHost(props: { ctx: Ctx; screen: string; signedIn: boolea
             <HelpLit />
           </View>
         ) : null}
-        {showing && video ? (
+        {showing && videos.length > 0 ? (
           // help-ignore: help mode's own button, like the ?: it opens the screen's video rather than explaining
           <Pressable testID="help-video" accessibilityRole="button" accessibilityLabel={t('tutorial.open')} onPress={() => setVideoOpen(true)}
             style={[styles.videoBtn, { bottom: Math.max(0, (HELP_FOOT_ROOM - 48) / 2) }]}>
@@ -125,10 +125,16 @@ export function FeedbackHost(props: { ctx: Ctx; screen: string; signedIn: boolea
           </Pressable>
         ) : null}
       </View>
-      {video ? (
-        <Sheet visible={videoOpen && showing} title={t('tutorial.open')} sub={t('tutorial.help')} onClose={() => setVideoOpen(false)}>
-          {video.watch ? <PrimaryBtn label={t('tutorial.watch')} icon="play" onPress={() => void Linking.openURL(video.watch!)} /> : null}
-          <GhostBtn label={t('tutorial.download')} icon="download" onPress={() => void Linking.openURL(video.download)} />
+      {videos.length > 0 ? (
+        <Sheet visible={videoOpen && showing} title={t('tutorial.open')} onClose={() => setVideoOpen(false)}>
+          {/* Every video that shows this screen, the one with the most of it first: a tap watches it on YouTube, the disc downloads it. */}
+          <Group>
+            {videos.map((v, i) => (
+              <Row key={v.tutorial} icon="play" label={v.title} role="link" last={i === videos.length - 1} testID={`help-video-${v.tutorial}`}
+                help={v.watch ? t('tutorial.watch') : t('tutorial.download')} onPress={() => void Linking.openURL(v.watch ?? v.download)}
+                {...(v.watch ? { action: <IconBtn name="download" label={`${t('tutorial.download')}: ${v.title}`} help={t('tutorial.download')} onPress={() => void Linking.openURL(v.download)} /> } : {})} />
+            ))}
+          </Group>
         </Sheet>
       ) : null}
       {open ? <FeedbackSheet ctx={props.ctx} screen={props.screen} shot={open.shot} signedIn={props.signedIn} onClose={() => setOpen(null)} /> : null}

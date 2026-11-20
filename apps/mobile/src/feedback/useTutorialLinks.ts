@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as Updates from 'expo-updates';
 import { Platform } from 'react-native';
-import { pickTutorialLink, tutorialLinkUrls, type AppBuildInfo, type LinkVideo } from '@langquest-next/core';
+import { pickTutorialLinks, tutorialLinkUrls, type AppBuildInfo, type LinkVideo } from '@langquest-next/core';
 import { currentLanguage } from '../i18n';
 import { tutorialVideos } from '../server/tutorialLinks';
 import { APP_URL } from '../web/appUrl';
@@ -15,12 +15,15 @@ function thisBuild(): AppBuildInfo {
 /** The videos asked for once for each language, while the app runs. */
 const asked = new Map<string, Promise<LinkVideo[] | null>>();
 
+/** One video for the screen: its title and its download and watch links. */
+export interface ScreenVideo { tutorial: string; title: string; download: string; watch: string | null }
+
 /**
- * The video for `screen` in the app's language and this build, with its
- * download and watch links; null while it loads, when none fits, or offline:
- * then nothing shows (docs/decisions/2026-11-17-help-page-tutorial-video-links.md).
+ * The videos for `screen` in the app's language and this build, best first,
+ * with their download and watch links; none while they load, when none fits,
+ * or offline: then nothing shows (docs/decisions/2026-11-17-help-page-tutorial-video-links.md).
  */
-export function useTutorialLink(screen: string): { download: string; watch: string | null } | null {
+export function useTutorialLinks(screen: string): ScreenVideo[] {
   const language = currentLanguage();
   const [videos, setVideos] = useState<LinkVideo[] | null>(null);
   useEffect(() => {
@@ -30,7 +33,7 @@ export function useTutorialLink(screen: string): { download: string; watch: stri
     void p.then((v) => { if (!v) asked.delete(language); if (live) setVideos(v); });
     return () => { live = false; };
   }, [language]);
-  if (!videos || !APP_URL) return null;
-  const link = pickTutorialLink(screen, videos, thisBuild());
-  return link ? tutorialLinkUrls(APP_URL, language, link) : null;
+  if (!videos || !APP_URL) return [];
+  const origin = APP_URL;
+  return pickTutorialLinks(screen, videos, thisBuild()).map((l) => ({ tutorial: l.tutorial, title: l.title, ...tutorialLinkUrls(origin, language, l) }));
 }

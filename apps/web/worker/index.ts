@@ -236,7 +236,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     }
     // Only the language asked for: a language with no approved catalog is answered in English, and its people get no English video (docs/decisions/2026-11-17-help-page-tutorial-video-links.md).
     const exact = url.searchParams.get('lang') === language;
-    const videos = (exact ? pageVideos(data) : []).map((v) => ({ tutorial: v.tutorial, sha256: v.sha256, youtube: v.youtube }));
+    const videos = (exact ? pageVideos(data) : []).map((v) => ({ tutorial: v.tutorial, sha256: v.sha256, youtube: v.youtube, title: v.title }));
     return Response.json({ language, videos }, { headers: { 'cache-control': 'public, max-age=300' } });
   }
   // A tutorial video to download, by a link that lasts (decisions.md 187), linked from its description on YouTube.
@@ -374,7 +374,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return hash;
       }
     },
-    // The organization export (orgExports.ts, docs/decisions/2026-11-17-help-page-tutorial-video-links.md): an admin asks, the job container builds one zip in R2.
+    // The organization export (orgExports.ts, decisions.md 206): an admin asks, the job container builds one zip in R2.
     orgExports: {
       serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
       profileOf,
