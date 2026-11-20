@@ -3811,6 +3811,13 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
       with the picker (decision 246, amended 2026-11-20). A build without `installFileName`,
       which ships with the filter, still downloads the `.apk` with the old steps, since Open
       would find nothing to hand it to.
+  - *How old, and the newest* (Carl's choices, 2026-11-20). The ready line names the day the kept
+    copy was built (`builtMs`), and while online the ready state offers Download the newest file,
+    which the Worker answers with the newest file for these versions, and which replaces the copy
+    once opened or chosen. A kept copy from an older native build than this phone runs, by its
+    name's fingerprint, counts as behind at once (`keptFromOlderBuild`), so the screens say a newer
+    file is ready, until a copy is kept under this build (`carriedApkKeptUnder`). The two-day rule
+    for JavaScript stays (docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended).
   - *Too old.* The press keeps the name in one phone-wide meta row, `carriedApkOpened`,
     which holds no person, organization or time. While the name this phone needs differs
     from it, the screen says the install file is for an older version and to download the new
