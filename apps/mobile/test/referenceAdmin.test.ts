@@ -12,7 +12,7 @@ import {
   sourceFromBible, sourceSummary, testamentLines, timingsNeeded, type Level
 } from '../src/reference/model';
 import { timingPublication, type TimingResultRow } from '@langquest-next/core';
-import { offeredGuideSources } from '../src/reference/offered';
+import { guideOffer, offeredGuideSources } from '../src/reference/offered';
 import type { BibleDetail } from '../src/sources/bibleBrain';
 
 const H = (c: string) => c.repeat(64);
@@ -300,5 +300,32 @@ describe('where a passage’s study guide may come from', () => {
     expect(on('u1')).toEqual([['notes', 'fia'], []]);
     expect(on('u2')).toEqual([[], ['notes']]);
     expect(on('u3')).toEqual([['fia'], ['notes']]);
+  });
+
+  it('answers many passages from one reading of the library, the same as asking for each', () => {
+    // Why: the offline prefetch asks for every passage a person keeps, and read the whole library for each.
+    const state = languageState([
+      languageEnvelope('v1.ReferenceSet', { itemId: 'mine', state: 'hidden' }),
+      languageEnvelope('v1.PassageReferenceLinked', { unitId: 'u1', itemId: 'notes', linked: true }),
+      languageEnvelope('v1.PassageReferenceLinked', { unitId: 'u2', itemId: 'fia', linked: false })
+    ]);
+    const offer = guideOffer(lib.library, lib.recommendations, state);
+    const keys = (unitId: string | null | undefined) => [offer(unitId).recommended.map((s) => s.key), offer(unitId).own.map((s) => s.key)];
+    expect(keys('u1')).toEqual([['notes', 'fia'], []]);
+    expect(keys('u2')).toEqual([[], ['notes']]);
+    for (const unitId of ['u3', 'u4', null, undefined]) expect(keys(unitId), String(unitId)).toEqual([['fia'], ['notes']]);
+    for (const unitId of ['u1', 'u2', 'u3', 'u4', null, undefined]) {
+      expect(offer(unitId), String(unitId)).toEqual(offeredGuideSources(lib.library, lib.recommendations, state, unitId));
+    }
+    // Passages nobody linked or hid anything on are offered the same: one answer, the very same object.
+    expect(offer('u3')).toBe(offer('u4'));
+    expect(offer('u3')).toBe(offer(null));
+    // One with a link or a hide of its own has its own answer.
+    expect(offer('u1')).not.toBe(offer('u3'));
+    expect(offer('u2')).not.toBe(offer('u3'));
+    // No language open yet: what the organization recommends, for any passage.
+    const none = guideOffer(lib.library, lib.recommendations, null);
+    expect(none('u1')).toEqual(offeredGuideSources(lib.library, lib.recommendations, null, 'u1'));
+    expect(none('u1').recommended.map((s) => s.key)).toEqual(['fia']);
   });
 });
