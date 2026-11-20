@@ -275,7 +275,13 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 145 * 1024;
 // Raised by 1 KB with the passage row's download button beside the row, not inside it (Caleb Koster,
 // 2026-11-17, LAN-158), 250 bytes past then: Row's action slot, its wrapper and three styles, in the
 // kit every visit carries. All chunks still fit their own budget.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 96 * 1024;
+// Raised by 16 KB with the Key words chip's tiles (Caleb Koster, 2026-11-17, LAN-233,
+// docs/decisions/2026-11-17-key-words-tiles-sheet-in-place.md), 15 KB past then with main merged in:
+// the tiles, the switch for the team's words in the Bible text and their chips in a verse, the word
+// grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
+// words in the catalog every visit carries. They show on the recording screen as it opens; the word's
+// sheet loads when first opened (keyTerms/lazySheets.tsx).
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
