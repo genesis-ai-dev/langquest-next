@@ -4828,7 +4828,25 @@
     "download": "Download for offline",
     "needsConnection": "Download needs a connection",
     "needsConnectionHelp": "Not on this device. It can be downloaded once this device is connected.",
-    "checkingHelp": "This device is counting what of this passage it has."
+    "checkingHelp": "This device is counting what of this passage it has.",
+    "group": {
+      "download_one": "Download {{count, number}} passage for offline",
+      "download_other": "Download all {{count, number}} passages for offline",
+      "downloadRest_one": "Download the other {{count, number}} passage",
+      "downloadRest_other": "Download the other {{count, number}} passages",
+      "size": "{{size}} of audio to download",
+      "noRoom": "Not enough room on this device",
+      "noRoomNeeds": "Its audio is {{size}}. This device has room for {{room}}.",
+      "noRoomHelp": "Free up room on this device, or download fewer passages at a time.",
+      "keepHelp": "Keeps the audio of every passage here on this device, so they work without a connection.",
+      "letGoHelp": "Lets this device remove their audio again when it needs room. Passages that are your work stay.",
+      "reason": "Kept because you were asked to work on these passages, or have worked on them.",
+      "toast": {
+        "letGo": "No longer kept. Their audio may be removed to make room.",
+        "someStay_one": "No longer kept, except {{count, number}} passage that is your work.",
+        "someStay_other": "No longer kept, except {{count, number}} passages that are your work."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "Report or block {{name}}",

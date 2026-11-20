@@ -4986,7 +4986,28 @@
     "download": "Descargar para usar sin conexión",
     "needsConnection": "Para descargar hace falta conexión",
     "needsConnectionHelp": "No está en este dispositivo. Se puede descargar cuando el dispositivo tenga conexión.",
-    "checkingHelp": "Este dispositivo está contando cuánto de este pasaje tiene."
+    "checkingHelp": "Este dispositivo está contando cuánto de este pasaje tiene.",
+    "group": {
+      "download_one": "Descargar {{count, number}} pasaje para usar sin conexión",
+      "download_many": "Descargar los {{count, number}} pasajes para usar sin conexión",
+      "download_other": "Descargar los {{count, number}} pasajes para usar sin conexión",
+      "downloadRest_one": "Descargar {{count, number}} pasaje restante",
+      "downloadRest_many": "Descargar los {{count, number}} pasajes restantes",
+      "downloadRest_other": "Descargar los {{count, number}} pasajes restantes",
+      "size": "{{size}} de audio por descargar",
+      "noRoom": "No hay suficiente espacio en este dispositivo",
+      "noRoomNeeds": "Su audio ocupa {{size}}. Este dispositivo tiene espacio para {{room}}.",
+      "noRoomHelp": "Libera espacio en este dispositivo, o descarga menos pasajes a la vez.",
+      "keepHelp": "Guarda el audio de cada pasaje en este dispositivo, para que funcionen sin conexión.",
+      "letGoHelp": "Permite que este dispositivo vuelva a quitar su audio cuando necesite espacio. Los pasajes que son tu trabajo se quedan.",
+      "reason": "Se guardan porque te pidieron trabajar en estos pasajes, o trabajaste en ellos.",
+      "toast": {
+        "letGo": "Ya no se guardan. Su audio puede borrarse para hacer espacio.",
+        "someStay_one": "Ya no se guardan, excepto {{count, number}} pasaje que es tu trabajo.",
+        "someStay_many": "Ya no se guardan, excepto {{count, number}} pasajes que son tu trabajo.",
+        "someStay_other": "Ya no se guardan, excepto {{count, number}} pasajes que son tu trabajo."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "Reportar o bloquear a {{name}}",
