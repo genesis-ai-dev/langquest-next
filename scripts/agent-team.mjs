@@ -389,10 +389,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.error(`usage: node scripts/agent-team.mjs <${Object.keys(commands).join('|')}> [dir]`);
     process.exit(2);
   }
-  try {
-    await commands[command](dir);
-  } catch (e) {
-    console.error(`::error::${e instanceof Error ? e.message : e}`);
-    process.exit(1);
-  }
+  // No top-level await: `follow` imports user-issues.mjs, which imports this
+  // file. A module still in its top-level await never finishes loading, so
+  // that import would wait for itself, and Node exits with code 13.
+  Promise.resolve()
+    .then(() => commands[command](dir))
+    .catch((e) => {
+      console.error(`::error::${e instanceof Error ? e.message : e}`);
+      process.exit(1);
+    });
 }

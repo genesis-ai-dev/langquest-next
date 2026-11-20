@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, OPEN_HOURS, pathRefusal,
@@ -171,5 +172,16 @@ describe('a pull request of the team', () => {
     // The newest run counts: a failed first run, then a green one.
     expect(stalled([run('failure', '2026-11-20T09:00:00Z'), run('success')], '2026-11-20T08:00:00Z', now)).toBeNull();
     expect(stalled([run('success')], '2026-11-19T11:00:00Z', now)).toBe(`It did not merge within ${OPEN_HOURS} hours.`);
+  });
+});
+
+describe('the follow command', () => {
+  it('runs to its end: it imports user-issues.mjs, which imports agent-team.mjs', () => {
+    const env = { ...process.env };
+    delete env['GITHUB_TOKEN'];
+    const run = spawnSync(process.execPath, [new URL('./agent-team.mjs', import.meta.url).pathname, 'follow'], { encoding: 'utf8', env });
+    // Without a token it stops at its first call to GitHub, not in the import (exit 13).
+    expect(run.stderr).toContain('No GITHUB_TOKEN');
+    expect(run.status).toBe(1);
   });
 });
