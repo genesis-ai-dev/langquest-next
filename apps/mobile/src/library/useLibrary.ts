@@ -4,7 +4,7 @@ import {
 } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { noteExpected } from '../diagnostics/report';
@@ -141,13 +141,21 @@ export function useLibrary(ctx: Ctx) {
   return { orgId, items, item, publish, publishHeld, setSharing, archive, copy, copyFollowed, subscribe, follow, takeUpdate, applySpecs, canWrite };
 }
 
-/** Documents for these hashes (and their deps, unless `deps: false`), re-rendering as they arrive. */
-export function useLibraryDocs(orgId: string, hashes: (string | null | undefined)[], opts: { deps?: boolean } = {}) {
+/**
+ * Documents for these hashes (and their deps, unless `deps: false`), re-rendering as they arrive.
+ * `read(hash)`: a read of it here has finished, so if it is not in hand the server has none; a read
+ * that failed (offline, with the document not on this device) is not an answer. `again`: when it
+ * changes the read is asked again, as when the device comes back online after a read that failed.
+ */
+export function useLibraryDocs(orgId: string, hashes: (string | null | undefined)[], opts: { deps?: boolean; again?: string | number | boolean } = {}) {
   const key = [...new Set(hashes.filter(Boolean))].sort().join(',');
   const [revision, bump] = useState(0);
   const [error, setError] = useState('');
   // The key still being fetched (asked again after a failure), '' once settled.
   const [pendingKey, setPendingKey] = useState('');
+  // The hashes a read here has finished for, with their deps. They stay answered when the list grows.
+  const answered = useRef(new Set<string>());
+  const [answers, setAnswers] = useState(0);
   useEffect(() => onDocs(() => bump((n) => n + 1)), []);
   useEffect(() => {
     if (!key) return;
@@ -159,7 +167,11 @@ export function useLibraryDocs(orgId: string, hashes: (string | null | undefined
       for (let i = 0; active; i++) {
         try {
           await loadDocs(orgId, key.split(','), opts.deps === false ? { deps: false } : {});
-          if (active) setError('');
+          if (active) {
+            setError('');
+            for (const hash of key.split(',')) answered.current.add(hash);
+            setAnswers((n) => n + 1);
+          }
           break;
         } catch (e) {
           // Offline: what is on the phone is shown; the rest says it is waiting.
@@ -174,10 +186,12 @@ export function useLibraryDocs(orgId: string, hashes: (string | null | undefined
       if (active) setPendingKey((k) => (k === key ? '' : k));
     })();
     return () => { active = false; };
-  }, [orgId, key, opts.deps]);
+  }, [orgId, key, opts.deps, opts.again]);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- A new `get` whenever documents arrive, so memos that read through it recompute
   const get = useCallback(<T extends LibraryDoc = LibraryDoc>(hash: string | null | undefined) => cachedDoc(hash) as T | null, [revision]);
-  return { get, error, revision, pending: !!key && pendingKey === key };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- A new `read` whenever a read finishes, so memos that ask it recompute
+  const read = useCallback((hash: string | null | undefined) => !!hash && answered.current.has(hash), [answers]);
+  return { get, read, error, revision, pending: !!key && pendingKey === key };
 }
 
 /**

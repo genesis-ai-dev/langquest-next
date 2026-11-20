@@ -66,8 +66,8 @@ async function wholeBook(page: Page): Promise<void> {
   while (await more.isVisible()) await more.click();
 }
 /** What Luke's download button says once the device has counted (MAP-036): what it offers, or where its passages stand. */
-const BOOK_OFFERS = /^(Download all 97 passages for offline|Download the other \d+ passages?\. \d+ of 97 passages ready on this device)/;
-const BOOK_KEPT = /^(All 97 kept passages are on this device|Downloading for offline · \d+ of 97|\d+ of 97 passages ready on this device)/;
+const BOOK_OFFERS = /^(Download recordings of all 97 passages for offline|Download recordings of the other \d+ passages?\. \d+ of 97 passages ready on this device)/;
+const BOOK_KEPT = /^(Recordings of all 97 passages are on this device|Downloading for offline · \d+ of 97|\d+ of 97 passages ready on this device)/;
 const BOOK_OFFLINE = new RegExp(`${BOOK_OFFERS.source}|${BOOK_KEPT.source}`);
 const closeSheet = (page: Page) => page.getByRole('button', { name: 'Close' }).locator('visible=true').first().click({ position: { x: 10, y: 10 } });
 
@@ -490,15 +490,33 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
   await button(page, /^Luke\./).click();
   await expect.poll(() => headerTitle(page)).toBe('Luke');
   const book = byId(page, 'book-offline');
-  await expect(book).toHaveAttribute('aria-label', /^Download all 97 passages for offline/);
+  await expect(book).toHaveAttribute('aria-label', /^Download recordings of all 97 passages for offline/);
   await book.click();
   // Every passage is kept: the line says where they stand, and no row offers a download any more.
   await expect(book).toHaveAttribute('aria-label', BOOK_KEPT);
   await wholeBook(page);
   await expect.poll(async () => (await labels(page)).filter((l) => /^Download for offline/.test(l))).toHaveLength(0);
+  // For their recordings alone: each row is marked apart from a passage kept with its reference material, and none is that.
+  await expect.poll(async () => (await labels(page)).filter((l) => /^Recordings on this device$/.test(l)).length).toBeGreaterThan(0);
+  expect((await labels(page)).filter((l) => /^On this device$/.test(l))).toHaveLength(0);
+  // One passage of the book gets its reference material too, by the switch on its own screen, and gives it up again.
+  await (await bookPassage(page, label('P-NEW'))).click();
+  await expect.poll(() => headerTitle(page)).toBe(label('P-NEW'));
+  const line = byId(page, 'passage-offline');
+  const reference = byId(page, 'passage-offline-reference');
+  await expect(line).toHaveAttribute('aria-label', 'Recordings on this device');
+  await expect(reference).toHaveAttribute('aria-checked', 'false');
+  await reference.click();
+  await expect(reference).toHaveAttribute('aria-checked', 'true');
+  await expect(line).toHaveAttribute('aria-label', 'On this device');
+  await reference.click();
+  await expect(reference).toHaveAttribute('aria-checked', 'false');
+  await expect(line).toHaveAttribute('aria-label', 'Recordings on this device');
+  await back(page).click();
+  await expect.poll(() => headerTitle(page)).toBe('Luke');
   // Again lets them go: its audio may be removed, and the whole book is on offer again.
   await book.click();
   await expectToast(page, 'No longer kept. Their audio may be removed to make room.');
-  await expect(book).toHaveAttribute('aria-label', /^Download all 97 passages for offline/);
+  await expect(book).toHaveAttribute('aria-label', /^Download recordings of all 97 passages for offline/);
   await context.close();
 });
