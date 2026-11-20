@@ -14,6 +14,7 @@ import { RateMeter } from './rate';
 import { openLanguage, type OpenedLanguage } from './openLanguage';
 import { recoverRecordings } from './recoverRecordings';
 import { appLanguagePlatform, appRecoveryEnv } from './appLanguage';
+import { onGateOpen } from './firstContactGate';
 import { onWake } from './wake';
 import { stateCopier } from './publishedState';
 import { NO_LANGUAGE_STATUS, StatusStore, type LanguageStatusStore, type LanguageSyncStatus } from './syncStatusStore';
@@ -179,6 +180,8 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   // Back on screen or back online: sync now rather than at the end of a backoff.
   const wakeSession = useCallback(() => sessionRef.current?.wake(), []);
   useEffect(() => onWake(wakeSession), [wakeSession]);
+  // And when a newcomer's first contact opens the gate that turned every sync away (firstContactGate.android.ts).
+  useEffect(() => onGateOpen(wakeSession), [wakeSession]);
   // Whether the server answers, not just whether the phone has a network (decisions.md 166):
   // a VPN with no internet behind it says "connected". Back from quiet, sync at once.
   const network = Network.useNetworkState();

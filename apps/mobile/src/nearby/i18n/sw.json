@@ -306,6 +306,7 @@
       "download": {
         "title": "2. Fungua ukurasa wa kupakua",
         "line": "Elekeza kamera ya simu mpya kwenye msimbo huu na ufungue ukurasa. Gusa Pakua.",
+        "warnings": "Kivinjari cha simu mpya kikisema kwamba faili haiwezi kupakuliwa kwa usalama, chagua kuihifadhi. Kivinjari kikionya kwamba faili inaweza kuwa hatari, chagua kuipakua hata hivyo. Ni faili ya kusakinisha ya LangQuest yenyewe.",
         "code": "Msimbo wa ukurasa wa kupakua",
         "address": "Au andika anwani hii kwenye kivinjari chake: {{address}}",
         "dataLine": "Huenda simu mpya ikasema Wi-Fi hii haina intaneti. Gusa Endelea kuunganishwa. Ukurasa ukiwa bado haufunguki, zima data ya simu kwenye simu hiyo."
@@ -338,7 +339,8 @@
         "title": "Sakinisha LangQuest",
         "size": "{{size}} MB",
         "download": "Pakua",
-        "stepOpen": "Fungua faili uliyopakua.",
+        "stepOpen": "Upakuaji ukikamilika, gusa Fungua.",
+        "stepFind": "Ikiwa Fungua imetoweka, tafuta {{name}} kwenye Vipakuliwa, katika menyu ⋮ ya kivinjari au katika programu ya faili, kisha uiguse.",
         "stepAllow": "Ruhusu kusakinisha kutoka chanzo hiki, simu ikiuliza.",
         "stepInstall": "Gusa Sakinisha."
       }

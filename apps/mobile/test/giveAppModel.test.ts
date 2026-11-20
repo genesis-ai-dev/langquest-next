@@ -29,7 +29,7 @@ describe('code 2, the page\'s address', () => {
 });
 
 describe('the page', () => {
-  const words = { lang: 'es', dir: 'ltr' as const, title: 'Instalar <LangQuest>', size: '212 MB', download: 'Descargar', stepOpen: 'Abre & ve', stepAllow: '"Permite"', stepInstall: 'Instala' };
+  const words = { lang: 'es', dir: 'ltr' as const, title: 'Instalar <LangQuest>', size: '212 MB', download: 'Descargar', stepOpen: 'Abre & ve', stepFind: 'Si ya no está, busca <r21>', stepAllow: '"Permite"', stepInstall: 'Instala' };
   const html = pageHtml(words, KEPT.name);
   it('is one self-contained page: no script, no outside address, in the carrier\'s language', () => {
     expect(html).toMatch(/^<!doctype html><html lang="es" dir="ltr">/);
@@ -45,6 +45,11 @@ describe('the page', () => {
     expect(html).not.toContain('<LangQuest>');
     // Three steps, each with its picture.
     expect(html.match(/<li><svg/g)).toHaveLength(3);
+  });
+  it('says under the first step where the file is once the browser\'s Open has gone, which it does after a while', () => {
+    const first = html.slice(html.indexOf('<li>'), html.indexOf('</li>'));
+    expect(first).toContain('Abre &amp; ve');
+    expect(first).toContain('<small>Si ya no está, busca &lt;r21&gt;</small>');
   });
 });
 

@@ -306,6 +306,7 @@
       "download": {
         "title": "2. Buksan ang download page",
         "line": "Itutok ang camera ng bagong telepono sa code na ito at buksan ang page. I-tap ang I-download.",
+        "warnings": "Kung sabihin ng browser ng bagong telepono na hindi ma-download nang ligtas ang file, piliing panatilihin ito. Kung magbabala ang browser na maaaring mapanganib ang file, piliing i-download pa rin ito. Ito ang sariling install file ng LangQuest.",
         "code": "Code para sa download page",
         "address": "O i-type ang address na ito sa browser nito: {{address}}",
         "dataLine": "Baka sabihin ng bagong telepono na walang internet ang Wi-Fi na ito. I-tap ang Manatiling nakakonekta. Kung hindi pa rin bumukas ang page, i-off ang mobile data nito."
@@ -338,7 +339,8 @@
         "title": "I-install ang LangQuest",
         "size": "{{size}} MB",
         "download": "I-download",
-        "stepOpen": "Buksan ang na-download na file.",
+        "stepOpen": "Kapag tapos na ang pag-download, i-tap ang Buksan.",
+        "stepFind": "Kung wala na ang Buksan, hanapin ang {{name}} sa Mga Download, sa menu ⋮ ng browser o sa app ng mga file, at i-tap ito.",
         "stepAllow": "Payagan ang pag-install mula sa source na ito, kung magtanong ang telepono.",
         "stepInstall": "I-tap ang I-install."
       }

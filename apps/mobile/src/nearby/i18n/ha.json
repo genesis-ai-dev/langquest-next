@@ -306,6 +306,7 @@
       "download": {
         "title": "2. Buɗe shafin saukewa",
         "line": "Ka nuna kyamarar sabuwar wayar ga wannan lamba ka buɗe shafin. Taɓa Sauke.",
+        "warnings": "Idan burauzar sabuwar wayar ta ce ba za a iya sauke fayil ɗin cikin aminci ba, ka zaɓi ka ajiye shi. Idan burauzar ta yi gargaɗin cewa fayil ɗin na iya yin illa, ka zaɓi ka sauke shi duk da haka. Shi ne fayil ɗin girkawa na LangQuest na ainihi.",
         "code": "Lambar shafin saukewa",
         "address": "Ko ka rubuta wannan adireshin a burauzarta: {{address}}",
         "dataLine": "Sabuwar wayar tana iya cewa wannan Wi-Fi ba shi da intanet. Taɓa Ci gaba da haɗi. Idan har yanzu shafin bai buɗe ba, kashe data ta wayar hannu a sabuwar wayar."
@@ -338,7 +339,8 @@
         "title": "Girka LangQuest",
         "size": "{{size}} MB",
         "download": "Sauke",
-        "stepOpen": "Buɗe fayil ɗin da aka sauke.",
+        "stepOpen": "Idan saukewar ta ƙare, taɓa Buɗe.",
+        "stepFind": "Idan Buɗe ta ɓace, nemo {{name}} a cikin abubuwan da aka sauke, a menu ⋮ na burauza ko a manhajar fayiloli, sai ka taɓa shi.",
         "stepAllow": "Ka yarda a girka daga wannan wuri, idan wayar ta tambaya.",
         "stepInstall": "Taɓa Girka."
       }

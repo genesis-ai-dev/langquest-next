@@ -306,6 +306,7 @@
       "download": {
         "title": "2. Abrir a página de download",
         "line": "Aponte a câmera do celular novo para este código e abra a página. Toque em Baixar.",
+        "warnings": "Se o navegador do celular novo disser que o arquivo não pode ser baixado com segurança, escolha mantê-lo. Se o navegador avisar que o arquivo pode ser perigoso, escolha baixar mesmo assim. É o arquivo de instalação do próprio LangQuest.",
         "code": "Código da página de download",
         "address": "Ou digite este endereço no navegador dele: {{address}}",
         "dataLine": "O celular novo pode dizer que este Wi-Fi não tem internet. Toque em Permanecer conectado. Se a página ainda não abrir, desligue os dados móveis dele."
@@ -338,7 +339,8 @@
         "title": "Instalar o LangQuest",
         "size": "{{size}} MB",
         "download": "Baixar",
-        "stepOpen": "Abra o arquivo baixado.",
+        "stepOpen": "Quando o download terminar, toque em Abrir.",
+        "stepFind": "Se Abrir sumiu, procure {{name}} em Downloads, no menu ⋮ do navegador ou no app de arquivos, e toque nele.",
         "stepAllow": "Permita instalações desta fonte, se o celular pedir.",
         "stepInstall": "Toque em Instalar."
       }

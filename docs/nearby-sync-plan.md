@@ -3167,7 +3167,7 @@ For joining offline (section 14):
 | Does a phone installed that way take Play updates later? | It has to reach the normal update path when it first gets online. |
 | Does Android developer verification get in the way of installing offline? | It expands globally in 2027, and Google's page does not cover this. On 2026-11-17 the verifier passed carried build 56 on an Android 16 phone that was online; offline, the install finished, but whether the verifier ran is not known. |
 | Do phones join a Wi-Fi Direct group as plain Wi-Fi from a QR code (14.5)? | Give the app depends on it. Pixels should; makers vary, and phones in China most of all. Android 8 and 9 have no Wi-Fi QR reader, so their people type the name and password. |
-| Does a new phone's browser download an app file from the carrier's page over plain `http`, and what does it warn (14.5)? | Chrome warns about app files and may warn about `http`. Makers' own browsers, common in China, are untested. Each warning is one more tap for someone not technical. |
+| Does a new phone's browser download an app file from the carrier's page over plain `http`, and what does it warn (14.5)? | Chrome does, after two warnings (Carl's test, 2026-11-20): the file can't be downloaded securely, and it may be harmful. Code 2 now says to keep it and download it anyway. Makers' own browsers, common in China, are untested. Each warning is one more tap for someone not technical. |
 | With mobile data on, does the new phone open the carrier's page at all (14.5)? | A Wi-Fi with no internet can lose the browser to mobile data. The screen would then say to tap "Stay connected" or turn mobile data off. |
 | Does `GET generatedApks` give a universal APK on the `alpha` track without waiting for review, may `PLAY_REVIEW_KEY` read it, and how big is the file? | Section 14.4 depends on it. Someone with the key tries it first on an existing build (Carl's answer, 2026-11-06). The file holds four ABIs and the speech models, and carriers download it on town connections. |
 | Does a QR code with this payload scan on 2 GB phones in poor light, and does the camera's scanner work with no Play services? | Section 14.1 keeps the payload small for this reason. |
@@ -3489,7 +3489,10 @@ it does today (decision 54).
      server answers as rejected. Events stay `pending`. The live channel, asked for once
      when a stream opens, waits for the sign-in to change and opens once first contact
      saves a session; checked only at the start, it never opened, and Sync said Connected
-     until the app started again (Carl's test, 2026-11-18).
+     until the app started again (Carl's test, 2026-11-18). The streams' syncs are woken
+     then too (`onGateOpen`): turned away as offline until then, each waited out its offline
+     backoff, and Sync said Offline 15 seconds or more after the phone came back online
+     (Carl's test, 2026-11-20).
    - **Teammates.** Their events are `pending` here and reach teammates as `nearby`, shown
      under the name in their chain: the session reports it (`peer.name`, from a two-link
      chain only), so does the inviter's tap, and the app keeps it under
@@ -3927,7 +3930,13 @@ codes, one after the other, as Let someone in shows two pictures.
 2. The camera reads code 2, and the browser opens the page: what this is ("Install
    LangQuest"), the size, one Download button, and three pictures of what follows on a phone:
    open the file, allow installs from this source, install. The words are in the carrier's
-   app language; the pictures carry the meaning for someone who does not read it.
+   app language; the pictures carry the meaning for someone who does not read it. After
+   Download, Chrome warns twice: that the file can't be downloaded securely (the page is plain
+   `http`), and that it may be harmful (an app file). The carrier's code 2 says to keep it and
+   download it anyway (Carl's test, 2026-11-20). The page's first step says to tap the browser's
+   Open when the download finishes and, since Open goes after a while, where the file is then: in
+   Downloads, from the browser's menu or in the Files app, by its name. A page cannot open the
+   file itself.
 3. The download takes about a minute at 4 to 10 MB/s. The person taps the file, allows the
    browser once, and installs. Then Join without internet goes on as now (14.1).
 
