@@ -13,6 +13,7 @@
 import { isStored } from '@langquest-next/core';
 import { useEffect, useRef, useState } from 'react';
 import { audioFormat } from './audioFormat';
+import { clipsAvailable } from './clipsAvailable';
 import { playerInRow, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { t } from '../i18n';
 import { noteExpected, reportError } from '../diagnostics/report';
@@ -108,9 +109,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: {
   if (!uriProp && clipLength > 0 && index < lengths.length) lengths[index] = clipLength;
   const total = lengths.reduce((a, b) => a + b, 0);
   const elapsed = lengths.slice(0, index).reduce((a, b) => a + b, 0) + at;
-  const state = language.state;
-  const here = !!uriProp || (!!state && hashes.length > 0 && hashes.every((hash) => !!language.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
-  const available = here || (!!state && hashes.length > 0 && language.online !== false && hashes.every((hash) => isStored(state, hash)));
+  const available = !!uriProp || clipsAvailable(language, hashes);
 
   async function playFrom(i: number, from: number, run: number) {
     if (!wants.current || generation.current !== run) return;

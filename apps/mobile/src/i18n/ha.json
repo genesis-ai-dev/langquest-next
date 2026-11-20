@@ -6408,6 +6408,7 @@
       "addedAtCheckpoint": "An ƙara {{kind}} cikin rikodin. Wurin dubawar har yanzu yana jiran dubawar da aka yi a cikin manhajar.",
       "keptNotSent": "An ajiye bitarka a wannan wayar. Ba a aika ta ba tukuna.",
       "notOnPhoneYet": "Naɗin bai zo wannan wayar ba tukuna. Zai kunnu a nan da zarar wayar ta haɗu da intanet.",
+      "notUploadedYet": "Ba a ɗora naɗin ba tukuna daga na'urar da aka yi shi. Zai kunnu a nan da zarar waccan na'urar ta haɗu da intanet.",
       "previousQuestion": "Tambayar da ta gabata",
       "previousQuestionHelp": "Yana komawa tambayar da ta gabata, don ka canza amsarka.",
       "loggedCheckpoint": "Wannan dubawa wurin dubawa ne: idan aka rubuta ta nan, za ta shiga rikodin, amma dubawar da aka yi a cikin manhaja ce kaɗai ke buɗe matakan da ke biye.",
@@ -6590,6 +6591,8 @@
     "notPublished": "Ba a wallafa ba: {{reason}}",
     "partNotSaved": "Wani sashe bai ajiyu ba.",
     "retrySaving": "Sake gwada ajiyewa",
+    "partNotHere": "Sashe na {{n}} bai zo wannan na'ura ba tukuna. Za ku iya faɗa shi a baya da zarar na'urar ta haɗu da intanet.",
+    "partNotUploaded": "Ba a ɗora Sashe na {{n}} ba tukuna daga na'urar da aka yi shi. Za ku iya faɗa shi a baya da zarar waccan na'urar ta haɗu da intanet.",
     "youDrag": "Ku · ja gaba da baya duk yadda kuke so",
     "nameDrag": "{{name}} · ja gaba da baya duk yadda kuke so",
     "part": "Sashe na {{n}}",
@@ -6683,7 +6686,10 @@
     "partsCleaned_one": "Tsaftace a kan sashe {{count, number}}.",
     "partsCleaned_other": "Tsaftace a kan sassa {{count, number}}.",
     "redone": "An maimaita.",
-    "newRecording": "Sabon naɗi"
+    "newRecording": "Sabon naɗi",
+    "lockedTitle": "Wani sashe na wannan naɗin bai zo wannan na'ura ba tukuna",
+    "lockedOffline": "Ba za a iya canza sashen ko a aika shi daga nan ba har sai wannan na'ura ta haɗu da intanet kuma ta samu shi. Don ku naɗa ba tare da shi ba, ku buɗe {{versions}} a cikin nassin ku zaɓi {{newVersion}}.",
+    "lockedNotUploaded": "Ba a ɗora sashen ba tukuna daga na'urar da aka yi shi, don haka ba za a iya canza shi ko a aika shi daga nan ba. Don ku naɗa ba tare da shi ba, ku buɗe {{versions}} a cikin nassin ku zaɓi {{newVersion}}."
   },
   "reference": {
     "organization": "Ƙungiya",
