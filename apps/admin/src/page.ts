@@ -553,7 +553,8 @@ function show(id, s) {
   const el = $('pill-' + g.id); el.className = 'pill ' + cls; el.textContent = text;
   // The container's answer lives in the Jobs table, not as a part of its own.
   $('body-' + g.id).innerHTML = g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join('');
-  if (g.parts.includes('feedback')) wireScreenshots();
+  if (g.parts.includes('feedback') || g.parts.includes('userissues')) wireScreenshots();
+  if (g.parts.includes('userissues')) wireFixPictures();
   annotate($('body-' + g.id));
   if (view().name === 'all') applyOpen(g.id);
   attention();
@@ -837,9 +838,23 @@ document.addEventListener('click', (e) => {
   if (q) { setOpen('lookup', true); $('q').value = q.dataset.q; $('lookup-form').requestSubmit(); $('card-lookup').scrollIntoView({ block: 'start', behavior: 'smooth' }); }
 });
 
+/** The two pictures of a display fix on a user issue's card: each is fetched once, as the signed-in admin. */
+function wireFixPictures() {
+  for (const img of document.querySelectorAll('img[data-fixpic]')) {
+    if (img.dataset.wired) continue;
+    img.dataset.wired = '1';
+    token().then((t) => fetch('/ops/api/user-issue-fix/' + encodeURIComponent(img.dataset.fixpic) + '/' + (img.dataset.what === 'after' ? 'after' : 'before'), { headers: { authorization: 'Bearer ' + t } }))
+      .then((res) => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.blob(); })
+      .then((blob) => { img.src = URL.createObjectURL(blob); })
+      .catch((err) => { img.alt = 'Could not load the picture (' + err.message + ')'; });
+  }
+}
 function wireScreenshots() {
   // Show and hide, under the button; the screenshot (or the picture the person chose) is fetched once and kept while the page is open.
   for (const b of document.querySelectorAll('[data-shot]')) {
+    // Two cards call this (Feedback, User issues): a button is wired once.
+    if (b.dataset.wired) continue;
+    b.dataset.wired = '1';
     let img = null;
     const what = b.dataset.what === 'picture' ? 'picture' : 'screenshot';
     b.setAttribute('aria-expanded', 'false');
@@ -868,6 +883,8 @@ function wireScreenshots() {
     });
   }
   for (const b of document.querySelectorAll('[data-voice]')) {
+    if (b.dataset.wired) continue;
+    b.dataset.wired = '1';
     b.addEventListener('click', async () => {
       b.disabled = true;
       try {
