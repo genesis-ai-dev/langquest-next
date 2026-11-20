@@ -334,7 +334,12 @@ npm run test:ui:phone -- --platform ios --voice --tags smoke
   already there. A reused Worker serves `apps/mobile/dist` as it is, so after
   app changes run `npm run export:web -w mobile -- development` (it refreshes
   a running Worker without a restart), or stop the Worker so the suite starts
-  its own. `UI_TARGET=dev` runs on Metro's dev build instead (:8097, plus the
+  its own. The suite stops a Worker it started with SIGTERM
+  (`gracefulShutdown` in `e2e/ui.config.ts`), and `wrangler dev` then removes
+  its job container and the container's proxy. A Worker killed outright
+  leaves that pair in Docker; with no Worker running,
+  `docker rm -f $(docker ps -aq --filter label=dev.workerd.session)` removes
+  them. `UI_TARGET=dev` runs on Metro's dev build instead (:8097, plus the
   Worker from `npm run web:dev` on :8787); the two update-banner tests skip
   there, because a dev page has no build id. The tests read the app through
   probes that exist only in test builds (`src/testBuild.ts`: dev, or an export
