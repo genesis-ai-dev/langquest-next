@@ -208,7 +208,8 @@
         "unreadable": "Hindi mabasa ang file na ito. Piliin ito ulit.",
         "failed": "Hindi makapagtabi ng kopya. Piliin ito ulit.",
         "needsAndroid": "Hindi nagtatabi ng kopya ang teleponong ito: kailangan ng Ibigay ang app ang Android 10 o mas bago.",
-        "needsUpdate": "Hindi pa nagtatabi ng kopya ang teleponong ito. I-update ang app mula sa store para maibigay ito sa Wi-Fi."
+        "needsUpdate": "Hindi pa nagtatabi ng kopya ang teleponong ito. I-update ang app mula sa store para maibigay ito sa Wi-Fi.",
+        "keptBuilt": "May kopyang ginawa noong {{date}} na nakatabi sa teleponong ito para sa Ibigay ang app. Puwede mong burahin ang nasa Downloads."
       },
       "scanLineGive": "Sa bagong telepono, buksan ang LangQuest. Kusa nitong mahahanap ang teleponong ito. Kung hindi, i-tap ang I-scan ang code, at itutok ito rito.",
       "minutesLeft": "Natitirang minuto: {{n, number}}"
@@ -229,7 +230,10 @@
       "readyShort": "Handa na ang install file",
       "done": "Handa na. Puwede mo na itong dalhin kahit walang internet.",
       "newer": "May mas bagong install file na. I-download ito habang may internet ka, saka piliin ito.",
-      "newerShort": "Install file para sa bagong tao: may mas bago na"
+      "newerShort": "Install file para sa bagong tao: may mas bago na",
+      "getNewest": "I-download ang pinakabagong file",
+      "getNewestHelp": "Binubuksan ang browser ng telepono, na magda-download ng pinakabagong install file para sa bersiyong ito. Pagkatapos, i-tap ang Piliin ang na-download na file, at papalitan nito ang kopyang nakatabi rito.",
+      "getNewestHelpOpen": "Binubuksan ang browser ng telepono, na magda-download ng pinakabagong install file para sa bersiyong ito. Kapag tapos na ang pag-download, i-tap ang Buksan, at papalitan nito ang kopyang nakatabi rito."
     },
     "join": {
       "intro": "Sumali sa pangkat mo mula sa telepono ng isang kasamahan, nang walang internet. Gagawin ang account mo sa unang beses na makakonekta sa internet ang telepono mo.",
