@@ -132,10 +132,24 @@ function storeWaits(pipeline) {
   return out;
 }
 
-/** Problems the watch filed in Linear that are still open: Claude writes a draft fix for each new one (decisions.md 202). */
+/**
+ * Problems the watch filed in Linear that are still open, each with what is
+ * verified about it ('state'), so a line says only what is true:
+ * 'working' while a run of the watch works on an admin's instruction on it
+ * (a note in state working), 'fix' when the agent team opened a pull request
+ * for it, 'nofix' when the team looked and wrote no fix, else 'filed': in
+ * Linear, and nobody works on it.
+ */
 function claudeWork(userissues) {
-  return ((userissues && userissues.issues) || []).filter((i) => i.verdict === 'filed' && !i.closedAt && !i.fixedAt);
+  const notes = (userissues && userissues.notes) || {}, fixes = (userissues && userissues.fixes) || {};
+  return ((userissues && userissues.issues) || []).filter((i) => i.verdict === 'filed' && !i.closedAt && !i.fixedAt).map((i) => {
+    const fix = i.issue ? fixes[i.issue] || null : null;
+    const working = (i.issue && notes[i.issue] || []).some((n) => n.state === 'working');
+    return { ...i, state: working ? 'working' : fix && fix.pr ? 'fix' : fix ? 'nofix' : 'filed', pr: fix && fix.pr ? fix.pr : null };
+  });
 }
+/** What an Overview line says about one of claudeWork's issues: who acts and the words. */
+const CLAUDE_WORK = { working: ['Claude', 'Claude works on it now'], fix: ['Claude', 'Claude wrote a fix, not merged'], nofix: ['Linear', 'Claude looked and wrote no fix'], filed: ['Linear', 'Filed in Linear, no fix yet'] };
 
 /** A series' values as one number for the whole range: a count adds up, a level is its latest value. */
 function rangeTotal(agg, values) {

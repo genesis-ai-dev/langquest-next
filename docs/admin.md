@@ -507,7 +507,9 @@ shows how many of its section's lines need a person and a dot for its most
 urgent level. The page opens on the Overview (`apps/admin/src/pageOverview.ts`;
 what it decides is `startPlan` in `pageStart.ts`, `docs/ops-dashboard-plan.md`
 5.0): one row for each part's alerts that need a person, one for each part's
-alerts to watch, rows for what Claude works on and what waits on a store,
+alerts to watch, a row for each open issue the watch filed (saying only what
+is verified: Claude works on it now only while a run works on an admin's
+instruction on it), rows for what waits on a store,
 eight numbers, a map of the parts with a dot for each, two charts of errors
 over 14 days, and the newest merged pull requests. `GET /ops/api/glance`
 (`diag.ops_glance`) gives a row or a number its 14-day picture: one number
