@@ -114,7 +114,7 @@ Object.assign(RENDER, {
       stat(num(today.invalid || 0), 'refused as invalid', today.invalid ? 'bad' : '', today.day ? 'on ' + day(today.day) : 'latest day') +
       stat(hours(arr.p95Ms), 'p95 upload delay', '', arr.day ? 'on ' + day(arr.day) : 'not sampled yet') +
       stat(num(arr.futureStamped || 0), 'stamped ahead of the clock', arr.futureStamped ? 'warn' : '', arr.day ? 'on ' + day(arr.day) : 'not sampled yet') +
-      (p ? stat(num(p.lagging), 'languages behind the pass', p.lagging ? 'warn' : '', NOW) + stat(num(p.snapshots.overdue), 'snapshots overdue', p.snapshots.overdue ? 'warn' : '', NOW) : '') + '</div>';
+      (p ? stat(num(p.lagging), 'languages behind the pass', p.lag.some((l) => l.left) ? 'warn' : '', NOW) + stat(num(p.snapshots.overdue), 'snapshots overdue', p.snapshots.overdue ? 'warn' : '', NOW) : '') + '</div>';
     h += '<h3>Refused work, by reason</h3>' + table([
       { h: 'Day', v: (r) => esc(r.day) }, { h: 'Events', n: true, v: (r) => num(r.rejected) }, { h: 'Installs', n: true, v: (r) => num(r.installs) },
       { h: 'Invalid', n: true, v: (r) => '<span class="' + (r.invalid ? 'bad' : '') + '">' + num(r.invalid) + '</span>' },
@@ -134,7 +134,9 @@ Object.assign(RENDER, {
     if (!p) return h + '<p class="muted">Projection lag and snapshots need migration 20261023100000_ops_dashboard.sql.</p>';
     h += '<h3>Furthest behind the projection pass</h3>' + table([
       { h: 'Language', v: (l) => esc(l.name || l.languageId) + ' <small>' + orgLink(l.orgId, 'org') + '</small>' },
-      { h: 'Behind', n: true, v: (l) => num(l.behind) }, { h: 'Head', n: true, v: (l) => num(l.head) }, { h: 'Projected', v: (l) => when(l.projectedAt) }
+      { h: 'Behind', n: true, v: (l) => num(l.behind) }, { h: 'Head', n: true, v: (l) => num(l.head) }, { h: 'Projected', v: (l) => when(l.projectedAt) },
+      { h: 'Waiting since', v: (l) => l.waitingSince ? when(l.waitingSince) : '–' },
+      { h: 'Passes since', n: true, v: (l) => '<span class="' + (l.left ? 'warn' : '') + '">' + num(l.passesSince) + '</span>' }
     ], p.lag);
     h += '<h3>Snapshots</h3><p>' + num(p.snapshots.overdue) + ' overdue (decision 88) · ' + num(p.snapshots.oldReducer) + ' on an older reducer · ' + num(p.snapshots.noCut) + ' not cut by passage yet</p>' +
       table([{ h: 'Language', v: (l) => esc(l.name || l.languageId) + ' <small>' + orgLink(l.orgId, 'org') + '</small>' }, { h: 'Events past it', n: true, v: (l) => num(l.behind) }, { h: 'Age', n: true, v: (l) => l.ageMinutes === null ? '–' : ms(l.ageMinutes * 60000) }], p.snapshots.worst);
@@ -351,7 +353,7 @@ Object.assign(RENDER, {
     const u = d.usage;
     // Growth is over the nightly sizes the fold canary kept (60 days at most) and R2's last 8 daily counts; it needs a week of them.
     const firstSize = (d.history || [])[0];
-    let h = '<div class="stats">' + stat(d.now ? bytes(d.now.dbBytes) : '–', 'database of ' + bytes(d.limitBytes), d.now && d.now.dbBytes >= d.limitBytes * 0.9 ? 'warn' : '', NOW) +
+    let h = '<div class="stats">' + stat(d.now ? bytes(d.now.dbBytes) : '–', 'database of ' + bytes(d.limitBytes), d.now && d.now.dbBytes >= d.limitBytes * 0.9 ? 'warn' : '', d.limitFrom === 'setting' ? 'disk size from the setting: Supabase did not say' : NOW) +
       stat(d.dbGrowthPerDay === null ? '–' : bytes(d.dbGrowthPerDay * 7), 'database growth a week', '', d.dbGrowthPerDay === null ? 'needs a week of nightly sizes' : since(firstSize && firstSize.at)) +
       stat(d.weeksLeft === null ? '–' : Math.round(d.weeksLeft), 'weeks left at that rate', d.weeksLeft !== null && d.weeksLeft < 12 ? 'warn' : '') +
       (d.now ? stat(bytes(d.now.eventsBytes), 'event log (' + num(d.now.eventsRows) + ' rows)', '', NOW) : '') +

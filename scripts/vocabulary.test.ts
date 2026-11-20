@@ -34,7 +34,9 @@ const ALLOWED: { path: string; words: RegExp; why: string }[] = [
   { path: 'supabase/migrations/20261119192147_sign_in_trouble.sql', words: /^partition$/i, why: 'SQL window clauses (partition by), in diag.daily_compute restated' },
   { path: 'supabase/migrations/20261009000000_languoids.sql', words: /^(partition|projects)$/i, why: 'SQL window clauses (partition by), and the v2 projects whose languages it keeps' },
   { path: 'packages/sync/src/sqliteStore.ts', words: /^lane$/i, why: 'dropping a table older apps made' },
-  { path: 'server/delete-account-smoke.sql', words: /^projects$/, why: "v2_import.arrivals' column of v2 projects" }
+  { path: 'server/delete-account-smoke.sql', words: /^projects$/, why: "v2_import.arrivals' column of v2 projects" },
+  { path: 'supabase/migrations/20261117230000_diag_v2_person.sql', words: /^projects?$/i, why: "one account's v2 projects, for support (LAN-250)" },
+  { path: 'server/diag-smoke.sql', words: /^projects$/, why: "v2_import.arrivals' column of v2 projects" }
 ];
 
 function files(path: string): string[] {

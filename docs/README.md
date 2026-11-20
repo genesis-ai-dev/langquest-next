@@ -36,6 +36,7 @@ The app
 - [ux/demo-parity.md](./ux/demo-parity.md) — How the app follows the partner demo, the conventions each screen keeps, and the spec's domain in the event log
 - [ux/screen-path.md](./ux/screen-path.md) — Each screen's main action, secondary actions and way back
 - [localization.md](./localization.md) — The app's own words in each person's language: the catalogs, how a word reaches the screen, and what is shown as written (decision 81)
+- [tutorial-teaching.md](./tutorial-teaching.md) — What a tutorial owes the person watching: their goal first, the whole job, every line checked against the app
 - [tutorial-videos.md](./tutorial-videos.md) — The how-to videos: scripts the app plays through on the web export, filmed and voiced in every app language (decision 177)
 
 People, organizations and outside apps

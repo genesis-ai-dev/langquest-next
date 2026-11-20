@@ -584,6 +584,11 @@ test('MOD-016 Removing a version works the passage out again', async ({ page, br
   await row(page, 'Remove from the record').click();
   await primary(page).click();
   await expectToast(page, 'Removed from the record. Devices stop showing it when they next sync.');
+  // The removal is on the server once the toast shows; COORD's own device holds the version in its checkpoint,
+  // and a fresh device starts from the server's snapshot. Only a snapshot written after the removal leaves the
+  // version out (syncClient.ts, redactedInsideCheckpoint), and the projection pass writes it (as MOD-020 does).
+  await expectSyncIdle(page);
+  await projectionPass();
   const trevDevice = await quietDevice(browser, w, 'TREV');
   for (const p of [page, trevDevice.page]) {
     await syncNow(p);
