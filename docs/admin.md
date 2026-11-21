@@ -603,9 +603,14 @@ called Database timers on the page.
 
 The Overview's sentence under its title counts its lines by who acts
 (`lineBucket`): Needs you (Act now, Fix soon), This week, you decide (a
-choice at Watch: `person` kinds in `alertKinds.ts`), On its way (a merged fix
-that waits for its check, the watch's open issues, store reviews) and
-Watching. It leads with four numbers of today (people active, phones and
+choice at Watch: `person` kinds in `alertKinds.ts`, and the watch's issues
+where Claude stopped, gave no answer, or wrote a draft fix that waits to be
+read), On its way (only what moves without a person, in time order: what
+Claude works on now, the issues the next run takes, Claude's fixes that merge
+alone, each merged fix by the time its check should clear it, a developer's
+issue In Progress in Linear, store reviews; each row's colour is who acts
+next) and Watching
+(`docs/decisions/2026-11-21-on-its-way-says-what-happens-next.md`). It leads with four numbers of today (people active, phones and
 browsers, errors, crashes: each part's own last 24 hours) against the usual
 range of the days before; its eight earlier numbers are behind More
 numbers.

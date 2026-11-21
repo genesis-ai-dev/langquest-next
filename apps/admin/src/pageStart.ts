@@ -136,22 +136,58 @@ function storeWaits(pipeline) {
 
 /**
  * Problems the watch filed in Linear that are still open, each with what is
- * verified about it ('state'), so a line says only what is true:
- * 'working' while a run of the watch works on an admin's instruction on it
- * (a note in state working), 'fix' when the agent team opened a pull request
- * for it, 'nofix' when the team looked and wrote no fix, else 'filed': in
- * Linear, and nobody works on it.
+ * verified about it ('state'), so a row says only what is true
+ * (docs/decisions/2026-11-21-on-its-way-says-what-happens-next.md):
+ *   working   a run handed it to the fix jobs less than CLAUDE_HOURS ago and
+ *             no record came back since, or a run works on an admin's
+ *             instruction on it (a note in state working)
+ *   merging   the agent team's pull request merges without a person
+ *   review    the team's draft pull request waits for a developer to read it
+ *   stopped   the team looked and changed nothing; a developer decides
+ *   noanswer  a run handed it over more than CLAUDE_HOURS ago and no record came back
+ *   person    a developer has it In Progress or In Review in Linear: Claude leaves it
+ *   queued    Claude never tried it: a later run takes it, the oldest first
+ *             (ops_user_issue_untried, scripts/user-issues.mjs untriedToTake)
  */
-function claudeWork(userissues) {
-  const notes = (userissues && userissues.notes) || {}, fixes = (userissues && userissues.fixes) || {};
-  return ((userissues && userissues.issues) || []).filter((i) => i.verdict === 'filed' && !i.closedAt && !i.fixedAt).map((i) => {
+const CLAUDE_HOURS = 2;
+function claudeWork(userissues, now) {
+  const notes = (userissues && userissues.notes) || {}, fixes = (userissues && userissues.fixes) || {}, tries = (userissues && userissues.tries) || {};
+  const at = now || Date.now(), seen = new Set();
+  return ((userissues && userissues.issues) || []).filter((i) => i.verdict === 'filed' && !i.closedAt && !i.fixedAt && !(i.issue && seen.has(i.issue)) && (seen.add(i.issue), true)).map((i) => {
     const fix = i.issue ? fixes[i.issue] || null : null;
-    const working = (i.issue && notes[i.issue] || []).some((n) => n.state === 'working');
-    return { ...i, state: working ? 'working' : fix && fix.pr ? 'fix' : fix ? 'nofix' : 'filed', pr: fix && fix.pr ? fix.pr : null };
+    const tried = i.issue && tries[i.issue] ? Date.parse(tries[i.issue]) : NaN;
+    // Handed over after the newest record (or with none): its answer has not come back yet.
+    const after = Number.isFinite(tried) && !(fix && Date.parse(fix.at) >= tried);
+    const working = (i.issue && notes[i.issue] || []).some((n) => n.state === 'working') || (after && at - tried < CLAUDE_HOURS * 3600e3);
+    const state = working ? 'working'
+      : after && !fix ? 'noanswer'
+      : fix && fix.pr ? (fix.decision === 'merge' ? 'merging' : 'review')
+      : fix ? 'stopped'
+      : /^In (Progress|Review)$/.test(i.state || '') ? 'person'
+      : 'queued';
+    return { ...i, linear: i.state || null, state, pr: fix && fix.pr ? fix.pr : null, why: fix && fix.why ? fix.why : null, startedAt: Number.isFinite(tried) ? new Date(tried).toISOString() : null };
   });
 }
-/** What an Overview line says about one of claudeWork's issues: who acts and the words. */
-const CLAUDE_WORK = { working: ['Claude', 'Claude works on it now'], fix: ['Claude', 'Claude wrote a fix, not merged'], nofix: ['Linear', 'Claude looked and wrote no fix'], filed: ['Linear', 'Filed in Linear, no fix yet'] };
+/** Where each of claudeWork's states goes on the Overview: on its way, or a choice for a developer. */
+const CLAUDE_GROUP = { working: 'way', merging: 'way', person: 'way', queued: 'way', review: 'decide', stopped: 'decide', noanswer: 'decide' };
+/** What an Overview row says about one of claudeWork's issues. */
+const CLAUDE_WORK = {
+  working: 'Claude works on it now.',
+  merging: 'Claude wrote a fix. It merges when its checks pass.',
+  review: 'Claude wrote a fix. It waits for you to read it.',
+  stopped: 'Claude tried and stopped.',
+  noanswer: 'Claude started and gave no answer.',
+  person: 'A developer works on it in Linear.',
+  queued: 'Claude has not tried it yet.'
+};
+/** The issues Claude never tried, in the order the runs take them: the oldest first. */
+function claudeQueue(work) {
+  return work.filter((i) => i.state === 'queued').sort((a, b) => String(a.firstAt || '').localeCompare(String(b.firstAt || '')) || String(a.issue).localeCompare(String(b.issue)));
+}
+/** At most this many issues get a fix in one run (scripts/user-issues.mjs FIX_MAX). */
+const FIX_ROOM = 3;
+/** When the watch's schedule next starts it: every 15 minutes (.github/workflows/user-issues.yml). GitHub often starts it some minutes late. */
+function nextRunAt(now) { return Math.floor(now / 900e3) * 900e3 + 900e3; }
 
 /** A series' values as one number for the whole range: a count adds up, a level is its latest value. */
 function rangeTotal(agg, values) {
