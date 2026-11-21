@@ -282,3 +282,12 @@ and may run `cat`, `head`, `tail`, `grep`, `ls` and `wc`. The action refuses
 a joined command whole when one part is not allowed, so on #578 and #588
 `npm ci > /tmp/ci.log; tail -3 /tmp/ci.log` was refused, and the copies
 stayed unfinished although their checks passed.
+
+Amended (2026-11-21, Caleb Koster): a refused command no longer holds a copy
+back. `finish-copy` only logs the count and removes `copy-claude-blocked`.
+The release branch takes a copy only when its guardrails `gate` passes
+(`.github/rulesets/release.json`), so every copy's tests run whatever Claude
+could run, and auto-merge waits for that gate. Holding copies back for a
+refused command added no check: it left checked copies #578, #588, #590,
+#595 and #597 unfinished, and the ops dashboard said that the workflow
+needed a fix each time.
