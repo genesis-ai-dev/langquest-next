@@ -67,6 +67,10 @@ export const VIDEO_CSS = String.raw`
 .vreply .vsteps { display: grid; gap: 8px; }
 .vreply .vsteps button, .vretry { min-height: 48px; display: inline-flex; gap: 8px; align-items: center; justify-content: center; text-align: start; }
 .vretry { justify-self: start; margin: 4px 0; }
+/* "Ask me before it merges", beside Fix it: a 48 pt tap row. */
+.vask { display: inline-flex; gap: 8px; align-items: center; min-height: 48px; font-size: 14px; cursor: pointer; }
+.vask input { width: 20px; height: 20px; margin: 0; }
+.vfixapp { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; flex-basis: 100%; margin: 4px 0; }
 /* A reply to post is a card (pageIssues.ts issueCard) whose right side is as wide as the comment: it holds the reply. */
 .icard.reply { grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); }
 @container (max-width: 760px) { .icard.reply { grid-template-columns: minmax(0, 1fr); } }

@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   ACTS, causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, logTail, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, nextStep, OPEN_HOURS,
-  pathRefusal, PICTURES, planOf, REASONS, reviewNeeded, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
+  pathRefusal, PICTURES, planOf, REASONS, reviewNeeded, saysAskFirst, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
 } from './agent-team.mjs';
 import * as model from '../server/userIssues';
 
@@ -46,7 +46,7 @@ describe('the manager', () => {
   it('gives a verdict the script checks: an odd one waits for a developer', () => {
     expect(VERDICTS).toEqual([...model.FIX_VERDICTS]);
     expect(verdictOf({ verdict: 'merge it now' }).verdict).toBe('review');
-    expect(verdictOf(null)).toEqual({ verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false });
+    expect(verdictOf(null)).toEqual({ verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false });
     expect(verdictOf({ display: 'yes' }).display).toBe(false);
     expect(verdictOf({ verdict: 'fix', cause: ' a\nb ', twins: 'x'.repeat(5000) })).toMatchObject({ cause: 'a b', twins: expect.stringMatching(/^x{999}…$/) });
     expect(causeProven(verdict())).toBe(true);
@@ -90,6 +90,40 @@ describe('the gate', () => {
     // Every reason is one the Worker keeps and the ops dashboard can say.
     expect(REASONS).toEqual([...model.FIX_REASONS]);
     expect(gate(all({ mode: 'ask' })).why).toContain('passed every other part of the rule');
+  });
+
+  it('takes Fix it on a tutorial video\'s card as the yes, and keeps every other part of the rule', () => {
+    // docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md: no Merge tap.
+    const fixIt = { instructed: true, go: true, mode: 'ask' };
+    expect(gate(all(fixIt))).toMatchObject({ merge: true, reason: null, why: expect.stringContaining('Fix it on a tutorial video') });
+    // A repair of that fix, with no new instruction, merges on the same yes.
+    expect(gate(all({ go: true, mode: 'ask' })).merge).toBe(true);
+    // Every other part of the rule holds it.
+    expect(gate(all({ ...fixIt, verdict: verdict({ verdict: 'review' }) })).reason).toBe('review');
+    expect(gate(all({ ...fixIt, verdict: verdict({ verdict: 'decision' }) })).reason).toBe('decision');
+    expect(gate(all({ ...fixIt, verdict: verdict({ proof: '' }) })).reason).toBe('cause');
+    expect(gate(all({ ...fixIt, changes: [CHANGES[0]] })).reason).toBe('cause');
+    expect(gate(all({ ...fixIt, changes: [...CHANGES, { file: 'supabase/migrations/1_x.sql', lines: 3 }] })).reason).toBe('paths');
+    expect(gate(all({ ...fixIt, changes: [...CHANGES, { file: 'apps/mobile/src/sync/pull.ts', lines: 3 }] })).reason).toBe('paths');
+    expect(gate(all({ ...fixIt, checks: { typecheck: 'passed', tests: 'not run' } })).reason).toBe('checks');
+    expect(gate(all({ ...fixIt, vet: null })).reason).toBe('reviewer');
+    expect(gate(all({ ...fixIt, vet: { ok: false, why: 'It changes more than was asked.' } })).reason).toBe('reviewer');
+    expect(gate(all({ ...fixIt, app: false })).reason).toBe('app');
+    // "Ask me first": from Fix it's box or the words, or as the manager reads them.
+    expect(gate(all({ ...fixIt, askFirst: true }))).toMatchObject({ merge: false, reason: 'instruction', why: expect.stringContaining('see the change before it merges') });
+    expect(gate(all({ ...fixIt, verdict: verdict({ askFirst: true }) })).reason).toBe('instruction');
+    // Then "merge it" on the card merges the draft fix as it is.
+    expect(gate(all({ ...fixIt, askFirst: true, approved: true, verdict: verdict({ verdict: 'approved' }) })).merge).toBe(true);
+    // Without go, an instruction still waits for the developer who sent it.
+    expect(gate(all({ instructed: true, mode: 'on' })).reason).toBe('instruction');
+  });
+
+  it('reads "ask me first" in an admin\'s words', () => {
+    for (const t of ['Ask me first.', 'Fix it but wait for my yes', 'show me before it merges', 'Don\'t merge it, I want to look', 'Do not auto-merge this one',
+      'Let me see the change first', 'I need my approval on this', 'hold the merge', 'Check with me before it goes in']) expect(saysAskFirst([t]), t).toBe(true);
+    for (const t of ['Fix the capital in the app, then film it again.', 'Use "Faire l\'approbation finale".', 'merge it',
+      'Fix it, from the Tutorial videos page of the ops dashboard. Change the app (its code, its words or the library), not the video. The video "x" (fr) is filmed again once the change is in main.']) expect(saysAskFirst([t]), t).toBe(false);
+    expect(saysAskFirst(undefined)).toBe(false);
   });
 
   it('merges the draft fix a developer read when they say so on the ops dashboard, and never with failing checks', () => {

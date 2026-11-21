@@ -7,8 +7,8 @@ import {
   CALLBACK_PATH, consentUrl, exchangeCode, languageOfChannel, myChannel, readState, revoke, setHome, signState, YouTubeError,
   type ChannelLanguage, type Client, type Fetch
 } from '../../../server/youtube';
-import { LinearError, linearIssues } from '../../../server/linear';
-import { issueOf, type Suggestion } from '../../../server/tutorialFeedback';
+import { LinearError } from '../../../server/linear';
+import { fileSuggestion } from './fileSuggestion';
 
 /**
  * The few things the ops dashboard may do (docs/ops-dashboard-plan.md
@@ -46,6 +46,12 @@ export type Action =
   | { kind: 'tutorial-instruction'; tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }
   /** A person's answer to Claude's suggestion: accept or reject it (as edited), or only edit its detail. */
   | { kind: 'tutorial-suggestion'; id: string; decision: 'accept' | 'reject' | 'edit'; detail: string | null; reason: string | null }
+  /**
+   * "Fix it": the agent team changes the app for this suggestion, as a draft pull request that merges after an admin's
+   * yes (docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md). On a suggestion about the
+   * app that waits for an answer (it is accepted), or on one whose change to the video failed.
+   */
+  | { kind: 'tutorial-fix'; id: string; askFirst: boolean }
   /**
    * What became of the reply Claude suggested for a comment on YouTube: a person posted it there (`posted`), chose to
    * post none (`none`), or takes that back (`open`). It records only; nothing is posted from here (186).
@@ -94,6 +100,8 @@ export interface ActionDeps {
   setFilming(language: string, on: boolean, by: string): Promise<string>;
   /** An accepted code change filed in Linear: its issue, or null without a Linear key (the comments job files it later). */
   fileSuggestion(id: string): Promise<string | null>;
+  /** A suggestion to fix in the app, by this person (`ops_suggestion_fix_in_app`): what happened, its kind, and its issue when it has one. */
+  fixInApp(id: string, by: string, askFirst: boolean): Promise<{ result: string; kind?: string; issue?: string | null }>;
   now(): number;
 }
 
@@ -125,7 +133,7 @@ function tutorialItems(items: unknown): [string, string, string][] | null {
 /** What the dashboard sent, checked; anything else is refused before anyone is asked. */
 export function parseAction(input: unknown): Action | null {
   if (typeof input !== 'object' || input === null) return null;
-  const a = input as { kind?: unknown; id?: unknown; status?: unknown; key?: unknown; profile?: unknown; ok?: unknown };
+  const a = input as { kind?: unknown; id?: unknown; status?: unknown; key?: unknown; profile?: unknown; ok?: unknown; askFirst?: unknown };
   if (a.kind === 'feedback' && typeof a.id === 'string' && UUID.test(a.id) && (a.status === 'new' || a.status === 'seen' || a.status === 'done')) {
     return { kind: 'feedback', id: a.id, status: a.status };
   }
@@ -171,6 +179,7 @@ export function parseAction(input: unknown): Action | null {
     const text = optional(t.text, NOTE_MAX);
     return typeof issue === 'string' && ISSUE.test(issue) && text ? { kind: 'user-issue-note', issue, text } : null;
   }
+  if (a.kind === 'tutorial-fix' && typeof a.id === 'string' && UUID.test(a.id) && (a.askFirst === undefined || typeof a.askFirst === 'boolean')) return { kind: 'tutorial-fix', id: a.id.toLowerCase(), askFirst: a.askFirst === true };
   if (a.kind === 'tutorial-suggestion' && typeof a.id === 'string' && UUID.test(a.id) && (d === 'accept' || d === 'reject' || d === 'edit')) {
     const detail = optional(t.detail, DETAIL_MAX);
     const reason = optional(t.reason, REASON_MAX);
@@ -194,6 +203,7 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'tutorial-note': return { name: NAMES[action.kind], target: action.tutorial ?? 'no video' };
     case 'tutorial-instruction': return { name: NAMES['tutorial-note'], target: action.tutorial };
     case 'tutorial-suggestion': return { name: `suggestion_${DECIDED[action.decision]}`, target: action.id };
+    case 'tutorial-fix': return { name: 'suggestion_fix', target: action.id };
     case 'tutorial-reply': return { name: `reply_${action.done}`, target: action.id };
     case 'user-issue-note': return { name: 'user_issue_note', target: action.issue };
     case 'tutorial-filming': return { name: action.on ? 'filming_on' : 'filming_off', target: action.language };
@@ -272,6 +282,7 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       return { ok: true, result: answer };
     }
     if (action.kind === 'tutorial-suggestion') return await answerSuggestion(deps, who.profileId, action, name, target);
+    if (action.kind === 'tutorial-fix') return await fixInApp(deps, who.profileId, action.id, action.askFirst, name, target);
     if (action.kind === 'tutorial-reply') {
       const answer = await deps.replyDone(action.id, action.done, who.profileId);
       const found = answer === 'ok';
@@ -311,6 +322,40 @@ async function answerSuggestion(deps: ActionDeps, profileId: string, action: Ext
   }
   await deps.record({ profileId, action: name, target, result: 'ok', detail });
   return { ok: true, result };
+}
+
+/** Why "Fix it" is refused, as the card says it. */
+const FIX_REFUSED: Record<string, string> = {
+  not_found: 'No suggestion has that id.',
+  decided: 'That suggestion was rejected, or it is a new video: there is nothing to fix in the app.',
+  refused: 'Claude makes that change in the video. Ask for a fix in the app only when the change to the video failed.',
+  already: 'Someone asked for a fix in the app already.'
+};
+
+/**
+ * "Fix it" kept (with "Ask me before it merges", or not), then filed in Linear now when the Worker has its key, as
+ * an accepted code change is. Once the issue is known, the instruction for the agent team waits (the database
+ * writes it, with `go`), and the watch hands it to the fix jobs within 15 minutes. The fix merges on the agent
+ * team's rule, with no tap (docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md). Without a key, or when Linear fails, the comments job files it at night, and
+ * the instruction waits until then.
+ */
+async function fixInApp(deps: ActionDeps, profileId: string, id: string, askFirst: boolean, name: string, target: string): Promise<ActionResult> {
+  const asked = await deps.fixInApp(id, profileId, askFirst);
+  if (asked.result !== 'asked') {
+    await deps.record({ profileId, action: name, target, result: 'refused', detail: asked.result });
+    return { ok: false, status: asked.result === 'not_found' ? 404 : 400, error: FIX_REFUSED[asked.result] ?? 'It did not work.' };
+  }
+  let issue = asked.issue ?? null;
+  let detail: string = asked.kind ?? 'asked';
+  if (!issue) {
+    issue = await deps.fileSuggestion(id).catch((e: unknown) => {
+      detail = codeOf(e);
+      return null;
+    });
+  }
+  if (issue) detail = issue;
+  await deps.record({ profileId, action: name, target, result: 'ok', detail: askFirst ? `${detail}:ask_first` : detail });
+  return { ok: true, result: issue ? `fixing:${issue}` : 'fixing:waiting' };
 }
 
 type YouTube = NonNullable<ActionDeps['youtube']>;
@@ -447,18 +492,12 @@ export function actionDeps(env: Env): ActionDeps {
       if (error) throw new Error(`ops_suggestion_decide: ${error.message}`);
       return data as { result: string; kind?: string };
     },
-    fileSuggestion: async (id) => {
-      if (!env.LINEAR_API_KEY) return null;
-      const { data, error } = await db().rpc('ops_suggestions_to_file', { p_limit: 1, p_id: id });
-      if (error) throw new Error(`ops_suggestions_to_file: ${error.message}`);
-      const suggestion = (data as Suggestion[])[0];
-      if (!suggestion) return null;
-      const { title, description } = issueOf(suggestion, (code) => UI_LANGUAGES.find((l) => l.code === code)?.english ?? code);
-      const issue = await linearIssues((input, init) => fetch(input, init), env.LINEAR_API_KEY).create(title, description);
-      const filed = await db().rpc('ops_suggestion_filed', { p_id: id, p_issue: issue.identifier, p_url: issue.url });
-      if (filed.error) throw new Error(`ops_suggestion_filed: ${filed.error.message}`);
-      return issue.identifier;
+    fixInApp: async (id, by, askFirst) => {
+      const { data, error } = await db().rpc('ops_suggestion_fix_in_app', { p_id: id, p_by: by, p_ask_first: askFirst });
+      if (error) throw new Error(`ops_suggestion_fix_in_app: ${error.message}`);
+      return data as { result: string; kind?: string; issue?: string | null };
     },
+    fileSuggestion: async (id) => await fileSuggestion(db(), env.LINEAR_API_KEY, id),
     now: () => Date.now(),
     record: async (row) => {
       const { error } = await db().rpc('ops_record_action', {

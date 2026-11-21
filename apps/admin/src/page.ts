@@ -609,7 +609,7 @@ function drawBody(g) {
   // The container's answer lives in the Jobs table, not as a part of its own.
   if (redraw($('body-' + g.id), g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join(''))) {
     if (g.parts.includes('feedback') || g.parts.includes('userissues')) wireScreenshots();
-    if (g.parts.includes('userissues')) wireFixPictures();
+    if (g.parts.includes('userissues') || g.parts.includes('videos')) wireFixPictures();
     if (g.parts.includes('tutorials')) layoutTimelines();
     annotate($('body-' + g.id));
   }

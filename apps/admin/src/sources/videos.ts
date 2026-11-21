@@ -1,8 +1,9 @@
 import { CHANNELS, type ChannelLanguage } from '../../../../server/youtube';
-import type { FeedbackInput, Picture, Suggestion } from '../../../../server/tutorialFeedback';
+import type { AppFix, FeedbackInput, Picture, Suggestion } from '../../../../server/tutorialFeedback';
 import { diagConnection, withDiag, type Query } from '../db';
 import { failed, ok, type Section } from '../section';
 import { filmingSection, type Filming } from './filming';
+import { fixesSection, type FixPr } from './fixes';
 import { githubApi, type GitHubEnv } from './githubApi';
 import { tutorialsOf, type CardRecord, type Feedback, type Tutorials } from './ops';
 
@@ -70,6 +71,8 @@ export interface VideosInput {
   filming: Filming | null;
   /** The app languages tutorials.yml films each night; null when it could not be read. */
   nightly: string[] | null;
+  /** The pull requests that name a Linear issue (sources/fixes.ts): where a fix in the app is on GitHub. */
+  prs?: FixPr[] | null;
 }
 
 // ---- what it says -------------------------------------------------------------------------------
@@ -120,7 +123,7 @@ export interface VideoRow {
 }
 
 export interface AdminItem {
-  kind: 'approve' | 'fixFailed' | 'held' | 'fails' | 'reply' | 'comment' | 'screen' | 'publish' | 'connect' | 'empty' | 'paused';
+  kind: 'approve' | 'appFix' | 'fixFailed' | 'held' | 'fails' | 'reply' | 'comment' | 'screen' | 'publish' | 'connect' | 'empty' | 'paused';
   /** The problem, in a line. */
   title: string;
   /** What is wrong, as found. */
@@ -152,6 +155,16 @@ export interface AdminItem {
   reply?: { id: string; comment: string; original: string | null; text: string; english: string | null; link: string };
   /** For `fixFailed`: the instruction "Try again" sends, which names the change in full. */
   retry?: string;
+  /** "Fix it" on this suggestion: the agent team changes the app (on a code suggestion, or a change to the video that failed). */
+  fixApp?: string;
+  /**
+   * For `appFix`: the fix in the app, from Fix it to the new film, as one card that stays until a day after the film
+   * (docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md). `issue` takes the admin's
+   * instructions ("ask me first", "merge it"); `pr` is the agent team's pull request; `why` says why it waits on the
+   * admin (stage `yours` or `none`); `before` and `after` say whether the agent team kept the screen before and after
+   * its change; `answer` is the team's newest answer to an instruction.
+   */
+  app?: { issue: string | null; stage: AppStage; pr: number | null; summary: string | null; answer: string | null; why: string | null; before: boolean; after: boolean; askFirst: boolean };
 }
 
 export interface WorkerItem {
@@ -204,6 +217,58 @@ export const TIMELINE_DAYS = 60;
 const RECONNECT = /^youtube_(invalid_grant|not_connected|unauthorized|forbidden)/;
 /** Suggestions Claude writes as a fix: a change to a video's script, screens or voice, and an admin's instruction (accepted as it is sent). */
 const FIXABLE = new Set(['script', 'screen', 'voice', 'instruction']);
+
+/**
+ * Where a fix in the app is (Fix it), from its instructions, the agent team's record, the pull requests on GitHub and
+ * the film: `filing` (to Linear first), `queued` and `writing` (the agent team), `checks` (it merges by itself when its
+ * checks pass), `yours` (it waits on the admin: they asked to see it first, or the rule needs a developer, or 3 tries
+ * failed), `none` (the team made no change), `merged`, `filming` (sent to be filmed again) and `filmed`.
+ */
+export type AppStage = 'filing' | 'queued' | 'writing' | 'checks' | 'yours' | 'none' | 'merged' | 'filming' | 'filmed';
+export function appStage(s: { issue: string | null; app?: AppFix | null }, prs: FixPr[] | null | undefined): { stage: AppStage; pr: number | null; at: string | null } | null {
+  const app = s.app;
+  if (!app) return null;
+  const fix = app.fix;
+  const named = (prs ?? []).filter((p) => !!s.issue && p.issues.includes(s.issue));
+  const pr = app.refilmPr ?? fix?.pr ?? named.find((p) => p.state === 'open')?.number ?? named[0]?.number ?? null;
+  if (app.filmedAt) return { stage: 'filmed', pr, at: app.filmedAt };
+  if (app.refilmAt) return { stage: 'filming', pr, at: app.refilmAt };
+  const merged = named.find((p) => p.state === 'merged' && (pr === null || p.number === pr));
+  if (merged) return { stage: 'merged', pr: merged.number, at: merged.mergedAt };
+  if (!s.issue) return { stage: 'filing', pr: null, at: app.askedAt };
+  const newest = app.notes[0];
+  // An instruction that waits for an answer: the team has it now, or at its next run. "merge it" on a fix that waits merges it.
+  if (newest && !newest.answeredAt) {
+    const merging = !!fix?.pr && /^\s*(merge it|approved?)\b/i.test(newest.text);
+    return { stage: merging ? 'checks' : newest.takenAt ? 'writing' : 'queued', pr, at: newest.takenAt ?? newest.at };
+  }
+  if (fix?.decision === 'merge') return { stage: 'checks', pr, at: fix.at };
+  if (pr !== null) return { stage: 'yours', pr, at: fix?.at ?? null };
+  return fix || newest?.answeredAt ? { stage: 'none', pr: null, at: fix?.at ?? newest?.answeredAt ?? null } : { stage: 'queued', pr: null, at: app.askedAt };
+}
+/** A fix in the app's card stays this long after the new film came in, so the admin sees the chain end. */
+export const APP_DONE_HOURS = 24;
+/** What happens next at each stage of a fix in the app, and what happens if the admin does nothing. */
+const APP_NEXT: Record<AppStage, string> = {
+  filing: 'Claude files it in Linear, then its agent team changes the app. When the ops dashboard has no Linear key, the comments job files it at midnight Pacific. Nothing waits on you.',
+  queued: 'Claude\'s agent team starts within 15 minutes (it runs every 15 minutes). It changes the app, not the video. Nothing waits on you.',
+  writing: 'Claude\'s agent team writes the fix now. Then a second Claude reads the change and the checks run. Nothing waits on you.',
+  checks: 'The fix merges by itself when its checks pass. If a check fails, Claude tries again, up to 3 times. Then it asks you here. Nothing waits on you.',
+  yours: 'Merge it, or tell Claude what to change. Nothing happens until you answer.',
+  none: 'Read Claude\'s answer. Tell Claude what to do instead, or leave the issue in Linear for a person. Nothing happens until you answer.',
+  merged: 'The fix is in main. Claude\'s next fix run (:20 and :50 each hour) films the video again. Nothing waits on you.',
+  filming: 'The film run films the video again now. The new film goes to YouTube by itself. Nothing waits on you.',
+  filmed: 'Done: the new film is in. This card goes away a day after the film.'
+};
+/** Why a fix in the app waits on the admin, from the agent team's record (its reason, as the gate says it). */
+function appWhy(app: AppFix, stage: AppStage): string | null {
+  if (stage === 'none') return app.notes.find((n) => n.answer)?.answer ?? app.fix?.why ?? 'Claude\'s agent team made no change.';
+  if (stage !== 'yours') return null;
+  const f = app.fix;
+  if (f?.reason === 'instruction' || (app.askFirst && f?.decision === 'waits')) return 'You asked to see the change before it merges.';
+  if (f?.reason === 'stalled') return f.why ?? 'Claude tried 3 times to get it into main.';
+  return f?.why ? `It needs a developer: ${f.why}` : 'It needs a developer.';
+}
 
 /** What made a film, in one word for its mark. */
 export function causeOf(why: Cause[] | null | undefined): string {
@@ -312,14 +377,30 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
     // A suggestion's cards go on its video's row in its film's language (English when it names none).
     const where = s.tutorial ? { tutorial: s.tutorial, language: s.language ?? 'en' } : {};
     const pictures = s.pictures?.length ? { pictures: s.pictures } : {};
+    const appFixable = s.kind === 'code' && !!s.tutorial;
     if (!s.decision) admin.push({ kind: 'approve', title: `${on}${s.title}`, detail: s.detail, at: s.madeAt, who: 'you', ...where, suggestion: s, ...pictures,
+      ...(appFixable ? { fixApp: s.id } : {}),
       next: FIXABLE.has(s.kind) && s.tutorial ? 'Accept, and Claude changes the video. The next night films it again. Nothing happens until you answer.'
+        : appFixable ? 'Fix it: Claude changes the app. The fix merges by itself when it keeps the rules, and then the video is filmed again. Tick "Ask me before it merges" to see the change first. Only file in Linear: a person fixes it later. Nothing happens until you answer.'
         : s.kind === 'code' ? 'Accept, and it goes to Linear as an app issue. Nothing happens until you answer.' : 'Accept or reject it. Nothing happens until you answer.' });
+    const app = appStage(s, input.prs);
+    // A fix in the app: one card from Fix it to the new film, which Claude's steps move along by themselves.
+    if (app && s.tutorial && (app.stage !== 'filmed' || !app.at || now - Date.parse(app.at) < APP_DONE_HOURS * 3600_000)) {
+      const fixed = s.app!.fix;
+      const why = appWhy(s.app!, app.stage);
+      const link = app.pr ? pr(app.pr) : s.issueUrl ?? undefined;
+      admin.push({ kind: 'appFix', title: `${on}${s.title}`, detail: s.detail, at: s.app!.askedAt, who: app.stage === 'yours' || app.stage === 'none' ? 'you' : 'claude',
+        ...where, ...pictures, ...(link ? { link } : {}),
+        app: { issue: s.issue, stage: app.stage, pr: app.pr, summary: fixed?.summary ?? null, answer: s.app!.notes.find((n) => n.answer)?.answer ?? null, why,
+          before: !!fixed?.before, after: !!fixed?.beforeAfter, askFirst: !!s.app!.askFirst },
+        next: (why && app.stage === 'yours' ? `${why} ` : '') + APP_NEXT[app.stage] });
+    }
     const fix = s.fix;
     const yes = s.kind === 'instruction' ? `Your instruction: ${s.detail}` : s.clear ? `${s.title}. Claude found it clear and accepted it itself.` : `${s.title}. You accepted it.`;
     if (fix?.state === 'open' && fix.pr) worker.push({ when: 'now', kind: 'merging', title: `${on}Claude's change merges itself when its checks pass (PR ${fix.pr})`, detail: `${yes} If a check fails, or it does not merge within a day, Claude closes it and asks you under Waits on you.`, at: fix.at, link: pr(fix.pr) });
-    if (fix?.state === 'failed') admin.push({ kind: 'fixFailed', title: `${on}Claude could not make the change`, detail: fix.note ?? s.title, at: fix.at, who: 'you', ...pictures, ...(fix.pr ? { link: pr(fix.pr) } : fix.run ? { link: fix.run } : {}),
-      next: 'Try again, or tell Claude what to do instead. Claude starts at its next fix run (:20 and :50 each hour). Nothing happens until you do.', ...where, ...(s.tutorial ? { instruct: `Claude could not make the change "${s.title}" (${fix.note ?? 'no reason given'}).`, retry: `Try this change again: ${s.title}. ${s.detail}`.slice(0, 2000) } : {}) });
+    if (fix?.state === 'failed' && !s.app) admin.push({ kind: 'fixFailed', title: `${on}Claude could not make the change`, detail: fix.note ?? s.title, at: fix.at, who: 'you', ...pictures, ...(fix.pr ? { link: pr(fix.pr) } : fix.run ? { link: fix.run } : {}),
+      ...(s.tutorial ? { fixApp: s.id } : {}),
+      next: 'Try again, or tell Claude what to do instead. Claude starts at its next fix run (:20 and :50 each hour). When the cause is in the app, Fix it in the app: Claude changes the app, the fix merges by itself when it keeps the rules, and then the video is filmed again. Nothing happens until you do.', ...where, ...(s.tutorial ? { instruct: `Claude could not make the change "${s.title}" (${fix.note ?? 'no reason given'}).`, retry: `Try this change again: ${s.title}. ${s.detail}`.slice(0, 2000) } : {}) });
     if (fix?.state === 'working') worker.push({ when: 'now', kind: 'fixing', title: `${on}Claude writes the change now`, detail: `${yes} When done, the pull request merges itself when its checks pass.`, at: fix.at, ...(fix.run ? { link: fix.run } : {}) });
     if (s.decision === 'accepted' && !fix && s.tutorial && FIXABLE.has(s.kind)) worker.push({ when: 'next', kind: 'toFix', title: `${on}Claude starts the change at its next fix run (:20 and :50 each hour)`, detail: `${yes} Claude makes it as a pull request that merges itself when its checks pass.`, at: s.decidedAt });
     if (fix && s.tutorial) changes.push({ at: fix.at, tutorial: s.tutorial, language: s.language ?? 'en', video: title(s.tutorial), change: s.kind === 'instruction' ? s.detail : s.title,
@@ -347,7 +428,13 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
       const mineSg = (suggestionsOf.get(tutorial) ?? []).filter((sg) => !sg.language || sg.language === language);
       for (const sg of mineSg) {
         if (!sg.decision) add({ key: 'approve', text: 'Suggestion to answer', level: 'warn' });
-        if (sg.fix?.state === 'failed') add({ key: 'fixFailed', text: 'Change failed', level: 'bad', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}) });
+        const ap = appStage(sg, input.prs);
+        if (ap?.stage === 'yours') add({ key: 'approve', text: 'App fix waits on you', level: 'warn', ...(ap.pr ? { link: pr(ap.pr) } : {}) });
+        if (ap?.stage === 'none') add({ key: 'approve', text: 'No app fix: read Claude\'s answer', level: 'warn' });
+        if (ap?.stage === 'writing' || ap?.stage === 'queued' || ap?.stage === 'filing') add({ key: 'fixing', text: 'Claude fixes the app', level: 'info' });
+        if (ap?.stage === 'checks') add({ key: 'merge', text: 'App fix waits on its checks', level: 'info', ...(ap.pr ? { link: pr(ap.pr) } : {}) });
+        if (ap?.stage === 'merged' || ap?.stage === 'filming') add({ key: 'filming', text: 'App fix merged, filmed again now', level: 'info', ...(ap.pr ? { link: pr(ap.pr) } : {}) });
+        if (sg.fix?.state === 'failed' && !sg.app) add({ key: 'fixFailed', text: 'Change failed', level: 'bad', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}) });
         if (sg.fix?.state === 'open') add({ key: 'merge', text: 'Change waits on its checks', level: 'info', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : {}) });
         if (sg.fix?.state === 'working') add({ key: 'fixing', text: 'Claude writes the change', level: 'info' });
         if (sg.decision === 'accepted' && !sg.fix && FIXABLE.has(sg.kind)) add({ key: 'toFix', text: sg.kind === 'instruction' ? 'Claude has your instruction' : sg.clear ? 'Clear fix, Claude starts it next' : 'Accepted, Claude starts the change next', level: 'info' });
@@ -564,12 +651,14 @@ export async function videosSection(env: VideosEnv, fetcher: typeof fetch = fetc
     .then((f) => nightlyLanguages(atob(f.content.replace(/\n/g, '')))).catch(() => null);
   const filming = filmingSection(env, fetcher).then((s) => (s.state === 'ok' ? s.data as Filming : null)).catch(() => null);
   const statuses = Promise.all(Object.keys(CHANNELS).map(async (l) => [l, await statusFile(env, l, fetcher)] as const));
-  const [d, nightly, run, files] = await Promise.all([db, workflow, filming, statuses]);
+  // Where each fix in the app is on GitHub (Fix it): without it a card still shows what the agent team recorded.
+  const prs = fixesSection(env, fetcher).then((s) => (s.state === 'ok' ? (s.data as { prs: FixPr[] }).prs : null)).catch(() => null);
+  const [d, nightly, run, files, named] = await Promise.all([db, workflow, filming, statuses, prs]);
   if (!d.films && !d.feedback && !d.tutorials && !run) return failed('Could not read the database or GitHub for the tutorial videos.');
   const status: Partial<Record<string, StatusFile>> = {};
   for (const [l, f] of files) if (f) status[l] = f;
   // The dashboard's switches choose the languages; tutorials.yml's list only where the database has no switches yet.
   const chosen = Array.isArray(d.switches) ? d.switches.filter((x) => x.nightly).map((x) => x.language) : nightly;
-  const board = videoBoard({ films: d.films, feedback: d.feedback, tutorials: d.tutorials ? tutorialsOf(d.tutorials) : null, status, filming: run, nightly: chosen });
+  const board = videoBoard({ films: d.films, feedback: d.feedback, tutorials: d.tutorials ? tutorialsOf(d.tutorials) : null, status, filming: run, nightly: chosen, prs: named });
   return ok(d.records ? { ...board, records: d.records } : board);
 }

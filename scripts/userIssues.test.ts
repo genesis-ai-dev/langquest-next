@@ -509,7 +509,8 @@ describe('a draft fix for each new issue', () => {
   });
 
   it('takes Claude\'s summary or its reason for none, cut and without addresses, and only fixed words from the checks', () => {
-    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false });
+    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false });
+    expect(checkFix({ summary: 'S', askFirst: true }).askFirst).toBe(true);
     expect(checkFix({ summary: 'S', answer: ' I moved the wait.  \r\n\n\n\n1. Ask a@b.org ' }).answer).toBe('I moved the wait.\n\n1. Ask [address]');
     expect(checkFix({ summary: 'S', answer: 'x'.repeat(2000) }).answer).toHaveLength(FIX_LIMITS.answer);
     expect(checkFix({ noFix: 'Needs a store build.' }).noFix).toBe('Needs a store build.');

@@ -48,7 +48,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
 import { oldPathsOf, pathsOf, runUrl } from './tutorial-review.mjs';
-import { decisionLines, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planOf, REPAIR_MAX, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
+import { decisionLines, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planOf, REPAIR_MAX, saysAskFirst, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
 
 /** The steps to the screen of a display fix, as the manager writes them beside fix.json (never part of the change). */
 export const PICTURE_SPEC = 'picture.spec.ts';
@@ -409,7 +409,7 @@ export function checkFix(raw) {
   const summary = cut(text(o.summary), FIX_LIMITS.summary);
   // The manager's verdict and reasoning (scripts/agent-team.mjs verdictOf), addresses out.
   const v = verdictOf(o);
-  const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display };
+  const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display, askFirst: v.askFirst };
   return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), answer: cut(lines(text(o.answer)), FIX_LIMITS.answer), ...team };
 }
 
@@ -1074,20 +1074,25 @@ async function fixContext(dir, id) {
   // from its change, with why and the failed jobs' logs. An admin's instructions wait for the next run.
   const repairPath = process.env.FIX_REPAIR ? join(process.env.FIX_REPAIR, `${id}.json`) : '';
   const repair = repairPath && existsSync(repairPath) && readFileSync(repairPath).length < 200_000 ? repairOf((() => { try { return readJson(repairPath); } catch { return null; } })(), id) : null;
-  if (repair) {
-    const draft = draftOnto(dir, fixBranch(id));
-    const before = draft.applied ? worktreeHash(dir) : null;
-    if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: [], repair: { pr: repair.pr, draft: before } }));
-    writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, repair: { ...repair, draft } }, null, 2));
-    console.log(`${id}: handed to Claude to get PR ${repair.pr} into main (${draft.applied ? 'its change applied' : 'its change does not apply to main'}, ${plural(repair.failures.length, 'failed job')})`);
-    return;
-  }
   // What an admin told Claude to do with it from the ops dashboard, and the draft fix it has, to start from.
   const notes = await ask(`?notes=${id}`).catch((e) => {
     console.log(`${id}: no instructions read (${String(e instanceof Error ? e.message : e).slice(0, 80)})`);
     return null;
   });
   const waiting = Array.isArray(notes?.waiting) ? notes.waiting.filter((n) => isObj(n) && NOTE_ID.test(text(n.id)) && text(n.text).trim()) : [];
+  const told = [...waiting, ...(Array.isArray(notes?.before) ? notes.before : [])].filter(isObj);
+  // Fix it on a tutorial video's card: the admin's word is the yes, unless they asked to see the change first.
+  // Read here, where Claude cannot write (docs/agent-team.md).
+  const go = told.some((n) => n.go === true);
+  const askFirst = go && (notes?.askFirst === true || saysAskFirst(told.map((n) => n.text)));
+  if (repair) {
+    const draft = draftOnto(dir, fixBranch(id));
+    const before = draft.applied ? worktreeHash(dir) : null;
+    if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: [], repair: { pr: repair.pr, draft: before }, go, askFirst }));
+    writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, repair: { ...repair, draft }, ...(go ? { fixIt: { askFirst } } : {}) }, null, 2));
+    console.log(`${id}: handed to Claude to get PR ${repair.pr} into main (${draft.applied ? 'its change applied' : 'its change does not apply to main'}, ${plural(repair.failures.length, 'failed job')})`);
+    return;
+  }
   const instructed = waiting.length ? {
     instructions: waiting.map((n) => ({ at: n.at, text: redact(n.text) })),
     before: (Array.isArray(notes.before) ? notes.before : []).map((n) => ({ at: n.at, text: redact(n.text), answer: n.answer ?? null })),
@@ -1098,9 +1103,9 @@ async function fixContext(dir, id) {
     // it whether Claude changed anything: kept where Claude does not write.
     const before = instructed.draft.applied ? worktreeHash(dir) : null;
     // Whether the admin's own words can mean "merge it as it is": read here, where Claude cannot write.
-    if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: waiting.map((n) => n.id), draft: before, saysMerge: saysMerge(waiting.map((n) => n.text)) }));
+    if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: waiting.map((n) => n.id), draft: before, saysMerge: saysMerge(waiting.map((n) => n.text)), go, askFirst }));
   }
-  writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, ...instructed }, null, 2));
+  writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, ...instructed, ...(go ? { fixIt: { askFirst } } : {}) }, null, 2));
   console.log(`${id}: handed to Claude for a draft fix${waiting.length ? `, with ${plural(waiting.length, 'instruction')} from the ops dashboard${instructed.draft.branch ? ` and its draft fix (${instructed.draft.applied ? 'applied' : 'not applied'})` : ''}` : ''}`);
 }
 
@@ -1184,7 +1189,8 @@ function fixPatch(dir) {
     const spec = readFileSync(specPath, 'utf8');
     if (!priv || !leaks(spec, priv)) writeFileSync(join(out, PICTURE_SPEC), spec);
   }
-  if (noteIds.length) writeFileSync(join(out, 'notes.json'), JSON.stringify({ ids: noteIds, changed: changed && Boolean(patch), approved }));
+  // `go` and `askFirst` as fixContext read them before Claude: the gate reads them (gateInput).
+  if (noteIds.length || notes?.go === true) writeFileSync(join(out, 'notes.json'), JSON.stringify({ ids: noteIds, changed: changed && Boolean(patch), approved, go: notes?.go === true, askFirst: notes?.askFirst === true }));
   // A pull request handed back by the job `follow`: which, and whether Claude changed its change.
   if (Number.isInteger(notes?.repair?.pr)) writeFileSync(join(out, 'repair.json'), JSON.stringify({ pr: notes.repair.pr, changed: Boolean(patch) && notes.repair.draft !== worktreeHash(dir) }));
   // The manager's model and effort, as the workflow set them for this job.

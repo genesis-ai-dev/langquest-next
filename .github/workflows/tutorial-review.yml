@@ -41,7 +41,10 @@
 # RELEASE_APP_PRIVATE_KEY, as release-branches.yml), whose pull requests
 # start guardrails, and turns on auto-merge. No person reads it; the merge
 # queue merges it when guardrails pass, and the merge films the video again
-# (tutorials.yml).
+# (tutorials.yml). When Claude finds that the cause is in the app, not the
+# video, a change a person accepted goes to the agent team (user-issues.yml,
+# docs/agent-team.md), and once its pull request merged, `queue` films the
+# video again with tutorials.yml's workflow_dispatch.
 name: tutorial-review
 
 on:
@@ -200,6 +203,8 @@ jobs:
       id-token: write
       pull-requests: write
       checks: read
+      # A fix in the app that merged: its video filmed again now (tutorials.yml's workflow_dispatch).
+      actions: write
     outputs:
       fixes: ${{ steps.queue.outputs.fixes }}
     steps:
