@@ -539,6 +539,17 @@ User issues, Research, Support, Tutorial videos and Nightly tests, and keeps
 each page's choice (`lq-ops-details` in the browser). `#all` shows every
 section on one page, each line's card in its part.
 
+Some pages add blocks of their own to the summary (`apps/admin/src/pageBlocks.ts`
+`PAGE_BLOCKS`, and the first words of their sentence, `PAGE_SAY`), each from
+what its parts already answered. Releases: where each store build is, as a
+track of stages with each build as a chip that opens its card; the web app
+against the newest merge (`codeView`); who has the newest update, a meter for
+each store build on the production channel; the automatic jobs on GitHub.
+App stores: Android crashes and freezes as meters against Google's line
+(`CRASH_LINE`, `ANR_LINE`), the App Store's newest versions in words, and the
+reviews. People and organizations: the totals and who waits to join. Phones
+and browsers: what people used in the last 7 days, by platform.
+
 The Overview's sentence under its title counts its lines by who acts
 (`lineBucket`): Needs you (Act now, Fix soon), This week, you decide (a
 choice at Watch: `person` kinds in `alertKinds.ts`), On its way (a merged fix
