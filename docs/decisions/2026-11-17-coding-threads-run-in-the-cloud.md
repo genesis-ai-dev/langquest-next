@@ -43,7 +43,7 @@ runners) or a hosted simulator service.
 
 Amended (2026-11-21, Caleb Koster): a cloud thread may read the production
 database through the read gate, as claude_reader, with the
-`CLAUDE_READ_TOKEN` in the cloud environment's variables
+`CLAUDE_READ_TOKEN` the cloud environment's proxy adds
 (`docs/decisions/2026-11-21-claude-reads-production-through-a-gate.md`).
 That token is the one production key a cloud machine holds, and the
 database holds it to reading. Decrypting env files, EAS, secrets and every

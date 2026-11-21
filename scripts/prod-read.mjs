@@ -7,8 +7,12 @@
 //   npm run prod:read -- --json "select ..."      the gate's answer as JSON
 //
 // Who it reads as comes from where it runs:
-// - CLAUDE_READ_TOKEN set (a Claude cloud thread, or a laptop that exported
-//   it): claude_reader, everything but secrets and emails.
+// - CLAUDE_READ_TOKEN set (a laptop that exported it, or a cloud environment
+//   that keeps it as a variable): claude_reader, everything but secrets and
+//   emails.
+// - A Claude cloud thread whose environment keeps the token as a network
+//   secret for app.langquest.org: the same, with a stand-in the proxy
+//   replaces, so the thread never holds the token itself.
 // - In a GitHub Actions job with `id-token: write`: the job's OIDC token, and
 //   agent_reader if the workflow is one the gate lets in from main.
 // Nothing here can write: the database refuses it to both logins.
@@ -28,7 +32,10 @@ export function parseArgs(argv) {
   return { json, sql: sql ?? '', params };
 }
 
-/** The bearer token for this place: CLAUDE_READ_TOKEN, or the GitHub job's OIDC token. */
+/** What a cloud thread sends when its proxy adds the token (a network secret): too short for the gate to take as one. */
+export const PROXY_STAND_IN = 'from-the-proxy';
+
+/** The bearer token for this place: CLAUDE_READ_TOKEN, the GitHub job's OIDC token, or the proxy's stand-in. */
 export async function bearer(env = process.env, fetcher = fetch) {
   if (env.CLAUDE_READ_TOKEN) return env.CLAUDE_READ_TOKEN;
   if (env.ACTIONS_ID_TOKEN_REQUEST_URL && env.ACTIONS_ID_TOKEN_REQUEST_TOKEN) {
@@ -37,6 +44,7 @@ export async function bearer(env = process.env, fetcher = fetch) {
     if (!res.ok) throw new Error(`GitHub gave no OIDC token (${res.status}); the job needs permissions: id-token: write`);
     return (await res.json()).value;
   }
+  if (env.CLAUDE_CODE_REMOTE === 'true') return PROXY_STAND_IN;
   throw new Error('No CLAUDE_READ_TOKEN, and not in a GitHub Actions job with id-token: write (docs/production-reads.md).');
 }
 
@@ -54,12 +62,17 @@ async function main() {
     console.error('usage: npm run prod:read -- [--json] "select ..." [param ...]');
     process.exit(2);
   }
+  const token = await bearer();
   const res = await fetch(READ_URL, {
     method: 'POST',
-    headers: { authorization: `Bearer ${await bearer()}`, 'content-type': 'application/json' },
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
     body: JSON.stringify({ sql: args.sql, params: args.params })
   });
   const body = await res.json().catch(() => ({ error: `the gate answered ${res.status} without JSON` }));
+  if (res.status === 401 && token === PROXY_STAND_IN) {
+    console.error('x The cloud environment has no CLAUDE_READ_TOKEN for app.langquest.org, as a network secret or a variable (docs/production-reads.md, setup step 4).');
+    process.exit(1);
+  }
   if (!res.ok) {
     console.error(`x ${body.error ?? res.status}`);
     process.exit(1);

@@ -27,8 +27,10 @@ agent teams saw only what the watch's API handed them. Chosen
   (decisions 160 and 162); each new login has a Hyperdrive config of its
   own. The gate's answers are not the ops dashboard, so decision 160's
   content rule binds agent_reader, not claude_reader.
-- **CLAUDE_READ_TOKEN in the cloud environment's variables** on claude.ai,
-  the only key a cloud thread holds; the Worker keeps its SHA-256.
+- **CLAUDE_READ_TOKEN as a network secret** of the cloud environment on
+  claude.ai, for `app.langquest.org`: the proxy adds it to the thread's
+  requests, so no thread holds it or can print it. A variable only where
+  network secrets are not offered. The Worker keeps its SHA-256.
 
 Reverse if: a key leaks or the log shows a statement no thread or team
 asked for; a heavy read slows the app for people; or Supabase gives a way to

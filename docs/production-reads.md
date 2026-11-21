@@ -73,9 +73,10 @@ npm run prod:read -- "select * from diag.records where install_id = \$1 order by
 npm run prod:read -- --json "select ..."
 ```
 
-`scripts/prod-read.mjs` sends `CLAUDE_READ_TOKEN` when it is set (a cloud
-thread has it from its environment), or the job's OIDC token in GitHub
-Actions. The agent teams run a copy made before Claude starts,
+`scripts/prod-read.mjs` sends `CLAUDE_READ_TOKEN` when it is set, or the
+job's OIDC token in GitHub Actions. In a cloud thread whose environment keeps
+the token as a network secret, it sends a stand-in that the proxy replaces
+with the token, so the thread never holds the token. The agent teams run a copy made before Claude starts,
 `/home/runner/work/_temp/watch/prod-read.mjs`, the one command their Claude
 may run besides git; Claude cannot change that copy, which asks only for the
 gate's audience.
@@ -91,7 +92,7 @@ in words: "12 phones on build 61 failed the download", not the rows.
 
 | Key | Where | Who can read it | Rotate |
 |---|---|---|---|
-| `CLAUDE_READ_TOKEN` | the cloud environment's variables on claude.ai | the account owner, and every Claude thread in that environment | steps below |
+| `CLAUDE_READ_TOKEN` | the cloud environment's network secrets on claude.ai, for `app.langquest.org` | the account owner; a Claude thread sends it through the proxy and never sees it | steps below |
 | `CLAUDE_READ_TOKEN` | `.env.production`, encrypted | a computer with `.env.keys` | steps below |
 | its SHA-256 | admin Worker secret `CLAUDE_READ_TOKEN_SHA256` | nobody: Cloudflare does not show a secret again | `npm run secrets -- production` |
 | claude_reader's and agent_reader's passwords | `.env.production`, encrypted, and the Hyperdrive configs | a computer with `.env.keys`; Cloudflare does not show a config's login | steps below |
@@ -110,8 +111,13 @@ On the Mac, with the migration on the hosted database:
    sets `CLAUDE_READ_TOKEN_SHA256` on the admin Worker.
 3. Commit `apps/admin/wrangler.jsonc` and `.env.production`, and merge them.
    The admin Worker deploys with the new bindings.
-4. Paste the token as `CLAUDE_READ_TOKEN` in the cloud environment's
-   variables on claude.ai, in place of the old one.
+4. Paste the token in the project's cloud environment on claude.ai
+   (Project settings, then the cloud environment, then its gear), in place
+   of the old one: under Network secrets for the host `app.langquest.org`,
+   as the bearer token of the `Authorization` header. Where the app offers
+   no network secrets, add it as the variable `CLAUDE_READ_TOKEN` instead;
+   then every thread in the environment can read it. A new thread picks it
+   up.
 
 Running the steps again rotates everything. The old token stops when step 2
 sets the new SHA-256; the old passwords stop at step 1.

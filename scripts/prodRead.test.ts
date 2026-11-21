@@ -1,4 +1,4 @@
-import { asText, bearer, parseArgs } from './prod-read.mjs';
+import { asText, bearer, parseArgs, PROXY_STAND_IN } from './prod-read.mjs';
 
 /** The read gate's command (scripts/prod-read.mjs, docs/production-reads.md). */
 
@@ -18,6 +18,9 @@ describe('npm run prod:read', () => {
     expect(token).toBe('jwt');
     expect(asked).toEqual(['https://gh/token?x=1&audience=https%3A%2F%2Fapp.langquest.org%2Fops%2Fapi%2Fread']);
     await expect(bearer({}, fetch)).rejects.toThrow(/No CLAUDE_READ_TOKEN/);
+    // A cloud thread whose proxy adds the token: a stand-in the gate would never take as one.
+    expect(await bearer({ CLAUDE_CODE_REMOTE: 'true' }, fetch)).toBe(PROXY_STAND_IN);
+    expect(PROXY_STAND_IN.length).toBeLessThan(32);
   });
 
   it('prints rows under their column names, and says when the gate cut them', () => {
