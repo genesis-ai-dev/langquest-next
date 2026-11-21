@@ -15,6 +15,7 @@ Pod::Spec.new do |s|
   s.dependency 'ExpoModulesCore'
   # Runs the speech model (Speech.swift, decision 135) and Clean up's (CleanUp.swift, decision 179).
   # Held at 1.22.0, as on Android: from 1.29.0 the runtime carries Microsoft's telemetry (1DS); 1.22.0 has none.
+  # The Podfile takes it and onnxruntime-c from vendor/, not trunk (plugins/withOnnxRuntimePods.js, vendor/README.md).
   s.dependency 'onnxruntime-objc', '1.22.0'
   # The speech model and Clean up's DeepFilterNet3 (models/README.md). This
   # file sits at the module's root (expo-module.config.json podspecPath) so

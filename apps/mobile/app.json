@@ -138,6 +138,7 @@
       ],
       "expo-notifications",
       "./plugins/withAndroidAppIcons",
+      "./plugins/withOnnxRuntimePods",
       [
         "expo-localization",
         {
