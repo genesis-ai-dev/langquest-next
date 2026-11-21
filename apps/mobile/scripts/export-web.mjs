@@ -204,7 +204,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // docs/decisions/2026-11-20-a-book-has-its-own-download-button.md): the key that names every mark a
 // download button shows, the sheet that asks before a book's files are removed, and their English
 // words in the catalog every visit carries. The Map is where a visit starts, so none of it can load later.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 150 * 1024;
+// Raised by 16 KB more on release/ios with the copies from main (2026-11-21): this branch came out 15 KB
+// over, since main's cap was fitted around code that this branch does not have and the copies add the
+// book download buttons (LAN-316), the key words tiles (LAN-233) and the unheard-recording checks (LAN-317).
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 166 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -288,7 +291,10 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 150 * 1024;
 // grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
 // words in the catalog every visit carries. They show on the recording screen as it opens; the word's
 // sheet loads when first opened (keyTerms/lazySheets.tsx).
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
+// Raised by 10 KB on release/ios with the copies from main (2026-11-21): this branch came out 8 KB
+// over main's cap, because it does not have the main-only code the cap was fitted around, and it
+// carries the download buttons' key and Remove sheet (LAN-316) and the key words tiles in the entry.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 122 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
