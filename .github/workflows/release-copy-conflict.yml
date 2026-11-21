@@ -141,7 +141,7 @@ jobs:
             // commands that are not allowed (echo, python3, a cd chain) and then does the step
             // another way; those must not hold back a checked copy (#578, #588, 2026-11-20).
             const blocked = denied.filter((d) => d.tool_name === "Bash" && /(^|[;&|(]\s*)(npm|npx|node)\s/.test(String(d.tool_input?.command ?? "")));
-            if (blocked.length) console.log(`::error::Claude was not allowed to run ${blocked.length} npm, npx or node command(s); this copy is not checked`);
+            if (blocked.length) console.log(`::warning::Claude was not allowed to run ${blocked.length} npm, npx or node command(s); the gate still runs the tests`);
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `count=${blocked.length}\n`);
           ' "$RUNNER_TEMP/claude-execution-output.json"
       - name: Push Claude's commits, comment, and turn on auto-merge, or leave the copy for Claude's next try
