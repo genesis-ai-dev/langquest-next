@@ -651,7 +651,7 @@ let VIDEOS = null;
 // The timeline shows 60 days; its zoom is how wide a day is. A pinch on a touchpad (or Ctrl and the scroll wheel) zooms it; it opens at the last 14 days.
 let videoLanguage = 'en', dayWidth = 0, shownMarks = [], onlyMine = false, openCards = null;
 const TIMELINE_DAYS = 60;
-const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', approve: 'warn', appFix: '', reply: 'warn', connect: 'warn', empty: 'warn', publish: 'warn', paused: '' };
+const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', fixed: 'good', approve: 'warn', appFix: '', reply: 'warn', connect: 'warn', empty: 'warn', publish: 'warn', paused: '' };
 const cardLink = (x) => x.link ? '<a href="' + esc(x.link) + '"' + (x.link.startsWith('#') ? '' : ' target="_blank" rel="noopener noreferrer"') + '>' + esc(ADMIN_LINKS[x.kind] || WORKER_LINKS[x.kind] || 'Open') + '</a>' : '';
 const FIX_STATE = { working: 'Claude writes the change now.', open: 'Claude\'s pull request merges itself when its checks pass.', merged: 'The change is merged. The next night films the video again.', closed: 'The pull request was closed without a merge.', failed: 'Claude could not make the change.', unneeded: 'No change was needed: the video already does this.' };
 // The record of changes Claude made (sources/videos.ts ChangeItem).

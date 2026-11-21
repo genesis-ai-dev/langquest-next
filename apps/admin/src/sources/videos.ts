@@ -61,7 +61,13 @@ export interface StatusFile {
  */
 export interface Fix { state: 'working' | 'open' | 'merged' | 'closed' | 'failed' | 'unneeded'; pr: number | null; at: string; run: string | null; note: string | null }
 /** A suggestion with its fix; an admin's instruction is a suggestion of kind 'instruction', with the language of the film it is about. */
-type FixedSuggestion = Omit<Suggestion, 'kind'> & { kind: Suggestion['kind'] | 'instruction'; language?: string | null; fix?: Fix | null };
+/**
+ * A pull request of its own fixed a change whose fix failed, and a film of the video came in after its merge
+ * (migration 20261121233000_tutorial_fixed_elsewhere.sql). `file`: the file Claude named as the cause that it
+ * changed, or null when the pull request names the suggestion. `at`: when the video fix run found it.
+ */
+export interface FixedBy { pr: number; mergedAt: string; file: string | null; filmedAt: string; at: string }
+type FixedSuggestion = Omit<Suggestion, 'kind'> & { kind: Suggestion['kind'] | 'instruction'; language?: string | null; fix?: Fix | null; fixedBy?: FixedBy | null };
 
 export interface VideosInput {
   films: FilmRow[] | null;
@@ -123,14 +129,14 @@ export interface VideoRow {
 }
 
 export interface AdminItem {
-  kind: 'approve' | 'appFix' | 'fixFailed' | 'held' | 'fails' | 'reply' | 'comment' | 'screen' | 'publish' | 'connect' | 'empty' | 'paused';
+  kind: 'approve' | 'appFix' | 'fixFailed' | 'fixed' | 'held' | 'fails' | 'reply' | 'comment' | 'screen' | 'publish' | 'connect' | 'empty' | 'paused';
   /** The problem, in a line. */
   title: string;
   /** What is wrong, as found. */
   detail: string;
   at: string | null;
-  /** Who acts next: an admin, Claude (at its next run), or nobody until an admin does. */
-  who: 'you' | 'claude';
+  /** Who acts next: an admin, Claude (at its next run), or nobody: `done` (a change that failed, which a pull request of its own fixed). */
+  who: 'you' | 'claude' | 'done';
   /** What happens next, and what happens if the admin does nothing. */
   next: string;
   tutorial?: string; language?: string; link?: string;
@@ -187,6 +193,8 @@ export interface ChangeItem {
   pr: number | null; link: string | null;
   /** Why it failed, or why no change was needed. */
   note: string | null;
+  /** The change failed, and a pull request of its own fixed it later; the video was filmed again after it. */
+  fixedBy?: FixedBy | null;
   /** What the change is about, before it, and the same places once the video was filmed again. */
   pictures: Picture[];
   after: Picture[];
@@ -323,7 +331,7 @@ export function nightlyLanguages(workflow: string): string[] | null {
 /** A state that waits on a person; a paused language's own pause and missing films are said once, not per video. */
 const NEEDS_PERSON = (s: VideoState) => (s.level === 'bad' || s.level === 'warn') && s.key !== 'paused' && s.key !== 'new';
 
-const LEVEL_ORDER: StateKey[] = ['fails', 'held', 'fixFailed', 'approve', 'fixing', 'merge', 'toFix', 'filming', 'tonight', 'slotted', 'comment', 'reply', 'publish', 'upload', 'new', 'paused', 'current'];
+const LEVEL_ORDER: StateKey[] = ['fails', 'held', 'fixFailed', 'approve', 'fixed', 'fixing', 'merge', 'toFix', 'filming', 'tonight', 'slotted', 'comment', 'reply', 'publish', 'upload', 'new', 'paused', 'current'];
 
 /** The three lists, from what was read. Pure. */
 export function videoBoard(input: VideosInput, now = Date.now()): Videos {
@@ -396,16 +404,21 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
         next: (why && app.stage === 'yours' ? `${why} ` : '') + APP_NEXT[app.stage] });
     }
     const fix = s.fix;
+    // A change that failed and a pull request of its own fixed later: it says so, for a day, and waits on nobody.
+    const fixedBy = fix?.state === 'failed' && !s.app ? s.fixedBy ?? null : null;
+    if (fixedBy && s.tutorial && now - Date.parse(fixedBy.at) < APP_DONE_HOURS * 3600_000) admin.push({ kind: 'fixed', title: `${on}Fixed by PR ${fixedBy.pr}, filmed again`,
+      detail: s.kind === 'instruction' ? s.detail : s.title, at: fixedBy.at, who: 'done', ...where, ...pictures, link: pr(fixedBy.pr),
+      next: `Claude could not make this change to the video, but pull request ${fixedBy.pr} fixed it: ${fixedBy.file ? `it changed ${fixedBy.file}, the file Claude named as the cause` : 'it names this change'}. A new film of the video came in after it, and the frame check passed it. Nothing to do. This card goes away a day after.` });
     const yes = s.kind === 'instruction' ? `Your instruction: ${s.detail}` : s.clear ? `${s.title}. Claude found it clear and accepted it itself.` : `${s.title}. You accepted it.`;
     if (fix?.state === 'open' && fix.pr) worker.push({ when: 'now', kind: 'merging', title: `${on}Claude's change merges itself when its checks pass (PR ${fix.pr})`, detail: `${yes} If a check fails, or it does not merge within a day, Claude closes it and asks you under Waits on you.`, at: fix.at, link: pr(fix.pr) });
-    if (fix?.state === 'failed' && !s.app) admin.push({ kind: 'fixFailed', title: `${on}Claude could not make the change`, detail: fix.note ?? s.title, at: fix.at, who: 'you', ...pictures, ...(fix.pr ? { link: pr(fix.pr) } : fix.run ? { link: fix.run } : {}),
+    if (fix?.state === 'failed' && !s.app && !fixedBy) admin.push({ kind: 'fixFailed', title: `${on}Claude could not make the change`, detail: fix.note ?? s.title, at: fix.at, who: 'you', ...pictures, ...(fix.pr ? { link: pr(fix.pr) } : fix.run ? { link: fix.run } : {}),
       ...(s.tutorial ? { fixApp: s.id } : {}),
       next: 'Try again, or tell Claude what to do instead. Claude starts at its next fix run (:20 and :50 each hour). When the cause is in the app, Fix it in the app: Claude changes the app, the fix merges by itself when it keeps the rules, and then the video is filmed again. Nothing happens until you do.', ...where, ...(s.tutorial ? { instruct: `Claude could not make the change "${s.title}" (${fix.note ?? 'no reason given'}).`, retry: `Try this change again: ${s.title}. ${s.detail}`.slice(0, 2000) } : {}) });
     if (fix?.state === 'working') worker.push({ when: 'now', kind: 'fixing', title: `${on}Claude writes the change now`, detail: `${yes} When done, the pull request merges itself when its checks pass.`, at: fix.at, ...(fix.run ? { link: fix.run } : {}) });
     if (s.decision === 'accepted' && !fix && s.tutorial && FIXABLE.has(s.kind)) worker.push({ when: 'next', kind: 'toFix', title: `${on}Claude starts the change at its next fix run (:20 and :50 each hour)`, detail: `${yes} Claude makes it as a pull request that merges itself when its checks pass.`, at: s.decidedAt });
     if (fix && s.tutorial) changes.push({ at: fix.at, tutorial: s.tutorial, language: s.language ?? 'en', video: title(s.tutorial), change: s.kind === 'instruction' ? s.detail : s.title,
-      by: s.kind === 'instruction' ? 'instruction' : s.clear ? 'claude' : 'admin', state: fix.state, pr: fix.pr, link: fix.pr ? pr(fix.pr) : fix.run, note: fix.note,
-      pictures: s.pictures ?? [], after: s.after ?? [] });
+      by: s.kind === 'instruction' ? 'instruction' : s.clear ? 'claude' : 'admin', state: fix.state, pr: fixedBy?.pr ?? fix.pr, link: fixedBy ? pr(fixedBy.pr) : fix.pr ? pr(fix.pr) : fix.run, note: fix.note,
+      pictures: s.pictures ?? [], after: s.after ?? [], ...(fixedBy ? { fixedBy } : {}) });
   }
   changes.sort((a, b) => b.at.localeCompare(a.at));
 
@@ -434,7 +447,7 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
         if (ap?.stage === 'writing' || ap?.stage === 'queued' || ap?.stage === 'filing') add({ key: 'fixing', text: 'Claude fixes the app', level: 'info' });
         if (ap?.stage === 'checks') add({ key: 'merge', text: 'App fix waits on its checks', level: 'info', ...(ap.pr ? { link: pr(ap.pr) } : {}) });
         if (ap?.stage === 'merged' || ap?.stage === 'filming') add({ key: 'filming', text: 'App fix merged, filmed again now', level: 'info', ...(ap.pr ? { link: pr(ap.pr) } : {}) });
-        if (sg.fix?.state === 'failed' && !sg.app) add({ key: 'fixFailed', text: 'Change failed', level: 'bad', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}) });
+        if (sg.fix?.state === 'failed' && !sg.app && !sg.fixedBy) add({ key: 'fixFailed', text: 'Change failed', level: 'bad', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}) });
         if (sg.fix?.state === 'open') add({ key: 'merge', text: 'Change waits on its checks', level: 'info', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : {}) });
         if (sg.fix?.state === 'working') add({ key: 'fixing', text: 'Claude writes the change', level: 'info' });
         if (sg.decision === 'accepted' && !sg.fix && FIXABLE.has(sg.kind)) add({ key: 'toFix', text: sg.kind === 'instruction' ? 'Claude has your instruction' : sg.clear ? 'Clear fix, Claude starts it next' : 'Accepted, Claude starts the change next', level: 'info' });

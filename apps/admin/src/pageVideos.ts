@@ -195,8 +195,10 @@ function videoPart(raw) {
   if (t.tab === 'auto') {
     const job = (w) => '<div class="vjob"><span class="vdot' + (w.when === 'now' ? ' now' : '') + '" role="img" aria-label="' + (w.when === 'now' ? 'Runs now' : 'Waits its turn') + '">' + vicon(w.when === 'now' ? 'now' : 'info') + '</span><div><p><b>' + esc(w.title) + '</b>' +
       (w.at ? ' <small>' + when(w.at) + '</small>' : '') + '</p>' + (w.detail ? '<p><small>' + esc(w.detail) + '</small></p>' : '') + (w.link ? '<p>' + cardLink(w) + '</p>' : '') + '</div></div>';
-    const cards = tabCards(t.claude, 'auto');
+    // Claude's turn first; then what is done and waits on nobody (a change that failed, which a pull request of its own fixed).
+    const cards = tabCards(t.claude.filter((a) => a.who !== 'done'), 'auto'), done = tabCards(t.claude.filter((a) => a.who === 'done'), 'auto');
     h += (cards ? '<h3>Claude acts next</h3><div class="icards vq">' + cards + '</div>' : '') +
+      (done ? '<h3>Done, nothing to do</h3><div class="icards vq">' + done + '</div>' : '') +
       '<h3>Jobs, now and tonight</h3>' + (d.worker.length ? '<div class="vjobs">' + d.worker.map(job).join('') + '</div>' : '<p class="muted">Nothing queued.</p>');
   }
   if (t.tab === 'videos') {
@@ -208,10 +210,12 @@ function videoPart(raw) {
     h += changes.length ? table([
       { h: 'When', v: (c) => when(c.at) },
       { h: 'Video', v: (c) => esc(c.video) + ' <small class="muted">' + esc(languageName(c.language)) + '</small>' },
-      { h: 'Change', v: (c) => esc(detailParts(c.change)[0]) + (c.note ? '<br><small class="' + (c.state === 'failed' ? 'bad' : 'muted') + '">' + esc(c.note) + '</small>' : '') +
+      { h: 'Change', v: (c) => esc(detailParts(c.change)[0]) + (c.note ? '<br><small class="' + (c.state === 'failed' && !c.fixedBy ? 'bad' : 'muted') + '">' + esc(c.note) + '</small>' : '') +
         ((c.pictures || []).length || (c.after || []).length ? '<details class="vtech"><summary>Pictures' + ((c.after || []).length ? ', before and after' : '') + '</summary>' + pictureStrip(c.pictures, c.after) + '</details>' : '') },
       { h: 'Yes from', v: (c) => esc(CHANGE_BY[c.by] || c.by) },
-      { h: 'State', v: (c) => '<span class="tag ' + (CHANGE_LEVEL[c.state] || '') + '">' + esc(CHANGE_STATE[c.state] || c.state) + '</span>' },
+      // A change that failed, which a pull request of its own fixed (its link is the last column): that, and not "Failed".
+      { h: 'State', v: (c) => c.fixedBy ? '<span class="tag good" title="Pull request ' + num(c.fixedBy.pr) + ' fixed it, and a new film came in after it">Fixed, filmed again</span>'
+        : '<span class="tag ' + (CHANGE_LEVEL[c.state] || '') + '">' + esc(CHANGE_STATE[c.state] || c.state) + '</span>' },
       { h: '', v: (c) => c.link ? '<a href="' + esc(c.link) + '" target="_blank" rel="noopener noreferrer">' + (c.pr ? 'PR ' + num(c.pr) : 'The run') + '</a>' : '' }
     ], changes) : '<p class="muted">Claude made no change to a video in the last 30 days.</p>';
   }
