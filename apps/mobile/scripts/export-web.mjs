@@ -221,7 +221,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // removed, the line naming study files their source does not have, and their English words in the catalog
 // every visit carries. The Map is where a visit starts, so none of it can load later. 1,255 bytes are left;
 // a first visit has 6,897.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 156 * 1024;
+// Raised by 16 KB with the copy of main's changes to this branch (release copy, 2026-11-21), 9 KB past
+// then: the first visit's growth below, which every chunk counts too.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 172 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -305,7 +307,11 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 156 * 1024;
 // grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
 // words in the catalog every visit carries. They show on the recording screen as it opens; the word's
 // sheet loads when first opened (keyTerms/lazySheets.tsx).
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
+// Raised by 16 KB with the copy of main's changes to this branch (release copy, 2026-11-21): a book's
+// own download button, the switch for a passage's reference material, the download marks' key, and
+// New language starting on Whole Bible, 8 KB past then, with their English words in the catalog every
+// visit carries.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 128 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
