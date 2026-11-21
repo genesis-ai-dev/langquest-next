@@ -197,7 +197,7 @@ function KeyLine(props: { stage: ChapterStage; label: string; sub?: string }) {
   );
 }
 
-/** The full key, one tap deeper under Filter: the three states, what "started" covers, and the green download button of kept chapters. */
+/** The full key, one tap deeper under Filter: the three states and what "started" covers. The download buttons' marks have a key of their own (sync/offline.tsx `DownloadKey`). */
 export function FullKey(props: { none: boolean }) {
   return (
     <View style={{ gap: space.sm }}>
@@ -205,10 +205,6 @@ export function FullKey(props: { none: boolean }) {
       <KeyLine stage="started" label={t('map.key.started')} sub={t('map.key.startedSub')} />
       <KeyLine stage="new" label={t('map.key.notStarted')} sub={t('map.key.notStartedSub')} />
       {props.none ? <KeyLine stage="none" label={t('map.key.noPassage')} sub={t('map.key.noPassageSub')} /> : null}
-      <View style={styles.keyLine}>
-        <View style={[styles.keyTile, { borderColor: onColor.green, backgroundColor: onColor.green, borderRadius: 14 }]}><Ico name="download" size={14} color={C.white} strokeWidth={2.75} /></View>
-        <Text style={[styles.keyLabel, { flex: 1 }]}>{t('map.key.kept')}</Text>
-      </View>
     </View>
   );
 }
