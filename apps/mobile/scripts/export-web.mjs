@@ -237,7 +237,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // removed, the line naming study files their source does not have, and their English words in the catalog
 // every visit carries. The Map is where a visit starts, so none of it can load later. 1,255 bytes are left;
 // a first visit has 6,897.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 159 * 1024;
+// Raised by 18 KB with the ten changes copied from main onto the iOS release branch (2026-11-21), 17,337
+// bytes past it: the book download buttons, their key and Remove sheet, the study-guide choice, the
+// install file's date and replace, Give the app's two ways, whole-Bible language setup and unheard
+// recordings, with their English words in the catalog every visit carries. About 1 KB is left.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 177 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -321,7 +325,10 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 159 * 1024;
 // grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
 // words in the catalog every visit carries. They show on the recording screen as it opens; the word's
 // sheet loads when first opened (keyTerms/lazySheets.tsx).
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
+// Raised by 12 KB with the same ten changes copied onto the iOS release branch (2026-11-21), 11,696
+// bytes past it: their English words and the Map's download marks, key and Remove sheet, which a visit
+// starts on and so cannot load later. About 600 bytes are left.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 124 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
