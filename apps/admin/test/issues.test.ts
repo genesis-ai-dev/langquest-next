@@ -45,7 +45,7 @@ describe('where a user issue is', () => {
     expect(logic.issueSource(['error:TypeError:x'])).toBe('Phones and browsers');
     expect(logic.issueSource(['transfer:down:http_500'])).toBe('Phones and browsers');
     expect(logic.issueSource(['job:projection:stopped'])).toBe('Server jobs');
-    expect(logic.issueSource(['worker:/api/agent:5xx'])).toBe('Workers and traffic');
+    expect(logic.issueSource(['worker:/api/agent:5xx'])).toBe('Web traffic');
     expect(logic.issueSource(['feedback:abc'])).toBe('A person sent it');
     expect(logic.issueSource(['ops:backup-late'])).toBe('The ops dashboard');
     expect(logic.issueSource([])).toBe('');

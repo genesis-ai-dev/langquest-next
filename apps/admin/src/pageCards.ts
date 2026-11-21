@@ -84,7 +84,7 @@ function noBoxSaid(state, read) {
   return {
     none: 'Claude files this problem in Linear within 15 minutes. Then you can tell Claude what to do here.',
     noise: 'Claude looked and found nothing to fix.',
-    person: 'You do this one yourself, in the list below.',
+    person: 'You do this one yourself, in the list on this page.',
     unreadable: 'The page could not read this part. A refresh reads it again.',
     count: 'Each issue has its own card on User issues.'
   }[state] || '';
@@ -160,8 +160,11 @@ let wantCard = null;
 function focusCard() {
   const v = view();
   if (!wantCard || v.name !== 'group') return;
+  // The summary draws on the next frame, and looks for the card again then.
+  if (sumQueued) return;
+  // The card is in the page's summary (pageSummary.ts), or in All the details (a build in Where each build and update is).
   const box = $('card-' + v.id);
-  const el = box && [...box.querySelectorAll('[data-card]')].find((x) => x.dataset.card === wantCard);
+  const el = box && [...$('sum').querySelectorAll('[data-card]'), ...box.querySelectorAll('[data-card]')].find((x) => x.dataset.card === wantCard);
   if (!el) {
     const g = SECTIONS.find((s) => s.id === v.id);
     // Every part answered and the card is not there: the line went (its check found it fixed).
@@ -175,6 +178,7 @@ function focusCard() {
   }
   // A card behind "Show the numbers" (a build in Where each build and update is): open what holds it.
   for (let d = el.parentElement; d; d = d.parentElement) if (d.tagName === 'DETAILS' && !d.open) d.open = true;
+  if (box.contains(el) && box.classList.contains('collapsed')) setOpen(v.id, true);
   el.classList.add('hit');
   el.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   setTimeout(() => el.classList.remove('hit'), 4000);

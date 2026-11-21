@@ -98,7 +98,7 @@ ol.steps li.now::after { background: var(--primary); border-color: var(--primary
 /** Pure: apps/admin/test/issues.test.ts runs these with new Function. */
 export const ISSUE_LOGIC = String.raw`
 /** Where the watch found a user issue, from the family of its first key (scripts/user-issues.mjs FAMILIES). */
-const ISSUE_SOURCES = { job: 'Server jobs', worker: 'Workers and traffic', feedback: 'A person sent it', ops: 'The ops dashboard' };
+const ISSUE_SOURCES = { job: 'Server jobs', worker: 'Web traffic', feedback: 'A person sent it', ops: 'The ops dashboard' };
 const PHONE_FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'slow', 'snapshot'];
 function issueSource(keys) {
   const family = String((keys || [])[0] || '').split(':')[0];
