@@ -116,8 +116,8 @@ export const METRICS: Record<string, Record<string, Metric>> = {
     p95_ms: { label: 'Run time, slowest 1 in 20', unit: 'ms' }
   },
   cron: {
-    runs: { label: 'pg_cron runs' },
-    failed: { label: 'pg_cron runs that failed' }
+    runs: { label: 'Database timer runs' },
+    failed: { label: 'Database timer runs that failed' }
   },
   push: {
     delivery: { label: 'Push delivery' }
