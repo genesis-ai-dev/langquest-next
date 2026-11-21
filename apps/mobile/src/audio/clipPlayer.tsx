@@ -23,7 +23,8 @@ import { formatNumber } from '../i18n/format';
 import { Ico, PlayGlyph } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { noteExpected, reportError } from '../diagnostics/report';
-import { countAudio, countWait } from './audioTally';
+import { countAudio } from './audioTally';
+import { PlayWait } from './playWait';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
 import type { LanguageHandle } from '../sync/useLanguage';
 import { a11yState } from '../ui/a11yModel';
@@ -67,7 +68,8 @@ export function ClipPlayer(props: {
   const [playing, setPlayingState] = useState(false);
   /** Sound has come since the last tap on Play; until then the button spins. */
   const [sounding, setSounding] = useState(false);
-  const tappedAt = useRef(0);
+  /** The tap on Play waiting for sound, and where its time goes (playWait.ts). */
+  const wait = useRef<PlayWait | null>(null);
   const [error, setError] = useState('');
   const [index, setIndex] = useState(0);
   const [at, setAt] = useState(0);
@@ -98,7 +100,7 @@ export function ClipPlayer(props: {
   const halt = () => {
     generation.current++;
     wants.current = false;
-    tappedAt.current = 0;
+    wait.current?.end(); wait.current = null;
     player.current?.pause();
     pauseNowPlaying(owner);
     setPlaying(false);
@@ -117,6 +119,7 @@ export function ClipPlayer(props: {
       // eslint-disable-next-line react-hooks/exhaustive-deps -- a counter, not a node: bumping it on cleanup is what stops the old play
       generation.current++;
       wants.current = false;
+      wait.current?.end(); wait.current = null;
       player.current?.remove();
       player.current = null;
       clearNowPlaying(owner);
@@ -149,7 +152,7 @@ export function ClipPlayer(props: {
       const ref = language.state ? { hash, format: audioFormat(language.state, hash) } : null;
       uri = (ref && language.blobs.uriFor(ref)) || undefined;
       if (!uri && ref && language.state && isStored(language.state, hash)) {
-        try { uri = await language.blobs.streamUri(ref); } catch (err) {
+        try { uri = await (wait.current ? wait.current.link(language.blobs.streamUri(ref)) : language.blobs.streamUri(ref)); } catch (err) {
           noteExpected('clip player stream', err);
           countAudio(language, 'streamFail');
           if (generation.current === run) { wants.current = false; setPlaying(false); setError(t('common.audioCouldNotLoad')); }
@@ -159,7 +162,7 @@ export function ClipPlayer(props: {
       }
     }
     if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(language, 'playNotHere'); return; }
-    uri = await playable(hash, uri, READY_MS);
+    uri = await (wait.current ? wait.current.copy(playable(hash, uri, READY_MS)) : playable(hash, uri, READY_MS));
     if (generation.current !== run || !wants.current) return;
     prepare(language, props.hashes[i + 1]);
     try {
@@ -177,7 +180,8 @@ export function ClipPlayer(props: {
         if (status.refused) { wants.current = false; setPlaying(false); tellNowPlaying(owner, hash, { ...status, playing: false }); countAudio(language, 'playFail'); return; }
         if (status.playing) {
           setSounding(true);
-          if (tappedAt.current) { countWait(language, Date.now() - tappedAt.current); tappedAt.current = 0; }
+          wait.current?.heard(language);
+          wait.current = null;
         }
         if (status.duration > 0) setClipLength(status.duration);
         setAt(status.currentTime);
@@ -186,7 +190,7 @@ export function ClipPlayer(props: {
         if (status.didJustFinish && player.current === p) void playFrom(i + 1, 0, generation.current);
       });
       if (from > 0) await p.seekTo(from);
-      if (generation.current === run && wants.current) p.play();
+      if (generation.current === run && wants.current) { wait.current?.played(); p.play(); }
     } catch (err) {
       wants.current = false; player.current?.remove(); player.current = null; setPlaying(false); clearNowPlaying(owner);
       countAudio(language, 'playFail');
@@ -201,7 +205,8 @@ export function ClipPlayer(props: {
     unlockRecordingPlayer();
     const run = ++generation.current;
     wants.current = true;
-    tappedAt.current = Date.now();
+    wait.current?.end();
+    wait.current = new PlayWait();
     setSounding(false);
     setPlaying(true);
     setError('');
@@ -214,7 +219,7 @@ export function ClipPlayer(props: {
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
       if (generation.current !== run) return;
       const p = player.current;
-      if (p && p.duration > 0 && p.currentTime < p.duration - 0.1) { p.play(); return; }
+      if (p && p.duration > 0 && p.currentTime < p.duration - 0.1) { wait.current?.played(); p.play(); return; }
       // At the very end (a seek there, or a listener who let it finish and pressed Play) it starts again from the top.
       const atEnd = !!p && p.duration > 0 && p.currentTime >= p.duration - 0.1;
       await playFrom(restartIndex(p ? { index: indexRef.current, atEnd } : null, count), 0, run);
