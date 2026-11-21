@@ -4674,6 +4674,20 @@
     "needsConnectionHelp": "Tidak ada di perangkat ini. Bisa diunduh setelah perangkat ini terhubung.",
     "checkingHelp": "Perangkat ini sedang menghitung bagian perikop ini yang ada padanya.",
     "recordingsHere": "Rekaman di perangkat ini",
+    "studyRefused_other": "{{count, number}} file studi tidak bisa diunduh: sumbernya tidak memilikinya.",
+    "key": {
+      "title": "Arti tombol unduh",
+      "help": "Menampilkan arti setiap tanda pada tombol unduh perikop.",
+      "noneSub": "Tidak disimpan. Ketuk untuk menyimpan rekaman dan bahan referensi perikop ini di perangkat ini.",
+      "downloadingSub": "File perikop ini sedang diunduh. Tetap terhubung sampai tombolnya menjadi hijau.",
+      "partial": "Hanya sebagian file di sini",
+      "partialSub": "Disimpan, tetapi sebagian file perikop ini belum ada di perangkat ini. Buka perikopnya untuk melihat berapa banyak.",
+      "recordingsSub": "Rekamannya bisa diputar tanpa koneksi. Bahan referensinya perlu koneksi.",
+      "readySub": "Rekaman dan bahan referensinya bisa dipakai tanpa koneksi.",
+      "noConnectionSub": "Tidak disimpan, dan perangkat ini sedang offline. Sambungkan untuk mengunduhnya.",
+      "checkingSub": "Perangkat ini masih menghitung bagian perikop yang ada padanya.",
+      "tap": "Ketuk tombol hijau untuk menghapus lagi file perikop itu dari perangkat ini."
+    },
     "reference": {
       "label": "Simpan juga bahan referensinya",
       "on": "Bahan referensinya juga disimpan di perangkat ini.",
@@ -4689,6 +4703,11 @@
       "noRoom": "Ruang di perangkat ini tidak cukup",
       "noRoomNeeds": "Audionya {{size}}. Perangkat ini punya ruang untuk {{room}}.",
       "noRoomHelp": "Kosongkan ruang di perangkat ini, atau unduh lebih sedikit perikop sekaligus.",
+      "removeTitle": "Hapus {{name}} dari perangkat ini?",
+      "removeConfirm": "Hapus dari perangkat ini",
+      "removeBody": "Rekamannya tetap ada di server. Untuk memutarnya lagi perlu koneksi.",
+      "removeCancelHelp": "Membiarkan semuanya di perangkat ini seperti adanya.",
+      "removeStay_other": "{{count, number}} perikop yang merupakan pekerjaan Anda tetap ada di perangkat ini.",
       "keepHelp": "Menyimpan rekaman setiap perikop di perangkat ini, agar bisa diputar tanpa koneksi. Untuk menyimpan juga bahan referensi sebuah perikop, buka perikop itu dan nyalakan pilihan tersebut.",
       "letGoHelp": "Membiarkan perangkat ini menghapus audionya lagi saat perlu ruang. Perikop yang merupakan pekerjaan Anda tetap disimpan.",
       "reason": "Disimpan karena Anda diminta mengerjakan perikop-perikop ini, atau sudah mengerjakannya.",
@@ -5188,8 +5207,7 @@
       "notStarted": "Belum dimulai",
       "notStartedSub": "Belum ada yang merekamnya",
       "noPassage": "Tidak ada perikop",
-      "noPassageSub": "Pasal ini tidak punya perikop dalam bahasa ini",
-      "kept": "Disimpan di perangkat ini untuk offline"
+      "noPassageSub": "Pasal ini tidak punya perikop dalam bahasa ini"
     },
     "joinSentences": "{{first}}. {{next}}",
     "joinClauses": "{{first}}, {{next}}",

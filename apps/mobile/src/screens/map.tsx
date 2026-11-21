@@ -23,7 +23,7 @@ import { t } from '../i18n';
 import { useLabels } from '../library/useLabels';
 import { itemName } from '../library/labelsModel';
 import { formatNumber, formatPercent } from '../i18n/format';
-import { DownloadButton, FillBanner, GroupDownloadButton, GroupOfflineBar } from '../sync/offline';
+import { DownloadButton, DownloadKey, FillBanner, GroupDownloadButton, GroupOfflineBar } from '../sync/offline';
 
 import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
 import { indexesFor } from '../sync/indexes';
@@ -388,6 +388,24 @@ function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPr
   );
 }
 
+/**
+ * A quiet link that opens what each download button's mark means (`DownloadKey`): under a book's download line, and
+ * over an outline's sections. The marks were defined nowhere a person looked (Carl, 2026-11-20).
+ */
+function DownloadKeyLink() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <View style={styles.quietRow}>
+        <QuietIconLink icon="info" label={t('offline.key.title')} onPress={() => setOpen(true)} detail={t('offline.key.help')} />
+      </View>
+      <Sheet visible={open} title={t('offline.key.title')} onClose={() => setOpen(false)}>
+        <DownloadKey />
+      </Sheet>
+    </>
+  );
+}
+
 /** An outline language (lessons, stories): its folders and their items instead of books and chapters (MAP-6). */
 function OutlineMap(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; languageId: string; entries: Entry[]; forYou: Set<string> }) {
   const [limits, setLimits] = useState<Record<string, number>>({});
@@ -395,6 +413,7 @@ function OutlineMap(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; l
   const sections = useMemo(() => outlineSections(props.entries).map(([name, list]) => ({ name, list, unitIds: list.map((e) => e.unitId) })), [props.entries]);
   return (
     <>
+      <DownloadKeyLink />
       {sections.map(({ name, list, unitIds }, s) => {
         const limit = limits[name] ?? PAGE;
         const shown = list.slice(0, limit);
@@ -719,6 +738,9 @@ export function BookMap(ctx: Ctx) {
           <FullKey none={chapters.some((c) => c.tone === 'none')} />
         </>
       ) : null}
+      {/* Every book's passages have download buttons, tiles or rows: their marks, each one named. */}
+      <SectionLabel label={t('offline.key.title')} />
+      <DownloadKey />
     </FilterSheet>
   );
   // The less likely way on, quiet, under the chapters: shaping the book, for those who may. It opens the ways to
@@ -730,8 +752,14 @@ export function BookMap(ctx: Ctx) {
     </View>
   ) : null;
 
-  // Over the book's passages: how many are on this device, and the button that downloads them all (decisions.md 166, LAN-316).
-  const bookOffline = <GroupOfflineBar ctx={ctx} unitIds={unitIds} testID="book-offline" />;
+  // Over the book's passages: how many are on this device, and the button that downloads them all (decisions.md 166, LAN-316);
+  // under it, what each passage's download button can show.
+  const bookOffline = (
+    <View style={{ gap: space.xs }}>
+      <GroupOfflineBar ctx={ctx} unitIds={unitIds} name={title} testID="book-offline" />
+      <DownloadKeyLink />
+    </View>
+  );
 
   // Passages that sit in no book have no chapters to lay out: a list, 25 at a time.
   if (!book) {

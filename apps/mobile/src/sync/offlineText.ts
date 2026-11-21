@@ -13,15 +13,26 @@ import { studyCounts, studyKnown, studyRevision } from '../study/studyFiles';
  * `studyUnknown`: its guide has not been looked up yet, so the device cannot
  * say its study files are here: not ready, still checking (decisions.md 166).
  */
-export type KeptOffline = UnitOffline & { studyHere: number; studyTotal: number; recordingsOnly: boolean; studyUnknown: boolean };
+export type KeptOffline = UnitOffline & {
+  studyHere: number; studyTotal: number; recordingsOnly: boolean; studyUnknown: boolean;
+  /** Study files the guide names that their source refused (not there): left out of `studyTotal`, and named instead. */
+  studyRefused?: number;
+};
 
-/** `light`: the passage is in the kept-for-recordings list (`blobs.recordingsOnly`). One that is the person's work takes its study guide whatever list it is in. */
+/**
+ * `light`: the passage is in the kept-for-recordings list (`blobs.recordingsOnly`). One that is the person's work takes its
+ * study guide whatever list it is in. A study file its source refused cannot keep the passage from being ready, and is named
+ * instead, as a recording nobody has sent yet is (decisions.md 61).
+ */
 export function withStudy(u: UnitOffline, unitId: string, light = false): KeptOffline {
   const recordingsOnly = light && u.reason === 'chosen';
   if (!u.reason || recordingsOnly) return { ...u, studyHere: 0, studyTotal: 0, recordingsOnly, studyUnknown: false };
-  const { here, total } = studyCounts(unitId);
+  const { here, total, refused } = studyCounts(unitId);
   const studyUnknown = !studyKnown(unitId);
-  return { ...u, studyHere: here, studyTotal: total, recordingsOnly, studyUnknown, ready: u.ready && !studyUnknown && here === total };
+  return {
+    ...u, studyHere: here, studyTotal: total, recordingsOnly, studyUnknown, ...(refused ? { studyRefused: refused } : {}),
+    ready: u.ready && !studyUnknown && here === total
+  };
 }
 
 /**
