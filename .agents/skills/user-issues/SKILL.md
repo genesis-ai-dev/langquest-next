@@ -605,6 +605,42 @@ above, with one more field:
   "answer": "I cannot find the account from here.\n\nThe records the phone sends hold no email. Do these steps on a Mac with diagnostics access:\n\n1. Run this. The install id is in the issue's Agent notes.\n```\nnpm run diag -- --hosted timeline <install id> --days 3\n```\n2. Read the profile id in the first line of the output."
   ```
 
+#### An issue from the Tutorial videos page
+
+An admin can say "Fix it" on a suggestion about a tutorial video, or the
+video fix run hands one over when it finds that the cause is in the app
+(docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md):
+the video shows something wrong that comes from the app, such as a word in
+the French app. Its issue's title starts with `Tutorial feedback: `, it has
+no kinds and no phones, its first instruction starts with "Fix it, from
+the Tutorial videos page", and `.user-issues/issue.json` holds `fixIt`.
+The issue's description and the instruction say what the video shows,
+what must change, and what Claude found when it tried to change the
+video. Change the app (its code, or its words in `apps/mobile/src/i18n/`),
+never the video's files in `e2e/tutorials/`: the video is filmed again as
+soon as the change is in main.
+
+The admin's Fix it is the yes: with no person, the fix merges when it
+keeps every other part of the rule (the gate, `go`). So:
+
+- First check on main that the app still does it wrong. When main already
+  has the fix, change nothing, and name the pull request that fixed it in
+  `answer`.
+- A change of what the words say, or of a screen, is what the admin asked
+  for. When you proved the cause and the change does only that, say `fix`,
+  not `review` or `decision`.
+- Prove it as any fix: a test that fails without the change (for words,
+  one that reads the language's string), or, for a screen's look, the
+  pictures of a display fix.
+- A change to the library, the database, sync, the server, sign-in, who
+  may do what, packages, native code, build or store settings, workflows,
+  secrets or privacy waits for a developer: the gate holds it. Say so in
+  `why`.
+- `fixIt.askFirst` is true when the admin asked to see the change before
+  it merges. Say `askFirst: true` in fix.json too when an instruction asks
+  that in other words. Then the fix waits until the admin says "merge it"
+  on the card.
+
 ### When a fix did not get into main
 
 Your fix passed the gate and its pull request was set to merge without a

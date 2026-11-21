@@ -71,7 +71,8 @@ checks each one in code.
 5. Typecheck and the tests nearest the change ran and passed (for a display
    fix: typecheck passed and no test failed).
 6. The reviewer agrees.
-7. No instruction from a developer waits on the issue.
+7. No instruction from a developer waits on the issue. (Fix it on a
+   tutorial video's card is the exception: below.)
 8. Guardrails pass on the pull request and again in the merge queue
    (`.github/rulesets/main.json`). GitHub holds this, not the team.
 
@@ -110,6 +111,22 @@ and nothing else changed. The gate wants both pictures
 (`gate()`, `verdict.display`). They are JPEG files of at most 150 KB, kept
 with the record and shown on the issue's card.
 
+### Fix it on a tutorial video's card
+
+An admin can say Fix it on a tutorial video's suggestion whose fix is in the
+app, and the video fix run hands one over itself when it finds that the cause
+of a change a person accepted is in the app
+(`docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md`).
+Its instructions are kept with `go`. The admin's word is the yes for that one
+fix: rules 1 and 7 do not hold it, and every other rule still does. So it
+merges with no person, also in mode `ask`, only when it changes app screens
+or words, the dashboard, the core and tests, its cause is proven and it does
+only what was asked, a test or the two pictures prove it, and the checks and
+the reviewer pass. It waits for the admin when they ticked "Ask me before it
+merges", when an instruction on the card asks that in words (`saysAskFirst`),
+or when the manager says `askFirst` in `fix.json`. A repair of such a fix
+(below) keeps `go`. After the merge, the video fix run films the video again.
+
 A developer can also merge a draft fix from the ops dashboard: write "merge
 it" in the box on the issue's card. The manager then says `approved` and
 changes nothing; the script checks both, and the draft pull request merges
@@ -121,7 +138,7 @@ when its checks pass.
 
 | Mode | What happens |
 | --- | --- |
-| `ask` | Every fix waits for a developer. The record says when a fix passed every other part of the rule. This is where it starts. |
+| `ask` | Every fix waits for a developer, except one an admin asked for with Fix it on a tutorial video's card (above). The record says when a fix passed every other part of the rule. This is where it starts. |
 | `on` | A fix that passes the rule merges without a person. |
 | `off` | The team writes no fix. The watch still files issues. |
 

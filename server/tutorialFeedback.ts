@@ -69,7 +69,32 @@ export interface Suggestion {
   pictures?: Picture[];
   /** The same places after its fix was merged and the video filmed again. */
   after?: Picture[];
+  /** Where the fix in the app is, once an admin said "Fix it" (`ops.tutorial_app_json`); null before. */
+  app?: AppFix | null;
   inputs: FeedbackInput[];
+}
+
+/**
+ * "Fix it": the agent team changes the app for a suggestion, and the fix merges on the preset rules with no tap, then
+ * the video is filmed again (docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md).
+ * `askFirst`: the admin asked to see the change before it merges. `handed`: the video fix run handed it over (the
+ * cause of an accepted change is in the app). The instructions on the suggestion's Linear issue, the newest first
+ * (the first is "Fix it" itself, later ones "merge it" and the like); the agent team's record of the issue
+ * (ops.user_issue_fixes) once it wrote one; when the video was sent to be filmed again after the merge, and when
+ * its new film came in.
+ */
+export interface AppFix {
+  askedAt: string;
+  askFirst?: boolean;
+  handed?: boolean;
+  notes: { at: string; text: string; takenAt: string | null; tries: number; answeredAt: string | null; result: 'changed' | 'answered' | 'none' | null; answer: string | null; pr: number | null }[];
+  fix: {
+    decision: 'merge' | 'waits' | 'none'; reason: string | null; why: string | null; pr: number | null; verdict: string | null;
+    summary: string | null; cause: string | null; review: string | null; runUrl: string | null; at: string; before: boolean; beforeAfter: boolean;
+  } | null;
+  refilmAt?: string | null;
+  refilmPr?: number | null;
+  filmedAt?: string | null;
 }
 
 /**
@@ -153,6 +178,10 @@ export function issueOf(s: Suggestion, languageName: (code: string) => string): 
       ...(s.tutorial ? [`Video: ${s.tutorial}`, ''] : []),
       ...(answers.length ? ['What it answers:', '', ...answers] : []),
       ...(s.reason ? [`Accepted with: ${s.reason}`, ''] : []),
+      ...(s.fix?.state === 'failed' && s.fix.note ? [`When Claude tried to change the video: ${s.fix.note}`, ''] : []),
+      ...(s.app ? [s.app.handed
+        ? 'An admin accepted this change, and Claude found that its cause is in the app: the agent team changes the app (docs/agent-team.md). The fix merges with no person when it keeps the agent team\'s rule, and then the video is filmed again.'
+        : `An admin said "Fix it" on the ops dashboard: the agent team changes the app (docs/agent-team.md). ${s.app.askFirst ? 'The admin asked to see the change before it merges.' : 'The fix merges with no person when it keeps the agent team\'s rule, and then the video is filmed again.'}`, ''] : []),
       'Suggested by Claude and accepted on the ops dashboard (docs/tutorial-videos.md, decisions.md 186).'
     ].join('\n')
   };
@@ -347,12 +376,18 @@ export function parseReview(input: unknown): Review {
 // ---- where each fix is, as the fix jobs say it (POST /api/tutorial-review/fixes) -------------------
 
 /** A fix's move, as the fix jobs send it and `ops_tutorial_fixed` takes it. */
-export interface FixUpdate { id: string; state: FixState; pr: number | null; note: string | null }
+/**
+ * A suggestion's move. `app`: with `failed`, Claude found that the cause is in the app, not the video, and the
+ * change goes to the agent team (ops_tutorial_fix_to_app; docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md).
+ */
+export interface FixUpdate { id: string; state: FixState; pr: number | null; note: string | null; app?: boolean }
+/** A fix in the app whose pull request merged, and whose video the run sent to be filmed again. */
+export interface Refilmed { id: string; pr: number }
 /** More than a run could send; a list past it is refused whole. */
 export const FIX_UPDATES_MAX = 50;
 
 /** What a fix run sent: the run it is, and each suggestion's move. A ReviewError says the first thing wrong. */
-export function parseFixUpdates(input: unknown): { runUrl: string; updates: FixUpdate[] } {
+export function parseFixUpdates(input: unknown): { runUrl: string; updates: FixUpdate[]; refilmed: Refilmed[] } {
   if (!isObj(input)) throw new ReviewError('not an object');
   if (typeof input['runUrl'] !== 'string' || !RUN.test(input['runUrl'])) throw new ReviewError(`runUrl: a run of ${REPOSITORY}`);
   const updates = list(input, 'updates', FIX_UPDATES_MAX).map((u, n) => {
@@ -365,7 +400,16 @@ export function parseFixUpdates(input: unknown): { runUrl: string; updates: FixU
     if (pr === null && ['open', 'merged', 'closed'].includes(state)) throw new ReviewError(`${where}.pr: the pull request, for ${state}`);
     // Why there is no fix: only for the dashboard, which is private.
     const note = u['note'] === null || u['note'] === undefined || u['note'] === '' ? null : text(u, 'note', where, 1000);
-    return { id: u['id'], state: state as FixState, pr: pr as number | null, note };
+    const app = u['app'] ?? false;
+    if (typeof app !== 'boolean' || (app && state !== 'failed')) throw new ReviewError(`${where}.app: true only with failed`);
+    return { id: u['id'], state: state as FixState, pr: pr as number | null, note, ...(app ? { app: true } : {}) };
   });
-  return { runUrl: input['runUrl'], updates };
+  const refilmed = (input['refilmed'] === undefined ? [] : list(input, 'refilmed', FIX_UPDATES_MAX)).map((r, n) => {
+    const where = `refilmed[${n}]`;
+    if (!isObj(r) || typeof r['id'] !== 'string' || !UUID.test(r['id'])) throw new ReviewError(`${where}.id: a suggestion's id`);
+    const pr = r['pr'];
+    if (!(Number.isInteger(pr) && (pr as number) > 0 && (pr as number) <= 10_000_000)) throw new ReviewError(`${where}.pr: the pull request that merged`);
+    return { id: r['id'], pr: pr as number };
+  });
+  return { runUrl: input['runUrl'], updates, refilmed };
 }

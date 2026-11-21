@@ -82,3 +82,15 @@ hear of each one: "I just want Claude to fix it and get it into main. Maybe
 try 3 times and then ask a dev if all those times fail." It applies only
 to pull requests the gate let through, so a change Claude makes on the way
 in keeps the same rule. The manager may never skip or weaken a test.
+
+Amended (2026-11-21, Caleb Koster): an admin's Fix it on a tutorial video's
+card is the yes for that one fix. Its instructions are kept with `go`, and
+the gate lets the fix merge with no person, also in mode `ask`, when it
+keeps every other part of the rule: only app screens or words, the
+dashboard, the core and tests; the cause proven and only what was asked; a
+test or the two pictures; the checks and the second Claude. It waits when
+an instruction on the card asks to see the change first
+(docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md).
+Reason: Caleb wants the fix and the new film with no tap after his
+instruction, and the mode stays `ask` for the fixes the team starts by
+itself.

@@ -248,6 +248,17 @@ function issueTabs(ways, chosen) {
 }
 
 /** The steps of a question about a tutorial video (sources/videos.ts AdminItem), as ISSUE_STEPS. */
+/** A fix in the app, from Fix it to the new film (docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md). */
+const APP_STEPS = [['You asked', ''], ['Claude fixes the app', 'Claude\'s agent team changes the app'], ['Checks', 'the checks and a second Claude read the fix'],
+  ['Merged', 'the fix waits on its merge'], ['Filmed again', 'the video is filmed again']];
+/** The step each stage of a fix in the app waits at (sources/videos.ts AppStage), and its words when they are not the step's own. */
+const APP_AT = { filing: [2, 'the fix goes to Linear, then to Claude\'s agent team'], queued: [2, 'Claude\'s agent team starts within 15 minutes'], writing: [2, ''],
+  none: [2, 'Claude made no change: read its answer'], checks: [3, 'the fix merges by itself when its checks pass'], yours: [4, 'the fix waits on your yes'],
+  merged: [5, 'Claude\'s next fix run films the video again'], filming: [5, ''], filmed: [6, ''] };
+function appSteps(a) {
+  const w = APP_AT[a.app.stage] || [2, ''];
+  return [APP_STEPS.map((x, i) => (i === w[0] - 1 && w[1] ? [x[0], w[1]] : x)), w[0]];
+}
 const VIDEO_STEPS = [['Found', ''], ['Claude looks', 'waits on Claude\'s look'], ['You answer', 'waits on your answer'], ['Claude changes the video', 'Claude makes the change'], ['Merged', 'the change waits on its merge']];
 /**
  * The step a video's card waits at ('at', as issueWay): Claude's look before
@@ -455,9 +466,9 @@ document.addEventListener('click', (e) => {
 });
 
 // ---- a question about a tutorial video (sources/videos.ts AdminItem), in the same card ----
-const ADMIN_KIND = { approve: 'Suggestion', fixFailed: 'Change failed', held: 'Film held', fails: 'Film fails', reply: 'Reply to post', comment: 'New comment', screen: 'Screen changed', publish: 'Publish', connect: 'Channel', paused: 'Paused' };
+const ADMIN_KIND = { approve: 'Suggestion', appFix: 'App fix', fixFailed: 'Change failed', held: 'Film held', fails: 'Film fails', reply: 'Reply to post', comment: 'New comment', screen: 'Screen changed', publish: 'Publish', connect: 'Channel', paused: 'Paused' };
 /** Where each kind of card comes from. */
-const ADMIN_FROM = { approve: 'Claude\'s look at 10:00 UTC', fixFailed: 'Claude\'s fix run', held: 'The frame check on the new film', fails: 'The nightly filming', reply: 'A comment on YouTube', comment: 'A comment on YouTube', screen: 'A change merged into main' };
+const ADMIN_FROM = { approve: 'Claude\'s look at 10:00 UTC', appFix: 'You said Fix it', fixFailed: 'Claude\'s fix run', held: 'The frame check on the new film', fails: 'The nightly filming', reply: 'A comment on YouTube', comment: 'A comment on YouTube', screen: 'A change merged into main' };
 /** What the start of each kind of card did, in the card's record after its source (ADMIN_FROM). */
 const ADMIN_FOUND = { fixFailed: 'could not make the change', held: 'held it back', fails: 'could not film the video', reply: 'came in', comment: 'came in', screen: 'changed a screen in the video' };
 const inputSaid = (i) => '<li><small>' + esc(i.kind === 'comment' ? 'Comment' : i.kind === 'code' ? 'Code change' : 'Note') + ' · ' + when(i.at) + '</small><br>' + esc(i.english || i.text) + '</li>';
@@ -476,8 +487,16 @@ function talkHtml(ins, send) {
   return '<div class="talk"><p class="said you">' + esc(ins.text) + '</p><small class="you">' + esc(by) + ' · ' + when(ins.at) + '</small>' +
     '<div class="said claude">' + saidHtml(answer + (fix && fix.note ? '\n\n' + fix.note : '')) + '</div><small>Claude' + (fix && fix.at ? ' · ' + when(fix.at) : '') + where + '</small></div>';
 }
-function suggestionSide(s) {
-  return '<p class="ibtns"><button type="button" class="primary" data-sg="' + esc(s.id) + '" data-decision="accept" data-kind="' + esc(s.kind) + '">Accept</button>' +
+/** Fix it, and the box beside it: "Ask me before it merges" holds the fix for the admin's yes. */
+function fixItButton(id, label, primary) {
+  return '<span class="vfixapp"><button type="button"' + (primary ? ' class="primary"' : '') + ' data-fixapp="' + esc(id) + '">' + esc(label) + '</button>' +
+    '<label class="vask"><input type="checkbox" data-askfirst="' + esc(id) + '"> Ask me before it merges</label></span>';
+}
+function suggestionSide(s, fixApp) {
+  // A change in the app: Fix it (the agent team writes it, and it merges on the rules), or only an issue in Linear for a person.
+  return '<p class="ibtns">' + (fixApp ? fixItButton(s.id, 'Fix it', true) +
+      '<button type="button" data-sg="' + esc(s.id) + '" data-decision="accept" data-kind="' + esc(s.kind) + '">Only file in Linear</button>'
+      : '<button type="button" class="primary" data-sg="' + esc(s.id) + '" data-decision="accept" data-kind="' + esc(s.kind) + '">Accept</button>') +
     '<button type="button" data-sg="' + esc(s.id) + '" data-decision="reject">Reject</button></p>' +
     '<details><summary>Edit</summary><label for="sg-' + esc(s.id) + '">What to change</label><textarea id="sg-' + esc(s.id) + '" maxlength="4000" rows="6">' + esc(s.detail) + '</textarea>' +
     '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="edit">Save</button></p></details>';
@@ -504,6 +523,30 @@ function replyBox(a) {
 function retryButton(a) {
   return a.retry && a.instruct && !a.instructed ? '<button type="button" class="vretry primary" data-retry="' + esc(cardId(a)) + '">' + vicon('now') + 'Try again</button>' : '';
 }
+/**
+ * A fix in the app (Fix it): what the agent team changed, the screen before and after when it kept them, its newest
+ * answer, why it waits on the admin when it does, then Merge (the instruction "merge it" on its issue, as on a user
+ * issue's card) only then, and the box to tell it more ("ask me first", "change the word to ..."). The chain itself
+ * is in the card's steps and record.
+ */
+function appSide(a) {
+  const x = a.app, issue = x.issue ? esc(x.issue) : '';
+  const pics = !issue ? '' : x.after ? '<div class="ifixpics">' + [['before', 'Before the fix'], ['after', 'After the fix']].map((w) =>
+      '<figure><figcaption>' + w[1] + '</figcaption><img alt="The screen ' + w[0] + ' the fix" data-fixpic="' + issue + '" data-what="' + w[0] + '"></figure>').join('') + '</div>'
+    : x.before ? '<figure><figcaption>The problem on the screen</figcaption><img alt="The screen where the problem shows" data-fixpic="' + issue + '" data-what="before"></figure>' : '';
+  const answer = x.answer ? '<div class="said claude">' + saidHtml(x.answer) + '</div><small>Claude\'s agent team</small>' : '';
+  const see = x.pr ? '<a class="button" href="' + esc(PR_URL + x.pr) + '/files" target="_blank" rel="noopener noreferrer">See the change</a>' : '';
+  const merge = x.stage === 'yours' && issue ? '<p class="ibtns"><button type="button" class="primary" data-appmerge="' + issue + '">Merge</button>' + see + '</p>' : see ? '<p class="ibtns">' + see + '</p>' : '';
+  const ask = x.askFirst && x.stage !== 'yours' && x.stage !== 'merged' && x.stage !== 'filming' && x.stage !== 'filmed' ? '<small>You asked to see the change before it merges.</small>' : '';
+  const tell = !issue || x.stage === 'filmed' ? '' : '<div class="tell"><textarea maxlength="2000" rows="3" aria-label="What Claude must do" placeholder="' +
+      (x.stage === 'yours' ? 'Tell Claude what to change first…' : 'Tell Claude more, or say: ask me first…') + '"></textarea>' +
+    '<small>Claude\'s agent team reads it at its next run (every 15 minutes).</small><button type="button"' + (x.stage === 'yours' ? '' : ' class="primary"') + ' data-uinote="' + issue + '">Send to Claude</button></div>';
+  return pics + answer + ask + merge + (x.stage === 'yours' && tell ? '<details><summary>Tell Claude what to change first</summary>' + tell + '</details>' : tell);
+}
+/** "Fix it in the app", for a change to the video that failed because its cause is in the app. */
+function fixAppButton(a) {
+  return a.kind === 'fixFailed' && a.fixApp ? fixItButton(a.fixApp, 'Fix it in the app', false) : '';
+}
 /** One thing for an admin: what it is and where it came from, who acts next, the talk so far, and where it applies, the box to tell Claude what to do. */
 function adminCard(a) {
   const ins = a.instructed, id = esc(cardId(a));
@@ -527,12 +570,12 @@ function adminCard(a) {
       [ins ? '' : 'Solution', ins ? '' : esc(a.next)]
     ],
     pill: a.who === 'you' ? ['Waits on you', 'you'] : ['Claude acts next', 'claude'],
-    steps: [VIDEO_STEPS, videoWay(a).at],
+    steps: a.app ? appSteps(a) : [VIDEO_STEPS, videoWay(a).at],
     record: a.tutorial && a.language ? recordHtml(cardRecord(VIDEOS && VIDEOS.records, a.tutorial + '/' + a.language, SENDS, 'video:' + cardId(a),
       a.at && ADMIN_FOUND[a.kind] ? { at: a.at, who: ADMIN_FROM[a.kind], said: ADMIN_FOUND[a.kind] } : null), a.who === 'you' ? ['Waits on you', 'you'] : ['Claude acts next', 'claude']) : '',
-    side: a.reply ? replyBox(a) : (a.suggestion ? suggestionSide(a.suggestion) : '') + talkHtml(ins, a.send) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
-      // A change Claude could not make: Try again is the main button, and the box is behind "instead".
-      retry + (retry && tell ? '<details><summary>Tell Claude what to do instead</summary>' + tell + '</details>' : tell)
+    side: a.reply ? replyBox(a) : a.app ? appSide(a) : (a.suggestion ? suggestionSide(a.suggestion, a.fixApp) : '') + talkHtml(ins, a.send) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
+      // A change Claude could not make: Try again is the main button, Fix it in the app beside it, and the box is behind "instead".
+      retry + fixAppButton(a) + (retry && tell ? '<details><summary>Tell Claude what to do instead</summary>' + tell + '</details>' : tell)
   });
 }
 `;

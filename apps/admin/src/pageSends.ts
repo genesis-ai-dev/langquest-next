@@ -103,6 +103,14 @@ const REFUSED_SAID = { decided: 'another admin answered it first', not_found: 'C
  * One entry of a card's record in words: who, what they did, and the words it was about (a suggestion's
  * title, an admin's instruction, the start of Claude's answer). bad: the tap was refused or failed.
  */
+/** The agent team's record of a fix in the app, as its decision and reason say it ('merge', 'waits:paths', 'none:not_a_bug'). */
+function appFixSaid(d) {
+  if (d === 'merge') return 'wrote the fix. It keeps the rules, so it merges by itself when its checks pass';
+  if (d === 'waits:instruction') return 'wrote the fix. It waits for your yes, as you asked';
+  if (d === 'waits:stalled') return 'tried 3 times to get the fix into main. It waits for a developer';
+  if (d.startsWith('waits')) return 'wrote the fix. The rules say a developer must read it';
+  return 'made no change';
+}
 function recordSaid(r) {
   const ok = r.result === 'ok';
   const what = {
@@ -111,7 +119,14 @@ function recordSaid(r) {
     user_issue_note: 'sent an instruction to Claude',
     reply_posted: 'posted the reply on YouTube', reply_none: 'said that no reply is needed', reply_open: 'put the reply back on the list',
     suggested: 'suggested a change', answered: r.detail === 'changed' ? 'answered and changed the draft fix' : r.detail === 'none' ? 'wrote no answer' : 'answered',
-    fix: FIX_DONE[r.detail] || 'changed the video'
+    fix: FIX_DONE[r.detail] || 'changed the video',
+    // A fix in the app (docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md), step by step.
+    suggestion_fix: String(r.detail || '').endsWith(':ask_first') ? 'said Fix it, and asked to see the change before it merges' : 'said Fix it: Claude\'s agent team changes the app',
+    handed: 'found that the cause is in the app, and gave the fix to its agent team',
+    taken: 'started the fix in the app',
+    appfix: appFixSaid(String(r.detail || '')),
+    refilm: 'saw the fix merged, and sent the video to be filmed again',
+    filmed: 'filmed the video again: the new film is in'
   }[r.what] || r.what;
   const pr = r.pr ? ' (pull request ' + r.pr + ')' : '';
   const refused = ok ? '' : r.result === 'error' ? '. It did not work (' + (r.detail || 'an error') + ')' : '. Refused: ' + (REFUSED_SAID[r.detail] || r.detail || 'no reason given');

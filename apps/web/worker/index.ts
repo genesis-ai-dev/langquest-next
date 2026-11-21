@@ -22,6 +22,7 @@ import { isOpsPath, toOps } from './ops';
 import { pokeInBatches } from './batches';
 import { handleDownload, handleWatch } from './tutorialVideos';
 import { githubOidc } from './githubOidc';
+import { fileSuggestion } from './fileSuggestion';
 import { nearbySigner, parseCertKeys, subtleSha256, subtleVerify, type NearbySigner } from './nearbyKeys';
 import type { AccountDeps } from './nearbyJoin';
 
@@ -406,6 +407,18 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       fixed: async (u, runUrl) => {
         const { data, error } = await serviceClient(env).rpc('ops_tutorial_fixed', { p_id: u.id, p_state: u.state, p_pr: u.pr, p_run: runUrl, p_note: u.note });
         if (error) throw new Error(`ops_tutorial_fixed: ${error.message}`);
+        if (data !== 'ok' || !u.app) return data as string;
+        // The cause is in the app: the agent team fixes it, as if the admin who said yes had tapped Fix it.
+        const handed = await serviceClient(env).rpc('ops_tutorial_fix_to_app', { p_id: u.id });
+        if (handed.error) throw new Error(`ops_tutorial_fix_to_app: ${handed.error.message}`);
+        if (handed.data !== 'handed') return `ok:${String(handed.data)}`;
+        // Filed in Linear now, as Fix it on the card does; without a key, or when Linear fails, the comments job files it at night.
+        await fileSuggestion(serviceClient(env), env.LINEAR_API_KEY, u.id).catch((e: unknown) => console.error(`tutorial fix to app: ${e instanceof Error ? e.name : 'unknown'}`));
+        return 'ok:handed';
+      },
+      refilmed: async (r) => {
+        const { data, error } = await serviceClient(env).rpc('ops_tutorial_app_refilmed', { p_id: r.id, p_pr: r.pr });
+        if (error) throw new Error(`ops_tutorial_app_refilmed: ${error.message}`);
         return data as string;
       },
       record: jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),

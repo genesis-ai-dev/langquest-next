@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { addedLines, AUDIENCE, API, changesOf, CHANGES_MAX, checkFix, checkResults, checkVet, codeRefusal, FIX_LIMITS, FIXABLE, fixBranch, fixPull, fixRefusal, knownPictures, OPEN_HOURS, openVerdict, pictureLabel, pictureOf, picturePlaces, PICTURE_LIMITS, picturesMarkdown, prOf, prStateOf, problemsOf, runUrl, withPictures, withRun } from './tutorial-review.mjs';
+import { addedLines, AUDIENCE, API, changesOf, CHANGES_MAX, checkFix, checkResults, checkVet, codeRefusal, FIX_LIMITS, FIXABLE, fixBranch, fixPull, fixRefusal, knownPictures, OPEN_HOURS, openVerdict, pictureLabel, refilmInputs, pictureOf, picturePlaces, PICTURE_LIMITS, picturesMarkdown, prOf, prStateOf, problemsOf, runUrl, withPictures, withRun } from './tutorial-review.mjs';
 import { FIXES_PATH, FIXES_PER_RUN, PICTURES_PATH, REVIEW_PATH, REVIEW_RULE } from '../apps/web/worker/tutorialReview';
 import { FIXABLE_KINDS, parseReview, PICTURE_MAX } from '../server/tutorialFeedback';
 
@@ -368,7 +368,19 @@ describe('tutorial-review.mjs', () => {
       expect(checkFix({ already: 'Step 4 already has no pause.', summary: 'x' })).toEqual({ summary: '', noFix: '', already: 'Step 4 already has no pause.' });
       expect(checkFix(null).noFix).toBe('Claude wrote no summary of a change.');
       expect(checkFix({ summary: 'x'.repeat(5000) }).summary).toHaveLength(FIX_LIMITS.summary);
+      // The cause is in the app: only with why there is no change to the video.
+      expect(checkFix({ noFix: 'The capital comes from the app (common.justNow).', app: true })).toEqual({ summary: '', noFix: 'The capital comes from the app (common.justNow).', already: '', app: true });
+      expect(checkFix({ summary: 'Step 9 says Done.', app: true })).toEqual({ summary: 'Step 9 says Done.', noFix: '', already: '' });
+      expect(checkFix({ noFix: 'x', app: 'yes' })).not.toHaveProperty('app');
       expect(checkResults({ typecheck: 'passed', tests: 'all good, trust me' })).toEqual({ typecheck: 'passed', tests: 'not run' });
+    });
+
+    it('films again, in one run, only the videos whose fix in the app merged, in their languages', () => {
+      expect(refilmInputs([{ tutorial: 'consultant-check', language: 'fr' }, { tutorial: 'record-a-passage', language: 'es' }, { tutorial: 'consultant-check', language: 'es' }]))
+        .toEqual({ languages: 'fr,es', videos: 'consultant-check record-a-passage' });
+      // A suggestion for every language films the nightly list.
+      expect(refilmInputs([{ tutorial: 'consultant-check', language: 'fr' }, { tutorial: 'record-a-passage', language: null }])).toEqual({ languages: '', videos: 'consultant-check record-a-passage' });
+      expect(refilmInputs([{ tutorial: '../x; rm', language: 'fr; rm' }, { tutorial: 'a', language: 'fr' }])).toEqual({ languages: 'fr', videos: 'a' });
     });
 
     it('opens a pull request that says what was accepted, links what it answers and never quotes a commenter', () => {

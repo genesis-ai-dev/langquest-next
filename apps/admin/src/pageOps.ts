@@ -493,10 +493,10 @@ function sayAt(button, text, tone) {
   p.textContent = text;
 }
 /** What a button says while its tap goes, by the tap's kind. */
-const BUSY = { run: 'Starting…', 'tutorials-publish': 'Publishing…', 'tutorial-note': 'Sending…', 'user-issue-note': 'Sending…', 'tutorial-suggestion': 'Saving…', 'tutorial-reply': 'Saving…' };
+const BUSY = { run: 'Starting…', 'tutorials-publish': 'Publishing…', 'tutorial-note': 'Sending…', 'user-issue-note': 'Sending…', 'tutorial-suggestion': 'Saving…', 'tutorial-reply': 'Saving…', 'tutorial-fix': 'Sending…' };
 /** The parts a tap changes, read again from their source when it is done (page.ts reread). */
-const AFTER = { 'tutorial-note': ['videos', 'ops'], 'tutorial-suggestion': ['videos', 'ops'], 'tutorial-reply': ['videos', 'ops'], 'tutorials-publish': ['videos', 'ops'],
-  'user-issue-note': ['ops'], 'quiet-account': ['ops'], verification: ['ops'], feedback: ['diag'], run: ['diag', 'container'] };
+const AFTER = { 'tutorial-note': ['videos', 'ops'], 'tutorial-suggestion': ['videos', 'ops'], 'tutorial-fix': ['videos', 'ops'], 'tutorial-reply': ['videos', 'ops'], 'tutorials-publish': ['videos', 'ops'],
+  'user-issue-note': ['ops', 'videos'], 'quiet-account': ['ops'], verification: ['ops'], feedback: ['diag'], run: ['diag', 'container'] };
 /** Each part of the page a message to Claude shows on, drawn again from what the page holds. */
 function redrawSends() { for (const id of ['videos', 'userissues', 'research']) if (results[id]) show(id, results[id]); }
 /**
@@ -523,6 +523,8 @@ async function perform(action, button, opts) {
       : action.kind === 'user-issue-note' ? 'Sent. Claude reads it at the next run of the watch, ' + watchSaid() + '.'
       : action.kind === 'quiet-account' ? (action.ok ? 'Marked not an issue. Its quiet installs no longer count in the warning.' : 'Its quiet installs count in the warning again.')
       : action.kind === 'tutorial-reply' ? (body.result === 'posted' ? 'Marked as posted.' : body.result === 'none' ? 'Marked: no reply needed.' : 'The reply waits again.')
+      : action.kind === 'tutorial-fix' ? (body.result === 'fixing:waiting' ? 'Sent. It goes to Linear tonight, then Claude\'s agent team fixes the app.' : 'Sent as ' + body.result.slice(7) + '. Claude\'s agent team starts the app fix within 15 minutes.')
+        + (action.askFirst ? ' The fix waits for your yes before it merges.' : ' The fix merges by itself when it keeps the rules, and then the video is filmed again.')
       : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
       : 'Feedback marked ' + body.result + '.';
     if (talk) { SENDS.set(talk.key, { ...SENDS.get(talk.key), state: 'sent' }); say(said, 'good'); }
@@ -622,6 +624,18 @@ document.addEventListener('click', (e) => {
       else say('Write what to change before saving.', 'red');
     }
   }
+  // Fix it: the agent team changes the app for this suggestion; the fix merges on the agent team's rule, then the video is filmed again.
+  const fx = e.target.closest && e.target.closest('[data-fixapp]');
+  if (fx) {
+    // "Ask me before it merges", beside the button: the fix then waits for the admin's yes.
+    const box = document.querySelector('[data-askfirst="' + fx.dataset.fixapp + '"]');
+    const askFirst = !!(box && box.checked);
+    if (confirm(askFirst ? 'Fix this in the app? Claude\'s agent team changes the app. You see the change, and it merges only after you say Merge. Then the video is filmed again.'
+      : 'Fix this in the app? Claude\'s agent team changes the app. The fix merges by itself when it keeps the rules, with no tap from you. Then the video is filmed again.')) perform({ kind: 'tutorial-fix', id: fx.dataset.fixapp, askFirst }, fx);
+  }
+  // Merge on an app fix's card: the instruction "merge it" on its issue, as on a user issue's card.
+  const mg = e.target.closest && e.target.closest('[data-appmerge]');
+  if (mg && confirm('Merge Claude\'s app fix? Claude merges the pull request when its checks pass.')) perform({ kind: 'user-issue-note', issue: mg.dataset.appmerge, text: 'merge it' }, mg);
   const note = e.target.closest && e.target.closest('[data-note]');
   if (note) {
     const text = ($('note-text') || {}).value || '';
@@ -635,7 +649,7 @@ let VIDEOS = null;
 // The timeline shows 60 days; its zoom is how wide a day is. A pinch on a touchpad (or Ctrl and the scroll wheel) zooms it; it opens at the last 14 days.
 let videoLanguage = 'en', dayWidth = 0, shownMarks = [], onlyMine = false, openCards = null;
 const TIMELINE_DAYS = 60;
-const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', approve: 'warn', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
+const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', approve: 'warn', appFix: '', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
 const cardLink = (x) => x.link ? '<a href="' + esc(x.link) + '"' + (x.link.startsWith('#') ? '' : ' target="_blank" rel="noopener noreferrer"') + '>' + esc(ADMIN_LINKS[x.kind] || WORKER_LINKS[x.kind] || 'Open') + '</a>' : '';
 const FIX_STATE = { working: 'Claude writes the change now.', open: 'Claude\'s pull request merges itself when its checks pass.', merged: 'The change is merged. The next night films the video again.', closed: 'The pull request was closed without a merge.', failed: 'Claude could not make the change.', unneeded: 'No change was needed: the video already does this.' };
 // The record of changes Claude made (sources/videos.ts ChangeItem).

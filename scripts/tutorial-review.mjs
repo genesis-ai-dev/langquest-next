@@ -373,6 +373,7 @@ export const OPEN_HOURS = 24;
 const DISGUISE = /\b(disguis\w*|calculators?|notepads?)\b/i;
 const VIDEO = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const LANGUAGE = /^[a-z]{2,3}(-[A-Z][a-z]{3})?$/;
 const REPO = 'genesis-ai-dev/langquest-next';
 const FIX_BOT = { name: 'github-actions[bot]', email: '41898282+github-actions[bot]@users.noreply.github.com' };
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -503,7 +504,10 @@ export function checkFix(raw) {
   if (already) return { summary: '', noFix: '', already };
   const summary = cut(said(o.summary), FIX_LIMITS.summary);
   const noFix = cut(said(o.noFix), FIX_LIMITS.noFix);
-  return { summary, noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), already: '' };
+  // `app`: with noFix, the cause is in the app (its code, its words or the library), not the video. A change a
+  // person accepted then goes to the agent team (docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md).
+  const fix = { summary, noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), already: '' };
+  return o.app === true && noFix ? { ...fix, app: true } : fix;
 }
 
 /** The second Claude's verdict.json: only `ok: true` lets the fix open; `why` says what it found, in a line. */
@@ -599,6 +603,46 @@ async function github(method, path, body, token = process.env.GITHUB_TOKEN) {
 }
 
 /**
+ * The fixes in the app whose pull request merged: their videos filmed again now, in one run of tutorials.yml
+ * (only those videos, in their languages; a suggestion for every language films the nightly list). Not while
+ * a film run is going or waits: a second run waiting in its group would cancel the first. Then the next fix
+ * run, 30 minutes later, tries again. Returns what was sent, for the Worker.
+ */
+export function refilmInputs(list) {
+  const videos = [...new Set(list.map((r) => r.tutorial))].filter((v) => VIDEO.test(v ?? ''));
+  const languages = list.some((r) => !r.language) ? '' : [...new Set(list.map((r) => r.language))].filter((l) => LANGUAGE.test(l ?? '')).join(',');
+  return { languages, videos: videos.join(' ') };
+}
+
+async function refilm(list) {
+  const merged = [];
+  for (const r of list.filter((x) => isObj(x) && ID.test(x.id ?? '') && Number.isInteger(x.pr) && VIDEO.test(x.tutorial ?? ''))) {
+    const got = await github('GET', `/pulls/${r.pr}`);
+    if (got.status !== 200) {
+      console.log(`::warning::PR ${r.pr}: GitHub answered ${got.status}`);
+      continue;
+    }
+    if (got.json.merged_at) merged.push(r);
+  }
+  if (!merged.length) return [];
+  for (const status of ['in_progress', 'queued', 'waiting', 'pending']) {
+    const runs = await github('GET', `/actions/workflows/tutorials.yml/runs?status=${status}&per_page=1`);
+    if (runs.status === 200 && runs.json.total_count > 0) {
+      console.log(`${merged.length} merged fix${merged.length === 1 ? '' : 'es'} in the app: a film run is ${status.replace('_', ' ')}; the next fix run films them`);
+      return [];
+    }
+  }
+  const inputs = refilmInputs(merged);
+  const sent = await github('POST', '/actions/workflows/tutorials.yml/dispatches', { ref: 'main', inputs });
+  if (sent.status !== 204) {
+    console.log(`::warning::GitHub answered ${sent.status} to filming ${inputs.videos} again (${String(sent.json.message ?? '').slice(0, 200)})`);
+    return [];
+  }
+  console.log(`filming again: ${inputs.videos} (${inputs.languages || 'the nightly languages'})`);
+  return merged.map((r) => ({ id: r.id, pr: r.pr }));
+}
+
+/**
  * Which pull requests were merged or closed since, which are closed now because their checks failed or
  * they waited a day (their fix failed), and at most three accepted changes started (only with a Claude
  * token: without one the look says so): each <dir>/<id>.json, and their ids as the step's `fixes`
@@ -629,11 +673,13 @@ async function queue(dir) {
     }
     updates.push({ id, state: 'failed', pr, note: why });
   }
+  const refilmed = await refilm(waiting.refilm ?? []);
   const claude = process.env.HAS_CLAUDE_TOKEN === 'true';
   const take = claude ? (waiting.toFix ?? []).filter((s) => ID.test(s.id) && FIXABLE.includes(s.kind) && VIDEO.test(s.tutorial ?? '')) : [];
   const moved = updates.length;
   updates.push(...take.map((s) => ({ id: s.id, state: 'working', pr: null })));
-  const { results = [] } = updates.length ? await call('POST', { runUrl: runUrl(process.env), updates }, '/fixes') : {};
+  const { results = [], refilmed: filmed = [] } = updates.length || refilmed.length ? await call('POST', { runUrl: runUrl(process.env), updates, refilmed }, '/fixes') : {};
+  refilmed.forEach((r, n) => console.log(`${r.id.slice(0, 8)}: PR ${r.pr} merged, the video is filmed again${filmed[n] === 'ok' ? '' : ` (${filmed[n]})`}`));
   updates.slice(0, moved).forEach((u, n) => console.log(`PR ${u.pr}: ${u.state}${u.note ? `: ${u.note}` : ''}${results[n] === 'ok' ? '' : ` (${results[n]})`}`));
   const started = take.filter((_, n) => results[moved + n] === 'ok');
   for (const s of started) writeFileSync(join(dir, `${s.id}.json`), JSON.stringify(s, null, 2));
@@ -705,14 +751,16 @@ function vetOut(dir) {
 async function fixOpen(dir, id) {
   if (!ID.test(id ?? '')) throw new Error(`not a suggestion: ${id}`);
   const run = runUrl(process.env);
-  const tell = async (state, pr, note) => {
-    const { results } = await call('POST', { runUrl: run, updates: [{ id, state, pr, note }] }, '/fixes');
-    console.log(`${id.slice(0, 8)}: ${state}${pr ? ` (PR ${pr})` : ''}${results?.[0] === 'ok' ? '' : `, which the Worker answered ${results?.[0]}`}`);
+  const tell = async (state, pr, note, app = false) => {
+    const { results } = await call('POST', { runUrl: run, updates: [{ id, state, pr, note, ...(app ? { app: true } : {}) }] }, '/fixes');
+    console.log(`${id.slice(0, 8)}: ${state}${pr ? ` (PR ${pr})` : ''}${app ? ', the cause is in the app' : ''}${results?.[0] === 'ok' ? '' : `, which the Worker answered ${results?.[0]}`}`);
   };
   const suggestion = readJson(join(dir, 'input', `${id}.json`));
   const fixPath = join(dir, 'fix', 'fix.json');
   const fix = existsSync(fixPath) ? checkFix(readJson(fixPath)) : { summary: '', noFix: 'The job that writes it failed.', already: '' };
   if (fix.already) return tell('unneeded', null, fix.already);
+  // The cause is in the app: the agent team fixes it, and the video is filmed again after its merge.
+  if (fix.app) return tell('failed', null, fix.noFix, true);
   const patchPath = join(dir, 'fix', 'fix.patch');
   const checkPath = join(dir, 'check', 'check.json');
   const checks = checkResults(existsSync(checkPath) ? readJson(checkPath) : {});
