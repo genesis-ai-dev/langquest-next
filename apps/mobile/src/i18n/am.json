@@ -825,6 +825,7 @@
     },
     "members": {
       "joined": "{{target}} · {{when}} ተቀላቅሏል",
+      "joinedJustNow": "{{target}} · አሁን ተቀላቅሏል",
       "count_one": "{{count, number}} አባል",
       "count_other": "{{count, number}} አባላት",
       "invite": "ይጋብዙ",

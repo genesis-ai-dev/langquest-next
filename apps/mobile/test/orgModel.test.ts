@@ -1,5 +1,7 @@
-import { t } from '../src/i18n';
-import { liveRoles, listingFailure, looksLikeEmail, sendFailure, signInFailure } from '../src/org/model';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { addCatalog, showLanguage, t } from '../src/i18n';
+import { liveRoles, listingFailure, looksLikeEmail, memberJoined, sendFailure, signInFailure } from '../src/org/model';
 
 describe('the organization screens\' refusals, in words', () => {
   it('the Explore listing: refused, or no connection', () => {
@@ -37,5 +39,23 @@ describe('the organization screens\' refusals, in words', () => {
         { id: 'b', name: 'Beta', privileges: 2 },
         { id: 'bare', name: 'bare', privileges: 0 }
       ]);
+  });
+});
+
+describe('a member row\'s "joined" line', () => {
+  const now = Date.parse('2026-11-21T12:00:00Z');
+  it('says "just now" in lowercase in the first minute, then how long ago', () => {
+    expect(memberJoined('Translator', now - 10_000, now)).toBe('Translator · joined just now');
+    expect(memberJoined('Translator', now - 5 * 60_000, now)).toBe('Translator · joined 5 min ago');
+  });
+
+  it('has no capital in the middle of the French line', () => {
+    addCatalog('fr', JSON.parse(readFileSync(join(__dirname, '../src/i18n/fr.json'), 'utf8')));
+    showLanguage('fr');
+    try {
+      expect(memberJoined('Traducteur', now - 10_000, now)).toBe('Traducteur · a rejoint à l’instant');
+    } finally {
+      showLanguage('en');
+    }
   });
 });
