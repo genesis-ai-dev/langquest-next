@@ -243,6 +243,7 @@ function route() {
   $('start').hidden = v.name !== 'start';
   $('attention').hidden = v.name !== 'all';
   $('grid').hidden = v.name === 'start';
+  $('sum').hidden = v.name !== 'group';
   $('expand-all').hidden = v.name !== 'all'; $('collapse-all').hidden = v.name !== 'all';
   drawNav();
   for (const s of SECTIONS) {
@@ -251,9 +252,12 @@ function route() {
     card.hidden = v.name === 'group' && s.id !== v.id;
     const hist = $('hist-' + s.id);
     if (hist) hist.hidden = v.name !== 'group';
-    if (v.name === 'group' && s.id === v.id) setOpen(s.id, true);
+    if (v.name === 'group' && s.id === v.id) setOpen(s.id, detailsOpen(s.id));
     else if (v.name === 'all') applyOpen(s.id);
+    // A section's lines' cards lead its own page's summary, and its parts on All sections (pageSummary.ts).
+    if (s.parts.length) drawBody(s);
   }
+  drawSummary();
   if (v.name === 'start') renderStart();
   if (v.name === 'group') { renderHist(v.id); window.scrollTo(0, 0); wantCard = v.card || null; focusCard(); }
   if (v.name !== 'group') closeDetail();
@@ -326,6 +330,8 @@ function refreshCharts() {
   const v = view();
   if (v.name === 'group') for (const p of partsWithNumbers(v.id)) if ($('charts-' + p)) loadHistory(p, range).then((hst) => drawPart(p, hst), () => {});
   for (const p of Object.keys(dayPics)) if (dayPics[p]) loadHistory(p, '24h').then((h) => { dayPics[p] = h; renderStart(); }, () => {});
+  // The summaries' 14 days (pageSummary.ts): each old answer stays until its new one comes.
+  for (const p of sumAsked) sumHistory(p, true);
 }
 
 function loadHistory(part, r) {

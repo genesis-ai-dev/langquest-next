@@ -96,9 +96,9 @@ first nightly size), `oldest 2 days ago` for a queue, `now` for a state,
 `all time` for a total. A count whose start is not known says so.
 
 The page has fourteen sections, each about one subject (`apps/admin/src/pageOps.ts`
-`GROUPS`): Look up, User issues, Sync and data safety, Phones and browsers, Releases,
-Server jobs, Database, Workers and traffic, Storage and capacity, People and
-organizations, Support, Access and integrations, App stores, and Tutorial
+`GROUPS`): Look up, User issues, Research, Work safety, Phones and browsers, Releases,
+Server jobs, Database, Web traffic, Storage and cost, People and
+organizations, Support, Keys and access, App stores, Nightly tests and Tutorial
 videos. A section
 gathers the parts below (one source's answer each) under sub-headings, and
 each figure is shown in one place only: the database's size with Capacity,
@@ -116,7 +116,7 @@ the page loads to exactly one section.
 | v2 import | `diag.v2_import_status()` | `DIAG_DATABASE_URL` |
 | Feedback | its open count from `diag.ops_feedback_open()` (migration `20261026120000_ops_feedback_and_since.sql`; `diag_reader` cannot read the table); `diag.feedback()`, `diag.feedback_screenshot()`, `diag.feedback_picture()` and `diag.feedback_voice()`, once the feedback store's migration is on the database; until then the section says so. Screenshots, chosen pictures and voice notes load when asked for, and only as JPEG, WAV or m4a | `DIAG_DATABASE_URL` |
 | Look up | an error code (`diag.error`), an email (`diag.lookup_email`: the profile id and its installs, never the address back), a profile id (`diag.person`), an install's last three days (`diag.timeline`), or an organization or language by name (`diag.find`) | `DIAG_DATABASE_URL` |
-| Sync and data safety | work the server refused, by reason (`sync` records); what arrived and how late, and events stamped ahead of the clock (the projection pass's sample); the nightly fold canary; languages behind the projection pass, since when each waits and how many passes have ended since (a language waits up to one pass by design; two or more passes that left it behind raise a line, `PASSES_LEFT_BEHIND`), overdue snapshots and the largest languages (`diag.ops_pipeline`) | `DIAG_DATABASE_URL`, migrations `20261023100000_ops_dashboard.sql`, `20261118051742_projection_passes_since.sql` |
+| Work safety | work the server refused, by reason (`sync` records); what arrived and how late, and events stamped ahead of the clock (the projection pass's sample); the nightly fold canary; languages behind the projection pass, since when each waits and how many passes have ended since (a language waits up to one pass by design; two or more passes that left it behind raise a line, `PASSES_LEFT_BEHIND`), overdue snapshots and the largest languages (`diag.ops_pipeline`) | `DIAG_DATABASE_URL`, migrations `20261023100000_ops_dashboard.sql`, `20261118051742_projection_passes_since.sql` |
 | Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones, and phones gone quiet by account (`diag.ops_quiet_accounts`) | `DIAG_DATABASE_URL` |
 | Release health | merges on `main`, Worker deploys and EAS updates over 14 days against errors phones reported; the commit each host serves; hosted migrations against `main` (`diag.migrations_applied` and the files on GitHub) | `DIAG_DATABASE_URL`; the Cloudflare, Expo and GitHub tokens add to the timeline |
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
@@ -524,9 +524,29 @@ eight numbers, a map of the parts with a dot for each, two charts of errors
 over 14 days, and the newest merged pull requests. `GET /ops/api/glance`
 (`diag.ops_glance`) gives a row or a number its 14-day picture: one number
 for each section (`GLANCE` in `sources/history.ts`). `#g/<section>` shows one
-section: each part's lines, picture and tables first, then a chart for each
-number over the range, so what needs a person is in view when the page opens;
-`#all` shows every section on one page.
+section: its summary, then the section's card as All the details
+(`apps/admin/src/pageSummary.ts`,
+`docs/decisions/2026-11-21-ops-dashboard-summary-and-details.md`). The
+summary is one sentence under the title (`verdictOf`), up to four tiles
+(`PAGE_TILES`), the cards of its lines that need a person, a row for each
+line on its way or to watch (a tap opens its card), each number of the last
+14 days as a row against its usual range (`usualOf`, `healthOf`: the last
+full day against the days before it), and the numbers at zero as chips. A
+tap on a tile, row or chip opens All the details at that number's chart. All
+the details is each part's lines, picture and tables, then a chart for each
+number over the range; it opens closed on a page with a summary, except on
+User issues, Research, Support, Tutorial videos and Nightly tests, and keeps
+each page's choice (`lq-ops-details` in the browser). `#all` shows every
+section on one page, each line's card in its part.
+
+The Overview's sentence under its title counts its lines by who acts
+(`lineBucket`): Needs you (Act now, Fix soon), This week, you decide (a
+choice at Watch: `person` kinds in `alertKinds.ts`), On its way (a merged fix
+that waits for its check, the watch's open issues, store reviews) and
+Watching. It leads with four numbers of today (people active, phones and
+browsers, errors, crashes: each part's own last 24 hours) against the usual
+range of the days before; its eight earlier numbers are behind More
+numbers.
 
 **How much of the Frontier Claude plan is used** (part `claudeplan`,
 `apps/admin/src/sources/claudePlan.ts`,
@@ -544,7 +564,7 @@ annotation titled "Claude plan" on the run. The Worker reads the latest
 run's annotation with its GitHub token and holds no Claude token. A reading
 over 3 hours old says it is late; a reading from before the week started
 again, or none, shows no number and says why. The same numbers are under
-Access and integrations.
+Keys and access.
 
 **What each PR and LAN number is about** (`apps/admin/src/pageRefs.ts`,
 `docs/decisions/2026-11-21-pr-and-issue-numbers-say-what-they-are-about.md`).

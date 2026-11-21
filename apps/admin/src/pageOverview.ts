@@ -1,10 +1,13 @@
 /**
  * The Overview, the ops dashboard's first page
- * (docs/decisions/2026-11-18-ops-dashboard-menu-and-overview.md): one row for
- * each thing that needs a person, most urgent first (decisions.md 254's
- * cards, as rows), then how much of the Frontier Claude plan this week has
- * used (a small monitor), then eight numbers, a map of the parts with a dot for each
- * part's state, two charts of the last 14 days, and what was merged lately.
+ * (docs/decisions/2026-11-18-ops-dashboard-menu-and-overview.md,
+ * docs/decisions/2026-11-21-ops-dashboard-summary-and-details.md): four
+ * numbers of today against their usual range; the lines by who acts (Needs
+ * you; This week, you decide; On its way; Watching), most urgent first
+ * (decisions.md 254's cards, as rows); how much of the Frontier Claude plan
+ * this week has used (a small monitor); a map of the parts with a dot for
+ * each part's state, two charts of the last 14 days, what was merged lately,
+ * and the eight numbers it had, behind More numbers.
  * Every number and dot comes from a part the page already loads; a part that
  * has not answered, is not connected or could not be read says so, never a
  * guess. Plain JavaScript run inside page.ts's script after pageStart.ts and
@@ -13,8 +16,25 @@
 
 /** The Overview's look, inside page.ts's style element. */
 export const OVERVIEW_CSS = String.raw`
-#start > section { margin-bottom: 30px; }
-h2.oh { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+#start > section, #start > div, #start > details { margin-bottom: 22px; }
+.ovpair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 22px; align-items: start; }
+.sblock .alerts { gap: 0; }
+.sblock .alert { border: 0; border-top: 1px solid var(--line); border-inline-start: 4px solid var(--line); border-radius: 0; box-shadow: none; padding: 12px 14px; background: none; }
+.sblock .alert:first-child { border-top: 0; }
+.sblock .alert.urgent { border-inline-start-color: var(--red); box-shadow: none; } .sblock .alert.problem { border-inline-start-color: var(--red); }
+.sblock .alert.watch { border-inline-start-color: var(--yellow); } .sblock .alert.info { border-inline-start-color: var(--primary); } .sblock .alert.clear { border-inline-start-color: var(--green); }
+.sblock .alert .text > b { font-weight: 600; font-size: 15px; }
+.ovpair .alert { grid-template-columns: minmax(0, 1fr) auto; } .ovpair .alert .lvl, .ovpair .alert .pic { display: none; }
+.wchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.wchips a.chip { text-decoration: none; min-height: 30px; white-space: normal; }
+.wchips a.chip small { font-weight: 400; opacity: .85; } .wchips a.chip small::before { content: '· '; }
+.wchips a.chip:hover, .wchips a.chip:focus-visible { box-shadow: 0 0 0 1px var(--amber); }
+details.more > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 40px; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary h2 { font-size: 17px; margin: 0; }
+details.more > summary::after { content: '▾'; color: var(--muted); transition: transform .15s; } details.more:not([open]) > summary::after { transform: rotate(-90deg); }
+details.more[open] > summary { margin-bottom: 12px; }
+h2.oh { font-size: 17px; font-weight: 650; letter-spacing: -.01em; color: var(--ink); margin: 0 0 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 h2.oh .said { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; }
 h2.oh a.more { margin-inline-start: auto; text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 13px; color: var(--primary); text-decoration: none; display: inline-flex; gap: 4px; align-items: center; min-height: 32px; }
 .alerts { display: grid; gap: 8px; }
@@ -39,7 +59,7 @@ a.tile:hover, a.tile:focus-visible { border-color: var(--grey); }
 .tile .l { color: var(--ink2); font-size: 13px; } .tile .v { font-size: 30px; font-weight: 500; line-height: 1.15; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .tile .v.sm { font-size: 19px; padding-top: 6px; } .tile .v.none { color: var(--muted); font-size: 16px; padding-top: 8px; }
 .tile .s { color: var(--muted); font-size: 12.5px; } .tile svg.mini { margin-top: 6px; max-width: 120px; }
-.mapcard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.mapcard { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--sh); }
 .map { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 56px; padding: 22px; }
 .map svg.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .map svg.wires path { fill: none; stroke: var(--grey); stroke-width: 1.5; opacity: .55; }
@@ -62,7 +82,7 @@ a.ovchart:hover, a.ovchart:focus-visible { border-color: var(--grey); }
 .ovchart .keys i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-inline-end: 6px; vertical-align: -1px; }
 .ovchart .keys i.a, svg.days .a { background: var(--blue); fill: var(--blue); } .ovchart .keys i.b, svg.days .b { background: var(--orange); fill: var(--orange); }
 svg.days { display: block; width: 100%; height: auto; } svg.days .gl { stroke: var(--line); stroke-width: 1; } svg.days text { fill: var(--muted); font-size: 11px; }
-.shipped { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.shipped { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--sh); }
 .shipped a.node { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; } .shipped a.node:last-child { border-bottom: 0; }
 .shipped p { margin: 0; padding: 14px 16px; }
 a.plan { display: grid; gap: 6px; max-width: 640px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; text-decoration: none; color: inherit; }
@@ -84,19 +104,25 @@ a.plan:hover, a.plan:focus-visible { border-color: var(--grey); }
 /** The Overview's markup, inside page.ts's #board. */
 export const OVERVIEW_HTML = String.raw`
     <div id="start" hidden>
-      <section aria-labelledby="ov-attention">
-        <h2 class="oh" id="ov-attention">Needs attention <span class="said" id="hero-line" role="status"></span></h2>
+      <section class="stiles" id="start-tiles" aria-label="Today"></section>
+      <section class="sblock" aria-labelledby="ov-attention">
+        <div class="sh"><h2 id="ov-attention">Needs you</h2><span class="cnt need" id="ov-need-n" hidden></span><span class="sp"></span></div>
         <div class="alerts" id="start-you"></div>
         <details class="resolved" id="start-resolved" hidden></details>
       </section>
+      <div class="ovpair">
+        <section class="sblock" aria-labelledby="ov-decide"><div class="sh"><h2 id="ov-decide">This week, you decide</h2><span class="cnt watch" id="ov-decide-n" hidden></span><span class="sp"></span></div><div class="alerts" id="start-decide"></div></section>
+        <section class="sblock" aria-labelledby="ov-way"><div class="sh"><h2 id="ov-way">On its way</h2><span class="cnt way" id="ov-way-n" hidden></span><span class="sp"></span></div><div class="alerts" id="start-way"></div></section>
+      </div>
+      <section class="sblock" aria-labelledby="ov-watch"><div class="sh"><h2 id="ov-watch">Watching</h2><span class="cnt" id="ov-watch-n" hidden></span><span class="sp"></span></div><div class="wchips" id="start-watch"></div></section>
       <section aria-label="Frontier Claude plan this week"><a class="plan" id="start-plan" href="#g/access"></a></section>
-      <section aria-labelledby="ov-glance"><h2 class="oh" id="ov-glance">At a glance</h2><div class="tiles" id="start-tiles"></div></section>
       <section aria-labelledby="ov-map"><h2 class="oh" id="ov-map">How it fits together</h2>
         <div class="mapcard"><div class="map" id="map"></div>
           <div class="mapkey"><span><i class="dot ok"></i>Working</span><span><i class="dot watch"></i>Watch</span><span><i class="dot problem"></i>Fix soon</span><span><i class="dot off"></i>Not connected</span><span><i class="dot error"></i>Could not read</span></div></div>
       </section>
       <section class="ovcharts" id="start-charts" aria-label="The last 14 days"></section>
       <section aria-labelledby="ov-shipped"><h2 class="oh" id="ov-shipped">Merged lately <a class="more" href="#g/releases">Releases <span aria-hidden="true">→</span></a></h2><div class="shipped" id="start-shipped"></div></section>
+      <details class="sblock more" id="start-more-box"><summary><h2>More numbers</h2></summary><div class="tiles" id="start-more"></div></details>
     </div>`;
 
 /** Pure: apps/admin/test/overview.test.ts runs these with new Function, so what the Overview says is tested without a browser. */
@@ -298,7 +324,7 @@ function alertRow(c) {
   const gl = c.level === 'watch' ? null : glanceOf(c.group);
   const pic = c.level === 'watch' ? '' : (SQUARES[c.part] ? squarePic(c.part, c.text) : listCardPic(c.part)) || (gl ? miniSvg(gl.s.values, gl.s.agg, 200, 48, gl.say) + '<small>' + esc(gl.said) + '</small>' : '');
   return '<div class="alert ' + c.level + (fixing(c) ? ' fixing' : '') + '" data-href="' + esc(href(lines[0])) + '">' + lvl(c.level, LEVEL[c.level].title) +
-    '<div class="text"><b><a class="card" href="' + esc(href(lines[0])) + '">' + esc(t.title) + '</a></b>' + fixHtml(lines[0]) +
+    '<div class="text"><b><a class="card" href="' + esc(href(lines[0])) + '">' + esc(t.title) + '</a></b>' + fixHtml(lines[0]) + (lines[0] && lines[0].key !== 'unreadable' && lines[0].key !== 'user-issues-open' ? miniSteps(fixOf(lines[0])) : '') +
     (also ? '<ul class="also">' + also + (rest > 0 ? '<li>' + num(rest) + ' more in ' + esc(titleOf(c.group)) + '</li>' : '') + '</ul>' : '') +
     (t.next ? '<p class="next"><b>Next:</b> ' + esc(t.next) + '</p>' : '') +
     '<div class="from">' + esc(whereOf(c)) + '</div></div><div class="pic">' + pic + '</div>' +
@@ -317,31 +343,58 @@ function renderStart() {
   requestAnimationFrame(() => { startQueued = false; drawNav(); drawStart(); });
 }
 
+/**
+ * The Overview's lines by bucket (pageSummary.ts lineBucket): one row for a
+ * part's lines in one bucket, led by its most urgent, so a flood of lines in
+ * one part (30 new error kinds) is still one row.
+ */
+function overviewPlan() {
+  const out = { need: [], decide: [], way: [], watch: [] };
+  const rank = (l) => LEVELS.indexOf(l);
+  for (const g of SECTIONS) {
+    if (!g.parts.length) continue;
+    const rows = {};
+    for (const l of groupLines(g)) {
+      const k = l.a.part + '|' + l.bucket;
+      (rows[k] = rows[k] || { group: g.id, part: l.a.part, bucket: l.bucket, lines: [] }).lines.push(l);
+    }
+    for (const r of Object.values(rows)) {
+      const a = r.lines.map((l) => l.a);
+      out[r.bucket].push({ level: r.lines[0].level, group: r.group, part: r.part, text: a[0].text, link: a[0].link, more: a.slice(1).map((x) => x.text), alerts: a, n: a.length });
+    }
+  }
+  for (const k of Object.keys(out)) out[k].sort((x, y) => rank(x.level) - rank(y.level));
+  return out;
+}
+const linesIn = (rows) => rows.reduce((n, r) => n + r.n, 0);
+function setCount(id, n) { const el = $(id); el.hidden = !n; el.textContent = n ? num(n) : ''; }
+
 function drawStart() {
   if ($('start').hidden) return;
-  const plan = startPlan(SECTIONS, results, LEVELS);
-  // A row whose every line waits for its check after a merged fix needs nobody now: it goes last, dashed.
-  const needs = plan.cards.filter((c) => c.level !== 'watch').sort((a, b) => Number(fixing(a)) - Number(fixing(b)));
-  const watch = plan.cards.filter((c) => c.level === 'watch');
-  const count = (cs) => cs.reduce((n, c) => n + 1 + c.more.length, 0);
-  const fixed = waitingFixes(needs.flatMap((c) => c.alerts || []));
-  const needN = count(needs) - fixed, watchN = count(watch);
+  const plan = overviewPlan();
+  const waiting = startPlan(SECTIONS, results, LEVELS).waiting.length;
   const claude = claudeWork(userIssuesData());
   const store = storeWaits(results.pipeline && results.pipeline.state === 'ok' ? results.pipeline.data : null);
-  const loading = plan.waiting.length;
-  $('hero-line').textContent = [
-    needN ? needN + (needN === 1 ? ' needs you.' : ' need you.') : loading ? 'Checking…' : 'Nothing needs you now.',
-    fixed ? fixed + (fixed === 1 ? ' has a fix merged and waits' : ' have a fix merged and wait') + ' for a check.' : '',
+  const needN = linesIn(plan.need), decideN = linesIn(plan.decide), wayN = linesIn(plan.way) + claude.length + store.length, watchN = linesIn(plan.watch);
+  const say = [
+    needN ? needN + (needN === 1 ? ' needs you now.' : ' need you now.') : '',
+    decideN ? decideN + (decideN === 1 ? ' choice waits for you.' : ' choices wait for you.') : '',
+    wayN ? wayN + (wayN === 1 ? ' is on its way.' : ' are on their way.') : '',
     watchN ? watchN + ' to watch.' : '',
-    loading ? loading + (loading === 1 ? ' section still loads.' : ' sections still load.') : ''
-  ].filter(Boolean).join(' ');
-  const rows = needs.map(alertRow).concat(watch.map(alertRow),
+    waiting ? waiting + (waiting === 1 ? ' page still loads.' : ' pages still load.') : ''
+  ].filter(Boolean);
+  if (view().name === 'start') sayVerdict({ tone: needN ? 'need' : decideN || watchN ? 'watch' : waiting && !say.length ? 'wait' : 'ok', text: say.length ? (needN ? '' : 'Nothing needs you now. ') + say.join(' ') : waiting ? 'Checking…' : 'Nothing needs you now.' });
+  setCount('ov-need-n', needN); setCount('ov-decide-n', decideN); setCount('ov-way-n', wayN); setCount('ov-watch-n', watchN);
+  const none = (words) => '<p class="sempty">' + esc(waiting ? 'Checking each page…' : words) + '</p>';
+  redraw($('start-you'), plan.need.map(alertRow).join('') || (waiting ? none('') : '<div class="alert clear">' + lvl('clear', 'All clear') + '<div class="text"><b>Nothing needs you now.</b></div><div class="pic"></div><span></span></div>'));
+  redraw($('start-decide'), plan.decide.map(alertRow).join('') || none('No choice waits for you.'));
+  redraw($('start-way'), plan.way.map(alertRow).concat(
     claude.map((i) => waitRow(CLAUDE_WORK[i.state][0], i.title || i.issue || 'An issue',
       esc(CLAUDE_WORK[i.state][1]) + ' · ' + (i.pr ? '<a href="' + PR_URL + Number(i.pr) + '" target="_blank" rel="noopener">pull request ' + Number(i.pr) + '</a> · ' : '') + (safeLink(i.issueUrl) ? '<a href="' + esc(i.issueUrl) + '" target="_blank" rel="noopener">' + esc(i.issue || 'Linear') + '</a> · ' : '') +
       'filed ' + esc(ago(i.firstAt)) + (i.people ? ' · ' + num(i.people) + (i.people === 1 ? ' person' : ' people') : ''), 'userissues', i.issue ? cardHref('userissues', i.issue) : '#g/userissues')),
-    store.map((w) => waitRow('Store', w.lane + ' ' + (w.title || ''), 'Waits on Apple or Google · ' + esc(w.stage) + (w.at ? ' · ' + esc(ago(w.at)) : '') + (w.state ? ' · ' + esc(w.state) : ''), 'releases', cardHref('releases', storeCardId(w.laneId, w.title)))));
-  redraw($('start-you'), rows.join('') ||
-    (loading ? '<p class="muted">Checking each section…</p>' : '<div class="alert clear">' + lvl('clear', 'All clear') + '<div class="text"><b>Nothing needs attention now.</b></div><div class="pic"></div><span></span></div>'));
+    store.map((w) => waitRow('Store', w.lane + ' ' + (w.title || ''), 'Waits on Apple or Google · ' + esc(w.stage) + (w.at ? ' · ' + esc(ago(w.at)) : '') + (w.state ? ' · ' + esc(w.state) : ''), 'releases', cardHref('releases', storeCardId(w.laneId, w.title))))).join('') || none('Nothing is on its way.'));
+  // What to watch: a chip for each line, each opening its card.
+  redraw($('start-watch'), plan.watch.flatMap((r) => r.alerts.map((a) => '<a class="chip watch" href="' + esc(cardHref(r.group, lineCardId(a))) + '">' + esc(splitAlert(tidy(a.text)).title.replace(/\.$/, '')) + '<small>' + esc(titleOf(r.group)) + '</small></a>')).join('') || none('Nothing to watch.'));
   drawResolved();
   drawPlan();
   drawTiles();
@@ -374,8 +427,36 @@ function drawPlan() {
         (p.readAt ? ' <span class="muted">Read ' + esc(ago(p.readAt)) + (p.old ? ': the hourly reading is late.' : '.') + '</span>' : '') + '</p>'));
 }
 
+/**
+ * The Overview's four numbers of today, each against its usual range: the
+ * value is the part's own count of the last 24 hours, the line and the range
+ * its days before today (pageSummary.ts).
+ */
+const OV_TILES = [
+  { group: 'people', label: 'People active today', part: 'people', metric: 'active_accounts', value: (d) => d.activeProfiles.day, src: 'people' },
+  { group: 'phones', label: 'Phones and browsers today', part: 'clients', metric: 'installs', value: (d) => d.installs.day, src: 'clients' },
+  { group: 'phones', label: 'Errors today', part: 'clients', metric: 'errors', value: (d) => d.errors.reduce((a, e) => a + Number(e.day || 0), 0), src: 'clients' },
+  { group: 'phones', label: 'Crashes today', part: 'clients', metric: 'crashes', value: (d) => d.errors.filter((e) => e.fatal).reduce((a, e) => a + Number(e.day || 0), 0), src: 'clients' }
+];
 function drawTiles() {
-  redraw($('start-tiles'), tilesOf(results).map((t) => {
+  redraw($('start-tiles'), OV_TILES.map((t) => {
+    const d = okData(results, t.src);
+    let value = null;
+    if (d) { try { value = Number(t.value(d)); } catch { value = null; } }
+    sumHistory(t.part);
+    const got = seriesOf(t.part, t.metric);
+    const days = got ? got.s.values.slice(0, -1) : null;
+    const usual = days ? usualOf(days.filter((x, i) => got.hst.counted[i] !== false)) : null;
+    const said = comparedTo(value, usual);
+    const tone = said === 'normal' ? 'ok' : said === 'none' ? 'none' : (said === 'high') === WORSE_UP.test(t.metric) ? 'warn' : 'note';
+    const words = healthWords({ said, usual, grow: null }, '');
+    return '<a class="stile" href="#g/' + esc(t.group) + '"><span class="lb" data-help-key="metric:' + esc(t.part + '.' + t.metric) + '">' + esc(t.label) + '</span>' +
+      '<span class="v' + (value === null ? ' none' : '') + '">' + esc(value === null ? partSaid(results, t.src) || 'No number' : num(value)) + '</span>' +
+      (days ? sparkSvg(days.concat(value === null ? [] : [value]), usual, tone === 'warn' ? 'warn' : '', 240, 46) : '') +
+      '<span class="ft"><span class="said ' + tone + '">' + esc(value === null ? '' : words.said) + '</span>' + (value !== null && words.more ? ' · ' + esc(words.more) : '') + '</span></a>';
+  }).join(''));
+  // The eight numbers the Overview had, behind one tap.
+  redraw($('start-more'), tilesOf(results).map((t) => {
     const gl = t.spark ? glanceOf(t.spark) : null;
     return '<a class="tile" href="#g/' + esc(t.group) + '"><span class="l">' + esc(t.label) + '</span>' +
       '<span class="v' + (t.value === null ? ' none' : t.small ? ' sm' : '') + '">' + esc(t.value === null ? '–' : t.value) + '</span>' +

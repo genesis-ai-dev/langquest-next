@@ -55,3 +55,11 @@ pull request and the Linear issue.
 Reverse if: the menu's counts and the rows disagree often enough to confuse
 (then one of them goes), or the team stops using the map (then it gives its
 place to the sections' own pictures).
+
+Amended (2026-11-21, Caleb Koster): the Overview groups its lines by who
+acts (Needs you; This week, you decide; On its way; Watching), leads with
+four numbers of today against their usual range, and keeps its eight numbers
+behind "More numbers". Four menu names are plainer: Work safety, Web traffic,
+Storage and cost, Keys and access. A section's own page leads with a summary
+above All the details
+(`docs/decisions/2026-11-21-ops-dashboard-summary-and-details.md`).

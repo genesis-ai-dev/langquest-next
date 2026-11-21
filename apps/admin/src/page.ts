@@ -23,6 +23,7 @@ import { ISSUE_CSS, ISSUE_LOGIC, ISSUE_SCRIPT } from './pageIssues';
 import { RESEARCH_CSS, RESEARCH_LOGIC, RESEARCH_SCRIPT } from './pageResearch';
 import { RESEARCH_TEAM } from './researchTeam';
 import { CARD_CSS, CARD_LOGIC, CARD_SCRIPT } from './pageCards';
+import { SUMMARY_CSS, SUMMARY_LOGIC, SUMMARY_SCRIPT } from './pageSummary';
 import { KINDS } from './alertKinds';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
@@ -37,14 +38,14 @@ export function page(cfg: { supabaseUrl: string; anonKey: string }, nonce: strin
 <meta name="robots" content="noindex, nofollow">
 <title>LangQuest operations</title>
 <style nonce="${nonce}">
-:root { --primary:#6B48C8; --bg:#F4F4F1; --card:#FCFCFB; --raised:#fff; --soft:#ECEBE6; --ink:#121417; --ink2:#52514E; --muted:#6F6D68; --line:#E1E0D9; --red:#B42318; --redbg:#FBE6E3; --orange:#EC835A; --yellow:#FAB219; --blue:#2A78D6; --amber:#9A5B00; --amberbg:#FCF1D6; --green:#1F7A4D; --greenbg:#E5F4E3; --grey:#898781; color-scheme: light; }
-@media (prefers-color-scheme: dark) { :root { --primary:#A48BF0; --bg:#0F0F0E; --card:#1A1A19; --raised:#20201F; --soft:#242422; --ink:#F0EFEC; --ink2:#C3C2B7; --muted:#A3A198; --line:#2C2C2A; --red:#F07A6E; --redbg:#3A1C19; --orange:#EC835A; --yellow:#FAB219; --blue:#3987E5; --amber:#FAB219; --amberbg:#31270F; --green:#5CC28C; --greenbg:#15291A; --grey:#898781; color-scheme: dark; } }
+:root { --primary:#5A43D4; --bg:#F5F4F0; --card:#FFFFFF; --raised:#fff; --soft:#F0EEE8; --ink:#16181D; --ink2:#3A3D45; --muted:#6F727B; --line:#E7E5DF; --red:#C03A26; --redbg:#FBE6E1; --orange:#EC835A; --yellow:#E8A317; --blue:#1D5FD6; --amber:#9A5F05; --amberbg:#FBF0D9; --green:#167A4C; --greenbg:#E5F3EB; --grey:#8F9299; --sh:0 1px 2px rgb(20 20 30 / .04), 0 4px 18px rgb(20 20 30 / .05); color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --primary:#A48BF0; --bg:#0F0F0E; --card:#1A1A19; --raised:#20201F; --soft:#242422; --ink:#F0EFEC; --ink2:#C3C2B7; --muted:#A3A198; --line:#2C2C2A; --red:#F07A6E; --redbg:#3A1C19; --orange:#EC835A; --yellow:#FAB219; --blue:#3987E5; --amber:#FAB219; --amberbg:#31270F; --green:#5CC28C; --greenbg:#15291A; --grey:#898781; --sh:none; color-scheme: dark; } }
 * { box-sizing: border-box; }
-body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
 main { max-width: 1280px; margin: 0 auto; }
 h2 { font-size: 17px; margin: 0; } h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); font-weight: 600; }
 p { margin: 6px 0; } .muted { color: var(--muted); } small { color: var(--muted); }
-section.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; }
+section.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; min-width: 0; box-shadow: var(--sh); }
 .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(min(520px, 100%), 1fr)); grid-auto-flow: dense; gap: 16px; align-items: start; }
 .nowrap { white-space: nowrap; }
 .head { display:flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
@@ -211,6 +212,7 @@ ${FIX_CSS}
 ${ISSUE_CSS}
 ${RESEARCH_CSS}
 ${CARD_CSS}
+${SUMMARY_CSS}
 ${LISTS_CSS}
 ${CODE_CSS}
 ${METERS_CSS}
@@ -224,7 +226,7 @@ ${REF_CSS}
 ${SHELL_HTML}
 <div class="mainw">
 <header class="top">
-  <h1 id="view-title">LangQuest operations</h1>
+  <div class="tt"><h1 id="view-title">LangQuest operations</h1><p class="verdict" id="view-say" role="status"></p></div>
   <form class="look" id="start-look" role="search"><label for="start-q" hidden>Look up</label>
     <input id="start-q" type="search" placeholder="Look up E-7K2Q01, an install id, an email or a name" required><button type="submit">Look up</button></form>
   <span class="tools"><button id="expand-all" type="button" hidden>Expand all</button><button id="collapse-all" type="button" hidden>Collapse all</button></span>
@@ -254,6 +256,7 @@ ${START_HTML}
       <ul id="attention-list"></ul>
     </section>
     <section class="card wide" id="org" hidden></section>
+    <div id="sum"></div>
     <div class="grid" id="grid"></div>
   </div>
 </main>
@@ -436,7 +439,7 @@ const results = {};
 
 function layout() {
   $('grid').innerHTML = SECTIONS.map((s) => '<section class="card' + (s.wide ? ' wide' : '') + '" id="card-' + s.id + '"><div class="head" data-toggle="' + s.id + '"><div><h2>' +
-    '<button type="button" class="toggle" id="toggle-' + s.id + '" aria-expanded="true" aria-controls="body-' + s.id + '"><span class="chev" aria-hidden="true">▾</span><span data-help-key="group:' + s.id + '">' + esc(s.title) + '</span></button>' +
+    '<button type="button" class="toggle" id="toggle-' + s.id + '" aria-expanded="true" aria-controls="body-' + s.id + '"><span class="chev" aria-hidden="true">▾</span><span class="gt" data-help-key="group:' + s.id + '">' + esc(s.title) + '</span><span class="dt">All the details</span></button>' +
     '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div>' +
     '<div class="body" id="body-' + s.id + '"></div><div class="hist" id="hist-' + s.id + '" hidden></div></section>').join('');
   for (const s of SECTIONS) applyOpen(s.id);
@@ -489,8 +492,9 @@ function partHtml(g, id) {
   if (!s) return head + '<p class="muted">Loading…</p>';
   if (s.state === 'off') return head + '<p class="setup muted">Not connected. ' + esc(s.setup) + '</p>';
   // Each line is a card (pageCards.ts); the container's answer has no part of its own (show), so its lines read with the jobs'.
-  const lines = lineCards(id === 'jobs' && results.container ? (s.alerts || []).map((a) => Object.assign({ part: 'jobs' }, a)).concat((results.container.alerts || []).map((a) => Object.assign({ part: 'container' }, a))) : s.alerts, g.id, id);
-  if (s.state === 'error') return head + lines + lineCards([{ level: 'watch', key: 'unreadable', subject: id, text: 'Could not read: ' + (s.error || 'unknown') + '.' }], g.id, id);
+  // On a section's own page the cards lead its summary (pageSummary.ts), so All the details leaves them out: each shows once.
+  const lines = cardsUp() ? '' : lineCards(id === 'jobs' && results.container ? (s.alerts || []).map((a) => Object.assign({ part: 'jobs' }, a)).concat((results.container.alerts || []).map((a) => Object.assign({ part: 'container' }, a))) : s.alerts, g.id, id);
+  if (s.state === 'error') return head + lines + (cardsUp() ? '<p class="bad">Could not read: ' + esc(s.error || 'unknown') + '.</p>' : lineCards([{ level: 'watch', key: 'unreadable', subject: id, text: 'Could not read: ' + (s.error || 'unknown') + '.' }], g.id, id));
   try {
     if (id === 'jobs') return head + lines + numbers(id, renderJobs(s.data, results.container));
     // A picture leads its part (pageLists.ts, pageMeters.ts); its numbers and tables wait behind one tap.
@@ -581,6 +585,17 @@ function show(id, s) {
   if (!g) return;
   const [cls, text] = pill(g);
   const el = $('pill-' + g.id); el.className = 'pill ' + cls; el.textContent = text;
+  drawBody(g);
+  if (id === 'userissues') redrawLineCards();
+  drawSummary();
+  focusCard();
+  if (view().name === 'all') applyOpen(g.id);
+  attention();
+  renderStart();
+}
+
+/** A section's card from its parts' answers, drawn over the old one in place. */
+function drawBody(g) {
   // The container's answer lives in the Jobs table, not as a part of its own.
   if (redraw($('body-' + g.id), g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join(''))) {
     if (g.parts.includes('feedback') || g.parts.includes('userissues')) wireScreenshots();
@@ -588,12 +603,9 @@ function show(id, s) {
     if (g.parts.includes('tutorials')) layoutTimelines();
     annotate($('body-' + g.id));
   }
-  if (id === 'userissues') redrawLineCards();
-  focusCard();
-  if (view().name === 'all') applyOpen(g.id);
-  attention();
-  renderStart();
 }
+/** On a section's own page its lines' cards lead the summary above (pageSummary.ts), not its parts. */
+const cardsUp = () => view().name === 'group';
 
 function attention() {
   const items = [];
@@ -979,7 +991,9 @@ document.addEventListener('click', (e) => {
   if (!head || e.target.closest('.body')) return;
   const id = head.dataset.toggle;
   const open = $('card-' + id).classList.contains('collapsed');
-  setOpen(id, open); saveOpen(id, open);
+  // A section's own page keeps its own choice for All the details (pageSummary.ts); All sections keeps its own.
+  setOpen(id, open);
+  if (view().name === 'group') saveDetails(id, open); else saveOpen(id, open);
 });
 $('expand-all').addEventListener('click', () => { for (const s of SECTIONS) { setOpen(s.id, true); saveOpen(s.id, true); } });
 $('collapse-all').addEventListener('click', () => { for (const s of SECTIONS) { setOpen(s.id, s.id === 'lookup'); saveOpen(s.id, s.id === 'lookup'); } });
@@ -1059,6 +1073,9 @@ ${RESEARCH_SCRIPT}
 // ---- each line as a card on its section's page, and the way from the Overview to it (pageCards.ts) ----
 ${CARD_LOGIC}
 ${CARD_SCRIPT}
+// ---- each section's page: its verdict, numbers with their usual range, lines, and All the details (pageSummary.ts) ----
+${SUMMARY_LOGIC}
+${SUMMARY_SCRIPT}
 ${LISTS_LOGIC}
 ${CODE_LOGIC}
 ${EXPO_LOGIC}
