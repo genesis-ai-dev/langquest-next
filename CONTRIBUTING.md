@@ -89,6 +89,18 @@ Name there, and in the pull request's title and text, only the issues the
 work fixes or is part of: the ops dashboard shows a pull request as the fix
 for every `LAN-` id it names (`apps/admin/src/sources/fixes.ts`).
 
+## Pull request titles and text
+
+Give a pull request a title that says what people see change, in plain
+words ("Fix: the web app shows 'could not open its storage' forever after a
+first visit is cut short"), not the code's names. Start its text, after any
+lines a tool adds, with `## What people see`: two to four short lines or
+numbered steps about what a person using the app or the dashboard sees,
+without code names. Put the technical detail after it. The ops dashboard
+shows the title and those first lines in a box when someone points at or
+taps the pull request's number (`apps/admin/src/sources/prs.ts`). A
+`Plain words: …` line anywhere in the text takes their place.
+
 ## Secrets and hosted settings
 
 Secrets are committed encrypted with dotenvx in the root `.env.<env>`;

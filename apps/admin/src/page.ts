@@ -12,6 +12,7 @@ import { VIDEO_CSS, VIDEO_LOGIC, VIDEO_SCRIPT } from './pageVideos';
 import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
 import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
 import { HOVER_CSS, HOVER_LOGIC, HOVER_SCRIPT } from './pageHover';
+import { REF_CSS, REF_LOGIC, REF_SCRIPT } from './pageRefs';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
 import { ICONS, NAV, SHELL_CSS, SHELL_HTML, SHELL_LOGIC, SHELL_SCRIPT } from './pageShell';
 import { OVERVIEW_CSS, OVERVIEW_HTML, OVERVIEW_LOGIC, OVERVIEW_SCRIPT } from './pageOverview';
@@ -210,6 +211,7 @@ ${LISTS_CSS}
 ${METERS_CSS}
 ${VIDEO_CSS}
 ${HOVER_CSS}
+${REF_CSS}
 </style>
 </head>
 <body>
@@ -1052,6 +1054,9 @@ ${OVERVIEW_SCRIPT}
 const KINDS = ${JSON.stringify(KINDS).replace(/</g, '\\u003c')};
 ${FIX_LOGIC}
 ${FIX_SCRIPT}
+// ---- what each PR and LAN number is about, in a box over it (pageRefs.ts) ----
+${REF_LOGIC}
+${REF_SCRIPT}
 // ---- the cards of the User issues page and of a tutorial video's questions (pageIssues.ts) ----
 ${ISSUE_LOGIC}
 ${ISSUE_SCRIPT}
