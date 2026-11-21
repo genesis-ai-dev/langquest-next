@@ -120,13 +120,15 @@ function startPlan(sections, results, levels) {
   return { cards, ok, waiting };
 }
 
+/** The id of a build's card in Where each build and update is, for a link to it (pageCards.ts). */
+function storeCardId(lane, title) { return 'build:' + lane + ':' + String(title || ''); }
 /** Builds in a store's review, from Where each build and update is (sources/pipeline.ts). */
 function storeWaits(pipeline) {
   const out = [];
   for (const lane of (pipeline && pipeline.lanes) || []) {
     for (const st of lane.stages || []) {
       if (st.id !== 'review') continue;
-      for (const c of st.cards || []) out.push({ lane: lane.id === 'ios' ? 'iPhone' : 'Android', title: c.title, stage: st.title, at: c.at, state: c.state });
+      for (const c of st.cards || []) out.push({ lane: lane.id === 'ios' ? 'iPhone' : 'Android', laneId: lane.id, title: c.title, stage: st.title, at: c.at, state: c.state });
     }
   }
   return out;
@@ -234,13 +236,8 @@ function savedRange() { try { const r = localStorage.getItem(RANGE_KEY); return 
 let range = savedRange();
 
 // ---- the views -----------------------------------------------------------------------------
-function view() {
-  const h = location.hash.replace(/^#/, '');
-  if (h === 'all') return { name: 'all' };
-  const g = /^g\/([a-z0-9_]+)$/.exec(h);
-  if (g && SECTIONS.some((s) => s.id === g[1])) return { name: 'group', id: g[1] };
-  return { name: 'start' };
-}
+/** '' the Overview, '#g/<section>' a section, '#g/<section>/<card id>' a section opened at one card (pageCards.ts), '#all' every section. */
+function view() { return viewOf(location.hash, SECTIONS); }
 function route() {
   const v = view();
   $('start').hidden = v.name !== 'start';
@@ -258,7 +255,7 @@ function route() {
     else if (v.name === 'all') applyOpen(s.id);
   }
   if (v.name === 'start') renderStart();
-  if (v.name === 'group') { renderHist(v.id); window.scrollTo(0, 0); }
+  if (v.name === 'group') { renderHist(v.id); window.scrollTo(0, 0); wantCard = v.card || null; focusCard(); }
   if (v.name !== 'group') closeDetail();
 }
 window.addEventListener('hashchange', route);

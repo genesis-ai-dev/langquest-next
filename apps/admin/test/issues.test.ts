@@ -47,7 +47,7 @@ describe('where a user issue is', () => {
     expect(logic.issueSource(['job:projection:stopped'])).toBe('Server jobs');
     expect(logic.issueSource(['worker:/api/agent:5xx'])).toBe('Workers and traffic');
     expect(logic.issueSource(['feedback:abc'])).toBe('A person sent it');
-    expect(logic.issueSource(['ops:backup-late'])).toBe('A line on this dashboard');
+    expect(logic.issueSource(['ops:backup-late'])).toBe('The ops dashboard');
     expect(logic.issueSource([])).toBe('');
     expect(logic.issueSource(['other:x'])).toBe('');
   });
@@ -113,12 +113,13 @@ describe('the cards', () => {
     expect(html).toContain('<button type="button" data-itab="you" aria-pressed="true">Waits on you<span class="count">1</span></button>');
     expect(html).toContain('<button type="button" data-itab="nofix" aria-pressed="false">No fix yet<span class="count">1</span></button>');
     expect(html).not.toContain('data-itab="open"');
-    for (const label of ['Context', 'Issue', 'Solution']) expect(html).toContain('<dt>' + label + '</dt>');
+    for (const label of ['What goes wrong', 'The fix']) expect(html).toContain('<dt>' + label + '</dt>');
+    expect(html).toContain('<p class="imeta">2 people · First seen then</p>');
     expect(html).toContain('Step 4 of 5: the fix waits on its merge');
     expect(html).toContain('>Review pull request 7</a>');
     expect(html).toContain('>Open LAN-9 in Linear</a>');
     // The issue on another tab is drawn, hidden.
-    expect(html).toContain('<article class="icard" data-tab="nofix" hidden>');
+    expect(html).toContain('<article class="icard" data-card="LAN-10" data-tab="nofix" hidden>');
     expect(html).toContain('Step 3 of 5: no fix yet');
   });
 
@@ -126,11 +127,11 @@ describe('the cards', () => {
     draw.fixes({ state: 'ok', data: { prs: [] } });
     const words = { context: 'A person saves a recording.', problem: 'The recording is <gone>.', solution: 'Keep the file until the save ends.' };
     const html = draw.userIssuesHtml({ issues: [issue(words)], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
-    expect(html).toContain('<dt>Context</dt><dd><p>A person saves a recording.</p><small class="muted">2 people · First seen then</small></dd>');
-    expect(html).toContain('<dt>Issue</dt><dd><p>The recording is &#60;gone&#62;.</p><small class="muted"><code>error:TypeError:library</code></small></dd>');
-    expect(html).toContain('<dt>Solution</dt><dd><p>Keep the file until the save ends.</p><small class="muted">No pull request names LAN-9.');
+    expect(html).toContain('<dt>What happened</dt><dd><p>A person saves a recording.</p></dd>');
+    expect(html).toContain('<dt>What goes wrong</dt><dd><p>The recording is &#60;gone&#62;.</p><small class="muted"><code>error:TypeError:library</code></small></dd>');
+    expect(html).toContain('<dt>The fix</dt><dd><p>Keep the file until the save ends.</p><small class="muted">No pull request names LAN-9.');
     // An issue filed before the watch kept words shows what the records say.
-    expect(draw.userIssuesHtml({ issues: [issue({ context: null })], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).toContain('<dt>Context</dt><dd>2 people · First seen then</dd>');
+    expect(draw.userIssuesHtml({ issues: [issue({ context: null })], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toContain('<dt>What happened</dt>');
   });
 
   it('says so when the pull requests could not be read, and never says No fix yet then', () => {
@@ -154,10 +155,10 @@ describe('the cards', () => {
     expect(html).toContain('<p class="said claude">It merges itself.\nA new step taps Allow.</p>');
     expect(html).toContain('>PR 507</a>');
     expect(html).toContain('Step 5 of 5: the change waits on its merge');
-    expect(html).toContain('<dt>Context</dt>');
-    expect(html).toContain('<dt>Issue</dt>');
+    expect(html).toContain('<dt>What happened</dt>');
+    expect(html).toContain('<dt>What goes wrong</dt>');
     // What happens next is Claude's answer now, not the line written before the admin said anything.
-    expect(html).not.toContain('<dt>Solution</dt>');
+    expect(html).not.toContain('<dt>The fix</dt>');
     expect(html).toContain('data-instruct="held"');
     expect(html).toContain('placeholder="Send another instruction…"');
   });
@@ -172,7 +173,7 @@ describe('the cards', () => {
     expect(html).toContain('data-sg="abc" data-decision="accept" data-kind="voice">Accept</button>');
     expect(html).toContain('data-sg="abc" data-decision="reject">Reject</button>');
     expect(html).toContain('The button is Done.');
-    expect(html).toContain('<dt>Solution</dt><dd>Accept: Claude makes the change.</dd>');
+    expect(html).toContain('<dt>The fix</dt><dd>Accept: Claude makes the change.</dd>');
     expect(html).toContain('Step 3 of 5: waits on your answer');
     expect(html).toContain('placeholder="Tell Claude what to do…"');
     expect(html).not.toContain('class="talk"');
@@ -194,7 +195,7 @@ describe('the cards', () => {
     expect(html).toContain('data-reply-done="r1" data-done="posted"');
     expect(html).toContain('data-reply-done="r1" data-done="none"');
     // The steps are the card's own; the line written for a card without them is not shown too.
-    expect(html).not.toContain('<dt>Solution</dt>');
+    expect(html).not.toContain('<dt>The fix</dt>');
     expect(html).not.toContain('class="steps"');
   });
 
@@ -285,8 +286,8 @@ describe('the cards', () => {
     draw.fixes({ state: 'ok', data: { prs: open } });
     const html = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record() }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
     expect(html).toContain('data-itab="claude" aria-pressed="true">Fixed by Claude<span class="count">1</span>');
-    expect(html).toContain('<article class="icard pics" data-tab="claude" data-claude="1">');
-    expect(html).toContain('<dt>Claude</dt>');
+    expect(html).toContain('<article class="icard pics" data-card="LAN-9" data-tab="claude" data-claude="1">');
+    expect(html).toContain('<dt>What Claude did</dt>');
     expect(html).toContain('PR 7 merges without a person when its checks pass.');
     expect(html).toContain('>Open pull request 7</a>');
     expect(html).not.toContain('Review pull request');
@@ -303,7 +304,7 @@ describe('the cards', () => {
     expect(draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record({ pr: 5, beforeAfter: true }) }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toContain('data-fixpic');
     // A record of another pull request: its reasons are not under this one, the pictures of the problem still are.
     const other = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record({ pr: 5 }) }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
-    expect(other).not.toContain('<dt>Claude</dt>');
+    expect(other).not.toContain('<dt>What Claude did</dt>');
     expect(other).toContain('data-shot="f1"');
     draw.fixes({ state: 'ok', data: { prs: [] } });
     const waits = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': none }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
@@ -311,7 +312,7 @@ describe('the cards', () => {
     expect(waits).toContain('Claude wrote no fix. A developer decides what happens next.');
     expect(waits).toContain('<b>The cause is not proven.</b> The cause is not proven.');
     // Before the database keeps records, a card is as it was.
-    expect(draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toMatch(/<dt>Claude<\/dt>|data-shot/);
+    expect(draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toMatch(/<dt>What Claude did<\/dt>|data-shot/);
     draw.fixes(null);
   });
 
