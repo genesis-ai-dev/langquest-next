@@ -179,6 +179,10 @@ export const KINDS = {
   'user-issues-open': { part: 'userissues', title: 'User issues are open in Linear', recheck: LIVE, person: true },
   'user-issues-waiting': { part: 'userissues', title: 'Problems wait for the watch for user issues', recheck: { everyMin: 15 }, person: true },
   'user-issue-watch-failed': { part: 'userissues', title: 'The watch for user issues failed', recheck: { everyMin: 15 } },
+  // Each research item has its Linear issue already (scripts/agent-research.mjs files it): a person acts on these two.
+  'research-security-hole': { part: 'research', title: 'A serious security hole waits for a fix', recheck: LIVE, person: true },
+  'research-waits': { part: 'research', title: 'Research items wait for a developer', recheck: LIVE, person: true },
+  'research-stopped': { part: 'research', title: 'The research team stopped writing reports', recheck: { daily: ['13:23'], takesMin: 60 } },
 
   // ---- The page itself ----
   'unreadable': { part: '', title: 'A part could not be read', recheck: LIVE }

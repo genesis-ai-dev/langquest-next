@@ -469,15 +469,15 @@ declare
     'found', 'The label has a fixed width.', 'why', 'A long word shows as half a word.', 'places', jsonb_build_array('apps/mobile/src/screens/invite.tsx:142'),
     'decision', 'recommend', 'action', 'fix', 'issue', 'LAN-310', 'issueUrl', 'https://linear.app/frontierrandd/issue/LAN-310/x');
 begin
-  assert public.ops_research_done(jsonb_build_object('runUrl', run)) = jsonb_build_object('research', 0, 'handed', 0), 'a run with none';
+  assert public.ops_research_done(jsonb_build_object('runUrl', run)) = jsonb_build_object('research', 0, 'handed', 0, 'report', 0), 'a run with none';
   assert public.ops_research_done(jsonb_build_object('runUrl', run, 'research', jsonb_build_array(item,
     jsonb_build_object('tag', 'not-proven', 'title', 'Maybe the same', 'found', 'It can be.', 'why', 'Not shown.', 'decision', 'watch', 'action', 'none'))))
-    = jsonb_build_object('research', 2, 'handed', 0), 'two items kept';
+    = jsonb_build_object('research', 2, 'handed', 0, 'report', 0), 'two items kept';
   assert public.ops_research_waiting() = '["LAN-310"]'::jsonb, 'the recommended fix waits for the fix team';
   v := public.ops_research_context();
   assert jsonb_array_length(v->'items') = 2 and jsonb_typeof(v->'issues') = 'array', 'the lead reads the items of earlier runs';
   -- Handed to the fix team one time; found again without its issue, it keeps the issue.
-  assert public.ops_research_done(jsonb_build_object('runUrl', run, 'handed', jsonb_build_array('LAN-310', 'LAN-999'))) = jsonb_build_object('research', 0, 'handed', 1), 'handed';
+  assert public.ops_research_done(jsonb_build_object('runUrl', run, 'handed', jsonb_build_array('LAN-310', 'LAN-999'))) = jsonb_build_object('research', 0, 'handed', 1, 'report', 0), 'handed';
   assert public.ops_research_waiting() = '[]'::jsonb, 'not handed twice';
   perform public.ops_research_done(jsonb_build_object('runUrl', run, 'research', jsonb_build_array(item - 'issue' - 'issueUrl' || jsonb_build_object('title', 'Words are cut off'))));
   v := (select x from jsonb_array_elements(diag.ops_research()->'items') x where x->>'tag' = 'fixed-width-label');
@@ -497,6 +497,28 @@ begin
   v := (select x from jsonb_array_elements(diag.ops_research()->'items') x where x->>'tag' = 'fixed-width-label');
   assert jsonb_array_length(v->'steps') = 2 and (v->'steps'->1->>'wrong')::boolean, 'the item keeps its diagram';
   assert diag.ops_research()->>'lastAt' is not null and jsonb_array_length(diag.ops_research()->'items') = 2, 'the dashboard reads both';
+  -- The team that looks ahead (migration *_research_team_reports.sql): an item with its package, proof and choice,
+  -- and the day's report, which a second run of the same day replaces.
+  assert public.ops_research_done(jsonb_build_object('runUrl', run || '/attempts/2', 'research', jsonb_build_array(jsonb_build_object(
+      'tag', 'hono-cookie-hole', 'title', 'A hole in hono', 'found', 'hono 4.6.1 reads cookies slowly.', 'why', 'One person can stop the Worker.',
+      'places', '[]'::jsonb, 'decision', 'recommend', 'action', 'ask', 'beat', 'security', 'kind', 'vulnerability', 'severity', 'high',
+      'links', jsonb_build_array('https://github.com/advisories/GHSA-aaaa'), 'package', 'hono', 'from', '4.6.1', 'to', '4.6.5', 'deadline', '2026-12-31',
+      'ask', jsonb_build_object('why', 'A package change waits.', 'choices', jsonb_build_array(jsonb_build_object('label', 'Upgrade'), jsonb_build_object('label', 'Wait'))))),
+    'report', jsonb_build_object('day', current_date::text, 'headline', 'One hole needs an upgrade.', 'summary', '[]'::jsonb, 'beats', '[]'::jsonb, 'lead', 'ok')))
+    = jsonb_build_object('research', 1, 'handed', 0, 'report', 1), 'an item and a report kept';
+  perform public.ops_research_done(jsonb_build_object('runUrl', run || '/attempts/2', 'report', jsonb_build_object('day', current_date::text, 'headline', 'Replaced.', 'lead', 'ok')));
+  v := diag.ops_research();
+  assert jsonb_array_length(v->'reports') = 1 and v->'reports'->0->>'headline' = 'Replaced.' and v->'reports'->0->>'day' = current_date::text
+   , 'the report of a run, replaced by its second';
+  v := (select x from jsonb_array_elements(diag.ops_research()->'items') x where x->>'tag' = 'hono-cookie-hole');
+  assert v->>'beat' = 'security' and v->>'package' = 'hono' and v->>'to' = '4.6.5' and v->>'deadline' = '2026-12-31'
+    and jsonb_array_length(v->'ask'->'choices') = 2 and v->'links'->>0 = 'https://github.com/advisories/GHSA-aaaa', 'the item keeps what the team found';
+  assert public.ops_research_context()->'last'->>'headline' = 'Replaced.', 'the leads read the last headline';
+  begin
+    perform public.ops_research_done(jsonb_build_object('runUrl', run, 'research', jsonb_build_array(item || jsonb_build_object('tag', 'odd-beat', 'beat', 'gossip'))));
+    assert false, 'an odd beat was kept';
+  exception when check_violation then null;
+  end;
   begin
     perform public.ops_research_done(jsonb_build_object('runUrl', run, 'research', jsonb_build_array(item || jsonb_build_object('tag', 'Not A Tag'))));
     assert false, 'an odd tag was kept';
@@ -510,7 +532,8 @@ begin
   assert not has_function_privilege('authenticated', 'public.ops_research_done(jsonb)', 'execute')
     and not has_function_privilege('anon', 'public.ops_research_context()', 'execute')
     and not has_function_privilege('authenticated', 'public.ops_research_waiting()', 'execute')
-    and not has_function_privilege('authenticated', 'diag.ops_research()', 'execute'), 'only the service role writes, only the dashboard reads';
+    and not has_function_privilege('authenticated', 'diag.ops_research()', 'execute')
+    and not has_table_privilege('authenticated', 'ops.research_reports', 'select'), 'only the service role writes, only the dashboard reads';
 end $$;
 
 -- Kinds found fixed are taken out 90 days after they were looked at, like noise.
