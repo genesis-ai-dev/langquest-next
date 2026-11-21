@@ -277,9 +277,9 @@ function stepsHtml(steps, at) {
 }
 
 /** A card's headings in plain words, by the name its maker gives each line. */
-const KV_SAID = { Context: 'What happened', Issue: 'What goes wrong', Solution: 'The fix', Claude: 'What Claude did', Found: 'What Claude found', Why: 'Why it matters', Where: 'Where in the code' };
+const KV_SAID = { Next: 'What happens next', Context: 'What happened', Issue: 'What goes wrong', Solution: 'The fix', Claude: 'What Claude did', Found: 'What Claude found', Why: 'Why it matters', Where: 'Where in the code' };
 /** The lines that go in the panel at the right, with the buttons: what is done about it. */
-const KV_SIDE = ['Solution', 'Claude', 'Where'];
+const KV_SIDE = ['Next', 'Solution', 'Claude', 'Where'];
 /**
  * One card: at the top its tags, title, who acts next and its steps as a
  * progress bar; then at the left what happened (the pictures, then the lines),

@@ -21,6 +21,7 @@ export const CARD_CSS = String.raw`
 .icard.line .itags .tag.urgent, .icard.line .itags .tag.problem { color: var(--red); background: var(--redbg); }
 .icard.line .itags .tag.watch { color: var(--amber); background: var(--amberbg); }
 .icard .nobox { margin: 0; font-size: 12.5px; color: var(--muted); }
+.icard .inext { margin: 0; font-weight: 600; color: var(--ink); }
 .icard .eachissue { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
 .icard .eachissue a { color: var(--primary); font-weight: 600; }
 .icard.hit, .pc.hit { box-shadow: 0 0 0 3px var(--primary); animation: cardhit 2.6s ease-out 1; }
@@ -78,6 +79,21 @@ function lineWay(f, byClaude, asked) {
   return asked && f.issues && f.issues.length === 1 ? { ...out, pill: ['Claude acts next', 'claude'] } : out;
 }
 
+/**
+ * What happens next on a line's card, in words: who acts, and what; '' when the pill and the steps
+ * say it already. own: the line names its own Linear issue (a nightly test's: the nightly report
+ * filed it, not the watch), so no agent writes a fix for it unless a person tells Claude to.
+ * asked: an instruction to Claude waits for its answer.
+ */
+function nextSaid(state, own, asked) {
+  if (asked) return 'Claude has your instruction. The answer shows under your words below, after the next run of the watch (each 15 minutes).';
+  if (state === 'stuck') return own
+    ? 'The test failed again after the fix merged. The cause can be a new one. No agent works on it now. To get a fix, tell Claude what to do below.'
+    : 'The problem is still here after the fix merged. To get a new fix, tell Claude what to do below.';
+  if (own && (state === 'issue' || state === 'part')) return 'The nightly report put this failure in Linear. No agent writes a fix for it on its own. To get a fix, tell Claude what to do below.';
+  return '';
+}
+
 /** Why a line's card has no box to tell Claude what to do, by its state; '' when it has one. */
 function noBoxSaid(state, read) {
   if (!read) return 'Reading the user issues…';
@@ -108,7 +124,8 @@ function lineCard(a, group) {
   const pr = f && f.pr && f.pr.number ? f.pr : null;
   const shown = fixFor(record, pr);
   const byClaude = !!shown && record.decision === 'merge';
-  const way = f ? lineWay(f, byClaude, notes.some((n) => n.state === 'waiting' || n.state === 'working'))
+  const asked = notes.some((n) => n.state === 'waiting' || n.state === 'working');
+  const way = f ? lineWay(f, byClaude, asked)
     : { pill: unread ? ['Could not read', ''] : ['Waits on you', 'you'], at: 0, steps: LINE_STEPS };
   const said = (words, facts) => words ? '<p>' + esc(words) + '</p>' + (facts ? '<small class="muted">' + facts + '</small>' : '') : facts;
   const where = 'Found in ' + esc(PART_TITLE[a.part] || titleOf(group)) + (row && row.firstAt ? ' · first seen ' + when(row.firstAt) : '') + (row && row.people ? ' · ' + num(row.people) + (Number(row.people) === 1 ? ' person' : ' people') : '');
@@ -128,6 +145,8 @@ function lineCard(a, group) {
     title: t.title, meta: where,
     talk: issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : '',
     lines: [
+      // Who acts next, and what: first in the panel at the right.
+      ['Next', issue && f ? (() => { const n = nextSaid(f.state, !!(a.issues && a.issues.length), asked); return n ? '<p class="inext">' + esc(n) + '</p>' : ''; })() : ''],
       ['Context', row && row.context ? '<p>' + esc(row.context) + '</p>' : ''],
       // The title says the problem; Claude's words for it come with the Linear issue.
       ['Issue', row && row.problem ? '<p>' + esc(row.problem) + '</p>' : ''],
