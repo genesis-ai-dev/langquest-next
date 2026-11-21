@@ -74,6 +74,13 @@ ol.steps li.now::after { background: var(--primary); border-color: var(--primary
 .said { max-width: min(560px, 88%); margin: 0; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
 .said.you { justify-self: end; background: var(--primary); color: #fff; border-end-end-radius: 4px; }
 .said.claude { justify-self: start; background: var(--soft); color: var(--ink); border-end-start-radius: 4px; }
+.said.claude { white-space: normal; display: grid; gap: 8px; }
+.said.claude > * { margin: 0; } .said.claude strong { font-weight: 650; }
+.said.claude ol, .said.claude ul { padding-inline-start: 22px; display: grid; gap: 6px; } .said.claude li::marker { color: var(--muted); font-weight: 600; }
+.said code { font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere; }
+.said pre { position: relative; margin: 0; padding: 10px 64px 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.said pre code { background: none; border: 0; padding: 0; }
+.said pre .copy { position: absolute; top: 6px; right: 6px; min-height: 30px; padding: 0 10px; font-size: 12px; border-radius: 7px; }
 .talk small { font-size: 11.5px; color: var(--muted); margin-bottom: 6px; } .talk small.you { justify-self: end; }
 .tell { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t b" "s s"; gap: 6px 10px; align-items: end; }
 .tell textarea { grid-area: t; min-height: 52px; background: var(--card); font-size: 14px; border-radius: 12px; resize: vertical; }
@@ -173,6 +180,59 @@ const NOTE_STATE = {
 /** One instruction on a user issue as the talk shows it: Claude's words, or the state's. */
 function noteSaid(n) {
   return n.state === 'answered' ? n.answer || NOTE_STATE[n.result] || NOTE_STATE.none : NOTE_STATE[n.state] || NOTE_STATE.waiting;
+}
+
+/** One line of Claude's words: escaped, then \`code\` and **strong**. Nothing else becomes HTML. */
+function saidInline(s) {
+  return esc(s).replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+/**
+ * An answer Claude wrote kept all on one line (before line breaks were kept): put each step of
+ * "1) ... 2) ..." on its own line, only when the steps count 1, 2, 3 in order.
+ */
+function saidSteps(t) {
+  if (/\n/.test(t)) return t;
+  const at = [];
+  const re = /(^|\s)(\d{1,2})[.)]\s/g;
+  let m;
+  while ((m = re.exec(t))) if (Number(m[2]) === at.length + 1) at.push(m.index + m[1].length);
+  if (at.length < 2) return t;
+  return at.reduce((out, p, i) => out + t.slice(i ? at[i - 1] : 0, p).trimEnd() + '\n', '').replace(/^\n/, '') + t.slice(at[at.length - 1]);
+}
+/**
+ * Claude's answer as the talk shows it (the user-issues skill asks for this shape): the first
+ * paragraph as the lead, a line that starts "1." or "1)" as a numbered step, "- " as a point,
+ * a fenced block as code with a copy button. Every word is escaped first.
+ */
+function saidHtml(text) {
+  const lines = saidSteps(String(text ?? '').trim()).split('\n');
+  const out = [];
+  let list = null, para = [], code = null;
+  const pre = (c) => '<pre><code>' + esc(c.join('\n')) + '</code><button type="button" class="copy" data-copy-code aria-label="Copy">Copy</button></pre>';
+  // The first sentence is the lead: in bold, the rest of its paragraph not.
+  const lead = (t) => { const m = t.match(/^(.+?[.!?])\s+(\S.*)$/); return '<strong>' + saidInline(m ? m[1] : t) + '</strong>' + (m ? ' ' + saidInline(m[2]) : ''); };
+  const endPara = () => { if (para.length) out.push('<p>' + para.map((x, i) => !out.length && !i ? lead(x) : saidInline(x)).join('<br>') + '</p>'); para = []; };
+  const endList = () => { if (list) out.push('<' + list.tag + '>' + list.items.map((x) => '<li>' + x + '</li>').join('') + '</' + list.tag + '>'); list = null; };
+  // A block of code inside a list goes under its step, so the steps after it keep their numbers.
+  const endCode = () => { if (list) list.items[list.items.length - 1] += pre(code); else out.push(pre(code)); code = null; };
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (code) { if (/^\s*\x60\x60\x60/.test(line)) endCode(); else code.push(raw); continue; }
+    if (/^\s*\x60\x60\x60/.test(line)) { endPara(); code = []; continue; }
+    const step = line.match(/^\s*\d{1,2}[.)]\s+(.*)$/), point = line.match(/^\s*[-*•]\s+(.*)$/);
+    if (step || point) {
+      endPara();
+      const tag = step ? 'ol' : 'ul';
+      if (list && list.tag !== tag) endList();
+      if (!list) list = { tag, items: [] };
+      list.items.push(saidInline((step || point)[1]));
+    } else if (!line.trim()) endPara();
+    else if (list && /^\s{2,}/.test(raw)) list.items[list.items.length - 1] += ' ' + saidInline(line.trim());
+    else { endList(); para.push(line.trim()); }
+  }
+  if (code) endCode();
+  endPara(); endList();
+  return out.join('');
 }
 
 /** The tabs of the User issues page, in order; Open shows only while the pull requests are not read. */
@@ -327,7 +387,7 @@ function issueTalk(r, notes, at) {
   const talk = list.map((n) => {
     const where = n.pr ? ' · ' + outLink(PR_URL + n.pr, 'PR ' + esc(n.pr)) : n.state !== 'answered' && n.state !== 'waiting' && safeLink(n.runUrl) ? ' · ' + outLink(n.runUrl, 'The run') : '';
     return '<p class="said you">' + esc(n.text) + '</p><small class="you">You · ' + when(n.at) + '</small>' +
-      '<p class="said claude">' + esc(noteSaid(n)) + '</p><small>Claude' + (n.answeredAt ? ' · ' + when(n.answeredAt) : '') + where + '</small>';
+      '<div class="said claude">' + saidHtml(noteSaid(n)) + '</div><small>Claude' + (n.answeredAt ? ' · ' + when(n.answeredAt) : '') + where + '</small>';
   }).join('');
   const id = esc(r.issue);
   return (talk ? '<div class="talk">' + talk + '</div>' : '') +
@@ -362,6 +422,13 @@ document.addEventListener('click', (e) => {
   for (const x of box.querySelectorAll('[data-itab]')) x.setAttribute('aria-pressed', String(x === b));
   for (const c of box.querySelectorAll('.icard[data-tab]')) c.hidden = !onTab({ tab: c.dataset.tab, claude: c.dataset.claude }, issueTab);
 });
+// Copy on a block of code in Claude's answer: the command, as Claude wrote it.
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-copy-code]');
+  const code = b && b.parentElement.querySelector('code');
+  if (!code || !navigator.clipboard) return;
+  navigator.clipboard.writeText(code.textContent).then(() => { b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1500); }, () => say('The code was not copied. Select it and copy it.', 'red'));
+});
 // "Tell Claude what to do" on a user issue: an instruction for the watch's next run.
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('[data-uinote]');
@@ -385,7 +452,7 @@ function talkHtml(ins) {
     : ins.looked ? 'Claude starts the change at its next fix run (:20 and :50 each hour), as a pull request that merges itself when its checks pass.' : 'Claude reads it at its next run.';
   const where = fix && fix.pr ? ' · ' + outLink(PR_URL + fix.pr, 'PR ' + esc(fix.pr)) : fix && safeLink(fix.run) ? ' · ' + outLink(fix.run, 'The run') : '';
   return '<div class="talk"><p class="said you">' + esc(ins.text) + '</p><small class="you">You · ' + when(ins.at) + '</small>' +
-    '<p class="said claude">' + esc(answer) + (fix && fix.note ? '\n' + esc(fix.note) : '') + '</p><small>Claude' + (fix && fix.at ? ' · ' + when(fix.at) : '') + where + '</small></div>';
+    '<div class="said claude">' + saidHtml(answer + (fix && fix.note ? '\n\n' + fix.note : '')) + '</div><small>Claude' + (fix && fix.at ? ' · ' + when(fix.at) : '') + where + '</small></div>';
 }
 function suggestionSide(s) {
   return '<p class="ibtns"><button type="button" class="primary" data-sg="' + esc(s.id) + '" data-decision="accept" data-kind="' + esc(s.kind) + '">Accept</button>' +
