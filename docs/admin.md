@@ -539,6 +539,28 @@ User issues, Research, Support, Tutorial videos and Nightly tests, and keeps
 each page's choice (`lq-ops-details` in the browser). `#all` shows every
 section on one page, each line's card in its part.
 
+Some pages add blocks of their own to the summary (`apps/admin/src/pageBlocks.ts`
+`PAGE_BLOCKS`, and the first words of their sentence, `PAGE_SAY`), each from
+what its parts already answered. Releases: where each store build is, as a
+track of stages with each build as a chip that opens its card; the web app
+against the newest merge (`codeView`); who has the newest update, a meter for
+each store build on the production channel; the automatic jobs on GitHub.
+App stores: Android crashes and freezes as meters against Google's line
+(`CRASH_LINE`, `ANR_LINE`), the App Store's newest versions in words, and the
+reviews. People and organizations: the totals and who waits to join. Phones
+and browsers: what people used in the last 7 days, by platform.
+
+The pages whose list is the work keep All the details open, and their
+summary says where the work is. User issues, Research and Tutorial videos: a
+box for each tab of the list with its count (`tabStrip`); a tap opens the
+list at that tab. Tutorial videos also shows each app language as a chip
+(paused, in order, or how many videos need a person). Support: what waits on
+staff (`supportWaits`: open content reports and whether the oldest is past
+the 24-hour promise, feedback, blue checks to decide). Nightly tests: each
+nightly as a meter of the suites that passed, and a nightly that did not run
+in 36 hours (`nightlyView`, `STALE_H`). Their sentence says only what the
+parts read; what waits on a person is said once, by the page's lines.
+
 The Overview's sentence under its title counts its lines by who acts
 (`lineBucket`): Needs you (Act now, Fix soon), This week, you decide (a
 choice at Watch: `person` kinds in `alertKinds.ts`), On its way (a merged fix

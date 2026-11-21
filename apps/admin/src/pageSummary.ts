@@ -124,7 +124,8 @@ function healthOf(series, metric, unit, counted) {
   const vals = (series && series.values || []).map((x) => x === null || x === undefined ? null : Number(x));
   const ok = (i) => vals[i] !== null && (!counted || counted[i] !== false);
   const n = vals.length;
-  const level = series && series.agg === 'max';
+  // A size or a time is a level, read at its newest value; any other number, even one kept as a day's highest (people active), is read on its last full day.
+  const level = Boolean(series) && series.agg === 'max' && (unit === 'bytes' || unit === 'ms');
   let at = level ? n - 1 : n - 2;
   while (at >= 0 && !ok(at)) at--;
   const zero = n > 0 && vals.every((x) => !x);
@@ -268,8 +269,8 @@ function healthRow(part, metric) {
   if (!m || !got) return null;
   const h = healthOf(got.s, metric, m.unit, got.hst.counted);
   const words = healthWords(h, m.unit);
-  const on = h.at < 0 ? '' : got.s.agg === 'max' && h.at === got.s.values.length - 1 ? 'now' : 'on ' + bucketLabel(got.hst.buckets[h.at], got.hst.step);
-  const line = got.s.agg === 'max' ? got.s.values : got.s.values.slice(0, -1);
+  const on = h.at < 0 ? '' : h.at === got.s.values.length - 1 ? 'now' : 'on ' + bucketLabel(got.hst.buckets[h.at], got.hst.step);
+  const line = h.at === got.s.values.length - 1 ? got.s.values : got.s.values.slice(0, -1);
   return { part, metric, label: m.label, unit: m.unit, h, words, on, value: fmtUnit(m.unit)(h.value),
     spark: sparkSvg(line, h.usual, h.tone === 'warn' ? 'warn' : '', 240, 46), quiet: h.zero };
 }

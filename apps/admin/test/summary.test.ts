@@ -48,6 +48,8 @@ describe('what a number of 14 days says', () => {
   });
   it('reads a level from its newest value, and a size by how much it grows a day', () => {
     expect(logic.healthOf({ agg: 'max', values: days(6, 7) }, 'p95_ms', 'ms')).toMatchObject({ value: 7, at: 13 });
+    // A day's highest count (people active) is a count: today is not over, so it reads the last full day.
+    expect(logic.healthOf({ agg: 'max', values: days(6, 2) }, 'active_accounts')).toMatchObject({ value: 6, at: 12 });
     const size = logic.healthOf({ agg: 'max', values: [100, 110, 120, 130] }, 'db_bytes', 'bytes');
     expect(size).toMatchObject({ said: 'grow', grow: 10, usual: null });
   });

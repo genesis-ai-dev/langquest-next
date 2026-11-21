@@ -24,6 +24,7 @@ import { RESEARCH_CSS, RESEARCH_LOGIC, RESEARCH_SCRIPT } from './pageResearch';
 import { RESEARCH_TEAM } from './researchTeam';
 import { CARD_CSS, CARD_LOGIC, CARD_SCRIPT } from './pageCards';
 import { SUMMARY_CSS, SUMMARY_LOGIC, SUMMARY_SCRIPT } from './pageSummary';
+import { BLOCKS_CSS, BLOCKS_LOGIC, BLOCKS_SCRIPT, WIDTH_CSS } from './pageBlocks';
 import { KINDS } from './alertKinds';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
@@ -213,6 +214,8 @@ ${ISSUE_CSS}
 ${RESEARCH_CSS}
 ${CARD_CSS}
 ${SUMMARY_CSS}
+${BLOCKS_CSS}
+${WIDTH_CSS}
 ${LISTS_CSS}
 ${CODE_CSS}
 ${METERS_CSS}
@@ -1076,6 +1079,9 @@ ${CARD_SCRIPT}
 // ---- each section's page: its verdict, numbers with their usual range, lines, and All the details (pageSummary.ts) ----
 ${SUMMARY_LOGIC}
 ${SUMMARY_SCRIPT}
+// ---- the blocks of their own some pages show in their summary (pageBlocks.ts) ----
+${BLOCKS_LOGIC}
+${BLOCKS_SCRIPT}
 ${LISTS_LOGIC}
 ${CODE_LOGIC}
 ${EXPO_LOGIC}
