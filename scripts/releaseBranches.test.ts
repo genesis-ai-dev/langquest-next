@@ -342,6 +342,10 @@ describe('a copy with a conflict', () => {
     for (const c of ['npm ci', 'cd apps/mobile && npx tsc -b', 'node scripts/x.mjs']) expect(re.test(c)).toBe(true);
     for (const c of ["echo '{}' > .release-copy.json", "python3 - <<'E'", 'cd apps/mobile; grep -n BUDGET x']) expect(re.test(c)).toBe(false);
     expect(counter).toContain('count=${blocked.length}');
+    // A joined command is refused whole when one part is not allowed: Claude runs each one alone, and may read output (#578, #588).
+    expect(yml).toContain('Run each command on its own');
+    const allowed = /--allowedTools "([^"]*)"/.exec(yml)?.[1].split(',') ?? [];
+    for (const t of ['Bash(npm:*)', 'Bash(cat:*)', 'Bash(head:*)', 'Bash(tail:*)', 'Bash(grep:*)', 'Bash(ls:*)', 'Bash(wc:*)']) expect(allowed).toContain(t);
     const script = readFileSync('scripts/release-branches.mjs', 'utf8');
     const finish = script.slice(script.indexOf('function finishCopy('), script.indexOf('async function main'));
     expect(finish.indexOf('if (denied > 0)')).toBeGreaterThan(-1);

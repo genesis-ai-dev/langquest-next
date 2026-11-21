@@ -276,3 +276,9 @@ checked copies #578 and #588, but it also tried an `echo`, a `python3` and a
 `cd` chain that its allowed tools do not include, and did those steps another
 way. The count of every refused command held both checked copies back, and
 the ops dashboard said that the workflow still blocked Claude.
+
+Amended (2026-11-20, Caleb Koster): Claude runs each command alone on a copy,
+and may run `cat`, `head`, `tail`, `grep`, `ls` and `wc`. The action refuses
+a joined command whole when one part is not allowed, so on #578 and #588
+`npm ci > /tmp/ci.log; tail -3 /tmp/ci.log` was refused, and the copies
+stayed unfinished although their checks passed.

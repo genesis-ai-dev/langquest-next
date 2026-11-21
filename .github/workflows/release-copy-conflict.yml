@@ -123,7 +123,8 @@ jobs:
             5. Commit all of your work on this branch. Do not push, comment, label, close or merge: the next step of this workflow pushes your commits, comments, and turns on auto-merge.
             6. Last, write `.release-copy.json` in the repository's root with the Write tool (git ignores it), with one entry for each listed commit, oldest first: `{"commits": [{"sha": "<full sha>", "result": "copied", "why": "<one sentence>"}]}`, where result is "copied", "copied in part" or "left out". A commit copied in whole or in part must be on this branch with its "cherry picked from commit" line. When you could not finish (a conflict or a failure you could not resolve), write `{"unfinished": "<one sentence: what is left, and why>"}` instead; Claude tries again later from your commits.
             Never push to any branch.
-          claude_args: --allowedTools "Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(gh pr checks:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Read,Edit,Write,Glob,Grep"
+            Run each command on its own: do not join commands with `;`, `&&` or `|`, and do not send output to a file with `>`. A joined command is refused whole when one part is not allowed (2026-11-20: `npm ci > /tmp/ci.log; tail -3 /tmp/ci.log` was refused, so the copies went unchecked).
+          claude_args: --allowedTools "Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(grep:*),Bash(ls:*),Bash(wc:*),Bash(gh pr checks:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Read,Edit,Write,Glob,Grep"
       - id: denied
         name: Name each thing that Claude was not allowed to do
         if: always() && steps.claude.outcome != 'skipped'
