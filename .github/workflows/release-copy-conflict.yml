@@ -107,6 +107,12 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ steps.token.outputs.token }}
           allowed_bots: langquest-release-branches
+          # The release bot opens each copy from code that already merged into main,
+          # and Claude must run npm ci and the guardrails on it. The action's default
+          # refuses those commands on a pull request whose author it cannot confirm
+          # as a writer, and the bot is such an author
+          # (docs/decisions/2026-11-20-copies-let-claude-run-the-tests.md).
+          restrict_untrusted_prs: "false"
           prompt: |
             Pull request #${{ steps.copy.outputs.pr }} (this branch, ${{ steps.copy.outputs.head }}) copies commits from main onto ${{ steps.copy.outputs.base }}, the code of the public build. A newer build, with main's code, is not public yet. The pull request's body lists the commits, oldest first (`- <sha> #<pull request> <title>`); a commit on this branch whose message says "cherry picked from commit <sha>" is a copy already made. Your task is to finish the copy, keep only what fits the public build, and make the checks pass.
             0. If `gh pr view ${{ steps.copy.outputs.pr }} --json mergeable` says CONFLICTING (another copy merged first), run `git merge origin/${{ steps.copy.outputs.base }}` and resolve each conflict as in step 1, keeping both sides' changes to the app. Never rebase, and never force a push.
@@ -115,10 +121,12 @@ jobs:
             3. If the checks failed, read why: `gh pr checks ${{ steps.copy.outputs.pr }}`, then `gh run view <run id> --log-failed` for each failed run.
             4. Run `npm ci` and `npm run guardrails`, and fix what the copy broke and what the checks found. Never skip, disable or weaken a test to make it pass. When a test fails because main's change needs code that the release branch does not have, take out that part of the change, and say so in the commit message.
             5. Commit all of your work on this branch. Do not push, comment, label, close or merge: the next step of this workflow pushes your commits, comments, and turns on auto-merge.
-            6. Last, write `.release-copy.json` in the repository's root (git ignores it), with one entry for each listed commit, oldest first: `{"commits": [{"sha": "<full sha>", "result": "copied", "why": "<one sentence>"}]}`, where result is "copied", "copied in part" or "left out". A commit copied in whole or in part must be on this branch with its "cherry picked from commit" line. When you could not finish (a conflict or a failure you could not resolve), write `{"unfinished": "<one sentence: what is left, and why>"}` instead; Claude tries again later from your commits.
+            6. Last, write `.release-copy.json` in the repository's root with the Write tool (git ignores it), with one entry for each listed commit, oldest first: `{"commits": [{"sha": "<full sha>", "result": "copied", "why": "<one sentence>"}]}`, where result is "copied", "copied in part" or "left out". A commit copied in whole or in part must be on this branch with its "cherry picked from commit" line. When you could not finish (a conflict or a failure you could not resolve), write `{"unfinished": "<one sentence: what is left, and why>"}` instead; Claude tries again later from your commits.
             Never push to any branch.
-          claude_args: --allowedTools "Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(gh pr checks:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Read,Edit,Write,Glob,Grep"
-      - name: Name each thing that Claude was not allowed to do
+            Run each command on its own: do not join commands with `;`, `&&` or `|`, and do not send output to a file with `>`. A joined command is refused whole when one part is not allowed (2026-11-20: `npm ci > /tmp/ci.log; tail -3 /tmp/ci.log` was refused, so the copies went unchecked).
+          claude_args: --allowedTools "Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(grep:*),Bash(ls:*),Bash(wc:*),Bash(gh pr checks:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Read,Edit,Write,Glob,Grep"
+      - id: denied
+        name: Name each thing that Claude was not allowed to do
         if: always() && steps.claude.outcome != 'skipped'
         continue-on-error: true
         run: |
@@ -129,6 +137,12 @@ jobs:
             const denied = (Array.isArray(log) ? log : []).filter((m) => m.type === "result").flatMap((m) => m.permission_denials ?? []);
             for (const d of denied) console.log(`${d.tool_name}: ${String(d.tool_input?.command ?? d.tool_input?.file_path ?? "").slice(0, 200)}`);
             console.log(`${denied.length} denied`);
+            // Only a refused npm, npx or node means the copy went unchecked. Claude also tries
+            // commands that are not allowed (echo, python3, a cd chain) and then does the step
+            // another way; those must not hold back a checked copy (#578, #588, 2026-11-20).
+            const blocked = denied.filter((d) => d.tool_name === "Bash" && /(^|[;&|(]\s*)(npm|npx|node)\s/.test(String(d.tool_input?.command ?? "")));
+            if (blocked.length) console.log(`::warning::Claude was not allowed to run ${blocked.length} npm, npx or node command(s); the gate still runs the tests`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `count=${blocked.length}\n`);
           ' "$RUNNER_TEMP/claude-execution-output.json"
       - name: Push Claude's commits, comment, and turn on auto-merge, or leave the copy for Claude's next try
         if: always() && steps.claude.outcome != 'skipped'
@@ -137,4 +151,5 @@ jobs:
           HEAD: ${{ steps.copy.outputs.head }}
           PR: ${{ steps.copy.outputs.pr }}
           RELEASE_REPO_DIR: ${{ github.workspace }}
-        run: node "$RUNNER_TEMP/copy/release-branches.mjs" finish-copy --branch "$HEAD" --pr "$PR" --start "$(cat "$RUNNER_TEMP/copy/start")"
+          DENIED: ${{ steps.denied.outputs.count || '0' }}
+        run: node "$RUNNER_TEMP/copy/release-branches.mjs" finish-copy --branch "$HEAD" --pr "$PR" --start "$(cat "$RUNNER_TEMP/copy/start")" --denied "$DENIED"
