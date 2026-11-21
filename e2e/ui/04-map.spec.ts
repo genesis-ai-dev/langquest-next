@@ -490,6 +490,11 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
   await button(page, /^Luke\./).click();
   await expect.poll(() => headerTitle(page)).toBe('Luke');
   const book = byId(page, 'book-offline');
+  // What each download button's mark means is one tap away, every mark named.
+  await button(page, 'What the download buttons mean').click();
+  for (const mark of ['Download for offline', 'Downloading for offline', 'Only some files here', 'Recordings on this device', 'On this device',
+    'Download needs a connection', 'Checking this device…']) await expect(text(page, mark)).toBeVisible();
+  await closeSheet(page);
   await expect(book).toHaveAttribute('aria-label', /^Download recordings of all 97 passages for offline/);
   await book.click();
   // Every passage is kept: the line says where they stand, and no row offers a download any more.
@@ -514,8 +519,10 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
   await expect(line).toHaveAttribute('aria-label', 'Recordings on this device');
   await back(page).click();
   await expect.poll(() => headerTitle(page)).toBe('Luke');
-  // Again lets them go: its audio may be removed, and the whole book is on offer again.
-  await book.click();
+  // The line only says where they stand now; its Remove button asks first, then lets them go, and the whole book is on offer again.
+  await byId(page, 'book-offline-remove').click();
+  await expect(text(page, 'Remove Luke from this device?')).toBeVisible();
+  await button(page, 'Remove from this device').click();
   await expectToast(page, 'No longer kept. Their audio may be removed to make room.');
   await expect(book).toHaveAttribute('aria-label', /^Download recordings of all 97 passages for offline/);
   await context.close();
