@@ -14,6 +14,7 @@ import { googlePlaySection } from './sources/googleplay';
 import { codeSection } from './sources/github';
 import { videosSection } from './sources/videos';
 import { fixesSection } from './sources/fixes';
+import { askedNumbers, PRS_MAX, prInfos } from './sources/prs';
 import { nightlySection } from './sources/nightly';
 import { supabaseSection } from './sources/supabase';
 import { containerSection } from './sources/container';
@@ -227,6 +228,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   // Pull requests that say which lines they fix, for each line's state (sources/fixes.ts).
   if (section === 'fixes') return json(await memo('fixes', fresh, () => settle('fixes', () => fixesSection(env))));
+  // What each pull request the page names is about, for the box over "PR 596" (sources/prs.ts, pageRefs.ts).
+  if (section === 'prs') {
+    const numbers = askedNumbers(url.searchParams.get('n'));
+    if (!numbers) return json({ error: `n is up to ${PRS_MAX} pull request numbers, comma-separated` }, 400);
+    return json({ prs: await prInfos(env, numbers) });
+  }
   const provider = PROVIDERS[section];
   if (provider) return json(await memo(section, fresh, () => settle(section, () => provider(env))));
   return json({ error: 'Not found' }, 404);

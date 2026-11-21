@@ -5,6 +5,7 @@ import { ACTIVE_DAYS, INSTALLS_SQL, type InstallCount } from './adoption';
 import { appStoreKey, appStoreToken } from './appstore';
 import { githubApi } from './github';
 import { googleToken } from './googleplay';
+import { plainTitle } from './prs';
 
 /**
  * Where every new store build and over-the-air update sits on its way to
@@ -325,7 +326,7 @@ export function prFromMessage(message: string | null): Named | null {
 export interface OpenCopy { number: number; title: string; body: string | null; created_at: string; labels?: { name: string }[]; head?: { sha: string }; failed?: boolean }
 
 /** What a copy waits for when the copy workflow did not let Claude run the tests (scripts/release-branches.mjs, BLOCKED_LABEL). */
-export const BLOCKED_WAIT = 'is not checked: the copy workflow did not let Claude run its tests, so Claude\'s tries did nothing';
+export const BLOCKED_WAIT = 'is stuck: the copy workflow refused Claude\'s commands, so Claude could not test it';
 
 /** How long a copy may stay open before it needs a person: Claude's step has an hour, the checks under one. */
 export const COPY_HOURS = 3;
@@ -442,20 +443,37 @@ export function pipelineAlerts(p: Pipeline, now = Date.now()): Alert[] {
     out.push({ level: 'watch', key: 'store-build-waiting', subject: lane.id, text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${waiting.title} has waited in ${where} for ${Math.floor(hours)} h with nothing in review. ${fix}` });
   }
   // A copy for a public build that needs a person: Claude could not fix its failed tests, or it has been open for hours.
+  // The line starts with what the change does for people (its title), so nobody needs to remember the numbers.
   for (const lane of p.lanes) {
     const live = stage(lane.stages, 'live').cards[0];
     for (const u of live?.updates ?? []) {
       if (!u.waiting || !u.needsPerson || u.copy === null) continue;
-      const prs = [u.pr, ...u.also.map((a) => a.pr)].filter((n): n is number => n !== null).map((n) => `PR ${n}`);
-      const named = prs.length > 3 ? `${prs.slice(0, 2).join(', ')} and ${prs.length - 2} more` : prs.join(' and ');
       out.push({
         level: 'problem', key: 'copy-needs-person', subject: `${lane.id} PR ${u.copy}`,
-        text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${live!.title} does not have ${named} yet: copy PR ${u.copy} ${u.waiting}. ${u.waiting === BLOCKED_WAIT ? 'Fix the copy workflow (release-copy-conflict.yml), then the copy' : 'Open it to finish it'} (decisions.md 155).`,
+        text: copyLine(lane.id, live!.title, u),
         link: `https://github.com/${p.repo}/pull/${u.copy}`
       });
     }
   }
   return out;
+}
+
+/** "Choosing study guides …" or "PR 596": what a change does, when its title is known. */
+const changeName = (pr: number | null, title: string | null) => (title ? `"${plainTitle(title)}" (PR ${pr})` : `PR ${pr}`);
+
+/**
+ * A copy line in plain words: which change people with the store app do not
+ * have yet, what a copy is (the same change, sent to the public build as an
+ * update), why it waits, and what to do.
+ */
+export function copyLine(platform: 'ios' | 'android', build: string, u: Pick<UpdateCard, 'pr' | 'title' | 'also' | 'more' | 'copy' | 'waiting'>): string {
+  const store = platform === 'ios' ? 'App Store' : 'Google Play';
+  const phone = platform === 'ios' ? 'iPhone' : 'Android';
+  const others = u.also.length + u.more;
+  const what = changeName(u.pr, u.title) + (others ? ` and ${others} more ${others === 1 ? 'change' : 'changes'}` : '');
+  const are = others ? 'are' : 'is';
+  const todo = u.waiting === BLOCKED_WAIT ? `Fix the copy workflow (release-copy-conflict.yml), then copy PR ${u.copy}.` : `Open copy PR ${u.copy} and finish it.`;
+  return `${what} ${are} not yet in the ${store} app (${phone} ${build}). Copy PR ${u.copy} sends ${others ? 'these changes' : 'this change'} to that build as an update. Copy PR ${u.copy} ${u.waiting}. ${todo}`;
 }
 
 export function pipelineFrom(i: PipelineInputs, repo = 'genesis-ai-dev/langquest-next'): Pipeline {

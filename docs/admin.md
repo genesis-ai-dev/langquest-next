@@ -528,6 +528,22 @@ section: each part's lines, picture and tables first, then a chart for each
 number over the range, so what needs a person is in view when the page opens;
 `#all` shows every section on one page.
 
+**What each PR and LAN number is about** (`apps/admin/src/pageRefs.ts`,
+`docs/decisions/2026-11-21-pr-and-issue-numbers-say-what-they-are-about.md`).
+Every "PR 596", "pull request 596" and "LAN-316" in the page's text gets a
+dotted line. A mouse over it, a tap on it or the keyboard's focus on it shows
+a box: the title without codes, a few plain lines, and the state. A pull
+request's words come from `GET /ops/api/prs?n=596,597` (`sources/prs.ts`,
+at most 40 numbers): GitHub's title, and from its text a `Plain words:` line,
+else the start of its `## What people see` section, else its first paragraph.
+The Worker keeps a merged or closed one for the isolate's life and an open
+one for 5 minutes. A copy onto a release branch says it is the same change
+as the pull request on main, sent as an update to the store app. A Linear
+issue's words come from the watch for user issues (title, the issue in its
+own words, state) and the pull requests that name it; there is no Linear
+key on this Worker. A copy line under Releases starts with the title of the
+change people do not have yet.
+
 **Each line's Linear issue and fix** (`apps/admin/src/pageFixes.ts`,
 `docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md`). Every alert
 has a kind from `KINDS` in `apps/admin/src/alertKinds.ts`, which says its

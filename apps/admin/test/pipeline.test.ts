@@ -253,9 +253,9 @@ describe('over-the-air updates', () => {
     ]);
     const alerts = pipelineAlerts({ ...pipelineFrom(world()), lanes: [pipelineFrom(world()).lanes[0]!, lane] }, NOW);
     expect(alerts.map((a) => [a.level, a.text, a.link])).toEqual([
-      ['problem', 'Android build 48 does not have PR 359 yet: copy PR 360 failed its tests after 3 tries by Claude, so it needs a person. Open it to finish it (decisions.md 155).', 'https://github.com/genesis-ai-dev/langquest-next/pull/360'],
-      ['problem', 'Android build 48 does not have PR 355, PR 356 and 2 more yet: copy PR 362 has been open for hours, and Claude has not finished it. Open it to finish it (decisions.md 155).', 'https://github.com/genesis-ai-dev/langquest-next/pull/362'],
-      ['problem', 'Android build 48 does not have PR 363 yet: copy PR 364 is not finished after 3 tries by Claude, so it needs a person. Open it to finish it (decisions.md 155).', 'https://github.com/genesis-ai-dev/langquest-next/pull/364']
+      ['problem', '"Fix" (PR 359) is not yet in the Google Play app (Android build 48). Copy PR 360 sends this change to that build as an update. Copy PR 360 failed its tests after 3 tries by Claude, so it needs a person. Open copy PR 360 and finish it.', 'https://github.com/genesis-ai-dev/langquest-next/pull/360'],
+      ['problem', '"T355" (PR 355) and 3 more changes are not yet in the Google Play app (Android build 48). Copy PR 362 sends these changes to that build as an update. Copy PR 362 has been open for hours, and Claude has not finished it. Open copy PR 362 and finish it.', 'https://github.com/genesis-ai-dev/langquest-next/pull/362'],
+      ['problem', '"Fix" (PR 363) is not yet in the Google Play app (Android build 48). Copy PR 364 sends this change to that build as an update. Copy PR 364 is not finished after 3 tries by Claude, so it needs a person. Open copy PR 364 and finish it.', 'https://github.com/genesis-ai-dev/langquest-next/pull/364']
     ]);
   });
 
@@ -266,10 +266,10 @@ describe('over-the-air updates', () => {
     ], NOW);
     const live = lane.stages.find((st) => st.id === 'live')!.cards[0]!;
     expect(live.updates.filter((u) => u.waiting).map((u) => [u.copy, u.waiting, u.needsPerson])).toEqual([
-      [380, "is not checked: the copy workflow did not let Claude run its tests, so Claude's tries did nothing", true]
+      [380, "is stuck: the copy workflow refused Claude's commands, so Claude could not test it", true]
     ]);
     expect(pipelineAlerts({ ...pipelineFrom(world()), lanes: [pipelineFrom(world()).lanes[0]!, lane] }, NOW).map((a) => a.text)).toEqual([
-      "Android build 48 does not have PR 379 yet: copy PR 380 is not checked: the copy workflow did not let Claude run its tests, so Claude's tries did nothing. Fix the copy workflow (release-copy-conflict.yml), then the copy (decisions.md 155)."
+      "\"Fix\" (PR 379) is not yet in the Google Play app (Android build 48). Copy PR 380 sends this change to that build as an update. Copy PR 380 is stuck: the copy workflow refused Claude's commands, so Claude could not test it. Fix the copy workflow (release-copy-conflict.yml), then copy PR 380."
     ]);
   });
 
