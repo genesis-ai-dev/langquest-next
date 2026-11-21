@@ -64,6 +64,14 @@ export const RULES = [
   { pattern: /^apps\/mobile\/modules\/nearby-link\/(ios\/|[^/]+\.podspec$)/, jobs: [...APP, 'ios-native'] },
   { pattern: /^apps\/mobile\/modules\/nearby-link\//, jobs: [...APP, 'android-native', 'ios-native'] },
   { pattern: /^apps\/mobile\/package\.json$|^package-lock\.json$/, jobs: [...SHARED, 'android-native', 'ios-native'] },
+  // What the iPhone app's ONNX Runtime pods come from (the microphone
+  // module's podspec, its vendor folder and the plugin that puts them in the
+  // Podfile, decision 2026-11-21-onnxruntime-pods-from-nuget-and-the-repo)
+  // changes what `pod install` takes, so the whole iPhone app compiles again.
+  {
+    pattern: /^apps\/mobile\/(modules\/microphone-energy\/(vendor\/|[^/]+\.podspec$)|plugins\/withOnnxRuntimePods\.js$)/,
+    jobs: [...APP, 'ios-native'],
+  },
   { pattern: /(^|\/)(package\.json|package-lock\.json)$|^(vitest\.config\.ts|tsconfig[^/]*\.json)$/, jobs: SHARED },
   // Words for people and agents: the decision log, the plan, the docs, the
   // skills. Their tests (the decision log's format, links) are unit tests.

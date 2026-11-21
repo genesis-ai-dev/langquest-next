@@ -219,6 +219,10 @@ when the app launches (a content provider that reads the device's Android
 ID, with the INTERNET and ACCESS_NETWORK_STATE permissions), which would
 add "Device or other IDs", collected and shared with Microsoft. Check for it
 before raising the version.
+Since 2026-11-21 an iPhone build takes the same 1.22.0 from Microsoft's
+NuGet package and the module's `vendor` folder
+(`./plugins/withOnnxRuntimePods`), because Microsoft's pod download stopped:
+the same code, so no answer changes.
 
 Clean up (decisions.md 179) takes background noise out of a part on the
 phone, when the person asks for it: DeepFilterNet 3, an 8.6 MB file in the
@@ -535,6 +539,7 @@ this block.
   "moduleFeatures": ["android.hardware.bluetooth required=false", "android.hardware.bluetooth_le required=false", "android.hardware.wifi.direct required=false"],
   "plugins": [
     "./plugins/withAndroidAppIcons",
+    "./plugins/withOnnxRuntimePods",
     "expo-audio {\"enableBackgroundPlayback\":false,\"microphonePermission\":\"LangQuest records your voice to translate passages.\"}",
     "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite QR codes.\"}",
     "expo-localization {\"supportedLocales\":[\"en\",\"es\",\"pt-BR\",\"fr\",\"ar\",\"sw\",\"ha\",\"am\",\"hi\",\"bn\",\"ne\",\"id\",\"zh-Hans\",\"th\",\"my\",\"fil\"]}",
