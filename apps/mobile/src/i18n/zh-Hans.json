@@ -3054,9 +3054,9 @@
       "onItsWay": "你在 LangQuest 的工作正在转过来。",
       "wasProject": "{{org}} · 原来是你的项目“{{project}}”",
       "counts": "{{recordings}} · {{passages}}",
-      "onItsWayRow": "正在转过来。到了会自动显示在这里。",
+      "onItsWayRow": "正在转过来。LangQuest 团队正在把它移到这里。",
       "recordHere": "<b>从现在起，请在这里录音。</b>你在旧应用中的录音仍会转到这里，但在这里录的不会回到旧应用。",
-      "keepOldApp": "<b>在它到达之前，请继续在旧应用中录音。</b>你在那里录的一切都会转过来，并自动显示在这里。",
+      "keepOldApp": "<b>在它到达之前，请继续在旧应用中录音。</b>你在那里录的一切都会转过来。",
       "differentTitle": "有什么不同",
       "differentSummary": "项目、任务和投票，在这里",
       "differentProject": "你的<b>项目</b>现在是一个机构中的一种<b>语言</b>。",
@@ -3064,13 +3064,15 @@
       "differentVersions": "你为一章录的内容是它的一个<b>版本</b>。每次发布，就是一个新版本。",
       "differentVotes": "<b>投票</b>现在是社区检查：大家说的话都在经段上。",
       "checkAgain": "再查看一次",
-      "notYet": "还没有到。到了会自动显示在这里。",
+      "notYet": "还没有到。LangQuest 团队正在把它移到这里。",
       "keepGoing": "继续 {{passage}}",
       "goToMyWork": "前往“我的工作”",
+      "continueWithout": "先不等了，继续",
       "recordings_other": "{{count, number}} 段录音",
       "passages_other": "{{count, number}} 个经段",
       "checkAgainHelp": "再查找一次你在旧应用中的工作。",
       "goToMyWorkHelp": "打开你接下来要做的事情列表。",
+      "continueWithoutHelp": "现在打开应用。你在旧应用里的工作仍会转过来。",
       "differentHelp": "旧应用中的项目、任务和投票在这里是什么样子。"
     },
     "invite": {
@@ -4638,6 +4640,7 @@
       "alwaysTitle": "始终在本设备上",
       "alwaysBody": "{{language}}中每个经段的文字、状态和历史记录。有人请你做的、你做过的或你选择保存的经段的音频。",
       "alwaysBodyStudy": "{{language}}中每个经段的文字、状态和历史记录。有人请你做的、你做过的或你选择保存的经段的音频、学习图片、地图和学习音频。",
+      "alwaysBooks": "你下载的书卷或部分中各经段的录音。",
       "needsTitle": "需要联网",
       "needsNotDownloaded": "未下载段落的音频。",
       "needsNotDownloadedStudy": "未下载段落的音频和学习资料。",
@@ -4668,7 +4671,50 @@
     "download": "下载以便离线使用",
     "needsConnection": "下载需要网络连接",
     "needsConnectionHelp": "不在本设备上。设备联网后即可下载。",
-    "checkingHelp": "本设备正在清点它有这一段落的哪些内容。"
+    "checkingHelp": "本设备正在清点它有这一段落的哪些内容。",
+    "recordingsHere": "本设备上的录音",
+    "studyRefused_other": "有 {{count, number}} 个学习文件无法下载：来源没有这些文件。",
+    "key": {
+      "title": "下载按钮的含义",
+      "help": "显示经段下载按钮上每个标记的含义。",
+      "noneSub": "未保存。点按它，把这个经段的录音和参考资料保存在本设备上。",
+      "downloadingSub": "它的文件正在下载。请保持联网，直到按钮变绿。",
+      "partial": "这里只有部分文件",
+      "partialSub": "已保存，但它的部分文件还不在本设备上。打开经段可查看有多少。",
+      "recordingsSub": "它的录音不联网也能播放。它的参考资料需要网络连接。",
+      "readySub": "它的录音和参考资料不联网也能用。",
+      "noConnectionSub": "未保存，且本设备处于离线状态。请连接网络以下载。",
+      "checkingSub": "本设备仍在清点它有这一经段的哪些内容。",
+      "tap": "点按绿色按钮，可再次从本设备移除该经段的文件。"
+    },
+    "reference": {
+      "label": "同时保存它的参考资料",
+      "on": "它的参考资料也保存在本设备上。",
+      "off": "只保存它的录音。它的参考资料需要网络连接。",
+      "help": "参考资料是一个经段的学习指南和参考音频。开启后，它们会和录音一起保存在本设备上；关闭则只保存录音。"
+    },
+    "group": {
+      "download_other": "下载全部 {{count, number}} 个经段的录音以便离线使用",
+      "downloadRest_other": "下载其余 {{count, number}} 个经段的录音",
+      "size": "还要下载 {{size}} 音频",
+      "nothingYet": "还没有可下载的录音。新的录音做好后就会到来。",
+      "allHere_other": "全部 {{count, number}} 个经段的录音都在本设备上",
+      "noRoom": "本设备空间不足",
+      "noRoomNeeds": "它们的音频有 {{size}}。本设备还有 {{room}} 空间。",
+      "noRoomHelp": "请在本设备上腾出空间，或每次少下载几个经段。",
+      "removeTitle": "要从本设备移除{{name}}吗？",
+      "removeConfirm": "从本设备移除",
+      "removeBody": "它的录音仍保留在服务器上。再次播放需要网络连接。",
+      "removeCancelHelp": "保留本设备上的一切，不做改动。",
+      "removeStay_other": "属于你工作的 {{count, number}} 个经段会保留在本设备上。",
+      "keepHelp": "把每个经段的录音都保存在本设备上，不联网也能播放。若要同时保存某个经段的参考资料，请打开该经段并开启此项。",
+      "letGoHelp": "本设备需要空间时，可以再次删除它们的音频。属于你工作的经段会保留。",
+      "reason": "已保存，因为有人请你做这些经段，或你做过它们。",
+      "toast": {
+        "letGo": "不再保存。它们的音频可能会被删除以腾出空间。",
+        "someStay_other": "不再保存，但属于你工作的 {{count, number}} 个经段除外。"
+      }
+    }
   },
   "moderation": {
     "flagLabel": "举报或屏蔽{{name}}",
@@ -5160,8 +5206,7 @@
       "notStarted": "未开始",
       "notStartedSub": "还没有人录过",
       "noPassage": "没有经段",
-      "noPassageSub": "这一章在这个语言中没有经段",
-      "kept": "已保存在本设备上，可离线使用"
+      "noPassageSub": "这一章在这个语言中没有经段"
     },
     "joinSentences": "{{first}}。{{next}}",
     "joinClauses": "{{first}}，{{next}}",
@@ -5841,6 +5886,7 @@
       "couldNotRead": "无法读取报告",
       "notVisible": "这个语言没有你可以查看的报告",
       "notVisibleBody": "你的角色可能不包括这个语言，或者它是在报告加载之后才添加的（可以在“报告”中同步最新数据后再查看）。",
+      "template": "模板：<b>{{template}}</b>",
       "reviewFlow": "审核流程：<b>{{flow}}</b>",
       "bottleneck": "瓶颈：<b>{{bottleneck}}</b>",
       "bottleneckValue_other": "{{step}}中有 {{count, number}} 个",
@@ -6141,6 +6187,7 @@
       "addedAtCheckpoint": "已将{{kind}}加入记录。这个关卡仍在等待在应用中完成的检查。",
       "keptNotSent": "你的检查保存在这部手机上，还没有发送。",
       "notOnPhoneYet": "这段录音还不在这部手机上。手机联网后就能在这里播放。",
+      "notUploadedYet": "这段录音还没有从录制它的设备上传。那台设备联网后，就能在这里播放。",
       "previousQuestion": "上一个问题",
       "previousQuestionHelp": "回到上一个问题，修改你的回答。",
       "loggedCheckpoint": "这项检查是一个关卡：在这里登记会写入记录，但只有在应用中完成的检查才能打开后面的步骤。",
@@ -6319,6 +6366,8 @@
     "notPublished": "未发布：{{reason}}",
     "partNotSaved": "有一段没有保存。",
     "retrySaving": "重新保存",
+    "partNotHere": "第 {{n}} 段还不在本设备上。设备联网后就能译回。",
+    "partNotUploaded": "第 {{n}} 段还没有从录制它的设备上传。那台设备联网后就能译回。",
     "youDrag": "你 · 可以随意来回拖动",
     "nameDrag": "{{name}} · 可以随意来回拖动",
     "part": "第 {{n}} 段",
@@ -6385,7 +6434,7 @@
       "guide": "指南",
       "guideHint": "学习指南中关于这个经段的步骤。",
       "terms": "关键词",
-      "termsHint": "每次都要用同样说法的词：逐个听一听，再说出你的说法。",
+      "termsHint": "每次都要说得一样的词：点一个来听，并看它用在哪里。",
       "notes": "备注",
       "notesHint": "团队对这个经段的备注。",
       "earlier": "之前的",
@@ -6408,7 +6457,10 @@
     "partKept": "{{part}}保留原录音。",
     "partsCleaned_other": "清理了 {{count, number}} 段。",
     "redone": "已重做。",
-    "newRecording": "新录音"
+    "newRecording": "新录音",
+    "lockedTitle": "这段录音有一部分还不在本设备上",
+    "lockedOffline": "在本设备联网并收到这部分之前，无法在这里修改或发送。如果不用这部分来录，请在经段中打开{{versions}}，再选择{{newVersion}}。",
+    "lockedNotUploaded": "这部分还没有从录制它的设备上传，所以无法在这里修改或发送。如果不用这部分来录，请在经段中打开{{versions}}，再选择{{newVersion}}。"
   },
   "reference": {
     "organization": "机构",
@@ -6699,29 +6751,25 @@
       "verseTermsHelp": "带下划线的是关键词：点按可以打开。",
       "verseTermsMarkedHelp": "带下划线的是关键词。",
       "verseTiedHelp": "关键词后面有勾，表示它已关联到你的草稿。",
-      "verseDotHelp": "从这一节开始播放圣经。"
+      "verseDotHelp": "从这一节开始播放圣经。",
+      "ourWord": "你的说法：{{word}}",
+      "verseOursHelp": "关键词后面的绿色词是你的团队的说法。"
     },
     "keyWords": {
       "none": "这个经段还没有关键词。",
       "noneAdd": "这个经段还没有关键词。添加一个你的团队每次都要用同样说法的词。",
-      "elsewhere": "这卷书的其他地方",
       "add": "添加关键词",
       "addHint": "你的团队每次都要用同样说法的词。",
       "all": "所有关键词",
-      "hear": "听{{term}}",
       "hearHelp": "播放它所在的经节。",
       "noVerseAudio": "这本圣经没有那节经文的音频。",
-      "hearLabel": "在圣经中听{{term}}",
       "openHelp": "它的意思、你的团队怎么说，以及为什么。",
-      "termLabel": "{{term}}。{{refs}}",
-      "termLabelWord": "{{term}}。{{refs}}。你的说法：{{word}}",
       "yourWord": "你的说法",
       "yourWordHelp": "播放你的团队怎么说{{term}}。",
       "pauseYourWord": "暂停你对{{term}}的说法",
       "playYourWord": "播放你对{{term}}的说法",
       "sayYours": "说出你的说法",
       "sayYoursHelp": "录下你的语言怎么说{{term}}。",
-      "sayYoursLabel": "说出你对{{term}}的说法",
       "saved": "你对{{term}}的说法已保存。",
       "sayTitle": "你对“{{term}}”的说法",
       "saySub": "说出{{language}}怎么说它。以后每次遇到这个词，你的团队都会听到。",
@@ -7307,6 +7355,23 @@
       "fromList": "来自{{name}}",
       "fromListSub": "它的意思，以及{{name}}的录音",
       "fromListHelp": "打开{{name}}对这个词的解释和录音。"
+    },
+    "tiles": {
+      "recorded": "已录的说法",
+      "noWord": "还没有说法",
+      "label": "{{term}}。你的说法：{{word}}",
+      "labelRecorded": "{{term}}。你的说法已录好。",
+      "labelNone": "{{term}}。还没有说法。",
+      "openHelp": "打开{{term}}：它的意思、用在哪里，以及你的团队怎么说。",
+      "inBible": "在圣经经文中显示我们的说法",
+      "inBibleHelp": "在圣经里每个关键词后面显示你团队的说法。"
+    },
+    "ours": {
+      "afterDone": "按“完成”之后，你可以打开经文段落和这个词的页面。",
+      "openPage": "打开这个词的页面",
+      "openPageHelp": "打开{{term}}的页面，你可以在那里修改你的说法。",
+      "saidIn": "说于{{where}}",
+      "usedIn": "用于{{where}}"
     }
   },
   "clusters": {

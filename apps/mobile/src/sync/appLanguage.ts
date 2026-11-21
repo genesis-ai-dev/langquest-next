@@ -1,6 +1,6 @@
 import { DEFAULT_TRANSFER_BUDGET_BYTES, TransferBudget } from '@langquest-next/sync';
 import * as Crypto from 'expo-crypto';
-import { getBlobStore } from './blobs';
+import { getBlobStore, RECORDING_RESERVE_BYTES } from './blobs';
 import { downloadBlob, uploadBlob } from '../server/blobTransport';
 import { diagnostics, flushDiagnostics, registerDeviceProbe, timedTransfer } from '../diagnostics/diagnostics';
 import { noteExpected, reportError } from '../diagnostics/report';
@@ -20,7 +20,7 @@ import type { RecoveryEnv } from './recoverRecordings';
  * back; on a phone, level 2 can also free teammates' recordings marked nearby, never this person's own
  * unsent work, and the cap leaves those alone (docs/nearby-sync-plan.md 5.6).
  */
-const LIMITS = { minFreeBytes: 500 * 1024 * 1024, maxTotalBytes: 2 * 1024 * 1024 * 1024 };
+const LIMITS = { minFreeBytes: RECORDING_RESERVE_BYTES, maxTotalBytes: 2 * 1024 * 1024 * 1024 };
 
 /** One budget per device, shared by every language's workers. */
 const transferBudget = new TransferBudget(DEFAULT_TRANSFER_BUDGET_BYTES);

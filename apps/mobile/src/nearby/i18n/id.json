@@ -20,6 +20,7 @@
       "noWifiDirect": "Ponsel ini tidak punya Wi-Fi Direct, yang diperlukan Berbagi di sekitar.",
       "noKey": "Ponsel ini belum siap berbagi. Sambungkan ke internet sekali, lalu kembali ke sini.",
       "noCertificate": "Untuk berbagi di sekitar, ponsel ini harus tersambung ke internet sekali saat organisasi Anda menyalakan Berbagi di sekitar.",
+      "limited": "Akun ini sudah menyiapkan terlalu banyak ponsel baru hari ini. Berbagi di sekitar akan berfungsi di ponsel ini mulai besok.",
       "readOnly": "Akun yang hanya melihat organisasi tidak bisa berbagi di sekitar."
     },
     "radios": {

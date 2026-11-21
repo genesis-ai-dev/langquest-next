@@ -3054,9 +3054,9 @@
       "onItsWay": "Pekerjaan Anda dari LangQuest sedang dalam perjalanan.",
       "wasProject": "{{org}} · dulu proyek Anda “{{project}}”",
       "counts": "{{recordings}} · {{passages}}",
-      "onItsWayRow": "Sedang dalam perjalanan. Akan muncul di sini dengan sendirinya.",
+      "onItsWayRow": "Sedang dalam perjalanan. Tim LangQuest sedang memindahkannya ke sini.",
       "recordHere": "<b>Mulai sekarang, rekam di sini.</b> Rekaman yang Anda buat di aplikasi lama tetap masuk ke sini, tetapi yang Anda rekam di sini tidak kembali ke sana.",
-      "keepOldApp": "<b>Tetap rekam di aplikasi lama sampai pekerjaan Anda tiba.</b> Semua yang Anda rekam di sana akan dipindahkan dan muncul di sini dengan sendirinya.",
+      "keepOldApp": "<b>Tetap rekam di aplikasi lama sampai pekerjaan Anda tiba.</b> Semua yang Anda rekam di sana akan dipindahkan.",
       "differentTitle": "Apa yang berbeda",
       "differentSummary": "Proyek, misi, dan suara, di sini",
       "differentProject": "<b>Proyek</b> Anda sekarang menjadi sebuah <b>bahasa</b> dalam sebuah organisasi.",
@@ -3064,13 +3064,15 @@
       "differentVersions": "Yang Anda rekam untuk satu pasal adalah satu <b>versi</b> darinya. Setiap kali Anda menerbitkan, itu menjadi versi baru.",
       "differentVotes": "<b>Suara</b> adalah Pemeriksaan Komunitas: apa yang dikatakan orang ada di perikop itu.",
       "checkAgain": "Periksa lagi",
-      "notYet": "Belum tiba. Akan muncul di sini dengan sendirinya.",
+      "notYet": "Belum tiba. Tim LangQuest sedang memindahkannya ke sini.",
       "keepGoing": "Lanjutkan {{passage}}",
       "goToMyWork": "Ke Pekerjaan Saya",
+      "continueWithout": "Lanjutkan tanpa itu",
       "recordings_other": "{{count, number}} rekaman",
       "passages_other": "{{count, number}} perikop",
       "checkAgainHelp": "Mencari lagi pekerjaan Anda dari aplikasi lama.",
       "goToMyWorkHelp": "Membuka daftar hal yang perlu Anda kerjakan berikutnya.",
+      "continueWithoutHelp": "Membuka aplikasi sekarang. Pekerjaan Anda dari aplikasi lama tetap akan datang.",
       "differentHelp": "Seperti apa proyek, misi, dan suara dari aplikasi lama di aplikasi ini."
     },
     "invite": {
@@ -4638,6 +4640,7 @@
       "alwaysTitle": "Selalu ada di perangkat ini",
       "alwaysBody": "Teks, status, dan riwayat setiap perikop dalam {{language}}. Audio perikop yang Anda diminta kerjakan, sudah Anda kerjakan, atau Anda pilih untuk disimpan.",
       "alwaysBodyStudy": "Teks, status, dan riwayat setiap perikop dalam {{language}}. Audio, gambar studi, peta, dan audio studi perikop yang Anda diminta kerjakan, sudah Anda kerjakan, atau Anda pilih untuk disimpan.",
+      "alwaysBooks": "Rekaman perikop dalam kitab atau bagian yang Anda unduh.",
       "needsTitle": "Memerlukan koneksi",
       "needsNotDownloaded": "Audio perikop yang belum diunduh.",
       "needsNotDownloadedStudy": "Audio dan bahan studi perikop yang belum diunduh.",
@@ -4668,7 +4671,50 @@
     "download": "Unduh untuk offline",
     "needsConnection": "Mengunduh perlu koneksi",
     "needsConnectionHelp": "Tidak ada di perangkat ini. Bisa diunduh setelah perangkat ini terhubung.",
-    "checkingHelp": "Perangkat ini sedang menghitung bagian perikop ini yang ada padanya."
+    "checkingHelp": "Perangkat ini sedang menghitung bagian perikop ini yang ada padanya.",
+    "recordingsHere": "Rekaman di perangkat ini",
+    "studyRefused_other": "{{count, number}} file studi tidak bisa diunduh: sumbernya tidak memilikinya.",
+    "key": {
+      "title": "Arti tombol unduh",
+      "help": "Menampilkan arti setiap tanda pada tombol unduh perikop.",
+      "noneSub": "Tidak disimpan. Ketuk untuk menyimpan rekaman dan bahan referensi perikop ini di perangkat ini.",
+      "downloadingSub": "File perikop ini sedang diunduh. Tetap terhubung sampai tombolnya menjadi hijau.",
+      "partial": "Hanya sebagian file di sini",
+      "partialSub": "Disimpan, tetapi sebagian file perikop ini belum ada di perangkat ini. Buka perikopnya untuk melihat berapa banyak.",
+      "recordingsSub": "Rekamannya bisa diputar tanpa koneksi. Bahan referensinya perlu koneksi.",
+      "readySub": "Rekaman dan bahan referensinya bisa dipakai tanpa koneksi.",
+      "noConnectionSub": "Tidak disimpan, dan perangkat ini sedang offline. Sambungkan untuk mengunduhnya.",
+      "checkingSub": "Perangkat ini masih menghitung bagian perikop yang ada padanya.",
+      "tap": "Ketuk tombol hijau untuk menghapus lagi file perikop itu dari perangkat ini."
+    },
+    "reference": {
+      "label": "Simpan juga bahan referensinya",
+      "on": "Bahan referensinya juga disimpan di perangkat ini.",
+      "off": "Hanya rekamannya yang disimpan. Bahan referensinya perlu koneksi.",
+      "help": "Bahan referensi adalah panduan studi dan audio referensi sebuah perikop. Nyalakan ini untuk menyimpannya di perangkat ini bersama rekamannya, atau matikan untuk menyimpan rekamannya saja."
+    },
+    "group": {
+      "download_other": "Unduh rekaman semua {{count, number}} perikop untuk offline",
+      "downloadRest_other": "Unduh rekaman {{count, number}} perikop lainnya",
+      "size": "{{size}} audio perlu diunduh",
+      "nothingYet": "Belum ada rekaman untuk diunduh. Rekaman baru datang saat dibuat.",
+      "allHere_other": "Rekaman semua {{count, number}} perikop ada di perangkat ini",
+      "noRoom": "Ruang di perangkat ini tidak cukup",
+      "noRoomNeeds": "Audionya {{size}}. Perangkat ini punya ruang untuk {{room}}.",
+      "noRoomHelp": "Kosongkan ruang di perangkat ini, atau unduh lebih sedikit perikop sekaligus.",
+      "removeTitle": "Hapus {{name}} dari perangkat ini?",
+      "removeConfirm": "Hapus dari perangkat ini",
+      "removeBody": "Rekamannya tetap ada di server. Untuk memutarnya lagi perlu koneksi.",
+      "removeCancelHelp": "Membiarkan semuanya di perangkat ini seperti adanya.",
+      "removeStay_other": "{{count, number}} perikop yang merupakan pekerjaan Anda tetap ada di perangkat ini.",
+      "keepHelp": "Menyimpan rekaman setiap perikop di perangkat ini, agar bisa diputar tanpa koneksi. Untuk menyimpan juga bahan referensi sebuah perikop, buka perikop itu dan nyalakan pilihan tersebut.",
+      "letGoHelp": "Membiarkan perangkat ini menghapus audionya lagi saat perlu ruang. Perikop yang merupakan pekerjaan Anda tetap disimpan.",
+      "reason": "Disimpan karena Anda diminta mengerjakan perikop-perikop ini, atau sudah mengerjakannya.",
+      "toast": {
+        "letGo": "Tidak lagi disimpan. Audionya mungkin dihapus untuk memberi ruang.",
+        "someStay_other": "Tidak lagi disimpan, kecuali {{count, number}} perikop yang merupakan pekerjaan Anda."
+      }
+    }
   },
   "moderation": {
     "flagLabel": "Laporkan atau blokir {{name}}",
@@ -5160,8 +5206,7 @@
       "notStarted": "Belum dimulai",
       "notStartedSub": "Belum ada yang merekamnya",
       "noPassage": "Tidak ada perikop",
-      "noPassageSub": "Pasal ini tidak punya perikop dalam bahasa ini",
-      "kept": "Disimpan di perangkat ini untuk offline"
+      "noPassageSub": "Pasal ini tidak punya perikop dalam bahasa ini"
     },
     "joinSentences": "{{first}}. {{next}}",
     "joinClauses": "{{first}}, {{next}}",
@@ -5841,6 +5886,7 @@
       "couldNotRead": "Laporan tidak dapat dibaca",
       "notVisible": "Bahasa ini tidak punya laporan yang dapat Anda lihat",
       "notVisibleBody": "Peran Anda mungkin tidak mencakup bahasa ini, atau bahasa ini ditambahkan setelah laporan dimuat (perbarui dari Laporan untuk memeriksa).",
+      "template": "Templat: <b>{{template}}</b>",
       "reviewFlow": "Alur pemeriksaan: <b>{{flow}}</b>",
       "bottleneck": "Hambatan: <b>{{bottleneck}}</b>",
       "bottleneckValue_other": "{{count, number}} di {{step}}",
@@ -6141,6 +6187,7 @@
       "addedAtCheckpoint": "{{kind}} ditambahkan ke catatan. Titik periksa masih menunggu pemeriksaan yang dilakukan di aplikasi.",
       "keptNotSent": "Tinjauan Anda disimpan di ponsel ini. Belum dikirim.",
       "notOnPhoneYet": "Rekaman belum ada di ponsel ini. Rekaman diputar di sini setelah ponsel online.",
+      "notUploadedYet": "Rekaman belum diunggah dari perangkat tempat rekaman itu dibuat. Rekaman diputar di sini setelah perangkat itu online.",
       "previousQuestion": "Pertanyaan sebelumnya",
       "previousQuestionHelp": "Kembali ke pertanyaan sebelumnya untuk mengubah jawaban Anda.",
       "loggedCheckpoint": "Pemeriksaan ini adalah titik periksa: dicatat di sini, ia masuk catatan, tetapi hanya pemeriksaan di aplikasi yang membuka langkah sesudahnya.",
@@ -6319,6 +6366,8 @@
     "notPublished": "Tidak diterbitkan: {{reason}}",
     "partNotSaved": "Satu bagian tidak tersimpan.",
     "retrySaving": "Coba simpan lagi",
+    "partNotHere": "Bagian {{n}} belum ada di perangkat ini. Anda bisa mengucapkannya kembali setelah perangkat online.",
+    "partNotUploaded": "Bagian {{n}} belum diunggah dari perangkat tempat bagian itu dibuat. Anda bisa mengucapkannya kembali setelah perangkat itu online.",
     "youDrag": "Anda · geser maju mundur sesering yang Anda mau",
     "nameDrag": "{{name}} · geser maju mundur sesering yang Anda mau",
     "part": "Bagian {{n}}",
@@ -6385,7 +6434,7 @@
       "guide": "Panduan",
       "guideHint": "Langkah-langkah panduan studi untuk perikop ini.",
       "terms": "Kata kunci",
-      "termsHint": "Kata-kata yang diucapkan dengan cara yang sama setiap kali: dengarkan tiap kata, lalu ucapkan padanan Anda.",
+      "termsHint": "Kata yang diucapkan sama setiap kali: ketuk satu untuk mendengarnya dan melihat di mana dipakai.",
       "notes": "Catatan",
       "notesHint": "Catatan tim tentang perikop ini.",
       "earlier": "Sebelumnya",
@@ -6408,7 +6457,10 @@
     "partKept": "{{part}} disimpan seperti direkam.",
     "partsCleaned_other": "Bersihkan pada {{count, number}} bagian.",
     "redone": "Diulangi.",
-    "newRecording": "Rekaman baru"
+    "newRecording": "Rekaman baru",
+    "lockedTitle": "Sebagian rekaman ini belum ada di perangkat ini",
+    "lockedOffline": "Bagian itu tidak bisa diubah atau dikirim dari sini sampai perangkat ini online dan sudah menerimanya. Untuk merekam tanpanya, buka {{versions}} di perikop dan pilih {{newVersion}}.",
+    "lockedNotUploaded": "Bagian itu belum diunggah dari perangkat tempat bagian itu dibuat, jadi tidak bisa diubah atau dikirim dari sini. Untuk merekam tanpanya, buka {{versions}} di perikop dan pilih {{newVersion}}."
   },
   "reference": {
     "organization": "Organisasi",
@@ -6699,29 +6751,25 @@
       "verseTermsHelp": "Kata yang bergaris bawah adalah kata kunci: ketuk salah satunya untuk membukanya.",
       "verseTermsMarkedHelp": "Kata yang bergaris bawah adalah kata kunci.",
       "verseTiedHelp": "Centang setelah kata kunci berarti kata itu dikaitkan dengan draf Anda.",
-      "verseDotHelp": "Memutar Alkitab dari ayat ini."
+      "verseDotHelp": "Memutar Alkitab dari ayat ini.",
+      "ourWord": "Kata Anda: {{word}}",
+      "verseOursHelp": "Kata hijau setelah kata kunci adalah cara tim Anda mengucapkannya."
     },
     "keyWords": {
       "none": "Belum ada kata kunci dalam perikop ini.",
       "noneAdd": "Belum ada kata kunci dalam perikop ini. Tambahkan kata yang harus diucapkan tim Anda dengan cara yang sama setiap kali.",
-      "elsewhere": "Di bagian lain kitab ini",
       "add": "Tambah kata kunci",
       "addHint": "Kata yang harus diucapkan tim Anda dengan cara yang sama setiap kali.",
       "all": "Semua kata kunci",
-      "hear": "Dengarkan {{term}}",
       "hearHelp": "Memutar ayat tempat kata itu muncul.",
       "noVerseAudio": "Alkitab ini tidak punya audio untuk ayat itu.",
-      "hearLabel": "Dengarkan {{term}} dalam Alkitab",
       "openHelp": "Artinya, cara tim Anda mengucapkannya, dan alasannya.",
-      "termLabel": "{{term}}. {{refs}}",
-      "termLabelWord": "{{term}}. {{refs}}. Kata Anda: {{word}}",
       "yourWord": "Kata Anda",
       "yourWordHelp": "Memutar cara tim Anda mengucapkan {{term}}.",
       "pauseYourWord": "Jeda kata Anda untuk {{term}}",
       "playYourWord": "Putar kata Anda untuk {{term}}",
       "sayYours": "Ucapkan kata Anda",
       "sayYoursHelp": "Rekam cara bahasa Anda mengucapkan {{term}}.",
-      "sayYoursLabel": "Ucapkan kata Anda untuk {{term}}",
       "saved": "Kata Anda untuk {{term}} tersimpan.",
       "sayTitle": "Kata Anda untuk “{{term}}”",
       "saySub": "Ucapkan bagaimana {{language}} menyebutnya. Tim Anda mendengarnya setiap kali kata ini muncul.",
@@ -7307,6 +7355,23 @@
       "fromList": "Dari {{name}}",
       "fromListSub": "Artinya, dan rekaman {{name}}",
       "fromListHelp": "Membuka arti kata ini seperti yang dijelaskan {{name}}, dengan rekamannya."
+    },
+    "tiles": {
+      "recorded": "Kata rekaman",
+      "noWord": "belum ada kata",
+      "label": "{{term}}. Kata Anda: {{word}}",
+      "labelRecorded": "{{term}}. Kata Anda sudah direkam.",
+      "labelNone": "{{term}}. Belum ada kata.",
+      "openHelp": "Membuka {{term}}: artinya, di mana dipakai, dan bagaimana tim Anda mengucapkannya.",
+      "inBible": "Tampilkan kata kami di teks Alkitab",
+      "inBibleHelp": "Menampilkan kata tim Anda setelah setiap kata kunci di Alkitab."
+    },
+    "ours": {
+      "afterDone": "Anda bisa membuka ayat-ayatnya dan halaman kata ini setelah menekan Selesai.",
+      "openPage": "Buka halaman kata",
+      "openPageHelp": "Membuka halaman {{term}}, tempat Anda bisa mengubah kata Anda.",
+      "saidIn": "Diucapkan di {{where}}",
+      "usedIn": "Dipakai di {{where}}"
     }
   },
   "clusters": {

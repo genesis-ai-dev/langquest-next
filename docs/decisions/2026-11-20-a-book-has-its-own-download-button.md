@@ -1,0 +1,79 @@
+# A book, and a section of an outline, has its own download button, which keeps each of its passages
+
+Date: 2026-11-20 · By: Carl Sauder · Status: accepted
+
+Reason: a download for offline could be chosen only on the lowest unit, a
+chapter or a passage (decision 61), so keeping Luke meant a tap on each of
+its 97 passages. Carl (LAN-316): "Some users that will be offline for a
+while may want all the work done on one or more books to be stored on their
+device". Decision 166 named this as its reversal: if teams want a whole book
+at once, a book gets its own button.
+
+- **Where.** The line over a book's passages, which only counted them, is
+  the button (`GroupOfflineBar`, sync/offline.tsx), on a book of chapter
+  tiles, a book of passage rows and the "Other" list. A language with its
+  own outline has the same button as a round mark at the end of each
+  section's name (`GroupDownloadButton`).
+- **What it keeps.** The book's passages, each added to the device's kept
+  set in one write (`LanguageSession.keepOffline` takes a list). The choice
+  stays each passage's own, as decision 61 has it: the book button makes
+  that choice for all of them, and each passage's button still shows and
+  changes its own. So nothing new is stored, no event is added, and every
+  mark keeps counting from the passage's own files.
+- **What it says** (`groupLook`, sync/offlineModel.ts), by decision 166's
+  rule that a line says only what the device knows: before the tap, "Download
+  all 97 passages for offline" and how much audio would come
+  (`LanguageSession.offlineCost`: the files the server has that the device
+  lacks, each counted once); with some kept already, "Download the other
+  85"; then "Downloading for offline · 12 of 97" only while a file comes
+  down, and "All 97 kept passages are on this device" only when each
+  passage's own count says so. Offline it offers nothing. Until the size is
+  worked out the line says "Checking this device…", so an offer never
+  appears and then changes under a thumb; the size is asked again as the
+  language changes, at most every few seconds. While a first download still
+  fills the language in (decision 147) the device does not know every
+  passage's files, so it could not say the size or whether it fits: the line
+  says "Downloading this language" and offers no book until that ends. Each
+  passage's own button still works then.
+- **A tap once every passage is kept** lets go the ones the person chose,
+  as a passage's button does; those asked of them or worked on stay, and the
+  toast says how many.
+- **No room, no offer.** Kept files are never deleted to make room
+  (decision 226), and a download from the server is not held back when
+  space is short, so a book that would take the device under the 500 MB
+  kept free for recording is not offered: the line says its size and the
+  room there is. Room is what is free above those 500 MB
+  (`BlobStore.roomBytes`) and what the device would free for the book by
+  itself (`offlineCost`'s `freeable`: files here that the server has and no
+  kept passage would need), so a book is not refused for want of room the
+  device would make. A tap asks again, since room changes, and keeps the
+  book only if it fits by then. A browser, and a phone whose disk will not
+  say, cannot tell how much room there is and are not held back.
+
+Considered:
+
+- **Keeping the book itself**, so passages that join it later come along.
+  It needs a key for a book that is not a unit (passages added by hand are
+  put in a book by their name) and a list of exceptions for a chapter let go
+  from a kept book. A book's passages change only when it is divided
+  differently (decision 80), which is rare; then the button offers the new
+  passages and one tap keeps them.
+- **A button on each book's row of the Map.** A row has no room to say the
+  size before the tap.
+- **A testament or the whole language.** A whole Bible's recordings can pass
+  the 2 GB cache cap, kept files are never freed, and reference audio stops
+  at its own 1 GB (sources/offline.ts). It needs a size budget first.
+
+Amends decisions 61 and 166.
+
+Reverse if: people keep a book and still miss audio in the field, because
+reference audio reached its cap or is not counted in "on this device" (then
+it is counted, or the cap is said); books are divided again often enough
+that kept books lapse (then the book itself is kept); or teams ask for a
+whole testament or language (then a size budget comes first).
+
+Amended (2026-11-20, Carl Sauder): a book's or a section's button keeps recordings only. On an Android phone the same day, Carl downloaded a book and its line climbed slowly with nothing said to be coming, passages with no recordings showed green and then amber, and moving between books on the Map became slow. Each kept passage was taking its study guide along (decision 61): one FIA guide names 62 files, so a book's were thousands, looked up and counted for every kept passage at the app's root, and a passage whose guide had not been looked up yet was counted as ready. Carl chose recordings only for a book, with a way to add the reference material for some passages, the two kinds told apart on screen, and a way to switch between them. So the device keeps two lists (`keep:` for passages kept with their reference material, `keep-recordings:` for those kept through a book's or a section's button; `LanguageStatus.recordingsOnly`, `LanguageSession.keepOffline` with `recordingsOnly`), and study guide files and reference audio follow only the person's own passages and the first list (`referenceUnits`, sync/offlineModel.ts), so the size said before the tap is all that comes. A passage kept for its recordings is marked apart by more than colour, a pale disc with a green ring and a speaker reading "Recordings on this device", against the solid green "On this device". On a passage's own screen, under its line, a switch "Keep its reference material too" goes both ways (`ReferenceSwitch`, `LanguageSession.keepReference`); turning it on needs a download, so it is not offered offline. A passage's own button still keeps it with its reference material, a book's button never makes such a passage lighter, and a passage that is the person's work always takes its reference material and has no switch. A kept passage is ready only once its guide has been looked up (`studyKnown`, study/studyFiles.ts): until then it says "Checking this device…". This replaces "What it keeps" above where it says nothing new is stored, and the first "Reverse if", since reference audio no longer comes with a book. Considered: a sheet of three choices on every tap of a kept passage's button, which would have made stopping a keep two taps where decision 166 has one. Reverse if: people expect a downloaded book to carry its study guides and miss them in the field (then the book's line offers them as a second download, with its own count and size).
+
+Amended (2026-11-20, Carl Sauder): a correction to the counts in the amendment above and in decision 61's of the same day. The 62 files were counted in FIA's own file for one passage; the guide the app keeps for it names 12 (`studyUrls` on the document `scripts/fia-adapter.ts` makes), so Luke's 97 passages brought over a thousand study files, not thousands. And the slow Map was measured afterwards, on a desktop, with FIA's collections at their full 2,376 passages in five languages: choosing the guides for 97 kept passages took 480 ms, and it was done again after every change to the language. The choice above stands on both counts. The matching itself is now quick for however many passages a person keeps: a collection's entries are read once and found by the verses they hold (`studyEntriesFor`, packages/core/src/libraryApply.ts), the library is read once for all the passages (`guideOffer`, reference/offered.ts), and the prefetch follows the language a few seconds behind (study/StudyPrefetch.tsx); the same 97 passages take about 4 ms.
+
+Amended (2026-11-20, Carl Sauder): three things Carl found on the phone. (1) The marks a download button can show were defined nowhere a person looked: a key now names every one, drawn as the buttons draw them (`DownloadKey`, sync/offline.tsx), one tap away under a book's line and over an outline's sections, and under Filter for every book; it replaces the key's single "Kept on this device" line. (2) Nothing said that tapping a book's green line would let the whole book go. Once every passage is kept the line is no longer a button: it only says where they stand, and a Remove button at its end opens a sheet that says what removing does (the recordings stay on the server, playing them will need a connection, the person's own work stays) before a red "Remove from this device" does it; an outline section's round button asks the same. A passage's own button still stops keeping it in one tap, as decision 166 has it: one passage is easy to get back, a book is not. (3) Matthew 13 stayed amber at "Only 19 of 23 files", and Matthew 16 at 18 of 21, with no recordings in either: their study guides name files FIA's public file store does not have, which it answers with 403, and the phone asked again every five minutes for ever. A study file whose source answers 403 or 404 is now not counted as one to come; the passage is ready once every other file is here, its line names the files that cannot come, and the phone asks for them again a day later (`refusedBy`, `studyCounts`, study/studyFiles.ts), as decision 61 already treats a recording nobody has sent. Any other failure (no connection, a timeout, a busy server) still counts and is tried again in minutes.

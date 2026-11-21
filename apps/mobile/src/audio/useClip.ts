@@ -13,6 +13,7 @@
 import { isStored } from '@langquest-next/core';
 import { useEffect, useRef, useState } from 'react';
 import { audioFormat } from './audioFormat';
+import { clipsAvailable } from './clipsAvailable';
 import { playerInRow, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { t } from '../i18n';
 import { noteExpected, reportError } from '../diagnostics/report';
@@ -22,6 +23,7 @@ import { cardSeconds } from './clipTime';
 import { playable, prepare, READY_MS } from './levelStore';
 import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from './recordingPlayer';
 import { clearNowPlaying, pauseNowPlaying, tellNowPlaying } from './nowPlaying';
+import type { ListenHooks } from '../recording/useListenLoop';
 
 export interface Clip {
   playing: boolean;
@@ -39,7 +41,11 @@ export interface Clip {
   back10: () => void;
 }
 
-export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri?: string; onPlaying?: (on: boolean) => void; disabled?: boolean }): Clip {
+export function useClip(language: LanguageHandle, hashes: string[], opts?: {
+  uri?: string; onPlaying?: (on: boolean) => void; disabled?: boolean;
+  /** The recorder's listen loop: the microphone pauses before this plays, and resumes when it stops (as ClipPlayer's `listen`). */
+  listen?: ListenHooks;
+}): Clip {
   const uriProp = opts?.uri;
   const [playing, setPlayingState] = useState(false);
   /** Sound has come since the last tap on Play. */
@@ -60,7 +66,15 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
   const signature = uriProp ?? hashes.join(':');
   const live = useRef({ language, hashes, uri: uriProp, onPlaying: opts?.onPlaying });
   live.current = { language, hashes, uri: uriProp, onPlaying: opts?.onPlaying };
-  const setPlaying = (on: boolean) => { setPlayingState(on); live.current.onPlaying?.(on); };
+  const listenRef = useRef(opts?.listen);
+  listenRef.current = opts?.listen;
+  // Report only real changes, so a stop that was already stopped never resumes recording twice.
+  const reported = useRef(false);
+  const setPlaying = (on: boolean) => {
+    setPlayingState(on);
+    live.current.onPlaying?.(on);
+    if (reported.current !== on) { reported.current = on; listenRef.current?.onPlaying(on); }
+  };
   const halt = () => {
     generation.current++;
     wants.current = false;
@@ -95,9 +109,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
   if (!uriProp && clipLength > 0 && index < lengths.length) lengths[index] = clipLength;
   const total = lengths.reduce((a, b) => a + b, 0);
   const elapsed = lengths.slice(0, index).reduce((a, b) => a + b, 0) + at;
-  const state = language.state;
-  const here = !!uriProp || (!!state && hashes.length > 0 && hashes.every((hash) => !!language.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
-  const available = here || (!!state && hashes.length > 0 && language.online !== false && hashes.every((hash) => isStored(state, hash)));
+  const available = !!uriProp || clipsAvailable(language, hashes);
 
   async function playFrom(i: number, from: number, run: number) {
     if (!wants.current || generation.current !== run) return;
@@ -167,6 +179,9 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     setError('');
     countAudio(language, 'plays');
     try {
+      // The microphone first: nothing of this may land in a take.
+      await listenRef.current?.beforePlay();
+      if (generation.current !== run) return;
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
       if (generation.current !== run) return;
       const p = player.current;

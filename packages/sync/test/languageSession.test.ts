@@ -236,6 +236,227 @@ describe('LanguageSession: commands, waking and what settles', () => {
     expect([...session.status.keptUnits]).toEqual([]);
     session.close();
   });
+
+  // LAN-316: a book's passages are kept as one list.
+  it("a book's passages are kept in one write, and remembered", async () => {
+    const { store, open } = phone();
+    const first = await open();
+    const writes = vi.spyOn(store, 'setMeta');
+    await first.keepOffline(['Luke 1', 'Luke 2', 'Luke 3'], true);
+    expect(writes.mock.calls.filter(([key]) => key.startsWith('keep:'))).toHaveLength(1);
+    expect([...first.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2', 'Luke 3']);
+    first.close();
+    const second = await open();
+    expect([...second.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2', 'Luke 3']);
+    second.close();
+  });
+
+  // A book's button keeps recordings only; a passage's own keeps its reference material too (decision amended 2026-11-20).
+  it('a book is kept for its recordings alone, in a list of its own, and remembered', async () => {
+    const { store, open } = phone();
+    const first = await open();
+    const writes = vi.spyOn(store, 'setMeta');
+    await first.keepOffline(['Luke 1', 'Luke 2'], true, { recordingsOnly: true });
+    // One write, of the list they joined; the list of passages kept with their reference material is not touched.
+    expect(writes.mock.calls.filter(([key]) => key.startsWith('keep-recordings:'))).toHaveLength(1);
+    expect(writes.mock.calls.filter(([key]) => key.startsWith('keep:'))).toHaveLength(0);
+    expect([...first.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2']);
+    expect([...first.status.recordingsOnly].sort()).toEqual(['Luke 1', 'Luke 2']);
+    first.close();
+    const second = await open();
+    expect([...second.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2']);
+    expect([...second.status.recordingsOnly].sort()).toEqual(['Luke 1', 'Luke 2']);
+    second.close();
+  });
+
+  it('a passage kept with its reference material is not made lighter by its book, and its own keep is never recordings only', async () => {
+    const { open } = phone();
+    const session = await open();
+    await session.keepOffline('Luke 1', true);
+    await session.keepOffline(['Luke 1', 'Luke 2'], true, { recordingsOnly: true });
+    expect([...session.status.recordingsOnly]).toEqual(['Luke 2']);
+    // Kept again by its own button: with its reference material from now on.
+    await session.keepOffline('Luke 2', true);
+    expect([...session.status.recordingsOnly]).toEqual([]);
+    expect([...session.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2']);
+    session.close();
+    const again = await open();
+    expect([...again.status.recordingsOnly]).toEqual([]);
+    expect([...again.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2']);
+    again.close();
+  });
+
+  it("a kept passage switches between its recordings alone and its reference material too, both ways", async () => {
+    const { store, open } = phone();
+    const session = await open();
+    await session.keepOffline(['Luke 1', 'Luke 2'], true, { recordingsOnly: true });
+    await session.keepReference('Luke 1', true);
+    expect([...session.status.recordingsOnly]).toEqual(['Luke 2']);
+    await session.keepReference('Luke 1', false);
+    expect([...session.status.recordingsOnly].sort()).toEqual(['Luke 1', 'Luke 2']);
+    // Its recordings stay kept either way.
+    expect([...session.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2']);
+    // Nothing for a passage not kept, and nothing written or told when nothing changes.
+    const writes = vi.spyOn(store, 'setMeta');
+    let told = 0;
+    session.subscribe(() => { told += 1; });
+    await session.keepReference('Luke 9', true);
+    await session.keepReference('Luke 9', false);
+    await session.keepReference('Luke 1', false);
+    expect([...session.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2']);
+    expect(writes).not.toHaveBeenCalled();
+    expect(told).toBe(0);
+    session.close();
+    const again = await open();
+    await again.keepReference(['Luke 1', 'Luke 2'], true);
+    again.close();
+    const last = await open();
+    expect([...last.status.recordingsOnly]).toEqual([]);
+    expect([...last.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2']);
+    last.close();
+  });
+
+  it('each stored list holds only its own passages, and a passage that moves is written where it goes before where it leaves', async () => {
+    const { store, open } = phone();
+    const stored = async (key: string) => JSON.parse((await store.meta(`${key}:org1/luke`)) || '[]') as string[];
+    const session = await open();
+    await session.keepOffline('Luke 1', true);
+    await session.keepOffline(['Luke 1', 'Luke 2', 'Luke 3'], true, { recordingsOnly: true });
+    expect(await stored('keep')).toEqual(['Luke 1']);
+    expect((await stored('keep-recordings')).sort()).toEqual(['Luke 2', 'Luke 3']);
+    // Its reference material no longer kept: it joins the recordings list first, so an app stopped
+    // between the two writes finds it in both lists and still kept, never in neither.
+    const writes = vi.spyOn(store, 'setMeta');
+    await session.keepReference('Luke 1', false);
+    expect(writes.mock.calls.map(([key]) => key.split(':')[0])).toEqual(['keep-recordings', 'keep']);
+    expect(await stored('keep')).toEqual([]);
+    expect((await stored('keep-recordings')).sort()).toEqual(['Luke 1', 'Luke 2', 'Luke 3']);
+    // And back: it joins the list of passages kept with their reference material first.
+    writes.mockClear();
+    await session.keepReference('Luke 2', true);
+    expect(writes.mock.calls.map(([key]) => key.split(':')[0])).toEqual(['keep', 'keep-recordings']);
+    expect(await stored('keep')).toEqual(['Luke 2']);
+    expect((await stored('keep-recordings')).sort()).toEqual(['Luke 1', 'Luke 3']);
+    session.close();
+    // What was switched is what the next session finds.
+    const again = await open();
+    expect([...again.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2', 'Luke 3']);
+    expect([...again.status.recordingsOnly].sort()).toEqual(['Luke 1', 'Luke 3']);
+    again.close();
+  });
+
+  it('what an earlier build kept is kept with its reference material, and a passage found in both lists is still kept', async () => {
+    const { store, open } = phone();
+    // Before there were two lists, every kept passage was in the one.
+    await store.setMeta('keep:org1/luke', JSON.stringify(['Luke 1', 'Luke 2']));
+    const first = await open();
+    expect([...first.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2']);
+    expect([...first.status.recordingsOnly]).toEqual([]);
+    first.close();
+    // An app stopped between two writes: Luke 2 is in both. It is kept, for its recordings, and the next write mends the lists.
+    await store.setMeta('keep-recordings:org1/luke', JSON.stringify(['Luke 2']));
+    const second = await open();
+    expect([...second.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2']);
+    expect([...second.status.recordingsOnly]).toEqual(['Luke 2']);
+    await second.keepOffline('Luke 3', true);
+    expect(JSON.parse((await store.meta('keep:org1/luke')) || '[]').sort()).toEqual(['Luke 1', 'Luke 3']);
+    second.close();
+  });
+
+  it('letting passages go takes them off whichever list they were on', async () => {
+    const { open } = phone();
+    const session = await open();
+    await session.keepOffline('Luke 1', true);
+    await session.keepOffline(['Luke 2', 'Luke 3'], true, { recordingsOnly: true });
+    await session.keepOffline(['Luke 1', 'Luke 2'], false);
+    expect([...session.status.keptUnits]).toEqual(['Luke 3']);
+    expect([...session.status.recordingsOnly]).toEqual(['Luke 3']);
+    session.close();
+    const again = await open();
+    expect([...again.status.keptUnits]).toEqual(['Luke 3']);
+    expect([...again.status.recordingsOnly]).toEqual(['Luke 3']);
+    again.close();
+  });
+
+  it('letting a list go leaves the passages kept one by one', async () => {
+    const { open } = phone();
+    const session = await open();
+    await session.keepOffline('Luke 9', true);
+    await session.keepOffline(['Luke 1', 'Luke 2'], true);
+    await session.keepOffline(['Luke 1', 'Luke 2'], false);
+    expect([...session.status.keptUnits]).toEqual(['Luke 9']);
+    session.close();
+  });
+
+  it('keeping what is already kept writes nothing and tells nobody', async () => {
+    const { store, open } = phone();
+    const session = await open();
+    await session.keepOffline(['Luke 1', 'Luke 2'], true);
+    const writes = vi.spyOn(store, 'setMeta');
+    let told = 0;
+    session.subscribe(() => { told += 1; });
+    await session.keepOffline(['Luke 2', 'Luke 1'], true);
+    await session.keepOffline('Luke 7', false);
+    expect(writes.mock.calls.filter(([key]) => key.startsWith('keep:'))).toHaveLength(0);
+    expect(told).toBe(0);
+    session.close();
+  });
+
+  it('says what keeping passages would bring down, each file once, before any is kept', async () => {
+    const { server, files, open } = phone();
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r2', unitId: 'Luke 2', kind: 'target', cards: [{ hash: 'h2', durationMs: 1000, format: 'm4a' }] });
+    // Recorded, and not sent by the phone that made it: no download can bring it.
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r3', unitId: 'Luke 3', kind: 'target', cards: [{ hash: 'h3', durationMs: 1000, format: 'm4a' }] });
+    server.storeBlob('org1', 'luke', 'h1', 1000);
+    server.storeBlob('org1', 'luke', 'h2', 2500);
+    const session = await open();
+    await session.sync();
+    expect(await session.offlineCost(['Luke 1', 'Luke 2', 'Luke 3', 'Luke 1'])).toEqual({ files: 2, bytes: 3500, freeable: 0 });
+    expect(await session.offlineCost([])).toEqual({ files: 0, bytes: 0, freeable: 0 });
+    // Asking keeps nothing.
+    expect([...session.status.keptUnits]).toEqual([]);
+    // One of them is here already.
+    files.put('h1', 1000);
+    expect(await session.offlineCost(['Luke 1', 'Luke 2'])).toMatchObject({ files: 1, bytes: 2500 });
+    session.close();
+  });
+
+  it('counts a file every passage plays once, not once for each passage', async () => {
+    const { server, open } = phone();
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r2', unitId: 'Luke 2', kind: 'target', cards: [{ hash: 'h2', durationMs: 1000, format: 'm4a' }] });
+    // Reference audio for the whole language: each passage plays it, and it comes down once.
+    await from(server, 'bol', 'v1.MaterialDefined', { materialId: 'm1', kind: 'reference', title: 'How to say names', scope: {} });
+    await from(server, 'bol', 'v1.MaterialFieldSet', { materialId: 'm1', fieldId: 'audio', blobHash: 'g1' });
+    server.storeBlob('org1', 'luke', 'h1', 1000);
+    server.storeBlob('org1', 'luke', 'h2', 2500);
+    server.storeBlob('org1', 'luke', 'g1', 700);
+    const session = await open();
+    await session.sync();
+    expect(await session.offlineCost(['Luke 1', 'Luke 2'])).toMatchObject({ files: 3, bytes: 4200 });
+    expect(await session.offlineCost(['Luke 1'])).toMatchObject({ files: 2, bytes: 1700 });
+    session.close();
+  });
+
+  it('says how much this device would free for them by itself: files here that no kept passage needs', async () => {
+    const { server, files, open } = phone();
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r2', unitId: 'Luke 2', kind: 'target', cards: [{ hash: 'h2', durationMs: 1000, format: 'm4a' }] });
+    server.storeBlob('org1', 'luke', 'h1', 1000);
+    server.storeBlob('org1', 'luke', 'h2', 2500);
+    const session = await open();
+    await session.sync();
+    // Luke 1's file is here from an earlier listen, and nothing keeps it.
+    files.put('h1', 1000);
+    // Keeping Luke 2 could push Luke 1's file out to make room; keeping Luke 1 itself could not.
+    expect(await session.offlineCost(['Luke 2'])).toEqual({ files: 1, bytes: 2500, freeable: 1000 });
+    expect(await session.offlineCost(['Luke 1'])).toEqual({ files: 0, bytes: 0, freeable: 0 });
+    // Once Luke 1 is kept, its file is no longer the device's to free.
+    await session.keepOffline('Luke 1', true);
+    expect(await session.offlineCost(['Luke 2'])).toEqual({ files: 1, bytes: 2500, freeable: 0 });
+    session.close();
+  });
 });
 
 describe('LanguageSession: what tells a screen to redraw', () => {

@@ -20,6 +20,7 @@
       "noWifiDirect": "This phone has no Wi-Fi Direct, which Share nearby needs.",
       "noKey": "This phone is not ready to share yet. Connect to the internet once, then come back.",
       "noCertificate": "To share nearby, this phone must connect to the internet once while your organization has Share nearby turned on.",
+      "limited": "This account set up too many new phones today. Share nearby works on this phone from tomorrow.",
       "readOnly": "Accounts that only view organizations do not share nearby."
     },
     "radios": {

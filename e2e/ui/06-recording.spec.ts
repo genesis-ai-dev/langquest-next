@@ -14,7 +14,7 @@
 // 06-recording-mic.spec.ts (the microphone refused) and
 // 06-recording-long.spec.ts (REC-030, ten minutes of recording).
 import { randomUUID } from 'node:crypto';
-import { derivePassage, draftsBy, type LanguageState } from '@langquest-next/core';
+import { commands, derivePassage, draftsBy, type LanguageState } from '@langquest-next/core';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import {
   chip, deletePart, swipePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, leaveSession, mic, openWorkspace, draftParts, partCount, partsTitle,
@@ -22,6 +22,9 @@ import {
   useFileWorld
 } from './06-recording-helpers';
 import { clientAs, send } from './fixture';
+import { act, langAs, openLabel, recordNotUploaded, untouchedPassage } from './reviewing-helpers';
+import { caughtUp, keepOnDevice } from './sync-helpers';
+import { en, say as words } from './account-helpers';
 import {
   back, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, openAs, openPassage, primary, screenText, syncNow, tab, test, text, waitForApp,
   type UiWorld
@@ -721,8 +724,10 @@ test('REC-033 Record and publish in airplane mode @p0', async ({ page, context }
     await page.goto('/');
     await waitForApp(page);
   }
-  // Opened online once, so the passage is on the device.
-  await openWorkspace(page, w, 'P-Q1', 'Continue recording');
+  // Kept on the device first: a draft with a part that is not on the device is locked offline (REC-062).
+  await openPassage(page, w, 'P-Q1');
+  await keepOnDevice(page);
+  await startFromRecord(page, 'Continue recording');
   await expectParts(page, 2);
   await context.setOffline(true);
   await recordSaid(page, [3000, 3000]);
@@ -746,6 +751,74 @@ test('REC-033 Record and publish in airplane mode @p0', async ({ page, context }
   const v = derivePassage(state, w.passages['P-Q1'].unitId).versions;
   expect(v.map((x) => x.cardHashes.length)).toEqual([4]);
   for (const h of v[0]!.cardHashes) expect(state.blobs[h]?.stored, `part ${h.slice(0, 8)} on the server`).toBe(true);
+});
+
+// ---- A draft that cannot be heard on this device (LAN-317) ------------------------------
+// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md: when any part of the draft cannot be
+// heard here, the whole draft is locked, and a banner says why. Each test takes a passage nobody has recorded,
+// and gives TRANS a draft of it made on another phone that has not been online since: its events reached the
+// server, its files did not, so no device can play them until that phone sends them (`upload`).
+
+const LOCKED = words(en, 'translate.lockedTitle');
+const lockedBody = (key: 'lockedOffline' | 'lockedNotUploaded') =>
+  words(en, `translate.${key}`, { versions: words(en, 'passage.page.history'), newVersion: words(en, 'passage.versions.newVersion') });
+
+/** The workspace is locked: the banner with this reason, and neither Record nor Done. */
+async function expectLocked(page: Page, key: 'lockedOffline' | 'lockedNotUploaded'): Promise<void> {
+  await expect(text(page, lockedBody(key))).toBeVisible({ timeout: 30_000 });
+  await expect(text(page, LOCKED)).toBeVisible();
+  await expect(recordButton(page)).toHaveAttribute('aria-disabled', 'true');
+  await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
+}
+
+test('REC-062 A draft with a part not on this device is locked until the part can be heard', async ({ page, context }) => {
+  const w = world();
+  const label = await untouchedPassage(w);
+  const draft = await recordNotUploaded(w, 'TRANS', { label }, { parts: 2 });
+  await openAs(page, w, 'TRANS');
+  await caughtUp(page, w, 'TRANS');
+  await openLabel(page, label);
+  await context.setOffline(true);
+  await startFromRecord(page, 'Continue recording');
+  await expectParts(page, 2);
+  const before = await deviceLog(page, w.languages.A.orgId, w.languages.A.languageId);
+  await expectLocked(page, 'lockedOffline');
+  // Online, the server does not have the parts yet: the other reason, still locked.
+  await context.setOffline(false);
+  await expectLocked(page, 'lockedNotUploaded');
+  // The phone it was made on sends them: the draft opens up by itself, without leaving the workspace.
+  await draft.upload();
+  await expect(text(page, LOCKED)).toHaveCount(0, { timeout: 30_000 });
+  await expect(recordButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+  await expectParts(page, 2);
+  // Nothing was written while it was locked.
+  const after = await deviceLog(page, w.languages.A.orgId, w.languages.A.languageId);
+  expect(after.filter((r) => r.status === 'pending')).toEqual(before.filter((r) => r.status === 'pending'));
+});
+
+test('REC-063 A new version started empty offline is not locked by a draft that cannot be heard', async ({ page, context }) => {
+  const w = world();
+  const label = await untouchedPassage(w);
+  await recordNotUploaded(w, 'TRANS', { label }, { parts: 2 });
+  await openAs(page, w, 'TRANS');
+  await caughtUp(page, w, 'TRANS');
+  await openLabel(page, label);
+  await context.setOffline(true);
+  await button(page, 'Versions and history').click();
+  await expect(primary(page)).toHaveText(words(en, 'passage.versions.newVersion'));
+  await primary(page).click();
+  await expect(text(page, 'New draft')).toBeVisible();
+  await expect(text(page, LOCKED)).toHaveCount(0);
+  await expect(recordButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+  await recordSaid(page, [3000]);
+  await expect(text(page, LOCKED)).toHaveCount(0);
+  await publishButton(page).click();
+  await button(page, "Done, don't ask anyone").or(button(page, /^Finish Version \d+$/)).first().click();
+  await expect(byId(page, 'toast')).toContainText(/^Version 1 published\./);
+  await context.setOffline(false);
+  await expectUploaded(page, w);
+  await expectNothingRefused(page, w);
 });
 
 // ---- Listening while recording ------------------------------------------------------
@@ -828,7 +901,7 @@ test('REC-038 The reference reaches every chip', async ({ page }) => {
     await expect(button(page, 'Open the study')).toBeVisible();
   }
   await chip(page, 'Key words').click();
-  await expect(text(page, /^No key words in this passage yet\. Add one your team should say the same way every time\.$/).or(button(page, /^Hear /).first())).toBeVisible();
+  await expect(text(page, /^No key words in this passage yet\. Add one your team should say the same way every time\.$/).or(page.getByTestId(/^key-tile-(?!play-)/).locator('visible=true').first())).toBeVisible();
   await chip(page, /^Notes/).click();
   await expect(button(page, 'Add a note')).toBeVisible();
   await chip(page, 'Earlier').click();
@@ -841,6 +914,46 @@ test('REC-038 The reference reaches every chip', async ({ page }) => {
   await back(page).click();
   await openWorkspace(page, w, 'P-Q4', 'Record');
   await expect(chip(page, /^Earlier/)).toHaveCount(0);
+});
+
+test('REC-061 A key word opens in place while recording, and the recording goes on', async ({ page }) => {
+  const w = world();
+  // The team's word for "Lord" in Luke 13:22-30 (P-Q3), so its tile has a word to show.
+  const trans = await langAs(w, 'TRANS');
+  const unitId = w.passages['P-Q3'].unitId;
+  const book = trans.getState().units[unitId]?.parentUnitId ?? unitId;
+  await act(trans, (s) => commands(s).defineKeyTerm({ commandId: randomUUID(), termId: `kt-${randomUUID()}`, term: 'Lord', gloss: 'The master of the house', unitScope: [book], rendering: 'Nkosi', note: 'Added for the recording tests' }), 'TRANS adds "Lord"');
+  await openAs(page, w, 'TRANS');
+  await openWorkspace(page, w, 'P-Q3', 'Continue recording');
+  await chip(page, 'Key words').click();
+  const tile = page.getByTestId(/^key-tile-(?!play-)/).locator('visible=true').first();
+  await expect(tile).toBeVisible();
+  await expect(tile).toContainText('Nkosi');
+  const before = await draftParts(page);
+  const m = mic(page);
+  await m.mode('tone');
+  await recordButton(page).click();
+  await m.speak(true);
+  await expect(text(page, 'Recording…')).toBeVisible();
+  // A tap on the tile opens its sheet over the workspace; nothing leaves the screen, and the recording is not stopped.
+  await tile.click();
+  await expect(byId(page, 'sheet')).toBeVisible();
+  await expect(byId(page, 'sheet').getByText('The master of the house')).toBeVisible();
+  await expect(byId(page, 'sheet').getByText(/after you press Done/)).toBeVisible();
+  await expect(button(page, "Open the word's page")).toHaveCount(0);
+  await byId(page, 'sheet-close').click();
+  await expect(byId(page, 'sheet')).toHaveCount(0);
+  await expect(text(page, 'Recording…')).toBeVisible();
+  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
+  await page.waitForTimeout(3000); // sleep: 3 s of speech, so the part is long enough to be kept
+  await m.speak(false);
+  await expectParts(page, before + 1, 10_000);
+  await leaveSession(page);
+  await expectParts(page, before + 1);
+  // Not recording, the same tile leads on to the word's page.
+  await tile.click();
+  await button(page, "Open the word's page").click();
+  await expect(text(page, 'Alpha key word')).toBeVisible();
 });
 
 test('REC-039 Notes from the workspace', async ({ page }) => {

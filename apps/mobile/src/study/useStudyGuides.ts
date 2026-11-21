@@ -1,14 +1,15 @@
 // Study guides from the library, for screens to follow (study/libraryGuides.ts).
-import { libraryItemView, type StudyDoc, type StudyDoc2 } from '@langquest-next/core';
+import { libraryItemView, type LanguageState, type StudyDoc, type StudyDoc2 } from '@langquest-next/core';
 import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import type { Ctx } from '../shell/ctx';
 import { useLibraryDocs } from '../library/useLibrary';
 import { chosenOnly } from '../reference/guideSets';
 import { teamLanguage } from '../reference/languages';
-import { offeredGuideSources } from '../reference/offered';
+import { guideOffer, type Offered } from '../reference/offered';
 import { bestGuide, guideFromDoc, passageVerses, type GuideSource } from './guideMatch';
 import type { StudyGuide } from './guides';
+import { lookedUp } from './prefetchModel';
 
 /** The guide for a passage, or null while its documents load or when none covers it. */
 export function useStudyGuide(ctx: Ctx, unitId: string | null | undefined): StudyGuide | null {
@@ -21,9 +22,28 @@ export function useStudyGuide(ctx: Ctx, unitId: string | null | undefined): Stud
  * A passage missing from the map has no guide, or its documents have not loaded.
  */
 export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string, StudyGuide> {
-  const state = ctx.language.state;
+  return useStudyGuideSet(ctx, unitIds).guides;
+}
+
+/**
+ * The same, with the passages whose guide has been looked up, found or not
+ * (`lookedUp`, study/prefetchModel.ts). A passage missing from `guides` and
+ * not looked up may only not have loaded, and the prefetch must not count
+ * its study files as here (decisions.md 166). A read that failed is asked
+ * again when the device comes back online.
+ *
+ * `follows`: the language state to look up in, when it is not the one on
+ * screen: the prefetch follows the language a few seconds behind
+ * (StudyPrefetch.tsx), since it looks up every passage a person keeps and a
+ * sync changes the language many times a second.
+ */
+export function useStudyGuideSet(
+  ctx: Ctx, unitIds: readonly string[], follows?: { state: LanguageState | null }
+): { guides: Map<string, StudyGuide>; lookedUp: Set<string> } {
+  const state = follows ? follows.state : ctx.language.state;
   const orgId = ctx.language.orgId;
   // What each passage is offered: recommended or linked to it first, then the organization's own (reference/offered.ts).
+  // The library is read once for them all, and passages offered the same share one answer (`guideOffer`).
   const offered = useMemo(() => {
     const library = ctx.org.state?.library ?? {};
     // An item this organization controls (not a follow) is named, so its single guides offer Edit (guides/GuideEditor.tsx).
@@ -31,10 +51,14 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
       const it = libraryItemView(library, s.key);
       return it && it.source !== 'subscription' ? { ...s, itemId: it.itemId } : s;
     };
+    const offer = guideOffer(library, ctx.org.state?.recommendations, state);
+    const same = new Map<Offered, { recommended: GuideSource[]; own: GuideSource[] }>();
     const out = new Map<string, { recommended: GuideSource[]; own: GuideSource[] }>();
     for (const unitId of unitIds) {
-      const o = offeredGuideSources(library, ctx.org.state?.recommendations, state, unitId);
-      out.set(unitId, { recommended: o.recommended.map(named), own: o.own.map(named) });
+      const o = offer(unitId);
+      let sources = same.get(o);
+      if (!sources) same.set(o, (sources = { recommended: o.recommended.map(named), own: o.own.map(named) }));
+      out.set(unitId, sources);
     }
     return out;
   }, [ctx.org.state, state, unitIds]);
@@ -43,27 +67,32 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
   const reads = teamLanguage(ctx.org.state, state, ctx.language.languageId);
   const hashes = useMemo(() => [...new Set([...offered.values()].flatMap((o) => [...o.recommended, ...o.own].map((s) => s.hash)))], [offered]);
   // Nothing to match, nothing to load: the prefetch on the web, or a screen with no passage yet.
-  const { get } = useLibraryDocs(orgId, unitIds.length ? [...hashes, sel?.docHash] : []);
+  const online = ctx.language.online !== false;
+  const offeredDocs = useLibraryDocs(orgId, unitIds.length ? [...hashes, sel?.docHash] : [], { again: online });
+  const { get } = offeredDocs;
 
   const choices = useMemo(() => {
     const out = new Map<string, NonNullable<ReturnType<typeof bestGuide>>>();
     if (!state) return out;
+    // A guide set's languages the team did not choose stay out (decision 84): worked out once for passages offered the same.
+    const groupsOf = new Map<object, GuideSource[][]>();
     for (const unitId of unitIds) {
       const o = offered.get(unitId);
       if (!o) continue;
+      let groups = groupsOf.get(o);
+      if (!groups) groupsOf.set(o, (groups = chosenOnly([o.recommended, o.own], get)));
       // A part of an outline template has no verses; guides placed on it by template node still match.
       const passage = passageVerses(state, unitId, get);
-      // A guide set's languages the team did not choose stay out (decision 84).
-      const choice = bestGuide({ unitId, range: passage?.range ?? null, versification: passage?.versification ?? null }, chosenOnly([o.recommended, o.own], get), get, reads);
+      const choice = bestGuide({ unitId, range: passage?.range ?? null, versification: passage?.versification ?? null }, groups, get, reads);
       if (choice) out.set(unitId, choice);
     }
     return out;
   }, [state, unitIds, offered, get, reads]);
 
   // The chosen guides' own documents (a collection's entries) load on demand.
-  const entry = useLibraryDocs(orgId, [...choices.values()].map((c) => c.hash));
+  const entry = useLibraryDocs(orgId, [...choices.values()].map((c) => c.hash), { again: online });
   const entryGet = entry.get;
-  return useMemo(() => {
+  const guides = useMemo(() => {
     const out = new Map<string, StudyGuide>();
     for (const [unitId, choice] of choices) {
       const doc = entryGet(choice.hash);
@@ -75,4 +104,12 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
     }
     return out;
   }, [choices, entryGet]);
+  const offeredRead = offeredDocs.read;
+  const entryRead = entry.read;
+  const known = useMemo(() => lookedUp({
+    unitIds, found: guides, template: sel?.docHash, read: offeredRead, entryRead,
+    offered: new Map([...offered].map(([unitId, o]) => [unitId, [...o.recommended, ...o.own].map((s) => s.hash)])),
+    chosen: new Map([...choices].map(([unitId, c]) => [unitId, c.hash]))
+  }), [unitIds, guides, sel?.docHash, offeredRead, entryRead, offered, choices]);
+  return useMemo(() => ({ guides, lookedUp: known }), [guides, known]);
 }

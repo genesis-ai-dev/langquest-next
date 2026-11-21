@@ -195,7 +195,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Sync and offline merged in: its words in all 16 catalogs, the email and confirm fields, and New
 // password's confirm field. Edit Profile moved to a chunk of its own, loaded when opened, so a
 // first visit stays under its own budget (17,240 bytes left with Sync and offline's chunk too).
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 131 * 1024;
+// Raised by 14 KB with six changes copied from main together (LAN-233 key word tiles, LAN-284,
+// LAN-295, LAN-250, LAN-254, LAN-114), and by 4 KB with the download buttons' key and a book's
+// Remove sheet (LAN-316). Raised by 17 KB more on release/ios, where all chunks measured 16 KB
+// over with the copied changes (key word sheets, download marks and the key, study prefetch).
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 166 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -273,7 +277,16 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 131 * 1024;
 // Raised by 1 KB with the passage row's download button beside the row, not inside it (Caleb Koster,
 // 2026-11-17, LAN-158), 250 bytes past then: Row's action slot, its wrapper and three styles, in the
 // kit every visit carries. All chunks still fit their own budget.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 96 * 1024;
+// Raised by 16 KB with the Key words chip's tiles (Caleb Koster, 2026-11-17, LAN-233,
+// docs/decisions/2026-11-17-key-words-tiles-sheet-in-place.md), 15 KB past then with main merged in:
+// the tiles, the switch for the team's words in the Bible text and their chips in a verse, the word
+// grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
+// words in the catalog every visit carries. They show on the recording screen as it opens; the word's
+// sheet loads when first opened (keyTerms/lazySheets.tsx).
+// Raised by 9 KB on release/ios, where the copied changes (key word tiles, download marks and the
+// key, study prefetch, the web storage pool) measured 8 KB over main's 112 KB: this branch's entry
+// differs from main's, which lazy-loads parts it does not have yet.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 121 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

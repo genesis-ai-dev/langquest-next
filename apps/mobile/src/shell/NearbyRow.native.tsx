@@ -13,7 +13,10 @@ import type { Ctx } from './ctx';
 /**
  * Share nearby on the Sync screen of an Android phone or an iPhone (docs/nearby-sync-plan.md 5.8,
  * 5.10, section 7's phase 5): shown once this phone holds a certificate for the organization and a
- * discovery key for the language, labelled experimental. Its line names its two jobs, teammates'
+ * discovery key for the language, labelled experimental. Where the organization has nearby on and
+ * the phone does not hold them yet, it shows disabled, saying what is missing, rather than
+ * vanishing: too many new phones for this account today, or a certificate not fetched yet
+ * (`nearbyRowShown`, Carl 2026-11-19). Its line names its two jobs, teammates'
  * phones and a new person, where Share nearby offers Let someone in, else the first alone
  * (`nearbyRowWords`). The install file is on Ready for offline's list above it, not here (14.4).
  * Only Android lets someone in: on an iPhone `useLetIn` is its plain stub, so the row names

@@ -1,5 +1,5 @@
 // SETUP: New language, from Org home (docs/ui-test-suite/09-language-setup.md,
-// SETUP-010 to SETUP-021, SETUP-075 to SETUP-079). Its six steps show first
+// SETUP-010 to SETUP-021, SETUP-075 to SETUP-080). Its six steps show first
 // (decision 146): Start opens the first. Every test adds its own language, named with a
 // run tag, so they leave each other's alone; the world is this file's own.
 import type { Page } from '@playwright/test';
@@ -48,7 +48,8 @@ async function bibleStep(page: Page, opts: { way?: string | RegExp; scope?: stri
   await expectOnScreen(page, 'How should the Bible be divided?');
   // "FIA passages" is LangQuest's (it comes with FIA's study guides); "FIA passages (English)" is the one Alpha follows.
   await text(page, opts.way ?? 'FIA passages').click();
-  if (opts.scope) await text(page, opts.scope).click();
+  // The step starts on Whole Bible (LAN-232); these tests follow the New Testament unless they say otherwise.
+  await text(page, opts.scope ?? 'New Testament').click();
   for (const b of opts.books ?? []) await text(page, b).click();
   await primary(page).click();
 }
@@ -217,6 +218,9 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   await primary(page).click();
   await text(page, 'FIA passages').click();
   await expectOnScreen(page, '3 of 6 · Divide into sections', 'Which part of the Bible?', 'New Testament', 'Old Testament', 'Whole Bible', 'Choose books');
+  // The step starts on Whole Bible (LAN-232); Choose books starts from the part picked, so pick the New Testament first.
+  await expect(page.getByRole('button', { name: 'Whole Bible', exact: true, pressed: true })).toBeVisible();
+  await text(page, 'New Testament').click();
   await text(page, 'Choose books').click();
   await expectOnScreen(page, 'Mark', 'Luke');
   // A book chip says whether it is on (aria-pressed on the web).
@@ -515,4 +519,29 @@ test('SETUP-079 A cluster of languages already here, made from Manage', async ({
   await button(page, 'Ungroup').click();
   await button(page, 'Ungroup').click();
   await expectToast(page, `${cluster} ungrouped. Its languages are still here.`);
+});
+
+test('SETUP-080 New language\'s review step waits out a server that fails once', async ({ page }) => {
+  // Under the nightly's load one read of the review flows' documents failed, and the step stayed at
+  // "No ways to check to choose from yet." with Continue off (LAN-254). The first such read fails here.
+  let failed = false;
+  await page.route('**/rest/v1/rpc/library_get_documents*', async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    if (failed || !body.includes('flow@1')) return route.fulfill({ response, body });
+    failed = true;
+    await route.fulfill({ status: 503, json: { message: 'busy' } });
+  });
+  const w = world();
+  await openAs(page, w, 'ADMIN');
+  await orgHome(page, w);
+  await startNewLanguage(page);
+  await nameStep(page, `India ${tag()}`);
+  await bibleStep(page);
+  await materialStep(page);
+  await expectOnScreen(page, 'How will recordings get checked?', 'Standard Bible Flow');
+  expect(failed).toBe(true);
+  await expect(primary(page)).toBeEnabled();
+  await back(page).click();
+  await text(page, 'Leave').click();
 });

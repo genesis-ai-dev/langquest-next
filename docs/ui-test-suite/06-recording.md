@@ -681,7 +681,7 @@ Expected:
 Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- P-Q1 has TRANS's draft. It was opened online once, so the passage and its Bible text are on the device.
+- P-Q1 has TRANS's draft, kept on the device ("Download for offline" on its record, until it reads "On this device"), with its Bible text. A draft with a part that is not on the device is locked offline (REC-062).
 - Airplane mode on (Web: DevTools → Network → Offline).
 
 Steps:
@@ -732,6 +732,43 @@ Expected:
 - Either the action is not offered until the language has loaded, or it is saved: the draft after step 3 matches what the screen showed.
 
 Fixed (2026-10-13): `language.run` (`useLanguage.ts`) returns without writing when the language's sync client is not ready yet, so `ctx.act` can toast success ("Part 2 deleted.", "Version N published.") for a change that was never written. Record whether the draft matches the toasts. Reported 2026-10-13 with a proposed patch for `useLanguage.ts`: `run`, `append` and `appendMany` throw a "still loading" error when the client is not ready, so `ctx.act` shows a failure toast instead of success.
+
+### REC-062 A draft with a part not on this device is locked until the part can be heard
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Decided 2026-11-20 (LAN-317, `docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md`): when any part of a draft cannot be heard on this device, the whole draft is locked.
+
+Preconditions:
+- A passage nobody else has recorded, with TRANS's draft of two parts made on another phone that has not been online since: its events reached the server, its parts did not (the automated test sends the events through the server and keeps the files back).
+- TRANS's device is up to date, then airplane mode on.
+
+Steps:
+1. Open the passage and tap "Continue recording".
+2. Turn airplane mode off, and stay in the workspace.
+3. The other phone comes online and uploads the parts. Stay in the workspace.
+
+Expected:
+- Step 1 opens the draft with its two parts, and at the top of the recorder a banner "Part of this recording is not on this device yet" with "It cannot be changed or sent from here until this device is online and has it. To record without it, open Versions and history on the passage and choose New version."
+- The red Record button and Done are off. Undo and Redo, deleting, moving, inserting, recording over a part, verse labels and Clean up are off too; parts that are on the device still play, and the reference half works (checked by hand; the automated test checks Record and Done).
+- After step 2 the banner reads "It has not been uploaded yet from the device it was made on, so it cannot be changed or sent from here. To record without it, open Versions and history on the passage and choose New version.", and it stays locked.
+- After step 3, without leaving the workspace, the banner goes and Record and Done come on, with the same two parts.
+- Nothing is written while it is locked.
+
+### REC-063 A new version started empty offline is not locked by a draft that cannot be heard
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- As REC-062: a draft of TRANS's whose parts are on no device but the one it was made on. Airplane mode on.
+
+Steps:
+1. Open the passage, "Versions and history", "New version".
+2. Record a part, tap "Done", then "Done, don't ask anyone".
+3. Turn airplane mode off and wait 30 seconds.
+
+Expected:
+- Step 1 opens "New draft" with no banner, and Record is on: an empty draft has no part to hear.
+- Step 2 publishes "Version 1 published." as REC-033 does, and nothing locks on the way.
+- After step 3 nothing waits to upload and nothing is refused.
 
 ---
 
@@ -797,7 +834,7 @@ Steps:
 Expected:
 - All five chips show, in that order.
 - "Guide" shows the step bar ("Previous step", "{n}/{total} {title} ▾", "Next step") and the step's text, then "Open the study".
-- "Key words" lists the words in the passage, or "No key words in this passage yet. Add one your team should say the same way every time.".
+- "Key words" shows a tile for each word in the passage, or "No key words in this passage yet. Add one your team should say the same way every time.".
 - "Notes · N" lists notes, newest first, with "Add a note" at the end.
 - "Earlier" lists Version 2 and Version 1, with "What changed in Version 2".
 - On a passage with nothing recorded (P-Q4 before REC-030), "Earlier" is not offered.
@@ -1114,6 +1151,27 @@ Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split 
 
 ### REC-047 Adjust the microphone by hand (retired)
 Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
+
+### REC-061 A key word opens in place while recording, and the recording goes on
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+LAN-233: a tap on a key word's row opened its page and so ended the recording
+session. A key word now opens as a sheet over the workspace (docs/decisions/2026-11-17-key-words-tiles-sheet-in-place.md).
+
+Preconditions:
+- P-Q3's workspace is open on the "Key words" chip. The team has the key word "Lord" with the word "Nkosi" for Luke 13.
+
+Steps:
+1. Tap the red button and speak.
+2. Tap the "Lord" tile.
+3. Close the sheet and carry on speaking, then pause. Tap "Done" on the recording view.
+4. Tap the "Lord" tile again and "Open the word's page".
+
+Expected:
+- Step 2 opens a sheet over the workspace with the meaning and a line saying the passages and the word's page open after Done. The sheet has no "Open the word's page". The status still reads "Recording…" and the red button still reads "Stop recording".
+- Step 3 keeps the part said: the recording was never stopped.
+- Step 4 (not recording) opens the word's page.
+- A word's ▶ in the tile or the sheet pauses the microphone first and lets it carry on when it ends, as the Bible does (REC-036; Device).
 
 ### REC-048 Microphone setup without microphone permission (retired)
 Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set. REC-020 still covers a refused microphone.
