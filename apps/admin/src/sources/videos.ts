@@ -4,7 +4,7 @@ import { diagConnection, withDiag, type Query } from '../db';
 import { failed, ok, type Section } from '../section';
 import { filmingSection, type Filming } from './filming';
 import { githubApi, type GitHubEnv } from './githubApi';
-import { tutorialsOf, type Feedback, type Tutorials } from './ops';
+import { tutorialsOf, type CardRecord, type Feedback, type Tutorials } from './ops';
 
 /**
  * The tutorial videos as three lists (docs/tutorial-videos.md "On the ops
@@ -186,6 +186,8 @@ export interface Videos {
   changes: ChangeItem[];
   /** Whether each source answered: a list built without one says so on the page. */
   missing: string[];
+  /** diag.ops_card_record('video'): who did what on each video's cards, and what Claude did; newest first. Absent before migration 20261121213000_ops_card_record.sql. */
+  records?: CardRecord[];
 }
 
 // ---- how ----------------------------------------------------------------------------------------
@@ -527,15 +529,16 @@ export async function videosSection(env: VideosEnv, fetcher: typeof fetch = fetc
   const db = (async () => {
     try {
       return await withDiag(diagConnection(env), async (query) => {
-        const [films, feedback, tutorials] = await Promise.all([
+        const [films, feedback, tutorials, records] = await Promise.all([
           maybe<FilmRow[]>(query, 'select diag.ops_tutorial_films() as v'),
           maybe<VideosInput['feedback']>(query, 'select diag.ops_tutorial_feedback() as v'),
-          maybe<Parameters<typeof tutorialsOf>[0]>(query, 'select diag.ops_tutorials() as v')
+          maybe<Parameters<typeof tutorialsOf>[0]>(query, 'select diag.ops_tutorials() as v'),
+          maybe<CardRecord[]>(query, "select diag.ops_card_record('video') as v")
         ]);
-        return { films, feedback, tutorials };
+        return { films, feedback, tutorials, records };
       });
     } catch {
-      return { films: null, feedback: null, tutorials: null };
+      return { films: null, feedback: null, tutorials: null, records: null };
     }
   })();
   const workflow = gh<{ content: string }>('/contents/.github/workflows/tutorials.yml?ref=main', 'GitHub tutorials.yml')
@@ -546,5 +549,6 @@ export async function videosSection(env: VideosEnv, fetcher: typeof fetch = fetc
   if (!d.films && !d.feedback && !d.tutorials && !run) return failed('Could not read the database or GitHub for the tutorial videos.');
   const status: Partial<Record<string, StatusFile>> = {};
   for (const [l, f] of files) if (f) status[l] = f;
-  return ok(videoBoard({ films: d.films, feedback: d.feedback, tutorials: d.tutorials ? tutorialsOf(d.tutorials) : null, status, filming: run, nightly }));
+  const board = videoBoard({ films: d.films, feedback: d.feedback, tutorials: d.tutorials ? tutorialsOf(d.tutorials) : null, status, filming: run, nightly });
+  return ok(d.records ? { ...board, records: d.records } : board);
 }

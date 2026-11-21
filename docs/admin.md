@@ -192,6 +192,27 @@ Store reviews are shown, since they are public already, without the name. Feedba
 person's name and email only when they chose to share them. Install and
 project ids are shortened on screen.
 
+One exception, which Caleb asked for (2026-11-21,
+`docs/decisions/2026-11-21-every-dashboard-tap-shows-its-state.md`): the
+record on each card that talks with Claude, and its talk, name the Global
+Viewer who tapped, by the display name of their LangQuest account, so each
+admin sees what another admin did already. Only Global Viewers see it; it
+is never written to GitHub or Linear.
+
+## A tap and its record
+
+Each tap says it works ("Sending…"), then what happened, next to the button
+and at the top of the page, which stays in view (`perform` in
+`apps/admin/src/pageOps.ts`, `apps/admin/src/pageSends.ts`). A message to
+Claude shows on its card at once: sending, sent with the time of the run that
+reads it, or not sent with the reason and the words back in the box. A card
+that a tap takes off its tab leaves a short card in its place until another
+tab is picked. After a tap, the parts it changed are read again with
+`?fresh=1` (`reread` in `page.ts`), not from the minute's copy. Each card's
+record comes from `diag.ops_card_record('video' | 'issue')`: the taps
+(`ops.actions`), Claude's suggestions and changes to a video, and Claude's
+answers on a Linear issue, 30 days, newest first.
+
 ## Setting it up
 
 Done once, in this order, by someone who can sign in to each service

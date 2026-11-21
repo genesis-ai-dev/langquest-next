@@ -23,6 +23,7 @@ import { ISSUE_CSS, ISSUE_LOGIC, ISSUE_SCRIPT } from './pageIssues';
 import { RESEARCH_CSS, RESEARCH_LOGIC, RESEARCH_SCRIPT } from './pageResearch';
 import { RESEARCH_TEAM } from './researchTeam';
 import { CARD_CSS, CARD_LOGIC, CARD_SCRIPT } from './pageCards';
+import { SEND_CSS, SEND_LOGIC, SEND_SCRIPT } from './pageSends';
 import { SUMMARY_CSS, SUMMARY_LOGIC, SUMMARY_SCRIPT } from './pageSummary';
 import { BLOCKS_CSS, BLOCKS_LOGIC, BLOCKS_SCRIPT, WIDTH_CSS } from './pageBlocks';
 import { KINDS } from './alertKinds';
@@ -223,6 +224,7 @@ ${METERS_CSS}
 ${VIDEO_CSS}
 ${HOVER_CSS}
 ${REF_CSS}
+${SEND_CSS}
 </style>
 </head>
 <body>
@@ -316,7 +318,9 @@ const short = (id) => id ? '<code title="' + esc(id) + '">' + esc(String(id).sli
 // ---- the session ----------------------------------------------------------------
 function session() { try { return JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch { return null; } }
 function keep(s) { sessionStorage.setItem(KEY, JSON.stringify({ access_token: s.access_token, refresh_token: s.refresh_token, expires_at: s.expires_at })); }
-function say(text, tone) { $('out').innerHTML = text ? '<p class="notice ' + (tone || '') + '">' + esc(text) + '</p>' : ''; }
+/** The page's answer at the top: it stays in view while the page scrolls, until the next answer or its Close. */
+function say(text, tone) { $('out').innerHTML = text ? '<p class="notice ' + (tone || '') + '"' + (tone === 'red' ? ' role="alert"' : '') + '><span>' + esc(text) + '</span><button type="button" data-close-out aria-label="Close">×</button></p>' : ''; }
+document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('[data-close-out]')) say(''); });
 
 async function auth(grant, body) {
   const res = await fetch(CFG.supabaseUrl + '/auth/v1/token?grant_type=' + grant, {
@@ -585,6 +589,8 @@ function redraw(el, html) {
 
 function show(id, s) {
   results[id] = s;
+  if (id === 'videos' && s && s.state === 'ok') VIDEOS = s.data;
+  if (SENDS.size) pruneSends();
   const g = groupOf(id);
   if (!g) return;
   const [cls, text] = pill(g);
@@ -1043,6 +1049,9 @@ document.addEventListener('focusout', hideTip);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideTip(); });
 window.addEventListener('scroll', hideTip, { passive: true });
 
+// ---- what a tap shows while it goes and after, and each card's record (pageSends.ts) ----
+${SEND_LOGIC}
+${SEND_SCRIPT}
 ${OPS_SCRIPT}
 // ---- the Tutorial videos page's tabs, cards' buttons and rows (pageVideos.ts) ----
 ${VIDEO_LOGIC}
@@ -1095,9 +1104,20 @@ ${METERS_SCRIPT}
 ${HOVER_LOGIC}
 ${HOVER_SCRIPT}
 
-let loading = false;
+let loading = false, loadAgain = false;
+/**
+ * After a tap: the parts it changed, read again from their source, not from the minute's copy a provider
+ * keeps (index.ts memo), so the card shows the tap's result. A part that fails keeps what it showed.
+ */
+async function reread(parts) {
+  await Promise.all(parts.map((p) => (p === 'ops'
+    ? api('/ops/api/ops?fresh=1').then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); })
+    : p === 'diag' ? api('/ops/api/diag?fresh=1').then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); })
+    : api('/ops/api/' + p + '?fresh=1').then((d) => show(p, d))).catch(() => {})));
+}
 async function load(fresh) {
-  if (loading) return;
+  // A load asked for while one runs goes after it, so the page never keeps an answer older than the ask.
+  if (loading) { loadAgain = true; return; }
   loading = true;
   $('refresh').disabled = true;
   // A refresh keeps every number, chart and status on the page until its new answer comes,
@@ -1120,6 +1140,7 @@ async function load(fresh) {
   $('checked').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   $('refresh').disabled = false;
   loading = false;
+  if (loadAgain) { loadAgain = false; load(false); }
 }
 
 async function start() {
