@@ -7,12 +7,20 @@
  * newest update and the automatic jobs. App stores: crashes and freezes
  * against Google's line, the App Store's versions and the reviews. People:
  * the totals and who waits to join. Phones and browsers: what people use.
+ * User issues, Research and Tutorial videos: where the work is, a box for
+ * each tab of the list. Support: what waits on staff. Nightly tests: each
+ * nightly's suites. Server jobs: each job in plain words. Database: what it
+ * does now. Web traffic: each Worker. Storage and cost: the plan and this
+ * month's use, and what keeps data safe. Keys and access: what expires next.
  * Every figure is a part's own; a part that did not answer gives no block.
  * Plain JavaScript run inside page.ts's script after pageSummary.ts and
  * pageCode.ts; everything shown is escaped.
  */
 import { ANR_LINE, CRASH_LINE } from './sources/googleplay';
 import { STALE_H } from './sources/nightly';
+import { LONG_QUERY_S, LONG_XACT_S } from './sources/ops';
+import { ALLOWANCE } from './sources/storage';
+import { PROBLEM_DAYS, WARN_DAYS } from './sources/expiry';
 
 export const BLOCKS_CSS = String.raw`
 .lanes { display: grid; }
@@ -37,6 +45,13 @@ a.bchip.live { background: var(--green); } a.bchip.wait { background: var(--ambe
 .mrow { display: grid; grid-template-columns: minmax(110px, .8fr) minmax(0, 1.4fr) minmax(110px, auto); gap: 14px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
 .mrow:first-child { border-top: 0; } .mrow > span:last-child { text-align: end; color: var(--muted); font-size: 13px; } .mrow > span:last-child b { color: var(--ink); }
 .mrow a { color: var(--ink); font-weight: 600; text-decoration: none; } .mrow a:hover { text-decoration: underline; }
+.mrow .sub { display: block; color: var(--muted); font-size: 12px; font-weight: 400; } .mrow .bad { color: var(--red); font-weight: 600; }
+.gap { height: 12px; }
+.jrows { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 0 28px; }
+.jrow { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.jdot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); } .jdot.warn { background: var(--amber); } .jdot.bad { background: var(--red); } .jdot.run { background: var(--primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 20%, transparent); }
+.jname b { display: block; font-weight: 600; } .jname small { font-size: 12.5px; }
+.jnum { color: var(--muted); font-size: 13px; text-align: end; white-space: nowrap; } .jnum b { color: var(--ink); } .jnum .bad { color: var(--red); font-weight: 600; }
 .mrow .warn { color: var(--amber); font-weight: 600; display: block; font-size: 12.5px; }
 .meter { position: relative; height: 10px; border-radius: 99px; background: var(--soft); overflow: visible; display: flex; }
 .meter > i { display: block; height: 100%; border-radius: 99px; background: var(--green); }
@@ -65,6 +80,7 @@ button.wst.you { border-color: var(--primary); box-shadow: inset 4px 0 0 var(--p
 /** Pure: apps/admin/test/blocks.test.ts runs these with new Function. */
 export const BLOCKS_LOGIC = String.raw`
 const CRASH_LINE = ${CRASH_LINE}, ANR_LINE = ${ANR_LINE}, NIGHT_STALE_H = ${STALE_H};
+const LONG_QUERY_S = ${LONG_QUERY_S}, LONG_XACT_S = ${LONG_XACT_S}, ALLOWANCE = ${JSON.stringify(ALLOWANCE)}, EXPIRY_PROBLEM_DAYS = ${PROBLEM_DAYS}, EXPIRY_WARN_DAYS = ${WARN_DAYS};
 const TONE_RANK = ['bad', 'wait', 'busy', 'live'];
 /** A store's name, and who reviews in it. */
 const LANE_NAME = { ios: ['iPhone', 'App Store', 'Apple'], android: ['Android', 'Google Play', 'Google'] };
@@ -173,6 +189,62 @@ function supportSay(w) {
   if (out.length) return out.join(' ');
   return w.read && !w.blue ? 'Nothing waits on staff.' : 'No content report is open.';
 }
+
+/** Each server job in plain words; its code name stays in its help and in All the details. */
+const JOB_WORDS = {
+  account_delete: 'Delete accounts people asked to delete', blob_reconcile: 'Nightly check of recordings against the log', daily_totals: 'Daily totals for the charts',
+  fold_canary: 'Nightly check that saved copies are right', job_starts: 'Start the jobs on time', ops_counts: 'Count the numbers for this dashboard',
+  projection: 'Bring each language up to date', projection_large: 'Bring the large languages up to date', push_delivery: 'Send phone notifications',
+  snapshot: 'Make the downloads for each language', snapshot_purge: 'Remove old downloads', tutorial_comments: 'Read comments on the tutorial videos',
+  tutorial_intake: 'Take in new tutorial films', tutorial_publish: 'Put tutorial videos on YouTube', tutorial_review: 'Claude’s look at the tutorial videos',
+  user_issue_look: 'Claude’s look at user issues', user_issue_watch: 'Watch for user issues', webhook_dispatch: 'Send webhooks to partners',
+  worker_cron: 'The web app’s timed jobs', worker_requests: 'Count the web app’s requests', v2_import: 'Import from LangQuest v2'
+};
+const jobWords = (job) => JOB_WORDS[job] || String(job || '').replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+/** A job's state, worst first: stopped (no run on schedule), failing (3 in a row), failed or part of the work last time, running, or in order. */
+function serverJobState(j, now) {
+  if (j.stale) return ['bad', 'Stopped'];
+  if (j.streak >= 3) return ['bad', 'Failing'];
+  if (j.last_outcome === 'error') return ['bad', 'Last run failed'];
+  if (j.last_outcome === 'partial') return ['warn', 'Did part of the work'];
+  if (now && now.running) return ['run', 'Runs now'];
+  return ['ok', 'In order'];
+}
+const STATE_RANK = { bad: 0, warn: 1, run: 2, ok: 3 };
+function jobRows(jobs, now) {
+  return (jobs || []).map((j) => ({ j, name: jobWords(j.job), state: serverJobState(j, (now || {})[j.job]) }))
+    .sort((a, b) => STATE_RANK[a.state[0]] - STATE_RANK[b.state[0]] || a.name.localeCompare(b.name));
+}
+
+/** The database plan and this month's Cloudflare use, each as a share of what is allowed. */
+function capacityView(c) {
+  if (!c) return null;
+  const rows = [];
+  if (c.now && c.limitBytes) rows.push({ id: 'db', label: 'Database', used: c.now.dbBytes, of: c.limitBytes, unit: 'bytes', weeks: c.weeksLeft });
+  const u = c.usage && !c.usage.error ? c.usage : null;
+  if (u) {
+    const a = u.allowance || ALLOWANCE;
+    rows.push({ id: 'workers', label: 'Web requests this month', used: u.workersRequests, of: a.workersRequests, unit: 'n', free: true });
+    rows.push({ id: 'do', label: 'Live connections this month', used: u.doRequests, of: a.doRequests, unit: 'n', free: true });
+    rows.push({ id: 'r2a', label: 'Recording uploads this month', used: u.r2ClassA, of: a.r2ClassA, unit: 'n', free: true });
+    rows.push({ id: 'r2b', label: 'Recording downloads this month', used: u.r2ClassB, of: a.r2ClassB, unit: 'n', free: true });
+  }
+  if (c.r2) rows.push({ id: 'r2', label: 'Recordings kept (R2)', used: c.r2.bytes, of: (u && u.allowance && u.allowance.r2Bytes) || ALLOWANCE.r2Bytes, unit: 'bytes', free: true });
+  // Past the plan's database size is a problem; past a free allowance costs money, so it is a note in amber, never red.
+  for (const r of rows) { r.share = r.of ? r.used / r.of : 0; r.tone = r.free ? (r.share >= 1 ? 'warn' : 'ok') : r.share >= 1 ? 'bad' : r.share >= 0.8 ? 'warn' : 'ok'; }
+  return rows;
+}
+
+/** What stops working on a date, soonest first, with the days left and its tone (sources/expiry.ts lines). */
+function expiryRows(items, now) {
+  return (items || []).filter((i) => i.expires).map((i) => {
+    const left = (Date.parse(i.expires) - now) / 864e5;
+    return { what: i.what, expires: i.expires, source: i.source, left, tone: left < 0 || left <= EXPIRY_PROBLEM_DAYS ? 'bad' : left <= EXPIRY_WARN_DAYS ? 'warn' : 'ok' };
+  }).sort((a, b) => a.left - b.left);
+}
+/** A small share in words: never "0.00%" for a count above zero. */
+const pctWords = (x) => x > 0 && x < 0.0001 ? 'under 0.01%' : (x * 100).toFixed(x >= 0.1 ? 0 : 2) + '%';
+const daysWords = (left) => left < 0 ? 'expired ' + countOf(Math.ceil(-left), 'day', 'days') + ' ago' : left < 1 ? 'expires today' : 'in ' + countOf(Math.ceil(left), 'day', 'days');
 `;
 
 /** Drawing; registers each page's blocks with pageSummary.ts. */
@@ -405,6 +477,104 @@ PAGE_BLOCKS.nightly = () => {
 PAGE_SAY.nightly = () => {
   const d = okData(results, 'nightly');
   return d ? nightlySay(nightlyView(d, Date.now())) : null;
+};
+
+// ---- Server jobs -----------------------------------------------------------------------------
+PAGE_BLOCKS.jobs = () => {
+  const d = okData(results, 'jobs');
+  if (!d || !(d.jobs || []).length) return '';
+  const c = okData(results, 'container');
+  const now = c ? Object.fromEntries((c.jobs || []).map((j) => [j.job, j])) : {};
+  return block('Each job, last 2 days', 0, '', '<div class="jrows">' + jobRows(d.jobs, now).map((r) =>
+    '<div class="jrow"><span class="jdot ' + r.state[0] + '" aria-hidden="true"></span><span class="jname"><b data-help="' + esc('Code name: ' + r.j.job + (r.j.runs_on ? ', runs on ' + r.j.runs_on : '') + '.') + '">' + esc(r.name) + '</b>' +
+    '<small>' + esc(r.state[1]) + (r.j.last_at ? ' · last run ' + esc(ago(r.j.last_at)) : '') + '</small></span>' +
+    '<span class="jnum"><b>' + num(r.j.runs) + '</b> runs' + (r.j.failures ? ' · <span class="bad">' + num(r.j.failures) + ' failed</span>' : '') + '</span></div>').join('') + '</div>');
+};
+PAGE_SAY.jobs = () => {
+  const d = okData(results, 'jobs');
+  if (!d) return null;
+  const c = okData(results, 'container');
+  const running = c ? (c.jobs || []).filter((j) => j.running).length : 0;
+  return countOf((d.jobs || []).length, 'job', 'jobs') + ' ran in the last 2 days.' + (running ? ' ' + countOf(running, 'runs', 'run') + ' now.' : '');
+};
+
+// ---- Database --------------------------------------------------------------------------------
+PAGE_BLOCKS.database = () => {
+  const d = okData(results, 'database'), x = okData(results, 'dbdetail');
+  if (!d && !x) return '';
+  const fact = (v, label, warn) => '<div class="fact' + (warn ? ' warn' : '') + '"><b>' + esc(v) + '</b><span>' + esc(label) + '</span></div>';
+  const share = d && d.maxConnections ? d.connections / d.maxConnections : 0;
+  const conn = d ? '<div class="mrows"><div class="mrow"><span>Connections in use</span><span class="meter"><i class="' + wcls(share) + (share >= 0.8 ? ' warn' : '') + '"></i></span><span><b>' + num(d.connections) + ' of ' + num(d.maxConnections) + '</b></span></div></div>' : '';
+  const facts = '<div class="facts">' + (d ? fact(bytes(d.sizeBytes), 'size') : '') +
+    (d && d.stats && d.stats.hitRatio !== null ? fact((d.stats.hitRatio * 100).toFixed(1) + '%', 'reads from memory', d.stats.hitRatio < 0.95) : '') +
+    (x ? fact(x.longestQueryS === null ? '–' : ms(x.longestQueryS * 1000), 'longest query now', x.longestQueryS > LONG_QUERY_S) +
+      fact(x.oldestXactS === null ? '–' : ms(x.oldestXactS * 1000), 'oldest transaction now', x.oldestXactS > LONG_XACT_S) : '') +
+    (d && d.stats ? fact(num(d.stats.deadlocks), 'deadlocks', d.stats.deadlocks > 0) : '') + '</div>';
+  return block('Now', 0, '', conn + (conn ? '<div class="gap"></div>' : '') + facts);
+};
+PAGE_SAY.database = () => {
+  const d = okData(results, 'database');
+  return d ? num(d.connections) + ' of ' + num(d.maxConnections) + ' connections are in use. The database is ' + bytes(d.sizeBytes) + '.' : null;
+};
+
+// ---- Web traffic -----------------------------------------------------------------------------
+PAGE_BLOCKS.traffic = () => {
+  const d = okData(results, 'cloudflare');
+  const ws = d ? (d.workers || []).slice().sort((a, b) => b.requests - a.requests) : [];
+  if (!ws.length) return '';
+  const top = Math.max(1, ...ws.map((w) => w.requests));
+  return block('Each Worker, last 24 hours', 0, '', '<div class="mrows">' + ws.map((w) => {
+    const rate = w.requests ? w.errors / w.requests : 0;
+    return '<div class="mrow"><span><b>' + esc(w.name) + '</b>' + (w.lastDeploy ? '<span class="sub">deployed ' + esc(ago(w.lastDeploy.at)) + '</span>' : '') + '</span>' +
+      '<span class="meter"><i class="' + wcls(w.requests / top) + (rate >= 0.01 ? ' warn' : '') + '"></i></span>' +
+      '<span><b>' + num(w.requests) + '</b> requests · ' + (w.errors ? '<span class="' + (rate >= 0.01 ? 'warn' : '') + '">' + num(w.errors) + ' errors (' + pctWords(rate) + ')</span>' : 'no errors') + '</span></div>';
+  }).join('') + '</div>');
+};
+PAGE_SAY.traffic = () => {
+  const d = okData(results, 'cloudflare');
+  if (!d || !(d.workers || []).length) return null;
+  const req = d.workers.reduce((a, w) => a + w.requests, 0), err = d.workers.reduce((a, w) => a + w.errors, 0);
+  return 'The Workers answered ' + num(req) + ' requests in the last 24 hours' + (err ? ', ' + pctWords(req ? err / req : 0) + ' with an error.' : ' with no error.');
+};
+
+// ---- Storage and cost ------------------------------------------------------------------------
+PAGE_BLOCKS.storage = () => {
+  const rows = capacityView(okData(results, 'capacity'));
+  const st = okData(results, 'storage');
+  const fmt = (r, v) => r.unit === 'bytes' ? bytes(v) : num(v);
+  const plan = rows && rows.length ? block('Against the plan and the free use', 0, '', '<div class="mrows">' + rows.map((r) =>
+    '<div class="mrow"><span>' + esc(r.label) + '</span><span class="meter"><i class="' + wcls(r.share) + (r.tone === 'ok' ? '' : ' ' + r.tone) + '"></i></span>' +
+    '<span><b>' + esc(fmt(r, r.used)) + '</b> of ' + esc(fmt(r, r.of)) + (r.free ? ' free' : '') + (r.free && r.share >= 1 ? '<span class="sub">the rest is paid</span>' : '') + (r.weeks !== undefined && r.weeks !== null ? '<span class="sub">about ' + countOf(Math.round(r.weeks), 'week', 'weeks') + ' left</span>' : '') + '</span></div>').join('') + '</div>') : '';
+  const b = st && st.backups;
+  const keep = st ? block('Kept safe', 0, '', '<div class="facts">' +
+    (b && !b.error ? '<div class="fact' + (!b.latest || Date.now() - Date.parse(b.latest) > 36 * 36e5 ? ' warn' : '') + '"><b>' + esc(b.latest ? ago(b.latest) : 'none') + '</b><span>newest backup' + (b.pitr ? ', any moment can be restored' : '') + '</span></div>' : '') +
+    (st.reconcile ? '<div class="fact' + (st.reconcile.outcome !== 'ok' ? ' warn' : '') + '"><b>' + esc(ago(st.reconcile.at)) + '</b><span>nightly check of recordings' + esc(({ ok: ', in order', partial: ', did part of the check', error: ', failed' })[st.reconcile.outcome] || ': ' + st.reconcile.outcome) + '</span></div>' : '') +
+    (st.r2 && !st.r2.error ? '<div class="fact"><b>' + esc(num(st.r2.objects)) + '</b><span>recordings and files kept</span></div>' : '') + '</div>') : '';
+  return plan + keep;
+};
+PAGE_SAY.storage = () => {
+  const rows = capacityView(okData(results, 'capacity')) || [];
+  const db = rows.find((r) => r.id === 'db');
+  const st = okData(results, 'storage'), b = st && st.backups && !st.backups.error ? st.backups : null;
+  const out = [];
+  if (db) out.push('The database uses ' + Math.round(db.share * 100) + '% of its plan' + (db.weeks !== null && db.weeks !== undefined ? ', about ' + countOf(Math.round(db.weeks), 'week', 'weeks') + ' left' : '') + '.');
+  if (b) out.push(b.latest ? 'The newest backup is from ' + ago(b.latest) + '.' : 'No backup is listed.');
+  return out.join(' ') || null;
+};
+
+// ---- Keys and access -------------------------------------------------------------------------
+PAGE_BLOCKS.access = () => {
+  const e = okData(results, 'expiry');
+  const rows = e ? expiryRows(e.items, Date.now()).slice(0, 6) : [];
+  if (!rows.length) return '';
+  return block('What expires next', 0, '', '<div class="mrows">' + rows.map((r) =>
+    '<div class="mrow"><span><b>' + esc(r.what) + '</b><span class="sub">' + esc(r.source) + '</span></span><span class="meter"><i class="' + wcls(Math.max(0, Math.min(1, r.left / 365))) + (r.tone === 'ok' ? '' : ' ' + r.tone) + '"></i></span>' +
+    '<span><b>' + esc(daysWords(r.left)) + '</b><span class="sub">' + esc(r.expires.slice(0, 10)) + '</span></span></div>').join('') + '</div><p class="sempty">The bar is a year: a short bar expires soon.</p>');
+};
+PAGE_SAY.access = () => {
+  const e = okData(results, 'expiry');
+  const r = e ? expiryRows(e.items, Date.now())[0] : null;
+  return r ? 'The next thing to expire is ' + r.what + ', ' + daysWords(r.left) + '.' : null;
 };
 `;
 

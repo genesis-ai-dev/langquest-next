@@ -561,6 +561,20 @@ nightly as a meter of the suites that passed, and a nightly that did not run
 in 36 hours (`nightlyView`, `STALE_H`). Their sentence says only what the
 parts read; what waits on a person is said once, by the page's lines.
 
+The pages behind the scenes show their state the same way. Server jobs: each
+job in plain words (`JOB_WORDS`; its code name is in its help), worst first:
+stopped, failing, failed or did part of the work last time, runs now, in
+order. Database: connections in use against the most allowed, the size, reads
+from memory, the longest query and oldest transaction now (against
+`LONG_QUERY_S`, `LONG_XACT_S`) and deadlocks. Web traffic: each Worker's
+requests and errors in the last 24 hours. Storage and cost: the database
+against the plan (red past it) and this month's Cloudflare use against the
+free allowance (amber past it: the rest is paid, not a fault)
+(`capacityView`), then the newest backup and the nightly check of
+recordings. Keys and access: what expires next, a bar of a year each
+(`expiryRows`, red from `PROBLEM_DAYS`, amber from `WARN_DAYS`). pg_cron is
+called Database timers on the page.
+
 The Overview's sentence under its title counts its lines by who acts
 (`lineBucket`): Needs you (Act now, Fix soon), This week, you decide (a
 choice at Watch: `person` kinds in `alertKinds.ts`), On its way (a merged fix

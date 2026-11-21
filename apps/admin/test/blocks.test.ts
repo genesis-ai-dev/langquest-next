@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BLOCKS_LOGIC, WIDTH_CSS } from '../src/pageBlocks';
 
-const logic = new Function(`${BLOCKS_LOGIC}; return { laneTracks, releaseSay, againstLine, appleState, platformShares, andWords, nightlyView, nightlySay, supportWaits, supportSay };`)() as {
+const logic = new Function(`${BLOCKS_LOGIC}; return { laneTracks, releaseSay, againstLine, appleState, platformShares, andWords, nightlyView, nightlySay, supportWaits, supportSay, jobWords, jobRows, capacityView, expiryRows, daysWords, pctWords };`)() as {
   laneTracks: (p: unknown) => { id: string; name: string; stages: { id: string; tone: string; cards: { title: string }[] }[] }[];
   releaseSay: (p: unknown, web: { s: string } | null) => string;
   againstLine: (v: number | null, line: number) => { at: number; tone: string } | null;
@@ -12,6 +12,12 @@ const logic = new Function(`${BLOCKS_LOGIC}; return { laneTracks, releaseSay, ag
   nightlySay: (v: unknown) => string | null;
   supportWaits: (s: unknown, now: number) => { reports: number; late: boolean; feedback: number | null; blue: number | null; read: boolean } | null;
   supportSay: (w: unknown) => string | null;
+  jobWords: (job: string) => string;
+  jobRows: (jobs: unknown[], now: Record<string, unknown>) => { name: string; state: [string, string] }[];
+  capacityView: (c: unknown) => { id: string; share: number; tone: string }[] | null;
+  expiryRows: (items: unknown[], now: number) => { what: string; left: number; tone: string }[];
+  daysWords: (left: number) => string;
+  pctWords: (x: number) => string;
 };
 const card = (title: string, tone: string) => ({ title, tone, at: null, state: '', build: null, version: null, updates: [] });
 const pipeline = { lanes: [
@@ -83,5 +89,30 @@ describe('the pages that are a work list', () => {
     expect(logic.supportSay(logic.supportWaits(support(0, null, 0, []), now))).toBe('Nothing waits on staff.');
     expect(logic.supportSay(logic.supportWaits(support(0, null, null, []), now))).toBe('No content report is open.');
     expect(logic.supportWaits(null, now)).toBeNull();
+  });
+});
+
+describe('the pages behind the scenes', () => {
+  const now = Date.parse('2026-11-21T12:00:00Z');
+  it('names each job in plain words, the worst first', () => {
+    expect(logic.jobWords('push_delivery')).toBe('Send phone notifications');
+    expect(logic.jobWords('new_thing')).toBe('New thing');
+    const job = (job: string, extra: object = {}) => ({ job, runs_on: 'worker', last_at: null, last_outcome: 'ok', runs: 3, failures: 0, p95_ms: 1, stale: false, streak: 0, ...extra });
+    const rows = logic.jobRows([job('push_delivery'), job('blob_reconcile', { last_outcome: 'partial' }), job('fold_canary', { stale: true }), job('projection')], { projection: { running: true } });
+    expect(rows.map((r) => r.state[1])).toEqual(['Stopped', 'Did part of the work', 'Runs now', 'In order']);
+  });
+  it('puts the database and this month’s use against what the plan allows', () => {
+    const rows = logic.capacityView({ now: { dbBytes: 90, eventsBytes: 1, eventsRows: 1, snapshotsBytes: 1 }, limitBytes: 100, dbGrowthPerDay: 1, weeksLeft: 2, history: [], r2: null,
+      usage: { workersRequests: 5_000_000, doRequests: 0, r2ClassA: 2_000_000, r2ClassB: 0, allowance: { workersRequests: 10_000_000, doRequests: 1_000_000, r2ClassA: 1_000_000, r2ClassB: 10_000_000, r2Bytes: 1 } } })!;
+    expect(rows.map((r) => [r.id, r.tone])).toEqual([['db', 'warn'], ['workers', 'ok'], ['do', 'ok'], ['r2a', 'warn'], ['r2b', 'ok']]);
+    expect(logic.capacityView(null)).toBeNull();
+  });
+  it('says what expires next, soonest first, with the dashboard’s own lines', () => {
+    const rows = logic.expiryRows([{ what: 'A', expires: '2027-06-01T00:00:00Z', source: 'x' }, { what: 'B', expires: '2026-11-25T00:00:00Z', source: 'x' }, { what: 'C', expires: null, source: 'x' }], now);
+    expect(rows.map((r) => [r.what, r.tone])).toEqual([['B', 'bad'], ['A', 'ok']]);
+    expect(logic.daysWords(rows[0]!.left)).toBe('in 4 days');
+    expect(logic.daysWords(-2.5)).toBe('expired 3 days ago');
+    expect(logic.pctWords(9 / 412300)).toBe('under 0.01%');
+    expect(logic.pctWords(0.0123)).toBe('1.23%');
   });
 });
