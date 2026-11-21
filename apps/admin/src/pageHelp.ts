@@ -9,11 +9,12 @@
 
 /** Each section of the page (pageOps.ts GROUPS), on its title. */
 export const GROUP_HELP: Record<string, string> = {
+  research: 'What the research team found each day before it breaks anything: known security holes in the packages, new versions, package health, offline and sync safety, code security, speed and cost, store rules, and the same mistake as a fixed issue in other places. What it recommends, rejected and watches, and what the fix team fixed from it.',
   userissues: 'Problems people hit in the app, as the watch for user issues found them every 15 minutes: each one it filed in Linear (assigned to a developer, whose phone tells them), its state there, and the pull request that fixed it; and those a merged pull request had already fixed, which it did not file. Close an issue in Linear and the watch stops; it reopens it only when people hit the problem on a build made after the fix.',
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
   safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
   phones: 'Everything phones and browsers tell us about themselves: syncs, errors and crashes, files, recording, signing in, which builds they run and how often each crashes, and phones that are stuck or have gone quiet. Counts and codes only, never content.',
-  releases: 'Where each new store build and over-the-air update is now, what is on main and whether CI passed, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
+  releases: 'Where each new store build and over-the-air update is now, what is on main and whether CI passed, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s builds and phone updates on Expo.',
   jobs: 'The server\'s own scheduled work: each job\'s runs and failures and whether it runs now (Run now starts one), the database\'s own timers (pg_cron), push notifications, and the import from LangQuest v2.',
   database: 'The database\'s health (connections, cache, deadlocks, slowest calls), where its space goes, long-open queries and transactions, and the Supabase project\'s services, logs and Edge Functions.',
   traffic: 'Requests each Cloudflare Worker answered in the last day with errors, CPU and its latest build, and the app Worker\'s requests by kind with how long they took and how many a limit refused.',
@@ -28,6 +29,7 @@ export const GROUP_HELP: Record<string, string> = {
 
 /** Each part of a section (one source's answer), on its sub-heading. */
 export const SECTION_HELP: Record<string, string> = {
+  research: 'The day\'s report in plain words, the team as a map (facts, the lead, the scouts side by side, the lead\'s check), the week of subjects, what each scout looked at, and one card for each thing found. The tabs sort them: Waits on you (a choice, or a fix to read), For the fix team, Fixed, Watching, Rejected. A choice is one tap: Claude takes it as an instruction.',
   safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
   clients: 'What phones and browsers report about themselves (field diagnostics): syncs, errors and crashes, transfers, recording, sign-in trouble. Counts and codes only, never content.',
   fleet: 'Which app builds people are on and how stable each is, how long a first download takes, and phones that are stuck (unsent work, stuck downloads, low disk) or have gone quiet.',
@@ -48,11 +50,11 @@ export const SECTION_HELP: Record<string, string> = {
   expiry: 'Tokens, certificates and other things that stop working on a date, soonest first. Warns at 30 days, a problem at 7.',
   claudeplan: 'How much of this week\'s Frontier Claude plan the automatic jobs and the agent team used, against how much of the week has gone. A reading every hour (claude-plan.yml). When the plan is used up, the jobs stop until the week starts again.',
   capacity: 'How fast the database and the recordings bucket are growing against the plan\'s limits, and this month\'s Cloudflare usage against what the plan includes.',
-  code: 'What is on main on GitHub, whether the latest CI runs passed, and whether the web app serves the newest commit.',
+  code: 'Whether app.langquest.org runs the newest merge, and the last run of each automatic job on GitHub. Phone updates and store builds are in Where each build and update is.',
   nightly: 'How last night\'s tests went, every suite together: the web UI suite, the fleet simulation and the mutation tests (guardrails.yml, 02:30 UTC), and the phone flows on an Android emulator and an iPhone simulator (phone-tests.yml, 08:30 UTC). Each failure has its Linear issue, with its error and screen. A failed test is a watch; a suite that broke, or a nightly that stopped running, is a problem.',
   cloudflare: 'Each Cloudflare Worker\'s requests, errors and CPU over the last day, and its latest deploy and build.',
   supabase: 'The LangQuest Next Supabase project\'s status, each service\'s health, Edge Functions, and error counts from its logs.',
-  expo: 'App builds on EAS, store submissions, and the newest over-the-air update on each branch.',
+  expo: 'The latest app builds on Expo, each with the store that got it, and the newest phone update (no store) for each kind of phone. Which build each phone runs is in Where each build and update is.',
   pipeline: 'Each new store build in the stage it is in now, left to right: building on EAS, waiting in TestFlight or Play\'s internal testing, in review, approved, and what people download. A new build waits while an older one is in review, unless its pull request had the label "store: replace review" (decisions.md 157). Inside each build: the over-the-air updates it takes (published for its runtime after it was made), each with its pull request and how many of the platform\'s phones run it.',
   adoption: 'How far each over-the-air update has reached. For each channel, platform and runtime that phones run: the newest update EAS published for exactly that, and how many installs active in the last 7 days run it, an older update, or the build\'s embedded one. Matched by the update id phones report.',
   googleplay: 'Android crash and freeze (ANR) rates as Google Play measures them, against Play\'s bad-behaviour lines, and recent reviews.',

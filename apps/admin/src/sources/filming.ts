@@ -7,7 +7,7 @@ import { githubApi, OWN_EVENTS, type GitHubEnv } from './github';
  * the latest one, and where each app language's job is: waiting its turn
  * (five film at once), on which step, done or failed, with its log. A run
  * starts at 20:10 UTC and when a merge changes the videos; its failures are
- * already said under Code and deploys, so this part raises no alerts.
+ * already said under The web app and automatic jobs, so this part raises no alerts.
  */
 
 export const FILMING_WORKFLOW = 'tutorials.yml';

@@ -511,7 +511,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return data;
       },
       looked: async (looked) => {
-        const { notes, fixes, research, handed, diagrams, ...rest } = looked;
+        const { notes, fixes, research, report, handed, diagrams, ...rest } = looked;
         const { data, error } = await serviceClient(env).rpc('ops_user_issues_looked', { p: rest });
         if (error) throw new Error(`ops_user_issues_looked: ${error.message}`);
         // The agent team's record of each fix (docs/agent-team.md). Before its migration is there, the run goes on without it.
@@ -520,8 +520,8 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         // Each new issue's diagram for its card. Before its migration is there, the run goes on without it.
         const drawn = diagrams.length ? await serviceClient(env).rpc('ops_user_issue_diagrams_done', { p: { runUrl: looked.runUrl, diagrams } }) : null;
         if (drawn?.error) console.error(`ops_user_issue_diagrams_done: ${drawn.error.code ?? 'unknown'}`);
-        // What the research team found, and its issues handed to the fix team.
-        const found = research.length || handed.length ? await serviceClient(env).rpc('ops_research_done', { p: { runUrl: looked.runUrl, research, handed } }) : null;
+        // What the research team found, its report of the day, and its issues handed to the fix team.
+        const found = research.length || handed.length || report ? await serviceClient(env).rpc('ops_research_done', { p: { runUrl: looked.runUrl, research, handed, report } }) : null;
         if (found?.error) throw new Error(`ops_research_done: ${found.error.message}`);
         const recorded = { fixes: kept && !kept.error ? Number(kept.data) || 0 : 0, ...(found?.data ?? {}) };
         if (!notes.length) return { ...data, ...recorded };

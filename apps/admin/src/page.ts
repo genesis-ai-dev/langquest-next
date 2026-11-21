@@ -9,6 +9,8 @@
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
 import { VIDEO_CSS, VIDEO_LOGIC, VIDEO_SCRIPT } from './pageVideos';
+import { CODE_CSS, CODE_LOGIC, CODE_SCRIPT } from './pageCode';
+import { EXPO_LOGIC, EXPO_SCRIPT } from './pageExpo';
 import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
 import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
 import { HOVER_CSS, HOVER_LOGIC, HOVER_SCRIPT } from './pageHover';
@@ -18,6 +20,8 @@ import { ICONS, NAV, SHELL_CSS, SHELL_HTML, SHELL_LOGIC, SHELL_SCRIPT } from './
 import { OVERVIEW_CSS, OVERVIEW_HTML, OVERVIEW_LOGIC, OVERVIEW_SCRIPT } from './pageOverview';
 import { FIX_CSS, FIX_LOGIC, FIX_SCRIPT } from './pageFixes';
 import { ISSUE_CSS, ISSUE_LOGIC, ISSUE_SCRIPT } from './pageIssues';
+import { RESEARCH_CSS, RESEARCH_LOGIC, RESEARCH_SCRIPT } from './pageResearch';
+import { RESEARCH_TEAM } from './researchTeam';
 import { CARD_CSS, CARD_LOGIC, CARD_SCRIPT } from './pageCards';
 import { KINDS } from './alertKinds';
 import { GLANCE, METRICS } from './sources/history';
@@ -205,8 +209,10 @@ ${START_CSS}
 ${OVERVIEW_CSS}
 ${FIX_CSS}
 ${ISSUE_CSS}
+${RESEARCH_CSS}
 ${CARD_CSS}
 ${LISTS_CSS}
+${CODE_CSS}
 ${METERS_CSS}
 ${VIDEO_CSS}
 ${HOVER_CSS}
@@ -407,12 +413,12 @@ $('refresh').addEventListener('click', () => load(true));
 // ---- the sections ----------------------------------------------------------------
 const BASE_SECTIONS = [
   { id: 'jobs', title: 'Server jobs', src: 'diag.jobs: projections, push delivery, v2 import, the web Worker\\'s cron, webhooks, invite email' },
-  { id: 'code', title: 'Code and deploys', src: 'GitHub main, its Actions runs, and what app.langquest.org serves' },
+  { id: 'code', title: 'The web app and automatic jobs', src: 'GitHub main, its Actions runs, and what app.langquest.org serves' },
   { id: 'clients', title: 'Phones and browsers', src: 'Field diagnostics every install sends (docs/diagnostics.md)', wide: true },
   { id: 'cloudflare', title: 'Cloudflare', src: 'Workers requests, errors, deploys and builds, last 24 h' },
   { id: 'supabase', title: 'Supabase', src: 'Project health, Edge Functions and log counts, last 24 h' },
   { id: 'database', title: 'Database', src: 'Size, connections and RPC timings (pg_stat_statements)' },
-  { id: 'expo', title: 'App builds and updates', src: 'EAS builds, store submissions and over-the-air updates' },
+  { id: 'expo', title: 'Phone app builds and updates (Expo)', src: 'EAS builds, store submissions and over-the-air updates' },
   { id: 'googleplay', title: 'Google Play', src: 'Android vitals (crashes and ANRs) and reviews' },
   { id: 'appstore', title: 'App Store', src: 'App Store Connect: versions in review, builds and reviews' },
   { id: 'v2', title: 'v2 import', src: 'diag.v2_import_status: the latest transfer of each v2 project' },
@@ -1046,12 +1052,20 @@ ${REF_SCRIPT}
 // ---- the cards of the User issues page and of a tutorial video's questions (pageIssues.ts) ----
 ${ISSUE_LOGIC}
 ${ISSUE_SCRIPT}
+// ---- the Research page (pageResearch.ts): the team's report, its map and week, and what it found ----
+const RESEARCH_TEAM = ${JSON.stringify(RESEARCH_TEAM)};
+${RESEARCH_LOGIC}
+${RESEARCH_SCRIPT}
 // ---- each line as a card on its section's page, and the way from the Overview to it (pageCards.ts) ----
 ${CARD_LOGIC}
 ${CARD_SCRIPT}
 ${LISTS_LOGIC}
+${CODE_LOGIC}
+${EXPO_LOGIC}
 ${METERS_LOGIC}
 ${LISTS_SCRIPT}
+${CODE_SCRIPT}
+${EXPO_SCRIPT}
 ${METERS_SCRIPT}
 // ---- what a chart says under the pointer: a line and its values (pageHover.ts) ----
 ${HOVER_LOGIC}

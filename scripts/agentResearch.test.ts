@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACTIONS, checkReport, DECISIONS, itemDescription, LIMITS, TITLE_PREFIX } from './agent-research.mjs';
+import { TEAM_LIMITS } from './research-team.mjs';
 import { DIAGRAM, FIX_MAX, researchToTake, stepsOf } from './user-issues.mjs';
 import { DIAGRAM as SERVER_DIAGRAM, parseLooked, RESEARCH_ACTIONS, RESEARCH_DECISIONS, RESEARCH_TEXT } from '../server/userIssues';
 
@@ -59,7 +60,11 @@ describe('the research report', () => {
   it('has the words and limits the Worker checks', () => {
     expect(DECISIONS).toEqual([...RESEARCH_DECISIONS]);
     expect(ACTIONS).toEqual([...RESEARCH_ACTIONS]);
-    expect(LIMITS).toMatchObject({ ...RESEARCH_TEXT });
+    const { links, link, ...text } = RESEARCH_TEXT;
+    expect(LIMITS).toMatchObject(text);
+    // The team that looks ahead keeps the same limits, and its links too (scripts/research-team.mjs).
+    expect(TEAM_LIMITS).toMatchObject({ ...text, links });
+    expect(link).toBeGreaterThanOrEqual(300);
   });
 });
 
@@ -69,7 +74,8 @@ describe('what the Worker takes from the research', () => {
 
   it('takes a checked item and the issues handed to the fix team', () => {
     const looked = parseLooked({ ...base, research: [sent()], handed: ['LAN-50'] });
-    expect(looked.research).toEqual([sent()]);
+    // An item of the twins search has none of the fields of the team that looks ahead.
+    expect(looked.research).toEqual([{ ...sent(), beat: null, kind: null, severity: null, links: [], package: null, from: null, to: null, deadline: null, ask: null }]);
     expect(looked.handed).toEqual(['LAN-50']);
     expect(parseLooked(base)).toMatchObject({ research: [], handed: [] });
   });

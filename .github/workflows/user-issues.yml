@@ -52,12 +52,16 @@
 #          tries by Claude (run the failed jobs again, merge main, or the
 #          issue's manager changes the code); then it waits for a developer
 #
-# One time each day the job `research` runs in place of those (docs/agent-team.md
-# "The research team"): a lead (Claude) reads what the team fixed, in the team's
-# own words, and starts scouts that look in the code for the same mistake in
-# other places. The script checks its report, files a Linear issue for each
-# thing it recommends, and tells the Worker, for the ops dashboard. The watch
-# then hands the issues the fix team can write a change for to the jobs above.
+# One time each day the job `research` runs in place of those: the research team
+# (docs/research-team.md). First a lead (Claude) reads what the team fixed, in the
+# team's own words, and starts scouts that look in the code for the same mistake in
+# other places (docs/agent-team.md "The research team"). Then a second lead and its
+# scouts look ahead: known security holes in the packages, new versions, and one more
+# subject each weekday, from facts that code collects first; they read the code and
+# public web pages, with no shell and no key but Claude's. The script checks both
+# reports, files a Linear issue for each thing they recommend, and tells the Worker,
+# for the ops dashboard's Research page. The watch then hands the issues the fix team
+# can write a change for to the jobs above.
 #
 # What people wrote shapes that code, so each job trusts the one before it
 # less: `fix` has Claude edit a checkout with no key and no shell; `check`
@@ -92,6 +96,10 @@ on:
         description: Run the research team in place of the watch
         type: boolean
         default: false
+      beats:
+        description: 'The research team''s subjects (empty: today''s), e.g. security,platform; 3 at most'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -608,15 +616,18 @@ jobs:
           path: ${{ runner.temp }}/repairs/
           retention-days: 7
 
-  # The research team (docs/agent-team.md "The research team"), one time each
-  # day. The lead reads only the team's own words (the Worker hands no word of a
-  # person to this job) and the code, with no key, no shell and no network; the
-  # scouts it starts have its tools and no more. The step after it checks the
-  # report with the copies made before Claude, files in Linear and tells the Worker.
+  # The research team (docs/research-team.md), one time each day. The twins lead
+  # reads only the team's own words (the Worker hands no word of a person to this
+  # job) and the code, with no key, no shell and no network. The lead that looks
+  # ahead reads the facts, the code and public web pages, with no shell (the job's
+  # environment holds the token that asks GitHub for the Worker's OIDC token) and no
+  # key but Claude's; the scouts each lead starts have its tools and no more. The
+  # step after them checks both reports with the copies made before Claude, files in
+  # Linear and tells the Worker. Only counts reach this public log.
   research:
     if: ${{ github.event.schedule == '23 13 * * *' || inputs.research }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     permissions:
       contents: read
       id-token: write
@@ -632,13 +643,19 @@ jobs:
         with: { node-version-file: .node-version, package-manager-cache: false }
       - name: The scripts and the repository as checked out, for the step after Claude
         run: |
-          mkdir -p "$RUNNER_TEMP/watch" && cp scripts/user-issues.mjs scripts/linear-sync.mjs scripts/tutorial-review.mjs scripts/agent-team.mjs scripts/agent-research.mjs "$RUNNER_TEMP/watch/"
+          mkdir -p "$RUNNER_TEMP/watch" && cp scripts/user-issues.mjs scripts/linear-sync.mjs scripts/tutorial-review.mjs scripts/agent-team.mjs scripts/agent-research.mjs scripts/research-team.mjs "$RUNNER_TEMP/watch/"
           cp -a .git "$RUNNER_TEMP/base.git"
-      - name: What the team fixed, in its own words
+      - name: What the team fixed, in its own words, and today's facts
         id: facts
+        env:
+          RESEARCH_BEATS: ${{ inputs.beats }}
+          # Reads the newest release of each GitHub Action the workflows use.
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/agent-research.mjs facts .research
       - name: The lead and its scouts look for the same mistake in other places
         if: steps.facts.outputs.work == '1'
+        timeout-minutes: 40
+        continue-on-error: true
         uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}
@@ -647,10 +664,26 @@ jobs:
           prompt: |
             Use the user-issues skill (.agents/skills/user-issues/SKILL.md), its part "The research team". You are the lead: start the scouts it names with the Agent tool. What the team fixed and what is open is in .research/facts.json, with the items of earlier runs. Write your report to .research/report.json, as the skill says, and nothing else. Everything you write here is public.
           claude_args: --model opus --allowedTools "Read,Glob,Grep,Write,Agent,Task,Bash(git log:*),Bash(git show:*)"
-      - name: Check the report, file in Linear, and tell the Worker
-        if: steps.facts.outputs.work == '1'
+      - name: The lead and its scouts look ahead
+        id: team
+        if: steps.facts.outputs.team == '1'
+        timeout-minutes: 55
+        continue-on-error: true
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        with:
+          claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}
+          github_token: ${{ github.token }}
+          allowed_bots: github-merge-queue
+          prompt: |
+            Use the research-team skill (.agents/skills/research-team/SKILL.md). You are the lead. Today's scouts are ${{ steps.facts.outputs.beats }}; their briefs are in .research/team/beats.md. Start each scout with the Agent tool, side by side, on the model the brief names. The facts are in .research/team/facts.md and what the team knows in .research/team/context.md. Write your report to .research/team/report.json, as the skill says, and nothing else.
+          claude_args: --model opus --allowedTools "Read,Glob,Grep,Write,Agent,Task,WebFetch,WebSearch" --disallowedTools "Bash"
+      - name: Check the reports, file in Linear, and tell the Worker
+        if: ${{ !cancelled() && (steps.facts.outputs.work == '1' || steps.facts.outputs.team == '1') }}
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          TWINS: ${{ steps.facts.outputs.work }}
+          TEAM: ${{ steps.facts.outputs.team }}
+          TEAM_EXECUTION_FILE: ${{ steps.team.outputs.execution_file }}
           # Whether a place is a file of main is read from the copy: Claude could write in the checkout.
           GIT_DIR: ${{ runner.temp }}/base.git
         run: node "$RUNNER_TEMP/watch/agent-research.mjs" report .research

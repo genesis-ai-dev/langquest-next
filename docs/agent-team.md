@@ -218,11 +218,15 @@ and presents what it finds on the ops dashboard.
    whether its fix merges without a person or waits for a developer. An
    item with the action `ask` waits for a developer.
 
-**User issues** on the ops dashboard shows them under the cards, in
-**Research: the same mistake in other places**: what was found, why it
-matters, where (each place a link to the file on main), its Linear issue,
-and the record of its fix when the fix team wrote one. In mode `off` there
-is no research.
+The ops dashboard shows them on the **Research** page (menu Care), with
+the items of the team that looks ahead: what was found, why it matters,
+where (each place a link to the file on main), its Linear issue, and the
+record of its fix when the fix team wrote one. **User issues** links to it
+under its cards. In mode `off` there is no research.
+
+The same job also runs the research team that looks ahead: known security
+holes, new versions and one more subject each weekday, with a report each
+day. `docs/research-team.md` has how it works.
 
 ## An image on each card
 
