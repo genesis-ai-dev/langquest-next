@@ -121,26 +121,6 @@ function listRows(part, d) {
           ['Updates it takes', c.updates && c.updates.length ? c.updates.length : null]])) : [['Builds', st.unseen || 'none']] };
     }) })).filter((r) => r.items.length);
   }
-  if (part === 'code') {
-    const run = (r) => r.status !== 'completed' ? 'run' : r.conclusion === 'success' ? 'ok'
-      : r.conclusion === 'failure' || r.conclusion === 'timed_out' ? (r.nightly ? 'part' : 'fail') : 'off';
-    const stale = d.behind !== 0 && d.appChanged !== false;
-    let host = String((d.live || {}).url || '');
-    try { host = new URL(host).host; } catch {}
-    const main = d.main || {};
-    return [
-      { label: 'The web app', draw: 'track', count: false, items: [
-        { s: 'ok', name: 'main', short: String(main.sha || '').slice(0, 8), at: main.at || null,
-          fields: fieldsOf([['Commit', main.sha], ['Merged', main.at], ['Title', main.title]]), link: d.repo && main.sha ? 'https://github.com/' + d.repo + '/commit/' + main.sha : null },
-        { s: !d.live || !d.live.build || stale ? 'fail' : 'ok', name: 'web host', short: d.live && d.live.build ? String(d.live.build).slice(0, 8) : '?', at: null,
-          fields: fieldsOf([['Host', host], ['Build', d.live && d.live.build ? d.live.build : 'no answer'], ['Error', d.live ? d.live.error : null],
-            ['Commits not deployed', d.behind === null || d.behind === undefined ? 'unknown' : d.behind], ['Any for the web app', d.appChanged === null || d.appChanged === undefined ? null : d.appChanged ? 'yes' : 'no']]),
-          link: d.live ? d.live.url : null }] },
-      { label: 'Workflows on main', items: (d.runs || []).map((r) => ({ s: run(r), name: r.workflow, at: r.at,
-        fields: fieldsOf([['Result', r.conclusion || r.status], ['Started', r.at], ['Event', r.event], ['Commit', r.sha], ['Run', r.number ? '#' + r.number : null],
-          ['Nightly', r.nightly ? 'Nightly tests says its failures' : null]]), link: r.url })).sort(byState) }
-    ].filter((r) => r.items.length);
-  }
   if (part === 'releases') {
     // Errors a day as a line; under it, a tick for each day that shipped a merge, a deploy or an update.
     const items = (d.errorsByDay || []).slice().sort((a, b) => String(a.day).localeCompare(String(b.day))).map((e) => {
@@ -218,7 +198,6 @@ const LIST_SAID = {
   videofeedback: { one: 'thing that came in', many: 'things that came in', fail: 'Claude could not', part: 'Waits for you', run: 'Claude works on it', ok: 'Accepted', off: 'No change', none: 'Not looked at yet' },
   videos: { one: 'video', many: 'videos', fail: 'Failed or held', part: 'Waits on someone', run: 'A worker has it', ok: 'Up to date', off: 'Paused' },
   pipeline: { one: 'stage', many: 'stages', pic: 'a dot for each stage, its build above', fail: 'Needs a person', part: 'Waiting', run: 'On its way', ok: 'What people get', none: 'No build' },
-  code: { one: 'workflow', many: 'workflows', pic: 'main, what the web host serves, and each workflow', fail: 'Failed, or behind main', part: 'Failed, Nightly tests says why', run: 'Running', ok: 'Passed, or up to date', off: 'Cancelled or skipped' },
   releases: { one: 'day', many: 'days', pic: 'errors and crashes each day, a tick on each day with a change', line: true },
   expiry: { one: 'key', many: 'keys', pic: 'a dot for each key on a line of days left', fail: 'Expired, or 7 days or less', part: '30 days or less', ok: 'More than 30 days', none: 'No date' },
   appstore: { one: 'version or build', many: 'versions and builds', fail: 'Rejected or not valid', part: 'Waits for Apple', run: 'In review or processing', ok: 'On the App Store, or valid', off: 'Replaced or expired', none: 'Not sent' }
@@ -245,7 +224,7 @@ function rowSvg(part, at, r, w, h, n, cols, body, how, k, hv) {
     ' data-part="' + esc(part) + '" data-row="' + at + '" data-n="' + n + '" data-cols="' + cols + '"' + (hv || '') + '>' + body + '</svg>';
 }
 
-/** A lane's stages, or main and what the web host serves: a dot on a track for each, what it holds above, its name below. */
+/** A lane's stages: a dot on a track for each, what it holds above, its name below. */
 function trackSvg(part, at, r, mini) {
   // On a card a lane must fit about 200 px at full size, so its stages close up and a long name takes two lines.
   const said = LIST_SAID[part], n = r.items.length, gap = mini && n > 2 ? 52 : 72, two = mini && n > 2, w = 48 + (n - 1) * gap, h = two ? 58 : 50, X = (i) => 24 + i * gap;
@@ -336,7 +315,7 @@ function listBox(part, d, mini) {
   const rows = said ? listRows(part, d) : null;
   if (!rows || !rows.length) return '';
   const all = rows.flatMap((r) => r.items);
-  // The head counts the list's items; a row of context (main and what the web host serves) is left out.
+  // The head counts the list's items; a row of context (count: false) is left out.
   const counted = rows.filter((r) => r.count !== false).flatMap((r) => r.items);
   // A share counts what it splits (syncs, requests, installs), not its parts.
   const weigh = (xs) => said.sum ? xs.reduce((a, x) => a + (Number(x.v) || 0), 0) : xs.length;
@@ -372,12 +351,14 @@ function r2Pic(mini) {
 /** The picture at the top of a part, in its section and on All sections. */
 function listPicture(part, d) {
   if (part === 'storage') return r2Pic(false);
+  if (part === 'code') return codeBox(d, false);
   return LIST_SAID[part] ? listBox(part, d, false) : '';
 }
 /** The picture on a part's card on the start page, or '' when it has none. */
 function listCardPic(part) {
   const s = results[part];
   if (part === 'storage') return r2Pic(true);
+  if (part === 'code') return s && s.state === 'ok' ? codeBox(s.data, true) : '';
   return LIST_SAID[part] && s && s.state === 'ok' ? listBox(part, s.data, true) : '';
 }
 

@@ -47,7 +47,7 @@ export const SECTION_HELP: Record<string, string> = {
   security: 'Who can see every organization (Global Viewers), limits that refused requests (a sign of guessing or a loop), and credentials made this week.',
   expiry: 'Tokens, certificates and other things that stop working on a date, soonest first. Warns at 30 days, a problem at 7.',
   capacity: 'How fast the database and the recordings bucket are growing against the plan\'s limits, and this month\'s Cloudflare usage against what the plan includes.',
-  code: 'What is on main on GitHub, whether the latest CI runs passed, and whether the web app serves the newest commit.',
+  code: 'Whether app.langquest.org runs the newest merge, and the last run of each automatic job on GitHub. Phone updates and store builds are in Where each build and update is.',
   nightly: 'How last night\'s tests went, every suite together: the web UI suite, the fleet simulation and the mutation tests (guardrails.yml, 02:30 UTC), and the phone flows on an Android emulator and an iPhone simulator (phone-tests.yml, 08:30 UTC). Each failure has its Linear issue, with its error and screen. A failed test is a watch; a suite that broke, or a nightly that stopped running, is a problem.',
   cloudflare: 'Each Cloudflare Worker\'s requests, errors and CPU over the last day, and its latest deploy and build.',
   supabase: 'The LangQuest Next Supabase project\'s status, each service\'s health, Edge Functions, and error counts from its logs.',

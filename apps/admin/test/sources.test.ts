@@ -298,7 +298,7 @@ describe('code and deploys', () => {
       ['/compare/0123456789ab...fedcba9876543210', { status: 'ahead', ahead_by: 2, behind_by: 0, files: [{ filename: 'apps/web/worker/index.ts' }] }]
     ]);
     const s = await codeSection({ GITHUB_REPO: 'o/r', APP_URL: 'https://next.langquest.org' }, fetcher);
-    expect(s.data).toMatchObject({ behind: 2, appChanged: true, main: { title: 'Merge pull request #9' } });
+    expect(s.data).toMatchObject({ behind: 2, appChanged: true, main: { title: 'body', pr: 9 } });
     expect(s.alerts[0]?.level).toBe('problem');
   });
 });

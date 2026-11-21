@@ -9,6 +9,7 @@
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
 import { VIDEO_CSS, VIDEO_LOGIC, VIDEO_SCRIPT } from './pageVideos';
+import { CODE_CSS, CODE_LOGIC, CODE_SCRIPT } from './pageCode';
 import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
 import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
 import { HOVER_CSS, HOVER_LOGIC, HOVER_SCRIPT } from './pageHover';
@@ -207,6 +208,7 @@ ${FIX_CSS}
 ${ISSUE_CSS}
 ${CARD_CSS}
 ${LISTS_CSS}
+${CODE_CSS}
 ${METERS_CSS}
 ${VIDEO_CSS}
 ${HOVER_CSS}
@@ -407,7 +409,7 @@ $('refresh').addEventListener('click', () => load(true));
 // ---- the sections ----------------------------------------------------------------
 const BASE_SECTIONS = [
   { id: 'jobs', title: 'Server jobs', src: 'diag.jobs: projections, push delivery, v2 import, the web Worker\\'s cron, webhooks, invite email' },
-  { id: 'code', title: 'Code and deploys', src: 'GitHub main, its Actions runs, and what app.langquest.org serves' },
+  { id: 'code', title: 'The web app and automatic jobs', src: 'GitHub main, its Actions runs, and what app.langquest.org serves' },
   { id: 'clients', title: 'Phones and browsers', src: 'Field diagnostics every install sends (docs/diagnostics.md)', wide: true },
   { id: 'cloudflare', title: 'Cloudflare', src: 'Workers requests, errors, deploys and builds, last 24 h' },
   { id: 'supabase', title: 'Supabase', src: 'Project health, Edge Functions and log counts, last 24 h' },
@@ -1050,8 +1052,10 @@ ${ISSUE_SCRIPT}
 ${CARD_LOGIC}
 ${CARD_SCRIPT}
 ${LISTS_LOGIC}
+${CODE_LOGIC}
 ${METERS_LOGIC}
 ${LISTS_SCRIPT}
+${CODE_SCRIPT}
 ${METERS_SCRIPT}
 // ---- what a chart says under the pointer: a line and its values (pageHover.ts) ----
 ${HOVER_LOGIC}

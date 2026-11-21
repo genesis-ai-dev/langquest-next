@@ -229,9 +229,11 @@ The cards below are now rows, and the menu took the place of the OK lines. So:
   the job squares, a square a night for 14 nights.
 - **Lanes and lines** (built, 5c3): from the data each part already read.
   Store builds and updates draw a lane for each platform, a dot for each
-  stage with its build above; Code and deploys draws main and what the web
-  host serves on a track (red when the host is behind main with a change
-  for the web app), and a square for each workflow on main; App Store draws
+  stage with its build above; The web app and automatic jobs (was Code and
+  deploys; since 2026-11-21 its own picture, `pageCode.ts`) names the newest
+  merge and what the web app runs by their pull request titles, says in one
+  sentence whether the web app is up to date, and lists each workflow by a
+  plain name; App Store draws
   a square for each version and build; What shipped draws errors a day as a
   line, an x on a day with a crash and a tick on a day with a merge, a
   deploy or an update; Expiry dates draws each key as a dot on a line of
