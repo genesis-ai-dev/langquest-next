@@ -19,12 +19,20 @@ const DIR = STUDY_FILES_OFFLINE ? new Directory(Paths.document, 'study') : null;
 const STAGING = '.part';
 /** A failed address waits this long before it is tried again, so a dead link never loops. */
 const RETRY_MS = 5 * 60 * 1000;
+/**
+ * An address its source refused (it answered 403 or 404: the file is not
+ * there) is asked again only this long after, since waiting minutes will not
+ * bring it; and meanwhile it does not keep its passage from being ready.
+ */
+const REFUSED_RETRY_MS = 24 * 60 * 60 * 1000;
 const CONCURRENCY = 2;
 /** A download that has not finished by now is given up and retried later, so one stalled request never holds the rest. */
 const TIMEOUT_MS = 2 * 60 * 1000;
 
 const present = new Map<string, string>();
 const failedAt = new Map<string, number>();
+/** Addresses their source refused, and when (`refusedBy`): not here, and no wait will bring them. */
+const refusedAt = new Map<string, number>();
 const listeners = new Set<() => void>();
 let revision = 0;
 const changed = () => { revision++; for (const l of listeners) l(); };
@@ -102,9 +110,29 @@ export function studyUrls(guide: StudyGuide): string[] {
 }
 
 /** How many of a passage's study files are here; `total` 0 when it has no guide or its guide is not known yet. */
-export function studyCounts(unitId: string): { here: number; total: number } {
+export function studyCounts(unitId: string): { here: number; total: number; refused: number } {
   const urls = wanted.get(unitId) ?? [];
-  return { here: urls.filter(hasStudyFile).length, total: urls.length };
+  let here = 0;
+  let refused = 0;
+  for (const url of urls) {
+    if (hasStudyFile(url)) here++;
+    else if (refusedAt.has(url)) refused++;
+  }
+  // A file its source refused is not counted as one to come: no wait will bring it (`refused` says how many).
+  return { here, total: urls.length - refused, refused };
+}
+
+/**
+ * Did the source refuse this address? A 403 or 404 says the file is not
+ * there; a timeout, a dropped connection or a busy server (408, 429, 5xx)
+ * says nothing about the file, and is tried again in minutes. FIA's public
+ * file store answers 403 for an address it does not have (Matthew 13's
+ * guide named four, LAN-316). The download says the status in its message,
+ * on Android and on iPhones alike ("response has status: 403").
+ */
+export function refusedBy(e: unknown): boolean {
+  const status = Number(/response has status:? (\d{3})/.exec(e instanceof Error ? e.message : String(e))?.[1]);
+  return status >= 400 && status < 500 && status !== 408 && status !== 429;
 }
 
 export function studyWanted(): ReadonlyMap<string, string[]> {
@@ -156,7 +184,8 @@ function enqueue(): void {
   load();
   const now = Date.now();
   const all = new Set([...wanted.values()].flat());
-  queue = [...all].filter((u) => !present.has(nameOf(u)) && !inFlight.has(u) && now - (failedAt.get(u) ?? 0) >= RETRY_MS);
+  queue = [...all].filter((u) => !present.has(nameOf(u)) && !inFlight.has(u) && now - (failedAt.get(u) ?? 0) >= RETRY_MS
+    && now - (refusedAt.get(u) ?? -REFUSED_RETRY_MS) >= REFUSED_RETRY_MS);
   if (!running) void drain();
 }
 
@@ -199,11 +228,18 @@ async function fetchOne(url: string): Promise<void> {
     const { uri } = await (where ? timedTransfer('down', { ...where, src: 'study' }, download) : download());
     present.set(name, uri);
     failedAt.delete(url);
+    refusedAt.delete(url);
     changed();
   } catch (e) {
-    // Offline or a dead link: expected in the field. Tried again after RETRY_MS.
-    noteExpected('study file download', e);
-    failedAt.set(url, Date.now());
+    // Offline or a dead link: expected in the field. Tried again after RETRY_MS; one its source
+    // refused, after REFUSED_RETRY_MS, and it stops counting as a file to come (`studyCounts`).
+    noteExpected('study file download', e, refusedBy(e) ? 'refused' : undefined);
+    if (refusedBy(e)) {
+      const first = !refusedAt.has(url);
+      refusedAt.set(url, Date.now());
+      failedAt.delete(url);
+      if (first) changed();
+    } else failedAt.set(url, Date.now());
     try { if (staged.exists) staged.delete(); } catch { /* next launch */ }
   } finally {
     clearTimeout(timer);
