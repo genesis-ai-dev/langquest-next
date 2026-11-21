@@ -195,7 +195,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Sync and offline merged in: its words in all 16 catalogs, the email and confirm fields, and New
 // password's confirm field. Edit Profile moved to a chunk of its own, loaded when opened, so a
 // first visit stays under its own budget (17,240 bytes left with Sync and offline's chunk too).
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 131 * 1024;
+// Raised by 30 KB on release/ios, where the copies of main's changes (the Key words tiles, a book's
+// download button and its recordings-only switch, unheard recordings, Welcome back's way in, the
+// study prefetch) came out 29 KB past the budget together; the raises they carried on main were left
+// behind in the conflicts.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 161 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -279,7 +283,10 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 131 * 1024;
 // grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
 // words in the catalog every visit carries. They show on the recording screen as it opens; the word's
 // sheet loads when first opened (keyTerms/lazySheets.tsx).
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
+// Raised by 4 KB on release/ios, where the copies of main's changes (the Key words tiles, the book's
+// download button and its recordings-only switch, Welcome back's way in, unheard recordings) came out 3 KB
+// past the budget together; the copied raises were left behind in the conflict, this one covers them.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 116 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
