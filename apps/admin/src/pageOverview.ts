@@ -22,7 +22,17 @@ export const OVERVIEW_CSS = String.raw`
 .sblock .alert { border: 0; border-top: 1px solid var(--line); border-inline-start: 4px solid var(--line); border-radius: 0; box-shadow: none; padding: 12px 14px; background: none; }
 .sblock .alert:first-child { border-top: 0; }
 .sblock .alert.urgent { border-inline-start-color: var(--red); box-shadow: none; } .sblock .alert.problem { border-inline-start-color: var(--red); }
-.sblock .alert.watch { border-inline-start-color: var(--yellow); } .sblock .alert.info { border-inline-start-color: var(--primary); } .sblock .alert.clear { border-inline-start-color: var(--green); }
+.sblock .alert.watch { border-inline-start-color: var(--yellow); }
+.sblock .alert.by-claude { border-inline-start-color: var(--primary); } .sblock .alert.by-check { border-inline-start-color: var(--green); }
+.sblock .alert.by-store { border-inline-start-color: var(--grey); } .sblock .alert.by-dev { border-inline-start-color: var(--yellow); }
+.waykey { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--ink2); margin: -4px 0 8px; }
+.waykey i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-inline-end: 6px; }
+.waykey i.by-claude, .who.by-claude { background: var(--primary); } .waykey i.by-check, .who.by-check { background: var(--green); }
+.waykey i.by-store, .who.by-store { background: var(--grey); } .waykey i.by-dev, .who.by-dev { background: var(--yellow); }
+.sblock .alert.wayrow { grid-template-columns: 104px minmax(0, 1fr) auto; }
+.wayrow .when { font-weight: 650; font-size: 14px; line-height: 1.25; color: var(--ink); } .wayrow .when small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+.who { display: inline-block; font-size: 11px; font-weight: 700; line-height: 18px; padding: 0 7px; border-radius: 6px; color: #111; margin-inline-end: 6px; }
+.alert p.why { margin: 4px 0 0; font-size: 13px; color: var(--ink2); } .sblock .alert.info { border-inline-start-color: var(--primary); } .sblock .alert.clear { border-inline-start-color: var(--green); }
 .sblock .alert .text > b { font-weight: 600; font-size: 15px; }
 .ovpair .alert { grid-template-columns: minmax(0, 1fr) auto; } .ovpair .alert .lvl, .ovpair .alert .pic { display: none; }
 .wchips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -112,7 +122,7 @@ export const OVERVIEW_HTML = String.raw`
       </section>
       <div class="ovpair">
         <section class="sblock" aria-labelledby="ov-decide"><div class="sh"><h2 id="ov-decide">This week, you decide</h2><span class="cnt watch" id="ov-decide-n" hidden></span><span class="sp"></span></div><div class="alerts" id="start-decide"></div></section>
-        <section class="sblock" aria-labelledby="ov-way"><div class="sh"><h2 id="ov-way">On its way</h2><span class="cnt way" id="ov-way-n" hidden></span><span class="sp"></span></div><div class="alerts" id="start-way"></div></section>
+        <section class="sblock" aria-labelledby="ov-way"><div class="sh"><h2 id="ov-way">On its way</h2><span class="cnt way" id="ov-way-n" hidden></span><span class="sp"></span></div><div class="waykey" aria-label="Who acts next"><span><i class="by-claude"></i>Claude does it</span><span><i class="by-check"></i>A check shows that the fix works</span><span><i class="by-dev"></i>A developer</span><span><i class="by-store"></i>Apple or Google</span></div><div class="alerts" id="start-way"></div></section>
       </div>
       <section class="sblock" aria-labelledby="ov-watch"><div class="sh"><h2 id="ov-watch">Watching</h2><span class="cnt" id="ov-watch-n" hidden></span><span class="sp"></span></div><div class="wchips" id="start-watch"></div></section>
       <section aria-label="Frontier Claude plan this week"><a class="plan" id="start-plan" href="#g/access"></a></section>
@@ -331,9 +341,80 @@ function alertRow(c) {
     '<div class="gos">' + rowOpenLink(href(lines[0])) + (link ? goLink(link, 'Open the page', true) : '') + '</div></div>';
 }
 
-/** A row for work that waits on Claude or on a store, not on the person; href opens its card. */
-function waitRow(who, title, from, group, href) {
-  return '<div class="alert info" data-href="' + esc(href) + '">' + lvl('info', who) + '<div class="text"><b><a class="card" href="' + esc(href) + '">' + esc(title) + '</a></b><div class="from">' + from + '</div></div><div class="pic"></div><div class="gos">' + goLink(href, titleOf(group)) + '</div></div>';
+/** Who acts next on a row of On its way, with the colour of its edge and its key. */
+const WAY_WHO = { claude: ['by-claude', 'Claude'], check: ['by-check', 'Check'], dev: ['by-dev', 'Developer'], store: ['by-store', 'Store'] };
+const issueLink = (i) => safeLink(i.issueUrl) ? '<a href="' + esc(i.issueUrl) + '" target="_blank" rel="noopener">' + esc(i.issue || 'Linear') + '</a>' : esc(i.issue || '');
+const prOut = (n) => '<a href="' + PR_URL + Number(n) + '" target="_blank" rel="noopener">pull request ' + Number(n) + '</a>';
+const filedSaid = (i) => [issueLink(i), i.firstAt ? 'filed ' + esc(ago(i.firstAt)) : '', i.people ? num(i.people) + (i.people === 1 ? ' person' : ' people') : ''].filter(Boolean).join(' · ');
+
+/** A time as two lines for the first column: "5:10 PM" over "today", "tomorrow" or "Mon, Nov 23". */
+function whenOf(ms, now) {
+  const d = new Date(ms), day = (x) => x.toDateString();
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return [time, day(d) === day(new Date(now)) ? 'today' : day(d) === day(new Date(now + 864e5)) ? 'tomorrow' : d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })];
+}
+
+/** One row of On its way: when it happens (the first column), who acts, what, and its card. */
+function wayRow(x) {
+  const who = WAY_WHO[x.who];
+  return '<div class="alert wayrow ' + who[0] + '" data-href="' + esc(x.href) + '"><div class="when">' + esc(x.when[0]) + (x.when[1] ? '<small>' + esc(x.when[1]) + '</small>' : '') + '</div>' +
+    '<div class="text"><b><a class="card" href="' + esc(x.href) + '">' + esc(x.title) + '</a></b><p class="next"><span class="who ' + who[0] + '">' + esc(who[1]) + '</span>' + x.said + '</p>' +
+    (x.from ? '<div class="from">' + x.from + '</div>' : '') + '</div><div class="gos">' + rowOpenLink(x.href) + '</div></div>';
+}
+
+/**
+ * What is on its way, in time order (docs/decisions/2026-11-21-on-its-way-says-what-happens-next.md):
+ * what Claude works on now, the next run's issues, Claude's fixes that merge alone, each merged
+ * fix by the time its check should clear its problem, what a developer has in Linear, then the
+ * stores. A time shows only where the page knows it.
+ */
+function wayItems(plan, work, store, now) {
+  const out = [];
+  for (const i of work.filter((w) => w.state === 'working')) {
+    out.push({ at: 0, who: 'claude', when: ['Now', i.startedAt ? 'since ' + new Date(i.startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''], title: i.title || i.issue || 'An issue',
+      said: esc(CLAUDE_WORK.working), from: filedSaid(i), href: i.issue ? cardHref('userissues', i.issue) : '#g/userissues' });
+  }
+  const line = claudeQueue(work);
+  if (line.length) {
+    const next = nextRunAt(now), take = line.slice(0, FIX_ROOM), rest = line.length - take.length;
+    out.push({ at: next, who: 'claude', when: [whenOf(next, now)[0], 'next run, about'],
+      title: 'Claude tries a fix for ' + (take.length === 1 ? '1 problem' : take.length + ' problems, one after the other'),
+      said: take.map(issueLink).join(' · ') + ', the oldest first. New problems the watch finds go first.',
+      from: rest > 0 ? num(rest) + ' more ' + (rest === 1 ? 'waits' : 'wait') + ' in line, ' + FIX_ROOM + ' in each run. Claude has not tried ' + (rest === 1 ? 'it' : 'them') + ' yet.' : '',
+      href: take[0].issue ? cardHref('userissues', take[0].issue) : '#g/userissues' });
+  }
+  for (const i of work.filter((w) => w.state === 'merging')) {
+    out.push({ at: now + 1, who: 'check', when: ['Soon', 'when checks pass'], title: i.title || i.issue || 'An issue',
+      said: esc(CLAUDE_WORK.merging) + ' ' + prOut(i.pr) + '.', from: filedSaid(i), href: i.issue ? cardHref('userissues', i.issue) : '#g/userissues' });
+  }
+  for (const r of plan.way) {
+    for (const a of r.alerts) {
+      const f = fixOf(a), t = splitAlert(tidy(a.text));
+      const at = f.state === 'merged' && Number.isFinite(f.at) ? f.at : null;
+      out.push({ at: at || now + 2, who: 'check', when: at ? whenOf(at, now) : ['Soon', ''],
+        title: t.title.replace(/\.$/, ''), said: 'Fixed in ' + prLink(f.pr) + '. The next check shows if the fix works.', from: esc(titleOf(r.group)), href: cardHref(r.group, lineCardId(a)) });
+    }
+  }
+  for (const i of work.filter((w) => w.state === 'person')) {
+    out.push({ at: Infinity, who: 'dev', when: ['No time', 'in Linear'], title: i.title || i.issue || 'An issue', said: esc(CLAUDE_WORK.person) + (i.linear ? ' (' + esc(i.linear) + ')' : ''),
+      from: filedSaid(i), href: i.issue ? cardHref('userissues', i.issue) : '#g/userissues' });
+  }
+  for (const w of store) {
+    out.push({ at: Infinity, who: 'store', when: [w.lane === 'iPhone' ? 'Apple' : 'Google', 'decides'], title: w.lane + ' ' + (w.title || ''),
+      said: 'Waits on ' + (w.lane === 'iPhone' ? 'Apple' : 'Google') + ' · ' + esc(w.stage), from: [w.at ? 'sent ' + esc(ago(w.at)) : '', w.state ? esc(w.state) : ''].filter(Boolean).join(' · '),
+      href: cardHref('releases', storeCardId(w.laneId, w.title)) });
+  }
+  return out.sort((x, y) => x.at - y.at);
+}
+
+/** A row for an issue where Claude stopped or wrote a fix that waits: Claude's reason, and the way to answer. */
+function decideRow(i) {
+  const href = i.issue ? cardHref('userissues', i.issue) : '#g/userissues';
+  const go = i.state === 'review' && i.pr ? goLink(PR_URL + Number(i.pr), 'Read the fix', true) : '';
+  return '<div class="alert watch" data-href="' + esc(href) + '">' + lvl('watch', 'You decide') + '<div class="text"><b><a class="card" href="' + esc(href) + '">' + esc(i.title || i.issue || 'An issue') + '</a></b>' +
+    '<p class="next">' + esc(CLAUDE_WORK[i.state]) + (i.state === 'review' && i.pr ? ' ' + prOut(i.pr) + '.' : '') + '</p>' +
+    (i.why ? '<p class="why"><b>Claude says:</b> ' + esc(i.why.replace(/^The manager\b/, 'Claude')) + '</p>' : '') + '<div class="from">' + filedSaid(i) + '</div></div><div class="pic"></div>' +
+    '<div class="gos">' + go + goLink(href, 'Tell Claude') + '</div></div>';
 }
 
 let startQueued = false;
@@ -373,9 +454,14 @@ function drawStart() {
   if ($('start').hidden) return;
   const plan = overviewPlan();
   const waiting = startPlan(SECTIONS, results, LEVELS).waiting.length;
-  const claude = claudeWork(userIssuesData());
+  const now = Date.now();
+  const work = claudeWork(userIssuesData(), now);
+  const decideWork = work.filter((i) => CLAUDE_GROUP[i.state] === 'decide');
   const store = storeWaits(results.pipeline && results.pipeline.state === 'ok' ? results.pipeline.data : null);
-  const needN = linesIn(plan.need), decideN = linesIn(plan.decide), wayN = linesIn(plan.way) + claude.length + store.length, watchN = linesIn(plan.watch);
+  const way = wayItems(plan, work, store, now);
+  // A row of the next run counts each issue in line; every other row counts one.
+  const queued = claudeQueue(work).length;
+  const needN = linesIn(plan.need), decideN = linesIn(plan.decide) + decideWork.length, wayN = way.length + (queued ? queued - 1 : 0), watchN = linesIn(plan.watch);
   const say = [
     needN ? needN + (needN === 1 ? ' needs you now.' : ' need you now.') : '',
     decideN ? decideN + (decideN === 1 ? ' choice waits for you.' : ' choices wait for you.') : '',
@@ -387,12 +473,8 @@ function drawStart() {
   setCount('ov-need-n', needN); setCount('ov-decide-n', decideN); setCount('ov-way-n', wayN); setCount('ov-watch-n', watchN);
   const none = (words) => '<p class="sempty">' + esc(waiting ? 'Checking each page…' : words) + '</p>';
   redraw($('start-you'), plan.need.map(alertRow).join('') || (waiting ? none('') : '<div class="alert clear">' + lvl('clear', 'All clear') + '<div class="text"><b>Nothing needs you now.</b></div><div class="pic"></div><span></span></div>'));
-  redraw($('start-decide'), plan.decide.map(alertRow).join('') || none('No choice waits for you.'));
-  redraw($('start-way'), plan.way.map(alertRow).concat(
-    claude.map((i) => waitRow(CLAUDE_WORK[i.state][0], i.title || i.issue || 'An issue',
-      esc(CLAUDE_WORK[i.state][1]) + ' · ' + (i.pr ? '<a href="' + PR_URL + Number(i.pr) + '" target="_blank" rel="noopener">pull request ' + Number(i.pr) + '</a> · ' : '') + (safeLink(i.issueUrl) ? '<a href="' + esc(i.issueUrl) + '" target="_blank" rel="noopener">' + esc(i.issue || 'Linear') + '</a> · ' : '') +
-      'filed ' + esc(ago(i.firstAt)) + (i.people ? ' · ' + num(i.people) + (i.people === 1 ? ' person' : ' people') : ''), 'userissues', i.issue ? cardHref('userissues', i.issue) : '#g/userissues')),
-    store.map((w) => waitRow('Store', w.lane + ' ' + (w.title || ''), 'Waits on Apple or Google · ' + esc(w.stage) + (w.at ? ' · ' + esc(ago(w.at)) : '') + (w.state ? ' · ' + esc(w.state) : ''), 'releases', cardHref('releases', storeCardId(w.laneId, w.title))))).join('') || none('Nothing is on its way.'));
+  redraw($('start-decide'), plan.decide.map(alertRow).concat(decideWork.map(decideRow)).join('') || none('No choice waits for you.'));
+  redraw($('start-way'), way.map(wayRow).join('') || none('Nothing is on its way.'));
   // What to watch: a chip for each line, each opening its card.
   redraw($('start-watch'), plan.watch.flatMap((r) => r.alerts.map((a) => '<a class="chip watch" href="' + esc(cardHref(r.group, lineCardId(a))) + '">' + esc(splitAlert(tidy(a.text)).title.replace(/\.$/, '')) + '<small>' + esc(titleOf(r.group)) + '</small></a>')).join('') || none('Nothing to watch.'));
   drawResolved();

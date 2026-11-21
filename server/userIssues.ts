@@ -117,6 +117,11 @@ export interface Watch {
   notes?: { issue: string; ids: string[] }[];
   /** The issues the research recommends a fix for, which the fix team did not get yet, the oldest first. */
   research?: string[];
+  /**
+   * The open issues Claude never tried (no fix record, never handed to the fix jobs), the oldest first
+   * (docs/agent-team.md "Issues Claude never tried"). Absent before migration 20261121221500_user_issue_tries.sql.
+   */
+  untried?: string[];
 }
 
 /** One issue's instructions for the run that writes its fix (`GET /api/user-issues?notes=LAN-12`). */
@@ -151,7 +156,7 @@ const ISSUE_URL = /^https:\/\/linear\.app\/[A-Za-z0-9/_.-]{1,300}$/;
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /** No address may ride along in a note: the database keeps none (docs/diagnostics.md). */
 export const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 70, handed: 10, diagrams: 20 } as const;
+export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 70, handed: 10, tried: 10, diagrams: 20 } as const;
 
 // ---- what the agent team did with an issue (docs/agent-team.md, scripts/agent-team.mjs) -----------
 
@@ -306,6 +311,8 @@ export interface Looked {
   report: ResearchReport | null;
   /** The research's issues this run hands to the fix team. */
   handed: string[];
+  /** Every issue this run hands to the fix jobs, so the dashboard knows when Claude started on it. */
+  tried: string[];
   /** The diagram of each issue this run filed, for its card. */
   diagrams: { issue: string; steps: DiagramStep[] }[];
 }
@@ -667,6 +674,10 @@ export function parseLooked(input: unknown): Looked {
     if (typeof x !== 'string' || !ISSUE.test(x)) throw new LookedError(`handed[${n}]: a Linear issue (LAN-12)`);
     return x;
   });
+  const tried = list(input, 'tried', LOOKED_MAX.tried).map((x, n) => {
+    if (typeof x !== 'string' || !ISSUE.test(x)) throw new LookedError(`tried[${n}]: a Linear issue (LAN-12)`);
+    return x;
+  });
   const drawn = new Set<string>();
   const diagrams = list(input, 'diagrams', LOOKED_MAX.diagrams).map((d, n) => {
     const where = `diagrams[${n}]`;
@@ -676,5 +687,5 @@ export function parseLooked(input: unknown): Looked {
     drawn.add(issue);
     return { issue, steps: parseSteps(d['steps'], `${where}.steps`) };
   });
-  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, report, handed, diagrams };
+  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, report, handed, tried, diagrams };
 }

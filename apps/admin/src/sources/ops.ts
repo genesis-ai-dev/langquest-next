@@ -660,6 +660,8 @@ export interface UserIssues {
   diagrams?: Record<string, DiagramStep[]>;
   /** Absent before migration 20261117213500_ops_lines_linear.sql. */
   lines?: UserIssueLine[];
+  /** diag.ops_user_issue_tries(): when a run last handed each issue to the fix jobs. Absent before migration 20261121221500_user_issue_tries.sql. */
+  tries?: Record<string, string>;
   /** diag.ops_card_record('issue'): who did what on each issue's card, and Claude's answers; newest first. Absent before migration 20261121213000_ops_card_record.sql. */
   records?: CardRecord[];
   open: number; closed: number; fixed: number; noiseWeek: number;
@@ -694,7 +696,7 @@ export interface OpsSections {
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries] = await Promise.all([
     part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -725,7 +727,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Record<string, UserIssueFix>>(query, `select diag.ops_user_issue_fixes() as v`),
     part<Research>(query, `select diag.ops_research() as v`),
     part<Record<string, DiagramStep[]>>(query, `select diag.ops_user_issue_diagrams() as v`),
-    part<CardRecord[]>(query, `select diag.ops_card_record('issue') as v`)
+    part<CardRecord[]>(query, `select diag.ops_card_record('issue') as v`),
+    part<Record<string, string>>(query, `select diag.ops_user_issue_tries() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -793,7 +796,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     }),
     userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
       // Before its migration the cards show without the box, and without the agent team's record.
-      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: userfixes.value } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}) };
+      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: userfixes.value } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}), ...(tries.ok ? { tries: tries.value } : {}) };
       return ok(u, userIssueAlerts(u));
     }),
     research: build([research], RESEARCH_MIGRATION, () => {

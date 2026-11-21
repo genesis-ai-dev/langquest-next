@@ -520,6 +520,15 @@ export function researchToTake(research, fixes) {
   return out;
 }
 
+/**
+ * Which open issues Claude never tried get a run of the fix jobs (docs/agent-team.md "Issues Claude
+ * never tried"): last, after the new issues, the instructions and the research, the oldest first,
+ * while FIX_MAX has room. The rest wait for a later run, in the same order.
+ */
+export function untriedToTake(untried, fixes) {
+  return researchToTake(untried, fixes);
+}
+
 /** The issues the job `follow` hands back to the fix team (its output `repairs`): ids only, at most REPAIR_MAX. */
 export function repairsOf(raw) {
   let list = [];
@@ -902,7 +911,9 @@ async function fetchWatch(dir) {
   writeFileSync(join(dir, 'linear.json'), JSON.stringify({ issues }, null, 2));
   const notes = Array.isArray(watch.notes) ? watch.notes.length : 0;
   const research = Array.isArray(watch.research) ? watch.research.length : 0;
-  output({ look: watch.look.length, grew: watch.grew.length, notes, research });
+  const untried = Array.isArray(watch.untried) ? watch.untried.length : 0;
+  output({ look: watch.look.length, grew: watch.grew.length, notes, research, untried });
+  if (untried) console.log(`watch: ${untried} open issues Claude never tried wait for room in the fix jobs`);
   if (research) console.log(`watch: the research recommends a fix for ${research} issues that the fix team did not get yet`);
   if (notes) console.log(`watch: ${notes} issues have an admin's instruction from the ops dashboard`);
   const sent = watch.look.filter((k) => k.family === 'feedback').length;
@@ -1022,13 +1033,19 @@ async function file(dir) {
   // Last, the issues the research recommends a fix for (docs/agent-team.md "The research team").
   const handed = off ? [] : researchToTake(watch.research, noted.fixes);
   noted.fixes.push(...handed);
+  // Then the open issues Claude never tried, the oldest first, while there is room (docs/agent-team.md).
+  const old = off ? [] : untriedToTake(watch.untried, noted.fixes);
+  noted.fixes.push(...old);
+  if (old.length) console.log(`${old.join(', ')}: never tried, handed to the fix team`);
   // First, the team's pull requests that did not get into main and that the job `follow` hands back
   // for a change (docs/agent-team.md "When a fix does not get into main"). They have room of their own.
   const repairs = off ? [] : repairsOf(process.env.REPAIRS).filter((id) => !noted.fixes.includes(id));
   noted.fixes.unshift(...repairs);
   if (repairs.length) console.log(`${repairs.join(', ')}: back to the fix team, since the pull request did not get into main`);
-  if (looked.length || grew.length || noted.taken.length || handed.length) {
-    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })), handed, diagrams });
+  // Every issue the fix jobs get this run, so the dashboard knows when Claude started on it.
+  const tried = noted.fixes.slice(0, 10);
+  if (looked.length || grew.length || noted.taken.length || handed.length || tried.length) {
+    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })), handed, tried, diagrams });
     console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown${noted.taken.length ? `, ${done.taken ?? 0} instructions taken` : ''}${handed.length ? `, ${handed.join(', ')} from the research handed to the fix team` : ''}`);
   }
   // The new issues Claude writes a draft fix for, and the issues with an instruction, in the jobs after this one.

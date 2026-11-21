@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ACTIONS, checkReport, DECISIONS, itemDescription, LIMITS, TITLE_PREFIX } from './agent-research.mjs';
 import { TEAM_LIMITS } from './research-team.mjs';
-import { DIAGRAM, FIX_MAX, researchToTake, stepsOf } from './user-issues.mjs';
+import { DIAGRAM, FIX_MAX, researchToTake, stepsOf, untriedToTake } from './user-issues.mjs';
 import { DIAGRAM as SERVER_DIAGRAM, parseLooked, RESEARCH_ACTIONS, RESEARCH_DECISIONS, RESEARCH_TEXT } from '../server/userIssues';
 
 /** The research team (docs/agent-team.md "The research team"): the lead's report is a claim the script checks. */
@@ -127,5 +127,19 @@ describe('the research hands issues to the fix team', () => {
     expect(researchToTake(['LAN-7'], ['LAN-1', 'LAN-2', 'LAN-3'])).toEqual([]);
     expect(researchToTake(['LAN-1', 'x', 'LAN-7', 'LAN-7'], ['LAN-1'])).toEqual(['LAN-7']);
     expect(researchToTake(undefined, [])).toEqual([]);
+  });
+
+  it('gives the issues Claude never tried the room that is left, the oldest first, and never one twice', () => {
+    expect(untriedToTake(['LAN-256', 'LAN-270', 'LAN-282', 'LAN-293'], [])).toEqual(['LAN-256', 'LAN-270', 'LAN-282']);
+    expect(untriedToTake(['LAN-256', 'LAN-270'], ['LAN-400', 'LAN-401'])).toEqual(['LAN-256']);
+    expect(untriedToTake(['LAN-256'], ['LAN-400', 'LAN-401', 'LAN-402'])).toEqual([]);
+    expect(untriedToTake(['LAN-400', 'LAN-256'], ['LAN-400'])).toEqual(['LAN-256']);
+    expect(untriedToTake(undefined, [])).toEqual([]);
+  });
+
+  it('tells the Worker which issues the fix jobs got, so a run says when Claude started on each', () => {
+    const SHA = 'a'.repeat(40), RUN = 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/123';
+    expect(parseLooked({ sha: SHA, runUrl: RUN, tried: ['LAN-256', 'LAN-270'] }).tried).toEqual(['LAN-256', 'LAN-270']);
+    expect(() => parseLooked({ sha: SHA, runUrl: RUN, tried: ['nope'] })).toThrow('tried[0]');
   });
 });

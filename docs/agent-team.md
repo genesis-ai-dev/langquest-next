@@ -188,6 +188,24 @@ flowchart TD
 - At most 2 pull requests a run go back to the manager; they do not take
   the room of new issues (`FIX_MAX`).
 
+## Issues Claude never tried
+
+Each run hands at most `FIX_MAX` (3) issues to the fix jobs, one after the
+other. New issues go first, then issues with an admin's instruction, then
+the research's, and last the open issues Claude never tried: no fix record,
+and no run handed them over (`ops_user_issue_untried()`, `untriedToTake()`
+in `scripts/user-issues.mjs`), the oldest first. Each run tells the Worker
+every issue it handed over (`tried`, kept in `ops.user_issue_tries`), so an
+issue is not tried twice this way, and the ops dashboard knows when Claude
+started on it. An issue a developer has In Progress or In Review in Linear
+is left alone. An issue whose try gave no record comes back only on an
+admin's instruction from its card
+(`docs/decisions/2026-11-21-on-its-way-says-what-happens-next.md`).
+
+The Overview's "On its way" shows the next run's issues and how many wait
+after them; an issue where Claude stopped, or whose draft fix waits to be
+read, is under "This week, you decide".
+
 ## The research team
 
 The fix team repairs one issue in one place. One time each day (13:23 UTC,

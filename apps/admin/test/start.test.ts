@@ -8,7 +8,7 @@ import { START_LOGIC } from '../src/pageStart';
 import { detailAsk, GLANCE, METRICS, PART_IDS } from '../src/sources/history';
 
 /** The start page's pure helpers, as the page runs them (pageStart.ts START_LOGIC). */
-const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, rangeTotal, bucketEnd, runSquares, chartSeries, totalOf, longTime };`)() as {
+const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, claudeQueue, nextRunAt, CLAUDE_GROUP, rangeTotal, bucketEnd, runSquares, chartSeries, totalOf, longTime };`)() as {
   totalOf: (agg: string, range: string, step: string, at: number, n: number) => string;
   longTime: (ms: number) => string;
   chartSeries: (all: Hst['series'], wanted?: string) => { total: Hst['series'][number] | null; keys: Hst['series']; shown: Hst['series'][number] | null };
@@ -17,7 +17,10 @@ const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, stor
     cards: { level: string; group: string; part: string; text: string; more: string[] }[]; ok: { group: string; off: string[] }[]; waiting: string[];
   };
   storeWaits: (p: unknown) => { lane: string; title: string }[];
-  claudeWork: (u: unknown) => { issue: string; state: string; pr: number | null }[];
+  claudeWork: (u: unknown, now?: number) => { issue: string; state: string; pr: number | null; why: string | null; linear: string | null; startedAt: string | null; firstAt?: string }[];
+  claudeQueue: (w: { issue: string; state: string; firstAt?: string }[]) => { issue: string }[];
+  nextRunAt: (now: number) => number;
+  CLAUDE_GROUP: Record<string, string>;
   rangeTotal: (agg: string, values: (number | null)[]) => number | null;
   bucketEnd: (buckets: string[], i: number, step: string) => string;
   runSquares: (hst: Hst, sq: { runs: string; failed?: string; partial?: string }) => { key: string; cells: string[]; failed: number; partial: number }[];
@@ -91,14 +94,41 @@ describe('the Overview, what needs you first', () => {
     expect(logic.claudeWork({ issues }).map((i) => i.issue)).toEqual(['LAN-1']);
   });
 
-  it('says Claude works on an issue only while a run works on it, and filed in Linear otherwise', () => {
-    const open = (issue: string) => ({ issue, verdict: 'filed', closedAt: null, fixedAt: null });
-    const issues = [open('LAN-1'), open('LAN-2'), open('LAN-3'), open('LAN-4')];
+  it('says Claude works on an issue only while a run works on it, and where Claude stopped or never started', () => {
+    const now = Date.parse('2026-11-21T22:00:00Z');
+    const open = (issue: string, more: Record<string, unknown> = {}) => ({ issue, verdict: 'filed', closedAt: null, fixedAt: null, ...more });
+    const issues = [open('LAN-1'), open('LAN-2'), open('LAN-3'), open('LAN-4'), open('LAN-5'), open('LAN-6'), open('LAN-7'), open('LAN-8', { state: 'In Progress' }), open('LAN-9')];
     const notes = { 'LAN-1': [{ state: 'answered' }, { state: 'working' }], 'LAN-4': [{ state: 'waiting' }] };
-    const fixes = { 'LAN-2': { decision: 'waits', pr: 590 }, 'LAN-3': { decision: 'none', pr: null } };
-    expect(logic.claudeWork({ issues, notes, fixes }).map((i) => [i.issue, i.state, i.pr])).toEqual([
-      ['LAN-1', 'working', null], ['LAN-2', 'fix', 590], ['LAN-3', 'nofix', null], ['LAN-4', 'filed', null]]);
-    expect(logic.claudeWork({ issues: [open('LAN-5')] })[0].state).toBe('filed');
+    const fixes = {
+      'LAN-2': { decision: 'waits', pr: 590, why: 'A developer reads it.', at: '2026-11-21T10:00:00Z' },
+      'LAN-3': { decision: 'none', pr: null, why: 'The cause is not proven.', at: '2026-11-21T10:00:00Z' },
+      'LAN-5': { decision: 'merge', pr: 600, why: null, at: '2026-11-21T10:00:00Z' },
+      // An instruction started a new try after the record: Claude works on it again.
+      'LAN-9': { decision: 'none', pr: null, why: null, at: '2026-11-21T10:00:00Z' }
+    };
+    // LAN-6 was handed over 30 minutes ago, LAN-7 five hours ago, and neither has a record yet.
+    const tries = { 'LAN-6': '2026-11-21T21:30:00Z', 'LAN-7': '2026-11-21T17:00:00Z', 'LAN-9': '2026-11-21T21:45:00Z' };
+    expect(logic.claudeWork({ issues, notes, fixes, tries }, now).map((i) => [i.issue, i.state, i.pr])).toEqual([
+      ['LAN-1', 'working', null], ['LAN-2', 'review', 590], ['LAN-3', 'stopped', null], ['LAN-4', 'queued', null], ['LAN-5', 'merging', 600],
+      ['LAN-6', 'working', null], ['LAN-7', 'noanswer', null], ['LAN-8', 'person', null], ['LAN-9', 'working', null]]);
+    expect(logic.claudeWork({ issues: [open('LAN-5')] })[0].state).toBe('queued');
+    // Linear's state stays on the row, and Claude's reason comes with it.
+    const three = logic.claudeWork({ issues, fixes }, now);
+    expect(three.find((i) => i.issue === 'LAN-8')?.linear).toBe('In Progress');
+    expect(three.find((i) => i.issue === 'LAN-3')?.why).toBe('The cause is not proven.');
+  });
+
+  it('puts only what moves without you under On its way, and the rest under This week, you decide', () => {
+    expect(Object.entries(logic.CLAUDE_GROUP).filter(([, g]) => g === 'way').map(([s]) => s).sort()).toEqual(['merging', 'person', 'queued', 'working']);
+    expect(Object.entries(logic.CLAUDE_GROUP).filter(([, g]) => g === 'decide').map(([s]) => s).sort()).toEqual(['noanswer', 'review', 'stopped']);
+  });
+
+  it('lists the issues Claude never tried in the order the runs take them, and knows when the next run starts', () => {
+    const w = [{ issue: 'LAN-9', state: 'queued', firstAt: '2026-11-20T00:00:00Z' }, { issue: 'LAN-3', state: 'queued', firstAt: '2026-11-18T00:00:00Z' },
+      { issue: 'LAN-4', state: 'stopped', firstAt: '2026-11-01T00:00:00Z' }, { issue: 'LAN-2', state: 'queued', firstAt: '2026-11-18T00:00:00Z' }];
+    expect(logic.claudeQueue(w).map((i) => i.issue)).toEqual(['LAN-2', 'LAN-3', 'LAN-9']);
+    expect(new Date(logic.nextRunAt(Date.parse('2026-11-21T22:07:30Z'))).toISOString()).toBe('2026-11-21T22:15:00.000Z');
+    expect(new Date(logic.nextRunAt(Date.parse('2026-11-21T22:15:00Z'))).toISOString()).toBe('2026-11-21T22:30:00.000Z');
   });
 
   it('adds a count up over a range and shows a level at its latest, and knows where the last bucket ends', () => {
