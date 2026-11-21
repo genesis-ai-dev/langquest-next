@@ -40,3 +40,11 @@ worth; the cloud machines lose Docker or the hosts they reach; or phone
 checks queue behind the one Mac thread, when they move to GitHub Actions
 (an Android emulator on Linux runners, the iPhone simulator on macOS
 runners) or a hosted simulator service.
+
+Amended (2026-11-21, Caleb Koster): a cloud thread may read the production
+database through the read gate, as claude_reader, with the
+`CLAUDE_READ_TOKEN` the cloud environment's proxy adds
+(`docs/decisions/2026-11-21-claude-reads-production-through-a-gate.md`).
+That token is the one production key a cloud machine holds, and the
+database holds it to reading. Decrypting env files, EAS, secrets and every
+write to a hosted database stay on the Mac.

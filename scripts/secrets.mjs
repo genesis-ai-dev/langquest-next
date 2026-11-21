@@ -70,9 +70,13 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * Worker's NEARBY_CERT_KEYS var and the app's EXPO_PUBLIC_NEARBY_CERT_KEYS. APK_R2_ACCESS_KEY_ID and
  * APK_R2_SECRET_ACCESS_KEY are the S3 credentials of an R2 token limited to the carried builds'
  * bucket, with which scripts/carried-build.mjs checks for and puts each carried APK
- * (docs/nearby-sync-plan.md 14.4): production's go to EAS (EAS_KEYS).
+ * (docs/nearby-sync-plan.md 14.4): production's go to EAS (EAS_KEYS). CLAUDE_READ_DATABASE_URL and
+ * AGENT_READ_DATABASE_URL are the read gate's two read-only logins, claude_reader and agent_reader
+ * (scripts/claude-read-access.sh, docs/production-reads.md): each goes to a Hyperdrive config of its
+ * own, never to a Worker. CLAUDE_READ_TOKEN is the bearer token Claude's cloud threads send the gate;
+ * the admin Worker gets only its SHA-256 (CLAUDE_READ_TOKEN_SHA256).
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'AGENT_TEAM_CLAUDE_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', 'APK_R2_ACCESS_KEY_ID', 'APK_R2_SECRET_ACCESS_KEY', 'NEARBY_SIGNING_KEY', ...ADMIN_KEYS];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'AGENT_TEAM_CLAUDE_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', 'APK_R2_ACCESS_KEY_ID', 'APK_R2_SECRET_ACCESS_KEY', 'NEARBY_SIGNING_KEY', 'CLAUDE_READ_DATABASE_URL', 'AGENT_READ_DATABASE_URL', 'CLAUDE_READ_TOKEN', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
@@ -156,21 +160,39 @@ export const RETIRED_FUNCTION_SECRETS = ['PROJECTION_WORKER_SECRET'];
 export const HYPERDRIVE_NAME = 'langquest-next-diag';
 export const HYPERDRIVE_PLACEHOLDER = 'made-by-npm-run-secrets';
 
-/** The DIAG binding's id in the admin Worker's config, or null while it is the placeholder. */
-export function hyperdriveId(configText) {
-  const binding = (parseJsonc(configText).hyperdrive ?? []).find((h) => h.binding === 'DIAG');
-  return binding && binding.id !== HYPERDRIVE_PLACEHOLDER ? binding.id : null;
+/**
+ * Every Hyperdrive config of the admin Worker, by its binding: the login in
+ * .env.production it holds, its name on Cloudflare, and what it is for. The
+ * read gate's two (docs/production-reads.md) join diag_reader's.
+ */
+export const HYPERDRIVES = {
+  DIAG: { key: 'DIAG_DATABASE_URL', name: HYPERDRIVE_NAME, what: "diag_reader's login for the ops dashboard" },
+  READ_CLAUDE: { key: 'CLAUDE_READ_DATABASE_URL', name: 'langquest-next-read-claude', what: "claude_reader's login for the read gate" },
+  READ_AGENT: { key: 'AGENT_READ_DATABASE_URL', name: 'langquest-next-read-agent', what: "agent_reader's login for the read gate" }
+};
+
+/** A binding's id in the admin Worker's config, or null while it is the placeholder or not there. */
+export function hyperdriveId(configText, binding = 'DIAG') {
+  const found = (parseJsonc(configText).hyperdrive ?? []).find((h) => h.binding === binding);
+  return found && found.id !== HYPERDRIVE_PLACEHOLDER ? found.id : null;
 }
 
 /** The id in `wrangler hyperdrive create`'s output (32 hex digits). */
 export const createdId = (output) => /\b([0-9a-f]{32})\b/.exec(output)?.[1] ?? null;
 
-/** The config text with the placeholder replaced by a new config's id, nothing else touched. */
-export function withHyperdriveId(configText, id) {
+/**
+ * The config text with a new config's id for the binding, nothing else
+ * touched: over the binding's placeholder, or as a new entry at the end of
+ * the `hyperdrive` list when the binding is not there yet.
+ */
+export function withHyperdriveId(configText, id, binding = 'DIAG') {
   if (!/^[0-9a-f]{32}$/.test(id ?? '')) throw new Error(`not a Hyperdrive id: ${id}`);
-  const placeholder = `"id": "${HYPERDRIVE_PLACEHOLDER}"`;
-  if (!configText.includes(placeholder)) throw new Error(`${WORKERS.admin} has no ${placeholder} to replace`);
-  return configText.replace(placeholder, `"id": "${id}"`);
+  const placeholder = `"binding": "${binding}", "id": "${HYPERDRIVE_PLACEHOLDER}"`;
+  if (configText.includes(placeholder)) return configText.replace(placeholder, `"binding": "${binding}", "id": "${id}"`);
+  if (configText.includes(`"binding": "${binding}"`)) throw new Error(`${WORKERS.admin} has no ${placeholder} to replace`);
+  const list = /("hyperdrive": \[[^\]]*?)(\s*)\]/.exec(configText);
+  if (!list) throw new Error(`${WORKERS.admin} has no "hyperdrive" list to add ${binding} to`);
+  return configText.replace(list[0], `${list[1]}, { "binding": "${binding}", "id": "${id}" }${list[2]}]`);
 }
 
 /** Every secret, by where it goes. */
@@ -192,13 +214,20 @@ export function destinations(environment, values, ref, serviceRoleKey) {
         ...(values.NEARBY_SIGNING_KEY ? { NEARBY_SIGNING_KEY: values.NEARBY_SIGNING_KEY } : {})
       },
       'invite-email': { INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET },
-      // The ops dashboard's provider tokens, each optional. Its database login is not a Worker
-      // secret but the Hyperdrive config's (below); never the service-role key (docs/admin.md).
-      ...(environment === 'production' && ADMIN_KEYS.some((key) => values[key]) ? {
-        admin: Object.fromEntries(ADMIN_KEYS.filter((key) => values[key]).map((key) => [key, values[key]]))
+      // The ops dashboard's provider tokens, each optional. Its database logins are not Worker
+      // secrets but the Hyperdrive configs' (below); never the service-role key (docs/admin.md).
+      // The read gate's token only as its SHA-256 (apps/admin/src/read.ts).
+      ...(environment === 'production' && (ADMIN_KEYS.some((key) => values[key]) || values.CLAUDE_READ_TOKEN) ? {
+        admin: {
+          ...Object.fromEntries(ADMIN_KEYS.filter((key) => values[key]).map((key) => [key, values[key]])),
+          ...(values.CLAUDE_READ_TOKEN ? { CLAUDE_READ_TOKEN_SHA256: createHash('sha256').update(values.CLAUDE_READ_TOKEN).digest('hex') } : {})
+        }
       } : {})
     },
-    hyperdrive: environment === 'production' && values.DIAG_DATABASE_URL ? { connectionString: values.DIAG_DATABASE_URL } : null,
+    // Each login the file has, by its binding; null when it has none (preview has no such login).
+    hyperdrive: environment === 'production' && Object.values(HYPERDRIVES).some((h) => values[h.key])
+      ? Object.fromEntries(Object.entries(HYPERDRIVES).filter(([, h]) => values[h.key]).map(([binding, h]) => [binding, { connectionString: values[h.key] }]))
+      : null,
     // The nightly filming's voice and frame check (.github/workflows/tutorials.yml), Claude's nightly look at
     // the videos' feedback (tutorial-review.yml) and the survey of Bible Brain's numberings (bible-survey.yml).
     // Never a production key: scripts/workflows.test.ts.
@@ -405,24 +434,26 @@ function hostedState(environment, ref, wanted) {
     return [worker, Object.fromEntries(Object.keys(wanted.workers[worker]).map((name) =>
       [name, present?.includes(name) ? 'set' : 'missing']))];
   }));
-  // The config's login cannot be read back, so this says only whether it exists.
+  // A config's login cannot be read back, so this says only whether each exists.
   let hyperdrive = null;
   if (wanted.hyperdrive) {
-    const id = hyperdriveId(readFileSync(join(root, WORKERS.admin), 'utf8'));
-    hyperdrive = 'missing';
-    if (id) {
+    const configText = readFileSync(join(root, WORKERS.admin), 'utf8');
+    hyperdrive = Object.fromEntries(Object.keys(wanted.hyperdrive).map((binding) => {
+      const id = hyperdriveId(configText, binding);
+      if (!id) return [binding, 'missing'];
       try {
         run('wrangler', ['hyperdrive', 'get', id, '-c', WORKERS.admin, ...authArgs()]);
-        hyperdrive = 'set';
+        return [binding, 'set'];
       } catch (err) {
         const output = err instanceof Error ? err.message : String(err);
         // Gone: made again. Anything else would make a second config beside the one in use.
         if (!hyperdriveGone(output)) {
-          throw new Error(unreadable(`Hyperdrive ${HYPERDRIVE_NAME}`, output,
+          throw new Error(unreadable(`Hyperdrive ${HYPERDRIVES[binding].name}`, output,
             `If it was deleted, put "${HYPERDRIVE_PLACEHOLDER}" back as its id in ${WORKERS.admin} and run this again.`));
         }
+        return [binding, 'missing'];
       }
-    }
+    }));
   }
   // GitHub, like Cloudflare, says only which secrets a repository has.
   const githubPresent = Object.keys(wanted.github).length ? githubSecretNames() : [];
@@ -473,9 +504,10 @@ export function summarize(state) {
     lines.push(`  - function secret ${name} (retired; unset)`);
     behind = true;
   }
-  if (state.hyperdrive) {
-    lines.push(`  ${mark(state.hyperdrive)} Hyperdrive ${HYPERDRIVE_NAME}, diag_reader's login for the ops dashboard${state.hyperdrive === 'set' ? ' (set; its login cannot be read back)' : ' (missing)'}`);
-    if (state.hyperdrive !== 'set') behind = true;
+  for (const [binding, s] of Object.entries(state.hyperdrive ?? {})) {
+    const h = HYPERDRIVES[binding];
+    lines.push(`  ${mark(s)} Hyperdrive ${h.name}, ${h.what}${s === 'set' ? ' (set; its login cannot be read back)' : ' (missing)'}`);
+    if (s !== 'set') behind = true;
   }
   // `--only` compares no Supabase project, so its state has no cron job to report.
   if (state.scheduled !== undefined) {
@@ -486,24 +518,25 @@ export function summarize(state) {
 }
 
 /**
- * Makes the ops dashboard's Hyperdrive config, writing its id into the admin
- * Worker's config, or brings an existing one's login up to date. The login
- * goes to wrangler as an argument, the only way it takes one, so it is
+ * Makes one of the admin Worker's Hyperdrive configs, writing its id into
+ * the Worker's config, or brings an existing one's login up to date. The
+ * login goes to wrangler as an argument, the only way it takes one, so it is
  * briefly in this machine's process list; it is never printed.
  */
-function applyHyperdrive(connectionString, state) {
+function applyHyperdrive(binding, connectionString, state) {
+  const { name } = HYPERDRIVES[binding];
   const configPath = join(root, WORKERS.admin);
   const text = readFileSync(configPath, 'utf8');
-  const id = hyperdriveId(text);
+  const id = hyperdriveId(text, binding);
   const common = ['--connection-string', connectionString, '--caching-disabled', '-c', WORKERS.admin, ...authArgs()];
   if (id && state === 'set') {
     run('wrangler', ['hyperdrive', 'update', id, ...common]);
     return;
   }
-  const made = createdId(run('wrangler', ['hyperdrive', 'create', HYPERDRIVE_NAME, ...common]));
-  if (!made) throw new Error(`wrangler made ${HYPERDRIVE_NAME} but printed no id; find it with npx wrangler hyperdrive list and put it in ${WORKERS.admin}`);
-  writeFileSync(configPath, id ? text.replace(`"id": "${id}"`, `"id": "${made}"`) : withHyperdriveId(text, made));
-  console.log(`✓ Hyperdrive ${HYPERDRIVE_NAME} made; its id is now in ${WORKERS.admin}. Commit that file, then deploy the admin Worker (npm run admin:deploy).`);
+  const made = createdId(run('wrangler', ['hyperdrive', 'create', name, ...common]));
+  if (!made) throw new Error(`wrangler made ${name} but printed no id; find it with npx wrangler hyperdrive list and put it in ${WORKERS.admin}`);
+  writeFileSync(configPath, id ? text.replace(`"id": "${id}"`, `"id": "${made}"`) : withHyperdriveId(text, made, binding));
+  console.log(`✓ Hyperdrive ${name} made; its id is now in ${WORKERS.admin}. Commit that file, then deploy the admin Worker (npm run admin:deploy).`);
 }
 
 /** `<environment> [--check|--yes] [--only <destination>]`, with `unknown` set to anything else. */
@@ -567,7 +600,7 @@ async function main() {
     process.exit(1);
   }
   if (args.only === 'eas') return applyEasOnly(environment, file, decrypt(file, EAS_KEYS), args);
-  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', 'GEMINI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'AGENT_TEAM_CLAUDE_TOKEN', ...EAS_KEYS, ...ADMIN_KEYS] : [])]);
+  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', 'CLAUDE_READ_DATABASE_URL', 'AGENT_READ_DATABASE_URL', 'CLAUDE_READ_TOKEN', 'GEMINI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'AGENT_TEAM_CLAUDE_TOKEN', ...EAS_KEYS, ...ADMIN_KEYS] : [])]);
   const missing = REQUIRED_KEYS.filter((name) => !values[name]);
   if (missing.length) {
     console.error(`x ${file} is missing ${missing.join(', ')}.`);
@@ -611,7 +644,7 @@ async function main() {
     withTempFile('secrets.json', JSON.stringify(secrets), (f) =>
       run('wrangler', ['secret', 'bulk', f, ...targetArgs(WORKERS[worker], environment), ...authArgs()]));
   }
-  if (wanted.hyperdrive) applyHyperdrive(wanted.hyperdrive.connectionString, hosted.hyperdrive);
+  for (const [binding, { connectionString }] of Object.entries(wanted.hyperdrive ?? {})) applyHyperdrive(binding, connectionString, hosted.hyperdrive[binding]);
   for (const [name, value] of Object.entries(wanted.github)) setGithubSecret(name, value);
   for (const [name, value] of Object.entries(wanted.eas)) setEasSecret(environment, name, value);
   withTempFile('functions.env', Object.entries(wanted.functions).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join('\n') + '\n',
