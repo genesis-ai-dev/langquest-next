@@ -52,6 +52,7 @@
     "env:eas": "scripts/eas-env.sh",
     "secrets": "node scripts/secrets.mjs",
     "diag": "tsx scripts/diag.ts",
+    "prod:read": "NODE_USE_ENV_PROXY=1 node scripts/prod-read.mjs",
     "key-terms:eval": "tsx scripts/key-term-eval.ts",
     "moderation": "tsx scripts/moderation.ts",
     "global-viewer": "tsx scripts/global-viewer.ts",
