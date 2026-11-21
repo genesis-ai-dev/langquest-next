@@ -196,13 +196,13 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // password's confirm field. Edit Profile moved to a chunk of its own, loaded when opened, so a
 // first visit stays under its own budget (17,240 bytes left with Sync and offline's chunk too).
 // Raised by 5 KB more with Give the app (Carl, 2026-11-18,
-// docs/decisions/2026-11-18-give-the-app-over-wifi.md), 4,512 bytes past then with Edit Profile's
+// the Give the app decision of that date), 4,512 bytes past then with Edit Profile's
 // email merged in: its English words and Check my file's in the nearby chunk the web loads with
 // Share nearby (5,037 bytes), and the kept file's rules (840 bytes in the entry, 411 in the shared
 // chunk). The screen itself is Android only (src/nearby/GiveAppScreen.android.tsx), so the web
 // carries a plain stub of it. A first visit has 16,500 bytes left.
 // Raised by 1 KB with the install file's steps, its newer-file notice and Let someone in asking
-// for its own permissions (Carl, 2026-11-19, docs/decisions/2026-11-19-carried-build-refreshed-daily.md),
+// for its own permissions (Carl, 2026-11-19, the carried build refreshed daily),
 // 746 bytes past it: their English words in the nearby chunk the web loads with Share nearby (the
 // steps after Download in the browser, Choose a file you already have, a newer file is ready), the
 // notice's rule on Sync, and Let someone in's permission step on its screen. The rule that decides
