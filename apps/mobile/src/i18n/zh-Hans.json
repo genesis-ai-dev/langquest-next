@@ -4674,6 +4674,20 @@
     "needsConnectionHelp": "不在本设备上。设备联网后即可下载。",
     "checkingHelp": "本设备正在清点它有这一段落的哪些内容。",
     "recordingsHere": "本设备上的录音",
+    "studyRefused_other": "有 {{count, number}} 个学习文件无法下载：来源没有这些文件。",
+    "key": {
+      "title": "下载按钮的含义",
+      "help": "显示经段下载按钮上每个标记的含义。",
+      "noneSub": "未保存。点按它，把这个经段的录音和参考资料保存在本设备上。",
+      "downloadingSub": "它的文件正在下载。请保持联网，直到按钮变绿。",
+      "partial": "这里只有部分文件",
+      "partialSub": "已保存，但它的部分文件还不在本设备上。打开经段可查看有多少。",
+      "recordingsSub": "它的录音不联网也能播放。它的参考资料需要网络连接。",
+      "readySub": "它的录音和参考资料不联网也能用。",
+      "noConnectionSub": "未保存，且本设备处于离线状态。请连接网络以下载。",
+      "checkingSub": "本设备仍在清点它有这一经段的哪些内容。",
+      "tap": "点按绿色按钮，可再次从本设备移除该经段的文件。"
+    },
     "reference": {
       "label": "同时保存它的参考资料",
       "on": "它的参考资料也保存在本设备上。",
@@ -4689,6 +4703,11 @@
       "noRoom": "本设备空间不足",
       "noRoomNeeds": "它们的音频有 {{size}}。本设备还有 {{room}} 空间。",
       "noRoomHelp": "请在本设备上腾出空间，或每次少下载几个经段。",
+      "removeTitle": "要从本设备移除{{name}}吗？",
+      "removeConfirm": "从本设备移除",
+      "removeBody": "它的录音仍保留在服务器上。再次播放需要网络连接。",
+      "removeCancelHelp": "保留本设备上的一切，不做改动。",
+      "removeStay_other": "属于你工作的 {{count, number}} 个经段会保留在本设备上。",
       "keepHelp": "把每个经段的录音都保存在本设备上，不联网也能播放。若要同时保存某个经段的参考资料，请打开该经段并开启此项。",
       "letGoHelp": "本设备需要空间时，可以再次删除它们的音频。属于你工作的经段会保留。",
       "reason": "已保存，因为有人请你做这些经段，或你做过它们。",
@@ -5188,8 +5207,7 @@
       "notStarted": "未开始",
       "notStartedSub": "还没有人录过",
       "noPassage": "没有经段",
-      "noPassageSub": "这一章在这个语言中没有经段",
-      "kept": "已保存在本设备上，可离线使用"
+      "noPassageSub": "这一章在这个语言中没有经段"
     },
     "joinSentences": "{{first}}。{{next}}",
     "joinClauses": "{{first}}，{{next}}",
