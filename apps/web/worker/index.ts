@@ -384,7 +384,12 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     // The filming saying its films are in: the intake starts, and the publish after it (tutorialFilmed.ts, decisions.md 192).
     tutorialFilmed: {
       verify: githubOidcCached ??= githubOidc((input, init) => fetch(input, init)),
-      intake: () => env.JOBS.get(env.JOBS.idFromName('tutorial-intake')).run({ again: true })
+      intake: () => env.JOBS.get(env.JOBS.idFromName('tutorial-intake')).run({ again: true }),
+      languages: async () => {
+        const { data, error } = await serviceClient(env).rpc('ops_tutorial_filming_languages');
+        if (error) throw new Error(`ops_tutorial_filming_languages: ${error.message}`);
+        return (data as string[]) ?? [];
+      }
     },
     // Claude's nightly look at the tutorial videos' feedback (tutorialReview.ts, decisions.md 186).
     tutorialReview: {

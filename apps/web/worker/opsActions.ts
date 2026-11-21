@@ -1,4 +1,5 @@
 import { WorkerEntrypoint } from 'cloudflare:workers';
+import { UI_LANGUAGES } from '@langquest-next/core';
 import { serviceClient, type Env } from './env';
 import { claimsVerifier, sessionLiveCheck } from './identity';
 import { isJobKey, type JobKey } from './jobsModel';
@@ -59,7 +60,9 @@ export type Action =
   /** What an admin told Claude to do with a user issue, from its card on the dashboard: for the watch's next run. */
   | { kind: 'user-issue-note'; issue: string; text: string }
   /** An account's quiet installs marked not an issue, or counted again. */
-  | { kind: 'quiet-account'; profile: string; ok: boolean };
+  | { kind: 'quiet-account'; profile: string; ok: boolean }
+  /** A language's tutorial videos filmed each night, or paused (decision 2026-11-21, filming languages switch). */
+  | { kind: 'tutorial-filming'; language: string; on: boolean };
 
 export type ActionResult =
   | { ok: true; result: string }
@@ -93,6 +96,8 @@ export interface ActionDeps {
   replyDone(id: string, done: 'posted' | 'none' | 'open', by: string): Promise<string>;
   /** An account's quiet installs marked not an issue or counted again, by this staff member: `marked`, `unmarked`, or `not_found` (`ops_quiet_account_mark`). */
   markQuietAccount(profile: string, ok: boolean, by: string): Promise<string>;
+  /** A language's nightly filming turned on or off, by this person: `on` or `off` (`ops_tutorial_filming_set`). */
+  setFilming(language: string, on: boolean, by: string): Promise<string>;
   /** An accepted code change filed in Linear: its issue, or null without a Linear key (the comments job files it later). */
   fileSuggestion(id: string): Promise<string | null>;
   /** A suggestion to fix in the app, by this person (`ops_suggestion_fix_in_app`): what happened, its kind, and its issue when it has one. */
@@ -100,6 +105,8 @@ export interface ActionDeps {
   now(): number;
 }
 
+/** The languages that can be filmed: the app's languages, each with a YouTube channel. */
+const FILMED = new Set<string>(UI_LANGUAGES.map((l) => l.code));
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TUTORIAL = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const LANGUAGE = /^[a-z]{2,3}(-[A-Z][a-z]{3})?$/;
@@ -137,6 +144,10 @@ export function parseAction(input: unknown): Action | null {
   const d = (input as { decision?: unknown }).decision;
   if (a.kind === 'verification' && typeof a.id === 'string' && UUID.test(a.id) && (d === 'grant' || d === 'decline')) return { kind: 'verification', id: a.id, decision: d };
   if (a.kind === 'youtube-start') return { kind: 'youtube-start' };
+  const f = input as { language?: unknown; on?: unknown };
+  if (a.kind === 'tutorial-filming' && typeof f.language === 'string' && FILMED.has(f.language) && typeof f.on === 'boolean') {
+    return { kind: 'tutorial-filming', language: f.language, on: f.on };
+  }
   const y = input as { code?: unknown; state?: unknown; items?: unknown };
   if (a.kind === 'youtube-connect' && typeof y.code === 'string' && /^[\x21-\x7e]{10,512}$/.test(y.code) && typeof y.state === 'string' && y.state.length <= 200) {
     return { kind: 'youtube-connect', code: y.code, state: y.state };
@@ -195,6 +206,7 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'tutorial-fix': return { name: 'suggestion_fix', target: action.id };
     case 'tutorial-reply': return { name: `reply_${action.done}`, target: action.id };
     case 'user-issue-note': return { name: 'user_issue_note', target: action.issue };
+    case 'tutorial-filming': return { name: action.on ? 'filming_on' : 'filming_off', target: action.language };
     case 'quiet-account': return { name: action.ok ? 'quiet_ok' : 'quiet_ok_undo', target: action.profile };
     default: return { name: NAMES[action.kind], target: 'youtube' };
   }
@@ -263,6 +275,11 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       return kept ? { ok: true, result: 'instructed' }
         : answer === 'full' ? { ok: false, status: 400, error: 'Three instructions on that issue wait for Claude already. Wait for its answer.' }
           : { ok: false, status: 404, error: `Claude cannot take an instruction on ${action.issue}. The watch did not file this issue, and no line on this page names it now.` };
+    }
+    if (action.kind === 'tutorial-filming') {
+      const answer = await deps.setFilming(action.language, action.on, who.profileId);
+      await deps.record({ profileId: who.profileId, action: name, target, result: 'ok' });
+      return { ok: true, result: answer };
     }
     if (action.kind === 'tutorial-suggestion') return await answerSuggestion(deps, who.profileId, action, name, target);
     if (action.kind === 'tutorial-fix') return await fixInApp(deps, who.profileId, action.id, action.askFirst, name, target);
@@ -443,6 +460,11 @@ export function actionDeps(env: Env): ActionDeps {
     replyDone: async (id, done, by) => {
       const { data, error } = await db().rpc('ops_tutorial_reply_done', { p_id: id, p_done: done, p_by: by });
       if (error) throw new Error(`ops_tutorial_reply_done: ${error.message}`);
+      return String(data);
+    },
+    setFilming: async (language, on, by) => {
+      const { data, error } = await db().rpc('ops_tutorial_filming_set', { p_language: language, p_on: on, p_by: by });
+      if (error) throw new Error(`ops_tutorial_filming_set: ${error.message}`);
       return String(data);
     },
     markQuietAccount: async (profile, ok, by) => {

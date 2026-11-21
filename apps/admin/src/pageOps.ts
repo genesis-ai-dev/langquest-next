@@ -106,7 +106,8 @@ const share = (a, b) => b ? ((a / b) * 100).toFixed(1) + '%' : '–';
 const hours = (msv) => msv === null || msv === undefined ? '–' : ms(Number(msv));
 const ageOf = (iso) => iso ? ago(iso) : '–';
 /** An app language's name in English ('zh-Hans', Simplified Chinese), from the browser. */
-const languageName = (code) => { try { return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) || code; } catch { return code; } };
+// Intl names tl Filipino; the team and the app call it Tagalog.
+const languageName = (code) => { if (code === 'tl') return 'Tagalog'; try { return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) || code; } catch { return code; } };
 
 Object.assign(RENDER, {
   safety(d) {
@@ -493,9 +494,9 @@ function sayAt(button, text, tone) {
   p.textContent = text;
 }
 /** What a button says while its tap goes, by the tap's kind. */
-const BUSY = { run: 'Starting…', 'tutorials-publish': 'Publishing…', 'tutorial-note': 'Sending…', 'user-issue-note': 'Sending…', 'tutorial-suggestion': 'Saving…', 'tutorial-reply': 'Saving…', 'tutorial-fix': 'Sending…' };
+const BUSY = { run: 'Starting…', 'tutorials-publish': 'Publishing…', 'tutorial-note': 'Sending…', 'user-issue-note': 'Sending…', 'tutorial-suggestion': 'Saving…', 'tutorial-reply': 'Saving…', 'tutorial-filming': 'Saving…', 'tutorial-fix': 'Sending…' };
 /** The parts a tap changes, read again from their source when it is done (page.ts reread). */
-const AFTER = { 'tutorial-note': ['videos', 'ops'], 'tutorial-suggestion': ['videos', 'ops'], 'tutorial-fix': ['videos', 'ops'], 'tutorial-reply': ['videos', 'ops'], 'tutorials-publish': ['videos', 'ops'],
+const AFTER = { 'tutorial-note': ['videos', 'ops'], 'tutorial-suggestion': ['videos', 'ops'], 'tutorial-fix': ['videos', 'ops'], 'tutorial-reply': ['videos', 'ops'], 'tutorial-filming': ['videos', 'ops'], 'tutorials-publish': ['videos', 'ops'],
   'user-issue-note': ['ops', 'videos'], 'quiet-account': ['ops'], verification: ['ops'], feedback: ['diag'], run: ['diag', 'container'] };
 /** Each part of the page a message to Claude shows on, drawn again from what the page holds. */
 function redrawSends() { for (const id of ['videos', 'userissues', 'research']) if (results[id]) show(id, results[id]); }
@@ -522,6 +523,7 @@ async function perform(action, button, opts) {
       : action.kind === 'tutorial-note' ? (body.result === 'instructed' ? 'Sent. Claude starts the change at its next fix run, ' + fixRunSaid() + '.' : 'Sent. Claude reads it at its next look (10:00 UTC).')
       : action.kind === 'user-issue-note' ? 'Sent. Claude reads it at the next run of the watch, ' + watchSaid() + '.'
       : action.kind === 'quiet-account' ? (action.ok ? 'Marked not an issue. Its quiet installs no longer count in the warning.' : 'Its quiet installs count in the warning again.')
+      : action.kind === 'tutorial-filming' ? languageName(action.language) + (body.result === 'on' ? ' is filmed from the next filming at 20:10 UTC.' : ' is paused. Its videos on YouTube stay as they are.')
       : action.kind === 'tutorial-reply' ? (body.result === 'posted' ? 'Marked as posted.' : body.result === 'none' ? 'Marked: no reply needed.' : 'The reply waits again.')
       : action.kind === 'tutorial-fix' ? (body.result === 'fixing:waiting' ? 'Sent. It goes to Linear tonight, then Claude\'s agent team fixes the app.' : 'Sent as ' + body.result.slice(7) + '. Claude\'s agent team starts the app fix within 15 minutes.')
         + (action.askFirst ? ' The fix waits for your yes before it merges.' : ' The fix merges by itself when it keeps the rules, and then the video is filmed again.')
@@ -649,7 +651,7 @@ let VIDEOS = null;
 // The timeline shows 60 days; its zoom is how wide a day is. A pinch on a touchpad (or Ctrl and the scroll wheel) zooms it; it opens at the last 14 days.
 let videoLanguage = 'en', dayWidth = 0, shownMarks = [], onlyMine = false, openCards = null;
 const TIMELINE_DAYS = 60;
-const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', approve: 'warn', appFix: '', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
+const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', approve: 'warn', appFix: '', reply: 'warn', connect: 'warn', empty: 'warn', publish: 'warn', paused: '' };
 const cardLink = (x) => x.link ? '<a href="' + esc(x.link) + '"' + (x.link.startsWith('#') ? '' : ' target="_blank" rel="noopener noreferrer"') + '>' + esc(ADMIN_LINKS[x.kind] || WORKER_LINKS[x.kind] || 'Open') + '</a>' : '';
 const FIX_STATE = { working: 'Claude writes the change now.', open: 'Claude\'s pull request merges itself when its checks pass.', merged: 'The change is merged. The next night films the video again.', closed: 'The pull request was closed without a merge.', failed: 'Claude could not make the change.', unneeded: 'No change was needed: the video already does this.' };
 // The record of changes Claude made (sources/videos.ts ChangeItem).
@@ -745,7 +747,7 @@ document.addEventListener('click', (e) => {
     language: a.language || 'en', inputs: (a.inputIds || []).slice(0, 20) }, b, instructOpts(b, a, text.slice(0, 2000), 'ins-' + b.dataset.instruct));
 });
 const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run', merging: 'Open the PR' };
-const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
+const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', empty: 'Open tutorials.yml', paused: 'Open tutorials.yml' };
 const timelineStart = () => { const end = new Date(); end.setUTCHours(0, 0, 0, 0); return end.getTime() - (TIMELINE_DAYS - 1) * 86400000; };
 /** Each timeline's width from the zoom; when a day is wide enough, each mark sits at its time of day. */
 let timelineLeft = null, timelineSet = null;

@@ -716,4 +716,29 @@ exception when insufficient_privilege then null;
 end $$;
 reset role;
 
+-- The dashboard's Film each night switches (migration *_tutorial_filming_switch.sql): the three filmed before start on;
+-- a person turns one on or off; the filming reads the list, the dashboard every switch.
+do $$ begin
+  assert public.ops_tutorial_filming_languages() = '["en", "es", "fr"]'::jsonb, 'English, French and Spanish start on: %', public.ops_tutorial_filming_languages();
+  assert public.ops_tutorial_filming_set('tl', true, '0d000000-0000-0000-0000-0000000000aa') = 'on', 'Tagalog turned on';
+  assert public.ops_tutorial_filming_set('fr', false, '0d000000-0000-0000-0000-0000000000aa') = 'off', 'French paused';
+  assert public.ops_tutorial_filming_languages() = '["en", "es", "tl"]'::jsonb, 'the filming reads the switches: %', public.ops_tutorial_filming_languages();
+  assert (select set_by = '0d000000-0000-0000-0000-0000000000aa' from ops.tutorial_filming where language = 'tl'), 'who moved it is kept';
+  set local role diag_reader;
+  assert (select count(*) = 4 and bool_and(not (e ? 'setBy')) from jsonb_array_elements(diag.ops_tutorial_filming()) e), 'the dashboard reads every switch, not who: %', diag.ops_tutorial_filming();
+  reset role;
+  begin
+    perform public.ops_tutorial_filming_set('Tagalog', true, null);
+    raise exception 'a name that is not a language code was taken';
+  exception when invalid_parameter_value then null;
+  end;
+end $$;
+do $$ begin
+  set local role authenticated;
+  perform public.ops_tutorial_filming_set('tl', true, null);
+  raise exception 'a signed-in person moved a switch';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+
 rollback;

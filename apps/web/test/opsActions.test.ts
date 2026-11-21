@@ -34,6 +34,7 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     approveTutorials: async (items, by) => { done.push(`approve ${items.length} by ${by}`); return items.length; },
     addNote: async (tutorial, text, by) => { done.push(`note ${tutorial} ${text} by ${by}`); },
     replyDone: async (id, state, by) => { done.push(`reply ${id} ${state} by ${by}`); return id === REQUEST ? 'ok' : 'not_found'; },
+    setFilming: async (language, on, by) => { done.push(`filming ${language} ${on} by ${by}`); return on ? 'on' : 'off'; },
     markQuietAccount: async (profile, ok, by) => { done.push(`quiet ${profile} ${ok} by ${by}`); return profile === QUIET ? (ok ? 'marked' : 'unmarked') : 'not_found'; },
     instruct: async (row, by) => { done.push(`instruct ${JSON.stringify(row)} by ${by}`); return SUGGESTION; },
     instructIssue: async (issue, text, by) => { done.push(`issue ${issue} ${text} by ${by}`); return issue === 'LAN-284' ? SUGGESTION : issue === 'LAN-285' ? 'full' : 'not_found'; },
@@ -67,6 +68,20 @@ describe('the ops dashboard\'s actions', () => {
     for (const bad of [{ kind: 'quiet-account' }, { kind: 'quiet-account', profile: 'x', ok: true }, { kind: 'quiet-account', profile: QUIET }, { kind: 'quiet-account', profile: QUIET, ok: 'yes' }]) {
       expect(parseAction(bad)).toBeNull();
     }
+  });
+
+  it('turns a language\'s nightly filming on or off as the person who pressed it, and records it', async () => {
+    for (const bad of [{ kind: 'tutorial-filming', language: 'xx', on: true }, { kind: 'tutorial-filming', language: 'tl' }, { kind: 'tutorial-filming', language: 'tl', on: 'yes' }]) {
+      expect(parseAction(bad)).toBeNull();
+    }
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'tutorial-filming', language: 'tl', on: true })).toEqual({ ok: true, result: 'on' });
+    expect(await act(d, 'aal2', { kind: 'tutorial-filming', language: 'zh-Hans', on: false })).toEqual({ ok: true, result: 'off' });
+    expect(d.done).toEqual([`filming tl true by ${VIEWER}`, `filming zh-Hans false by ${VIEWER}`]);
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'filming_on', target: 'tl', result: 'ok' },
+      { profileId: VIEWER, action: 'filming_off', target: 'zh-Hans', result: 'ok' }
+    ]);
   });
 
   it('marks an account\'s quiet installs as the staff member who pressed it, and records it', async () => {

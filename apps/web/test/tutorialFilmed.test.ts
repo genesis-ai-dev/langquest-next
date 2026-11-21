@@ -31,7 +31,8 @@ function door(answer: 'started' | 'running' | 'disabled' = 'started') {
     intake: async () => {
       intakes += 1;
       return answer;
-    }
+    },
+    languages: async () => ['en', 'es', 'fr', 'tl']
   };
   const knock = (headers: Record<string, string> = {}, method = 'POST') =>
     handleTutorialFilmed(new Request('https://next.langquest.org/api/tutorial-filmed', { method, headers }), deps);
@@ -63,7 +64,16 @@ describe('the filming saying its films are in', () => {
       { authorization: 'Bearer not-a-token' }
     ];
     for (const headers of refused) expect((await d.knock(headers)).status).toBe(401);
-    expect((await d.knock({ authorization: `Bearer ${await token()}` }, 'GET')).status).toBe(405);
+    for (const headers of refused) expect((await d.knock(headers, 'GET')).status).toBe(401);
+    expect((await d.knock({ authorization: `Bearer ${await token()}` }, 'PUT')).status).toBe(405);
+    expect(d.intakes()).toBe(0);
+  });
+
+  it('answers the filming the languages the dashboard turned on, and starts nothing', async () => {
+    const d = door();
+    const response = await d.knock({ authorization: `Bearer ${await token()}` }, 'GET');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ languages: ['en', 'es', 'fr', 'tl'] });
     expect(d.intakes()).toBe(0);
   });
 });

@@ -247,8 +247,8 @@ $$;
 revoke all on function ops.tutorial_suggestion_json from public;
 
 -- As in 20261119171500_tutorial_reply_done.sql, and `suggestion_fix`: Fix it on a suggestion. `filming_on` and
--- `filming_off` are the actions of 20261121213000_tutorial_filming_switch.sql (PR 632), kept here so that the
--- migrations give the same list in either order.
+-- `filming_off` are the actions of 20261121220000_tutorial_filming_switch.sql (PR 632), which already lists
+-- `suggestion_fix`; this keeps the same list.
 alter table ops.actions drop constraint if exists actions_action_check;
 alter table ops.actions add constraint actions_action_check
   check (action in ('feedback_new', 'feedback_seen', 'feedback_done', 'run_job', 'verification_grant', 'verification_decline',

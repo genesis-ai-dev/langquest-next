@@ -118,7 +118,8 @@ export const workWithoutInternet: Tutorial = {
       first: (page) => page.context().setOffline(false),
       part: (page) => id(page, 'upload-bar'),
       say: 'When the internet comes back, it uploads by itself. There is nothing to do.',
-      until: (page) => page.waitForFunction((offline) => !(document.querySelector('[data-testid="upload-bar"]')?.textContent ?? '').includes(offline), uiText('account.sync.standing.offline'), { timeout: 60_000 }),
+      // The bar must say it is all uploaded, not only stop saying offline: between the two it can go for a moment, and the light then has no part to hold and the screen shows bright.
+      until: (page) => page.waitForFunction((done) => (document.querySelector('[data-testid="upload-bar"]')?.textContent ?? '').includes(done), uiText('uploads.allUploaded'), { timeout: 60_000 }),
       stay: 2.5
     }
   ]
