@@ -331,7 +331,7 @@ export function nightlyLanguages(workflow: string): string[] | null {
 /** A state that waits on a person; a paused language's own pause and missing films are said once, not per video. */
 const NEEDS_PERSON = (s: VideoState) => (s.level === 'bad' || s.level === 'warn') && s.key !== 'paused' && s.key !== 'new';
 
-const LEVEL_ORDER: StateKey[] = ['fails', 'held', 'fixFailed', 'approve', 'fixed', 'fixing', 'merge', 'toFix', 'filming', 'tonight', 'slotted', 'comment', 'reply', 'publish', 'upload', 'new', 'paused', 'current'];
+const LEVEL_ORDER: StateKey[] = ['fails', 'held', 'fixFailed', 'approve', 'fixing', 'merge', 'toFix', 'filming', 'tonight', 'slotted', 'comment', 'reply', 'publish', 'upload', 'new', 'paused', 'current'];
 
 /** The three lists, from what was read. Pure. */
 export function videoBoard(input: VideosInput, now = Date.now()): Videos {
@@ -602,7 +602,7 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
   }
   // A problem whose instruction became a fix that failed is said by that fix's own card.
   for (let k = admin.length - 1; k >= 0; k--) if (admin[k]!.instructed?.fix?.state === 'failed') admin.splice(k, 1);
-  const ADMIN_ORDER: AdminItem['kind'][] = ['fails', 'held', 'fixFailed', 'approve', 'reply', 'comment', 'screen', 'connect', 'empty', 'publish', 'paused'];
+  const ADMIN_ORDER: AdminItem['kind'][] = ['fails', 'held', 'fixFailed', 'approve', 'fixed', 'reply', 'comment', 'screen', 'connect', 'empty', 'publish', 'paused'];
   admin.sort((a, b) => Number(a.who !== 'you') - Number(b.who !== 'you') || ADMIN_ORDER.indexOf(a.kind) - ADMIN_ORDER.indexOf(b.kind) || (b.at ?? '').localeCompare(a.at ?? ''));
   worker.sort((a, b) => Number(a.when !== 'now') - Number(b.when !== 'now'));
 
