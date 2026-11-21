@@ -140,6 +140,20 @@ describe('the record on a card', () => {
     expect(logic.recordSaid({ who: 'Claude', what: 'answered', result: 'ok', detail: 'changed', words: 'I moved it.', pr: 7 })).toMatchObject({ said: 'answered and changed the draft fix (pull request 7)', words: '' });
   });
 
+  it('says each step of a fix in the app, from Fix it to the new film', () => {
+    const said = (what: string, detail: string | null = null, pr: number | null = null) => logic.recordSaid({ who: 'Claude', what, result: 'ok', detail, words: null, pr }).said;
+    expect(said('suggestion_fix', 'LAN-400')).toBe('said Fix it: Claude\'s agent team changes the app');
+    expect(said('suggestion_fix', 'LAN-400:ask_first')).toBe('said Fix it, and asked to see the change before it merges');
+    expect(said('handed')).toBe('found that the cause is in the app, and gave the fix to its agent team');
+    expect(said('taken')).toBe('started the fix in the app');
+    expect(said('appfix', 'merge', 640)).toBe('wrote the fix. It keeps the rules, so it merges by itself when its checks pass (pull request 640)');
+    expect(said('appfix', 'waits:instruction', 640)).toBe('wrote the fix. It waits for your yes, as you asked (pull request 640)');
+    expect(said('appfix', 'waits:paths', 640)).toBe('wrote the fix. The rules say a developer must read it (pull request 640)');
+    expect(said('appfix', 'none:not_a_bug')).toBe('made no change');
+    expect(said('refilm', null, 640)).toBe('saw the fix merged, and sent the video to be filmed again (pull request 640)');
+    expect(said('filmed')).toBe('filmed the video again: the new film is in');
+  });
+
   it('holds only its card\'s entries, newest first, with how it began and a message the server does not have yet', () => {
     const sends = new Map([['video:held-v', { key: 'video:held-v', text: 'Fix it', at: at('2026-11-21T21:05:00Z'), state: 'sending' as const }]]);
     const list = logic.cardRecord(records, 'v/es', sends, 'video:held-v', { at: '2026-11-20T09:00:00Z', who: 'The frame check on the new film', said: 'held it back' });

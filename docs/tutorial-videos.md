@@ -540,8 +540,35 @@ a video is filmed again"). Each suggestion keeps where its fix is
 `20261116210000_tutorial_clear_fixes.sql`): waiting for Claude, working,
 open (its checks run), merged, closed, failed with why, or unneeded (the
 video already does it). A run that stops leaves its change to the next run
-after three hours. A code change still goes to Linear, and a new video is
-still made by a person.
+after three hours. A new video is still made by a person.
+
+**A fix in the app.** A suggestion whose fix is in the app (a word in the
+French app, a screen that is wrong) is fixed by the agent team
+(`docs/agent-team.md`,
+`docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md`):
+
+1. An admin taps Fix it on a suggestion about the app that waits for an
+   answer (Only file in Linear is beside it, for a person to fix later), or
+   Fix it in the app on a change to the video that failed. The box "Ask me
+   before it merges" holds the fix for the admin's yes. When Claude finds,
+   while it makes an accepted change, that the cause is in the app, it says
+   `app` in `fix.json`, and a change a person accepted or wrote goes to the
+   agent team by itself.
+2. It is filed in Linear at once (`ops_suggestion_fix_in_app`,
+   `ops_tutorial_fix_to_app`, then `ops_suggestion_filed`), and an
+   instruction for the agent team waits on its issue, with `go`.
+3. The watch for user issues hands it to the agent team within 15 minutes.
+   The team changes the app, not the video. The fix merges with no person
+   when it keeps the team's rule; otherwise, or when the admin asked first,
+   it waits on the card, with why and a Merge button.
+4. Once its pull request merged, the next fix run films the video again in
+   its language (`tutorials.yml`'s workflow_dispatch, `refilm` in `queue`),
+   unless a film run goes; then the run after it does.
+
+The video's card shows the chain as steps (You asked, Claude fixes the app,
+Checks, Merged, Filmed again) and as its record, until a day after the new
+film. A later instruction in its box ("ask me first", "merge it") goes to
+the agent team on the same issue.
 
 **An admin's instruction.** A card on the dashboard for a comment, a screen
 change, or a film that failed or was held has a box for what Claude must do.

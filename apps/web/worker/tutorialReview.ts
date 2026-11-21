@@ -1,4 +1,4 @@
-import { parseFixUpdates, parseReview, PICTURE_FILE, PICTURE_MAX, REPOSITORY, ReviewError, type FixUpdate, type Review } from '../../../server/tutorialFeedback';
+import { parseFixUpdates, parseReview, PICTURE_FILE, PICTURE_MAX, REPOSITORY, ReviewError, type FixUpdate, type Refilmed, type Review } from '../../../server/tutorialFeedback';
 import type { JobRun } from '../../../server/jobRuns';
 import { BadDigest, type BlobBucket } from './blobs';
 import type { GithubRun, OidcRule } from './githubOidc';
@@ -12,7 +12,8 @@ import type { GithubRun, OidcRule } from './githubOidc';
  * The same workflow's fix jobs (decisions.md 186, amended 2026-11-13) use
  * `GET /api/tutorial-review/fixes`, the accepted changes that wait for Claude
  * and the draft pull requests that wait for a person (`ops_tutorial_fixes`),
- * and `POST` there, where each fix is now (`FixUpdate`, `ops_tutorial_fixed`).
+ * and `POST` there, where each fix is now (`FixUpdate`, `ops_tutorial_fixed`), and which fixes in the app
+ * merged and had their video sent to be filmed again (`Refilmed`, `ops_tutorial_app_refilmed`).
  * Before its look, the workflow sends each picture the look names (decisions.md
  * 186, amended 2026-11-17): `PUT /api/tutorial-review/pictures/<sha256>.<png|jpg>`,
  * kept in the blobs bucket by its bytes' hash and served to anyone at
@@ -49,8 +50,13 @@ export interface ReviewDeps {
   record(run: JobRun): Promise<void>;
   /** `ops_tutorial_fixes`: the accepted changes that wait for Claude, and the draft pull requests that wait for a person. */
   fixes(limit: number): Promise<unknown>;
-  /** `ops_tutorial_fixed`: 'ok', 'not_found' or 'refused'. */
+  /**
+   * `ops_tutorial_fixed`: 'ok', 'not_found' or 'refused'. With `app` (the cause is in the app), and 'ok', the
+   * change goes to the agent team (`ops_tutorial_fix_to_app`) and is filed in Linear: 'ok:handed', or 'ok:<why not>'.
+   */
   fixed(update: FixUpdate, runUrl: string): Promise<string>;
+  /** `ops_tutorial_app_refilmed`: the fix in the app merged, and its video was sent to be filmed again. 'ok' or 'refused'. */
+  refilmed(r: Refilmed): Promise<string>;
   /** The blobs bucket, where the look's pictures are kept; without it a picture is refused (503). */
   pictures?: BlobBucket | undefined;
   now(): number;
@@ -107,7 +113,9 @@ async function fixes(request: Request, deps: ReviewDeps, run: GithubRun): Promis
   if (!sent.runUrl.includes(`/actions/runs/${run.runId}`)) return json(400, { error: 'runUrl: this run\'s address' });
   const results: string[] = [];
   for (const update of sent.updates) results.push(await deps.fixed(update, sent.runUrl));
-  return json(200, { results });
+  const refilmed: string[] = [];
+  for (const r of sent.refilmed) refilmed.push(await deps.refilmed(r));
+  return json(200, { results, refilmed });
 }
 
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];

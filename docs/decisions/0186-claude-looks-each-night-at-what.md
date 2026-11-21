@@ -229,3 +229,11 @@ The reply is still posted by a person on YouTube, never from the dashboard:
 the reason above (a comment is untrusted) stands. The answer is kept on the
 comment (`reply_done`, with when and who; migration
 `20261119171500_tutorial_reply_done.sql`) and goes with it after 30 days.
+
+Amended (2026-11-21, Caleb Koster): a suggestion whose fix is in the app
+can now be fixed from its card. Fix it sends it to the agent team, which
+changes the app; the fix merges on the team's rule with no tap unless the
+admin asks to see it first, and the video is filmed again as soon as it is
+in main. When Claude finds that the cause of an accepted change is in the
+app, the change goes to the agent team by itself
+(docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md).

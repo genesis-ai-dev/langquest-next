@@ -297,3 +297,68 @@ describe('reading', () => {
     expect(d.missing).toContain('suggestions and comments');
   });
 });
+
+describe('Fix it: the agent team fixes the app for a suggestion (docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md)', () => {
+  const asked = (o: Record<string, unknown> = {}) => ({ askedAt: at(5), notes: [], fix: null, ...o });
+  const note = (o: Record<string, unknown> = {}) => ({ at: at(5), text: 'Fix it, from the Tutorial videos page', takenAt: null, tries: 0, answeredAt: null, result: null, answer: null, pr: null, ...o });
+  const record = (o: Record<string, unknown> = {}) => ({ decision: 'waits', reason: 'instruction', why: null, pr: 640, verdict: 'review', summary: 'The French button shortens "la" before a vowel.',
+    cause: null, review: null, runUrl: null, at: at(3), before: true, beforeAfter: true, ...o });
+  const code = (o: Record<string, unknown> = {}) => suggestion({ kind: 'code', decision: 'accepted', decidedAt: at(5), issue: 'LAN-400', issueUrl: 'https://linear.app/x/issue/LAN-400', ...o });
+  const board = (s: Record<string, unknown>, prs: VideosInput['prs'] = []) => videoBoard(input({ feedback: feedback({ suggestions: [s as never] }), prs }), NOW);
+
+  const card = (b: ReturnType<typeof videoBoard>) => b.admin.find((a) => a.kind === 'appFix');
+
+  it('offers Fix it beside Only file in Linear on a suggestion about the app, and Fix it in the app on a change to the video that failed', () => {
+    const waiting = board(suggestion({ kind: 'code' }));
+    expect(waiting.admin[0]).toMatchObject({ kind: 'approve', fixApp: 's1' });
+    expect(waiting.admin[0]!.next).toMatch(/^Fix it: Claude changes the app\. The fix merges by itself/);
+    expect(board(suggestion()).admin[0]!.fixApp).toBeUndefined();
+    const failed = board(suggestion({ kind: 'instruction', decision: 'accepted', decidedAt: at(5), fix: { state: 'failed', pr: null, at: at(4), run: null, note: 'The capital comes from the app.' } }));
+    expect(failed.admin[0]).toMatchObject({ kind: 'fixFailed', fixApp: 's1' });
+    // Once asked (or handed over by the video fix run), the failed change becomes the fix in the app's card: Claude's turn.
+    const moved = board(suggestion({ kind: 'instruction', decision: 'accepted', decidedAt: at(5), issue: 'LAN-401', fix: { state: 'failed', pr: null, at: at(4), run: null, note: 'x' }, app: asked({ notes: [note()], handed: true }) }));
+    expect(moved.admin.filter((a) => a.kind !== 'paused').map((a) => a.kind)).toEqual(['appFix']);
+    expect(card(moved)).toMatchObject({ who: 'claude', app: { stage: 'queued', issue: 'LAN-401' } });
+  });
+
+  it('follows the fix on one card with no tap: to Linear, the team\'s run, the checks, the merge and the new film', () => {
+    const filing = card(board(code({ issue: null, issueUrl: null, app: asked() })))!;
+    expect(filing).toMatchObject({ who: 'claude', app: { stage: 'filing', issue: null } });
+    expect(card(board(code({ app: asked({ notes: [note()] }) })))).toMatchObject({ who: 'claude', app: { stage: 'queued' } });
+    const writing = board(code({ app: asked({ notes: [note({ takenAt: at(4), tries: 1 })] }) }));
+    expect(card(writing)).toMatchObject({ who: 'claude', app: { stage: 'writing' } });
+    expect(keys(writing)).toContain('fixing');
+    // The fix keeps the rules: it merges by itself when its checks pass. Nothing waits on the admin.
+    const checks = board(code({ app: asked({ notes: [note({ takenAt: at(4), answeredAt: at(3), result: 'changed', answer: 'I changed the French words.', pr: 640 })], fix: record({ decision: 'merge', reason: null }) }) }),
+      [{ number: 640, title: 'x', url: 'u', state: 'open', mergedAt: null, issues: ['LAN-400'] }]);
+    expect(card(checks)).toMatchObject({ who: 'claude', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/640',
+      app: { stage: 'checks', pr: 640, answer: 'I changed the French words.', before: true, after: true, why: null } });
+    expect(card(checks)!.next).toMatch(/merges by itself when its checks pass/);
+    expect(keys(checks)).toContain('merge');
+    // Merged: the next fix run films the video again; then the film run has it; then the new film is in.
+    const merged = board(code({ app: asked({ fix: record({ decision: 'merge', reason: null }) }) }), [{ number: 640, title: 'x', url: 'u', state: 'merged', mergedAt: at(1), issues: ['LAN-400'] }]);
+    expect(card(merged)).toMatchObject({ who: 'claude', app: { stage: 'merged', pr: 640 } });
+    expect(keys(merged)).toContain('filming');
+    expect(card(board(code({ app: asked({ fix: record({ decision: 'merge', reason: null }), refilmAt: at(0.5), refilmPr: 640 }) })))).toMatchObject({ app: { stage: 'filming', pr: 640 } });
+    const filmed = board(code({ app: asked({ fix: record({ decision: 'merge', reason: null }), refilmAt: at(2), refilmPr: 640, filmedAt: at(1) }) }));
+    expect(card(filmed)).toMatchObject({ who: 'claude', app: { stage: 'filmed' } });
+    expect(card(filmed)!.next).toMatch(/^Done/);
+    // A day after the new film, the card goes away; the record keeps the chain.
+    expect(card(board(code({ app: asked({ fix: record({ decision: 'merge', reason: null }), refilmAt: at(30), refilmPr: 640, filmedAt: at(25) }) })))).toBeUndefined();
+  });
+
+  it('waits on the admin only when they asked to see it first, the rule needs a developer, or the team made no fix', () => {
+    const open = [{ number: 640, title: 'x', url: 'u', state: 'open' as const, mergedAt: null, issues: ['LAN-400'] }];
+    const first = card(board(code({ app: asked({ askFirst: true, notes: [note({ answeredAt: at(3), result: 'changed' })], fix: record() }) }), open))!;
+    expect(first).toMatchObject({ who: 'you', app: { stage: 'yours', pr: 640, askFirst: true, why: 'You asked to see the change before it merges.' } });
+    expect(first.next).toMatch(/^You asked to see the change before it merges\. Merge it/);
+    const dev = card(board(code({ app: asked({ notes: [note({ answeredAt: at(3), result: 'changed' })], fix: record({ reason: 'paths', why: 'supabase/migrations/1_x.sql is outside the app.' }) }) }), open))!;
+    expect(dev).toMatchObject({ who: 'you', app: { stage: 'yours', why: 'It needs a developer: supabase/migrations/1_x.sql is outside the app.' } });
+    expect(keys(board(code({ app: asked({ notes: [note({ answeredAt: at(3), result: 'changed' })], fix: record({ reason: 'paths' }) }) }), open))[0]).toBe('approve');
+    // "merge it" on the card: Claude merges it when its checks pass.
+    const merging = card(board(code({ app: asked({ notes: [note({ text: 'merge it', at: at(1) }), note({ answeredAt: at(3), result: 'changed' })], fix: record() }) })))!;
+    expect(merging).toMatchObject({ who: 'claude', app: { stage: 'checks' } });
+    const none = card(board(code({ app: asked({ notes: [note({ answeredAt: at(3), result: 'none', answer: 'Main has the fix already: PR 507.' })], fix: record({ decision: 'none', reason: 'not_a_bug', pr: null }) }) })))!;
+    expect(none).toMatchObject({ who: 'you', app: { stage: 'none', pr: null, why: 'Main has the fix already: PR 507.' } });
+  });
+});

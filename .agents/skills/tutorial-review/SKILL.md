@@ -432,8 +432,18 @@ Everything you write here is public: the change, the pull request and
 or, with no change:
 
 ```json
-{ "noFix": "The G is cut off by the app's heading style on the Language screen, not by the video: a code change." }
+{ "noFix": "The G is cut off by the app's heading style on the Language screen, not by the video: a code change.", "app": true }
 ```
+
+Add `"app": true` when you proved that the cause is in the app (its code,
+its words in `apps/mobile/src/i18n/`, or the library) and a change to the
+app fixes what was asked. A change a person accepted or wrote then goes to
+the agent team, which changes the app; once its pull request merged, the
+video is filmed again
+(docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md).
+So `noFix` is what the agent team reads first: name the screen, the words
+or the file, and what must change. Leave `app` out when the change needs
+another video, new setup or a person's choice.
 
 or, when the video already does it:
 
@@ -443,8 +453,8 @@ or, when the video already does it:
 
 `summary` (at most 3000 characters) says what you changed and why, step by
 step number, for whoever reads the pull request later; `noFix` (at most
-1000) why there is no change; `already` (at most 1000) how the video
-already does it.
+1000) why there is no change, with `app` when the cause is in the app;
+`already` (at most 1000) how the video already does it.
 
 ## Reading a change before it merges
 

@@ -43,6 +43,11 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
       return id === SUGGESTION ? { result: decision, kind: 'script' } : id === CODE ? { result: decision, kind: 'code' } : id === ANSWERED ? { result: 'decided', kind: 'script' } : { result: 'not_found' };
     },
     fileSuggestion: async (id) => { done.push(`file ${id}`); return 'LAN-170'; },
+    fixInApp: async (id, by, askFirst) => {
+      done.push(`fix ${id} by ${by}${askFirst ? ' ask first' : ''}`);
+      return id === CODE ? { result: 'asked', kind: 'code', issue: null } : id === SUGGESTION ? { result: 'asked', kind: 'instruction', issue: 'LAN-171' }
+        : id === ANSWERED ? { result: 'already', kind: 'code', issue: 'LAN-170' } : { result: 'not_found' };
+    },
     now: () => NOW,
     ...over
   };
@@ -433,5 +438,29 @@ describe('feedback on the tutorial videos (decisions.md 186)', () => {
     const g = deps();
     expect(await act(g, 'aal2', { kind: 'tutorial-suggestion', id: SUGGESTION, decision: 'accept' })).toEqual({ ok: true, result: 'accepted' });
     expect(g.done).toEqual([`accepted ${SUGGESTION} null null by ${VIEWER}`]);
+  });
+
+  it('takes Fix it on a suggestion, files it in Linear when it has no issue yet, and says why it refuses', async () => {
+    expect(parseAction({ kind: 'tutorial-fix', id: CODE.toUpperCase() })).toEqual({ kind: 'tutorial-fix', id: CODE, askFirst: false });
+    expect(parseAction({ kind: 'tutorial-fix', id: CODE, askFirst: true })).toEqual({ kind: 'tutorial-fix', id: CODE, askFirst: true });
+    expect(parseAction({ kind: 'tutorial-fix', id: CODE, askFirst: 'yes' })).toBeNull();
+    expect(parseAction({ kind: 'tutorial-fix', id: 'x' })).toBeNull();
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'tutorial-fix', id: CODE, askFirst: true })).toEqual({ ok: true, result: 'fixing:LAN-170' });
+    // A suggestion filed already (an instruction whose change to the video failed, filed at once) goes to no Linear call.
+    expect(await act(d, 'aal2', { kind: 'tutorial-fix', id: SUGGESTION })).toEqual({ ok: true, result: 'fixing:LAN-171' });
+    expect(await act(d, 'aal2', { kind: 'tutorial-fix', id: ANSWERED })).toMatchObject({ ok: false, status: 400, error: 'Someone asked for a fix in the app already.' });
+    expect(await act(d, 'aal2', { kind: 'tutorial-fix', id: REQUEST })).toMatchObject({ ok: false, status: 404 });
+    expect(d.done).toEqual([`fix ${CODE} by ${VIEWER} ask first`, `file ${CODE}`, `fix ${SUGGESTION} by ${VIEWER}`, `fix ${ANSWERED} by ${VIEWER}`, `fix ${REQUEST} by ${VIEWER}`]);
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'suggestion_fix', target: CODE, result: 'ok', detail: 'LAN-170:ask_first' },
+      { profileId: VIEWER, action: 'suggestion_fix', target: SUGGESTION, result: 'ok', detail: 'LAN-171' },
+      { profileId: VIEWER, action: 'suggestion_fix', target: ANSWERED, result: 'refused', detail: 'already' },
+      { profileId: VIEWER, action: 'suggestion_fix', target: REQUEST, result: 'refused', detail: 'not_found' }
+    ]);
+    // Without a Linear key the comments job files it at night; the instruction for the agent team waits until then.
+    const e = deps({ fileSuggestion: async () => null });
+    expect(await act(e, 'aal2', { kind: 'tutorial-fix', id: CODE })).toEqual({ ok: true, result: 'fixing:waiting' });
+    expect(e.rows).toEqual([{ profileId: VIEWER, action: 'suggestion_fix', target: CODE, result: 'ok', detail: 'code' }]);
   });
 });

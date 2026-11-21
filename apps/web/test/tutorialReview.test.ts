@@ -197,6 +197,7 @@ describe('handleTutorialReview', () => {
       record: async (run) => { runs.push(run); },
       fixes: async (limit) => ({ toFix: [], open: [], limit }),
       fixed: async (u) => { moves.push(u); return u.id === UNKNOWN ? 'not_found' : 'ok'; },
+      refilmed: async (r) => (r.id === UNKNOWN ? 'refused' : 'ok'),
       now: () => NOW,
       ...over
     };
@@ -250,11 +251,24 @@ describe('handleTutorialReview', () => {
     const runUrl = 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/123456';
     const id = '0d000000-0000-4000-8000-000000000001';
     const posted = await handleTutorialReview(req('POST', 'good', { runUrl, updates: [{ id, state: 'open', pr: 451 }, { id: UNKNOWN, state: 'working' }] }, FIXES), d);
-    expect(await posted.json()).toEqual({ results: ['ok', 'not_found'] });
+    expect(await posted.json()).toEqual({ results: ['ok', 'not_found'], refilmed: [] });
     expect(moves).toEqual([{ id, state: 'open', pr: 451, note: null }, { id: UNKNOWN, state: 'working', pr: null, note: null }]);
     expect((await handleTutorialReview(req('POST', 'good', { runUrl: runUrl.replace('123456', '999'), updates: [] }, FIXES), d)).status).toBe(400);
     expect(await (await handleTutorialReview(req('POST', 'good', { runUrl, updates: [{ id, state: 'merged' }] }, FIXES), d)).json()).toEqual({ error: 'updates[0].pr: the pull request, for merged' });
     expect(runs).toEqual([]);
+  });
+
+  it('takes a cause in the app, and the fixes in the app whose video was sent to be filmed again', async () => {
+    // docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md
+    const { d } = deps();
+    const FIXES = '/api/tutorial-review/fixes';
+    const runUrl = 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/123456';
+    const id = '0d000000-0000-4000-8000-000000000001';
+    const posted = await handleTutorialReview(req('POST', 'good', {
+      runUrl, updates: [{ id, state: 'failed', note: 'The word comes from the app.', app: true }], refilmed: [{ id, pr: 640 }, { id: UNKNOWN, pr: 641 }]
+    }, FIXES), d);
+    expect(await posted.json()).toEqual({ results: ['ok'], refilmed: ['ok', 'refused'] });
+    expect(moves).toEqual([{ id, state: 'failed', pr: null, note: 'The word comes from the app.', app: true }]);
   });
 });
 
@@ -331,7 +345,7 @@ describe('parseFixUpdates', () => {
   const id = '0d000000-0000-4000-8000-000000000001';
   it('takes each move with its pull request, or why there is no fix', () => {
     expect(parseFixUpdates({ runUrl, updates: [{ id, state: 'failed', note: ' The script has no such line. ' }, { id, state: 'closed', pr: 9 }] })).toEqual({
-      runUrl, updates: [{ id, state: 'failed', pr: null, note: 'The script has no such line.' }, { id, state: 'closed', pr: 9, note: null }]
+      runUrl, updates: [{ id, state: 'failed', pr: null, note: 'The script has no such line.' }, { id, state: 'closed', pr: 9, note: null }], refilmed: []
     });
     // A fix that needs no change, and one whose checks failed (its pull request closed).
     expect(parseFixUpdates({ runUrl, updates: [{ id, state: 'unneeded', note: 'Step 4 already taps it.' }, { id, state: 'failed', pr: 9, note: 'Its checks failed.' }] }).updates)
@@ -344,7 +358,11 @@ describe('parseFixUpdates', () => {
       [{ runUrl, updates: [{ id, state: 'done' }] }, 'updates[0].state'],
       [{ runUrl, updates: [{ id, state: 'open', pr: 0 }] }, 'updates[0].pr'],
       [{ runUrl, updates: [{ id, state: 'failed', note: 'x'.repeat(1001) }] }, 'updates[0].note'],
-      [{ runUrl, updates: Array.from({ length: FIX_UPDATES_MAX + 1 }, () => ({ id, state: 'working' })) }, 'updates: a list']
+      [{ runUrl, updates: Array.from({ length: FIX_UPDATES_MAX + 1 }, () => ({ id, state: 'working' })) }, 'updates: a list'],
+      [{ runUrl, updates: [{ id, state: 'open', pr: 3, app: true }] }, 'updates[0].app'],
+      [{ runUrl, updates: [{ id, state: 'failed', app: 'yes' }] }, 'updates[0].app'],
+      [{ runUrl, updates: [], refilmed: [{ id, pr: null }] }, 'refilmed[0].pr'],
+      [{ runUrl, updates: [], refilmed: [{ id: 'x', pr: 3 }] }, 'refilmed[0].id']
     ] as const) expect(() => parseFixUpdates(sent), error).toThrow(new RegExp(`^${error.replace(/[[\]]/g, '\\$&')}`));
   });
 });

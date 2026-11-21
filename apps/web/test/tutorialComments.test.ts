@@ -100,6 +100,16 @@ describe('issueOf', () => {
     expect(issue.description).not.toContain('El botón');
   });
 
+  it('says what Claude found when its change to the video failed, and that an admin asked the agent team to fix it in the app', () => {
+    const issue = issueOf(suggestion({
+      kind: 'instruction', fix: { state: 'failed', pr: null, at: '2026-11-21T21:25:00Z', run: null, note: 'The capital comes from the app, not the video.' },
+      app: { askedAt: '2026-11-21T21:40:00Z', notes: [], fix: null }
+    }), name);
+    expect(issue.description).toContain('When Claude tried to change the video: The capital comes from the app, not the video.');
+    expect(issue.description).toContain('An admin said "Fix it" on the ops dashboard');
+    expect(issueOf(suggestion(), name).description).not.toContain('Fix it');
+  });
+
   it('links a comment on no video to YouTube Studio, and a change with no pull request to its commit', () => {
     expect(inputLink({ kind: 'comment', ref: 'Ugc-0000001', youtubeId: null, pr: null })).toBe('https://studio.youtube.com');
     expect(inputLink({ kind: 'code', ref: 'b'.repeat(40), youtubeId: null, pr: null })).toBe(`https://github.com/genesis-ai-dev/langquest-next/commit/${'b'.repeat(40)}`);

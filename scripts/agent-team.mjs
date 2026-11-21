@@ -92,7 +92,9 @@ export function verdictOf(raw) {
     twins: cut(said(o.twins), VERDICT_LIMITS.twins),
     // A display fix: what a person sees is wrong (words cut off, parts that overlap), and nothing else changes.
     // Its proof is a picture of the screen before the fix and one after it, not a test.
-    display: o.display === true
+    display: o.display === true,
+    // The manager read the admin's instructions as "show me the change before it merges" (with `go`, below).
+    askFirst: o.askFirst === true
   };
 }
 
@@ -155,6 +157,13 @@ export function changesOf(numstatZ) {
 /** Words in an instruction that can mean "merge it as it is". The manager decides; this only stops a guess. */
 const MERGE_WORDS = /\b(merge|merged|merging|approve|approved|lgtm|ship it|go ahead|looks good)\b/i;
 export const saysMerge = (texts) => (Array.isArray(texts) ? texts : []).some((t) => MERGE_WORDS.test(String(t ?? '')));
+/**
+ * Words in an instruction that ask to see the change before it merges ("ask me first", "wait for my yes",
+ * "don't merge"). With `go`, they hold the fix for the admin. A miss is safe only one way, so the list is wide:
+ * the manager can also say so in fix.json (`askFirst`).
+ */
+const ASK_FIRST_WORDS = /\b(ask me|check with me|wait for (me|my)|(my|your) (ok|okay|yes|input|approval|go)\b|show me|let me (see|look|check|read|review)|before (it |you |this )?(merge|merging|merges|goes in|ships)|(don'?t|do not|never) (auto-?)?merge|not (auto-?)?merge|hold (it|the (fix|change|merge)))/i;
+export const saysAskFirst = (texts) => (Array.isArray(texts) ? texts : []).some((t) => ASK_FIRST_WORDS.test(String(t ?? '')));
 
 /**
  * What happens to a change: it merges without a person, or it waits for a
@@ -168,12 +177,17 @@ export const saysMerge = (texts) => (Array.isArray(texts) ? texts : []).some((t)
  *                pull request and in the merge queue are what GitHub holds a merge to)
  *   vet          checkVet(the reviewer's verdict), or null when the reviewer did not run
  *   instructed   an admin's instruction came with this run
+ *   go           the issue's fix was asked for with Fix it on a tutorial video's card (ops.user_issue_notes
+ *                `go`), in this run or before it (a repair): the admin's word is the yes, so neither the
+ *                instruction nor mode `ask` holds the fix, and every other part of the rule still does
+ *   askFirst     the admin asked to see the change before it merges (Fix it's box, the instruction's words, or
+ *                the manager's reading of them): the fix waits for the admin
  *   approved     that instruction says to merge the draft fix, the manager's verdict is `approved`, and the
  *                manager left the draft fix as it was
  *   app          the job holds LangQuest's GitHub App's token (it opens the pull request so its checks start)
  *   pictures     { before, after }: the picture job made a picture of the screen without the change and with it
  */
-export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = null, instructed = false, approved = false, app = true, pictures = {} }) {
+export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = null, instructed = false, go = false, askFirst = false, approved = false, app = true, pictures = {} }) {
   const wait = (reason, why) => ({ merge: false, reason, why: cut(said(why), 600) });
   if (!verdict) return wait('unconfirmed', 'The manager gave no verdict.');
   if (!changes.length) {
@@ -186,7 +200,9 @@ export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = n
   // A developer's own word: the draft fix they read merges as it is. The paths a draft fix may never
   // change were refused before this, and guardrails still hold the merge.
   if (approved) return { merge: true, reason: null, why: 'A developer said to merge it on the ops dashboard.' };
-  if (instructed) return wait('instruction', 'It follows an instruction from the ops dashboard. The developer who sent it reads the change.');
+  const asked = askFirst || verdict.askFirst === true;
+  if (go && asked) return wait('instruction', 'The admin asked on the tutorial video\'s card to see the change before it merges. Say "merge it" on the card to merge it.');
+  if (instructed && !go) return wait('instruction', 'It follows an instruction from the ops dashboard. The developer who sent it reads the change.');
   if (verdict.verdict === 'decision') return wait('decision', verdict.why || 'The fix needs a choice from a developer.');
   if (verdict.verdict !== 'fix') return wait('review', verdict.why || 'The manager asks a developer to read the change.');
   if (!causeProven(verdict)) return wait('cause', 'The manager did not say the cause and the test that proves it.');
@@ -202,6 +218,7 @@ export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = n
   }
   if (!vet) return wait('reviewer', 'The reviewer did not run.');
   if (!vet.ok) return wait('reviewer', `The reviewer asks a developer to look: ${vet.why}`);
+  if (go) return { merge: true, reason: null, why: `An admin said Fix it on a tutorial video's card, and the fix keeps every part of the rule. ${vet.why}` };
   if (mode !== 'on') return wait('mode', 'The agent team is in mode ask: every fix waits for a developer. This fix passed every other part of the rule.');
   return { merge: true, reason: null, why: vet.why };
 }
@@ -352,7 +369,8 @@ export function gateInput(dir) {
   return {
     pictures,
     verdict: fix ? verdictOf(fix) : null, changes, checks: { typecheck: one(check.typecheck), tests: one(check.tests) },
-    vet: vetRaw ? checkVet(vetRaw) : null, instructed: Array.isArray(notes?.ids) && notes.ids.length > 0, approved: notes?.approved === true
+    vet: vetRaw ? checkVet(vetRaw) : null, instructed: Array.isArray(notes?.ids) && notes.ids.length > 0, approved: notes?.approved === true,
+    go: notes?.go === true, askFirst: notes?.askFirst === true
   };
 }
 
