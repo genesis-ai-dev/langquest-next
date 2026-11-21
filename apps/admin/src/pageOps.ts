@@ -209,7 +209,7 @@ Object.assign(RENDER, {
       return shown.map((p) => { const name = 'PR ' + p.pr + (p.title ? ' · ' + p.title : ''); return link(p.pr, name, '<b>' + esc(name) + '</b><small>' + small + '</small>'); }).join('') +
         (more ? link(u.copy, num(more) + ' more PRs in copy PR ' + u.copy, '<b>' + esc(num(more) + ' more PRs in copy PR ' + u.copy) + '</b><small>' + small + '</small>') : '');
     };
-    const card = (c, platform) => '<div class="pc ' + esc(c.tone) + '"><b>' + esc(c.title) + '</b>' + (c.version ? ' <small>' + esc(c.version) + '</small>' : '') +
+    const card = (c, platform) => '<div class="pc ' + esc(c.tone) + '" data-card="' + esc(storeCardId(platform, c.title)) + '"><b>' + esc(c.title) + '</b>' + (c.version ? ' <small>' + esc(c.version) + '</small>' : '') +
       '<span>' + esc(c.state) + '</span>' + (c.at ? '<small>' + when(c.at) + '</small>' : '') +
       (c.updates.length ? '<div class="pus"><div class="puh">Over-the-air updates</div>' + c.updates.map((u) => update(u, platform)).join('') + '</div>' : '') + '</div>';
     const arrow = '<div class="pa" aria-hidden="true"></div>';

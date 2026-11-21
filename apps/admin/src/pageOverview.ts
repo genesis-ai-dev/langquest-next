@@ -278,6 +278,8 @@ export const OVERVIEW_SCRIPT = String.raw`
 const LVL_ICON = { urgent: 'alert', problem: 'alert', watch: 'look', info: 'look', clear: 'safety' };
 const lvl = (level, title) => '<span class="lvl ' + level + '">' + svgIcon(LVL_ICON[level]) + esc(title) + '</span>';
 const goLink = (href, text, out) => '<a class="go" href="' + esc(href) + '"' + (out ? ' target="_blank" rel="noopener"' : '') + '>' + esc(text) + ' ' + svgIcon('go') + '</a>';
+/** The row's own button: it opens the row's card on its section's page (pageCards.ts). */
+const rowOpenLink = (href) => '<a class="go open" href="' + esc(href) + '">Open ' + svgIcon('go') + '</a>';
 const ALSO_SHOWN = 3;
 
 /** Every card line is a merged fix that waits for its check. */
@@ -288,22 +290,24 @@ function alertRow(c) {
   const t = splitAlert(tidy(c.text));
   const link = safeLink(c.link);
   const lines = c.alerts || [];
-  const also = c.more.slice(0, ALSO_SHOWN).map((x, i) => '<li>' + esc(splitAlert(tidy(x)).title) + fixHtml(lines[i + 1], true) + '</li>').join('');
+  // Each line opens its own card on its section's page (pageCards.ts).
+  const href = (a) => cardHref(c.group, lineCardId(a || { key: 'unreadable', subject: c.part }));
+  const also = c.more.slice(0, ALSO_SHOWN).map((x, i) => '<li><a class="card" href="' + esc(href(lines[i + 1])) + '">' + esc(splitAlert(tidy(x)).title) + '</a>' + fixHtml(lines[i + 1], true) + '</li>').join('');
   const rest = c.more.length - ALSO_SHOWN;
   // A row that needs a person has its part's own picture, on a wide screen: its runs or its list as squares, or its number over 14 days.
   const gl = c.level === 'watch' ? null : glanceOf(c.group);
   const pic = c.level === 'watch' ? '' : (SQUARES[c.part] ? squarePic(c.part, c.text) : listCardPic(c.part)) || (gl ? miniSvg(gl.s.values, gl.s.agg, 200, 48, gl.say) + '<small>' + esc(gl.said) + '</small>' : '');
-  return '<div class="alert ' + c.level + (fixing(c) ? ' fixing' : '') + '">' + lvl(c.level, LEVEL[c.level].title) +
-    '<div class="text"><b>' + esc(t.title) + '</b>' + fixHtml(lines[0]) +
+  return '<div class="alert ' + c.level + (fixing(c) ? ' fixing' : '') + '" data-href="' + esc(href(lines[0])) + '">' + lvl(c.level, LEVEL[c.level].title) +
+    '<div class="text"><b><a class="card" href="' + esc(href(lines[0])) + '">' + esc(t.title) + '</a></b>' + fixHtml(lines[0]) +
     (also ? '<ul class="also">' + also + (rest > 0 ? '<li>' + num(rest) + ' more in ' + esc(titleOf(c.group)) + '</li>' : '') + '</ul>' : '') +
     (t.next ? '<p class="next"><b>Next:</b> ' + esc(t.next) + '</p>' : '') +
     '<div class="from">' + esc(whereOf(c)) + '</div></div><div class="pic">' + pic + '</div>' +
-    '<div class="gos">' + goLink('#g/' + c.group, titleOf(c.group)) + (link ? goLink(link, 'Open the page', true) : '') + '</div></div>';
+    '<div class="gos">' + rowOpenLink(href(lines[0])) + (link ? goLink(link, 'Open the page', true) : '') + '</div></div>';
 }
 
-/** A row for work that waits on Claude or on a store, not on the person. */
-function waitRow(who, title, from, group) {
-  return '<div class="alert info">' + lvl('info', who) + '<div class="text"><b>' + esc(title) + '</b><div class="from">' + from + '</div></div><div class="pic"></div><div class="gos">' + goLink('#g/' + group, titleOf(group)) + '</div></div>';
+/** A row for work that waits on Claude or on a store, not on the person; href opens its card. */
+function waitRow(who, title, from, group, href) {
+  return '<div class="alert info" data-href="' + esc(href) + '">' + lvl('info', who) + '<div class="text"><b><a class="card" href="' + esc(href) + '">' + esc(title) + '</a></b><div class="from">' + from + '</div></div><div class="pic"></div><div class="gos">' + goLink(href, titleOf(group)) + '</div></div>';
 }
 
 let startQueued = false;
@@ -334,8 +338,8 @@ function drawStart() {
   const rows = needs.map(alertRow).concat(watch.map(alertRow),
     claude.map((i) => waitRow(CLAUDE_WORK[i.state][0], i.title || i.issue || 'An issue',
       esc(CLAUDE_WORK[i.state][1]) + ' · ' + (i.pr ? '<a href="' + PR_URL + Number(i.pr) + '" target="_blank" rel="noopener">pull request ' + Number(i.pr) + '</a> · ' : '') + (safeLink(i.issueUrl) ? '<a href="' + esc(i.issueUrl) + '" target="_blank" rel="noopener">' + esc(i.issue || 'Linear') + '</a> · ' : '') +
-      'filed ' + esc(ago(i.firstAt)) + (i.people ? ' · ' + num(i.people) + (i.people === 1 ? ' person' : ' people') : ''), 'userissues')),
-    store.map((w) => waitRow('Store', w.lane + ' ' + (w.title || ''), 'Waits on Apple or Google · ' + esc(w.stage) + (w.at ? ' · ' + esc(ago(w.at)) : '') + (w.state ? ' · ' + esc(w.state) : ''), 'releases')));
+      'filed ' + esc(ago(i.firstAt)) + (i.people ? ' · ' + num(i.people) + (i.people === 1 ? ' person' : ' people') : ''), 'userissues', i.issue ? cardHref('userissues', i.issue) : '#g/userissues')),
+    store.map((w) => waitRow('Store', w.lane + ' ' + (w.title || ''), 'Waits on Apple or Google · ' + esc(w.stage) + (w.at ? ' · ' + esc(ago(w.at)) : '') + (w.state ? ' · ' + esc(w.state) : ''), 'releases', cardHref('releases', storeCardId(w.laneId, w.title)))));
   redraw($('start-you'), rows.join('') ||
     (loading ? '<p class="muted">Checking each section…</p>' : '<div class="alert clear">' + lvl('clear', 'All clear') + '<div class="text"><b>Nothing needs attention now.</b></div><div class="pic"></div><span></span></div>'));
   drawResolved();
