@@ -808,6 +808,7 @@
     },
     "members": {
       "joined": "{{target}} · {{when}}加入",
+      "joinedJustNow": "{{target}} · 刚刚加入",
       "count_other": "{{count, number}} 位成员",
       "invite": "邀请",
       "introOrg": "角色涵盖所有语言的人。打开下面的组查看每个语言自己的人。",

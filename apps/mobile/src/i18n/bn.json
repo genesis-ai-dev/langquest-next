@@ -825,6 +825,7 @@
     },
     "members": {
       "joined": "{{target}} · যোগ দিয়েছেন {{when}}",
+      "joinedJustNow": "{{target}} · এইমাত্র যোগ দিয়েছেন",
       "count_one": "{{count, number}} জন সদস্য",
       "count_other": "{{count, number}} জন সদস্য",
       "invite": "আমন্ত্রণ জানান",

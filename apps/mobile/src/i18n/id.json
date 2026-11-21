@@ -808,6 +808,7 @@
     },
     "members": {
       "joined": "{{target}} · bergabung {{when}}",
+      "joinedJustNow": "{{target}} · baru saja bergabung",
       "count_other": "{{count, number}} anggota",
       "invite": "Undang",
       "introOrg": "Orang yang perannya mencakup semua bahasa. Buka grup di bawah untuk orang di setiap bahasa.",

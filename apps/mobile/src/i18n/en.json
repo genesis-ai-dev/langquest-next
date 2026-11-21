@@ -825,6 +825,7 @@
     },
     "members": {
       "joined": "{{target}} · joined {{when}}",
+      "joinedJustNow": "{{target}} · joined just now",
       "count_one": "{{count, number}} member",
       "count_other": "{{count, number}} members",
       "invite": "Invite",
