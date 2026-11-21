@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Card, Group, Header, HelpInfo, Ico, LinkBtn, ProgressBar, Row, Screen, type IconName } from '../ui/kit';
+import { Card, GhostBtn, Group, Header, HelpInfo, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen, Sheet, SmallBtn, type IconName } from '../ui/kit';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { isOffline } from './uploadsModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -152,7 +152,11 @@ export function PassageOfflineBar(props: { ctx: Ctx; unitId: string }) {
         {...a11yState({ disabled: !keep.onPress }, 'button')}
         style={({ pressed }) => [styles.bar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg }, pressed && { opacity: 0.7 }]}>
         <DownloadDisc look={look} size={30} />
-        <Text style={[txt.sm, { flex: 1, fontWeight: '700', color: tone.fg }]}>{look.label}</Text>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={[txt.sm, { fontWeight: '700', color: tone.fg }]}>{look.label}</Text>
+          {/* Files the study guide names that their source does not have: said, since no wait will bring them. */}
+          {u !== 'checking' && u.studyRefused ? <Text style={[txt.xs, { color: tone.fg }]}>{t('offline.studyRefused', { count: u.studyRefused })}</Text> : null}
+        </View>
         <HelpBadge spot={spot} />
       </Pressable>
       {u !== 'checking' && u.reason === 'chosen' ? <ReferenceSwitch ctx={ctx} unitId={unitId} on={!u.recordingsOnly} offline={offline} /> : null}
@@ -234,7 +238,11 @@ function useGroupCost(ctx: Ctx, unitIds: readonly string[], shown: boolean): { a
  * once every one is kept it lets go those the person chose, as a passage's
  * button does. `sized`: say how much audio would come before the tap.
  */
-function useGroup(ctx: Ctx, unitIds: readonly string[], sized: boolean): { look: GroupLook; onPress: (() => void) | undefined } {
+function useGroup(ctx: Ctx, unitIds: readonly string[], sized: boolean): {
+  look: GroupLook; onPress: (() => void) | undefined;
+  /** Every passage is kept and some by choice: letting them go, which a screen asks to be sure of first (`RemoveSheet`). */
+  remove: { run: () => void; stay: number } | null;
+} {
   const counted = keptOfflineMap(ctx);
   const { keptOffline, keptUnits, keepOffline } = ctx.language.blobs;
   useStudyRevision();
@@ -261,33 +269,73 @@ function useGroup(ctx: Ctx, unitIds: readonly string[], sized: boolean): { look:
     await keepOffline(g.toKeep, true, { recordingsOnly: true });
   };
   const onPress = look.tap === 'keep' ? () => { void keep(); }
-    : look.tap === 'letGo' ? () => { void keepOffline(g.chosen, false); ctx.toast(letGoWords(g)); }
     : look.tap === 'why' ? () => ctx.toast(look.help)
     : undefined;
-  return { look, onPress };
+  const remove = look.tap === 'letGo' ? { run: () => { void keepOffline(g.chosen, false); ctx.toast(letGoWords(g)); }, stay: g.count - g.chosen.length } : null;
+  return { look, onPress, remove };
+}
+
+/**
+ * Before a book's or a section's passages are let go: what that does, and a
+ * red button to do it. A tap on a line that said "on this device" used to
+ * let a whole book go at once, which nobody could tell it would (Carl,
+ * 2026-11-20).
+ */
+function RemoveSheet(props: { name: string; stay: number; visible: boolean; onClose: () => void; onRemove: () => void }) {
+  return (
+    <Sheet visible={props.visible} title={t('offline.group.removeTitle', { name: props.name })} onClose={props.onClose}
+      footer={(
+        <View style={{ gap: space.sm }}>
+          <PrimaryBtn label={t('offline.group.removeConfirm')} tone="red" icon="close" onPress={() => { props.onClose(); props.onRemove(); }} help={t('offline.group.letGoHelp')} />
+          <GhostBtn label={t('common.cancel')} onPress={props.onClose} full help={t('offline.group.removeCancelHelp')} />
+        </View>
+      )}>
+      <Text style={txt.body}>{t('offline.group.removeBody')}</Text>
+      {props.stay > 0 ? <Text style={txt.body}>{t('offline.group.removeStay', { count: props.stay })}</Text> : null}
+    </Sheet>
+  );
 }
 
 /**
  * Over a book's passages: how many of them are on this device, and the
- * button that downloads the whole book for offline (LAN-316). The whole line
- * is the button, as at the top of a passage; it says how much audio would
- * come before the tap. Nothing for a book with no passages.
+ * button that downloads the whole book for offline (LAN-316). While there is
+ * something to download the whole line is the button, as at the top of a
+ * passage, and it says how much audio would come before the tap. Once every
+ * passage is kept the line only says where they stand, and a Remove button at
+ * its end lets them go, after asking. Nothing for a book with no passages.
  */
-export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; testID?: string }) {
-  const { look, onPress } = useGroup(props.ctx, props.unitIds, true);
+export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; name: string; testID?: string }) {
+  const { look, onPress, remove } = useGroup(props.ctx, props.unitIds, true);
+  const [asking, setAsking] = useState(false);
   const spot = useHelpSpot(look.label, look.help, onPress);
   if (props.unitIds.length === 0) return null;
   const tone = look.kind === 'ready' || look.kind === 'recordings' ? { bg: TINT.green, fg: TINT.greenText } : look.kind === 'partial' || look.kind === 'noRoom' ? { bg: TINT.amber, fg: TINT.amberText }
     : look.kind === 'checking' || look.kind === 'noConnection' ? { bg: C.card, fg: C.muted } : { bg: C.card, fg: C.primary };
-  return (
-    <Pressable testID={props.testID ?? 'group-offline'} onPress={spot.onPress} disabled={!onPress && !spot.id} accessibilityRole="button" accessibilityLabel={groupSpoken(look)}
-      {...a11yState({ disabled: !onPress }, 'button')}
-      style={({ pressed }) => [styles.bar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg }, pressed && { opacity: 0.7 }]}>
+  const testID = props.testID ?? 'group-offline';
+  const inside = (
+    <>
       <DownloadDisc look={look} size={30} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={[txt.sm, { fontWeight: '700', color: tone.fg }]}>{look.label}</Text>
         {look.notes.map((note) => <Text key={note} style={[txt.xs, { color: look.kind === 'none' ? C.muted : tone.fg }]}>{note}</Text>)}
       </View>
+    </>
+  );
+  const frame = [styles.bar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg }];
+  if (remove) {
+    return (
+      <View style={frame}>
+        <View testID={testID} style={styles.barText} accessible accessibilityLabel={groupSpoken(look)}>{inside}</View>
+        <SmallBtn testID={`${testID}-remove`} label={t('common.remove')} icon="close" help={look.help} onPress={() => setAsking(true)} />
+        <RemoveSheet name={props.name} stay={remove.stay} visible={asking} onClose={() => setAsking(false)} onRemove={remove.run} />
+      </View>
+    );
+  }
+  return (
+    <Pressable testID={testID} onPress={spot.onPress} disabled={!onPress && !spot.id} accessibilityRole="button" accessibilityLabel={groupSpoken(look)}
+      {...a11yState({ disabled: !onPress }, 'button')}
+      style={({ pressed }) => [...frame, pressed && { opacity: 0.7 }]}>
+      {inside}
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -296,19 +344,56 @@ export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; t
 /**
  * The same button as a round mark, at the end of an outline section's label
  * (lessons, stories): it downloads the section's passages for offline. Its
- * spoken label names the section; the size is asked at the tap.
+ * spoken label names the section; the size is asked at the tap. Once every
+ * passage is kept, a tap asks before letting them go.
  */
 export function GroupDownloadButton(props: { ctx: Ctx; unitIds: readonly string[]; name: string; testID?: string }) {
-  const { look, onPress } = useGroup(props.ctx, props.unitIds, false);
+  const { look, onPress, remove } = useGroup(props.ctx, props.unitIds, false);
+  const [asking, setAsking] = useState(false);
+  const press = remove ? () => setAsking(true) : onPress;
   const label = t('shell.a11y.labelDetail', { label: props.name, detail: groupSpoken(look) });
-  const spot = useHelpSpot(label, look.help, onPress);
+  const spot = useHelpSpot(label, look.help, press);
   if (props.unitIds.length === 0) return null;
   return (
-    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={!onPress && !spot.id} accessibilityRole="button" accessibilityLabel={label}
-      {...a11yState({ disabled: !onPress }, 'button')} hitSlop={4} style={({ pressed }) => [styles.discTap, pressed && { opacity: 0.6 }]}>
-      <DownloadDisc look={look} />
-      <HelpBadge spot={spot} />
-    </Pressable>
+    <>
+      <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={!press && !spot.id} accessibilityRole="button" accessibilityLabel={label}
+        {...a11yState({ disabled: !press }, 'button')} hitSlop={4} style={({ pressed }) => [styles.discTap, pressed && { opacity: 0.6 }]}>
+        <DownloadDisc look={look} />
+        <HelpBadge spot={spot} />
+      </Pressable>
+      {remove ? <RemoveSheet name={props.name} stay={remove.stay} visible={asking} onClose={() => setAsking(false)} onRemove={remove.run} /> : null}
+    </>
+  );
+}
+
+/**
+ * Every mark a download button can show, drawn as the buttons draw it, with
+ * what it means: the map's key for them (Carl, 2026-11-20: the marks were
+ * defined nowhere). Opened from a book's screen and from Filter.
+ */
+export function DownloadKey() {
+  const marks: { look: OfflineLook; sub: string }[] = [
+    { look: { kind: 'none', label: t('offline.download') }, sub: t('offline.key.noneSub') },
+    { look: { kind: 'downloading', label: t('offline.downloading') }, sub: t('offline.key.downloadingSub') },
+    { look: { kind: 'partial', label: t('offline.key.partial') }, sub: t('offline.key.partialSub') },
+    { look: { kind: 'recordings', label: t('offline.recordingsHere') }, sub: t('offline.key.recordingsSub') },
+    { look: { kind: 'ready', label: t('offline.onDevice') }, sub: t('offline.key.readySub') },
+    { look: { kind: 'noConnection', label: t('offline.needsConnection') }, sub: t('offline.key.noConnectionSub') },
+    { look: { kind: 'checking', label: t('offline.summary.checking') }, sub: t('offline.key.checkingSub') }
+  ];
+  return (
+    <View style={{ gap: space.md }}>
+      {marks.map((m) => (
+        <View key={m.look.kind} style={styles.keyLine} accessible accessibilityLabel={t('shell.a11y.labelDetail', { label: m.look.label, detail: m.sub })}>
+          <DownloadDisc look={m.look} size={30} />
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Text style={[txt.sm, { fontWeight: '700' }]}>{m.look.label}</Text>
+            <Text style={txt.xs}>{m.sub}</Text>
+          </View>
+        </View>
+      ))}
+      <Text style={txt.xs}>{t('offline.key.tap')}</Text>
+    </View>
   );
 }
 
@@ -390,5 +475,7 @@ const styles = StyleSheet.create({
   disc: { alignItems: 'center', justifyContent: 'center', borderWidth: 2, backgroundColor: C.card },
   discTap: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   bar: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48, paddingHorizontal: space.md, paddingVertical: space.xs,
-    borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth }
+    borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
+  barText: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minWidth: 0 },
+  keyLine: { flexDirection: 'row', alignItems: 'center', gap: space.md }
 });
