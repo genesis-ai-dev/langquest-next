@@ -113,7 +113,7 @@ export const CARD_SCRIPT = String.raw`
 function lineCard(a, group) {
   const level = a.level in LEVEL ? a.level : 'watch';
   const t = splitAlert(tidy(a.text));
-  const ud = userIssuesData();
+  const ud0 = userIssuesData(), ud = ud0 && { ...ud0, notes: notesWithSends(ud0.notes, SENDS) };
   const unread = a.key === 'unreadable';
   // "User issues open" counts Linear issues itself: its own cards are the issues on this page.
   const f = unread || a.key === 'user-issues-open' || a.key === 'user-issues-waiting' ? null : fixOf(a);
@@ -144,6 +144,7 @@ function lineCard(a, group) {
       (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? '<span>' + esc(row.state) + ' in Linear</span>' : '') : ''),
     title: t.title, meta: where,
     talk: issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : '',
+    record: issue ? issueRecord(issue, row && row.firstAt ? { at: row.firstAt, who: 'The watch', said: 'found the problem' } : null, way.pill) : '',
     lines: [
       // Who acts next, and what: first in the panel at the right.
       ['Next', issue && f ? (() => { const n = nextSaid(f.state, !!(a.issues && a.issues.length), asked); return n ? '<p class="inext">' + esc(n) + '</p>' : ''; })() : ''],
