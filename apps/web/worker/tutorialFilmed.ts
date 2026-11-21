@@ -9,6 +9,10 @@ import type { GithubRun, OidcRule } from './githubOidc';
  * videos go up as soon as they are made instead of at the next scheduled
  * time. An intake already running takes it in once more when it ends.
  *
+ * `GET /api/tutorial-filmed` answers the languages filmed each night, as the
+ * ops dashboard's switches set them (ops.tutorial_filming, decision
+ * 2026-11-21 filming languages switch): `{ languages: ['en', ...] }`.
+ *
  * Only that workflow, run from main, gets in, with the OpenID Connect token
  * GitHub gives the job (githubOidc.ts), as for the nightly look
  * (tutorialReview.ts): GitHub holds no key to production.
@@ -23,14 +27,17 @@ export interface FilmedDeps {
   verify(token: string, rule: OidcRule): Promise<GithubRun | null>;
   /** Starts the intake, or has the run under way take the films in once more when it ends. */
   intake(): Promise<'started' | 'running' | 'disabled'>;
+  /** The languages filmed each night (`ops_tutorial_filming_languages`). */
+  languages(): Promise<string[]>;
 }
 
 const json = (status: number, body: unknown) => Response.json(body, { status, headers: { 'cache-control': 'private, no-store' } });
 
 export async function handleTutorialFilmed(request: Request, deps: FilmedDeps): Promise<Response> {
-  if (request.method !== 'POST') return json(405, { error: 'Only POST is supported.' });
+  if (request.method !== 'POST' && request.method !== 'GET') return json(405, { error: 'Only GET and POST are supported.' });
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   const run = token ? await deps.verify(token, FILMED_RULE).catch(() => null) : null;
   if (!run) return json(401, { error: `Only ${FILMED_RULE.workflowRef} gets in, with its GitHub OIDC token.` });
+  if (request.method === 'GET') return json(200, { languages: await deps.languages() });
   return json(200, { intake: await deps.intake() });
 }

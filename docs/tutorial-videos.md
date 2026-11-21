@@ -162,7 +162,9 @@ At 20:10 UTC, and when a change to `e2e/tutorials` or the workflow is
 merged into main, for each language in its `NIGHTLY_LANGUAGES` (all fifteen,
 English and French first, five at a time; English alone from 2026-11-01
 while Caleb looked at the spotlight films; English, French and Spanish from
-2026-11-16, the others after them), a runner starts the local stack and the web export as the UI tests
+2026-11-16, the others after them), (from 2026-11-21 the languages switched on in the ops dashboard, read from
+the Worker; `NIGHTLY_LANGUAGES` only when that answer does not come),
+a runner starts the local stack and the web export as the UI tests
 do, has Gemini translate any line the language lacks (`translate-lines.ts`;
 the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
 
@@ -593,8 +595,12 @@ Four tabs with counts; the page opens on the first when something waits:
   says what and when, and a click shows the change, the films before and
   after, the comment as written, the PR or the log. Ctrl and the scroll
   wheel, or a pinch, zooms it; narrow days show dots. A button under a
-  video's name opens its cards in place. Paused languages (not in
-  `NIGHTLY_LANGUAGES`) are a line under the list.
+  video's name opens its cards in place. Paused languages are a line under
+  the list. Under Language, the chosen language's switch says whether it is
+  filmed each night: Pause filming, or Turn on filming, which asks once more
+  ("Film N videos at 20:10 UTC?"). A paused language whose connected channel
+  has no video has its own card under Waits on you, with the same switch
+  (decision `docs/decisions/2026-11-21-filming-languages-switch-on-the-dashboard.md`).
 - **Changes made**: the record of each change Claude made in the last 30
   days, with who said yes (Claude for a clear fix, an admin, or an admin's
   instruction), its state, its pull request, and its pictures before and,

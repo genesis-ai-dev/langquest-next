@@ -455,7 +455,7 @@ document.addEventListener('click', (e) => {
 });
 
 // ---- a question about a tutorial video (sources/videos.ts AdminItem), in the same card ----
-const ADMIN_KIND = { approve: 'Suggestion', fixFailed: 'Change failed', held: 'Film held', fails: 'Film fails', reply: 'Reply to post', comment: 'New comment', screen: 'Screen changed', publish: 'Publish', connect: 'Channel', paused: 'Paused' };
+const ADMIN_KIND = { approve: 'Suggestion', fixFailed: 'Change failed', held: 'Film held', fails: 'Film fails', reply: 'Reply to post', comment: 'New comment', screen: 'Screen changed', publish: 'Publish', connect: 'Channel', empty: 'No videos', paused: 'Paused' };
 /** Where each kind of card comes from. */
 const ADMIN_FROM = { approve: 'Claude\'s look at 10:00 UTC', fixFailed: 'Claude\'s fix run', held: 'The frame check on the new film', fails: 'The nightly filming', reply: 'A comment on YouTube', comment: 'A comment on YouTube', screen: 'A change merged into main' };
 /** What the start of each kind of card did, in the card's record after its source (ADMIN_FROM). */
@@ -530,7 +530,7 @@ function adminCard(a) {
     steps: [VIDEO_STEPS, videoWay(a).at],
     record: a.tutorial && a.language ? recordHtml(cardRecord(VIDEOS && VIDEOS.records, a.tutorial + '/' + a.language, SENDS, 'video:' + cardId(a),
       a.at && ADMIN_FOUND[a.kind] ? { at: a.at, who: ADMIN_FROM[a.kind], said: ADMIN_FOUND[a.kind] } : null), a.who === 'you' ? ['Waits on you', 'you'] : ['Claude acts next', 'claude']) : '',
-    side: a.reply ? replyBox(a) : (a.suggestion ? suggestionSide(a.suggestion) : '') + talkHtml(ins, a.send) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
+    side: a.reply ? replyBox(a) : (a.suggestion ? suggestionSide(a.suggestion) : '') + (a.filming ? filmingSwitch(a.filming.language, a.filming.on, a.filming.videos) : '') + talkHtml(ins, a.send) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
       // A change Claude could not make: Try again is the main button, and the box is behind "instead".
       retry + (retry && tell ? '<details><summary>Tell Claude what to do instead</summary>' + tell + '</details>' : tell)
   });

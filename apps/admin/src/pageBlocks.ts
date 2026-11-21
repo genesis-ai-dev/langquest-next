@@ -446,8 +446,9 @@ PAGE_BLOCKS.tutorials = () => {
   if (!d) return '';
   const t = videoTabs(d, null);
   const langs = (d.languages || []).length ? block('Each language', 0, '', '<div class="wchips">' + d.languages.map((l) =>
-    '<span class="lchip' + (!l.nightly ? ' off' : l.issues ? ' warn' : ' ok') + '" data-help="' + esc(!l.nightly ? 'Filming is paused.' : l.issues ? countOf(l.issues, 'video needs', 'videos need') + ' a person.' : 'Every video is in order.') + '">' +
-    esc(l.language) + (l.issues && l.nightly ? ' · ' + num(l.issues) : '') + '</span>').join('') + '</div>') : '';
+    // A paused language with something that waits on you (Tagalog's empty channel) shows it, not only the pause.
+    '<span class="lchip' + (l.issues ? ' warn' : !l.nightly ? ' off' : ' ok') + '" data-help="' + esc((!l.nightly ? 'Filming is paused.' + (l.issues ? ' ' : '') : '') + (l.issues ? countOf(l.issues, 'thing waits', 'things wait') + ' on you.' : l.nightly ? 'Every video is in order.' : '')) + '">' +
+    esc(l.language) + (l.issues ? ' · ' + num(l.issues) : '') + '</span>').join('') + '</div>') : '';
   return tabStrip('Where the work is', 'vtab', VIDEO_TABS, t.count, 'you') + langs;
 };
 PAGE_SAY.tutorials = () => {

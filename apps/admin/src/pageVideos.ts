@@ -74,6 +74,12 @@ export const VIDEO_CSS = String.raw`
 .vreply .n { width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--line); color: var(--ink); flex: none; }
 .vreply button.primary .n { background: #fff; color: var(--primary); }
 .vpaused { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; }
+/* A language's Film each night switch: its state, then one button; turning on asks once more. */
+.vfilm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vfilm .state { font-size: 13px; font-weight: 600; }
+.vfilm .state.on { color: var(--ok, #22c55e); } .vfilm .state.off { color: var(--muted); }
+.vfilm .ask { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
+.vfilm button { min-height: 48px; }
 @media (max-width: 760px) { .vrow { grid-template-columns: minmax(0, 1fr); } .vrow.head > span:first-child { display: none; } }
 `;
 
@@ -124,6 +130,18 @@ function rowMark(v, cards) {
 /** Drawing; uses the page's helpers (esc, num, when, table, languageName, say, perform, annotate, $) and pageOps.ts's video state and cards. */
 export const VIDEO_SCRIPT = String.raw`
 let videoTab = null;
+/**
+ * A language's Film each night switch (decision 2026-11-21, filming languages switch). Pause is one press; Turn on asks
+ * once more, because the first night films every video of the language and uses YouTube's upload limit for days.
+ */
+function filmingSwitch(language, on, videos) {
+  const l = esc(language), name = esc(languageName(language));
+  return '<div class="vfilm" data-film="' + l + '"><span class="state ' + (on ? 'on' : 'off') + '">' + name + ': ' + (on ? 'filmed each night' : 'paused') + '</span>' +
+    (on ? '<button type="button" data-filming="' + l + '" data-on="0">Pause filming</button>'
+      : '<button type="button" class="primary" data-filming-ask="' + l + '">Turn on filming</button>' +
+        '<span class="ask" hidden>Film ' + (videos ? num(videos) + ' videos' : 'every video') + ' at 20:10 UTC? <button type="button" class="primary" data-filming="' + l + '" data-on="1">Yes, film them</button>' +
+        '<button type="button" data-filming-cancel>Cancel</button></span>') + '</div>';
+}
 const VSHAPE = {
   film: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/>', up: '<path d="M12 17V5M7 10l5-5 5 5M5 20h14"/>', comment: '<path d="M4 5h16v11H10l-5 4v-4H4z"/>',
   suggested: '<path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.6 10.8c.4.4.6.8.6 1.4V16h6v-.8c0-.6.2-1 .6-1.4A6 6 0 0012 3z"/>', accepted: '<path d="M5 12.5l4.5 4.5L19 7"/>', rejected: '<path d="M6 6l12 12M18 6L6 18"/>',
@@ -217,6 +235,8 @@ function videoRows() {
     '<div><button type="button" data-vzoom="out" aria-label="Show more days">−</button> <button type="button" data-vzoom="in" aria-label="Show fewer days">+</button> ' +
     '<button type="button" data-vfit="14">14 days</button> <button type="button" data-vfit="60">60 days</button></div>' +
     '<div><label class="check"><input type="checkbox" id="video-mine"' + (onlyMine ? ' checked' : '') + '> Only videos that wait on you</label></div></div>';
+  const chosen = d.languages.find((l) => l.language === videoLanguage);
+  if (chosen) h += filmingSwitch(chosen.language, chosen.nightly, d.videos.filter((v) => v.language === chosen.language).length);
   const admin = withSends(d).admin;
   const cardsOf = (v) => admin.filter((a) => a.tutorial === v.tutorial && a.language === v.language);
   const rows = d.videos.filter((v) => v.language === videoLanguage && (!onlyMine || cardsOf(v).some((a) => a.who === 'you')));
@@ -266,6 +286,12 @@ document.addEventListener('click', (e) => {
     const done = copy.parentNode.querySelector('[data-done="posted"]');
     copy.classList.remove('primary'); if (done) done.classList.add('primary');
   }
+  const ask = t.closest('[data-filming-ask]');
+  if (ask) { ask.hidden = true; ask.nextElementSibling.hidden = false; }
+  const cancel = t.closest('[data-filming-cancel]');
+  if (cancel) { const box = cancel.closest('.vfilm'); box.querySelector('.ask').hidden = true; box.querySelector('[data-filming-ask]').hidden = false; }
+  const filming = t.closest('[data-filming]');
+  if (filming) perform({ kind: 'tutorial-filming', language: filming.dataset.filming, on: filming.dataset.on === '1' }, filming);
   const done = t.closest('[data-reply-done]');
   if (done) {
     const a = VIDEOS && VIDEOS.admin.find((x) => x.reply && x.reply.id === done.dataset.replyDone);
