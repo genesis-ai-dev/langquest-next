@@ -111,7 +111,7 @@ line.
 
 A key is the family, then the record's own code-like tags
 (`packages/sync/src/diagnostics.ts` DIAG_SCHEMA says what each tag is;
-`supabase/migrations/20261121030000_user_issue_watch_gaps.sql`, `ops.user_issue_hits`, builds the keys):
+`supabase/migrations/20261121031500_user_issue_watch_gaps.sql`, `ops.user_issue_hits`, builds the keys):
 
 - `error:<name>@<where>:<code>`: a fault that reached a boundary in the app
   (`apps/mobile/src/diagnostics/report.ts`). `where` names the screen or

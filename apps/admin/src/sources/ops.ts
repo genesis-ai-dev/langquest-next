@@ -652,7 +652,7 @@ export interface UserIssues {
   /** Absent before migration 20261117213500_ops_lines_linear.sql. */
   lines?: UserIssueLine[];
   open: number; closed: number; fixed: number; noiseWeek: number;
-  /** Kinds the newest watch left past its 20 a run, for later runs. Absent before migration 20261121030000_user_issue_watch_gaps.sql. */
+  /** Kinds the newest watch left past its 20 a run, for later runs. Absent before migration 20261121031500_user_issue_watch_gaps.sql. */
   waiting?: number;
   last: { at: string; outcome: string; n: Record<string, number> | null } | null;
 }

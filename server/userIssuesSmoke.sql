@@ -619,7 +619,7 @@ exception when insufficient_privilege then null;
 end $$;
 reset role;
 
--- What the watch reads since 2026-11-21 (migration 20261121030000_user_issue_watch_gaps.sql): slowness by
+-- What the watch reads since 2026-11-21 (migration 20261121031500_user_issue_watch_gaps.sql): slowness by
 -- the field report's limits, a stale snapshot, taps on audio not yet on the phone, records a phone dropped,
 -- each stack's top line, and what waits past the 20 a run. In a savepoint, so the checks above stand alone.
 savepoint gaps;

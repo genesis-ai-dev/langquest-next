@@ -191,7 +191,7 @@ Amended (2026-11-21, Caleb Koster): the watch read failures and not
 slowness, and it never read four kinds of record (`open`, `load`,
 `snapshot`, `checkpoint`). Caleb asked whether an agent team reads the
 incoming diagnostics, saw the gaps, and chose to close all of them
-(migration `20261121030000_user_issue_watch_gaps.sql`):
+(migration `20261121031500_user_issue_watch_gaps.sql`):
 - **Slowness is a family of its own, `slow`**, by the limits the field
   report already uses (`scripts/diagSignals.ts`) and the ops dashboard's
   line: a sync slow on the phone or on the network, a language open over
