@@ -32,6 +32,10 @@ first load. Decided (`apps/admin/src/pageLoading.ts`):
   `db.ts`), not one. Hyperdrive pools them toward the database, and a page
   load opens two answers (diag and ops), so at most 12.
 
+Reverse if: the shapes make people think an answer came when it did not, or
+Hyperdrive or the database refuses the extra connections (then lower
+`DIAG_CONNECTIONS`).
+
 Rejected: a spinner over the whole page (it hides what has come already);
 splitting User issues into a call of its own (more code for the same gain
 as more connections); caching answers in the browser between visits (old
