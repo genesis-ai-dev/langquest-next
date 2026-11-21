@@ -715,44 +715,48 @@ insert into ops.user_issues (key, verdict, issue, issue_url) values
   ('error:PlanA@x:-', 'filed', 'LAN-901', 'https://linear.app/x/issue/LAN-901'),
   ('error:PlanB@x:-', 'filed', 'LAN-902', 'https://linear.app/x/issue/LAN-902');
 set local role service_role;
-do $$
-declare
-  run text := 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/777';
-begin
-  assert public.ops_user_issue_plans_done(jsonb_build_object('runUrl', run, 'plans', jsonb_build_array(
+do $$ begin
+  assert public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/777', 'plans', jsonb_build_array(
     jsonb_build_object('issue', 'LAN-901', 'next', 'Run a probe.', 'steps', '1. Probe.', 'inHours', 0.25, 'probe', 'took 4100 ms'),
     jsonb_build_object('issue', 'LAN-902', 'next', 'Read production.', 'inHours', 9999)))) = 2, 'two plans kept';
-  assert (select next_at > now() + interval '14 minutes' and next_at < now() + interval '16 minutes' from ops.user_issue_plans where issue = 'LAN-901'), 'a quarter hour';
-  assert (select next_at < now() + interval '169 hours' from ops.user_issue_plans where issue = 'LAN-902'), 'at most a week';
   assert public.ops_user_issue_plans_due() = '[]'::jsonb, 'nothing due yet';
-  update ops.user_issue_plans set next_at = now() - interval '1 minute';
-  assert public.ops_user_issue_plans_due() = '["LAN-901", "LAN-902"]'::jsonb, 'both due: %', public.ops_user_issue_plans_due();
-  assert public.ops_user_issue_plan('LAN-901')->>'probe' = 'took 4100 ms', 'the next try reads the probe';
-  -- A second plan counts a try; at the limit the issue is not handed back.
-  perform public.ops_user_issue_plans_done(jsonb_build_object('runUrl', run, 'plans', jsonb_build_array(jsonb_build_object('issue', 'LAN-901', 'next', 'Probe again.', 'inHours', 1))));
-  assert (select tries = 2 from ops.user_issue_plans where issue = 'LAN-901'), 'two tries';
-  update ops.user_issue_plans set next_at = now() - interval '1 minute';
-  assert public.ops_user_issue_plans_due(2) = '["LAN-902"]'::jsonb, 'LAN-901 is at the limit: %', public.ops_user_issue_plans_due(2);
-end $$;
-reset role;
--- A closed issue is not handed back.
-update ops.user_issues set verdict = 'fixed', fixed_at = now(), closed_at = now() where issue = 'LAN-902';
-set local role service_role;
-do $$
-declare
-  run text := 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/777';
-begin
-  assert public.ops_user_issue_plans_due() = '["LAN-901"]'::jsonb, 'a closed issue stays: %', public.ops_user_issue_plans_due();
-  -- A record with no next step removes the plan.
-  perform public.ops_user_issue_plans_done(jsonb_build_object('runUrl', run, 'plans', jsonb_build_array(jsonb_build_object('issue', 'LAN-902', 'next', null))));
-  assert not exists (select 1 from ops.user_issue_plans where issue = 'LAN-902'), 'removed';
   begin
     perform public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/someone/else/actions/runs/1', 'plans', '[]'::jsonb));
     assert false, 'another repository''s run';
   exception when sqlstate '22023' then null;
   end;
+end $$;
+reset role;
+do $$ begin
+  assert (select next_at > now() + interval '14 minutes' and next_at < now() + interval '16 minutes' from ops.user_issue_plans where issue = 'LAN-901'), 'a quarter hour';
+  assert (select next_at < now() + interval '169 hours' from ops.user_issue_plans where issue = 'LAN-902'), 'at most a week';
   assert not has_function_privilege('authenticated', 'public.ops_user_issue_plans_done(jsonb)', 'execute')
     and not has_function_privilege('anon', 'public.ops_user_issue_plans_due(int)', 'execute'), 'only the Worker';
+end $$;
+update ops.user_issue_plans set next_at = now() - interval '1 minute';
+set local role service_role;
+do $$ begin
+  assert public.ops_user_issue_plans_due() = '["LAN-901", "LAN-902"]'::jsonb, 'both due: %', public.ops_user_issue_plans_due();
+  assert public.ops_user_issue_plan('LAN-901')->>'probe' = 'took 4100 ms', 'the next try reads the probe';
+  -- A second plan counts a try.
+  perform public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/778', 'plans', jsonb_build_array(jsonb_build_object('issue', 'LAN-901', 'next', 'Probe again.', 'inHours', 1))));
+  assert (public.ops_user_issue_plan('LAN-901')->>'tries')::int = 2, 'two tries';
+end $$;
+reset role;
+-- At the limit an issue is not handed back, nor a closed one.
+update ops.user_issue_plans set next_at = now() - interval '1 minute';
+set local role service_role;
+do $$ begin
+  assert public.ops_user_issue_plans_due(2) = '["LAN-902"]'::jsonb, 'LAN-901 is at the limit: %', public.ops_user_issue_plans_due(2);
+end $$;
+reset role;
+update ops.user_issues set verdict = 'fixed', fixed_at = now(), closed_at = now() where issue = 'LAN-902';
+set local role service_role;
+do $$ begin
+  assert public.ops_user_issue_plans_due() = '["LAN-901"]'::jsonb, 'a closed issue stays: %', public.ops_user_issue_plans_due();
+  -- A record with no next step removes the plan.
+  perform public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/779', 'plans', jsonb_build_array(jsonb_build_object('issue', 'LAN-902', 'next', null))));
+  assert public.ops_user_issue_plan('LAN-902') is null, 'removed';
 end $$;
 reset role;
 set local role diag_reader;

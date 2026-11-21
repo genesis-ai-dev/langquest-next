@@ -13,6 +13,7 @@
 -- 3. ops_user_issue_plans_due() names the open issues whose plan's time has come, the oldest first.
 -- 4. ops_user_issue_plan(issue) hands the run that writes the issue's fix its plan.
 -- 5. diag.ops_user_issue_plans() hands the dashboard what Claude does next on each issue, and when.
+-- 6. The issues that stopped at "not proven" before this get a plan, so the manager tries them again.
 
 create table if not exists ops.user_issue_plans (
   issue text primary key check (issue ~ '^[A-Z]{1,10}-[0-9]{1,7}$'),
@@ -101,3 +102,12 @@ language sql stable security definer set search_path = '' as $$
 $$;
 revoke all on function diag.ops_user_issue_plans from public;
 grant execute on function diag.ops_user_issue_plans to diag_reader;
+
+-- Each open issue that stopped at "the cause is not proven" before this migration goes back to the manager
+-- under the new rule, at the next runs (3 a run). LAN-323 is left out: a developer's thread works on it now
+-- (Caleb Koster, 2026-11-21).
+insert into ops.user_issue_plans (issue, next, steps, next_at, tries)
+select f.issue, 'Claude tries again under the new rule: it reads production and runs a test of its own to prove the cause.', null, now(), 1
+from ops.user_issue_fixes f
+where f.decision = 'none' and f.reason = 'unconfirmed' and f.at > now() - interval '90 days' and f.issue <> 'LAN-323'
+on conflict (issue) do nothing;
