@@ -288,7 +288,7 @@ const KV_SIDE = ['Next', 'Solution', 'Claude', 'Where'];
  * and a line without words is left out; c.pill is [words, level]; c.steps is
  * [steps, at]; c.side is the HTML under the fix; c.talk the talk with Claude
  * and its box; c.tab hides the card on another tab; c.card is its id for a
- * link to it (pageCards.ts).
+ * link to it (pageCards.ts); c.record the card's record of who did what (pageSends.ts recordHtml).
  */
 function issueCard(c) {
   const lines = (c.lines || []).filter((l) => l[1]);
@@ -302,7 +302,7 @@ function issueCard(c) {
     // With nothing to show at the left, the panel takes the whole width.
     (c.pics || main.length ? '<div class="igrid"><div class="imain">' + (c.pics ? '<div class="ipics">' + c.pics + '</div>' : '') + '<div class="ibody">' + kv(main) + '</div></div>' +
       (right ? '<div class="iside">' + right + '</div>' : '') + '</div>' : right ? '<div class="iside">' + right + '</div>' : '') +
-    (c.talk ? '<div class="italk"><h5>Talk with Claude</h5>' + c.talk + '</div>' : '') + '</article>';
+    (c.talk ? '<div class="italk"><h5>Talk with Claude</h5>' + c.talk + '</div>' : '') + (c.record || '') + '</article>';
 }
 const outLink = (href, words, cls) => '<a' + (cls ? ' class="' + cls + '"' : '') + ' href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + words + '</a>';
 
@@ -373,8 +373,15 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
     side: (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
       (way.tab === 'claude' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
       (r.issue && safeLink(r.issueUrl) ? outLink(r.issueUrl, 'Open ' + esc(r.issue) + ' in Linear', 'button') : ''),
-    talk: issueTalk(r, notes)
+    talk: issueTalk(r, notes),
+    record: issueRecord(r.issue, r.firstAt ? { at: r.firstAt, who: 'The watch', said: 'found the problem' } : null, [way.pill, way.level])
   });
+}
+/** An issue's record on its card (pageSends.ts): who did what, and Claude's answers, from the User issues part's answer. */
+function issueRecord(issue, found, turn) {
+  if (!issue) return '';
+  const ud = userIssuesData();
+  return recordHtml(cardRecord(ud ? ud.records : [], issue, SENDS, 'issue:' + issue, found), turn);
 }
 /**
  * The talk on a user issue's card: each instruction an admin sent with Claude's answer under it, then,
@@ -384,15 +391,21 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
 function issueTalk(r, notes, at) {
   if (!r.issue || !notes) return '';
   const list = notes[r.issue] || [];
+  // A message sent from this page that the server does not hold yet (pageSends.ts notesWithSends): sending, or refused.
   const talk = list.map((n) => {
+    if (n.local && n.state === 'sending') return '<p class="said you sending">' + esc(n.text) + '</p><small class="you sending">Sending…</small>';
+    if (n.local && n.state === 'refused') return '<p class="said you refused">' + esc(n.text) + '</p><small class="you">Not sent</small>' +
+      '<div class="said claude refused" role="alert"><p>' + esc('Not sent: ' + n.error + ' Your words are back in the box. Send them again.') + '</p></div><small></small>';
     const where = n.pr ? ' · ' + outLink(PR_URL + n.pr, 'PR ' + esc(n.pr)) : n.state !== 'answered' && n.state !== 'waiting' && safeLink(n.runUrl) ? ' · ' + outLink(n.runUrl, 'The run') : '';
-    return '<p class="said you">' + esc(n.text) + '</p><small class="you">You · ' + when(n.at) + '</small>' +
-      '<div class="said claude">' + saidHtml(noteSaid(n)) + '</div><small>Claude' + (n.answeredAt ? ' · ' + when(n.answeredAt) : '') + where + '</small>';
+    const said = n.state === 'waiting' ? (n.local ? 'Sent. ' : '') + 'Claude reads it at the next run of the watch, ' + watchSaid() + '.' : noteSaid(n);
+    const ud = userIssuesData(), by = n.local ? 'You' : saidBy(ud && ud.records, 'user_issue_note', n.text);
+    return '<p class="said you">' + esc(n.text) + '</p><small class="you">' + esc(by) + ' · ' + when(n.at) + '</small>' +
+      '<div class="said claude">' + saidHtml(said) + '</div><small>Claude' + (n.answeredAt ? ' · ' + when(n.answeredAt) : '') + where + '</small>';
   }).join('');
-  const id = esc(r.issue);
+  const id = esc(r.issue), busy = list.some((n) => n.local && n.state === 'sending');
   return (talk ? '<div class="talk">' + talk + '</div>' : '') +
-    (r.closedAt ? '' : '<div class="tell"><textarea id="uin-' + (at ? esc(at) + '-' : '') + id + '" maxlength="2000" rows="3" aria-label="What Claude must do" placeholder="' + (list.length ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
-      '<small>Claude starts at the next run of the watch (each 15 minutes).</small><button type="button" class="primary" data-uinote="' + id + '">Send to Claude</button></div>');
+    (r.closedAt ? '' : '<div class="tell"><textarea id="uin-' + (at ? esc(at) + '-' : '') + id + '" maxlength="2000" rows="3" aria-label="What Claude must do"' + (busy ? ' readonly' : '') + ' placeholder="' + (list.length ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
+      '<small>Claude reads it at the next run of the watch, ' + watchSaid() + '.</small><button type="button" class="primary" data-uinote="' + id + '"' + (busy ? ' disabled aria-busy="true">Sending…' : '>Send to Claude') + '</button></div>');
 }
 /** A place in the code as a link to that file on main, at its line. */
 function placeLink(place) {
@@ -401,7 +414,8 @@ function placeLink(place) {
 }
 /** The research team has its own page (pageResearch.ts): a line under the cards says so. */
 const researchPointer = () => '<p class="iresearch muted">What the research team found, also the same mistake in other places, is on <a href="#g/research">Research</a>.</p>';
-function userIssuesHtml(d) {
+function userIssuesHtml(raw) {
+  const d = { ...raw, notes: notesWithSends(raw.notes, SENDS) };
   const prs = fixData && fixData.state === 'ok' && fixData.data ? fixData.data.prs : null;
   const rows = (d.issues || []).map((r) => ({ r, way: issueWay(r, prs, r.issue && d.notes ? d.notes[r.issue] : null, r.issue && d.fixes ? d.fixes[r.issue] : null) }));
   const t = issueTabs(rows.map((x) => x.way), issueTab);
@@ -434,24 +448,32 @@ document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('[data-uinote]');
   if (!b) return;
   // The box next to the button: the same issue can have a box on its line's card too.
-  const text = String((((b.closest('.tell') || document).querySelector('textarea')) || {}).value || '').trim();
-  if (!text) { say('Write what Claude must do first.', 'red'); return; }
-  perform({ kind: 'user-issue-note', issue: b.dataset.uinote, text: text.slice(0, 2000) }, b);
+  const box = (b.closest('.tell') || document).querySelector('textarea');
+  const text = String((box || {}).value || '').trim();
+  if (!text) { say('Write what Claude must do first.', 'red'); sayAt(b, 'Write what Claude must do first.', 'red'); return; }
+  perform({ kind: 'user-issue-note', issue: b.dataset.uinote, text: text.slice(0, 2000) }, b, { talk: { key: 'issue:' + b.dataset.uinote, text: text.slice(0, 2000), box: box && box.id } });
 });
 
 // ---- a question about a tutorial video (sources/videos.ts AdminItem), in the same card ----
 const ADMIN_KIND = { approve: 'Suggestion', fixFailed: 'Change failed', held: 'Film held', fails: 'Film fails', reply: 'Reply to post', comment: 'New comment', screen: 'Screen changed', publish: 'Publish', connect: 'Channel', empty: 'No videos', paused: 'Paused' };
 /** Where each kind of card comes from. */
 const ADMIN_FROM = { approve: 'Claude\'s look at 10:00 UTC', fixFailed: 'Claude\'s fix run', held: 'The frame check on the new film', fails: 'The nightly filming', reply: 'A comment on YouTube', comment: 'A comment on YouTube', screen: 'A change merged into main' };
+/** What the start of each kind of card did, in the card's record after its source (ADMIN_FROM). */
+const ADMIN_FOUND = { fixFailed: 'could not make the change', held: 'held it back', fails: 'could not film the video', reply: 'came in', comment: 'came in', screen: 'changed a screen in the video' };
 const inputSaid = (i) => '<li><small>' + esc(i.kind === 'comment' ? 'Comment' : i.kind === 'code' ? 'Code change' : 'Note') + ' · ' + when(i.at) + '</small><br>' + esc(i.english || i.text) + '</li>';
 /** The admin's words, then where Claude is with them: the state of its change, its note, and its pull request or run. */
-function talkHtml(ins) {
+function talkHtml(ins, send) {
+  // A message sent from this card that the server does not hold yet: sending, or refused with the reason.
+  if (send && send.state === 'sending') return '<div class="talk"><p class="said you sending">' + esc(send.text) + '</p><small class="you sending">Sending…</small></div>';
+  if (send && send.state === 'refused') return '<div class="talk"><p class="said you refused">' + esc(send.text) + '</p><small class="you">Not sent</small>' +
+    '<div class="said claude refused" role="alert"><p>' + esc('Not sent: ' + send.error + ' Your words are back in the box. Send them again.') + '</p></div></div>';
   if (!ins) return '';
   const fix = ins.fix;
   const answer = fix ? FIX_STATE[fix.state] || fix.state
-    : ins.looked ? 'Claude starts the change at its next fix run (:20 and :50 each hour), as a pull request that merges itself when its checks pass.' : 'Claude reads it at its next run.';
+    : ins.looked ? (send ? 'Sent. ' : '') + 'Claude starts the change at its next fix run, ' + fixRunSaid() + ', as a pull request that merges itself when its checks pass.' : 'Claude reads it at its next run.';
   const where = fix && fix.pr ? ' · ' + outLink(PR_URL + fix.pr, 'PR ' + esc(fix.pr)) : fix && safeLink(fix.run) ? ' · ' + outLink(fix.run, 'The run') : '';
-  return '<div class="talk"><p class="said you">' + esc(ins.text) + '</p><small class="you">You · ' + when(ins.at) + '</small>' +
+  const by = send ? 'You' : saidBy(VIDEOS && VIDEOS.records, 'tutorial_note', ins.text);
+  return '<div class="talk"><p class="said you">' + esc(ins.text) + '</p><small class="you">' + esc(by) + ' · ' + when(ins.at) + '</small>' +
     '<div class="said claude">' + saidHtml(answer + (fix && fix.note ? '\n\n' + fix.note : '')) + '</div><small>Claude' + (fix && fix.at ? ' · ' + when(fix.at) : '') + where + '</small></div>';
 }
 function suggestionSide(s) {
@@ -489,8 +511,9 @@ function adminCard(a) {
   const inputs = a.suggestion && a.suggestion.inputs.length ? '<ul>' + a.suggestion.inputs.map(inputSaid).join('') + '</ul>' : '';
   const from = ADMIN_FROM[a.kind] ? esc(ADMIN_FROM[a.kind]) + (a.at ? ' · ' + when(a.at) : '') : '';
   const retry = retryButton(a);
-  const tell = a.instruct ? '<div class="tell"><textarea id="ins-' + id + '" maxlength="2000" rows="3" aria-label="What Claude must do" placeholder="' + (ins ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
-    '<small>Claude starts at its next fix run (:20 and :50 each hour).</small><button type="button"' + (retry ? '' : ' class="primary"') + ' data-instruct="' + id + '">Send to Claude</button></div>' : '';
+  const busy = a.send && a.send.state === 'sending';
+  const tell = a.instruct ? '<div class="tell"><textarea id="ins-' + id + '" maxlength="2000" rows="3" aria-label="What Claude must do"' + (busy ? ' readonly' : '') + ' placeholder="' + (ins ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
+    '<small>Claude starts at its next fix run, ' + fixRunSaid() + '.</small><button type="button"' + (retry ? '' : ' class="primary"') + ' data-instruct="' + id + '"' + (busy ? ' disabled aria-busy="true">Sending…' : '>Send to Claude') + '</button></div>' : '';
   return issueCard({
     pics: pictureStrip(a.pictures),
     tags: '<span class="tag ' + (ADMIN_LEVEL[a.kind] === 'bad' ? 'bad' : '') + '">' + esc(ADMIN_KIND[a.kind] || a.kind) + '</span>' +
@@ -505,7 +528,9 @@ function adminCard(a) {
     ],
     pill: a.who === 'you' ? ['Waits on you', 'you'] : ['Claude acts next', 'claude'],
     steps: [VIDEO_STEPS, videoWay(a).at],
-    side: a.reply ? replyBox(a) : (a.suggestion ? suggestionSide(a.suggestion) : '') + (a.filming ? filmingSwitch(a.filming.language, a.filming.on, a.filming.videos) : '') + talkHtml(ins) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
+    record: a.tutorial && a.language ? recordHtml(cardRecord(VIDEOS && VIDEOS.records, a.tutorial + '/' + a.language, SENDS, 'video:' + cardId(a),
+      a.at && ADMIN_FOUND[a.kind] ? { at: a.at, who: ADMIN_FROM[a.kind], said: ADMIN_FOUND[a.kind] } : null), a.who === 'you' ? ['Waits on you', 'you'] : ['Claude acts next', 'claude']) : '',
+    side: a.reply ? replyBox(a) : (a.suggestion ? suggestionSide(a.suggestion) : '') + (a.filming ? filmingSwitch(a.filming.language, a.filming.on, a.filming.videos) : '') + talkHtml(ins, a.send) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
       // A change Claude could not make: Try again is the main button, and the box is behind "instead".
       retry + (retry && tell ? '<details><summary>Tell Claude what to do instead</summary>' + tell + '</details>' : tell)
   });

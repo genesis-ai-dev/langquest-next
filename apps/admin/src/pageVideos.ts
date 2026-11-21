@@ -154,16 +154,45 @@ const ROW_MARKS = { you: 'Something waits on you', bad: 'A film is held or fails
 
 /** The first part of the Tutorial videos page: the tabs, and the chosen tab's pane. */
 function videosHtml(d) { return '<div id="video-part">' + videoPart(d) + '</div>'; }
-function videoPart(d) {
+/** A tab's cards in order, with the short card each card answered on this tab left in its place. */
+function tabCards(cards, tab) {
+  const gone = new Map([...GONE].filter((x) => x[1].tab === tab));
+  return withGone(cards, gone, cardId).map((x) => x.gone ? goneCard(x.gone) : adminCard(x.card)).join('');
+}
+/** The cards with the messages sent from this page that the server does not hold yet (pageSends.ts cardWithSend). */
+const withSends = (d) => ({ ...d, admin: d.admin.map((a) => cardWithSend(a, SENDS.get('video:' + cardId(a)))) });
+/**
+ * A tap on a card in a tab's list: where the card is, so that its answer leaves a short card in its place, and the
+ * tab stays the one open. Null for a card under a video's row, which stays where it is.
+ */
+function tabCard(button, a, extra) {
+  const el = button.closest('#video-part .vq > .icard');
+  if (!el || !VIDEOS) return null;
+  videoTab = videoTabs(withSends(VIDEOS), videoTab).tab;
+  return { key: cardId(a), index: [...el.parentNode.children].indexOf(el), a, tab: videoTab,
+    tags: '<span class="tag">' + esc(ADMIN_KIND[a.kind] || a.kind) + '</span>' + (a.language ? '<span>' + esc(languageName(a.language)) + '</span>' : ''), ...extra };
+}
+/** An instruction from a card: it shows on the card at once; on Waits on you, the card leaves a short card when it is sent. */
+function instructOpts(button, a, text, box) {
+  const onYou = videoTabs(withSends(VIDEOS), videoTab).tab === 'you';
+  return { talk: { key: 'video:' + cardId(a), text, box },
+    card: onYou ? tabCard(button, a, { pill: ['Claude acts next', 'claude'], where: ['The card is now under Automatic.', 'auto', 'Show Automatic'] }) : null };
+}
+function videoPart(raw) {
+  const d = withSends(raw);
   const t = videoTabs(d, videoTab);
   let h = '<div class="vtabs" role="tablist" aria-label="Tutorial videos">' + VIDEO_TABS.map((x) => '<button type="button" role="tab" aria-selected="' + (t.tab === x[0]) + '" data-vtab="' + x[0] + '" data-help-key="' + esc(x[1]) + '">' + esc(x[1]) +
     '<span class="count' + (x[0] === 'you' && t.count.you ? ' you' : '') + '">' + num(t.count[x[0]]) + '</span></button>').join('') + '</div>';
   if (d.missing.length) h += '<p class="muted">Not read: ' + esc(d.missing.join('; ')) + '. The lists leave those out.</p>';
-  if (t.tab === 'you') h += t.you.length ? '<div class="icards vq">' + t.you.map(adminCard).join('') + '</div>' : '<p class="vnone">' + vicon('big') + 'Nothing waits on you.</p>';
+  if (t.tab === 'you') {
+    const cards = tabCards(t.you, 'you');
+    h += (cards ? '<div class="icards vq">' + cards + '</div>' : '') + (t.you.length ? '' : '<p class="vnone">' + vicon('big') + (cards ? 'Nothing else waits on you.' : 'Nothing waits on you.') + '</p>');
+  }
   if (t.tab === 'auto') {
     const job = (w) => '<div class="vjob"><span class="vdot' + (w.when === 'now' ? ' now' : '') + '" role="img" aria-label="' + (w.when === 'now' ? 'Runs now' : 'Waits its turn') + '">' + vicon(w.when === 'now' ? 'now' : 'info') + '</span><div><p><b>' + esc(w.title) + '</b>' +
       (w.at ? ' <small>' + when(w.at) + '</small>' : '') + '</p>' + (w.detail ? '<p><small>' + esc(w.detail) + '</small></p>' : '') + (w.link ? '<p>' + cardLink(w) + '</p>' : '') + '</div></div>';
-    h += (t.claude.length ? '<h3>Claude acts next</h3><div class="icards vq">' + t.claude.map(adminCard).join('') + '</div>' : '') +
+    const cards = tabCards(t.claude, 'auto');
+    h += (cards ? '<h3>Claude acts next</h3><div class="icards vq">' + cards + '</div>' : '') +
       '<h3>Jobs, now and tonight</h3>' + (d.worker.length ? '<div class="vjobs">' + d.worker.map(job).join('') + '</div>' : '<p class="muted">Nothing queued.</p>');
   }
   if (t.tab === 'videos') {
@@ -208,7 +237,8 @@ function videoRows() {
     '<div><label class="check"><input type="checkbox" id="video-mine"' + (onlyMine ? ' checked' : '') + '> Only videos that wait on you</label></div></div>';
   const chosen = d.languages.find((l) => l.language === videoLanguage);
   if (chosen) h += filmingSwitch(chosen.language, chosen.nightly, d.videos.filter((v) => v.language === chosen.language).length);
-  const cardsOf = (v) => d.admin.filter((a) => a.tutorial === v.tutorial && a.language === v.language);
+  const admin = withSends(d).admin;
+  const cardsOf = (v) => admin.filter((a) => a.tutorial === v.tutorial && a.language === v.language);
   const rows = d.videos.filter((v) => v.language === videoLanguage && (!onlyMine || cardsOf(v).some((a) => a.who === 'you')));
   if (!rows.length) return h + '<p class="muted">' + (onlyMine ? 'No video in this language waits on you.' : 'No videos in this language yet.') + '</p>';
   const key = marksShown(rows);
@@ -241,7 +271,8 @@ document.addEventListener('click', (e) => {
   const t = e.target.closest ? e.target : null;
   if (!t) return;
   const tab = t.closest('[data-vtab]');
-  if (tab && VIDEOS) { videoTab = tab.dataset.vtab; const body = $('video-part'); body.innerHTML = videoPart(VIDEOS); annotate(body); const now = body.querySelector('[data-vtab="' + videoTab + '"]'); if (now) now.focus(); }
+  // A new tab: the short cards of answered cards go, and the tab shows its cards as they are now.
+  if (tab && VIDEOS) { videoTab = tab.dataset.vtab; GONE.clear(); const body = $('video-part'); body.innerHTML = videoPart(VIDEOS); annotate(body); const now = body.querySelector('[data-vtab="' + videoTab + '"]'); if (now) now.focus(); }
   const copy = t.closest('[data-reply-copy]');
   if (copy) {
     const box = $('rp-' + copy.dataset.replyCopy), text = ((box || {}).value || '').trim();
@@ -262,11 +293,16 @@ document.addEventListener('click', (e) => {
   const filming = t.closest('[data-filming]');
   if (filming) perform({ kind: 'tutorial-filming', language: filming.dataset.filming, on: filming.dataset.on === '1' }, filming);
   const done = t.closest('[data-reply-done]');
-  if (done) perform({ kind: 'tutorial-reply', id: done.dataset.replyDone, done: done.dataset.done }, done);
+  if (done) {
+    const a = VIDEOS && VIDEOS.admin.find((x) => x.reply && x.reply.id === done.dataset.replyDone);
+    perform({ kind: 'tutorial-reply', id: done.dataset.replyDone, done: done.dataset.done }, done,
+      { card: a && tabCard(done, a, { pill: ['Done', 'done'], where: ['The card left the list for every admin.'] }) });
+  }
   const retry = t.closest('[data-retry]');
   if (retry && VIDEOS) {
     const a = VIDEOS.admin.find((x) => cardId(x) === retry.dataset.retry);
-    if (a && a.retry) perform({ kind: 'tutorial-note', tutorial: a.tutorial, text: a.retry.slice(0, 2000), instruct: true, problem: a.instruct.slice(0, 200), language: a.language || 'en', inputs: (a.inputIds || []).slice(0, 20) }, retry);
+    if (a && a.retry) perform({ kind: 'tutorial-note', tutorial: a.tutorial, text: a.retry.slice(0, 2000), instruct: true, problem: a.instruct.slice(0, 200), language: a.language || 'en', inputs: (a.inputIds || []).slice(0, 20) }, retry,
+      instructOpts(retry, a, a.retry.slice(0, 2000), null));
   }
 });
 `;

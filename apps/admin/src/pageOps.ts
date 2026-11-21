@@ -493,27 +493,63 @@ function sayAt(button, text, tone) {
   p.className = 'here notice ' + (tone || 'good');
   p.textContent = text;
 }
-async function perform(action, button) {
-  const label = button ? button.textContent : '';
-  if (button) { button.disabled = true; if (action.kind === 'user-issue-note') button.textContent = 'Sending…'; }
+/** What a button says while its tap goes, by the tap's kind. */
+const BUSY = { run: 'Starting…', 'tutorials-publish': 'Publishing…', 'tutorial-note': 'Sending…', 'user-issue-note': 'Sending…', 'tutorial-suggestion': 'Saving…', 'tutorial-reply': 'Saving…', 'tutorial-filming': 'Saving…' };
+/** The parts a tap changes, read again from their source when it is done (page.ts reread). */
+const AFTER = { 'tutorial-note': ['videos', 'ops'], 'tutorial-suggestion': ['videos', 'ops'], 'tutorial-reply': ['videos', 'ops'], 'tutorial-filming': ['videos', 'ops'], 'tutorials-publish': ['videos', 'ops'],
+  'user-issue-note': ['ops'], 'quiet-account': ['ops'], verification: ['ops'], feedback: ['diag'], run: ['diag', 'container'] };
+/** Each part of the page a message to Claude shows on, drawn again from what the page holds. */
+function redrawSends() { for (const id of ['videos', 'userissues', 'research']) if (results[id]) show(id, results[id]); }
+/**
+ * One tap on the page, from start to end (docs/decisions/2026-11-21-every-dashboard-tap-shows-its-state.md).
+ * The button says it works at once and cannot be tapped again until the answer. The answer shows next to
+ * the button and at the top of the page, which stays in view. Then the parts the tap changed are read again
+ * from their source. talk: a message to Claude ({ key, text, box }), which shows on its card at once, as
+ * sending, then sent with when Claude reads it, or not sent with the reason and the words back in the box.
+ * card: a tutorial video card the answer takes off the list ({ key, a, said, where }), which leaves a short
+ * card in its place that says what happened and where the card is now.
+ */
+async function perform(action, button, opts) {
+  const o = opts || {}, talk = o.talk || null;
+  const label = button ? button.innerHTML : '';
+  if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = BUSY[action.kind] || 'Working…'; }
+  if (talk) { SENDS.set(talk.key, { key: talk.key, text: talk.text, at: Date.now(), state: 'sending' }); const box = talk.box && $(talk.box); if (box) box.value = ''; redrawSends(); }
   const answer = (text, tone) => { say(text, tone); sayAt(button, text, tone); };
   try {
     const body = await post(action);
-    if (button && action.kind === 'user-issue-note') { button.textContent = 'Sent'; const t = button.closest('.tell') && button.closest('.tell').querySelector('textarea'); if (t) t.value = ''; }
-    answer(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.')
+    const said = action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.')
       : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
       : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
-      : action.kind === 'tutorial-note' ? (body.result === 'instructed' ? 'Sent. Claude starts the fix at its next fix run (:20 and :50 each hour).' : 'Sent. Claude reads it at its next look (10:00 UTC).')
-      : action.kind === 'user-issue-note' ? 'Sent. Claude starts at the next run of the watch (each 15 minutes).'
+      : action.kind === 'tutorial-note' ? (body.result === 'instructed' ? 'Sent. Claude starts the change at its next fix run, ' + fixRunSaid() + '.' : 'Sent. Claude reads it at its next look (10:00 UTC).')
+      : action.kind === 'user-issue-note' ? 'Sent. Claude reads it at the next run of the watch, ' + watchSaid() + '.'
       : action.kind === 'quiet-account' ? (action.ok ? 'Marked not an issue. Its quiet installs no longer count in the warning.' : 'Its quiet installs count in the warning again.')
       : action.kind === 'tutorial-filming' ? languageName(action.language) + (body.result === 'on' ? ' is filmed from the next filming at 20:10 UTC.' : ' is paused. Its videos on YouTube stay as they are.')
       : action.kind === 'tutorial-reply' ? (body.result === 'posted' ? 'Marked as posted.' : body.result === 'none' ? 'Marked: no reply needed.' : 'The reply waits again.')
       : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
-      : 'Feedback marked ' + body.result + '.');
-    load(false);
+      : 'Feedback marked ' + body.result + '.';
+    if (talk) { SENDS.set(talk.key, { ...SENDS.get(talk.key), state: 'sent' }); say(said, 'good'); }
+    if (o.card) {
+      const c = o.card;
+      GONE.set(c.key, { key: c.key, tab: c.tab, index: c.index, title: c.a.title, tags: c.tags || '', said: c.said || said, where: c.where || null, text: talk ? talk.text : '', at: Date.now(), pill: c.pill || null });
+      if (!talk) say(said, 'good');
+    }
+    if (talk || o.card) redrawSends(); else { if (button) { button.removeAttribute('aria-busy'); button.textContent = 'Done'; } answer(said, 'good'); }
+    await reread(AFTER[action.kind] || []);
+    if (!AFTER[action.kind]) load(false);
+    // A button the new answer did not draw again can be tapped again; its answer stays next to it.
+    if (button && button.isConnected && !talk && !o.card) { button.disabled = false; button.removeAttribute('aria-busy'); button.innerHTML = label; }
   } catch (err) {
-    if (err.message !== 'Signed out') answer(err.message, 'red');
-    if (button) { button.disabled = false; button.textContent = label; }
+    const why = err.message === 'Signed out' ? 'You are signed out. Sign in, then send it again.' : err.message;
+    if (talk) {
+      SENDS.set(talk.key, { ...SENDS.get(talk.key), state: 'refused', error: why });
+      redrawSends();
+      const box = talk.box && $(talk.box);
+      if (box && !box.value) box.value = talk.text;
+      say('Not sent: ' + why + ' Your words are back in the box.', 'red');
+    } else if (err.message !== 'Signed out') answer(why, 'red');
+    if (button && button.isConnected) { button.disabled = false; button.removeAttribute('aria-busy'); button.innerHTML = label; }
+    // A refusal can mean the card changed under the admin (another admin answered it first): show it as it is now.
+    if (err.message !== 'Signed out' && AFTER[action.kind]) reread(AFTER[action.kind]);
   }
 }
 
@@ -569,10 +605,18 @@ document.addEventListener('click', (e) => {
   const sg = e.target.closest && e.target.closest('[data-sg]');
   if (sg) {
     const id = sg.dataset.sg, d = sg.dataset.decision;
-    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : sg.dataset.kind === 'new' ? '' : ' Claude makes the change as a pull request that merges itself when its checks pass.'))) perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg);
+    // The card the suggestion is on, when it is in a tab's list: its answer leaves a short card in its place.
+    const a = VIDEOS && VIDEOS.admin.find((x) => x.suggestion && x.suggestion.id === id);
+    const fixes = sg.dataset.kind !== 'code' && sg.dataset.kind !== 'new';
+    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : sg.dataset.kind === 'new' ? '' : ' Claude makes the change as a pull request that merges itself when its checks pass.'))) {
+      perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg, { card: a && tabCard(sg, a, {
+        pill: fixes ? ['Claude acts next', 'claude'] : ['Accepted', 'done'],
+        where: fixes ? ['Claude starts the change at its next fix run, ' + fixRunSaid() + '. The card is now under Automatic.', 'auto', 'Show Automatic'] : ['The card left this list.'] }) });
+    }
     if (d === 'reject') {
       const reason = prompt('Why not? Claude reads this before suggesting it again. (You may leave it empty.)', '');
-      if (reason !== null) perform({ kind: 'tutorial-suggestion', id, decision: 'reject', detail: null, reason: reason.slice(0, 500) }, sg);
+      if (reason !== null) perform({ kind: 'tutorial-suggestion', id, decision: 'reject', detail: null, reason: reason.slice(0, 500) }, sg,
+        { card: a && tabCard(sg, a, { pill: ['Rejected', ''], where: ['The card left this list. Claude reads your reason before it suggests this again.'] }) });
     }
     if (d === 'edit') {
       const detail = (document.getElementById('sg-' + id) || {}).value || '';
@@ -684,9 +728,9 @@ document.addEventListener('click', (e) => {
   const a = VIDEOS.admin.find((x) => cardId(x) === b.dataset.instruct);
   const text = (($('ins-' + b.dataset.instruct) || {}).value || '').trim();
   if (!a) return;
-  if (!text) { say('Write what Claude must do first.', 'red'); return; }
+  if (!text) { say('Write what Claude must do first.', 'red'); sayAt(b, 'Write what Claude must do first.', 'red'); return; }
   perform({ kind: 'tutorial-note', tutorial: a.tutorial, text: text.slice(0, 2000), instruct: true, problem: a.instruct.slice(0, 200),
-    language: a.language || 'en', inputs: (a.inputIds || []).slice(0, 20) }, b);
+    language: a.language || 'en', inputs: (a.inputIds || []).slice(0, 20) }, b, instructOpts(b, a, text.slice(0, 2000), 'ins-' + b.dataset.instruct));
 });
 const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run', merging: 'Open the PR' };
 const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', empty: 'Open tutorials.yml', paused: 'Open tutorials.yml' };

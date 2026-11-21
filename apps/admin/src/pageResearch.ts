@@ -113,6 +113,8 @@ function weekOf(team) {
 /** Drawing the page; uses the page's helpers (esc, when, num, stat, safeLink, issueCard, issueTalk, fixLine, placeLink, outLink, fixPictures). */
 export const RESEARCH_SCRIPT = String.raw`
 let researchTab = null, researchDay = null;
+/** Items answered on this tab: they stay in view with their answer until another tab is picked, though their state moved them. */
+const researchKept = new Set();
 const modelWord = (m) => ({ opus: 'Opus', sonnet: 'Sonnet', haiku: 'Haiku' })[String(m || '').toLowerCase()] || esc(m || '');
 const sevPill = (s) => s ? '<span class="rsev ' + esc(s) + '">' + esc(s) + '</span>' : '';
 const linkOut = (u) => { let host = u; try { host = new URL(u).host.replace(/^www\./, ''); } catch {} return outLink(u, esc(host)); };
@@ -173,7 +175,7 @@ function researchCard(item, way, tab, d) {
   const says = researchSays(item);
   const where = (item.places || []).map(placeLink).concat((item.links || []).map(linkOut));
   return issueCard({
-    tab: way.tab, hidden: !onResearchTab(way, tab),
+    tab: way.tab, hidden: !onResearchTab(way, tab) && !researchKept.has(item.issue),
     card: 'research:' + item.tag, pics: fixPictures(fix, item.issue, !!fix, item.steps),
     tags: sevPill(item.severity) + '<span class="tag">' + esc(RESEARCH_KINDS[item.kind] || 'Same mistake') + '</span>' +
       (item.issue ? (safeLink(item.issueUrl) ? outLink(item.issueUrl, esc(item.issue), 'lin') : '<b>' + esc(item.issue) + '</b>') : '') +
@@ -192,10 +194,12 @@ function researchCard(item, way, tab, d) {
     side: choicesHtml(item, notes) +
       (fix && fix.pr ? outLink(PR_URL + fix.pr, 'Open pull request ' + esc(fix.pr), 'button dark') : '') +
       (item.issue && safeLink(item.issueUrl) ? outLink(item.issueUrl, 'Open ' + esc(item.issue) + ' in Linear', 'button') : ''),
-    talk: item.decision === 'recommend' && item.issue ? issueTalk({ issue: item.issue, closedAt: null }, d.notes, 'research') : ''
+    talk: item.decision === 'recommend' && item.issue ? issueTalk({ issue: item.issue, closedAt: null }, d.notes, 'research') : '',
+    record: item.issue ? issueRecord(item.issue, item.firstAt ? { at: item.firstAt, who: 'The research team', said: 'found it' } : null, way.pill) : ''
   });
 }
-function researchHtml(d) {
+function researchHtml(raw) {
+  const d = { ...raw, notes: notesWithSends(raw.notes, SENDS) };
   const team = d.team || RESEARCH_TEAM;
   const titles = Object.fromEntries(team.map((b) => [b.id, b.title]));
   const items = researchOrder(d.items).map((i) => ({ ...i, beatTitle: titles[i.beat] || (i.like ? 'Same mistake in other places' : '') }));
@@ -223,6 +227,7 @@ document.addEventListener('click', (e) => {
   const box = tabBtn && tabBtn.closest('.rlist');
   if (box) {
     researchTab = tabBtn.dataset.rtab;
+    researchKept.clear();
     for (const x of box.querySelectorAll('[data-rtab]')) x.setAttribute('aria-pressed', String(x === tabBtn));
     for (const c of box.querySelectorAll('.icard[data-tab]')) c.hidden = !onResearchTab({ tab: c.dataset.tab }, researchTab);
     return;
@@ -235,6 +240,6 @@ document.addEventListener('click', (e) => {
   }
   // A choice the team asked: sent to Claude as an instruction on the item's Linear issue, as the box does.
   const choice = e.target.closest && e.target.closest('[data-rchoice]');
-  if (choice) perform({ kind: 'user-issue-note', issue: choice.dataset.rchoice, text: String(choice.dataset.text || '').slice(0, 2000) }, choice);
+  if (choice) { researchKept.add(choice.dataset.rchoice); const text = String(choice.dataset.text || '').slice(0, 2000); perform({ kind: 'user-issue-note', issue: choice.dataset.rchoice, text }, choice, { talk: { key: 'issue:' + choice.dataset.rchoice, text, box: null } }); }
 });
 `;

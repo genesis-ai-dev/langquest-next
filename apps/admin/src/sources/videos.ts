@@ -4,7 +4,7 @@ import { diagConnection, withDiag, type Query } from '../db';
 import { failed, ok, type Section } from '../section';
 import { filmingSection, type Filming } from './filming';
 import { githubApi, type GitHubEnv } from './githubApi';
-import { tutorialsOf, type Feedback, type Tutorials } from './ops';
+import { tutorialsOf, type CardRecord, type Feedback, type Tutorials } from './ops';
 
 /**
  * The tutorial videos as three lists (docs/tutorial-videos.md "On the ops
@@ -188,6 +188,8 @@ export interface Videos {
   changes: ChangeItem[];
   /** Whether each source answered: a list built without one says so on the page. */
   missing: string[];
+  /** diag.ops_card_record('video'): who did what on each video's cards, and what Claude did; newest first. Absent before migration 20261121213000_ops_card_record.sql. */
+  records?: CardRecord[];
 }
 
 // ---- how ----------------------------------------------------------------------------------------
@@ -545,16 +547,17 @@ export async function videosSection(env: VideosEnv, fetcher: typeof fetch = fetc
   const db = (async () => {
     try {
       return await withDiag(diagConnection(env), async (query) => {
-        const [films, feedback, tutorials, switches] = await Promise.all([
+        const [films, feedback, tutorials, records, switches] = await Promise.all([
           maybe<FilmRow[]>(query, 'select diag.ops_tutorial_films() as v'),
           maybe<VideosInput['feedback']>(query, 'select diag.ops_tutorial_feedback() as v'),
           maybe<Parameters<typeof tutorialsOf>[0]>(query, 'select diag.ops_tutorials() as v'),
+          maybe<CardRecord[]>(query, "select diag.ops_card_record('video') as v"),
           maybe<FilmingSwitch[]>(query, 'select diag.ops_tutorial_filming() as v')
         ]);
-        return { films, feedback, tutorials, switches };
+        return { films, feedback, tutorials, records, switches };
       });
     } catch {
-      return { films: null, feedback: null, tutorials: null, switches: null };
+      return { films: null, feedback: null, tutorials: null, records: null, switches: null };
     }
   })();
   const workflow = gh<{ content: string }>('/contents/.github/workflows/tutorials.yml?ref=main', 'GitHub tutorials.yml')
@@ -567,5 +570,6 @@ export async function videosSection(env: VideosEnv, fetcher: typeof fetch = fetc
   for (const [l, f] of files) if (f) status[l] = f;
   // The dashboard's switches choose the languages; tutorials.yml's list only where the database has no switches yet.
   const chosen = Array.isArray(d.switches) ? d.switches.filter((x) => x.nightly).map((x) => x.language) : nightly;
-  return ok(videoBoard({ films: d.films, feedback: d.feedback, tutorials: d.tutorials ? tutorialsOf(d.tutorials) : null, status, filming: run, nightly: chosen }));
+  const board = videoBoard({ films: d.films, feedback: d.feedback, tutorials: d.tutorials ? tutorialsOf(d.tutorials) : null, status, filming: run, nightly: chosen });
+  return ok(d.records ? { ...board, records: d.records } : board);
 }

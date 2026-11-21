@@ -640,6 +640,15 @@ export function researchAlerts(r: Research): Alert[] {
   return out;
 }
 
+/**
+ * One entry of a card's record (diag.ops_card_record, docs/decisions/2026-11-21-every-dashboard-tap-shows-its-state.md):
+ * when, who (an admin's display name, or Claude), what (the tap's action, or suggested, fix, answered), its result and
+ * detail, the card it belongs to (a Linear id, or '<tutorial>/<language>'), the words it was about and a pull request.
+ */
+export interface CardRecord {
+  at: string; who: string; what: string; result: 'ok' | 'refused' | 'error'; detail: string | null; key: string; words: string | null; pr: number | null;
+}
+
 /** diag.ops_user_issues(): the last 90 days, open issues first; counts; the last look; each dashboard line's decision. */
 export interface UserIssues {
   issues: UserIssueRow[];
@@ -651,6 +660,8 @@ export interface UserIssues {
   diagrams?: Record<string, DiagramStep[]>;
   /** Absent before migration 20261117213500_ops_lines_linear.sql. */
   lines?: UserIssueLine[];
+  /** diag.ops_card_record('issue'): who did what on each issue's card, and Claude's answers; newest first. Absent before migration 20261121213000_ops_card_record.sql. */
+  records?: CardRecord[];
   open: number; closed: number; fixed: number; noiseWeek: number;
   /** Kinds the newest watch left past its 20 a run, for later runs. Absent before migration 20261121031500_user_issue_watch_gaps.sql. */
   waiting?: number;
@@ -683,7 +694,7 @@ export interface OpsSections {
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records] = await Promise.all([
     part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -713,7 +724,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Record<string, UserIssueNote[]>>(query, `select diag.ops_user_issue_notes() as v`),
     part<Record<string, UserIssueFix>>(query, `select diag.ops_user_issue_fixes() as v`),
     part<Research>(query, `select diag.ops_research() as v`),
-    part<Record<string, DiagramStep[]>>(query, `select diag.ops_user_issue_diagrams() as v`)
+    part<Record<string, DiagramStep[]>>(query, `select diag.ops_user_issue_diagrams() as v`),
+    part<CardRecord[]>(query, `select diag.ops_card_record('issue') as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -781,7 +793,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     }),
     userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
       // Before its migration the cards show without the box, and without the agent team's record.
-      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: userfixes.value } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}) };
+      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: userfixes.value } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}) };
       return ok(u, userIssueAlerts(u));
     }),
     research: build([research], RESEARCH_MIGRATION, () => {
