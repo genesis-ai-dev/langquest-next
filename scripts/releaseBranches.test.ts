@@ -1,7 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, changesTheApp, BLOCKED_LABEL, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, BLOCKED_LABEL, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, copiedOn, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -356,6 +358,26 @@ describe('a copy with a conflict', () => {
     const deniedLine = finish.slice(finish.indexOf('if (denied > 0)'), finish.indexOf('\n', finish.indexOf('if (denied > 0)')));
     expect(deniedLine).toContain('console.log(');
     expect(deniedLine).not.toContain('outcome');
+  });
+
+  it('finds a copied commit on a branch whose messages pass 1 MB', () => {
+    // 2026-11-21: release/ios's log of messages passed spawnSync's 1 MB, and every copy's finish failed (#611, #612).
+    const dir = mkdtempSync(posix.join(tmpdir(), 'copied-'));
+    try {
+      const git = (...args: string[]) => {
+        const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args], { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+        expect(r.status, r.stderr).toBe(0);
+      };
+      const a = 'a'.repeat(40);
+      git('init', '-q');
+      git('commit', '-q', '--allow-empty', '-m', `Copy\n\n(cherry picked from commit ${a})`);
+      writeFileSync(posix.join(dir, 'long.txt'), 'x'.repeat(1_500_000));
+      git('commit', '-q', '--allow-empty', '-F', 'long.txt');
+      expect(copiedOn(a, 'HEAD', dir)).toBe(true);
+      expect(copiedOn('b'.repeat(40), 'HEAD', dir)).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('Claude reads the failed checks and fixes them, and never skips a test', () => {

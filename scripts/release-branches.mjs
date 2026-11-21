@@ -329,9 +329,13 @@ export function commitsOfCopy(body) {
   return [...(body ?? '').matchAll(/^- ([0-9a-f]{40})\b/gm)].map((m) => m[1]);
 }
 
+// spawnSync stops at 1 MB of output by default and then gives no status, which read as a failed
+// command: release/ios's log of messages passed 1 MB on 2026-11-21 and every copy's finish failed (#611, #612).
+const MAX_OUTPUT = 256 * 1024 * 1024;
+
 function run(cmd, args, opts = {}) {
-  const r = spawnSync(cmd, args, { cwd: root, encoding: 'utf8', ...opts });
-  if (r.status !== 0 && !opts.allowFail) throw new Error(`${cmd} ${args.join(' ')}: ${r.stderr || r.stdout}`);
+  const r = spawnSync(cmd, args, { cwd: root, encoding: 'utf8', maxBuffer: MAX_OUTPUT, ...opts });
+  if (r.status !== 0 && !opts.allowFail) throw new Error(`${cmd} ${args.join(' ')}: ${r.error?.message ?? (r.stderr || r.stdout)}`);
   return r;
 }
 const git = (...args) => run('git', args).stdout.trim();
@@ -658,8 +662,14 @@ export function conflictNote(sha, base, files, after = []) {
   ].join('\n');
 }
 
-/** Whether HEAD already carries a copy of `sha` (git cherry-pick -x names it). */
-const copied = (sha) => git('log', '--format=%B', 'HEAD').includes(`cherry picked from commit ${sha}`);
+/**
+ * Whether `ref` already carries a copy of `sha` (git cherry-pick -x names it). Git searches the
+ * messages, so the answer does not grow with the branch's history (2026-11-21, #611, #612).
+ */
+export function copiedOn(sha, ref = 'HEAD', cwd = root) {
+  return run('git', ['log', '-1', '--format=%H', '--fixed-strings', `--grep=cherry picked from commit ${sha}`, ref], { cwd }).stdout.trim() !== '';
+}
+const copied = (sha) => copiedOn(sha);
 
 /** Try the next copy again on this branch to find the files in conflict, then put it back and comment once. */
 function noteConflict(branch, pr) {
