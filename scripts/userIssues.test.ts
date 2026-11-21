@@ -49,7 +49,7 @@ describe('user-issues.mjs', () => {
     const steps = yml.split(/\n {6}- /);
     const claude = steps.find((s) => s.includes('anthropics/claude-code-action'))!;
     expect(claude).toContain('claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}');
-    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)"');
+    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git merge-base:*)"');
     expect(claude).not.toContain('LINEAR_API_KEY');
     expect(claude).not.toMatch(/show_full_output|display_report/);
     // Scheduled runs start as the merge queue, which the action refuses otherwise.
@@ -79,7 +79,7 @@ describe('user-issues.mjs', () => {
     const fix = jobs['fix']!.split(/\n {6}- /);
     const claude = fix.find((s) => s.includes('anthropics/claude-code-action'))!;
     // The issue manager starts its workers with the Agent tool; they have its tools and no more.
-    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Edit,Write,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)"');
+    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Edit,Write,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"');
     expect(claude).not.toMatch(/LINEAR_API_KEY|show_full_output|display_report/);
     // The key reads the issue before Claude; the patch is taken with the scripts and repository copied before it.
     expect(fix.findIndex((s) => s.includes('LINEAR_API_KEY'))).toBeLessThan(fix.indexOf(claude));
@@ -113,7 +113,7 @@ describe('user-issues.mjs', () => {
     expect(jobs['research']).toContain("HAS_TEAM_TOKEN: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN != '' }}");
     expect(read('scripts/user-issues.mjs')).toContain("const off = modeHere() === 'off' || noToken;");
     expect(read('scripts/agent-research.mjs')).toContain("process.env.HAS_TEAM_TOKEN !== 'true'");
-    expect(lead).toContain('--model opus --allowedTools "Read,Glob,Grep,Write,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)"');
+    expect(lead).toContain('--model opus --allowedTools "Read,Glob,Grep,Write,Agent,Task,Bash(git log:*),Bash(git show:*)"');
     expect(lead).not.toMatch(/LINEAR_API_KEY|show_full_output|display_report/);
     expect(lead).toContain('"The research team"');
     expect(read('.agents/skills/user-issues/SKILL.md')).toContain('## The research team');
@@ -166,25 +166,6 @@ describe('user-issues.mjs', () => {
     // The job that follows the team's pull requests can make one a draft and tell the Worker; it runs nothing of a change.
     expect(perms('follow')).toEqual(['contents: read', 'pull-requests: write', 'checks: read', 'id-token: write']);
     expect(jobs['follow']).not.toMatch(/\bnpm\b|\bnpx\b|claude-code-action|secrets\./);
-  });
-
-  it('lets Claude read production only through the copy of prod-read.mjs made before it, which Claude cannot change (docs/production-reads.md)', () => {
-    const yml = read('.github/workflows/user-issues.yml');
-    const jobs = Object.fromEntries(yml.slice(yml.search(/^jobs:$/m)).split(/^ {2}(?=[\w-]+:$)/m).slice(1).map((b) => [b.match(/^([\w-]+):/)![1], b]));
-    for (const name of ['watch', 'fix', 'research']) {
-      const steps = jobs[name]!.split(/\n {6}- /);
-      const claude = steps.find((s) => s.includes('anthropics/claude-code-action'))!;
-      const copy = steps.findIndex((s) => /cp scripts\/.*scripts\/prod-read\.mjs "\$RUNNER_TEMP\/watch\/"/.test(s));
-      expect(copy, name).toBeGreaterThanOrEqual(0);
-      expect(copy, name).toBeLessThan(steps.indexOf(claude));
-      expect(claude).toContain('Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)');
-      expect(claude).not.toContain('Bash(node scripts/');
-      expect(claude).toContain('Never copy a row of its answer into what you write.');
-      expect(jobs[name]).toContain('id-token: write');
-    }
-    // The gate lets in this workflow, from main, as agent_reader (apps/admin/src/read.ts).
-    expect(read('apps/admin/src/read.ts')).toContain("READ_WORKFLOWS = ['user-issues.yml']");
-    expect(read('scripts/prod-read.mjs')).toContain("READ_AUDIENCE = 'https://app.langquest.org/ops/api/read'");
   });
 
   it('names kinds as the Worker and the database do', () => {
