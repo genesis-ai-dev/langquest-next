@@ -121,6 +121,16 @@ describe('user-issues.mjs', () => {
     expect(lead).not.toMatch(/LINEAR_API_KEY|show_full_output|display_report/);
     expect(lead).toContain('"The research team"');
     expect(read('.agents/skills/user-issues/SKILL.md')).toContain('## The research team');
+    // The look-ahead lead and its scouts read the web, so they get no shell at all: the job's environment holds the
+    // token that asks GitHub for the Worker's door. The facts come from code before it (docs/research-team.md).
+    const team = research.find((s) => s.includes('anthropics/claude-code-action') && s.includes('research-team'))!;
+    expect(team).toBeDefined();
+    expect(team).not.toBe(lead);
+    expect(team).toContain('--model opus --allowedTools "Read,Glob,Grep,Write,Agent,Task,WebFetch,WebSearch" --disallowedTools "Bash"');
+    expect(team).not.toMatch(/LINEAR_API_KEY|show_full_output|display_report|Bash\(/);
+    expect(team).toContain('continue-on-error: true');
+    expect(read('.agents/skills/research-team/SKILL.md')).toContain('# The research team looks ahead');
+    expect(research.find((s) => s.includes('agent-research.mjs" report'))).toContain('TEAM_EXECUTION_FILE: ${{ steps.team.outputs.execution_file }}');
     expect(research.findIndex((s) => s.includes('cp -a .git "$RUNNER_TEMP/base.git"'))).toBeLessThan(research.indexOf(lead));
     expect(research.find((s) => s.includes('agent-research.mjs" report'))).toContain('GIT_DIR: ${{ runner.temp }}/base.git');
     expect(jobs['research']!.match(/actions\/checkout@/g)?.length).toBe(jobs['research']!.match(/persist-credentials: false/g)?.length);
@@ -470,7 +480,7 @@ describe('a draft fix for each new issue', () => {
     expect(fixRefusal(['apps/mobile/src/recording/recorder.ts', 'apps/mobile/test/recorder.test.ts'], 4000)).toBeNull();
     for (const p of ['.github/workflows/guardrails.yml', '.githooks/pre-commit', 'package.json', 'apps/mobile/package.json', 'package-lock.json', '.env.production',
       'apps/mobile/.env.preview', '.npmrc', '.agents/skills/user-issues/SKILL.md', '.claude/settings.json', 'AGENTS.md', 'CLAUDE.md', 'scripts/user-issues.mjs',
-      'scripts/linear-sync.mjs', '.git/config', 'apps/.git/hooks/pre-commit', '../outside.ts', '/etc/passwd', '.user-issues/issue.json', '"a/.github/\\tx"',
+      'scripts/linear-sync.mjs', 'scripts/research-team.mjs', '.agents/skills/research-team/SKILL.md', '.git/config', 'apps/.git/hooks/pre-commit', '../outside.ts', '/etc/passwd', '.user-issues/issue.json', '"a/.github/\\tx"',
       'apps/mobile/test/shot.jpg', 'apps/mobile/assets/x.PNG', 'apps/mobile/test/voice.m4a']) {
       expect(fixRefusal(['apps/mobile/src/a.ts', p], 100), p).toMatch(/which a draft fix may not$/);
     }

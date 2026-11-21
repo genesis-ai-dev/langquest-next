@@ -368,7 +368,7 @@ export const FIX_MAX = 3;
  */
 export const FIX_REFUSED = [
   /^\.github\//, /^\.githooks\//, /(^|\/)\.env/, /(^|\/)package(-lock)?\.json$/, /(^|\/)\.npmrc$/,
-  /^\.(agents|claude|hermes)\//, /^(AGENTS|CLAUDE)\.md$/, /^scripts\/(user-issues|agent-team|agent-research|linear-sync|tutorial-review)\.mjs$/, /^\.user-issues\//,
+  /^\.(agents|claude|hermes)\//, /^(AGENTS|CLAUDE)\.md$/, /^scripts\/(user-issues|agent-team|agent-research|research-team|linear-sync|tutorial-review)\.mjs$/, /^\.user-issues\//,
   /(^|\/)\.git(\/|$)/,
   // No pictures or recordings: a screenshot or voice note a person sent must never reach this public repository.
   /\.(jpe?g|png|webp|gif|heic|m4a|wav|mp3|mp4|mov)$/i

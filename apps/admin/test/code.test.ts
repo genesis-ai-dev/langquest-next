@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { page } from '../src/page';
 import { CODE_LOGIC } from '../src/pageCode';
+import { EXPO_LOGIC } from '../src/pageExpo';
 import { commitTitle } from '../src/sources/github';
 
 interface Job { s: string; name: string; does: string; result: string; note: string; link: string | null }
@@ -65,5 +66,32 @@ describe('the web app and automatic jobs (pageCode.ts)', () => {
     const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
     expect(html).toContain('function codeBox(');
     expect(html).toContain('The web app and automatic jobs');
+  });
+});
+
+describe('phone app builds and updates (pageExpo.ts)', () => {
+  const expo = new Function(`${EXPO_LOGIC}; return { expoView };`)() as { expoView: (d: unknown) => { builds: { s: string; name: string; result: string; note: string; sentAt: string | null }[]; updates: { name: string; note: string }[]; counts: Record<string, number> } };
+  const b = (platform: string, profile: string, status: string, at: string, appVersion: string | null) => ({ platform, profile, status, at, appVersion, runtime: null });
+
+  it('lists builds newest first by phone, what they are for and version, with the store send that took each', () => {
+    const v = expo.expoView({
+      builds: [b('ANDROID', 'carried', 'FINISHED', '2026-11-17T03:00:00Z', '2026.1117.1'), b('IOS', 'production', 'ERRORED', '2026-11-20T03:00:00Z', '2026.1120.1'),
+        b('ANDROID', 'production', 'FINISHED', '2026-11-20T02:00:00Z', '2026.1120.1'), b('IOS', 'production', 'IN_PROGRESS', '2026-11-20T04:00:00Z', null)],
+      submissions: [{ platform: 'ANDROID', status: 'FINISHED', at: '2026-11-20T05:00:00Z', error: null, version: '2026.1120.1' }],
+      updates: [{ branch: 'preview', platform: 'ios, android', runtime: '7', group: 'g', at: '2026-11-19T00:00:00Z' }, { branch: 'production', platform: 'android', runtime: '7', group: 'g', at: '2026-11-20T00:00:00Z' }]
+    });
+    expect(v.builds.map((x) => [x.s, x.name, x.result])).toEqual([
+      ['run', 'iPhone, for the App Store', 'Building'], ['fail', 'iPhone, for the App Store · 2026.1120.1', 'Failed'],
+      ['ok', 'Android, for Google Play · 2026.1120.1', 'Built'], ['ok', 'Android, install file to share nearby · 2026.1117.1', 'Built']]);
+    expect(v.builds[2]).toMatchObject({ note: 'Sent to Google Play', sentAt: '2026-11-20T05:00:00Z' });
+    expect(v.builds[3]!.note).toBe('Not for a store');
+    expect(v.counts).toEqual({ fail: 1, run: 1, ok: 2, off: 0 });
+    expect(v.updates.map((u) => u.name)).toEqual(['For phones with a store build · Android', 'For test phones · iPhone and Android']);
+  });
+
+  it('marks a build red when its store send failed', () => {
+    const v = expo.expoView({ builds: [b('IOS', 'production', 'FINISHED', '2026-11-20T03:00:00Z', '1.0')],
+      submissions: [{ platform: 'IOS', status: 'ERRORED', at: '2026-11-20T04:00:00Z', error: 'INVALID_BUNDLE: bad', version: '1.0' }], updates: [] });
+    expect(v.builds[0]).toMatchObject({ s: 'fail', note: 'Sending it to the App Store failed: INVALID_BUNDLE.' });
   });
 });

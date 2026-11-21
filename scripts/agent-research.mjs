@@ -1,30 +1,34 @@
 #!/usr/bin/env node
-// The agent team's research, around Claude (.github/workflows/user-issues.yml job
-// `research`, docs/agent-team.md "The research team"). Plain Node, no packages.
+// The research team, around Claude (.github/workflows/user-issues.yml job
+// `research`, docs/research-team.md). Plain Node, no packages.
 //
-// One time each day a lead (Claude) reads what the team fixed and what is open,
-// and starts scouts that look in the code for the same mistake in other places.
-// It presents each thing found to the developers on the ops dashboard.
+// One time each day two leads (Claude) work, one after the other:
+// - the search for the same mistake in other places (docs/agent-team.md "The research team"): a lead reads
+//   what the team fixed and what is open, and starts scouts that look in the code for the same mistake;
+// - the team that looks ahead (scripts/research-team.mjs): a lead and its scouts look at known security holes,
+//   new versions and one more subject each weekday, and write the day's report.
+// The script presents what both found to the developers on the ops dashboard's Research page.
 //
-//   node scripts/agent-research.mjs facts <dir>    what the lead reads (facts.json), from the app's Worker:
-//                                                  the watch's issues and the record of each fix, in Claude's
-//                                                  own words, and the items of earlier runs; writes work=<0|1>
-//                                                  to GITHUB_OUTPUT (0: nothing to start from, or the team is off)
-//   node scripts/agent-research.mjs report <dir>   report.json, as the lead wrote it, checked: each place must
-//                                                  be a file of main; a Linear issue for each recommended item
-//                                                  that has none; then tells the Worker, for the dashboard
+//   node scripts/agent-research.mjs facts <dir>    what each lead reads, from the app's Worker (the watch's issues
+//                                                  and the record of each fix, in Claude's own words, and the items
+//                                                  of earlier runs) and from code (team/facts.md); writes work=<0|1>
+//                                                  (the twins search) and team=<0|1>, beats=<ids> to GITHUB_OUTPUT
+//   node scripts/agent-research.mjs report <dir>   both reports as the leads wrote them, checked: each place must be
+//                                                  a file of main; a Linear issue for each recommended item that has
+//                                                  none; then tells the Worker, for the dashboard
 //
-// The lead never reads what a person wrote: facts.json holds the team's own
-// words only, and the lead has no network. So nothing of a person's can reach
-// its report, a Linear issue it files or this public repository's logs.
+// The twins lead never reads what a person wrote and has no network. The team that looks ahead reads public web
+// pages, and so it gets neither the watch's issues nor a shell: only its own items of earlier runs, the code and
+// the facts. So nothing of a person's can reach its report, a Linear issue it files or this public repository's logs.
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
 import { runUrl } from './tutorial-review.mjs';
 import { modeHere } from './agent-team.mjs';
 import { call, linearClient, redact, stepsOf } from './user-issues.mjs';
+import { beatsFor, beatsMarkdown, BEATS, checkTeamReport, contextMarkdown, counts, factsMarkdown, gatherFacts, PRIORITY, reportFromScouts, sessionOf, teamItemDescription, TWINS } from './research-team.mjs';
 
 export const DECISIONS = ['recommend', 'watch', 'reject'];
 export const ACTIONS = ['fix', 'ask', 'none'];
@@ -113,7 +117,7 @@ async function facts(dir) {
   // Without its own Claude token (AGENT_TEAM_CLAUDE_TOKEN, docs/agent-team.md) the team does nothing, as when off.
   if (modeHere() === 'off' || process.env.HAS_TEAM_TOKEN !== 'true') {
     console.log(modeHere() === 'off' ? 'the agent team is off: no research' : 'the agent team has no AGENT_TEAM_CLAUDE_TOKEN: no research');
-    output({ work: 0 });
+    output({ work: 0, team: 0 });
     return;
   }
   const context = await call('GET', undefined, '?research=1');
@@ -121,13 +125,53 @@ async function facts(dir) {
   const items = Array.isArray(context?.items) ? context.items : [];
   writeFileSync(join(dir, 'facts.json'), JSON.stringify({ issues, items }, null, 2));
   console.log(`research: ${issues.length} issues of the last 30 days to start from, ${items.length} items of earlier runs`);
-  output({ work: issues.length ? 1 : 0 });
+  // The team that looks ahead: today's beats, the facts code finds, and what the team knows (its own items only).
+  const team = join(dir, 'team');
+  let beats = [];
+  try {
+    beats = beatsFor(new Date(), process.env.RESEARCH_BEATS || '');
+    const found = await gatherFacts({ root: process.cwd(), githubToken: process.env.GITHUB_TOKEN || '', log: (t) => console.log(t) });
+    mkdirSync(join(team, 'scouts'), { recursive: true });
+    writeFileSync(join(team, 'facts.md'), factsMarkdown(found));
+    writeFileSync(join(team, 'context.md'), contextMarkdown({ items, last: context?.last ?? null }));
+    writeFileSync(join(team, 'beats.md'), beatsMarkdown(beats));
+    writeFileSync(join(team, 'run.json'), JSON.stringify({ beats, startedAt: Date.now(), facts: { packages: found.lockfile, advisories: (found.audit?.length ?? 0) + (found.osv?.length ?? 0), outdated: found.outdated.length, actions: found.actions.length } }));
+    for (const n of found.notes) console.log(`::warning::facts: ${n}`);
+    console.log(`research team: today's scouts ${beats.map((b) => `${b} (${BEATS[b].model})`).join(', ')}`);
+  } catch (e) {
+    console.log(`::warning::the research team cannot start today: ${e instanceof Error ? e.message : e}`);
+    beats = [];
+  }
+  output({ work: issues.length ? 1 : 0, team: beats.length ? 1 : 0, beats: beats.join(',') });
+}
+
+/** A file the agents wrote: JSON, or null (missing, a link, too big, not JSON). */
+function readJson(path) {
+  try {
+    if (!existsSync(path) || !lstatSync(path).isFile() || lstatSync(path).size > 2_000_000) return null;
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The day's report for the Worker: the team's headline, summary and one line for each scout, the twins search's
+ * line, the counts over both, the agents' time and the facts' numbers. Null when the team that looks ahead did
+ * not run (a twins search alone has no headline).
+ */
+export function dayReport(team, twins, { day, run, session }) {
+  if (!team) return null;
+  const all = [...team.items, ...(twins?.items ?? [])];
+  const twinsLine = twins ? [{ id: TWINS.id, title: TWINS.title, model: TWINS.model, checked: twins.checked, result: twins.result, note: null }] : [];
+  return {
+    day, headline: team.headline, summary: team.summary, beats: [...team.beats, ...twinsLine], lead: team.lead,
+    minutes: session.minutes, turns: session.turns, counts: counts(all), facts: run?.facts ?? null
+  };
 }
 
 async function report(dir) {
-  const path = join(dir, 'report.json');
-  if (!existsSync(path)) throw new Error('Claude wrote no report.json; research runs again tomorrow.');
-  const context = JSON.parse(readFileSync(join(dir, 'facts.json'), 'utf8'));
+  const context = readJson(join(dir, 'facts.json')) ?? { issues: [], items: [] };
   // A file of main as checked out before Claude (GIT_DIR is the copy): Claude can write in the checkout.
   const isFile = (file) => {
     try {
@@ -136,19 +180,49 @@ async function report(dir) {
       return false;
     }
   };
-  const checked = checkReport(JSON.parse(readFileSync(path, 'utf8')), context, isFile);
-  for (const d of checked.dropped) console.log(`::warning::report.json ${d}`);
+  const known = new Map((Array.isArray(context.items) ? context.items : []).filter((i) => i && typeof i.tag === 'string').map((i) => [i.tag, i]));
+
+  // The search for the same mistake in other places.
+  let twins = null;
+  if (process.env.TWINS === '1') {
+    const raw = readJson(join(dir, 'report.json'));
+    if (!raw) console.log('::warning::the twins lead wrote no report.json; it runs again tomorrow');
+    const checked = raw ? checkReport(raw, context, isFile) : { items: [], dropped: [] };
+    for (const d of checked.dropped) console.log(`::warning::report.json ${d}`);
+    const n = (Array.isArray(context.issues) ? context.issues : []).length;
+    twins = { items: checked.items, checked: `Started from ${n} ${n === 1 ? 'issue' : 'issues'} of the last 30 days.`, result: !raw ? 'failed' : checked.items.length ? 'found' : 'clear' };
+  }
+
+  // The team that looks ahead.
+  let team = null;
+  if (process.env.TEAM === '1') {
+    const run = readJson(join(dir, 'team', 'run.json'));
+    const beats = Array.isArray(run?.beats) ? run.beats.filter((b) => Object.hasOwn(BEATS, b)) : [];
+    const checked = checkTeamReport(readJson(join(dir, 'team', 'report.json')), { beats, isFile, known });
+    const notes = beats.map((b) => [b, readJson(join(dir, 'team', 'scouts', `${b}.json`))]);
+    if (checked) team = { ...checked, lead: 'ok', run };
+    else if (notes.some(([, n]) => n)) {
+      console.log('::warning::the research lead gave no report: the scouts\' notes are the report');
+      team = { ...reportFromScouts(notes, { isFile, known }), lead: 'failed', run };
+    } else console.log('::warning::the research team left no report and no notes; the dashboard keeps the last report');
+    for (const d of team?.dropped ?? []) console.log(`::warning::team/report.json ${d}`);
+  }
+
   const run = runUrl(process.env);
   const key = process.env.LINEAR_API_KEY;
-  const toFile = checked.items.filter((i) => i.decision === 'recommend' && !i.issue);
+  const toFile = [...(twins?.items ?? []), ...(team?.items ?? [])].filter((i) => i.decision === 'recommend' && !i.issue);
   if (toFile.length && !key) throw new Error('No LINEAR_API_KEY: the research cannot file what it recommends.');
   const api = toFile.length ? linearClient(key) : null;
-  const team = api ? await api.team() : null;
+  const linearTeam = api ? await api.team() : null;
   const urls = new Map();
   let failed = 0;
   for (const item of toFile) {
     try {
-      const issue = await api.create({ teamId: team.teamId, title: `${TITLE_PREFIX}${item.title}`.slice(0, 250), description: itemDescription(item, run), priority: 4 });
+      const looksAhead = Boolean(item.beat);
+      const issue = await api.create({
+        teamId: linearTeam.teamId, title: `${TITLE_PREFIX}${item.title}`.slice(0, 250),
+        description: looksAhead ? teamItemDescription(item, run) : itemDescription(item, run), priority: looksAhead ? PRIORITY[item.severity] ?? 4 : 4
+      });
       item.issue = issue.identifier;
       urls.set(issue.identifier, issue.url);
       console.log(`filed ${issue.identifier} for ${item.tag} (${item.action})`);
@@ -158,13 +232,19 @@ async function report(dir) {
     }
   }
   // An item whose issue has no address here keeps the one the database has: it sends neither.
-  const research = checked.items.map((i) => (i.issue && urls.has(i.issue) ? { ...i, issueUrl: urls.get(i.issue) } : { ...i, issue: null, issueUrl: null }));
-  if (research.length) {
-    const done = await call('POST', { sha: git(['rev-parse', 'HEAD']), runUrl: run, looked: [], grew: [], states: [], research });
-    console.log(`told the Worker: ${done.research ?? 0} items`);
+  const send = (i) => (i.issue && urls.has(i.issue) ? { ...i, issueUrl: urls.get(i.issue) } : { ...i, issue: null, issueUrl: null });
+  const research = [...(twins?.items ?? []), ...(team?.items ?? [])].map(send);
+  const session = sessionOf(process.env.TEAM_EXECUTION_FILE && existsSync(process.env.TEAM_EXECUTION_FILE) ? readFileSync(process.env.TEAM_EXECUTION_FILE, 'utf8') : '');
+  const day = new Date(team?.run?.startedAt ?? Date.now()).toISOString().slice(0, 10);
+  const reportOut = dayReport(team, twins, { day, run: team?.run, session });
+  if (research.length || reportOut) {
+    const done = await call('POST', { sha: git(['rev-parse', 'HEAD']), runUrl: run, looked: [], grew: [], states: [], research, ...(reportOut ? { report: reportOut } : {}) });
+    console.log(`told the Worker: ${done.research ?? 0} items${reportOut ? ', and the day\'s report' : ''}`);
   }
-  const count = (d) => checked.items.filter((i) => i.decision === d).length;
-  console.log(`research: ${count('recommend')} recommended, ${count('watch')} to watch, ${count('reject')} rejected`);
+  // Only counts reach this public log: the words go to the Worker and to Linear.
+  const all = [...(twins?.items ?? []), ...(team?.items ?? [])];
+  const c = counts(all);
+  console.log(`research: ${c.recommended} recommended (${c.toFix} for the fix team, ${c.toAsk} for a developer), ${c.watching} to watch, ${c.rejected} rejected`);
   if (failed) throw new Error(`${failed} Linear calls failed; those items are filed by the next run`);
 }
 
