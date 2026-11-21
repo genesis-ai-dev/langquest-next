@@ -2,7 +2,8 @@
  * The Overview, the ops dashboard's first page
  * (docs/decisions/2026-11-18-ops-dashboard-menu-and-overview.md): one row for
  * each thing that needs a person, most urgent first (decisions.md 254's
- * cards, as rows), then eight numbers, a map of the parts with a dot for each
+ * cards, as rows), then how much of the Frontier Claude plan this week has
+ * used (a small monitor), then eight numbers, a map of the parts with a dot for each
  * part's state, two charts of the last 14 days, and what was merged lately.
  * Every number and dot comes from a part the page already loads; a part that
  * has not answered, is not connected or could not be read says so, never a
@@ -64,6 +65,15 @@ svg.days { display: block; width: 100%; height: auto; } svg.days .gl { stroke: v
 .shipped { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .shipped a.node { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; } .shipped a.node:last-child { border-bottom: 0; }
 .shipped p { margin: 0; padding: 14px 16px; }
+a.plan { display: grid; gap: 6px; max-width: 640px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; text-decoration: none; color: inherit; }
+a.plan:hover, a.plan:focus-visible { border-color: var(--grey); }
+.plan .ptop { display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline; font-size: 13px; color: var(--muted); } .plan .ptop b { color: var(--ink); font-weight: 600; font-size: 14px; margin-inline-end: auto; }
+.plan .row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 44px; gap: 10px; align-items: center; font-size: 13px; color: var(--ink2); }
+.plan .row b { text-align: end; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.plan svg.bar { display: block; width: 100%; height: 10px; border-radius: 5px; overflow: hidden; } .plan .bar .bg { fill: var(--soft); }
+.plan .bar .used { fill: var(--green); } .plan.watch .bar .used { fill: var(--amber); } .plan.problem .bar .used { fill: var(--red); }
+.plan .bar .gone { fill: var(--grey); }
+.plan p { margin: 0; font-size: 13px; } .plan.watch p b { color: var(--amber); } .plan.problem p b { color: var(--red); }
 @media (max-width: 900px) {
   .map { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px; } .map svg.wires { display: none; }
   .alert { grid-template-columns: minmax(0, 1fr); } .alert .gos { justify-items: start; grid-auto-flow: column; justify-content: start; gap: 16px; } .alert a.go { min-height: 48px; }
@@ -79,6 +89,7 @@ export const OVERVIEW_HTML = String.raw`
         <div class="alerts" id="start-you"></div>
         <details class="resolved" id="start-resolved" hidden></details>
       </section>
+      <section aria-label="Frontier Claude plan this week"><a class="plan" id="start-plan" href="#g/access"></a></section>
       <section aria-labelledby="ov-glance"><h2 class="oh" id="ov-glance">At a glance</h2><div class="tiles" id="start-tiles"></div></section>
       <section aria-labelledby="ov-map"><h2 class="oh" id="ov-map">How it fits together</h2>
         <div class="mapcard"><div class="map" id="map"></div>
@@ -144,6 +155,39 @@ function tilesOf(results) {
   add('support', 'support', 'Feedback to read', (d) => d.feedbackOpen ? [nf(d.feedbackOpen.open), nf(d.reports.open) + (Number(d.reports.open) === 1 ? ' content report open' : ' content reports open')] : null, 'support');
   add('videofeedback', 'tutorials', 'Video suggestions that wait', (d) => [nf(d.open), nf(d.waiting) + ' not looked at yet']);
   return tiles;
+}
+
+const WEEK_MS = 7 * 864e5;
+/** A reading older than this says how old it is: the reading runs every hour. */
+const PLAN_OLD_H = 3;
+/**
+ * The Frontier Claude plan this week (sources/claudePlan.ts): the share used
+ * against the share of the week gone. Used faster than the week by over 10
+ * points is a watch, with when it runs out at that speed; 90% used is a
+ * problem. No reading is never a zero: it says why.
+ */
+function planOf(results, now) {
+  const s = results.claudeplan;
+  const none = (said) => ({ used: null, gone: null, level: 'none', said, resetsAt: null, runsOut: null, readAt: null, old: false });
+  if (!s || s.state !== 'ok' || !s.data) return none(partSaid(results, 'claudeplan') || 'No reading');
+  const d = s.data, w = d.week;
+  if (!w) return none(d.said || 'No reading yet');
+  const end = Date.parse(w.resetsAt), start = end - WEEK_MS;
+  // A reading from before the week started again is last week's.
+  if (!(end > now)) return none('The week started again. The next reading comes within the hour.');
+  const gone = Math.min(1, Math.max(0, (now - start) / WEEK_MS));
+  const used = Math.max(0, Number(w.used));
+  const read = d.readAt ? Date.parse(d.readAt) : NaN;
+  const level = used >= 0.9 ? 'problem' : used - gone > 0.1 ? 'watch' : 'ok';
+  // At the speed so far, when the plan is all used; only when that comes before the week starts again.
+  const spent = (Number.isFinite(read) ? read : now) - start;
+  const runsOutAt = used > 0 && used < 1 && spent > 0 ? start + spent / used : null;
+  const runsOut = runsOutAt !== null && runsOutAt < end ? new Date(runsOutAt).toISOString() : null;
+  const said = used >= 1 ? 'Used up. The automatic jobs stop until the week starts again.'
+    : level === 'problem' ? 'Almost used up. The automatic jobs stop at 100%.'
+    : level === 'watch' ? 'Used faster than the week goes.'
+    : used > gone ? 'About even with the week.' : 'Less used than the week gone.';
+  return { used, gone, level, said, resetsAt: w.resetsAt, runsOut, readAt: d.readAt || null, old: Number.isFinite(read) && (now - read) / 36e5 > PLAN_OLD_H };
 }
 
 /** The map: three columns of boxes. 'parts' give a box its state; 'lane' takes it from that store's builds instead. */
@@ -295,6 +339,7 @@ function drawStart() {
   redraw($('start-you'), rows.join('') ||
     (loading ? '<p class="muted">Checking each section…</p>' : '<div class="alert clear">' + lvl('clear', 'All clear') + '<div class="text"><b>Nothing needs attention now.</b></div><div class="pic"></div><span></span></div>'));
   drawResolved();
+  drawPlan();
   drawTiles();
   drawMap();
   drawOvCharts();
@@ -309,6 +354,20 @@ function drawResolved() {
   const now = new Set(PARTS.flatMap((p) => ((results[p] && results[p].alerts) || []).map(watchKeyOf)));
   const answered = (part) => Boolean(results[part]) && results[part].state === 'ok';
   el.innerHTML = resolvedHtml(resolvedLines(ud, now, answered, KINDS, Date.now()));
+}
+
+const planPct = (x) => Math.round(x * 100) + '%';
+const weekTime = (iso) => new Date(iso).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+function drawPlan() {
+  const p = planOf(results, Date.now());
+  const el = $('start-plan');
+  el.className = 'plan ' + p.level;
+  const bar = (cls, label, x) => '<div class="row"><span>' + label + '</span><svg class="bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="' + esc(label + ' ' + planPct(x)) + '"><rect class="bg" width="100" height="10"/><rect class="' + cls + '" width="' + (Math.min(1, x) * 100).toFixed(1) + '" height="10"/></svg><b>' + planPct(x) + '</b></div>';
+  redraw(el, '<div class="ptop"><b>Frontier Claude plan this week</b>' + (p.resetsAt ? '<span>Starts again ' + esc(weekTime(p.resetsAt)) + '</span>' : '') + '</div>' +
+    (p.used === null ? '<p class="muted">' + esc(p.said) + '</p>'
+      : bar('used', 'Used', p.used) + bar('gone', 'Week gone', p.gone) +
+        '<p><b>' + esc(p.said) + '</b>' + (p.runsOut ? ' At this speed it runs out ' + esc(weekTime(p.runsOut)) + '.' : '') +
+        (p.readAt ? ' <span class="muted">Read ' + esc(ago(p.readAt)) + (p.old ? ': the hourly reading is late.' : '.') + '</span>' : '') + '</p>'));
 }
 
 function drawTiles() {

@@ -39,7 +39,11 @@ describe('GitHub Actions workflows', () => {
     // phone-tests.yml runs the phone flows on an emulator and a simulator
     // against a test server that lives only for the run, and files in Linear
     // with the Claude plan's token and the Linear key alone (decision 208).
+    // claude-plan.yml, every hour, holds only the agent team's Claude token
+    // and writes nothing but an annotation on its own run: how much of the
+    // week the Frontier plan used, for the Overview
+    // (docs/decisions/2026-11-21-the-overview-shows-the-frontier-claude-plan.md).
     const scheduled = workflows.filter((w) => /^\s+schedule:\s*$/m.test(w.text)).map((w) => w.f).sort();
-    expect(scheduled).toEqual(['guardrails.yml', 'phone-tests.yml', 'release-branches.yml', 'tutorial-review.yml', 'tutorials.yml', 'user-issues.yml']);
+    expect(scheduled).toEqual(['claude-plan.yml', 'guardrails.yml', 'phone-tests.yml', 'release-branches.yml', 'tutorial-review.yml', 'tutorials.yml', 'user-issues.yml']);
   });
 });
