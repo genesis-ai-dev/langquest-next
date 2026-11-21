@@ -51,3 +51,12 @@ Reverse if: the usual range calls a normal day unusual often enough that
 people stop reading it (then the range needs more days or a wider rule), or
 developers open All the details on most visits (then the summary misses
 what they look for).
+
+Amended (2026-11-21, Caleb Koster): User issues, Research, Support, Tutorial
+videos and Nightly tests keep All the details open for good, because their
+list is where a person works. Their summary does not repeat the list: it
+says where the work is (a box for each tab of the list with its count, that
+opens the list at that tab; for Support, what waits on staff; for Nightly
+tests, each nightly's suites against the night before). What waits on a
+person is said once, by the page's lines, not again in the page's own
+sentence.

@@ -550,6 +550,17 @@ App stores: Android crashes and freezes as meters against Google's line
 reviews. People and organizations: the totals and who waits to join. Phones
 and browsers: what people used in the last 7 days, by platform.
 
+The pages whose list is the work keep All the details open, and their
+summary says where the work is. User issues, Research and Tutorial videos: a
+box for each tab of the list with its count (`tabStrip`); a tap opens the
+list at that tab. Tutorial videos also shows each app language as a chip
+(paused, in order, or how many videos need a person). Support: what waits on
+staff (`supportWaits`: open content reports and whether the oldest is past
+the 24-hour promise, feedback, blue checks to decide). Nightly tests: each
+nightly as a meter of the suites that passed, and a nightly that did not run
+in 36 hours (`nightlyView`, `STALE_H`). Their sentence says only what the
+parts read; what waits on a person is said once, by the page's lines.
+
 The Overview's sentence under its title counts its lines by who acts
 (`lineBucket`): Needs you (Act now, Fix soon), This week, you decide (a
 choice at Watch: `person` kinds in `alertKinds.ts`), On its way (a merged fix
