@@ -4,6 +4,7 @@ import { ISSUE_LOGIC, ISSUE_SCRIPT } from '../src/pageIssues';
 import { RESEARCH_LOGIC, RESEARCH_SCRIPT } from '../src/pageResearch';
 import { RESEARCH_TEAM } from '../src/researchTeam';
 import { researchAlerts, researchWaiting, type Research } from '../src/sources/ops';
+import { SEND_LOGIC, SEND_SCRIPT } from '../src/pageSends';
 
 /** The Research page (docs/research-team.md): the team's report of a day, its map and week, and one card for each thing found. */
 type Row = Record<string, unknown>;
@@ -30,6 +31,11 @@ const draw = new Function(`
   const cardLink = (x) => '<a href="' + x.link + '">Open</a>', vicon = (k) => '<i>' + k + '</i>';
   const FIX_STATE = { open: 'It merges itself.', working: 'Claude writes it.' }, ADMIN_LEVEL = { fails: 'bad' }, SUGGESTION_KINDS = { voice: 'Voice' };
   const document = { addEventListener() {}, getElementById() { return null; } };
+  // The page's state of taps (pageSends.ts), empty: nothing was sent from this page.
+  let VIDEOS = null, results = {}, udata = null;
+  const userIssuesData = () => udata;
+  ${SEND_LOGIC}
+  ${SEND_SCRIPT}
   const RESEARCH_TEAM = ${JSON.stringify(RESEARCH_TEAM)};
   ${ISSUE_LOGIC}
   ${ISSUE_SCRIPT}
@@ -137,7 +143,7 @@ describe('the Research page', () => {
 
   it('is in the page', async () => {
     const html = await page({ supabaseUrl: 'https://x.supabase.co', anonKey: 'k' }, 'n').text();
-    expect(html).toContain('function researchHtml(d)');
+    expect(html).toContain('function researchHtml(raw)');
     expect(html).toContain('const RESEARCH_TEAM = [');
   });
 });

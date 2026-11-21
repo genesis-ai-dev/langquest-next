@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { page } from '../src/page';
 import { ISSUE_LOGIC, ISSUE_SCRIPT } from '../src/pageIssues';
+import { SEND_LOGIC, SEND_SCRIPT } from '../src/pageSends';
 
 interface Way { tab: string; pill: string; level: string; at: number; pr: { number: number } | null; claude?: boolean }
 type Row = Record<string, unknown>;
@@ -28,6 +29,11 @@ const draw = new Function(`
   const cardLink = (x) => '<a href="' + x.link + '">Open</a>', vicon = (k) => '<i>' + k + '</i>';
   const FIX_STATE = { open: 'It merges itself.', working: 'Claude writes it.' }, ADMIN_LEVEL = { fails: 'bad' }, SUGGESTION_KINDS = { voice: 'Voice' };
   const document = { addEventListener() {}, getElementById() { return null; } };
+  // The page's state of taps (pageSends.ts), empty: nothing was sent from this page.
+  let VIDEOS = null, results = {}, udata = null;
+  const userIssuesData = () => udata;
+  ${SEND_LOGIC}
+  ${SEND_SCRIPT}
   let fixData = null;
   ${ISSUE_LOGIC}
   ${ISSUE_SCRIPT}
@@ -230,7 +236,7 @@ describe('the cards', () => {
     expect(open).toContain('<p class="said you">Wait for the passage &#60;first&#62;.</p>');
     expect(open).toContain('<div class="said claude"><p><strong>I moved the wait.</strong></p></div>');
     expect(open).toContain('>PR 7</a>');
-    expect(open).toContain('<div class="said claude"><p><strong>Claude reads it at the next run of the watch (each 15 minutes).</strong></p></div>');
+    expect(open).toMatch(/<div class="said claude"><p><strong>Claude reads it at the next run of the watch, at about \d{1,2}:[0-5]\d\b[^<]*<\/strong><\/p><\/div>/);
     expect(open).toContain('<textarea id="uin-LAN-9"');
     expect(open).toContain('data-uinote="LAN-9">Send to Claude</button>');
     expect(open).toContain('placeholder="Send another instruction…"');
