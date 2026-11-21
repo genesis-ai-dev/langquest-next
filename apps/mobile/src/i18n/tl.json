@@ -825,6 +825,7 @@
     },
     "members": {
       "joined": "{{target}} · sumali {{when}}",
+      "joinedJustNow": "{{target}} · sumali ngayon lang",
       "count_one": "{{count, number}} miyembro",
       "count_other": "{{count, number}} miyembro",
       "invite": "Mag-imbita",
