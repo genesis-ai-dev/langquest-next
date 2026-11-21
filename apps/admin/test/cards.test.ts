@@ -50,8 +50,8 @@ describe('each Overview line opens its card', () => {
   });
 
   it('says why a card has no box to tell Claude what to do', () => {
-    expect(logic.noBoxSaid('none', true)).toContain('when the watch files this line in Linear');
-    expect(logic.noBoxSaid('person', true)).toContain('Claude has no step here');
+    expect(logic.noBoxSaid('none', true)).toContain('Claude files this problem in Linear within 15 minutes');
+    expect(logic.noBoxSaid('person', true)).toContain('You do this one yourself');
     expect(logic.noBoxSaid('none', false)).toBe('Reading the user issues…');
     expect(logic.noBoxSaid('issue', true)).toBe('');
   });

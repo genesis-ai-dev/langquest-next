@@ -26,8 +26,11 @@ export const CARD_CSS = String.raw`
 .icard.hit, .pc.hit { box-shadow: 0 0 0 3px var(--primary); animation: cardhit 2.6s ease-out 1; }
 @keyframes cardhit { 0%, 30% { box-shadow: 0 0 0 6px var(--primary); } 100% { box-shadow: 0 0 0 3px var(--primary); } }
 @media (prefers-reduced-motion: reduce) { .icard.hit, .pc.hit { animation: none; } }
-.alert[data-href] { cursor: pointer; }
-.alert[data-href]:hover { border-color: var(--grey); }
+.alert[data-href] { cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.alert[data-href]:hover { border-color: var(--grey); box-shadow: 0 4px 16px rgb(0 0 0 / .06); transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) { .alert[data-href]:hover { transform: none; } }
+.alert .gos a.go.open { padding: 0 14px; min-height: 40px; border-radius: 999px; background: var(--soft); color: var(--primary); }
+.alert[data-href]:hover .gos a.go.open { background: var(--primary); color: #fff; }
 .alert .text > b a.card, .alert ul.also a.card { color: inherit; text-decoration: none; }
 .alert .text > b a.card:hover, .alert .text > b a.card:focus-visible, .alert ul.also a.card:hover, .alert ul.also a.card:focus-visible { color: var(--primary); text-decoration: underline; }
 `;
@@ -79,9 +82,9 @@ function lineWay(f, byClaude, asked) {
 function noBoxSaid(state, read) {
   if (!read) return 'Reading the user issues…';
   return {
-    none: 'You can tell Claude what to do when the watch files this line in Linear. The watch looks each 15 minutes.',
-    noise: 'Claude found nothing to fix, so this line has no Linear issue.',
-    person: 'You act on this in the part below. Claude has no step here.',
+    none: 'Claude files this problem in Linear within 15 minutes. Then you can tell Claude what to do here.',
+    noise: 'Claude looked and found nothing to fix.',
+    person: 'You do this one yourself, in the list below.',
     unreadable: 'The page could not read this part. A refresh reads it again.',
     count: 'Each issue has its own card on User issues.'
   }[state] || '';
@@ -108,14 +111,13 @@ function lineCard(a, group) {
   const way = f ? lineWay(f, byClaude, notes.some((n) => n.state === 'waiting' || n.state === 'working'))
     : { pill: unread ? ['Could not read', ''] : ['Waits on you', 'you'], at: 0, steps: LINE_STEPS };
   const said = (words, facts) => words ? '<p>' + esc(words) + '</p>' + (facts ? '<small class="muted">' + facts + '</small>' : '') : facts;
-  const where = esc(PART_TITLE[a.part] || titleOf(group)) + (row && row.firstAt ? ' · first seen ' + when(row.firstAt) : '') + (row && row.people ? ' · ' + num(row.people) + (Number(row.people) === 1 ? ' person' : ' people') : '');
+  const where = 'Found in ' + esc(PART_TITLE[a.part] || titleOf(group)) + (row && row.firstAt ? ' · first seen ' + when(row.firstAt) : '') + (row && row.people ? ' · ' + num(row.people) + (Number(row.people) === 1 ? ' person' : ' people') : '');
   const link = safeLink(a.link);
   const why = f && f.issues.length > 1 ? 'count' : !issue ? (unread ? 'unreadable' : f ? f.state : 'person') : '';
   const side = (way.pill[1] === 'you' && pr && f.state === 'open' ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
     (pr && f.state !== 'open' ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
     (link ? outLink(link, 'Open the page', 'button') : '') +
     (issue && row && safeLink(row.issueUrl) ? outLink(row.issueUrl, 'Open ' + esc(issue) + ' in Linear', 'button') : '') +
-    (issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : '') +
     (f && f.issues.length > 1 ? '<ul class="eachissue">' + f.issues.map((i) => '<li><a href="' + esc(cardHref('userissues', i)) + '">' + esc(i) + '</a>: tell Claude what to do</li>').join('') + '</ul>' : '') +
     (why ? '<p class="nobox">' + esc(noBoxSaid(why, unread || !!ud)) + '</p>' : '');
   return issueCard({
@@ -123,10 +125,12 @@ function lineCard(a, group) {
     pics: issue ? fixPictures(record, issue, !!shown, ud && ud.diagrams ? ud.diagrams[issue] : null) : '',
     tags: '<span class="tag ' + level + '">' + esc(LEVEL[level].title) + '</span>' +
       (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? '<span>' + esc(row.state) + ' in Linear</span>' : '') : ''),
-    title: t.title,
+    title: t.title, meta: where,
+    talk: issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : '',
     lines: [
-      ['Context', where],
-      ['Issue', said(row && row.problem, esc(tidy(a.text)))],
+      ['Context', row && row.context ? '<p>' + esc(row.context) + '</p>' : ''],
+      // The title says the problem; Claude's words for it come with the Linear issue.
+      ['Issue', row && row.problem ? '<p>' + esc(row.problem) + '</p>' : ''],
       ['Solution', said(row && row.solution, f ? fixHtml(a) : t.next ? esc(t.next) : '')],
       ['Claude', shown ? fixLine(shown, { tab: f.state === 'merged' || f.state === 'stuck' ? 'merged' : '' }) : '']
     ],
@@ -160,7 +164,7 @@ function focusCard() {
   if (!el) {
     const g = SECTIONS.find((s) => s.id === v.id);
     // Every part answered and the card is not there: the line went (its check found it fixed).
-    if (g && g.parts.every((p) => results[p]) && results.userissues) { say('That line is no longer on this page. It cleared.', ''); wantCard = null; }
+    if (g && g.parts.every((p) => results[p]) && results.userissues) { say('That problem is gone from this page. It is fixed.', ''); wantCard = null; }
     return;
   }
   wantCard = null;

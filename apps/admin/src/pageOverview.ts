@@ -234,6 +234,8 @@ export const OVERVIEW_SCRIPT = String.raw`
 const LVL_ICON = { urgent: 'alert', problem: 'alert', watch: 'look', info: 'look', clear: 'safety' };
 const lvl = (level, title) => '<span class="lvl ' + level + '">' + svgIcon(LVL_ICON[level]) + esc(title) + '</span>';
 const goLink = (href, text, out) => '<a class="go" href="' + esc(href) + '"' + (out ? ' target="_blank" rel="noopener"' : '') + '>' + esc(text) + ' ' + svgIcon('go') + '</a>';
+/** The row's own button: it opens the row's card on its section's page (pageCards.ts). */
+const rowOpenLink = (href) => '<a class="go open" href="' + esc(href) + '">Open ' + svgIcon('go') + '</a>';
 const ALSO_SHOWN = 3;
 
 /** Every card line is a merged fix that waits for its check. */
@@ -256,7 +258,7 @@ function alertRow(c) {
     (also ? '<ul class="also">' + also + (rest > 0 ? '<li>' + num(rest) + ' more in ' + esc(titleOf(c.group)) + '</li>' : '') + '</ul>' : '') +
     (t.next ? '<p class="next"><b>Next:</b> ' + esc(t.next) + '</p>' : '') +
     '<div class="from">' + esc(whereOf(c)) + '</div></div><div class="pic">' + pic + '</div>' +
-    '<div class="gos">' + goLink(href(lines[0]), titleOf(c.group)) + (link ? goLink(link, 'Open the page', true) : '') + '</div></div>';
+    '<div class="gos">' + rowOpenLink(href(lines[0])) + (link ? goLink(link, 'Open the page', true) : '') + '</div></div>';
 }
 
 /** A row for work that waits on Claude or on a store, not on the person; href opens its card. */
