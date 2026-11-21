@@ -20,7 +20,7 @@ export const GROUPS = [
   { id: 'research', title: 'Research', src: 'What the research team looked at each day, what it found, recommends and rejected, and what the fix team fixed from it', wide: true, parts: ['research'] },
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What phones and browsers report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
-  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
+  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, phone app builds and updates (Expo)', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
   { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, pg_cron, push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
   { id: 'database', title: 'Database', src: 'Connections, cache, slow calls, largest tables, long transactions, and the Supabase project', parts: ['database', 'dbdetail', 'supabase'] },
   { id: 'traffic', title: 'Workers and traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
@@ -36,7 +36,7 @@ export const GROUPS = [
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
 export const PART_TITLES: Record<string, string> = {
   pipeline: 'Where each build and update is', clients: 'What phones and browsers report', fleet: 'Builds in the field and stuck phones', code: 'The web app and automatic jobs', releases: 'What shipped',
-  expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
+  expo: 'Phone app builds and updates (Expo)', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
   integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', videos: 'Videos and what waits on you', tutorials: 'Channels and videos', videofeedback: 'What came in, and notes',
