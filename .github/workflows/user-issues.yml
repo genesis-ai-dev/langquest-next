@@ -6,8 +6,9 @@
 # (.agents/skills/user-issues/SKILL.md), and decides for each whether it is
 # a new problem, one the team already has in Linear, one a pull request on
 # main already fixed, or nothing to fix. The script then files each new one in
-# Linear with the label User issue, assigned to USER_ISSUES_ASSIGNEE below, so
-# a developer hears of it on their phone without looking; and it comments on
+# Linear with the label User issue, unassigned, so any developer on the team
+# can take it (USER_ISSUES_ASSIGNEE below names one only when the team asks);
+# and it comments on
 # issues that more people hit since. An issue closed in Linear is closed for
 # the watch too, until people hit it on a build from after the fix.
 #
@@ -113,8 +114,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Who each new issue is assigned to: a Linear user's id (Caleb Koster). Change it here.
-  USER_ISSUES_ASSIGNEE: 63dc7a60-051c-45f1-890c-677d21e5f329
+  # Who each new issue is assigned to: a Linear user's id, or empty for nobody. Empty: the team
+  # has more than one developer, and any of them takes an issue (Caleb Koster, 2026-11-21).
+  USER_ISSUES_ASSIGNEE: ''
 
 jobs:
   watch:

@@ -16,7 +16,7 @@ import { REPOSITORY } from './tutorialFeedback';
  * ops dashboard the records do not hold (apps/admin/src/alertKinds.ts), which
  * the app Worker reads from the dashboard's Worker for each watch.
  */
-export const FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'job', 'worker', 'feedback', 'ops'] as const;
+export const FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'slow', 'snapshot', 'job', 'worker', 'feedback', 'ops'] as const;
 export type Family = (typeof FAMILIES)[number];
 
 /**
@@ -65,6 +65,12 @@ export interface WatchKind {
   /** The newest stack seen for an error: frames only, no message (diagnostics.md). */
   stack: string | null;
   /**
+   * The top line of each of its stacks, by records, at most 5. Two lines can be two bugs under one
+   * error name and place: the key stays one kind, and the look says so. Absent before migration
+   * 20261121031500_user_issue_watch_gaps.sql, and on help mode's problems and the server's.
+   */
+  tops?: { frame: string; records: number }[];
+  /**
    * What an earlier look decided, when it is looked at again: noise that grew,
    * or a kind fixed (`fixedBy`, the pull request, merged at `fixedAt`) or whose
    * issue closed (`closedAt`, its Linear `state`) that people hit after the fix.
@@ -98,6 +104,8 @@ export interface Watch {
   /** Kinds seen in the last 7 days, before choosing what to look at. */
   active: number;
   look: WatchKind[];
+  /** Kinds to look at past the 20 a run: they wait for the next runs. Absent before migration 20261121031500_user_issue_watch_gaps.sql. */
+  waiting?: number;
   grew: GrownKind[];
   /** Every Linear issue the watch filed or commented on in 180 days, with the state last read (the workflow reads them again each run). */
   issues: { issue: string; state: string | null; closed: boolean }[];

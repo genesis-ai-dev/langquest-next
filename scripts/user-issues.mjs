@@ -10,7 +10,7 @@
 //                                              records), and the team's issues in Linear (linear.json); writes
 //                                              look=<n> and grew=<n> to GITHUB_OUTPUT
 //   node scripts/user-issues.mjs file <dir>    decisions.json, as Claude wrote it: a Linear issue for each new
-//                                              problem, assigned to USER_ISSUES_ASSIGNEE, and a comment on each
+//                                              problem, assigned to USER_ISSUES_ASSIGNEE when set (none today), and a comment on each
 //                                              issue the team already had (reopened when it was closed) and on
 //                                              each that more people hit since; then tells the Worker what was
 //                                              done, so nothing is filed twice; writes fixes=<the new issues' ids,
@@ -59,7 +59,7 @@ export const API = process.env.USER_ISSUES_API ?? 'https://next.langquest.org/ap
 /** What the Worker expects the token to be for (apps/web/worker/userIssues.ts USER_ISSUES_RULE). */
 export const AUDIENCE = 'https://next.langquest.org/api/user-issues';
 /** server/userIssues.ts FAMILIES (scripts/userIssues.test.ts holds them equal). */
-export const FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'job', 'worker', 'feedback', 'ops'];
+export const FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'slow', 'snapshot', 'job', 'worker', 'feedback', 'ops'];
 export const KEY = new RegExp(`^(${FAMILIES.join('|')}):[A-Za-z0-9 _.:()/#@-]{1,290}$`);
 /** server/userIssues.ts ISSUE_LABEL and ISSUE_PREFIX. */
 export const LABEL = 'User issue';
@@ -80,6 +80,12 @@ const EMAIL = /[^\s@<>()[\]`,;:"']+@[^\s@<>()[\]`,;:"']+\.[A-Za-z]{2,}/g;
 
 /** No address ever goes into an issue, whoever wrote it. */
 export const redact = (text) => String(text ?? '').replace(EMAIL, '[address]');
+
+/**
+ * Words for the card kept in their lines, so a lead line, numbered steps and a block of code stay
+ * apart (apps/admin/src/pageIssues.ts saidHtml draws them): no spaces at a line's end, at most one empty line.
+ */
+const lines = (t) => String(t ?? '').replace(/\r\n?/g, '\n').replace(/\t/g, '  ').replace(/[ \u00a0]+$/gm, '').replace(/\n{3,}/g, '\n\n');
 
 const cut = (text, max) => {
   const t = redact(text).trim();
@@ -404,7 +410,7 @@ export function checkFix(raw) {
   // The manager's verdict and reasoning (scripts/agent-team.mjs verdictOf), addresses out.
   const v = verdictOf(o);
   const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display };
-  return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), answer: cut(text(o.answer).replace(/\s+/g, ' '), FIX_LIMITS.answer), ...team };
+  return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), answer: cut(lines(text(o.answer)), FIX_LIMITS.answer), ...team };
 }
 
 /** check.json from the job with no key: only its fixed words, since the patch's own code ran there. */
@@ -543,7 +549,7 @@ export function repairOf(raw, id) {
  */
 export function noteAnswer(fix, result, extra = '') {
   const own = fix.answer || (result === 'changed' ? 'Claude changed the draft fix.' : result === 'answered' ? 'Claude changed nothing.' : '');
-  const all = cut([own, redact(extra).replace(/\s+/g, ' ').trim()].filter(Boolean).join(' '), FIX_LIMITS.answer);
+  const all = cut([own, redact(extra).replace(/\s+/g, ' ').trim()].filter(Boolean).join('\n\n'), FIX_LIMITS.answer);
   return ANY_ADDRESS.test(all) ? all.replace(/@/g, ' at ') : all;
 }
 

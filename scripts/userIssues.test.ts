@@ -217,8 +217,8 @@ describe('user-issues.mjs', () => {
     expect(KEY.source).toBe(model.KEY.source);
     expect(LABEL).toBe(model.ISSUE_LABEL);
     expect(PREFIX).toBe(model.ISSUE_PREFIX);
-    // The table's check, as the newest migration that sets it: ops lines joined on 2026-11-17.
-    const sql = read('supabase/migrations/20261117213500_ops_lines_linear.sql');
+    // The table's check, as the newest migration that sets it: slowness and snapshots joined on 2026-11-21.
+    const sql = read('supabase/migrations/20261121031500_user_issue_watch_gaps.sql');
     // Postgres allows no repetition count over 255, so the table says the length on its own.
     expect(sql).toContain(`check (length(key) <= 300 and key ~ '^(${FAMILIES.join('|')}):[A-Za-z0-9 _.:()/#@-]+$')`);
     // A tag a record left out is a dash, which a key may hold; never a question mark.
@@ -510,7 +510,7 @@ describe('a draft fix for each new issue', () => {
 
   it('takes Claude\'s summary or its reason for none, cut and without addresses, and only fixed words from the checks', () => {
     expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false });
-    expect(checkFix({ summary: 'S', answer: ' I moved the wait.\nAsk a@b.org ' }).answer).toBe('I moved the wait. Ask [address]');
+    expect(checkFix({ summary: 'S', answer: ' I moved the wait.  \r\n\n\n\n1. Ask a@b.org ' }).answer).toBe('I moved the wait.\n\n1. Ask [address]');
     expect(checkFix({ summary: 'S', answer: 'x'.repeat(2000) }).answer).toHaveLength(FIX_LIMITS.answer);
     expect(checkFix({ noFix: 'Needs a store build.' }).noFix).toBe('Needs a store build.');
     expect(checkFix({}).noFix).toBe('Claude wrote no summary of a change.');
@@ -558,7 +558,7 @@ describe("an admin's instructions from the ops dashboard", () => {
     expect(noteAnswer(fix('I moved the wait.'), 'changed')).toBe('I moved the wait.');
     expect(noteAnswer(fix(), 'changed')).toBe('Claude changed the draft fix.');
     expect(noteAnswer(fix(), 'answered', 'The pull request of the draft fix is not open, so the draft fix did not change.'))
-      .toBe('Claude changed nothing. The pull request of the draft fix is not open, so the draft fix did not change.');
+      .toBe('Claude changed nothing.\n\nThe pull request of the draft fix is not open, so the draft fix did not change.');
     expect(noteAnswer(fix(), 'none', 'refused the draft fix: it changes .github/x.yml, which a draft fix may not')).toBe('refused the draft fix: it changes .github/x.yml, which a draft fix may not');
     expect(noteAnswer(fix(), 'none')).toBe('');
     expect(noteAnswer(fix('Ask a@b.org.'), 'answered')).toBe('Ask [address].');

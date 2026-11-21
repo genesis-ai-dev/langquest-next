@@ -18,16 +18,16 @@ export const GROUPS = [
   { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name', parts: [] },
   { id: 'userissues', title: 'User issues', src: 'What the watch for user issues filed in Linear or found already fixed, each issue\'s state and the pull request that fixed it', wide: true, parts: ['userissues'] },
   { id: 'research', title: 'Research', src: 'What the research team looked at each day, what it found, recommends and rejected, and what the fix team fixed from it', wide: true, parts: ['research'] },
-  { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
+  { id: 'safety', title: 'Work safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What phones and browsers report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
   { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, phone app builds and updates (Expo)', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
-  { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, pg_cron, push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
+  { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, the database\'s timers (pg_cron), push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
   { id: 'database', title: 'Database', src: 'Connections, cache, slow calls, largest tables, long transactions, and the Supabase project', parts: ['database', 'dbdetail', 'supabase'] },
-  { id: 'traffic', title: 'Workers and traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
-  { id: 'storage', title: 'Storage and capacity', src: 'Backups, R2, files lost on phones, the nightly R2 check, growth against the plan and this month\'s usage', parts: ['storage', 'capacity'] },
+  { id: 'traffic', title: 'Web traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
+  { id: 'storage', title: 'Storage and cost', src: 'Backups, R2, files lost on phones, the nightly R2 check, growth against the plan and this month\'s usage', parts: ['storage', 'capacity'] },
   { id: 'people', title: 'People and organizations', src: 'Counted, never named: accounts, activity, organizations, joining', wide: true, parts: ['people'] },
   { id: 'support', title: 'Support', src: 'Content reports, suspensions, deletions, feedback, and what was done from this page', wide: true, parts: ['support', 'feedback'] },
-  { id: 'access', title: 'Access and integrations', src: 'Global Viewers, limits hit, tokens, device grants, webhooks, review links, and what expires', parts: ['security', 'integrations', 'expiry', 'claudeplan'] },
+  { id: 'access', title: 'Keys and access', src: 'Global Viewers, limits hit, tokens, device grants, webhooks, review links, and what expires', parts: ['security', 'integrations', 'expiry', 'claudeplan'] },
   { id: 'stores', title: 'App stores', src: 'Google Play vitals and reviews, App Store review state, builds and reviews', parts: ['googleplay', 'appstore'] },
   { id: 'nightly', title: 'Nightly tests', src: 'The line each nightly suite left on its latest scheduled run on main: what ran, what passed, and the Linear issue of each test that failed', wide: true, parts: ['nightly'] },
   { id: 'tutorials', title: 'Tutorial videos', src: 'Each video\'s state and timeline in each app language, what an admin must do, what the workers do now and tonight, each channel, Publish, and what came in', wide: true, parts: ['videos', 'tutorials', 'videofeedback'] }
@@ -36,7 +36,7 @@ export const GROUPS = [
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
 export const PART_TITLES: Record<string, string> = {
   pipeline: 'Where each build and update is', clients: 'What phones and browsers report', fleet: 'Builds in the field and stuck phones', code: 'The web app and automatic jobs', releases: 'What shipped',
-  expo: 'Phone app builds and updates (Expo)', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
+  expo: 'Phone app builds and updates (Expo)', adoption: 'Update adoption', jobs: 'Jobs', cron: 'Database timers', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
   integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', videos: 'Videos and what waits on you', tutorials: 'Channels and videos', videofeedback: 'What came in, and notes',
@@ -50,7 +50,7 @@ export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push',
 export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'videos', 'pipeline', 'nightly', 'claudeplan'] as const;
 
 export const OPS_SECTIONS = [
-  { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
+  { id: 'safety', title: 'Work safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
   { id: 'fleet', title: 'Builds and stuck phones', src: 'Updates in the field and their crash-free rate, versions, time to a usable Map, stuck and silent phones', wide: true },
   { id: 'releases', title: 'Release health', src: 'Merges, deploys and EAS updates over 14 days against errors; hosts; migrations against main' },
   { id: 'adoption', title: 'Update adoption', src: 'For each channel, platform and runtime: the newest EAS update and how many active installs run it' },

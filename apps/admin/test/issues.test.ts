@@ -4,7 +4,8 @@ import { ISSUE_LOGIC, ISSUE_SCRIPT } from '../src/pageIssues';
 
 interface Way { tab: string; pill: string; level: string; at: number; pr: { number: number } | null; claude?: boolean }
 type Row = Record<string, unknown>;
-const logic = new Function(`${ISSUE_LOGIC}; return { issueSource, issueWay, issueTabs, videoWay, noteSaid, fixFor, fixSaid, FIX_REASON, ISSUE_STEPS, VIDEO_STEPS };`)() as {
+const logic = new Function(`${ISSUE_LOGIC}; return { saidHtml, issueSource, issueWay, issueTabs, videoWay, noteSaid, fixFor, fixSaid, FIX_REASON, ISSUE_STEPS, VIDEO_STEPS };`)() as {
+  saidHtml: (text: string) => string;
   issueSource: (keys: string[]) => string;
   issueWay: (r: Row, prs: Row[] | null, notes?: Row[] | null, fix?: Row | null) => Way;
   fixFor: (fix: Row | null, pr: Row | null) => Row | null;
@@ -44,7 +45,7 @@ describe('where a user issue is', () => {
     expect(logic.issueSource(['error:TypeError:x'])).toBe('Phones and browsers');
     expect(logic.issueSource(['transfer:down:http_500'])).toBe('Phones and browsers');
     expect(logic.issueSource(['job:projection:stopped'])).toBe('Server jobs');
-    expect(logic.issueSource(['worker:/api/agent:5xx'])).toBe('Workers and traffic');
+    expect(logic.issueSource(['worker:/api/agent:5xx'])).toBe('Web traffic');
     expect(logic.issueSource(['feedback:abc'])).toBe('A person sent it');
     expect(logic.issueSource(['ops:backup-late'])).toBe('The ops dashboard');
     expect(logic.issueSource([])).toBe('');
@@ -151,7 +152,7 @@ describe('the cards', () => {
     expect(html).toContain('<article class="icard pics">');
     expect(html).toContain('<span class="ipill claude">Claude acts next</span>');
     expect(html).toContain('<p class="said you">Dismiss &#60;the&#62; dialog.</p>');
-    expect(html).toContain('<p class="said claude">It merges itself.\nA new step taps Allow.</p>');
+    expect(html).toContain('<div class="said claude"><p><strong>It merges itself.</strong></p><p>A new step taps Allow.</p></div>');
     expect(html).toContain('>PR 507</a>');
     expect(html).toContain('Step 5 of 5: the change waits on its merge');
     expect(html).toContain('<dt>What happened</dt>');
@@ -227,9 +228,9 @@ describe('the cards', () => {
     const [open, done] = html.split('<article').slice(1);
     // The admin's words are escaped, with Claude's answer under them and the pull request it changed.
     expect(open).toContain('<p class="said you">Wait for the passage &#60;first&#62;.</p>');
-    expect(open).toContain('<p class="said claude">I moved the wait.</p>');
+    expect(open).toContain('<div class="said claude"><p><strong>I moved the wait.</strong></p></div>');
     expect(open).toContain('>PR 7</a>');
-    expect(open).toContain('<p class="said claude">Claude reads it at the next run of the watch (each 15 minutes).</p>');
+    expect(open).toContain('<div class="said claude"><p><strong>Claude reads it at the next run of the watch (each 15 minutes).</strong></p></div>');
     expect(open).toContain('<textarea id="uin-LAN-9"');
     expect(open).toContain('data-uinote="LAN-9">Send to Claude</button>');
     expect(open).toContain('placeholder="Send another instruction…"');
@@ -355,3 +356,21 @@ describe('an image on each card', () => {
   });
 });
 
+
+describe("Claude's answer in the talk", () => {
+  const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';');
+  const said = new Function('esc', `${ISSUE_LOGIC}; return saidHtml;`)(esc) as (t: string) => string;
+  it('shows the lead in bold, numbered steps, and a command in a box under its step', () => {
+    const html = said('I cannot find it. Why.\n\n1. Run this:\n```\nnpm run diag -- <id>\n```\n2. Read `profile id`.\n\nNo change.');
+    expect(html).toBe('<p><strong>I cannot find it.</strong> Why.</p><ol><li>Run this:<pre><code>npm run diag -- &#60;id&#62;</code>' +
+      '<button type="button" class="copy" data-copy-code aria-label="Copy">Copy</button></pre></li><li>Read <code>profile id</code>.</li></ol><p>No change.</p>');
+  });
+  it('puts the steps of an answer on one line on their own lines, only when they count 1, 2, 3', () => {
+    expect(said('Do this. 1) Run x. 2) Read y.')).toBe('<p><strong>Do this.</strong></p><ol><li>Run x.</li><li>Read y.</li></ol>');
+    expect(said('See line 361) and 2) here.')).toBe('<p><strong>See line 361) and 2) here.</strong></p>');
+  });
+  it('escapes every word, also inside code and bold', () => {
+    const html = said('<img src=x onerror=alert(1)> **<b>** `<script>`');
+    expect(html).not.toMatch(/<img|<b>|<script/);
+  });
+});

@@ -504,18 +504,29 @@ checked by hand on one. Step 6 needs a phone short of storage and is also
 checked by hand; `apps/mobile/test/offlineTruth.test.ts` holds its words.
 
 Steps:
-1. VIEW (nothing kept): on Alpha's map, tap "Luke". Read the line over the
-   list.
+1. VIEW (nothing kept): on Alpha's map, tap "Luke". Tap "What the download
+   buttons mean" under the line over the list, read the sheet, and close it.
+   Read the line.
 2. Tap it. Read it again, and the rows' download buttons.
 3. Open P-NEW. Read the line at the top and the switch under it. Turn the
    switch on, read both, and turn it off again. Go back.
-4. Tap the book's line again.
+4. Tap Remove at the end of the book's line, read the sheet, and tap "Remove
+   from this device".
 5. Phone: download a book, then watch Sync and offline while it comes down.
 6. Phone, on a device with little free storage: read the line of a book
    whose audio is larger than the room left.
+7. Phone: turn on the reference material of a passage whose study guide names
+   a file its source no longer has (Matthew 13 in FIA's English guides, on
+   2026-11-20).
 
 Expected:
-- Step 1: "Checking this device…" until the size is worked out, then
+- Step 1: the sheet names every mark a download button shows, each drawn as
+  the buttons draw it: "Download for offline", "Downloading for offline",
+  "Only some files here", "Recordings on this device", "On this device",
+  "Download needs a connection" and "Checking this device…", each with what
+  it means, and that a tap on a green one removes that passage's files. The
+  same key is under Filter, for a book of chapter tiles and of passage rows.
+  The line is "Checking this device…" until the size is worked out, then
   "Download recordings of all 97 passages for offline", with "{size} of
   audio to download" under it when the server has recordings of Luke this
   device lacks, or "No recordings to download yet. New ones come as they are
@@ -538,10 +549,17 @@ Expected:
   the switch cannot be turned on ("Download needs a connection") and can
   still be turned off. A passage asked of the person, or one they worked
   on, has no switch: it always takes its reference material.
-- Step 4: the toast "No longer kept. Their audio may be removed to make
-  room.", and the line offers the whole book again. For TRANS, whose
-  requests stay kept, the toast ends "except {n} passages that are your
-  work.", and the line offers "the other {n} passages".
+- Step 4: once every passage is kept the line is not a button: it only says
+  where they stand, with a Remove button at its end. Remove opens "Remove
+  Luke from this device?": "Its recordings stay on the server. Playing them
+  again will need a connection.", for TRANS also "{n} passages that are your
+  work stay on this device.", a red "Remove from this device" and Cancel.
+  Cancel changes nothing. "Remove from this device" shows the toast "No
+  longer kept. Their audio may be removed to make room.", and the line offers
+  the whole book again. For TRANS, whose requests stay kept, the toast ends
+  "except {n} passages that are your work.", and the line offers "the other
+  {n} passages". An outline section's round button asks the same before it
+  lets its passages go.
 - Step 5: only recordings come down for the book. No study pictures, maps or
   study audio are fetched for its passages, and no reference audio; the Map
   stays as quick as before the download.
@@ -555,3 +573,8 @@ Expected:
   say how much room it has, so the web never shows this.
 - While a language's first download is still running: "Downloading this
   language", and a tap does nothing until it ends.
+- Step 7: the passage's line turns green, "On this device", once every file
+  that can come has, with "{n} study files can't be downloaded: their source
+  doesn't have them." under it; its tile turns green too. It does not stay
+  amber at "Only {here} of {total} files". The phone asks for those files
+  again a day later.

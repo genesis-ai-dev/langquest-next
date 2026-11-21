@@ -56,7 +56,9 @@ people using the app their work.
   was built from; `ios update <id>` or `android update <id>` a phone's
   over-the-air update; `ios store build <runtime>` a phone running its store
   build's own code, with no update yet), `installIds`, `stack` (the newest
-  error's frames, no message), and `before` when it was judged earlier:
+  error's frames, no message), `tops` (an error's top stack line each, by
+  records: two lines can be two bugs under one name and place; say so in
+  the issue, and read each place), and `before` when it was judged earlier:
   - noise that twice as many people hit since; or
   - `verdict` `fixed`: a pull request fixed it (`fixedBy`, merged at
     `fixedAt`) or its issue closed in Linear (`issue`, `closedAt`, `state`).
@@ -109,7 +111,7 @@ line.
 
 A key is the family, then the record's own code-like tags
 (`packages/sync/src/diagnostics.ts` DIAG_SCHEMA says what each tag is;
-`supabase/migrations/20261103180000_user_issues.sql` builds the keys):
+`supabase/migrations/20261121031500_user_issue_watch_gaps.sql`, `ops.user_issue_hits`, builds the keys):
 
 - `error:<name>@<where>:<code>`: a fault that reached a boundary in the app
   (`apps/mobile/src/diagnostics/report.ts`). `where` names the screen or
@@ -131,7 +133,29 @@ A key is the family, then the record's own code-like tags
 - `fill:<fallback|restart>:<reason>`: a language's first download fell back
   to the whole snapshot or started over.
 - `device:lostFiles|lostRecordings|journalFailed|uploadWaitingOverADay|downloadWantedOverADay`:
-  work lost or stuck on a phone.
+  work lost or stuck on a phone. `device:diagDropped`: the phone threw away
+  its oldest records to stay under 3000, so its history here is short; the
+  bug is what filled the queue (read its phones' records for the kind that
+  repeats), or a phone that cannot deliver.
+- `audio:playNotHere`: over 10 taps in an hour on a recording not yet on the
+  phone. The person taps Play and hears nothing: look for downloads that
+  never come, or a list that shows recordings before they are here.
+- `snapshot:stale:<why>`: the server's snapshot was older than the phone
+  needs, so the phone pulls the whole log (`packages/sync/src/syncClient.ts`
+  `recordSnapshot`); look at the snapshot job.
+- `slow:…`: slowness, by the limits of the field report
+  (`scripts/diagSignals.ts`). `slow:sync:phone` (the phone's own work over
+  10 s) and `slow:sync:network` (the network over 60 s);
+  `slow:load:open:<checkpoint>` (opening a language over 5 s);
+  `slow:refolds` (a language folded again over 20 times a day);
+  `slow:checkpoint:<path>` (over 3 s); `slow:open:first` (a first download
+  over 15 minutes without the time offline); `slow:fill:done` (over a day);
+  `slow:transfer:<dir>:<src>` (one file over 2 minutes);
+  `slow:audio:firstSound` (a play waited over 3 s for sound, decision 182).
+  Slowness is a bug when the app's own work is slow (`applyMs`, `foldMs`, a
+  checkpoint, the first sound) or the server is; it is noise when the
+  phone's records show a slow or dropped network and nothing else. Read the
+  phones' records: they give the numbers behind the kind.
 - `job:<job>:stopped|failing`: a server job that stopped running or failed
   three times in a row (`docs/server-jobs.md`, `server/jobRuns.ts`).
 - `worker:<route>:5xx`: the app's Worker (`apps/web/worker`) answering with
@@ -566,7 +590,20 @@ above, with one more field:
   must decide when something is open. Write it in ASD-STE100 Simplified
   Technical English: short sentences, active voice, one name for each
   thing. It is public like the rest: no name, address or id of a person,
-  and nothing from `evidence`.
+  and nothing from `evidence`. The card draws its shape, so give it one:
+  - The first line is the result in one sentence ("I cannot find the
+    account from here."). The card shows it in bold.
+  - Then an empty line and at most two short sentences on why.
+  - Steps the admin does go in a numbered list (`1. `), one action in each
+    step, each on its own line.
+  - A command or SQL goes alone in a block between two lines of three
+    backticks, so the card shows it with a Copy button. A file, a column or
+    a short value goes between single backticks.
+  - Nothing else: no headings, no tables, no links in Markdown.
+
+  ```json
+  "answer": "I cannot find the account from here.\n\nThe records the phone sends hold no email. Do these steps on a Mac with diagnostics access:\n\n1. Run this. The install id is in the issue's Agent notes.\n```\nnpm run diag -- --hosted timeline <install id> --days 3\n```\n2. Read the profile id in the first line of the output."
+  ```
 
 ### When a fix did not get into main
 
