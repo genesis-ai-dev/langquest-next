@@ -186,3 +186,32 @@ change it; `open` pushes the change to the draft fix's branch and gets
 (`docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md`).
 
 Amended (2026-11-19, Caleb Koster): the draft fix is now the work of an agent team, and a rule in code lets some fixes merge without a person (`docs/decisions/2026-11-19-an-agent-team-fixes-user-issues.md`, `docs/agent-team.md`).
+
+Amended (2026-11-21, Caleb Koster): the watch read failures and not
+slowness, and it never read four kinds of record (`open`, `load`,
+`snapshot`, `checkpoint`). Caleb asked whether an agent team reads the
+incoming diagnostics, saw the gaps, and chose to close all of them
+(migration `20261121030000_user_issue_watch_gaps.sql`):
+- **Slowness is a family of its own, `slow`**, by the limits the field
+  report already uses (`scripts/diagSignals.ts`) and the ops dashboard's
+  line: a sync slow on the phone or on the network, a language open over
+  5 s, a language folded again over 20 times a day, a checkpoint over 3 s,
+  a first download over 15 minutes without the time offline, a fill over a
+  day, one file over 2 minutes, a play that waited over 3 s for its first
+  sound (182).
+- **A snapshot older than the phone needs** is a family, `snapshot`.
+- **Taps on a recording not yet on the phone** (over 10 in an hour) and
+  **records a phone dropped** past its 3000 are kinds.
+- **Sign-in kinds follow the dashboard's one rule** (`diag.sign_in_class`,
+  `docs/decisions/2026-11-19-sign-in-trouble-is-one-rule.md`): a wrong
+  password or an expired invite no longer goes to Claude to be called noise.
+- **An error kind keeps its key** and carries the top line of each of its
+  stacks (`tops`), so Claude sees two bugs under one name and place. A new
+  key would have filed every error again and cut each dashboard line from
+  its issue.
+- **A kind never looked at is handed over from any of the 7 days**, not
+  only the last one, so a kind that waited past the 20 a run, or through a
+  day the watch did not run, is not lost; the watch says how many wait, and
+  the ops dashboard shows it (`user-issues-waiting`).
+New issues are filed with no one assigned: the team has more than one
+developer, and any of them takes an issue.

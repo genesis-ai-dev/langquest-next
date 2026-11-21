@@ -603,6 +603,8 @@ export interface UserIssues {
   /** Absent before migration 20261117213500_ops_lines_linear.sql. */
   lines?: UserIssueLine[];
   open: number; closed: number; fixed: number; noiseWeek: number;
+  /** Kinds the newest watch left past its 20 a run, for later runs. Absent before migration 20261121030000_user_issue_watch_gaps.sql. */
+  waiting?: number;
   last: { at: string; outcome: string; n: Record<string, number> | null } | null;
 }
 
@@ -613,6 +615,7 @@ export function userIssuesOf(row: UserIssues): UserIssues {
 export function userIssueAlerts(u: UserIssues): Alert[] {
   const out: Alert[] = [];
   if (u.open) out.push({ level: 'watch', key: 'user-issues-open', text: `${plural(u.open, 'user issue')} open in Linear (User issues).` });
+  if (num(u.waiting) > 0) out.push({ level: 'watch', key: 'user-issues-waiting', text: `${plural(num(u.waiting), 'problem')} the watch found ${num(u.waiting) === 1 ? 'waits' : 'wait'} for a later run: it looks at 20 each run (User issues).` });
   if (u.last && u.last.outcome !== 'ok') out.push({ level: 'problem', key: 'user-issue-watch-failed', text: 'The watch for user issues failed to look at or file what it found (User issues).' });
   return out;
 }

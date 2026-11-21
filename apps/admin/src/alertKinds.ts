@@ -177,6 +177,7 @@ export const KINDS = {
   'suggestions-wait': { part: 'videofeedback', title: 'Video suggestions wait for a yes or no', recheck: LIVE, person: true },
   'changes-not-filed': { part: 'videofeedback', title: 'Accepted video changes are not in Linear', recheck: { daily: ['10:00'], takesMin: 30 } },
   'user-issues-open': { part: 'userissues', title: 'User issues are open in Linear', recheck: LIVE, person: true },
+  'user-issues-waiting': { part: 'userissues', title: 'Problems wait for the watch for user issues', recheck: { everyMin: 15 }, person: true },
   'user-issue-watch-failed': { part: 'userissues', title: 'The watch for user issues failed', recheck: { everyMin: 15 } },
 
   // ---- The page itself ----
