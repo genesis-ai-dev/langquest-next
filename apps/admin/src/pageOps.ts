@@ -17,9 +17,10 @@
 export const GROUPS = [
   { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name', parts: [] },
   { id: 'userissues', title: 'User issues', src: 'What the watch for user issues filed in Linear or found already fixed, each issue\'s state and the pull request that fixed it', wide: true, parts: ['userissues'] },
+  { id: 'research', title: 'Research', src: 'What the research team looked at each day, what it found, recommends and rejected, and what the fix team fixed from it', wide: true, parts: ['research'] },
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What phones and browsers report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
-  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
+  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, phone app builds and updates (Expo)', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
   { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, pg_cron, push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
   { id: 'database', title: 'Database', src: 'Connections, cache, slow calls, largest tables, long transactions, and the Supabase project', parts: ['database', 'dbdetail', 'supabase'] },
   { id: 'traffic', title: 'Workers and traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
@@ -34,16 +35,16 @@ export const GROUPS = [
 
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
 export const PART_TITLES: Record<string, string> = {
-  pipeline: 'Where each build and update is', clients: 'What phones and browsers report', fleet: 'Builds in the field and stuck phones', code: 'Code and deploys', releases: 'What shipped',
-  expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
+  pipeline: 'Where each build and update is', clients: 'What phones and browsers report', fleet: 'Builds in the field and stuck phones', code: 'The web app and automatic jobs', releases: 'What shipped',
+  expo: 'Phone app builds and updates (Expo)', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
   integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', videos: 'Videos and what waits on you', tutorials: 'Channels and videos', videofeedback: 'What came in, and notes',
-  userissues: 'Problems people hit', nightly: 'Nightly tests'
+  userissues: 'Problems people hit', research: 'The research team', nightly: 'Nightly tests'
 };
 
 /** Read as diag_reader in one call (/ops/api/ops). */
-export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues'] as const;
+export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues', 'research'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
 export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'videos', 'pipeline', 'nightly'] as const;
@@ -70,6 +71,7 @@ export const OPS_SECTIONS = [
   { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
   { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' },
   { id: 'userissues', title: 'User issues', src: 'ops.user_issues: what the watch filed in Linear, closed there, or found already fixed, with the pull request (decisions.md 202)' },
+  { id: 'research', title: 'Research', src: 'ops.research_reports and ops.research_items: the research team\'s report of each day and what it found (docs/research-team.md)' },
   { id: 'nightly', title: 'Nightly tests', src: 'GitHub: the line each nightly suite leaves on its latest scheduled run on main (decisions.md 209)' }
 ] as const;
 
@@ -432,6 +434,8 @@ Object.assign(RENDER, {
   },
   // What the watch for user issues filed, closed or found already fixed, with the pull request (decisions.md 202).
   userissues(d) { return userIssuesHtml(d); },
+  // The research team's report of each day and what it found (pageResearch.ts, docs/research-team.md).
+  research(d) { return researchHtml(d); },
   // Last night's tests, every suite together (sources/nightly.ts, decisions.md 209): counts and Linear issues; the detail is in Linear.
   nightly(d) {
     const issue = (i) => /^https:\/\/linear\.app\//.test(String(i.url || '')) ? '<a href="' + esc(i.url) + '" target="_blank" rel="noopener noreferrer">' + esc(i.id) + '</a>' : esc(i.id);

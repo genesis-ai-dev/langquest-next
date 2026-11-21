@@ -39,8 +39,10 @@ export interface NeedsYou { workflow: string; what: string; text: string; link: 
 
 export interface Code {
   repo: string;
-  main: { sha: string; at: string | null; title: string };
-  live: { url: string; build: string | null; error?: string };
+  /** The newest commit on main; title and pr come from its pull request (commitTitle). */
+  main: { sha: string; at: string | null; title: string; pr?: number | null };
+  /** What the web app serves: its commit, and that commit's title, pull request and time when it is not main's. */
+  live: { url: string; build: string | null; error?: string; title?: string; pr?: number | null; at?: string | null };
   /** Commits on main the web app does not have yet; null when unknown. */
   behind: number | null;
   /** Whether those commits change a file the web app is built from (APP_BUILD_PATHS); null when unknown. */
@@ -58,6 +60,20 @@ export interface Code {
  */
 export const APP_BUILD_PATHS = ['apps/web/', 'apps/mobile/', 'packages/core/', 'packages/sync/', 'server/',
   'package.json', 'package-lock.json', 'scripts/cloudflare-deploy.mjs', 'scripts/build-jobs.mjs'];
+
+/**
+ * A commit's title as people know it, the title of its pull request: a merge
+ * commit says "Merge pull request #n from …" and puts the title on the next
+ * line; a squash ends its first line with "(#n)".
+ */
+export function commitTitle(message: string): { title: string; pr: number | null } {
+  const lines = message.split('\n').map((l) => l.trim());
+  const first = lines[0] ?? '';
+  const merge = /^Merge pull request #(\d+)/.exec(first);
+  if (merge) return { title: (lines.slice(1).find(Boolean) ?? first).slice(0, 140), pr: Number(merge[1]) };
+  const squash = /\s*\(#(\d+)\)$/.exec(first);
+  return { title: (squash ? first.slice(0, squash.index) : first).slice(0, 140), pr: squash ? Number(squash[1]) : null };
+}
 
 /** GitHub lists at most this many files in a comparison; a full list may have left one out. */
 const COMPARE_FILE_LIMIT = 300;
@@ -168,11 +184,15 @@ export async function codeSection(env: GitHubEnv & { APP_URL: string }, fetcher:
   const [head, runs, liveBuild] = await Promise.all([gh<Commit>('/commits/main', 'GitHub main'), latestRuns, live]);
   let behind: number | null = null;
   let appChanged: boolean | null = null;
+  let served: { title?: string; pr?: number | null; at?: string | null } = {};
   if (liveBuild.build && head.sha.startsWith(liveBuild.build)) { behind = 0; appChanged = false; }
   else if (liveBuild.build) {
-    const compare = await gh<Compare>(`/compare/${liveBuild.build}...${head.sha}`, 'GitHub compare').catch(() => null);
+    // The served commit's own title and time, so the page names the change it runs; a commit that cannot be read keeps its id alone.
+    const [compare, commit] = await Promise.all([gh<Compare>(`/compare/${liveBuild.build}...${head.sha}`, 'GitHub compare').catch(() => null),
+      gh<Commit>(`/commits/${liveBuild.build}`, 'GitHub commit').catch(() => null)]);
     behind = compare?.ahead_by ?? null;
     appChanged = compare ? changesApp(compare.files) : null;
+    if (commit) served = { ...commitTitle(commit.commit.message), at: commit.commit.committer?.date ?? null };
   }
   const latest = latestPerWorkflow([...runs].sort((a, b) => b.created_at.localeCompare(a.created_at)));
   // A failed run's failed jobs: whether Nightly tests says them, and the first few read for what only a person can fix.
@@ -186,8 +206,8 @@ export async function codeSection(env: GitHubEnv & { APP_URL: string }, fetcher:
   }))).flat();
   const code: Code = {
     repo: env.GITHUB_REPO,
-    main: { sha: head.sha, at: head.commit.committer?.date ?? null, title: head.commit.message.split('\n')[0]!.slice(0, 140) },
-    live: { url: env.APP_URL, ...liveBuild },
+    main: { sha: head.sha, at: head.commit.committer?.date ?? null, ...commitTitle(head.commit.message) },
+    live: { url: env.APP_URL, ...liveBuild, ...served },
     behind,
     appChanged,
     runs: latest,

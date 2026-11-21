@@ -1,6 +1,6 @@
 /**
  * The pictures for fixed lists (docs/ops-dashboard-plan.md 5c2): a square
- * for each nightly suite, EAS build, v2 project, user issue, feedback item,
+ * for each nightly suite, v2 project, user issue, feedback item,
  * YouTube channel, video and suggestion, drawn from the data each part has
  * already read, on its card on the start page and at the top of its part. A
  * tap on a square opens that item's detail. A row that grows with people
@@ -37,18 +37,6 @@ function listRows(part, d) {
         ['Linear', (s.issues || []).map((i) => i.id).join(', ')]]),
       link: ((s.issues || []).find((i) => i.url) || {}).url || (r.run ? r.run.url : null)
     })).sort(byState) })).filter((r) => r.items.length);
-  }
-  if (part === 'expo') {
-    const eas = (st) => st === 'ERRORED' ? 'fail' : st === 'FINISHED' ? 'ok' : st === 'CANCELED' ? 'off' : 'run';
-    // Newest on the right, as time runs.
-    return [
-      { label: 'Builds', items: (d.builds || []).map((b) => ({ s: eas(b.status), name: b.platform + ' · ' + (b.profile || '?') + (b.appVersion ? ' · ' + b.appVersion : ''), at: b.at,
-        fields: fieldsOf([['Status', b.status], ['Started', b.at], ['Version', b.appVersion], ['Runtime', b.runtime]]) })).reverse() },
-      { label: 'Store submissions', items: (d.submissions || []).map((x) => ({ s: eas(x.status), name: x.platform + (x.version ? ' · ' + x.version : ''), at: x.at,
-        fields: fieldsOf([['Status', x.status], ['Sent', x.at], ['Version', x.version], ['Error', x.error]]) })).reverse() },
-      { label: 'Updates', items: (d.updates || []).map((u) => ({ s: 'ok', name: u.branch + (u.platform ? ' · ' + u.platform : ''), at: u.at,
-        fields: fieldsOf([['Branch', u.branch], ['Published', u.at], ['Platforms', u.platform], ['Runtime', u.runtime], ['Group', u.group]]) })).reverse() }
-    ].filter((r) => r.items.length);
   }
   if (part === 'v2') {
     const v2 = { error: 'fail', cut_off: 'part', running: 'run', done: 'ok' };
@@ -121,26 +109,6 @@ function listRows(part, d) {
           ['Updates it takes', c.updates && c.updates.length ? c.updates.length : null]])) : [['Builds', st.unseen || 'none']] };
     }) })).filter((r) => r.items.length);
   }
-  if (part === 'code') {
-    const run = (r) => r.status !== 'completed' ? 'run' : r.conclusion === 'success' ? 'ok'
-      : r.conclusion === 'failure' || r.conclusion === 'timed_out' ? (r.nightly ? 'part' : 'fail') : 'off';
-    const stale = d.behind !== 0 && d.appChanged !== false;
-    let host = String((d.live || {}).url || '');
-    try { host = new URL(host).host; } catch {}
-    const main = d.main || {};
-    return [
-      { label: 'The web app', draw: 'track', count: false, items: [
-        { s: 'ok', name: 'main', short: String(main.sha || '').slice(0, 8), at: main.at || null,
-          fields: fieldsOf([['Commit', main.sha], ['Merged', main.at], ['Title', main.title]]), link: d.repo && main.sha ? 'https://github.com/' + d.repo + '/commit/' + main.sha : null },
-        { s: !d.live || !d.live.build || stale ? 'fail' : 'ok', name: 'web host', short: d.live && d.live.build ? String(d.live.build).slice(0, 8) : '?', at: null,
-          fields: fieldsOf([['Host', host], ['Build', d.live && d.live.build ? d.live.build : 'no answer'], ['Error', d.live ? d.live.error : null],
-            ['Commits not deployed', d.behind === null || d.behind === undefined ? 'unknown' : d.behind], ['Any for the web app', d.appChanged === null || d.appChanged === undefined ? null : d.appChanged ? 'yes' : 'no']]),
-          link: d.live ? d.live.url : null }] },
-      { label: 'Workflows on main', items: (d.runs || []).map((r) => ({ s: run(r), name: r.workflow, at: r.at,
-        fields: fieldsOf([['Result', r.conclusion || r.status], ['Started', r.at], ['Event', r.event], ['Commit', r.sha], ['Run', r.number ? '#' + r.number : null],
-          ['Nightly', r.nightly ? 'Nightly tests says its failures' : null]]), link: r.url })).sort(byState) }
-    ].filter((r) => r.items.length);
-  }
   if (part === 'releases') {
     // Errors a day as a line; under it, a tick for each day that shipped a merge, a deploy or an update.
     const items = (d.errorsByDay || []).slice().sort((a, b) => String(a.day).localeCompare(String(b.day))).map((e) => {
@@ -210,7 +178,6 @@ export const LISTS_SCRIPT = String.raw`
 // ---- a square for each item of a fixed list (plan 5c2) ----------------------------------------
 const LIST_SAID = {
   nightly: { one: 'suite', many: 'suites', fail: 'Broke', part: 'Tests failed', ok: 'Passed' },
-  expo: { one: 'build or update', many: 'builds and updates', fail: 'Failed', run: 'In progress', ok: 'Done', off: 'Cancelled' },
   v2: { one: 'project', many: 'projects', fail: 'Failed', part: 'Stopped part way', run: 'Running', ok: 'Done' },
   userissues: { one: 'issue', many: 'issues', part: 'Open in Linear', ok: 'Closed', off: 'Already fixed when seen' },
   feedback: { one: 'item', many: 'items', part: 'Not seen', run: 'Seen', ok: 'Done' },
@@ -218,7 +185,6 @@ const LIST_SAID = {
   videofeedback: { one: 'thing that came in', many: 'things that came in', fail: 'Claude could not', part: 'Waits for you', run: 'Claude works on it', ok: 'Accepted', off: 'No change', none: 'Not looked at yet' },
   videos: { one: 'video', many: 'videos', fail: 'Failed or held', part: 'Waits on someone', run: 'A worker has it', ok: 'Up to date', off: 'Paused' },
   pipeline: { one: 'stage', many: 'stages', pic: 'a dot for each stage, its build above', fail: 'Needs a person', part: 'Waiting', run: 'On its way', ok: 'What people get', none: 'No build' },
-  code: { one: 'workflow', many: 'workflows', pic: 'main, what the web host serves, and each workflow', fail: 'Failed, or behind main', part: 'Failed, Nightly tests says why', run: 'Running', ok: 'Passed, or up to date', off: 'Cancelled or skipped' },
   releases: { one: 'day', many: 'days', pic: 'errors and crashes each day, a tick on each day with a change', line: true },
   expiry: { one: 'key', many: 'keys', pic: 'a dot for each key on a line of days left', fail: 'Expired, or 7 days or less', part: '30 days or less', ok: 'More than 30 days', none: 'No date' },
   appstore: { one: 'version or build', many: 'versions and builds', fail: 'Rejected or not valid', part: 'Waits for Apple', run: 'In review or processing', ok: 'On the App Store, or valid', off: 'Replaced or expired', none: 'Not sent' }
@@ -245,7 +211,7 @@ function rowSvg(part, at, r, w, h, n, cols, body, how, k, hv) {
     ' data-part="' + esc(part) + '" data-row="' + at + '" data-n="' + n + '" data-cols="' + cols + '"' + (hv || '') + '>' + body + '</svg>';
 }
 
-/** A lane's stages, or main and what the web host serves: a dot on a track for each, what it holds above, its name below. */
+/** A lane's stages: a dot on a track for each, what it holds above, its name below. */
 function trackSvg(part, at, r, mini) {
   // On a card a lane must fit about 200 px at full size, so its stages close up and a long name takes two lines.
   const said = LIST_SAID[part], n = r.items.length, gap = mini && n > 2 ? 52 : 72, two = mini && n > 2, w = 48 + (n - 1) * gap, h = two ? 58 : 50, X = (i) => 24 + i * gap;
@@ -336,7 +302,7 @@ function listBox(part, d, mini) {
   const rows = said ? listRows(part, d) : null;
   if (!rows || !rows.length) return '';
   const all = rows.flatMap((r) => r.items);
-  // The head counts the list's items; a row of context (main and what the web host serves) is left out.
+  // The head counts the list's items; a row of context (count: false) is left out.
   const counted = rows.filter((r) => r.count !== false).flatMap((r) => r.items);
   // A share counts what it splits (syncs, requests, installs), not its parts.
   const weigh = (xs) => said.sum ? xs.reduce((a, x) => a + (Number(x.v) || 0), 0) : xs.length;
@@ -372,12 +338,16 @@ function r2Pic(mini) {
 /** The picture at the top of a part, in its section and on All sections. */
 function listPicture(part, d) {
   if (part === 'storage') return r2Pic(false);
+  if (part === 'code') return codeBox(d, false);
+  if (part === 'expo') return expoBox(d, false);
   return LIST_SAID[part] ? listBox(part, d, false) : '';
 }
 /** The picture on a part's card on the start page, or '' when it has none. */
 function listCardPic(part) {
   const s = results[part];
   if (part === 'storage') return r2Pic(true);
+  if (part === 'code') return s && s.state === 'ok' ? codeBox(s.data, true) : '';
+  if (part === 'expo') return s && s.state === 'ok' ? expoBox(s.data, true) : '';
   return LIST_SAID[part] && s && s.state === 'ok' ? listBox(part, s.data, true) : '';
 }
 
@@ -447,11 +417,12 @@ document.addEventListener('keydown', (e) => {
 /**
  * The controls with which a person answers a queue: Grant or Deny, Accept, Reject or Edit, Send to
  * Claude, a video's cards, the Tutorial videos tabs (which open on what waits on the admin), a reply
- * copied or marked done, Try again, Add a note, Connect or Publish, Seen or Done, an issue tab. A part that
+ * copied or marked done, Try again, Add a note, Connect or Publish, Seen or Done, an issue tab, a research
+ * tab or a choice the research team asks. A part that
  * shows one keeps its body open under its picture, so an answer never waits behind "Show the numbers".
  */
 export const QUEUE_CONTROLS = ['data-decision', 'data-sg', 'data-instruct', 'data-cards', 'data-note', 'data-yt-connect', 'data-yt-publish', 'data-yt-item', 'data-yt-all', 'data-fb', 'data-itab', 'data-uinote',
-  'data-vtab', 'data-reply-copy', 'data-reply-done', 'data-retry'];
+  'data-vtab', 'data-reply-copy', 'data-reply-done', 'data-retry', 'data-rtab', 'data-rchoice'];
 /**
  * The controls that may wait behind "Show the numbers": they open, look, move or zoom, or only quiet a
  * warning or start a job early (Not an issue, Run now). A new control goes in one list or the other
@@ -459,7 +430,7 @@ export const QUEUE_CONTROLS = ['data-decision', 'data-sg', 'data-instruct', 'dat
  */
 export const FOLDED_CONTROLS = ['data-quiet', 'data-ok', 'data-run', 'data-org', 'data-q', 'data-install', 'data-fb-id', 'data-shot', 'data-what', 'data-status',
   'data-mark', 'data-vzoom', 'data-vfit', 'data-vclose', 'data-voice', 'data-goto', 'data-range', 'data-key', 'data-lookup', 'data-h', 'data-s', 'data-t', 'data-l',
-  'data-kind', 'data-ver', 'data-done', 'data-href', 'data-help', 'data-help-key'];
+  'data-kind', 'data-ver', 'data-done', 'data-href', 'data-help', 'data-help-key', 'data-rday', 'data-text'];
 /** Whether a part's body holds a queue control (above). */
 export const QUEUE_SOURCE = String.raw`\s(?:` + QUEUE_CONTROLS.join('|') + String.raw`)(?=[\s=>])`;
 

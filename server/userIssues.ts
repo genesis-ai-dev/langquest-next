@@ -143,7 +143,7 @@ const ISSUE_URL = /^https:\/\/linear\.app\/[A-Za-z0-9/_.-]{1,300}$/;
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /** No address may ride along in a note: the database keeps none (docs/diagnostics.md). */
 export const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 30, handed: 10, diagrams: 20 } as const;
+export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 70, handed: 10, diagrams: 20 } as const;
 
 // ---- what the agent team did with an issue (docs/agent-team.md, scripts/agent-team.mjs) -----------
 
@@ -214,12 +214,31 @@ export const RESEARCH_ACTIONS = ['fix', 'ask', 'none'] as const;
 export const RESEARCH_TAG = /^[a-z0-9][a-z0-9-]{2,59}$/;
 /** Where in the code: a path in this repository, with or without a line. */
 export const RESEARCH_PLACE = /^[A-Za-z0-9_@.()[\]/-]{1,200}(:[0-9]{1,6})?$/;
-export const RESEARCH_TEXT = { title: 200, found: 600, why: 600, places: 8 } as const;
+export const RESEARCH_TEXT = { title: 200, found: 600, why: 600, places: 8, links: 6, link: 300 } as const;
 
 /**
- * One thing the research found: the same mistake as an issue the team fixed,
- * in another place. Claude's words about the code only: the research reads
- * the team's own words and the code, never what a person wrote.
+ * The research team that looks ahead (docs/research-team.md, scripts/research-team.mjs BEATS): the subject of
+ * each scout, what kind of thing it found and how bad. scripts/agentResearch.test.ts holds these to the script's.
+ */
+export const RESEARCH_BEATS = ['security', 'versions', 'packages', 'offline', 'code-security', 'speed', 'platform', 'alternatives', 'supply-chain'] as const;
+export const RESEARCH_KINDS = ['vulnerability', 'upgrade', 'replace', 'bug', 'risk', 'cost', 'deadline', 'other'] as const;
+export const RESEARCH_SEVERITIES = ['critical', 'high', 'medium', 'low', 'info'] as const;
+export const RESEARCH_RESULTS = ['clear', 'found', 'failed', 'skipped'] as const;
+export const RESEARCH_MODELS = ['opus', 'sonnet', 'haiku'] as const;
+/** A public page that backs an item: an advisory, release notes, a store's rule. */
+export const RESEARCH_LINK = /^https:\/\/[^\s<>"'`]{4,295}$/;
+export const RESEARCH_PACKAGE = /^(@[a-z0-9._-]{1,100}\/)?[a-z0-9._-]{1,100}$/;
+export const RESEARCH_VERSION = /^[0-9A-Za-z.+-]{1,40}$/;
+export const RESEARCH_ASK = { why: 300, label: 80, then: 200, min: 2, max: 4 } as const;
+export const RESEARCH_REPORT = { headline: 200, summary: 5, line: 300, beats: 12, title: 60, checked: 400 } as const;
+
+/** A choice the team asks of a developer: why it is theirs, and 2 to 4 choices, the team's pick first. */
+export interface ResearchAsk { why: string; choices: { label: string; then: string | null }[] }
+
+/**
+ * One thing the research found. The same mistake as an issue the team fixed, in another place (`like`), or what a
+ * scout of the day found looking ahead (`beat` and the fields after it). Claude's words only: the research reads
+ * the team's own words, the code and public pages, never what a person wrote.
  */
 export interface ResearchItem {
   tag: string; title: string; like: string | null; found: string; why: string; places: string[];
@@ -228,6 +247,17 @@ export interface ResearchItem {
   decision: (typeof RESEARCH_DECISIONS)[number]; action: (typeof RESEARCH_ACTIONS)[number];
   /** The Linear issue filed for a recommended item. */
   issue: string | null; issueUrl: string | null;
+  beat: (typeof RESEARCH_BEATS)[number] | null; kind: (typeof RESEARCH_KINDS)[number] | null; severity: (typeof RESEARCH_SEVERITIES)[number] | null;
+  links: string[]; package: string | null; from: string | null; to: string | null; deadline: string | null; ask: ResearchAsk | null;
+}
+
+/** The report of one run of the research team: what the ops dashboard's Research page shows on top. */
+export interface ResearchReport {
+  day: string; headline: string; summary: string[];
+  beats: { id: string; title: string; model: (typeof RESEARCH_MODELS)[number]; checked: string; result: (typeof RESEARCH_RESULTS)[number]; note: string | null }[];
+  lead: 'ok' | 'failed'; minutes: number | null; turns: number | null;
+  counts: { found: number; recommended: number; rejected: number; watching: number; toFix: number; toAsk: number };
+  facts: { packages: number; advisories: number; outdated: number; actions: number } | null;
 }
 /** What the lead reads before it starts (`GET /api/user-issues?research=1`, `ops_research_context`). */
 export interface ResearchContext { issues: unknown[]; items: unknown[] }
@@ -264,6 +294,8 @@ export interface Looked {
   fixes: FixRecord[];
   /** What the research team found this run. Absent from every other run. */
   research: ResearchItem[];
+  /** The research team's report of this run. Absent from every other run. */
+  report: ResearchReport | null;
   /** The research's issues this run hands to the fix team. */
   handed: string[];
   /** The diagram of each issue this run filed, for its card. */
@@ -408,6 +440,67 @@ function words(o: Obj, field: keyof typeof FIX_TEXT, where: string): string | nu
   return v;
 }
 
+/** Words of the research team: a string of 1 to max characters with no address, or null when it may be absent. */
+function researchWords(v: unknown, max: number, where: string, mayBeAbsent = false): string | null {
+  if (mayBeAbsent && (absent(v) || v === '')) return null;
+  if (typeof v !== 'string' || !v.trim() || v.length > max || EMAIL.test(v)) throw new LookedError(`${where}: 1 to ${max} characters, no address`);
+  return v;
+}
+
+function researchAsk(v: unknown, where: string): ResearchAsk {
+  if (!isObj(v)) throw new LookedError(`${where}: an object`);
+  const choices = v['choices'];
+  if (!Array.isArray(choices) || choices.length < RESEARCH_ASK.min || choices.length > RESEARCH_ASK.max) throw new LookedError(`${where}.choices: ${RESEARCH_ASK.min} to ${RESEARCH_ASK.max}`);
+  return {
+    why: researchWords(v['why'], RESEARCH_ASK.why, `${where}.why`) as string,
+    choices: choices.map((c, n) => {
+      if (!isObj(c)) throw new LookedError(`${where}.choices[${n}]: an object`);
+      return { label: researchWords(c['label'], RESEARCH_ASK.label, `${where}.choices[${n}].label`) as string, then: researchWords(c['then'], RESEARCH_ASK.then, `${where}.choices[${n}].then`, true) };
+    })
+  };
+}
+
+function researchReport(v: unknown): ResearchReport {
+  const where = 'report';
+  if (!isObj(v)) throw new LookedError(`${where}: an object`);
+  const day = v['day'];
+  if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new LookedError(`${where}.day: a date`);
+  const summary = list(v, 'summary', RESEARCH_REPORT.summary).map((x, n) => researchWords(x, RESEARCH_REPORT.line, `${where}.summary[${n}]`) as string);
+  const ids = new Set<string>([...RESEARCH_BEATS, 'twins']);
+  const beats = list(v, 'beats', RESEARCH_REPORT.beats).map((b, n) => {
+    const at = `${where}.beats[${n}]`;
+    if (!isObj(b) || typeof b['id'] !== 'string' || !ids.has(b['id'])) throw new LookedError(`${at}.id: a beat of the team`);
+    const model = oneOf(b, 'model', RESEARCH_MODELS, at), result = oneOf(b, 'result', RESEARCH_RESULTS, at);
+    if (!model || !result) throw new LookedError(`${at}: a model and a result`);
+    return {
+      id: b['id'], title: researchWords(b['title'], RESEARCH_REPORT.title, `${at}.title`) as string, model,
+      checked: absent(b['checked']) || b['checked'] === '' ? '' : (researchWords(b['checked'], RESEARCH_REPORT.checked, `${at}.checked`) as string),
+      result, note: researchWords(b['note'], RESEARCH_REPORT.line, `${at}.note`, true)
+    };
+  });
+  const lead = v['lead'];
+  if (lead !== 'ok' && lead !== 'failed') throw new LookedError(`${where}.lead: ok or failed`);
+  const counts = v['counts'];
+  if (!isObj(counts)) throw new LookedError(`${where}.counts: an object`);
+  const facts = v['facts'];
+  if (!absent(facts) && !isObj(facts)) throw new LookedError(`${where}.facts: an object`);
+  const minutes = v['minutes'];
+  if (!absent(minutes) && (typeof minutes !== 'number' || !Number.isFinite(minutes) || minutes < 0 || minutes > 600)) throw new LookedError(`${where}.minutes: 0 to 600`);
+  return {
+    day, headline: researchWords(v['headline'], RESEARCH_REPORT.headline, `${where}.headline`) as string, summary, beats, lead,
+    minutes: absent(minutes) ? null : Math.round((minutes as number) * 10) / 10,
+    turns: absent(v['turns']) ? null : count(v, 'turns', where),
+    counts: {
+      found: count(counts, 'found', `${where}.counts`), recommended: count(counts, 'recommended', `${where}.counts`), rejected: count(counts, 'rejected', `${where}.counts`),
+      watching: count(counts, 'watching', `${where}.counts`), toFix: count(counts, 'toFix', `${where}.counts`), toAsk: count(counts, 'toAsk', `${where}.counts`)
+    },
+    facts: isObj(facts) ? {
+      packages: count(facts, 'packages', `${where}.facts`), advisories: count(facts, 'advisories', `${where}.facts`),
+      outdated: count(facts, 'outdated', `${where}.facts`), actions: count(facts, 'actions', `${where}.facts`)
+    } : null
+  };
+}
+
 /** What the workflow sent, checked; a LookedError says the first thing wrong. */
 export function parseLooked(input: unknown): Looked {
   if (!isObj(input)) throw new LookedError('not an object');
@@ -535,14 +628,33 @@ export function parseLooked(input: unknown): Looked {
     if (!decision || !action) throw new LookedError(`${where}: decision (${RESEARCH_DECISIONS.join(', ')}) and action (${RESEARCH_ACTIONS.join(', ')})`);
     // Only something recommended has work to do, and something to do is somewhere in the code.
     if (decision !== 'recommend' && action !== 'none') throw new LookedError(`${where}.action: none unless recommended`);
-    if (decision === 'recommend' && (action === 'none' || !places.length)) throw new LookedError(`${where}: a recommended item has an action and a place`);
     const issue = issueOf('issue');
     const issueUrl = absent(r['issueUrl']) || r['issueUrl'] === '' ? null : r['issueUrl'];
     if (issueUrl !== null && (typeof issueUrl !== 'string' || !ISSUE_URL.test(issueUrl))) throw new LookedError(`${where}.issueUrl: the issue in Linear`);
     if ((issue === null) !== (issueUrl === null)) throw new LookedError(`${where}: an issue with its address, or neither`);
     const steps = absent(r['steps']) ? null : parseSteps(r['steps'], `${where}.steps`);
-    return { tag, title: said('title'), like: issueOf('like'), found: said('found'), why: said('why'), places, steps, decision, action, issue, issueUrl: issueUrl as string | null };
+    const links = list(r, 'links', RESEARCH_TEXT.links).map((x) => {
+      if (typeof x !== 'string' || !RESEARCH_LINK.test(x) || EMAIL.test(x)) throw new LookedError(`${where}.links: each a public https address`);
+      return x;
+    });
+    const plain = (field: 'package' | 'from' | 'to' | 'deadline', re: RegExp): string | null => {
+      const v = r[field];
+      if (absent(v) || v === '') return null;
+      if (typeof v !== 'string' || !re.test(v)) throw new LookedError(`${where}.${field}: not one`);
+      return v;
+    };
+    const ask = absent(r['ask']) ? null : researchAsk(r['ask'], `${where}.ask`);
+    if (ask && action !== 'ask') throw new LookedError(`${where}.ask: only with the action ask`);
+    // Only something recommended has work to do, and something to do is somewhere: in the code or on a public page.
+    if (decision === 'recommend' && (action === 'none' || (!places.length && !links.length))) throw new LookedError(`${where}: a recommended item has an action and a place or a link`);
+    return {
+      tag, title: said('title'), like: issueOf('like'), found: said('found'), why: said('why'), places, steps, decision, action, issue, issueUrl: issueUrl as string | null,
+      beat: oneOf(r, 'beat', RESEARCH_BEATS, where), kind: oneOf(r, 'kind', RESEARCH_KINDS, where), severity: oneOf(r, 'severity', RESEARCH_SEVERITIES, where),
+      links, package: plain('package', RESEARCH_PACKAGE), from: plain('from', RESEARCH_VERSION), to: plain('to', RESEARCH_VERSION),
+      deadline: plain('deadline', /^\d{4}-\d{2}-\d{2}$/), ask
+    };
   });
+  const report = absent(input['report']) ? null : researchReport(input['report']);
   const handed = list(input, 'handed', LOOKED_MAX.handed).map((x, n) => {
     if (typeof x !== 'string' || !ISSUE.test(x)) throw new LookedError(`handed[${n}]: a Linear issue (LAN-12)`);
     return x;
@@ -556,5 +668,5 @@ export function parseLooked(input: unknown): Looked {
     drawn.add(issue);
     return { issue, steps: parseSteps(d['steps'], `${where}.steps`) };
   });
-  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, handed, diagrams };
+  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, report, handed, diagrams };
 }

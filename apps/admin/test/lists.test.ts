@@ -16,7 +16,7 @@ const logic = new Function(`${LISTS_LOGIC}; return { listRows, shareCells, LIST_
 };
 const states = (r: Row) => r.items.map((x) => x.s);
 const field = (x: Item, name: string) => x.fields.find((f) => f[0] === name)?.[1];
-const LISTED = ['nightly', 'expo', 'v2', 'userissues', 'feedback', 'tutorials', 'videofeedback', 'videos', 'pipeline', 'code', 'releases', 'expiry', 'appstore'];
+const LISTED = ['nightly', 'v2', 'userissues', 'feedback', 'tutorials', 'videofeedback', 'videos', 'pipeline', 'releases', 'expiry', 'appstore'];
 
 describe('a square for each item of a fixed list (plan 5c2)', () => {
   it('draws a list for each part it names, each with a title, and none for the rest', () => {
@@ -47,18 +47,6 @@ describe('a square for each item of a fixed list (plan 5c2)', () => {
     expect(failed.link).toBe('https://linear.app/x/issue/LAN-9');
     expect(field(failed, 'Tests')).toBe('8 of 10 passed');
     expect(passed.fields.map((f) => f[0])).not.toContain('Broke');
-  });
-
-  it('shows EAS builds, submissions and updates newest on the right, a failure red and a running one apart', () => {
-    const rows = logic.listRows('expo', {
-      builds: [{ platform: 'IOS', profile: 'production', status: 'IN_PROGRESS', at: '2026-11-17T03:00:00Z', appVersion: '2026.1117.3', runtime: null },
-        { platform: 'ANDROID', profile: 'production', status: 'ERRORED', at: '2026-11-16T03:00:00Z', appVersion: null, runtime: '7' },
-        { platform: 'IOS', profile: 'preview', status: 'CANCELED', at: '2026-11-15T03:00:00Z', appVersion: null, runtime: null }],
-      submissions: [], updates: [{ branch: 'production', platform: 'ios, android', runtime: '7', group: 'g1', at: '2026-11-17T05:00:00Z' }]
-    })!;
-    expect(rows.map((r) => r.label)).toEqual(['Builds', 'Updates']);
-    expect(states(rows[0]!)).toEqual(['off', 'fail', 'run']);
-    expect(rows[0]!.items[2]!.name).toBe('IOS · production · 2026.1117.3');
   });
 
   it('counts the v2 projects the page does not read, so a few hundred done stay squares, and past 200 each is 1%', () => {
@@ -149,22 +137,6 @@ describe('a square for each item of a fixed list (plan 5c2)', () => {
     expect(rows[0]!.items[1]!.short).toBe('53 +1');
     expect(rows[0]!.items[1]!.fields.map((f) => f[0])).toEqual(['build 53 (2026.1117.1)', 'Since', 'Updates it takes', 'build 52 (2026.1117.1)', 'Since', 'Updates it takes']);
     expect(rows[0]!.items[3]!.fields).toEqual([['Builds', 'App Store Connect is not connected.']]);
-  });
-
-  it('marks the web host red when it is behind main with a change for the web app, and a nightly\'s failure apart', () => {
-    const d = (behind: number | null, appChanged: boolean | null) => ({ repo: 'o/r', main: { sha: 'abcdef1234567', at: '2026-11-17T01:00:00Z', title: 'Merge' },
-      live: { url: 'https://next.langquest.org', build: 'abcdef12' }, behind, appChanged, runs: [
-        { id: 1, workflow: 'deploy', status: 'completed', conclusion: 'success', sha: 'abc', at: '2026-11-17T01:00:00Z', url: 'https://github.com/o/r/actions/runs/1', event: 'push', number: 4 },
-        { id: 2, workflow: 'guardrails', status: 'completed', conclusion: 'failure', sha: 'abc', at: '2026-11-17T01:00:00Z', url: 'https://github.com/o/r/actions/runs/2', event: 'schedule', number: 5, nightly: true },
-        { id: 3, workflow: 'tutorials', status: 'in_progress', conclusion: null, sha: 'abc', at: '2026-11-17T01:00:00Z', url: 'https://github.com/o/r/actions/runs/3', event: 'schedule', number: 6 }] });
-    const behind = logic.listRows('code', d(3, true))!;
-    expect(behind.map((r) => r.label)).toEqual(['The web app', 'Workflows on main']);
-    // The web app's row is context: the card's head counts workflows only.
-    expect(behind.map((r) => r.count)).toEqual([false, undefined]);
-    expect(behind[0]!.items.map((x) => [x.name, x.s, x.short])).toEqual([['main', 'ok', 'abcdef12'], ['web host', 'fail', 'abcdef12']]);
-    expect(states(behind[1]!)).toEqual(['part', 'run', 'ok']);
-    expect(logic.listRows('code', d(3, false))![0]!.items[1]!.s).toBe('ok');
-    expect(logic.listRows('code', d(0, null))![0]!.items[1]!.s).toBe('ok');
   });
 
   it('draws errors a day oldest first, with what shipped each day, and a crash day red', () => {
