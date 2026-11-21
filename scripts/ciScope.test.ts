@@ -63,6 +63,16 @@ describe('the jobs that changed files need', () => {
     expect(needs('apps/mobile/modules/microphone-energy/ios/Level.swift')).toEqual(['web-smoke', 'ui-web']);
   });
 
+  it('what the ONNX Runtime pods come from compiles the whole iPhone app', () => {
+    for (const file of [
+      'apps/mobile/modules/microphone-energy/MicrophoneEnergy.podspec',
+      'apps/mobile/modules/microphone-energy/vendor/onnxruntime-c.podspec.json',
+      'apps/mobile/modules/microphone-energy/vendor/onnxruntime-objc/objectivec/ort_session.mm',
+      'apps/mobile/plugins/withOnnxRuntimePods.js',
+    ])
+      expect(needs(file), file).toEqual(['web-smoke', 'ui-web', 'ios-native']);
+  });
+
   it('the app\'s dependencies and the root lockfile run every job, Kotlin and Swift included', () => {
     expect(needs('apps/mobile/package.json')).toEqual(JOBS);
     expect(needs('package-lock.json')).toEqual(JOBS);
