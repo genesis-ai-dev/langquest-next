@@ -43,7 +43,7 @@ export const ISSUE_CSS = String.raw`
 .ifixpics img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); min-height: 60px; }
 .ibody { min-width: 0; }
 .itags { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 0 0 6px; font-size: 12px; color: var(--muted); }
-.itags .tag { margin: 0; background: var(--soft); color: var(--ink2); } .itags .tag.bad { color: var(--red); background: var(--redbg); }
+.itags .tag { margin: 0; background: var(--soft); color: var(--ink2); } .itags .tag.bad { color: var(--red); background: var(--redbg); } .itags .tag.good { color: var(--green); background: var(--greenbg); }
 .itags a.lin { font-weight: 600; color: var(--ink); text-decoration: none; letter-spacing: .02em; } .itags a.lin:hover, .itags a.lin:focus-visible { color: var(--primary); text-decoration: underline; }
 .icard a.pr, dl.kv a { color: var(--primary); font-weight: 600; }
 dl.kv dd > small { display: block; font-size: 12.5px; line-height: 1.45; margin-top: 2px; }
@@ -267,6 +267,7 @@ const VIDEO_STEPS = [['Found', ''], ['Claude looks', 'waits on Claude\'s look'],
  * a channel to connect, a reply to post).
  */
 function videoWay(a) {
+  if (a.kind === 'fixed') return { at: VIDEO_STEPS.length + 1 };
   if (!a.instruct && !a.suggestion) return { at: 0 };
   const ins = a.instructed, fix = ins && ins.fix;
   if (fix) return { at: fix.state === 'merged' || fix.state === 'unneeded' ? VIDEO_STEPS.length + 1 : fix.state === 'open' ? 5 : fix.state === 'working' ? 4 : 3 };
@@ -466,9 +467,9 @@ document.addEventListener('click', (e) => {
 });
 
 // ---- a question about a tutorial video (sources/videos.ts AdminItem), in the same card ----
-const ADMIN_KIND = { approve: 'Suggestion', appFix: 'App fix', fixFailed: 'Change failed', held: 'Film held', fails: 'Film fails', reply: 'Reply to post', comment: 'New comment', screen: 'Screen changed', publish: 'Publish', connect: 'Channel', empty: 'No videos', paused: 'Paused' };
+const ADMIN_KIND = { approve: 'Suggestion', appFix: 'App fix', fixFailed: 'Change failed', fixed: 'Fixed', held: 'Film held', fails: 'Film fails', reply: 'Reply to post', comment: 'New comment', screen: 'Screen changed', publish: 'Publish', connect: 'Channel', empty: 'No videos', paused: 'Paused' };
 /** Where each kind of card comes from. */
-const ADMIN_FROM = { approve: 'Claude\'s look at 10:00 UTC', appFix: 'You said Fix it', fixFailed: 'Claude\'s fix run', held: 'The frame check on the new film', fails: 'The nightly filming', reply: 'A comment on YouTube', comment: 'A comment on YouTube', screen: 'A change merged into main' };
+const ADMIN_FROM = { approve: 'Claude\'s look at 10:00 UTC', appFix: 'You said Fix it', fixFailed: 'Claude\'s fix run', fixed: 'Claude\'s fix run', held: 'The frame check on the new film', fails: 'The nightly filming', reply: 'A comment on YouTube', comment: 'A comment on YouTube', screen: 'A change merged into main' };
 /** What the start of each kind of card did, in the card's record after its source (ADMIN_FROM). */
 const ADMIN_FOUND = { fixFailed: 'could not make the change', held: 'held it back', fails: 'could not film the video', reply: 'came in', comment: 'came in', screen: 'changed a screen in the video' };
 const inputSaid = (i) => '<li><small>' + esc(i.kind === 'comment' ? 'Comment' : i.kind === 'code' ? 'Code change' : 'Note') + ' · ' + when(i.at) + '</small><br>' + esc(i.english || i.text) + '</li>';
@@ -547,6 +548,8 @@ function appSide(a) {
 function fixAppButton(a) {
   return a.kind === 'fixFailed' && a.fixApp ? fixItButton(a.fixApp, 'Fix it in the app', false) : '';
 }
+/** Whose turn it is on a video's card: the admin's, Claude's, or nobody's (a change that failed, which a pull request of its own fixed). */
+const cardPill = (a) => a.who === 'you' ? ['Waits on you', 'you'] : a.who === 'done' ? ['Done', 'done'] : ['Claude acts next', 'claude'];
 /** One thing for an admin: what it is and where it came from, who acts next, the talk so far, and where it applies, the box to tell Claude what to do. */
 function adminCard(a) {
   const ins = a.instructed, id = esc(cardId(a));
@@ -559,7 +562,7 @@ function adminCard(a) {
     '<small>Claude starts at its next fix run, ' + fixRunSaid() + '.</small><button type="button"' + (retry ? '' : ' class="primary"') + ' data-instruct="' + id + '"' + (busy ? ' disabled aria-busy="true">Sending…' : '>Send to Claude') + '</button></div>' : '';
   return issueCard({
     pics: pictureStrip(a.pictures),
-    tags: '<span class="tag ' + (ADMIN_LEVEL[a.kind] === 'bad' ? 'bad' : '') + '">' + esc(ADMIN_KIND[a.kind] || a.kind) + '</span>' +
+    tags: '<span class="tag ' + (ADMIN_LEVEL[a.kind] === 'bad' || ADMIN_LEVEL[a.kind] === 'good' ? ADMIN_LEVEL[a.kind] : '') + '">' + esc(ADMIN_KIND[a.kind] || a.kind) + '</span>' +
       (a.tutorial && a.language ? '<span>' + esc(languageName(a.language)) + '</span>' : '') + (a.suggestion ? '<span>' + esc(SUGGESTION_KINDS[a.suggestion.kind] || a.suggestion.kind) + '</span>' : ''),
     title: a.title,
     cls: a.reply ? 'reply' : '',
@@ -569,10 +572,10 @@ function adminCard(a) {
       ['Issue', (plain ? '<p class="setup">' + esc(plain) + '</p>' : '') + (technical ? '<details class="vtech"><summary>Technical details for the fix</summary><p class="setup">' + esc(technical) + '</p></details>' : '')],
       [ins ? '' : 'Solution', ins ? '' : esc(a.next)]
     ],
-    pill: a.who === 'you' ? ['Waits on you', 'you'] : ['Claude acts next', 'claude'],
+    pill: cardPill(a),
     steps: a.app ? appSteps(a) : [VIDEO_STEPS, videoWay(a).at],
     record: a.tutorial && a.language ? recordHtml(cardRecord(VIDEOS && VIDEOS.records, a.tutorial + '/' + a.language, SENDS, 'video:' + cardId(a),
-      a.at && ADMIN_FOUND[a.kind] ? { at: a.at, who: ADMIN_FROM[a.kind], said: ADMIN_FOUND[a.kind] } : null), a.who === 'you' ? ['Waits on you', 'you'] : ['Claude acts next', 'claude']) : '',
+      a.at && ADMIN_FOUND[a.kind] ? { at: a.at, who: ADMIN_FROM[a.kind], said: ADMIN_FOUND[a.kind] } : null), cardPill(a)) : '',
     side: a.reply ? replyBox(a) : a.app ? appSide(a) : (a.suggestion ? suggestionSide(a.suggestion, a.fixApp) : '') + (a.filming ? filmingSwitch(a.filming.language, a.filming.on, a.filming.videos) : '') + talkHtml(ins, a.send) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
       // A change Claude could not make: Try again is the main button, Fix it in the app beside it, and the box is behind "instead".
       retry + fixAppButton(a) + (retry && tell ? '<details><summary>Tell Claude what to do instead</summary>' + tell + '</details>' : tell)

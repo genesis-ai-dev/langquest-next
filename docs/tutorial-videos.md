@@ -608,7 +608,9 @@ Four tabs with counts; the page opens on the first when something waits:
   pull request, with no second Accept.
 - **Automatic**: what needs no answer. Claude acts next: a held or failing
   film before Claude's look, a new comment, a changed screen (an admin may
-  still tell Claude what to do there). Jobs, now and tonight: the filming
+  still tell Claude what to do there). Done, nothing to do: a change that
+  failed which a pull request of its own fixed ("Fixed by PR N, filmed
+  again", for a day). Jobs, now and tonight: the filming
   run, or the next one at 20:10 UTC; videos a screen change slots for
   tonight's check; changes Claude writes, and pull requests that merge
   themselves when their checks pass; comments Claude reads; films waiting
@@ -636,7 +638,15 @@ Four tabs with counts; the page opens on the first when something waits:
 A held or failing film waits on Claude's next look first (Automatic); it
 waits on an admin when a look after it made nothing for it, or what it made
 was rejected. A change that failed, or whose pull request was closed, waits
-on an admin.
+on an admin, until a pull request of its own fixes it: the video fix run
+finds a pull request merged into main after the failure that names the
+suggestion (its first 8 characters) or changed a file Claude named as the
+cause, and a film of the video newer than that merge (migration
+`20261121233000_tutorial_fixed_elsewhere.sql`). Then the card says "Fixed by
+PR N, filmed again" for a day and waits on nobody, and Changes made says "Fixed, filmed again",
+with a link to that pull request (docs/decisions/2026-11-21-a-failed-video-change-learns-the-pull-request-that-fixed-it.md).
+To link a pull request to a change that failed, write "Fixes video
+suggestion" and the suggestion's first 8 characters in its text.
 
 **A reply to a comment** is posted by a person on YouTube, never from the
 dashboard (decisions.md 186). Its card shows the comment and the reply

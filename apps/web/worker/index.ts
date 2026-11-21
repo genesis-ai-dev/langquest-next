@@ -426,6 +426,11 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         if (error) throw new Error(`ops_tutorial_app_refilmed: ${error.message}`);
         return data as string;
       },
+      fixedElsewhere: async (r) => {
+        const { data, error } = await serviceClient(env).rpc('ops_tutorial_fixed_elsewhere', { p_id: r.id, p_pr: r.pr, p_merged_at: r.mergedAt, p_file: r.file });
+        if (error) throw new Error(`ops_tutorial_fixed_elsewhere: ${error.message}`);
+        return data as string;
+      },
       record: jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
       now: () => Date.now()
     },

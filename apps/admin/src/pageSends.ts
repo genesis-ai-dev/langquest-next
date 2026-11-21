@@ -126,7 +126,10 @@ function recordSaid(r) {
     taken: 'started the fix in the app',
     appfix: appFixSaid(String(r.detail || '')),
     refilm: 'saw the fix merged, and sent the video to be filmed again',
-    filmed: 'filmed the video again: the new film is in'
+    filmed: 'filmed the video again: the new film is in',
+    // A change that failed, which a pull request of its own fixed (migration 20261121233000_tutorial_fixed_elsewhere.sql).
+    fixed_elsewhere: 'saw that another pull request fixed it' + (r.detail ? ' (it changed ' + r.detail + ', the file Claude named)' : ' (it names this change)') +
+      ', and that a new film came in after it'
   }[r.what] || r.what;
   const pr = r.pr ? ' (pull request ' + r.pr + ')' : '';
   const refused = ok ? '' : r.result === 'error' ? '. It did not work (' + (r.detail || 'an error') + ')' : '. Refused: ' + (REFUSED_SAID[r.detail] || r.detail || 'no reason given');

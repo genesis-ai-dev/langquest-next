@@ -198,6 +198,7 @@ describe('handleTutorialReview', () => {
       fixes: async (limit) => ({ toFix: [], open: [], limit }),
       fixed: async (u) => { moves.push(u); return u.id === UNKNOWN ? 'not_found' : 'ok'; },
       refilmed: async (r) => (r.id === UNKNOWN ? 'refused' : 'ok'),
+      fixedElsewhere: async (r) => { moves.push(r as never); return r.id === UNKNOWN ? 'not_found' : 'ok'; },
       now: () => NOW,
       ...over
     };
@@ -251,7 +252,7 @@ describe('handleTutorialReview', () => {
     const runUrl = 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/123456';
     const id = '0d000000-0000-4000-8000-000000000001';
     const posted = await handleTutorialReview(req('POST', 'good', { runUrl, updates: [{ id, state: 'open', pr: 451 }, { id: UNKNOWN, state: 'working' }] }, FIXES), d);
-    expect(await posted.json()).toEqual({ results: ['ok', 'not_found'], refilmed: [] });
+    expect(await posted.json()).toEqual({ results: ['ok', 'not_found'], refilmed: [], fixedElsewhere: [] });
     expect(moves).toEqual([{ id, state: 'open', pr: 451, note: null }, { id: UNKNOWN, state: 'working', pr: null, note: null }]);
     expect((await handleTutorialReview(req('POST', 'good', { runUrl: runUrl.replace('123456', '999'), updates: [] }, FIXES), d)).status).toBe(400);
     expect(await (await handleTutorialReview(req('POST', 'good', { runUrl, updates: [{ id, state: 'merged' }] }, FIXES), d)).json()).toEqual({ error: 'updates[0].pr: the pull request, for merged' });
@@ -267,8 +268,19 @@ describe('handleTutorialReview', () => {
     const posted = await handleTutorialReview(req('POST', 'good', {
       runUrl, updates: [{ id, state: 'failed', note: 'The word comes from the app.', app: true }], refilmed: [{ id, pr: 640 }, { id: UNKNOWN, pr: 641 }]
     }, FIXES), d);
-    expect(await posted.json()).toEqual({ results: ['ok'], refilmed: ['ok', 'refused'] });
+    expect(await posted.json()).toEqual({ results: ['ok'], refilmed: ['ok', 'refused'], fixedElsewhere: [] });
     expect(moves).toEqual([{ id, state: 'failed', pr: null, note: 'The word comes from the app.', app: true }]);
+  });
+
+  it('takes the changes that failed which a pull request of their own fixed', async () => {
+    // docs/decisions/2026-11-21-a-failed-video-change-learns-the-pull-request-that-fixed-it.md
+    const { d } = deps();
+    const runUrl = 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/123456';
+    const id = '0d000000-0000-4000-8000-000000000001';
+    const fixed = [{ id, pr: 633, mergedAt: '2026-11-21T22:01:00Z', file: 'apps/mobile/src/i18n/fr.json' }, { id: UNKNOWN, pr: 634, mergedAt: '2026-11-21T22:02:00Z', file: null }];
+    const posted = await handleTutorialReview(req('POST', 'good', { runUrl, updates: [], fixedElsewhere: fixed }, '/api/tutorial-review/fixes'), d);
+    expect(await posted.json()).toEqual({ results: [], refilmed: [], fixedElsewhere: ['ok', 'not_found'] });
+    expect(moves).toEqual(fixed);
   });
 });
 
@@ -345,7 +357,7 @@ describe('parseFixUpdates', () => {
   const id = '0d000000-0000-4000-8000-000000000001';
   it('takes each move with its pull request, or why there is no fix', () => {
     expect(parseFixUpdates({ runUrl, updates: [{ id, state: 'failed', note: ' The script has no such line. ' }, { id, state: 'closed', pr: 9 }] })).toEqual({
-      runUrl, updates: [{ id, state: 'failed', pr: null, note: 'The script has no such line.' }, { id, state: 'closed', pr: 9, note: null }], refilmed: []
+      runUrl, updates: [{ id, state: 'failed', pr: null, note: 'The script has no such line.' }, { id, state: 'closed', pr: 9, note: null }], refilmed: [], fixedElsewhere: []
     });
     // A fix that needs no change, and one whose checks failed (its pull request closed).
     expect(parseFixUpdates({ runUrl, updates: [{ id, state: 'unneeded', note: 'Step 4 already taps it.' }, { id, state: 'failed', pr: 9, note: 'Its checks failed.' }] }).updates)
@@ -362,7 +374,10 @@ describe('parseFixUpdates', () => {
       [{ runUrl, updates: [{ id, state: 'open', pr: 3, app: true }] }, 'updates[0].app'],
       [{ runUrl, updates: [{ id, state: 'failed', app: 'yes' }] }, 'updates[0].app'],
       [{ runUrl, updates: [], refilmed: [{ id, pr: null }] }, 'refilmed[0].pr'],
-      [{ runUrl, updates: [], refilmed: [{ id: 'x', pr: 3 }] }, 'refilmed[0].id']
+      [{ runUrl, updates: [], refilmed: [{ id: 'x', pr: 3 }] }, 'refilmed[0].id'],
+      [{ runUrl, updates: [], fixedElsewhere: [{ id, pr: 3, mergedAt: 'yesterday', file: null }] }, 'fixedElsewhere[0].mergedAt'],
+      [{ runUrl, updates: [], fixedElsewhere: [{ id, pr: 3, mergedAt: '2026-11-21T22:01:00Z', file: '../secrets' }] }, 'fixedElsewhere[0].file'],
+      [{ runUrl, updates: [], fixedElsewhere: [{ id, pr: -1, mergedAt: '2026-11-21T22:01:00Z' }] }, 'fixedElsewhere[0].pr']
     ] as const) expect(() => parseFixUpdates(sent), error).toThrow(new RegExp(`^${error.replace(/[[\]]/g, '\\$&')}`));
   });
 });
