@@ -328,8 +328,11 @@ describe('a copy with a conflict', () => {
     expect(copyFn).not.toContain("'--auto'");
   });
 
-  it('a Claude run that was not allowed to run a command is never a finished copy, and says so with a label', () => {
-    // 2026-11-19: the action refused npm ci on #549, #559 and #564; #549 still said "copied in part" and merged itself unchecked.
+  it('a refused command never holds a copy back, because the release branch takes a copy only when its gate passes', () => {
+    // 2026-11-19 to 21: refused commands left checked copies unfinished (#578, #588, #590, #595, #597), while the gate ran the tests on each.
+    const ruleset = JSON.parse(readFileSync('.github/rulesets/release.json', 'utf8'));
+    expect(ruleset.conditions.ref_name.include).toEqual(['refs/heads/release/*']);
+    expect(ruleset.rules.find((r: { type: string }) => r.type === 'required_status_checks').parameters.required_status_checks.map((c: { context: string }) => c.context)).toEqual(['gate']);
     expect(BLOCKED_LABEL).toBe('copy-claude-blocked');
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toContain('--denied "$DENIED"');
@@ -342,11 +345,17 @@ describe('a copy with a conflict', () => {
     for (const c of ['npm ci', 'cd apps/mobile && npx tsc -b', 'node scripts/x.mjs']) expect(re.test(c)).toBe(true);
     for (const c of ["echo '{}' > .release-copy.json", "python3 - <<'E'", 'cd apps/mobile; grep -n BUDGET x']) expect(re.test(c)).toBe(false);
     expect(counter).toContain('count=${blocked.length}');
+    // A joined command is refused whole when one part is not allowed: Claude runs each one alone, and may read output (#578, #588).
+    expect(yml).toContain('Run each command on its own');
+    const allowed = /--allowedTools "([^"]*)"/.exec(yml)?.[1].split(',') ?? [];
+    for (const t of ['Bash(npm:*)', 'Bash(cat:*)', 'Bash(head:*)', 'Bash(tail:*)', 'Bash(grep:*)', 'Bash(ls:*)', 'Bash(wc:*)']) expect(allowed).toContain(t);
     const script = readFileSync('scripts/release-branches.mjs', 'utf8');
     const finish = script.slice(script.indexOf('function finishCopy('), script.indexOf('async function main'));
-    expect(finish.indexOf('if (denied > 0)')).toBeGreaterThan(-1);
-    expect(finish.indexOf('if (denied > 0)')).toBeLessThan(finish.indexOf('if (!outcome.done)'));
-    expect(finish).toContain("'--add-label', BLOCKED_LABEL");
+    expect(finish).not.toContain("'--add-label', BLOCKED_LABEL");
+    expect(finish).toContain("'--remove-label', BLOCKED_LABEL");
+    const deniedLine = finish.slice(finish.indexOf('if (denied > 0)'), finish.indexOf('\n', finish.indexOf('if (denied > 0)')));
+    expect(deniedLine).toContain('console.log(');
+    expect(deniedLine).not.toContain('outcome');
   });
 
   it('Claude reads the failed checks and fixes them, and never skips a test', () => {

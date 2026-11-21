@@ -722,15 +722,12 @@ function finishCopy(branch, pr, start, denied = 0, file = RESULT_FILE) {
     || git('status', '--porcelain', '--untracked-files=no') !== '';
   let outcome = midway ? { done: false, why: 'Claude left changes that are not committed' }
     : copyResult({ listed: commitsOfCopy(view.body), names, result, onBranch: copied });
-  // A run that could not run what it needed checked nothing, whatever Claude wrote (#549, #559 and
-  // #564, 2026-11-19: the action refused npm ci on every copy, and #549 merged itself unchecked).
-  if (denied > 0) {
-    outcome = { done: false, why: `the workflow did not let Claude run ${denied} command(s) it needed (such as npm ci), so nothing was checked; the workflow needs a fix (release-copy-conflict.yml)` };
-    makeLabel(BLOCKED_LABEL);
-    run('gh', ['pr', 'edit', pr, '--add-label', BLOCKED_LABEL]);
-  } else {
-    run('gh', ['pr', 'edit', pr, '--remove-label', BLOCKED_LABEL], { allowFail: true });
-  }
+  // A refused command no longer holds a copy back (2026-11-21): the release branch takes a copy only
+  // when its guardrails gate passes (.github/rulesets/release.json), so the tests run on every copy
+  // whatever Claude could run. Holding copies back for a refused command left checked copies
+  // unfinished four times in two days (#578, #588, #590, #595, #597). The count is only logged.
+  if (denied > 0) console.log(`#${pr}: Claude was refused ${denied} npm, npx or node command(s); the gate still runs the tests`);
+  run('gh', ['pr', 'edit', pr, '--remove-label', BLOCKED_LABEL], { allowFail: true });
   const head = git('rev-parse', 'HEAD');
   if (head !== start) {
     // Pushed even when not finished, so that the next try starts from Claude's commits.
