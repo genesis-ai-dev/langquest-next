@@ -298,7 +298,7 @@ describe("Claude's decisions", () => {
     }, watch, linear);
     // The three lines of its card: one line each, cut to their limit, an address out; null where Claude wrote none.
     expect(plan.file).toEqual([{ keys: [ERR.key, FB.key], title: 'Recordings vanish', priority: 1, summary: 's', cause: 'c',
-      context: 'A person saves a recording. On Android.', problem: expect.stringMatching(/^Ask \[address\]\. It is gone\. .*…$/), solution: null, steps: null, manager: { model: 'opus', effort: 'high' } }]);
+      context: 'A person saves a recording. On Android.', problem: expect.stringMatching(/^Ask \[address\]\. It is gone\. .*…$/), known: null, solution: null, steps: null, manager: { model: 'opus', effort: 'high' } }]);
     expect(plan.file[0]?.problem).toHaveLength(LIMITS.line);
     expect(plan.noise).toEqual([{ key: NOISE.key, note: 'A wrong password, once.' }]);
     expect(plan.dropped).toEqual([]);
@@ -343,7 +343,7 @@ describe("Claude's decisions", () => {
   it('tells the Worker the counts each kind was judged at', () => {
     expect(lookedOf(ERR, 'filed', { identifier: 'LAN-220', url: 'https://linear.app/x/issue/LAN-220' }, null, { title: 'Recordings vanish', context: 'c', problem: 'p' })).toEqual({
       key: ERR.key, verdict: 'filed', issue: 'LAN-220', issueUrl: 'https://linear.app/x/issue/LAN-220', people: 3, count: 9, note: null,
-      title: 'Recordings vanish', context: 'c', problem: 'p', solution: null, fixedBy: null, fixedAt: null
+      title: 'Recordings vanish', context: 'c', problem: 'p', known: null, solution: null, fixedBy: null, fixedAt: null
     });
     // Found fixed: counted from the fix, so it comes back only when people hit it after the fix.
     expect(lookedOf(ERR, 'fixed', null, 'n', { fixedBy: 312, fixedAt: '2026-11-03T17:09:42.000Z' })).toMatchObject({ people: 0, fixedBy: 312, issue: null });

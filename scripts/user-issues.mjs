@@ -251,12 +251,12 @@ export function checkDecisions(decisions, watch, linear) {
 
 /**
  * An issue in three lines for its card on the ops dashboard (decisions.md 202, amended 2026-11-18):
- * `context`, `problem` and `solution`, each one line, cut to its limit, addresses out. Null where
- * Claude wrote none.
+ * `context`, `problem`, `known` (what the records show and what they do not, 2026-11-21) and `solution`,
+ * each one line, cut to its limit, addresses out. Null where Claude wrote none.
  */
 export function linesOf(entry) {
   const line = (v) => cut(redact(text(v)).replace(/\s+/g, ' ').trim(), LIMITS.line) || null;
-  return { context: line(entry.context), problem: line(entry.problem), solution: line(entry.solution) };
+  return { context: line(entry.context), problem: line(entry.problem), known: line(entry.known), solution: line(entry.solution) };
 }
 
 /** How many steps a diagram has, and the longest of a step's words (server/userIssues.ts DIAGRAM). */
@@ -283,7 +283,7 @@ export function lookedOf(kind, verdict, issue, note = null, extra = {}) {
   return {
     key: kind.key, verdict, issue: issue?.identifier ?? null, issueUrl: issue?.url ?? null,
     people: verdict === 'fixed' ? kind.peopleAfterFix ?? 0 : kind.people, count: kind.count, note,
-    title: extra.title ?? null, context: extra.context ?? null, problem: extra.problem ?? null, solution: extra.solution ?? null,
+    title: extra.title ?? null, context: extra.context ?? null, problem: extra.problem ?? null, known: extra.known ?? null, solution: extra.solution ?? null,
     fixedBy: extra.fixedBy ?? null, fixedAt: extra.fixedAt ?? null
   };
 }
@@ -983,7 +983,7 @@ async function file(dir) {
         console.log(`::warning::could not assign to USER_ISSUES_ASSIGNEE (${e instanceof Error ? e.message : e}); filing unassigned`);
         issue = await api.create(input);
       }
-      for (const k of kinds) looked.push(lookedOf(k, 'filed', issue, null, { title: f.title, context: f.context, problem: f.problem, solution: f.solution }));
+      for (const k of kinds) looked.push(lookedOf(k, 'filed', issue, null, { title: f.title, context: f.context, problem: f.problem, known: f.known, solution: f.solution }));
       if (fixes.length < FIX_MAX) fixes.push(issue.identifier);
       plans[issue.identifier] = f.manager;
       if (f.steps) diagrams.push({ issue: issue.identifier, steps: f.steps });

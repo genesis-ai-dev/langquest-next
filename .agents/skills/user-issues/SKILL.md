@@ -263,8 +263,11 @@ The developer reads the issue on their phone, between other things.
   most 20 characters: `Person`, `Phone`, `Browser`, `Server`, or the
   screen's name) and `"wrong": true` on the step that goes wrong. Your own
   words only, as for the three lines.
-- `context`, `problem`, `solution`: the issue in three lines, for its card
-  on the ops dashboard. An admin reads the card without the code and decides
+- `context`, `problem`, `known`, `solution`: the issue in short lines, for
+  its card on the ops dashboard. The card leads with Wrong (`problem`), Known
+  (`known`) and Next (`solution`); `context` and the diagram are one tap
+  away. Each line says a new thing: never repeat a fact another line or the
+  title already says. An admin reads the card without the code and decides
   what to do. Each is one or two short sentences, at most 300 characters, in
   ASD-STE100 Simplified Technical English: short sentences, active voice,
   one name for each thing, no code names.
@@ -272,6 +275,10 @@ The developer reads the issue on their phone, between other things.
     passage in the web app and plays the reference audio.").
   - `problem`: what goes wrong, and for how many ("The audio does not
     download. The play button stays grey. 3 people hit it since Nov 1.").
+  - `known`: what the records show and what they do not, with the
+    numbers ("The app times link signing, 0.94 s. It does not time the
+    other 3.3 s."). When the records do not show the cause, name the part
+    they do not measure.
   - `solution`: what fixes it, or what a person must decide ("Let the web
     page read audio from the reference audio host."). When you do not know
     the cause, say what to find first.
@@ -298,6 +305,7 @@ or empty.
       "summary": "In the web app, reference audio never downloads: the play button stays grey. Three people on web hit it since Nov 1, on the newest version. One of them wrote in from the passage screen.",
       "context": "A person opens a passage in the web app and plays the reference audio.",
       "problem": "The audio does not download. The play button stays grey. 3 people hit it since Nov 1.",
+      "known": "The browser refused the request to the reference audio host. The server sent the file.",
       "solution": "Let the web page read audio from the reference audio host.",
       "steps": [
         { "where": "Person", "text": "Opens a passage and taps Play on the reference audio." },
@@ -649,9 +657,15 @@ above, with one more field:
   Technical English: short sentences, active voice, one name for each
   thing. It is public like the rest: no name, address or id of a person,
   and nothing from `evidence`. The card draws its shape, so give it one:
-  - The first line is the result in one sentence ("I cannot find the
-    account from here."). The card shows it in bold.
-  - Then an empty line and at most two short sentences on why.
+  - The first line answers the admin's words directly, in one sentence
+    ("No. The app times the full wait, but not the 3.3 s after the link
+    is signed."). The card shows it in bold. A question gets yes, no or
+    the fact asked for first; an instruction gets what you did or why you
+    did not.
+  - Then, only when needed, an empty line and at most two short sentences
+    on why. Do not repeat what the card already says (the title, Wrong,
+    Known, Next or the diagram), and do not restate the admin's words.
+  - At most 400 characters, unless the admin must run steps.
   - Steps the admin does go in a numbered list (`1. `), one action in each
     step, each on its own line.
   - A command or SQL goes alone in a block between two lines of three
