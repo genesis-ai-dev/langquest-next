@@ -139,7 +139,7 @@ the page loads to exactly one section.
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
 | Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx), with the errors grouped: a Postgres error by its SQLSTATE (named), role, client and the RPC a PostgREST call named; a server error by method, the path's first parts (ids hidden) and status. Never a log message, which can quote what someone typed | `ADMIN_SUPABASE_TOKEN` |
 | Where each build and update is (Releases) | A diagram: each new store build in the stage it is in now (building on EAS; TestFlight or Play's internal testing; App Review or Play review; approved; what people download), and inside each build the over-the-air updates it takes (published on the production branch for its runtime after it was made), each linked to its pull request with how many of the platform's phones run it (`apps/admin/src/sources/pipeline.ts`, decisions.md 157). Carried builds (Play's alpha track, decisions.md 246) are not store builds and do not show. A pull request shows in each build that has it: from main in the new build, and in the public build as a copy through its release branch, named with its copy pull request, first as "PR open, not merged yet" (an open pull request onto `release/<platform>`, read from GitHub) and then as the update it sent (decisions.md 155). A copy says when it waits for Claude, who examines every copy before it merges, when its tests failed and Claude is fixing them, and when Claude has not finished it (the hourly run starts Claude again, up to 3 times); a copy whose tests still fail, or that is still not finished, after Claude's 3 tries, or that has been open for 3 hours, is a problem under Needs attention, linked to the copy. EAS says what was built and sent where; App Store Connect says where an iPhone build stands; Play's tracks, read in an edit that is deleted unsent, and Play's public page say where an Android build stands. A build waiting 3 hours with nothing in review is a watch. A store that cannot be read leaves its lane to what EAS knows, and says so | `ADMIN_EXPO_TOKEN`; `ADMIN_APP_STORE_KEY`, `ADMIN_GOOGLE_PLAY_KEY` and `DIAG_DATABASE_URL` each fill in more |
-| App builds and updates | EAS builds, store submissions and the newest update on each branch | `ADMIN_EXPO_TOKEN` |
+| Phone app builds and updates (Expo) | EAS builds, store submissions and the newest update on each branch. The picture (`pageExpo.ts`) lists the builds newest first by phone, what the profile is for and version, each with the store send of the same phone and version, then the newest update of each branch by the phones that take it; it says that which build each phone runs is in Where each build and update is | `ADMIN_EXPO_TOKEN` |
 | Update adoption | for each channel, platform and runtime the phones run: the newest update EAS published there and how many installs active in the last 7 days run it, an older update, or their build's embedded one. EAS gives each update's id per platform, the id a phone reports in its diagnostics (`Updates.updateId`), so they match exactly; a channel serving two branches (a rollout) takes the newer. Browsers are left out, and a phone with diagnostics off is not counted (`apps/admin/src/sources/adoption.ts`) | `ADMIN_EXPO_TOKEN`; `DIAG_DATABASE_URL` |
 | Google Play | Android vitals for the last 7 days Play has (user-perceived crash and ANR rates, 7-day user-weighted as Play Console shows them, against Play's bad-behaviour lines, 1.09% and 0.47%), the top crash and ANR clusters, and the last week's reviews | `ADMIN_GOOGLE_PLAY_KEY` |
 | App Store | each recent App Store version and where it stands in review, the latest builds and whether Apple processed them, TestFlight testers' crash reports (device and system only), recent customer reviews | `ADMIN_APP_STORE_KEY` |
@@ -532,6 +532,24 @@ for each section (`GLANCE` in `sources/history.ts`). `#g/<section>` shows one
 section: each part's lines, picture and tables first, then a chart for each
 number over the range, so what needs a person is in view when the page opens;
 `#all` shows every section on one page.
+
+**How much of the Frontier Claude plan is used** (part `claudeplan`,
+`apps/admin/src/sources/claudePlan.ts`,
+`docs/decisions/2026-11-21-the-overview-shows-the-frontier-claude-plan.md`).
+Under the rows, a small card shows two bars: the share of this week's
+Frontier Claude plan used, and the share of the week gone, with when the week
+starts again. Used more than 10 points ahead of the week turns the bar amber
+and says when the plan runs out at that speed; 90% used turns it red. It
+raises no line, so the watch files nothing for it. The reading comes from
+`.github/workflows/claude-plan.yml`, every hour at :07:
+`scripts/claude-plan.mjs` asks Claude Code one tiny question (Haiku, no
+tools) with `AGENT_TEAM_CLAUDE_TOKEN` in its environment, keeps the plan's
+numbers from Claude Code's `rate_limit_event`, and leaves them as an
+annotation titled "Claude plan" on the run. The Worker reads the latest
+run's annotation with its GitHub token and holds no Claude token. A reading
+over 3 hours old says it is late; a reading from before the week started
+again, or none, shows no number and says why. The same numbers are under
+Access and integrations.
 
 **What each PR and LAN number is about** (`apps/admin/src/pageRefs.ts`,
 `docs/decisions/2026-11-21-pr-and-issue-numbers-say-what-they-are-about.md`).

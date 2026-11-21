@@ -218,11 +218,15 @@ and presents what it finds on the ops dashboard.
    whether its fix merges without a person or waits for a developer. An
    item with the action `ask` waits for a developer.
 
-**User issues** on the ops dashboard shows them under the cards, in
-**Research: the same mistake in other places**: what was found, why it
-matters, where (each place a link to the file on main), its Linear issue,
-and the record of its fix when the fix team wrote one. In mode `off` there
-is no research.
+The ops dashboard shows them on the **Research** page (menu Care), with
+the items of the team that looks ahead: what was found, why it matters,
+where (each place a link to the file on main), its Linear issue, and the
+record of its fix when the fix team wrote one. **User issues** links to it
+under its cards. In mode `off` there is no research.
+
+The same job also runs the research team that looks ahead: known security
+holes, new versions and one more subject each weekday, with a report each
+day. `docs/research-team.md` has how it works.
 
 ## An image on each card
 
@@ -260,6 +264,8 @@ box **Tell Claude what to do**
   no fix is written, an admin's instruction waits on its card, and no
   research runs. The watch still judges and files each problem, with its
   own token (`CLAUDE_CODE_OAUTH_TOKEN`), as before the team.
+  `.github/workflows/claude-plan.yml` reads, with it, how much of the
+  account's week is used, each hour, for the ops dashboard's Overview.
 - `RELEASE_APP_ID` (variable) and `RELEASE_APP_PRIVATE_KEY` (secret):
   LangQuest's GitHub App, which the tutorial videos' fixes already use. It
   opens the pull request so that its checks start, and turns on its merge.

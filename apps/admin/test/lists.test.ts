@@ -16,7 +16,7 @@ const logic = new Function(`${LISTS_LOGIC}; return { listRows, shareCells, LIST_
 };
 const states = (r: Row) => r.items.map((x) => x.s);
 const field = (x: Item, name: string) => x.fields.find((f) => f[0] === name)?.[1];
-const LISTED = ['nightly', 'expo', 'v2', 'userissues', 'feedback', 'tutorials', 'videofeedback', 'videos', 'pipeline', 'releases', 'expiry', 'appstore'];
+const LISTED = ['nightly', 'v2', 'userissues', 'feedback', 'tutorials', 'videofeedback', 'videos', 'pipeline', 'releases', 'expiry', 'appstore'];
 
 describe('a square for each item of a fixed list (plan 5c2)', () => {
   it('draws a list for each part it names, each with a title, and none for the rest', () => {
@@ -47,18 +47,6 @@ describe('a square for each item of a fixed list (plan 5c2)', () => {
     expect(failed.link).toBe('https://linear.app/x/issue/LAN-9');
     expect(field(failed, 'Tests')).toBe('8 of 10 passed');
     expect(passed.fields.map((f) => f[0])).not.toContain('Broke');
-  });
-
-  it('shows EAS builds, submissions and updates newest on the right, a failure red and a running one apart', () => {
-    const rows = logic.listRows('expo', {
-      builds: [{ platform: 'IOS', profile: 'production', status: 'IN_PROGRESS', at: '2026-11-17T03:00:00Z', appVersion: '2026.1117.3', runtime: null },
-        { platform: 'ANDROID', profile: 'production', status: 'ERRORED', at: '2026-11-16T03:00:00Z', appVersion: null, runtime: '7' },
-        { platform: 'IOS', profile: 'preview', status: 'CANCELED', at: '2026-11-15T03:00:00Z', appVersion: null, runtime: null }],
-      submissions: [], updates: [{ branch: 'production', platform: 'ios, android', runtime: '7', group: 'g1', at: '2026-11-17T05:00:00Z' }]
-    })!;
-    expect(rows.map((r) => r.label)).toEqual(['Builds', 'Updates']);
-    expect(states(rows[0]!)).toEqual(['off', 'fail', 'run']);
-    expect(rows[0]!.items[2]!.name).toBe('IOS · production · 2026.1117.3');
   });
 
   it('counts the v2 projects the page does not read, so a few hundred done stay squares, and past 200 each is 1%', () => {

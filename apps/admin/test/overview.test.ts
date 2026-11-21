@@ -5,13 +5,15 @@ import { mergedPull } from '../src/sources/releases';
 
 interface Tile { group: string; label: string; value: string | null; sub: string; small: boolean; spark: string | null }
 interface MapNode { id: string; title: string; group: string; icon: string; state: string; said: string; sub: string }
-const logic = new Function(`${OVERVIEW_LOGIC}; return { tilesOf, mapOf, shippedOf, liveBuilds, MAP_COLS, MAP_WIRES };`)() as {
+const logic = new Function(`${OVERVIEW_LOGIC}; return { tilesOf, mapOf, shippedOf, liveBuilds, planOf, MAP_COLS, MAP_WIRES };`)() as {
+  planOf: (results: Record<string, unknown>, now: number) => Plan;
   tilesOf: (results: Record<string, unknown>) => Tile[];
   mapOf: (results: Record<string, unknown>, levels: string[]) => { title: string; nodes: MapNode[] }[];
   shippedOf: (releases: unknown, max: number) => { at: string; pr: number | null; title: string }[];
   MAP_COLS: { nodes: { id: string; group: string; parts: string[] }[] }[];
   MAP_WIRES: [string, string][];
 };
+interface Plan { used: number | null; gone: number | null; level: string; said: string; resetsAt: string | null; runsOut: string | null; readAt: string | null; old: boolean }
 const LEVELS = ['urgent', 'problem', 'watch'];
 const ok = (data: unknown, alerts: unknown[] = []) => ({ state: 'ok', alerts, data });
 const lane = (id: string, cards: Record<string, { title: string; tone: string }[]>) => ({ id, stages: Object.entries(cards).map(([stage, cs]) => ({ id: stage, cards: cs })) });
@@ -96,5 +98,37 @@ describe('Merged lately', () => {
     expect(mergedPull('Merge pull request #7 from o/b')).toEqual({ pr: 7, title: 'Pull request 7' });
     expect(mergedPull('Show the fix (LAN-158) (#500)\n\nbody')).toEqual({ pr: 500, title: 'Show the fix (LAN-158)' });
     expect(mergedPull("Merge remote-tracking branch 'origin/main' into x")).toBeNull();
+  });
+});
+
+describe('The Frontier Claude plan monitor', () => {
+  const resetsAt = '2026-11-26T00:00:00.000Z';
+  const start = Date.parse(resetsAt) - 7 * 864e5;
+  const at = (days: number) => start + days * 864e5;
+  const plan = (used: number, readDay: number) => ({ claudeplan: ok({ repo: 'o/r', run: { url: 'https://github.com/o/r/actions/runs/1', at: new Date(at(readDay)).toISOString(), conclusion: 'success' },
+    week: { used, resetsAt }, fiveHour: null, readAt: new Date(at(readDay)).toISOString(), said: null }) });
+
+  it('sets the share used against the share of the week gone', () => {
+    const p = logic.planOf(plan(0.2, 2.1), at(2.1));
+    expect(p).toMatchObject({ used: 0.2, level: 'ok', said: 'Less used than the week gone.', runsOut: null, old: false });
+    expect(p.gone).toBeCloseTo(0.3);
+    expect(logic.planOf(plan(0.35, 2.1), at(2.1))).toMatchObject({ level: 'ok', said: 'About even with the week.' });
+  });
+
+  it('is a watch past 10 points ahead of the week, with when it runs out at that speed, and a problem at 90%', () => {
+    const p = logic.planOf(plan(0.6, 2.1), at(2.1));
+    expect(p).toMatchObject({ level: 'watch', said: 'Used faster than the week goes.' });
+    expect(Date.parse(p.runsOut!)).toBeCloseTo(at(3.5), -3);
+    expect(logic.planOf(plan(0.92, 6), at(6))).toMatchObject({ level: 'problem', said: 'Almost used up. The automatic jobs stop at 100%.' });
+    expect(logic.planOf(plan(1, 6), at(6))).toMatchObject({ level: 'problem', runsOut: null });
+  });
+
+  it('says a reading is late, and never shows last week\'s reading or a missing one as a number', () => {
+    expect(logic.planOf(plan(0.2, 2), at(2.5)).old).toBe(true);
+    expect(logic.planOf(plan(0.9, 6.9), at(7.01))).toMatchObject({ used: null, level: 'none' });
+    expect(logic.planOf({ claudeplan: ok({ repo: 'o/r', run: null, week: null, fiveHour: null, readAt: null, said: 'The plan has not been read yet.' }) }, at(1)))
+      .toMatchObject({ used: null, said: 'The plan has not been read yet.' });
+    expect(logic.planOf({ claudeplan: { state: 'error', alerts: [], error: 'x' } }, at(1))).toMatchObject({ used: null, said: 'Could not read' });
+    expect(logic.planOf({}, at(1))).toMatchObject({ used: null, said: 'Loading…' });
   });
 });
