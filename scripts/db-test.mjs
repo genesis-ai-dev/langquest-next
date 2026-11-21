@@ -56,7 +56,8 @@ const SMOKES = [
   'server/nearbyJoinSmoke.sql',
   'server/surfaceSmoke.sql',
   'server/snapshotPurgeSmoke.sql',
-  'server/cronSmoke.sql'
+  'server/cronSmoke.sql',
+  'server/claudeReadersSmoke.sql'
 ];
 /** Smokes that need something a reset leaves out, set up first: the cron jobs exist only where the Vault secrets do. */
 const PREPARE = {
@@ -65,8 +66,8 @@ const PREPARE = {
     psql(readFileSync(join(root, SCHEDULE_MIGRATION), 'utf8'), true);
   }
 };
-/** Smokes that open sessions of their own (dblink), which needs a superuser. */
-const AS_SUPERUSER = new Set(['server/concurrentAppendSmoke.sql']);
+/** Smokes that open sessions of their own (dblink, or psql's \c as another login), which needs a superuser. */
+const AS_SUPERUSER = new Set(['server/concurrentAppendSmoke.sql', 'server/claudeReadersSmoke.sql']);
 
 function run(cmd, args, input) {
   const r = spawnSync(cmd, args, { cwd: root, input, stdio: [input === undefined ? 'inherit' : 'pipe', 'inherit', 'inherit'] });

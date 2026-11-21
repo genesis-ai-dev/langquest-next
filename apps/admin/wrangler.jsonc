@@ -54,6 +54,9 @@
   // it from DIAG_DATABASE_URL in .env.production, writes its id here, and
   // keeps its login in step; caching is off, so every figure is current.
   // Locally, npm run admin:dev points it at the local database.
+  // The read gate's two logins (src/read.ts, docs/production-reads.md),
+  // READ_CLAUDE and READ_AGENT, join this list when the same command first
+  // makes their configs from CLAUDE_READ_DATABASE_URL and AGENT_READ_DATABASE_URL.
   "hyperdrive": [{ "binding": "DIAG", "id": "b244dbab6e4b47d2a956f3e21ef52ced" }],
   // Optional secrets, set on the Worker by `npm run secrets -- production`:
   // one token per provider, each section saying what it needs until its
@@ -71,6 +74,8 @@
   ],
   // Per address, on the page's API (every call checks a sign-in with Supabase).
   "ratelimits": [
-    { "name": "ADMIN_RATE_LIMIT", "namespace_id": "7005", "simple": { "limit": 120, "period": 60 } }
+    { "name": "ADMIN_RATE_LIMIT", "namespace_id": "7005", "simple": { "limit": 120, "period": 60 } },
+    // The read gate (src/read.ts), per login: claude_reader, agent_reader.
+    { "name": "READ_RATE_LIMIT", "namespace_id": "7009", "simple": { "limit": 60, "period": 60 } }
   ]
 }
