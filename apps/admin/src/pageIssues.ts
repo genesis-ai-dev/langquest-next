@@ -138,6 +138,8 @@ function issueWay(r, prs, notes, fix) {
   if (open) return next({ tab: 'you', pill: 'Waits on you', level: 'you', at: 4, pr: open });
   if (merged) return next({ tab: 'merged', pill: byClaude(merged) ? 'Merged by Claude' : 'Merged', level: 'claude', at: 5, pr: merged, claude: byClaude(merged) });
   if (!prs) return next({ tab: 'open', pill: 'Open', level: '', at: 3, pr: null });
+  // The cause is not proven yet, and Claude carries out its plan to prove it: Claude acts next, not a developer.
+  if (fixFor(fix, null) && fix.decision === 'none' && planGoing(fix)) return next({ tab: 'nofix', pill: 'Claude proves the cause', level: 'claude', at: 3, pr: null });
   // The team looked and changed nothing: a developer decides what happens next.
   if (fixFor(fix, null) && fix.decision === 'none') return next({ tab: 'you', pill: 'Waits on you', level: 'you', at: 3, pr: null });
   return next({ tab: 'nofix', pill: 'No fix yet', level: '', at: 3, pr: null });
@@ -152,10 +154,38 @@ function fixFor(fix, pr) {
   if (!fix) return null;
   return (fix.pr ? !!pr && Number(pr.number) === Number(fix.pr) : !pr) ? fix : null;
 }
+/** After this many plans in a row the watch stops handing an issue back (scripts/agent-team.mjs PLAN_TRIES). */
+const PLAN_TRIES = 10;
+/** The record has a plan to prove the cause that the watch still carries out (docs/agent-team.md "When the cause is not proven yet"). */
+function planGoing(fix) {
+  return !!(fix && fix.plan && fix.plan.next && Number(fix.plan.tries) < PLAN_TRIES);
+}
+/** When Claude goes on with the plan, in the viewer's clock: the time today, else the day and the time. */
+function planWhen(iso, now) {
+  const at = Date.parse(iso);
+  if (!Number.isFinite(at) || at <= (now || Date.now()) + 60000) return 'at the next run of the watch';
+  const d = new Date(at), today = new Date(now || Date.now()).toDateString() === d.toDateString();
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return 'at about ' + (today ? time : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + time);
+}
+/** What Claude does next on an issue whose cause it did not prove yet, and when; or that a developer decides after PLAN_TRIES. */
+function planSaid(plan, now) {
+  if (!plan || !plan.next) return null;
+  const tries = Number(plan.tries) || 1;
+  if (tries >= PLAN_TRIES) return { next: 'Claude tried ' + tries + ' plans and did not prove the cause. A developer decides what happens next.', when: '', steps: plan.steps || '' };
+  return { next: plan.next, when: 'Claude does it ' + planWhen(plan.nextAt, now) + ' · plan ' + tries + ' of ' + PLAN_TRIES, steps: plan.steps || '' };
+}
+/** The plan as a line of the card: "Next:", what Claude does, when, and the whole plan behind one tap. */
+function planLine(plan) {
+  const p = planSaid(plan);
+  if (!p) return '';
+  return '<p class="inext"><b>Next:</b> ' + esc(p.next) + (p.when ? '<br><small class="muted">' + esc(p.when) + '</small>' : '') + '</p>' +
+    (p.steps ? '<details><summary>Claude\'s plan</summary><p>' + esc(p.steps) + '</p></details>' : '');
+}
 /** Why a fix waits for a developer, by the gate's reason (scripts/agent-team.mjs REASONS). */
 const FIX_REASON = {
   mode: 'The agent team asks before each merge', review: 'Claude asks you to read the change', decision: 'Your choice is needed', not_a_bug: 'Claude found no bug',
-  unconfirmed: 'The cause is not proven', cause: 'No test proves the cause', paths: 'The change is in code that always waits', checks: 'A check failed',
+  unconfirmed: 'The cause is not proven yet', cause: 'No test proves the cause', paths: 'The change is in code that always waits', checks: 'A check failed',
   reviewer: 'The reviewer asks you to look', instruction: 'It follows your instruction', app: 'The job could not open a pull request that merges', stalled: 'It did not merge'
 };
 /**
@@ -325,7 +355,7 @@ function fixLine(fix, way) {
   if (!fix) return '';
   const f = fixSaid(fix, way.tab === 'merged' || way.tab === 'closed');
   // The decision leads; Claude's reasons wait behind one tap.
-  return '<div class="ifix"><p><b>' + esc(f.decision[0]) + '</b>' + (f.decision[1] ? ' ' + esc(f.decision[1]) : '') + '</p>' +
+  return '<div class="ifix"><p><b>' + esc(f.decision[0]) + '</b>' + (f.decision[1] ? ' ' + esc(f.decision[1]) : '') + '</p>' + planLine(fix.plan) +
     (f.reasons.length ? '<details><summary>Claude\'s reasons</summary>' + f.reasons.map((x) => '<p><b>' + esc(x[0]) + '.</b> ' + esc(x[1]) + '</p>').join('') + '</details>' : '') +
     '<small class="muted">' + [f.manager ? 'Issue manager: ' + esc(f.manager) : '', when(fix.at), safeLink(fix.runUrl) ? outLink(fix.runUrl, 'The run') : ''].filter(Boolean).join(' · ') + '</small></div>';
 }
@@ -356,10 +386,10 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const source = issueSource(r.keys);
   const pr = way.pr;
   const solution = {
-    you: () => pr ? prLink(pr) + ' waits on its merge.' + (pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : '') : 'Claude wrote no fix. A developer decides what happens next.',
+    you: () => pr ? prLink(pr) + ' waits on its merge.' + (pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : '') + (record && record.plan && planGoing(record) ? '<br><small class="muted">After the merge: ' + esc(record.plan.next) + '</small>' : '') : 'Claude wrote no fix. A developer decides what happens next.',
     claude: () => prLink(pr) + ' merges without a person when its checks pass.' + (pr && pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : ''),
     merged: () => 'Fixed in ' + prLink(pr) + (pr && pr.mergedAt ? ', merged ' + when(pr.mergedAt) : '') + '. Linear says ' + esc(r.state || 'open') + '.',
-    nofix: () => 'No pull request names ' + esc(r.issue) + '. <small class="muted">The page reads open ones, and ones merged in the last 14 days.</small>',
+    nofix: () => planGoing(record) ? 'Claude proves the cause first, then writes the fix. ' + esc(planSaid(record.plan).when) + '.' : 'No pull request names ' + esc(r.issue) + '. <small class="muted">The page reads open ones, and ones merged in the last 14 days.</small>',
     open: () => fixData && fixData.state === 'error' ? '<span class="bad">Could not read the pull requests: ' + esc(fixData.error) + '</span>' : '<span class="muted">Reading the pull requests…</span>',
     closed: () => !r.issue ? (pr && pr.number ? prLink(pr) + ' fixed it before the watch saw it' + (r.fixedAt ? ', ' + when(r.fixedAt) : '') + '.' : 'A change on main fixed it before the watch saw it.')
       : (pr && pr.number ? 'Fixed in ' + prLink(pr) + '. ' : 'No pull request named. ') + 'Closed ' + when(r.closedAt) + '.'

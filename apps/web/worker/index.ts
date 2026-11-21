@@ -12,6 +12,7 @@ import { publishLangQuestTimings } from './timings';
 import { checkImports, runImports } from '../../../server/publisherImport';
 import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
+import { PLAN_TRIES } from '../../../server/userIssues';
 import { ownsResponse, withSecurityHeaders } from './securityHeaders';
 import { liveSessions } from './liveSessions';
 import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, cachedOrgsOf, MAX_ENTRIES, TtlCache, type Identity } from './isolateCache';
@@ -514,7 +515,10 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         // The open issues Claude never tried (docs/agent-team.md). Before its migration is there, none.
         const untried = await serviceClient(env).rpc('ops_user_issue_untried');
         if (untried.error) console.error(`ops_user_issue_untried: ${untried.error.code ?? 'unknown'}`);
-        return { ...data, notes: notes.error ? [] : notes.data, research: research.error ? [] : research.data, untried: untried.error ? [] : untried.data };
+        // The issues whose plan's time has come (docs/agent-team.md "When the cause is not proven yet"). Before its migration is there, none.
+        const due = await serviceClient(env).rpc('ops_user_issue_plans_due', { p_tries: PLAN_TRIES });
+        if (due.error) console.error(`ops_user_issue_plans_due: ${due.error.code ?? 'unknown'}`);
+        return { ...data, notes: notes.error ? [] : notes.data, research: research.error ? [] : research.data, untried: untried.error ? [] : untried.data, due: due.error ? [] : due.data };
       },
       research: async () => {
         const { data, error } = await serviceClient(env).rpc('ops_research_context');
@@ -524,7 +528,10 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       notes: async (issue) => {
         const { data, error } = await serviceClient(env).rpc('ops_user_issue_notes', { p_issue: issue });
         if (error) throw new Error(`ops_user_issue_notes: ${error.message}`);
-        return data;
+        // The manager's last plan, to go on from. Before its migration is there, none.
+        const plan = await serviceClient(env).rpc('ops_user_issue_plan', { p_issue: issue });
+        if (plan.error) console.error(`ops_user_issue_plan: ${plan.error.code ?? 'unknown'}`);
+        return { ...data, plan: plan.error ? null : plan.data ?? null };
       },
       media: async (id) => {
         const { data, error } = await serviceClient(env).rpc('ops_user_issue_media', { p_id: id });
@@ -537,7 +544,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return data;
       },
       looked: async (looked) => {
-        const { notes, fixes, research, report, handed, tried, diagrams, ...rest } = looked;
+        const { notes, fixes, research, report, handed, tried, diagrams, plans, ...rest } = looked;
         const { data, error } = await serviceClient(env).rpc('ops_user_issues_looked', { p: rest });
         if (error) throw new Error(`ops_user_issues_looked: ${error.message}`);
         // The agent team's record of each fix (docs/agent-team.md). Before its migration is there, the run goes on without it.
@@ -546,6 +553,9 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         // Each new issue's diagram for its card. Before its migration is there, the run goes on without it.
         const drawn = diagrams.length ? await serviceClient(env).rpc('ops_user_issue_diagrams_done', { p: { runUrl: looked.runUrl, diagrams } }) : null;
         if (drawn?.error) console.error(`ops_user_issue_diagrams_done: ${drawn.error.code ?? 'unknown'}`);
+        // What the manager does next on each issue whose cause it did not prove yet. Before its migration is there, none.
+        const planned = plans.length ? await serviceClient(env).rpc('ops_user_issue_plans_done', { p: { runUrl: looked.runUrl, plans } }) : null;
+        if (planned?.error) console.error(`ops_user_issue_plans_done: ${planned.error.code ?? 'unknown'}`);
         // What the research team found, its report of the day, and its issues handed to the fix team.
         const found = research.length || handed.length || report ? await serviceClient(env).rpc('ops_research_done', { p: { runUrl: looked.runUrl, research, handed, report } }) : null;
         if (found?.error) throw new Error(`ops_research_done: ${found.error.message}`);

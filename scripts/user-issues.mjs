@@ -48,7 +48,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
 import { oldPathsOf, pathsOf, runUrl } from './tutorial-review.mjs';
-import { decisionLines, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planOf, REPAIR_MAX, saysAskFirst, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
+import { decisionLines, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planNext, planOf, PROBE_TEST, REPAIR_MAX, saysAskFirst, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
 
 /** The steps to the screen of a display fix, as the manager writes them beside fix.json (never part of the change). */
 export const PICTURE_SPEC = 'picture.spec.ts';
@@ -409,7 +409,8 @@ export function checkFix(raw) {
   const summary = cut(text(o.summary), FIX_LIMITS.summary);
   // The manager's verdict and reasoning (scripts/agent-team.mjs verdictOf), addresses out.
   const v = verdictOf(o);
-  const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display, askFirst: v.askFirst };
+  const next = v.next ? { ...v.next, do: redact(v.next.do), steps: redact(v.next.steps) } : null;
+  const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display, askFirst: v.askFirst, next };
   return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), answer: cut(lines(text(o.answer)), FIX_LIMITS.answer), ...team };
 }
 
@@ -451,8 +452,10 @@ export function fixComment(pr, checks, decision = null) {
     : `${decision?.why ? `It waits for a developer. ${decision.why} ` : ''}Review it, then mark it Ready for review on GitHub to run CI and merge it.`;
   return [`**Claude wrote a ${decision?.merge ? 'fix' : 'draft fix'}:** [PR ${pr.number}](${pr.url}).`, '', `${said(checks.typecheck, 'Typecheck')}; ${said(checks.tests, 'tests')}.`, '', next].join('\n');
 }
-export function noFixComment(reason, run) {
-  return [`**Claude looked for a fix and wrote none.** ${reason}`, '', `The watch for user issues: ${run}`].join('\n');
+export function noFixComment(reason, run, next = null, now = Date.now()) {
+  if (!next) return [`**Claude looked for a fix and wrote none.** ${reason}`, '', `The watch for user issues: ${run}`].join('\n');
+  const at = new Date(now + next.inHours * 3_600_000).toISOString().slice(0, 16).replace('T', ' ');
+  return [`**The cause is not proven yet. Claude goes on.** ${reason}`, '', `**Next (at about ${at} UTC):** ${next.do}`, ...(next.steps ? ['', `The plan: ${next.steps}`] : []), '', `The watch for user issues: ${run}`].join('\n');
 }
 export function branchComment(branch, run) {
   return [`**Claude wrote a draft fix**, on the branch \`${branch}\`, but GitHub did not let the workflow open its pull request.`, '', `[Open it](https://github.com/${REPO}/compare/main...${branch}?expand=1) as a draft, or turn on Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests" (\`npm run github:rules -- --apply\`).`, '', `The watch for user issues: ${run}`].join('\n');
@@ -485,6 +488,31 @@ export function fixRecord(issue, { decision, reason = null, why = null, pr = nul
     issue, decision, reason, why: word(why, 600), pr, verdict: fix.verdict ?? null, model: plan.model ?? null, effort: plan.effort ?? null,
     summary: word(fix.summary, 1000), cause: word(fix.cause, 600), proof: word(fix.proof, 400), review: word(vet?.why, 1000), twins: word(fix.twins, 1000)
   };
+}
+
+/** The longest probe output kept: its last lines, where vitest says what passed and what failed (server/userIssues.ts PLAN_TEXT). */
+export const PROBE_MAX = 6000;
+
+/**
+ * What the manager does next on an issue whose cause it did not prove yet, for the Worker (server/userIssues.ts
+ * PlanRecord): `next: null` removes the plan, when the verdict is not `unconfirmed` and names no next step.
+ * `probe` is what the manager's own test printed on main, in the local test world, its last PROBE_MAX characters.
+ */
+export function planRecord(issue, fix, probe = '', reason = null) {
+  // A record that waits because the cause is not proven (also when the manager's job failed) always has a next step.
+  const next = planNext(reason === 'unconfirmed' ? { ...fix, verdict: 'unconfirmed' } : fix);
+  if (!next) return { issue, next: null };
+  const out = String(probe ?? '').replace(new RegExp(ANY_ADDRESS.source, 'g'), '[address]').trim();
+  return { issue, next: next.do, steps: next.steps || null, inHours: next.inHours, probe: out ? out.slice(-PROBE_MAX) : null };
+}
+
+/**
+ * Which issues whose plan's time has come get a run of the fix jobs (docs/agent-team.md "When the cause is
+ * not proven yet"): after the new issues and the instructions, before the research and the issues never
+ * tried, the oldest time first, while FIX_MAX has room.
+ */
+export function dueToTake(due, fixes) {
+  return researchToTake(due, fixes);
 }
 
 export const noteIdsOf = (raw) => (Array.isArray(raw?.ids) ? [...new Set(raw.ids.filter((i) => typeof i === 'string' && NOTE_ID.test(i)))].slice(0, 20) : []);
@@ -1029,6 +1057,10 @@ async function file(dir) {
   const off = modeHere() === 'off' || noToken;
   if (off) console.log(noToken ? 'the agent team has no AGENT_TEAM_CLAUDE_TOKEN: no fix is written, and instructions wait' : 'the agent team is off: no fix is written');
   const noted = off ? { fixes: [], taken: [] } : notesToTake(watch.notes, fixes);
+  // Then the issues whose cause is not proven yet and whose plan's time has come: Claude goes on with its plan.
+  const due = off ? [] : dueToTake(watch.due, noted.fixes);
+  noted.fixes.push(...due);
+  if (due.length) console.log(`${due.join(', ')}: the plan's time came, back to the fix team to prove the cause`);
   // What was done goes back even when some of it failed, so it is not done twice.
   // Last, the issues the research recommends a fix for (docs/agent-team.md "The research team").
   const handed = off ? [] : researchToTake(watch.research, noted.fixes);
@@ -1105,7 +1137,9 @@ async function fixContext(dir, id) {
     // Whether the admin's own words can mean "merge it as it is": read here, where Claude cannot write.
     if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: waiting.map((n) => n.id), draft: before, saysMerge: saysMerge(waiting.map((n) => n.text)), go, askFirst }));
   }
-  writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, ...instructed, ...(go ? { fixIt: { askFirst } } : {}) }, null, 2));
+  // The manager's last plan, when the cause was not proven yet: Claude goes on from it, with what its probe printed.
+  const lastPlan = isObj(notes?.plan) && text(notes.plan.next) ? { next: text(notes.plan.next), steps: text(notes.plan.steps) || null, probe: text(notes.plan.probe) || null, tries: Number(notes.plan.tries) || 1, at: text(notes.plan.at) } : null;
+  writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, ...instructed, ...(lastPlan ? { plan: lastPlan } : {}), ...(go ? { fixIt: { askFirst } } : {}) }, null, 2));
   console.log(`${id}: handed to Claude for a draft fix${waiting.length ? `, with ${plural(waiting.length, 'instruction')} from the ops dashboard${instructed.draft.branch ? ` and its draft fix (${instructed.draft.applied ? 'applied' : 'not applied'})` : ''}` : ''}`);
 }
 
@@ -1168,12 +1202,12 @@ function fixPatch(dir) {
   // This repository is public: a change or fix.json that carries what was sent is not kept.
   const privPath = process.env.FIX_PRIVATE;
   const priv = privPath && existsSync(privPath) ? readJson(privPath) : null;
-  if (priv && leaks([patch, fix.summary, fix.tests, fix.noFix, fix.answer, fix.cause, fix.proof, fix.why, fix.twins].join('\n'), priv)) {
+  if (priv && leaks([patch, fix.summary, fix.tests, fix.noFix, fix.answer, fix.cause, fix.proof, fix.why, fix.twins, fix.next?.do, fix.next?.steps].join('\n'), priv)) {
     fix.noFix = 'Claude\'s change carried part of what was sent (the person\'s words or an id), and this repository is public, so it was not kept.';
     fix.summary = '';
     fix.tests = '';
     fix.answer = '';
-    Object.assign(fix, { verdict: 'review', cause: '', proof: '', why: '', twins: '' });
+    Object.assign(fix, { verdict: 'review', cause: '', proof: '', why: '', twins: '', next: null });
     patch = '';
   }
   // A verdict that means "no change" with a change, or "approved" without the admin's word, is a change a developer reads.
@@ -1188,6 +1222,16 @@ function fixPatch(dir) {
   if (existsSync(specPath) && readFileSync(specPath).length < 20_000) {
     const spec = readFileSync(specPath, 'utf8');
     if (!priv || !leaks(spec, priv)) writeFileSync(join(out, PICTURE_SPEC), spec);
+  }
+  // The manager's own test, which the job `check` runs on main: what it prints goes to the next try. Like the
+  // change, it may carry nothing of what was sent, and it never merges.
+  const probePath = join(dir, PROBE_TEST);
+  if (fix.next?.probeAt && existsSync(probePath) && readFileSync(probePath).length < 30_000) {
+    const probe = readFileSync(probePath, 'utf8');
+    if (!priv || !leaks(probe, priv)) {
+      writeFileSync(join(out, PROBE_TEST), probe);
+      writeFileSync(join(out, 'probe.json'), JSON.stringify({ at: fix.next.probeAt }));
+    }
   }
   // `go` and `askFirst` as fixContext read them before Claude: the gate reads them (gateInput).
   if (noteIds.length || notes?.go === true) writeFileSync(join(out, 'notes.json'), JSON.stringify({ ids: noteIds, changed: changed && Boolean(patch), approved, go: notes?.go === true, askFirst: notes?.askFirst === true }));
@@ -1265,10 +1309,15 @@ async function fixOpen(dir, id) {
   const decision = gate({ mode: modeHere(), ...input, app: Boolean(process.env.PR_TOKEN) });
   const team = { decision, vet: input.vet };
   /** One message to the Worker: the record of the fix, and Claude's answer to the instructions. */
+  // What the manager's probe printed on main (the job `check` ran it), for its next try.
+  const probePath = join(dir, 'check', 'probe.txt');
+  const probe = existsSync(probePath) ? readFileSync(probePath, 'utf8') : '';
   const tell = async ({ record = null, result = null, pr = null, extra = '' }) => {
     const answers = noteIds.length && result ? noteIds.map((n) => ({ id: n, result, answer: noteAnswer(fix, result, extra) || null, pr })) : [];
     if (!record && !answers.length) return;
-    const done = await call('POST', { sha: headSha(), runUrl: run, looked: [], grew: [], states: [], notes: answers, fixes: record ? [record] : [] });
+    // Each record also says what Claude does next when the cause is not proven yet, or removes the old plan.
+    const plans = record ? [planRecord(id, fix, probe, record.reason)] : [];
+    const done = await call('POST', { sha: headSha(), runUrl: run, looked: [], grew: [], states: [], notes: answers, fixes: record ? [record] : [], plans });
     console.log(`${id}: told the Worker${record ? ` the fix ${record.decision === 'merge' ? 'merges without a person' : record.decision === 'waits' ? `waits (${record.reason})` : `has no change (${record.reason})`}` : ''}${answers.length ? `${record ? ' and' : ''} Claude's answer to ${plural(done.answered ?? 0, 'instruction')} (${result})` : ''}`);
   };
   const waits = (pr, d = decision) => fixRecord(id, { decision: 'waits', reason: d.reason ?? 'review', why: d.why, pr }, fix, plan, input.vet, shots);
@@ -1288,9 +1337,10 @@ async function fixOpen(dir, id) {
     // An instruction's answer goes to its card; a new issue's missing fix is said in Linear and on its card.
     if (noteIds.length) await tell({ result: fix.answer || fix.noFix ? 'answered' : 'none', extra: fix.answer && fix.noFix ? '' : reason });
     else {
-      await api.comment(issue.id, noFixComment(reason, run));
+      const waitsFor = input.changes.length ? 'paths' : decision.reason ?? 'unconfirmed';
+      await api.comment(issue.id, noFixComment(reason, run, planNext(waitsFor === 'unconfirmed' ? { ...fix, verdict: 'unconfirmed' } : fix)));
       const why = input.changes.length ? reason : decision.why || reason;
-      await tell({ record: fixRecord(id, { decision: 'none', reason: input.changes.length ? 'paths' : decision.reason ?? 'unconfirmed', why }, fix, plan, input.vet, shots) });
+      await tell({ record: fixRecord(id, { decision: 'none', reason: waitsFor, why }, fix, plan, input.vet, shots) });
     }
     console.log(`${id}: no fix (${reason.slice(0, 200)})`);
     return;
