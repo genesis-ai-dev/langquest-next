@@ -131,7 +131,8 @@ function lineCard(a, group) {
       ['Context', row && row.context ? '<p>' + esc(row.context) + '</p>' : ''],
       // The title says the problem; Claude's words for it come with the Linear issue.
       ['Issue', row && row.problem ? '<p>' + esc(row.problem) + '</p>' : ''],
-      ['Solution', said(row && row.solution, f ? fixHtml(a) : t.next ? esc(t.next) : '')],
+      // A problem with no Linear issue has no fix to show: the note under the panel says why.
+      ['Solution', said(row && row.solution, f && !why ? fixHtml(a) : f && why === 'count' ? fixHtml(a) : !f && t.next ? esc(t.next) : '')],
       ['Claude', shown ? fixLine(shown, { tab: f.state === 'merged' || f.state === 'stuck' ? 'merged' : '' }) : '']
     ],
     pill: way.pill, steps: way.at ? [way.steps, way.at] : null, side

@@ -252,8 +252,9 @@ function issueCard(c) {
     '<header class="ihead"><div class="ihl">' + (c.tags ? '<p class="itags">' + c.tags + '</p>' : '') + '<h4>' + esc(c.title) + '</h4>' + (c.meta ? '<p class="imeta">' + c.meta + '</p>' : '') + '</div>' +
     (c.pill && c.pill[0] ? '<span class="ipill ' + esc(c.pill[1] || '') + '">' + esc(c.pill[0]) + '</span>' : '') + '</header>' +
     (c.steps && c.steps[1] ? '<div class="iprog">' + stepsHtml(c.steps[0], c.steps[1]) + '</div>' : '') +
-    '<div class="igrid"><div class="imain">' + (c.pics ? '<div class="ipics">' + c.pics + '</div>' : '') + '<div class="ibody">' + kv(main) + '</div></div>' +
-    (right ? '<div class="iside">' + right + '</div>' : '') + '</div>' +
+    // With nothing to show at the left, the panel takes the whole width.
+    (c.pics || main.length ? '<div class="igrid"><div class="imain">' + (c.pics ? '<div class="ipics">' + c.pics + '</div>' : '') + '<div class="ibody">' + kv(main) + '</div></div>' +
+      (right ? '<div class="iside">' + right + '</div>' : '') + '</div>' : right ? '<div class="iside">' + right + '</div>' : '') +
     (c.talk ? '<div class="italk"><h5>Talk with Claude</h5>' + c.talk + '</div>' : '') + '</article>';
 }
 const outLink = (href, words, cls) => '<a' + (cls ? ' class="' + cls + '"' : '') + ' href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + words + '</a>';
