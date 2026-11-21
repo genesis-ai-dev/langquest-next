@@ -289,9 +289,10 @@ export interface Looked {
     /**
      * The issue in three lines for its card on the ops dashboard (decisions.md 202, amended 2026-11-18): what the
      * person was doing and where, what goes wrong, and what would fix it or what a person must decide. Claude's
-     * words, never what someone wrote. A look that sends none keeps the lines the kind has.
+     * words, never what someone wrote. A look that sends none keeps the lines the kind has. `known` (2026-11-21):
+     * what the records show and what they do not.
      */
-    context: string | null; problem: string | null; solution: string | null;
+    context: string | null; problem: string | null; known: string | null; solution: string | null;
     /** `fixed` only: the pull request on main that fixed it (when known), and when it merged or its issue closed. */
     fixedBy: number | null; fixedAt: string | null;
   }[];
@@ -434,7 +435,7 @@ function titleOf(o: Obj, where: string): string | null {
 export const LINE_MAX = 300;
 
 /** One of an issue's three lines for its card: at most LINE_MAX characters and never an address. */
-function lineOf(o: Obj, field: 'context' | 'problem' | 'solution', where: string): string | null {
+function lineOf(o: Obj, field: 'context' | 'problem' | 'known' | 'solution', where: string): string | null {
   const v = o[field];
   if (absent(v) || v === '') return null;
   if (typeof v !== 'string' || v.length > LINE_MAX || EMAIL.test(v)) throw new LookedError(`${where}.${field}: at most ${LINE_MAX} characters, no address`);
@@ -548,7 +549,7 @@ export function parseLooked(input: unknown): Looked {
     }
     return {
       key: k, verdict: verdict as Verdict, issue: issue as string | null, issueUrl: issueUrl as string | null, people: count(l, 'people', where), count: count(l, 'count', where),
-      note: note as string | null, title, context: lineOf(l, 'context', where), problem: lineOf(l, 'problem', where), solution: lineOf(l, 'solution', where), fixedBy, fixedAt
+      note: note as string | null, title, context: lineOf(l, 'context', where), problem: lineOf(l, 'problem', where), known: lineOf(l, 'known', where), solution: lineOf(l, 'solution', where), fixedBy, fixedAt
     };
   });
   const grew = list(input, 'grew', LOOKED_MAX.grew).map((g, n) => {
