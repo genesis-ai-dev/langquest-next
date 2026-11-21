@@ -56,3 +56,11 @@ reply needed).
 Reverse if: admins post replies often enough that the copy step is in the
 way and Google has granted the quota (then post through the channel, with a
 new decision), or the tabs hide something people need at first sight.
+
+Amended (2026-11-21, Caleb Koster): a paused language whose connected
+channel has no video at all now has its own card under Waits on you
+("Tagalog: 0 videos on YouTube", kind `empty`), and its chip under Each
+language counts it. Before, Tagalog was one name in the grey paused line,
+the same as the twelve paused languages whose older videos are on YouTube,
+and Caleb could not find why its channel was empty. The page also calls
+`tl` Tagalog, the app's name, where the browser said Filipino.

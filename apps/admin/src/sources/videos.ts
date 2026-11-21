@@ -120,7 +120,7 @@ export interface VideoRow {
 }
 
 export interface AdminItem {
-  kind: 'approve' | 'fixFailed' | 'held' | 'fails' | 'reply' | 'comment' | 'screen' | 'publish' | 'connect' | 'paused';
+  kind: 'approve' | 'fixFailed' | 'held' | 'fails' | 'reply' | 'comment' | 'screen' | 'publish' | 'connect' | 'empty' | 'paused';
   /** The problem, in a line. */
   title: string;
   /** What is wrong, as found. */
@@ -191,6 +191,9 @@ export interface Videos {
 // ---- how ----------------------------------------------------------------------------------------
 
 const REPO = 'https://github.com/genesis-ai-dev/langquest-next';
+/** The English name the dashboard gives a language where it is said in a sentence; Intl calls tl Filipino, the team says Tagalog. */
+const LANGUAGE_NAMES: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portuguese', fr: 'French', ar: 'Arabic', sw: 'Swahili', ha: 'Hausa', am: 'Amharic',
+  hi: 'Hindi', bn: 'Bangla', ne: 'Nepali', id: 'Indonesian', th: 'Thai', my: 'Burmese', 'zh-Hans': 'Simplified Chinese', tl: 'Tagalog' };
 const pr = (n: number) => `${REPO}/pull/${n}`;
 /** The timeline goes back this far. */
 export const TIMELINE_DAYS = 60;
@@ -461,6 +464,16 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
     if (needs) admin.push({ kind: 'connect', title: `The ${c.language} channel is ${c.connectedAt ? 'refused by YouTube' : 'not connected'}`, detail: 'LangQuest cannot put films up there.', at: null, who: 'you', language: c.language, link: '#tutorials',
       next: 'Press Connect under Channels and videos, and sign in with the account that owns the channel.' });
   }
+  // A paused language with no video on YouTube at all (Tagalog, added after filming went to English only) is not
+  // like a paused language whose older videos are up: its connected channel is empty, so it waits on the admin.
+  for (const l of languages) {
+    const channel = (tutorials?.channels ?? []).find((c) => c.language === l && c.connectedAt);
+    if (isNightly(l) || !films || !channel || films.some((f) => f.language === l && f.youtubeId)) continue;
+    const count = videosIn(l).length;
+    admin.push({ kind: 'empty', title: `${LANGUAGE_NAMES[l] ?? l}: 0 videos on YouTube`, detail: `${LANGUAGE_NAMES[l] ?? l} is not filmed each night, and it has never been filmed. Its YouTube channel has no videos.`, at: null, who: 'you', language: l,
+      link: `${REPO}/blob/main/.github/workflows/tutorials.yml`,
+      next: `To film it, add ${l} to NIGHTLY_LANGUAGES in tutorials.yml (a pull request). The first night films ${count ? `its ${count} videos` : 'every video'}. Until then the channel stays empty.` });
+  }
   const paused = languages.filter((l) => !isNightly(l));
   if (paused.length) admin.push({ kind: 'paused', title: `${paused.length} ${paused.length === 1 ? 'language is' : 'languages are'} paused`, detail: `Not filmed each night: ${paused.join(', ')}.`, at: null, who: 'you', link: `${REPO}/blob/main/.github/workflows/tutorials.yml`,
     next: 'Their videos stay as they are. To turn one on, add it to NIGHTLY_LANGUAGES in tutorials.yml (a pull request).' });
@@ -485,7 +498,7 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
   }
   // A problem whose instruction became a fix that failed is said by that fix's own card.
   for (let k = admin.length - 1; k >= 0; k--) if (admin[k]!.instructed?.fix?.state === 'failed') admin.splice(k, 1);
-  const ADMIN_ORDER: AdminItem['kind'][] = ['fails', 'held', 'fixFailed', 'approve', 'reply', 'comment', 'screen', 'connect', 'publish', 'paused'];
+  const ADMIN_ORDER: AdminItem['kind'][] = ['fails', 'held', 'fixFailed', 'approve', 'reply', 'comment', 'screen', 'connect', 'empty', 'publish', 'paused'];
   admin.sort((a, b) => Number(a.who !== 'you') - Number(b.who !== 'you') || ADMIN_ORDER.indexOf(a.kind) - ADMIN_ORDER.indexOf(b.kind) || (b.at ?? '').localeCompare(a.at ?? ''));
   worker.sort((a, b) => Number(a.when !== 'now') - Number(b.when !== 'now'));
 
@@ -499,7 +512,8 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
   ];
   return {
     languages: languages.map((l) => ({ language: l, nightly: isNightly(l), statusAt: status[l]?.at ?? null,
-      issues: new Set(admin.filter((a) => a.language === l && a.tutorial && a.who === 'you').map((a) => a.tutorial)).size })),
+      issues: new Set(admin.filter((a) => a.language === l && a.tutorial && a.who === 'you').map((a) => a.tutorial)).size
+        + admin.filter((a) => a.language === l && !a.tutorial && a.who === 'you').length })),
     videos, admin, worker, changes, missing
   };
 }

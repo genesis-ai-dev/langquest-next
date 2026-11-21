@@ -184,6 +184,19 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13 and 2026-11-
     expect(b.admin.find((a) => a.kind === 'paused')!.title).toBe('15 languages are paused');
   });
 
+  it('says a paused language whose connected channel has no video, and counts it on the language', () => {
+    const channel = (language: string) => ({ channelId: 'UC' + language, language, title: language, connectedAt: at(400), section: 'made' });
+    const b = videoBoard(input({ films: [film(), film({ language: 'fr' })], tutorials: { channels: [channel('en'), channel('fr'), channel('tl')], waiting: [] } }), NOW);
+    const empty = b.admin.filter((a) => a.kind === 'empty');
+    // French has a video up, and Portuguese has no connected channel here: only Tagalog's channel is empty.
+    expect(empty.map((a) => a.language)).toEqual(['tl']);
+    expect(empty[0]).toMatchObject({ title: 'Tagalog: 0 videos on YouTube', who: 'you' });
+    expect(b.languages.find((l) => l.language === 'tl')).toMatchObject({ nightly: false, issues: 1 });
+    expect(b.languages.find((l) => l.language === 'fr')).toMatchObject({ nightly: false, issues: 0 });
+    // Filmed each night, it waits on the night, not on the admin.
+    expect(videoBoard(input({ tutorials: { channels: [channel('tl')], waiting: [] }, nightly: ['en', 'tl'] }), NOW).admin.filter((a) => a.kind === 'empty')).toEqual([]);
+  });
+
   it('counts in each language the videos that need a person, not the pause', () => {
     const b = videoBoard(input({ films: [film(), film({ language: 'fr' })], feedback: feedback({ suggestions: [suggestion()] }) }), NOW);
     expect(b.languages.find((l) => l.language === 'en')).toMatchObject({ nightly: true, issues: 1 });

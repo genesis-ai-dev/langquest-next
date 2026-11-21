@@ -106,7 +106,8 @@ const share = (a, b) => b ? ((a / b) * 100).toFixed(1) + '%' : '–';
 const hours = (msv) => msv === null || msv === undefined ? '–' : ms(Number(msv));
 const ageOf = (iso) => iso ? ago(iso) : '–';
 /** An app language's name in English ('zh-Hans', Simplified Chinese), from the browser. */
-const languageName = (code) => { try { return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) || code; } catch { return code; } };
+// Intl names tl Filipino; the team and the app call it Tagalog.
+const languageName = (code) => { if (code === 'tl') return 'Tagalog'; try { return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) || code; } catch { return code; } };
 
 Object.assign(RENDER, {
   safety(d) {
@@ -591,7 +592,7 @@ let VIDEOS = null;
 // The timeline shows 60 days; its zoom is how wide a day is. A pinch on a touchpad (or Ctrl and the scroll wheel) zooms it; it opens at the last 14 days.
 let videoLanguage = 'en', dayWidth = 0, shownMarks = [], onlyMine = false, openCards = null;
 const TIMELINE_DAYS = 60;
-const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', approve: 'warn', reply: 'warn', connect: 'warn', publish: 'warn', paused: '' };
+const ADMIN_LEVEL = { fails: 'bad', held: 'bad', fixFailed: 'bad', approve: 'warn', reply: 'warn', connect: 'warn', empty: 'warn', publish: 'warn', paused: '' };
 const cardLink = (x) => x.link ? '<a href="' + esc(x.link) + '"' + (x.link.startsWith('#') ? '' : ' target="_blank" rel="noopener noreferrer"') + '>' + esc(ADMIN_LINKS[x.kind] || WORKER_LINKS[x.kind] || 'Open') + '</a>' : '';
 const FIX_STATE = { working: 'Claude writes the change now.', open: 'Claude\'s pull request merges itself when its checks pass.', merged: 'The change is merged. The next night films the video again.', closed: 'The pull request was closed without a merge.', failed: 'Claude could not make the change.', unneeded: 'No change was needed: the video already does this.' };
 // The record of changes Claude made (sources/videos.ts ChangeItem).
@@ -687,7 +688,7 @@ document.addEventListener('click', (e) => {
     language: a.language || 'en', inputs: (a.inputIds || []).slice(0, 20) }, b);
 });
 const WORKER_LINKS = { filming: 'Open the filming run', fixing: 'Open the run', merging: 'Open the PR' };
-const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', paused: 'Open tutorials.yml' };
+const ADMIN_LINKS = { fails: 'Open the filming log', held: 'Open the filming log', fixFailed: 'See what happened', reply: 'Reply on YouTube', comment: 'Open the comment', screen: 'See what changed', publish: 'Go to Publish', connect: 'Go to the channels', empty: 'Open tutorials.yml', paused: 'Open tutorials.yml' };
 const timelineStart = () => { const end = new Date(); end.setUTCHours(0, 0, 0, 0); return end.getTime() - (TIMELINE_DAYS - 1) * 86400000; };
 /** Each timeline's width from the zoom; when a day is wide enough, each mark sits at its time of day. */
 let timelineLeft = null, timelineSet = null;
