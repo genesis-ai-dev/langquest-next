@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('cloudflare:workers', () => ({ WorkerEntrypoint: class {} }));
-const { act, parseAction, PUBLISH_MAX } = await import('../worker/opsActions');
+const { act, instructIssue, parseAction, PUBLISH_MAX } = await import('../worker/opsActions');
 const { CHANNELS, signState } = await import('../../../server/youtube');
 type Deps = Parameters<typeof act>[0];
 
@@ -284,6 +284,30 @@ describe('an instruction on a user issue (docs/decisions/2026-11-18-an-admin-tel
     const aal1 = deps();
     expect(await act(aal1, 'aal1', { kind: 'user-issue-note', issue: 'LAN-284', text: 'Fix it.' })).toMatchObject({ ok: false, status: 403 });
     expect(aal1.done).toEqual([]);
+  });
+
+  it('says why it refused, with the issue', async () => {
+    expect(await act(deps(), 'aal2', { kind: 'user-issue-note', issue: 'LAN-1', text: 'Fix it.' })).toEqual({
+      ok: false, status: 404, error: 'Claude cannot take an instruction on LAN-1. The watch did not file this issue, and no line on this page names it now.'
+    });
+  });
+
+  it('keeps an instruction on an issue a line names itself (a nightly test\'s), only when the dashboard names it now', async () => {
+    const calls: unknown[] = [];
+    const rpc = async (args: { p_issue: string; p_named?: true }) => { calls.push(args); return args.p_issue === 'LAN-12' || args.p_named ? 'id-1' : 'not_found'; };
+    // The watch's own issue: one call, the dashboard is not asked.
+    let asked = 0;
+    const named = async () => { asked++; return ['LAN-278']; };
+    expect(await instructIssue('LAN-12', 'Fix it.', VIEWER, rpc, named)).toBe('id-1');
+    expect(asked).toBe(0);
+    // A nightly test's issue on the page now: kept, as named.
+    expect(await instructIssue('LAN-278', 'Find the cause.', VIEWER, rpc, named)).toBe('id-1');
+    expect(calls.at(-1)).toEqual({ p_issue: 'LAN-278', p_text: 'Find the cause.', p_by: VIEWER, p_named: true });
+    // Neither: refused, and never kept as named.
+    expect(await instructIssue('LAN-5', 'Fix it.', VIEWER, rpc, named)).toBe('not_found');
+    expect(calls.at(-1)).toEqual({ p_issue: 'LAN-5', p_text: 'Fix it.', p_by: VIEWER });
+    // A dashboard that answers something else names nothing.
+    expect(await instructIssue('LAN-278', 'x', VIEWER, rpc, async () => 'LAN-278')).toBe('not_found');
   });
 });
 

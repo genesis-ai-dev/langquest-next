@@ -87,6 +87,7 @@ label { display:block; font-weight:600; margin: 14px 0 6px; }
 input[type=email], input[type=password], input[type=search], input[type=text], textarea, select { width:100%; min-height:44px; padding: 8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
 .notice { padding: 12px 14px; border-radius: 10px; background: var(--bg); margin: 12px 0; }
 .notice.red { color: var(--red); background: var(--redbg); }
+.notice.here { grid-column: 1 / -1; margin: 6px 0 0; padding: 10px 12px; font-size: 13.5px; } .notice.here.good { color: var(--green); background: var(--greenbg); }
 .setup { white-space: pre-line; }
 pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padding: 10px; border-radius: 10px; font-size: 12px; max-height: 360px; overflow: auto; margin: 8px 0; }
 .fb { border-top: 1px solid var(--line); padding: 10px 0; } .fb:first-child { border-top: 0; }

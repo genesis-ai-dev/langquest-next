@@ -4,12 +4,13 @@ import { CARD_LOGIC } from '../src/pageCards';
 
 type Row = Record<string, unknown>;
 interface Way { pill: [string, string]; at: number; steps: [string, string][] }
-const logic = new Function(`${CARD_LOGIC}; return { lineCardId, cardHref, viewOf, lineWay, noBoxSaid, LINE_STEPS };`)() as {
+const logic = new Function(`${CARD_LOGIC}; return { lineCardId, cardHref, viewOf, lineWay, noBoxSaid, nextSaid, LINE_STEPS };`)() as {
   lineCardId: (a: Row) => string;
   cardHref: (group: string, id: string) => string;
   viewOf: (hash: string, sections: { id: string }[]) => { name: string; id?: string; card?: string };
   lineWay: (f: Row, byClaude: boolean, asked: boolean) => Way;
   noBoxSaid: (state: string, read: boolean) => string;
+  nextSaid: (state: string, own: boolean, asked: boolean) => string;
   LINE_STEPS: [string, string][];
 };
 const SECTIONS = [{ id: 'jobs' }, { id: 'userissues' }];
@@ -54,6 +55,15 @@ describe('each Overview line opens its card', () => {
     expect(logic.noBoxSaid('person', true)).toContain('You do this one yourself');
     expect(logic.noBoxSaid('none', false)).toBe('Reading the user issues…');
     expect(logic.noBoxSaid('issue', true)).toBe('');
+  });
+
+  it('says who acts next on a nightly test\'s issue, which no agent fixes on its own', () => {
+    expect(logic.nextSaid('stuck', true, false)).toContain('No agent works on it now. To get a fix, tell Claude what to do below.');
+    expect(logic.nextSaid('issue', true, false)).toContain('No agent writes a fix for it on its own.');
+    expect(logic.nextSaid('stuck', false, false)).toContain('tell Claude what to do below');
+    expect(logic.nextSaid('stuck', true, true)).toContain('Claude has your instruction.');
+    expect(logic.nextSaid('open', false, false)).toBe('');
+    expect(logic.nextSaid('issue', false, false)).toBe('');
   });
 
   it('draws the lines as cards at their part, and the Overview\'s rows link to them', async () => {

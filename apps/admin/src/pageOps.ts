@@ -476,11 +476,30 @@ const PUBLISHED = {
   started: 'Going up on YouTube now, 100 a day.', running: 'A run is going; it takes them too, or the next daily run does.',
   disabled: 'Chosen, but publishing is off here (no YouTube client).'
 };
+/**
+ * A button's answer also next to the button: the page's notice is at the top of the page, often out
+ * of view when the button is far down (the box to tell Claude what to do on a card).
+ */
+function sayAt(button, text, tone) {
+  if (!button || !button.isConnected) return;
+  const box = button.closest('.tell');
+  let p = box ? box.querySelector(':scope > .here') : button.nextElementSibling && button.nextElementSibling.classList.contains('here') ? button.nextElementSibling : null;
+  if (!p) {
+    p = document.createElement('p');
+    p.setAttribute('role', tone === 'red' ? 'alert' : 'status');
+    if (box) box.appendChild(p); else button.insertAdjacentElement('afterend', p);
+  }
+  p.className = 'here notice ' + (tone || 'good');
+  p.textContent = text;
+}
 async function perform(action, button) {
-  if (button) button.disabled = true;
+  const label = button ? button.textContent : '';
+  if (button) { button.disabled = true; if (action.kind === 'user-issue-note') button.textContent = 'Sending…'; }
+  const answer = (text, tone) => { say(text, tone); sayAt(button, text, tone); };
   try {
     const body = await post(action);
-    say(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.')
+    if (button && action.kind === 'user-issue-note') { button.textContent = 'Sent'; const t = button.closest('.tell') && button.closest('.tell').querySelector('textarea'); if (t) t.value = ''; }
+    answer(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.')
       : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
       : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
       : action.kind === 'tutorial-note' ? (body.result === 'instructed' ? 'Sent. Claude starts the fix at its next fix run (:20 and :50 each hour).' : 'Sent. Claude reads it at its next look (10:00 UTC).')
@@ -490,7 +509,10 @@ async function perform(action, button) {
       : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
       : 'Feedback marked ' + body.result + '.');
     load(false);
-  } catch (err) { if (err.message !== 'Signed out') say(err.message, 'red'); if (button) button.disabled = false; }
+  } catch (err) {
+    if (err.message !== 'Signed out') answer(err.message, 'red');
+    if (button) { button.disabled = false; button.textContent = label; }
+  }
 }
 
 // ---- tutorial videos (decisions.md 180): Connect goes to Google and back; Publish chooses what goes up ----

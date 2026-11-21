@@ -253,7 +253,7 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       await deps.record({ profileId: who.profileId, action: name, target, result: kept ? 'ok' : 'refused', detail: kept ? `note:${answer}` : answer });
       return kept ? { ok: true, result: 'instructed' }
         : answer === 'full' ? { ok: false, status: 400, error: 'Three instructions on that issue wait for Claude already. Wait for its answer.' }
-          : { ok: false, status: 404, error: 'The watch has no open issue with that id.' };
+          : { ok: false, status: 404, error: `Claude cannot take an instruction on ${action.issue}. The watch did not file this issue, and no line on this page names it now.` };
     }
     if (action.kind === 'tutorial-suggestion') return await answerSuggestion(deps, who.profileId, action, name, target);
     if (action.kind === 'tutorial-reply') {
@@ -331,6 +331,22 @@ async function youtubeConnect(deps: ActionDeps, yt: YouTube, profileId: string, 
   return { ok: true, result: language };
 }
 
+/**
+ * An admin's instruction on a Linear issue (`ops_user_issue_instruct`). The watch's issues and the
+ * research's are known to the database. An issue a line of the dashboard names itself (a nightly
+ * test's) is not: only the dashboard's Worker knows its lines (apps/admin/src/lines.ts `named`), so
+ * it is asked after a not_found, and the instruction is kept with p_named. Before that Worker has
+ * `named`, the answer stays not_found.
+ */
+export async function instructIssue(issue: string, text: string, by: string,
+  rpc: (args: { p_issue: string; p_text: string; p_by: string; p_named?: true }) => Promise<string>,
+  named: () => Promise<unknown>): Promise<string> {
+  const answer = await rpc({ p_issue: issue, p_text: text, p_by: by });
+  if (answer !== 'not_found') return answer;
+  const ids = await named();
+  return Array.isArray(ids) && ids.includes(issue) ? await rpc({ p_issue: issue, p_text: text, p_by: by, p_named: true }) : answer;
+}
+
 /** The service-role wiring of `act`, for the entrypoint. */
 export function actionDeps(env: Env): ActionDeps {
   const db = () => serviceClient(env);
@@ -397,11 +413,14 @@ export function actionDeps(env: Env): ActionDeps {
       if (error) throw new Error(`ops_tutorial_instruct: ${error.message}`);
       return String(data);
     },
-    instructIssue: async (issue, text, by) => {
-      const { data, error } = await db().rpc('ops_user_issue_instruct', { p_issue: issue, p_text: text, p_by: by });
+    instructIssue: async (issue, text, by) => await instructIssue(issue, text, by, async (args) => {
+      const { data, error } = await db().rpc('ops_user_issue_instruct', args);
       if (error) throw new Error(`ops_user_issue_instruct: ${error.message}`);
       return String(data);
-    },
+    }, async () => await Promise.resolve().then(() => env.OPS_LINES?.named?.() ?? []).catch((e: unknown) => {
+      console.error(`ops named issues: ${e instanceof Error ? e.name : 'unknown'}`);
+      return [];
+    })),
     decideSuggestion: async (id, decision, detail, reason, by) => {
       const { data, error } = await db().rpc('ops_suggestion_decide', { p_id: id, p_decision: decision, p_detail: detail, p_reason: reason, p_by: by });
       if (error) throw new Error(`ops_suggestion_decide: ${error.message}`);

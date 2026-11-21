@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
 import { describe, expect, it, vi } from 'vitest';
-import { alertId, intervalMinutes, KINDS, watchKeyOf, watchLines, WATCH_LINES_MAX, WORKFLOW_RECHECK, type AlertKind } from '../src/alertKinds';
+import { alertId, intervalMinutes, KINDS, lineIssues, watchKeyOf, watchLines, WATCH_LINES_MAX, WORKFLOW_RECHECK, type AlertKind } from '../src/alertKinds';
 import { page } from '../src/page';
 import { FIX_LOGIC } from '../src/pageFixes';
 import { GROUPS } from '../src/pageOps';
@@ -193,6 +193,11 @@ describe('the lines the watch hands to Claude', () => {
       { key: 'ops:db-disk-full', level: 'problem', text: 'db-disk-full happened.', title: KINDS['db-disk-full'].title, part: 'storage' }
     ]);
     expect(watchLines(Array.from({ length: 80 }, (_, i) => item('r2-missing', { watchKey: `ops:r2-missing:${i}` })))).toHaveLength(WATCH_LINES_MAX);
+  });
+
+  it('names the Linear issues the lines name themselves, each once, for an instruction on one', () => {
+    expect(lineIssues([item('nightly-broke', { issues: ['LAN-278'] }), item('nightly-failed', { issues: ['LAN-278', 'LAN-285', 'lan-1', 'LAN-2; x'] }), item('r2-missing')]))
+      .toEqual(['LAN-278', 'LAN-285']);
   });
 
   it('gives each kind a part the page shows', () => {

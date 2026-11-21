@@ -301,12 +301,17 @@ end $$;
 -- at most twice, answered once, and shown on the ops dashboard without who wrote it.
 do $$
 declare
-  v jsonb; n jsonb; a text; b text;
+  v jsonb; n jsonb; a text; b text; c text;
   run text := 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/140';
   admin uuid := '0d000000-0000-0000-0000-0000000000aa';
 begin
   assert public.ops_user_issue_instruct('LAN-300', 'Fix it.', admin) = 'not_found', 'not on a closed issue';
   assert public.ops_user_issue_instruct('LAN-999', 'Fix it.', admin) = 'not_found', 'nor on one the watch does not have';
+  -- An issue a line of the dashboard names itself (a nightly test's): the app Worker says so.
+  c := public.ops_user_issue_instruct('LAN-998', 'Find the cause.', admin, true);
+  assert (select named from ops.user_issue_notes where id = c::uuid), 'kept as named';
+  assert public.ops_user_issue_notes_waiting()->0->>'issue' = 'LAN-998', 'the watch takes it';
+  delete from ops.user_issue_notes where id = c::uuid;
   a := public.ops_user_issue_instruct('LAN-12', '  Wait for the passage first.  ', admin);
   b := public.ops_user_issue_instruct('LAN-12', 'Why 30 seconds?', admin);
   assert a ~ '^[0-9a-f-]{36}$' and b ~ '^[0-9a-f-]{36}$', 'kept, with an id';
@@ -366,7 +371,7 @@ begin
   update ops.user_issue_notes set taken_at = now() - interval '4 hours' where id = b::uuid;
   assert diag.ops_user_issue_notes()->'LAN-12'->1->>'state' = 'stopped', 'two runs took it and neither answered';
 
-  assert not has_function_privilege('authenticated', 'public.ops_user_issue_instruct(text, text, uuid)', 'execute')
+  assert not has_function_privilege('authenticated', 'public.ops_user_issue_instruct(text, text, uuid, boolean)', 'execute')
     and not has_function_privilege('anon', 'public.ops_user_issue_notes(text)', 'execute')
     and not has_function_privilege('authenticated', 'public.ops_user_issue_notes_done(jsonb)', 'execute')
     and not has_function_privilege('anon', 'public.ops_user_issue_notes_waiting()', 'execute'), 'only the service role';

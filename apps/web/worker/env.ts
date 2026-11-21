@@ -17,7 +17,7 @@ export interface Env {
    * dashboard's lines that need a Linear issue, which the watch for user
    * issues hands to Claude (userIssues.ts). Production only, as OPS.
    */
-  OPS_LINES?: { lines(): Promise<{ key: string; level: string; text: string; title: string; part: string; link?: string }[]> };
+  OPS_LINES?: { lines(): Promise<{ key: string; level: string; text: string; title: string; part: string; link?: string }[]>; named?(): Promise<string[]> };
   /** Recordings and guide media (blobs.ts, decisions.md 69). */
   BLOBS: R2Bucket;
   /**

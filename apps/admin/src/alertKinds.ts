@@ -228,6 +228,20 @@ export function intervalMinutes(every: string | null | undefined): number | null
   return min > 0 ? min : null;
 }
 
+/** A Linear issue's id, as ops.user_issue_notes keeps it. */
+const ISSUE_ID = /^[A-Z]{1,10}-[0-9]{1,7}$/;
+
+/**
+ * The Linear issues the lines name themselves (a nightly test's), each once:
+ * the watch did not file them, so an admin's instruction on one needs the
+ * page to say that a line names it now (ops_user_issue_instruct's p_named).
+ */
+export function lineIssues(items: readonly { issues?: readonly string[] }[]): string[] {
+  const out = new Set<string>();
+  for (const i of items) for (const id of i.issues ?? []) if (ISSUE_ID.test(id)) out.add(id);
+  return [...out].slice(0, 200);
+}
+
 /** A line as the watch for user issues takes it (ops_user_issue_watch's p_lines). */
 export interface WatchLine { key: string; level: string; text: string; title: string; part: string; link?: string }
 
