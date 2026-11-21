@@ -84,7 +84,7 @@ describe('the Overview, what needs you first', () => {
       { id: 'ios', stages: [{ id: 'waiting', title: 'TestFlight', cards: [{ title: '52' }] }, { id: 'review', title: 'App Review', cards: [{ title: '53', at: '2026-11-16T00:00:00Z', state: 'in review' }] }] },
       { id: 'android', stages: [{ id: 'review', title: 'Play review', cards: [] }] }
     ] };
-    expect(logic.storeWaits(pipeline)).toEqual([{ lane: 'iPhone', title: '53', stage: 'App Review', at: '2026-11-16T00:00:00Z', state: 'in review' }]);
+    expect(logic.storeWaits(pipeline)).toEqual([{ lane: 'iPhone', laneId: 'ios', title: '53', stage: 'App Review', at: '2026-11-16T00:00:00Z', state: 'in review' }]);
     expect(logic.storeWaits(null)).toEqual([]);
     const issues = [{ issue: 'LAN-1', verdict: 'filed', closedAt: null, fixedAt: null }, { issue: 'LAN-2', verdict: 'filed', closedAt: '2026-11-01', fixedAt: null },
       { issue: null, verdict: 'fixed', closedAt: null, fixedAt: '2026-11-01' }, { issue: 'LAN-3', verdict: 'known', closedAt: null, fixedAt: null }];

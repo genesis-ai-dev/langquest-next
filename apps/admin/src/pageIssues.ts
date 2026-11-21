@@ -18,68 +18,80 @@ export const ISSUE_CSS = String.raw`
 .itabs .count { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--line); color: var(--ink); font-variant-numeric: tabular-nums; }
 .itabs button[aria-pressed="true"] .count { background: var(--ink); color: var(--card); }
 .icards { container-type: inline-size; }
-.icard { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px 24px; align-items: start; padding: 16px 18px; margin: 10px 0; background: var(--raised); border: 1px solid var(--line); border-radius: 14px; }
-.icard.pics { grid-template-columns: minmax(200px, 300px) minmax(0, 1fr) 280px; }
+.icard { display: grid; gap: 16px; padding: 20px 22px; margin: 14px 0; background: var(--raised); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 1px 2px rgb(0 0 0 / .04), 0 4px 16px rgb(0 0 0 / .03); }
 .icard[hidden] { display: none; }
+.ihead { display: flex; gap: 12px 20px; align-items: flex-start; justify-content: space-between; }
+.ihl { min-width: 0; }
+.iprog { padding: 12px 14px 10px; background: var(--bg); border-radius: 12px; }
+.igrid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px 28px; align-items: start; }
+.imain { min-width: 0; display: grid; gap: 14px; align-content: start; }
+.italk { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 10px; }
+.italk > h5, .iside > h5 { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
 .ipics { min-width: 0; } .ipics .vpics { margin: 0; } .ipics .vpic, .ipics .vpic.zoom { max-width: 100%; }
 .ipics > p { margin: 0 0 6px; } .ipics > img { display: block; max-width: 100%; margin: 0 0 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
-.idiagram { list-style: none; margin: 0 0 10px; padding: 0; }
-.idiagram li { position: relative; margin: 0 0 22px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 13px; line-height: 1.35; }
-.idiagram li:last-child { margin-bottom: 0; }
-.idiagram li:not(:last-child)::after { content: "↓"; position: absolute; left: 50%; bottom: -21px; transform: translateX(-50%); color: var(--muted); font-size: 15px; line-height: 20px; }
-.idiagram li b { display: block; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
+.idiagram { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 26px; }
+.idiagram li { position: relative; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); font-size: 13px; line-height: 1.4; }
+.idiagram li:not(:last-child)::after { content: "→"; position: absolute; right: -21px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; line-height: 20px; }
+.idiagram li b { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 3px; }
 .idiagram li.wrong { border: 2px solid var(--red); background: var(--redbg); } .idiagram li.wrong b { color: var(--red); }
 .ipics figure { margin: 0 0 10px; } .ipics figcaption { font-size: 12px; font-weight: 600; color: var(--ink2); margin: 0 0 4px; }
 .ipics figure img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); min-height: 60px; }
 .iresearch { margin-top: 28px; } .iresearch h3 { margin: 0 0 4px; }
-.ifix p { margin: 0 0 6px; } .ifix b { font-weight: 600; }
+.ifix p { margin: 0 0 6px; } .ifix b { font-weight: 600; } .ifix details { margin-top: 2px; } .ifix details[open] > summary { margin-bottom: 4px; }
 .ifixpics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 10px; }
 .ifixpics figure { margin: 0; min-width: 0; } .ifixpics figcaption { font-size: 12px; font-weight: 600; color: var(--ink2); margin: 0 0 4px; }
 .ifixpics img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); min-height: 60px; }
 .ibody { min-width: 0; }
-.itags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+.itags { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 0 0 6px; font-size: 12px; color: var(--muted); }
 .itags .tag { margin: 0; background: var(--soft); color: var(--ink2); } .itags .tag.bad { color: var(--red); background: var(--redbg); }
 .itags a.lin { font-weight: 600; color: var(--ink); text-decoration: none; letter-spacing: .02em; } .itags a.lin:hover, .itags a.lin:focus-visible { color: var(--primary); text-decoration: underline; }
 .icard a.pr, dl.kv a { color: var(--primary); font-weight: 600; }
-dl.kv dd > small { display: block; font-size: 12px; line-height: 1.4; }
-.icard h4 { font-size: 16px; line-height: 1.3; margin: 0 0 4px; overflow-wrap: anywhere; }
-.imeta { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
-dl.kv { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 8px 12px; margin: 10px 0 0; font-size: 13.5px; line-height: 1.45; }
-dl.kv dt { font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+dl.kv dd > small { display: block; font-size: 12.5px; line-height: 1.45; margin-top: 2px; }
+.icard h4 { font-size: 18px; font-weight: 600; line-height: 1.3; margin: 0; overflow-wrap: anywhere; letter-spacing: -.005em; }
+.imeta { font-size: 13px; color: var(--muted); margin: 4px 0 0; }
+dl.kv { display: grid; gap: 14px; margin: 0; font-size: 14px; line-height: 1.5; }
+dl.kv > div { min-width: 0; }
+dl.kv dt { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0 0 3px; }
 dl.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; } dl.kv dd p { margin: 0 0 4px; } dl.kv dd ul { margin: 4px 0 0; padding-inline-start: 18px; }
-.iside { display: grid; gap: 8px; align-content: start; min-width: 0; }
-.ipill { justify-self: start; font-size: 11.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--soft); color: var(--ink2); }
-.ipill.you { background: var(--amberbg); color: var(--amber); } .ipill.claude { color: var(--primary); } .ipill.done { background: var(--greenbg); color: var(--green); }
-ol.steps { display: flex; list-style: none; margin: 6px 4px 0; padding: 0; }
-ol.steps li { flex: 1; height: 8px; position: relative; }
-ol.steps li:first-child { flex: 0 0 8px; }
-ol.steps li::before { content: ''; position: absolute; left: 0; right: 8px; top: 3.5px; height: 1px; background: var(--line); }
-ol.steps li:first-child::before { display: none; }
-ol.steps li::after { content: ''; position: absolute; right: 0; top: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
-ol.steps li.done::before, ol.steps li.done::after, ol.steps li.now::before { background: var(--ink); }
-ol.steps li.now::after { background: var(--primary); outline: 3px solid var(--soft); }
-.istep { margin: 0; font-size: 12.5px; color: var(--muted); }
-.iside a.button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; font-size: 13.5px; }
+.iside { display: grid; gap: 12px; align-content: start; min-width: 0; padding: 14px 16px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
+.ipill { flex: none; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 999px; background: var(--soft); color: var(--ink2); white-space: nowrap; }
+.ipill.you { background: var(--amberbg); color: var(--amber); } .ipill.claude { background: var(--soft); color: var(--primary); } .ipill.done { background: var(--greenbg); color: var(--green); }
+ol.steps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); list-style: none; margin: 0; padding: 0; }
+ol.steps li { position: relative; padding-top: 20px; font-size: 12px; line-height: 1.3; color: var(--muted); text-align: center; overflow-wrap: anywhere; }
+ol.steps li::before { content: ''; position: absolute; top: 6px; left: 0; right: 0; height: 2px; background: var(--line); }
+ol.steps li:first-child::before { left: 50%; } ol.steps li:last-child::before { right: 50%; }
+ol.steps li::after { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 14px; height: 14px; border-radius: 50%; background: var(--card); border: 2px solid var(--line); box-sizing: border-box; }
+ol.steps li.done { color: var(--ink2); } ol.steps li.done::before { background: var(--green); } ol.steps li.done::after { background: var(--green); border-color: var(--green); }
+ol.steps li.now { color: var(--ink); font-weight: 600; } ol.steps li.now::before { background: linear-gradient(to right, var(--green) 50%, var(--line) 50%); }
+ol.steps li.now:first-child::before { background: var(--line); }
+ol.steps li.now::after { background: var(--primary); border-color: var(--primary); box-shadow: 0 0 0 4px var(--soft); }
+.istep { margin: 8px 0 0; font-size: 13px; color: var(--ink2); text-align: center; }
+.iside a.button { display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; font-size: 14px; min-height: 44px; }
 .iside a.button.dark { background: var(--ink); border-color: var(--ink); color: var(--card); }
 .iside .ibtns { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
-.iside details > summary { cursor: pointer; min-height: 40px; display: flex; align-items: center; font-size: 13px; color: var(--primary); font-weight: 600; }
-.talk { display: grid; gap: 4px; margin-top: 2px; }
-.said { max-width: 94%; margin: 0; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere; }
-.said.you { justify-self: end; background: var(--ink); color: var(--card); border-end-end-radius: 4px; }
+.iside details > summary, .ifix details > summary { cursor: pointer; min-height: 40px; display: flex; align-items: center; font-size: 13px; color: var(--primary); font-weight: 600; }
+.talk { display: grid; gap: 4px; }
+.said { max-width: min(560px, 88%); margin: 0; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+.said.you { justify-self: end; background: var(--primary); color: #fff; border-end-end-radius: 4px; }
 .said.claude { justify-self: start; background: var(--soft); color: var(--ink); border-end-start-radius: 4px; }
-.talk small { font-size: 11.5px; color: var(--muted); margin-bottom: 4px; } .talk small.you { justify-self: end; }
-.tell { display: grid; gap: 6px; } .tell textarea { min-height: 72px; background: var(--card); font-size: 13.5px; }
-.tell small { font-size: 11.5px; color: var(--muted); } .tell button { justify-self: start; min-height: 40px; }
+.talk small { font-size: 11.5px; color: var(--muted); margin-bottom: 6px; } .talk small.you { justify-self: end; }
+.tell { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t b" "s s"; gap: 6px 10px; align-items: end; }
+.tell textarea { grid-area: t; min-height: 52px; background: var(--card); font-size: 14px; border-radius: 12px; resize: vertical; }
+.tell small { grid-area: s; font-size: 12px; color: var(--muted); } .tell button { grid-area: b; min-height: 52px; padding: 0 18px; border-radius: 12px; }
+.iside .tell, .iside details .tell { grid-template-columns: minmax(0, 1fr); grid-template-areas: "t" "s" "b"; } .iside .tell button { justify-self: start; min-height: 44px; }
 @container (max-width: 760px) {
-  .icard, .icard.pics { grid-template-columns: minmax(0, 1fr); }
-  dl.kv { grid-template-columns: minmax(0, 1fr); gap: 2px; } dl.kv dd { margin-bottom: 8px; }
+  .igrid { grid-template-columns: minmax(0, 1fr); }
+  .idiagram { grid-auto-flow: row; gap: 22px; }
+  .idiagram li:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -21px; transform: translateX(-50%); }
+  .tell { grid-template-columns: minmax(0, 1fr); grid-template-areas: "t" "s" "b"; } .tell button { justify-self: start; }
+  .ihead { flex-direction: column; }
 }
 `;
 
 /** Pure: apps/admin/test/issues.test.ts runs these with new Function. */
 export const ISSUE_LOGIC = String.raw`
 /** Where the watch found a user issue, from the family of its first key (scripts/user-issues.mjs FAMILIES). */
-const ISSUE_SOURCES = { job: 'Server jobs', worker: 'Workers and traffic', feedback: 'A person sent it', ops: 'A line on this dashboard' };
+const ISSUE_SOURCES = { job: 'Server jobs', worker: 'Workers and traffic', feedback: 'A person sent it', ops: 'The ops dashboard' };
 const PHONE_FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device'];
 function issueSource(keys) {
   const family = String((keys || [])[0] || '').split(':')[0];
@@ -200,23 +212,37 @@ function stepsHtml(steps, at) {
   const n = steps.length;
   const says = at > n ? 'All ' + n + ' steps done' : 'Step ' + at + ' of ' + n + ': ' + steps[at - 1][1];
   return '<ol class="steps" role="img" aria-label="' + esc(says) + '">' +
-    steps.map((step, i) => '<li' + (i + 1 < at ? ' class="done"' : i + 1 === at ? ' class="now"' : '') + ' title="' + esc(step[0]) + '"></li>').join('') + '</ol>' +
+    steps.map((step, i) => '<li' + (i + 1 < at ? ' class="done"' : i + 1 === at ? ' class="now"' : '') + ' title="' + esc(step[0]) + '">' + esc(step[0]) + '</li>').join('') + '</ol>' +
     '<p class="istep">' + esc(says) + '</p>';
 }
 
+/** A card's headings in plain words, by the name its maker gives each line. */
+const KV_SAID = { Context: 'What happened', Issue: 'What goes wrong', Solution: 'The fix', Claude: 'What Claude did', Found: 'What Claude found', Why: 'Why it matters', Where: 'Where in the code' };
+/** The lines that go in the panel at the right, with the buttons: what is done about it. */
+const KV_SIDE = ['Solution', 'Claude', 'Where'];
 /**
- * One card. c.tags and c.pics are HTML; c.lines are [label, HTML] and a line
- * without words is left out; c.pill is [words, level]; c.steps is [steps, at];
- * c.side is the HTML under the steps; c.tab hides the card on another tab.
+ * One card: at the top its tags, title, who acts next and its steps as a
+ * progress bar; then at the left what happened (the pictures, then the lines),
+ * and at the right a panel with the fix and the buttons; then the talk with
+ * Claude across the card. c.tags and c.pics are HTML; c.lines are [label, HTML]
+ * and a line without words is left out; c.pill is [words, level]; c.steps is
+ * [steps, at]; c.side is the HTML under the fix; c.talk the talk with Claude
+ * and its box; c.tab hides the card on another tab; c.card is its id for a
+ * link to it (pageCards.ts).
  */
 function issueCard(c) {
   const lines = (c.lines || []).filter((l) => l[1]);
-  return '<article class="icard' + (c.pics ? ' pics' : '') + (c.cls ? ' ' + esc(c.cls) : '') + '"' + (c.tab ? ' data-tab="' + esc(c.tab) + '"' + (c.claude ? ' data-claude="1"' : '') + (c.hidden ? ' hidden' : '') : '') + '>' +
-    (c.pics ? '<div class="ipics">' + c.pics + '</div>' : '') +
-    '<div class="ibody">' + (c.tags ? '<p class="itags">' + c.tags + '</p>' : '') + '<h4>' + esc(c.title) + '</h4>' + (c.meta ? '<p class="imeta">' + c.meta + '</p>' : '') +
-    (lines.length ? '<dl class="kv">' + lines.map((l) => '<dt>' + esc(l[0]) + '</dt><dd>' + l[1] + '</dd>').join('') + '</dl>' : '') + '</div>' +
-    '<div class="iside">' + (c.pill ? '<span class="ipill ' + esc(c.pill[1] || '') + '">' + esc(c.pill[0]) + '</span>' : '') +
-    (c.steps ? stepsHtml(c.steps[0], c.steps[1]) : '') + (c.side || '') + '</div></article>';
+  const kv = (ls) => ls.length ? '<dl class="kv">' + ls.map((l) => '<div><dt>' + esc(KV_SAID[l[0]] || l[0]) + '</dt><dd>' + l[1] + '</dd></div>').join('') + '</dl>' : '';
+  const main = lines.filter((l) => !KV_SIDE.includes(l[0])), side = lines.filter((l) => KV_SIDE.includes(l[0]));
+  const right = kv(side) + (c.side || '');
+  return '<article class="icard' + (c.pics ? ' pics' : '') + (c.cls ? ' ' + esc(c.cls) : '') + '"' + (c.card ? ' data-card="' + esc(c.card) + '"' : '') + (c.tab ? ' data-tab="' + esc(c.tab) + '"' + (c.claude ? ' data-claude="1"' : '') + (c.hidden ? ' hidden' : '') : '') + '>' +
+    '<header class="ihead"><div class="ihl">' + (c.tags ? '<p class="itags">' + c.tags + '</p>' : '') + '<h4>' + esc(c.title) + '</h4>' + (c.meta ? '<p class="imeta">' + c.meta + '</p>' : '') + '</div>' +
+    (c.pill && c.pill[0] ? '<span class="ipill ' + esc(c.pill[1] || '') + '">' + esc(c.pill[0]) + '</span>' : '') + '</header>' +
+    (c.steps && c.steps[1] ? '<div class="iprog">' + stepsHtml(c.steps[0], c.steps[1]) + '</div>' : '') +
+    // With nothing to show at the left, the panel takes the whole width.
+    (c.pics || main.length ? '<div class="igrid"><div class="imain">' + (c.pics ? '<div class="ipics">' + c.pics + '</div>' : '') + '<div class="ibody">' + kv(main) + '</div></div>' +
+      (right ? '<div class="iside">' + right + '</div>' : '') + '</div>' : right ? '<div class="iside">' + right + '</div>' : '') +
+    (c.talk ? '<div class="italk"><h5>Talk with Claude</h5>' + c.talk + '</div>' : '') + '</article>';
 }
 const outLink = (href, words, cls) => '<a' + (cls ? ' class="' + cls + '"' : '') + ' href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + words + '</a>';
 
@@ -226,8 +252,9 @@ let issueTab = null;
 function fixLine(fix, way) {
   if (!fix) return '';
   const f = fixSaid(fix, way.tab === 'merged' || way.tab === 'closed');
+  // The decision leads; Claude's reasons wait behind one tap.
   return '<div class="ifix"><p><b>' + esc(f.decision[0]) + '</b>' + (f.decision[1] ? ' ' + esc(f.decision[1]) : '') + '</p>' +
-    f.reasons.map((x) => '<p><b>' + esc(x[0]) + '.</b> ' + esc(x[1]) + '</p>').join('') +
+    (f.reasons.length ? '<details><summary>Claude\'s reasons</summary>' + f.reasons.map((x) => '<p><b>' + esc(x[0]) + '.</b> ' + esc(x[1]) + '</p>').join('') + '</details>' : '') +
     '<small class="muted">' + [f.manager ? 'Issue manager: ' + esc(f.manager) : '', when(fix.at), safeLink(fix.runUrl) ? outLink(fix.runUrl, 'The run') : ''].filter(Boolean).join(' · ') + '</small></div>';
 }
 /** An issue's diagram: one box for each step, in order, the step that goes wrong in red. Drawn as text. */
@@ -270,13 +297,14 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const said = (words, facts) => words ? '<p>' + esc(words) + '</p>' + (facts ? '<small class="muted">' + facts + '</small>' : '') : facts;
   const seen = [r.people ? num(r.people) + (Number(r.people) === 1 ? ' person' : ' people') : '', 'First seen ' + when(r.firstAt)].filter(Boolean).join(' · ');
   return issueCard({
-    tab: way.tab, claude: way.claude, hidden: !onTab(way, tab),
+    card: r.issue || 'keys:' + ((r.keys || [])[0] || ''), tab: way.tab, claude: way.claude, hidden: !onTab(way, tab),
     pics: fixPictures(record, r.issue, !!fixFor(record, way.pr), r.issue && diagrams ? diagrams[r.issue] : null),
     tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : '') +
       (r.issue && r.state ? '<span>' + esc(r.state) + ' in Linear</span>' : ''),
     title: r.title || (r.keys || [])[0] || 'A problem with no name',
+    meta: seen,
     lines: [
-      ['Context', said(r.context, seen)],
+      ['Context', r.context ? '<p>' + esc(r.context) + '</p>' : ''],
       ['Issue', said(r.problem, keys)],
       ['Solution', said(r.solution, solution)],
       ['Claude', fixLine(fixFor(record, way.pr), way)]
@@ -284,15 +312,16 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
     pill: [way.pill, way.level], steps: [ISSUE_STEPS, way.at],
     side: (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
       (way.tab === 'claude' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
-      (r.issue && safeLink(r.issueUrl) ? outLink(r.issueUrl, 'Open ' + esc(r.issue) + ' in Linear', 'button') : '') +
-      issueTalk(r, notes)
+      (r.issue && safeLink(r.issueUrl) ? outLink(r.issueUrl, 'Open ' + esc(r.issue) + ' in Linear', 'button') : ''),
+    talk: issueTalk(r, notes)
   });
 }
 /**
  * The talk on a user issue's card: each instruction an admin sent with Claude's answer under it, then,
  * while the issue is open, the box to send one. Nothing before the database keeps instructions.
+ * at names the box's place, so the same issue's box on a line's card (pageCards.ts) has its own id.
  */
-function issueTalk(r, notes) {
+function issueTalk(r, notes, at) {
   if (!r.issue || !notes) return '';
   const list = notes[r.issue] || [];
   const talk = list.map((n) => {
@@ -302,7 +331,7 @@ function issueTalk(r, notes) {
   }).join('');
   const id = esc(r.issue);
   return (talk ? '<div class="talk">' + talk + '</div>' : '') +
-    (r.closedAt ? '' : '<div class="tell"><textarea id="uin-' + id + '" maxlength="2000" rows="3" aria-label="What Claude must do" placeholder="' + (list.length ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
+    (r.closedAt ? '' : '<div class="tell"><textarea id="uin-' + (at ? esc(at) + '-' : '') + id + '" maxlength="2000" rows="3" aria-label="What Claude must do" placeholder="' + (list.length ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
       '<small>Claude starts at the next run of the watch (each 15 minutes).</small><button type="button" class="primary" data-uinote="' + id + '">Send to Claude</button></div>');
 }
 /** A place in the code as a link to that file on main, at its line. */
@@ -337,7 +366,8 @@ document.addEventListener('click', (e) => {
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('[data-uinote]');
   if (!b) return;
-  const text = ((document.getElementById('uin-' + b.dataset.uinote) || {}).value || '').trim();
+  // The box next to the button: the same issue can have a box on its line's card too.
+  const text = String((((b.closest('.tell') || document).querySelector('textarea')) || {}).value || '').trim();
   if (!text) { say('Write what Claude must do first.', 'red'); return; }
   perform({ kind: 'user-issue-note', issue: b.dataset.uinote, text: text.slice(0, 2000) }, b);
 });

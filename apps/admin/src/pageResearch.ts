@@ -110,7 +110,7 @@ function weekOf(team) {
 }
 `;
 
-/** Drawing the page; uses the page's helpers (esc, when, num, stat, safeLink, issueCard, issueTalk, fixLine, placeLink, outLink, diagramHtml). */
+/** Drawing the page; uses the page's helpers (esc, when, num, stat, safeLink, issueCard, issueTalk, fixLine, placeLink, outLink, fixPictures). */
 export const RESEARCH_SCRIPT = String.raw`
 let researchTab = null, researchDay = null;
 const modelWord = (m) => ({ opus: 'Opus', sonnet: 'Sonnet', haiku: 'Haiku' })[String(m || '').toLowerCase()] || esc(m || '');
@@ -174,7 +174,7 @@ function researchCard(item, way, tab, d) {
   const where = (item.places || []).map(placeLink).concat((item.links || []).map(linkOut));
   return issueCard({
     tab: way.tab, hidden: !onResearchTab(way, tab),
-    pics: diagramHtml(item.steps),
+    card: 'research:' + item.tag, pics: fixPictures(fix, item.issue, !!fix, item.steps),
     tags: sevPill(item.severity) + '<span class="tag">' + esc(RESEARCH_KINDS[item.kind] || 'Same mistake') + '</span>' +
       (item.issue ? (safeLink(item.issueUrl) ? outLink(item.issueUrl, esc(item.issue), 'lin') : '<b>' + esc(item.issue) + '</b>') : '') +
       (item.like ? '<span>Like ' + esc(item.like) + '</span>' : ''),
@@ -185,14 +185,14 @@ function researchCard(item, way, tab, d) {
       ['Why', '<p>' + esc(item.why) + '</p>'],
       ['Found', '<p>' + esc(item.found) + '</p>'],
       ['Deadline', item.deadline ? '<b>' + esc(item.deadline) + '</b>' : ''],
-      ['Evidence', where.length ? '<div class="rlinks">' + where.join('') + '</div>' : ''],
+      ['Where', where.length ? '<div class="rlinks">' + where.join('') + '</div>' : ''],
       ['Claude', fixLine(fix, { tab: '' })]
     ],
     pill: way.pill,
     side: choicesHtml(item, notes) +
       (fix && fix.pr ? outLink(PR_URL + fix.pr, 'Open pull request ' + esc(fix.pr), 'button dark') : '') +
-      (item.issue && safeLink(item.issueUrl) ? outLink(item.issueUrl, 'Open ' + esc(item.issue) + ' in Linear', 'button') : '') +
-      (item.decision === 'recommend' && item.issue ? issueTalk({ issue: item.issue, closedAt: null }, d.notes) : '')
+      (item.issue && safeLink(item.issueUrl) ? outLink(item.issueUrl, 'Open ' + esc(item.issue) + ' in Linear', 'button') : ''),
+    talk: item.decision === 'recommend' && item.issue ? issueTalk({ issue: item.issue, closedAt: null }, d.notes, 'research') : ''
   });
 }
 function researchHtml(d) {
