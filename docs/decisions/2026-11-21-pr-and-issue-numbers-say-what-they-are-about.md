@@ -7,6 +7,8 @@ build 77 does not have PR 596 yet: copy PR 597 is not checked"). Caleb:
 "I don't remember off the top of my head the details of hundreds of
 different PRs. Can we have a hover feature or something for PRs and linear
 lan issues, or a plain English summary."
+Reverse if: the watch's words are not enough for issues it does not know,
+and the dashboard's Worker gets a Linear key to read their titles.
 
 - **Lines start with the change.** A copy line (`copyLine`,
   `apps/admin/src/sources/pipeline.ts`) starts with the title of the change
@@ -28,6 +30,3 @@ lan issues, or a plain English summary."
   line, else the start of `## What people see`, else the first paragraph
   (`CONTRIBUTING.md`, Pull request titles and text). Pull requests without
   that section show their first paragraph, which may be technical.
-
-What would change it: a Linear key on the dashboard's Worker, if issues the
-watch does not know need their own titles.
