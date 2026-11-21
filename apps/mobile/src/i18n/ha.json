@@ -825,6 +825,7 @@
     },
     "members": {
       "joined": "{{target}} · an shiga {{when}}",
+      "joinedJustNow": "{{target}} · an shiga yanzu nan",
       "count_one": "Memba {{count, number}}",
       "count_other": "Membobi {{count, number}}",
       "invite": "Gayyata",
