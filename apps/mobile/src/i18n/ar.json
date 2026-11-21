@@ -893,6 +893,7 @@
     },
     "members": {
       "joined": "{{target}} · انضم {{when}}",
+      "joinedJustNow": "{{target}} · انضم الآن",
       "count_zero": "{{count, number}} عضو",
       "count_one": "عضو واحد",
       "count_two": "عضوان",

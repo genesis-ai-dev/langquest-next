@@ -3,6 +3,7 @@
 // own rules (who may grant what, a language's scope) are in orgAdmin.ts.
 import { t } from '../i18n';
 import { refusalKind } from '../diagnostics/refusalModel';
+import { formatAgo } from '../i18n/format';
 
 /** Why the listing could not be read or changed: the server's refusal (its words are a developer's English), or the connection. */
 export function listingFailure(e: { code?: string }): string {
@@ -36,4 +37,15 @@ export function liveRoles(roles: Record<string, { retired?: boolean; name: { val
   return Object.entries(roles ?? {}).filter(([, r]) => !r.retired)
     .map(([id, r]) => ({ id, name: r.name.value || id, privileges: r.privileges.value?.length ?? 0 }))
     .sort((a, b) => b.privileges - a.privileges || a.name.localeCompare(b.name));
+}
+
+/**
+ * A member row's line under the name: "Translator · joined 5 min ago". In the
+ * first minute it says "joined just now" from its own text, because "Just now"
+ * alone starts with a capital, and in the middle of the line it would show
+ * "a rejoint À l’instant" in French.
+ */
+export function memberJoined(target: string, sinceMs: number, now = Date.now()): string {
+  return now - sinceMs < 60_000 ? t('org.members.joinedJustNow', { target })
+    : t('org.members.joined', { target, when: formatAgo(sinceMs, now) });
 }
