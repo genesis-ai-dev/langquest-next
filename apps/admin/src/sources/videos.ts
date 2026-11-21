@@ -22,7 +22,7 @@ import { tutorialsOf, type Feedback, type Tutorials } from './ops';
  * (diag.ops_tutorial_films, ops_tutorial_feedback, ops_tutorials), each
  * language's status-<language>.json in the public `tutorials` release (the
  * nightly writes it, e2e/tutorials/nightly.ts), the filming run on GitHub
- * (sources/filming.ts), and the nightly language list in tutorials.yml.
+ * (sources/filming.ts), and the languages filmed each night (the dashboard's switches, else tutorials.yml).
  * It raises no alerts: the parts it draws on already raise theirs.
  */
 
@@ -143,6 +143,8 @@ export interface AdminItem {
   inputIds?: string[];
   /** The video's title, for a card that is one video's. */
   video?: string;
+  /** For `empty`: the language's Film each night switch, and how many videos its first night films. */
+  filming?: { language: string; on: boolean; videos: number };
   /**
    * For `reply`: the comment (in English, and as written when that differs), the reply Claude suggests in the comment's
    * language (and in English when that differs), and the comment on YouTube. The page copies the reply; a person posts it.
@@ -245,7 +247,7 @@ export function filmCauses(why: Cause[] | null | undefined): FilmCause[] {
   }));
 }
 
-/** The languages tutorials.yml films each night, from its NIGHTLY_LANGUAGES line. */
+/** The languages tutorials.yml films when the dashboard's switches do not answer, from its NIGHTLY_LANGUAGES line. */
 export function nightlyLanguages(workflow: string): string[] | null {
   const m = /^\s*NIGHTLY_LANGUAGES:\s*([^\n#]*)/m.exec(workflow);
   return m ? m[1]!.split(',').map((l) => l.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean) : null;
@@ -471,12 +473,12 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
     if (isNightly(l) || !films || !channel || films.some((f) => f.language === l && f.youtubeId)) continue;
     const count = videosIn(l).length;
     admin.push({ kind: 'empty', title: `${LANGUAGE_NAMES[l] ?? l}: 0 videos on YouTube`, detail: `${LANGUAGE_NAMES[l] ?? l} is not filmed each night, and it has never been filmed. Its YouTube channel has no videos.`, at: null, who: 'you', language: l,
-      link: `${REPO}/blob/main/.github/workflows/tutorials.yml`,
-      next: `To film it, add ${l} to NIGHTLY_LANGUAGES in tutorials.yml (a pull request). The first night films ${count ? `its ${count} videos` : 'every video'}. Until then the channel stays empty.` });
+      filming: { language: l, on: false, videos: count },
+      next: `Press Turn on filming. The next filming at 20:10 UTC films ${count ? `its ${count} videos` : 'every video'}, and they go up on YouTube after it. Until then the channel stays empty.` });
   }
   const paused = languages.filter((l) => !isNightly(l));
-  if (paused.length) admin.push({ kind: 'paused', title: `${paused.length} ${paused.length === 1 ? 'language is' : 'languages are'} paused`, detail: `Not filmed each night: ${paused.join(', ')}.`, at: null, who: 'you', link: `${REPO}/blob/main/.github/workflows/tutorials.yml`,
-    next: 'Their videos stay as they are. To turn one on, add it to NIGHTLY_LANGUAGES in tutorials.yml (a pull request).' });
+  if (paused.length) admin.push({ kind: 'paused', title: `${paused.length} ${paused.length === 1 ? 'language is' : 'languages are'} paused`, detail: `Not filmed each night: ${paused.join(', ')}.`, at: null, who: 'you',
+    next: 'Their videos on YouTube stay as they are. To film one, choose it under Language and press Turn on filming.' });
 
   // ---- the rest of the worker queue ----
   if (feedback?.waiting) worker.push({ when: 'next', kind: 'comments', title: `10:00 UTC: Claude reads ${feedback.waiting} new ${feedback.waiting === 1 ? 'comment, change or note' : 'comments, changes and notes'}`, detail: 'Claude fixes a video itself when the fix is clear. Anything else becomes a suggestion under Waits on you, for you to accept or reject.' });
@@ -521,6 +523,8 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
 // ---- reading ------------------------------------------------------------------------------------
 
 export interface VideosEnv extends GitHubEnv { DIAG?: Hyperdrive }
+/** A language's Film each night switch, as diag.ops_tutorial_filming() gives it. */
+interface FilmingSwitch { language: string; nightly: boolean; setAt: string }
 
 /** A database read, or null when the function is missing or fails (the list says what it lacks). */
 async function maybe<T>(query: Query, sql: string): Promise<T | null> {
@@ -541,15 +545,16 @@ export async function videosSection(env: VideosEnv, fetcher: typeof fetch = fetc
   const db = (async () => {
     try {
       return await withDiag(diagConnection(env), async (query) => {
-        const [films, feedback, tutorials] = await Promise.all([
+        const [films, feedback, tutorials, switches] = await Promise.all([
           maybe<FilmRow[]>(query, 'select diag.ops_tutorial_films() as v'),
           maybe<VideosInput['feedback']>(query, 'select diag.ops_tutorial_feedback() as v'),
-          maybe<Parameters<typeof tutorialsOf>[0]>(query, 'select diag.ops_tutorials() as v')
+          maybe<Parameters<typeof tutorialsOf>[0]>(query, 'select diag.ops_tutorials() as v'),
+          maybe<FilmingSwitch[]>(query, 'select diag.ops_tutorial_filming() as v')
         ]);
-        return { films, feedback, tutorials };
+        return { films, feedback, tutorials, switches };
       });
     } catch {
-      return { films: null, feedback: null, tutorials: null };
+      return { films: null, feedback: null, tutorials: null, switches: null };
     }
   })();
   const workflow = gh<{ content: string }>('/contents/.github/workflows/tutorials.yml?ref=main', 'GitHub tutorials.yml')
@@ -560,5 +565,7 @@ export async function videosSection(env: VideosEnv, fetcher: typeof fetch = fetc
   if (!d.films && !d.feedback && !d.tutorials && !run) return failed('Could not read the database or GitHub for the tutorial videos.');
   const status: Partial<Record<string, StatusFile>> = {};
   for (const [l, f] of files) if (f) status[l] = f;
-  return ok(videoBoard({ films: d.films, feedback: d.feedback, tutorials: d.tutorials ? tutorialsOf(d.tutorials) : null, status, filming: run, nightly }));
+  // The dashboard's switches choose the languages; tutorials.yml's list only where the database has no switches yet.
+  const chosen = Array.isArray(d.switches) ? d.switches.filter((x) => x.nightly).map((x) => x.language) : nightly;
+  return ok(videoBoard({ films: d.films, feedback: d.feedback, tutorials: d.tutorials ? tutorialsOf(d.tutorials) : null, status, filming: run, nightly: chosen }));
 }

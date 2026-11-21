@@ -60,6 +60,10 @@ env:
   # translated films shows in two and not fifteen, and YouTube takes their
   # 94 new films in about a day. The others come back after them:
   # en,fr,es,pt,ar,sw,ha,am,hi,bn,ne,id,th,my,zh-Hans,tl.
+  # From 2026-11-21 the ops dashboard's switches choose the languages (each
+  # language's "Film each night", ops.tutorial_filming), read from the Worker
+  # with this run's OIDC token; this list is filmed only when that answer
+  # does not come (a run off main, the Worker down).
   # A line is said by Gemini's batch voice, on its paid tier, the first time
   # it is filmed; the release keeps each language's voice
   # (voice-<language>.tgz), so it is never paid twice.
@@ -75,13 +79,23 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       ASKED: ${{ inputs.languages }}
     steps:
-      - id: list
-        run: echo "list=$(node -e 'console.log(JSON.stringify((process.env.ASKED || process.env.NIGHTLY_LANGUAGES).split(",").map((l) => l.trim()).filter(Boolean)))')" >> "$GITHUB_OUTPUT"
-      # Films a run before this one put in the release without saying so (one
-      # cut off, or one from before the Worker listened) go up now, not at midnight.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ github.ref == 'refs/heads/main' }}
         with: { sparse-checkout: e2e/tutorials }
+      # The languages asked for by hand, else the dashboard's switches, else NIGHTLY_LANGUAGES.
+      - id: list
+        run: |
+          chosen="$ASKED"
+          if [ -z "$chosen" ] && [ -f e2e/tutorials/films-in.mjs ]; then
+            chosen="$(node e2e/tutorials/films-in.mjs --languages || true)"
+            [ -n "$chosen" ] || echo "::warning title=Filming languages not read::The dashboard's switches did not answer; filming NIGHTLY_LANGUAGES ($NIGHTLY_LANGUAGES)."
+          fi
+          [ -n "$chosen" ] || chosen="$NIGHTLY_LANGUAGES"
+          [ "$chosen" != "none" ] || chosen=""
+          echo "Filming tonight: ${chosen:-no language}" >> "$GITHUB_STEP_SUMMARY"
+          echo "list=$(CHOSEN="$chosen" node -e 'console.log(JSON.stringify(process.env.CHOSEN.split(",").map((l) => l.trim()).filter(Boolean)))')" >> "$GITHUB_OUTPUT"
+      # Films a run before this one put in the release without saying so (one
+      # cut off, or one from before the Worker listened) go up now, not at midnight.
       - name: Tell LangQuest the films already in the release
         if: ${{ github.ref == 'refs/heads/main' }}
         run: node e2e/tutorials/films-in.mjs
@@ -132,7 +146,8 @@ jobs:
   film:
     needs: [languages, grace]
     # Without Grace's pieces (Gemini refused them) each language says its own.
-    if: ${{ !cancelled() && needs.languages.result == 'success' }}
+    # Every language switched off on the dashboard: nothing to film.
+    if: ${{ !cancelled() && needs.languages.result == 'success' && needs.languages.outputs.list != '[]' }}
     runs-on: ubuntu-latest
     # The first night of a language films all 47 videos.
     timeout-minutes: 300

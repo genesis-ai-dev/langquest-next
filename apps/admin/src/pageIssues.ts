@@ -505,7 +505,7 @@ function adminCard(a) {
     ],
     pill: a.who === 'you' ? ['Waits on you', 'you'] : ['Claude acts next', 'claude'],
     steps: [VIDEO_STEPS, videoWay(a).at],
-    side: a.reply ? replyBox(a) : (a.suggestion ? suggestionSide(a.suggestion) : '') + talkHtml(ins) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
+    side: a.reply ? replyBox(a) : (a.suggestion ? suggestionSide(a.suggestion) : '') + (a.filming ? filmingSwitch(a.filming.language, a.filming.on, a.filming.videos) : '') + talkHtml(ins) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
       // A change Claude could not make: Try again is the main button, and the box is behind "instead".
       retry + (retry && tell ? '<details><summary>Tell Claude what to do instead</summary>' + tell + '</details>' : tell)
   });

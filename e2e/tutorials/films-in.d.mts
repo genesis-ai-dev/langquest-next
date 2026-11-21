@@ -4,3 +4,7 @@ export function sayFilmsIn(
   env: Record<string, string | undefined>,
   fetcher?: (input: string, init?: RequestInit) => Promise<Response>
 ): Promise<{ ok: boolean; said: string }>;
+export function askLanguages(
+  env: Record<string, string | undefined>,
+  fetcher?: (input: string, init?: RequestInit) => Promise<Response>
+): Promise<{ languages: string[] | null; said: string }>;
