@@ -38,3 +38,7 @@ issues only; the cards of the Tutorial videos page keep their layout.
 Rejected: a time bar diagram for each slow-step issue (green: the part the
 app times; red: the part it does not). Caleb asked for the short card first,
 without it.
+
+Reverse if: admins open Details on most cards to decide what to do, or the
+Known line is empty on most new issues (then the watch cannot say it, and the
+line is noise).
