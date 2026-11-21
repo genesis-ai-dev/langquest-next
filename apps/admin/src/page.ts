@@ -26,6 +26,7 @@ import { CARD_CSS, CARD_LOGIC, CARD_SCRIPT } from './pageCards';
 import { SEND_CSS, SEND_LOGIC, SEND_SCRIPT } from './pageSends';
 import { SUMMARY_CSS, SUMMARY_LOGIC, SUMMARY_SCRIPT } from './pageSummary';
 import { BLOCKS_CSS, BLOCKS_LOGIC, BLOCKS_SCRIPT, WIDTH_CSS } from './pageBlocks';
+import { LOADING_CSS, LOADING_SCRIPT } from './pageLoading';
 import { KINDS } from './alertKinds';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
@@ -225,6 +226,7 @@ ${VIDEO_CSS}
 ${HOVER_CSS}
 ${REF_CSS}
 ${SEND_CSS}
+${LOADING_CSS}
 </style>
 </head>
 <body>
@@ -497,12 +499,12 @@ function pill(g) {
 function partHtml(g, id) {
   const s = results[id];
   const head = g.parts.length > 1 ? '<h3 class="part"><span data-help-key="section:' + id + '">' + esc(PART_TITLE[id] || id) + '</span></h3>' : '';
-  if (!s) return head + '<p class="muted">Loading…</p>';
+  if (!s) return head + skel('lines');
   if (s.state === 'off') return head + '<p class="setup muted">Not connected. ' + esc(s.setup) + '</p>';
   // Each line is a card (pageCards.ts); the container's answer has no part of its own (show), so its lines read with the jobs'.
   // On a section's own page the cards lead its summary (pageSummary.ts), so All the details leaves them out: each shows once.
   const lines = cardsUp() ? '' : lineCards(id === 'jobs' && results.container ? (s.alerts || []).map((a) => Object.assign({ part: 'jobs' }, a)).concat((results.container.alerts || []).map((a) => Object.assign({ part: 'container' }, a))) : s.alerts, g.id, id);
-  if (s.state === 'error') return head + lines + (cardsUp() ? '<p class="bad">Could not read: ' + esc(s.error || 'unknown') + '.</p>' : lineCards([{ level: 'watch', key: 'unreadable', subject: id, text: 'Could not read: ' + (s.error || 'unknown') + '.' }], g.id, id));
+  if (s.state === 'error') return head + lines + (cardsUp() ? failed('Could not read: ' + (s.error || 'unknown') + '.', retryPart(id)) : lineCards([{ level: 'watch', key: 'unreadable', subject: id, text: 'Could not read: ' + (s.error || 'unknown') + '.' }], g.id, id) + '<p><button type="button" ' + retryPart(id) + '>Try again</button></p>');
   try {
     if (id === 'jobs') return head + lines + numbers(id, renderJobs(s.data, results.container));
     // A picture leads its part (pageLists.ts, pageMeters.ts); its numbers and tables wait behind one tap.
@@ -1103,6 +1105,8 @@ ${METERS_SCRIPT}
 // ---- what a chart says under the pointer: a line and its values (pageHover.ts) ----
 ${HOVER_LOGIC}
 ${HOVER_SCRIPT}
+// ---- what a box shows while it loads, and when its answer fails (pageLoading.ts) ----
+${LOADING_SCRIPT}
 
 let loading = false, loadAgain = false;
 /**
@@ -1144,16 +1148,18 @@ async function load(fresh) {
 }
 
 async function start() {
-  const me = await api('/ops/api/me').catch(() => null);
-  if (!me) return;
+  // The page shows at once, each box shimmering until its answer comes (pageLoading.ts), while the
+  // server checks the sign-in. Every call checks it again, so the reads start now too: a refused
+  // sign-in hides the page and asks for it (api), and nothing waits for one answer before the rest.
   $('signin').hidden = true; $('mfa').hidden = true; say('');
   $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false; $('expand-all').hidden = false; $('collapse-all').hidden = false;
   if (!$('grid').children.length) layout();
   route();
+  const me = api('/ops/api/me').catch(() => null);
   await finishYouTube();
   const deep = /^\\/ops-dashboard\\/org\\/([^/]+)$/.exec(location.pathname);
   if (deep) openOrg(decodeURIComponent(deep[1]), false);
-  await load(false);
+  await Promise.all([me, load(false)]);
 }
 
 // Every five minutes while the tab is in front.

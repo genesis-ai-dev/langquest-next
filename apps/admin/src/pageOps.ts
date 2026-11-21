@@ -864,7 +864,7 @@ async function toggleDiag(button) {
   const box = $('diag-' + button.dataset.fbId);
   if (!box.hidden) { box.hidden = true; button.textContent = "Show this phone's diagnostics"; return; }
   box.hidden = false; button.textContent = "Hide this phone's diagnostics";
-  box.innerHTML = '<p class="muted">Loading…</p>';
+  box.innerHTML = skel('lines');
   try {
     const r = await api('/ops/api/lookup?q=' + encodeURIComponent(button.dataset.install));
     box.innerHTML = r.kind === 'install' ? installView(r.result)
@@ -888,7 +888,7 @@ function renderPerson(r) {
 async function openOrg(id, push) {
   if (push) history.pushState({ org: id }, '', '/ops-dashboard/org/' + encodeURIComponent(id));
   const box = $('org'); box.hidden = false;
-  box.innerHTML = '<div class="head"><h2>Organization</h2><button type="button" id="org-close">Close</button></div><p class="muted">Loading…</p>';
+  box.innerHTML = '<div class="head"><h2>Organization</h2><button type="button" id="org-close">Close</button></div>' + skel('lines');
   $('org-close').onclick = closeOrg;
   box.scrollIntoView({ block: 'start' });
   try {

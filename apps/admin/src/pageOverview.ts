@@ -469,10 +469,11 @@ function drawStart() {
     watchN ? watchN + ' to watch.' : '',
     waiting ? waiting + (waiting === 1 ? ' page still loads.' : ' pages still load.') : ''
   ].filter(Boolean);
-  if (view().name === 'start') sayVerdict({ tone: needN ? 'need' : decideN || watchN ? 'watch' : waiting && !say.length ? 'wait' : 'ok', text: say.length ? (needN ? '' : 'Nothing needs you now. ') + say.join(' ') : waiting ? 'Checking…' : 'Nothing needs you now.' });
+  // While a page still loads, "Nothing needs you" is not yet known: the mark turns and says so.
+  if (view().name === 'start') sayVerdict({ tone: needN ? 'need' : decideN || watchN ? 'watch' : waiting ? 'wait' : 'ok', text: say.length ? (needN || waiting ? '' : 'Nothing needs you now. ') + say.join(' ') : waiting ? 'Checking…' : 'Nothing needs you now.' });
   setCount('ov-need-n', needN); setCount('ov-decide-n', decideN); setCount('ov-way-n', wayN); setCount('ov-watch-n', watchN);
-  const none = (words) => '<p class="sempty">' + esc(waiting ? 'Checking each page…' : words) + '</p>';
-  redraw($('start-you'), plan.need.map(alertRow).join('') || (waiting ? none('') : '<div class="alert clear">' + lvl('clear', 'All clear') + '<div class="text"><b>Nothing needs you now.</b></div><div class="pic"></div><span></span></div>'));
+  const none = (words) => waiting ? skel('lines') : '<p class="sempty">' + esc(words) + '</p>';
+  redraw($('start-you'), plan.need.map(alertRow).join('') || (waiting ? skel('cards') : '<div class="alert clear">' + lvl('clear', 'All clear') + '<div class="text"><b>Nothing needs you now.</b></div><div class="pic"></div><span></span></div>'));
   redraw($('start-decide'), plan.decide.map(alertRow).concat(decideWork.map(decideRow)).join('') || none('No choice waits for you.'));
   redraw($('start-way'), way.map(wayRow).join('') || none('Nothing is on its way.'));
   // What to watch: a chip for each line, each opening its card.
@@ -503,7 +504,7 @@ function drawPlan() {
   el.className = 'plan ' + p.level;
   const bar = (cls, label, x) => '<div class="row"><span>' + label + '</span><svg class="bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="' + esc(label + ' ' + planPct(x)) + '"><rect class="bg" width="100" height="10"/><rect class="' + cls + '" width="' + (Math.min(1, x) * 100).toFixed(1) + '" height="10"/></svg><b>' + planPct(x) + '</b></div>';
   redraw(el, '<div class="ptop"><b>Frontier Claude plan this week</b>' + (p.resetsAt ? '<span>Starts again ' + esc(weekTime(p.resetsAt)) + '</span>' : '') + '</div>' +
-    (p.used === null ? '<p class="muted">' + esc(p.said) + '</p>'
+    (p.used === null ? (results.claudeplan ? '<p class="muted">' + esc(p.said) + '</p>' : skel('lines'))
       : bar('used', 'Used', p.used) + bar('gone', 'Week gone', p.gone) +
         '<p><b>' + esc(p.said) + '</b>' + (p.runsOut ? ' At this speed it runs out ' + esc(weekTime(p.runsOut)) + '.' : '') +
         (p.readAt ? ' <span class="muted">Read ' + esc(ago(p.readAt)) + (p.old ? ': the hourly reading is late.' : '.') + '</span>' : '') + '</p>'));
@@ -533,7 +534,7 @@ function drawTiles() {
     const tone = said === 'normal' ? 'ok' : said === 'none' ? 'none' : (said === 'high') === WORSE_UP.test(t.metric) ? 'warn' : 'note';
     const words = healthWords({ said, usual, grow: null }, '');
     return '<a class="stile" href="#g/' + esc(t.group) + '"><span class="lb" data-help-key="metric:' + esc(t.part + '.' + t.metric) + '">' + esc(t.label) + '</span>' +
-      '<span class="v' + (value === null ? ' none' : '') + '">' + esc(value === null ? partSaid(results, t.src) || 'No number' : num(value)) + '</span>' +
+      (value === null && !results[t.src] ? '<span class="sk big w40"></span>' : '<span class="v' + (value === null ? ' none' : '') + '">' + esc(value === null ? partSaid(results, t.src) || 'No number' : num(value)) + '</span>') +
       (days ? sparkSvg(days.concat(value === null ? [] : [value]), usual, tone === 'warn' ? 'warn' : '', 240, 46) : '') +
       '<span class="ft"><span class="said ' + tone + '">' + esc(value === null ? '' : words.said) + '</span>' + (value !== null && words.more ? ' · ' + esc(words.more) : '') + '</span></a>';
   }).join(''));
@@ -592,7 +593,7 @@ function daysSvg(days, a, b, an, bn) {
 function drawOvCharts() {
   const s = results.releases;
   const days = s && s.state === 'ok' && s.data ? s.data.errorsByDay || [] : null;
-  if (!days) { redraw($('start-charts'), '<p class="muted">' + esc(s ? (s.state === 'off' ? 'The charts are not connected.' : 'Could not read the charts.') : 'Loading the charts…') + '</p>'); return; }
+  if (!days) { redraw($('start-charts'), !s ? skel('chart') + skel('chart') : s.state === 'off' ? '<p class="muted">The charts are not connected.</p>' : failed('Could not read the charts.', retryPart('releases'))); return; }
   const sum = (f) => days.reduce((n, d) => n + f(d), 0);
   const errs = (d) => Math.max(0, Number(d.errors || 0) - Number(d.crashes || 0)), crashes = (d) => Number(d.crashes || 0), installs = (d) => Number(d.installs || 0);
   redraw($('start-charts'),

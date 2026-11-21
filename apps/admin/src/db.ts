@@ -16,23 +16,29 @@ export function diagConnection(env: { DIAG?: Hyperdrive }): string {
   return env.DIAG.connectionString;
 }
 
+/** How many statements of one answer run at the same time; a page load opens two answers (diag, ops). */
+export const DIAG_CONNECTIONS = 6;
+
 /** Longest a page's database work may take before it says so, rather than hang until the browser gives up. */
 export const DIAG_TIMEOUT_MS = 25_000;
 
 /**
- * Opens one connection as diag_reader, which can read `diag` and call its
+ * Opens up to DIAG_CONNECTIONS connections as diag_reader, which can read `diag` and call its
  * report functions and nothing else, and gives `fn` a query function. Each
  * statement runs in a read-only transaction of its own that stops after
  * 15 s, so one that fails (a report function a migration has not brought
  * yet) does not stop the next, and the whole of `fn` stops after
- * DIAG_TIMEOUT_MS. A connection per page load is plenty for a page a few
- * people open; Hyperdrive pools them toward the database.
+ * DIAG_TIMEOUT_MS. Hyperdrive pools them toward the database. Each
+ * statement is four trips to the database (begin, the timeout, the
+ * statement, commit), so the 32 statements of the ops answer on one
+ * connection made the User issues page wait seconds for trips, not for the
+ * database: on a few connections they run side by side.
  */
 export async function withDiag<T>(url: string, fn: (query: Query) => Promise<T>, timeoutMs = DIAG_TIMEOUT_MS): Promise<T> {
   // Hyperdrive and a local database take a plain connection; anything else is the internet, so TLS.
   const plain = /@(127\.0\.0\.1|localhost|host\.docker\.internal|[^@/:]+\.hyperdrive\.local)[:/]/.test(url);
   const sql = postgres(url, {
-    max: 1,
+    max: DIAG_CONNECTIONS,
     prepare: false,
     fetch_types: false,
     connect_timeout: 10,

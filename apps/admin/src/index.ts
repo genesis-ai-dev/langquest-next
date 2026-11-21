@@ -72,7 +72,7 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   claudeplan: (env) => claudePlanSection(env)
 };
 
-/** The sections read as diag_reader in one connection, with what each says when that connection fails. */
+/** The sections read as diag_reader together (db.ts withDiag), with what each says when that connection fails. */
 const DIAG_IDS = ['jobs', 'clients', 'database', 'v2', 'feedback'] as const;
 const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials'] as const;
 
