@@ -528,6 +528,24 @@ section: each part's lines, picture and tables first, then a chart for each
 number over the range, so what needs a person is in view when the page opens;
 `#all` shows every section on one page.
 
+**How much of the Frontier Claude plan is used** (part `claudeplan`,
+`apps/admin/src/sources/claudePlan.ts`,
+`docs/decisions/2026-11-21-the-overview-shows-the-frontier-claude-plan.md`).
+Under the rows, a small card shows two bars: the share of this week's
+Frontier Claude plan used, and the share of the week gone, with when the week
+starts again. Used more than 10 points ahead of the week turns the bar amber
+and says when the plan runs out at that speed; 90% used turns it red. It
+raises no line, so the watch files nothing for it. The reading comes from
+`.github/workflows/claude-plan.yml`, every hour at :07:
+`scripts/claude-plan.mjs` asks Claude Code one tiny question (Haiku, no
+tools) with `AGENT_TEAM_CLAUDE_TOKEN` in its environment, keeps the plan's
+numbers from Claude Code's `rate_limit_event`, and leaves them as an
+annotation titled "Claude plan" on the run. The Worker reads the latest
+run's annotation with its GitHub token and holds no Claude token. A reading
+over 3 hours old says it is late; a reading from before the week started
+again, or none, shows no number and says why. The same numbers are under
+Access and integrations.
+
 **What each PR and LAN number is about** (`apps/admin/src/pageRefs.ts`,
 `docs/decisions/2026-11-21-pr-and-issue-numbers-say-what-they-are-about.md`).
 Every "PR 596", "pull request 596" and "LAN-316" in the page's text gets a

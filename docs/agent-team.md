@@ -264,6 +264,8 @@ box **Tell Claude what to do**
   no fix is written, an admin's instruction waits on its card, and no
   research runs. The watch still judges and files each problem, with its
   own token (`CLAUDE_CODE_OAUTH_TOKEN`), as before the team.
+  `.github/workflows/claude-plan.yml` reads, with it, how much of the
+  account's week is used, each hour, for the ops dashboard's Overview.
 - `RELEASE_APP_ID` (variable) and `RELEASE_APP_PRIVATE_KEY` (secret):
   LangQuest's GitHub App, which the tutorial videos' fixes already use. It
   opens the pull request so that its checks start, and turns on its merge.
