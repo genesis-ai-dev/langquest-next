@@ -2,6 +2,7 @@ import { access, bearer } from './auth';
 import { API_BASE, PAGE_PATH } from './paths';
 import { ACTION_BYTES, youtubeCallback } from './youtube';
 import { diagConnection, withDiag } from './db';
+import { githubVerify, handleRead, READ_PATH, runRead } from './read';
 import type { Env } from './env';
 import { page, SECURITY_HEADERS } from './page';
 import { alertId, watchKeyOf } from './alertKinds';
@@ -116,6 +117,18 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function handle(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+  // The read gate checks its own bearer token, not a person's sign-in (read.ts).
+  if (url.pathname === READ_PATH) {
+    return handleRead(request, {
+      tokenSha256: env.CLAUDE_READ_TOKEN_SHA256,
+      verify: githubVerify,
+      connection: (login) => (login === 'claude_reader' ? env.READ_CLAUDE : env.READ_AGENT)?.connectionString ?? null,
+      run: runRead,
+      allowed: async (key) => !env.READ_RATE_LIMIT || (await env.READ_RATE_LIMIT.limit({ key })).success,
+      log: (line) => console.log(line),
+      now: () => Date.now()
+    });
+  }
   const acting = url.pathname === `${API_BASE}actions` && request.method === 'POST';
   if (request.method !== 'GET' && request.method !== 'HEAD' && !acting) return json({ error: 'Only GET' }, 405);
   if (url.pathname === PAGE_PATH || url.pathname.startsWith(PAGE_PATH + '/')) {
