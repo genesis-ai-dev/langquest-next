@@ -19,6 +19,7 @@ const JOB_SAID = {
   'tutorials.yml': ['Tutorial videos', 'Films the tutorial videos each night'],
   'tutorial-review.yml': ['Tutorial video review', 'Reads video comments and changes each night'],
   'user-issues.yml': ['User issue watch', 'Looks for new problems every 15 minutes'],
+  'claude-plan.yml': ['Claude plan reading', 'Reads how much of the Frontier Claude plan is used, every hour'],
   'phone-tests.yml': ['Nightly phone tests', 'Tests the app on an Android and an iPhone each night'],
   'release-branches.yml': ['Fixes to older store builds', 'Copies fixes to the builds in the stores'],
   'release-copy-conflict.yml': ['Copy conflicts', 'Asks for help when a fix does not copy'],
