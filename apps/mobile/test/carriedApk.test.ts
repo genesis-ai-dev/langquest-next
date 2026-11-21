@@ -2,7 +2,6 @@ import { carriedApkName, carriedFileName, CARRIED_APK_PATH } from '@langquest-ne
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { apkCheck, apkGet, apkShown, apkStale, apkStep, cannotGive, installFileItem, joinRows, KEPT_BEHIND_MS, keptBehind, letInVersionsWords } from '../src/nearby/carriedApkModel';
-import { CARRIED_APK_KEPT_UNDER_KEY, keptFromOlderBuild } from '../src/nearby/keptBuildModel';
 import { carriedApkAddress } from '../src/server/carriedApkModel';
 
 /**
@@ -101,37 +100,6 @@ describe('the step after the browser', () => {
     expect(at({ opened: NOW, kept: undefined, canGive: false })).toBe('choose');
     expect(at({ opened: NOW, canGive: false, right: undefined })).toBeNull();
     expect(at({ needed: null })).toBeNull();
-  });
-});
-
-describe('a kept copy from an older native build than this phone runs', () => {
-  // Why: files match by versions, so after a new store build (a native change, such as PR 570's) a
-  // carrier's kept copy still counted as right and nothing was said until its JavaScript was two
-  // days behind, while it installs an older app without the new build's native parts. This phone
-  // knows its own fingerprint, so it says at once that a newer file is ready (Carl, 2026-11-20).
-  const versions = { reducer: 21, lines: 1, protocol: { min: 1, max: 1 } };
-  const name = (fingerprint: string) => carriedApkName({ ...versions, fingerprint })!;
-  const [older, mine] = [name('401de22e'), name('a9ce0789')];
-  const kept = (n: string) => ({ name: n, size: 212 * 1024 * 1024 });
-
-  it('is from an older build when its fingerprint is not this phone\'s, until a file is kept under this build', () => {
-    expect(keptFromOlderBuild(kept(older), mine, null)).toBe(true);
-    // Remembered from before this build: still says so.
-    expect(keptFromOlderBuild(kept(older), mine, older)).toBe(true);
-    // Kept since this phone ran this build: the server had nothing newer for these versions (a build
-    // on a release branch, or one whose file is still being made), so asking again would bring the same file.
-    expect(keptFromOlderBuild(kept(older), mine, mine)).toBe(false);
-    expect(keptFromOlderBuild(kept(mine), mine, null)).toBe(false);
-    expect(CARRIED_APK_KEPT_UNDER_KEY).toBe('carriedApkKeptUnder');
-  });
-
-  it('says nothing with no copy, no name for this build, or names core does not write', () => {
-    expect(keptFromOlderBuild(null, mine, null)).toBe(false);
-    expect(keptFromOlderBuild(undefined, mine, null)).toBe(false);
-    expect(keptFromOlderBuild(kept(older), null, null)).toBe(false);
-    expect(keptFromOlderBuild(kept('notes.apk'), mine, null)).toBe(false);
-    // Unknown until read: nothing changes under a finger.
-    expect(keptFromOlderBuild(kept(older), mine, undefined)).toBe(false);
   });
 });
 

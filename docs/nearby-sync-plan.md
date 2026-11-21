@@ -3811,13 +3811,6 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
       with the picker (decision 246, amended 2026-11-20). A build without `installFileName`,
       which ships with the filter, still downloads the `.apk` with the old steps, since Open
       would find nothing to hand it to.
-  - *How old, and the newest* (Carl's choices, 2026-11-20). The ready line names the day the kept
-    copy was built (`builtMs`), and while online the ready state offers Download the newest file,
-    which the Worker answers with the newest file for these versions, and which replaces the copy
-    once opened or chosen. A kept copy from an older native build than this phone runs, by its
-    name's fingerprint, counts as behind at once (`keptFromOlderBuild`), so the screens say a newer
-    file is ready, until a copy is kept under this build (`carriedApkKeptUnder`). The two-day rule
-    for JavaScript stays (docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended).
   - *Too old.* The press keeps the name in one phone-wide meta row, `carriedApkOpened`,
     which holds no person, organization or time. While the name this phone needs differs
     from it, the screen says the install file is for an older version and to download the new
@@ -3969,23 +3962,12 @@ codes, one after the other, as Let someone in shows two pictures.
      run together.
    - A carrier with no kept file, or a file for other versions, is sent to Download the
      install file first (online).
-   - **Send with Quick Share** (2026-11-20): Android's share sheet with the kept file
-     (`shareInstallFile`), read through a FileProvider of the module's own
-     (`InstallFileProvider`, not exported, the kept file's folder alone). Not while a group runs,
-     since the sheet sends the app to the background, which stops it.
-   - **One of two ways** (Carl, 2026-11-20). Offered first as a second button under Show the
-     first code, with one line of what the new phone does, Quick Share read neither as one of two
-     ways nor as an order of steps. Before a group runs, the screen now asks "Choose one way to
-     send it" with two radio rows, as Let someone in asks for a role: This phone's Wi-Fi (the
-     new phone scans two codes; any Android phone), chosen first, and Quick Share (both phones
-     need Google Play services). Under them, only the chosen way's steps, and its one main
-     button in the footer: Show the first code, or Send with Quick Share. Quick Share's steps go
-     in the order they are done, numbered right through, under who does them
-     (`quickShareSteps`): first on the new phone, open Quick Share and choose Everyone; then on
-     this phone, send; then on the new phone, accept, open, allow and install; last, where this
-     phone can, tap Let them in, which opens Let someone in (no group runs to hand over). The
-     line saying phones sold in China lack Google Play services is gone from the screen. A build
-     whose module cannot share shows the Wi-Fi way alone.
+   - **Send with Quick Share** (2026-11-20), a second button while no group runs: Android's
+     share sheet with the kept file (`shareInstallFile`), read through a FileProvider of the
+     module's own (`InstallFileProvider`, not exported, the kept file's folder alone). A line
+     says both phones need Google Play services, and what the new phone does: make itself
+     visible in Quick Share, accept, open the file and install. Not while a group runs, since
+     the sheet sends the app to the background, which stops it.
 
 **The new phone.**
 1. The camera reads code 1 and offers to join (Android 10 and later, in the camera, Google

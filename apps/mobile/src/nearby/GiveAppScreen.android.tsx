@@ -4,11 +4,11 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import type { Ctx } from '../shell/ctx';
 import { LetInCoverNote } from '../shell/LetInCoverNote';
-import { Banner, Card, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel } from '../ui/kit';
+import { Banner, Card, GhostBtn, Header, LinkBtn, PrimaryBtn, ProgressBar, Screen } from '../ui/kit';
 import { Text } from '../ui/text';
 import { txt } from '../ui/textStyles';
 import { C, space, TINT } from '../ui/theme';
-import { megabytes, pageAddress, quickShareSteps, sentShown, wifiCode, type GiveEnd, type GiveFail, type GiveWay, type QuickShareOn, type QuickShareStep } from './giveAppModel';
+import { megabytes, pageAddress, sentShown, wifiCode, type GiveEnd, type GiveFail } from './giveAppModel';
 import { LetInCode } from './LetInCode';
 import { NearbyIntro } from './NearbyIntro';
 import { useGiveApp } from './useGiveApp';
@@ -30,23 +30,6 @@ const GIVE_FAIL = {
   failed: 'nearby.give.failed.failed'
 } as const satisfies Record<GiveFail, string>;
 
-/** Who does each group of Quick Share's steps (`quickShareSteps`). */
-const QUICK_SHARE_ON = {
-  newFirst: 'nearby.give.quickShare.on.newFirst',
-  this: 'nearby.give.quickShare.on.this',
-  newThen: 'nearby.give.quickShare.on.newThen',
-  thisThen: 'nearby.give.quickShare.on.thisThen'
-} as const satisfies Record<QuickShareOn, string>;
-
-const QUICK_SHARE_STEP = {
-  open: 'nearby.give.quickShare.steps.open',
-  visible: 'nearby.give.quickShare.steps.visible',
-  send: 'nearby.give.quickShare.steps.send',
-  accept: 'nearby.give.quickShare.steps.accept',
-  install: 'nearby.give.quickShare.steps.install',
-  letIn: 'nearby.give.quickShare.steps.letIn'
-} as const satisfies Record<QuickShareStep, string>;
-
 /**
  * Give the app, from Share nearby's A new person and Let someone in: this phone makes its own
  * Wi-Fi network and serves the kept install file from a small page, so a new phone gets LangQuest
@@ -55,17 +38,12 @@ const QUICK_SHARE_STEP = {
  * someone in, which takes over the running group so the new phone's LangQuest finds this phone by
  * itself (no third code). Code 2 follows by itself once the new phone joins, with Next for a phone
  * Android does not list. Both codes come back under Give it to another phone. Before the first
- * code, or after a stop, the screen asks which of two ways to send it, as radio rows under "Choose
- * one way to send it", and shows only the chosen way's steps and its one main button (Carl,
- * 2026-11-20: offered as a second button with one line, Quick Share read as neither one of two
- * ways nor an order of steps). This phone's Wi-Fi is chosen first, since it works on any phone;
- * Quick Share's steps go in the order they are done across the two phones, numbered right through
- * (`quickShareSteps`). The app downloads nothing: the file is the copy kept when the person chose
- * it. Android only; elsewhere a stub.
+ * code, or after a stop, Send with Quick Share is the other way, under the main button, for two
+ * phones with Google Play services. The app downloads nothing: the file is the copy kept when the
+ * person chose it. Android only; elsewhere a stub.
  */
 export function GiveAppScreen(ctx: Ctx) {
-  const letInWhy = useLetInOffered(ctx);
-  const give = useGiveApp(letInWhy);
+  const give = useGiveApp(useLetInOffered(ctx));
   const { stage, giving, kept, actions, worn } = give;
   const live = stage.t === 'join' || stage.t === 'download' || stage.t === 'sending' || stage.t === 'starting';
   // Both codes again after a file is sent, for one more new phone; folded until asked for.
@@ -73,33 +51,28 @@ export function GiveAppScreen(ctx: Ctx) {
   useEffect(() => { if (stage.t !== 'sent') setAnother(false); }, [stage.t]);
   // Opened from Let someone in: Let them in goes back there, not to a second one on the stack. The
   // hook hands the running group over first where it can (`handsOver`), or stops it.
-  const goLetIn = () => { if (ctx.params['from'] === 'let_someone_in') ctx.back(); else ctx.go('let_someone_in'); };
-  const letIn = () => { actions.letIn(); goLetIn(); };
+  const letIn = () => { actions.letIn(); if (ctx.params['from'] === 'let_someone_in') ctx.back(); else ctx.go('let_someone_in'); };
   const startable = give.canGive && (stage.t === 'ready' || stage.t === 'ended' || (stage.t === 'failed' && stage.why !== 'no-file'));
-  // One of two ways, chosen before a group runs: only where this build can share the file, since
-  // the share sheet would stop a running group. Wi-Fi first, since it works on any phone.
-  const [way, setWay] = useState<GiveWay>('wifi');
-  const choosing = startable && give.canShare;
-  const chosen: GiveWay = choosing ? way : 'wifi';
-  // After Quick Share no group runs to hand over: Let them in only opens Let someone in.
-  const letInFromHere = letInWhy === null;
+  // The other way, under the main one, only where no group runs (the share sheet would stop it).
+  const quickShare = give.canShare
+    ? <GhostBtn label={t('nearby.give.quickShare.button')} icon="share" help={t('nearby.give.quickShare.help')} onPress={actions.share} />
+    : null;
   let footer: ReactNode = null;
-  if (startable && chosen === 'quick-share') {
-    footer = (
-      <>
-        <PrimaryBtn label={t('nearby.give.quickShare.button')} icon="share" help={t('nearby.give.quickShare.help')} onPress={actions.share} />
-        {letInFromHere ? <GhostBtn label={t('nearby.give.letIn')} help={t('nearby.give.quickShare.letInHelp')} onPress={goLetIn} /> : null}
-      </>
-    );
-  } else if (startable && stage.t === 'failed' && stage.why === 'blocked') {
+  if (startable && stage.t === 'failed' && stage.why === 'blocked') {
     footer = (
       <>
         <PrimaryBtn label={t('nearby.permission.openSettings')} icon="settings" help={t('nearby.permission.openSettingsHelp')} onPress={actions.openSettings} />
         <GhostBtn label={t('nearby.give.start')} help={t('nearby.give.startHelp')} onPress={actions.start} />
+        {quickShare}
       </>
     );
   } else if (startable) {
-    footer = <PrimaryBtn label={t('nearby.give.start')} icon="qr" help={t('nearby.give.startHelp')} onPress={actions.start} />;
+    footer = (
+      <>
+        <PrimaryBtn label={t('nearby.give.start')} icon="qr" help={t('nearby.give.startHelp')} onPress={actions.start} />
+        {quickShare}
+      </>
+    );
   } else if (stage.t === 'join') {
     footer = (
       <>
@@ -173,54 +146,15 @@ export function GiveAppScreen(ctx: Ctx) {
           <LinkBtn label={t('nearby.give.another')} help={t('nearby.give.anotherHelp')} expanded={another} onPress={() => setAnother((o) => !o)} style={{ alignSelf: 'flex-start' }} />
         </>
       ) : null}
-      {choosing ? (
-        <>
-          <SectionLabel label={t('nearby.give.ways')} />
-          <Group>
-            <WayRow way="wifi" chosen={chosen} icon="qr" onPress={() => setWay('wifi')} />
-            <WayRow way="quick-share" chosen={chosen} icon="share" onPress={() => setWay('quick-share')} last />
-          </Group>
-        </>
-      ) : null}
-      {startable && chosen === 'wifi' ? <Card><Text style={txt.body}>{t('nearby.give.wifiLine')}</Text></Card> : null}
-      {startable && chosen === 'quick-share' ? <QuickShareSteps letIn={letInFromHere} /> : null}
       {joinCode}
       {pageCode}
       {stage.t === 'ended' ? <Banner icon="info" tone="amber" title={t(GIVE_END[stage.why])} /> : null}
       {stage.t === 'failed' && stage.why !== 'no-file' ? <Banner icon="warning" tone="amber" title={t(GIVE_FAIL[stage.why])} /> : null}
+      {/* What Quick Share needs and what the new phone does, right above its button in the footer. */}
+      {give.canShare ? <Text style={txt.sm}>{t('nearby.give.quickShare.line')}</Text> : null}
       {give.shareFailed ? <Banner icon="warning" tone="amber" title={t('nearby.give.quickShare.failed')} /> : null}
       {live ? <Text style={txt.smMuted}>{t('nearby.give.stayOpen')}</Text> : null}
     </Screen>
-  );
-}
-
-const WAY_WORDS = {
-  wifi: { label: 'nearby.give.way.wifi', sub: 'nearby.give.way.wifiSub' },
-  'quick-share': { label: 'nearby.give.way.quickShare', sub: 'nearby.give.way.quickShareSub' }
-} as const satisfies Record<GiveWay, { label: string; sub: string }>;
-
-/** One of the two ways: a choice, not a way somewhere, so a check on the chosen one and no arrow, as Let someone in's roles. */
-function WayRow(props: { way: GiveWay; chosen: GiveWay; icon: 'qr' | 'share'; onPress: () => void; last?: boolean }) {
-  const on = props.way === props.chosen;
-  const words = WAY_WORDS[props.way];
-  return (
-    <Row icon={props.icon} label={t(words.label)} sub={t(words.sub)} role="radio" selected={on} checked={on}
-      right={on ? <Ico name="check" size={20} color={C.primary} strokeWidth={3} /> : <View />}
-      help={t('nearby.give.wayHelp')} onPress={props.onPress} {...(props.last ? { last: true } : {})} />
-  );
-}
-
-/** Quick Share's steps in the order they are done, under who does them, numbered right through. */
-function QuickShareSteps(props: { letIn: boolean }) {
-  return (
-    <Card>
-      {quickShareSteps(props.letIn).map((group) => (
-        <View key={group.steps[0]!.n} style={{ gap: space.xs }}>
-          <Text style={[txt.sm, { fontWeight: '700' }]}>{t(QUICK_SHARE_ON[group.on])}</Text>
-          {group.steps.map((step) => <Text key={step.key} style={txt.sm}>{t('nearby.step', { n: step.n, label: t(QUICK_SHARE_STEP[step.key]) })}</Text>)}
-        </View>
-      ))}
-    </Card>
   );
 }
 

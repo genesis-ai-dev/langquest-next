@@ -5,11 +5,10 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { Linking } from 'react-native';
 import { noteExpected } from '../diagnostics/report';
 import { carriedApkUrl } from '../server/carriedApk';
-import { apkKeptUnderNow, apkOpenedNow, apkRightNow, keepApkKeptUnder, keepApkOpened, keepApkRight, loadApkKeptUnder, loadApkOpened, loadApkRight, subscribeApkKeptUnder, subscribeApkOpened, subscribeApkRight } from './carriedApkKept';
+import { apkOpenedNow, apkRightNow, keepApkOpened, keepApkRight, loadApkOpened, loadApkRight, subscribeApkOpened, subscribeApkRight } from './carriedApkKept';
 import { nearbyCodeOf, nearbyLinkNative } from '../../modules/nearby-link';
 import { apkCheck, apkStale, cannotGive, chosenName, KEEP_MIN_FREE_BYTES, keepResultOf, keptBehind, keptStale, type ApkCheck, type KeepResult } from './carriedApkModel';
 import { keptFileNow, setKeptFile, subscribeKeptFile } from './installFileKept';
-import { keptFromOlderBuild } from './keptBuildModel';
 import { androidSdk } from './nearbyPermissions.android';
 import type { CarriedApkHandle } from './useCarriedApk';
 
@@ -44,12 +43,10 @@ export function useCarriedApk(): CarriedApkHandle {
   const url = needed ? carriedApkUrl(handOff ? carriedFileName(needed) ?? needed : needed) : null;
   const opened = useSyncExternalStore(subscribeApkOpened, apkOpenedNow);
   const right = useSyncExternalStore(subscribeApkRight, apkRightNow);
-  const keptUnder = useSyncExternalStore(subscribeApkKeptUnder, apkKeptUnderNow);
   const [checked, setChecked] = useState<{ result: ApkCheck; name: string; keep?: KeepResult } | null>(null);
   useEffect(() => {
     loadApkOpened().catch((e: unknown) => noteExpected('carried apk: read', e));
     loadApkRight().catch((e: unknown) => noteExpected('carried apk: read right', e));
-    loadApkKeptUnder().catch((e: unknown) => noteExpected('carried apk: read kept under', e));
   }, []);
   // An older binary under this update has the module without Give the app's functions, and Give
   // the app needs Android 10: on either, nothing is kept and the screens say which, and what to do.
@@ -59,8 +56,7 @@ export function useCarriedApk(): CarriedApkHandle {
   const kept = canGive ? held : null;
   // The kept copy against the app this phone runs (an OTA update's time, or the build's own): a
   // newer file is ready once the copy is two days behind (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
-  // Or from an older native build than this phone runs, which installs an older app (Carl, 2026-11-20).
-  const behind = keptBehind(kept, Updates.createdAt?.getTime() ?? null) || keptFromOlderBuild(kept, needed, keptUnder);
+  const behind = keptBehind(kept, Updates.createdAt?.getTime() ?? null);
   useEffect(() => {
     if (!canGive || !native) return;
     void (async () => {
@@ -104,9 +100,6 @@ export function useCarriedApk(): CarriedApkHandle {
     setChecked({ result, name, keep: 'keeping' });
     try {
       setKeptFile(await native.keepInstallFile(uri, chosenName(name), KEEP_MIN_FREE_BYTES));
-      // Kept under this build: a copy from an older one is not flagged again (keptFromOlderBuild).
-      // Held at once for the screens; a failed write only means it may be flagged once more.
-      keepApkKeptUnder(needed).catch((e: unknown) => noteExpected('carried apk: keep kept under', e));
       setChecked({ result, name, keep: 'kept' });
     } catch (e) {
       setChecked({ result, name, keep: keepResultOf(nearbyCodeOf(e)) });

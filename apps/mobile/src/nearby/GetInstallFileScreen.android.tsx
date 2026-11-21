@@ -1,7 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { t } from '../i18n';
-import { formatDayYear } from '../i18n/format';
 import type { Ctx } from '../shell/ctx';
 import { LetInCoverNote } from '../shell/LetInCoverNote';
 import { useAppCovered } from '../shell/useAppCovered';
@@ -31,9 +30,8 @@ import { useCarriedApk } from './useCarriedApk';
  * Download in the browser is the main button again, with Choose the downloaded file under it (`keptBehind`,
  * docs/decisions/2026-11-19-carried-build-refreshed-daily.md). Choose a file you already have (Check my file until 2026-11-19) stays for a file got
  * another way. The file's name shows only when a wrong one is chosen, since the app checks the
- * file, not the person; the ready line names the day the kept copy was built, and while online the
- * ready state offers Download the newest file (Carl, 2026-11-20). Last, how the file reaches the new
- * phone. Nothing here downloads or installs anything.
+ * file, not the person. Last, how the file reaches the new phone. Nothing here downloads or
+ * installs anything.
  */
 export function GetInstallFileScreen(ctx: Ctx) {
   const apk = useCarriedApk();
@@ -63,14 +61,8 @@ export function GetInstallFileScreen(ctx: Ctx) {
     const Btn = primary ? PrimaryBtn : GhostBtn;
     return <Btn label={label} icon="folder" disabled={keeping} help={help} onPress={apk.actions.check} />;
   };
-  // In hand and nothing said to be newer: still a way to the newest file while online, which the
-  // Worker answers for these versions and which replaces the copy once opened or chosen (Carl, 2026-11-20).
-  const again = step === 'done' && !newer && get === 'ready';
   const buttons = newer
     ? [download(t('nearby.letIn.get'), t('nearby.letIn.getHelp'), true), choose(t('nearby.letIn.choose'), t('nearby.letIn.chooseHelp'), false)]
-    : again
-      ? [download(t('nearby.installFile.getNewest'), t(apk.handOff ? 'nearby.installFile.getNewestHelpOpen' : 'nearby.installFile.getNewestHelp'), false),
-        apk.handOff ? null : choose(t('nearby.letIn.choose'), t('nearby.letIn.chooseHelp'), false)]
     : step === 'choose'
       ? [choose(t('nearby.letIn.choose'), t('nearby.letIn.chooseHelp'), true), get !== null ? download(t('nearby.letIn.getAgain'), t('nearby.letIn.getAgainHelp'), false) : null]
       : step === 'get'
@@ -80,10 +72,6 @@ export function GetInstallFileScreen(ctx: Ctx) {
   const [first, second] = buttons;
   const footer = first || second ? <>{first}{second}</> : undefined;
   const waiting = step !== null && step !== 'done';
-  // What is in hand, and when the kept copy was built, so the carrier sees how old it is (Carl, 2026-11-20).
-  // A date names nothing, so it shows on a phone that wears a cover too.
-  const builtMs = inHand === 'kept' ? apk.kept?.builtMs : null;
-  const heldWords = typeof builtMs === 'number' ? t('nearby.letIn.keep.keptBuilt', { date: formatDayYear(builtMs) }) : t(KEEP_WORDS[inHand]);
   // What the card between them says: when to choose, that a newer file is ready, and what a choice came to.
   const line = newer ? t('nearby.installFile.newer') : step === 'choose' ? t(apk.handOff ? 'nearby.letIn.chooseLineOpen' : 'nearby.letIn.chooseLine') : null;
   // What happens after Download in the browser, before it is pressed. Where the browser hands the
@@ -120,7 +108,7 @@ export function GetInstallFileScreen(ctx: Ctx) {
               {get === 'offline' ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('nearby.letIn.getOffline')}</Text> : null}
             </Card>
           ) : null}
-          {step === 'done' ? <Banner icon="check" tone="green" title={t('nearby.installFile.done')} body={heldWords} /> : null}
+          {step === 'done' ? <Banner icon="check" tone="green" title={t('nearby.installFile.done')} body={t(KEEP_WORDS[inHand])} /> : null}
           {(waiting || newer) && (line || steps || wrong || kept) ? (
             <Card>
               {line ? <Text style={txt.sm}>{line}</Text> : null}
