@@ -842,6 +842,7 @@
     },
     "members": {
       "joined": "{{target}} · se unió {{when}}",
+      "joinedJustNow": "{{target}} · se unió hace un momento",
       "count_one": "{{count, number}} miembro",
       "count_many": "{{count, number}} miembros",
       "count_other": "{{count, number}} miembros",

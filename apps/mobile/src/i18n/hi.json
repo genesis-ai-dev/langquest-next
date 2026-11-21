@@ -825,6 +825,7 @@
     },
     "members": {
       "joined": "{{target}} · {{when}} जुड़े",
+      "joinedJustNow": "{{target}} · अभी-अभी जुड़े",
       "count_one": "{{count, number}} सदस्य",
       "count_other": "{{count, number}} सदस्य",
       "invite": "बुलाएँ",

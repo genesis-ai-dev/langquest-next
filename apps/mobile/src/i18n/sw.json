@@ -825,6 +825,7 @@
     },
     "members": {
       "joined": "{{target}} · alijiunga {{when}}",
+      "joinedJustNow": "{{target}} · alijiunga sasa hivi",
       "count_one": "Mwanachama {{count, number}}",
       "count_other": "Wanachama {{count, number}}",
       "invite": "Alika",
