@@ -171,21 +171,6 @@ describe('meters and shares (plan 5c4)', () => {
     expect(html).toContain('!QUEUE.test(html) ? numbers(id, html)');
   });
 
-  it('says each line of a part in words at the part, so a status never waits behind the numbers', async () => {
-    const html = await page({ supabaseUrl: 'https://x.supabase.co', anonKey: 'k' }, 'n').text();
-    const src = /function partLines\(alerts\) \{[\s\S]*?\n\}\n/.exec(html)![0];
-    const esc = (t: string) => t.replace(/</g, '&lt;');
-    const partLines = new Function('LEVEL', 'esc', 'tidy', `${src}; return partLines;`)({ urgent: { title: 'Act now' }, problem: { title: 'Fix soon' }, watch: { title: 'Watch' } }, esc, (t: string) => t) as (a: unknown) => string;
-    expect(partLines([])).toBe('');
-    const said = partLines([{ level: 'watch', key: 'long-transaction', text: 'A database transaction <x> has been open for 75 minutes.' }, { level: 'problem', key: 'slow-rpc', text: 'Slow.', link: 'https://example.org/run' }, { level: 'odd', text: 'Odd.', link: 'javascript:alert(1)' }]);
-    expect(said).toContain('<span class="dot watch"></span><span><b>Watch</b> A database transaction &lt;x> has been open for 75 minutes.</span>');
-    expect(said).toContain('<b>Fix soon</b> Slow. <a href="https://example.org/run"');
-    expect(said).toContain('<span class="dot watch"></span><span><b>Watch</b> Odd.</span>');
-    // The part draws them above its picture and its numbers, and the Jobs part reads the job container's lines too.
-    expect(html).toContain("head + lines + counted(s.data)");
-    expect(html).toContain("(s.alerts || []).concat(results.container.alerts || [])");
-  });
-
   it('puts the drawing on the page with no inline style', async () => {
     const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
     for (const f of ['function meterRows(', 'function meterSvg(', 'function shareSvg(', 'function numbers(', 'Show the numbers']) expect(html).toContain(f);

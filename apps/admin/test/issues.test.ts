@@ -118,7 +118,7 @@ describe('the cards', () => {
     expect(html).toContain('>Review pull request 7</a>');
     expect(html).toContain('>Open LAN-9 in Linear</a>');
     // The issue on another tab is drawn, hidden.
-    expect(html).toContain('<article class="icard" data-tab="nofix" hidden>');
+    expect(html).toContain('<article class="icard" data-card="LAN-10" data-tab="nofix" hidden>');
     expect(html).toContain('Step 3 of 5: no fix yet');
   });
 
@@ -285,7 +285,7 @@ describe('the cards', () => {
     draw.fixes({ state: 'ok', data: { prs: open } });
     const html = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record() }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
     expect(html).toContain('data-itab="claude" aria-pressed="true">Fixed by Claude<span class="count">1</span>');
-    expect(html).toContain('<article class="icard pics" data-tab="claude" data-claude="1">');
+    expect(html).toContain('<article class="icard pics" data-card="LAN-9" data-tab="claude" data-claude="1">');
     expect(html).toContain('<dt>Claude</dt>');
     expect(html).toContain('PR 7 merges without a person when its checks pass.');
     expect(html).toContain('>Open pull request 7</a>');

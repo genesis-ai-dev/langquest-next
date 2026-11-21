@@ -1,0 +1,185 @@
+/**
+ * Each line of the ops dashboard as a card on its section's page, and the way
+ * from the Overview to it (docs/decisions/2026-11-21-each-overview-line-opens-its-card.md).
+ * A tap on an Overview row opens `#g/<section>/<card id>`: the section's page
+ * scrolls to that card and rings it. A line's card is the User issues card
+ * format (pageIssues.ts issueCard): Claude's words for the problem, the fix and
+ * its state, its steps as dots, and the talk with Claude with the box to tell
+ * Claude what to do. The talk is keyed by the line's Linear issue, so the same
+ * talk shows on the line's card and on the issue's card on User issues. Each
+ * word and dot comes from what a part answered; a line with no Linear issue
+ * says why it has no box. Plain JavaScript inside page.ts's script, after
+ * pageIssues.ts; everything shown is escaped.
+ */
+
+/** The look, inside page.ts's style element. */
+export const CARD_CSS = String.raw`
+[data-card] { scroll-margin-top: 24px; }
+.lcards { margin: 6px 0 14px; }
+.icard.line { border-inline-start-width: 4px; margin: 8px 0; }
+.icard.line.urgent, .icard.line.problem { border-inline-start-color: var(--red); } .icard.line.watch { border-inline-start-color: var(--yellow); }
+.icard.line .itags .tag.urgent, .icard.line .itags .tag.problem { color: var(--red); background: var(--redbg); }
+.icard.line .itags .tag.watch { color: var(--amber); background: var(--amberbg); }
+.icard .nobox { margin: 0; font-size: 12.5px; color: var(--muted); }
+.icard .eachissue { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.icard .eachissue a { color: var(--primary); font-weight: 600; }
+.icard.hit, .pc.hit { box-shadow: 0 0 0 3px var(--primary); animation: cardhit 2.6s ease-out 1; }
+@keyframes cardhit { 0%, 30% { box-shadow: 0 0 0 6px var(--primary); } 100% { box-shadow: 0 0 0 3px var(--primary); } }
+@media (prefers-reduced-motion: reduce) { .icard.hit, .pc.hit { animation: none; } }
+.alert[data-href] { cursor: pointer; }
+.alert[data-href]:hover { border-color: var(--grey); }
+.alert .text > b a.card, .alert ul.also a.card { color: inherit; text-decoration: none; }
+.alert .text > b a.card:hover, .alert .text > b a.card:focus-visible, .alert ul.also a.card:hover, .alert ul.also a.card:focus-visible { color: var(--primary); text-decoration: underline; }
+`;
+
+/** Pure: apps/admin/test/cards.test.ts runs these with new Function. */
+export const CARD_LOGIC = String.raw`
+/** The id of a line's card: the same on the Overview's row and on the card (as alertKinds.ts alertId). */
+function lineCardId(a) { return 'line:' + (a.subject ? a.key + ':' + a.subject : a.key); }
+/** The address that opens a card on its section's page. */
+function cardHref(group, id) { return '#g/' + group + '/' + encodeURIComponent(id); }
+/** A view's address: a section, and the card in it to open when there is one. */
+function viewOf(hash, sections) {
+  const h = String(hash || '').replace(/^#/, '');
+  if (h === 'all') return { name: 'all' };
+  const g = /^g\/([a-z0-9_]+)(?:\/(.+))?$/.exec(h);
+  if (g && sections.some((s) => s.id === g[1])) {
+    let card = null;
+    if (g[2]) { try { card = decodeURIComponent(g[2]); } catch { card = null; } }
+    return card ? { name: 'group', id: g[1], card } : { name: 'group', id: g[1] };
+  }
+  return { name: 'start' };
+}
+
+/** A line's steps, as ISSUE_STEPS: the last is the line going from the page when its check runs after the merge. */
+const LINE_STEPS = [['Found', ''], ['In Linear', 'the watch files it in Linear (each 15 minutes)'], ['Fix written', 'no fix yet'], ['Merged', 'the fix waits on its merge'], ['Gone', 'the line goes when its check runs']];
+/**
+ * Where a line is (f from pageFixes.ts lineFix): the pill [words, level], the
+ * step it waits at (0 when the steps do not apply) and the steps' words.
+ * byClaude: its open or merged fix merges without a person. asked: an
+ * instruction to Claude waits for an answer, so Claude acts next.
+ */
+function lineWay(f, byClaude, asked) {
+  const steps = LINE_STEPS;
+  const way = {
+    none: { pill: ['Not in Linear yet', ''], at: 2 },
+    issue: { pill: ['No fix yet', ''], at: 3 },
+    part: { pill: [f.fixed + ' of ' + ((f.each && f.each.length) || 0) + ' issues have a fix', ''], at: 3 },
+    open: byClaude ? { pill: ['Merges when checks pass', 'claude'], at: 4 } : { pill: ['Waits on you', 'you'], at: 4 },
+    merged: { pill: ['Fix merged', 'claude'], at: 5 },
+    stuck: { pill: ['Still here after its fix', 'you'], at: 5, steps: steps.slice(0, 4).concat([['Gone', 'still here after its check']]) },
+    noise: { pill: ['Claude found nothing to fix', ''], at: 0 },
+    person: { pill: ['Waits on you', 'you'], at: 0 }
+  }[f.state] || { pill: ['', ''], at: 0 };
+  const out = { pill: way.pill, at: way.at, steps: way.steps || steps };
+  return asked && f.issues && f.issues.length === 1 ? { ...out, pill: ['Claude acts next', 'claude'] } : out;
+}
+
+/** Why a line's card has no box to tell Claude what to do, by its state; '' when it has one. */
+function noBoxSaid(state, read) {
+  if (!read) return 'Reading the user issues…';
+  return {
+    none: 'You can tell Claude what to do when the watch files this line in Linear. The watch looks each 15 minutes.',
+    noise: 'Claude found nothing to fix, so this line has no Linear issue.',
+    person: 'You act on this in the part below. Claude has no step here.',
+    unreadable: 'The page could not read this part. A refresh reads it again.',
+    count: 'Each issue has its own card on User issues.'
+  }[state] || '';
+}
+`;
+
+/** Drawing; uses the page's helpers (esc, when, tidy, safeLink, splitAlert, fixOf, fixHtml, fixLine, fixFor, fixPictures, issueCard, issueTalk, outLink, stepsHtml) and its state. */
+export const CARD_SCRIPT = String.raw`
+/** One line of a part as its card. group is the section the card is in. */
+function lineCard(a, group) {
+  const level = a.level in LEVEL ? a.level : 'watch';
+  const t = splitAlert(tidy(a.text));
+  const ud = userIssuesData();
+  const unread = a.key === 'unreadable';
+  // "User issues open" counts Linear issues itself: its own cards are the issues on this page.
+  const f = unread || a.key === 'user-issues-open' ? null : fixOf(a);
+  const issue = f && f.issues.length === 1 ? f.issues[0] : null;
+  const row = issue && ud ? (ud.issues || []).find((x) => x.issue === issue) || null : null;
+  const record = issue && ud && ud.fixes ? ud.fixes[issue] || null : null;
+  const notes = issue && ud && ud.notes ? ud.notes[issue] || [] : [];
+  const pr = f && f.pr && f.pr.number ? f.pr : null;
+  const shown = fixFor(record, pr);
+  const byClaude = !!shown && record.decision === 'merge';
+  const way = f ? lineWay(f, byClaude, notes.some((n) => n.state === 'waiting' || n.state === 'working'))
+    : { pill: unread ? ['Could not read', ''] : ['Waits on you', 'you'], at: 0, steps: LINE_STEPS };
+  const said = (words, facts) => words ? '<p>' + esc(words) + '</p>' + (facts ? '<small class="muted">' + facts + '</small>' : '') : facts;
+  const where = esc(PART_TITLE[a.part] || titleOf(group)) + (row && row.firstAt ? ' · first seen ' + when(row.firstAt) : '') + (row && row.people ? ' · ' + num(row.people) + (Number(row.people) === 1 ? ' person' : ' people') : '');
+  const link = safeLink(a.link);
+  const why = f && f.issues.length > 1 ? 'count' : !issue ? (unread ? 'unreadable' : f ? f.state : 'person') : '';
+  const side = (way.pill[1] === 'you' && pr && f.state === 'open' ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
+    (pr && f.state !== 'open' ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
+    (link ? outLink(link, 'Open the page', 'button') : '') +
+    (issue && row && safeLink(row.issueUrl) ? outLink(row.issueUrl, 'Open ' + esc(issue) + ' in Linear', 'button') : '') +
+    (issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : '') +
+    (f && f.issues.length > 1 ? '<ul class="eachissue">' + f.issues.map((i) => '<li><a href="' + esc(cardHref('userissues', i)) + '">' + esc(i) + '</a>: tell Claude what to do</li>').join('') + '</ul>' : '') +
+    (why ? '<p class="nobox">' + esc(noBoxSaid(why, unread || !!ud)) + '</p>' : '');
+  return issueCard({
+    card: lineCardId(a), cls: 'line ' + level,
+    pics: issue ? fixPictures(record, issue, !!shown, ud && ud.diagrams ? ud.diagrams[issue] : null) : '',
+    tags: '<span class="tag ' + level + '">' + esc(LEVEL[level].title) + '</span>' +
+      (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? '<span>' + esc(row.state) + ' in Linear</span>' : '') : ''),
+    title: t.title,
+    lines: [
+      ['Context', where],
+      ['Issue', said(row && row.problem, esc(tidy(a.text)))],
+      ['Solution', said(row && row.solution, f ? fixHtml(a) : t.next ? esc(t.next) : '')],
+      ['Claude', shown ? fixLine(shown, { tab: f.state === 'merged' || f.state === 'stuck' ? 'merged' : '' }) : '']
+    ],
+    pill: way.pill, steps: way.at ? [way.steps, way.at] : null, side
+  });
+}
+
+/** A part's lines as cards, above its picture and its numbers. */
+function lineCards(alerts, group, part) {
+  if (!alerts || !alerts.length) return '';
+  return '<div class="icards lcards">' + alerts.map((a) => lineCard(Object.assign({ part }, a), group)).join('') + '</div>';
+}
+
+/** The lines' cards read the user issues and the pull requests: when those come, every section draws its cards again. */
+function redrawLineCards() {
+  for (const g of SECTIONS) {
+    if (g.parts.includes('userissues')) continue;
+    const p = g.parts.find((x) => results[x]);
+    if (p) show(p, results[p]);
+  }
+}
+
+// ---- opening a card from the Overview ----
+let wantCard = null;
+/** Scrolls to the card the address names, opens its tab, and rings it; waits while its section loads. */
+function focusCard() {
+  const v = view();
+  if (!wantCard || v.name !== 'group') return;
+  const box = $('card-' + v.id);
+  const el = box && [...box.querySelectorAll('[data-card]')].find((x) => x.dataset.card === wantCard);
+  if (!el) {
+    const g = SECTIONS.find((s) => s.id === v.id);
+    // Every part answered and the card is not there: the line went (its check found it fixed).
+    if (g && g.parts.every((p) => results[p]) && results.userissues) { say('That line is no longer on this page. It cleared.', ''); wantCard = null; }
+    return;
+  }
+  wantCard = null;
+  if (el.hidden && el.dataset.tab) {
+    const b = el.closest('.issues') && el.closest('.issues').querySelector('[data-itab="' + el.dataset.tab + '"]');
+    if (b) b.click();
+  }
+  // A card behind "Show the numbers" (a build in Where each build and update is): open what holds it.
+  for (let d = el.parentElement; d; d = d.parentElement) if (d.tagName === 'DETAILS' && !d.open) d.open = true;
+  el.classList.add('hit');
+  el.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  setTimeout(() => el.classList.remove('hit'), 4000);
+}
+
+// A tap anywhere on an Overview row opens its card; its links and buttons keep their own work.
+document.addEventListener('click', (e) => {
+  const row = e.target.closest && e.target.closest('.alert[data-href]');
+  if (!row || e.target.closest('a, button, summary, input, textarea, select, svg.mini, .chart')) return;
+  if (getSelection && String(getSelection())) return;
+  location.hash = row.dataset.href.replace(/^#/, '');
+});
+`;

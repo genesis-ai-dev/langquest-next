@@ -220,11 +220,11 @@ function stepsHtml(steps, at) {
 /**
  * One card. c.tags and c.pics are HTML; c.lines are [label, HTML] and a line
  * without words is left out; c.pill is [words, level]; c.steps is [steps, at];
- * c.side is the HTML under the steps; c.tab hides the card on another tab.
+ * c.side is the HTML under the steps; c.tab hides the card on another tab; c.card is its id for a link to it (pageCards.ts).
  */
 function issueCard(c) {
   const lines = (c.lines || []).filter((l) => l[1]);
-  return '<article class="icard' + (c.pics ? ' pics' : '') + (c.cls ? ' ' + esc(c.cls) : '') + '"' + (c.tab ? ' data-tab="' + esc(c.tab) + '"' + (c.claude ? ' data-claude="1"' : '') + (c.hidden ? ' hidden' : '') : '') + '>' +
+  return '<article class="icard' + (c.pics ? ' pics' : '') + (c.cls ? ' ' + esc(c.cls) : '') + '"' + (c.card ? ' data-card="' + esc(c.card) + '"' : '') + (c.tab ? ' data-tab="' + esc(c.tab) + '"' + (c.claude ? ' data-claude="1"' : '') + (c.hidden ? ' hidden' : '') : '') + '>' +
     (c.pics ? '<div class="ipics">' + c.pics + '</div>' : '') +
     '<div class="ibody">' + (c.tags ? '<p class="itags">' + c.tags + '</p>' : '') + '<h4>' + esc(c.title) + '</h4>' + (c.meta ? '<p class="imeta">' + c.meta + '</p>' : '') +
     (lines.length ? '<dl class="kv">' + lines.map((l) => '<dt>' + esc(l[0]) + '</dt><dd>' + l[1] + '</dd>').join('') + '</dl>' : '') + '</div>' +
@@ -283,7 +283,7 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const said = (words, facts) => words ? '<p>' + esc(words) + '</p>' + (facts ? '<small class="muted">' + facts + '</small>' : '') : facts;
   const seen = [r.people ? num(r.people) + (Number(r.people) === 1 ? ' person' : ' people') : '', 'First seen ' + when(r.firstAt)].filter(Boolean).join(' · ');
   return issueCard({
-    tab: way.tab, claude: way.claude, hidden: !onTab(way, tab),
+    card: r.issue || 'keys:' + ((r.keys || [])[0] || ''), tab: way.tab, claude: way.claude, hidden: !onTab(way, tab),
     pics: fixPictures(record, r.issue, !!fixFor(record, way.pr), r.issue && diagrams ? diagrams[r.issue] : null),
     tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : '') +
       (r.issue && r.state ? '<span>' + esc(r.state) + ' in Linear</span>' : ''),
@@ -304,8 +304,9 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
 /**
  * The talk on a user issue's card: each instruction an admin sent with Claude's answer under it, then,
  * while the issue is open, the box to send one. Nothing before the database keeps instructions.
+ * at names the box's place, so the same issue's box on a line's card (pageCards.ts) has its own id.
  */
-function issueTalk(r, notes) {
+function issueTalk(r, notes, at) {
   if (!r.issue || !notes) return '';
   const list = notes[r.issue] || [];
   const talk = list.map((n) => {
@@ -315,7 +316,7 @@ function issueTalk(r, notes) {
   }).join('');
   const id = esc(r.issue);
   return (talk ? '<div class="talk">' + talk + '</div>' : '') +
-    (r.closedAt ? '' : '<div class="tell"><textarea id="uin-' + id + '" maxlength="2000" rows="3" aria-label="What Claude must do" placeholder="' + (list.length ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
+    (r.closedAt ? '' : '<div class="tell"><textarea id="uin-' + (at ? esc(at) + '-' : '') + id + '" maxlength="2000" rows="3" aria-label="What Claude must do" placeholder="' + (list.length ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
       '<small>Claude starts at the next run of the watch (each 15 minutes).</small><button type="button" class="primary" data-uinote="' + id + '">Send to Claude</button></div>');
 }
 /** A place in the code as a link to that file on main, at its line. */
@@ -376,7 +377,8 @@ document.addEventListener('click', (e) => {
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('[data-uinote]');
   if (!b) return;
-  const text = ((document.getElementById('uin-' + b.dataset.uinote) || {}).value || '').trim();
+  // The box next to the button: the same issue can have a box on its line's card too.
+  const text = String((((b.closest('.tell') || document).querySelector('textarea')) || {}).value || '').trim();
   if (!text) { say('Write what Claude must do first.', 'red'); return; }
   perform({ kind: 'user-issue-note', issue: b.dataset.uinote, text: text.slice(0, 2000) }, b);
 });
