@@ -55,7 +55,7 @@ describe('what the workflow sends back', () => {
     const lines = { context: 'A person saves a recording.', problem: 'The recording is gone.', solution: '' };
     expect(parseLooked(looked({ looked: [{ ...looked().looked[0], ...lines }] as Looked['looked'] })).looked[0]).toMatchObject({ ...lines, solution: null });
     expect(l.grew).toEqual([{ key: 'transfer:down:source:failOther', people: 6, count: 40 }]);
-    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [], research: [], handed: [], diagrams: [] });
+    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [], research: [], handed: [], diagrams: [], report: null });
   });
 
   it('takes a kind already fixed by a pull request, with or without the issue that closed, and issues that closed or opened again in Linear', () => {

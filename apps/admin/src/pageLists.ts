@@ -428,11 +428,12 @@ document.addEventListener('keydown', (e) => {
 /**
  * The controls with which a person answers a queue: Grant or Deny, Accept, Reject or Edit, Send to
  * Claude, a video's cards, the Tutorial videos tabs (which open on what waits on the admin), a reply
- * copied or marked done, Try again, Add a note, Connect or Publish, Seen or Done, an issue tab. A part that
+ * copied or marked done, Try again, Add a note, Connect or Publish, Seen or Done, an issue tab, a research
+ * tab or a choice the research team asks. A part that
  * shows one keeps its body open under its picture, so an answer never waits behind "Show the numbers".
  */
 export const QUEUE_CONTROLS = ['data-decision', 'data-sg', 'data-instruct', 'data-cards', 'data-note', 'data-yt-connect', 'data-yt-publish', 'data-yt-item', 'data-yt-all', 'data-fb', 'data-itab', 'data-uinote',
-  'data-vtab', 'data-reply-copy', 'data-reply-done', 'data-retry'];
+  'data-vtab', 'data-reply-copy', 'data-reply-done', 'data-retry', 'data-rtab', 'data-rchoice'];
 /**
  * The controls that may wait behind "Show the numbers": they open, look, move or zoom, or only quiet a
  * warning or start a job early (Not an issue, Run now). A new control goes in one list or the other
@@ -440,7 +441,7 @@ export const QUEUE_CONTROLS = ['data-decision', 'data-sg', 'data-instruct', 'dat
  */
 export const FOLDED_CONTROLS = ['data-quiet', 'data-ok', 'data-run', 'data-org', 'data-q', 'data-install', 'data-fb-id', 'data-shot', 'data-what', 'data-status',
   'data-mark', 'data-vzoom', 'data-vfit', 'data-vclose', 'data-voice', 'data-goto', 'data-range', 'data-key', 'data-lookup', 'data-h', 'data-s', 'data-t', 'data-l',
-  'data-kind', 'data-ver', 'data-done', 'data-href', 'data-help', 'data-help-key'];
+  'data-kind', 'data-ver', 'data-done', 'data-href', 'data-help', 'data-help-key', 'data-rday', 'data-text'];
 /** Whether a part's body holds a queue control (above). */
 export const QUEUE_SOURCE = String.raw`\s(?:` + QUEUE_CONTROLS.join('|') + String.raw`)(?=[\s=>])`;
 

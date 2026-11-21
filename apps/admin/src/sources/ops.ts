@@ -582,11 +582,62 @@ export interface UserIssueFix {
 /** One step of an issue's diagram (server/userIssues.ts DiagramStep): where, what happens, and whether it goes wrong. */
 export interface DiagramStep { where: string | null; text: string; wrong: boolean }
 
-/** One thing the agent team's research found (docs/agent-team.md "The research team", server/userIssues.ts ResearchItem). */
+/**
+ * One thing the research team found (docs/research-team.md, server/userIssues.ts ResearchItem): the same
+ * mistake as a fixed issue in another place (`like`), or what a scout of the day found looking ahead (`beat`,
+ * `kind`, `severity` and the rest; absent before migration 20261121030000_research_team_reports.sql).
+ */
 export interface ResearchItem {
   tag: string; title: string; like: string | null; found: string; why: string; places: string[]; steps?: DiagramStep[] | null;
   decision: 'recommend' | 'watch' | 'reject'; action: 'fix' | 'ask' | 'none';
   issue: string | null; issueUrl: string | null; handedAt: string | null; firstAt: string; at: string; runUrl: string | null;
+  beat?: string | null; kind?: string | null; severity?: 'critical' | 'high' | 'medium' | 'low' | 'info' | null; links?: string[];
+  package?: string | null; from?: string | null; to?: string | null; deadline?: string | null;
+  /** A choice the team asks of a developer: why, and 2 to 4 choices, the team's pick first. */
+  ask?: { why: string; choices: { label: string; then: string | null }[] } | null;
+}
+
+/** One scout's line in a day's report: what it looked at and what came of it. */
+export interface ResearchBeatLine { id: string; title: string; model: string; checked: string; result: 'clear' | 'found' | 'failed' | 'skipped'; note: string | null }
+
+/** The research team's report of one run (ops.research_reports). */
+export interface ResearchReport {
+  day: string; at: string; runUrl: string; headline: string; summary: string[]; beats: ResearchBeatLine[]; lead: 'ok' | 'failed';
+  minutes: number | null; turns: number | null;
+  counts: { found: number; recommended: number; rejected: number; watching: number; toFix: number; toAsk: number };
+  facts: { packages: number; advisories: number; outdated: number; actions: number } | null;
+}
+
+/** diag.ops_research(), with each item's fix record and instructions: the Research page. */
+export interface Research {
+  items: ResearchItem[]; lastAt: string | null;
+  /** The reports of the last 14 days, the newest first. Absent before migration 20261121030000_research_team_reports.sql. */
+  reports?: ResearchReport[];
+  notes?: Record<string, UserIssueNote[]>;
+  fixes?: Record<string, UserIssueFix>;
+}
+
+/** A recommended item with nobody's answer yet: a choice the team asked, or a fix that waits for a developer. */
+export function researchWaiting(r: Research): ResearchItem[] {
+  return r.items.filter((i) => {
+    if (i.decision !== 'recommend' || !i.issue) return false;
+    const fix = r.fixes?.[i.issue];
+    const told = (r.notes?.[i.issue] ?? []).some((n) => n.state === 'waiting' || n.state === 'working');
+    return !told && !(fix && fix.decision === 'merge') && (i.action === 'ask' || !!fix?.pr);
+  });
+}
+
+export function researchAlerts(r: Research): Alert[] {
+  const out: Alert[] = [];
+  const holes = r.items.filter((i) => i.decision === 'recommend' && i.kind === 'vulnerability' && (i.severity === 'critical' || i.severity === 'high') && !(i.issue && r.fixes?.[i.issue]?.decision === 'merge'));
+  if (holes.length) out.push({ level: 'problem', key: 'research-security-hole', text: `${plural(holes.length, 'serious security hole')} in the packages ${holes.length === 1 ? 'waits' : 'wait'} for a fix (Research).` });
+  const waiting = researchWaiting(r).length;
+  if (waiting) out.push({ level: 'watch', key: 'research-waits', text: `${plural(waiting, 'research item')} ${waiting === 1 ? 'waits' : 'wait'} for a developer (Research).` });
+  const newest = r.reports?.[0];
+  // The run is each day at 13:23 UTC: two days with no new report means it stopped. Before its first report there
+  // is nothing to say (a failed run is the workflow's own line).
+  if (newest && Date.now() - Date.parse(newest.at) > 50 * 3_600_000) out.push({ level: 'watch', key: 'research-stopped', text: 'The research team wrote no report in 2 days (Research).' });
+  return out;
 }
 
 /** diag.ops_user_issues(): the last 90 days, open issues first; counts; the last look; each dashboard line's decision. */
@@ -596,8 +647,6 @@ export interface UserIssues {
   notes?: Record<string, UserIssueNote[]>;
   /** diag.ops_user_issue_fixes(): each issue's fix record. Absent before migration 20261119234117_user_issue_fix_record.sql. */
   fixes?: Record<string, UserIssueFix>;
-  /** diag.ops_research(): what the research team found, the newest first. Absent before migration 20261119234319_agent_research.sql. */
-  research?: { items: ResearchItem[]; lastAt: string | null };
   /** diag.ops_user_issue_diagrams(): each issue's diagram. Absent before migration 20261119234541_user_issue_diagrams.sql. */
   diagrams?: Record<string, DiagramStep[]>;
   /** Absent before migration 20261117213500_ops_lines_linear.sql. */
@@ -618,13 +667,14 @@ export function userIssueAlerts(u: UserIssues): Alert[] {
 }
 
 const USER_ISSUES_MIGRATION = 'Needs migration 20261103204500_user_issues_fixed.sql on this database.';
+const RESEARCH_MIGRATION = 'Needs migration 20261119234319_agent_research.sql on this database.';
 
 // ---- one load ---------------------------------------------------------------------------------
 
 export interface OpsSections {
   fleet: Section; safety: Section; people: Section; cron: Section; dbdetail: Section;
   push: Section; worker: Section; integrations: Section; support: Section; security: Section; tutorials: Section; videofeedback: Section;
-  userissues: Section;
+  userissues: Section; research: Section;
 }
 
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
@@ -659,7 +709,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<QuietAccounts>(query, `select diag.ops_quiet_accounts() as v`),
     part<Record<string, UserIssueNote[]>>(query, `select diag.ops_user_issue_notes() as v`),
     part<Record<string, UserIssueFix>>(query, `select diag.ops_user_issue_fixes() as v`),
-    part<NonNullable<UserIssues['research']>>(query, `select diag.ops_research() as v`),
+    part<Research>(query, `select diag.ops_research() as v`),
     part<Record<string, DiagramStep[]>>(query, `select diag.ops_user_issue_diagrams() as v`)
   ]);
 
@@ -728,8 +778,12 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     }),
     userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
       // Before its migration the cards show without the box, and without the agent team's record.
-      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: userfixes.value } : {}), ...(research.ok ? { research: research.value } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}) };
+      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: userfixes.value } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}) };
       return ok(u, userIssueAlerts(u));
+    }),
+    research: build([research], RESEARCH_MIGRATION, () => {
+      const r: Research = { ...val(research), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: userfixes.value } : {}) };
+      return ok(r, researchAlerts(r));
     })
   };
 }
