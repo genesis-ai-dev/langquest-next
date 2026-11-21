@@ -18,6 +18,8 @@ import { ICONS, NAV, SHELL_CSS, SHELL_HTML, SHELL_LOGIC, SHELL_SCRIPT } from './
 import { OVERVIEW_CSS, OVERVIEW_HTML, OVERVIEW_LOGIC, OVERVIEW_SCRIPT } from './pageOverview';
 import { FIX_CSS, FIX_LOGIC, FIX_SCRIPT } from './pageFixes';
 import { ISSUE_CSS, ISSUE_LOGIC, ISSUE_SCRIPT } from './pageIssues';
+import { RESEARCH_CSS, RESEARCH_LOGIC, RESEARCH_SCRIPT } from './pageResearch';
+import { RESEARCH_TEAM } from './researchTeam';
 import { KINDS } from './alertKinds';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
@@ -207,6 +209,7 @@ ${START_CSS}
 ${OVERVIEW_CSS}
 ${FIX_CSS}
 ${ISSUE_CSS}
+${RESEARCH_CSS}
 ${LISTS_CSS}
 ${METERS_CSS}
 ${VIDEO_CSS}
@@ -1060,6 +1063,10 @@ ${REF_SCRIPT}
 // ---- the cards of the User issues page and of a tutorial video's questions (pageIssues.ts) ----
 ${ISSUE_LOGIC}
 ${ISSUE_SCRIPT}
+// ---- the Research page (pageResearch.ts): the team's report, its map and week, and what it found ----
+const RESEARCH_TEAM = ${JSON.stringify(RESEARCH_TEAM)};
+${RESEARCH_LOGIC}
+${RESEARCH_SCRIPT}
 ${LISTS_LOGIC}
 ${METERS_LOGIC}
 ${LISTS_SCRIPT}

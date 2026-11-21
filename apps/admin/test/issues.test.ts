@@ -4,8 +4,7 @@ import { ISSUE_LOGIC, ISSUE_SCRIPT } from '../src/pageIssues';
 
 interface Way { tab: string; pill: string; level: string; at: number; pr: { number: number } | null; claude?: boolean }
 type Row = Record<string, unknown>;
-const logic = new Function(`${ISSUE_LOGIC}; return { issueSource, issueWay, issueTabs, videoWay, noteSaid, fixFor, fixSaid, researchWay, FIX_REASON, ISSUE_STEPS, VIDEO_STEPS };`)() as {
-  researchWay: (item: Row, fix: Row | null) => { show: boolean; pill: [string, string] };
+const logic = new Function(`${ISSUE_LOGIC}; return { issueSource, issueWay, issueTabs, videoWay, noteSaid, fixFor, fixSaid, FIX_REASON, ISSUE_STEPS, VIDEO_STEPS };`)() as {
   issueSource: (keys: string[]) => string;
   issueWay: (r: Row, prs: Row[] | null, notes?: Row[] | null, fix?: Row | null) => Way;
   fixFor: (fix: Row | null, pr: Row | null) => Row | null;
@@ -328,23 +327,6 @@ describe('the cards', () => {
   });
 });
 
-describe('what the research team found, on its card', () => {
-  const item = (over: Row = {}): Row => ({ tag: 'fixed-width-label', decision: 'recommend', action: 'fix', issue: 'LAN-50', handedAt: null, ...over });
-
-  it('says who it waits on', () => {
-    expect(logic.researchWay(item(), null)).toEqual({ show: true, pill: ['Waits on the fix team', ''] });
-    expect(logic.researchWay(item({ handedAt: '2026-11-19T14:00:00Z' }), null).pill).toEqual(['The fix team has it', '']);
-    expect(logic.researchWay(item({ action: 'ask' }), null).pill).toEqual(['Waits on you', 'warn']);
-    expect(logic.researchWay(item(), { decision: 'waits' }).pill).toEqual(['Waits on you', 'warn']);
-    expect(logic.researchWay(item(), { decision: 'merge' }).pill).toEqual(['Claude fixes it', 'ok']);
-    expect(logic.researchWay(item({ decision: 'watch', action: 'none' }), null).pill).toEqual(['Claude watches it', '']);
-  });
-
-  it('does not show what it rejected', () => {
-    expect(logic.researchWay(item({ decision: 'reject', action: 'none' }), null).show).toBe(false);
-  });
-});
-
 describe('an image on each card', () => {
   const base = { open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null };
   const steps = [{ where: 'Person', text: 'Taps <Play>.', wrong: false }, { where: 'Browser', text: 'The request is refused.', wrong: true }];
@@ -366,15 +348,9 @@ describe('an image on each card', () => {
     expect(html).not.toContain('After the fix');
   });
 
-  it('gives a research item its diagram, and a recommended one the box to tell Claude what to do', () => {
-    const item = (over: Row = {}): Row => ({ tag: 'fixed-width-label', title: 'Words are cut off', like: 'LAN-9', found: 'A fixed width.', why: 'Half a word.', places: ['apps/mobile/src/a.tsx:3'], steps,
-      decision: 'recommend', action: 'ask', issue: 'LAN-50', issueUrl: 'https://linear.app/t/issue/LAN-50', handedAt: null, firstAt: '2026-11-19T00:00:00Z', at: '2026-11-19T00:00:00Z', runUrl: null, ...over });
-    const html = draw.userIssuesHtml({ ...base, issues: [], notes: {}, research: { lastAt: '2026-11-19T00:00:00Z', items: [item(), item({ tag: 'not-proven', decision: 'watch', action: 'none', issue: null, issueUrl: null, steps: null })] } });
-    expect(html).toContain('Research: the same mistake in other places');
-    expect(html.match(/class="idiagram"/g)).toHaveLength(1);
-    expect(html).toContain('href="https://github.com/genesis-ai-dev/langquest-next/blob/main/apps/mobile/src/a.tsx#L3"');
-    expect(html.match(/data-uinote="LAN-50"/g)).toHaveLength(1);
-    expect(html.match(/data-uinote=/g)).toHaveLength(1);
+  it('points to the Research page under the cards', () => {
+    expect(draw.userIssuesHtml({ ...base, issues: [] })).toContain('<a href="#g/research">Research</a>');
+    expect(draw.userIssuesHtml({ ...base, issues: [issue()] })).toContain('<a href="#g/research">Research</a>');
   });
 });
 
