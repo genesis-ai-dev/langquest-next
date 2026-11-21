@@ -220,7 +220,7 @@ const onPhones = (f) => f.phones ? ' on phones that update' : '';
 /** A line's state in one row: what to read first is the picture and its few words. */
 function fixHtml(a, compact) {
   // "Could not read" is about the page's own call; "user issues open" counts Linear issues itself.
-  if (!a || !a.key || a.key === 'unreadable' || a.key === 'user-issues-open') return '';
+  if (!a || !a.key || a.key === 'unreadable' || a.key === 'user-issues-open' || a.key === 'user-issues-waiting') return '';
   const f = fixOf(a);
   // A line with several issues lists each issue's own fix under its first row (not when compact).
   const each = f.each && !compact

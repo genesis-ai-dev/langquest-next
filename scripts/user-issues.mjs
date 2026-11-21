@@ -10,7 +10,7 @@
 //                                              records), and the team's issues in Linear (linear.json); writes
 //                                              look=<n> and grew=<n> to GITHUB_OUTPUT
 //   node scripts/user-issues.mjs file <dir>    decisions.json, as Claude wrote it: a Linear issue for each new
-//                                              problem, assigned to USER_ISSUES_ASSIGNEE, and a comment on each
+//                                              problem, assigned to USER_ISSUES_ASSIGNEE when set (none today), and a comment on each
 //                                              issue the team already had (reopened when it was closed) and on
 //                                              each that more people hit since; then tells the Worker what was
 //                                              done, so nothing is filed twice; writes fixes=<the new issues' ids,
@@ -59,7 +59,7 @@ export const API = process.env.USER_ISSUES_API ?? 'https://next.langquest.org/ap
 /** What the Worker expects the token to be for (apps/web/worker/userIssues.ts USER_ISSUES_RULE). */
 export const AUDIENCE = 'https://next.langquest.org/api/user-issues';
 /** server/userIssues.ts FAMILIES (scripts/userIssues.test.ts holds them equal). */
-export const FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'job', 'worker', 'feedback', 'ops'];
+export const FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'slow', 'snapshot', 'job', 'worker', 'feedback', 'ops'];
 export const KEY = new RegExp(`^(${FAMILIES.join('|')}):[A-Za-z0-9 _.:()/#@-]{1,290}$`);
 /** server/userIssues.ts ISSUE_LABEL and ISSUE_PREFIX. */
 export const LABEL = 'User issue';
