@@ -88,7 +88,7 @@ export async function handleUserIssues(request: Request, deps: UserIssuesDeps): 
     }
     await deps.record({
       job: 'user_issue_watch', startedAt: started, ms: deps.now() - started, outcome: 'ok',
-      n: { active: watch.active, look: watch.look.length, grew: watch.grew.length }
+      n: { active: watch.active, look: watch.look.length, grew: watch.grew.length, waiting: watch.waiting ?? 0 }
     });
     return json(200, watch);
   }

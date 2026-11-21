@@ -357,11 +357,13 @@ last 7 days into **kinds**, named by the records' code-like tags:
 | `error` | `error:TypeError@record:-` | an error record: name, where, code |
 | `sync` | `sync:error:pull:57014:ServerError`, `sync:unrenewed` | syncs that failed, were refused, too old or could not renew |
 | `transfer` | `transfer:down:source:failOther` | file transfers that failed, not offline |
-| `auth` | `auth:redeem:expired:-` | sign-in, joining and account changes that ended badly |
+| `auth` | `auth:renew:server:-` | sign-in, joining and account changes the dashboard's one rule calls trouble (`diag.sign_in_class`) |
 | `expected` | `expected:<where>:<name>:<code>` | failures already shown to the person, from 10 |
-| `audio` | `audio:saveFail` | recording and playback failures |
+| `audio` | `audio:saveFail`, `audio:playNotHere` | recording and playback failures; over 10 taps in an hour on a recording not yet on the phone |
 | `fill` | `fill:fallback:no_cut` | first downloads that fell back or started over |
-| `device` | `device:lostRecordings`, `device:uploadWaitingOverADay` | work lost or stuck on a phone |
+| `device` | `device:lostRecordings`, `device:uploadWaitingOverADay`, `device:diagDropped` | work lost or stuck on a phone; records a phone dropped past its 3000 |
+| `slow` | `slow:sync:phone`, `slow:audio:firstSound` | slowness, by the field report's limits (`scripts/diagSignals.ts`): a sync whose phone work passed 10 s or network 60 s, a language open over 5 s, a language folded again over 20 times a day, a checkpoint over 3 s, a first download over 15 minutes without the time offline, a fill over a day, one file over 2 minutes, a play that waited over 3 s for its first sound |
+| `snapshot` | `snapshot:stale:redaction` | a server snapshot older than the phone needs |
 | `job` | `job:projection:failing` | a server job failing three times running, or stopped |
 | `worker` | `worker:blobs_get:5xx` | a Worker route answering 5xx at least 5 times in a day |
 | `feedback` | `feedback:<id>` | a problem sent from help mode (bugs, not ideas) |
@@ -375,8 +377,14 @@ Share nearby's `expected` tallies reach the watch, as every `expected` does
 Development builds and the accounts in `ops.watch_ignored` (the store
 review account and Claude's production test account; an operator adds
 others with SQL) are left out. A kind is
-handed over when someone hit it in the last day and it was never looked at,
-at most 20 at a time, problems from help mode first.
+handed over when it was never looked at, at most 20 at a time, problems from
+help mode first. Since 2026-11-21 that is from any of the 7 days, not only
+the last one, the newest first, so a
+kind that waited past the 20, or through a day the watch did not run, is not
+lost; the watch says how many wait (`waiting`), and the ops dashboard shows
+it as a line ("Problems wait for the watch for user issues"). An error
+kind also carries the top line of each of its stacks (`tops`), since one
+name and place can be two bugs.
 
 When something is new, Claude (`anthropics/claude-code-action`, the plan
 token of the tutorial review) reads the kinds and the team's Linear issues,
@@ -386,7 +394,7 @@ pull request merged into main after the reports fixes it (Claude reads
 main's merges with `git log`, 600 commits deep): nothing is filed, and the
 kind keeps the pull request's number and when it merged. `scripts/user-issues.mjs` then files
 each new problem in Linear's LangQuest Next team with the label **User
-issue**, assigned to the Linear user named in the workflow, and comments on
+issue**, unassigned (the workflow can name an assignee; it names none, since any developer on the team takes one), and comments on
 an issue that a known kind belongs to. Then it tells the Worker what was
 done (`POST`), kept in `ops.user_issues`, so each kind is looked at once. A
 kind comes back when at least twice as many people (and two more) hit it: a

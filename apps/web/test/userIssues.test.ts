@@ -184,7 +184,7 @@ describe('/api/user-issues', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('private, no-store');
     expect(await res.json()).toEqual(watch);
-    expect(runs).toEqual([{ job: 'user_issue_watch', startedAt: NOW, ms: 0, outcome: 'ok', n: { active: 12, look: 0, grew: 0 } }]);
+    expect(runs).toEqual([{ job: 'user_issue_watch', startedAt: NOW, ms: 0, outcome: 'ok', n: { active: 12, look: 0, grew: 0, waiting: 0 } }]);
   });
 
   it('hands over a problem\'s screenshot and picture, and a phone\'s records around a time, without recording them as runs', async () => {

@@ -100,7 +100,7 @@ function lineCard(a, group) {
   const ud = userIssuesData();
   const unread = a.key === 'unreadable';
   // "User issues open" counts Linear issues itself: its own cards are the issues on this page.
-  const f = unread || a.key === 'user-issues-open' ? null : fixOf(a);
+  const f = unread || a.key === 'user-issues-open' || a.key === 'user-issues-waiting' ? null : fixOf(a);
   const issue = f && f.issues.length === 1 ? f.issues[0] : null;
   const row = issue && ud ? (ud.issues || []).find((x) => x.issue === issue) || null : null;
   const record = issue && ud && ud.fixes ? ud.fixes[issue] || null : null;

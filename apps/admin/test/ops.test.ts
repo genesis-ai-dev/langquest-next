@@ -537,6 +537,12 @@ describe('the watch for user issues (decisions.md 202)', () => {
     ]);
   });
 
+  it('says how many problems wait past the 20 the watch looks at each run', () => {
+    expect(userIssueAlerts(issues({ waiting: 0 }))).toEqual([]);
+    expect(userIssueAlerts(issues({ waiting: 1 }))).toEqual([{ level: 'watch', key: 'user-issues-waiting', text: '1 problem the watch found waits for a later run: it looks at 20 each run (User issues).' }]);
+    expect(userIssueAlerts(issues({ waiting: '7' as unknown as number }))).toEqual([{ level: 'watch', key: 'user-issues-waiting', text: '7 problems the watch found wait for a later run: it looks at 20 each run (User issues).' }]);
+  });
+
   it('reads diag.ops_user_issues into its section, with the pull request that fixed each', async () => {
     const s = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })]]));
     expect(s.userissues).toMatchObject({ state: 'ok', data: { closed: 1, issues: [{ issue: 'LAN-220', fixedBy: 312, state: 'Live' }] } });

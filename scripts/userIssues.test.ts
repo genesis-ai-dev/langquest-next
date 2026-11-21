@@ -198,8 +198,8 @@ describe('user-issues.mjs', () => {
     expect(KEY.source).toBe(model.KEY.source);
     expect(LABEL).toBe(model.ISSUE_LABEL);
     expect(PREFIX).toBe(model.ISSUE_PREFIX);
-    // The table's check, as the newest migration that sets it: ops lines joined on 2026-11-17.
-    const sql = read('supabase/migrations/20261117213500_ops_lines_linear.sql');
+    // The table's check, as the newest migration that sets it: slowness and snapshots joined on 2026-11-21.
+    const sql = read('supabase/migrations/20261121031500_user_issue_watch_gaps.sql');
     // Postgres allows no repetition count over 255, so the table says the length on its own.
     expect(sql).toContain(`check (length(key) <= 300 and key ~ '^(${FAMILIES.join('|')}):[A-Za-z0-9 _.:()/#@-]+$')`);
     // A tag a record left out is a dash, which a key may hold; never a question mark.
