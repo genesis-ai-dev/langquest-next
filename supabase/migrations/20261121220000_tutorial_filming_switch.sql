@@ -55,9 +55,10 @@ revoke all on function diag.ops_tutorial_filming from public;
 grant execute on function diag.ops_tutorial_filming to diag_reader;
 
 -- The dashboard's new action, in its log (ops.actions). The list is the one of 20261119171500_tutorial_reply_done.sql
--- with filming_on and filming_off added.
+-- with filming_on and filming_off added, and suggestion_fix of 20261121214500_tutorial_fix_in_app.sql, so the lists
+-- are the same whichever merges first.
 alter table ops.actions drop constraint if exists actions_action_check;
 alter table ops.actions add constraint actions_action_check
   check (action in ('feedback_new', 'feedback_seen', 'feedback_done', 'run_job', 'verification_grant', 'verification_decline',
     'youtube_start', 'youtube_connect', 'tutorials_publish', 'tutorial_note', 'suggestion_accepted', 'suggestion_rejected', 'suggestion_edited',
-    'quiet_ok', 'quiet_ok_undo', 'user_issue_note', 'reply_posted', 'reply_none', 'reply_open', 'filming_on', 'filming_off'));
+    'quiet_ok', 'quiet_ok_undo', 'user_issue_note', 'reply_posted', 'reply_none', 'reply_open', 'filming_on', 'filming_off', 'suggestion_fix'));

@@ -12,7 +12,7 @@ switch on the dashboard that works at once" over a button that opens a pull
 request.
 
 - **Where the choice lives.** `ops.tutorial_filming`, one row per language a
-  person set (migration `20261121214500_tutorial_filming_switch.sql`); the
+  person set (migration `20261121220000_tutorial_filming_switch.sql`); the
   three filmed before (en, fr, es) start on, so the merge changes nothing.
   Only the service role writes it, through the dashboard action
   `tutorial-filming` (`apps/web/worker/opsActions.ts`), recorded in
