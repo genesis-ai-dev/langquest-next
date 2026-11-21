@@ -9,12 +9,16 @@ do, and sees the progress of the fix, in the format of the User issues
 cards (the prayer-robin layout). Before, a row went to the top of its
 section, and a section showed its lines only as one line of words each.
 Decided:
-- **A line is a card.** Each line of a part shows at its part in the User
-  issues card format (`apps/admin/src/pageCards.ts`, `issueCard`): the
-  diagram or the pictures, Context / Issue / Solution in Claude's words when
-  the watch kept them (else the line's own words and its fix state), what
-  the agent team decided, steps (Found, In Linear, Fix written, Merged,
-  Gone) and the talk with the box "Tell Claude what to do".
+- **A line is a card.** Each line of a part shows at its part as a card
+  (`apps/admin/src/pageCards.ts`), in the one card format that User issues
+  and the tutorial video questions also use (`pageIssues.ts` `issueCard`),
+  redrawn for Caleb's "beautiful, user-friendly, well-balanced" ask: at the
+  top the title and who acts next, then the steps as a progress bar with
+  their names (Found, In Linear, Fix written, Merged, Gone); at the left the
+  diagram, "What happened" and "What goes wrong" in Claude's words; at the
+  right a panel with "The fix", what Claude did (its reasons behind one tap)
+  and the buttons; at the bottom "Talk with Claude" across the card with
+  the box. The headings are plain words, not Context / Issue / Solution.
 - **The talk belongs to the Linear issue.** A line's box sends the same
   `user-issue-note` as the issue's card on User issues, so one talk shows
   in both places. No new table and no change to the watch.
