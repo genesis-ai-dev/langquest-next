@@ -84,8 +84,11 @@ Android emulator. When `CLAUDE_CODE_REMOTE` is `true`:
   one phone-check thread on the Mac, which runs one simulator at a time
   (`run-app`); say what it should look at and on which screens.
 - The machine has no `.env.keys`: nothing there decrypts env files, pushes to
-  EAS, applies secrets or touches a hosted database. Those steps stay on the
-  Mac.
+  EAS, applies secrets or writes to a hosted database. Those steps stay on
+  the Mac. It may read production: `npm run prod:read -- "select ..."`, as
+  claude_reader, with the environment's `CLAUDE_READ_TOKEN`
+  (`docs/production-reads.md`). Rows it answers are production data: never
+  put them in a pull request, commit, issue or other public place.
 
 ## Store declarations
 

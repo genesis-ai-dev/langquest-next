@@ -53,6 +53,7 @@ Running it
 - [cloudflare.md](./cloudflare.md) — Workers Builds: what merging to develop and main deploys; builds hold no secrets
 - [admin.md](./admin.md) — The ops dashboard: what it shows staff, where each part comes from, who may open it, and what is not built yet
 - [diagnostics.md](./diagnostics.md) — Field diagnostics: the content-free records a phone keeps and sends, so support can answer a field report from records (decision 39)
+- [production-reads.md](./production-reads.md) — Read-only SQL on the production database for Claude's cloud threads and the agent teams: the two logins, the read gate, where each key lives
 - [agent-team.md](./agent-team.md) — The agent team: Claude agents that write a fix for each user issue, the rule that decides whether it merges without a person, and the research that looks for the same mistake in other places
 - [routines/](./routines/README.md) — The routines that run the Linear board without a person: each one's prompt, when it runs and what it may change
 - [play-store-declarations.md](./play-store-declarations.md) — Every answer given to Google Play (data safety, content rating, permissions, the listing), kept true in the same change as the app (decision 49)
