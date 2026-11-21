@@ -443,7 +443,11 @@ video is filmed again
 (docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md).
 So `noFix` is what the agent team reads first: name the screen, the words
 or the file, and what must change. Leave `app` out when the change needs
-another video, new setup or a person's choice.
+another video, new setup or a person's choice. Name a file by its path in
+the repository (`apps/mobile/src/i18n/fr.json`, not "the French words"):
+when a person's pull request changes that file later and a new film comes
+in, the next `queue` marks the change "Fixed by PR N, filmed again"
+(docs/decisions/2026-11-21-a-failed-video-change-learns-the-pull-request-that-fixed-it.md).
 
 or, when the video already does it:
 

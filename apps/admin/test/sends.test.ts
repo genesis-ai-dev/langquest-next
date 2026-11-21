@@ -154,6 +154,12 @@ describe('the record on a card', () => {
     expect(said('filmed')).toBe('filmed the video again: the new film is in');
   });
 
+  it('says that another pull request fixed a change that failed', () => {
+    const said = (detail: string | null, pr: number) => logic.recordSaid({ who: 'Claude', what: 'fixed_elsewhere', result: 'ok', detail, words: null, pr }).said;
+    expect(said('apps/mobile/src/i18n/fr.json', 633)).toBe('saw that another pull request fixed it (it changed apps/mobile/src/i18n/fr.json, the file Claude named), and that a new film came in after it (pull request 633)');
+    expect(said(null, 636)).toBe('saw that another pull request fixed it (it names this change), and that a new film came in after it (pull request 636)');
+  });
+
   it('holds only its card\'s entries, newest first, with how it began and a message the server does not have yet', () => {
     const sends = new Map([['video:held-v', { key: 'video:held-v', text: 'Fix it', at: at('2026-11-21T21:05:00Z'), state: 'sending' as const }]]);
     const list = logic.cardRecord(records, 'v/es', sends, 'video:held-v', { at: '2026-11-20T09:00:00Z', who: 'The frame check on the new film', said: 'held it back' });

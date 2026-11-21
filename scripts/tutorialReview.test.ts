@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { addedLines, AUDIENCE, API, changesOf, CHANGES_MAX, checkFix, checkResults, checkVet, codeRefusal, FIX_LIMITS, FIXABLE, fixBranch, fixPull, fixRefusal, knownPictures, OPEN_HOURS, openVerdict, pictureLabel, refilmInputs, pictureOf, picturePlaces, PICTURE_LIMITS, picturesMarkdown, prOf, prStateOf, problemsOf, runUrl, withPictures, withRun } from './tutorial-review.mjs';
+import { addedLines, AUDIENCE, API, changesOf, CHANGES_MAX, checkFix, checkResults, checkVet, codeRefusal, FIX_LIMITS, FIXABLE, fixBranch, fixPull, fixRefusal, fixedElsewhereOf, knownPictures, namedFiles, OPEN_HOURS, openVerdict, pictureLabel, refilmInputs, pictureOf, picturePlaces, PICTURE_LIMITS, picturesMarkdown, prOf, prStateOf, problemsOf, runUrl, withPictures, withRun } from './tutorial-review.mjs';
 import { FIXES_PATH, FIXES_PER_RUN, PICTURES_PATH, REVIEW_PATH, REVIEW_RULE } from '../apps/web/worker/tutorialReview';
 import { FIXABLE_KINDS, parseReview, PICTURE_MAX } from '../server/tutorialFeedback';
 
@@ -381,6 +381,36 @@ describe('tutorial-review.mjs', () => {
       // A suggestion for every language films the nightly list.
       expect(refilmInputs([{ tutorial: 'consultant-check', language: 'fr' }, { tutorial: 'record-a-passage', language: null }])).toEqual({ languages: '', videos: 'consultant-check record-a-passage' });
       expect(refilmInputs([{ tutorial: '../x; rm', language: 'fr; rm' }, { tutorial: 'a', language: 'fr' }])).toEqual({ languages: 'fr', videos: 'a' });
+    });
+
+    it('reads the files Claude named in why a change failed', () => {
+      expect(namedFiles("The capital À comes from the app: the French word for 'just now' (common.justNow in apps/mobile/src/i18n/fr.json) starts with a capital."))
+        .toEqual(['apps/mobile/src/i18n/fr.json']);
+      expect(namedFiles('The light is drawn by the filming code (film.ts), not e2e/tutorials/edit-a-finished-version.ts.')).toEqual(['film.ts', 'e2e/tutorials/edit-a-finished-version.ts']);
+      expect(namedFiles('comes from the app\'s Spanish words (es.json in the app)')).toEqual(['es.json']);
+      expect(namedFiles('./a.ts and a.ts again, fr.json.')).toEqual(['a.ts', 'fr.json']);
+      expect(namedFiles(null)).toEqual([]);
+    });
+
+    it('finds the pull request of its own that fixed a change that failed, merged before the newest film', () => {
+      const fr = { id: 'f8c4546f-b8d8-4079-a436-bd36f5f06ae9', tutorial: 'how-langquest-works', language: 'fr', fixAt: '2026-11-21T21:25:26Z', filmedAt: '2026-11-21T22:17:20Z',
+        note: 'The capital À comes from the app (common.justNow in apps/mobile/src/i18n/fr.json).' };
+      const pull = (number: number, mergedAt: string, files: string[], text = 'Show joined just now in lowercase', head = 'claude/x') => ({ number, mergedAt, head, text, files });
+      const pr633 = pull(633, '2026-11-21T22:01:00Z', ['apps/mobile/src/i18n/fr.json', 'apps/mobile/src/org/model.ts']);
+      expect(fixedElsewhereOf([fr], [pr633])).toEqual([{ id: fr.id, pr: 633, mergedAt: '2026-11-21T22:01:00Z', file: 'apps/mobile/src/i18n/fr.json' }]);
+      // Before the failure, or after the newest film (that film did not have it): not this one.
+      expect(fixedElsewhereOf([fr], [pull(600, '2026-11-21T20:00:00Z', ['apps/mobile/src/i18n/fr.json'])])).toEqual([]);
+      expect(fixedElsewhereOf([fr], [pull(640, '2026-11-21T23:00:00Z', ['apps/mobile/src/i18n/fr.json'])])).toEqual([]);
+      // A file Claude did not name, or the video fix run's own pull request: not this one.
+      expect(fixedElsewhereOf([fr], [pull(634, '2026-11-21T22:02:00Z', ['apps/mobile/src/i18n/es.json'])])).toEqual([]);
+      expect(fixedElsewhereOf([fr], [pull(635, '2026-11-21T22:02:00Z', ['apps/mobile/src/i18n/fr.json'], 'x', 'tutorial-fix/2b156cdd')])).toEqual([]);
+      // A pull request that names the suggestion wins, whatever it changed; else the first that changed a named file.
+      expect(fixedElsewhereOf([fr], [pr633, pull(636, '2026-11-21T22:05:00Z', ['apps/admin/src/a.ts'], 'Fixes video suggestion f8c4546f')]))
+        .toEqual([{ id: fr.id, pr: 636, mergedAt: '2026-11-21T22:05:00Z', file: null }]);
+      expect(fixedElsewhereOf([fr], [pull(637, '2026-11-21T22:10:00Z', ['apps/mobile/src/i18n/fr.json']), pr633])[0]!.pr).toBe(633);
+      // No film after the failure, or no note naming a file: nothing.
+      expect(fixedElsewhereOf([{ ...fr, filmedAt: null }], [pr633])).toEqual([]);
+      expect(fixedElsewhereOf([{ ...fr, note: 'A person needs to look.' }], [pr633])).toEqual([]);
     });
 
     it('opens a pull request that says what was accepted, links what it answers and never quotes a commenter', () => {

@@ -383,11 +383,18 @@ export function parseReview(input: unknown): Review {
 export interface FixUpdate { id: string; state: FixState; pr: number | null; note: string | null; app?: boolean }
 /** A fix in the app whose pull request merged, and whose video the run sent to be filmed again. */
 export interface Refilmed { id: string; pr: number }
+/**
+ * A change whose fix failed, that a pull request of its own fixed later: the pull request, when it merged, and the
+ * file Claude named as the cause that it changed (null when it names the suggestion). `ops_tutorial_fixed_elsewhere`.
+ */
+export interface FixedElsewhere { id: string; pr: number; mergedAt: string; file: string | null }
+/** A file in the repository, as GitHub names it. */
+const FILE = /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+){0,15}$/;
 /** More than a run could send; a list past it is refused whole. */
 export const FIX_UPDATES_MAX = 50;
 
 /** What a fix run sent: the run it is, and each suggestion's move. A ReviewError says the first thing wrong. */
-export function parseFixUpdates(input: unknown): { runUrl: string; updates: FixUpdate[]; refilmed: Refilmed[] } {
+export function parseFixUpdates(input: unknown): { runUrl: string; updates: FixUpdate[]; refilmed: Refilmed[]; fixedElsewhere: FixedElsewhere[] } {
   if (!isObj(input)) throw new ReviewError('not an object');
   if (typeof input['runUrl'] !== 'string' || !RUN.test(input['runUrl'])) throw new ReviewError(`runUrl: a run of ${REPOSITORY}`);
   const updates = list(input, 'updates', FIX_UPDATES_MAX).map((u, n) => {
@@ -411,5 +418,16 @@ export function parseFixUpdates(input: unknown): { runUrl: string; updates: FixU
     if (!(Number.isInteger(pr) && (pr as number) > 0 && (pr as number) <= 10_000_000)) throw new ReviewError(`${where}.pr: the pull request that merged`);
     return { id: r['id'], pr: pr as number };
   });
-  return { runUrl: input['runUrl'], updates, refilmed };
+  const fixedElsewhere = (input['fixedElsewhere'] === undefined ? [] : list(input, 'fixedElsewhere', FIX_UPDATES_MAX)).map((r, n) => {
+    const where = `fixedElsewhere[${n}]`;
+    if (!isObj(r) || typeof r['id'] !== 'string' || !UUID.test(r['id'])) throw new ReviewError(`${where}.id: a suggestion's id`);
+    const pr = r['pr'];
+    if (!(Number.isInteger(pr) && (pr as number) > 0 && (pr as number) <= 10_000_000)) throw new ReviewError(`${where}.pr: the pull request that merged`);
+    const mergedAt = r['mergedAt'];
+    if (typeof mergedAt !== 'string' || mergedAt.length > 40 || !Number.isFinite(Date.parse(mergedAt))) throw new ReviewError(`${where}.mergedAt: when it merged`);
+    const file = r['file'] === null || r['file'] === undefined ? null : r['file'];
+    if (file !== null && (typeof file !== 'string' || !FILE.test(file) || file.split('/').some((x) => x === '.' || x === '..'))) throw new ReviewError(`${where}.file: a path in the repository, or null`);
+    return { id: r['id'], pr: pr as number, mergedAt, file: file as string | null };
+  });
+  return { runUrl: input['runUrl'], updates, refilmed, fixedElsewhere };
 }

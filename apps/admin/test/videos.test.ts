@@ -362,3 +362,31 @@ describe('Fix it: the agent team fixes the app for a suggestion (docs/decisions/
     expect(none).toMatchObject({ who: 'you', app: { stage: 'none', pr: null, why: 'Main has the fix already: PR 507.' } });
   });
 });
+
+describe('a change that failed, which a pull request of its own fixed (docs/decisions/2026-11-21-a-failed-video-change-learns-the-pull-request-that-fixed-it.md)', () => {
+  const failedFix = { state: 'failed', pr: null, at: at(6), run: null, note: 'The capital comes from the app (common.justNow in apps/mobile/src/i18n/fr.json).' };
+  const fixedBy = (o: Record<string, unknown> = {}) => ({ pr: 633, mergedAt: at(5), file: 'apps/mobile/src/i18n/fr.json', filmedAt: at(4), at: at(3), ...o });
+  const board = (s: Record<string, unknown>) => videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ kind: 'instruction', decision: 'accepted', decidedAt: at(7), fix: failedFix, ...s }) as never] }) }), NOW);
+
+  it('says "Fixed by PR N, filmed again", waits on nobody, and no longer says the change failed', () => {
+    const b = board({ fixedBy: fixedBy() });
+    const cards = b.admin.filter((a) => a.kind !== 'paused');
+    expect(cards.map((a) => a.kind)).toEqual(['fixed']);
+    expect(cards[0]).toMatchObject({ who: 'done', title: 'Record a passage: Fixed by PR 633, filmed again', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/633' });
+    expect(cards[0]!.next).toMatch(/it changed apps\/mobile\/src\/i18n\/fr\.json, the file Claude named as the cause\. A new film/);
+    expect(keys(b)).not.toContain('fixFailed');
+    expect(b.changes[0]).toMatchObject({ state: 'failed', pr: 633, link: 'https://github.com/genesis-ai-dev/langquest-next/pull/633', fixedBy: { pr: 633 } });
+    // A pull request that names the change.
+    expect(board({ fixedBy: fixedBy({ file: null }) }).admin.find((a) => a.kind === 'fixed')!.next).toMatch(/fixed it: it names this change\./);
+  });
+
+  it('keeps the card a day, then only the record and Changes made say it', () => {
+    const old = board({ fixedBy: fixedBy({ at: at(30) }) });
+    expect(old.admin.filter((a) => a.kind !== 'paused')).toEqual([]);
+    expect(old.changes[0]!.fixedBy).toMatchObject({ pr: 633 });
+  });
+
+  it('without it, the change failed still waits on the admin', () => {
+    expect(board({ fixedBy: null }).admin.find((a) => a.kind !== 'paused')).toMatchObject({ kind: 'fixFailed', who: 'you' });
+  });
+});

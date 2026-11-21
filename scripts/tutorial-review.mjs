@@ -16,7 +16,8 @@
 // amended 2026-11-13 and 2026-11-16), in the workflow's fix jobs:
 //
 //   node scripts/tutorial-review.mjs queue <dir>                 says which pull requests were merged, closed or failed (closing
-//                                                                one whose checks failed or that waited a day), and starts at
+//                                                                one whose checks failed or that waited a day), which changes
+//                                                                that failed a pull request of their own fixed, and starts at
 //                                                                most three accepted changes: <dir>/<id>.json each
 //   node scripts/tutorial-review.mjs fix-patch <dir>             after Claude: its change as a patch, and its fix.json, checked
 //   node scripts/tutorial-review.mjs fix-paths <patch> <video>   refuses a patch that changes more than the video's own file and
@@ -642,6 +643,82 @@ async function refilm(list) {
   return merged.map((r) => ({ id: r.id, pr: r.pr }));
 }
 
+/** The files Claude named in why a change failed ("common.justNow in apps/mobile/src/i18n/fr.json", "film.ts"). */
+export function namedFiles(note) {
+  const found = String(note ?? '').match(/[A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:tsx|ts|mts|mjs|js|json|sql|yml)\b/g) ?? [];
+  return [...new Set(found.map((f) => f.replace(/^\.\//, '')))];
+}
+
+/** A file a pull request changed is one Claude named: the same path, or a path that ends with the name Claude gave. */
+const isNamed = (file, name) => file === name || file.endsWith(`/${name}`);
+
+/**
+ * Each change whose fix failed (ops_tutorial_fixes `failed`) that a pull request of its own fixed: merged into main
+ * after the failure and before the video's newest film (a film in the release passed the frame check), and either
+ * naming the suggestion (its first 8 characters) or changing a file Claude named as the cause. The video fix run's
+ * own pull requests (tutorial-fix/...) do not count: their fix has its own state. The first such pull request wins;
+ * one that names the suggestion before one that only changed a file. `pulls`: { number, mergedAt, head, text, files }.
+ */
+export function fixedElsewhereOf(failed, pulls) {
+  const found = [];
+  for (const f of failed) {
+    if (!isObj(f) || !ID.test(f.id ?? '') || !f.fixAt || !f.filmedAt) continue;
+    const from = Date.parse(f.fixAt);
+    const to = Date.parse(f.filmedAt);
+    const names = namedFiles(f.note);
+    const inTime = pulls
+      .filter((p) => Number.isInteger(p.number) && !String(p.head ?? '').startsWith('tutorial-fix/'))
+      .filter((p) => Date.parse(p.mergedAt) > from && Date.parse(p.mergedAt) < to)
+      .sort((a, b) => Date.parse(a.mergedAt) - Date.parse(b.mergedAt));
+    const short = f.id.slice(0, 8);
+    const named = inTime.find((p) => String(p.text ?? '').includes(short));
+    if (named) {
+      found.push({ id: f.id, pr: named.number, mergedAt: named.mergedAt, file: null });
+      continue;
+    }
+    for (const p of inTime) {
+      const file = (p.files ?? []).find((x) => names.some((n) => isNamed(x, n)));
+      if (file) {
+        found.push({ id: f.id, pr: p.number, mergedAt: p.mergedAt, file });
+        break;
+      }
+    }
+  }
+  return found;
+}
+
+/** At most this many pull requests' files are read in one run. */
+const FILES_READ_MAX = 40;
+
+/** The pull requests merged into main since the oldest failure: their words, and their files only where a file can decide. */
+async function fixedElsewhere(failed) {
+  const list = failed.filter((f) => isObj(f) && ID.test(f.id ?? '') && f.fixAt && f.filmedAt);
+  if (!list.length) return [];
+  const since = Math.min(...list.map((f) => Date.parse(f.fixAt)));
+  // Newest change first, page by page, until a page reaches before the oldest failure (a merged pull request
+  // changed then too). At most five pages.
+  const closed = [];
+  for (let page = 1; page <= 5; page++) {
+    const got = await github('GET', `/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100&page=${page}`);
+    if (got.status !== 200 || !Array.isArray(got.json)) {
+      console.log(`::warning::the merged pull requests: GitHub answered ${got.status}`);
+      return [];
+    }
+    closed.push(...got.json);
+    if (got.json.length < 100 || Date.parse(got.json.at(-1)?.updated_at) < since) break;
+  }
+  const pulls = closed.filter((p) => p.merged_at && Date.parse(p.merged_at) > since)
+    .map((p) => ({ number: p.number, mergedAt: p.merged_at, head: p.head?.ref ?? '', text: `${p.title ?? ''}\n${p.body ?? ''}`, files: [] }));
+  // Files only of a pull request that merged inside the time of a failure whose note names a file.
+  const windows = list.filter((f) => namedFiles(f.note).length).map((f) => [Date.parse(f.fixAt), Date.parse(f.filmedAt)]);
+  const mayDecide = (p) => !p.head.startsWith('tutorial-fix/') && windows.some(([a, b]) => Date.parse(p.mergedAt) > a && Date.parse(p.mergedAt) < b);
+  for (const p of pulls.filter(mayDecide).slice(0, FILES_READ_MAX)) {
+    const files = await github('GET', `/pulls/${p.number}/files?per_page=100`);
+    if (files.status === 200 && Array.isArray(files.json)) p.files = files.json.map((x) => x.filename).filter((x) => typeof x === 'string');
+  }
+  return fixedElsewhereOf(list, pulls);
+}
+
 /**
  * Which pull requests were merged or closed since, which are closed now because their checks failed or
  * they waited a day (their fix failed), and at most three accepted changes started (only with a Claude
@@ -674,12 +751,15 @@ async function queue(dir) {
     updates.push({ id, state: 'failed', pr, note: why });
   }
   const refilmed = await refilm(waiting.refilm ?? []);
+  const elsewhere = await fixedElsewhere(waiting.failed ?? []);
   const claude = process.env.HAS_CLAUDE_TOKEN === 'true';
   const take = claude ? (waiting.toFix ?? []).filter((s) => ID.test(s.id) && FIXABLE.includes(s.kind) && VIDEO.test(s.tutorial ?? '')) : [];
   const moved = updates.length;
   updates.push(...take.map((s) => ({ id: s.id, state: 'working', pr: null })));
-  const { results = [], refilmed: filmed = [] } = updates.length || refilmed.length ? await call('POST', { runUrl: runUrl(process.env), updates, refilmed }, '/fixes') : {};
+  const sending = updates.length || refilmed.length || elsewhere.length;
+  const { results = [], refilmed: filmed = [], fixedElsewhere: known = [] } = sending ? await call('POST', { runUrl: runUrl(process.env), updates, refilmed, fixedElsewhere: elsewhere }, '/fixes') : {};
   refilmed.forEach((r, n) => console.log(`${r.id.slice(0, 8)}: PR ${r.pr} merged, the video is filmed again${filmed[n] === 'ok' ? '' : ` (${filmed[n]})`}`));
+  elsewhere.forEach((r, n) => console.log(`${r.id.slice(0, 8)}: its change failed; PR ${r.pr} fixed it${r.file ? ` (${r.file})` : ''} and the video was filmed again${known[n] === 'ok' ? '' : ` (${known[n] ?? 'not sent'})`}`));
   updates.slice(0, moved).forEach((u, n) => console.log(`PR ${u.pr}: ${u.state}${u.note ? `: ${u.note}` : ''}${results[n] === 'ok' ? '' : ` (${results[n]})`}`));
   const started = take.filter((_, n) => results[moved + n] === 'ok');
   for (const s of started) writeFileSync(join(dir, `${s.id}.json`), JSON.stringify(s, null, 2));
