@@ -30,18 +30,6 @@ export interface Env {
    * config holds the login; this Worker never sees it.
    */
   DIAG?: Hyperdrive;
-  /**
-   * The read gate's two logins (read.ts, docs/production-reads.md), each in
-   * a Hyperdrive config of its own that `npm run secrets -- production`
-   * makes: claude_reader for CLAUDE_READ_TOKEN, agent_reader for the agent
-   * teams' workflows. Absent until then; the gate says so.
-   */
-  READ_CLAUDE?: Hyperdrive;
-  READ_AGENT?: Hyperdrive;
-  /** SHA-256 of CLAUDE_READ_TOKEN, hex: the token itself is never on the Worker. */
-  CLAUDE_READ_TOKEN_SHA256?: string;
-  /** Statements a minute through the read gate, per login. */
-  READ_RATE_LIMIT?: RateLimit;
 
   // Optional, each read only by its own section (docs/admin.md says how to make one).
   /** Account Analytics Read, Workers Scripts Read, Workers CI Read. */
