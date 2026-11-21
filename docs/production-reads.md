@@ -16,7 +16,7 @@ agent team ──── GitHub OIDC token ─┘   app.langquest.org      agent_
 
 ## The two logins
 
-Migration `20261121031500_claude_readers.sql` makes them;
+Migration `20261121194800_claude_readers.sql` makes them;
 `server/claudeReadersSmoke.sql` holds what follows.
 
 | | claude_reader | agent_reader |

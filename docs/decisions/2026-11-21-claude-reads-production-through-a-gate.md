@@ -9,7 +9,7 @@ Until then a cloud thread had no production key
 (`docs/decisions/2026-11-17-coding-threads-run-in-the-cloud.md`), and the
 agent teams saw only what the watch's API handed them. Chosen
 (`docs/production-reads.md`):
-- **Two logins**, migration `20261121031500_claude_readers.sql`:
+- **Two logins**, migration `20261121194800_claude_readers.sql`:
   claude_reader reads everything but secrets and emails; agent_reader reads
   ids, counts, times and codes (decision 39's rule) and the event log
   without its payload. Neither has a grant to write; each is read-only by

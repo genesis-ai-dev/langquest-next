@@ -1,4 +1,4 @@
--- Claude's two read-only logins (migration 20261121031500_claude_readers.sql,
+-- Claude's two read-only logins (migration 20261121194800_claude_readers.sql,
 -- docs/production-reads.md). Run by `npm run db:test` as supabase_admin,
 -- which may give each a password for the run and log in as it, so the
 -- role's own settings apply as they do on the hosted project. Each login is

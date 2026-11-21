@@ -17,7 +17,7 @@ import { githubOidc, type GithubRun, type OidcRule } from '../../web/worker/gith
  *   strangers write. No key is stored in GitHub.
  *
  * The database holds both logins to reading (migration
- * 20261121031500_claude_readers.sql): neither has a grant to write. This
+ * 20261121194800_claude_readers.sql): neither has a grant to write. This
  * Worker adds: a read-only transaction for every statement, one statement
  * only (the extended protocol refuses a second), 15 s, at most READ_MAX_ROWS
  * rows back, a rate limit, and a log line for each statement.
