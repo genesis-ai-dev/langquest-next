@@ -34,7 +34,7 @@
 //                                                           start Claude on copies whose checks failed
 //   node scripts/release-branches.mjs conflict-note --branch <copy branch> --pr <n>
 //                                                           without Claude: name the files in conflict
-//   node scripts/release-branches.mjs finish-copy --branch <copy branch> --pr <n> --start <commit>
+//   node scripts/release-branches.mjs finish-copy --branch <copy branch> --pr <n> --start <commit> [--denied <n>]
 //                                                           after Claude: push its commits, comment, and
 //                                                           turn on auto-merge, or try again within the hour
 //
@@ -115,8 +115,16 @@ export const CLAUDE_LABEL = 'copy-claude';
 export const CONFLICT_LABEL = 'copy-conflict';
 /** The label of a copy that is still not finished, or still fails its checks, after Claude's tries: a person fixes it. */
 export const PERSON_LABEL = 'copy-needs-person';
+/**
+ * The label of a copy whose last Claude run was not allowed to run a command
+ * it needed (npm ci, the guardrails): its tries then check nothing, and the
+ * fix is in the workflow, not in the copy. The ops dashboard says so.
+ */
+export const BLOCKED_LABEL = 'copy-claude-blocked';
 /** How many times the hourly run starts Claude again on a copy before a person must finish it. */
 export const FIX_TRIES = 3;
+/** How long one Claude run may take: release-copy-conflict.yml's timeout-minutes. */
+export const CLAUDE_MINUTES = 60;
 /** The repository_dispatch event that starts Claude on a copy with a conflict (startClaude). */
 export const DISPATCH_EVENT = 'release-copy';
 /** How the hourly run's comment on a try for failed checks starts. */
@@ -141,10 +149,14 @@ export const RESULTS = ['copied', 'copied in part', 'left out'];
  * CLAUDE_LABEL on a copy with a conflict does not mean that Claude is on it:
  * GitHub runs no pull_request workflow on a pull request with a conflict,
  * so the label started nothing (PR 347, 2026-11-06), and the hourly run
- * starts Claude through a repository_dispatch instead (startClaude).
+ * starts Claude through a repository_dispatch instead (startClaude). That
+ * Claude runs for up to an hour (the workflow's timeout), so within the
+ * hour after the last try (`sinceTry`, in minutes) Claude is on it: on
+ * 2026-11-06 a run started by hand at 03:25 UTC sent Claude to PR 347, and
+ * the hourly run at 03:26 counted that try as failed.
  */
-export function nextForCopy({ labels, gate, tries, conflicting = false }) {
-  if (labels.includes(PERSON_LABEL) || (labels.includes(CLAUDE_LABEL) && !conflicting)) return 'none';
+export function nextForCopy({ labels, gate, tries, conflicting = false, sinceTry = Infinity }) {
+  if (labels.includes(PERSON_LABEL) || (labels.includes(CLAUDE_LABEL) && (!conflicting || sinceTry < CLAUDE_MINUTES))) return 'none';
   if (!labels.includes(CONFLICT_LABEL) && gate !== 'FAILURE' && !conflicting) return 'none';
   return tries < FIX_TRIES ? 'try' : 'person';
 }
@@ -357,6 +369,7 @@ function makeLabel(name) {
     [CLAUDE_LABEL]: ['5319E7', 'A copy onto a release branch that Claude examines, finishes or fixes'],
     [CONFLICT_LABEL]: ['D93F0B', 'A copy onto a release branch that Claude has not finished'],
     [PERSON_LABEL]: ['B60205', 'A copy onto a release branch that a person must fix'],
+    [BLOCKED_LABEL]: ['B60205', 'The copy workflow did not let Claude run a command it needed'],
   }[name];
   run('gh', ['label', 'create', name, '--force', '--color', color, '--description', description]);
 }
@@ -545,8 +558,10 @@ function fixFailedCopies(platform, fresh = { pushed: new Set(), labelled: new Se
     if (!commitOfCopy(pr.headRefName) || (fresh.labelled.has(pr.number) && !conflicting)) continue;
     const labels = (pr.labels ?? []).map((l) => l.name);
     const gate = fresh.pushed.has(pr.number) ? null : (pr.statusCheckRollup ?? []).filter((c) => c.name === 'gate').at(-1)?.conclusion ?? null;
-    const tries = (pr.comments ?? []).filter((c) => isTry(c.body)).length;
-    const step = nextForCopy({ labels, gate, tries, conflicting });
+    const tried = (pr.comments ?? []).filter((c) => isTry(c.body));
+    const tries = tried.length;
+    const sinceTry = tried.length ? (Date.now() - Date.parse(tried.at(-1).createdAt)) / 60000 : Infinity;
+    const step = nextForCopy({ labels, gate, tries, conflicting, sinceTry });
     const unfinished = labels.includes(CONFLICT_LABEL);
     if (step === 'try') {
       const why = unfinished ? `${UNFINISHED_NOTE}, so Claude tries again`
@@ -692,7 +707,7 @@ function pushCopy(branch, start) {
  * failed), the copy is labelled CONFLICT_LABEL alone, and the hourly run
  * starts Claude again (fixFailedCopies).
  */
-function finishCopy(branch, pr, start, file = RESULT_FILE) {
+function finishCopy(branch, pr, start, denied = 0, file = RESULT_FILE) {
   if (!commitOfCopy(branch)) throw new Error(`${branch} is not a copy branch`);
   const view = JSON.parse(run('gh', ['pr', 'view', pr, '--json', 'state,body']).stdout);
   if (view.state !== 'OPEN') return console.log(`#${pr}: ${String(view.state).toLowerCase()}, so there is nothing to finish`);
@@ -707,6 +722,12 @@ function finishCopy(branch, pr, start, file = RESULT_FILE) {
     || git('status', '--porcelain', '--untracked-files=no') !== '';
   let outcome = midway ? { done: false, why: 'Claude left changes that are not committed' }
     : copyResult({ listed: commitsOfCopy(view.body), names, result, onBranch: copied });
+  // A refused command no longer holds a copy back (2026-11-21): the release branch takes a copy only
+  // when its guardrails gate passes (.github/rulesets/release.json), so the tests run on every copy
+  // whatever Claude could run. Holding copies back for a refused command left checked copies
+  // unfinished four times in two days (#578, #588, #590, #595, #597). The count is only logged.
+  if (denied > 0) console.log(`#${pr}: Claude was refused ${denied} npm, npx or node command(s); the gate still runs the tests`);
+  run('gh', ['pr', 'edit', pr, '--remove-label', BLOCKED_LABEL], { allowFail: true });
   const head = git('rev-parse', 'HEAD');
   if (head !== start) {
     // Pushed even when not finished, so that the next try starts from Claude's commits.
@@ -740,7 +761,7 @@ async function main() {
   const opt = (name) => rest[rest.indexOf(`--${name}`) + 1];
   if (command === 'tidy') return tidy();
   if (command === 'conflict-note') return noteConflict(opt('branch'), opt('pr'));
-  if (command === 'finish-copy') return finishCopy(opt('branch'), opt('pr'), opt('start'));
+  if (command === 'finish-copy') return finishCopy(opt('branch'), opt('pr'), opt('start'), rest.includes('--denied') ? Number(opt('denied')) || 0 : 0);
   if (command !== 'after-merge') throw new Error('usage: release-branches.mjs after-merge --platform <p> --old <fp> --new <fp> --sha <commit> | tidy | conflict-note | finish-copy');
   const platform = opt('platform');
   const sha = opt('sha');
