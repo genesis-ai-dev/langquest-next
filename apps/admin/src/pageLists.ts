@@ -1,6 +1,6 @@
 /**
  * The pictures for fixed lists (docs/ops-dashboard-plan.md 5c2): a square
- * for each nightly suite, EAS build, v2 project, user issue, feedback item,
+ * for each nightly suite, v2 project, user issue, feedback item,
  * YouTube channel, video and suggestion, drawn from the data each part has
  * already read, on its card on the start page and at the top of its part. A
  * tap on a square opens that item's detail. A row that grows with people
@@ -37,18 +37,6 @@ function listRows(part, d) {
         ['Linear', (s.issues || []).map((i) => i.id).join(', ')]]),
       link: ((s.issues || []).find((i) => i.url) || {}).url || (r.run ? r.run.url : null)
     })).sort(byState) })).filter((r) => r.items.length);
-  }
-  if (part === 'expo') {
-    const eas = (st) => st === 'ERRORED' ? 'fail' : st === 'FINISHED' ? 'ok' : st === 'CANCELED' ? 'off' : 'run';
-    // Newest on the right, as time runs.
-    return [
-      { label: 'Builds', items: (d.builds || []).map((b) => ({ s: eas(b.status), name: b.platform + ' · ' + (b.profile || '?') + (b.appVersion ? ' · ' + b.appVersion : ''), at: b.at,
-        fields: fieldsOf([['Status', b.status], ['Started', b.at], ['Version', b.appVersion], ['Runtime', b.runtime]]) })).reverse() },
-      { label: 'Store submissions', items: (d.submissions || []).map((x) => ({ s: eas(x.status), name: x.platform + (x.version ? ' · ' + x.version : ''), at: x.at,
-        fields: fieldsOf([['Status', x.status], ['Sent', x.at], ['Version', x.version], ['Error', x.error]]) })).reverse() },
-      { label: 'Updates', items: (d.updates || []).map((u) => ({ s: 'ok', name: u.branch + (u.platform ? ' · ' + u.platform : ''), at: u.at,
-        fields: fieldsOf([['Branch', u.branch], ['Published', u.at], ['Platforms', u.platform], ['Runtime', u.runtime], ['Group', u.group]]) })).reverse() }
-    ].filter((r) => r.items.length);
   }
   if (part === 'v2') {
     const v2 = { error: 'fail', cut_off: 'part', running: 'run', done: 'ok' };
@@ -190,7 +178,6 @@ export const LISTS_SCRIPT = String.raw`
 // ---- a square for each item of a fixed list (plan 5c2) ----------------------------------------
 const LIST_SAID = {
   nightly: { one: 'suite', many: 'suites', fail: 'Broke', part: 'Tests failed', ok: 'Passed' },
-  expo: { one: 'build or update', many: 'builds and updates', fail: 'Failed', run: 'In progress', ok: 'Done', off: 'Cancelled' },
   v2: { one: 'project', many: 'projects', fail: 'Failed', part: 'Stopped part way', run: 'Running', ok: 'Done' },
   userissues: { one: 'issue', many: 'issues', part: 'Open in Linear', ok: 'Closed', off: 'Already fixed when seen' },
   feedback: { one: 'item', many: 'items', part: 'Not seen', run: 'Seen', ok: 'Done' },
@@ -352,6 +339,7 @@ function r2Pic(mini) {
 function listPicture(part, d) {
   if (part === 'storage') return r2Pic(false);
   if (part === 'code') return codeBox(d, false);
+  if (part === 'expo') return expoBox(d, false);
   return LIST_SAID[part] ? listBox(part, d, false) : '';
 }
 /** The picture on a part's card on the start page, or '' when it has none. */
@@ -359,6 +347,7 @@ function listCardPic(part) {
   const s = results[part];
   if (part === 'storage') return r2Pic(true);
   if (part === 'code') return s && s.state === 'ok' ? codeBox(s.data, true) : '';
+  if (part === 'expo') return s && s.state === 'ok' ? expoBox(s.data, true) : '';
   return LIST_SAID[part] && s && s.state === 'ok' ? listBox(part, s.data, true) : '';
 }
 

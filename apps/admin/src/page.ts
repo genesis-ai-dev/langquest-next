@@ -10,6 +10,7 @@ import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
 import { VIDEO_CSS, VIDEO_LOGIC, VIDEO_SCRIPT } from './pageVideos';
 import { CODE_CSS, CODE_LOGIC, CODE_SCRIPT } from './pageCode';
+import { EXPO_LOGIC, EXPO_SCRIPT } from './pageExpo';
 import { LISTS_CSS, LISTS_LOGIC, LISTS_SCRIPT, QUEUE_SOURCE } from './pageLists';
 import { METERS_CSS, METERS_LOGIC, METERS_SCRIPT } from './pageMeters';
 import { HOVER_CSS, HOVER_LOGIC, HOVER_SCRIPT } from './pageHover';
@@ -414,7 +415,7 @@ const BASE_SECTIONS = [
   { id: 'cloudflare', title: 'Cloudflare', src: 'Workers requests, errors, deploys and builds, last 24 h' },
   { id: 'supabase', title: 'Supabase', src: 'Project health, Edge Functions and log counts, last 24 h' },
   { id: 'database', title: 'Database', src: 'Size, connections and RPC timings (pg_stat_statements)' },
-  { id: 'expo', title: 'App builds and updates', src: 'EAS builds, store submissions and over-the-air updates' },
+  { id: 'expo', title: 'Phone app builds and updates (Expo)', src: 'EAS builds, store submissions and over-the-air updates' },
   { id: 'googleplay', title: 'Google Play', src: 'Android vitals (crashes and ANRs) and reviews' },
   { id: 'appstore', title: 'App Store', src: 'App Store Connect: versions in review, builds and reviews' },
   { id: 'v2', title: 'v2 import', src: 'diag.v2_import_status: the latest transfer of each v2 project' },
@@ -1053,9 +1054,11 @@ ${CARD_LOGIC}
 ${CARD_SCRIPT}
 ${LISTS_LOGIC}
 ${CODE_LOGIC}
+${EXPO_LOGIC}
 ${METERS_LOGIC}
 ${LISTS_SCRIPT}
 ${CODE_SCRIPT}
+${EXPO_SCRIPT}
 ${METERS_SCRIPT}
 // ---- what a chart says under the pointer: a line and its values (pageHover.ts) ----
 ${HOVER_LOGIC}
