@@ -195,7 +195,12 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Sync and offline merged in: its words in all 16 catalogs, the email and confirm fields, and New
 // password's confirm field. Edit Profile moved to a chunk of its own, loaded when opened, so a
 // first visit stays under its own budget (17,240 bytes left with Sync and offline's chunk too).
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 131 * 1024;
+// Raised by 36 KB on release/ios with the copies of main's changes made together (2026-11-21), 34 KB
+// past then: the key words' tiles (LAN-233), the download marks' key, a book's download button and
+// the study prefetch (LAN-316), the unheard-recordings rules (LAN-317), Welcome back's way in
+// (LAN-250), French elision (LAN-295) and Reports' template name (LAN-114). The Android-only install
+// file changes were left out. 2 KB are left.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 167 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -279,7 +284,11 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 131 * 1024;
 // grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
 // words in the catalog every visit carries. They show on the recording screen as it opens; the word's
 // sheet loads when first opened (keyTerms/lazySheets.tsx).
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
+// Raised by 10 KB on release/ios with the copies of main's changes made together (2026-11-21): the
+// download marks' key and a book's own download button (LAN-316), Welcome back's way in (LAN-250),
+// the unheard-recordings rules (LAN-317), the key words' tiles and Reports' template name. Together
+// they came out 8 KB past this branch's budget; the words are in the catalog every visit carries.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 122 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
