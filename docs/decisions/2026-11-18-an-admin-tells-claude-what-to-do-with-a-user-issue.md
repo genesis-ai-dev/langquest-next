@@ -57,3 +57,5 @@ run), or Claude's changes to a draft fix cost a developer more review than
 the change by hand. Then keep the answers and stop the changes.
 
 Amended (2026-11-19, Caleb Koster): an instruction that says to merge the draft fix as it is now merges it when its checks pass; the script checks the admin's words and that the draft fix did not change (`docs/decisions/2026-11-19-an-agent-team-fixes-user-issues.md`).
+
+Amended (2026-11-21, Caleb Koster): Claude's answer keeps its lines. Claude writes the result first, then numbered steps with each command in a block of code (the user-issues skill). The card draws that shape with every word escaped (`saidHtml` in `apps/admin/src/pageIssues.ts`): the first sentence in bold, the steps as a list, a block of code with a Copy button. One answer of 1000 characters as one block of text was hard to read.

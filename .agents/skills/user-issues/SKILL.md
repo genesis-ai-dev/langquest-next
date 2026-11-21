@@ -566,7 +566,20 @@ above, with one more field:
   must decide when something is open. Write it in ASD-STE100 Simplified
   Technical English: short sentences, active voice, one name for each
   thing. It is public like the rest: no name, address or id of a person,
-  and nothing from `evidence`.
+  and nothing from `evidence`. The card draws its shape, so give it one:
+  - The first line is the result in one sentence ("I cannot find the
+    account from here."). The card shows it in bold.
+  - Then an empty line and at most two short sentences on why.
+  - Steps the admin does go in a numbered list (`1. `), one action in each
+    step, each on its own line.
+  - A command or SQL goes alone in a block between two lines of three
+    backticks, so the card shows it with a Copy button. A file, a column or
+    a short value goes between single backticks.
+  - Nothing else: no headings, no tables, no links in Markdown.
+
+  ```json
+  "answer": "I cannot find the account from here.\n\nThe records the phone sends hold no email. Do these steps on a Mac with diagnostics access:\n\n1. Run this. The install id is in the issue's Agent notes.\n```\nnpm run diag -- --hosted timeline <install id> --days 3\n```\n2. Read the profile id in the first line of the output."
+  ```
 
 ### When a fix did not get into main
 
