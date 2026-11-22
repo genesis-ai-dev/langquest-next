@@ -1,7 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, BLOCKED_LABEL, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, copiedOn, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -328,6 +330,56 @@ describe('a copy with a conflict', () => {
     expect(copyFn).not.toContain("'--auto'");
   });
 
+  it('a refused command never holds a copy back, because the release branch takes a copy only when its gate passes', () => {
+    // 2026-11-19 to 21: refused commands left checked copies unfinished (#578, #588, #590, #595, #597), while the gate ran the tests on each.
+    const ruleset = JSON.parse(readFileSync('.github/rulesets/release.json', 'utf8'));
+    expect(ruleset.conditions.ref_name.include).toEqual(['refs/heads/release/*']);
+    expect(ruleset.rules.find((r: { type: string }) => r.type === 'required_status_checks').parameters.required_status_checks.map((c: { context: string }) => c.context)).toEqual(['gate']);
+    expect(BLOCKED_LABEL).toBe('copy-claude-blocked');
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toContain('--denied "$DENIED"');
+    expect(yml).toContain('steps.denied.outputs.count');
+    // Only a refused npm, npx or node counts: a refused echo or python3 left #578 and #588 unfinished although Claude checked them.
+    const counter = yml.slice(yml.indexOf('- id: denied'), yml.indexOf("- name: Push Claude's commits"));
+    const source = String.raw`(^|[;&|(]\s*)(npm|npx|node)\s`;
+    expect(counter).toContain(`/${source}/.test(`);
+    const re = new RegExp(source);
+    for (const c of ['npm ci', 'cd apps/mobile && npx tsc -b', 'node scripts/x.mjs']) expect(re.test(c)).toBe(true);
+    for (const c of ["echo '{}' > .release-copy.json", "python3 - <<'E'", 'cd apps/mobile; grep -n BUDGET x']) expect(re.test(c)).toBe(false);
+    expect(counter).toContain('count=${blocked.length}');
+    // A joined command is refused whole when one part is not allowed: Claude runs each one alone, and may read output (#578, #588).
+    expect(yml).toContain('Run each command on its own');
+    const allowed = /--allowedTools "([^"]*)"/.exec(yml)?.[1].split(',') ?? [];
+    for (const t of ['Bash(npm:*)', 'Bash(cat:*)', 'Bash(head:*)', 'Bash(tail:*)', 'Bash(grep:*)', 'Bash(ls:*)', 'Bash(wc:*)']) expect(allowed).toContain(t);
+    const script = readFileSync('scripts/release-branches.mjs', 'utf8');
+    const finish = script.slice(script.indexOf('function finishCopy('), script.indexOf('async function main'));
+    expect(finish).not.toContain("'--add-label', BLOCKED_LABEL");
+    expect(finish).toContain("'--remove-label', BLOCKED_LABEL");
+    const deniedLine = finish.slice(finish.indexOf('if (denied > 0)'), finish.indexOf('\n', finish.indexOf('if (denied > 0)')));
+    expect(deniedLine).toContain('console.log(');
+    expect(deniedLine).not.toContain('outcome');
+  });
+
+  it('finds a copied commit on a branch whose messages pass 1 MB', () => {
+    // 2026-11-21: release/ios's log of messages passed spawnSync's 1 MB, and every copy's finish failed (#611, #612).
+    const dir = mkdtempSync(posix.join(tmpdir(), 'copied-'));
+    try {
+      const git = (...args: string[]) => {
+        const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args], { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+        expect(r.status, r.stderr).toBe(0);
+      };
+      const a = 'a'.repeat(40);
+      git('init', '-q');
+      git('commit', '-q', '--allow-empty', '-m', `Copy\n\n(cherry picked from commit ${a})`);
+      writeFileSync(posix.join(dir, 'long.txt'), 'x'.repeat(1_500_000));
+      git('commit', '-q', '--allow-empty', '-F', 'long.txt');
+      expect(copiedOn(a, 'HEAD', dir)).toBe(true);
+      expect(copiedOn('b'.repeat(40), 'HEAD', dir)).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('Claude reads the failed checks and fixes them, and never skips a test', () => {
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toContain('gh run view <run id> --log-failed');
@@ -389,6 +441,16 @@ describe('a copy with a conflict', () => {
     // Without it, the first iPhone catch-up (2026-11-05) failed: "Workflow initiated by non-human actor".
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toMatch(/claude-code-action@[0-9a-f]{40} # v1\.[0-9.]+\n[\s\S]*?\n\s+allowed_bots: langquest-release-branches\n/);
+  });
+
+  it('Claude may run npm ci and the guardrails on a copy, which the release bot opens from merged code', () => {
+    // From v1.0.276 (2026-11-16) the action refused them on every copy, so Claude's tries on #549, #559 and #564 checked nothing.
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toMatch(/\n\s+restrict_untrusted_prs: "false"\n/);
+    // Only the copy workflow: every other Claude job keeps the action's default.
+    for (const other of ['user-issues.yml', 'tutorials.yml', 'tutorial-review.yml', 'phone-tests.yml']) {
+      expect(readFileSync(`.github/workflows/${other}`, 'utf8')).not.toContain('restrict_untrusted_prs');
+    }
   });
 
   it('the workflow keeps a release branch for both platforms', () => {
