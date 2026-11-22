@@ -34,7 +34,7 @@
 //                                                           start Claude on copies whose checks failed
 //   node scripts/release-branches.mjs conflict-note --branch <copy branch> --pr <n>
 //                                                           without Claude: name the files in conflict
-//   node scripts/release-branches.mjs finish-copy --branch <copy branch> --pr <n> --start <commit> [--denied <n>]
+//   node scripts/release-branches.mjs finish-copy --branch <copy branch> --pr <n> --start <commit>
 //                                                           after Claude: push its commits, comment, and
 //                                                           turn on auto-merge, or try again within the hour
 //
@@ -115,12 +115,6 @@ export const CLAUDE_LABEL = 'copy-claude';
 export const CONFLICT_LABEL = 'copy-conflict';
 /** The label of a copy that is still not finished, or still fails its checks, after Claude's tries: a person fixes it. */
 export const PERSON_LABEL = 'copy-needs-person';
-/**
- * The label of a copy whose last Claude run was not allowed to run a command
- * it needed (npm ci, the guardrails): its tries then check nothing, and the
- * fix is in the workflow, not in the copy. The ops dashboard says so.
- */
-export const BLOCKED_LABEL = 'copy-claude-blocked';
 /** How many times the hourly run starts Claude again on a copy before a person must finish it. */
 export const FIX_TRIES = 3;
 /** How long one Claude run may take: release-copy-conflict.yml's timeout-minutes. */
@@ -329,13 +323,9 @@ export function commitsOfCopy(body) {
   return [...(body ?? '').matchAll(/^- ([0-9a-f]{40})\b/gm)].map((m) => m[1]);
 }
 
-// spawnSync stops at 1 MB of output by default and then gives no status, which read as a failed
-// command: release/ios's log of messages passed 1 MB on 2026-11-21 and every copy's finish failed (#611, #612).
-const MAX_OUTPUT = 256 * 1024 * 1024;
-
 function run(cmd, args, opts = {}) {
-  const r = spawnSync(cmd, args, { cwd: root, encoding: 'utf8', maxBuffer: MAX_OUTPUT, ...opts });
-  if (r.status !== 0 && !opts.allowFail) throw new Error(`${cmd} ${args.join(' ')}: ${r.error?.message ?? (r.stderr || r.stdout)}`);
+  const r = spawnSync(cmd, args, { cwd: root, encoding: 'utf8', ...opts });
+  if (r.status !== 0 && !opts.allowFail) throw new Error(`${cmd} ${args.join(' ')}: ${r.stderr || r.stdout}`);
   return r;
 }
 const git = (...args) => run('git', args).stdout.trim();
@@ -373,7 +363,6 @@ function makeLabel(name) {
     [CLAUDE_LABEL]: ['5319E7', 'A copy onto a release branch that Claude examines, finishes or fixes'],
     [CONFLICT_LABEL]: ['D93F0B', 'A copy onto a release branch that Claude has not finished'],
     [PERSON_LABEL]: ['B60205', 'A copy onto a release branch that a person must fix'],
-    [BLOCKED_LABEL]: ['B60205', 'The copy workflow did not let Claude run a command it needed'],
   }[name];
   run('gh', ['label', 'create', name, '--force', '--color', color, '--description', description]);
 }
@@ -662,14 +651,8 @@ export function conflictNote(sha, base, files, after = []) {
   ].join('\n');
 }
 
-/**
- * Whether `ref` already carries a copy of `sha` (git cherry-pick -x names it). Git searches the
- * messages, so the answer does not grow with the branch's history (2026-11-21, #611, #612).
- */
-export function copiedOn(sha, ref = 'HEAD', cwd = root) {
-  return run('git', ['log', '-1', '--format=%H', '--fixed-strings', `--grep=cherry picked from commit ${sha}`, ref], { cwd }).stdout.trim() !== '';
-}
-const copied = (sha) => copiedOn(sha);
+/** Whether HEAD already carries a copy of `sha` (git cherry-pick -x names it). */
+const copied = (sha) => git('log', '--format=%B', 'HEAD').includes(`cherry picked from commit ${sha}`);
 
 /** Try the next copy again on this branch to find the files in conflict, then put it back and comment once. */
 function noteConflict(branch, pr) {
@@ -717,7 +700,7 @@ function pushCopy(branch, start) {
  * failed), the copy is labelled CONFLICT_LABEL alone, and the hourly run
  * starts Claude again (fixFailedCopies).
  */
-function finishCopy(branch, pr, start, denied = 0, file = RESULT_FILE) {
+function finishCopy(branch, pr, start, file = RESULT_FILE) {
   if (!commitOfCopy(branch)) throw new Error(`${branch} is not a copy branch`);
   const view = JSON.parse(run('gh', ['pr', 'view', pr, '--json', 'state,body']).stdout);
   if (view.state !== 'OPEN') return console.log(`#${pr}: ${String(view.state).toLowerCase()}, so there is nothing to finish`);
@@ -732,12 +715,6 @@ function finishCopy(branch, pr, start, denied = 0, file = RESULT_FILE) {
     || git('status', '--porcelain', '--untracked-files=no') !== '';
   let outcome = midway ? { done: false, why: 'Claude left changes that are not committed' }
     : copyResult({ listed: commitsOfCopy(view.body), names, result, onBranch: copied });
-  // A refused command no longer holds a copy back (2026-11-21): the release branch takes a copy only
-  // when its guardrails gate passes (.github/rulesets/release.json), so the tests run on every copy
-  // whatever Claude could run. Holding copies back for a refused command left checked copies
-  // unfinished four times in two days (#578, #588, #590, #595, #597). The count is only logged.
-  if (denied > 0) console.log(`#${pr}: Claude was refused ${denied} npm, npx or node command(s); the gate still runs the tests`);
-  run('gh', ['pr', 'edit', pr, '--remove-label', BLOCKED_LABEL], { allowFail: true });
   const head = git('rev-parse', 'HEAD');
   if (head !== start) {
     // Pushed even when not finished, so that the next try starts from Claude's commits.
@@ -771,7 +748,7 @@ async function main() {
   const opt = (name) => rest[rest.indexOf(`--${name}`) + 1];
   if (command === 'tidy') return tidy();
   if (command === 'conflict-note') return noteConflict(opt('branch'), opt('pr'));
-  if (command === 'finish-copy') return finishCopy(opt('branch'), opt('pr'), opt('start'), rest.includes('--denied') ? Number(opt('denied')) || 0 : 0);
+  if (command === 'finish-copy') return finishCopy(opt('branch'), opt('pr'), opt('start'));
   if (command !== 'after-merge') throw new Error('usage: release-branches.mjs after-merge --platform <p> --old <fp> --new <fp> --sha <commit> | tidy | conflict-note | finish-copy');
   const platform = opt('platform');
   const sha = opt('sha');
