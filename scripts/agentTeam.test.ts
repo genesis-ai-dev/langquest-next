@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   ACTS, causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, logTail, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, nextStep, OPEN_HOURS,
-  NEXT_HOURS, NEXT_LIMITS, nextOf, pathRefusal, PICTURES, PLAN_TRIES, planNext, planOf, PROBE_DIRS, REASONS, reviewNeeded, saysAskFirst, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
+  ENDED, NEXT_HOURS, NEXT_LIMITS, nextOf, pathRefusal, PICTURES, PLAN_TRIES, planNext, planOf, PROBE_DIRS, REASONS, reviewNeeded, saysAskFirst, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
 } from './agent-team.mjs';
 import * as model from '../server/userIssues';
 
@@ -71,6 +71,7 @@ describe('when the cause is not proven yet', () => {
 
   it('never leaves an unproven cause without a next step', () => {
     expect(planNext(verdictOf({ verdict: 'unconfirmed' }))).toMatchObject({ do: expect.stringMatching(/^Claude tries again/), inHours: 1 });
+    expect(planNext({ ...verdictOf({}), ended: true })).toBe(ENDED.next);
     expect(planNext(verdictOf({ verdict: 'unconfirmed', next: { do: 'Probe.', inHours: 3 } }))).toMatchObject({ do: 'Probe.', inHours: 3 });
     // A timing the plan needs is a change a developer reads: it keeps its next step.
     expect(planNext(verdictOf({ verdict: 'review', next: { do: 'After the merge, read 50 records.', inHours: 48 } }))).toMatchObject({ inHours: 48 });

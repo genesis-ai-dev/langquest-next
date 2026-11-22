@@ -6,7 +6,7 @@ import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, LIMITS, linearClient, lookedOf, mergesOf,
   noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
-  repairOf, repairsOf, planRecord, dueToTake, PROBE_MAX
+  repairOf, repairsOf, planRecord, dueToTake, PROBE_MAX, fixRecord
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -475,6 +475,11 @@ describe('when the cause is not proven yet', () => {
     expect(planRecord('LAN-9', checkFix({ verdict: 'unconfirmed', noFix: 'Unclear.' }))).toMatchObject({ next: expect.stringMatching(/^Claude tries again/), inHours: 1, probe: null });
     expect(planRecord('LAN-9', checkFix({}), '', 'unconfirmed')).toMatchObject({ next: expect.stringMatching(/^Claude tries again/) });
     // A fix, or a decision, removes the plan.
+    // A run that ended with no fix.json is run again soon, never left at "not proven".
+    expect(checkFix({ noFix: 'Claude wrote no fix.json.', ended: true }).ended).toBe(true);
+    expect(checkFix({ verdict: 'fix', summary: 'S' }).ended).toBe(false);
+    expect(planRecord('LAN-9', checkFix({ ended: true }), '', 'unconfirmed')).toMatchObject({ next: expect.stringMatching(/^Claude runs the manager again/), inHours: 0.25 });
+    expect(fixRecord('LAN-9', { decision: 'none', reason: 'unconfirmed', why: 'x' }, checkFix({ ended: true })).verdict).toBeNull();
     expect(planRecord('LAN-9', checkFix({ verdict: 'fix', summary: 'S' }))).toEqual({ issue: 'LAN-9', next: null });
     expect(planRecord('LAN-9', checkFix({ verdict: 'decision', noFix: 'A choice.' }), '', 'decision')).toEqual({ issue: 'LAN-9', next: null });
   });
@@ -533,7 +538,7 @@ describe('a draft fix for each new issue', () => {
   });
 
   it('takes Claude\'s summary or its reason for none, cut and without addresses, and only fixed words from the checks', () => {
-    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null });
+    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null, ended: false });
     expect(checkFix({ summary: 'S', askFirst: true }).askFirst).toBe(true);
     expect(checkFix({ summary: 'S', answer: ' I moved the wait.  \r\n\n\n\n1. Ask a@b.org ' }).answer).toBe('I moved the wait.\n\n1. Ask [address]');
     expect(checkFix({ summary: 'S', answer: 'x'.repeat(2000) }).answer).toHaveLength(FIX_LIMITS.answer);

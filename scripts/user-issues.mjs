@@ -48,7 +48,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
 import { oldPathsOf, pathsOf, runUrl } from './tutorial-review.mjs';
-import { decisionLines, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planNext, planOf, PROBE_TEST, REPAIR_MAX, saysAskFirst, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
+import { decisionLines, ENDED, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planNext, planOf, PROBE_TEST, REPAIR_MAX, saysAskFirst, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
 
 /** The steps to the screen of a display fix, as the manager writes them beside fix.json (never part of the change). */
 export const PICTURE_SPEC = 'picture.spec.ts';
@@ -411,7 +411,8 @@ export function checkFix(raw) {
   const v = verdictOf(o);
   const next = v.next ? { ...v.next, do: redact(v.next.do), steps: redact(v.next.steps) } : null;
   const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display, askFirst: v.askFirst, next };
-  return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), answer: cut(lines(text(o.answer)), FIX_LIMITS.answer), ...team };
+  // `ended`: the manager wrote no fix.json, or one that does not read (fixPatch), so it gave no verdict (ENDED).
+  return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), answer: cut(lines(text(o.answer)), FIX_LIMITS.answer), ...team, ended: o.ended === true };
 }
 
 /** check.json from the job with no key: only its fixed words, since the patch's own code ran there. */
@@ -485,7 +486,7 @@ export function fixRecord(issue, { decision, reason = null, why = null, pr = nul
   return {
     // The screen without the change and, when there is a change, with it (base64 JPEG), as the picture job made them.
     ...(pictures?.before ? { before: pictures.before.toString('base64'), ...(pictures.after ? { after: pictures.after.toString('base64') } : {}) } : {}),
-    issue, decision, reason, why: word(why, 600), pr, verdict: fix.verdict ?? null, model: plan.model ?? null, effort: plan.effort ?? null,
+    issue, decision, reason, why: word(why, 600), pr, verdict: fix.ended ? null : fix.verdict ?? null, model: plan.model ?? null, effort: plan.effort ?? null,
     summary: word(fix.summary, 1000), cause: word(fix.cause, 600), proof: word(fix.proof, 400), review: word(vet?.why, 1000), twins: word(fix.twins, 1000)
   };
 }
@@ -1191,7 +1192,8 @@ function fixPatch(dir) {
   mkdirSync(out, { recursive: true });
   const path = join(dir, 'fix.json');
   const small = existsSync(path) && readFileSync(path).length < 100_000;
-  const fix = checkFix(small ? (() => { try { return readJson(path); } catch { return {}; } })() : { noFix: 'Claude wrote no fix.json.' });
+  const raw = small ? (() => { try { return readJson(path); } catch { return null; } })() : null;
+  const fix = checkFix(isObj(raw) ? raw : { noFix: 'Claude wrote no fix.json.', ended: true });
   let patch = worktreePatch(dir);
   if (!fix.noFix && !patch) fix.noFix = 'Claude changed no file.';
   // With an admin's instructions: their ids, and whether Claude changed the draft fix it started from.
@@ -1291,7 +1293,7 @@ async function fixOpen(dir, id) {
   const issue = await api.full(id);
   if (!issue) throw new Error(`${id} is not in Linear`);
   const fixPath = join(dir, 'fix', 'fix.json');
-  const fix = existsSync(fixPath) ? checkFix(readJson(fixPath)) : { ...checkFix({}), noFix: 'The job that writes it failed.', summary: '', tests: '' };
+  const fix = existsSync(fixPath) ? checkFix(readJson(fixPath)) : { ...checkFix({ ended: true }), noFix: 'The job that writes it failed.', summary: '', tests: '' };
   // The manager's own patch, from the job that took it. The copy from the checks' job (with what the hooks
   // rebuild) goes only on a draft a developer reads: the patch's code ran in that job.
   const ownPath = join(dir, 'fix', 'fix.patch');
@@ -1338,8 +1340,10 @@ async function fixOpen(dir, id) {
     if (noteIds.length) await tell({ result: fix.answer || fix.noFix ? 'answered' : 'none', extra: fix.answer && fix.noFix ? '' : reason });
     else {
       const waitsFor = input.changes.length ? 'paths' : decision.reason ?? 'unconfirmed';
-      await api.comment(issue.id, noFixComment(reason, run, planNext(waitsFor === 'unconfirmed' ? { ...fix, verdict: 'unconfirmed' } : fix)));
-      const why = input.changes.length ? reason : decision.why || reason;
+      // A run that ended with no verdict says so, never "did not prove the cause" (ENDED).
+      const told = fix.ended ? ENDED.why : reason;
+      await api.comment(issue.id, noFixComment(told, run, planNext(waitsFor === 'unconfirmed' ? { ...fix, verdict: 'unconfirmed' } : fix)));
+      const why = fix.ended ? ENDED.why : input.changes.length ? reason : decision.why || reason;
       await tell({ record: fixRecord(id, { decision: 'none', reason: waitsFor, why }, fix, plan, input.vet, shots) });
     }
     console.log(`${id}: no fix (${reason.slice(0, 200)})`);

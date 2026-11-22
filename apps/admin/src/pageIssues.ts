@@ -163,7 +163,7 @@ function fixFor(fix, pr) {
   if (!fix) return null;
   return (fix.pr ? !!pr && Number(pr.number) === Number(fix.pr) : !pr) ? fix : null;
 }
-/** After this many plans in a row the watch stops handing an issue back (scripts/agent-team.mjs PLAN_TRIES). */
+/** After this many tries to prove the cause the watch stops handing an issue back (scripts/agent-team.mjs PLAN_TRIES). */
 const PLAN_TRIES = 10;
 /** The record has a plan to prove the cause that the watch still carries out (docs/agent-team.md "When the cause is not proven yet"). */
 function planGoing(fix) {
@@ -181,8 +181,8 @@ function planWhen(iso, now) {
 function planSaid(plan, now) {
   if (!plan || !plan.next) return null;
   const tries = Number(plan.tries) || 1;
-  if (tries >= PLAN_TRIES) return { next: 'Claude tried ' + tries + ' plans and did not prove the cause. A developer decides what happens next.', when: '', steps: plan.steps || '' };
-  return { next: plan.next, when: 'Claude does it ' + planWhen(plan.nextAt, now) + ' · plan ' + tries + ' of ' + PLAN_TRIES, steps: plan.steps || '' };
+  if (tries >= PLAN_TRIES) return { next: 'Claude tried ' + tries + ' times to prove the cause and did not. A developer decides what happens next.', when: '', steps: plan.steps || '' };
+  return { next: plan.next, when: 'Claude does it ' + planWhen(plan.nextAt, now) + ' · try ' + tries + ' of ' + PLAN_TRIES, steps: plan.steps || '' };
 }
 /** The plan as a line of the card: "Next:", what Claude does, when, and the whole plan behind one tap. */
 function planLine(plan) {

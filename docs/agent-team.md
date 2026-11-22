@@ -248,9 +248,16 @@ flowchart LR
    tries and what the probe printed.
 6. The issue's card says what Claude does next and when, never only "not
    proven". A Linear comment says the same.
-7. After `PLAN_TRIES` (10) plans in a row, the watch stops handing the
-   issue back, and the card says a developer decides. A record with a fix,
-   a decision or no plan removes the plan.
+7. Each hand-back counts one try, and the issue waits at least 2 hours
+   before the next, also when the run's job failed and wrote no plan. After
+   `PLAN_TRIES` (10) tries the watch stops handing the issue back, and the
+   card says a developer decides. A record with a fix, a decision or no
+   plan removes the plan.
+8. A manager whose run ended before it wrote `fix.json` gave no verdict.
+   The card says so (never "did not prove the cause"), and the watch runs
+   the manager again. The job log's step "How the manager's run ended"
+   says how it ended, its turns and the tools it was refused, and nothing
+   that Claude or people wrote.
 
 ## Issues Claude never tried
 

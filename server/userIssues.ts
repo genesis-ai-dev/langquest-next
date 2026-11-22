@@ -208,7 +208,7 @@ export interface PlanRecord { issue: string; next: string | null; steps: string 
 /** The longest of a plan's words, and its hours (scripts/agent-team.mjs NEXT_LIMITS and NEXT_HOURS). */
 export const PLAN_TEXT = { next: 300, steps: 600, probe: 6000 } as const;
 export const PLAN_HOURS = { min: 0.25, max: 168 } as const;
-/** After this many plans in a row the watch stops handing an issue back, and its card says a developer decides (scripts/agent-team.mjs PLAN_TRIES). */
+/** After this many tries to prove the cause (hand-backs, ops_user_issue_tried counts them) the watch stops handing an issue back, and its card says a developer decides (scripts/agent-team.mjs PLAN_TRIES). */
 export const PLAN_TRIES = 10;
 
 /** A JPEG in base64, of at most 150 000 bytes (scripts/agent-team.mjs PICTURES). */

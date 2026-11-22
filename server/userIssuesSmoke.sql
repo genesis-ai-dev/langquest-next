@@ -738,11 +738,18 @@ set local role service_role;
 do $$ begin
   assert public.ops_user_issue_plans_due() = '["LAN-901", "LAN-902"]'::jsonb, 'both due: %', public.ops_user_issue_plans_due();
   assert public.ops_user_issue_plan('LAN-901')->>'probe' = 'took 4100 ms', 'the next try reads the probe';
-  -- A second plan counts a try.
-  perform public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/778', 'plans', jsonb_build_array(jsonb_build_object('issue', 'LAN-901', 'next', 'Probe again.', 'inHours', 1))));
+  -- A hand-back counts a try, and the issue waits 2 hours, so a run whose job failed (no plan) cannot loop.
+  perform public.ops_user_issue_tried(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/778', 'tried', jsonb_build_array('LAN-901')));
   assert (public.ops_user_issue_plan('LAN-901')->>'tries')::int = 2, 'two tries';
+  assert public.ops_user_issue_plans_due() = '["LAN-902"]'::jsonb, 'handed back, not due again: %', public.ops_user_issue_plans_due();
+  -- The run's own plan sets the time the manager chose, and does not count the try again.
+  perform public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/778', 'plans', jsonb_build_array(jsonb_build_object('issue', 'LAN-901', 'next', 'Probe again.', 'inHours', 1))));
+  assert (public.ops_user_issue_plan('LAN-901')->>'tries')::int = 2, 'still two tries';
 end $$;
 reset role;
+do $$ begin
+  assert (select next_at < now() + interval '61 minutes' from ops.user_issue_plans where issue = 'LAN-901'), 'the manager''s hour';
+end $$;
 -- At the limit an issue is not handed back, nor a closed one.
 update ops.user_issue_plans set next_at = now() - interval '1 minute';
 set local role service_role;

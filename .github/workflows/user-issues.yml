@@ -248,6 +248,7 @@ jobs:
           FIX_NOTES: ${{ runner.temp }}/notes.json
         run: node scripts/user-issues.mjs fix-context .user-issues "$ISSUE"
       - name: The issue manager writes a fix
+        id: manager
         uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         env:
           # The manager's effort. A Claude Code that does not know the name runs at its own.
@@ -261,6 +262,21 @@ jobs:
           # The workers have the manager's tools and no more: no shell, and no network but the read gate's
           # answers as agent_reader, through the copy of prod-read.mjs made before Claude (docs/production-reads.md).
           claude_args: --model ${{ env.FIX_MODEL }} --allowedTools "Read,Glob,Grep,Edit,Write,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)"
+      # How the manager's run ended, to prove why a run writes no fix.json: only its end, its number of turns,
+      # the names of the tools it was refused and whether fix.json is there. Never what Claude or people wrote.
+      - name: How the manager's run ended
+        if: ${{ always() }}
+        env:
+          OUT: ${{ steps.manager.outputs.execution_file }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            let r = {};
+            try { const a = JSON.parse(fs.readFileSync(process.env.OUT, "utf8")); r = (Array.isArray(a) ? a : []).filter((m) => m && m.type === "result").pop() || {}; } catch {}
+            const names = [...new Set((r.permission_denials || []).map((d) => String(d.tool_name || "").replace(/[^A-Za-z_]/g, "").slice(0, 40)))];
+            const ok = (v) => (/^[a-z_]{1,40}$/.test(String(v)) ? v : "unknown");
+            console.log(`end: ${ok(r.subtype)}; turns: ${Number(r.num_turns) || 0}; refused: ${(r.permission_denials || []).length} (${names.join(", ") || "none"}); fix.json: ${fs.existsSync(".user-issues/fix.json") ? "written" : "missing"}`);
+          '
       - name: The change, as a patch
         env:
           GIT_DIR: ${{ runner.temp }}/base.git

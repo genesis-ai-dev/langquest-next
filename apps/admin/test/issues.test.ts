@@ -301,9 +301,9 @@ describe('the cards', () => {
     const plan = { next: 'Run a probe of the sync.', steps: '1. Probe. 2. Fix.', nextAt: '2000-01-01T00:00:00Z', tries: 2, at: '2000-01-01T00:00:00Z' };
     expect(logic.issueWay(issue(), [], null, { ...none, plan })).toMatchObject({ tab: 'nofix', pill: 'Claude proves the cause', level: 'claude', at: 3 });
     expect(logic.issueWay(issue(), [], null, { ...none, plan: { ...plan, tries: 10 } })).toMatchObject({ tab: 'you', pill: 'Waits on you' });
-    expect(logic.planSaid(plan, Date.parse('2001-01-01T00:00:00Z'))).toEqual({ next: 'Run a probe of the sync.', when: 'Claude does it at the next run of the watch · plan 2 of 10', steps: '1. Probe. 2. Fix.' });
+    expect(logic.planSaid(plan, Date.parse('2001-01-01T00:00:00Z'))).toEqual({ next: 'Run a probe of the sync.', when: 'Claude does it at the next run of the watch · try 2 of 10', steps: '1. Probe. 2. Fix.' });
     expect(logic.planSaid({ ...plan, nextAt: '2001-01-01T05:00:00Z' }, Date.parse('2001-01-01T00:00:00Z'))?.when).toMatch(/^Claude does it at about /);
-    expect(logic.planSaid({ ...plan, tries: 10 })?.next).toBe('Claude tried 10 plans and did not prove the cause. A developer decides what happens next.');
+    expect(logic.planSaid({ ...plan, tries: 10 })?.next).toBe('Claude tried 10 times to prove the cause and did not. A developer decides what happens next.');
 
     draw.fixes({ state: 'ok', data: { prs: open } });
     const html = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record() }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
@@ -335,7 +335,7 @@ describe('the cards', () => {
     expect(waits).toContain('<b>The cause is not proven yet.</b> The cause is not proven.');
     const going = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': { ...none, plan: { next: 'Run a probe of the sync.', steps: '1. Probe.', nextAt: '2000-01-01T00:00:00Z', tries: 1, at: '2000-01-01T00:00:00Z' } } }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
     expect(going).toContain('<span class="ipill claude">Claude proves the cause</span>');
-    expect(going).toContain('<p class="inext"><b>Next:</b> Run a probe of the sync.<br><small class="muted">Claude does it at the next run of the watch · plan 1 of 10</small></p>');
+    expect(going).toContain('<p class="inext"><b>Next:</b> Run a probe of the sync.<br><small class="muted">Claude does it at the next run of the watch · try 1 of 10</small></p>');
     expect(going).not.toContain('A developer decides');
     // Before the database keeps records, a card is as it was.
     expect(draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toMatch(/What Claude did|data-shot/);

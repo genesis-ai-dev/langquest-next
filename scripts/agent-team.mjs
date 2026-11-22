@@ -107,7 +107,7 @@ export function verdictOf(raw) {
 export const NEXT_LIMITS = { do: 300, steps: 600 };
 /** In how many hours the watch hands the issue back: from the next run of the watch to a week (server/userIssues.ts PLAN_HOURS). */
 export const NEXT_HOURS = { min: 0.25, max: 168 };
-/** After this many plans in a row the watch stops handing the issue back (server/userIssues.ts PLAN_TRIES). */
+/** After this many tries to prove the cause (each a hand-back of the issue to the fix jobs) the watch stops handing it back (server/userIssues.ts PLAN_TRIES). */
 export const PLAN_TRIES = 10;
 /** The file of the manager's own test, beside fix.json: the job `check` runs it on main, and the next try reads what it printed. */
 export const PROBE_TEST = 'probe.test.ts';
@@ -130,10 +130,20 @@ export function nextOf(raw) {
 }
 
 /**
+ * The manager's run ended before it wrote fix.json (or its job failed): it gave no verdict, so it did not
+ * find that the cause cannot be proven either. The card says so, and the watch runs the manager again.
+ */
+export const ENDED = {
+  why: 'The manager\'s run ended before it wrote its verdict, so the cause is neither proven nor ruled out.',
+  next: { do: 'Claude runs the manager again at the next run of the watch, to read production and prove the cause.', steps: '', inHours: 0.25, probeAt: null }
+};
+
+/**
  * What the manager does next when it did not prove the cause. A manager that wrote no plan never leaves
  * the issue at "not proven": it tries again at the next run, with the probe it wrote, if any.
  */
 export function planNext(verdict) {
+  if (verdict?.ended === true) return ENDED.next;
   if (!verdict || verdict.verdict !== 'unconfirmed') return verdict?.next ?? null;
   return verdict.next ?? { do: 'Claude tries again: it reads production and writes a test that runs the code, to prove the cause.', steps: '', inHours: 1, probeAt: null };
 }

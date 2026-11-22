@@ -23,8 +23,12 @@ thus apply a reliable fix." On 2026-11-21, 9 open issues stopped there.
 - **The rule does not change.** A timing is a change to diagnostics, so it
   waits for a developer's yes before it merges, as before. The card says
   what Claude does after that merge. The probe never merges.
-- **A limit.** After 10 plans in a row (`PLAN_TRIES`) the watch stops
-  handing the issue back, so one issue cannot use the Frontier plan's week.
+- **A limit.** After 10 tries, each one hand-back of the issue to the
+  manager (`PLAN_TRIES`), the watch stops handing the issue back, so one
+  issue cannot use the Frontier plan's week. A try waits at least 2 hours
+  after the last one, also when the job failed and wrote no plan.
+- **No verdict is not "not proven".** A manager run that ended before it
+  wrote `fix.json` says so on the card, and the watch runs it again.
 - **The card** says what Claude does next and when, never only "not
   proven".
 

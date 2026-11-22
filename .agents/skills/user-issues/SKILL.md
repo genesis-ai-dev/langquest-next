@@ -582,8 +582,10 @@ of what a person sent.
 - `inHours` is from 0.25 (the next run of the watch) to 168 (a week).
 - Each try does something new. When nothing is left that the team can do
   alone, say `decision` and what the developer must choose.
-- After 10 plans in a row the watch stops handing the issue back, and its
-  card says that a developer decides.
+- After 10 tries (hand-backs) the watch stops handing the issue back, and
+  its card says that a developer decides.
+- Always write `fix.json` before your turns or time run out. A run with no
+  `fix.json` proves nothing and only costs a try.
 
 `.user-issues/fix.json`, one JSON object:
 
