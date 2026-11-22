@@ -216,6 +216,22 @@ describe('Diagnostics', () => {
     expect(store.records.find((r) => r.kind === 'audio')).toMatchObject({ n: { plays: 3, waits: 3, waitMs: 10_600, maxWaitMs: 9000 } });
   });
 
+  it('keeps where the longest wait went, and counts streamed plays (LAN-323)', async () => {
+    // Why: a web play waited 4.2 s and only the total was kept, so nobody could say if the network or the page took it.
+    const { store, diag } = make();
+    const where = { orgId: 'o', streamId: 'p' };
+    diag.audioWait(where, 900, { linkMs: 100, copyMs: 0, loadMs: 700, busyMs: 20, streamed: false });
+    diag.audioWait(where, 4240, { linkMs: 939, copyMs: 0, loadMs: 3200.6, busyMs: 9000, streamed: true });
+    diag.audioWait(where, 1200, { linkMs: 300, copyMs: 500, loadMs: 300, busyMs: 0, streamed: true });
+    diag.closeTallies();
+    await diag.settle();
+    const n = store.records.find((r) => r.kind === 'audio')!.n;
+    expect(n).toMatchObject({ waits: 3, waitMs: 6340, maxWaitMs: 4240, streamWaits: 2, streamWaitMs: 5440,
+      maxWaitLinkMs: 939, maxWaitCopyMs: 0, maxWaitLoadMs: 3201, maxWaitStreamed: 1 });
+    // A part is never longer than the wait itself.
+    expect(n.maxWaitBusyMs).toBe(4240);
+  });
+
   it('counts records dropped to stay in bounds, once', async () => {
     // Why: weeks offline past 3000 records lost history silently.
     const store = new MemoryDiagStore();
