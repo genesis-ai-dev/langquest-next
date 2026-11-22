@@ -1,9 +1,9 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, changesTheApp, BLOCKED_LABEL, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, copiedOn, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, BLOCKED_LABEL, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, CLAUDE_MINUTES, copiedOn, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, pushNoHook, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -75,6 +75,45 @@ describe('pushing a copy', () => {
     const pushes = script.split('\n').filter((line) => /'push'.*\bbranch\b/.test(line));
     expect(pushes).toHaveLength(3); // the first push, the push that takes main's machinery, and Claude's commits
     for (const line of pushes) expect(line).toContain("'--no-verify'");
+  });
+});
+
+describe('pushing a tag, a new branch or a deletion', () => {
+  // 2026-11-19, LAN-310: the after-merge job runs `npm ci`, whose prepare turns on .githooks, and the
+  // tag of a merge that changed the Android build ran the whole pre-push hook; its failure failed run 882.
+  it('every push in the script runs no hook', () => {
+    const script = readFileSync('scripts/release-branches.mjs', 'utf8');
+    const pushes = script.split('\n').filter((line) => line.includes("'push'"));
+    expect(pushes.length).toBeGreaterThan(0);
+    for (const line of pushes) expect(line).toContain("'--no-verify'");
+    // Every other push goes through pushNoHook.
+    expect(script).not.toMatch(/git\(\s*'push'/);
+  });
+
+  it('a tag reaches origin when a pre-push hook that fails is on', () => {
+    const dir = mkdtempSync(posix.join(tmpdir(), 'push-tag-'));
+    try {
+      const at = (cwd: string, ...args: string[]) =>
+        spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8' });
+      const work = posix.join(dir, 'work');
+      const hooks = posix.join(dir, 'hooks');
+      expect(at(dir, 'init', '-q', '--bare', 'origin.git').status).toBe(0);
+      expect(at(dir, 'init', '-q', 'work').status).toBe(0);
+      expect(at(work, 'commit', '-q', '--allow-empty', '-m', 'merge').status).toBe(0);
+      expect(at(work, 'remote', 'add', 'origin', posix.join(dir, 'origin.git')).status).toBe(0);
+      // What `npm ci` does through the root package.json's prepare, with a hook that always fails.
+      mkdirSync(hooks);
+      writeFileSync(posix.join(hooks, 'pre-push'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+      expect(at(work, 'config', 'core.hooksPath', hooks).status).toBe(0);
+      const sha = at(work, 'rev-parse', 'HEAD').stdout.trim();
+      const tag = `${sha}:refs/tags/rebuild/android/${sha}`;
+      // The push as the script made it before: the hook stops it.
+      expect(at(work, 'push', '--quiet', 'origin', tag).status).not.toBe(0);
+      pushNoHook(['origin', tag], work);
+      expect(at(dir, '--git-dir', 'origin.git', 'rev-parse', `refs/tags/rebuild/android/${sha}`).stdout.trim()).toBe(sha);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

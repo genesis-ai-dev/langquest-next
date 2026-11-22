@@ -340,6 +340,19 @@ function run(cmd, args, opts = {}) {
 }
 const git = (...args) => run('git', args).stdout.trim();
 
+/**
+ * Push a tag, a new release branch or a deletion to origin with no hook. The
+ * after-merge job runs `npm ci`, whose `prepare` turns on .githooks, so a push
+ * without --no-verify ran the whole pre-push hook (typecheck, lint, every unit
+ * test) on a commit that main's guardrails had already passed: on 2026-11-19
+ * the tag of a merge that changed the Android build (#536) spent 11 minutes in
+ * it, and its failure failed release-branches run 882 (LAN-310). Copies push
+ * with --no-verify too (copy, freshenCopies, pushCopy).
+ */
+export function pushNoHook(args, cwd = root) {
+  return run('git', ['push', '--quiet', '--no-verify', ...args], { cwd });
+}
+
 function remoteHas(ref) {
   return run('git', ['ls-remote', '--exit-code', 'origin', ref], { allowFail: true }).status === 0;
 }
@@ -464,7 +477,7 @@ function allRebuilds(platform) {
   const have = new Set(git('tag', '--list', `rebuild/${platform}/*`).split('\n').filter(Boolean));
   for (const sha of listedRebuilds(readFileSync(new URL('release-rebuilds.json', import.meta.url), 'utf8'))[platform]) {
     if (have.has(rebuildTag(platform, sha))) continue;
-    git('push', '--quiet', 'origin', `${sha}:refs/tags/${rebuildTag(platform, sha)}`);
+    pushNoHook(['origin', `${sha}:refs/tags/${rebuildTag(platform, sha)}`]);
     git('tag', rebuildTag(platform, sha), sha);
     have.add(rebuildTag(platform, sha));
     console.log(`${platform}: tagged ${sha.slice(0, 8)}, a new build made while ${platform} kept no release branch`);
@@ -489,7 +502,7 @@ function mergesAfter(from) {
 
 /** A branch for the public build from the commit before rebuild `from`, caught up on main's later merges that the phone app needs. */
 function startBranch(platform, from, rebuilds) {
-  git('push', '--quiet', 'origin', `${from}^:refs/heads/${branchOf(platform)}`);
+  pushNoHook(['origin', `${from}^:refs/heads/${branchOf(platform)}`]);
   console.log(`${branchOf(platform)}: started from ${from.slice(0, 8)}^, the code that the public build last got`);
   copy(platform, mergesToCopy(mergesAfter(from), rebuilds.map((r) => r.sha)));
 }
@@ -524,7 +537,7 @@ async function tidy() {
     const step = afterLive({ rebuilds, liveVersion: live });
     const wrong = step.action === 'keep' ? servesAnother({ since: rebuilds, all, liveVersion: live }) : null;
     if (wrong) {
-      git('push', '--quiet', 'origin', '--delete', branchOf(platform));
+      pushNoHook(['origin', '--delete', branchOf(platform)]);
       console.log(`${branchOf(platform)}: deleted, it served the build before ${rebuilds[0].sha.slice(0, 8)} while the store shows ${live}, the build before ${wrong.slice(0, 8)}`);
       startBranch(platform, wrong, all);
       continue;
@@ -533,7 +546,7 @@ async function tidy() {
       console.log(`${branchOf(platform)}: the store shows ${live ?? 'nothing'}, and the build from ${rebuilds[0].sha.slice(0, 8)} is not public yet, so the branch stays`);
       continue;
     }
-    git('push', '--quiet', 'origin', '--delete', branchOf(platform));
+    pushNoHook(['origin', '--delete', branchOf(platform)]);
     console.log(`${branchOf(platform)}: deleted, the store shows ${live}`);
     // A newer rebuild is in review: the build that just went public gets its own branch, from the commit before it.
     if (step.action === 'restart') startBranch(platform, step.from, all);
@@ -781,7 +794,7 @@ async function main() {
   const step = afterMerge({ oldFingerprint: opt('old'), newFingerprint: opt('new'), branchExists, appChanged });
   console.log(`${platform}: ${step}${step === 'none' && branchExists ? ' (the merge changes nothing the phone app runs)' : ''}`);
   if (step === 'start' || step === 'tag') {
-    git('push', '--quiet', 'origin', `${sha}:refs/tags/${rebuildTag(platform, sha)}`);
+    pushNoHook(['origin', `${sha}:refs/tags/${rebuildTag(platform, sha)}`]);
     git('tag', '--force', rebuildTag(platform, sha), sha);
   }
   if (step === 'start') await ensureBranch(platform);
