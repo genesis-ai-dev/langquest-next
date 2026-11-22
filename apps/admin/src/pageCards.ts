@@ -155,7 +155,8 @@ function lineCard(a, group) {
         lines: [
           ['Wrong', row && row.problem ? '<p>' + esc(row.problem) + '</p>' : ''],
           ['Known', row && row.known ? '<p>' + esc(row.known) + '</p>' : ''],
-          ['Next', (n ? '<p class="inext">' + esc(n) + '</p>' : '') + (fixed ? (n ? '<small class="muted">' + fixed + '</small>' : '<p>' + fixed + '</p>') : row && row.solution ? (n ? '<small class="muted">' : '<p>') + esc(row.solution) + (n ? '</small>' : '</p>') : '')]
+          // The cause is not proven yet: what Claude does next, and when, leads (pageIssues.ts planLine).
+          ['Next', (record && !record.pr && planGoing(record) ? planLine(record.plan) : '') + (n ? '<p class="inext">' + esc(n) + '</p>' : '') + (fixed ? (n ? '<small class="muted">' + fixed + '</small>' : '<p>' + fixed + '</p>') : row && row.solution ? (n ? '<small class="muted">' : '<p>') + esc(row.solution) + (n ? '</small>' : '</p>') : '')]
         ],
         bar: side,
         more: (pics ? '<div class="ipics">' + pics + '</div>' : '') + (way.at ? '<div class="iprog">' + stepsHtml(way.steps, way.at) + '</div>' : '') +

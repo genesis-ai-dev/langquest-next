@@ -143,6 +143,8 @@ function storeWaits(pipeline) {
  *             instruction on it (a note in state working)
  *   merging   the agent team's pull request merges without a person
  *   review    the team's draft pull request waits for a developer to read it
+ *   proving   the cause is not proven yet, and Claude carries out its plan to prove it (docs/agent-team.md
+ *             "When the cause is not proven yet"); its why is what Claude does next
  *   stopped   the team looked and changed nothing; a developer decides
  *   noanswer  a run handed it over more than CLAUDE_HOURS ago and no record came back
  *   person    a developer has it In Progress or In Review in Linear: Claude leaves it
@@ -162,19 +164,21 @@ function claudeWork(userissues, now) {
     const state = working ? 'working'
       : after && !fix ? 'noanswer'
       : fix && fix.pr ? (fix.decision === 'merge' ? 'merging' : 'review')
+      : fix && fix.plan && fix.plan.next && Number(fix.plan.tries) < 10 ? 'proving'
       : fix ? 'stopped'
       : /^In (Progress|Review)$/.test(i.state || '') ? 'person'
       : 'queued';
-    return { ...i, linear: i.state || null, state, pr: fix && fix.pr ? fix.pr : null, why: fix && fix.why ? fix.why : null, startedAt: Number.isFinite(tried) ? new Date(tried).toISOString() : null };
+    return { ...i, linear: i.state || null, state, pr: fix && fix.pr ? fix.pr : null, why: state === 'proving' ? 'Next: ' + fix.plan.next : fix && fix.why ? fix.why : null, startedAt: Number.isFinite(tried) ? new Date(tried).toISOString() : null, nextAt: state === 'proving' ? fix.plan.nextAt || null : null };
   });
 }
 /** Where each of claudeWork's states goes on the Overview: on its way, or a choice for a developer. */
-const CLAUDE_GROUP = { working: 'way', merging: 'way', person: 'way', queued: 'way', review: 'decide', stopped: 'decide', noanswer: 'decide' };
+const CLAUDE_GROUP = { proving: 'way', working: 'way', merging: 'way', person: 'way', queued: 'way', review: 'decide', stopped: 'decide', noanswer: 'decide' };
 /** What an Overview row says about one of claudeWork's issues. */
 const CLAUDE_WORK = {
   working: 'Claude works on it now.',
   merging: 'Claude wrote a fix. It merges when its checks pass.',
   review: 'Claude wrote a fix. It waits for you to read it.',
+  proving: 'Claude proves the cause first, then writes the fix.',
   stopped: 'Claude tried and stopped.',
   noanswer: 'Claude started and gave no answer.',
   person: 'A developer works on it in Linear.',

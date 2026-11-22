@@ -122,6 +122,12 @@ export interface Watch {
    * (docs/agent-team.md "Issues Claude never tried"). Absent before migration 20261121221500_user_issue_tries.sql.
    */
   untried?: string[];
+  /**
+   * The open issues whose plan's time has come: the manager did not prove the cause yet and said what it does
+   * next and when (docs/agent-team.md "When the cause is not proven yet"), the oldest first. Absent before
+   * migration 20261121235200_user_issue_plans.sql.
+   */
+  due?: string[];
 }
 
 /** One issue's instructions for the run that writes its fix (`GET /api/user-issues?notes=LAN-12`). */
@@ -130,6 +136,8 @@ export interface IssueNotes {
   waiting: { id: string; at: string; text: string }[];
   /** The last answered ones, the oldest first: what was said before. */
   before: { at: string; text: string; result: NoteResult; answer: string | null }[];
+  /** The manager's last plan for the issue, with what its probe printed, or null. Absent before migration 20261121235200_user_issue_plans.sql. */
+  plan?: { next: string; steps: string | null; nextAt: string; probe: string | null; tries: number; at: string } | null;
 }
 
 /** What a run did with an instruction: changed the draft fix (or wrote one), answered in words only, or neither. */
@@ -156,7 +164,7 @@ const ISSUE_URL = /^https:\/\/linear\.app\/[A-Za-z0-9/_.-]{1,300}$/;
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /** No address may ride along in a note: the database keeps none (docs/diagnostics.md). */
 export const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 70, handed: 10, tried: 10, diagrams: 20 } as const;
+export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 70, handed: 10, tried: 10, diagrams: 20, plans: 20 } as const;
 
 // ---- what the agent team did with an issue (docs/agent-team.md, scripts/agent-team.mjs) -----------
 
@@ -190,6 +198,19 @@ export interface FixRecord {
    */
   before: string | null; after: string | null;
 }
+/**
+ * What the manager does next on an issue whose cause it did not prove yet (docs/agent-team.md "When the cause
+ * is not proven yet"): `next` in a sentence, all the `steps`, in how many hours the watch hands the issue
+ * back, and what its probe printed on main. `next: null` removes the plan (the issue has a cause now, or a
+ * developer decides). Claude's words only, and the probe ran in the local test world, never on production.
+ */
+export interface PlanRecord { issue: string; next: string | null; steps: string | null; inHours: number | null; probe: string | null }
+/** The longest of a plan's words, and its hours (scripts/agent-team.mjs NEXT_LIMITS and NEXT_HOURS). */
+export const PLAN_TEXT = { next: 300, steps: 600, probe: 6000 } as const;
+export const PLAN_HOURS = { min: 0.25, max: 168 } as const;
+/** After this many tries to prove the cause (hand-backs, ops_user_issue_tried counts them) the watch stops handing an issue back, and its card says a developer decides (scripts/agent-team.mjs PLAN_TRIES). */
+export const PLAN_TRIES = 10;
+
 /** A JPEG in base64, of at most 150 000 bytes (scripts/agent-team.mjs PICTURES). */
 export const FIX_PICTURE = /^\/9j\/[A-Za-z0-9+/]{100,200000}={0,2}$/;
 
@@ -316,6 +337,8 @@ export interface Looked {
   tried: string[];
   /** The diagram of each issue this run filed, for its card. */
   diagrams: { issue: string; steps: DiagramStep[] }[];
+  /** What the manager does next on each issue whose cause it did not prove yet, or `next: null` to remove the plan. */
+  plans: PlanRecord[];
 }
 
 export class LookedError extends Error {
@@ -688,5 +711,24 @@ export function parseLooked(input: unknown): Looked {
     drawn.add(issue);
     return { issue, steps: parseSteps(d['steps'], `${where}.steps`) };
   });
-  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, report, handed, tried, diagrams };
+  const planned = new Set<string>();
+  const plans = list(input, 'plans', LOOKED_MAX.plans).map((x, n): PlanRecord => {
+    const where = `plans[${n}]`;
+    if (!isObj(x)) throw new LookedError(`${where}: an object`);
+    const issue = x['issue'];
+    if (typeof issue !== 'string' || !ISSUE.test(issue) || planned.has(issue)) throw new LookedError(`${where}.issue: a Linear issue (LAN-12), once`);
+    planned.add(issue);
+    const said = (field: keyof typeof PLAN_TEXT): string | null => {
+      const v = x[field];
+      if (absent(v) || v === '') return null;
+      if (typeof v !== 'string' || v.length > PLAN_TEXT[field] || EMAIL.test(v)) throw new LookedError(`${where}.${field}: at most ${PLAN_TEXT[field]} characters, no address`);
+      return v;
+    };
+    const next = said('next');
+    if (next === null) return { issue, next: null, steps: null, inHours: null, probe: null };
+    const hours = x['inHours'];
+    if (typeof hours !== 'number' || !Number.isFinite(hours) || hours < PLAN_HOURS.min || hours > PLAN_HOURS.max) throw new LookedError(`${where}.inHours: ${PLAN_HOURS.min} to ${PLAN_HOURS.max}`);
+    return { issue, next, steps: said('steps'), inHours: hours, probe: said('probe') };
+  });
+  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, report, handed, tried, diagrams, plans };
 }

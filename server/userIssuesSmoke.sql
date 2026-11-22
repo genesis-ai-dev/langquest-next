@@ -708,4 +708,70 @@ end $$;
 reset role;
 rollback to savepoint gaps;
 
+-- The plan of an issue whose cause is not proven yet (migration 20261121235200_user_issue_plans.sql):
+-- kept, handed back when its time comes, counted, removed, and shown to the dashboard without the probe.
+savepoint plans;
+insert into ops.user_issues (key, verdict, issue, issue_url) values
+  ('error:PlanA@x:-', 'filed', 'LAN-901', 'https://linear.app/x/issue/LAN-901'),
+  ('error:PlanB@x:-', 'filed', 'LAN-902', 'https://linear.app/x/issue/LAN-902');
+set local role service_role;
+do $$ begin
+  assert public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/777', 'plans', jsonb_build_array(
+    jsonb_build_object('issue', 'LAN-901', 'next', 'Run a probe.', 'steps', '1. Probe.', 'inHours', 0.25, 'probe', 'took 4100 ms'),
+    jsonb_build_object('issue', 'LAN-902', 'next', 'Read production.', 'inHours', 9999)))) = 2, 'two plans kept';
+  assert public.ops_user_issue_plans_due() = '[]'::jsonb, 'nothing due yet';
+  begin
+    perform public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/someone/else/actions/runs/1', 'plans', '[]'::jsonb));
+    assert false, 'another repository''s run';
+  exception when sqlstate '22023' then null;
+  end;
+end $$;
+reset role;
+do $$ begin
+  assert (select next_at > now() + interval '14 minutes' and next_at < now() + interval '16 minutes' from ops.user_issue_plans where issue = 'LAN-901'), 'a quarter hour';
+  assert (select next_at < now() + interval '169 hours' from ops.user_issue_plans where issue = 'LAN-902'), 'at most a week';
+  assert not has_function_privilege('authenticated', 'public.ops_user_issue_plans_done(jsonb)', 'execute')
+    and not has_function_privilege('anon', 'public.ops_user_issue_plans_due(int)', 'execute'), 'only the Worker';
+end $$;
+update ops.user_issue_plans set next_at = now() - interval '1 minute';
+set local role service_role;
+do $$ begin
+  assert public.ops_user_issue_plans_due() = '["LAN-901", "LAN-902"]'::jsonb, 'both due: %', public.ops_user_issue_plans_due();
+  assert public.ops_user_issue_plan('LAN-901')->>'probe' = 'took 4100 ms', 'the next try reads the probe';
+  -- A hand-back counts a try, and the issue waits 2 hours, so a run whose job failed (no plan) cannot loop.
+  perform public.ops_user_issue_tried(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/778', 'tried', jsonb_build_array('LAN-901')));
+  assert (public.ops_user_issue_plan('LAN-901')->>'tries')::int = 2, 'two tries';
+  assert public.ops_user_issue_plans_due() = '["LAN-902"]'::jsonb, 'handed back, not due again: %', public.ops_user_issue_plans_due();
+  -- The run's own plan sets the time the manager chose, and does not count the try again.
+  perform public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/778', 'plans', jsonb_build_array(jsonb_build_object('issue', 'LAN-901', 'next', 'Probe again.', 'inHours', 1))));
+  assert (public.ops_user_issue_plan('LAN-901')->>'tries')::int = 2, 'still two tries';
+end $$;
+reset role;
+do $$ begin
+  assert (select next_at < now() + interval '61 minutes' from ops.user_issue_plans where issue = 'LAN-901'), 'the manager''s hour';
+end $$;
+-- At the limit an issue is not handed back, nor a closed one.
+update ops.user_issue_plans set next_at = now() - interval '1 minute';
+set local role service_role;
+do $$ begin
+  assert public.ops_user_issue_plans_due(2) = '["LAN-902"]'::jsonb, 'LAN-901 is at the limit: %', public.ops_user_issue_plans_due(2);
+end $$;
+reset role;
+update ops.user_issues set verdict = 'fixed', fixed_at = now(), closed_at = now() where issue = 'LAN-902';
+set local role service_role;
+do $$ begin
+  assert public.ops_user_issue_plans_due() = '["LAN-901"]'::jsonb, 'a closed issue stays: %', public.ops_user_issue_plans_due();
+  -- A record with no next step removes the plan.
+  perform public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/779', 'plans', jsonb_build_array(jsonb_build_object('issue', 'LAN-902', 'next', null))));
+  assert public.ops_user_issue_plan('LAN-902') is null, 'removed';
+end $$;
+reset role;
+set local role diag_reader;
+do $$ begin
+  assert diag.ops_user_issue_plans()->'LAN-901'->>'next' = 'Probe again.', 'the dashboard reads the next step';
+  assert not (diag.ops_user_issue_plans()->'LAN-901' ? 'probe'), 'never the probe';
+end $$;
+reset role;
+rollback to savepoint plans;
+
 rollback;
