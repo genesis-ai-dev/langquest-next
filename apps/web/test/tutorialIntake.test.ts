@@ -33,7 +33,8 @@ function world(manifests: Partial<Record<ChannelLanguage, unknown>>, files: Reco
       listed.add(key);
       return true;
     },
-    stopping: () => false
+    stopping: () => false,
+    wait: async () => {}
   };
   return { deps, r2, listed, downloads };
 }
@@ -89,6 +90,29 @@ describe('tutorial intake', () => {
     let stop = false;
     const report = await takeInFilms({ ...w.deps, made: async (l, f) => { stop = true; return w.deps.made(l, f); }, stopping: () => stop }, fresh());
     expect(report).toMatchObject({ films: 1, brought: 1, listed: 1 });
+  });
+
+  it('tries a step the server failed once again, then stops the run, so a storage fault is not hundreds of failed requests (LAN-325)', async () => {
+    const films = Array.from({ length: 20 }, (_, i) => film(`t${i}`, `video ${i}`));
+    const server = () => Object.assign(new Error('stored 500'), { name: 'stored_500', server: true });
+    // A fault that passes: the second try answers.
+    let first = true;
+    const w = world({ es: { language: 'es', films: films.slice(0, 1) } }, {});
+    const report = await takeInFilms({ ...w.deps, stored: async () => { if (first) { first = false; throw server(); } return true; } }, fresh());
+    expect(report).toMatchObject({ films: 1, failed: 0, listed: 1 });
+    expect(report.stopped).toBeUndefined();
+    // A fault that stays: 2 requests, then the run stops; the other films and languages wait for the next run.
+    let asked = 0;
+    const down = world({ es: { language: 'es', films }, fr: { language: 'fr', films } }, {});
+    const stopped = await takeInFilms({ ...down.deps, stored: async () => { asked += 1; throw server(); } }, fresh());
+    expect(asked).toBe(2);
+    expect(stopped).toMatchObject({ films: 1, failed: 1, firstError: 'stored_500', stopped: true });
+    // A film's own fault (not the server's) is not tried again, and the run goes on.
+    let tries = 0;
+    const own = world({ es: { language: 'es', films: films.slice(0, 3) } }, {});
+    const going = await takeInFilms({ ...own.deps, stored: async () => { tries += 1; throw Object.assign(new Error('stored 403'), { name: 'stored_403', server: false }); } }, fresh());
+    expect(tries).toBe(3);
+    expect(going).toMatchObject({ films: 3, failed: 3 });
   });
 });
 

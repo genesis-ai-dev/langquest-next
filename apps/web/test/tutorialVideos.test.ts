@@ -60,6 +60,14 @@ describe('/api/tutorials', () => {
     expect((await get(`/api/tutorials/zh-Hans/record-a-passage/${SHA}.mp4`, { range: 'bytes=20-' })).status).toBe(416);
   });
 
+  it('says "try again" (503) when the video store does not answer, never a bare 500 (LAN-325)', async () => {
+    const broken = { ...bucket(objects), async head() { throw new Error('R2 internal error'); } } as BlobBucket;
+    const d = { ...deps(objects), blobs: { ...deps(objects).blobs!, bucket: broken } } as ApiDeps;
+    const r = await handleApi(new Request(`https://x/api/tutorials/zh-Hans/record-a-passage/${SHA}.mp4`, { method: 'HEAD' }), d);
+    expect(r.status).toBe(503);
+    expect(r.headers.get('retry-after')).toBe('60');
+  });
+
   it('reaches nothing outside tutorials/', async () => {
     for (const path of [
       '/api/tutorials/../org-1/lang-1/secret.m4a', `/api/tutorials/zh-Hans/../${SHA}.mp4`, `/api/tutorials/org-1/lang-1/${SHA}.mp4`,

@@ -15,7 +15,7 @@ import { statusClass, type JobRun } from '../../../server/jobRuns';
  */
 export type RouteClass =
   | 'blobs_put' | 'blobs_get' | 'blob_access' | 'r2_put' | 'record_blob'
-  | 'reports' | 'agent_api' | 'agent_list' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'ops' | 'other';
+  | 'reports' | 'agent_api' | 'agent_list' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'tutorials' | 'ops' | 'other';
 
 /** Which kind of request this is; null for what is not counted (the web app and its files). */
 export function routeClass(method: string, path: string): RouteClass | null {
@@ -36,6 +36,8 @@ export function routeClass(method: string, path: string): RouteClass | null {
   if (path === '/api/v1' || path.startsWith('/api/v1/')) return 'agent_api';
   if (path === '/api/internal/poke') return 'webhook';
   if (path.startsWith('/api/nearby/') || path === '/api/relay') return 'nearby';
+  // The tutorial videos: people play them, and the intake job asks for each film whether it is stored.
+  if (path.startsWith('/api/tutorials/')) return 'tutorials';
   if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/') || path.startsWith('/apk/') || path === '/videos') return 'other';
   return null;
 }
