@@ -57,7 +57,7 @@ import { canExport } from '../org/orgExports';
 import { appendToLanguage } from '../sync/languageWriter';
 import { createLanguages, newLanguageParts, type Making, type MaterialChoice, type NewOne } from '../org/newLanguage';
 import { emailInvite } from '../org/emailInvite';
-import { liveRoles, looksLikeEmail, signInFailure } from '../org/model';
+import { liveRoles, looksLikeEmail, memberJoined, signInFailure } from '../org/model';
 import { usePublicListing } from '../org/usePublicListing';
 import { contractsFor } from '../shell/screenContracts';
 import { languageFigures } from '../org/orgFigures';
@@ -887,7 +887,7 @@ function MemberRow(props: { ctx: Ctx; e: MemberEntry; target: string; editable: 
   return (
     <Row testID={`person-${e.profileId}`} leading={<Avatar id={e.profileId} />} label={ctx.name(e.profileId)} muted={!props.editable} last={props.last}
       current={beside?.screen === 'edit_member' && beside.params['memberId'] === e.profileId}
-      sub={e.since ? t('org.members.joined', { target: props.target, when: formatAgo(decodeHlc(e.since).wallMs) }) : props.target}
+      sub={e.since ? memberJoined(props.target, decodeHlc(e.since).wallMs) : props.target}
       onPress={props.editable ? () => ctx.go('edit_member', { memberId: e.profileId, entry: e.key, level: props.level }) : undefined} help={t('org.members.memberHelp')}
       right={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
