@@ -33,11 +33,6 @@ queue section lists the latest. A job already running is left alone.
 Suspending or deleting an account, moderation and Global Viewer grants stay
 in the command-line scripts, run on a call.
 
-The same Worker answers one path that is not the page: `/ops/api/read`, the
-read gate, where Claude's cloud threads and the agent teams run read-only
-SQL with a token of their own, not a person's sign-in
-(`docs/production-reads.md`).
-
 ## Who can open it
 
 Global Viewers (decision 158, `docs/global-viewers.md`), on a session

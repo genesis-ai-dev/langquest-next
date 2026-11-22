@@ -72,7 +72,6 @@ export const GROUPS = [
     title: 'Data and support',
     scripts: {
       diag: 'field diagnostics: a person, a language, an error code, the server jobs',
-      'prod:read': 'one read-only SQL statement on production, through the read gate (docs/production-reads.md)',
       'key-terms:eval': "precision and recall of each key-term matcher on a set of partner clips (eval/key-terms/README.md)",
       moderation: 'open content reports, and acting on them',
       'global-viewer': 'Global Viewers: grant on a call, revoke, reset a lost authenticator, list (docs/global-viewers.md)',
