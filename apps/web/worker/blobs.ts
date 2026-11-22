@@ -200,17 +200,54 @@ async function read(request: Request, b: BlobKey, deps: BlobDeps): Promise<Respo
   });
 }
 
+/**
+ * The request's body as the bucket reads it, noting whether the sender cut
+ * it off: a read that threw (workerd's "Network connection lost." when the
+ * phone's connection drops or it gives up) or an end before `length` bytes.
+ * The bucket's put then throws as if R2 had failed; this tells the two apart.
+ */
+function watchedBody(body: ReadableStream<Uint8Array>, length: number): { stream: ReadableStream<Uint8Array>; cut: () => boolean } {
+  const reader = body.getReader();
+  let received = 0;
+  let failed = false;
+  let ended = false;
+  const stream = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const part = await reader.read().catch((e: unknown) => {
+        failed = true;
+        throw e;
+      });
+      if (part.done) {
+        ended = true;
+        controller.close();
+        return;
+      }
+      received += part.value.byteLength;
+      controller.enqueue(part.value);
+    },
+    cancel: (reason) => reader.cancel(reason)
+  });
+  return { stream, cut: () => failed || (ended && received < length) };
+}
+
 async function upload(request: Request, b: BlobKey, deps: BlobDeps): Promise<Response> {
   const length = Number(request.headers.get('content-length') ?? NaN);
   if (!Number.isSafeInteger(length) || length < 0) return json(411, { error: 'Send the file with its length.' });
   if (length > MAX_BYTES) return json(413, { error: `Files are at most ${MAX_BYTES / 1024 / 1024} MB.` });
+  const body = request.body ? watchedBody(request.body, length) : null;
   let stored: { size: number };
   try {
-    stored = await deps.bucket.put(b.key, request.body ?? new Uint8Array(), length, b.hash, MIME[b.ext]!);
+    stored = await deps.bucket.put(b.key, body?.stream ?? new Uint8Array(), length, b.hash, MIME[b.ext]!);
   } catch (e) {
     if (e instanceof BadDigest) {
       deps.tally?.('r2_put', 422);
       return json(422, { error: 'The file does not match its name; it was not stored.' });
+    }
+    if (body?.cut()) {
+      // The sender stopped before the whole file came: their side, not R2's, and they will
+      // not hear this answer. Counted as 4xx, so a 5xx on r2_put is R2's own failure.
+      deps.tally?.('r2_put', 408);
+      return json(408, { error: 'The file stopped before all of it came. Send it again.' });
     }
     deps.tally?.('r2_put', 502);
     console.error(`blob put ${b.key}:`, e);

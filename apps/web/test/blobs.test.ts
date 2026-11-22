@@ -159,6 +159,49 @@ describe('blob uploads', () => {
     expect((await put(deps, key, audio, 'tok-lead')).status).toBe(502);
   });
 
+  it('counts an upload the sender cut off as theirs (4xx), and only a failing bucket as 5xx', async () => {
+    // Why: LAN-282. A phone whose connection drops mid-upload makes the body's read throw
+    // (workerd: "Network connection lost."), the bucket's put throws with it, and every such
+    // upload was tallied as R2 failing (r2_put 502), though R2 was fine and the phone never
+    // heard the answer. A 5xx on r2_put must mean the bucket itself failed.
+    const { deps, bucket, recorded } = world();
+    const steps: string[] = [];
+    deps.tally = (step, status) => { steps.push(`${step}:${status}`); };
+    const half = audio.slice(0, 10);
+    // One part each read, so an error comes after the bytes before it were read, as a dropped connection's does.
+    const streamed = (parts: (Uint8Array | Error)[]) => handleBlobs(new Request(`${ORIGIN}/api/blobs/${key}`, {
+      method: 'PUT',
+      body: new ReadableStream<Uint8Array>({
+        pull(c) { const p = parts.shift(); if (p === undefined) c.close(); else if (p instanceof Error) c.error(p); else c.enqueue(p); }
+      }),
+      duplex: 'half',
+      headers: { 'content-length': String(audio.byteLength), authorization: 'Bearer tok-lead' }
+    } as RequestInit), deps);
+
+    expect((await streamed([half, new Error('Network connection lost.')])).status).toBe(408);
+    expect((await streamed([half])).status).toBe(408);
+    expect(steps).toEqual(['r2_put:408', 'r2_put:408']);
+    expect(bucket.objects.size).toBe(0);
+    expect(recorded).toEqual([]);
+
+    // The whole file came and the bucket failed: R2's own failure, still a 502 the phone retries.
+    steps.length = 0;
+    bucket.put = async (_k, body) => {
+      if (!(body instanceof Uint8Array)) await new Response(body).arrayBuffer();
+      throw new Error('We encountered an internal error. Please try again. (10001)');
+    };
+    expect((await streamed([audio])).status).toBe(502);
+    expect(steps).toEqual(['r2_put:502']);
+
+    // The whole file came and was stored: the read through the watch changes nothing.
+    const whole = world();
+    expect((await handleBlobs(new Request(`${ORIGIN}/api/blobs/${key}`, {
+      method: 'PUT', body: new ReadableStream<Uint8Array>({ start(c) { c.enqueue(half); c.enqueue(audio.slice(10)); c.close(); } }), duplex: 'half',
+      headers: { 'content-length': String(audio.byteLength), authorization: 'Bearer tok-lead' }
+    } as RequestInit), whole.deps)).status).toBe(200);
+    expect(whole.bucket.objects.get(key)).toEqual(audio);
+  });
+
   it('refuses names that are not a hash and a known format', async () => {
     const { deps } = world();
     expect((await put(deps, 'org1/L1/deadbeef.wav', audio, 'tok-lead')).status).toBe(404);
