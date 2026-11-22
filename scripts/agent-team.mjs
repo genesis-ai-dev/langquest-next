@@ -107,7 +107,7 @@ export function verdictOf(raw) {
 export const NEXT_LIMITS = { do: 300, steps: 600 };
 /** In how many hours the watch hands the issue back: from the next run of the watch to a week (server/userIssues.ts PLAN_HOURS). */
 export const NEXT_HOURS = { min: 0.25, max: 168 };
-/** After this many tries to prove the cause (each a hand-back of the issue to the fix jobs) the watch stops handing it back (server/userIssues.ts PLAN_TRIES). */
+/** After this many tries to prove the cause (each a hand-back of the issue to the fix jobs) the watch hands it back once a day (server/userIssues.ts PLAN_TRIES). */
 export const PLAN_TRIES = 10;
 /** The file of the manager's own test, beside fix.json: the job `check` runs it on main, and the next try reads what it printed. */
 export const PROBE_TEST = 'probe.test.ts';
@@ -597,9 +597,46 @@ async function follow() {
   else console.log('no pull request of the team waits for a developer now');
 }
 
+// ---- how the manager's run ended -------------------------------------------------------------------
+
+/**
+ * How a Claude run ended, from the action's execution file (an array of messages): its end, its turns, the
+ * names of the tools it was refused, and how many workers it started in the background and in the
+ * foreground. Only names and numbers: never what Claude or people wrote, since the log is public.
+ */
+export function runEnd(messages, fixWritten) {
+  const all = Array.isArray(messages) ? messages : [];
+  const r = all.filter((m) => m && m.type === 'result').pop() || {};
+  const names = [...new Set((r.permission_denials || []).map((d) => String(d.tool_name || '').replace(/[^A-Za-z_]/g, '').slice(0, 40)))];
+  const ok = (v) => (typeof v === 'string' && /^[a-z_]{1,40}$/.test(v) ? v : 'unknown');
+  let background = 0, foreground = 0;
+  for (const m of all) {
+    const content = m && m.type === 'assistant' && m.message && Array.isArray(m.message.content) ? m.message.content : [];
+    for (const c of content) {
+      if (!c || c.type !== 'tool_use' || !['Agent', 'Task'].includes(c.name)) continue;
+      // A worker runs in the background unless the call says otherwise (Claude Code's default).
+      if (c.input && c.input.run_in_background === false) foreground++;
+      else background++;
+    }
+  }
+  const fix = fixWritten ? 'written' : 'missing';
+  return {
+    fix,
+    line: `end: ${ok(r.subtype)}; turns: ${Number(r.num_turns) || 0}; refused: ${(r.permission_denials || []).length} (${names.join(', ') || 'none'}); workers: ${foreground} waited for, ${background} in the background; fix.json: ${fix}`
+  };
+}
+
+function runEndStep(out, fixPath) {
+  let messages = [];
+  try { messages = JSON.parse(readFileSync(out, 'utf8')); } catch { /* no execution file: the run did not start */ }
+  const e = runEnd(messages, existsSync(fixPath));
+  console.error(e.line);
+  console.log(`fix=${e.fix}`);
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [command, dir, to] = process.argv.slice(2);
-  const commands = { 'review-needed': reviewNeededStep, 'vet-out': vetOut, pictures: () => picturesStep(dir, to ?? '.'), follow };
+  const commands = { 'review-needed': reviewNeededStep, 'vet-out': vetOut, pictures: () => picturesStep(dir, to ?? '.'), 'run-end': () => runEndStep(dir, to ?? '.user-issues/fix.json'), follow };
   if (!Object.hasOwn(commands, command) || (command !== 'follow' && !dir)) {
     console.error(`usage: node scripts/agent-team.mjs <${Object.keys(commands).join('|')}> [dir]`);
     process.exit(2);

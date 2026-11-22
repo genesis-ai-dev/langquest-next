@@ -163,11 +163,11 @@ function fixFor(fix, pr) {
   if (!fix) return null;
   return (fix.pr ? !!pr && Number(pr.number) === Number(fix.pr) : !pr) ? fix : null;
 }
-/** After this many tries to prove the cause the watch stops handing an issue back (scripts/agent-team.mjs PLAN_TRIES). */
+/** After this many tries to prove the cause the watch hands an issue back once a day, not each 2 hours (scripts/agent-team.mjs PLAN_TRIES). */
 const PLAN_TRIES = 10;
-/** The record has a plan to prove the cause that the watch still carries out (docs/agent-team.md "When the cause is not proven yet"). */
+/** The record has a plan to prove the cause, which the watch carries out (docs/agent-team.md "When the cause is not proven yet"). */
 function planGoing(fix) {
-  return !!(fix && fix.plan && fix.plan.next && Number(fix.plan.tries) < PLAN_TRIES);
+  return !!(fix && fix.plan && fix.plan.next);
 }
 /** When Claude goes on with the plan, in the viewer's clock: the time today, else the day and the time. */
 function planWhen(iso, now) {
@@ -177,12 +177,22 @@ function planWhen(iso, now) {
   const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   return 'at about ' + (today ? time : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + time);
 }
-/** What Claude does next on an issue whose cause it did not prove yet, and when; or that a developer decides after PLAN_TRIES. */
+/** What Claude does next on an issue whose cause it did not prove yet, and when. After PLAN_TRIES tries, once a day. */
 function planSaid(plan, now) {
   if (!plan || !plan.next) return null;
   const tries = Number(plan.tries) || 1;
-  if (tries >= PLAN_TRIES) return { next: 'Claude tried ' + tries + ' times to prove the cause and did not. A developer decides what happens next.', when: '', steps: plan.steps || '' };
-  return { next: plan.next, when: 'Claude does it ' + planWhen(plan.nextAt, now) + ' · try ' + tries + ' of ' + PLAN_TRIES, steps: plan.steps || '' };
+  return { next: plan.next, when: 'Claude does it ' + planWhen(plan.nextAt, now) + ' · try ' + tries + (tries >= PLAN_TRIES ? ' · once a day from now on' : ' · each 2 hours or more'), steps: plan.steps || '' };
+}
+/**
+ * What the card says when Claude changed nothing and has no plan: what Claude found, from its record, and
+ * what the developer does with it. Never only "a developer decides" (docs/decisions/2026-11-22-an-issue-card-never-ends-at-no-fix.md).
+ */
+function noFixSaid(fix) {
+  const why = fix && fix.why ? esc(fix.why) : '';
+  if (fix && fix.reason === 'not_a_bug') return '<p class="inext"><b>Claude found no bug.</b> ' + why + '</p><small class="muted">Close the issue in Linear when you agree. Send an instruction when you do not.</small>';
+  if (fix && fix.reason === 'decision') return '<p class="inext"><b>Claude needs your choice.</b> ' + why + '</p>';
+  if (fix) return '<p class="inext"><b>' + esc(FIX_REASON[fix.reason] || 'Claude changed nothing') + '.</b> ' + why + '</p><small class="muted">Claude tries again at the next run of the watch.</small>';
+  return '<span class="muted">Claude did not look at it yet. It takes it at a next run of the watch.</span>';
 }
 /** The plan as a line of the card: "Next:", what Claude does, when, and the whole plan behind one tap. */
 function planLine(plan) {
@@ -419,7 +429,7 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const source = issueSource(r.keys);
   const pr = way.pr;
   const solution = {
-    you: () => pr ? prLink(pr) + ' waits on its merge.' + (pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : '') + (record && record.plan && planGoing(record) ? '<br><small class="muted">After the merge: ' + esc(record.plan.next) + '</small>' : '') : 'Claude wrote no fix. A developer decides what happens next.',
+    you: () => pr ? prLink(pr) + ' waits on its merge.' + (pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : '') + (record && record.plan && planGoing(record) ? '<br><small class="muted">After the merge: ' + esc(record.plan.next) + '</small>' : '') : noFixSaid(record),
     claude: () => prLink(pr) + ' merges without a person when its checks pass.' + (pr && pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : ''),
     merged: () => 'Fixed in ' + prLink(pr) + (pr && pr.mergedAt ? ', merged ' + when(pr.mergedAt) : '') + '. Linear says ' + esc(r.state || 'open') + '.',
     nofix: () => planGoing(record) ? 'Claude proves the cause first, then writes the fix. ' + esc(planSaid(record.plan).when) + '.' : 'No pull request names ' + esc(r.issue) + '. <small class="muted">The page reads open ones, and ones merged in the last 14 days.</small>',
@@ -432,7 +442,7 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   // Next: the pull request when there is one, else what Claude says fixes it, else what the page knows.
   // With no pull request and a plan to prove the cause: what Claude does next, and when.
   const next = pr && pr.number ? solution : planGoing(record) ? planLine(record.plan) + (r.solution ? '<small class="muted">' + esc(r.solution) + '</small>' : '')
-    : r.solution ? esc(r.solution) + (way.tab === 'you' ? '<small class="muted">Claude wrote no fix. A developer decides.</small>' : '') : solution;
+    : way.tab === 'you' ? solution + (r.solution ? '<small class="muted">' + esc(r.solution) + '</small>' : '') : r.solution ? esc(r.solution) : solution;
   const pics = fixPictures(record, r.issue, !!fixFor(record, way.pr), r.issue && diagrams ? diagrams[r.issue] : null);
   const fix = fixLine(fixFor(record, way.pr), way);
   const kv = (label, html) => html ? '<div><h5 class="imh">' + esc(label) + '</h5>' + html + '</div>' : '';

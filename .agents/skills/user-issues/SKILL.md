@@ -404,6 +404,14 @@ A simple issue needs no worker. You check what each worker says against the
 code before you use it: a worker's word is not proof. You write `fix.json`
 yourself.
 
+**Start each worker with `run_in_background: false`, and wait for its
+answer.** Your run ends the moment you end your turn. A worker that still
+runs in the background then is lost, and a run with no `fix.json` wastes
+the try. Write `fix.json` before you end your turn, every time: when you
+ran out of ideas, `unconfirmed` with `next` is still a verdict. Several
+workers at once are several Agent calls in one message, each with
+`run_in_background: false`.
+
 Your verdict (`verdict` in `fix.json`) is one of:
 
 | `verdict` | When | The change |
