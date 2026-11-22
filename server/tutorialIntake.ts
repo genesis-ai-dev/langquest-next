@@ -36,7 +36,8 @@ process.once('SIGTERM', () => {
 // Counted as it goes, so a run cut short still reports what it did.
 const report: IntakeReport = { languages: 0, films: 0, brought: 0, listed: 0, failed: 0, firstError: null };
 
-const failed = (name: string, status: number) => Object.assign(new Error(`${name} ${status}`), { name: `${name}_${status}` });
+// A 5xx is the server's trouble, not the film's: the intake tries once again, then stops (serverFailed).
+const failed = (name: string, status: number) => Object.assign(new Error(`${name} ${status}`), { name: `${name}_${status}`, server: status >= 500 });
 const video = (language: string, film: Film) => `${apiUrl}/api/tutorials/${language}/${film.tutorial}/${film.sha256}.mp4`;
 
 let error: unknown;
@@ -73,7 +74,8 @@ try {
       if (e) throw Object.assign(new Error(`ops_tutorial_made: ${e.message}`), { name: `made_${e.code ?? 'error'}` });
       return data === true;
     },
-    stopping: () => stopping
+    stopping: () => stopping,
+    wait: () => new Promise((resolve) => setTimeout(resolve, 30_000))
   }, report);
 } catch (e) {
   error = e;
@@ -85,7 +87,7 @@ await record({
   n: { languages: report.languages, films: report.films, brought: report.brought, listed: report.listed, failed: report.failed },
   ...(errorClass ? { errorClass } : {})
 });
-console.log(`intake: ${report.films} films in ${report.languages} languages, ${report.brought} brought, ${report.listed} newly listed, ${report.failed} failed, ${Math.round((Date.now() - started) / 1000)} s`);
+console.log(`intake: ${report.films} films in ${report.languages} languages, ${report.brought} brought, ${report.listed} newly listed, ${report.failed} failed${report.stopped ? ' (stopped: the server failed twice in a row; the next run brings the rest)' : ''}, ${Math.round((Date.now() - started) / 1000)} s`);
 if (error !== undefined) {
   console.error(`failed: ${intakeCode(error)}`);
   process.exit(1);

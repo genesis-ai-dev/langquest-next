@@ -41,15 +41,25 @@ export async function handleTutorialVideo(request: Request, blobs: { bucket: Blo
   const { bucket } = blobs;
   const key = tutorialKey(m[1]!, m[2]!, file[1]!);
   if (request.method === 'PUT') return put(request, blobs, key, file[1]!);
+  try {
+    return await answer(request, bucket, key, m[1]!, m[2]!, file[1]!);
+  } catch {
+    // The storage did not answer (an R2 error). Not a fault in the request: the caller tries again later.
+    // Before, the error went up to a bare 500 (LAN-325: 263 of them in 3 minutes from one intake run).
+    return new Response('The video store did not answer just now. Try again.', { status: 503, headers: { 'retry-after': '60' } });
+  }
+}
+
+async function answer(request: Request, bucket: BlobBucket, key: string, language: string, tutorial: string, sha256: string): Promise<Response> {
   const head = await bucket.head(key);
   if (!head) return new Response('Not found.', { status: 404 });
   const headers: Record<string, string> = {
     'content-type': 'video/mp4',
     'x-content-type-options': 'nosniff',
     'accept-ranges': 'bytes',
-    etag: `"${file[1]}"`,
+    etag: `"${sha256}"`,
     'cache-control': 'public, max-age=31536000, immutable',
-    ...(new URL(request.url).searchParams.has('download') ? { 'content-disposition': `attachment; filename="${downloadName(m[1]!, m[2]!)}"` } : {})
+    ...(new URL(request.url).searchParams.has('download') ? { 'content-disposition': `attachment; filename="${downloadName(language, tutorial)}"` } : {})
   };
   const range = resolveRange(request.headers.get('range'), head.size);
   if (range === 'unsatisfiable') return new Response(null, { status: 416, headers: { 'content-range': `bytes */${head.size}` } });

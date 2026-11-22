@@ -116,6 +116,25 @@ export interface IntakeDeps {
   made(language: ChannelLanguage, film: Film): Promise<boolean>;
   /** The run was asked to stop (SIGTERM): start nothing new. */
   stopping(): boolean;
+  /** A pause before the one try again after the server failed (serverFailed). */
+  wait(): Promise<void>;
+}
+
+/**
+ * The Worker or R2 answered 5xx (tutorialIntake.ts marks it): the server is in trouble, not the film.
+ * The intake tries such a step once again after a pause; when it fails again, the run stops, and the next
+ * run brings the rest. Before, a run went on through every film: 263 failed requests in 3 minutes (LAN-325).
+ */
+export const serverFailed = (e: unknown) => e instanceof Error && (e as { server?: unknown }).server === true;
+
+async function twice<T>(deps: IntakeDeps, step: () => Promise<T>): Promise<T> {
+  try {
+    return await step();
+  } catch (e) {
+    if (!serverFailed(e)) throw e;
+    await deps.wait();
+    return step();
+  }
 }
 
 export interface IntakeReport {
@@ -128,6 +147,8 @@ export interface IntakeReport {
   failed: number;
   /** The first failure's code, for the job run. */
   firstError: string | null;
+  /** The run stopped early: the server failed twice in a row (serverFailed). */
+  stopped?: boolean;
 }
 
 /** A code for the job run, from anything thrown. */
@@ -146,7 +167,7 @@ export async function takeInFilms(deps: IntakeDeps, report: IntakeReport): Promi
     report.failed += 1;
     report.firstError ??= intakeCode(e);
   };
-  for (const language of Object.keys(CHANNELS) as ChannelLanguage[]) {
+  languages: for (const language of Object.keys(CHANNELS) as ChannelLanguage[]) {
     if (deps.stopping()) break;
     let json: unknown;
     try {
@@ -163,15 +184,19 @@ export async function takeInFilms(deps: IntakeDeps, report: IntakeReport): Promi
       if (deps.stopping()) break;
       report.films += 1;
       try {
-        if (!(await deps.stored(language, film))) {
+        if (!(await twice(deps, () => deps.stored(language, film)))) {
           const bytes = await deps.download(language, film);
           if (bytes.length !== film.bytes || (await hex(bytes)) !== film.sha256) throw named('film_digest');
-          await deps.put(language, film, bytes);
+          await twice(deps, () => deps.put(language, film, bytes));
           report.brought += 1;
         }
         if (await deps.made(language, film)) report.listed += 1;
       } catch (e) {
         fail(e);
+        if (serverFailed(e)) {
+          report.stopped = true;
+          break languages;
+        }
       }
     }
   }
