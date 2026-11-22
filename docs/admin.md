@@ -156,7 +156,23 @@ or says "Loading…", so the page does not move under the reader. A box whose
 HTML is the same is left alone; a box with new HTML keeps what the person
 opened, typed, ticked, focused or scrolled sideways in it, and the pictures
 already fetched. A chart that cannot be read again keeps the old one. Only the
-first load says "Loading…". `test/refresh.test.ts` holds this.
+first load shows that it loads. `test/refresh.test.ts` holds this.
+
+The first load shows the page at once: the menu, the title and each box,
+with a grey shape that shimmers where its answer will go (`skel` in
+`pageLoading.ts`: lines, cards, tiles, a chart), and a turning mark beside
+the page's sentence and each "Loading…" status. The page does not wait for
+the sign-in check (`/ops/api/me`) before it reads: every call checks the
+sign-in itself, and a refused one hides the page and asks for it. A part
+whose answer fails shows why with a Try again button, which reads that part
+again (with the parts read together: `diag`, `ops`); so do a page's numbers
+and its charts. While a page still loads, the Overview's sentence does not
+say "Nothing needs you". On the server, one answer's statements run on a few
+connections side by side (`DIAG_CONNECTIONS` in `db.ts`): each statement is
+four trips to the database, and the 32 of the ops answer, which holds User
+issues, queued on one connection for seconds
+(`docs/decisions/2026-11-21-ops-dashboard-shows-loading-and-retry.md`).
+`test/loading.test.ts` holds this.
 
 ### Time to a usable Map
 

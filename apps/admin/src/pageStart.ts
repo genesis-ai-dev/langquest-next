@@ -299,7 +299,8 @@ function route() {
   }
   drawSummary();
   if (v.name === 'start') renderStart();
-  if (v.name === 'group') { renderHist(v.id); window.scrollTo(0, 0); wantCard = v.card || null; focusCard(); }
+  // The page's 14 days of numbers are asked for now, ahead of the parts' answers, not a frame later (drawSummary).
+  if (v.name === 'group') { for (const p of partsWithNumbers(v.id)) sumHistory(p); renderHist(v.id); window.scrollTo(0, 0); wantCard = v.card || null; focusCard(); }
   if (v.name !== 'group') closeDetail();
 }
 window.addEventListener('hashchange', route);
@@ -353,11 +354,12 @@ function renderHist(groupId) {
   if (!parts.length) { el.innerHTML = ''; return; }
   el.innerHTML = '<div class="ranges" role="group" aria-label="Range of days">' + Object.keys(RANGE_NAMES).map((r) =>
     '<button type="button" data-range="' + r + '" aria-pressed="' + (r === range) + '">' + RANGE_NAMES[r] + '</button>').join('') + '</div>' +
-    parts.map((p) => '<div id="charts-' + p + '"><h3 class="part">' + esc(chartTitle(p)) + '</h3><p class="muted">Loading…</p></div>').join('') +
+    parts.map((p) => '<div id="charts-' + p + '"><h3 class="part">' + esc(chartTitle(p)) + '</h3><div class="loadbox">' + skel('chart') + '</div></div>').join('') +
     '<p class="muted">Tap a bar or a point for the records behind it.</p>';
   for (const p of parts) loadHistory(p, range).then((hst) => drawPart(p, hst)).catch((err) => {
     const box = $('charts-' + p);
-    if (box) box.querySelector('p').outerHTML = '<p class="bad">Could not read: ' + esc(err.message) + '</p>';
+    const wait = box && box.querySelector('.loadbox');
+    if (wait) wait.outerHTML = failed('Could not read: ' + err.message, 'data-retry-charts="' + esc(groupId) + '"');
   });
 }
 
@@ -455,7 +457,7 @@ function squarePic(part, alert) {
     dayPics[part] = null;
     loadHistory(part, '24h').then((h) => { dayPics[part] = h; renderStart(); }, () => { dayPics[part] = false; renderStart(); });
   }
-  if (hst === null || hst === undefined) return '<p class="muted">Loading…</p>';
+  if (hst === null || hst === undefined) return skel('chart');
   return hst ? squaresBox(part, hst, '24h', 6, alert) : '';
 }
 
@@ -611,7 +613,7 @@ function drawDetail() {
     '<p class="muted">' + esc(PART_TITLE[d.part] || d.part) + ' · ' + esc(when) + '</p>' +
     '<h3>In this ' + (d.step === 'hour' ? 'hour' : d.step === 'day' ? 'day' : d.step) + '</h3>' +
     '<div class="keyed">' + table([{ h: 'Which', v: (v) => esc(keyName(v.key, d.part, d.metric)) }, { h: 'Number', n: true, v: (v) => esc(fmt(v.value)) }], vals) + '</div>' +
-    '<h3>Records behind it</h3><div id="detail-rows"><p class="muted">Loading…</p></div>';
+    '<h3>Records behind it</h3><div id="detail-rows">' + skel('lines') + '</div>';
   $('detail-close').addEventListener('click', closeDetail);
 }
 

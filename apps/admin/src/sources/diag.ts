@@ -224,7 +224,7 @@ export interface DiagSections {
   jobs: Section; clients: Section; database: Section; v2: Section; feedback: Section;
 }
 
-/** Every `diag` section on one connection; each statement fails alone. */
+/** Every `diag` section in one answer (db.ts withDiag); each statement fails alone. */
 export async function diagSections(query: Query): Promise<DiagSections> {
   const one = async <T>(sql: string, params: (string | number)[], build: (rows: T) => Section, missing?: string): Promise<Section> => {
     try {
@@ -236,7 +236,7 @@ export async function diagSections(query: Query): Promise<DiagSections> {
   };
   const guard = (p: Promise<Section>): Promise<Section> =>
     p.catch((e: unknown) => ({ state: 'error', alerts: [], error: errorText(e), checkedAt: new Date().toISOString() }));
-  // One connection runs one statement at a time, so these queue there.
+  // These run side by side on withDiag's few connections.
   const [jobs, clients, database, v2, feedback] = await Promise.all([
     guard(one<JobRow[]>(JOBS_SQL, [`${JOBS_WINDOW_H} hours`], (rows) => jobsSection(rows))),
     guard(one<Clients>(CLIENTS_SQL, [], (c) => clientsSection(c), COUNTS_MIGRATION)),

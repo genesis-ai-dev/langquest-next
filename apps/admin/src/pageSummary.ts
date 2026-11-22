@@ -375,10 +375,12 @@ function drawSummaryNow() {
   const tileKeys = (PAGE_TILES[g.id] || []).filter(([p, m]) => METRIC[p] && METRIC[p][m]);
   const tiles = tileKeys.map(([p, m]) => healthTile(healthRow(p, m))).join('');
   if (tiles) parts.push('<div class="stiles">' + tiles + '</div>');
-  else if (tileKeys.length) parts.push('<div class="stiles">' + tileKeys.map(([p, m]) => '<div class="stile"><span class="lb">' + esc(METRIC[p][m].label) + '</span><span class="v none">' + esc(sumHist[p] && sumHist[p].error ? 'Could not read' : 'Loading…') + '</span></div>').join('') + '</div>');
+  else if (tileKeys.length) parts.push('<div class="stiles">' + tileKeys.map(([p, m]) => sumHist[p] && sumHist[p].error ? '<div class="stile"><span class="lb">' + esc(METRIC[p][m].label) + '</span><span class="v none">Could not read</span></div>' : skel('tiles')).join('') + '</div>');
   // The problems that need a person, and the choices: each as its card, as on the page before.
   const need = lines.filter((l) => l.bucket === 'need' || l.bucket === 'decide');
   if (need.length) parts.push(block('Needs you', need.length, 'need', '<div class="icards lcards">' + need.map((l) => lineCard(l.a, g.id)).join('') + '</div>'));
+  // Until a part answers, its cards' place shimmers, so the page is never empty while it loads (pageLoading.ts).
+  else if (c.loading) parts.push(skel('cards'));
   if (PAGE_BLOCKS[g.id]) { const own = PAGE_BLOCKS[g.id](g); if (own) parts.push(own); }
   const way = lines.filter((l) => l.bucket === 'way');
   if (way.length) parts.push(block('On its way', way.length, 'way', way.map((l) => lineRow(l, g, 'way')).join('')));
@@ -402,8 +404,8 @@ function drawSummaryNow() {
     parts.push(block('Each number, last 14 days', 0, '',
       (rows.length ? '<div class="hrows">' + rows.map(healthLine).join('') + '</div>' : '') +
       (quiet.length ? '<div class="quiet"><span>Checked, all at zero:</span>' + quiet.map((r) => '<button type="button" class="chip ok" data-chart="' + esc(r.part + '.' + r.metric) + '">✓ ' + esc(r.label) + '</button>').join('') + '</div>' : '') +
-      (waiting ? '<p class="sempty">Loading…</p>' : '') +
-      errs.map((p) => '<p class="bad">Could not read ' + esc(PART_TITLE[p] || p) + ': ' + esc(sumHist[p].error) + '</p>').join('')));
+      (waiting ? skel('lines') : '') +
+      errs.map((p) => failed('Could not read ' + (PART_TITLE[p] || p) + ': ' + sumHist[p].error, 'data-retry-hist="' + esc(p) + '"')).join('')));
   }
   if (redraw(el, parts.join(''))) annotate(el);
   focusCard();

@@ -707,7 +707,7 @@ export interface OpsSections {
   userissues: Section; research: Section;
 }
 
-/** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
+/** Every section above in one answer (db.ts withDiag); each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
     workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries, plans] = await Promise.all([
