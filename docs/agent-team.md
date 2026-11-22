@@ -43,7 +43,8 @@ flowchart TD
 | Agent | Where | Model | It can | It cannot |
 | --- | --- | --- | --- | --- |
 | Coordinator | job `watch` | the action's default | read the code, write `decisions.json` | change code, reach Linear or the network |
-| Issue manager | job `fix` | `sonnet` or `opus`, effort `low` to `high`, as the coordinator chose (`manager` in `decisions.json`) | read and change the checkout, start workers | run a shell, reach the network, hold a key besides Claude's |
+| Issue manager | job `fix` | `sonnet` or `opus`, effort `low` to `high`, as the coordinator chose (`manager` in `decisions.json`) | read and change the checkout, start workers, read production as `agent_reader` (`docs/production-reads.md`), write a probe test that the job `check` runs | run any other shell, reach any other network, hold a key besides Claude's |
+| Probe | job `check` | none: vitest | run the manager's own test on main (with the change, when there is one) and keep its last 6000 characters for the manager's next try | hold a secret, write a cache |
 | Workers (finder, fixer, twin finder) | inside the manager's run | the manager chooses for each task | what the manager can | what the manager cannot |
 | Pictures | job `picture` | none: Playwright in the UI suite's local stack | run the manager's steps to a screen on main, then on main with the patch, and keep one picture each time | hold a secret, write a cache, show a person's work (the world is the suite's fixture world) |
 | Reviewer | job `vet` | `opus` | read the change and the checkout, look at the two pictures, write `verdict.json` | see the issue or what a person wrote, change the patch |
@@ -85,8 +86,8 @@ who may do what; an event's shape; packages; native code; build and store
 settings; workflows; scripts; secrets; agent instructions; privacy and
 diagnostics; store answers; `docs/decisions/`. `MERGE_PATHS` and
 `MERGE_REFUSED` in `scripts/agent-team.mjs` are the list. So does a fix that
-needs a product choice, and one whose cause is not proven (then the manager
-changes nothing).
+needs a product choice, and one whose cause is not proven yet (then the
+manager carries out a plan to prove it: below).
 
 ### Display fixes
 
@@ -204,6 +205,59 @@ flowchart TD
   needs a change waits for a developer at once.
 - At most 2 pull requests a run go back to the manager; they do not take
   the room of new issues (`FIX_MAX`).
+
+## When the cause is not proven yet
+
+Caleb Koster, 2026-11-21: a card that ends with "the cause was not proven"
+asks a developer for the obvious answer, "then prove it". The manager must
+prove the cause itself, or propose a plan that proves it and carry the plan
+out (`docs/decisions/2026-11-21-the-issue-manager-proves-the-cause-or-carries-out-a-plan.md`).
+
+```mermaid
+flowchart LR
+  M["Issue manager"] -->|cause proven| F["Fix with a test<br/>(the rule above)"]
+  M -->|not proven yet| N["next: what Claude does,<br/>and in how many hours"]
+  N --> P["Probe: the manager's test,<br/>run on main in job check"]
+  N --> Q["Read production again<br/>when more records come"]
+  N --> T["A timing in the app<br/>(waits for a developer's yes)"]
+  P --> B["The watch hands the issue back<br/>at that time, with the probe's output"]
+  Q --> B
+  T --> B
+  B --> M
+  M -->|a person must choose| D["decision: what the developer chooses"]
+```
+
+1. The manager reads production first (read only, as `agent_reader`), and
+   follows the code from where the numbers point.
+2. When it has no proof, `fix.json` holds `next` (`nextOf` in
+   `scripts/agent-team.mjs`): `do`, what Claude does next, in a sentence;
+   `steps`, the whole plan; `inHours`, from 0.25 to 168; and `probeAt`, the
+   test folder of a probe. A manager that wrote no `next` (or whose job
+   failed) gets a default one: it tries again at the next run (`planNext`).
+3. A probe (`.user-issues/probe.test.ts`) runs in the job `check`, which
+   holds no key, on main with the change when there is one. Its last 6000
+   characters go with the record (`ops.user_issue_plans.probe`), never to the
+   dashboard or the pull request.
+4. A timing the plan needs is a change to diagnostics, so it waits for a
+   developer (`review`). The card says so, and what Claude does after the
+   merge.
+5. The watch reads `ops_user_issue_plans_due()` each run and hands each
+   issue whose time came back to the fix jobs, after the new issues and the
+   instructions, before the research and the issues never tried, while
+   `FIX_MAX` has room. `issue.json` then holds `plan`: the last plan, its
+   tries and what the probe printed.
+6. The issue's card says what Claude does next and when, never only "not
+   proven". A Linear comment says the same.
+7. Each hand-back counts one try, and the issue waits at least 2 hours
+   before the next, also when the run's job failed and wrote no plan. After
+   `PLAN_TRIES` (10) tries the watch stops handing the issue back, and the
+   card says a developer decides. A record with a fix, a decision or no
+   plan removes the plan.
+8. A manager whose run ended before it wrote `fix.json` gave no verdict.
+   The card says so (never "did not prove the cause"), and the watch runs
+   the manager again. The job log's step "How the manager's run ended"
+   says how it ended, its turns and the tools it was refused, and nothing
+   that Claude or people wrote.
 
 ## Issues Claude never tried
 

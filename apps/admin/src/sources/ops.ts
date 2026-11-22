@@ -567,6 +567,18 @@ export interface UserIssueNote {
  * gate decided and why, the team's reasoning in its own words, and which problems sent from help mode among
  * the issue's kinds came with a screenshot or a picture (the page asks for each file by its id).
  */
+/**
+ * diag.ops_user_issue_plans(): what Claude does next on an issue whose cause it did not prove yet, and when the
+ * watch hands it back (docs/agent-team.md "When the cause is not proven yet"). Absent before migration
+ * 20261121235200_user_issue_plans.sql.
+ */
+export interface UserIssuePlan { next: string; steps: string | null; nextAt: string; tries: number; at: string }
+
+/** Each fix record with its issue's plan, when the record waits because the cause is not proven yet, or for the plan's timing. */
+export function withPlans(fixes: Record<string, UserIssueFix>, plans: Record<string, UserIssuePlan>): Record<string, UserIssueFix> {
+  return Object.fromEntries(Object.entries(fixes).map(([issue, f]) => [issue, plans[issue] ? { ...f, plan: plans[issue] } : f]));
+}
+
 export interface UserIssueFix {
   decision: 'merge' | 'waits' | 'none'; reason: string | null; why: string | null; pr: number | null;
   verdict: string | null; model: string | null; effort: string | null;
@@ -577,6 +589,8 @@ export interface UserIssueFix {
   before?: boolean;
   /** It also holds the picture of the same screen with the fix (a display fix's proof). */
   beforeAfter?: boolean;
+  /** What Claude does next to prove the cause, and when (withPlans). */
+  plan?: UserIssuePlan;
 }
 
 /** One step of an issue's diagram (server/userIssues.ts DiagramStep): where, what happens, and whether it goes wrong. */
@@ -696,7 +710,7 @@ export interface OpsSections {
 /** Every section above in one answer (db.ts withDiag); each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries, plans] = await Promise.all([
     part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -728,7 +742,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Research>(query, `select diag.ops_research() as v`),
     part<Record<string, DiagramStep[]>>(query, `select diag.ops_user_issue_diagrams() as v`),
     part<CardRecord[]>(query, `select diag.ops_card_record('issue') as v`),
-    part<Record<string, string>>(query, `select diag.ops_user_issue_tries() as v`)
+    part<Record<string, string>>(query, `select diag.ops_user_issue_tries() as v`),
+    part<Record<string, UserIssuePlan>>(query, `select diag.ops_user_issue_plans() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -796,7 +811,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     }),
     userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
       // Before its migration the cards show without the box, and without the agent team's record.
-      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: userfixes.value } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}), ...(tries.ok ? { tries: tries.value } : {}) };
+      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: withPlans(userfixes.value, plans.ok ? plans.value : {}) } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}), ...(tries.ok ? { tries: tries.value } : {}) };
       return ok(u, userIssueAlerts(u));
     }),
     research: build([research], RESEARCH_MIGRATION, () => {

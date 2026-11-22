@@ -6,7 +6,7 @@ import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, LIMITS, linearClient, lookedOf, mergesOf,
   noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
-  repairOf, repairsOf
+  repairOf, repairsOf, planRecord, dueToTake, PROBE_MAX, fixRecord
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -298,7 +298,7 @@ describe("Claude's decisions", () => {
     }, watch, linear);
     // The three lines of its card: one line each, cut to their limit, an address out; null where Claude wrote none.
     expect(plan.file).toEqual([{ keys: [ERR.key, FB.key], title: 'Recordings vanish', priority: 1, summary: 's', cause: 'c',
-      context: 'A person saves a recording. On Android.', problem: expect.stringMatching(/^Ask \[address\]\. It is gone\. .*…$/), solution: null, steps: null, manager: { model: 'opus', effort: 'high' } }]);
+      context: 'A person saves a recording. On Android.', problem: expect.stringMatching(/^Ask \[address\]\. It is gone\. .*…$/), known: null, solution: null, steps: null, manager: { model: 'opus', effort: 'high' } }]);
     expect(plan.file[0]?.problem).toHaveLength(LIMITS.line);
     expect(plan.noise).toEqual([{ key: NOISE.key, note: 'A wrong password, once.' }]);
     expect(plan.dropped).toEqual([]);
@@ -343,7 +343,7 @@ describe("Claude's decisions", () => {
   it('tells the Worker the counts each kind was judged at', () => {
     expect(lookedOf(ERR, 'filed', { identifier: 'LAN-220', url: 'https://linear.app/x/issue/LAN-220' }, null, { title: 'Recordings vanish', context: 'c', problem: 'p' })).toEqual({
       key: ERR.key, verdict: 'filed', issue: 'LAN-220', issueUrl: 'https://linear.app/x/issue/LAN-220', people: 3, count: 9, note: null,
-      title: 'Recordings vanish', context: 'c', problem: 'p', solution: null, fixedBy: null, fixedAt: null
+      title: 'Recordings vanish', context: 'c', problem: 'p', known: null, solution: null, fixedBy: null, fixedAt: null
     });
     // Found fixed: counted from the fix, so it comes back only when people hit it after the fix.
     expect(lookedOf(ERR, 'fixed', null, 'n', { fixedBy: 312, fixedAt: '2026-11-03T17:09:42.000Z' })).toMatchObject({ people: 0, fixedBy: 312, issue: null });
@@ -466,6 +466,35 @@ describe('Linear', () => {
   });
 });
 
+describe('when the cause is not proven yet', () => {
+  it('sends what Claude does next with each record, or removes the plan', () => {
+    const fix = checkFix({ verdict: 'unconfirmed', noFix: 'No timing of each phase.', next: { do: 'Run a probe of the sync. Ask a@b.org', steps: '1. Probe. 2. Fix.', inHours: 0.25, probeAt: 'packages/sync/test' } });
+    expect(planRecord('LAN-9', fix, 'took 4100 ms a@b.org\n')).toEqual({ issue: 'LAN-9', next: 'Run a probe of the sync. Ask [address]', steps: '1. Probe. 2. Fix.', inHours: 0.25, probe: 'took 4100 ms [address]' });
+    expect(planRecord('LAN-9', fix, 'x'.repeat(PROBE_MAX + 50)).probe).toHaveLength(PROBE_MAX);
+    // A manager that wrote no plan, or whose job failed, still has a next step: it tries again.
+    expect(planRecord('LAN-9', checkFix({ verdict: 'unconfirmed', noFix: 'Unclear.' }))).toMatchObject({ next: expect.stringMatching(/^Claude tries again/), inHours: 1, probe: null });
+    expect(planRecord('LAN-9', checkFix({}), '', 'unconfirmed')).toMatchObject({ next: expect.stringMatching(/^Claude tries again/) });
+    // A fix, or a decision, removes the plan.
+    // A run that ended with no fix.json is run again soon, never left at "not proven".
+    expect(checkFix({ noFix: 'Claude wrote no fix.json.', ended: true }).ended).toBe(true);
+    expect(checkFix({ verdict: 'fix', summary: 'S' }).ended).toBe(false);
+    expect(planRecord('LAN-9', checkFix({ ended: true }), '', 'unconfirmed')).toMatchObject({ next: expect.stringMatching(/^Claude runs the manager again/), inHours: 0.25 });
+    expect(fixRecord('LAN-9', { decision: 'none', reason: 'unconfirmed', why: 'x' }, checkFix({ ended: true })).verdict).toBeNull();
+    expect(planRecord('LAN-9', checkFix({ verdict: 'fix', summary: 'S' }))).toEqual({ issue: 'LAN-9', next: null });
+    expect(planRecord('LAN-9', checkFix({ verdict: 'decision', noFix: 'A choice.' }), '', 'decision')).toEqual({ issue: 'LAN-9', next: null });
+  });
+
+  it('hands back the issues whose plan came due while there is room, and says the next step in Linear', () => {
+    expect(dueToTake(['LAN-1', 'LAN-2', 'bad', 'LAN-3'], ['LAN-1'])).toEqual(['LAN-2', 'LAN-3']);
+    expect(dueToTake(['LAN-4'], Array.from({ length: FIX_MAX }, (_, i) => `LAN-${10 + i}`))).toEqual([]);
+    expect(dueToTake(null, [])).toEqual([]);
+    const said = noFixComment('No timing of each phase.', 'https://run', { do: 'Run a probe of the sync.', steps: '1. Probe.', inHours: 2 }, Date.parse('2026-11-21T10:00:00Z'));
+    expect(said).toContain('**The cause is not proven yet. Claude goes on.** No timing of each phase.');
+    expect(said).toContain('**Next (at about 2026-11-21 12:00 UTC):** Run a probe of the sync.');
+    expect(noFixComment('Why.', 'https://run')).toContain('**Claude looked for a fix and wrote none.** Why.');
+  });
+});
+
 describe('a draft fix for each new issue', () => {
   // Without the GIT_* a git hook exports: in a worktree's pre-push hook GIT_DIR names the real repository,
   // and this fixture's commit landed on the branch being pushed, leaving only its two files (2026-11-05).
@@ -509,7 +538,7 @@ describe('a draft fix for each new issue', () => {
   });
 
   it('takes Claude\'s summary or its reason for none, cut and without addresses, and only fixed words from the checks', () => {
-    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false });
+    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null, ended: false });
     expect(checkFix({ summary: 'S', askFirst: true }).askFirst).toBe(true);
     expect(checkFix({ summary: 'S', answer: ' I moved the wait.  \r\n\n\n\n1. Ask a@b.org ' }).answer).toBe('I moved the wait.\n\n1. Ask [address]');
     expect(checkFix({ summary: 'S', answer: 'x'.repeat(2000) }).answer).toHaveLength(FIX_LIMITS.answer);

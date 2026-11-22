@@ -116,10 +116,15 @@ describe('the Overview, what needs you first', () => {
     const three = logic.claudeWork({ issues, fixes }, now);
     expect(three.find((i) => i.issue === 'LAN-8')?.linear).toBe('In Progress');
     expect(three.find((i) => i.issue === 'LAN-3')?.why).toBe('The cause is not proven.');
+    // With a plan to prove the cause, Claude goes on: it is on its way, and its row says what Claude does next.
+    const plan = { next: 'Run a probe of the sync.', steps: null, nextAt: '2026-11-21T23:00:00Z', tries: 1, at: '2026-11-21T10:00:00Z' };
+    const proving = logic.claudeWork({ issues: [open('LAN-3')], fixes: { 'LAN-3': { ...fixes['LAN-3'], plan } } }, now)[0];
+    expect(proving).toMatchObject({ state: 'proving', why: 'Next: Run a probe of the sync.', nextAt: '2026-11-21T23:00:00Z' });
+    expect(logic.claudeWork({ issues: [open('LAN-3')], fixes: { 'LAN-3': { ...fixes['LAN-3'], plan: { ...plan, tries: 10 } } } }, now)[0]?.state).toBe('stopped');
   });
 
   it('puts only what moves without you under On its way, and the rest under This week, you decide', () => {
-    expect(Object.entries(logic.CLAUDE_GROUP).filter(([, g]) => g === 'way').map(([s]) => s).sort()).toEqual(['merging', 'person', 'queued', 'working']);
+    expect(Object.entries(logic.CLAUDE_GROUP).filter(([, g]) => g === 'way').map(([s]) => s).sort()).toEqual(['merging', 'person', 'proving', 'queued', 'working']);
     expect(Object.entries(logic.CLAUDE_GROUP).filter(([, g]) => g === 'decide').map(([s]) => s).sort()).toEqual(['noanswer', 'review', 'stopped']);
   });
 
