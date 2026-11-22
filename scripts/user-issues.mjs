@@ -596,6 +596,14 @@ export function phoneFacts(phone, at) {
   // How long plays waited for their first sound (decisions.md 182, amended 2026-11-04).
   const waits = sum(audio, 'waits');
   if (waits) lines.push(`Plays waited for sound: ${secs(sum(audio, 'waitMs') / waits)} on average, longest ${secs(Math.max(0, ...audio.map((r) => Number(r.n?.maxWaitMs) || 0)))} (${plural(waits, 'play')})`);
+  // Where the longest wait went (LAN-323): the server's link, the even-loudness copy, the player loading the file, and the app's own work holding the page.
+  const longest = audio.reduce((best, r) => (Number(r.n?.maxWaitMs) || 0) > (Number(best?.n?.maxWaitMs) || 0) ? r : best, null);
+  if (longest && longest.n?.maxWaitLoadMs !== undefined) {
+    const n = longest.n;
+    lines.push(`Longest wait, in parts: ${n.maxWaitStreamed ? 'streamed from the server' : 'file on the device'}, link ${secs(Number(n.maxWaitLinkMs) || 0)}, copy ${secs(Number(n.maxWaitCopyMs) || 0)}, player loading ${secs(Number(n.maxWaitLoadMs) || 0)}; the app's own work held the page at most ${secs(Number(n.maxWaitBusyMs) || 0)} at a time`);
+  }
+  const streamWaits = sum(audio, 'streamWaits');
+  if (streamWaits) lines.push(`Streamed plays waited for sound: ${secs(sum(audio, 'streamWaitMs') / streamWaits)} on average (${plural(streamWaits, 'play')})`);
   for (const kind of ['open', 'sync', 'snapshot', 'checkpoint', 'fill']) {
     const rs = recent.filter((r) => r.kind === kind && Number.isFinite(Number(r.n?.ms)));
     if (rs.length) lines.push(`${kind[0].toUpperCase()}${kind.slice(1)}: ${plural(rs.length, 'time')}, slowest ${secs(Math.max(...rs.map((r) => Number(r.n.ms))))}`);

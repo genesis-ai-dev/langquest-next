@@ -17,7 +17,8 @@ import { clipsAvailable } from './clipsAvailable';
 import { playerInRow, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { t } from '../i18n';
 import { noteExpected, reportError } from '../diagnostics/report';
-import { countAudio, countWait } from './audioTally';
+import { countAudio } from './audioTally';
+import { PlayWait } from './playWait';
 import type { LanguageHandle } from '../sync/useLanguage';
 import { cardSeconds } from './clipTime';
 import { playable, prepare, READY_MS } from './levelStore';
@@ -50,8 +51,8 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: {
   const [playing, setPlayingState] = useState(false);
   /** Sound has come since the last tap on Play. */
   const [sounding, setSounding] = useState(false);
-  /** When Play was tapped, until sound comes (0 once it has, or nothing waits). */
-  const tappedAt = useRef(0);
+  /** The tap on Play waiting for sound, and where its time goes (null once sound came, or nothing waits). */
+  const wait = useRef<PlayWait | null>(null);
   const [error, setError] = useState('');
   const [index, setIndex] = useState(0);
   const [at, setAt] = useState(0);
@@ -78,7 +79,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: {
   const halt = () => {
     generation.current++;
     wants.current = false;
-    tappedAt.current = 0;
+    wait.current?.end(); wait.current = null;
     player.current?.pause();
     pauseNowPlaying(owner);
     setPlaying(false);
@@ -98,6 +99,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: {
       // eslint-disable-next-line react-hooks/exhaustive-deps -- a counter, not a node: bumping it on cleanup is what stops the old play
       generation.current++;
       wants.current = false;
+      wait.current?.end(); wait.current = null;
       player.current?.remove();
       player.current = null;
       clearNowPlaying(owner);
@@ -124,7 +126,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: {
       const ref = lang.state ? { hash, format: audioFormat(lang.state, hash) } : null;
       uri = (ref && lang.blobs.uriFor(ref)) || undefined;
       if (!uri && ref && lang.state && isStored(lang.state, hash)) {
-        try { uri = await lang.blobs.streamUri(ref); } catch (err) {
+        try { uri = await (wait.current ? wait.current.link(lang.blobs.streamUri(ref)) : lang.blobs.streamUri(ref)); } catch (err) {
           noteExpected('simple clip stream', err);
           countAudio(lang, 'streamFail');
           if (generation.current === run) { wants.current = false; setPlaying(false); setError(t('common.audioCouldNotLoad')); }
@@ -134,7 +136,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: {
       }
     }
     if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(lang, 'playNotHere'); return; }
-    uri = await playable(hash, uri, READY_MS);
+    uri = await (wait.current ? wait.current.copy(playable(hash, uri, READY_MS)) : playable(hash, uri, READY_MS));
     if (generation.current !== run || !wants.current) return;
     prepare(lang, live.current.hashes[i + 1]);
     try {
@@ -158,7 +160,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: {
         if (status.didJustFinish && player.current === p) void playFrom(i + 1, 0, generation.current);
       });
       if (from > 0) await p.seekTo(from);
-      if (generation.current === run && wants.current) p.play();
+      if (generation.current === run && wants.current) { wait.current?.played(); p.play(); }
     } catch (err) {
       wants.current = false; player.current?.remove(); player.current = null; setPlaying(false); clearNowPlaying(owner);
       countAudio(lang, 'playFail');
@@ -173,7 +175,8 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: {
     unlockRecordingPlayer();
     const run = ++generation.current;
     wants.current = true;
-    tappedAt.current = Date.now();
+    wait.current?.end();
+    wait.current = new PlayWait();
     setSounding(false);
     setPlaying(true);
     setError('');
@@ -185,7 +188,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: {
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
       if (generation.current !== run) return;
       const p = player.current;
-      if (p && p.duration > 0 && p.currentTime < p.duration - 0.1) { p.play(); return; }
+      if (p && p.duration > 0 && p.currentTime < p.duration - 0.1) { wait.current?.played(); p.play(); return; }
       await playFrom(p ? indexRef.current : 0, 0, run);
     } catch (err) {
       if (generation.current === run) {
@@ -223,9 +226,8 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: {
   /** The first sound since the tap: the spinner goes, and how long it took is tallied. */
   function heard(lang: LanguageHandle) {
     setSounding(true);
-    if (!tappedAt.current) return;
-    countWait(lang, Date.now() - tappedAt.current);
-    tappedAt.current = 0;
+    wait.current?.heard(lang);
+    wait.current = null;
   }
 
   return {

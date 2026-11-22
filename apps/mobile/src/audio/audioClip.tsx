@@ -11,7 +11,8 @@ import { t } from '../i18n';
 import { IconBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { noteExpected, reportError } from '../diagnostics/report';
-import { countAudio, countWait } from './audioTally';
+import { countAudio } from './audioTally';
+import { PlayWait } from './playWait';
 import { C, target } from '../ui/theme';
 import { playerInRow, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { audioFormat } from './audioFormat';
@@ -31,7 +32,8 @@ export function AudioClip(props: {
   const [playing, setPlaying] = useState(false);
   /** Sound has come since the last tap on Play; until then the button spins. */
   const [sounding, setSounding] = useState(false);
-  const tappedAt = useRef(0);
+  /** The tap on Play waiting for sound, and where its time goes (playWait.ts). */
+  const wait = useRef<PlayWait | null>(null);
   const [error, setError] = useState('');
   const [, refresh] = useState(0);
   const player = useRef<RecordingPlayer | null>(null);
@@ -44,6 +46,7 @@ export function AudioClip(props: {
   useEffect(() => registerPlayback(() => {
     generation.current++;
     wantsPlayback.current = false;
+    wait.current?.end(); wait.current = null;
     player.current?.pause();
     setPlaying(false);
   }), []);
@@ -51,6 +54,7 @@ export function AudioClip(props: {
     if (props.disabled) {
       generation.current++;
       wantsPlayback.current = false;
+      wait.current?.end(); wait.current = null;
       player.current?.pause();
       setPlaying(false);
     }
@@ -62,6 +66,7 @@ export function AudioClip(props: {
       // eslint-disable-next-line react-hooks/exhaustive-deps -- a counter, not a node: bumping it on cleanup is what stops the old play
       generation.current++;
       wantsPlayback.current = false;
+      wait.current?.end(); wait.current = null;
       player.current?.remove();
       player.current = null;
     };
@@ -72,14 +77,15 @@ export function AudioClip(props: {
   async function toggle() {
     if (props.disabled) return;
     if (wantsPlayback.current) {
-      generation.current++; wantsPlayback.current = false; tappedAt.current = 0;
+      generation.current++; wantsPlayback.current = false; wait.current?.end(); wait.current = null;
       player.current?.pause(); setPlaying(false); return;
     }
     stopAudioPlayback();
     unlockRecordingPlayer();
     const run = generation.current;
     wantsPlayback.current = true;
-    tappedAt.current = Date.now();
+    wait.current?.end();
+    wait.current = new PlayWait();
     setSounding(false);
     setPlaying(true);
     setError('');
@@ -92,7 +98,7 @@ export function AudioClip(props: {
             player.current.currentTime >= player.current.duration - 0.1) {
           await player.current.seekTo(0);
         }
-        if (generation.current === run) player.current?.play();
+        if (generation.current === run) { wait.current?.played(); player.current?.play(); }
         return;
       }
       const next = async (index: number) => {
@@ -110,7 +116,7 @@ export function AudioClip(props: {
         const ref = language.state ? { hash, format: audioFormat(language.state, hash) } : null;
         let uri = props.uri ?? (ref && language.blobs.uriFor(ref));
         if (!uri && ref && language.state && isStored(language.state, hash)) {
-          try { uri = await language.blobs.streamUri(ref); }
+          try { uri = await (wait.current ? wait.current.link(language.blobs.streamUri(ref)) : language.blobs.streamUri(ref)); }
           catch (err) {
             noteExpected('audio clip stream', err);
             countAudio(language, 'streamFail');
@@ -120,7 +126,8 @@ export function AudioClip(props: {
           if (generation.current !== run || !wantsPlayback.current) return;
         }
         if (!uri) { wantsPlayback.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(language, 'playNotHere'); return; }
-        uri = await playable(props.uri ? null : hash, uri, READY_MS);
+        const ready = playable(props.uri ? null : hash, uri, READY_MS);
+        uri = await (wait.current ? wait.current.copy(ready) : ready);
         if (generation.current !== run || !wantsPlayback.current) return;
         if (!props.uri) prepare(language, props.hashes[index + 1]);
         try {
@@ -139,10 +146,12 @@ export function AudioClip(props: {
             if (status.refused) { wantsPlayback.current = false; setPlaying(false); countAudio(language, 'playFail'); return; }
             if (status.playing) {
               setSounding(true);
-              if (tappedAt.current) { countWait(language, Date.now() - tappedAt.current); tappedAt.current = 0; }
+              wait.current?.heard(language);
+              wait.current = null;
             }
             if (status.didJustFinish && player.current === p) void next(index + 1);
           });
+          wait.current?.played();
           p.play();
         } catch (err) {
           wantsPlayback.current = false;
