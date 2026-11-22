@@ -127,7 +127,7 @@ the page loads to exactly one section.
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
 | Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
 | App Worker | requests by route, server errors, rate-limit refusals and time taken, from the request tally | `DIAG_DATABASE_URL` |
-| User issues | `diag.ops_user_issues`: each Linear issue the watch for user issues filed or commented on and each kind it found already fixed, the last 90 days, open ones first, with its state in Linear, the pull request that fixed it and when, and the last look; each issue's three lines in words (`context`, `problem`, `solution`, migration `20261118070000_user_issue_words.sql`); each issue's instructions from an admin with Claude's answers (`diag.ops_user_issue_notes`, migration `20261118073000_user_issue_notes.sql`; before it, the cards have no box); and each dashboard line's decision (`lines`, migration `20261117213500_ops_lines_linear.sql`) (`docs/diagnostics.md`, migration `20261103204500_user_issues_fixed.sql`). Issues open in Linear are a watch; a look that failed is a problem | `DIAG_DATABASE_URL`, the migration |
+| User issues | `diag.ops_user_issues`: each Linear issue the watch for user issues filed or commented on and each kind it found already fixed, the last 90 days, open ones first, with its state in Linear, the pull request that fixed it and when, and the last look; each issue's lines in words (`context`, `problem`, `solution`, migration `20261118070000_user_issue_words.sql`; `known`, migration `20261121231500_user_issue_known.sql`); each issue's instructions from an admin with Claude's answers (`diag.ops_user_issue_notes`, migration `20261118073000_user_issue_notes.sql`; before it, the cards have no box); and each dashboard line's decision (`lines`, migration `20261117213500_ops_lines_linear.sql`) (`docs/diagnostics.md`, migration `20261103204500_user_issues_fixed.sql`). Issues open in Linear are a watch; a look that failed is a problem | `DIAG_DATABASE_URL`, the migration |
 | Tutorial videos | `diag.ops_tutorials`: each app language's YouTube channel and when it was connected, each video's newest version not on YouTube (ready, or chosen and waiting, with the last failure's code), and the count up in each language; never a token (migration `20261028090000_tutorial_videos.sql`). `diag.ops_tutorial_feedback`: Claude's suggestions with what each answers, what came in that it has not looked at or suggested nothing for, and its last look (migration `20261029120000_tutorial_feedback.sql`) | `DIAG_DATABASE_URL`, the migrations; Connect and Publish need `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET` on the app's Worker; filing an accepted code change in Linear at once needs `LINEAR_API_KEY` there |
 | People and organizations | `diag.ops_people` and `ops_orgs`, counted, never named; an organization opens its own page at `/ops-dashboard/org/<id>` (`diag.ops_org` and its installs' sync errors) | `DIAG_DATABASE_URL`, the migration |
 | Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
@@ -764,10 +764,14 @@ said, then where Claude is with it) and the box to tell Claude what to do.
   Found, In Linear, Fix written, Merged, Live. It waits on a person only when
   a pull request that names it is open; the card then links that pull
   request. Before the pull requests are read, or when they could not be, an
-  open issue says only Open. Each line leads with the words Claude wrote
-  when the watch filed the issue (`context`, `problem`, `solution`), and
-  under them what the records say: the people and when, the kind's keys, the
-  pull request. An issue filed before the watch kept words shows only those.
+  open issue says only Open. The card is short
+  (`docs/decisions/2026-11-21-short-user-issue-cards.md`): under the title,
+  the people, when, and the step in words; then three lines, Wrong
+  (`problem`, or the kind's keys for an issue filed before the watch kept
+  words), Known (`known`, what the records show and what they do not) and
+  Next (the pull request, or `solution`); then the buttons, and one Details
+  tap that holds the diagram or pictures, the steps, What happened
+  (`context`), the keys and What Claude did.
   An open issue's card has the box (`issueTalk`): what an admin sends
   (`user-issue-note`) the watch hands to Claude at its next run, and Claude's
   answer shows under the admin's words, with the pull request it changed

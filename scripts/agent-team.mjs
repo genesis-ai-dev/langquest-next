@@ -75,7 +75,8 @@ export function planOf(raw) {
  *   review       a real bug with a change that is bigger or riskier: a developer reads it
  *   decision     the fix needs a product choice (behaviour, look, words); the change, if any, is what it recommends
  *   not_a_bug    the app works as it is meant to
- *   unconfirmed  the cause is not proven: no change
+ *   unconfirmed  the cause is not proven yet: `next` says what the manager does next to prove it, and when
+ *                (a change, when there is one, is the timing or the test the plan needs, and a developer reads it)
  *   approved     only with an admin's instruction that says to merge the draft fix as it is
  */
 export const VERDICTS = ['fix', 'review', 'decision', 'not_a_bug', 'unconfirmed', 'approved'];
@@ -94,8 +95,57 @@ export function verdictOf(raw) {
     // Its proof is a picture of the screen before the fix and one after it, not a test.
     display: o.display === true,
     // The manager read the admin's instructions as "show me the change before it merges" (with `go`, below).
-    askFirst: o.askFirst === true
+    askFirst: o.askFirst === true,
+    // What the manager does next to prove the cause, and when the watch hands the issue back (nextOf).
+    next: nextOf(o.next)
   };
+}
+
+// ---- when the cause is not proven yet ------------------------------------------------------------
+
+/** The longest of a plan's words (server/userIssues.ts PLAN_TEXT holds the same numbers). */
+export const NEXT_LIMITS = { do: 300, steps: 600 };
+/** In how many hours the watch hands the issue back: from the next run of the watch to a week (server/userIssues.ts PLAN_HOURS). */
+export const NEXT_HOURS = { min: 0.25, max: 168 };
+/** After this many tries to prove the cause (each a hand-back of the issue to the fix jobs) the watch stops handing it back (server/userIssues.ts PLAN_TRIES). */
+export const PLAN_TRIES = 10;
+/** The file of the manager's own test, beside fix.json: the job `check` runs it on main, and the next try reads what it printed. */
+export const PROBE_TEST = 'probe.test.ts';
+/** Where the probe may run: a folder of tests the repository's vitest reads. */
+export const PROBE_DIRS = ['apps/mobile/test', 'apps/admin/test', 'apps/web/test', 'packages/core/test', 'packages/sync/test', 'scripts'];
+
+/**
+ * fix.json `next`: { do, steps, inHours, probeAt }. `do` says in a sentence what the manager does next to
+ * prove the cause (read production again, run its probe, wait for records a timing makes); `steps` the
+ * whole plan; `inHours` when the watch hands the issue back (cut to NEXT_HOURS); `probeAt` the folder its
+ * probe runs in (PROBE_DIRS). Null when there is no `do`.
+ */
+export function nextOf(raw) {
+  const o = isObj(raw) ? raw : {};
+  const what = cut(said(o.do), NEXT_LIMITS.do);
+  if (!what) return null;
+  const hours = Number(o.inHours);
+  const inHours = Number.isFinite(hours) ? Math.min(NEXT_HOURS.max, Math.max(NEXT_HOURS.min, hours)) : 1;
+  return { do: what, steps: cut(said(o.steps), NEXT_LIMITS.steps), inHours, probeAt: PROBE_DIRS.includes(o.probeAt) ? o.probeAt : null };
+}
+
+/**
+ * The manager's run ended before it wrote fix.json (or its job failed): it gave no verdict, so it did not
+ * find that the cause cannot be proven either. The card says so, and the watch runs the manager again.
+ */
+export const ENDED = {
+  why: 'The manager\'s run ended before it wrote its verdict, so the cause is neither proven nor ruled out.',
+  next: { do: 'Claude runs the manager again at the next run of the watch, to read production and prove the cause.', steps: '', inHours: 0.25, probeAt: null }
+};
+
+/**
+ * What the manager does next when it did not prove the cause. A manager that wrote no plan never leaves
+ * the issue at "not proven": it tries again at the next run, with the probe it wrote, if any.
+ */
+export function planNext(verdict) {
+  if (verdict?.ended === true) return ENDED.next;
+  if (!verdict || verdict.verdict !== 'unconfirmed') return verdict?.next ?? null;
+  return verdict.next ?? { do: 'Claude tries again: it reads production and writes a test that runs the code, to prove the cause.', steps: '', inHours: 1, probeAt: null };
 }
 
 /** The manager named the cause and how a test proves it. The gate also wants that test in the change. */
@@ -193,7 +243,7 @@ export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = n
   if (!changes.length) {
     if (verdict.verdict === 'not_a_bug') return wait('not_a_bug', verdict.why || 'The manager found that the app works as it is meant to.');
     if (verdict.verdict === 'decision') return wait('decision', verdict.why || 'The fix needs a choice from a developer.');
-    return wait('unconfirmed', verdict.why || 'The manager did not prove the cause, so it changed nothing.');
+    return wait('unconfirmed', verdict.why || 'The cause is not proven yet. Claude carries out its plan to prove it.');
   }
   if (checks.typecheck === 'failed' || checks.tests === 'failed') return wait('checks', `${checks.typecheck === 'failed' ? 'Typecheck' : 'A test'} fails with the change.`);
   if (!app) return wait('app', 'The job has no token of LangQuest\'s GitHub App, which opens a pull request that merges.');

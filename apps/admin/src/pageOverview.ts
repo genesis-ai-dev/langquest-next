@@ -383,6 +383,12 @@ function wayItems(plan, work, store, now) {
       from: rest > 0 ? num(rest) + ' more ' + (rest === 1 ? 'waits' : 'wait') + ' in line, ' + FIX_ROOM + ' in each run. Claude has not tried ' + (rest === 1 ? 'it' : 'them') + ' yet.' : '',
       href: take[0].issue ? cardHref('userissues', take[0].issue) : '#g/userissues' });
   }
+  // The cause is not proven yet: Claude goes on with its plan at the time it chose (docs/agent-team.md "When the cause is not proven yet").
+  for (const i of work.filter((w) => w.state === 'proving')) {
+    const at = Math.max(Date.parse(i.nextAt || '') || 0, nextRunAt(now));
+    out.push({ at, who: 'claude', when: [whenOf(at, now)[0], 'Claude goes on, about'], title: i.title || i.issue || 'An issue',
+      said: esc(CLAUDE_WORK.proving) + (i.why ? ' ' + esc(i.why) : ''), from: filedSaid(i), href: i.issue ? cardHref('userissues', i.issue) : '#g/userissues' });
+  }
   for (const i of work.filter((w) => w.state === 'merging')) {
     out.push({ at: now + 1, who: 'check', when: ['Soon', 'when checks pass'], title: i.title || i.issue || 'An issue',
       said: esc(CLAUDE_WORK.merging) + ' ' + prOut(i.pr) + '.', from: filedSaid(i), href: i.issue ? cardHref('userissues', i.issue) : '#g/userissues' });

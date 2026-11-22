@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   ACTS, causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, logTail, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, nextStep, OPEN_HOURS,
-  pathRefusal, PICTURES, planOf, REASONS, reviewNeeded, saysAskFirst, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
+  ENDED, NEXT_HOURS, NEXT_LIMITS, nextOf, pathRefusal, PICTURES, PLAN_TRIES, planNext, planOf, PROBE_DIRS, REASONS, reviewNeeded, saysAskFirst, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
 } from './agent-team.mjs';
 import * as model from '../server/userIssues';
 
@@ -46,12 +46,46 @@ describe('the manager', () => {
   it('gives a verdict the script checks: an odd one waits for a developer', () => {
     expect(VERDICTS).toEqual([...model.FIX_VERDICTS]);
     expect(verdictOf({ verdict: 'merge it now' }).verdict).toBe('review');
-    expect(verdictOf(null)).toEqual({ verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false });
+    expect(verdictOf(null)).toEqual({ verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null });
     expect(verdictOf({ display: 'yes' }).display).toBe(false);
     expect(verdictOf({ verdict: 'fix', cause: ' a\nb ', twins: 'x'.repeat(5000) })).toMatchObject({ cause: 'a b', twins: expect.stringMatching(/^x{999}…$/) });
     expect(causeProven(verdict())).toBe(true);
     expect(causeProven(verdict({ proof: '' }))).toBe(false);
     expect(causeProven(verdict({ cause: 'A race.' }))).toBe(false);
+  });
+});
+
+describe('when the cause is not proven yet', () => {
+  it('reads what the manager does next, cut, with its hours held between the next run and a week', () => {
+    expect(nextOf(null)).toBeNull();
+    expect(nextOf({ do: '  ' })).toBeNull();
+    expect(nextOf({ do: ' Run a probe\nof the sync. ', steps: 'x'.repeat(900), inHours: 0.01, probeAt: 'packages/sync/test' }))
+      .toEqual({ do: 'Run a probe of the sync.', steps: expect.stringMatching(/^x{599}…$/), inHours: NEXT_HOURS.min, probeAt: 'packages/sync/test' });
+    expect(nextOf({ do: 'Read production.', inHours: 9999 })).toMatchObject({ inHours: NEXT_HOURS.max, probeAt: null });
+    expect(nextOf({ do: 'Read production.', inHours: 'soon' })).toMatchObject({ inHours: 1 });
+    // A probe runs only in a folder of tests: never a path a manager makes up.
+    expect(nextOf({ do: 'Probe.', probeAt: '../.github' })?.probeAt).toBeNull();
+    expect(nextOf({ do: 'x'.repeat(500) })?.do).toHaveLength(NEXT_LIMITS.do);
+    expect(verdictOf({ verdict: 'unconfirmed', next: { do: 'Probe.', inHours: 2 } }).next).toMatchObject({ do: 'Probe.', inHours: 2 });
+  });
+
+  it('never leaves an unproven cause without a next step', () => {
+    expect(planNext(verdictOf({ verdict: 'unconfirmed' }))).toMatchObject({ do: expect.stringMatching(/^Claude tries again/), inHours: 1 });
+    expect(planNext({ ...verdictOf({}), ended: true })).toBe(ENDED.next);
+    expect(planNext(verdictOf({ verdict: 'unconfirmed', next: { do: 'Probe.', inHours: 3 } }))).toMatchObject({ do: 'Probe.', inHours: 3 });
+    // A timing the plan needs is a change a developer reads: it keeps its next step.
+    expect(planNext(verdictOf({ verdict: 'review', next: { do: 'After the merge, read 50 records.', inHours: 48 } }))).toMatchObject({ inHours: 48 });
+    expect(planNext(verdictOf({ verdict: 'fix' }))).toBeNull();
+    expect(gate({ verdict: verdictOf({ verdict: 'unconfirmed' }) })).toMatchObject({ reason: 'unconfirmed', why: expect.stringMatching(/not proven yet/) });
+  });
+
+  it('holds the same numbers as the server and the folders the job check runs a probe in', () => {
+    expect(NEXT_HOURS).toEqual({ ...model.PLAN_HOURS });
+    expect(NEXT_LIMITS.do).toBe(model.PLAN_TEXT.next);
+    expect(NEXT_LIMITS.steps).toBe(model.PLAN_TEXT.steps);
+    expect(PLAN_TRIES).toBe(model.PLAN_TRIES);
+    const workflow = read('.github/workflows/user-issues.yml');
+    expect(workflow).toContain(`const ok=${JSON.stringify(PROBE_DIRS)};`);
   });
 });
 

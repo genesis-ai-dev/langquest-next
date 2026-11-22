@@ -51,11 +51,19 @@ describe('what the workflow sends back', () => {
     expect(l.looked.map((x) => x.verdict)).toEqual(['filed', 'noise', 'known']);
     expect(l.looked[2]?.note).toBeNull();
     // An issue's three lines for its card: kept as sent, null where none was.
-    expect(l.looked[0]).toMatchObject({ context: null, problem: null, solution: null });
-    const lines = { context: 'A person saves a recording.', problem: 'The recording is gone.', solution: '' };
+    expect(l.looked[0]).toMatchObject({ context: null, problem: null, known: null, solution: null });
+    const lines = { context: 'A person saves a recording.', problem: 'The recording is gone.', known: 'The phone saw the save start.', solution: '' };
     expect(parseLooked(looked({ looked: [{ ...looked().looked[0], ...lines }] as Looked['looked'] })).looked[0]).toMatchObject({ ...lines, solution: null });
     expect(l.grew).toEqual([{ key: 'transfer:down:source:failOther', people: 6, count: 40 }]);
-    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [], research: [], handed: [], tried: [], diagrams: [], report: null });
+    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [], research: [], handed: [], tried: [], diagrams: [], plans: [], report: null });
+  });
+
+  it('takes what the manager does next on an issue whose cause it did not prove yet, and refuses odd hours or an address', () => {
+    const plans = [{ issue: 'LAN-9', next: 'Run a probe of the sync.', steps: '1. Probe.', inHours: 0.25, probe: 'took 4100 ms' }, { issue: 'LAN-8', next: null }];
+    expect(parseLooked({ sha: SHA, runUrl: RUN, plans }).plans).toEqual([plans[0], { issue: 'LAN-8', next: null, steps: null, inHours: null, probe: null }]);
+    expect(() => parseLooked({ sha: SHA, runUrl: RUN, plans: [{ ...plans[0], inHours: 500 }] })).toThrow(LookedError);
+    expect(() => parseLooked({ sha: SHA, runUrl: RUN, plans: [{ ...plans[0], next: 'Ask a@b.org' }] })).toThrow(LookedError);
+    expect(() => parseLooked({ sha: SHA, runUrl: RUN, plans: [plans[0], plans[0]] })).toThrow(LookedError);
   });
 
   it('takes a kind already fixed by a pull request, with or without the issue that closed, and issues that closed or opened again in Linear', () => {
@@ -112,6 +120,7 @@ describe('what the workflow sends back', () => {
       [one({ context: 'x'.repeat(301) }), 'looked[0].context: at most 300 characters, no address'],
       [one({ problem: 'Ask me@example.com.' }), 'looked[0].problem: at most 300 characters, no address'],
       [one({ solution: 7 }), 'looked[0].solution: at most 300 characters, no address'],
+      [one({ known: 'x'.repeat(301) }), 'looked[0].known: at most 300 characters, no address'],
       [looked({ states: [{ issue: 'LAN-1', state: 'Live', closed: 'yes' }] as unknown as Looked['states'] }), 'states[0].closed: true or false'],
       [looked({ states: [{ issue: 'LAN-1', state: 'Todo', closed: false, closedAt: '2026-11-03T17:09:42Z' }] as unknown as Looked['states'] }), 'states[0]: an open issue has no closedAt or fix'],
       [looked({ states: [{ issue: 'LAN-1', state: 'Live', closed: true }, { issue: 'LAN-1', state: 'Live', closed: true }] as unknown as Looked['states'] }), 'states[1].issue: a Linear issue (LAN-12), once'],

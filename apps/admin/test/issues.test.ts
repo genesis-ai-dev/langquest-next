@@ -5,12 +5,13 @@ import { SEND_LOGIC, SEND_SCRIPT } from '../src/pageSends';
 
 interface Way { tab: string; pill: string; level: string; at: number; pr: { number: number } | null; claude?: boolean }
 type Row = Record<string, unknown>;
-const logic = new Function(`${ISSUE_LOGIC}; return { saidHtml, issueSource, issueWay, issueTabs, videoWay, noteSaid, fixFor, fixSaid, FIX_REASON, ISSUE_STEPS, VIDEO_STEPS };`)() as {
+const logic = new Function(`${ISSUE_LOGIC}; return { saidHtml, issueSource, issueWay, issueTabs, videoWay, noteSaid, fixFor, fixSaid, planSaid, FIX_REASON, ISSUE_STEPS, VIDEO_STEPS };`)() as {
   saidHtml: (text: string) => string;
   issueSource: (keys: string[]) => string;
   issueWay: (r: Row, prs: Row[] | null, notes?: Row[] | null, fix?: Row | null) => Way;
   fixFor: (fix: Row | null, pr: Row | null) => Row | null;
   fixSaid: (fix: Row, merged: boolean) => { decision: [string, string]; reasons: [string, string][]; manager: string };
+  planSaid: (plan: Row, now?: number) => { next: string; when: string; steps: string } | null;
   FIX_REASON: Record<string, string>;
   noteSaid: (n: Row) => string;
   issueTabs: (ways: { tab: string; claude?: boolean }[], chosen: string | null) => { count: Record<string, number>; tab: string };
@@ -119,25 +120,33 @@ describe('the cards', () => {
     expect(html).toContain('<button type="button" data-itab="you" aria-pressed="true">Waits on you<span class="count">1</span></button>');
     expect(html).toContain('<button type="button" data-itab="nofix" aria-pressed="false">No fix yet<span class="count">1</span></button>');
     expect(html).not.toContain('data-itab="open"');
-    for (const label of ['What goes wrong', 'The fix']) expect(html).toContain('<dt>' + label + '</dt>');
-    expect(html).toContain('<p class="imeta">2 people · First seen then</p>');
+    // Short: Wrong and Next lead; Known only when the watch wrote it.
+    for (const label of ['Wrong', 'Next']) expect(html).toContain('<dt>' + label + '</dt>');
+    expect(html).not.toContain('<dt>Known</dt>');
+    expect(html).toContain('<p class="imeta">2 people · First seen then · The fix waits on its merge</p>');
+    // The steps are behind Details.
+    expect(html).toContain('<details class="imore"><summary>Details</summary><div>');
     expect(html).toContain('Step 4 of 5: the fix waits on its merge');
     expect(html).toContain('>Review pull request 7</a>');
     expect(html).toContain('>Open LAN-9 in Linear</a>');
     // The issue on another tab is drawn, hidden.
-    expect(html).toContain('<article class="icard" data-card="LAN-10" data-tab="nofix" hidden>');
+    expect(html).toContain('<article class="icard short" data-card="LAN-10" data-tab="nofix" hidden>');
     expect(html).toContain('Step 3 of 5: no fix yet');
   });
 
-  it('leads each line with the words the watch kept, and keeps what the records say under them', () => {
+  it('leads with Wrong, Known and Next in the words the watch kept, and keeps the rest behind Details', () => {
     draw.fixes({ state: 'ok', data: { prs: [] } });
-    const words = { context: 'A person saves a recording.', problem: 'The recording is <gone>.', solution: 'Keep the file until the save ends.' };
+    const words = { context: 'A person saves a recording.', problem: 'The recording is <gone>.', known: 'The phone saw the save start, not its end.', solution: 'Keep the file until the save ends.' };
     const html = draw.userIssuesHtml({ issues: [issue(words)], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
-    expect(html).toContain('<dt>What happened</dt><dd><p>A person saves a recording.</p></dd>');
-    expect(html).toContain('<dt>What goes wrong</dt><dd><p>The recording is &#60;gone&#62;.</p><small class="muted"><code>error:TypeError:library</code></small></dd>');
-    expect(html).toContain('<dt>The fix</dt><dd><p>Keep the file until the save ends.</p><small class="muted">No pull request names LAN-9.');
-    // An issue filed before the watch kept words shows what the records say.
-    expect(draw.userIssuesHtml({ issues: [issue({ context: null })], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toContain('<dt>What happened</dt>');
+    expect(html).toContain('<dl class="three"><dt>Wrong</dt><dd><p>The recording is &#60;gone&#62;.</p></dd><dt>Known</dt><dd><p>The phone saw the save start, not its end.</p></dd>' +
+      '<dt>Next</dt><dd>Keep the file until the save ends.</dd></dl>');
+    // Each fact once: what happened and the records' keys are behind Details, not on the card's face.
+    const face = html.slice(0, html.indexOf('<details class="imore">'));
+    expect(face).not.toContain('A person saves a recording.');
+    expect(face).not.toContain('error:TypeError:library');
+    expect(html).toContain('<h5 class="imh">What happened</h5><p>A person saves a recording.</p>');
+    // An issue filed before the watch kept words shows the records' keys as Wrong.
+    expect(draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).toContain('<dt>Wrong</dt><dd><code>error:TypeError:library</code></dd>');
   });
 
   it('says so when the pull requests could not be read, and never says No fix yet then', () => {
@@ -287,13 +296,20 @@ describe('the cards', () => {
     expect(logic.fixSaid(record(), false)).toEqual({ decision: ['This fix merges without a person when its checks pass.', ''], manager: 'sonnet, medium effort',
       reasons: [['Change', 'Chapters sort by <number>.'], ['Cause', 'listModel.ts line 42 sorts labels as text.'], ['Test', 'The new case fails on main.'], ['Reviewer', 'The change does what it says.']] });
     expect(logic.fixSaid(record(), true).decision[0]).toBe('Claude merged this fix without a person.');
-    expect(logic.fixSaid(none, false)).toEqual({ decision: ['The cause is not proven.', 'The cause is not proven.'], reasons: [], manager: 'sonnet, medium effort' });
+    expect(logic.fixSaid(none, false)).toEqual({ decision: ['The cause is not proven yet.', 'The cause is not proven.'], reasons: [], manager: 'sonnet, medium effort' });
+    // With a plan to prove the cause, Claude acts next, not a developer; after 10 plans a developer decides.
+    const plan = { next: 'Run a probe of the sync.', steps: '1. Probe. 2. Fix.', nextAt: '2000-01-01T00:00:00Z', tries: 2, at: '2000-01-01T00:00:00Z' };
+    expect(logic.issueWay(issue(), [], null, { ...none, plan })).toMatchObject({ tab: 'nofix', pill: 'Claude proves the cause', level: 'claude', at: 3 });
+    expect(logic.issueWay(issue(), [], null, { ...none, plan: { ...plan, tries: 10 } })).toMatchObject({ tab: 'you', pill: 'Waits on you' });
+    expect(logic.planSaid(plan, Date.parse('2001-01-01T00:00:00Z'))).toEqual({ next: 'Run a probe of the sync.', when: 'Claude does it at the next run of the watch · try 2 of 10', steps: '1. Probe. 2. Fix.' });
+    expect(logic.planSaid({ ...plan, nextAt: '2001-01-01T05:00:00Z' }, Date.parse('2001-01-01T00:00:00Z'))?.when).toMatch(/^Claude does it at about /);
+    expect(logic.planSaid({ ...plan, tries: 10 })?.next).toBe('Claude tried 10 times to prove the cause and did not. A developer decides what happens next.');
 
     draw.fixes({ state: 'ok', data: { prs: open } });
     const html = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record() }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
     expect(html).toContain('data-itab="claude" aria-pressed="true">Fixed by Claude<span class="count">1</span>');
-    expect(html).toContain('<article class="icard pics" data-card="LAN-9" data-tab="claude" data-claude="1">');
-    expect(html).toContain('<dt>What Claude did</dt>');
+    expect(html).toContain('<article class="icard short" data-card="LAN-9" data-tab="claude" data-claude="1">');
+    expect(html).toContain('<h5 class="imh">What Claude did</h5>');
     expect(html).toContain('PR 7 merges without a person when its checks pass.');
     expect(html).toContain('>Open pull request 7</a>');
     expect(html).not.toContain('Review pull request');
@@ -310,15 +326,19 @@ describe('the cards', () => {
     expect(draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record({ pr: 5, beforeAfter: true }) }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toContain('data-fixpic');
     // A record of another pull request: its reasons are not under this one, the pictures of the problem still are.
     const other = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record({ pr: 5 }) }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
-    expect(other).not.toContain('<dt>What Claude did</dt>');
+    expect(other).not.toContain('What Claude did');
     expect(other).toContain('data-shot="f1"');
     draw.fixes({ state: 'ok', data: { prs: [] } });
     const waits = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': none }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
     expect(waits).toContain('<span class="ipill you">Waits on you</span>');
     expect(waits).toContain('Claude wrote no fix. A developer decides what happens next.');
-    expect(waits).toContain('<b>The cause is not proven.</b> The cause is not proven.');
+    expect(waits).toContain('<b>The cause is not proven yet.</b> The cause is not proven.');
+    const going = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': { ...none, plan: { next: 'Run a probe of the sync.', steps: '1. Probe.', nextAt: '2000-01-01T00:00:00Z', tries: 1, at: '2000-01-01T00:00:00Z' } } }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
+    expect(going).toContain('<span class="ipill claude">Claude proves the cause</span>');
+    expect(going).toContain('<p class="inext"><b>Next:</b> Run a probe of the sync.<br><small class="muted">Claude does it at the next run of the watch · try 1 of 10</small></p>');
+    expect(going).not.toContain('A developer decides');
     // Before the database keeps records, a card is as it was.
-    expect(draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toMatch(/<dt>What Claude did<\/dt>|data-shot/);
+    expect(draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toMatch(/What Claude did|data-shot/);
     draw.fixes(null);
   });
 

@@ -42,6 +42,15 @@ export const ISSUE_CSS = String.raw`
 .ifixpics figure { margin: 0; min-width: 0; } .ifixpics figcaption { font-size: 12px; font-weight: 600; color: var(--ink2); margin: 0 0 4px; }
 .ifixpics img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); min-height: 60px; }
 .ibody { min-width: 0; }
+dl.three { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px 14px; margin: 0; font-size: 15px; line-height: 1.45; }
+dl.three dt { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+dl.three dd { margin: 0; min-width: 0; overflow-wrap: anywhere; } dl.three dd p { margin: 0; } dl.three dd small { display: block; font-size: 12.5px; margin-top: 2px; }
+.ibar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ibar > a.button { display: inline-flex; align-items: center; text-decoration: none; font-size: 14px; min-height: 44px; }
+.ibar a.button.dark { background: var(--ink); border-color: var(--ink); color: var(--card); }
+.imore { flex-basis: 100%; } .imore > summary { cursor: pointer; min-height: 40px; display: inline-flex; align-items: center; font-size: 13.5px; color: var(--primary); font-weight: 600; }
+.imore[open] > summary { margin-bottom: 8px; } .imore > div { display: grid; gap: 14px; } .imore h5.imh { margin: 0 0 3px; font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); } .imore p { margin: 0 0 4px; }
+.ibar > a.button + .imore { flex-basis: auto; } .ibar:has(.imore[open]) .imore { flex-basis: 100%; } .ibar > ul, .ibar > p { flex-basis: 100%; margin: 0; }
 .itags { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 0 0 6px; font-size: 12px; color: var(--muted); }
 .itags .tag { margin: 0; background: var(--soft); color: var(--ink2); } .itags .tag.bad { color: var(--red); background: var(--redbg); } .itags .tag.good { color: var(--green); background: var(--greenbg); }
 .itags a.lin { font-weight: 600; color: var(--ink); text-decoration: none; letter-spacing: .02em; } .itags a.lin:hover, .itags a.lin:focus-visible { color: var(--primary); text-decoration: underline; }
@@ -138,6 +147,8 @@ function issueWay(r, prs, notes, fix) {
   if (open) return next({ tab: 'you', pill: 'Waits on you', level: 'you', at: 4, pr: open });
   if (merged) return next({ tab: 'merged', pill: byClaude(merged) ? 'Merged by Claude' : 'Merged', level: 'claude', at: 5, pr: merged, claude: byClaude(merged) });
   if (!prs) return next({ tab: 'open', pill: 'Open', level: '', at: 3, pr: null });
+  // The cause is not proven yet, and Claude carries out its plan to prove it: Claude acts next, not a developer.
+  if (fixFor(fix, null) && fix.decision === 'none' && planGoing(fix)) return next({ tab: 'nofix', pill: 'Claude proves the cause', level: 'claude', at: 3, pr: null });
   // The team looked and changed nothing: a developer decides what happens next.
   if (fixFor(fix, null) && fix.decision === 'none') return next({ tab: 'you', pill: 'Waits on you', level: 'you', at: 3, pr: null });
   return next({ tab: 'nofix', pill: 'No fix yet', level: '', at: 3, pr: null });
@@ -152,10 +163,38 @@ function fixFor(fix, pr) {
   if (!fix) return null;
   return (fix.pr ? !!pr && Number(pr.number) === Number(fix.pr) : !pr) ? fix : null;
 }
+/** After this many tries to prove the cause the watch stops handing an issue back (scripts/agent-team.mjs PLAN_TRIES). */
+const PLAN_TRIES = 10;
+/** The record has a plan to prove the cause that the watch still carries out (docs/agent-team.md "When the cause is not proven yet"). */
+function planGoing(fix) {
+  return !!(fix && fix.plan && fix.plan.next && Number(fix.plan.tries) < PLAN_TRIES);
+}
+/** When Claude goes on with the plan, in the viewer's clock: the time today, else the day and the time. */
+function planWhen(iso, now) {
+  const at = Date.parse(iso);
+  if (!Number.isFinite(at) || at <= (now || Date.now()) + 60000) return 'at the next run of the watch';
+  const d = new Date(at), today = new Date(now || Date.now()).toDateString() === d.toDateString();
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return 'at about ' + (today ? time : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + time);
+}
+/** What Claude does next on an issue whose cause it did not prove yet, and when; or that a developer decides after PLAN_TRIES. */
+function planSaid(plan, now) {
+  if (!plan || !plan.next) return null;
+  const tries = Number(plan.tries) || 1;
+  if (tries >= PLAN_TRIES) return { next: 'Claude tried ' + tries + ' times to prove the cause and did not. A developer decides what happens next.', when: '', steps: plan.steps || '' };
+  return { next: plan.next, when: 'Claude does it ' + planWhen(plan.nextAt, now) + ' · try ' + tries + ' of ' + PLAN_TRIES, steps: plan.steps || '' };
+}
+/** The plan as a line of the card: "Next:", what Claude does, when, and the whole plan behind one tap. */
+function planLine(plan) {
+  const p = planSaid(plan);
+  if (!p) return '';
+  return '<p class="inext"><b>Next:</b> ' + esc(p.next) + (p.when ? '<br><small class="muted">' + esc(p.when) + '</small>' : '') + '</p>' +
+    (p.steps ? '<details><summary>Claude\'s plan</summary><p>' + esc(p.steps) + '</p></details>' : '');
+}
 /** Why a fix waits for a developer, by the gate's reason (scripts/agent-team.mjs REASONS). */
 const FIX_REASON = {
   mode: 'The agent team asks before each merge', review: 'Claude asks you to read the change', decision: 'Your choice is needed', not_a_bug: 'Claude found no bug',
-  unconfirmed: 'The cause is not proven', cause: 'No test proves the cause', paths: 'The change is in code that always waits', checks: 'A check failed',
+  unconfirmed: 'The cause is not proven yet', cause: 'No test proves the cause', paths: 'The change is in code that always waits', checks: 'A check failed',
   reviewer: 'The reviewer asks you to look', instruction: 'It follows your instruction', app: 'The job could not open a pull request that merges', stalled: 'It did not merge'
 };
 /**
@@ -303,6 +342,7 @@ const KV_SIDE = ['Next', 'Solution', 'Claude', 'Where'];
  * link to it (pageCards.ts); c.record the card's record of who did what (pageSends.ts recordHtml).
  */
 function issueCard(c) {
+  if (c.short) return shortCard(c);
   const lines = (c.lines || []).filter((l) => l[1]);
   const kv = (ls) => ls.length ? '<dl class="kv">' + ls.map((l) => '<div><dt>' + esc(KV_SAID[l[0]] || l[0]) + '</dt><dd>' + l[1] + '</dd></div>').join('') + '</dl>' : '';
   const main = lines.filter((l) => !KV_SIDE.includes(l[0])), side = lines.filter((l) => KV_SIDE.includes(l[0]));
@@ -316,6 +356,29 @@ function issueCard(c) {
       (right ? '<div class="iside">' + right + '</div>' : '') + '</div>' : right ? '<div class="iside">' + right + '</div>' : '') +
     (c.talk ? '<div class="italk"><h5>Talk with Claude</h5>' + c.talk + '</div>' : '') + (c.record || '') + '</article>';
 }
+/**
+ * A user issue's card, short (docs/decisions/2026-11-21-short-user-issue-cards.md): its tags, title, the
+ * one line of where it is, who acts next; then Wrong, Known and Next, each one line; then its buttons and
+ * one Details tap that holds the rest (the diagram or pictures, the steps, what happened, the keys and
+ * Claude's reasons); then the talk with Claude. c.short is { lines: [label, HTML], bar: HTML, more: HTML }.
+ */
+function shortCard(c) {
+  const lines = (c.short.lines || []).filter((l) => l[1]);
+  const more = c.short.more || '';
+  return '<article class="icard short' + (c.cls ? ' ' + esc(c.cls) : '') + '"' + (c.card ? ' data-card="' + esc(c.card) + '"' : '') + (c.tab ? ' data-tab="' + esc(c.tab) + '"' + (c.claude ? ' data-claude="1"' : '') + (c.hidden ? ' hidden' : '') : '') + '>' +
+    '<header class="ihead"><div class="ihl">' + (c.tags ? '<p class="itags">' + c.tags + '</p>' : '') + '<h4>' + esc(c.title) + '</h4>' + (c.meta ? '<p class="imeta">' + c.meta + '</p>' : '') + '</div>' +
+    (c.pill && c.pill[0] ? '<span class="ipill ' + esc(c.pill[1] || '') + '">' + esc(c.pill[0]) + '</span>' : '') + '</header>' +
+    (lines.length ? '<dl class="three">' + lines.map((l) => '<dt>' + esc(l[0]) + '</dt><dd>' + l[1] + '</dd>').join('') + '</dl>' : '') +
+    (c.short.bar || more ? '<div class="ibar">' + (c.short.bar || '') + (more ? '<details class="imore"><summary>Details</summary><div>' + more + '</div></details>' : '') + '</div>' : '') +
+    (c.talk ? '<div class="italk"><h5>Talk with Claude</h5>' + c.talk + '</div>' : '') + (c.record || '') + '</article>';
+}
+/** Where an issue is, in the words of its step (ISSUE_STEPS): "No fix yet", or "" while there is nothing to say. */
+function stepWords(steps, at) {
+  if (!at) return '';
+  if (at > steps.length) return 'Fix is live';
+  const w = steps[at - 1][1];
+  return w ? w.charAt(0).toUpperCase() + w.slice(1) : '';
+}
 const outLink = (href, words, cls) => '<a' + (cls ? ' class="' + cls + '"' : '') + ' href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + words + '</a>';
 
 // ---- the User issues page: tabs with counts, one card for each issue ----
@@ -325,7 +388,7 @@ function fixLine(fix, way) {
   if (!fix) return '';
   const f = fixSaid(fix, way.tab === 'merged' || way.tab === 'closed');
   // The decision leads; Claude's reasons wait behind one tap.
-  return '<div class="ifix"><p><b>' + esc(f.decision[0]) + '</b>' + (f.decision[1] ? ' ' + esc(f.decision[1]) : '') + '</p>' +
+  return '<div class="ifix"><p><b>' + esc(f.decision[0]) + '</b>' + (f.decision[1] && f.decision[1] !== f.decision[0] ? ' ' + esc(f.decision[1]) : '') + '</p>' + planLine(fix.plan) +
     (f.reasons.length ? '<details><summary>Claude\'s reasons</summary>' + f.reasons.map((x) => '<p><b>' + esc(x[0]) + '.</b> ' + esc(x[1]) + '</p>').join('') + '</details>' : '') +
     '<small class="muted">' + [f.manager ? 'Issue manager: ' + esc(f.manager) : '', when(fix.at), safeLink(fix.runUrl) ? outLink(fix.runUrl, 'The run') : ''].filter(Boolean).join(' · ') + '</small></div>';
 }
@@ -356,35 +419,43 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const source = issueSource(r.keys);
   const pr = way.pr;
   const solution = {
-    you: () => pr ? prLink(pr) + ' waits on its merge.' + (pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : '') : 'Claude wrote no fix. A developer decides what happens next.',
+    you: () => pr ? prLink(pr) + ' waits on its merge.' + (pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : '') + (record && record.plan && planGoing(record) ? '<br><small class="muted">After the merge: ' + esc(record.plan.next) + '</small>' : '') : 'Claude wrote no fix. A developer decides what happens next.',
     claude: () => prLink(pr) + ' merges without a person when its checks pass.' + (pr && pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : ''),
     merged: () => 'Fixed in ' + prLink(pr) + (pr && pr.mergedAt ? ', merged ' + when(pr.mergedAt) : '') + '. Linear says ' + esc(r.state || 'open') + '.',
-    nofix: () => 'No pull request names ' + esc(r.issue) + '. <small class="muted">The page reads open ones, and ones merged in the last 14 days.</small>',
+    nofix: () => planGoing(record) ? 'Claude proves the cause first, then writes the fix. ' + esc(planSaid(record.plan).when) + '.' : 'No pull request names ' + esc(r.issue) + '. <small class="muted">The page reads open ones, and ones merged in the last 14 days.</small>',
     open: () => fixData && fixData.state === 'error' ? '<span class="bad">Could not read the pull requests: ' + esc(fixData.error) + '</span>' : '<span class="muted">Reading the pull requests…</span>',
     closed: () => !r.issue ? (pr && pr.number ? prLink(pr) + ' fixed it before the watch saw it' + (r.fixedAt ? ', ' + when(r.fixedAt) : '') + '.' : 'A change on main fixed it before the watch saw it.')
       : (pr && pr.number ? 'Fixed in ' + prLink(pr) + '. ' : 'No pull request named. ') + 'Closed ' + when(r.closedAt) + '.'
   }[way.tab]();
   const keys = (r.keys || []).slice(0, 3).map((k) => '<code>' + esc(k) + '</code>').join('<br>') + ((r.keys || []).length > 3 ? '<br><small class="muted">and ' + num(r.keys.length - 3) + ' more</small>' : '');
-  // Claude's words for the issue, where the watch kept them; under each, what the records say.
-  const said = (words, facts) => words ? '<p>' + esc(words) + '</p>' + (facts ? '<small class="muted">' + facts + '</small>' : '') : facts;
-  const seen = [r.people ? num(r.people) + (Number(r.people) === 1 ? ' person' : ' people') : '', 'First seen ' + when(r.firstAt)].filter(Boolean).join(' · ');
+  const seen = [r.people ? num(r.people) + (Number(r.people) === 1 ? ' person' : ' people') : '', 'First seen ' + when(r.firstAt), esc(stepWords(ISSUE_STEPS, way.at))].filter(Boolean).join(' · ');
+  // Next: the pull request when there is one, else what Claude says fixes it, else what the page knows.
+  // With no pull request and a plan to prove the cause: what Claude does next, and when.
+  const next = pr && pr.number ? solution : planGoing(record) ? planLine(record.plan) + (r.solution ? '<small class="muted">' + esc(r.solution) + '</small>' : '')
+    : r.solution ? esc(r.solution) + (way.tab === 'you' ? '<small class="muted">Claude wrote no fix. A developer decides.</small>' : '') : solution;
+  const pics = fixPictures(record, r.issue, !!fixFor(record, way.pr), r.issue && diagrams ? diagrams[r.issue] : null);
+  const fix = fixLine(fixFor(record, way.pr), way);
+  const kv = (label, html) => html ? '<div><h5 class="imh">' + esc(label) + '</h5>' + html + '</div>' : '';
   return issueCard({
     card: r.issue || 'keys:' + ((r.keys || [])[0] || ''), tab: way.tab, claude: way.claude, hidden: !onTab(way, tab),
-    pics: fixPictures(record, r.issue, !!fixFor(record, way.pr), r.issue && diagrams ? diagrams[r.issue] : null),
-    tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : '') +
-      (r.issue && r.state ? '<span>' + esc(r.state) + ' in Linear</span>' : ''),
+    tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : ''),
     title: r.title || (r.keys || [])[0] || 'A problem with no name',
     meta: seen,
-    lines: [
-      ['Context', r.context ? '<p>' + esc(r.context) + '</p>' : ''],
-      ['Issue', said(r.problem, keys)],
-      ['Solution', said(r.solution, solution)],
-      ['Claude', fixLine(fixFor(record, way.pr), way)]
-    ],
-    pill: [way.pill, way.level], steps: [ISSUE_STEPS, way.at],
-    side: (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
-      (way.tab === 'claude' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
-      (r.issue && safeLink(r.issueUrl) ? outLink(r.issueUrl, 'Open ' + esc(r.issue) + ' in Linear', 'button') : ''),
+    pill: [way.pill, way.level],
+    short: {
+      lines: [
+        ['Wrong', r.problem ? '<p>' + esc(r.problem) + '</p>' : keys],
+        ['Known', r.known ? '<p>' + esc(r.known) + '</p>' : ''],
+        ['Next', next]
+      ],
+      bar: (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
+        (way.tab === 'claude' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
+        (r.issue && safeLink(r.issueUrl) ? outLink(r.issueUrl, 'Open ' + esc(r.issue) + ' in Linear', 'button') : ''),
+      more: (pics ? '<div class="ipics">' + pics + '</div>' : '') + '<div class="iprog">' + stepsHtml(ISSUE_STEPS, way.at) + '</div>' +
+        kv('What happened', r.context ? '<p>' + esc(r.context) + '</p>' : '') +
+        kv('Records', (r.issue && r.state ? '<p>' + esc(r.state) + ' in Linear</p>' : '') + '<p>' + keys + '</p>') +
+        kv('What Claude did', fix)
+    },
     talk: issueTalk(r, notes),
     record: issueRecord(r.issue, r.firstAt ? { at: r.firstAt, who: 'The watch', said: 'found the problem' } : null, [way.pill, way.level])
   });

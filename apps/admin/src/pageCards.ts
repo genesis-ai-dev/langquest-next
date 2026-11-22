@@ -127,7 +127,6 @@ function lineCard(a, group) {
   const asked = notes.some((n) => n.state === 'waiting' || n.state === 'working');
   const way = f ? lineWay(f, byClaude, asked)
     : { pill: unread ? ['Could not read', ''] : ['Waits on you', 'you'], at: 0, steps: LINE_STEPS };
-  const said = (words, facts) => words ? '<p>' + esc(words) + '</p>' + (facts ? '<small class="muted">' + facts + '</small>' : '') : facts;
   const where = 'Found in ' + esc(PART_TITLE[a.part] || titleOf(group)) + (row && row.firstAt ? ' · first seen ' + when(row.firstAt) : '') + (row && row.people ? ' · ' + num(row.people) + (Number(row.people) === 1 ? ' person' : ' people') : '');
   const link = safeLink(a.link);
   const why = f && f.issues.length > 1 ? 'count' : !issue ? (unread ? 'unreadable' : f ? f.state : 'person') : '';
@@ -139,23 +138,32 @@ function lineCard(a, group) {
     (why ? '<p class="nobox">' + esc(noBoxSaid(why, unread || !!ud)) + '</p>' : '');
   return issueCard({
     card: lineCardId(a), cls: 'line ' + level,
-    pics: issue ? fixPictures(record, issue, !!shown, ud && ud.diagrams ? ud.diagrams[issue] : null) : '',
     tags: '<span class="tag ' + level + '">' + esc(LEVEL[level].title) + '</span>' +
       (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? '<span>' + esc(row.state) + ' in Linear</span>' : '') : ''),
     title: t.title, meta: where,
     talk: issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : '',
     record: issue ? issueRecord(issue, row && row.firstAt ? { at: row.firstAt, who: 'The watch', said: 'found the problem' } : null, way.pill) : '',
-    lines: [
-      // Who acts next, and what: first in the panel at the right.
-      ['Next', issue && f ? (() => { const n = nextSaid(f.state, !!(a.issues && a.issues.length), asked); return n ? '<p class="inext">' + esc(n) + '</p>' : ''; })() : ''],
-      ['Context', row && row.context ? '<p>' + esc(row.context) + '</p>' : ''],
-      // The title says the problem; Claude's words for it come with the Linear issue.
-      ['Issue', row && row.problem ? '<p>' + esc(row.problem) + '</p>' : ''],
-      // A problem with no Linear issue has no fix to show: the note under the panel says why.
-      ['Solution', said(row && row.solution, f && !why ? fixHtml(a) : f && why === 'count' ? fixHtml(a) : !f && t.next ? esc(t.next) : '')],
-      ['Claude', shown ? fixLine(shown, { tab: f.state === 'merged' || f.state === 'stuck' ? 'merged' : '' }) : '']
-    ],
-    pill: way.pill, steps: way.at ? [way.steps, way.at] : null, side
+    // Short, as a user issue's card (pageIssues.ts shortCard): Wrong, Known and Next, the rest behind Details.
+    pill: way.pill,
+    short: (() => {
+      const n = issue && f ? nextSaid(f.state, !!(a.issues && a.issues.length), asked) : '';
+      const fixed = f && !why ? fixHtml(a) : f && why === 'count' ? fixHtml(a) : !f && t.next ? esc(t.next) : '';
+      const pics = issue ? fixPictures(record, issue, !!shown, ud && ud.diagrams ? ud.diagrams[issue] : null) : '';
+      const claude = shown ? fixLine(shown, { tab: f.state === 'merged' || f.state === 'stuck' ? 'merged' : '' }) : '';
+      const kv = (label, html) => html ? '<div><h5 class="imh">' + esc(label) + '</h5>' + html + '</div>' : '';
+      return {
+        lines: [
+          ['Wrong', row && row.problem ? '<p>' + esc(row.problem) + '</p>' : ''],
+          ['Known', row && row.known ? '<p>' + esc(row.known) + '</p>' : ''],
+          // The cause is not proven yet: what Claude does next, and when, leads (pageIssues.ts planLine).
+          ['Next', (record && !record.pr && planGoing(record) ? planLine(record.plan) : '') + (n ? '<p class="inext">' + esc(n) + '</p>' : '') + (fixed ? (n ? '<small class="muted">' + fixed + '</small>' : '<p>' + fixed + '</p>') : row && row.solution ? (n ? '<small class="muted">' : '<p>') + esc(row.solution) + (n ? '</small>' : '</p>') : '')]
+        ],
+        bar: side,
+        more: (pics ? '<div class="ipics">' + pics + '</div>' : '') + (way.at ? '<div class="iprog">' + stepsHtml(way.steps, way.at) + '</div>' : '') +
+          kv('What happened', row && row.context ? '<p>' + esc(row.context) + '</p>' : '') +
+          kv('The fix', row && row.solution && fixed ? '<p>' + esc(row.solution) + '</p>' : '') + kv('What Claude did', claude)
+      };
+    })()
   });
 }
 
