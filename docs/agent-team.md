@@ -249,14 +249,19 @@ flowchart LR
    proven". A Linear comment says the same.
 7. Each hand-back counts one try, and the issue waits at least 2 hours
    before the next, also when the run's job failed and wrote no plan. After
-   `PLAN_TRIES` (10) tries the watch stops handing the issue back, and the
-   card says a developer decides. A record with a fix, a decision or no
-   plan removes the plan.
+   `PLAN_TRIES` (10) tries the issue waits 24 hours between tries, and the
+   watch never stops handing it back while it is open. A record with a fix,
+   a decision or no plan removes the plan.
 8. A manager whose run ended before it wrote `fix.json` gave no verdict.
    The card says so (never "did not prove the cause"), and the watch runs
    the manager again. The job log's step "How the manager's run ended"
-   says how it ended, its turns and the tools it was refused, and nothing
-   that Claude or people wrote.
+   says how it ended, its turns, the tools it was refused and how many
+   workers it left in the background, and nothing that Claude or people
+   wrote. When `fix.json` is missing, the step "The manager writes its
+   verdict" goes on in the same session once, to write it.
+9. A card never ends at "a developer decides" alone. With no plan, it says
+   what Claude found: "Claude found no bug" with the reason, "Claude needs
+   your choice" with the choice, or the gate's reason with Claude's words.
 
 ## Which issue Claude takes first
 

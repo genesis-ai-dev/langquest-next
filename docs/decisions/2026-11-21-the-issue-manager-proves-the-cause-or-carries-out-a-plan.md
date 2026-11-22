@@ -35,3 +35,8 @@ thus apply a reliable fix." On 2026-11-21, 9 open issues stopped there.
 Reverse if: plans repeat without new facts (the same probe or query try
 after try), or the tries use a large part of the Frontier plan's week with
 few causes proven.
+
+Amended (2026-11-22, Caleb Koster): the limit no longer stops the watch.
+After `PLAN_TRIES` tries an open issue comes back once a day, and its card
+never says "a developer decides" alone
+(`2026-11-22-an-issue-card-never-ends-at-no-fix.md`).

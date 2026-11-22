@@ -297,13 +297,13 @@ describe('the cards', () => {
       reasons: [['Change', 'Chapters sort by <number>.'], ['Cause', 'listModel.ts line 42 sorts labels as text.'], ['Test', 'The new case fails on main.'], ['Reviewer', 'The change does what it says.']] });
     expect(logic.fixSaid(record(), true).decision[0]).toBe('Claude merged this fix without a person.');
     expect(logic.fixSaid(none, false)).toEqual({ decision: ['The cause is not proven yet.', 'The cause is not proven.'], reasons: [], manager: 'sonnet, medium effort' });
-    // With a plan to prove the cause, Claude acts next, not a developer; after 10 plans a developer decides.
+    // With a plan to prove the cause, Claude acts next, not a developer; after 10 tries it goes on once a day.
     const plan = { next: 'Run a probe of the sync.', steps: '1. Probe. 2. Fix.', nextAt: '2000-01-01T00:00:00Z', tries: 2, at: '2000-01-01T00:00:00Z' };
     expect(logic.issueWay(issue(), [], null, { ...none, plan })).toMatchObject({ tab: 'nofix', pill: 'Claude proves the cause', level: 'claude', at: 3 });
-    expect(logic.issueWay(issue(), [], null, { ...none, plan: { ...plan, tries: 10 } })).toMatchObject({ tab: 'you', pill: 'Waits on you' });
-    expect(logic.planSaid(plan, Date.parse('2001-01-01T00:00:00Z'))).toEqual({ next: 'Run a probe of the sync.', when: 'Claude does it at the next run of the watch · try 2 of 10', steps: '1. Probe. 2. Fix.' });
+    expect(logic.issueWay(issue(), [], null, { ...none, plan: { ...plan, tries: 10 } })).toMatchObject({ tab: 'nofix', pill: 'Claude proves the cause' });
+    expect(logic.planSaid(plan, Date.parse('2001-01-01T00:00:00Z'))).toEqual({ next: 'Run a probe of the sync.', when: 'Claude does it at the next run of the watch · try 2 · each 2 hours or more', steps: '1. Probe. 2. Fix.' });
     expect(logic.planSaid({ ...plan, nextAt: '2001-01-01T05:00:00Z' }, Date.parse('2001-01-01T00:00:00Z'))?.when).toMatch(/^Claude does it at about /);
-    expect(logic.planSaid({ ...plan, tries: 10 })?.next).toBe('Claude tried 10 times to prove the cause and did not. A developer decides what happens next.');
+    expect(logic.planSaid({ ...plan, tries: 10 }, Date.parse('2001-01-01T00:00:00Z'))).toEqual({ next: 'Run a probe of the sync.', when: 'Claude does it at the next run of the watch · try 10 · once a day from now on', steps: '1. Probe. 2. Fix.' });
 
     draw.fixes({ state: 'ok', data: { prs: open } });
     const html = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': record() }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
@@ -331,11 +331,18 @@ describe('the cards', () => {
     draw.fixes({ state: 'ok', data: { prs: [] } });
     const waits = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': none }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
     expect(waits).toContain('<span class="ipill you">Waits on you</span>');
-    expect(waits).toContain('Claude wrote no fix. A developer decides what happens next.');
+    // Never "a developer decides" alone: what Claude found, and what happens next.
+    expect(waits).not.toContain('A developer decides');
+    expect(waits).not.toContain('Claude wrote no fix');
+    expect(waits).toContain('<p class="inext"><b>The cause is not proven yet.</b> The cause is not proven.</p><small class="muted">Claude tries again at the next run of the watch.</small>');
+    const found = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': { ...none, reason: 'not_a_bug', why: 'The dashboard counted the wait for a connection.' } }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
+    expect(found).toContain('<p class="inext"><b>Claude found no bug.</b> The dashboard counted the wait for a connection.</p><small class="muted">Close the issue in Linear when you agree.');
+    const choice = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': { ...none, reason: 'decision', why: 'Pick where Remove goes.' } }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
+    expect(choice).toContain('<p class="inext"><b>Claude needs your choice.</b> Pick where Remove goes.</p>');
     expect(waits).toContain('<b>The cause is not proven yet.</b> The cause is not proven.');
     const going = draw.userIssuesHtml({ issues: [issue()], fixes: { 'LAN-9': { ...none, plan: { next: 'Run a probe of the sync.', steps: '1. Probe.', nextAt: '2000-01-01T00:00:00Z', tries: 1, at: '2000-01-01T00:00:00Z' } } }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
     expect(going).toContain('<span class="ipill claude">Claude proves the cause</span>');
-    expect(going).toContain('<p class="inext"><b>Next:</b> Run a probe of the sync.<br><small class="muted">Claude does it at the next run of the watch · try 1 of 10</small></p>');
+    expect(going).toContain('<p class="inext"><b>Next:</b> Run a probe of the sync.<br><small class="muted">Claude does it at the next run of the watch · try 1 · each 2 hours or more</small></p>');
     expect(going).not.toContain('A developer decides');
     // Before the database keeps records, a card is as it was.
     expect(draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toMatch(/What Claude did|data-shot/);

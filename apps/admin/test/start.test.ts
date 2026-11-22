@@ -122,7 +122,9 @@ describe('the Overview, what needs you first', () => {
     const plan = { next: 'Run a probe of the sync.', steps: null, nextAt: '2026-11-21T23:00:00Z', tries: 1, at: '2026-11-21T10:00:00Z' };
     const proving = logic.claudeWork({ issues: [open('LAN-3')], fixes: { 'LAN-3': { ...fixes['LAN-3'], plan } } }, now)[0];
     expect(proving).toMatchObject({ state: 'proving', why: 'Next: Run a probe of the sync.', nextAt: '2026-11-21T23:00:00Z' });
-    expect(logic.claudeWork({ issues: [open('LAN-3')], fixes: { 'LAN-3': { ...fixes['LAN-3'], plan: { ...plan, tries: 10 } } } }, now)[0]?.state).toBe('stopped');
+    expect(logic.claudeWork({ issues: [open('LAN-3')], fixes: { 'LAN-3': { ...fixes['LAN-3'], plan: { ...plan, tries: 10 } } } }, now)[0]?.state).toBe('proving');
+    // A record with no plan (Claude found no bug, or needs a choice) waits for a developer, with Claude's reason.
+    expect(logic.claudeWork({ issues: [open('LAN-3')], fixes }, now)[0]?.state).toBe('stopped');
   });
 
   it('puts only what moves without you under On its way, and the rest under This week, you decide', () => {

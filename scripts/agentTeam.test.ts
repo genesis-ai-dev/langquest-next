@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   ACTS, causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, logTail, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, nextStep, OPEN_HOURS,
-  ENDED, NEXT_HOURS, NEXT_LIMITS, nextOf, pathRefusal, PICTURES, PLAN_TRIES, planNext, planOf, PROBE_DIRS, REASONS, reviewNeeded, saysAskFirst, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
+  ENDED, NEXT_HOURS, runEnd, NEXT_LIMITS, nextOf, pathRefusal, PICTURES, PLAN_TRIES, planNext, planOf, PROBE_DIRS, REASONS, reviewNeeded, saysAskFirst, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
 } from './agent-team.mjs';
 import * as model from '../server/userIssues';
 
@@ -86,6 +86,31 @@ describe('when the cause is not proven yet', () => {
     expect(PLAN_TRIES).toBe(model.PLAN_TRIES);
     const workflow = read('.github/workflows/user-issues.yml');
     expect(workflow).toContain(`const ok=${JSON.stringify(PROBE_DIRS)};`);
+  });
+});
+
+describe('how the manager\'s run ended', () => {
+  it('says only names and numbers: its end, turns, refused tools, workers in the background and fix.json', () => {
+    const tool = (bg?: boolean) => ({ type: 'tool_use', name: 'Agent', input: { prompt: 'secret words', ...(bg === undefined ? {} : { run_in_background: bg }) } });
+    const messages = [
+      { type: 'assistant', message: { content: [tool(), tool(true), tool(false), { type: 'text', text: 'people wrote this' }] } },
+      { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } },
+      { type: 'result', subtype: 'success', num_turns: 30, permission_denials: [{ tool_name: 'Bash' }, { tool_name: 'Bash' }] }
+    ];
+    const e = runEnd(messages, false);
+    expect(e).toEqual({ fix: 'missing', line: 'end: success; turns: 30; refused: 2 (Bash); workers: 1 waited for, 2 in the background; fix.json: missing' });
+    expect(e.line).not.toMatch(/secret|people/);
+    expect(runEnd(null, true)).toEqual({ fix: 'written', line: 'end: unknown; turns: 0; refused: 0 (none); workers: 0 waited for, 0 in the background; fix.json: written' });
+  });
+
+  it('goes on in the same session, once, when the manager wrote no fix.json, and never stops the patch step', () => {
+    const yml = read('.github/workflows/user-issues.yml');
+    expect(yml).toContain('run: node "$RUNNER_TEMP/watch/agent-team.mjs" run-end "$OUT" .user-issues/fix.json >> "$GITHUB_OUTPUT"');
+    expect(yml).toContain("if: ${{ always() && steps.ended.outputs.fix == 'missing' && steps.manager.outputs.session_id != '' }}");
+    expect(yml).toContain('claude_args: --resume ${{ steps.manager.outputs.session_id }} --model ${{ env.FIX_MODEL }}');
+    const step = yml.slice(yml.indexOf('- name: The manager writes its verdict'), yml.indexOf('- name: The change, as a patch'));
+    expect(step).toContain('continue-on-error: true');
+    expect(yml).toContain('each with run_in_background: false, and wait for each answer');
   });
 });
 

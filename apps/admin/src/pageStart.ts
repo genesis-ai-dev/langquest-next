@@ -164,7 +164,7 @@ function claudeWork(userissues, now) {
     const state = working ? 'working'
       : after && !fix ? 'noanswer'
       : fix && fix.pr ? (fix.decision === 'merge' ? 'merging' : 'review')
-      : fix && fix.plan && fix.plan.next && Number(fix.plan.tries) < 10 ? 'proving'
+      : fix && fix.plan && fix.plan.next ? 'proving'
       : fix ? 'stopped'
       : /^In (Progress|Review)$/.test(i.state || '') ? 'person'
       : 'queued';
