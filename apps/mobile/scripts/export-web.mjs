@@ -241,7 +241,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // docs/decisions/0182-every-recording-people-make-plays-at.md, amended 2026-11-21), about 1 KB past it:
 // the measure (src/audio/playWait.ts) that the three players use and the tally's new fields. Every
 // player of a recording can be on the first screen, so it cannot load later.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 161 * 1024;
+// Raised by 20 KB with the release copy (release/ios, 2026-11-22), 17 KB past then: main's budget had room
+// the public build's code does not, and the copy brings the download key, the book's download buttons,
+// the play-wait measure and the unheard-recording rules (LAN-316, LAN-317, LAN-323). The first visit's raise below says more.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 181 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -325,7 +328,11 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 161 * 1024;
 // grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
 // words in the catalog every visit carries. They show on the recording screen as it opens; the word's
 // sheet loads when first opened (keyTerms/lazySheets.tsx).
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
+// Raised by 16 KB with the release copy of main's download-button work, play-wait measure and unheard-recording
+// rules (LAN-316, LAN-317, LAN-323; release/ios, 2026-11-22), 14 KB past then: the public build lacks main's other
+// features, so main's own budget had room that the release branch does not. The Map is where a visit starts and
+// every player of a recording can be on the first screen, so none of it can load later.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 128 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
