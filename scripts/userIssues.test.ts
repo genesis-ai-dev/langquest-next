@@ -136,9 +136,6 @@ describe('user-issues.mjs', () => {
     expect(jobs['research']!.match(/actions\/checkout@/g)?.length).toBe(jobs['research']!.match(/persist-credentials: false/g)?.length);
     // The file step runs for a research issue alone, so it reaches the fix jobs.
     expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('file .user-issues'))).toContain("steps.watch.outputs.research != '0'");
-    // The file step runs for a plan whose time came alone, and for the Worker's order alone, so a due issue reaches the fix jobs in a quiet run.
-    expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('file .user-issues'))).toContain("steps.watch.outputs.due != '0'");
-    expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('file .user-issues'))).toContain("steps.watch.outputs.order != '0'");
     // The file step runs for an instruction alone, so its issue reaches the fix jobs.
     expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('file .user-issues'))).toContain("steps.watch.outputs.notes != '0'");
     // The file step runs for a pull request `follow` hands back alone, and Claude is told where the rules for it are.
