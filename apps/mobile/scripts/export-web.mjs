@@ -237,7 +237,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // removed, the line naming study files their source does not have, and their English words in the catalog
 // every visit carries. The Map is where a visit starts, so none of it can load later. 1,255 bytes are left;
 // a first visit has 6,897.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 159 * 1024;
+// Raised by 2 KB with a play's wait for sound measured in parts (Caleb Koster, 2026-11-21, LAN-323,
+// docs/decisions/0182-every-recording-people-make-plays-at.md, amended 2026-11-21), about 1 KB past it:
+// the measure (src/audio/playWait.ts) that the three players use and the tally's new fields. Every
+// player of a recording can be on the first screen, so it cannot load later.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 161 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

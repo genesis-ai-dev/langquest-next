@@ -130,10 +130,18 @@ export const DIAG_SCHEMA = {
    * Recording and playback on this phone, tallied per hour per language.
    * `waits` are plays that reached sound, `waitMs` and `maxWaitMs` how long
    * from the tap to the first sound (decision 182, amended 2026-11-04).
+   * `streamWaits` and `streamWaitMs` are the plays that streamed their file
+   * from the server. The longest wait is split in parts (LAN-323): getting
+   * the server's link (`maxWaitLinkMs`), waiting for the even-loudness copy
+   * (`maxWaitCopyMs`), from play to the first sound, which is the player
+   * loading the file (`maxWaitLoadMs`), the longest time the app's own work
+   * held the page or JS thread meanwhile (`maxWaitBusyMs`), and 1 when it
+   * streamed (`maxWaitStreamed`).
    */
   audio: {
     n: ['takes', 'takeMs', 'tooShort', 'micRefused', 'startFail', 'stopFail', 'saveFail', 'encodeFail', 'wavKept', 'interrupted',
-      'plays', 'playFail', 'playNotHere', 'streamFail', 'waits', 'waitMs', 'maxWaitMs'],
+      'plays', 'playFail', 'playNotHere', 'streamFail', 'waits', 'waitMs', 'maxWaitMs',
+      'streamWaits', 'streamWaitMs', 'maxWaitLinkMs', 'maxWaitCopyMs', 'maxWaitLoadMs', 'maxWaitBusyMs', 'maxWaitStreamed'],
     t: {}
   },
   /**
@@ -337,6 +345,20 @@ interface TransferSample {
 /** A counter on the hourly `audio` tally. */
 export type AudioCounter = (typeof DIAG_SCHEMA.audio.n)[number];
 
+/** Where the time of one play's wait for sound went (`Diagnostics.audioWait`), in ms. */
+export interface AudioWaitParts {
+  /** Getting the server's link to a file this device does not have. */
+  linkMs: number;
+  /** Waiting for the even-loudness copy (at most READY_MS). */
+  copyMs: number;
+  /** From asking the player to play to the first sound: the player loading the file. */
+  loadMs: number;
+  /** The longest the app's own work held the page or JS thread during the wait. */
+  busyMs: number;
+  /** The file came from the server, not this device. */
+  streamed: boolean;
+}
+
 /** The status in our own error texts and expo's: "(413)", "status 503", or a bare 4xx/5xx. */
 function httpStatusIn(message: string): number | null {
   const m = /\((\d{3})\)|status (?:code )?(\d{3})|\b([45]\d\d)\b/i.exec(message);
@@ -465,15 +487,36 @@ export class Diagnostics {
     this.closeIfOld(key, tally);
   }
 
-  /** A play reached sound `ms` after its tap, on the hourly `audio` tally for a language. */
-  audioWait(where: { orgId?: string; streamId?: string }, ms: number): void {
+  /**
+   * A play reached sound `ms` after its tap, on the hourly `audio` tally for
+   * a language. `parts` splits that wait; the tally keeps the parts of its
+   * longest wait only.
+   */
+  audioWait(where: { orgId?: string; streamId?: string }, ms: number, parts?: AudioWaitParts): void {
     if (!this.enabled || !Number.isFinite(ms) || ms < 0) return;
     const key = `audio|${where.orgId ?? ''}|${where.streamId ?? ''}`;
     const tally = this.openTally(key, { kind: 'audio', ...where, t: {} });
+    const n = tally.n;
     const wait = Math.round(ms);
-    tally.n.waits = (tally.n.waits ?? 0) + 1;
-    tally.n.waitMs = (tally.n.waitMs ?? 0) + wait;
-    tally.n.maxWaitMs = Math.max(tally.n.maxWaitMs ?? 0, wait);
+    n.waits = (n.waits ?? 0) + 1;
+    n.waitMs = (n.waitMs ?? 0) + wait;
+    if (parts?.streamed) {
+      n.streamWaits = (n.streamWaits ?? 0) + 1;
+      n.streamWaitMs = (n.streamWaitMs ?? 0) + wait;
+    }
+    if (n.maxWaitMs === undefined || wait > n.maxWaitMs) {
+      n.maxWaitMs = wait;
+      if (parts) {
+        const part = (v: number) => (Number.isFinite(v) && v > 0 ? Math.min(Math.round(v), wait) : 0);
+        n.maxWaitLinkMs = part(parts.linkMs);
+        n.maxWaitCopyMs = part(parts.copyMs);
+        n.maxWaitLoadMs = part(parts.loadMs);
+        n.maxWaitBusyMs = part(parts.busyMs);
+        n.maxWaitStreamed = parts.streamed ? 1 : 0;
+      } else {
+        for (const f of ['maxWaitLinkMs', 'maxWaitCopyMs', 'maxWaitLoadMs', 'maxWaitBusyMs', 'maxWaitStreamed']) delete n[f];
+      }
+    }
     this.closeIfOld(key, tally);
   }
 
