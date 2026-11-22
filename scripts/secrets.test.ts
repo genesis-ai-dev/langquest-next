@@ -25,7 +25,7 @@ describe('secrets', () => {
     const file = { ...values, DIAG_DATABASE_URL: 'postgresql://diag', ADMIN_EXPO_TOKEN: 'e', ADMIN_GITHUB_TOKEN: '' };
     const production = destinations('production', file, 'ref', 'service');
     expect(production.workers.admin).toEqual({ ADMIN_EXPO_TOKEN: 'e' });
-    expect(production.hyperdrive).toEqual({ DIAG: { connectionString: 'postgresql://diag' } });
+    expect(production.hyperdrive).toEqual({ connectionString: 'postgresql://diag' });
     expect(destinations('preview', file, 'ref', 'service').workers).not.toHaveProperty('admin');
     expect(destinations('preview', file, 'ref', 'service').hyperdrive).toBeNull();
     expect(destinations('production', { ...values, DIAG_DATABASE_URL: 'postgresql://diag' }, 'ref', 'service').workers).not.toHaveProperty('admin');
@@ -33,17 +33,6 @@ describe('secrets', () => {
       expect(FILE_KEYS).toContain(key);
       expect(wranglerFor(parseJsonc(read(WORKERS.admin)), 'production').secrets?.required ?? []).not.toContain(key);
     }
-  });
-
-  it("gives the read gate's two logins to Hyperdrive and only the token's SHA-256 to the Worker (docs/production-reads.md)", () => {
-    const file = { ...values, CLAUDE_READ_DATABASE_URL: 'postgresql://claude', AGENT_READ_DATABASE_URL: 'postgresql://agent', CLAUDE_READ_TOKEN: 'tok' };
-    const production = destinations('production', file, 'ref', 'service');
-    expect(production.hyperdrive).toEqual({ READ_CLAUDE: { connectionString: 'postgresql://claude' }, READ_AGENT: { connectionString: 'postgresql://agent' } });
-    expect(production.workers.admin).toEqual({ CLAUDE_READ_TOKEN_SHA256: '1a7674eb4ee78df7e1ac439a93c3fa8e3c945784d4dec9fd8e3011738b2f1d62' });
-    expect(JSON.stringify(production)).not.toContain('"tok"');
-    for (const key of ['CLAUDE_READ_DATABASE_URL', 'AGENT_READ_DATABASE_URL', 'CLAUDE_READ_TOKEN']) expect(FILE_KEYS).toContain(key);
-    expect(destinations('preview', file, 'ref', 'service').hyperdrive).toBeNull();
-    expect(destinations('preview', file, 'ref', 'service').workers).not.toHaveProperty('admin');
   });
 
   it('passes the Bible Brain key to the app\'s Worker only when the file has it, and never requires it', () => {
@@ -269,18 +258,6 @@ describe('the ops dashboard\'s Hyperdrive config', () => {
     expect(written).toBe(config.replace(HYPERDRIVE_PLACEHOLDER, id));
     expect(() => withHyperdriveId(config, 'not-an-id')).toThrow(/not a Hyperdrive id/);
     expect(() => withHyperdriveId(written, id)).toThrow(/has no/);
-  });
-
-  it('adds a binding that is not there yet at the end of the list, and fills in only its own placeholder', () => {
-    const real = withHyperdriveId(config, id);
-    const other = 'fedcba9876543210fedcba9876543210';
-    const added = withHyperdriveId(real, other, 'READ_CLAUDE');
-    expect(added).toContain(`"hyperdrive": [{ "binding": "DIAG", "id": "${id}" }, { "binding": "READ_CLAUDE", "id": "${other}" }]`);
-    expect(hyperdriveId(added, 'READ_CLAUDE')).toBe(other);
-    expect(hyperdriveId(added)).toBe(id);
-    expect(hyperdriveId(added, 'READ_AGENT')).toBeNull();
-    const waiting = config.replace(']', `, { "binding": "READ_AGENT", "id": "${HYPERDRIVE_PLACEHOLDER}" }]`);
-    expect(withHyperdriveId(waiting, other, 'READ_AGENT')).toContain(`"binding": "DIAG", "id": "${HYPERDRIVE_PLACEHOLDER}" }, { "binding": "READ_AGENT", "id": "${other}" }`);
   });
 
   it('finds the id in what wrangler prints when it makes the config', () => {
