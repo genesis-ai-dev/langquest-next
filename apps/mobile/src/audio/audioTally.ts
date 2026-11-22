@@ -2,7 +2,7 @@
 // the hourly `audio` tally, per language. Counts and how long plays waited
 // for sound only; which passage, whose voice and what was said are never
 // part of it (decisions.md 39).
-import type { AudioCounter } from '@langquest-next/sync';
+import type { AudioCounter, AudioWaitParts } from '@langquest-next/sync';
 import { diagnostics } from '../diagnostics/diagnostics';
 
 /** The language a take or a player belongs to; its stream is the language's own (decision 63). */
@@ -20,9 +20,9 @@ export function countAudio(language: AudioLanguage | null | undefined, counter: 
   diagnostics.audio(whereOf(language), counter, by);
 }
 
-/** A play reached sound `ms` after its tap (decision 182, amended 2026-11-04): on the open language's tally. */
-export function countWait(language: AudioLanguage | null | undefined, ms: number): void {
-  diagnostics.audioWait(whereOf(language), ms);
+/** A play reached sound `ms` after its tap (decision 182, amended 2026-11-04), and where the time went (playWait.ts): on the open language's tally. */
+export function countWait(language: AudioLanguage | null | undefined, ms: number, parts?: AudioWaitParts): void {
+  diagnostics.audioWait(whereOf(language), ms, parts);
 }
 
 function whereOf(language: AudioLanguage | null | undefined): { orgId?: string; streamId?: string } {
