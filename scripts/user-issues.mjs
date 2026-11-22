@@ -990,7 +990,12 @@ async function fetchWatch(dir) {
   const notes = Array.isArray(watch.notes) ? watch.notes.length : 0;
   const research = Array.isArray(watch.research) ? watch.research.length : 0;
   const untried = Array.isArray(watch.untried) ? watch.untried.length : 0;
-  output({ look: watch.look.length, grew: watch.grew.length, notes, research, untried });
+  // The issues whose plan's time came, and the Worker's order of what waits: either one starts the step that hands
+  // issues to the fix jobs, also in a run with nothing new (before, a due plan waited for something new).
+  const due = Array.isArray(watch.due) ? watch.due.length : 0;
+  const order = Array.isArray(watch.order) ? watch.order.length : 0;
+  output({ look: watch.look.length, grew: watch.grew.length, notes, research, untried, due, order });
+  if (due) console.log(`watch: ${due} issues whose plan's time came wait for room in the fix jobs`);
   if (untried) console.log(`watch: ${untried} open issues Claude never tried wait for room in the fix jobs`);
   if (research) console.log(`watch: the research recommends a fix for ${research} issues that the fix team did not get yet`);
   if (notes) console.log(`watch: ${notes} issues have an admin's instruction from the ops dashboard`);

@@ -173,7 +173,7 @@ jobs:
           claude_args: --allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)"
       - name: File in Linear, and tell the Worker
         id: file
-        if: steps.watch.outputs.look != '0' || steps.watch.outputs.grew != '0' || steps.watch.outputs.notes != '0' || steps.watch.outputs.research != '0' || (steps.watch.outputs.untried != '' && steps.watch.outputs.untried != '0') || (needs.follow.outputs.repairs != '' && needs.follow.outputs.repairs != '[]')
+        if: steps.watch.outputs.look != '0' || steps.watch.outputs.grew != '0' || steps.watch.outputs.notes != '0' || steps.watch.outputs.research != '0' || (steps.watch.outputs.untried != '' && steps.watch.outputs.untried != '0') || (steps.watch.outputs.due != '' && steps.watch.outputs.due != '0') || (steps.watch.outputs.order != '' && steps.watch.outputs.order != '0') || (needs.follow.outputs.repairs != '' && needs.follow.outputs.repairs != '[]')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           # The issues whose pull requests `follow` hands back to the fix team (ids only; the script checks them).
