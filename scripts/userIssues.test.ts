@@ -6,7 +6,7 @@ import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, LIMITS, linearClient, lookedOf, mergesOf,
   noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
-  repairOf, repairsOf, planRecord, dueToTake, PROBE_MAX, fixRecord
+  repairOf, repairsOf, planRecord, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -482,6 +482,35 @@ describe('when the cause is not proven yet', () => {
     expect(fixRecord('LAN-9', { decision: 'none', reason: 'unconfirmed', why: 'x' }, checkFix({ ended: true })).verdict).toBeNull();
     expect(planRecord('LAN-9', checkFix({ verdict: 'fix', summary: 'S' }))).toEqual({ issue: 'LAN-9', next: null });
     expect(planRecord('LAN-9', checkFix({ verdict: 'decision', noFix: 'A choice.' }), '', 'decision')).toEqual({ issue: 'LAN-9', next: null });
+  });
+
+  it('takes the most important issues in the order after the instructions, and says why', () => {
+    const order = [
+      { issue: 'LAN-3', from: 'untried', priority: 1, people: 1, kinds: 1, places: 0, times: 1 },
+      { issue: 'LAN-1', from: 'research', priority: 0, people: 40, kinds: 2, places: 3, times: 90 },
+      { issue: 'bad', from: 'untried' },
+      { issue: 'LAN-2', from: 'plan', priority: 3, people: 0, kinds: 1, places: 0, times: 0 },
+      { issue: 'LAN-4', from: 'untried', priority: 4, people: 99, kinds: 1, places: 0, times: 99 }
+    ];
+    expect(orderToTake(order, ['LAN-9'])).toEqual({ take: ['LAN-3', 'LAN-1'], handed: ['LAN-1'] });
+    expect(orderToTake(order, ['LAN-3'])).toEqual({ take: ['LAN-1', 'LAN-2'], handed: ['LAN-1'] });
+    expect(orderToTake(null, [])).toEqual({ take: [], handed: [] });
+    expect(FIX_MAX).toBe(3);
+    expect(whyInOrder(order[1])).toBe('No priority · 40 people · 2 kinds · 3 places with the same mistake · 90 times');
+    expect(whyInOrder(order[0])).toBe('Urgent · 1 person · 1 kind · 1 time');
+    expect(whyInOrder({})).toBe('No priority');
+  });
+
+  it('sends the priority of each open issue the watch filed', () => {
+    const open = { name: 'Todo', type: 'unstarted' };
+    const read = [
+      { identifier: 'LAN-1', priority: 2, state: open },
+      { identifier: 'LAN-2', priority: 1, state: { name: 'Live', type: 'completed' } },
+      { identifier: 'LAN-3', priority: 7, state: open },
+      { identifier: 'LAN-4', priority: 0, state: open },
+      { identifier: 'LAN-5', priority: 1, state: open }
+    ];
+    expect(prioritiesToSend([{ issue: 'LAN-1' }, { issue: 'LAN-2' }, { issue: 'LAN-3' }, { issue: 'LAN-4' }], read)).toEqual([{ issue: 'LAN-1', priority: 2 }, { issue: 'LAN-4', priority: 0 }]);
   });
 
   it('hands back the issues whose plan came due while there is room, and says the next step in Linear', () => {

@@ -31,6 +31,7 @@ export const OVERVIEW_CSS = String.raw`
 .waykey i.by-store, .who.by-store { background: var(--grey); } .waykey i.by-dev, .who.by-dev { background: var(--yellow); }
 .sblock .alert.wayrow { grid-template-columns: 104px minmax(0, 1fr) auto; }
 .wayrow .when { font-weight: 650; font-size: 14px; line-height: 1.25; color: var(--ink); } .wayrow .when small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+.wayrow .order { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; } .wayrow .order > span { display: block; } .wayrow .order small { display: block; color: var(--muted); font-size: 12px; margin-left: 18px; }
 .who { display: inline-block; font-size: 11px; font-weight: 700; line-height: 18px; padding: 0 7px; border-radius: 6px; color: #111; margin-inline-end: 6px; }
 .alert p.why { margin: 4px 0 0; font-size: 13px; color: var(--ink2); } .sblock .alert.info { border-inline-start-color: var(--primary); } .sblock .alert.clear { border-inline-start-color: var(--green); }
 .sblock .alert .text > b { font-weight: 600; font-size: 15px; }
@@ -374,17 +375,21 @@ function wayItems(plan, work, store, now) {
     out.push({ at: 0, who: 'claude', when: ['Now', i.startedAt ? 'since ' + new Date(i.startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''], title: i.title || i.issue || 'An issue',
       said: esc(CLAUDE_WORK.working), from: filedSaid(i), href: i.issue ? cardHref('userissues', i.issue) : '#g/userissues' });
   }
-  const line = claudeQueue(work);
+  const line = claudeLine(userIssuesData(), work);
+  const take = line.slice(0, FIX_ROOM), taken = new Set(take.map((i) => i.issue));
   if (line.length) {
-    const next = nextRunAt(now), take = line.slice(0, FIX_ROOM), rest = line.length - take.length;
+    const next = nextRunAt(now), rest = line.length - take.length, ordered = take.some((i) => i.whyFirst);
     out.push({ at: next, who: 'claude', when: [whenOf(next, now)[0], 'next run, about'],
-      title: 'Claude tries a fix for ' + (take.length === 1 ? '1 problem' : take.length + ' problems, one after the other'),
-      said: take.map(issueLink).join(' · ') + ', the oldest first. New problems the watch finds go first.',
-      from: rest > 0 ? num(rest) + ' more ' + (rest === 1 ? 'waits' : 'wait') + ' in line, ' + FIX_ROOM + ' in each run. Claude has not tried ' + (rest === 1 ? 'it' : 'them') + ' yet.' : '',
+      title: 'Claude tries a fix for ' + (take.length === 1 ? '1 problem' : take.length + ' problems, ' + (ordered ? 'the most important first' : 'one after the other')),
+      said: ordered ? '<span class="order">' + take.map((i) => '<span><b>' + i.place + '.</b> ' + issueLink(i) + (i.title ? ' ' + esc(i.title) : '') + '<small>' + esc(i.whyFirst) + '</small></span>').join('') + '</span>'
+        : take.map(issueLink).join(' · ') + ', the oldest first. New problems the watch finds go first.',
+      from: (rest > 0 ? num(rest) + ' more ' + (rest === 1 ? 'waits' : 'wait') + ' in line, ' + FIX_ROOM + ' in each run. ' : '') +
+        (ordered ? 'Your instructions on a card go first. Then the order is: priority in Linear, people, kinds of failure, places with the same mistake, times, and the oldest.' : rest > 0 ? 'Claude has not tried ' + (rest === 1 ? 'it' : 'them') + ' yet.' : ''),
       href: take[0].issue ? cardHref('userissues', take[0].issue) : '#g/userissues' });
   }
   // The cause is not proven yet: Claude goes on with its plan at the time it chose (docs/agent-team.md "When the cause is not proven yet").
-  for (const i of work.filter((w) => w.state === 'proving')) {
+  // An issue the next run takes is in the row above.
+  for (const i of work.filter((w) => w.state === 'proving' && !taken.has(w.issue))) {
     const at = Math.max(Date.parse(i.nextAt || '') || 0, nextRunAt(now));
     out.push({ at, who: 'claude', when: [whenOf(at, now)[0], 'Claude goes on, about'], title: i.title || i.issue || 'An issue',
       said: esc(CLAUDE_WORK.proving) + (i.why ? ' ' + esc(i.why) : ''), from: filedSaid(i), href: i.issue ? cardHref('userissues', i.issue) : '#g/userissues' });
@@ -466,7 +471,7 @@ function drawStart() {
   const store = storeWaits(results.pipeline && results.pipeline.state === 'ok' ? results.pipeline.data : null);
   const way = wayItems(plan, work, store, now);
   // A row of the next run counts each issue in line; every other row counts one.
-  const queued = claudeQueue(work).length;
+  const queued = claudeLine(userIssuesData(), work).length;
   const needN = linesIn(plan.need), decideN = linesIn(plan.decide) + decideWork.length, wayN = way.length + (queued ? queued - 1 : 0), watchN = linesIn(plan.watch);
   const say = [
     needN ? needN + (needN === 1 ? ' needs you now.' : ' need you now.') : '',

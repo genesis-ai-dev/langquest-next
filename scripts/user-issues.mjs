@@ -352,6 +352,22 @@ export function statesToSend(known, issues, merges) {
   return out;
 }
 
+/**
+ * Each open issue's priority in Linear (0 none, 1 Urgent, 2 High, 3 Medium, 4 Low), for the order the fix
+ * team takes them (docs/agent-team.md "Which issue Claude takes first"). Sent each run: a developer who
+ * changes a priority in Linear changes the order at the next run.
+ */
+export function prioritiesToSend(known, issues) {
+  const watched = new Set(known.map((k) => k.issue));
+  const out = [];
+  for (const i of issues) {
+    if (!watched.has(i.identifier) || isClosed(i.state) || !Number.isInteger(i.priority) || i.priority < 0 || i.priority > 4) continue;
+    if (out.some((o) => o.issue === i.identifier)) continue;
+    out.push({ issue: i.identifier, priority: i.priority });
+  }
+  return out.slice(0, 100);
+}
+
 // ---- draft fixes (decisions.md 202, amended) ----------------------------------------------------
 //
 // Each new issue gets a draft pull request with Claude's fix, written in three jobs that trust
@@ -556,6 +572,28 @@ export function researchToTake(research, fixes) {
  */
 export function untriedToTake(untried, fixes) {
   return researchToTake(untried, fixes);
+}
+
+/** Linear's priority numbers as Linear names them. 0 is none, which the order counts as Medium. */
+export const PRIORITY_NAMES = ['No priority', 'Urgent', 'High', 'Medium', 'Low'];
+
+/**
+ * Which issues that wait for the fix team get a run of the fix jobs (docs/agent-team.md "Which issue
+ * Claude takes first"): the Worker's order (`ops_user_issue_order`), the most important first, after
+ * the issues with an admin's instruction, while FIX_MAX has room. The rest wait for a later run, in the
+ * same order. Returns the issues to run and, of them, the research's (`handed`).
+ */
+export function orderToTake(order, fixes) {
+  const rows = (Array.isArray(order) ? order : []).filter((o) => isObj(o) && ISSUE_ID.test(text(o.issue)));
+  const take = researchToTake(rows.map((o) => o.issue), fixes);
+  const handed = take.filter((id) => rows.find((o) => o.issue === id)?.from === 'research');
+  return { take, handed };
+}
+
+/** Why an issue has its place in the order, in a few words: "High · 12 people · 3 kinds · 40 times". */
+export function whyInOrder(o) {
+  const n = (v, one, many) => (Number(v) > 0 ? `${Number(v)} ${Number(v) === 1 ? one : many}` : '');
+  return [PRIORITY_NAMES[Number(o?.priority)] ?? PRIORITY_NAMES[0], n(o?.people, 'person', 'people'), n(o?.kinds, 'kind', 'kinds'), n(o?.places, 'place with the same mistake', 'places with the same mistake'), n(o?.times, 'time', 'times')].filter(Boolean).join(' · ');
 }
 
 /** The issues the job `follow` hands back to the fix team (its output `repairs`): ids only, at most REPAIR_MAX. */
@@ -787,8 +825,8 @@ export function linearClient(key, fetchImpl = fetch) {
       if (!numbers.length) return [];
       const data = await gql(`query($key: String!, $numbers: [Float!]) {
         issues(first: 100, filter: { team: { key: { eq: $key } }, number: { in: $numbers } }) {
-          nodes { identifier title state { name type } completedAt canceledAt attachments { nodes { url } } } } }`, { key: TEAM_KEY, numbers: numbers.slice(0, 100) });
-      return data.issues.nodes.map((i) => ({ identifier: i.identifier, title: i.title, state: i.state, completedAt: i.completedAt, canceledAt: i.canceledAt, attachments: i.attachments.nodes }));
+          nodes { identifier title priority state { name type } completedAt canceledAt attachments { nodes { url } } } } }`, { key: TEAM_KEY, numbers: numbers.slice(0, 100) });
+      return data.issues.nodes.map((i) => ({ identifier: i.identifier, title: i.title, priority: i.priority, state: i.state, completedAt: i.completedAt, canceledAt: i.canceledAt, attachments: i.attachments.nodes }));
     },
     /** Opens a closed issue again: the team's first not-started state (Todo). */
     async reopen(issueId) {
@@ -933,9 +971,12 @@ async function fetchWatch(dir) {
   // Issues closed in Linear are closed for the watch before anything is looked at, so a fixed
   // problem is neither commented on as grown nor handed to Claude.
   if (watch.issues?.length) {
-    const states = statesToSend(watch.issues, await linearClient(linearKey()).states(watch.issues.map((i) => i.issue)), gitMerges());
-    if (states.length) {
-      const done = await call('POST', { sha: headSha(), runUrl: runUrl(process.env), looked: [], grew: [], states });
+    const read = await linearClient(linearKey()).states(watch.issues.map((i) => i.issue));
+    const states = statesToSend(watch.issues, read, gitMerges());
+    // Each open issue's priority, for the order the fix team takes them (docs/agent-team.md "Which issue Claude takes first").
+    const priorities = prioritiesToSend(watch.issues, read);
+    if (states.length || priorities.length) {
+      const done = await call('POST', { sha: headSha(), runUrl: runUrl(process.env), looked: [], grew: [], states, priorities });
       for (const s of states) console.log(`${s.issue} is ${s.state} in Linear: ${s.closed ? `closed for the watch${s.fixedBy ? `, fixed by PR ${s.fixedBy}` : ''}` : 'open'}`);
       console.log(`told the Worker: ${done.closed} closed, ${done.reopened} open again`);
       watch = await call('GET');
@@ -975,7 +1016,9 @@ async function file(dir) {
   const assigneeId = process.env.USER_ISSUES_ASSIGNEE || undefined;
   const team = plan.file.length ? await api.team() : null;
   const merges = plan.fixed.length ? gitMerges() : null;
+  // Every issue this run filed; they wait in the order with the others (orderToTake).
   const fixes = [];
+  const priorities = [];
   const plans = {};
   const diagrams = [];
 
@@ -993,7 +1036,8 @@ async function file(dir) {
         issue = await api.create(input);
       }
       for (const k of kinds) looked.push(lookedOf(k, 'filed', issue, null, { title: f.title, context: f.context, problem: f.problem, known: f.known, solution: f.solution }));
-      if (fixes.length < FIX_MAX) fixes.push(issue.identifier);
+      fixes.push(issue.identifier);
+      priorities.push({ issue: issue.identifier, priority: f.priority });
       plans[issue.identifier] = f.manager;
       if (f.steps) diagrams.push({ issue: issue.identifier, steps: f.steps });
       console.log(`filed ${issue.identifier}, priority ${f.priority}: ${f.keys.join(', ')}`);
@@ -1059,25 +1103,49 @@ async function file(dir) {
     }
   }
 
-  // The issues an admin left an instruction on go to the fix jobs too, after the new issues.
+  // Which issues the fix jobs get: the instructions, then the order (docs/agent-team.md "Which issue Claude takes first").
   // In mode off the team writes no fix and reads no instruction (scripts/agent-team.mjs MODES).
   // Without its own Claude token (AGENT_TEAM_CLAUDE_TOKEN, docs/agent-team.md) the team does nothing, as when off.
   const noToken = process.env.HAS_TEAM_TOKEN !== 'true';
   const off = modeHere() === 'off' || noToken;
   if (off) console.log(noToken ? 'the agent team has no AGENT_TEAM_CLAUDE_TOKEN: no fix is written, and instructions wait' : 'the agent team is off: no fix is written');
-  const noted = off ? { fixes: [], taken: [] } : notesToTake(watch.notes, fixes);
-  // Then the issues whose cause is not proven yet and whose plan's time has come: Claude goes on with its plan.
-  const due = off ? [] : dueToTake(watch.due, noted.fixes);
-  noted.fixes.push(...due);
-  if (due.length) console.log(`${due.join(', ')}: the plan's time came, back to the fix team to prove the cause`);
-  // What was done goes back even when some of it failed, so it is not done twice.
-  // Last, the issues the research recommends a fix for (docs/agent-team.md "The research team").
-  const handed = off ? [] : researchToTake(watch.research, noted.fixes);
-  noted.fixes.push(...handed);
-  // Then the open issues Claude never tried, the oldest first, while there is room (docs/agent-team.md).
-  const old = off ? [] : untriedToTake(watch.untried, noted.fixes);
-  noted.fixes.push(...old);
-  if (old.length) console.log(`${old.join(', ')}: never tried, handed to the fix team`);
+  // An admin's instruction goes first (docs/agent-team.md "Which issue Claude takes first").
+  const noted = off ? { fixes: [], taken: [] } : notesToTake(watch.notes, []);
+  // What was done goes back first, also when some of it failed, so it is not done twice: then the new issues are in the order.
+  if (looked.length || grew.length || noted.taken.length || diagrams.length || priorities.length) {
+    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })), diagrams, priorities });
+    console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown${noted.taken.length ? `, ${done.taken ?? 0} instructions taken` : ''}`);
+  }
+  // Then every issue that waits for the fix team, the most important first: the new ones, the plans whose
+  // time came, the research's and the ones Claude never tried (ops_user_issue_order).
+  let order = off ? null : Array.isArray(watch.order) ? watch.order : null;
+  if (order && fixes.length) {
+    order = await call('GET').then((w) => (Array.isArray(w.order) ? w.order : null)).catch((e) => {
+      console.log(`::warning::could not read the order again (${e instanceof Error ? e.message : e}); the new issues go first`);
+      return null;
+    });
+  }
+  let handed = [];
+  if (order) {
+    const got = orderToTake(order, noted.fixes);
+    noted.fixes.push(...got.take);
+    handed = got.handed;
+    for (const id of got.take) {
+      const o = order.find((x) => x.issue === id);
+      console.log(`${id}: number ${order.indexOf(o) + 1} of ${order.length} in the order (${o.from}): ${whyInOrder(o)}`);
+    }
+  } else if (!off) {
+    // Before the order's migration is there, or when it could not be read: as before, the new issues first,
+    // then the instructions, the plans whose time came, the research's and the issues never tried, each the oldest first.
+    const start = fixes.slice(0, FIX_MAX);
+    const before = notesToTake(watch.notes, start);
+    noted.fixes.splice(0, noted.fixes.length, ...before.fixes);
+    const due = dueToTake(watch.due, noted.fixes);
+    noted.fixes.push(...due);
+    handed = researchToTake(watch.research, noted.fixes);
+    noted.fixes.push(...handed);
+    noted.fixes.push(...untriedToTake(watch.untried, noted.fixes));
+  }
   // First, the team's pull requests that did not get into main and that the job `follow` hands back
   // for a change (docs/agent-team.md "When a fix does not get into main"). They have room of their own.
   const repairs = off ? [] : repairsOf(process.env.REPAIRS).filter((id) => !noted.fixes.includes(id));
@@ -1085,9 +1153,9 @@ async function file(dir) {
   if (repairs.length) console.log(`${repairs.join(', ')}: back to the fix team, since the pull request did not get into main`);
   // Every issue the fix jobs get this run, so the dashboard knows when Claude started on it.
   const tried = noted.fixes.slice(0, 10);
-  if (looked.length || grew.length || noted.taken.length || handed.length || tried.length) {
-    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })), handed, tried, diagrams });
-    console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown${noted.taken.length ? `, ${done.taken ?? 0} instructions taken` : ''}${handed.length ? `, ${handed.join(', ')} from the research handed to the fix team` : ''}`);
+  if (handed.length || tried.length) {
+    await call('POST', { sha: headSha(), runUrl: run, looked: [], grew: [], states: [], notes: [], handed, tried });
+    console.log(`told the Worker: ${tried.join(', ')} handed to the fix team${handed.length ? `, ${handed.join(', ')} from the research` : ''}`);
   }
   // The new issues Claude writes a draft fix for, and the issues with an instruction, in the jobs after this one.
   output({ fixes: JSON.stringify(noted.fixes), plans: JSON.stringify(Object.fromEntries(noted.fixes.map((id) => [id, planOf(plans[id])]))) });

@@ -572,6 +572,9 @@ export interface UserIssueNote {
  * watch hands it back (docs/agent-team.md "When the cause is not proven yet"). Absent before migration
  * 20261121235200_user_issue_plans.sql.
  */
+/** One issue in the order the fix team takes them (server/userIssues.ts OrderedIssue). */
+export interface UserIssueOrdered { issue: string; from: 'plan' | 'research' | 'untried'; priority: number; people: number; kinds: number; places: number; times: number; firstAt: string | null }
+
 export interface UserIssuePlan { next: string; steps: string | null; nextAt: string; tries: number; at: string }
 
 /** Each fix record with its issue's plan, when the record waits because the cause is not proven yet, or for the plan's timing. */
@@ -676,6 +679,11 @@ export interface UserIssues {
   lines?: UserIssueLine[];
   /** diag.ops_user_issue_tries(): when a run last handed each issue to the fix jobs. Absent before migration 20261121221500_user_issue_tries.sql. */
   tries?: Record<string, string>;
+  /**
+   * diag.ops_user_issue_order(): every issue that waits for the fix team, the most important first, with the facts
+   * the order used (docs/agent-team.md "Which issue Claude takes first"). Absent before migration 20261122044500_user_issue_order.sql.
+   */
+  order?: UserIssueOrdered[];
   /** diag.ops_card_record('issue'): who did what on each issue's card, and Claude's answers; newest first. Absent before migration 20261121213000_ops_card_record.sql. */
   records?: CardRecord[];
   open: number; closed: number; fixed: number; noiseWeek: number;
@@ -710,7 +718,7 @@ export interface OpsSections {
 /** Every section above in one answer (db.ts withDiag); each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries, plans] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries, plans, order] = await Promise.all([
     part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -743,7 +751,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Record<string, DiagramStep[]>>(query, `select diag.ops_user_issue_diagrams() as v`),
     part<CardRecord[]>(query, `select diag.ops_card_record('issue') as v`),
     part<Record<string, string>>(query, `select diag.ops_user_issue_tries() as v`),
-    part<Record<string, UserIssuePlan>>(query, `select diag.ops_user_issue_plans() as v`)
+    part<Record<string, UserIssuePlan>>(query, `select diag.ops_user_issue_plans() as v`),
+    part<UserIssueOrdered[]>(query, `select diag.ops_user_issue_order() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -811,7 +820,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     }),
     userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
       // Before its migration the cards show without the box, and without the agent team's record.
-      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: withPlans(userfixes.value, plans.ok ? plans.value : {}) } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}), ...(tries.ok ? { tries: tries.value } : {}) };
+      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: withPlans(userfixes.value, plans.ok ? plans.value : {}) } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}), ...(tries.ok ? { tries: tries.value } : {}), ...(order.ok && Array.isArray(order.value) ? { order: order.value } : {}) };
       return ok(u, userIssueAlerts(u));
     }),
     research: build([research], RESEARCH_MIGRATION, () => {
