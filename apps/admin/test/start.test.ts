@@ -8,7 +8,7 @@ import { START_LOGIC } from '../src/pageStart';
 import { detailAsk, GLANCE, METRICS, PART_IDS } from '../src/sources/history';
 
 /** The start page's pure helpers, as the page runs them (pageStart.ts START_LOGIC). */
-const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, claudeQueue, nextRunAt, CLAUDE_GROUP, rangeTotal, bucketEnd, runSquares, chartSeries, totalOf, longTime };`)() as {
+const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, storeWaits, claudeWork, claudeQueue, claudeLine, whyInOrder, nextRunAt, CLAUDE_GROUP, rangeTotal, bucketEnd, runSquares, chartSeries, totalOf, longTime };`)() as {
   totalOf: (agg: string, range: string, step: string, at: number, n: number) => string;
   longTime: (ms: number) => string;
   chartSeries: (all: Hst['series'], wanted?: string) => { total: Hst['series'][number] | null; keys: Hst['series']; shown: Hst['series'][number] | null };
@@ -19,6 +19,8 @@ const logic = new Function(`${START_LOGIC}; return { splitAlert, startPlan, stor
   storeWaits: (p: unknown) => { lane: string; title: string }[];
   claudeWork: (u: unknown, now?: number) => { issue: string; state: string; pr: number | null; why: string | null; linear: string | null; startedAt: string | null; firstAt?: string }[];
   claudeQueue: (w: { issue: string; state: string; firstAt?: string }[]) => { issue: string }[];
+  claudeLine: (u: unknown, w: { issue: string; state: string; firstAt?: string }[]) => { issue: string; place: number; of: number; whyFirst: string | null }[];
+  whyInOrder: (o: unknown) => string;
   nextRunAt: (now: number) => number;
   CLAUDE_GROUP: Record<string, string>;
   rangeTotal: (agg: string, values: (number | null)[]) => number | null;
@@ -134,6 +136,24 @@ describe('the Overview, what needs you first', () => {
     expect(logic.claudeQueue(w).map((i) => i.issue)).toEqual(['LAN-2', 'LAN-3', 'LAN-9']);
     expect(new Date(logic.nextRunAt(Date.parse('2026-11-21T22:07:30Z'))).toISOString()).toBe('2026-11-21T22:15:00.000Z');
     expect(new Date(logic.nextRunAt(Date.parse('2026-11-21T22:15:00Z'))).toISOString()).toBe('2026-11-21T22:30:00.000Z');
+  });
+
+  it('lists the issues in the order the runs take them, the most important first, and says why', () => {
+    const w = [{ issue: 'LAN-9', state: 'queued', firstAt: '2026-11-20T00:00:00Z' }, { issue: 'LAN-3', state: 'queued', firstAt: '2026-11-18T00:00:00Z' },
+      { issue: 'LAN-4', state: 'working', firstAt: '2026-11-01T00:00:00Z' }, { issue: 'LAN-5', state: 'proving', firstAt: '2026-11-01T00:00:00Z' }];
+    const order = [
+      { issue: 'LAN-9', from: 'untried', priority: 2, people: 12, kinds: 3, places: 0, times: 40 },
+      { issue: 'LAN-4', from: 'untried', priority: 1, people: 1, kinds: 1, places: 0, times: 1 },
+      { issue: 'LAN-5', from: 'plan', priority: 0, people: 5, kinds: 1, places: 0, times: 9 },
+      { issue: 'LAN-7', from: 'research', priority: 3, people: 0, kinds: 0, places: 2, times: 0 },
+      { issue: 'LAN-3', from: 'untried', priority: 4, people: 1, kinds: 1, places: 0, times: 1 }
+    ];
+    // An issue Claude works on now is not in line; one from the research that the dashboard does not list still is.
+    expect(logic.claudeLine({ order }, w).map((i) => [i.issue, i.place, i.of])).toEqual([['LAN-9', 1, 4], ['LAN-5', 2, 4], ['LAN-7', 3, 4], ['LAN-3', 4, 4]]);
+    expect(logic.claudeLine({ order }, w)[0].whyFirst).toBe('High · 12 people · 3 kinds · 40 times');
+    expect(logic.whyInOrder(order[3])).toBe('Medium · 2 places with the same mistake');
+    // Before the order's migration: the issues never tried, the oldest first, with no why.
+    expect(logic.claudeLine({}, w).map((i) => [i.issue, i.whyFirst])).toEqual([['LAN-3', null], ['LAN-9', null]]);
   });
 
   it('adds a count up over a range and shows a level at its latest, and knows where the last bucket ends', () => {

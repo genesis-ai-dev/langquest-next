@@ -188,6 +188,27 @@ const CLAUDE_WORK = {
 function claudeQueue(work) {
   return work.filter((i) => i.state === 'queued').sort((a, b) => String(a.firstAt || '').localeCompare(String(b.firstAt || '')) || String(a.issue).localeCompare(String(b.issue)));
 }
+/** Linear's priority numbers as Linear names them (scripts/user-issues.mjs PRIORITY_NAMES). 0 is none, which the order counts as Medium. */
+const PRIORITY_NAMES = ['No priority', 'Urgent', 'High', 'Medium', 'Low'];
+/** Why an issue has its place in the order, in a few words (scripts/user-issues.mjs whyInOrder). */
+function whyInOrder(o) {
+  const n = (v, one, many) => Number(v) > 0 ? Number(v) + ' ' + (Number(v) === 1 ? one : many) : '';
+  return [PRIORITY_NAMES[Number(o && o.priority)] || PRIORITY_NAMES[0], n(o && o.people, 'person', 'people'), n(o && o.kinds, 'kind', 'kinds'),
+    n(o && o.places, 'place with the same mistake', 'places with the same mistake'), n(o && o.times, 'time', 'times')].filter(Boolean).join(' · ');
+}
+/**
+ * The issues that wait for Claude, in the order the runs take them (docs/agent-team.md "Which issue Claude
+ * takes first", ops_user_issue_order): Linear's priority, then people, kinds, places, times and the oldest.
+ * Each has its place, how many wait, and why (whyFirst). Before the order's migration is there, the issues
+ * never tried, the oldest first, with no why.
+ */
+function claudeLine(userissues, work) {
+  const order = userissues && Array.isArray(userissues.order) ? userissues.order : null;
+  if (!order) return claudeQueue(work).map((i, n, all) => ({ ...i, place: n + 1, of: all.length, whyFirst: null }));
+  const byIssue = new Map(work.map((w) => [w.issue, w]));
+  return order.filter((o) => o && o.issue && (!byIssue.has(o.issue) || ['queued', 'proving'].includes(byIssue.get(o.issue).state)))
+    .map((o, n, all) => ({ ...(byIssue.get(o.issue) || { issue: o.issue }), from: o.from, place: n + 1, of: all.length, whyFirst: whyInOrder(o) }));
+}
 /** At most this many issues get a fix in one run (scripts/user-issues.mjs FIX_MAX). */
 const FIX_ROOM = 3;
 /** When the watch's schedule next starts it: every 15 minutes (.github/workflows/user-issues.yml). GitHub often starts it some minutes late. */

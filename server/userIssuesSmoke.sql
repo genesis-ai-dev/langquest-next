@@ -774,4 +774,54 @@ end $$;
 reset role;
 rollback to savepoint plans;
 
+-- The order the fix team takes the issues that wait (migration 20261122044500_user_issue_order.sql):
+-- Linear's priority, then people, kinds, places, times, and the oldest; an instruction is not in it.
+savepoint ordered;
+delete from ops.user_issues;
+delete from ops.user_issue_tries;
+delete from ops.user_issue_plans;
+delete from ops.research_items;
+insert into ops.user_issues (key, verdict, issue, issue_url, people, n, first_looked_at) values
+  ('error:Few@x:-', 'filed', 'LAN-951', 'https://linear.app/x/issue/LAN-951', 1, 2, now() - interval '3 days'),
+  ('error:Many@x:-', 'filed', 'LAN-952', 'https://linear.app/x/issue/LAN-952', 40, 90, now() - interval '1 day'),
+  ('error:Urgent@x:-', 'filed', 'LAN-953', 'https://linear.app/x/issue/LAN-953', 1, 1, now()),
+  ('error:Wide1@x:-', 'filed', 'LAN-954', 'https://linear.app/x/issue/LAN-954', 1, 1, now() - interval '2 days'),
+  ('error:Wide2@x:-', 'known', 'LAN-954', 'https://linear.app/x/issue/LAN-954', 1, 1, now() - interval '2 days'),
+  ('error:Low@x:-', 'filed', 'LAN-955', 'https://linear.app/x/issue/LAN-955', 99, 99, now()),
+  ('error:Tried@x:-', 'filed', 'LAN-956', 'https://linear.app/x/issue/LAN-956', 500, 500, now()),
+  ('error:Dev@x:-', 'filed', 'LAN-957', 'https://linear.app/x/issue/LAN-957', 500, 500, now());
+update ops.user_issues set issue_state = 'In Progress' where issue = 'LAN-957';
+insert into ops.user_issue_tries (issue) values ('LAN-956');
+set local role service_role;
+do $$
+declare
+  v jsonb;
+begin
+  assert public.ops_user_issue_priorities_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/880', 'priorities', jsonb_build_array(
+    jsonb_build_object('issue', 'LAN-953', 'priority', 1), jsonb_build_object('issue', 'LAN-955', 'priority', 4), jsonb_build_object('issue', 'LAN-951', 'priority', 0),
+    jsonb_build_object('issue', 'LAN-952', 'priority', 9)))) = 3, 'three kept, a wrong number left out';
+  assert public.ops_user_issue_priorities_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/881', 'priorities', jsonb_build_array(
+    jsonb_build_object('issue', 'LAN-953', 'priority', 1)))) = 0, 'the same priority changes nothing';
+  begin
+    perform public.ops_user_issue_priorities_done(jsonb_build_object('runUrl', 'https://github.com/someone/else/actions/runs/1'));
+    assert false, 'another repository''s run';
+  exception when sqlstate '22023' then null;
+  end;
+  v := public.ops_user_issue_order();
+  -- Urgent first; then 40 people; then two kinds over one; then the oldest; Low last. Tried and a developer's are not in it.
+  assert (select jsonb_agg(x->>'issue') from jsonb_array_elements(v) x) = '["LAN-953", "LAN-952", "LAN-954", "LAN-951", "LAN-955"]'::jsonb, 'the order: %', v;
+  assert v->0->>'from' = 'untried' and (v->0->>'priority')::int = 1 and (v->1->>'people')::int = 40 and (v->2->>'kinds')::int = 2, 'the facts: %', v;
+end $$;
+reset role;
+do $$ begin
+  assert not has_function_privilege('authenticated', 'public.ops_user_issue_order(int)', 'execute')
+    and not has_function_privilege('anon', 'public.ops_user_issue_priorities_done(jsonb)', 'execute'), 'only the Worker';
+end $$;
+set local role diag_reader;
+do $$ begin
+  assert jsonb_array_length(diag.ops_user_issue_order()) = 5, 'the dashboard reads the same order';
+end $$;
+reset role;
+rollback to savepoint ordered;
+
 rollback;

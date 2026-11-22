@@ -128,6 +128,32 @@ export interface Watch {
    * migration 20261121235200_user_issue_plans.sql.
    */
   due?: string[];
+  /**
+   * Every issue that waits for the fix team (due, research, untried), the most important first
+   * (docs/agent-team.md "Which issue Claude takes first", `ops_user_issue_order`). Absent before
+   * migration 20261122044500_user_issue_order.sql.
+   */
+  order?: OrderedIssue[];
+}
+
+/** Where an issue that waits for the fix team comes from: a plan whose time came, the research, or never tried. */
+export const ORDER_FROM = ['plan', 'research', 'untried'] as const;
+
+/** One issue in the order the fix team takes them, with the facts the order used. */
+export interface OrderedIssue {
+  issue: string;
+  from: (typeof ORDER_FROM)[number];
+  /** Linear's number: 0 none, 1 Urgent, 2 High, 3 Medium, 4 Low. */
+  priority: number;
+  /** The most people of one of its kinds, in 7 days. */
+  people: number;
+  /** How many kinds of failure point to it. */
+  kinds: number;
+  /** How many places the research found with the same mistake. */
+  places: number;
+  /** How many times its kinds happened. */
+  times: number;
+  firstAt: string | null;
 }
 
 /** One issue's instructions for the run that writes its fix (`GET /api/user-issues?notes=LAN-12`). */
@@ -164,7 +190,7 @@ const ISSUE_URL = /^https:\/\/linear\.app\/[A-Za-z0-9/_.-]{1,300}$/;
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /** No address may ride along in a note: the database keeps none (docs/diagnostics.md). */
 export const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 70, handed: 10, tried: 10, diagrams: 20, plans: 20 } as const;
+export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 70, handed: 10, tried: 10, diagrams: 20, plans: 20, priorities: 100 } as const;
 
 // ---- what the agent team did with an issue (docs/agent-team.md, scripts/agent-team.mjs) -----------
 
@@ -339,6 +365,8 @@ export interface Looked {
   diagrams: { issue: string; steps: DiagramStep[] }[];
   /** What the manager does next on each issue whose cause it did not prove yet, or `next: null` to remove the plan. */
   plans: PlanRecord[];
+  /** Each open issue's priority in Linear (0 none, 1 Urgent, 2 High, 3 Medium, 4 Low), for the order the fix team takes them. */
+  priorities: { issue: string; priority: number }[];
 }
 
 export class LookedError extends Error {
@@ -730,5 +758,16 @@ export function parseLooked(input: unknown): Looked {
     if (typeof hours !== 'number' || !Number.isFinite(hours) || hours < PLAN_HOURS.min || hours > PLAN_HOURS.max) throw new LookedError(`${where}.inHours: ${PLAN_HOURS.min} to ${PLAN_HOURS.max}`);
     return { issue, next, steps: said('steps'), inHours: hours, probe: said('probe') };
   });
-  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, report, handed, tried, diagrams, plans };
+  const ranked = new Set<string>();
+  const priorities = list(input, 'priorities', LOOKED_MAX.priorities).map((x, n) => {
+    const where = `priorities[${n}]`;
+    if (!isObj(x)) throw new LookedError(`${where}: an object`);
+    const issue = x['issue'];
+    if (typeof issue !== 'string' || !ISSUE.test(issue) || ranked.has(issue)) throw new LookedError(`${where}.issue: a Linear issue (LAN-12), once`);
+    ranked.add(issue);
+    const priority = x['priority'];
+    if (!Number.isInteger(priority) || (priority as number) < 0 || (priority as number) > 4) throw new LookedError(`${where}.priority: 0 to 4, as Linear numbers it`);
+    return { issue, priority: priority as number };
+  });
+  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, report, handed, tried, diagrams, plans, priorities };
 }

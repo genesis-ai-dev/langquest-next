@@ -55,13 +55,16 @@ describe('what the workflow sends back', () => {
     const lines = { context: 'A person saves a recording.', problem: 'The recording is gone.', known: 'The phone saw the save start.', solution: '' };
     expect(parseLooked(looked({ looked: [{ ...looked().looked[0], ...lines }] as Looked['looked'] })).looked[0]).toMatchObject({ ...lines, solution: null });
     expect(l.grew).toEqual([{ key: 'transfer:down:source:failOther', people: 6, count: 40 }]);
-    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [], research: [], handed: [], tried: [], diagrams: [], plans: [], report: null });
+    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [], research: [], handed: [], tried: [], diagrams: [], plans: [], priorities: [], report: null });
   });
 
   it('takes what the manager does next on an issue whose cause it did not prove yet, and refuses odd hours or an address', () => {
     const plans = [{ issue: 'LAN-9', next: 'Run a probe of the sync.', steps: '1. Probe.', inHours: 0.25, probe: 'took 4100 ms' }, { issue: 'LAN-8', next: null }];
     expect(parseLooked({ sha: SHA, runUrl: RUN, plans }).plans).toEqual([plans[0], { issue: 'LAN-8', next: null, steps: null, inHours: null, probe: null }]);
     expect(() => parseLooked({ sha: SHA, runUrl: RUN, plans: [{ ...plans[0], inHours: 500 }] })).toThrow(LookedError);
+    expect(parseLooked({ sha: SHA, runUrl: RUN, priorities: [{ issue: 'LAN-9', priority: 1 }, { issue: 'LAN-8', priority: 0 }] }).priorities).toEqual([{ issue: 'LAN-9', priority: 1 }, { issue: 'LAN-8', priority: 0 }]);
+    expect(() => parseLooked({ sha: SHA, runUrl: RUN, priorities: [{ issue: 'LAN-9', priority: 5 }] })).toThrow(LookedError);
+    expect(() => parseLooked({ sha: SHA, runUrl: RUN, priorities: [{ issue: 'LAN-9', priority: 1 }, { issue: 'LAN-9', priority: 2 }] })).toThrow(LookedError);
     expect(() => parseLooked({ sha: SHA, runUrl: RUN, plans: [{ ...plans[0], next: 'Ask a@b.org' }] })).toThrow(LookedError);
     expect(() => parseLooked({ sha: SHA, runUrl: RUN, plans: [plans[0], plans[0]] })).toThrow(LookedError);
   });

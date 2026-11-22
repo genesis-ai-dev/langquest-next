@@ -242,9 +242,8 @@ flowchart LR
    developer (`review`). The card says so, and what Claude does after the
    merge.
 5. The watch reads `ops_user_issue_plans_due()` each run and hands each
-   issue whose time came back to the fix jobs, after the new issues and the
-   instructions, before the research and the issues never tried, while
-   `FIX_MAX` has room. `issue.json` then holds `plan`: the last plan, its
+   issue whose time came back to the fix jobs, in the order of "Which issue
+   Claude takes first", while `FIX_MAX` has room. `issue.json` then holds `plan`: the last plan, its
    tries and what the probe printed.
 6. The issue's card says what Claude does next and when, never only "not
    proven". A Linear comment says the same.
@@ -259,13 +258,32 @@ flowchart LR
    says how it ended, its turns and the tools it was refused, and nothing
    that Claude or people wrote.
 
+## Which issue Claude takes first
+
+Each run hands at most `FIX_MAX` (3) issues to the fix jobs. First go the
+team's pull requests that did not get into main (room of their own), then
+the issues with an admin's instruction. Then one order holds every other
+issue that waits for the fix team: the new issues, the plans whose time
+came, the research's and the issues Claude never tried
+(`ops_user_issue_order()`, `orderToTake()` in `scripts/user-issues.mjs`).
+The order is Linear's priority (Urgent, High, Medium or none, Low), then
+the most people of one of its kinds in 7 days, then how many kinds point to
+it, then how many places the research found with the same mistake, then
+times, then the oldest. Each run reads each open issue's priority with its
+state (`ops.user_issue_priorities`), so a developer who changes a priority
+in Linear changes the order at the next run. The run that files new issues
+reads the order again after it files them, so a new urgent issue goes
+first at once. The job log says each issue's place and why. The Overview's
+"On its way" shows the next run's issues in this order with the same why
+(`diag.ops_user_issue_order()`).
+(`docs/decisions/2026-11-22-the-fix-team-takes-the-most-important-issue-first.md`)
+
 ## Issues Claude never tried
 
 Each run hands at most `FIX_MAX` (3) issues to the fix jobs, one after the
-other. New issues go first, then issues with an admin's instruction, then
-the research's, and last the open issues Claude never tried: no fix record,
-and no run handed them over (`ops_user_issue_untried()`, `untriedToTake()`
-in `scripts/user-issues.mjs`), the oldest first. Each run tells the Worker
+other, in the order above. The open issues Claude never tried are in it:
+no fix record, and no run handed them over (`ops_user_issue_untried()` has
+the same rule). Each run tells the Worker
 every issue it handed over (`tried`, kept in `ops.user_issue_tries`), so an
 issue is not tried twice this way, and the ops dashboard knows when Claude
 started on it. An issue a developer has In Progress or In Review in Linear

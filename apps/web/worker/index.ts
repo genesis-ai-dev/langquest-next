@@ -518,7 +518,10 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         // The issues whose plan's time has come (docs/agent-team.md "When the cause is not proven yet"). Before its migration is there, none.
         const due = await serviceClient(env).rpc('ops_user_issue_plans_due', { p_tries: PLAN_TRIES });
         if (due.error) console.error(`ops_user_issue_plans_due: ${due.error.code ?? 'unknown'}`);
-        return { ...data, notes: notes.error ? [] : notes.data, research: research.error ? [] : research.data, untried: untried.error ? [] : untried.data, due: due.error ? [] : due.data };
+        // Every issue that waits for the fix team, the most important first (docs/agent-team.md "Which issue Claude takes first"). Before its migration is there, none: the watch uses the lists above.
+        const order = await serviceClient(env).rpc('ops_user_issue_order', { p_tries: PLAN_TRIES });
+        if (order.error) console.error(`ops_user_issue_order: ${order.error.code ?? 'unknown'}`);
+        return { ...data, notes: notes.error ? [] : notes.data, research: research.error ? [] : research.data, untried: untried.error ? [] : untried.data, due: due.error ? [] : due.data, ...(order.error ? {} : { order: order.data }) };
       },
       research: async () => {
         const { data, error } = await serviceClient(env).rpc('ops_research_context');
@@ -544,7 +547,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return data;
       },
       looked: async (looked) => {
-        const { notes, fixes, research, report, handed, tried, diagrams, plans, ...rest } = looked;
+        const { notes, fixes, research, report, handed, tried, diagrams, plans, priorities, ...rest } = looked;
         const { data, error } = await serviceClient(env).rpc('ops_user_issues_looked', { p: rest });
         if (error) throw new Error(`ops_user_issues_looked: ${error.message}`);
         // The agent team's record of each fix (docs/agent-team.md). Before its migration is there, the run goes on without it.
@@ -562,6 +565,9 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         // When Claude started on each issue, for the dashboard. Before its migration is there, the run goes on without it.
         const started = tried.length ? await serviceClient(env).rpc('ops_user_issue_tried', { p: { runUrl: looked.runUrl, tried } }) : null;
         if (started?.error) console.error(`ops_user_issue_tried: ${started.error.code ?? 'unknown'}`);
+        // Each open issue's priority in Linear, for the order the fix team takes them. Before its migration is there, the run goes on without it.
+        const ranked = priorities.length ? await serviceClient(env).rpc('ops_user_issue_priorities_done', { p: { runUrl: looked.runUrl, priorities } }) : null;
+        if (ranked?.error) console.error(`ops_user_issue_priorities_done: ${ranked.error.code ?? 'unknown'}`);
         const recorded = { tried: started && !started.error ? Number(started.data) || 0 : 0, fixes: kept && !kept.error ? Number(kept.data) || 0 : 0, ...(found?.data ?? {}) };
         if (!notes.length) return { ...data, ...recorded };
         const done = await serviceClient(env).rpc('ops_user_issue_notes_done', { p: { runUrl: looked.runUrl, notes } });
