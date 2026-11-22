@@ -52,6 +52,42 @@ export interface ReconcileReport {
   unreadable: string[];
   /** Files copied to the name the log gives them, from one under another format. */
   repaired?: number;
+  /** The same copies by the type they were copied to, and by what in the log names the file (`repairNamer`), to tell which writer saves files under another type. */
+  repairs?: Partial<Record<RepairCount, number>>;
+}
+
+/**
+ * What a copy is counted under: the type it was copied to, and what names the file. `byImport` and
+ * `byApp` are a recording's part, as the v2 import or a phone or browser said it; `byOther` is any
+ * other audio (a voice note, a cleaned part, a kind's artifact).
+ */
+export type RepairCount = 'toWav' | 'toM4a' | 'byImport' | 'byApp' | 'byOther';
+
+/** A night's copies as a job run's numbers (`repairedToWav`, `repairedByImport`, ...), each 0 when none: a 0 says the writer saved nothing wrong. */
+export function repairCounts(report: Pick<ReconcileReport, 'repairs'>): Record<`repaired${Capitalize<RepairCount>}`, number> {
+  const r = report.repairs ?? {};
+  return {
+    repairedToWav: r.toWav ?? 0, repairedToM4a: r.toM4a ?? 0,
+    repairedByImport: r.byImport ?? 0, repairedByApp: r.byApp ?? 0, repairedByOther: r.byOther ?? 0
+  };
+}
+
+/** The device the v2 import signs its events with (packages/v2-import `DEVICE`). */
+const V2_IMPORT_DEVICE = 'v2import';
+
+/** For each hash asked about, what in the log names it, as `referencedBlobs` reads it: the first recording that holds it, or something else. */
+export function repairNamer(state: LanguageState, hashes: ReadonlySet<string>): Map<string, 'byImport' | 'byApp' | 'byOther'> {
+  const out = new Map<string, 'byImport' | 'byApp' | 'byOther'>();
+  if (hashes.size === 0) return out;
+  for (const r of Object.values(state.recordings)) {
+    for (const c of r.cards) {
+      if (!hashes.has(c.hash) || out.has(c.hash)) continue;
+      // A clock ends in the device that signed it (`encodeHlc`); read without throwing, so a count never stops the night's run.
+      out.set(c.hash, r.hlc.endsWith(`:${V2_IMPORT_DEVICE}`) ? 'byImport' : 'byApp');
+    }
+  }
+  for (const hash of hashes) if (!out.has(hash)) out.set(hash, 'byOther');
+  return out;
 }
 
 /**
@@ -158,6 +194,11 @@ async function repairFormats(copy: NonNullable<ReconcilerDeps['copy']>, state: L
     if (!names.has(name) && !wanted.has(name)) wanted.set(name, { from: o, to: { ...o, format: ref.format } });
   }
   const made: BlobObject[] = [];
+  const namer = repairNamer(state, new Set([...wanted.values()].map(({ to }) => to.hash)));
+  const count = (key: RepairCount) => {
+    const repairs = (report.repairs ??= {});
+    repairs[key] = (repairs[key] ?? 0) + 1;
+  };
   await inParallel([...wanted.values()], COPY_AT_ONCE, async ({ from, to }) => {
     for (let tries = 0; ; tries += 1) {
       try {
@@ -173,6 +214,9 @@ async function repairFormats(copy: NonNullable<ReconcilerDeps['copy']>, state: L
     }
     made.push(to);
     report.repaired = (report.repaired ?? 0) + 1;
+    if (to.format === 'wav') count('toWav');
+    else if (to.format === 'm4a') count('toM4a');
+    count(namer.get(to.hash) ?? 'byOther');
   });
   return made;
 }

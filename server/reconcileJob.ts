@@ -6,7 +6,10 @@
  * stored that R2 does not have, after the run's repairs: work that may be
  * lost), `orphaned` (files in R2 the log did not hold as stored; each is
  * confirmed, as the reconciler always does) and `repaired` (files copied to
- * the file type the log names, from one under another type) and
+ * the file type the log names, from one under another type;
+ * `repairedToWav` and `repairedToM4a` by the type copied to, and
+ * `repairedByImport`, `repairedByApp` and `repairedByOther` by what names
+ * the file, `repairCounts`) and
  * `unreadable` (copies that failed after their retries; the next run tries
  * again). The run is `partial` when anything is missing, or when it stopped
  * before the end.
@@ -17,7 +20,7 @@
  * Run by hand it leaves no job run.
  */
 import { createClient } from '@supabase/supabase-js';
-import { reconcileBlobs, reconcilerDeps, workerBlobs, type ReconcileReport } from '@langquest-next/sync/server';
+import { reconcileBlobs, reconcilerDeps, repairCounts, workerBlobs, type ReconcileReport } from '@langquest-next/sync/server';
 import { errorClassOf, jobRunSink, noJobRuns } from './jobRuns';
 
 const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
@@ -51,7 +54,7 @@ const incomplete = stopping || error !== undefined;
 await record({
   job: 'blob_reconcile', startedAt: started, ms: Date.now() - started,
   outcome: error !== undefined && counts.streams <= 1 ? 'error' : incomplete || counts.missing > 0 ? 'partial' : 'ok',
-  n: { streams: counts.streams, objects: counts.objects, missing: counts.missing, orphaned: counts.orphaned, repaired: counts.repaired, unreadable: counts.unreadable },
+  n: { streams: counts.streams, objects: counts.objects, missing: counts.missing, orphaned: counts.orphaned, repaired: counts.repaired, unreadable: counts.unreadable, ...repairCounts(report) },
   ...(error !== undefined ? { errorClass: errorClassOf(error) } : stopping ? { errorClass: 'sigterm' } : {})
 });
 console.log(`reconcile: ${counts.streams} streams, ${counts.objects} objects, ${counts.missing} missing, ${counts.orphaned} orphaned, ${counts.repaired} repaired, ${counts.unreadable} unreadable, ${Math.round((Date.now() - started) / 1000)} s`);

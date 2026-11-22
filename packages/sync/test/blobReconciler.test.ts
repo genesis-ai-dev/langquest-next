@@ -1,5 +1,5 @@
 import { HlcClock, isStored } from '@langquest-next/core';
-import { reconcileBlobs, runBlobReconciler, type BlobObject, type ReconcilerDeps } from '../src/blobReconciler';
+import { reconcileBlobs, repairCounts, runBlobReconciler, type BlobObject, type ReconcilerDeps } from '../src/blobReconciler';
 import type { BlobFiles } from '../src/workerBlobs';
 import { fakeSupabase } from './fakeSupabase';
 import { MemoryStore } from '../src/memoryStore';
@@ -192,6 +192,37 @@ describe('blob reconciler repair (docs/nearby-sync-plan.md section 6)', () => {
     const report = await reconcileBlobs(d, { verify: false, countMissing: true });
     expect(copies).toEqual(['m4a>wav']);
     expect(report).toMatchObject({ missing: 0, repaired: 1 });
+  });
+
+  it('counts each copy by the type it went to and by what names the file: the v2 import, a phone, or other audio', async () => {
+    // Why: Nov 17, 2026 the run copied 215 files after the v2 import was made to name M4A (PR 472),
+    // and the count alone could not say whether the import or a phone still saved files under another type.
+    const server = new FakeServer();
+    const wall = { t: 0 };
+    const said = async (deviceId: string, write: (c: SyncClient) => Promise<unknown>) => {
+      const c = new SyncClient({
+        orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId, store: new MemoryStore(),
+        transport: server.transportFor(), clock: new HlcClock(deviceId, () => (wall.t += 1))
+      });
+      await c.load();
+      await write(c);
+      await c.sync();
+    };
+    await said('v2import', (c) => c.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'u1', kind: 'target', cards: [{ hash: sha('imported'), durationMs: 1 }] }));
+    await said('dA', async (c) => {
+      await c.append('v1.RecordingAdded', { recordingId: 'r2', unitId: 'u1', kind: 'target', cards: [{ hash: sha('phone'), durationMs: 1, format: 'm4a' }] });
+      await c.append('v1.NoteAdded', { noteId: 'n1', unitId: 'u1', anchor: { kind: 'passage' }, blobHash: sha('note') });
+    });
+    for (const text of ['imported', 'phone', 'note']) server.serviceEvent('v1.BlobStored', { hash: sha(text), size: 4 });
+    const at = (text: string, format: string): BlobObject => ({ orgId: 'org1', streamId: 'p1', hash: sha(text), format, size: 4 });
+    const objects = [at('imported', 'm4a'), at('phone', 'wav'), at('note', 'wav')];
+    const d: ReconcilerDeps = { ...deps(server, objects), copy: async (_from, to) => { objects.push(to); } };
+    const report = await reconcileBlobs(d, { verify: false, countMissing: true });
+    expect(report).toMatchObject({ missing: 0, repaired: 3 });
+    expect(repairCounts(report)).toEqual({ repairedToWav: 1, repairedToM4a: 2, repairedByImport: 1, repairedByApp: 1, repairedByOther: 1 });
+    // A night that copies nothing says 0 for each, so a reader can tell "none" from "not counted".
+    const again = await reconcileBlobs(d, { verify: false, countMissing: true });
+    expect(repairCounts(again)).toEqual({ repairedToWav: 0, repairedToM4a: 0, repairedByImport: 0, repairedByApp: 0, repairedByOther: 0 });
   });
 
   it('keeps a few copies in flight at once, so thousands fit in the nightly time limit', async () => {
