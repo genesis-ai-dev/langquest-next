@@ -750,13 +750,24 @@ reset role;
 do $$ begin
   assert (select next_at < now() + interval '61 minutes' from ops.user_issue_plans where issue = 'LAN-901'), 'the manager''s hour';
 end $$;
--- At the limit an issue is not handed back, nor a closed one.
+-- At the limit an issue is still handed back (migration 20261122203000_user_issue_plans_never_stop.sql),
+-- and after the 10th try it waits a day, not 2 hours. A closed one is not handed back.
 update ops.user_issue_plans set next_at = now() - interval '1 minute';
 set local role service_role;
 do $$ begin
-  assert public.ops_user_issue_plans_due(2) = '["LAN-902"]'::jsonb, 'LAN-901 is at the limit: %', public.ops_user_issue_plans_due(2);
+  assert public.ops_user_issue_plans_due(2) = '["LAN-901", "LAN-902"]'::jsonb, 'at the limit, still due';
 end $$;
 reset role;
+update ops.user_issue_plans set tries = 9 where issue = 'LAN-901';
+set local role service_role;
+do $$ begin
+  perform public.ops_user_issue_tried(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/780', 'tried', jsonb_build_array('LAN-901')));
+end $$;
+reset role;
+do $$ begin
+  assert (select tries = 10 and next_at > now() + interval '23 hours' from ops.user_issue_plans where issue = 'LAN-901'), 'the 10th try waits a day';
+end $$;
+update ops.user_issue_plans set next_at = now() - interval '1 minute';
 update ops.user_issues set verdict = 'fixed', fixed_at = now(), closed_at = now() where issue = 'LAN-902';
 set local role service_role;
 do $$ begin
