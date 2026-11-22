@@ -83,3 +83,11 @@ slowed eight times, a part waited about a second and a part in Clean up
   `waitMs` and `maxWaitMs` (docs/diagnostics.md), so the watch for user
   issues (202) shows them under a problem sent from a phone.
 JavaScript only, so it ships in an OTA update.
+
+Amended (2026-11-21, Caleb Koster): the total wait could not say why a web
+play waited 4.2 s for sound (LAN-323): the network, or the app's own work
+holding the page. The `audio` tally now keeps its longest wait in parts
+(`maxWaitLinkMs`, `maxWaitCopyMs`, `maxWaitLoadMs`, `maxWaitBusyMs`,
+`maxWaitStreamed`) and counts streamed plays (`streamWaits`,
+`streamWaitMs`), measured by `apps/mobile/src/audio/playWait.ts`. Numbers
+only, as before.
