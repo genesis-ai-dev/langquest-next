@@ -990,7 +990,11 @@ async function fetchWatch(dir) {
   const notes = Array.isArray(watch.notes) ? watch.notes.length : 0;
   const research = Array.isArray(watch.research) ? watch.research.length : 0;
   const untried = Array.isArray(watch.untried) ? watch.untried.length : 0;
-  output({ look: watch.look.length, grew: watch.grew.length, notes, research, untried });
+  // Every issue that waits for the fix team (ops_user_issue_order), or before its migration the plans whose time came:
+  // the step `file` must run for them too, also when nothing is new (docs/agent-team.md "Which issue Claude takes first").
+  const waiting = Array.isArray(watch.order) ? watch.order.length : Array.isArray(watch.due) ? watch.due.length : 0;
+  output({ look: watch.look.length, grew: watch.grew.length, notes, research, untried, waiting });
+  if (waiting) console.log(`watch: ${waiting} issues wait in the order for the fix team`);
   if (untried) console.log(`watch: ${untried} open issues Claude never tried wait for room in the fix jobs`);
   if (research) console.log(`watch: the research recommends a fix for ${research} issues that the fix team did not get yet`);
   if (notes) console.log(`watch: ${notes} issues have an admin's instruction from the ops dashboard`);
