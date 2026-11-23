@@ -7,8 +7,8 @@
  * its state, its steps as dots, and the talk with Claude with the box to tell
  * Claude what to do. The talk is keyed by the line's Linear issue, so the same
  * talk shows on the line's card and on the issue's card on User issues. Each
- * word and dot comes from what a part answered; a line with no Linear issue
- * says why it has no box. Plain JavaScript inside page.ts's script, after
+ * word and dot comes from what a part answered. A line with no Linear issue
+ * has the box to ask Claude about it instead (pageAsk.ts). Plain JavaScript inside page.ts's script, after
  * pageIssues.ts; everything shown is escaped.
  */
 
@@ -141,7 +141,8 @@ function lineCard(a, group) {
     tags: '<span class="tag ' + level + '">' + esc(LEVEL[level].title) + '</span>' +
       (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? '<span>' + esc(row.state) + ' in Linear</span>' : '') : ''),
     title: t.title, meta: where,
-    talk: issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : '',
+    // A line with one Linear issue: the box to tell Claude what to do with it. Any other line: the box to ask Claude about it (pageAsk.ts).
+    talk: issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : askTalk(lineCardId(a), group, t.title),
     record: issue ? issueRecord(issue, row && row.firstAt ? { at: row.firstAt, who: 'The watch', said: 'found the problem' } : null, way.pill) : '',
     // Short, as a user issue's card (pageIssues.ts shortCard): Wrong, Known and Next, the rest behind Details.
     pill: way.pill,

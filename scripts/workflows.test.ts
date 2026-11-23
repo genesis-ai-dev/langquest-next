@@ -43,7 +43,11 @@ describe('GitHub Actions workflows', () => {
     // and writes nothing but an annotation on its own run: how much of the
     // week the Frontier plan used, for the Overview
     // (docs/decisions/2026-11-21-the-overview-shows-the-frontier-claude-plan.md).
+    // card-questions.yml, every 5 minutes, holds only the agent team's Claude
+    // token, and reads and writes the questions from the ops dashboard's cards
+    // only through the Worker's /api/card-questions, by its OIDC token
+    // (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md).
     const scheduled = workflows.filter((w) => /^\s+schedule:\s*$/m.test(w.text)).map((w) => w.f).sort();
-    expect(scheduled).toEqual(['claude-plan.yml', 'guardrails.yml', 'phone-tests.yml', 'release-branches.yml', 'tutorial-review.yml', 'tutorials.yml', 'user-issues.yml']);
+    expect(scheduled).toEqual(['card-questions.yml', 'claude-plan.yml', 'guardrails.yml', 'phone-tests.yml', 'release-branches.yml', 'tutorial-review.yml', 'tutorials.yml', 'user-issues.yml']);
   });
 });

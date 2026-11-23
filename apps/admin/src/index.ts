@@ -117,6 +117,9 @@ export async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: 
   return { checkedAt: new Date().toISOString(), urgent: count('urgent'), problems: count('problem'), watch: count('watch'), items };
 }
 
+/** Each card's questions to Claude (migration 20261123233000_ops_card_questions.sql); before it, the page shows the boxes with no talk. */
+const QUESTIONS_SQL = 'select diag.ops_card_questions() as v';
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function handle(request: Request, env: Env): Promise<Response> {
@@ -206,6 +209,15 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     }
   }
   if (section === 'me') return json({ profileId: who.profileId });
+  // The questions to Claude from each card, and its answers: one small read, which the page asks for again
+  // each minute while a question waits (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md).
+  if (section === 'questions') {
+    try {
+      return json(await withDiag(diagConnection(env), (query) => query<unknown>(QUESTIONS_SQL)));
+    } catch (e) {
+      return json({ error: errorText(e) }, 502);
+    }
+  }
   // The connection itself failing makes every section of the answer say so.
   if (section === 'diag') return json(await diagAnswer(env));
   if (section === 'ops') return json(await opsAnswer(env));
