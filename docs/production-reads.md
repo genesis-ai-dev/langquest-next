@@ -27,7 +27,7 @@ Migration `20261121194800_claude_readers.sql` makes them;
 | Writes | nothing: no grant to insert, update, delete or truncate anywhere | nothing |
 
 Both: every transaction is read-only unless the session turns that off, each
-statement stops after 15 s, 3 connections at most, and BYPASSRLS, because
+statement stops after 15 s, 5 connections at most (the least Hyperdrive keeps for a config), and BYPASSRLS, because
 row level security is written for app users and these logins are none. A
 table made later is readable by claude_reader; a migration that adds a
 secret column revokes it there, and the smoke test fails on a readable column
@@ -176,7 +176,7 @@ Any one of these stops it:
 
 - A key that leaks lets its holder read what its login reads until it is
   rotated or stopped: for `CLAUDE_READ_TOKEN`, names and what people wrote.
-- A statement can still be heavy for 15 s. Three connections and 60
+- A statement can still be heavy for 15 s. Five connections and 60
   statements a minute bound how much of the database it takes.
 - With a direct connection (not through the gate), a session can turn
   read-only off. It still has no grant to write, but Supabase lets every
