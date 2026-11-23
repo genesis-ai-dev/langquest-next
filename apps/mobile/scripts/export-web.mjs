@@ -259,7 +259,12 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // 143 bytes past it: the header's line, the size on the Download button and what a dimmed one says, and
 // their words in every catalog (four keys, sixteen languages), all in the Map every visit opens on.
 // 881 bytes are left; a first visit has 493.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 167 * 1024;
+// Raised by 1 KB with study files no kept passage needs cleared when the device needs room (Carl,
+// 2026-11-23, LAN-316, docs/decisions/2026-11-23-study-files-are-cleared-when-no-kept-passage-needs-them.md),
+// 310 bytes past it: each language's saved list and the clearing in study/studyFiles.ts, which the Map's
+// download buttons read, so it cannot load later; on the web it does nothing, since a browser keeps no study
+// files. 714 bytes are left; a first visit has 326.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 168 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
