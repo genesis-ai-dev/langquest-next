@@ -1,4 +1,5 @@
 import { afterEach } from 'vitest';
+import { emptyLanguageState, type OrgState, type SourceBookDoc, type SourceDoc } from '@langquest-next/core';
 
 /**
  * Keeping a source's chapter on the phone (src/sources/offline.ts download
@@ -13,7 +14,11 @@ const fake = vi.hoisted(() => {
     /** What a download puts in the staged file, by URL. */
     served: new Map<string, string>(),
     staged: new Map<string, { content: string; deleted: boolean; movedTo?: string }>(),
-    events: [] as string[]
+    events: [] as string[],
+    /** Library documents the server sends, and those this phone holds; `away`: the server cannot be asked. */
+    docs: new Map<string, unknown>(),
+    held: new Map<string, unknown>(),
+    away: false
   };
   return state;
 });
@@ -49,7 +54,13 @@ vi.mock('../src/sync/blobs', () => ({
   BlobStore: { hashOf: async (bytes: Uint8Array) => `h:${new TextDecoder().decode(bytes)}` },
   getBlobStore: async () => null
 }));
-vi.mock('../src/library/docStore', () => ({ loadDocs: async () => new Map() }));
+vi.mock('../src/library/docStore', () => ({
+  loadDocs: async (_org: string, hashes: string[]) => {
+    if (fake.away) throw new Error('offline');
+    return new Map(hashes.filter((h) => fake.docs.has(h)).map((h) => [h, fake.docs.get(h)]));
+  },
+  heldDoc: async (h: string) => fake.held.get(h) ?? null
+}));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: () => undefined }));
 vi.mock('../src/diagnostics/diagnostics', () => ({
   diagnostics: { record: () => undefined, audio: () => undefined, expected: () => undefined },
@@ -96,6 +107,9 @@ beforeEach(() => {
   fake.storage.clear();
   fake.served.clear();
   fake.staged.clear();
+  fake.docs.clear();
+  fake.held.clear();
+  fake.away = false;
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -214,5 +228,105 @@ describe('purgeFileset', () => {
     expect(store.removed.map((r) => r.hash).sort()).toEqual(['h:one', 'h:two']);
     expect(Object.keys(index())).toEqual(['lib:three']);
     expect(await purgeFileset(store as never, 'F')).toBe(0);
+  });
+});
+
+// Each passage's reference audio, worked out and published for its download button (decision amended 2026-11-23).
+describe("the pass says what each kept passage's reference audio is", () => {
+  const H = (c: string) => c.repeat(64);
+  const bookDoc: SourceBookDoc = {
+    format: 'sourceBook@1', book: 'GEN', deps: [],
+    chapters: [{ chapter: 1, audio: { url: 'https://x/gen1.mp3' } as never }, { chapter: 2, audio: { url: 'https://x/gen2.mp3' } as never }]
+  };
+  const sourceDoc: SourceDoc = {
+    format: 'source@1', name: 'BSB', abbreviation: 'BSB', language: 'eng', versification: H('a'), provider: { kind: 'library' }, offline: 'allowed',
+    copyright: {}, books: [{ book: 'GEN', name: 'Genesis', doc: H('b') }], deps: []
+  };
+  const reg = <T>(value: T) => ({ value, hlc: '1:0:a' });
+  const org = {
+    state: {
+      library: { keep: {
+        kind: reg('source'), name: reg('keep'), description: reg(''), copiedFrom: reg(null), subscription: reg(null), pinned: reg(null),
+        sharing: reg({ shared: false, subscribable: false }), archived: reg(false), versions: { v1: { eventId: 'v1', hlc: '1:0:a', docHash: H('1') } }
+      } } as unknown as OrgState['library'],
+      recommendations: { keep: reg(true) } as unknown as OrgState['recommendations']
+    }
+  };
+  const ONE = 'item/GEN.1.1-1.5';
+  const BOTH = 'item/GEN.1.6-2.3';
+  const language = (store: FakeStore, online: boolean | null = true) => ({
+    state: emptyLanguageState(), orgId: 'org1', languageId: 'gen', online,
+    blobs: { store, scope: new Set<string>(), keptUnits: new Set([ONE, BOTH]) }
+  });
+  const session = { actorId: 'me' };
+  const serveAll = () => {
+    for (const [h, d] of [[H('1'), sourceDoc], [H('b'), bookDoc]] as const) { fake.docs.set(h, d); fake.held.set(h, d); }
+    fake.served.set('https://x/gen1.mp3', 'one');
+    fake.served.set('https://x/gen2.mp3', 'two');
+  };
+  /** One pass while connected. */
+  const run = async (store = fakeStore()) => {
+    const o = await offline();
+    const r = await import('../src/sources/referenceCounts');
+    expect(await o.pass(language(store) as never, org as never, session as never)).toBe(false);
+    return { o, r, store };
+  };
+
+  it('online, it fetches each chapter once and counts it for every passage that wants it', async () => {
+    serveAll();
+    const { r } = await run();
+    expect(r.referenceKnown(ONE)).toBe(true);
+    expect(r.referenceCounts(ONE)).toEqual({ here: 1, total: 1, full: 0, unavailable: 0 });
+    expect(r.referenceCounts(BOTH)).toEqual({ here: 2, total: 2, full: 0, unavailable: 0 });
+    expect(r.referenceComing(BOTH)).toBe(false);
+    expect(Object.keys(index()).sort()).toEqual(['url:https://x/gen1.mp3', 'url:https://x/gen2.mp3']);
+  });
+
+  it('offline, it works out what is wanted from the documents this phone holds, and fetches nothing', async () => {
+    serveAll();
+    fake.away = true;
+    const o = await offline();
+    const r = await import('../src/sources/referenceCounts');
+    const store = fakeStore();
+    expect(await o.pass(language(store, false) as never, org as never, session as never)).toBe(false);
+    expect(r.referenceKnown(BOTH)).toBe(true);
+    expect(r.referenceCounts(BOTH)).toEqual({ here: 0, total: 2, full: 0, unavailable: 0 });
+    expect(r.referenceComing(BOTH)).toBe(false);
+    expect(index()).toEqual({});
+  });
+
+  it('offline with a document neither here nor readable, it cannot say, and the passage is not called ready', async () => {
+    serveAll();
+    fake.held.delete(H('b'));
+    fake.away = true;
+    const o = await offline();
+    const r = await import('../src/sources/referenceCounts');
+    await o.pass(language(fakeStore(), false) as never, org as never, session as never);
+    expect(r.referenceKnown(ONE)).toBe(false);
+  });
+
+  it('a link that fails cannot come this session: it is named, not counted, and still so offline', async () => {
+    serveAll();
+    fake.served.delete('https://x/gen2.mp3');
+    const { o, r, store } = await run();
+    expect(r.referenceCounts(BOTH)).toEqual({ here: 1, total: 1, full: 0, unavailable: 1 });
+    // Offline nothing new can be learned of it: it is not turned back into a file to come.
+    fake.away = true;
+    await o.pass(language(store, false) as never, org as never, session as never);
+    expect(r.referenceCounts(BOTH)).toEqual({ here: 1, total: 1, full: 0, unavailable: 1 });
+  });
+
+  it('a phone that opens offline knows at once what was last worked out, and what of it is here', async () => {
+    serveAll();
+    const { store } = await run();
+    const o = await offline();
+    const r = await import('../src/sources/referenceCounts');
+    expect(r.referenceKnown(BOTH)).toBe(false);
+    await o.restoreReference('org1', 'gen', store as never);
+    expect(r.referenceKnown(BOTH)).toBe(true);
+    expect(r.referenceCounts(BOTH)).toEqual({ here: 2, total: 2, full: 0, unavailable: 0 });
+    // Another language: nothing known of it.
+    await o.restoreReference('org1', 'exo', store as never);
+    expect(r.referenceKnown(BOTH)).toBe(false);
   });
 });

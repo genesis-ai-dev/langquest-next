@@ -35,10 +35,27 @@ const failedAt = new Map<string, number>();
 const refusedAt = new Map<string, number>();
 const listeners = new Set<() => void>();
 let revision = 0;
-const changed = () => { revision++; for (const l of listeners) l(); };
+/**
+ * How long news of study files is gathered before screens are told. A book's
+ * passages bring over a thousand files, and each told every download button
+ * on screen to draw again (LAN-316): the first news after a quiet spell is
+ * told at once, the rest at most this often.
+ */
+export const STUDY_NEWS_MS = 500;
+let lastNews = -STUDY_NEWS_MS;
+let newsTimer: ReturnType<typeof setTimeout> | null = null;
+const tell = () => { lastNews = Date.now(); revision++; for (const l of listeners) l(); };
+const changed = () => {
+  if (newsTimer) return;
+  const wait = STUDY_NEWS_MS - (Date.now() - lastNews);
+  if (wait <= 0) tell();
+  else newsTimer = setTimeout(() => { newsTimer = null; tell(); }, wait);
+};
 let loaded = false;
 let running = false;
 let queue: string[] = [];
+/** The addresses in `queue`, to ask of quickly: every download button asks whether its passage has one coming. */
+let queued = new Set<string>();
 /** Addresses being fetched now: a new wish list must not start them twice into the same staging file. */
 const inFlight = new Set<string>();
 let online = false;
@@ -140,6 +157,18 @@ export function studyWanted(): ReadonlyMap<string, string[]> {
 }
 
 /**
+ * Is a study file of this passage coming down now: waiting its turn in this
+ * download or being fetched, while the device is connected? Its download
+ * button then says "Downloading", as it does while a recording of it comes
+ * (decisions.md 166). A file that failed and waits to be tried again is not
+ * coming now.
+ */
+export function studyComing(unitId: string): boolean {
+  if (!running || !online) return false;
+  return (wanted.get(unitId) ?? []).some((url) => queued.has(url) || inFlight.has(url));
+}
+
+/**
  * Has this passage's guide been looked up, so that `studyCounts` is the
  * whole answer? Until it has, a kept passage is not called ready: its guide
  * may bring files this device does not have (decisions.md 166). Always on
@@ -186,18 +215,28 @@ function enqueue(): void {
   const all = new Set([...wanted.values()].flat());
   queue = [...all].filter((u) => !present.has(nameOf(u)) && !inFlight.has(u) && now - (failedAt.get(u) ?? 0) >= RETRY_MS
     && now - (refusedAt.get(u) ?? -REFUSED_RETRY_MS) >= REFUSED_RETRY_MS);
+  queued = new Set(queue);
   if (!running) void drain();
 }
 
 async function drain(): Promise<void> {
   running = true;
+  // Passages with files to come now say they are downloading, and stop saying so when this ends.
+  const coming = queue.length > 0;
+  if (coming) changed();
   try {
     const worker = async () => {
-      for (let url = queue.shift(); url; url = queue.shift()) await fetchOne(url);
+      for (let url = queue.shift(); url; url = queue.shift()) {
+        queued.delete(url);
+        await fetchOne(url);
+      }
     };
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   } finally {
     running = false;
+    queued.clear();
+    // What failed waits RETRY_MS, and is not coming now.
+    if (coming) changed();
   }
   // Anything that failed waits RETRY_MS, then the same wish list is tried again without anyone asking.
   if (failedAt.size && !retry) {

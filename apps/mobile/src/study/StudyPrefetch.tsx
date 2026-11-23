@@ -3,11 +3,11 @@
 // its addresses to `studyFiles.ts`, which downloads what is missing while
 // connected. Draws nothing.
 //
-// Only passages kept with their reference material: the person's own, and
-// those kept by their own button. A book's or a section's button keeps its
-// passages for their recordings alone (`referenceUnits`,
-// docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended):
-// one guide names about a dozen files, so a whole book's would be over a thousand.
+// Every passage kept on this device (`referenceUnits`): the person's own, and
+// those chosen one by one or a book at a time. One guide names about a dozen
+// files, so a whole book's are over a thousand: studyFiles.ts tells screens
+// of their arrival at most twice a second
+// (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended).
 import { useEffect, useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { referenceUnits } from '../sync/offlineModel';
@@ -21,13 +21,13 @@ const FOLLOW_MS = 3000;
 export function StudyPrefetch(props: { ctx: Ctx }) {
   const { ctx } = props;
   const state = ctx.language.state;
-  const { keptUnits, recordingsOnly, scope } = ctx.language.blobs;
+  const { keptUnits, scope } = ctx.language.blobs;
   // Worked out when the scope or the kept units change, not on every render of the app root.
   // The default scope comes worked out from the phone's table too (decisions.md 143).
   const key = useMemo(() => {
     if (!state || !STUDY_FILES_OFFLINE) return '';
-    return [...referenceUnits({ scope, keptUnits, recordingsOnly })].sort().join(',');
-  }, [state, scope, keptUnits, recordingsOnly]);
+    return [...referenceUnits({ scope, keptUnits })].sort().join(',');
+  }, [state, scope, keptUnits]);
   // Keyed by the scope's members, so a new fold with the same scope finds the same guides.
   const unitIds = useMemo(() => (key ? key.split(',') : []), [key]);
   // The looking up follows the language a few seconds behind: a sync changes it many times a second,

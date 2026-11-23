@@ -241,7 +241,14 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // docs/decisions/0182-every-recording-people-make-plays-at.md, amended 2026-11-21), about 1 KB past it:
 // the measure (src/audio/playWait.ts) that the three players use and the tally's new fields. Every
 // player of a recording can be on the first screen, so it cannot load later.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 161 * 1024;
+// Raised by 3 KB with reference audio counted in "On this device" (Carl, 2026-11-23, LAN-316,
+// docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended 2026-11-23), 1,938 bytes
+// past it: each passage's reference audio worked out and published (src/sources/referenceCounts.ts,
+// `wantsByUnit`), the pass working it out offline from the documents the device holds and keeping
+// it for the next start, and the words for reference audio that cannot come in every catalog. The
+// pass runs from the app's root and the Map's download buttons read it, so none of it can load
+// later. 1,134 bytes are left; a first visit has 1,751.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 164 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

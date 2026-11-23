@@ -75,15 +75,21 @@ below was earned in production there.
     and say why
     (`docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md`).
     A book's download button keeps each of its passages, in one write
-    (`docs/decisions/2026-11-20-a-book-has-its-own-download-button.md`), for
-    their recordings alone: they go in a list of their own
-    (`LanguageStatus.recordingsOnly`), and a passage's reference material
-    (study guide files, reference audio) follows only the person's own
-    passages and those kept by their own button (`referenceUnits`). It
-    says first how much audio would come (`offlineCost`), and is not offered
-    when that would not fit in what is free above the 500 MB kept for
-    recording (`BlobStore.roomBytes`) and what the device would free by
-    itself (`freeable`), since kept files are never deleted to make room.
+    (`docs/decisions/2026-11-20-a-book-has-its-own-download-button.md`), as
+    a passage's own button keeps one: with its reference material (study
+    guide files, reference audio), which follows every kept passage
+    (`referenceUnits`). A passage is "on this device" only once its
+    recordings, study guide files and reference audio are here; reference
+    audio is worked out per passage from what the device holds, offline too
+    (`sources/referenceCounts.ts`), and a chapter that cannot come (no room
+    left in the 1 GB kept for reference audio, or not downloadable now) is
+    named on the passage's line instead of keeping it amber, as a study file
+    its source refuses is. It says first how much its recordings are
+    (`offlineCost`; reference material's size is not known before it comes),
+    and is not offered when that would not fit in what is free above the 500
+    MB kept for recording (`BlobStore.roomBytes`) and what the device would
+    free by itself (`freeable`), since kept files are never deleted to make
+    room.
 11. **Audio is immutable.** Already PLAN.md invariant 4. It is what makes the
     confirmation monotonic and the upsert safe; v2 had to document the
     re-record-in-place case as unhandled.

@@ -255,10 +255,10 @@ Expected:
   (decision 166), 25 at a time with "Show 25 more · 72 left" under them (UI
   audit, finding 122). A passage across two chapters (Luke 7:36–8:3) is one
   row.
-- The line over the list is the book's download button (MAP-036): "Download
-  recordings of all 97 passages for offline" when none is kept, or "Download
-  recordings of the other {n} passages" with "{ready} of 97 passages ready
-  on this device" under it when some are (TRANS's requests).
+- The line over the list is the book's download line (MAP-036): "{ready} of
+  97 passages ready on this device", with what a download would bring under
+  it and "Download" at its end when none is kept, or "Download the rest"
+  when some are (TRANS's requests).
 - Each row has the passage's disc (dashed mic, steps, ✓ when done), its
   title and where it stands, and its download button at the end: an outline
   ("Download for offline"), an arrow wave while it downloads ("Downloading
@@ -497,59 +497,69 @@ Roles: VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 A book has its own download button, and so has a section of a language with
 its own outline (`docs/decisions/2026-11-20-a-book-has-its-own-download-button.md`,
-LAN-316). It keeps recordings only; a passage's reference material (its
-study guide's files, reference audio) is kept by the switch on the passage's
-own screen. The fixture has no outline language, so a section's button is
-checked by hand on one. Step 6 needs a phone short of storage and is also
-checked by hand; `apps/mobile/test/offlineTruth.test.ts` holds its words.
+LAN-316). It keeps each passage as a passage's own button does, with its
+reference material (its study guide's files, reference audio). The fixture
+has no outline language, so a section's button is checked by hand on one.
+Step 6 needs a phone short of storage and is also checked by hand;
+`apps/mobile/test/offlineTruth.test.ts` holds its words.
 
 Steps:
-1. VIEW (nothing kept): on Alpha's map, tap "Luke". Tap "What the download
-   buttons mean" under the line over the list, read the sheet, and close it.
-   Read the line.
-2. Tap it. Read it again, and the rows' download buttons.
-3. Open P-NEW. Read the line at the top and the switch under it. Turn the
-   switch on, read both, and turn it off again. Go back.
-4. Tap Remove at the end of the book's line, read the sheet, and tap "Remove
+1. VIEW (nothing kept): on Alpha's map, tap "Luke". Read the line over the
+   list. Open Filter, read the key under it, and close it.
+2. Tap the download button of one passage's row, and watch the line and the
+   list under it.
+3. Tap "Download the rest" at the end of the line. Read the line again, and
+   the rows' download buttons.
+4. Open P-NEW. Read the line at the top. Go back.
+5. Tap Remove at the end of the book's line, read the sheet, and tap "Remove
    from this device".
-5. Phone: download a book, then watch Sync and offline while it comes down.
 6. Phone, on a device with little free storage: read the line of a book
    whose audio is larger than the room left.
-7. Phone: turn on the reference material of a passage whose study guide names
-   a file its source no longer has (Matthew 13 in FIA's English guides, on
+7. Phone: download a book, then keep a passage whose study guide names a
+   file its source no longer has (Matthew 13 in FIA's English guides, on
    2026-11-20).
+8. Phone: download a book of FIA passages, and move about the Map and the
+   book while its study files come down.
 
 Expected:
-- Step 1: the sheet names every mark a download button shows, each drawn as
-  the buttons draw it: "Download for offline", "Downloading for offline",
-  "Only some files here", "Recordings on this device", "On this device",
+- Step 1: the line has two lines: "Checking this device…" and "97 passages"
+  until the device has counted, then "0 of 97 passages ready on this device"
+  and "Working out the size…" until the size is worked out, then "{size} of
+  recordings, plus reference material" when the server has recordings of
+  Luke this device lacks, or "No recordings to download yet. New ones come
+  as they are made." when it has none. "Download" is at its end. No link
+  over the list explains the marks: the key is under Filter, for a book of
+  chapter tiles and of passage rows, and names every mark a download button
+  shows, each drawn as the buttons draw it: "Download for offline",
+  "Downloading for offline", "Only some files here", "On this device",
   "Download needs a connection" and "Checking this device…", each with what
-  it means, and that a tap on a green one removes that passage's files. The
-  same key is under Filter, for a book of chapter tiles and of passage rows.
-  The line is "Checking this device…" until the size is worked out, then
-  "Download recordings of all 97 passages for offline", with "{size} of
-  audio to download" under it when the server has recordings of Luke this
-  device lacks, or "No recordings to download yet. New ones come as they are
-  made." when it has none. The line does not change again until it is
-  tapped.
-- Step 2: "Checking this device…" for a moment, then "Downloading for
-  offline · {ready} of 97" while a file comes down, "{ready} of 97 passages
-  ready on this device" (amber) when none is moving, and "Recordings of all
-  97 passages are on this device" (green) once every one is here. No row
-  offers "Download for offline" any more. A row whose recordings are here
-  has a pale mark with a green ring and a speaker, "Recordings on this
-  device": not the solid green "On this device" of a passage kept with its
-  reference material.
-- Step 3: the line reads "Recordings on this device", and under it the
-  switch "Keep its reference material too" is off: "Only its recordings are
-  kept. Its reference material needs a connection." On, the line counts the
-  passage's study files as well (a phone) and reads "On this device" once
-  they are here; the switch says "Its reference material is kept on this
-  device too." Off again, the line is "Recordings on this device". Offline,
-  the switch cannot be turned on ("Download needs a connection") and can
-  still be turned off. A passage asked of the person, or one they worked
-  on, has no switch: it always takes its reference material.
-- Step 4: once every passage is kept the line is not a button: it only says
+  it means, and that a tap on a green one removes that passage's files.
+  There is no "Recordings on this device".
+- Step 2: the row's button turns to the arrow wave, then green. The line
+  keeps its two lines ("Working out the size…" for a moment, then the
+  size of the other 96), its button reads "Download the rest", and it never
+  grows shorter: the rows under it do not move. On a book of chapter tiles
+  the same holds for the tiles under the line.
+- Step 3: "Downloading for offline · {ready} of 97" with "Stay connected
+  until this finishes." while a recording or study file of any of them comes
+  down, "{ready} of 97 passages ready on this device" (amber) with "Some files
+  are still to come." when none is moving, and "All 97 kept passages are on
+  this device" (green) with "Their recordings and reference material work
+  without a connection." once every one is here, its reference audio
+  counted with the rest. Where some passage's reference audio cannot come
+  (the web UI tests' Bible Brain is out of reach), the line still turns green
+  once the rest is here, and says "Some reference audio can't be downloaded
+  now. It plays with a connection." No row offers "Download for
+  offline" any more, and each row is marked as a passage kept by its own
+  button is: green "On this device" once its recordings and study files are
+  here.
+- Step 4: the line reads "On this device" once its recordings, study files
+  and reference audio are here, and there is no switch under it. A chapter
+  of reference audio that cannot be downloaded now is named under it ("Some
+  of its reference audio can't be downloaded now. It plays with a
+  connection.") and does not keep it amber; offline, a passage opened
+  before its reference audio was worked out reads "Not on this device yet".
+- Step 5: once every passage is kept the line is not a button: it only says
   where they stand, with a Remove button at its end. Remove opens "Remove
   Luke from this device?": "Its recordings stay on the server. Playing them
   again will need a connection.", for TRANS also "{n} passages that are your
@@ -557,22 +567,23 @@ Expected:
   Cancel changes nothing. "Remove from this device" shows the toast "No
   longer kept. Their audio may be removed to make room.", and the line offers
   the whole book again. For TRANS, whose requests stay kept, the toast ends
-  "except {n} passages that are your work.", and the line offers "the other
-  {n} passages". An outline section's round button asks the same before it
-  lets its passages go.
-- Step 5: only recordings come down for the book. No study pictures, maps or
-  study audio are fetched for its passages, and no reference audio; the Map
-  stays as quick as before the download.
-- Offline, with passages not kept: "Download needs a connection", and a tap
-  does nothing.
+  "except {n} passages that are your work.", and the button reads "Download
+  the rest". An outline section's round button asks the same before it lets
+  its passages go.
+- Offline, with passages not kept: "Download needs a connection" under the
+  count, and no button.
 - Step 6: "Not enough room on this device", amber, with "Its audio is
-  {size}. This device has room for {room}." under it. A tap asks again and
-  says the same as a toast while it still does not fit; once room is made,
-  a tap downloads the book. The room is what is free less the 500 MB kept
-  for recording, and what the device would free by itself. A browser cannot
-  say how much room it has, so the web never shows this.
+  {size}. This device has room for {room}." under it. A tap on "Download"
+  asks again and says the same as a toast while it still does not fit; once
+  room is made, a tap downloads the book. The room is what is free less the
+  500 MB kept for recording, and what the device would free by itself. A
+  browser cannot say how much room it has, so the web never shows this.
 - While a language's first download is still running: "Downloading this
-  language", and a tap does nothing until it ends.
+  language" with "Stay connected until this finishes.", and no button until
+  it ends.
+- Step 8: the Map and the book stay quick while the book's study files come
+  down (over a thousand for Luke): screens are told of them at most twice a
+  second.
 - Step 7: the passage's line turns green, "On this device", once every file
   that can come has, with "{n} study files can't be downloaded: their source
   doesn't have them." under it; its tile turns green too. It does not stay

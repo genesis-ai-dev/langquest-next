@@ -389,8 +389,8 @@ function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPr
 }
 
 /**
- * A quiet link that opens what each download button's mark means (`DownloadKey`): under a book's download line, and
- * over an outline's sections. The marks were defined nowhere a person looked (Carl, 2026-11-20).
+ * A quiet link that opens what each download button's mark means (`DownloadKey`), over an outline's sections: an
+ * outline has no Filter, where a book's key is. The marks were defined nowhere a person looked (Carl, 2026-11-20).
  */
 function DownloadKeyLink() {
   const [open, setOpen] = useState(false);
@@ -752,14 +752,9 @@ export function BookMap(ctx: Ctx) {
     </View>
   ) : null;
 
-  // Over the book's passages: how many are on this device, and the button that downloads them all (decisions.md 166, LAN-316);
-  // under it, what each passage's download button can show.
-  const bookOffline = (
-    <View style={{ gap: space.xs }}>
-      <GroupOfflineBar ctx={ctx} unitIds={unitIds} name={title} testID="book-offline" />
-      <DownloadKeyLink />
-    </View>
-  );
+  // Over the book's passages: how many are on this device, and the button that downloads them all (decisions.md 166, LAN-316).
+  // What each passage's mark means is under Filter: a link here took a row over the chapters on every book (Carl, 2026-11-23).
+  const bookOffline = <GroupOfflineBar ctx={ctx} unitIds={unitIds} name={title} testID="book-offline" />;
 
   // Passages that sit in no book have no chapters to lay out: a list, 25 at a time.
   if (!book) {
