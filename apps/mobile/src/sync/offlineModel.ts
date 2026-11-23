@@ -61,10 +61,12 @@ export interface GroupOffline {
   checking: boolean;
   /** Kept passages with reference audio that cannot come: no room kept for it, or not downloadable now. */
   referenceMissing: number;
+  /** Kept passages with a recording the phone that made it has not sent yet: no device can download it (decisions.md 61). */
+  unsent: number;
 }
 
 export function groupOffline(unitIds: readonly string[], counted: ReadonlyMap<string, KeptOffline> | null, keptUnits: ReadonlySet<string>): GroupOffline {
-  const g: GroupOffline = { count: unitIds.length, ready: 0, toKeep: [], chosen: [], checking: !counted, referenceMissing: 0 };
+  const g: GroupOffline = { count: unitIds.length, ready: 0, toKeep: [], chosen: [], checking: !counted, referenceMissing: 0, unsent: 0 };
   for (const unitId of unitIds) {
     const u = counted?.get(unitId);
     if (!u?.reason) {
@@ -77,6 +79,7 @@ export function groupOffline(unitIds: readonly string[], counted: ReadonlyMap<st
     if (u.ready) g.ready += 1;
     if (u.reason === 'chosen') g.chosen.push(unitId);
     if (u.refFull || u.refUnavailable) g.referenceMissing += 1;
+    if (u.notSent) g.unsent += 1;
   }
   return g;
 }
@@ -145,8 +148,10 @@ export function groupLook(
   // Every passage is kept: a tap lets go what the person chose, or says why none of it was a choice.
   const tap: GroupTap = g.chosen.length ? 'letGo' : 'why';
   const help = g.chosen.length ? t('offline.group.letGoHelp') : t('offline.group.reason');
-  // Reference audio that cannot come does not keep a passage from being ready, and is said here, as on its own line.
-  const missing = g.referenceMissing ? t('offline.group.referenceMissing') : null;
+  // What cannot come does not keep a passage from being ready, and is said here, as on its own line: a recording its
+  // phone has not sent first, since nothing plays it anywhere until it is (decision 61, amended 2026-11-23), then
+  // reference audio that cannot be downloaded now.
+  const missing = g.unsent ? t('offline.group.unsent') : g.referenceMissing ? t('offline.group.referenceMissing') : null;
   if (g.ready === g.count) {
     return { kind: 'ready', title: t('offline.summary.allReady', { count: g.count }), sub: missing ?? (g.chosen.length ? t('offline.group.allHereSub') : help), help, tap, button };
   }

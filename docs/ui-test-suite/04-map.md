@@ -559,6 +559,11 @@ Expected:
   of its reference audio can't be downloaded now. It plays with a
   connection.") and does not keep it amber; offline, a passage opened
   before its reference audio was worked out reads "Not on this device yet".
+  A passage with a recording not yet sent from the device that made it is
+  green too, and its line says "1 recording hasn't been sent from the device
+  that made it yet."; a book's green line then says "Some recordings haven't
+  been sent from the device that made them yet." instead of "Their
+  recordings and reference material work without a connection."
 - Step 5: once every passage is kept the line is not a button: it only says
   where they stand, with a Remove button at its end. Remove opens "Remove
   Luke from this device?": "Its recordings stay on the server. Playing them

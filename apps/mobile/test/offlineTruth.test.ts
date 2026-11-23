@@ -70,9 +70,9 @@ describe("a book's download line tells the truth", () => {
   const all = (o: Partial<KeptOffline>[]) => groupOffline(ids, counted(Object.fromEntries(ids.map((id, i) => [id, kept(o[i] ?? {})]))), new Set(ids));
 
   it('counts the passages from their own counts: what a tap would keep, and what the person chose', () => {
-    expect(none).toEqual({ count: 3, ready: 0, toKeep: ids, chosen: [], checking: false, referenceMissing: 0 });
-    expect(some).toEqual({ count: 3, ready: 1, toKeep: ['GEN.2', 'GEN.3'], chosen: [], checking: false, referenceMissing: 0 });
-    expect(all([{ ready: true }, { reason: 'asked' }, {}])).toEqual({ count: 3, ready: 1, toKeep: [], chosen: ['GEN.1', 'GEN.3'], checking: false, referenceMissing: 0 });
+    expect(none).toEqual({ count: 3, ready: 0, toKeep: ids, chosen: [], checking: false, referenceMissing: 0, unsent: 0 });
+    expect(some).toEqual({ count: 3, ready: 1, toKeep: ['GEN.2', 'GEN.3'], chosen: [], checking: false, referenceMissing: 0, unsent: 0 });
+    expect(all([{ ready: true }, { reason: 'asked' }, {}])).toEqual({ count: 3, ready: 1, toKeep: [], chosen: ['GEN.1', 'GEN.3'], checking: false, referenceMissing: 0, unsent: 0 });
   });
 
   it('says checking until the device has counted anything', () => {
@@ -83,7 +83,7 @@ describe("a book's download line tells the truth", () => {
   // Carl, 2026-11-23: keeping one chapter made the line shrink to "Checking this device…" and grow back, and the chapters under it moved.
   it('counts a passage chosen a moment ago as kept and not here yet, rather than checking the whole book', () => {
     const justKept = groupOffline(ids, counted({}), new Set(['GEN.2']));
-    expect(justKept).toEqual({ count: 3, ready: 0, toKeep: ['GEN.1', 'GEN.3'], chosen: ['GEN.2'], checking: false, referenceMissing: 0 });
+    expect(justKept).toEqual({ count: 3, ready: 0, toKeep: ['GEN.1', 'GEN.3'], chosen: ['GEN.2'], checking: false, referenceMissing: 0, unsent: 0 });
     expect(groupLook(justKept, { ...online, cost: { bytes: 2 * MB } })).toMatchObject({ kind: 'none', title: '0 of 3 passages ready on this device', tap: 'keep', button: 'rest' });
     // The last one chosen: every passage is kept, none here yet, and the book can be removed again.
     expect(groupLook(groupOffline(ids, counted({}), new Set(ids)), online)).toMatchObject({ kind: 'partial', tap: 'letGo' });
@@ -161,6 +161,11 @@ describe("a book's download line tells the truth", () => {
     const short = all([{ ready: true, refUnavailable: 2 }, { ready: true, refFull: 1 }, { ready: true }]);
     expect(short.referenceMissing).toBe(2);
     expect(groupLook(short, online)).toMatchObject({ kind: 'ready', sub: "Some reference audio can't be downloaded now. It plays with a connection." });
+    // A recording its device has not sent keeps nothing from being ready, since no device can download it, and is said
+    // first: nothing plays it anywhere until it is sent (decision 61, amended 2026-11-23).
+    const unsent = all([{ ready: true, notSent: 1 }, { ready: true, refUnavailable: 1 }, { ready: true }]);
+    expect(unsent).toMatchObject({ ready: 3, unsent: 1, referenceMissing: 1 });
+    expect(groupLook(unsent, online)).toMatchObject({ kind: 'ready', sub: "Some recordings haven't been sent from the device that made them yet." });
     const part = all([{ ready: true }, {}, {}]);
     expect(groupLook(part, online)).toMatchObject({ kind: 'partial', title: '1 of 3 passages ready on this device', sub: 'Some files are still to come.' });
     expect(groupLook(part, { ...online, downloading: true })).toMatchObject({ kind: 'downloading', title: 'Downloading for offline · 1 of 3', sub: 'Stay connected until this finishes.' });

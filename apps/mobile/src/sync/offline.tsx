@@ -161,6 +161,8 @@ export function PassageOfflineBar(props: { ctx: Ctx; unitId: string }) {
         <Text style={[txt.sm, { fontWeight: '700', color: tone.fg }]}>{look.label}</Text>
         {/* Files that cannot come, said, since no wait will bring them: what the study guide names and its source does not
             have, and reference audio there is no room kept for or that cannot be downloaded now. */}
+        {/* A recording its phone has not sent: no device can download it, and nothing plays it until it is (decision 61, amended 2026-11-23). */}
+        {u !== 'checking' && u.reason && u.notSent ? <Text style={[txt.xs, { color: tone.fg }]}>{t('offline.notSent', { count: u.notSent })}</Text> : null}
         {u !== 'checking' && u.studyRefused ? <Text style={[txt.xs, { color: tone.fg }]}>{t('offline.studyRefused', { count: u.studyRefused })}</Text> : null}
         {u !== 'checking' && u.refFull ? <Text style={[txt.xs, { color: tone.fg }]}>{t('offline.referenceFull')}</Text> : null}
         {u !== 'checking' && u.refUnavailable ? <Text style={[txt.xs, { color: tone.fg }]}>{t('offline.referenceUnavailable')}</Text> : null}
