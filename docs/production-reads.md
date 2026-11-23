@@ -124,7 +124,7 @@ npm run prod:read -- --logs github-job-log job=<job id>
 | Source | What | Worker key | claude_reader | agent_reader |
 |---|---|---|---|---|
 | `worker-builds`, `worker-build-log` | Workers Builds: the build that deploys each Worker on a merge to main, and its log | `ADMIN_CLOUDFLARE_TOKEN` (Workers CI Read) | whole | whole: a build prints code and its own output |
-| `worker-logs` | a Worker's own log lines (Workers Logs), the last 24 hours at most | `ADMIN_CLOUDFLARE_LOGS_TOKEN` (Workers Observability) | every level, whole lines | warn and error only; emails, tokens, long values, phone numbers and query strings taken out (`redact`) |
+| `worker-logs` | a Worker's own log lines (Workers Logs), the last 24 hours at most | `ADMIN_CLOUDFLARE_LOGS_TOKEN` (Workers role Metadata Read-Only) | every level, whole lines | warn and error only; emails, tokens, long values, phone numbers and query strings taken out (`redact`) |
 | `supabase-logs` | Supabase's logs (Logs Explorer SQL) | `ADMIN_SUPABASE_TOKEN` (Logs Read) | any query | only `postgres-errors` and `http-errors`: the ops dashboard's groups, codes and counts, never a message |
 | `eas-builds`, `eas-build-log` | the phone app's EAS builds and a build's log | `ADMIN_EXPO_TOKEN` (robot, Viewer) | whole | whole |
 | `github-job-log` | a GitHub Actions job's log in this repository | `ADMIN_GITHUB_TOKEN` (Actions Read) | whole | whole: the repository is public |
@@ -133,9 +133,9 @@ An answer holds the newest 2,000 lines at most. Each read is a line in the
 Worker's log, as a statement is. The rate limit is the read gate's, counted
 apart. Log lines are production data too: "Where answers go" below holds.
 
-Cloudflare has no read-only permission for a logs query: Workers Observability
-Edit is the only one. It sits in a token of its own on the Worker, which
-only queries with it; no thread or team holds it.
+Every key the Worker reads logs with is read-only. Workers Logs take a token
+of their own with the Workers role Metadata Read-Only, so the dashboard's
+token keeps its own few grants.
 
 Not here yet: App Store Connect and Google Play crash reports (the ops
 dashboard shows them), and langquest.org on Vercel, whose tokens cannot be

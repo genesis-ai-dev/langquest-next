@@ -30,3 +30,9 @@ Reverse if: Cloudflare offers a read-only logs permission (then fold the
 token into ADMIN_CLOUDFLARE_TOKEN); a log line with a person's data shows up
 in an agent team's public output; or the providers' own MCP servers give a
 read-only path the agent teams can use without a stored key.
+
+Amended (2026-11-23, Caleb Koster): Cloudflare replaced its Workers
+Observability permissions with Workers roles. The logs query takes a token
+with the Workers role Metadata Read-Only, tested on production on
+2026-11-23, so `ADMIN_CLOUDFLARE_LOGS_TOKEN` is read-only too; it stays a
+token of its own.

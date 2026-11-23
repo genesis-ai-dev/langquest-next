@@ -44,7 +44,7 @@ export interface LogsEnv {
   GITHUB_REPO: string;
   /** Workers CI Read: builds and their logs. */
   ADMIN_CLOUDFLARE_TOKEN?: string;
-  /** Workers Observability (Cloudflare offers only Edit for a query): Workers Logs. Its own token, so the dashboard's stays read-only. */
+  /** Workers Logs: a user token whose only grant is the Workers role Metadata Read-Only (reads logs, not code or secrets). */
   ADMIN_CLOUDFLARE_LOGS_TOKEN?: string;
   ADMIN_SUPABASE_TOKEN?: string;
   ADMIN_EXPO_TOKEN?: string;
@@ -194,8 +194,9 @@ async function workerLogs(d: LogsDeps, body: Record<string, unknown>, login: Rea
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        queryId: 'claude-logs', timeframe: { from: now - minutes * 60_000, to: now }, limit,
-        parameters: { view: 'events', limit, filters, ...(search ? { needle: { value: search } } : {}) }
+        // `view` sits beside `parameters`, not in it; without it Cloudflare answers calculations and no events.
+        queryId: 'claude-logs', timeframe: { from: now - minutes * 60_000, to: now }, view: 'events', limit,
+        parameters: { limit, filters, ...(search ? { needle: { value: search } } : {}) }
       })
     }, 'Workers Logs');
   const lines = (answer.result?.events?.events ?? []).map((e) => {

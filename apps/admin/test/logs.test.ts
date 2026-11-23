@@ -107,6 +107,8 @@ describe('Workers Logs', () => {
     expect(sent.parameters.filters).toEqual([{ kind: 'group', filterCombination: 'or', filters: [
       { key: '$metadata.level', operation: 'eq', type: 'string', value: 'warn' }, { key: '$metadata.level', operation: 'eq', type: 'string', value: 'error' }] }]);
     expect(sent.timeframe.to - sent.timeframe.from).toBe(24 * 3_600_000);
+    expect(sent.view).toBe('events');
+    expect(sent.parameters).not.toHaveProperty('view');
     expect((d.calls[0]!.init!.headers as Record<string, string>).authorization).toBe('Bearer cflogs');
     expect(answer.lines[1]).toContain('[email]');
     expect(answer.lines[1]).toContain('token=[hidden]');
