@@ -84,7 +84,7 @@ describe("a book's download line tells the truth", () => {
   it('counts a passage chosen a moment ago as kept and not here yet, rather than checking the whole book', () => {
     const justKept = groupOffline(ids, counted({}), new Set(['GEN.2']));
     expect(justKept).toEqual({ count: 3, ready: 0, toKeep: ['GEN.1', 'GEN.3'], chosen: ['GEN.2'], checking: false, referenceMissing: 0, unsent: 0 });
-    expect(groupLook(justKept, { ...online, cost: { bytes: 2 * MB } })).toMatchObject({ kind: 'none', title: 'Waiting to download · 0 of 3', tap: 'keep', button: 'rest' });
+    expect(groupLook(justKept, { ...online, cost: { bytes: 2 * MB } })).toMatchObject({ kind: 'none', title: 'Waiting to download · 0 of 3', tap: 'keep' });
     // The last one chosen: every passage is kept, none here yet, and the book can be removed again.
     expect(groupLook(groupOffline(ids, counted({}), new Set(ids)), online)).toMatchObject({ kind: 'partial', tap: 'letGo' });
   });
@@ -119,10 +119,10 @@ describe("a book's download line tells the truth", () => {
     expect(groupLook(allChosen, online)).toMatchObject({ title: 'Waiting to download · 0 of 3', tone: 'waiting' });
     expect(groupLook(allChosen, { ...online, downloading: true })).toMatchObject({ title: 'Downloading for offline · 0 of 3', tone: 'downloading' });
     expect(groupLook(allChosen, { ...online, offline: true })).toMatchObject({ title: 'Connect to finish downloading · 0 of 3', tone: 'waiting' });
-    // One passage kept and coming down, the rest not kept: the header says it is coming, and Download the rest is offered.
+    // One passage kept and coming down, the rest not kept: the header says it is coming, and Download is offered for the rest.
     const oneChosen = groupOffline(ids, counted({}), new Set(['GEN.1']));
     expect(groupLook(oneChosen, { ...online, downloading: true, cost: { bytes: 2 * MB } })).toMatchObject({
-      title: 'Downloading for offline · 0 of 3', tone: 'downloading', tap: 'keep', button: 'rest', size: '2 MB'
+      title: 'Downloading for offline · 0 of 3', tone: 'downloading', tap: 'keep', size: '2 MB'
     });
     // Nothing kept, or all kept and here: no waiting.
     expect(groupLook(none, online)).toMatchObject({ title: 'Not on this device', tone: 'plain' });
@@ -157,7 +157,7 @@ describe("a book's download line tells the truth", () => {
   });
 
   it('offers the whole book with its reference material, and says how much its recordings are once worked out', () => {
-    expect(groupLook(none, online)).toMatchObject({ kind: 'none', title: 'Not on this device', sub: 'Recordings and reference material', tap: 'keep', button: 'all' });
+    expect(groupLook(none, online)).toMatchObject({ kind: 'none', title: 'Not on this device', sub: 'Recordings and reference material', tap: 'keep' });
     // The size counts recordings only: reference material's size is not known before it comes, and the line says it comes too.
     expect(groupLook(none, { ...online, cost: { bytes: 240 * MB } }).sub).toBe('240 MB of recordings, plus reference material');
     // Nothing of theirs is on the server to fetch: it says so, rather than look like a download that never starts.
@@ -180,7 +180,7 @@ describe("a book's download line tells the truth", () => {
 
   it('offers the rest when some are kept already, and says how far those are', () => {
     expect(groupLook(some, { ...online, cost: { bytes: 3 * MB } })).toMatchObject({
-      kind: 'none', title: '1 of 3 on this device', sub: '3 MB of recordings, plus reference material', tap: 'keep', button: 'rest'
+      kind: 'none', title: '1 of 3 on this device', sub: '3 MB of recordings, plus reference material', tap: 'keep'
     });
   });
 

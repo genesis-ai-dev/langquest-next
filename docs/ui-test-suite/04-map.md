@@ -257,9 +257,8 @@ Expected:
   audit, finding 122). A passage across two chapters (Luke 7:36–8:3) is one
   row.
 - Over the list is the book's download button (MAP-036), with no words
-  over it: "Download" when none is kept, or "Download the rest" when some
-  are (TRANS's requests), with the size of the recordings to come once it is
-  known.
+  over it: "Download", for the whole book or what is not kept yet (TRANS's
+  requests are), with the size of the recordings to come once it is known.
 - Each row has the passage's disc (dashed mic, steps, ✓ when done), its
   title and where it stands, and its download button at the end: an outline
   ("Download for offline"), an arrow wave while it downloads ("Downloading
@@ -510,11 +509,11 @@ Steps:
    and close it.
 2. Tap the download button of one passage's row, and watch the header, the
    buttons and the list under them.
-3. Tap "Download the rest". Read the header again, and the rows' download
+3. Tap the book's "Download". Read the header again, and the rows' download
    buttons.
 4. Open P-NEW. Read the line at the top. Go back.
-5. Tap the book's Remove, read the sheet, and tap "Remove
-   from this device".
+5. Tap the book's "Stop keeping", read the sheet, and tap its "Stop
+   keeping".
 6. Phone, on a device with little free storage: open a book
    whose audio is larger than the room left.
 7. Phone: download a book, then keep a passage whose study guide names a
@@ -546,13 +545,13 @@ Expected:
   reads "Downloading for offline · 0 of 97" (or "Waiting to download · 0 of
   97" until a file starts) and "1 of 97 on this device" once it is here,
   never "Not on this device" while it is kept and coming, and the book's button
-  reads "Download the rest", then "Download the rest · {size}" for the other
-  96, with Remove beside it. Neither the header's line nor the row of
-  buttons changes height: the rows under them do not move.
-  Remove asks first, as in step 5, and lets go only the passages chosen; the
+  reads "Download", then "Download · {size}" for the other 96, with "Stop
+  keeping" beside it on the same row. Neither the header's line nor the row
+  of buttons changes height: the rows under them do not move.
+  "Stop keeping" asks first, as in step 5, and lets go only the passages chosen; the
   toast counts only kept passages that are the person's work as staying. On a book of chapter tiles
   the same holds for the tiles under the line.
-- Step 3: the Download button goes, Remove stays. The header reads
+- Step 3: the Download button goes, "Stop keeping" stays. The header reads
   "Downloading for offline · {ready} of 97" while a recording or study file
   of any of them comes down, "Waiting to download · {ready} of 97" (amber)
   when none is moving (offline: "Connect to finish downloading · {ready} of
@@ -574,8 +573,8 @@ Expected:
   green too, and its line says "1 recording hasn't been sent from the device
   that made it yet."; a book's header then reads "On this device · some
   recordings not sent yet".
-- Step 5: once every passage is kept only Remove is left over the list.
-  Remove opens "Stop keeping Luke on this device?": "Its recordings and
+- Step 5: once every passage is kept only "Stop keeping" is left over the
+  list. It opens "Stop keeping Luke on this device?": "Its recordings and
   reference material are cleared when this device needs room. Until then
   some may still play without a connection. Everything stays on the
   server.", for TRANS also "{n} passages that are your work stay on this
@@ -583,8 +582,8 @@ Expected:
   Cancel changes nothing. "Stop keeping" shows the toast "No
   longer kept. Their audio may be removed to make room.", the header reads
   "Not on this device", and "Download" offers the whole book again. For TRANS, whose requests stay kept, the toast ends
-  "except {n} passages that are your work.", and the button reads "Download
-  the rest". An outline section's round button asks the same before it lets
+  "except {n} passages that are your work.", and "Download" offers the
+  rest. An outline section's round button asks the same before it lets
   its passages go.
 - Offline, with passages not kept: "Download" is dimmed, and a tap says
   "Download needs a connection".

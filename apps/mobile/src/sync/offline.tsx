@@ -212,10 +212,11 @@ export function GroupStatusLine(props: { group: GroupOffer; lead: string; testID
 /**
  * Over a book's passages, its download buttons and no words (Carl,
  * 2026-11-23: the line over them said little the header and the buttons did
- * not): "Download" or "Download the rest", with the size of the recordings to
- * come once it is known, downloads the passages not kept yet for offline
- * (LAN-316); "Remove", once some passage the person chose is kept, lets them
- * go after asking. Where the passages stand, and what they lack, is in the
+ * not): "Download", with the size of the recordings to come once it is
+ * known, downloads the passages not kept yet for offline (LAN-316); "Stop
+ * keeping", once some passage the person chose is kept, lets them go after
+ * asking (it deletes nothing at the tap: their files go when the device
+ * needs room). Where the passages stand, and what they lack, is in the
  * header (`GroupStatusLine`). A download that cannot run now (no connection,
  * the language still coming, too little room, the device still counting)
  * keeps its place, dimmed, and says why when tapped. Held at the tallest it
@@ -229,9 +230,9 @@ export function GroupOfflineBar(props: { group: GroupOffer; name: string; testID
   if (props.group.count === 0) return null;
   const testID = props.testID ?? 'group-offline';
   const download = (look.tap === 'keep' || look.blocked !== null) && onPress;
-  const label = look.button === 'rest'
-    ? (look.size ? t('offline.group.downloadRestButtonSize', { size: look.size }) : t('offline.group.downloadRestButton'))
-    : (look.size ? t('offline.group.downloadButtonSize', { size: look.size }) : t('offline.group.downloadButton'));
+  // "Download", never "Download the rest": the header says how much is here, and beside "Stop keeping" the longer words
+  // did not fit a phone's row, so it wrapped and the passages moved (Carl, 2026-11-23).
+  const label = look.size ? t('offline.group.downloadButtonSize', { size: look.size }) : t('offline.group.downloadButton');
   return (
     <View testID={testID} onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h > tallest) setTallest(h); }}
       style={[styles.groupActions, { minHeight: tallest }]}>
@@ -239,7 +240,7 @@ export function GroupOfflineBar(props: { group: GroupOffer; name: string; testID
         <SmallBtn testID={`${testID}-download`} icon="download" onPress={onPress} dimmed={look.blocked !== null}
           help={look.blocked ?? look.help} label={label} />
       ) : null}
-      {remove ? <SmallBtn testID={`${testID}-remove`} label={t('common.remove')} icon="close" help={t('offline.group.letGoHelp')} onPress={() => setAsking(true)} /> : null}
+      {remove ? <SmallBtn testID={`${testID}-remove`} label={t('offline.group.removeConfirm')} icon="close" help={t('offline.group.letGoHelp')} onPress={() => setAsking(true)} /> : null}
       {remove ? <RemoveSheet name={props.name} stay={remove.stay} visible={asking} onClose={() => setAsking(false)} onRemove={remove.run} /> : null}
     </View>
   );

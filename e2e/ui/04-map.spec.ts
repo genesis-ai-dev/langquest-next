@@ -65,9 +65,11 @@ async function wholeBook(page: Page): Promise<void> {
   await expect(more).toBeVisible();
   while (await more.isVisible()) await more.click();
 }
-/** Luke's download button (MAP-036): the whole book or the rest, with the size of its recordings once it is known. */
+/**
+ * Luke's download button (MAP-036), with the size of its recordings once it is known: "Download" for the whole book and
+ * for the rest alike, since the header says how much is here (Carl, 2026-11-23).
+ */
 const DOWNLOAD_ALL = /^Download( · .+)?$/;
-const DOWNLOAD_REST = /^Download the rest( · .+)?$/;
 /**
  * Where Luke's passages stand on this device, in its header under how many are recorded: none, some or all, or on the
  * way; all of them, with what they lack (the web UI tests' Bible Brain is out of reach, so reference audio can't come).
@@ -309,7 +311,7 @@ for (const who of ['TRANS', 'VIEW'] as const) {
     await expect(byId(page, 'book-status')).toHaveText(BOOK_STATUS);
     await expect(byId(page, 'header-back')).toBeVisible();
     // The line over the list is the book's download button (MAP-036): all of it when none is kept, the rest when some are.
-    await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', new RegExp(`${DOWNLOAD_ALL.source}|${DOWNLOAD_REST.source}`));
+    await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', DOWNLOAD_ALL);
     // 25 at a time (UI audit, finding 122), then the rest.
     expect((await labels(page)).filter((l) => /^Luke \d+:\d+/.test(l))).toHaveLength(25);
     await expect(button(page, 'Show 25 more · 72 left')).toBeVisible();
@@ -526,9 +528,9 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
     (window as unknown as { statusHeights: number[] }).statusHeights = seen;
   });
   await page.getByRole('button', { name: 'Download for offline', exact: true }).locator('visible=true').first().click();
-  await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', DOWNLOAD_REST);
-  // What is kept can be let go at once too, not only once the whole book is (Carl, 2026-11-23).
-  await expect(byId(page, 'book-offline-remove')).toHaveAttribute('aria-label', 'Remove');
+  await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', DOWNLOAD_ALL);
+  // What is kept can be let go at once too, not only once the whole book is, by the words its sheet uses (Carl, 2026-11-23).
+  await expect(byId(page, 'book-offline-remove')).toHaveAttribute('aria-label', 'Stop keeping');
   await expect(status).toHaveText(BOOK_STATUS);
   for (const seen of ['barHeights', 'statusHeights']) {
     const heights = await page.evaluate((k) => (window as unknown as Record<string, number[]>)[k]!, seen);
