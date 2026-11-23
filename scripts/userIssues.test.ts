@@ -205,6 +205,7 @@ describe('user-issues.mjs', () => {
       expect(claude).toContain('Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)');
       expect(claude).not.toContain('Bash(node scripts/');
       expect(claude).toContain('Never copy a row of its answer into what you write.');
+      expect(claude).toContain('prod-read.mjs --logs <source>');
       expect(jobs[name]).toContain('id-token: write');
     }
     // The fix job: claude-code-action removes the OIDC variables from Claude's shell, so the reads the plan named
@@ -492,6 +493,11 @@ describe('when the cause is not proven yet', () => {
     expect(String(out[0]!.rows![0]![0])).toHaveLength(501);
     expect(out[1]).toEqual({ sql: 'select nope from t', error: 'column "nope" does not exist' });
     expect(out[2]).toEqual({ sql: 'select boom', error: 'No CLAUDE_READ_TOKEN' });
+    // A log: its newest lines, cut as rows are.
+    const logs = await planReads(['--logs worker-logs worker=langquest-next minutes=120'], async () => ({ status: 200, ok: true, body: { login: 'agent_reader', lines: Array.from({ length: READ_ROWS + 3 }, (_, i) => `line ${i}`), truncated: false } }));
+    expect(logs[0]).toMatchObject({ sql: '--logs worker-logs worker=langquest-next minutes=120', cut: true, login: 'agent_reader' });
+    expect(logs[0]!.lines).toHaveLength(READ_ROWS);
+    expect(logs[0]!.lines!.at(-1)).toBe(`line ${READ_ROWS + 2}`);
   });
 
   it('sends what Claude does next with each record, or removes the plan', () => {

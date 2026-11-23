@@ -30,3 +30,5 @@ Rejected: no production reads, since causes stay unproven.
 
 Reverse if: the action offers a supported way to give Claude a read token,
 or tries spend most of their rounds waiting for answers.
+
+Amended (2026-11-23, Caleb Koster): the log reads of PR 657 (`prod-read.mjs --logs`) fail in the fix job for the same reason. A plan's `next.reads` may name logs too, as `--logs <source> name=value ...`, and `fix-context` reads them before Claude starts, with their newest 200 lines in `reads.json`.

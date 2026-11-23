@@ -389,6 +389,26 @@ job's token. You read it through your plan instead: name the statements in
 answers before you guess: how many records, which build, which phase is
 slow, since when. Never copy a row of an answer into what you write.
 
+You read the logs the same way: a read in `next.reads` that starts with
+`--logs` is a log, as `prod-read.mjs` takes it: `--logs <source>
+name=value ...` (docs/production-reads.md, Logs). Read the log before you
+guess why a build or a server job failed:
+
+- `--logs worker-builds worker=langquest-next`, then `--logs
+  worker-build-log build=<id>`: the Workers Build that deploys the web app
+  on each merge to main (the step that failed).
+- `--logs worker-logs worker=langquest-next minutes=120`: a Worker's
+  warnings and errors, with emails, tokens and long values taken out.
+- `--logs supabase-logs query=postgres-errors` or `query=http-errors`:
+  Supabase's errors grouped by code and path, as the ops dashboard shows
+  them.
+- `--logs eas-builds`, then `--logs eas-build-log build=<id>`: a phone app
+  build on EAS.
+- `--logs github-job-log job=<id>`: a GitHub Actions job's log.
+
+A log line can quote what a person typed: never copy one into what you
+write. Say what you found in words.
+
 You can start workers with the Agent tool. A worker has your tools and no
 more: no shell but `git`, no network. Give each one everything it needs in its
 prompt (it does not see this skill): the files to start from, what to find
@@ -553,11 +573,12 @@ The fix job runs the reads your last plan named before you start, through
 the read gate as agent_reader (`docs/production-reads.md`: ids, counts,
 times and codes; no names, typed text or recordings). Their answers are in
 `.user-issues/reads.json`: for each statement, `columns` and `rows` (at most
-200), or `error`.
+200), or `error`; for each log, its newest `lines` (at most 200).
 
-- Write each read in `next.reads`: at most 6 statements, each one `select`
-  or `with`, at most 1500 characters, no `;`. Ask for counts and groups,
-  not long lists of rows.
+- Write each read in `next.reads`: at most 6, each a statement (`select` or
+  `with`, at most 1500 characters, no `;`) or a log (`--logs <source>
+  name=value ...`, values without spaces). Ask for counts and groups, not
+  long lists of rows.
 - When you need production and have no answers yet (a new issue), say
   `unconfirmed`, name the reads, and set `inHours` to 0.25: the next run of
   the watch, about 15 minutes later, starts with the answers.

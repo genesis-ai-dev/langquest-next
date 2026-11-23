@@ -123,10 +123,13 @@ export const READS_LIMITS = { count: 6, sql: 1500 };
  * as agent_reader, and gives Claude the answers in .user-issues/reads.json: Claude's own shell cannot get the
  * job's token (claude-code-action removes it), and the gate is what holds a read to reading.
  */
+/** A log the plan reads: `--logs <source> name=value ...` (prod-read.mjs, docs/production-reads.md "Logs"). */
+export const READS_LOGS = /^--logs [a-z][a-z-]{1,40}( [a-z]{1,20}=[^\s;]{1,200}){0,8}$/;
+
 export function readsOf(raw) {
   if (!Array.isArray(raw)) return [];
   return raw.filter((r) => typeof r === 'string').map((r) => r.trim().replace(/;\s*$/, ''))
-    .filter((r) => r && r.length <= READS_LIMITS.sql && /^(select|with)\b/i.test(r) && !r.includes(';'))
+    .filter((r) => r && r.length <= READS_LIMITS.sql && (/^(select|with)\b/i.test(r) ? !r.includes(';') : READS_LOGS.test(r)))
     .slice(0, READS_LIMITS.count);
 }
 

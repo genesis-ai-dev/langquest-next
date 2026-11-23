@@ -63,7 +63,8 @@ describe('what the workflow sends back', () => {
     expect(parseLooked({ sha: SHA, runUrl: RUN, plans }).plans).toEqual([{ ...plans[0], reads: null }, { issue: 'LAN-8', next: null, steps: null, inHours: null, probe: null }]);
     // The reads of production the next try starts with: read-only statements, at most 6, no address.
     expect(parseLooked({ sha: SHA, runUrl: RUN, plans: [{ ...plans[0], reads: ['select 1', 'with a as (select 1) select * from a'] }] }).plans[0]!.reads).toEqual(['select 1', 'with a as (select 1) select * from a']);
-    for (const reads of [['delete from x'], Array(7).fill('select 1'), ['select \'a@b.org\''], ['select ' + 'x'.repeat(1500)], 'select 1'])
+    expect(parseLooked({ sha: SHA, runUrl: RUN, plans: [{ ...plans[0], reads: ['--logs supabase-logs query=postgres-errors'] }] }).plans[0]!.reads).toEqual(['--logs supabase-logs query=postgres-errors']);
+    for (const reads of [['delete from x'], ['--logs x; rm -rf /'], Array(7).fill('select 1'), ['select \'a@b.org\''], ['select ' + 'x'.repeat(1500)], 'select 1'])
       expect(() => parseLooked({ sha: SHA, runUrl: RUN, plans: [{ ...plans[0], reads }] }), JSON.stringify(reads).slice(0, 40)).toThrow(LookedError);
     expect(() => parseLooked({ sha: SHA, runUrl: RUN, plans: [{ ...plans[0], inHours: 500 }] })).toThrow(LookedError);
     expect(parseLooked({ sha: SHA, runUrl: RUN, priorities: [{ issue: 'LAN-9', priority: 1 }, { issue: 'LAN-8', priority: 0 }] }).priorities).toEqual([{ issue: 'LAN-9', priority: 1 }, { issue: 'LAN-8', priority: 0 }]);

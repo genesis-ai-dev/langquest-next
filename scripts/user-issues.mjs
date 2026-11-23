@@ -47,7 +47,7 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
-import { ask as askGate } from './prod-read.mjs';
+import { ask as askGate, post as postGate, parseArgs as readArgs, LOGS_URL } from './prod-read.mjs';
 import { oldPathsOf, pathsOf, runUrl } from './tutorial-review.mjs';
 import { decisionLines, ENDED, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planNext, planOf, PROBE_TEST, readsOf, REPAIR_MAX, saysAskFirst, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
 
@@ -533,15 +533,22 @@ export const READ_CELL = 500;
  * Runs the reads the manager's last plan named, through the read gate, before Claude starts: this step holds the
  * job's OIDC token, which Claude's shell never gets (docs/production-reads.md, "The fix team's reads"). The gate
  * answers as agent_reader, read only. The answers go to Claude in <dir>/reads.json, never to the public job log,
- * which says only how many reads answered. `asker(sql)` is the gate (prod-read.mjs ask).
+ * which says only how many reads answered. `asker(read)` is the gate: a statement, or a log as `--logs <source>
+ * name=value ...` (prod-read.mjs ask and post).
  */
-export async function planReads(reads, asker = (sql) => askGate(sql)) {
+export async function planReads(reads, asker = askRead) {
   const out = [];
+  const cell = (v) => (typeof v === 'string' && v.length > READ_CELL ? v.slice(0, READ_CELL) + '…' : v);
   for (const sql of readsOf(reads)) {
     try {
       const a = await asker(sql);
       if (!a.ok) { out.push({ sql, error: cut(String(a.body?.error ?? `the gate answered ${a.status}`), 500) }); continue; }
-      const cell = (v) => (typeof v === 'string' && v.length > READ_CELL ? v.slice(0, READ_CELL) + '…' : v);
+      if (Array.isArray(a.body.lines)) {
+        // A log: its newest lines.
+        const lines = a.body.lines.slice(-READ_ROWS).map(cell);
+        out.push({ sql, lines, cut: a.body.lines.length > READ_ROWS || a.body.truncated === true, login: a.body.login ?? null });
+        continue;
+      }
       const rows = (a.body.rows ?? []).slice(0, READ_ROWS).map((r) => r.map(cell));
       out.push({ sql, columns: a.body.columns ?? [], rows, cut: (a.body.rows ?? []).length > READ_ROWS || a.body.truncated === true, login: a.body.login ?? null });
     } catch (e) {
@@ -549,6 +556,12 @@ export async function planReads(reads, asker = (sql) => askGate(sql)) {
     }
   }
   return out;
+}
+
+/** One read of a plan through the gate: a statement, or a log (`--logs <source> name=value ...`). */
+function askRead(read) {
+  if (!read.startsWith('--logs ')) return askGate(read);
+  return postGate(LOGS_URL, readArgs(read.split(' ')).logs);
 }
 
 /**
