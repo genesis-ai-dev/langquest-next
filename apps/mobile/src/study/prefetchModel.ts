@@ -45,3 +45,14 @@ export function lookedUp(o: {
   }
   return out;
 }
+
+/**
+ * Does the prefetch's wish list name every study file the language's kept
+ * passages need? Only once the language is open, has counted what it keeps
+ * (`counted`: its kept list and scope are empty until then), and every kept
+ * passage has been looked up. Only then is the list saved as the language's
+ * and may study files no kept passage needs be cleared (study/studyFiles.ts).
+ */
+export function wishListWhole(o: { open: boolean; counted: boolean; unitIds: readonly string[]; lookedUp: ReadonlySet<string> }): boolean {
+  return o.open && o.counted && o.unitIds.every((u) => o.lookedUp.has(u));
+}

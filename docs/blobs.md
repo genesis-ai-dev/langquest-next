@@ -106,6 +106,18 @@ units, and other languages' files are never touched. Downloads land in a
 `.part` staging name and are renamed only after their hash matches;
 startup deletes leftover staging files.
 
+Study guide files (pictures, maps and step audio of a kept passage's guide,
+`study/studyFiles.ts`) live outside the blob store, named by their web
+address, and are cleared by the same rule
+(`docs/decisions/2026-11-23-study-files-are-cleared-when-no-kept-passage-needs-them.md`):
+only files no kept passage needs, in any language on the phone, when the
+device is short of the 500 MB kept for recording or when such files come to
+more than 256 MB, oldest first. Each language saves the list of files its
+kept passages need once that list is whole (`wishListWhole`), and a file any
+list names stays; a file from before the phone first saved such lists is
+never cleared. Reference audio has its own 1 GB share (`SOURCE_CACHE_BYTES`,
+`sources/offline.ts`).
+
 Files from a teammate's phone (since 2026-11-07): files that came from a
 teammate's phone over a nearby link (`docs/nearby-sync-plan.md` 5.6) are
 marked in the file ledger, and when space runs short they go in three

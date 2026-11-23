@@ -7,11 +7,24 @@
 //
 // Phones only. The web app needs a connection to open (decisions.md 58), so
 // there study media stay on the web and the offline card says so.
+//
+// A file no kept passage needs, in any language on this phone, is cleared
+// when the device is short of the room it keeps for recording, or when such
+// files come to more than `STUDY_SPARE_BYTES`, oldest first; a file a kept
+// passage needs never is (decision
+// 2026-11-23-study-files-are-cleared-when-no-kept-passage-needs-them.md).
+// Each language's last whole wish list is kept on the phone, so one
+// language's clearing never takes another's files; a file from before this
+// build kept those lists is never cleared, since a language not opened since
+// may need it and nothing on the phone says.
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { noteExpected } from '../diagnostics/report';
 import { timedTransfer } from '../diagnostics/diagnostics';
+import { RECORDING_RESERVE_BYTES } from '../sync/blobsModel';
 import type { StudyGuide } from './guides';
+import { studyEvictions } from './studyFilesModel';
 
 export const STUDY_FILES_OFFLINE = Platform.OS !== 'web';
 
@@ -28,6 +41,19 @@ const REFUSED_RETRY_MS = 24 * 60 * 60 * 1000;
 const CONCURRENCY = 2;
 /** A download that has not finished by now is given up and retried later, so one stalled request never holds the rest. */
 const TIMEOUT_MS = 2 * 60 * 1000;
+/**
+ * Files no kept passage needs are kept up to this much, so a passage let go
+ * and kept again soon finds them here; past it, or when the device is short
+ * of room, the oldest go. What kept passages need does not count against it
+ * and is never cleared. A quarter of reference audio's 1 GB: these are
+ * low-resolution pictures and short step audio, and they come back with a
+ * connection.
+ */
+const STUDY_SPARE_BYTES = 256 * 1024 * 1024;
+/** Each language's last whole wish list, by file name: `study-files:wants:<org>/<language>`. */
+const WANTS_PREFIX = 'study-files:wants:';
+/** When this phone first ran a build that keeps those lists: files written before it are never cleared. */
+const SINCE_KEY = 'study-files:since';
 
 const present = new Map<string, string>();
 const failedAt = new Map<string, number>();
@@ -68,6 +94,29 @@ let known = new Set<string>();
 const names = new Map<string, string>();
 /** The language whose kept passages want them: field diagnostics tally the downloads under it. */
 let tallyAs: { orgId: string; streamId: string } | null = null;
+/**
+ * Does `wanted` name every file this language's kept passages need: every
+ * kept passage's guide looked up, once the language had counted what it
+ * keeps? Only then is its list saved, and only then are files cleared.
+ */
+let whole = false;
+/** What was last saved for each language, so the same list is not written again. */
+const savedWants = new Map<string, string>();
+let sweeping = false;
+let sweepAgain = false;
+let since: Promise<number> | null = null;
+
+/** When this phone first kept the lists (`SINCE_KEY`), written the first time it is asked, before any file comes. */
+function keptListsSince(): Promise<number> {
+  since ??= (async () => {
+    const held = Number(await AsyncStorage.getItem(SINCE_KEY));
+    if (held > 0) return held;
+    const now = Date.now();
+    await AsyncStorage.setItem(SINCE_KEY, String(now));
+    return now;
+  })().catch((e: unknown) => { since = null; throw e; });
+  return since;
+}
 
 /** FNV-1a, 52 bits: a stable file name from an address, without waiting on crypto. */
 function nameOf(url: string): string {
@@ -181,21 +230,80 @@ export function studyKnown(unitId: string): boolean {
 /**
  * The prefetcher's latest wish list; downloads what is missing while
  * `online`. `lookedUp`: the passages whose guide it has looked up, found or
- * not; those on the wish list when it is left out.
+ * not; those on the wish list when it is left out. `complete`: the list names
+ * every file the language's kept passages need (`whole`), so it is saved as
+ * the language's, and files no language needs may be cleared.
  */
 export function setStudyWanted(
-  next: Map<string, string[]>, isOnline: boolean, language?: { orgId: string; languageId: string } | null, lookedUp: Iterable<string> = next.keys()
+  next: Map<string, string[]>, isOnline: boolean, language?: { orgId: string; languageId: string } | null, lookedUp: Iterable<string> = next.keys(),
+  complete = false
 ): void {
   const nowKnown = new Set(lookedUp);
   tallyAs = language?.orgId && language.languageId ? { orgId: language.orgId, streamId: language.languageId } : null;
   // The same wishes again (the prefetcher hands them over after every change to the language): nobody
   // is told, so the download buttons do not all redraw, and nothing is queued twice.
-  if (isOnline === online && sameWishes(wanted, next) && nowKnown.size === known.size && [...nowKnown].every((u) => known.has(u))) return;
+  if (isOnline === online && complete === whole && sameWishes(wanted, next) && nowKnown.size === known.size && [...nowKnown].every((u) => known.has(u))) return;
   wanted = next;
   known = nowKnown;
   online = isOnline;
+  whole = complete && !!tallyAs;
+  // Before any file of this build comes down, so that every one of them can be cleared once no list needs it.
+  if (DIR) void keptListsSince().catch(() => undefined);
   changed();
   enqueue();
+  if (whole && tallyAs) void rememberWants(tallyAs).then(sweep);
+}
+
+/** Save this language's whole wish list by file name, for clearing in any language to keep. */
+async function rememberWants(language: { orgId: string; streamId: string }): Promise<void> {
+  if (!DIR) return;
+  const key = `${WANTS_PREFIX}${language.orgId}/${language.streamId}`;
+  const text = JSON.stringify([...new Set([...wanted.values()].flat().map(nameOf))].sort());
+  if (savedWants.get(key) === text) return;
+  savedWants.set(key, text);
+  await AsyncStorage.setItem(key, text).catch(() => savedWants.delete(key));
+}
+
+/**
+ * Clear what no kept passage needs (`studyEvictions`), in any language on
+ * this phone: what this language wants now, and every language's last
+ * whole list. Not at all while this language's list is not whole, or when a
+ * saved list cannot be read, since a file it names might be taken.
+ */
+async function sweep(): Promise<void> {
+  if (!DIR || !whole) return;
+  if (sweeping) { sweepAgain = true; return; }
+  sweeping = true;
+  try {
+    load();
+    const needed = new Set<string>();
+    for (const urls of wanted.values()) for (const url of urls) needed.add(nameOf(url));
+    const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(WANTS_PREFIX));
+    for (const [, raw] of await AsyncStorage.multiGet(keys)) {
+      for (const name of JSON.parse(raw ?? '[]') as string[]) needed.add(name);
+    }
+    // The wish list changed while the lists were read: the next sweep works from it.
+    if (!whole) return;
+    const files = [...present.keys()].map((name) => {
+      const f = new File(DIR, name);
+      return { name, bytes: f.size ?? 0, at: f.modificationTime ?? 0 };
+    });
+    let free: number | null = null;
+    try { free = Paths.availableDiskSpace; } catch { /* the room is not known: only the spare room bounds them */ }
+    const gone = studyEvictions(files, needed, {
+      spareBytes: STUDY_SPARE_BYTES, shortBytes: free === null ? 0 : RECORDING_RESERVE_BYTES - free, since: await keptListsSince()
+    });
+    for (const name of gone) {
+      try { new File(DIR, name).delete(); present.delete(name); } catch { /* the next sweep */ }
+    }
+    if (gone.length) changed();
+  } catch (e) {
+    // A list this phone could not read: nothing is cleared until it can be.
+    noteExpected('study files: clearing', e);
+  } finally {
+    sweeping = false;
+    if (sweepAgain) { sweepAgain = false; void sweep(); }
+  }
 }
 
 /** The same passages wanting the same addresses in the same order. */
@@ -242,6 +350,8 @@ async function drain(): Promise<void> {
   if (failedAt.size && !retry) {
     retry = setTimeout(() => { retry = null; enqueue(); }, RETRY_MS + 1000);
   }
+  // What came down took room: the device may be short of it now.
+  if (coming) void sweep();
 }
 
 async function fetchOne(url: string): Promise<void> {

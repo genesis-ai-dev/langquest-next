@@ -1,8 +1,21 @@
 import type { StudyGuide } from '../src/study/guides';
 
-// A tiny disk: names to contents, and which addresses the network refuses.
+// A tiny disk: names to contents, their sizes and when they were written, the room left, and which addresses the network refuses.
 const disk = new Map<string, string>();
+const sizes = new Map<string, number>();
+const times = new Map<string, number>();
+const room = { free: 10 * 1024 * 1024 * 1024 };
 const net = { down: new Set<string>(), refused: new Map<string, number>(), fetched: [] as string[], hold: null as null | Promise<void> };
+// What the phone keeps between runs: each language's wish list, and when the lists were first kept.
+const kv = new Map<string, string>();
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: async (k: string) => kv.get(k) ?? null,
+    setItem: async (k: string, v: string) => { kv.set(k, v); },
+    getAllKeys: async () => [...kv.keys()],
+    multiGet: async (keys: string[]) => keys.map((k) => [k, kv.get(k) ?? null])
+  }
+}));
 
 vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: () => {} }));
@@ -15,8 +28,10 @@ vi.mock('expo-file-system', () => {
     }
     get uri() { return `file:///documents/study/${this.name}`; }
     get exists() { return disk.has(this.name); }
+    get size() { return sizes.get(this.name) ?? 1; }
+    get modificationTime() { return times.get(this.name) ?? 0; }
     delete() { disk.delete(this.name); }
-    move(dest: File) { disk.set(dest.name, disk.get(this.name) ?? ''); disk.delete(this.name); }
+    move(dest: File) { disk.set(dest.name, disk.get(this.name) ?? ''); disk.delete(this.name); times.set(dest.name, Date.now()); }
     static async downloadFileAsync(url: string, dest: File) {
       net.fetched.push(url);
       if (net.hold) await net.hold;
@@ -34,7 +49,7 @@ vi.mock('expo-file-system', () => {
     create() {}
     list() { return [...disk.keys()].map((n) => new File(this, n)); }
   }
-  return { File, Directory, Paths: { document: 'file:///documents' } };
+  return { File, Directory, Paths: { document: 'file:///documents', get availableDiskSpace() { return room.free; } } };
 });
 
 const guide = (urls: { step?: string; photo?: string; film?: string; term?: string }): StudyGuide => ({
@@ -50,7 +65,10 @@ const guide = (urls: { step?: string; photo?: string; film?: string; term?: stri
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
 describe('study files kept for offline (decisions.md 61)', () => {
-  beforeEach(() => { disk.clear(); net.down.clear(); net.refused.clear(); net.fetched = []; net.hold = null; vi.resetModules(); vi.useRealTimers(); });
+  beforeEach(() => {
+    disk.clear(); sizes.clear(); times.clear(); kv.clear(); room.free = 10 * 1024 * 1024 * 1024;
+    net.down.clear(); net.refused.clear(); net.fetched = []; net.hold = null; vi.resetModules(); vi.useRealTimers();
+  });
 
   // Matthew 13 stayed amber at "Only 19 of 23 files": its guide named files FIA's file store answers 403 for (Carl, 2026-11-20).
   it('a file its source refuses is not counted as one to come, and is not asked for again for a day', async () => {
@@ -336,5 +354,83 @@ describe("a kept passage's reference audio", () => {
     expect(told).toBe(1);
     await vi.advanceTimersByTimeAsync(r.REFERENCE_NEWS_MS);
     expect(told).toBe(2);
+  });
+});
+
+// Study files were never cleared: a book let go kept its pictures and step audio for good (Carl, 2026-11-23).
+describe('study files a phone clears (decision 2026-11-23-study-files-are-cleared-when-no-kept-passage-needs-them.md)', () => {
+  const MB = 1024 * 1024;
+  const A = 'https://x/a.jpg';
+  const B = 'https://x/b.jpg';
+  const alpha = { orgId: 'o', languageId: 'alpha' };
+  const beta = { orgId: 'o', languageId: 'beta' };
+  const flush = async () => { for (let i = 0; i < 8; i++) await settle(); };
+  beforeEach(() => {
+    disk.clear(); sizes.clear(); times.clear(); kv.clear(); room.free = 10 * 1024 * 1024 * 1024;
+    net.down.clear(); net.refused.clear(); net.fetched = []; net.hold = null; vi.resetModules(); vi.useRealTimers();
+  });
+
+  it('clears a let-go passage\'s files when the device is short of room, and keeps the kept passage\'s', async () => {
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map([['luke1', [A]], ['luke2', [B]]]), true, alpha, ['luke1', 'luke2'], true);
+    await flush();
+    expect(f.hasStudyFile(A) && f.hasStudyFile(B)).toBe(true);
+    room.free = 100 * MB;
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], true);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(false);
+    expect(f.hasStudyFile(A)).toBe(true);
+    expect(disk.size).toBe(1);
+  });
+
+  it('keeps them while the device has room and they fit the room spared for them, and clears them past it', async () => {
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map([['luke1', [A]], ['luke2', [B]]]), true, alpha, ['luke1', 'luke2'], true);
+    await flush();
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], true);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(true);
+    // 300 MB of files no kept passage needs is past the 256 MB spared for them.
+    for (const name of disk.keys()) sizes.set(name, 300 * MB);
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], false);
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], true);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(false);
+    expect(f.hasStudyFile(A)).toBe(true);
+  });
+
+  it('keeps a file another language on this phone still needs, by that language\'s saved list', async () => {
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map([['luke2', [B]]]), true, beta, ['luke2'], true);
+    await flush();
+    f.setStudyWanted(new Map([['luke1', [A]], ['luke2', [B]]]), true, alpha, ['luke1', 'luke2'], true);
+    await flush();
+    room.free = 100 * MB;
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], true);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(true);
+    expect(kv.get('study-files:wants:o/beta')).toBeDefined();
+  });
+
+  it('clears nothing while a kept passage\'s guide is not looked up yet: the list may not name all it needs', async () => {
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map([['luke1', [A]], ['luke2', [B]]]), true, alpha, ['luke1', 'luke2'], true);
+    await flush();
+    room.free = 100 * MB;
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], false);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(true);
+  });
+
+  it('never clears a file from before this build kept the lists: a language not opened since may need it', async () => {
+    kv.set('study-files:since', String(Date.now()));
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map([['luke2', [B]]]), true, alpha, ['luke2'], true);
+    await flush();
+    for (const name of disk.keys()) times.set(name, 1);
+    room.free = 100 * MB;
+    f.setStudyWanted(new Map(), true, alpha, [], true);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(true);
   });
 });

@@ -13,6 +13,7 @@ import type { Ctx } from '../shell/ctx';
 import { referenceUnits } from '../sync/offlineModel';
 import { useStudyGuideSet } from './useStudyGuides';
 import { setStudyWanted, STUDY_FILES_OFFLINE, studyUrls } from './studyFiles';
+import { wishListWhole } from './prefetchModel';
 import { useSlowly } from '../ui/useSlowly';
 
 /** How far behind the language the looking up may run. */
@@ -21,7 +22,7 @@ const FOLLOW_MS = 3000;
 export function StudyPrefetch(props: { ctx: Ctx }) {
   const { ctx } = props;
   const state = ctx.language.state;
-  const { keptUnits, scope } = ctx.language.blobs;
+  const { keptUnits, scope, keptOffline } = ctx.language.blobs;
   // Worked out when the scope or the kept units change, not on every render of the app root.
   // The default scope comes worked out from the phone's table too (decisions.md 143).
   const key = useMemo(() => {
@@ -38,13 +39,17 @@ export function StudyPrefetch(props: { ctx: Ctx }) {
   const { guides, lookedUp } = useStudyGuideSet(ctx, unitIds, { state: slow ?? state });
   const online = ctx.language.online !== false;
   const { orgId, languageId } = ctx.language;
+  // The list names every file the kept passages need only once the language has counted what it keeps (the
+  // kept list and the scope are empty until then) and every kept passage's guide has been looked up: only
+  // then may study files no kept passage needs be cleared (studyFiles.ts).
+  const complete = wishListWhole({ open: !!state, counted: keptOffline !== null, unitIds, lookedUp });
   useEffect(() => {
     if (!STUDY_FILES_OFFLINE) return;
     const next = new Map<string, string[]>();
     for (const [unitId, guide] of guides) next.set(unitId, studyUrls(guide));
     // A passage with no guide here counts as having none only once its documents have been read: until
     // then it may have one, and its study files are not counted as here (decisions.md 166).
-    setStudyWanted(next, online, { orgId, languageId }, lookedUp);
-  }, [guides, lookedUp, online, orgId, languageId]);
+    setStudyWanted(next, online, { orgId, languageId }, lookedUp, complete);
+  }, [guides, lookedUp, online, orgId, languageId, complete]);
   return null;
 }
