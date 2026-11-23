@@ -36,3 +36,10 @@ Reverse if: a key leaks or the log shows a statement no thread or team
 asked for; a heavy read slows the app for people; or Supabase gives a way to
 reach the database from the cloud machines that holds a login to reading
 as well, without a Worker between.
+
+Amended (2026-11-23, Caleb Koster): claude_reader and agent_reader may hold 5
+connections, not 3 (migration `20261123175000_reader_connection_limit.sql`).
+Hyperdrive keeps at least 5 connections for each config, and
+`npm run secrets -- production` set each read config to 5 on 2026-11-23.
+Postgres then refused connections past 3 ("too many connections for role
+claude_reader"), and every read through the gate timed out.
