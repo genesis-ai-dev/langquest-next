@@ -47,8 +47,9 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
+import { ask as askGate } from './prod-read.mjs';
 import { oldPathsOf, pathsOf, runUrl } from './tutorial-review.mjs';
-import { decisionLines, ENDED, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planNext, planOf, PROBE_TEST, REPAIR_MAX, saysAskFirst, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
+import { decisionLines, ENDED, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planNext, planOf, PROBE_TEST, readsOf, REPAIR_MAX, saysAskFirst, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
 
 /** The steps to the screen of a display fix, as the manager writes them beside fix.json (never part of the change). */
 export const PICTURE_SPEC = 'picture.spec.ts';
@@ -520,7 +521,34 @@ export function planRecord(issue, fix, probe = '', reason = null) {
   const next = planNext(reason === 'unconfirmed' ? { ...fix, verdict: 'unconfirmed' } : fix);
   if (!next) return { issue, next: null };
   const out = String(probe ?? '').replace(new RegExp(ANY_ADDRESS.source, 'g'), '[address]').trim();
-  return { issue, next: next.do, steps: next.steps || null, inHours: next.inHours, probe: out ? out.slice(-PROBE_MAX) : null };
+  const reads = readsOf(next.reads);
+  return { issue, next: next.do, steps: next.steps || null, inHours: next.inHours, probe: out ? out.slice(-PROBE_MAX) : null, reads: reads.length ? reads : null };
+}
+
+/** The most rows of each read Claude gets in reads.json, and the longest a cell may be. */
+export const READ_ROWS = 200;
+export const READ_CELL = 500;
+
+/**
+ * Runs the reads the manager's last plan named, through the read gate, before Claude starts: this step holds the
+ * job's OIDC token, which Claude's shell never gets (docs/production-reads.md, "The fix team's reads"). The gate
+ * answers as agent_reader, read only. The answers go to Claude in <dir>/reads.json, never to the public job log,
+ * which says only how many reads answered. `asker(sql)` is the gate (prod-read.mjs ask).
+ */
+export async function planReads(reads, asker = (sql) => askGate(sql)) {
+  const out = [];
+  for (const sql of readsOf(reads)) {
+    try {
+      const a = await asker(sql);
+      if (!a.ok) { out.push({ sql, error: cut(String(a.body?.error ?? `the gate answered ${a.status}`), 500) }); continue; }
+      const cell = (v) => (typeof v === 'string' && v.length > READ_CELL ? v.slice(0, READ_CELL) + '…' : v);
+      const rows = (a.body.rows ?? []).slice(0, READ_ROWS).map((r) => r.map(cell));
+      out.push({ sql, columns: a.body.columns ?? [], rows, cut: (a.body.rows ?? []).length > READ_ROWS || a.body.truncated === true, login: a.body.login ?? null });
+    } catch (e) {
+      out.push({ sql, error: cut(e instanceof Error ? e.message : String(e), 500) });
+    }
+  }
+  return out;
 }
 
 /**
@@ -1219,7 +1247,13 @@ async function fixContext(dir, id) {
     if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: waiting.map((n) => n.id), draft: before, saysMerge: saysMerge(waiting.map((n) => n.text)), go, askFirst }));
   }
   // The manager's last plan, when the cause was not proven yet: Claude goes on from it, with what its probe printed.
-  const lastPlan = isObj(notes?.plan) && text(notes.plan.next) ? { next: text(notes.plan.next), steps: text(notes.plan.steps) || null, probe: text(notes.plan.probe) || null, tries: Number(notes.plan.tries) || 1, at: text(notes.plan.at) } : null;
+  const lastPlan = isObj(notes?.plan) && text(notes.plan.next) ? { next: text(notes.plan.next), steps: text(notes.plan.steps) || null, probe: text(notes.plan.probe) || null, tries: Number(notes.plan.tries) || 1, at: text(notes.plan.at), reads: readsOf(notes.plan.reads) } : null;
+  // The reads the plan named, run here, before Claude, with the job's token: the answers wait for Claude in reads.json.
+  if (lastPlan && lastPlan.reads.length) {
+    const answers = await planReads(lastPlan.reads);
+    writeFileSync(join(dir, 'reads.json'), JSON.stringify(answers, null, 2));
+    console.log(`${id}: ${answers.filter((a) => !a.error).length} of ${answers.length} production reads of the plan answered, in reads.json for Claude`);
+  }
   writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, ...instructed, ...(lastPlan ? { plan: lastPlan } : {}), ...(go ? { fixIt: { askFirst } } : {}) }, null, 2));
   console.log(`${id}: handed to Claude for a draft fix${waiting.length ? `, with ${plural(waiting.length, 'instruction')} from the ops dashboard${instructed.draft.branch ? ` and its draft fix (${instructed.draft.applied ? 'applied' : 'not applied'})` : ''}` : ''}`);
 }
@@ -1284,7 +1318,7 @@ function fixPatch(dir) {
   // This repository is public: a change or fix.json that carries what was sent is not kept.
   const privPath = process.env.FIX_PRIVATE;
   const priv = privPath && existsSync(privPath) ? readJson(privPath) : null;
-  if (priv && leaks([patch, fix.summary, fix.tests, fix.noFix, fix.answer, fix.cause, fix.proof, fix.why, fix.twins, fix.next?.do, fix.next?.steps].join('\n'), priv)) {
+  if (priv && leaks([patch, fix.summary, fix.tests, fix.noFix, fix.answer, fix.cause, fix.proof, fix.why, fix.twins, fix.next?.do, fix.next?.steps, ...(fix.next?.reads ?? [])].join('\n'), priv)) {
     fix.noFix = 'Claude\'s change carried part of what was sent (the person\'s words or an id), and this repository is public, so it was not kept.';
     fix.summary = '';
     fix.tests = '';

@@ -43,7 +43,7 @@ flowchart TD
 | Agent | Where | Model | It can | It cannot |
 | --- | --- | --- | --- | --- |
 | Coordinator | job `watch` | the action's default | read the code, write `decisions.json` | change code, reach Linear or the network |
-| Issue manager | job `fix` | `sonnet` or `opus`, effort `low` to `high`, as the coordinator chose (`manager` in `decisions.json`) | read and change the checkout, start workers, read production as `agent_reader` (`docs/production-reads.md`), write a probe test that the job `check` runs | run any other shell, reach any other network, hold a key besides Claude's |
+| Issue manager | job `fix` | `sonnet` or `opus`, effort `low` to `high`, as the coordinator chose (`manager` in `decisions.json`) | read and change the checkout, start workers, read the answers to the production reads its plan named, run before it starts as `agent_reader` (`docs/production-reads.md`), write a probe test that the job `check` runs | run any other shell, reach any other network, hold a key besides Claude's |
 | Probe | job `check` | none: vitest | run the manager's own test on main (with the change, when there is one) and keep its last 6000 characters for the manager's next try | hold a secret, write a cache |
 | Workers (finder, fixer, twin finder) | inside the manager's run | the manager chooses for each task | what the manager can | what the manager cannot |
 | Pictures | job `picture` | none: Playwright in the UI suite's local stack | run the manager's steps to a screen on main, then on main with the patch, and keep one picture each time | hold a secret, write a cache, show a person's work (the world is the suite's fixture world) |
@@ -228,7 +228,10 @@ flowchart LR
 ```
 
 1. The manager reads production first (read only, as `agent_reader`), and
-   follows the code from where the numbers point.
+   follows the code from where the numbers point. Its shell cannot reach the
+   gate, so it names the reads in `next.reads`, and the next try starts with
+   their answers in `.user-issues/reads.json` (`docs/production-reads.md`,
+   "The fix team's reads").
 2. When it has no proof, `fix.json` holds `next` (`nextOf` in
    `scripts/agent-team.mjs`): `do`, what Claude does next, in a sentence;
    `steps`, the whole plan; `inHours`, from 0.25 to 168; and `probeAt`, the

@@ -56,19 +56,26 @@ export function asText(answer) {
   return lines.join('\n');
 }
 
+/** One statement to the gate, with the bearer token for this place: { status, ok, body, token }. */
+export async function ask(sql, params = [], env = process.env, fetcher = fetch) {
+  const token = await bearer(env, fetcher);
+  const res = await fetcher(READ_URL, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ sql, params })
+  });
+  const body = await res.json().catch(() => ({ error: `the gate answered ${res.status} without JSON` }));
+  return { status: res.status, ok: res.ok, body, token };
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.sql) {
     console.error('usage: npm run prod:read -- [--json] "select ..." [param ...]');
     process.exit(2);
   }
-  const token = await bearer();
-  const res = await fetch(READ_URL, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ sql: args.sql, params: args.params })
-  });
-  const body = await res.json().catch(() => ({ error: `the gate answered ${res.status} without JSON` }));
+  const { status, ok, body, token } = await ask(args.sql, args.params);
+  const res = { status, ok };
   if (res.status === 401 && token === PROXY_STAND_IN) {
     console.error('x The cloud environment has no CLAUDE_READ_TOKEN for app.langquest.org, as a network secret or a variable (docs/production-reads.md, setup step 4).');
     process.exit(1);

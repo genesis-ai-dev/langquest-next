@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   ACTS, causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, logTail, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, nextStep, OPEN_HOURS,
-  ENDED, NEXT_HOURS, runEnd, NEXT_LIMITS, nextOf, pathRefusal, PICTURES, PLAN_TRIES, planNext, planOf, PROBE_DIRS, REASONS, reviewNeeded, saysAskFirst, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
+  ENDED, NEXT_HOURS, READS_LIMITS, runEnd, NEXT_LIMITS, nextOf, pathRefusal, PICTURES, PLAN_TRIES, planNext, planOf, PROBE_DIRS, REASONS, reviewNeeded, saysAskFirst, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
 } from './agent-team.mjs';
 import * as model from '../server/userIssues';
 
@@ -60,7 +60,10 @@ describe('when the cause is not proven yet', () => {
     expect(nextOf(null)).toBeNull();
     expect(nextOf({ do: '  ' })).toBeNull();
     expect(nextOf({ do: ' Run a probe\nof the sync. ', steps: 'x'.repeat(900), inHours: 0.01, probeAt: 'packages/sync/test' }))
-      .toEqual({ do: 'Run a probe of the sync.', steps: expect.stringMatching(/^x{599}…$/), inHours: NEXT_HOURS.min, probeAt: 'packages/sync/test' });
+      .toEqual({ do: 'Run a probe of the sync.', steps: expect.stringMatching(/^x{599}…$/), inHours: NEXT_HOURS.min, probeAt: 'packages/sync/test', reads: [] });
+    // The reads the next try starts with: read-only statements only, the same limits as the server.
+    expect(nextOf({ do: 'Read.', reads: ['select 1', 'update x set y = 1', 'x'.repeat(10), 'select ' + 'x'.repeat(2000), 7] })?.reads).toEqual(['select 1']);
+    expect(READS_LIMITS).toEqual({ ...model.PLAN_READS });
     expect(nextOf({ do: 'Read production.', inHours: 9999 })).toMatchObject({ inHours: NEXT_HOURS.max, probeAt: null });
     expect(nextOf({ do: 'Read production.', inHours: 'soon' })).toMatchObject({ inHours: 1 });
     // A probe runs only in a folder of tests: never a path a manager makes up.

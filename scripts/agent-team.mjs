@@ -114,8 +114,24 @@ export const PROBE_TEST = 'probe.test.ts';
 /** Where the probe may run: a folder of tests the repository's vitest reads. */
 export const PROBE_DIRS = ['apps/mobile/test', 'apps/admin/test', 'apps/web/test', 'packages/core/test', 'packages/sync/test', 'scripts'];
 
+/** The most production reads a plan may name, and the longest of each (server/userIssues.ts PLAN_READS holds the same). */
+export const READS_LIMITS = { count: 6, sql: 1500 };
+
 /**
- * fix.json `next`: { do, steps, inHours, probeAt }. `do` says in a sentence what the manager does next to
+ * The reads of production a plan names (fix.json `next.reads`): each one read-only statement, `select` or
+ * `with`, cut to READS_LIMITS. The fix job runs them before the next try's Claude starts, through the read gate
+ * as agent_reader, and gives Claude the answers in .user-issues/reads.json: Claude's own shell cannot get the
+ * job's token (claude-code-action removes it), and the gate is what holds a read to reading.
+ */
+export function readsOf(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((r) => typeof r === 'string').map((r) => r.trim().replace(/;\s*$/, ''))
+    .filter((r) => r && r.length <= READS_LIMITS.sql && /^(select|with)\b/i.test(r) && !r.includes(';'))
+    .slice(0, READS_LIMITS.count);
+}
+
+/**
+ * fix.json `next`: { do, steps, inHours, probeAt, reads }. `do` says in a sentence what the manager does next to
  * prove the cause (read production again, run its probe, wait for records a timing makes); `steps` the
  * whole plan; `inHours` when the watch hands the issue back (cut to NEXT_HOURS); `probeAt` the folder its
  * probe runs in (PROBE_DIRS). Null when there is no `do`.
@@ -126,7 +142,7 @@ export function nextOf(raw) {
   if (!what) return null;
   const hours = Number(o.inHours);
   const inHours = Number.isFinite(hours) ? Math.min(NEXT_HOURS.max, Math.max(NEXT_HOURS.min, hours)) : 1;
-  return { do: what, steps: cut(said(o.steps), NEXT_LIMITS.steps), inHours, probeAt: PROBE_DIRS.includes(o.probeAt) ? o.probeAt : null };
+  return { do: what, steps: cut(said(o.steps), NEXT_LIMITS.steps), inHours, probeAt: PROBE_DIRS.includes(o.probeAt) ? o.probeAt : null, reads: readsOf(o.reads) };
 }
 
 /**
@@ -135,7 +151,7 @@ export function nextOf(raw) {
  */
 export const ENDED = {
   why: 'The manager\'s run ended before it wrote its verdict, so the cause is neither proven nor ruled out.',
-  next: { do: 'Claude runs the manager again at the next run of the watch, to read production and prove the cause.', steps: '', inHours: 0.25, probeAt: null }
+  next: { do: 'Claude runs the manager again at the next run of the watch, to read production and prove the cause.', steps: '', inHours: 0.25, probeAt: null, reads: [] }
 };
 
 /**
@@ -145,7 +161,7 @@ export const ENDED = {
 export function planNext(verdict) {
   if (verdict?.ended === true) return ENDED.next;
   if (!verdict || verdict.verdict !== 'unconfirmed') return verdict?.next ?? null;
-  return verdict.next ?? { do: 'Claude tries again: it reads production and writes a test that runs the code, to prove the cause.', steps: '', inHours: 1, probeAt: null };
+  return verdict.next ?? { do: 'Claude tries again: it reads production and writes a test that runs the code, to prove the cause.', steps: '', inHours: 1, probeAt: null, reads: [] };
 }
 
 /** The manager named the cause and how a test proves it. The gate also wants that test in the change. */

@@ -163,7 +163,7 @@ export interface IssueNotes {
   /** The last answered ones, the oldest first: what was said before. */
   before: { at: string; text: string; result: NoteResult; answer: string | null }[];
   /** The manager's last plan for the issue, with what its probe printed, or null. Absent before migration 20261121235200_user_issue_plans.sql. */
-  plan?: { next: string; steps: string | null; nextAt: string; probe: string | null; tries: number; at: string } | null;
+  plan?: { next: string; steps: string | null; nextAt: string; probe: string | null; tries: number; at: string; reads?: string[] | null } | null;
 }
 
 /** What a run did with an instruction: changed the draft fix (or wrote one), answered in words only, or neither. */
@@ -230,7 +230,9 @@ export interface FixRecord {
  * back, and what its probe printed on main. `next: null` removes the plan (the issue has a cause now, or a
  * developer decides). Claude's words only, and the probe ran in the local test world, never on production.
  */
-export interface PlanRecord { issue: string; next: string | null; steps: string | null; inHours: number | null; probe: string | null }
+export interface PlanRecord { issue: string; next: string | null; steps: string | null; inHours: number | null; probe: string | null; reads?: string[] | null }
+/** The reads of production a plan may name, run before the next try's Claude starts (scripts/agent-team.mjs READS_LIMITS). */
+export const PLAN_READS = { count: 6, sql: 1500 } as const;
 /** The longest of a plan's words, and its hours (scripts/agent-team.mjs NEXT_LIMITS and NEXT_HOURS). */
 export const PLAN_TEXT = { next: 300, steps: 600, probe: 6000 } as const;
 export const PLAN_HOURS = { min: 0.25, max: 168 } as const;
@@ -756,7 +758,14 @@ export function parseLooked(input: unknown): Looked {
     if (next === null) return { issue, next: null, steps: null, inHours: null, probe: null };
     const hours = x['inHours'];
     if (typeof hours !== 'number' || !Number.isFinite(hours) || hours < PLAN_HOURS.min || hours > PLAN_HOURS.max) throw new LookedError(`${where}.inHours: ${PLAN_HOURS.min} to ${PLAN_HOURS.max}`);
-    return { issue, next, steps: said('steps'), inHours: hours, probe: said('probe') };
+    const r = x['reads'];
+    let reads: string[] | null = null;
+    if (!absent(r)) {
+      if (!Array.isArray(r) || r.length > PLAN_READS.count || r.some((s) => typeof s !== 'string' || !s || s.length > PLAN_READS.sql || EMAIL.test(s) || !/^\s*(select|with)\b/i.test(s)))
+        throw new LookedError(`${where}.reads: at most ${PLAN_READS.count} statements that start with select or with, each at most ${PLAN_READS.sql} characters, no address`);
+      reads = r.length ? (r as string[]) : null;
+    }
+    return { issue, next, steps: said('steps'), inHours: hours, probe: said('probe'), reads };
   });
   const ranked = new Set<string>();
   const priorities = list(input, 'priorities', LOOKED_MAX.priorities).map((x, n) => {
