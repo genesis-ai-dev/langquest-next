@@ -102,7 +102,7 @@ npm run prod:read -- --logs worker-builds worker=langquest-next
 npm run prod:read -- --logs worker-build-log build=<build id>
 npm run prod:read -- --logs worker-logs worker=langquest-next minutes=120 level=error search=E-7K2Q
 npm run prod:read -- --logs supabase-logs query=postgres-errors
-npm run prod:read -- --logs supabase-logs sql="select timestamp, event_message from function_logs order by timestamp desc limit 50"
+npm run prod:read -- --logs supabase-logs sql="select timestamp, event_message from logs where source = 'function_logs' order by timestamp desc limit 50"
 npm run prod:read -- --logs eas-builds
 npm run prod:read -- --logs eas-build-log build=<build id>
 npm run prod:read -- --logs github-job-log job=<job id>
