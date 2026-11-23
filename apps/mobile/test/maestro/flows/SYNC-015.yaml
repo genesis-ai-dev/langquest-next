@@ -41,6 +41,10 @@ tags:
 - assertVisible: ".*All 12 kept passages are on this device\\..*"
 - tapOn: "What works offline"
 - assertVisible: ".*Always on this device.*"
+# Under the fold on an iPhone 17, behind Sync now: the flow failed here without the scroll (2026-11-23).
+- scrollUntilVisible:
+    element: ".*Needs a connection.*"
+    direction: DOWN
 - assertVisible: ".*Needs a connection.*"
 - runFlow: ../common/open-sync-details.yaml
 - scrollUntilVisible:
