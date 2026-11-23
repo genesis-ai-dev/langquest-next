@@ -250,7 +250,9 @@ rest it:
   `.env.production` holds (step 5). The Worker has no code yet, so nothing
   answers.
 - makes the Hyperdrive config `langquest-next-diag` from
-  `DIAG_DATABASE_URL`, diag_reader's read-only login, with caching off, and
+  `DIAG_DATABASE_URL`, diag_reader's read-only login, with caching off and
+  at most 10 connections to the database (`HYPERDRIVES` in
+  `scripts/secrets.mjs`; the pooler takes 20 for each login), and
   writes its id into `apps/admin/wrangler.jsonc` in place of
   `made-by-npm-run-secrets`. Commit that file on the branch. The id is not
   a secret; the login stays in the Hyperdrive config, which cannot be read
