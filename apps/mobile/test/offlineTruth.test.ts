@@ -113,8 +113,9 @@ describe("a book's download line tells the truth", () => {
     expect(groupLook(none, { ...online, cost: { bytes: 0, files: 0 } }).sub).toBe('No recordings to download yet. New ones come as they are made.');
     // Files whose size the device does not know are not "no recordings".
     expect(groupLook(none, { ...online, cost: { bytes: 0, files: 4 } }).sub).toBe('Recordings and reference material');
-    // Nothing to fetch because its files are here already (a book let go keeps them until room is needed): not "no recordings" (Carl, 2026-11-23).
-    expect(groupLook(none, { ...online, cost: { bytes: 0, files: 0, here: 6 } }).sub).toBe('Its recordings are already on this device. Download keeps them.');
+    // Nothing to fetch because its files are here already (a book let go keeps them until room is needed): not "no
+    // recordings", and not "already here" under "0 ready" either (Carl, 2026-11-23).
+    expect(groupLook(none, { ...online, cost: { bytes: 0, files: 0, here: 6 } }).sub).toBe('Recordings and reference material');
     expect(groupLook(none, { ...online, cost: { bytes: 0, files: 0, here: 0 } }).sub).toBe('No recordings to download yet. New ones come as they are made.');
     expect(groupLook(none, online).help).toBe("Keeps every passage's recordings and reference material on this device, so they work without a connection.");
   });

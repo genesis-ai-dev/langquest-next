@@ -140,10 +140,10 @@ export function groupLook(
     }
     // How much of the recordings would come, or that there are none yet, so a book nobody has recorded does not look
     // like a download that never starts. Their reference material comes too; its size is not known before it does.
-    // Nothing to fetch with files here is not "no recordings": a book let go keeps its files until room is needed
-    // (Carl, 2026-11-23), and keeping it again takes none.
+    // Nothing to fetch with files here is not "no recordings": a book let go keeps its files until room is needed.
+    // The line does not say they are here either, under "0 of 97 ready" (Carl, 2026-11-23): it says what comes.
     const sub = bytes > 0 ? t('offline.group.sizeLine', { size: formatBytes(bytes) })
-      : o.cost?.files === 0 ? (o.cost.here ? t('offline.group.alreadyHere') : t('offline.group.nothingYet'))
+      : o.cost?.files === 0 && !o.cost.here ? t('offline.group.nothingYet')
       : t('offline.group.whatComes');
     return { kind: 'none', title: here, sub, help: t('offline.group.keepHelp'), tap: 'keep', button };
   }

@@ -4860,7 +4860,6 @@
       "downloadButton": "Pakua",
       "downloadRestButton": "Pakua zilizobaki",
       "nothingYet": "Bado hakuna rekodi za kupakua. Mpya zinakuja kadiri zinavyotengenezwa.",
-      "alreadyHere": "Rekodi zake tayari ziko kwenye kifaa hiki. Kupakua kunazihifadhi.",
       "noRoom": "Hakuna nafasi ya kutosha kwenye kifaa hiki",
       "noRoomNeeds": "Sauti yake ni {{size}}. Kifaa hiki kina nafasi ya {{room}}.",
       "noRoomHelp": "Pata nafasi zaidi kwenye kifaa hiki, au pakua vifungu vichache kwa wakati mmoja.",
