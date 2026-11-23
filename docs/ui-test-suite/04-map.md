@@ -245,8 +245,9 @@ Steps:
 2. Read the header, the line under it and the list.
 
 Expected:
-- The header is "Luke", with the sub "Alpha · {recorded} of {n} passages"
-  ("Alpha · 9 of 97 passages" once Luke 3 is done), "Filter" at its end, and
+- The header is "Luke", with the sub "Alpha · {recorded} of {n} recorded"
+  ("Alpha · 9 of 97 recorded" once Luke 3 is done) and under it where the
+  passages stand on this device (MAP-036), "Filter" at its end, and
   Back. On a wide window, crumbs "Alpha" › "Luke" show above the title (the
   kit draws crumbs only there) and the sub drops the language (UI audit,
   findings 123 and 124).
@@ -255,10 +256,9 @@ Expected:
   (decision 166), 25 at a time with "Show 25 more · 72 left" under them (UI
   audit, finding 122). A passage across two chapters (Luke 7:36–8:3) is one
   row.
-- The line over the list is the book's download line (MAP-036): "{ready} of
-  97 passages ready on this device", with what a download would bring under
-  it and "Download" on a row under them when none is kept, or "Download the rest"
-  when some are (TRANS's requests).
+- The line over the list is the book's download line (MAP-036): what a
+  download would bring, and "Download" on a row under it when none is kept,
+  or "Download the rest" when some are (TRANS's requests).
 - Each row has the passage's disc (dashed mic, steps, ✓ when done), its
   title and where it stands, and its download button at the end: an outline
   ("Download for offline"), an arrow wave while it downloads ("Downloading
@@ -504,8 +504,9 @@ Step 6 needs a phone short of storage and is also checked by hand;
 `apps/mobile/test/offlineTruth.test.ts` holds its words.
 
 Steps:
-1. VIEW (nothing kept): on Alpha's map, tap "Luke". Read the line over the
-   list. Open Filter, read the key under it, and close it.
+1. VIEW (nothing kept): on Alpha's map, tap "Luke". Read the header's second
+   line and the line over the list. Open Filter, read the key under it, and
+   close it.
 2. Tap the download button of one passage's row, and watch the line and the
    list under it.
 3. Tap "Download the rest" at the end of the line. Read the line again, and
@@ -522,12 +523,19 @@ Steps:
    book while its study files come down.
 
 Expected:
-- Step 1: the line has two lines: "Checking this device…" and "97 passages"
-  until the device has counted, then "0 of 97 passages ready on this device"
-  and "Working out the size…" until the size is worked out, then "{size} of
+- Step 1: the header says "Alpha · 9 of 97 recorded" and under it where the
+  passages stand on this device, in the words a passage's own mark uses:
+  "Checking this device…" until the device has counted, then "Not on this
+  device" (none here), "{ready} of 97 on this device" (some) or "On this
+  device" (all). The book's counts are all in the header; neither line says
+  "ready". The line over the list says what a download would bring:
+  "Recordings and reference material" until the device has counted,
+  "Working out the size…" until the size is worked out, then "{size} of
   recordings, plus reference material" when the server has recordings of
-  Luke this device lacks, or "No recordings to download yet. New ones come
-  as they are made." when it has none. "Download" is on a row under them. No link
+  Luke this device lacks, "Recordings and reference material" when its
+  recordings are here already (a book let go keeps them until room is
+  needed), or "Reference material now, recordings as they are made." when
+  nobody has recorded any of it. "Download" is on a row under it. No link
   over the list explains the marks: the key is under Filter, for a book of
   chapter tiles and of passage rows, and names every mark a download button
   shows, each drawn as the buttons draw it: "Download for offline",
@@ -535,19 +543,21 @@ Expected:
   "Download needs a connection" and "Checking this device…", each with what
   it means, and that a tap on a green one removes that passage's files.
   There is no "Recordings on this device".
-- Step 2: the row's button turns to the arrow wave, then green. The line
-  keeps its two lines ("Working out the size…" for a moment, then the
-  size of the other 96), its button reads "Download the rest" with Remove
-  beside it, and its height does not change: the rows under it do not move.
+- Step 2: the row's button turns to the arrow wave, then green. The header
+  reads "1 of 97 on this device" once it is here, and the line says
+  "Working out the size…" for a moment, then the size of the other 96; its
+  button reads "Download the rest" with Remove beside it. Neither the
+  header's line nor the line over the list changes height: the rows under
+  them do not move.
   Remove asks first, as in step 5, and lets go only the passages chosen; the
   toast counts only kept passages that are the person's work as staying. On a book of chapter tiles
   the same holds for the tiles under the line.
-- Step 3: "Downloading for offline · {ready} of 97" with "Stay connected
-  until this finishes." while a recording or study file of any of them comes
-  down, "{ready} of 97 passages ready on this device" (amber) with "Some files
-  are still to come." when none is moving, and "All 97 kept passages are on
-  this device" (green) with "Their recordings and reference material work
-  without a connection." once every one is here, its reference audio
+- Step 3: the header reads "Downloading for offline · {ready} of 97" and the
+  line "Stay connected until this finishes." while a recording or study file
+  of any of them comes down; "{ready} of 97 on this device" (amber) with
+  "Some files are still to come." when none is moving; and "On this device"
+  (green) with "Their recordings and reference material work without a
+  connection." once every one is here, its reference audio
   counted with the rest. Where some passage's reference audio cannot come
   (the web UI tests' Bible Brain is out of reach), the line still turns green
   once the rest is here, and says "Some reference audio can't be downloaded
@@ -572,22 +582,23 @@ Expected:
   again will need a connection.", for TRANS also "{n} passages that are your
   work stay on this device.", a red "Remove from this device" and Cancel.
   Cancel changes nothing. "Remove from this device" shows the toast "No
-  longer kept. Their audio may be removed to make room.", and the line offers
-  the whole book again. For TRANS, whose requests stay kept, the toast ends
+  longer kept. Their audio may be removed to make room.", the header reads
+  "Not on this device", and the line offers the whole book again. For TRANS, whose requests stay kept, the toast ends
   "except {n} passages that are your work.", and the button reads "Download
   the rest". An outline section's round button asks the same before it lets
   its passages go.
-- Offline, with passages not kept: "Download needs a connection" under the
-  count, and no button.
-- Step 6: "Not enough room on this device", amber, with "Its audio is
-  {size}. This device has room for {room}." under it. A tap on "Download"
+- Offline, with passages not kept: "Download needs a connection" on the
+  line, and no button.
+- Step 6: the line reads "Not enough room on this device. Its audio is
+  {size}. This device has room for {room}.", amber; the header still says
+  where the passages stand. A tap on "Download"
   asks again and says the same as a toast while it still does not fit; once
   room is made, a tap downloads the book. The room is what is free less the
   500 MB kept for recording, and what the device would free by itself. A
   browser cannot say how much room it has, so the web never shows this.
-- While a language's first download is still running: "Downloading this
-  language" with "Stay connected until this finishes.", and no button until
-  it ends.
+- While a language's first download is still running: the line reads
+  "Downloading this language. Stay connected until this finishes.", and no
+  button until it ends.
 - Step 8: the Map and the book stay quick while the book's study files come
   down (over a thousand for Luke): screens are told of them at most twice a
   second.

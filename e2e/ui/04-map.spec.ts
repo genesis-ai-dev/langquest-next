@@ -65,10 +65,15 @@ async function wholeBook(page: Page): Promise<void> {
   await expect(more).toBeVisible();
   while (await more.isVisible()) await more.click();
 }
-/** What Luke's download line says once the device has counted (MAP-036): where its passages stand, then what a download brings or where it is. */
-const BOOK_OFFERS = /^\d+ of 97 passages ready on this device\. (.+ of recordings, plus reference material|Recordings and reference material|Working out the size…|No recordings to download yet)/;
-const BOOK_SIZED = /^\d+ of 97 passages ready on this device\. (.+ of recordings, plus reference material|Recordings and reference material|No recordings to download yet)/;
-const BOOK_KEPT = /^(All 97 kept passages are on this device|Downloading for offline · \d+ of 97|\d+ of 97 passages ready on this device\. (Some files are still to come|Connect to finish))/;
+/**
+ * What Luke's download line says once the device has counted (MAP-036), spoken: where its passages stand (shown in the
+ * header, under how many are recorded), then what a download brings or where it is (the line over the passages).
+ */
+const BOOK_OFFERS = /^(Not on this device|\d+ of 97 on this device)\. (.+ of recordings, plus reference material|Recordings and reference material|Working out the size…|Reference material now)/;
+const BOOK_SIZED = /^(Not on this device|\d+ of 97 on this device)\. (.+ of recordings, plus reference material|Recordings and reference material|Reference material now)/;
+const BOOK_KEPT = /^(On this device\. |Downloading for offline · \d+ of 97|\d+ of 97 on this device\. (Some files are still to come|Connect to finish))/;
+/** Where Luke's passages stand on this device, in its header under how many are recorded: none, some or all, or on the way. */
+const BOOK_STATUS = /^(Checking this device…|Not on this device|\d+ of 97 on this device|On this device|Downloading for offline · \d+ of 97)$/;
 const BOOK_OFFLINE = new RegExp(`${BOOK_OFFERS.source}|${BOOK_KEPT.source}`);
 const closeSheet = (page: Page) => page.getByRole('button', { name: 'Close' }).locator('visible=true').first().click({ position: { x: 10, y: 10 } });
 
@@ -300,8 +305,10 @@ for (const who of ['TRANS', 'VIEW'] as const) {
     await alphaMap(page);
     await button(page, /^Luke\./).click();
     await expect.poll(() => headerTitle(page)).toBe('Luke');
-    // On a phone the sub-line names the language, as the crumbs do on a wide window (UI audit, finding 124).
-    await expect(text(page, 'Alpha · 9 of 97 passages')).toBeVisible();
+    // On a phone the sub-line names the language, as the crumbs do on a wide window (UI audit, finding 124). Under it, where
+    // the passages stand on this device: the book's counts in one place (Carl, 2026-11-23).
+    await expect(text(page, 'Alpha · 9 of 97 recorded')).toBeVisible();
+    await expect(byId(page, 'book-status')).toHaveText(BOOK_STATUS);
     await expect(byId(page, 'header-back')).toBeVisible();
     // The line over the list is the book's download button (MAP-036): all of it when none is kept, the rest when some are.
     await expect(byId(page, 'book-offline')).toHaveAttribute('aria-label', BOOK_OFFLINE);
@@ -491,7 +498,10 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
   await button(page, /^Luke\./).click();
   await expect.poll(() => headerTitle(page)).toBe('Luke');
   const book = byId(page, 'book-offline');
+  const status = byId(page, 'book-status');
   await expect(book).toHaveAttribute('aria-label', BOOK_SIZED);
+  // VIEW keeps nothing: the header says so in words, not "0 of 97 passages ready" under "9 of 97 passages" (Carl, 2026-11-23).
+  await expect(status).toHaveText('Not on this device');
   // What each download button's mark means is under Filter, every mark named; no link takes a row over the passages.
   await expect(button(page, 'What the download buttons mean')).toHaveCount(0);
   await button(page, 'Filter').click();
@@ -508,17 +518,28 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
     new ResizeObserver(() => seen.push(bar.getBoundingClientRect().height)).observe(bar);
     (window as unknown as { barHeights: number[] }).barHeights = seen;
   });
+  // The header's line holds its height too: it is over the list as well.
+  await status.evaluate((el) => {
+    const line = el.parentElement!;
+    const seen = [line.getBoundingClientRect().height];
+    new ResizeObserver(() => seen.push(line.getBoundingClientRect().height)).observe(line);
+    (window as unknown as { statusHeights: number[] }).statusHeights = seen;
+  });
   await page.getByRole('button', { name: 'Download for offline', exact: true }).locator('visible=true').first().click();
   await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', 'Download the rest');
   // What is kept can be let go at once too, not only once the whole book is (Carl, 2026-11-23).
   await expect(byId(page, 'book-offline-remove')).toHaveAttribute('aria-label', 'Remove');
   await expect(book).toHaveAttribute('aria-label', BOOK_SIZED);
-  const heights = await page.evaluate(() => (window as unknown as { barHeights: number[] }).barHeights);
-  expect(Math.min(...heights)).toBe(heights[0]);
-  expect(Math.max(...heights)).toBe(heights[0]);
+  await expect(status).toHaveText(BOOK_STATUS);
+  for (const seen of ['barHeights', 'statusHeights']) {
+    const heights = await page.evaluate((k) => (window as unknown as Record<string, number[]>)[k]!, seen);
+    expect(Math.min(...heights), seen).toBe(heights[0]);
+    expect(Math.max(...heights), seen).toBe(heights[0]);
+  }
   // The rest, with the button at the line's end: every passage is kept, and no row offers a download any more.
   await byId(page, 'book-offline-download').click();
   await expect(book).toHaveAttribute('aria-label', BOOK_KEPT);
+  await expect(status).toHaveText(/^(On this device|Downloading for offline · \d+ of 97|\d+ of 97 on this device)$/);
   await wholeBook(page);
   await expect.poll(async () => (await labels(page)).filter((l) => /^Download for offline/.test(l))).toHaveLength(0);
   // One kind of kept passage: a book's passages take their reference material too, with no switch to give it up.
@@ -536,5 +557,7 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
   await expectToast(page, 'No longer kept. Their audio may be removed to make room.');
   await expect(book).toHaveAttribute('aria-label', BOOK_OFFERS);
   await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', 'Download');
+  // Let go, though its files stay until room is needed: not here as far as the person is told (Carl, 2026-11-23).
+  await expect(status).toHaveText('Not on this device');
   await context.close();
 });

@@ -11,7 +11,7 @@
 // in the field that none of it came along.
 import { languageName, offlineByUnit, unitTitle, type UnitOffline } from '@langquest-next/core';
 import { deriveKinds, passageSummary } from '../i18n/coreText';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -21,17 +21,14 @@ import { isOffline } from './uploadsModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { txt } from '../ui/textStyles';
 import { t } from '../i18n';
-import { studyComing } from '../study/studyFiles';
-import { referenceComing } from '../sources/referenceCounts';
 import { C, onColor, radius, space, TINT } from '../ui/theme';
 import { keptOfflineMap, sentences, type KeptOffline } from './offlineText';
-import { fillBanner, fits, groupLook, groupOffline, groupSpoken, letGoWords, noRoomWords, offlineLook, workKept, type FillSeen, type GroupLook, type OfflineLook } from './offlineModel';
+import { fillBanner, groupSpoken, offlineLook, type FillSeen, type GroupLook, type OfflineLook } from './offlineModel';
 import { useReferenceRevision } from './useOfflineSummary';
 import { WaveArrow } from './transit';
-import { useSyncStatus } from './useSyncStatus';
 import { a11yState } from '../ui/a11yModel';
-import { useSlowly } from '../ui/useSlowly';
-import { noteExpected } from '../diagnostics/report';
+import { useLayout } from '../ui/useLayout';
+import { useComing, useGroupOffline, type GroupOffer } from './useGroupOffline';
 
 /**
  * Where one passage stands, from what this device has counted and nothing
@@ -48,18 +45,6 @@ function useOffline(ctx: Ctx, unitId: string): KeptOffline | 'checking' {
   if (u) return u;
   // Just kept: the count has not caught up with it yet.
   return keptUnits.has(unitId) ? 'checking' : NOT_KEPT;
-}
-
-/**
- * Is a file of a passage coming down now: one of its recordings (the
- * session's transfers), its study guide's files (study/studyFiles.ts) or its
- * reference audio (sources/referenceCounts.ts)? Its button says
- * "Downloading" only then (decisions.md 166).
- */
-function useComing(): (unitId: string) => boolean {
-  const downloading = useSyncStatus().downloading;
-  useReferenceRevision();
-  return (unitId) => downloading.has(unitId) || studyComing(unitId) || referenceComing(unitId);
 }
 
 
@@ -181,97 +166,6 @@ function toneOf(kind: GroupLook['kind']): { bg: string; fg: string } {
 }
 
 /**
- * What keeping some passages would take: `bytes` of audio to bring down in
- * `files` (both null when the device could not work it out), and the `room`
- * it has for them: what is free above what recording keeps
- * (`BlobStore.roomBytes`), and what it would free for them by itself (the
- * session's `freeable`). `room` is null where the device cannot say.
- */
-type GroupCost = { bytes: number | null; files: number | null; room: number | null; here: number | null };
-
-/**
- * A group's cost, asked a beat after its passages are known and again as the
- * language changes, at most every few seconds (a sync changes it many times
- * a second). `answer` is null until these passages have been answered for,
- * and stays while they are asked about again. `ask` asks now, as a tap does,
- * and the line then says what the tap learned. Only what a tap would keep is
- * asked about, and only while `shown`.
- */
-function useGroupCost(ctx: Ctx, unitIds: readonly string[], shown: boolean): { answer: GroupCost | null; ask: () => Promise<GroupCost> } {
-  const key = unitIds.join('\n');
-  const [cost, setCost] = useState<(GroupCost & { key: string }) | null>(null);
-  const { offlineCost, store } = ctx.language.blobs;
-  const revision = useSlowly(ctx.language.revision, 5000);
-  const current = useRef(key);
-  current.current = key;
-  const ask = useCallback(async (): Promise<GroupCost> => {
-    const c = key ? await offlineCost(key.split('\n')).catch((e: unknown) => { noteExpected('offline: group cost', e); return null; }) : null;
-    const free = store?.roomBytes() ?? null;
-    const found: GroupCost = { bytes: c ? c.bytes : null, files: c ? c.files : null, room: free === null ? null : free + (c?.freeable ?? 0), here: c ? c.here : null };
-    // Kept only for the passages now asked about: an answer for an earlier set never replaces a later one's.
-    if (current.current === key) setCost({ key, ...found });
-    return found;
-  }, [key, offlineCost, store]);
-  useEffect(() => {
-    if (!shown || !key) return;
-    // A beat later, so passages kept one after another ask once.
-    const timer = setTimeout(() => { void ask(); }, 300);
-    return () => clearTimeout(timer);
-  }, [shown, key, ask, revision]);
-  return { answer: cost && cost.key === key ? cost : null, ask };
-}
-
-/**
- * A book's or an outline section's passages as one download (LAN-316,
- * docs/decisions/2026-11-20-a-book-has-its-own-download-button.md): what its
- * button says and what a tap does, from each passage's own count (decisions.md
- * 166). A tap keeps the passages not kept yet, with their reference material;
- * once every one is kept it lets go those the person chose, as a passage's
- * button does. `sized`: say how much audio would come before the tap.
- */
-function useGroup(ctx: Ctx, unitIds: readonly string[], sized: boolean): {
-  look: GroupLook; onPress: (() => void) | undefined;
-  /**
-   * Some passages the person chose are kept, all of the group or only some of
-   * it: letting them go, which a screen asks to be sure of first
-   * (`RemoveSheet`). A book partly downloaded could be let go only one passage
-   * at a time (Carl, 2026-11-23).
-   */
-  remove: { run: () => void; stay: number } | null;
-} {
-  const counted = keptOfflineMap(ctx);
-  const { keptOffline, keptUnits, keepOffline } = ctx.language.blobs;
-  useReferenceRevision();
-  const offline = isOffline(ctx.language.online);
-  const coming = useComing();
-  const g = useMemo(() => groupOffline(unitIds, keptOffline ? counted : null, keptUnits), [unitIds, keptOffline, counted, keptUnits]);
-  // While a first download fills the language in (decisions.md 147) the device does not know every
-  // passage's files, so it could not tell whether they fit: no group is offered until it ends.
-  const fill = ctx.language.fill;
-  const filling = !!fill && fill.total > 0;
-  const offering = !filling && !g.checking && !offline && g.toKeep.length > 0;
-  // The size is said before the tap: until it is answered the line is still checking.
-  const { answer, ask } = useGroupCost(ctx, g.toKeep, sized && offering);
-  const cost = answer && answer.bytes !== null && answer.files !== null ? { bytes: answer.bytes, files: answer.files, here: answer.here ?? 0 } : null;
-  const look = groupLook(g, {
-    offline, filling, downloading: unitIds.some(coming), cost, room: answer?.room ?? null, sizing: sized && offering && !answer
-  });
-  const keep = async () => {
-    // Asked again at the tap: a section's button says no size, and room changes.
-    const now = await ask();
-    const bytes = now.bytes ?? 0;
-    if (!fits(bytes, now.room)) { ctx.toast(noRoomWords(bytes, now.room ?? 0)); return; }
-    // With their reference material, as a passage's own button keeps one (decision amended 2026-11-23).
-    await keepOffline(g.toKeep, true);
-  };
-  const onPress = look.tap === 'keep' ? () => { void keep(); }
-    : look.tap === 'why' ? () => ctx.toast(look.help)
-    : undefined;
-  const remove = g.chosen.length ? { run: () => { void keepOffline(g.chosen, false); ctx.toast(letGoWords(g)); }, stay: workKept(g) } : null;
-  return { look, onPress, remove };
-}
-
-/**
  * Before a book's or a section's passages are let go: what that does, and a
  * red button to do it. A tap on a line that said "on this device" used to
  * let a whole book go at once, which nobody could tell it would (Carl,
@@ -293,21 +187,43 @@ function RemoveSheet(props: { name: string; stay: number; visible: boolean; onCl
 }
 
 /**
- * Over a book's passages: how many of them are on this device, and under
- * that a button that downloads the rest for offline (LAN-316), or, once every
- * passage is kept, removes them after asking. Two lines in every state, held
- * at the tallest it has been on this screen: it changes as each chapter is
- * kept, and the chapters under it must not move under a thumb (Carl,
- * 2026-11-23; LAN-253 for the banner). The button has a row of its own: beside
- * the words, "Download the rest" took more room than "Download", and on a
- * phone the words wrapped from four lines to eight on the first tap (Carl's
- * simulator, 2026-11-23). Nothing for a book with no passages.
+ * A book's header line under how many of its passages are recorded: where
+ * they stand on this device. The book's counts are in one place, the header,
+ * rather than one "of 97 passages" over another (Carl, 2026-11-23). Held at
+ * the tallest it has been on this screen, as the line under it is, so a word
+ * that wraps in one state and not the next does not move the page.
  */
-export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; name: string; testID?: string }) {
-  const { look, onPress, remove } = useGroup(props.ctx, props.unitIds, true);
+export function GroupStatusLine(props: { group: GroupOffer; lead: string; testID?: string }) {
+  const [tallest, setTallest] = useState(0);
+  const centred = useLayout().kind === 'phone';
+  const { look } = props.group;
+  const align = centred ? { textAlign: 'center' as const } : null;
+  const color = look.kind === 'ready' ? TINT.greenText : look.kind === 'partial' ? TINT.amberText : look.kind === 'downloading' ? C.primary : C.muted;
+  return (
+    <View onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h > tallest) setTallest(h); }} style={{ minHeight: tallest, alignItems: centred ? 'center' : 'flex-start' }}>
+      <Text style={[txt.xs, align]}>{props.lead}</Text>
+      {props.group.count > 0 ? <Text testID={props.testID} style={[txt.xs, { fontWeight: '700', color }, align]}>{look.title}</Text> : null}
+    </View>
+  );
+}
+
+/**
+ * Over a book's passages: what a download would bring, or what is in the way,
+ * and under that a button that downloads the rest for offline (LAN-316), or,
+ * once some passage the person chose is kept, removes them after asking. Where
+ * the passages stand is said in the header (`GroupStatusLine`); the line also
+ * says it to a screen reader. Held at the tallest it has been on this screen:
+ * it changes as each chapter is kept, and the chapters under it must not move
+ * under a thumb (Carl, 2026-11-23; LAN-253 for the banner). The button has a
+ * row of its own: beside the words, "Download the rest" took more room than
+ * "Download", and on a phone the words wrapped from four lines to eight on the
+ * first tap (Carl's simulator, 2026-11-23). Nothing for a book with no passages.
+ */
+export function GroupOfflineBar(props: { group: GroupOffer; name: string; testID?: string }) {
+  const { look, onPress, remove } = props.group;
   const [asking, setAsking] = useState(false);
   const [tallest, setTallest] = useState(0);
-  if (props.unitIds.length === 0) return null;
+  if (props.group.count === 0) return null;
   const tone = toneOf(look.kind);
   const testID = props.testID ?? 'group-offline';
   return (
@@ -315,10 +231,7 @@ export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; n
       style={[styles.groupBar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg, minHeight: Math.max(BAR_MIN, tallest) }]}>
       <View testID={testID} style={styles.barText} accessible accessibilityLabel={groupSpoken(look)}>
         <DownloadDisc look={look} size={30} />
-        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-          <Text style={[txt.sm, { fontWeight: '700', color: tone.fg }]}>{look.title}</Text>
-          <Text style={[txt.xs, { color: look.kind === 'none' ? C.muted : tone.fg }]}>{look.sub}</Text>
-        </View>
+        <Text style={[txt.sm, { flex: 1, minWidth: 0, color: look.kind === 'none' ? C.dark : tone.fg }]}>{look.sub}</Text>
       </View>
       {(look.tap === 'keep' && onPress) || remove ? (
         // Download the rest, Remove what is kept, or both, on one row: one appearing beside the other keeps the line's height.
@@ -342,7 +255,7 @@ export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; n
  * passage is kept, a tap asks before letting them go.
  */
 export function GroupDownloadButton(props: { ctx: Ctx; unitIds: readonly string[]; name: string; testID?: string }) {
-  const { look, onPress, remove: keptRemove } = useGroup(props.ctx, props.unitIds, false);
+  const { look, onPress, remove: keptRemove } = useGroupOffline(props.ctx, props.unitIds, false);
   const [asking, setAsking] = useState(false);
   // One mark, one tap: it downloads what is left first, and asks to remove only once every passage is kept.
   const remove = look.tap === 'letGo' ? keptRemove : null;

@@ -90,11 +90,14 @@ export type GroupTap = 'keep' | 'letGo' | 'why';
 export interface GroupLook {
   /** `noRoom`: the passages not kept would not fit on this device. */
   kind: OfflineLook['kind'] | 'noRoom';
-  /** The first line: where the passages stand. */
+  /**
+   * Where the passages stand on this device, in words, with a count only when some of them are here: on a book,
+   * under how many are recorded in its header, so the book's counts are in one place (Carl, 2026-11-23).
+   */
   title: string;
   /**
-   * The second line: what a download would bring, or what is in the way. Every look has one, so the line keeps
-   * its height as the passages change under it, and the chapters under it do not move.
+   * What a download would bring, or what is in the way: the line over the passages, with its buttons. Every look
+   * has one, so the line keeps its height as the passages change under it, and the chapters under it do not move.
    */
   sub: string;
   /** What help mode says of it, and what a tap that only explains says; empty where a tap does nothing. */
@@ -123,20 +126,20 @@ export function groupLook(
   o: { offline: boolean; downloading: boolean; cost: { bytes: number; files?: number; here?: number } | null; room: number | null; sizing?: boolean; filling?: boolean }
 ): GroupLook {
   // Where a tap does nothing, help mode has nothing to light, so there are no help words.
-  if (g.checking) return { kind: 'checking', title: t('offline.summary.checking'), sub: t('map.passages', { count: g.count }), help: '', tap: null, button: 'all' };
-  const here = t('map.me.ready', { ready: formatNumber(g.ready), count: g.count });
+  if (g.checking) return { kind: 'checking', title: t('offline.summary.checking'), sub: t('offline.group.whatComes'), help: '', tap: null, button: 'all' };
+  // None, some or all: "ready" said kept and here at once, and read wrong where only one was true (Carl, 2026-11-23).
+  const here = g.ready === 0 ? t('offline.group.statusNone')
+    : g.ready === g.count ? t('offline.onDevice')
+    : t('offline.group.statusSome', { ready: formatNumber(g.ready), count: g.count });
   const button = g.toKeep.length < g.count ? 'rest' : 'all';
   if (g.toKeep.length > 0) {
     if (o.offline) return { kind: 'noConnection', title: here, sub: t('offline.needsConnection'), help: '', tap: null, button };
-    if (o.filling) return { kind: 'checking', title: t('offline.fill.title'), sub: t('offline.stayConnected'), help: '', tap: null, button };
+    if (o.filling) return { kind: 'checking', title: here, sub: t('map.joinSentences', { first: t('offline.fill.title'), next: t('offline.stayConnected') }), help: '', tap: null, button };
     if (o.sizing) return { kind: 'none', title: here, sub: t('offline.group.sizing'), help: t('offline.group.keepHelp'), tap: 'keep', button };
     const bytes = o.cost?.bytes ?? 0;
     if (!fits(bytes, o.room)) {
       // A tap asks again, since room changes: it keeps them if they fit by then, and says so if they do not.
-      return {
-        kind: 'noRoom', title: t('offline.group.noRoom'), sub: t('offline.group.noRoomNeeds', { size: formatBytes(bytes), room: formatBytes(o.room ?? 0) }),
-        help: t('offline.group.noRoomHelp'), tap: 'keep', button
-      };
+      return { kind: 'noRoom', title: here, sub: noRoomWords(bytes, o.room ?? 0), help: t('offline.group.noRoomHelp'), tap: 'keep', button };
     }
     // How much of the recordings would come, or that there are none yet, so a book nobody has recorded does not look
     // like a download that never starts. Their reference material comes too; its size is not known before it does.
@@ -155,7 +158,7 @@ export function groupLook(
   // reference audio that cannot be downloaded now.
   const missing = g.unsent ? t('offline.group.unsent') : g.referenceMissing ? t('offline.group.referenceMissing') : null;
   if (g.ready === g.count) {
-    return { kind: 'ready', title: t('offline.summary.allReady', { count: g.count }), sub: missing ?? (g.chosen.length ? t('offline.group.allHereSub') : help), help, tap, button };
+    return { kind: 'ready', title: here, sub: missing ?? (g.chosen.length ? t('offline.group.allHereSub') : help), help, tap, button };
   }
   if (o.downloading && !o.offline) {
     return { kind: 'downloading', title: t('offline.passage.downloadingCount', { here: g.ready, total: g.count }), sub: t('offline.stayConnected'), help, tap, button };
