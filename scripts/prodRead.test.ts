@@ -28,3 +28,15 @@ describe('npm run prod:read', () => {
       .toBe('a\tb\n1\t\nx y\t{"k":1}\n(2 rows, cut at 1000: add a limit or a where, 4 ms, as claude_reader)');
   });
 });
+
+describe('logs through the gate', () => {
+  it('reads --logs <source> name=value pairs, with numbers for minutes and limit', async () => {
+    const { parseArgs, logsAsText } = await import('./prod-read.mjs');
+    expect(parseArgs(['--logs', 'worker-logs', 'worker=langquest-next', 'minutes=90', 'search=a=b'])).toEqual({
+      json: false, logs: { source: 'worker-logs', worker: 'langquest-next', minutes: 90, search: 'a=b' }, sql: '', params: []
+    });
+    expect(() => parseArgs(['--logs', 'worker-logs', 'nothing'])).toThrow('name=value');
+    expect(logsAsText({ lines: ['a', 'b'], truncated: true, ms: 5, login: 'agent_reader', note: 'Last hour.' }))
+      .toBe('a\nb\n(2 lines, the newest only, 5 ms, as agent_reader. Last hour.)');
+  });
+});

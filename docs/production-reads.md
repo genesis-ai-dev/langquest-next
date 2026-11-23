@@ -88,6 +88,46 @@ Never paste rows into a pull request, a commit, a GitHub issue or comment, a
 Linear issue, or anything else that is public or shared. Say what was found
 in words: "12 phones on build 61 failed the download", not the rows.
 
+## Logs
+
+`POST /ops/api/read/logs` on the same Worker (`apps/admin/src/logs.ts`)
+hands out the logs Claude needs to find why something failed. The same
+tokens get in, as the same two logins. The Worker reads each log with the
+provider token it already holds for the ops dashboard (`docs/admin.md`), so
+no provider key goes to a cloud thread or to GitHub.
+
+```
+npm run prod:read -- --logs                      lists the sources
+npm run prod:read -- --logs worker-builds worker=langquest-next
+npm run prod:read -- --logs worker-build-log build=<build id>
+npm run prod:read -- --logs worker-logs worker=langquest-next minutes=120 level=error search=E-7K2Q
+npm run prod:read -- --logs supabase-logs query=postgres-errors
+npm run prod:read -- --logs supabase-logs sql="select timestamp, event_message from function_logs order by timestamp desc limit 50"
+npm run prod:read -- --logs eas-builds
+npm run prod:read -- --logs eas-build-log build=<build id>
+npm run prod:read -- --logs github-job-log job=<job id>
+```
+
+| Source | What | Worker key | claude_reader | agent_reader |
+|---|---|---|---|---|
+| `worker-builds`, `worker-build-log` | Workers Builds: the build that deploys each Worker on a merge to main, and its log | `ADMIN_CLOUDFLARE_TOKEN` (Workers CI Read) | whole | whole: a build prints code and its own output |
+| `worker-logs` | a Worker's own log lines (Workers Logs), the last 24 hours at most | `ADMIN_CLOUDFLARE_LOGS_TOKEN` (Workers Observability) | every level, whole lines | warn and error only; emails, tokens, long values, phone numbers and query strings taken out (`redact`) |
+| `supabase-logs` | Supabase's logs (Logs Explorer SQL) | `ADMIN_SUPABASE_TOKEN` (Logs Read) | any query | only `postgres-errors` and `http-errors`: the ops dashboard's groups, codes and counts, never a message |
+| `eas-builds`, `eas-build-log` | the phone app's EAS builds and a build's log | `ADMIN_EXPO_TOKEN` (robot, Viewer) | whole | whole |
+| `github-job-log` | a GitHub Actions job's log in this repository | `ADMIN_GITHUB_TOKEN` (Actions Read) | whole | whole: the repository is public |
+
+An answer holds the newest 2,000 lines at most. Each read is a line in the
+Worker's log, as a statement is. The rate limit is the read gate's, counted
+apart. Log lines are production data too: "Where answers go" below holds.
+
+Cloudflare has no read-only permission for a logs query: Workers Observability
+Edit is the only one. It sits in a token of its own on the Worker, which
+only queries with it; no thread or team holds it.
+
+Not here yet: App Store Connect and Google Play crash reports (the ops
+dashboard shows them), and langquest.org on Vercel, whose tokens cannot be
+made read-only.
+
 ## Where each key lives
 
 | Key | Where | Who can read it | Rotate |

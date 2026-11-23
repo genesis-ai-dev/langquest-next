@@ -205,6 +205,7 @@ describe('user-issues.mjs', () => {
       expect(claude).toContain('Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)');
       expect(claude).not.toContain('Bash(node scripts/');
       expect(claude).toContain('Never copy a row of its answer into what you write.');
+      expect(claude).toContain('prod-read.mjs --logs <source>');
       expect(jobs[name]).toContain('id-token: write');
     }
     // The gate lets in this workflow, from main, as agent_reader (apps/admin/src/read.ts).
