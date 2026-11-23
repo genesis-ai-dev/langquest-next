@@ -248,7 +248,13 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // it for the next start, and the words for reference audio that cannot come in every catalog. The
 // pass runs from the app's root and the Map's download buttons read it, so none of it can load
 // later. 1,134 bytes are left; a first visit has 1,751.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 164 * 1024;
+// Raised by 2 KB with a recording not yet sent named on its passage's line, and a cleaned part's original
+// kept while a version still plays it (Carl, 2026-11-23, LAN-316, docs/decisions/0061-every-passage-says-whether-it-is.md
+// and 0176-clean-up-puts-a-parts-cleaned.md, both amended 2026-11-23), 289 bytes past it: the passage's
+// and the book's words for a recording its device has not sent, in every catalog, and core's file plan
+// asking which takes still play a part as recorded. Both are read by the Map and the sync every visit
+// starts, so neither can load later. 1,759 bytes are left; a first visit has 328.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 166 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
