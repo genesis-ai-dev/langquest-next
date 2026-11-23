@@ -74,8 +74,6 @@ function useKeepToggle(ctx: Ctx, unitId: string, u: KeptOffline | 'checking', of
 }
 
 const DISC = 34;
-/** A book's download line is never shorter than this: two lines of words. */
-const BAR_MIN = 56;
 
 /** The round download mark: an outline to download, an arrow wave while it does (amber offline), green once it is all here. */
 function DownloadDisc(props: { look: { kind: OfflineLook['kind'] | GroupLook['kind'] }; size?: number }) {
@@ -188,10 +186,12 @@ function RemoveSheet(props: { name: string; stay: number; visible: boolean; onCl
 
 /**
  * A book's header line under how many of its passages are recorded: where
- * they stand on this device. The book's counts are in one place, the header,
- * rather than one "of 97 passages" over another (Carl, 2026-11-23). Held at
- * the tallest it has been on this screen, as the line under it is, so a word
- * that wraps in one state and not the next does not move the page.
+ * they stand on this device, and what they still lack there (a recording not
+ * sent yet, reference audio that cannot come). The book's counts are in one
+ * place, the header, rather than one "of 97 passages" over another (Carl,
+ * 2026-11-23). Held at the tallest it has been on this screen, as the buttons
+ * under it are, so a word that wraps in one state and not the next does not
+ * move the page.
  */
 export function GroupStatusLine(props: { group: GroupOffer; lead: string; testID?: string }) {
   const [tallest, setTallest] = useState(0);
@@ -202,47 +202,44 @@ export function GroupStatusLine(props: { group: GroupOffer; lead: string; testID
   return (
     <View onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h > tallest) setTallest(h); }} style={{ minHeight: tallest, alignItems: centred ? 'center' : 'flex-start' }}>
       <Text style={[txt.xs, align]}>{props.lead}</Text>
-      {props.group.count > 0 ? <Text testID={props.testID} style={[txt.xs, { fontWeight: '700', color }, align]}>{look.title}</Text> : null}
+      {props.group.count > 0 ? (
+        <Text testID={props.testID} style={[txt.xs, { fontWeight: '700', color }, align]}>{look.note ? `${look.title} · ${look.note}` : look.title}</Text>
+      ) : null}
     </View>
   );
 }
 
 /**
- * Over a book's passages: what a download would bring, or what is in the way,
- * and under that a button that downloads the rest for offline (LAN-316), or,
- * once some passage the person chose is kept, removes them after asking. Where
- * the passages stand is said in the header (`GroupStatusLine`); the line also
- * says it to a screen reader. Held at the tallest it has been on this screen:
- * it changes as each chapter is kept, and the chapters under it must not move
- * under a thumb (Carl, 2026-11-23; LAN-253 for the banner). The button has a
- * row of its own: beside the words, "Download the rest" took more room than
- * "Download", and on a phone the words wrapped from four lines to eight on the
- * first tap (Carl's simulator, 2026-11-23). Nothing for a book with no passages.
+ * Over a book's passages, its download buttons and no words (Carl,
+ * 2026-11-23: the line over them said little the header and the buttons did
+ * not): "Download" or "Download the rest", with the size of the recordings to
+ * come once it is known, downloads the passages not kept yet for offline
+ * (LAN-316); "Remove", once some passage the person chose is kept, lets them
+ * go after asking. Where the passages stand, and what they lack, is in the
+ * header (`GroupStatusLine`). A download that cannot run now (no connection,
+ * the language still coming, too little room, the device still counting)
+ * keeps its place, dimmed, and says why when tapped. Held at the tallest it
+ * has been on this screen, so the chapters under it never move under a thumb
+ * (LAN-253 for the banner). Nothing for a book with no passages.
  */
 export function GroupOfflineBar(props: { group: GroupOffer; name: string; testID?: string }) {
   const { look, onPress, remove } = props.group;
   const [asking, setAsking] = useState(false);
   const [tallest, setTallest] = useState(0);
   if (props.group.count === 0) return null;
-  const tone = toneOf(look.kind);
   const testID = props.testID ?? 'group-offline';
+  const download = (look.tap === 'keep' || look.blocked !== null) && onPress;
+  const label = look.button === 'rest'
+    ? (look.size ? t('offline.group.downloadRestButtonSize', { size: look.size }) : t('offline.group.downloadRestButton'))
+    : (look.size ? t('offline.group.downloadButtonSize', { size: look.size }) : t('offline.group.downloadButton'));
   return (
-    <View onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h > tallest) setTallest(h); }}
-      style={[styles.groupBar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg, minHeight: Math.max(BAR_MIN, tallest) }]}>
-      <View testID={testID} style={styles.barText} accessible accessibilityLabel={groupSpoken(look)}>
-        <DownloadDisc look={look} size={30} />
-        <Text style={[txt.sm, { flex: 1, minWidth: 0, color: look.kind === 'none' ? C.dark : tone.fg }]}>{look.sub}</Text>
-      </View>
-      {(look.tap === 'keep' && onPress) || remove ? (
-        // Download the rest, Remove what is kept, or both, on one row: one appearing beside the other keeps the line's height.
-        <View style={styles.groupActions}>
-          {look.tap === 'keep' && onPress ? (
-            <SmallBtn testID={`${testID}-download`} icon="download" onPress={onPress} help={look.help}
-              label={look.button === 'rest' ? t('offline.group.downloadRestButton') : t('offline.group.downloadButton')} />
-          ) : null}
-          {remove ? <SmallBtn testID={`${testID}-remove`} label={t('common.remove')} icon="close" help={t('offline.group.letGoHelp')} onPress={() => setAsking(true)} /> : null}
-        </View>
+    <View testID={testID} onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h > tallest) setTallest(h); }}
+      style={[styles.groupActions, { minHeight: tallest }]}>
+      {download ? (
+        <SmallBtn testID={`${testID}-download`} icon="download" onPress={onPress} dimmed={look.blocked !== null}
+          help={look.blocked ?? look.help} label={label} />
       ) : null}
+      {remove ? <SmallBtn testID={`${testID}-remove`} label={t('common.remove')} icon="close" help={t('offline.group.letGoHelp')} onPress={() => setAsking(true)} /> : null}
       {remove ? <RemoveSheet name={props.name} stay={remove.stay} visible={asking} onClose={() => setAsking(false)} onRemove={remove.run} /> : null}
     </View>
   );
@@ -384,8 +381,6 @@ const styles = StyleSheet.create({
   discTap: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   bar: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48, paddingHorizontal: space.md, paddingVertical: space.xs,
     borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
-  barText: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minWidth: 0 },
-  groupBar: { gap: space.sm, paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
   /** Under the words: Download and Remove side by side, the line's full width so both fit on a phone. */
   groupActions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   keyLine: { flexDirection: 'row', alignItems: 'center', gap: space.md }

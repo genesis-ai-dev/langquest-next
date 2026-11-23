@@ -91,6 +91,26 @@ describe("a book's download line tells the truth", () => {
 
   // Carl, 2026-11-23: "0 of 97 passages ready on this device" sat under "9 of 97 passages" (recorded) in the book's header, and
   // "ready" said kept and here at once. The book's header says it now, in words, with a count only when some are here.
+  // Carl, 2026-11-23: the line of words over a book's passages said little the header and the buttons did not, so it is
+  // gone. What it carried that mattered is on the button, said at the tap, or in the header.
+  it('puts the size on the button, says at the tap why a download cannot run, and names in the header what is missing', () => {
+    expect(groupLook(none, { ...online, cost: { bytes: 240 * MB } })).toMatchObject({ tap: 'keep', size: '240 MB', blocked: null, note: null });
+    expect(groupLook(none, { ...online, sizing: true })).toMatchObject({ tap: 'keep', size: null, blocked: null });
+    expect(groupLook(none, { ...online, cost: { bytes: 0, files: 0, here: 6 } })).toMatchObject({ tap: 'keep', size: null });
+    // What stops a download keeps its button where it is, dimmed, and a tap says why.
+    expect(groupLook(groupOffline(ids, null, new Set()), online)).toMatchObject({ tap: null, blocked: 'Checking this device…' });
+    expect(groupLook(none, { ...online, offline: true })).toMatchObject({ tap: null, blocked: 'Download needs a connection' });
+    expect(groupLook(none, { ...online, filling: true })).toMatchObject({ tap: null, blocked: 'Downloading this language. Stay connected until this finishes.' });
+    // Short of room a tap asks again, since room changes.
+    expect(groupLook(none, { ...online, cost: { bytes: 900 * MB }, room: 300 * MB })).toMatchObject({
+      tap: 'keep', size: '900 MB', blocked: 'Not enough room on this device. Its audio is 900 MB. This device has room for 300 MB.'
+    });
+    // Every passage kept: nothing to download, so nothing to size or block; what is missing follows where they stand.
+    expect(groupLook(all([{ ready: true }, { ready: true }, { ready: true }]), online)).toMatchObject({ size: null, blocked: null, note: null });
+    expect(groupLook(all([{ ready: true, notSent: 1 }, { ready: true, refUnavailable: 1 }, { ready: true }]), online).note).toBe('some recordings not sent yet');
+    expect(groupLook(all([{ ready: true, refFull: 1 }, { ready: true }, { ready: true }]), online).note).toBe("some reference audio can't be downloaded");
+  });
+
   it('says where the passages stand as none, some or all, the same words a passage uses', () => {
     expect(groupLook(none, online).title).toBe('Not on this device');
     expect(groupLook(some, online).title).toBe('1 of 3 on this device');

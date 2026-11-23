@@ -96,10 +96,24 @@ export interface GroupLook {
    */
   title: string;
   /**
-   * What a download would bring, or what is in the way: the line over the passages, with its buttons. Every look
-   * has one, so the line keeps its height as the passages change under it, and the chapters under it do not move.
+   * What a download would bring, or what is in the way: spoken with `title` on an outline section's round mark. A
+   * book's screen shows no line of words over its passages, only the buttons (Carl, 2026-11-23): the size is on the
+   * Download button (`size`), what stops it is said when it is tapped (`blocked`), and what it lacks is in its header
+   * (`note`).
    */
   sub: string;
+  /**
+   * What the passages on this device still lack, said after `title` in a book's header: a recording not sent yet
+   * from the phone that made it, or reference audio that cannot be downloaded (decision 61, amended 2026-11-23).
+   */
+  note: string | null;
+  /** How much the recordings a download would bring are, on its button: null until worked out, or with none to fetch. */
+  size: string | null;
+  /**
+   * Why a download cannot run now: the button stays where it is, dimmed, and a tap says this (short of room, a tap
+   * asks again, since room changes). Null where it can run, or where no download is offered.
+   */
+  blocked: string | null;
   /** What help mode says of it, and what a tap that only explains says; empty where a tap does nothing. */
   help: string;
   tap: GroupTap | null;
@@ -115,31 +129,43 @@ export interface GroupLook {
  * recordings are (`cost`; null where it could not be worked out); their
  * reference material comes too, and its size is not known before it comes.
  * A download that would leave no room for recording (`room`, null where the
- * device cannot say) is not offered at all. `sizing`: the size is still
- * being worked out; the button is there already, since a tap asks again.
- * `filling`: a first download is still bringing the language in (decisions.md
- * 147), so the device does not know every passage's files and could not tell
- * whether they fit: no group is offered until it ends.
+ * device cannot say) does not run: its button is dimmed, and a tap asks again.
+ * `sizing`: the size is still being worked out; the button is there already,
+ * since a tap asks again. `filling`: a first download is still bringing the
+ * language in (decisions.md 147), so the device does not know every passage's
+ * files and could not tell whether they fit: the button is dimmed until it
+ * ends, and a tap says why.
  */
 export function groupLook(
   g: GroupOffline,
   o: { offline: boolean; downloading: boolean; cost: { bytes: number; files?: number; here?: number } | null; room: number | null; sizing?: boolean; filling?: boolean }
 ): GroupLook {
-  // Where a tap does nothing, help mode has nothing to light, so there are no help words.
-  if (g.checking) return { kind: 'checking', title: t('offline.summary.checking'), sub: t('offline.group.whatComes'), help: '', tap: null, button: 'all' };
+  const none = { note: null, size: null, blocked: null };
+  // Where a tap does nothing, help mode has nothing to light, so there are no help words. The download button is there
+  // already, dimmed, so the line has its height before the device has counted.
+  if (g.checking) {
+    return { kind: 'checking', title: t('offline.summary.checking'), sub: t('offline.group.whatComes'), help: '', tap: null, button: 'all', ...none, blocked: t('offline.summary.checking') };
+  }
   // None, some or all: "ready" said kept and here at once, and read wrong where only one was true (Carl, 2026-11-23).
   const here = g.ready === 0 ? t('offline.group.statusNone')
     : g.ready === g.count ? t('offline.onDevice')
     : t('offline.group.statusSome', { ready: formatNumber(g.ready), count: g.count });
   const button = g.toKeep.length < g.count ? 'rest' : 'all';
   if (g.toKeep.length > 0) {
-    if (o.offline) return { kind: 'noConnection', title: here, sub: t('offline.needsConnection'), help: '', tap: null, button };
-    if (o.filling) return { kind: 'checking', title: here, sub: t('map.joinSentences', { first: t('offline.fill.title'), next: t('offline.stayConnected') }), help: '', tap: null, button };
-    if (o.sizing) return { kind: 'none', title: here, sub: t('offline.group.sizing'), help: t('offline.group.keepHelp'), tap: 'keep', button };
+    if (o.offline) {
+      const sub = t('offline.needsConnection');
+      return { kind: 'noConnection', title: here, sub, help: '', tap: null, button, ...none, blocked: sub };
+    }
+    if (o.filling) {
+      const sub = t('map.joinSentences', { first: t('offline.fill.title'), next: t('offline.stayConnected') });
+      return { kind: 'checking', title: here, sub, help: '', tap: null, button, ...none, blocked: sub };
+    }
+    if (o.sizing) return { kind: 'none', title: here, sub: t('offline.group.sizing'), help: t('offline.group.keepHelp'), tap: 'keep', button, ...none };
     const bytes = o.cost?.bytes ?? 0;
     if (!fits(bytes, o.room)) {
       // A tap asks again, since room changes: it keeps them if they fit by then, and says so if they do not.
-      return { kind: 'noRoom', title: here, sub: noRoomWords(bytes, o.room ?? 0), help: t('offline.group.noRoomHelp'), tap: 'keep', button };
+      const sub = noRoomWords(bytes, o.room ?? 0);
+      return { kind: 'noRoom', title: here, sub, help: t('offline.group.noRoomHelp'), tap: 'keep', button, ...none, size: formatBytes(bytes), blocked: sub };
     }
     // How much of the recordings would come, or that there are none yet, so a book nobody has recorded does not look
     // like a download that never starts. Their reference material comes too; its size is not known before it does.
@@ -148,7 +174,7 @@ export function groupLook(
     const sub = bytes > 0 ? t('offline.group.sizeLine', { size: formatBytes(bytes) })
       : o.cost?.files === 0 && !o.cost.here ? t('offline.group.nothingYet')
       : t('offline.group.whatComes');
-    return { kind: 'none', title: here, sub, help: t('offline.group.keepHelp'), tap: 'keep', button };
+    return { kind: 'none', title: here, sub, help: t('offline.group.keepHelp'), tap: 'keep', button, ...none, size: bytes > 0 ? formatBytes(bytes) : null };
   }
   // Every passage is kept: a tap lets go what the person chose, or says why none of it was a choice.
   const tap: GroupTap = g.chosen.length ? 'letGo' : 'why';
@@ -158,12 +184,13 @@ export function groupLook(
   // reference audio that cannot be downloaded now.
   const missing = g.unsent ? t('offline.group.unsent') : g.referenceMissing ? t('offline.group.referenceMissing') : null;
   if (g.ready === g.count) {
-    return { kind: 'ready', title: here, sub: missing ?? (g.chosen.length ? t('offline.group.allHereSub') : help), help, tap, button };
+    const note = g.unsent ? t('offline.group.unsentShort') : g.referenceMissing ? t('offline.group.referenceMissingShort') : null;
+    return { kind: 'ready', title: here, sub: missing ?? (g.chosen.length ? t('offline.group.allHereSub') : help), help, tap, button, ...none, note };
   }
   if (o.downloading && !o.offline) {
-    return { kind: 'downloading', title: t('offline.passage.downloadingCount', { here: g.ready, total: g.count }), sub: t('offline.stayConnected'), help, tap, button };
+    return { kind: 'downloading', title: t('offline.passage.downloadingCount', { here: g.ready, total: g.count }), sub: t('offline.stayConnected'), help, tap, button, ...none };
   }
-  return { kind: 'partial', title: here, sub: o.offline ? t('offline.connectToFinish') : t('offline.group.stillToCome'), help, tap, button };
+  return { kind: 'partial', title: here, sub: o.offline ? t('offline.connectToFinish') : t('offline.group.stillToCome'), help, tap, button, ...none };
 }
 
 /** Would this much audio fit in the room the device has to spare (`BlobStore.roomBytes`)? A device that cannot say (`null`) is not held back. */

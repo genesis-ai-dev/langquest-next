@@ -115,8 +115,11 @@ export function useGroupOffline(ctx: Ctx, unitIds: readonly string[], sized: boo
     // With their reference material, as a passage's own button keeps one (decision amended 2026-11-23).
     await keepOffline(g.toKeep, true);
   };
+  // A download that cannot run now says why at the tap (Carl, 2026-11-23): its button stays where it is, dimmed.
+  const blocked = look.blocked;
   const onPress = look.tap === 'keep' ? () => { void keep(); }
     : look.tap === 'why' ? () => ctx.toast(look.help)
+    : blocked ? () => ctx.toast(blocked)
     : undefined;
   const remove = g.chosen.length ? { run: () => { void keepOffline(g.chosen, false); ctx.toast(letGoWords(g)); }, stay: workKept(g) } : null;
   return { look, onPress, remove, count: unitIds.length };

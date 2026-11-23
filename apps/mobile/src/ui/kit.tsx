@@ -626,6 +626,8 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
 
 /** A 48pt outlined button for actions inside a card. */
 export function SmallBtn(props: { label: string; onPress: () => void; icon?: IconName; tone?: 'primary' | 'plain' | 'dark'; disabled?: boolean;
+  /** Drawn as `disabled`, but a tap still runs `onPress`: a button that cannot do its job now and says why when tapped. */
+  dimmed?: boolean;
   /** What help mode says it does. */ help?: string; testID?: string }) {
   const filled = props.tone === 'primary' || props.tone === 'dark';
   const bg = props.tone === 'dark' ? C.dark : C.primary;
@@ -634,7 +636,7 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
   return (
     <Pressable testID={props.testID} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       {...a11yState({ disabled: !!props.disabled }, 'button')}
-      style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, (props.disabled || props.dimmed) && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
       <Text style={[styles.smallLabel, { color: filled ? C.white : C.primary }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
