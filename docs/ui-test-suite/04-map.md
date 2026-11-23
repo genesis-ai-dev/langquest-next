@@ -537,8 +537,10 @@ Expected:
   There is no "Recordings on this device".
 - Step 2: the row's button turns to the arrow wave, then green. The line
   keeps its two lines ("Working out the size…" for a moment, then the
-  size of the other 96), its button reads "Download the rest", and it never
-  grows shorter: the rows under it do not move. On a book of chapter tiles
+  size of the other 96), its button reads "Download the rest" with Remove
+  beside it, and its height does not change: the rows under it do not move.
+  Remove asks first, as in step 5, and lets go only the passages chosen; the
+  toast counts only kept passages that are the person's work as staying. On a book of chapter tiles
   the same holds for the tiles under the line.
 - Step 3: "Downloading for offline · {ready} of 97" with "Stay connected
   until this finishes." while a recording or study file of any of them comes

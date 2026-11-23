@@ -510,6 +510,8 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
   });
   await page.getByRole('button', { name: 'Download for offline', exact: true }).locator('visible=true').first().click();
   await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', 'Download the rest');
+  // What is kept can be let go at once too, not only once the whole book is (Carl, 2026-11-23).
+  await expect(byId(page, 'book-offline-remove')).toHaveAttribute('aria-label', 'Remove');
   await expect(book).toHaveAttribute('aria-label', BOOK_SIZED);
   const heights = await page.evaluate(() => (window as unknown as { barHeights: number[] }).barHeights);
   expect(Math.min(...heights)).toBe(heights[0]);

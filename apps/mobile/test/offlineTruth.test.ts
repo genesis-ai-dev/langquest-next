@@ -1,5 +1,5 @@
 import { saysOffline } from '../src/sync/networkWake';
-import { fillBanner, fits, groupLook, groupOffline, groupSpoken, letGoWords, noRoomWords, offlineLook, referenceUnits } from '../src/sync/offlineModel';
+import { fillBanner, fits, groupLook, groupOffline, groupSpoken, letGoWords, noRoomWords, offlineLook, referenceUnits, workKept } from '../src/sync/offlineModel';
 import type { KeptOffline } from '../src/sync/offlineText';
 import { waitingCounts } from '../src/sync/uploadsModel';
 
@@ -180,6 +180,12 @@ describe("a book's download line tells the truth", () => {
     expect(groupLook(mixed, online).tap).toBe('letGo');
     expect(letGoWords(mixed)).toBe('No longer kept, except 2 passages that are your work.');
     expect(letGoWords(all([{ reason: 'asked' }, {}, {}]))).toBe('No longer kept, except 1 passage that is your work.');
+    // A book only partly downloaded: those never kept are not "your work that stays" (Carl, 2026-11-23).
+    const partly = groupOffline(ids, counted({ 'GEN.1': kept({ reason: 'worked', ready: true }), 'GEN.2': kept({}) }), new Set(['GEN.2']));
+    expect(partly).toMatchObject({ toKeep: ['GEN.3'], chosen: ['GEN.2'] });
+    expect(workKept(partly)).toBe(1);
+    expect(letGoWords(partly)).toBe('No longer kept, except 1 passage that is your work.');
+    expect(workKept(groupOffline(ids, counted({ 'GEN.2': kept({}) }), new Set(['GEN.2'])))).toBe(0);
     const work = all([{ reason: 'asked', ready: true }, { reason: 'worked', ready: true }, { reason: 'worked', ready: true }]);
     // Nothing to remove: its second line says why they are kept.
     expect(groupLook(work, online)).toMatchObject({ tap: 'why', sub: 'Kept because you were asked to work on these passages, or have worked on them.' });

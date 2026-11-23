@@ -25,7 +25,7 @@ import { studyComing } from '../study/studyFiles';
 import { referenceComing } from '../sources/referenceCounts';
 import { C, onColor, radius, space, TINT } from '../ui/theme';
 import { keptOfflineMap, sentences, type KeptOffline } from './offlineText';
-import { fillBanner, fits, groupLook, groupOffline, groupSpoken, letGoWords, noRoomWords, offlineLook, type FillSeen, type GroupLook, type OfflineLook } from './offlineModel';
+import { fillBanner, fits, groupLook, groupOffline, groupSpoken, letGoWords, noRoomWords, offlineLook, workKept, type FillSeen, type GroupLook, type OfflineLook } from './offlineModel';
 import { useReferenceRevision } from './useOfflineSummary';
 import { WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
@@ -231,7 +231,12 @@ function useGroupCost(ctx: Ctx, unitIds: readonly string[], shown: boolean): { a
  */
 function useGroup(ctx: Ctx, unitIds: readonly string[], sized: boolean): {
   look: GroupLook; onPress: (() => void) | undefined;
-  /** Every passage is kept and some by choice: letting them go, which a screen asks to be sure of first (`RemoveSheet`). */
+  /**
+   * Some passages the person chose are kept, all of the group or only some of
+   * it: letting them go, which a screen asks to be sure of first
+   * (`RemoveSheet`). A book partly downloaded could be let go only one passage
+   * at a time (Carl, 2026-11-23).
+   */
   remove: { run: () => void; stay: number } | null;
 } {
   const counted = keptOfflineMap(ctx);
@@ -262,7 +267,7 @@ function useGroup(ctx: Ctx, unitIds: readonly string[], sized: boolean): {
   const onPress = look.tap === 'keep' ? () => { void keep(); }
     : look.tap === 'why' ? () => ctx.toast(look.help)
     : undefined;
-  const remove = look.tap === 'letGo' ? { run: () => { void keepOffline(g.chosen, false); ctx.toast(letGoWords(g)); }, stay: g.count - g.chosen.length } : null;
+  const remove = g.chosen.length ? { run: () => { void keepOffline(g.chosen, false); ctx.toast(letGoWords(g)); }, stay: workKept(g) } : null;
   return { look, onPress, remove };
 }
 
@@ -315,18 +320,17 @@ export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; n
           <Text style={[txt.xs, { color: look.kind === 'none' ? C.muted : tone.fg }]}>{look.sub}</Text>
         </View>
       </View>
-      {look.tap === 'keep' && onPress ? (
+      {(look.tap === 'keep' && onPress) || remove ? (
+        // Download the rest, Remove what is kept, or both, on one row: one appearing beside the other keeps the line's height.
         <View style={styles.groupActions}>
-          <SmallBtn testID={`${testID}-download`} icon="download" onPress={onPress} help={look.help}
-            label={look.button === 'rest' ? t('offline.group.downloadRestButton') : t('offline.group.downloadButton')} />
+          {look.tap === 'keep' && onPress ? (
+            <SmallBtn testID={`${testID}-download`} icon="download" onPress={onPress} help={look.help}
+              label={look.button === 'rest' ? t('offline.group.downloadRestButton') : t('offline.group.downloadButton')} />
+          ) : null}
+          {remove ? <SmallBtn testID={`${testID}-remove`} label={t('common.remove')} icon="close" help={t('offline.group.letGoHelp')} onPress={() => setAsking(true)} /> : null}
         </View>
       ) : null}
-      {remove ? (
-        <View style={styles.groupActions}>
-          <SmallBtn testID={`${testID}-remove`} label={t('common.remove')} icon="close" help={look.help} onPress={() => setAsking(true)} />
-          <RemoveSheet name={props.name} stay={remove.stay} visible={asking} onClose={() => setAsking(false)} onRemove={remove.run} />
-        </View>
-      ) : null}
+      {remove ? <RemoveSheet name={props.name} stay={remove.stay} visible={asking} onClose={() => setAsking(false)} onRemove={remove.run} /> : null}
     </View>
   );
 }
@@ -338,8 +342,10 @@ export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; n
  * passage is kept, a tap asks before letting them go.
  */
 export function GroupDownloadButton(props: { ctx: Ctx; unitIds: readonly string[]; name: string; testID?: string }) {
-  const { look, onPress, remove } = useGroup(props.ctx, props.unitIds, false);
+  const { look, onPress, remove: keptRemove } = useGroup(props.ctx, props.unitIds, false);
   const [asking, setAsking] = useState(false);
+  // One mark, one tap: it downloads what is left first, and asks to remove only once every passage is kept.
+  const remove = look.tap === 'letGo' ? keptRemove : null;
   const press = remove ? () => setAsking(true) : onPress;
   const label = t('shell.a11y.labelDetail', { label: props.name, detail: groupSpoken(look) });
   const spot = useHelpSpot(label, look.help, press);
@@ -467,7 +473,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
   barText: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minWidth: 0 },
   groupBar: { gap: space.sm, paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
-  /** Under the words, lined up with them past the mark. */
-  groupActions: { flexDirection: 'row', paddingLeft: 30 + space.md },
+  /** Under the words: Download and Remove side by side, the line's full width so both fit on a phone. */
+  groupActions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   keyLine: { flexDirection: 'row', alignItems: 'center', gap: space.md }
 });

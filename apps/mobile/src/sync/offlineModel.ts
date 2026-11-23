@@ -176,9 +176,18 @@ export function groupSpoken(look: GroupLook): string {
   return /[.…!?。]$/.test(look.title.trim()) ? [look.title, look.sub].join(' ') : t('map.joinSentences', { first: look.title, next: look.sub });
 }
 
+/**
+ * Of a group's passages, those kept because they are the person's work
+ * (asked of them, or worked on): what letting the group go leaves kept. Not
+ * those never kept, which a book only partly downloaded also has.
+ */
+export function workKept(g: GroupOffline): number {
+  return g.count - g.toKeep.length - g.chosen.length;
+}
+
 /** What letting a group go says: its audio may go, and how many passages stay kept because they are the person's work. */
 export function letGoWords(g: GroupOffline): string {
-  const stay = g.count - g.chosen.length;
+  const stay = workKept(g);
   return stay > 0 ? t('offline.group.toast.someStay', { count: stay }) : t('offline.group.toast.letGo');
 }
 
