@@ -89,7 +89,7 @@ function useKeepToggle(ctx: Ctx, unitId: string, u: KeptOffline | 'checking', of
 }
 
 const DISC = 34;
-/** A book's download line is never shorter than this: two lines of words and the 48pt button beside them. */
+/** A book's download line is never shorter than this: two lines of words. */
 const BAR_MIN = 56;
 
 /** The round download mark: an outline to download, an arrow wave while it does (amber offline), green once it is all here. */
@@ -288,12 +288,15 @@ function RemoveSheet(props: { name: string; stay: number; visible: boolean; onCl
 }
 
 /**
- * Over a book's passages: how many of them are on this device, and a button
- * at its end that downloads the rest for offline (LAN-316), or, once every
+ * Over a book's passages: how many of them are on this device, and under
+ * that a button that downloads the rest for offline (LAN-316), or, once every
  * passage is kept, removes them after asking. Two lines in every state, held
  * at the tallest it has been on this screen: it changes as each chapter is
  * kept, and the chapters under it must not move under a thumb (Carl,
- * 2026-11-23; LAN-253 for the banner). Nothing for a book with no passages.
+ * 2026-11-23; LAN-253 for the banner). The button has a row of its own: beside
+ * the words, "Download the rest" took more room than "Download", and on a
+ * phone the words wrapped from four lines to eight on the first tap (Carl's
+ * simulator, 2026-11-23). Nothing for a book with no passages.
  */
 export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; name: string; testID?: string }) {
   const { look, onPress, remove } = useGroup(props.ctx, props.unitIds, true);
@@ -304,7 +307,7 @@ export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; n
   const testID = props.testID ?? 'group-offline';
   return (
     <View onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h > tallest) setTallest(h); }}
-      style={[styles.bar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg, minHeight: Math.max(BAR_MIN, tallest) }]}>
+      style={[styles.groupBar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg, minHeight: Math.max(BAR_MIN, tallest) }]}>
       <View testID={testID} style={styles.barText} accessible accessibilityLabel={groupSpoken(look)}>
         <DownloadDisc look={look} size={30} />
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
@@ -313,14 +316,16 @@ export function GroupOfflineBar(props: { ctx: Ctx; unitIds: readonly string[]; n
         </View>
       </View>
       {look.tap === 'keep' && onPress ? (
-        <SmallBtn testID={`${testID}-download`} icon="download" onPress={onPress} help={look.help}
-          label={look.button === 'rest' ? t('offline.group.downloadRestButton') : t('offline.group.downloadButton')} />
+        <View style={styles.groupActions}>
+          <SmallBtn testID={`${testID}-download`} icon="download" onPress={onPress} help={look.help}
+            label={look.button === 'rest' ? t('offline.group.downloadRestButton') : t('offline.group.downloadButton')} />
+        </View>
       ) : null}
       {remove ? (
-        <>
+        <View style={styles.groupActions}>
           <SmallBtn testID={`${testID}-remove`} label={t('common.remove')} icon="close" help={look.help} onPress={() => setAsking(true)} />
           <RemoveSheet name={props.name} stay={remove.stay} visible={asking} onClose={() => setAsking(false)} onRemove={remove.run} />
-        </>
+        </View>
       ) : null}
     </View>
   );
@@ -461,5 +466,8 @@ const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48, paddingHorizontal: space.md, paddingVertical: space.xs,
     borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
   barText: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minWidth: 0 },
+  groupBar: { gap: space.sm, paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
+  /** Under the words, lined up with them past the mark. */
+  groupActions: { flexDirection: 'row', paddingLeft: 30 + space.md },
   keyLine: { flexDirection: 'row', alignItems: 'center', gap: space.md }
 });

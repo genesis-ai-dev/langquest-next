@@ -499,8 +499,9 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
     'Download needs a connection', 'Checking this device…']) await expect(text(page, mark)).toBeVisible();
   await expect(text(page, 'Recordings on this device')).toHaveCount(0);
   await closeSheet(page);
-  // Keeping one passage by its own button: the line changes, and never grows shorter, so the list under it does not move
-  // under a thumb (Carl, 2026-11-23). It shrank to "Checking this device…" and grew back on every tap.
+  // Keeping one passage by its own button: the line's words change and its height does not, so the list under it does not
+  // move under a thumb (Carl, 2026-11-23). It shrank to "Checking this device…" and grew back on every tap, and on a phone
+  // "Download the rest" beside the words wrapped them from four lines to eight.
   await book.evaluate((el) => {
     const bar = el.parentElement!;
     const seen = [bar.getBoundingClientRect().height];
@@ -512,6 +513,7 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
   await expect(book).toHaveAttribute('aria-label', BOOK_SIZED);
   const heights = await page.evaluate(() => (window as unknown as { barHeights: number[] }).barHeights);
   expect(Math.min(...heights)).toBe(heights[0]);
+  expect(Math.max(...heights)).toBe(heights[0]);
   // The rest, with the button at the line's end: every passage is kept, and no row offers a download any more.
   await byId(page, 'book-offline-download').click();
   await expect(book).toHaveAttribute('aria-label', BOOK_KEPT);

@@ -257,7 +257,7 @@ Expected:
   row.
 - The line over the list is the book's download line (MAP-036): "{ready} of
   97 passages ready on this device", with what a download would bring under
-  it and "Download" at its end when none is kept, or "Download the rest"
+  it and "Download" on a row under them when none is kept, or "Download the rest"
   when some are (TRANS's requests).
 - Each row has the passage's disc (dashed mic, steps, ✓ when done), its
   title and where it stands, and its download button at the end: an outline
@@ -527,7 +527,7 @@ Expected:
   and "Working out the size…" until the size is worked out, then "{size} of
   recordings, plus reference material" when the server has recordings of
   Luke this device lacks, or "No recordings to download yet. New ones come
-  as they are made." when it has none. "Download" is at its end. No link
+  as they are made." when it has none. "Download" is on a row under them. No link
   over the list explains the marks: the key is under Filter, for a book of
   chapter tiles and of passage rows, and names every mark a download button
   shows, each drawn as the buttons draw it: "Download for offline",
@@ -565,7 +565,7 @@ Expected:
   been sent from the device that made them yet." instead of "Their
   recordings and reference material work without a connection."
 - Step 5: once every passage is kept the line is not a button: it only says
-  where they stand, with a Remove button at its end. Remove opens "Remove
+  where they stand, with a Remove button under them. Remove opens "Remove
   Luke from this device?": "Its recordings stay on the server. Playing them
   again will need a connection.", for TRANS also "{n} passages that are your
   work stay on this device.", a red "Remove from this device" and Cancel.
