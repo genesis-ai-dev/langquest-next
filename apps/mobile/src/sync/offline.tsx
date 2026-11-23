@@ -198,7 +198,7 @@ export function GroupStatusLine(props: { group: GroupOffer; lead: string; testID
   const centred = useLayout().kind === 'phone';
   const { look } = props.group;
   const align = centred ? { textAlign: 'center' as const } : null;
-  const color = look.kind === 'ready' ? TINT.greenText : look.kind === 'partial' ? TINT.amberText : look.kind === 'downloading' ? C.primary : C.muted;
+  const color = look.tone === 'ready' ? TINT.greenText : look.tone === 'waiting' ? TINT.amberText : look.tone === 'downloading' ? C.primary : C.muted;
   return (
     <View onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h > tallest) setTallest(h); }} style={{ minHeight: tallest, alignItems: centred ? 'center' : 'flex-start' }}>
       <Text style={[txt.xs, align]}>{props.lead}</Text>

@@ -96,6 +96,11 @@ export interface GroupLook {
    */
   title: string;
   /**
+   * How `title` is coloured: all here (green), kept and not all here yet with nothing coming down (amber), a file
+   * coming down now, or none of that.
+   */
+  tone: 'ready' | 'waiting' | 'downloading' | 'plain';
+  /**
    * What a download would bring, or what is in the way: spoken with `title` on an outline section's round mark. A
    * book's screen shows no line of words over its passages, only the buttons (Carl, 2026-11-23): the size is on the
    * Download button (`size`), what stops it is said when it is tapped (`blocked`), and what it lacks is in its header
@@ -144,28 +149,36 @@ export function groupLook(
   // Where a tap does nothing, help mode has nothing to light, so there are no help words. The download button is there
   // already, dimmed, so the line has its height before the device has counted.
   if (g.checking) {
-    return { kind: 'checking', title: t('offline.summary.checking'), sub: t('offline.group.whatComes'), help: '', tap: null, button: 'all', ...none, blocked: t('offline.summary.checking') };
+    return { kind: 'checking', title: t('offline.summary.checking'), tone: 'plain', sub: t('offline.group.whatComes'), help: '', tap: null, button: 'all', ...none, blocked: t('offline.summary.checking') };
   }
   // None, some or all: "ready" said kept and here at once, and read wrong where only one was true (Carl, 2026-11-23).
-  const here = g.ready === 0 ? t('offline.group.statusNone')
-    : g.ready === g.count ? t('offline.onDevice')
-    : t('offline.group.statusSome', { ready: formatNumber(g.ready), count: g.count });
+  // Passages kept and not all here yet say whether they are coming down, waiting their turn or need a connection: a
+  // book just downloaded read "Not on this device" with nothing to say it had been asked for (Carl, 2026-11-23).
+  const waiting = g.count - g.toKeep.length - g.ready;
+  const counted = { here: g.ready, total: g.count };
+  const { title: here, tone } = waiting > 0
+    ? o.downloading && !o.offline ? { title: t('offline.passage.downloadingCount', counted), tone: 'downloading' as const }
+      : o.offline ? { title: t('offline.group.statusConnect', counted), tone: 'waiting' as const }
+      : { title: t('offline.group.statusWaiting', counted), tone: 'waiting' as const }
+    : g.ready === 0 ? { title: t('offline.group.statusNone'), tone: 'plain' as const }
+    : g.ready === g.count ? { title: t('offline.onDevice'), tone: 'ready' as const }
+    : { title: t('offline.group.statusSome', { ready: formatNumber(g.ready), count: g.count }), tone: 'plain' as const };
   const button = g.toKeep.length < g.count ? 'rest' : 'all';
   if (g.toKeep.length > 0) {
     if (o.offline) {
       const sub = t('offline.needsConnection');
-      return { kind: 'noConnection', title: here, sub, help: '', tap: null, button, ...none, blocked: sub };
+      return { kind: 'noConnection', title: here, tone, sub, help: '', tap: null, button, ...none, blocked: sub };
     }
     if (o.filling) {
       const sub = t('map.joinSentences', { first: t('offline.fill.title'), next: t('offline.stayConnected') });
-      return { kind: 'checking', title: here, sub, help: '', tap: null, button, ...none, blocked: sub };
+      return { kind: 'checking', title: here, tone, sub, help: '', tap: null, button, ...none, blocked: sub };
     }
-    if (o.sizing) return { kind: 'none', title: here, sub: t('offline.group.sizing'), help: t('offline.group.keepHelp'), tap: 'keep', button, ...none };
+    if (o.sizing) return { kind: 'none', title: here, tone, sub: t('offline.group.sizing'), help: t('offline.group.keepHelp'), tap: 'keep', button, ...none };
     const bytes = o.cost?.bytes ?? 0;
     if (!fits(bytes, o.room)) {
       // A tap asks again, since room changes: it keeps them if they fit by then, and says so if they do not.
       const sub = noRoomWords(bytes, o.room ?? 0);
-      return { kind: 'noRoom', title: here, sub, help: t('offline.group.noRoomHelp'), tap: 'keep', button, ...none, size: formatBytes(bytes), blocked: sub };
+      return { kind: 'noRoom', title: here, tone, sub, help: t('offline.group.noRoomHelp'), tap: 'keep', button, ...none, size: formatBytes(bytes), blocked: sub };
     }
     // How much of the recordings would come, or that there are none yet, so a book nobody has recorded does not look
     // like a download that never starts. Their reference material comes too; its size is not known before it does.
@@ -174,7 +187,7 @@ export function groupLook(
     const sub = bytes > 0 ? t('offline.group.sizeLine', { size: formatBytes(bytes) })
       : o.cost?.files === 0 && !o.cost.here ? t('offline.group.nothingYet')
       : t('offline.group.whatComes');
-    return { kind: 'none', title: here, sub, help: t('offline.group.keepHelp'), tap: 'keep', button, ...none, size: bytes > 0 ? formatBytes(bytes) : null };
+    return { kind: 'none', title: here, tone, sub, help: t('offline.group.keepHelp'), tap: 'keep', button, ...none, size: bytes > 0 ? formatBytes(bytes) : null };
   }
   // Every passage is kept: a tap lets go what the person chose, or says why none of it was a choice.
   const tap: GroupTap = g.chosen.length ? 'letGo' : 'why';
@@ -185,12 +198,12 @@ export function groupLook(
   const missing = g.unsent ? t('offline.group.unsent') : g.referenceMissing ? t('offline.group.referenceMissing') : null;
   if (g.ready === g.count) {
     const note = g.unsent ? t('offline.group.unsentShort') : g.referenceMissing ? t('offline.group.referenceMissingShort') : null;
-    return { kind: 'ready', title: here, sub: missing ?? (g.chosen.length ? t('offline.group.allHereSub') : help), help, tap, button, ...none, note };
+    return { kind: 'ready', title: here, tone, sub: missing ?? (g.chosen.length ? t('offline.group.allHereSub') : help), help, tap, button, ...none, note };
   }
   if (o.downloading && !o.offline) {
-    return { kind: 'downloading', title: t('offline.passage.downloadingCount', { here: g.ready, total: g.count }), sub: t('offline.stayConnected'), help, tap, button, ...none };
+    return { kind: 'downloading', title: here, tone, sub: t('offline.stayConnected'), help, tap, button, ...none };
   }
-  return { kind: 'partial', title: here, sub: o.offline ? t('offline.connectToFinish') : t('offline.group.stillToCome'), help, tap, button, ...none };
+  return { kind: 'partial', title: here, tone, sub: o.offline ? t('offline.connectToFinish') : t('offline.group.stillToCome'), help, tap, button, ...none };
 }
 
 /** Would this much audio fit in the room the device has to spare (`BlobStore.roomBytes`)? A device that cannot say (`null`) is not held back. */

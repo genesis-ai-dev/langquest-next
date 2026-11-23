@@ -72,7 +72,7 @@ const DOWNLOAD_REST = /^Download the rest( · .+)?$/;
  * Where Luke's passages stand on this device, in its header under how many are recorded: none, some or all, or on the
  * way; all of them, with what they lack (the web UI tests' Bible Brain is out of reach, so reference audio can't come).
  */
-const BOOK_STATUS = /^(Checking this device…|Not on this device|\d+ of 97 on this device|On this device( · .+)?|Downloading for offline · \d+ of 97)$/;
+const BOOK_STATUS = /^(Checking this device…|Not on this device|\d+ of 97 on this device|On this device( · .+)?|(Downloading for offline|Waiting to download) · \d+ of 97)$/;
 const closeSheet = (page: Page) => page.getByRole('button', { name: 'Close' }).locator('visible=true').first().click({ position: { x: 10, y: 10 } });
 
 // ---- All languages -------------------------------------------------------------------------
@@ -538,7 +538,8 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
   // The rest, with the button at the line's end: every passage is kept, and no row offers a download any more.
   await byId(page, 'book-offline-download').click();
   await expect(byId(page, 'book-offline-download')).toHaveCount(0);
-  await expect(status).toHaveText(/^(On this device( · .+)?|Downloading for offline · \d+ of 97|\d+ of 97 on this device)$/);
+  // Kept: coming down, waiting its turn, or here; never "Not on this device" as if nothing had been asked (Carl, 2026-11-23).
+  await expect(status).toHaveText(/^(On this device( · .+)?|(Downloading for offline|Waiting to download) · \d+ of 97)$/);
   await wholeBook(page);
   await expect.poll(async () => (await labels(page)).filter((l) => /^Download for offline/.test(l))).toHaveLength(0);
   // One kind of kept passage: a book's passages take their reference material too, with no switch to give it up.
@@ -551,8 +552,10 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
   await expect.poll(() => headerTitle(page)).toBe('Luke');
   // The line only says where they stand now; its Remove button asks first, then lets them go, and the whole book is on offer again.
   await byId(page, 'book-offline-remove').click();
-  await expect(text(page, 'Remove Luke from this device?')).toBeVisible();
-  await button(page, 'Remove from this device').click();
+  // It says what it does: the files go when the device needs room, not now (Carl, 2026-11-23).
+  await expect(text(page, 'Stop keeping Luke on this device?')).toBeVisible();
+  await expect(text(page, /are cleared when this device needs room/)).toBeVisible();
+  await button(page, 'Stop keeping').click();
   await expectToast(page, 'No longer kept. Their audio may be removed to make room.');
   await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', DOWNLOAD_ALL);
   // Let go, though its files stay until room is needed: not here as far as the person is told (Carl, 2026-11-23).

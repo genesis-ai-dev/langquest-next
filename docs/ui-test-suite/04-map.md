@@ -543,7 +543,9 @@ Expected:
   it means, and that a tap on a green one removes that passage's files.
   There is no "Recordings on this device".
 - Step 2: the row's button turns to the arrow wave, then green. The header
-  reads "1 of 97 on this device" once it is here, and the book's button
+  reads "Downloading for offline · 0 of 97" (or "Waiting to download · 0 of
+  97" until a file starts) and "1 of 97 on this device" once it is here,
+  never "Not on this device" while it is kept and coming, and the book's button
   reads "Download the rest", then "Download the rest · {size}" for the other
   96, with Remove beside it. Neither the header's line nor the row of
   buttons changes height: the rows under them do not move.
@@ -552,8 +554,9 @@ Expected:
   the same holds for the tiles under the line.
 - Step 3: the Download button goes, Remove stays. The header reads
   "Downloading for offline · {ready} of 97" while a recording or study file
-  of any of them comes down, "{ready} of 97 on this device" (amber) when
-  none is moving, and "On this device" (green) once every one is here, its
+  of any of them comes down, "Waiting to download · {ready} of 97" (amber)
+  when none is moving (offline: "Connect to finish downloading · {ready} of
+  97"), and "On this device" (green) once every one is here, its
   reference audio counted with the rest. Where some passage's reference
   audio cannot come (the web UI tests' Bible Brain is out of reach), the
   header still turns green once the rest is here, and reads "On this device
@@ -572,11 +575,12 @@ Expected:
   that made it yet."; a book's header then reads "On this device · some
   recordings not sent yet".
 - Step 5: once every passage is kept only Remove is left over the list.
-  Remove opens "Remove
-  Luke from this device?": "Its recordings stay on the server. Playing them
-  again will need a connection.", for TRANS also "{n} passages that are your
-  work stay on this device.", a red "Remove from this device" and Cancel.
-  Cancel changes nothing. "Remove from this device" shows the toast "No
+  Remove opens "Stop keeping Luke on this device?": "Its recordings and
+  reference material are cleared when this device needs room. Until then
+  some may still play without a connection. Everything stays on the
+  server.", for TRANS also "{n} passages that are your work stay on this
+  device.", a red "Stop keeping" and Cancel. Nothing is deleted at the tap.
+  Cancel changes nothing. "Stop keeping" shows the toast "No
   longer kept. Their audio may be removed to make room.", the header reads
   "Not on this device", and "Download" offers the whole book again. For TRANS, whose requests stay kept, the toast ends
   "except {n} passages that are your work.", and the button reads "Download
