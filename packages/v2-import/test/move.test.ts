@@ -43,11 +43,15 @@ const rows: V2ProjectRows = {
 };
 const bucket: Record<string, Uint8Array> = { 'a1.wav': wav(500, 1), 'a2.wav': wav(700, 2) };
 
-function fakes() {
+/** `log`: the target answers `unstored` from the log (each upload is logged), as the Supabase target does. */
+function fakes(opts: { log?: boolean } = {}) {
   const placement = { project_id: 'birat', org_id: 'org-birat', languoid_id: null, code: 'rjs', confirmed_by: 'caleb', confirmed_at: at, language_id: null as string | null, moved_at: null as string | null };
   const ledgers = new Map<string, Map<string, LedgerEntry>>();
   const fileMap = new Map<string, CopiedFile | { missingSince: string }>();
   const r2 = new Set<string>();
+  const logged = new Set<string>();
+  const calls = { lists: 0, unstored: 0, uploads: 0 };
+  let changed = new Set<string>();
   const passes: { project_id: string; finished_at: string; report: unknown }[] = [];
   let events: AnyEvent[] = [];
   let now = Date.parse('2026-10-24T05:00:00Z');
@@ -76,26 +80,46 @@ function fakes() {
     append: async (list: AnyEvent[]) => { events.push(...list); return { accepted: list.length, duplicates: 0, rejected: [] }; },
     files: async (names: string[]) => new Map(names.flatMap((n) => (fileMap.has(n) ? [[n, fileMap.get(n)!] as const] : []))),
     putFiles: async (list: { name: string; file: CopiedFile | null }[]) => { for (const f of list) fileMap.set(f.name, f.file ?? { missingSince: new Date(now).toISOString() }); },
-    stored: async (org: string, lang: string) => new Set([...r2].filter((k) => k.startsWith(`${org}/${lang}/`)).map((k) => k.split('/')[2]!)),
-    upload: async (org: string, lang: string, hash: string) => { r2.add(`${org}/${lang}/${hash}`); },
+    stored: async (org: string, lang: string) => {
+      calls.lists += 1;
+      return new Set([...r2].filter((k) => k.startsWith(`${org}/${lang}/`)).map((k) => k.split('/')[2]!));
+    },
+    ...(opts.log ? {
+      unstored: async (org: string, lang: string, files: { hash: string; size: number }[]) => {
+        calls.unstored += 1;
+        return new Set(files.filter((f) => !logged.has(`${org}/${lang}/${f.hash}:${f.size}`)).map((f) => f.hash));
+      }
+    } : {}),
+    upload: async (org: string, lang: string, hash: string, _format: string, bytes: Uint8Array) => {
+      calls.uploads += 1;
+      r2.add(`${org}/${lang}/${hash}`);
+      logged.add(`${org}/${lang}/${hash}:${bytes.length}`);
+    },
     addNames: async () => {}
   };
   const v2 = {
     projectRows: async () => structuredClone(rows),
-    changedSince: async () => new Set<string>(),
+    changedSince: async () => changed,
     projects: async () => [{ id: 'birat', name: 'BIRAT RAJBANSHI', template: 'unstructured' }],
     people: async () => [],
     download: async (name: string) => bucket[name] ?? null
   };
   const deps = { target, v2, wait: async () => {}, now: () => now } as unknown as PassDeps;
   return {
-    placement, ledgers, r2,
-    /** A 15-minute pass, a while after the last. */
-    pass: async () => {
+    placement, ledgers, r2, calls,
+    /** A 15-minute pass, a while after the last; `edited`: v2 says the project changed. */
+    pass: async (edited = false) => {
       now += 15 * 60_000;
       events = [];
+      changed = new Set(edited ? ['birat'] : []);
       const reports = await sync(deps);
       return { reports, events };
+    },
+    /** The nightly whole read. */
+    whole: async () => {
+      now += 15 * 60_000;
+      events = [];
+      return sync(deps, { all: true });
     },
     /** What `v2_import_move` does to the placement. */
     move: () => {
@@ -145,5 +169,40 @@ describe('a project brought over again into another organization', () => {
     // And a pass after that, with nothing new in v2, says nothing at all.
     const quiet = await f.pass();
     expect(quiet.reports).toEqual([]);
+  });
+});
+
+describe('what the import already stored for a language', () => {
+  it('is asked of the log on a 15-minute pass, so the pass does not list R2', async () => {
+    const f = fakes({ log: true });
+    await f.pass();
+    expect(f.calls).toMatchObject({ lists: 0, uploads: 2 });
+
+    // v2 says the project changed: it is read again, and nothing is stored twice.
+    const again = await f.pass(true);
+    expect(again.reports.map((r) => r.projectId)).toEqual(['birat']);
+    expect(f.calls).toMatchObject({ lists: 0, uploads: 2 });
+    expect(again.reports[0]!.files).toMatchObject({ uploaded: 0 });
+
+    // Moved, the files the log does not hold for the new language are stored for it.
+    f.move();
+    const moved = await f.pass();
+    expect(moved.reports[0]!.files).toMatchObject({ copied: 0, uploaded: 2 });
+    expect(f.calls.lists).toBe(0);
+  });
+
+  it('is listed from R2 once a project by the whole read, which puts back a file R2 lost', async () => {
+    const f = fakes({ log: true });
+    await f.pass();
+    const lost = [...f.r2][0]!;
+    f.r2.delete(lost);
+    // The log still holds it as stored, so a 15-minute pass does not see that it is gone.
+    await f.pass(true);
+    expect(f.r2.has(lost)).toBe(false);
+
+    const [report] = await f.whole();
+    expect(f.calls.lists).toBe(1);
+    expect(report!.files).toMatchObject({ uploaded: 1 });
+    expect(f.r2.has(lost)).toBe(true);
   });
 });
