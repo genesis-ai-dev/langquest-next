@@ -52,3 +52,12 @@ set by `npm run secrets -- production`). Hyperdrive queues a statement over
 its limit. `DIAG_CONNECTIONS` stays 6. Rejected: moving diag_reader to the
 pooler's transaction mode (a change of the login's address in
 `.env.production`, and the limit alone stops the failure).
+
+Amended (2026-11-23, Caleb Koster): reverted the limit above. After
+`npm run secrets -- production` set it at 17:35Z, no Hyperdrive config
+opened a connection to the pooler again (the pooler's log has none from
+17:44Z to 18:55Z), every dashboard read and every read-gate read timed out,
+and the page showed errors everywhere. `npm run secrets` no longer passes
+`--origin-connection-limit`; each config goes back to 100, near Cloudflare's
+own default for the plan. The 20-client limit of the pooler's session mode
+for diag_reader is open again, to fix another way.

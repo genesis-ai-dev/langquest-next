@@ -166,22 +166,10 @@ export const HYPERDRIVE_PLACEHOLDER = 'made-by-npm-run-secrets';
  * read gate's two (docs/production-reads.md) join diag_reader's.
  */
 export const HYPERDRIVES = {
-  DIAG: { key: 'DIAG_DATABASE_URL', name: HYPERDRIVE_NAME, what: "diag_reader's login for the ops dashboard", connections: 10 },
-  READ_CLAUDE: { key: 'CLAUDE_READ_DATABASE_URL', name: 'langquest-next-read-claude', what: "claude_reader's login for the read gate", connections: 5 },
-  READ_AGENT: { key: 'AGENT_READ_DATABASE_URL', name: 'langquest-next-read-agent', what: "agent_reader's login for the read gate", connections: 5 }
+  DIAG: { key: 'DIAG_DATABASE_URL', name: HYPERDRIVE_NAME, what: "diag_reader's login for the ops dashboard" },
+  READ_CLAUDE: { key: 'CLAUDE_READ_DATABASE_URL', name: 'langquest-next-read-claude', what: "claude_reader's login for the read gate" },
+  READ_AGENT: { key: 'AGENT_READ_DATABASE_URL', name: 'langquest-next-read-agent', what: "agent_reader's login for the read gate" }
 };
-
-/**
- * The most connections each Hyperdrive config keeps open to Supabase's
- * pooler. Hyperdrive's own default is far above the pooler's session-mode
- * limit of 20 clients for each login, and Hyperdrive keeps its connections
- * open while idle: on 2026-11-23 diag_reader held all 20, and the ops
- * dashboard's next read failed with EMAXCONNSESSION. Ten leaves the other
- * ten for `npm run diag -- --hosted`, which uses the same login. Hyperdrive
- * queues a statement over the limit; it does not refuse it.
- */
-export const hyperdriveArgs = (binding, connectionString) =>
-  ['--connection-string', connectionString, '--caching-disabled', '--origin-connection-limit', String(HYPERDRIVES[binding].connections)];
 
 /** A binding's id in the admin Worker's config, or null while it is the placeholder or not there. */
 export function hyperdriveId(configText, binding = 'DIAG') {
@@ -540,7 +528,7 @@ function applyHyperdrive(binding, connectionString, state) {
   const configPath = join(root, WORKERS.admin);
   const text = readFileSync(configPath, 'utf8');
   const id = hyperdriveId(text, binding);
-  const common = [...hyperdriveArgs(binding, connectionString), '-c', WORKERS.admin, ...authArgs()];
+  const common = ['--connection-string', connectionString, '--caching-disabled', '-c', WORKERS.admin, ...authArgs()];
   if (id && state === 'set') {
     run('wrangler', ['hyperdrive', 'update', id, ...common]);
     return;
