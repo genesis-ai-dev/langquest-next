@@ -16,6 +16,18 @@ export function diagConnection(env: { DIAG?: Hyperdrive }): string {
   return env.DIAG.connectionString;
 }
 
+/**
+ * Whether a connection string needs no TLS: a local database, or a Hyperdrive
+ * binding, which holds the TLS to Supabase itself and speaks plain Postgres to
+ * the Worker. A binding's host was `<id>.hyperdrive.local`; Cloudflare's newer
+ * runtime gives `<id>.workers.alt`. On 2026-11-23 from 17:35Z the admin Worker
+ * got the new host, this test said "internet", postgres.js asked Hyperdrive
+ * for TLS, and every read stopped with CONNECT_TIMEOUT. Anything else is the
+ * internet, so TLS.
+ */
+export const plainConnection = (url: string): boolean =>
+  /@(127\.0\.0\.1|localhost|host\.docker\.internal|[^@/:]+\.hyperdrive\.local|[^@/:]+\.workers\.alt)[:/]/.test(url);
+
 /** How many statements of one answer run at the same time; a page load opens two answers (diag, ops). */
 export const DIAG_CONNECTIONS = 6;
 
@@ -35,8 +47,7 @@ export const DIAG_TIMEOUT_MS = 25_000;
  * database: on a few connections they run side by side.
  */
 export async function withDiag<T>(url: string, fn: (query: Query) => Promise<T>, timeoutMs = DIAG_TIMEOUT_MS): Promise<T> {
-  // Hyperdrive and a local database take a plain connection; anything else is the internet, so TLS.
-  const plain = /@(127\.0\.0\.1|localhost|host\.docker\.internal|[^@/:]+\.hyperdrive\.local)[:/]/.test(url);
+  const plain = plainConnection(url);
   const sql = postgres(url, {
     max: DIAG_CONNECTIONS,
     prepare: false,

@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import { githubOidc, type GithubRun, type OidcRule } from '../../web/worker/githubOidc';
+import { plainConnection } from './db';
 
 /**
  * The read gate (docs/production-reads.md,
@@ -156,7 +157,7 @@ export async function handleRead(request: Request, deps: ReadDeps): Promise<Resp
 const EXTENDED = { simple: false } as postgres.UnsafeQueryOptions;
 
 export async function runRead(url: string, sql: string, params: (string | number | null)[]): Promise<ReadAnswer> {
-  const plain = /@(127\.0\.0\.1|localhost|host\.docker\.internal|[^@/:]+\.hyperdrive\.local)[:/]/.test(url);
+  const plain = plainConnection(url);
   const db = postgres(url, {
     max: 1, prepare: false, fetch_types: false, connect_timeout: 10, idle_timeout: 5,
     ssl: plain ? false : 'require',
