@@ -338,7 +338,12 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 166 * 1024;
 // grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
 // words in the catalog every visit carries. They show on the recording screen as it opens; the word's
 // sheet loads when first opened (keyTerms/lazySheets.tsx).
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
+// Raised by 1 KB with a book's download button on a row of its own and Sync now fetching what failed at
+// once (Carl, 2026-11-23, LAN-316, docs/decisions/2026-11-20-a-book-has-its-own-download-button.md,
+// amended 2026-11-23), 105 bytes past it: the line's two styles in the Map every visit opens on, and
+// the session's download trigger beside the upload one, which the language hook every screen uses
+// hands on. 919 bytes are left; all chunks have 1,306.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 113 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
