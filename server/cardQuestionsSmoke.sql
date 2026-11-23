@@ -29,7 +29,8 @@ begin
     'questions', jsonb_build_array(jsonb_build_object('id', v_id, 'taken', true))));
   assert (v_done->>'taken')::int = 1, 'a run takes a question';
   select diag.ops_card_questions() into v_seen;
-  assert v_seen->'line:capacity-r2-class-a'->0->>'state' = 'working', 'a taken question is working';
+  select e into v_q from jsonb_array_elements(v_seen->'line:capacity-r2-class-a') e where e->>'id' = v_id;
+  assert v_q->>'state' = 'working', 'a taken question is working';
   v_done := public.ops_card_questions_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/123',
     'questions', jsonb_build_array(jsonb_build_object('id', v_id, 'taken', false, 'result', 'answered', 'answer', 'About $20 so far. Uploads list each file first.'))));
   assert (v_done->>'answered')::int = 1, 'a run answers a question';
@@ -38,7 +39,7 @@ begin
   assert (v_done->>'answered')::int = 0, 'an answered question stays as it is';
 
   select diag.ops_card_questions() into v_seen;
-  v_q := v_seen->'line:capacity-r2-class-a'->0;
+  select e into v_q from jsonb_array_elements(v_seen->'line:capacity-r2-class-a') e where e->>'id' = v_id;
   assert v_q->>'state' = 'answered' and v_q->>'answer' like 'About $20%' and v_q->>'who' = 'Asking Admin', 'the card shows the answer and who asked';
   select count(*) into n from jsonb_array_elements(public.ops_card_questions_waiting()) e where e->>'card' = 'line:capacity-r2-class-a';
   assert n = 2, 'the answered question waits no more';
