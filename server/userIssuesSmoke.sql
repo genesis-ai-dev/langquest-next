@@ -718,8 +718,11 @@ set local role service_role;
 do $$ begin
   assert public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/777', 'plans', jsonb_build_array(
     jsonb_build_object('issue', 'LAN-901', 'next', 'Run a probe.', 'steps', '1. Probe.', 'inHours', 0.25, 'probe', 'took 4100 ms'),
-    jsonb_build_object('issue', 'LAN-902', 'next', 'Read production.', 'inHours', 9999)))) = 2, 'two plans kept';
+    jsonb_build_object('issue', 'LAN-902', 'next', 'Read production.', 'inHours', 9999, 'reads', jsonb_build_array('select 1'))))) = 2, 'two plans kept';
   assert public.ops_user_issue_plans_due() = '[]'::jsonb, 'nothing due yet';
+  -- The reads the next try starts with (migration 20261123171500_user_issue_plan_reads.sql); none when the plan names none.
+  assert public.ops_user_issue_plan('LAN-902')->'reads' = '["select 1"]'::jsonb, 'the reads are kept';
+  assert jsonb_typeof(public.ops_user_issue_plan('LAN-901')->'reads') = 'null', 'no reads';
   begin
     perform public.ops_user_issue_plans_done(jsonb_build_object('runUrl', 'https://github.com/someone/else/actions/runs/1', 'plans', '[]'::jsonb));
     assert false, 'another repository''s run';

@@ -46,6 +46,12 @@ export interface Env {
   // Optional, each read only by its own section (docs/admin.md says how to make one).
   /** Account Analytics Read, Workers Scripts Read, Workers CI Read. */
   ADMIN_CLOUDFLARE_TOKEN?: string;
+  /**
+   * Workers Observability only, for the log gate's Workers Logs (logs.ts).
+   * Cloudflare offers only Edit for a logs query, so it is a token of its own
+   * and ADMIN_CLOUDFLARE_TOKEN stays read-only; this Worker only queries with it.
+   */
+  ADMIN_CLOUDFLARE_LOGS_TOKEN?: string;
   /** A Supabase access token: project health, Edge Functions and log counts. */
   ADMIN_SUPABASE_TOKEN?: string;
   /** Read-only, for Actions runs; without it GitHub's anonymous limit applies, which a Worker shares. */

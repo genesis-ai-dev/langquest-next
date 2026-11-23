@@ -250,7 +250,9 @@ rest it:
   `.env.production` holds (step 5). The Worker has no code yet, so nothing
   answers.
 - makes the Hyperdrive config `langquest-next-diag` from
-  `DIAG_DATABASE_URL`, diag_reader's read-only login, with caching off, and
+  `DIAG_DATABASE_URL`, diag_reader's read-only login, with caching off and
+  at most 10 connections to the database (`HYPERDRIVES` in
+  `scripts/secrets.mjs`; the pooler takes 20 for each login), and
   writes its id into `apps/admin/wrangler.jsonc` in place of
   `made-by-npm-run-secrets`. Commit that file on the branch. The id is not
   a secret; the login stays in the Hyperdrive config, which cannot be read
@@ -315,6 +317,13 @@ without showing it, and once you have the ones you want, run
   Permissions, all Account-level: Account Analytics Read, Workers Scripts
   Read, Workers CI Read. Account Resources: include only the LangQuest
   account. Set an end date.
+- **`ADMIN_CLOUDFLARE_LOGS_TOKEN`** (Workers Logs for Claude, through the
+  log gate: `docs/production-reads.md`, Logs). The same place, as its own
+  custom token. Permissions: Account, Workers Observability, Edit. It is
+  the only permission there is for a logs query; that is why it is a token
+  of its own, and ADMIN_CLOUDFLARE_TOKEN stays read-only. The Worker only
+  queries with it. Account Resources: only the LangQuest account. Set an end
+  date.
 - **`ADMIN_SUPABASE_TOKEN`** (Supabase section, and backups in Storage).
   supabase.com > Account > Access Tokens > Generate new token, as a scoped
   token: the LangQuest Next project only; Read for
