@@ -254,7 +254,12 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // and the book's words for a recording its device has not sent, in every catalog, and core's file plan
 // asking which takes still play a part as recorded. Both are read by the Map and the sync every visit
 // starts, so neither can load later. 1,759 bytes are left; a first visit has 328.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 166 * 1024;
+// Raised by 1 KB with a book's counts in its header and only buttons over its passages (Carl, 2026-11-23,
+// LAN-316, docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended twice more that day),
+// 143 bytes past it: the header's line, the size on the Download button and what a dimmed one says, and
+// their words in every catalog (four keys, sixteen languages), all in the Map every visit opens on.
+// 881 bytes are left; a first visit has 493.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 167 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
