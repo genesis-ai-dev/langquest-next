@@ -388,6 +388,23 @@ times and codes; `docs/production-reads.md` says what you can read). Use it
 before you guess: how many records, which build, which phase is slow, since
 when. Never copy a row of its answer into what you write.
 
+You can read the logs too, through the same command: `node
+/home/runner/work/_temp/watch/prod-read.mjs --logs <source> name=value ...`.
+`--logs` alone lists the sources. Read the log before you guess why a build
+or a server job failed:
+
+- `worker-builds` then `worker-build-log build=<id>`: the Workers Build
+  that deploys the web app on each merge to main (the step that failed).
+- `worker-logs worker=langquest-next minutes=120`: a Worker's warnings and
+  errors, with emails, tokens and long values taken out.
+- `supabase-logs query=postgres-errors` or `query=http-errors`: Supabase's
+  errors grouped by code and path, as the ops dashboard shows them.
+- `eas-builds` then `eas-build-log build=<id>`: a phone app build on EAS.
+- `github-job-log job=<id>`: a GitHub Actions job's log.
+
+A log line can quote what a person typed: never copy one into what you
+write. Say what you found in words.
+
 You can start workers with the Agent tool. A worker has your tools and no
 more: no shell but `git` and the read of production, no other network. Give each one everything it needs in its
 prompt (it does not see this skill): the files to start from, what to find
