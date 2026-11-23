@@ -61,3 +61,11 @@ and the page showed errors everywhere. `npm run secrets` no longer passes
 `--origin-connection-limit`; each config goes back to 100, near Cloudflare's
 own default for the plan. The 20-client limit of the pooler's session mode
 for diag_reader is open again, to fix another way.
+
+Amended (2026-11-23, Caleb Koster): the limit was not the cause of the
+outage. Setting every config back to 100 changed nothing, and Supabase had no
+banned addresses. The cause: from 17:35Z the Hyperdrive binding's host was
+`<id>.workers.alt`, not `<id>.hyperdrive.local`. `db.ts` and `read.ts` chose
+TLS for any host they did not know, so postgres.js asked Hyperdrive for TLS
+and waited until CONNECT_TIMEOUT. `plainConnection` in `db.ts` now knows both
+host names. The limit stays off.
