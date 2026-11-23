@@ -23,7 +23,8 @@ import { t } from '../i18n';
 import { useLabels } from '../library/useLabels';
 import { itemName } from '../library/labelsModel';
 import { formatNumber, formatPercent } from '../i18n/format';
-import { DownloadButton, DownloadKey, FillBanner, GroupDownloadButton, GroupOfflineBar } from '../sync/offline';
+import { DownloadButton, DownloadKey, FillBanner, GroupDownloadButton, GroupOfflineBar, GroupStatusLine } from '../sync/offline';
+import { useBookOffline } from '../sync/useGroupOffline';
 
 import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
 import { indexesFor } from '../sync/indexes';
@@ -389,8 +390,8 @@ function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPr
 }
 
 /**
- * A quiet link that opens what each download button's mark means (`DownloadKey`): under a book's download line, and
- * over an outline's sections. The marks were defined nowhere a person looked (Carl, 2026-11-20).
+ * A quiet link that opens what each download button's mark means (`DownloadKey`), over an outline's sections: an
+ * outline has no Filter, where a book's key is. The marks were defined nowhere a person looked (Carl, 2026-11-20).
  */
 function DownloadKeyLink() {
   const [open, setOpen] = useState(false);
@@ -685,6 +686,8 @@ export function BookMap(ctx: Ctx) {
   const entries = useMemo(() => (state ? bookEntries(languageEntries(state, ctx.language.lines), bookId) : []), [state, ctx.language.lines, bookId]);
   // Every passage of the book, whatever the filter shows: what its download button keeps (LAN-316).
   const unitIds = useMemo(() => entries.map((e) => e.unitId), [entries]);
+  // Where the book's passages stand on this device, said in the header, and its download over the passages: one count.
+  const bookGroup = useBookOffline(ctx, unitIds);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const chapters = useMemo(() => (book ? chapterTiles(book, entries, forYou, filter) : []), [book, entries, forYou, filter]);
@@ -702,8 +705,10 @@ export function BookMap(ctx: Ctx) {
   const filterLink = entries.length > 0
     ? <QuietIconLink icon="filter" label={t('map.filter.title')} onPress={() => setFilterOpen(true)} detail={t('map.book.filterHelp')} />
     : undefined;
-  // The demo's book (MapBook): the book's name and how many of its passages are recorded; nothing else up top.
-  const header = <Header title={title} crumbs={crumbs} onBack={ctx.back} sub={inLanguage(t('map.book.sub', { count: entries.length, recorded: fmt(recordedCount) }))}
+  // The demo's book (MapBook): the book's name and how many of its passages are recorded, and under that where they
+  // stand on this device: the book's counts in one place, not one "of 97 passages" over another (Carl, 2026-11-23).
+  const header = <Header title={title} crumbs={crumbs} onBack={ctx.back}
+    subNode={<GroupStatusLine group={bookGroup} lead={inLanguage(t('map.book.sub', { count: entries.length, recorded: fmt(recordedCount) }))} testID="book-status" />}
     {...(filterLink ? { action: filterLink } : {})} />;
   if (!languageId || (!book && bookId !== OTHER)) {
     return <Screen header={header}><EmptyState icon="book" title={t('map.book.notHere')} sub={t('map.book.notHereSub')} /></Screen>;
@@ -752,14 +757,9 @@ export function BookMap(ctx: Ctx) {
     </View>
   ) : null;
 
-  // Over the book's passages: how many are on this device, and the button that downloads them all (decisions.md 166, LAN-316);
-  // under it, what each passage's download button can show.
-  const bookOffline = (
-    <View style={{ gap: space.xs }}>
-      <GroupOfflineBar ctx={ctx} unitIds={unitIds} name={title} testID="book-offline" />
-      <DownloadKeyLink />
-    </View>
-  );
+  // Over the book's passages: what downloading them brings, and the button that does it (decisions.md 166, LAN-316).
+  // What each passage's mark means is under Filter: a link here took a row over the chapters on every book (Carl, 2026-11-23).
+  const bookOffline = <GroupOfflineBar group={bookGroup} name={title} testID="book-offline" />;
 
   // Passages that sit in no book have no chapters to lay out: a list, 25 at a time.
   if (!book) {

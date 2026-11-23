@@ -40,8 +40,9 @@ below was earned in production there.
    alone for a grace window (10 min in v2) and then re-derives; if the
    confirmation never arrived, it re-uploads. Lost confirmations self-heal.
 4. **Two wake-up verbs.** `trigger()` clears backoff waits (reconnect, app
-   foreground, after recording); `nudge()` asks for a pass without touching
-   backoff or grace. Confusing the two caused retry storms in v2.
+   foreground, after recording, and Sync now, for uploads and downloads
+   alike); `nudge()` asks for a pass without touching backoff or grace.
+   Confusing the two caused retry storms in v2.
 5. **Backoff ladder, never terminal.** Upload 30 s, 1 m, 5 m, 30 m cap;
    download 30 s, 2 m, 10 m cap. Failure counts survive a trigger; only the
    wait is cleared.
@@ -75,15 +76,21 @@ below was earned in production there.
     and say why
     (`docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md`).
     A book's download button keeps each of its passages, in one write
-    (`docs/decisions/2026-11-20-a-book-has-its-own-download-button.md`), for
-    their recordings alone: they go in a list of their own
-    (`LanguageStatus.recordingsOnly`), and a passage's reference material
-    (study guide files, reference audio) follows only the person's own
-    passages and those kept by their own button (`referenceUnits`). It
-    says first how much audio would come (`offlineCost`), and is not offered
-    when that would not fit in what is free above the 500 MB kept for
-    recording (`BlobStore.roomBytes`) and what the device would free by
-    itself (`freeable`), since kept files are never deleted to make room.
+    (`docs/decisions/2026-11-20-a-book-has-its-own-download-button.md`), as
+    a passage's own button keeps one: with its reference material (study
+    guide files, reference audio), which follows every kept passage
+    (`referenceUnits`). A passage is "on this device" only once its
+    recordings, study guide files and reference audio are here; reference
+    audio is worked out per passage from what the device holds, offline too
+    (`sources/referenceCounts.ts`), and a chapter that cannot come (no room
+    left in the 1 GB kept for reference audio, or not downloadable now) is
+    named on the passage's line instead of keeping it amber, as a study file
+    its source refuses is. It says first how much its recordings are
+    (`offlineCost`, on its button; reference material's size is not known
+    before it comes), and does not run when that would not fit in what is
+    free above the 500 MB kept for recording (`BlobStore.roomBytes`) and what
+    the device would free by itself (`freeable`), since kept files are never
+    deleted to make room: its button is dimmed, and a tap asks again.
 11. **Audio is immutable.** Already PLAN.md invariant 4. It is what makes the
     confirmation monotonic and the upsert safe; v2 had to document the
     re-record-in-place case as unhandled.
@@ -98,6 +105,18 @@ outside the offline scope, and not upload work. Unsynced recordings, kept
 units, and other languages' files are never touched. Downloads land in a
 `.part` staging name and are renamed only after their hash matches;
 startup deletes leftover staging files.
+
+Study guide files (pictures, maps and step audio of a kept passage's guide,
+`study/studyFiles.ts`) live outside the blob store, named by their web
+address, and are cleared by the same rule
+(`docs/decisions/2026-11-23-study-files-are-cleared-when-no-kept-passage-needs-them.md`):
+only files no kept passage needs, in any language on the phone, when the
+device is short of the 500 MB kept for recording or when such files come to
+more than 256 MB, oldest first. Each language saves the list of files its
+kept passages need once that list is whole (`wishListWhole`), and a file any
+list names stays; a file from before the phone first saved such lists is
+never cleared. Reference audio has its own 1 GB share (`SOURCE_CACHE_BYTES`,
+`sources/offline.ts`).
 
 Files from a teammate's phone (since 2026-11-07): files that came from a
 teammate's phone over a nearby link (`docs/nearby-sync-plan.md` 5.6) are

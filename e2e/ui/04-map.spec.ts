@@ -65,10 +65,16 @@ async function wholeBook(page: Page): Promise<void> {
   await expect(more).toBeVisible();
   while (await more.isVisible()) await more.click();
 }
-/** What Luke's download button says once the device has counted (MAP-036): what it offers, or where its passages stand. */
-const BOOK_OFFERS = /^(Download recordings of all 97 passages for offline|Download recordings of the other \d+ passages?\. \d+ of 97 passages ready on this device)/;
-const BOOK_KEPT = /^(Recordings of all 97 passages are on this device|Downloading for offline · \d+ of 97|\d+ of 97 passages ready on this device)/;
-const BOOK_OFFLINE = new RegExp(`${BOOK_OFFERS.source}|${BOOK_KEPT.source}`);
+/**
+ * Luke's download button (MAP-036), with the size of its recordings once it is known: "Download" for the whole book and
+ * for the rest alike, since the header says how much is here (Carl, 2026-11-23).
+ */
+const DOWNLOAD_ALL = /^Download( · .+)?$/;
+/**
+ * Where Luke's passages stand on this device, in its header under how many are recorded: none, some or all, or on the
+ * way; all of them, with what they lack (the web UI tests' Bible Brain is out of reach, so reference audio can't come).
+ */
+const BOOK_STATUS = /^(Checking this device…|Not on this device|\d+ of 97 on this device|On this device( · .+)?|(Downloading for offline|Waiting to download) · \d+ of 97)$/;
 const closeSheet = (page: Page) => page.getByRole('button', { name: 'Close' }).locator('visible=true').first().click({ position: { x: 10, y: 10 } });
 
 // ---- All languages -------------------------------------------------------------------------
@@ -299,11 +305,13 @@ for (const who of ['TRANS', 'VIEW'] as const) {
     await alphaMap(page);
     await button(page, /^Luke\./).click();
     await expect.poll(() => headerTitle(page)).toBe('Luke');
-    // On a phone the sub-line names the language, as the crumbs do on a wide window (UI audit, finding 124).
-    await expect(text(page, 'Alpha · 9 of 97 passages')).toBeVisible();
+    // On a phone the sub-line names the language, as the crumbs do on a wide window (UI audit, finding 124). Under it, where
+    // the passages stand on this device: the book's counts in one place (Carl, 2026-11-23).
+    await expect(text(page, 'Alpha · 9 of 97 recorded')).toBeVisible();
+    await expect(byId(page, 'book-status')).toHaveText(BOOK_STATUS);
     await expect(byId(page, 'header-back')).toBeVisible();
     // The line over the list is the book's download button (MAP-036): all of it when none is kept, the rest when some are.
-    await expect(byId(page, 'book-offline')).toHaveAttribute('aria-label', BOOK_OFFLINE);
+    await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', DOWNLOAD_ALL);
     // 25 at a time (UI audit, finding 122), then the rest.
     expect((await labels(page)).filter((l) => /^Luke \d+:\d+/.test(l))).toHaveLength(25);
     await expect(button(page, 'Show 25 more · 72 left')).toBeVisible();
@@ -490,40 +498,69 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
   await button(page, /^Luke\./).click();
   await expect.poll(() => headerTitle(page)).toBe('Luke');
   const book = byId(page, 'book-offline');
-  // What each download button's mark means is one tap away, every mark named.
-  await button(page, 'What the download buttons mean').click();
-  for (const mark of ['Download for offline', 'Downloading for offline', 'Only some files here', 'Recordings on this device', 'On this device',
+  const status = byId(page, 'book-status');
+  await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', DOWNLOAD_ALL);
+  // No words over the passages: the header says where they stand, the button what it does (Carl, 2026-11-23).
+  for (const gone of ['Recordings and reference material', 'Working out the size…']) await expect(text(page, gone)).toHaveCount(0);
+  // VIEW keeps nothing: the header says so in words, not "0 of 97 passages ready" under "9 of 97 passages" (Carl, 2026-11-23).
+  await expect(status).toHaveText('Not on this device');
+  // What each download button's mark means is under Filter, every mark named; no link takes a row over the passages.
+  await expect(button(page, 'What the download buttons mean')).toHaveCount(0);
+  await button(page, 'Filter').click();
+  for (const mark of ['Download for offline', 'Downloading for offline', 'Only some files here', 'On this device',
     'Download needs a connection', 'Checking this device…']) await expect(text(page, mark)).toBeVisible();
+  await expect(text(page, 'Recordings on this device')).toHaveCount(0);
   await closeSheet(page);
-  await expect(book).toHaveAttribute('aria-label', /^Download recordings of all 97 passages for offline/);
-  await book.click();
-  // Every passage is kept: the line says where they stand, and no row offers a download any more.
-  await expect(book).toHaveAttribute('aria-label', BOOK_KEPT);
+  // Keeping one passage by its own button: the line's words change and its height does not, so the list under it does not
+  // move under a thumb (Carl, 2026-11-23). It shrank to "Checking this device…" and grew back on every tap, and on a phone
+  // "Download the rest" beside the words wrapped them from four lines to eight.
+  await book.evaluate((el) => {
+    const bar = el;
+    const seen = [bar.getBoundingClientRect().height];
+    new ResizeObserver(() => seen.push(bar.getBoundingClientRect().height)).observe(bar);
+    (window as unknown as { barHeights: number[] }).barHeights = seen;
+  });
+  // The header's line holds its height too: it is over the list as well.
+  await status.evaluate((el) => {
+    const line = el.parentElement!;
+    const seen = [line.getBoundingClientRect().height];
+    new ResizeObserver(() => seen.push(line.getBoundingClientRect().height)).observe(line);
+    (window as unknown as { statusHeights: number[] }).statusHeights = seen;
+  });
+  await page.getByRole('button', { name: 'Download for offline', exact: true }).locator('visible=true').first().click();
+  await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', DOWNLOAD_ALL);
+  // What is kept can be let go at once too, not only once the whole book is, by the words its sheet uses (Carl, 2026-11-23).
+  await expect(byId(page, 'book-offline-remove')).toHaveAttribute('aria-label', 'Stop keeping');
+  await expect(status).toHaveText(BOOK_STATUS);
+  for (const seen of ['barHeights', 'statusHeights']) {
+    const heights = await page.evaluate((k) => (window as unknown as Record<string, number[]>)[k]!, seen);
+    expect(Math.min(...heights), seen).toBe(heights[0]);
+    expect(Math.max(...heights), seen).toBe(heights[0]);
+  }
+  // The rest, with the button at the line's end: every passage is kept, and no row offers a download any more.
+  await byId(page, 'book-offline-download').click();
+  await expect(byId(page, 'book-offline-download')).toHaveCount(0);
+  // Kept: coming down, waiting its turn, or here; never "Not on this device" as if nothing had been asked (Carl, 2026-11-23).
+  await expect(status).toHaveText(/^(On this device( · .+)?|(Downloading for offline|Waiting to download) · \d+ of 97)$/);
   await wholeBook(page);
   await expect.poll(async () => (await labels(page)).filter((l) => /^Download for offline/.test(l))).toHaveLength(0);
-  // For their recordings alone: each row is marked apart from a passage kept with its reference material, and none is that.
-  await expect.poll(async () => (await labels(page)).filter((l) => /^Recordings on this device$/.test(l)).length).toBeGreaterThan(0);
-  expect((await labels(page)).filter((l) => /^On this device$/.test(l))).toHaveLength(0);
-  // One passage of the book gets its reference material too, by the switch on its own screen, and gives it up again.
+  // One kind of kept passage: a book's passages take their reference material too, with no switch to give it up.
+  expect((await labels(page)).filter((l) => /^Recordings on this device$/.test(l))).toHaveLength(0);
   await (await bookPassage(page, label('P-NEW'))).click();
   await expect.poll(() => headerTitle(page)).toBe(label('P-NEW'));
-  const line = byId(page, 'passage-offline');
-  const reference = byId(page, 'passage-offline-reference');
-  await expect(line).toHaveAttribute('aria-label', 'Recordings on this device');
-  await expect(reference).toHaveAttribute('aria-checked', 'false');
-  await reference.click();
-  await expect(reference).toHaveAttribute('aria-checked', 'true');
-  await expect(line).toHaveAttribute('aria-label', 'On this device');
-  await reference.click();
-  await expect(reference).toHaveAttribute('aria-checked', 'false');
-  await expect(line).toHaveAttribute('aria-label', 'Recordings on this device');
+  await expect(byId(page, 'passage-offline')).toHaveAttribute('aria-label', /^(On this device|Downloading for offline|Only \d+ of \d+ files|Not on this device yet|Checking this device…)/);
+  await expect(page.getByTestId('passage-offline-reference')).toHaveCount(0);
   await back(page).click();
   await expect.poll(() => headerTitle(page)).toBe('Luke');
   // The line only says where they stand now; its Remove button asks first, then lets them go, and the whole book is on offer again.
   await byId(page, 'book-offline-remove').click();
-  await expect(text(page, 'Remove Luke from this device?')).toBeVisible();
-  await button(page, 'Remove from this device').click();
+  // It says what it does: the files go when the device needs room, not now (Carl, 2026-11-23).
+  await expect(text(page, 'Stop keeping Luke on this device?')).toBeVisible();
+  await expect(text(page, /are cleared when this device needs room/)).toBeVisible();
+  await button(page, 'Stop keeping').click();
   await expectToast(page, 'No longer kept. Their audio may be removed to make room.');
-  await expect(book).toHaveAttribute('aria-label', /^Download recordings of all 97 passages for offline/);
+  await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', DOWNLOAD_ALL);
+  // Let go, though its files stay until room is needed: not here as far as the person is told (Carl, 2026-11-23).
+  await expect(status).toHaveText('Not on this device');
   await context.close();
 });

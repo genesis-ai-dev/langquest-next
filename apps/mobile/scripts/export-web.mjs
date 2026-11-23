@@ -241,7 +241,30 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // docs/decisions/0182-every-recording-people-make-plays-at.md, amended 2026-11-21), about 1 KB past it:
 // the measure (src/audio/playWait.ts) that the three players use and the tally's new fields. Every
 // player of a recording can be on the first screen, so it cannot load later.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 161 * 1024;
+// Raised by 3 KB with reference audio counted in "On this device" (Carl, 2026-11-23, LAN-316,
+// docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended 2026-11-23), 1,938 bytes
+// past it: each passage's reference audio worked out and published (src/sources/referenceCounts.ts,
+// `wantsByUnit`), the pass working it out offline from the documents the device holds and keeping
+// it for the next start, and the words for reference audio that cannot come in every catalog. The
+// pass runs from the app's root and the Map's download buttons read it, so none of it can load
+// later. 1,134 bytes are left; a first visit has 1,751.
+// Raised by 2 KB with a recording not yet sent named on its passage's line, and a cleaned part's original
+// kept while a version still plays it (Carl, 2026-11-23, LAN-316, docs/decisions/0061-every-passage-says-whether-it-is.md
+// and 0176-clean-up-puts-a-parts-cleaned.md, both amended 2026-11-23), 289 bytes past it: the passage's
+// and the book's words for a recording its device has not sent, in every catalog, and core's file plan
+// asking which takes still play a part as recorded. Both are read by the Map and the sync every visit
+// starts, so neither can load later. 1,759 bytes are left; a first visit has 328.
+// Raised by 1 KB with a book's counts in its header and only buttons over its passages (Carl, 2026-11-23,
+// LAN-316, docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended twice more that day),
+// 143 bytes past it: the header's line, the size on the Download button and what a dimmed one says, and
+// their words in every catalog (four keys, sixteen languages), all in the Map every visit opens on.
+// 881 bytes are left; a first visit has 493.
+// Raised by 1 KB with study files no kept passage needs cleared when the device needs room (Carl,
+// 2026-11-23, LAN-316, docs/decisions/2026-11-23-study-files-are-cleared-when-no-kept-passage-needs-them.md),
+// 310 bytes past it: each language's saved list and the clearing in study/studyFiles.ts, which the Map's
+// download buttons read, so it cannot load later; on the web it does nothing, since a browser keeps no study
+// files. 714 bytes are left; a first visit has 326.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 168 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -325,7 +348,21 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 161 * 1024;
 // grouping in the key terms model, the recorder's listen hooks in the clip player, and their English
 // words in the catalog every visit carries. They show on the recording screen as it opens; the word's
 // sheet loads when first opened (keyTerms/lazySheets.tsx).
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 112 * 1024;
+// Raised by 1 KB with a book's download button on a row of its own and Sync now fetching what failed at
+// once (Carl, 2026-11-23, LAN-316, docs/decisions/2026-11-20-a-book-has-its-own-download-button.md,
+// amended 2026-11-23), 105 bytes past it: the line's two styles in the Map every visit opens on, and
+// the session's download trigger beside the upload one, which the language hook every screen uses
+// hands on. 919 bytes are left; all chunks have 1,306.
+// Raised by 1 KB with where a book's passages stand said in its header, under how many are recorded (Carl,
+// 2026-11-23, LAN-316, the same decision, amended again that day), 301 bytes past it: the header's line
+// that holds its height, the group's count lifted so the screen's header and its line share it
+// (sync/useGroupOffline.ts), and the none/some/all words in the catalog every visit carries. All chunks
+// have 87 bytes left.
+// Raised by 1 KB with a book being downloaded said in its header and Remove's sheet saying it stops
+// keeping (Carl, 2026-11-23, LAN-316, the same decision, amended again that day), 136 bytes past it: the
+// header's waiting and connect words and the sheet's longer words, in the catalog every visit carries.
+// 888 bytes are left; all chunks have 252.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 115 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

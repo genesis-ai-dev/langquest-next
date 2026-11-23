@@ -83,20 +83,10 @@ export interface LanguageHandle {
     streamUri: (ref: BlobFile) => Promise<string>;
     store: BlobStore | null;
     keptUnits: ReadonlySet<string>;
-    /**
-     * Of `keptUnits`, those kept for their recordings alone (a book's or a section's passages, kept together).
-     * The rest take their reference material along: `referenceUnits` (sync/offlineModel.ts) says which.
-     */
-    recordingsOnly: ReadonlySet<string>;
-    /**
-     * Keep a passage offline or stop keeping it; a book's or a section's passages go as one list.
-     * `recordingsOnly`: as a book's button keeps its passages; a passage's own button keeps it with its reference material.
-     */
-    keepOffline: (unitIds: string | readonly string[], keep: boolean, how?: { recordingsOnly?: boolean }) => Promise<void>;
-    /** Switch a passage kept by choice between its recordings alone and its recordings with its reference material. */
-    keepReference: (unitIds: string | readonly string[], withReference: boolean) => Promise<void>;
+    /** Keep a passage offline, with its reference material, or stop keeping it; a book's or a section's passages go as one list. */
+    keepOffline: (unitIds: string | readonly string[], keep: boolean) => Promise<void>;
     /** What keeping these passages would bring down (the session's `offlineCost`); null before a session is open. */
-    offlineCost: (unitIds: readonly string[]) => Promise<{ files: number; bytes: number; freeable: number } | null>;
+    offlineCost: (unitIds: readonly string[]) => Promise<{ files: number; bytes: number; freeable: number; here: number } | null>;
     /** Recordings here the server has not confirmed: what a hand-over must still send (handOver.ts). */
     unsent: () => Promise<BlobRef[]>;
     /**
@@ -142,6 +132,8 @@ export interface LanguageHandle {
   updatesFor: (actorId: string) => Promise<Update[]>;
   /** Call after recording: clears upload backoff and starts a pass now. */
   triggerUpload: () => void;
+  /** Sync now: clear download backoff and fetch what is missing at once. */
+  triggerDownload: () => void;
   append: <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => Promise<void>;
   /** Many events, one store transaction: template instantiation, bulk assignment. */
   appendMany: <T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]) => Promise<void>;
@@ -160,7 +152,7 @@ const NO_LINES: PassageLines = languageLines(emptyLanguageState());
 const NOTHING_YET: LanguageStatus = {
   revision: 0, pending: 0, refusedEvents: 0, lastSync: 'never', online: null, tooOld: false,
   refused: null, pulled: false, live: false, pendingUp: 0, pendingDown: 0, holding: 0, peakUp: 0, peakDown: 0,
-  present: new Set(), keptUnits: new Set(), recordingsOnly: new Set(), keptOffline: null, offlineSummary: null, scope: new Set(), lines: NO_LINES, fill: null,
+  present: new Set(), keptUnits: new Set(), keptOffline: null, offlineSummary: null, scope: new Set(), lines: NO_LINES, fill: null,
   uploads: new Map(), sent: [], uploading: new Set(), downloading: new Set()
 };
 
@@ -289,11 +281,8 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     await session.run(specs);
   }, []);
 
-  const keepOffline = useCallback(async (unitIds: string | readonly string[], keep: boolean, how?: { recordingsOnly?: boolean }) => {
-    await sessionRef.current?.keepOffline(unitIds, keep, how);
-  }, []);
-  const keepReference = useCallback(async (unitIds: string | readonly string[], withReference: boolean) => {
-    await sessionRef.current?.keepReference(unitIds, withReference);
+  const keepOffline = useCallback(async (unitIds: string | readonly string[], keep: boolean) => {
+    await sessionRef.current?.keepOffline(unitIds, keep);
   }, []);
   const offlineCost = useCallback(async (unitIds: readonly string[]) => (await sessionRef.current?.offlineCost(unitIds)) ?? null, []);
 
@@ -315,13 +304,14 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const streamUri = useCallback((ref: BlobFile) => streamUrl(orgId, languageId, ref), [orgId, languageId]);
   const rates = useCallback(() => ({ up: upMeter.current.perSecond(), down: downMeter.current.perSecond() }), []);
   const unsent = useCallback(() => sessionRef.current?.unsent() ?? Promise.resolve([]), []);
-  const { keptUnits, recordingsOnly, keptOffline, offlineSummary, scope } = status;
+  const { keptUnits, keptOffline, offlineSummary, scope } = status;
   // One object until something it shows changes. The offline counts come worked out from the phone's table (decisions.md 143).
   const blobs = useMemo(
-    () => ({ uriFor, streamUri, store: files, keptUnits, recordingsOnly, keepOffline, keepReference, offlineCost, rates, unsent, keptOffline, offlineSummary, scope, lost }),
-    [uriFor, streamUri, files, keptUnits, recordingsOnly, keepOffline, keepReference, offlineCost, rates, unsent, keptOffline, offlineSummary, scope, lost]
+    () => ({ uriFor, streamUri, store: files, keptUnits, keepOffline, offlineCost, rates, unsent, keptOffline, offlineSummary, scope, lost }),
+    [uriFor, streamUri, files, keptUnits, keepOffline, offlineCost, rates, unsent, keptOffline, offlineSummary, scope, lost]
   );
   const triggerUpload = useCallback(() => sessionRef.current?.triggerUpload(), []);
+  const triggerDownload = useCallback(() => sessionRef.current?.triggerDownload(), []);
   const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
   const nearby = useCallback((): NearbyLanguage | null => {
     const session = sessionRef.current;
@@ -342,17 +332,17 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   return useMemo(
     () => ({
       orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, nearby, syncStatus, blobs,
-      lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, append, appendMany, run, sync
+      lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, triggerDownload, append, appendMany, run, sync
     }),
     [orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, nearby, syncStatus, blobs,
-      lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, append, appendMany, run, sync]
+      lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, triggerDownload, append, appendMany, run, sync]
   );
 }
 
 /** Whether nothing that changes slowly differs between two statuses (the ticking fields are not compared). */
 function slowSame(a: LanguageStatus, b: LanguageStatus): boolean {
   return a.revision === b.revision && a.refusedEvents === b.refusedEvents && a.online === b.online && a.tooOld === b.tooOld
-    && a.refused === b.refused && a.pulled === b.pulled && a.live === b.live && a.keptUnits === b.keptUnits && a.recordingsOnly === b.recordingsOnly
+    && a.refused === b.refused && a.pulled === b.pulled && a.live === b.live && a.keptUnits === b.keptUnits
     && a.keptOffline === b.keptOffline && a.offlineSummary === b.offlineSummary && a.scope === b.scope && a.lines === b.lines
     && a.fill?.filled === b.fill?.filled && a.fill?.total === b.fill?.total;
 }
