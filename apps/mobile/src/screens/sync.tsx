@@ -68,7 +68,8 @@ export function SyncStatus(ctx: Ctx) {
   const ready = readyLine(offlineSummaryNow, install.item, install.behind && !offline);
   const syncNow = async () => {
     setBusy(true);
-    try { await Promise.all([language.sync(), org.sync()]); language.triggerUpload(); }
+    // Waits from failures end here, both ways: a person asking to sync means now.
+    try { await Promise.all([language.sync(), org.sync()]); language.triggerUpload(); language.triggerDownload(); }
     catch (e) { ctx.toast(failure('sync now', e), 'problem'); }
     finally { setBusy(false); }
   };

@@ -132,6 +132,8 @@ export interface LanguageHandle {
   updatesFor: (actorId: string) => Promise<Update[]>;
   /** Call after recording: clears upload backoff and starts a pass now. */
   triggerUpload: () => void;
+  /** Sync now: clear download backoff and fetch what is missing at once. */
+  triggerDownload: () => void;
   append: <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => Promise<void>;
   /** Many events, one store transaction: template instantiation, bulk assignment. */
   appendMany: <T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]) => Promise<void>;
@@ -309,6 +311,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     [uriFor, streamUri, files, keptUnits, keepOffline, offlineCost, rates, unsent, keptOffline, offlineSummary, scope, lost]
   );
   const triggerUpload = useCallback(() => sessionRef.current?.triggerUpload(), []);
+  const triggerDownload = useCallback(() => sessionRef.current?.triggerDownload(), []);
   const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
   const nearby = useCallback((): NearbyLanguage | null => {
     const session = sessionRef.current;
@@ -329,10 +332,10 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   return useMemo(
     () => ({
       orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, nearby, syncStatus, blobs,
-      lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, append, appendMany, run, sync
+      lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, triggerDownload, append, appendMany, run, sync
     }),
     [orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, nearby, syncStatus, blobs,
-      lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, append, appendMany, run, sync]
+      lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, triggerDownload, append, appendMany, run, sync]
   );
 }
 

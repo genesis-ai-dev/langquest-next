@@ -40,8 +40,9 @@ below was earned in production there.
    alone for a grace window (10 min in v2) and then re-derives; if the
    confirmation never arrived, it re-uploads. Lost confirmations self-heal.
 4. **Two wake-up verbs.** `trigger()` clears backoff waits (reconnect, app
-   foreground, after recording); `nudge()` asks for a pass without touching
-   backoff or grace. Confusing the two caused retry storms in v2.
+   foreground, after recording, and Sync now, for uploads and downloads
+   alike); `nudge()` asks for a pass without touching backoff or grace.
+   Confusing the two caused retry storms in v2.
 5. **Backoff ladder, never terminal.** Upload 30 s, 1 m, 5 m, 30 m cap;
    download 30 s, 2 m, 10 m cap. Failure counts survive a trigger; only the
    wait is cleared.

@@ -321,6 +321,67 @@ describe('LanguageSession: commands, waking and what settles', () => {
     session.close();
   });
 
+  // Carl's simulator, 2026-11-23: the file server was down while the events still synced, so nothing looked offline.
+  // Once it was back, Sync now brought most files at once and left two waiting out a ten-minute backoff.
+  it('Sync now fetches at once a file that failed while the file server could not be reached, rather than at the end of its wait', async () => {
+    const tried: string[] = [];
+    let away = true;
+    const { server, files, open } = phone({
+      download: async (ref: BlobRef) => {
+        tried.push(ref.hash);
+        if (away) throw new Error('file server unreachable');
+        files.put(ref.hash, 10);
+      }
+    });
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+    server.storeBlob('org1', 'luke', 'h1', 10);
+    const session = await open();
+    session.start();
+    await session.keepOffline('Luke 1', true);
+    await session.sync();
+    await until(() => tried.length === 1);
+    // Failed once: the next try waits 30 s, and a sync that finds the server as it was does not cut that short.
+    away = false;
+    await session.sync();
+    await new Promise((r) => setTimeout(r, 100));
+    expect(tried).toEqual(['h1']);
+    expect(files.snapshot().has('h1')).toBe(false);
+    // Sync now: the wait ends, and the file comes down.
+    session.triggerDownload();
+    await until(() => files.snapshot().has('h1'));
+    expect(tried).toEqual(['h1', 'h1']);
+    session.close();
+  });
+
+  it('a phone back in reach fetches at once the files that failed while it was away', async () => {
+    const tried: string[] = [];
+    let away = true;
+    const { server, files, open } = phone({
+      download: async (ref: BlobRef) => {
+        tried.push(ref.hash);
+        if (away) throw new Error('unreachable');
+        files.put(ref.hash, 10);
+      }
+    });
+    await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+    server.storeBlob('org1', 'luke', 'h1', 10);
+    const session = await open();
+    session.start();
+    await session.keepOffline('Luke 1', true);
+    await session.sync();
+    await until(() => tried.length === 1);
+    // The server goes out of reach, then answers again: that sync clears the download's wait.
+    server.offline = true;
+    await session.sync();
+    expect(session.status.online).toBe(false);
+    away = false;
+    server.offline = false;
+    await session.sync();
+    await until(() => files.snapshot().has('h1'));
+    expect(tried).toEqual(['h1', 'h1']);
+    session.close();
+  });
+
   it('says what keeping passages would bring down, each file once, before any is kept', async () => {
     const { server, files, open } = phone();
     await from(server, 'bol', 'v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });

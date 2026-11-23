@@ -465,11 +465,15 @@ export class LanguageSession {
       // which clears waits. A finished sync while not deferred runs the
       // waiting upload pass now: nudge()'s debounce, restarted by every
       // following sync, held a just-recorded file until the minute tick.
-      // Failure backoff stays put; only trigger() clears it.
-      if (!r.offline && wasOnline === false) this.up.trigger();
+      // Failure backoff stays put; only trigger() clears it. Back in reach,
+      // downloads that failed while the server was away go now too, not at
+      // the end of a wait of up to ten minutes (docs/blobs.md rule 4).
+      const back = !r.offline && wasOnline === false;
+      if (back) this.up.trigger();
       else if (!r.offline && !o.isDeferred?.()) this.up.nudge(0);
       else this.up.nudge();
-      this.down.nudge();
+      if (back) this.down.trigger();
+      else this.down.nudge();
     } catch (err) {
       // Not a transport failure: those come back as `offline` above. Whether
       // the server is reachable is unknown, so the flag stays where it was.
@@ -649,9 +653,20 @@ export class LanguageSession {
     return this.near?.moves() ?? null;
   }
 
-  /** After recording: clear upload backoff and start a pass now. */
+  /** After recording, and Sync now: clear upload backoff and start a pass now. */
   triggerUpload(): void {
     this.up.trigger();
+  }
+
+  /**
+   * Sync now: clear download backoff and start a pass now. A file that failed
+   * while the file server could not be reached (the events still syncing, so
+   * nothing looked offline) otherwise waited out its backoff, up to ten
+   * minutes, with its passage amber and "to receive" on the Sync screen
+   * (Carl's simulator, 2026-11-23).
+   */
+  triggerDownload(): void {
+    this.down.trigger();
   }
 
   /** This person's recordings here the server has not confirmed: what a hand-over must still send. A teammate's waits for the next session on the phone (5.2). */
