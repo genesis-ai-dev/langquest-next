@@ -353,7 +353,11 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 167 * 1024;
 // that holds its height, the group's count lifted so the screen's header and its line share it
 // (sync/useGroupOffline.ts), and the none/some/all words in the catalog every visit carries. All chunks
 // have 87 bytes left.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 114 * 1024;
+// Raised by 1 KB with a book being downloaded said in its header and Remove's sheet saying it stops
+// keeping (Carl, 2026-11-23, LAN-316, the same decision, amended again that day), 136 bytes past it: the
+// header's waiting and connect words and the sheet's longer words, in the catalog every visit carries.
+// 888 bytes are left; all chunks have 252.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 115 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
