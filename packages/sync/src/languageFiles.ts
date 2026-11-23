@@ -1,11 +1,13 @@
 import {
-  askedOfLines, defaultOfflineScope, downloadWorkOf, evictableOf, filePlan, filePlanOf, keptVerdict, lostFilesOf, offlineCountsOf,
-  offlineSummaryOf, referencedBlobs, unboundId, unitsAskedOf, uploadWorkOf, voiceFormat, workedBy,
+  askedOfLines, defaultOfflineScope, downloadWorkOf, evictableOf, filePlan, filePlanOf, keptTake, keptVerdict, lostFilesOf, offlineCountsOf,
+  offlineSummaryOf, referencedBlobs, replacedParts, unboundId, unitsAskedOf, uploadWorkOf, playedParts, voiceFormat, workedBy,
   type BlobRef, type FilePlan, type LanguageState, type LostFilesView, type OfflineReasons, type OfflineSummary, type UnitOffline
 } from '@langquest-next/core';
 import { AUDIO, FILE, type AudioRow } from './keptLanguage';
 import type { SyncClient } from './syncClient';
 import type { EventStore } from './types';
+
+type Take = LanguageState['takes'][string];
 
 type Verdict = LanguageState['blobs'][string];
 
@@ -128,7 +130,9 @@ export class LanguageFiles {
     version: -1,
     unitFiles: new Map<string, string[]>(),
     audio: new Map<string, (AudioRow & { unitId: string }) | null>(),
-    verdicts: new Map<string, Verdict | null>()
+    verdicts: new Map<string, Verdict | null>(),
+    /** The versions and drafts on disk of passages with a cleaned part, by id: whether one still plays a part as recorded (decisions.md 176). */
+    unitTakes: new Map<string, Map<string, Take>>()
   };
 
   /** The files memory names, and, from disk, those of these passages and these files, with the server's verdict on each. */
@@ -139,7 +143,7 @@ export class LanguageFiles {
     const { orgId, streamId } = this;
     let c = this.cache;
     if (c.version !== kept.version) {
-      c = this.cache = { version: kept.version, unitFiles: new Map(), audio: new Map(), verdicts: new Map() };
+      c = this.cache = { version: kept.version, unitFiles: new Map(), audio: new Map(), verdicts: new Map(), unitTakes: new Map() };
     }
     const hold = (hash: string, unitId: string, json: string) => { c.audio.set(hash, { ...(JSON.parse(json) as AudioRow), unitId }); };
 
@@ -174,10 +178,26 @@ export class LanguageFiles {
       for (const h of newFiles) c.verdicts.set(h, null);
       for (const v of await this.store.keptById(orgId, streamId, FILE, newFiles)) c.verdicts.set(v.id, JSON.parse(v.json) as Verdict);
     }
+    // A part as recorded that a cleaned sound plays instead of stays off phones unless a version or draft not deleted
+    // still plays it (decisions.md 176, amended 2026-11-23): the takes of those passages, from memory and from disk.
+    const replaced = replacedParts(refs);
+    let played: Set<string> = new Set();
+    if (replaced.size) {
+      const cleanedUnits = [...new Set([...refs.values()].filter((r) => r.replaces).map((r) => r.unitId))];
+      const newTakeUnits = cleanedUnits.filter((u) => !c.unitTakes.has(u));
+      if (newTakeUnits.length) {
+        for (const u of newTakeUnits) c.unitTakes.set(u, new Map());
+        for (const r of await this.store.keptByUnit(orgId, streamId, ['take'], newTakeUnits)) c.unitTakes.get(r.unitId)?.set(r.id, JSON.parse(r.json) as Take);
+      }
+      const takes = new Map<string, Take>();
+      for (const u of cleanedUnits) for (const [id, t] of c.unitTakes.get(u) ?? []) takes.set(id, t);
+      for (const [id, t] of Object.entries(live.takes)) { const disk = takes.get(id); takes.set(id, disk ? keptTake(disk, t) : t); }
+      played = playedParts(takes.values(), replaced);
+    }
     return filePlan(live, refs, (hash) => {
       const here = live.blobs[hash];
       const keptCopy = c.verdicts.get(hash);
       return here && keptCopy ? keptVerdict(keptCopy, here) : here ?? keptCopy ?? undefined;
-    });
+    }, played);
   }
 }
