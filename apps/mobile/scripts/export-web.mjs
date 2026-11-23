@@ -343,7 +343,12 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 166 * 1024;
 // amended 2026-11-23), 105 bytes past it: the line's two styles in the Map every visit opens on, and
 // the session's download trigger beside the upload one, which the language hook every screen uses
 // hands on. 919 bytes are left; all chunks have 1,306.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 113 * 1024;
+// Raised by 1 KB with where a book's passages stand said in its header, under how many are recorded (Carl,
+// 2026-11-23, LAN-316, the same decision, amended again that day), 301 bytes past it: the header's line
+// that holds its height, the group's count lifted so the screen's header and its line share it
+// (sync/useGroupOffline.ts), and the none/some/all words in the catalog every visit carries. All chunks
+// have 87 bytes left.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 114 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
