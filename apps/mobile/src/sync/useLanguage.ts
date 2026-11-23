@@ -86,7 +86,7 @@ export interface LanguageHandle {
     /** Keep a passage offline, with its reference material, or stop keeping it; a book's or a section's passages go as one list. */
     keepOffline: (unitIds: string | readonly string[], keep: boolean) => Promise<void>;
     /** What keeping these passages would bring down (the session's `offlineCost`); null before a session is open. */
-    offlineCost: (unitIds: readonly string[]) => Promise<{ files: number; bytes: number; freeable: number } | null>;
+    offlineCost: (unitIds: readonly string[]) => Promise<{ files: number; bytes: number; freeable: number; here: number } | null>;
     /** Recordings here the server has not confirmed: what a hand-over must still send (handOver.ts). */
     unsent: () => Promise<BlobRef[]>;
     /**

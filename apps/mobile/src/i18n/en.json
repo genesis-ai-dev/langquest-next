@@ -4860,6 +4860,7 @@
       "downloadButton": "Download",
       "downloadRestButton": "Download the rest",
       "nothingYet": "No recordings to download yet. New ones come as they are made.",
+      "alreadyHere": "Its recordings are already on this device. Download keeps them.",
       "noRoom": "Not enough room on this device",
       "noRoomNeeds": "Its audio is {{size}}. This device has room for {{room}}.",
       "noRoomHelp": "Free up room on this device, or download fewer passages at a time.",

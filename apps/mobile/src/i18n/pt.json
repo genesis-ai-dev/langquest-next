@@ -5020,6 +5020,7 @@
       "downloadButton": "Baixar",
       "downloadRestButton": "Baixar o resto",
       "nothingYet": "Ainda não há gravações para baixar. As novas chegam à medida que são feitas.",
+      "alreadyHere": "As gravações dele já estão neste aparelho. Baixar mantém as gravações.",
       "noRoom": "Não há espaço suficiente neste aparelho",
       "noRoomNeeds": "O áudio delas tem {{size}}. Este aparelho tem espaço para {{room}}.",
       "noRoomHelp": "Libere espaço neste aparelho, ou baixe menos passagens de cada vez.",

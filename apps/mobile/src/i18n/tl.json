@@ -4860,6 +4860,7 @@
       "downloadButton": "I-download",
       "downloadRestButton": "I-download ang iba pa",
       "nothingYet": "Wala pang rekording na ida-download. Darating ang mga bago habang ginagawa ang mga ito.",
+      "alreadyHere": "Nasa device na ito na ang mga rekording nito. Pinananatili ito ng pag-download.",
       "noRoom": "Kulang ang puwang sa device na ito",
       "noRoomNeeds": "{{size}} ang audio ng mga ito. May puwang ang device na ito para sa {{room}}.",
       "noRoomHelp": "Magbakante ng puwang sa device na ito, o mag-download ng mas kaunting sipi nang sabay-sabay.",

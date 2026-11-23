@@ -120,7 +120,7 @@ export interface GroupLook {
  */
 export function groupLook(
   g: GroupOffline,
-  o: { offline: boolean; downloading: boolean; cost: { bytes: number; files?: number } | null; room: number | null; sizing?: boolean; filling?: boolean }
+  o: { offline: boolean; downloading: boolean; cost: { bytes: number; files?: number; here?: number } | null; room: number | null; sizing?: boolean; filling?: boolean }
 ): GroupLook {
   // Where a tap does nothing, help mode has nothing to light, so there are no help words.
   if (g.checking) return { kind: 'checking', title: t('offline.summary.checking'), sub: t('map.passages', { count: g.count }), help: '', tap: null, button: 'all' };
@@ -140,8 +140,10 @@ export function groupLook(
     }
     // How much of the recordings would come, or that there are none yet, so a book nobody has recorded does not look
     // like a download that never starts. Their reference material comes too; its size is not known before it does.
+    // Nothing to fetch with files here is not "no recordings": a book let go keeps its files until room is needed
+    // (Carl, 2026-11-23), and keeping it again takes none.
     const sub = bytes > 0 ? t('offline.group.sizeLine', { size: formatBytes(bytes) })
-      : o.cost?.files === 0 ? t('offline.group.nothingYet')
+      : o.cost?.files === 0 ? (o.cost.here ? t('offline.group.alreadyHere') : t('offline.group.nothingYet'))
       : t('offline.group.whatComes');
     return { kind: 'none', title: here, sub, help: t('offline.group.keepHelp'), tap: 'keep', button };
   }

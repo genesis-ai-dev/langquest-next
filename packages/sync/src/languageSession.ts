@@ -551,7 +551,7 @@ export class LanguageSession {
    * is not refused for want of room the device would make. Nothing is kept
    * by asking.
    */
-  async offlineCost(unitIds: readonly string[]): Promise<{ files: number; bytes: number; freeable: number }> {
+  async offlineCost(unitIds: readonly string[]): Promise<{ files: number; bytes: number; freeable: number; here: number }> {
     const present = this.here();
     const cost = await this.plan.cost(unitIds, present);
     const scope = await this.scope();

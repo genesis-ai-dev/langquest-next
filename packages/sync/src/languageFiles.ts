@@ -87,11 +87,11 @@ export class LanguageFiles {
    * them share is counted once. Asked of nobody's reasons: it is the cost of
    * the passages themselves.
    */
-  async cost(unitIds: readonly string[], present: ReadonlySet<string>): Promise<{ files: number; bytes: number }> {
+  async cost(unitIds: readonly string[], present: ReadonlySet<string>): Promise<{ files: number; bytes: number; here: number }> {
     const units = new Set(unitIds);
     const none: ReadonlySet<string> = new Set();
     const s = offlineSummaryOf(await this.plan({ units }), present, units, { mine: none, asked: none });
-    return { files: s.filesToFetch, bytes: s.bytesToFetch };
+    return { files: s.filesToFetch, bytes: s.bytesToFetch, here: s.filesHere };
   }
 
   /** What the files a phone lost behind the app's back were (decisions.md 92). `nearby`: teammates' files, which count in neither total. */

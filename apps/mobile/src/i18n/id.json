@@ -4700,6 +4700,7 @@
       "downloadButton": "Unduh",
       "downloadRestButton": "Unduh sisanya",
       "nothingYet": "Belum ada rekaman untuk diunduh. Rekaman baru datang saat dibuat.",
+      "alreadyHere": "Rekamannya sudah ada di perangkat ini. Mengunduh akan menyimpannya.",
       "noRoom": "Ruang di perangkat ini tidak cukup",
       "noRoomNeeds": "Audionya {{size}}. Perangkat ini punya ruang untuk {{room}}.",
       "noRoomHelp": "Kosongkan ruang di perangkat ini, atau unduh lebih sedikit perikop sekaligus.",

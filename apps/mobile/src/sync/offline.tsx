@@ -187,7 +187,7 @@ function toneOf(kind: GroupLook['kind']): { bg: string; fg: string } {
  * (`BlobStore.roomBytes`), and what it would free for them by itself (the
  * session's `freeable`). `room` is null where the device cannot say.
  */
-type GroupCost = { bytes: number | null; files: number | null; room: number | null };
+type GroupCost = { bytes: number | null; files: number | null; room: number | null; here: number | null };
 
 /**
  * A group's cost, asked a beat after its passages are known and again as the
@@ -207,7 +207,7 @@ function useGroupCost(ctx: Ctx, unitIds: readonly string[], shown: boolean): { a
   const ask = useCallback(async (): Promise<GroupCost> => {
     const c = key ? await offlineCost(key.split('\n')).catch((e: unknown) => { noteExpected('offline: group cost', e); return null; }) : null;
     const free = store?.roomBytes() ?? null;
-    const found: GroupCost = { bytes: c ? c.bytes : null, files: c ? c.files : null, room: free === null ? null : free + (c?.freeable ?? 0) };
+    const found: GroupCost = { bytes: c ? c.bytes : null, files: c ? c.files : null, room: free === null ? null : free + (c?.freeable ?? 0), here: c ? c.here : null };
     // Kept only for the passages now asked about: an answer for an earlier set never replaces a later one's.
     if (current.current === key) setCost({ key, ...found });
     return found;
@@ -252,7 +252,7 @@ function useGroup(ctx: Ctx, unitIds: readonly string[], sized: boolean): {
   const offering = !filling && !g.checking && !offline && g.toKeep.length > 0;
   // The size is said before the tap: until it is answered the line is still checking.
   const { answer, ask } = useGroupCost(ctx, g.toKeep, sized && offering);
-  const cost = answer && answer.bytes !== null && answer.files !== null ? { bytes: answer.bytes, files: answer.files } : null;
+  const cost = answer && answer.bytes !== null && answer.files !== null ? { bytes: answer.bytes, files: answer.files, here: answer.here ?? 0 } : null;
   const look = groupLook(g, {
     offline, filling, downloading: unitIds.some(coming), cost, room: answer?.room ?? null, sizing: sized && offering && !answer
   });

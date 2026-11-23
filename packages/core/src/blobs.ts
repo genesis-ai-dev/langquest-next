@@ -615,6 +615,12 @@ export interface OfflineSummary {
   bytesToFetch: number;
   /** Files no download can bring yet: not sent by whoever recorded them. */
   notSent: number;
+  /**
+   * Files of these passages already on this device, kept or not: what tells
+   * a book with nothing left to fetch from a book nobody has recorded (a
+   * book's line after its passages were let go and their files stayed).
+   */
+  filesHere: number;
 }
 
 export function offlineSummary(
@@ -629,7 +635,7 @@ export function offlineSummary(
 export function offlineSummaryOf(plan: FilePlan, present: ReadonlySet<string>, chosen: ReadonlySet<string>, why: OfflineReasons): OfflineSummary {
   const scope = new Set(why.mine);
   for (const u of chosen) scope.add(u);
-  const out: OfflineSummary = { kept: 0, ready: 0, chosen: 0, filesToFetch: 0, bytesToFetch: 0, notSent: 0 };
+  const out: OfflineSummary = { kept: 0, ready: 0, chosen: 0, filesToFetch: 0, bytesToFetch: 0, notSent: 0, filesHere: 0 };
   // Per passage, so a file two passages share is counted under each; the totals below are by file.
   for (const u of offlineCountsOf(plan, scope, present, chosen, why).values()) {
     out.kept++;
@@ -637,7 +643,7 @@ export function offlineSummaryOf(plan: FilePlan, present: ReadonlySet<string>, c
     if (u.reason === 'chosen') out.chosen++;
   }
   for (const hash of scopedHashes(plan, scope)) {
-    if (present.has(hash)) continue;
+    if (present.has(hash)) { out.filesHere++; continue; }
     const verdict = plan.verdict(hash);
     if (verdict?.stored) { out.filesToFetch++; out.bytesToFetch += verdict.size; }
     else out.notSent++;

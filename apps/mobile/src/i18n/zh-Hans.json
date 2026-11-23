@@ -4700,6 +4700,7 @@
       "downloadButton": "下载",
       "downloadRestButton": "下载其余部分",
       "nothingYet": "还没有可下载的录音。新的录音做好后就会到来。",
+      "alreadyHere": "它的录音已经在本设备上。下载会把它们保留下来。",
       "noRoom": "本设备空间不足",
       "noRoomNeeds": "它们的音频有 {{size}}。本设备还有 {{room}} 空间。",
       "noRoomHelp": "请在本设备上腾出空间，或每次少下载几个经段。",

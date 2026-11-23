@@ -392,13 +392,17 @@ describe('LanguageSession: commands, waking and what settles', () => {
     server.storeBlob('org1', 'luke', 'h2', 2500);
     const session = await open();
     await session.sync();
-    expect(await session.offlineCost(['Luke 1', 'Luke 2', 'Luke 3', 'Luke 1'])).toEqual({ files: 2, bytes: 3500, freeable: 0 });
-    expect(await session.offlineCost([])).toEqual({ files: 0, bytes: 0, freeable: 0 });
+    expect(await session.offlineCost(['Luke 1', 'Luke 2', 'Luke 3', 'Luke 1'])).toEqual({ files: 2, bytes: 3500, freeable: 0, here: 0 });
+    expect(await session.offlineCost([])).toEqual({ files: 0, bytes: 0, freeable: 0, here: 0 });
     // Asking keeps nothing.
     expect([...session.status.keptUnits]).toEqual([]);
     // One of them is here already.
     files.put('h1', 1000);
-    expect(await session.offlineCost(['Luke 1', 'Luke 2'])).toMatchObject({ files: 1, bytes: 2500 });
+    expect(await session.offlineCost(['Luke 1', 'Luke 2'])).toMatchObject({ files: 1, bytes: 2500, here: 1 });
+    // All here already, nothing to fetch: not the same as nothing recorded (Carl, 2026-11-23).
+    files.put('h2', 2500);
+    expect(await session.offlineCost(['Luke 1', 'Luke 2'])).toMatchObject({ files: 0, bytes: 0, here: 2 });
+    expect(await session.offlineCost(['Luke 3'])).toMatchObject({ files: 0, bytes: 0, here: 0 });
     session.close();
   });
 
@@ -430,11 +434,11 @@ describe('LanguageSession: commands, waking and what settles', () => {
     // Luke 1's file is here from an earlier listen, and nothing keeps it.
     files.put('h1', 1000);
     // Keeping Luke 2 could push Luke 1's file out to make room; keeping Luke 1 itself could not.
-    expect(await session.offlineCost(['Luke 2'])).toEqual({ files: 1, bytes: 2500, freeable: 1000 });
-    expect(await session.offlineCost(['Luke 1'])).toEqual({ files: 0, bytes: 0, freeable: 0 });
+    expect(await session.offlineCost(['Luke 2'])).toEqual({ files: 1, bytes: 2500, freeable: 1000, here: 0 });
+    expect(await session.offlineCost(['Luke 1'])).toEqual({ files: 0, bytes: 0, freeable: 0, here: 1 });
     // Once Luke 1 is kept, its file is no longer the device's to free.
     await session.keepOffline('Luke 1', true);
-    expect(await session.offlineCost(['Luke 2'])).toEqual({ files: 1, bytes: 2500, freeable: 0 });
+    expect(await session.offlineCost(['Luke 2'])).toEqual({ files: 1, bytes: 2500, freeable: 0, here: 0 });
     session.close();
   });
 });

@@ -4860,6 +4860,7 @@
       "downloadButton": "Sauke",
       "downloadRestButton": "Sauke sauran",
       "nothingYet": "Babu naɗe-naɗen da za a sauke tukuna. Sababbi suna zuwa yayin da ake yin su.",
+      "alreadyHere": "Naɗe-naɗensa sun riga sun kasance a wannan na'ura. Saukewa zai adana su.",
       "noRoom": "Babu isasshen wuri a wannan na'ura",
       "noRoomNeeds": "Sautinsu {{size}} ne. Wannan na'ura tana da wuri na {{room}}.",
       "noRoomHelp": "Samar da wuri a wannan na'ura, ko ku sauke nassosi kaɗan a lokaci ɗaya.",
