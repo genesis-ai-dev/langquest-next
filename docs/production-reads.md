@@ -27,7 +27,7 @@ Migration `20261121194800_claude_readers.sql` makes them;
 | Writes | nothing: no grant to insert, update, delete or truncate anywhere | nothing |
 
 Both: every transaction is read-only unless the session turns that off, each
-statement stops after 15 s, 3 connections at most, and BYPASSRLS, because
+statement stops after 15 s, 5 connections at most (the least Hyperdrive keeps for a config), and BYPASSRLS, because
 row level security is written for app users and these logins are none. A
 table made later is readable by claude_reader; a migration that adds a
 secret column revokes it there, and the smoke test fails on a readable column
@@ -124,7 +124,7 @@ npm run prod:read -- --logs github-job-log job=<job id>
 | Source | What | Worker key | claude_reader | agent_reader |
 |---|---|---|---|---|
 | `worker-builds`, `worker-build-log` | Workers Builds: the build that deploys each Worker on a merge to main, and its log | `ADMIN_CLOUDFLARE_TOKEN` (Workers CI Read) | whole | whole: a build prints code and its own output |
-| `worker-logs` | a Worker's own log lines (Workers Logs), the last 24 hours at most | `ADMIN_CLOUDFLARE_LOGS_TOKEN` (Workers Observability) | every level, whole lines | warn and error only; emails, tokens, long values, phone numbers and query strings taken out (`redact`) |
+| `worker-logs` | a Worker's own log lines (Workers Logs), the last 24 hours at most | `ADMIN_CLOUDFLARE_LOGS_TOKEN` (Workers role Metadata Read-Only) | every level, whole lines | warn and error only; emails, tokens, long values, phone numbers and query strings taken out (`redact`) |
 | `supabase-logs` | Supabase's logs (Logs Explorer SQL) | `ADMIN_SUPABASE_TOKEN` (Logs Read) | any query | only `postgres-errors` and `http-errors`: the ops dashboard's groups, codes and counts, never a message |
 | `eas-builds`, `eas-build-log` | the phone app's EAS builds and a build's log | `ADMIN_EXPO_TOKEN` (robot, Viewer) | whole | whole |
 | `github-job-log` | a GitHub Actions job's log in this repository | `ADMIN_GITHUB_TOKEN` (Actions Read) | whole | whole: the repository is public |
@@ -133,9 +133,9 @@ An answer holds the newest 2,000 lines at most. Each read is a line in the
 Worker's log, as a statement is. The rate limit is the read gate's, counted
 apart. Log lines are production data too: "Where answers go" below holds.
 
-Cloudflare has no read-only permission for a logs query: Workers Observability
-Edit is the only one. It sits in a token of its own on the Worker, which
-only queries with it; no thread or team holds it.
+Every key the Worker reads logs with is read-only. Workers Logs take a token
+of their own with the Workers role Metadata Read-Only, so the dashboard's
+token keeps its own few grants.
 
 Not here yet: App Store Connect and Google Play crash reports (the ops
 dashboard shows them), and langquest.org on Vercel, whose tokens cannot be
@@ -189,7 +189,7 @@ Any one of these stops it:
 
 - A key that leaks lets its holder read what its login reads until it is
   rotated or stopped: for `CLAUDE_READ_TOKEN`, names and what people wrote.
-- A statement can still be heavy for 15 s. Three connections and 60
+- A statement can still be heavy for 15 s. Five connections and 60
   statements a minute bound how much of the database it takes.
 - With a direct connection (not through the gate), a session can turn
   read-only off. It still has no grant to write, but Supabase lets every

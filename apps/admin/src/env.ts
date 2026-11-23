@@ -47,9 +47,9 @@ export interface Env {
   /** Account Analytics Read, Workers Scripts Read, Workers CI Read. */
   ADMIN_CLOUDFLARE_TOKEN?: string;
   /**
-   * Workers Observability only, for the log gate's Workers Logs (logs.ts).
-   * Cloudflare offers only Edit for a logs query, so it is a token of its own
-   * and ADMIN_CLOUDFLARE_TOKEN stays read-only; this Worker only queries with it.
+   * Workers Logs for the log gate (logs.ts): a user token whose only grant
+   * is the Workers role Metadata Read-Only, which reads logs, metrics and
+   * settings but not code or secrets, and changes nothing.
    */
   ADMIN_CLOUDFLARE_LOGS_TOKEN?: string;
   /** A Supabase access token: project health, Edge Functions and log counts. */
