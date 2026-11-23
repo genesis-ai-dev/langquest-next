@@ -318,12 +318,12 @@ without showing it, and once you have the ones you want, run
   Read, Workers CI Read. Account Resources: include only the LangQuest
   account. Set an end date.
 - **`ADMIN_CLOUDFLARE_LOGS_TOKEN`** (Workers Logs for Claude, through the
-  log gate: `docs/production-reads.md`, Logs). The same place, as its own
-  custom token. Permissions: Account, Workers Observability, Edit. It is
-  the only permission there is for a logs query; that is why it is a token
-  of its own, and ADMIN_CLOUDFLARE_TOKEN stays read-only. The Worker only
-  queries with it. Account Resources: only the LangQuest account. Set an end
-  date.
+  log gate: `docs/production-reads.md`, Logs). My Profile > API Tokens >
+  Create Token. Policies: Start from scratch > Start with an Account
+  policy, the LangQuest account. Permission: search `Workers`, then
+  Developer Platform > Workers, role Metadata Read-Only for all Workers
+  (Cloudflare's Workers roles replaced the old Workers Observability
+  permissions). Nothing else. Set an end date.
 - **`ADMIN_SUPABASE_TOKEN`** (Supabase section, and backups in Storage).
   supabase.com > Account > Access Tokens > Generate new token, as a scoped
   token: the LangQuest Next project only; Read for
