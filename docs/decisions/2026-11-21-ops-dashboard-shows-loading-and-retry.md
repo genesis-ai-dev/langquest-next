@@ -40,3 +40,15 @@ Rejected: a spinner over the whole page (it hides what has come already);
 splitting User issues into a call of its own (more code for the same gain
 as more connections); caching answers in the browser between visits (old
 numbers that look current break "status indicators must tell the truth").
+
+Amended (2026-11-23, Caleb Koster): the ops dashboard said "(EMAXCONNSESSION)
+max clients reached in session mode - max clients are limited to
+pool_size: 20". Production showed diag_reader with 20 open connections, all
+of the pooler's session-mode clients for that login. The Worker closes its
+own connections, but Hyperdrive keeps its connections to the pooler open
+while idle, and its default limit is above 20. Hyperdrive now keeps at most
+10 for diag_reader and 5 for each read-gate login (`--origin-connection-limit`,
+set by `npm run secrets -- production`). Hyperdrive queues a statement over
+its limit. `DIAG_CONNECTIONS` stays 6. Rejected: moving diag_reader to the
+pooler's transaction mode (a change of the login's address in
+`.env.production`, and the limit alone stops the failure).
