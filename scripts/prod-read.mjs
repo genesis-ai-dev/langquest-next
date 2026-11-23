@@ -87,19 +87,31 @@ export function asText(answer) {
   return lines.join('\n');
 }
 
+/** One request to the gate, with the bearer token for this place: { status, ok, body, token }. */
+export async function post(url, payload, env = process.env, fetcher = fetch) {
+  const token = await bearer(env, fetcher);
+  const res = await fetcher(url, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const body = await res.json().catch(() => ({ error: `the gate answered ${res.status} without JSON` }));
+  return { status: res.status, ok: res.ok, body, token };
+}
+
+/** One statement to the gate: { status, ok, body, token }. */
+export async function ask(sql, params = [], env = process.env, fetcher = fetch) {
+  return post(READ_URL, { sql, params }, env, fetcher);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.sql && !args.logs) {
     console.error('usage: npm run prod:read -- [--json] "select ..." [param ...]\n       npm run prod:read -- [--json] --logs <source> [name=value ...]');
     process.exit(2);
   }
-  const token = await bearer();
-  const res = await fetch(args.logs ? LOGS_URL : READ_URL, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify(args.logs ?? { sql: args.sql, params: args.params })
-  });
-  const body = await res.json().catch(() => ({ error: `the gate answered ${res.status} without JSON` }));
+  const { status, ok, body, token } = args.logs ? await post(LOGS_URL, args.logs) : await ask(args.sql, args.params);
+  const res = { status, ok };
   if (res.status === 401 && token === PROXY_STAND_IN) {
     console.error('x The cloud environment has no CLAUDE_READ_TOKEN for app.langquest.org, as a network secret or a variable (docs/production-reads.md, setup step 4).');
     process.exit(1);

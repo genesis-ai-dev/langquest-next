@@ -6,7 +6,7 @@ import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, LIMITS, linearClient, lookedOf, mergesOf,
   noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
-  repairOf, repairsOf, planRecord, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend
+  repairOf, repairsOf, planRecord, planReads, READ_ROWS, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -80,7 +80,7 @@ describe('user-issues.mjs', () => {
     const fix = jobs['fix']!.split(/\n {6}- /);
     const claude = fix.find((s) => s.includes('anthropics/claude-code-action'))!;
     // The issue manager starts its workers with the Agent tool; they have its tools and no more.
-    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Edit,Write,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)"');
+    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Edit,Write,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"');
     expect(claude).not.toMatch(/LINEAR_API_KEY|show_full_output|display_report/);
     // The key reads the issue before Claude; the patch is taken with the scripts and repository copied before it.
     expect(fix.findIndex((s) => s.includes('LINEAR_API_KEY'))).toBeLessThan(fix.indexOf(claude));
@@ -196,7 +196,7 @@ describe('user-issues.mjs', () => {
   it('lets Claude read production only through the copy of prod-read.mjs made before it, which Claude cannot change (docs/production-reads.md)', () => {
     const yml = read('.github/workflows/user-issues.yml');
     const jobs = Object.fromEntries(yml.slice(yml.search(/^jobs:$/m)).split(/^ {2}(?=[\w-]+:$)/m).slice(1).map((b) => [b.match(/^([\w-]+):/)![1], b]));
-    for (const name of ['watch', 'fix', 'research']) {
+    for (const name of ['watch', 'research']) {
       const steps = jobs[name]!.split(/\n {6}- /);
       const claude = steps.find((s) => s.includes('anthropics/claude-code-action'))!;
       const copy = steps.findIndex((s) => /cp scripts\/.*scripts\/prod-read\.mjs "\$RUNNER_TEMP\/watch\/"/.test(s));
@@ -208,6 +208,16 @@ describe('user-issues.mjs', () => {
       expect(claude).toContain('prod-read.mjs --logs <source>');
       expect(jobs[name]).toContain('id-token: write');
     }
+    // The fix job: claude-code-action removes the OIDC variables from Claude's shell, so the reads the plan named
+    // run in the step before Claude (fix-context, from the checkout before Claude), and Claude reads their answers.
+    const fixSteps = jobs['fix']!.split(/\n {6}- /);
+    const manager = fixSteps.find((s) => s.includes('anthropics/claude-code-action'))!;
+    const context = fixSteps.findIndex((s) => s.includes('node scripts/user-issues.mjs fix-context'));
+    expect(context).toBeGreaterThanOrEqual(0);
+    expect(context).toBeLessThan(fixSteps.indexOf(manager));
+    expect(manager).not.toContain('prod-read.mjs');
+    expect(manager).toContain('.user-issues/reads.json holds the answers to the reads your last plan named');
+    expect(jobs['fix']).toContain('id-token: write');
     // The gate lets in this workflow, from main, as agent_reader (apps/admin/src/read.ts).
     expect(read('apps/admin/src/read.ts')).toContain("READ_WORKFLOWS = ['user-issues.yml']");
     expect(read('scripts/prod-read.mjs')).toContain("READ_AUDIENCE = 'https://app.langquest.org/ops/api/read'");
@@ -468,9 +478,34 @@ describe('Linear', () => {
 });
 
 describe('when the cause is not proven yet', () => {
+  it('runs the reads the plan named before Claude, and gives Claude the answers or the error, never a write', async () => {
+    const asked: string[] = [];
+    const asker = async (sql: string) => {
+      asked.push(sql);
+      if (sql.includes('nope')) return { status: 400, ok: false, body: { error: 'column "nope" does not exist' } };
+      if (sql.includes('boom')) throw new Error('No CLAUDE_READ_TOKEN');
+      return { status: 200, ok: true, body: { login: 'agent_reader', columns: ['n'], rows: Array.from({ length: READ_ROWS + 5 }, (_, i) => [i === 0 ? 'x'.repeat(900) : i]), truncated: false } };
+    };
+    const out = await planReads(['select n from t', 'select nope from t', 'select boom', 'delete from t'], asker);
+    expect(asked).toEqual(['select n from t', 'select nope from t', 'select boom']);
+    expect(out[0]).toMatchObject({ sql: 'select n from t', columns: ['n'], cut: true, login: 'agent_reader' });
+    expect(out[0]!.rows).toHaveLength(READ_ROWS);
+    expect(String(out[0]!.rows![0]![0])).toHaveLength(501);
+    expect(out[1]).toEqual({ sql: 'select nope from t', error: 'column "nope" does not exist' });
+    expect(out[2]).toEqual({ sql: 'select boom', error: 'No CLAUDE_READ_TOKEN' });
+    // A log: its newest lines, cut as rows are.
+    const logs = await planReads(['--logs worker-logs worker=langquest-next minutes=120'], async () => ({ status: 200, ok: true, body: { login: 'agent_reader', lines: Array.from({ length: READ_ROWS + 3 }, (_, i) => `line ${i}`), truncated: false } }));
+    expect(logs[0]).toMatchObject({ sql: '--logs worker-logs worker=langquest-next minutes=120', cut: true, login: 'agent_reader' });
+    expect(logs[0]!.lines).toHaveLength(READ_ROWS);
+    expect(logs[0]!.lines!.at(-1)).toBe(`line ${READ_ROWS + 2}`);
+  });
+
   it('sends what Claude does next with each record, or removes the plan', () => {
     const fix = checkFix({ verdict: 'unconfirmed', noFix: 'No timing of each phase.', next: { do: 'Run a probe of the sync. Ask a@b.org', steps: '1. Probe. 2. Fix.', inHours: 0.25, probeAt: 'packages/sync/test' } });
-    expect(planRecord('LAN-9', fix, 'took 4100 ms a@b.org\n')).toEqual({ issue: 'LAN-9', next: 'Run a probe of the sync. Ask [address]', steps: '1. Probe. 2. Fix.', inHours: 0.25, probe: 'took 4100 ms [address]' });
+    expect(planRecord('LAN-9', fix, 'took 4100 ms a@b.org\n')).toEqual({ issue: 'LAN-9', next: 'Run a probe of the sync. Ask [address]', steps: '1. Probe. 2. Fix.', inHours: 0.25, probe: 'took 4100 ms [address]', reads: null });
+    // The reads the plan names go with it: only select or with, at most 6, no second statement.
+    const reading = checkFix({ verdict: 'unconfirmed', noFix: 'x', next: { do: 'Read the syncs.', inHours: 0.25, reads: ['select 1;', 'delete from x', 'select 1; drop table x', ' with a as (select 1) select * from a', ...Array(8).fill('select 2')] } });
+    expect(planRecord('LAN-9', reading).reads).toEqual(['select 1', 'with a as (select 1) select * from a', 'select 2', 'select 2', 'select 2', 'select 2']);
     expect(planRecord('LAN-9', fix, 'x'.repeat(PROBE_MAX + 50)).probe).toHaveLength(PROBE_MAX);
     // A manager that wrote no plan, or whose job failed, still has a next step: it tries again.
     expect(planRecord('LAN-9', checkFix({ verdict: 'unconfirmed', noFix: 'Unclear.' }))).toMatchObject({ next: expect.stringMatching(/^Claude tries again/), inHours: 1, probe: null });

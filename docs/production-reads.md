@@ -88,6 +88,19 @@ Never paste rows into a pull request, a commit, a GitHub issue or comment, a
 Linear issue, or anything else that is public or shared. Say what was found
 in words: "12 phones on build 61 failed the download", not the rows.
 
+### The fix team's reads
+
+`claude-code-action` removes the job's OIDC request variables from Claude's
+shell, so the issue manager cannot run `prod-read.mjs` during its run. Its
+plan names the reads instead (`fix.json` `next.reads`: at most 6 `select` or
+`with` statements, or logs as `--logs <source> name=value ...`). The watch keeps them with the plan
+(`ops.user_issue_plans.reads`). At the next try, the step `fix-context` runs
+them through the gate, as agent_reader, before Claude starts, and writes the
+answers to `.user-issues/reads.json` (at most 200 rows each). The job log
+says only how many answered. The file is outside the change, so it never
+goes into a pull request
+(`docs/decisions/2026-11-23-the-fix-team-reads-production-before-claude-starts.md`).
+
 ## Logs
 
 `POST /ops/api/read/logs` on the same Worker (`apps/admin/src/logs.ts`)
