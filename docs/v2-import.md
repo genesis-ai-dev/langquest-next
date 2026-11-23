@@ -229,6 +229,15 @@ weeks ago, so a wait counted from the recording was over before it began.
   a week (decisions.md 94). Once v2 says it has the file after that
   (`audio_uploaded_at` later than the miss), it is asked for again: on the
   pass that sees it arrive, and by every whole read until it is copied.
+- **What is already stored.** A file goes up for a language only when
+  that language does not have it yet. A 15-minute pass asks the
+  language's log (`v2_import_unstored`: is there a `BlobStored` for this
+  hash and size?); the nightly whole read and a transfer someone starts
+  list the language's folder in R2, once a project, so a file R2 lost is
+  put back. Each R2 list is a class A operation for each 1,000 files, and
+  until 2026-11-23 every pass listed twice: about 165,000 lists a day,
+  over R2's free million a month
+  (`docs/decisions/2026-11-23-the-v2-import-asks-the-log-what-is-stored.md`).
 - **Audio phones may not play.** v2 took any file a team uploaded, and
   some Every Language teams uploaded whole chapters as MP3 (573 files in
   33 projects on 2026-10-23, 16 of them WebM). A recording here is

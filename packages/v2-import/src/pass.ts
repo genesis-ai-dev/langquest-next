@@ -275,7 +275,7 @@ class Run {
       report.map = mapped.report;
       if (mapped.report.heldBack) await say('info', `Left in v2 for now: ${n(mapped.report.heldBack)} written translations, transcriptions and back translations`);
       // Files copied on an earlier pass (or by another project) that this language does not have yet.
-      const later = await this.upload(org.org_id, languageId, files.map, rows, progress, new Set(mapped.report.heldFiles));
+      const later = await this.upload(org.org_id, languageId, files.map, files.stored, rows, progress, new Set(mapped.report.heldFiles));
       report.files.uploaded += later.uploaded;
       report.files.mismatched = later.mismatched;
       if (report.files.uploaded) await say('info', `Stored ${n(report.files.uploaded)} audio files in Next`);
@@ -423,10 +423,10 @@ class Run {
    * then left to the report. One that needs converting where nothing can
    * convert is not written down, so a run that can convert it finds it.
    */
-  private async copyFiles(rows: V2ProjectRows, progress: (p: Progress) => Promise<void>, store: { orgId: string; languageId: string; skip: ReadonlySet<string> }): Promise<{ map: Map<string, CopiedFile>; counts: { copied: number; missing: number; stored: number; converted: number; unreadable: number; later: number } }> {
+  private async copyFiles(rows: V2ProjectRows, progress: (p: Progress) => Promise<void>, store: { orgId: string; languageId: string; skip: ReadonlySet<string> }): Promise<{ map: Map<string, CopiedFile>; stored: Set<string>; counts: { copied: number; missing: number; stored: number; converted: number; unreadable: number; later: number } }> {
     const names = namesIn(rows);
     const known = await this.deps.target.files(names);
-    const stored = await this.deps.target.stored(store.orgId, store.languageId);
+    const stored = await this.storedOf(store.orgId, store.languageId, names.filter((n) => !store.skip.has(n)).map((n) => known.get(n)));
     let storedNow = 0;
     const map = new Map<string, CopiedFile>();
     for (const [name, f] of known) if (!('missingSince' in f)) map.set(name, f);
@@ -468,7 +468,23 @@ class Run {
     });
     if (found.length > saved) await this.deps.target.putFiles(found.slice(saved));
     const missing = found.filter((f) => !f.file).length - unreadable;
-    return { map, counts: { copied: found.filter((f) => f.file).length, missing, stored: storedNow, converted, unreadable, later } };
+    return { map, stored, counts: { copied: found.filter((f) => f.file).length, missing, stored: storedNow, converted, unreadable, later } };
+  }
+
+  /**
+   * The hashes already stored for the language, of the files it may need. The nightly whole read
+   * and a transfer someone starts list R2 itself (`stored`), so a file the log holds as stored that
+   * R2 lost is put back; a 15-minute pass asks the log (`unstored`). Listing R2 is a class A
+   * operation for each 1,000 files, and the 15-minute passes listed the biggest languages (84,000
+   * files) twice a pass, 76 passes a day: about 165,000 list calls a day, $15 to $20 a month in November 2026.
+   */
+  private async storedOf(orgId: string, languageId: string, known: (CopiedFile | { missingSince: string } | undefined)[]): Promise<Set<string>> {
+    if (this.whole || !this.deps.target.unstored) return this.deps.target.stored(orgId, languageId);
+    const files = new Map<string, { hash: string; size: number }>();
+    for (const f of known) if (f && !('missingSince' in f)) files.set(f.hash, { hash: f.hash, size: f.size });
+    if (files.size === 0) return new Set();
+    const unstored = await this.deps.target.unstored(orgId, languageId, [...files.values()]);
+    return new Set([...files.keys()].filter((hash) => !unstored.has(hash)));
   }
 
   /**
@@ -479,8 +495,7 @@ class Run {
    * converter that changed (a new ffmpeg) would otherwise stop the project
    * on every pass.
    */
-  private async upload(orgId: string, languageId: string, files: Map<string, CopiedFile>, rows: V2ProjectRows, progress: (p: Progress) => Promise<void>, skip: ReadonlySet<string>): Promise<{ uploaded: number; mismatched: number }> {
-    const stored = await this.deps.target.stored(orgId, languageId);
+  private async upload(orgId: string, languageId: string, files: Map<string, CopiedFile>, stored: ReadonlySet<string>, rows: V2ProjectRows, progress: (p: Progress) => Promise<void>, skip: ReadonlySet<string>): Promise<{ uploaded: number; mismatched: number }> {
     const todo = new Map<string, { name: string; file: CopiedFile }>();
     for (const name of namesIn(rows)) {
       if (skip.has(name)) continue;
