@@ -162,7 +162,7 @@ jobs:
       - name: Claude looks
         id: look
         if: steps.watch.outputs.look != '0'
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
@@ -249,7 +249,7 @@ jobs:
         run: node scripts/user-issues.mjs fix-context .user-issues "$ISSUE"
       - name: The issue manager writes a fix
         id: manager
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         env:
           # The manager's effort. A Claude Code that does not know the name runs at its own.
           CLAUDE_CODE_EFFORT_LEVEL: ${{ env.FIX_EFFORT }}
@@ -278,7 +278,7 @@ jobs:
         if: ${{ always() && steps.ended.outputs.fix == 'missing' && steps.manager.outputs.session_id != '' }}
         # A resume that fails must not stop the patch step: the run then counts as ENDED, as before.
         continue-on-error: true
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         env:
           CLAUDE_CODE_EFFORT_LEVEL: ${{ env.FIX_EFFORT }}
         with:
@@ -524,7 +524,7 @@ jobs:
           node scripts/agent-team.mjs pictures "$RUNNER_TEMP/team/picture" .user-issues-vet
       - name: The reviewer reads the change
         if: steps.need.outputs.yes == 'true'
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         env:
           CLAUDE_CODE_EFFORT_LEVEL: high
         with:
@@ -600,7 +600,7 @@ jobs:
       - name: LangQuest's GitHub App
         id: app
         if: env.HAS_APP == 'true'
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
@@ -648,7 +648,7 @@ jobs:
       - name: LangQuest's GitHub App
         id: app
         if: env.HAS_APP == 'true'
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
@@ -709,7 +709,7 @@ jobs:
         if: steps.facts.outputs.work == '1'
         timeout-minutes: 40
         continue-on-error: true
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         with:
           claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}
           github_token: ${{ github.token }}
@@ -722,7 +722,7 @@ jobs:
         if: steps.facts.outputs.team == '1'
         timeout-minutes: 55
         continue-on-error: true
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         with:
           claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}
           github_token: ${{ github.token }}

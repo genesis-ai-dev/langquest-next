@@ -69,7 +69,7 @@ jobs:
         if: steps.fetch.outputs.n != '' && steps.fetch.outputs.n != '0'
         timeout-minutes: 25
         continue-on-error: true
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         with:
           claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}
           github_token: ${{ github.token }}
@@ -85,7 +85,7 @@ jobs:
         if: steps.web.outputs.web == '1'
         timeout-minutes: 15
         continue-on-error: true
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         with:
           claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}
           github_token: ${{ github.token }}
@@ -107,7 +107,7 @@ jobs:
         if: ${{ !cancelled() && steps.resolves.outputs.r != '' && steps.resolves.outputs.r != '0' }}
         timeout-minutes: 15
         continue-on-error: true
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         with:
           claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}
           github_token: ${{ github.token }}
