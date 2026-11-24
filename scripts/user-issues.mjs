@@ -49,7 +49,7 @@ import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
 import { ask as askGate, post as postGate, parseArgs as readArgs, LOGS_URL } from './prod-read.mjs';
 import { oldPathsOf, pathsOf, runUrl } from './tutorial-review.mjs';
-import { decisionLines, ENDED, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planNext, planOf, PROBE_TEST, readsOf, REPAIR_MAX, saysAskFirst, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
+import { decisionLines, ENDED, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planNext, planOf, PROBE_TEST, readsOf, REPAIR_MAX, saysAskFirst, saysClose, saysMerge, CLOSE_STATES, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
 
 /** The steps to the screen of a display fix, as the manager writes them beside fix.json (never part of the change). */
 export const PICTURE_SPEC = 'picture.spec.ts';
@@ -429,7 +429,9 @@ export function checkFix(raw) {
   const next = v.next ? { ...v.next, do: redact(v.next.do), steps: redact(v.next.steps) } : null;
   const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display, askFirst: v.askFirst, next };
   // `ended`: the manager wrote no fix.json, or one that does not read (fixPatch), so it gave no verdict (ENDED).
-  return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), answer: cut(lines(text(o.answer)), FIX_LIMITS.answer), ...team, ended: o.ended === true };
+  // `linear`: the status an admin's instruction asked for (CLOSE_STATES); fixOpen sets it only when the admin's words say so.
+  const linear = CLOSE_STATES.includes(o.linear) ? o.linear : null;
+  return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), answer: cut(lines(text(o.answer)), FIX_LIMITS.answer), linear, ...team, ended: o.ended === true };
 }
 
 /** check.json from the job with no key: only its fixed words, since the patch's own code ran there. */
@@ -869,6 +871,14 @@ export function linearClient(key, fetchImpl = fetch) {
           nodes { identifier title priority state { name type } completedAt canceledAt attachments { nodes { url } } } } }`, { key: TEAM_KEY, numbers: numbers.slice(0, 100) });
       return data.issues.nodes.map((i) => ({ identifier: i.identifier, title: i.title, priority: i.priority, state: i.state, completedAt: i.completedAt, canceledAt: i.canceledAt, attachments: i.attachments.nodes }));
     },
+    /** Moves an issue to the team's status of this name (Done, Canceled, Duplicate): true when Linear did it. */
+    async setState(issueId, name) {
+      const data = await gql(`query($key: String!, $name: String!) { workflowStates(filter: { team: { key: { eq: $key } }, name: { eq: $name } }) { nodes { id } } }`, { key: TEAM_KEY, name });
+      const state = data.workflowStates.nodes[0];
+      if (!state) throw new LinearError(`Linear: no status named ${name} in ${TEAM_KEY}`);
+      const done = await gql(`mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }`, { id: issueId, input: { stateId: state.id } });
+      return done.issueUpdate?.success === true;
+    },
     /** Opens a closed issue again: the team's first not-started state (Todo). */
     async reopen(issueId) {
       const data = await gql(`query($key: String!) { workflowStates(filter: { team: { key: { eq: $key } }, type: { eq: "unstarted" } }) { nodes { id position } } }`, { key: TEAM_KEY });
@@ -1259,7 +1269,7 @@ async function fixContext(dir, id) {
     // it whether Claude changed anything: kept where Claude does not write.
     const before = instructed.draft?.applied ? worktreeHash(dir) : null;
     // Whether the admin's own words can mean "merge it as it is": read here, where Claude cannot write.
-    if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: waiting.map((n) => n.id), draft: before, saysMerge: saysMerge(waiting.map((n) => n.text)), go, askFirst, claimed }));
+    if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: waiting.map((n) => n.id), draft: before, saysMerge: saysMerge(waiting.map((n) => n.text)), saysClose: saysClose(waiting.map((n) => n.text)), go, askFirst, claimed }));
   }
   // The manager's last plan, when the cause was not proven yet: Claude goes on from it, with what its probe printed.
   const lastPlan = isObj(notes?.plan) && text(notes.plan.next) ? { next: text(notes.plan.next), steps: text(notes.plan.steps) || null, probe: text(notes.plan.probe) || null, tries: Number(notes.plan.tries) || 1, at: text(notes.plan.at), reads: readsOf(notes.plan.reads) } : null;
@@ -1346,6 +1356,8 @@ function fixPatch(dir) {
   // "Merge it as it is": the admin's words say so, the manager's verdict is `approved`, and the draft fix is as it was.
   const approved = noteIds.length > 0 && notes?.saysMerge === true && fix.verdict === 'approved' && Boolean(patch) && !changed;
   if (fix.verdict === 'approved' && !approved) fix.verdict = 'review';
+  // "Close this issue": the admin's words say so and the manager chose the status; fixOpen sets it in Linear.
+  const close = noteIds.length > 0 && notes?.saysClose === true && fix.linear ? fix.linear : null;
   // The steps to the screen where the problem shows, which the picture job runs without the change and,
   // when there is one, with it: the issue's picture on its card, and a display fix's proof.
   // They are not part of the change. Like the change, they may carry nothing of what was sent.
@@ -1366,7 +1378,7 @@ function fixPatch(dir) {
   }
   // `go`, `askFirst` and `claimed` as fixContext read them before Claude: the gate reads them (gateInput).
   if (noteIds.length || notes?.go === true || notes?.claimed === true) {
-    writeFileSync(join(out, 'notes.json'), JSON.stringify({ ids: noteIds, changed: changed && Boolean(patch), approved, go: notes?.go === true, askFirst: notes?.askFirst === true, claimed: notes?.claimed === true }));
+    writeFileSync(join(out, 'notes.json'), JSON.stringify({ ids: noteIds, changed: changed && Boolean(patch), approved, close, go: notes?.go === true, askFirst: notes?.askFirst === true, claimed: notes?.claimed === true }));
   }
   // A pull request handed back by the job `follow`: which, and whether Claude changed its change.
   if (Number.isInteger(notes?.repair?.pr)) writeFileSync(join(out, 'repair.json'), JSON.stringify({ pr: notes.repair.pr, changed: Boolean(patch) && notes.repair.draft !== worktreeHash(dir) }));
@@ -1410,6 +1422,19 @@ function autoMerge(pr) {
 }
 
 /**
+ * An issue moved to the status an admin's instruction asked for (Done, Canceled, Duplicate), and Claude's
+ * answer with what happened first: the card shows that line in bold.
+ */
+export async function closeAsked(api, issue, status, answer) {
+  const ok = await api.setState(issue.id, status).catch((e) => {
+    console.log(`${issue.identifier}: Linear did not take the status (${e instanceof Error ? e.message.slice(0, 200) : 'error'})`);
+    return false;
+  });
+  const said = ok ? `I set ${issue.identifier} to ${status} in Linear.` : `I could not set ${issue.identifier} to ${status} in Linear. Open it in Linear and set the status there.`;
+  return cut(answer ? `${said}\n\n${answer}` : said, FIX_LIMITS.answer);
+}
+
+/**
  * The fix, from the job that runs nothing of it. The gate (scripts/agent-team.mjs) says what happens:
  * a pull request that merges without a person (opened by LangQuest's GitHub App, so its checks start,
  * with auto-merge on), or a draft that waits for a developer; or the issue says why there is none.
@@ -1437,6 +1462,9 @@ async function fixOpen(dir, id) {
   const notesPath = join(dir, 'fix', 'notes.json');
   const notes = existsSync(notesPath) ? readJson(notesPath) : null;
   const noteIds = noteIdsOf(notes);
+  // An admin asked to close the issue: the fix job read their words before Claude, and the manager chose the
+  // status. Linear first, so the answer on the card says what was done.
+  if (noteIds.length && CLOSE_STATES.includes(notes?.close)) fix.answer = await closeAsked(api, issue, notes.close, fix.answer);
   const input = gateInput(dir);
   const shots = { before: pictureOf(join(dir, 'picture', PICTURES.before)), after: pictureOf(join(dir, 'picture', PICTURES.after)) };
   const decision = gate({ mode: modeHere(), ...input, app: Boolean(process.env.PR_TOKEN) });

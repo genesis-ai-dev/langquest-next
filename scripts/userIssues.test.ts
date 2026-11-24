@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, LIMITS, linearClient, lookedOf, mergesOf,
-  noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
+  closeAsked, noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
   repairOf, repairsOf, planRecord, planReads, READ_ROWS, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
@@ -605,7 +605,7 @@ describe('a draft fix for each new issue', () => {
   });
 
   it('takes Claude\'s summary or its reason for none, cut and without addresses, and only fixed words from the checks', () => {
-    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null, ended: false });
+    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', linear: null, verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null, ended: false });
     expect(checkFix({ summary: 'S', askFirst: true }).askFirst).toBe(true);
     expect(checkFix({ summary: 'S', answer: ' I moved the wait.  \r\n\n\n\n1. Ask a@b.org ' }).answer).toBe('I moved the wait.\n\n1. Ask [address]');
     expect(checkFix({ summary: 'S', answer: 'x'.repeat(2000) }).answer).toHaveLength(FIX_LIMITS.answer);
@@ -792,3 +792,21 @@ describe('a pull request of the team that did not get into main', () => {
   });
 });
 
+describe('an admin asks Claude to close an issue (docs/decisions/2026-11-24-a-message-to-claude-starts-its-run-at-once.md)', () => {
+  it('keeps only a status the team has for a closed issue', () => {
+    expect(checkFix({ noFix: 'Nothing to change.', linear: 'Canceled' }).linear).toBe('Canceled');
+    expect(checkFix({ noFix: 'Nothing to change.', linear: 'Done' }).linear).toBe('Done');
+    for (const bad of ['In Progress', 'canceled', 7, undefined]) expect(checkFix({ noFix: 'x', linear: bad }).linear).toBeNull();
+  });
+
+  it('sets the status in Linear and says so first in the answer, or says it could not', async () => {
+    const issue = { id: 'uuid-1', identifier: 'LAN-256' };
+    const set: string[] = [];
+    const ok = { setState: async (id: string, name: string) => { set.push(`${id} ${name}`); return true; } };
+    expect(await closeAsked(ok, issue, 'Canceled', 'The user can make a new organization.')).toBe('I set LAN-256 to Canceled in Linear.\n\nThe user can make a new organization.');
+    expect(await closeAsked(ok, issue, 'Done', '')).toBe('I set LAN-256 to Done in Linear.');
+    expect(set).toEqual(['uuid-1 Canceled', 'uuid-1 Done']);
+    const down = { setState: async () => { throw new Error('Linear: no status named Done in LAN'); } };
+    expect(await closeAsked(down, issue, 'Done', '')).toBe('I could not set LAN-256 to Done in Linear. Open it in Linear and set the status there.');
+  });
+});

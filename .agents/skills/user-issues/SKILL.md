@@ -747,6 +747,14 @@ above, with one more field:
   both the admin's words and that the draft fix did not change; with any
   doubt about what the admin meant, do not say `approved`, and ask in
   `answer`.
+- `linear`: when the instruction tells you to close the issue ("close
+  it", "cancel it", "won't fix", "a duplicate", "mark it done"), write the
+  status it goes to in Linear: `"Done"` (it is fixed or the work is
+  finished), `"Canceled"` (no fix will come) or `"Duplicate"`. The script
+  sets it in Linear after you, only when the admin's own words ask to close
+  it, and puts "I set LAN-12 to Canceled in Linear." first in your answer:
+  do not write that line yourself. Write `noFix` too when you change no
+  code. Leave `linear` out for every other instruction.
 - `answer` (at most 1000 characters) is for the admin, under their words
   on the card: what you did, or the answer to their question, and what they
   must decide when something is open. Write it in ASD-STE100 Simplified

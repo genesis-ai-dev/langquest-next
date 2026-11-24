@@ -270,7 +270,7 @@ function videoRows() {
       (v.film ? '<div class="vfilm"><span>Filmed ' + when(v.film.madeAt) + '</span>' + (v.film.causes || []).map(cause).join('') + '</div>' : '') + '</div></div>' +
       '<div class="tlw"><div class="tl">' + cells.map((c, i) => '<span' + (days[i].getUTCDay() === 0 ? ' class="wk"' : '') + '>' + c.map(mark).join('') + '</span>').join('') + '</div></div></div>' +
       '<div class="vdet" id="vdet-' + r + '" hidden></div>' +
-      (cards.length ? '<div class="vcards icards" id="vcards-' + r + '"' + (open ? '' : ' hidden') + ' data-key="' + esc(v.tutorial + '/' + v.language) + '">' + cards.map(adminCard).join('') + '</div>' : '');
+      (cards.length ? '<div class="vcards icards" id="vcards-' + r + '"' + (open ? '' : ' hidden') + ' data-key="' + esc(v.tutorial + '/' + v.language) + '" data-card="' + esc('video:' + v.tutorial + '/' + v.language) + '">' + cards.map(adminCard).join('') + '</div>' : '');
   });
   return h;
 }

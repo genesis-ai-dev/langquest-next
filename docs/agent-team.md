@@ -140,6 +140,14 @@ it" in the box on the issue's card. The manager then says `approved` and
 changes nothing; the script checks both, and the draft pull request merges
 when its checks pass.
 
+A developer can close an issue the same way: write "close it" (or "cancel
+it", "won't fix", "a duplicate", "mark it done") in the box. The manager
+writes the status in `fix.json` (`linear`: Done, Canceled or Duplicate); the
+fix job reads the admin's own words before Claude (`saysClose`), and the job
+`open`, which holds the Linear key, sets the status and says so first in
+Claude's answer on the card (`closeAsked`). Without such words the issue
+keeps its status, whatever the manager wrote.
+
 ## The mode
 
 `.github/agent-team.json` holds `{ "mode": "ask" }`:

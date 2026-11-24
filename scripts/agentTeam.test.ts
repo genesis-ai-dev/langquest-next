@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   ACTS, causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, logTail, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, nextStep, OPEN_HOURS,
-  ENDED, NEXT_HOURS, READS_LIMITS, READS_LOGS, runEnd, NEXT_LIMITS, nextOf, pathRefusal, PICTURES, PLAN_TRIES, planNext, planOf, PROBE_DIRS, REASONS, reviewNeeded, saysAskFirst, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
+  ENDED, NEXT_HOURS, READS_LIMITS, READS_LOGS, runEnd, NEXT_LIMITS, nextOf, pathRefusal, PICTURES, PLAN_TRIES, planNext, planOf, PROBE_DIRS, REASONS, reviewNeeded, saysAskFirst, saysClose, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
 } from './agent-team.mjs';
 import * as model from '../server/userIssues';
 
@@ -212,6 +212,12 @@ describe('the gate', () => {
     expect(saysMerge(['Move the wait.', 'Looks good, merge it.'])).toBe(true);
     expect(saysMerge(['Move the wait before the emerge call.'])).toBe(false);
     expect(saysMerge(undefined)).toBe(false);
+  });
+
+  it('reads "close this issue" in an admin\'s own words, and nothing like it', () => {
+    for (const t of ['Please close this issue. The user can create a new organization.', 'Cancel it.', "Won't fix.", 'It is a duplicate of LAN-12.', 'Mark it as done.']) expect(saysClose([t]), t).toBe(true);
+    for (const t of ['Why does it stop at 60 seconds?', 'Move the closer button.', 'Fix the cancellation of uploads.']) expect(saysClose([t]), t).toBe(false);
+    expect(saysClose(undefined)).toBe(false);
   });
 
   it('takes two pictures of the screen as the proof of a display fix, in place of a test', () => {

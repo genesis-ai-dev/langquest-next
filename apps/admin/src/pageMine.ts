@@ -57,7 +57,7 @@ function repliesNew(mine) {
 function replyHref(r) {
   const card = (group, id) => '#g/' + group + '/' + encodeURIComponent(id);
   if (r.kind === 'issue') return card('userissues', r.card);
-  if (r.kind === 'video') return '#g/tutorials';
+  if (r.kind === 'video') return card('tutorials', 'video:' + r.card);
   if (String(r.card).startsWith('page:')) return '#g/' + (r.page || String(r.card).slice(5));
   return card(r.page, r.card);
 }
@@ -141,7 +141,10 @@ $('mine').addEventListener('click', () => { if (panelOpen()) closeMine(); else o
 document.addEventListener('click', (e) => {
   if (!panelOpen() || e.target.closest('#mine')) return;
   // A row opens its card; a tap anywhere else closes the list.
-  if (e.target.closest('#mine-panel a') || !e.target.closest('#mine-panel')) closeMine();
+  const a = e.target.closest('#mine-panel a');
+  // The address names this card already, so the page does not move by itself: find the card again.
+  if (a && a.getAttribute('href') === location.hash) { e.preventDefault(); route(); }
+  if (a || !e.target.closest('#mine-panel')) closeMine();
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && panelOpen()) { closeMine(); $('mine').focus(); } });
 // New replies come each few minutes (the watch, card-questions.yml): the bell reads them again every 2 minutes in view.

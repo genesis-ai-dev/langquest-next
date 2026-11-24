@@ -321,7 +321,8 @@ function route() {
   drawSummary();
   if (v.name === 'start') renderStart();
   // The page's 14 days of numbers are asked for now, ahead of the parts' answers, not a frame later (drawSummary).
-  if (v.name === 'group') { for (const p of partsWithNumbers(v.id)) sumHistory(p); renderHist(v.id); window.scrollTo(0, 0); wantCard = v.card || null; focusCard(); }
+  if (v.name === 'group') { for (const p of partsWithNumbers(v.id)) sumHistory(p); renderHist(v.id); window.scrollTo(0, 0); wantCard = v.card || null; if (!wantCard) markedCard = null; focusCard(); }
+  else markedCard = null;
   if (v.name !== 'group') closeDetail();
 }
 window.addEventListener('hashchange', route);

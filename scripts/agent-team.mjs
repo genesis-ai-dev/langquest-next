@@ -234,6 +234,16 @@ export const saysMerge = (texts) => (Array.isArray(texts) ? texts : []).some((t)
 const ASK_FIRST_WORDS = /\b(ask me|check with me|wait for (me|my)|(my|your) (ok|okay|yes|input|approval|go)\b|show me|let me (see|look|check|read|review)|before (it |you |this )?(merge|merging|merges|goes in|ships)|(don'?t|do not|never) (auto-?)?merge|not (auto-?)?merge|hold (it|the (fix|change|merge)))/i;
 export const saysAskFirst = (texts) => (Array.isArray(texts) ? texts : []).some((t) => ASK_FIRST_WORDS.test(String(t ?? '')));
 
+/**
+ * Words in an instruction that can mean "close this issue" ("close it", "cancel", "won't fix", "duplicate",
+ * "mark it done"). The manager decides the status (`linear` in fix.json); this only stops a guess: without
+ * such words in the admin's own instruction, the issue keeps its status.
+ */
+const CLOSE_WORDS = /\b(close|closed|closing|cancel|canceled|cancelled|won'?t fix|wontfix|duplicate|mark (it |this )?(as )?(done|complete|completed|fixed))\b/i;
+export const saysClose = (texts) => (Array.isArray(texts) ? texts : []).some((t) => CLOSE_WORDS.test(String(t ?? '')));
+/** The statuses an admin's instruction can move an issue to in Linear (the team's own status names). */
+export const CLOSE_STATES = ['Done', 'Canceled', 'Duplicate'];
+
 /** Why a fix waits on an issue a developer claimed (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md). */
 export const CLAIMED_WHY = 'A developer claimed this issue on the ops dashboard. Claude\'s change is a suggestion: the developer reads it and merges it.';
 

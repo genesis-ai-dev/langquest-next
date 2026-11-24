@@ -58,7 +58,7 @@ describe('Claude\'s replies in the corner', () => {
     expect(logic.replyHref(reply())).toBe('#g/userissues/LAN-12');
     expect(logic.replyHref(reply({ kind: 'question', card: 'line:capacity-r2-class-a', page: 'storage' }))).toBe('#g/storage/line%3Acapacity-r2-class-a');
     expect(logic.replyHref(reply({ kind: 'question', card: 'page:storage', page: 'storage' }))).toBe('#g/storage');
-    expect(logic.replyHref(reply({ kind: 'video', card: 'record-a-passage/fr', page: 'tutorials' }))).toBe('#g/tutorials');
+    expect(logic.replyHref(reply({ kind: 'video', card: 'record-a-passage/fr', page: 'tutorials' }))).toBe('#g/tutorials/video%3Arecord-a-passage%2Ffr');
   });
 
   it('says Claude\'s answer as one plain line, and where a change to a video is', () => {
