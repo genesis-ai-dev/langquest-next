@@ -19,13 +19,13 @@
 
 /** The look, inside page.ts's style element. */
 export const RESOLVE_CSS = String.raw`
-.alert .gos button.go.resolve { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 13px; color: var(--ink2); min-height: 32px; }
+.alert .gos button.go.resolve { display: inline-flex; gap: 4px; align-items: center; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink2); text-decoration: none; min-height: 32px; }
 .alert .gos button.go.resolve:hover, .alert .gos button.go.resolve:focus-visible { color: var(--green); }
 .alert .gos button.go.resolve svg.ic .f { fill: var(--grey); } .alert .gos button.go.resolve:hover svg.ic .f { fill: var(--green); }
 .icard .ibar button.resolve, button.resolve.button { display: inline-flex; gap: 6px; align-items: center; }
 .backtag { display: inline-block; font-size: 11px; font-weight: 700; line-height: 18px; padding: 0 7px; border-radius: 6px; color: var(--amber); background: var(--amberbg); margin-inline-start: 8px; vertical-align: 2px; }
 .icard .itags .tag.back { color: var(--amber); background: var(--amberbg); }
-.rsline .fx button.link { min-height: 32px; font-weight: 600; }
+.rsline .fx button.link { min-height: 32px; font-weight: 600; margin-inline-start: 8px; }
 `;
 
 /** Pure: apps/admin/test/resolve.test.ts runs these with new Function, after pageFixes.ts FIX_LOGIC (nextCheck, HOUR). */
