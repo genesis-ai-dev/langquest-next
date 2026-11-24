@@ -78,8 +78,8 @@ job's OIDC token in GitHub Actions. In a cloud thread whose environment keeps
 the token as a network secret, it sends a stand-in that the proxy replaces
 with the token, so the thread never holds the token. The agent teams run a copy made before Claude starts,
 `/home/runner/work/_temp/watch/prod-read.mjs`, the one command their Claude
-may run besides git; Claude cannot change that copy, which asks only for the
-gate's audience.
+may run besides git; Claude cannot change that copy, which reads through the
+relay below.
 
 ### Where answers go
 
@@ -88,12 +88,37 @@ Never paste rows into a pull request, a commit, a GitHub issue or comment, a
 Linear issue, or anything else that is public or shared. Say what was found
 in words: "12 phones on build 61 failed the download", not the rows.
 
-### The fix team's reads
+### Reads while Claude runs
 
 `claude-code-action` removes the job's OIDC request variables from Claude's
-shell, so the issue manager cannot run `prod-read.mjs` during its run. Its
-plan names the reads instead (`fix.json` `next.reads`: at most 6 `select` or
-`with` statements, or logs as `--logs <source> name=value ...`). The watch keeps them with the plan
+shell ("so Claude cannot mint new tokens"). So each job of an agent team
+starts a relay (`scripts/prod-read-relay.mjs`) in a step before Claude. The
+relay keeps the variables in its own process, listens on `127.0.0.1:47615`
+only, and takes `POST /read` and `POST /read/logs`, nothing else. For each
+one it asks GitHub for a token for the gate's audience only and passes the
+read on. Claude's step has `PROD_READ_RELAY`, and its copy of
+`prod-read.mjs` sends the read there. Claude gets the gate's answer, never a
+token, and the gate still holds every read to agent_reader, read only.
+
+A step stops the relay after Claude, and before any Claude that has the web
+(`WebFetch`, `WebSearch`), so that a read cannot reach a web page. The relay
+also stops itself after an hour. `scripts/prodReadRelay.test.ts` checks both
+workflows for this
+(`docs/decisions/2026-11-24-agent-teams-read-production-while-claude-runs.md`).
+
+| Job | Claude that reads |
+|---|---|
+| `user-issues.yml` watch | Claude looks |
+| `user-issues.yml` fix | the issue manager, its workers, and the step that writes its verdict |
+| `user-issues.yml` research | the lead and its scouts that look for the same mistake (not the look ahead, which has the web) |
+| `card-questions.yml` answer | Claude answers, and Claude decides whether each problem came back (not the Claude with the web) |
+
+### The fix team's reads
+
+A plan can also name reads for the next try: `fix.json` `next.reads`, at
+most 6 `select` or `with` statements, or logs as `--logs <source>
+name=value ...`. Use it for an answer that is not there yet (more records,
+a new build). The watch keeps them with the plan
 (`ops.user_issue_plans.reads`). At the next try, the step `fix-context` runs
 them through the gate, as agent_reader, before Claude starts, and writes the
 answers to `.user-issues/reads.json` (at most 200 rows each). The job log

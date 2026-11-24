@@ -254,16 +254,20 @@ function saidInline(s) {
 }
 /**
  * An answer Claude wrote kept all on one line (before line breaks were kept): put each step of
- * "1) ... 2) ..." on its own line, only when the steps count 1, 2, 3 in order.
+ * "1) ... 2) ..." on its own line, only when the steps count 1, 2, 3 in order; a command in it
+ * (npm, npx, node, git, or a select ... from) as code, when the answer has no code marks; and a
+ * last "Also:" or "Note:" after the steps as a paragraph of its own.
  */
 function saidSteps(t) {
   if (/\n/.test(t)) return t;
+  if (!/\x60/.test(t)) t = t.replace(/(^|[\s:])((?:npm run |npx |node |git )[^\n]*?|select\s[^\n]*?\sfrom\s[^\n]*?)(?=\.(?:\s+[A-Z(]|\s*$)|$)/g, (m, b, c) => b + '\x60' + c + '\x60');
   const at = [];
   const re = /(^|\s)(\d{1,2})[.)]\s/g;
   let m;
   while ((m = re.exec(t))) if (Number(m[2]) === at.length + 1) at.push(m.index + m[1].length);
   if (at.length < 2) return t;
-  return at.reduce((out, p, i) => out + t.slice(i ? at[i - 1] : 0, p).trimEnd() + '\n', '').replace(/^\n/, '') + t.slice(at[at.length - 1]);
+  const last = t.slice(at[at.length - 1]).replace(/([.!?])\s+((?:Also|Note):\s)/, '$1\n\n$2');
+  return at.reduce((out, p, i) => out + t.slice(i ? at[i - 1] : 0, p).trimEnd() + '\n', '').replace(/^\n/, '') + last;
 }
 /**
  * Claude's answer as the talk shows it (the user-issues skill asks for this shape): the first

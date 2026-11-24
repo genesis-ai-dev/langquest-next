@@ -1,6 +1,6 @@
 # The fix team reads production before Claude starts
 
-Date: 2026-11-23 · By: Caleb Koster · Status: accepted
+Date: 2026-11-23 · By: Caleb Koster · Status: partly superseded by 2026-11-24-agent-teams-read-production-while-claude-runs
 
 Reason: the issue manager could never read production.
 `claude-code-action` removes the job's OIDC request variables from Claude's
@@ -32,3 +32,7 @@ Reverse if: the action offers a supported way to give Claude a read token,
 or tries spend most of their rounds waiting for answers.
 
 Amended (2026-11-23, Caleb Koster): the log reads of PR 657 (`prod-read.mjs --logs`) fail in the fix job for the same reason. A plan's `next.reads` may name logs too, as `--logs <source> name=value ...`, and `fix-context` reads them before Claude starts, with their newest 200 lines in `reads.json`.
+
+Amended (2026-11-24, Caleb Koster): the rejected relay is now built, for every agent team's job
+(`docs/decisions/2026-11-24-agent-teams-read-production-while-claude-runs.md`). The reads a plan names still run before
+Claude starts, for an answer the plan waits for.

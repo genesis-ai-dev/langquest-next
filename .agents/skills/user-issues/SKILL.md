@@ -383,17 +383,16 @@ only answer "then prove it". When you cannot prove the cause in this run,
 make a plan that proves it, and the team carries it out without a person:
 read "When the cause is not proven yet" below.
 
-Your shell cannot read production: the action that runs you removes the
-job's token. You read it through your plan instead: name the statements in
-`next.reads`, and the next try starts with their answers in
-`.user-issues/reads.json` (part "Reading production" below). Read the
-answers before you guess: how many records, which build, which phase is
-slow, since when. Never copy a row of an answer into what you write.
+You can read production yourself, in this run:
+`node /home/runner/work/_temp/watch/prod-read.mjs "select ..."`, read
+only, as agent_reader (part "Reading production" below). Read before you
+guess: how many records, which build, which phase is slow, since when, which
+profile id an install belongs to. Your workers can run it too. Never copy a
+row of an answer into what you write.
 
-You read the logs the same way: a read in `next.reads` that starts with
-`--logs` is a log, as `prod-read.mjs` takes it: `--logs <source>
-name=value ...` (docs/production-reads.md, Logs). Read the log before you
-guess why a build or a server job failed:
+You read the logs the same way: `prod-read.mjs --logs <source> name=value
+...` (docs/production-reads.md, Logs). Read the log before you guess why a
+build or a server job failed:
 
 - `--logs worker-builds worker=langquest-next`, then `--logs
   worker-build-log build=<id>`: the Workers Build that deploys the web app
@@ -568,8 +567,10 @@ the rules below hold for them too.
   cause is unclear, that is not a reason to stop: make a plan
   (below).
 - **Never ask a person to do what Claude can do.** A read of production or
-  of a log is never a `decision`: name it in `next.reads`, say
-  `unconfirmed`, and the next try starts with its answer. Never ask a
+  of a log is never a `decision`: run it now with `prod-read.mjs`, or,
+  when you wait for records that are not there yet, name it in
+  `next.reads` and say `unconfirmed`. Never give an admin SQL, a `diag`
+  command or a read to run. Never ask a
   developer to give Claude a token, a key or more access, and never give
   them a read to run. When a thing Claude needs is truly out of its reach
   (a setting only a person can change, a store or dashboard page), say in
@@ -605,21 +606,31 @@ request and the issue's Agent notes, where a developer looks for them.
 
 ### Reading production
 
-The fix job runs the reads your last plan named before you start, through
-the read gate as agent_reader (`docs/production-reads.md`: ids, counts,
-times and codes; no names, typed text or recordings). Their answers are in
-`.user-issues/reads.json`: for each statement, `columns` and `rows` (at most
-200), or `error`; for each log, its newest `lines` (at most 200).
+Read production in this run with
+`node /home/runner/work/_temp/watch/prod-read.mjs "select ..." [param ...]`
+or `--logs <source> name=value ...`. A relay that the job starts before you
+passes each read to the read gate as agent_reader
+(`docs/production-reads.md`: ids, counts, times and codes, for example
+`diag.records`, `diag.installs` with each install's `profile_id`, and
+`public.events` without `payload`; no names, emails, typed text or
+recordings). Ask for counts and groups, not long lists of rows. An answer
+with an error names the problem (a column that is not there, a table
+agent_reader cannot read): correct the statement and read again.
 
-- Write each read in `next.reads`: at most 6, each a statement (`select` or
-  `with`, at most 1500 characters, no `;`) or a log (`--logs <source>
-  name=value ...`, values without spaces). Ask for counts and groups, not
-  long lists of rows.
-- When you need production and have no answers yet (a new issue), say
-  `unconfirmed`, name the reads, and set `inHours` to 0.25: the next run of
-  the watch, about 15 minutes later, starts with the answers.
-- A read with `error` names the problem (a column that is not there, a
-  table agent_reader cannot read): correct it in the next plan.
+When an admin asks for a thing agent_reader cannot read (a name, an email),
+read what you can (the profile id, its organizations' ids, its installs,
+when it was active) and give that. Say that a developer's cloud thread can
+read the name, and never give the admin SQL to run.
+
+The fix job also runs the reads your last plan named before you start.
+Their answers are in `.user-issues/reads.json`: for each statement,
+`columns` and `rows` (at most 200), or `error`; for each log, its newest
+`lines` (at most 200).
+
+- Name a read in `next.reads` only when its answer is not there yet (more
+  records, a new build): at most 6, each a statement (`select` or `with`,
+  at most 1500 characters, no `;`) or a log (`--logs <source> name=value
+  ...`, values without spaces).
 
 ### When the cause is not proven yet
 
