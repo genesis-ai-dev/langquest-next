@@ -265,6 +265,13 @@ flowchart LR
 9. A card never ends at "a developer decides" alone. With no plan, it says
    what Claude found: "Claude found no bug" with the reason, "Claude needs
    your choice" with the choice, or the gate's reason with Claude's words.
+10. A card asks a person only for what a person must do, in words an admin
+   who does not know databases or code understands: no table, setting,
+   file, token or SQL. A read of production is never a choice for a
+   person: the manager names it in `next.reads`. The choices Claude asked
+   for before 2026-11-24 06:00 UTC come back to the fix team once (`again`
+   in "Which issue Claude takes first")
+   (`docs/decisions/2026-11-24-a-card-asks-only-what-a-person-must-do.md`).
 
 ## Which issue Claude takes first
 
@@ -272,7 +279,8 @@ Each run hands at most `FIX_MAX` (3) issues to the fix jobs. First go the
 team's pull requests that did not get into main (room of their own), then
 the issues with an admin's instruction. Then one order holds every other
 issue that waits for the fix team: the new issues, the plans whose time
-came, the research's and the issues Claude never tried
+came, the research's, the issues Claude never tried, and once each the
+choices Claude asked a developer for before 2026-11-24 06:00 UTC (`again`)
 (`ops_user_issue_order()`, `orderToTake()` in `scripts/user-issues.mjs`).
 The order is Linear's priority (Urgent, High, Medium or none, Low), then
 the most people of one of its kinds in 7 days, then how many kinds point to

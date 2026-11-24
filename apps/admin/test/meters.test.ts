@@ -79,7 +79,7 @@ describe('meters and shares (plan 5c4)', () => {
     fc.assert(fc.property(fc.option(fc.nat(900)), fc.option(fc.nat(9000)), fc.array(table, { maxLength: 14 }), (longestQueryS, oldestXactS, tables) => {
       // Largest first, as the database answers (diag.ops_database_detail).
       const d = { bytes: 0, connections: 1, longestQueryS, oldestXactS, indexes: [],
-        tables: tables.sort((a, b) => b.bytes - a.bytes).map((t, i) => ({ ...t, name: `public.t${i}` })) } as DbDetail;
+        tables: tables.sort((a, b) => b.bytes - a.bytes).map((t, i) => ({ ...t, name: i === 1 ? 'public.snapshot_units_staged' : `public.t${i}` })) } as DbDetail;
       const alerts = dbDetailAlerts(d);
       const amber = rows('dbdetail', d).flatMap((r) => r.items).filter((x) => x.s === 'part').map((x) => x.name);
       expect(amber.length).toBe(alerts.length);

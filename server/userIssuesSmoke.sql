@@ -836,6 +836,29 @@ do $$ begin
   assert jsonb_array_length(diag.ops_user_issue_order()) = 5, 'the dashboard reads the same order';
 end $$;
 reset role;
+-- Migration 20261124030000_user_issue_order_again.sql: a choice Claude asked for before 2026-11-24 06:00 UTC
+-- is tried once more; a newer one, one with a pull request and one handed over since are not.
+insert into ops.user_issues (key, verdict, issue, issue_url, people, n, first_looked_at) values
+  ('error:Old@x:-', 'filed', 'LAN-958', 'https://linear.app/x/issue/LAN-958', 1, 1, now()),
+  ('error:New@x:-', 'filed', 'LAN-959', 'https://linear.app/x/issue/LAN-959', 1, 1, now()),
+  ('error:Again@x:-', 'filed', 'LAN-960', 'https://linear.app/x/issue/LAN-960', 1, 1, now()),
+  ('error:Pr@x:-', 'filed', 'LAN-961', 'https://linear.app/x/issue/LAN-961', 1, 1, now()),
+  ('error:Bug@x:-', 'filed', 'LAN-962', 'https://linear.app/x/issue/LAN-962', 1, 1, now());
+insert into ops.user_issue_fixes (issue, decision, reason, why, pr, at) values
+  ('LAN-958', 'none', 'decision', 'Give Claude a token.', null, timestamptz '2026-11-22 13:00:00+00'),
+  ('LAN-959', 'none', 'decision', 'Choose the words.', null, timestamptz '2026-11-24 07:00:00+00'),
+  ('LAN-960', 'none', 'decision', 'Give Claude a token.', null, timestamptz '2026-11-22 13:00:00+00'),
+  ('LAN-961', 'waits', 'decision', 'Choose the words.', 12, timestamptz '2026-11-22 13:00:00+00'),
+  ('LAN-962', 'none', 'not_a_bug', 'It works.', null, timestamptz '2026-11-22 13:00:00+00');
+insert into ops.user_issue_tries (issue, handed_at) values ('LAN-958', timestamptz '2026-11-22 12:40:00+00'), ('LAN-960', timestamptz '2026-11-24 07:00:00+00');
+set local role service_role;
+do $$
+declare
+  v jsonb := public.ops_user_issue_order();
+begin
+  assert (select jsonb_agg(x->>'issue') from jsonb_array_elements(v) x where x->>'from' = 'again') = '["LAN-958"]'::jsonb, 'tried once more: ' || v::text;
+end $$;
+reset role;
 rollback to savepoint ordered;
 
 rollback;
