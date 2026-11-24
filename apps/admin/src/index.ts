@@ -119,6 +119,8 @@ export async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: 
 
 /** Each card's questions to Claude (migration 20261123233000_ops_card_questions.sql); before it, the page shows the boxes with no talk. */
 const QUESTIONS_SQL = 'select diag.ops_card_questions() as v';
+/** Each claimed issue with who claimed it, and Claude's replies to this admin (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md). */
+const MINE_SQL = 'select diag.ops_mine($1::uuid) as v';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -214,6 +216,15 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (section === 'questions') {
     try {
       return json(await withDiag(diagConnection(env), (query) => query<unknown>(QUESTIONS_SQL)));
+    } catch (e) {
+      return json({ error: errorText(e) }, 502);
+    }
+  }
+  // Who claimed each issue, and Claude's latest replies on the cards this admin talked on: the person is the
+  // one this Worker checked, never one the page names.
+  if (section === 'mine') {
+    try {
+      return json(await withDiag(diagConnection(env), (query) => query<unknown>(MINE_SQL, [who.profileId])));
     } catch (e) {
       return json({ error: errorText(e) }, 502);
     }

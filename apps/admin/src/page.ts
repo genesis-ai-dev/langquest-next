@@ -25,6 +25,7 @@ import { RESEARCH_TEAM } from './researchTeam';
 import { CARD_CSS, CARD_LOGIC, CARD_SCRIPT } from './pageCards';
 import { SEND_CSS, SEND_LOGIC, SEND_SCRIPT } from './pageSends';
 import { ASK_CSS, ASK_LOGIC, ASK_SCRIPT } from './pageAsk';
+import { MINE_CSS, MINE_HTML, MINE_LOGIC, MINE_SCRIPT } from './pageMine';
 import { SUMMARY_CSS, SUMMARY_LOGIC, SUMMARY_SCRIPT } from './pageSummary';
 import { BLOCKS_CSS, BLOCKS_LOGIC, BLOCKS_SCRIPT, WIDTH_CSS } from './pageBlocks';
 import { LOADING_CSS, LOADING_SCRIPT } from './pageLoading';
@@ -228,6 +229,7 @@ ${HOVER_CSS}
 ${REF_CSS}
 ${SEND_CSS}
 ${ASK_CSS}
+${MINE_CSS}
 ${LOADING_CSS}
 </style>
 </head>
@@ -240,6 +242,7 @@ ${SHELL_HTML}
   <form class="look" id="start-look" role="search"><label for="start-q" hidden>Look up</label>
     <input id="start-q" type="search" placeholder="Look up E-7K2Q01, an install id, an email or a name" required><button type="submit">Look up</button></form>
   <span class="tools"><button id="expand-all" type="button" hidden>Expand all</button><button id="collapse-all" type="button" hidden>Collapse all</button></span>
+  ${MINE_HTML}
   <button id="refresh" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS.refresh}</svg>Refresh <small id="checked"></small></button>
   <button id="signout" type="button" hidden>Sign out</button>
 </header>
@@ -370,7 +373,7 @@ async function api(path) {
 }
 
 function showSignIn(message) {
-  $('board').hidden = true; $('refresh').hidden = true; $('signout').hidden = true; $('mfa').hidden = true;
+  $('board').hidden = true; $('refresh').hidden = true; $('signout').hidden = true; $('mfa').hidden = true; $('mine').hidden = true; $('mine-panel').hidden = true;
   $('signin').hidden = false; say(message || '', message ? 'red' : '');
 }
 
@@ -1093,6 +1096,9 @@ ${CARD_SCRIPT}
 // ---- Ask Claude on every card and page (pageAsk.ts) ----
 ${ASK_LOGIC}
 ${ASK_SCRIPT}
+// ---- Claude's replies in the corner, and a claim on each issue (pageMine.ts) ----
+${MINE_LOGIC}
+${MINE_SCRIPT}
 // ---- each section's page: its verdict, numbers with their usual range, lines, and All the details (pageSummary.ts) ----
 ${SUMMARY_LOGIC}
 ${SUMMARY_SCRIPT}
@@ -1158,13 +1164,15 @@ async function start() {
   // server checks the sign-in. Every call checks it again, so the reads start now too: a refused
   // sign-in hides the page and asks for it (api), and nothing waits for one answer before the rest.
   $('signin').hidden = true; $('mfa').hidden = true; say('');
-  $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false; $('expand-all').hidden = false; $('collapse-all').hidden = false;
+  $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false; $('mine').hidden = false; $('expand-all').hidden = false; $('collapse-all').hidden = false;
   if (!$('grid').children.length) layout();
   route();
   const me = api('/ops/api/me').catch(() => null);
   await finishYouTube();
   const deep = /^\\/ops-dashboard\\/org\\/([^/]+)$/.exec(location.pathname);
   if (deep) openOrg(decodeURIComponent(deep[1]), false);
+  // Claims on the issues' cards and Claude's replies in the corner: one small read, beside the rest.
+  loadMine();
   await Promise.all([me, load(false)]);
 }
 

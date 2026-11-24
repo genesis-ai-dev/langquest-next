@@ -448,7 +448,7 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const kv = (label, html) => html ? '<div><h5 class="imh">' + esc(label) + '</h5>' + html + '</div>' : '';
   return issueCard({
     card: r.issue || 'keys:' + ((r.keys || [])[0] || ''), tab: way.tab, claude: way.claude, hidden: !onTab(way, tab),
-    tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : ''),
+    tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : '') + claimTag(r.issue),
     title: r.title || (r.keys || [])[0] || 'A problem with no name',
     meta: seen,
     pill: [way.pill, way.level],
@@ -458,7 +458,7 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
         ['Known', r.known ? '<p>' + esc(r.known) + '</p>' : ''],
         ['Next', next]
       ],
-      bar: (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
+      bar: claimButton(r.issue, !!r.closedAt) + (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
         (way.tab === 'claude' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
         (r.issue && safeLink(r.issueUrl) ? outLink(r.issueUrl, 'Open ' + esc(r.issue) + ' in Linear', 'button') : ''),
       more: (pics ? '<div class="ipics">' + pics + '</div>' : '') + '<div class="iprog">' + stepsHtml(ISSUE_STEPS, way.at) + '</div>' +

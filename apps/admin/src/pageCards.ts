@@ -130,7 +130,7 @@ function lineCard(a, group) {
   const where = 'Found in ' + esc(PART_TITLE[a.part] || titleOf(group)) + (row && row.firstAt ? ' · first seen ' + when(row.firstAt) : '') + (row && row.people ? ' · ' + num(row.people) + (Number(row.people) === 1 ? ' person' : ' people') : '');
   const link = safeLink(a.link);
   const why = f && f.issues.length > 1 ? 'count' : !issue ? (unread ? 'unreadable' : f ? f.state : 'person') : '';
-  const side = (way.pill[1] === 'you' && pr && f.state === 'open' ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
+  const side = claimButton(issue, !!(row && row.closedAt)) + (way.pill[1] === 'you' && pr && f.state === 'open' ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
     (pr && f.state !== 'open' ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
     (link ? outLink(link, 'Open the page', 'button') : '') +
     (issue && row && safeLink(row.issueUrl) ? outLink(row.issueUrl, 'Open ' + esc(issue) + ' in Linear', 'button') : '') +
@@ -139,7 +139,7 @@ function lineCard(a, group) {
   return issueCard({
     card: lineCardId(a), cls: 'line ' + level,
     tags: '<span class="tag ' + level + '">' + esc(LEVEL[level].title) + '</span>' +
-      (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? '<span>' + esc(row.state) + ' in Linear</span>' : '') : ''),
+      (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? '<span>' + esc(row.state) + ' in Linear</span>' : '') + claimTag(issue) : ''),
     title: t.title, meta: where,
     // A line with one Linear issue: the box to tell Claude what to do with it. Any other line: the box to ask Claude about it (pageAsk.ts).
     talk: issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : askTalk(lineCardId(a), group, t.title),
