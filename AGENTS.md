@@ -141,6 +141,8 @@ Project skills, written for this app (use these first):
 - `tutorial-review`: the nightly look at the tutorial videos' comments, changes and notes, and what to suggest.
 - `user-issues`: the watch every 15 minutes: judge new problems people hit and file each real one in Linear.
 - `research-team`: the daily look ahead: known security holes, new versions and one more subject each weekday, as a report on the ops dashboard.
+- `card-questions`: answer an admin's question from a card or a page of the ops dashboard, with the code, production reads, the logs and the web.
+- `merge-issues`: after each merge into main, say which open Linear issues it fixes or is part of, though no commit names them.
 
 Third-party skills, by task:
 

@@ -23,7 +23,7 @@ export interface FixPr {
 
 export interface Fixes { repo: string; since: string; prs: FixPr[] }
 
-interface Pull { number: number; title: string; html_url: string; state: string; merged_at: string | null; updated_at: string; body: string | null }
+interface Pull { number: number; title: string; html_url: string; state: string; merged_at: string | null; updated_at: string; body: string | null; base?: { ref: string } }
 
 /** How far back a merged fix counts: a line fixed longer ago that still shows is a new problem. */
 export const FIX_DAYS = 14;
@@ -43,6 +43,8 @@ export function fixPrs(pulls: Pull[], now = Date.now()): FixPr[] {
   return pulls.flatMap((p): FixPr[] => {
     const merged = p.merged_at !== null;
     if (p.state !== 'open' && !merged) return [];
+    // A copy onto a release branch (decisions.md 155) is not the fix: the merge into main is.
+    if (p.base && p.base.ref !== 'main') return [];
     if (merged && Date.parse(p.merged_at!) < since) return [];
     const issues = namedIssues(p.title, p.body);
     if (!issues.length) return [];

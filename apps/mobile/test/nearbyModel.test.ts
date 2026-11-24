@@ -1,7 +1,7 @@
 import { applyOrgEvent, emptyOrgState, type OrgState } from '@langquest-next/core';
 import {
   ASK_EVERY_MS, askReason, certificateAnswerOf, chainsForOrgs, findKeysAfterAnswer, findKeysForOrgs, holdByDefault, holdChoiceOf, isKey32, languagesToName,
-  MAX_LANGUAGES, membershipMarkOf, nearbyOrgsOf, orgFeaturesOf, parseAskRecord, parseCertKeys, parseChains, parseFindKeys, parsePasses, passesForOrgs, passFor, revokedSeqsOf,
+  MAX_LANGUAGES, membershipMarkOf, nearbyOpenOrgsOf, nearbyOrgsOf, notesMetOf, openMayRun, openSwitchOf, orgFeaturesOf, parseOpenOrgs, type OpenGate, parseAskRecord, parseCertKeys, parseChains, parseFindKeys, parsePasses, passesForOrgs, passFor, revokedSeqsOf,
   type AskFacts, type FindKeys
 } from '../src/nearby/nearbyModel';
 
@@ -223,5 +223,41 @@ describe('holding teammates\' recordings', () => {
     expect(holdChoiceOf(undefined, true)).toEqual({ hold: false, reviewWindow: 5 });
     expect(holdChoiceOf('true', true)).toEqual({ hold: true });
     expect(holdChoiceOf('false', false, 3)).toEqual({ hold: false, reviewWindow: 3 });
+  });
+
+  // Sharing while LangQuest is open (docs/nearby-sync-plan.md 15.6).
+  describe('sharing while LangQuest is open', () => {
+    it('is on only where the organization has both nearby and nearby_open, and is kept as a plain list', () => {
+      expect(nearbyOpenOrgsOf({ o1: ['nearby', 'nearby_open'], o2: ['nearby_open'], o3: ['nearby'], o0: ['nearby_join', 'nearby', 'nearby_open'] })).toEqual(['o0', 'o1']);
+      expect([...parseOpenOrgs(JSON.stringify(['o1', 'o2']))]).toEqual(['o1', 'o2']);
+      // Damaged or missing turns it off, never on.
+      for (const raw of [null, undefined, '', 'nope', '{"o1":true}', '[1,null]']) expect(parseOpenOrgs(raw).size, String(raw)).toBe(0);
+    });
+
+    it('the switch is on until pressed off', () => {
+      expect(openSwitchOf(null)).toBe(true);
+      expect(openSwitchOf('true')).toBe(true);
+      expect(openSwitchOf('false')).toBe(false);
+    });
+
+    it('runs only with every input agreeing: never on a worn phone, behind the app lock, with a screen open, while busy, online or resting', () => {
+      const all: OpenGate = {
+        feature: true, switchOn: true, granted: true, radiosOn: true, offered: true, worn: false, locked: false, active: true, offline: true, busy: false, screenOpen: false,
+        resting: false, ready: true
+      };
+      expect(openMayRun(all)).toBe(true);
+      const closes: Partial<OpenGate>[] = [
+        { feature: false }, { switchOn: false }, { granted: false }, { radiosOn: false }, { offered: false }, { worn: true }, { locked: true }, { active: false }, { offline: false },
+        { busy: true }, { screenOpen: true }, { resting: true }, { ready: false }
+      ];
+      expect(closes.length).toBe(Object.keys(all).length);
+      for (const c of closes) expect(openMayRun({ ...all, ...c }), JSON.stringify(c)).toBe(false);
+    });
+
+    // Decision 230 as amended: a day met is kept only where the mode that reads it may run, and never under a cover.
+    it('Share nearby notes the day it meets a teammate only with the feature and the switch on, and no cover', () => {
+      expect(notesMetOf({ feature: true, switchOn: true, worn: false })).toBe(true);
+      for (const c of [{ feature: false }, { switchOn: false }, { worn: true }]) expect(notesMetOf({ feature: true, switchOn: true, worn: false, ...c }), JSON.stringify(c)).toBe(false);
+    });
   });
 });

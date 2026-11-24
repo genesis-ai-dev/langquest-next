@@ -9,7 +9,7 @@
  */
 import { BACKGROUND_RPCS, RPC_MIN_CALLS, RPC_SLOW_MS } from '../../../scripts/diagSignals';
 import { ANR_LINE, CRASH_LINE } from './sources/googleplay';
-import { CRASH_ROLLBACK_SHARE, DEAD_ROWS_MIN, DEAD_ROWS_SHARE, LONG_QUERY_S, LONG_XACT_S, REPORT_DUE_HOURS } from './sources/ops';
+import { CRASH_ROLLBACK_SHARE, DEAD_ROWS_MIN, DEAD_ROWS_SHARE, LONG_QUERY_S, LONG_XACT_S, QUEUE_TABLES, REPORT_DUE_HOURS } from './sources/ops';
 import { DB_FULL_SHARE } from './sources/storage';
 import { SERVER_ERROR_LINE } from './sources/supabase';
 
@@ -21,7 +21,7 @@ const PLAY_LINE = { crash: ${CRASH_LINE}, anr: ${ANR_LINE} };
 const LIMIT_LINE = { deviceRefused: 100, linksRefused: 300, v2SignInFailures24h: 100 };
 const CRASH_ROLLBACK = ${CRASH_ROLLBACK_SHARE}, REPORT_DUE_H = ${REPORT_DUE_HOURS}, DB_FULL = ${DB_FULL_SHARE};
 /** The Database lines' own limits (sources/ops.ts dbDetailAlerts, sources/supabase.ts supabaseAlerts), so each line has a bar that shows it. */
-const DB_LINE = { xactS: ${LONG_XACT_S}, queryS: ${LONG_QUERY_S}, deadShare: ${DEAD_ROWS_SHARE}, deadRows: ${DEAD_ROWS_MIN} };
+const DB_LINE = { xactS: ${LONG_XACT_S}, queryS: ${LONG_QUERY_S}, deadShare: ${DEAD_ROWS_SHARE}, deadRows: ${DEAD_ROWS_MIN}, queues: ${JSON.stringify(QUEUE_TABLES)} };
 const SERVER_ERRORS = ${JSON.stringify(SERVER_ERROR_LINE)};
 const lastsOf = (s) => s === null || s === undefined ? 'none now' : s >= 3600 ? (s / 3600).toFixed(1) + ' h' : s >= 60 ? Math.round(s / 60) + ' min' : Math.round(s) + ' s';
 /** The largest few of a list, and after them each one past them that has a line: a line's bar never falls off the picture. */
@@ -85,7 +85,7 @@ function meterRows(part, d) {
     const rows = [{ label: 'Running now', draw: 'meter', items: [
       now('Longest query', d.longestQueryS, DB_LINE.queryS, q, [['Waits on', q ? q.waitingOn || null : null]]),
       now('Oldest transaction', d.oldestXactS, DB_LINE.xactS, x, [['State', x ? x.state || null : null]])] }];
-    const dead = (t) => Number(t.deadRatio) >= DB_LINE.deadShare && t.rows >= DB_LINE.deadRows;
+    const dead = (t) => Number(t.deadRatio) >= DB_LINE.deadShare && t.rows >= DB_LINE.deadRows && !DB_LINE.queues.includes(t.name);
     const t = withLined(d.tables || [], 8, dead);
     const most = Math.max.apply(null, [1].concat(t.map((y) => Number(y.bytes) || 0)));
     if (t.length) rows.push({ label: 'Largest tables', draw: 'meter', items: t.map((y) => meterItem(y.name, y.bytes, most,

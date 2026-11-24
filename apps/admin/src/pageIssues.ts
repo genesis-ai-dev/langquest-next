@@ -80,7 +80,7 @@ ol.steps li.now::after { background: var(--primary); border-color: var(--primary
 .iside .ibtns { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
 .iside details > summary, .ifix details > summary { cursor: pointer; min-height: 40px; display: flex; align-items: center; font-size: 13px; color: var(--primary); font-weight: 600; }
 .talk { display: grid; gap: 4px; }
-.said { max-width: min(560px, 88%); margin: 0; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+.said.you, .said.claude { max-width: min(560px, 88%); margin: 0; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
 .said.you { justify-self: end; background: var(--primary); color: #fff; border-end-end-radius: 4px; }
 .said.claude { justify-self: start; background: var(--soft); color: var(--ink); border-end-start-radius: 4px; }
 .said.claude { white-space: normal; display: grid; gap: 8px; }
@@ -106,10 +106,15 @@ ol.steps li.now::after { background: var(--primary); border-color: var(--primary
 
 /** Pure: apps/admin/test/issues.test.ts runs these with new Function. */
 export const ISSUE_LOGIC = String.raw`
-/** Where the watch found a user issue, from the family of its first key (scripts/user-issues.mjs FAMILIES). */
+/**
+ * Where the watch found a user issue, from the family of its first key (scripts/user-issues.mjs FAMILIES).
+ * A person who sent it wins over every other key: a report the watch added to an issue it filed for a
+ * phone's records keeps "A person sent it", though its key does not come first.
+ */
 const ISSUE_SOURCES = { job: 'Server jobs', worker: 'Web traffic', feedback: 'A person sent it', ops: 'The ops dashboard' };
 const PHONE_FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'slow', 'snapshot'];
 function issueSource(keys) {
+  if ((keys || []).some((k) => String(k).startsWith('feedback:'))) return ISSUE_SOURCES.feedback;
   const family = String((keys || [])[0] || '').split(':')[0];
   return ISSUE_SOURCES[family] || (PHONE_FAMILIES.includes(family) ? 'Phones and browsers' : '');
 }
@@ -145,14 +150,25 @@ function issueWay(r, prs, notes, fix) {
   const next = (way) => (asked ? { ...way, pill: 'Claude acts next', level: 'claude' } : way);
   if (open && byClaude(open)) return next({ tab: 'claude', pill: 'Merges when checks pass', level: 'claude', at: 4, pr: open, claude: true });
   if (open) return next({ tab: 'you', pill: 'Waits on you', level: 'you', at: 4, pr: open });
-  if (merged) return next({ tab: 'merged', pill: byClaude(merged) ? 'Merged by Claude' : 'Merged', level: 'claude', at: 5, pr: merged, claude: byClaude(merged) });
-  if (!prs) return next({ tab: 'open', pill: 'Open', level: '', at: 3, pr: null });
+  // Merged is what Linear says (docs/decisions/2026-11-24-a-merge-closes-the-issues-it-fixes.md): the fix merged and
+  // waits on its deploy (Deploying, Verifying). A pull request merged so lately that the watch did not read Linear
+  // since counts too. A merged pull request that names an issue Linear still has open was a part of the work.
+  const linearMerged = MERGED_STATES.test(String(r.state || ''));
+  if (linearMerged || (merged && merged.mergedAt && Date.now() - Date.parse(merged.mergedAt) < LINEAR_READ_MS)) {
+    return next({ tab: 'merged', pill: merged && byClaude(merged) ? 'Merged by Claude' : 'Merged', level: 'claude', at: 5, pr: merged, claude: !!merged && byClaude(merged) });
+  }
+  const part = merged || null;
+  if (!prs) return next({ tab: 'open', pill: 'Open', level: '', at: 3, pr: null, part });
   // The cause is not proven yet, and Claude carries out its plan to prove it: Claude acts next, not a developer.
-  if (fixFor(fix, null) && fix.decision === 'none' && planGoing(fix)) return next({ tab: 'nofix', pill: 'Claude proves the cause', level: 'claude', at: 3, pr: null });
+  if (fixFor(fix, null) && fix.decision === 'none' && planGoing(fix)) return next({ tab: 'nofix', pill: 'Claude proves the cause', level: 'claude', at: 3, pr: null, part });
   // The team looked and changed nothing: a developer decides what happens next.
-  if (fixFor(fix, null) && fix.decision === 'none') return next({ tab: 'you', pill: 'Waits on you', level: 'you', at: 3, pr: null });
-  return next({ tab: 'nofix', pill: 'No fix yet', level: '', at: 3, pr: null });
+  if (fixFor(fix, null) && fix.decision === 'none') return next({ tab: 'you', pill: 'Waits on you', level: 'you', at: 3, pr: null, part });
+  return next({ tab: 'nofix', pill: 'No fix yet', level: '', at: 3, pr: null, part });
 }
+/** The Linear states of a fix that merged and waits on its deploy (scripts/merge-issues.mjs MERGED_STATES). */
+const MERGED_STATES = /^(deploying|verifying)$/i;
+/** The watch reads Linear each 15 minutes: a merge younger than this may not show in Linear's state on the page yet. */
+const LINEAR_READ_MS = 30 * 60000;
 
 /**
  * The agent team's record, when it is about the pull request the card shows
@@ -205,7 +221,8 @@ function planLine(plan) {
 const FIX_REASON = {
   mode: 'The agent team asks before each merge', review: 'Claude asks you to read the change', decision: 'Your choice is needed', not_a_bug: 'Claude found no bug',
   unconfirmed: 'The cause is not proven yet', cause: 'No test proves the cause', paths: 'The change is in code that always waits', checks: 'A check failed',
-  reviewer: 'The reviewer asks you to look', instruction: 'It follows your instruction', app: 'The job could not open a pull request that merges', stalled: 'It did not merge'
+  reviewer: 'The reviewer asks you to look', instruction: 'It follows your instruction', app: 'The job could not open a pull request that merges', stalled: 'It did not merge',
+  claimed: 'Claude suggests this change to the developer who claimed the issue'
 };
 /**
  * What the team decided and why, as parts for the card: 'decision' is [bold words, the rest];
@@ -428,11 +445,13 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const record = r.issue && fixes ? fixes[r.issue] || null : null;
   const source = issueSource(r.keys);
   const pr = way.pr;
+  // A merged pull request that names the issue while Linear still has it open: a part of the work, not the fix.
+  const partSaid = () => way.part ? prLink(way.part) + ' merged as a part of the work. ' + esc(r.issue) + ' is still ' + esc(r.state || 'open') + ' in Linear.' : '';
   const solution = {
     you: () => pr ? prLink(pr) + ' waits on its merge.' + (pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : '') + (record && record.plan && planGoing(record) ? '<br><small class="muted">After the merge: ' + esc(record.plan.next) + '</small>' : '') : noFixSaid(record),
     claude: () => prLink(pr) + ' merges without a person when its checks pass.' + (pr && pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : ''),
-    merged: () => 'Fixed in ' + prLink(pr) + (pr && pr.mergedAt ? ', merged ' + when(pr.mergedAt) : '') + '. Linear says ' + esc(r.state || 'open') + '.',
-    nofix: () => planGoing(record) ? 'Claude proves the cause first, then writes the fix. ' + esc(planSaid(record.plan).when) + '.' : 'No pull request names ' + esc(r.issue) + '. <small class="muted">The page reads open ones, and ones merged in the last 14 days.</small>',
+    merged: () => (pr ? 'Fixed in ' + prLink(pr) + (pr.mergedAt ? ', merged ' + when(pr.mergedAt) : '') + '.' : 'The fix merged.') + ' Linear says ' + esc(r.state || 'open') + '.',
+    nofix: () => planGoing(record) ? 'Claude proves the cause first, then writes the fix. ' + esc(planSaid(record.plan).when) + '.' : way.part ? '' : 'No pull request names ' + esc(r.issue) + '. <small class="muted">The page reads open ones, and ones merged in the last 14 days.</small>',
     open: () => fixData && fixData.state === 'error' ? '<span class="bad">Could not read the pull requests: ' + esc(fixData.error) + '</span>' : '<span class="muted">Reading the pull requests…</span>',
     closed: () => !r.issue ? (pr && pr.number ? prLink(pr) + ' fixed it before the watch saw it' + (r.fixedAt ? ', ' + when(r.fixedAt) : '') + '.' : 'A change on main fixed it before the watch saw it.')
       : (pr && pr.number ? 'Fixed in ' + prLink(pr) + '. ' : 'No pull request named. ') + 'Closed ' + when(r.closedAt) + '.'
@@ -441,14 +460,14 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const seen = [r.people ? num(r.people) + (Number(r.people) === 1 ? ' person' : ' people') : '', 'First seen ' + when(r.firstAt), esc(stepWords(ISSUE_STEPS, way.at))].filter(Boolean).join(' · ');
   // Next: the pull request when there is one, else what Claude says fixes it, else what the page knows.
   // With no pull request and a plan to prove the cause: what Claude does next, and when.
-  const next = pr && pr.number ? solution : planGoing(record) ? planLine(record.plan) + (r.solution ? '<small class="muted">' + esc(r.solution) + '</small>' : '')
-    : way.tab === 'you' ? solution + (r.solution ? '<small class="muted">' + esc(r.solution) + '</small>' : '') : r.solution ? esc(r.solution) : solution;
+  const next = pr && pr.number ? solution : (way.part ? '<p class="inext">' + partSaid() + '</p>' : '') + (planGoing(record) ? planLine(record.plan) + (r.solution ? '<small class="muted">' + esc(r.solution) + '</small>' : '')
+    : way.tab === 'you' ? solution + (r.solution ? '<small class="muted">' + esc(r.solution) + '</small>' : '') : r.solution ? esc(r.solution) : solution);
   const pics = fixPictures(record, r.issue, !!fixFor(record, way.pr), r.issue && diagrams ? diagrams[r.issue] : null);
   const fix = fixLine(fixFor(record, way.pr), way);
   const kv = (label, html) => html ? '<div><h5 class="imh">' + esc(label) + '</h5>' + html + '</div>' : '';
   return issueCard({
     card: r.issue || 'keys:' + ((r.keys || [])[0] || ''), tab: way.tab, claude: way.claude, hidden: !onTab(way, tab),
-    tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : ''),
+    tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : '') + claimTag(r.issue),
     title: r.title || (r.keys || [])[0] || 'A problem with no name',
     meta: seen,
     pill: [way.pill, way.level],
@@ -458,7 +477,7 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
         ['Known', r.known ? '<p>' + esc(r.known) + '</p>' : ''],
         ['Next', next]
       ],
-      bar: (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
+      bar: claimButton(r.issue, !!r.closedAt) + (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
         (way.tab === 'claude' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
         (r.issue && safeLink(r.issueUrl) ? outLink(r.issueUrl, 'Open ' + esc(r.issue) + ' in Linear', 'button') : ''),
       more: (pics ? '<div class="ipics">' + pics + '</div>' : '') + '<div class="iprog">' + stepsHtml(ISSUE_STEPS, way.at) + '</div>' +

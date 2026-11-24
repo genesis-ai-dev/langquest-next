@@ -71,7 +71,8 @@ and open Share nearby on both; Android asks for Nearby devices (or, on
 Android 10 to 12, location) first." Without the flag the reviewer cannot
 reach the feature behind the new permissions. `nearby_join` (joining
 offline, phase 6) stays off for "LangQuest Sample" and is not described,
-as before; it adds no permission. If the developer chooses to show it,
+as before; it adds no permission. So does `nearby_open` (sharing while
+LangQuest is open, phase 10), which asks for nothing. If the developer chooses to show it,
 grant it too
 (`npm run org-feature -- grant <its organization id> nearby_join --hosted`)
 and add: "Let someone in (Share nearby → Let someone in) lets a new person
@@ -132,7 +133,9 @@ as reviews (name, messages, voice recordings: types already declared).
 Share nearby (Android, from phase 3) sends events, recordings, names in
 signed certificates, and install keys straight from one member's phone to
 another's in the same organization, encrypted between the two phones, when
-both people have opened Share nearby. Each recipient is a member who could
+both people have opened Share nearby, and from phase 10, where staff turned
+`nearby_open` on, while LangQuest is open, in front and offline on both
+(`docs/nearby-sync-plan.md` 15.6). Each recipient is a member who could
 already read that work from our server, so it is the same data reaching the
 same people another way: a transfer the users start and expect, not a third
 party, so it is not sharing in Play's terms, and every type it carries is
@@ -369,14 +372,20 @@ team's unsent work between the two phones, with no internet.
   `FOREGROUND_SERVICE`, `ACCESS_LOCAL_NETWORK` or `REQUEST_INSTALL_PACKAGES`. Nothing is
   asked until someone opens Share nearby, and the screen says why before Android's prompt,
   because on Android 10 to 12L the prompt names location although none is read or kept.
+  From phase 10 the radios may also run while LangQuest is open and in front, offline, where
+  the organization has `nearby_open` and the person has not turned it off; that asks for
+  nothing, runs only once these were granted on Share nearby, and stops when the screen goes
+  off, so it needs no `FOREGROUND_SERVICE` either.
   None of these needs a Play Console declaration form (only background location does), but
   they show in the release's permission list.
 - **What stays on the phone.** Teammates' events and recordings, until the server confirms
   them (a backup goes as soon as it does, on every phone), with "Hold teammates' recordings"
   deciding how many of the recordings a phone keeps; holdings, the batch vector, the names in
   certificates it checked, and the partners it last finished with, with no time, place or
-  meeting record. None of it reaches our server or any third party: phones exchange it only
-  with each other.
+  meeting record; from 2026-11-24, on a phone that may share while LangQuest is open, the day
+  it last met each teammate on Share nearby, never older than two weeks, gone at sign-out and
+  under a disguise (decision 230 as amended). None of it reaches our server or any third
+  party: phones exchange the rest only with each other, and the days not at all.
 - **What goes to teammates.** The language's unsent events and recordings with their
   authors' names, signed batches, holdings, the revocation list, a newer discovery key, and
   each phone's certificate (install key, profile id, device id, organization and role
@@ -463,9 +472,28 @@ member taps once after both compare two pictures.
   only that SDK, which sends nothing, and the new person joins the same organization's work by
   invitation, as before.
 
+Nearby sync, phase 10: sharing while LangQuest is open (`docs/nearby-sync-plan.md` 15.6 to
+15.13). Where staff turned `nearby_open` on for an organization (`npm run org-feature`), a
+phone with no internet shares with teammates nearby while LangQuest is open and in front,
+unless the person turned "Share while LangQuest is open" off on Share nearby. It uses only the
+permissions Share nearby was already granted and never asks, keeps no screen awake, runs no
+service and shows no notification, stops when the screen goes off, never hosts or joins a
+hotspot, and never runs on a phone that wears a disguise or behind the app lock; it shares only
+with teammates whose certificate was renewed within the last two weeks, or whom this phone met
+on Share nearby within that time, for which the phone keeps the day of each such meeting on the
+phone alone. It sends the same data to the same members as Share nearby, and the days never leave
+the phone, so no Data safety, permission, content or audience answer changes.
+
 Share nearby's diagnostics (`docs/diagnostics.md`, the `nearby` kind in the facts block):
 on Android, a record when a room stops, when a session ends, when Find fails and when the
-screen cannot run, with counts, durations and the nearby module's fixed codes. They name no
+screen cannot run, with counts, durations and the nearby module's fixed codes; from phase 10
+a room's record also says whether it ran on Share nearby or while LangQuest was open, and
+then the minutes it ran and scanned; from 2026-11-24 the minutes its radios paused and
+synced, the sums of the sessions it finished while open (which no longer write a record
+each), how many sessions Share nearby began only to note a teammate's day, the longest wait
+from hearing a teammate to meeting them, a stop to rest, and, when the phone turned another
+away, a reason from a fixed list (past the two weeks, revoked, another organization, expired,
+other). They name no
 teammate's phone (no tag, salt, key, install key, profile or device id), say nothing of a
 disguise, carry no content, and go only to our own database with the person's other
 diagnostics, under the same Settings switch and 90 days. That is more of "App info and
@@ -567,7 +595,7 @@ this block.
       "error": ["code", "errorId", "fatal", "name", "where"],
       "expected": ["code", "count", "name", "where"],
       "fill": ["event", "headKb", "ms", "msToMap", "passages", "reason", "rows", "why"],
-      "nearby": ["adv", "alone", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "heard", "hotspot", "keyRefused", "levelMs", "link", "maxUnmatched", "maybe", "ms", "newerApp", "noAnswer", "noRoom", "older", "overBudget", "pipeFails", "refused", "role", "sent", "served", "sessions", "stop", "strangers", "taps", "why"],
+      "nearby": ["adv", "alone", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "greets", "heard", "hotspot", "keyRefused", "levelMs", "link", "maxMeetMs", "maxUnmatched", "maybe", "mode", "ms", "newerApp", "noAnswer", "noRoom", "older", "openMin", "overBudget", "pauseMin", "pipeFails", "refusal", "refused", "role", "scanMin", "sent", "served", "sessions", "stop", "strangers", "syncMin", "taps", "viaDirect", "why"],
       "load": ["checkpoint", "events", "foldMs", "fromSnapshot", "ms", "readMs", "reason", "staleCheckpointSeq"],
       "open": ["cold", "loadMs", "ms", "pulled", "snapshotMs", "syncs"],
       "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq", "why"],

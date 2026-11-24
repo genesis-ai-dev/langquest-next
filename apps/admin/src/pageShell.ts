@@ -14,7 +14,7 @@ type GroupId = (typeof GROUPS)[number]['id'];
 /** The menu's groups, in order. Every section but Look up (the top line has it) is in exactly one (test/shell.test.ts). */
 export const NAV: readonly { title: string; ids: readonly GroupId[] }[] = [
   { title: 'The product', ids: ['releases', 'phones', 'people', 'safety', 'stores'] },
-  { title: 'Care', ids: ['userissues', 'research', 'support', 'tutorials', 'nightly'] },
+  { title: 'Care', ids: ['userreports', 'userissues', 'research', 'support', 'tutorials', 'nightly'] },
   { title: 'Behind the scenes', ids: ['jobs', 'database', 'traffic', 'storage', 'access'] }
 ];
 
@@ -27,6 +27,7 @@ export const ICONS: Readonly<Record<string, string>> = {
   safety: '<path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
   stores: '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 016 0v2"/>',
   userissues: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>',
+  userreports: '<path d="M4 5h16v11H11l-4 4v-4H4z"/><path d="M12 8v3.5M12 13.5v.01"/>',
   research: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>',
   support: '<path d="M4 5h16v11H9l-5 4z"/>',
   tutorials: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/>',
@@ -42,6 +43,8 @@ export const ICONS: Readonly<Record<string, string>> = {
   alert: '<path d="M12 3l10 17H2z"/><path d="M12 10v4M12 17v.01"/>',
   look: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/>',
   refresh: '<path d="M20 12a8 8 0 11-2.6-5.9M20 4v4h-4"/>',
+  bell: '<path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 004 0"/>',
+  person: '<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.6-5.6 7-5.6s6.2 2 7 5.6"/>',
   merge: '<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M18 11.5c0 3-6 2-9 4.5"/>'
 };
 
@@ -66,7 +69,7 @@ export const SHELL_CSS = String.raw`
 .nav a .dot.off { background: transparent; border: 1.5px solid var(--grey); }
 svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .mainw { min-width: 0; }
-.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; max-width: 1280px; margin: 0 auto; padding: 24px clamp(16px, 3vw, 40px) 0; }
+.top { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; max-width: 1280px; margin: 0 auto; padding: 24px clamp(16px, 3vw, 40px) 0; }
 .top h1 { font-size: 26px; line-height: 1.15; margin: 0; letter-spacing: -.01em; flex: 1; min-width: 160px; }
 .top form.look { margin: 0; flex: 0 1 340px; } .top form.look input { min-height: 40px; background: var(--raised); }
 .top #refresh { display: inline-flex; align-items: center; gap: 8px; } .top #refresh small { font-weight: 400; }
@@ -125,13 +128,17 @@ const DOT_SAID = { urgent: 'Act now', problem: 'Fix soon', watch: 'Watch', off: 
 
 function navLine(href, icon, title, here, st) {
   const need = st && st.need ? '<span class="count" aria-label="' + st.need + (st.need === 1 ? ' line needs you' : ' lines need you') + '">' + num(st.need) + '</span>' : '';
+  const open = st && st.open ? '<span class="count" aria-label="' + st.open + (st.open === 1 ? ' open problem a person sent' : ' open problems people sent') + '">' + num(st.open) + '</span>' : '';
   const dot = st && DOT_SAID[st.dot] ? '<span class="dot ' + st.dot + '" role="img" aria-label="' + DOT_SAID[st.dot] + '"></span>' : '';
-  return '<a href="' + href + '"' + (here ? ' aria-current="page"' : '') + '>' + svgIcon(icon) + '<span>' + esc(title) + '</span>' + need + dot + '</a>';
+  return '<a href="' + href + '"' + (here ? ' aria-current="page"' : '') + '>' + svgIcon(icon) + '<span>' + esc(title) + '</span>' + need + open + dot + '</a>';
 }
 
 function drawNav() {
   const v = view();
   const st = navState(SECTIONS, results, LEVELS, waitingFixes);
+  // User reports raise no line of their own (each is a user issue): the menu counts its open problems and says Fix soon.
+  const rp = results.userreports && results.userreports.state === 'ok' ? reportsOpen(results.userreports.data.reports) : 0;
+  if (rp && st.userreports) st.userreports = { need: 0, open: rp, dot: st.userreports.dot === 'urgent' ? 'urgent' : 'problem' };
   $('nav').innerHTML = navLine('#', 'overview', 'Overview', v.name === 'start') +
     NAV.map((grp) => '<div class="group">' + esc(grp.title) + '</div>' +
       grp.ids.map((id) => navLine('#g/' + id, id, titleOf(id), v.name === 'group' && v.id === id, st[id])).join('')).join('') +

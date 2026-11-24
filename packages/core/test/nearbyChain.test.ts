@@ -1,7 +1,7 @@
 import { createHash, createPublicKey, verify as edVerify } from 'node:crypto';
 import fc from 'fast-check';
 import {
-  checkChain, newcomerProfileId, peopleWithChains, revokedLater, signedBy, type CheckChainOptions, type ChainVerdict, type InviteLink, type JoinPass, type RevocationList, type WorkerLink
+  certificateSignedAt, checkChain, NEARBY_CERTIFICATE_MS, newcomerProfileId, peopleWithChains, revokedLater, signedBy, type CheckChainOptions, type ChainVerdict, type InviteLink, type JoinPass, type RevocationList, type WorkerLink
 } from '../src/nearbyChain';
 import { nearbyDoor, type DoorFacts } from '../src/nearbyDoor';
 import { base64urlEncode, linkText, nearbyBytes, passText } from '../src/nearbySigning';
@@ -480,5 +480,14 @@ describe('signedBy', () => {
   it('a check that throws is a failed check', async () => {
     expect(await signedBy(() => { throw new Error('bad bytes'); }, ROOT, new Uint8Array(), 'x')).toBe(false);
     expect(await signedBy(async () => true, ROOT, new Uint8Array(), 'x')).toBe(true);
+  });
+
+  // Sharing while LangQuest is open takes only a recent certificate (docs/nearby-sync-plan.md 15.8).
+  it('says when the certificate opening a chain was signed, from its expiry, and nothing for a chain that does not open with one', () => {
+    const at = 1_800_000_000_000;
+    expect(certificateSignedAt([{ kind: 'worker@1', kid: 'k', body: { expiresAt: at + NEARBY_CERTIFICATE_MS }, sig: '' }])).toBe(at);
+    for (const chain of [[], [{ kind: 'pass@1', body: { expiresAt: at } }], [{ kind: 'worker@1', body: { expiresAt: 'soon' } }], [{ kind: 'worker@1', body: { expiresAt: 1.5 } }], [null]]) {
+      expect(certificateSignedAt(chain), JSON.stringify(chain)).toBeNull();
+    }
   });
 });

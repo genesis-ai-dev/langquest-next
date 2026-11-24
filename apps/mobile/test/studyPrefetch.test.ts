@@ -1,4 +1,4 @@
-import { lookedUp } from '../src/study/prefetchModel';
+import { lookedUp, wishListWhole } from '../src/study/prefetchModel';
 
 // A kept passage showed "On this device" before its guide had loaded, then turned amber (Carl, 2026-11-20):
 // its study files are counted as here only once its guide has been looked up, found or not (decisions.md 166).
@@ -48,5 +48,20 @@ describe('which kept passages have had their study guide looked up', () => {
   it('a language with no template needs none read, and a passage offered nothing known is not looked up', () => {
     expect([...lookedUp({ ...base, template: null, read: read('fia') })]).toEqual(['luke1', 'luke3']);
     expect([...lookedUp({ ...base, unitIds: ['luke9'], read: read('template', 'fia', 'own') })]).toEqual([]);
+  });
+});
+
+// Study files no kept passage needs are cleared (Carl, 2026-11-23), so a list that does not name every file kept
+// passages need must never be taken for whole: a language that has not counted what it keeps looks as if it keeps nothing.
+describe('when the wish list names every study file kept passages need', () => {
+  const all = new Set(['luke1', 'luke2']);
+  it('only once the language is open, has counted what it keeps, and every kept passage is looked up', () => {
+    expect(wishListWhole({ open: true, counted: true, unitIds: ['luke1', 'luke2'], lookedUp: all })).toBe(true);
+    expect(wishListWhole({ open: true, counted: true, unitIds: ['luke1', 'luke2'], lookedUp: new Set(['luke1']) })).toBe(false);
+    expect(wishListWhole({ open: false, counted: true, unitIds: [], lookedUp: new Set() })).toBe(false);
+    // Not counted yet: the kept list and the scope are still empty, so nothing looks kept.
+    expect(wishListWhole({ open: true, counted: false, unitIds: [], lookedUp: new Set() })).toBe(false);
+    // Counted, and nothing kept: whole, and empty.
+    expect(wishListWhole({ open: true, counted: true, unitIds: [], lookedUp: new Set() })).toBe(true);
   });
 });

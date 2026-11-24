@@ -107,7 +107,8 @@ export function foldsOpenAtFirst(asked: unknown): Set<SyncFold> {
 /**
  * Me's line for Sync and offline: what needs noticing first (refused, or work waiting to send,
  * the sync icon's own count), else how ready this device is for offline. Live or offline with
- * nothing waiting is the screen's to say, not Me's.
+ * nothing waiting is the screen's to say, not Me's. On a phone that shares nearby, recordings no
+ * teammate's phone holds come before what waits (useOnlyHereNote, docs/nearby-sync-plan.md 15.5).
  */
 export function meSyncLine(p: {
   refused: string | null; refusedEvents: number; pending: number; recordings: number; live: boolean; online: boolean | null; lastSync: string;

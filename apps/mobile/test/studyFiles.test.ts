@@ -1,8 +1,21 @@
 import type { StudyGuide } from '../src/study/guides';
 
-// A tiny disk: names to contents, and which addresses the network refuses.
+// A tiny disk: names to contents, their sizes and when they were written, the room left, and which addresses the network refuses.
 const disk = new Map<string, string>();
+const sizes = new Map<string, number>();
+const times = new Map<string, number>();
+const room = { free: 10 * 1024 * 1024 * 1024 };
 const net = { down: new Set<string>(), refused: new Map<string, number>(), fetched: [] as string[], hold: null as null | Promise<void> };
+// What the phone keeps between runs: each language's wish list, and when the lists were first kept.
+const kv = new Map<string, string>();
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: async (k: string) => kv.get(k) ?? null,
+    setItem: async (k: string, v: string) => { kv.set(k, v); },
+    getAllKeys: async () => [...kv.keys()],
+    multiGet: async (keys: string[]) => keys.map((k) => [k, kv.get(k) ?? null])
+  }
+}));
 
 vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: () => {} }));
@@ -15,8 +28,10 @@ vi.mock('expo-file-system', () => {
     }
     get uri() { return `file:///documents/study/${this.name}`; }
     get exists() { return disk.has(this.name); }
+    get size() { return sizes.get(this.name) ?? 1; }
+    get modificationTime() { return times.get(this.name) ?? 0; }
     delete() { disk.delete(this.name); }
-    move(dest: File) { disk.set(dest.name, disk.get(this.name) ?? ''); disk.delete(this.name); }
+    move(dest: File) { disk.set(dest.name, disk.get(this.name) ?? ''); disk.delete(this.name); times.set(dest.name, Date.now()); }
     static async downloadFileAsync(url: string, dest: File) {
       net.fetched.push(url);
       if (net.hold) await net.hold;
@@ -34,7 +49,7 @@ vi.mock('expo-file-system', () => {
     create() {}
     list() { return [...disk.keys()].map((n) => new File(this, n)); }
   }
-  return { File, Directory, Paths: { document: 'file:///documents' } };
+  return { File, Directory, Paths: { document: 'file:///documents', get availableDiskSpace() { return room.free; } } };
 });
 
 const guide = (urls: { step?: string; photo?: string; film?: string; term?: string }): StudyGuide => ({
@@ -50,7 +65,10 @@ const guide = (urls: { step?: string; photo?: string; film?: string; term?: stri
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
 describe('study files kept for offline (decisions.md 61)', () => {
-  beforeEach(() => { disk.clear(); net.down.clear(); net.refused.clear(); net.fetched = []; net.hold = null; vi.resetModules(); vi.useRealTimers(); });
+  beforeEach(() => {
+    disk.clear(); sizes.clear(); times.clear(); kv.clear(); room.free = 10 * 1024 * 1024 * 1024;
+    net.down.clear(); net.refused.clear(); net.fetched = []; net.hold = null; vi.resetModules(); vi.useRealTimers();
+  });
 
   // Matthew 13 stayed amber at "Only 19 of 23 files": its guide named files FIA's file store answers 403 for (Carl, 2026-11-20).
   it('a file its source refuses is not counted as one to come, and is not asked for again for a day', async () => {
@@ -64,6 +82,7 @@ describe('study files kept for offline (decisions.md 61)', () => {
     expect(f.studyCounts('mat13')).toEqual({ here: 1, total: 1, refused: 2 });
     // Its recordings are here and the one file that can come has: the passage is ready, and the two are named.
     const { withStudy } = await import('../src/sync/offlineText');
+    (await import('../src/sources/referenceCounts')).publishReference({ known: new Set(['mat13']) });
     const audio = { reason: 'chosen' as const, audio: 0, here: 0, toFetch: 0, bytesToFetch: 0, notSent: 0, ready: true };
     expect(withStudy(audio, 'mat13')).toMatchObject({ ready: true, studyHere: 1, studyTotal: 1, studyRefused: 2 });
     // Not asked again in minutes, as a failed one is.
@@ -188,46 +207,230 @@ describe('study files kept for offline (decisions.md 61)', () => {
 
   it('the same wishes handed over again tell nobody, so the download buttons do not all redraw after every change', async () => {
     // Why: the prefetcher hands its list over after every change to the language, and every button listens.
+    vi.useFakeTimers();
     const f = await import('../src/study/studyFiles');
     let told = 0;
     f.onStudyFiles(() => { told += 1; });
     const want = () => new Map([['luke1', ['https://x/a.mp3', 'https://x/p.jpg']]]);
+    const later = () => vi.advanceTimersByTimeAsync(f.STUDY_NEWS_MS);
     f.setStudyWanted(want(), false, null, ['luke1', 'luke2']);
     expect(told).toBe(1);
     f.setStudyWanted(want(), false, null, ['luke2', 'luke1']);
+    await later();
     expect(told).toBe(1);
     // One more passage looked up, a different list, or the connection changing is news.
     f.setStudyWanted(want(), false, null, ['luke1', 'luke2', 'luke3']);
     expect(told).toBe(2);
+    await later();
     f.setStudyWanted(new Map([['luke1', ['https://x/a.mp3']]]), false, null, ['luke1', 'luke2', 'luke3']);
     expect(told).toBe(3);
+    await later();
     f.setStudyWanted(new Map([['luke1', ['https://x/a.mp3']]]), true, null, ['luke1', 'luke2', 'luke3']);
-    await settle();
+    await later();
     expect(told).toBeGreaterThan(3);
     expect(net.fetched).toEqual(['https://x/a.mp3']);
   });
 
-  it('a kept passage is ready only when its guide is known and its files are here; one kept for its recordings counts no study files', async () => {
+  // A book's passages bring over a thousand study files, and each arrival redrew every download button on screen (LAN-316).
+  it('tells of a burst of arrivals at once and then at most twice a second', async () => {
+    vi.useFakeTimers();
+    const f = await import('../src/study/studyFiles');
+    let told = 0;
+    f.onStudyFiles(() => { told += 1; });
+    const urls = Array.from({ length: 40 }, (_, i) => `https://x/${i}.jpg`);
+    f.setStudyWanted(new Map([['luke1', urls]]), true, null, ['luke1']);
+    // The new wish list is told at once; the 40 arrivals after it are gathered.
+    expect(told).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(f.studyCounts('luke1').here).toBe(40);
+    expect(told).toBe(1);
+    const before = f.studyRevision();
+    await vi.advanceTimersByTimeAsync(f.STUDY_NEWS_MS);
+    expect(told).toBe(2);
+    expect(f.studyRevision()).toBe(before + 1);
+  });
+
+  it("says a passage's study files are coming down only while they are", async () => {
+    const f = await import('../src/study/studyFiles');
+    let release!: () => void;
+    net.hold = new Promise((r) => { release = r; });
+    f.setStudyWanted(new Map([['luke1', ['https://x/a.mp3', 'https://x/p.jpg', 'https://x/m.jpg']], ['luke2', []]]), true, null, ['luke1', 'luke2']);
+    // Two at a time: the third waits its turn, and the passage is coming down all the while.
+    expect(f.studyComing('luke1')).toBe(true);
+    expect(f.studyComing('luke2')).toBe(false);
+    expect(f.studyComing('other')).toBe(false);
+    release();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(f.studyCounts('luke1').here).toBe(3);
+    expect(f.studyComing('luke1')).toBe(false);
+  });
+
+  it('a file that failed and waits to be tried again is not coming down, nor is anything offline', async () => {
+    const f = await import('../src/study/studyFiles');
+    net.down.add('https://x/dead.jpg');
+    f.setStudyWanted(new Map([['luke1', ['https://x/dead.jpg']]]), true, null, ['luke1']);
+    await settle();
+    expect(f.studyComing('luke1')).toBe(false);
+    f.setStudyWanted(new Map([['luke2', ['https://x/a.mp3']]]), false, null, ['luke2']);
+    expect(f.studyComing('luke2')).toBe(false);
+  });
+
+  it('a kept passage is ready only when its guide is known and its files are here', async () => {
     const f = await import('../src/study/studyFiles');
     const { withStudy, offlineWords } = await import('../src/sync/offlineText');
+    // Its reference audio is worked out, and it has none: this is about its study guide.
+    (await import('../src/sources/referenceCounts')).publishReference({ known: new Set(['luke1', 'luke2']) });
     const audio = { reason: 'chosen' as const, audio: 1, here: 1, toFetch: 0, bytesToFetch: 0, notSent: 0, ready: true };
     // Its guide has not been looked up: its recordings are here, and it is not called ready. Nothing is coming down, so its row says checking.
-    expect(withStudy(audio, 'luke1')).toMatchObject({ ready: false, studyUnknown: true, studyTotal: 0, recordingsOnly: false });
+    expect(withStudy(audio, 'luke1')).toMatchObject({ ready: false, studyUnknown: true, studyTotal: 0 });
     expect(offlineWords(withStudy(audio, 'luke1'))).toBe('Checking this device…');
     // Looked up, one file wanted and not here: not ready, and no longer unknown.
     f.setStudyWanted(new Map([['luke1', ['https://x/a.mp3']]]), false, null, ['luke1', 'luke2']);
     expect(withStudy(audio, 'luke1')).toMatchObject({ ready: false, studyUnknown: false, studyHere: 0, studyTotal: 1 });
     // Looked up and it has no guide: ready on its recordings.
     expect(withStudy(audio, 'luke2')).toMatchObject({ ready: true, studyUnknown: false, studyTotal: 0 });
-    // Kept through its book's button: its recordings alone, whatever its guide would bring.
-    const light = withStudy(audio, 'luke1', true);
-    expect(light).toMatchObject({ ready: true, recordingsOnly: true, studyUnknown: false, studyTotal: 0 });
-    expect(offlineWords(light)).toBe('Recordings on this device');
     expect(offlineWords(withStudy(audio, 'luke2'))).toBe('On this device');
     expect(offlineWords(withStudy(audio, 'luke1'))).toBe('Downloading for offline');
-    // The person's own work takes its study guide whatever list it is on.
-    expect(withStudy({ ...audio, reason: 'asked' }, 'luke1', true)).toMatchObject({ ready: false, recordingsOnly: false, studyTotal: 1 });
+    // The person's own work takes its study guide too.
+    expect(withStudy({ ...audio, reason: 'asked' }, 'luke1')).toMatchObject({ ready: false, studyTotal: 1 });
     // Not kept: nothing of its study guide is counted.
     expect(withStudy({ ...audio, reason: null, ready: false }, 'luke1')).toMatchObject({ ready: false, studyTotal: 0, studyUnknown: false });
+  });
+});
+
+// Reference audio is counted with the rest of a passage's reference material (decision amended 2026-11-23).
+describe("a kept passage's reference audio", () => {
+  beforeEach(() => { disk.clear(); vi.resetModules(); vi.useRealTimers(); });
+  const audio = { reason: 'chosen' as const, audio: 1, here: 1, toFetch: 0, bytesToFetch: 0, notSent: 0, ready: true };
+
+  it('keeps a passage from being ready until it is worked out and here', async () => {
+    const r = await import('../src/sources/referenceCounts');
+    const { withStudy, offlineWords } = await import('../src/sync/offlineText');
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map(), false, null, ['luke1']);
+    // Not worked out yet: its recordings are here, and it is not called ready.
+    expect(withStudy(audio, 'luke1')).toMatchObject({ ready: false, refUnknown: true });
+    expect(offlineWords(withStudy(audio, 'luke1'))).toBe('Checking this device…');
+    // Two chapters wanted, one here: not ready, and counted.
+    r.publishReference({ wanted: new Map([['luke1', ['bb:F:LUK:1', 'bb:F:LUK:2']]]), known: new Set(['luke1']), here: new Set(['bb:F:LUK:1']) });
+    expect(withStudy(audio, 'luke1')).toMatchObject({ ready: false, refUnknown: false, refHere: 1, refTotal: 2 });
+    r.referenceArrived('bb:F:LUK:2');
+    expect(withStudy(audio, 'luke1')).toMatchObject({ ready: true, refHere: 2, refTotal: 2 });
+    // Not kept: nothing of its reference audio is counted.
+    expect(withStudy({ ...audio, reason: null, ready: false }, 'luke1')).toMatchObject({ refHere: 0, refTotal: 0, refUnknown: false });
+  });
+
+  it('a chapter that cannot come does not keep the passage from being ready, and is named', async () => {
+    const r = await import('../src/sources/referenceCounts');
+    const { withStudy } = await import('../src/sync/offlineText');
+    (await import('../src/study/studyFiles')).setStudyWanted(new Map(), false, null, ['luke1']);
+    r.publishReference({
+      wanted: new Map([['luke1', ['a', 'b', 'c']]]), known: new Set(['luke1']), here: new Set(['a']),
+      missing: new Map([['b', 'full'], ['c', 'unavailable']])
+    });
+    expect(r.referenceCounts('luke1')).toEqual({ here: 1, total: 1, full: 1, unavailable: 1 });
+    expect(withStudy(audio, 'luke1')).toMatchObject({ ready: true, refFull: 1, refUnavailable: 1 });
+  });
+
+  it('says a passage is coming down only while a chapter of it is', async () => {
+    const r = await import('../src/sources/referenceCounts');
+    r.publishReference({ wanted: new Map([['luke1', ['a', 'b']], ['luke2', ['c']]]), known: new Set(['luke1', 'luke2']), coming: new Set(['b']) });
+    expect(r.referenceComing('luke1')).toBe(true);
+    expect(r.referenceComing('luke2')).toBe(false);
+    r.referenceArrived('b');
+    expect(r.referenceComing('luke1')).toBe(false);
+    r.forgetReference();
+    expect(r.referenceKnown('luke1')).toBe(false);
+  });
+
+  it('tells screens at once after a quiet spell, then at most twice a second', async () => {
+    vi.useFakeTimers();
+    const r = await import('../src/sources/referenceCounts');
+    let told = 0;
+    r.onReferenceFiles(() => { told += 1; });
+    r.publishReference({ known: new Set(['luke1']) });
+    expect(told).toBe(1);
+    for (let i = 0; i < 20; i++) r.referenceArrived(`k${i}`);
+    expect(told).toBe(1);
+    await vi.advanceTimersByTimeAsync(r.REFERENCE_NEWS_MS);
+    expect(told).toBe(2);
+  });
+});
+
+// Study files were never cleared: a book let go kept its pictures and step audio for good (Carl, 2026-11-23).
+describe('study files a phone clears (decision 2026-11-23-study-files-are-cleared-when-no-kept-passage-needs-them.md)', () => {
+  const MB = 1024 * 1024;
+  const A = 'https://x/a.jpg';
+  const B = 'https://x/b.jpg';
+  const alpha = { orgId: 'o', languageId: 'alpha' };
+  const beta = { orgId: 'o', languageId: 'beta' };
+  const flush = async () => { for (let i = 0; i < 8; i++) await settle(); };
+  beforeEach(() => {
+    disk.clear(); sizes.clear(); times.clear(); kv.clear(); room.free = 10 * 1024 * 1024 * 1024;
+    net.down.clear(); net.refused.clear(); net.fetched = []; net.hold = null; vi.resetModules(); vi.useRealTimers();
+  });
+
+  it('clears a let-go passage\'s files when the device is short of room, and keeps the kept passage\'s', async () => {
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map([['luke1', [A]], ['luke2', [B]]]), true, alpha, ['luke1', 'luke2'], true);
+    await flush();
+    expect(f.hasStudyFile(A) && f.hasStudyFile(B)).toBe(true);
+    room.free = 100 * MB;
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], true);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(false);
+    expect(f.hasStudyFile(A)).toBe(true);
+    expect(disk.size).toBe(1);
+  });
+
+  it('keeps them while the device has room and they fit the room spared for them, and clears them past it', async () => {
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map([['luke1', [A]], ['luke2', [B]]]), true, alpha, ['luke1', 'luke2'], true);
+    await flush();
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], true);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(true);
+    // 300 MB of files no kept passage needs is past the 256 MB spared for them.
+    for (const name of disk.keys()) sizes.set(name, 300 * MB);
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], false);
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], true);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(false);
+    expect(f.hasStudyFile(A)).toBe(true);
+  });
+
+  it('keeps a file another language on this phone still needs, by that language\'s saved list', async () => {
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map([['luke2', [B]]]), true, beta, ['luke2'], true);
+    await flush();
+    f.setStudyWanted(new Map([['luke1', [A]], ['luke2', [B]]]), true, alpha, ['luke1', 'luke2'], true);
+    await flush();
+    room.free = 100 * MB;
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], true);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(true);
+    expect(kv.get('study-files:wants:o/beta')).toBeDefined();
+  });
+
+  it('clears nothing while a kept passage\'s guide is not looked up yet: the list may not name all it needs', async () => {
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map([['luke1', [A]], ['luke2', [B]]]), true, alpha, ['luke1', 'luke2'], true);
+    await flush();
+    room.free = 100 * MB;
+    f.setStudyWanted(new Map([['luke1', [A]]]), true, alpha, ['luke1'], false);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(true);
+  });
+
+  it('never clears a file from before this build kept the lists: a language not opened since may need it', async () => {
+    kv.set('study-files:since', String(Date.now()));
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map([['luke2', [B]]]), true, alpha, ['luke2'], true);
+    await flush();
+    for (const name of disk.keys()) times.set(name, 1);
+    room.free = 100 * MB;
+    f.setStudyWanted(new Map(), true, alpha, [], true);
+    await flush();
+    expect(f.hasStudyFile(B)).toBe(true);
   });
 });

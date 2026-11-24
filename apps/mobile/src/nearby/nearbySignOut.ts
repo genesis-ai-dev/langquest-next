@@ -14,6 +14,8 @@ import { getStore } from '../storage/store';
  *   go and their next certificate answer brings them back.
  * - `nearbyPeers` goes, phone-wide: it says who is on the team, and a taken phone gives it up.
  *   `nearbyToday` joins it here once something writes it.
+ * - `nearbyMet` goes too, phone-wide: the day this phone last met each teammate on Share nearby
+ *   (decision 230 as amended), which says who was together and when.
  *
  * Plain on every build: no nearby entry is imported, and on the web there is
  * nothing to find. It never throws and never holds up the sign-out.
@@ -22,6 +24,7 @@ export async function nearbyAfterAuthEvent(event: AuthChangeEvent, before: Pick<
   if (event !== 'SIGNED_OUT' || !before) return;
   await Promise.all([
     keepFindKeys(before.user.id, null).catch((e: unknown) => noteExpected('nearby sign-out: keys', e)),
-    (async () => { await (await getStore()).clearMeta('nearbyPeers:'); })().catch((e: unknown) => noteExpected('nearby sign-out: peers', e))
+    (async () => { await (await getStore()).clearMeta('nearbyPeers:'); })().catch((e: unknown) => noteExpected('nearby sign-out: peers', e)),
+    (async () => { await (await getStore()).clearMeta('nearbyMet:'); })().catch((e: unknown) => noteExpected('nearby sign-out: met', e))
   ]);
 }

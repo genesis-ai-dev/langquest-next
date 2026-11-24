@@ -43,3 +43,33 @@ worn phone's record is one a plain phone stopped by its person also makes.
 A plain phone's run past ten minutes is the cost; `stop` still says idle or
 wait. The server's allowlist keeps `run` and `level`, which no build now
 sends.
+
+Amended (2026-11-23, Carl Sauder): sharing while LangQuest is open
+(2026-11-23-share-while-langquest-is-open) records its rooms with `mode`
+`open` and their minutes running and scanning (`openMin`, `scanMin`), not
+capped at ten. Only a phone with no cover runs that mode, so such a record
+shows the phone wears none, which this decision kept out of the records. The
+security review of 2026-11-23 raised it, and Carl accepted it with the
+review's other changes: without it the field cannot show what the mode costs
+or whether it meets anyone, which that decision's reversal rests on. It says
+no more of a person than that they left the mode on, and a phone with no
+such record may as well have the switch or the flag off, or never be offline
+with LangQuest open. What would date a disguise stays out: a quiet room
+stopped because a cover went on writes no record.
+
+Amended (2026-11-24, Carl Sauder): enough to improve sharing while LangQuest
+is open for real teams, still naming nobody. A session record says its room's
+`mode`, and when this phone turned a phone away as `identity`, a reason from
+a fixed list (`window`, `revoked`, `org`, `expired`, `other`), so how often
+the quiet mode's two weeks turn a teammate away can be told from a lost phone.
+A room says how many sessions Share nearby began only to note a teammate's
+day again, the longest wait from first hearing a teammate to meeting them
+(capped at ten minutes, as other durations), a stop to rest, and while open
+the minutes its radios paused. While open a session that finished writes no
+record of its own: its room sums what moved, so a phone offline for weeks,
+syncing quietly all day, does not drop the start of its trip from a queue of
+3,000 records; a session that ended any other way still has its own. The
+server's install summary keeps the two modes apart and shows delivery to the
+server, and `diag.nearby_summary` reads a language's phones together
+(`npm run diag -- nearby <org>`), for improving the feature rather than one
+report; no record holds who met whom, so it is counts per language.

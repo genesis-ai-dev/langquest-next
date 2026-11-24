@@ -193,7 +193,7 @@ const PRIORITY_NAMES = ['No priority', 'Urgent', 'High', 'Medium', 'Low'];
 /** Why an issue has its place in the order, in a few words (scripts/user-issues.mjs whyInOrder). */
 function whyInOrder(o) {
   const n = (v, one, many) => Number(v) > 0 ? Number(v) + ' ' + (Number(v) === 1 ? one : many) : '';
-  return [PRIORITY_NAMES[Number(o && o.priority)] || PRIORITY_NAMES[0], n(o && o.people, 'person', 'people'), n(o && o.kinds, 'kind', 'kinds'),
+  return [o && o.sent ? 'A person sent it' : '', PRIORITY_NAMES[Number(o && o.priority)] || PRIORITY_NAMES[0], n(o && o.people, 'person', 'people'), n(o && o.kinds, 'kind', 'kinds'),
     n(o && o.places, 'place with the same mistake', 'places with the same mistake'), n(o && o.times, 'time', 'times')].filter(Boolean).join(' · ');
 }
 /**

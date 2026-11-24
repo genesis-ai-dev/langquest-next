@@ -26,6 +26,34 @@ export function nearbyOrgsOf(features: Readonly<Record<string, readonly string[]
   return new Set(Object.entries(features).filter(([, f]) => f.includes(NEARBY_FEATURE)).map(([org]) => org));
 }
 
+/** The flag for sharing while LangQuest is open (docs/nearby-sync-plan.md 15.6), which works only with `nearby` on too. */
+export const NEARBY_OPEN_FEATURE = 'nearby_open';
+
+/** The organizations of mine whose phones share while LangQuest is open: `nearby_open` and `nearby` both on. */
+export function nearbyOpenOrgsOf(features: Readonly<Record<string, readonly string[]>>): string[] {
+  return Object.entries(features).filter(([, f]) => f.includes(NEARBY_FEATURE) && f.includes(NEARBY_OPEN_FEATURE)).map(([org]) => org).sort();
+}
+
+/**
+ * `nearbyOpenOrgs:<profileId>` as kept: the organizations `nearbyOpenOrgsOf` named when the server
+ * last said. Kept on the phone, unlike the flag, because the mode runs only offline. Anything
+ * unreadable is none, so a damaged value turns the mode off, never on.
+ */
+export function parseOpenOrgs(raw: string | null | undefined): Set<string> {
+  if (!raw) return new Set();
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return new Set(Array.isArray(parsed) ? parsed.filter((o): o is string => typeof o === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/** "Share while LangQuest is open" as pressed (`nearbyOpen`), else on (docs/nearby-sync-plan.md 15.14). */
+export function openSwitchOf(pressed: string | null | undefined): boolean {
+  return pressed !== 'false';
+}
+
 // ---- the Worker's public keys --------------------------------------------------------
 
 const KID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -384,4 +412,50 @@ export interface RadiosGate {
 /** Every start path asks this, and asks again after any await (5.8). */
 export function radiosMayRun(g: RadiosGate): boolean {
   return g.focused && g.onScreen && !g.covered && !g.stopped && (!g.worn || g.pressed);
+}
+
+// ---- sharing while LangQuest is open (docs/nearby-sync-plan.md 15.6) -------------------------
+
+/** What the quiet mode's gate reads. `worn` comes from `useAppCovered`, so this file names no cover. */
+export interface OpenGate {
+  /** The organization has `nearby_open` and `nearby` on, as the phone last heard. */
+  feature: boolean;
+  /** The person has not turned "Share while LangQuest is open" off. */
+  switchOn: boolean;
+  /** Every permission Share nearby needs was already granted: the mode never asks. */
+  granted: boolean;
+  /** Bluetooth, Wi-Fi and (where it counts) Location are on: the mode never asks for those either. */
+  radiosOn: boolean;
+  /** Share nearby could run here: a certificate, the language's discovery key, a phone that can, someone who may write. */
+  offered: boolean;
+  /** The phone wears a cover: then the mode never runs (Carl's answer 15). */
+  worn: boolean;
+  /** The app lock shows (decision 253): every screen keeps running behind it, and the mode waits. */
+  locked: boolean;
+  /** LangQuest is in front with the screen on (`AppState` is `active`). */
+  active: boolean;
+  /** The language is offline; unknown is not offline. */
+  offline: boolean;
+  /** Recording or playing: the mode pauses. */
+  busy: boolean;
+  /** A screen that runs the radios is open (Share nearby, Let someone in, …): it owns them then. */
+  screenOpen: boolean;
+  /** Resting after a Hello the door refused, or after the room stopped by itself. */
+  resting: boolean;
+  /** The organization's and the language's folds are loaded. */
+  ready: boolean;
+}
+
+/** Whether the radios run quietly for the open language now. Every start asks it again after each await. */
+export function openMayRun(g: OpenGate): boolean {
+  return g.feature && g.switchOn && g.granted && g.radiosOn && g.offered && !g.worn && !g.locked && g.active && g.offline && !g.busy && !g.screenOpen && !g.resting && g.ready;
+}
+
+/**
+ * Whether Share nearby notes the day it meets each teammate (`nearbyMet`, 15.8, decision 230 as
+ * amended): only where this phone may share while LangQuest is open, the only thing that reads
+ * those days. A phone with a cover never runs the mode, so it keeps none.
+ */
+export function notesMetOf(g: Pick<OpenGate, 'feature' | 'switchOn' | 'worn'>): boolean {
+  return g.feature && g.switchOn && !g.worn;
 }

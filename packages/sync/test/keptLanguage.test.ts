@@ -924,5 +924,45 @@ describe('file planning for a language kept on disk', () => {
     const again = new LanguageFiles(client, store, 'org1', 'p1');
     expect((await again.download(new Set(), new Set(['u3']))).map((r) => r.hash).sort()).toEqual(['h3', 'h3c']);
   });
+
+  // A version handed on before the clean-up still plays the part as recorded; LAN-317 held a review of it offline
+  // while the passage read "On this device" (decisions.md 176, amended 2026-11-23).
+  it('keeps fetching the part as recorded while a version on disk plays it, and stops once that version is deleted', async () => {
+    const server = new FakeServer();
+    await language(server, 8);
+    const { client, store } = phone(server, 'dB', 't1', { keepOnDisk: true, checkpointEvery: 3 });
+    await client.load();
+    await client.sync();
+    const other = phone(server, 'dX', 't2');
+    await other.client.load();
+    let more = 0;
+    const checkpoint = async () => {
+      for (let i = 0; i < 4; i++, more++) await other.client.append('v1.UnitAdded', { unitId: `n${more}`, parentUnitId: null, kind: 'passage', label: `N${more}`, order: `z${more}` });
+      await other.client.sync();
+      await client.sync();
+    };
+    await client.append('v1.TakeComposed', { takeId: 'v3', unitId: 'u3', cardHashes: ['h3'], parentTakeId: null });
+    await client.append('v1.TakeSubmitted', { takeId: 'v3' });
+    await client.append('v1.CardCleanUpSet', { unitId: 'u3', hash: 'h3', use: 'cleaned', cleanedHash: 'h3c', cleanedFormat: 'm4a', tool: 'dfn3' });
+    await client.sync();
+    await checkpoint();
+    // The version and the note are on disk, not in memory: the plan reads the version from the table.
+    expect(client.getState().takes['v3']).toBeUndefined();
+    expect(await store.keptById('org1', 'p1', 'take', ['v3'])).toHaveLength(1);
+    server.storeBlob('org1', 'p1', 'h3c', 50);
+    await client.sync();
+    await client.sync();
+    const files = new LanguageFiles(client, store, 'org1', 'p1');
+    expect((await files.download(new Set(), new Set(['u3']))).map((r) => r.hash).sort()).toEqual(['h3', 'h3c']);
+    expect(await files.evictable(new Set(['h3', 'h3c']), new Set(['u3']))).toEqual([]);
+    expect((await files.byUnit(['u3'], new Set(['h3c']), 't1', new Set(['u3']))).get('u3')).toMatchObject({ toFetch: 1, ready: false });
+
+    await client.append('v1.TakeArchived', { takeId: 'v3' });
+    await client.sync();
+    await checkpoint();
+    const after = new LanguageFiles(client, store, 'org1', 'p1');
+    expect((await after.download(new Set(), new Set(['u3']))).map((r) => r.hash)).toEqual(['h3c']);
+    expect((await after.evictable(new Set(['h3', 'h3c']), new Set(['u3']))).map((r) => r.hash)).toEqual(['h3']);
+  });
 });
 });

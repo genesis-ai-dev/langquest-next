@@ -5,7 +5,7 @@ import { readDirectoryAsync } from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import { getFileLedger } from '../storage/store';
 import { hashOf, isStoredFormat, mimeOf, type StoredFile, type StoredFormat } from '../storage/storedFile';
-import { toFreeOf } from './blobsModel';
+import { RECORDING_RESERVE_BYTES, toFreeOf } from './blobsModel';
 import { onWake } from './wake';
 import { webFiles, type WebFiles } from '../web/webFiles';
 import { noteExpected } from '../diagnostics/report';
@@ -88,8 +88,8 @@ function parseName(name: string): StoredFile | null {
   return hash && HASH_NAME.test(hash) && isStoredFormat(ext) && more === undefined ? { hash, format: ext } : null;
 }
 
-/** Kept free for recording: downloads never take the device under this (appLanguage.ts `LIMITS`). */
-export const RECORDING_RESERVE_BYTES = 500 * 1024 * 1024;
+// Kept free for recording; in blobsModel.ts, so study files (study/studyFiles.ts) read it without this store.
+export { RECORDING_RESERVE_BYTES };
 
 export class BlobStore {
   /** Null on web, where `files` holds them instead. */

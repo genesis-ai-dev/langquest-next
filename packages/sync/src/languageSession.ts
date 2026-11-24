@@ -71,14 +71,12 @@ export interface LanguageStatus {
   peakDown: number;
   /** Hashes of the files on this device now. */
   present: ReadonlySet<string>;
-  /** Units this person chose to keep offline, beyond their own work. */
-  keptUnits: ReadonlySet<string>;
   /**
-   * Of `keptUnits`, those kept for their recordings alone: a book's or a
-   * section's passages, kept together. The rest were kept one by one, and
-   * take their reference material along (study guide, reference audio).
+   * Units this person chose to keep offline, beyond their own work: one by
+   * one, or a book's or a section's at once. Each takes its reference
+   * material along (study guide, reference audio).
    */
-  recordingsOnly: ReadonlySet<string>;
+  keptUnits: ReadonlySet<string>;
   /**
    * The passages kept offline and how much of each one's audio is here,
    * the whole scope at a glance, and the passages this person keeps by
@@ -185,7 +183,12 @@ const INBOX_PASSAGES_PER_READ = 25;
 export const FILE_NEWS_MS = 500;
 
 const keepKey = (orgId: string, languageId: string) => `keep:${orgId}/${languageId}`;
-/** The passages kept for their recordings alone (a book's button), beside `keepKey`'s, which are kept with their reference material. */
+/**
+ * Where a book's button kept its passages, for their recordings alone, until
+ * every kept passage took its reference material along
+ * (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended
+ * 2026-11-23). Read once when a language opens and folded into `keepKey`'s.
+ */
 const keepRecordingsKey = (orgId: string, languageId: string) => `keep-recordings:${orgId}/${languageId}`;
 const sentKey = (orgId: string, languageId: string) => `sent:${orgId}/${languageId}`;
 /** Recordings of a language still to upload, as its session last counted them: what other languages' screens say is waiting there. */
@@ -250,10 +253,15 @@ export class LanguageSession {
     });
     await client.trackOpen();
     await client.load('open');
-    const light = new Set<string>(JSON.parse((await o.store.meta(keepRecordingsKey(o.orgId, o.languageId))) || '[]') as string[]);
+    const light = JSON.parse((await o.store.meta(keepRecordingsKey(o.orgId, o.languageId))) || '[]') as string[];
     const kept = new Set<string>([...JSON.parse((await o.store.meta(keepKey(o.orgId, o.languageId))) || '[]') as string[], ...light]);
+    if (light.length) {
+      // The old list joins the one list before it is emptied, so an app stopped between the two writes still keeps them.
+      await o.store.setMeta(keepKey(o.orgId, o.languageId), JSON.stringify([...kept]));
+      await o.store.setMeta(keepRecordingsKey(o.orgId, o.languageId), '[]');
+    }
     const sent = readSentLog(await o.store.meta(sentKey(o.orgId, o.languageId)));
-    session = new LanguageSession(o, client, kept, light, sent);
+    session = new LanguageSession(o, client, kept, sent);
     await session.near?.load();
     return session;
   }
@@ -265,12 +273,12 @@ export class LanguageSession {
   }
 
   private constructor(
-    private readonly o: LanguageSessionOptions, readonly client: SyncClient, kept: ReadonlySet<string>, recordingsOnly: ReadonlySet<string>, sent: readonly SentEntry[]
+    private readonly o: LanguageSessionOptions, readonly client: SyncClient, kept: ReadonlySet<string>, sent: readonly SentEntry[]
   ) {
     this.current = {
       revision: client.publishedRevision, pending: 0, refusedEvents: 0, lastSync: 'never',
       online: null, tooOld: false, refused: null, pulled: false, live: false,
-      pendingUp: 0, pendingDown: 0, holding: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept, recordingsOnly,
+      pendingUp: 0, pendingDown: 0, holding: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept,
       keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines(), fill: client.fillProgress(),
       uploads: new Map(), sent, uploading: new Set(), downloading: new Set()
     };
@@ -457,11 +465,15 @@ export class LanguageSession {
       // which clears waits. A finished sync while not deferred runs the
       // waiting upload pass now: nudge()'s debounce, restarted by every
       // following sync, held a just-recorded file until the minute tick.
-      // Failure backoff stays put; only trigger() clears it.
-      if (!r.offline && wasOnline === false) this.up.trigger();
+      // Failure backoff stays put; only trigger() clears it. Back in reach,
+      // downloads that failed while the server was away go now too, not at
+      // the end of a wait of up to ten minutes (docs/blobs.md rule 4).
+      const back = !r.offline && wasOnline === false;
+      if (back) this.up.trigger();
       else if (!r.offline && !o.isDeferred?.()) this.up.nudge(0);
       else this.up.nudge();
-      this.down.nudge();
+      if (back) this.down.trigger();
+      else this.down.nudge();
     } catch (err) {
       // Not a transport failure: those come back as `offline` above. Whether
       // the server is reachable is unknown, so the flag stays where it was.
@@ -508,82 +520,25 @@ export class LanguageSession {
    * Keep a passage offline, or stop keeping it. A book's or a section's
    * passages go as one list (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md):
    * one write, one download pass and one recount, however many they are.
-   *
-   * `recordingsOnly`: keep them for their recordings alone, as a book's
-   * button does, so that a whole book does not bring every passage's study
-   * guide and reference audio with it. It changes nothing for a passage
-   * kept already: one kept with its reference material is not made lighter
-   * by its book. Without it, as a passage's own button keeps one, the
-   * passage is kept with its reference material, whether or not it was kept
-   * for its recordings before.
+   * Each kept passage takes its reference material along, however it was
+   * kept (amended 2026-11-23).
    */
-  async keepOffline(unitIds: string | readonly string[], keep: boolean, how: { recordingsOnly?: boolean } = {}): Promise<void> {
+  async keepOffline(unitIds: string | readonly string[], keep: boolean): Promise<void> {
     const kept = new Set(this.current.keptUnits);
-    const light = new Set(this.current.recordingsOnly);
-    let whole = false;
-    let lighter = false;
-    for (const unitId of typeof unitIds === 'string' ? [unitIds] : unitIds) {
-      if (!keep) {
-        if (!kept.delete(unitId)) continue;
-        if (light.delete(unitId)) lighter = true;
-        else whole = true;
-      } else if (how.recordingsOnly) {
-        if (kept.has(unitId)) continue;
-        kept.add(unitId);
-        light.add(unitId);
-        lighter = true;
-      } else {
-        if (light.delete(unitId)) lighter = true;
-        else if (kept.has(unitId)) continue;
-        kept.add(unitId);
-        whole = true;
-      }
-    }
-    // Nothing to write: a second tap on a book already kept, or one let go.
-    if (!whole && !lighter) return;
-    this.set({ keptUnits: kept, recordingsOnly: light });
-    await this.saveKept(kept, light, { whole, lighter });
-    this.down.nudge();
-    this.recount();
-  }
-
-  /**
-   * Switch a passage kept by choice between its recordings alone and its
-   * recordings with its reference material: the switch on a passage's
-   * screen, which goes both ways. Its recordings stay kept either way, so
-   * nothing is fetched or counted again here; the app's study guide and
-   * reference audio follow the list. Nothing for a passage not kept.
-   */
-  async keepReference(unitIds: string | readonly string[], withReference: boolean): Promise<void> {
-    const kept = this.current.keptUnits;
-    const light = new Set(this.current.recordingsOnly);
     let changed = false;
     for (const unitId of typeof unitIds === 'string' ? [unitIds] : unitIds) {
-      if (!kept.has(unitId) || light.has(unitId) !== withReference) continue;
-      if (withReference) light.delete(unitId);
-      else light.add(unitId);
+      if (keep ? kept.has(unitId) : !kept.has(unitId)) continue;
+      if (keep) kept.add(unitId);
+      else kept.delete(unitId);
       changed = true;
     }
+    // Nothing to write: a second tap on a book already kept, or one let go.
     if (!changed) return;
-    this.set({ recordingsOnly: light });
-    // A passage that changes lists leaves one and joins the other: the one it joins is written first.
-    await this.saveKept(kept, light, { whole: true, lighter: true, lighterFirst: !withReference });
-  }
-
-  /**
-   * The two kept lists on disk, each written only when it changed: a book
-   * kept is one write, of the list it joined. A passage that moves between
-   * them is written to the list it joins before the one it leaves
-   * (`lighterFirst`: it joins the recordings list), so an app stopped
-   * between the two writes finds it in both and still kept, never in neither.
-   */
-  private async saveKept(kept: ReadonlySet<string>, light: ReadonlySet<string>, changed: { whole: boolean; lighter: boolean; lighterFirst?: boolean }): Promise<void> {
+    this.set({ keptUnits: kept });
     const { store, orgId, languageId } = this.o;
-    const whole = () => store.setMeta(keepKey(orgId, languageId), JSON.stringify([...kept].filter((u) => !light.has(u))));
-    const lighter = () => store.setMeta(keepRecordingsKey(orgId, languageId), JSON.stringify([...light]));
-    if (changed.lighter && changed.lighterFirst) await lighter();
-    if (changed.whole) await whole();
-    if (changed.lighter && !changed.lighterFirst) await lighter();
+    await store.setMeta(keepKey(orgId, languageId), JSON.stringify([...kept]));
+    this.down.nudge();
+    this.recount();
   }
 
   /**
@@ -596,7 +551,7 @@ export class LanguageSession {
    * is not refused for want of room the device would make. Nothing is kept
    * by asking.
    */
-  async offlineCost(unitIds: readonly string[]): Promise<{ files: number; bytes: number; freeable: number }> {
+  async offlineCost(unitIds: readonly string[]): Promise<{ files: number; bytes: number; freeable: number; here: number }> {
     const present = this.here();
     const cost = await this.plan.cost(unitIds, present);
     const scope = await this.scope();
@@ -698,9 +653,20 @@ export class LanguageSession {
     return this.near?.moves() ?? null;
   }
 
-  /** After recording: clear upload backoff and start a pass now. */
+  /** After recording, and Sync now: clear upload backoff and start a pass now. */
   triggerUpload(): void {
     this.up.trigger();
+  }
+
+  /**
+   * Sync now: clear download backoff and start a pass now. A file that failed
+   * while the file server could not be reached (the events still syncing, so
+   * nothing looked offline) otherwise waited out its backoff, up to ten
+   * minutes, with its passage amber and "to receive" on the Sync screen
+   * (Carl's simulator, 2026-11-23).
+   */
+  triggerDownload(): void {
+    this.down.trigger();
   }
 
   /** This person's recordings here the server has not confirmed: what a hand-over must still send. A teammate's waits for the next session on the phone (5.2). */

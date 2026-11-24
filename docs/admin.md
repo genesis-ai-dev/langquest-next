@@ -100,8 +100,8 @@ known start (the billing month, the last reset of Postgres' counters, the
 first nightly size), `oldest 2 days ago` for a queue, `now` for a state,
 `all time` for a total. A count whose start is not known says so.
 
-The page has fourteen sections, each about one subject (`apps/admin/src/pageOps.ts`
-`GROUPS`): Look up, User issues, Research, Work safety, Phones and browsers, Releases,
+The page has these sections, each about one subject (`apps/admin/src/pageOps.ts`
+`GROUPS`): Look up, User reports, User issues, Research, Work safety, Phones and browsers, Releases,
 Server jobs, Database, Web traffic, Storage and cost, People and
 organizations, Support, Keys and access, App stores, Nightly tests and Tutorial
 videos. A section
@@ -127,6 +127,7 @@ the page loads to exactly one section.
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
 | Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
 | App Worker | requests by route, server errors, rate-limit refusals and time taken, from the request tally | `DIAG_DATABASE_URL` |
+| User reports | `diag.ops_user_reports` (migration `20261124061500_user_reports.sql`): each report a person sent from help mode in the last 90 days, a problem or an idea, with its words, screen, whether it has a screenshot, picture or voice note, what the watch for user issues decided about it and its Linear issue's state, words and priority; reports from `ops.watch_ignored` accounts only counted. No line of its own: each open problem is a user issue already. The menu line counts the open problems and says Fix soon while one is open | `DIAG_DATABASE_URL`, the migration |
 | User issues | `diag.ops_user_issues`: each Linear issue the watch for user issues filed or commented on and each kind it found already fixed, the last 90 days, open ones first, with its state in Linear, the pull request that fixed it and when, and the last look; each issue's lines in words (`context`, `problem`, `solution`, migration `20261118070000_user_issue_words.sql`; `known`, migration `20261121231500_user_issue_known.sql`); each issue's instructions from an admin with Claude's answers (`diag.ops_user_issue_notes`, migration `20261118073000_user_issue_notes.sql`; before it, the cards have no box); and each dashboard line's decision (`lines`, migration `20261117213500_ops_lines_linear.sql`) (`docs/diagnostics.md`, migration `20261103204500_user_issues_fixed.sql`). Issues open in Linear are a watch; a look that failed is a problem | `DIAG_DATABASE_URL`, the migration |
 | Tutorial videos | `diag.ops_tutorials`: each app language's YouTube channel and when it was connected, each video's newest version not on YouTube (ready, or chosen and waiting, with the last failure's code), and the count up in each language; never a token (migration `20261028090000_tutorial_videos.sql`). `diag.ops_tutorial_feedback`: Claude's suggestions with what each answers, what came in that it has not looked at or suggested nothing for, and its last look (migration `20261029120000_tutorial_feedback.sql`) | `DIAG_DATABASE_URL`, the migrations; Connect and Publish need `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET` on the app's Worker; filing an accepted code change in Linear at once needs `LINEAR_API_KEY` there |
 | People and organizations | `diag.ops_people` and `ops_orgs`, counted, never named; an organization opens its own page at `/ops-dashboard/org/<id>` (`diag.ops_org` and its installs' sync errors) | `DIAG_DATABASE_URL`, the migration |
@@ -215,6 +216,12 @@ Viewer who tapped, by the display name of their LangQuest account, so each
 admin sees what another admin did already. Only Global Viewers see it; it
 is never written to GitHub or Linear.
 
+The same holds for a claim on an issue
+(`docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md`): the
+issue's card says "Claimed by" and the display name of the Global Viewer who
+claimed it. The page gets the name and whether the claim is the viewer's own,
+never a profile id.
+
 ## A tap and its record
 
 Each tap says it works ("Sending…"), then what happened, next to the button
@@ -228,6 +235,76 @@ tab is picked. After a tap, the parts it changed are read again with
 record comes from `diag.ops_card_record('video' | 'issue')`: the taps
 (`ops.actions`), Claude's suggestions and changes to a video, and Claude's
 answers on a Linear issue, 30 days, newest first.
+
+## Ask Claude on every card and page
+
+Each line's card with no Linear issue, each page (at the end of its summary)
+and the Overview have a box, "Ask Claude" (`apps/admin/src/pageAsk.ts`,
+`docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md`). A card
+with one Linear issue keeps its box to tell Claude what to do. The question
+goes as `card-question` with the card's key (`line:<key>[:<subject>]` or
+`page:<section>`), its title and its words as the page shows them, without
+the talk and the record. `card-questions.yml` takes it within 5 minutes:
+Claude reads the code, production and the logs as agent_reader, and public
+web pages when the answer needs them (the card-questions skill). The page
+reads each card's questions from `/ops/api/questions`
+(`diag.ops_card_questions()`) when it loads, after a question, and each
+minute while Claude owes an answer. The talk names who asked and when:
+waiting, working, answered, or stopped (two runs took it and neither
+answered; ask again).
+
+## Resolved: a line hidden until its problem comes back
+
+Each Overview row and each line's card has a Resolved button
+(`apps/admin/src/pageResolve.ts`,
+`docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md`).
+A row's button resolves every line in the row; a card's button resolves its
+line. The tap sends `line-resolve` with each line's id (`<key>[:<subject>]`),
+its part, its level, its measure (usage-billed: the cost so far), its title
+and its words; `ops.line_resolves` keeps them with who and when (migrations
+`20261124013000_ops_line_resolves.sql`,
+`20261124034500_ops_line_resolve_checks.sql`). The page reads the open
+resolves from `/ops/api/resolves` (`diag.ops_line_resolves()`), keeps each
+part's answer as it came, and draws it without the resolved lines, so the
+Overview, the menu's counts and each page agree.
+
+Claude decides whether a resolved problem came back, from what the line
+counts. The workflow `card-questions.yml` (every 5 minutes) asks the app
+Worker's door for the resolves due a check (`GET /api/card-questions?resolves=1`,
+`ops_line_resolves_due()`: open, not found back, last tried more than 3 hours
+ago, at most 20), each with the line's words now (`OpsLines.shown()`).
+Claude reads the line's source and compares its words at the resolve with
+its words now (`.agents/skills/card-questions/SKILL.md`, "Resolved lines"),
+and writes `same` or `back` with a reason. The workflow sends the verdicts
+back (`ops_line_resolves_checked()`); a run that could not decide sends
+`none`, and the resolve waits for the next check. A resolved line shows
+again, with the tag "Came back", when:
+
+- Claude found that the problem came back: the line shows Claude's reason;
+- its level is higher than when it was resolved (at once, without Claude);
+- Claude has not checked it for 27 hours (the workflow is down).
+
+When the line goes from the page, the watch for user issues ends its resolve
+within 15 minutes (`OpsLines.present()`, `ops_line_resolves_seen`): only for
+a part that answered. The next time the problem comes, the line shows at
+once. The Overview's Resolved list starts with the lines resolved by hand:
+who resolved each, when, Claude's last reason, and Show again (`line-show`).
+The watch for user issues and `/ops/api/attention` still see every line: a
+resolve changes only what the page shows. `ops.actions` logs `line_resolved`
+and `line_shown` with the first line's id and how many.
+
+## Claude's replies and claims
+
+A bell at the top right counts Claude's replies the admin has not seen, and
+opens the list of the latest ones: on each card the admin talked on with
+Claude (an instruction on a user issue, a question from a card or a page, an
+instruction on a tutorial video), and on each issue the admin claimed. A row
+opens its card. Opening the list marks the replies seen, on every device
+(`replies_seen` in `ops.actions`). A developer taps Claim on an issue's card
+so that no other developer works on it; only that developer can release it.
+Both come from `/ops/api/mine` (`diag.ops_mine`), for the person the Worker
+checked (`apps/admin/src/pageMine.ts`,
+`docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md`).
 
 ## Setting it up
 
@@ -250,7 +327,9 @@ rest it:
   `.env.production` holds (step 5). The Worker has no code yet, so nothing
   answers.
 - makes the Hyperdrive config `langquest-next-diag` from
-  `DIAG_DATABASE_URL`, diag_reader's read-only login, with caching off, and
+  `DIAG_DATABASE_URL`, diag_reader's read-only login, with caching off and
+  at most 10 connections to the database (`HYPERDRIVES` in
+  `scripts/secrets.mjs`; the pooler takes 20 for each login), and
   writes its id into `apps/admin/wrangler.jsonc` in place of
   `made-by-npm-run-secrets`. Commit that file on the branch. The id is not
   a secret; the login stays in the Hyperdrive config, which cannot be read
@@ -584,7 +663,7 @@ full day against the days before it), and the numbers at zero as chips. A
 tap on a tile, row or chip opens All the details at that number's chart. All
 the details is each part's lines, picture and tables, then a chart for each
 number over the range; it opens closed on a page with a summary, except on
-User issues, Research, Support, Tutorial videos and Nightly tests, and keeps
+User reports, User issues, Research, Support, Tutorial videos and Nightly tests, and keeps
 each page's choice (`lq-ops-details` in the browser). `#all` shows every
 section on one page, each line's card in its part.
 
@@ -781,6 +860,15 @@ title with Context, Issue and Solution lines, and at the right who acts next,
 its steps as dots with the step it waits at in words, the talk (what an admin
 said, then where Claude is with it) and the box to tell Claude what to do.
 
+- **User reports** (`apps/admin/src/pageReports.ts`): a first line that
+  says how many problems people sent are open, then tabs with counts (Open,
+  Not in Linear yet, Ideas, Fixed or closed, Not a problem, All), then one
+  card for each report in the user issue's card format: what the person said
+  and from which screen, Show screenshot, and its Linear issue's Wrong, Known
+  and Next. Open problems lead in the fix team's order (Linear's priority,
+  then the one that waits longest). Tell Claude what to do opens the issue's
+  card on User issues, so each issue keeps one talk with Claude
+  (`docs/decisions/2026-11-24-user-reports-have-their-own-page-and-go-first.md`).
 - **User issues**: tabs with counts (Waits on you, No fix yet, Merged,
   Closed, All), then one card for each issue. `issueWay` places an issue from
   its Linear state and the pull requests that name it (`/ops/api/fixes`):

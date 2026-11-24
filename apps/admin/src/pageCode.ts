@@ -20,10 +20,11 @@ const JOB_SAID = {
   'tutorial-review.yml': ['Tutorial video review', 'Reads video comments and changes each night'],
   'user-issues.yml': ['User issue watch', 'Looks for new problems every 15 minutes'],
   'claude-plan.yml': ['Claude plan reading', 'Reads how much of the Frontier Claude plan is used, every hour'],
+  'card-questions.yml': ['Questions to Claude', 'Answers the questions asked from the dashboard\'s cards, every 5 minutes'],
   'phone-tests.yml': ['Nightly phone tests', 'Tests the app on an Android and an iPhone each night'],
   'release-branches.yml': ['Fixes to older store builds', 'Copies fixes to the builds in the stores'],
   'release-copy-conflict.yml': ['Copy conflicts', 'Asks for help when a fix does not copy'],
-  'linear-sync.yml': ['Linear links', 'Moves the Linear issues that a merge names'],
+  'linear-sync.yml': ['Linear links', 'Moves the Linear issues that a merge names or fixes'],
   'bible-survey.yml': ['Bible numbering survey', 'Checks the Bible numbering survey']
 };
 const JOB_ORDER = ['fail', 'part', 'run', 'ok', 'off'];

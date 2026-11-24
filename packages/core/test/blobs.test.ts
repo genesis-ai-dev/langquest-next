@@ -173,7 +173,7 @@ describe('what is on this phone for offline use (shown per passage and in Settin
   });
 
   it('the summary counts kept passages, ready ones, and bytes still to fetch', () => {
-    expect(offlineSummary(state, none, 'nobody', none)).toEqual({ kept: 0, ready: 0, chosen: 0, filesToFetch: 0, bytesToFetch: 0, notSent: 0 });
+    expect(offlineSummary(state, none, 'nobody', none)).toEqual({ kept: 0, ready: 0, chosen: 0, filesToFetch: 0, bytesToFetch: 0, notSent: 0, filesHere: 0 });
     expect(offlineSummary(state, none, 'nobody', new Set(['luke1']))).toMatchObject({ kept: 1, ready: 0, chosen: 1, filesToFetch: 1, bytesToFetch: 12345 });
     expect(offlineSummary(state, new Set(['c1']), 'r1', none)).toMatchObject({ kept: 1, ready: 1, chosen: 0, filesToFetch: 0 });
   });

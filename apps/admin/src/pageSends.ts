@@ -98,7 +98,8 @@ function cardWithSend(a, send) {
 const FIX_DONE = { working: 'started the change', open: 'made the change as a pull request that merges itself when its checks pass', merged: 'merged the change',
   closed: 'saw its pull request closed without a merge', failed: 'could not make the change', unneeded: 'found that no change was needed' };
 /** Why the app Worker refused a tap, by the code it kept. */
-const REFUSED_SAID = { decided: 'another admin answered it first', not_found: 'Claude cannot take an instruction on this issue', full: 'three instructions waited for Claude already', not_set_up: 'this is not set up here' };
+const REFUSED_SAID = { decided: 'another admin answered it first', not_found: 'Claude cannot take an instruction on this issue', full: 'three instructions waited for Claude already', not_set_up: 'this is not set up here',
+  taken: 'another developer claimed it first', not_yours: 'another developer has the claim' };
 /**
  * One entry of a card's record in words: who, what they did, and the words it was about (a suggestion's
  * title, an admin's instruction, the start of Claude's answer). bad: the tap was refused or failed.
@@ -108,6 +109,7 @@ function appFixSaid(d) {
   if (d === 'merge') return 'wrote the fix. It keeps the rules, so it merges by itself when its checks pass';
   if (d === 'waits:instruction') return 'wrote the fix. It waits for your yes, as you asked';
   if (d === 'waits:stalled') return 'tried 3 times to get the fix into main. It waits for a developer';
+  if (d === 'waits:claimed') return 'wrote the fix as a suggestion. It waits for the developer who claimed the issue';
   if (d.startsWith('waits')) return 'wrote the fix. The rules say a developer must read it';
   return 'made no change';
 }
@@ -117,6 +119,7 @@ function recordSaid(r) {
     suggestion_accepted: 'accepted Claude\'s suggestion', suggestion_rejected: 'rejected Claude\'s suggestion', suggestion_edited: 'changed the words of Claude\'s suggestion',
     tutorial_note: String(r.detail || '').startsWith('instruction:') || !ok ? 'sent an instruction to Claude' : 'added a note for Claude\'s next look',
     user_issue_note: 'sent an instruction to Claude',
+    issue_claim: 'claimed the issue', issue_release: 'released the claim',
     reply_posted: 'posted the reply on YouTube', reply_none: 'said that no reply is needed', reply_open: 'put the reply back on the list',
     suggested: 'suggested a change', answered: r.detail === 'changed' ? 'answered and changed the draft fix' : r.detail === 'none' ? 'wrote no answer' : 'answered',
     fix: FIX_DONE[r.detail] || 'changed the video',
@@ -166,7 +169,7 @@ function withGone(cards, gone, keyOf) {
 
 /** The page's state of sends and answered cards, and their drawing; uses the page's helpers (esc, when, say, $). */
 export const SEND_SCRIPT = String.raw`
-/** Messages to Claude sent from this page, by card: 'video:<card id>' or 'issue:<Linear id>'. */
+/** Messages to Claude sent from this page, by card: 'video:<card id>', 'issue:<Linear id>' or 'ask:<card>' (pageAsk.ts). */
 const SENDS = new Map();
 /** Tutorial video cards answered on this page, by card id, while their tab is open: the short card in their place. */
 const GONE = new Map();
@@ -177,7 +180,7 @@ const watchSaid = () => 'at about ' + sendClock(nextRun(Date.now(), WATCH_MINUTE
 /** Drops each sent message the server's answer now holds, and each answered card when its tab is left. */
 function pruneSends() {
   for (const [key, s] of SENDS) {
-    if (s.state !== 'sent') continue;
+    if (s.state !== 'sent' || key.startsWith('ask:')) continue;
     if (key.startsWith('video:')) {
       const a = VIDEOS && VIDEOS.admin.find((x) => 'video:' + cardId(x) === key);
       if (!a || (a.instructed && sendHeld(s, [a.instructed]))) SENDS.delete(key);

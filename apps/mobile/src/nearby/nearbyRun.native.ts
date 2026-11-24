@@ -2,7 +2,7 @@ import type { OrgState } from '@langquest-next/core';
 import { summaryOf, summaryText, type ChainLink, type DiscoveryKey, type Holdings, type RevocationList } from '@langquest-next/core/nearby';
 import { ensureDeviceId, type SyncInspection } from '@langquest-next/sync';
 import {
-  nearbyKeepOf, NEARBY_DIAG_SCHEMA, NearbyRoom, NearbySession, type FindTunables, type NearbyDiagInput, type NearbyCrypto, type NearbyGate, type NearbyGenerations, type NearbyRoomEvent,
+  nearbyFirstDayWithin, nearbyGreetDue, nearbyKeepOf, NEARBY_DIAG_SCHEMA, NearbyRoom, NearbySession, type FindTunables, type NearbyDiagInput, type NearbyCrypto, type NearbyGate, type NearbyGenerations, type NearbyRoomEvent,
   type NearbyRoomFacts, type NearbySessionReport, type NearbySigner, type NearbyCopySource, type StartingCopyTarget
 } from '@langquest-next/sync/nearby';
 import * as Crypto from 'expo-crypto';
@@ -14,7 +14,7 @@ import type { NearbyLanguage } from '../sync/useLanguage';
 import type { PhoneRadio } from './nearbyLink.native';
 import { parseFindKeys, type FindKey } from './nearbyModel';
 import { holdsCertificate, nearbyGateFor, phoneCrypto, phoneSignerFor, readChains, readRevoked, ROOT_KEYS } from './nearbyPhone.native';
-import { certOrgSeqOf, listedKey, namesOf, NEARBY_RADIO_TUNABLES, nearbyOffered, orgSeqHereOf, radiosFor, roomLimitsFor, swapOf } from './nearbyRunModel';
+import { certOrgSeqOf, listedKey, namesOf, NEARBY_RADIO_TUNABLES, nearbyOffered, orgSeqHereOf, radiosFor, recordUnless, roomLimitsFor, swapOf, type RoomMode } from './nearbyRunModel';
 
 /**
  * Share nearby's room for the open language, from the phone's identity pieces
@@ -23,7 +23,8 @@ import { certOrgSeqOf, listedKey, namesOf, NEARBY_RADIO_TUNABLES, nearbyOffered,
  * checkpoint, the Worker's keys, the revocation list, this language's discovery key with its
  * generations, the language session's client as its port and its file moves. A plain module:
  * `useNearby` decides when the room runs (`radiosMayRun`) and turns what it reports into the
- * screen's data. Nothing here logs a key.
+ * screen's data, and `useNearbyWhileOpen` runs it quietly while LangQuest is open (`openMayRun`,
+ * 15.6). Nothing here logs a key.
  */
 
 /** Find's times and retries, from JavaScript so the real-phone test can move them (5.12, Find; starting guesses). */
@@ -95,6 +96,21 @@ export interface NearbyRoomArgs {
   languageId: string;
   /** Wears a cover: stops sooner, and never joins a hotspot (Carl's answer 15). */
   worn: boolean;
+  /** Share nearby's screen, or quietly while LangQuest is open (15.6): no tap, no idle stop, no hotspot, an iPhone on Bluetooth alone. */
+  mode?: RoomMode;
+  /**
+   * While LangQuest is open: Hello refuses a teammate whose certificate was issued longer ago than
+   * this, by the clock Hello reads (15.8, the security review of 2026-11-23).
+   */
+  freshWithinMs?: number;
+  /** Diagnostics record nothing while this says so: a room stopped because a cover went on must not date it (decision 235). */
+  silent?: () => boolean;
+  /**
+   * Share nearby on a phone that may share while LangQuest is open (`notesMetOf`, 15.8): Hello
+   * notes the day each teammate is met, kept this long, and the room greets a teammate not met
+   * for half of it, with nothing to swap, so the quiet mode goes on taking them. Never while open.
+   */
+  notesMetForMs?: number;
   report(event: NearbyRoomEvent): void;
   progress(report: Readonly<NearbySessionReport>): void;
   /** Phase 6: what this phone sends a newcomer as a starting copy after an ordinary Hello, to whoever passed its read gate (14.1, 4). */
@@ -116,11 +132,17 @@ export function nearbyDiagFor(orgId: string, languageId: string): (input: Nearby
 const time = { now: () => Date.now(), sleep: (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms); }) };
 
 /** The room's facts from the language's store, as a session works them out: the summary after signing, and holdings for what each side lacks. */
-function factsOf(a: NearbyRoomArgs, keep: ReturnType<typeof nearbyKeepOf>, names: () => Promise<ReadonlyMap<string, string>>): NearbyRoomFacts {
+function factsOf(a: NearbyRoomArgs, keep: ReturnType<typeof nearbyKeepOf>, names: () => Promise<ReadonlyMap<string, string>>, notesMetForMs: number | undefined): NearbyRoomFacts {
   const { client } = a.language;
   const { crypto, signer, revoked } = a.pieces;
   let holdings: Holdings = new Map();
   return {
+    ...(notesMetForMs !== undefined ? {
+      async greetDue() {
+        const now = client.nearbyHelloNow;
+        return nearbyGreetDue(await keep.met(nearbyFirstDayWithin(now, notesMetForMs)), now, notesMetForMs);
+      }
+    } : {}),
     async summary() {
       await client.signUnsigned(signer);
       holdings = await keep.holdings();
@@ -144,19 +166,23 @@ export async function nearbyNamesOf(language: NearbyLanguage, orgId: string): Pr
 
 export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
   const { radio, pieces, language, orgId, languageId, actorId, worn } = a;
+  const mode = a.mode ?? 'screen';
   const { client, moves } = language;
   const keep = nearbyKeepOf(client, { orgId, streamId: languageId });
   let key = pieces.findKey;
   const certOrgSeq = certOrgSeqOf(pieces.chain);
+  // Only Share nearby notes a day: a quiet meeting must not keep a taken phone in by itself.
+  const notesMetForMs = mode === 'screen' ? a.notesMetForMs : undefined;
   return new NearbyRoom({
     radio, crypto: pieces.crypto, keys: () => ({ gen: key.gen, key: key.key, floor: key.floor }),
-    facts: factsOf(a, keep, () => nearbyNamesOf(language, orgId)),
-    ...roomLimitsFor(worn),
-    // An iPhone's awdl and joinDirect go through as its module says them, joinDirect while the tunable allows it.
-    radios: (caps) => radiosFor(caps, worn, NEARBY_RADIO_TUNABLES),
+    facts: factsOf(a, keep, () => nearbyNamesOf(language, orgId), notesMetForMs),
+    ...roomLimitsFor(worn, mode),
+    mode,
+    // An iPhone's awdl and joinDirect go through as its module says them, joinDirect while the tunable allows it; neither while open.
+    radios: (caps) => radiosFor(caps, worn, NEARBY_RADIO_TUNABLES, mode === 'open'),
     find: NEARBY_FIND,
     report: a.report,
-    diag: nearbyDiagFor(orgId, languageId),
+    diag: recordUnless(nearbyDiagFor(orgId, languageId), a.silent),
     openSession: (args) => {
       const generations: NearbyGenerations = {
         sessionGen: args.gen,
@@ -171,7 +197,9 @@ export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
         generations, older: args.older, ...(args.heardTag !== undefined ? { heardTag: args.heardTag } : {}),
         ...(args.onOpened ? { onOpened: args.onOpened } : {}), otherWaiting: args.otherWaiting,
         arrange: { radio, radios: args.radios }, time, onProgress: a.progress,
-        ...(a.copy ? { copy: a.copy } : {}), ...(a.takeCopy ? { takeCopy: a.takeCopy } : {})
+        ...(a.copy ? { copy: a.copy } : {}), ...(a.takeCopy ? { takeCopy: a.takeCopy } : {}),
+        ...(a.freshWithinMs !== undefined ? { freshWithinMs: a.freshWithinMs } : {}),
+        ...(notesMetForMs !== undefined ? { notesMetForMs } : {})
       });
     }
   });

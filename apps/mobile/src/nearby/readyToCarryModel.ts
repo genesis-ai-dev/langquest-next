@@ -5,6 +5,8 @@ import { decodeHlc } from '@langquest-next/core';
  * everything it knows of, or how much is missing and why, and each teammate with how recent the
  * newest work held from them is. Pure, so every rule is tested without radios; the facts come from
  * the language's store (nearbyCarry.native.ts) and the room's run, and the words are the screen's.
+ * Sync and offline's Teammates fold shows the same teammates with no room running (`teammatesOf`,
+ * 15.4), and Me's row the recordings no teammate's phone holds (`onlyOnThisPhone`, 15.5).
  *
  * Teammates come from the vector, the holdings and the language's members, never from who met
  * whom, since no phone can know about work on a phone it has not met since. The newest work held
@@ -105,6 +107,65 @@ export function seenOf(newestMs: number | null, lastOnlineMs: number | null, tod
   return lastOnlineMs === null || newestMs > lastOnlineMs ? 'since-online' : 'not-since-online';
 }
 
+/** What the teammates need of the facts: none of it comes from a running room. */
+export type TeammateFacts = Pick<CarryFacts, 'me' | 'members' | 'names' | 'vectorKeys' | 'holdings' | 'batches' | 'lastOnlineMs' | 'todayStartMs'>;
+
+/**
+ * Each teammate and how recent the newest work held from them is, today first and the least recent
+ * last. Ready to carry lists them on Share nearby, and Sync and offline's Teammates fold with no
+ * room running (docs/nearby-sync-plan.md 15.4).
+ */
+export function teammatesOf(f: TeammateFacts): CarryTeammate[] {
+  const people = new Set<string>(f.members);
+  for (const key of [...f.vectorKeys, ...f.holdings.keys()]) {
+    const p = f.names.get(key);
+    if (p) people.add(p);
+  }
+  const newest = new Map<string, number>();
+  for (const b of f.batches) {
+    people.add(b.actorId);
+    const ms = wallOf(b.firstHlc);
+    if (ms !== null && ms > (newest.get(b.actorId) ?? -Infinity)) newest.set(b.actorId, ms);
+  }
+  people.delete(f.me);
+  return [...people].map((profileId): CarryTeammate => {
+    const newestMs = newest.get(profileId) ?? null;
+    return { profileId, newestMs, seen: seenOf(newestMs, f.lastOnlineMs, f.todayStartMs) };
+  }).sort((a, b) => RANK[a.seen] - RANK[b.seen] || (b.newestMs ?? -1) - (a.newestMs ?? -1) || (a.profileId < b.profileId ? -1 : 1));
+}
+
+/**
+ * How many of this person's recordings waiting to upload no other phone said it holds
+ * (docs/nearby-sync-plan.md 15.5): only on this phone, as far as it knows. Holdings are what each
+ * phone last said, so the count is wrong only towards reminding. Another install of the same
+ * person counts as another phone, since the recording is on it.
+ */
+export function onlyOnThisPhone(unsent: readonly string[], holdings: ReadonlyMap<string, { files: readonly string[] }>, myKey: string | null): number {
+  const held = new Set<string>();
+  for (const [key, entry] of holdings) if (key !== myKey) for (const file of entry.files) held.add(file);
+  return new Set(unsent.filter((hash) => !held.has(hash))).size;
+}
+
+/**
+ * Sync and offline's Teammates fold, folded (15.4): the least recent teammate and how recent the
+ * newest work held from them is, or everyone (`who` null) when that is today for all of them. Null
+ * with no teammate, and then the fold is not shown. Only a phone loads this file, so the web's
+ * Share nearby chunk carries none of it.
+ */
+export function teammatesFoldLine(team: readonly CarryTeammate[]): { who: string | null; seen: CarrySeen } | null {
+  const last = team[team.length - 1];
+  if (!last) return null;
+  return { who: last.seen === 'today' ? null : last.profileId, seen: last.seen };
+}
+
+/**
+ * Whether Me's row says recordings are only on this phone (15.5): offline, with some, and nothing
+ * refused, which Me says first. Online the server takes them, so Me says what waits instead.
+ */
+export function onlyHereShown(o: { count: number; offline: boolean; refused: boolean; refusedEvents: number }): boolean {
+  return o.count > 0 && o.offline && !o.refused && o.refusedEvents === 0;
+}
+
 export function readyToCarryOf(f: CarryFacts): ReadyToCarry {
   const theirs = [...f.holdings].filter(([key]) => key !== f.myKey).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   const inRange = new Set(f.inRange.filter((k): k is string => k !== null));
@@ -120,23 +181,6 @@ export function readyToCarryOf(f: CarryFacts): ReadyToCarry {
     elsewhere.set(who, (elsewhere.get(who) ?? 0) + 1);
   }
 
-  const people = new Set<string>(f.members);
-  for (const key of [...f.vectorKeys, ...f.holdings.keys()]) {
-    const p = f.names.get(key);
-    if (p) people.add(p);
-  }
-  const newest = new Map<string, number>();
-  for (const b of f.batches) {
-    people.add(b.actorId);
-    const ms = wallOf(b.firstHlc);
-    if (ms !== null && ms > (newest.get(b.actorId) ?? -Infinity)) newest.set(b.actorId, ms);
-  }
-  people.delete(f.me);
-  const teammates = [...people].map((profileId): CarryTeammate => {
-    const newestMs = newest.get(profileId) ?? null;
-    return { profileId, newestMs, seen: seenOf(newestMs, f.lastOnlineMs, f.todayStartMs) };
-  }).sort((a, b) => RANK[a.seen] - RANK[b.seen] || (b.newestMs ?? -1) - (a.newestMs ?? -1) || (a.profileId < b.profileId ? -1 : 1));
-
   const missing = missingFiles.size;
   return {
     everything: missing === 0 && f.hold && !f.noRoom && !f.pulledUnshared,
@@ -148,7 +192,7 @@ export function readyToCarryOf(f: CarryFacts): ReadyToCarry {
     pulledUnshared: f.pulledUnshared,
     olderFromServer: f.olderFromServer,
     farAhead: [...new Set(f.farAhead.map((x) => x.actorId))],
-    teammates
+    teammates: teammatesOf(f)
   };
 }
 

@@ -34,10 +34,17 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     approveTutorials: async (items, by) => { done.push(`approve ${items.length} by ${by}`); return items.length; },
     addNote: async (tutorial, text, by) => { done.push(`note ${tutorial} ${text} by ${by}`); },
     replyDone: async (id, state, by) => { done.push(`reply ${id} ${state} by ${by}`); return id === REQUEST ? 'ok' : 'not_found'; },
+    claimIssue: async (issue, claim, by) => {
+      done.push(`${claim ? 'claim' : 'release'} ${issue} by ${by}`);
+      return issue === 'LAN-500' ? (claim ? 'taken' : 'not_yours') : claim ? 'claimed' : 'released';
+    },
     setFilming: async (language, on, by) => { done.push(`filming ${language} ${on} by ${by}`); return on ? 'on' : 'off'; },
     markQuietAccount: async (profile, ok, by) => { done.push(`quiet ${profile} ${ok} by ${by}`); return profile === QUIET ? (ok ? 'marked' : 'unmarked') : 'not_found'; },
     instruct: async (row, by) => { done.push(`instruct ${JSON.stringify(row)} by ${by}`); return SUGGESTION; },
     instructIssue: async (issue, text, by) => { done.push(`issue ${issue} ${text} by ${by}`); return issue === 'LAN-284' ? SUGGESTION : issue === 'LAN-285' ? 'full' : 'not_found'; },
+    resolveLines: async (lines, by) => { done.push(`resolve ${JSON.stringify(lines)} by ${by}`); return lines.length; },
+    showLines: async (lines, by) => { done.push(`show ${lines.join(',')} by ${by}`); return lines.length; },
+    askCard: async (row, by) => { done.push(`ask ${row.card} ${row.page} ${row.title} [${row.context}] ${row.text} by ${by}`); return row.card === 'page:full' ? 'full' : row.card === 'page:many' ? 'many' : SUGGESTION; },
     decideSuggestion: async (id, decision, detail, reason, by) => {
       done.push(`${decision} ${id} ${detail} ${reason} by ${by}`);
       return id === SUGGESTION ? { result: decision, kind: 'script' } : id === CODE ? { result: decision, kind: 'code' } : id === ANSWERED ? { result: 'decided', kind: 'script' } : { result: 'not_found' };
@@ -328,6 +335,113 @@ describe('an instruction on a user issue (docs/decisions/2026-11-18-an-admin-tel
     expect(calls.at(-1)).toEqual({ p_issue: 'LAN-5', p_text: 'Fix it.', p_by: VIEWER });
     // A dashboard that answers something else names nothing.
     expect(await instructIssue('LAN-278', 'x', VIEWER, rpc, async () => 'LAN-278')).toBe('not_found');
+  });
+});
+
+describe('a question to Claude from any card (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md)', () => {
+  const q = { kind: 'card-question', card: 'line:capacity-r2-class-a', page: 'storage', title: 'R2 class A operations are past the plan', context: 'Recording uploads 5,524,967 of 1,000,000 free', text: ' What does it cost? ' };
+
+  it('takes a line\'s or a page\'s card, its section, title, words and the question, checked', () => {
+    expect(parseAction(q)).toEqual({ ...q, text: 'What does it cost?' });
+    expect(parseAction({ ...q, context: undefined })).toEqual({ ...q, context: '', text: 'What does it cost?' });
+    for (const bad of [{ ...q, card: 'feedback:x' }, { ...q, card: 'line:a\nb' }, { ...q, page: 'Storage' }, { ...q, title: ' ' }, { ...q, text: ' ' },
+      { ...q, text: 'x'.repeat(2001) }, { ...q, title: 'x'.repeat(301) }, { ...q, context: 'x'.repeat(6001) }, { ...q, context: 7 }]) {
+      expect(parseAction(bad), JSON.stringify(bad).slice(0, 80)).toBeNull();
+    }
+  });
+
+  it('keeps it for Claude, and says why when a card or the dashboard has too many waiting', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', q)).toEqual({ ok: true, result: 'asked' });
+    expect(d.done).toEqual([`ask line:capacity-r2-class-a storage R2 class A operations are past the plan [Recording uploads 5,524,967 of 1,000,000 free] What does it cost? by ${VIEWER}`]);
+    expect(await act(d, 'aal2', { ...q, card: 'page:full' })).toMatchObject({ ok: false, status: 400, error: expect.stringContaining('Three questions on this card') });
+    expect(await act(d, 'aal2', { ...q, card: 'page:many' })).toMatchObject({ ok: false, status: 400, error: expect.stringContaining('Twenty questions') });
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'card_question', target: 'line:capacity-r2-class-a', result: 'ok', detail: `question:${SUGGESTION}` },
+      { profileId: VIEWER, action: 'card_question', target: 'page:full', result: 'refused', detail: 'full' },
+      { profileId: VIEWER, action: 'card_question', target: 'page:many', result: 'refused', detail: 'many' }
+    ]);
+    const aal1 = deps();
+    expect(await act(aal1, 'aal1', q)).toMatchObject({ ok: false, status: 403 });
+    expect(aal1.done).toEqual([]);
+  });
+
+  it('logs at most 100 characters of a long card', async () => {
+    const d = deps();
+    await act(d, 'aal2', { ...q, card: 'line:' + 'x'.repeat(190) });
+    expect((d.rows[0] as { target: string }).target).toHaveLength(100);
+  });
+});
+
+describe('a line resolved until its problem comes back (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md)', () => {
+  const line = { line: 'usage-billed:R2 class A operations', part: 'capacity', level: 'watch', measure: 20.25, title: 'R2 class A operations this month are past what the plan includes',
+    text: 'R2 class A operations this month are past what the plan includes. 5,524,967 of 1,000,000; about $20.25 so far.' };
+
+  it('takes each line as the page showed it, checked', () => {
+    expect(parseAction({ kind: 'line-resolve', lines: [line] })).toEqual({ kind: 'line-resolve', lines: [line] });
+    expect(parseAction({ kind: 'line-resolve', lines: [{ ...line, measure: undefined, title: ' x ' }] })).toEqual({ kind: 'line-resolve', lines: [{ ...line, measure: null, title: 'x' }] });
+    // The words are for Claude's check later; a page from before sends none.
+    expect(parseAction({ kind: 'line-resolve', lines: [{ ...line, text: undefined }] })).toEqual({ kind: 'line-resolve', lines: [{ ...line, text: null }] });
+    expect(parseAction({ kind: 'line-resolve', lines: [{ ...line, text: '  ' }] })).toEqual({ kind: 'line-resolve', lines: [{ ...line, text: null }] });
+    for (const bad of [[], [{ ...line, line: 'Usage' }], [{ ...line, line: 'usage-billed:a\nb' }], [{ ...line, part: 'Capacity' }], [{ ...line, level: 'info' }],
+      [{ ...line, title: ' ' }], [{ ...line, title: 'x'.repeat(301) }], [{ ...line, measure: -1 }], [{ ...line, measure: '5' }], [line, line],
+      [{ ...line, text: 'x'.repeat(1001) }], [{ ...line, text: 7 }],
+      Array.from({ length: 21 }, (_, i) => ({ ...line, line: `job-stopped:j${i}` }))]) {
+      expect(parseAction({ kind: 'line-resolve', lines: bad }), JSON.stringify(bad).slice(0, 80)).toBeNull();
+    }
+    expect(parseAction({ kind: 'line-show', lines: ['job-stopped:projection', 'job-stopped:projection'] })).toEqual({ kind: 'line-show', lines: ['job-stopped:projection'] });
+    expect(parseAction({ kind: 'line-show', lines: ['Not a line'] })).toBeNull();
+    expect(parseAction({ kind: 'line-show', lines: [] })).toBeNull();
+  });
+
+  it('keeps it by the person, and logs the first line and how many', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'line-resolve', lines: [line] })).toEqual({ ok: true, result: 'resolved' });
+    expect(await act(d, 'aal2', { kind: 'line-show', lines: [line.line] })).toEqual({ ok: true, result: 'shown' });
+    expect(d.done).toEqual([`resolve ${JSON.stringify([line])} by ${VIEWER}`, `show ${line.line} by ${VIEWER}`]);
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'line_resolved', target: line.line, result: 'ok', detail: 'lines:1' },
+      { profileId: VIEWER, action: 'line_shown', target: line.line, result: 'ok', detail: 'lines:1' }
+    ]);
+    const aal1 = deps();
+    expect(await act(aal1, 'aal1', { kind: 'line-resolve', lines: [line] })).toMatchObject({ ok: false, status: 403 });
+    expect(aal1.done).toEqual([]);
+  });
+});
+
+describe('a claim on an issue, and Claude\'s replies seen (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md)', () => {
+  it('takes a Linear issue and claim or release, and nothing else', () => {
+    expect(parseAction({ kind: 'issue-claim', issue: 'LAN-12', claim: true })).toEqual({ kind: 'issue-claim', issue: 'LAN-12', claim: true });
+    expect(parseAction({ kind: 'issue-claim', issue: 'LAN-12', claim: false })).toEqual({ kind: 'issue-claim', issue: 'LAN-12', claim: false });
+    for (const bad of [{ kind: 'issue-claim', issue: 'lan-12', claim: true }, { kind: 'issue-claim', issue: 'LAN-12' }, { kind: 'issue-claim', issue: 'LAN-12', claim: 'yes' },
+      { kind: 'issue-claim', claim: true }]) {
+      expect(parseAction(bad), JSON.stringify(bad)).toBeNull();
+    }
+    expect(parseAction({ kind: 'replies-seen' })).toEqual({ kind: 'replies-seen' });
+  });
+
+  it('claims and releases as the person, says why another developer\'s claim stays, and logs each', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'issue-claim', issue: 'LAN-12', claim: true })).toEqual({ ok: true, result: 'claimed' });
+    expect(await act(d, 'aal2', { kind: 'issue-claim', issue: 'LAN-12', claim: false })).toEqual({ ok: true, result: 'released' });
+    expect(await act(d, 'aal2', { kind: 'issue-claim', issue: 'LAN-500', claim: true })).toMatchObject({ ok: false, status: 400, error: expect.stringContaining('claimed this issue first') });
+    expect(await act(d, 'aal2', { kind: 'issue-claim', issue: 'LAN-500', claim: false })).toMatchObject({ ok: false, status: 400, error: expect.stringContaining('Only they can release it') });
+    expect(d.done).toEqual([`claim LAN-12 by ${VIEWER}`, `release LAN-12 by ${VIEWER}`, `claim LAN-500 by ${VIEWER}`, `release LAN-500 by ${VIEWER}`]);
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'issue_claim', target: 'LAN-12', result: 'ok' },
+      { profileId: VIEWER, action: 'issue_release', target: 'LAN-12', result: 'ok' },
+      { profileId: VIEWER, action: 'issue_claim', target: 'LAN-500', result: 'refused', detail: 'taken' },
+      { profileId: VIEWER, action: 'issue_release', target: 'LAN-500', result: 'refused', detail: 'not_yours' }
+    ]);
+    const aal1 = deps();
+    expect(await act(aal1, 'aal1', { kind: 'issue-claim', issue: 'LAN-12', claim: true })).toMatchObject({ ok: false, status: 403 });
+    expect(aal1.done).toEqual([]);
+  });
+
+  it('keeps the time the person opened Claude\'s replies', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'replies-seen' })).toEqual({ ok: true, result: 'seen' });
+    expect(d.rows).toEqual([{ profileId: VIEWER, action: 'replies_seen', target: 'replies', result: 'ok' }]);
   });
 });
 

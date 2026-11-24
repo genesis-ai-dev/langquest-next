@@ -1,3 +1,6 @@
+/** Kept free for recording: downloads never take the device under this (appLanguage.ts `LIMITS`), and study files are cleared to keep it (study/studyFiles.ts). */
+export const RECORDING_RESERVE_BYTES = 500 * 1024 * 1024;
+
 /**
  * What `BlobStore.reclaim` frees, worked out once for every list (docs/nearby-sync-plan.md 5.6):
  * the lists in order, each used up before the next, until `short` bytes are free on the volume

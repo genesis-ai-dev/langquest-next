@@ -1,4 +1,4 @@
-import { deriveDownloadWork, deriveUploadWork, evictableBlobs, recordAudio } from '../src/blobs';
+import { deriveDownloadWork, deriveUploadWork, evictableBlobs, filePlanOf, offlineCountsOf, playedParts, recordAudio } from '../src/blobs';
 import { cleanedFrom, cleanUpOf, mayCleanUp, recordedCard } from '../src/cards';
 import { CommandError, commands, type EventSpec } from '../src/commands';
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
@@ -106,6 +106,35 @@ describe('the files of a cleaned part', () => {
     expect(hashes(deriveDownloadWork(done, new Set()))).toEqual(['b', 'a2']);
     expect(hashes(deriveDownloadWork(done, new Set(), new Set(['luke1'])))).toEqual(['b', 'a2']);
     expect(hashes(evictableBlobs(done, new Set(['a', 'b', 'a2']), new Set(['luke1'])))).toEqual(['a']);
+  });
+
+  // A version handed on before the clean-up still plays the part as recorded, and LAN-317 held a review of it offline
+  // while the passage read "On this device" (decisions.md 176, amended 2026-11-23).
+  it('keeps the part as recorded on phones while a version handed on before the clean-up plays it, and lets it go once that version is deleted', () => {
+    const start = fold([...base(), ev('v1.TakeSubmitted', { takeId: 'take1' }), ...stored('a', 'b')]);
+    const specs = clean(start);
+    // A version handed on is not a draft the clean-up retires.
+    expect(specs.map((s) => s.type)).not.toContain('v1.TakeArchived');
+    const done = foldLanguage(stored('a2'), apply(start, specs));
+    expect(done.takes['take1']).toMatchObject({ cardHashes: ['a', 'b'], archived: false });
+    expect(hashes(deriveDownloadWork(done, new Set()))).toEqual(['a', 'b', 'a2']);
+    expect(hashes(deriveDownloadWork(done, new Set(), new Set(['luke1'])))).toEqual(['a', 'b', 'a2']);
+    expect(hashes(evictableBlobs(done, new Set(['a', 'b', 'a2']), new Set(['luke1'])))).toEqual([]);
+    // The passage is not "on this device" until it is here.
+    const why = { mine: new Set<string>(), asked: new Set<string>() };
+    expect(offlineCountsOf(filePlanOf(done), ['luke1'], new Set(['b', 'a2']), new Set(['luke1']), why).get('luke1')).toMatchObject({ ready: false, toFetch: 1 });
+    expect(offlineCountsOf(filePlanOf(done), ['luke1'], new Set(['a', 'b', 'a2']), new Set(['luke1']), why).get('luke1')).toMatchObject({ ready: true, toFetch: 0 });
+    // Deleted, nothing plays it any more: it goes off phones again.
+    const deleted = foldLanguage([ev('v1.TakeArchived', { takeId: 'take1' })], done);
+    expect(hashes(deriveDownloadWork(deleted, new Set(), new Set(['luke1'])))).toEqual(['b', 'a2']);
+    expect(hashes(evictableBlobs(deleted, new Set(['a', 'b', 'a2']), new Set(['luke1'])))).toEqual(['a']);
+  });
+
+  it('asks only about the parts a cleaned sound replaces, and only of takes not deleted', () => {
+    const takes = [{ cardHashes: ['a', 'b'], archived: false }, { cardHashes: ['c'], archived: true }];
+    expect(playedParts(takes)).toEqual(new Set(['a', 'b']));
+    expect(playedParts(takes, new Set(['a', 'c']))).toEqual(new Set(['a']));
+    expect(playedParts(takes, new Set())).toEqual(new Set());
   });
 
   it('Undo puts the part as recorded back, and the cleaned sound still plays where a version holds it', () => {

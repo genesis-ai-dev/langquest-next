@@ -1,9 +1,9 @@
 import { base64urlDecode, base64urlEncode, discoveryKeyAt, type DiscoveryKey } from '@langquest-next/core/nearby';
 import type { NearbyPeerRecord } from './nearbyKeep';
-import { emptyRoomTally, nearbyCodeOf, roomDiagOf, sessionDiagOf, type NearbyDiagInput, type NearbyRoomTally } from './nearbyDiag';
+import { addSynced, emptyRoomTally, emptySyncedTally, nearbyCodeOf, roomDiagOf, sessionDiagOf, type NearbyDiagInput, type NearbyRoomTally, type NearbySyncedTally, type RoomDiagMode } from './nearbyDiag';
 import type { FindTunables, HeardAdvert, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from './nearbyLink';
 import { channelKeysOf, findEchoOf, findPayload, findTagOf } from './nearbyOpening';
-import { choosePartner, type PartnerInRange } from './nearbyPartners';
+import { choosePartner, worthBesidesGreeting, type PartnerInRange } from './nearbyPartners';
 import type { NearbyRole, NearbySessionReport, Radios } from './nearbySession';
 
 /**
@@ -31,6 +31,12 @@ export interface NearbyRoomFacts {
   swap(key: string | null): { hasWhatIWant: boolean; wantsWhatIHave: boolean };
   /** On the revocation list. */
   listed(key: string | null): boolean;
+  /**
+   * Share nearby on a phone that notes the day it meets each teammate (`nearbyMet`, 15.8): read
+   * once a turn, whether a teammate is due a Hello with nothing to swap so their day is noted
+   * again. A key not yet known counts as due. Left out, nobody is.
+   */
+  greetDue?(): Promise<(key: string | null) => boolean>;
 }
 
 /** What the room needs to build a session; the caller adds the store, the files and the crypto. */
@@ -84,7 +90,8 @@ export const NEARBY_ROOM_DEFAULTS: NearbyRoomTunables = {
   scanKeysMax: 16, formSaltsMax: 8, heardForMs: 30_000, tapAfterMs: 60_000, tapAfterAloneMs: 10_000, waitToConnectMs: 20_000, retryMs: 15_000, retryMaxMs: 300_000, dueAfterMs: 30 * 60_000, scanOnlyConnects: true
 };
 
-export type NearbyRoomStop = 'asked' | 'idle' | 'wait' | 'run' | 'level' | 'no-key';
+/** `rest`: stopped by its caller to rest (the quiet mode, docs/nearby-sync-plan.md 15.8); `asked`, any other stop it was asked for. */
+export type NearbyRoomStop = 'asked' | 'idle' | 'wait' | 'run' | 'level' | 'no-key' | 'rest';
 
 export type NearbyRoomEvent =
   /** Teammates who have echoed this phone's salt. Nobody shows before that. */
@@ -116,7 +123,32 @@ export interface NearbyRoomOptions {
   report(event: NearbyRoomEvent): void;
   /** Field diagnostics: a record when the room stops and when one of this phone's sessions ends (nearbyDiag.ts). */
   diag?: (input: NearbyDiagInput) => void;
+  /**
+   * Offers a tap ("A teammate may be nearby") for a phone that never echoed. False while LangQuest
+   * is open (docs/nearby-sync-plan.md 15.6): nobody is looking, so such a phone is passed over
+   * for this run, and two iPhones, which meet only by a tap, wait for Share nearby.
+   */
+  taps?: boolean;
+  /**
+   * At "Up to date", scan only `onMs` of every `everyMs`, from the moment it was level, and
+   * advertise all along, since that is how a teammate who arrives finds this phone. Left out, it
+   * scans all the time, as on Share nearby.
+   */
+  levelScan?: { onMs: number; everyMs: number };
+  /**
+   * At "Up to date", the radios run `onMs` of every `everyMs` from the moment the room was level,
+   * and are off the rest, neither advertising nor scanning (docs/nearby-sync-plan.md 15.8): while
+   * LangQuest is open, so a phone whose screen never sleeps is not on the air all day, without a
+   * stop that would cut a session short. Never while there is anything to do. Left out, they
+   * never pause.
+   */
+  levelPause?: { onMs: number; everyMs: number };
+  /** Which way the room runs, for its record when it stops: on Share nearby, or quietly while LangQuest is open. */
+  mode?: NearbyRoomMode;
 }
+
+/** Share nearby's screen, or quietly while LangQuest is open (docs/nearby-sync-plan.md 15.6). */
+export type NearbyRoomMode = 'screen' | 'open';
 
 interface Generation {
   gen: number;
@@ -198,6 +230,12 @@ export class NearbyRoom {
   /** On a phone whose advert goes out alone, one tap covers every teammate it cannot get an echo from, until the screen closes (Carl's answer 26). */
   private tappedAll = false;
   private level = false;
+  /** When this run was last level, so scan bursts keep their own time. */
+  private levelSince = 0;
+  /** Phones that never echoed, passed over when no tap is offered: tried again only under a tag of their next salt. */
+  private readonly passedOver = new Set<string>();
+  /** Scanning this run, outside sessions, for diagnostics. */
+  private scanMs = 0;
   private chosen: string | null = null;
   private echoTurn = 0;
   private summary = '';
@@ -209,6 +247,15 @@ export class NearbyRoom {
   /** Releases the salt a responder's open pipe holds. */
   private saltRelease: (() => void) | null = null;
   private scanHeld = false;
+  /** Off at "Up to date" with `levelPause`: Find stopped, the run going on. */
+  private paused = false;
+  private pauseMs = 0;
+  /** While LangQuest is open, what finished sessions moved, for the room's record. */
+  private synced: NearbySyncedTally = emptySyncedTally();
+  /** Tags this phone began a session with this run, so only the first counts toward `maxMeetMs`. */
+  private readonly connectedTags = new Set<string>();
+  /** Tags the last choice found worth a session only to greet (15.8), for `greets`. */
+  private greetOnly = new Set<string>();
   /** What diagnostics count over one run: numbers, and the tags only to count them once. */
   private tally: NearbyRoomTally = emptyRoomTally();
   private readonly heardTags = new Set<string>();
@@ -243,6 +290,13 @@ export class NearbyRoom {
     this.idleMs = 0;
     this.waitMs = 0;
     this.level = false;
+    this.paused = false;
+    this.pauseMs = 0;
+    this.synced = emptySyncedTally();
+    this.connectedTags.clear();
+    this.greetOnly = new Set();
+    this.scanMs = 0;
+    this.passedOver.clear();
     this.tally = emptyRoomTally();
     this.heardTags.clear();
     this.aloneTags.clear();
@@ -254,7 +308,7 @@ export class NearbyRoom {
     const keyed = await this.gensFromKeys();
     if (mine !== this.starts) return;
     if (!keyed) {
-      this.note(roomDiagOf(this.tally, 'no-key', 0, this.caps));
+      this.note(roomDiagOf(this.tally, 'no-key', 0, this.caps, this.diagMode()));
       this.opt.report({ t: 'stopped', why: 'no-key' });
       return;
     }
@@ -279,9 +333,10 @@ export class NearbyRoom {
     await this.start(now);
   }
 
-  stop(): Promise<void> {
+  /** `rest` when the caller stops it to rest, for the record; else `asked`. */
+  stop(why: 'asked' | 'rest' = 'asked'): Promise<void> {
     this.starts += 1;
-    return this.halt('asked');
+    return this.halt(why);
   }
 
   /**
@@ -312,8 +367,10 @@ export class NearbyRoom {
       const passed = this.lastTick === null ? 0 : Math.max(0, now - this.lastTick);
       this.lastTick = now;
       this.now = now;
+      if (!this.scanHeld && !this.paused) this.scanMs += passed;
+      if (this.paused) this.pauseMs += passed;
       if (this.opt.runLimitMs !== undefined && now - this.startedAt >= this.opt.runLimitMs) return await this.halt('run');
-      await this.refreshFind();
+      if (!this.paused) await this.refreshFind();
       if (!this.running) return;
       this.forget();
       // A running session is exempt from both clocks, and has its own stall deadline.
@@ -321,15 +378,24 @@ export class NearbyRoom {
       const choice = await this.choose();
       if (!this.running) return;
       if (choice === null) {
-        if (!this.level) this.opt.report({ t: 'level' });
+        if (!this.level) {
+          this.opt.report({ t: 'level' });
+          this.levelSince = now;
+        }
         this.tally.levelMs ??= now - this.startedAt;
         this.level = true;
         if (this.opt.stopWhenLevel && this.everMet) return await this.halt('level');
         this.idleMs += passed;
         if (this.idleMs >= this.opt.idleLimitMs) return await this.halt('idle');
+        if (await this.pauseAtLevel()) return;
+        await this.scanInBursts();
         return;
       }
       this.level = false;
+      if (this.paused) await this.resume();
+      if (!this.running) return;
+      await this.scanInBursts();
+      if (!this.running) return;
       if (choice.connect) {
         await this.connect(choice.partner);
         return;
@@ -504,9 +570,11 @@ export class NearbyRoom {
 
   private async choose(): Promise<{ partner: string; connect: boolean } | null> {
     await this.learnKeys();
+    const greetDue = await this.opt.facts.greetDue?.() ?? null;
     const inRange: PartnerInRange[] = [];
     for (const h of this.heard.values()) {
       const { tag, scan, summary } = h.seen;
+      if (this.passedOver.has(tag) && !h.echoed && !h.tapped) continue;
       const off = this.backoff.get(tag);
       if ((off && off.until > this.now) || h.stale.has(summary)) continue;
       // Heard alone on this phone's own generation, it can check this phone's echo and connects itself; only an iPhone, which it cannot echo, connects to it.
@@ -515,6 +583,11 @@ export class NearbyRoom {
       // An iPhone hearing an iPhone: neither can see the other's echo, so waiting for one only delays the tap.
       const tapAfter = h.alone && this.advertAlone() ? this.tune.tapAfterAloneMs : this.tune.tapAfterMs;
       if (!echoed && this.now - h.firstAt >= tapAfter) {
+        // While LangQuest is open nobody is looking to tap: passed over, and the room stays level.
+        if (this.opt.taps === false) {
+          this.passedOver.add(tag);
+          continue;
+        }
         // A recording waits here for a tap and holds off nothing.
         if (!h.offered) {
           this.opt.report({ t: 'maybe', tag });
@@ -533,11 +606,14 @@ export class NearbyRoom {
         tag, key, summary, position: position >= 0 ? position : null,
         finished: this.refused.get(tag) ?? (record ? { mine: record.mine, theirs: record.theirs } : null),
         ...this.opt.facts.swap(key), echoed, older: scan > 0, listed: this.opt.facts.listed(key), dueAnyway,
+        // Once a run, and never again to a phone the door refused.
+        greet: greetDue !== null && !this.dueSpent.has(tag) && !this.refused.has(tag) && greetDue(key),
         // An Android cannot see an iPhone's tag, so the iPhone connects; of two iPhones, the lower salt.
         ...(this.advertAlone() ? { connectsFirst: h.alone ? (this.salts.current ?? '') < h.seen.salt : true } : {})
       });
     }
     const me = { tag: this.myTag, summary: this.summary };
+    this.greetOnly = new Set(inRange.filter((p) => p.greet && !p.listed && !worthBesidesGreeting(me, p)).map((p) => p.tag));
     let choice = choosePartner(me, inRange);
     if (choice && !choice.connect) {
       const partner = inRange.find((p) => p.tag === choice!.partner)!;
@@ -596,6 +672,11 @@ export class NearbyRoom {
     this.session = session;
     this.began.set(session, this.now);
     this.everMet = true;
+    if (!this.connectedTags.has(tag)) {
+      this.connectedTags.add(tag);
+      this.tally.maxMeetMs = Math.max(this.tally.maxMeetMs ?? 0, this.now - h.firstAt);
+    }
+    if (this.greetOnly.has(tag)) this.tally.greets += 1;
     this.opt.report({ t: 'session', tag, role: 'i' });
     void this.finish(session, tag, mine, seen.summary);
   }
@@ -665,7 +746,10 @@ export class NearbyRoom {
     this.tally.sessions += 1;
     if (ended.how === 'done') this.tally.done += 1;
     if (ended.how === 'no-answer') this.tally.noAnswer += 1;
-    this.note(sessionDiagOf(report, Math.max(0, this.now - (this.began.get(session) ?? this.now))));
+    const ms = Math.max(0, this.now - (this.began.get(session) ?? this.now));
+    // While LangQuest is open a finished session is summed in the room's record, so weeks offline do not fill the queue.
+    if (this.opt.mode === 'open' && ended.how === 'done') addSynced(this.synced, report, ms);
+    else this.note(sessionDiagOf(report, ms, this.opt.mode));
     this.began.delete(session);
     // Only a verified session that committed something restarts the clocks, never a connection.
     if (report.changed) {
@@ -693,6 +777,37 @@ export class NearbyRoom {
     this.peers = await this.opt.facts.peers();
     const keys = this.opt.keys();
     if (report.handedKey || (keys && keys.gen !== this.gens[0]?.gen)) await this.restartFind();
+  }
+
+  /**
+   * With `levelScan`, between sessions: at "Up to date" a burst of `onMs` every `everyMs`, else
+   * all the time. Without it, nothing here holds the scan, as before.
+   */
+  private async scanInBursts(): Promise<void> {
+    const burst = this.opt.levelScan;
+    if (!burst || this.session || this.connecting) return;
+    const scanning = !this.level || (this.now - this.levelSince) % burst.everyMs < burst.onMs;
+    await this.holdScan(!scanning);
+  }
+
+  /** With `levelPause`, at "Up to date": Find stops for the rest of each cycle, and starts again after. True while off. */
+  private async pauseAtLevel(): Promise<boolean> {
+    const pause = this.opt.levelPause;
+    if (!pause) return false;
+    const off = (this.now - this.levelSince) % pause.everyMs >= pause.onMs;
+    if (off && !this.paused) {
+      this.paused = true;
+      this.scanHeld = false;
+      await this.opt.radio.stopFind();
+    } else if (!off && this.paused) {
+      await this.resume();
+    }
+    return this.paused;
+  }
+
+  private async resume(): Promise<void> {
+    this.paused = false;
+    if (this.running) await this.startFind();
   }
 
   private async holdScan(held: boolean): Promise<void> {
@@ -726,9 +841,17 @@ export class NearbyRoom {
     for (const off of this.unsubscribe.splice(0)) off();
     this.saltRelease = null;
     this.scanHeld = false;
+    this.paused = false;
     await this.opt.radio.stopAll();
-    this.note(roomDiagOf({ ...this.tally, heard: this.heardTags.size, echoed: this.echoedTags.size, alone: this.aloneTags.size }, why, Math.max(0, this.now - this.startedAt), this.caps));
+    this.note(roomDiagOf({ ...this.tally, heard: this.heardTags.size, echoed: this.echoedTags.size, alone: this.aloneTags.size }, why, Math.max(0, this.now - this.startedAt), this.caps, this.diagMode()));
     this.opt.report({ t: 'stopped', why });
+  }
+
+  /** The mode for a room record, with the minutes spent scanning while LangQuest was open. */
+  private diagMode(): RoomDiagMode | undefined {
+    const { mode } = this.opt;
+    if (!mode) return undefined;
+    return mode === 'open' ? { mode, scanMs: this.scanMs, pauseMs: this.pauseMs, synced: this.synced } : { mode };
   }
 
   /** Diagnostics never stop the room. */

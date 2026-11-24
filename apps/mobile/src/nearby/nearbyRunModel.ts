@@ -50,16 +50,70 @@ export async function startWithin(start: Promise<void>, deadline: Promise<void>,
 /** Lines of what came across, newest last. */
 export const NEARBY_SESSIONS_KEPT = 20;
 
+/** While LangQuest is open, at "Up to date": scan this much of every minute, advertising all along (15.6; a starting guess). */
+export const NEARBY_OPEN_SCAN = { onMs: 6_000, everyMs: 60_000 } as const;
+/**
+ * While LangQuest is open, after this phone turned away a phone whose chain did not check
+ * (`turnedAwayUnwelcome`), after the room stopped by itself (waiting too long, no key) or after a
+ * radio error, the radios rest this long before the mode starts again (15.8; a starting guess,
+ * cut from ten minutes on 2026-11-24 so a teammate who arrives is not kept waiting). A phone
+ * turned away gets nothing more from the air for that long, and Android's limit on how often a
+ * scan may start has passed.
+ */
+export const NEARBY_OPEN_REST_MS = 60_000;
+/**
+ * While LangQuest is open, at "Up to date" the radios run three minutes of every four and are off
+ * the fourth, neither advertising nor scanning, so a phone whose screen never sleeps is not on the
+ * air all day (15.8; a starting guess). Carl, 2026-11-24: in place of a run that stopped at 30
+ * minutes and rested ten, which is the same share of time on the air, but cut sessions short and
+ * kept a teammate who arrived waiting up to ten minutes. Never while there is anything to swap.
+ */
+export const NEARBY_OPEN_PAUSE = { onMs: 3 * 60_000, everyMs: 4 * 60_000 } as const;
+/**
+ * While LangQuest is open, Hello takes only a teammate whose certificate was signed within this
+ * long, by the clock Hello reads (the security review of 2026-11-23; a starting guess). Phones renew
+ * daily while online, so this bounds what a lost or taken phone can collect quietly to this long
+ * after it last reached the server. A teammate this phone met on Share nearby within it passes too
+ * (`nearbyMet`), so a team offline longer goes on sharing quietly while each pair meets on Share
+ * nearby that often; Share nearby keeps those days this long and no longer.
+ */
+export const NEARBY_OPEN_FRESH_MS = 14 * 86_400_000;
+
+/**
+ * `record`, except while `silent` says so, read as each record is written: while LangQuest is open,
+ * a room stopped because a cover went on must not leave a record that dates it (decision 235).
+ */
+export function recordUnless<T>(record: (input: T) => void, silent: (() => boolean) | undefined): (input: T) => void {
+  return silent ? (input) => { if (!silent()) record(input); } : record;
+}
+
+/** Share nearby's screen, or quietly while LangQuest is open: sync's `NearbyRoomMode`. */
+export type RoomMode = 'screen' | 'open';
+
 export interface RoomLimits {
   idleLimitMs: number;
   waitLimitMs: number;
   runLimitMs?: number;
   /** Stop at "Up to date", with no listening bursts. */
   stopWhenLevel: boolean;
+  /** False: never offer a tap, and pass over a phone that never echoed. */
+  taps?: boolean;
+  /** At "Up to date", scan in bursts. */
+  levelScan?: { onMs: number; everyMs: number };
+  /** At "Up to date", the radios off part of the time. */
+  levelPause?: { onMs: number; everyMs: number };
 }
 
-/** A worn phone stops sooner: at ten minutes, and as soon as it is level (Carl's answer 15). */
-export function roomLimitsFor(worn: boolean): RoomLimits {
+/**
+ * A worn phone stops sooner: at ten minutes, and as soon as it is level (Carl's answer 15). While
+ * LangQuest is open there is no idle stop and no run limit, since the screen going off is the
+ * limit, no tap, and at "Up to date" the scan goes in bursts and the radios pause
+ * (`NEARBY_OPEN_PAUSE`, 15.6, 15.8); a worn phone never runs that way.
+ */
+export function roomLimitsFor(worn: boolean, mode: RoomMode = 'screen'): RoomLimits {
+  if (mode === 'open') {
+    return { idleLimitMs: Number.POSITIVE_INFINITY, waitLimitMs: NEARBY_WAIT_LIMIT_MS, stopWhenLevel: false, taps: false, levelScan: NEARBY_OPEN_SCAN, levelPause: NEARBY_OPEN_PAUSE };
+  }
   return worn
     ? { idleLimitMs: NEARBY_IDLE_LIMIT_MS, waitLimitMs: NEARBY_WAIT_LIMIT_MS, runLimitMs: NEARBY_RUN_LIMIT_MS, stopWhenLevel: true }
     : { idleLimitMs: NEARBY_IDLE_LIMIT_MS, waitLimitMs: NEARBY_WAIT_LIMIT_MS, stopWhenLevel: false };
@@ -92,9 +146,12 @@ export const NEARBY_RADIO_TUNABLES: RadioTunables = { joinDirect: true };
  * What `arrange` says: what the phone can do, except that a worn phone never joins a hotspot, whose
  * system dialog names the application (it may still host), and `joinDirect` only while the tunable
  * allows it. `awdl` and `joinDirect` go only when the phone says them, so an Android's `arrange`
- * is as it was.
+ * is as it was. While LangQuest is open (`quiet`, 15.6) it neither hosts nor joins a hotspot, whose
+ * server listens on every network and whose join shows a dialog, and an iPhone joins no Wi-Fi at
+ * all: Wi-Fi Direct between two Androids, else events over Bluetooth while audio waits.
  */
-export function radiosFor(caps: RadiosLike, worn: boolean, tunables: RadioTunables = NEARBY_RADIO_TUNABLES): RadiosLike {
+export function radiosFor(caps: RadiosLike, worn: boolean, tunables: RadioTunables = NEARBY_RADIO_TUNABLES, quiet = false): RadiosLike {
+  if (quiet) return { directByName: caps.directByName, band5: caps.band5, hotspot: false, joinHotspot: false };
   return {
     directByName: caps.directByName, band5: caps.band5, hotspot: caps.hotspot, joinHotspot: caps.joinHotspot && !worn,
     ...(caps.awdl === true ? { awdl: true } : {}),
@@ -158,7 +215,7 @@ export function namesOf(raw: string | null): Map<string, string> {
 /** sync's `NearbySessionReport`, as far as the screen reads it. */
 export interface SessionReportLike {
   role: 'i' | 'r';
-  ended: { how: string };
+  ended: { how: string; reason?: string; detail?: string };
   peer: { profileId: string; tag: string } | null;
   newerAppNeeded: boolean;
   clockOff: boolean;
@@ -170,8 +227,21 @@ export interface SessionReportLike {
   farAhead: readonly { actorId: string; hlc: string }[];
 }
 
-/** Why the room stopped: sync's `NearbyRoomStop`. `asked` is this phone's own stop (a blur, the background). */
-export type RoomStop = 'asked' | 'idle' | 'wait' | 'run' | 'level' | 'no-key';
+/**
+ * While LangQuest is open, the radios rest after this phone turned away a phone whose chain did
+ * not check: one the team does not know, or a revoked or removed one (15.8). Not after turning
+ * away a teammate only because their certificate and the day met are older than the window, nor
+ * one with no role in the language, nor after being turned away: the room passes such a phone
+ * over for the rest of its run, and a rest would stop this phone sharing with everyone else in
+ * range (Carl, 2026-11-24).
+ */
+export function turnedAwayUnwelcome(report: Pick<SessionReportLike, 'ended'>): boolean {
+  const { how, reason, detail } = report.ended;
+  return how === 'said' && reason === 'identity' && detail !== 'certificate not recent';
+}
+
+/** Why the room stopped: sync's `NearbyRoomStop`. `asked` is this phone's own stop (a blur, the background); `rest`, the quiet mode's. */
+export type RoomStop = 'asked' | 'idle' | 'wait' | 'run' | 'level' | 'no-key' | 'rest';
 
 /** sync's `NearbyRoomEvent`. */
 export type RoomReport =
@@ -189,7 +259,7 @@ export type RoomReport =
  * the room's own (`idle`, `wait`, `run`, `level`, `no-key`), `left` when a worn phone went to
  * the background (its lock clears the press), and `failed` when the radios would not start.
  */
-export type NearbyStop = Exclude<RoomStop, 'asked'> | 'left' | 'failed';
+export type NearbyStop = Exclude<RoomStop, 'asked' | 'rest'> | 'left' | 'failed';
 
 /**
  * A teammate as the screen shows it: `here` once echoed (or tapped), `maybe` when no echo came
@@ -371,7 +441,7 @@ function roomReported(s: NearbyRunState, e: RoomReport, worn: boolean, names: Re
     case 'level':
       return { ...s, level: true };
     case 'stopped':
-      return halted(s, e.why === 'asked' ? null : e.why, worn);
+      return halted(s, e.why === 'asked' || e.why === 'rest' ? null : e.why, worn);
   }
 }
 
@@ -455,6 +525,11 @@ export interface NearbyView {
   findError: string | null;
   /** "Hold teammates' recordings", as pressed or by default. */
   hold: boolean;
+  /**
+   * "Share while LangQuest is open" (15.6), as pressed or on by default; null where the row is not
+   * shown: the organization does not have `nearby_open`, or the phone wears a cover.
+   */
+  whileOpen: boolean | null;
   /** Ready to carry (5.8). */
   carry: ReadyToCarry;
 }
@@ -473,6 +548,7 @@ export interface NearbyActions {
   /** The phone will not prompt again: the app's settings. */
   openSettings(): Promise<void>;
   setHold(hold: boolean): Promise<void>;
+  setWhileOpen(on: boolean): Promise<void>;
 }
 
 export interface NearbyHandle {
@@ -491,6 +567,8 @@ export interface NearbyViewFacts {
   run: NearbyRunState;
   holding: number;
   hold: boolean;
+  /** The switch, where the organization has `nearby_open`; null where it does not, or not yet read. */
+  whileOpen?: boolean | null;
   carry: ReadyToCarry;
 }
 
@@ -500,6 +578,6 @@ export function nearbyViewOf(f: NearbyViewFacts): NearbyView {
     offered: f.offered, iphone: f.iphone, tapCoversAll: f.tapCoversAll, whyNot: f.whyNot, radiosOff: f.radiosOff, permissions: f.permissions, worn: f.worn,
     needsPress: f.worn && !run.pressed, running: run.running, stopped: run.stopped, level: run.level && run.met, teammates: run.teammates,
     sessions: run.sessions, current: run.current, holding: f.holding, farAhead: run.farAhead, clockOff: run.clockOff,
-    newerAppNeeded: run.newerAppNeeded, findError: run.findError, hold: f.hold, carry: f.carry
+    newerAppNeeded: run.newerAppNeeded, findError: run.findError, hold: f.hold, whileOpen: f.worn ? null : f.whileOpen ?? null, carry: f.carry
   };
 }

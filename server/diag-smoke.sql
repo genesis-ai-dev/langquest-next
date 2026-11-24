@@ -387,7 +387,18 @@ begin
       jsonb_build_object('id', 'dgn6', 'kind', 'nearby', 'at', v_now - 4000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
         't', jsonb_build_object('event', 'find', 'code', 'Sam''s phone')),
       jsonb_build_object('id', 'dgn7', 'kind', 'nearby', 'at', v_now - 3000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
-        't', jsonb_build_object('event', 'blocked', 'why', 'permission-blocked'))
+        't', jsonb_build_object('event', 'blocked', 'why', 'permission-blocked')),
+      -- Sharing while LangQuest is open (20261124090000_diag_nearby_quiet.sql): a run that sums its
+      -- finished sessions, a refusal with its reason, and a delivery to the server.
+      jsonb_build_object('id', 'dgn8', 'kind', 'nearby', 'at', v_now - 2500, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        'n', jsonb_build_object('openMin', 40, 'scanMin', 3, 'pauseMin', 9, 'syncMin', 1, 'heard', 1, 'sessions', 2, 'done', 2, 'events', 5, 'viaDirect', 1, 'maxMeetMs', 45000),
+        't', jsonb_build_object('event', 'room', 'mode', 'open', 'stop', 'rest')),
+      jsonb_build_object('id', 'dgn9', 'kind', 'nearby', 'at', v_now - 2000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        'n', jsonb_build_object('ms', 900),
+        't', jsonb_build_object('event', 'session', 'mode', 'open', 'role', 'r', 'end', 'said', 'bye', 'identity', 'refusal', 'window')),
+      jsonb_build_object('id', 'dgn10', 'kind', 'nearby', 'at', v_now - 1500, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        'n', jsonb_build_object('ms', 800, 'sent', 10, 'events', 9, 'refused', 1, 'farAhead', 1, 'done', 2),
+        't', jsonb_build_object('event', 'deliver'))
     ));
   -- Only what the allowlist names: no tag, peer or salt, no code it does not list, no link it does not know.
   if (select n from diag.records where id = 'dgn1') ? 'tag' or (select t from diag.records where id = 'dgn1') ?| array['peer', 'salt'] then
@@ -396,6 +407,9 @@ begin
   if (select t from diag.records where id = 'dgn6') ? 'code' then raise exception 'a code the module does not list was kept'; end if;
   if (select t from diag.records where id = 'dgn4') ? 'link' then raise exception 'the fleet''s memory link was kept as a link'; end if;
   if (select t->>'code' from diag.records where id = 'dgn4') <> 'LINK_DROPPED' then raise exception 'a listed code was dropped'; end if;
+  if (select t->>'refusal' from diag.records where id = 'dgn9') is distinct from 'window' or (select n->>'pauseMin' from diag.records where id = 'dgn8') is distinct from '9' then
+    raise exception 'the quiet mode''s fields were dropped: %', (select jsonb_agg(to_jsonb(r)) from diag.records r where id in ('dgn8', 'dgn9'));
+  end if;
 end $$;
 select set_config('request.jwt.claim.sub', '', false);
 set role diag_reader;
@@ -404,17 +418,29 @@ declare v jsonb;
 begin
   v := diag.summary('dg_org', 'dg_lang', interval '1 day', 'dg_dN')->'dg_dN'->'nearby';
   if v is null then raise exception 'summary should hold the install''s nearby records'; end if;
-  if jsonb_array_length(v->'rooms') <> 2 or v->'rooms'->0->>'stop' <> 'asked' or v->'rooms'->1->>'adv' <> 'no' then raise exception 'nearby rooms: %', v->'rooms'; end if;
+  if jsonb_array_length(v->'rooms') <> 3 or v->'rooms'->0->>'mode' <> 'open' or v->'rooms'->1->>'stop' <> 'asked' or v->'rooms'->2->>'adv' <> 'no' then raise exception 'nearby rooms: %', v->'rooms'; end if;
   if (v->'roomTotals'->>'strangers')::int <> 3 or (v->'roomTotals'->>'maxUnmatched')::int <> 2 or (v->'roomTotals'->>'heard')::int <> 2 then
     raise exception 'nearby room totals: %', v->'roomTotals';
   end if;
-  if (v->'sessionTotals'->>'count')::int <> 2 or (v->'sessionTotals'->>'events')::int <> 30 then raise exception 'nearby session totals: %', v->'sessionTotals'; end if;
-  if v->'ends' <> '{"done": 1, "heard:busy": 1}'::jsonb or v->'links' <> '{"hotspot": 1}'::jsonb then raise exception 'nearby ends and links: %', v; end if;
+  -- Rooms on Share nearby and while open are totalled apart.
+  if (v->'openTotals'->>'count')::int <> 1 or (v->'openTotals'->>'met')::int <> 1 or (v->'openTotals'->>'pauseMin')::int <> 9 or (v->'openTotals'->>'events')::int <> 5 then
+    raise exception 'nearby open totals: %', v->'openTotals';
+  end if;
+  if (v->'sessionTotals'->>'count')::int <> 3 or (v->'sessionTotals'->>'events')::int <> 30 then raise exception 'nearby session totals: %', v->'sessionTotals'; end if;
+  if v->'ends' <> '{"done": 1, "heard:busy": 1, "said:identity": 1}'::jsonb or v->'links' <> '{"hotspot": 1}'::jsonb then raise exception 'nearby ends and links: %', v; end if;
+  if v->'refusals' <> '{"open:window": 1}'::jsonb then raise exception 'nearby refusals: %', v->'refusals'; end if;
+  if (v->'deliver'->>'count')::int <> 1 or (v->'deliver'->>'refused')::int <> 1 then raise exception 'nearby deliver: %', v->'deliver'; end if;
   if v->'codes' <> '{"room:PIPE_TIMEOUT": 1, "session:LINK_DROPPED": 1, "find:BLUETOOTH_OFF": 1}'::jsonb then raise exception 'nearby codes: %', v->'codes'; end if;
   if v->'blocked' <> '{"permission-blocked": 1}'::jsonb then raise exception 'nearby blocked: %', v->'blocked'; end if;
   -- The organization report, with no language, shows them too.
   v := diag.org_summary('dg_org', interval '1 day');
-  if (v->'installs'->'dg_dN'->'nearby'->'sessionTotals'->>'count')::int <> 2 then raise exception 'org_summary nearby: %', v->'installs'->'dg_dN'; end if;
+  if (v->'installs'->'dg_dN'->'nearby'->'sessionTotals'->>'count')::int <> 3 then raise exception 'org_summary nearby: %', v->'installs'->'dg_dN'; end if;
+  -- The team view: the language's phones together, by the way each room ran.
+  v := diag.nearby_summary('dg_org', interval '1 day')->'dg_lang';
+  if (v->>'installs')::int <> 1 or (v->'rooms'->'open'->>'met')::int <> 1 or (v->'rooms'->'screen'->>'count')::int <> 2
+     or v->'rooms'->'open'->'stops' <> '{"rest": 1}'::jsonb or (v->'sessions'->>'open:said:identity:window')::int <> 1 or (v->'deliver'->>'events')::int <> 9 then
+    raise exception 'nearby_summary: %', v;
+  end if;
 end $$;
 reset role;
 delete from diag.records where install_id = 'dg_dN';

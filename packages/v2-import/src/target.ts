@@ -30,8 +30,14 @@ export interface Target {
   putFiles(files: { name: string; file: CopiedFile | null }[]): Promise<void>;
   /** Append as the service role; every refusal comes back with its reason. */
   append(events: AnyEvent[], onProgress?: (done: number) => unknown): Promise<{ accepted: number; duplicates: number; rejected: { id: string; reason: string }[] }>;
-  /** Hashes already in R2 for one language. */
+  /** Hashes already in R2 for one language: the bucket listed, a class A operation for each 1,000 files. */
   stored(orgId: string, streamId: string): Promise<Set<string>>;
+  /**
+   * Of these files, the hashes the language's log does not hold as stored (no `v1.BlobStored`
+   * for that hash and size): asked of the database, so a 15-minute pass does not list R2.
+   * Absent: the pass lists R2 with `stored`.
+   */
+  unstored?(orgId: string, streamId: string, files: { hash: string; size: number }[]): Promise<Set<string>>;
   upload(orgId: string, streamId: string, hash: string, format: 'wav' | 'm4a', bytes: Uint8Array): Promise<void>;
   /** A LangQuest library item's current version, with its versification. */
   template(itemId: string): Promise<{ docHash: string; doc: TemplateDoc; versification: VersificationDoc | null } | null>;
@@ -181,6 +187,8 @@ export interface BlobFilesLike {
 const LIBRARY_ORG = 'langquest';
 /** The most rows the API returns from one call (supabase/config.toml `max_rows`). */
 const ROWS = 1000;
+/** Files asked about in one `v2_import_unstored` call: about 400 KB of JSON. */
+const UNSTORED_AT_ONCE = 5000;
 
 export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target {
   // A call the server could not take just then (a 5xx, a rate limit, a dropped connection) is tried again,
@@ -261,6 +269,14 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
     async stored(orgId, streamId) {
       const objects = await files.list(`${orgId}/${streamId}/`);
       return new Set(objects.map((o) => o.key.slice(o.key.lastIndexOf('/') + 1).replace(/\.[a-z0-9]+$/, '')));
+    },
+    async unstored(orgId, streamId, list) {
+      const out = new Set<string>();
+      for (let i = 0; i < list.length; i += UNSTORED_AT_ONCE) {
+        const page = list.slice(i, i + UNSTORED_AT_ONCE).map((f) => ({ hash: f.hash, size: f.size }));
+        for (const hash of await rpc<string[]>('v2_import_unstored', { p_org: orgId, p_stream: streamId, p_files: page })) out.add(hash);
+      }
+      return out;
     },
     upload: (orgId, streamId, hash, format, bytes) => files.put(`${orgId}/${streamId}/${hash}.${format}`, bytes),
 

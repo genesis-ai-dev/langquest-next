@@ -58,11 +58,12 @@ export interface InstallSummary {
   releases: null | { updateId: string | null; from: string; to: string; records: number }[];
 }
 
-/** One Share nearby room as it stopped (docs/nearby-sync-plan.md section 11): why, its codes and counts. */
+/** One Share nearby room as it stopped (docs/nearby-sync-plan.md section 11): why, its codes and counts, and the way it ran. */
 export interface NearbyRoom {
-  at: string; stop: string; code?: string | null; adv?: string | null; direct?: string | null; hotspot?: string | null;
+  at: string; stop: string; mode?: string | null; code?: string | null; adv?: string | null; direct?: string | null; hotspot?: string | null;
   ms?: number; levelMs?: number; heard?: number; echoed?: number; alone?: number; maybe?: number; taps?: number; maxUnmatched?: number;
-  pipeFails?: number; strangers?: number; busy?: number; noAnswer?: number; sessions?: number; done?: number;
+  pipeFails?: number; strangers?: number; busy?: number; noAnswer?: number; sessions?: number; done?: number; greets?: number; maxMeetMs?: number;
+  openMin?: number; scanMin?: number; pauseMin?: number; syncMin?: number;
 }
 
 /** What an install's Share nearby recorded over the window (`diag.install_summary`'s `nearby`). Counts and codes, never who. */
@@ -71,8 +72,15 @@ export interface NearbySummary {
   roomTotals?: Partial<Record<'ms' | 'heard' | 'echoed' | 'alone' | 'maybe' | 'taps' | 'pipeFails' | 'strangers' | 'busy' | 'noAnswer' | 'sessions' | 'done', number>> | null;
   sessionTotals?: Partial<Record<'count' | 'ms' | 'fallbacks' | 'events' | 'sent' | 'files' | 'served' | 'fileFails' | 'refused' | 'overBudget'
     | 'keyRefused' | 'farAhead' | 'noRoom' | 'cutBackups' | 'older' | 'clockOff' | 'newerApp', number>> | null;
+  /** Rooms while LangQuest was open (15.8): their totals, how many, and how many met anyone. Their finished sessions are summed here, not in `ends`. */
+  openTotals?: Partial<Record<'count' | 'met' | 'openMin' | 'scanMin' | 'pauseMin' | 'syncMin' | 'heard' | 'sessions' | 'done' | 'events' | 'sent' | 'files' | 'served'
+    | 'fileFails' | 'fallbacks' | 'viaDirect' | 'maxMeetMs', number>> | null;
   /** `end` or `end:bye`. */
   ends?: Record<string, number> | null;
+  /** `mode:refusal`: why this phone turned phones away (window, revoked, org, expired, other). */
+  refusals?: Record<string, number> | null;
+  /** Delivering teammates' work to the server (section 6). */
+  deliver?: Partial<Record<'count' | 'ms' | 'sent' | 'events' | 'refused' | 'farAhead' | 'keyRefused' | 'noAnswer' | 'done', number>> & { stopped?: Record<string, number> | null } | null;
   links?: Record<string, number> | null;
   /** `room:CODE`, `session:CODE`, `find:CODE`. */
   codes?: Record<string, number> | null;
@@ -208,12 +216,22 @@ const BLOCKED: Record<string, string> = {
   'no-bluetooth-le': 'the phone has no Bluetooth LE', 'no-wifi-direct': 'the phone has no Wi-Fi Direct', 'not-in-build': 'the build has no nearby module'
 };
 
+/** Why this phone turned a phone away as `identity`, other than the quiet mode's window. */
+const REFUSED: Record<string, string> = {
+  revoked: 'its key was revoked (a lost phone reported, or a member removed)',
+  org: 'its certificate is for another organization',
+  expired: 'its certificate expired',
+  other: 'its proof or certificate did not check'
+};
+
 /**
  * What Share nearby's records say about one phone (docs/nearby-sync-plan.md section 11): why it
  * could not run, a room that heard nobody or was never echoed, a radio that cannot advertise,
  * connections that failed, strangers' openings, sessions that did not finish and by what, the link
- * the work went over, and the phone short of room. Counts and codes only; nothing names the other
- * phone.
+ * the work went over, and the phone short of room; and, from 2026-11-24, what sharing while
+ * LangQuest was open did (its rooms read apart, since hearing nobody is no fault there), why this
+ * phone turned phones away, and what delivery to the server refused. Counts and codes only;
+ * nothing names the other phone.
  */
 export function nearbySignals(x: NearbySummary | null | undefined): { level: Signal['level']; text: string }[] {
   if (!x) return [];
@@ -221,7 +239,8 @@ export function nearbySignals(x: NearbySummary | null | undefined): { level: Sig
   const add = (level: Signal['level'], text: string) => out.push({ level, text });
   const times = (n: number) => (n === 1 ? 'once' : `${n} times`);
   for (const [why, n] of Object.entries(x.blocked ?? {})) add('problem', `Share nearby could not run ${times(n)}: ${BLOCKED[why] ?? why}.`);
-  const rooms = x.rooms ?? [];
+  // Rooms while LangQuest is open hear nobody whenever the phone is open alone, which is no fault: they are read apart.
+  const rooms = (x.rooms ?? []).filter((r) => r.mode !== 'open');
   // A bare advert heard alone (an iPhone's) is someone heard too: `heard` counts only full matches (2026-11-19).
   const deaf = rooms.filter((r) => !r.heard && !r.alone);
   if (deaf.length) {
@@ -240,7 +259,8 @@ export function nearbySignals(x: NearbySummary | null | undefined): { level: Sig
   const finds = Object.entries(x.codes ?? {}).filter(([k]) => k.startsWith('find:'));
   if (finds.length) add('problem', `Find failed on the phone: ${finds.map(([k, n]) => `${k.slice(5)} ×${n}`).join(', ')}.`);
   const ends = Object.entries(x.ends ?? {});
-  const total = ends.reduce((sum, [, n]) => sum + n, 0);
+  // A finished session while LangQuest was open writes no record of its own: its room counts it.
+  const total = ends.reduce((sum, [, n]) => sum + n, 0) + (x.openTotals?.done ?? 0);
   const unfinished = ends.filter(([k]) => k !== 'done' && k !== 'heard:done' && k !== 'said:done');
   const bad = unfinished.reduce((sum, [, n]) => sum + n, 0);
   if (bad) {
@@ -256,6 +276,18 @@ export function nearbySignals(x: NearbySummary | null | undefined): { level: Sig
   if (s.newerApp) add('problem', `A teammate's phone runs an app this one shares no protocol with (${times(s.newerApp)}): one of them needs a newer app.`);
   if (s.clockOff) add('watch', `A teammate's clock differed from this phone's by over five minutes in ${s.clockOff} session${s.clockOff === 1 ? '' : 's'}.`);
   if (s.keyRefused) add('watch', `${s.keyRefused} newer discovery key${s.keyRefused === 1 ? '' : 's'} handed on by a teammate did not check.`);
+  const o = x.openTotals;
+  if (o?.count) {
+    add('info', `Shared while LangQuest was open ${times(o.count)} for ${o.openMin ?? 0} min (radios off ${o.pauseMin ?? 0}, scanning ${o.scanMin ?? 0}, syncing ${o.syncMin ?? 0}); met a teammate in ${o.met ?? 0}, ${o.done ?? 0} sessions finished, ${o.events ?? 0} events and ${o.files ?? 0} recordings in.`);
+  }
+  for (const [k, n] of Object.entries(x.refusals ?? {})) {
+    const [mode, why] = k.split(':');
+    const where = mode === 'open' ? 'while LangQuest was open' : 'on Share nearby';
+    if (why === 'window') add('watch', `${mode === 'open' ? 'While LangQuest was open' : 'On Share nearby'} this phone turned a teammate away ${times(n)} because their certificate and the day they last met here were over two weeks old: they meet on Share nearby to share quietly again (15.8).`);
+    else add(why === 'revoked' ? 'problem' : 'watch', `This phone turned away a phone ${where} ${times(n)}: ${REFUSED[why ?? ''] ?? why}.`);
+  }
+  const d = x.deliver;
+  if (d?.refused) add('watch', `Delivering teammates' work to the server, ${d.refused} event${d.refused === 1 ? ' was' : 's were'} refused here (${d.farAhead ?? 0} stamped too far ahead, ${d.keyRefused ?? 0} a revoked key's).`);
   return out;
 }
 

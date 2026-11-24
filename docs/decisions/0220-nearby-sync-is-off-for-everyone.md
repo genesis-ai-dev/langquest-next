@@ -27,3 +27,11 @@ amends 53.
 Reverse if: an admin toggle is wanted while it is still experimental, or
 the default becomes on (then the records list the organizations that turned
 it off).
+
+Amended (2026-11-23, Carl Sauder): a third feature, `nearby_open`, sharing
+while LangQuest is open (2026-11-23-share-while-langquest-is-open), granted
+and revoked the same way and on only with `nearby` on too. Unlike the first
+two it is kept on the phone (`nearbyOpenOrgs:<profile>`), because the mode it
+turns on runs only offline, where the flag is not heard; a turn-off reaches a
+phone the next time it is online and stops only that mode, never Share
+nearby.

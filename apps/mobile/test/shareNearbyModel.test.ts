@@ -114,6 +114,10 @@ describe('Share nearby\'s states', () => {
       ...['done', 'dropped', 'stalled', 'no-answer', 'silent', 'heard', 'said', 'failed', 'odd'].map(endedWords).filter((k) => k !== null)
     ];
     expect(keys.filter((k) => !has(en, k))).toEqual([]);
+    // Sync and offline's Teammates fold and Me's reminder (docs/nearby-sync-plan.md 15.4, 15.5).
+    expect(['teamTitle', 'everyone', 'teamHelp', 'onlyHere', 'onlyHereHelp'].filter((k) => !has(en, `nearby.carry.${k}`))).toEqual([]);
+    // Sharing while LangQuest is open: its switch on Share nearby, and the line on Sync and offline (15.6).
+    expect(['whileOpen', 'whileOpenHelp', 'whileOpenNow'].filter((k) => !has(en, `nearby.${k}`))).toEqual([]);
     expect([STOP_WORDS.run, STOP_WORDS.level, STOP_WORDS.left]).toEqual([null, null, null]);
     for (const k of ['start', 'startLine', 'warning', 'warned', 'left', 'run', 'level']) expect(has(disguiseEn, `disguise.nearby.${k}`), k).toBe(true);
     expect(endedWords('done')).toBeNull();

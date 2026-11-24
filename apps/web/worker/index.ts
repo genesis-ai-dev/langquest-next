@@ -13,6 +13,7 @@ import { checkImports, runImports } from '../../../server/publisherImport';
 import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
 import { PLAN_TRIES } from '../../../server/userIssues';
+import { dueWithNow, type Checked } from '../../../server/lineResolves';
 import { ownsResponse, withSecurityHeaders } from './securityHeaders';
 import { liveSessions } from './liveSessions';
 import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, cachedOrgsOf, MAX_ENTRIES, TtlCache, type Identity } from './isolateCache';
@@ -494,6 +495,36 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       verify: subtleVerify,
       sha256: subtleSha256
     },
+    // Questions from the ops dashboard's cards, every 5 minutes from GitHub Actions (cardQuestions.ts,
+    // docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md).
+    cardQuestions: {
+      verify: githubOidcCached ??= githubOidc((input, init) => fetch(input, init)),
+      waiting: async () => {
+        const { data, error } = await serviceClient(env).rpc('ops_card_questions_waiting');
+        if (error) throw new Error(`ops_card_questions_waiting: ${error.message}`);
+        return data ?? [];
+      },
+      done: async (answered) => {
+        const { data, error } = await serviceClient(env).rpc('ops_card_questions_done', { p: answered });
+        if (error) throw new Error(`ops_card_questions_done: ${error.message}`);
+        return data as { taken: number; answered: number };
+      },
+      // Resolved lines for Claude to check, each with its line's words now
+      // (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md).
+      ...(env.OPS_LINES?.shown ? {
+        dueResolves: async () => {
+          const { data, error } = await serviceClient(env).rpc('ops_line_resolves_due');
+          if (error) throw new Error(`ops_line_resolves_due: ${error.message}`);
+          if (!Array.isArray(data) || !data.length) return [];
+          return dueWithNow(data, (await env.OPS_LINES?.shown?.()) ?? []);
+        },
+        checked: async (checked: Checked) => {
+          const { data, error } = await serviceClient(env).rpc('ops_line_resolves_checked', { p: checked });
+          if (error) throw new Error(`ops_line_resolves_checked: ${error.message}`);
+          return { checked: Number(data) || 0 };
+        }
+      } : {})
+    },
     // The watch for user issues, every 15 minutes from GitHub Actions (userIssues.ts, decisions.md 202).
     userIssues: {
       verify: githubOidcCached ??= githubOidc((input, init) => fetch(input, init)),
@@ -506,6 +537,14 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         });
         const { data, error } = await serviceClient(env).rpc('ops_user_issue_watch', { p_lines: lines });
         if (error) throw new Error(`ops_user_issue_watch: ${error.message}`);
+        // A resolved line whose problem went from the page ends, so it shows when the problem comes back
+        // (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md). A failure here never stops the watch.
+        await Promise.resolve().then(async () => {
+          const seen = await env.OPS_LINES?.present?.();
+          if (!seen) return;
+          const ended = await serviceClient(env).rpc('ops_line_resolves_seen', { p_lines: seen.lines, p_parts: seen.parts });
+          if (ended.error) console.error(`ops_line_resolves_seen: ${ended.error.code ?? 'unknown'}`);
+        }).catch((e: unknown) => console.error(`ops lines present: ${e instanceof Error ? e.name : 'unknown'}`));
         // The issues an admin left an instruction on. Before its migration is there, the watch goes on without them.
         const notes = await serviceClient(env).rpc('ops_user_issue_notes_waiting');
         if (notes.error) console.error(`ops_user_issue_notes_waiting: ${notes.error.code ?? 'unknown'}`);
@@ -534,7 +573,10 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         // The manager's last plan, to go on from. Before its migration is there, none.
         const plan = await serviceClient(env).rpc('ops_user_issue_plan', { p_issue: issue });
         if (plan.error) console.error(`ops_user_issue_plan: ${plan.error.code ?? 'unknown'}`);
-        return { ...data, plan: plan.error ? null : plan.data ?? null };
+        // A developer's claim on it: the fix team assists and never merges. Before its migration is there, none.
+        const claim = await serviceClient(env).rpc('ops_issue_claimed', { p_issue: issue });
+        if (claim.error) console.error(`ops_issue_claimed: ${claim.error.code ?? 'unknown'}`);
+        return { ...data, plan: plan.error ? null : plan.data ?? null, claimed: claim.error ? false : claim.data === true };
       },
       media: async (id) => {
         const { data, error } = await serviceClient(env).rpc('ops_user_issue_media', { p_id: id });

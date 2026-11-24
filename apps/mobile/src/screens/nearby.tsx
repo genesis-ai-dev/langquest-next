@@ -29,12 +29,12 @@ import { useCarriedApk } from '../nearby/useCarriedApk';
 import { useLetIn, useLetInOffered } from '../nearby/useLetIn';
 import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { formatDayTime } from '../i18n/format';
+import { teammateSub } from '../nearby/carryWords';
 import { useNearby } from '../nearby/useNearby';
 import type { NearbyActions, NearbySessionLine, NearbyTeammate, NearbyView } from '../nearby/nearbyRunModel';
 import type { ReadyToCarry } from '../nearby/readyToCarryModel';
 import {
-  connectHelp, endedWords, linesShown, PERMISSION_WORDS, phoneWords, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS, WHY_NOT_WORDS,
+  connectHelp, endedWords, linesShown, PERMISSION_WORDS, phoneWords, RADIO_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS, WHY_NOT_WORDS,
   type NearbyStage
 } from '../nearby/shareNearbyModel';
 import type { Ctx } from '../shell/ctx';
@@ -71,7 +71,12 @@ export function ShareNearby(ctx: Ctx) {
       {view.whyNot === null ? <CarryCard carry={view.carry} holding={view.holding} who={who} /> : null}
       <Group>
         <Row icon="layers" label={t('nearby.hold')} help={t('nearby.holdHelp')} role="switch" checked={view.hold}
-          onPress={() => { void actions.setHold(!view.hold); }} last />
+          onPress={() => { void actions.setHold(!view.hold); }} last={view.whileOpen === null} />
+        {/* Where the organization has it, and never on a phone that wears a cover (docs/nearby-sync-plan.md 15.6). */}
+        {view.whileOpen !== null ? (
+          <Row icon="swap" label={t('nearby.whileOpen')} help={t('nearby.whileOpenHelp')} role="switch" checked={view.whileOpen}
+            onPress={() => { void actions.setWhileOpen(!view.whileOpen); }} last />
+        ) : null}
       </Group>
       <JoinRows ctx={ctx} needed={apk.needed} apkOld={apk.stale && ctx.language.online === true} apkNewer={apk.behind && ctx.language.online === true} />
     </Screen>
@@ -341,8 +346,7 @@ function CarryCard(props: { carry: ReadyToCarry; holding: number; who: (p: strin
         <Group>
           {team.map((m, i) => (
             <HelpRow key={m.profileId} of="nearby.carryTeammate">
-              <Row label={who(m.profileId)} last={i === team.length - 1}
-                sub={m.seen !== 'today' && m.newestMs !== null ? `${t(SEEN_WORDS[m.seen])} · ${t('nearby.carry.newest', { when: formatDayTime(m.newestMs) })}` : t(SEEN_WORDS[m.seen])} />
+              <Row label={who(m.profileId)} last={i === team.length - 1} sub={teammateSub(m)} />
             </HelpRow>
           ))}
         </Group>

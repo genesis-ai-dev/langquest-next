@@ -94,6 +94,9 @@
     "olderFromServer": "Le travail plus ancien viendra du serveur.",
     "hold": "Garder les enregistrements des coéquipiers",
     "holdHelp": "Activé : ce téléphone garde les enregistrements des coéquipiers jusqu’à ce que le serveur les ait. Désactivé : il ne garde que ceux dont vous avez besoin.",
+    "whileOpen": "Partager pendant que LangQuest est ouvert",
+    "whileOpenHelp": "Quand vous n'avez pas internet, votre téléphone partage avec les coéquipiers à proximité pendant que LangQuest est ouvert, et s'arrête quand l'écran s'éteint. Les enregistrements peuvent attendre Partager à proximité. Sans internet pendant plus de deux semaines, ouvrez Partager à proximité ensemble au moins toutes les deux semaines pour que cela continue.",
+    "whileOpenNow": "Partage avec les coéquipiers à proximité pendant que LangQuest est ouvert",
     "carry": {
       "title": "Ce que ce téléphone contient",
       "everything": "Ce téléphone a tout ce qu’il connaît.",
@@ -108,7 +111,15 @@
       "today": "Aujourd’hui",
       "sinceOnline": "Depuis votre dernière connexion",
       "notSinceOnline": "Pas depuis votre dernière connexion",
-      "newest": "travail le plus récent ici : {{when}}"
+      "newest": "travail le plus récent ici : {{when}}",
+      "teamTitle": "Coéquipiers",
+      "everyone": "Tout le monde",
+      "teamHelp": "À quand remonte le travail le plus récent de chaque coéquipier sur ce téléphone, y compris celui transmis par un autre téléphone. Partager à proximité le met à jour.",
+      "quietUntil": "Partage pendant que LangQuest est ouvert jusqu'au {{day}}",
+      "quietSoon": "Ouvrez Partager à proximité ensemble avant le {{day}} pour continuer à partager pendant que LangQuest est ouvert",
+      "quietLapsed": "Ne partage plus pendant que LangQuest est ouvert. Ouvrez Partager à proximité ensemble.",
+      "onlyHere": "Enregistrements qui ne sont que sur ce téléphone : {{n}}",
+      "onlyHereHelp": "Vos enregistrements qu'aucun téléphone de coéquipier n'a, pour autant que ce téléphone le sache. Partagez à proximité avec un coéquipier pour qu'ils soient sur deux téléphones."
     },
     "history": {
       "nearby": "Venu du téléphone de {{name}}, pas encore sur le serveur",

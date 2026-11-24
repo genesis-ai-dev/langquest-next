@@ -270,7 +270,8 @@ The developer reads the issue on their phone, between other things.
   title already says. An admin reads the card without the code and decides
   what to do. Each is one or two short sentences, at most 300 characters, in
   ASD-STE100 Simplified Technical English: short sentences, active voice,
-  one name for each thing, no code names.
+  one name for each thing, no code names. Write for an admin who does not
+  know databases or code (part "Words on a card" below).
   - `context`: what the person was doing, and where ("A person opens a
     passage in the web app and plays the reference audio.").
   - `problem`: what goes wrong, and for how many ("The audio does not
@@ -518,7 +519,10 @@ With the verdict, `fix.json` also holds:
 - `proof` (at most 400): the test in your change that fails without the fix,
   and what it shows. With no such test, the change waits for a developer.
 - `why` (at most 600): for every verdict but `fix`, what the developer must
-  read, decide or find out, in ASD-STE100 Simplified Technical English.
+  read, decide or find out, in ASD-STE100 Simplified Technical English. It
+  goes on the card under "Claude needs your choice" or the gate's reason,
+  so it follows "Words on a card" below: never a read, a token or a file
+  path, and never a step that Claude can do itself.
 - `twins` (at most 1000): the other places with the same mistake, each with
   its file and line, or left out when there are none. Do not fix them in
   this change: the team's research presents them to the developers.
@@ -562,10 +566,42 @@ the rules below hold for them too.
   setting in a dashboard), or it is not in this repository, write no change,
   say `decision`, and say in `why` what the developer must choose. When the
   cause is unclear, that is not a reason to stop: make a plan
-  (below). Say in `noFix` the screen and button as the app names them, what
+  (below).
+- **Never ask a person to do what Claude can do.** A read of production or
+  of a log is never a `decision`: name it in `next.reads`, say
+  `unconfirmed`, and the next try starts with its answer. Never ask a
+  developer to give Claude a token, a key or more access, and never give
+  them a read to run. When a thing Claude needs is truly out of its reach
+  (a setting only a person can change, a store or dashboard page), say in
+  `why` what Claude does once it is there, in plain words. Say in `noFix` the screen and button as the app names them, what
   the numbers show, the files you read and what is still unknown. `noFix`
   is public like the rest: never what a screenshot shows of anyone's name or
   work. A wrong fix costs a developer more than none.
+
+### Words on a card
+
+Caleb Koster, 2026-11-24: a card that said "Give Claude's shell the job's
+OIDC token or CLAUDE_READ_TOKEN. Run this read: select n_dead_tup ..."
+told him nothing he could act on. An admin reads every line Claude writes
+for a card (`title`, `context`, `problem`, `known`, `solution`, `why`,
+`noFix`, `answer`) between other work, often on a phone, and does not know
+databases or code. So each of those lines:
+
+- Says what people see, or what it costs (speed, money, disk), not how the
+  code works. "The server keeps old copies of a list too long. The
+  database fills up." not "snapshot_units_staged is 100% dead tuples."
+- Names no table, column, function, job, setting, file path, token or
+  secret, and holds no SQL or command. When a technical thing must be
+  named, name it once by what it does ("the database's cleanup", "the
+  table that holds a language's rows while the server copies them").
+- Uses ASD-STE100: sentences of at most 20 words, active voice, one name
+  for each thing, no idioms.
+- Asks the admin only for a choice that only a person can make, and gives
+  that choice as a numbered list of options with the one Claude
+  recommends first. Never a step that Claude can do itself.
+
+The file, line, SQL and reads go in `cause`, `steps` of a plan, the pull
+request and the issue's Agent notes, where a developer looks for them.
 
 ### Reading production
 
@@ -660,6 +696,14 @@ or, with no change:
 fixes the issue, for the developer who reviews it; `tests` (at most 1000)
 which test shows it. The script cuts longer ones and takes out any email
 address.
+
+### When a developer claimed the issue
+
+When `.user-issues/issue.json` has `claimed: true`, a developer of the team
+claimed the issue on the ops dashboard and works on it. You assist them: do
+the work as always, and write `summary` and `why` for that developer, as a
+suggestion they read. Your pull request waits for them; the gate holds it
+(reason `claimed`), whatever your verdict.
 
 ### When an admin sent an instruction
 

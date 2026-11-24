@@ -83,6 +83,22 @@ describe.skipIf(!SERVICE)('a pass against the local database', () => {
     expect((await target.files(names)).size).toBe(2500);
   });
 
+  it('answers which files the log does not hold as stored for a language, by hash and size', async () => {
+    const db = createClient(URL, SERVICE, { auth: { persistSession: false } });
+    const target = supabaseTarget(db, memoryFiles());
+    const run = `u${Date.now().toString(36)}`;
+    const orgId = `org-v2-test-${run}`;
+    const [a, b, c] = ['a', 'b', 'c'].map((x) => x.repeat(64)) as [string, string, string];
+    const { error } = await db.rpc('record_blob', { p_org: orgId, p_stream: run, p_hash: a, p_size: 10 });
+    if (error) throw error;
+    const asked = [{ hash: a, size: 10 }, { hash: b, size: 20 }, { hash: a, size: 10 }];
+    expect([...(await target.unstored!(orgId, run, asked))]).toEqual([b]);
+    // Another language, or the same hash under another size, is not stored.
+    expect([...(await target.unstored!(orgId, `${run}-other`, [{ hash: a, size: 10 }]))]).toEqual([a]);
+    expect([...(await target.unstored!(orgId, run, [{ hash: a, size: 11 }, { hash: c, size: 1 }]))].sort()).toEqual([a, c]);
+    expect((await target.unstored!(orgId, run, [])).size).toBe(0);
+  });
+
   it('brings a confirmed project over once, then only what changes', async () => {
     const db = createClient(URL, SERVICE, { auth: { persistSession: false } });
     const run = `t${Date.now().toString(36)}`;

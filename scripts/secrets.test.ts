@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  ADMIN_KEYS, CRON_JOB, EAS_KEYS, EAS_PROJECT, HYPERDRIVE_PLACEHOLDER, ONLY, createdId, hyperdriveId, withHyperdriveId, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_FUNCTION_SECRETS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, easNames, failure, hyperdriveGone, parseArgs, queryRows, relayUrl, secretListFailure, summarize, unknownKeys, unreadable, vaultSql, workersIn
+  ADMIN_KEYS, CRON_JOB, EAS_KEYS, EAS_PROJECT, HYPERDRIVE_PLACEHOLDER, HYPERDRIVES, hyperdriveArgs, ONLY, createdId, hyperdriveId, withHyperdriveId, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_FUNCTION_SECRETS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, easNames, failure, hyperdriveGone, parseArgs, queryRows, relayUrl, secretListFailure, summarize, unknownKeys, unreadable, vaultSql, workersIn
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -256,6 +256,16 @@ describe('secrets', () => {
 });
 
 describe('the ops dashboard\'s Hyperdrive config', () => {
+  it("keeps each config under the pooler's 20 session clients for each login, with room for the CLI (2026-11-23 EMAXCONNSESSION)", () => {
+    for (const [binding, h] of Object.entries(HYPERDRIVES)) {
+      expect(h.connections).toBeGreaterThanOrEqual(5);
+      expect(h.connections).toBeLessThanOrEqual(10);
+      const args = hyperdriveArgs(binding, 'postgresql://x');
+      expect(args.slice(args.indexOf('--origin-connection-limit'), args.indexOf('--origin-connection-limit') + 2)).toEqual(['--origin-connection-limit', String(h.connections)]);
+      expect(args).toContain('--caching-disabled');
+    }
+  });
+
   const config = `{\n  "name": "langquest-next-admin",\n  // diag_reader's login lives in Hyperdrive\n  "hyperdrive": [{ "binding": "DIAG", "id": "${HYPERDRIVE_PLACEHOLDER}" }]\n}\n`;
   const id = '0123456789abcdef0123456789abcdef';
 

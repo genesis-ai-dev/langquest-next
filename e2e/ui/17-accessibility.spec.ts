@@ -88,7 +88,8 @@ async function walk(browser: Browser, w: UiWorld): Promise<ScreenAudit[]> {
     await expect(button(page, /^Luke\./)).toBeVisible();
     await audit(page, 'the language map', 'TRANS');
     await button(page, /^Luke\./).click();
-    await expect(text(page, /of 97 passages/)).toBeVisible();
+    // Luke's header: how many of its passages are recorded ("of 97 passages" before it said "recorded", Carl, 2026-11-23).
+    await expect(text(page, /of 97 recorded/)).toBeVisible();
     await audit(page, "Luke's chapters", 'TRANS');
     await openPassage(page, w, 'P-NEW');
     await expect(primary(page)).toHaveText('Record');

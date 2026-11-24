@@ -7,8 +7,8 @@
  * its state, its steps as dots, and the talk with Claude with the box to tell
  * Claude what to do. The talk is keyed by the line's Linear issue, so the same
  * talk shows on the line's card and on the issue's card on User issues. Each
- * word and dot comes from what a part answered; a line with no Linear issue
- * says why it has no box. Plain JavaScript inside page.ts's script, after
+ * word and dot comes from what a part answered. A line with no Linear issue
+ * has the box to ask Claude about it instead (pageAsk.ts). Plain JavaScript inside page.ts's script, after
  * pageIssues.ts; everything shown is escaped.
  */
 
@@ -130,18 +130,20 @@ function lineCard(a, group) {
   const where = 'Found in ' + esc(PART_TITLE[a.part] || titleOf(group)) + (row && row.firstAt ? ' · first seen ' + when(row.firstAt) : '') + (row && row.people ? ' · ' + num(row.people) + (Number(row.people) === 1 ? ' person' : ' people') : '');
   const link = safeLink(a.link);
   const why = f && f.issues.length > 1 ? 'count' : !issue ? (unread ? 'unreadable' : f ? f.state : 'person') : '';
-  const side = (way.pill[1] === 'you' && pr && f.state === 'open' ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
+  const side = claimButton(issue, !!(row && row.closedAt)) + (way.pill[1] === 'you' && pr && f.state === 'open' ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
     (pr && f.state !== 'open' ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
     (link ? outLink(link, 'Open the page', 'button') : '') +
     (issue && row && safeLink(row.issueUrl) ? outLink(row.issueUrl, 'Open ' + esc(issue) + ' in Linear', 'button') : '') +
     (f && f.issues.length > 1 ? '<ul class="eachissue">' + f.issues.map((i) => '<li><a href="' + esc(cardHref('userissues', i)) + '">' + esc(i) + '</a>: tell Claude what to do</li>').join('') + '</ul>' : '') +
-    (why ? '<p class="nobox">' + esc(noBoxSaid(why, unread || !!ud)) + '</p>' : '');
+    (why ? '<p class="nobox">' + esc(noBoxSaid(why, unread || !!ud)) + '</p>' : '') +
+    (unread ? '' : resolveButton([a], a.part, 'button'));
   return issueCard({
     card: lineCardId(a), cls: 'line ' + level,
-    tags: '<span class="tag ' + level + '">' + esc(LEVEL[level].title) + '</span>' +
-      (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? '<span>' + esc(row.state) + ' in Linear</span>' : '') : ''),
+    tags: '<span class="tag ' + level + '">' + esc(LEVEL[level].title) + '</span>' + backTag(a, 'tag back') +
+      (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? '<span>' + esc(row.state) + ' in Linear</span>' : '') + claimTag(issue) : ''),
     title: t.title, meta: where,
-    talk: issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : '',
+    // A line with one Linear issue: the box to tell Claude what to do with it. Any other line: the box to ask Claude about it (pageAsk.ts).
+    talk: issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : askTalk(lineCardId(a), group, t.title),
     record: issue ? issueRecord(issue, row && row.firstAt ? { at: row.firstAt, who: 'The watch', said: 'found the problem' } : null, way.pill) : '',
     // Short, as a user issue's card (pageIssues.ts shortCard): Wrong, Known and Next, the rest behind Details.
     pill: way.pill,
@@ -153,6 +155,8 @@ function lineCard(a, group) {
       const kv = (label, html) => html ? '<div><h5 class="imh">' + esc(label) + '</h5>' + html + '</div>' : '';
       return {
         lines: [
+          // Claude found that the problem an admin resolved came back (pageResolve.ts).
+          ['Came back', a.backWhy ? '<p>' + esc(a.backWhy) + '</p>' : ''],
           ['Wrong', row && row.problem ? '<p>' + esc(row.problem) + '</p>' : ''],
           ['Known', row && row.known ? '<p>' + esc(row.known) + '</p>' : ''],
           // The cause is not proven yet: what Claude does next, and when, leads (pageIssues.ts planLine).
@@ -196,7 +200,7 @@ function focusCard() {
   if (!el) {
     const g = SECTIONS.find((s) => s.id === v.id);
     // Every part answered and the card is not there: the line went (its check found it fixed).
-    if (g && g.parts.every((p) => results[p]) && results.userissues) { say('That problem is gone from this page. It is fixed.', ''); wantCard = null; }
+    if (g && g.parts.every((p) => results[p]) && results.userissues) { say(resolvedCard(wantCard) ? 'That problem is resolved. It is in Resolved on the Overview.' : 'That problem is gone from this page. It is fixed.', ''); wantCard = null; }
     return;
   }
   wantCard = null;

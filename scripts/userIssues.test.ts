@@ -219,7 +219,7 @@ describe('user-issues.mjs', () => {
     expect(manager).toContain('.user-issues/reads.json holds the answers to the reads your last plan named');
     expect(jobs['fix']).toContain('id-token: write');
     // The gate lets in this workflow, from main, as agent_reader (apps/admin/src/read.ts).
-    expect(read('apps/admin/src/read.ts')).toContain("READ_WORKFLOWS = ['user-issues.yml']");
+    expect(read('apps/admin/src/read.ts')).toMatch(/READ_WORKFLOWS = \['user-issues\.yml'[,\]]/);
     expect(read('scripts/prod-read.mjs')).toContain("READ_AUDIENCE = 'https://app.langquest.org/ops/api/read'");
   });
 
@@ -535,6 +535,8 @@ describe('when the cause is not proven yet', () => {
     expect(whyInOrder(order[1])).toBe('No priority · 40 people · 2 kinds · 3 places with the same mistake · 90 times');
     expect(whyInOrder(order[0])).toBe('Urgent · 1 person · 1 kind · 1 time');
     expect(whyInOrder({})).toBe('No priority');
+    // A problem a person sent goes first (migration 20261124061500_user_reports.sql), and the why says so.
+    expect(whyInOrder({ sent: true, priority: 4, people: 1 })).toBe('A person sent it · Low · 1 person');
   });
 
   it('sends the priority of each open issue the watch filed', () => {

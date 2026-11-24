@@ -19,11 +19,15 @@ import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
 import { ICONS, NAV, SHELL_CSS, SHELL_HTML, SHELL_LOGIC, SHELL_SCRIPT } from './pageShell';
 import { OVERVIEW_CSS, OVERVIEW_HTML, OVERVIEW_LOGIC, OVERVIEW_SCRIPT } from './pageOverview';
 import { FIX_CSS, FIX_LOGIC, FIX_SCRIPT } from './pageFixes';
+import { RESOLVE_CSS, RESOLVE_LOGIC, RESOLVE_SCRIPT } from './pageResolve';
 import { ISSUE_CSS, ISSUE_LOGIC, ISSUE_SCRIPT } from './pageIssues';
+import { REPORT_CSS, REPORT_LOGIC, REPORT_SCRIPT } from './pageReports';
 import { RESEARCH_CSS, RESEARCH_LOGIC, RESEARCH_SCRIPT } from './pageResearch';
 import { RESEARCH_TEAM } from './researchTeam';
 import { CARD_CSS, CARD_LOGIC, CARD_SCRIPT } from './pageCards';
 import { SEND_CSS, SEND_LOGIC, SEND_SCRIPT } from './pageSends';
+import { ASK_CSS, ASK_LOGIC, ASK_SCRIPT } from './pageAsk';
+import { MINE_CSS, MINE_HTML, MINE_LOGIC, MINE_SCRIPT } from './pageMine';
 import { SUMMARY_CSS, SUMMARY_LOGIC, SUMMARY_SCRIPT } from './pageSummary';
 import { BLOCKS_CSS, BLOCKS_LOGIC, BLOCKS_SCRIPT, WIDTH_CSS } from './pageBlocks';
 import { LOADING_CSS, LOADING_SCRIPT } from './pageLoading';
@@ -213,7 +217,9 @@ ${SHELL_CSS}
 ${START_CSS}
 ${OVERVIEW_CSS}
 ${FIX_CSS}
+${RESOLVE_CSS}
 ${ISSUE_CSS}
+${REPORT_CSS}
 ${RESEARCH_CSS}
 ${CARD_CSS}
 ${SUMMARY_CSS}
@@ -226,6 +232,8 @@ ${VIDEO_CSS}
 ${HOVER_CSS}
 ${REF_CSS}
 ${SEND_CSS}
+${ASK_CSS}
+${MINE_CSS}
 ${LOADING_CSS}
 </style>
 </head>
@@ -238,6 +246,7 @@ ${SHELL_HTML}
   <form class="look" id="start-look" role="search"><label for="start-q" hidden>Look up</label>
     <input id="start-q" type="search" placeholder="Look up E-7K2Q01, an install id, an email or a name" required><button type="submit">Look up</button></form>
   <span class="tools"><button id="expand-all" type="button" hidden>Expand all</button><button id="collapse-all" type="button" hidden>Collapse all</button></span>
+  ${MINE_HTML}
   <button id="refresh" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS.refresh}</svg>Refresh <small id="checked"></small></button>
   <button id="signout" type="button" hidden>Sign out</button>
 </header>
@@ -368,7 +377,7 @@ async function api(path) {
 }
 
 function showSignIn(message) {
-  $('board').hidden = true; $('refresh').hidden = true; $('signout').hidden = true; $('mfa').hidden = true;
+  $('board').hidden = true; $('refresh').hidden = true; $('signout').hidden = true; $('mfa').hidden = true; $('mine').hidden = true; $('mine-panel').hidden = true;
   $('signin').hidden = false; say(message || '', message ? 'red' : '');
 }
 
@@ -590,7 +599,10 @@ function redraw(el, html) {
 }
 
 function show(id, s) {
-  results[id] = s;
+  // A part drawn again from what the page holds keeps its own answer; the page draws it without its resolved lines (pageResolve.ts).
+  if (s !== results[id] || !(id in RAW)) RAW[id] = s;
+  results[id] = withoutResolved(RAW[id]);
+  s = results[id];
   if (id === 'videos' && s && s.state === 'ok') VIDEOS = s.data;
   if (SENDS.size) pruneSends();
   const g = groupOf(id);
@@ -599,6 +611,8 @@ function show(id, s) {
   const el = $('pill-' + g.id); el.className = 'pill ' + cls; el.textContent = text;
   drawBody(g);
   if (id === 'userissues') redrawLineCards();
+  // A report's card shows its issue's step from the User issues part's answer (pageReports.ts).
+  if (id === 'userissues' && results.userreports) drawBody(groupOf('userreports'));
   drawSummary();
   focusCard();
   if (view().name === 'all') applyOpen(g.id);
@@ -610,7 +624,7 @@ function show(id, s) {
 function drawBody(g) {
   // The container's answer lives in the Jobs table, not as a part of its own.
   if (redraw($('body-' + g.id), g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join(''))) {
-    if (g.parts.includes('feedback') || g.parts.includes('userissues')) wireScreenshots();
+    if (g.parts.includes('feedback') || g.parts.includes('userissues') || g.parts.includes('userreports')) wireScreenshots();
     if (g.parts.includes('userissues') || g.parts.includes('videos')) wireFixPictures();
     if (g.parts.includes('tutorials')) layoutTimelines();
     annotate($('body-' + g.id));
@@ -1075,12 +1089,17 @@ ${OVERVIEW_SCRIPT}
 const KINDS = ${JSON.stringify(KINDS).replace(/</g, '\\u003c')};
 ${FIX_LOGIC}
 ${FIX_SCRIPT}
+// ---- Resolved: a line hidden until its problem comes back (pageResolve.ts) ----
+${RESOLVE_LOGIC}
+${RESOLVE_SCRIPT}
 // ---- what each PR and LAN number is about, in a box over it (pageRefs.ts) ----
 ${REF_LOGIC}
 ${REF_SCRIPT}
 // ---- the cards of the User issues page and of a tutorial video's questions (pageIssues.ts) ----
 ${ISSUE_LOGIC}
 ${ISSUE_SCRIPT}
+${REPORT_LOGIC}
+${REPORT_SCRIPT}
 // ---- the Research page (pageResearch.ts): the team's report, its map and week, and what it found ----
 const RESEARCH_TEAM = ${JSON.stringify(RESEARCH_TEAM)};
 ${RESEARCH_LOGIC}
@@ -1088,6 +1107,12 @@ ${RESEARCH_SCRIPT}
 // ---- each line as a card on its section's page, and the way from the Overview to it (pageCards.ts) ----
 ${CARD_LOGIC}
 ${CARD_SCRIPT}
+// ---- Ask Claude on every card and page (pageAsk.ts) ----
+${ASK_LOGIC}
+${ASK_SCRIPT}
+// ---- Claude's replies in the corner, and a claim on each issue (pageMine.ts) ----
+${MINE_LOGIC}
+${MINE_SCRIPT}
 // ---- each section's page: its verdict, numbers with their usual range, lines, and All the details (pageSummary.ts) ----
 ${SUMMARY_LOGIC}
 ${SUMMARY_SCRIPT}
@@ -1114,7 +1139,7 @@ let loading = false, loadAgain = false;
  * keeps (index.ts memo), so the card shows the tap's result. A part that fails keeps what it showed.
  */
 async function reread(parts) {
-  await Promise.all(parts.map((p) => (p === 'ops'
+  await Promise.all(parts.map((p) => (p === 'questions' ? loadQuestions() : p === 'resolves' ? loadResolves() : p === 'ops'
     ? api('/ops/api/ops?fresh=1').then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); })
     : p === 'diag' ? api('/ops/api/diag?fresh=1').then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); })
     : api('/ops/api/' + p + '?fresh=1').then((d) => show(p, d))).catch(() => {})));
@@ -1135,6 +1160,8 @@ async function load(fresh) {
     ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id]))),
     // The start page's pictures: without them it still shows every card and line.
     api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {}),
+    loadQuestions(),
+    loadResolves(),
     // The pull requests that name a line's Linear issue: without them each line still shows its issue.
     // The User issues page says each issue's pull request, so it is drawn again with them.
     api('/ops/api/fixes' + q).then((d) => { fixData = d; if (results.userissues) show('userissues', results.userissues); else { renderStart(); attention(); } })
@@ -1152,13 +1179,15 @@ async function start() {
   // server checks the sign-in. Every call checks it again, so the reads start now too: a refused
   // sign-in hides the page and asks for it (api), and nothing waits for one answer before the rest.
   $('signin').hidden = true; $('mfa').hidden = true; say('');
-  $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false; $('expand-all').hidden = false; $('collapse-all').hidden = false;
+  $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false; $('mine').hidden = false; $('expand-all').hidden = false; $('collapse-all').hidden = false;
   if (!$('grid').children.length) layout();
   route();
   const me = api('/ops/api/me').catch(() => null);
   await finishYouTube();
   const deep = /^\\/ops-dashboard\\/org\\/([^/]+)$/.exec(location.pathname);
   if (deep) openOrg(decodeURIComponent(deep[1]), false);
+  // Claims on the issues' cards and Claude's replies in the corner: one small read, beside the rest.
+  loadMine();
   await Promise.all([me, load(false)]);
 }
 

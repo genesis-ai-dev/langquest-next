@@ -9,6 +9,7 @@ import {
 } from '../../../server/youtube';
 import { LinearError } from '../../../server/linear';
 import { fileSuggestion } from './fileSuggestion';
+import { CARD, PAGE, QUESTION_MAX } from '../../../server/cardQuestions';
 
 /**
  * The few things the ops dashboard may do (docs/ops-dashboard-plan.md
@@ -18,8 +19,12 @@ import { fileSuggestion } from './fileSuggestion';
  * on a tutorial video or answer Claude's suggestion for one (186), say what
  * became of the reply Claude suggested for a comment (posted by a person, or
  * none needed), tell Claude what to do with a user issue
- * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md), and mark an
- * account's quiet installs not an issue. The dashboard's own Worker holds no writer's key; it
+ * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md), ask Claude a
+ * question from any card or page (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md),
+ * mark a line resolved until its problem comes back, or show it again
+ * (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md),
+ * mark an account's quiet installs not an issue, claim or release a Linear issue, and mark Claude's
+ * replies seen (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md). The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
  * and this Worker checks that token itself (a live session, a Global Viewer
  * on an `aal2` session) before acting with the service role. Every attempt
@@ -59,10 +64,37 @@ export type Action =
   | { kind: 'tutorial-reply'; id: string; done: 'posted' | 'none' | 'open' }
   /** What an admin told Claude to do with a user issue, from its card on the dashboard: for the watch's next run. */
   | { kind: 'user-issue-note'; issue: string; text: string }
+  /** A question to Claude from a card or a page of the dashboard, with the card's words as the page drew them. */
+  | { kind: 'card-question'; card: string; page: string; title: string; context: string; text: string }
+  /** Lines of the dashboard marked resolved, each as the page showed it: hidden until its problem comes back. */
+  | { kind: 'line-resolve'; lines: ResolvedLine[] }
+  /** Lines resolved before, shown again. */
+  | { kind: 'line-show'; lines: string[] }
   /** An account's quiet installs marked not an issue, or counted again. */
   | { kind: 'quiet-account'; profile: string; ok: boolean }
   /** A language's tutorial videos filmed each night, or paused (decision 2026-11-21, filming languages switch). */
-  | { kind: 'tutorial-filming'; language: string; on: boolean };
+  | { kind: 'tutorial-filming'; language: string; on: boolean }
+  /**
+   * A developer claims a Linear issue so that no other developer works on it, or releases it
+   * (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md).
+   */
+  | { kind: 'issue-claim'; issue: string; claim: boolean }
+  /** The admin opened Claude's replies in the corner of the dashboard: the replies until now are seen. */
+  | { kind: 'replies-seen' };
+
+/** A line as the page showed it when the admin tapped Resolved (migration 20261124013000_ops_line_resolves.sql). */
+export interface ResolvedLine {
+  /** '<key>[:<subject>]' (apps/admin/src/alertKinds.ts alertId). */
+  line: string;
+  /** The part whose answer holds the line. */
+  part: string;
+  level: 'urgent' | 'problem' | 'watch';
+  /** The line's measure (usage-billed: its cost so far), or null. */
+  measure: number | null;
+  title: string;
+  /** The line's words as the page showed them, for Claude to compare with its words later (migration 20261124034500_ops_line_resolve_checks.sql), or null. */
+  text: string | null;
+}
 
 export type ActionResult =
   | { ok: true; result: string }
@@ -90,12 +122,20 @@ export interface ActionDeps {
   instruct(row: { tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }, by: string): Promise<string>;
   /** An admin's instruction on a user issue kept for the watch (`ops_user_issue_instruct`): its id, `not_found` or `full`. */
   instructIssue(issue: string, text: string, by: string): Promise<string>;
+  /** Lines resolved by this person (`ops_line_resolve`): how many. */
+  resolveLines(lines: ResolvedLine[], by: string): Promise<number>;
+  /** Lines shown again by this person (`ops_line_show`): how many were resolved. */
+  showLines(lines: string[], by: string): Promise<number>;
+  /** A question from a card kept for Claude (`ops_card_ask`): its id, `full` or `many`. */
+  askCard(row: { card: string; page: string; title: string; context: string; text: string }, by: string): Promise<string>;
   /** A suggestion answered (`ops_suggestion_decide`): what happened, and the suggestion's kind. */
   decideSuggestion(id: string, decision: 'accepted' | 'rejected' | 'edited', detail: string | null, reason: string | null, by: string): Promise<{ result: string; kind?: string }>;
   /** A comment's suggested reply marked posted, not needed, or waiting again, by this person: `ok`, or `not_found` (`ops_tutorial_reply_done`). */
   replyDone(id: string, done: 'posted' | 'none' | 'open', by: string): Promise<string>;
   /** An account's quiet installs marked not an issue or counted again, by this staff member: `marked`, `unmarked`, or `not_found` (`ops_quiet_account_mark`). */
   markQuietAccount(profile: string, ok: boolean, by: string): Promise<string>;
+  /** A Linear issue claimed or released by this person (`ops_issue_claim`): `claimed`, `released`, `taken` or `not_yours`. */
+  claimIssue(issue: string, claim: boolean, by: string): Promise<string>;
   /** A language's nightly filming turned on or off, by this person: `on` or `off` (`ops_tutorial_filming_set`). */
   setFilming(language: string, on: boolean, by: string): Promise<string>;
   /** An accepted code change filed in Linear: its issue, or null without a Linear key (the comments job files it later). */
@@ -122,6 +162,30 @@ export const REASON_MAX = 500;
 /** The longest problem line an instruction's card sends, and the most inputs it names. */
 export const PROBLEM_MAX = 200;
 export const INSTRUCTION_INPUTS_MAX = 20;
+/** A line's id (alertKinds.ts alertId): its kind, and its subject after a colon. */
+export const LINE = /^[a-z0-9-]{1,60}(:[^\u0000-\u001f\u007f]{1,200})?$/;
+const PART = /^[a-z0-9_]{1,40}$/;
+const LEVELS = new Set(['urgent', 'problem', 'watch']);
+/** The most lines one tap resolves: an Overview row holds a part's lines of one kind. */
+export const RESOLVE_MAX = 20;
+export const LINE_TITLE_MAX = 300;
+export const LINE_TEXT_MAX = 1000;
+
+function resolvedLines(input: unknown): ResolvedLine[] | null {
+  if (!Array.isArray(input) || input.length === 0 || input.length > RESOLVE_MAX) return null;
+  const out: ResolvedLine[] = [];
+  for (const x of input as unknown[]) {
+    const l = (typeof x === 'object' && x !== null ? x : {}) as { line?: unknown; part?: unknown; level?: unknown; measure?: unknown; title?: unknown; text?: unknown };
+    const title = typeof l.title === 'string' ? l.title.trim() : '';
+    const measure = l.measure === undefined || l.measure === null ? null : typeof l.measure === 'number' && Number.isFinite(l.measure) && l.measure >= 0 ? l.measure : undefined;
+    const text = l.text === undefined || l.text === null ? null : typeof l.text === 'string' && l.text.length <= LINE_TEXT_MAX ? l.text.trim() || null : undefined;
+    if (text === undefined) return null;
+    if (typeof l.line !== 'string' || !LINE.test(l.line) || typeof l.part !== 'string' || !PART.test(l.part) || typeof l.level !== 'string' || !LEVELS.has(l.level)
+      || !title || title.length > LINE_TITLE_MAX || measure === undefined || out.some((o) => o.line === l.line)) return null;
+    out.push({ line: l.line, part: l.part, level: l.level as ResolvedLine['level'], measure, title, text });
+  }
+  return out;
+}
 
 function tutorialItems(items: unknown): [string, string, string][] | null {
   if (!Array.isArray(items) || items.length === 0 || items.length > PUBLISH_MAX) return null;
@@ -174,10 +238,33 @@ export function parseAction(input: unknown): Action | null {
   if (a.kind === 'tutorial-reply' && typeof a.id === 'string' && UUID.test(a.id) && (done === 'posted' || done === 'none' || done === 'open')) {
     return { kind: 'tutorial-reply', id: a.id.toLowerCase(), done };
   }
+  if (a.kind === 'issue-claim') {
+    const c = input as { issue?: unknown; claim?: unknown };
+    return typeof c.issue === 'string' && ISSUE.test(c.issue) && typeof c.claim === 'boolean' ? { kind: 'issue-claim', issue: c.issue, claim: c.claim } : null;
+  }
+  if (a.kind === 'replies-seen') return { kind: 'replies-seen' };
   if (a.kind === 'user-issue-note') {
     const issue = (input as { issue?: unknown }).issue;
     const text = optional(t.text, NOTE_MAX);
     return typeof issue === 'string' && ISSUE.test(issue) && text ? { kind: 'user-issue-note', issue, text } : null;
+  }
+  if (a.kind === 'card-question') {
+    const q = input as { card?: unknown; page?: unknown; title?: unknown; context?: unknown };
+    const text = optional(t.text, QUESTION_MAX.text);
+    const title = optional(q.title, QUESTION_MAX.title);
+    // The card's words may be cut by the page; none is fine.
+    const context = q.context === undefined || q.context === '' ? '' : typeof q.context === 'string' && q.context.length <= QUESTION_MAX.context ? q.context : null;
+    return typeof q.card === 'string' && CARD.test(q.card) && typeof q.page === 'string' && PAGE.test(q.page) && title && text && context !== null
+      ? { kind: 'card-question', card: q.card, page: q.page, title, context, text } : null;
+  }
+  if (a.kind === 'line-resolve') {
+    const lines = resolvedLines((input as { lines?: unknown }).lines);
+    return lines ? { kind: 'line-resolve', lines } : null;
+  }
+  if (a.kind === 'line-show') {
+    const lines = (input as { lines?: unknown }).lines;
+    return Array.isArray(lines) && lines.length > 0 && lines.length <= RESOLVE_MAX && lines.every((l) => typeof l === 'string' && LINE.test(l))
+      ? { kind: 'line-show', lines: [...new Set(lines as string[])] } : null;
   }
   if (a.kind === 'tutorial-fix' && typeof a.id === 'string' && UUID.test(a.id) && (a.askFirst === undefined || typeof a.askFirst === 'boolean')) return { kind: 'tutorial-fix', id: a.id.toLowerCase(), askFirst: a.askFirst === true };
   if (a.kind === 'tutorial-suggestion' && typeof a.id === 'string' && UUID.test(a.id) && (d === 'accept' || d === 'reject' || d === 'edit')) {
@@ -206,8 +293,14 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'tutorial-fix': return { name: 'suggestion_fix', target: action.id };
     case 'tutorial-reply': return { name: `reply_${action.done}`, target: action.id };
     case 'user-issue-note': return { name: 'user_issue_note', target: action.issue };
+    // ops.actions keeps a target of at most 100 characters.
+    case 'card-question': return { name: 'card_question', target: action.card.slice(0, 100) };
+    case 'line-resolve': return { name: 'line_resolved', target: action.lines[0]!.line.slice(0, 100) };
+    case 'line-show': return { name: 'line_shown', target: action.lines[0]!.slice(0, 100) };
     case 'tutorial-filming': return { name: action.on ? 'filming_on' : 'filming_off', target: action.language };
     case 'quiet-account': return { name: action.ok ? 'quiet_ok' : 'quiet_ok_undo', target: action.profile };
+    case 'issue-claim': return { name: action.claim ? 'issue_claim' : 'issue_release', target: action.issue };
+    case 'replies-seen': return { name: 'replies_seen', target: 'replies' };
     default: return { name: NAMES[action.kind], target: 'youtube' };
   }
 }
@@ -275,6 +368,32 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       return kept ? { ok: true, result: 'instructed' }
         : answer === 'full' ? { ok: false, status: 400, error: 'Three instructions on that issue wait for Claude already. Wait for its answer.' }
           : { ok: false, status: 404, error: `Claude cannot take an instruction on ${action.issue}. The watch did not file this issue, and no line on this page names it now.` };
+    }
+    if (action.kind === 'card-question') {
+      const { kind: _kind, ...row } = action;
+      const answer = await deps.askCard(row, who.profileId);
+      const kept = answer !== 'full' && answer !== 'many';
+      await deps.record({ profileId: who.profileId, action: name, target, result: kept ? 'ok' : 'refused', detail: kept ? `question:${answer}` : answer });
+      return kept ? { ok: true, result: 'asked' }
+        : answer === 'full' ? { ok: false, status: 400, error: 'Three questions on this card wait for Claude already. Wait for its answer.' }
+          : { ok: false, status: 400, error: 'Twenty questions on the dashboard wait for Claude already. Wait for its answers.' };
+    }
+    if (action.kind === 'line-resolve' || action.kind === 'line-show') {
+      const n = action.kind === 'line-resolve' ? await deps.resolveLines(action.lines, who.profileId) : await deps.showLines(action.lines, who.profileId);
+      await deps.record({ profileId: who.profileId, action: name, target, result: 'ok', detail: `lines:${n}` });
+      return { ok: true, result: action.kind === 'line-resolve' ? 'resolved' : 'shown' };
+    }
+    if (action.kind === 'issue-claim') {
+      const answer = await deps.claimIssue(action.issue, action.claim, who.profileId);
+      const done = answer === (action.claim ? 'claimed' : 'released');
+      await deps.record({ profileId: who.profileId, action: name, target, result: done ? 'ok' : 'refused', ...(done ? {} : { detail: answer }) });
+      return done ? { ok: true, result: answer }
+        : answer === 'taken' ? { ok: false, status: 400, error: 'Another developer claimed this issue first.' }
+          : { ok: false, status: 400, error: 'Another developer claimed this issue. Only they can release it.' };
+    }
+    if (action.kind === 'replies-seen') {
+      await deps.record({ profileId: who.profileId, action: name, target, result: 'ok' });
+      return { ok: true, result: 'seen' };
     }
     if (action.kind === 'tutorial-filming') {
       const answer = await deps.setFilming(action.language, action.on, who.profileId);
@@ -462,6 +581,11 @@ export function actionDeps(env: Env): ActionDeps {
       if (error) throw new Error(`ops_tutorial_reply_done: ${error.message}`);
       return String(data);
     },
+    claimIssue: async (issue, claim, by) => {
+      const { data, error } = await db().rpc('ops_issue_claim', { p_issue: issue, p_claim: claim, p_by: by });
+      if (error) throw new Error(`ops_issue_claim: ${error.message}`);
+      return String(data);
+    },
     setFilming: async (language, on, by) => {
       const { data, error } = await db().rpc('ops_tutorial_filming_set', { p_language: language, p_on: on, p_by: by });
       if (error) throw new Error(`ops_tutorial_filming_set: ${error.message}`);
@@ -487,6 +611,21 @@ export function actionDeps(env: Env): ActionDeps {
       console.error(`ops named issues: ${e instanceof Error ? e.name : 'unknown'}`);
       return [];
     })),
+    resolveLines: async (lines, by) => {
+      const { data, error } = await db().rpc('ops_line_resolve', { p_lines: lines, p_by: by });
+      if (error) throw new Error(`ops_line_resolve: ${error.message}`);
+      return Number(data);
+    },
+    showLines: async (lines, by) => {
+      const { data, error } = await db().rpc('ops_line_show', { p_lines: lines, p_by: by });
+      if (error) throw new Error(`ops_line_show: ${error.message}`);
+      return Number(data);
+    },
+    askCard: async ({ card, page, title, context, text }, by) => {
+      const { data, error } = await db().rpc('ops_card_ask', { p_card: card, p_page: page, p_title: title, p_context: context, p_text: text, p_by: by });
+      if (error) throw new Error(`ops_card_ask: ${error.message}`);
+      return String(data);
+    },
     decideSuggestion: async (id, decision, detail, reason, by) => {
       const { data, error } = await db().rpc('ops_suggestion_decide', { p_id: id, p_decision: decision, p_detail: detail, p_reason: reason, p_by: by });
       if (error) throw new Error(`ops_suggestion_decide: ${error.message}`);

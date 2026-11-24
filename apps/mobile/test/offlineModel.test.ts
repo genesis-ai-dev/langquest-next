@@ -1,7 +1,7 @@
 import { emptyLanguageState, type LanguageState, type OrgState, type SourceBookDoc, type SourceDoc } from '@langquest-next/core';
 import type { SourceOption } from '../src/sources/model';
 import {
-  audioFormatOf, bbKey, bookHashesFor, libAudioKey, offlineOptions, sourceHashes, wantedChapters
+  audioFormatOf, bbKey, bookHashesFor, libAudioKey, offlineOptions, sourceHashes, wantedChapters, wantsByUnit
 } from '../src/sources/offlineModel';
 
 /**
@@ -99,6 +99,33 @@ describe('which chapters are wanted', () => {
       [bbKey('ENGESVO2DA', 'GEN', 1), 'ENGESVO2DA'], [bbKey('ENGESVO2DA', 'GEN', 2), 'ENGESVO2DA']
     ]);
     expect(wantedChapters(['item/MAT.1.1-1.5'], [bb], docs)).toEqual([]);
+  });
+});
+
+// Each passage's reference audio, for its download button to count (decision amended 2026-11-23).
+describe("each passage's reference audio", () => {
+  const lib: SourceOption = { itemId: 'keep', kind: 'library', from: 'organization', name: 'BSB', abbreviation: 'BSB', language: 'eng', doc: source(), docHash: H('1') };
+  const docs = new Map<string, unknown>([[H('b'), book]]);
+  const read = { sources: false, books: false };
+
+  it('says which chapters each passage wants, and wants each chapter once however many passages share it', () => {
+    const { wants, perUnit, unknown } = wantsByUnit(['item/GEN.1.1-1.5', 'item/GEN.1.6-2.3', 'u-opaque'], [lib], docs, read);
+    expect(perUnit.get('item/GEN.1.1-1.5')).toEqual([`lib:${H('1')}`]);
+    expect(perUnit.get('item/GEN.1.6-2.3')).toEqual([`lib:${H('1')}`, 'url:https://x/gen2.mp3']);
+    // A passage with no place in the Bible wants nothing, and that is known.
+    expect(perUnit.get('u-opaque')).toEqual([]);
+    expect(wants.map((w) => w.key)).toEqual([`lib:${H('1')}`, 'url:https://x/gen2.mp3']);
+    expect(unknown).toEqual(new Set());
+  });
+
+  it("cannot say what a passage wants while a document it needs is neither here nor readable", () => {
+    // The book document is missing and could not be read (offline): not known. Read and not there: it wants nothing.
+    expect(wantsByUnit(['item/GEN.1'], [lib], new Map(), { sources: false, books: true }).unknown).toEqual(new Set(['item/GEN.1']));
+    expect(wantsByUnit(['item/GEN.1'], [lib], new Map(), read)).toMatchObject({ unknown: new Set(), perUnit: new Map([['item/GEN.1', []]]) });
+    // A source document missing and unreadable: every passage with a place in the Bible is unknown; one with none is not.
+    expect(wantsByUnit(['item/GEN.1', 'u-opaque'], [], new Map(), { sources: true, books: false }).unknown).toEqual(new Set(['item/GEN.1']));
+    // A book of another source, or a passage in a book the source lacks, needs no document.
+    expect(wantsByUnit(['item/EXO.1'], [lib], new Map(), { sources: false, books: true }).unknown).toEqual(new Set());
   });
 });
 

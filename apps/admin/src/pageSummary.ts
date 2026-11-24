@@ -328,6 +328,8 @@ function lineRow(l, g, cls) {
 const PAGE_BLOCKS = {};
 /** A page's own sentence, said before the counts (Releases: where each build is); null to say only the counts. */
 const PAGE_SAY = {};
+/** A page's own tone for its sentence ('need', 'watch'), when the counts of its lines do not tell it; null to keep theirs. */
+const PAGE_TONE = {};
 
 /** Whether a section's page has a summary of its own above All the details: numbers, or a block of its own. */
 const hasSummary = (id) => Boolean(PAGE_TILES[id] || PAGE_BLOCKS[id] || partsWithNumbers(id).length);
@@ -367,7 +369,8 @@ function drawSummaryNow() {
   const c = groupCounts(g, lines);
   const own = PAGE_SAY[g.id] ? PAGE_SAY[g.id](g) : null;
   const verdict = verdictOf(c);
-  sayVerdict(own ? { tone: verdict.tone, text: own + (verdict.tone === 'ok' && !c.off ? '' : ' ' + verdict.text) } : verdict);
+  const tone = (PAGE_TONE[g.id] && PAGE_TONE[g.id](g)) || verdict.tone;
+  sayVerdict(own ? { tone, text: own + (verdict.tone === 'ok' && !c.off ? '' : ' ' + verdict.text) } : verdict);
   const parts = [];
   // Tiles: the page's first numbers, each with its usual range.
   const nums = partsWithNumbers(g.id);
@@ -407,6 +410,8 @@ function drawSummaryNow() {
       (waiting ? skel('lines') : '') +
       errs.map((p) => failed('Could not read ' + (PART_TITLE[p] || p) + ': ' + sumHist[p].error, 'data-retry-hist="' + esc(p) + '"')).join('')));
   }
+  // Questions about the whole page, with what it shows (pageAsk.ts).
+  parts.push(askBlock('page:' + g.id, g.id, g.title));
   if (redraw(el, parts.join(''))) annotate(el);
   focusCard();
 }
@@ -438,6 +443,6 @@ const DETAILS_KEY = 'lq-ops-details';
 function savedDetails() { try { return JSON.parse(localStorage.getItem(DETAILS_KEY) || '{}') || {}; } catch { return {}; } }
 function saveDetails(id, open) { try { const s = savedDetails(); s[id] = open; localStorage.setItem(DETAILS_KEY, JSON.stringify(s)); } catch {} }
 /** Pages whose lists are where a person works (an issue's card, a queue's buttons, a video's state): their details stay open until a page of their own replaces them. */
-const DETAILS_LEAD = new Set(['userissues', 'research', 'support', 'tutorials', 'nightly']);
+const DETAILS_LEAD = new Set(['userreports', 'userissues', 'research', 'support', 'tutorials', 'nightly']);
 function detailsOpen(id) { const s = savedDetails()[id]; return typeof s === 'boolean' ? s : !hasSummary(id) || DETAILS_LEAD.has(id); }
 `;

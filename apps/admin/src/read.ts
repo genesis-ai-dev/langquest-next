@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import { githubOidc, type GithubRun, type OidcRule } from '../../web/worker/githubOidc';
+import { plainConnection } from './db';
 
 /**
  * The read gate (docs/production-reads.md,
@@ -25,8 +26,11 @@ import { githubOidc, type GithubRun, type OidcRule } from '../../web/worker/gith
 
 export const READ_PATH = '/ops/api/read';
 export const READ_AUDIENCE = 'https://app.langquest.org/ops/api/read';
-/** The agent teams: these workflows, run from main, read as agent_reader. */
-export const READ_WORKFLOWS = ['user-issues.yml'] as const;
+/**
+ * The agent teams: these workflows, run from main, read as agent_reader. card-questions.yml answers an
+ * admin's question from a card of the ops dashboard (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md).
+ */
+export const READ_WORKFLOWS = ['user-issues.yml', 'card-questions.yml'] as const;
 export const READ_RULES: OidcRule[] = READ_WORKFLOWS.map((file) => ({
   audience: READ_AUDIENCE,
   workflowRef: `genesis-ai-dev/langquest-next/.github/workflows/${file}@refs/heads/main`
@@ -156,7 +160,7 @@ export async function handleRead(request: Request, deps: ReadDeps): Promise<Resp
 const EXTENDED = { simple: false } as postgres.UnsafeQueryOptions;
 
 export async function runRead(url: string, sql: string, params: (string | number | null)[]): Promise<ReadAnswer> {
-  const plain = /@(127\.0\.0\.1|localhost|host\.docker\.internal|[^@/:]+\.hyperdrive\.local)[:/]/.test(url);
+  const plain = plainConnection(url);
   const db = postgres(url, {
     max: 1, prepare: false, fetch_types: false, connect_timeout: 10, idle_timeout: 5,
     ssl: plain ? false : 'require',

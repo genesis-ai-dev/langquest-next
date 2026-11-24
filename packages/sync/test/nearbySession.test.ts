@@ -1,9 +1,10 @@
 import { createHmac, hkdfSync } from 'node:crypto';
 import {
-  base64urlEncode, concatBytes, isCounted, issueInviteLink, joinPassBody, NEARBY_OPENING_BYTES, nearbyBytes, newcomerProfileId, openingMaskInput, revocationText, utf8Encode,
+  base64urlEncode, concatBytes, isCounted, issueInviteLink, joinPassBody, NEARBY_CERTIFICATE_MS, NEARBY_OPENING_BYTES, nearbyBytes, newcomerProfileId, openingMaskInput, revocationText, utf8Encode,
   withMyHolding, type HoldingEntry, type RevocationList, type WorkerLink
 } from '@langquest-next/core/nearby';
 import * as v from '../../core/test/nearbyVectors';
+import { nearbyDayOf } from '../src/nearbyKeep';
 import { arrangePlan, mayHandOn, type NearbySessionReport } from '../src/nearbySession';
 import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf } from '../src/nearbyOpening';
 import { parseMessage, encodeMessage, type Message } from '../src/nearbyWire';
@@ -236,6 +237,53 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       const [ra, rb] = await run(a, b, pair);
       expect(rb.ended).toMatchObject({ how: 'said', reason: 'identity', detail: 'wrong organization' });
       expect(ra.ended).toEqual({ how: 'heard', reason: 'identity' });
+    });
+
+    // The security review of 2026-11-23 (docs/nearby-sync-plan.md 15.8): while LangQuest is open, a lost or
+    // taken phone still signed in collects nothing quietly once its certificate is older than the window.
+    it('while LangQuest is open, a certificate signed longer ago than the window is refused as identity; a recent one, or Share nearby, passes', async () => {
+      const DAY = 86_400_000;
+      const [a, b] = await two();
+      const signedAgo = async (ms: number) => worker.certify(
+        { installKey: ana.key, profileId: 'ana', deviceId: ana.deviceId }, { orgId: ORG }, { expiresAt: b.client.nearbyHelloNow - ms + NEARBY_CERTIFICATE_MS }
+      );
+      a.who = { ...ana, chain: await signedAgo(15 * DAY) };
+      const [ra, rb] = await run(a, b, pairOf(), {}, { freshWithinMs: 14 * DAY });
+      expect(rb.ended).toMatchObject({ how: 'said', reason: 'identity', detail: 'certificate not recent' });
+      expect(ra.ended).toEqual({ how: 'heard', reason: 'identity' });
+      // Share nearby has no such rule: both people chose to open it.
+      expect((await run(a, b, pairOf()))[1].ended).toEqual({ how: 'done' });
+      a.who = { ...ana, chain: await signedAgo(13 * DAY) };
+      expect((await run(a, b, pairOf(), {}, { freshWithinMs: 14 * DAY }))[1].ended).toEqual({ how: 'done' });
+    });
+
+    // Carl, 2026-11-24 (decision 230 as amended): a team may be out of reach for longer than the window, with one
+    // person carrying the team's work online now and then. A Share nearby both people opened resets it, per pair.
+    it('while LangQuest is open, a teammate met on Share nearby within the window passes with an old certificate; a quiet meeting notes nothing', async () => {
+      const DAY = 86_400_000;
+      const WINDOW = 14 * DAY;
+      const [a, b] = await two();
+      const quiet = { freshWithinMs: WINDOW };
+      // A quiet meeting that passes a teammate notes no day, so it cannot keep a taken phone in by itself.
+      expect((await run(a, b, pairOf(), { ...quiet, notesMetForMs: WINDOW }, { ...quiet, notesMetForMs: WINDOW }))[1].ended).toEqual({ how: 'done' });
+      expect(await b.keep.met(0)).toEqual([]);
+      a.who = { ...ana, chain: await worker.certify({ installKey: ana.key, profileId: 'ana', deviceId: ana.deviceId }, { orgId: ORG }, { expiresAt: b.client.nearbyHelloNow - 40 * DAY + NEARBY_CERTIFICATE_MS }) };
+      expect((await run(a, b, pairOf(), {}, quiet))[1].ended).toMatchObject({ how: 'said', reason: 'identity', detail: 'certificate not recent' });
+      // Nor does a refused one.
+      expect(await b.keep.met(0)).toEqual([]);
+      // Share nearby notes the day each side met the other, after the other's proof.
+      expect((await run(a, b, pairOf(), { notesMetForMs: WINDOW }, { notesMetForMs: WINDOW }))[1].ended).toEqual({ how: 'done' });
+      const today = nearbyDayOf(b.client.nearbyHelloNow);
+      expect(await b.keep.met(0)).toEqual([{ key: ana.key, profileId: 'ana', day: today }]);
+      expect(await a.keep.met(0)).toEqual([{ key: sam.key, profileId: 'sam', day: today }]);
+      expect((await run(a, b, pairOf(), {}, quiet))[1].ended).toEqual({ how: 'done' });
+      // The day counts from its start and no longer: met fifteen days ago is out, and is forgotten as it is read.
+      await b.keep.noteMet({ key: ana.key, profileId: 'ana', day: today - 15 }, 0);
+      expect((await run(a, b, pairOf(), {}, quiet))[1].ended).toMatchObject({ how: 'said', reason: 'identity', detail: 'certificate not recent' });
+      expect(await b.keep.met(0)).toEqual([]);
+      // Only the same key and person: someone else on that key is not who was met.
+      await b.keep.noteMet({ key: ana.key, profileId: 'not-ana', day: today }, 0);
+      expect((await run(a, b, pairOf(), {}, quiet))[1].ended).toMatchObject({ reason: 'identity' });
     });
 
     it('a chain naming another phone\'s key fails its proof', async () => {

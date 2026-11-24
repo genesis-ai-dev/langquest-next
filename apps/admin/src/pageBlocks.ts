@@ -226,8 +226,8 @@ function capacityView(c) {
     const a = u.allowance || ALLOWANCE;
     rows.push({ id: 'workers', label: 'Web requests this month', used: u.workersRequests, of: a.workersRequests, unit: 'n', free: true });
     rows.push({ id: 'do', label: 'Live connections this month', used: u.doRequests, of: a.doRequests, unit: 'n', free: true });
-    rows.push({ id: 'r2a', label: 'Recording uploads this month', used: u.r2ClassA, of: a.r2ClassA, unit: 'n', free: true });
-    rows.push({ id: 'r2b', label: 'Recording downloads this month', used: u.r2ClassB, of: a.r2ClassB, unit: 'n', free: true });
+    rows.push({ id: 'r2a', label: 'Saves and lists in R2 this month', used: u.r2ClassA, of: a.r2ClassA, unit: 'n', free: true });
+    rows.push({ id: 'r2b', label: 'Reads from R2 this month', used: u.r2ClassB, of: a.r2ClassB, unit: 'n', free: true });
   }
   if (c.r2) rows.push({ id: 'r2', label: 'Recordings kept (R2)', used: c.r2.bytes, of: (u && u.allowance && u.allowance.r2Bytes) || ALLOWANCE.r2Bytes, unit: 'bytes', free: true });
   // Past the plan's database size is a problem; past a free allowance costs money, so it is a note in amber, never red.
@@ -400,6 +400,15 @@ PAGE_BLOCKS.userissues = () => {
   const c = issueCounts();
   return c && c.d.issues && c.d.issues.length ? tabStrip('Where the issues are, 90 days', 'itab', ISSUE_TABS, c.count, 'you') : '';
 };
+// ---- User reports (pageReports.ts): the open problems people sent, before the counts ----------------
+function reportsData() { return okData(results, 'userreports'); }
+PAGE_SAY.userreports = () => {
+  const d = reportsData();
+  if (!d) return null;
+  const n = reportsOpen(d.reports);
+  return n ? countOf(n, 'problem that people sent waits', 'problems that people sent wait') + ' for a fix. The fix team takes them first.' : 'No problem that people sent is open.';
+};
+PAGE_TONE.userreports = () => { const d = reportsData(); return d && reportsOpen(d.reports) ? 'need' : null; };
 PAGE_SAY.userissues = () => {
   const c = issueCounts();
   if (!c) return null;

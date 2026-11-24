@@ -94,6 +94,9 @@
     "olderFromServer": "El trabajo más antiguo llegará desde el servidor.",
     "hold": "Guardar las grabaciones de compañeros",
     "holdHelp": "Activado: este teléfono guarda las grabaciones de tus compañeros hasta que el servidor las tenga. Desactivado: solo guarda las que necesitas.",
+    "whileOpen": "Compartir mientras LangQuest está abierto",
+    "whileOpenHelp": "Cuando no tienes internet, tu teléfono comparte con los compañeros cercanos mientras LangQuest está abierto, y se detiene cuando la pantalla se apaga. Las grabaciones pueden esperar a Compartir cerca. Si pasas más de dos semanas sin internet, abran Compartir cerca juntos al menos cada dos semanas para que siga funcionando.",
+    "whileOpenNow": "Compartiendo con compañeros cercanos mientras LangQuest está abierto",
     "carry": {
       "title": "Lo que tiene este teléfono",
       "everything": "Este teléfono tiene todo lo que conoce.",
@@ -108,7 +111,15 @@
       "today": "Hoy",
       "sinceOnline": "Desde la última vez que tuviste conexión",
       "notSinceOnline": "No desde la última vez que tuviste conexión",
-      "newest": "trabajo más reciente aquí: {{when}}"
+      "newest": "trabajo más reciente aquí: {{when}}",
+      "teamTitle": "Compañeros",
+      "everyone": "Todos",
+      "teamHelp": "Qué tan reciente es el trabajo más nuevo de cada compañero en este teléfono, contando el trabajo que pasó otro teléfono. Compartir cerca lo pone al día.",
+      "quietUntil": "Comparte mientras LangQuest está abierto hasta el {{day}}",
+      "quietSoon": "Abran Compartir cerca juntos antes del {{day}} para seguir compartiendo mientras LangQuest está abierto",
+      "quietLapsed": "Ya no comparte mientras LangQuest está abierto. Abran Compartir cerca juntos.",
+      "onlyHere": "Grabaciones que solo están en este teléfono: {{n}}",
+      "onlyHereHelp": "Tus grabaciones que ningún teléfono de tus compañeros tiene, hasta donde sabe este teléfono. Comparte cerca con un compañero para que estén en dos teléfonos."
     },
     "history": {
       "nearby": "Llegó del teléfono de {{name}}, aún no está en el servidor",

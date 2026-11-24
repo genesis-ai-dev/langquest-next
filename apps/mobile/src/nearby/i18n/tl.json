@@ -94,6 +94,9 @@
     "olderFromServer": "Manggagaling sa server ang mas lumang gawa.",
     "hold": "Itago ang mga rekording ng mga kasamahan",
     "holdHelp": "Kapag naka-on, itinatago ng teleponong ito ang mga rekording ng mga kasamahan hanggang makuha ito ng server. Kapag naka-off, ang mga kailangan mo lang ang itinatago nito.",
+    "whileOpen": "Magbahagi habang bukas ang LangQuest",
+    "whileOpenHelp": "Kapag wala kang internet, nagbabahagi ang telepono mo sa mga kasamahang malapit habang bukas ang LangQuest, at humihinto kapag namatay ang screen. Maaaring maghintay ang mga rekording sa Ibahagi sa malapit. Kapag walang internet nang higit sa dalawang linggo, buksan nang magkasama ang Ibahagi sa malapit kahit tuwing dalawang linggo para magpatuloy ito.",
+    "whileOpenNow": "Nagbabahagi sa mga kasamahang malapit habang bukas ang LangQuest",
     "carry": {
       "title": "Ang hawak ng teleponong ito",
       "everything": "Hawak ng teleponong ito ang lahat ng alam nito.",
@@ -108,7 +111,15 @@
       "today": "Ngayong araw",
       "sinceOnline": "Mula noong huli kang online",
       "notSinceOnline": "Hindi pa mula noong huli kang online",
-      "newest": "pinakabagong gawa rito {{when}}"
+      "newest": "pinakabagong gawa rito {{when}}",
+      "teamTitle": "Mga kasamahan",
+      "everyone": "Lahat",
+      "teamHelp": "Gaano kabago ang pinakabagong gawa ng bawat kasamahan sa teleponong ito, kasama ang gawang ipinasa ng ibang telepono. Pinapanapanahon ito ng Ibahagi sa malapit.",
+      "quietUntil": "Nagbabahagi habang bukas ang LangQuest hanggang {{day}}",
+      "quietSoon": "Buksan nang magkasama ang Ibahagi sa malapit bago ang {{day}} para patuloy na makapagbahagi habang bukas ang LangQuest",
+      "quietLapsed": "Hindi na nagbabahagi habang bukas ang LangQuest. Buksan nang magkasama ang Ibahagi sa malapit.",
+      "onlyHere": "Mga rekording na nasa teleponong ito lang: {{n}}",
+      "onlyHereHelp": "Ang mga rekording mo na wala sa telepono ng sinumang kasamahan, sa abot ng alam ng teleponong ito. Ibahagi sa malapit sa isang kasamahan para nasa dalawang telepono ang mga ito."
     },
     "history": {
       "nearby": "Galing sa telepono ni {{name}}, wala pa sa server",

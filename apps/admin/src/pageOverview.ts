@@ -126,6 +126,7 @@ export const OVERVIEW_HTML = String.raw`
         <section class="sblock" aria-labelledby="ov-way"><div class="sh"><h2 id="ov-way">On its way</h2><span class="cnt way" id="ov-way-n" hidden></span><span class="sp"></span></div><div class="waykey" aria-label="Who acts next"><span><i class="by-claude"></i>Claude does it</span><span><i class="by-check"></i>A check shows that the fix works</span><span><i class="by-dev"></i>A developer</span><span><i class="by-store"></i>Apple or Google</span></div><div class="alerts" id="start-way"></div></section>
       </div>
       <section class="sblock" aria-labelledby="ov-watch"><div class="sh"><h2 id="ov-watch">Watching</h2><span class="cnt" id="ov-watch-n" hidden></span><span class="sp"></span></div><div class="wchips" id="start-watch"></div></section>
+      <div id="start-ask"></div>
       <section aria-label="Frontier Claude plan this week"><a class="plan" id="start-plan" href="#g/access"></a></section>
       <section aria-labelledby="ov-map"><h2 class="oh" id="ov-map">How it fits together</h2>
         <div class="mapcard"><div class="map" id="map"></div>
@@ -335,11 +336,11 @@ function alertRow(c) {
   const gl = c.level === 'watch' ? null : glanceOf(c.group);
   const pic = c.level === 'watch' ? '' : (SQUARES[c.part] ? squarePic(c.part, c.text) : listCardPic(c.part)) || (gl ? miniSvg(gl.s.values, gl.s.agg, 200, 48, gl.say) + '<small>' + esc(gl.said) + '</small>' : '');
   return '<div class="alert ' + c.level + (fixing(c) ? ' fixing' : '') + '" data-href="' + esc(href(lines[0])) + '">' + lvl(c.level, LEVEL[c.level].title) +
-    '<div class="text"><b><a class="card" href="' + esc(href(lines[0])) + '">' + esc(t.title) + '</a></b>' + fixHtml(lines[0]) + (lines[0] && lines[0].key !== 'unreadable' && lines[0].key !== 'user-issues-open' ? miniSteps(fixOf(lines[0])) : '') +
+    '<div class="text"><b><a class="card" href="' + esc(href(lines[0])) + '">' + esc(t.title) + '</a>' + backTag(lines[0], 'backtag') + '</b>' + backWhy(lines[0]) + fixHtml(lines[0]) + (lines[0] && lines[0].key !== 'unreadable' && lines[0].key !== 'user-issues-open' ? miniSteps(fixOf(lines[0])) : '') +
     (also ? '<ul class="also">' + also + (rest > 0 ? '<li>' + num(rest) + ' more in ' + esc(titleOf(c.group)) + '</li>' : '') + '</ul>' : '') +
     (t.next ? '<p class="next"><b>Next:</b> ' + esc(t.next) + '</p>' : '') +
     '<div class="from">' + esc(whereOf(c)) + '</div></div><div class="pic">' + pic + '</div>' +
-    '<div class="gos">' + rowOpenLink(href(lines[0])) + (link ? goLink(link, 'Open the page', true) : '') + '</div></div>';
+    '<div class="gos">' + rowOpenLink(href(lines[0])) + (link ? goLink(link, 'Open the page', true) : '') + resolveButton(lines, c.part, 'go') + '</div></div>';
 }
 
 /** Who acts next on a row of On its way, with the colour of its edge and its key. */
@@ -484,11 +485,14 @@ function drawStart() {
   if (view().name === 'start') sayVerdict({ tone: needN ? 'need' : decideN || watchN ? 'watch' : waiting ? 'wait' : 'ok', text: say.length ? (needN || waiting ? '' : 'Nothing needs you now. ') + say.join(' ') : waiting ? 'Checking…' : 'Nothing needs you now.' });
   setCount('ov-need-n', needN); setCount('ov-decide-n', decideN); setCount('ov-way-n', wayN); setCount('ov-watch-n', watchN);
   const none = (words) => waiting ? skel('lines') : '<p class="sempty">' + esc(words) + '</p>';
-  redraw($('start-you'), plan.need.map(alertRow).join('') || (waiting ? skel('cards') : '<div class="alert clear">' + lvl('clear', 'All clear') + '<div class="text"><b>Nothing needs you now.</b></div><div class="pic"></div><span></span></div>'));
-  redraw($('start-decide'), plan.decide.map(alertRow).concat(decideWork.map(decideRow)).join('') || none('No choice waits for you.'));
+  const youHtml = plan.need.map(alertRow).join('') || (waiting ? skel('cards') : '<div class="alert clear">' + lvl('clear', 'All clear') + '<div class="text"><b>Nothing needs you now.</b></div><div class="pic"></div><span></span></div>');
+  if (redraw($('start-you'), youHtml)) annotate($('start-you'));
+  if (redraw($('start-decide'), plan.decide.map(alertRow).concat(decideWork.map(decideRow)).join('') || none('No choice waits for you.'))) annotate($('start-decide'));
   redraw($('start-way'), way.map(wayRow).join('') || none('Nothing is on its way.'));
   // What to watch: a chip for each line, each opening its card.
   redraw($('start-watch'), plan.watch.flatMap((r) => r.alerts.map((a) => '<a class="chip watch" href="' + esc(cardHref(r.group, lineCardId(a))) + '">' + esc(splitAlert(tidy(a.text)).title.replace(/\.$/, '')) + '<small>' + esc(titleOf(r.group)) + '</small></a>')).join('') || none('Nothing to watch.'));
+  // Questions about the whole Overview, with what it shows (pageAsk.ts).
+  redraw($('start-ask'), askBlock('page:start', 'start', 'Overview'));
   drawResolved();
   drawPlan();
   drawTiles();
@@ -497,14 +501,18 @@ function drawStart() {
   drawShipped();
 }
 
-/** The lines the watch tied to Linear that this page no longer shows, under one closed heading. */
+/**
+ * Under one closed heading: the lines an admin resolved, which stay hidden until their problem comes
+ * back (pageResolve.ts), then the lines the watch tied to Linear that this page no longer shows.
+ */
 function drawResolved() {
-  const ud = userIssuesData(), el = $('start-resolved');
-  el.hidden = !ud || !ud.lines;
+  const ud = userIssuesData(), el = $('start-resolved'), hand = handResolved();
+  el.hidden = !hand.length && (!ud || !ud.lines);
   if (el.hidden) return;
-  const now = new Set(PARTS.flatMap((p) => ((results[p] && results[p].alerts) || []).map(watchKeyOf)));
+  // A line hidden as resolved is still on the page: the watch's list says only what its check no longer finds.
+  const now = new Set(PARTS.flatMap((p) => ((RAW[p] && RAW[p].alerts) || []).map(watchKeyOf)));
   const answered = (part) => Boolean(results[part]) && results[part].state === 'ok';
-  el.innerHTML = resolvedHtml(resolvedLines(ud, now, answered, KINDS, Date.now()));
+  redraw(el, resolvedHtml(ud && ud.lines ? resolvedLines(ud, now, answered, KINDS, Date.now()) : [], hand));
 }
 
 const planPct = (x) => Math.round(x * 100) + '%';

@@ -111,3 +111,35 @@ export function wantedChapters(scope: Iterable<string>, options: readonly Source
   }
   return wants;
 }
+
+/**
+ * Each passage's chapters of reference audio, for its download button to
+ * count (docs/decisions/2026-11-20-a-book-has-its-own-download-button.md,
+ * amended 2026-11-23): the chapter keys each passage wants, and every want
+ * once, to fetch. `unknown`: passages whose wants cannot be told yet, since a
+ * document they need is not on this device and could not be read
+ * (`readFailed`); their button must not call them ready. A document the
+ * server answered without is not there at all, and wants nothing. A passage
+ * with no place in the Bible wants nothing whatever is read.
+ */
+export function wantsByUnit(
+  scope: Iterable<string>, options: readonly SourceOption[], docs: ReadonlyMap<string, unknown>, readFailed: { sources: boolean; books: boolean }
+): { wants: Want[]; perUnit: Map<string, string[]>; unknown: Set<string> } {
+  const wants = new Map<string, Want>();
+  const perUnit = new Map<string, string[]>();
+  const unknown = new Set<string>();
+  for (const unitId of scope) {
+    const mine = wantedChapters([unitId], options, docs);
+    perUnit.set(unitId, [...new Set(mine.map((w) => w.key))]);
+    for (const w of mine) if (!wants.has(w.key)) wants.set(w.key, w);
+    const book = unitCoordinates(unitId)?.book;
+    if (!book) continue;
+    if (readFailed.sources) { unknown.add(unitId); continue; }
+    const bookMissing = (o: SourceOption) => {
+      const h = o.doc?.provider.kind === 'library' ? o.doc.books.find((b) => b.book === book)?.doc : undefined;
+      return !!h && !docs.has(h);
+    };
+    if (readFailed.books && options.some(bookMissing)) unknown.add(unitId);
+  }
+  return { wants: [...wants.values()], perUnit, unknown };
+}

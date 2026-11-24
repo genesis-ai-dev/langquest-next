@@ -9,6 +9,7 @@
 
 /** Each section of the page (pageOps.ts GROUPS), on its title. */
 export const GROUP_HELP: Record<string, string> = {
+  userreports: 'What people sent from help mode in the app (the question mark, then Send a problem or an idea), in the last 90 days. Each problem goes to the watch for user issues, which files it in Linear or adds it to an issue the team has. The fix team takes a problem that a person sent before every other issue. Linear keeps each issue\'s state; this page reads it.',
   research: 'What the research team found each day before it breaks anything: known security holes in the packages, new versions, package health, offline and sync safety, code security, speed and cost, store rules, and the same mistake as a fixed issue in other places. What it recommends, rejected and watches, and what the fix team fixed from it.',
   userissues: 'Problems people hit in the app, as the watch for user issues found them every 15 minutes: each one it filed in Linear (assigned to a developer, whose phone tells them), its state there, and the pull request that fixed it; and those a merged pull request had already fixed, which it did not file. Close an issue in Linear and the watch stops; it reopens it only when people hit the problem on a build made after the fix.',
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
@@ -29,6 +30,7 @@ export const GROUP_HELP: Record<string, string> = {
 
 /** Each part of a section (one source's answer), on its sub-heading. */
 export const SECTION_HELP: Record<string, string> = {
+  userreports: 'One card for each report a person sent. The tabs sort them: Open (a problem whose Linear issue is open, the most important first), Not in Linear yet (the watch did not look at it yet), Ideas (ideas never go to Linear), Fixed, and Not a problem (the watch judged it a test or noise). A card has what the person said and from which screen, the screenshot when they sent one, and its Linear issue: what goes wrong, what Claude found and what happens next. Tell Claude what to do on the issue\'s card on User issues. Reports from test accounts and the store review accounts are only counted.',
   research: 'The day\'s report in plain words, the team as a map (facts, the lead, the scouts side by side, the lead\'s check), the week of subjects, what each scout looked at, and one card for each thing found. The tabs sort them: Waits on you (a choice, or a fix to read), For the fix team, Fixed, Watching, Rejected. A choice is one tap: Claude takes it as an instruction.',
   safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
   clients: 'What phones and browsers report about themselves (field diagnostics): syncs, errors and crashes, transfers, recording, sign-in trouble. Counts and codes only, never content.',
@@ -68,6 +70,13 @@ export const SECTION_HELP: Record<string, string> = {
 };
 
 export const HELP: Record<string, string> = {
+  // ---- Resolved: a line hidden until its problem comes back (pageResolve.ts)
+  'Resolved button': 'Hides this problem from the page. Claude reads the line every 3 hours and shows it again when the problem comes back. It also shows again when it gets worse, or goes and comes back. The watch for user issues still sees it.',
+  'Came back: worse': 'Someone resolved this problem. It shows again because it is more serious now.',
+  'Came back: claude': 'Someone resolved this problem. Claude read the line and found that the problem came back.',
+  'Came back: unchecked': 'Someone resolved this problem. Claude could not check it for 27 hours, so it shows again.',
+  'Claude says': 'Why Claude found that the problem came back.',
+  'Claude checked': 'When Claude last read the line, and why it found the same problem.',
   // ---- where each build and update is (sources/pipeline.ts)
   'Building on EAS': 'Store builds EAS is making now, and the newest one when it failed.',
   TestFlight: 'iPhone builds uploaded to Apple and not sent for review: Apple processing them, or waiting while an older build is in App Review. The hourly step sends only the newest once the review ends.',

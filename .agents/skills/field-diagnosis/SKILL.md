@@ -102,6 +102,10 @@ role on a hosted database (`DIAG_DATABASE_URL`) or the local database.
 | `nearby` `blocked` (`no-certificate`, `permission-blocked`, `bluetooth-off`) | The screen could not run | `no-certificate`: the phone has not reached the server since nearby was turned on (`npm run org-feature -- list`) |
 | `nearby` sessions ended `dropped`, `stalled` or with a module code | "It stops": the link went | `links` all `bluetooth` and `fallbacks` high: Wi-Fi Direct and the hotspot did not come up; the code names where |
 | `nearby` `strangers` | Connections that never passed the opening | Not a fault: a stranger, a replay, or a teammate on another discovery-key generation |
+| `nearby` rooms with `mode` `open` and `heard` 0 | Shared while LangQuest was open with nobody near | Not a fault: the phone was open alone. `openTotals` `met` says how often it met anyone |
+| `nearby` `refusals` `open:window` | Sharing while LangQuest was open turned a teammate away: their certificate and the day they last met on Share nearby were over two weeks old (docs/nearby-sync-plan.md 15.8) | The team meets on Share nearby, or someone goes online; the Teammates fold on Sync and offline says until when |
+| `nearby` `refusals` `revoked`, `org`, `expired`, `other` | This phone turned away a phone whose certificate did not check | `revoked`: a lost phone reported or a member removed, nearby; ask the team |
+| A team's nearby sync as a whole, not one person | `npm run diag -- nearby <org>`: each language's phones together, quiet and Share nearby apart (runs, minutes on and off the air, how often anyone met, waits to meet, refusals, delivery) | Counts only: no record says who met whom |
 | `diag -- jobs` shows a stale job | A cron, the GitHub projection job or a Worker stopped | The job's last error class; GitHub Actions or Cloudflare logs for that window |
 
 ## Changing what is recorded

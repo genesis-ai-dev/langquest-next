@@ -44,7 +44,9 @@ describe('the pull requests that name a Linear issue', () => {
       p(2, { merged_at: new Date(NOW - 2 * 86_400_000).toISOString() }),
       p(3, { merged_at: new Date(NOW - (FIX_DAYS + 1) * 86_400_000).toISOString() }),
       p(4, {}),
-      p(5, { state: 'open', title: 'No issue named' })
+      p(5, { state: 'open', title: 'No issue named' }),
+      // A copy onto a release branch is not the fix (decisions.md 155).
+      p(6, { state: 'open', base: { ref: 'release/ios' } })
     ], NOW);
     expect(out.map((x) => [x.number, x.state, x.issues])).toEqual([[1, 'open', ['LAN-1']], [2, 'merged', ['LAN-2']]]);
   });

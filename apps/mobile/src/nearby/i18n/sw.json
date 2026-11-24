@@ -94,6 +94,9 @@
     "olderFromServer": "Kazi ya zamani zaidi itakuja kutoka kwenye seva.",
     "hold": "Hifadhi rekodi za wenzako",
     "holdHelp": "Ikiwashwa, simu hii huhifadhi rekodi za wenzako hadi seva iwe nazo. Ikizimwa, huhifadhi zile unazohitaji tu.",
+    "whileOpen": "Shiriki LangQuest ikiwa wazi",
+    "whileOpenHelp": "Usipokuwa na intaneti, simu yako hushiriki na wenzako walio karibu LangQuest ikiwa wazi, na husimama skrini inapozimika. Rekodi zinaweza kusubiri Shiriki karibu. Mkikaa bila intaneti zaidi ya wiki mbili, fungueni Shiriki karibu pamoja angalau kila wiki mbili ili iendelee.",
+    "whileOpenNow": "Inashiriki na wenzako walio karibu LangQuest ikiwa wazi",
     "carry": {
       "title": "Kilichomo kwenye simu hii",
       "everything": "Simu hii ina kila kitu inachokijua.",
@@ -108,7 +111,15 @@
       "today": "Leo",
       "sinceOnline": "Tangu ulipokuwa mtandaoni mara ya mwisho",
       "notSinceOnline": "Si tangu ulipokuwa mtandaoni mara ya mwisho",
-      "newest": "kazi mpya zaidi hapa {{when}}"
+      "newest": "kazi mpya zaidi hapa {{when}}",
+      "teamTitle": "Wenzako",
+      "everyone": "Wote",
+      "teamHelp": "Kazi mpya zaidi ya kila mwenzako kwenye simu hii ni ya lini, ikijumuisha kazi iliyoletwa na simu nyingine. Shiriki karibu huisasisha.",
+      "quietUntil": "Hushiriki LangQuest ikiwa wazi hadi {{day}}",
+      "quietSoon": "Fungueni Shiriki karibu pamoja kabla ya {{day}} ili kuendelea kushiriki LangQuest ikiwa wazi",
+      "quietLapsed": "Haishiriki tena LangQuest ikiwa wazi. Fungueni Shiriki karibu pamoja.",
+      "onlyHere": "Rekodi zilizo kwenye simu hii tu: {{n}}",
+      "onlyHereHelp": "Rekodi zako ambazo hakuna simu ya mwenzako iliyo nazo, kwa kadiri simu hii inavyojua. Shiriki karibu na mwenzako ili ziwe kwenye simu mbili."
     },
     "history": {
       "nearby": "Imetoka kwenye simu ya {{name}}, bado haiko kwenye seva",

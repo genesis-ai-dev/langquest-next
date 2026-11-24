@@ -17,7 +17,9 @@ export interface BlobRef {
   unitId: string;
   /**
    * A part's cleaned sound: the part as recorded, which stays on the server
-   * and which no phone downloads while the note names this file (decisions.md 176).
+   * and which no phone downloads while the note names this file, unless a
+   * version or draft not deleted still plays it (decisions.md 176, amended
+   * 2026-11-23: `FilePlan.aside`).
    */
   replaces?: string;
   /**
@@ -93,7 +95,14 @@ export interface FilePlan {
   refs: ReadonlyMap<string, BlobRef>;
   /** Each referenced file's place in `refs`, so a list made from a few files keeps the log's order. */
   order: ReadonlyMap<string, number>;
-  /** Parts as recorded whose cleaned sound plays instead: uploaded like any part, never downloaded (decisions.md 176). */
+  /**
+   * Parts as recorded whose cleaned sound plays instead, and that no version
+   * or draft not deleted still plays: uploaded like any part, never
+   * downloaded (decisions.md 176). One that a version still plays (it was
+   * handed on before the clean-up) is not aside: it comes with its passage
+   * and counts for it, since a review or back translation of that version
+   * plays it, offline too (amended 2026-11-23; LAN-317).
+   */
   aside: ReadonlySet<string>;
   idx: AudioIndex;
   /** The server's latest verdict on a file. */
@@ -116,7 +125,8 @@ function planOf(state: LanguageState): FilePlan {
   const revision = stateRevision(state);
   const hit = plans.get(state);
   if (hit && hit.revision === revision) return hit.plan;
-  const plan = filePlan(state, collectRefs(state), (hash) => state.blobs[hash]);
+  const refs = collectRefs(state);
+  const plan = filePlan(state, refs, (hash) => state.blobs[hash], playedParts(Object.values(state.takes), replacedParts(refs)));
   plans.set(state, { revision, plan });
   return plan;
 }
@@ -130,16 +140,42 @@ function planOf(state: LanguageState): FilePlan {
 export function filePlan(
   state: Pick<LanguageState, 'materials' | 'keyTerms' | 'units'>,
   refs: ReadonlyMap<string, BlobRef>,
-  verdict: (hash: string) => Verdict | undefined
+  verdict: (hash: string) => Verdict | undefined,
+  played: ReadonlySet<string> = new Set()
 ): FilePlan {
   const order = new Map<string, number>();
   const aside = new Set<string>();
   let n = 0;
   for (const [hash, ref] of refs) {
     order.set(hash, n++);
-    if (ref.replaces) aside.add(ref.replaces);
+    // A part as recorded that a version or draft still plays is not set aside (`playedParts`).
+    if (ref.replaces && !played.has(ref.replaces)) aside.add(ref.replaces);
   }
   return { refs, order, aside, idx: audioIndex(state, refs, aside), verdict, units: state.units, scoped: new Map(), byScope: new WeakMap() };
+}
+
+/**
+ * Every part a version or draft not deleted plays. A part as recorded that
+ * one of them plays is not set aside when Clean up puts its cleaned sound in
+ * a new draft (decisions.md 176, amended 2026-11-23): a version handed on
+ * before the clean-up keeps playing it, and a review or back translation of
+ * that version plays it on a phone offline too (LAN-317). A draft the
+ * clean-up retired is deleted, so a part cleaned before it was handed on
+ * stays off phones as before.
+ */
+export function playedParts(takes: Iterable<Pick<LanguageState['takes'][string], 'cardHashes' | 'archived'>>, among?: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>();
+  // Only the parts a cleaned sound replaces are asked about: a language with none walks no take.
+  if (among && among.size === 0) return out;
+  for (const t of takes) if (!t.archived) for (const hash of t.cardHashes) if (!among || among.has(hash)) out.add(hash);
+  return out;
+}
+
+/** The parts as recorded that a cleaned sound among these files plays instead of (decisions.md 176). */
+export function replacedParts(refs: ReadonlyMap<string, BlobRef>): Set<string> {
+  const out = new Set<string>();
+  for (const ref of refs.values()) if (ref.replaces) out.add(ref.replaces);
+  return out;
 }
 
 /** Every blob the language references: recording cards and reference audio. Read-only: it is shared until the next change. */
@@ -579,6 +615,12 @@ export interface OfflineSummary {
   bytesToFetch: number;
   /** Files no download can bring yet: not sent by whoever recorded them. */
   notSent: number;
+  /**
+   * Files of these passages already on this device, kept or not: what tells
+   * a book with nothing left to fetch from a book nobody has recorded (a
+   * book's line after its passages were let go and their files stayed).
+   */
+  filesHere: number;
 }
 
 export function offlineSummary(
@@ -593,7 +635,7 @@ export function offlineSummary(
 export function offlineSummaryOf(plan: FilePlan, present: ReadonlySet<string>, chosen: ReadonlySet<string>, why: OfflineReasons): OfflineSummary {
   const scope = new Set(why.mine);
   for (const u of chosen) scope.add(u);
-  const out: OfflineSummary = { kept: 0, ready: 0, chosen: 0, filesToFetch: 0, bytesToFetch: 0, notSent: 0 };
+  const out: OfflineSummary = { kept: 0, ready: 0, chosen: 0, filesToFetch: 0, bytesToFetch: 0, notSent: 0, filesHere: 0 };
   // Per passage, so a file two passages share is counted under each; the totals below are by file.
   for (const u of offlineCountsOf(plan, scope, present, chosen, why).values()) {
     out.kept++;
@@ -601,7 +643,7 @@ export function offlineSummaryOf(plan: FilePlan, present: ReadonlySet<string>, c
     if (u.reason === 'chosen') out.chosen++;
   }
   for (const hash of scopedHashes(plan, scope)) {
-    if (present.has(hash)) continue;
+    if (present.has(hash)) { out.filesHere++; continue; }
     const verdict = plan.verdict(hash);
     if (verdict?.stored) { out.filesToFetch++; out.bytesToFetch += verdict.size; }
     else out.notSent++;

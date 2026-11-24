@@ -195,7 +195,8 @@ const ICONS = {
   part: '<circle class="o" cx="7" cy="7" r="5.5"/><path class="f" d="M7 1.5A5.5 5.5 0 0 1 12.5 7H7Z"/>',
   merged: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M7 3.8V7L9.2 8.4"/>',
   stuck: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M4.8 4.8L9.2 9.2M9.2 4.8L4.8 9.2"/>',
-  done: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M4.2 7.2L6.2 9.2L9.8 5"/>'
+  done: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M4.2 7.2L6.2 9.2L9.8 5"/>',
+  claude: '<path class="f" d="M7 1L8.4 5.6L13 7L8.4 8.4L7 13L5.6 8.4L1 7L5.6 5.6Z"/>'
 };
 const icon = (s) => '<svg class="ic s-' + s + '" viewBox="0 0 14 14" aria-hidden="true">' + ICONS[s] + '</svg>';
 
@@ -248,9 +249,12 @@ function fixSays(f, compact) {
 /** How many lines wait for their check after a merged fix: they need nobody now. */
 function waitingFixes(alerts) { return alerts.filter((a) => fixOf(a).state === 'merged').length; }
 
-function resolvedHtml(list) {
+/** hand: the lines an admin resolved that stay hidden now (pageResolve.ts handResolved), first. */
+function resolvedHtml(list, hand) {
+  hand = hand || [];
   const fixes = fixData && fixData.state === 'error' ? '<p class="bad">Could not read the pull requests: ' + esc(fixData.error) + '</p>' : '';
-  return '<summary>' + icon('done') + '<b>Resolved</b><span class="muted">' + (list.length ? list.length + ' in the last 14 days' : 'none in the last 14 days') + '</span></summary>' + fixes +
+  const n = list.length + hand.length;
+  return '<summary>' + icon('done') + '<b>Resolved</b><span class="muted">' + (n ? n + ' in the last 14 days' : 'none in the last 14 days') + '</span></summary>' + fixes + handResolvedHtml(hand) +
     list.map((l) => {
       const f = { issues: [l.issue], row: { issue: l.issue, issueUrl: l.issueUrl, state: l.state } };
       return '<div class="rsline">' + icon('done') + '<div><b>' + esc(l.title) + (l.subject ? ' · ' + esc(l.subject) : '') + '</b>' +

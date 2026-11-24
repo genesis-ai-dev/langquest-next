@@ -11,18 +11,22 @@ describe('npm run org-feature (docs/nearby-sync-plan.md 5.10)', () => {
   });
 
   it('takes only a feature org_features knows', () => {
-    expect(Object.keys(FEATURES)).toEqual(['nearby', 'nearby_join']);
+    expect(Object.keys(FEATURES)).toEqual(['nearby', 'nearby_join', 'nearby_open']);
     expect(featureOf('nearby')).toBe('nearby');
     expect(featureOf('nearby_join')).toBe('nearby_join');
+    expect(featureOf('nearby_open')).toBe('nearby_open');
     for (const bad of [undefined, '', 'toString', 'nearby\'; drop table x; --', 'NEARBY']) expect(() => featureOf(bad)).toThrow(/Name the feature/);
   });
 
   it('says what each answer means, and refuses what the database refused', () => {
     expect(answerText('grant', 'nearby', 'granted')).toMatch(/certificate/);
     expect(answerText('grant', 'nearby_join', 'granted')).toMatch(/only while nearby is on/);
-    expect(answerText('revoke', 'nearby', 'revoked')).toMatch(/joining offline stops too/);
+    expect(answerText('revoke', 'nearby', 'revoked')).toMatch(/joining offline and sharing while LangQuest is open stop too/);
     expect(answerText('revoke', 'nearby_join', 'revoked')).toMatch(/no new passes/);
+    expect(answerText('grant', 'nearby_open', 'granted')).toMatch(/only while nearby is on/);
+    expect(answerText('revoke', 'nearby_open', 'revoked')).toMatch(/Share nearby itself stays on/);
     expect(() => answerText('grant', 'nearby', 'no_org')).toThrow('No organization has that id.');
+    expect(() => answerText('grant', 'nearby_open', 'needs_nearby')).toThrow(/Turn nearby on for that organization first/);
     expect(() => answerText('revoke', 'nearby', 'not_granted')).toThrow(/does not have that feature on/);
     expect(() => answerText('grant', 'nearby', 'say_who')).toThrow(/git config user.name/);
     expect(() => answerText('grant', 'nearby', undefined)).toThrow('No answer.');
