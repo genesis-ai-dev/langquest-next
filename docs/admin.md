@@ -253,6 +253,15 @@ minute while Claude owes an answer. The talk names who asked and when:
 waiting, working, answered, or stopped (two runs took it and neither
 answered; ask again).
 
+The question can also ask for a change in Linear ("the iPhone one is fixed
+now", "drop this one"). Claude names each change in `answers.json`
+(`linear`: an issue, and its status, priority, title or a comment); the step
+that sends the answers back, the only one with `LINEAR_API_KEY`, makes it
+when the card or the question names that issue, and puts what Linear did
+first in the answer (`scripts/card-questions.mjs` `linearFor`,
+`docs/decisions/2026-11-24-dashboard-claude-changes-linear-from-any-card.md`).
+Deploying, Verifying and Outage stay with `linear-sync.mjs`.
+
 ## Resolved: a line hidden until its problem comes back
 
 Each Overview row and each line's card has a Resolved button

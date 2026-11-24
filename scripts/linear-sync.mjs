@@ -176,6 +176,84 @@ export async function reportLane(api, { name, sha, status, url }, contains = () 
   return out;
 }
 
+// --- Changes in Linear an admin asks for on the ops dashboard ---------------
+// (docs/decisions/2026-11-24-dashboard-claude-changes-linear-from-any-card.md)
+// An admin writes to Claude on a card ("LAN-158 is fixed now", "drop this one,
+// the user can start again"). Claude reads what the admin means and names the
+// changes; it has no Linear key. The step after it, which has the key, makes
+// them. Deploying, Verifying and Outage stay with the deploy (above).
+
+/** At most this many changes from one answer, and their words' lengths. */
+export const ASKED = { max: 5, title: 120, comment: 1000 };
+/** Statuses only the deploy sets (lower case). */
+const DEPLOY_STATUSES = ['deploying', 'verifying', 'outage'];
+const ISSUE_ID = new RegExp(`^${TEAM_KEY}-[0-9]{1,6}$`);
+const words = (v, max) => {
+  const t = String(v ?? '').replace(/\r\n?/g, '\n').trim();
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+};
+
+/**
+ * Claude's `linear` list, checked: each entry names an `issue` (LAN-12) and one change, a `status` by the
+ * team's name for it, a `priority` (0 none, 1 urgent, 2 high, 3 medium, 4 low), a `title` or a `comment`.
+ * Anything else is dropped.
+ */
+export function askedChanges(raw) {
+  const out = [];
+  for (const c of Array.isArray(raw) ? raw : []) {
+    if (!c || typeof c !== 'object') continue;
+    const issue = String(c.issue ?? '').trim().toUpperCase();
+    if (!ISSUE_ID.test(issue)) continue;
+    if (typeof c.status === 'string' && c.status.trim()) {
+      if (!DEPLOY_STATUSES.includes(c.status.trim().toLowerCase())) out.push({ issue, status: words(c.status, 40) });
+    } else if (Number.isInteger(c.priority) && c.priority >= 0 && c.priority <= 4) out.push({ issue, priority: c.priority });
+    else if (typeof c.title === 'string' && c.title.trim()) out.push({ issue, title: words(c.title.replace(/\s+/g, ' '), ASKED.title) });
+    else if (typeof c.comment === 'string' && c.comment.trim()) out.push({ issue, comment: words(c.comment, ASKED.comment) });
+  }
+  return out.slice(0, ASKED.max);
+}
+
+const PRIORITY = ['No priority', 'Urgent', 'High', 'Medium', 'Low'];
+
+/**
+ * Makes the changes in Linear, and returns one sentence for each, for the admin: what Linear did, or that
+ * it refused. Never throws, so a refusal never loses Claude's answer. A status change leaves a comment on
+ * the issue that says an admin asked for it, with the run.
+ */
+export async function makeAsked(api, changes, run = '') {
+  const said = [];
+  for (const c of changes) {
+    const id = c.issue;
+    const what = c.status ? `set ${id} to ${c.status}` : c.priority !== undefined ? `set the priority of ${id} to ${PRIORITY[c.priority]}`
+      : c.title ? `rename ${id}` : `add a comment to ${id}`;
+    try {
+      const issue = await api.getIssue(id);
+      if (!issue) { said.push(`I could not ${what}: Linear has no ${id}.`); continue; }
+      if (c.status) {
+        const name = Object.keys(issue.states).find((n) => n.toLowerCase() === c.status.toLowerCase());
+        if (!name) { said.push(`I could not ${what}: the team has no status ${c.status}.`); continue; }
+        if (issue.state === name) { said.push(`${id} is ${name} in Linear already.`); continue; }
+        await api.setState(issue, name);
+        await api.comment(issue.id, `Set to ${name} by Claude, as an admin asked on the ops dashboard.${run ? `\n\n${run}` : ''}`);
+        said.push(`I set ${id} to ${name} in Linear.`);
+      } else if (c.priority !== undefined) {
+        await api.update(issue.id, { priority: c.priority });
+        said.push(`I set the priority of ${id} to ${PRIORITY[c.priority]} in Linear.`);
+      } else if (c.title) {
+        await api.update(issue.id, { title: c.title });
+        said.push(`I renamed ${id} in Linear.`);
+      } else {
+        await api.comment(issue.id, c.comment);
+        said.push(`I added a comment to ${id} in Linear.`);
+      }
+    } catch (e) {
+      console.log(`::warning::${id}: Linear refused a change (${String(e instanceof Error ? e.message : e).slice(0, 160)})`);
+      said.push(`I could not ${what} in Linear. Do it there yourself.`);
+    }
+  }
+  return said;
+}
+
 // --- Linear -----------------------------------------------------------------
 
 export function linearApi(key, fetchImpl = fetch) {
@@ -227,6 +305,12 @@ export function linearApi(key, fetchImpl = fetch) {
       await gql(`mutation($issueId: String!, $body: String!) {
         commentCreate(input: { issueId: $issueId, body: $body }) { success } }`, { issueId, body });
     },
+    /** Changes an issue's fields (priority, title), and fails when Linear says it did not. */
+    async update(issueId, input) {
+      const done = await gql(`mutation($id: String!, $input: IssueUpdateInput!) {
+        issueUpdate(id: $id, input: $input) { success } }`, { id: issueId, input });
+      if (done.issueUpdate?.success !== true) throw new Error('Linear: the issue did not change');
+    },
     async setState(issue, name) {
       const stateId = issue.states[name];
       if (!stateId) throw new Error(`${issue.identifier}: team has no status named ${name}`);
@@ -274,6 +358,7 @@ export function dryApi() {
     comments: async () => [],
     comment: async (id, body) => say('comment on', id, '|', body),
     setState: async (issue, name) => say('move', issue.identifier, 'to', name),
+    update: async (id, input) => say('update', id, JSON.stringify(input)),
     openIssues: async () => [],
     link: async (id, url) => say('link on', id, '|', url)
   };
