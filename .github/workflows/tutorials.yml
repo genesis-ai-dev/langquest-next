@@ -255,7 +255,7 @@ jobs:
         run: npx tsx e2e/tutorials/put-in-release.ts "$LANGUAGE" "$RUNNER_TEMP/out"
       # The intake takes them in and the publish puts them up on YouTube now (decision 192).
       - name: Tell LangQuest the new films are in
-        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.release.outputs.films != '' && steps.release.outputs.films != '0' }}
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && ((steps.release.outputs.films != '' && steps.release.outputs.films != '0') || (steps.release.outputs.held != '' && steps.release.outputs.held != '0')) }}
         run: node e2e/tutorials/films-in.mjs
       # A refusal only a person can fix, for the ops dashboard's Needs attention (needs-you.mjs).
       - name: What needs a person

@@ -53,6 +53,45 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13 and 2026-11-
     expect(keys(videoBoard(input({ status: { en: status([{ tonight: 'failed' }]) } }), NOW))[0]).toBe('fails');
   });
 
+  it('shows a held film\'s wrong stills, ringed, and links the film at their times (2026-11-24)', () => {
+    const still = (c: string) => `${sha(c)}.jpg`;
+    const heldFilm = { sha256: sha('h'), bytes: 900, stills: [
+      { t: 9.4, says: 'Ouvrez la langue.', picture: still('1'), bytes: 50, problems: ['The row says "1 terminés".'], boxes: [[0.4, 0.5, 0.2, 0.05] as [number, number, number, number]] },
+      { t: 21, says: 'Ruth vérifie.', picture: still('2'), bytes: 60, problems: ['A serif font.', 'A second problem.'], boxes: [null, [0.1, 0.1, 0.1, 0.1] as [number, number, number, number]] }
+    ] };
+    const b = videoBoard(input({ status: { en: status([{ tonight: 'held', held: ['0:09 ("Ouvrez la langue."): The row says "1 terminés".', '0:21: A serif font.'], heldFilm }]) } }), NOW);
+    const card = b.admin.find((a) => a.kind === 'held')!;
+    expect(card.pictures).toEqual([
+      { picture: still('1'), language: 'en', tutorial: 'record-a-passage', kind: 'still', n: 1, at: 9.4, caption: 'The row says "1 terminés".', ring: [0.4, 0.5, 0.2, 0.05] },
+      { picture: still('2'), language: 'en', tutorial: 'record-a-passage', kind: 'still', n: 2, at: 21, caption: 'A serif font.' },
+      { picture: still('2'), language: 'en', tutorial: 'record-a-passage', kind: 'still', n: 2, at: 21, caption: 'A second problem.', ring: [0.1, 0.1, 0.1, 0.1] }
+    ]);
+    // The held film itself (never on YouTube), then the film on YouTube now, each at 0:09 and 0:21.
+    expect(card.watch).toEqual([
+      { film: 'held', label: 'The held film, not on YouTube', links: [
+        { text: 'At 0:09', href: `/api/tutorials/en/record-a-passage/${sha('h')}.mp4#t=9` }, { text: 'At 0:21', href: `/api/tutorials/en/record-a-passage/${sha('h')}.mp4#t=21` }] },
+      { film: 'youtube', label: 'On YouTube now, the film before it', links: [{ text: 'At 0:09', href: 'https://youtu.be/dQw4w9WgXcQ?t=9' }, { text: 'At 0:21', href: 'https://youtu.be/dQw4w9WgXcQ?t=21' }] },
+      { film: 'langquest', label: 'The same film, on LangQuest, the film before it', links: [
+        { text: 'At 0:09', href: `/api/tutorials/en/record-a-passage/${sha('a')}.mp4#t=9` }, { text: 'At 0:21', href: `/api/tutorials/en/record-a-passage/${sha('a')}.mp4#t=21` }] }
+    ]);
+    expect(en(b).marks.at(-1)!.detail).toMatchObject({ films: [{ label: 'The held film', href: `/api/tutorials/en/record-a-passage/${sha('h')}.mp4` }], pictures: card.pictures });
+
+    // Held before the stills were kept: no pictures, and the times come from the frame check's lines.
+    const old = videoBoard(input({ status: { en: status([{ tonight: 'held', held: ['0:09 ("x"): A.', '1:46: B.'] }]) } }), NOW).admin.find((a) => a.kind === 'held')!;
+    expect(old.pictures).toBeUndefined();
+    expect(old.watch![0]).toEqual({ film: 'youtube', label: 'On YouTube now', links: [{ text: 'At 0:09', href: 'https://youtu.be/dQw4w9WgXcQ?t=9' }, { text: 'At 1:46', href: 'https://youtu.be/dQw4w9WgXcQ?t=106' }] });
+
+    // A suggestion whose stills are the held film's plays that film at their times; any other card, each film from the start.
+    const sg = suggestion({ pictures: [{ picture: still('2'), language: 'en', tutorial: 'record-a-passage', kind: 'still', n: 2, at: 21, caption: 'Serif.' }], language: 'en' });
+    const withSg = videoBoard(input({ feedback: feedback({ suggestions: [sg] }), status: { en: status([{ tonight: 'held', held: ['0:21: A serif font.'], heldFilm }]) } }), NOW);
+    expect(withSg.admin.find((a) => a.kind === 'approve')!.watch![0]).toEqual({ film: 'held', label: 'The held film, not on YouTube', links: [{ text: 'At 0:21', href: `/api/tutorials/en/record-a-passage/${sha('h')}.mp4#t=21` }] });
+    const plain = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ language: 'en' })] }) }), NOW).admin.find((a) => a.kind === 'approve')!;
+    expect(plain.watch).toEqual([
+      { film: 'youtube', label: 'On YouTube now', links: [{ text: 'From the start', href: 'https://youtu.be/dQw4w9WgXcQ' }] },
+      { film: 'langquest', label: 'The same film, on LangQuest', links: [{ text: 'From the start', href: `/api/tutorials/en/record-a-passage/${sha('a')}.mp4` }] }
+    ]);
+  });
+
   it('follows a suggestion from approval to a fix merged', () => {
     const ask = videoBoard(input({ feedback: feedback({ suggestions: [suggestion()] }) }), NOW);
     expect(keys(ask)).toEqual(['approve']);

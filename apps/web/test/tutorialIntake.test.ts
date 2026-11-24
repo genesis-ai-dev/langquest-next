@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { chosenOnIntake, filmName, filmProblem, readManifest, takeInFilms, type Film, type IntakeReport } from '../../../server/tutorialIntakeModel';
+import { chosenOnIntake, filmName, filmProblem, heldFilmName, heldStillName, readManifest, takeInFilms, type Film, type IntakeReport } from '../../../server/tutorialIntakeModel';
 import type { ChannelLanguage } from '../../../server/youtube';
 
 /** The intake job (server/tutorialIntakeModel.ts) against a release and an R2 kept in memory. */
@@ -50,6 +50,37 @@ describe('tutorial intake', () => {
     expect([...w.r2.keys()]).toEqual([`es/record-a-passage/${record.sha256}`, `es/key-words/${keyWords.sha256}`]);
     expect(await takeInFilms(w.deps, fresh())).toEqual({ languages: 1, films: 2, brought: 0, listed: 0, failed: 0, firstError: null });
     expect(w.downloads).toHaveLength(2);
+  });
+
+  it('brings a held film and its wrong stills for the dashboard, never lists them, and checks their hashes (2026-11-24)', async () => {
+    const record = film('record-a-passage', 'grabar');
+    const still = sha('still one');
+    const statusJson = { language: 'es', videos: [
+      { tutorial: 'record-a-passage', tonight: 'filmed' },
+      { tutorial: 'key-words', tonight: 'held', heldFilm: { sha256: sha('held film'), bytes: bytesOf('held film').length, stills: [
+        { t: 9, says: '', picture: `${still}.jpg`, bytes: bytesOf('still one').length, problems: ['Wrong.'], boxes: [null] },
+        { t: 21, says: '', picture: `${sha('still two')}.jpg`, bytes: 9, problems: ['Also wrong.'], boxes: [null] }
+      ] } }
+    ] };
+    const w = world({ es: { language: 'es', films: [record] } }, { [filmName('es', 'record-a-passage', record.sha256)]: 'grabar' });
+    const assets: Record<string, string> = {
+      [heldFilmName('es', 'key-words', sha('held film'))]: 'held film', [heldStillName('es', still)]: 'still one', [heldStillName('es', sha('still two'))]: 'not still two'
+    };
+    const pictures = new Map<string, Uint8Array>();
+    const deps = { ...w.deps, held: {
+      status: async (language: ChannelLanguage) => (language === 'es' ? statusJson : null),
+      asset: async (name: string) => { if (assets[name] === undefined) throw Object.assign(new Error('x'), { name: 'held_download_404' }); return bytesOf(assets[name]!); },
+      storedPicture: async (name: string) => pictures.has(name),
+      putPicture: async (name: string, bytes: Uint8Array) => { pictures.set(name, bytes); }
+    } };
+    expect(await takeInFilms(deps, fresh())).toEqual({ languages: 1, films: 1, brought: 1, listed: 1, failed: 1, firstError: 'held_digest', held: 2 });
+    expect(w.r2.has(`es/key-words/${sha('held film')}`)).toBe(true);
+    expect([...pictures.keys()]).toEqual([`${still}.jpg`]);
+    // A held film is in R2 to be played on the card, never listed for YouTube.
+    expect([...w.listed]).toEqual([`es/record-a-passage/${record.sha256}`]);
+    const again = await takeInFilms(deps, fresh());
+    expect(again).toMatchObject({ brought: 0, failed: 1 });
+    expect(again.held).toBeUndefined();
   });
 
   it('lists a film R2 already has without downloading it again', async () => {

@@ -190,7 +190,14 @@ the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
    wrong, or whose stills could not be looked at, is held: it is not put in
    the release, the video keeps its last film, and the job fails, with what
    is wrong under "Held by the frame check" on the run's summary and the
-   stills in its `tutorials-<language>` artifact (`check/`, `check.json`);
+   stills in its `tutorials-<language>` artifact (`check/`, `check.json`).
+   For each problem the check also gives the box round it in its still. The
+   held film and its wrong stills go into the release as `held.<language>.*`
+   (never in the manifest, so never to YouTube), and `status-<language>.json`
+   names them under the video's `heldFilm`; the intake brings them into R2,
+   so the dashboard's Film held card shows each still ringed and plays the
+   held film at its time
+   (`docs/decisions/2026-11-24-a-held-film-shows-its-wrong-stills-and-plays-at-their-time.md`);
 4. writes the language's manifest, the films that did not change and the
    new ones that passed, each with what YouTube shows (`playlists.ts`) and
    its look.
@@ -603,7 +610,12 @@ Four tabs with counts; the page opens on the first when something waits:
   films to publish and channels to connect. A suggestion's card shows its
   pictures: numbered, ringed where Claude saw the place, with a caption
   under each. A picture with a small ring shows that part zoomed in. A click
-  opens a picture full size. An instruction sent from a card is an accepted
+  opens a picture full size. A held film's card shows the stills the frame
+  check found wrong in the same way, ringed where the check saw each
+  problem. Every card about one video has a "Watch the video" line: the
+  held film (not on YouTube) and the film on YouTube and on LangQuest, each
+  with a link at each time the card is about (`#t=` on LangQuest's copy,
+  `?t=` on YouTube), or from the start. An instruction sent from a card is an accepted
   suggestion of kind `instruction`: Claude's next fix run writes it as a
   pull request, with no second Accept.
 - **Automatic**: what needs no answer. Claude acts next: a held or failing

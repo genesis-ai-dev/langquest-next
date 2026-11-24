@@ -151,6 +151,13 @@ label.check { display: inline-flex; gap: 6px; align-items: center; font-weight: 
 .vring rect.halo { stroke: #fff; stroke-width: 8; opacity: .9; }
 .vnum { position: absolute; top: 6px; inset-inline-start: 6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; background: #E5484D; color: #fff; font: 700 14px/24px system-ui, sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
 .vpic figcaption { font-size: 13px; line-height: 1.35; margin-top: 4px; }
+.vwatch { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.vwatch li { display: grid; grid-template-columns: minmax(0, 13em) 1fr; gap: 4px 10px; align-items: center; }
+@media (max-width: 560px) { .vwatch li { grid-template-columns: 1fr; } }
+.vwlinks { display: flex; flex-wrap: wrap; gap: 6px; }
+.vwname { display: inline-flex; gap: 6px; align-items: center; } .vwname svg { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; }
+a.vwat { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 16px; text-decoration: none; font-variant-numeric: tabular-nums; }
+a.vwat:hover { border-color: currentColor; }
 .vtech summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .vfilms { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; } .vfilms figure { margin: 0; } .vfilms video { width: 100%; border-radius: 8px; background: #000; }
 .vkey { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 6px 0; } .vkey span { display: inline-flex; gap: 4px; align-items: center; }
