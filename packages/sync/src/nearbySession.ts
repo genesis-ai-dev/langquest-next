@@ -1,6 +1,6 @@
 import { CLOCK_AHEAD_TOLERANCE_MS, LINES_VERSION, NEARBY_PROTOCOL, pickProtocol, REDUCER_VERSION, type LibraryFile } from '@langquest-next/core';
 import {
-  base64urlEncode, certificateSignedAt, checkChain, handedKeyHolds, issueInviteLink, joinPictures, newcomerProfileId, type JoinPass, type WorkerLink, holdingsFilesHash, holdingsText, isBase64url, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_HOLDINGS_MAX_KEYS, type InviteLink, NEARBY_OPENING_BYTES, nearbyBytes, parseRevocationList, proofText, signedBy, summaryOf, summaryText, withMyHolding, type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
+  base64urlEncode, bytesToHex, certificateSignedAt, libraryLinkFormat, utf8Encode, checkChain, handedKeyHolds, issueInviteLink, joinPictures, newcomerProfileId, type JoinPass, type WorkerLink, holdingsFilesHash, holdingsText, isBase64url, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_HOLDINGS_MAX_KEYS, type InviteLink, NEARBY_OPENING_BYTES, nearbyBytes, parseRevocationList, proofText, signedBy, summaryOf, summaryText, withMyHolding, type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
 } from '@langquest-next/core/nearby';
 import { chainAsSigned, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
 import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
@@ -79,6 +79,18 @@ export interface NearbyFileMoves {
     lacking(files: readonly LibraryFile[]): LibraryFile[];
     /** Where to read one to serve it, if `held` still says so. */
     serve(file: LibraryFile): Promise<{ uri: string; size: number } | null>;
+    /**
+     * Files documents name only by web address (FIA's), kept by address in the study folder. Their
+     * bytes come on the teammate's word, and are fetched again from the address once online.
+     * Absent, none move.
+     */
+    links?: {
+      /** Of these addresses, the ones whose file is here. */
+      held(urls: readonly string[]): Promise<string[]>;
+      /** Of these addresses, the ones whose file is not here: those a kept passage needs first. */
+      lacking(urls: readonly string[]): Promise<string[]>;
+      serve(url: string): Promise<{ uri: string; size: number } | null>;
+    };
   };
 }
 
@@ -495,6 +507,8 @@ export class NearbySession {
   private librarySender: LibraryDocsSender | null = null;
   /** In step 7 with `library-files`: the library files this phone's language names, and those of them the other holds. */
   private libraryFiles: Map<string, LibraryFile> | null = null;
+  /** The addresses its documents name, by the SHA-256 of each (`lib-held` and `file-ask` carry that). */
+  private libraryLinks: Map<string, string> | null = null;
   private readonly theirLibrary = new Set<string>();
 
   constructor(options: NearbySessionOptions) {
@@ -1606,8 +1620,15 @@ export class NearbySession {
   private async libHeldStep(): Promise<void> {
     const { opt } = this;
     const mine = await this.local(async () => {
-      this.libraryFiles = await libraryFilesNamed(opt.library!);
-      return [...await opt.files!.reference!.held([...this.libraryFiles.keys()])].sort();
+      const reference = opt.files!.reference!;
+      const named = await libraryFilesNamed(opt.library!);
+      this.libraryFiles = named.files;
+      const links = new Map<string, string>();
+      if (reference.links) for (const url of named.links) links.set(bytesToHex(await this.crypto.sha256(utf8Encode(url))), url);
+      this.libraryLinks = links;
+      const linksHere = reference.links ? new Set(await reference.links.held([...links.values()])) : new Set<string>();
+      const keysHere = [...links].filter(([, url]) => linksHere.has(url)).map(([key]) => key);
+      return [...await reference.held([...named.files.keys()]), ...keysHere].sort();
     });
     const said = { held: mine.length, theirs: 0, got: 0, served: 0 };
     this.report.libraryFiles = said;
@@ -1622,7 +1643,7 @@ export class NearbySession {
         const m = await this.expect('lib-held');
         heard += m.files.length;
         if (heard > NEARBY_HOLDINGS_MAX_FILES) throw new SayBye('protocol', 'too many library files');
-        for (const h of m.files) if (this.libraryFiles?.has(h)) this.theirLibrary.add(h);
+        for (const h of m.files) if (this.libraryFiles?.has(h) || this.libraryLinks?.has(h)) this.theirLibrary.add(h);
         if (!m.more) return;
       }
     };
@@ -1676,13 +1697,14 @@ export class NearbySession {
     }
     // Not a recording of this language: a library file its documents name, in the format they say, if this phone said it holds it.
     let reference = false;
-    const named = 'no' in answer && answer.no === 'not-referenced' ? this.libraryFiles?.get(ask.hash) : undefined;
-    if (named) {
-      const got = await this.opt.files!.reference?.serve(named).catch(() => null);
-      if (got) {
-        answer = got;
-        reference = true;
-      }
+    const unnamed = 'no' in answer && answer.no === 'not-referenced';
+    const named = unnamed ? this.libraryFiles?.get(ask.hash) : undefined;
+    const link = unnamed && !named ? this.libraryLinks?.get(ask.hash) : undefined;
+    const got = named ? await this.opt.files!.reference?.serve(named).catch(() => null)
+      : link ? await this.opt.files!.reference?.links?.serve(link).catch(() => null) : null;
+    if (got) {
+      answer = got;
+      reference = true;
     }
     if ('no' in answer) {
       files.answeredNo += 1;
@@ -1708,10 +1730,21 @@ export class NearbySession {
     const { opt, tune, report } = this;
     const recordings = await opt.files!.wanted(this.holdings);
     // Library files after what this person needs and reviews, before backups (Carl, 2026-11-24: small files first), and only those the other said it holds.
-    const library = this.libraryFiles && opt.files!.reference
-      ? opt.files!.reference.lacking([...this.libraryFiles.values()].filter((f) => this.theirLibrary.has(f.hash))).map((f): WantedFile => ({ hash: f.hash, format: f.format, group: 'reference' }))
+    const reference = opt.files!.reference;
+    const library = this.libraryFiles && reference
+      ? reference.lacking([...this.libraryFiles.values()].filter((f) => this.theirLibrary.has(f.hash))).map((f): WantedFile => ({ hash: f.hash, format: f.format, group: 'reference' }))
       : [];
-    const wanted = [...recordings.filter((f) => f.group !== 'backup'), ...library, ...recordings.filter((f) => f.group === 'backup')];
+    // Then what documents name by address (FIA's), on the other's word, what a kept passage needs first.
+    const keyOf = new Map([...(this.libraryLinks ?? [])].map(([key, url]) => [url, key]));
+    const links = this.libraryLinks && reference?.links
+      ? (await reference.links.lacking([...this.libraryLinks].filter(([key]) => this.theirLibrary.has(key)).map(([, url]) => url)))
+        .flatMap((url): WantedFile[] => {
+          const key = keyOf.get(url);
+          const format = libraryLinkFormat(url);
+          return key && format ? [{ hash: key, format, group: 'link', url }] : [];
+        })
+      : [];
+    const wanted = [...recordings.filter((f) => f.group !== 'backup'), ...library, ...links, ...recordings.filter((f) => f.group === 'backup')];
     const theirs = new Set(this.holdings.get(report.peer!.installKey)?.files ?? []);
     let backupsFrom: number | null = null;
     if (opt.files!.take) {
@@ -1744,7 +1777,7 @@ export class NearbySession {
       }
       const stage = await opt.files!.fetchFile(file);
       // A library file never makes room: with too little, this one waits and the rest go on.
-      if (!stage && file.group === 'reference') continue;
+      if (!stage && (file.group === 'reference' || file.group === 'link')) continue;
       if (!stage) {
         report.files.noRoom = true;
         break;
@@ -1768,14 +1801,15 @@ export class NearbySession {
         await this.link.cancelFile(transferId).catch(() => undefined);
         return;
       }
-      // Native wrote and hashed it. A teammate's wrong bytes never get this file's name.
-      if (outcome.sha256 !== file.hash) {
+      // Native wrote and hashed it. A teammate's wrong bytes never get this file's name. A file named by its
+      // address has no hash to hold it to: it comes on the teammate's word, and is fetched again once online.
+      if (file.group !== 'link' && outcome.sha256 !== file.hash) {
         report.files.failed += 1;
         await opt.files!.discard(stage.stagingUri);
         return;
       }
       await opt.files!.landed(file, stage.stagingUri, outcome.size);
-      if (file.group === 'reference' && report.libraryFiles) report.libraryFiles.got += 1;
+      if ((file.group === 'reference' || file.group === 'link') && report.libraryFiles) report.libraryFiles.got += 1;
       else report.files.got += 1;
       report.changed = true;
     } catch (err) {

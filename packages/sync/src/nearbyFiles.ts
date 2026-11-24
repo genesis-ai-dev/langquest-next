@@ -40,6 +40,23 @@ export interface NearbyFetchFile {
   remove(files: readonly { hash: string; format: string }[]): readonly string[];
 }
 
+/**
+ * The app's study folder, for files documents name only by web address (FIA's): kept by address,
+ * their bytes on a teammate's word until the phone fetches them again online (2026-11-24).
+ */
+export interface NearbyStudyLinks {
+  /** Of these addresses, the ones whose file is here. */
+  held(urls: readonly string[]): string[];
+  /** Of these addresses, the ones whose file is not here: those a kept passage needs first. */
+  lacking(urls: readonly string[]): string[];
+  /** Where to read one to serve it. */
+  serve(url: string): { uri: string; size: number } | null;
+  /** Where one lands, or null when it would leave too little room, or overrun the room kept for files no kept passage needs. */
+  stage(url: string): { stagingUri: string; maxBytes: number; minFreeBytes: number } | null;
+  /** It came: take it under its address, to be fetched again once online. */
+  adopt(url: string, stagingUri: string, size: number): Promise<void>;
+}
+
 /** What the phone gives once per person and organization. */
 export interface NearbyFilesPlatform {
   marks: NearbyMarks;
@@ -49,6 +66,8 @@ export interface NearbyFilesPlatform {
   canReview(languageId: string): boolean;
   /** This organization's fold, when it is read: a teammate's holdings stop counting once they are removed in it. */
   org?(): OrgState | null;
+  /** The study folder, for files named by address. Absent, none move. */
+  studyLinks?: NearbyStudyLinks;
 }
 
 /** Exactly what the nearby files reach of their `LanguageSession`. */
@@ -429,6 +448,7 @@ class LanguageNearbyFiles implements NearbyFilesPart {
   private async stage(file: WantedFile): Promise<{ stagingUri: string; maxBytes: number; minFreeBytes: number } | null> {
     const { fetchFile } = this;
     const { limits } = this.port.o;
+    if (file.group === 'link') return file.url ? this.platform.studyLinks?.stage(file.url) ?? null : null;
     if (file.group === 'reference') {
       const free = fetchFile.freeBytes();
       if (free !== null && free < limits.minFreeBytes) return null;
@@ -443,6 +463,14 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     const stagingUri = fetchFile.stagingUri(file);
     if (!stagingUri) throw new Error('not a file name this store makes');
     return { stagingUri, maxBytes: MAX_FILE_BYTES, minFreeBytes: limits.minFreeBytes };
+  }
+
+  private linksOf(links: NearbyStudyLinks): NonNullable<NonNullable<NearbyFileMoves['reference']>['links']> {
+    return {
+      held: async (urls) => links.held(urls),
+      lacking: async (urls) => links.lacking(urls),
+      serve: async (url) => links.serve(url)
+    };
   }
 
   private choice(): HoldChoice | null {
@@ -483,6 +511,13 @@ class LanguageNearbyFiles implements NearbyFilesPart {
       },
       fetchFile: (file) => this.stage(file),
       landed: async (file, stagingUri, size) => {
+        // A file named by address goes to the study folder, under its address.
+        if (file.group === 'link') {
+          const links = this.platform.studyLinks;
+          if (file.url && links) await links.adopt(file.url, stagingUri, size);
+          else await fetchFile.discard(stagingUri);
+          return;
+        }
         // A library file lands with no mark: nothing nearby ever deletes it, and no holdings count it.
         if (file.group === 'reference') {
           if (this.here().has(file.hash)) await fetchFile.discard(stagingUri);
@@ -520,7 +555,8 @@ class LanguageNearbyFiles implements NearbyFilesPart {
           if ((await this.referenceHeld([file.hash])).length === 0) return null;
           const uri = fetchFile.uriOf({ hash: file.hash, format: files.formatOf(file.hash) ?? file.format });
           return uri ? { uri, size: files.sizeOf(file.hash) ?? 0 } : null;
-        }
+        },
+        ...(this.platform.studyLinks ? { links: this.linksOf(this.platform.studyLinks) } : {})
       }
     };
   }

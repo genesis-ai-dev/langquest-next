@@ -46,6 +46,31 @@ function libraryOf(guide: unknown): NearbyLibrary {
   return { org: () => org, language: () => language, docs };
 }
 
+/** FIA's guide: its step audio and picture named only by address. */
+function fiaGuide(...urls: string[]) {
+  return {
+    format: 'study@1', title: 'FIA', pattern: 'FIA', about: '', source: 'fia.bible', language: 'eng', ref: 'MRK 1:1-8', versification: 'ab'.repeat(32), deps: ['ab'.repeat(32)],
+    steps: urls.map((url, i) => ({ id: `s${i}`, title: 'Listen', text: 'Water.', audio: { url } })), resources: [], terms: []
+  };
+}
+
+/** A phone's study folder: files kept by address, on its shelf at `<phone>/study:<address>`. */
+function withStudyFolder(p: TestPhone, shelf: MemoryFiles, study: Set<string>) {
+  const at = (url: string) => `${p.who.deviceId}/study:${url}`;
+  const landed = p.files.landed.bind(p.files);
+  p.files.landed = async (file, stagingUri, size) => {
+    if (file.group !== 'link') return landed(file, stagingUri, size);
+    shelf.set(at(file.url!), shelf.get(stagingUri)!);
+    shelf.delete(stagingUri);
+    study.add(file.url!);
+  };
+  p.files.reference!.links = {
+    held: async (urls) => urls.filter((u) => study.has(u)),
+    lacking: async (urls) => urls.filter((u) => !study.has(u)),
+    serve: async (url) => (study.has(url) ? { uri: at(url), size: shelf.get(at(url))!.length } : null)
+  };
+}
+
 /** A phone's library files beside its test files: here when on its shelf, never one of its recordings. */
 function withLibraryFiles(p: TestPhone, shelf: MemoryFiles, recordings: Set<string>) {
   const at = (hash: string) => `${p.who.deviceId}/${hash}`;
@@ -143,5 +168,70 @@ describe.each(STORES)('library files between two members, on the %s store', (_na
     expect(rp.ended).toEqual({ how: 'done' });
     expect(rp.libraryFiles).toBeNull();
     expect(shelf.get(`${sam.deviceId}/${x}`)).toBeUndefined();
+  });
+});
+
+describe.each(STORES)('FIA\'s files named by address, on the %s store', (_name, make) => {
+  let server: FakeServer;
+  let shelf: MemoryFiles;
+  let time: ReturnType<typeof newTime>;
+  let ana: Teammate;
+  let sam: Teammate;
+
+  beforeEach(async () => {
+    server = new FakeServer();
+    shelf = new Map();
+    time = newTime();
+    ana = await teammate('ana');
+    sam = await teammate('sam');
+  });
+
+  // Carl, 2026-11-24: a phone that joined offline showed FIA's steps with no audio. FIA names its media only by address,
+  // so no hash can hold the bytes: they come on the teammate's word, and the phone fetches them again once online.
+  it('a phone lacking an FIA step\'s audio takes it from one that holds it, on its word, after the team\'s own files', async () => {
+    const a = await testPhone(server, make(), ana, shelf);
+    const b = await testPhone(server, make(), sam, shelf);
+    const url = 'https://fia.bible/audio/mrk1-step1.mp3';
+    // What FIA's address gave the teammate: no hash names these bytes.
+    shelf.set(`${ana.deviceId}/study:${url}`, new TextEncoder().encode('step audio'));
+    const aStudy = new Set([url]);
+    const bStudy = new Set<string>();
+    const guide = fiaGuide(url);
+    withLibraryFiles(a, shelf, new Set());
+    withLibraryFiles(b, shelf, new Set());
+    withStudyFolder(a, shelf, aStudy);
+    withStudyFolder(b, shelf, bStudy);
+    const pair = memoryNearbyPair({ time, files: shelf, kind: 'wifi-direct' });
+    const [ra, rb] = await settled<[NearbySessionReport, NearbySessionReport]>(time,
+      sessionFor(a, 'i', pair.a, time, { library: libraryOf(guide) }).run(),
+      sessionFor(b, 'r', pair.b, time, { library: libraryOf(guide) }).run());
+    expect(ra.ended).toEqual({ how: 'done' });
+    expect(rb.ended).toEqual({ how: 'done' });
+    expect(bStudy).toEqual(new Set([url]));
+    expect(new TextDecoder().decode(shelf.get(`${sam.deviceId}/study:${url}`))).toBe('step audio');
+    expect(rb.libraryFiles).toMatchObject({ theirs: 1, got: 1 });
+    expect(ra.libraryFiles).toMatchObject({ held: 1, served: 1 });
+    // The address goes by its SHA-256, never as text.
+    const key = bytesToHex(fakeSha256(utf8Encode(url)));
+    const said = pair.sent.a.frames.map((f) => parseMessage(f)).find((m) => m.kind === 'message' && m.message.t === 'lib-held');
+    expect(said?.kind === 'message' && said.message.t === 'lib-held' && said.message.files).toEqual([key]);
+    expect(pair.sent.a.frames.some((f) => new TextDecoder().decode(f).includes('fia.bible'))).toBe(false);
+  });
+
+  it('a phone that keeps no study folder lists no address and is asked for none', async () => {
+    const a = await testPhone(server, make(), ana, shelf);
+    const b = await testPhone(server, make(), sam, shelf);
+    const url = 'https://fia.bible/audio/mrk1-step1.mp3';
+    shelf.set(`${ana.deviceId}/study:${url}`, new TextEncoder().encode('step audio'));
+    withLibraryFiles(a, shelf, new Set());
+    withLibraryFiles(b, shelf, new Set());
+    withStudyFolder(a, shelf, new Set([url]));
+    const pair = memoryNearbyPair({ time, files: shelf, kind: 'wifi-direct' });
+    const [ra, rb] = await settled<[NearbySessionReport, NearbySessionReport]>(time,
+      sessionFor(a, 'i', pair.a, time, { library: libraryOf(fiaGuide(url)) }).run(),
+      sessionFor(b, 'r', pair.b, time, { library: libraryOf(fiaGuide(url)) }).run());
+    expect(rb.ended).toEqual({ how: 'done' });
+    expect(ra.libraryFiles).toMatchObject({ held: 1, served: 0 });
+    expect(rb.libraryFiles).toMatchObject({ held: 0, theirs: 0, got: 0 });
   });
 });

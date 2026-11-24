@@ -78,8 +78,8 @@ to the user, used for App Functionality, not for tracking**. Add it before
 the first iPhone build with Share nearby goes to review. Nothing else in App
 Privacy changes: no location is read on an iPhone, and Bluetooth and Wi-Fi
 only carry the team's own work and the reference documents its language uses,
-with the pictures and audio a team's guides and key-word lists name, which every
-member already reads (2026-11-24).
+with the pictures and audio its guides and key-word lists name, FIA's among them,
+which every member already reads (2026-11-24).
 
 ## Encryption (export compliance)
 

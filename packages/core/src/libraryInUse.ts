@@ -71,18 +71,64 @@ export function libraryFilesOf(doc: LibraryDoc): LibraryFile[] {
   return [...out.values()].sort((a, b) => (a.hash < b.hash ? -1 : a.hash > b.hash ? 1 : 0));
 }
 
+/** A web address's file extension, as the app names a kept study file (study/studyFiles.ts `hashedName`). */
+const LINK_EXT = /\.([a-z0-9]{2,4})(?:[?#]|$)/i;
+
+/** The format a file kept by address takes, from its address, when it may go between phones: an https address of audio or a picture. */
+export function libraryLinkFormat(url: string): string | null {
+  if (!/^https:\/\/[^/\s]+\/\S*$/.test(url) || url.length > 2048) return null;
+  const ext = LINK_EXT.exec(url)?.[1]?.toLowerCase().replace(/^jpeg$/, 'jpg') ?? '';
+  return LIBRARY_FILE_FORMATS.has(ext) ? ext : null;
+}
+
 /**
- * A document's head with the files it names (`libraryFilesOf`), as a phone's walk reads it: the
- * web, which passes nothing between phones, never carries this.
+ * The web addresses of files a guide names that a phone keeps by address in its study folder
+ * (2026-11-24): what the app takes along for a passage kept offline (`studyUrls`), each step's
+ * audio, each picture, map and illustration, and each word's audio, never a film. FIA's guides
+ * (`study@1`) name nothing else, and a team's (`study@2`) may name an address beside a file. Only
+ * https addresses of audio and pictures (`libraryLinkFormat`). A key-word list's audio is played
+ * from its address and never kept, so it is not here. Sorted, with no repeats.
+ */
+export function libraryLinksOf(doc: LibraryDoc): string[] {
+  const out = new Set<string>();
+  const add = (url: string | undefined) => {
+    if (typeof url === 'string' && libraryLinkFormat(url)) out.add(url);
+  };
+  switch (doc.format) {
+    case 'study@1':
+      for (const s of doc.steps ?? []) add(s.audio?.url);
+      for (const r of doc.resources ?? []) for (const m of r.media ?? []) if (m.kind !== 'video') add(m.url);
+      for (const t of doc.terms ?? []) add(t.audioUrl);
+      break;
+    case 'study@2':
+      for (const s of doc.steps ?? []) add(s.audio?.url);
+      for (const r of doc.resources ?? []) for (const m of r.media ?? []) if (m.kind !== 'video') add(m.file?.url);
+      for (const t of doc.terms ?? []) add(t.audio?.url);
+      break;
+    default:
+      break;
+  }
+  return [...out].sort();
+}
+
+/**
+ * A document's head with the files it names (`libraryFilesOf`, `libraryLinksOf`), as a phone's
+ * walk reads it: the web, which passes nothing between phones, never carries this.
  */
 export function nearbyDocHeadOf(doc: LibraryDoc): DocHead {
   let files: LibraryFile[];
+  let links: string[];
   try {
     files = libraryFilesOf(doc);
   } catch {
     files = [];
   }
-  return { ...docHeadOf(doc), files };
+  try {
+    links = libraryLinksOf(doc);
+  } catch {
+    links = [];
+  }
+  return { ...docHeadOf(doc), files, links };
 }
 
 type OrgLibrary = Pick<OrgState, 'library' | 'recommendations'>;

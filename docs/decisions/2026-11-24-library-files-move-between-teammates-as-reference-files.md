@@ -56,3 +56,23 @@ open (then only the files of passages a phone keeps offline go), or a
 recording reaches a teammate as a library file in some way the `audio` rows
 do not see (then a phone keeps a record of where each library file came from,
 as the plan first proposed).
+
+Amended (2026-11-24, Carl Sauder): FIA's media move too, on a teammate's
+word, as Carl chose. FIA's guides name their step audio, pictures, maps and
+word audio only by web address, and a phone keeps them by address in its
+study folder, so no hash can hold the bytes to them. Core's `libraryLinksOf`
+lists the https addresses of audio and pictures a guide names, as the app
+takes them along (`studyUrls`), never a film; a key-word list's audio is
+played from its address and never kept, so it is not among them. A phone
+lists the SHA-256 of each address it holds in `lib-held`, never the address,
+and asks with `file-ask` under that key after the team's own library files
+and before backups, what its kept passages need first, then the rest only
+while the study folder's room for files no kept passage needs lasts, so the
+folder's clearing never throws away what a teammate just gave. The bytes are
+not checked against anything: they land under the address's name in the
+study folder, as if downloaded, and the address is written down
+(`study-files:nearby`). Once the phone is online it fetches each one again
+from its address, replacing the teammate's word, and one its source refuses
+goes. Reverse if: a teammate's word is found to matter, a picture or audio
+passed off as FIA's (then FIA's media wait for an import that names them by
+hash, as a team's guides are).

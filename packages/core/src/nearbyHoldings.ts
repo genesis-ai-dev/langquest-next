@@ -198,8 +198,13 @@ export interface WantedFile {
   /**
    * `reference` (2026-11-24): a file a library document of the language names, not a teammate's
    * recording. It is never marked, never makes room by deleting, and never counts as held for anyone.
+   * `link`: one a document names only by its web address (FIA's), kept by address in the study
+   * folder; `hash` is then the SHA-256 of the address, not of the bytes, which come on the
+   * teammate's word.
    */
-  group: 'needed' | 'review' | 'backup' | 'reference';
+  group: 'needed' | 'review' | 'backup' | 'reference' | 'link';
+  /** A `link`'s web address. */
+  url?: string;
 }
 
 /** What a store query over audio rows and the session give: a kept language's plan names only what memory and the asked passages name. */

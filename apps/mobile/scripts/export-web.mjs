@@ -294,7 +294,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised by 1 KB with the library documents a language uses going between any two teammates (Carl,
 // 2026-11-24): the same 880 bytes a first visit grew by (see there), in the document store every screen
 // reads through. 1,082 bytes are left; a first visit has 991.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 174 * 1024;
+// Raised by 1 KB with FIA's study files going between teammates (Carl, 2026-11-24): the same 590 bytes a
+// first visit grew by (see there). 1,065 bytes are left; a first visit has 974.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 175 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -409,7 +411,14 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 174 * 1024;
 // second of them, and `useLibraryDocs` reads from disk what an open screen still lacks when they come.
 // The walk, the asks and the serving are in files only a phone loads (nearbyLibrary.native.ts and the
 // nearby entries). 991 bytes are left; all chunks have 1,082.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 119 * 1024;
+// Raised by 1 KB with FIA's study files going between teammates on a teammate's word (Carl, 2026-11-24,
+// docs/nearby-sync-plan.md 5.12, docs/decisions/2026-11-24-library-files-move-between-teammates-as-reference-files.md,
+// amended that day), 50 bytes past it: the study folder every guide screen reads through
+// (study/studyFiles.ts) now hands a phone's nearby moves its folder, file names and wish list
+// (`studyFolder`), 590 bytes, since the minifier no longer folds those away. The moves, the landing
+// and fetching them again online are in a file only a phone loads (study/nearbyStudyFiles.native.ts),
+// and the team's own library files' rule is in the nearby entry. 974 bytes are left; all chunks have 1,065.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 120 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

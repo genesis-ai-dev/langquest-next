@@ -392,9 +392,9 @@ team's unsent work between the two phones, with no internet.
   privileges), only to members of the same organization whose certificate checks and who may
   read that language. From 2026-11-24 also the library documents that language uses which the
   other phone lacks (templates, flows, key-word lists, study guides, sources), and which of
-  them this phone holds, and over Wi-Fi the files a team's guides and key-word lists name
-  (pictures, maps and audio, never a film) with which of them this phone holds: reference
-  material the organization chose, which every member already reads in the app and which the
+  them this phone holds, and over Wi-Fi the files a team's guides and key-word lists and FIA's
+  guides name (pictures, maps and audio, never a film) with which of them this phone holds,
+  FIA's by a hash of their web address: reference material the organization chose, which every member already reads in the app and which the
   app already declares (guide media). Never a recording as such a file. Data safety, above: not
   sharing, no new type.
 - **Data safety, Location** stays "not collected": the location permissions exist only because
@@ -422,8 +422,8 @@ member taps once after both compare two pictures.
   the new person, their key, role and organization), a discovery key, and a starting copy of the
   language: its work, this organization's member names, and the library documents the language
   uses, every kind since 2026-11-24 (a publisher's study guides and key words, sources), with no
-  source audio or guide media and nothing of other languages (a team's guide media come later
-  over Wi-Fi from any teammate, as above), plus whether the organization
+  source audio or guide media and nothing of other languages (guide media come later over Wi-Fi
+  from any teammate, as above), plus whether the organization
   shares while LangQuest is open. The documents are reference material the organization chose,
   which every member already reads in the app. Only a member who
   holds Invite can start it, after the one tap, for a role with no manage privilege, so the new

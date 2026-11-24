@@ -223,13 +223,18 @@ export class LibraryDocsSender {
  * files in step 7 (docs/nearby-sync-plan.md 5.12, 2026-11-24). Whether one is here, and is not a
  * recording, is the file store's to say.
  */
-export async function libraryFilesNamed(library: NearbyLibrary): Promise<Map<string, LibraryFile>> {
-  const out = new Map<string, LibraryFile>();
+export async function libraryFilesNamed(library: NearbyLibrary): Promise<{ files: Map<string, LibraryFile>; links: string[] }> {
+  const files = new Map<string, LibraryFile>();
+  const links = new Set<string>();
   const org = library.org();
-  if (!org) return out;
+  if (!org) return { files, links: [] };
   const { list, heads } = await walkWithHeads(org, withKeptLinks(library.language(), await library.keptPassageLinks?.()), library.docs);
-  for (const h of list) for (const f of heads.get(h)?.files ?? []) if (!out.has(f.hash)) out.set(f.hash, f);
-  return out;
+  for (const h of list) {
+    const head = heads.get(h);
+    for (const f of head?.files ?? []) if (!files.has(f.hash)) files.set(f.hash, f);
+    for (const url of head?.links ?? []) links.add(url);
+  }
+  return { files, links: [...links].sort() };
 }
 
 /**

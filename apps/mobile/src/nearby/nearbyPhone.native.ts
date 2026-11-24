@@ -234,7 +234,8 @@ export function nearbyFetchFileOf(store: BlobStore): NearbyFetchFile {
 }
 
 export async function nearbyFilesFor(orgId: string, actorId: string, languageId: string, files: BlobStore): Promise<NearbyFilesOptions> {
-  const [held, crypto] = await Promise.all([nearbyMarks(), phoneCrypto()]);
+  // The study folder's nearby part, read when a language's file moves are made, not with this module.
+  const [held, crypto, { nearbyStudyLinks }] = await Promise.all([nearbyMarks(), phoneCrypto(), import('../study/nearbyStudyFiles.native')]);
   return {
     fetchFile: nearbyFetchFileOf(files),
     nearbyFiles: nearbyFiles({
@@ -244,7 +245,9 @@ export async function nearbyFilesFor(orgId: string, actorId: string, languageId:
         const org = nearbyOrg(orgId);
         return org ? privilegesFor(org, actorId, language).has('review') : true;
       },
-      org: () => nearbyOrg(orgId)
+      org: () => nearbyOrg(orgId),
+      // FIA's study files, by address, on a teammate's word (2026-11-24).
+      studyLinks: nearbyStudyLinks
     }),
     holdChoice: currentHoldChoice,
     // Not known yet: as today, everything here may go up.

@@ -2,7 +2,7 @@ import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { HlcClock } from '../src/hlc';
 import type { LibraryDoc } from '../src/libraryDocs';
 import { docHeadOf, mediaFileOf } from '../src/libraryDocs';
-import { docsThisLanguageNames, libraryFilesOf, nearbyDocHeadOf, docsThisLanguageUses, guidesThisLanguageOffers, mayGoInStartingCopy, STARTING_COPY_FORMATS } from '../src/libraryInUse';
+import { docsThisLanguageNames, libraryFilesOf, libraryLinkFormat, libraryLinksOf, nearbyDocHeadOf, docsThisLanguageUses, guidesThisLanguageOffers, mayGoInStartingCopy, STARTING_COPY_FORMATS } from '../src/libraryInUse';
 import { foldOrg } from '../src/org';
 import { emptyLanguageState, type LanguageState } from '../src/state';
 
@@ -175,7 +175,7 @@ describe('docHeadOf: what the walk keeps of a document', () => {
     const tpl = docs.get(h('1'))!;
     expect(docHeadOf(tpl)).toEqual({ format: tpl.format, refs: expect.arrayContaining([versification]) });
     // A phone's walk reads the files it names too; the web never carries that.
-    expect(nearbyDocHeadOf(tpl)).toEqual({ format: tpl.format, refs: expect.arrayContaining([versification]), files: [] });
+    expect(nearbyDocHeadOf(tpl)).toEqual({ format: tpl.format, refs: expect.arrayContaining([versification]), files: [], links: [] });
     expect(docHeadOf({ format: 'collection@1', entries: 5 } as unknown as LibraryDoc).refs).toBeNull();
   });
 
@@ -247,5 +247,35 @@ describe('libraryFilesOf: the files a document names that may go between phones'
     expect(libraryFilesOf(odd)).toEqual([]);
     expect(libraryFilesOf(docs.get(h('1'))!)).toEqual([]);
     expect(mediaFileOf({ url: 'https://x' }, 'audio', true)).toBeUndefined();
+  });
+});
+
+// 2026-11-24: FIA's guides name their media by address; a phone keeps them by address, and passes them on on a teammate's word.
+describe('libraryLinksOf: the addresses a guide names that a phone keeps', () => {
+  it('takes FIA\'s step audio, pictures, maps and word audio, as the app takes them along, never a film', () => {
+    const fia = {
+      format: 'study@1', ref: 'MRK 1:1-8', versification: h('0'),
+      steps: [{ id: 's', title: 'Listen', text: 't', audio: { url: 'https://fia.bible/a/s1.mp3' } }, { id: 'u', title: 'Read', text: 'u' }],
+      resources: [{ ref: 'r', kind: 'media', title: 'R', media: [
+        { id: 'p', kind: 'photo', title: 'P', caption: '', url: 'https://fia.bible/p/one.JPEG' },
+        { id: 'm', kind: 'map', title: 'M', caption: '', url: 'https://fia.bible/m/map.png?v=2' },
+        { id: 'v', kind: 'video', title: 'V', caption: '', url: 'https://fia.bible/v/film.mp4' }
+      ] }],
+      terms: [{ id: 't', term: 'water', body: '', audioUrl: 'https://fia.bible/t/water.mp3' }]
+    } as unknown as LibraryDoc;
+    expect(libraryLinksOf(fia)).toEqual([
+      'https://fia.bible/a/s1.mp3', 'https://fia.bible/m/map.png?v=2', 'https://fia.bible/p/one.JPEG', 'https://fia.bible/t/water.mp3'
+    ]);
+    expect(nearbyDocHeadOf(fia).links).toEqual(libraryLinksOf(fia));
+    expect(libraryLinkFormat('https://fia.bible/p/one.JPEG')).toBe('jpg');
+  });
+
+  it('never an address that is not https, not audio or a picture, or a carried build', () => {
+    for (const url of ['http://fia.bible/a.mp3', 'file:///sdcard/a.mp3', 'https://x/LangQuest.apk', 'https://x/build.carried', 'https://x/film.mp4', 'https://x/noext', 'https://x/a b.mp3']) {
+      expect(libraryLinkFormat(url), url).toBeNull();
+    }
+    const team = { format: 'study@2', steps: [{ id: 's', title: 'T', text: 't', audio: { url: 'https://team.org/s.m4a', hash: h('1') } }], resources: [], terms: [] } as unknown as LibraryDoc;
+    expect(libraryLinksOf(team)).toEqual(['https://team.org/s.m4a']);
+    expect(libraryLinksOf(docs.get(h('8'))!)).toEqual([]);
   });
 });

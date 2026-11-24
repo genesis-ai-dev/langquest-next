@@ -499,6 +499,8 @@ export interface DocHead {
   refs: readonly string[] | null;
   /** The files it names that may go between teammates' phones: only a phone's walk reads them (`nearbyDocHeadOf`). */
   files?: readonly LibraryFile[];
+  /** The web addresses of files it names that a phone keeps by address (`libraryLinksOf`), as a phone's walk reads them. */
+  links?: readonly string[];
 }
 
 export function docHeadOf(doc: LibraryDoc): DocHead {
