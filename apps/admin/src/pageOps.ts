@@ -16,6 +16,7 @@
  */
 export const GROUPS = [
   { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name', parts: [] },
+  { id: 'userreports', title: 'User reports', src: 'What people sent from help mode in the app: each problem and idea, what the watch for user issues did with it, and its Linear issue. Problems a person sent go first for the fix team', wide: true, parts: ['userreports'] },
   { id: 'userissues', title: 'User issues', src: 'What the watch for user issues filed in Linear or found already fixed, each issue\'s state and the pull request that fixed it', wide: true, parts: ['userissues'] },
   { id: 'research', title: 'Research', src: 'What the research team looked at each day, what it found, recommends and rejected, and what the fix team fixed from it', wide: true, parts: ['research'] },
   { id: 'safety', title: 'Work safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
@@ -40,11 +41,11 @@ export const PART_TITLES: Record<string, string> = {
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
   integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', videos: 'Videos and what waits on you', tutorials: 'Channels and videos', videofeedback: 'What came in, and notes',
-  userissues: 'Problems people hit', research: 'The research team', nightly: 'Nightly tests', claudeplan: 'Frontier Claude plan this week'
+  userissues: 'Problems people hit', userreports: 'What people sent', research: 'The research team', nightly: 'Nightly tests', claudeplan: 'Frontier Claude plan this week'
 };
 
 /** Read as diag_reader in one call (/ops/api/ops). */
-export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues', 'research'] as const;
+export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues', 'userreports', 'research'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
 export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'videos', 'pipeline', 'nightly', 'claudeplan'] as const;
@@ -71,6 +72,7 @@ export const OPS_SECTIONS = [
   { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
   { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' },
   { id: 'userissues', title: 'User issues', src: 'ops.user_issues: what the watch filed in Linear, closed there, or found already fixed, with the pull request (decisions.md 202)' },
+  { id: 'userreports', title: 'User reports', src: 'diag.feedback with ops.user_issues: each report a person sent, what the watch decided and its Linear issue (docs/decisions/2026-11-24-user-reports-have-their-own-page-and-go-first.md)' },
   { id: 'research', title: 'Research', src: 'ops.research_reports and ops.research_items: the research team\'s report of each day and what it found (docs/research-team.md)' },
   { id: 'nightly', title: 'Nightly tests', src: 'GitHub: the line each nightly suite leaves on its latest scheduled run on main (decisions.md 209)' },
   { id: 'claudeplan', title: 'Frontier Claude plan this week', src: 'GitHub: the reading claude-plan.yml leaves on its latest run, every hour, with the agent team\'s token' }
@@ -436,6 +438,8 @@ Object.assign(RENDER, {
   },
   // What the watch for user issues filed, closed or found already fixed, with the pull request (decisions.md 202).
   userissues(d) { return userIssuesHtml(d); },
+  // What people sent from help mode, each with its Linear issue (pageReports.ts).
+  userreports(d) { return userReportsHtml(d); },
   // The research team's report of each day and what it found (pageResearch.ts, docs/research-team.md).
   research(d) { return researchHtml(d); },
   // Last night's tests, every suite together (sources/nightly.ts, decisions.md 209): counts and Linear issues; the detail is in Linear.

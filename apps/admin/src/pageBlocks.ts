@@ -400,6 +400,15 @@ PAGE_BLOCKS.userissues = () => {
   const c = issueCounts();
   return c && c.d.issues && c.d.issues.length ? tabStrip('Where the issues are, 90 days', 'itab', ISSUE_TABS, c.count, 'you') : '';
 };
+// ---- User reports (pageReports.ts): the open problems people sent, before the counts ----------------
+function reportsData() { return okData(results, 'userreports'); }
+PAGE_SAY.userreports = () => {
+  const d = reportsData();
+  if (!d) return null;
+  const n = reportsOpen(d.reports);
+  return n ? countOf(n, 'problem that people sent waits', 'problems that people sent wait') + ' for a fix. The fix team takes them first.' : 'No problem that people sent is open.';
+};
+PAGE_TONE.userreports = () => { const d = reportsData(); return d && reportsOpen(d.reports) ? 'need' : null; };
 PAGE_SAY.userissues = () => {
   const c = issueCounts();
   if (!c) return null;

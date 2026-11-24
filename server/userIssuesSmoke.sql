@@ -859,6 +859,43 @@ begin
   assert (select jsonb_agg(x->>'issue') from jsonb_array_elements(v) x where x->>'from' = 'again') = '["LAN-958"]'::jsonb, 'tried once more: ' || v::text;
 end $$;
 reset role;
+-- Migration 20261124061500_user_reports.sql: an issue a person sent goes first, even a Low one with one person,
+-- also when the report was added to an issue the watch filed for another kind (verdict known); between two
+-- that people sent, Linear's priority as before (none counts as Medium, so LAN-964 before the Low LAN-963).
+insert into ops.user_issues (key, verdict, issue, issue_url, people, n, first_looked_at, looked_at, problem) values
+  ('feedback:0d000000-0000-4000-8000-0000000000a1', 'filed', 'LAN-963', 'https://linear.app/x/issue/LAN-963', 1, 1, now(), now(), 'The list does not scroll.'),
+  ('error:Joined@x:-', 'filed', 'LAN-964', 'https://linear.app/x/issue/LAN-964', 1, 1, now(), now(), null),
+  ('feedback:0d000000-0000-4000-8000-0000000000a2', 'known', 'LAN-964', 'https://linear.app/x/issue/LAN-964', 1, 1, now(), now() - interval '1 minute', null);
+insert into ops.user_issue_priorities (issue, priority) values ('LAN-963', 4) on conflict (issue) do update set priority = 4;
+insert into diag.feedback (id, created_at, profile_id, kind, body, install_id, context, shared_name, shared_email) values
+  ('0d000000-0000-4000-8000-0000000000a1', now() - interval '1 hour', 'ui-p1', 'bug', 'It does not scroll', 'ui-a', '{"screen":"book_map","os":"ios"}', 'Secret Person', 'secret@example.org'),
+  ('0d000000-0000-4000-8000-0000000000a2', now() - interval '2 hours', 'ui-p2', 'bug', 'Same as the crash', 'ui-b', '{}', null, null),
+  ('0d000000-0000-4000-8000-0000000000a3', now() - interval '3 hours', 'ui-p2', 'idea', 'Say passages', 'ui-b', '{"screen":"map_home"}', null, null),
+  ('0d000000-0000-4000-8000-0000000000a4', now() - interval '4 hours', 'ui-review', 'bug', 'Test feedback', 'ui-rev', '{}', null, null);
+set local role service_role;
+do $$
+declare
+  v jsonb := public.ops_user_issue_order();
+begin
+  assert (select jsonb_agg(x->>'issue') from (select x from jsonb_array_elements(v) x limit 2) s) = '["LAN-964", "LAN-963"]'::jsonb, 'a person''s first: ' || v::text;
+  assert (v->0->>'sent')::boolean and (v->1->>'sent')::boolean and not (v->2->>'sent')::boolean, 'each says sent: ' || v::text;
+end $$;
+reset role;
+set local role diag_reader;
+do $$
+declare
+  v jsonb := diag.ops_user_reports();
+  a jsonb := (select x from jsonb_array_elements(v->'reports') x where x->>'id' = '0d000000-0000-4000-8000-0000000000a1');
+  b jsonb := (select x from jsonb_array_elements(v->'reports') x where x->>'id' = '0d000000-0000-4000-8000-0000000000a2');
+begin
+  assert a->>'issue' = 'LAN-963' and a->>'verdict' = 'filed' and a->>'screen' = 'book_map' and a->>'problem' = 'The list does not scroll.' and (a->>'priority')::int = 4, 'a report and its issue: ' || a::text;
+  assert b->>'issue' = 'LAN-964' and b->>'verdict' = 'known', 'a report added to an issue: ' || b::text;
+  assert exists (select 1 from jsonb_array_elements(v->'reports') x where x->>'id' = '0d000000-0000-4000-8000-0000000000a3' and x->>'kind' = 'idea' and x->>'issue' is null), 'an idea: ' || v::text;
+  assert not exists (select 1 from jsonb_array_elements(v->'reports') x where x->>'id' = '0d000000-0000-4000-8000-0000000000a4'), 'a test account''s report is only counted';
+  assert (v->>'test')::int >= 1, 'counted: ' || v::text;
+  assert v::text not like '%Secret Person%' and v::text not like '%secret@%' and v::text not like '%ui-p1%' and v::text not like '%ui-a"%', 'no name, address, account or install';
+end $$;
+reset role;
 rollback to savepoint ordered;
 
 rollback;

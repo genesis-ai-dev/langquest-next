@@ -146,6 +146,8 @@ export const ORDER_FROM = ['plan', 'research', 'untried', 'again'] as const;
 export interface OrderedIssue {
   issue: string;
   from: (typeof ORDER_FROM)[number];
+  /** A person sent it from help mode: it goes before every issue that nobody sent (migration 20261124061500_user_reports.sql). Absent before it. */
+  sent?: boolean;
   /** Linear's number: 0 none, 1 Urgent, 2 High, 3 Medium, 4 Low. */
   priority: number;
   /** The most people of one of its kinds, in 7 days. */

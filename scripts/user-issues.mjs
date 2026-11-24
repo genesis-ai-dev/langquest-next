@@ -634,7 +634,7 @@ export function orderToTake(order, fixes) {
 /** Why an issue has its place in the order, in a few words: "High · 12 people · 3 kinds · 40 times". */
 export function whyInOrder(o) {
   const n = (v, one, many) => (Number(v) > 0 ? `${Number(v)} ${Number(v) === 1 ? one : many}` : '');
-  return [PRIORITY_NAMES[Number(o?.priority)] ?? PRIORITY_NAMES[0], n(o?.people, 'person', 'people'), n(o?.kinds, 'kind', 'kinds'), n(o?.places, 'place with the same mistake', 'places with the same mistake'), n(o?.times, 'time', 'times')].filter(Boolean).join(' · ');
+  return [o?.sent ? 'A person sent it' : '', PRIORITY_NAMES[Number(o?.priority)] ?? PRIORITY_NAMES[0], n(o?.people, 'person', 'people'), n(o?.kinds, 'kind', 'kinds'), n(o?.places, 'place with the same mistake', 'places with the same mistake'), n(o?.times, 'time', 'times')].filter(Boolean).join(' · ');
 }
 
 /** The issues the job `follow` hands back to the fix team (its output `repairs`): ids only, at most REPAIR_MAX. */

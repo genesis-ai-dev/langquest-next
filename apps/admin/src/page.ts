@@ -21,6 +21,7 @@ import { OVERVIEW_CSS, OVERVIEW_HTML, OVERVIEW_LOGIC, OVERVIEW_SCRIPT } from './
 import { FIX_CSS, FIX_LOGIC, FIX_SCRIPT } from './pageFixes';
 import { RESOLVE_CSS, RESOLVE_LOGIC, RESOLVE_SCRIPT } from './pageResolve';
 import { ISSUE_CSS, ISSUE_LOGIC, ISSUE_SCRIPT } from './pageIssues';
+import { REPORT_CSS, REPORT_LOGIC, REPORT_SCRIPT } from './pageReports';
 import { RESEARCH_CSS, RESEARCH_LOGIC, RESEARCH_SCRIPT } from './pageResearch';
 import { RESEARCH_TEAM } from './researchTeam';
 import { CARD_CSS, CARD_LOGIC, CARD_SCRIPT } from './pageCards';
@@ -218,6 +219,7 @@ ${OVERVIEW_CSS}
 ${FIX_CSS}
 ${RESOLVE_CSS}
 ${ISSUE_CSS}
+${REPORT_CSS}
 ${RESEARCH_CSS}
 ${CARD_CSS}
 ${SUMMARY_CSS}
@@ -609,6 +611,8 @@ function show(id, s) {
   const el = $('pill-' + g.id); el.className = 'pill ' + cls; el.textContent = text;
   drawBody(g);
   if (id === 'userissues') redrawLineCards();
+  // A report's card shows its issue's step from the User issues part's answer (pageReports.ts).
+  if (id === 'userissues' && results.userreports) drawBody(groupOf('userreports'));
   drawSummary();
   focusCard();
   if (view().name === 'all') applyOpen(g.id);
@@ -620,7 +624,7 @@ function show(id, s) {
 function drawBody(g) {
   // The container's answer lives in the Jobs table, not as a part of its own.
   if (redraw($('body-' + g.id), g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join(''))) {
-    if (g.parts.includes('feedback') || g.parts.includes('userissues')) wireScreenshots();
+    if (g.parts.includes('feedback') || g.parts.includes('userissues') || g.parts.includes('userreports')) wireScreenshots();
     if (g.parts.includes('userissues') || g.parts.includes('videos')) wireFixPictures();
     if (g.parts.includes('tutorials')) layoutTimelines();
     annotate($('body-' + g.id));
@@ -1094,6 +1098,8 @@ ${REF_SCRIPT}
 // ---- the cards of the User issues page and of a tutorial video's questions (pageIssues.ts) ----
 ${ISSUE_LOGIC}
 ${ISSUE_SCRIPT}
+${REPORT_LOGIC}
+${REPORT_SCRIPT}
 // ---- the Research page (pageResearch.ts): the team's report, its map and week, and what it found ----
 const RESEARCH_TEAM = ${JSON.stringify(RESEARCH_TEAM)};
 ${RESEARCH_LOGIC}

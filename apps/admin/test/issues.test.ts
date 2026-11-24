@@ -61,6 +61,12 @@ describe('where a user issue is', () => {
     expect(logic.issueSource(['other:x'])).toBe('');
   });
 
+  it('keeps "A person sent it" when the report is not the first key', () => {
+    // Keys come sorted: a report added to an issue filed for a phone's records sorts after "expected:".
+    expect(logic.issueSource(['expected:sources offline: download:TypeError:other', 'feedback:3f23', 'transfer:down:source:failOther'])).toBe('A person sent it');
+    expect(logic.issueSource(['audio:play:fail', 'feedback:abc'])).toBe('A person sent it');
+  });
+
   it('waits on a person only when a pull request that names it is open', () => {
     expect(logic.issueWay(issue(), [])).toMatchObject({ tab: 'nofix', pill: 'No fix yet', at: 3, pr: null });
     expect(logic.issueWay(issue(), [pr(7, 'open', ['LAN-8'])])).toMatchObject({ tab: 'nofix' });
