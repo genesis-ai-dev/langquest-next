@@ -118,7 +118,7 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   if (url.pathname === REVIEW_PATH || url.pathname === FIXES_PATH || url.pathname.startsWith(PICTURES_PATH)) {
     return deps.tutorialReview ? handleTutorialReview(request, { ...deps.tutorialReview, pictures: deps.blobs?.bucket }) : json(503, { error: 'The tutorial review is not set up here.' });
   }
-  if (url.pathname.startsWith(PICTURE_PATH)) return handleTutorialPicture(request, deps.blobs?.bucket);
+  if (url.pathname.startsWith(PICTURE_PATH)) return handleTutorialPicture(request, deps.blobs?.bucket, deps.blobs?.serviceKey);
   if (url.pathname === USER_ISSUES_PATH) return deps.userIssues ? handleUserIssues(request, deps.userIssues) : json(503, { error: 'The watch for user issues is not set up here.' });
   if (url.pathname === CARD_QUESTIONS_PATH) return deps.cardQuestions ? handleCardQuestions(request, deps.cardQuestions) : json(503, { error: 'Questions from the ops dashboard are not set up here.' });
   if (url.pathname === FILMED_PATH) return deps.tutorialFilmed ? handleTutorialFilmed(request, deps.tutorialFilmed) : json(503, { error: 'The tutorial intake is not set up here.' });

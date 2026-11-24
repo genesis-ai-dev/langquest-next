@@ -8,7 +8,9 @@
  * It reads the manifests from the repository's public `tutorials` release,
  * puts each film R2 lacks through the Worker (API_URL) and records a
  * `tutorial_intake` job run: `languages`, `films`, `brought`, `listed` and
- * `failed`, `partial` when any failed. The log prints counts, never titles.
+ * `failed`, `partial` when any failed. A film the frame check held and its wrong stills
+ * (status-<language>.json `heldFilm`) are brought too, for the ops dashboard's card, and never listed, so
+ * never put on YouTube; `held` counts them. The log prints counts, never titles.
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... API_URL=... npx tsx server/tutorialIntake.ts
  * Run by hand it leaves no job run.
  */
@@ -75,7 +77,32 @@ try {
       return data === true;
     },
     stopping: () => stopping,
-    wait: () => new Promise((resolve) => setTimeout(resolve, 30_000))
+    wait: () => new Promise((resolve) => setTimeout(resolve, 30_000)),
+    held: {
+      status: async (language) => {
+        const response = await fetch(`${release}/status-${language}.json`);
+        if (response.status === 404) return null;
+        if (!response.ok) throw failed('held_status', response.status);
+        return response.json();
+      },
+      asset: async (name) => {
+        const response = await fetch(`${release}/${name}`);
+        if (!response.ok) throw failed('held_download', response.status);
+        return new Uint8Array(await response.arrayBuffer());
+      },
+      storedPicture: async (name) => {
+        const response = await fetch(`${apiUrl}/api/tutorial-pictures/${name}`, { method: 'HEAD' });
+        if (response.status === 404) return false;
+        if (!response.ok) throw failed('held_stored', response.status);
+        return true;
+      },
+      putPicture: async (name, bytes) => {
+        const response = await fetch(`${apiUrl}/api/tutorial-pictures/${name}`, {
+          method: 'PUT', body: bytes, headers: { authorization: `Bearer ${key}`, 'content-type': 'image/jpeg' }
+        });
+        if (!response.ok) throw failed('held_put', response.status);
+      }
+    }
   }, report);
 } catch (e) {
   error = e;
@@ -84,10 +111,10 @@ const errorClass = error !== undefined ? errorClassOf(error) : report.firstError
 await record({
   job: 'tutorial_intake', startedAt: started, ms: Date.now() - started,
   outcome: error !== undefined && report.films === 0 ? 'error' : error !== undefined || stopping || report.failed > 0 ? 'partial' : 'ok',
-  n: { languages: report.languages, films: report.films, brought: report.brought, listed: report.listed, failed: report.failed },
+  n: { languages: report.languages, films: report.films, brought: report.brought, listed: report.listed, failed: report.failed, held: report.held ?? 0 },
   ...(errorClass ? { errorClass } : {})
 });
-console.log(`intake: ${report.films} films in ${report.languages} languages, ${report.brought} brought, ${report.listed} newly listed, ${report.failed} failed${report.stopped ? ' (stopped: the server failed twice in a row; the next run brings the rest)' : ''}, ${Math.round((Date.now() - started) / 1000)} s`);
+console.log(`intake: ${report.films} films in ${report.languages} languages, ${report.brought} brought, ${report.listed} newly listed, ${report.failed} failed, ${report.held ?? 0} held files brought${report.stopped ? ' (stopped: the server failed twice in a row; the next run brings the rest)' : ''}, ${Math.round((Date.now() - started) / 1000)} s`);
 if (error !== undefined) {
   console.error(`failed: ${intakeCode(error)}`);
   process.exit(1);

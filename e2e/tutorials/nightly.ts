@@ -29,11 +29,11 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { filmName, manifestName, readManifest, type Film } from '../../server/tutorialIntakeModel';
+import { filmName, heldFilmName, heldStillName, manifestName, readManifest, type Film, type HeldFilm } from '../../server/tutorialIntakeModel';
 import { TRAILER, type ChannelLanguage } from '../../server/youtube';
 import { GROUPS, TUTORIALS } from './all';
 import { videosNamed } from './tutorial';
-import { checkFilm, problemLines } from './frame-check';
+import { checkFilm, problemLines, type Checked } from './frame-check';
 import { lookOf, stepLooks, tryAgain } from './look';
 import { firstSentence, FRAME, PLAYLISTS, TRAILER_FRAME, youtubeText } from './playlists';
 import { TUNE } from './tune';
@@ -181,12 +181,35 @@ if (missed.length) {
 // Claude plan. A film with something wrong, or one that could not be looked at, is held: it is not put up, and the
 // video keeps its last film until a night's is right.
 const held = new Map<string, string[]>();
+// A held film and its wrong stills go into the release too (not into the manifest, so never to YouTube): the intake
+// brings them into R2, and the ops dashboard's card shows each still ringed and plays the film at its time.
+const heldFilms = new Map<string, HeldFilm>();
+const keepHeld = (id: string, checked: Checked[]) => {
+  const mp4 = path.join(results, language!, `${id}.mp4`);
+  const sha256 = createHash('sha256').update(readFileSync(mp4)).digest('hex');
+  copyFileSync(mp4, path.join(outDir!, heldFilmName(language!, id, sha256)));
+  const stills = checked.filter((s) => s.problems.length && existsSync(s.file)).map((s) => {
+    const bytes = readFileSync(s.file);
+    const hash = createHash('sha256').update(bytes).digest('hex');
+    copyFileSync(s.file, path.join(outDir!, heldStillName(language!, hash)));
+    return { t: s.t, says: s.says, picture: `${hash}.jpg`, bytes: bytes.length, problems: s.problems, boxes: s.problems.map((_, i) => s.boxes?.[i] ?? null) };
+  });
+  heldFilms.set(id, { sha256, bytes: readFileSync(mp4).length, stills });
+};
 const toCheck = [...filmed];
 await Promise.all([0, 1].map(async () => {
   for (let id = toCheck.shift(); id; id = toCheck.shift()) {
     try {
-      const found = problemLines(await checkFilm(path.join(results, 'films', language!, id), path.join(results, language!, `${id}.mp4`), language!));
-      if (found.length) held.set(id, found);
+      const checked = await checkFilm(path.join(results, 'films', language!, id), path.join(results, language!, `${id}.mp4`), language!);
+      const found = problemLines(checked);
+      if (found.length) {
+        held.set(id, found);
+        try {
+          keepHeld(id, checked);
+        } catch (error) {
+          console.log(`${language}: ${id}: the held film was not kept for the dashboard: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
     } catch (error) {
       held.set(id, [`The stills could not be looked at: ${error instanceof Error ? error.message : String(error)}`]);
     }
@@ -283,7 +306,8 @@ const status = Object.keys(TUTORIALS).filter((id) => !TUTORIALS[id]!.staff && !T
     tutorial: id, title: TUTORIALS[id]!.title, tonight: tonight(id),
     film: film ? { sha256: film.sha256, filmedAt: film.filmedAt ?? null, commit: film.commit ?? null, why: film.why ?? null } : null,
     why: why.get(id) ?? [], slots: tonight(id) === 'same' ? [] : slot, checked: tonight(id) === 'same' ? slot : [],
-    ...(held.has(id) ? { held: held.get(id)! } : {})
+    ...(held.has(id) ? { held: held.get(id)! } : {}),
+    ...(heldFilms.has(id) ? { heldFilm: heldFilms.get(id)! } : {})
   };
 });
 writeFileSync(path.join(outDir, `status-${language}.json`), `${JSON.stringify({ language, commit: head ?? null, at: now, videos: status }, null, 2)}\n`);

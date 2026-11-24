@@ -196,6 +196,24 @@ describe('the cards', () => {
     expect(html).toContain('placeholder="Send another instruction…"');
   });
 
+  it('links the video a card is about at the problem\'s times, and only to LangQuest\'s films and YouTube', () => {
+    const html = draw.adminCard({
+      kind: 'held', title: 'Share (fr): the new film was held back', detail: 'Wrong.', at: '2026-11-17T00:00:00Z', who: 'you', next: 'Tell Claude.', tutorial: 'share', language: 'fr',
+      watch: [
+        { film: 'held', label: 'The held film (not on YouTube)', links: [{ text: 'At 0:09', href: '/api/tutorials/fr/share/abc.mp4#t=9' }, { text: 'At 0:21', href: '/api/tutorials/fr/share/abc.mp4#t=21' }] },
+        { film: 'youtube', label: 'On YouTube now (the film before it)', links: [{ text: 'At 0:09', href: 'https://youtu.be/xyz?t=9' }, { text: 'Bad', href: 'javascript:alert(1)' }] },
+        { film: 'langquest', label: 'Nowhere', links: [{ text: 'Bad', href: 'https://evil.example/x' }] }
+      ]
+    });
+    expect(html).toContain('<dt>Watch the video</dt>');
+    expect(html).toContain('<li><span class="vwname"><i>film</i>The held film (not on YouTube)</span><span class="vwlinks"><a class="vwat" href="/api/tutorials/fr/share/abc.mp4#t=9" target="_blank" rel="noopener noreferrer">At 0:09</a>');
+    expect(html).toContain('<a class="vwat" href="https://youtu.be/xyz?t=9" target="_blank" rel="noopener noreferrer">At 0:09</a></span></li>');
+    expect(html).not.toContain('javascript:');
+    expect(html).not.toContain('Nowhere');
+    // No films to link: no line.
+    expect(draw.adminCard({ kind: 'paused', title: 'Paused', detail: 'x', at: null, who: 'you', next: 'y' })).not.toContain('Watch the video');
+  });
+
   it('draws a suggestion with Accept and Reject, what came in, and the box before anything was said', () => {
     const html = draw.adminCard({
       kind: 'approve', title: 'Record: say Done in step 9', detail: 'The voice says Save.', at: '2026-11-17T00:00:00Z', who: 'you', next: 'Accept: Claude makes the change.',

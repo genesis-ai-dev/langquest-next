@@ -1,5 +1,6 @@
 import { CHANNELS, type ChannelLanguage } from '../../../../server/youtube';
 import type { AppFix, FeedbackInput, Picture, Suggestion } from '../../../../server/tutorialFeedback';
+import type { HeldFilm } from '../../../../server/tutorialIntakeModel';
 import { diagConnection, withDiag, type Query } from '../db';
 import { failed, ok, type Section } from '../section';
 import { filmingSection, type Filming } from './filming';
@@ -52,6 +53,8 @@ export interface StatusFile {
     film: { sha256: string; filmedAt: string | null; commit: string | null; why: Cause[] | null } | null;
     why: Cause[]; slots: (Ref & { screens: string[] })[]; checked: (Ref & { screens: string[] })[];
     held?: string[];
+    /** The held film and the stills the frame check found wrong in it, in R2 for the card (nightly.ts, tutorialIntake.ts). */
+    heldFilm?: HeldFilm;
   }[];
 }
 
@@ -128,6 +131,13 @@ export interface VideoRow {
   marks: Mark[];
 }
 
+/**
+ * Where to watch the film a card is about, at the times it is about (a held film's wrong stills); with no times,
+ * from the start. `held`: the film the frame check held, which is not on YouTube; `langquest`: the newest film
+ * LangQuest keeps; `youtube`: the film on YouTube now. Each says in its label which film it is.
+ */
+export interface Watch { film: 'held' | 'langquest' | 'youtube'; label: string; links: { text: string; href: string }[] }
+
 export interface AdminItem {
   kind: 'approve' | 'appFix' | 'fixFailed' | 'fixed' | 'held' | 'fails' | 'reply' | 'comment' | 'screen' | 'publish' | 'connect' | 'empty' | 'paused';
   /** The problem, in a line. */
@@ -142,8 +152,13 @@ export interface AdminItem {
   tutorial?: string; language?: string; link?: string;
   /** For `approve`: the suggestion, for its Accept, Edit and Reject. */
   suggestion?: FixedSuggestion;
-  /** What the card is about, as pictures Claude picked from the last film run (decisions.md 186, amended 2026-11-17). */
+  /**
+   * What the card is about, as pictures Claude picked from the last film run (decisions.md 186, amended 2026-11-17),
+   * or, for `held`, the stills the frame check found wrong, ringed where it saw each problem.
+   */
   pictures?: Picture[];
+  /** Where to watch the video, at the problem's times when the card has them. */
+  watch?: Watch[];
   /** Where "Tell Claude what to do" applies: the words that start the note, so Claude knows the problem it answers. */
   instruct?: string;
   /** The admin's newest instruction for this video since the problem began. */
@@ -351,6 +366,30 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
     const key = `${f.language}\u0000${f.tutorial}`;
     filmsOf.set(key, [...(filmsOf.get(key) ?? []), f].sort((a, b) => a.madeAt.localeCompare(b.madeAt)));
   }
+  // Where to watch a video: the held film (when there is one), the newest film LangQuest keeps, and the one on YouTube,
+  // each at the times given (a link to the film itself at a time: #t= on LangQuest's copy, ?t= on YouTube).
+  const clockOf = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  const watchOf = (tutorial: string, language: string, times: number[], held: HeldFilm | null): Watch[] => {
+    const own = filmsOf.get(`${language}\u0000${tutorial}`) ?? [];
+    const newest = own[own.length - 1];
+    const up = [...own].reverse().find((f) => f.youtubeId);
+    const at = [...new Set(times.map((t) => Math.max(0, Math.floor(t))))].sort((a, b) => a - b);
+    const links = (href: string, mark: string) => at.length ? at.map((t) => ({ text: `At ${clockOf(t)}`, href: `${href}${mark}${t}` })) : [{ text: 'From the start', href }];
+    const before = held ? ', the film before it' : '';
+    return [
+      ...(held ? [{ film: 'held' as const, label: 'The held film, not on YouTube', links: links(`/api/tutorials/${language}/${tutorial}/${held.sha256}.mp4`, '#t=') }] : []),
+      ...(newest && newest.sha256 !== held?.sha256 && newest.sha256 !== up?.sha256 ? [{ film: 'langquest' as const, label: `The newest film, on LangQuest${before}`, links: links(`/api/tutorials/${language}/${tutorial}/${newest.sha256}.mp4`, '#t=') }] : []),
+      ...(up ? [{ film: 'youtube' as const, label: `On YouTube now${before}`, links: links(`https://youtu.be/${up.youtubeId}`, '?t=') },
+        { film: 'langquest' as const, label: `The same film, on LangQuest${before}`, links: links(`/api/tutorials/${language}/${tutorial}/${up.sha256}.mp4`, '#t=') }] : [])
+    ];
+  };
+  /** A held film's wrong stills as pictures: one for each problem, ringed where the frame check saw it. */
+  const heldPictures = (tutorial: string, language: string, held: HeldFilm): Picture[] => held.stills.flatMap((st, n) => st.problems.map((problem, k) => ({
+    picture: st.picture, language, tutorial, kind: 'still' as const, n: n + 1, at: st.t, caption: problem.slice(0, 300),
+    ...(st.boxes?.[k] ? { ring: st.boxes[k]! } : {})
+  }))).slice(0, 6);
+  /** The times a held film's lines name ("0:09 (...): ..."), for a film held before the stills were kept. */
+  const linesTimes = (lines: string[]) => lines.flatMap((l) => { const m = /^(\d+):(\d{2})\b/.exec(l); return m ? [Number(m[1]) * 60 + Number(m[2])] : []; });
   // The videos of a language, in the nightly's order, else in the database's (by position), else the English titles'.
   const videosIn = (language: string): string[] => {
     const s = status[language];
@@ -522,7 +561,9 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
       if (s && (sv?.tonight === 'held' || sv?.tonight === 'failed')) marks.push({ at: s.at, kind: sv.tonight, text: sv.tonight === 'held' ? `Held: ${(sv.held ?? []).join('; ')}` : 'Film failed', detail: {
         title: sv.tonight === 'held' ? 'Held by the frame check' : 'The film failed',
         lines: sv.tonight === 'held' ? (sv.held ?? ['The frame check held it.']) : ['The error is in the log of the language\'s filming job.'],
-        links: j?.url ? [{ text: 'Open the log', href: j.url }] : [], films: []
+        links: j?.url ? [{ text: 'Open the log', href: j.url }] : [],
+        films: sv.tonight === 'held' && sv.heldFilm ? [{ label: 'The held film', href: `/api/tutorials/${language}/${tutorial}/${sv.heldFilm.sha256}.mp4` }] : [],
+        ...(sv.tonight === 'held' && sv.heldFilm?.stills.length ? { pictures: heldPictures(tutorial, language, sv.heldFilm) } : {})
       } });
       marks.sort((a, b) => a.at.localeCompare(b.at));
 
@@ -537,7 +578,10 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
       // once a look after the film made nothing for it, or what it made was rejected, it waits on an admin.
       const answered = (feedback?.suggestions ?? []).filter((x) => x.tutorial === tutorial && (x.language ?? 'en') === language && s && x.madeAt >= s.at);
       const filmWho: AdminItem['who'] = answered.some((x) => x.decision !== 'rejected') || !(s && feedback?.last && feedback.last.at > s.at) ? 'claude' : 'you';
+      const heldFilm = sv?.tonight === 'held' ? sv.heldFilm ?? null : null;
       if (sv?.tonight === 'held') admin.push({ kind: 'held', title: `${name}: the new film was held back`, detail: `The frame check found: ${(sv.held ?? []).join('; ') || 'a problem in a frame'}. YouTube keeps the old film.`, at: s!.at, tutorial, language, who: filmWho,
+        ...(heldFilm?.stills.length ? { pictures: heldPictures(tutorial, language, heldFilm) } : {}),
+        watch: watchOf(tutorial, language, heldFilm ? heldFilm.stills.map((x) => x.t) : linesTimes(sv.held ?? []), heldFilm),
         next: filmWho === 'you' ? 'Claude\'s look did not fix it. Tell Claude what to change. Each night holds the film again until then.' : 'Claude looks at it at 10:00 UTC, and changes the video or asks you. You can tell Claude now what to change.', instruct: `The new film of "${title(tutorial)}" (${language}) was held by the frame check: ${(sv.held ?? []).join('; ')}.`, ...(j?.url ? { link: j.url } : {}) });
       if (sv?.tonight === 'failed') admin.push({ kind: 'fails', title: `${name}: the film fails`, detail: 'The filming stops at a step: the script expects something the app no longer shows. YouTube keeps the old film.', at: s!.at, tutorial, language, who: filmWho,
         next: filmWho === 'you' ? 'Claude\'s look did not fix it. Tell Claude what changed in the app. Each night fails again until then.' : 'Claude looks at it at 10:00 UTC, and changes the video or asks you. You can tell Claude now what changed in the app.', instruct: `The film of "${title(tutorial)}" (${language}) fails each night (see the log of the filming run).`, ...(j?.url ? { link: j.url } : {}) });
@@ -587,6 +631,13 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
   if (filming?.run && !filmingNow) worker.unshift({ when: 'next', kind: 'filming', title: `20:10 UTC: film the videos that changed (${(nightly ?? ['en']).join(', ')})`, detail: `Each video is tried; one films again only when its script or screen words changed. New films then go up on YouTube. Last run (${filming.run.number}): ${filming.run.conclusion ?? filming.run.status}.`, link: filming.run.url });
 
   for (const a of admin) if (a.tutorial) a.video = title(a.tutorial);
+  // Every other card about a video links to it too: at the times of its stills when they are of the film held now.
+  for (const a of admin) {
+    if (a.watch || !a.tutorial || !a.language) continue;
+    const held = status[a.language]?.videos.find((v) => v.tutorial === a.tutorial && v.tonight === 'held')?.heldFilm ?? null;
+    const mine = held ? (a.pictures ?? []).filter((p) => p.kind === 'still' && typeof p.at === 'number' && held.stills.some((x) => x.picture === p.picture)) : [];
+    a.watch = watchOf(a.tutorial, a.language, mine.map((p) => p.at!), mine.length ? held : null);
+  }
   // An instruction sent from a card: the newest instruction for that video since the problem began
   // (a suggestion of kind 'instruction', with its fix); before the Worker knew instructions, a note on the video.
   const notes = [...inputs.values()].filter((i) => i.kind === 'note' && i.tutorial);

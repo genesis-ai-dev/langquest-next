@@ -36,7 +36,10 @@ const USAGE = process.env['TUTORIAL_GEMINI_USAGE'] ?? path.join('e2e', 'results'
 
 /** A moment to look at, in seconds into the video, and the line said then ('' for none). */
 export interface Still { t: number; says: string }
-export interface Checked extends Still { file: string; problems: string[] }
+/** Where a problem is in its still: [left, top, width, height] as parts of the still's width and height (0 to 1). */
+export type Box = [number, number, number, number];
+/** A still with what is wrong in it, and for each problem the box round it (null when Claude gave none). */
+export interface Checked extends Still { file: string; problems: string[]; boxes?: (Box | null)[] }
 /** One look: Claude Code given the message (a line of stream-json), and what it printed (stream-json lines). */
 export type Look = (message: string) => Promise<string>;
 
@@ -77,20 +80,41 @@ export function promptOf(title: string, code: string): string {
     `- words of the app in another language than ${language} (other than the names, Bible text and the team's words above)`,
     '- anything else drawn wrong: misplaced, duplicated, half drawn, or a glitch.',
     'Say nothing about what is meant to be there (the dimming, the bright part, the taps, the zoom, the phone\'s frame). Report a mistake only when you can see it; say where it is and what it is, in one short English sentence each.',
-    'Answer with {"stills": [...]}: one entry for each still that has a mistake, {"still": <its number>, "problems": [<sentence>, ...]}. "stills" is empty when every still is right.'
+    'For each problem, give the box round the place it is in the still, as [left, top, width, height] in parts of the still\'s width and height (0 to 1), in "boxes", in the same order as "problems". A person sees the still with that box drawn on it, so make it hold the whole wrong thing and little else.',
+    'Answer with {"stills": [...]}: one entry for each still that has a mistake, {"still": <its number>, "problems": [<sentence>, ...], "boxes": [[left, top, width, height], ...]}. "stills" is empty when every still is right.'
   ].join('\n');
 }
 
 const schema = {
   type: 'object',
   properties: {
-    stills: { type: 'array', items: { type: 'object', properties: { still: { type: 'integer' }, problems: { type: 'array', items: { type: 'string' } } }, required: ['still', 'problems'] } }
+    stills: { type: 'array', items: { type: 'object', properties: {
+      still: { type: 'integer' }, problems: { type: 'array', items: { type: 'string' } },
+      boxes: { type: 'array', items: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4 } }
+    }, required: ['still', 'problems'] } }
   },
   required: ['stills']
 };
 
-/** Claude's answer as each still's problems (by still number, from 1); an answer that is not what was asked for throws. */
+/** A box Claude gave, inside the still and not empty, or null. */
+export function boxOf(value: unknown): Box | null {
+  if (!Array.isArray(value) || value.length !== 4 || !value.every((n) => typeof n === 'number' && Number.isFinite(n))) return null;
+  const [x, y, w, h] = (value as number[]).map((n) => Math.round(Math.max(0, Math.min(1, n)) * 10_000) / 10_000) as Box;
+  const round = (n: number) => Math.round(n * 10_000) / 10_000;
+  const box: Box = [x, y, round(Math.min(w, 1 - x)), round(Math.min(h, 1 - y))];
+  return box[2] > 0.005 && box[3] > 0.005 ? box : null;
+}
+
+/**
+ * Claude's answer as each still's problems (by still number, from 1), each with the box round it or null; an
+ * answer that is not what was asked for throws.
+ */
 export function problemsOf(answer: unknown, count: number): Map<number, string[]> {
+  return new Map([...foundOf(answer, count)].map(([n, f]) => [n, f.problems]));
+}
+
+/** As problemsOf, with the box round each problem (null when Claude gave none, or one outside the still). */
+export function foundOf(answer: unknown, count: number): Map<number, { problems: string[]; boxes: (Box | null)[] }> {
   let value = answer;
   if (typeof value === 'string') {
     try {
@@ -101,11 +125,15 @@ export function problemsOf(answer: unknown, count: number): Map<number, string[]
   }
   const list = Array.isArray(value) ? value : (value as { stills?: unknown } | undefined)?.stills;
   if (!Array.isArray(list)) throw new Error(`Claude's frame check answered ${(typeof answer === 'string' ? answer : JSON.stringify(answer) ?? '').slice(0, 200)}`);
-  const out = new Map<number, string[]>();
-  for (const entry of list as { still?: unknown; problems?: unknown }[]) {
+  const out = new Map<number, { problems: string[]; boxes: (Box | null)[] }>();
+  for (const entry of list as { still?: unknown; problems?: unknown; boxes?: unknown }[]) {
     const n = Number(entry.still);
-    const problems = Array.isArray(entry.problems) ? entry.problems.filter((p): p is string => typeof p === 'string' && p.trim() !== '') : [];
-    if (Number.isInteger(n) && n >= 1 && n <= count && problems.length) out.set(n, [...(out.get(n) ?? []), ...problems]);
+    const raw = Array.isArray(entry.problems) ? entry.problems as unknown[] : [];
+    const boxes = Array.isArray(entry.boxes) ? entry.boxes as unknown[] : [];
+    const kept = raw.map((p, i) => ({ p, box: boxOf(boxes[i]) })).filter((x): x is { p: string; box: Box | null } => typeof x.p === 'string' && x.p.trim() !== '');
+    if (!Number.isInteger(n) || n < 1 || n > count || !kept.length) continue;
+    const was = out.get(n) ?? { problems: [], boxes: [] };
+    out.set(n, { problems: [...was.problems, ...kept.map((x) => x.p)], boxes: [...was.boxes, ...kept.map((x) => x.box)] });
   }
   return out;
 }
@@ -211,8 +239,8 @@ export async function checkFilm(
     in: sum('inputTokens') + sum('cacheReadInputTokens') + sum('cacheCreationInputTokens'),
     out: sum('outputTokens'), thinking: sum('thinkingTokens'), usd: result.total_cost_usd ?? sum('costUSD')
   })}\n`);
-  const found = problemsOf(result.structured_output ?? result.result ?? '', stills.length);
-  const checked = stills.map((s, i) => ({ ...s, problems: found.get(i + 1) ?? [] }));
+  const found = foundOf(result.structured_output ?? result.result ?? '', stills.length);
+  const checked: Checked[] = stills.map((s, i) => ({ ...s, problems: found.get(i + 1)?.problems ?? [], ...(found.has(i + 1) ? { boxes: found.get(i + 1)!.boxes } : {}) }));
   for (const s of checked) if (!s.problems.length) rmSync(s.file, { force: true });
   writeFileSync(path.join(folder, 'check.json'), JSON.stringify({ model, stills: checked }, null, 1));
   return checked;

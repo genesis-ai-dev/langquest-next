@@ -350,6 +350,20 @@ describe('the look\'s pictures (decisions.md 186, amended 2026-11-17)', () => {
     expect((await get('/api/tutorial-pictures/../tutorials/en/x/a.mp4')).status).toBe(404);
     expect((await get(`/api/tutorial-pictures/${name}`, 'PUT')).status).toBe(405);
   });
+
+  it('takes a held film\'s still from the intake job with the service key, and from no one else', async () => {
+    const { kept, bucket } = store();
+    const JPG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+    const name = `${await shaOf(JPG)}.jpg`;
+    const send = (auth: string | null) => handleTutorialPicture(new Request(`https://next.langquest.org/api/tutorial-pictures/${name}`, {
+      method: 'PUT', body: JPG, headers: { 'content-length': String(JPG.length), ...(auth ? { authorization: `Bearer ${auth}` } : {}) }
+    }), bucket, 'service-key');
+    expect((await send(null)).status).toBe(401);
+    expect((await send('not-the-key')).status).toBe(401);
+    expect(kept).toEqual({});
+    expect((await send('service-key')).status).toBe(200);
+    expect(kept[`tutorial-pictures/${name}`]).toEqual({ body: JPG, type: 'image/jpeg' });
+  });
 });
 
 describe('parseFixUpdates', () => {

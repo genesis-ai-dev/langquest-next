@@ -4,7 +4,10 @@
 // reads a manifest naming a film that is not there yet, and each video's
 // state (status-<language>.json, for the chart); then the voice they
 // were said in, for the next night; last it deletes that language's films
-// the manifest no longer names. Uses gh, with GH_TOKEN. It says how many
+// the manifest no longer names. A film the frame check held and its wrong
+// stills go in beside them (not in the manifest, so never to YouTube), for the
+// ops dashboard's card; the held ones status-<language>.json no longer names
+// are taken out. Uses gh, with GH_TOKEN. It says how many
 // films it put in as the step's `films` output, so the workflow tells the
 // app's Worker only when there are new ones (films-in.mjs, decisions.md 192).
 //
@@ -12,7 +15,7 @@
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { filmName, manifestName, readManifest, TUTORIALS_TAG } from '../../server/tutorialIntakeModel';
+import { filmName, heldFilmName, heldFilmsOf, heldPrefix, heldStillName, manifestName, readManifest, TUTORIALS_TAG } from '../../server/tutorialIntakeModel';
 import type { ChannelLanguage } from '../../server/youtube';
 
 const [language, out] = process.argv.slice(2) as [ChannelLanguage | undefined, string | undefined];
@@ -33,6 +36,12 @@ if (films.length) gh('release', 'upload', TUTORIALS_TAG, ...films.map((f) => pat
 gh('release', 'upload', TUTORIALS_TAG, manifest, '--clobber');
 // Every video's state in the language (nightly.ts): its film, why it was made, what slots it.
 const status = path.join(out, `status-${language}.json`);
+// The held films and stills tonight's status names, before the status that names them.
+const heldNamed = new Set(existsSync(status) ? heldFilmsOf(JSON.parse(readFileSync(status, 'utf8'))).flatMap(({ tutorial, held }) => [
+  heldFilmName(language, tutorial, held.sha256), ...held.stills.map((s) => heldStillName(language, s.picture.slice(0, 64)))
+]) : []);
+const heldFiles = readdirSync(out).filter((f) => heldNamed.has(f));
+if (heldFiles.length) gh('release', 'upload', TUTORIALS_TAG, ...heldFiles.map((f) => path.join(out, f)), '--clobber');
 if (existsSync(status)) gh('release', 'upload', TUTORIALS_TAG, status, '--clobber');
 
 // The voice: each line said, the speaker's readings and the pieces they are
@@ -55,5 +64,9 @@ const prefix = `${language}.`;
 const assets = gh('release', 'view', TUTORIALS_TAG, '--json', 'assets', '--jq', '.assets[].name').split('\n').filter(Boolean);
 const old = assets.filter((a) => a.startsWith(prefix) && a.endsWith('.mp4') && !named.has(a));
 for (const name of old) gh('release', 'delete-asset', TUTORIALS_TAG, name, '--yes');
-console.log(`${language}: ${films.length} films put in the release, ${old.length} older ones taken out`);
-if (process.env['GITHUB_OUTPUT']) appendFileSync(process.env['GITHUB_OUTPUT'], `films=${films.length}\n`);
+// A held film's assets stay while the status names them; a night that films it right, or holds a newer film, drops them.
+const oldHeld = existsSync(status) ? assets.filter((a) => a.startsWith(heldPrefix(language)) && !heldNamed.has(a)) : [];
+for (const name of oldHeld) gh('release', 'delete-asset', TUTORIALS_TAG, name, '--yes');
+const heldCount = heldFiles.filter((f) => f.endsWith('.mp4')).length;
+console.log(`${language}: ${films.length} films put in the release, ${old.length} older ones taken out; ${heldCount} held films kept for the dashboard, ${oldHeld.length} held files taken out`);
+if (process.env['GITHUB_OUTPUT']) appendFileSync(process.env['GITHUB_OUTPUT'], `films=${films.length}\nheld=${heldCount}\n`);
