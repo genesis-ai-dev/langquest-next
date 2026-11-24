@@ -19,6 +19,7 @@ import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
 import { ICONS, NAV, SHELL_CSS, SHELL_HTML, SHELL_LOGIC, SHELL_SCRIPT } from './pageShell';
 import { OVERVIEW_CSS, OVERVIEW_HTML, OVERVIEW_LOGIC, OVERVIEW_SCRIPT } from './pageOverview';
 import { FIX_CSS, FIX_LOGIC, FIX_SCRIPT } from './pageFixes';
+import { RESOLVE_CSS, RESOLVE_LOGIC, RESOLVE_SCRIPT } from './pageResolve';
 import { ISSUE_CSS, ISSUE_LOGIC, ISSUE_SCRIPT } from './pageIssues';
 import { RESEARCH_CSS, RESEARCH_LOGIC, RESEARCH_SCRIPT } from './pageResearch';
 import { RESEARCH_TEAM } from './researchTeam';
@@ -215,6 +216,7 @@ ${SHELL_CSS}
 ${START_CSS}
 ${OVERVIEW_CSS}
 ${FIX_CSS}
+${RESOLVE_CSS}
 ${ISSUE_CSS}
 ${RESEARCH_CSS}
 ${CARD_CSS}
@@ -595,7 +597,10 @@ function redraw(el, html) {
 }
 
 function show(id, s) {
-  results[id] = s;
+  // A part drawn again from what the page holds keeps its own answer; the page draws it without its resolved lines (pageResolve.ts).
+  if (s !== results[id] || !(id in RAW)) RAW[id] = s;
+  results[id] = withoutResolved(RAW[id]);
+  s = results[id];
   if (id === 'videos' && s && s.state === 'ok') VIDEOS = s.data;
   if (SENDS.size) pruneSends();
   const g = groupOf(id);
@@ -1080,6 +1085,9 @@ ${OVERVIEW_SCRIPT}
 const KINDS = ${JSON.stringify(KINDS).replace(/</g, '\\u003c')};
 ${FIX_LOGIC}
 ${FIX_SCRIPT}
+// ---- Resolved: a line hidden until its problem comes back (pageResolve.ts) ----
+${RESOLVE_LOGIC}
+${RESOLVE_SCRIPT}
 // ---- what each PR and LAN number is about, in a box over it (pageRefs.ts) ----
 ${REF_LOGIC}
 ${REF_SCRIPT}
@@ -1125,7 +1133,7 @@ let loading = false, loadAgain = false;
  * keeps (index.ts memo), so the card shows the tap's result. A part that fails keeps what it showed.
  */
 async function reread(parts) {
-  await Promise.all(parts.map((p) => (p === 'questions' ? loadQuestions() : p === 'ops'
+  await Promise.all(parts.map((p) => (p === 'questions' ? loadQuestions() : p === 'resolves' ? loadResolves() : p === 'ops'
     ? api('/ops/api/ops?fresh=1').then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); })
     : p === 'diag' ? api('/ops/api/diag?fresh=1').then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); })
     : api('/ops/api/' + p + '?fresh=1').then((d) => show(p, d))).catch(() => {})));
@@ -1147,6 +1155,7 @@ async function load(fresh) {
     // The start page's pictures: without them it still shows every card and line.
     api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {}),
     loadQuestions(),
+    loadResolves(),
     // The pull requests that name a line's Linear issue: without them each line still shows its issue.
     // The User issues page says each issue's pull request, so it is drawn again with them.
     api('/ops/api/fixes' + q).then((d) => { fixData = d; if (results.userissues) show('userissues', results.userissues); else { renderStart(); attention(); } })

@@ -248,9 +248,12 @@ function fixSays(f, compact) {
 /** How many lines wait for their check after a merged fix: they need nobody now. */
 function waitingFixes(alerts) { return alerts.filter((a) => fixOf(a).state === 'merged').length; }
 
-function resolvedHtml(list) {
+/** hand: the lines an admin resolved that stay hidden now (pageResolve.ts handResolved), first. */
+function resolvedHtml(list, hand) {
+  hand = hand || [];
   const fixes = fixData && fixData.state === 'error' ? '<p class="bad">Could not read the pull requests: ' + esc(fixData.error) + '</p>' : '';
-  return '<summary>' + icon('done') + '<b>Resolved</b><span class="muted">' + (list.length ? list.length + ' in the last 14 days' : 'none in the last 14 days') + '</span></summary>' + fixes +
+  const n = list.length + hand.length;
+  return '<summary>' + icon('done') + '<b>Resolved</b><span class="muted">' + (n ? n + ' in the last 14 days' : 'none in the last 14 days') + '</span></summary>' + fixes + handResolvedHtml(hand) +
     list.map((l) => {
       const f = { issues: [l.issue], row: { issue: l.issue, issueUrl: l.issueUrl, state: l.state } };
       return '<div class="rsline">' + icon('done') + '<div><b>' + esc(l.title) + (l.subject ? ' · ' + esc(l.subject) : '') + '</b>' +

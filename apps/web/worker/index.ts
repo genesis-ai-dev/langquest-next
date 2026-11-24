@@ -521,6 +521,14 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         });
         const { data, error } = await serviceClient(env).rpc('ops_user_issue_watch', { p_lines: lines });
         if (error) throw new Error(`ops_user_issue_watch: ${error.message}`);
+        // A resolved line whose problem went from the page ends, so it shows when the problem comes back
+        // (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md). A failure here never stops the watch.
+        await Promise.resolve().then(async () => {
+          const seen = await env.OPS_LINES?.present?.();
+          if (!seen) return;
+          const ended = await serviceClient(env).rpc('ops_line_resolves_seen', { p_lines: seen.lines, p_parts: seen.parts });
+          if (ended.error) console.error(`ops_line_resolves_seen: ${ended.error.code ?? 'unknown'}`);
+        }).catch((e: unknown) => console.error(`ops lines present: ${e instanceof Error ? e.name : 'unknown'}`));
         // The issues an admin left an instruction on. Before its migration is there, the watch goes on without them.
         const notes = await serviceClient(env).rpc('ops_user_issue_notes_waiting');
         if (notes.error) console.error(`ops_user_issue_notes_waiting: ${notes.error.code ?? 'unknown'}`);

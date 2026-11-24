@@ -68,6 +68,14 @@ export const SECTION_HELP: Record<string, string> = {
 };
 
 export const HELP: Record<string, string> = {
+  // ---- Resolved: a line hidden until its problem comes back (pageResolve.ts)
+  'Resolved button': 'Hides this problem from the page. It shows again when the problem goes and comes back, gets worse, or starts a new count, and after 7 days at the latest. The watch for user issues still sees it.',
+  'Came back: worse': 'Someone resolved this problem. It shows again because it is more serious now.',
+  'Came back: grew': 'Someone resolved this problem. It shows again because it is twice as big now.',
+  'Came back: month': 'Someone resolved this problem last month. It shows again because this month has its own count.',
+  'Came back: window': 'Someone resolved this problem. It shows again because the check now counts only what happened after that.',
+  'Came back: check': 'Someone resolved this problem. It shows again because its daily check ran again and found it.',
+  'Came back: week': 'Someone resolved this problem 7 days ago. It shows again because it is still here.',
   // ---- where each build and update is (sources/pipeline.ts)
   'Building on EAS': 'Store builds EAS is making now, and the newest one when it failed.',
   TestFlight: 'iPhone builds uploaded to Apple and not sent for review: Apple processing them, or waiting while an older build is in App Review. The hourly step sends only the newest once the review ends.',

@@ -21,6 +21,8 @@ import { CARD, PAGE, QUESTION_MAX } from '../../../server/cardQuestions';
  * none needed), tell Claude what to do with a user issue
  * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md), ask Claude a
  * question from any card or page (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md),
+ * mark a line resolved until its problem comes back, or show it again
+ * (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md),
  * mark an account's quiet installs not an issue, claim or release a Linear issue, and mark Claude's
  * replies seen (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md). The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
@@ -64,6 +66,10 @@ export type Action =
   | { kind: 'user-issue-note'; issue: string; text: string }
   /** A question to Claude from a card or a page of the dashboard, with the card's words as the page drew them. */
   | { kind: 'card-question'; card: string; page: string; title: string; context: string; text: string }
+  /** Lines of the dashboard marked resolved, each as the page showed it: hidden until its problem comes back. */
+  | { kind: 'line-resolve'; lines: ResolvedLine[] }
+  /** Lines resolved before, shown again. */
+  | { kind: 'line-show'; lines: string[] }
   /** An account's quiet installs marked not an issue, or counted again. */
   | { kind: 'quiet-account'; profile: string; ok: boolean }
   /** A language's tutorial videos filmed each night, or paused (decision 2026-11-21, filming languages switch). */
@@ -75,6 +81,18 @@ export type Action =
   | { kind: 'issue-claim'; issue: string; claim: boolean }
   /** The admin opened Claude's replies in the corner of the dashboard: the replies until now are seen. */
   | { kind: 'replies-seen' };
+
+/** A line as the page showed it when the admin tapped Resolved (migration 20261124013000_ops_line_resolves.sql). */
+export interface ResolvedLine {
+  /** '<key>[:<subject>]' (apps/admin/src/alertKinds.ts alertId). */
+  line: string;
+  /** The part whose answer holds the line. */
+  part: string;
+  level: 'urgent' | 'problem' | 'watch';
+  /** The line's measure (usage-billed: its cost so far), or null. */
+  measure: number | null;
+  title: string;
+}
 
 export type ActionResult =
   | { ok: true; result: string }
@@ -102,6 +120,10 @@ export interface ActionDeps {
   instruct(row: { tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }, by: string): Promise<string>;
   /** An admin's instruction on a user issue kept for the watch (`ops_user_issue_instruct`): its id, `not_found` or `full`. */
   instructIssue(issue: string, text: string, by: string): Promise<string>;
+  /** Lines resolved by this person (`ops_line_resolve`): how many. */
+  resolveLines(lines: ResolvedLine[], by: string): Promise<number>;
+  /** Lines shown again by this person (`ops_line_show`): how many were resolved. */
+  showLines(lines: string[], by: string): Promise<number>;
   /** A question from a card kept for Claude (`ops_card_ask`): its id, `full` or `many`. */
   askCard(row: { card: string; page: string; title: string; context: string; text: string }, by: string): Promise<string>;
   /** A suggestion answered (`ops_suggestion_decide`): what happened, and the suggestion's kind. */
@@ -138,6 +160,27 @@ export const REASON_MAX = 500;
 /** The longest problem line an instruction's card sends, and the most inputs it names. */
 export const PROBLEM_MAX = 200;
 export const INSTRUCTION_INPUTS_MAX = 20;
+/** A line's id (alertKinds.ts alertId): its kind, and its subject after a colon. */
+export const LINE = /^[a-z0-9-]{1,60}(:[^\u0000-\u001f\u007f]{1,200})?$/;
+const PART = /^[a-z0-9_]{1,40}$/;
+const LEVELS = new Set(['urgent', 'problem', 'watch']);
+/** The most lines one tap resolves: an Overview row holds a part's lines of one kind. */
+export const RESOLVE_MAX = 20;
+export const LINE_TITLE_MAX = 300;
+
+function resolvedLines(input: unknown): ResolvedLine[] | null {
+  if (!Array.isArray(input) || input.length === 0 || input.length > RESOLVE_MAX) return null;
+  const out: ResolvedLine[] = [];
+  for (const x of input as unknown[]) {
+    const l = (typeof x === 'object' && x !== null ? x : {}) as { line?: unknown; part?: unknown; level?: unknown; measure?: unknown; title?: unknown };
+    const title = typeof l.title === 'string' ? l.title.trim() : '';
+    const measure = l.measure === undefined || l.measure === null ? null : typeof l.measure === 'number' && Number.isFinite(l.measure) && l.measure >= 0 ? l.measure : undefined;
+    if (typeof l.line !== 'string' || !LINE.test(l.line) || typeof l.part !== 'string' || !PART.test(l.part) || typeof l.level !== 'string' || !LEVELS.has(l.level)
+      || !title || title.length > LINE_TITLE_MAX || measure === undefined || out.some((o) => o.line === l.line)) return null;
+    out.push({ line: l.line, part: l.part, level: l.level as ResolvedLine['level'], measure, title });
+  }
+  return out;
+}
 
 function tutorialItems(items: unknown): [string, string, string][] | null {
   if (!Array.isArray(items) || items.length === 0 || items.length > PUBLISH_MAX) return null;
@@ -209,6 +252,15 @@ export function parseAction(input: unknown): Action | null {
     return typeof q.card === 'string' && CARD.test(q.card) && typeof q.page === 'string' && PAGE.test(q.page) && title && text && context !== null
       ? { kind: 'card-question', card: q.card, page: q.page, title, context, text } : null;
   }
+  if (a.kind === 'line-resolve') {
+    const lines = resolvedLines((input as { lines?: unknown }).lines);
+    return lines ? { kind: 'line-resolve', lines } : null;
+  }
+  if (a.kind === 'line-show') {
+    const lines = (input as { lines?: unknown }).lines;
+    return Array.isArray(lines) && lines.length > 0 && lines.length <= RESOLVE_MAX && lines.every((l) => typeof l === 'string' && LINE.test(l))
+      ? { kind: 'line-show', lines: [...new Set(lines as string[])] } : null;
+  }
   if (a.kind === 'tutorial-fix' && typeof a.id === 'string' && UUID.test(a.id) && (a.askFirst === undefined || typeof a.askFirst === 'boolean')) return { kind: 'tutorial-fix', id: a.id.toLowerCase(), askFirst: a.askFirst === true };
   if (a.kind === 'tutorial-suggestion' && typeof a.id === 'string' && UUID.test(a.id) && (d === 'accept' || d === 'reject' || d === 'edit')) {
     const detail = optional(t.detail, DETAIL_MAX);
@@ -238,6 +290,8 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'user-issue-note': return { name: 'user_issue_note', target: action.issue };
     // ops.actions keeps a target of at most 100 characters.
     case 'card-question': return { name: 'card_question', target: action.card.slice(0, 100) };
+    case 'line-resolve': return { name: 'line_resolved', target: action.lines[0]!.line.slice(0, 100) };
+    case 'line-show': return { name: 'line_shown', target: action.lines[0]!.slice(0, 100) };
     case 'tutorial-filming': return { name: action.on ? 'filming_on' : 'filming_off', target: action.language };
     case 'quiet-account': return { name: action.ok ? 'quiet_ok' : 'quiet_ok_undo', target: action.profile };
     case 'issue-claim': return { name: action.claim ? 'issue_claim' : 'issue_release', target: action.issue };
@@ -318,6 +372,11 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       return kept ? { ok: true, result: 'asked' }
         : answer === 'full' ? { ok: false, status: 400, error: 'Three questions on this card wait for Claude already. Wait for its answer.' }
           : { ok: false, status: 400, error: 'Twenty questions on the dashboard wait for Claude already. Wait for its answers.' };
+    }
+    if (action.kind === 'line-resolve' || action.kind === 'line-show') {
+      const n = action.kind === 'line-resolve' ? await deps.resolveLines(action.lines, who.profileId) : await deps.showLines(action.lines, who.profileId);
+      await deps.record({ profileId: who.profileId, action: name, target, result: 'ok', detail: `lines:${n}` });
+      return { ok: true, result: action.kind === 'line-resolve' ? 'resolved' : 'shown' };
     }
     if (action.kind === 'issue-claim') {
       const answer = await deps.claimIssue(action.issue, action.claim, who.profileId);
@@ -547,6 +606,16 @@ export function actionDeps(env: Env): ActionDeps {
       console.error(`ops named issues: ${e instanceof Error ? e.name : 'unknown'}`);
       return [];
     })),
+    resolveLines: async (lines, by) => {
+      const { data, error } = await db().rpc('ops_line_resolve', { p_lines: lines, p_by: by });
+      if (error) throw new Error(`ops_line_resolve: ${error.message}`);
+      return Number(data);
+    },
+    showLines: async (lines, by) => {
+      const { data, error } = await db().rpc('ops_line_show', { p_lines: lines, p_by: by });
+      if (error) throw new Error(`ops_line_show: ${error.message}`);
+      return Number(data);
+    },
     askCard: async ({ card, page, title, context, text }, by) => {
       const { data, error } = await db().rpc('ops_card_ask', { p_card: card, p_page: page, p_title: title, p_context: context, p_text: text, p_by: by });
       if (error) throw new Error(`ops_card_ask: ${error.message}`);

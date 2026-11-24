@@ -42,6 +42,8 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     markQuietAccount: async (profile, ok, by) => { done.push(`quiet ${profile} ${ok} by ${by}`); return profile === QUIET ? (ok ? 'marked' : 'unmarked') : 'not_found'; },
     instruct: async (row, by) => { done.push(`instruct ${JSON.stringify(row)} by ${by}`); return SUGGESTION; },
     instructIssue: async (issue, text, by) => { done.push(`issue ${issue} ${text} by ${by}`); return issue === 'LAN-284' ? SUGGESTION : issue === 'LAN-285' ? 'full' : 'not_found'; },
+    resolveLines: async (lines, by) => { done.push(`resolve ${JSON.stringify(lines)} by ${by}`); return lines.length; },
+    showLines: async (lines, by) => { done.push(`show ${lines.join(',')} by ${by}`); return lines.length; },
     askCard: async (row, by) => { done.push(`ask ${row.card} ${row.page} ${row.title} [${row.context}] ${row.text} by ${by}`); return row.card === 'page:full' ? 'full' : row.card === 'page:many' ? 'many' : SUGGESTION; },
     decideSuggestion: async (id, decision, detail, reason, by) => {
       done.push(`${decision} ${id} ${detail} ${reason} by ${by}`);
@@ -368,6 +370,37 @@ describe('a question to Claude from any card (docs/decisions/2026-11-23-ask-clau
     const d = deps();
     await act(d, 'aal2', { ...q, card: 'line:' + 'x'.repeat(190) });
     expect((d.rows[0] as { target: string }).target).toHaveLength(100);
+  });
+});
+
+describe('a line resolved until its problem comes back (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md)', () => {
+  const line = { line: 'usage-billed:R2 class A operations', part: 'capacity', level: 'watch', measure: 20.25, title: 'R2 class A operations this month are past what the plan includes' };
+
+  it('takes each line as the page showed it, checked', () => {
+    expect(parseAction({ kind: 'line-resolve', lines: [line] })).toEqual({ kind: 'line-resolve', lines: [line] });
+    expect(parseAction({ kind: 'line-resolve', lines: [{ ...line, measure: undefined, title: ' x ' }] })).toEqual({ kind: 'line-resolve', lines: [{ ...line, measure: null, title: 'x' }] });
+    for (const bad of [[], [{ ...line, line: 'Usage' }], [{ ...line, line: 'usage-billed:a\nb' }], [{ ...line, part: 'Capacity' }], [{ ...line, level: 'info' }],
+      [{ ...line, title: ' ' }], [{ ...line, title: 'x'.repeat(301) }], [{ ...line, measure: -1 }], [{ ...line, measure: '5' }], [line, line],
+      Array.from({ length: 21 }, (_, i) => ({ ...line, line: `job-stopped:j${i}` }))]) {
+      expect(parseAction({ kind: 'line-resolve', lines: bad }), JSON.stringify(bad).slice(0, 80)).toBeNull();
+    }
+    expect(parseAction({ kind: 'line-show', lines: ['job-stopped:projection', 'job-stopped:projection'] })).toEqual({ kind: 'line-show', lines: ['job-stopped:projection'] });
+    expect(parseAction({ kind: 'line-show', lines: ['Not a line'] })).toBeNull();
+    expect(parseAction({ kind: 'line-show', lines: [] })).toBeNull();
+  });
+
+  it('keeps it by the person, and logs the first line and how many', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'line-resolve', lines: [line] })).toEqual({ ok: true, result: 'resolved' });
+    expect(await act(d, 'aal2', { kind: 'line-show', lines: [line.line] })).toEqual({ ok: true, result: 'shown' });
+    expect(d.done).toEqual([`resolve ${JSON.stringify([line])} by ${VIEWER}`, `show ${line.line} by ${VIEWER}`]);
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'line_resolved', target: line.line, result: 'ok', detail: 'lines:1' },
+      { profileId: VIEWER, action: 'line_shown', target: line.line, result: 'ok', detail: 'lines:1' }
+    ]);
+    const aal1 = deps();
+    expect(await act(aal1, 'aal1', { kind: 'line-resolve', lines: [line] })).toMatchObject({ ok: false, status: 403 });
+    expect(aal1.done).toEqual([]);
   });
 });
 

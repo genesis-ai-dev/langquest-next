@@ -206,7 +206,7 @@ export function capacityAlerts(c: Capacity): Alert[] {
   if (u && !u.error) {
     for (const [key, label] of [['workersRequests', 'Workers requests'], ['doRequests', 'Durable Object requests'], ['r2ClassA', 'R2 class A operations'], ['r2ClassB', 'R2 class B operations']] as const) {
       const cost = extraUsd(u[key], u.allowance[key], PRICE_USD[key]);
-      if (cost >= COST_WATCH_USD) out.push({ level: 'watch', key: 'usage-billed', subject: label, text: `${label} this month (${u[key].toLocaleString('en')}) are past what the plan includes (${u.allowance[key].toLocaleString('en')}); the rest is billed, ${usd(cost)} so far.` });
+      if (cost >= COST_WATCH_USD) out.push({ level: 'watch', key: 'usage-billed', subject: label, measure: Math.round(cost * 100) / 100, text: `${label} this month (${u[key].toLocaleString('en')}) are past what the plan includes (${u.allowance[key].toLocaleString('en')}); the rest is billed, ${usd(cost)} so far.` });
     }
   }
   return out;
