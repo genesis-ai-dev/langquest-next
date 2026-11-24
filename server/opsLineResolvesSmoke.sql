@@ -30,7 +30,9 @@ begin
   -- The watch sees the page: jobs answered without the line, capacity did not answer.
   n := public.ops_line_resolves_seen(array['db-connections'], array['jobs', 'database']);
   assert n = 1, 'the line that went from a part that answered ends';
-  assert (select ended from ops.line_resolves where line = 'job-stopped:projection' order by at desc limit 1) = 'gone', 'it ended as gone';
+  -- One transaction has one now(): find the resolve by its level, not by its time.
+  assert (select ended from ops.line_resolves where line = 'job-stopped:projection' and level = 'urgent') = 'gone', 'it ended as gone';
+  assert not exists (select 1 from ops.line_resolves where line = 'job-stopped:projection' and ended_at is null), 'no open resolve for the line that went';
   assert exists (select 1 from ops.line_resolves where line like 'usage-billed:%' and ended_at is null), 'a part that did not answer keeps its resolves';
   n := public.ops_line_resolves_seen(array['usage-billed:R2 class A operations'], array['capacity']);
   assert n = 0, 'a line still there stays resolved';
