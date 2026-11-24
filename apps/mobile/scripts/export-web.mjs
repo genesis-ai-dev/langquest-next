@@ -264,7 +264,14 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // 310 bytes past it: each language's saved list and the clearing in study/studyFiles.ts, which the Map's
 // download buttons read, so it cannot load later; on the web it does nothing, since a browser keeps no study
 // files. 714 bytes are left; a first visit has 326.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 168 * 1024;
+// Raised by 1 KB with the Teammates fold on Sync and offline and Me's reminder that recordings are only
+// on this phone (Carl, 2026-11-23, docs/nearby-sync-plan.md 15.4 and 15.5,
+// docs/decisions/2026-11-18-sync-and-offline-one-screen.md, amended 2026-11-23), 69 bytes past it: their
+// English words in the nearby chunk the web loads with Share nearby, a teammate's line in a module Share
+// nearby and the fold share, and Me's stub. The fold, the reminder and their rules are in files only a
+// phone loads (NearbyRow.native.tsx, useNearby.native.ts, useOnlyHereNote.native.ts,
+// readyToCarryModel.ts), since the web shares nothing nearby. 955 bytes are left; a first visit has 117.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 169 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -362,7 +369,13 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 168 * 1024;
 // keeping (Carl, 2026-11-23, LAN-316, the same decision, amended again that day), 136 bytes past it: the
 // header's waiting and connect words and the sheet's longer words, in the catalog every visit carries.
 // 888 bytes are left; all chunks have 252.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 115 * 1024;
+// Raised by 1 KB with sharing while LangQuest is open (Carl, 2026-11-23, docs/nearby-sync-plan.md 15.6,
+// docs/decisions/2026-11-23-share-while-langquest-is-open.md), 152 bytes past it with main merged in: the
+// plain stub the web takes for the mode's mount beside the screens (src/shell/NearbyWhileOpen.tsx), and
+// whether anything is playing (src/audio/nowPlaying.ts), which the mode pauses for and every player shares.
+// The mode, its gate and its room are in files only a phone loads (useNearbyWhileOpen.native.ts,
+// NearbyWhileOpen.native.tsx), since the web shares nothing nearby. 872 bytes are left; all chunks have 132.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 116 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

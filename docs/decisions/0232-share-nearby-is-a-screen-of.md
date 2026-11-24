@@ -1,6 +1,6 @@
 # 232. Share nearby is a screen of its own, labelled experimental, opened from Sync on an Android phone whose organization has it on
 
-Date: 2026-11-12 · By: Carl Sauder · Status: accepted
+Date: 2026-11-12 · By: Carl Sauder · Status: partly superseded by 2026-11-23-share-while-langquest-is-open
 
 Reason: both people opt in by opening the screen, and the radios run only
 while it is open, so no personal switch for the radios is needed (Carl's

@@ -1,5 +1,5 @@
 import { encodeHlc } from '@langquest-next/core';
-import { readyToCarryOf, seenOf, wallOf, type CarryFacts } from '../src/nearby/readyToCarryModel';
+import { onlyHereShown, onlyOnThisPhone, readyToCarryOf, seenOf, teammatesFoldLine, teammatesOf, wallOf, type CarryFacts } from '../src/nearby/readyToCarryModel';
 
 // Ready to carry on Share nearby (docs/nearby-sync-plan.md 5.8): what this phone holds of what it
 // knows, what is missing and why, and each teammate by how recent the newest work held from them is.
@@ -80,5 +80,55 @@ describe('Ready to carry', () => {
     expect(seenOf(TODAY + 5, TODAY + 10, TODAY)).toBe('today');
     expect(wallOf('nonsense')).toBeNull();
     expect(wallOf(null)).toBeNull();
+  });
+});
+
+// Sync and offline's Teammates fold and Me's reminder (docs/nearby-sync-plan.md 15.4, 15.5): the
+// same facts with no room running.
+describe('teammates with no room running', () => {
+  it('lists the same teammates in the same order as Ready to carry, whatever is in range or missing', () => {
+    const f = facts({
+      members: ['me', 'ana', 'joe'], names: new Map([['K-sam', 'sam']]), vectorKeys: ['K-sam'], inRange: ['K-sam'],
+      holdings: new Map([['K-sam', { files: ['a'] }]]), hold: false, noRoom: true,
+      batches: [{ key: 'K-sam', actorId: 'sam', firstHlc: hlc(TODAY - DAY) }, { key: 'K-ana', actorId: 'ana', firstHlc: hlc(TODAY + 10) }]
+    });
+    expect(teammatesOf(f)).toEqual(readyToCarryOf(f).teammates);
+    expect(teammatesOf(f).map((m) => m.profileId)).toEqual(['ana', 'sam', 'joe']);
+  });
+
+  it('folded, names the least recent teammate, or everyone when the newest work from each is from today, and nothing with no teammate', () => {
+    expect(teammatesFoldLine([])).toBeNull();
+    expect(teammatesFoldLine([{ profileId: 'ana', seen: 'today', newestMs: 3 }, { profileId: 'sam', seen: 'today', newestMs: 2 }])).toEqual({ who: null, seen: 'today' });
+    expect(teammatesFoldLine([
+      { profileId: 'ana', seen: 'today', newestMs: 3 }, { profileId: 'sam', seen: 'since-online', newestMs: 2 }, { profileId: 'joe', seen: 'not-since-online', newestMs: null }
+    ])).toEqual({ who: 'joe', seen: 'not-since-online' });
+  });
+});
+
+describe('recordings only on this phone', () => {
+  const holdings = new Map([['K-me', { files: ['a', 'b', 'c'] }], ['K-sam', { files: ['b'] }], ['K-me-tablet', { files: ['c'] }]]);
+
+  it('counts this person\'s waiting recordings no other phone said it holds', () => {
+    expect(onlyOnThisPhone(['a', 'b', 'c', 'd'], holdings, 'K-me')).toBe(2);
+  });
+
+  it('does not count this phone\'s own holdings as another phone, but does count the same person\'s other phone', () => {
+    expect(onlyOnThisPhone(['a'], holdings, 'K-me')).toBe(1);
+    expect(onlyOnThisPhone(['c'], holdings, 'K-me')).toBe(0);
+  });
+
+  it('counts each recording once, and nothing with nothing waiting', () => {
+    expect(onlyOnThisPhone(['d', 'd'], holdings, 'K-me')).toBe(1);
+    expect(onlyOnThisPhone([], holdings, 'K-me')).toBe(0);
+    expect(onlyOnThisPhone(['a'], new Map(), null)).toBe(1);
+  });
+
+  it('is said on Me offline, after a refusal and before what waits; online the server takes them', () => {
+    const away = { count: 2, offline: true, refused: false, refusedEvents: 0 };
+    expect(onlyHereShown(away)).toBe(true);
+    expect(onlyHereShown({ ...away, count: 0 })).toBe(false);
+    expect(onlyHereShown({ ...away, offline: false })).toBe(false);
+    expect(onlyHereShown({ ...away, refused: true })).toBe(false);
+    expect(onlyHereShown({ ...away, refusedEvents: 1 })).toBe(false);
   });
 });

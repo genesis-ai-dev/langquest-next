@@ -94,6 +94,9 @@
     "olderFromServer": "Pekerjaan yang lebih lama akan datang dari server.",
     "hold": "Simpan rekaman rekan tim",
     "holdHelp": "Jika aktif, ponsel ini menyimpan rekaman rekan tim sampai server menerimanya. Jika mati, hanya rekaman yang Anda perlukan yang disimpan.",
+    "whileOpen": "Berbagi saat LangQuest terbuka",
+    "whileOpenHelp": "Saat tidak ada internet, ponsel Anda berbagi dengan rekan tim di sekitar selama LangQuest terbuka, dan berhenti saat layar mati. Rekaman mungkin menunggu Berbagi di sekitar.",
+    "whileOpenNow": "Berbagi dengan rekan tim di sekitar selama LangQuest terbuka",
     "carry": {
       "title": "Yang disimpan ponsel ini",
       "everything": "Ponsel ini menyimpan semua yang diketahuinya.",
@@ -108,7 +111,12 @@
       "today": "Hari ini",
       "sinceOnline": "Sejak terakhir Anda online",
       "notSinceOnline": "Belum sejak terakhir Anda online",
-      "newest": "pekerjaan terbaru di sini {{when}}"
+      "newest": "pekerjaan terbaru di sini {{when}}",
+      "teamTitle": "Rekan tim",
+      "everyone": "Semua",
+      "teamHelp": "Seberapa baru pekerjaan terbaru dari setiap rekan tim di ponsel ini, termasuk pekerjaan yang diteruskan oleh ponsel lain. Berbagi di sekitar memperbaruinya.",
+      "onlyHere": "Rekaman yang hanya ada di ponsel ini: {{n}}",
+      "onlyHereHelp": "Rekaman Anda yang tidak ada di ponsel rekan tim mana pun, sejauh yang diketahui ponsel ini. Berbagi di sekitar dengan rekan tim agar ada di dua ponsel."
     },
     "history": {
       "nearby": "Datang dari ponsel {{name}}, belum ada di server",

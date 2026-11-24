@@ -49,6 +49,11 @@ export function subscribeNowPlaying(listener: () => void): () => void {
   return () => { listeners.delete(listener); };
 }
 
+/** Some player is playing now, not paused: sharing while LangQuest is open waits (docs/nearby-sync-plan.md 15.6). */
+export function anythingPlaying(): boolean {
+  return now?.is.playing === true;
+}
+
 /** Where recording `hash` is, or null when no player has it. The same object until something changes, as a store's snapshot must be. */
 export function nowPlaying(hash: string): Playing | null {
   return now && now.is.hash === hash ? now.is : null;

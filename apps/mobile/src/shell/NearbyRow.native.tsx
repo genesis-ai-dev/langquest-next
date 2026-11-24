@@ -1,10 +1,16 @@
+import { useState } from 'react';
 import { View } from 'react-native';
+import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
+import { teammateSub } from '../nearby/carryWords';
 import { useDeliveryRefusals } from '../nearby/useDeliveryRefusals';
 import { useLetInOffered } from '../nearby/useLetIn';
 import { useNearbyOffered } from '../nearby/useNearby';
-import { nearbyRowWords } from '../nearby/shareNearbyModel';
-import { Card, Group, Ico, Row } from '../ui/kit';
+import { useNearbyTeammates } from '../nearby/useNearby.native';
+import { useWhileOpenNow } from '../nearby/useNearbyWhileOpen.native';
+import { teammatesFoldLine } from '../nearby/readyToCarryModel';
+import { nearbyRowWords, SEEN_WORDS } from '../nearby/shareNearbyModel';
+import { Card, Disclosure, Group, Ico, Row } from '../ui/kit';
 import { Text } from '../ui/text';
 import { txt } from '../ui/textStyles';
 import { space, TINT } from '../ui/theme';
@@ -26,6 +32,11 @@ import type { Ctx } from './ctx';
  * batch stamped far ahead names its author here too (5.4), whether or not the row shows, and so
  * does teammates' work the server refused whole when this phone delivered it, with the server's
  * reason (section 6).
+ *
+ * Above the row, where Share nearby can run here, the Teammates fold (15.4): each teammate and how
+ * recent the newest work held from them is, as Ready to carry says, so a person sees where they
+ * stand without opening Share nearby. Folded, its line names the least recent teammate. While the
+ * phone shares quietly with LangQuest open (15.6), the row's line says so, and names nobody.
  */
 export function NearbyRow(props: { ctx: Ctx }) {
   const { ctx } = props;
@@ -34,11 +45,31 @@ export function NearbyRow(props: { ctx: Ctx }) {
   const words = nearbyRowWords(whyNot, letIn);
   const farAhead = farAheadOf(ctx);
   const refusals = useDeliveryRefusals(ctx);
+  const team = useNearbyTeammates(ctx, offered && whyNot === null);
+  const teamLine = teammatesFoldLine(team);
+  const [teamOpen, setTeamOpen] = useState(false);
+  // Sharing quietly while LangQuest is open: said here, never with a name (15.6).
+  const quietNow = useWhileOpenNow() && whyNot === null;
   return (
     <>
+      {teamLine ? (
+        <Disclosure testID="sync-teammates" icon="people" title={t('nearby.carry.teamTitle')} help={t('nearby.carry.teamHelp')}
+          summary={`${teamLine.who ? ctx.name(teamLine.who) : t('nearby.carry.everyone')} · ${t(SEEN_WORDS[teamLine.seen])}`}
+          open={teamOpen} onToggle={() => setTeamOpen((o) => !o)}>
+          <View style={{ padding: space.lg }}>
+            <Group>
+              {team.map((m, i) => (
+                <HelpRow key={m.profileId} of="nearby.carryTeammate">
+                  <Row label={ctx.name(m.profileId)} sub={teammateSub(m)} last={i === team.length - 1} />
+                </HelpRow>
+              ))}
+            </Group>
+          </View>
+        </Disclosure>
+      ) : null}
       {offered ? (
         <Group>
-          <Row icon="swap" label={t('nearby.row')} sub={t(words.sub)} help={t(words.help)}
+          <Row icon="swap" label={t('nearby.row')} sub={quietNow ? t('nearby.whileOpenNow') : t(words.sub)} help={t(words.help)}
             badge={t('nearby.experimental')} badgeTone="amber" disabled={whyNot !== null} muted={whyNot !== null}
             onPress={() => ctx.go('share_nearby')} last />
         </Group>

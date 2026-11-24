@@ -19,6 +19,7 @@ import { missingPermissions, permissionsStateOf } from './nearbyPermissionsModel
 import { nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
 import { NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, startWithin } from './nearbyRunModel';
 import { useFocus } from './useNearby.native';
+import { useRadioClaim } from './useRadioClaim';
 import type { JoinOfflineHandle } from './useJoinOffline';
 
 const KEEP_AWAKE = 'nearby-join';
@@ -53,6 +54,8 @@ export function useJoinOffline(): JoinOfflineHandle {
   useEffect(check, [check]);
 
   const focused = useFocus(() => undefined);
+  // The quiet room of sharing while LangQuest is open steps aside while this screen is open (15.6).
+  useRadioClaim(focused);
   const [onScreen, setOnScreen] = useState(() => AppState.currentState === 'active');
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {

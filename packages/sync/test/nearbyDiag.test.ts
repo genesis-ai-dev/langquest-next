@@ -70,6 +70,24 @@ describe('nearby diagnostics: the fields', () => {
     expect(roomDiagOf(short, 'wait', 90_000, caps).t.stop).toBe('wait');
   });
 
+  it('a room says which way it ran, and while LangQuest was open the minutes it ran and scanned, past the ten-minute cap', () => {
+    // Why: what the quiet mode costs and whether it meets anyone is read from these (docs/nearby-sync-plan.md 15.6).
+    const tally = { heard: 1, echoed: 1, alone: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 1, done: 1, levelMs: 30_000, code: null };
+    const caps = { sdk: 33, advertise: true, directByName: true, band5: false, hotspot: true, joinHotspot: true, bluetoothOn: true, wifiOn: true, locationOn: true };
+    const open = roomDiagOf(tally, 'asked', 95 * 60_000, caps, { mode: 'open', scanMs: 12 * 60_000 + 20_000 });
+    expect(open.t).toMatchObject({ event: 'room', stop: 'asked', mode: 'open' });
+    expect(open.n).toMatchObject({ ms: NEARBY_ROOM_MS_CAP, openMin: 95, scanMin: 12 });
+    expect(clean(open)).toMatchObject(open);
+    // Never more scanning than running, and never more than a day.
+    expect(roomDiagOf(tally, 'asked', 60_000, caps, { mode: 'open', scanMs: 5 * 60_000 }).n).toMatchObject({ openMin: 1, scanMin: 1 });
+    expect(roomDiagOf(tally, 'asked', 3 * 86_400_000, caps, { mode: 'open', scanMs: 0 }).n).toMatchObject({ openMin: 24 * 60, scanMin: 0 });
+    // Share nearby says its mode and nothing more; a room told no mode says none, as before.
+    const screen = roomDiagOf(tally, 'idle', 60_000, caps, { mode: 'screen' });
+    expect(screen.t.mode).toBe('screen');
+    expect(screen.n).not.toHaveProperty('openMin');
+    expect(roomDiagOf(tally, 'idle', 60_000, caps).t).not.toHaveProperty('mode');
+  });
+
   it('the allowlist drops a code it does not list and a reason it does not know', () => {
     expect(clean({ t: { event: 'find', code: 'SOMETHING_NEW', why: 'curious' }, n: { heard: 1, peers: 3 } })).toMatchObject({ t: { event: 'find' }, n: { heard: 1 } });
   });

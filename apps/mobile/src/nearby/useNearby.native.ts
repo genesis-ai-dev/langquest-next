@@ -10,7 +10,7 @@ import type { NativeCapabilities } from '../../modules/nearby-link';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
 import { currentHoldChoice } from './holdChoice.native';
-import { certificateLimited, onNearbyHeld, pressHoldChoice } from './nearbyIdentity.native';
+import { certificateLimited, nearbyOpenOrgs, nearbyOpenSwitch, onNearbyHeld, pressHoldChoice, pressOpenSwitch } from './nearbyIdentity.native';
 import { nearbyFlag, onNearbyFlag } from './nearbyFlag';
 import { nearbyRowShown } from './nearbyRowModel';
 import { nearbyRadio } from './nearbyLink.native';
@@ -18,6 +18,7 @@ import { carryFactsOf, type StoredCarryFacts } from './nearbyCarry.native';
 import { copySourceOf } from './nearbyCopySource';
 import { nearbyBlockedOf } from './nearbyDiagModel';
 import { holdByDefault, radiosMayRun } from './nearbyModel';
+import { nearbyOwner } from './nearbyOwner';
 import { askingForNearby, askNearbyPermissions, checkNearbyPermissions, openNearbySettings, phoneSystem } from './nearbyPermissions';
 import {
   afterPrompt, permissionsStateOf, permissionStepOf, radiosOffOf, unavailableReasonOf, type PermissionAnswers
@@ -26,7 +27,8 @@ import { nearbyDiagFor, nearbyNamesOf, nearbyOfferedFor, nearbyPiecesFor, nearby
 import {
   NEARBY_PROGRESS_MS, NEARBY_RUN_START, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, nearbyRunReducer, nearbyViewOf, startWithin, type NearbyHandle, type NearbyWhyNot
 } from './nearbyRunModel';
-import { readyToCarryOf } from './readyToCarryModel';
+import { readyToCarryOf, teammatesOf, type CarryTeammate } from './readyToCarryModel';
+import { useRadioClaim } from './useRadioClaim';
 
 /**
  * Share nearby on an Android phone or an iPhone (docs/nearby-sync-plan.md 5.8, 5.11, 5.12, and
@@ -40,6 +42,9 @@ import { readyToCarryOf } from './readyToCarryModel';
  * stays in this hook's state, read by Share nearby alone, never in `ctx`. It hands the screen plain
  * data and draws nothing. The permission rules are the phone's own (nearbyPermissions.android.ts,
  * nearbyPermissions.ios.ts), and only Android serves a newcomer's starting copy (nearbyCopySource).
+ * While focused it claims the radios (`useRadioClaim`), which stops the quiet room of sharing while
+ * LangQuest is open, and its room starts and stops in `nearbyOwner`'s turn, so the two never run
+ * together (15.6). It also shows and sets that mode's switch where the organization has it.
  */
 
 const KEEP_AWAKE = 'nearby-share';
@@ -73,6 +78,7 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   const holding = useSyncExternalStore(language.syncStatus.subscribe, () => language.syncStatus.get().holding);
   const present = useSyncExternalStore(language.syncStatus.subscribe, () => language.syncStatus.get().present);
   const [stored, setStored] = useState<StoredCarryFacts | null>(null);
+  const [whileOpen, setWhileOpenShown] = useState<boolean | null>(null);
   const wornRef = useRef(worn);
   wornRef.current = worn;
   const { os, sdk } = phoneSystem();
@@ -93,10 +99,14 @@ export function useNearby(ctx: Ctx): NearbyHandle {
     checkNearbyPermissions().then(setAnswers).catch((e: unknown) => noteExpected('nearby: permissions', e));
     nearbyOfferedFor(actorId, orgId, languageId).then(setOffered).catch((e: unknown) => { noteExpected('nearby: offered', e); setOffered(false); });
     setHoldShown(currentHoldChoice()?.hold ?? holdByDefault(wornRef.current));
+    Promise.all([nearbyOpenOrgs(actorId), nearbyOpenSwitch()])
+      .then(([orgs, on]) => setWhileOpenShown(orgs.has(orgId) ? on : null))
+      .catch((e: unknown) => noteExpected('nearby: open', e));
   }, [radio, actorId, orgId, languageId, readCarry]);
   useEffect(refresh, [refresh]);
 
   const focused = useFocus(useCallback(() => { dispatch({ t: 'reopened', worn: wornRef.current }); refresh(); }, [refresh]));
+  useRadioClaim(focused);
 
   // The background stops the radios, but not a permission prompt or the hotspot's join dialog on a phone with no cover (5.8).
   // An iPhone's system prompts (Bluetooth, Local Network, a Wi-Fi join) and Control Center leave the app `inactive`, still on
@@ -159,7 +169,7 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   const stop = useCallback(async () => {
     attempt.current += 1;
     const room = release(null);
-    if (room) await room.stop().catch((e: unknown) => noteExpected('nearby: stop', e));
+    if (room) await nearbyOwner.turn(() => room.stop()).catch((e: unknown) => noteExpected('nearby: stop', e));
   }, [release]);
 
   // Read when a start needs them: the fold and the language's handle change with every revision, which must not restart the radios.
@@ -204,16 +214,20 @@ export function useNearby(ctx: Ctx): NearbyHandle {
       room = nearbyRoomOf({ radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn, report, progress, copy });
       held.current = { room, ticker: null };
       const starting = room;
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        await startWithin(starting.start(Date.now()), new Promise<void>((done) => { timer = setTimeout(done, NEARBY_START_MS); }), () => starting.startingAt);
-      } finally {
-        clearTimeout(timer);
-      }
+      // After the quiet room's stop, which this screen's claim asked for first (15.6).
+      await nearbyOwner.turn(async () => {
+        if (!still()) return;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await startWithin(starting.start(Date.now()), new Promise<void>((done) => { timer = setTimeout(done, NEARBY_START_MS); }), () => starting.startingAt);
+        } finally {
+          clearTimeout(timer);
+        }
+      });
       if (!still()) {
         // Stopped while it started: `stop` may have found nothing to stop yet, and a stopped room stops again as nothing.
         release(room);
-        await room.stop();
+        await nearbyOwner.turn(() => starting.stop());
         return;
       }
       if (!room.isRunning) { release(room); return; }
@@ -224,7 +238,7 @@ export function useNearby(ctx: Ctx): NearbyHandle {
     } catch (e) {
       noteExpected('nearby: start', e, e instanceof NearbyStartHeld ? e.at : undefined);
       const room = release(null);
-      if (room) await room.stop().catch(() => undefined);
+      if (room) await nearbyOwner.turn(() => room.stop()).catch(() => undefined);
       if (mine === attempt.current) dispatch({ t: 'failed' });
     }
   }, [radio, nearbyLanguage, actorId, orgId, languageId, worn, release, readCarry]);
@@ -255,6 +269,10 @@ export function useNearby(ctx: Ctx): NearbyHandle {
     setHold: async (next: boolean) => {
       await pressHoldChoice(next, worn);
       setHoldShown(next);
+    },
+    setWhileOpen: async (on: boolean) => {
+      await pressOpenSwitch(on);
+      setWhileOpenShown(on);
     }
   }), [worn, askPermissions, tapCoversAll]);
 
@@ -269,8 +287,8 @@ export function useNearby(ctx: Ctx): NearbyHandle {
 
   const iphone = os === 'ios';
   const view = useMemo(
-    () => nearbyViewOf({ offered: offered === true, iphone, tapCoversAll, whyNot, radiosOff, permissions, worn, run, holding, hold, carry }),
-    [offered, iphone, tapCoversAll, whyNot, radiosOff, permissions, worn, run, holding, hold, carry]
+    () => nearbyViewOf({ offered: offered === true, iphone, tapCoversAll, whyNot, radiosOff, permissions, worn, run, holding, hold, whileOpen, carry }),
+    [offered, iphone, tapCoversAll, whyNot, radiosOff, permissions, worn, run, holding, hold, whileOpen, carry]
   );
   return useMemo(() => ({ view, actions }), [view, actions]);
 }
@@ -306,4 +324,31 @@ export function useNearbyOffered(ctx: Ctx): { offered: boolean; whyNot: NearbyWh
   const row = nearbyRowShown({ offered, orgOn: features ? (features[orgId] ?? []).includes('nearby') : null, limited: certificateLimited(actorId), readOnly });
   const whyNot: NearbyWhyNot | null = readOnly ? 'read-only' : unavailableReasonOf(facts, radio !== null, sdk, os) ?? row.missing;
   return useMemo(() => ({ offered: row.shown, whyNot }), [row.shown, whyNot]);
+}
+
+/**
+ * Sync and offline's Teammates fold (docs/nearby-sync-plan.md 15.4): each teammate and how recent
+ * the newest work held from them is, as Ready to carry says on Share nearby but with no room
+ * running. Read from the store when Sync opens and each time it is focused again, so coming back
+ * from Share nearby shows what moved; never in `ctx`, so nothing else redraws. Empty until read, and
+ * where Share nearby cannot run here (`usable`).
+ */
+export function useNearbyTeammates(ctx: Ctx, usable: boolean): CarryTeammate[] {
+  const { language, org } = ctx;
+  const { actorId } = ctx.session;
+  const { orgId, languageId } = language;
+  const [stored, setStored] = useState<{ languageId: string; facts: StoredCarryFacts } | null>(null);
+  const nearbyLanguage = language.nearby;
+  const read = useCallback(() => {
+    const open = usable ? nearbyLanguage() : null;
+    if (!open) return;
+    carryFactsOf(open, orgId, languageId).then((facts) => setStored({ languageId, facts })).catch((e: unknown) => noteExpected('nearby: ready to carry', e));
+  }, [usable, nearbyLanguage, orgId, languageId]);
+  useEffect(read, [read]);
+  useFocus(read);
+  const members = useMemo(() => [...languagePeople(org.state, languageId).keys()], [org.state, languageId]);
+  return useMemo(() => {
+    if (!usable || stored?.languageId !== languageId) return [];
+    return teammatesOf({ ...stored.facts, me: actorId, members, todayStartMs: new Date().setHours(0, 0, 0, 0) });
+  }, [usable, stored, languageId, actorId, members]);
 }

@@ -14,6 +14,7 @@ import { androidSdk, askingForNearby, askNearbyPermissions, checkNearbyPermissio
 import { useCarriedApk } from './useCarriedApk';
 import type { GiveAppHandle } from './useGiveApp';
 import { useFocus } from './useNearby.native';
+import { useRadioClaim } from './useRadioClaim';
 
 const KEEP_AWAKE = 'give-app';
 /** How long the phone may take to form its Wi-Fi Direct group. */
@@ -75,6 +76,8 @@ export function useGiveApp(letIn: LetInWhyNot | null): GiveAppHandle {
   const hostable = !!native && typeof native.hostOnGiveGroup === 'function' && typeof native.setGiveJoin === 'function';
 
   const focused = useFocus(() => undefined);
+  // The quiet room of sharing while LangQuest is open steps aside while this screen is open (15.6).
+  useRadioClaim(focused);
   const [onScreen, setOnScreen] = useState(() => AppState.currentState === 'active');
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {

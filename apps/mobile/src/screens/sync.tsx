@@ -45,8 +45,8 @@ const failure = failureMessage;
  * where this phone stands with the server, drawn as the transit strip (decisions.md 166) over the
  * status word and its sentence, with Sync now; then folds, each one line saying what it holds:
  * Refused (only when there is some, and open), Uploads, Downloads (a line with nothing to open),
- * Ready for offline with the install file for someone who can let a new person in, Share nearby
- * where it is offered, and Details for support. Each opens in place; a link may ask for one open
+ * Ready for offline with the install file for someone who can let a new person in, the Teammates
+ * fold and Share nearby where it is offered (NearbyRow), and Details for support. Each opens in place; a link may ask for one open
  * (`open`). Polled once a second.
  */
 export function SyncStatus(ctx: Ctx) {
@@ -135,7 +135,7 @@ export function SyncStatus(ctx: Ctx) {
         help={t('account.sync.fold.readyHelp')} open={folds.isOpen('ready')} onToggle={() => folds.toggle('ready')}>
         <ReadyForOffline ctx={ctx} s={offlineSummaryNow} install={install.item} installKeeps={install.keeps} installBehind={install.behind} />
       </Disclosure>
-      {/* Share nearby, where this phone may share it (Android, the organization on; docs/nearby-sync-plan.md 5.8). */}
+      {/* Teammates and Share nearby, where this phone may share it (docs/nearby-sync-plan.md 5.8, 15.4). */}
       <NearbyRow ctx={ctx} />
       <Disclosure testID="sync-details" icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}
         open={folds.isOpen('details')} onToggle={() => folds.toggle('details')} help={t('account.sync.detailsHelp')}>

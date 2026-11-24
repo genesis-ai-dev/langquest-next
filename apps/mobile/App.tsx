@@ -25,6 +25,7 @@ import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } 
 import { frame, layoutKind } from './src/ui/layout';
 import { chromeVisible, showsGlobalViewerLink, TASK_SCREENS } from './src/shell/chromeModel';
 import { NavChrome } from './src/shell/NavChrome';
+import { NearbyWhileOpen } from './src/shell/NearbyWhileOpen';
 import { lockPhonesToPortrait } from './src/shell/orientation';
 import { paneFor, type SplitSpec } from './src/shell/panes';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail, FooterHeightContext } from './src/ui/useLayout';
@@ -685,6 +686,8 @@ function OrgWork(props: Who & {
           <FooterReportContext.Provider value={reportFooter}>
           <CtxContext.Provider value={ctx}>
             <StudyPrefetch ctx={ctx} />
+            {/* Sharing with teammates nearby while LangQuest is open and offline, on a phone only (docs/nearby-sync-plan.md 15.6). */}
+            <NearbyWhileOpen ctx={ctx} />
             {/* Its own box, so the native stack ends where the tab bar begins
                 rather than drawing screens underneath it. */}
             <View style={{ flex: 1, overflow: 'hidden' }}>

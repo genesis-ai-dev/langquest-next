@@ -6,7 +6,10 @@ iPhones sharing with Androids and with each other, since 2026-11-17 (pull reques
 decision 256). Joining offline stays Android only; Give the app (section 14.5) joined it on
 2026-11-19 (pull request 527, `docs/decisions/2026-11-18-give-the-app-over-wifi.md`).
 Section 11's real-phone test has no results written in yet. Section 15, sharing while the app
-is open (phases 7 to 10), is a draft of 2026-11-23 for Carl to accept, change or drop. What follows is the plan as it
+is open, was drafted on 2026-11-23: its phases 7, 8 and 10 are built (the Teammates fold, the
+reminder, the `villageDay` fleet scenario, and the mode itself behind `nearby_open`, decision
+`docs/decisions/2026-11-23-share-while-langquest-is-open.md`), and phase 9 needs real phones
+(15.10). What follows is the plan as it
 stood on 2026-11-07 (Carl Sauder), with the answers and sections added since. The purposes and the
 future requirement in section 1, and the choices in section 2, are Carl's, and his answers
 of 2026-11-06 and 2026-11-07 override anything older here. Everything else was checked
@@ -4127,11 +4130,13 @@ measured that.
 
 ## 15. Sharing while the app is open
 
-A draft of 2026-11-23, for Carl Sauder to accept, change or drop: improvements to the
-experimental feature, so a team shares without anyone remembering to open Share nearby. It was
-drafted from reading the code on `main`; nothing was run or measured. Its phases are 7 to 10
-(15.10). Section 15.14 lists what only Carl can decide, and 15.13 holds the decision that is
-recorded once he accepts it.
+Drafted on 2026-11-23 for Carl Sauder: improvements to the experimental feature, so a team
+shares without anyone remembering to open Share nearby. Its phases are 7 to 10 (15.10). Phases 7,
+8 and 10 are built (2026-11-23), and 15.10 has phase 8's numbers. Carl chose to build phase 10
+after them, since it can be turned off wherever battery life, security or anything else argues
+against it; 15.14 has his answer and the defaults taken, and 15.13 is recorded as
+`docs/decisions/2026-11-23-share-while-langquest-is-open.md`. Where what was built differs from
+the draft, 15.6 says so under "As built". Nothing in it was run on a phone.
 
 ### 15.1 The goal
 
@@ -4314,6 +4319,41 @@ mode; Share nearby stays.
 `open`, the minutes the gate was open and the minutes spent scanning, with no teammate named.
 That is what tells us in the field what the mode costs and whether it meets anyone.
 
+**As built** (phase 10, 2026-11-23). Where the code differs from the draft above:
+
+- **The gate** (`openMayRun`, `apps/mobile/src/nearby/nearbyModel.ts`) also reads `radiosOn`
+  (Bluetooth, Wi-Fi and where it counts Location on, since the mode never asks for them either),
+  `resting` (below) and `ready` (the folds loaded). `offered` is `useNearbyOffered` with no reason
+  not to, so a read-only session never runs it.
+- **The flag is kept on the phone.** `get_user_state` is heard only online and the mode runs only
+  offline, so `refreshNearbyIdentity` keeps the organizations with both `nearby` and `nearby_open`
+  as `nearbyOpenOrgs:<profile>` each time the server says, and the mode reads that. A damaged value
+  reads as none.
+- **One owner, without moving Share nearby's room.** `nearbyOwner` (`apps/mobile/src/nearby/nearbyOwner.ts`)
+  is the owner: a screen that runs the radios claims them while focused (`useRadioClaim`: Share
+  nearby, Let someone in, Give the app, joining offline), a claim stops the quiet room at once, and
+  every room's start and stop runs in its turn, one at a time. Share nearby's room stays in
+  `useNearby.native.ts`; the quiet room is `useNearbyWhileOpen.native.ts`, mounted once beside the
+  screens (`apps/mobile/src/shell/NearbyWhileOpen.native.tsx`) and reading the radios only where
+  the cheap facts (the kept flag, the switch, no cover, offline) say it may be wanted.
+- **The room** (`packages/sync/src/nearbyRoom.ts`) takes `taps: false`, which passes a phone that
+  never echoed over for the run instead of offering a tap, `levelScan`, the bursts
+  (`NEARBY_OPEN_SCAN`, six seconds of every sixty from the moment it is level), and `mode`. Its
+  idle limit is infinite and its wait limit stays 30 minutes.
+- **Rest.** After a Hello the door refused, either way, or a stop of the room's own (the wait
+  limit, no key), or a radio error, the mode rests `NEARBY_OPEN_REST_MS` (ten minutes) before it
+  starts again (15.8's review).
+- **What shows while it runs** is the Share nearby row's line on Sync and offline ("Sharing with
+  teammates nearby while LangQuest is open"), not the status card's sentence, so the shared Sync
+  screen carries none of it on the web. What was shared on Share nearby lists only that screen's
+  own sessions; the Teammates fold shows what the quiet room moved.
+- **The switch's help** adds that it stops when the screen goes off and that recordings may wait
+  for Share nearby. It is kept per phone (`nearbyOpen`), as Hold teammates' recordings is.
+- **Diagnostics**: `mode` (`screen` or `open`) on every room record from these builds, and for
+  `open` `openMin` and `scanMin`, each to a day; the ten-minute cap on `ms` stays.
+- **The fleet** has an `open` option (`packages/sync/src/testing/fleet/nearby.ts`), which
+  `villageDay`'s while-open runs use and `fiveInRoom --open=1` turns on.
+
 ### 15.7 Battery
 
 Nothing here is measured. Section 11 already asks what an hour under
@@ -4366,6 +4406,32 @@ example, the mode moves work only with teammates this phone has already finished
 with on Share nearby since it was last online, from `nearbyPeers`, which keeps no time), and
 whether a phone in the mode should stop for some minutes after a Hello that the door refused.
 
+**The review, as built (2026-11-23).** Carl chose to build the mode because it can be turned off
+where security argues against it, so the organization's flag and the person's switch are the
+answer to point 2, and the narrower rule was left out: it would also have left the first meeting
+of every trip to Share nearby. The rest was taken: after a Hello the door refused, either way, the
+mode stops its radios for ten minutes, so someone the team does not know, or whose key was
+revoked, gets nothing more from the air for a while; it also rests after the room's own stops and
+a radio error. What else was checked:
+
+- A screen's claim stops the quiet room before that screen's room starts, and every start and stop
+  takes its turn (`nearbyOwner`), so a stop finishing late cannot turn off radios the screen just
+  turned on, and two rooms never run (`apps/mobile/test/nearbyOwner.test.ts`).
+- The mode asks for nothing: it runs only with permissions granted and radios on, an iPhone's
+  facts make no Bluetooth manager, and Find's managers are made with the power alert off. It
+  never keeps the screen awake, and the background, the screen going off, a system prompt on an
+  iPhone (`inactive`), a cover, going online, recording or playing all close the gate.
+- The radios offered (`radiosFor` with `quiet`) never include a hotspot, a hotspot join, a Wi-Fi
+  Direct join as a client or Apple's Wi-Fi, and both sides work out the plan from both phones'
+  `arrange`, so a quiet phone keeps a teammate on Share nearby off a hotspot too.
+- No tap is ever offered, so a played-back advert neither connects nor holds the room off "Up
+  to date" (`packages/sync/test/nearbyRoom.test.ts`).
+- A room record that says `mode: open` shows the phone wears no cover, which decision 235 keeps
+  out of the records. Only a phone with no cover can run the mode, so the record says no more than
+  that the person turned nothing off; the absence of such records from a phone says nothing,
+  since the switch, the flag or never being offline with LangQuest open each explain it. Accepted,
+  since without it the field cannot show what the mode costs.
+
 ### 15.9 How up to date a person is
 
 Section 15.4 shows each teammate as "today", "since you were last online" or "not since", with
@@ -4393,11 +4459,42 @@ Each merges on its own, unlike the first release (section 7).
   a few short windows a day and meet only when windows overlap in range, run once with the mode
   and once with Share nearby each evening. It measures hours until a review reaches its
   translator, how many phones hold each recording by the trip to town, and radio megabytes. If
-  the mode does not beat an evening of Share nearby clearly, stop here.
+  the mode does not beat an evening of Share nearby clearly, stop here. Its result is below.
 - **Phase 9: the real-phone test** of section 11, with section 15.7's four cases added.
 - **Phase 10: the mode** (15.6), behind `nearby_open`, granted first to Carl's test
   organization. The decision in section 15.13 lands with it. Its gate is a security review of
-  15.8 on its pull request, before it merges.
+  15.8 on its pull request, before it merges. Built on 2026-11-23 (15.6, "As built"; 15.8, "The
+  review, as built"). With the fleet's rooms run as the mode runs them, `villageDay` gives the
+  numbers below unchanged, and `fiveInRoom --open=1` reaches "Up to date" in a minute with every
+  phone agreeing with the server after the trip to town.
+
+**Phase 8's result** (2026-11-23, `npm run fleet -- villageDay`). Five phones offline for five
+days, on one seed, three ways: sharing while open alone (each phone open four times a day for 20
+minutes, near the team 60% of the time), Share nearby each evening, and both, which is what a team
+with the mode would do. Seed 1, with what changes in the last two rows:
+
+| Run | Reviews that reached their translator's phone before town | Hours to get there, p50 / p90 | Recordings on one phone only | Radio MB | Phone-minutes with the radios on |
+| --- | --- | --- | --- | --- | --- |
+| While open, alone | 40 of 129 | 5.1 / 31 | 0 of 218 | 105 | 1,146 |
+| Each evening, everyone comes | 128 of 128 | 5.1 / 8.3 | 0 of 268 | 134 | 150 |
+| Both | 132 of 132 | 3.8 / 7.5 | 0 of 270 | 136 | 1,290 |
+| Each evening, each phone comes half the time | 0 of 68 | none arrived | 61 of 187 | 46 | 38 |
+| Both, each phone comes half the time | 54 of 129 | 4.9 / 22 | 8 of 226 | 106 | 1,176 |
+
+Seeds 2 and 3 agree: both beat the evening by about an hour at p50 (5.0 to 4.1, and 4.9 to 4.0
+hours) and a little at p90, at about 8 times the phone-minutes, and while open alone reaches half
+or a third of the reviews, at a p50 near 23 hours. Opening LangQuest eight times a day instead of
+four brings while open alone to 136 of 144 reviews (p90 21 hours), and both to a p90 of 5.8.
+Every run ended with every phone agreeing with the server and nothing left nearby.
+
+What it says: when the team meets every evening, the mode takes about an hour off a review's trip
+and costs about 8 times the minutes with the radios on, though those minutes are with the screen
+already on, where Share nearby keeps it awake (15.7). Alone, short windows seldom overlap. When
+people forget the evening, the mode recovers much of what is lost. So it does not clearly beat an
+evening of Share nearby; it helps a team that forgets, and how often teams forget is not known.
+Phase 10 waits for Carl (15.14). The fleet does not model a phone's battery, recording pausing
+the mode, iPhones (which would move events only), or people being together more by day than at
+random.
 
 ### 15.11 Tests
 
@@ -4413,7 +4510,8 @@ Each merges on its own, unlike the first release (section 7).
 
 No Play Console or App Store Connect answer changes: the permissions, the data and who receives
 it are the same, nothing runs in the background, and nothing is asked outside Share nearby. The
-docs' wording changes with phase 10:
+docs' wording changes with phase 10 (done on 2026-11-23, with the diagnostics list in the Play
+facts block gaining `mode`, `openMin` and `scanMin`):
 
 - `docs/app-store-declarations.md`: `NSBluetoothAlwaysUsageDescription`'s row says "while its
   screen is open", and "No background modes: the radios run only while Share nearby is open"
@@ -4428,6 +4526,8 @@ docs' wording changes with phase 10:
 
 Lands as a new file in `docs/decisions/`, named for the day it is accepted, with phase 10. It sets
 decision 232's status to `partly superseded by` it, and appends an amendment to decision 220.
+Recorded on 2026-11-23 as `docs/decisions/2026-11-23-share-while-langquest-is-open.md`, with
+what the security review settled; the draft below is kept as it was proposed.
 
 > **Share nearby also runs quietly while LangQuest is open, in front and offline, where staff
 > turned on `nearby_open` and the person has not turned it off; never in the background, never
@@ -4461,8 +4561,8 @@ decision 232's status to `partly superseded by` it, and appends an amendment to 
 
 | Question | Who | Draft answer |
 | --- | --- | --- |
-| Build the mode at all (phase 10), given section 15.8? | Carl | Yes, after phases 7 to 9 say it helps and costs little. Phases 7 and 8 are worth doing either way. |
-| Is the switch on by default where the organization has `nearby_open`? | Carl | On, since the point is that nobody has to remember. The organization grant is staff's choice, and the first opening of Share nearby is each person's consent to the permissions. |
+| Build the mode at all (phase 10), given section 15.8 and phase 8's result (15.10)? | Carl | Answered (2026-11-23): build it, since it can be turned off if battery life, security or another reason means it should not be used everywhere. The draft answer was to wait for phase 7. |
+| Is the switch on by default where the organization has `nearby_open`? | Carl | Built on, the draft answer, since the point is that nobody has to remember. The organization grant is staff's choice, and the first opening of Share nearby is each person's consent to the permissions. `openSwitchOf` is the one place to change it. |
 | May a disguised phone opt in? | Carl, with Caleb (decision 171 is his) | No. Answer 15's limits exist because a broadcasting calculator is a danger, and the mode removes the press. |
 | Should phones sign an `asOf` with their summary (15.9)? | Carl | Not in the first release. Ship 15.4 as it is, and add `asOf` only if teams say they cannot tell a quiet teammate from an absent one. It would amend decision 230. |
 | Is 2 percentage points an hour the right battery bar? | Carl | A starting guess for a 2 GB Android; the real-phone test can move it. |

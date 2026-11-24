@@ -4,7 +4,7 @@ import { installKey } from '../server/nearbyKey';
 import { getStore } from '../storage/store';
 import type { NearbyLanguage } from '../sync/useLanguage';
 import { nearbyNamesOf } from './nearbyRun.native';
-import { wallOf, type CarryFacts } from './readyToCarryModel';
+import { onlyOnThisPhone, wallOf, type CarryFacts } from './readyToCarryModel';
 
 /**
  * What Ready to carry reads from the open language's store (docs/nearby-sync-plan.md 5.8): the
@@ -39,4 +39,15 @@ export async function carryFactsOf(language: NearbyLanguage, orgId: string, lang
     onServer: new Set(onServer),
     lastOnlineMs: wallOf(newest?.event.hlc ?? null)
   };
+}
+
+/**
+ * Me's reminder on Sync and offline's row (docs/nearby-sync-plan.md 15.5): how many of this
+ * person's recordings waiting to upload no other phone said it holds. Read only while offline,
+ * from the holdings and the session's own unsent list; nothing is written and no radio runs.
+ */
+export async function onlyHereOf(language: NearbyLanguage, orgId: string, languageId: string, unsent: () => Promise<readonly { hash: string }[]>): Promise<number> {
+  const keep = nearbyKeepOf(language.client, { orgId, streamId: languageId });
+  const [key, holdings, mine] = await Promise.all([installKey(), keep.holdings(), unsent()]);
+  return onlyOnThisPhone(mine.map((ref) => ref.hash), holdings, key?.publicKey ?? null);
 }
