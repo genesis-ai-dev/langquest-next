@@ -7,6 +7,8 @@ import type { KeptFile } from './carriedApkModel';
  */
 let kept: KeptFile | null | undefined;
 const listeners = new Set<() => void>();
+/** How many copies this app has kept so far, so a read of native started before a keep never puts back the copy it replaced. */
+let keeps = 0;
 
 export function keptFileNow(): KeptFile | null | undefined {
   return kept;
@@ -17,8 +19,24 @@ export function subscribeKeptFile(fn: () => void): () => void {
   return () => { listeners.delete(fn); };
 }
 
-export function setKeptFile(next: KeptFile | null): void {
+function show(next: KeptFile | null): void {
   if (kept !== undefined && next?.name === kept?.name && next?.size === kept?.size && next?.builtMs === kept?.builtMs) return;
   kept = next;
   for (const fn of listeners) fn();
+}
+
+/** A copy this app just kept: it wins over any read of native still under way. */
+export function setKeptFile(next: KeptFile | null): void {
+  keeps++;
+  show(next);
+}
+
+/** Where a read of native starts from: pass it to `readKeptFile` with what the read found. */
+export function keptFileReadStart(): number {
+  return keeps;
+}
+
+/** What a read of native found, unless a copy was kept after it started (`keptFileReadStart`), which is newer. */
+export function readKeptFile(next: KeptFile | null, start: number): void {
+  if (start === keeps) show(next);
 }

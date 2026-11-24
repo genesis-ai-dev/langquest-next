@@ -241,10 +241,7 @@
       "readyShort": "Archivo de instalación listo",
       "done": "Listo. Puedes llevarlo contigo sin internet.",
       "newer": "Ya hay un archivo de instalación más nuevo. Descárgalo mientras tienes internet y luego elígelo.",
-      "newerShort": "Archivo de instalación para una persona nueva: ya hay uno más nuevo",
-      "getNewest": "Descargar el archivo más nuevo",
-      "getNewestHelp": "Abre el navegador del teléfono, que descarga el archivo de instalación más nuevo de esta versión. Luego toca Elegir el archivo descargado, y reemplaza la copia guardada aquí.",
-      "getNewestHelpOpen": "Abre el navegador del teléfono, que descarga el archivo de instalación más nuevo de esta versión. Cuando termine, toca Abrir, y reemplaza la copia guardada aquí."
+      "newerShort": "Archivo de instalación para una persona nueva: ya hay uno más nuevo"
     },
     "join": {
       "intro": "Únete a tu equipo desde el teléfono de un compañero, sin internet. Tu cuenta se crea la primera vez que tu teléfono se conecte a internet.",

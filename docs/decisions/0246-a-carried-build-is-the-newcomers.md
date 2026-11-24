@@ -118,3 +118,5 @@ Amended (2026-11-20, Carl Sauder): a carrier's browser now downloads the file fo
 - **Tested so far:** Chrome 113 on an Android 14 emulator (2026-11-20). Today's Chrome and makers' browsers are not (plan 14.4).
 
 Reverse if: Google Play objects to the type, or browsers start warning on it or stop handing it over (then the `.apk` and the picker are still there).
+
+Amended (2026-11-24, Carl Sauder): offline, with the install file in hand, Share nearby's A new person no longer lists Download the install file as its first step, since it cannot be done then: a line says the file is ready to give, with no number and no press, and Give the app and Let someone in are numbered 1 and 2 (`installFileRow`, plan 14.4). Online, or with no file in hand, the row still opens Download the install file, where a file got another way can be chosen offline too.

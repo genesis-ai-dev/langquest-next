@@ -241,10 +241,7 @@
       "readyShort": "Install file ready",
       "done": "Ready. You can take it offline.",
       "newer": "A newer install file is ready. Download it while you have internet, then choose it.",
-      "newerShort": "Install file for a new person: a newer one is ready",
-      "getNewest": "Download the newest file",
-      "getNewestHelp": "Opens your phone's browser, which downloads the newest install file for this version. Then tap Choose the downloaded file, and it replaces the copy kept here.",
-      "getNewestHelpOpen": "Opens your phone's browser, which downloads the newest install file for this version. When it finishes, tap Open, and it replaces the copy kept here."
+      "newerShort": "Install file for a new person: a newer one is ready"
     },
     "join": {
       "intro": "Join your team from a teammate's phone, without internet. Your account is made the first time your phone reaches the internet.",

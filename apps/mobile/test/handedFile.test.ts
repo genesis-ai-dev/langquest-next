@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { CARRIED_FILE_TYPE } from '@langquest-next/core';
 import { handedFileNow, holdHandedFile, receiveHandedFile, subscribeHandedFile, takeHandedFile } from '../src/nearby/handedFile.android';
 import { isHandedFile, openForHandedFile } from '../src/nearby/handedFileModel';
+import { keptFileNow, keptFileReadStart, readKeptFile, setKeptFile, subscribeKeptFile } from '../src/nearby/installFileKept';
 
 // The install file a carrier's browser hands the app with its Open (docs/nearby-sync-plan.md 14.4;
 // docs/decisions/0246-a-carried-build-is-the-newcomers.md, amended 2026-11-20). On an Android 14
@@ -54,5 +55,33 @@ describe('opening Download the install file for it', () => {
     expect(openForHandedFile({ ...base, ready: false })).toBe(false);
     expect(openForHandedFile({ ...base, screen: 'sign_in' })).toBe(false);
     expect(openForHandedFile({ ...base, screen: 'get_install_file' })).toBe(false);
+  });
+});
+
+describe('the copy kept, read again', () => {
+  // Why: Download the install file reads what the phone keeps on opening and again when it comes
+  // back from the browser (Carl, 2026-11-24), while the browser's Open may be handing over the
+  // newest file at the same moment. A read that ends after that file was kept must not put back
+  // the copy it replaced, which would show the old day and say a newer file is ready.
+  const OLD = { name: 'r21-l1-p1-401de22e.apk', size: 1, builtMs: 1 };
+  const NEW = { name: 'r21-l1-p1-4989edff.apk', size: 2, builtMs: 2 };
+
+  it('shows what a read found, unless a copy was kept after the read began', () => {
+    let told = 0;
+    const off = subscribeKeptFile(() => { told++; });
+    const first = keptFileReadStart();
+    readKeptFile(OLD, first);
+    expect(keptFileNow()).toEqual(OLD);
+    // A read begins, the handed file is kept, then the read ends with what it saw before.
+    const slow = keptFileReadStart();
+    setKeptFile(NEW);
+    readKeptFile(OLD, slow);
+    expect(keptFileNow()).toEqual(NEW);
+    // A read that began after the keep shows what is there, and the same copy again tells nobody.
+    readKeptFile(NEW, keptFileReadStart());
+    readKeptFile(null, keptFileReadStart());
+    expect(keptFileNow()).toBeNull();
+    expect(told).toBe(3);
+    off();
   });
 });

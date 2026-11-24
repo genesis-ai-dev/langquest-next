@@ -241,10 +241,7 @@
       "readyShort": "Fichier d’installation prêt",
       "done": "Prêt. Vous pouvez l’emporter avec vous hors ligne.",
       "newer": "Un fichier d’installation plus récent est prêt. Téléchargez-le tant que vous avez internet, puis choisissez-le.",
-      "newerShort": "Fichier d’installation pour une nouvelle personne : un plus récent est prêt",
-      "getNewest": "Télécharger le fichier le plus récent",
-      "getNewestHelp": "Ouvre le navigateur du téléphone, qui télécharge le fichier d’installation le plus récent de cette version. Touchez ensuite Choisir le fichier téléchargé, et il remplace la copie gardée ici.",
-      "getNewestHelpOpen": "Ouvre le navigateur du téléphone, qui télécharge le fichier d’installation le plus récent de cette version. Quand le téléchargement est terminé, touchez Ouvrir, et il remplace la copie gardée ici."
+      "newerShort": "Fichier d’installation pour une nouvelle personne : un plus récent est prêt"
     },
     "join": {
       "intro": "Rejoignez votre équipe depuis le téléphone d’un coéquipier, sans Internet. Votre compte est créé la première fois que votre téléphone se connecte à Internet.",

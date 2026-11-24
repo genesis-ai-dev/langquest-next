@@ -8,7 +8,7 @@ import { carriedApkUrl } from '../server/carriedApk';
 import { apkKeptUnderNow, apkOpenedNow, apkRightNow, keepApkKeptUnder, keepApkOpened, keepApkRight, loadApkKeptUnder, loadApkOpened, loadApkRight, subscribeApkKeptUnder, subscribeApkOpened, subscribeApkRight } from './carriedApkKept';
 import { nearbyCodeOf, nearbyLinkNative } from '../../modules/nearby-link';
 import { apkCheck, apkStale, cannotGive, chosenName, KEEP_MIN_FREE_BYTES, keepResultOf, keptBehind, keptStale, type ApkCheck, type KeepResult } from './carriedApkModel';
-import { keptFileNow, setKeptFile, subscribeKeptFile } from './installFileKept';
+import { keptFileNow, keptFileReadStart, readKeptFile, setKeptFile, subscribeKeptFile } from './installFileKept';
 import { keptFromOlderBuild } from './keptBuildModel';
 import { androidSdk } from './nearbyPermissions.android';
 import type { CarriedApkHandle } from './useCarriedApk';
@@ -61,23 +61,26 @@ export function useCarriedApk(): CarriedApkHandle {
   // newer file is ready once the copy is two days behind (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
   // Or from an older native build than this phone runs, which installs an older app (Carl, 2026-11-20).
   const behind = keptBehind(kept, Updates.createdAt?.getTime() ?? null) || keptFromOlderBuild(kept, needed, keptUnder);
-  useEffect(() => {
+  // What native keeps, read on opening and again when Download the install file comes back to the
+  // front, as from the browser (`reread`). A read that ends after a copy was kept meanwhile, as
+  // when the browser's Open hands one over, leaves that copy shown (`readKeptFile`).
+  const readKept = useCallback(async () => {
     if (!canGive || !native) return;
-    void (async () => {
-      try {
-        let file = await native.keptInstallFile();
-        // Kept until a newer version is needed (Carl's answer, 2026-11-18): then it goes.
-        if (keptStale(file, needed)) {
-          await native.dropInstallFile();
-          file = null;
-        }
-        setKeptFile(file);
-      } catch (e) {
-        noteExpected('carried apk: kept', e);
-        setKeptFile(null);
+    const start = keptFileReadStart();
+    try {
+      let file = await native.keptInstallFile();
+      // Kept until a newer version is needed (Carl's answer, 2026-11-18): then it goes.
+      if (keptStale(file, needed)) {
+        await native.dropInstallFile();
+        file = null;
       }
-    })();
+      readKeptFile(file, start);
+    } catch (e) {
+      noteExpected('carried apk: kept', e);
+      readKeptFile(null, start);
+    }
   }, [canGive, native, needed]);
+  useEffect(() => { void readKept(); }, [readKept]);
 
   const get = useCallback(() => {
     if (!needed || !url) return;
@@ -142,7 +145,7 @@ export function useCarriedApk(): CarriedApkHandle {
     setChecked({ result: 'right', name: '', keep: 'unreadable' });
   }, [needed, handOff, native, keepChosen]);
 
-  const actions = useMemo(() => ({ get, check: () => { void check(); }, take: (uri: string) => { void take(uri); } }), [get, check, take]);
+  const actions = useMemo(() => ({ get, check: () => { void check(); }, take: (uri: string) => { void take(uri); }, reread: () => { void readKept(); } }), [get, check, take, readKept]);
   return useMemo(() => ({ needed, url, handOff, opened, stale: apkStale(needed, opened), checked, kept, right, canGive, cannotGive: whyNot, behind, actions }),
     [needed, url, handOff, opened, checked, kept, right, canGive, whyNot, behind, actions]);
 }

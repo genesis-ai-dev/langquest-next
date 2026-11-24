@@ -1,7 +1,7 @@
 import { carriedApkName, carriedFileName, CARRIED_APK_PATH } from '@langquest-next/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { apkCheck, apkGet, apkShown, apkStale, apkStep, cannotGive, installFileItem, joinRows, KEPT_BEHIND_MS, keptBehind, letInVersionsWords } from '../src/nearby/carriedApkModel';
+import { apkCheck, apkGet, apkOffer, apkShown, apkStale, apkStep, cannotGive, checkFailed, installFileItem, installFileRow, joinRows, KEPT_BEHIND_MS, keptBehind, letInVersionsWords } from '../src/nearby/carriedApkModel';
 import { CARRIED_APK_KEPT_UNDER_KEY, keptFromOlderBuild } from '../src/nearby/keptBuildModel';
 import { carriedApkAddress } from '../src/server/carriedApkModel';
 
@@ -101,6 +101,94 @@ describe('the step after the browser', () => {
     expect(at({ opened: NOW, kept: undefined, canGive: false })).toBe('choose');
     expect(at({ opened: NOW, canGive: false, right: undefined })).toBeNull();
     expect(at({ needed: null })).toBeNull();
+  });
+});
+
+describe('what Download the install file offers', () => {
+  // Why: Carl, online before a trip, downloaded the file, tapped the browser's Open, and LangQuest
+  // took and kept it, yet the screen still offered Download the newest file, which read as
+  // LangQuest not having the newest file just after it arrived (2026-11-24). The ready state
+  // offered it whatever the phone held. Now a file in hand offers nothing unless a newer one is
+  // known, and the download comes back only for a newer file, a file gone, or one that did not check.
+  const offer = (over: Partial<Parameters<typeof apkOffer>[0]> = {}) => apkOffer({ step: 'done', get: 'ready', behind: false, checked: null, ...over });
+
+  it('offers no download for a file just handed over by the browser, or chosen, and kept', () => {
+    expect(offer({ checked: { result: 'right', keep: 'kept' } })).toBeNull();
+    // While it is being kept, nothing either: the copy in hand still stands.
+    expect(offer({ checked: { result: 'right', keep: 'keeping' } })).toBeNull();
+    // A phone that keeps no copy goes by the name, which was right.
+    expect(offer({ checked: { result: 'right', keep: 'needs-android' } })).toBeNull();
+    expect(offer({ checked: { result: 'right', keep: 'needs-update' } })).toBeNull();
+  });
+
+  it('offers no download for a file already in hand with nothing newer known, online or not', () => {
+    expect(offer()).toBeNull();
+    expect(offer({ get: 'offline' })).toBeNull();
+    expect(offer({ get: null })).toBeNull();
+  });
+
+  it('offers the newer file as the main way while one is known and it can be downloaded', () => {
+    expect(offer({ behind: true })).toBe('newer');
+    // Even after a keep on this visit: the copy kept is what the rules say is behind.
+    expect(offer({ behind: true, checked: { result: 'right', keep: 'kept' } })).toBe('newer');
+    // Offline, or with no address, there is nothing to download, so nothing is said to be newer.
+    expect(offer({ behind: true, get: 'offline' })).toBeNull();
+    expect(offer({ behind: true, get: null })).toBeNull();
+  });
+
+  it('offers the step\'s own way while no file is in hand: never got, the copy gone, or one for other versions', () => {
+    expect(offer({ step: 'get' })).toBe('get');
+    expect(offer({ step: 'choose' })).toBe('choose');
+    expect(offer({ step: 'get', get: 'offline' })).toBe('get');
+    // Which step a gone copy leaves is apkStep's: it is no longer in hand.
+    expect(apkStep({ needed: NOW, opened: NOW, kept: null, canGive: true, right: NOW })).toBe('choose');
+    expect(apkStep({ needed: NOW, opened: null, kept: null, canGive: true, right: null })).toBe('get');
+  });
+
+  it('offers it again when the file handed over or chosen did not check or could not be kept', () => {
+    expect(offer({ checked: { result: 'other' } })).toBe('again');
+    for (const keep of ['not-ours', 'no-space', 'unreadable', 'failed'] as const) {
+      expect(offer({ checked: { result: 'right', keep } }), keep).toBe('again');
+      // Offline too: choosing it again needs no internet.
+      expect(offer({ get: 'offline', checked: { result: 'right', keep } }), keep).toBe('again');
+    }
+    expect(offer({ step: 'choose', checked: { result: 'other' } })).toBe('choose');
+  });
+
+  it('offers nothing until the step is read, so no button changes under a finger', () => {
+    expect(offer({ step: null })).toBeNull();
+    expect(offer({ step: null, behind: true, checked: { result: 'other' } })).toBeNull();
+  });
+
+  it('counts only another version or a copy not kept as a file that did not check', () => {
+    expect(checkFailed({ result: 'other' })).toBe(true);
+    expect(checkFailed({ result: 'right' })).toBe(false);
+    for (const keep of ['keeping', 'kept', 'needs-android', 'needs-update'] as const) expect(checkFailed({ result: 'right', keep }), keep).toBe(false);
+    for (const keep of ['not-ours', 'no-space', 'unreadable', 'failed'] as const) expect(checkFailed({ result: 'right', keep }), keep).toBe(true);
+  });
+});
+
+describe('the install file on Share nearby', () => {
+  // Why: offline, Share nearby's first step under A new person was Download the install file, which
+  // cannot be done then; with the file already in hand it is a fact, not a step (Carl, 2026-11-24).
+  const row = (over: Partial<Parameters<typeof installFileRow>[0]> = {}) => installFileRow({ shown: true, step: 'done', online: false, ...over });
+
+  it('says the file is ready, offline with it in hand', () => {
+    expect(row()).toBe('ready');
+  });
+
+  it('stays a step online, while it is not known whether the phone is online, and while no file is in hand', () => {
+    expect(row({ online: true })).toBe('step');
+    expect(row({ online: null })).toBe('step');
+    // Offline without one, choosing a file got another way still works from that screen.
+    expect(row({ step: 'get' })).toBe('step');
+    expect(row({ step: 'choose' })).toBe('step');
+    expect(row({ step: null })).toBe('step');
+  });
+
+  it('shows nothing where Share nearby shows no install file row', () => {
+    expect(row({ shown: false })).toBeNull();
+    expect(row({ shown: false, online: true, step: 'get' })).toBeNull();
   });
 });
 

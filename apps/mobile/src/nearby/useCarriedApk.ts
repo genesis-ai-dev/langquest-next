@@ -30,14 +30,17 @@ export interface CarriedApkHandle {
   cannotGive: CannotGive | null;
   /** The kept copy is more than two days older than the app this phone runs, so a newer file is ready (`keptBehind`). */
   behind: boolean;
-  /** `take`: a file the browser handed over with its Open (src/nearby/handedFile.android.ts), checked and kept as one chosen. */
-  actions: { get(): void; check(): void; take(uri: string): void };
+  /**
+   * `take`: a file the browser handed over with its Open (src/nearby/handedFile.android.ts), checked and kept as one chosen.
+   * `reread`: what the phone keeps, read again, as when Download the install file comes back from the browser.
+   */
+  actions: { get(): void; check(): void; take(uri: string): void; reread(): void };
 }
 
 const NOTHING = (): void => undefined;
 const NOT_HERE: CarriedApkHandle = {
   needed: null, url: null, handOff: false, opened: null, stale: false, checked: null, kept: null, right: null, canGive: false, cannotGive: null, behind: false,
-  actions: { get: NOTHING, check: NOTHING, take: NOTHING }
+  actions: { get: NOTHING, check: NOTHING, take: NOTHING, reread: NOTHING }
 };
 
 /**
