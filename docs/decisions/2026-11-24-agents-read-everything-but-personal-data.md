@@ -49,3 +49,9 @@ Amended (2026-11-24, Caleb Koster): the hosted project would not let
 postgres grant `pg_read_all_stats`, so both logins read slow statements and
 waits through `masked.slow_statements` and `masked.connections`, functions
 that run as postgres (migration `20261124231500_masked_statistics.sql`).
+
+Amended (2026-11-24, Caleb Koster): Caleb chose to turn on App Store
+crash reports from people's iPhones. `scripts/app-store-analytics-request.mjs`
+makes the one ongoing analytics report request with his Admin key, on the
+Mac, the only write in this design; the log gate's `app-store-report` then
+reads the reports with the read key.

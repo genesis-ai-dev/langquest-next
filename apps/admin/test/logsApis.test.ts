@@ -79,6 +79,28 @@ describe('GET APIs', () => {
   });
 });
 
+describe('App Store analytics reports', () => {
+  it('reads the newest App Crashes rows from Apple\'s gzip files, and no file on another host', async () => {
+    const pair = (await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])) as CryptoKeyPair;
+    const der = new Uint8Array(await crypto.subtle.exportKey('pkcs8', pair.privateKey));
+    const privateKey = `-----BEGIN PRIVATE KEY-----\n${btoa(String.fromCharCode(...der)).replace(/(.{64})/g, '$1\n')}\n-----END PRIVATE KEY-----\n`;
+    const gz = new Uint8Array(await new Response(new Blob(['Date\tApp Version\tCrashes\n2026-11-23\t2026.1124\t3\n']).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    const d = deps((url) => {
+      if (url.includes('/analyticsReportRequests?')) return { data: [{ id: 'req' }] };
+      if (url.includes('/reports?')) return { data: [{ id: 'rep' }] };
+      if (url.includes('/instances?')) return { data: [{ id: 'ins', attributes: { processingDate: '2026-11-23' } }] };
+      if (url.includes('/segments')) return { data: [{ attributes: { url: 'https://analytics.apple.com/seg1.gz' } }, { attributes: { url: 'https://evil.example/seg2.gz' } }] };
+      return 'unexpected';
+    }, { ADMIN_APP_STORE_KEY: JSON.stringify({ keyId: 'K', privateKey }) });
+    const real = d.fetcher;
+    d.fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => (String(input).endsWith('seg1.gz') ? (d.calls.push({ url: String(input) }), new Response(gz)) : real(input, init))) as typeof fetch;
+    const answer = await API_READERS['app-store-report'](d, {});
+    expect(answer.lines).toEqual(['Date\tApp Version\tCrashes', '2026-11-23\t2026.1124\t3', '(a segment on evil.example, not read: not one of Apple\'s hosts)']);
+    expect(decodeURIComponent(d.calls[1]!.url)).toContain('filter[name]=App Crashes');
+    expect(d.calls.some((c) => c.url.includes('evil'))).toBe(false);
+  });
+});
+
 describe('stored files', () => {
   it('asks the app Worker for sizes and times, never bytes', async () => {
     const asked: unknown[] = [];
