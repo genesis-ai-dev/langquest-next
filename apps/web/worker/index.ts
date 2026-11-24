@@ -13,6 +13,7 @@ import { checkImports, runImports } from '../../../server/publisherImport';
 import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
 import { PLAN_TRIES } from '../../../server/userIssues';
+import { dueWithNow, type Checked } from '../../../server/lineResolves';
 import { ownsResponse, withSecurityHeaders } from './securityHeaders';
 import { liveSessions } from './liveSessions';
 import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, cachedOrgsOf, MAX_ENTRIES, TtlCache, type Identity } from './isolateCache';
@@ -507,7 +508,22 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         const { data, error } = await serviceClient(env).rpc('ops_card_questions_done', { p: answered });
         if (error) throw new Error(`ops_card_questions_done: ${error.message}`);
         return data as { taken: number; answered: number };
-      }
+      },
+      // Resolved lines for Claude to check, each with its line's words now
+      // (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md).
+      ...(env.OPS_LINES?.shown ? {
+        dueResolves: async () => {
+          const { data, error } = await serviceClient(env).rpc('ops_line_resolves_due');
+          if (error) throw new Error(`ops_line_resolves_due: ${error.message}`);
+          if (!Array.isArray(data) || !data.length) return [];
+          return dueWithNow(data, (await env.OPS_LINES?.shown?.()) ?? []);
+        },
+        checked: async (checked: Checked) => {
+          const { data, error } = await serviceClient(env).rpc('ops_line_resolves_checked', { p: checked });
+          if (error) throw new Error(`ops_line_resolves_checked: ${error.message}`);
+          return { checked: Number(data) || 0 };
+        }
+      } : {})
     },
     // The watch for user issues, every 15 minutes from GitHub Actions (userIssues.ts, decisions.md 202).
     userIssues: {

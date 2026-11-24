@@ -374,13 +374,18 @@ describe('a question to Claude from any card (docs/decisions/2026-11-23-ask-clau
 });
 
 describe('a line resolved until its problem comes back (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md)', () => {
-  const line = { line: 'usage-billed:R2 class A operations', part: 'capacity', level: 'watch', measure: 20.25, title: 'R2 class A operations this month are past what the plan includes' };
+  const line = { line: 'usage-billed:R2 class A operations', part: 'capacity', level: 'watch', measure: 20.25, title: 'R2 class A operations this month are past what the plan includes',
+    text: 'R2 class A operations this month are past what the plan includes. 5,524,967 of 1,000,000; about $20.25 so far.' };
 
   it('takes each line as the page showed it, checked', () => {
     expect(parseAction({ kind: 'line-resolve', lines: [line] })).toEqual({ kind: 'line-resolve', lines: [line] });
     expect(parseAction({ kind: 'line-resolve', lines: [{ ...line, measure: undefined, title: ' x ' }] })).toEqual({ kind: 'line-resolve', lines: [{ ...line, measure: null, title: 'x' }] });
+    // The words are for Claude's check later; a page from before sends none.
+    expect(parseAction({ kind: 'line-resolve', lines: [{ ...line, text: undefined }] })).toEqual({ kind: 'line-resolve', lines: [{ ...line, text: null }] });
+    expect(parseAction({ kind: 'line-resolve', lines: [{ ...line, text: '  ' }] })).toEqual({ kind: 'line-resolve', lines: [{ ...line, text: null }] });
     for (const bad of [[], [{ ...line, line: 'Usage' }], [{ ...line, line: 'usage-billed:a\nb' }], [{ ...line, part: 'Capacity' }], [{ ...line, level: 'info' }],
       [{ ...line, title: ' ' }], [{ ...line, title: 'x'.repeat(301) }], [{ ...line, measure: -1 }], [{ ...line, measure: '5' }], [line, line],
+      [{ ...line, text: 'x'.repeat(1001) }], [{ ...line, text: 7 }],
       Array.from({ length: 21 }, (_, i) => ({ ...line, line: `job-stopped:j${i}` }))]) {
       expect(parseAction({ kind: 'line-resolve', lines: bad }), JSON.stringify(bad).slice(0, 80)).toBeNull();
     }

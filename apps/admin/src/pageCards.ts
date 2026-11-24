@@ -155,6 +155,8 @@ function lineCard(a, group) {
       const kv = (label, html) => html ? '<div><h5 class="imh">' + esc(label) + '</h5>' + html + '</div>' : '';
       return {
         lines: [
+          // Claude found that the problem an admin resolved came back (pageResolve.ts).
+          ['Came back', a.backWhy ? '<p>' + esc(a.backWhy) + '</p>' : ''],
           ['Wrong', row && row.problem ? '<p>' + esc(row.problem) + '</p>' : ''],
           ['Known', row && row.known ? '<p>' + esc(row.known) + '</p>' : ''],
           // The cause is not proven yet: what Claude does next, and when, leads (pageIssues.ts planLine).

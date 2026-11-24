@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ANSWER_MAX, AUDIENCE, cleanAnswer, EMAIL, finalAnswers, webAsks } from './card-questions.mjs';
+import { ANSWER_MAX, AUDIENCE, cleanAnswer, EMAIL, finalAnswers, finalVerdicts, webAsks, WHY_MAX } from './card-questions.mjs';
+import { WHY_MAX as SERVER_WHY_MAX } from '../server/lineResolves';
 import { QUESTION_MAX } from '../server/cardQuestions';
 import { EMAIL as SERVER_EMAIL } from '../server/userIssues';
 import { CARD_QUESTIONS_RULE } from '../apps/web/worker/cardQuestions';
@@ -47,6 +48,24 @@ describe('the answers', () => {
   });
 });
 
+describe('the verdicts on resolved lines', () => {
+  const resolves = [{ id: A }, { id: B }, { id: 'not-an-id' }];
+  it('keep the Worker\'s limit', () => expect(WHY_MAX).toBe(SERVER_WHY_MAX));
+
+  it('send Claude\'s verdict and reason, and none for a resolve without one, so it waits for the next check', () => {
+    expect(finalVerdicts(resolves, [{ id: A, verdict: 'back', why: ' A new month. ' }])).toEqual([
+      { id: A, verdict: 'back', why: 'A new month.' },
+      { id: B, verdict: 'none' }
+    ]);
+    // No reason, an address, or a verdict off the list: none.
+    expect(finalVerdicts(resolves, [{ id: A, verdict: 'same' }, { id: B, verdict: 'same', why: 'Ask a@b.co' }]).map((v) => v.verdict)).toEqual(['none', 'none']);
+    expect(finalVerdicts(resolves, [{ id: A, verdict: 'maybe', why: 'x' }])[0]!.verdict).toBe('none');
+    expect((finalVerdicts(resolves, [{ id: A, verdict: 'same', why: 'x'.repeat(WHY_MAX + 9) }])[0] as { why: string }).why).toHaveLength(WHY_MAX);
+    // Claude wrote no file: each resolve waits.
+    expect(finalVerdicts(resolves, null)).toEqual([{ id: A, verdict: 'none' }, { id: B, verdict: 'none' }]);
+  });
+});
+
 describe('the workflow', () => {
   const yml = read('.github/workflows/card-questions.yml');
 
@@ -71,8 +90,16 @@ describe('the workflow', () => {
     expect(first).not.toMatch(/WebFetch|WebSearch/);
     expect(second).toContain('--allowedTools "Read,Write,WebFetch,WebSearch" --disallowedTools "Bash"');
     expect(second).toContain('.questions/web.json');
-    expect(yml.match(/claude_code_oauth_token: \$\{\{ secrets\.AGENT_TEAM_CLAUDE_TOKEN \}\}/g)).toHaveLength(2);
+    expect(yml.match(/claude_code_oauth_token: \$\{\{ secrets\.AGENT_TEAM_CLAUDE_TOKEN \}\}/g)).toHaveLength(3);
     expect(yml).not.toContain('CLAUDE_CODE_OAUTH_TOKEN');
+  });
+
+  it('gives the Claude that checks resolved lines the same shell as the first, and no web', () => {
+    const check = yml.split('\n      - ').find((s) => s.startsWith('name: Claude decides whether each problem came back'))!;
+    expect(check).toContain('--allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(node /home/runner/work/_temp/ask/prod-read.mjs:*)"');
+    expect(check).not.toMatch(/WebFetch|WebSearch/);
+    expect(check).toContain('.resolves/verdicts.json');
+    expect(read('.agents/skills/card-questions/SKILL.md')).toContain('.resolves/verdicts.json');
   });
 
   it('has its skill', () => {

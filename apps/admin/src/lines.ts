@@ -37,6 +37,15 @@ export class OpsLines extends WorkerEntrypoint<Env> {
     return { lines: [...new Set(a.items.filter((i) => i.key !== 'unreadable').map((i) => i.id))], parts: a.answered };
   }
 
+  /**
+   * Each line the page shows now, with its level and words, so Claude can compare a resolved line's
+   * words now with its words at the resolve (card-questions.yml, apps/web/worker/cardQuestions.ts).
+   */
+  async shown(): Promise<{ id: string; level: string; text: string }[]> {
+    const a = await answer(this.env);
+    return a.items.filter((i) => i.key !== 'unreadable').map((i) => ({ id: i.id, level: i.level, text: i.text }));
+  }
+
   /** The Linear issues the lines name themselves now (a nightly test's), for an admin's instruction on one. */
   async named(): Promise<string[]> {
     return lineIssues((await answer(this.env)).items);

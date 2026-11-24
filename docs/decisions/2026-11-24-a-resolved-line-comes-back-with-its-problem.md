@@ -44,3 +44,23 @@ write on every view, and a page nobody opens would never end a resolve).
 Reverse if: resolved lines come back so often that admins stop using the
 button, or a problem stays hidden that a person should have seen. Then change
 the rules in `resolveBack`, or the 7 days.
+
+Amended (2026-11-24, Caleb Koster): Claude decides whether a resolved line
+came back, from the nature of its problem. Caleb: "An agent should assess
+whether an issue has come back based on the nature of the issue." Fixed rules
+judge only the numbers: a monthly cost that grows by the use the admin already
+saw is the same problem, and a new failure under the same count is not. Now
+the workflow `card-questions.yml` hands Claude each open resolve at most every
+3 hours, with the line's words at the resolve and now (migration
+`20261124030000_ops_line_resolve_checks.sql`, `server/lineResolves.ts`).
+Claude reads what the line counts and writes `same` or `back` with a reason;
+when not sure, `back`. The line shows again with Claude's reason. The rules
+for a doubled measure, a new count and 7 days are gone. Two rules stay,
+because they need no judgment: a line that is more serious shows at once, and
+a line that goes and comes again shows at once. A resolve that Claude has not
+checked for 27 hours shows again, so the page never hides a problem nobody
+checks. Not chosen: Claude on every page load (slow, and a cost on every
+view); Claude on each run of the watch for user issues (that run already
+holds the issue judgments, and a resolve needs no Linear issue). Reverse if:
+Claude's verdicts are wrong often enough that admins stop trusting the
+Resolved list.

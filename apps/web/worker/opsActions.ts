@@ -92,6 +92,8 @@ export interface ResolvedLine {
   /** The line's measure (usage-billed: its cost so far), or null. */
   measure: number | null;
   title: string;
+  /** The line's words as the page showed them, for Claude to compare with its words later (migration 20261124030000_ops_line_resolve_checks.sql), or null. */
+  text: string | null;
 }
 
 export type ActionResult =
@@ -167,17 +169,20 @@ const LEVELS = new Set(['urgent', 'problem', 'watch']);
 /** The most lines one tap resolves: an Overview row holds a part's lines of one kind. */
 export const RESOLVE_MAX = 20;
 export const LINE_TITLE_MAX = 300;
+export const LINE_TEXT_MAX = 1000;
 
 function resolvedLines(input: unknown): ResolvedLine[] | null {
   if (!Array.isArray(input) || input.length === 0 || input.length > RESOLVE_MAX) return null;
   const out: ResolvedLine[] = [];
   for (const x of input as unknown[]) {
-    const l = (typeof x === 'object' && x !== null ? x : {}) as { line?: unknown; part?: unknown; level?: unknown; measure?: unknown; title?: unknown };
+    const l = (typeof x === 'object' && x !== null ? x : {}) as { line?: unknown; part?: unknown; level?: unknown; measure?: unknown; title?: unknown; text?: unknown };
     const title = typeof l.title === 'string' ? l.title.trim() : '';
     const measure = l.measure === undefined || l.measure === null ? null : typeof l.measure === 'number' && Number.isFinite(l.measure) && l.measure >= 0 ? l.measure : undefined;
+    const text = l.text === undefined || l.text === null ? null : typeof l.text === 'string' && l.text.length <= LINE_TEXT_MAX ? l.text.trim() || null : undefined;
+    if (text === undefined) return null;
     if (typeof l.line !== 'string' || !LINE.test(l.line) || typeof l.part !== 'string' || !PART.test(l.part) || typeof l.level !== 'string' || !LEVELS.has(l.level)
       || !title || title.length > LINE_TITLE_MAX || measure === undefined || out.some((o) => o.line === l.line)) return null;
-    out.push({ line: l.line, part: l.part, level: l.level as ResolvedLine['level'], measure, title });
+    out.push({ line: l.line, part: l.part, level: l.level as ResolvedLine['level'], measure, title, text });
   }
   return out;
 }
