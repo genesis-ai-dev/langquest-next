@@ -192,9 +192,22 @@ function supportSay(w) {
 
 /**
  * Nearby sync on Work safety's page, the last 7 days (sources/ops.ts Nearby): how many organizations
- * have it and how many phones used it, how often they met a teammate, and what went wrong, in plain
+ * have it and how many phones used it, how often it synced with a teammate, and what went wrong, in plain
  * words. Null where no organization has it on and no phone used it, so the page says nothing of it.
  */
+/**
+ * Nearby sync's sums as numbers (sources/ops.ts Nearby): sessions finished and not, in both ways of
+ * sharing, and the share of runs that synced with a teammate. The page's num() formats a number as
+ * text, so adding its results joined them ("19" and "0" read as 190 finished): sums are made here.
+ */
+function nearbyTotals(d) {
+  const n = (x) => Number(x) || 0;
+  const s = (d && d.screen) || {}, o = (d && d.open) || {};
+  const finished = n(s.done) + n(o.done);
+  const pct = (a, b) => (n(b) ? Math.round((n(a) / n(b)) * 100) : null);
+  return { finished, notFinished: Math.max(0, n(s.sessions) + n(o.sessions) - finished), screenSynced: pct(s.met, s.rooms), openSynced: pct(o.met, o.runs) };
+}
+
 function nearbyView(d) {
   if (!d) return null;
   const n = (x) => Number(x) || 0;
@@ -202,14 +215,14 @@ function nearbyView(d) {
   const on = orgs.filter((o) => o.nearby).length, quiet = orgs.filter((o) => o.open).length;
   if (!on && !n(d.installs)) return null;
   const s = d.screen || {}, o = d.open || {}, c = d.deliver || {}, r = d.refusals || {};
-  const met = (a, b) => (n(b) ? ', ' + Math.round((n(a) / n(b)) * 100) + '% met a teammate' : '');
-  const notDone = Math.max(0, n(s.sessions) + n(o.sessions) - n(s.done) - n(o.done));
+  const t = nearbyTotals(d);
+  const met = (pct) => (pct === null ? '' : ', ' + pct + '% synced with a teammate');
   return [
     { n: on, label: quiet ? 'organizations with nearby, ' + quiet + ' sharing while open' : 'organizations with nearby' },
     { n: n(d.installs), label: 'phones used it' },
-    { n: n(s.rooms), label: 'Share nearby rooms' + met(s.met, s.rooms) },
-    { n: n(o.runs), label: 'runs while open' + met(o.met, o.runs) },
-    { n: notDone, label: 'sessions did not finish' },
+    { n: n(s.rooms), label: 'times Share nearby ran' + met(t.screenSynced) },
+    { n: n(o.runs), label: 'times it ran while open' + met(t.openSynced) },
+    { n: t.notFinished, label: 'sessions did not finish' },
     { n: n(r.window), label: 'teammates turned away past the two weeks', warn: n(r.window) > 0 },
     { n: n(r.revoked), label: 'revoked phones turned away', warn: n(r.revoked) > 0 },
     { n: n(c.refused), label: 'carried events refused', warn: n(c.refused) > 0 }
