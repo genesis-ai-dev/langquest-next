@@ -73,6 +73,11 @@ begin
   assert (diag.ops_mine(a)->>'seenAt') is not null, 'opening the list keeps the time';
   assert diag.ops_mine(b)->'seenAt' = 'null'::jsonb, 'each admin has a time of their own';
 
+  -- The fix team reads the claim (migration 20261124023000_fix_team_assists_on_claim.sql) and keeps 'claimed' as why a fix waits.
+  assert public.ops_issue_claimed('LAN-901'), 'the watch''s door sees a claimed issue';
+  assert not public.ops_issue_claimed('LAN-902'), 'and an issue no one claimed';
+  insert into ops.user_issue_fixes (issue, decision, reason, why, pr) values ('LAN-901', 'waits', 'claimed', 'A developer claimed it.', 700);
+
   perform public.ops_record_action(b, 'issue_claim', 'LAN-902', 'ok');
   assert exists (select 1 from jsonb_array_elements(diag.ops_card_record('issue')) e
     where e->>'key' = 'LAN-902' and e->>'what' = 'issue_claim' and e->>'who' = 'Other Dev'), 'the issue''s record names who claimed it';
@@ -95,6 +100,11 @@ do $$ begin
   begin
     perform public.ops_issue_claim('LAN-905', true, '0e000000-0000-0000-0000-0000000000c1');
     raise exception 'authenticated claimed';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.ops_issue_claimed('LAN-905');
+    raise exception 'authenticated read a claim';
   exception when insufficient_privilege then null;
   end;
 end $$;

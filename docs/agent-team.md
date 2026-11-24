@@ -74,7 +74,14 @@ checks each one in code.
 6. The reviewer agrees.
 7. No instruction from a developer waits on the issue. (Fix it on a
    tutorial video's card is the exception: below.)
-8. Guardrails pass on the pull request and again in the merge queue
+8. No developer claimed the issue on the ops dashboard. On a claimed issue
+   the team assists the developer: it still writes a fix and opens a pull
+   request, but the pull request waits for that developer (reason
+   `claimed`). A pull request of the team that merges without a person
+   stops and waits when its issue is claimed later (the job `follow`).
+   Caleb Koster, 2026-11-24: "Claude fix team can suggest solutions and make
+   PRs for an issue a developer has claimed, but shouldn't merge on its own."
+9. Guardrails pass on the pull request and again in the merge queue
    (`.github/rulesets/main.json`). GitHub holds this, not the team.
 
 There is no limit on the size of a change and none on how many merge in a
