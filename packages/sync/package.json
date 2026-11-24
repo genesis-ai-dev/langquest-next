@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@langquest-next/core": "*",
-    "@supabase/supabase-js": "^2.119.0"
+    "@supabase/supabase-js": "^2.119.2"
   },
   "sideEffects": false
 }
