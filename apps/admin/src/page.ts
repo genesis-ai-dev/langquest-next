@@ -27,6 +27,7 @@ import { RESEARCH_CSS, RESEARCH_LOGIC, RESEARCH_SCRIPT } from './pageResearch';
 import { RESEARCH_TEAM } from './researchTeam';
 import { CARD_CSS, CARD_LOGIC, CARD_SCRIPT } from './pageCards';
 import { SEND_CSS, SEND_LOGIC, SEND_SCRIPT } from './pageSends';
+import { STEPS_CSS } from './pageSteps';
 import { ASK_CSS, ASK_LOGIC, ASK_SCRIPT } from './pageAsk';
 import { MINE_CSS, MINE_HTML, MINE_LOGIC, MINE_SCRIPT } from './pageMine';
 import { SUMMARY_CSS, SUMMARY_LOGIC, SUMMARY_SCRIPT } from './pageSummary';
@@ -241,6 +242,7 @@ ${VIDEO_CSS}
 ${HOVER_CSS}
 ${REF_CSS}
 ${SEND_CSS}
+${STEPS_CSS}
 ${ASK_CSS}
 ${MINE_CSS}
 ${LOADING_CSS}

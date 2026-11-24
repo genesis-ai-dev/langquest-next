@@ -183,6 +183,15 @@ pull request: never what a person wrote.
 A pull request that merges without a person carries the label `agent-merge`;
 one that waits, `agent-waits`.
 
+Each card also shows its **Steps**, the oldest first: the watch filed it,
+each try (with the reads of the field diagnostics, the production database
+and the logs it ran first), each plan, the fix and the reviewer, the merge
+and Linear's state, each with its run. The steps of a run on an admin's
+instruction show under the instruction. Triggers on the issue's tables keep
+them in `ops.user_issue_steps` (migration
+`20261124193000_user_issue_steps.sql`), so the team's scripts write nothing
+more (docs/decisions/2026-11-24-each-issue-card-shows-its-steps.md).
+
 ## When a fix does not get into main
 
 Trivial fixes often fail on the way into main: a flaky test, a removal

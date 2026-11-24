@@ -127,10 +127,10 @@ function askWordsOf(button) {
   const visible = (el) => {
     if (!el || el.offsetParent === null) return '';
     let t = el.innerText;
-    for (const x of el.querySelectorAll('.italk, .irecord, .sblock.ask')) { const w = x.innerText; if (w) t = t.replace(w, ''); }
+    for (const x of el.querySelectorAll('.italk, .irecord, .isteps, .sblock.ask')) { const w = x.innerText; if (w) t = t.replace(w, ''); }
     return t;
   };
-  if (card) return askContext([...card.children].filter((c) => !c.matches('.italk, .irecord, .tell, .talk')).map((c) => c.innerText).join('\n'));
+  if (card) return askContext([...card.children].filter((c) => !c.matches('.italk, .irecord, .isteps, .tell, .talk')).map((c) => c.innerText).join('\n'));
   const parts = [$('view-title') ? $('view-title').innerText : '', visible($('view-say'))];
   for (const id of ['start', 'sum']) {
     const el = $(id);

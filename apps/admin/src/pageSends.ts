@@ -11,6 +11,8 @@
  * Plain JavaScript inside page.ts's script; everything shown is escaped.
  */
 
+import { STEPS_LOGIC, STEPS_SCRIPT } from './pageSteps';
+
 /** The look, inside page.ts's style element. */
 export const SEND_CSS = String.raw`
 #out:not(:empty) { position: sticky; top: 8px; z-index: 30; }
@@ -193,7 +195,7 @@ function issueWaits() {
   const ud = userIssuesData(), notes = notesWithSends(ud ? ud.notes : null, SENDS) || {};
   return Object.values(notes).some((l) => (l || []).some((n) => (n.state === 'waiting' || n.state === 'working') && Date.now() - Date.parse(n.at) < 2 * 3600000));
 }
-`;
+` + STEPS_LOGIC;
 
 /** The page's state of sends and answered cards, and their drawing; uses the page's helpers (esc, when, say, $). */
 export const SEND_SCRIPT = String.raw`
@@ -256,4 +258,4 @@ function goneCard(g) {
     (g.text ? '<div class="talk"><p class="said you">' + esc(g.text) + '</p><small>You · ' + esc(sendClock(g.at)) + '</small></div>' : '') +
     (g.where ? '<p class="gonewhere"><span>' + esc(g.where[0]) + '</span>' + (g.where[1] ? '<button type="button" data-vtab="' + esc(g.where[1]) + '">' + esc(g.where[2]) + '</button>' : '') + '</p>' : '') + '</article>';
 }
-`;
+` + STEPS_SCRIPT;
