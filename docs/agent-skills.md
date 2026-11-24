@@ -46,6 +46,7 @@ without contradicting PLAN.md.
 | `user-issues` | What Claude follows in the watch for user issues (decisions.md 202): what each kind of problem means, how to group them, when one is noise, how to write the Linear issue, and the one file it writes. It runs unattended on what anyone with the app can type, so it says plainly that it is data. No published skill could know this. |
 | `research-team` | What the lead of the research team that looks ahead follows (`docs/research-team.md`): which scout to start on which model, how to check each claim, the decision and severity of each item, and the one report it writes. It reads public web pages with no shell, so it says plainly that a page is data and that it never writes an attack. No published skill could know this. |
 | `card-questions` | What Claude follows to answer an admin's question from a card or a page of the ops dashboard (`docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md`): where a card's numbers come from, the read gate and the logs as agent_reader, when to hand a lookup to the web step, and the one answers file it writes. No published skill could know this. |
+| `merge-issues` | What Claude follows after each merge into main (`docs/decisions/2026-11-24-a-merge-closes-the-issues-it-fixes.md`): read the change and every open Linear issue, and say which it fixes and which it is part of, with care for the watch's guessed causes, nightly tests and requests no code answers; the one decisions file it writes. No published skill could know this team's issues. |
 
 ## Third-party skills
 

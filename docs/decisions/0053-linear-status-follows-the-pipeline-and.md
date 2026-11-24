@@ -50,3 +50,8 @@ own server check, and two places would have to agree
 feature needs a flag; `org_features` names its feature, so it can grow. As
 this entry asks, a follow-up issue tracks the rollout and removing the flag;
 none exists yet.
+
+Amended (2026-11-24, Caleb Koster): after the named issues move, the same
+workflow has Claude check the merge against every other open issue, and moves
+each one it fixes as a named one, with a comment and the pull request linked
+(docs/decisions/2026-11-24-a-merge-closes-the-issues-it-fixes.md).

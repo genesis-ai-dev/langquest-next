@@ -103,7 +103,7 @@ export function verdict({ lanes, reported }) {
 }
 
 /** Move one issue, and say so. `api` is the Linear client (or a fake). */
-async function move(api, issue, target, comment) {
+export async function move(api, issue, target, comment) {
   if (comment) await api.comment(issue.id, comment);
   if (!mayMove(issue.state, target)) return `${issue.identifier} stays ${issue.state}`;
   await api.setState(issue, target);
@@ -212,19 +212,50 @@ export function linearApi(key, fetchImpl = fetch) {
       if (!stateId) throw new Error(`${issue.identifier}: team has no status named ${name}`);
       await gql(`mutation($id: String!, $stateId: String!) {
         issueUpdate(id: $id, input: { stateId: $stateId }) { success } }`, { id: issue.id, stateId });
+    },
+    /**
+     * Every issue of the team that is not done: not started, in the backlog or
+     * started, with its words, labels and the links on it (scripts/merge-issues.mjs).
+     */
+    async openIssues() {
+      const out = [];
+      let after = null;
+      for (let page = 0; page < 10; page++) {
+        const data = await gql(
+          `query($key: String!, $after: String) { issues(first: 100, after: $after, filter: {
+             team: { key: { eq: $key } }, state: { type: { in: ["triage", "backlog", "unstarted", "started"] } } }) {
+             nodes { identifier title description createdAt state { name } labels { nodes { name } } attachments { nodes { url } } }
+             pageInfo { hasNextPage endCursor } } }`,
+          { key: TEAM_KEY, after }
+        );
+        out.push(...data.issues.nodes.map((n) => ({
+          identifier: n.identifier, title: n.title, description: n.description ?? '', createdAt: n.createdAt, state: n.state.name,
+          labels: n.labels.nodes.map((l) => l.name), links: n.attachments.nodes.map((a) => a.url)
+        })));
+        if (!data.issues.pageInfo.hasNextPage) break;
+        after = data.issues.pageInfo.endCursor;
+      }
+      return out;
+    },
+    /** A link on the issue, as Linear's own pull request links: shown at the top of the issue. */
+    async link(issueId, url, title) {
+      await gql(`mutation($issueId: String!, $url: String!, $title: String) {
+        attachmentLinkURL(issueId: $issueId, url: $url, title: $title) { success } }`, { issueId, url, title });
     }
   };
 }
 
 /** Prints instead of calling Linear; an issue is whatever the IDs say. */
-function dryApi() {
+export function dryApi() {
   const say = (...parts) => console.log('[dry-run]', ...parts);
   return {
     getIssue: async (id) => ({ id, identifier: id, state: 'In Progress', states: {}, comments: [] }),
     listDeploying: async () => [],
     comments: async () => [],
     comment: async (id, body) => say('comment on', id, '|', body),
-    setState: async (issue, name) => say('move', issue.identifier, 'to', name)
+    setState: async (issue, name) => say('move', issue.identifier, 'to', name),
+    openIssues: async () => [],
+    link: async (id, url) => say('link on', id, '|', url)
   };
 }
 

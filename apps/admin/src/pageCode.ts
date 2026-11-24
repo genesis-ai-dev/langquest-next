@@ -24,7 +24,7 @@ const JOB_SAID = {
   'phone-tests.yml': ['Nightly phone tests', 'Tests the app on an Android and an iPhone each night'],
   'release-branches.yml': ['Fixes to older store builds', 'Copies fixes to the builds in the stores'],
   'release-copy-conflict.yml': ['Copy conflicts', 'Asks for help when a fix does not copy'],
-  'linear-sync.yml': ['Linear links', 'Moves the Linear issues that a merge names'],
+  'linear-sync.yml': ['Linear links', 'Moves the Linear issues that a merge names or fixes'],
   'bible-survey.yml': ['Bible numbering survey', 'Checks the Bible numbering survey']
 };
 const JOB_ORDER = ['fail', 'part', 'run', 'ok', 'off'];
