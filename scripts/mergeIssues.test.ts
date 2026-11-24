@@ -122,8 +122,11 @@ describe('the workflow', () => {
     expect(yml).toContain('needs: deploying');
     expect(yml).toContain('secrets.AGENT_TEAM_CLAUDE_TOKEN');
     expect(yml.indexOf('cp scripts/merge-issues.mjs scripts/linear-sync.mjs')).toBeGreaterThan(-1);
-    expect(yml.indexOf('cp scripts/merge-issues.mjs scripts/linear-sync.mjs')).toBeLessThan(yml.indexOf('anthropics/claude-code-action'));
+    expect(yml.indexOf('cp scripts/merge-issues.mjs scripts/linear-sync.mjs')).toBeLessThan(yml.indexOf('claude -p'));
     expect(yml).toContain('--from-copy');
+    // anthropics/claude-code-action refuses a push event; Claude Code runs itself, at a pinned version.
+    expect(yml).not.toContain('uses: anthropics/claude-code-action');
+    expect(yml).toMatch(/npm install -g @anthropic-ai\/claude-code@\d+\.\d+\.\d+\n/);
     expect(readFileSync(new URL('../.agents/skills/merge-issues/SKILL.md', import.meta.url), 'utf8')).toContain('.merge-issues/decisions.json');
   });
 });
