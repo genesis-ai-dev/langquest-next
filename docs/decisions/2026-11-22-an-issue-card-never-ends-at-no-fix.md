@@ -47,3 +47,21 @@ What changes:
 
 Reverse if: the once-a-day tries repeat the same plan with no new facts for
 a week, or they use a large part of the Frontier plan's week.
+
+Amended (2026-11-24, Caleb Koster): a try also never ends with no result.
+From 2026-11-22, GitHub refused to let the workflow open the pull request of
+a fix ("GitHub Actions is not permitted to create or approve pull
+requests"). The job pushed the branch and wrote no record. Each later try on
+that issue found the branch and stopped with "nothing done", again with no
+record. Twelve cards (LAN-315 among them) showed "started a try" as their
+last step, though the manager had written a fix with its cause proven. Now:
+- A refused pull request writes a record (no change, reason `app`, with
+  GitHub's answer) and a plan to try again in 6 hours.
+- A new try on a branch with no open pull request puts its fix in the
+  branch's place and opens the pull request again. A new try on a branch
+  with an open draft fix puts its change on that draft.
+- A step of the job `open` that fails before the Worker heard of the try
+  writes a record with no verdict, and Claude tries again (as when the
+  manager wrote no verdict).
+- The card says "No result came back from this try" under a try with no
+  result after 4 hours, for a run that a person or GitHub cancelled.

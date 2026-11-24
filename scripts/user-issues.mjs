@@ -508,8 +508,19 @@ export function branchComment(branch, run) {
   return [`**Claude wrote a draft fix**, on the branch \`${branch}\`, but GitHub did not let the workflow open its pull request.`, '', `[Open it](https://github.com/${REPO}/compare/main...${branch}?expand=1) as a draft, or turn on Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests" (\`npm run github:rules -- --apply\`).`, '', `The watch for user issues: ${run}`].join('\n');
 }
 
-export function updateComment(pr, checks) {
-  return [`**Claude changed the draft fix** ([PR ${pr.number}](${pr.url})) after an instruction from the ops dashboard.`, '', `${said(checks.typecheck, 'Typecheck')}; ${said(checks.tests, 'tests')}.`, '', 'Review it, then mark it Ready for review on GitHub to run CI and merge it.'].join('\n');
+/**
+ * What Claude does next when it wrote a fix and GitHub did not let the workflow open its pull request: a new
+ * try, whose fix takes the branch's place, and the workflow tries to open the pull request again.
+ */
+export const OPEN_AGAIN = { do: 'Claude tries again, and the workflow tries again to open the pull request of its fix.', steps: '', inHours: 6, probeAt: null, reads: [] };
+
+/** Why a fix has no pull request: GitHub refused to open it (its answer), and when Claude tries again. */
+export function refusedWhy(branch, status, message) {
+  return `Claude wrote a fix, on the branch ${branch}. GitHub did not let the workflow open its pull request (${status}${message ? `: ${String(message).slice(0, 160)}` : ''}). Claude tries again in ${OPEN_AGAIN.inHours} hours.`;
+}
+
+export function updateComment(pr, checks, instructed = true) {
+  return [`**Claude changed the draft fix** ([PR ${pr.number}](${pr.url})) ${instructed ? 'after an instruction from the ops dashboard' : 'in a new try'}.`, '', `${said(checks.typecheck, 'Typecheck')}; ${said(checks.tests, 'tests')}.`, '', 'Review it, then mark it Ready for review on GitHub to run CI and merge it.'].join('\n');
 }
 
 // ---- an admin's instructions (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md) ----
@@ -1534,138 +1545,167 @@ async function fixOpen(dir, id) {
   // What the manager's probe printed on main (the job `check` ran it), for its next try.
   const probePath = join(dir, 'check', 'probe.txt');
   const probe = existsSync(probePath) ? readFileSync(probePath, 'utf8') : '';
-  const tell = async ({ record = null, result = null, pr = null, extra = '' }) => {
+  // Whether the Worker has this try's result: every try ends with one on its card.
+  let told = false;
+  const tell = async ({ record = null, result = null, pr = null, extra = '', planFix = null }) => {
     const answers = noteIds.length && result ? noteIds.map((n) => ({ id: n, result, answer: noteAnswer(fix, result, extra) || null, pr })) : [];
     if (!record && !answers.length) return;
     // Each record also says what Claude does next when the cause is not proven yet, or removes the old plan.
-    const plans = record ? [planRecord(id, fix, probe, record.reason)] : [];
+    const plans = record ? [planRecord(id, planFix ?? fix, probe, record.reason)] : [];
     const done = await call('POST', { sha: headSha(), runUrl: run, looked: [], grew: [], states: [], notes: answers, fixes: record ? [record] : [], plans });
+    told = true;
     console.log(`${id}: told the Worker${record ? ` the fix ${record.decision === 'merge' ? 'merges without a person' : record.decision === 'waits' ? `waits (${record.reason})` : `has no change (${record.reason})`}` : ''}${answers.length ? `${record ? ' and' : ''} Claude's answer to ${plural(done.answered ?? 0, 'instruction')} (${result})` : ''}`);
   };
   const waits = (pr, d = decision) => fixRecord(id, { decision: 'waits', reason: d.reason ?? 'review', why: d.why, pr }, fix, plan, input.vet, shots);
 
-  const repairPath = join(dir, 'fix', 'repair.json');
-  if (existsSync(repairPath)) return repairOpen({ id, issue, fix, checks, plan, input, decision, shots, run, repair: readJson(repairPath), ownPath, tell });
+  try {
+    return await openFix();
+  } catch (e) {
+    // A step here failed before the Worker heard of this try: the card still gets its result, and Claude tries
+    // again (ENDED's next step). An instruction gets its answer instead.
+    if (!told) {
+      const why = `The step that saves the try's result failed: ${String(e instanceof Error ? e.message : e).split('\n')[0].slice(0, 300)}`;
+      await (noteIds.length
+        ? tell({ result: 'none', extra: why })
+        : tell({ record: fixRecord(id, { decision: 'none', reason: 'unconfirmed', why }, { ...fix, ended: true }, plan, input.vet, shots), planFix: { ...fix, ended: true } })
+      ).catch((err) => console.log(`${id}: the Worker did not hear the try's result (${String(err instanceof Error ? err.message : err).slice(0, 200)})`));
+    }
+    throw e;
+  }
 
-  let reason = fix.noFix || (existsSync(ownPath) ? null : 'Its patch is missing.');
-  if (!reason) {
-    try {
-      fixPaths(ownPath);
-    } catch (e) {
-      reason = e instanceof Error ? e.message : String(e);
+  async function openFix() {
+    const repairPath = join(dir, 'fix', 'repair.json');
+    if (existsSync(repairPath)) return repairOpen({ id, issue, fix, checks, plan, input, decision, shots, run, repair: readJson(repairPath), ownPath, tell });
+
+    let reason = fix.noFix || (existsSync(ownPath) ? null : 'Its patch is missing.');
+    if (!reason) {
+      try {
+        fixPaths(ownPath);
+      } catch (e) {
+        reason = e instanceof Error ? e.message : String(e);
+      }
     }
-  }
-  if (reason) {
-    // An instruction's answer goes to its card; a new issue's missing fix is said in Linear and on its card.
-    if (noteIds.length) await tell({ result: fix.answer || fix.noFix ? 'answered' : 'none', extra: fix.answer && fix.noFix ? '' : reason });
-    else {
-      const waitsFor = input.changes.length ? 'paths' : decision.reason ?? 'unconfirmed';
-      // A run that ended with no verdict says so, never "did not prove the cause" (ENDED).
-      const told = fix.ended ? ENDED.why : reason;
-      await api.comment(issue.id, noFixComment(told, run, planNext(waitsFor === 'unconfirmed' ? { ...fix, verdict: 'unconfirmed' } : fix)));
-      const why = fix.ended ? ENDED.why : input.changes.length ? reason : decision.why || reason;
-      await tell({ record: fixRecord(id, { decision: 'none', reason: waitsFor, why }, fix, plan, input.vet, shots) });
+    if (reason) {
+      // An instruction's answer goes to its card; a new issue's missing fix is said in Linear and on its card.
+      if (noteIds.length) await tell({ result: fix.answer || fix.noFix ? 'answered' : 'none', extra: fix.answer && fix.noFix ? '' : reason });
+      else {
+        const waitsFor = input.changes.length ? 'paths' : decision.reason ?? 'unconfirmed';
+        // A run that ended with no verdict says so, never "did not prove the cause" (ENDED).
+        const said = fix.ended ? ENDED.why : reason;
+        await api.comment(issue.id, noFixComment(said, run, planNext(waitsFor === 'unconfirmed' ? { ...fix, verdict: 'unconfirmed' } : fix)));
+        const why = fix.ended ? ENDED.why : input.changes.length ? reason : decision.why || reason;
+        await tell({ record: fixRecord(id, { decision: 'none', reason: waitsFor, why }, fix, plan, input.vet, shots) });
+      }
+      console.log(`${id}: no fix (${reason.slice(0, 200)})`);
+      return;
     }
-    console.log(`${id}: no fix (${reason.slice(0, 200)})`);
-    return;
-  }
-  const branch = fixBranch(id);
-  const title = `${id}: ${String(issue.title ?? '').replace(PREFIX, '').slice(0, 120)}`;
-  const message = `${title}
+    const branch = fixBranch(id);
+    const title = `${id}: ${String(issue.title ?? '').replace(PREFIX, '').slice(0, 120)}`;
+    const message = `${title}
 
 ${fix.summary}
 
 A fix Claude wrote for the watch for user issues: ${run}
 `;
-  const author = ['-c', `user.name=${FIX_BOT.name}`, '-c', `user.email=${FIX_BOT.email}`];
-  if (git(['ls-remote', '--heads', 'origin', branch]).trim()) {
-    if (!noteIds.length) {
-      console.log(`${id}: ${branch} is there already; nothing done`);
-      return;
-    }
-    const open = await github('GET', `/pulls?head=${REPO.split('/')[0]}:${branch}&state=open&per_page=1`);
-    const found = Array.isArray(open.json) ? open.json[0] : null;
-    const pr = found ? { number: found.number, url: found.html_url } : null;
-    // "Merge it": the draft fix the admin read, as it is, by the admin's own word.
-    if (notes.approved === true && pr) {
-      if (!decision.merge) {
-        await tell({ record: waits(pr.number), result: 'answered', pr: pr.number, extra: `The draft fix did not merge. ${decision.why}` });
-        console.log(`${id}: the admin said to merge PR ${pr.number}, and the gate says it waits (${decision.reason})`);
+    const author = ['-c', `user.name=${FIX_BOT.name}`, '-c', `user.email=${FIX_BOT.email}`];
+    const there = Boolean(git(['ls-remote', '--heads', 'origin', branch]).trim());
+    const open = there ? await github('GET', `/pulls?head=${REPO.split('/')[0]}:${branch}&state=open&per_page=1`) : null;
+    const found = Array.isArray(open?.json) ? open.json[0] : null;
+    // A new try (no instruction) on an issue whose branch has no open pull request: an earlier try pushed the
+    // branch and GitHub did not let the workflow open its pull request, or a person closed it. This try's fix
+    // takes the branch's place, and the workflow opens its pull request, as for a new fix.
+    const replace = there && !noteIds.length && !found;
+    if (replace) console.log(`${id}: ${branch} has no open pull request; this try's fix takes its place`);
+    if (there && !replace) {
+      const pr = found ? { number: found.number, url: found.html_url } : null;
+      // "Merge it": the draft fix the admin read, as it is, by the admin's own word.
+      if (noteIds.length && notes.approved === true && pr) {
+        if (!decision.merge) {
+          await tell({ record: waits(pr.number), result: 'answered', pr: pr.number, extra: `The draft fix did not merge. ${decision.why}` });
+          console.log(`${id}: the admin said to merge PR ${pr.number}, and the gate says it waits (${decision.reason})`);
+          return;
+        }
+        await github('PATCH', `/pulls/${pr.number}`, { body: fixBody(issue, fix, checks, run, team) });
+        // LangQuest's GitHub App marks it ready, so its checks start, and turns on auto-merge.
+        const ready = found.draft !== true || (await graphql('mutation($id: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $id }) { pullRequest { isDraft } } }', { id: found.node_id }, process.env.PR_TOKEN))?.markPullRequestReadyForReview?.pullRequest?.isDraft === false;
+        const merging = ready && autoMerge(pr.number);
+        if (!merging) {
+          await tell({ record: waits(pr.number, { reason: 'app', why: 'GitHub did not let the App make the pull request ready and turn on auto-merge.' }), result: 'answered', pr: pr.number, extra: 'GitHub did not let the workflow merge the draft fix. Mark it Ready for review and merge it on GitHub.' });
+          return;
+        }
+        await label(pr.number, true);
+        await api.comment(issue.id, fixComment(pr, checks, decision));
+        await tell({ record: fixRecord(id, { decision: 'merge', why: decision.why, pr: pr.number }, fix, plan, input.vet, shots), result: 'answered', pr: pr.number, extra: 'The draft fix merges when its checks pass.' });
+        console.log(`${id}: PR ${pr.number} merges without a person, as an admin said`);
         return;
       }
-      await github('PATCH', `/pulls/${pr.number}`, { body: fixBody(issue, fix, checks, run, team) });
-      // LangQuest's GitHub App marks it ready, so its checks start, and turns on auto-merge.
-      const ready = found.draft !== true || (await graphql('mutation($id: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $id }) { pullRequest { isDraft } } }', { id: found.node_id }, process.env.PR_TOKEN))?.markPullRequestReadyForReview?.pullRequest?.isDraft === false;
-      const merging = ready && autoMerge(pr.number);
-      if (!merging) {
-        await tell({ record: waits(pr.number, { reason: 'app', why: 'GitHub did not let the App make the pull request ready and turn on auto-merge.' }), result: 'answered', pr: pr.number, extra: 'GitHub did not let the workflow merge the draft fix. Mark it Ready for review and merge it on GitHub.' });
+      if (noteIds.length && notes.changed !== true) {
+        await tell({ result: 'answered' });
+        console.log(`${id}: Claude answered and left the draft fix as it is`);
         return;
       }
-      await label(pr.number, true);
-      await api.comment(issue.id, fixComment(pr, checks, decision));
-      await tell({ record: fixRecord(id, { decision: 'merge', why: decision.why, pr: pr.number }, fix, plan, input.vet, shots), result: 'answered', pr: pr.number, extra: 'The draft fix merges when its checks pass.' });
-      console.log(`${id}: PR ${pr.number} merges without a person, as an admin said`);
+      if (!pr) {
+        // Only with an instruction: a new try on a branch with no open pull request replaces it (above).
+        await tell({ result: 'answered', extra: 'The pull request of the draft fix is not open, so the draft fix did not change.' });
+        console.log(`${id}: ${branch} has no open pull request; nothing pushed`);
+        return;
+      }
+      const patchPath = existsSync(checkedPath) ? checkedPath : ownPath;
+      try {
+        // One commit on the branch with the change as it is now on main: the branch's head and main are its parents.
+        const ref = `refs/remotes/origin/${branch}`;
+        git(['fetch', '-q', '--depth=1', 'origin', `+refs/heads/${branch}:${ref}`]);
+        git(['apply', '--index', patchPath]);
+        const commit = git([...author, 'commit-tree', git(['write-tree']).trim(), '-p', git(['rev-parse', ref]).trim(), '-p', 'HEAD', '-F', '-'], message).trim();
+        git(['push', '-q', 'origin', `${commit}:refs/heads/${branch}`]);
+      } catch (e) {
+        if (noteIds.length) await tell({ result: 'none', pr: pr.number, extra: 'The workflow could not put the change on the draft fix (see the run).' });
+        else await tell({ record: waits(pr.number, { reason: decision.reason ?? 'review', why: `Claude wrote a new fix, and the workflow could not put it on the draft fix (see the run). The draft fix is as it was.` }) });
+        throw e;
+      }
+      // A change after an instruction waits for the developer who sent it. A new try's change goes on the draft
+      // fix the issue has, which a developer reads.
+      const d = noteIds.length
+        ? (decision.merge ? { reason: 'instruction', why: 'It follows an instruction from the ops dashboard. The developer who sent it reads the change.' } : decision)
+        : (decision.merge ? { reason: 'review', why: 'The issue has a draft fix already. Claude put its new change on it, so a developer reads it.' } : decision);
+      await github('PATCH', `/pulls/${pr.number}`, { body: fixBody(issue, fix, checks, run, { decision: { merge: false, ...d }, vet: input.vet }) });
+      // The built-in token's push starts no checks. A draft's checks run when a person marks it Ready for review.
+      const draft = found.draft === true || (await toDraft(found.node_id));
+      await label(pr.number, false);
+      await api.comment(issue.id, updateComment(pr, checks, noteIds.length > 0));
+      await tell({ record: waits(pr.number, d), result: 'changed', pr: pr.number, extra: draft ? '' : 'The pull request is not a draft, so its checks did not run on this change. Push to it or open it again to run them.' });
+      console.log(`${id}: draft fix PR ${pr.number} changed ${noteIds.length ? 'after an instruction' : 'by a new try'}`);
       return;
     }
-    if (notes.changed !== true) {
-      await tell({ result: 'answered' });
-      console.log(`${id}: Claude answered and left the draft fix as it is`);
+    // A new fix. One that merges without a person is the manager's own patch, opened by the App.
+    const patchPath = decision.merge || !existsSync(checkedPath) ? ownPath : checkedPath;
+    git(['checkout', '-b', branch]);
+    git(['apply', '--index', patchPath]);
+    git([...author, 'commit', '--no-verify', '-q', '-F', '-'], message);
+    git(['push', '-q', 'origin', `${replace ? '+' : ''}HEAD:refs/heads/${branch}`]);
+    const made = await github('POST', '/pulls', { title, head: branch, base: 'main', body: fixBody(issue, fix, checks, run, team), draft: !decision.merge }, decision.merge ? process.env.PR_TOKEN : undefined);
+    if (made.status !== 201) {
+      console.log(`::error title=Needs you%3A pull requests from Actions::GitHub answered ${made.status} (${String(made.json.message ?? '').slice(0, 200)}) to the fix for ${id}; the branch ${branch} is pushed. ${decision.merge ? 'LangQuest\'s GitHub App needs Pull requests write on this repository.' : 'Turn on "Allow GitHub Actions to create and approve pull requests" with npm run github:rules -- --apply.'}`);
+      await api.comment(issue.id, branchComment(branch, run));
+      // The card says it too, and Claude tries again: the next try's fix takes the branch's place (replace).
+      const why = refusedWhy(branch, made.status, made.json?.message);
+      await tell({ record: fixRecord(id, { decision: 'none', reason: 'app', why }, fix, plan, input.vet, shots), planFix: { ...fix, ended: false, next: OPEN_AGAIN }, result: 'changed', extra: `The fix is on the branch ${branch}. GitHub did not let the workflow open its pull request.` });
       return;
     }
-    if (!pr) {
-      await tell({ result: 'answered', extra: 'The pull request of the draft fix is not open, so the draft fix did not change.' });
-      console.log(`${id}: ${branch} has no open pull request; nothing pushed`);
-      return;
+    const pr = { number: made.json.number, url: made.json.html_url };
+    let final = decision;
+    if (decision.merge && !autoMerge(pr.number)) {
+      // Without auto-merge nothing merges it: it waits, as a draft, and says so.
+      final = { merge: false, reason: 'app', why: 'GitHub did not turn on auto-merge for the pull request.' };
+      await toDraft(made.json.node_id, process.env.PR_TOKEN);
+      await github('PATCH', `/pulls/${pr.number}`, { body: fixBody(issue, fix, checks, run, { decision: final, vet: input.vet }) });
     }
-    const patchPath = existsSync(checkedPath) ? checkedPath : ownPath;
-    try {
-      // One commit on the branch with the change as it is now on main: the branch's head and main are its parents.
-      const ref = `refs/remotes/origin/${branch}`;
-      git(['fetch', '-q', '--depth=1', 'origin', `+refs/heads/${branch}:${ref}`]);
-      git(['apply', '--index', patchPath]);
-      const commit = git([...author, 'commit-tree', git(['write-tree']).trim(), '-p', git(['rev-parse', ref]).trim(), '-p', 'HEAD', '-F', '-'], message).trim();
-      git(['push', '-q', 'origin', `${commit}:refs/heads/${branch}`]);
-    } catch (e) {
-      await tell({ result: 'none', pr: pr.number, extra: 'The workflow could not put the change on the draft fix (see the run).' });
-      throw e;
-    }
-    // A change after an instruction waits for the developer who sent it.
-    const d = decision.merge ? { reason: 'instruction', why: 'It follows an instruction from the ops dashboard. The developer who sent it reads the change.' } : decision;
-    await github('PATCH', `/pulls/${pr.number}`, { body: fixBody(issue, fix, checks, run, { decision: { merge: false, ...d }, vet: input.vet }) });
-    // The built-in token's push starts no checks. A draft's checks run when a person marks it Ready for review.
-    const draft = found.draft === true || (await toDraft(found.node_id));
-    await label(pr.number, false);
-    await api.comment(issue.id, updateComment(pr, checks));
-    await tell({ record: waits(pr.number, d), result: 'changed', pr: pr.number, extra: draft ? '' : 'The pull request is not a draft, so its checks did not run on this change. Push to it or open it again to run them.' });
-    console.log(`${id}: draft fix PR ${pr.number} changed after an instruction`);
-    return;
+    await label(pr.number, final.merge);
+    await api.attach(issue.id, pr.url, `PR ${pr.number}: ${final.merge ? 'fix' : 'draft fix'} by Claude`);
+    await api.comment(issue.id, fixComment(pr, checks, final));
+    await tell({ record: final.merge ? fixRecord(id, { decision: 'merge', why: final.why, pr: pr.number }, fix, plan, input.vet, shots) : waits(pr.number, final), result: 'changed', pr: pr.number });
+    console.log(`${id}: PR ${pr.number} ${final.merge ? 'merges without a person' : `waits for a developer (${final.reason})`}`);
   }
-  // A new fix. One that merges without a person is the manager's own patch, opened by the App.
-  const patchPath = decision.merge || !existsSync(checkedPath) ? ownPath : checkedPath;
-  git(['checkout', '-b', branch]);
-  git(['apply', '--index', patchPath]);
-  git([...author, 'commit', '--no-verify', '-q', '-F', '-'], message);
-  git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
-  const made = await github('POST', '/pulls', { title, head: branch, base: 'main', body: fixBody(issue, fix, checks, run, team), draft: !decision.merge }, decision.merge ? process.env.PR_TOKEN : undefined);
-  if (made.status !== 201) {
-    console.log(`::error title=Needs you%3A pull requests from Actions::GitHub answered ${made.status} (${String(made.json.message ?? '').slice(0, 200)}) to the fix for ${id}; the branch ${branch} is pushed. ${decision.merge ? 'LangQuest\'s GitHub App needs Pull requests write on this repository.' : 'Turn on "Allow GitHub Actions to create and approve pull requests" with npm run github:rules -- --apply.'}`);
-    await api.comment(issue.id, branchComment(branch, run));
-    await tell({ result: 'changed', extra: `The fix is on the branch ${branch}. GitHub did not let the workflow open its pull request.` });
-    return;
-  }
-  const pr = { number: made.json.number, url: made.json.html_url };
-  let final = decision;
-  if (decision.merge && !autoMerge(pr.number)) {
-    // Without auto-merge nothing merges it: it waits, as a draft, and says so.
-    final = { merge: false, reason: 'app', why: 'GitHub did not turn on auto-merge for the pull request.' };
-    await toDraft(made.json.node_id, process.env.PR_TOKEN);
-    await github('PATCH', `/pulls/${pr.number}`, { body: fixBody(issue, fix, checks, run, { decision: final, vet: input.vet }) });
-  }
-  await label(pr.number, final.merge);
-  await api.attach(issue.id, pr.url, `PR ${pr.number}: ${final.merge ? 'fix' : 'draft fix'} by Claude`);
-  await api.comment(issue.id, fixComment(pr, checks, final));
-  await tell({ record: final.merge ? fixRecord(id, { decision: 'merge', why: final.why, pr: pr.number }, fix, plan, input.vet, shots) : waits(pr.number, final), result: 'changed', pr: pr.number });
-  console.log(`${id}: PR ${pr.number} ${final.merge ? 'merges without a person' : `waits for a developer (${final.reason})`}`);
 }
 
 /**
