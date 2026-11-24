@@ -36,6 +36,13 @@ export const COPY_DOCS_MAX_COUNT = 5_000;
 export const COPY_DOCS_MAX_CHARS = 128 * 1024 * 1024;
 /** The most a `held` answer may be: 30,000 hashes, six times the documents a copy keeps. */
 export const COPY_HELD_MAX_CHARS = 2 * 1024 * 1024;
+/**
+ * The most one document's text may be, as the server's own limit (`library_put_document`, 4 MB):
+ * a teammate's longer text is refused once that much has come (security review, 2026-11-24).
+ */
+export const COPY_DOC_MAX_CHARS = 4 * 1024 * 1024;
+/** A sender keeps at most this many texts it is part-way through sending, so a peer that asks only first parts pins little. */
+const TEXTS_HELD = 4;
 
 /** The app's library documents, over `docStore.ts` (sync has no file store). */
 export interface NearbyDocs {
@@ -76,6 +83,8 @@ export interface NearbyLibrary {
   /** As `CopyStream.keptPassageLinks`, for a language kept on disk. */
   keptPassageLinks?(): Promise<LanguageState['passageLinks']>;
   docs: NearbyDocs;
+  /** The phone wears a cover (decision 171): it takes only the documents its language itself names, never the rest of the library's guides. */
+  worn?(): boolean;
 }
 
 /** Everything a sender reads from: the language's client, the organization's, member names and documents. */
@@ -197,6 +206,9 @@ export class LibraryDocsSender {
     const key = `doc:${hash}`;
     let text = this.texts.get(key);
     if (!text) {
+      // A peer that asks only first parts must not pin every long text: the oldest goes, and is read again if asked.
+      const docKeys = [...this.texts.keys()].filter((k) => k.startsWith('doc:'));
+      for (const k of docKeys.slice(0, Math.max(0, docKeys.length - TEXTS_HELD + 1))) this.texts.delete(k);
       text = (async (): Promise<string | CopyNoReason> => {
         const head = await docs.head(hash);
         if (!head) return 'not-here';
@@ -349,10 +361,12 @@ async function askText(asker: CopyAsker, ask: Omit<CopyAsk, 't' | 'after'>, max 
   for (;;) {
     const got = await asker(at === 0 ? ask : { ...ask, after: String(at) });
     if (got.t === 'copy-no') throw new CopyRefused(got.reason);
-    parts.push(got.body);
     at += got.body.length;
+    // Past its bound, the last part included: nothing more is joined.
+    if (at > max) throw new CopyRefused('malformed');
+    parts.push(got.body);
     if (got.next === null) return parts.join('');
-    if (got.next !== String(at) || at > max) throw new CopyRefused('malformed');
+    if (got.next !== String(at)) throw new CopyRefused('malformed');
   }
 }
 
@@ -463,7 +477,10 @@ export interface LibraryDocsAsk {
  * it comes, what the language names first (`docsThisLanguageUses`' order). A document is kept only
  * if its text hashes to its name, is canonical, validates and its format may go
  * (`admitDoc`). Nothing is asked when nothing is lacking. A teammate that cannot answer one
- * document costs that document, never the session; a dropped link (`OfflineError`) throws.
+ * document costs that document, never the session; a dropped link (`OfflineError`) throws. Every
+ * character that comes counts against the bounds, kept or not, each text is at most
+ * `COPY_DOC_MAX_CHARS`, and a teammate whose text does not check, or runs past its bound, is asked
+ * nothing more this time (security review, 2026-11-24).
  */
 export async function takeLibraryDocs(
   asker: CopyAsker, library: NearbyLibrary, keep: { sha256: Sha256; limits?: { count: number; chars: number } }, how: LibraryDocsAsk
@@ -477,12 +494,13 @@ export async function takeLibraryDocs(
   const asked = new Set<string>();
   const skipped = new Set<string>();
   let there: Set<string> | null = null;
-  let keptChars = 0;
+  let came = 0;
+  const offered = library.worn?.() !== true;
   const links = await library.keptPassageLinks?.();
   // The list and what this phone holds of it, read until the list stops growing.
   const lacking = () => local(async () => {
     for (;;) {
-      const list = docsThisLanguageUses(org, withKeptLinks(library.language(), links), (h) => here.get(h) ?? null);
+      const list = docsThisLanguageUses(org, withKeptLinks(library.language(), links), (h) => here.get(h) ?? null, { offered });
       const fresh = list.filter((h) => !here.has(h));
       if (fresh.length === 0) return list.filter((h) => here.get(h) === null && !asked.has(h) && !skipped.has(h));
       for (const h of fresh) here.set(h, await library.docs.head(h).catch(() => null));
@@ -506,26 +524,36 @@ export async function takeLibraryDocs(
         skipped.add(hash);
         continue;
       }
-      if (docs.kept >= limits.count || keptChars >= limits.chars || (how.budgetChars !== undefined && keptChars >= how.budgetChars)) {
+      const room = Math.min(limits.chars, how.budgetChars ?? Infinity) - came;
+      if (docs.kept >= limits.count || room <= 0) {
         docs.capped = true;
         break walk;
       }
       asked.add(hash);
       let text: string;
+      // At most one text's bound, and never past what the session may still take.
+      const max = Math.min(COPY_DOC_MAX_CHARS, limits.chars - came);
       try {
-        text = await askText(asker, { part: 'doc', hash });
+        text = await askText(asker, { part: 'doc', hash }, max);
       } catch (err) {
         if (err instanceof OfflineError) throw err;
+        // Past its bound, or out of order: counted as refused, and nothing more is asked of this teammate.
+        if (err instanceof CopyRefused && err.reason === 'malformed') {
+          came += max;
+          docs.refused += 1;
+          break walk;
+        }
         continue;
       }
+      came += text.length;
       const doc = await admitDoc(hash, text, keep.sha256);
       if (!doc || !(await library.docs.keep(hash, text))) {
+        // A text that does not check: this teammate is asked nothing more this time.
         docs.refused += 1;
-        continue;
+        break walk;
       }
       here.set(hash, docHeadOf(doc));
       docs.kept += 1;
-      keptChars += text.length;
     }
   }
   docs.missing = [...asked, ...skipped].filter((h) => !here.get(h)).length - docs.refused;

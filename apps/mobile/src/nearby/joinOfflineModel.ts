@@ -198,6 +198,16 @@ export function joinReducer(s: JoinStage, a: JoinAction): JoinStage {
   }
 }
 
+/**
+ * Whether the progress screen says guide pictures and audio come later: from the grant on, while
+ * the starting copy comes, is left to finish or is whole. The copy carries the language's guides
+ * but never the files they name, which come in the first Wi-Fi session with any teammate
+ * (docs/nearby-sync-plan.md 5.12, Library files), so until then guides show without them.
+ */
+export function joinGuideFilesLine(s: JoinStage): boolean {
+  return s.t === 'copying' || s.t === 'unfinished' || s.t === 'looking' || s.t === 'whole';
+}
+
 /** A name as the newcomer typed it, trimmed, or null when it cannot go in an invite link (1 to 80 characters, no control characters). */
 export function joinName(typed: string): string | null {
   const name = typed.trim().replace(/\s+/g, ' ');

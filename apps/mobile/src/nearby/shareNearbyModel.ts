@@ -153,11 +153,12 @@ export function endedWords(how: string) {
 }
 
 /**
- * Sessions worth a line: one with a known teammate, or one where something moved. A played-back
- * advert or a stranger's connection moves nothing and names nobody, and draws no line (section 8).
+ * Sessions worth a line: one with a known teammate, or one where something moved, guide pictures
+ * and audio among it. A played-back advert or a stranger's connection moves nothing and names
+ * nobody, and draws no line (section 8).
  */
 export function linesShown(sessions: readonly NearbySessionLine[]): NearbySessionLine[] {
-  const moved = (l: NearbySessionLine) => l.eventsIn + l.eventsOut + l.filesIn + l.filesOut + l.refused + l.filesFailed > 0;
+  const moved = (l: NearbySessionLine) => l.eventsIn + l.eventsOut + l.filesIn + l.filesOut + l.guideFilesIn + l.refused + l.filesFailed > 0;
   return sessions.filter((l) => l.profileId !== null || moved(l)).reverse();
 }
 

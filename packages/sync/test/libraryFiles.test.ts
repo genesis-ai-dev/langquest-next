@@ -34,13 +34,16 @@ const item = (docHash: string) => ({
   sharing: reg({ shared: false, subscribable: false }), archived: reg(false), subscription: reg(null), pinned: reg(null)
 });
 
-/** The language's documents, the same on both phones: a guide linked to a passage. */
-function libraryOf(guide: unknown): NearbyLibrary {
-  const org = { library: { guide: item(h(guide)) }, recommendations: {}, members: {}, roles: {}, languages: {} } as unknown as OrgState;
-  const language = { template: null, templateHistory: {}, flow: null, passageLinks: { u1: { guide: reg(true) } }, languageReferences: {}, checkHelps: {} } as unknown as LanguageState;
+/** The language's documents, the same on both phones: each linked to a passage. */
+function libraryOf(...linked: unknown[]): NearbyLibrary {
+  const byHash = new Map(linked.map((d) => [h(d), d]));
+  const org = { library: Object.fromEntries(linked.map((d, i) => [`item${i}`, item(h(d))])), recommendations: {}, members: {}, roles: {}, languages: {} } as unknown as OrgState;
+  const language = {
+    template: null, templateHistory: {}, flow: null, passageLinks: { u1: Object.fromEntries(linked.map((_d, i) => [`item${i}`, reg(true)])) }, languageReferences: {}, checkHelps: {}
+  } as unknown as LanguageState;
   const docs: NearbyDocs = {
-    head: async (x) => (x === h(guide) ? nearbyDocHeadOf(guide as LibraryDoc) : null),
-    text: async (x) => (x === h(guide) ? canonicalJson(guide) : null),
+    head: async (x) => (byHash.has(x) ? nearbyDocHeadOf(byHash.get(x) as LibraryDoc) : null),
+    text: async (x) => (byHash.has(x) ? canonicalJson(byHash.get(x)) : null),
     keep: async () => true
   };
   return { org: () => org, language: () => language, docs };
@@ -128,6 +131,24 @@ describe.each(STORES)('library files between two members, on the %s store', (_na
     for (const hello of [helloOf(pair.sent.a.frames), helloOf(pair.sent.b.frames)]) {
       expect(hello?.kind === 'message' && hello.message.t === 'hello' && hello.message.can.includes(LIBRARY_FILES_ABILITY)).toBe(true);
     }
+  });
+
+  it('a source\'s chapter audio comes last, after backups', async () => {
+    const a = await testPhone(server, make(), ana, shelf);
+    const b = await testPhone(server, make(), sam, shelf);
+    const backup = await record(a, shelf, 'r1');
+    const [picture, chapter] = ['picture', 'chapter'].map((n) => { const x = fileHash(n); shelf.set(`${ana.deviceId}/${x}`, bytesOf(n)); a.files.here.add(x); return x; });
+    const guide = guideNaming(picture!);
+    const book = { format: 'sourceBook@1', book: 'MRK', chapters: [{ chapter: 1, audio: { url: 'https://x/mrk1.mp3', hash: chapter } }], deps: [] };
+    withLibraryFiles(a, shelf, new Set());
+    withLibraryFiles(b, shelf, new Set());
+    const pair = memoryNearbyPair({ time, files: shelf, kind: 'wifi-direct' });
+    const [, rb] = await settled<[NearbySessionReport, NearbySessionReport]>(time,
+      sessionFor(a, 'i', pair.a, time, { library: libraryOf(guide, book) }).run(),
+      sessionFor(b, 'r', pair.b, time, { library: libraryOf(guide, book) }).run());
+    expect(rb.ended).toEqual({ how: 'done' });
+    const asked = pair.sent.b.frames.map((f) => parseMessage(f)).flatMap((p) => (p.kind === 'message' && p.message.t === 'file-ask' ? [p.message.hash] : []));
+    expect(asked).toEqual([picture, backup, chapter]);
   });
 
   it('a guide that names a recording\'s hash never makes a phone pass that recording on', async () => {

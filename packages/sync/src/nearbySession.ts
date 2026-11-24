@@ -1744,7 +1744,12 @@ export class NearbySession {
           return key && format ? [{ hash: key, format, group: 'link', url }] : [];
         })
       : [];
-    const wanted = [...recordings.filter((f) => f.group !== 'backup'), ...library, ...links, ...recordings.filter((f) => f.group === 'backup')];
+    // A source's chapter audio last, after backups (Carl, 2026-11-24): large, and the phone can play it from the web meanwhile.
+    const sourceAudio = new Set([...(this.libraryFiles?.values() ?? [])].filter((f) => f.kind === 'source').map((f) => f.hash));
+    const wanted = [
+      ...recordings.filter((f) => f.group !== 'backup'), ...library.filter((f) => !sourceAudio.has(f.hash)), ...links,
+      ...recordings.filter((f) => f.group === 'backup'), ...library.filter((f) => sourceAudio.has(f.hash))
+    ];
     const theirs = new Set(this.holdings.get(report.peer!.installKey)?.files ?? []);
     let backupsFrom: number | null = null;
     if (opt.files!.take) {

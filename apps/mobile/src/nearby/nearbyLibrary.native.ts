@@ -2,6 +2,7 @@ import type { LanguageState, OrgState } from '@langquest-next/core';
 import { nearbyDocHeadOf } from '@langquest-next/core/nearby';
 import type { NearbyDocs, NearbyLibrary } from '@langquest-next/sync/nearby';
 import { docText, heldDocHead, keepFetchedDoc } from '../library/docStore';
+import { wornNow } from '../shell/appCovered';
 import type { NearbyLanguage } from '../sync/useLanguage';
 
 /**
@@ -24,6 +25,8 @@ export function nearbyLibraryOf(o: { language: NearbyLanguage['client']; org: ()
     org: () => o.org(),
     language: () => o.language.getState() as LanguageState,
     keptPassageLinks: () => o.language.keptPassageLinks(),
-    docs: phoneDocs
+    docs: phoneDocs,
+    // Under a cover (decision 171) only what the language itself names: a search finds no more than its work asks for.
+    worn: wornNow
   };
 }

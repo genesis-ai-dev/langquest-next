@@ -9,10 +9,13 @@ const room = { free: 10 * 1024 * 1024 * 1024 };
 const net = { down: new Set<string>(), refused: new Map<string, number>(), fetched: [] as string[], hold: null as null | Promise<void> };
 // What the phone keeps between runs: each language's wish list, and when the lists were first kept.
 const kv = new Map<string, string>();
+/** Each file's leading bytes, where a test sets them. */
+const raw = new Map<string, Uint8Array>();
+const kvFails = { set: false };
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
     getItem: async (k: string) => kv.get(k) ?? null,
-    setItem: async (k: string, v: string) => { kv.set(k, v); },
+    setItem: async (k: string, v: string) => { if (kvFails.set) throw new Error('storage full'); kv.set(k, v); },
     getAllKeys: async () => [...kv.keys()],
     multiGet: async (keys: string[]) => keys.map((k) => [k, kv.get(k) ?? null])
   }
@@ -32,7 +35,8 @@ vi.mock('expo-file-system', () => {
     get size() { return sizes.get(this.name) ?? 1; }
     get modificationTime() { return times.get(this.name) ?? 0; }
     delete() { disk.delete(this.name); }
-    move(dest: File) { disk.set(dest.name, disk.get(this.name) ?? ''); disk.delete(this.name); times.set(dest.name, Date.now()); }
+    move(dest: File) { disk.set(dest.name, disk.get(this.name) ?? ''); disk.delete(this.name); times.set(dest.name, Date.now()); if (raw.has(this.name)) { raw.set(dest.name, raw.get(this.name)!); raw.delete(this.name); } }
+    async bytes() { return raw.get(this.name) ?? new TextEncoder().encode(disk.get(this.name) ?? ''); }
     static async downloadFileAsync(url: string, dest: File) {
       net.fetched.push(url);
       if (net.hold) await net.hold;
@@ -54,6 +58,8 @@ vi.mock('expo-file-system', () => {
 });
 
 vi.mock('../src/sync/blobsModel', () => ({ RECORDING_RESERVE_BYTES: 500 * 1024 * 1024 }));
+const cover = { worn: false };
+vi.mock('../src/shell/appCovered', () => ({ wornNow: () => cover.worn }));
 
 const settle = () => new Promise((r) => setTimeout(r, 0));
 const MB = 1024 * 1024;
@@ -64,12 +70,16 @@ async function load() {
   return { folder, links };
 }
 
+/** How a file of each kind begins. */
+const LEADS: Record<string, number[]> = { mp3: [0x49, 0x44, 0x33, 4], jpg: [0xff, 0xd8, 0xff, 0xe0] };
+
 /** A teammate's file arriving: native wrote it to the staging name the address was given. */
-async function give(links: Awaited<ReturnType<typeof load>>['links'], url: string, size = MB) {
+async function give(links: Awaited<ReturnType<typeof load>>['links'], url: string, size = MB, lead?: number[]) {
   const stage = links.stage(url);
   if (!stage) return false;
   const name = stage.stagingUri.replace('file:///documents/study/', '');
   disk.set(name, `teammate's ${url}`);
+  raw.set(name, new Uint8Array(lead ?? LEADS[url.slice(url.lastIndexOf('.') + 1)] ?? []));
   sizes.set(name, size);
   await links.adopt(url, stage.stagingUri, size);
   return true;
@@ -77,8 +87,40 @@ async function give(links: Awaited<ReturnType<typeof load>>['links'], url: strin
 
 describe('study files from a teammate\'s phone', () => {
   beforeEach(() => {
-    disk.clear(); sizes.clear(); times.clear(); kv.clear(); room.free = 10 * 1024 * 1024 * 1024;
+    disk.clear(); sizes.clear(); times.clear(); kv.clear(); raw.clear(); room.free = 10 * 1024 * 1024 * 1024; kvFails.set = false;
     net.down.clear(); net.refused.clear(); net.fetched = []; net.hold = null; vi.resetModules(); vi.useRealTimers();
+    cover.worn = false;
+  });
+
+  // The security review's (2026-11-24): bytes no hash holds to anything are shown and played by the phone's own decoders.
+  it('refuses bytes that are not a file of the address\'s kind, or larger than a teammate\'s file may be, and keeps no note of them', async () => {
+    const { folder, links } = await load();
+    folder.setStudyWanted(new Map([['luke1', ['https://fia.bible/a.mp3', 'https://fia.bible/b.jpg']]]), false, null, ['luke1']);
+    links.lacking(['https://fia.bible/a.mp3', 'https://fia.bible/b.jpg']);
+    await expect(give(links, 'https://fia.bible/a.mp3', MB, [0x4d, 0x5a, 0x90, 0])).rejects.toThrow();
+    await expect(give(links, 'https://fia.bible/b.jpg', 9 * MB)).rejects.toThrow();
+    expect(folder.hasStudyFile('https://fia.bible/a.mp3')).toBe(false);
+    expect(folder.hasStudyFile('https://fia.bible/b.jpg')).toBe(false);
+    expect(kv.get('study-files:nearby') ?? '[]').toBe('[]');
+    expect(links.stage('https://fia.bible/a.mp3')!.maxBytes).toBeLessThanOrEqual(8 * MB);
+  });
+
+  it('writes the address down before the file takes its name: if it cannot, the file is not kept', async () => {
+    const { folder, links } = await load();
+    folder.setStudyWanted(new Map([['luke1', ['https://fia.bible/a.mp3']]]), false, null, ['luke1']);
+    links.lacking(['https://fia.bible/a.mp3']);
+    kvFails.set = true;
+    await expect(give(links, 'https://fia.bible/a.mp3')).rejects.toThrow();
+    expect(folder.hasStudyFile('https://fia.bible/a.mp3')).toBe(false);
+  });
+
+  it('a phone under a cover takes only what its own kept passages need (decision 171)', async () => {
+    const { folder, links } = await load();
+    folder.setStudyWanted(new Map([['luke1', ['https://fia.bible/a.mp3']]]), false, null, ['luke1']);
+    cover.worn = true;
+    expect(links.lacking(['https://fia.bible/z.jpg', 'https://fia.bible/a.mp3'])).toEqual(['https://fia.bible/a.mp3']);
+    expect(links.stage('https://fia.bible/z.jpg')).toBeNull();
+    expect(links.stage('https://fia.bible/a.mp3')).not.toBeNull();
   });
 
   it('lists what a kept passage needs first, takes it under its address, and serves it on', async () => {

@@ -242,6 +242,14 @@ describe('libraryFilesOf: the files a document names that may go between phones'
     expect(libraryFilesOf(words)).toEqual([{ hash: H('8'), format: 'm4a' }]);
   });
 
+  it('takes a source book\'s chapter audio by its hash, as the app keeps it, marked as a source\'s', () => {
+    const book = { format: 'sourceBook@1', book: 'GEN', chapters: [
+      { chapter: 1, audio: { url: 'https://x/1.mp3', hash: H('b') } }, { chapter: 2, audio: { url: 'https://x/2.m4a', hash: H('c'), format: 'm4a' } },
+      { chapter: 3, audio: { url: 'https://x/3.mp3' } }, { chapter: 4 }
+    ], deps: [] } as unknown as LibraryDoc;
+    expect(libraryFilesOf(book)).toEqual([{ hash: H('b'), format: 'mp3', kind: 'source' }, { hash: H('c'), format: 'm4a', kind: 'source' }]);
+  });
+
   it('never a file of another format, a name that is not a hash, or anything of a document that names none', () => {
     const odd = { format: 'study@2', steps: [{ id: 's', title: 'T', text: 't', audio: { hash: H('a'), format: 'apk' } }, { id: 'x', title: 'X', text: 'x', audio: { hash: '../x' } }], resources: [], terms: [] } as unknown as LibraryDoc;
     expect(libraryFilesOf(odd)).toEqual([]);

@@ -1,7 +1,7 @@
 import { canonicalJson, docHeadOf, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
 import { bytesToHex, utf8Encode } from '@langquest-next/core/nearby';
 import {
-  COPY_HELD_MAX_CHARS, LibraryDocsSender, StartingCopySender, takeLibraryDocs, type CopyAsker, type NearbyDocs, type NearbyLibrary
+  COPY_DOC_MAX_CHARS, COPY_HELD_MAX_CHARS, LibraryDocsSender, StartingCopySender, takeLibraryDocs, type CopyAsker, type NearbyDocs, type NearbyLibrary
 } from '../src/nearbyCopy';
 import { COPY_LIBRARY_ABILITY, type NearbySessionReport } from '../src/nearbySession';
 import { parseMessage, type Message } from '../src/nearbyWire';
@@ -149,13 +149,37 @@ describe('a phone takes the documents its language uses that it lacks', () => {
     expect(await takeLibraryDocs(wrong, here.library, { sha256: fakeSha256 }, { held: true })).toMatchObject({ kept: 0 });
   });
 
-  it('a text that does not hash to its name is refused, and the session goes on', async () => {
+  it('a text that does not hash to its name is refused, and that teammate is asked nothing more this time', async () => {
     const here = shelfOf([]);
     const forged: CopyAsker = async (ask) => (ask.part === 'held'
       ? { t: 'copy-part', part: 'held', body: JSON.stringify([h(fia)]), next: null }
       : { t: 'copy-part', part: 'doc', body: canonicalJson(offered), next: null });
-    expect(await takeLibraryDocs(forged, here.library, { sha256: fakeSha256 }, { held: true })).toEqual({ kept: 0, refused: 1, missing: 2, capped: false });
+    expect(await takeLibraryDocs(forged, here.library, { sha256: fakeSha256 }, { held: true })).toEqual({ kept: 0, refused: 1, missing: 1, capped: false });
     expect(here.kept).toEqual([]);
+  });
+
+  // The security review's (2026-11-24): a sender that streams parts for ever made a taker gather 800 M characters, kept or not.
+  it('a text past its bound is refused once that much has come, it counts against the session, and nothing more is asked', async () => {
+    const here = shelfOf([]);
+    let asks = 0;
+    const endless: CopyAsker = async (ask) => {
+      asks += 1;
+      if (ask.part === 'held') return { t: 'copy-part', part: 'held', body: JSON.stringify([h(fia), h(ownGuide), h(offered)].sort()), next: null };
+      const at = Number(ask.after ?? 0);
+      return { t: 'copy-part', part: 'doc', body: 'x'.repeat(900 * 1024), next: String(at + 900 * 1024) };
+    };
+    const got = await takeLibraryDocs(endless, here.library, { sha256: fakeSha256 }, { held: true });
+    expect(got).toMatchObject({ kept: 0, refused: 1 });
+    // The held ask, then parts up to COPY_DOC_MAX_CHARS and one past it: never a second document.
+    expect(asks).toBe(1 + Math.ceil((COPY_DOC_MAX_CHARS + 1) / (900 * 1024)));
+  });
+
+  it('a phone under a cover takes only what its language names, never the library\'s other guides', async () => {
+    const here = { ...shelfOf([]), };
+    const { asker, asks } = askerTo(LibraryDocsSender.of(shelfOf(ALL).library));
+    const got = await takeLibraryDocs(asker, { ...here.library, worn: () => true }, { sha256: fakeSha256 }, { held: true });
+    expect(got.kept).toBe(2);
+    expect(asks.some((a) => a.hash === h(offered))).toBe(false);
   });
 });
 

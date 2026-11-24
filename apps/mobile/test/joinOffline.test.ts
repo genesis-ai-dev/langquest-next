@@ -1,4 +1,6 @@
-import { afterCopy, afterGrant, askingRecord, goOnOnline, JOIN_START, joinEndOf, joinName, joinReducer, notEmptyWhy, seedsFor, type JoinAction, type JoinStage } from '../src/nearby/joinOfflineModel';
+import {
+  afterCopy, afterGrant, askingRecord, goOnOnline, JOIN_START, joinEndOf, joinGuideFilesLine, joinName, joinReducer, notEmptyWhy, seedsFor, type JoinAction, type JoinStage
+} from '../src/nearby/joinOfflineModel';
 import { keepGrant, setWhenWhole, type GrantStores } from '../src/nearby/joinGrant';
 import type { LocalPerson } from '../src/session/localPersonModel';
 import { inviteChain, KEY, person } from './localPersonFixtures';
@@ -136,6 +138,18 @@ describe('the progress screen', () => {
     expect(run(...begun)).toEqual({ t: 'asked', pictures: [3, 9] });
     expect(run(...begun, { t: 'granted' }, { t: 'part' }, { t: 'part' })).toEqual({ t: 'copying', parts: 2 });
     expect(run(...begun, { t: 'granted' }, { t: 'copied', whole: true })).toEqual({ t: 'whole' });
+  });
+
+  it('says guide pictures and audio come later from the grant on, and not before it or when not let in', () => {
+    // The starting copy carries no guide files; the first Wi-Fi session with a teammate brings them (5.12, Library files).
+    const begun: JoinAction[] = [{ t: 'checked', notEmpty: null, code: true, filling: false }, { t: 'start' }, { t: 'asked', pictures: [3, 9] }];
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }))).toBe(true);
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: true }))).toBe(true);
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: false }))).toBe(true);
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: false }, { t: 'look' }))).toBe(true);
+    expect(joinGuideFilesLine(run(...begun))).toBe(false);
+    expect(joinGuideFilesLine(run(...begun, { t: 'ended', why: 'not-let-in' }))).toBe(false);
+    expect(joinGuideFilesLine(run({ t: 'checked', notEmpty: null, code: true, filling: false }))).toBe(false);
   });
 
   it('says why a phone that holds someone\'s work cannot join, and asks for a code when none was scanned', () => {

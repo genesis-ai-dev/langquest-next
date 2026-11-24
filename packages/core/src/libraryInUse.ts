@@ -47,9 +47,10 @@ export const LIBRARY_FILE_FORMATS: ReadonlySet<string> = new Set(['m4a', 'mp3', 
  * The files a library document names by hash that a phone reads as the app does, and that may go
  * between teammates' phones (docs/nearby-sync-plan.md 5.12, 2026-11-24): a team's guide's step and
  * word audio and the phone's copy of each picture, map and illustration (`study@2`), and a
- * key-word list's audio that has no address (`material@1`, as `useKeyWordAudio` reads it). Not a
- * film, not a file named only by its address (FIA's, which a later change carries), and not a
- * source's audio, which waits for its own change. Sorted by hash, with no repeats.
+ * key-word list's audio that has no address (`material@1`, as `useKeyWordAudio` reads it), and a
+ * source book's chapter audio (`sourceBook@1`, `kind: 'source'`), which moves only for chapters a
+ * phone's kept passages want. Not a film, and not a file named only by its address
+ * (`libraryLinksOf`). Sorted by hash, with no repeats.
  */
 export function libraryFilesOf(doc: LibraryDoc): LibraryFile[] {
   const out = new Map<string, LibraryFile>();
@@ -64,6 +65,13 @@ export function libraryFilesOf(doc: LibraryDoc): LibraryFile[] {
       break;
     case 'material@1':
       for (const w of doc.terms ?? []) if (!w.audio?.url) add(mediaFileOf(w.audio, 'audio', false));
+      break;
+    case 'sourceBook@1':
+      // As the app keeps a chapter it downloads (sources/offlineModel.ts `audioFormatOf`): MP3 unless the document says m4a or wav.
+      for (const c of doc.chapters ?? []) {
+        const a = c.audio;
+        if (a?.hash) add({ hash: a.hash, format: a.format === 'm4a' || a.format === 'wav' ? a.format : 'mp3', kind: 'source' });
+      }
       break;
     default:
       break;
@@ -205,7 +213,9 @@ const GUIDES: ReadonlySet<string> = new Set(GUIDE_FORMATS);
  * this time takes what the language chose first. The sender and the newcomer work out the same
  * list.
  */
-export function docsThisLanguageUses(org: OrgLibrary, state: LanguageState, get: (hash: string) => DocHead | null | undefined): string[] {
+export function docsThisLanguageUses(
+  org: OrgLibrary, state: LanguageState, get: (hash: string) => DocHead | null | undefined, opts: { offered?: boolean } = {}
+): string[] {
   const seen = new Set<string>();
   const walk = (roots: readonly string[], keep: (head: DocHead) => boolean): string[] => {
     const out = new Set<string>();
@@ -230,5 +240,7 @@ export function docsThisLanguageUses(org: OrgLibrary, state: LanguageState, get:
   // What the language chose, and what that refers to, first: a document it names counts whatever else offers it.
   const named = walk(docsThisLanguageNames(org, state), () => true);
   // Then the guides the app offers from the rest of the library: a guide counts, nothing else does, and what a guide refers to as ever.
+  // `offered: false` (a phone under a cover taking documents) leaves them out: only what the language itself names.
+  if (opts.offered === false) return named;
   return [...named, ...walk(guidesThisLanguageOffers(org, state), (head) => GUIDES.has(head.format))];
 }

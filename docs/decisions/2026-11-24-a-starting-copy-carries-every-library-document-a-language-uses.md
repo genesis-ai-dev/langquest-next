@@ -78,3 +78,12 @@ longer all left out. A team's guide's pictures and audio and its key words'
 audio move between teammates' phones in step 7, never in the copy
 (2026-11-24-library-files-move-between-teammates-as-reference-files). FIA's
 media and a source's audio still wait.
+
+Amended (2026-11-24, Carl Sauder): after the security review of that day, a
+teammate's document is at most 4 MB, the server's own limit, and every
+character that comes counts against a copy's or session's bounds, kept or
+not, so a teammate cannot make a phone gather gigabytes it then refuses. A
+teammate whose text does not check, or runs past its bound, is asked nothing
+more that session. A sender holds at most four texts part-way sent. A phone
+under a cover takes only the documents its language itself names, never the
+rest of the library's guides.

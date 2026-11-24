@@ -26,6 +26,7 @@ import { Platform } from 'react-native';
 import { BlobStore, getBlobStore, type BlobFile } from '../sync/blobs';
 import { referenceUnits } from '../sync/offlineModel';
 import { heldDoc, loadDocs } from '../library/docStore';
+import { libraryFilesKnown, noteLibraryFiles } from '../library/libraryOrigins';
 import { noteExpected } from '../diagnostics/report';
 import { timedTransfer } from '../diagnostics/diagnostics';
 import type { Session } from '../shell/session';
@@ -77,6 +78,16 @@ async function saveIndex(): Promise<void> {
   if (!index) return;
   await AsyncStorage.setItem(INDEX_KEY, JSON.stringify(index)).catch(() => undefined);
   for (const l of indexListeners) l();
+}
+
+/**
+ * The chapters of library audio the last pass wanted and did not have, by hash, leaving out what
+ * the sources' share has no room for: what a teammate's phone may hand over (2026-11-24,
+ * docs/nearby-sync-plan.md 5.12, Library files), exactly what this phone would download online.
+ */
+let wantedHashes: ReadonlySet<string> = new Set();
+export function sourceAudioWanted(): ReadonlySet<string> {
+  return wantedHashes;
 }
 
 /** Re-render when files arrive or go. */
@@ -140,6 +151,8 @@ export async function download(store: BlobStore, key: string, url: string, opts:
   const idx = await loadIndex();
   idx[key] = { hash, bytes: bytes.byteLength, format, ...(opts.fileset ? { fileset: opts.fileset } : {}), at: Date.now() };
   await saveIndex();
+  // A library source's chapter, its bytes held to the hash its document names: a teammate may be given it. Never Bible Brain's.
+  if (opts.expectHash && !opts.fileset) noteLibraryFiles([hash]);
   return bytes.byteLength;
 }
 
@@ -251,6 +264,17 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
   const wanted = new Map([...worked.perUnit].map(([unitId, keys]) => [unitId, keys.filter((k) => keep.has(k))]));
   const known = new Set([...scope].filter((u) => !worked.unknown.has(u)));
   const present = (key: string) => { const e = idx[key]; return !!e && store.has(e.hash); };
+  // A chapter already in the store under the hash its document names (a teammate's phone handed it over, or another
+  // language fetched it) is indexed now, offline too: before this, only a pass that could fetch did it.
+  let indexed = false;
+  // Only a file known to have come from the library (downloaded, or a teammate's library file): never a recording a document names.
+  const fromLibrary = await libraryFilesKnown(wants.flatMap((w) => (w.hash && !present(w.key) && store.has(w.hash) ? [w.hash] : [])));
+  for (const w of wants) {
+    if (!w.hash || present(w.key) || !fromLibrary.has(w.hash)) continue;
+    idx[w.key] = { hash: w.hash, bytes: store.sizeOf(w.hash) ?? 0, format: w.format ?? 'mp3', at: Date.now() };
+    indexed = true;
+  }
+  if (indexed) await saveIndex();
   const missing = new Map<string, ReferenceMissing>();
   const tell = (coming: Set<string>) => publishReference({ wanted, known, here: new Set([...keep].filter(present)), missing: new Map(missing), coming });
   const record: WantsRecord = { wanted: [...wanted], known: [...known], missing: [] };
@@ -286,6 +310,7 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
     else if (!fetching && before.get(w.key) === 'unavailable') missing.set(w.key, 'unavailable');
   }
   const coming = new Set(fetching ? toFetch.map((w) => w.key).filter((k) => !missing.has(k)) : []);
+  wantedHashes = new Set(toFetch.filter((w) => w.hash && missing.get(w.key) !== 'full').map((w) => w.hash!));
   tell(coming);
   await save();
   if (!fetching) return false;

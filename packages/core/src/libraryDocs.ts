@@ -517,6 +517,8 @@ export function docHeadOf(doc: LibraryDoc): DocHead {
 export interface LibraryFile {
   hash: string;
   format: string;
+  /** A source's chapter audio (`sourceBook@1`): it moves only for chapters a phone's kept passages want, after backups. */
+  kind?: 'source';
 }
 
 /** What a stored file is when the document does not say: audio is the recorder's m4a, pictures JPEG, films MP4. */

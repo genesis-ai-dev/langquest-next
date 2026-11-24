@@ -120,6 +120,40 @@ describe('nearby diagnostics: the fields', () => {
     expect(roomDiagOf(tally, 'idle', 60_000, null, { mode: 'screen' }).n).not.toHaveProperty('events');
   });
 
+  // 2026-11-24: whether library documents and files move between teammates must be readable in the
+  // field, as counts: never which document or file, nor whose.
+  const LIBRARY_FIELDS = ['docsKept', 'docsRefused', 'docsMissing', 'docsCapped', 'libHeld', 'libTheirs', 'libGot', 'libServed'];
+
+  it('a session says the library documents it took and the library files it held, could use, got and served, and nothing of either when there was none', () => {
+    const d = sessionDiagOf({ ...report, topUp: { kept: 3, refused: 1, missing: 2, capped: true }, libraryFiles: { held: 5, theirs: 4, got: 3, served: 2 } }, 1_000, 'screen');
+    expect(d.n).toMatchObject({ docsKept: 3, docsRefused: 1, docsMissing: 2, docsCapped: 1, libHeld: 5, libTheirs: 4, libGot: 3, libServed: 2 });
+    // The language's recordings are counted apart, as before.
+    expect(d.n).toMatchObject({ files: 2, served: 1, fileFails: 1 });
+    expect(clean(d)).toMatchObject({ t: d.t, n: d.n });
+    // Asked for no documents and exchanged no library files: no field at all, so "none asked" reads apart from "asked, got none".
+    const none = sessionDiagOf(report, 1_000).n!;
+    for (const k of LIBRARY_FIELDS) expect(none).not.toHaveProperty(k);
+    const empty = sessionDiagOf({ ...report, topUp: { kept: 0, refused: 0, missing: 4, capped: false }, libraryFiles: { held: 0, theirs: 0, got: 0, served: 0 } }, 1).n;
+    expect(empty).toMatchObject({ docsKept: 0, docsRefused: 0, docsMissing: 4, docsCapped: 0, libHeld: 0, libTheirs: 0, libGot: 0, libServed: 0 });
+  });
+
+  it('a quiet room sums the library documents and the library files got and served of its finished sessions, never what a phone holds', () => {
+    const tally = { heard: 1, echoed: 1, alone: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 3, done: 3, greets: 0, levelMs: null, maxMeetMs: null, code: null };
+    const synced = emptySyncedTally();
+    addSynced(synced, { ...report, topUp: { kept: 2, refused: 1, missing: 0, capped: true }, libraryFiles: { held: 4, theirs: 2, got: 2, served: 1 } }, 1_000);
+    addSynced(synced, { ...report, topUp: { kept: 1, refused: 0, missing: 1, capped: false } }, 1_000);
+    addSynced(synced, { ...report, libraryFiles: { held: 4, theirs: 0, got: 0, served: 3 } }, 1_000);
+    const d = roomDiagOf(tally, 'asked', 60_000, null, { mode: 'open', scanMs: 0, pauseMs: 0, synced });
+    expect(d.n).toMatchObject({ docsKept: 3, docsRefused: 1, docsMissing: 1, docsCapped: 1, libGot: 2, libServed: 4, files: 6, served: 3 });
+    expect(d.n).not.toHaveProperty('libHeld');
+    expect(d.n).not.toHaveProperty('libTheirs');
+    expect(clean(d)).toMatchObject({ t: d.t, n: d.n });
+    // A quiet room with nothing of the library says zeros, as it does for events; Share nearby's room sums none.
+    expect(roomDiagOf(tally, 'asked', 60_000, null, { mode: 'open', scanMs: 0, pauseMs: 0, synced: emptySyncedTally() }).n).toMatchObject({ docsKept: 0, libGot: 0 });
+    const screen = roomDiagOf(tally, 'idle', 60_000, null, { mode: 'screen' }).n!;
+    for (const k of LIBRARY_FIELDS) expect(screen).not.toHaveProperty(k);
+  });
+
   it('the allowlist drops a code it does not list and a reason it does not know', () => {
     expect(clean({ t: { event: 'find', code: 'SOMETHING_NEW', why: 'curious' }, n: { heard: 1, peers: 3 } })).toMatchObject({ t: { event: 'find' }, n: { heard: 1 } });
   });

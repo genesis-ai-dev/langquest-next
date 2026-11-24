@@ -76,3 +76,34 @@ from its address, replacing the teammate's word, and one its source refuses
 goes. Reverse if: a teammate's word is found to matter, a picture or audio
 passed off as FIA's (then FIA's media wait for an import that names them by
 hash, as a team's guides are).
+
+Amended (2026-11-24, Carl Sauder): a library source's chapter audio
+moves too, named by hash in its `sourceBook@1` (`kind: 'source'`), but only
+for chapters this phone's kept passages want and lack, exactly what its
+sources' pass would download online within the sources' 1 GB share
+(`sourceAudioWanted`), so never a stream-only source's and never Bible
+Brain's. It comes last, after backups, as Carl chose. The pass now indexes a
+chapter already in the store under its document's hash while offline too;
+before, only a pass that could fetch did, so a chapter a teammate gave would
+have stayed hidden. And a phone under a cover (decision 171) takes no library
+file its own kept passages do not need: none of a team's guide files, which
+are not known by passage, and only the FIA files and source chapters its kept
+passages want. It still serves what it holds.
+
+Amended (2026-11-24, Carl Sauder): after the security review of that day,
+the `audio` rows did not see every recording, which this decision's
+"Reverse if" foresaw. A redacted recording is in no plan and no row, yet its
+file stays on the phone; another language's unsent recording and one not yet
+in a checkpoint are in none either. So a phone now keeps a record of where
+each library file came from (`LibraryFileOrigins`, a `library_files` table in
+the file ledger's database): a guide file fetched from the organization's
+guide files or uploaded from the guide editor, a library source's chapter
+downloaded with its hash checked, or a library file taken from a teammate. It
+passes on as a library file only a file in that record, and the `audio` rows
+still hold back any recording besides. A file from before the record began is
+passed on once it is fetched again, and Bible Brain's audio never enters it.
+Files taken on a teammate's word are bounded: each at most 8 MB, all of them
+not yet fetched again within the study folder's 256 MB spare room, needed or
+not, and only bytes that begin as a picture or audio of the address's kind.
+The address is written down before the file takes its name, so a crash
+between never leaves a teammate's bytes passing as the source's.

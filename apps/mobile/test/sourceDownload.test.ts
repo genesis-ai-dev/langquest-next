@@ -232,6 +232,12 @@ describe('purgeFileset', () => {
 });
 
 // Each passage's reference audio, worked out and published for its download button (decision amended 2026-11-23).
+const origins = vi.hoisted(() => ({ known: new Set<string>(), noted: [] as string[] }));
+vi.mock('../src/library/libraryOrigins', () => ({
+  noteLibraryFiles: (hashes: readonly string[]) => { origins.noted.push(...hashes); },
+  libraryFilesKnown: async (hashes: readonly string[]) => new Set(hashes.filter((h) => origins.known.has(h)))
+}));
+
 describe("the pass says what each kept passage's reference audio is", () => {
   const H = (c: string) => c.repeat(64);
   const bookDoc: SourceBookDoc = {
@@ -293,6 +299,30 @@ describe("the pass says what each kept passage's reference audio is", () => {
     expect(r.referenceCounts(BOTH)).toEqual({ here: 0, total: 2, full: 0, unavailable: 0 });
     expect(r.referenceComing(BOTH)).toBe(false);
     expect(index()).toEqual({});
+  });
+
+  // 2026-11-24: a teammate's phone can hand over a chapter's audio by its hash. Offline the pass indexes it at once,
+  // and says by hash which chapters it still wants, so only those come.
+  it('offline, a chapter already in the store under its document\'s hash is indexed and counted, and the rest are wanted by hash', async () => {
+    const hashed: SourceBookDoc = {
+      ...bookDoc,
+      chapters: [{ chapter: 1, audio: { url: 'https://x/gen1.mp3', hash: H('c') } as never }, { chapter: 2, audio: { url: 'https://x/gen2.mp3', hash: H('d') } as never }]
+    };
+    for (const [h, d] of [[H('1'), sourceDoc], [H('b'), hashed]] as const) { fake.docs.set(h, d); fake.held.set(h, d); }
+    fake.away = true;
+    const o = await offline();
+    const r = await import('../src/sources/referenceCounts');
+    const store = Object.assign(fakeStore(), { sizeOf: (h: string) => (h === H('c') ? 7 : undefined) });
+    store.present.set(H('c'), 7);
+    // It came from the library (a teammate's library file); a recording a document named would not have.
+    origins.known = new Set([H('c')]);
+    expect(await o.pass(language(store, false) as never, org as never, session as never)).toBe(false);
+    expect(index()[`lib:${H('c')}`]).toMatchObject({ hash: H('c'), bytes: 7, format: 'mp3' });
+    expect(r.referenceCounts(ONE)).toEqual({ here: 1, total: 1, full: 0, unavailable: 0 });
+    expect(r.referenceCounts(BOTH)).toEqual({ here: 1, total: 2, full: 0, unavailable: 0 });
+    expect([...o.sourceAudioWanted()]).toEqual([H('d')]);
+    // One in the store that did not come from the library (a recording a document named) is not indexed.
+    origins.known = new Set();
   });
 
   it('offline with a document neither here nor readable, it cannot say, and the passage is not called ready', async () => {

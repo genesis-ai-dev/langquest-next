@@ -2354,7 +2354,11 @@ to disk only, so a walk over FIA's 1,525 English guides (65 MB) never holds them
 - **The taker's check** (`takeLibraryDocs`). It works out the same list from its own state (a
   newcomer's from the adopted copy), and asks nothing when it lacks nothing. Of a phone that says
   `copy-library` it asks `held` once (at most `COPY_HELD_MAX_CHARS`) and then only for those;
-  of an older phone, each hash it lacks. `keep` takes the joined text only if its SHA-256 is the
+  of an older phone, each hash it lacks. Each text is at most `COPY_DOC_MAX_CHARS` (4 MB, the
+  server's own limit), every character that comes counts against the bounds below, kept or not,
+  and a teammate whose text does not check or runs past its bound is asked nothing more that
+  session (security review, 2026-11-24). A phone under a cover takes only what its language itself
+  names, not the library's other guides. `keep` takes the joined text only if its SHA-256 is the
   name, it is canonical, `validateDoc` passes and its format may go, and writes no outbox row,
   because this phone did not make it. A copy or session keeps at most `COPY_DOCS_MAX_COUNT` (5,000)
   documents and `COPY_DOCS_MAX_CHARS` (128 MB), so a forged collection cannot fill a newcomer's
@@ -2377,7 +2381,10 @@ starting copy, which comes before the person is set and partly over Bluetooth.
   step and word audio and the phone's copy of each picture, map and illustration
   (`mediaFileOf`, which `guideMatch.mediaFile` uses too), and a key-word list's audio that has no
   address. Audio and picture formats only (`LIBRARY_FILE_FORMATS`), so never a film and never a
-  carried build's file. Not a source's audio, which waits for a change of its own.
+  carried build's file. A source book's (`sourceBook@1`) chapter audio by hash, as `kind: 'source'`,
+  but taken only for chapters this phone's kept passages want and lack (`sourceAudioWanted`, from
+  the sources' pass), within the sources' 1 GB share: never a stream-only source's, and never
+  Bible Brain's. The pass indexes such a chapter offline too.
 - **Named by address** (FIA's). `libraryLinksOf`, in the same heads: the https addresses of
   audio and pictures a guide names, as the app takes them along for a passage kept offline
   (`studyUrls`), never a film. A phone keeps them by address in its study folder
@@ -2386,25 +2393,43 @@ starting copy, which comes before the person is set and partly over Bluetooth.
   No hash holds the bytes to it: they come on the teammate's word (Carl, 2026-11-24). They land
   under the address's name in the study folder (`nearbyStudyFiles.native.ts`), what a kept
   passage needs first and the rest only while the folder's spare room for files no kept passage
-  needs lasts. Each address is written down (`study-files:nearby`), and once online the phone
+  needs lasts. Each is at most 8 MB, all of them not yet fetched again stay within that spare
+  room, needed or not, and only bytes that begin as a picture or audio of the address's kind are
+  kept (security review, 2026-11-24). The address is written down before the file takes its
+  name. Each address is written down (`study-files:nearby`), and once online the phone
   fetches each again from its address, replacing the teammate's word; one its source refuses
   goes.
 - **Saying what is held.** When both Hellos name `library-files`, step 7 opens with each phone
   sending `lib-held`: the hashes of `libraryFilesNamed(library)` that its file moves say it
   holds (`reference.held`), sorted, at most `NEARBY_HOLDINGS_MESSAGE_FILES` a message and
   `NEARBY_HOLDINGS_MAX_FILES` in all. Of the other's it keeps only those its own documents name.
+  A file named by hash is said to be held only if it is in the phone's record of where library
+  files came from (`LibraryFileOrigins`, below).
 - **Asking.** After needed and review recordings and before backups, it asks with `file-ask`
   for those it lacks that the other holds, as group `reference` (the native hash check holds),
-  then those named by address, as group `link`.
+  then those named by address, as group `link`; a source's chapters last, after backups. A phone
+  under a cover (decision 171) takes only what its kept passages need: no team guide file, and
+  only the FIA files and source chapters its kept passages want.
 - **Serving.** A `file-ask` the language's recordings do not name falls through to a library
-  file its documents name, in the format they say, only while it is here, is not a teammate's
-  recording marked here, and no `audio` row in any organization or stream on this phone names
-  it (`EventStore.keptIdsAnywhere`), nor this language's file plan. So a document naming a
-  recording's hash never makes a phone pass that recording on as a library file.
+  file its documents name, in the format they say, only while it is here, is in the record of
+  where library files came from, is not a teammate's recording marked here, and no `audio` row in
+  any organization or stream on this phone names it (`EventStore.keptIdsAnywhere`), nor this
+  language's file plan. The record (`LibraryFileOrigins`, a `library_files` table in the file
+  ledger's database, security review 2026-11-24) holds a guide file fetched from the
+  organization's guide files or uploaded from the guide editor, a library source's chapter
+  downloaded with its hash checked, and a library file taken from a teammate. A redacted
+  recording, another language's unsent one, or Bible Brain's audio never enters it, so a document
+  naming one never makes a phone pass it on.
 - **Landing.** With no nearby mark: nothing nearby deletes it, no holdings entry counts it, and it
   never makes room by deleting. With less free than every file keeps, it waits and the rest go on.
 - **Report.** `report.libraryFiles`: how many this phone said it holds, how many of the other's it
-  could use, and how many it got and served. Diagnostics do not record it.
+  could use, and how many it got and served. Field diagnostics record them (`libHeld`, `libTheirs`,
+  `libGot`, `libServed`), and the documents a session topped up (`docsKept` and the rest).
+- **On screen** (2026-11-24). Share nearby counts what came, apart from recordings, only when any
+  did: "Guide pictures and audio received" (`guideFilesIn`). Since a starting copy carries none,
+  Let someone in once the person is in (`letInGuideFilesLine`), and the new phone's progress
+  screen from the grant on (`joinGuideFilesLine`), each say in one line that guide pictures and
+  audio come the first time the new person uses Share nearby with a teammate over Wi-Fi.
 
 **Where the readers disagreed, and what was decided.**
 
@@ -3208,12 +3233,11 @@ the first two, in the forms section 14 describes.
   could travel sealed and unfolded later, if admins' changes turn out to matter. In phase
   6 a newcomer's starting copy includes the part of the organization this language needs,
   and this rule stays for everyone else.
-- **Source Bible audio.** One phone downloading in town and sharing with
-  the team would be very useful, but publishers' terms need checking first
-  (`docs/source-bible-audio.md`, `docs/licensing.md`). They are not in a starting copy
-  either (Carl's answer, 2026-11-06), so a newcomer may not be able to do much that needs
-  them. Guide media, a team's and FIA's, do move between teammates since 2026-11-24
-  (section 5.12, Library files).
+- **Bible Brain audio.** One phone downloading in town and sharing with
+  the team would be very useful, but its license says never exportable, purged if FCBH revokes
+  (`docs/source-bible-audio.md`, `docs/licensing.md`), and a phone cannot be purged offline. It is
+  not in a starting copy either (Carl's answer, 2026-11-06). Guide media and a library source's
+  chapter audio do move between teammates since 2026-11-24 (section 5.12, Library files).
 - **A file bundle by share sheet or SD card**, for phones whose radios cannot do this.
 - **Sharing in the background.** Turned down in section 2, and again in section 15.3,
   which proposes sharing while the app is open instead.
@@ -3384,11 +3408,11 @@ belongs: section 2 for Carl's answers, and sections 5 to 14 for the rest.
 | Question | Who | Draft answer |
 | --- | --- | --- |
 | Which phones, and whose stack, for the real-phone test? | Carl | Section 7 lists the kinds of phone. It needs someone's own Supabase and Worker. Nobody has been named. |
-| Are the terms clear for publishers' documents to go in a starting copy? | Carl, whenever he can | Answered (2026-11-24): yes. Every format goes (section 14.1, docs/decisions/2026-11-24-a-starting-copy-carries-every-library-document-a-language-uses.md). A team's guide and key-word files, and FIA's guide media on a teammate's word, move in step 7 (2026-11-24, section 5.12, Library files); source audio is still to come. |
+| Are the terms clear for publishers' documents to go in a starting copy? | Carl, whenever he can | Answered (2026-11-24): yes. Every format goes (section 14.1, docs/decisions/2026-11-24-a-starting-copy-carries-every-library-document-a-language-uses.md). A team's guide and key-word files, FIA's guide media on a teammate's word, and a library source's chapters a phone's kept passages want move in step 7 (2026-11-24, section 5.12, Library files); Bible Brain audio stays out. |
 | Is the amber upload bar right on a phone holding backups? | Carl, when it ships | It counts them, as true of this phone (section 5.8). He should be told, so he can object. |
 | Is decision 168's amendment acceptable? | Caleb | Carl's answer stands: the pre-merge security review (2026-11-10) found no reason against it (section 5.5). A copied key with a live pass can let in a new person with no manage privilege, and he should know that too. |
 | A teammate holding any of the Worker's attestations can push a phone's claim mark past rows it never got. Fix it, or accept it? | Carl | Open (security review, 2026-11-10). Honest teammates then send that phone no claims below the mark, so work confirmed in town reaches it only from the server; nothing is lost or wrongly confirmed. A fix signs `afterSeq` into the attestation and moves the mark only over rows held or on the page, which changes the Worker's answer, so it waits for his word. |
-| Smaller items the pre-merge security review left open | Carl, after the first release | A certificate call racing a revocation could sign a fresh key within about 100 ms (both could take one lock on the person). A phone serves a file by hash from any language whose fold names it, looser than the server's rule per stream, though the asker must know the hash. A member could backdate one-event batches so every carrier delivers theirs first, 25 a sync. Teammates' certificates show a newcomer their other languages before first contact, as the organization stream shows members. |
+| Smaller items the pre-merge security review left open | Carl, after the first release | A certificate call racing a revocation could sign a fresh key within about 100 ms (both could take one lock on the person). A phone serves a file by hash from any language whose fold names it, looser than the server's rule per stream, though the asker must know the hash. A member could backdate one-event batches so every carrier delivers theirs first, 25 a sync. Teammates' certificates show a newcomer their other languages before first contact, as the organization stream shows members. Left open by the review of 2026-11-24 (library documents and files): a phone holds one document store and one file store for every organization and person on it, so a document an organization's library names is served if held, whichever organization fetched it (the one naming it must know its hash); a study file's name is a 52-bit FNV hash of its address, so a guide could name an address made to share an FIA file's name; and the join grant's `features` are the inviter's unsigned word, which turns on sharing while LangQuest is open until first contact. |
 | Follow-up issue, "A lost shared phone: other people's keys stay good" (section 6). Should a helper's code say a shared phone is gone? | Carl raises it with Caleb, after the first release | Only the named person is revoked for now (answer 20), and the list holds pairs. A taken shared phone's private key is gone for all of its people, but the others' rows stay good. A third question in a new `issue_sign_in_code_v3`, "Was the shared phone lost too?", with v2 left as no, would revoke every row with that key. It changes the helper flow (decision 59), so it needs Caleb. The issue does not exist yet. |
 | A pass fetched late in its 90-day window has little time left, so should an answer also hold the next window's pass in that window's last 30 days? | Carl | Answer 17 is built as worded, so a phone that last reached the server near a window's end can hold a pass with days left, and every pass ends on the same date. Holding the next window's too would keep a team leaving town able to let someone in, at the cost of up to 20 uses in that time. Not built unless he says so (section 14.1). |
 | What ends the experiment? | Carl, later | A follow-up issue, as decision 53 asks. A suggested test: teams have used it offline for a month, the test's numbers hold in the field, and no work was lost or wrongly confirmed. |
@@ -3554,7 +3578,8 @@ it does today (decision 54).
        not read. The files those documents name never go in the copy: a team's guide's pictures
        and audio, its key words' audio and FIA's step audio, pictures and maps (on the
        teammate's word) come in the first Wi-Fi session after, from any teammate that holds
-       them (section 5.12, Library files). A source's audio does not come yet.
+       them, and a library source's chapters for the passages it keeps (section 5.12, Library
+       files). Bible Brain audio never does.
      - **The check.** A sender answers `copy-no` to any hash off that list, so a chain holder
        cannot read another language's template through it, and the newcomer keeps a text only
        if it hashes to its name, is canonical, validates and is a format on the table.
@@ -3565,7 +3590,7 @@ it does today (decision 54).
      - **Any teammate finishes it.** After the join, every member's phone tops up the
        documents its language uses from any teammate, on any versions and over any link
        (section 5.12, Documents a language uses), so what one sender lacked comes from another.
-   - **No source audio** yet (above); guide media, a team's and FIA's, come in step 7.
+   - **Guide media and a library source's audio** come in step 7 (above), never in the copy.
    - **The organization's nearby features** (2026-11-24). The join grant carries them as the
      inviter's phone last heard them (`join-grant` `features`), and the newcomer keeps
      `nearby_open` (`nearbyOpenOrgs:<profile>`) until its first contact replaces it, so it

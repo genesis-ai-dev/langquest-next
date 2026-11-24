@@ -201,6 +201,16 @@ export function letInReducer(s: LetInState, a: LetInAction): LetInState {
   }
 }
 
+/**
+ * Whether the screen says the new person's guide pictures and audio come later: once they are in,
+ * done or with a copy a teammate finishes. The starting copy carries the language's guides but
+ * never the files they name, which come in their first Wi-Fi session with any teammate
+ * (docs/nearby-sync-plan.md 5.12, Library files), and nothing else tells the inviter so.
+ */
+export function letInGuideFilesLine(s: LetInStage): boolean {
+  return s.t === 'done' || (s.t === 'ended' && (s.why === 'dropped-after' || s.why === 'copy-short'));
+}
+
 /** The QR code is shown only while it can still be used: up, and not past its time (two minutes, or Give the app's fifteen). */
 export function codeShown(s: LetInStage, now: number): string | null {
   return s.t === 'showing' && now < s.until ? s.uri : null;

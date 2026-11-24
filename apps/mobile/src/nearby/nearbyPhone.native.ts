@@ -12,6 +12,7 @@ import { currentHoldChoice, nearbyOrg } from './holdChoice';
 import { nobleSha256, nobleVerify, phoneCryptoOf } from './nearbyCryptoModel';
 import { parseCertKeys, parseChains, parsePasses, passFor, type HeldChains, type HeldPass, type SignedText } from './nearbyModel';
 import type { NearbyFilesOptions } from './nearbyPhone';
+import { wornNow } from '../shell/appCovered';
 
 /**
  * Nearby sync's pieces on an Android phone or an iPhone (docs/nearby-sync-plan.md 5.5, 5.12): the Worker's
@@ -234,8 +235,11 @@ export function nearbyFetchFileOf(store: BlobStore): NearbyFetchFile {
 }
 
 export async function nearbyFilesFor(orgId: string, actorId: string, languageId: string, files: BlobStore): Promise<NearbyFilesOptions> {
-  // The study folder's nearby part, read when a language's file moves are made, not with this module.
-  const [held, crypto, { nearbyStudyLinks }] = await Promise.all([nearbyMarks(), phoneCrypto(), import('../study/nearbyStudyFiles.native')]);
+  // The study folder's nearby part and the sources' wanted chapters, read when a language's file moves are made, not with this module.
+  const [held, crypto, { nearbyStudyLinks }, { sourceAudioWanted }, origins] = await Promise.all([
+    nearbyMarks(), phoneCrypto(), import('../study/nearbyStudyFiles.native'), import('../sources/offline'),
+    import('../library/libraryOrigins.native').then((m) => m.libraryOrigins()).catch(() => undefined)
+  ]);
   return {
     fetchFile: nearbyFetchFileOf(files),
     nearbyFiles: nearbyFiles({
@@ -247,7 +251,12 @@ export async function nearbyFilesFor(orgId: string, actorId: string, languageId:
       },
       org: () => nearbyOrg(orgId),
       // FIA's study files, by address, on a teammate's word (2026-11-24).
-      studyLinks: nearbyStudyLinks
+      studyLinks: nearbyStudyLinks,
+      worn: wornNow,
+      // A source's chapter audio only for chapters this phone's kept passages want (2026-11-24).
+      sourceAudioWanted,
+      // Only files known to have come from the library are passed on (security review, 2026-11-24).
+      ...(origins ? { libraryOrigins: origins } : {})
     }),
     holdChoice: currentHoldChoice,
     // Not known yet: as today, everything here may go up.

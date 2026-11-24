@@ -377,7 +377,8 @@ begin
         'n', jsonb_build_object('ms', 600000, 'heard', 2, 'echoed', 2, 'pipeFails', 1, 'sessions', 2, 'done', 1, 'maxUnmatched', 1),
         't', jsonb_build_object('event', 'room', 'stop', 'asked', 'code', 'PIPE_TIMEOUT')),
       jsonb_build_object('id', 'dgn3', 'kind', 'nearby', 'at', v_now - 7000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
-        'n', jsonb_build_object('ms', 40000, 'fallbacks', 2, 'events', 30, 'files', 4, 'fileFails', 1),
+        'n', jsonb_build_object('ms', 40000, 'fallbacks', 2, 'events', 30, 'files', 4, 'fileFails', 1,
+          'docsKept', 2, 'docsRefused', 1, 'docsMissing', 0, 'docsCapped', 0, 'libHeld', 5, 'libTheirs', 3, 'libGot', 3, 'libServed', 1),
         't', jsonb_build_object('event', 'session', 'role', 'i', 'end', 'done', 'link', 'hotspot')),
       jsonb_build_object('id', 'dgn4', 'kind', 'nearby', 'at', v_now - 6000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
         'n', jsonb_build_object('ms', 5000),
@@ -391,7 +392,8 @@ begin
       -- Sharing while LangQuest is open (20261124090000_diag_nearby_quiet.sql): a run that sums its
       -- finished sessions, a refusal with its reason, and a delivery to the server.
       jsonb_build_object('id', 'dgn8', 'kind', 'nearby', 'at', v_now - 2500, 'orgId', 'dg_org', 'streamId', 'dg_lang',
-        'n', jsonb_build_object('openMin', 40, 'scanMin', 3, 'pauseMin', 9, 'syncMin', 1, 'heard', 1, 'sessions', 2, 'done', 2, 'events', 5, 'viaDirect', 1, 'maxMeetMs', 45000),
+        'n', jsonb_build_object('openMin', 40, 'scanMin', 3, 'pauseMin', 9, 'syncMin', 1, 'heard', 1, 'sessions', 2, 'done', 2, 'events', 5, 'viaDirect', 1, 'maxMeetMs', 45000,
+          'docsKept', 1, 'docsCapped', 1, 'libGot', 2, 'libServed', 4),
         't', jsonb_build_object('event', 'room', 'mode', 'open', 'stop', 'rest')),
       jsonb_build_object('id', 'dgn9', 'kind', 'nearby', 'at', v_now - 2000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
         'n', jsonb_build_object('ms', 900),
@@ -410,6 +412,11 @@ begin
   if (select t->>'refusal' from diag.records where id = 'dgn9') is distinct from 'window' or (select n->>'pauseMin' from diag.records where id = 'dgn8') is distinct from '9' then
     raise exception 'the quiet mode''s fields were dropped: %', (select jsonb_agg(to_jsonb(r)) from diag.records r where id in ('dgn8', 'dgn9'));
   end if;
+  -- Library documents and files between teammates (20261124213000_diag_nearby_library.sql): counts, kept.
+  if (select n from diag.records where id = 'dgn3') <> '{"ms": 40000, "files": 4, "events": 30, "fallbacks": 2, "fileFails": 1, "docsKept": 2, "docsRefused": 1, "docsMissing": 0, "docsCapped": 0, "libHeld": 5, "libTheirs": 3, "libGot": 3, "libServed": 1}'::jsonb
+     or (select n->>'libServed' from diag.records where id = 'dgn8') is distinct from '4' then
+    raise exception 'the library fields were dropped: %', (select jsonb_agg(to_jsonb(r)) from diag.records r where id in ('dgn3', 'dgn8'));
+  end if;
 end $$;
 select set_config('request.jwt.claim.sub', '', false);
 set role diag_reader;
@@ -427,6 +434,10 @@ begin
     raise exception 'nearby open totals: %', v->'openTotals';
   end if;
   if (v->'sessionTotals'->>'count')::int <> 3 or (v->'sessionTotals'->>'events')::int <> 30 then raise exception 'nearby session totals: %', v->'sessionTotals'; end if;
+  -- Library documents and files are totalled as the rest, on Share nearby and while open apart.
+  if (v->'sessionTotals'->>'docsKept')::int <> 2 or (v->'sessionTotals'->>'libGot')::int <> 3 or (v->'openTotals'->>'libServed')::int <> 4 or (v->'openTotals'->>'docsCapped')::int <> 1 then
+    raise exception 'nearby library totals: %', v;
+  end if;
   if v->'ends' <> '{"done": 1, "heard:busy": 1, "said:identity": 1}'::jsonb or v->'links' <> '{"hotspot": 1}'::jsonb then raise exception 'nearby ends and links: %', v; end if;
   if v->'refusals' <> '{"open:window": 1}'::jsonb then raise exception 'nearby refusals: %', v->'refusals'; end if;
   if (v->'deliver'->>'count')::int <> 1 or (v->'deliver'->>'refused')::int <> 1 then raise exception 'nearby deliver: %', v->'deliver'; end if;
@@ -438,7 +449,8 @@ begin
   -- The team view: the language's phones together, by the way each room ran.
   v := diag.nearby_summary('dg_org', interval '1 day')->'dg_lang';
   if (v->>'installs')::int <> 1 or (v->'rooms'->'open'->>'met')::int <> 1 or (v->'rooms'->'screen'->>'count')::int <> 2
-     or v->'rooms'->'open'->'stops' <> '{"rest": 1}'::jsonb or (v->'sessions'->>'open:said:identity:window')::int <> 1 or (v->'deliver'->>'events')::int <> 9 then
+     or v->'rooms'->'open'->'stops' <> '{"rest": 1}'::jsonb or (v->'sessions'->>'open:said:identity:window')::int <> 1 or (v->'deliver'->>'events')::int <> 9
+     or (v->'rooms'->'open'->>'libGot')::int <> 2 then
     raise exception 'nearby_summary: %', v;
   end if;
   -- The ops dashboard's Nearby sync part (20261124110000_ops_nearby.sql): every organization together, this one's row by name.

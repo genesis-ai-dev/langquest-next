@@ -22,7 +22,7 @@ const gateOf = (s: NearbyRunState, g: Partial<RadiosGate> = {}) => radiosMayRun(
 
 const report = (over: Partial<SessionReportLike> = {}): SessionReportLike => ({
   role: 'i', ended: { how: 'done' }, peer: { profileId: 'sam', tag: 'aaaaaaaaaaaa' }, newerAppNeeded: false, clockOff: false, linkKind: 'wifi-direct',
-  got: { events: 4, refused: 1 }, sent: { events: 2 }, files: { got: 3, served: 1, failed: 0, noRoom: false, cutBackups: false }, older: false, farAhead: [],
+  got: { events: 4, refused: 1 }, sent: { events: 2 }, files: { got: 3, served: 1, failed: 0, noRoom: false, cutBackups: false }, libraryFiles: null, older: false, farAhead: [],
   ...over
 });
 
@@ -152,6 +152,19 @@ describe('teammates and what came across', () => {
     expect(s.teammates[0]).toMatchObject({ tag: 't1', profileId: 'sam', state: 'done' });
     expect(s.sessions).toEqual([sessionLineOf('t1', report())]);
     expect(s).toMatchObject({ clockOff: true, farAhead: [{ actorId: 'kim', hlc: '9' }], newerAppNeeded: false });
+  });
+
+  it('counts guide pictures and audio apart from recordings, as they come and in the line, and none when the phones swapped none', () => {
+    // A newcomer's starting copy carries no guide files; their first Wi-Fi session brings them (5.12, Library files).
+    const guides = report({ libraryFiles: { got: 7 } });
+    let s = run({ t: 'started' }, seen(['t1']), { t: 'room', report: { t: 'session', tag: 't1', role: 'i' }, worn });
+    expect(s.current).toMatchObject({ guideFilesIn: 0 });
+    s = nearbyRunReducer(s, { t: 'progress', report: guides });
+    expect(s.current).toMatchObject({ filesIn: 3, guideFilesIn: 7 });
+    s = nearbyRunReducer(s, { t: 'room', report: { t: 'ended', tag: 't1', report: guides }, worn });
+    expect(s.sessions[0]).toMatchObject({ filesIn: 3, guideFilesIn: 7 });
+    // Over the Bluetooth pipe, or with a phone that cannot take them, the report says null.
+    expect(sessionLineOf('t1', report()).guideFilesIn).toBe(0);
   });
 
   it('says "Up to date" only once this run heard someone: level with nobody heard is still looking (5.11)', () => {
