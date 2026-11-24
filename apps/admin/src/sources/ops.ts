@@ -732,6 +732,9 @@ export interface CardRecord {
   at: string; who: string; what: string; result: 'ok' | 'refused' | 'error'; detail: string | null; key: string; words: string | null; pr: number | null;
 }
 
+/** One step on a user issue (ops.user_issue_steps): its kind, the record's facts and Claude's words in detail, a pull request and the run. */
+export interface IssueStep { at: string; kind: string; detail: Record<string, unknown>; pr: number | null; run: string | null }
+
 /** diag.ops_user_issues(): the last 90 days, open issues first; counts; the last look; each dashboard line's decision. */
 export interface UserIssues {
   issues: UserIssueRow[];
@@ -750,6 +753,11 @@ export interface UserIssues {
    * the order used (docs/agent-team.md "Which issue Claude takes first"). Absent before migration 20261122044500_user_issue_order.sql.
    */
   order?: UserIssueOrdered[];
+  /**
+   * diag.ops_user_issue_steps(): each issue's last 25 steps, the newest first: what the watch and Claude's agent team did, with
+   * the run (docs/decisions/2026-11-24-each-issue-card-shows-its-steps.md). Absent before migration 20261124193000_user_issue_steps.sql.
+   */
+  steps?: Record<string, IssueStep[]>;
   /** diag.ops_card_record('issue'): who did what on each issue's card, and Claude's answers; newest first. Absent before migration 20261121213000_ops_card_record.sql. */
   records?: CardRecord[];
   open: number; closed: number; fixed: number; noiseWeek: number;
@@ -805,7 +813,7 @@ export interface OpsSections {
 /** Every section above in one answer (db.ts withDiag); each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries, plans, order, userreports, nearby] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries, plans, order, userreports, nearby, steps] = await Promise.all([
     part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -841,7 +849,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Record<string, UserIssuePlan>>(query, `select diag.ops_user_issue_plans() as v`),
     part<UserIssueOrdered[]>(query, `select diag.ops_user_issue_order() as v`),
     part<UserReports>(query, `select diag.ops_user_reports() as v`),
-    part<Nearby>(query, `select diag.ops_nearby() as v`)
+    part<Nearby>(query, `select diag.ops_nearby() as v`),
+    part<Record<string, IssueStep[]>>(query, `select diag.ops_user_issue_steps() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -910,7 +919,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     }),
     userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
       // Before its migration the cards show without the box, and without the agent team's record.
-      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: withPlans(userfixes.value, plans.ok ? plans.value : {}) } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}), ...(tries.ok ? { tries: tries.value } : {}), ...(order.ok && Array.isArray(order.value) ? { order: order.value } : {}) };
+      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: withPlans(userfixes.value, plans.ok ? plans.value : {}) } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}), ...(tries.ok ? { tries: tries.value } : {}), ...(steps.ok ? { steps: steps.value } : {}), ...(order.ok && Array.isArray(order.value) ? { order: order.value } : {}) };
       return ok(u, userIssueAlerts(u));
     }),
     // No line of its own: each open report is a user issue already, and the User issues part has the lines (alertKinds.ts).

@@ -60,3 +60,5 @@ for the record (everything it says is kept already).
 Reverse if: the record shows names that admins do not want the other admins
 to see, or reading it slows the dashboard's parts (then read it only when a
 card's record is opened).
+
+Amended (2026-11-24, Caleb Koster): on user issue cards the record is now part of the card's "Steps" timeline, with the steps of the watch and Claude's agent team, and shows without a tap (2026-11-24-each-issue-card-shows-its-steps.md). Tutorial video cards keep the record as written here.

@@ -489,11 +489,12 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
     record: issueRecord(r.issue, r.firstAt ? { at: r.firstAt, who: 'The watch', said: 'found the problem' } : null, [way.pill, way.level])
   });
 }
-/** An issue's record on its card (pageSends.ts): who did what, and Claude's answers, from the User issues part's answer. */
+/** An issue's steps on its card (pageSteps.ts): what the watch and Claude did, who did what on the card, and Claude's answers. */
 function issueRecord(issue, found, turn) {
   if (!issue) return '';
   const ud = userIssuesData();
-  return recordHtml(cardRecord(ud ? ud.records : [], issue, SENDS, 'issue:' + issue, found), turn);
+  const talks = ud && ud.notes ? ud.notes[issue] : [];
+  return timelineHtml(issueTimeline(ud && ud.steps ? ud.steps[issue] : [], cardRecord(ud ? ud.records : [], issue, SENDS, 'issue:' + issue, found), issue, talks), turn);
 }
 /**
  * The talk on a user issue's card: each instruction an admin sent with Claude's answer under it, then,
@@ -511,7 +512,9 @@ function issueTalk(r, notes, at) {
     const where = n.pr ? ' · ' + outLink(PR_URL + n.pr, 'PR ' + esc(n.pr)) : n.state !== 'answered' && n.state !== 'waiting' && safeLink(n.runUrl) ? ' · ' + outLink(n.runUrl, 'The run') : '';
     const said = n.state === 'waiting' ? (n.local ? 'Sent. ' : '') + (startedFor('issue:' + r.issue, n) ? STARTS_SAID : 'Claude reads it at the next run of the watch, ' + watchSaid() + '.') : noteSaid(n);
     const ud = userIssuesData(), by = n.local ? 'You' : saidBy(ud && ud.records, 'user_issue_note', n.text);
-    return '<p class="said you">' + esc(n.text) + '</p><small class="you">' + esc(by) + ' · ' + when(n.at) + '</small>' +
+    // The steps Claude took on it (pageSteps.ts), from the instruction to the answer.
+    const steps = n.local ? [] : stepsBetween(ud && ud.steps ? ud.steps[r.issue] : [], r.issue, n.at, n.answeredAt);
+    return '<p class="said you">' + esc(n.text) + '</p><small class="you">' + esc(by) + ' · ' + when(n.at) + '</small>' + (steps.length ? tlineHtml(steps) : '') +
       '<div class="said claude">' + saidHtml(said) + '</div><small>Claude' + (n.answeredAt ? ' · ' + when(n.answeredAt) : '') + where + '</small>';
   }).join('');
   const id = esc(r.issue), busy = list.some((n) => n.local && n.state === 'sending');
