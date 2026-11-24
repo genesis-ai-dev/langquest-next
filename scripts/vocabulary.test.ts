@@ -26,6 +26,8 @@ const ALLOWED: { path: string; words: RegExp; why: string }[] = [
   { path: 'apps/mobile/src/study/chapterText.ts', words: /^lanes?$/i, why: 'Bible text ("the streets and lanes of the city")' },
   { path: 'scripts', words: /^projects?$/i, why: "Supabase and Cloudflare projects in deploy and environment scripts" },
   { path: 'scripts/linear-sync', words: /^lanes?$/i, why: 'deploy lanes (iOS, Android), not languages' },
+  { path: 'scripts/merge-issues', words: /^lanes?$/i, why: 'deploy lanes (iOS, Android), as linear-sync, not languages' },
+  { path: 'scripts/mergeIssues', words: /^lanes?$/i, why: 'deploy lanes (iOS, Android), as linear-sync, not languages' },
   { path: 'supabase/migrations/20261006000001_schedule_projections.sql', words: /^partition$/i, why: 'unscheduling the job by its old name' },
   { path: 'supabase/migrations/20261106120000_snapshot_window_and_copies.sql', words: /^partition$/i, why: 'SQL window clauses (partition by)' },
   { path: 'supabase/migrations/20261104120000_snapshot_purge.sql', words: /^partition$/i, why: 'SQL window clauses (partition by)' },

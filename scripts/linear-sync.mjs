@@ -103,7 +103,7 @@ export function verdict({ lanes, reported }) {
 }
 
 /** Move one issue, and say so. `api` is the Linear client (or a fake). */
-async function move(api, issue, target, comment) {
+export async function move(api, issue, target, comment) {
   if (comment) await api.comment(issue.id, comment);
   if (!mayMove(issue.state, target)) return `${issue.identifier} stays ${issue.state}`;
   await api.setState(issue, target);
@@ -140,15 +140,35 @@ export async function deploying(api, commits, files) {
   return out;
 }
 
-/** A lane reports for the push `sha`. */
-export async function reportLane(api, { name, sha, status, url }) {
+/** The push an issue waits on: the commit of its last "Deploying" comment. */
+export function waitingOn(comments) {
+  let at = null;
+  for (const body of comments) {
+    const deploy = body.match(/^Deploying (\w+) · lanes: /m);
+    if (deploy) at = deploy[1];
+  }
+  return at;
+}
+
+/**
+ * A lane reports for the push `sha`. A lane that shipped `sha` also shipped
+ * every push before it: an issue that waits on an earlier push whose own build
+ * failed (an iOS build in error) hears the later ok, when `contains(earlier,
+ * sha)` says `sha` holds it. A failure says nothing about an earlier push.
+ */
+export async function reportLane(api, { name, sha, status, url }, contains = () => false) {
   const out = [];
   for (const issue of await api.listDeploying()) {
-    if (!progress(issue.comments, sha).lanes) continue;
-    const body = laneComment(name, status, sha, url);
+    let at = sha;
+    if (!progress(issue.comments, sha).lanes) {
+      const earlier = waitingOn(issue.comments);
+      if (status !== 'ok' || !earlier || !contains(earlier, sha)) continue;
+      at = earlier;
+    }
+    const body = at === sha ? laneComment(name, status, sha, url) : `${laneComment(name, status, at, url)} · in ${short(sha)}`;
     await api.comment(issue.id, body);
     // Read after writing: of two lanes finishing together, the later sees both.
-    const decided = verdict(progress([...issue.comments, body, ...(await api.comments(issue.id))], sha));
+    const decided = verdict(progress([...issue.comments, body, ...(await api.comments(issue.id))], at));
     if (decided === 'Live' || decided === 'Outage') out.push(await move(api, issue, decided));
     else out.push(`${issue.identifier} waiting`);
   }
@@ -212,19 +232,50 @@ export function linearApi(key, fetchImpl = fetch) {
       if (!stateId) throw new Error(`${issue.identifier}: team has no status named ${name}`);
       await gql(`mutation($id: String!, $stateId: String!) {
         issueUpdate(id: $id, input: { stateId: $stateId }) { success } }`, { id: issue.id, stateId });
+    },
+    /**
+     * Every issue of the team that is not done: not started, in the backlog or
+     * started, with its words, labels and the links on it (scripts/merge-issues.mjs).
+     */
+    async openIssues() {
+      const out = [];
+      let after = null;
+      for (let page = 0; page < 10; page++) {
+        const data = await gql(
+          `query($key: String!, $after: String) { issues(first: 100, after: $after, filter: {
+             team: { key: { eq: $key } }, state: { type: { in: ["triage", "backlog", "unstarted", "started"] } } }) {
+             nodes { identifier title description createdAt state { name } labels { nodes { name } } attachments { nodes { url } } }
+             pageInfo { hasNextPage endCursor } } }`,
+          { key: TEAM_KEY, after }
+        );
+        out.push(...data.issues.nodes.map((n) => ({
+          identifier: n.identifier, title: n.title, description: n.description ?? '', createdAt: n.createdAt, state: n.state.name,
+          labels: n.labels.nodes.map((l) => l.name), links: n.attachments.nodes.map((a) => a.url)
+        })));
+        if (!data.issues.pageInfo.hasNextPage) break;
+        after = data.issues.pageInfo.endCursor;
+      }
+      return out;
+    },
+    /** A link on the issue, as Linear's own pull request links: shown at the top of the issue. */
+    async link(issueId, url, title) {
+      await gql(`mutation($issueId: String!, $url: String!, $title: String) {
+        attachmentLinkURL(issueId: $issueId, url: $url, title: $title) { success } }`, { issueId, url, title });
     }
   };
 }
 
 /** Prints instead of calling Linear; an issue is whatever the IDs say. */
-function dryApi() {
+export function dryApi() {
   const say = (...parts) => console.log('[dry-run]', ...parts);
   return {
     getIssue: async (id) => ({ id, identifier: id, state: 'In Progress', states: {}, comments: [] }),
     listDeploying: async () => [],
     comments: async () => [],
     comment: async (id, body) => say('comment on', id, '|', body),
-    setState: async (issue, name) => say('move', issue.identifier, 'to', name)
+    setState: async (issue, name) => say('move', issue.identifier, 'to', name),
+    openIssues: async () => [],
+    link: async (id, url) => say('link on', id, '|', url)
   };
 }
 
@@ -241,6 +292,16 @@ function flags(argv) {
 }
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' });
+
+/** Whether `later` holds `earlier`. A checkout without the history says no, and only the exact push counts. */
+function isAncestor(earlier, later) {
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', earlier, later], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 const ZEROS = /^0+$/;
 
 /** The commits and changed files of a push. No usable `from`: just the head. */
@@ -276,7 +337,7 @@ async function main() {
       console.error('usage: lane --name <lane> --sha <sha> --status ok|failed [--url <url>]');
       process.exit(2);
     }
-    lines = await reportLane(api, { name, sha, status, url: opt.url });
+    lines = await reportLane(api, { name, sha, status, url: opt.url }, isAncestor);
   } else {
     console.error('usage: linear-sync.mjs deploying|lane ...');
     process.exit(2);

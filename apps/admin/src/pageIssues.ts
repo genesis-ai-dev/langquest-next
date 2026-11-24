@@ -145,14 +145,25 @@ function issueWay(r, prs, notes, fix) {
   const next = (way) => (asked ? { ...way, pill: 'Claude acts next', level: 'claude' } : way);
   if (open && byClaude(open)) return next({ tab: 'claude', pill: 'Merges when checks pass', level: 'claude', at: 4, pr: open, claude: true });
   if (open) return next({ tab: 'you', pill: 'Waits on you', level: 'you', at: 4, pr: open });
-  if (merged) return next({ tab: 'merged', pill: byClaude(merged) ? 'Merged by Claude' : 'Merged', level: 'claude', at: 5, pr: merged, claude: byClaude(merged) });
-  if (!prs) return next({ tab: 'open', pill: 'Open', level: '', at: 3, pr: null });
+  // Merged is what Linear says (docs/decisions/2026-11-24-a-merge-closes-the-issues-it-fixes.md): the fix merged and
+  // waits on its deploy (Deploying, Verifying). A pull request merged so lately that the watch did not read Linear
+  // since counts too. A merged pull request that names an issue Linear still has open was a part of the work.
+  const linearMerged = MERGED_STATES.test(String(r.state || ''));
+  if (linearMerged || (merged && merged.mergedAt && Date.now() - Date.parse(merged.mergedAt) < LINEAR_READ_MS)) {
+    return next({ tab: 'merged', pill: merged && byClaude(merged) ? 'Merged by Claude' : 'Merged', level: 'claude', at: 5, pr: merged, claude: !!merged && byClaude(merged) });
+  }
+  const part = merged || null;
+  if (!prs) return next({ tab: 'open', pill: 'Open', level: '', at: 3, pr: null, part });
   // The cause is not proven yet, and Claude carries out its plan to prove it: Claude acts next, not a developer.
-  if (fixFor(fix, null) && fix.decision === 'none' && planGoing(fix)) return next({ tab: 'nofix', pill: 'Claude proves the cause', level: 'claude', at: 3, pr: null });
+  if (fixFor(fix, null) && fix.decision === 'none' && planGoing(fix)) return next({ tab: 'nofix', pill: 'Claude proves the cause', level: 'claude', at: 3, pr: null, part });
   // The team looked and changed nothing: a developer decides what happens next.
-  if (fixFor(fix, null) && fix.decision === 'none') return next({ tab: 'you', pill: 'Waits on you', level: 'you', at: 3, pr: null });
-  return next({ tab: 'nofix', pill: 'No fix yet', level: '', at: 3, pr: null });
+  if (fixFor(fix, null) && fix.decision === 'none') return next({ tab: 'you', pill: 'Waits on you', level: 'you', at: 3, pr: null, part });
+  return next({ tab: 'nofix', pill: 'No fix yet', level: '', at: 3, pr: null, part });
 }
+/** The Linear states of a fix that merged and waits on its deploy (scripts/merge-issues.mjs MERGED_STATES). */
+const MERGED_STATES = /^(deploying|verifying)$/i;
+/** The watch reads Linear each 15 minutes: a merge younger than this may not show in Linear's state on the page yet. */
+const LINEAR_READ_MS = 30 * 60000;
 
 /**
  * The agent team's record, when it is about the pull request the card shows
@@ -429,11 +440,13 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const record = r.issue && fixes ? fixes[r.issue] || null : null;
   const source = issueSource(r.keys);
   const pr = way.pr;
+  // A merged pull request that names the issue while Linear still has it open: a part of the work, not the fix.
+  const partSaid = () => way.part ? prLink(way.part) + ' merged as a part of the work. ' + esc(r.issue) + ' is still ' + esc(r.state || 'open') + ' in Linear.' : '';
   const solution = {
     you: () => pr ? prLink(pr) + ' waits on its merge.' + (pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : '') + (record && record.plan && planGoing(record) ? '<br><small class="muted">After the merge: ' + esc(record.plan.next) + '</small>' : '') : noFixSaid(record),
     claude: () => prLink(pr) + ' merges without a person when its checks pass.' + (pr && pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : ''),
-    merged: () => 'Fixed in ' + prLink(pr) + (pr && pr.mergedAt ? ', merged ' + when(pr.mergedAt) : '') + '. Linear says ' + esc(r.state || 'open') + '.',
-    nofix: () => planGoing(record) ? 'Claude proves the cause first, then writes the fix. ' + esc(planSaid(record.plan).when) + '.' : 'No pull request names ' + esc(r.issue) + '. <small class="muted">The page reads open ones, and ones merged in the last 14 days.</small>',
+    merged: () => (pr ? 'Fixed in ' + prLink(pr) + (pr.mergedAt ? ', merged ' + when(pr.mergedAt) : '') + '.' : 'The fix merged.') + ' Linear says ' + esc(r.state || 'open') + '.',
+    nofix: () => planGoing(record) ? 'Claude proves the cause first, then writes the fix. ' + esc(planSaid(record.plan).when) + '.' : way.part ? '' : 'No pull request names ' + esc(r.issue) + '. <small class="muted">The page reads open ones, and ones merged in the last 14 days.</small>',
     open: () => fixData && fixData.state === 'error' ? '<span class="bad">Could not read the pull requests: ' + esc(fixData.error) + '</span>' : '<span class="muted">Reading the pull requests…</span>',
     closed: () => !r.issue ? (pr && pr.number ? prLink(pr) + ' fixed it before the watch saw it' + (r.fixedAt ? ', ' + when(r.fixedAt) : '') + '.' : 'A change on main fixed it before the watch saw it.')
       : (pr && pr.number ? 'Fixed in ' + prLink(pr) + '. ' : 'No pull request named. ') + 'Closed ' + when(r.closedAt) + '.'
@@ -442,8 +455,8 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const seen = [r.people ? num(r.people) + (Number(r.people) === 1 ? ' person' : ' people') : '', 'First seen ' + when(r.firstAt), esc(stepWords(ISSUE_STEPS, way.at))].filter(Boolean).join(' · ');
   // Next: the pull request when there is one, else what Claude says fixes it, else what the page knows.
   // With no pull request and a plan to prove the cause: what Claude does next, and when.
-  const next = pr && pr.number ? solution : planGoing(record) ? planLine(record.plan) + (r.solution ? '<small class="muted">' + esc(r.solution) + '</small>' : '')
-    : way.tab === 'you' ? solution + (r.solution ? '<small class="muted">' + esc(r.solution) + '</small>' : '') : r.solution ? esc(r.solution) : solution;
+  const next = pr && pr.number ? solution : (way.part ? '<p class="inext">' + partSaid() + '</p>' : '') + (planGoing(record) ? planLine(record.plan) + (r.solution ? '<small class="muted">' + esc(r.solution) + '</small>' : '')
+    : way.tab === 'you' ? solution + (r.solution ? '<small class="muted">' + esc(r.solution) + '</small>' : '') : r.solution ? esc(r.solution) : solution);
   const pics = fixPictures(record, r.issue, !!fixFor(record, way.pr), r.issue && diagrams ? diagrams[r.issue] : null);
   const fix = fixLine(fixFor(record, way.pr), way);
   const kv = (label, html) => html ? '<div><h5 class="imh">' + esc(label) + '</h5>' + html + '</div>' : '';
