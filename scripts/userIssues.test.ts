@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
-  fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, LIMITS, linearClient, lookedOf, mergesOf,
+  fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, linearKept, LIMITS, linearClient, lookedOf, mergesOf,
   linearAsked, linearChanges, noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
   repairOf, repairsOf, planRecord, planReads, READ_ROWS, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend
 } from './user-issues.mjs';
@@ -771,6 +771,13 @@ describe('what Claude looks at besides the counts', () => {
     expect(leaks("it('plays when playback is super slow on this lower end phone', ...)", priv)).toBe(true);
     expect(leaks("it('starts playing before the whole file is read')", priv)).toBe(false);
     expect(leaks('Playback on slow phones starts at once.', priv)).toBe(false);
+    // A change in Linear with the person's words or an id in its title or comment is dropped; the rest stay.
+    expect(linearKept([
+      { status: 'Canceled' },
+      { comment: 'Seen on eae9b9ed-7c59-41c5-9dc4-173b84a3860d.' },
+      { title: 'Playback is super slow on this lower end phone' },
+      { title: 'Slow playback on older phones', comment: 'Playback on slow phones starts at once.' }
+    ], priv)).toEqual([{ status: 'Canceled' }, { title: 'Slow playback on older phones', comment: 'Playback on slow phones starts at once.' }]);
   });
 });
 
