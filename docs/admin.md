@@ -259,29 +259,38 @@ Each Overview row and each line's card has a Resolved button
 `docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md`).
 A row's button resolves every line in the row; a card's button resolves its
 line. The tap sends `line-resolve` with each line's id (`<key>[:<subject>]`),
-its part, its level, its measure (usage-billed: the cost so far) and its
-words; `ops.line_resolves` keeps them with who and when (migration
-`20261124013000_ops_line_resolves.sql`). The page reads the open resolves
-from `/ops/api/resolves` (`diag.ops_line_resolves()`), keeps each part's
-answer as it came, and draws it without the resolved lines, so the Overview,
-the menu's counts and each page agree. A resolved line shows again, with the
-tag "Came back", when:
+its part, its level, its measure (usage-billed: the cost so far), its title
+and its words; `ops.line_resolves` keeps them with who and when (migrations
+`20261124013000_ops_line_resolves.sql`,
+`20261124034500_ops_line_resolve_checks.sql`). The page reads the open
+resolves from `/ops/api/resolves` (`diag.ops_line_resolves()`), keeps each
+part's answer as it came, and draws it without the resolved lines, so the
+Overview, the menu's counts and each page agree.
 
-- its level is higher than when it was resolved;
-- its measure is twice or more (usage past the plan: the cost doubled);
-- its count starts again: a monthly count in a new month (UTC), a check
-  that counts the last hours once those hours are all after the resolve, a
-  daily check's next run;
-- 7 days went since the resolve.
+Claude decides whether a resolved problem came back, from what the line
+counts. The workflow `card-questions.yml` (every 5 minutes) asks the app
+Worker's door for the resolves due a check (`GET /api/card-questions?resolves=1`,
+`ops_line_resolves_due()`: open, not found back, last tried more than 3 hours
+ago, at most 20), each with the line's words now (`OpsLines.shown()`).
+Claude reads the line's source and compares its words at the resolve with
+its words now (`.agents/skills/card-questions/SKILL.md`, "Resolved lines"),
+and writes `same` or `back` with a reason. The workflow sends the verdicts
+back (`ops_line_resolves_checked()`); a run that could not decide sends
+`none`, and the resolve waits for the next check. A resolved line shows
+again, with the tag "Came back", when:
+
+- Claude found that the problem came back: the line shows Claude's reason;
+- its level is higher than when it was resolved (at once, without Claude);
+- Claude has not checked it for 27 hours (the workflow is down).
 
 When the line goes from the page, the watch for user issues ends its resolve
 within 15 minutes (`OpsLines.present()`, `ops_line_resolves_seen`): only for
 a part that answered. The next time the problem comes, the line shows at
 once. The Overview's Resolved list starts with the lines resolved by hand:
-who resolved each, when, and Show again (`line-show`). The watch for user
-issues and `/ops/api/attention` still see every line: a resolve changes only
-what the page shows. `ops.actions` logs `line_resolved` and `line_shown` with
-the first line's id and how many.
+who resolved each, when, Claude's last reason, and Show again (`line-show`).
+The watch for user issues and `/ops/api/attention` still see every line: a
+resolve changes only what the page shows. `ops.actions` logs `line_resolved`
+and `line_shown` with the first line's id and how many.
 
 ## Claude's replies and claims
 

@@ -8,6 +8,9 @@
 //   node scripts/card-questions.mjs web <dir>     the questions whose answer needs public web pages, from
 //                                                 <dir>/answers.json into <dir>/web.json; web=1 or 0 to GITHUB_OUTPUT
 //   node scripts/card-questions.mjs report <dir>  each answer, checked, to the Worker
+//   node scripts/card-questions.mjs resolves <dir>  the resolved lines for Claude to check, into <dir>/resolves.json;
+//                                                 r=<count> to GITHUB_OUTPUT
+//   node scripts/card-questions.mjs checked <dir>  Claude's verdicts from <dir>/verdicts.json, checked, to the Worker
 //
 // The Worker's door (apps/web/worker/cardQuestions.ts) lets in only this
 // workflow on main, by the OIDC token GitHub gives the job. Claude writes
@@ -15,6 +18,11 @@
 // to look up on public web pages. A second Claude, with the web and no shell,
 // reads <dir>/web.json (the question and the first answer, never the card's
 // words) and writes <dir>/web-answers.json: [{ "id", "answer" }].
+//
+// Claude also decides whether each resolved line of the dashboard came back
+// (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md):
+// it reads <dir>/resolves.json (each line's words at the resolve and now) and
+// writes <dir>/verdicts.json: [{ "id", "verdict": "same" | "back", "why" }].
 //
 // What admins asked and what Claude answered never go to this public
 // repository's log: the log says only how many.
@@ -39,15 +47,15 @@ async function oidcToken() {
   return (await res.json()).value;
 }
 
-async function call(method, body) {
-  const res = await fetch(API, {
+async function call(method, body, query = '') {
+  const res = await fetch(API + query, {
     method,
     headers: { authorization: `Bearer ${await oidcToken()}`, ...(body ? { 'content-type': 'application/json' } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {})
   });
   const answer = await res.text();
   // The Worker's errors are fixed words; never an admin's.
-  if (!res.ok) throw new Error(`${method} ${API}: HTTP ${res.status} ${answer.slice(0, 300)}`);
+  if (!res.ok) throw Object.assign(new Error(`${method} ${API}${query}: HTTP ${res.status} ${answer.slice(0, 300)}`), { status: res.status });
   return JSON.parse(answer);
 }
 
@@ -96,8 +104,27 @@ export function finalAnswers(questions, answers, webAnswers) {
   });
 }
 
+/** As server/lineResolves.ts WHY_MAX. */
+export const WHY_MAX = 1000;
+
+/**
+ * What the run decided for each resolve it took: Claude's verdict and reason when they check, else none
+ * (the resolve waits for the next check). verdicts null: Claude wrote no file at all.
+ */
+export function finalVerdicts(resolves, verdicts) {
+  const byId = new Map((Array.isArray(verdicts) ? verdicts : []).filter((v) => v && typeof v === 'object').map((v) => [v.id, v]));
+  return resolves.filter((r) => r && UUID.test(r.id)).map((r) => {
+    const v = byId.get(r.id);
+    const why = v && typeof v.why === 'string' ? v.why.trim() : '';
+    if (v && (v.verdict === 'same' || v.verdict === 'back') && why && !EMAIL.test(why)) {
+      return { id: r.id, verdict: v.verdict, why: why.length > WHY_MAX ? why.slice(0, WHY_MAX - 1) + '…' : why };
+    }
+    return { id: r.id, verdict: 'none' };
+  });
+}
+
 async function main([step, dir]) {
-  if (!dir) throw new Error('usage: node scripts/card-questions.mjs fetch|web|report <dir>');
+  if (!dir) throw new Error('usage: node scripts/card-questions.mjs fetch|web|report|resolves|checked <dir>');
   mkdirSync(dir, { recursive: true });
   if (step === 'fetch') {
     const questions = await call('GET');
@@ -105,6 +132,27 @@ async function main([step, dir]) {
     if (questions.length) await call('POST', { runUrl: runUrl(), questions: questions.map((q) => ({ id: q.id, taken: true })) });
     console.log(`${questions.length} question${questions.length === 1 ? '' : 's'} to answer.`);
     output({ n: questions.length });
+    return;
+  }
+  if (step === 'resolves') {
+    let resolves = [];
+    try {
+      resolves = await call('GET', undefined, '?resolves=1');
+    } catch (err) {
+      // Before the Worker checks resolved lines, the questions go on without them.
+      if (err.status !== 503) throw err;
+      console.log('The Worker does not check resolved lines yet.');
+    }
+    writeFileSync(join(dir, 'resolves.json'), JSON.stringify(resolves, null, 2));
+    console.log(`${resolves.length} resolved line${resolves.length === 1 ? '' : 's'} to check.`);
+    output({ r: resolves.length });
+    return;
+  }
+  if (step === 'checked') {
+    const done = finalVerdicts(readJson(join(dir, 'resolves.json'), []), readJson(join(dir, 'verdicts.json'), []));
+    if (!done.length) { console.log('No resolved lines to send back.'); return; }
+    const kept = await call('POST', { runUrl: runUrl(), resolves: done });
+    console.log(`${kept.checked} checked: ${done.filter((d) => d.verdict === 'back').length} came back, ${done.filter((d) => d.verdict === 'none').length} without a verdict.`);
     return;
   }
   const questions = readJson(join(dir, 'questions.json'), []);
@@ -122,7 +170,7 @@ async function main([step, dir]) {
     console.log(`${kept.answered} answered, ${done.filter((d) => d.result === 'none').length} without an answer.`);
     return;
   }
-  throw new Error(`no step ${step}: fetch, web or report`);
+  throw new Error(`no step ${step}: fetch, web, report, resolves or checked`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
