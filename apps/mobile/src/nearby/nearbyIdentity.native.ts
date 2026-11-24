@@ -102,6 +102,19 @@ export async function nearbyOpenOrgs(actorId: string): Promise<Set<string>> {
   return parseOpenOrgs(await (await getStore()).meta(openOrgsKey(actorId)));
 }
 
+/**
+ * A newcomer's organizations that share while LangQuest is open, from the inviter's grant (14.1,
+ * Carl 2026-11-24): added to what the phone keeps, until the server's first answer replaces it
+ * (`refresh`).
+ */
+export async function keepOpenOrgsFromJoin(profileId: string, orgIds: readonly string[]): Promise<void> {
+  const store = await getStore();
+  const kept = parseOpenOrgs(await store.meta(openOrgsKey(profileId)));
+  const next = JSON.stringify([...new Set([...kept, ...orgIds])].sort());
+  if (await store.meta(openOrgsKey(profileId)) !== next) await store.setMeta(openOrgsKey(profileId), next);
+  heldChanged();
+}
+
 /** "Share while LangQuest is open", as pressed on this phone or on by default. */
 export async function nearbyOpenSwitch(): Promise<boolean> {
   return openSwitchOf(await (await getStore()).meta(OPEN_KEY));

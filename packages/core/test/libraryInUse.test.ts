@@ -1,7 +1,8 @@
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { HlcClock } from '../src/hlc';
 import type { LibraryDoc } from '../src/libraryDocs';
-import { docsThisLanguageNames, docsThisLanguageUses, mayGoInStartingCopy, STARTING_COPY_FORMATS } from '../src/libraryInUse';
+import { docHeadOf, mediaFileOf } from '../src/libraryDocs';
+import { docsThisLanguageNames, libraryFilesOf, libraryLinkFormat, libraryLinksOf, nearbyDocHeadOf, docsThisLanguageUses, guidesThisLanguageOffers, mayGoInStartingCopy, STARTING_COPY_FORMATS } from '../src/libraryInUse';
 import { foldOrg } from '../src/org';
 import { emptyLanguageState, type LanguageState } from '../src/state';
 
@@ -13,6 +14,9 @@ import { emptyLanguageState, type LanguageState } from '../src/state';
  */
 
 const h = (c: string) => c.repeat(64).slice(0, 64);
+/** A guide collection only the wider library offers, and a step guide it names. */
+const offeredGuides = 'cb'.repeat(32);
+const offeredStudy = 'dc'.repeat(32);
 const reg = <V>(value: V) => ({ value, hlc: '001800000000000:000000:dA', eventId: 'e' });
 
 function org(extra: (emit: <T extends EventType>(type: T, payload: EventPayloads[T]) => void) => void) {
@@ -47,6 +51,7 @@ const library = org((emit) => {
   item(emit, 'archived-help', 'material', h('a'));
   item(emit, 'unused', 'material', h('b'));
   item(emit, 'other-tpl', 'template', h('c'));
+  item(emit, 'fia-guides', 'material', offeredGuides);
   emit('v1.LibraryItemArchived', { itemId: 'archived-rec', kind: 'material', archived: true });
   emit('v1.LibraryItemArchived', { itemId: 'archived-help', kind: 'material', archived: true });
   // A material copied from a publisher, and one followed: their source is not this organization.
@@ -84,18 +89,23 @@ const docs = new Map<string, LibraryDoc>([
   [h('7'), { format: 'material@1', kind: 'document', title: 'Linked', versification, deps: [versification] } as unknown as LibraryDoc],
   [h('8'), { format: 'material@1', kind: 'key_terms', title: 'FIA words', source: 'fia.bible', pattern: 'FIA', deps: [] } as unknown as LibraryDoc],
   [h('a'), { format: 'material@1', kind: 'document', title: 'Archived help', deps: [] } as unknown as LibraryDoc],
-  [versification, { format: 'versification@1' } as unknown as LibraryDoc]
+  [versification, { format: 'versification@1' } as unknown as LibraryDoc],
+  // In the library, chosen by nobody: a note, which the app shows only where chosen, and a guide collection, which it offers.
+  [h('b'), { format: 'material@1', kind: 'document', title: 'Unused', deps: [] } as unknown as LibraryDoc],
+  [offeredGuides, { format: 'collection@1', entries: [{ ref: 'MRK 1:1-8', doc: offeredStudy }] } as unknown as LibraryDoc]
 ]);
-const get = (hash: string) => docs.get(hash) ?? null;
+const get = (hash: string) => { const doc = docs.get(hash); return doc ? docHeadOf(doc) : null; };
 
 describe('docsThisLanguageNames', () => {
-  it('names the template and every one used, the flow, the book names, recommended, linked and helping items of this organization\'s own', () => {
-    expect(docsThisLanguageNames(library, language())).toEqual([h('1'), h('2'), h('3'), h('4'), h('5'), h('7'), h('8'), h('a')].sort());
+  // Carl, 2026-11-24: a phone that joined offline does what its inviter's does, so a publisher's material the language
+  // chose (FIA's, copied or followed) is in, as the organization's own is.
+  it('names the template and every one used, the flow, the book names, and the recommended, linked and helping items, own, copied or followed', () => {
+    expect(docsThisLanguageNames(library, language())).toEqual([h('1'), h('2'), h('3'), h('4'), h('5'), h('7'), h('8'), h('a'), h('d'), h('e')].sort());
   });
 
-  it('leaves out an item the language hid, an archived recommendation, a followed or copied material, the rest of the library and another language\'s template', () => {
+  it('leaves out an item the language hid, an archived recommendation, the rest of the library and another language\'s template', () => {
     const names = docsThisLanguageNames(library, language());
-    for (const left of [h('6'), h('9'), h('b'), h('c'), h('d'), h('e')]) expect(names).not.toContain(left);
+    for (const left of [h('6'), h('9'), h('b'), h('c')]) expect(names).not.toContain(left);
   });
 
   it('keeps an archived help, as the check\'s help rows do', () => {
@@ -104,7 +114,7 @@ describe('docsThisLanguageNames', () => {
 
   it('names only what the organization recommends for a language that chose nothing, and only hashes', () => {
     // The organization recommends both notes; only the language that hid one leaves it out.
-    expect(docsThisLanguageNames(library, emptyLanguageState())).toEqual([h('5'), h('6')]);
+    expect(docsThisLanguageNames(library, emptyLanguageState())).toEqual([h('5'), h('6'), h('d'), h('e')]);
     const s = emptyLanguageState();
     s.flow = reg({ flowId: 'custom' });
     s.template = reg({ itemId: 'x', docHash: 'not-a-hash', unitPrefix: 'x' });
@@ -113,25 +123,69 @@ describe('docsThisLanguageNames', () => {
 });
 
 describe('docsThisLanguageUses', () => {
-  it('walks to what those refer to, a template\'s numbering among them, and leaves out what the allowlist refuses', () => {
+  it('walks to what those refer to, a template\'s numbering among them, and FIA\'s key words, which say source and pattern, with them', () => {
     const uses = docsThisLanguageUses(library, language(), get);
     expect(uses).toContain(versification);
-    // FIA's key words say source and pattern.
-    expect(uses).not.toContain(h('8'));
-    expect(uses).toEqual([h('1'), h('2'), h('3'), h('4'), h('5'), h('7'), h('a'), versification].sort());
+    expect(uses).toContain(h('8'));
+    // Copied and followed materials the test holds no document for stay on the list, so a newcomer knows to ask;
+    // so does the step guide the offered collection names.
+    // What the language names comes first, then the offered guides: a phone that takes only some this time takes those first.
+    expect(uses).toEqual([...[h('1'), h('2'), h('3'), h('4'), h('5'), h('7'), h('8'), h('a'), h('d'), h('e'), versification].sort(), ...[offeredGuides, offeredStudy].sort()]);
   });
 
   it('keeps a hash it cannot read on the list, with nothing to walk, so a newcomer knows to ask', () => {
-    expect(docsThisLanguageUses(library, language(), () => null)).toEqual(docsThisLanguageNames(library, language()));
+    expect(docsThisLanguageUses(library, language(), () => null)).toEqual([...docsThisLanguageNames(library, language()), ...guidesThisLanguageOffers(library, language())]);
   });
 
-  it('a refused document is not walked: what only it refers to stays out', () => {
-    const study = h('9');
+  // Carl, 2026-11-24: a phone that joined offline shows the guides its inviter's shows, and the app offers guides from
+  // the whole library (apps/mobile/src/reference/offered.ts), not only from what the language chose.
+  it('takes a guide the wider library offers, never another kind from it, nor one the language hid or that is archived', () => {
+    const offers = guidesThisLanguageOffers(library, language());
+    expect(offers).toEqual([h('b'), offeredGuides].sort());
+    const uses = docsThisLanguageUses(library, language(), get);
+    expect(uses).toContain(offeredGuides);
+    expect(uses).not.toContain(h('b'));
+    for (const left of [h('6'), h('9'), h('c')]) expect(offers).not.toContain(left);
+    // A language that hides the guides' item leaves them out.
     const s = language();
-    s.template = reg({ itemId: 'tpl', docHash: study, unitPrefix: 'x' });
+    s.languageReferences = { ...s.languageReferences, 'fia-guides': reg('hidden' as const) };
+    expect(docsThisLanguageUses(library, s, get)).not.toContain(offeredGuides);
+  });
+
+  it('a document the language chose counts though the wider library also offers it', () => {
+    const s = language();
+    s.passageLinks = { ...s.passageLinks, u2: { unused: reg(true) } };
+    expect(docsThisLanguageUses(library, s, get)).toContain(h('b'));
+  });
+
+  it('a document in a format this build does not know is refused and not walked: what only it refers to stays out', () => {
+    const later = h('9');
+    const s = language();
+    s.template = reg({ itemId: 'tpl', docHash: later, unitPrefix: 'x' });
     s.templateHistory = {};
-    const only = new Map<string, LibraryDoc>([[study, { format: 'study@1', versification: h('0') } as unknown as LibraryDoc]]);
-    expect(docsThisLanguageUses(library, s, (x) => only.get(x) ?? docs.get(x) ?? null)).not.toContain(h('0'));
+    const only = new Map<string, LibraryDoc>([[later, { format: 'template@9', bible: { versification: h('0') } } as unknown as LibraryDoc]]);
+    const uses = docsThisLanguageUses(library, s, (x) => (only.has(x) ? docHeadOf(only.get(x)!) : get(x)));
+    expect(uses).not.toContain(later);
+    expect(uses).not.toContain(h('0'));
+  });
+});
+
+describe('docHeadOf: what the walk keeps of a document', () => {
+  it('keeps the format and what it refers to, and says when this build cannot read through it', () => {
+    const tpl = docs.get(h('1'))!;
+    expect(docHeadOf(tpl)).toEqual({ format: tpl.format, refs: expect.arrayContaining([versification]) });
+    // A phone's walk reads the files it names too; the web never carries that.
+    expect(nearbyDocHeadOf(tpl)).toEqual({ format: tpl.format, refs: expect.arrayContaining([versification]), files: [], links: [] });
+    expect(docHeadOf({ format: 'collection@1', entries: 5 } as unknown as LibraryDoc).refs).toBeNull();
+  });
+
+  it('a document this build cannot read through leaves the list, and what only it names stays out', () => {
+    const s = language();
+    const broken = h('9');
+    s.template = reg({ itemId: 'tpl', docHash: broken, unitPrefix: 'x' });
+    s.templateHistory = {};
+    const uses = docsThisLanguageUses(library, s, (x) => (x === broken ? { format: 'template@2', refs: null } : get(x)));
+    expect(uses).not.toContain(broken);
   });
 });
 
@@ -140,8 +194,12 @@ describe('mayGoInStartingCopy: an allowlist that fails closed', () => {
     for (const format of STARTING_COPY_FORMATS) expect(mayGoInStartingCopy({ format } as unknown as LibraryDoc), format).toBe(true);
   });
 
-  it('refuses publishers\' and sources\' formats, study@2, labels@1, a format made up for the test, and nothing at all', () => {
-    for (const format of ['study@1', 'study@2', 'collection@1', 'source@1', 'sourceBook@1', 'timing@1', 'labels@1', 'template@3', 'material@2', '']) {
+  it('takes every format this build reads, publishers\' and sources\' among them (Carl, 2026-11-24)', () => {
+    expect([...STARTING_COPY_FORMATS].sort()).toEqual(['collection@1', 'flow@1', 'labels@1', 'material@1', 'names@1', 'source@1', 'sourceBook@1', 'study@1', 'study@2', 'template@1', 'template@2', 'timing@1', 'versification@1']);
+  });
+
+  it('refuses a format made up for the test, and nothing at all', () => {
+    for (const format of ['template@3', 'material@2', 'toString', '__proto__', '']) {
       expect(mayGoInStartingCopy({ format } as unknown as LibraryDoc), format).toBe(false);
     }
     expect(mayGoInStartingCopy(null)).toBe(false);
@@ -149,10 +207,83 @@ describe('mayGoInStartingCopy: an allowlist that fails closed', () => {
     expect(mayGoInStartingCopy({} as LibraryDoc)).toBe(false);
   });
 
-  it('refuses a material that says source or pattern, even empty', () => {
-    expect(mayGoInStartingCopy({ format: 'material@1', source: 'fia.bible' } as unknown as LibraryDoc)).toBe(false);
-    expect(mayGoInStartingCopy({ format: 'material@1', pattern: 'FIA' } as unknown as LibraryDoc)).toBe(false);
-    expect(mayGoInStartingCopy({ format: 'material@1', source: '' } as unknown as LibraryDoc)).toBe(false);
+  it('takes a material that says source or pattern, as FIA\'s key words do', () => {
+    expect(mayGoInStartingCopy({ format: 'material@1', source: 'fia.bible' } as unknown as LibraryDoc)).toBe(true);
+    expect(mayGoInStartingCopy({ format: 'material@1', pattern: 'FIA' } as unknown as LibraryDoc)).toBe(true);
     expect(mayGoInStartingCopy({ format: 'material@1', kind: 'document' } as unknown as LibraryDoc)).toBe(true);
+  });
+});
+
+// 2026-11-24: the files a team's guide and key-word list name go between teammates' phones, the same file the app reads.
+describe('libraryFilesOf: the files a document names that may go between phones', () => {
+  const H = (c: string) => c.repeat(64).slice(0, 64);
+  it('takes a guide\'s step and word audio and the phone\'s copy of each picture, never a film', () => {
+    const guide = {
+      format: 'study@2', steps: [{ id: 's', title: 'T', text: 't', audio: { hash: H('1') } }, { id: 'u', title: 'U', text: 'u', audio: { url: 'https://fia.bible/a.mp3' } }],
+      resources: [{ ref: 'MRK 1:1', kind: 'media', title: 'R', media: [
+        { id: 'p', kind: 'photo', title: 'P', caption: '', file: { hash: H('2'), lowHash: H('3'), format: 'png' } },
+        { id: 'm', kind: 'map', title: 'M', caption: '', file: { hash: H('4'), format: 'JPEG' } },
+        { id: 'v', kind: 'video', title: 'V', caption: '', file: { hash: H('5'), lowHash: H('6') } }
+      ] }],
+      terms: [{ id: 't', term: 'water', body: '', audio: { hash: H('7'), format: 'mp3' } }]
+    } as unknown as LibraryDoc;
+    expect(libraryFilesOf(guide)).toEqual([
+      { hash: H('1'), format: 'm4a' }, { hash: H('3'), format: 'jpg' }, { hash: H('4'), format: 'jpg' }, { hash: H('7'), format: 'mp3' }
+    ]);
+    expect(nearbyDocHeadOf(guide).files).toEqual(libraryFilesOf(guide));
+    expect(docHeadOf(guide).files).toBeUndefined();
+  });
+
+  it('takes a key word\'s audio only when it has no address, as the app plays it', () => {
+    const words = { format: 'material@1', kind: 'key_terms', terms: [
+      { id: 'a', term: 'a', gloss: '', audio: { hash: H('8'), format: 'm4a' } },
+      { id: 'b', term: 'b', gloss: '', audio: { hash: H('9'), url: 'https://fia.bible/t.mp3' } }
+    ] } as unknown as LibraryDoc;
+    expect(libraryFilesOf(words)).toEqual([{ hash: H('8'), format: 'm4a' }]);
+  });
+
+  it('takes a source book\'s chapter audio by its hash, as the app keeps it, marked as a source\'s', () => {
+    const book = { format: 'sourceBook@1', book: 'GEN', chapters: [
+      { chapter: 1, audio: { url: 'https://x/1.mp3', hash: H('b') } }, { chapter: 2, audio: { url: 'https://x/2.m4a', hash: H('c'), format: 'm4a' } },
+      { chapter: 3, audio: { url: 'https://x/3.mp3' } }, { chapter: 4 }
+    ], deps: [] } as unknown as LibraryDoc;
+    expect(libraryFilesOf(book)).toEqual([{ hash: H('b'), format: 'mp3', kind: 'source' }, { hash: H('c'), format: 'm4a', kind: 'source' }]);
+  });
+
+  it('never a file of another format, a name that is not a hash, or anything of a document that names none', () => {
+    const odd = { format: 'study@2', steps: [{ id: 's', title: 'T', text: 't', audio: { hash: H('a'), format: 'apk' } }, { id: 'x', title: 'X', text: 'x', audio: { hash: '../x' } }], resources: [], terms: [] } as unknown as LibraryDoc;
+    expect(libraryFilesOf(odd)).toEqual([]);
+    expect(libraryFilesOf(docs.get(h('1'))!)).toEqual([]);
+    expect(mediaFileOf({ url: 'https://x' }, 'audio', true)).toBeUndefined();
+  });
+});
+
+// 2026-11-24: FIA's guides name their media by address; a phone keeps them by address, and passes them on on a teammate's word.
+describe('libraryLinksOf: the addresses a guide names that a phone keeps', () => {
+  it('takes FIA\'s step audio, pictures, maps and word audio, as the app takes them along, never a film', () => {
+    const fia = {
+      format: 'study@1', ref: 'MRK 1:1-8', versification: h('0'),
+      steps: [{ id: 's', title: 'Listen', text: 't', audio: { url: 'https://fia.bible/a/s1.mp3' } }, { id: 'u', title: 'Read', text: 'u' }],
+      resources: [{ ref: 'r', kind: 'media', title: 'R', media: [
+        { id: 'p', kind: 'photo', title: 'P', caption: '', url: 'https://fia.bible/p/one.JPEG' },
+        { id: 'm', kind: 'map', title: 'M', caption: '', url: 'https://fia.bible/m/map.png?v=2' },
+        { id: 'v', kind: 'video', title: 'V', caption: '', url: 'https://fia.bible/v/film.mp4' }
+      ] }],
+      terms: [{ id: 't', term: 'water', body: '', audioUrl: 'https://fia.bible/t/water.mp3' }]
+    } as unknown as LibraryDoc;
+    expect(libraryLinksOf(fia)).toEqual([
+      'https://fia.bible/a/s1.mp3', 'https://fia.bible/m/map.png?v=2', 'https://fia.bible/p/one.JPEG', 'https://fia.bible/t/water.mp3'
+    ]);
+    expect(nearbyDocHeadOf(fia).links).toEqual(libraryLinksOf(fia));
+    expect(libraryLinkFormat('https://fia.bible/p/one.JPEG')).toBe('jpg');
+  });
+
+  it('never an address that is not https, not audio or a picture, or a carried build', () => {
+    for (const url of ['http://fia.bible/a.mp3', 'file:///sdcard/a.mp3', 'https://x/LangQuest.apk', 'https://x/build.carried', 'https://x/film.mp4', 'https://x/noext', 'https://x/a b.mp3']) {
+      expect(libraryLinkFormat(url), url).toBeNull();
+    }
+    const team = { format: 'study@2', steps: [{ id: 's', title: 'T', text: 't', audio: { url: 'https://team.org/s.m4a', hash: h('1') } }], resources: [], terms: [] } as unknown as LibraryDoc;
+    expect(libraryLinksOf(team)).toEqual(['https://team.org/s.m4a']);
+    expect(libraryLinksOf(docs.get(h('8'))!)).toEqual([]);
   });
 });

@@ -278,3 +278,49 @@ describe('a browser that cannot keep files (LAN-194)', () => {
     expect(queued()).toEqual([]);
   });
 });
+
+// 2026-11-24: a teammate's phone hands over every guide the language uses, FIA's English alone 1,525 documents (65 MB).
+// A walk reads them as heads, and a teammate's guide goes to disk only, so none of it fills memory.
+describe('documents from a teammate\'s phone', () => {
+  const guide = { format: 'study@2' as const, title: 'Clean water', links: [], steps: [{ id: 's1', title: 'Listen', text: 'Water.' }], resources: [], terms: [], deps: [] as string[] };
+
+  it('a head names the format and what the document refers to, read from disk without keeping the document', async () => {
+    const s = await store();
+    const vText = canonicalJson(versification);
+    const t = timing(sha(vText));
+    t.deps = [sha(vText)];
+    const tText = canonicalJson(t);
+    fake.disk.set(`${sha(tText)}.json`, tText);
+    expect(await s.heldDocHead(sha(tText))).toEqual({ format: 'timing@1', refs: [sha(vText)] });
+    expect(s.cachedDoc(sha(tText))).toBeNull();
+    expect(await s.heldDocHead('0'.repeat(64))).toBeNull();
+    // Sending its text keeps it out of memory too.
+    expect(await s.docText(sha(tText))).toBe(tText);
+    expect(s.cachedDoc(sha(tText))).toBeNull();
+  });
+
+  it('keeps a guide on disk only, a key-words list in memory as well, and tells the screens once for both', async () => {
+    vi.useFakeTimers();
+    const s = await store();
+    const heard = vi.fn();
+    s.onDocs(heard);
+    const gText = canonicalJson(guide);
+    expect(await s.keepFetchedDoc(sha(gText), gText)).toBe(true);
+    expect(fake.disk.get(`${sha(gText)}.json`)).toBe(gText);
+    expect(s.cachedDoc(sha(gText))).toBeNull();
+    expect(await s.heldDocHead(sha(gText))).toEqual({ format: 'study@2', refs: [] });
+    // A screen that needs it reads it from disk.
+    expect(await s.heldDoc(sha(gText))).toEqual(guide);
+    const words = { format: 'material@1' as const, kind: 'key_terms', title: 'FIA', source: 'fia.bible', pattern: 'FIA', deps: [] as string[] };
+    const wText = canonicalJson(words);
+    expect(await s.keepFetchedDoc(sha(wText), wText)).toBe(true);
+    expect(s.cachedDoc(sha(wText))).toEqual(words);
+    // A session may keep a thousand in a row: the screens hear once, a moment later, not once each.
+    expect(heard).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(s.FETCHED_NOTIFY_MS);
+    expect(heard).toHaveBeenCalledTimes(1);
+    // A text that is not its name is not kept.
+    expect(await s.keepFetchedDoc('0'.repeat(64), wText)).toBe(false);
+    vi.useRealTimers();
+  });
+});

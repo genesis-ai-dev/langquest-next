@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import type { NearbyMark } from '@langquest-next/core/nearby';
+import { MemoryLibraryFileOrigins, SqliteLibraryFileOrigins, type LibraryFileOrigins } from '../src/libraryFileOrigins';
 import { MemoryNearbyMarks, SqliteNearbyMarks, type NearbyMarks } from '../src/nearbyMarks';
 import { SqliteFileLedger } from '../src/fileLedger';
 import type { SqlDriver } from '../src/sqliteStore';
@@ -57,4 +58,21 @@ it('a row this build cannot read counts as no mark, and so as protected', async 
   await db.run(`insert into nearby_files (hash, format, language_id, grp, copies) values (?, ?, ?, ?, ?)`, [hash(1), 'm4a', 'luke', 'someday', 0]);
   await marks.put([mark(2)]);
   expect(await marks.all()).toEqual([mark(2)]);
+});
+
+// 2026-11-24 (security review): only a file known to have come from the library is passed on as one.
+describe.each([
+  ['memory', async (): Promise<LibraryFileOrigins> => new MemoryLibraryFileOrigins()],
+  ['SQLite', async (): Promise<LibraryFileOrigins> => { const db = nodeDriver(); await SqliteFileLedger.open(db); return SqliteLibraryFileOrigins.open(db); }]
+] as const)('where library files came from, %s', (_name, make) => {
+  it('knows only the hashes it was told, each once, and nothing that is not a hash', async () => {
+    const o = await make();
+    const a = 'a'.repeat(64);
+    const b = 'b'.repeat(64);
+    await o.add([a, a, '../x']);
+    expect(await o.has([a, b, '../x'])).toEqual(new Set([a]));
+    await o.add([b]);
+    expect(await o.has([a, b])).toEqual(new Set([a, b]));
+    expect(await o.has([])).toEqual(new Set());
+  });
 });

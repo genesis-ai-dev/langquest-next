@@ -90,6 +90,12 @@ export class MemoryStore implements EventStore {
     return [...new Set(ids)].map((id) => rows?.get(`${kind}:${id}`)).filter((r): r is KeptRecord => !!r);
   }
 
+  async keptIdsAnywhere(kind: KeptKind, ids: readonly string[]): Promise<Set<string>> {
+    const out = new Set<string>();
+    for (const rows of this.kept.values()) for (const id of ids) if (rows.has(`${kind}:${id}`)) out.add(id);
+    return out;
+  }
+
   async keptByRef(orgId: string, streamId: string, kind: KeptKind, refs: readonly string[]): Promise<KeptRecord[]> {
     const wanted = new Set(refs);
     return this.keptRows(orgId, streamId, [kind]).filter((r) => wanted.has(r.ref));

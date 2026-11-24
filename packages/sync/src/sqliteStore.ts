@@ -485,6 +485,19 @@ where e.org_id=? and e.stream_id=? and e.status='nearby' group by 1`,
     return this.keptWhere('ref', orgId, streamId, [kind], refs);
   }
 
+  async keptIdsAnywhere(kind: KeptKind, ids: readonly string[]): Promise<Set<string>> {
+    const out = new Set<string>();
+    const all = [...new Set(ids)];
+    for (let i = 0; i < all.length; i += KEPT_SLICE) {
+      const rows = await this.db.all<{ id: string }>(
+        `select distinct id from kept_rows where kind = ? and id in (select value from json_each(?))`,
+        [kind, JSON.stringify(all.slice(i, i + KEPT_SLICE))]
+      );
+      for (const r of rows) out.add(r.id);
+    }
+    return out;
+  }
+
   /**
    * In slices, each list handed over as one JSON array: four parameters a
    * statement, whatever the list's length, since a Durable Object's SQLite

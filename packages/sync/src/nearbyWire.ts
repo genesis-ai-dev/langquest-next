@@ -15,6 +15,10 @@ import { NEARBY_MESSAGE_MAX, type HostDetails } from './nearbyLink';
  * bad event costs itself and not the session. Chains pass through with only their
  * size and depth checked, for `checkChain`, which takes unknowns.
  */
+
+/** The organization's nearby features a join grant may carry (`join-grant` `features`), as `org_features` names them. */
+export const NEARBY_GRANT_FEATURES = ['nearby', 'nearby_join', 'nearby_open'] as const;
+
 export type Message =
   | { t: 'hello'; protocol: { min: number; max: number }; can: string[]; reducerVersion: number; linesVersion: number; deviceId: string; wallMs: number; chain: ChainLink[]; proof: string }
   /** The initiator, in place of its hello, under an older generation. */
@@ -40,6 +44,12 @@ export type Message =
   /** The Worker's attestation; `events` may be a subset of its rows. */
   | { t: 'claims'; text: string; kid: string; sig: string; events: AnyEvent[] }
   | { t: 'events-done'; older: boolean }
+  /**
+   * From 2026-11-24, only between phones whose Hellos both name `library-files`, at the start of step 7: the library
+   * files this phone holds that its language's documents name (`libraryFilesOf`), at most
+   * `NEARBY_HOLDINGS_MESSAGE_FILES` a message, the last with `more` false. The other asks only for those, with `file-ask`.
+   */
+  | { t: 'lib-held'; files: string[]; more: boolean }
   | { t: 'file-ask'; transferId: string; hash: string; format: string }
   | { t: 'file-no'; transferId: string; reason: 'not-here' | 'not-referenced' | 'redacted' }
   | { t: 'files-done' }
@@ -49,9 +59,19 @@ export type Message =
   // Phase 6, with the abilities let-in and starting-copy (section 14.1).
   /** The newcomer, first. */
   | { t: 'join-ask'; installKey: string; idSalt: string; profileId: string; deviceId: string; name: string; proof: string }
-  /** The inviter, after one tap; the pass is inside the chain. */
-  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number }
-  | { t: 'copy-ask'; part: 'state' | 'rows' | 'names' | 'doc'; stream?: string; after?: string; hash?: string }
+  /**
+   * The inviter, after one tap; the pass is inside the chain. `features`, from 2026-11-24: the
+   * organization's nearby features as the inviter's phone last heard them from the server, so a
+   * phone that joined offline shares while LangQuest is open as the inviter's does (14.1). Absent
+   * from an older inviter, and only names `NEARBY_GRANT_FEATURES` knows; an older newcomer ignores it.
+   */
+  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[] }
+  /**
+   * `held`, from 2026-11-24 and only to a phone whose Hello names `copy-library`: the sorted hashes of the documents
+   * the language uses that the sender holds, as a JSON list, so the asker asks only for those. An older phone ends
+   * the session on a part it does not know, so it is never asked.
+   */
+  | { t: 'copy-ask'; part: 'state' | 'rows' | 'names' | 'doc' | 'held'; stream?: string; after?: string; hash?: string }
   | { t: 'copy-part'; part: string; stream?: string; next: string | null; body: string }
   | { t: 'copy-no'; reason: 'versions' | 'not-filled' | 'not-allowed' | 'not-here' };
 
@@ -152,6 +172,11 @@ function read(t: string, o: Raw): Message | null | undefined {
       const { text, kid, sig } = o;
       return typeof text === 'string' && isId(kid) && isSig(sig) ? { t, text, kid, sig } : null;
     }
+    case 'lib-held': {
+      const { files, more } = o;
+      if (typeof more !== 'boolean' || !Array.isArray(files) || files.length > NEARBY_HOLDINGS_MESSAGE_FILES || !files.every((f) => isHash(f))) return null;
+      return { t, files: files as string[], more };
+    }
     case 'holdings': {
       const { key, counter, files, more, hold, sig, chain } = o;
       if (!isKey(key) || !isCount(counter) || typeof more !== 'boolean') return null;
@@ -189,12 +214,17 @@ function read(t: string, o: Raw): Message | null | undefined {
         ? { t, installKey, idSalt, profileId, deviceId, name, proof } : null;
     }
     case 'join-grant': {
-      const { chain, proof, discoveryKey, gen, floor } = o;
-      return isChain(chain) && isSig(proof) && isKey(discoveryKey) && isCount(gen) && isCount(floor) ? { t, chain, proof, discoveryKey, gen, floor } : null;
+      const { chain, proof, discoveryKey, gen, floor, features } = o;
+      if (!(isChain(chain) && isSig(proof) && isKey(discoveryKey) && isCount(gen) && isCount(floor))) return null;
+      // A list of names, or none: a field of another kind is malformed, as in every message. Of the names, only those
+      // this build knows, each once, so a later build's feature leaves the grant standing.
+      if (features !== undefined && !(Array.isArray(features) && features.length <= 16 && features.every((f) => typeof f === 'string'))) return null;
+      const known = [...new Set(((features ?? []) as string[]).filter((f) => (NEARBY_GRANT_FEATURES as readonly string[]).includes(f)))];
+      return { t, chain, proof, discoveryKey, gen, floor, ...(known.length ? { features: known } : {}) };
     }
     case 'copy-ask': {
       const { part, stream, after, hash } = o;
-      if (!isOneOf(part, ['state', 'rows', 'names', 'doc'] as const) || !optionalIs(stream, isText) || !optionalIs(after, isText) || !optionalIs(hash, isHash)) return null;
+      if (!isOneOf(part, ['state', 'rows', 'names', 'doc', 'held'] as const) || !optionalIs(stream, isText) || !optionalIs(after, isText) || !optionalIs(hash, isHash)) return null;
       return { t, part, ...optional('stream', stream as string | undefined), ...optional('after', after as string | undefined), ...optional('hash', hash as string | undefined) };
     }
     case 'copy-part': {

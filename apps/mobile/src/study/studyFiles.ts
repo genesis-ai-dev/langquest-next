@@ -396,6 +396,13 @@ async function fetchOne(url: string): Promise<void> {
   }
 }
 
+/**
+ * The folder as a phone's nearby moves reach it (nearbyStudyFiles.native.ts), for files a teammate
+ * hands over by address: the folder, each address's file name, what is here, what kept passages
+ * want, whether the device is online, and the room kept for files none of them needs.
+ */
+export const studyFolder = { dir: () => { load(); return DIR; }, nameOf, present, changed, wanted: () => wanted, online: () => online, spare: STUDY_SPARE_BYTES };
+
 /** Bumped on every change, for `useSyncExternalStore`. */
 export function studyRevision(): number {
   return revision;

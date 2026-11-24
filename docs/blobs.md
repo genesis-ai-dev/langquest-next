@@ -135,6 +135,15 @@ needs and a small window of review once the server or another person keeps
 them (Carl's answer 14). Another language's marked level 2 files can go from
 the mark alone. Nearby files land in `<hash>.<format>.nearby.part`.
 
+Library files from a teammate's phone (since 2026-11-24): a team's guide's
+pictures and audio and its key words' audio can come over a nearby link too
+(`docs/nearby-sync-plan.md` 5.12, Library files). They land through the same
+staging name but with no mark, as if fetched from the organization's guide
+files: nothing nearby deletes them, the 2 GB cap counts them as it counts a
+guide file fetched online, and they never make room by deleting. A phone
+passes one on only if no `audio` row in any language on it names the hash,
+so a recording never leaves as a library file.
+
 Known v2 gap still open: no server-side garbage collection of blobs nothing
 references (a redacted recording's blobs stay in the bucket until that
 exists).

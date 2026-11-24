@@ -1,5 +1,5 @@
-import { canonicalJson, isHash, ORG_STREAM, validateDoc, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
-import { bytesToHex, docsThisLanguageUses, mayGoInStartingCopy, newcomerOrgState, utf8Encode, type Sha256 } from '@langquest-next/core/nearby';
+import { canonicalJson, docHeadOf, isHash, ORG_STREAM, validateDoc, type DocHead, type LanguageState, type LibraryDoc, type LibraryFile, type OrgState } from '@langquest-next/core';
+import { bytesToHex, docsThisLanguageUses, formatMayGoInStartingCopy, mayGoInStartingCopy, newcomerOrgState, utf8Encode, type Sha256 } from '@langquest-next/core/nearby';
 import type { FillRows } from './keptFill';
 import type { Message } from './nearbyWire';
 import { OfflineError, type KeptRecord, type StartingCopy } from './types';
@@ -8,8 +8,10 @@ import { OfflineError, type KeptRecord, type StartingCopy } from './types';
  * A starting copy between two phones (docs/nearby-sync-plan.md 14.1, 4): the sender's answers to
  * `copy-ask`, and the newcomer's asks and what it keeps. Every part is a text, paged by
  * character offsets in decimal, so a dropped link resumes from what came: a stream's state, a
- * passage's rows (by `[unitId, offset]`), the member names, and each library document the
- * language uses. The sender takes the language from the checked chain, never from an ask, and
+ * passage's rows (by `[unitId, offset]`), the member names, each library document the language
+ * uses, and which of those the sender holds (`held`, with `copy-library`). Any teammate also asks
+ * another for the documents its language uses that it lacks (`takeLibraryDocs`, 2026-11-24): the
+ * documents only, across versions. The sender takes the language from the checked chain, never from an ask, and
  * answers `copy-no` `not-allowed` for anything else. A copy is only ever a stand-in, which the
  * server's first download replaces; what is checked here is what keeps a newcomer's phone
  * whole and keeps other languages and other organizations off the link.
@@ -24,10 +26,28 @@ export type CopyNoReason = CopyNo['reason'];
 export const COPY_PART_BODY_BYTES = 900 * 1024;
 /** The most a newcomer joins from one text: a hostile sender cannot fill its memory. */
 export const COPY_TEXT_MAX_CHARS = 256 * 1024 * 1024;
+/**
+ * The most library documents a newcomer keeps from one copy, by count and by characters
+ * (2026-11-24). Every guide the language uses goes now, so a collection may name thousands; FIA's
+ * English is about 1,500 documents and 65 MB. A hostile sender's forged collection naming more
+ * stops here, and what is left is asked of the next teammate or at first contact.
+ */
+export const COPY_DOCS_MAX_COUNT = 5_000;
+export const COPY_DOCS_MAX_CHARS = 128 * 1024 * 1024;
+/** The most a `held` answer may be: 30,000 hashes, six times the documents a copy keeps. */
+export const COPY_HELD_MAX_CHARS = 2 * 1024 * 1024;
+/**
+ * The most one document's text may be, as the server's own limit (`library_put_document`, 4 MB):
+ * a teammate's longer text is refused once that much has come (security review, 2026-11-24).
+ */
+export const COPY_DOC_MAX_CHARS = 4 * 1024 * 1024;
+/** A sender keeps at most this many texts it is part-way through sending, so a peer that asks only first parts pins little. */
+const TEXTS_HELD = 4;
 
 /** The app's library documents, over `docStore.ts` (sync has no file store). */
 export interface NearbyDocs {
-  read(hash: string): Promise<LibraryDoc | null>;
+  /** What the walk needs of a document held here (`docHeadOf`), or null. Never the whole document, which a walk over every guide would hold in memory. */
+  head(hash: string): Promise<DocHead | null>;
   text(hash: string): Promise<string | null>;
   /** Keep a teammate's text as a fetched document: no outbox row, because this phone did not make it. Called only once it hashes to its name, validates and the allowlist takes it. */
   keep(hash: string, text: string): Promise<boolean>;
@@ -49,6 +69,22 @@ export interface CopyStream {
 function withKeptLinks(state: LanguageState, kept: LanguageState['passageLinks'] | undefined): LanguageState {
   if (!kept || Object.keys(kept).length === 0) return state;
   return { ...state, passageLinks: { ...kept, ...(state.passageLinks ?? {}) } };
+}
+
+/**
+ * Any teammate's phone, for the library documents its language uses (`copy-library`): it serves
+ * those it holds, and asks a teammate for those it lacks. Its own state as it stands, unconfirmed
+ * work and all: documents are named by their hash, so only the list of what may go depends on it.
+ */
+export interface NearbyLibrary {
+  /** The organization's state on this phone, or null before it has one. */
+  org(): Pick<OrgState, 'library' | 'recommendations'> | null;
+  language(): LanguageState;
+  /** As `CopyStream.keptPassageLinks`, for a language kept on disk. */
+  keptPassageLinks?(): Promise<LanguageState['passageLinks']>;
+  docs: NearbyDocs;
+  /** The phone wears a cover (decision 171): it takes only the documents its language itself names, never the rest of the library's guides. */
+  worn?(): boolean;
 }
 
 /** Everything a sender reads from: the language's client, the organization's, member names and documents. */
@@ -106,16 +142,131 @@ const rowsKey = (after: string | undefined): [string, number] | null => {
 type WireRow = [kind: string, id: string, ref: string, json: string];
 
 /**
+ * The documents this language uses, by `docsThisLanguageUses` with what `docs.head` answers, until
+ * the list stops growing, and the heads read on the way: null for a hash not held here.
+ */
+async function walkWithHeads(org: Pick<OrgState, 'library' | 'recommendations'>, state: LanguageState, docs: NearbyDocs): Promise<{ list: string[]; heads: Map<string, DocHead | null> }> {
+  const heads = new Map<string, DocHead | null>();
+  for (;;) {
+    const list = docsThisLanguageUses(org, state, (h) => heads.get(h) ?? null);
+    const fresh = list.filter((h) => !heads.has(h));
+    if (fresh.length === 0) return { list, heads };
+    for (const h of fresh) heads.set(h, await docs.head(h).catch(() => null));
+  }
+}
+
+const NO_REASONS: ReadonlySet<string> = new Set<CopyNoReason>(['not-allowed', 'not-filled', 'not-here', 'versions']);
+const isNo = (text: string | CopyNoReason): text is CopyNoReason => NO_REASONS.has(text);
+
+/**
+ * The `held` and `doc` parts for one session, from one scope: the starting copy's states, or a
+ * teammate's own (`NearbyLibrary`). It works out the list once. A document's text is dropped once
+ * its last part has gone, so a session that sends every guide holds one at a time.
+ */
+export class LibraryDocsSender {
+  private listed: Promise<{ list: Set<string>; held: string[] }> | null = null;
+  private readonly texts = new Map<string, Promise<string | CopyNoReason>>();
+
+  constructor(private readonly docs: NearbyDocs | undefined, private readonly scope: () => Promise<{ org: Pick<OrgState, 'library' | 'recommendations'>; state: LanguageState } | null>) {}
+
+  /** A teammate's own library: its state as it stands. */
+  static of(library: NearbyLibrary): LibraryDocsSender {
+    return new LibraryDocsSender(library.docs, async () => {
+      const org = library.org();
+      return org ? { org, state: withKeptLinks(library.language(), await library.keptPassageLinks?.()) } : null;
+    });
+  }
+
+  private list(): Promise<{ list: Set<string>; held: string[] }> {
+    return (this.listed ??= (async () => {
+      const scope = await this.scope();
+      if (!this.docs || !scope) return { list: new Set<string>(), held: [] };
+      const { list, heads } = await walkWithHeads(scope.org, scope.state, this.docs);
+      return { list: new Set(list), held: list.filter((h) => heads.get(h)).sort() };
+    })());
+  }
+
+  async answer(ask: CopyAsk): Promise<Omit<CopyPart, 't'> | CopyNoReason> {
+    const docs = this.docs;
+    if (ask.part === 'held') {
+      const key = 'held';
+      let text = this.texts.get(key);
+      if (!text) {
+        text = this.list().then((l) => JSON.stringify(l.held)).catch((): CopyNoReason => 'not-here');
+        this.texts.set(key, text);
+      }
+      const got = await text;
+      if (isNo(got)) return got;
+      const part = partOf(got, ask.after);
+      return part ? { part: 'held', ...part } : 'not-allowed';
+    }
+    if (ask.part !== 'doc') return 'not-allowed';
+    const hash = ask.hash;
+    if (!hash || !docs || !(await this.list()).list.has(hash)) return 'not-allowed';
+    const key = `doc:${hash}`;
+    let text = this.texts.get(key);
+    if (!text) {
+      // A peer that asks only first parts must not pin every long text: the oldest goes, and is read again if asked.
+      const docKeys = [...this.texts.keys()].filter((k) => k.startsWith('doc:'));
+      for (const k of docKeys.slice(0, Math.max(0, docKeys.length - TEXTS_HELD + 1))) this.texts.delete(k);
+      text = (async (): Promise<string | CopyNoReason> => {
+        const head = await docs.head(hash);
+        if (!head) return 'not-here';
+        if (!formatMayGoInStartingCopy(head.format)) return 'not-allowed';
+        return (await docs.text(hash)) ?? 'not-here';
+      })().catch((): CopyNoReason => 'not-here');
+      this.texts.set(key, text);
+    }
+    const got = await text;
+    if (isNo(got)) {
+      this.texts.delete(key);
+      return got;
+    }
+    const part = partOf(got, ask.after);
+    if (!part) return 'not-allowed';
+    if (part.next === null) this.texts.delete(key);
+    return { part: 'doc', ...part };
+  }
+}
+
+/**
+ * The library files this phone's language names, from the documents of its list that it holds
+ * (`libraryFilesOf`, in each head), by hash: what a phone may serve and ask for as reference
+ * files in step 7 (docs/nearby-sync-plan.md 5.12, 2026-11-24). Whether one is here, and is not a
+ * recording, is the file store's to say.
+ */
+export async function libraryFilesNamed(library: NearbyLibrary): Promise<{ files: Map<string, LibraryFile>; links: string[] }> {
+  const files = new Map<string, LibraryFile>();
+  const links = new Set<string>();
+  const org = library.org();
+  if (!org) return { files, links: [] };
+  const { list, heads } = await walkWithHeads(org, withKeptLinks(library.language(), await library.keptPassageLinks?.()), library.docs);
+  for (const h of list) {
+    const head = heads.get(h);
+    for (const f of head?.files ?? []) if (!files.has(f.hash)) files.set(f.hash, f);
+    for (const url of head?.links ?? []) links.add(url);
+  }
+  return { files, links: [...links].sort() };
+}
+
+/**
  * A sender's side for one session. It works out the documents this language uses once, and
  * holds each text it has built, so every part of one text comes from the same text.
  */
 export class StartingCopySender {
   private readonly texts = new Map<string, Promise<string | CopyNoReason>>();
-  private allowed: Promise<Set<string>> | null = null;
   private orgCopy: Promise<StartingCopy | null> | null = null;
   private languageCopy: Promise<StartingCopy | null> | null = null;
+  /** The list of section 5.12 from the copy's own states, so the sender and the newcomer work out the same one. */
+  private readonly library: LibraryDocsSender;
 
-  constructor(private readonly source: NearbyCopySource, private readonly languageId: string) {}
+  constructor(private readonly source: NearbyCopySource, private readonly languageId: string) {
+    this.library = new LibraryDocsSender(source.docs, async () => {
+      const [org, language] = await Promise.all([this.org(), this.language()]);
+      if (!org || !language) return null;
+      return { org: org.state as OrgState, state: withKeptLinks(language.state as LanguageState, await this.source.language.keptPassageLinks?.()) };
+    });
+  }
 
   private language(): Promise<StartingCopy | null> {
     return (this.languageCopy ??= this.source.language.startingCopy());
@@ -138,27 +289,10 @@ export class StartingCopySender {
     return held;
   }
 
-  /** The list of section 5.12, worked out with what `read` has returned until it stops growing. */
-  private docsAllowed(): Promise<Set<string>> {
-    return (this.allowed ??= (async () => {
-      const docs = this.source.docs;
-      const [org, language] = await Promise.all([this.org(), this.language()]);
-      if (!docs || !org || !language) return new Set<string>();
-      const state = withKeptLinks(language.state as LanguageState, await this.source.language.keptPassageLinks?.());
-      const read = new Map<string, LibraryDoc | null>();
-      for (;;) {
-        const list = docsThisLanguageUses(org.state as OrgState, state, (h) => read.get(h) ?? null);
-        const fresh = list.filter((h) => !read.has(h));
-        if (fresh.length === 0) return new Set(list);
-        for (const h of fresh) read.set(h, await docs.read(h).catch(() => null));
-      }
-    })());
-  }
-
   /** The answer to one ask. */
   async answer(ask: CopyAsk): Promise<Omit<CopyPart, 't'> | CopyNoReason> {
     const done = (text: string | CopyNoReason, part: string, stream?: string): Omit<CopyPart, 't'> | CopyNoReason => {
-      if (text === 'not-allowed' || text === 'not-filled' || text === 'not-here' || text === 'versions') return text;
+      if (isNo(text)) return text;
       const got = partOf(text, ask.after);
       return got ? { part, ...(stream !== undefined ? { stream } : {}), ...got } : 'not-allowed';
     };
@@ -180,7 +314,7 @@ export class StartingCopySender {
           const rows = await this.source.language.startingCopyRows!(unitId);
           return rows ? JSON.stringify(rows.map((r): WireRow => [r.kind, r.id, r.ref, r.json])) : 'not-filled';
         });
-        if (text === 'not-filled' || text === 'not-here' || text === 'not-allowed' || text === 'versions') return text;
+        if (isNo(text)) return text;
         const got = partOf(text, String(offset));
         if (!got) return 'not-allowed';
         return { part: 'rows', stream: this.languageId, body: got.body, next: got.next === null ? null : JSON.stringify([unitId, Number(got.next)]) };
@@ -198,18 +332,9 @@ export class StartingCopySender {
         });
         return done(text, 'names');
       }
-      case 'doc': {
-        const hash = ask.hash;
-        const docs = this.source.docs;
-        if (!hash || !docs || !(await this.docsAllowed()).has(hash)) return 'not-allowed';
-        const text = await this.text(`doc:${hash}`, async () => {
-          const doc = await docs.read(hash);
-          if (!doc) return 'not-here';
-          if (!mayGoInStartingCopy(doc)) return 'not-allowed';
-          return (await docs.text(hash)) ?? 'not-here';
-        });
-        return done(text, 'doc');
-      }
+      case 'held':
+      case 'doc':
+        return this.library.answer(ask);
       default:
         return 'not-allowed';
     }
@@ -230,16 +355,18 @@ export class CopyRefused extends Error {
 }
 
 /** A whole text, part by part, from offset 0. */
-async function askText(asker: CopyAsker, ask: Omit<CopyAsk, 't' | 'after'>): Promise<string> {
+async function askText(asker: CopyAsker, ask: Omit<CopyAsk, 't' | 'after'>, max = COPY_TEXT_MAX_CHARS): Promise<string> {
   const parts: string[] = [];
   let at = 0;
   for (;;) {
     const got = await asker(at === 0 ? ask : { ...ask, after: String(at) });
     if (got.t === 'copy-no') throw new CopyRefused(got.reason);
-    parts.push(got.body);
     at += got.body.length;
+    // Past its bound, the last part included: nothing more is joined.
+    if (at > max) throw new CopyRefused('malformed');
+    parts.push(got.body);
     if (got.next === null) return parts.join('');
-    if (got.next !== String(at) || at > COPY_TEXT_MAX_CHARS) throw new CopyRefused('malformed');
+    if (got.next !== String(at)) throw new CopyRefused('malformed');
   }
 }
 
@@ -316,22 +443,129 @@ export interface StartingCopyTarget {
   names?(names: Record<string, string>): Promise<void>;
   docs?: NearbyDocs;
   sha256: Sha256;
+  /** The documents one copy keeps at most: `COPY_DOCS_MAX_COUNT` and `COPY_DOCS_MAX_CHARS` unless given. */
+  docLimits?: { count: number; chars: number };
 }
+
+/**
+ * What a phone took of the documents its language uses from one teammate. `missing`: asked or
+ * not held there, and not here after. `capped`: it stopped at a bound (`COPY_DOCS_MAX_COUNT`,
+ * `COPY_DOCS_MAX_CHARS`, or a session's `budgetChars`), and the rest comes from the next session or
+ * at first contact.
+ */
+export interface LibraryDocsTaken { kept: number; refused: number; missing: number; capped: boolean }
 
 export interface StartingCopyTaken {
   /** Both streams hold a copy and every passage is filled in. */
   whole: boolean;
   filled: number;
-  docs: { kept: number; refused: number; missing: number };
+  docs: LibraryDocsTaken;
+}
+
+/** How a phone asks one teammate for documents. */
+export interface LibraryDocsAsk {
+  /** The teammate answers `held` (`copy-library`): ask only for what it holds. Else each hash is asked, as an older phone needs. */
+  held: boolean;
+  /** Characters of documents this session takes at most, past which the rest waits for the next: the Bluetooth pipe's share. */
+  budgetChars?: number;
+  /** Runs this phone's own reading, which says nothing on the link (the session's stall clock waits). */
+  local?<T>(work: () => Promise<T>): Promise<T>;
+}
+
+/**
+ * The documents this language uses that this phone lacks, asked of one teammate and each kept as
+ * it comes, what the language names first (`docsThisLanguageUses`' order). A document is kept only
+ * if its text hashes to its name, is canonical, validates and its format may go
+ * (`admitDoc`). Nothing is asked when nothing is lacking. A teammate that cannot answer one
+ * document costs that document, never the session; a dropped link (`OfflineError`) throws. Every
+ * character that comes counts against the bounds, kept or not, each text is at most
+ * `COPY_DOC_MAX_CHARS`, and a teammate whose text does not check, or runs past its bound, is asked
+ * nothing more this time (security review, 2026-11-24).
+ */
+export async function takeLibraryDocs(
+  asker: CopyAsker, library: NearbyLibrary, keep: { sha256: Sha256; limits?: { count: number; chars: number } }, how: LibraryDocsAsk
+): Promise<LibraryDocsTaken> {
+  const docs: LibraryDocsTaken = { kept: 0, refused: 0, missing: 0, capped: false };
+  const org = library.org();
+  if (!org) return docs;
+  const limits = keep.limits ?? { count: COPY_DOCS_MAX_COUNT, chars: COPY_DOCS_MAX_CHARS };
+  const local = how.local ?? (<T>(work: () => Promise<T>) => work());
+  const here = new Map<string, DocHead | null>();
+  const asked = new Set<string>();
+  const skipped = new Set<string>();
+  let there: Set<string> | null = null;
+  let came = 0;
+  const offered = library.worn?.() !== true;
+  const links = await library.keptPassageLinks?.();
+  // The list and what this phone holds of it, read until the list stops growing.
+  const lacking = () => local(async () => {
+    for (;;) {
+      const list = docsThisLanguageUses(org, withKeptLinks(library.language(), links), (h) => here.get(h) ?? null, { offered });
+      const fresh = list.filter((h) => !here.has(h));
+      if (fresh.length === 0) return list.filter((h) => here.get(h) === null && !asked.has(h) && !skipped.has(h));
+      for (const h of fresh) here.set(h, await library.docs.head(h).catch(() => null));
+    }
+  });
+  walk: for (;;) {
+    const wanted = await lacking();
+    if (wanted.length === 0) break;
+    if (how.held && there === null) {
+      there = new Set();
+      try {
+        const raw = JSON.parse(await askText(asker, { part: 'held' }, COPY_HELD_MAX_CHARS)) as unknown;
+        if (Array.isArray(raw)) for (const h of raw) if (isHash(h)) there.add(h);
+      } catch (err) {
+        if (err instanceof OfflineError) throw err;
+        // A teammate that will not say what it holds gives nothing this time.
+      }
+    }
+    for (const hash of wanted) {
+      if (there !== null && !there.has(hash)) {
+        skipped.add(hash);
+        continue;
+      }
+      const room = Math.min(limits.chars, how.budgetChars ?? Infinity) - came;
+      if (docs.kept >= limits.count || room <= 0) {
+        docs.capped = true;
+        break walk;
+      }
+      asked.add(hash);
+      let text: string;
+      // At most one text's bound, and never past what the session may still take.
+      const max = Math.min(COPY_DOC_MAX_CHARS, limits.chars - came);
+      try {
+        text = await askText(asker, { part: 'doc', hash }, max);
+      } catch (err) {
+        if (err instanceof OfflineError) throw err;
+        // Past its bound, or out of order: counted as refused, and nothing more is asked of this teammate.
+        if (err instanceof CopyRefused && err.reason === 'malformed') {
+          came += max;
+          docs.refused += 1;
+          break walk;
+        }
+        continue;
+      }
+      came += text.length;
+      const doc = await admitDoc(hash, text, keep.sha256);
+      if (!doc || !(await library.docs.keep(hash, text))) {
+        // A text that does not check: this teammate is asked nothing more this time.
+        docs.refused += 1;
+        break walk;
+      }
+      here.set(hash, docHeadOf(doc));
+      docs.kept += 1;
+    }
+  }
+  docs.missing = [...asked, ...skipped].filter((h) => !here.get(h)).length - docs.refused;
+  return docs;
 }
 
 /**
  * The newcomer's side: what is not here yet, asked for in order, each kept as it comes, so a
  * dropped link or another teammate goes on from where it stopped. The organization first, since
- * the language's documents are chosen from its library. A document is kept only if its text
- * hashes to its name, is canonical, validates and the allowlist takes it.
+ * the language's documents are chosen from its library. Documents last (`takeLibraryDocs`).
  */
-export async function takeStartingCopy(asker: CopyAsker, target: StartingCopyTarget): Promise<StartingCopyTaken> {
+export async function takeStartingCopy(asker: CopyAsker, target: StartingCopyTarget, how: LibraryDocsAsk = { held: false }): Promise<StartingCopyTaken> {
   const { language, org, languageId } = target;
   if (org && !(await org.holdsCopy())) {
     const copy = parseStartingCopy(await askText(asker, { part: 'state', stream: ORG_STREAM }), false);
@@ -363,35 +597,12 @@ export async function takeStartingCopy(asker: CopyAsker, target: StartingCopyTar
       // No names: teammates show as "someone" until first contact.
     }
   }
-  const docs = { kept: 0, refused: 0, missing: 0 };
-  if (target.docs && org) {
-    const local = target.docs;
-    const here = new Map<string, LibraryDoc | null>();
-    const asked = new Set<string>();
-    const links = await language.keptPassageLinks?.();
-    for (;;) {
-      const list = docsThisLanguageUses(org.state(), withKeptLinks(language.state(), links), (h) => here.get(h) ?? null);
-      const fresh = list.filter((h) => !here.has(h) && !asked.has(h));
-      if (fresh.length === 0) break;
-      for (const hash of fresh) {
-        const held = await local.read(hash).catch(() => null);
-        if (held) { here.set(hash, held); continue; }
-        asked.add(hash);
-        let text: string;
-        try {
-          text = await askText(asker, { part: 'doc', hash });
-        } catch (err) {
-          if (err instanceof OfflineError) throw err;
-          continue;
-        }
-        const doc = await admitDoc(hash, text, target.sha256);
-        if (!doc || !(await local.keep(hash, text))) { docs.refused += 1; continue; }
-        here.set(hash, doc);
-        docs.kept += 1;
-      }
-    }
-    docs.missing = asked.size - docs.kept - docs.refused;
-  }
+  const docs = target.docs && org
+    ? await takeLibraryDocs(asker, {
+      org: () => org.state(), language: () => language.state(), docs: target.docs,
+      ...(language.keptPassageLinks ? { keptPassageLinks: () => language.keptPassageLinks!() } : {})
+    }, { sha256: target.sha256, ...(target.docLimits ? { limits: target.docLimits } : {}) }, how)
+    : { kept: 0, refused: 0, missing: 0, capped: false };
   const whole = (!org || await org.holdsCopy()) && await language.holdsCopy() && !filling;
   return { whole, filled, docs };
 }

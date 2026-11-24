@@ -12,6 +12,7 @@ import { isStoredFormat, type StoredFile } from '../storage/storedFile';
 import { downloadBlob } from '../server/blobTransport';
 import { noteExpected } from '../diagnostics/report';
 import { timedTransfer } from '../diagnostics/diagnostics';
+import { noteLibraryFiles } from '../library/libraryOrigins';
 import type { StudyFile } from './guides';
 
 /** Downloads under way, by hash, so two screens asking for one file fetch it once. */
@@ -33,6 +34,8 @@ function fetchGuideFile(orgId: string, ref: StoredFile, store: BlobStore): Promi
   if (!p) {
     p = timedTransfer('down', { orgId, streamId: ORG_STREAM, src: 'guide' }, async (timings) => {
       await downloadBlob(orgId, ORG_STREAM, ref, store, timings);
+      // From the organization's guide files: a teammate may be given it as a library file.
+      noteLibraryFiles([ref.hash]);
       return store.sizeOf(ref.hash) ?? 0;
     })
       .then(() => undefined)

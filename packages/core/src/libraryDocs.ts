@@ -488,6 +488,57 @@ const str = (v: unknown) => typeof v === 'string' && v !== '';
 const optStr = (v: unknown) => v === undefined || typeof v === 'string';
 const NODE_ID = /^[^/@\s]+$/;
 
+/**
+ * What a walk over documents needs of one (libraryInUse.ts `docsThisLanguageUses`): its format
+ * and the documents it refers to, or `refs` null when this build cannot read through it. A phone
+ * walks with heads, never whole documents, so a walk over FIA's 1,525 English guides (65 MB)
+ * holds a few hundred kilobytes (2026-11-24).
+ */
+export interface DocHead {
+  format: string;
+  refs: readonly string[] | null;
+  /** The files it names that may go between teammates' phones: only a phone's walk reads them (`nearbyDocHeadOf`). */
+  files?: readonly LibraryFile[];
+  /** The web addresses of files it names that a phone keeps by address (`libraryLinksOf`), as a phone's walk reads them. */
+  links?: readonly string[];
+}
+
+export function docHeadOf(doc: LibraryDoc): DocHead {
+  let refs: string[] | null;
+  try {
+    refs = referencedDocs(doc);
+  } catch {
+    refs = null;
+  }
+  return { format: doc.format, refs };
+}
+
+/** A file a library document names, as a phone keeps it in its file store: its SHA-256 and format. */
+export interface LibraryFile {
+  hash: string;
+  format: string;
+  /** A source's chapter audio (`sourceBook@1`): it moves only for chapters a phone's kept passages want, after backups. */
+  kind?: 'source';
+}
+
+/** What a stored file is when the document does not say: audio is the recorder's m4a, pictures JPEG, films MP4. */
+const MEDIA_DEFAULT = { audio: 'm4a', image: 'jpg', video: 'mp4' } as const;
+export type MediaFileKind = keyof typeof MEDIA_DEFAULT;
+const MEDIA_FORMAT = /^[a-z0-9]{2,5}$/;
+
+/**
+ * The stored file to use for a media reference: on a phone the smaller copy when there is one
+ * (pictures 500px, always JPEG; films MP4), else the original. None when the media is only an
+ * address. The app's guides (apps/mobile/src/study/guideMatch.ts `mediaFile`) and the files that
+ * go between phones (`libraryFilesOf`) read the same one.
+ */
+export function mediaFileOf(ref: MediaRef | undefined, kind: MediaFileKind, phone: boolean): LibraryFile | undefined {
+  if (!ref?.hash) return undefined;
+  if (phone && ref.lowHash) return { hash: ref.lowHash, format: MEDIA_DEFAULT[kind] };
+  const f = ref.format?.toLowerCase().replace(/^jpeg$/, 'jpg');
+  return { hash: ref.hash, format: f && MEDIA_FORMAT.test(f) ? f : MEDIA_DEFAULT[kind] };
+}
+
 /** Every hash a document refers to, so `deps` can be checked (and shared together). */
 export function referencedDocs(doc: LibraryDoc): string[] {
   const out = new Set<string>();

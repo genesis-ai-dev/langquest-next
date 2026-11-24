@@ -390,7 +390,14 @@ team's unsent work between the two phones, with no internet.
   authors' names, signed batches, holdings, the revocation list, a newer discovery key, and
   each phone's certificate (install key, profile id, device id, organization and role
   privileges), only to members of the same organization whose certificate checks and who may
-  read that language. Data safety, above: not sharing, no new type.
+  read that language. From 2026-11-24 also the library documents that language uses which the
+  other phone lacks (templates, flows, key-word lists, study guides, sources), and which of
+  them this phone holds, and over Wi-Fi the files a team's guides and key-word lists and FIA's
+  guides name (pictures, maps and audio, never a film) and a library source's chapter audio for
+  passages the phone keeps (never Bible Brain's), with which of them this phone holds, FIA's by
+  a hash of their web address: reference material the organization chose, which every member already reads in the app and which the
+  app already declares (guide media). Never a recording as such a file. Data safety, above: not
+  sharing, no new type.
 - **Data safety, Location** stays "not collected": the location permissions exist only because
   Android 10 to 12L require them to scan and use Wi-Fi Direct, and the scan is marked
   `neverForLocation` from Android 12.
@@ -415,7 +422,11 @@ member taps once after both compare two pictures.
   teammate's, to the new phone: a signed invitation (the member's certificate and a link naming
   the new person, their key, role and organization), a discovery key, and a starting copy of the
   language: its work, this organization's member names, and the library documents the language
-  uses, with no source audio or guide media and nothing of other languages. Only a member who
+  uses, every kind since 2026-11-24 (a publisher's study guides and key words, sources), with no
+  source audio or guide media and nothing of other languages (guide media come later over Wi-Fi
+  from any teammate, as above), plus whether the organization
+  shares while LangQuest is open. The documents are reference material the organization chose,
+  which every member already reads in the app. Only a member who
   holds Invite can start it, after the one tap, for a role with no manage privilege, so the new
   person is someone that member chose to bring into the organization, which already sees this
   work. It is the same data reaching the person a member invited, a transfer the users start and
@@ -493,7 +504,9 @@ synced, the sums of the sessions it finished while open (which no longer write a
 each), how many sessions Share nearby began only to note a teammate's day, the longest wait
 from hearing a teammate to meeting them, a stop to rest, and, when the phone turned another
 away, a reason from a fixed list (past the two weeks, revoked, another organization, expired,
-other). They name no
+other); and how many library documents a session took from a teammate, refused, could not get
+or left for a cap, and how many library files it held, could use of the teammate's, got and
+served, summed in the room's record while LangQuest was open. They name no
 teammate's phone (no tag, salt, key, install key, profile or device id), say nothing of a
 disguise, carry no content, and go only to our own database with the person's other
 diagnostics, under the same Settings switch and 90 days. That is more of "App info and
@@ -595,7 +608,7 @@ this block.
       "error": ["code", "errorId", "fatal", "name", "where"],
       "expected": ["code", "count", "name", "where"],
       "fill": ["event", "headKb", "ms", "msToMap", "passages", "reason", "rows", "why"],
-      "nearby": ["adv", "alone", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "greets", "heard", "hotspot", "keyRefused", "levelMs", "link", "maxMeetMs", "maxUnmatched", "maybe", "mode", "ms", "newerApp", "noAnswer", "noRoom", "older", "openMin", "overBudget", "pauseMin", "pipeFails", "refusal", "refused", "role", "scanMin", "sent", "served", "sessions", "stop", "strangers", "syncMin", "taps", "viaDirect", "why"],
+      "nearby": ["adv", "alone", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "docsCapped", "docsKept", "docsMissing", "docsRefused", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "greets", "heard", "hotspot", "keyRefused", "levelMs", "libGot", "libHeld", "libServed", "libTheirs", "link", "maxMeetMs", "maxUnmatched", "maybe", "mode", "ms", "newerApp", "noAnswer", "noRoom", "older", "openMin", "overBudget", "pauseMin", "pipeFails", "refusal", "refused", "role", "scanMin", "sent", "served", "sessions", "stop", "strangers", "syncMin", "taps", "viaDirect", "why"],
       "load": ["checkpoint", "events", "foldMs", "fromSnapshot", "ms", "readMs", "reason", "staleCheckpointSeq"],
       "open": ["cold", "loadMs", "ms", "pulled", "snapshotMs", "syncs"],
       "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq", "why"],

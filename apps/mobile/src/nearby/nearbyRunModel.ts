@@ -223,6 +223,8 @@ export interface SessionReportLike {
   got: { events: number; refused: number };
   sent: { events: number };
   files: { got: number; served: number; failed: number; noRoom: boolean; cutBackups: boolean };
+  /** Guide pictures and audio, counted apart from recordings (5.12, Library files); null when the two phones did not swap them. */
+  libraryFiles: { got: number } | null;
   older: boolean;
   farAhead: readonly { actorId: string; hlc: string }[];
 }
@@ -293,6 +295,8 @@ export interface NearbySessionLine {
   filesIn: number;
   filesOut: number;
   filesFailed: number;
+  /** Guide pictures and audio this phone got: files its language's guides name, which a starting copy never carries (5.12, Library files). */
+  guideFilesIn: number;
   /** This phone stopped asking for files: too little room. */
   noRoom: boolean;
   /** Backups were cut for a teammate waiting (5.11). */
@@ -309,6 +313,7 @@ export interface NearbyProgress {
   eventsOut: number;
   filesIn: number;
   filesOut: number;
+  guideFilesIn: number;
 }
 
 export interface NearbyRunState {
@@ -382,7 +387,7 @@ export function sessionLineOf(tag: string | null, r: SessionReportLike): NearbyS
   return {
     tag: tag ?? r.peer?.tag ?? null, profileId: r.peer?.profileId ?? null, role: r.role, how: r.ended.how, linkKind: r.linkKind,
     eventsIn: r.got.events, eventsOut: r.sent.events, refused: r.got.refused, filesIn: r.files.got, filesOut: r.files.served, filesFailed: r.files.failed,
-    noRoom: r.files.noRoom, cutBackups: r.files.cutBackups, olderFromServer: r.older
+    guideFilesIn: r.libraryFiles?.got ?? 0, noRoom: r.files.noRoom, cutBackups: r.files.cutBackups, olderFromServer: r.older
   };
 }
 
@@ -420,7 +425,7 @@ function roomReported(s: NearbyRunState, e: RoomReport, worn: boolean, names: Re
       if (s.teammates.some((t) => t.tag === e.tag)) return s;
       return { ...s, teammates: [...s.teammates, { ...stranger(e.tag), state: 'maybe' }] };
     case 'session': {
-      const current: NearbyProgress = { tag: e.tag, role: e.role, eventsIn: 0, eventsOut: 0, filesIn: 0, filesOut: 0 };
+      const current: NearbyProgress = { tag: e.tag, role: e.role, eventsIn: 0, eventsOut: 0, filesIn: 0, filesOut: 0, guideFilesIn: 0 };
       const teammates = e.tag === null ? s.teammates : withTeammate(s.teammates, e.tag, (t) => ({ ...t, state: 'exchanging' }), () => stranger(e.tag!));
       return { ...s, current, teammates, level: false, met: true };
     }
@@ -470,7 +475,8 @@ export function nearbyRunReducer(s: NearbyRunState, a: NearbyRunAction): NearbyR
       return roomReported(s, a.report, a.worn, a.names ?? new Map());
     case 'progress':
       if (!s.current) return s;
-      return { ...s, current: { ...s.current, eventsIn: a.report.got.events, eventsOut: a.report.sent.events, filesIn: a.report.files.got, filesOut: a.report.files.served } };
+      return { ...s, current: { ...s.current, eventsIn: a.report.got.events, eventsOut: a.report.sent.events, filesIn: a.report.files.got, filesOut: a.report.files.served,
+        guideFilesIn: a.report.libraryFiles?.got ?? 0 } };
     case 'tapped':
       return {
         ...s, teammates: s.teammates.map((t) => ((t.tag === a.tag || a.all === true) && t.state === 'maybe' ? { ...t, state: 'here' } : t)),

@@ -1,4 +1,6 @@
-import { afterCopy, afterGrant, askingRecord, goOnOnline, JOIN_START, joinEndOf, joinName, joinReducer, notEmptyWhy, seedsFor, type JoinAction, type JoinStage } from '../src/nearby/joinOfflineModel';
+import {
+  afterCopy, afterGrant, askingRecord, goOnOnline, JOIN_START, joinEndOf, joinGuideFilesLine, joinName, joinReducer, notEmptyWhy, seedsFor, type JoinAction, type JoinStage
+} from '../src/nearby/joinOfflineModel';
 import { keepGrant, setWhenWhole, type GrantStores } from '../src/nearby/joinGrant';
 import type { LocalPerson } from '../src/session/localPersonModel';
 import { inviteChain, KEY, person } from './localPersonFixtures';
@@ -79,6 +81,22 @@ describe('the grant and the copy', () => {
     expect(other.log).toEqual([]);
   });
 
+  // Carl, 2026-11-24: a phone that joined offline never heard the server say the organization shares while
+  // LangQuest is open, so it never did, and the two phones never met by themselves. The inviter's word stands in.
+  it('takes the organization as sharing while open from the inviter\'s grant, before the seeds, and nothing when the grant does not say so', async () => {
+    const open: [string, readonly string[]][] = [];
+    const t = stores();
+    const s = { ...t.s, keepOpenOrgs: async (id: string, orgs: readonly string[]) => { t.log.push('open'); open.push([id, orgs]); } };
+    await keepGrant(asked, { ...grant, features: ['nearby', 'nearby_join', 'nearby_open'] }, s);
+    expect(t.log).toEqual(['record', 'chain', 'key', 'open', 'seed']);
+    expect(open).toEqual([[asked.profileId, ['org-1']]]);
+    for (const features of [undefined, [], ['nearby', 'nearby_join']]) {
+      const u = stores();
+      await keepGrant(asked, { ...grant, ...(features ? { features } : {}) }, { ...u.s, keepOpenOrgs: async () => { u.log.push('open'); } });
+      expect(u.log, JSON.stringify(features)).toEqual(['record', 'chain', 'key', 'seed']);
+    }
+  });
+
   it('a key that could not be kept is said, and the grant still stands', async () => {
     const t = stores({ find: false });
     await keepGrant(asked, grant, t.s);
@@ -120,6 +138,18 @@ describe('the progress screen', () => {
     expect(run(...begun)).toEqual({ t: 'asked', pictures: [3, 9] });
     expect(run(...begun, { t: 'granted' }, { t: 'part' }, { t: 'part' })).toEqual({ t: 'copying', parts: 2 });
     expect(run(...begun, { t: 'granted' }, { t: 'copied', whole: true })).toEqual({ t: 'whole' });
+  });
+
+  it('says guide pictures and audio come later from the grant on, and not before it or when not let in', () => {
+    // The starting copy carries no guide files; the first Wi-Fi session with a teammate brings them (5.12, Library files).
+    const begun: JoinAction[] = [{ t: 'checked', notEmpty: null, code: true, filling: false }, { t: 'start' }, { t: 'asked', pictures: [3, 9] }];
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }))).toBe(true);
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: true }))).toBe(true);
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: false }))).toBe(true);
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: false }, { t: 'look' }))).toBe(true);
+    expect(joinGuideFilesLine(run(...begun))).toBe(false);
+    expect(joinGuideFilesLine(run(...begun, { t: 'ended', why: 'not-let-in' }))).toBe(false);
+    expect(joinGuideFilesLine(run({ t: 'checked', notEmpty: null, code: true, filling: false }))).toBe(false);
   });
 
   it('says why a phone that holds someone\'s work cannot join, and asks for a code when none was scanned', () => {

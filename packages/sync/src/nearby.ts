@@ -10,6 +10,7 @@ export * from './nearbyIntake';
 export * from './nearbyKeep';
 export * from './nearbyLink';
 export * from './nearbyMarks';
+export * from './libraryFileOrigins';
 export * from './nearbyOpening';
 export * from './nearbyPartners';
 export * from './nearbyRoom';

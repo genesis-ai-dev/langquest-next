@@ -3,7 +3,7 @@ import { summaryOf, summaryText, type ChainLink, type DiscoveryKey, type Holding
 import { ensureDeviceId, type SyncInspection } from '@langquest-next/sync';
 import {
   nearbyFirstDayWithin, nearbyGreetDue, nearbyKeepOf, NEARBY_DIAG_SCHEMA, NearbyRoom, NearbySession, type FindTunables, type NearbyDiagInput, type NearbyCrypto, type NearbyGate, type NearbyGenerations, type NearbyRoomEvent,
-  type NearbyRoomFacts, type NearbySessionReport, type NearbySigner, type NearbyCopySource, type StartingCopyTarget
+  type NearbyRoomFacts, type NearbySessionReport, type NearbySigner, type NearbyCopySource, type NearbyLibrary, type StartingCopyTarget
 } from '@langquest-next/sync/nearby';
 import * as Crypto from 'expo-crypto';
 import { diagnostics } from '../diagnostics/diagnostics';
@@ -117,6 +117,8 @@ export interface NearbyRoomArgs {
   copy?: NearbyCopySource;
   /** Phase 6: this phone's own starting copy is not whole yet, and a teammate on the same versions finishes it (14.1, 3). */
   takeCopy?: Omit<StartingCopyTarget, 'sha256'>;
+  /** Any member: the library documents its language uses, served to a teammate and asked of one (14.1, 2026-11-24). */
+  library?: NearbyLibrary;
 }
 
 /**
@@ -197,7 +199,7 @@ export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
         generations, older: args.older, ...(args.heardTag !== undefined ? { heardTag: args.heardTag } : {}),
         ...(args.onOpened ? { onOpened: args.onOpened } : {}), otherWaiting: args.otherWaiting,
         arrange: { radio, radios: args.radios }, time, onProgress: a.progress,
-        ...(a.copy ? { copy: a.copy } : {}), ...(a.takeCopy ? { takeCopy: a.takeCopy } : {}),
+        ...(a.copy ? { copy: a.copy } : {}), ...(a.takeCopy ? { takeCopy: a.takeCopy } : {}), ...(a.library ? { library: a.library } : {}),
         ...(a.freshWithinMs !== undefined ? { freshWithinMs: a.freshWithinMs } : {}),
         ...(notesMetForMs !== undefined ? { notesMetForMs } : {})
       });

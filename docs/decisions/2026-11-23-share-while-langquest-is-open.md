@@ -79,3 +79,11 @@ only turning away a phone whose chain did not check, a stop of the room's
 own or a radio error: a teammate past the window, someone with no role in the
 language, or being turned away is passed over for the run, since resting
 stopped the mode for everyone in range each time one of them was near.
+
+Amended (2026-11-24, Carl Sauder): a phone that joined offline had never
+heard the server, so it did not know its organization has `nearby_open`, and
+it never shared while LangQuest was open, even beside its inviter. The join
+grant now carries what the inviter's phone last heard of the organization's
+nearby features, and the newcomer keeps `nearby_open` from it until its first
+contact replaces it
+(2026-11-24-a-starting-copy-carries-every-library-document-a-language-uses).

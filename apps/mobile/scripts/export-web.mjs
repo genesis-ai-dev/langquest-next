@@ -291,7 +291,19 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // (installFileRow), in the nearby chunk the web loads with Share nearby. The screen's own rule is in a file
 // only a phone loads (installFileOfferModel.ts), and its three words left all 16 catalogs. 938 bytes are
 // left; a first visit has 847.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 173 * 1024;
+// Raised by 1 KB with the library documents a language uses going between any two teammates (Carl,
+// 2026-11-24): the same 880 bytes a first visit grew by (see there), in the document store every screen
+// reads through. 1,082 bytes are left; a first visit has 991.
+// Raised by 1 KB with FIA's study files going between teammates (Carl, 2026-11-24): the same 590 bytes a
+// first visit grew by (see there). 1,065 bytes are left; a first visit has 974.
+// Raised by 1 KB with a library source's chapter audio going between teammates and the lines that say guide
+// pictures and audio come over Wi-Fi (Carl, 2026-11-24, docs/nearby-sync-plan.md 5.12, Library files), 371
+// bytes past it: the sources' pass now indexes a chapter already in the store while offline and says which
+// chapters it wants by hash (sources/offline.ts, useSourceOffline.ts), in the chunk the sources' screens load,
+// and Share nearby's count of guide files and Let someone in's and Join without internet's line, in English, in
+// the nearby chunk. The asking and the landing are in files only a phone loads. 653 bytes are left; a first
+// visit has 352.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 176 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -398,7 +410,28 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 173 * 1024;
 // Raised by 2 KB with @supabase/supabase-js 2.119.0 to 2.119.2 (Carl, 2026-11-24, Dependabot's app group),
 // 1,096 bytes past it: the same 1,845 bytes all chunks grew by (see there), since the client is made as the
 // app starts. 952 bytes are left; all chunks have 892.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 118 * 1024;
+// Raised by 1 KB with the library documents a language uses going between any two teammates (Carl,
+// 2026-11-24, docs/nearby-sync-plan.md 5.12 and 14.1, docs/decisions/2026-11-24-a-starting-copy-carries-every-library-document-a-language-uses.md,
+// amended that day), 33 bytes past it: the document store every screen reads through
+// (library/docStore.ts) keeps a teammate's guides on disk only and reads them as heads (`docHeadOf`),
+// so a walk over FIA's 1,525 English guides never holds them in memory, tells the screens once per half
+// second of them, and `useLibraryDocs` reads from disk what an open screen still lacks when they come.
+// The walk, the asks and the serving are in files only a phone loads (nearbyLibrary.native.ts and the
+// nearby entries). 991 bytes are left; all chunks have 1,082.
+// Raised by 1 KB with FIA's study files going between teammates on a teammate's word (Carl, 2026-11-24,
+// docs/nearby-sync-plan.md 5.12, docs/decisions/2026-11-24-library-files-move-between-teammates-as-reference-files.md,
+// amended that day), 50 bytes past it: the study folder every guide screen reads through
+// (study/studyFiles.ts) now hands a phone's nearby moves its folder, file names and wish list
+// (`studyFolder`), 590 bytes, since the minifier no longer folds those away. The moves, the landing
+// and fetching them again online are in a file only a phone loads (study/nearbyStudyFiles.native.ts),
+// and the team's own library files' rule is in the nearby entry. 974 bytes are left; all chunks have 1,065.
+// Raised by 1 KB with the security review of the library files (Carl, 2026-11-24, docs/decisions/2026-11-24-library-files-move-between-teammates-as-reference-files.md,
+// amended that day), 63 bytes past it with the sources' chapters and the lines on screen merged in: a phone keeps a
+// record of where each library file came from, so the guide file a screen fetches (study/useStudyFileUri.ts), the
+// guide editor's upload (guides/files.ts) and a source's chapter (sources/offline.ts) each note it
+// (library/libraryOrigins.ts). The web keeps no record: its copy of that module does nothing, and the record itself
+// is in a file only a phone loads (libraryOrigins.native.ts). 961 bytes are left; all chunks have 189.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 121 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

@@ -23,7 +23,7 @@
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { REDUCER_VERSION } from '../packages/core/src/index';
-import { buildLabel, jobSignals, signals, throughput, type InstallSummary, type JobStat, type Member, type LanguageHealth, type RpcStat } from './diagSignals';
+import { buildLabel, jobSignals, signals, throughput, type InstallSummary, type JobStat, type Member, type LanguageHealth, type NearbyLibraryField, type RpcStat } from './diagSignals';
 
 if (process.argv.includes('--hosted')) {
   const rest = process.argv.slice(1).filter((a) => a !== '--hosted');
@@ -80,6 +80,14 @@ function resolve(orgText: string, langText: string): { org: Found; lang: Found }
 
 const mb = (b?: number | null) => (b ? `${(b / 1024 / 1024).toFixed(1)} MB` : '0');
 const s = (ms?: number | null) => (ms ? `${(ms / 1000).toFixed(1)} s` : '-');
+
+/** Library documents taken from teammates and library files moved nearby (2026-11-24), when there were any; '' when none. */
+function library(x: Partial<Record<NearbyLibraryField | 'libTheirs', number>>): string {
+  const n = (k: NearbyLibraryField | 'libTheirs') => x[k] ?? 0;
+  if (!n('docsKept') && !n('docsRefused') && !n('docsMissing') && !n('docsCapped') && !n('libGot') && !n('libServed') && !n('libTheirs')) return '';
+  return `; library documents ${n('docsKept')} kept, ${n('docsRefused')} refused, ${n('docsMissing')} not given${n('docsCapped') ? `, ${n('docsCapped')} stopped at the cap` : ''}`
+    + `; library files ${n('libGot')} in${x.libTheirs !== undefined ? ` (of ${n('libTheirs')} usable)` : ''}, ${n('libServed')} out`;
+}
 
 function report(orgText: string, langText: string): void {
   const { org, lang } = resolve(orgText, langText);
@@ -190,10 +198,10 @@ function installLines(install: string, x: InstallSummary & { roles?: string; lan
     const rt = n.roomTotals ?? {};
     out.push(`- share nearby: ${n.rooms?.length ?? 0} rooms (last ${n.lastAt ?? '?'}), stopped ${(n.rooms ?? []).map((r) => (r.mode === 'open' ? `${r.stop} (open)` : r.stop)).join(', ') || '-'}; heard ${rt.heard ?? 0}, echoed ${rt.echoed ?? 0}, bare adverts ${rt.alone ?? 0}, taps ${rt.taps ?? 0}/${rt.maybe ?? 0}, pipes failed ${rt.pipeFails ?? 0}, strangers ${rt.strangers ?? 0}`);
     const o = n.openTotals;
-    if (o?.count) out.push(`- while open: ${o.count} runs, ${o.openMin ?? 0} min (off ${o.pauseMin ?? 0}, scanning ${o.scanMin ?? 0}, syncing ${o.syncMin ?? 0}); met anyone in ${o.met ?? 0}; ${o.done ?? 0} sessions finished, ${o.viaDirect ?? 0} over Wi-Fi Direct; events ${o.events ?? 0} in, ${o.sent ?? 0} out; files ${o.files ?? 0} in, ${o.served ?? 0} out; longest wait to meet ${s(o.maxMeetMs)}`);
+    if (o?.count) out.push(`- while open: ${o.count} runs, ${o.openMin ?? 0} min (off ${o.pauseMin ?? 0}, scanning ${o.scanMin ?? 0}, syncing ${o.syncMin ?? 0}); met anyone in ${o.met ?? 0}; ${o.done ?? 0} sessions finished, ${o.viaDirect ?? 0} over Wi-Fi Direct; events ${o.events ?? 0} in, ${o.sent ?? 0} out; files ${o.files ?? 0} in, ${o.served ?? 0} out${library(o)}; longest wait to meet ${s(o.maxMeetMs)}`);
     if (n.refusals) out.push(`- turned away: ${Object.entries(n.refusals).map(([k, c]) => `${k} ×${c}`).join(', ')}`);
     if (n.deliver?.count) out.push(`- delivered teammates' work: ${n.deliver.count} times, ${n.deliver.events ?? 0} of ${n.deliver.sent ?? 0} events new, ${n.deliver.refused ?? 0} refused${n.deliver.stopped ? `, stopped early ${JSON.stringify(n.deliver.stopped)}` : ''}`);
-    if (n.sessionTotals) out.push(`- nearby sessions: ${n.sessionTotals.count ?? 0}, ended ${JSON.stringify(n.ends ?? {})}, links ${JSON.stringify(n.links ?? {})}, fallbacks ${n.sessionTotals.fallbacks ?? 0}; events ${n.sessionTotals.events ?? 0} in, ${n.sessionTotals.sent ?? 0} out; files ${n.sessionTotals.files ?? 0} in, ${n.sessionTotals.served ?? 0} out, ${n.sessionTotals.fileFails ?? 0} failed`);
+    if (n.sessionTotals) out.push(`- nearby sessions: ${n.sessionTotals.count ?? 0}, ended ${JSON.stringify(n.ends ?? {})}, links ${JSON.stringify(n.links ?? {})}, fallbacks ${n.sessionTotals.fallbacks ?? 0}; events ${n.sessionTotals.events ?? 0} in, ${n.sessionTotals.sent ?? 0} out; files ${n.sessionTotals.files ?? 0} in, ${n.sessionTotals.served ?? 0} out, ${n.sessionTotals.fileFails ?? 0} failed${library(n.sessionTotals)}`);
     if (n.codes || n.blocked) out.push(`- nearby codes ${JSON.stringify(n.codes ?? {})}${n.blocked ? `, could not run ${JSON.stringify(n.blocked)}` : ''}`);
   }
   for (const e of x.expected ?? []) out.push(`- expected: ${e.count}× "${e.where}" ${e.name}${e.code ? ` (${e.code})` : ''}, last ${e.lastAt}`);
@@ -247,7 +255,7 @@ function nearbyReport(orgText: string): void {
     const quiet = x.rooms?.open;
     if (quiet) {
       out.push(`- while open: ${quiet.count} runs on ${quiet.installs} installs, ${quiet.openMin ?? 0} min (off ${quiet.pauseMin ?? 0}, scanning ${quiet.scanMin ?? 0}, syncing ${quiet.syncMin ?? 0}); heard anyone in ${quiet.heardAny}, met anyone in ${quiet.met}; median longest wait to meet ${s(quiet.p50MeetMs)}, longest ${s(quiet.maxMeetMs)}`,
-        `  ${quiet.done ?? 0} sessions finished (${quiet.viaDirect ?? 0} over Wi-Fi Direct): events ${quiet.events ?? 0} in, ${quiet.sent ?? 0} out; files ${quiet.files ?? 0} in, ${quiet.served ?? 0} out, ${quiet.fileFails ?? 0} failed; stopped ${JSON.stringify(quiet.stops ?? {})}`);
+        `  ${quiet.done ?? 0} sessions finished (${quiet.viaDirect ?? 0} over Wi-Fi Direct): events ${quiet.events ?? 0} in, ${quiet.sent ?? 0} out; files ${quiet.files ?? 0} in, ${quiet.served ?? 0} out, ${quiet.fileFails ?? 0} failed${library(quiet)}; stopped ${JSON.stringify(quiet.stops ?? {})}`);
     }
     const screen = x.rooms?.screen;
     if (screen) out.push(`- Share nearby: ${screen.count} rooms on ${screen.installs} installs; heard anyone in ${screen.heardAny}, met anyone in ${screen.met}; ${screen.greets ?? 0} greetings to note a teammate's day; median longest wait to meet ${s(screen.p50MeetMs)}; stopped ${JSON.stringify(screen.stops ?? {})}`);

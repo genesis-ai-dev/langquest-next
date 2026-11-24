@@ -1,8 +1,8 @@
 import { emptyOrgState } from '@langquest-next/core';
 import { GIVE_IDLE_MS } from '../src/nearby/giveAppModel';
 import {
-  codeLeft, codeShown, LET_IN_CODE_MS, LET_IN_GIVE_CODE_MS, LET_IN_START, letInCodeMs, letInEndOf, letInReducer, letInRoles, letInWhyNot, type LetInAction,
-  type LetInState
+  codeLeft, codeShown, LET_IN_CODE_MS, LET_IN_GIVE_CODE_MS, LET_IN_START, letInCodeMs, letInEndOf, letInGuideFilesLine, letInReducer, letInRoles, letInWhyNot,
+  type LetInAction, type LetInState
 } from '../src/nearby/letInModel';
 import { letInPermit } from '../src/nearby/letInPermitModel';
 import type { PassShape } from '../src/nearby/nearbyModel';
@@ -104,6 +104,19 @@ describe('the screen', () => {
     expect(run(...yes).stage).toEqual({ t: 'copying', name: 'Nyibol', parts: 1 });
     expect(run(...yes, { t: 'ended', why: 'done' }).stage).toEqual({ t: 'done', name: 'Nyibol' });
     expect(run(...yes, { t: 'ended', why: 'dropped-after' }).stage).toEqual({ t: 'ended', why: 'dropped-after', name: 'Nyibol' });
+  });
+
+  it('says the new person\'s guide pictures and audio come later once they are in, and not before or when they were not let in', () => {
+    // The starting copy carries no guide files; their first Wi-Fi session with a teammate brings them (5.12, Library files).
+    const yes = [...up, { t: 'answered', yes: true } as LetInAction];
+    expect(letInGuideFilesLine(run(...yes, { t: 'ended', why: 'done' }).stage)).toBe(true);
+    expect(letInGuideFilesLine(run(...yes, { t: 'ended', why: 'dropped-after' }).stage)).toBe(true);
+    expect(letInGuideFilesLine(run(...yes, { t: 'ended', why: 'copy-short' }).stage)).toBe(true);
+    expect(letInGuideFilesLine(run(...yes).stage)).toBe(false);
+    expect(letInGuideFilesLine(run(...up).stage)).toBe(false);
+    expect(letInGuideFilesLine(run(...up, { t: 'answered', yes: false }).stage)).toBe(false);
+    expect(letInGuideFilesLine(run(...up, { t: 'ended', why: 'dropped' }).stage)).toBe(false);
+    expect(letInGuideFilesLine(LET_IN_START.stage)).toBe(false);
   });
 
   it('a second phone that tried the code is told about until a new code', () => {

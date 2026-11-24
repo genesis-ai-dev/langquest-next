@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
-  canonicalJson, emptyLanguageState, foldLanguage, foldOrg, HlcClock, keptVerdict, languageLines, ORG_STREAM, PART_OF_KIND, putEntry, withOwnParts, type LanguageState, type LibraryDoc, type OrgState
+  canonicalJson, docHeadOf, emptyLanguageState, foldLanguage, foldOrg, HlcClock, keptVerdict, languageLines, ORG_STREAM, PART_OF_KIND, putEntry, withOwnParts, type LanguageState, type LibraryDoc, type OrgState
 } from '@langquest-next/core';
 import { bytesToHex, newcomerOrgState, utf8Encode } from '@langquest-next/core/nearby';
 import { PART_KINDS } from '../src/keptLanguage';
@@ -235,19 +235,55 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
       } as unknown as OrgState;
       const docs = new Map([[matHash, mat]]);
       const kept: string[] = [];
-      const port: NearbyDocs = { read: async (x) => docs.get(x) ?? null, text: async (x) => (docs.has(x) ? canonicalJson(docs.get(x)) : null), keep: async (x) => { kept.push(x); return true; } };
+      const port: NearbyDocs = { head: async (x: string) => { const d = docs.get(x); return d ? docHeadOf(d) : null; }, text: async (x) => (docs.has(x) ? canonicalJson(docs.get(x)) : null), keep: async (x) => { kept.push(x); return true; } };
       const sender = new StartingCopySender({ language: t.client, org: { startingCopy: async () => ({ serverSeq: 1, state: orgState }) }, docs: port }, 'p1');
       expect(await sender.answer({ t: 'copy-ask', part: 'doc', hash: matHash })).toMatchObject({ part: 'doc', body: canonicalJson(mat) });
 
       const n = await newcomer(server, t.client, { on: false });
-      const none: NearbyDocs = { read: async () => null, text: async () => null, keep: port.keep };
+      const none: NearbyDocs = { head: async () => null, text: async () => null, keep: port.keep };
       const taken = await takeStartingCopy(asker(sender), {
         languageId: 'p1', sha256: fakeSha256, docs: none,
         language: { holdsCopy: () => n.client.holdsCopy(), adoptStartingCopy: (c) => n.client.adoptStartingCopy(c), fillFromCopy: (r) => n.client.fillFromCopy(r), keptOnDisk: true, state: () => n.client.getState(), keptPassageLinks: () => n.client.keptPassageLinks() },
         org: { holdsCopy: async () => true, adoptStartingCopy: async () => undefined, state: () => orgState }
       });
-      expect(taken.docs).toEqual({ kept: 1, refused: 0, missing: 0 });
+      expect(taken.docs).toEqual({ kept: 1, refused: 0, missing: 0, capped: false });
       expect(kept).toEqual([matHash]);
+    });
+
+    // 2026-11-24: every guide the language uses goes now, so a hostile sender's forged collection could name thousands.
+    it('keeps at most the copy\'s bound of documents, however many a collection names, and says it stopped', async () => {
+      const server = new FakeServer();
+      server.serverCut = true;
+      await language(server, 4);
+      server.makeSnapshot('org1', 'p1');
+      const t = await teammate(server);
+      const doc = (i: number) => ({ format: 'study@2', title: `Guide ${i}`, links: [], steps: [{ id: 's', title: 'Listen', text: `Step ${i}` }], resources: [], terms: [], deps: [] });
+      const hashOf = (d: unknown) => bytesToHex(fakeSha256(utf8Encode(canonicalJson(d))));
+      const guides = Array.from({ length: 40 }, (_, i) => doc(i));
+      const numbering = { format: 'versification@1', code: 'eng', name: 'English', maxVerses: { MRK: [45] }, mappedVerses: {} };
+      const entries = guides.map((g, i) => ({ ref: `MRK 1:${i + 1}`, title: `Guide ${i}`, doc: hashOf(g) }));
+      const collection = { format: 'collection@1', title: 'Many', description: '', versification: hashOf(numbering), entries, deps: [...new Set([hashOf(numbering), ...entries.map((e) => e.doc)])].sort() };
+      const all = new Map<string, unknown>([[hashOf(collection), collection], [hashOf(numbering), numbering], ...guides.map((g) => [hashOf(g), g] as [string, unknown])]);
+      const reg = <T,>(value: T) => ({ value, hlc: 'x', eventId: 'e' });
+      const cHash = hashOf(collection);
+      const orgState = {
+        library: { many: { kind: reg('material'), name: reg('Many'), description: reg(''), copiedFrom: reg(null), versions: { [cHash]: { docHash: cHash, hlc: 'x', eventId: 'e', actorId: 'lead' } }, sharing: reg({ shared: false, subscribable: false }), archived: reg(false), subscription: reg(null), pinned: reg(null) } },
+        recommendations: {}, members: {}, roles: {}, languages: {}
+      } as unknown as OrgState;
+      const port: NearbyDocs = { head: async (x: string) => { const d = all.get(x) as LibraryDoc | undefined; return d ? docHeadOf(d) : null; }, text: async (x) => (all.has(x) ? canonicalJson(all.get(x)) : null), keep: async () => true };
+      const sender = new StartingCopySender({ language: t.client, org: { startingCopy: async () => ({ serverSeq: 1, state: orgState }) }, docs: port }, 'p1');
+      const n = await newcomer(server, t.client, { on: false });
+      const kept: string[] = [];
+      const none: NearbyDocs = { head: async () => null, text: async () => null, keep: async (x) => { kept.push(x); return true; } };
+      const taken = await takeStartingCopy(asker(sender), {
+        languageId: 'p1', sha256: fakeSha256, docs: none, docLimits: { count: 10, chars: 1_000_000 },
+        language: { holdsCopy: () => n.client.holdsCopy(), adoptStartingCopy: (c) => n.client.adoptStartingCopy(c), fillFromCopy: (r) => n.client.fillFromCopy(r), keptOnDisk: true, state: () => n.client.getState() },
+        org: { holdsCopy: async () => true, adoptStartingCopy: async () => undefined, state: () => orgState }
+      });
+      expect(taken.docs).toMatchObject({ kept: 10, capped: true });
+      expect(kept).toHaveLength(10);
+      // The collection, offered by the wider library, came first: it is how the guides were found.
+      expect(kept[0]).toBe(cHash);
     });
   });
 
