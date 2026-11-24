@@ -10,8 +10,8 @@ const logic = new Function(`${esc} const recordSaid = (r) => ({ who: r.who, said
   ${STEPS_LOGIC}; return { readsSaid, stepSaid, issueTimeline, stepsBetween };`)() as {
   readsSaid: (r: Row | null) => string;
   stepSaid: (s: Row, issue: string) => Entry;
-  issueTimeline: (steps: Row[], record: Row[], issue: string, talks?: Row[]) => Entry[];
-  stepsBetween: (steps: Row[], issue: string, from: string, to: string | null) => Entry[];
+  issueTimeline: (steps: Row[], record: Row[], issue: string, talks?: Row[], now?: number) => Entry[];
+  stepsBetween: (steps: Row[], issue: string, from: string, to: string | null, now?: number) => Entry[];
 };
 
 /** The drawing code with the page's helpers as plain stand-ins (as in issues.test.ts). */
@@ -116,6 +116,32 @@ describe('the steps on a user issue (docs/decisions/2026-11-24-each-issue-card-s
     expect(talk).not.toContain('found the problem');
     expect(steps).not.toContain('checked the work as the reviewer');
     draw.data(null);
+  });
+
+  it('says when a try brought no result back, and never leaves a card at "started a try"', () => {
+    const tried = [step('handed', '2026-11-24T00:31:00Z')];
+    const now = Date.parse('2026-11-24T19:35:00Z');
+    const late = logic.issueTimeline(tried, [], 'LAN-315', [], now);
+    expect(late[0]!.said).toBe('started a try to prove the cause and fix it');
+    expect(late[0]!.sub).toBe('No result came back from this try. Claude tries again at the next run of its plan.');
+    expect(late[0]!.look).toBe('bad');
+    // While the try runs (under 4 hours), and once a result came back, the step is as it was.
+    expect(logic.issueTimeline(tried, [], 'LAN-315', [], Date.parse('2026-11-24T02:00:00Z'))[0]!.look).toBe('');
+    const back = logic.issueTimeline([...tried, step('fix', '2026-11-24T00:37:00Z', { decision: 'none', reason: 'app', verdict: 'review' })], [], 'LAN-315', [], now);
+    expect(back.map((e) => [e.said, e.look])).toEqual([
+      ['started a try to prove the cause and fix it', ''],
+      ['wrote a fix. GitHub did not let the workflow open its pull request, so Claude tries again', '']
+    ]);
+    // A try on an instruction has its result in Claude's answer.
+    expect(logic.stepsBetween(tried, 'LAN-315', '2026-11-24T00:30:00Z', '2026-11-24T00:40:00Z', now)[0]!.look).toBe('');
+    expect(logic.stepsBetween(tried, 'LAN-315', '2026-11-24T00:30:00Z', null, now)[0]!.look).toBe('bad');
+  });
+
+  it('says a try that ended with no verdict ended with no result', () => {
+    expect(logic.stepSaid(step('fix', '2026-11-24T00:37:00Z', { decision: 'none', reason: 'unconfirmed', verdict: null }), 'LAN-9').said)
+      .toBe('ended the try with no result. It tries again');
+    expect(logic.stepSaid(step('fix', '2026-11-24T00:37:00Z', { decision: 'none', reason: 'unconfirmed', verdict: 'unconfirmed' }), 'LAN-9').said)
+      .toBe('did not prove the cause yet');
   });
 
   it('shows up to 10 steps, and with more the newest 8 and the rest behind one tap', () => {

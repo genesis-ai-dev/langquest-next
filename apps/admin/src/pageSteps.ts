@@ -62,8 +62,20 @@ function fixStepSaid(d) {
   if (d.decision === 'waits') return d.reason === 'instruction' ? 'wrote the fix. It waits for your yes, as you asked'
     : d.reason === 'claimed' ? 'wrote the fix as a suggestion for the developer who claimed the issue'
     : d.reason === 'stalled' ? 'tried 3 times to get the fix into main. It waits for a developer' : 'wrote the fix. A developer must read it first';
+  if (d.reason === 'app') return 'wrote a fix. GitHub did not let the workflow open its pull request, so Claude tries again';
+  if (!d.verdict) return 'ended the try with no result. It tries again';
   return { not_a_bug: 'found that it is not a bug', unconfirmed: 'did not prove the cause yet', decision: 'found that a person must decide' }[d.verdict] || 'made no change';
 }
+/** Hours after which a try with no later step shows that no result came back (the fix jobs take at most about 2.5). */
+const TRY_HOURS = 4;
+/** The kinds of step a try's result writes. */
+const RESULT_KINDS = ['plan', 'fix', 'merged', 'closed'];
+/**
+ * A try (a 'handed' step) with no result after it, TRY_HOURS on: the card says so, never only "started a try".
+ * steps null: the try's result is elsewhere (Claude's answer to an instruction).
+ */
+const noResult = (s, steps, now) => Boolean(steps) && s.kind === 'handed' && now - Date.parse(s.at) > TRY_HOURS * 3600000 &&
+  !(steps || []).some((t) => RESULT_KINDS.includes(t.kind) && Date.parse(t.at) >= Date.parse(s.at));
 /**
  * One step (ops.user_issue_steps) in words: who did it ('' when no one is named), what, a line under it,
  * the pull request, the run, and its look: 'done' (the work ended well), 'bad' or ''.
@@ -95,8 +107,9 @@ function stepSaid(s, issue) {
   return { ...x, said: String(s.kind) };
 }
 /** A step's entries: a fix the reviewer read is two steps, the fix and then the review. */
-function stepEntries(s, issue) {
+function stepEntries(s, issue, steps = null, now = Date.now()) {
   const one = { at: s.at, step: true, ...stepSaid(s, issue) };
+  if (noResult(s, steps, now)) return [{ ...one, sub: [one.sub, 'No result came back from this try. Claude tries again at the next run of its plan.'].filter(Boolean).join(' '), look: 'bad' }];
   if (s.kind !== 'fix' || !(s.detail && s.detail.reviewed)) return [one];
   const at = new Date(Date.parse(s.at) + 1).toISOString();
   return [one, { at, step: true, who: 'A second Claude', said: 'checked the work as the reviewer', sub: '', pr: null, run: one.run, look: '' }];
@@ -116,8 +129,8 @@ const inTalk = (s, talks) => TALK_KINDS.includes(s.kind) && (talks || []).some((
  * The watch's "found" is left out when a step says it filed the issue, and so is each step that shows under
  * an instruction (talks: the card's instructions, stepsBetween).
  */
-function issueTimeline(steps, record, issue, talks) {
-  const out = stepsWorthIt(steps).filter((s) => !inTalk(s, talks)).flatMap((s) => stepEntries(s, issue));
+function issueTimeline(steps, record, issue, talks, now = Date.now()) {
+  const out = stepsWorthIt(steps).filter((s) => !inTalk(s, talks)).flatMap((s) => stepEntries(s, issue, steps, now));
   const filed = (steps || []).some((s) => s.kind === 'filed');
   for (const r of record || []) {
     if (r.what === 'found' && filed) continue;
@@ -128,10 +141,10 @@ function issueTimeline(steps, record, issue, talks) {
   return out.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 }
 /** The steps between an instruction and Claude's answer to it (or now, while Claude works on it), the oldest first. */
-function stepsBetween(steps, issue, from, to) {
+function stepsBetween(steps, issue, from, to, now = Date.now()) {
   const a = Date.parse(from), b = to ? Date.parse(to) : Infinity;
   return stepsWorthIt(steps).filter((s) => TALK_KINDS.includes(s.kind) && Date.parse(s.at) >= a && Date.parse(s.at) <= b)
-    .flatMap((s) => stepEntries(s, issue)).sort((x, y) => Date.parse(x.at) - Date.parse(y.at));
+    .flatMap((s) => stepEntries(s, issue, to ? null : steps, now)).sort((x, y) => Date.parse(x.at) - Date.parse(y.at));
 }
 `;
 
