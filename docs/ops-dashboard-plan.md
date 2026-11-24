@@ -361,9 +361,11 @@ Needs attention on the page.
   safety): the phones' nearby records of the last 7 days across every
   organization, read live since they are few. Each organization with nearby,
   joining offline or sharing while open on, and what its phones did (a
-  square each on the Overview: a revoked phone near it, met teammates, used
-  but met none, not used); Share nearby rooms and runs while LangQuest is
-  open and how many met a teammate; the quiet mode's minutes on the air,
+  square each on the Overview: a revoked phone near it, synced with
+  teammates, used but synced with none, not used); how many times Share
+  nearby ran and how many times it ran while LangQuest was open, each from
+  start to stop and not a sync (2026-11-24: "rooms" read as nothing), and
+  how many of those synced with a teammate; the quiet mode's minutes on the air,
   paused, scanning and syncing; phones turned away by reason; sessions that
   did not finish; teammates' work carried to the server. Lines only for what
   a person acts on (decision 235): Find failing on several phones in a day,

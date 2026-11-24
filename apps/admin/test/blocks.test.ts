@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BLOCKS_LOGIC, WIDTH_CSS } from '../src/pageBlocks';
+import { OPS_SCRIPT } from '../src/pageOps';
 
-const logic = new Function(`${BLOCKS_LOGIC}; return { laneTracks, releaseSay, againstLine, appleState, platformShares, andWords, nightlyView, nightlySay, supportWaits, supportSay, jobWords, jobRows, capacityView, expiryRows, daysWords, pctWords, nearbyView };`)() as {
+const logic = new Function(`${BLOCKS_LOGIC}; return { laneTracks, releaseSay, againstLine, appleState, platformShares, andWords, nightlyView, nightlySay, supportWaits, supportSay, jobWords, jobRows, capacityView, expiryRows, daysWords, pctWords, nearbyView, nearbyTotals };`)() as {
   laneTracks: (p: unknown) => { id: string; name: string; stages: { id: string; tone: string; cards: { title: string }[] }[] }[];
   releaseSay: (p: unknown, web: { s: string } | null) => string;
   againstLine: (v: number | null, line: number) => { at: number; tone: string } | null;
@@ -19,6 +20,7 @@ const logic = new Function(`${BLOCKS_LOGIC}; return { laneTracks, releaseSay, ag
   daysWords: (left: number) => string;
   pctWords: (x: number) => string;
   nearbyView: (d: unknown) => { n: number; label: string; warn?: boolean }[] | null;
+  nearbyTotals: (d: unknown) => { finished: number; notFinished: number; screenSynced: number | null; openSynced: number | null };
 };
 const card = (title: string, tone: string) => ({ title, tone, at: null, state: '', build: null, version: null, updates: [] });
 const pipeline = { lanes: [
@@ -131,16 +133,33 @@ describe('nearby sync, last 7 days', () => {
     expect(logic.nearbyView({ installs: 0, orgs: [{ orgId: 'c', nearby: false }] })).toBeNull();
   });
 
-  it('counts organizations, phones, how often they met a teammate, and marks only what wants a look', () => {
+  it('counts organizations, phones, how often Share nearby ran and synced with a teammate, and marks only what wants a look', () => {
     const v = logic.nearbyView(week)!;
     expect(v.map((f) => [f.n, f.label, Boolean(f.warn)])).toEqual([
       [2, 'organizations with nearby, 1 sharing while open', false], [4, 'phones used it', false],
-      [4, 'Share nearby rooms, 75% met a teammate', false], [10, 'runs while open, 40% met a teammate', false],
+      [4, 'times Share nearby ran, 75% synced with a teammate', false], [10, 'times it ran while open, 40% synced with a teammate', false],
       [2, 'sessions did not finish', false], [2, 'teammates turned away past the two weeks', true],
       [0, 'revoked phones turned away', false], [0, 'carried events refused', false]
     ]);
     // With no room or run, no share of them.
-    expect(logic.nearbyView({ ...week, screen: {}, open: {} })![2]!.label).toBe('Share nearby rooms');
+    expect(logic.nearbyView({ ...week, screen: {}, open: {} })![2]!.label).toBe('times Share nearby ran');
+  });
+});
+
+// Found on the dashboard (2026-11-24): the details read "190 sessions finished, 181 did not" for 19 and 1, because the
+// page's num() returns text and the sums were made of its results. The sums are numbers, whatever the answer holds.
+describe('nearby sync\'s sums', () => {
+  it('adds as numbers: 19 finished and 1 did not, not 190 and 181', () => {
+    expect(logic.nearbyTotals({ screen: { sessions: 20, done: 19, rooms: 48, met: 13 }, open: { sessions: 0, done: 0, runs: 3, met: 0 } }))
+      .toEqual({ finished: 19, notFinished: 1, screenSynced: 27, openSynced: 0 });
+    // Numbers as the database may send them, as text, and fields missing.
+    expect(logic.nearbyTotals({ screen: { sessions: '20', done: '19' }, open: {} })).toEqual({ finished: 19, notFinished: 1, screenSynced: null, openSynced: null });
+    expect(logic.nearbyTotals(null)).toEqual({ finished: 0, notFinished: 0, screenSynced: null, openSynced: null });
+  });
+
+  it('the details use the sums, never the page\'s formatted numbers added together', () => {
+    expect(OPS_SCRIPT).toContain('const t = nearbyTotals(d);');
+    expect(OPS_SCRIPT).not.toMatch(/num\(num\(s\.done\)/);
   });
 });
 
