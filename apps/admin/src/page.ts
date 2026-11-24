@@ -620,6 +620,8 @@ function show(id, s) {
   const el = $('pill-' + g.id); el.className = 'pill ' + cls; el.textContent = text;
   drawBody(g);
   if (id === 'userissues') redrawLineCards();
+  // The open issues' states in Linear, at most each 2 minutes (pageMine.ts syncIssueStates).
+  if (id === 'userissues' && s && s.state === 'ok') syncIssueStates();
   // A report's card shows its issue's step from the User issues part's answer (pageReports.ts).
   if (id === 'userissues' && results.userreports) drawBody(groupOf('userreports'));
   drawSummary();
