@@ -136,8 +136,11 @@ export interface Watch {
   order?: OrderedIssue[];
 }
 
-/** Where an issue that waits for the fix team comes from: a plan whose time came, the research, or never tried. */
-export const ORDER_FROM = ['plan', 'research', 'untried'] as const;
+/**
+ * Where an issue that waits for the fix team comes from: a plan whose time came, the research, never
+ * tried, or a choice Claude asked for before it could read production, tried once more (again).
+ */
+export const ORDER_FROM = ['plan', 'research', 'untried', 'again'] as const;
 
 /** One issue in the order the fix team takes them, with the facts the order used. */
 export interface OrderedIssue {
