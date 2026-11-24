@@ -98,7 +98,8 @@ function cardWithSend(a, send) {
 const FIX_DONE = { working: 'started the change', open: 'made the change as a pull request that merges itself when its checks pass', merged: 'merged the change',
   closed: 'saw its pull request closed without a merge', failed: 'could not make the change', unneeded: 'found that no change was needed' };
 /** Why the app Worker refused a tap, by the code it kept. */
-const REFUSED_SAID = { decided: 'another admin answered it first', not_found: 'Claude cannot take an instruction on this issue', full: 'three instructions waited for Claude already', not_set_up: 'this is not set up here' };
+const REFUSED_SAID = { decided: 'another admin answered it first', not_found: 'Claude cannot take an instruction on this issue', full: 'three instructions waited for Claude already', not_set_up: 'this is not set up here',
+  taken: 'another developer claimed it first', not_yours: 'another developer has the claim' };
 /**
  * One entry of a card's record in words: who, what they did, and the words it was about (a suggestion's
  * title, an admin's instruction, the start of Claude's answer). bad: the tap was refused or failed.
@@ -117,6 +118,7 @@ function recordSaid(r) {
     suggestion_accepted: 'accepted Claude\'s suggestion', suggestion_rejected: 'rejected Claude\'s suggestion', suggestion_edited: 'changed the words of Claude\'s suggestion',
     tutorial_note: String(r.detail || '').startsWith('instruction:') || !ok ? 'sent an instruction to Claude' : 'added a note for Claude\'s next look',
     user_issue_note: 'sent an instruction to Claude',
+    issue_claim: 'claimed the issue', issue_release: 'released the claim',
     reply_posted: 'posted the reply on YouTube', reply_none: 'said that no reply is needed', reply_open: 'put the reply back on the list',
     suggested: 'suggested a change', answered: r.detail === 'changed' ? 'answered and changed the draft fix' : r.detail === 'none' ? 'wrote no answer' : 'answered',
     fix: FIX_DONE[r.detail] || 'changed the video',

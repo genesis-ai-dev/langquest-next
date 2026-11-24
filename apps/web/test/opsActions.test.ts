@@ -34,6 +34,10 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     approveTutorials: async (items, by) => { done.push(`approve ${items.length} by ${by}`); return items.length; },
     addNote: async (tutorial, text, by) => { done.push(`note ${tutorial} ${text} by ${by}`); },
     replyDone: async (id, state, by) => { done.push(`reply ${id} ${state} by ${by}`); return id === REQUEST ? 'ok' : 'not_found'; },
+    claimIssue: async (issue, claim, by) => {
+      done.push(`${claim ? 'claim' : 'release'} ${issue} by ${by}`);
+      return issue === 'LAN-500' ? (claim ? 'taken' : 'not_yours') : claim ? 'claimed' : 'released';
+    },
     setFilming: async (language, on, by) => { done.push(`filming ${language} ${on} by ${by}`); return on ? 'on' : 'off'; },
     markQuietAccount: async (profile, ok, by) => { done.push(`quiet ${profile} ${ok} by ${by}`); return profile === QUIET ? (ok ? 'marked' : 'unmarked') : 'not_found'; },
     instruct: async (row, by) => { done.push(`instruct ${JSON.stringify(row)} by ${by}`); return SUGGESTION; },
@@ -397,6 +401,42 @@ describe('a line resolved until its problem comes back (docs/decisions/2026-11-2
     const aal1 = deps();
     expect(await act(aal1, 'aal1', { kind: 'line-resolve', lines: [line] })).toMatchObject({ ok: false, status: 403 });
     expect(aal1.done).toEqual([]);
+  });
+});
+
+describe('a claim on an issue, and Claude\'s replies seen (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md)', () => {
+  it('takes a Linear issue and claim or release, and nothing else', () => {
+    expect(parseAction({ kind: 'issue-claim', issue: 'LAN-12', claim: true })).toEqual({ kind: 'issue-claim', issue: 'LAN-12', claim: true });
+    expect(parseAction({ kind: 'issue-claim', issue: 'LAN-12', claim: false })).toEqual({ kind: 'issue-claim', issue: 'LAN-12', claim: false });
+    for (const bad of [{ kind: 'issue-claim', issue: 'lan-12', claim: true }, { kind: 'issue-claim', issue: 'LAN-12' }, { kind: 'issue-claim', issue: 'LAN-12', claim: 'yes' },
+      { kind: 'issue-claim', claim: true }]) {
+      expect(parseAction(bad), JSON.stringify(bad)).toBeNull();
+    }
+    expect(parseAction({ kind: 'replies-seen' })).toEqual({ kind: 'replies-seen' });
+  });
+
+  it('claims and releases as the person, says why another developer\'s claim stays, and logs each', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'issue-claim', issue: 'LAN-12', claim: true })).toEqual({ ok: true, result: 'claimed' });
+    expect(await act(d, 'aal2', { kind: 'issue-claim', issue: 'LAN-12', claim: false })).toEqual({ ok: true, result: 'released' });
+    expect(await act(d, 'aal2', { kind: 'issue-claim', issue: 'LAN-500', claim: true })).toMatchObject({ ok: false, status: 400, error: expect.stringContaining('claimed this issue first') });
+    expect(await act(d, 'aal2', { kind: 'issue-claim', issue: 'LAN-500', claim: false })).toMatchObject({ ok: false, status: 400, error: expect.stringContaining('Only they can release it') });
+    expect(d.done).toEqual([`claim LAN-12 by ${VIEWER}`, `release LAN-12 by ${VIEWER}`, `claim LAN-500 by ${VIEWER}`, `release LAN-500 by ${VIEWER}`]);
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'issue_claim', target: 'LAN-12', result: 'ok' },
+      { profileId: VIEWER, action: 'issue_release', target: 'LAN-12', result: 'ok' },
+      { profileId: VIEWER, action: 'issue_claim', target: 'LAN-500', result: 'refused', detail: 'taken' },
+      { profileId: VIEWER, action: 'issue_release', target: 'LAN-500', result: 'refused', detail: 'not_yours' }
+    ]);
+    const aal1 = deps();
+    expect(await act(aal1, 'aal1', { kind: 'issue-claim', issue: 'LAN-12', claim: true })).toMatchObject({ ok: false, status: 403 });
+    expect(aal1.done).toEqual([]);
+  });
+
+  it('keeps the time the person opened Claude\'s replies', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'replies-seen' })).toEqual({ ok: true, result: 'seen' });
+    expect(d.rows).toEqual([{ profileId: VIEWER, action: 'replies_seen', target: 'replies', result: 'ok' }]);
   });
 });
 

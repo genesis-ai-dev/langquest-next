@@ -23,7 +23,8 @@ import { CARD, PAGE, QUESTION_MAX } from '../../../server/cardQuestions';
  * question from any card or page (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md),
  * mark a line resolved until its problem comes back, or show it again
  * (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md),
- * and mark an account's quiet installs not an issue. The dashboard's own Worker holds no writer's key; it
+ * mark an account's quiet installs not an issue, claim or release a Linear issue, and mark Claude's
+ * replies seen (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md). The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
  * and this Worker checks that token itself (a live session, a Global Viewer
  * on an `aal2` session) before acting with the service role. Every attempt
@@ -72,7 +73,14 @@ export type Action =
   /** An account's quiet installs marked not an issue, or counted again. */
   | { kind: 'quiet-account'; profile: string; ok: boolean }
   /** A language's tutorial videos filmed each night, or paused (decision 2026-11-21, filming languages switch). */
-  | { kind: 'tutorial-filming'; language: string; on: boolean };
+  | { kind: 'tutorial-filming'; language: string; on: boolean }
+  /**
+   * A developer claims a Linear issue so that no other developer works on it, or releases it
+   * (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md).
+   */
+  | { kind: 'issue-claim'; issue: string; claim: boolean }
+  /** The admin opened Claude's replies in the corner of the dashboard: the replies until now are seen. */
+  | { kind: 'replies-seen' };
 
 /** A line as the page showed it when the admin tapped Resolved (migration 20261124013000_ops_line_resolves.sql). */
 export interface ResolvedLine {
@@ -124,6 +132,8 @@ export interface ActionDeps {
   replyDone(id: string, done: 'posted' | 'none' | 'open', by: string): Promise<string>;
   /** An account's quiet installs marked not an issue or counted again, by this staff member: `marked`, `unmarked`, or `not_found` (`ops_quiet_account_mark`). */
   markQuietAccount(profile: string, ok: boolean, by: string): Promise<string>;
+  /** A Linear issue claimed or released by this person (`ops_issue_claim`): `claimed`, `released`, `taken` or `not_yours`. */
+  claimIssue(issue: string, claim: boolean, by: string): Promise<string>;
   /** A language's nightly filming turned on or off, by this person: `on` or `off` (`ops_tutorial_filming_set`). */
   setFilming(language: string, on: boolean, by: string): Promise<string>;
   /** An accepted code change filed in Linear: its issue, or null without a Linear key (the comments job files it later). */
@@ -223,6 +233,11 @@ export function parseAction(input: unknown): Action | null {
   if (a.kind === 'tutorial-reply' && typeof a.id === 'string' && UUID.test(a.id) && (done === 'posted' || done === 'none' || done === 'open')) {
     return { kind: 'tutorial-reply', id: a.id.toLowerCase(), done };
   }
+  if (a.kind === 'issue-claim') {
+    const c = input as { issue?: unknown; claim?: unknown };
+    return typeof c.issue === 'string' && ISSUE.test(c.issue) && typeof c.claim === 'boolean' ? { kind: 'issue-claim', issue: c.issue, claim: c.claim } : null;
+  }
+  if (a.kind === 'replies-seen') return { kind: 'replies-seen' };
   if (a.kind === 'user-issue-note') {
     const issue = (input as { issue?: unknown }).issue;
     const text = optional(t.text, NOTE_MAX);
@@ -279,6 +294,8 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'line-show': return { name: 'line_shown', target: action.lines[0]!.slice(0, 100) };
     case 'tutorial-filming': return { name: action.on ? 'filming_on' : 'filming_off', target: action.language };
     case 'quiet-account': return { name: action.ok ? 'quiet_ok' : 'quiet_ok_undo', target: action.profile };
+    case 'issue-claim': return { name: action.claim ? 'issue_claim' : 'issue_release', target: action.issue };
+    case 'replies-seen': return { name: 'replies_seen', target: 'replies' };
     default: return { name: NAMES[action.kind], target: 'youtube' };
   }
 }
@@ -360,6 +377,18 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       const n = action.kind === 'line-resolve' ? await deps.resolveLines(action.lines, who.profileId) : await deps.showLines(action.lines, who.profileId);
       await deps.record({ profileId: who.profileId, action: name, target, result: 'ok', detail: `lines:${n}` });
       return { ok: true, result: action.kind === 'line-resolve' ? 'resolved' : 'shown' };
+    }
+    if (action.kind === 'issue-claim') {
+      const answer = await deps.claimIssue(action.issue, action.claim, who.profileId);
+      const done = answer === (action.claim ? 'claimed' : 'released');
+      await deps.record({ profileId: who.profileId, action: name, target, result: done ? 'ok' : 'refused', ...(done ? {} : { detail: answer }) });
+      return done ? { ok: true, result: answer }
+        : answer === 'taken' ? { ok: false, status: 400, error: 'Another developer claimed this issue first.' }
+          : { ok: false, status: 400, error: 'Another developer claimed this issue. Only they can release it.' };
+    }
+    if (action.kind === 'replies-seen') {
+      await deps.record({ profileId: who.profileId, action: name, target, result: 'ok' });
+      return { ok: true, result: 'seen' };
     }
     if (action.kind === 'tutorial-filming') {
       const answer = await deps.setFilming(action.language, action.on, who.profileId);
@@ -545,6 +574,11 @@ export function actionDeps(env: Env): ActionDeps {
     replyDone: async (id, done, by) => {
       const { data, error } = await db().rpc('ops_tutorial_reply_done', { p_id: id, p_done: done, p_by: by });
       if (error) throw new Error(`ops_tutorial_reply_done: ${error.message}`);
+      return String(data);
+    },
+    claimIssue: async (issue, claim, by) => {
+      const { data, error } = await db().rpc('ops_issue_claim', { p_issue: issue, p_claim: claim, p_by: by });
+      if (error) throw new Error(`ops_issue_claim: ${error.message}`);
       return String(data);
     },
     setFilming: async (language, on, by) => {

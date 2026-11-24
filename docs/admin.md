@@ -215,6 +215,12 @@ Viewer who tapped, by the display name of their LangQuest account, so each
 admin sees what another admin did already. Only Global Viewers see it; it
 is never written to GitHub or Linear.
 
+The same holds for a claim on an issue
+(`docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md`): the
+issue's card says "Claimed by" and the display name of the Global Viewer who
+claimed it. The page gets the name and whether the claim is the viewer's own,
+never a profile id.
+
 ## A tap and its record
 
 Each tap says it works ("Sending…"), then what happened, next to the button
@@ -276,6 +282,19 @@ who resolved each, when, and Show again (`line-show`). The watch for user
 issues and `/ops/api/attention` still see every line: a resolve changes only
 what the page shows. `ops.actions` logs `line_resolved` and `line_shown` with
 the first line's id and how many.
+
+## Claude's replies and claims
+
+A bell at the top right counts Claude's replies the admin has not seen, and
+opens the list of the latest ones: on each card the admin talked on with
+Claude (an instruction on a user issue, a question from a card or a page, an
+instruction on a tutorial video), and on each issue the admin claimed. A row
+opens its card. Opening the list marks the replies seen, on every device
+(`replies_seen` in `ops.actions`). A developer taps Claim on an issue's card
+so that no other developer works on it; only that developer can release it.
+Both come from `/ops/api/mine` (`diag.ops_mine`), for the person the Worker
+checked (`apps/admin/src/pageMine.ts`,
+`docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md`).
 
 ## Setting it up
 

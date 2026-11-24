@@ -33,6 +33,8 @@ const draw = new Function(`
   // The page's state of taps (pageSends.ts), empty: nothing was sent from this page.
   let VIDEOS = null, results = {}, udata = null;
   const userIssuesData = () => udata;
+  // A claim on the issue (pageMine.ts) has tests of its own (mine.test.ts): none here.
+  const claimTag = () => "", claimButton = () => "";
   ${SEND_LOGIC}
   ${SEND_SCRIPT}
   let fixData = null;
