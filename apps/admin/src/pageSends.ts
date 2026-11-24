@@ -109,6 +109,7 @@ function appFixSaid(d) {
   if (d === 'merge') return 'wrote the fix. It keeps the rules, so it merges by itself when its checks pass';
   if (d === 'waits:instruction') return 'wrote the fix. It waits for your yes, as you asked';
   if (d === 'waits:stalled') return 'tried 3 times to get the fix into main. It waits for a developer';
+  if (d === 'waits:claimed') return 'wrote the fix as a suggestion. It waits for the developer who claimed the issue';
   if (d.startsWith('waits')) return 'wrote the fix. The rules say a developer must read it';
   return 'made no change';
 }

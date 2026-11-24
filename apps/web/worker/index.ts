@@ -557,7 +557,10 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         // The manager's last plan, to go on from. Before its migration is there, none.
         const plan = await serviceClient(env).rpc('ops_user_issue_plan', { p_issue: issue });
         if (plan.error) console.error(`ops_user_issue_plan: ${plan.error.code ?? 'unknown'}`);
-        return { ...data, plan: plan.error ? null : plan.data ?? null };
+        // A developer's claim on it: the fix team assists and never merges. Before its migration is there, none.
+        const claim = await serviceClient(env).rpc('ops_issue_claimed', { p_issue: issue });
+        if (claim.error) console.error(`ops_issue_claimed: ${claim.error.code ?? 'unknown'}`);
+        return { ...data, plan: plan.error ? null : plan.data ?? null, claimed: claim.error ? false : claim.data === true };
       },
       media: async (id) => {
         const { data, error } = await serviceClient(env).rpc('ops_user_issue_media', { p_id: id });

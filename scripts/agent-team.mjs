@@ -234,6 +234,9 @@ export const saysMerge = (texts) => (Array.isArray(texts) ? texts : []).some((t)
 const ASK_FIRST_WORDS = /\b(ask me|check with me|wait for (me|my)|(my|your) (ok|okay|yes|input|approval|go)\b|show me|let me (see|look|check|read|review)|before (it |you |this )?(merge|merging|merges|goes in|ships)|(don'?t|do not|never) (auto-?)?merge|not (auto-?)?merge|hold (it|the (fix|change|merge)))/i;
 export const saysAskFirst = (texts) => (Array.isArray(texts) ? texts : []).some((t) => ASK_FIRST_WORDS.test(String(t ?? '')));
 
+/** Why a fix waits on an issue a developer claimed (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md). */
+export const CLAIMED_WHY = 'A developer claimed this issue on the ops dashboard. Claude\'s change is a suggestion: the developer reads it and merges it.';
+
 /**
  * What happens to a change: it merges without a person, or it waits for a
  * developer, with the reason (a fixed word, for the ops dashboard) and why
@@ -253,10 +256,12 @@ export const saysAskFirst = (texts) => (Array.isArray(texts) ? texts : []).some(
  *                the manager's reading of them): the fix waits for the admin
  *   approved     that instruction says to merge the draft fix, the manager's verdict is `approved`, and the
  *                manager left the draft fix as it was
+ *   claimed      a developer claimed the issue on the ops dashboard: the team assists, and the fix waits for
+ *                that developer (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md)
  *   app          the job holds LangQuest's GitHub App's token (it opens the pull request so its checks start)
  *   pictures     { before, after }: the picture job made a picture of the screen without the change and with it
  */
-export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = null, instructed = false, go = false, askFirst = false, approved = false, app = true, pictures = {} }) {
+export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = null, instructed = false, go = false, askFirst = false, approved = false, claimed = false, app = true, pictures = {} }) {
   const wait = (reason, why) => ({ merge: false, reason, why: cut(said(why), 600) });
   if (!verdict) return wait('unconfirmed', 'The manager gave no verdict.');
   if (!changes.length) {
@@ -269,6 +274,8 @@ export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = n
   // A developer's own word: the draft fix they read merges as it is. The paths a draft fix may never
   // change were refused before this, and guardrails still hold the merge.
   if (approved) return { merge: true, reason: null, why: 'A developer said to merge it on the ops dashboard.' };
+  // A developer works on it: Claude's change is a suggestion for them, never a merge of its own.
+  if (claimed) return wait('claimed', CLAIMED_WHY);
   const asked = askFirst || verdict.askFirst === true;
   if (go && asked) return wait('instruction', 'The admin asked on the tutorial video\'s card to see the change before it merges. Say "merge it" on the card to merge it.');
   if (instructed && !go) return wait('instruction', 'It follows an instruction from the ops dashboard. The developer who sent it reads the change.');
@@ -293,7 +300,7 @@ export function gate({ mode = 'ask', verdict, changes = [], checks = {}, vet = n
 }
 
 /** The reasons a fix waits, as the gate says them (server/userIssues.ts FIX_REASONS holds the same list). */
-export const REASONS = ['mode', 'review', 'decision', 'not_a_bug', 'unconfirmed', 'cause', 'paths', 'checks', 'reviewer', 'instruction', 'app', 'stalled'];
+export const REASONS = ['mode', 'review', 'decision', 'not_a_bug', 'unconfirmed', 'cause', 'paths', 'checks', 'reviewer', 'instruction', 'app', 'stalled', 'claimed'];
 
 /** Whether the reviewer must read the change: only when everything before it in the gate passes. */
 export function reviewNeeded(input) {
@@ -439,7 +446,7 @@ export function gateInput(dir) {
     pictures,
     verdict: fix ? verdictOf(fix) : null, changes, checks: { typecheck: one(check.typecheck), tests: one(check.tests) },
     vet: vetRaw ? checkVet(vetRaw) : null, instructed: Array.isArray(notes?.ids) && notes.ids.length > 0, approved: notes?.approved === true,
-    go: notes?.go === true, askFirst: notes?.askFirst === true
+    go: notes?.go === true, askFirst: notes?.askFirst === true, claimed: notes?.claimed === true
   };
 }
 
@@ -574,6 +581,19 @@ async function follow() {
     if (!issue || listed.draft || !String(listed.body ?? '').includes(MERGE_MARK)) continue;
     const full = await github('GET', `/pulls/${listed.number}`);
     const p = full.status === 200 ? full.json : listed;
+    // A developer claimed the issue after the fix was opened: it stops merging by itself and waits for them.
+    // An answer that does not come leaves the pull request as it is until the next run.
+    const notes = await call('GET', undefined, `?notes=${issue}`).catch(() => null);
+    if (notes?.claimed === true) {
+      const why = CLAIMED_WHY;
+      if (!(await toWaiting(p, why))) {
+        console.log(`::warning::PR ${p.number}: GitHub did not make it a draft`);
+        continue;
+      }
+      fixes.push({ issue, decision: 'waits', reason: 'claimed', why, pr: p.number, verdict: null, model: null, effort: null });
+      console.log(`PR ${p.number} (${issue}) waits for the developer who claimed the issue`);
+      continue;
+    }
     const runs = await github('GET', `/commits/${p.head.sha}/check-runs?check_name=gate&per_page=20`);
     const gateRuns = runs.status === 200 ? runs.json.check_runs : [];
     const tries = triesOf(p.body);

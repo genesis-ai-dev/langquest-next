@@ -661,6 +661,14 @@ fixes the issue, for the developer who reviews it; `tests` (at most 1000)
 which test shows it. The script cuts longer ones and takes out any email
 address.
 
+### When a developer claimed the issue
+
+When `.user-issues/issue.json` has `claimed: true`, a developer of the team
+claimed the issue on the ops dashboard and works on it. You assist them: do
+the work as always, and write `summary` and `why` for that developer, as a
+suggestion they read. Your pull request waits for them; the gate holds it
+(reason `claimed`), whatever your verdict.
+
 ### When an admin sent an instruction
 
 An admin of the team can tell you what to do with an issue from its card
