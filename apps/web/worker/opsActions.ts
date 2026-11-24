@@ -7,7 +7,7 @@ import {
   CALLBACK_PATH, consentUrl, exchangeCode, languageOfChannel, myChannel, readState, revoke, setHome, signState, YouTubeError,
   type ChannelLanguage, type Client, type Fetch
 } from '../../../server/youtube';
-import { LinearError } from '../../../server/linear';
+import { LinearError, linearIssues, type IssueState } from '../../../server/linear';
 import { fileSuggestion } from './fileSuggestion';
 import { startRun, type RunStart, type RunWorkflow } from './startRun';
 import { CARD, PAGE, QUESTION_MAX } from '../../../server/cardQuestions';
@@ -81,7 +81,14 @@ export type Action =
    */
   | { kind: 'issue-claim'; issue: string; claim: boolean }
   /** The admin opened Claude's replies in the corner of the dashboard: the replies until now are seen. */
-  | { kind: 'replies-seen' };
+  | { kind: 'replies-seen' }
+  /**
+   * An admin closes a user issue from its card: in Linear, as done (`completed`: the team's Live) or as needing no
+   * fix (`canceled`), and on the dashboard at once (docs/decisions/2026-11-24-close-an-issue-from-its-card.md).
+   */
+  | { kind: 'issue-close'; issue: string; as: 'completed' | 'canceled' }
+  /** The page shows these open issues: their states in Linear, kept now, so a close made in Linear shows at once. */
+  | { kind: 'issue-states'; issues: string[] };
 
 /** A line as the page showed it when the admin tapped Resolved (migration 20261124013000_ops_line_resolves.sql). */
 export interface ResolvedLine {
@@ -137,6 +144,12 @@ export interface ActionDeps {
   replyDone(id: string, done: 'posted' | 'none' | 'open', by: string): Promise<string>;
   /** An account's quiet installs marked not an issue or counted again, by this staff member: `marked`, `unmarked`, or `not_found` (`ops_quiet_account_mark`). */
   markQuietAccount(profile: string, ok: boolean, by: string): Promise<string>;
+  /** Closes an issue in Linear (server/linear.ts close): the status's name, or null where Linear is not set up. */
+  closeIssue(issue: string, as: 'completed' | 'canceled'): Promise<string | null>;
+  /** These issues' states in Linear (server/linear.ts states), or null where Linear is not set up. */
+  issueStates(issues: string[]): Promise<IssueState[] | null>;
+  /** States kept on the dashboard (`ops_user_issue_states`): how many rows changed. */
+  keepIssueStates(states: IssueState[]): Promise<number>;
   /** A Linear issue claimed or released by this person (`ops_issue_claim`): `claimed`, `released`, `taken` or `not_yours`. */
   claimIssue(issue: string, claim: boolean, by: string): Promise<string>;
   /** A language's nightly filming turned on or off, by this person: `on` or `off` (`ops_tutorial_filming_set`). */
@@ -156,6 +169,8 @@ const LANGUAGE = /^[a-z]{2,3}(-[A-Z][a-z]{3})?$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 /** A Linear issue's id (LAN-12). */
 const ISSUE = /^[A-Z]{1,10}-[0-9]{1,7}$/;
+/** The most issues one read of their states asks Linear about (one page of Linear's answer). */
+export const ISSUE_STATES_MAX = 100;
 /** More than every video in every language at once (47 × 15), so one Publish can send them all. */
 export const PUBLISH_MAX = 2000;
 /** The longest note, edited detail and reason the dashboard sends. */
@@ -246,6 +261,15 @@ export function parseAction(input: unknown): Action | null {
     return typeof c.issue === 'string' && ISSUE.test(c.issue) && typeof c.claim === 'boolean' ? { kind: 'issue-claim', issue: c.issue, claim: c.claim } : null;
   }
   if (a.kind === 'replies-seen') return { kind: 'replies-seen' };
+  if (a.kind === 'issue-close') {
+    const c = input as { issue?: unknown; as?: unknown };
+    return typeof c.issue === 'string' && ISSUE.test(c.issue) && (c.as === 'completed' || c.as === 'canceled') ? { kind: 'issue-close', issue: c.issue, as: c.as } : null;
+  }
+  if (a.kind === 'issue-states') {
+    const l = (input as { issues?: unknown }).issues;
+    return Array.isArray(l) && l.length >= 1 && l.length <= ISSUE_STATES_MAX && l.every((x) => typeof x === 'string' && ISSUE.test(x))
+      ? { kind: 'issue-states', issues: [...new Set(l as string[])] } : null;
+  }
   if (a.kind === 'user-issue-note') {
     const issue = (input as { issue?: unknown }).issue;
     const text = optional(t.text, NOTE_MAX);
@@ -304,6 +328,8 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'quiet-account': return { name: action.ok ? 'quiet_ok' : 'quiet_ok_undo', target: action.profile };
     case 'issue-claim': return { name: action.claim ? 'issue_claim' : 'issue_release', target: action.issue };
     case 'replies-seen': return { name: 'replies_seen', target: 'replies' };
+    case 'issue-close': return { name: 'issue_close', target: action.issue };
+    case 'issue-states': return { name: 'issue_states', target: `${action.issues.length} issues` };
     default: return { name: NAMES[action.kind], target: 'youtube' };
   }
 }
@@ -395,6 +421,23 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       return done ? { ok: true, result: answer }
         : answer === 'taken' ? { ok: false, status: 400, error: 'Another developer claimed this issue first.' }
           : { ok: false, status: 400, error: 'Another developer claimed this issue. Only they can release it.' };
+    }
+    if (action.kind === 'issue-close') {
+      const state = await deps.closeIssue(action.issue, action.as);
+      if (state === null) {
+        await deps.record({ profileId: who.profileId, action: name, target, result: 'refused', detail: 'not_set_up' });
+        return { ok: false, status: 503, error: 'Linear is not set up here. Close it in Linear.' };
+      }
+      await deps.keepIssueStates([{ issue: action.issue, state, closed: true, closedAt: new Date(deps.now()).toISOString(), fixedBy: null }]);
+      await deps.record({ profileId: who.profileId, action: name, target, result: 'ok', detail: `state:${state}`.slice(0, 80) });
+      return { ok: true, result: state };
+    }
+    if (action.kind === 'issue-states') {
+      // Read each time the page draws the issues: only a change is logged.
+      const states = await deps.issueStates(action.issues);
+      const changed = states && states.length ? await deps.keepIssueStates(states) : 0;
+      if (changed > 0) await deps.record({ profileId: who.profileId, action: name, target, result: 'ok', detail: `changed:${changed}` });
+      return { ok: true, result: states === null ? 'not_set_up' : `changed:${changed}` };
     }
     if (action.kind === 'replies-seen') {
       await deps.record({ profileId: who.profileId, action: name, target, result: 'ok' });
@@ -586,6 +629,13 @@ export function actionDeps(env: Env): ActionDeps {
       const { data, error } = await db().rpc('ops_tutorial_reply_done', { p_id: id, p_done: done, p_by: by });
       if (error) throw new Error(`ops_tutorial_reply_done: ${error.message}`);
       return String(data);
+    },
+    closeIssue: async (issue, as) => env.LINEAR_API_KEY ? await linearIssues((input, init) => fetch(input, init), env.LINEAR_API_KEY).close(issue, as) : null,
+    issueStates: async (issues) => env.LINEAR_API_KEY ? await linearIssues((input, init) => fetch(input, init), env.LINEAR_API_KEY).states(issues) : null,
+    keepIssueStates: async (states) => {
+      const { data, error } = await db().rpc('ops_user_issue_states', { p: { states } });
+      if (error) throw new Error(`ops_user_issue_states: ${error.message}`);
+      return Number(data) || 0;
     },
     claimIssue: async (issue, claim, by) => {
       const { data, error } = await db().rpc('ops_issue_claim', { p_issue: issue, p_claim: claim, p_by: by });

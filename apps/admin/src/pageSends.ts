@@ -121,7 +121,7 @@ function recordSaid(r) {
     suggestion_accepted: 'accepted Claude\'s suggestion', suggestion_rejected: 'rejected Claude\'s suggestion', suggestion_edited: 'changed the words of Claude\'s suggestion',
     tutorial_note: String(r.detail || '').startsWith('instruction:') || !ok ? 'sent an instruction to Claude' : 'added a note for Claude\'s next look',
     user_issue_note: 'sent an instruction to Claude',
-    issue_claim: 'claimed the issue', issue_release: 'released the claim',
+    issue_claim: 'claimed the issue', issue_release: 'released the claim', issue_close: 'closed the issue in Linear',
     reply_posted: 'posted the reply on YouTube', reply_none: 'said that no reply is needed', reply_open: 'put the reply back on the list',
     suggested: 'suggested a change', answered: r.detail === 'changed' ? 'answered and changed the draft fix' : r.detail === 'none' ? 'wrote no answer' : 'answered',
     fix: FIX_DONE[r.detail] || 'changed the video',

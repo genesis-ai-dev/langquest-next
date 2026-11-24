@@ -914,12 +914,17 @@ export function linearClient(key, fetchImpl = fetch) {
           nodes { identifier title priority state { name type } completedAt canceledAt attachments { nodes { url } } } } }`, { key: TEAM_KEY, numbers: numbers.slice(0, 100) });
       return data.issues.nodes.map((i) => ({ identifier: i.identifier, title: i.title, priority: i.priority, state: i.state, completedAt: i.completedAt, canceledAt: i.canceledAt, attachments: i.attachments.nodes }));
     },
-    /** Moves an issue to the team's status of this name (Done, Canceled, Duplicate, In Progress...), any case. */
+    /**
+     * Moves an issue to the team's status of this name (Canceled, Duplicate, In Progress...), any case, or, for a
+     * word the team has no status of (Done, Closed, Won't fix), to its status of that kind (statusFor). Returns the
+     * status's name.
+     */
     async setState(issueId, name) {
-      const data = await gql(`query($key: String!) { workflowStates(filter: { team: { key: { eq: $key } } }) { nodes { id name } } }`, { key: TEAM_KEY });
-      const state = data.workflowStates.nodes.find((n) => n.name.toLowerCase() === String(name).toLowerCase());
+      const data = await gql(`query($key: String!) { workflowStates(filter: { team: { key: { eq: $key } } }) { nodes { id name type position } } }`, { key: TEAM_KEY });
+      const state = statusFor(data.workflowStates.nodes, name);
       if (!state) throw new LinearError(`Linear: no status named ${name} in ${TEAM_KEY}`);
       await this.update(issueId, { stateId: state.id });
+      return state.name;
     },
     /** Changes an issue's fields (priority, title, status), and fails when Linear says it did not. */
     async update(issueId, input) {
@@ -1482,6 +1487,30 @@ function autoMerge(pr) {
  * answer with what Linear did first: the card shows that first line in bold. A change Linear refuses is
  * said, never hidden.
  */
+/** The kind of Linear status a word means, when the team has no status of that name (LAN has Live, not Done). */
+const STATUS_KINDS = [[/^(done|closed?|complete[d]?|resolved|fixed|finished)$/, 'completed'], [/^(cancell?ed|won'?t ?fix|wontfix|not a bug|invalid|rejected)$/, 'canceled'],
+  [/^(to ?do|open|re-?opened)$/, 'unstarted']];
+/**
+ * The team's status for a word: the one of that name, any case; else, for a word that means a kind of status
+ * (Done, Closed, Won't fix, Todo), the first status of that kind, never one the sync sets (Deploying, Verifying, Outage).
+ */
+export function statusFor(states, name) {
+  const word = String(name ?? '').trim().toLowerCase();
+  const named = states.find((n) => n.name.toLowerCase() === word);
+  if (named) return named;
+  const kind = STATUS_KINDS.find(([re]) => re.test(word))?.[1];
+  return kind ? [...states].filter((n) => n.type === kind && !SYNC_STATUSES.includes(n.name.toLowerCase())).sort((a, b) => a.position - b.position)[0] ?? null : null;
+}
+/**
+ * The manager's answer without its own words on what it did in Linear: the job's line before it says what Linear
+ * did or refused, and an answer must not say the opposite (on LAN-327 it said "I closed the issue as Done" after
+ * Linear refused the status).
+ */
+export function withoutLinearClaims(answer) {
+  const claim = /\bLinear\b/i, did = /\b(closed|close|set|moved|marked|cancell?ed|renamed|changed|added|commented|reopened|opened)\b/i;
+  return String(answer ?? '').split(/\n{2,}/).map((p) => (p.match(/[^.!?]+[.!?]*\s*/g) ?? [p]).filter((x) => !(claim.test(x) && did.test(x))).join('').trim())
+    .filter(Boolean).join('\n\n');
+}
 export async function linearAsked(api, issue, changes, answer) {
   const said = [];
   const id = issue.identifier;
@@ -1490,8 +1519,11 @@ export async function linearAsked(api, issue, changes, answer) {
     const what = c.status ? `set ${id} to ${c.status}` : c.priority !== undefined ? `set the priority of ${id} to ${PRIORITY[c.priority]}`
       : c.title ? `renamed ${id}` : c.comment ? `added a comment to ${id}` : `marked ${id} a duplicate of ${c.duplicateOf}`;
     try {
-      if (c.status) await api.setState(issue.id, c.status);
-      else if (c.priority !== undefined) await api.update(issue.id, { priority: c.priority });
+      if (c.status) {
+        const name = await api.setState(issue.id, c.status);
+        said.push(`I set ${id} to ${typeof name === 'string' ? name : c.status} in Linear.`);
+        continue;
+      } else if (c.priority !== undefined) await api.update(issue.id, { priority: c.priority });
       else if (c.title) await api.update(issue.id, { title: c.title });
       else if (c.comment) await api.comment(issue.id, c.comment);
       else await api.duplicate(issue.id, c.duplicateOf);
@@ -1502,7 +1534,8 @@ export async function linearAsked(api, issue, changes, answer) {
     }
   }
   if (!said.length) return answer;
-  return cut(answer ? `${said.join(' ')}\n\n${answer}` : said.join(' '), FIX_LIMITS.answer);
+  const rest = withoutLinearClaims(answer);
+  return cut(rest ? `${said.join(' ')}\n\n${rest}` : said.join(' '), FIX_LIMITS.answer);
 }
 
 /**

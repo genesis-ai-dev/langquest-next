@@ -36,6 +36,9 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     approveTutorials: async (items, by) => { done.push(`approve ${items.length} by ${by}`); return items.length; },
     addNote: async (tutorial, text, by) => { done.push(`note ${tutorial} ${text} by ${by}`); },
     replyDone: async (id, state, by) => { done.push(`reply ${id} ${state} by ${by}`); return id === REQUEST ? 'ok' : 'not_found'; },
+    closeIssue: async (issue, as) => { done.push(`close ${issue} ${as}`); return as === 'completed' ? 'Live' : 'Canceled'; },
+    issueStates: async (issues) => { done.push(`states ${issues.join(',')}`); return issues.map((issue) => ({ issue, state: 'Live', closed: true, closedAt: '2026-10-28T08:00:00Z', fixedBy: 700 })); },
+    keepIssueStates: async (states) => { done.push(`keep ${states.map((x) => x.issue + ':' + x.state).join(',')}`); return states.length; },
     claimIssue: async (issue, claim, by) => {
       done.push(`${claim ? 'claim' : 'release'} ${issue} by ${by}`);
       return issue === 'LAN-500' ? (claim ? 'taken' : 'not_yours') : claim ? 'claimed' : 'released';
@@ -590,5 +593,44 @@ describe('feedback on the tutorial videos (decisions.md 186)', () => {
     const e = deps({ fileSuggestion: async () => null });
     expect(await act(e, 'aal2', { kind: 'tutorial-fix', id: CODE })).toEqual({ ok: true, result: 'fixing:waiting' });
     expect(e.rows).toEqual([{ profileId: VIEWER, action: 'suggestion_fix', target: CODE, result: 'ok', detail: 'code' }]);
+  });
+});
+
+describe('an issue closed from its card, and its state in Linear at once (docs/decisions/2026-11-24-close-an-issue-from-its-card.md)', () => {
+  it('takes an issue and done or no fix needed, and at most 100 issues to read', () => {
+    expect(parseAction({ kind: 'issue-close', issue: 'LAN-327', as: 'completed' })).toEqual({ kind: 'issue-close', issue: 'LAN-327', as: 'completed' });
+    expect(parseAction({ kind: 'issue-close', issue: 'LAN-327', as: 'canceled' })).toEqual({ kind: 'issue-close', issue: 'LAN-327', as: 'canceled' });
+    expect(parseAction({ kind: 'issue-states', issues: ['LAN-1', 'LAN-1', 'LAN-2'] })).toEqual({ kind: 'issue-states', issues: ['LAN-1', 'LAN-2'] });
+    for (const bad of [{ kind: 'issue-close', issue: 'LAN-327', as: 'deleted' }, { kind: 'issue-close', issue: 'lan-327', as: 'completed' }, { kind: 'issue-states', issues: [] },
+      { kind: 'issue-states', issues: ['LAN-1; drop'] }, { kind: 'issue-states', issues: Array.from({ length: 101 }, (_, i) => 'LAN-' + (i + 1)) }]) {
+      expect(parseAction(bad), JSON.stringify(bad)).toBeNull();
+    }
+  });
+
+  it('closes the issue in Linear, keeps the close on the dashboard at once, and logs it', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'issue-close', issue: 'LAN-327', as: 'completed' })).toEqual({ ok: true, result: 'Live' });
+    expect(d.done).toEqual(['close LAN-327 completed', 'keep LAN-327:Live']);
+    expect(d.rows).toEqual([{ profileId: VIEWER, action: 'issue_close', target: 'LAN-327', result: 'ok', detail: 'state:Live' }]);
+    expect(await act(deps(), 'aal1', { kind: 'issue-close', issue: 'LAN-327', as: 'completed' })).toMatchObject({ ok: false, status: 403 });
+  });
+
+  it('says so when Linear is not set up, or refuses', async () => {
+    expect(await act(deps({ closeIssue: async () => null }), 'aal2', { kind: 'issue-close', issue: 'LAN-327', as: 'canceled' }))
+      .toMatchObject({ ok: false, status: 503, error: 'Linear is not set up here. Close it in Linear.' });
+    const { LinearError } = await import('../../../server/linear');
+    const d = deps({ closeIssue: async () => { throw new LinearError('not_found'); } });
+    expect(await act(d, 'aal2', { kind: 'issue-close', issue: 'LAN-9999', as: 'canceled' })).toMatchObject({ ok: false, status: 502, error: 'It did not work (linear_not_found).' });
+    expect(d.done).toEqual([]);
+  });
+
+  it('reads the open issues\' states and logs only a change', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'issue-states', issues: ['LAN-327'] })).toEqual({ ok: true, result: 'changed:1' });
+    expect(d.rows).toEqual([{ profileId: VIEWER, action: 'issue_states', target: '1 issues', result: 'ok', detail: 'changed:1' }]);
+    const same = deps({ keepIssueStates: async () => 0 });
+    expect(await act(same, 'aal2', { kind: 'issue-states', issues: ['LAN-327'] })).toEqual({ ok: true, result: 'changed:0' });
+    expect(same.rows).toEqual([]);
+    expect(await act(deps({ issueStates: async () => null }), 'aal2', { kind: 'issue-states', issues: ['LAN-327'] })).toEqual({ ok: true, result: 'not_set_up' });
   });
 });
