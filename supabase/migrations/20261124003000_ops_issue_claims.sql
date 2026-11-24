@@ -104,7 +104,9 @@ alter table ops.actions add constraint actions_action_check
   check (action in ('feedback_new', 'feedback_seen', 'feedback_done', 'run_job', 'verification_grant', 'verification_decline',
     'youtube_start', 'youtube_connect', 'tutorials_publish', 'tutorial_note', 'suggestion_accepted', 'suggestion_rejected', 'suggestion_edited',
     'quiet_ok', 'quiet_ok_undo', 'user_issue_note', 'reply_posted', 'reply_none', 'reply_open', 'filming_on', 'filming_off', 'suggestion_fix',
-    'card_question', 'issue_claim', 'issue_release', 'replies_seen'));
+    'card_question', 'issue_claim', 'issue_release', 'replies_seen',
+    -- The thread that adds a Resolved button to dashboard notices (20261124013000_ops_line_resolves.sql) adds these two.
+    'line_resolved', 'line_shown'));
 create index if not exists ops_actions_seen_idx on ops.actions (profile_id, at desc) where action = 'replies_seen';
 
 -- As in 20261121233000_tutorial_fixed_elsewhere.sql, and: an issue's record names who claimed and released it.
