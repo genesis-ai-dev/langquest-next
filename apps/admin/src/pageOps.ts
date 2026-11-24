@@ -253,18 +253,19 @@ Object.assign(RENDER, {
   },
   nearby(d) {
     const s = d.screen || {}, o = d.open || {}, c = d.deliver || {};
-    const share = (a, b) => b ? Math.round((num(a) / num(b)) * 100) + '%' : '–';
-    const notDone = Math.max(0, num(s.sessions) + num(o.sessions) - num(s.done) - num(o.done));
+    // Sums as numbers (pageBlocks.ts nearbyTotals): num() formats as text, and text added joins.
+    const t = nearbyTotals(d);
+    const share = (pct) => pct === null ? '–' : pct + '%';
     let h = '<div class="stats">' + stat(num(d.installs), 'phones that used it') +
-      stat(num(s.rooms), 'Share nearby rooms', '', 'met teammates in ' + share(s.met, s.rooms)) +
-      stat(num(o.runs), 'runs while open', '', 'met teammates in ' + share(o.met, o.runs)) +
-      stat(num(num(s.done) + num(o.done)), 'sessions finished', notDone ? 'warn' : '', num(notDone) + ' did not') +
+      stat(num(s.rooms), 'times Share nearby ran', '', 'synced with a teammate in ' + share(t.screenSynced)) +
+      stat(num(o.runs), 'times it ran while open', '', 'synced with a teammate in ' + share(t.openSynced)) +
+      stat(num(t.finished), 'sessions finished', t.notFinished ? 'warn' : '', num(t.notFinished) + ' did not') +
       stat(num(c.taken), 'carried events the server took', c.refused ? 'warn' : '', num(c.refused) + ' refused') + '</div>';
     const on = (r) => [r.nearby ? 'nearby' : '', r.join ? 'joining' : '', r.open ? 'while open' : ''].filter(Boolean).join(', ') || 'off';
     h += '<h3>Organizations with nearby sync</h3>' + table([
       { h: 'Organization', v: (r) => orgLink(r.orgId, r.name) }, { h: 'Turned on', v: (r) => esc(on(r)) },
-      { h: 'Phones', n: true, v: (r) => num(r.installs) }, { h: 'Rooms', n: true, v: (r) => num(r.rooms) }, { h: 'Runs while open', n: true, v: (r) => num(r.runs) },
-      { h: 'Met teammates', n: true, v: (r) => num(r.met) },
+      { h: 'Phones', n: true, v: (r) => num(r.installs) }, { h: 'Share nearby ran', n: true, v: (r) => num(r.rooms) }, { h: 'Ran while open', n: true, v: (r) => num(r.runs) },
+      { h: 'Synced with a teammate', n: true, v: (r) => num(r.met) },
       { h: 'Revoked phones', n: true, v: (r) => '<span class="' + (r.revoked ? 'warn' : '') + '">' + num(r.revoked) + '</span>' },
       { h: 'Last record', v: (r) => r.lastAt ? ago(r.lastAt) : '–' }
     ], d.orgs || []);
