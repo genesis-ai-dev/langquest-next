@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, LIMITS, linearClient, lookedOf, mergesOf,
-  noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
+  linearAsked, linearChanges, noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
   repairOf, repairsOf, planRecord, planReads, READ_ROWS, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
@@ -605,7 +605,7 @@ describe('a draft fix for each new issue', () => {
   });
 
   it('takes Claude\'s summary or its reason for none, cut and without addresses, and only fixed words from the checks', () => {
-    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null, ended: false });
+    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', linear: [], verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null, ended: false });
     expect(checkFix({ summary: 'S', askFirst: true }).askFirst).toBe(true);
     expect(checkFix({ summary: 'S', answer: ' I moved the wait.  \r\n\n\n\n1. Ask a@b.org ' }).answer).toBe('I moved the wait.\n\n1. Ask [address]');
     expect(checkFix({ summary: 'S', answer: 'x'.repeat(2000) }).answer).toHaveLength(FIX_LIMITS.answer);
@@ -792,3 +792,29 @@ describe('a pull request of the team that did not get into main', () => {
   });
 });
 
+describe('Claude changes an issue in Linear from an admin\'s instruction (docs/decisions/2026-11-24-a-message-to-claude-starts-its-run-at-once.md)', () => {
+  it('keeps only the kinds of change it may make, never a deploy\'s status, at most five', () => {
+    expect(linearChanges([{ status: 'Canceled' }, { priority: 2 }, { title: 'Sync stops a@b.org' }, { comment: 'Closed: a new organization works.' }, { duplicateOf: 'LAN-12' }])).toEqual([
+      { status: 'Canceled' }, { priority: 2 }, { title: 'Sync stops [address]' }, { comment: 'Closed: a new organization works.' }, { duplicateOf: 'LAN-12' }
+    ]);
+    expect(linearChanges([{ status: 'Deploying' }, { status: 'outage' }, { priority: 7 }, { duplicateOf: 'XYZ-1' }, { delete: true }, 'x', { status: ' ' }])).toEqual([]);
+    expect(linearChanges(Array(9).fill({ priority: 1 }))).toHaveLength(5);
+    expect(linearChanges(undefined)).toEqual([]);
+    expect(checkFix({ noFix: 'x', linear: [{ status: 'Done' }] }).linear).toEqual([{ status: 'Done' }]);
+  });
+
+  it('makes each change on this issue, says what Linear did first, and says what it refused', async () => {
+    const issue = { id: 'uuid-1', identifier: 'LAN-256' };
+    const done: string[] = [];
+    const api = {
+      setState: async (id: string, name: string) => { done.push(`${id} status ${name}`); },
+      update: async (id: string, input: object) => { done.push(`${id} ${JSON.stringify(input)}`); },
+      comment: async (id: string, body: string) => { done.push(`${id} comment ${body}`); },
+      duplicate: async () => { throw new Error('Linear: no issue LAN-12'); }
+    };
+    const answer = await linearAsked(api, issue, [{ status: 'Canceled' }, { priority: 4 }, { comment: 'Why.' }, { duplicateOf: 'LAN-12' }], 'The user can make a new organization.');
+    expect(answer).toBe('I set LAN-256 to Canceled in Linear. I set the priority of LAN-256 to Low in Linear. I added a comment to LAN-256 in Linear. I could not mark LAN-256 a duplicate of LAN-12 in Linear. Do it there yourself.\n\nThe user can make a new organization.');
+    expect(done).toEqual(['uuid-1 status Canceled', 'uuid-1 {"priority":4}', 'uuid-1 comment Why.']);
+    expect(await linearAsked(api, issue, [], 'Only words.')).toBe('Only words.');
+  });
+});

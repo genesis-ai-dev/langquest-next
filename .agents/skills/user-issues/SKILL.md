@@ -747,6 +747,22 @@ above, with one more field:
   both the admin's words and that the draft fix did not change; with any
   doubt about what the admin meant, do not say `approved`, and ask in
   `answer`.
+- `linear`: the changes to this issue in Linear that the instruction
+  needs, as a list. Read what the admin means, not their exact words:
+  "the user can make a new organization, so drop it" means the issue is
+  canceled; "this one matters most" means a higher priority; "same as
+  LAN-12" means a duplicate. Each entry is one of:
+  `{ "status": "Canceled" }` (the team's status name: Backlog, Todo, In
+  Progress, Done, Canceled, Duplicate, Live; never Deploying, Verifying
+  or Outage, which the deploy sets), `{ "priority": 2 }` (0 none, 1
+  urgent, 2 high, 3 medium, 4 low), `{ "title": "..." }`,
+  `{ "comment": "..." }` (for the team in Linear, plain words, no name or
+  address of a person) or `{ "duplicateOf": "LAN-12" }`. At most five.
+  The script makes them after you, only in a run with an admin's
+  instruction, and puts what Linear did first in your answer ("I set
+  LAN-256 to Canceled in Linear."): do not write that line yourself.
+  Write `noFix` too when you change no code. Leave `linear` out when the
+  instruction needs no change in Linear.
 - `answer` (at most 1000 characters) is for the admin, under their words
   on the card: what you did, or the answer to their question, and what they
   must decide when something is open. Write it in ASD-STE100 Simplified

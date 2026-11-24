@@ -555,8 +555,8 @@ async function perform(action, button, opts) {
       : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
       : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
       : action.kind === 'tutorial-note' ? (body.result === 'instructed' ? 'Sent. Claude starts the change at its next fix run, ' + fixRunSaid() + '.' : 'Sent. Claude reads it at its next look (10:00 UTC).')
-      : action.kind === 'user-issue-note' ? 'Sent. Claude reads it at the next run of the watch, ' + watchSaid() + '.'
-      : action.kind === 'card-question' ? 'Sent. Claude starts on it at about ' + askNext() + '. The answer shows under your question.'
+      : action.kind === 'user-issue-note' ? (body.run === 'started' ? 'Sent. ' + STARTS_SAID : 'Sent. Claude reads it at the next run of the watch, ' + watchSaid() + '.')
+      : action.kind === 'card-question' ? (body.run === 'started' ? 'Sent. ' + STARTS_SAID : 'Sent. Claude starts on it at about ' + askNext() + '.') + ' The answer shows under your question.'
       : action.kind === 'line-resolve' ? (action.lines.length === 1 ? 'Resolved. It shows again when the problem comes back.' : num(action.lines.length) + ' resolved. Each shows again when its problem comes back.')
       : action.kind === 'line-show' ? 'It shows again.'
       : action.kind === 'issue-claim' ? (body.result === 'claimed' ? 'You claimed ' + action.issue + '.' : 'You released ' + action.issue + '.')
@@ -567,7 +567,7 @@ async function perform(action, button, opts) {
         + (action.askFirst ? ' The fix waits for your yes before it merges.' : ' The fix merges by itself when it keeps the rules, and then the video is filmed again.')
       : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
       : 'Feedback marked ' + body.result + '.';
-    if (talk) { SENDS.set(talk.key, { ...SENDS.get(talk.key), state: 'sent' }); say(said, 'good'); }
+    if (talk) { if (action.kind === 'user-issue-note' || action.kind === 'card-question') markStart(talk.key, body.run); SENDS.set(talk.key, { ...SENDS.get(talk.key), state: 'sent' }); say(said, 'good'); }
     if (o.card) {
       const c = o.card;
       GONE.set(c.key, { key: c.key, tab: c.tab, index: c.index, title: c.a.title, tags: c.tags || '', said: c.said || said, where: c.where || null, text: talk ? talk.text : '', at: Date.now(), pill: c.pill || null });

@@ -420,6 +420,33 @@ export function fixRefusal(paths, bytes) {
  * fix.json as Claude wrote it: what the change does and how it is tested, or why there is no
  * fix. It goes into a public pull request, so addresses are taken out.
  */
+/** At most this many changes to an issue in Linear from one instruction, and their words' lengths. */
+export const LINEAR_CHANGES = { max: 5, comment: 1000, title: 120, status: 40 };
+/** Statuses only linear-sync.mjs sets, from a deploy (lower case). */
+const SYNC_STATUSES = ['deploying', 'verifying', 'outage'];
+/**
+ * The changes to the issue in Linear that the issue manager chose from an admin's instruction (`linear` in
+ * fix.json): its status by the team's name for it, its priority (0 none, 1 urgent, 2 high, 3 medium, 4 low),
+ * its title, a comment, or the issue it duplicates. Claude reads what the admin meant; no list of words
+ * decides it. Only these kinds, on this issue only, and fixOpen makes them only in a run with an admin's
+ * instruction. Anything else is dropped.
+ */
+export function linearChanges(raw) {
+  const out = [];
+  for (const c of Array.isArray(raw) ? raw : []) {
+    if (!isObj(c)) continue;
+    if (typeof c.status === 'string' && c.status.trim()) {
+      // The deploy's statuses belong to linear-sync.mjs, which sets them from what shipped.
+      if (!SYNC_STATUSES.includes(c.status.trim().toLowerCase())) out.push({ status: cut(c.status.trim(), LINEAR_CHANGES.status) });
+    }
+    else if (Number.isInteger(c.priority) && c.priority >= 0 && c.priority <= 4) out.push({ priority: c.priority });
+    else if (typeof c.title === 'string' && c.title.trim()) out.push({ title: cut(redact(c.title.trim()), LINEAR_CHANGES.title) });
+    else if (typeof c.comment === 'string' && c.comment.trim()) out.push({ comment: cut(redact(lines(c.comment)), LINEAR_CHANGES.comment) });
+    else if (typeof c.duplicateOf === 'string' && ISSUE_ID.test(c.duplicateOf)) out.push({ duplicateOf: c.duplicateOf });
+  }
+  return out.slice(0, LINEAR_CHANGES.max);
+}
+
 export function checkFix(raw) {
   const o = isObj(raw) ? raw : {};
   const noFix = cut(text(o.noFix), FIX_LIMITS.noFix);
@@ -429,7 +456,9 @@ export function checkFix(raw) {
   const next = v.next ? { ...v.next, do: redact(v.next.do), steps: redact(v.next.steps) } : null;
   const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display, askFirst: v.askFirst, next };
   // `ended`: the manager wrote no fix.json, or one that does not read (fixPatch), so it gave no verdict (ENDED).
-  return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), answer: cut(lines(text(o.answer)), FIX_LIMITS.answer), ...team, ended: o.ended === true };
+  // `linear`: the changes to the issue in Linear that Claude chose from an admin's instruction (linearChanges).
+  const linear = linearChanges(o.linear);
+  return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), answer: cut(lines(text(o.answer)), FIX_LIMITS.answer), linear, ...team, ended: o.ended === true };
 }
 
 /** check.json from the job with no key: only its fixed words, since the patch's own code ran there. */
@@ -868,6 +897,25 @@ export function linearClient(key, fetchImpl = fetch) {
         issues(first: 100, filter: { team: { key: { eq: $key } }, number: { in: $numbers } }) {
           nodes { identifier title priority state { name type } completedAt canceledAt attachments { nodes { url } } } } }`, { key: TEAM_KEY, numbers: numbers.slice(0, 100) });
       return data.issues.nodes.map((i) => ({ identifier: i.identifier, title: i.title, priority: i.priority, state: i.state, completedAt: i.completedAt, canceledAt: i.canceledAt, attachments: i.attachments.nodes }));
+    },
+    /** Moves an issue to the team's status of this name (Done, Canceled, Duplicate, In Progress...), any case. */
+    async setState(issueId, name) {
+      const data = await gql(`query($key: String!) { workflowStates(filter: { team: { key: { eq: $key } } }) { nodes { id name } } }`, { key: TEAM_KEY });
+      const state = data.workflowStates.nodes.find((n) => n.name.toLowerCase() === String(name).toLowerCase());
+      if (!state) throw new LinearError(`Linear: no status named ${name} in ${TEAM_KEY}`);
+      await this.update(issueId, { stateId: state.id });
+    },
+    /** Changes an issue's fields (priority, title, status), and fails when Linear says it did not. */
+    async update(issueId, input) {
+      const done = await gql(`mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }`, { id: issueId, input });
+      if (done.issueUpdate?.success !== true) throw new LinearError('Linear: the issue did not change');
+    },
+    /** Marks an issue a duplicate of another of the team's issues (LAN-12): the relation, then the status Duplicate when the team has it. */
+    async duplicate(issueId, of) {
+      const other = await gql(`query($id: String!) { issue(id: $id) { id } }`, { id: of });
+      if (!other.issue) throw new LinearError(`Linear: no issue ${of}`);
+      await gql(`mutation($input: IssueRelationCreateInput!) { issueRelationCreate(input: $input) { success } }`, { input: { issueId, relatedIssueId: other.issue.id, type: 'duplicate' } });
+      await this.setState(issueId, 'Duplicate').catch(() => {});
     },
     /** Opens a closed issue again: the team's first not-started state (Todo). */
     async reopen(issueId) {
@@ -1346,6 +1394,8 @@ function fixPatch(dir) {
   // "Merge it as it is": the admin's words say so, the manager's verdict is `approved`, and the draft fix is as it was.
   const approved = noteIds.length > 0 && notes?.saysMerge === true && fix.verdict === 'approved' && Boolean(patch) && !changed;
   if (fix.verdict === 'approved' && !approved) fix.verdict = 'review';
+  // The changes in Linear the manager chose from the admin's instruction; none in a run with no instruction.
+  const linear = noteIds.length > 0 ? fix.linear : [];
   // The steps to the screen where the problem shows, which the picture job runs without the change and,
   // when there is one, with it: the issue's picture on its card, and a display fix's proof.
   // They are not part of the change. Like the change, they may carry nothing of what was sent.
@@ -1366,7 +1416,7 @@ function fixPatch(dir) {
   }
   // `go`, `askFirst` and `claimed` as fixContext read them before Claude: the gate reads them (gateInput).
   if (noteIds.length || notes?.go === true || notes?.claimed === true) {
-    writeFileSync(join(out, 'notes.json'), JSON.stringify({ ids: noteIds, changed: changed && Boolean(patch), approved, go: notes?.go === true, askFirst: notes?.askFirst === true, claimed: notes?.claimed === true }));
+    writeFileSync(join(out, 'notes.json'), JSON.stringify({ ids: noteIds, changed: changed && Boolean(patch), approved, linear, go: notes?.go === true, askFirst: notes?.askFirst === true, claimed: notes?.claimed === true }));
   }
   // A pull request handed back by the job `follow`: which, and whether Claude changed its change.
   if (Number.isInteger(notes?.repair?.pr)) writeFileSync(join(out, 'repair.json'), JSON.stringify({ pr: notes.repair.pr, changed: Boolean(patch) && notes.repair.draft !== worktreeHash(dir) }));
@@ -1410,6 +1460,34 @@ function autoMerge(pr) {
 }
 
 /**
+ * The changes in Linear that Claude chose from an admin's instruction, made on this issue, and Claude's
+ * answer with what Linear did first: the card shows that first line in bold. A change Linear refuses is
+ * said, never hidden.
+ */
+export async function linearAsked(api, issue, changes, answer) {
+  const said = [];
+  const id = issue.identifier;
+  const PRIORITY = ['No priority', 'Urgent', 'High', 'Medium', 'Low'];
+  for (const c of changes) {
+    const what = c.status ? `set ${id} to ${c.status}` : c.priority !== undefined ? `set the priority of ${id} to ${PRIORITY[c.priority]}`
+      : c.title ? `renamed ${id}` : c.comment ? `added a comment to ${id}` : `marked ${id} a duplicate of ${c.duplicateOf}`;
+    try {
+      if (c.status) await api.setState(issue.id, c.status);
+      else if (c.priority !== undefined) await api.update(issue.id, { priority: c.priority });
+      else if (c.title) await api.update(issue.id, { title: c.title });
+      else if (c.comment) await api.comment(issue.id, c.comment);
+      else await api.duplicate(issue.id, c.duplicateOf);
+      said.push(`I ${what} in Linear.`);
+    } catch (e) {
+      console.log(`${id}: Linear refused a change (${e instanceof Error ? e.message.slice(0, 200) : 'error'})`);
+      said.push(`I could not ${what.replace(/^(set|renamed|added|marked)/, (v) => ({ set: 'set', renamed: 'rename', added: 'add', marked: 'mark' })[v])} in Linear. Do it there yourself.`);
+    }
+  }
+  if (!said.length) return answer;
+  return cut(answer ? `${said.join(' ')}\n\n${answer}` : said.join(' '), FIX_LIMITS.answer);
+}
+
+/**
  * The fix, from the job that runs nothing of it. The gate (scripts/agent-team.mjs) says what happens:
  * a pull request that merges without a person (opened by LangQuest's GitHub App, so its checks start,
  * with auto-merge on), or a draft that waits for a developer; or the issue says why there is none.
@@ -1437,6 +1515,10 @@ async function fixOpen(dir, id) {
   const notesPath = join(dir, 'fix', 'notes.json');
   const notes = existsSync(notesPath) ? readJson(notesPath) : null;
   const noteIds = noteIdsOf(notes);
+  // The changes in Linear Claude chose from an admin's instruction (status, priority, title, a comment, a
+  // duplicate): made first, so the answer on the card says what Linear did.
+  const changes = noteIds.length ? linearChanges(notes?.linear) : [];
+  if (changes.length) fix.answer = await linearAsked(api, issue, changes, fix.answer);
   const input = gateInput(dir);
   const shots = { before: pictureOf(join(dir, 'picture', PICTURES.before)), after: pictureOf(join(dir, 'picture', PICTURES.after)) };
   const decision = gate({ mode: modeHere(), ...input, app: Boolean(process.env.PR_TOKEN) });

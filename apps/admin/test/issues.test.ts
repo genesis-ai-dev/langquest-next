@@ -40,8 +40,8 @@ const draw = new Function(`
   let fixData = null;
   ${ISSUE_LOGIC}
   ${ISSUE_SCRIPT}
-  return { adminCard, userIssuesHtml, fixes: (f) => { fixData = f; } };
-`)() as { adminCard: (a: Row) => string; userIssuesHtml: (d: Row) => string; fixes: (f: unknown) => void };
+  return { adminCard, userIssuesHtml, fixes: (f) => { fixData = f; }, markStart, issueWaits, data: (d) => { udata = d; } };
+`)() as { adminCard: (a: Row) => string; userIssuesHtml: (d: Row) => string; fixes: (f: unknown) => void; markStart: (key: string, run: string) => void; issueWaits: () => boolean; data: (d: Row | null) => void };
 
 const issue = (over: Row = {}): Row => ({
   issue: 'LAN-9', issueUrl: 'https://linear.app/t/issue/LAN-9', title: 'A thing fails', verdict: 'filed', state: 'Todo', closedAt: null,
@@ -294,6 +294,30 @@ describe('the cards', () => {
     // Before the database keeps instructions, a card has no box.
     expect(draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toContain('class="tell"');
     draw.fixes(null);
+  });
+
+  it('says Claude starts now when the Worker started the watch at once, and the watch time when it did not', () => {
+    const at = new Date().toISOString();
+    const notes = { 'LAN-9': [{ at, text: 'Close it.', state: 'waiting', answeredAt: null, result: null, answer: null, pr: null, runUrl: null }] };
+    const page = () => draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null, notes }).split('<article')[1]!;
+    draw.markStart('issue:LAN-9', 'started');
+    expect(page()).toContain('<strong>Claude starts on it now.</strong> When another run is in progress, Claude starts when that run ends.');
+    expect(page()).toContain('<small>Claude starts on it when you send it.</small>');
+    draw.markStart('issue:LAN-9', 'no_token');
+    expect(page()).toMatch(/Claude reads it at the next run of the watch, at about \d{1,2}:[0-5]\d/);
+    expect(page()).not.toContain('Claude starts on it');
+  });
+
+  it('reads the issues again each minute only while Claude owes an answer sent in the last 2 hours', () => {
+    const note = (state: string, ago: number): Row => ({ at: new Date(Date.now() - ago).toISOString(), text: 'x', state });
+    draw.data({ notes: { 'LAN-9': [note('answered', 60000)] } });
+    expect(draw.issueWaits()).toBe(false);
+    draw.data({ notes: { 'LAN-9': [note('answered', 60000), note('working', 60000)] } });
+    expect(draw.issueWaits()).toBe(true);
+    draw.data({ notes: { 'LAN-9': [note('waiting', 3 * 3600000)] } });
+    expect(draw.issueWaits()).toBe(false);
+    draw.data(null);
+    expect(draw.issueWaits()).toBe(false);
   });
 
   it('says what Claude does with an instruction from its state', () => {

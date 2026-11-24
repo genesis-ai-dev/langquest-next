@@ -9,6 +9,7 @@ import {
 } from '../../../server/youtube';
 import { LinearError } from '../../../server/linear';
 import { fileSuggestion } from './fileSuggestion';
+import { startRun, type RunStart, type RunWorkflow } from './startRun';
 import { CARD, PAGE, QUESTION_MAX } from '../../../server/cardQuestions';
 
 /**
@@ -97,7 +98,7 @@ export interface ResolvedLine {
 }
 
 export type ActionResult =
-  | { ok: true; result: string }
+  | { ok: true; result: string; run?: RunStart }
   | { ok: false; status: 400 | 401 | 403 | 404 | 502 | 503; error: string };
 
 export interface ActionDeps {
@@ -122,6 +123,8 @@ export interface ActionDeps {
   instruct(row: { tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }, by: string): Promise<string>;
   /** An admin's instruction on a user issue kept for the watch (`ops_user_issue_instruct`): its id, `not_found` or `full`. */
   instructIssue(issue: string, text: string, by: string): Promise<string>;
+  /** The workflow that takes a message to Claude, started on main now (startRun.ts): `started`, or why not. */
+  startRun(workflow: RunWorkflow): Promise<RunStart>;
   /** Lines resolved by this person (`ops_line_resolve`): how many. */
   resolveLines(lines: ResolvedLine[], by: string): Promise<number>;
   /** Lines shown again by this person (`ops_line_show`): how many were resolved. */
@@ -364,8 +367,9 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
     if (action.kind === 'user-issue-note') {
       const answer = await deps.instructIssue(action.issue, action.text, who.profileId);
       const kept = answer !== 'not_found' && answer !== 'full';
-      await deps.record({ profileId: who.profileId, action: name, target, result: kept ? 'ok' : 'refused', detail: kept ? `note:${answer}` : answer });
-      return kept ? { ok: true, result: 'instructed' }
+      const run = kept ? await deps.startRun('user-issues.yml').catch((): RunStart => 'error') : null;
+      await deps.record({ profileId: who.profileId, action: name, target, result: kept ? 'ok' : 'refused', detail: kept ? `note:${answer}:run:${run}` : answer });
+      return kept ? { ok: true, result: 'instructed', run: run ?? 'error' }
         : answer === 'full' ? { ok: false, status: 400, error: 'Three instructions on that issue wait for Claude already. Wait for its answer.' }
           : { ok: false, status: 404, error: `Claude cannot take an instruction on ${action.issue}. The watch did not file this issue, and no line on this page names it now.` };
     }
@@ -373,8 +377,9 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       const { kind: _kind, ...row } = action;
       const answer = await deps.askCard(row, who.profileId);
       const kept = answer !== 'full' && answer !== 'many';
-      await deps.record({ profileId: who.profileId, action: name, target, result: kept ? 'ok' : 'refused', detail: kept ? `question:${answer}` : answer });
-      return kept ? { ok: true, result: 'asked' }
+      const run = kept ? await deps.startRun('card-questions.yml').catch((): RunStart => 'error') : null;
+      await deps.record({ profileId: who.profileId, action: name, target, result: kept ? 'ok' : 'refused', detail: kept ? `question:${answer}:run:${run}` : answer });
+      return kept ? { ok: true, result: 'asked', run: run ?? 'error' }
         : answer === 'full' ? { ok: false, status: 400, error: 'Three questions on this card wait for Claude already. Wait for its answer.' }
           : { ok: false, status: 400, error: 'Twenty questions on the dashboard wait for Claude already. Wait for its answers.' };
     }
@@ -553,6 +558,7 @@ export function actionDeps(env: Env): ActionDeps {
       return data === true;
     },
     runJob: (key) => env.JOBS.get(env.JOBS.idFromName(key)).run({}),
+    startRun: (workflow) => startRun(env.OPS_RUN_GITHUB_TOKEN, workflow),
     decideVerification: async (id, grant, profileId) => {
       const { data, error } = await db().rpc('org_verification_decide', { p_request: id, p_grant: grant, p_by: profileId });
       if (error) throw new Error(`org_verification_decide: ${error.message}`);

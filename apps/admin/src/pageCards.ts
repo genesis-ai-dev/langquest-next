@@ -25,6 +25,10 @@ export const CARD_CSS = String.raw`
 .icard .eachissue { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
 .icard .eachissue a { color: var(--primary); font-weight: 600; }
 .icard.hit, .pc.hit { box-shadow: 0 0 0 3px var(--primary); animation: cardhit 2.6s ease-out 1; }
+/* The card a link opened (a reply in the bell's list) keeps its ring for 10 minutes, through each redraw (remark). */
+.icard.marked, .pc.marked, .vcards.marked { box-shadow: 0 0 0 3px var(--primary); }
+.vcards.marked { border-radius: 14px; }
+[data-card] { scroll-margin-top: 16px; }
 @keyframes cardhit { 0%, 30% { box-shadow: 0 0 0 6px var(--primary); } 100% { box-shadow: 0 0 0 3px var(--primary); } }
 @media (prefers-reduced-motion: reduce) { .icard.hit, .pc.hit { animation: none; } }
 .alert[data-href] { cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; }
@@ -188,20 +192,37 @@ function redrawLineCards() {
 
 // ---- opening a card from the Overview ----
 let wantCard = null;
+/** The card a link opened last, and when: it keeps its ring for 10 minutes, so the admin finds it again after the page draws again. */
+let markedCard = null, markedAt = 0;
+const MARK_MS = 10 * 60000;
+/** Puts the ring back on the card a link opened, after a redraw, and takes it off every other card. */
+function remark() {
+  const on = markedCard && Date.now() - markedAt < MARK_MS ? markedCard : null;
+  for (const x of document.querySelectorAll('.marked')) if (x.dataset.card !== on) x.classList.remove('marked');
+  if (on) for (const x of document.querySelectorAll('[data-card]')) if (x.dataset.card === on) x.classList.add('marked');
+}
 /** Scrolls to the card the address names, opens its tab, and rings it; waits while its section loads. */
 function focusCard() {
+  remark();
   const v = view();
   if (!wantCard || v.name !== 'group') return;
   // The summary draws on the next frame, and looks for the card again then.
   if (sumQueued) return;
   // The card is in the page's summary (pageSummary.ts), or in All the details (a build in Where each build and update is).
   const box = $('card-' + v.id);
-  const el = box && [...$('sum').querySelectorAll('[data-card]'), ...box.querySelectorAll('[data-card]')].find((x) => x.dataset.card === wantCard);
+  const find = () => box && [...$('sum').querySelectorAll('[data-card]'), ...box.querySelectorAll('[data-card]')].find((x) => x.dataset.card === wantCard);
+  let el = find();
   if (!el) {
     const g = SECTIONS.find((s) => s.id === v.id);
     // Every part answered and the card is not there: the line went (its check found it fixed).
     if (g && g.parts.every((p) => results[p]) && results.userissues) { say(resolvedCard(wantCard) ? 'That problem is resolved. It is in Resolved on the Overview.' : 'That problem is gone from this page. It is fixed.', ''); wantCard = null; }
     return;
+  }
+  const id = wantCard;
+  // A tutorial video's cards are under its row's "waits on you" button (pageVideos.ts): open them.
+  if (el.hidden && el.classList.contains('vcards')) {
+    const b = document.querySelector('[aria-controls="' + el.id + '"]');
+    if (b) { b.click(); el = find() || el; }
   }
   wantCard = null;
   if (el.hidden && el.dataset.tab) {
@@ -212,6 +233,8 @@ function focusCard() {
   for (let d = el.parentElement; d; d = d.parentElement) if (d.tagName === 'DETAILS' && !d.open) d.open = true;
   if (box.contains(el) && box.classList.contains('collapsed')) setOpen(v.id, true);
   el.classList.add('hit');
+  markedCard = id; markedAt = Date.now();
+  remark();
   el.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   setTimeout(() => el.classList.remove('hit'), 4000);
 }

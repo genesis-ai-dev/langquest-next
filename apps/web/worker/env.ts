@@ -88,6 +88,13 @@ export interface Env {
    */
   LINEAR_API_KEY?: string;
   /**
+   * A fine-grained GitHub token for this repository alone, with only Actions:
+   * Read and write (startRun.ts, docs/admin.md): a message to Claude from the
+   * ops dashboard starts its workflow at once. Optional: without it the
+   * message waits for the workflow's schedule.
+   */
+  OPS_RUN_GITHUB_TOKEN?: string;
+  /**
    * Nearby sync's signing key (nearby.ts, docs/nearby-sync-plan.md 5.12):
    * one compact Ed25519 JWK with its `kid`, made by
    * scripts/nearby-signing-key.sh. Optional (`npm run secrets`): without it,

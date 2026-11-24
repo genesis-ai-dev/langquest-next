@@ -414,6 +414,15 @@ without showing it, and once you have the ones you want, run
   `genesis-ai-dev` (the organization may have to approve it); only the
   `langquest-next` repository; Repository permissions: Actions Read and
   Contents Read; an expiry.
+- **`OPS_RUN_GITHUB_TOKEN`** (not read-only, and on the app's Worker, not
+  this one: a message to Claude from a card starts the watch or
+  `card-questions.yml` at once, `apps/web/worker/startRun.ts`; without it the
+  message waits for the schedule). github.com > Settings > Developer
+  settings > Fine-grained tokens > Generate. Resource owner
+  `genesis-ai-dev`; only the `langquest-next` repository; Repository
+  permissions: Actions Read and write, nothing else; an expiry. Then
+  `npm run env:update -- production OPS_RUN_GITHUB_TOKEN` and
+  `npm run secrets -- production`.
 - **`ADMIN_EXPO_TOKEN`** (App builds and updates). On expo.dev, open the
   account that owns LangQuest Next > Settings > Robot users > Create
   robot, role Viewer (if builds then show "Could not read", give it

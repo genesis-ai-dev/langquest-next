@@ -509,7 +509,7 @@ function issueTalk(r, notes, at) {
     if (n.local && n.state === 'refused') return '<p class="said you refused">' + esc(n.text) + '</p><small class="you">Not sent</small>' +
       '<div class="said claude refused" role="alert"><p>' + esc('Not sent: ' + n.error + ' Your words are back in the box. Send them again.') + '</p></div><small></small>';
     const where = n.pr ? ' · ' + outLink(PR_URL + n.pr, 'PR ' + esc(n.pr)) : n.state !== 'answered' && n.state !== 'waiting' && safeLink(n.runUrl) ? ' · ' + outLink(n.runUrl, 'The run') : '';
-    const said = n.state === 'waiting' ? (n.local ? 'Sent. ' : '') + 'Claude reads it at the next run of the watch, ' + watchSaid() + '.' : noteSaid(n);
+    const said = n.state === 'waiting' ? (n.local ? 'Sent. ' : '') + (startedFor('issue:' + r.issue, n) ? STARTS_SAID : 'Claude reads it at the next run of the watch, ' + watchSaid() + '.') : noteSaid(n);
     const ud = userIssuesData(), by = n.local ? 'You' : saidBy(ud && ud.records, 'user_issue_note', n.text);
     return '<p class="said you">' + esc(n.text) + '</p><small class="you">' + esc(by) + ' · ' + when(n.at) + '</small>' +
       '<div class="said claude">' + saidHtml(said) + '</div><small>Claude' + (n.answeredAt ? ' · ' + when(n.answeredAt) : '') + where + '</small>';
@@ -517,7 +517,7 @@ function issueTalk(r, notes, at) {
   const id = esc(r.issue), busy = list.some((n) => n.local && n.state === 'sending');
   return (talk ? '<div class="talk">' + talk + '</div>' : '') +
     (r.closedAt ? '' : '<div class="tell"><textarea id="uin-' + (at ? esc(at) + '-' : '') + id + '" maxlength="2000" rows="3" aria-label="What Claude must do"' + (busy ? ' readonly' : '') + ' placeholder="' + (list.length ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
-      '<small>Claude reads it at the next run of the watch, ' + watchSaid() + '.</small><button type="button" class="primary" data-uinote="' + id + '"' + (busy ? ' disabled aria-busy="true">Sending…' : '>Send to Claude') + '</button></div>');
+      '<small>' + (startsNow() ? 'Claude starts on it when you send it.' : 'Claude reads it at the next run of the watch, ' + watchSaid() + '.') + '</small><button type="button" class="primary" data-uinote="' + id + '"' + (busy ? ' disabled aria-busy="true">Sending…' : '>Send to Claude') + '</button></div>');
 }
 /** A place in the code as a link to that file on main, at its line. */
 function placeLink(place) {

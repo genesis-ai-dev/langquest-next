@@ -58,7 +58,7 @@ function askWaits(questions) {
 }
 /** Claude's side of the talk for a question with no answer yet, in words; next is the clock time of the next run. */
 function askSaid(q, next) {
-  if (q.state === 'waiting') return (q.local ? 'Sent. ' : '') + 'Claude starts on it at its next run, at about ' + next + '. The answer shows here.';
+  if (q.state === 'waiting') return (q.local ? 'Sent. ' : '') + (q.started ? STARTS_SAID + ' The answer shows here.' : 'Claude starts on it at its next run, at about ' + next + '. The answer shows here.');
   if (q.state === 'working') return 'Claude works on it now. The answer shows here in a few minutes.';
   if (q.state === 'stopped') return 'Claude did not answer. Two runs tried. Ask again.';
   if (q.state === 'answered' && !q.answer) return 'Claude ended without an answer. Ask again.';
@@ -102,7 +102,7 @@ function askTalk(card, page, title) {
     if (q.local && q.state === 'sending') return '<p class="said you sending">' + esc(q.text) + '</p><small class="you sending">Sending…</small>';
     if (q.local && q.state === 'refused') return '<p class="said you refused">' + esc(q.text) + '</p><small class="you">Not sent</small>' +
       '<div class="said claude refused" role="alert"><p>' + esc('Not sent: ' + q.error + ' Your words are back in the box. Send them again.') + '</p></div><small></small>';
-    const said = askSaid(q, askNext());
+    const said = askSaid(q.state === 'waiting' && startedFor('ask:' + card, q) ? { ...q, started: true } : q, askNext());
     const run = q.state === 'working' || q.state === 'stopped' ? safeLink(q.runUrl) : '';
     return '<p class="said you">' + esc(q.text) + '</p><small class="you">' + esc(q.local ? 'You' : q.who || 'An admin') + ' · ' + when(q.at) + '</small>' +
       '<div class="said claude">' + saidHtml(said) + '</div><small>Claude' + (q.answeredAt ? ' · ' + when(q.answeredAt) : '') + (run ? ' · ' + outLink(run, 'The run') : '') + '</small>';
@@ -111,7 +111,7 @@ function askTalk(card, page, title) {
   return (talk ? '<div class="talk">' + talk + '</div>' : '') +
     '<div class="tell"><textarea id="' + esc(id) + '" maxlength="' + ASK_MAX.text + '" rows="3" aria-label="Your question to Claude"' + (busy ? ' readonly' : '') +
     ' placeholder="' + (list.length ? 'Ask another question…' : 'Ask Claude about this…') + '"></textarea>' +
-    '<small>Claude reads this ' + (card.startsWith('page:') ? 'page' : 'card') + ', the code, production and the logs, at about ' + esc(askNext()) + '.</small>' +
+    '<small>Claude reads this ' + (card.startsWith('page:') ? 'page' : 'card') + ', the code, production and the logs, ' + (startsNow() ? 'when you send it' : 'at about ' + esc(askNext())) + '.</small>' +
     '<button type="button" class="primary" data-ask="' + esc(card) + '" data-ask-page="' + esc(page) + '" data-ask-title="' + esc(String(title || '').slice(0, ASK_MAX.title)) + '"' +
     (busy ? ' disabled aria-busy="true">Sending…' : '>Ask Claude') + '</button></div>';
 }

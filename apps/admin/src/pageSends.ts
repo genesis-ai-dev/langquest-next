@@ -165,6 +165,34 @@ function withGone(cards, gone, keyOf) {
   for (const g of left) out.splice(Math.min(g.index, out.length), 0, { gone: g });
   return out;
 }
+/**
+ * Messages to Claude whose workflow the app Worker started at once (apps/web/worker/startRun.ts), by the
+ * SENDS key: when. A message the server holds says "starts on it now" only while it waits, for 15 minutes.
+ */
+const STARTED = new Map();
+/** What a waiting message says when the app Worker started its run at once (apps/web/worker/startRun.ts). */
+const STARTS_SAID = 'Claude starts on it now. When another run is in progress, Claude starts when that run ends.';
+const STARTS_KEY = 'ops-starts-now';
+/** A send's answer: its run started at once, or not. The box then says when Claude starts on the next one. */
+function markStart(key, run) {
+  if (run === 'started') STARTED.set(key, Date.now()); else STARTED.delete(key);
+  try { if (run === 'started') localStorage.setItem(STARTS_KEY, String(Date.now())); else localStorage.removeItem(STARTS_KEY); } catch {}
+}
+/** Whether this waiting message had its run started at once: sent from this page within 15 minutes, at the start. */
+function startedFor(key, n) {
+  const t = STARTED.get(key);
+  return !!t && Date.now() - t < 15 * 60000 && Date.parse(n.at) >= t - 120000;
+}
+/** Whether the last message sent from this browser in 30 days started its run at once. */
+function startsNow() {
+  if (STARTED.size) return true;
+  try { const t = Number(localStorage.getItem(STARTS_KEY)); return t > 0 && Date.now() - t < 30 * 86400000; } catch { return false; }
+}
+/** Whether Claude owes an answer to an instruction on a user issue sent in the last 2 hours: the page then reads the issues each minute. */
+function issueWaits() {
+  const ud = userIssuesData(), notes = notesWithSends(ud ? ud.notes : null, SENDS) || {};
+  return Object.values(notes).some((l) => (l || []).some((n) => (n.state === 'waiting' || n.state === 'working') && Date.now() - Date.parse(n.at) < 2 * 3600000));
+}
 `;
 
 /** The page's state of sends and answered cards, and their drawing; uses the page's helpers (esc, when, say, $). */

@@ -57,3 +57,9 @@ is soon enough).
 Reverse if: the questions use too much of the Frontier plan, or answers from
 the card's words mislead more than they help. Then keep the box on pages only,
 or answer once a day.
+
+Amended (2026-11-24, Caleb Koster): "starting the workflow from the Worker
+at once" is now chosen. Caleb asked that Claude answer right away, and GitHub
+started the 5-minute schedule each 8 to 15 minutes. The app Worker holds a
+token that can only start runs (`OPS_RUN_GITHUB_TOKEN`):
+`docs/decisions/2026-11-24-a-message-to-claude-starts-its-run-at-once.md`.

@@ -74,9 +74,12 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_CLOUDFLARE_LOGS_TOKE
  * AGENT_READ_DATABASE_URL are the read gate's two read-only logins, claude_reader and agent_reader
  * (scripts/claude-read-access.sh, docs/production-reads.md): each goes to a Hyperdrive config of its
  * own, never to a Worker. CLAUDE_READ_TOKEN is the bearer token Claude's cloud threads send the gate;
- * the admin Worker gets only its SHA-256 (CLAUDE_READ_TOKEN_SHA256).
+ * the admin Worker gets only its SHA-256 (CLAUDE_READ_TOKEN_SHA256). OPS_RUN_GITHUB_TOKEN, production
+ * only, is a fine-grained GitHub token for this repository with only Actions: Read and write: the app's
+ * Worker starts the watch or card-questions.yml with it when an admin sends Claude a message from the
+ * ops dashboard (apps/web/worker/startRun.ts); without it the message waits for the schedule.
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'AGENT_TEAM_CLAUDE_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', 'APK_R2_ACCESS_KEY_ID', 'APK_R2_SECRET_ACCESS_KEY', 'NEARBY_SIGNING_KEY', 'CLAUDE_READ_DATABASE_URL', 'AGENT_READ_DATABASE_URL', 'CLAUDE_READ_TOKEN', ...ADMIN_KEYS];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'AGENT_TEAM_CLAUDE_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', 'APK_R2_ACCESS_KEY_ID', 'APK_R2_SECRET_ACCESS_KEY', 'NEARBY_SIGNING_KEY', 'CLAUDE_READ_DATABASE_URL', 'AGENT_READ_DATABASE_URL', 'CLAUDE_READ_TOKEN', 'OPS_RUN_GITHUB_TOKEN', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
@@ -223,7 +226,9 @@ export function destinations(environment, values, ref, serviceRoleKey) {
         // An accepted code change to Linear (decisions.md 186).
         ...(values.LINEAR_API_KEY ? { LINEAR_API_KEY: values.LINEAR_API_KEY } : {}),
         // Nearby sync's certificates and attestations (apps/web/worker/nearby.ts): 503 until it is here.
-        ...(values.NEARBY_SIGNING_KEY ? { NEARBY_SIGNING_KEY: values.NEARBY_SIGNING_KEY } : {})
+        ...(values.NEARBY_SIGNING_KEY ? { NEARBY_SIGNING_KEY: values.NEARBY_SIGNING_KEY } : {}),
+        // A message to Claude from the ops dashboard starts its workflow at once (apps/web/worker/startRun.ts).
+        ...(environment === 'production' && values.OPS_RUN_GITHUB_TOKEN ? { OPS_RUN_GITHUB_TOKEN: values.OPS_RUN_GITHUB_TOKEN } : {})
       },
       'invite-email': { INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET },
       // The ops dashboard's provider tokens, each optional. Its database logins are not Worker
@@ -612,7 +617,7 @@ async function main() {
     process.exit(1);
   }
   if (args.only === 'eas') return applyEasOnly(environment, file, decrypt(file, EAS_KEYS), args);
-  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', 'CLAUDE_READ_DATABASE_URL', 'AGENT_READ_DATABASE_URL', 'CLAUDE_READ_TOKEN', 'GEMINI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'AGENT_TEAM_CLAUDE_TOKEN', ...EAS_KEYS, ...ADMIN_KEYS] : [])]);
+  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', 'CLAUDE_READ_DATABASE_URL', 'AGENT_READ_DATABASE_URL', 'CLAUDE_READ_TOKEN', 'GEMINI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'AGENT_TEAM_CLAUDE_TOKEN', 'OPS_RUN_GITHUB_TOKEN', ...EAS_KEYS, ...ADMIN_KEYS] : [])]);
   const missing = REQUIRED_KEYS.filter((name) => !values[name]);
   if (missing.length) {
     console.error(`x ${file} is missing ${missing.join(', ')}.`);
