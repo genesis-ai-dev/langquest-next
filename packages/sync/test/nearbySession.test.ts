@@ -1,6 +1,6 @@
 import { createHmac, hkdfSync } from 'node:crypto';
 import {
-  base64urlEncode, concatBytes, isCounted, issueInviteLink, joinPassBody, NEARBY_OPENING_BYTES, nearbyBytes, newcomerProfileId, openingMaskInput, revocationText, utf8Encode,
+  base64urlEncode, concatBytes, isCounted, issueInviteLink, joinPassBody, NEARBY_CERTIFICATE_MS, NEARBY_OPENING_BYTES, nearbyBytes, newcomerProfileId, openingMaskInput, revocationText, utf8Encode,
   withMyHolding, type HoldingEntry, type RevocationList, type WorkerLink
 } from '@langquest-next/core/nearby';
 import * as v from '../../core/test/nearbyVectors';
@@ -236,6 +236,24 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       const [ra, rb] = await run(a, b, pair);
       expect(rb.ended).toMatchObject({ how: 'said', reason: 'identity', detail: 'wrong organization' });
       expect(ra.ended).toEqual({ how: 'heard', reason: 'identity' });
+    });
+
+    // The security review of 2026-11-23 (docs/nearby-sync-plan.md 15.8): while LangQuest is open, a lost or
+    // taken phone still signed in collects nothing quietly once its certificate is older than the window.
+    it('while LangQuest is open, a certificate signed longer ago than the window is refused as identity; a recent one, or Share nearby, passes', async () => {
+      const DAY = 86_400_000;
+      const [a, b] = await two();
+      const signedAgo = async (ms: number) => worker.certify(
+        { installKey: ana.key, profileId: 'ana', deviceId: ana.deviceId }, { orgId: ORG }, { expiresAt: b.client.nearbyHelloNow - ms + NEARBY_CERTIFICATE_MS }
+      );
+      a.who = { ...ana, chain: await signedAgo(15 * DAY) };
+      const [ra, rb] = await run(a, b, pairOf(), {}, { freshWithinMs: 14 * DAY });
+      expect(rb.ended).toMatchObject({ how: 'said', reason: 'identity', detail: 'certificate not recent' });
+      expect(ra.ended).toEqual({ how: 'heard', reason: 'identity' });
+      // Share nearby has no such rule: both people chose to open it.
+      expect((await run(a, b, pairOf()))[1].ended).toEqual({ how: 'done' });
+      a.who = { ...ana, chain: await signedAgo(13 * DAY) };
+      expect((await run(a, b, pairOf(), {}, { freshWithinMs: 14 * DAY }))[1].ended).toEqual({ how: 'done' });
     });
 
     it('a chain naming another phone\'s key fails its proof', async () => {

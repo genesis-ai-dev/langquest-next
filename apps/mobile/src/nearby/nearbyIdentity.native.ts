@@ -12,8 +12,8 @@ import { keepHoldChoice } from './holdChoice';
 import { nobleSha256, nobleVerify, signWith } from './nearbyCryptoModel';
 import { nearbyFlag } from './nearbyFlag';
 import {
-  askReason, certificateAnswerOf, chainsForOrgs, findKeysAfterAnswer, findKeysForOrgs, holdChoiceOf, languagesToName, membershipMarkOf, nearbyOrgsOf,
-  parseAskRecord, parseFindKeys, passesForOrgs, type AskRecord, type FindKeys, type HeldChains, type HeldPass
+  askReason, certificateAnswerOf, chainsForOrgs, findKeysAfterAnswer, findKeysForOrgs, holdChoiceOf, languagesToName, membershipMarkOf, nearbyOpenOrgsOf, nearbyOrgsOf,
+  openSwitchOf, parseAskRecord, parseFindKeys, parseOpenOrgs, passesForOrgs, type AskRecord, type FindKeys, type HeldChains, type HeldPass
 } from './nearbyModel';
 import { forgetAllChains, keepChains, keepPasses, keepRevoked, readChains, readPasses, readRevoked, ROOT_KEYS } from './nearbyPhone.native';
 
@@ -24,7 +24,9 @@ import { forgetAllChains, keepChains, keepPasses, keepRevoked, readChains, readP
  * one is on it makes the install key if there is none, and asks the Worker for a certificate when
  * `askReason` says (once a day, a membership change, a newer revocation list, an organization on
  * with no chain, the first time a language opens with no key). What comes back is checked against
- * the Worker's public keys before anything is kept. Nothing here logs a key.
+ * the Worker's public keys before anything is kept. It also keeps which organizations share while
+ * LangQuest is open (15.6), since that mode runs only offline, where the flag is not heard.
+ * Nothing here logs a key.
  */
 
 export interface IdentityInput {
@@ -36,6 +38,8 @@ export interface IdentityInput {
 
 const askKey = (profileId: string) => `nearbyCertAsked:${profileId}`;
 const HOLD_KEY = 'nearbyHold';
+const openOrgsKey = (profileId: string) => `nearbyOpenOrgs:${profileId}`;
+const OPEN_KEY = 'nearbyOpen';
 
 /** Reasons asked once this run, so an answer that cannot settle them does not ask again at every check. */
 const askedThisRun = new Set<string>();
@@ -89,6 +93,26 @@ export async function pressHoldChoice(hold: boolean, worn: boolean): Promise<voi
   await refreshHoldChoice(worn);
 }
 
+/**
+ * The organizations where this person's phone shares while LangQuest is open (15.6), as the server
+ * last said: kept on the phone, since the mode runs only offline. A turn-off reaches it the next
+ * time the phone is online.
+ */
+export async function nearbyOpenOrgs(actorId: string): Promise<Set<string>> {
+  return parseOpenOrgs(await (await getStore()).meta(openOrgsKey(actorId)));
+}
+
+/** "Share while LangQuest is open", as pressed on this phone or on by default. */
+export async function nearbyOpenSwitch(): Promise<boolean> {
+  return openSwitchOf(await (await getStore()).meta(OPEN_KEY));
+}
+
+/** The row pressed: written as pressed, and whoever listens is told, so the mode stops or starts at once. */
+export async function pressOpenSwitch(on: boolean): Promise<void> {
+  await (await getStore()).setMeta(OPEN_KEY, on ? 'true' : 'false');
+  heldChanged();
+}
+
 const same = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
 
 /** The languages of the organization open here that this phone has opened: a cursor here says it pulled them (decision 37). */
@@ -107,6 +131,9 @@ async function refresh(input: IdentityInput): Promise<void> {
   // The server has not said this run: keep everything, and ask nothing.
   if (!flag.features) return;
   const orgsOn = nearbyOrgsOf(flag.features);
+  const openOrgs = JSON.stringify(nearbyOpenOrgsOf(flag.features));
+  const kept = await getStore();
+  if (await kept.meta(openOrgsKey(actorId)) !== openOrgs) await kept.setMeta(openOrgsKey(actorId), openOrgs);
 
   const heldChains = await readChains(actorId);
   const chains = chainsForOrgs(heldChains, orgsOn);

@@ -26,11 +26,17 @@ The words iOS shows in each prompt are `ios.infoPlist` in `apps/mobile/app.json`
 | Key | Since | Why |
 | --- | --- | --- |
 | `NSMicrophoneUsageDescription` | the first build | Recording passages. |
-| `NSBluetoothAlwaysUsageDescription` | phase 5 | Share nearby finds teammates' phones over Bluetooth while its screen is open. Asked once, after the screen's line saying why (`askPermission`). |
+| `NSBluetoothAlwaysUsageDescription` | phase 5 | Share nearby finds teammates' phones over Bluetooth while its screen is open, and, from phase 10 where the organization has `nearby_open`, while LangQuest is open and offline (`docs/nearby-sync-plan.md` 15.6). Asked once, after Share nearby's line saying why (`askPermission`); sharing while LangQuest is open never asks and runs only once it was allowed. |
 | `NSLocalNetworkUsageDescription` | phase 5 | Share nearby moves work over Wi-Fi to the teammate's phone. iOS asks at the first such connection; the app cannot ask ahead. |
 | `NSBonjourServices`: `_nlink._tcp` | phase 5 | Two iPhones meet over Apple's own direct Wi-Fi as a Bonjour service of this type, under a one-time name, only while a link comes up. |
 
-No background modes: the radios run only while Share nearby is open.
+No background modes: the radios run only while LangQuest is open and in
+front, on Share nearby or, from phase 10, quietly while offline where staff
+turned `nearby_open` on and the person has not turned "Share while LangQuest
+is open" off (`docs/nearby-sync-plan.md` 15.6). Quietly, an iPhone joins no
+Wi-Fi and moves only the team's changes over Bluetooth, so neither the local
+network prompt nor the hotspot join comes up, and no App Store Connect answer
+changes.
 
 ## Capabilities
 
@@ -102,3 +108,6 @@ Bluetooth first, and for the local network when the phones first connect
 over Wi-Fi; between two iPhones, tap 'A teammate may be nearby' once." A
 reviewer has one device, so attach a short video of two phones sharing.
 Joining offline (Let someone in) is not on iPhones and is not described.
+Sharing while LangQuest is open (phase 10, `nearby_open`) stays off for
+"LangQuest Sample" unless staff grant it, and is then not described: it asks
+for nothing and shows nothing a reviewer must reach.

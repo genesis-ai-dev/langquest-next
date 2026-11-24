@@ -65,7 +65,10 @@ export interface FakeWorker {
   kid: string;
   rootKeys: ReadonlyMap<string, string>;
   /** A one-link chain, as the certificate call answers. */
-  certify(holder: { installKey: string; profileId: string; deviceId: string }, org: Pick<ChainOrg, 'orgId'> & Partial<Omit<ChainOrg, 'orgId'>> & { privileges?: Privilege[] }): Promise<ChainLink[]>;
+  certify(
+    holder: { installKey: string; profileId: string; deviceId: string }, org: Pick<ChainOrg, 'orgId'> & Partial<Omit<ChainOrg, 'orgId'>> & { privileges?: Privilege[] },
+    o?: { expiresAt?: number }
+  ): Promise<ChainLink[]>;
   /** A `claims` page over these rows' events, as the attest call answers, with `events` the rows it carries. */
   attest(att: Omit<Attestation, 'v' | 'kid'>): Promise<Omit<Extract<Message, { t: 'claims' }>, 'events' | 't'>>;
   /** What the attest call does with rows it read itself: their digests, signed. `FakeServer.attester` takes it. */
@@ -83,9 +86,9 @@ export function fakeWorker(kid = 'k1'): FakeWorker {
   return {
     kid,
     rootKeys: new Map([[kid, root.publicKey]]),
-    async certify(holder, { orgId, orgSeq = 1, scopes, privileges = [] }) {
+    async certify(holder, { orgId, orgSeq = 1, scopes, privileges = [] }, o = {}) {
       const body: WorkerLink['body'] = {
-        ...holder, expiresAt: Number.MAX_SAFE_INTEGER,
+        ...holder, expiresAt: o.expiresAt ?? Number.MAX_SAFE_INTEGER,
         org: { orgId, orgSeq, scopes: scopes ?? [{ level: 'org', privileges }] }
       };
       return [{ kind: 'worker@1', kid, body, sig: await root.sign(nearbyBytes('link', linkText({ kind: 'worker@1', kid, body }, ''))) }];

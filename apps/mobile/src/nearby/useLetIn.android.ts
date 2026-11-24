@@ -19,6 +19,8 @@ import { androidSdk, askingForNearby, askNearbyPermissions, checkNearbyPermissio
 import { afterPrompt, permissionsStateOf, type PermissionAnswers } from './nearbyPermissionsModel';
 import { joinPassFor } from './nearbyPhone.native';
 import { useFocus } from './useNearby.native';
+import { nearbyOwner } from './nearbyOwner';
+import { useRadioClaim } from './useRadioClaim';
 import type { LetInHandle } from './useLetIn';
 
 const KEEP_AWAKE = 'nearby-let-in';
@@ -54,6 +56,8 @@ export function useLetIn(ctx: Ctx): LetInHandle {
   }, [actorId, orgId, languageId, radio]);
   useEffect(refresh, [refresh]);
   const focused = useFocus(refresh);
+  // The quiet room of sharing while LangQuest is open steps aside while this screen is open (15.6).
+  useRadioClaim(focused);
   const [onScreen, setOnScreen] = useState(() => AppState.currentState === 'active');
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
@@ -154,6 +158,9 @@ export function useLetIn(ctx: Ctx): LetInHandle {
     const stopped = new Promise<void>((resolve) => { left = resolve; });
     leaveCode.current = left;
     try {
+      // After the quiet room of sharing while LangQuest is open, which this screen's claim stopped, has stopped (15.6).
+      await nearbyOwner.settled();
+      if (!still()) return;
       const out = await letInWithPass({
         radio, actorId, orgId, languageId, roleId, pass: pass as unknown as JoinPass, org, inspectOrg: () => ctx.org.inspect(),
         language: open, orgClient: ctx.org.client(), codeMs: letInCodeMs, giveHandedOver, stopped,

@@ -5,7 +5,11 @@ phases 1 to 4 and 6 since 2026-11-13 (pull request 403, decisions 211 to 246), a
 iPhones sharing with Androids and with each other, since 2026-11-17 (pull request 481,
 decision 256). Joining offline stays Android only; Give the app (section 14.5) joined it on
 2026-11-19 (pull request 527, `docs/decisions/2026-11-18-give-the-app-over-wifi.md`).
-Section 11's real-phone test has no results written in yet. What follows is the plan as it
+Section 11's real-phone test has no results written in yet. Section 15, sharing while the app
+is open, was drafted on 2026-11-23: its phases 7, 8 and 10 are built (the Teammates fold, the
+reminder, the `villageDay` fleet scenario, and the mode itself behind `nearby_open`, decision
+`docs/decisions/2026-11-23-share-while-langquest-is-open.md`), and phase 9 needs real phones
+(15.10). What follows is the plan as it
 stood on 2026-11-07 (Carl Sauder), with the answers and sections added since. The purposes and the
 future requirement in section 1, and the choices in section 2, are Carl's, and his answers
 of 2026-11-06 and 2026-11-07 override anything older here. Everything else was checked
@@ -50,7 +54,7 @@ section 5.10), so no team has it until staff turn it on.
 | Does a phone deliver a teammate's unsent work to the server? | Yes. Any one phone can upload the whole team's work. This is phase 4, and partners get the first release only with it. Keys and signatures go in from the start so that it can. |
 | Which audio does a phone take? | Every recording the server does not have yet, from every phone: what this person needs first, then what they could review, then the rest. It stops only to keep 500 MB free. |
 | What must the link work on? | Android phones without Google Play services, including in China, so it is our own link on Android's own APIs and not Nearby Connections. iPhones are a lower priority (section 4). |
-| How does an exchange start? | Both people open Share nearby. The radios are on only while that screen is open. |
+| How does an exchange start? | Both people open Share nearby. The radios are on only while that screen is open. Section 15 proposes also sharing while LangQuest is open and offline (a draft). |
 | When a phone runs short of space, may a backup go? | Yes. Files the server has and this person does not need go first, then backups, then recordings they could review. The rest are never deleted (section 5.6). |
 | What are these copies called? | Nearby, for anything from a teammate's phone that the server has not confirmed. Needed and backup say why a file is kept (section 5). |
 | Who gets it at the start? | It starts as experimental and off for everyone. Staff turn it on one organization at a time, beginning with a test organization. Later, an organization's admins may turn it on or off (section 5.10). |
@@ -2979,6 +2983,10 @@ not be committed, so stage files by name.
 | After the merge | A Play-signed universal APK and its install, Play updates after that install, the carried build job (it first runs in EAS after merge), and the store review. |
 | In the field | Real team sizes, time to level (the fleet's is relative until there are link speeds), and phones reaching the server from China. |
 
+**Phases 7 to 10: sharing while the app is open.** A draft, in section 15.10. Unlike the
+first release, each merges on its own: phase 7 at any time, and phase 10 only after phases 8
+and 9 and a security review.
+
 **Later, if asked for:** section 10.
 
 ## 8. Tests
@@ -2998,6 +3006,8 @@ export, and Maestro cannot run radios. New tests go where `docs/testing.md` says
 | Server | `known_events`, certificates, attestations (no route signs a digest it was sent), generations (the first key call makes a chain, a key is due at 90 days, after a removal covering the language and after a revocation, not for a removal in another language, at most one a day, and two calls at once make one; a row under `floor` is never returned, and no event append makes one), (phase 4) every `grantsSmoke` refusal through the relay, the cap (events and bytes counted one by one as `append_events` took them, a duplicate uncounted across two carriers, the event past either limit refused alone and read as `NOT_ALLOWED`, an unrevoked key taking no lock, a raise then Try again delivering it, the raise never lowering a limit and not callable by an API role), every type the door refuses by name through the relay, a relay then an author's push answering duplicate, a coordinator's signed redaction refused with its target kept, even by a revoked key with a backdated clock, while their own push and `remove_content` still work, a revoked key per event, an email account's key revoked through a reset with `lost` and its pass then refused at the join route and the relay, a reset without `lost` leaving keys alone, a suspended author, a far-ahead stamp refused while a near one answers `CLOCK_AHEAD`, a translator's undo of an unknown departure refused and an override holder's kept, a below-gate caller answered as a whole request, a file from someone who only views, by each event type, and refused under the wrong extension, by an event that names no file, or by a redacted event, (phase 6) chain joins, in SQL smokes and the integration test. Worker routes with real Ed25519 and injected deps, including one under workerd. `install_keys` and a person's revocation rows go with the account. Every supported store build still passes (decision 152). |
 | Native | JUnit in `android-native` over the pure classes: golden vectors from `wire.ts`, matching an advert against several `scanKeys` with the right `scan` given back, a form match handing up a salt and nothing else, tamper and truncation, oversize `len`, nonce order, the framer at MTU 23 and 517, `PartWriter`'s limits, and a real `LinkSession` pair on a loopback socket moving 50 MB with encryption and a mid-transfer drop. `apps/mobile/test/nearbyNative.test.ts`, text guards over the Kotlin: module functions equal the TypeScript class, API 29 symbols only behind `SDK_INT`, no manifest components, no `ACCESS_LOCAL_NETWORK`, and a guard that fails when `targetSdk` reaches 37. |
 | Phones | The gate (section 7). Real phones, including China-market ones with no Play services: airplane mode with Bluetooth and Wi-Fi on, record on one, review on the other (asked, and not asked), then reach the server. One phone carries the team's work. One phone with a wrong date. One phone back from a server with a newer generation, which meets the others with no tap and moves them on. A disguised phone: open Share nearby, and a second phone sees nothing and no prompt comes. Press "Start sharing": the warning, then the prompts, each naming the application as the warning says, then the code and a new press, and it finds the teammate. Press Home, then reopen, and with the calculator up a second phone sees nothing and the screen sleeps, after the code still nothing, and after a press it runs. It stops at ten minutes, and at "Up to date", and a second phone then sees nothing. Two disguised phones with Wi-Fi Direct failing stay on Bluetooth with audio waiting. Each Android version in the field, including one below 10, for the disabled row. A factory-fresh phone: install, join, record, then first contact. The QR scanner on a phone with no Play services, since `expo-camera`'s analyzer has not been run on one. Maestro cannot run radios, and any flow there is tagged `android-only`. |
+
+Tests for sharing while the app is open (phases 7 to 10) are in section 15.11.
 
 ## 9. Store declarations
 
@@ -3096,6 +3106,9 @@ hash check is worth an issue, and exchange records are for reading a field repor
 records the other person's id (`docs/diagnostics.md`), and
 `apps/mobile/public/privacy.html` gets the same change.
 
+Sharing while the app is open (phase 10) changes no console answer; section 15.12 says which
+wording in the two declaration docs changes with it.
+
 ## 10. Not in the first release
 
 Each of these is a separate decision, and none is blocked by this design. Phase 6 needs
@@ -3117,7 +3130,8 @@ the first two, in the forms section 14 describes.
   either (Carl's answer, 2026-11-06), so a newcomer may not be able to do much that needs
   them.
 - **A file bundle by share sheet or SD card**, for phones whose radios cannot do this.
-- **Sharing in the background.** Turned down in section 2.
+- **Sharing in the background.** Turned down in section 2, and again in section 15.3,
+  which proposes sharing while the app is open instead.
 - **Reviewing a passage a phone has not filled in.** A follow-up after phase 6, since the
   row path will exist by then.
 - **The author's phone telling teammates what the server refused** (section 5.7).
@@ -3127,7 +3141,8 @@ the first two, in the forms section 14 describes.
 ## 11. What the real-phone test must answer
 
 There is no spike now. Every question here stays open until the test at the end of the
-branch (section 7), and its answers and numbers get written in here.
+branch (section 7), and its answers and numbers get written in here. Section 15.7 adds four
+battery cases for sharing while the app is open.
 
 | Question | Why it matters |
 | --- | --- |
@@ -3264,6 +3279,10 @@ merging main.
     when the server confirms it, phase 3).
   - **`docs/invites-and-accounts.md` flow E:** a new person can come in offline, and a
     third kind of key (phase 6).
+- **Sharing while the app is open** (section 15, a draft): phase 7 amends
+  `docs/decisions/2026-11-18-sync-and-offline-one-screen.md`, and phase 10 records the
+  decision in section 15.13, which partly supersedes 232, amends 220 with a third feature, and
+  keeps 171, 211 and 230.
 - **Kept:** 5 (our own sync); 15 (clocks are as they were, since the vector counts
   batches); 51 (no private key in a build system); 58 (no nearby sync on the web); 110
   (pruning stays, so phones cannot supply pruned events); 143 and 147 (nearby events take
@@ -3291,6 +3310,7 @@ belongs: section 2 for Carl's answers, and sections 5 to 14 for the rest.
 | When admins get the toggle, may they turn it on without staff? | Later | Yes, once it is no longer experimental. Until then, staff choose who tries it. |
 | Can an iPhone that already has the app join offline? | Later | Optional, as phase 5's last step (answer 25). Only the install is impossible, and with no carried build the reducer version is the real limit. |
 | Could an existing member use a starting copy for a language they never opened? | Later | By the same path. Newcomers come first. |
+| Sharing while the app is open: build it at all, the switch's default, a disguised phone, `asOf`, the battery bar | Carl, with Caleb for the disguise | Section 15.14, with draft answers. |
 
 ## 14. Joining offline
 
@@ -4108,7 +4128,464 @@ amends 246, which says the newcomer's file travels by Quick Share, SD card or US
 **Rough size.** About 400 to 600 lines of Kotlin and TypeScript, with tests. Nobody has
 measured that.
 
-## 15. Sources
+## 15. Sharing while the app is open
+
+Drafted on 2026-11-23 for Carl Sauder: improvements to the experimental feature, so a team
+shares without anyone remembering to open Share nearby. Its phases are 7 to 10 (15.10). Phases 7,
+8 and 10 are built (2026-11-23), and 15.10 has phase 8's numbers. Carl chose to build phase 10
+after them, since it can be turned off wherever battery life, security or anything else argues
+against it; 15.14 has his answer and the defaults taken, and 15.13 is recorded as
+`docs/decisions/2026-11-23-share-while-langquest-is-open.md`. Where what was built differs from
+the draft, 15.6 says so under "As built". Nothing in it was run on a phone.
+
+### 15.1 The goal
+
+Today a team shares work without internet only when two people both open Share nearby and keep
+it open until it says "Up to date" (decision 232, section 2). People
+forget, so review and the protection against a lost phone wait on someone remembering.
+
+Carl asked (2026-11-23) whether sharing could just happen when phones have no internet, so
+nobody has to pay attention to it, and named three costs to weigh: battery, security, and how a
+person sees how up to date they are with teammates who may or may not have been nearby lately.
+
+This section proposes three things, in this order:
+
+1. **Shows each teammate on Sync and offline**, with how recent the newest work held from them
+   is, so a person can see where they stand without opening Share nearby (section 15.4).
+2. **Reminds a person** when their recordings are on no teammate's phone, using no radio
+   (section 15.5).
+3. **Shares quietly while LangQuest is open**, in front, on a phone with no internet, for
+   organizations staff turn it on for (section 15.6). Never in the background, and never on a
+   phone that wears a disguise.
+
+Items 1 and 2 change no decision and can be built at any time. Item 3 partly supersedes
+decision 232 and widens the security bound in section 5.5, so it waits for
+Carl's yes, a fleet scenario that shows it helps, battery numbers from the real-phone test, and
+a security review (section 15.10).
+
+### 15.2 What does not change
+
+- **The protocol.** Find, the echo, Hello, the door, batches, manifests, claims, holdings,
+  chains, generations and the revocation list are as section 5.12 says. Two
+  phones in this mode speak to each other, and to a phone with Share nearby open, exactly as two
+  phones on the screen do. No new event, no reducer change, no `REDUCER_VERSION` bump.
+- **What a nearby phone may do** (decision 211). It is not a `Transport`; only the server
+  confirms.
+- **Share nearby itself.** Its screen, its permissions, Hold teammates' recordings, A new
+  person, Give the app and Let someone in stay as they are.
+- **What is kept** (decision 230). No meeting time, place or person is kept, here or in
+  diagnostics. Section 15.9 asks whether one small exception is worth it.
+- **The disguise** (decision 171, answer 15). A phone that wears
+  a cover still shares only after a press, for ten minutes at most.
+
+### 15.3 Why not in the background
+
+Sharing with the app closed was turned down in section 10. Looked
+at again, it is mostly not possible, and where it is possible it costs more than it gives.
+
+- **iPhones cannot do it with this design.** In the background iOS scans only for a fixed
+  service UUID and moves an app's advert into an overflow area only other iPhones scanning for
+  that UUID can read. Find's advert has nothing fixed in it on purpose (5.12, Find; decision
+  171), so a backgrounded iPhone could neither find teammates nor be found. Joining an
+  Android's Wi-Fi Direct group or hotspot also takes a system prompt each time (decision 256),
+  which cannot happen in the background.
+- **Android would have to announce itself.** An unfiltered scan stops when the screen goes off
+  (5.8). Keeping radios on in the background needs a foreground service, which on Android 14
+  and later needs a declared type (`connectedDevice`) and a Play Console declaration, and always
+  shows a notification that names the application. On a disguised phone that notification gives
+  the disguise away.
+- **The phones the link was chosen for kill background work.** Xiaomi, OPPO, vivo and Huawei
+  stop background services unless each person finds and changes a battery setting, and these are
+  the phones without Play services that decision 224 built the link for.
+- **Battery and exposure have no natural end.** In the background nothing bounds how long the
+  radios run, and a phone in a pocket would broadcast through a market.
+
+While the app is open and in front, all four go away: an iPhone scans without a filter as it does
+on Share nearby, Android needs no service or notification, nothing is killed, and the screen
+going off ends it.
+
+### 15.4 Teammates on Sync and offline
+
+Ready to carry already works out, for each teammate, whether the newest work this phone holds
+from them is from today, since this phone was last online, or older, and when they made it
+(`readyToCarryOf`, `apps/mobile/src/nearby/readyToCarryModel.ts`). It reads facts from the
+language's store (`carryFactsOf`, `nearbyCarry.native.ts`), and only `inRange` comes from a
+running room. Today only Share nearby shows it.
+
+- **A Teammates fold on Sync and offline** (`apps/mobile/src/screens/sync.tsx`), shown where the
+  organization has `nearby` on and this phone holds a certificate. Its line says the least recent
+  teammate ("Sam: not since you were last online"), and it opens to one row each: name, the
+  `CarrySeen` words Share nearby uses, and the newest work held from them. It is computed with
+  an empty `inRange`.
+- **It lists teammates as Ready to carry does,** from the vector, holdings and the language's
+  members, never from who met whom (decision 230), and counts work a third phone relayed.
+- **It is read when the screen opens and after each exchange,** never ticking in `ctx`.
+- **Words:** the existing `CarrySeen` keys, so all 16 catalogs and help mode reuse them; one new
+  title and one new help line.
+- **This amends** `docs/decisions/2026-11-18-sync-and-offline-one-screen.md` (a fold it does not
+  list).
+
+### 15.5 A reminder that uses no radio
+
+Sync and offline's row on Me says first what needs noticing. It gains one case, after refused
+and before waiting to send: offline, and some of this person's recordings waiting to upload are
+named by no teammate's holdings. The line says "N recordings are only on this phone" and opens
+Sync and offline, where a button opens Share nearby.
+
+- **Holdings are what this phone was last told** (section 5.11), so the line
+  says "as far as this phone knows" in help, and is wrong only towards reminding.
+- **Shown only where Share nearby is offered** (`nearbyRowShown`), and never as a notification.
+- It counts recordings, not events: a phone cannot know what events a teammate holds of its own
+  without a meeting record (decision 230).
+
+### 15.6 Sharing while the app is open
+
+**When it runs.** One pure gate in `nearbyModel`, beside `radiosMayRun`
+(`apps/mobile/src/nearby/nearbyModel.ts:385`):
+
+`openMayRun({ feature, switchOn, granted, offered, worn, active, offline, busy, screenOpen })`
+
+| Input | True when |
+| --- | --- |
+| `feature` | The organization has `nearby_open` on (The flag, below). |
+| `switchOn` | The person has not turned "Share while LangQuest is open" off. |
+| `granted` | Every permission Share nearby needs was already granted. The mode never asks. |
+| `offered` | `nearbyOffered`: a certificate for the organization and a discovery key for the language. |
+| `worn` | The phone wears a cover (`useAppCovered`). The mode never runs then. |
+| `active` | `AppState` is `active`, so LangQuest is in front with the screen on. |
+| `offline` | `isOffline(ctx.language.online)` (`apps/mobile/src/sync/uploadsModel.ts:167`). Unknown is not offline. |
+| `busy` | Recording (`isRecording`, `recording/recorderState.ts:76`) or playing (`subscribeNowPlaying`, `audio/nowPlaying.ts`). The mode pauses, as transfers already defer while recording. |
+| `screenOpen` | Share nearby or Let someone in is open. They own the radios then, and the mode steps aside. |
+
+It runs when `feature && switchOn && granted && offered && !worn && active && offline && !busy &&
+!screenOpen`, for the open language only (decision 37), and asks again after every await, as
+Share nearby's starts do.
+
+**One owner for the radios.** The native module is one radio. The room moves out of
+`useNearby.native.ts` into one owner per open language, mounted where `ctx.language` lives, with
+two modes: `screen` (today's Share nearby) and `open` (this). Share nearby opening switches it to
+`screen`, which starts a fresh run as today; closing it switches back. Progress stays in the
+owner's own store, read by Share nearby alone, so nothing ticks in `ctx`.
+
+**What the `open` mode does differently from the screen:**
+
+| | Share nearby (`screen`) | While open (`open`) |
+| --- | --- | --- |
+| Starts | On opening (on a disguised phone, on a press) | By itself, when the gate opens |
+| Asks for permissions | Yes, after a line saying why | Never |
+| Keeps the screen awake | From Find on | Never: the screen going off ends it |
+| Taps ("A teammate may be nearby") | Yes | Never. Two iPhones, which only meet by a tap, wait for Share nearby |
+| Hotspot | Hosts, and joins after a system dialog | Neither: Wi-Fi Direct only, or events over Bluetooth |
+| An iPhone joins Wi-Fi | After a system prompt | Never: events over Bluetooth, audio waits (`radiosFor` gains `quiet`, as it has `worn`) |
+| When "Up to date" | Listening bursts, then stops at the idle limit (5 minutes) | Keeps advertising; scans in short bursts; no idle stop |
+| What moves | Events, then needed files, open for review, backups | The same between two Androids on Wi-Fi Direct; otherwise events only |
+| Shows | Progress, teammates, What was shared | Nothing while it runs; section 15.4's fold after |
+
+- **No hotspot.** A local-only hotspot's server listens on every network the phone is on
+  (decision 224, amended 2026-11-07), and joining one shows a dialog in the middle of someone's
+  work. Between two Androids where Wi-Fi Direct will not come up, events go over Bluetooth and
+  audio waits for Share nearby.
+- **Between an iPhone and an Android**, an Android echoes the iPhone's salt, so they meet
+  without a tap (decision 256), and events go over Bluetooth. Audio waits.
+- **No idle stop, but a quieter wait.** At "Up to date" the room keeps advertising, since that is
+  how a teammate who arrives finds it, and scans in bursts (a starting guess of 6 seconds a
+  minute, an argument from JavaScript like every other tunable). The idle limit exists on the
+  screen so a pocketed phone with its screen kept on stops broadcasting; here the screen is never
+  kept on, so the screen going off is the limit.
+- **A session cut short resumes.** If the screen goes off during a transfer, the room stops as
+  it does on `blur`, and the next run resumes from the vector. Needed files and files open for
+  review go first, so what matters most moves in the shortest meetings.
+
+**The switch.** "Share while LangQuest is open", a 48 pt switch row on Share nearby's With
+teammates, beside Hold teammates' recordings, with a line: "When you have no internet, your phone
+shares with teammates nearby while LangQuest is open." On by default where the organization has
+`nearby_open` (Carl to confirm, section 15.14). On a disguised phone the row is not shown and the
+mode does not run, whatever the switch says. A person who never opened Share nearby has granted
+nothing, so the mode does nothing until they open it once; the reminder in 15.5 brings them there.
+
+**What shows while it runs.** Nothing that ticks, no notification and no name on screen, since
+a name popping up in front of others is its own exposure. Sync and offline's status sentence says
+"Sharing with teammates nearby while LangQuest is open" while the gate is open, and the Teammates
+fold (15.4) and What was shared on Share nearby show what moved.
+
+**The flag.** A third feature, `nearby_open`, granted per organization by staff as `nearby_join`
+is (decision 220), and only with `nearby` on. It needs the check in
+`supabase/migrations/20261112010000_nearby_identity.sql` widened by a new migration, and
+`npm run org-feature` to know the name. `get_user_state`'s `orgFeatures` carries it to the phone
+with no new call. Turning it off reaches a phone the next time it is online, and only stops the
+mode; Share nearby stays.
+
+**Diagnostics** (decision 235). The room's record gains `mode: 'screen' | 'open'` and, for
+`open`, the minutes the gate was open and the minutes spent scanning, with no teammate named.
+That is what tells us in the field what the mode costs and whether it meets anyone.
+
+**As built** (phase 10, 2026-11-23). Where the code differs from the draft above:
+
+- **The gate** (`openMayRun`, `apps/mobile/src/nearby/nearbyModel.ts`) also reads `radiosOn`
+  (Bluetooth, Wi-Fi and where it counts Location on, since the mode never asks for them either),
+  `locked` (the app lock shows), `resting` (below) and `ready` (the folds loaded). `offered` is `useNearbyOffered` with no reason
+  not to, so a read-only session never runs it.
+- **The flag is kept on the phone.** `get_user_state` is heard only online and the mode runs only
+  offline, so `refreshNearbyIdentity` keeps the organizations with both `nearby` and `nearby_open`
+  as `nearbyOpenOrgs:<profile>` each time the server says, and the mode reads that. A damaged value
+  reads as none.
+- **One owner, without moving Share nearby's room.** `nearbyOwner` (`apps/mobile/src/nearby/nearbyOwner.ts`)
+  is the owner: a screen that runs the radios claims them while focused (`useRadioClaim`: Share
+  nearby, Let someone in, Give the app, joining offline), a claim stops the quiet room at once, and
+  every room's start and stop runs in its turn, one at a time. Share nearby's room stays in
+  `useNearby.native.ts`; the quiet room is `useNearbyWhileOpen.native.ts`, mounted once beside the
+  screens (`apps/mobile/src/shell/NearbyWhileOpen.native.tsx`) and reading the radios only where
+  the cheap facts (the kept flag, the switch, no cover, offline) say it may be wanted.
+- **The room** (`packages/sync/src/nearbyRoom.ts`) takes `taps: false`, which passes a phone that
+  never echoed over for the run instead of offering a tap, `levelScan`, the bursts
+  (`NEARBY_OPEN_SCAN`, six seconds of every sixty from the moment it is level), and `mode`. Its
+  idle limit is infinite and its wait limit stays 30 minutes.
+- **Rest.** After a Hello the door refused, either way, or a stop of the room's own (the wait
+  limit, the 30-minute cap on a run, no key), or a radio error, the mode rests
+  `NEARBY_OPEN_REST_MS` (ten minutes), per language, before it starts again (15.8's review).
+- **The security review's bounds** (15.8): the app lock closes both gates, Hello in the quiet mode
+  takes only a certificate signed within 14 days, the other radio screens wait for the owner's
+  turn before their first radio call, and the server refuses `nearby_open` without `nearby`.
+- **What shows while it runs** is the Share nearby row's line on Sync and offline ("Sharing with
+  teammates nearby while LangQuest is open"), not the status card's sentence, so the shared Sync
+  screen carries none of it on the web. What was shared on Share nearby lists only that screen's
+  own sessions; the Teammates fold shows what the quiet room moved.
+- **The switch's help** adds that it stops when the screen goes off and that recordings may wait
+  for Share nearby. It is kept per phone (`nearbyOpen`), as Hold teammates' recordings is.
+- **Diagnostics**: `mode` (`screen` or `open`) on every room record from these builds, and for
+  `open` `openMin` and `scanMin`, each to a day; the ten-minute cap on `ms` stays.
+- **The fleet** has an `open` option (`packages/sync/src/testing/fleet/nearby.ts`), which
+  `villageDay`'s while-open runs use and `fiveInRoom --open=1` turns on.
+
+### 15.7 Battery
+
+Nothing here is measured. Section 11 already asks what an hour under
+Find costs on a 2 GB phone, and its real-phone test has no results yet.
+
+- **Waiting costs least.** Phones with equal summaries never connect (5.11), so when the team is
+  up to date the cost is Bluetooth advertising and scan bursts.
+- **Moving audio costs most.** Wi-Fi Direct coming up and every phone taking every teammate's
+  recordings (decision 227) is the heavy part. It is work the team wants done, but the mode makes
+  it happen more often in shorter meetings.
+- **The screen is not kept on.** Today's Share nearby probably spends more on keeping the screen
+  awake than on the radios. The mode adds radios to a screen that is already on.
+
+What the real-phone test must add, on a 2 GB Android and an older iPhone, LangQuest open and
+offline for an hour each:
+
+| Case | Measure |
+| --- | --- |
+| Mode off | The baseline drain |
+| Mode on, nobody in range | Drain from advertising and scan bursts |
+| Mode on, one teammate already up to date | Drain with summaries compared and no connection |
+| Mode on, a teammate with an hour of new recordings | Drain and time to move it, by band |
+
+**A bar to accept** (a starting guess for Carl): with nobody to swap, the mode costs no more than
+2 percentage points of battery an hour over the baseline. If it costs more, the scan burst
+shortens before the mode ships.
+
+### 15.8 Security
+
+What gets weaker, and what holds it:
+
+1. **More time on the air.** The bound section 5.5 relies on, "the radios run
+   only while the screen is open, for a limited time", becomes: only while LangQuest is in front,
+   the screen on, the phone offline and the language open. The advert is unchanged, so what a
+   scanner learns per minute is unchanged, but it gets more minutes: more chances to log a phone
+   whose maker does not randomize its Wi-Fi address, to see `DIRECT-` group names, and to link
+   adverts by timing in a small room.
+2. **Consent moves from the moment to a setting.** Today a teammate's work reaches a phone only
+   when both people chose to open the screen. With the mode on both, it reaches any certified
+   teammate's phone nearby, including a lost or taken phone that is still signed in, until the
+   revocation list reaches this phone (section 5.5). The mode makes that
+   passive: whoever holds the taken phone only needs LangQuest open near a teammate.
+3. **People who are most exposed stay out.** A disguised phone never runs the mode (section 15.2),
+   and staff not granting `nearby_open` keeps a whole organization out.
+4. **Less on the air than the screen in one way.** The mode never hosts or joins a hotspot, so
+   the hotspot's server, which listens on every network, never runs in it.
+
+**For the security review** before phase 10 merges: whether point 2 needs a narrower rule (for
+example, the mode moves work only with teammates this phone has already finished an exchange
+with on Share nearby since it was last online, from `nearbyPeers`, which keeps no time), and
+whether a phone in the mode should stop for some minutes after a Hello that the door refused.
+
+**The security review (2026-11-23).** An independent review of pull request 675, against 5.5,
+5.12 and this section, found no high-severity vulnerability, one medium one, and three to check.
+Carl asked for every change it recommended, made in the same pull request:
+
+- **The app lock** (decision 253) keeps every screen running behind its face, and nothing in the
+  gate read it, so a lost phone left on the lock offline near teammates shared quietly, and Share
+  nearby, left open, started again behind it. Both gates now read it (`locked` in `openMayRun`,
+  and the lock as a cover in `radiosMayRun`).
+- **Point 2's narrower rule, in another form.** In the quiet mode Hello takes only a teammate
+  whose certificate was signed within 14 days (`NEARBY_OPEN_FRESH_MS`), worked out from its
+  `expiresAt` and the certificate's one-year life (`certificateSignedAt`, `NEARBY_CERTIFICATE_MS`
+  in core) by the clock Hello reads, which setting the date back cannot move. Certificates renew
+  daily online, so a lost or taken phone still signed in collects nothing quietly once 14 days
+  have passed since it last reached the server, though the revocation list has not reached anyone.
+  It keeps decision 230 (it is the certificate's own time, not a meeting's), and unlike the draft's
+  rule it does not send the first meeting of every trip back to Share nearby. A team offline for
+  longer shares on Share nearby, which has no such rule, since both people chose to open it.
+- **The rest** after a refused Hello, a stop of the room's own or a radio error is kept per
+  language, so a remount (a moment online, a language switch) does not end it. A teammate's `bye`
+  can make another phone rest, which only denies the quiet mode; Share nearby is untouched.
+- **Each run stops at 30 minutes** (`NEARBY_OPEN_RUN_MS`) and rests, so a phone whose screen
+  never sleeps does not broadcast without end.
+- **The other radio screens** (Let someone in, Give the app, joining offline) wait for the
+  owner's turn (`nearbyOwner.settled`) before their first radio call, so a quiet room still
+  stopping never cuts it. No security effect was found; it is reliability.
+- **The server** refuses to grant `nearby_open` while `nearby` is off (`needs_nearby`).
+- **Diagnostics.** A record that says `mode: open` shows the phone wears no cover, which decision
+  235 kept out; Carl accepted it there, as the only way to see the mode's cost. A quiet room
+  stopped because a cover went on writes no record (`recordUnless`, `wornNow`), which would have
+  dated the disguise.
+
+What the review checked and found holding: every other input to the gate closes it, with no gap
+on the first frame for a cover; no path leaves two rooms on the radio or the radios on after the
+gate closes; the quiet mode adds nothing to the protocol (a replayed advert is passed over with no
+tap, a stranger gets silence, no starting copy is served, and Hello reads the revocation list
+fresh); nothing prompts, notifies or keeps the screen awake; a damaged stored list turns the mode
+off; and the migrations only add (the allowlist's new fields, the feature's name), keeping their
+grants.
+
+### 15.9 How up to date a person is
+
+Section 15.4 shows each teammate as "today", "since you were last online" or "not since", with
+the newest work held from them. That keeps decision 230: no meeting time is kept.
+
+It has one blind spot. "Newest work from Sam: Tuesday" cannot tell "Sam has done nothing since
+Tuesday" from "nobody has met Sam since Tuesday". With the mode on, people stop remembering when
+they last shared, so the blind spot matters more.
+
+Closing it needs each phone to sign, with each summary it hands on, the time on its own clock
+that it last brought its own work up to date (`asOf`), which travels as holdings do. Then the
+fold can say "Sam: up to date as of today, newest work Tuesday". It is Sam's clock, relayed, not
+the time this phone met Sam, but on a taken phone it says roughly when each teammate was last in
+touch with the team, which is close to what decision 230 keeps off the phone. It is Carl's call
+(section 15.14), and nothing else in this section needs it.
+
+### 15.10 Phases
+
+Each merges on its own, unlike the first release (section 7).
+
+- **Phase 7: the Teammates fold and the reminder** (15.4, 15.5). App only, no radio and no
+  decision change beyond the amendment to the Sync and offline decision. Can merge at any time.
+- **Phase 8: a fleet scenario first.** `villageDay`, beside `villageMonth`
+  (`scripts/fleet/scenarios/villageMonth.ts`): five phones that each open LangQuest offline for
+  a few short windows a day and meet only when windows overlap in range, run once with the mode
+  and once with Share nearby each evening. It measures hours until a review reaches its
+  translator, how many phones hold each recording by the trip to town, and radio megabytes. If
+  the mode does not beat an evening of Share nearby clearly, stop here. Its result is below.
+- **Phase 9: the real-phone test** of section 11, with section 15.7's four cases added.
+- **Phase 10: the mode** (15.6), behind `nearby_open`, granted first to Carl's test
+  organization. The decision in section 15.13 lands with it. Its gate is a security review of
+  15.8 on its pull request, before it merges. Built on 2026-11-23 (15.6, "As built"; 15.8, "The
+  review, as built"). With the fleet's rooms run as the mode runs them, `villageDay` gives the
+  numbers below unchanged, and `fiveInRoom --open=1` reaches "Up to date" in a minute with every
+  phone agreeing with the server after the trip to town.
+
+**Phase 8's result** (2026-11-23, `npm run fleet -- villageDay`). Five phones offline for five
+days, on one seed, three ways: sharing while open alone (each phone open four times a day for 20
+minutes, near the team 60% of the time), Share nearby each evening, and both, which is what a team
+with the mode would do. Seed 1, with what changes in the last two rows:
+
+| Run | Reviews that reached their translator's phone before town | Hours to get there, p50 / p90 | Recordings on one phone only | Radio MB | Phone-minutes with the radios on |
+| --- | --- | --- | --- | --- | --- |
+| While open, alone | 40 of 129 | 5.1 / 31 | 0 of 218 | 105 | 1,146 |
+| Each evening, everyone comes | 128 of 128 | 5.1 / 8.3 | 0 of 268 | 134 | 150 |
+| Both | 132 of 132 | 3.8 / 7.5 | 0 of 270 | 136 | 1,290 |
+| Each evening, each phone comes half the time | 0 of 68 | none arrived | 61 of 187 | 46 | 38 |
+| Both, each phone comes half the time | 54 of 129 | 4.9 / 22 | 8 of 226 | 106 | 1,176 |
+
+Seeds 2 and 3 agree: both beat the evening by about an hour at p50 (5.0 to 4.1, and 4.9 to 4.0
+hours) and a little at p90, at about 8 times the phone-minutes, and while open alone reaches half
+or a third of the reviews, at a p50 near 23 hours. Opening LangQuest eight times a day instead of
+four brings while open alone to 136 of 144 reviews (p90 21 hours), and both to a p90 of 5.8.
+Every run ended with every phone agreeing with the server and nothing left nearby.
+
+What it says: when the team meets every evening, the mode takes about an hour off a review's trip
+and costs about 8 times the minutes with the radios on, though those minutes are with the screen
+already on, where Share nearby keeps it awake (15.7). Alone, short windows seldom overlap. When
+people forget the evening, the mode recovers much of what is lost. So it does not clearly beat an
+evening of Share nearby; it helps a team that forgets, and how often teams forget is not known.
+Phase 10 waits for Carl (15.14). The fleet does not model a phone's battery, recording pausing
+the mode, iPhones (which would move events only), or people being together more by day than at
+random.
+
+### 15.11 Tests
+
+| Layer | What |
+| --- | --- |
+| Unit | `openMayRun` over every input, and that it never opens on a worn phone, with a screen open, or while busy. `radiosFor` with `quiet` never offers a hotspot or a Wi-Fi join. The owner switches from `open` to `screen` and back without two rooms at once. The fold's rows equal Ready to carry's for the same facts. The reminder counts only this person's recordings that no holdings name. |
+| Room | In `open`, "Up to date" never halts the room, scans follow the burst tunables, no tap is ever offered, and a session stopped by the screen going off resumes from the vector. |
+| Fleet | `villageDay` (phase 8), and `fiveInRoom` with every phone in `open` agrees with the server after a trip to town. |
+| UI | The fold and the reminder on Sync and offline, in the web build with a stubbed store; the switch row on Share nearby, absent on a worn phone. |
+| Real phones | Section 15.7's four cases; two Androids and an iPhone meeting with nobody touching them; a recording made while a teammate is in range is not disturbed. |
+
+### 15.12 Store declarations
+
+No Play Console or App Store Connect answer changes: the permissions, the data and who receives
+it are the same, nothing runs in the background, and nothing is asked outside Share nearby. The
+docs' wording changes with phase 10 (done on 2026-11-23, with the diagnostics list in the Play
+facts block gaining `mode`, `openMin` and `scanMin`):
+
+- `docs/app-store-declarations.md`: `NSBluetoothAlwaysUsageDescription`'s row says "while its
+  screen is open", and "No background modes: the radios run only while Share nearby is open"
+  becomes "only while LangQuest is open and in front". App Review notes add one line saying the
+  mode exists and is off for LangQuest Sample unless staff grant `nearby_open`.
+- `docs/play-store-declarations.md`: "Nothing is asked until someone opens Share nearby" stays
+  true; add that the radios may also run while LangQuest is open, offline, where the
+  organization has `nearby_open` and the person has not turned it off.
+- The purpose strings in `apps/mobile/app.json` stay true as written.
+
+### 15.13 The decision to record
+
+Lands as a new file in `docs/decisions/`, named for the day it is accepted, with phase 10. It sets
+decision 232's status to `partly superseded by` it, and appends an amendment to decision 220.
+Recorded on 2026-11-23 as `docs/decisions/2026-11-23-share-while-langquest-is-open.md`, with
+what the security review settled; the draft below is kept as it was proposed.
+
+> **Share nearby also runs quietly while LangQuest is open, in front and offline, where staff
+> turned on `nearby_open` and the person has not turned it off; never in the background, never
+> on a disguised phone, and never with a prompt, a tap or a hotspot**
+>
+> Date: (the day accepted) · By: Carl Sauder · Status: accepted
+>
+> Reason: teams forget to open Share nearby, so review and the protection against a lost phone
+> waited on someone remembering (decision 232 ran the radios only while that screen was open,
+> opened by both people). Sharing in the background was looked at again and turned down:
+> iPhones cannot find or be found in the background with an advert that has nothing fixed in it,
+> nor join Wi-Fi without a prompt; Android needs a foreground service whose notification names
+> the app, which gives a disguise away; and the phones decision 224 chose the link for stop
+> background work. While LangQuest is in front none of that applies. So one owner per open
+> language runs the room in two modes, `screen` and `open`, and `openMayRun` opens the second
+> only with the feature, the person's switch, permissions already granted, no cover, the app
+> active, the language offline, nothing recording or playing and no nearby screen open. In
+> `open` it never asks, taps, keeps the screen awake or touches a hotspot, an iPhone joins no
+> Wi-Fi (events over Bluetooth, audio waiting), and at "Up to date" it keeps advertising and
+> scans in bursts with no idle stop, because the screen going off is the limit. The bound in
+> `docs/nearby-sync-plan.md` 5.5 becomes "while LangQuest is in front, offline", and the
+> security review accepted what that costs. Supersedes in part 232; amends 220 with a third
+> feature; keeps 171, 211 and 230.
+>
+> Reverse if: the field's diagnostics show the mode rarely meets anyone, or its battery cost is
+> over the bar in `docs/nearby-sync-plan.md` 15.7; a lost or taken phone is found collecting a
+> team's work through it; or people report sharing they did not expect (then the switch's
+> default goes to off).
+
+### 15.14 Open questions
+
+| Question | Who | Draft answer |
+| --- | --- | --- |
+| Build the mode at all (phase 10), given section 15.8 and phase 8's result (15.10)? | Carl | Answered (2026-11-23): build it, since it can be turned off if battery life, security or another reason means it should not be used everywhere. The draft answer was to wait for phase 7. |
+| Is the switch on by default where the organization has `nearby_open`? | Carl | Built on, the draft answer, since the point is that nobody has to remember. The organization grant is staff's choice, and the first opening of Share nearby is each person's consent to the permissions. `openSwitchOf` is the one place to change it. |
+| May a disguised phone opt in? | Carl, with Caleb (decision 171 is his) | No. Answer 15's limits exist because a broadcasting calculator is a danger, and the mode removes the press. |
+| Should phones sign an `asOf` with their summary (15.9)? | Carl | Not in the first release. Ship 15.4 as it is, and add `asOf` only if teams say they cannot tell a quiet teammate from an absent one. It would amend decision 230. |
+| Is 2 percentage points an hour the right battery bar? | Carl | A starting guess for a 2 GB Android; the real-phone test can move it. |
+| Should the mode tell anyone it moved something? | Carl | No toast and no name on screen; the fold shows it. A name popping up in front of others is its own exposure. |
+| Should two iPhones in the mode get a quiet hint that a teammate may be nearby? | Later | No: the echo exists so a played-back advert shows nobody, and the hint would need it. iPhones meet each other on Share nearby. |
+
+## 16. Sources
 
 - [Nearby Connections overview](https://developers.google.com/nearby/connections/overview), [strategies](https://developers.google.com/nearby/connections/strategies), [permissions](https://developers.google.com/nearby/connections/android/get-started), [payloads](https://developers.google.com/nearby/connections/android/exchange-data) and [authentication](https://developers.google.com/nearby/connections/android/manage-connections)
 - [Nearby Connections: BLE between Android and iOS](https://github.com/google/nearby/issues/2465)

@@ -74,7 +74,7 @@ LangQuest v2
 
 ## Plans
 
-- [nearby-sync-plan.md](./nearby-sync-plan.md) — Nearby sync: phones near each other swap events and audio with no internet, and a new person joins offline
+- [nearby-sync-plan.md](./nearby-sync-plan.md) — Nearby sync: phones near each other swap events and audio with no internet, a new person joins offline, and sharing while the app is open
 - [ops-dashboard-plan.md](./ops-dashboard-plan.md) — The ops dashboard, phase by phase (how it works now: admin.md)
 - [streams-and-languages.md](./streams-and-languages.md) — Below an organization only languages, each its own stream (decision 63)
 - [big-languages-plan.md](./big-languages-plan.md) — Big languages on a 2 GB phone (decisions 143 and 147)

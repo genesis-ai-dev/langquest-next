@@ -1,6 +1,6 @@
 import { CLOCK_AHEAD_TOLERANCE_MS, LINES_VERSION, NEARBY_PROTOCOL, pickProtocol, REDUCER_VERSION } from '@langquest-next/core';
 import {
-  base64urlEncode, checkChain, handedKeyHolds, issueInviteLink, joinPictures, newcomerProfileId, type JoinPass, type WorkerLink, holdingsFilesHash, holdingsText, isBase64url, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_HOLDINGS_MAX_KEYS, type InviteLink, NEARBY_OPENING_BYTES, nearbyBytes, parseRevocationList, proofText, signedBy, summaryOf, summaryText, withMyHolding, type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
+  base64urlEncode, certificateSignedAt, checkChain, handedKeyHolds, issueInviteLink, joinPictures, newcomerProfileId, type JoinPass, type WorkerLink, holdingsFilesHash, holdingsText, isBase64url, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_HOLDINGS_MAX_KEYS, type InviteLink, NEARBY_OPENING_BYTES, nearbyBytes, parseRevocationList, proofText, signedBy, summaryOf, summaryText, withMyHolding, type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
 } from '@langquest-next/core/nearby';
 import { chainAsSigned, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
 import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
@@ -180,6 +180,14 @@ export interface NearbySessionOptions {
   copy?: NearbyCopySource;
   /** Phase 6: this phone holds a starting copy not yet whole, and asks a teammate on the same versions for the rest after Hello. */
   takeCopy?: Omit<StartingCopyTarget, 'sha256'>;
+  /**
+   * While LangQuest is open (docs/nearby-sync-plan.md 15.6, 15.8): Hello refuses, as `identity`, a
+   * teammate whose certificate was signed longer ago than this by Hello's clock, which setting the
+   * date back cannot move. Certificates renew daily online, so a lost or taken phone still signed
+   * in collects nothing quietly once this long has passed since it last reached the server, though
+   * the revocation list has not reached anyone. Left out, as on Share nearby, it refuses nobody for it.
+   */
+  freshWithinMs?: number;
 }
 
 /** The inviter's side of a QR link (`let-in`). Its `chain` is its certificate for the session's organization. */
@@ -759,6 +767,10 @@ export class NearbySession {
       ...(this.revoked ? { revoked: this.revoked.list } : {})
     });
     if (!verdict.ok) throw new SayBye('identity', verdict.reason);
+    if (opt.freshWithinMs !== undefined) {
+      const signed = certificateSignedAt(hello.chain);
+      if (signed === null || opt.port.nearbyHelloNow - signed > opt.freshWithinMs) throw new SayBye('identity', 'certificate not recent');
+    }
     const { holder } = verdict;
     if (holder.deviceId !== hello.deviceId) throw new SayBye('identity', 'another device');
     if (holder.installKey === crypto.publicKey) throw new SayBye('identity', 'this phone');

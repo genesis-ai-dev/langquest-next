@@ -416,6 +416,83 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
     });
   });
 
+  // Sharing while LangQuest is open (docs/nearby-sync-plan.md 15.6): nobody is looking, so no tap is
+  // offered, "Up to date" never stops it (the screen going off does), and level it scans in bursts.
+  describe('while LangQuest is open', () => {
+    const OPEN = { taps: false, idleLimitMs: Number.POSITIVE_INFINITY, levelScan: { onMs: 6_000, everyMs: 60_000 }, mode: 'open' as const };
+    const IPHONE = { caps: { scanResponse: false } };
+
+    it('never offers a tap, and a played-back advert neither draws a connection nor keeps it from "Up to date"', async () => {
+      const [a, b] = await rooms(2, [{ room: OPEN }, {}]);
+      await unit(b!.phone, 'b1');
+      await b!.room.tick(time.now());
+      const recorded = air.adverts.find((ad) => ad.peer === b!.radio.name)!;
+      await b!.room.stop();
+      for (let i = 0; i < 90; i++) {
+        air.replay(recorded);
+        await turn(air, time, [a!], false);
+      }
+      expect(air.pipes).toEqual([]);
+      expect(a!.events.some((e) => e.t === 'maybe')).toBe(false);
+      expect(a!.events.some((e) => e.t === 'level')).toBe(true);
+      expect(a!.room.isRunning).toBe(true);
+    });
+
+    it('"Up to date" with nobody near never stops it, and it scans six seconds a minute while advertising all along', async () => {
+      const [a] = await rooms(1, [{ room: OPEN }]);
+      let scanning = 0;
+      const ticks = 300;
+      for (let i = 0; i < ticks; i++) {
+        await turn(air, time, [a!]);
+        if (!a!.radio.scanHeld) scanning += 1;
+      }
+      expect(stopped(a!)).toBeUndefined();
+      expect(a!.room.isRunning).toBe(true);
+      // Ten minutes in two-second ticks: a burst is three ticks of every thirty.
+      expect(scanning).toBeGreaterThanOrEqual(25);
+      expect(scanning).toBeLessThanOrEqual(40);
+      expect(a!.radio.find).not.toBeNull();
+      expect(a!.radio.calls.updateFind).toBe(ticks);
+    });
+
+    it('two phones both open and bursting still meet within minutes, and both end up to date', async () => {
+      const [a, b] = await rooms(2, [{ room: OPEN }, { room: OPEN }]);
+      // Both are level first, with nobody near.
+      for (let i = 0; i < 40; i++) await turn(air, time, [a!, b!], false);
+      await unit(a!.phone, 'a1');
+      await unit(b!.phone, 'b1');
+      // The air carries only what a phone hears while it scans.
+      let i = 0;
+      for (; i < 150 && air.pipes.length === 0; i++) await turn(air, time, [a!, b!]);
+      expect(air.pipes.length).toBe(1);
+      expect(i * 2_000).toBeLessThanOrEqual(3 * 60_000);
+      for (let j = 0; j < 10; j++) await turn(air, time, [a!, b!]);
+      expect(await idsOf(a!.phone.store)).toEqual(await idsOf(b!.phone.store));
+      expect([...a!.events, ...b!.events].some((e) => e.t === 'maybe')).toBe(false);
+    });
+
+    it('an Android and an iPhone meet with no tap; two iPhones never do, and pass each other over', async () => {
+      const [android, iphone] = await rooms(2, [{ room: OPEN }, { ...IPHONE, room: OPEN }]);
+      await unit(android!.phone, 'a1');
+      await unit(iphone!.phone, 'i1');
+      for (let i = 0; i < 40 && air.pipes.length === 0; i++) await turn(air, time, [android!, iphone!]);
+      for (let i = 0; i < 6; i++) await turn(air, time, [android!, iphone!]);
+      expect(air.pipes.length).toBe(1);
+      expect(await idsOf(android!.phone.store)).toEqual(await idsOf(iphone!.phone.store));
+
+      const air2 = memoryNearbyAir({ time, files: shelf });
+      air = air2;
+      const [x, y] = await rooms(2, [{ ...IPHONE, room: OPEN }, { ...IPHONE, room: OPEN }]);
+      await unit(x!.phone, 'x1');
+      for (let i = 0; i < 120; i++) await turn(air2, time, [x!, y!]);
+      expect(air2.pipes).toEqual([]);
+      expect([...x!.events, ...y!.events].some((e) => e.t === 'maybe')).toBe(false);
+      // Passed over, each is level and scanning in bursts, not all the time.
+      expect(x!.events.some((e) => e.t === 'level')).toBe(true);
+      expect(x!.room.isRunning && y!.room.isRunning).toBe(true);
+    });
+  });
+
   describe('stopping by itself', () => {
     it('stops at the idle limit with nobody in range, and stays stopped', async () => {
       const [a] = await rooms(1, [{ room: { idleLimitMs: 60_000 } }]);

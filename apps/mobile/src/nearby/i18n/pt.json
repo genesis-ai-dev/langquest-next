@@ -94,6 +94,9 @@
     "olderFromServer": "O trabalho mais antigo virá do servidor.",
     "hold": "Guardar gravações dos colegas",
     "holdHelp": "Ligado: este celular guarda as gravações dos colegas até o servidor recebê-las. Desligado: guarda só as de que você precisa.",
+    "whileOpen": "Compartilhar enquanto o LangQuest está aberto",
+    "whileOpenHelp": "Quando você está sem internet, seu celular compartilha com os colegas por perto enquanto o LangQuest está aberto, e para quando a tela se apaga. As gravações podem esperar o Compartilhar por perto.",
+    "whileOpenNow": "Compartilhando com colegas por perto enquanto o LangQuest está aberto",
     "carry": {
       "title": "O que este celular tem",
       "everything": "Este celular tem tudo o que conhece.",
@@ -108,7 +111,12 @@
       "today": "Hoje",
       "sinceOnline": "Desde a última vez que você teve internet",
       "notSinceOnline": "Não desde a última vez que você teve internet",
-      "newest": "trabalho mais recente aqui: {{when}}"
+      "newest": "trabalho mais recente aqui: {{when}}",
+      "teamTitle": "Colegas",
+      "everyone": "Todos",
+      "teamHelp": "Quão recente é o trabalho mais novo de cada colega neste celular, contando o trabalho passado por outro celular. Compartilhar por perto o atualiza.",
+      "onlyHere": "Gravações que só este celular tem: {{n}}",
+      "onlyHereHelp": "Suas gravações que nenhum celular de colega tem, até onde este celular sabe. Compartilhe por perto com um colega para que fiquem em dois celulares."
     },
     "history": {
       "nearby": "Veio do celular de {{name}}, ainda não está no servidor",

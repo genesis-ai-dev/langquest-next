@@ -28,6 +28,7 @@ import { updateTarget } from '../work/homeModel';
 import { t } from '../i18n';
 import { formatAgo, formatDayTime, formatNumber, formatShortDate } from '../i18n/format';
 import { meSyncLine } from '../sync/syncScreenModel';
+import { useOnlyHereNote } from '../nearby/useOnlyHereNote';
 import { useOfflineSummary } from '../sync/useOfflineSummary';
 import { useSyncStatus } from '../sync/useSyncStatus';
 import { moreSettingsSub } from '../account/meModel';
@@ -387,6 +388,8 @@ export function SettingsHome(ctx: Ctx) {
   const waiting = iconCounts(status).toSend;
   const syncLine = meSyncLine({ refused: p.refused, refusedEvents: p.refusedEvents, live: p.live, online: p.online, pending: status.pending + status.orgPending,
     recordings: status.pendingUp + status.holding, lastSync: status.lastSync, offline });
+  // Offline, this person's recordings no teammate's phone holds come before what waits; a phone only (docs/nearby-sync-plan.md 15.5).
+  const onlyHere = useOnlyHereNote(ctx);
   const local = ctx.session.isLocal;
   // Joined has a session but first contact is still open: the card stays, and Sign out does not come yet.
   const finishing = firstContactOpen(useLocalPerson(), ctx.session.actorId);
@@ -397,7 +400,7 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon="user" label={name} sub={t('account.me.nameSub')} help={t('account.me.nameHelp')} onPress={() => ctx.go('profile_edit')} />
         {inSeveral(orgs) && !local ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
         {/* What is sent, and what comes along to the field, seen before a trip (decisions.md 61, docs/decisions/2026-11-18-sync-and-offline-one-screen.md). */}
-        <Row icon="cloud" label={t('account.sync.title')} sub={syncLine} help={t('account.sync.rowHelp')} onPress={() => ctx.go('sync_status')}
+        <Row icon="cloud" label={t('account.sync.title')} sub={onlyHere?.line ?? syncLine} help={onlyHere?.help ?? t('account.sync.rowHelp')} onPress={() => ctx.go('sync_status')}
           {...(waiting > 0 ? { badge: formatNumber(waiting) } : {})} />
         <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} help={t('account.me.tourHelp')} onPress={() => ctx.go('vision')} />
         <LanguageRow />

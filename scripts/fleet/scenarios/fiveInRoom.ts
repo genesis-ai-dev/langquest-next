@@ -14,7 +14,7 @@ import type { Scenario } from './types';
 export const fiveInRoom: Scenario = {
   name: 'fiveInRoom',
   summary: 'Five phones with no signal share in one room, then again after one goes to town.',
-  defaults: { seed: 1, passages: 40, translators: 3, reviewers: 2, daysApart: 2, audioKBps: 16, keepOnDisk: 1, wifi: 1 },
+  defaults: { seed: 1, passages: 40, translators: 3, reviewers: 2, daysApart: 2, audioKBps: 16, keepOnDisk: 1, wifi: 1, open: 0 },
   async run(k) {
     const started = performance.now();
     const away = FLEET_EPOCH + 2 * TIME.HOUR;
@@ -23,7 +23,8 @@ export const fiveInRoom: Scenario = {
       seed: k.seed!,
       audio: { bytesPerSecond: k.audioKBps! * 1000 },
       keepOnDisk: k.keepOnDisk ? 'half' : false,
-      nearby: { wifi: k.wifi === 1 },
+      // `open: 1`: every phone shares as it does while LangQuest is open (docs/nearby-sync-plan.md 15.6, 15.11).
+      nearby: { wifi: k.wifi === 1, open: k.open === 1 },
       crew: {
         passages: k.passages!,
         translators: k.translators!,

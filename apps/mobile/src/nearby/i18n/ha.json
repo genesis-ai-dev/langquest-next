@@ -94,6 +94,9 @@
     "olderFromServer": "Tsohon aiki zai zo daga sabar.",
     "hold": "Riƙe naɗe-naɗen abokan aiki",
     "holdHelp": "Idan a kunne, wannan waya tana riƙe naɗe-naɗen abokan aiki har sai sabar ta samu su. Idan a kashe, tana riƙe waɗanda kake buƙata kawai.",
+    "whileOpen": "Raba yayin da LangQuest ke buɗe",
+    "whileOpenHelp": "Idan ba ka da intanet, wayarka tana raba wa abokan aiki da ke kusa yayin da LangQuest ke buɗe, kuma tana tsayawa idan allon ya kashe. Naɗe-naɗe na iya jiran Raba da na kusa.",
+    "whileOpenNow": "Ana raba wa abokan aiki da ke kusa yayin da LangQuest ke buɗe",
     "carry": {
       "title": "Abin da wannan waya ke ɗauke da shi",
       "everything": "Wannan waya tana riƙe da duk abin da ta sani.",
@@ -108,7 +111,12 @@
       "today": "Yau",
       "sinceOnline": "Tun lokacin da ka haɗa da intanet na ƙarshe",
       "notSinceOnline": "Ba tun lokacin da ka haɗa da intanet na ƙarshe ba",
-      "newest": "sabon aiki a nan {{when}}"
+      "newest": "sabon aiki a nan {{when}}",
+      "teamTitle": "Abokan aiki",
+      "everyone": "Kowa",
+      "teamHelp": "Yaushe ne sabon aikin kowane abokin aiki a wannan waya, har da aikin da wata waya ta kawo. Raba da na kusa yana sabunta shi.",
+      "onlyHere": "Naɗe-naɗen da ke wannan waya kawai: {{n}}",
+      "onlyHereHelp": "Naɗe-naɗenka da babu wayar abokin aiki da ke riƙe da su, iyakar sanin wannan waya. Raba da na kusa tare da abokin aiki don su kasance a waya biyu."
     },
     "history": {
       "nearby": "Ya zo daga wayar {{name}}, bai iso sabar ba tukuna",

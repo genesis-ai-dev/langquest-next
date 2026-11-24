@@ -55,15 +55,19 @@ const YES_NO = ['yes', 'no'] as const;
  * cannot run (`why`); `deliver` when a sync delivered teammates' work to the server (docs/nearby-sync-plan.md
  * section 6): `ms`, events `sent`, `events` the server took as new, `refused` here, of them `farAhead` and
  * `keyRefused` (a revoked key's later work or its cap), `noAnswer` batches the relay did not try, `done`
- * batches answered, and `error` the class of what stopped it early (`later` for not yet).
+ * batches answered, and `error` the class of what stopped it early (`later` for not yet). A room record
+ * from a build with sharing while LangQuest is open (docs/nearby-sync-plan.md 15.6) also says its
+ * `mode`, `screen` or `open`, and for `open` the minutes it ran, `openMin`, and of them the minutes
+ * spent scanning, `scanMin`, which is what the mode costs and whether it meets anyone.
  */
 export const NEARBY_DIAG_SCHEMA = {
   nearby: {
     n: ['ms', 'levelMs', 'heard', 'echoed', 'alone', 'maybe', 'taps', 'maxUnmatched', 'pipeFails', 'strangers', 'busy', 'noAnswer', 'sessions', 'done',
       'fallbacks', 'events', 'sent', 'refused', 'overBudget', 'files', 'served', 'fileFails', 'keyRefused', 'farAhead',
-      'noRoom', 'cutBackups', 'older', 'clockOff', 'newerApp'],
+      'noRoom', 'cutBackups', 'older', 'clockOff', 'newerApp', 'openMin', 'scanMin'],
     t: {
       event: ['room', 'session', 'find', 'blocked', 'deliver'],
+      mode: ['screen', 'open'],
       stop: ['asked', 'idle', 'wait', 'run', 'level', 'no-key'],
       role: ['i', 'r'],
       end: ['done', 'silent', 'no-answer', 'said', 'heard', 'dropped', 'stalled', 'failed'],
@@ -155,10 +159,20 @@ export const NEARBY_ROOM_MS_CAP = 10 * 60_000;
  */
 const STOP_RECORDED: Record<string, string> = { run: 'asked', level: 'asked' };
 
-/** A room that stopped, why, how long it ran (to the cap), and what this phone's radio can do. */
-export function roomDiagOf(tally: NearbyRoomTally, stop: string, ms: number, caps: NearbyCapabilities | null): NearbyDiagInput {
+/** The longest `openMin` says: a day. */
+export const NEARBY_OPEN_MIN_CAP = 24 * 60;
+
+/** Which way a room ran, and while LangQuest was open how long it scanned outside sessions. */
+export type RoomDiagMode = { mode: 'screen' } | { mode: 'open'; scanMs: number };
+
+/**
+ * A room that stopped, why, how long it ran (to the cap), and what this phone's radio can do. With
+ * `mode`, which way it ran; only a phone with no cover runs while LangQuest is open, so an `open`
+ * room's minutes are not capped at a disguised phone's run limit.
+ */
+export function roomDiagOf(tally: NearbyRoomTally, stop: string, ms: number, caps: NearbyCapabilities | null, how?: RoomDiagMode): NearbyDiagInput {
   const { levelMs, code, ...counts } = tally;
-  const t: Record<string, string> = { event: 'room', stop: STOP_RECORDED[stop] ?? stop };
+  const t: Record<string, string> = { event: 'room', stop: STOP_RECORDED[stop] ?? stop, ...(how ? { mode: how.mode } : {}) };
   if (code) t.code = code;
   if (caps) {
     t.adv = caps.advertise ? 'yes' : 'no';
@@ -166,7 +180,9 @@ export function roomDiagOf(tally: NearbyRoomTally, stop: string, ms: number, cap
     t.hotspot = caps.hotspot ? 'yes' : 'no';
   }
   const capped = (x: number) => Math.min(x, NEARBY_ROOM_MS_CAP);
-  return { t, n: { ms: capped(ms), ...counts, ...(levelMs !== null ? { levelMs: capped(levelMs) } : {}) } };
+  const minutes = (x: number) => Math.min(NEARBY_OPEN_MIN_CAP, Math.round(x / 60_000));
+  const open: Record<string, number> = how?.mode === 'open' ? { openMin: minutes(ms), scanMin: minutes(Math.min(how.scanMs, ms)) } : {};
+  return { t, n: { ms: capped(ms), ...counts, ...(levelMs !== null ? { levelMs: capped(levelMs) } : {}), ...open } };
 }
 
 /** One sync's delivery of teammates' work: counts, and why it stopped early. Names no author, key or event. */

@@ -1,6 +1,6 @@
 import { base64urlDecode, base64urlEncode, discoveryKeyAt, type DiscoveryKey } from '@langquest-next/core/nearby';
 import type { NearbyPeerRecord } from './nearbyKeep';
-import { emptyRoomTally, nearbyCodeOf, roomDiagOf, sessionDiagOf, type NearbyDiagInput, type NearbyRoomTally } from './nearbyDiag';
+import { emptyRoomTally, nearbyCodeOf, roomDiagOf, sessionDiagOf, type NearbyDiagInput, type NearbyRoomTally, type RoomDiagMode } from './nearbyDiag';
 import type { FindTunables, HeardAdvert, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from './nearbyLink';
 import { channelKeysOf, findEchoOf, findPayload, findTagOf } from './nearbyOpening';
 import { choosePartner, type PartnerInRange } from './nearbyPartners';
@@ -116,7 +116,24 @@ export interface NearbyRoomOptions {
   report(event: NearbyRoomEvent): void;
   /** Field diagnostics: a record when the room stops and when one of this phone's sessions ends (nearbyDiag.ts). */
   diag?: (input: NearbyDiagInput) => void;
+  /**
+   * Offers a tap ("A teammate may be nearby") for a phone that never echoed. False while LangQuest
+   * is open (docs/nearby-sync-plan.md 15.6): nobody is looking, so such a phone is passed over
+   * for this run, and two iPhones, which meet only by a tap, wait for Share nearby.
+   */
+  taps?: boolean;
+  /**
+   * At "Up to date", scan only `onMs` of every `everyMs`, from the moment it was level, and
+   * advertise all along, since that is how a teammate who arrives finds this phone. Left out, it
+   * scans all the time, as on Share nearby.
+   */
+  levelScan?: { onMs: number; everyMs: number };
+  /** Which way the room runs, for its record when it stops: on Share nearby, or quietly while LangQuest is open. */
+  mode?: NearbyRoomMode;
 }
+
+/** Share nearby's screen, or quietly while LangQuest is open (docs/nearby-sync-plan.md 15.6). */
+export type NearbyRoomMode = 'screen' | 'open';
 
 interface Generation {
   gen: number;
@@ -198,6 +215,12 @@ export class NearbyRoom {
   /** On a phone whose advert goes out alone, one tap covers every teammate it cannot get an echo from, until the screen closes (Carl's answer 26). */
   private tappedAll = false;
   private level = false;
+  /** When this run was last level, so scan bursts keep their own time. */
+  private levelSince = 0;
+  /** Phones that never echoed, passed over when no tap is offered: tried again only under a tag of their next salt. */
+  private readonly passedOver = new Set<string>();
+  /** Scanning this run, outside sessions, for diagnostics. */
+  private scanMs = 0;
   private chosen: string | null = null;
   private echoTurn = 0;
   private summary = '';
@@ -243,6 +266,8 @@ export class NearbyRoom {
     this.idleMs = 0;
     this.waitMs = 0;
     this.level = false;
+    this.scanMs = 0;
+    this.passedOver.clear();
     this.tally = emptyRoomTally();
     this.heardTags.clear();
     this.aloneTags.clear();
@@ -254,7 +279,7 @@ export class NearbyRoom {
     const keyed = await this.gensFromKeys();
     if (mine !== this.starts) return;
     if (!keyed) {
-      this.note(roomDiagOf(this.tally, 'no-key', 0, this.caps));
+      this.note(roomDiagOf(this.tally, 'no-key', 0, this.caps, this.diagMode()));
       this.opt.report({ t: 'stopped', why: 'no-key' });
       return;
     }
@@ -312,6 +337,7 @@ export class NearbyRoom {
       const passed = this.lastTick === null ? 0 : Math.max(0, now - this.lastTick);
       this.lastTick = now;
       this.now = now;
+      if (!this.scanHeld) this.scanMs += passed;
       if (this.opt.runLimitMs !== undefined && now - this.startedAt >= this.opt.runLimitMs) return await this.halt('run');
       await this.refreshFind();
       if (!this.running) return;
@@ -321,15 +347,21 @@ export class NearbyRoom {
       const choice = await this.choose();
       if (!this.running) return;
       if (choice === null) {
-        if (!this.level) this.opt.report({ t: 'level' });
+        if (!this.level) {
+          this.opt.report({ t: 'level' });
+          this.levelSince = now;
+        }
         this.tally.levelMs ??= now - this.startedAt;
         this.level = true;
         if (this.opt.stopWhenLevel && this.everMet) return await this.halt('level');
         this.idleMs += passed;
         if (this.idleMs >= this.opt.idleLimitMs) return await this.halt('idle');
+        await this.scanInBursts();
         return;
       }
       this.level = false;
+      await this.scanInBursts();
+      if (!this.running) return;
       if (choice.connect) {
         await this.connect(choice.partner);
         return;
@@ -507,6 +539,7 @@ export class NearbyRoom {
     const inRange: PartnerInRange[] = [];
     for (const h of this.heard.values()) {
       const { tag, scan, summary } = h.seen;
+      if (this.passedOver.has(tag) && !h.echoed && !h.tapped) continue;
       const off = this.backoff.get(tag);
       if ((off && off.until > this.now) || h.stale.has(summary)) continue;
       // Heard alone on this phone's own generation, it can check this phone's echo and connects itself; only an iPhone, which it cannot echo, connects to it.
@@ -515,6 +548,11 @@ export class NearbyRoom {
       // An iPhone hearing an iPhone: neither can see the other's echo, so waiting for one only delays the tap.
       const tapAfter = h.alone && this.advertAlone() ? this.tune.tapAfterAloneMs : this.tune.tapAfterMs;
       if (!echoed && this.now - h.firstAt >= tapAfter) {
+        // While LangQuest is open nobody is looking to tap: passed over, and the room stays level.
+        if (this.opt.taps === false) {
+          this.passedOver.add(tag);
+          continue;
+        }
         // A recording waits here for a tap and holds off nothing.
         if (!h.offered) {
           this.opt.report({ t: 'maybe', tag });
@@ -695,6 +733,17 @@ export class NearbyRoom {
     if (report.handedKey || (keys && keys.gen !== this.gens[0]?.gen)) await this.restartFind();
   }
 
+  /**
+   * With `levelScan`, between sessions: at "Up to date" a burst of `onMs` every `everyMs`, else
+   * all the time. Without it, nothing here holds the scan, as before.
+   */
+  private async scanInBursts(): Promise<void> {
+    const burst = this.opt.levelScan;
+    if (!burst || this.session || this.connecting) return;
+    const scanning = !this.level || (this.now - this.levelSince) % burst.everyMs < burst.onMs;
+    await this.holdScan(!scanning);
+  }
+
   private async holdScan(held: boolean): Promise<void> {
     if (this.scanHeld === held) return;
     this.scanHeld = held;
@@ -727,8 +776,15 @@ export class NearbyRoom {
     this.saltRelease = null;
     this.scanHeld = false;
     await this.opt.radio.stopAll();
-    this.note(roomDiagOf({ ...this.tally, heard: this.heardTags.size, echoed: this.echoedTags.size, alone: this.aloneTags.size }, why, Math.max(0, this.now - this.startedAt), this.caps));
+    this.note(roomDiagOf({ ...this.tally, heard: this.heardTags.size, echoed: this.echoedTags.size, alone: this.aloneTags.size }, why, Math.max(0, this.now - this.startedAt), this.caps, this.diagMode()));
     this.opt.report({ t: 'stopped', why });
+  }
+
+  /** The mode for a room record, with the minutes spent scanning while LangQuest was open. */
+  private diagMode(): RoomDiagMode | undefined {
+    const { mode } = this.opt;
+    if (!mode) return undefined;
+    return mode === 'open' ? { mode, scanMs: this.scanMs } : { mode };
   }
 
   /** Diagnostics never stop the room. */

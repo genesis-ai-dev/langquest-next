@@ -1,7 +1,8 @@
 // Features staff turn on one organization at a time (docs/nearby-sync-plan.md
-// 5.10): `nearby`, sharing work between phones with no internet, and
-// `nearby_join`, joining offline, which works only while `nearby` is on too.
-// Off for everyone by default. A grant reaches an organization's phones the next
+// 5.10): `nearby`, sharing work between phones with no internet;
+// `nearby_join`, joining offline; and `nearby_open`, sharing quietly while
+// LangQuest is open and offline (15.6). The last two work only while `nearby`
+// is on too. Off for everyone by default. A grant reaches an organization's phones the next
 // time each reaches the server (get_user_state's orgFeatures, then a
 // certificate); a revoke stops new certificates, and phones drop theirs, within
 // a day of being online. Each grant and revoke is kept with who did it.
@@ -40,7 +41,8 @@ export function parseArgs(argv: readonly string[]): Args {
 /** The features there are, as `org_features`' check names them. */
 export const FEATURES: Record<string, string> = {
   nearby: 'Share nearby: phones in the organization share work with no internet',
-  nearby_join: 'joining offline: a teammate\'s phone lets a new person in, while nearby is on too'
+  nearby_join: 'joining offline: a teammate\'s phone lets a new person in, while nearby is on too',
+  nearby_open: 'sharing while LangQuest is open: phones share by themselves while open and offline, while nearby is on too'
 };
 
 export function featureOf(value: string | undefined): string {
@@ -83,16 +85,21 @@ export function listText(rows: readonly ListRow[]): string {
 /** What a grant or revoke answers, in words; throws for a refusal. */
 export function answerText(command: 'grant' | 'revoke', feature: string, answer: string | undefined): string {
   if (command === 'grant' && answer === 'granted') {
+    if (feature === 'nearby_open') {
+      return 'Turned on: each member\'s phone learns it the next time it reaches the server, and then shares while LangQuest is open and offline, only while nearby is on for this organization too, and unless the person turned it off on Share nearby.';
+    }
     return feature === 'nearby'
       ? 'Turned on: each member\'s phone gets its certificate the next time it reaches the server, and Share nearby appears for the languages it holds.'
       : 'Turned on: passes are issued only while nearby is on for this organization too (npm run org-feature -- list).';
   }
   if (command === 'revoke' && answer === 'revoked') {
+    if (feature === 'nearby_open') return 'Turned off: each phone stops sharing while LangQuest is open the next time it reaches the server; Share nearby itself stays on.';
     return feature === 'nearby'
-      ? 'Turned off: phones drop their certificates and Share nearby within a day of reaching the server; joining offline stops too. Work already shared still settles.'
+      ? 'Turned off: phones drop their certificates and Share nearby within a day of reaching the server; joining offline and sharing while LangQuest is open stop too. Work already shared still settles.'
       : 'Turned off: no new passes; nearby sharing itself stays on.';
   }
   throw new Error(answer === 'no_org' ? 'No organization has that id.'
+    : answer === 'needs_nearby' ? 'Turn nearby on for that organization first: sharing while LangQuest is open works only with it.'
     : answer === 'not_granted' ? 'That organization does not have that feature on.'
     : answer === 'say_who' ? 'Set your name first: git config user.name "Your Name".'
     : answer ?? 'No answer.');

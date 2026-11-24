@@ -94,6 +94,9 @@
     "olderFromServer": "Older work will come from the server.",
     "hold": "Hold teammates' recordings",
     "holdHelp": "On, this phone keeps teammates' recordings until the server has them. Off, it keeps only the ones you need.",
+    "whileOpen": "Share while LangQuest is open",
+    "whileOpenHelp": "When you have no internet, your phone shares with teammates nearby while LangQuest is open, and stops when the screen goes off. Recordings may wait for Share nearby.",
+    "whileOpenNow": "Sharing with teammates nearby while LangQuest is open",
     "carry": {
       "title": "What this phone holds",
       "everything": "This phone holds everything it knows of.",
@@ -108,7 +111,12 @@
       "today": "Today",
       "sinceOnline": "Since you were last online",
       "notSinceOnline": "Not since you were last online",
-      "newest": "newest work here {{when}}"
+      "newest": "newest work here {{when}}",
+      "teamTitle": "Teammates",
+      "everyone": "Everyone",
+      "teamHelp": "How recent the newest work on this phone is from each teammate, counting work passed on by another phone. Share nearby brings it up to date.",
+      "onlyHere": "Recordings only on this phone: {{n}}",
+      "onlyHereHelp": "Your recordings that no teammate's phone holds, as far as this phone knows. Share nearby with a teammate so they are on two phones."
     },
     "history": {
       "nearby": "Came from {{name}}'s phone, not on the server yet",

@@ -19,6 +19,8 @@ import { missingPermissions, permissionsStateOf } from './nearbyPermissionsModel
 import { nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
 import { NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, startWithin } from './nearbyRunModel';
 import { useFocus } from './useNearby.native';
+import { nearbyOwner } from './nearbyOwner';
+import { useRadioClaim } from './useRadioClaim';
 import type { JoinOfflineHandle } from './useJoinOffline';
 
 const KEEP_AWAKE = 'nearby-join';
@@ -53,6 +55,8 @@ export function useJoinOffline(): JoinOfflineHandle {
   useEffect(check, [check]);
 
   const focused = useFocus(() => undefined);
+  // The quiet room of sharing while LangQuest is open steps aside while this screen is open (15.6).
+  useRadioClaim(focused);
   const [onScreen, setOnScreen] = useState(() => AppState.currentState === 'active');
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
@@ -115,6 +119,9 @@ export function useJoinOffline(): JoinOfflineHandle {
       if (!(await permitted()) || !still()) return;
       if (!(await radio.facts()).wifiOn) { dispatch({ t: 'wifi-off' }); return; }
       // One scan starts one join: a No, a drop or an old code needs a new one from the inviter.
+      // After any quiet room this screen's claim stopped has stopped (15.6).
+      await nearbyOwner.settled();
+      if (!still()) return;
       takeJoinCode();
       setCode(null);
       const out = await joinWithCode(radio, held.code, name, worn, {
@@ -150,6 +157,8 @@ export function useJoinOffline(): JoinOfflineHandle {
       if (!clients || !still()) return;
       const got = await nearbyPiecesFor({ actorId: person.profileId, orgId: clients.orgId, languageId: clients.languageId, org: clients.org.getState(), inspectOrg: () => clients.org.inspect() });
       if (!got.ok || !still()) { dispatch({ t: 'look-stopped' }); return; }
+      await nearbyOwner.settled();
+      if (!still()) { dispatch({ t: 'look-stopped' }); return; }
       dispatch({ t: 'look' });
       const report = (e: NearbyRoomEvent) => {
         if (e.t === 'ended' && e.report.copyRefused === 'versions') dispatch({ t: 'other-version' });

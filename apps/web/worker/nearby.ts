@@ -1,6 +1,6 @@
 import type { AnyEvent, Privilege } from '@langquest-next/core';
 import {
-  attestationText, base64urlEncode, certRequestText, eventDigest, isBase64url, joinPassBody, linkText, nearbyBytes, NEARBY_BATCH_MAX_EVENTS,
+  attestationText, base64urlEncode, certRequestText, eventDigest, isBase64url, joinPassBody, linkText, nearbyBytes, NEARBY_BATCH_MAX_EVENTS, NEARBY_CERTIFICATE_MS,
   passRoles, revocationText, signedBy, signJoinPass, type Attestation, type ChainOrg, type JoinPass, type RevokedKey, type Sha256, type Verify, type WorkerLink
 } from '@langquest-next/core/nearby';
 import { NotAuthorizedError } from '@langquest-next/sync';
@@ -67,8 +67,8 @@ export interface NearbyDeps {
   sha256: Sha256;
 }
 
-/** A certificate lasts a year (5.5): shorter revokes faster, but risks stranding long-offline teams. */
-export const CERTIFICATE_MS = 365 * 86_400_000;
+/** A certificate lasts a year (5.5): shorter revokes faster, but risks stranding long-offline teams. Phones read it too (core). */
+export const CERTIFICATE_MS = NEARBY_CERTIFICATE_MS;
 
 /** Pages an attestation reads past rows no digest can stand for, so a run of them does not stop claims for good. */
 const ATTEST_PAGES = 5;

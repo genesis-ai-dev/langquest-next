@@ -58,6 +58,12 @@ export interface FleetNearbyOptions {
   /** The room's idle limit: "Up to date" this long with nobody new stops it. */
   idleLimitMs?: number;
   /**
+   * Every room runs as it does while LangQuest is open (docs/nearby-sync-plan.md 15.6): no tap is
+   * offered, "Up to date" never stops it, it scans six seconds a minute while level, and an iPhone
+   * joins no Wi-Fi, so it moves events alone. The phones' own idle limit is then ignored.
+   */
+  open?: boolean;
+  /**
    * Delivery through a teammate (docs/nearby-sync-plan.md section 6, phase 4): a phone that reaches
    * the server sends teammates' signed work on their behalf. Off, only authors send their own, as
    * before phase 4, so the earlier scenarios count what they always did.
@@ -133,7 +139,7 @@ export class FleetNearby {
   constructor(private readonly ctx: FleetNearbyContext, options: FleetNearbyOptions = {}) {
     this.o = {
       tickMs: 2_000, wifiUpMs: 5_000, wifi: true, bluetooth: NEARBY_NETWORKS.bluetooth, wifiShape: NEARBY_NETWORKS.wifi,
-      budget: { ...NEARBY_BUDGET }, idleLimitMs: 300_000, delivery: false, iphone: () => false, taps: false, ...options
+      budget: { ...NEARBY_BUDGET }, idleLimitMs: 300_000, delivery: false, iphone: () => false, taps: false, open: false, ...options
     };
     this.air = memoryNearbyAir({ time: ctx.time, files: this.shelf });
   }
@@ -316,10 +322,14 @@ export class FleetNearby {
     const radio = this.shaped(phone);
     const directByName = this.o.wifi;
     const iphone = this.o.iphone(phone.device);
+    const { open } = this.o;
+    const quiet = open ? { idleLimitMs: Number.POSITIVE_INFINITY, taps: false, levelScan: { onMs: 6_000, everyMs: 60_000 }, mode: 'open' as const } : { idleLimitMs: this.o.idleLimitMs };
     return new NearbyRoom({
       radio, crypto: phone.crypto, keys: () => phone.keys, facts: this.facts(phone),
-      idleLimitMs: this.o.idleLimitMs, waitLimitMs: 1_800_000, stopWhenLevel: false,
-      radios: () => (iphone ? { ...IPHONE_RADIOS, joinDirect: this.o.wifi, awdl: this.o.wifi } : { directByName, band5: false, hotspot: false, joinHotspot: false }), find: FIND,
+      waitLimitMs: 1_800_000, stopWhenLevel: false, ...quiet,
+      radios: () => (iphone
+        ? (open ? { ...IPHONE_RADIOS, joinHotspot: false } : { ...IPHONE_RADIOS, joinDirect: this.o.wifi, awdl: this.o.wifi })
+        : { directByName, band5: false, hotspot: false, joinHotspot: false }), find: FIND,
       report: (e) => this.reported(phone, e),
       openSession: (args) => {
         const generations: NearbyGenerations = {

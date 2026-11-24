@@ -14,7 +14,7 @@ import type { NearbyLanguage } from '../sync/useLanguage';
 import type { PhoneRadio } from './nearbyLink.native';
 import { parseFindKeys, type FindKey } from './nearbyModel';
 import { holdsCertificate, nearbyGateFor, phoneCrypto, phoneSignerFor, readChains, readRevoked, ROOT_KEYS } from './nearbyPhone.native';
-import { certOrgSeqOf, listedKey, namesOf, NEARBY_RADIO_TUNABLES, nearbyOffered, orgSeqHereOf, radiosFor, roomLimitsFor, swapOf } from './nearbyRunModel';
+import { certOrgSeqOf, listedKey, namesOf, NEARBY_RADIO_TUNABLES, nearbyOffered, orgSeqHereOf, radiosFor, recordUnless, roomLimitsFor, swapOf, type RoomMode } from './nearbyRunModel';
 
 /**
  * Share nearby's room for the open language, from the phone's identity pieces
@@ -23,7 +23,8 @@ import { certOrgSeqOf, listedKey, namesOf, NEARBY_RADIO_TUNABLES, nearbyOffered,
  * checkpoint, the Worker's keys, the revocation list, this language's discovery key with its
  * generations, the language session's client as its port and its file moves. A plain module:
  * `useNearby` decides when the room runs (`radiosMayRun`) and turns what it reports into the
- * screen's data. Nothing here logs a key.
+ * screen's data, and `useNearbyWhileOpen` runs it quietly while LangQuest is open (`openMayRun`,
+ * 15.6). Nothing here logs a key.
  */
 
 /** Find's times and retries, from JavaScript so the real-phone test can move them (5.12, Find; starting guesses). */
@@ -95,6 +96,15 @@ export interface NearbyRoomArgs {
   languageId: string;
   /** Wears a cover: stops sooner, and never joins a hotspot (Carl's answer 15). */
   worn: boolean;
+  /** Share nearby's screen, or quietly while LangQuest is open (15.6): no tap, no idle stop, no hotspot, an iPhone on Bluetooth alone. */
+  mode?: RoomMode;
+  /**
+   * While LangQuest is open: Hello refuses a teammate whose certificate was issued longer ago than
+   * this, by the clock Hello reads (15.8, the security review of 2026-11-23).
+   */
+  freshWithinMs?: number;
+  /** Diagnostics record nothing while this says so: a room stopped because a cover went on must not date it (decision 235). */
+  silent?: () => boolean;
   report(event: NearbyRoomEvent): void;
   progress(report: Readonly<NearbySessionReport>): void;
   /** Phase 6: what this phone sends a newcomer as a starting copy after an ordinary Hello, to whoever passed its read gate (14.1, 4). */
@@ -144,6 +154,7 @@ export async function nearbyNamesOf(language: NearbyLanguage, orgId: string): Pr
 
 export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
   const { radio, pieces, language, orgId, languageId, actorId, worn } = a;
+  const mode = a.mode ?? 'screen';
   const { client, moves } = language;
   const keep = nearbyKeepOf(client, { orgId, streamId: languageId });
   let key = pieces.findKey;
@@ -151,12 +162,13 @@ export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
   return new NearbyRoom({
     radio, crypto: pieces.crypto, keys: () => ({ gen: key.gen, key: key.key, floor: key.floor }),
     facts: factsOf(a, keep, () => nearbyNamesOf(language, orgId)),
-    ...roomLimitsFor(worn),
-    // An iPhone's awdl and joinDirect go through as its module says them, joinDirect while the tunable allows it.
-    radios: (caps) => radiosFor(caps, worn, NEARBY_RADIO_TUNABLES),
+    ...roomLimitsFor(worn, mode),
+    mode,
+    // An iPhone's awdl and joinDirect go through as its module says them, joinDirect while the tunable allows it; neither while open.
+    radios: (caps) => radiosFor(caps, worn, NEARBY_RADIO_TUNABLES, mode === 'open'),
     find: NEARBY_FIND,
     report: a.report,
-    diag: nearbyDiagFor(orgId, languageId),
+    diag: recordUnless(nearbyDiagFor(orgId, languageId), a.silent),
     openSession: (args) => {
       const generations: NearbyGenerations = {
         sessionGen: args.gen,
@@ -171,7 +183,8 @@ export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
         generations, older: args.older, ...(args.heardTag !== undefined ? { heardTag: args.heardTag } : {}),
         ...(args.onOpened ? { onOpened: args.onOpened } : {}), otherWaiting: args.otherWaiting,
         arrange: { radio, radios: args.radios }, time, onProgress: a.progress,
-        ...(a.copy ? { copy: a.copy } : {}), ...(a.takeCopy ? { takeCopy: a.takeCopy } : {})
+        ...(a.copy ? { copy: a.copy } : {}), ...(a.takeCopy ? { takeCopy: a.takeCopy } : {}),
+        ...(a.freshWithinMs !== undefined ? { freshWithinMs: a.freshWithinMs } : {})
       });
     }
   });

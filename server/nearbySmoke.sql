@@ -119,6 +119,10 @@ do $$ begin
   if public.org_feature_grant('nb-org', 'nearby', 'Staff') <> 'granted' then raise exception 'granting nearby'; end if;
   if public.org_feature_grant('nb-off', 'nearby_join', 'Staff') <> 'granted' then raise exception 'granting nearby_join'; end if;
   if (select count(*) from public.org_feature_list() where org_id in ('nb-org', 'nb-off') and revoked_at is null) <> 2 then raise exception 'the list'; end if;
+  -- Sharing while LangQuest is open only with nearby on too (docs/nearby-sync-plan.md 15.6, the security review of 2026-11-23).
+  if public.org_feature_grant('nb-off', 'nearby_open', 'Staff') <> 'needs_nearby' then raise exception 'nearby_open was granted without nearby'; end if;
+  if public.org_feature_grant('nb-org', 'nearby_open', 'Staff') <> 'granted' then raise exception 'granting nearby_open'; end if;
+  if public.org_feature_revoke('nb-org', 'nearby_open', 'Staff') <> 'revoked' then raise exception 'revoking nearby_open'; end if;
 end $$;
 
 -- 3. get_user_state names each of the caller's organizations' features, and no one else's.
