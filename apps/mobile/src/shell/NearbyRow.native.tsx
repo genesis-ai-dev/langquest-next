@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { teammateSub } from '../nearby/carryWords';
+import { teammatesFoldWords, teammateSub } from '../nearby/carryWords';
 import { formatDay } from '../i18n/format';
 import { useDeliveryRefusals } from '../nearby/useDeliveryRefusals';
 import { useLetInOffered } from '../nearby/useLetIn';
@@ -11,7 +11,7 @@ import { useNearbyTeammates, useQuietUntil } from '../nearby/useNearby.native';
 import { quietLineOf, type QuietLine } from '../nearby/quietUntilModel';
 import { useWhileOpenNow } from '../nearby/useNearbyWhileOpen.native';
 import { teammatesFoldLine } from '../nearby/readyToCarryModel';
-import { nearbyRowWords, SEEN_WORDS } from '../nearby/shareNearbyModel';
+import { nearbyRowWords } from '../nearby/shareNearbyModel';
 import { Card, Disclosure, Group, Ico, Row } from '../ui/kit';
 import { Text } from '../ui/text';
 import { txt } from '../ui/textStyles';
@@ -62,7 +62,7 @@ export function NearbyRow(props: { ctx: Ctx }) {
     <>
       {teamLine ? (
         <Disclosure testID="sync-teammates" icon="people" title={t('nearby.carry.teamTitle')} help={t('nearby.carry.teamHelp')}
-          summary={`${teamLine.who ? ctx.name(teamLine.who) : t('nearby.carry.everyone')} · ${t(SEEN_WORDS[teamLine.seen])}`}
+          summary={teammatesFoldWords(teamLine, ctx.name)}
           open={teamOpen} onToggle={() => setTeamOpen((o) => !o)}>
           <View style={{ padding: space.lg }}>
             <Group>
