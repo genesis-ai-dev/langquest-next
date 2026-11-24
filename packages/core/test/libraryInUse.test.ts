@@ -1,7 +1,8 @@
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { HlcClock } from '../src/hlc';
 import type { LibraryDoc } from '../src/libraryDocs';
-import { docsThisLanguageNames, docsThisLanguageUses, mayGoInStartingCopy, STARTING_COPY_FORMATS } from '../src/libraryInUse';
+import { docHeadOf } from '../src/libraryDocs';
+import { docsThisLanguageNames, docsThisLanguageUses, guidesThisLanguageOffers, mayGoInStartingCopy, STARTING_COPY_FORMATS } from '../src/libraryInUse';
 import { foldOrg } from '../src/org';
 import { emptyLanguageState, type LanguageState } from '../src/state';
 
@@ -13,6 +14,9 @@ import { emptyLanguageState, type LanguageState } from '../src/state';
  */
 
 const h = (c: string) => c.repeat(64).slice(0, 64);
+/** A guide collection only the wider library offers, and a step guide it names. */
+const offeredGuides = 'cb'.repeat(32);
+const offeredStudy = 'dc'.repeat(32);
 const reg = <V>(value: V) => ({ value, hlc: '001800000000000:000000:dA', eventId: 'e' });
 
 function org(extra: (emit: <T extends EventType>(type: T, payload: EventPayloads[T]) => void) => void) {
@@ -47,6 +51,7 @@ const library = org((emit) => {
   item(emit, 'archived-help', 'material', h('a'));
   item(emit, 'unused', 'material', h('b'));
   item(emit, 'other-tpl', 'template', h('c'));
+  item(emit, 'fia-guides', 'material', offeredGuides);
   emit('v1.LibraryItemArchived', { itemId: 'archived-rec', kind: 'material', archived: true });
   emit('v1.LibraryItemArchived', { itemId: 'archived-help', kind: 'material', archived: true });
   // A material copied from a publisher, and one followed: their source is not this organization.
@@ -84,9 +89,12 @@ const docs = new Map<string, LibraryDoc>([
   [h('7'), { format: 'material@1', kind: 'document', title: 'Linked', versification, deps: [versification] } as unknown as LibraryDoc],
   [h('8'), { format: 'material@1', kind: 'key_terms', title: 'FIA words', source: 'fia.bible', pattern: 'FIA', deps: [] } as unknown as LibraryDoc],
   [h('a'), { format: 'material@1', kind: 'document', title: 'Archived help', deps: [] } as unknown as LibraryDoc],
-  [versification, { format: 'versification@1' } as unknown as LibraryDoc]
+  [versification, { format: 'versification@1' } as unknown as LibraryDoc],
+  // In the library, chosen by nobody: a note, which the app shows only where chosen, and a guide collection, which it offers.
+  [h('b'), { format: 'material@1', kind: 'document', title: 'Unused', deps: [] } as unknown as LibraryDoc],
+  [offeredGuides, { format: 'collection@1', entries: [{ ref: 'MRK 1:1-8', doc: offeredStudy }] } as unknown as LibraryDoc]
 ]);
-const get = (hash: string) => docs.get(hash) ?? null;
+const get = (hash: string) => { const doc = docs.get(hash); return doc ? docHeadOf(doc) : null; };
 
 describe('docsThisLanguageNames', () => {
   // Carl, 2026-11-24: a phone that joined offline does what its inviter's does, so a publisher's material the language
@@ -119,12 +127,35 @@ describe('docsThisLanguageUses', () => {
     const uses = docsThisLanguageUses(library, language(), get);
     expect(uses).toContain(versification);
     expect(uses).toContain(h('8'));
-    // Copied and followed materials the test holds no document for stay on the list, so a newcomer knows to ask.
-    expect(uses).toEqual([h('1'), h('2'), h('3'), h('4'), h('5'), h('7'), h('8'), h('a'), h('d'), h('e'), versification].sort());
+    // Copied and followed materials the test holds no document for stay on the list, so a newcomer knows to ask;
+    // so does the step guide the offered collection names.
+    // What the language names comes first, then the offered guides: a phone that takes only some this time takes those first.
+    expect(uses).toEqual([...[h('1'), h('2'), h('3'), h('4'), h('5'), h('7'), h('8'), h('a'), h('d'), h('e'), versification].sort(), ...[offeredGuides, offeredStudy].sort()]);
   });
 
   it('keeps a hash it cannot read on the list, with nothing to walk, so a newcomer knows to ask', () => {
-    expect(docsThisLanguageUses(library, language(), () => null)).toEqual(docsThisLanguageNames(library, language()));
+    expect(docsThisLanguageUses(library, language(), () => null)).toEqual([...docsThisLanguageNames(library, language()), ...guidesThisLanguageOffers(library, language())]);
+  });
+
+  // Carl, 2026-11-24: a phone that joined offline shows the guides its inviter's shows, and the app offers guides from
+  // the whole library (apps/mobile/src/reference/offered.ts), not only from what the language chose.
+  it('takes a guide the wider library offers, never another kind from it, nor one the language hid or that is archived', () => {
+    const offers = guidesThisLanguageOffers(library, language());
+    expect(offers).toEqual([h('b'), offeredGuides].sort());
+    const uses = docsThisLanguageUses(library, language(), get);
+    expect(uses).toContain(offeredGuides);
+    expect(uses).not.toContain(h('b'));
+    for (const left of [h('6'), h('9'), h('c')]) expect(offers).not.toContain(left);
+    // A language that hides the guides' item leaves them out.
+    const s = language();
+    s.languageReferences = { ...s.languageReferences, 'fia-guides': reg('hidden' as const) };
+    expect(docsThisLanguageUses(library, s, get)).not.toContain(offeredGuides);
+  });
+
+  it('a document the language chose counts though the wider library also offers it', () => {
+    const s = language();
+    s.passageLinks = { ...s.passageLinks, u2: { unused: reg(true) } };
+    expect(docsThisLanguageUses(library, s, get)).toContain(h('b'));
   });
 
   it('a document in a format this build does not know is refused and not walked: what only it refers to stays out', () => {
@@ -133,9 +164,26 @@ describe('docsThisLanguageUses', () => {
     s.template = reg({ itemId: 'tpl', docHash: later, unitPrefix: 'x' });
     s.templateHistory = {};
     const only = new Map<string, LibraryDoc>([[later, { format: 'template@9', bible: { versification: h('0') } } as unknown as LibraryDoc]]);
-    const uses = docsThisLanguageUses(library, s, (x) => only.get(x) ?? docs.get(x) ?? null);
+    const uses = docsThisLanguageUses(library, s, (x) => (only.has(x) ? docHeadOf(only.get(x)!) : get(x)));
     expect(uses).not.toContain(later);
     expect(uses).not.toContain(h('0'));
+  });
+});
+
+describe('docHeadOf: what the walk keeps of a document', () => {
+  it('keeps the format and what it refers to, and says when this build cannot read through it', () => {
+    const tpl = docs.get(h('1'))!;
+    expect(docHeadOf(tpl)).toEqual({ format: tpl.format, refs: expect.arrayContaining([versification]) });
+    expect(docHeadOf({ format: 'collection@1', entries: 5 } as unknown as LibraryDoc).refs).toBeNull();
+  });
+
+  it('a document this build cannot read through leaves the list, and what only it names stays out', () => {
+    const s = language();
+    const broken = h('9');
+    s.template = reg({ itemId: 'tpl', docHash: broken, unitPrefix: 'x' });
+    s.templateHistory = {};
+    const uses = docsThisLanguageUses(library, s, (x) => (x === broken ? { format: 'template@2', refs: null } : get(x)));
+    expect(uses).not.toContain(broken);
   });
 });
 

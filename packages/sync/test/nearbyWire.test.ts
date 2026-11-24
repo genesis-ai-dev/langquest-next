@@ -46,6 +46,8 @@ const EVERY: Message[] = [
   { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1, features: ['nearby', 'nearby_open'] },
   { t: 'copy-ask', part: 'doc', stream: 'lang1', after: '10', hash: HASH },
   { t: 'copy-ask', part: 'state' },
+  // 2026-11-24: which documents the sender holds, asked only of a phone whose Hello names copy-library.
+  { t: 'copy-ask', part: 'held', after: '0' },
   { t: 'copy-part', part: 'state', stream: 'lang1', next: null, body: 'text' },
   { t: 'copy-part', part: 'doc', next: '900', body: '' },
   { t: 'copy-no', reason: 'not-here' }

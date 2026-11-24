@@ -1,5 +1,5 @@
-import { libraryItemView, type LibraryItemView } from './library';
-import { isHash, referencedDocs, type LibraryDoc } from './libraryDocs';
+import { libraryItems, libraryItemView, type LibraryItemView } from './library';
+import { isHash, type DocHead, type LibraryDoc } from './libraryDocs';
 import type { OrgState } from './org';
 import { recommendedFor } from './references';
 import type { LanguageState } from './state';
@@ -26,9 +26,14 @@ const STARTING_COPY_FORMAT_TABLE: Record<LibraryDoc['format'], true> = {
 
 export const STARTING_COPY_FORMATS = Object.keys(STARTING_COPY_FORMAT_TABLE) as readonly LibraryDoc['format'][];
 
+/** May a document of this format go in a starting copy? One this build reads (`STARTING_COPY_FORMAT_TABLE`). */
+export function formatMayGoInStartingCopy(format: unknown): boolean {
+  return typeof format === 'string' && Object.prototype.hasOwnProperty.call(STARTING_COPY_FORMAT_TABLE, format);
+}
+
 /** May this document go in a starting copy? Its format is one this build reads (`STARTING_COPY_FORMAT_TABLE`). */
 export function mayGoInStartingCopy(doc: LibraryDoc | null | undefined): boolean {
-  return typeof doc === 'object' && doc !== null && typeof doc.format === 'string' && Object.prototype.hasOwnProperty.call(STARTING_COPY_FORMAT_TABLE, doc.format);
+  return typeof doc === 'object' && doc !== null && formatMayGoInStartingCopy(doc.format);
 }
 
 type OrgLibrary = Pick<OrgState, 'library' | 'recommendations'>;
@@ -69,36 +74,66 @@ export function docsThisLanguageNames(org: OrgLibrary, state: LanguageState): st
   return [...out].sort();
 }
 
+/** The formats a study guide comes in: what the app shows from the rest of the organization's library. */
+export const GUIDE_FORMATS: readonly LibraryDoc['format'][] = ['study@1', 'study@2', 'collection@1'];
+
 /**
- * The documents a starting copy for this language may carry: walked from
- * `docsThisLanguageNames`. A hash `get` cannot answer stays on the list, with nothing to walk, so
- * a newcomer knows to ask for it. A document `mayGoInStartingCopy` refuses leaves the list and is
- * not walked. Any other stays, and what it refers to (a template's or a material's numbering)
- * goes by the same rule. Sorted. The sender and the newcomer work out the same list.
+ * What the app offers a passage's study guide from beyond what the language chose
+ * (apps/mobile/src/reference/offered.ts `guideOffer`): the current version of every material in
+ * the organization's library, its own, copied or followed, not archived and not hidden by the
+ * language. Only its guides count (`GUIDE_FORMATS`), since the app shows nothing else of these
+ * (Carl, 2026-11-24: a phone that joined offline shows what its inviter's does). Sorted hashes,
+ * less what `docsThisLanguageNames` already names.
  */
-export function docsThisLanguageUses(org: OrgLibrary, state: LanguageState, get: (hash: string) => LibraryDoc | null): string[] {
+export function guidesThisLanguageOffers(org: OrgLibrary, state: LanguageState): string[] {
+  const named = new Set(docsThisLanguageNames(org, state));
+  const hidden = (itemId: string) => state.languageReferences?.[itemId]?.value === 'hidden';
   const out = new Set<string>();
-  const seen = new Set<string>();
-  const queue = docsThisLanguageNames(org, state);
-  while (queue.length > 0) {
-    const hash = queue.pop()!;
-    if (seen.has(hash)) continue;
-    seen.add(hash);
-    const doc = get(hash);
-    if (doc === null || doc === undefined) {
-      out.add(hash);
-      continue;
-    }
-    if (!mayGoInStartingCopy(doc)) continue;
-    let refs: string[];
-    try {
-      refs = referencedDocs(doc);
-    } catch {
-      // A document this build cannot read through is left out, as a format it does not know is.
-      continue;
-    }
-    out.add(hash);
-    for (const r of refs) if (isHash(r) && !seen.has(r)) queue.push(r);
+  for (const view of libraryItems(org.library, 'material')) {
+    if (view.archived || !isHash(view.current) || hidden(view.itemId) || named.has(view.current!)) continue;
+    out.add(view.current!);
   }
   return [...out].sort();
+}
+
+const GUIDES: ReadonlySet<string> = new Set(GUIDE_FORMATS);
+
+/**
+ * The documents a starting copy for this language may carry: walked from
+ * `docsThisLanguageNames`, then from `guidesThisLanguageOffers`, of which only guides are kept and
+ * walked (a document of another format leaves the list, and is not walked). A hash `get` cannot
+ * answer stays on the list, with nothing to walk, so a newcomer knows to ask for it. A document
+ * `mayGoInStartingCopy` refuses, or one this build cannot read through, leaves the list and is not
+ * walked. Any other stays, and what it refers to (a template's or a material's numbering, a
+ * collection's guides) goes by the same rule. What the language names and what that refers to
+ * come first, sorted, then the offered guides and theirs, sorted: a phone that can take only some
+ * this time takes what the language chose first. The sender and the newcomer work out the same
+ * list.
+ */
+export function docsThisLanguageUses(org: OrgLibrary, state: LanguageState, get: (hash: string) => DocHead | null | undefined): string[] {
+  const seen = new Set<string>();
+  const walk = (roots: readonly string[], keep: (head: DocHead) => boolean): string[] => {
+    const out = new Set<string>();
+    const root = new Set(roots);
+    const queue = [...roots];
+    while (queue.length > 0) {
+      const hash = queue.pop()!;
+      if (seen.has(hash)) continue;
+      seen.add(hash);
+      const head = get(hash);
+      if (head === null || head === undefined) {
+        out.add(hash);
+        continue;
+      }
+      // A document this build cannot read through is left out, as a format it does not know is.
+      if (!formatMayGoInStartingCopy(head.format) || head.refs === null || (root.has(hash) && !keep(head))) continue;
+      out.add(hash);
+      for (const r of head.refs) if (isHash(r) && !seen.has(r)) queue.push(r);
+    }
+    return [...out].sort();
+  };
+  // What the language chose, and what that refers to, first: a document it names counts whatever else offers it.
+  const named = walk(docsThisLanguageNames(org, state), () => true);
+  // Then the guides the app offers from the rest of the library: a guide counts, nothing else does, and what a guide refers to as ever.
+  return [...named, ...walk(guidesThisLanguageOffers(org, state), (head) => GUIDES.has(head.format))];
 }

@@ -60,7 +60,12 @@ export type Message =
    * from an older inviter, and only names `NEARBY_GRANT_FEATURES` knows; an older newcomer ignores it.
    */
   | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[] }
-  | { t: 'copy-ask'; part: 'state' | 'rows' | 'names' | 'doc'; stream?: string; after?: string; hash?: string }
+  /**
+   * `held`, from 2026-11-24 and only to a phone whose Hello names `copy-library`: the sorted hashes of the documents
+   * the language uses that the sender holds, as a JSON list, so the asker asks only for those. An older phone ends
+   * the session on a part it does not know, so it is never asked.
+   */
+  | { t: 'copy-ask'; part: 'state' | 'rows' | 'names' | 'doc' | 'held'; stream?: string; after?: string; hash?: string }
   | { t: 'copy-part'; part: string; stream?: string; next: string | null; body: string }
   | { t: 'copy-no'; reason: 'versions' | 'not-filled' | 'not-allowed' | 'not-here' };
 
@@ -208,7 +213,7 @@ function read(t: string, o: Raw): Message | null | undefined {
     }
     case 'copy-ask': {
       const { part, stream, after, hash } = o;
-      if (!isOneOf(part, ['state', 'rows', 'names', 'doc'] as const) || !optionalIs(stream, isText) || !optionalIs(after, isText) || !optionalIs(hash, isHash)) return null;
+      if (!isOneOf(part, ['state', 'rows', 'names', 'doc', 'held'] as const) || !optionalIs(stream, isText) || !optionalIs(after, isText) || !optionalIs(hash, isHash)) return null;
       return { t, part, ...optional('stream', stream as string | undefined), ...optional('after', after as string | undefined), ...optional('hash', hash as string | undefined) };
     }
     case 'copy-part': {

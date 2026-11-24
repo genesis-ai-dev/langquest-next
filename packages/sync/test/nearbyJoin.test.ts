@@ -1,4 +1,4 @@
-import { canonicalJson, HlcClock, ORG_STREAM, validateDoc, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
+import { canonicalJson, docHeadOf, HlcClock, ORG_STREAM, validateDoc, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
 import {
   base64urlEncode, bytesToHex, checkChain, joinPassBody, newcomerProfileId, utf8Encode, type ChainLink, type JoinPass, type WorkerLink
 } from '@langquest-next/core/nearby';
@@ -358,7 +358,7 @@ describe('a sender\'s answers and a newcomer\'s keep', () => {
   const tpl = { format: 'template@2', name: 'Tpl', deps: [], books: [], levels: [] } as unknown as LibraryDoc;
   const fia = { format: 'material@1', kind: 'key_terms', title: 'FIA', source: 'fia.bible', pattern: 'FIA', deps: [] } as unknown as LibraryDoc;
   const docs = new Map<string, LibraryDoc>([[h(tpl), tpl], [h(fia), fia], [h(versification), versification]]);
-  const port: NearbyDocs = { read: async (x) => docs.get(x) ?? null, text: async (x) => (docs.has(x) ? canonicalJson(docs.get(x)) : null), keep: async () => true };
+  const port: NearbyDocs = { head: async (x: string) => { const d = docs.get(x); return d ? docHeadOf(d) : null; }, text: async (x) => (docs.has(x) ? canonicalJson(docs.get(x)) : null), keep: async () => true };
   const lang = (): LanguageState => ({ template: { value: { itemId: 'tpl', docHash: h(tpl), unitPrefix: 'tpl' }, hlc: '', eventId: '' }, templateHistory: {}, flow: null, passageLinks: {}, languageReferences: {}, checkHelps: { peer: { 'item:fia': { value: true, hlc: '', eventId: '' } } } } as unknown as LanguageState);
   const orgState = { library: { fia: { kind: { value: 'material', hlc: 'x', eventId: 'e' }, name: { value: 'FIA', hlc: 'x', eventId: 'e' }, description: { value: '', hlc: 'x', eventId: 'e' }, copiedFrom: { value: null, hlc: '', eventId: '' }, versions: { [h(fia)]: { docHash: h(fia), hlc: 'x', eventId: 'e', actorId: 'a' } }, sharing: { value: { shared: false, subscribable: false }, hlc: '', eventId: '' }, archived: { value: false, hlc: '', eventId: '' }, subscription: { value: null, hlc: '', eventId: '' }, pinned: { value: null, hlc: '', eventId: '' } } }, recommendations: {}, members: { ana: {} }, roles: {}, languages: {} } as unknown as OrgState;
   const sender = () => new StartingCopySender({

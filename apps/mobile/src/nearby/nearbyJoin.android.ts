@@ -3,7 +3,7 @@ import { base64urlDecode, base64urlEncode, joinPassStop, newcomerProfileId, type
 import { ensureDeviceId, OfflineError, ORG_MATERIALIZER, SyncClient, type Transport } from '@langquest-next/sync';
 import {
   drawOpening, joinOnlyKeep, joinOnlyPort, nearbyKeepOf, NearbySession, openingPinOf, QR_SALT, qrSessionKeyOf, wifiDirectOptions,
-  type NearbyCopySource, type NearbyDocs, type NearbySessionReport, type StartingCopyTarget
+  type NearbyCopySource, type NearbySessionReport, type StartingCopyTarget
 } from '@langquest-next/sync/nearby';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
@@ -11,7 +11,6 @@ import { appBuild } from '../diagnostics/appBuild';
 import { noteExpected } from '../diagnostics/report';
 import type { JoinCode } from '../invites/inviteCode';
 import { joinUri } from '../invites/inviteCode';
-import { docText, heldDoc, keepFetchedDoc } from '../library/docStore';
 import { savedSignIn } from '../server/auth';
 import { keepLocalPerson, readLocalPerson } from '../server/localPerson';
 import { anyLocks, keepFindKeys } from '../server/lock';
@@ -23,6 +22,7 @@ import { anyHandOvers } from '../sync/handOver';
 import { askingRecord, notEmptyWhy, seedsFor, type NotEmptyWhy } from './joinOfflineModel';
 import { keepGrant, setWhenWhole } from './joinGrant';
 import { keepOpenOrgsFromJoin, nearbyOpenOrgs } from './nearbyIdentity.native';
+import { phoneDocs } from './nearbyLibrary.native';
 import { installKey } from '../server/nearbyKey';
 import { nobleSha256, phoneCryptoOf } from './nearbyCryptoModel';
 import type { PhoneRadio } from './nearbyLink.native';
@@ -45,13 +45,6 @@ const random = (n: number) => Crypto.getRandomBytes(n);
 const where = (orgId: string, languageId: string) => `${orgId}/${languageId}`;
 
 // ---- what a starting copy reads and writes ---------------------------------------------
-
-/** The library documents kept on this phone, as a starting copy reads and keeps them (sync's `NearbyDocs`). */
-export const phoneDocs: NearbyDocs = {
-  read: (hash) => heldDoc(hash),
-  text: (hash) => docText(hash),
-  keep: (hash, text) => keepFetchedDoc(hash, text)
-};
 
 /** What this person's directory holds, as `profile-directory` caches it; the sender filters it to the copy's members. */
 async function directoryOf(actorId: string): Promise<Record<string, string>> {

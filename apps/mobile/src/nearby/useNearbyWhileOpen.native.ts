@@ -19,6 +19,7 @@ import { openMayRun } from './nearbyModel';
 import { nearbyOwner } from './nearbyOwner';
 import { checkNearbyPermissions, phoneSystem } from './nearbyPermissions';
 import { permissionsStateOf, radiosOffOf, type PermissionAnswers } from './nearbyPermissionsModel';
+import { nearbyLibraryOf } from './nearbyLibrary.native';
 import { nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
 import { NEARBY_OPEN_FRESH_MS, NEARBY_OPEN_REST_MS, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, startWithin, turnedAwayUnwelcome } from './nearbyRunModel';
 import { useNearbyOffered } from './useNearby.native';
@@ -239,7 +240,9 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
       };
       room = nearbyRoomOf({
         radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn: false, mode: 'open', report, progress: () => undefined,
-        freshWithinMs: NEARBY_OPEN_FRESH_MS, silent: wornNow
+        freshWithinMs: NEARBY_OPEN_FRESH_MS, silent: wornNow,
+        // The library documents the language uses go between teammates here too (14.1, 2026-11-24).
+        library: nearbyLibraryOf({ language: open.client, org: () => orgState.current })
       });
       const starting = room;
       const held = { room, ticker: null as ReturnType<typeof setInterval> | null, forget: () => undefined as void };

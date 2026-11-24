@@ -47,3 +47,28 @@ Reverse if: a publisher's terms forbid passing its documents from one
 member's phone to another's (then that publisher's formats or items go back
 off the table), or a forged inviter's word on `nearby_open` is found to
 matter (then the grant's features are signed, as a certificate is).
+
+Amended (2026-11-24, Carl Sauder): what a language uses now includes the
+guides the app offers it from the rest of the organization's library
+(`guidesThisLanguageOffers`: the current version of every material item, not
+archived and not hidden by the language, of which only `study@1`, `study@2`
+and `collection@1` count), because Carl chose "everything the app shows". The
+language's own come first on the list, so a phone that can take only some
+takes those. A copy no longer asks one hash at a time of a sender that can
+say what it holds: a phone that says `copy-library` answers `held`, the
+sorted hashes on its list that it holds, and the taker asks only for those. A
+copy or session keeps at most 5,000 documents and 128 MB, so a forged
+collection cannot fill a newcomer's disk. Phones walk with document heads
+(format and references, `docHeadOf`), and a teammate's guide, source book or
+timing goes to disk only, so FIA's 1,525 English guides (65 MB) never sit in
+memory. And documents now move between any two members, not only into a
+newcomer's copy: every phone serves the documents its language uses, from its
+own state on any versions, to whoever passed its read gate, and asks a
+teammate for those it lacks, on Share nearby and while LangQuest is open, on
+Android and iPhone. Over the Bluetooth pipe a session takes 256 KB of them
+and leaves the rest for the next, so events are not held up. No event
+changes and the protocol range stays where it is: `held` goes only to a
+phone that names the new ability. Reverse if: documents crowd out events or
+files on a slow link (then a session takes them after files, or only over
+Wi-Fi), or a team's phones run short of room (then offered guides wait until
+a passage reads them).

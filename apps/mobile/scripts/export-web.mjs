@@ -291,7 +291,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // (installFileRow), in the nearby chunk the web loads with Share nearby. The screen's own rule is in a file
 // only a phone loads (installFileOfferModel.ts), and its three words left all 16 catalogs. 938 bytes are
 // left; a first visit has 847.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 173 * 1024;
+// Raised by 1 KB with the library documents a language uses going between any two teammates (Carl,
+// 2026-11-24): the same 880 bytes a first visit grew by (see there), in the document store every screen
+// reads through. 1,082 bytes are left; a first visit has 991.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 174 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -398,7 +401,15 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 173 * 1024;
 // Raised by 2 KB with @supabase/supabase-js 2.119.0 to 2.119.2 (Carl, 2026-11-24, Dependabot's app group),
 // 1,096 bytes past it: the same 1,845 bytes all chunks grew by (see there), since the client is made as the
 // app starts. 952 bytes are left; all chunks have 892.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 118 * 1024;
+// Raised by 1 KB with the library documents a language uses going between any two teammates (Carl,
+// 2026-11-24, docs/nearby-sync-plan.md 5.12 and 14.1, docs/decisions/2026-11-24-a-starting-copy-carries-every-library-document-a-language-uses.md,
+// amended that day), 33 bytes past it: the document store every screen reads through
+// (library/docStore.ts) keeps a teammate's guides on disk only and reads them as heads (`docHeadOf`),
+// so a walk over FIA's 1,525 English guides never holds them in memory, tells the screens once per half
+// second of them, and `useLibraryDocs` reads from disk what an open screen still lacks when they come.
+// The walk, the asks and the serving are in files only a phone loads (nearbyLibrary.native.ts and the
+// nearby entries). 991 bytes are left; all chunks have 1,082.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 119 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

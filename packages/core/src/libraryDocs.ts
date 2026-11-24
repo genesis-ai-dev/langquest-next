@@ -488,6 +488,27 @@ const str = (v: unknown) => typeof v === 'string' && v !== '';
 const optStr = (v: unknown) => v === undefined || typeof v === 'string';
 const NODE_ID = /^[^/@\s]+$/;
 
+/**
+ * What a walk over documents needs of one (libraryInUse.ts `docsThisLanguageUses`): its format
+ * and the documents it refers to, or `refs` null when this build cannot read through it. A phone
+ * walks with heads, never whole documents, so a walk over FIA's 1,525 English guides (65 MB)
+ * holds a few hundred kilobytes (2026-11-24).
+ */
+export interface DocHead {
+  format: string;
+  refs: readonly string[] | null;
+}
+
+export function docHeadOf(doc: LibraryDoc): DocHead {
+  let refs: string[] | null;
+  try {
+    refs = referencedDocs(doc);
+  } catch {
+    refs = null;
+  }
+  return { format: doc.format, refs };
+}
+
 /** Every hash a document refers to, so `deps` can be checked (and shared together). */
 export function referencedDocs(doc: LibraryDoc): string[] {
   const out = new Set<string>();

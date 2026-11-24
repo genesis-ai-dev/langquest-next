@@ -390,7 +390,10 @@ team's unsent work between the two phones, with no internet.
   authors' names, signed batches, holdings, the revocation list, a newer discovery key, and
   each phone's certificate (install key, profile id, device id, organization and role
   privileges), only to members of the same organization whose certificate checks and who may
-  read that language. Data safety, above: not sharing, no new type.
+  read that language. From 2026-11-24 also the library documents that language uses which the
+  other phone lacks (templates, flows, key-word lists, study guides, sources), and which of
+  them this phone holds: reference material the organization chose, which every member
+  already reads in the app. Data safety, above: not sharing, no new type.
 - **Data safety, Location** stays "not collected": the location permissions exist only because
   Android 10 to 12L require them to scan and use Wi-Fi Direct, and the scan is marked
   `neverForLocation` from Android 12.

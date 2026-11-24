@@ -35,7 +35,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 }));
 vi.mock('../src/diagnostics/appBuild', () => ({ appBuild: () => ({}) }));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: (where: string, e: unknown) => { fake.noted.push(`${where}: ${e instanceof Error ? e.message : String(e)}`); } }));
-vi.mock('../src/library/docStore', () => ({ docText: async () => null, heldDoc: async () => null, keepFetchedDoc: async () => undefined }));
+vi.mock('../src/library/docStore', () => ({ docText: async () => null, heldDoc: async () => null, heldDocHead: async () => null, keepFetchedDoc: async () => undefined }));
 vi.mock('../src/server/auth', () => ({ savedSignIn: async () => null }));
 vi.mock('../src/server/localPerson', () => ({ keepLocalPerson: async () => true, readLocalPerson: async () => null }));
 vi.mock('../src/server/lock', () => ({ anyLocks: async () => false, keepFindKeys: async () => undefined }));

@@ -5,7 +5,7 @@ import {
 import { chainAsSigned, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
 import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
 import { nearbyDayOf, nearbyFirstDayWithin, type NearbyKeep } from './nearbyKeep';
-import { CopyRefused, StartingCopySender, takeStartingCopy, type CopyAsker, type CopyNoReason, type NearbyCopySource, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
+import { CopyRefused, LibraryDocsSender, StartingCopySender, takeLibraryDocs, takeStartingCopy, type CopyAsker, type CopyNoReason, type LibraryDocsAsk, type LibraryDocsTaken, type NearbyCopySource, type NearbyLibrary, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';
 import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, openingPinOf, sameBytes, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
 import { encodeMessage, NEARBY_HOLDINGS_MESSAGE_FILES, parseMessage, type Message } from './nearbyWire';
@@ -181,6 +181,13 @@ export interface NearbySessionOptions {
   /** Phase 6: this phone holds a starting copy not yet whole, and asks a teammate on the same versions for the rest after Hello. */
   takeCopy?: Omit<StartingCopyTarget, 'sha256'>;
   /**
+   * Any member (14.1, 2026-11-24): this phone serves the library documents its language uses
+   * (`copy-library` in Hello's `can`) to whoever passed its read gate, on any versions, and asks a
+   * teammate that serves them for those it lacks, after Hello as a copy is. Over the Bluetooth pipe
+   * a session takes at most `NEARBY_TOP_UP_PIPE_CHARS` of them, so events are not held up.
+   */
+  library?: NearbyLibrary;
+  /**
    * While LangQuest is open (docs/nearby-sync-plan.md 15.6, 15.8): Hello refuses, as `identity`, a
    * teammate whose certificate was signed longer ago than this by Hello's clock, which setting the
    * date back cannot move. Certificates renew daily online, so a lost or taken phone still signed
@@ -323,6 +330,8 @@ export interface NearbySessionReport {
   copyRefused: string | null;
   /** Parts of a starting copy this phone sent, asks it answered with `copy-no`, and why it gave no organization or language, which leaves the copy short. */
   copyServed: { parts: number; no: number; stateRefused: CopyNoReason | null };
+  /** What this phone took of the library documents its language uses, as any member (`library`), or null when it asked for none. */
+  topUp: LibraryDocsTaken | null;
 }
 
 const emptyReport = (role: NearbyRole): NearbySessionReport => ({
@@ -332,7 +341,7 @@ const emptyReport = (role: NearbyRole): NearbySessionReport => ({
   files: { got: 0, served: 0, answeredNo: 0, toldNo: 0, failed: 0, noRoom: false, cutBackups: false },
   holdings: { taken: 0, dropped: 0, sent: 0 },
   older: false, farAhead: [], handedKey: null, handedKeyRefused: 0, revokedTaken: null, revokedDropped: 0, finals: null, changed: false,
-  join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }
+  join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }, topUp: null
 });
 
 /** Who hosts what, in the order tried, ending with the pipe (5.12, The short Bluetooth exchange). Both sides work this out from `arrange`, so they agree. */
@@ -344,6 +353,13 @@ export interface NearbyAttempt {
 
 /** Hello's ability that says this phone's plan lets a phone that cannot host join a Wi-Fi Direct group as a plain client (phase 5). */
 export const JOIN_DIRECT_ABILITY = 'join-direct';
+/**
+ * This phone answers `copy-ask` `held` and serves the library documents its language uses of every
+ * format (2026-11-24): with `starting-copy` on the same versions, and with `library` on any.
+ */
+export const COPY_LIBRARY_ABILITY = 'copy-library';
+/** The characters of documents one session takes over the Bluetooth pipe (20 to 70 KB/s), past which the rest waits for the next. */
+export const NEARBY_TOP_UP_PIPE_CHARS = 256 * 1024;
 
 /**
  * `joinDirect` is true only when both Hellos list `JOIN_DIRECT_ABILITY`: a phone on older
@@ -455,6 +471,7 @@ export class NearbySession {
   /** A message read while waiting on a copy's answer, kept for the step it belongs to. */
   private readonly stash: Message[] = [];
   private sender: StartingCopySender | null = null;
+  private librarySender: LibraryDocsSender | null = null;
 
   constructor(options: NearbySessionOptions) {
     this.opt = options;
@@ -493,9 +510,10 @@ export class NearbySession {
     await this.hello();
     await this.prepare();
     await this.arrange();
-    // Phase 6: a copy asked of a teammate after an ordinary Hello comes between steps 2 and 4.
+    // Phase 6: a copy asked of a teammate after an ordinary Hello comes between steps 2 and 4, and so do documents any member lacks.
     this.report.linkKind = this.link.kind;
     await this.askCopy();
+    if (!this.report.copy) await this.topUp();
     const moveFiles = this.movesFiles();
     const them = await this.have();
     if (moveFiles) await this.holdingsStep(them);
@@ -678,8 +696,8 @@ export class NearbySession {
       const m = parsed.message;
       if (m.t === 'bye') throw new HeardBye(m.reason);
       if (JOIN_MESSAGES.has(m.t) && !this.opt.join) continue;
-      if (m.t === 'copy-ask' && !this.opt.copy && !this.opt.join) continue;
-      if (COPY_ANSWERS.has(m.t) && !this.opt.takeCopy && this.opt.join?.as !== 'newcomer') continue;
+      if (m.t === 'copy-ask' && !this.opt.copy && !this.opt.library && !this.opt.join) continue;
+      if (COPY_ANSWERS.has(m.t) && !this.opt.takeCopy && !this.opt.library && this.opt.join?.as !== 'newcomer') continue;
       // Step 4 says when, and it comes before whatever that side sends next, whichever step this side is on.
       if (m.t === 'revoked' && this.haveDone) {
         await this.takeRevoked(m);
@@ -740,7 +758,10 @@ export class NearbySession {
 
   private async myHello(): Promise<HelloMessage> {
     const { crypto, opt } = this;
-    const can = [...(opt.files && !opt.join ? ['files'] : []), ...(opt.join?.as === 'inviter' ? ['let-in'] : []), ...(opt.copy ? ['starting-copy'] : []), JOIN_DIRECT_ABILITY];
+    const can = [
+      ...(opt.files && !opt.join ? ['files'] : []), ...(opt.join?.as === 'inviter' ? ['let-in'] : []), ...(opt.copy ? ['starting-copy'] : []), JOIN_DIRECT_ABILITY,
+      ...(opt.copy || (opt.library && !opt.join) ? [COPY_LIBRARY_ABILITY] : [])
+    ];
     const base = { t: 'hello' as const, protocol: { ...NEARBY_PROTOCOL }, can, reducerVersion: REDUCER_VERSION, linesVersion: LINES_VERSION, wallMs: opt.port.nearbyWallNow };
     // On a QR link a QR holder learns nothing of the inviter until the tap: no chain, proof or device id from either side.
     if (opt.join) return { ...base, deviceId: '', chain: [], proof: '' };
@@ -950,12 +971,21 @@ export class NearbySession {
     await this.send({ t: 'bye', reason: 'done' }).catch((err: unknown) => { if (!isDrop(err)) throw err; });
   }
 
-  /** A teammate's answer to one ask: as a sender, only after its read gate passed this chain, and only on the same versions. */
+  /**
+   * A teammate's answer to one ask, only after its read gate passed this chain. A starting copy's
+   * parts only on the same versions. Documents, named by their hash, on any versions: from the
+   * member's own library on an ordinary link, else as the starting copy has them.
+   */
   private async serveCopy(ask: Extract<Message, { t: 'copy-ask' }>): Promise<void> {
     const { opt, report } = this;
     const granted = !opt.join || report.join?.granted === true;
+    const docsOnly = ask.part === 'held' || ask.part === 'doc';
     let answer: Awaited<ReturnType<StartingCopySender['answer']>>;
-    if (!opt.copy || !granted) answer = 'not-allowed';
+    if (!granted) answer = 'not-allowed';
+    else if (docsOnly && opt.library && !opt.join) {
+      this.librarySender ??= LibraryDocsSender.of(opt.library);
+      answer = await this.local(() => this.librarySender!.answer(ask)).catch((): 'not-here' => 'not-here');
+    } else if (!opt.copy) answer = 'not-allowed';
     else if (!this.sameVersions()) answer = 'versions';
     else {
       this.sender ??= new StartingCopySender(opt.copy, opt.languageId);
@@ -971,7 +1001,7 @@ export class NearbySession {
     await this.send({ t: 'copy-part', ...answer });
   }
 
-  /** One ask and its answer. A `have` that came first is kept for step 4. */
+  /** One ask and its answer. A `have` that came first is kept for step 4, and the other side's own asks are answered meanwhile, so two phones asking at once both go on. */
   private copyAsker(): CopyAsker {
     return async (ask) => {
       await this.send({ t: 'copy-ask', ...ask });
@@ -980,15 +1010,25 @@ export class NearbySession {
         if (m.t === 'copy-part' || m.t === 'copy-no') return m;
         // One Have comes per session: a second while a newcomer waits on a part is a teammate filling its memory (security review, 2026-11-10).
         if (m.t === 'have' && !this.opt.join && !this.stash.some((x) => x.t === 'have')) this.stash.push(m);
-        else if (m.t === 'copy-ask') await this.send({ t: 'copy-no', reason: 'not-allowed' });
+        else if (m.t === 'copy-ask') await this.serveCopy(m);
         else throw new SayBye('protocol', `${m.t} during a copy`);
       }
     };
   }
 
+  /** How this phone asks the other for documents: only what it holds when it can say, and with `pipeShare` a share of the Bluetooth pipe. */
+  private docsAsk(pipeShare: boolean): LibraryDocsAsk {
+    return {
+      held: !!this.theirHello?.can.includes(COPY_LIBRARY_ABILITY),
+      ...(pipeShare && !this.link.canMoveFiles ? { budgetChars: NEARBY_TOP_UP_PIPE_CHARS } : {}),
+      local: (work) => this.local(work)
+    };
+  }
+
   private async takeCopyFrom(target: Omit<StartingCopyTarget, 'sha256'>): Promise<void> {
     try {
-      this.report.copy = await takeStartingCopy(this.copyAsker(), { ...target, sha256: this.crypto.sha256 });
+      // A newcomer's copy takes every document it can over any link: setting the person waits on none of them.
+      this.report.copy = await takeStartingCopy(this.copyAsker(), { ...target, sha256: this.crypto.sha256 }, this.docsAsk(false));
       if (this.report.copy.filled > 0) this.report.changed = true;
     } catch (err) {
       if (!(err instanceof CopyRefused)) throw err;
@@ -1007,6 +1047,19 @@ export class NearbySession {
       return;
     }
     await this.takeCopyFrom(target);
+  }
+
+  /**
+   * After an ordinary Hello, any member (14.1, 2026-11-24): the documents its language uses that it
+   * lacks, from a teammate that serves them, so a copy that came short, or a guide a teammate
+   * fetched online, reaches this phone. Nothing is asked when nothing is lacking.
+   */
+  private async topUp(): Promise<void> {
+    const library = this.opt.library;
+    if (!library || !this.theirHello?.can.includes(COPY_LIBRARY_ABILITY)) return;
+    const taken = await takeLibraryDocs(this.copyAsker(), library, { sha256: this.crypto.sha256 }, this.docsAsk(true));
+    if (taken.kept + taken.refused + taken.missing > 0 || taken.capped) this.report.topUp = taken;
+    if (taken.kept > 0) this.report.changed = true;
   }
 
   /** Step 4's `have`, answering a newcomer's copy asks that come before it. */

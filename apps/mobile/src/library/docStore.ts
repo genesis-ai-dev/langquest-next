@@ -1,4 +1,4 @@
-import { canonicalJson, validateDoc, withDeps, type LibraryDoc } from '@langquest-next/core';
+import { canonicalJson, docHeadOf, validateDoc, withDeps, type DocHead, type LibraryDoc } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
@@ -23,6 +23,18 @@ import { webFiles } from '../web/webFiles';
 const WEB = Platform.OS === 'web' ? webFiles('library') : null;
 const DIR = WEB ? null : new Directory(Paths.document, 'library');
 const memory = new Map<string, LibraryDoc>();
+/**
+ * What a nearby walk needs of each document read for it (`docHeadOf`): its format and what it
+ * refers to. A walk over every guide the language uses reads each once a run and keeps only this,
+ * never the document: FIA's English guides alone are 1,525 documents, 65 MB (2026-11-24).
+ */
+const heads = new Map<string, DocHead>();
+/**
+ * Formats that come by the hundred and are read one passage at a time: a teammate's are kept on
+ * disk only, and a screen reads one when it needs it (`useLibraryDocs`), as `loadDocs` leaves a
+ * collection's guides and a source's books until a passage reads them.
+ */
+const READ_WHEN_NEEDED: ReadonlySet<string> = new Set(['study@1', 'study@2', 'sourceBook@1', 'timing@1']);
 const listeners = new Set<() => void>();
 const outboxKey = (orgId: string) => `library-outbox:${orgId}`;
 /**
@@ -52,13 +64,13 @@ export async function prepareDoc<T extends LibraryDoc>(doc: T): Promise<{ doc: T
   return { doc: full, text, hash: await hashOf(text) };
 }
 
-/** Trust a text only if it hashes to its name and is a valid document. */
-async function admit(hash: string, text: string): Promise<LibraryDoc | null> {
+/** Trust a text only if it hashes to its name and is a valid document. `remember`: keep it in memory, where screens read it. */
+async function admit(hash: string, text: string, remember = true): Promise<LibraryDoc | null> {
   if ((await hashOf(text)) !== hash) return null;
   let doc: unknown;
   try { doc = JSON.parse(text); } catch { return null; }
   if (validateDoc(doc)) return null;
-  memory.set(hash, doc as LibraryDoc);
+  if (remember) memory.set(hash, doc as LibraryDoc);
   return doc as LibraryDoc;
 }
 
@@ -67,13 +79,13 @@ export function cachedDoc(hash: string | null | undefined): LibraryDoc | null {
   return hash ? memory.get(hash) ?? null : null;
 }
 
-async function fromDisk(hash: string): Promise<LibraryDoc | null> {
+async function fromDisk(hash: string, remember = true): Promise<LibraryDoc | null> {
   if (WEB) {
     // A browser that cannot read its files has none of them: the document comes from the server.
     const bytes = await WEB.read(`${hash}.json`).catch(() => null);
     const text = bytes ? new TextDecoder().decode(bytes) : await AsyncStorage.getItem(webKey(hash));
     if (!text) return null;
-    const doc = await admit(hash, text);
+    const doc = await admit(hash, text, remember);
     if (!doc) {
       await WEB.remove(`${hash}.json`).catch(() => undefined);
       await AsyncStorage.removeItem(webKey(hash));
@@ -84,7 +96,7 @@ async function fromDisk(hash: string): Promise<LibraryDoc | null> {
   ensureDir();
   const file = new File(DIR, `${hash}.json`);
   if (!file.exists) return null;
-  const doc = await admit(hash, await file.text());
+  const doc = await admit(hash, await file.text(), remember);
   // A damaged file is dropped; the server has the document.
   if (!doc) { try { file.delete(); } catch { /* retried next time */ } }
   return doc;
@@ -115,7 +127,8 @@ export async function docText(hash: string): Promise<string | null> {
   const file = new File(DIR, `${hash}.json`);
   if (!file.exists) return null;
   const text = await file.text();
-  return (await admit(hash, text)) ? text : null;
+  // Sent to a teammate, not shown here: it stays out of memory.
+  return (await admit(hash, text, false)) ? text : null;
 }
 
 /** A document this phone holds, from memory or disk, never the server. */
@@ -123,14 +136,30 @@ export async function heldDoc(hash: string): Promise<LibraryDoc | null> {
   return memory.get(hash) ?? (await fromDisk(hash));
 }
 
+/** What a nearby walk needs of a document this phone holds, read from disk once a run and never kept whole (`heads`). */
+export async function heldDocHead(hash: string): Promise<DocHead | null> {
+  const known = heads.get(hash);
+  if (known) return known;
+  const doc = memory.get(hash) ?? (await fromDisk(hash, false));
+  if (!doc) return null;
+  const head = docHeadOf(doc);
+  heads.set(hash, head);
+  return head;
+}
+
 /**
  * Keep a teammate's text as a fetched document: no outbox row, since this phone did not make it.
- * Only once it hashes to its name and validates; the caller has checked the allowlist.
+ * Only once it hashes to its name and validates; the caller has checked the allowlist. A guide, a
+ * source's book or its timing goes to disk only (`READ_WHEN_NEEDED`): a teammate may hand over
+ * every guide the language uses at once.
  */
 export async function keepFetchedDoc(hash: string, text: string): Promise<boolean> {
-  if (!(await admit(hash, text))) return false;
+  const doc = await admit(hash, text, false);
+  if (!doc) return false;
   await toDisk(hash, text);
-  notify();
+  if (!READ_WHEN_NEEDED.has(doc.format)) memory.set(hash, doc);
+  heads.set(hash, docHeadOf(doc));
+  notifySoon();
   return true;
 }
 
@@ -248,6 +277,19 @@ export async function loadDocs(orgId: string, hashes: (string | null | undefined
 
 function notify() {
   for (const l of listeners) l();
+}
+
+/** How long a teammate's documents wait to be told to the screens together: a session may keep a thousand in a row. */
+export const FETCHED_NOTIFY_MS = 500;
+let notifyTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Tells the screens once for every document kept within `FETCHED_NOTIFY_MS`, not once each. */
+function notifySoon() {
+  if (notifyTimer) return;
+  notifyTimer = setTimeout(() => {
+    notifyTimer = null;
+    notify();
+  }, FETCHED_NOTIFY_MS);
 }
 
 /** Re-render when documents arrive. */
