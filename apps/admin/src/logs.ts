@@ -1,6 +1,10 @@
 import { list } from './env';
 import { whoReads, type ReadDeps, type ReadLogin } from './read';
 import { httpErrorsSql, pgErrorsSql } from './sources/supabase';
+import { API_READERS, API_SOURCES, type ApiSource, type ApisEnv } from './logsApis';
+import { getJson, ISO, LOGS_MAX_MINUTES, need, num, redact, Refused, str, tail, type LogAnswer } from './logsShared';
+
+export { LOGS_MAX_LINE, LOGS_MAX_LINES, LOGS_MAX_MINUTES, head, maskPersonal, redact, tail, type LogAnswer } from './logsShared';
 
 /**
  * The log gate (docs/production-reads.md, "Logs";
@@ -11,32 +15,31 @@ import { httpErrorsSql, pgErrorsSql } from './sources/supabase';
  * GitHub: the same bearer tokens as the read gate get in, as the same two
  * logins.
  *
- * - claude_reader (cloud threads, a laptop): every source, whole lines.
- * - agent_reader (the agent teams, whose logs are public): build logs whole,
- *   because they print only code and the build's own output; Worker logs at
- *   warn and error only, and Supabase only as the ops dashboard's grouped
- *   counts; every free-text line with emails, tokens and long numbers taken
- *   out (`redact`).
+ * Both logins read every source, at every level, with any query
+ * (docs/decisions/2026-11-24-agents-read-everything-but-personal-data.md).
+ * What differs is personal data:
+ * - claude_reader (cloud threads, a laptop): log lines whole.
+ * - agent_reader (the agent teams, whose logs are public): every Worker and
+ *   Supabase log line with emails, IP addresses, phone numbers, tokens and
+ *   long values taken out (`redact`). Build logs stay whole: they print only
+ *   code and the build's own output.
+ * - the provider APIs (logsApis.ts): personal data taken out for both.
  */
 
 export const LOGS_PATH = '/ops/api/read/logs';
-/** Lines one answer holds at most; the newest are kept, where the failure usually is. */
-export const LOGS_MAX_LINES = 2_000;
-export const LOGS_MAX_LINE = 2_000;
-export const LOGS_MAX_MINUTES = 24 * 60;
-
-export type LogSource = 'worker-builds' | 'worker-build-log' | 'worker-logs' | 'supabase-logs' | 'eas-builds' | 'eas-build-log' | 'github-job-log';
+export type LogSource = 'worker-builds' | 'worker-build-log' | 'worker-logs' | 'supabase-logs' | 'eas-builds' | 'eas-build-log' | 'github-job-log' | ApiSource;
 export const LOG_SOURCES: Record<LogSource, string> = {
+  ...API_SOURCES,
   'worker-builds': 'The latest Workers Builds (how a merge to main deploys a Worker): {worker?, limit?}',
   'worker-build-log': 'One Workers Build\'s log: {build}',
   'worker-logs': 'A Worker\'s own logs (Workers Logs): {worker?, minutes?, level?, search?, limit?}',
-  'supabase-logs': 'Supabase\'s logs: {sql, minutes?} for claude_reader; {query: postgres-errors | http-errors, minutes?} for agent_reader',
+  'supabase-logs': 'Supabase\'s logs (Postgres, sign-in, edge functions, API, storage, realtime): {sql, minutes?} (Logs Explorer SQL on table logs; source names the log, e.g. function_logs, postgres_logs, auth_logs, edge_logs), or {query: postgres-errors | http-errors, minutes?}',
   'eas-builds': 'The latest EAS builds of the phone app: {limit?}',
   'eas-build-log': 'One EAS build\'s log: {build}',
   'github-job-log': 'One GitHub Actions job\'s log in this repository: {job}'
 };
 
-export interface LogsEnv {
+export interface LogsEnv extends ApisEnv {
   CLOUDFLARE_ACCOUNT_ID: string;
   CLOUDFLARE_WORKERS: string;
   SUPABASE_PROJECTS: string;
@@ -56,60 +59,8 @@ export interface LogsDeps extends Pick<ReadDeps, 'tokenSha256' | 'verify' | 'all
   fetcher: typeof fetch;
 }
 
-export interface LogAnswer { lines: string[]; truncated: boolean; note?: string }
-
-class Refused extends Error {
-  constructor(message: string, readonly status = 400) { super(message); }
-}
-
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
-
-/**
- * A line with what could name a person or open something taken out:
- * emails, bearer tokens and JWTs, long hex or base64 runs that are not a
- * uuid, and international phone numbers. Ids (uuids), codes and
- * times stay, as agent_reader reads them in the database.
- */
-export function redact(line: string): string {
-  return line
-    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
-    .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[jwt]')
-    .replace(/\bbearer\s+[^\s"',}]+/gi, 'Bearer [hidden]')
-    .replace(/\b(token|key|secret|password|apikey|authorization|code)(["']?\s*[:=]\s*["']?)[^\s"',}&]+/gi, '$1$2[hidden]')
-    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(?=[A-Za-z0-9+_-]*\d)(?=[A-Za-z0-9+_-]*[A-Za-z])[A-Za-z0-9+_-]{32,}={0,2}/g, (m) => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(m) ? m : '[long value]'))
-    .replace(/\+\d[\d ]{6,}\d/g, '[number]');
-}
-
-/** The newest LOGS_MAX_LINES lines, each cut to LOGS_MAX_LINE characters. */
-export function tail(lines: string[], note?: string): LogAnswer {
-  const cut = lines.length > LOGS_MAX_LINES;
-  const kept = (cut ? lines.slice(-LOGS_MAX_LINES) : lines).map((l) => (l.length > LOGS_MAX_LINE ? `${l.slice(0, LOGS_MAX_LINE)}…` : l));
-  return { lines: kept, truncated: cut, ...(note ? { note } : {}) };
-}
-
-const str = (v: unknown, name: string, pattern: RegExp): string => {
-  if (typeof v !== 'string' || !pattern.test(v)) throw new Refused(`${name} is missing or not well formed`);
-  return v;
-};
-const num = (v: unknown, fallback: number, max: number): number => {
-  const n = typeof v === 'number' && Number.isFinite(v) ? Math.floor(v) : fallback;
-  return Math.max(1, Math.min(n, max));
-};
-const need = (token: string | undefined, name: string, what: string): string => {
-  if (!token) throw new Refused(`The admin Worker has no ${name}, so it cannot read ${what} (docs/admin.md).`, 503);
-  return token;
-};
-const ISO = (ms: number) => new Date(ms).toISOString();
-
-async function getJson<T>(fetcher: typeof fetch, url: string, init: RequestInit, what: string): Promise<T> {
-  const res = await fetcher(url, { ...init, signal: AbortSignal.timeout(20_000) });
-  if (!res.ok) {
-    const hint = res.status === 401 || res.status === 403 ? ' (the token is refused or lacks a permission)' : '';
-    throw new Refused(`${what}: HTTP ${res.status}${hint}`, 502);
-  }
-  return (await res.json()) as T;
-}
 
 // ---- Cloudflare ----
 
@@ -185,8 +136,7 @@ async function workerLogs(d: LogsDeps, body: Record<string, unknown>, login: Rea
   const search = typeof body.search === 'string' ? body.search.slice(0, 200) : undefined;
   const filters: unknown[] = [];
   if (worker) filters.push({ key: '$workers.scriptName', operation: 'eq', type: 'string', value: worker });
-  // The agent teams read warnings and errors only.
-  const levels = login === 'agent_reader' ? (asked === 'warn' ? ['warn'] : asked === 'error' ? ['error'] : ['warn', 'error']) : asked ? [asked] : null;
+  const levels = asked ? [asked] : null;
   if (levels) filters.push({ kind: 'group', filterCombination: 'or', filters: levels.map((value) => ({ key: '$metadata.level', operation: 'eq', type: 'string', value })) });
   const now = d.now();
   const answer = await getJson<{ result?: { events?: { events?: CfEvent[] } } }>(d.fetcher,
@@ -211,8 +161,8 @@ async function workerLogs(d: LogsDeps, body: Record<string, unknown>, login: Rea
 
 // ---- Supabase ----
 
-/** The queries agent_reader may run on Supabase's logs: the ops dashboard's groups, codes and counts, never a message. */
-export const AGENT_SUPABASE_QUERIES: Record<string, (column: 'source' | 'source_name') => string> = {
+/** Named queries on Supabase's logs: the ops dashboard's groups, codes and counts. */
+export const SUPABASE_QUERIES: Record<string, (column: 'source' | 'source_name') => string> = {
   'postgres-errors': pgErrorsSql,
   'http-errors': httpErrorsSql
 };
@@ -223,20 +173,18 @@ async function supabaseLogs(d: LogsDeps, body: Record<string, unknown>, login: R
   if (!ref) throw new Refused('No Supabase project is set (SUPABASE_PROJECTS).', 503);
   const minutes = num(body.minutes, 60, LOGS_MAX_MINUTES);
   let sqlFor: (column: 'source' | 'source_name') => string;
-  if (login === 'agent_reader') {
-    const named = typeof body.query === 'string' ? AGENT_SUPABASE_QUERIES[body.query] : undefined;
-    if (!named) throw new Refused(`The agent teams send {query: ${Object.keys(AGENT_SUPABASE_QUERIES).join(' | ')}}, not SQL.`);
-    sqlFor = named;
-  } else {
+  const named = typeof body.query === 'string' ? SUPABASE_QUERIES[body.query] : undefined;
+  if (named) sqlFor = named;
+  else {
     const sql = typeof body.sql === 'string' ? body.sql.trim() : '';
-    if (!sql || sql.length > 10_000) throw new Refused('Send {sql: "select ... from logs ..."} (Supabase Logs Explorer SQL; `source` names the log, e.g. function_logs, postgres_logs).');
+    if (!sql || sql.length > 10_000) throw new Refused(`Send {sql: "select ... from logs ..."} (Supabase Logs Explorer SQL; \`source\` names the log, e.g. function_logs, postgres_logs, auth_logs, edge_logs), or {query: ${Object.keys(SUPABASE_QUERIES).join(' | ')}}.`);
     sqlFor = () => sql;
   }
   const now = d.now();
   const range = `&iso_timestamp_start=${ISO(now - minutes * 60_000)}&iso_timestamp_end=${ISO(now)}`;
   let last = '';
   // The docs name the column `source`, the migration notes `source_name`; the dashboard tries both too.
-  for (const column of login === 'agent_reader' ? (['source', 'source_name'] as const) : (['source'] as const)) {
+  for (const column of named ? (['source', 'source_name'] as const) : (['source'] as const)) {
     const answer = await getJson<{ result?: Record<string, unknown>[]; error?: unknown }>(d.fetcher,
       `https://api.supabase.com/v1/projects/${ref}/analytics/endpoints/logs?sql=${encodeURIComponent(sqlFor(column))}${range}`,
       { headers: { authorization: `Bearer ${token}` } }, 'Supabase logs');
@@ -244,7 +192,8 @@ async function supabaseLogs(d: LogsDeps, body: Record<string, unknown>, login: R
     const rows = answer.result ?? [];
     const columns = [...new Set(rows.flatMap((r) => Object.keys(r)))];
     const cell = (v: unknown) => (v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v)).replace(/[\t\n]/g, ' ');
-    return tail([columns.join('\t'), ...rows.map((r) => columns.map((c) => cell(r[c])).join('\t'))], `The last ${minutes} minutes.`);
+    const lines = [columns.join('\t'), ...rows.map((r) => columns.map((c) => cell(r[c])).join('\t'))];
+    return tail(login === 'agent_reader' ? lines.map(redact) : lines, `The last ${minutes} minutes.`);
   }
   throw new Refused(`Supabase logs: ${last}`);
 }
@@ -306,6 +255,7 @@ async function githubJobLog(d: LogsDeps, body: Record<string, unknown>): Promise
 }
 
 const READERS: Record<LogSource, (d: LogsDeps, body: Record<string, unknown>, login: ReadLogin) => Promise<LogAnswer>> = {
+  ...API_READERS,
   'worker-builds': workerBuilds,
   'worker-build-log': workerBuildLog,
   'worker-logs': workerLogs,

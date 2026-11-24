@@ -13,9 +13,10 @@ import { plainConnection } from './db';
  *   as a bearer token (the Worker keeps only its SHA-256), read as
  *   claude_reader: everything but secrets and emails.
  * - The agent teams' workflows on main, with the GitHub OIDC token their job
- *   gets (githubOidc.ts, decision 186), read as agent_reader: ids, counts,
- *   times and codes, because their logs are public and they read what
- *   strangers write. No key is stored in GitHub.
+ *   gets (githubOidc.ts, decision 186), read as agent_reader: everything
+ *   claude_reader reads but personal data, and what people typed through
+ *   the views of `masked` (migration 20261124223000). No key is stored in
+ *   GitHub.
  *
  * The database holds both logins to reading (migration
  * 20261121194800_claude_readers.sql): neither has a grant to write. This

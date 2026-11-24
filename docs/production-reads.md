@@ -22,8 +22,10 @@ Migration `20261121194800_claude_readers.sql` makes them;
 | | claude_reader | agent_reader |
 |---|---|---|
 | Who | cloud threads, a laptop | the agent teams (`user-issues.yml` and `card-questions.yml` on main) |
-| Reads | `public`, `diag`, `ops`, `v2_import` | `diag`'s tables of ids, counts, times and codes; `public.events` without `payload` |
-| Never | sign-in codes, password resets, push tokens, webhook secrets, API and invite token hashes, discovery keys, emails; `auth`, `storage`, `vault` | the above, and names, typed text, recordings, `diag.feedback`, every report function |
+| Reads | `public`, `diag`, `ops`, `v2_import`, the report functions | the same tables; what people typed through the views of `masked` |
+| Never | sign-in codes, password resets, push tokens, webhook secrets, API and invite token hashes, discovery keys, emails; `auth`, `storage`, `vault` | the above, and personal data: `profiles.display_name` and `avatar_blob`, `diag.feedback`'s name, screenshot, voice and picture; the report functions |
+| Typed text | whole | `masked.events` (payloads), `masked.feedback`, `masked.join_requests`, `masked.content_reports`: emails, phone numbers and IP addresses taken out (`masked.personal`) |
+| Statistics | `pg_stat_statements`, `pg_stat_activity` (`pg_read_all_stats`) | the same |
 | Writes | nothing: no grant to insert, update, delete or truncate anywhere | nothing |
 
 Both: every transaction is read-only unless the session turns that off, each
@@ -33,9 +35,15 @@ table made later is readable by claude_reader; a migration that adds a
 secret column revokes it there, and the smoke test fails on a readable column
 whose name looks like a secret or an email until it does.
 
-The agent teams get less because their logs are public (the repository is)
-and they read what strangers write: a stranger's text could ask Claude to
-look up private data and put it in a public place.
+The agent teams read everything but personal data (a person's name, email,
+phone number, IP address, picture, voice and screenshot): Caleb chose that
+on 2026-11-24, though their logs are public (the repository is) and they
+read what strangers write
+(`docs/decisions/2026-11-24-agents-read-everything-but-personal-data.md`).
+Migration `20261124223000_agent_reader_all_but_personal.sql` makes it so.
+A table made later is readable by agent_reader too; a migration that adds a
+personal column revokes it there, and the smoke test fails on a readable
+column whose name looks like one.
 
 ## The read gate
 
@@ -149,8 +157,8 @@ npm run prod:read -- --logs github-job-log job=<job id>
 | Source | What | Worker key | claude_reader | agent_reader |
 |---|---|---|---|---|
 | `worker-builds`, `worker-build-log` | Workers Builds: the build that deploys each Worker on a merge to main, and its log | `ADMIN_CLOUDFLARE_TOKEN` (Workers CI Read) | whole | whole: a build prints code and its own output |
-| `worker-logs` | a Worker's own log lines (Workers Logs), the last 24 hours at most | `ADMIN_CLOUDFLARE_LOGS_TOKEN` (Workers role Metadata Read-Only) | every level, whole lines | warn and error only; emails, tokens, long values, phone numbers and query strings taken out (`redact`) |
-| `supabase-logs` | Supabase's logs (Logs Explorer SQL) | `ADMIN_SUPABASE_TOKEN` (Logs Read) | any query | only `postgres-errors` and `http-errors`: the ops dashboard's groups, codes and counts, never a message |
+| `worker-logs` | a Worker's own log lines (Workers Logs), the last 24 hours at most | `ADMIN_CLOUDFLARE_LOGS_TOKEN` (Workers role Metadata Read-Only) | every level, whole lines | every level; emails, IP addresses, tokens, long values, phone numbers and query strings taken out (`redact`) |
+| `supabase-logs` | Supabase's logs (Logs Explorer SQL): Postgres, sign-in, edge functions, API, storage | `ADMIN_SUPABASE_TOKEN` (Logs Read) | any query, or `postgres-errors` and `http-errors` (the ops dashboard's groups) | the same, each line through `redact` |
 | `eas-builds`, `eas-build-log` | the phone app's EAS builds and a build's log | `ADMIN_EXPO_TOKEN` (robot, Viewer) | whole | whole |
 | `github-job-log` | a GitHub Actions job's log in this repository | `ADMIN_GITHUB_TOKEN` (Actions Read) | whole | whole: the repository is public |
 
@@ -158,13 +166,52 @@ An answer holds the newest 2,000 lines at most. Each read is a line in the
 Worker's log, as a statement is. The rate limit is the read gate's, counted
 apart. Log lines are production data too: "Where answers go" below holds.
 
-Every key the Worker reads logs with is read-only. Workers Logs take a token
+Every key the Worker reads logs and APIs with is read-only. Workers Logs take a token
 of their own with the Workers role Metadata Read-Only, so the dashboard's
 token keeps its own few grants.
 
-Not here yet: App Store Connect and Google Play crash reports (the ops
-dashboard shows them), and langquest.org on Vercel, whose tokens cannot be
-made read-only.
+### Provider APIs
+
+The same path reads the providers' APIs with the keys the Worker holds for
+the ops dashboard (`apps/admin/src/logsApis.ts`). Only a GET, or a GraphQL
+query and never a mutation. Fields that name or reach a person
+(`authorName`, `email`, `avatar_url` and the like) and emails, IP addresses
+and phone numbers in any text are taken out for both logins. App Store
+Connect's lists of people (users, testers) are refused. `{app}`,
+`{package}` and `{account}` in a path, and `$account` or `$appId` in a
+query, are filled in.
+
+```
+npm run prod:read -- --logs cloudflare-graphql query="query (\$account: string!) { viewer { accounts(filter: {accountTag: \$account}) { workersInvocationsAdaptive(limit: 50, filter: {datetime_geq: \"2026-11-24T00:00:00Z\"}) { sum { requests errors } dimensions { scriptName status } } } } }"
+npm run prod:read -- --logs cloudflare-api path=hyperdrive/configs
+npm run prod:read -- --logs github-api path="actions/runs?per_page=20"
+npm run prod:read -- --logs github-api path=actions/runs/<run id>/jobs
+npm run prod:read -- --logs eas-updates
+npm run prod:read -- --logs eas-submissions
+npm run prod:read -- --logs eas-graphql query="query (\$appId: String!) { app { byId(appId: \$appId) { name } } }"
+npm run prod:read -- --logs play-crashes days=14
+npm run prod:read -- --logs play-crashes issue=<id at the end of the group's name>
+npm run prod:read -- --logs google-play-api api=publisher path=reviews
+npm run prod:read -- --logs app-store-api path="v1/apps/{app}/betaFeedbackCrashSubmissions?sort=-createdDate&limit=20"
+npm run prod:read -- --logs app-store-crash-log submission=<id>
+npm run prod:read -- --logs r2-blobs prefix=<org id>/<stream id>/<sha256>
+npm run prod:read -- --logs r2-blobs keys='["<org id>/<stream id>/<sha256>.m4a"]'
+```
+
+| Source | What | Worker key |
+|---|---|---|
+| `cloudflare-graphql` | Cloudflare's analytics: Worker requests, errors, CPU and status by Worker, R2 operations and storage, Hyperdrive queries, Durable Objects | `ADMIN_CLOUDFLARE_TOKEN` (Account Analytics Read) |
+| `cloudflare-api` | a GET under the account: Workers' settings and versions, Hyperdrive configs, builds | `ADMIN_CLOUDFLARE_TOKEN` (Workers Scripts Read, Workers CI Read) |
+| `github-api` | a GET under this repository: Actions runs, jobs and artifacts (their names and sizes, not their files), commits, pull requests | `ADMIN_GITHUB_TOKEN` |
+| `eas-graphql`, `eas-updates`, `eas-submissions` | Expo's API: OTA updates on each branch, store submissions and their errors, anything else a query asks | `ADMIN_EXPO_TOKEN` (robot, Viewer) |
+| `app-store-api`, `app-store-crash-log` | App Store Connect: versions and review state, builds and their processing, TestFlight crash reports and their crash logs, customer reviews | `ADMIN_APP_STORE_KEY` |
+| `play-crashes`, `google-play-api` | Google Play: crash and ANR groups, one group's reports with stack traces, crash and ANR rates, reviews | `ADMIN_GOOGLE_PLAY_KEY` |
+| `r2-blobs` | the BLOBS bucket: a key's size, time and type (a HEAD each), or one page of a prefix's listing, through the app Worker's read-only JobStatus entrypoint; never a file's bytes | none: the `APP_JOBS` binding |
+
+Not here: App Store crash reports from people's phones (not TestFlight),
+which Apple gives only through an analytics report request that an Admin
+key must make once, and langquest.org on Vercel, whose tokens cannot be
+made read-only. The phones' own crash records are in `diag.records`.
 
 ## Where each key lives
 
@@ -214,6 +261,10 @@ Any one of these stops it:
 
 - A key that leaks lets its holder read what its login reads until it is
   rotated or stopped: for `CLAUDE_READ_TOKEN`, names and what people wrote.
+- An agent team's output is public. It reads partners' work (what people
+  typed, with emails and numbers taken out); a stranger's text could lead it
+  to repeat that in a public place. A name typed into a note is not taken
+  out.
 - A statement can still be heavy for 15 s. Five connections and 60
   statements a minute bound how much of the database it takes.
 - With a direct connection (not through the gate), a session can turn

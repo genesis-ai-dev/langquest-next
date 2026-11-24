@@ -36,14 +36,15 @@ it. Your answer shows under the question on that card.
    there duplicates", read the real path (for files: `packages/sync`,
    `apps/web/worker/blobs.ts`, `apps/mobile/src`), and name the file and line.
 3. Check facts in production yourself, in this run, with the read gate, as
-   agent_reader: ids, counts, times and codes (docs/production-reads.md).
+   agent_reader: every table but personal data, and what people typed in
+   the views of schema `masked` (docs/production-reads.md).
    A relay that the job starts before you passes each read on.
    `node /home/runner/work/_temp/ask/prod-read.mjs "select ..."`
    Read a log the same way:
    `node /home/runner/work/_temp/ask/prod-read.mjs --logs <source> name=value ...`
    (with no source it lists them). Never give an admin SQL, a `diag`
    command or a read to run: do it. When agent_reader cannot read a thing
-   (a name, an email, what people typed), give the ids you found and say
+   (a name, an email, a phone number, a picture), give the ids you found and say
    that a developer's cloud thread can read the rest.
 4. When the answer needs public facts (a price, a plan's limits, a
    provider's choices), do not guess and do not answer from memory. Put what
