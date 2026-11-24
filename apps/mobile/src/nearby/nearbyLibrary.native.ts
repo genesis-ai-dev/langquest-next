@@ -1,4 +1,5 @@
 import type { LanguageState, OrgState } from '@langquest-next/core';
+import { nearbyDocHeadOf } from '@langquest-next/core/nearby';
 import type { NearbyDocs, NearbyLibrary } from '@langquest-next/sync/nearby';
 import { docText, heldDocHead, keepFetchedDoc } from '../library/docStore';
 import type { NearbyLanguage } from '../sync/useLanguage';
@@ -12,7 +13,7 @@ import type { NearbyLanguage } from '../sync/useLanguage';
 
 /** The library documents kept on this phone, as a teammate reads and keeps them (sync's `NearbyDocs`): heads, never whole documents, for the walk. */
 export const phoneDocs: NearbyDocs = {
-  head: (hash) => heldDocHead(hash),
+  head: (hash) => heldDocHead(hash, nearbyDocHeadOf),
   text: (hash) => docText(hash),
   keep: (hash, text) => keepFetchedDoc(hash, text)
 };

@@ -136,13 +136,17 @@ export async function heldDoc(hash: string): Promise<LibraryDoc | null> {
   return memory.get(hash) ?? (await fromDisk(hash));
 }
 
-/** What a nearby walk needs of a document this phone holds, read from disk once a run and never kept whole (`heads`). */
-export async function heldDocHead(hash: string): Promise<DocHead | null> {
+/**
+ * What a nearby walk needs of a document this phone holds, read from disk once a run and never kept
+ * whole (`heads`). `headOf` is the walk's own (core's `nearbyDocHeadOf`, with the files it names),
+ * the same on every call.
+ */
+export async function heldDocHead(hash: string, headOf: (doc: LibraryDoc) => DocHead = docHeadOf): Promise<DocHead | null> {
   const known = heads.get(hash);
   if (known) return known;
   const doc = memory.get(hash) ?? (await fromDisk(hash, false));
   if (!doc) return null;
-  const head = docHeadOf(doc);
+  const head = headOf(doc);
   heads.set(hash, head);
   return head;
 }
@@ -158,7 +162,6 @@ export async function keepFetchedDoc(hash: string, text: string): Promise<boolea
   if (!doc) return false;
   await toDisk(hash, text);
   if (!READ_WHEN_NEEDED.has(doc.format)) memory.set(hash, doc);
-  heads.set(hash, docHeadOf(doc));
   notifySoon();
   return true;
 }

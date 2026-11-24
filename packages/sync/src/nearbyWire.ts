@@ -44,6 +44,12 @@ export type Message =
   /** The Worker's attestation; `events` may be a subset of its rows. */
   | { t: 'claims'; text: string; kid: string; sig: string; events: AnyEvent[] }
   | { t: 'events-done'; older: boolean }
+  /**
+   * From 2026-11-24, only between phones whose Hellos both name `library-files`, at the start of step 7: the library
+   * files this phone holds that its language's documents name (`libraryFilesOf`), at most
+   * `NEARBY_HOLDINGS_MESSAGE_FILES` a message, the last with `more` false. The other asks only for those, with `file-ask`.
+   */
+  | { t: 'lib-held'; files: string[]; more: boolean }
   | { t: 'file-ask'; transferId: string; hash: string; format: string }
   | { t: 'file-no'; transferId: string; reason: 'not-here' | 'not-referenced' | 'redacted' }
   | { t: 'files-done' }
@@ -165,6 +171,11 @@ function read(t: string, o: Raw): Message | null | undefined {
     case 'revoked': {
       const { text, kid, sig } = o;
       return typeof text === 'string' && isId(kid) && isSig(sig) ? { t, text, kid, sig } : null;
+    }
+    case 'lib-held': {
+      const { files, more } = o;
+      if (typeof more !== 'boolean' || !Array.isArray(files) || files.length > NEARBY_HOLDINGS_MESSAGE_FILES || !files.every((f) => isHash(f))) return null;
+      return { t, files: files as string[], more };
     }
     case 'holdings': {
       const { key, counter, files, more, hold, sig, chain } = o;

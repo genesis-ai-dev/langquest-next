@@ -497,6 +497,8 @@ const NODE_ID = /^[^/@\s]+$/;
 export interface DocHead {
   format: string;
   refs: readonly string[] | null;
+  /** The files it names that may go between teammates' phones: only a phone's walk reads them (`nearbyDocHeadOf`). */
+  files?: readonly LibraryFile[];
 }
 
 export function docHeadOf(doc: LibraryDoc): DocHead {
@@ -507,6 +509,30 @@ export function docHeadOf(doc: LibraryDoc): DocHead {
     refs = null;
   }
   return { format: doc.format, refs };
+}
+
+/** A file a library document names, as a phone keeps it in its file store: its SHA-256 and format. */
+export interface LibraryFile {
+  hash: string;
+  format: string;
+}
+
+/** What a stored file is when the document does not say: audio is the recorder's m4a, pictures JPEG, films MP4. */
+const MEDIA_DEFAULT = { audio: 'm4a', image: 'jpg', video: 'mp4' } as const;
+export type MediaFileKind = keyof typeof MEDIA_DEFAULT;
+const MEDIA_FORMAT = /^[a-z0-9]{2,5}$/;
+
+/**
+ * The stored file to use for a media reference: on a phone the smaller copy when there is one
+ * (pictures 500px, always JPEG; films MP4), else the original. None when the media is only an
+ * address. The app's guides (apps/mobile/src/study/guideMatch.ts `mediaFile`) and the files that
+ * go between phones (`libraryFilesOf`) read the same one.
+ */
+export function mediaFileOf(ref: MediaRef | undefined, kind: MediaFileKind, phone: boolean): LibraryFile | undefined {
+  if (!ref?.hash) return undefined;
+  if (phone && ref.lowHash) return { hash: ref.lowHash, format: MEDIA_DEFAULT[kind] };
+  const f = ref.format?.toLowerCase().replace(/^jpeg$/, 'jpg');
+  return { hash: ref.hash, format: f && MEDIA_FORMAT.test(f) ? f : MEDIA_DEFAULT[kind] };
 }
 
 /** Every hash a document refers to, so `deps` can be checked (and shared together). */

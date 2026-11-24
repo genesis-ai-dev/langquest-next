@@ -1,5 +1,5 @@
 import { libraryItems, libraryItemView, type LibraryItemView } from './library';
-import { isHash, type DocHead, type LibraryDoc } from './libraryDocs';
+import { docHeadOf, isHash, mediaFileOf, type DocHead, type LibraryDoc, type LibraryFile } from './libraryDocs';
 import type { OrgState } from './org';
 import { recommendedFor } from './references';
 import type { LanguageState } from './state';
@@ -34,6 +34,55 @@ export function formatMayGoInStartingCopy(format: unknown): boolean {
 /** May this document go in a starting copy? Its format is one this build reads (`STARTING_COPY_FORMAT_TABLE`). */
 export function mayGoInStartingCopy(doc: LibraryDoc | null | undefined): boolean {
   return typeof doc === 'object' && doc !== null && formatMayGoInStartingCopy(doc.format);
+}
+
+/**
+ * The formats a library file may take between teammates' phones: audio and pictures. Never a film,
+ * which is large and which phones show from its address, and never a name that is not media, so a
+ * carried build's file can never be one (Carl, 2026-11-24).
+ */
+export const LIBRARY_FILE_FORMATS: ReadonlySet<string> = new Set(['m4a', 'mp3', 'ogg', 'aac', 'wav', 'jpg', 'png', 'webp', 'gif']);
+
+/**
+ * The files a library document names by hash that a phone reads as the app does, and that may go
+ * between teammates' phones (docs/nearby-sync-plan.md 5.12, 2026-11-24): a team's guide's step and
+ * word audio and the phone's copy of each picture, map and illustration (`study@2`), and a
+ * key-word list's audio that has no address (`material@1`, as `useKeyWordAudio` reads it). Not a
+ * film, not a file named only by its address (FIA's, which a later change carries), and not a
+ * source's audio, which waits for its own change. Sorted by hash, with no repeats.
+ */
+export function libraryFilesOf(doc: LibraryDoc): LibraryFile[] {
+  const out = new Map<string, LibraryFile>();
+  const add = (f: LibraryFile | undefined) => {
+    if (f && isHash(f.hash) && LIBRARY_FILE_FORMATS.has(f.format)) out.set(f.hash, f);
+  };
+  switch (doc.format) {
+    case 'study@2':
+      for (const s of doc.steps ?? []) add(mediaFileOf(s.audio, 'audio', true));
+      for (const r of doc.resources ?? []) for (const m of r.media ?? []) if (m.kind !== 'video') add(mediaFileOf(m.file, 'image', true));
+      for (const t of doc.terms ?? []) add(mediaFileOf(t.audio, 'audio', true));
+      break;
+    case 'material@1':
+      for (const w of doc.terms ?? []) if (!w.audio?.url) add(mediaFileOf(w.audio, 'audio', false));
+      break;
+    default:
+      break;
+  }
+  return [...out.values()].sort((a, b) => (a.hash < b.hash ? -1 : a.hash > b.hash ? 1 : 0));
+}
+
+/**
+ * A document's head with the files it names (`libraryFilesOf`), as a phone's walk reads it: the
+ * web, which passes nothing between phones, never carries this.
+ */
+export function nearbyDocHeadOf(doc: LibraryDoc): DocHead {
+  let files: LibraryFile[];
+  try {
+    files = libraryFilesOf(doc);
+  } catch {
+    files = [];
+  }
+  return { ...docHeadOf(doc), files };
 }
 
 type OrgLibrary = Pick<OrgState, 'library' | 'recommendations'>;

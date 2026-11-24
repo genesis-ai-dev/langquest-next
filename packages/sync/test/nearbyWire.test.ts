@@ -30,6 +30,8 @@ const EVERY: Message[] = [
   { t: 'have', orgId: 'org1', languageId: 'lang1', cursor: 1, claimedSeq: 2, revokedSeq: 3, vector: new Map([[KEY, { mark: 2, ahead: [[4, 5], [7, 7]] }]]), holdings: new Map([[KEY, 9]]) },
   { t: 'revoked', text: '{}', kid: 'k1', sig: SIG },
   { t: 'holdings', key: KEY, counter: 2, files: [HASH], more: true },
+  // 2026-11-24: the library files a phone holds, only between phones that both say library-files.
+  { t: 'lib-held', files: [HASH], more: false },
   { t: 'holdings', key: KEY, counter: 2, files: [], more: false, sig: SIG, chain: CHAIN },
   { t: 'holdings-end' },
   { t: 'batch', manifest: '{}', sig: SIG, chain: CHAIN, events: [EVENT] },
@@ -66,7 +68,7 @@ describe('nearby messages', () => {
   });
 
   it('holds a message of every type the plan names', () => {
-    expect(new Set(EVERY.map((m) => m.t)).size).toBe(24);
+    expect(new Set(EVERY.map((m) => m.t)).size).toBe(25);
   });
 
   it('a have travels with its maps as JSON objects', () => {
@@ -164,6 +166,14 @@ describe('every list is capped', () => {
     for (let i = 0; i < 40; i++) deep = { deep };
     malformed({ t: 'batch', manifest: '{}', sig: SIG, chain: [{ deep }], events: [] });
     malformed({ t: 'holdings', key: KEY, counter: 1, files: [], more: false, sig: SIG, chain: [{ deep }] });
+  });
+
+  it('hashes in a lib-held message', () => {
+    const part = (n: number) => ({ t: 'lib-held', more: true, files: Array.from({ length: n }, () => HASH) });
+    expect(parse(part(NEARBY_HOLDINGS_MESSAGE_FILES)).kind).toBe('message');
+    malformed(part(NEARBY_HOLDINGS_MESSAGE_FILES + 1));
+    malformed({ ...part(0), files: ['../x.apk'] });
+    malformed({ t: 'lib-held', files: [] });
   });
 
   it('hashes in a holdings message', () => {

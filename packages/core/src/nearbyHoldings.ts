@@ -195,7 +195,11 @@ export interface NearbyMark {
 export interface WantedFile {
   hash: string;
   format: string;
-  group: 'needed' | 'review' | 'backup';
+  /**
+   * `reference` (2026-11-24): a file a library document of the language names, not a teammate's
+   * recording. It is never marked, never makes room by deleting, and never counts as held for anyone.
+   */
+  group: 'needed' | 'review' | 'backup' | 'reference';
 }
 
 /** What a store query over audio rows and the session give: a kept language's plan names only what memory and the asked passages name. */

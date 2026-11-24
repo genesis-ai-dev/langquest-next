@@ -72,3 +72,9 @@ phone that names the new ability. Reverse if: documents crowd out events or
 files on a slow link (then a session takes them after files, or only over
 Wi-Fi), or a team's phones run short of room (then offered guides wait until
 a passage reads them).
+
+Amended (2026-11-24, Carl Sauder): the files those documents name are no
+longer all left out. A team's guide's pictures and audio and its key words'
+audio move between teammates' phones in step 7, never in the copy
+(2026-11-24-library-files-move-between-teammates-as-reference-files). FIA's
+media and a source's audio still wait.

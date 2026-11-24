@@ -1,8 +1,8 @@
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { HlcClock } from '../src/hlc';
 import type { LibraryDoc } from '../src/libraryDocs';
-import { docHeadOf } from '../src/libraryDocs';
-import { docsThisLanguageNames, docsThisLanguageUses, guidesThisLanguageOffers, mayGoInStartingCopy, STARTING_COPY_FORMATS } from '../src/libraryInUse';
+import { docHeadOf, mediaFileOf } from '../src/libraryDocs';
+import { docsThisLanguageNames, libraryFilesOf, nearbyDocHeadOf, docsThisLanguageUses, guidesThisLanguageOffers, mayGoInStartingCopy, STARTING_COPY_FORMATS } from '../src/libraryInUse';
 import { foldOrg } from '../src/org';
 import { emptyLanguageState, type LanguageState } from '../src/state';
 
@@ -174,6 +174,8 @@ describe('docHeadOf: what the walk keeps of a document', () => {
   it('keeps the format and what it refers to, and says when this build cannot read through it', () => {
     const tpl = docs.get(h('1'))!;
     expect(docHeadOf(tpl)).toEqual({ format: tpl.format, refs: expect.arrayContaining([versification]) });
+    // A phone's walk reads the files it names too; the web never carries that.
+    expect(nearbyDocHeadOf(tpl)).toEqual({ format: tpl.format, refs: expect.arrayContaining([versification]), files: [] });
     expect(docHeadOf({ format: 'collection@1', entries: 5 } as unknown as LibraryDoc).refs).toBeNull();
   });
 
@@ -209,5 +211,41 @@ describe('mayGoInStartingCopy: an allowlist that fails closed', () => {
     expect(mayGoInStartingCopy({ format: 'material@1', source: 'fia.bible' } as unknown as LibraryDoc)).toBe(true);
     expect(mayGoInStartingCopy({ format: 'material@1', pattern: 'FIA' } as unknown as LibraryDoc)).toBe(true);
     expect(mayGoInStartingCopy({ format: 'material@1', kind: 'document' } as unknown as LibraryDoc)).toBe(true);
+  });
+});
+
+// 2026-11-24: the files a team's guide and key-word list name go between teammates' phones, the same file the app reads.
+describe('libraryFilesOf: the files a document names that may go between phones', () => {
+  const H = (c: string) => c.repeat(64).slice(0, 64);
+  it('takes a guide\'s step and word audio and the phone\'s copy of each picture, never a film', () => {
+    const guide = {
+      format: 'study@2', steps: [{ id: 's', title: 'T', text: 't', audio: { hash: H('1') } }, { id: 'u', title: 'U', text: 'u', audio: { url: 'https://fia.bible/a.mp3' } }],
+      resources: [{ ref: 'MRK 1:1', kind: 'media', title: 'R', media: [
+        { id: 'p', kind: 'photo', title: 'P', caption: '', file: { hash: H('2'), lowHash: H('3'), format: 'png' } },
+        { id: 'm', kind: 'map', title: 'M', caption: '', file: { hash: H('4'), format: 'JPEG' } },
+        { id: 'v', kind: 'video', title: 'V', caption: '', file: { hash: H('5'), lowHash: H('6') } }
+      ] }],
+      terms: [{ id: 't', term: 'water', body: '', audio: { hash: H('7'), format: 'mp3' } }]
+    } as unknown as LibraryDoc;
+    expect(libraryFilesOf(guide)).toEqual([
+      { hash: H('1'), format: 'm4a' }, { hash: H('3'), format: 'jpg' }, { hash: H('4'), format: 'jpg' }, { hash: H('7'), format: 'mp3' }
+    ]);
+    expect(nearbyDocHeadOf(guide).files).toEqual(libraryFilesOf(guide));
+    expect(docHeadOf(guide).files).toBeUndefined();
+  });
+
+  it('takes a key word\'s audio only when it has no address, as the app plays it', () => {
+    const words = { format: 'material@1', kind: 'key_terms', terms: [
+      { id: 'a', term: 'a', gloss: '', audio: { hash: H('8'), format: 'm4a' } },
+      { id: 'b', term: 'b', gloss: '', audio: { hash: H('9'), url: 'https://fia.bible/t.mp3' } }
+    ] } as unknown as LibraryDoc;
+    expect(libraryFilesOf(words)).toEqual([{ hash: H('8'), format: 'm4a' }]);
+  });
+
+  it('never a file of another format, a name that is not a hash, or anything of a document that names none', () => {
+    const odd = { format: 'study@2', steps: [{ id: 's', title: 'T', text: 't', audio: { hash: H('a'), format: 'apk' } }, { id: 'x', title: 'X', text: 'x', audio: { hash: '../x' } }], resources: [], terms: [] } as unknown as LibraryDoc;
+    expect(libraryFilesOf(odd)).toEqual([]);
+    expect(libraryFilesOf(docs.get(h('1'))!)).toEqual([]);
+    expect(mediaFileOf({ url: 'https://x' }, 'audio', true)).toBeUndefined();
   });
 });

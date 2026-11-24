@@ -151,6 +151,18 @@ describe.each(impls)('%s contract', (_name, make) => {
   });
 });
 
+describe.each(impls)('%s kept rows in any stream', (_name, make) => {
+  // 2026-11-24: a phone never passes on as a library file one that any language's recording names.
+  it('keptIdsAnywhere answers which ids a kept record of the kind has, in any organization or stream', async () => {
+    const s = await make();
+    const row = (kind: string, id: string) => ({ kind, id, unitId: 'u1', ref: '', json: '{}' });
+    await s.commit({ kept: { orgId: 'o1', streamId: 'p1', upsert: [row('audio', 'a'), row('take', 'b')] } });
+    await s.commit({ kept: { orgId: 'o2', streamId: 'p9', upsert: [row('audio', 'c')] } });
+    expect([...await s.keptIdsAnywhere!('audio', ['a', 'b', 'c', 'd'])].sort()).toEqual(['a', 'c']);
+    expect(await s.keptIdsAnywhere!('audio', [])).toEqual(new Set());
+  });
+});
+
 describe.each(impls)('%s meta contract', (_name, make) => {
   it('meta is a persisted key/value map, undefined when unset', async () => {
     const s = await make();

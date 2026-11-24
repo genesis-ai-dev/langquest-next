@@ -152,6 +152,12 @@ export interface EventStore {
   keptByUnit(orgId: string, streamId: string, kinds: readonly KeptKind[], unitIds: readonly string[]): Promise<KeptRecord[]>;
   /** Kept records of one kind with these ids. */
   keptById(orgId: string, streamId: string, kind: KeptKind, ids: readonly string[]): Promise<KeptRecord[]>;
+  /**
+   * Of these ids, the ones a kept record of this kind has in any organization and stream here: which
+   * files are some language's recordings (`audio` rows by hash), so a phone never passes one on as a
+   * library file (docs/nearby-sync-plan.md 5.12, 2026-11-24). Absent, a caller takes every id as one.
+   */
+  keptIdsAnywhere?(kind: KeptKind, ids: readonly string[]): Promise<Set<string>>;
   /** Kept records of one kind with one of these second keys (`ref`). */
   keptByRef(orgId: string, streamId: string, kind: KeptKind, refs: readonly string[]): Promise<KeptRecord[]>;
   /** Every kept record of one kind (a language's lines). */

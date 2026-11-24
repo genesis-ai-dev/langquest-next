@@ -1,11 +1,11 @@
-import { CLOCK_AHEAD_TOLERANCE_MS, LINES_VERSION, NEARBY_PROTOCOL, pickProtocol, REDUCER_VERSION } from '@langquest-next/core';
+import { CLOCK_AHEAD_TOLERANCE_MS, LINES_VERSION, NEARBY_PROTOCOL, pickProtocol, REDUCER_VERSION, type LibraryFile } from '@langquest-next/core';
 import {
   base64urlEncode, certificateSignedAt, checkChain, handedKeyHolds, issueInviteLink, joinPictures, newcomerProfileId, type JoinPass, type WorkerLink, holdingsFilesHash, holdingsText, isBase64url, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_HOLDINGS_MAX_KEYS, type InviteLink, NEARBY_OPENING_BYTES, nearbyBytes, parseRevocationList, proofText, signedBy, summaryOf, summaryText, withMyHolding, type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
 } from '@langquest-next/core/nearby';
 import { chainAsSigned, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
 import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
 import { nearbyDayOf, nearbyFirstDayWithin, type NearbyKeep } from './nearbyKeep';
-import { CopyRefused, LibraryDocsSender, StartingCopySender, takeLibraryDocs, takeStartingCopy, type CopyAsker, type CopyNoReason, type LibraryDocsAsk, type LibraryDocsTaken, type NearbyCopySource, type NearbyLibrary, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
+import { CopyRefused, libraryFilesNamed, LibraryDocsSender, StartingCopySender, takeLibraryDocs, takeStartingCopy, type CopyAsker, type CopyNoReason, type LibraryDocsAsk, type LibraryDocsTaken, type NearbyCopySource, type NearbyLibrary, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';
 import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, openingPinOf, sameBytes, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
 import { encodeMessage, NEARBY_HOLDINGS_MESSAGE_FILES, parseMessage, type Message } from './nearbyWire';
@@ -67,6 +67,19 @@ export interface NearbyFileMoves {
   holds?(): boolean;
   /** Moves the files through the language session's nearby worker (`nearbyFiles`); absent, the session fetches them one by one itself. */
   take?(job: NearbyFetchJob): Promise<{ noRoom: boolean }>;
+  /**
+   * Library files its language's documents name (`library-files`, 2026-11-24): a team's guides'
+   * pictures and audio and its key words' audio, which land unmarked and never make room by deleting
+   * (`WantedFile` group `reference`). Absent, this phone neither serves nor asks for them.
+   */
+  reference?: {
+    /** Of these, the ones here that no recording in any language on this phone names (`keptIdsAnywhere`), so none is passed on as a library file. */
+    held(hashes: readonly string[]): Promise<string[]>;
+    /** Of these, the ones not here at all. */
+    lacking(files: readonly LibraryFile[]): LibraryFile[];
+    /** Where to read one to serve it, if `held` still says so. */
+    serve(file: LibraryFile): Promise<{ uri: string; size: number } | null>;
+  };
 }
 
 /** The files a session would take from its partner now, in order, and how to move one over its link. */
@@ -332,6 +345,8 @@ export interface NearbySessionReport {
   copyServed: { parts: number; no: number; stateRefused: CopyNoReason | null };
   /** What this phone took of the library documents its language uses, as any member (`library`), or null when it asked for none. */
   topUp: LibraryDocsTaken | null;
+  /** With `library-files` on both sides: library files this phone said it holds, how many of theirs it could use, and how many it got and served. */
+  libraryFiles: { held: number; theirs: number; got: number; served: number } | null;
 }
 
 const emptyReport = (role: NearbyRole): NearbySessionReport => ({
@@ -341,7 +356,8 @@ const emptyReport = (role: NearbyRole): NearbySessionReport => ({
   files: { got: 0, served: 0, answeredNo: 0, toldNo: 0, failed: 0, noRoom: false, cutBackups: false },
   holdings: { taken: 0, dropped: 0, sent: 0 },
   older: false, farAhead: [], handedKey: null, handedKeyRefused: 0, revokedTaken: null, revokedDropped: 0, finals: null, changed: false,
-  join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }, topUp: null
+  join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }, topUp: null,
+  libraryFiles: null
 });
 
 /** Who hosts what, in the order tried, ending with the pipe (5.12, The short Bluetooth exchange). Both sides work this out from `arrange`, so they agree. */
@@ -360,6 +376,11 @@ export const JOIN_DIRECT_ABILITY = 'join-direct';
 export const COPY_LIBRARY_ABILITY = 'copy-library';
 /** The characters of documents one session takes over the Bluetooth pipe (20 to 70 KB/s), past which the rest waits for the next. */
 export const NEARBY_TOP_UP_PIPE_CHARS = 256 * 1024;
+/**
+ * This phone says in step 7 which library files it holds (`lib-held`), serves them, and asks for
+ * those it lacks (2026-11-24). Only when both phones name it, and only on a link that moves files.
+ */
+export const LIBRARY_FILES_ABILITY = 'library-files';
 
 /**
  * `joinDirect` is true only when both Hellos list `JOIN_DIRECT_ABILITY`: a phone on older
@@ -472,6 +493,9 @@ export class NearbySession {
   private readonly stash: Message[] = [];
   private sender: StartingCopySender | null = null;
   private librarySender: LibraryDocsSender | null = null;
+  /** In step 7 with `library-files`: the library files this phone's language names, and those of them the other holds. */
+  private libraryFiles: Map<string, LibraryFile> | null = null;
+  private readonly theirLibrary = new Set<string>();
 
   constructor(options: NearbySessionOptions) {
     this.opt = options;
@@ -760,7 +784,8 @@ export class NearbySession {
     const { crypto, opt } = this;
     const can = [
       ...(opt.files && !opt.join ? ['files'] : []), ...(opt.join?.as === 'inviter' ? ['let-in'] : []), ...(opt.copy ? ['starting-copy'] : []), JOIN_DIRECT_ABILITY,
-      ...(opt.copy || (opt.library && !opt.join) ? [COPY_LIBRARY_ABILITY] : [])
+      ...(opt.copy || (opt.library && !opt.join) ? [COPY_LIBRARY_ABILITY] : []),
+      ...(opt.files?.reference && opt.library && !opt.join ? [LIBRARY_FILES_ABILITY] : [])
     ];
     const base = { t: 'hello' as const, protocol: { ...NEARBY_PROTOCOL }, can, reducerVersion: REDUCER_VERSION, linesVersion: LINES_VERSION, wallMs: opt.port.nearbyWallNow };
     // On a QR link a QR holder learns nothing of the inviter until the tap: no chain, proof or device id from either side.
@@ -1567,7 +1592,46 @@ export class NearbySession {
    * Asks go one at a time. Both sides ask and serve at once, and `files-done` says only
    * that a side wants no more, so each keeps reading and serving until both have said it.
    */
+  /** Both phones said `library-files`, and this one can: they say which library files they hold first. */
+  private referenceFiles(): boolean {
+    const { opt } = this;
+    return !!opt.files?.reference && !!opt.library && !opt.join && !!this.theirHello?.can.includes(LIBRARY_FILES_ABILITY);
+  }
+
+  /**
+   * Step 7's start with `library-files` (2026-11-24): each phone says which library files it holds
+   * that its language's documents name, in parts, so neither asks the other in vain. Of theirs it
+   * keeps only those its own documents name: the rest are of no use to it.
+   */
+  private async libHeldStep(): Promise<void> {
+    const { opt } = this;
+    const mine = await this.local(async () => {
+      this.libraryFiles = await libraryFilesNamed(opt.library!);
+      return [...await opt.files!.reference!.held([...this.libraryFiles.keys()])].sort();
+    });
+    const said = { held: mine.length, theirs: 0, got: 0, served: 0 };
+    this.report.libraryFiles = said;
+    const sending = async () => {
+      for (let i = 0; i === 0 || i < mine.length; i += NEARBY_HOLDINGS_MESSAGE_FILES) {
+        await this.send({ t: 'lib-held', files: mine.slice(i, i + NEARBY_HOLDINGS_MESSAGE_FILES), more: i + NEARBY_HOLDINGS_MESSAGE_FILES < mine.length });
+      }
+    };
+    const reading = async () => {
+      let heard = 0;
+      for (;;) {
+        const m = await this.expect('lib-held');
+        heard += m.files.length;
+        if (heard > NEARBY_HOLDINGS_MAX_FILES) throw new SayBye('protocol', 'too many library files');
+        for (const h of m.files) if (this.libraryFiles?.has(h)) this.theirLibrary.add(h);
+        if (!m.more) return;
+      }
+    };
+    await Promise.all([sending(), reading()]);
+    said.theirs = this.theirLibrary.size;
+  }
+
   private async filesStep(): Promise<void> {
+    if (this.referenceFiles()) await this.libHeldStep();
     const queue: { transferId: string; hash: string; format: string }[] = [];
     const waiting: { wake: (() => void) | null } = { wake: null };
     let theirsDone = false;
@@ -1610,6 +1674,16 @@ export class NearbySession {
     } catch {
       answer = { no: 'not-here' };
     }
+    // Not a recording of this language: a library file its documents name, in the format they say, if this phone said it holds it.
+    let reference = false;
+    const named = 'no' in answer && answer.no === 'not-referenced' ? this.libraryFiles?.get(ask.hash) : undefined;
+    if (named) {
+      const got = await this.opt.files!.reference?.serve(named).catch(() => null);
+      if (got) {
+        answer = got;
+        reference = true;
+      }
+    }
     if ('no' in answer) {
       files.answeredNo += 1;
       await this.send({ t: 'file-no', transferId: ask.transferId, reason: answer.no });
@@ -1618,7 +1692,8 @@ export class NearbySession {
     this.moving += 1;
     try {
       await this.link.sendFile({ transferId: ask.transferId, uri: answer.uri, size: answer.size });
-      files.served += 1;
+      if (reference && this.report.libraryFiles) this.report.libraryFiles.served += 1;
+      else files.served += 1;
     } catch (err) {
       if (isDrop(err)) throw err;
       files.answeredNo += 1;
@@ -1631,7 +1706,12 @@ export class NearbySession {
 
   private async askFiles(): Promise<void> {
     const { opt, tune, report } = this;
-    const wanted = await opt.files!.wanted(this.holdings);
+    const recordings = await opt.files!.wanted(this.holdings);
+    // Library files after what this person needs and reviews, before backups (Carl, 2026-11-24: small files first), and only those the other said it holds.
+    const library = this.libraryFiles && opt.files!.reference
+      ? opt.files!.reference.lacking([...this.libraryFiles.values()].filter((f) => this.theirLibrary.has(f.hash))).map((f): WantedFile => ({ hash: f.hash, format: f.format, group: 'reference' }))
+      : [];
+    const wanted = [...recordings.filter((f) => f.group !== 'backup'), ...library, ...recordings.filter((f) => f.group === 'backup')];
     const theirs = new Set(this.holdings.get(report.peer!.installKey)?.files ?? []);
     let backupsFrom: number | null = null;
     if (opt.files!.take) {
@@ -1663,6 +1743,8 @@ export class NearbySession {
         }
       }
       const stage = await opt.files!.fetchFile(file);
+      // A library file never makes room: with too little, this one waits and the rest go on.
+      if (!stage && file.group === 'reference') continue;
       if (!stage) {
         report.files.noRoom = true;
         break;
@@ -1693,7 +1775,8 @@ export class NearbySession {
         return;
       }
       await opt.files!.landed(file, stage.stagingUri, outcome.size);
-      report.files.got += 1;
+      if (file.group === 'reference' && report.libraryFiles) report.libraryFiles.got += 1;
+      else report.files.got += 1;
       report.changed = true;
     } catch (err) {
       if (isDrop(err) || err instanceof SayBye || err instanceof HeardBye) throw err;

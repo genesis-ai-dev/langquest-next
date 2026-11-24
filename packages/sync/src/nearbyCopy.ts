@@ -1,4 +1,4 @@
-import { canonicalJson, docHeadOf, isHash, ORG_STREAM, validateDoc, type DocHead, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
+import { canonicalJson, docHeadOf, isHash, ORG_STREAM, validateDoc, type DocHead, type LanguageState, type LibraryDoc, type LibraryFile, type OrgState } from '@langquest-next/core';
 import { bytesToHex, docsThisLanguageUses, formatMayGoInStartingCopy, mayGoInStartingCopy, newcomerOrgState, utf8Encode, type Sha256 } from '@langquest-next/core/nearby';
 import type { FillRows } from './keptFill';
 import type { Message } from './nearbyWire';
@@ -215,6 +215,21 @@ export class LibraryDocsSender {
     if (part.next === null) this.texts.delete(key);
     return { part: 'doc', ...part };
   }
+}
+
+/**
+ * The library files this phone's language names, from the documents of its list that it holds
+ * (`libraryFilesOf`, in each head), by hash: what a phone may serve and ask for as reference
+ * files in step 7 (docs/nearby-sync-plan.md 5.12, 2026-11-24). Whether one is here, and is not a
+ * recording, is the file store's to say.
+ */
+export async function libraryFilesNamed(library: NearbyLibrary): Promise<Map<string, LibraryFile>> {
+  const out = new Map<string, LibraryFile>();
+  const org = library.org();
+  if (!org) return out;
+  const { list, heads } = await walkWithHeads(org, withKeptLinks(library.language(), await library.keptPassageLinks?.()), library.docs);
+  for (const h of list) for (const f of heads.get(h)?.files ?? []) if (!out.has(f.hash)) out.set(f.hash, f);
+  return out;
 }
 
 /**

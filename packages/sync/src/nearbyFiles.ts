@@ -1,7 +1,8 @@
-import { buildIndexes, forScope, MAX_FILE_BYTES, openForReviewOf, type BlobRef, type FilePlan, type OrgState } from '@langquest-next/core';
+import { buildIndexes, forScope, MAX_FILE_BYTES, openForReviewOf, type BlobRef, type FilePlan, type LibraryFile, type OrgState } from '@langquest-next/core';
 import {
   backupsConfirmedOf, copiesOf, filesNamedBy, holdingsInForce, nearbyEvictableOf, nearbyGroupOf, nearbyShedOf, wantedFilesOf, type HoldChoice, type Holdings, type NearbyMark, type WantedFile
 } from '@langquest-next/core/nearby';
+import { AUDIO } from './keptLanguage';
 import type { LanguageFiles } from './languageFiles';
 import type { LanguageSessionOptions } from './languageSession';
 import { nearbyKeepOf } from './nearbyKeep';
@@ -404,6 +405,8 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     } catch {
       return;
     }
+    // A library file never makes room: with too little, this one waits and the rest go on.
+    if (!stage && file.group === 'reference') return;
     if (!stage) {
       job.noRoom = true;
       job.finish();
@@ -418,10 +421,21 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     if (this.jobWork().length === 0) job.finish();
   }
 
-  /** Level 1 gives way first, before a nearby file lands, not after; level 2 never gives way for one. */
+  /**
+   * Level 1 gives way first, before a nearby file lands, not after; level 2 never gives way for one.
+   * A library file (`reference`) makes no room at all: it lands only while the phone already has
+   * the room every file keeps free.
+   */
   private async stage(file: WantedFile): Promise<{ stagingUri: string; maxBytes: number; minFreeBytes: number } | null> {
     const { fetchFile } = this;
     const { limits } = this.port.o;
+    if (file.group === 'reference') {
+      const free = fetchFile.freeBytes();
+      if (free !== null && free < limits.minFreeBytes) return null;
+      const stagingUri = fetchFile.stagingUri(file);
+      if (!stagingUri) throw new Error('not a file name this store makes');
+      return { stagingUri, maxBytes: MAX_FILE_BYTES, minFreeBytes: limits.minFreeBytes };
+    }
     const reserve = this.port.plan.sizeOf(file.hash) ?? 0;
     const freed = await this.reclaim(await this.port.level1(), reserve);
     const free = fetchFile.freeBytes();
@@ -433,6 +447,23 @@ class LanguageNearbyFiles implements NearbyFilesPart {
 
   private choice(): HoldChoice | null {
     return this.port.o.holdChoice?.() ?? null;
+  }
+
+  /**
+   * Of these, library files here to pass on: present, not a teammate's recording marked here, and
+   * named by no recording in any language on this phone (`audio` rows by hash). So a document that
+   * names a recording's hash never makes this phone pass that recording on (2026-11-24). A store that
+   * cannot say gives none.
+   */
+  private async referenceHeld(hashes: readonly string[]): Promise<string[]> {
+    const present = this.here();
+    const here = hashes.filter((h) => present.has(h) && !this.all.has(h));
+    const store = this.port.o.store;
+    if (here.length === 0 || !store?.keptIdsAnywhere) return [];
+    // This language's own, whether or not it is kept on disk, and every language's kept on disk.
+    const plan = await this.port.plan.plan({ hashes: here });
+    const recordings = await store.keptIdsAnywhere(AUDIO, here);
+    return here.filter((h) => !plan.refs.has(h) && !recordings.has(h));
   }
 
   moves(): NearbyFileMoves {
@@ -452,13 +483,19 @@ class LanguageNearbyFiles implements NearbyFilesPart {
       },
       fetchFile: (file) => this.stage(file),
       landed: async (file, stagingUri, size) => {
+        // A library file lands with no mark: nothing nearby ever deletes it, and no holdings count it.
+        if (file.group === 'reference') {
+          if (this.here().has(file.hash)) await fetchFile.discard(stagingUri);
+          else await fetchFile.commit(file, stagingUri, size);
+          return;
+        }
         // The same bytes are here already, maybe this person's own: no mark can make them deletable.
         if (this.here().has(file.hash) && !this.all.has(file.hash)) {
           await fetchFile.discard(stagingUri);
           return;
         }
         // The mark before the name: a crash between leaves a mark on nothing, never a teammate's file unmarked and so counted as this person's.
-        const mark: NearbyMark = { hash: file.hash, format: file.format, languageId: this.languageId, group: file.group, copies: 0 };
+        const mark: NearbyMark = { hash: file.hash, format: file.format, languageId: this.languageId, group: file.group as NearbyMark['group'], copies: 0 };
         await this.platform.marks.put([mark]);
         this.all.set(mark.hash, mark);
         await fetchFile.commit(file, stagingUri, size);
@@ -472,7 +509,19 @@ class LanguageNearbyFiles implements NearbyFilesPart {
       },
       holds: () => this.choice()?.hold === true,
       shed: (holdings) => this.shed(holdings),
-      take: (job) => this.take(job)
+      take: (job) => this.take(job),
+      reference: {
+        held: (hashes) => this.referenceHeld(hashes),
+        lacking: (wanted: readonly LibraryFile[]) => {
+          const present = this.here();
+          return wanted.filter((f) => !present.has(f.hash));
+        },
+        serve: async (file) => {
+          if ((await this.referenceHeld([file.hash])).length === 0) return null;
+          const uri = fetchFile.uriOf({ hash: file.hash, format: files.formatOf(file.hash) ?? file.format });
+          return uri ? { uri, size: files.sizeOf(file.hash) ?? 0 } : null;
+        }
+      }
     };
   }
 

@@ -148,7 +148,7 @@ async function setUp(over: { choice?: HoldChoice | null; org?: OrgState; mayUplo
     await again.sync();
     again.close();
   };
-  return { server, session, marks, ...f, moves, land, keep, choice, samRecords, openAkol };
+  return { server, session, marks, store, ...f, moves, land, keep, choice, samRecords, openAkol };
 }
 
 const chainOf = (profileId: string) => [{ kind: 'worker@1', kid: 'k', body: { profileId }, sig: SIG }] as unknown as ChainLink[];
@@ -482,6 +482,44 @@ describe('nearby files: serving and the third worker (5.6)', () => {
     disk.free = 10_000 * MB;
     const drop = new Error('dropped');
     await expect(moves.take!({ list: [{ hash: H('6'), format: 'm4a', group: 'needed' }], fetch: async () => { throw drop; }, linkUp: () => true, stop: () => false })).rejects.toBe(drop);
+    session.close();
+  });
+});
+
+// 2026-11-24: a team's guides' pictures and audio go between teammates' phones, never a recording a document names.
+describe('nearby files: library files (5.12, 2026-11-24)', () => {
+  const GUIDE = H('d');
+  const OTHER_LANGUAGE = H('e');
+
+  it('holds and serves a library file that is here, never one a recording of this or any language names', async () => {
+    const { session, moves, files, store } = await setUp();
+    files.put(GUIDE, 2 * MB);
+    files.put(OTHER_LANGUAGE, MB);
+    // Another language's recording on this phone, kept on disk: its audio row names the file.
+    await store.commit({ kept: { orgId: 'org1', streamId: 'mark', upsert: [{ kind: 'audio', id: OTHER_LANGUAGE, unitId: 'Mark 1', ref: '', json: '{}' }] } });
+    const reference = moves.reference!;
+    expect(await reference.held([GUIDE, MINE, OTHER_LANGUAGE, H('0')])).toEqual([GUIDE]);
+    expect(await reference.serve({ hash: GUIDE, format: 'jpg' })).toEqual({ uri: `file:${GUIDE}`, size: 2 * MB });
+    // A document naming this language's recording, or another's, gets nothing.
+    expect(await reference.serve({ hash: MINE, format: 'm4a' })).toBeNull();
+    expect(await reference.serve({ hash: OTHER_LANGUAGE, format: 'm4a' })).toBeNull();
+    expect(reference.lacking([{ hash: GUIDE, format: 'jpg' }, { hash: H('7'), format: 'jpg' }])).toEqual([{ hash: H('7'), format: 'jpg' }]);
+    session.close();
+  });
+
+  it('a library file lands unmarked, makes no room by deleting, and counts for no one', async () => {
+    const { session, moves, marks, disk, reclaims } = await setUp();
+    const file: WantedFile = { hash: GUIDE, format: 'jpg', group: 'reference' };
+    const stage = await moves.fetchFile(file);
+    expect(stage).not.toBeNull();
+    expect(reclaims).toEqual([]);
+    await moves.landed(file, stage!.stagingUri, MB);
+    expect(await marks.all()).toEqual([]);
+    expect(await moves.held()).not.toContain(GUIDE);
+    // Short of room, it waits rather than make room.
+    disk.free = 100 * MB;
+    expect(await moves.fetchFile({ hash: H('8'), format: 'jpg', group: 'reference' })).toBeNull();
+    expect(reclaims).toEqual([]);
     session.close();
   });
 });
