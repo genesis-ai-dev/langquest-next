@@ -135,10 +135,11 @@ function lineCard(a, group) {
     (link ? outLink(link, 'Open the page', 'button') : '') +
     (issue && row && safeLink(row.issueUrl) ? outLink(row.issueUrl, 'Open ' + esc(issue) + ' in Linear', 'button') : '') +
     (f && f.issues.length > 1 ? '<ul class="eachissue">' + f.issues.map((i) => '<li><a href="' + esc(cardHref('userissues', i)) + '">' + esc(i) + '</a>: tell Claude what to do</li>').join('') + '</ul>' : '') +
-    (why ? '<p class="nobox">' + esc(noBoxSaid(why, unread || !!ud)) + '</p>' : '');
+    (why ? '<p class="nobox">' + esc(noBoxSaid(why, unread || !!ud)) + '</p>' : '') +
+    (unread ? '' : resolveButton([a], a.part, 'button'));
   return issueCard({
     card: lineCardId(a), cls: 'line ' + level,
-    tags: '<span class="tag ' + level + '">' + esc(LEVEL[level].title) + '</span>' +
+    tags: '<span class="tag ' + level + '">' + esc(LEVEL[level].title) + '</span>' + backTag(a, 'tag back') +
       (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? '<span>' + esc(row.state) + ' in Linear</span>' : '') : ''),
     title: t.title, meta: where,
     // A line with one Linear issue: the box to tell Claude what to do with it. Any other line: the box to ask Claude about it (pageAsk.ts).
@@ -197,7 +198,7 @@ function focusCard() {
   if (!el) {
     const g = SECTIONS.find((s) => s.id === v.id);
     // Every part answered and the card is not there: the line went (its check found it fixed).
-    if (g && g.parts.every((p) => results[p]) && results.userissues) { say('That problem is gone from this page. It is fixed.', ''); wantCard = null; }
+    if (g && g.parts.every((p) => results[p]) && results.userissues) { say(resolvedCard(wantCard) ? 'That problem is resolved. It is in Resolved on the Overview.' : 'That problem is gone from this page. It is fixed.', ''); wantCard = null; }
     return;
   }
   wantCard = null;

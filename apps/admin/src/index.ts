@@ -103,7 +103,7 @@ export interface AttentionItem {
   issues?: string[];
 }
 
-export async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; urgent: number; problems: number; watch: number; items: AttentionItem[] }> {
+export async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; urgent: number; problems: number; watch: number; items: AttentionItem[]; answered: string[] }> {
   const [diag, ops, ...providers] = await Promise.all([
     diagAnswer(env), opsAnswer(env),
     ...Object.entries(PROVIDERS).map(([id, run]) => memo(id, fresh, () => settle(id, () => run(env))).then((s) => [id, s] as const))
@@ -114,11 +114,15 @@ export async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: 
     ...(s.state === 'error' ? [{ level: 'watch' as const, text: `Could not read: ${s.error ?? 'unknown'}`, section, key: 'unreadable', id: alertId({ key: 'unreadable', subject: section }), watchKey: watchKeyOf({ key: 'unreadable', subject: section }) }] : [])
   ]).sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
   const count = (level: Level) => items.filter((i) => i.level === level).length;
-  return { checkedAt: new Date().toISOString(), urgent: count('urgent'), problems: count('problem'), watch: count('watch'), items };
+  // The parts that answered: only those can say a line went (a resolved line's end, lines.ts present).
+  const answered = all.filter(([, s]) => s.state === 'ok').map(([section]) => section);
+  return { checkedAt: new Date().toISOString(), urgent: count('urgent'), problems: count('problem'), watch: count('watch'), items, answered };
 }
 
 /** Each card's questions to Claude (migration 20261123233000_ops_card_questions.sql); before it, the page shows the boxes with no talk. */
 const QUESTIONS_SQL = 'select diag.ops_card_questions() as v';
+/** The open resolves of lines (migration 20261124013000_ops_line_resolves.sql); before it, the page hides no line. */
+const RESOLVES_SQL = 'select diag.ops_line_resolves() as v';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -214,6 +218,15 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (section === 'questions') {
     try {
       return json(await withDiag(diagConnection(env), (query) => query<unknown>(QUESTIONS_SQL)));
+    } catch (e) {
+      return json({ error: errorText(e) }, 502);
+    }
+  }
+  // The lines an admin resolved, which the page hides until their problem comes back
+  // (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md).
+  if (section === 'resolves') {
+    try {
+      return json(await withDiag(diagConnection(env), (query) => query<unknown>(RESOLVES_SQL)));
     } catch (e) {
       return json({ error: errorText(e) }, 502);
     }

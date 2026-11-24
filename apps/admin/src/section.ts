@@ -36,6 +36,11 @@ export interface Alert {
   recheck?: Recheck;
   /** The watch for user issues' own key for the same problem, when it finds it in the records (alertKinds.ts watchKeyOf). */
   watchKey?: string;
+  /**
+   * How big the problem is, where more is worse (usage-billed: the cost so far, in US dollars). A line
+   * resolved at one measure comes back at twice it (pageResolve.ts resolveBack).
+   */
+  measure?: number;
 }
 
 export interface Section<T = unknown> {

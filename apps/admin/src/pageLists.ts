@@ -430,7 +430,8 @@ export const QUEUE_CONTROLS = ['data-decision', 'data-sg', 'data-instruct', 'dat
  */
 export const FOLDED_CONTROLS = ['data-quiet', 'data-ok', 'data-run', 'data-org', 'data-q', 'data-install', 'data-fb-id', 'data-shot', 'data-what', 'data-status',
   'data-mark', 'data-vzoom', 'data-vfit', 'data-vclose', 'data-voice', 'data-goto', 'data-range', 'data-key', 'data-lookup', 'data-h', 'data-s', 'data-t', 'data-l',
-  'data-kind', 'data-ver', 'data-done', 'data-href', 'data-help', 'data-help-key', 'data-rday', 'data-text', 'data-copy-code', 'data-chart', 'data-tabgo', 'data-close-out', 'data-filming-cancel', 'data-on', 'data-ask-page', 'data-ask-title'];
+  'data-kind', 'data-ver', 'data-done', 'data-href', 'data-help', 'data-help-key', 'data-rday', 'data-text', 'data-copy-code', 'data-chart', 'data-tabgo', 'data-close-out', 'data-filming-cancel', 'data-on', 'data-ask-page', 'data-ask-title',
+  'data-resolve', 'data-unresolve'];
 /** Whether a part's body holds a queue control (above). */
 export const QUEUE_SOURCE = String.raw`\s(?:` + QUEUE_CONTROLS.join('|') + String.raw`)(?=[\s=>])`;
 
