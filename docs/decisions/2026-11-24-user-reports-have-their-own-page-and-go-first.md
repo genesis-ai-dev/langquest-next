@@ -42,8 +42,9 @@ and `expected:` (LAN-220 showed it).
 - **The tag "A person sent it" wins over the first key.** `issueSource`
   says it when any key of the issue is a report.
 
-What would change our mind: reports that are mostly noise (tests, a word
-sent by mistake) push real crashes back for days; then a report would go
-first only after the watch filed it with a priority of Medium or more.
 Ideas still never go to Linear; if the team wants to answer ideas too, they
 need a Linear path of their own.
+
+Reverse if: reports that are mostly noise (tests, a word sent by mistake)
+push real crashes back for days; then a report goes first only after the
+watch filed it with a priority of Medium or more.
