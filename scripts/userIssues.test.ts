@@ -50,7 +50,9 @@ describe('user-issues.mjs', () => {
     const steps = yml.split(/\n {6}- /);
     const claude = steps.find((s) => s.includes('anthropics/claude-code-action'))!;
     expect(claude).toContain('claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}');
-    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)"');
+    // The read relay, and the checker of a card's words (docs/card-words.md), which reads one file and sends nothing.
+    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*),Bash(node /home/runner/work/_temp/watch/card-words.mjs:*)"');
+    expect(claude).toContain('card-words.mjs .user-issues/decisions.json');
     expect(claude).not.toContain('LINEAR_API_KEY');
     expect(claude).not.toMatch(/show_full_output|display_report/);
     // Scheduled runs start as the merge queue, which the action refuses otherwise.
