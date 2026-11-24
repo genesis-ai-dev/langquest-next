@@ -24,6 +24,7 @@ import { RESEARCH_CSS, RESEARCH_LOGIC, RESEARCH_SCRIPT } from './pageResearch';
 import { RESEARCH_TEAM } from './researchTeam';
 import { CARD_CSS, CARD_LOGIC, CARD_SCRIPT } from './pageCards';
 import { SEND_CSS, SEND_LOGIC, SEND_SCRIPT } from './pageSends';
+import { ASK_CSS, ASK_LOGIC, ASK_SCRIPT } from './pageAsk';
 import { SUMMARY_CSS, SUMMARY_LOGIC, SUMMARY_SCRIPT } from './pageSummary';
 import { BLOCKS_CSS, BLOCKS_LOGIC, BLOCKS_SCRIPT, WIDTH_CSS } from './pageBlocks';
 import { LOADING_CSS, LOADING_SCRIPT } from './pageLoading';
@@ -226,6 +227,7 @@ ${VIDEO_CSS}
 ${HOVER_CSS}
 ${REF_CSS}
 ${SEND_CSS}
+${ASK_CSS}
 ${LOADING_CSS}
 </style>
 </head>
@@ -1088,6 +1090,9 @@ ${RESEARCH_SCRIPT}
 // ---- each line as a card on its section's page, and the way from the Overview to it (pageCards.ts) ----
 ${CARD_LOGIC}
 ${CARD_SCRIPT}
+// ---- Ask Claude on every card and page (pageAsk.ts) ----
+${ASK_LOGIC}
+${ASK_SCRIPT}
 // ---- each section's page: its verdict, numbers with their usual range, lines, and All the details (pageSummary.ts) ----
 ${SUMMARY_LOGIC}
 ${SUMMARY_SCRIPT}
@@ -1114,7 +1119,7 @@ let loading = false, loadAgain = false;
  * keeps (index.ts memo), so the card shows the tap's result. A part that fails keeps what it showed.
  */
 async function reread(parts) {
-  await Promise.all(parts.map((p) => (p === 'ops'
+  await Promise.all(parts.map((p) => (p === 'questions' ? loadQuestions() : p === 'ops'
     ? api('/ops/api/ops?fresh=1').then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); })
     : p === 'diag' ? api('/ops/api/diag?fresh=1').then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); })
     : api('/ops/api/' + p + '?fresh=1').then((d) => show(p, d))).catch(() => {})));
@@ -1135,6 +1140,7 @@ async function load(fresh) {
     ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id]))),
     // The start page's pictures: without them it still shows every card and line.
     api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {}),
+    loadQuestions(),
     // The pull requests that name a line's Linear issue: without them each line still shows its issue.
     // The User issues page says each issue's pull request, so it is drawn again with them.
     api('/ops/api/fixes' + q).then((d) => { fixData = d; if (results.userissues) show('userissues', results.userissues); else { renderStart(); attention(); } })

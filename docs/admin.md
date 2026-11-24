@@ -229,6 +229,23 @@ record comes from `diag.ops_card_record('video' | 'issue')`: the taps
 (`ops.actions`), Claude's suggestions and changes to a video, and Claude's
 answers on a Linear issue, 30 days, newest first.
 
+## Ask Claude on every card and page
+
+Each line's card with no Linear issue, each page (at the end of its summary)
+and the Overview have a box, "Ask Claude" (`apps/admin/src/pageAsk.ts`,
+`docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md`). A card
+with one Linear issue keeps its box to tell Claude what to do. The question
+goes as `card-question` with the card's key (`line:<key>[:<subject>]` or
+`page:<section>`), its title and its words as the page shows them, without
+the talk and the record. `card-questions.yml` takes it within 5 minutes:
+Claude reads the code, production and the logs as agent_reader, and public
+web pages when the answer needs them (the card-questions skill). The page
+reads each card's questions from `/ops/api/questions`
+(`diag.ops_card_questions()`) when it loads, after a question, and each
+minute while Claude owes an answer. The talk names who asked and when:
+waiting, working, answered, or stopped (two runs took it and neither
+answered; ask again).
+
 ## Setting it up
 
 Done once, in this order, by someone who can sign in to each service

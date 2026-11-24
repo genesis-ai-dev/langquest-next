@@ -166,7 +166,7 @@ function withGone(cards, gone, keyOf) {
 
 /** The page's state of sends and answered cards, and their drawing; uses the page's helpers (esc, when, say, $). */
 export const SEND_SCRIPT = String.raw`
-/** Messages to Claude sent from this page, by card: 'video:<card id>' or 'issue:<Linear id>'. */
+/** Messages to Claude sent from this page, by card: 'video:<card id>', 'issue:<Linear id>' or 'ask:<card>' (pageAsk.ts). */
 const SENDS = new Map();
 /** Tutorial video cards answered on this page, by card id, while their tab is open: the short card in their place. */
 const GONE = new Map();
@@ -177,7 +177,7 @@ const watchSaid = () => 'at about ' + sendClock(nextRun(Date.now(), WATCH_MINUTE
 /** Drops each sent message the server's answer now holds, and each answered card when its tab is left. */
 function pruneSends() {
   for (const [key, s] of SENDS) {
-    if (s.state !== 'sent') continue;
+    if (s.state !== 'sent' || key.startsWith('ask:')) continue;
     if (key.startsWith('video:')) {
       const a = VIDEOS && VIDEOS.admin.find((x) => 'video:' + cardId(x) === key);
       if (!a || (a.instructed && sendHeld(s, [a.instructed]))) SENDS.delete(key);

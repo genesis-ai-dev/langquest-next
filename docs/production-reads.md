@@ -21,7 +21,7 @@ Migration `20261121194800_claude_readers.sql` makes them;
 
 | | claude_reader | agent_reader |
 |---|---|---|
-| Who | cloud threads, a laptop | the agent teams (`user-issues.yml` on main) |
+| Who | cloud threads, a laptop | the agent teams (`user-issues.yml` and `card-questions.yml` on main) |
 | Reads | `public`, `diag`, `ops`, `v2_import` | `diag`'s tables of ids, counts, times and codes; `public.events` without `payload` |
 | Never | sign-in codes, password resets, push tokens, webhook secrets, API and invite token hashes, discovery keys, emails; `auth`, `storage`, `vault` | the above, and names, typed text, recordings, `diag.feedback`, every report function |
 | Writes | nothing: no grant to insert, update, delete or truncate anywhere | nothing |

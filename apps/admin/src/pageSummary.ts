@@ -407,6 +407,8 @@ function drawSummaryNow() {
       (waiting ? skel('lines') : '') +
       errs.map((p) => failed('Could not read ' + (PART_TITLE[p] || p) + ': ' + sumHist[p].error, 'data-retry-hist="' + esc(p) + '"')).join('')));
   }
+  // Questions about the whole page, with what it shows (pageAsk.ts).
+  parts.push(askBlock('page:' + g.id, g.id, g.title));
   if (redraw(el, parts.join(''))) annotate(el);
   focusCard();
 }
