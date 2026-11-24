@@ -18,6 +18,12 @@ export interface NearbyOwner {
   quiet(stop: () => Promise<void>): () => void;
   /** Runs `step` after every start or stop asked before it; one that fails does not hold up the next. */
   turn<T>(step: () => Promise<T>): Promise<T>;
+  /**
+   * Done once every start and stop asked so far is: a screen that drives the radio itself (Let
+   * someone in, Give the app, joining offline) waits on this before its first radio call, so the
+   * quiet room its claim stopped has finished stopping.
+   */
+  settled(): Promise<void>;
   /** Be told when a claim is made or let go. Returns the unsubscribe. */
   subscribe(hear: () => void): () => void;
 }
@@ -55,6 +61,7 @@ export function nearbyOwnerOf(): NearbyOwner {
       return () => { if (quietStop === stop) quietStop = null; };
     },
     turn,
+    settled: () => turn(async () => undefined),
     subscribe(hear) {
       listeners.add(hear);
       return () => { listeners.delete(hear); };

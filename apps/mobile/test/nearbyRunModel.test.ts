@@ -2,7 +2,8 @@ import { NOTHING_TO_CARRY } from '../src/nearby/readyToCarryModel';
 import { radiosMayRun, type RadiosGate } from '../src/nearby/nearbyModel';
 import {
   certOrgSeqOf, listedKey, mergeFarAhead, NearbyStartHeld, startWithin, namesOf, NEARBY_RADIO_TUNABLES, NEARBY_RUN_LIMIT_MS, NEARBY_RUN_START, NEARBY_SESSIONS_KEPT, nearbyOffered,
-  nearbyRunReducer, nearbyViewOf, orgSeqHereOf, radiosFor, refusedAtDoor, roomLimitsFor, sessionLineOf, swapOf, NEARBY_OPEN_SCAN, NEARBY_WAIT_LIMIT_MS,
+  nearbyRunReducer, nearbyViewOf, orgSeqHereOf, radiosFor, recordUnless, refusedAtDoor, roomLimitsFor, sessionLineOf, swapOf, NEARBY_OPEN_FRESH_MS, NEARBY_OPEN_REST_MS, NEARBY_OPEN_RUN_MS,
+  NEARBY_OPEN_SCAN, NEARBY_WAIT_LIMIT_MS,
   type NearbyRunAction, type NearbyRunState, type SessionReportLike
 } from '../src/nearby/nearbyRunModel';
 
@@ -319,11 +320,13 @@ describe('an iPhone (section 7, phase 5)', () => {
 
 // Sharing while LangQuest is open (docs/nearby-sync-plan.md 15.6).
 describe('the room while LangQuest is open', () => {
-  it('has no idle stop and no tap, scans in bursts at "Up to date", and keeps the wait backstop', () => {
+  it('has no idle stop and no tap, scans in bursts at "Up to date", keeps the wait backstop, and stops each run at its cap', () => {
     expect(roomLimitsFor(false, 'open')).toEqual({
-      idleLimitMs: Number.POSITIVE_INFINITY, waitLimitMs: NEARBY_WAIT_LIMIT_MS, stopWhenLevel: false, taps: false, levelScan: NEARBY_OPEN_SCAN
+      idleLimitMs: Number.POSITIVE_INFINITY, waitLimitMs: NEARBY_WAIT_LIMIT_MS, runLimitMs: NEARBY_OPEN_RUN_MS, stopWhenLevel: false, taps: false, levelScan: NEARBY_OPEN_SCAN
     });
     expect(NEARBY_OPEN_SCAN.onMs).toBeLessThan(NEARBY_OPEN_SCAN.everyMs);
+    // The security review's bounds (15.8): a run of half an hour, then a rest; a certificate of two weeks.
+    expect([NEARBY_OPEN_RUN_MS, NEARBY_OPEN_REST_MS, NEARBY_OPEN_FRESH_MS]).toEqual([30 * 60_000, 10 * 60_000, 14 * 86_400_000]);
     // Share nearby's own are as they were.
     expect(roomLimitsFor(false)).toEqual(roomLimitsFor(false, 'screen'));
   });
@@ -333,6 +336,20 @@ describe('the room while LangQuest is open', () => {
     const iphone = { directByName: false, band5: true, hotspot: false, joinHotspot: true, awdl: true, joinDirect: true };
     expect(radiosFor(android, false, NEARBY_RADIO_TUNABLES, true)).toEqual({ directByName: true, band5: true, hotspot: false, joinHotspot: false });
     expect(radiosFor(iphone, false, NEARBY_RADIO_TUNABLES, true)).toEqual({ directByName: false, band5: true, hotspot: false, joinHotspot: false });
+  });
+
+  it('a room stopped as a cover goes on writes no record, read at the moment it is written', () => {
+    const kept: string[] = [];
+    let worn = false;
+    const record = recordUnless((r: string) => kept.push(r), () => worn);
+    record('a session');
+    worn = true;
+    record('the room, stopped by the cover');
+    expect(kept).toEqual(['a session']);
+    // Share nearby passes no such rule, and records as before.
+    const plain = recordUnless((r: string) => kept.push(r), undefined);
+    plain('a screen room');
+    expect(kept).toEqual(['a session', 'a screen room']);
   });
 
   it('rests after the door turned someone away, either way, and only then', () => {

@@ -430,6 +430,8 @@ export interface OpenGate {
   offered: boolean;
   /** The phone wears a cover: then the mode never runs (Carl's answer 15). */
   worn: boolean;
+  /** The app lock shows (decision 253): every screen keeps running behind it, and the mode waits. */
+  locked: boolean;
   /** LangQuest is in front with the screen on (`AppState` is `active`). */
   active: boolean;
   /** The language is offline; unknown is not offline. */
@@ -446,5 +448,5 @@ export interface OpenGate {
 
 /** Whether the radios run quietly for the open language now. Every start asks it again after each await. */
 export function openMayRun(g: OpenGate): boolean {
-  return g.feature && g.switchOn && g.granted && g.radiosOn && g.offered && !g.worn && g.active && g.offline && !g.busy && !g.screenOpen && !g.resting && g.ready;
+  return g.feature && g.switchOn && g.granted && g.radiosOn && g.offered && !g.worn && !g.locked && g.active && g.offline && !g.busy && !g.screenOpen && !g.resting && g.ready;
 }

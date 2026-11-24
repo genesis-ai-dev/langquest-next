@@ -240,13 +240,14 @@ describe('holding teammates\' recordings', () => {
       expect(openSwitchOf('false')).toBe(false);
     });
 
-    it('runs only with every input agreeing: never on a worn phone, with a screen open, while busy, online or resting', () => {
+    it('runs only with every input agreeing: never on a worn phone, behind the app lock, with a screen open, while busy, online or resting', () => {
       const all: OpenGate = {
-        feature: true, switchOn: true, granted: true, radiosOn: true, offered: true, worn: false, active: true, offline: true, busy: false, screenOpen: false, resting: false, ready: true
+        feature: true, switchOn: true, granted: true, radiosOn: true, offered: true, worn: false, locked: false, active: true, offline: true, busy: false, screenOpen: false,
+        resting: false, ready: true
       };
       expect(openMayRun(all)).toBe(true);
       const closes: Partial<OpenGate>[] = [
-        { feature: false }, { switchOn: false }, { granted: false }, { radiosOn: false }, { offered: false }, { worn: true }, { active: false }, { offline: false },
+        { feature: false }, { switchOn: false }, { granted: false }, { radiosOn: false }, { offered: false }, { worn: true }, { locked: true }, { active: false }, { offline: false },
         { busy: true }, { screenOpen: true }, { resting: true }, { ready: false }
       ];
       expect(closes.length).toBe(Object.keys(all).length);

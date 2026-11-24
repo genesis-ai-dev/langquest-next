@@ -43,3 +43,16 @@ worn phone's record is one a plain phone stopped by its person also makes.
 A plain phone's run past ten minutes is the cost; `stop` still says idle or
 wait. The server's allowlist keeps `run` and `level`, which no build now
 sends.
+
+Amended (2026-11-23, Carl Sauder): sharing while LangQuest is open
+(2026-11-23-share-while-langquest-is-open) records its rooms with `mode`
+`open` and their minutes running and scanning (`openMin`, `scanMin`), not
+capped at ten. Only a phone with no cover runs that mode, so such a record
+shows the phone wears none, which this decision kept out of the records. The
+security review of 2026-11-23 raised it, and Carl accepted it with the
+review's other changes: without it the field cannot show what the mode costs
+or whether it meets anyone, which that decision's reversal rests on. It says
+no more of a person than that they left the mode on, and a phone with no
+such record may as well have the switch or the flag off, or never be offline
+with LangQuest open. What would date a disguise stays out: a quiet room
+stopped because a cover went on writes no record.

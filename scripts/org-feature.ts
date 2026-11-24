@@ -99,6 +99,7 @@ export function answerText(command: 'grant' | 'revoke', feature: string, answer:
       : 'Turned off: no new passes; nearby sharing itself stays on.';
   }
   throw new Error(answer === 'no_org' ? 'No organization has that id.'
+    : answer === 'needs_nearby' ? 'Turn nearby on for that organization first: sharing while LangQuest is open works only with it.'
     : answer === 'not_granted' ? 'That organization does not have that feature on.'
     : answer === 'say_who' ? 'Set your name first: git config user.name "Your Name".'
     : answer ?? 'No answer.');

@@ -26,6 +26,7 @@ describe('npm run org-feature (docs/nearby-sync-plan.md 5.10)', () => {
     expect(answerText('grant', 'nearby_open', 'granted')).toMatch(/only while nearby is on/);
     expect(answerText('revoke', 'nearby_open', 'revoked')).toMatch(/Share nearby itself stays on/);
     expect(() => answerText('grant', 'nearby', 'no_org')).toThrow('No organization has that id.');
+    expect(() => answerText('grant', 'nearby_open', 'needs_nearby')).toThrow(/Turn nearby on for that organization first/);
     expect(() => answerText('revoke', 'nearby', 'not_granted')).toThrow(/does not have that feature on/);
     expect(() => answerText('grant', 'nearby', 'say_who')).toThrow(/git config user.name/);
     expect(() => answerText('grant', 'nearby', undefined)).toThrow('No answer.');

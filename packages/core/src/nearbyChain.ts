@@ -23,6 +23,24 @@ export interface ChainOrg {
   scopes: { level: 'org' | 'language'; languageId?: string; privileges: Privilege[] }[];
 }
 
+/**
+ * How long a certificate lasts (5.5): the Worker signs `expiresAt` this long after it signs. Here so
+ * a phone can work out when a teammate's certificate was signed, which says when that phone last
+ * reached the server (apps/web/worker/nearby.ts uses it as `CERTIFICATE_MS`).
+ */
+export const NEARBY_CERTIFICATE_MS = 365 * 86_400_000;
+
+/**
+ * When the certificate that opens a chain was signed, or null for a chain that does not open with
+ * one. For a newcomer let in offline it is their inviter's, since the newcomer has never reached
+ * the server. Read only after `checkChain` passed: nothing here checks a signature.
+ */
+export function certificateSignedAt(chain: readonly unknown[]): number | null {
+  const first = chain[0] as { kind?: unknown; body?: { expiresAt?: unknown } } | undefined;
+  const expiresAt = first?.kind === 'worker@1' ? first.body?.expiresAt : undefined;
+  return typeof expiresAt === 'number' && Number.isSafeInteger(expiresAt) ? expiresAt - NEARBY_CERTIFICATE_MS : null;
+}
+
 export interface WorkerLink {
   kind: 'worker@1';
   kid: string;

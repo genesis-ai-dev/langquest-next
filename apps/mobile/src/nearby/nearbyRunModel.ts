@@ -59,6 +59,27 @@ export const NEARBY_OPEN_SCAN = { onMs: 6_000, everyMs: 60_000 } as const;
  * whose key was revoked, and it gets nothing more from the air for a while.
  */
 export const NEARBY_OPEN_REST_MS = 10 * 60_000;
+/**
+ * While LangQuest is open, one run lasts at most this long, then rests `NEARBY_OPEN_REST_MS`, so a
+ * phone whose screen never sleeps does not broadcast without end (the security review of
+ * 2026-11-23; a starting guess).
+ */
+export const NEARBY_OPEN_RUN_MS = 30 * 60_000;
+/**
+ * While LangQuest is open, Hello takes only a teammate whose certificate was signed within this
+ * long, by the clock Hello reads (the security review of 2026-11-23; a starting guess). Phones renew
+ * daily while online, so this bounds what a lost or taken phone can collect quietly to this long
+ * after it last reached the server; a team offline longer shares with Share nearby, as before.
+ */
+export const NEARBY_OPEN_FRESH_MS = 14 * 86_400_000;
+
+/**
+ * `record`, except while `silent` says so, read as each record is written: while LangQuest is open,
+ * a room stopped because a cover went on must not leave a record that dates it (decision 235).
+ */
+export function recordUnless<T>(record: (input: T) => void, silent: (() => boolean) | undefined): (input: T) => void {
+  return silent ? (input) => { if (!silent()) record(input); } : record;
+}
 
 /** Share nearby's screen, or quietly while LangQuest is open: sync's `NearbyRoomMode`. */
 export type RoomMode = 'screen' | 'open';
@@ -77,12 +98,13 @@ export interface RoomLimits {
 
 /**
  * A worn phone stops sooner: at ten minutes, and as soon as it is level (Carl's answer 15). While
- * LangQuest is open there is no idle stop, since the screen going off is the limit, no tap, and at
- * "Up to date" the scan goes in bursts (15.6); a worn phone never runs that way.
+ * LangQuest is open there is no idle stop, since the screen going off is the limit, no tap, at
+ * "Up to date" the scan goes in bursts, and a run stops at `NEARBY_OPEN_RUN_MS` (15.6); a worn
+ * phone never runs that way.
  */
 export function roomLimitsFor(worn: boolean, mode: RoomMode = 'screen'): RoomLimits {
   if (mode === 'open') {
-    return { idleLimitMs: Number.POSITIVE_INFINITY, waitLimitMs: NEARBY_WAIT_LIMIT_MS, stopWhenLevel: false, taps: false, levelScan: NEARBY_OPEN_SCAN };
+    return { idleLimitMs: Number.POSITIVE_INFINITY, waitLimitMs: NEARBY_WAIT_LIMIT_MS, runLimitMs: NEARBY_OPEN_RUN_MS, stopWhenLevel: false, taps: false, levelScan: NEARBY_OPEN_SCAN };
   }
   return worn
     ? { idleLimitMs: NEARBY_IDLE_LIMIT_MS, waitLimitMs: NEARBY_WAIT_LIMIT_MS, runLimitMs: NEARBY_RUN_LIMIT_MS, stopWhenLevel: true }

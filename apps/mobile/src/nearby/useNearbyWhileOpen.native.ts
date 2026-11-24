@@ -3,9 +3,12 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { AppState } from 'react-native';
 import type { NativeCapabilities } from '../../modules/nearby-link';
 import { noteChainName } from '../account/chainNames';
+import { showsLock } from '../appLock/appLockModel';
+import { useAppLock } from '../appLock/useAppLock';
 import { anythingPlaying, subscribeNowPlaying } from '../audio/nowPlaying';
 import { noteExpected } from '../diagnostics/report';
 import { isRecording, onRecordingChange } from '../recording/recorderState';
+import { wornNow } from '../shell/appCovered';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
 import { isOffline } from '../sync/uploadsModel';
@@ -16,7 +19,7 @@ import { nearbyOwner } from './nearbyOwner';
 import { checkNearbyPermissions, phoneSystem } from './nearbyPermissions';
 import { permissionsStateOf, radiosOffOf, type PermissionAnswers } from './nearbyPermissionsModel';
 import { nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
-import { NEARBY_OPEN_REST_MS, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, refusedAtDoor, startWithin } from './nearbyRunModel';
+import { NEARBY_OPEN_FRESH_MS, NEARBY_OPEN_REST_MS, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, refusedAtDoor, startWithin } from './nearbyRunModel';
 import { useNearbyOffered } from './useNearby.native';
 
 /**
@@ -27,9 +30,13 @@ import { useNearbyOffered } from './useNearby.native';
  * (`useWhileOpenWanted`). It never asks for a permission, never keeps the screen awake, offers no
  * tap and touches no hotspot (`nearbyRoomOf` with `mode: 'open'`). A screen that runs the radios
  * claims them (`nearbyOwner`), which stops this room first; every start and stop goes through the
- * owner's turn, so two rooms never run at once. After a Hello the door refused, or a stop of the
- * room's own, it rests (`NEARBY_OPEN_REST_MS`). It draws nothing and shows no name: Sync and
- * offline says only that it runs (`useWhileOpenNow`), and the Teammates fold says what moved.
+ * owner's turn, so two rooms never run at once. After a Hello the door refused, a stop of the
+ * room's own (its 30-minute cap among them) or a radio error, it rests (`NEARBY_OPEN_REST_MS`),
+ * kept per language so a remount does not end it. It never runs behind the app lock, Hello takes
+ * only a teammate whose certificate is recent (`NEARBY_OPEN_FRESH_MS`), and a room stopped because a
+ * cover went on writes no diagnostics record, which would date it (the security review of
+ * 2026-11-23). It draws nothing and shows no name: Sync and offline says only that it runs
+ * (`useWhileOpenNow`), and the Teammates fold says what moved.
  */
 
 // ---- whether it runs now, for Sync and offline ---------------------------------------------
@@ -52,6 +59,11 @@ function onRunningNow(hear: () => void): () => void {
 export function useWhileOpenNow(): boolean {
   return useSyncExternalStore(onRunningNow, () => runningNow);
 }
+
+// ---- rests, per language, so a remount (a moment online, a language switch) does not end one ----
+
+const restsUntil = new Map<string, number>();
+const restKey = (orgId: string, languageId: string) => `${orgId}/${languageId}`;
 
 // ---- what it reads --------------------------------------------------------------------------
 
@@ -114,11 +126,15 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
   const offline = isOffline(language.online);
   const busy = useSyncExternalStore(onBusy, busyNow);
   const screenOpen = useSyncExternalStore(nearbyOwner.subscribe, nearbyOwner.claimed);
+  // The app lock stands in front of every screen and keeps them running: the mode waits behind it (decision 253).
+  const locked = showsLock(useAppLock());
   const held = useHeld();
   const [kept, setKept] = useState<{ orgs: ReadonlySet<string>; on: boolean } | null>(null);
   const [answers, setAnswers] = useState<PermissionAnswers | null>(null);
   const [facts, setFacts] = useState<NativeCapabilities | null>(null);
-  const [restUntil, setRestUntil] = useState(0);
+  const resting = restKey(orgId, languageId);
+  const [restUntil, setRestUntil] = useState(() => restsUntil.get(resting) ?? 0);
+  useEffect(() => { setRestUntil(restsUntil.get(resting) ?? 0); }, [resting]);
   const { os, sdk } = phoneSystem();
 
   // Read again on coming to the front and after a nearby screen closes, where the person may have granted or turned something on.
@@ -142,14 +158,15 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
   }, [restUntil, now]);
   const rest = useCallback(() => {
     const at = Date.now();
+    restsUntil.set(resting, at + NEARBY_OPEN_REST_MS);
     setRestUntil(at + NEARBY_OPEN_REST_MS);
     setNow(at);
-  }, []);
+  }, [resting]);
 
   const state = answers ? permissionsStateOf(sdk, answers, os) : null;
   const mayRun = openMayRun({
     feature: !!kept?.orgs.has(orgId), switchOn: !!kept?.on, granted: state === 'granted' || state === 'none',
-    radiosOn: facts !== null && radiosOffOf(facts, os).length === 0, offered: offered && whyNot === null, worn, active, offline, busy, screenOpen,
+    radiosOn: facts !== null && radiosOffOf(facts, os).length === 0, offered: offered && whyNot === null, worn, locked, active, offline, busy, screenOpen,
     resting: restUntil > now, ready: org.state !== null && language.state !== null
   });
   const gate = useRef(mayRun);
@@ -200,7 +217,10 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
         // A stop of its own (waiting too long, no key): it rests rather than start again at once.
         if (e.t === 'stopped' && e.why !== 'asked' && room && holding.current?.room === room) rest();
       };
-      room = nearbyRoomOf({ radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn: false, mode: 'open', report, progress: () => undefined });
+      room = nearbyRoomOf({
+        radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn: false, mode: 'open', report, progress: () => undefined,
+        freshWithinMs: NEARBY_OPEN_FRESH_MS, silent: wornNow
+      });
       const starting = room;
       const held = { room, ticker: null as ReturnType<typeof setInterval> | null, forget: () => undefined as void };
       holding.current = held;

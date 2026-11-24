@@ -4323,7 +4323,7 @@ That is what tells us in the field what the mode costs and whether it meets anyo
 
 - **The gate** (`openMayRun`, `apps/mobile/src/nearby/nearbyModel.ts`) also reads `radiosOn`
   (Bluetooth, Wi-Fi and where it counts Location on, since the mode never asks for them either),
-  `resting` (below) and `ready` (the folds loaded). `offered` is `useNearbyOffered` with no reason
+  `locked` (the app lock shows), `resting` (below) and `ready` (the folds loaded). `offered` is `useNearbyOffered` with no reason
   not to, so a read-only session never runs it.
 - **The flag is kept on the phone.** `get_user_state` is heard only online and the mode runs only
   offline, so `refreshNearbyIdentity` keeps the organizations with both `nearby` and `nearby_open`
@@ -4341,8 +4341,11 @@ That is what tells us in the field what the mode costs and whether it meets anyo
   (`NEARBY_OPEN_SCAN`, six seconds of every sixty from the moment it is level), and `mode`. Its
   idle limit is infinite and its wait limit stays 30 minutes.
 - **Rest.** After a Hello the door refused, either way, or a stop of the room's own (the wait
-  limit, no key), or a radio error, the mode rests `NEARBY_OPEN_REST_MS` (ten minutes) before it
-  starts again (15.8's review).
+  limit, the 30-minute cap on a run, no key), or a radio error, the mode rests
+  `NEARBY_OPEN_REST_MS` (ten minutes), per language, before it starts again (15.8's review).
+- **The security review's bounds** (15.8): the app lock closes both gates, Hello in the quiet mode
+  takes only a certificate signed within 14 days, the other radio screens wait for the owner's
+  turn before their first radio call, and the server refuses `nearby_open` without `nearby`.
 - **What shows while it runs** is the Share nearby row's line on Sync and offline ("Sharing with
   teammates nearby while LangQuest is open"), not the status card's sentence, so the shared Sync
   screen carries none of it on the web. What was shared on Share nearby lists only that screen's
@@ -4406,31 +4409,44 @@ example, the mode moves work only with teammates this phone has already finished
 with on Share nearby since it was last online, from `nearbyPeers`, which keeps no time), and
 whether a phone in the mode should stop for some minutes after a Hello that the door refused.
 
-**The review, as built (2026-11-23).** Carl chose to build the mode because it can be turned off
-where security argues against it, so the organization's flag and the person's switch are the
-answer to point 2, and the narrower rule was left out: it would also have left the first meeting
-of every trip to Share nearby. The rest was taken: after a Hello the door refused, either way, the
-mode stops its radios for ten minutes, so someone the team does not know, or whose key was
-revoked, gets nothing more from the air for a while; it also rests after the room's own stops and
-a radio error. What else was checked:
+**The security review (2026-11-23).** An independent review of pull request 675, against 5.5,
+5.12 and this section, found no high-severity vulnerability, one medium one, and three to check.
+Carl asked for every change it recommended, made in the same pull request:
 
-- A screen's claim stops the quiet room before that screen's room starts, and every start and stop
-  takes its turn (`nearbyOwner`), so a stop finishing late cannot turn off radios the screen just
-  turned on, and two rooms never run (`apps/mobile/test/nearbyOwner.test.ts`).
-- The mode asks for nothing: it runs only with permissions granted and radios on, an iPhone's
-  facts make no Bluetooth manager, and Find's managers are made with the power alert off. It
-  never keeps the screen awake, and the background, the screen going off, a system prompt on an
-  iPhone (`inactive`), a cover, going online, recording or playing all close the gate.
-- The radios offered (`radiosFor` with `quiet`) never include a hotspot, a hotspot join, a Wi-Fi
-  Direct join as a client or Apple's Wi-Fi, and both sides work out the plan from both phones'
-  `arrange`, so a quiet phone keeps a teammate on Share nearby off a hotspot too.
-- No tap is ever offered, so a played-back advert neither connects nor holds the room off "Up
-  to date" (`packages/sync/test/nearbyRoom.test.ts`).
-- A room record that says `mode: open` shows the phone wears no cover, which decision 235 keeps
-  out of the records. Only a phone with no cover can run the mode, so the record says no more than
-  that the person turned nothing off; the absence of such records from a phone says nothing,
-  since the switch, the flag or never being offline with LangQuest open each explain it. Accepted,
-  since without it the field cannot show what the mode costs.
+- **The app lock** (decision 253) keeps every screen running behind its face, and nothing in the
+  gate read it, so a lost phone left on the lock offline near teammates shared quietly, and Share
+  nearby, left open, started again behind it. Both gates now read it (`locked` in `openMayRun`,
+  and the lock as a cover in `radiosMayRun`).
+- **Point 2's narrower rule, in another form.** In the quiet mode Hello takes only a teammate
+  whose certificate was signed within 14 days (`NEARBY_OPEN_FRESH_MS`), worked out from its
+  `expiresAt` and the certificate's one-year life (`certificateSignedAt`, `NEARBY_CERTIFICATE_MS`
+  in core) by the clock Hello reads, which setting the date back cannot move. Certificates renew
+  daily online, so a lost or taken phone still signed in collects nothing quietly once 14 days
+  have passed since it last reached the server, though the revocation list has not reached anyone.
+  It keeps decision 230 (it is the certificate's own time, not a meeting's), and unlike the draft's
+  rule it does not send the first meeting of every trip back to Share nearby. A team offline for
+  longer shares on Share nearby, which has no such rule, since both people chose to open it.
+- **The rest** after a refused Hello, a stop of the room's own or a radio error is kept per
+  language, so a remount (a moment online, a language switch) does not end it. A teammate's `bye`
+  can make another phone rest, which only denies the quiet mode; Share nearby is untouched.
+- **Each run stops at 30 minutes** (`NEARBY_OPEN_RUN_MS`) and rests, so a phone whose screen
+  never sleeps does not broadcast without end.
+- **The other radio screens** (Let someone in, Give the app, joining offline) wait for the
+  owner's turn (`nearbyOwner.settled`) before their first radio call, so a quiet room still
+  stopping never cuts it. No security effect was found; it is reliability.
+- **The server** refuses to grant `nearby_open` while `nearby` is off (`needs_nearby`).
+- **Diagnostics.** A record that says `mode: open` shows the phone wears no cover, which decision
+  235 kept out; Carl accepted it there, as the only way to see the mode's cost. A quiet room
+  stopped because a cover went on writes no record (`recordUnless`, `wornNow`), which would have
+  dated the disguise.
+
+What the review checked and found holding: every other input to the gate closes it, with no gap
+on the first frame for a cover; no path leaves two rooms on the radio or the radios on after the
+gate closes; the quiet mode adds nothing to the protocol (a replayed advert is passed over with no
+tap, a stranger gets silence, no starting copy is served, and Hello reads the revocation list
+fresh); nothing prompts, notifies or keeps the screen awake; a damaged stored list turns the mode
+off; and the migrations only add (the allowlist's new fields, the feature's name), keeping their
+grants.
 
 ### 15.9 How up to date a person is
 

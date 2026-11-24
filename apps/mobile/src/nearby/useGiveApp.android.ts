@@ -14,6 +14,7 @@ import { androidSdk, askingForNearby, askNearbyPermissions, checkNearbyPermissio
 import { useCarriedApk } from './useCarriedApk';
 import type { GiveAppHandle } from './useGiveApp';
 import { useFocus } from './useNearby.native';
+import { nearbyOwner } from './nearbyOwner';
 import { useRadioClaim } from './useRadioClaim';
 
 const KEEP_AWAKE = 'give-app';
@@ -163,6 +164,9 @@ export function useGiveApp(letIn: LetInWhyNot | null): GiveAppHandle {
       }, kept.name);
       startedAt.current = Date.now();
       moved.current = { sent: 0, at: 0 };
+      // After the quiet room of sharing while LangQuest is open, which this screen's claim stopped, has stopped (15.6).
+      await nearbyOwner.settled();
+      if (!still()) return;
       const g = await native.startGiveApp(page, START_MS);
       if (!still()) {
         // Stopped or left while the group formed.

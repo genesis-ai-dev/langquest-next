@@ -63,6 +63,21 @@ describe('the radios\' owner', () => {
     expect(owner.claimed()).toBe(false);
   });
 
+  it('a screen that drives the radio itself waits until the quiet room its claim stopped has stopped', async () => {
+    const owner = nearbyOwnerOf();
+    const log: string[] = [];
+    let release!: () => void;
+    const slow = new Promise<void>((done) => { release = done; });
+    owner.quiet(async () => { await slow; log.push('quiet stopped'); });
+    owner.claim();
+    const waiting = owner.settled().then(() => log.push('screen starts'));
+    await tick();
+    expect(log).toEqual([]);
+    release();
+    await waiting;
+    expect(log).toEqual(['quiet stopped', 'screen starts']);
+  });
+
   it('runs every start and stop one at a time, in the order asked, and one that fails holds up nothing', async () => {
     const owner = nearbyOwnerOf();
     const log: string[] = [];

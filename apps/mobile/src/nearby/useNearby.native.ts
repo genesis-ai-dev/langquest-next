@@ -7,6 +7,8 @@ import { AppState } from 'react-native';
 import { noteChainName } from '../account/chainNames';
 import { noteExpected } from '../diagnostics/report';
 import type { NativeCapabilities } from '../../modules/nearby-link';
+import { showsLock } from '../appLock/appLockModel';
+import { useAppLock } from '../appLock/useAppLock';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
 import { currentHoldChoice } from './holdChoice.native';
@@ -147,7 +149,9 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   const blocked = nearbyBlockedOf(whyNot, radiosOff, state);
   useEffect(() => { if (blocked) diag({ t: { event: 'blocked', why: blocked } }); }, [blocked, diag]);
 
-  const mayRun = radiosMayRun({ focused, onScreen, covered, worn, pressed: run.pressed, stopped: run.stopped !== null })
+  // The app lock stands in front like a cover: a phone left on this screen does not start again behind it (decision 253).
+  const locked = showsLock(useAppLock());
+  const mayRun = radiosMayRun({ focused, onScreen, covered: covered || locked, worn, pressed: run.pressed, stopped: run.stopped !== null })
     && whyNot === null && radiosOff.length === 0 && step.t === 'ready' && org.state !== null && language.state !== null;
   const gate = useRef(mayRun);
   gate.current = mayRun;

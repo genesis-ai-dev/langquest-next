@@ -476,7 +476,8 @@ phone with no internet shares with teammates nearby while LangQuest is open and 
 unless the person turned "Share while LangQuest is open" off on Share nearby. It uses only the
 permissions Share nearby was already granted and never asks, keeps no screen awake, runs no
 service and shows no notification, stops when the screen goes off, never hosts or joins a
-hotspot, and never runs on a phone that wears a disguise. It sends the same data to the same
+hotspot, and never runs on a phone that wears a disguise or behind the app lock; it shares only
+with teammates whose certificate was renewed within the last two weeks. It sends the same data to the same
 members as Share nearby, so no Data safety, permission, content or audience answer changes.
 
 Share nearby's diagnostics (`docs/diagnostics.md`, the `nearby` kind in the facts block):
