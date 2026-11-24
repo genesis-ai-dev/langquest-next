@@ -10,6 +10,16 @@ dashboard (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md).
 The admin is a Global Viewer: the question is the team's, not a user's. Answer
 it. Your answer shows under the question on that card.
 
+## Words on the dashboard
+
+What you write for the ops dashboard follows `docs/card-words.md`: start
+from high up (what part of the system, what a person sees), then zoom in;
+sentences of 25 words or fewer, active voice, one name for each thing; no
+file, code word, id or minute-only time in the text a person reads first;
+and when Claude cannot act, say the plain reason and the one action that
+Caleb can take. `node scripts/card-words.mjs <file.json>` lists the lines
+that break it.
+
 ## What you get
 
 `.questions/questions.json` is a list. Each question has:

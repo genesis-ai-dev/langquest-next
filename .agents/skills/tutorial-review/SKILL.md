@@ -144,6 +144,17 @@ English line.
    A new input is one in state.json's `inputs` with `lookedAt` null, or a
    `code` entry you added.
 
+## Words on a card
+
+Every word an admin reads on a card follows `docs/card-words.md`: start
+from high up (which video, which language, what a viewer sees), then zoom
+in; sentences of 25 words or fewer, active voice, no file, code word, id or
+minute-only time outside the part for the fix. The `check` step lists each
+title, plain detail and caption that breaks it (`wordProblems`), and you
+mend them with the rest. Caleb (2026-11-24): a card that said only "Claude
+could not make the change", over a paragraph of file paths, told him
+nothing he could act on.
+
 ## Suggestions
 
 One suggestion is one change a person can say yes or no to; several inputs
@@ -434,6 +445,21 @@ or, with no change:
 ```json
 { "noFix": "The G is cut off by the app's heading style on the Language screen, not by the video: a code change.", "app": true }
 ```
+
+```json
+{ "noFix": "e2e/tutorials/film.ts draws the light for every video; this video's file cannot change it.", "why": "needsChoice",
+  "plain": "The filming draws the same light round a button in every video. Choose: 1. Make the light bolder in all videos. 2. Keep the light as it is." }
+```
+
+With no change, also say why as `why`, one of: `needsChoice` (a person must
+choose between good ways; `plain` lists them as "1. ... 2. ...", the one you
+recommend first), `needsApp` (the same as `app: true`), `needsSetup` (new
+test data or a filming tool), `notSeen` (you did not see the problem in the
+film), `unclear` (you did not understand what to change). `plain` (at most
+300 characters) says it for the admin, in the words of `docs/card-words.md`:
+no file, code word or id. The card shows the reason and `plain`, and folds
+`noFix` under Details. The workflow gives its own reasons (the tests
+failed, a safety check stopped the change, no access, the job broke).
 
 Add `"app": true` when you proved that the cause is in the app (its code,
 its words in `apps/mobile/src/i18n/`, or the library) and a change to the

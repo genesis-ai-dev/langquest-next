@@ -94,7 +94,7 @@ jobs:
         if: env.HAS_CLAUDE_TOKEN == 'true'
         run: |
           mkdir -p "$RUNNER_TEMP/look/scripts" "$RUNNER_TEMP/look/server"
-          cp scripts/tutorial-review.mjs "$RUNNER_TEMP/look/scripts/" && cp server/tutorialFeedback.ts "$RUNNER_TEMP/look/server/"
+          cp scripts/tutorial-review.mjs scripts/card-words.mjs "$RUNNER_TEMP/look/scripts/" && cp server/tutorialFeedback.ts "$RUNNER_TEMP/look/server/"
           cp -a .git "$RUNNER_TEMP/base.git"
       - name: What is open, and what main changed
         if: env.HAS_CLAUDE_TOKEN == 'true'
@@ -252,7 +252,7 @@ jobs:
         with: { node-version-file: .node-version, package-manager-cache: false }
       - name: The scripts and the repository as checked out, for the steps after Claude
         run: |
-          mkdir -p "$RUNNER_TEMP/fix" && cp scripts/tutorial-review.mjs "$RUNNER_TEMP/fix/"
+          mkdir -p "$RUNNER_TEMP/fix" && cp scripts/tutorial-review.mjs scripts/card-words.mjs "$RUNNER_TEMP/fix/"
           cp -a .git "$RUNNER_TEMP/base.git"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -423,7 +423,7 @@ jobs:
       - name: The script as checked out, for the step after Claude, and the change
         if: steps.patch.outputs.yes == 'true'
         run: |
-          mkdir -p "$RUNNER_TEMP/vet" .tutorial-vet && cp scripts/tutorial-review.mjs "$RUNNER_TEMP/vet/"
+          mkdir -p "$RUNNER_TEMP/vet" .tutorial-vet && cp scripts/tutorial-review.mjs scripts/card-words.mjs "$RUNNER_TEMP/vet/"
           cp "$RUNNER_TEMP/fix/fix.patch" .tutorial-vet/fix.patch
       - name: A second Claude reads the change
         if: steps.patch.outputs.yes == 'true'

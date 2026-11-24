@@ -359,9 +359,9 @@ function stepsHtml(steps, at) {
 }
 
 /** A card's headings in plain words, by the name its maker gives each line. */
-const KV_SAID = { Next: 'What happens next', Context: 'What happened', Issue: 'What goes wrong', Solution: 'The fix', Claude: 'What Claude did', Found: 'What Claude found', Why: 'Why it matters', Where: 'Where in the code', Watch: 'Watch the video' };
+const KV_SAID = { About: 'What this is about', Asked: 'What was asked', Stopped: 'Why Claude stopped', YouCan: 'What you can do', Next: 'What happens next', Context: 'What happened', Issue: 'What goes wrong', Solution: 'The fix', Claude: 'What Claude did', Found: 'What Claude found', Why: 'Why it matters', Where: 'Where in the code', Watch: 'Watch the video' };
 /** The lines that go in the panel at the right, with the buttons: what is done about it. */
-const KV_SIDE = ['Next', 'Solution', 'Claude', 'Where'];
+const KV_SIDE = ['Next', 'Solution', 'YouCan', 'Claude', 'Where'];
 /**
  * One card: at the top its tags, title, who acts next and its steps as a
  * progress bar; then at the left what happened (the pictures, then the lines),
@@ -574,11 +574,11 @@ document.addEventListener('click', (e) => {
 });
 
 // ---- a question about a tutorial video (sources/videos.ts AdminItem), in the same card ----
-const ADMIN_KIND = { approve: 'Suggestion', appFix: 'App fix', fixFailed: 'Change failed', fixed: 'Fixed', held: 'Film held', fails: 'Film fails', reply: 'Reply to post', comment: 'New comment', screen: 'Screen changed', publish: 'Publish', connect: 'Channel', empty: 'No videos', paused: 'Paused' };
+const ADMIN_KIND = { approve: 'Suggestion', appFix: 'App fix', fixFailed: 'Change not made', fixed: 'Fixed', held: 'Film held', fails: 'Film fails', reply: 'Reply to post', comment: 'New comment', screen: 'Screen changed', publish: 'Publish', connect: 'Channel', empty: 'No videos', paused: 'Paused' };
 /** Where each kind of card comes from. */
 const ADMIN_FROM = { approve: 'Claude\'s look at 10:00 UTC', appFix: 'You said Fix it', fixFailed: 'Claude\'s fix run', fixed: 'Claude\'s fix run', held: 'The frame check on the new film', fails: 'The nightly filming', reply: 'A comment on YouTube', comment: 'A comment on YouTube', screen: 'A change merged into main' };
 /** What the start of each kind of card did, in the card's record after its source (ADMIN_FROM). */
-const ADMIN_FOUND = { fixFailed: 'could not make the change', held: 'held it back', fails: 'could not film the video', reply: 'came in', comment: 'came in', screen: 'changed a screen in the video' };
+const ADMIN_FOUND = { fixFailed: 'stopped before the change was made', held: 'held it back', fails: 'could not film the video', reply: 'came in', comment: 'came in', screen: 'changed a screen in the video' };
 const inputSaid = (i) => '<li><small>' + esc(i.kind === 'comment' ? 'Comment' : i.kind === 'code' ? 'Code change' : 'Note') + ' · ' + when(i.at) + '</small><br>' + esc(i.english || i.text) + '</li>';
 /** The admin's words, then where Claude is with them: the state of its change, its note, and its pull request or run. */
 function talkHtml(ins, send) {
@@ -628,8 +628,8 @@ function replyBox(a) {
     '<button type="button" data-reply-done="' + id + '" data-done="none">No reply needed</button></div></div></div>';
 }
 /** For a change Claude could not make: the same change again, as an instruction that names it in full. */
-function retryButton(a) {
-  return a.retry && a.instruct && !a.instructed ? '<button type="button" class="vretry primary" data-retry="' + esc(cardId(a)) + '">' + vicon('now') + 'Try again</button>' : '';
+function retryButton(a, primary) {
+  return a.retry && a.instruct && !a.instructed ? '<button type="button" class="vretry' + (primary === false ? '' : ' primary') + '" data-retry="' + esc(cardId(a)) + '">' + vicon('now') + 'Try again</button>' : '';
 }
 /**
  * A fix in the app (Fix it): what the agent team changed, the screen before and after when it kept them, its newest
@@ -652,8 +652,33 @@ function appSide(a) {
   return pics + answer + ask + merge + (x.stage === 'yours' && tell ? '<details><summary>Tell Claude what to change first</summary>' + tell + '</details>' : tell);
 }
 /** "Fix it in the app", for a change to the video that failed because its cause is in the app. */
-function fixAppButton(a) {
-  return a.kind === 'fixFailed' && a.fixApp ? fixItButton(a.fixApp, 'Fix it in the app', false) : '';
+function fixAppButton(a, primary) {
+  return a.kind === 'fixFailed' && a.fixApp ? fixItButton(a.fixApp, 'Fix it in the app', !!primary) : '';
+}
+/**
+ * Why Claude stopped (sources/videos.ts stopped): the reason in bold, what happened, Claude's own plain words, and
+ * the technical note folded under Details. Never only "Claude could not make the change" (docs/card-words.md).
+ */
+function stoppedHtml(x, link) {
+  const run = safeLink(link) ? '<p>' + outLink(link, 'The run that tried the change') + '</p>' : '';
+  return '<p class="setup"><b>' + esc(x.label) + '.</b> ' + esc(x.says) + '</p>' + (x.plain ? '<p class="setup">' + esc(x.plain) + '</p>' : '') +
+    (x.technical || run ? '<details class="vtech"><summary>Details for a developer</summary>' + (x.technical ? '<p class="setup">' + esc(x.technical) + '</p>' : '') + run + '</details>' : '');
+}
+/**
+ * Where a card's video is in the grid of squares above (pageLists.ts): its language's row and its column, as a
+ * button that shows that square. Null when the card is about no one video.
+ */
+function squareOf(a) {
+  if (!VIDEOS || !a.tutorial || !a.language) return null;
+  const row = VIDEOS.videos.filter((v) => v.language === a.language);
+  const i = row.findIndex((v) => v.tutorial === a.tutorial);
+  const st = i < 0 ? null : (row[i].states || [])[0];
+  return i < 0 ? null : { language: a.language, i, n: row.length, cls: st && st.key === 'paused' ? 'off' : ({ bad: 'fail', warn: 'part', info: 'run', good: 'ok' })[st && st.level] || 'part' };
+}
+function squareChip(a) {
+  const q = squareOf(a);
+  return q ? '<button type="button" class="link vsquare" data-square="' + esc(q.language) + '" data-sqi="' + q.i + '">' +
+    '<i class="vsqi ' + q.cls + '" aria-hidden="true"></i>Square ' + num(q.i + 1) + ' of ' + num(q.n) + ' in the ' + esc(languageName(q.language)) + ' row</button>' : '';
 }
 /**
  * Where to watch the film a card is about (sources/videos.ts Watch): one row for each film, its name, then a link for
@@ -681,6 +706,14 @@ function adminCard(a) {
   const busy = a.send && a.send.state === 'sending';
   const tell = a.instruct ? '<div class="tell"><textarea id="ins-' + id + '" maxlength="2000" rows="3" aria-label="What Claude must do"' + (busy ? ' readonly' : '') + ' placeholder="' + (ins ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
     '<small>Claude starts at its next fix run, ' + fixRunSaid() + '.</small><button type="button"' + (retry ? '' : ' class="primary"') + ' data-instruct="' + id + '"' + (busy ? ' disabled aria-busy="true">Sending…' : '>Send to Claude') + '</button></div>' : '';
+  const stop = a.kind === 'fixFailed' && a.stopped ? a.stopped : null;
+  const about = a.about ? '<p class="setup">' + esc(a.about) + '</p>' + squareChip(a) : '';
+  // The action the reason recommends is the main button: Try again, Fix it in the app, or the box to tell Claude.
+  const act = stop ? stop.act : 'retry';
+  const buttons = !stop ? retry + fixAppButton(a) + (retry && tell ? '<details><summary>Tell Claude what to do instead</summary>' + tell + '</details>' : tell)
+    : act === 'tell' ? tell.replace('<button type="button" data-instruct', '<button type="button" class="primary" data-instruct') + retryButton(a, false) + fixAppButton(a)
+    : act === 'app' ? fixAppButton(a, true) + retryButton(a, false) + (tell ? '<details><summary>Tell Claude what to do instead</summary>' + tell + '</details>' : '')
+    : retry + fixAppButton(a) + (retry && tell ? '<details><summary>Tell Claude what to do instead</summary>' + tell + '</details>' : tell);
   return issueCard({
     pics: pictureStrip(a.pictures),
     tags: '<span class="tag ' + (ADMIN_LEVEL[a.kind] === 'bad' || ADMIN_LEVEL[a.kind] === 'good' ? ADMIN_LEVEL[a.kind] : '') + '">' + esc(ADMIN_KIND[a.kind] || a.kind) + '</span>' +
@@ -688,7 +721,15 @@ function adminCard(a) {
     title: a.title,
     cls: a.reply ? 'reply' : '',
     // A reply to post: the viewer's comment, then the reply and its two steps at the right.
-    lines: a.reply ? [['Comment', commentSaid(a)]] : [
+    // Every other card starts from high up (What this is about), then zooms in (docs/card-words.md).
+    lines: a.reply ? [['About', about], ['Comment', commentSaid(a)]] : stop ? [
+      ['About', about],
+      ['Asked', '<p class="setup">' + esc(plain) + '</p>'],
+      ['Stopped', stoppedHtml(stop, a.link)],
+      ['Watch', watchHtml(a.watch)],
+      [ins ? '' : 'YouCan', ins ? '' : '<p><b>' + esc(a.next) + '</b></p>']
+    ] : [
+      ['About', about],
       ['Context', from + inputs],
       ['Issue', (plain ? '<p class="setup">' + esc(plain) + '</p>' : '') + (technical ? '<details class="vtech"><summary>Technical details for the fix</summary><p class="setup">' + esc(technical) + '</p></details>' : '')],
       ['Watch', watchHtml(a.watch)],
@@ -698,9 +739,8 @@ function adminCard(a) {
     steps: a.app ? appSteps(a) : [VIDEO_STEPS, videoWay(a).at],
     record: a.tutorial && a.language ? recordHtml(cardRecord(VIDEOS && VIDEOS.records, a.tutorial + '/' + a.language, SENDS, 'video:' + cardId(a),
       a.at && ADMIN_FOUND[a.kind] ? { at: a.at, who: ADMIN_FROM[a.kind], said: ADMIN_FOUND[a.kind] } : null), cardPill(a)) : '',
-    side: a.reply ? replyBox(a) : a.app ? appSide(a) : (a.suggestion ? suggestionSide(a.suggestion, a.fixApp) : '') + (a.filming ? filmingSwitch(a.filming.language, a.filming.on, a.filming.videos) : '') + talkHtml(ins, a.send) + (a.link ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
-      // A change Claude could not make: Try again is the main button, Fix it in the app beside it, and the box is behind "instead".
-      retry + fixAppButton(a) + (retry && tell ? '<details><summary>Tell Claude what to do instead</summary>' + tell + '</details>' : tell)
+    side: a.reply ? replyBox(a) : a.app ? appSide(a) : (a.suggestion ? suggestionSide(a.suggestion, a.fixApp) : '') + (a.filming ? filmingSwitch(a.filming.language, a.filming.on, a.filming.videos) : '') + talkHtml(ins, a.send) + (a.link && !stop ? cardLink(a).replace('<a ', '<a class="button" ') : '') +
+      buttons
   });
 }
 `;

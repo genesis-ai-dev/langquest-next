@@ -178,7 +178,7 @@ export function issueOf(s: Suggestion, languageName: (code: string) => string): 
       ...(s.tutorial ? [`Video: ${s.tutorial}`, ''] : []),
       ...(answers.length ? ['What it answers:', '', ...answers] : []),
       ...(s.reason ? [`Accepted with: ${s.reason}`, ''] : []),
-      ...(s.fix?.state === 'failed' && s.fix.note ? [`When Claude tried to change the video: ${s.fix.note}`, ''] : []),
+      ...(s.fix?.state === 'failed' && s.fix.note ? [`When Claude tried to change the video: ${s.fix.note.replace(/^why=\w+\n/, '').trim()}`, ''] : []),
       ...(s.app ? [s.app.handed
         ? 'An admin accepted this change, and Claude found that its cause is in the app: the agent team changes the app (docs/agent-team.md). The fix merges with no person when it keeps the agent team\'s rule, and then the video is filmed again.'
         : `An admin said "Fix it" on the ops dashboard: the agent team changes the app (docs/agent-team.md). ${s.app.askFirst ? 'The admin asked to see the change before it merges.' : 'The fix merges with no person when it keeps the agent team\'s rule, and then the video is filmed again.'}`, ''] : []),
