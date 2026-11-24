@@ -477,7 +477,7 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
         ['Known', r.known ? '<p>' + esc(r.known) + '</p>' : ''],
         ['Next', next]
       ],
-      bar: claimButton(r.issue, !!r.closedAt) + (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
+      bar: claimButton(r.issue, !!r.closedAt) + closeButton(r.issue, !!r.closedAt) + (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
         (way.tab === 'claude' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
         (r.issue && safeLink(r.issueUrl) ? outLink(r.issueUrl, 'Open ' + esc(r.issue) + ' in Linear', 'button') : ''),
       more: (pics ? '<div class="ipics">' + pics + '</div>' : '') + '<div class="iprog">' + stepsHtml(ISSUE_STEPS, way.at) + '</div>' +

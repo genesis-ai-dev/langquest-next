@@ -39,6 +39,13 @@ export const MINE_CSS = String.raw`
 .tag.claimed.me { color: var(--primary); background: var(--bg); border: 1px solid var(--primary); }
 .tag.claimed svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 button.claim { min-height: 44px; }
+.iclose { position: relative; }
+.iclose > summary { list-style: none; display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; font-weight: 600; }
+.iclose > summary::-webkit-details-marker { display: none; }
+.iclose[open] > summary { background: var(--raised); }
+.iclose .closemenu { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; display: grid; gap: 6px; width: max-content; max-width: min(340px, 86vw); padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); box-shadow: 0 6px 20px rgb(0 0 0 / .25); }
+.iclose .closemenu button { min-height: 48px; text-align: start; }
+.iclose .closemenu small { color: var(--muted); font-size: 12px; padding: 0 4px; }
 `;
 
 /** The bell and its list, in page.ts's top line before Refresh. */
@@ -164,6 +171,40 @@ function claimButton(issue, closed) {
   if (c && !c.mine) return '';
   return '<button type="button" class="claim' + (c ? '' : ' primary') + '" data-claim="' + esc(issue) + '" data-claim-on="' + (c ? '0' : '1') + '">' + (c ? 'Release' : 'Claim') + '</button>';
 }
+/**
+ * Close on an open issue's card: in Linear now, as done (the team's done status, Live) or as needing no fix
+ * (Canceled), and on the card at once (docs/decisions/2026-11-24-close-an-issue-from-its-card.md).
+ */
+function closeButton(issue, closed) {
+  if (!issue || closed) return '';
+  const id = esc(issue);
+  return '<details class="iclose"><summary>Close</summary><div class="closemenu" role="group" aria-label="Close ' + id + ' in Linear">' +
+    '<button type="button" data-close="' + id + '" data-close-as="completed">Done: it is fixed or finished</button>' +
+    '<button type="button" data-close="' + id + '" data-close-as="canceled">Canceled: no fix is needed</button>' +
+    '<small>Linear and this card change now.</small></div></details>';
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-close]');
+  if (!b) return;
+  perform({ kind: 'issue-close', issue: b.dataset.close, as: b.dataset.closeAs }, b);
+});
+/**
+ * The open issues' states in Linear, read through the app Worker when the issues come and at most each 2 minutes while
+ * the page is in front: an issue closed in Linear closes on its card at once, not at the watch's next run.
+ */
+let issueStatesAt = 0;
+async function syncIssueStates() {
+  const d = userIssuesData();
+  if (!d || document.visibilityState !== 'visible' || $('board').hidden || Date.now() - issueStatesAt < 120000) return;
+  const open = [...new Set((d.issues || []).filter((r) => r.issue && !r.closedAt).map((r) => r.issue))].slice(0, 100);
+  if (!open.length) return;
+  issueStatesAt = Date.now();
+  try {
+    const b = await post({ kind: 'issue-states', issues: open });
+    if (/^changed:[1-9]/.test(String(b.result))) await reread(['ops']);
+  } catch {}
+}
+setInterval(syncIssueStates, 30000);
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('[data-claim]');
   if (!b) return;

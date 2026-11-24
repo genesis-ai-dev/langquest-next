@@ -19,25 +19,29 @@ function page() {
   const el = () => ({ hidden: true, innerHTML: '', textContent: '', attrs: {} as Record<string, string>, setAttribute(k: string, v: string) { this.attrs[k] = v; }, addEventListener() {}, focus() {} });
   for (const id of ['mine', 'mine-count', 'mine-panel', 'board']) els[id] = el();
   const posts: unknown[] = [];
-  const api = { answer: null as Mine | null, fail: false };
+  const api = { answer: null as Mine | null, fail: false, visible: false, result: 'changed:0' };
   const fns = new Function('els', 'posts', 'apiState', `
     const $ = (id) => els[id];
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';');
     const ago = () => '5 min ago';
-    const document = { addEventListener() {}, visibilityState: 'hidden' };
+    const document = { addEventListener() {}, get visibilityState() { return apiState.visible ? 'visible' : 'hidden'; } };
     const setInterval = () => 0;
     let redrawn = 0;
     const redrawSends = () => { redrawn++; };
     const say = () => {};
     const perform = async () => {};
     const api = async () => { if (apiState.fail) throw new Error('down'); return apiState.answer; };
-    const post = async (a) => { posts.push(a); return { ok: true }; };
+    const post = async (a) => { posts.push(a); return { ok: true, result: apiState.result }; };
     ${MINE_LOGIC}
     ${MINE_SCRIPT}
-    return { loadMine, openMine, closeMine, claimTag, claimButton, set: (m) => { MINE = m; }, redrawn: () => redrawn };
+    let udata = null;
+    const userIssuesData = () => udata;
+    const reread = async (parts) => { posts.push({ reread: parts }); };
+    return { loadMine, openMine, closeMine, claimTag, claimButton, closeButton, syncIssueStates, issues: (d) => { udata = d; }, set: (m) => { MINE = m; }, redrawn: () => redrawn };
   `)(els, posts, api) as {
     loadMine: () => Promise<void>; openMine: () => void; closeMine: () => void;
     claimTag: (issue: string) => string; claimButton: (issue: string, closed?: boolean) => string; set: (m: Mine | null) => void; redrawn: () => number;
+    closeButton: (issue: string, closed?: boolean) => string; syncIssueStates: () => Promise<void>; issues: (d: Row | null) => void;
   };
   return { ...fns, els, posts, api };
 }
@@ -142,5 +146,30 @@ describe('a claim on an issue', () => {
     p.api.answer = { claims: {}, replies: [], seenAt: null };
     await p.loadMine();
     expect(p.redrawn()).toBe(2);
+  });
+});
+
+describe('Close on an issue card, and the states in Linear at once (docs/decisions/2026-11-24-close-an-issue-from-its-card.md)', () => {
+  it('offers done or no fix needed on an open issue, and nothing on a closed one', () => {
+    const p = page();
+    const html = p.closeButton('LAN-327');
+    expect(html).toContain('<summary>Close</summary>');
+    expect(html).toContain('data-close="LAN-327" data-close-as="completed">Done: it is fixed or finished</button>');
+    expect(html).toContain('data-close="LAN-327" data-close-as="canceled">Canceled: no fix is needed</button>');
+    expect(p.closeButton('LAN-327', true)).toBe('');
+    expect(p.closeButton('')).toBe('');
+  });
+
+  it('asks the Worker for the open issues\' states at most each 2 minutes, and reads the issues again after a change', async () => {
+    const p = page();
+    p.posts.length = 0;
+    p.api.visible = true;
+    p.els.board!.hidden = false;
+    p.issues({ issues: [{ issue: 'LAN-327', closedAt: null }, { issue: 'LAN-9', closedAt: '2026-11-20T00:00:00Z' }, { issue: 'LAN-327', closedAt: null }] });
+    p.api.result = 'changed:2';
+    await p.syncIssueStates();
+    expect(p.posts).toEqual([{ kind: 'issue-states', issues: ['LAN-327'] }, { reread: ['ops'] }]);
+    await p.syncIssueStates();
+    expect(p.posts).toHaveLength(2);
   });
 });

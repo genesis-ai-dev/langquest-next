@@ -34,7 +34,7 @@ const draw = new Function(`
   let VIDEOS = null, results = {}, udata = null;
   const userIssuesData = () => udata;
   // A claim on the issue (pageMine.ts) has tests of its own (mine.test.ts): none here.
-  const claimTag = () => "", claimButton = () => "";
+  const claimTag = () => "", claimButton = () => "", closeButton = () => "";
   ${SEND_LOGIC}
   ${SEND_SCRIPT}
   let fixData = null;

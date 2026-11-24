@@ -25,7 +25,7 @@ const draw = new Function(`
   const document = { addEventListener() {}, getElementById() { return null; } };
   let VIDEOS = null, results = {}, udata = null, fixData = null;
   const userIssuesData = () => udata;
-  const claimTag = () => '', claimButton = () => '';
+  const claimTag = () => '', claimButton = () => '', closeButton = () => '';
   ${SEND_LOGIC}
   ${SEND_SCRIPT}
   ${ISSUE_LOGIC}
