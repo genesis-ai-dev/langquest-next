@@ -140,15 +140,35 @@ export async function deploying(api, commits, files) {
   return out;
 }
 
-/** A lane reports for the push `sha`. */
-export async function reportLane(api, { name, sha, status, url }) {
+/** The push an issue waits on: the commit of its last "Deploying" comment. */
+export function waitingOn(comments) {
+  let at = null;
+  for (const body of comments) {
+    const deploy = body.match(/^Deploying (\w+) · lanes: /m);
+    if (deploy) at = deploy[1];
+  }
+  return at;
+}
+
+/**
+ * A lane reports for the push `sha`. A lane that shipped `sha` also shipped
+ * every push before it: an issue that waits on an earlier push whose own build
+ * failed (an iOS build in error) hears the later ok, when `contains(earlier,
+ * sha)` says `sha` holds it. A failure says nothing about an earlier push.
+ */
+export async function reportLane(api, { name, sha, status, url }, contains = () => false) {
   const out = [];
   for (const issue of await api.listDeploying()) {
-    if (!progress(issue.comments, sha).lanes) continue;
-    const body = laneComment(name, status, sha, url);
+    let at = sha;
+    if (!progress(issue.comments, sha).lanes) {
+      const earlier = waitingOn(issue.comments);
+      if (status !== 'ok' || !earlier || !contains(earlier, sha)) continue;
+      at = earlier;
+    }
+    const body = at === sha ? laneComment(name, status, sha, url) : `${laneComment(name, status, at, url)} · in ${short(sha)}`;
     await api.comment(issue.id, body);
     // Read after writing: of two lanes finishing together, the later sees both.
-    const decided = verdict(progress([...issue.comments, body, ...(await api.comments(issue.id))], sha));
+    const decided = verdict(progress([...issue.comments, body, ...(await api.comments(issue.id))], at));
     if (decided === 'Live' || decided === 'Outage') out.push(await move(api, issue, decided));
     else out.push(`${issue.identifier} waiting`);
   }
@@ -272,6 +292,16 @@ function flags(argv) {
 }
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' });
+
+/** Whether `later` holds `earlier`. A checkout without the history says no, and only the exact push counts. */
+function isAncestor(earlier, later) {
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', earlier, later], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 const ZEROS = /^0+$/;
 
 /** The commits and changed files of a push. No usable `from`: just the head. */
@@ -307,7 +337,7 @@ async function main() {
       console.error('usage: lane --name <lane> --sha <sha> --status ok|failed [--url <url>]');
       process.exit(2);
     }
-    lines = await reportLane(api, { name, sha, status, url: opt.url });
+    lines = await reportLane(api, { name, sha, status, url: opt.url }, isAncestor);
   } else {
     console.error('usage: linear-sync.mjs deploying|lane ...');
     process.exit(2);

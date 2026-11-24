@@ -114,6 +114,23 @@ describe('a push, lane by lane', () => {
     expect(issues[0].state).toBe('Live');
   });
 
+  it('is Live when a later push that holds the waited push ships the lane its own build never did', async () => {
+    const issues = [issue('LAN-5')];
+    const api = fakeLinear(issues);
+    await deploying(api, commits, ['apps/mobile/src/a.ts']);
+    await reportLane(api, { name: 'android', sha: SHA, status: 'ok' });
+    const LATER = 'f'.repeat(40);
+    // A checkout that cannot tell says no: still waiting.
+    await reportLane(api, { name: 'ios', sha: LATER, status: 'ok' });
+    expect(issues[0].state).toBe('Deploying');
+    // A failure of the later push says nothing about the earlier one.
+    await reportLane(api, { name: 'ios', sha: LATER, status: 'failed' }, () => true);
+    expect(issues[0].state).toBe('Deploying');
+    await reportLane(api, { name: 'ios', sha: LATER, status: 'ok' }, (earlier, later) => SHA.startsWith(earlier) && later === LATER);
+    expect(issues[0].state).toBe('Live');
+    expect(issues[0].comments.at(-1)).toBe(`Lane ios ok · ${SHA.slice(0, 7)} · in fffffff`);
+  });
+
   it('goes to Outage on a failed lane without waiting for the others', async () => {
     const issues = [issue('LAN-5')];
     const api = fakeLinear(issues);

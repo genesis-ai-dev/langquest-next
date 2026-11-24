@@ -44,6 +44,17 @@ Merged when any merged pull request named it in its description, also as
   has open shows on the card as a part of the work, and the issue stays under
   its open tab.
 
+- **Two leaks that kept merged work open are closed.** A copy onto a
+  release branch (decisions.md 155) named the issue in its title, so Linear's
+  GitHub integration moved an issue the merge had sent to Deploying or Live
+  back to In Progress, where nothing moved it again (LAN-232 since
+  2026-11-20). A copy now names only its merge on main, and the dashboard
+  reads only pull requests into main as fixes. And an issue whose push's own
+  iPhone build failed waited in Deploying for ever (ten nightly issues since
+  2026-11-20): a lane that ships a later push now also counts for every push
+  that push holds (`git merge-base --is-ancestor`; a checkout without the
+  history counts only the exact push, as before).
+
 The check runs on every merge, about 20 a day, on the smaller model at
 medium effort. A merge that touches nothing an issue names costs one short
 look. No database or Worker change: Linear holds the state, and the watch
