@@ -278,7 +278,13 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // nearby. The dates, their reading and the line are in files only a phone loads (quietUntilModel.ts,
 // nearbyCarry.native.ts, useNearby.native.ts, NearbyRow.native.tsx), since the web shares nothing nearby.
 // 689 bytes are left; a first visit has 749.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 170 * 1024;
+// Raised by 2 KB with @supabase/supabase-js 2.119.0 to 2.119.2 (Carl, 2026-11-24, Dependabot's app group),
+// 1,156 bytes past it: the client now names the runtime and platform it runs on in the X-Client-Info header
+// it already sent, and storage-js builds its object URLs in one place, 1,845 bytes in all. The client is
+// made as the app starts, in the bundle every visit loads, so none of it can load later. lucide-react-native
+// 1.74 to 1.77, in the same bump, changed none of the icons the app draws (src/ui/icons.ts). 892 bytes are
+// left; a first visit has 952.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 172 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -382,7 +388,10 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 170 * 1024;
 // whether anything is playing (src/audio/nowPlaying.ts), which the mode pauses for and every player shares.
 // The mode, its gate and its room are in files only a phone loads (useNearbyWhileOpen.native.ts,
 // NearbyWhileOpen.native.tsx), since the web shares nothing nearby. 872 bytes are left; all chunks have 132.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 116 * 1024;
+// Raised by 2 KB with @supabase/supabase-js 2.119.0 to 2.119.2 (Carl, 2026-11-24, Dependabot's app group),
+// 1,096 bytes past it: the same 1,845 bytes all chunks grew by (see there), since the client is made as the
+// app starts. 952 bytes are left; all chunks have 892.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 118 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
