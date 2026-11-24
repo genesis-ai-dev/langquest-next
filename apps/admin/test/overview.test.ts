@@ -4,17 +4,12 @@ import { OVERVIEW_LOGIC } from '../src/pageOverview';
 import { mergedPull } from '../src/sources/releases';
 
 interface Tile { group: string; label: string; value: string | null; sub: string; small: boolean; spark: string | null }
-interface MapNode { id: string; title: string; group: string; icon: string; state: string; said: string; sub: string }
-const logic = new Function(`${OVERVIEW_LOGIC}; return { tilesOf, mapOf, shippedOf, liveBuilds, planOf, MAP_COLS, MAP_WIRES };`)() as {
+const logic = new Function(`${OVERVIEW_LOGIC}; return { tilesOf, shippedOf, liveBuilds, planOf };`)() as {
   planOf: (results: Record<string, unknown>, now: number) => Plan;
   tilesOf: (results: Record<string, unknown>) => Tile[];
-  mapOf: (results: Record<string, unknown>, levels: string[]) => { title: string; nodes: MapNode[] }[];
   shippedOf: (releases: unknown, max: number) => { at: string; pr: number | null; title: string }[];
-  MAP_COLS: { nodes: { id: string; group: string; parts: string[] }[] }[];
-  MAP_WIRES: [string, string][];
 };
 interface Plan { used: number | null; gone: number | null; level: string; said: string; resetsAt: string | null; runsOut: string | null; readAt: string | null; old: boolean }
-const LEVELS = ['urgent', 'problem', 'watch'];
 const ok = (data: unknown, alerts: unknown[] = []) => ({ state: 'ok', alerts, data });
 const lane = (id: string, cards: Record<string, { title: string; tone: string }[]>) => ({ id, stages: Object.entries(cards).map(([stage, cs]) => ({ id: stage, cards: cs })) });
 const pipeline = ok({ repo: 'o/r', lanes: [
@@ -47,38 +42,6 @@ describe('At a glance', () => {
 
   it('gives no number when a part answers in a shape it does not know', () => {
     expect(logic.tilesOf({ people: ok({}) })[0]).toMatchObject({ value: null, sub: 'No number' });
-  });
-});
-
-describe('How it fits together', () => {
-  it('names only sections and parts the page has, and wires only boxes it draws', () => {
-    const parts = new Set(GROUPS.flatMap((g) => [...g.parts]));
-    const nodes = logic.MAP_COLS.flatMap((c) => c.nodes);
-    for (const n of nodes) {
-      expect(GROUPS.some((g) => g.id === n.group), n.id).toBe(true);
-      for (const p of n.parts) expect(parts.has(p), `${n.id}: ${p}`).toBe(true);
-    }
-    const ids = new Set(nodes.map((n) => n.id));
-    expect(ids.size).toBe(nodes.length);
-    for (const [a, b] of logic.MAP_WIRES) { expect(ids.has(a), a).toBe(true); expect(ids.has(b), b).toBe(true); }
-  });
-
-  it('shows each box as its parts answered: loading, not connected, could not read, its most urgent alert, or working', () => {
-    const node = (results: Record<string, unknown>, id: string) => logic.mapOf(results, LEVELS).flatMap((c) => c.nodes).find((n) => n.id === id)!;
-    expect(node({}, 'linear')).toMatchObject({ state: 'wait', sub: 'Loading…' });
-    expect(node({ userissues: { state: 'off', alerts: [] } }, 'linear')).toMatchObject({ state: 'off', sub: 'Not connected' });
-    expect(node({ userissues: { state: 'error', alerts: [] } }, 'linear')).toMatchObject({ state: 'error', sub: 'Could not read' });
-    expect(node({ userissues: ok({ open: 3 }, [{ level: 'watch', text: 'w' }]) }, 'linear')).toMatchObject({ state: 'watch', sub: '3 open issues' });
-    expect(node({ userissues: ok({ open: 1 }) }, 'linear')).toMatchObject({ state: 'ok', sub: '1 open issue' });
-    // One part of a box loading keeps the box from saying Working.
-    expect(node({ storage: ok({ r2: { objects: 12 } }) }, 'r2').state).toBe('wait');
-  });
-
-  it("gives a store's box that store's own builds, not the other store's failure", () => {
-    const cols = logic.mapOf({ pipeline }, LEVELS);
-    const node = (id: string) => cols.flatMap((c) => c.nodes).find((n) => n.id === id)!;
-    expect(node('ios')).toMatchObject({ state: 'problem', sub: 'build 45 is live · 1 failed' });
-    expect(node('android')).toMatchObject({ state: 'ok', sub: 'build 54 is live · 1 in review' });
   });
 });
 
