@@ -23,6 +23,11 @@
 # problem an admin resolved came back, from what the line counts
 # (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md).
 #
+# An admin can ask for a change in Linear ("LAN-158 is fixed now"). Claude
+# reads what the admin means and names the changes; the step that sends the
+# answers back, the only one with LINEAR_API_KEY, makes them on an issue the
+# card or the question names.
+#
 # What admins asked and what Claude answered stay in the database and on the
 # runner: this public repository's log says only how many.
 name: card-questions
@@ -60,7 +65,7 @@ jobs:
         with: { node-version-file: .node-version, package-manager-cache: false }
       - name: The scripts as checked out, for the steps after Claude
         if: env.HAS_TEAM_TOKEN == 'true'
-        run: mkdir -p "$RUNNER_TEMP/ask" && cp scripts/card-questions.mjs scripts/prod-read.mjs "$RUNNER_TEMP/ask/"
+        run: mkdir -p "$RUNNER_TEMP/ask" && cp scripts/card-questions.mjs scripts/prod-read.mjs scripts/linear-sync.mjs "$RUNNER_TEMP/ask/"
       - name: The questions that wait
         id: fetch
         if: env.HAS_TEAM_TOKEN == 'true'
@@ -93,8 +98,12 @@ jobs:
           prompt: |
             Use the card-questions skill (.agents/skills/card-questions/SKILL.md), its part "What you write". Each entry of .questions/web.json is an admin's question (`question`, about the card `title`), a first answer from the code and production (`draft`), and what that answer still needs from public web pages (`lookUp`). Look it up with WebSearch and WebFetch, on the providers' own pages first, and name each page you used. Then write .questions/web-answers.json: a list of { "id", "answer" }, where answer is the whole answer for the admin, with the draft's facts and what you found, at most 8000 characters. Write nothing else.
           claude_args: --model opus --allowedTools "Read,Write,WebFetch,WebSearch" --disallowedTools "Bash"
-      - name: Send the answers back
+      # The Linear key is only here, after both Claudes: it makes the changes an admin asked for
+      # (docs/decisions/2026-11-24-dashboard-claude-changes-linear-from-any-card.md).
+      - name: Make the changes in Linear admins asked for, and send the answers back
         if: ${{ !cancelled() && steps.fetch.outputs.n != '' && steps.fetch.outputs.n != '0' }}
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: node "$RUNNER_TEMP/ask/card-questions.mjs" report .questions
       # Resolved lines of the dashboard: Claude decides, from the nature of each problem, whether it came
       # back (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md). Each resolve is
