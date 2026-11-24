@@ -120,6 +120,15 @@ describe('secrets', () => {
     expect(read('apps/web/wrangler.jsonc')).not.toMatch(/"required": \[[^\]]*NEARBY_SIGNING_KEY/);
   });
 
+  it('gives the app Worker the token that starts a message\'s workflow, in production only', () => {
+    const all = { ...values, OPS_RUN_GITHUB_TOKEN: 'github_pat_x' };
+    expect(destinations('production', all, 'ref', 'k').workers.app).toMatchObject({ OPS_RUN_GITHUB_TOKEN: 'github_pat_x' });
+    expect(Object.keys(destinations('preview', all, 'ref', 'k').workers.app)).not.toContain('OPS_RUN_GITHUB_TOKEN');
+    expect(Object.keys(destinations('production', values, 'ref', 'k').workers.app)).not.toContain('OPS_RUN_GITHUB_TOKEN');
+    expect(FILE_KEYS).toContain('OPS_RUN_GITHUB_TOKEN');
+    expect(read('apps/web/wrangler.jsonc')).not.toMatch(/"required": \[[^\]]*OPS_RUN_GITHUB_TOKEN/);
+  });
+
   it('gives GitHub the Gemini key for the nightly filming and the Claude token for the nightly look and frame check, from production\'s file only, and nothing else', () => {
     expect(destinations('production', { ...values, GEMINI_API_KEY: 'g' }, 'ref', 'k').github).toEqual({ GEMINI_API_KEY: 'g' });
     expect(destinations('production', { ...values, GEMINI_API_KEY: 'g', CLAUDE_CODE_OAUTH_TOKEN: 'sk-oat' }, 'ref', 'k').github)

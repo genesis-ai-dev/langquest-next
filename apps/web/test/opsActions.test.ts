@@ -18,11 +18,13 @@ const NOW = Date.parse('2026-10-28T09:00:00Z');
 const CLIENT = { clientId: 'client.apps.googleusercontent.com', clientSecret: 'client-secret' };
 const REDIRECT = 'https://next.langquest.org/ops/api/youtube/callback';
 
-function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[] } {
+function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[]; runs: string[] } {
   const rows: unknown[] = [];
   const done: string[] = [];
+  const runs: string[] = [];
   return {
-    rows, done,
+    rows, done, runs,
+    startRun: async (workflow) => { runs.push(workflow); return 'started'; },
     whoIs: async (token) => (token === 'aal2' ? { profileId: VIEWER, aal: 'aal2' } : token === 'aal1' ? { profileId: VIEWER, aal: 'aal1' } : null),
     globalViewerOn: async (_profile, aal) => aal === 'aal2',
     setFeedbackStatus: async (id, status) => { done.push(`feedback ${id} ${status}`); return id === FEEDBACK; },
@@ -298,19 +300,30 @@ describe('an instruction on a user issue (docs/decisions/2026-11-18-an-admin-tel
 
   it('keeps it as this person for the watch, records it, and refuses an issue that is not open or has three waiting', async () => {
     const d = deps();
-    expect(await act(d, 'aal2', { kind: 'user-issue-note', issue: 'LAN-284', text: 'Wait for the passage first.' })).toEqual({ ok: true, result: 'instructed' });
+    expect(await act(d, 'aal2', { kind: 'user-issue-note', issue: 'LAN-284', text: 'Wait for the passage first.' })).toEqual({ ok: true, result: 'instructed', run: 'started' });
     expect(await act(d, 'aal2', { kind: 'user-issue-note', issue: 'LAN-285', text: 'One more.' })).toMatchObject({ ok: false, status: 400 });
     expect(await act(d, 'aal2', { kind: 'user-issue-note', issue: 'LAN-1', text: 'Fix it.' })).toMatchObject({ ok: false, status: 404 });
     expect(d.done).toEqual([`issue LAN-284 Wait for the passage first. by ${VIEWER}`, `issue LAN-285 One more. by ${VIEWER}`, `issue LAN-1 Fix it. by ${VIEWER}`]);
     // The log keeps the issue and the note's id, never the words.
     expect(d.rows).toEqual([
-      { profileId: VIEWER, action: 'user_issue_note', target: 'LAN-284', result: 'ok', detail: `note:${SUGGESTION}` },
+      { profileId: VIEWER, action: 'user_issue_note', target: 'LAN-284', result: 'ok', detail: `note:${SUGGESTION}:run:started` },
       { profileId: VIEWER, action: 'user_issue_note', target: 'LAN-285', result: 'refused', detail: 'full' },
       { profileId: VIEWER, action: 'user_issue_note', target: 'LAN-1', result: 'refused', detail: 'not_found' }
     ]);
+    // Only the kept instruction starts the watch now.
+    expect(d.runs).toEqual(['user-issues.yml']);
     const aal1 = deps();
     expect(await act(aal1, 'aal1', { kind: 'user-issue-note', issue: 'LAN-284', text: 'Fix it.' })).toMatchObject({ ok: false, status: 403 });
     expect(aal1.done).toEqual([]);
+    expect(aal1.runs).toEqual([]);
+  });
+
+  it('keeps the instruction when the watch cannot start now, and says why in the log', async () => {
+    for (const [run, said] of [['no_token', 'no_token'], ['refused_403', 'refused_403'], [null, 'error']] as const) {
+      const d = deps({ startRun: async () => { if (!run) throw new Error('down'); return run; } });
+      expect(await act(d, 'aal2', { kind: 'user-issue-note', issue: 'LAN-284', text: 'Fix it.' })).toEqual({ ok: true, result: 'instructed', run: said });
+      expect(d.rows).toEqual([{ profileId: VIEWER, action: 'user_issue_note', target: 'LAN-284', result: 'ok', detail: `note:${SUGGESTION}:run:${said}` }]);
+    }
   });
 
   it('says why it refused, with the issue', async () => {
@@ -352,15 +365,16 @@ describe('a question to Claude from any card (docs/decisions/2026-11-23-ask-clau
 
   it('keeps it for Claude, and says why when a card or the dashboard has too many waiting', async () => {
     const d = deps();
-    expect(await act(d, 'aal2', q)).toEqual({ ok: true, result: 'asked' });
+    expect(await act(d, 'aal2', q)).toEqual({ ok: true, result: 'asked', run: 'started' });
     expect(d.done).toEqual([`ask line:capacity-r2-class-a storage R2 class A operations are past the plan [Recording uploads 5,524,967 of 1,000,000 free] What does it cost? by ${VIEWER}`]);
     expect(await act(d, 'aal2', { ...q, card: 'page:full' })).toMatchObject({ ok: false, status: 400, error: expect.stringContaining('Three questions on this card') });
     expect(await act(d, 'aal2', { ...q, card: 'page:many' })).toMatchObject({ ok: false, status: 400, error: expect.stringContaining('Twenty questions') });
     expect(d.rows).toEqual([
-      { profileId: VIEWER, action: 'card_question', target: 'line:capacity-r2-class-a', result: 'ok', detail: `question:${SUGGESTION}` },
+      { profileId: VIEWER, action: 'card_question', target: 'line:capacity-r2-class-a', result: 'ok', detail: `question:${SUGGESTION}:run:started` },
       { profileId: VIEWER, action: 'card_question', target: 'page:full', result: 'refused', detail: 'full' },
       { profileId: VIEWER, action: 'card_question', target: 'page:many', result: 'refused', detail: 'many' }
     ]);
+    expect(d.runs).toEqual(['card-questions.yml']);
     const aal1 = deps();
     expect(await act(aal1, 'aal1', q)).toMatchObject({ ok: false, status: 403 });
     expect(aal1.done).toEqual([]);

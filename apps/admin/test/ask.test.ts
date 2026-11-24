@@ -74,6 +74,8 @@ describe('Ask Claude on every card (pageAsk.ts)', () => {
 
   it('says what Claude does with a question in each state', () => {
     expect(logic.askSaid({ state: 'waiting' }, '10:05')).toContain('at about 10:05');
+    // The Worker started the workflow at once (apps/web/worker/startRun.ts).
+    expect(logic.askSaid({ state: 'waiting', started: true }, '10:05')).toBe('Claude starts on it now. When another run is in progress, Claude starts when that run ends. The answer shows here.');
     expect(logic.askSaid({ state: 'working' }, '')).toContain('works on it now');
     expect(logic.askSaid({ state: 'stopped' }, '')).toContain('Ask again');
     expect(logic.askSaid({ state: 'answered', answer: null }, '')).toContain('without an answer');

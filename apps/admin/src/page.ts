@@ -1200,6 +1200,12 @@ async function start() {
 
 // Every five minutes while the tab is in front.
 setInterval(() => { if (document.visibilityState === 'visible' && !$('board').hidden) load(false); }, 300000);
+// While Claude owes an answer to an instruction on a user issue, the issues are read again each minute,
+// so its state (works on it now, answered) shows without a reload.
+setInterval(() => {
+  if (document.visibilityState !== 'visible' || $('board').hidden || loading || !issueWaits()) return;
+  api('/ops/api/ops').then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); }).catch(() => {});
+}, 60000);
 if (session() || borrowed()) start(); else showSignIn();
 </script>
 </body>
