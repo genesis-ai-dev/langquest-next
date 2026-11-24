@@ -192,6 +192,23 @@ them in `ops.user_issue_steps` (migration
 `20261124193000_user_issue_steps.sql`), so the team's scripts write nothing
 more (docs/decisions/2026-11-24-each-issue-card-shows-its-steps.md).
 
+## Every try ends with a result
+
+The job `open` writes one record for each try, so the card's last step is
+never "started a try":
+
+- A fix with a pull request: the record names it.
+- GitHub refuses to open the pull request: the record says so (no change,
+  reason `app`, with GitHub's answer), and the plan tries again in 6 hours.
+  The branch stays, and the Linear issue has a link to open it by hand.
+- A new try finds the issue's branch with no open pull request: its fix
+  takes the branch's place, and the job opens the pull request again. With
+  an open draft fix, the new change goes on that draft.
+- A step of `open` fails before the Worker heard of the try: a record with
+  no verdict, and Claude tries again, as when the manager wrote none.
+- A run that a person or GitHub cancelled writes nothing. After 4 hours, the
+  card says "No result came back from this try" under it.
+
 ## When a fix does not get into main
 
 Trivial fixes often fail on the way into main: a flaky test, a removal

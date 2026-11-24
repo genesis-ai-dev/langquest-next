@@ -6,7 +6,7 @@ import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, linearKept, LIMITS, linearClient, lookedOf, mergesOf,
   linearAsked, linearChanges, statusFor, withoutLinearClaims, noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
-  repairOf, repairsOf, planRecord, planReads, READ_ROWS, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend
+  repairOf, repairsOf, planRecord, planReads, READ_ROWS, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend, OPEN_AGAIN, refusedWhy
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -631,6 +631,27 @@ describe('a draft fix for each new issue', () => {
     expect(noFixComment('Needs a store build.', RUN)).toBe(`**Claude looked for a fix and wrote none.** Needs a store build.\n\nThe watch for user issues: ${RUN}`);
     expect(branchComment('user-issue/lan-230', RUN)).toContain('[Open it](https://github.com/genesis-ai-dev/langquest-next/compare/main...user-issue/lan-230?expand=1)');
   });
+
+  it('records a fix whose pull request GitHub refused, with a try again, so the card never stops at "started a try"', () => {
+    const fix = checkFix({ summary: 'Sends diagnostics after a failed sync.', tests: 't', verdict: 'review', cause: 'The catch never called onSettled, so no delivery.', proof: 'Two tests fail on main.' });
+    const why = refusedWhy('user-issue/lan-315', 403, 'GitHub Actions is not permitted to create or approve pull requests.');
+    expect(why).toBe('Claude wrote a fix, on the branch user-issue/lan-315. GitHub did not let the workflow open its pull request (403: GitHub Actions is not permitted to create or approve pull requests.). Claude tries again in 6 hours.');
+    const record = fixRecord('LAN-315', { decision: 'none', reason: 'app', why }, fix);
+    expect(record).toMatchObject({ decision: 'none', reason: 'app', pr: null, verdict: 'review' });
+    const plan = planRecord('LAN-315', { ...fix, next: OPEN_AGAIN }, '', 'app');
+    expect(plan).toMatchObject({ issue: 'LAN-315', next: OPEN_AGAIN.do, inHours: 6 });
+    expect(() => model.parseLooked({ sha: 'a'.repeat(40), runUrl: RUN, fixes: [record], plans: [plan] })).not.toThrow();
+    // A step that failed before the Worker heard of the try: no verdict, and Claude runs again soon (ENDED).
+    const ended = fixRecord('LAN-315', { decision: 'none', reason: 'unconfirmed', why: "The step that saves the try's result failed: x" }, { ...fix, ended: true });
+    expect(ended.verdict).toBeNull();
+    expect(planRecord('LAN-315', { ...fix, ended: true }, '', 'unconfirmed').inHours).toBe(0.25);
+  });
+
+  it('opens a new try\'s fix on a branch an earlier try left with no pull request, and never stops there', () => {
+    const src = read('scripts/user-issues.mjs');
+    expect(src).not.toContain('is there already; nothing done');
+    expect(src).toContain("`${replace ? '+' : ''}HEAD:refs/heads/${branch}`");
+  });
 });
 
 describe("an admin's instructions from the ops dashboard", () => {
@@ -670,6 +691,11 @@ describe("an admin's instructions from the ops dashboard", () => {
   it('tells the issue when the draft fix changed', () => {
     expect(updateComment({ number: 330, url: 'https://github.com/genesis-ai-dev/langquest-next/pull/330' }, { typecheck: 'passed', tests: 'passed' }))
       .toBe('**Claude changed the draft fix** ([PR 330](https://github.com/genesis-ai-dev/langquest-next/pull/330)) after an instruction from the ops dashboard.\n\nTypecheck passed; tests passed.\n\nReview it, then mark it Ready for review on GitHub to run CI and merge it.');
+  });
+
+  it('tells the issue when a new try changed the draft fix', () => {
+    expect(updateComment({ number: 330, url: 'https://github.com/genesis-ai-dev/langquest-next/pull/330' }, { typecheck: 'passed', tests: 'passed' }, false))
+      .toContain('([PR 330](https://github.com/genesis-ai-dev/langquest-next/pull/330)) in a new try.');
   });
 });
 
