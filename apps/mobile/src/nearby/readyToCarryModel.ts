@@ -152,10 +152,17 @@ export function onlyOnThisPhone(unsent: readonly string[], holdings: ReadonlyMap
  * with no teammate, and then the fold is not shown. Only a phone loads this file, so the web's
  * Share nearby chunk carries none of it.
  */
-export function teammatesFoldLine(team: readonly CarryTeammate[]): { who: string | null; seen: CarrySeen } | null {
+/** The fold's closed line: nobody named when every teammate's newest work here is from today, else the least recent, with when. */
+export interface TeammatesFoldLine {
+  who: string | null;
+  seen: CarrySeen;
+  newestMs: number | null;
+}
+
+export function teammatesFoldLine(team: readonly CarryTeammate[]): TeammatesFoldLine | null {
   const last = team[team.length - 1];
   if (!last) return null;
-  return { who: last.seen === 'today' ? null : last.profileId, seen: last.seen };
+  return { who: last.seen === 'today' ? null : last.profileId, seen: last.seen, newestMs: last.newestMs };
 }
 
 /**

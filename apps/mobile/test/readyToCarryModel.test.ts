@@ -98,10 +98,13 @@ describe('teammates with no room running', () => {
 
   it('folded, names the least recent teammate, or everyone when the newest work from each is from today, and nothing with no teammate', () => {
     expect(teammatesFoldLine([])).toBeNull();
-    expect(teammatesFoldLine([{ profileId: 'ana', seen: 'today', newestMs: 3 }, { profileId: 'sam', seen: 'today', newestMs: 2 }])).toEqual({ who: null, seen: 'today' });
+    expect(teammatesFoldLine([{ profileId: 'ana', seen: 'today', newestMs: 3 }, { profileId: 'sam', seen: 'today', newestMs: 2 }])).toEqual({ who: null, seen: 'today', newestMs: 2 });
     expect(teammatesFoldLine([
       { profileId: 'ana', seen: 'today', newestMs: 3 }, { profileId: 'sam', seen: 'since-online', newestMs: 2 }, { profileId: 'joe', seen: 'not-since-online', newestMs: null }
-    ])).toEqual({ who: 'joe', seen: 'not-since-online' });
+    ])).toEqual({ who: 'joe', seen: 'not-since-online', newestMs: null });
+    // The one furthest behind with work since the phone was last online carries when, for the fold's words.
+    expect(teammatesFoldLine([{ profileId: 'ana', seen: 'today', newestMs: 3 }, { profileId: 'sam', seen: 'since-online', newestMs: 2 }]))
+      .toEqual({ who: 'sam', seen: 'since-online', newestMs: 2 });
   });
 });
 

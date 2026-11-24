@@ -122,10 +122,21 @@ export const TEAMMATE_WORDS = {
   missed: 'nearby.state.missed'
 } as const satisfies Record<TeammateState, string>;
 
+/**
+ * A teammate's line: what this phone holds of their work, never when the two last shared, which no
+ * phone keeps (decision 230). `today` takes the time of the newest, `sinceOnline` its day and time.
+ */
 export const SEEN_WORDS = {
   today: 'nearby.carry.today',
   'since-online': 'nearby.carry.sinceOnline',
   'not-since-online': 'nearby.carry.notSinceOnline'
+} as const satisfies Record<CarrySeen, string>;
+
+/** The Teammates fold's closed line: every teammate's work from today, or the one furthest behind. */
+export const FOLD_WORDS = {
+  today: 'nearby.carry.foldToday',
+  'since-online': 'nearby.carry.foldSince',
+  'not-since-online': 'nearby.carry.foldNotSince'
 } as const satisfies Record<CarrySeen, string>;
 
 /** How a session ended, when it did not end well; null for `done`. */
