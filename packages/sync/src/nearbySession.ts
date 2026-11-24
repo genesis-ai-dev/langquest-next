@@ -210,6 +210,12 @@ export interface NearbyJoinInviter {
   tap(who: { name: string; profileId: string; pictures: [number, number] }): Promise<string | null>;
   /** Why the pass no longer lets anyone in under this role by this phone's fold (`joinPassStop`), or null. */
   stop?(roleId: string): string | null;
+  /**
+   * The organization's nearby features as this phone last heard them from the server, handed to the
+   * newcomer in the grant, so a phone that joined offline shares while LangQuest is open as this one
+   * does until its first contact says otherwise (14.1, Carl 2026-11-24).
+   */
+  features?: readonly string[];
 }
 
 /**
@@ -232,6 +238,8 @@ export interface NearbyJoinNewcomer {
    */
   granted(grant: {
     chain: ChainLink[]; verdict: Extract<ChainVerdict, { ok: true }>; discovery: { key: string; gen: number; floor: number }; orgId: string; languageId: string;
+    /** The inviter's word for the organization's nearby features; empty from an older inviter. */
+    features: readonly string[];
   }): Promise<Omit<StartingCopyTarget, 'sha256'> | void>;
   /** Where the starting copy goes, over this link once granted, unless `granted` answers one. */
   target?: Omit<StartingCopyTarget, 'sha256'>;
@@ -891,7 +899,10 @@ export class NearbySession {
     });
     if (!issued.ok) throw refused(issued.reason);
     const proof = await crypto.sign(nearbyBytes('proof', proofText(opt.role, this.keys!.th)));
-    await this.send({ t: 'join-grant', chain: [first, issued.link], proof, discoveryKey: join.discovery.key, gen: join.discovery.gen, floor: join.discovery.floor });
+    await this.send({
+      t: 'join-grant', chain: [first, issued.link], proof, discoveryKey: join.discovery.key, gen: join.discovery.gen, floor: join.discovery.floor,
+      ...(join.features?.length ? { features: [...join.features] } : {})
+    });
     report.join!.granted = true;
     // The link stays up for the starting copy, which the newcomer ends with `bye`.
     for (;;) {
@@ -930,7 +941,9 @@ export class NearbySession {
     }
     if (!verdict.inviterKey || !await signedBy(crypto.verify, verdict.inviterKey, nearbyBytes('proof', proofText(theirRole, this.keys!.th)), grant.proof)) throw refused('bad proof');
     report.peer = { installKey: verdict.inviterKey, profileId: verdict.inviter ?? '', deviceId: '', tag: '' };
-    const answered = await this.local(() => join.granted({ chain: grant.chain, verdict, discovery: { key: grant.discoveryKey, gen: grant.gen, floor: grant.floor }, orgId, languageId }));
+    const answered = await this.local(() => join.granted({
+      chain: grant.chain, verdict, discovery: { key: grant.discoveryKey, gen: grant.gen, floor: grant.floor }, orgId, languageId, features: grant.features ?? []
+    }));
     report.join!.granted = true;
     const target = answered ?? join.target;
     if (target) await this.takeCopyFrom(target);

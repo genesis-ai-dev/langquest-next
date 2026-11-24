@@ -77,7 +77,8 @@ matching App Privacy answer is **Identifiers → Device ID: collected, linked
 to the user, used for App Functionality, not for tracking**. Add it before
 the first iPhone build with Share nearby goes to review. Nothing else in App
 Privacy changes: no location is read on an iPhone, and Bluetooth and Wi-Fi
-only carry the team's own work.
+only carry the team's own work and the reference documents its language uses,
+which every member already reads (2026-11-24).
 
 ## Encryption (export compliance)
 

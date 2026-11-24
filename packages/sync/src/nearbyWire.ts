@@ -15,6 +15,10 @@ import { NEARBY_MESSAGE_MAX, type HostDetails } from './nearbyLink';
  * bad event costs itself and not the session. Chains pass through with only their
  * size and depth checked, for `checkChain`, which takes unknowns.
  */
+
+/** The organization's nearby features a join grant may carry (`join-grant` `features`), as `org_features` names them. */
+export const NEARBY_GRANT_FEATURES = ['nearby', 'nearby_join', 'nearby_open'] as const;
+
 export type Message =
   | { t: 'hello'; protocol: { min: number; max: number }; can: string[]; reducerVersion: number; linesVersion: number; deviceId: string; wallMs: number; chain: ChainLink[]; proof: string }
   /** The initiator, in place of its hello, under an older generation. */
@@ -49,8 +53,13 @@ export type Message =
   // Phase 6, with the abilities let-in and starting-copy (section 14.1).
   /** The newcomer, first. */
   | { t: 'join-ask'; installKey: string; idSalt: string; profileId: string; deviceId: string; name: string; proof: string }
-  /** The inviter, after one tap; the pass is inside the chain. */
-  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number }
+  /**
+   * The inviter, after one tap; the pass is inside the chain. `features`, from 2026-11-24: the
+   * organization's nearby features as the inviter's phone last heard them from the server, so a
+   * phone that joined offline shares while LangQuest is open as the inviter's does (14.1). Absent
+   * from an older inviter, and only names `NEARBY_GRANT_FEATURES` knows; an older newcomer ignores it.
+   */
+  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[] }
   | { t: 'copy-ask'; part: 'state' | 'rows' | 'names' | 'doc'; stream?: string; after?: string; hash?: string }
   | { t: 'copy-part'; part: string; stream?: string; next: string | null; body: string }
   | { t: 'copy-no'; reason: 'versions' | 'not-filled' | 'not-allowed' | 'not-here' };
@@ -189,8 +198,13 @@ function read(t: string, o: Raw): Message | null | undefined {
         ? { t, installKey, idSalt, profileId, deviceId, name, proof } : null;
     }
     case 'join-grant': {
-      const { chain, proof, discoveryKey, gen, floor } = o;
-      return isChain(chain) && isSig(proof) && isKey(discoveryKey) && isCount(gen) && isCount(floor) ? { t, chain, proof, discoveryKey, gen, floor } : null;
+      const { chain, proof, discoveryKey, gen, floor, features } = o;
+      if (!(isChain(chain) && isSig(proof) && isKey(discoveryKey) && isCount(gen) && isCount(floor))) return null;
+      // A list of names, or none: a field of another kind is malformed, as in every message. Of the names, only those
+      // this build knows, each once, so a later build's feature leaves the grant standing.
+      if (features !== undefined && !(Array.isArray(features) && features.length <= 16 && features.every((f) => typeof f === 'string'))) return null;
+      const known = [...new Set(((features ?? []) as string[]).filter((f) => (NEARBY_GRANT_FEATURES as readonly string[]).includes(f)))];
+      return { t, chain, proof, discoveryKey, gen, floor, ...(known.length ? { features: known } : {}) };
     }
     case 'copy-ask': {
       const { part, stream, after, hash } = o;

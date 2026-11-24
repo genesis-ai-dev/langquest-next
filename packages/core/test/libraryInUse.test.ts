@@ -89,13 +89,15 @@ const docs = new Map<string, LibraryDoc>([
 const get = (hash: string) => docs.get(hash) ?? null;
 
 describe('docsThisLanguageNames', () => {
-  it('names the template and every one used, the flow, the book names, recommended, linked and helping items of this organization\'s own', () => {
-    expect(docsThisLanguageNames(library, language())).toEqual([h('1'), h('2'), h('3'), h('4'), h('5'), h('7'), h('8'), h('a')].sort());
+  // Carl, 2026-11-24: a phone that joined offline does what its inviter's does, so a publisher's material the language
+  // chose (FIA's, copied or followed) is in, as the organization's own is.
+  it('names the template and every one used, the flow, the book names, and the recommended, linked and helping items, own, copied or followed', () => {
+    expect(docsThisLanguageNames(library, language())).toEqual([h('1'), h('2'), h('3'), h('4'), h('5'), h('7'), h('8'), h('a'), h('d'), h('e')].sort());
   });
 
-  it('leaves out an item the language hid, an archived recommendation, a followed or copied material, the rest of the library and another language\'s template', () => {
+  it('leaves out an item the language hid, an archived recommendation, the rest of the library and another language\'s template', () => {
     const names = docsThisLanguageNames(library, language());
-    for (const left of [h('6'), h('9'), h('b'), h('c'), h('d'), h('e')]) expect(names).not.toContain(left);
+    for (const left of [h('6'), h('9'), h('b'), h('c')]) expect(names).not.toContain(left);
   });
 
   it('keeps an archived help, as the check\'s help rows do', () => {
@@ -104,7 +106,7 @@ describe('docsThisLanguageNames', () => {
 
   it('names only what the organization recommends for a language that chose nothing, and only hashes', () => {
     // The organization recommends both notes; only the language that hid one leaves it out.
-    expect(docsThisLanguageNames(library, emptyLanguageState())).toEqual([h('5'), h('6')]);
+    expect(docsThisLanguageNames(library, emptyLanguageState())).toEqual([h('5'), h('6'), h('d'), h('e')]);
     const s = emptyLanguageState();
     s.flow = reg({ flowId: 'custom' });
     s.template = reg({ itemId: 'x', docHash: 'not-a-hash', unitPrefix: 'x' });
@@ -113,25 +115,27 @@ describe('docsThisLanguageNames', () => {
 });
 
 describe('docsThisLanguageUses', () => {
-  it('walks to what those refer to, a template\'s numbering among them, and leaves out what the allowlist refuses', () => {
+  it('walks to what those refer to, a template\'s numbering among them, and FIA\'s key words, which say source and pattern, with them', () => {
     const uses = docsThisLanguageUses(library, language(), get);
     expect(uses).toContain(versification);
-    // FIA's key words say source and pattern.
-    expect(uses).not.toContain(h('8'));
-    expect(uses).toEqual([h('1'), h('2'), h('3'), h('4'), h('5'), h('7'), h('a'), versification].sort());
+    expect(uses).toContain(h('8'));
+    // Copied and followed materials the test holds no document for stay on the list, so a newcomer knows to ask.
+    expect(uses).toEqual([h('1'), h('2'), h('3'), h('4'), h('5'), h('7'), h('8'), h('a'), h('d'), h('e'), versification].sort());
   });
 
   it('keeps a hash it cannot read on the list, with nothing to walk, so a newcomer knows to ask', () => {
     expect(docsThisLanguageUses(library, language(), () => null)).toEqual(docsThisLanguageNames(library, language()));
   });
 
-  it('a refused document is not walked: what only it refers to stays out', () => {
-    const study = h('9');
+  it('a document in a format this build does not know is refused and not walked: what only it refers to stays out', () => {
+    const later = h('9');
     const s = language();
-    s.template = reg({ itemId: 'tpl', docHash: study, unitPrefix: 'x' });
+    s.template = reg({ itemId: 'tpl', docHash: later, unitPrefix: 'x' });
     s.templateHistory = {};
-    const only = new Map<string, LibraryDoc>([[study, { format: 'study@1', versification: h('0') } as unknown as LibraryDoc]]);
-    expect(docsThisLanguageUses(library, s, (x) => only.get(x) ?? docs.get(x) ?? null)).not.toContain(h('0'));
+    const only = new Map<string, LibraryDoc>([[later, { format: 'template@9', bible: { versification: h('0') } } as unknown as LibraryDoc]]);
+    const uses = docsThisLanguageUses(library, s, (x) => only.get(x) ?? docs.get(x) ?? null);
+    expect(uses).not.toContain(later);
+    expect(uses).not.toContain(h('0'));
   });
 });
 
@@ -140,8 +144,12 @@ describe('mayGoInStartingCopy: an allowlist that fails closed', () => {
     for (const format of STARTING_COPY_FORMATS) expect(mayGoInStartingCopy({ format } as unknown as LibraryDoc), format).toBe(true);
   });
 
-  it('refuses publishers\' and sources\' formats, study@2, labels@1, a format made up for the test, and nothing at all', () => {
-    for (const format of ['study@1', 'study@2', 'collection@1', 'source@1', 'sourceBook@1', 'timing@1', 'labels@1', 'template@3', 'material@2', '']) {
+  it('takes every format this build reads, publishers\' and sources\' among them (Carl, 2026-11-24)', () => {
+    expect([...STARTING_COPY_FORMATS].sort()).toEqual(['collection@1', 'flow@1', 'labels@1', 'material@1', 'names@1', 'source@1', 'sourceBook@1', 'study@1', 'study@2', 'template@1', 'template@2', 'timing@1', 'versification@1']);
+  });
+
+  it('refuses a format made up for the test, and nothing at all', () => {
+    for (const format of ['template@3', 'material@2', 'toString', '__proto__', '']) {
       expect(mayGoInStartingCopy({ format } as unknown as LibraryDoc), format).toBe(false);
     }
     expect(mayGoInStartingCopy(null)).toBe(false);
@@ -149,10 +157,9 @@ describe('mayGoInStartingCopy: an allowlist that fails closed', () => {
     expect(mayGoInStartingCopy({} as LibraryDoc)).toBe(false);
   });
 
-  it('refuses a material that says source or pattern, even empty', () => {
-    expect(mayGoInStartingCopy({ format: 'material@1', source: 'fia.bible' } as unknown as LibraryDoc)).toBe(false);
-    expect(mayGoInStartingCopy({ format: 'material@1', pattern: 'FIA' } as unknown as LibraryDoc)).toBe(false);
-    expect(mayGoInStartingCopy({ format: 'material@1', source: '' } as unknown as LibraryDoc)).toBe(false);
+  it('takes a material that says source or pattern, as FIA\'s key words do', () => {
+    expect(mayGoInStartingCopy({ format: 'material@1', source: 'fia.bible' } as unknown as LibraryDoc)).toBe(true);
+    expect(mayGoInStartingCopy({ format: 'material@1', pattern: 'FIA' } as unknown as LibraryDoc)).toBe(true);
     expect(mayGoInStartingCopy({ format: 'material@1', kind: 'document' } as unknown as LibraryDoc)).toBe(true);
   });
 });

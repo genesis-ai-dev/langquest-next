@@ -43,6 +43,7 @@ const EVERY: Message[] = [
   { t: 'bye', reason: 'not-member' },
   { t: 'join-ask', installKey: KEY, idSalt: 'AAECAwQFBgcICQoLDA0ODw', profileId: 'p1', deviceId: 'd1', name: 'Sam', proof: SIG },
   { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1 },
+  { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1, features: ['nearby', 'nearby_open'] },
   { t: 'copy-ask', part: 'doc', stream: 'lang1', after: '10', hash: HASH },
   { t: 'copy-ask', part: 'state' },
   { t: 'copy-part', part: 'state', stream: 'lang1', next: null, body: 'text' },
@@ -79,6 +80,17 @@ describe('nearby messages', () => {
     expect(parse({ t: 'done', later: { a: 1 } })).toEqual({ kind: 'message', message: { t: 'done' } });
   });
 
+  // 2026-11-24: an older inviter sends no features, and a newer one may name a feature this build does not know.
+  it('a join grant keeps only the nearby features this build knows, once each, and is a grant with none', () => {
+    const grant = { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1 };
+    const read = (features: unknown) => parseMessage(utf8Encode(JSON.stringify({ ...grant, features })));
+    expect(read(['nearby_open', 'nearby_open', 'flying', 'nearby'])).toEqual({ kind: 'message', message: { ...grant, features: ['nearby_open', 'nearby'] } });
+    expect(read(['flying'])).toEqual({ kind: 'message', message: grant });
+    expect(read([])).toEqual({ kind: 'message', message: grant });
+    // Not a list of names: malformed, as a field of the wrong kind is in every message.
+    for (const bad of ['nearby_open', ['nearby_open', 7], Array(17).fill('nearby')]) expect(read(bad).kind, JSON.stringify(bad)).toBe('malformed');
+  });
+
   it('what is not a message at all is malformed', () => {
     for (const bad of ['', 'nope', '[]', 'null', '5', '{}', '{"t":5}', '{"t":null}']) expect(parseJson(bad).kind).toBe('malformed');
     expect(parseMessage(new Uint8Array([0xff, 0xfe])).kind).toBe('malformed');
@@ -89,7 +101,7 @@ describe('nearby messages', () => {
     for (const m of EVERY) {
       const wire = JSON.parse(Buffer.from(encodeMessage(m)).toString('utf8')) as Record<string, unknown>;
       for (const k of Object.keys(wire).filter((x) => x !== 't')) {
-        const stayedOptional = (m.t === 'host' && k !== 'kind') || (m.t === 'holdings' && (k === 'sig' || k === 'chain')) || (m.t === 'copy-ask' && k !== 'part') || (m.t === 'copy-part' && k === 'stream');
+        const stayedOptional = (m.t === 'host' && k !== 'kind') || (m.t === 'holdings' && (k === 'sig' || k === 'chain')) || (m.t === 'copy-ask' && k !== 'part') || (m.t === 'copy-part' && k === 'stream') || (m.t === 'join-grant' && k === 'features');
         // A discovery key's number is for `handedKeyHolds` to judge (below).
         for (const bad of [{ bad: 1 }, [{ bad: 1 }, 2], ...(m.t === 'discovery-key' ? [] : [-1])]) {
           const out = parse({ ...wire, [k]: bad });

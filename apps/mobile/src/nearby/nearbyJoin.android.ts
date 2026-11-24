@@ -22,6 +22,7 @@ import { getStore, holdsUnsent } from '../storage/store';
 import { anyHandOvers } from '../sync/handOver';
 import { askingRecord, notEmptyWhy, seedsFor, type NotEmptyWhy } from './joinOfflineModel';
 import { keepGrant, setWhenWhole } from './joinGrant';
+import { keepOpenOrgsFromJoin, nearbyOpenOrgs } from './nearbyIdentity.native';
 import { installKey } from '../server/nearbyKey';
 import { nobleSha256, phoneCryptoOf } from './nearbyCryptoModel';
 import type { PhoneRadio } from './nearbyLink.native';
@@ -190,7 +191,7 @@ export async function joinWithCode(radio: PhoneRadio, code: JoinCode, name: stri
         // i18n-ignore: the error's message, for diagnostics
         if (!hooks.still() || await phoneNotEmpty(worn)) throw new OfflineError('the join was left');
         const next = await keepGrant(asked, g, {
-          keepLocalPerson, keepChains, keepFindKeys, seed: (pairs) => AsyncStorage.multiSet(pairs),
+          keepLocalPerson, keepChains, keepFindKeys, keepOpenOrgs: keepOpenOrgsFromJoin, seed: (pairs) => AsyncStorage.multiSet(pairs),
           missed: (what) => noteExpected('join', new Error(`the ${what} was not kept`))
         });
         granted = next;
@@ -353,6 +354,8 @@ async function letInOn(onGive: boolean, o: Parameters<typeof letInWithPass>[0]):
       copy: copySourceOf({ actorId: o.actorId, language: o.language.client, org: o.orgClient }),
       join: {
         as: 'inviter', pass: o.pass, discovery: { key: findKey.key, gen: findKey.gen, floor: findKey.floor },
+        // What this phone last heard the server say of the organization, so the newcomer shares while open as this phone does.
+        features: (await nearbyOpenOrgs(o.actorId)).has(o.orgId) ? ['nearby', 'nearby_join', 'nearby_open'] : ['nearby', 'nearby_join'],
         // The role was chosen before the code was shown; the tap only says yes or no.
         tap: async (who) => ((await hooks.tap({ name: who.name, profileId: who.profileId, pictures: who.pictures })) ? o.roleId : null),
         stop: (roleId) => joinPassStop(o.pass, roleId, { now: Date.now(), org: o.org, orgSeqHere, certOrgSeq, ...(revoked ? { revoked: revoked.list } : {}) })

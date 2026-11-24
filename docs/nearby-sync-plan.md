@@ -71,7 +71,7 @@ and anything the readers of the code proposed.
 | 3 | How do the SQL and Kotlin get run? | A draft pull request plus a new CI job. Commit each phase on the branch and push to a draft pull request at each phase's end, so CI runs the SQL and web tests. Add a required `android-native` job scoped to the module (prebuild, compile, JUnit, lint), amending decision 150's list. Nothing merges. | Section 7 |
 | 4 | What happens to work signed by a key later revoked? | Earlier work is accepted. Events dated before `revoked_at` are accepted and later ones refused, per event, in `relay_append_events`. | Section 6 |
 | 5 | On a shared phone, whose unsent work may be shared? | A signed-out person's too, with the key unsealed. The install key and their certificate sit outside decision 168's seal, used only when someone signed in has opened Share nearby. Decision 168 is amended and this goes to the security review. Caleb should see it, since 168 is his entry. | Section 5.5 |
-| 6 | What is in a starting copy? | State, member names and the library documents this language uses, checked by hash. No source audio or guide media. Documents from a publisher's import need a terms check that Carl has to confirm; until then they stay out of the copy. | Section 14.1 |
+| 6 | What is in a starting copy? | State, member names and the library documents this language uses, checked by hash. No source audio or guide media. Documents from a publisher's import need a terms check that Carl has to confirm; until then they stay out of the copy. (2026-11-24: Carl confirmed the terms; every format goes, section 14.1.) | Section 14.1 |
 | 7 | What do phones below Android 10 do? | The row is disabled, with a line saying why. | Section 5.8 |
 | 8 | Which roles may a join pass grant? | Only roles with no manage privilege (Translator, Reviewer, Viewer and custom roles like them). An admin can raise the role after first contact. | Section 14.1 |
 | 9 | How does a pass stop? | Automatically only: past expiry or uses, inviter lost Invite or that role, role retired, inviter's key revoked. An organization that is turned off refuses new joins. There is no withdraw button. | Section 14.1 |
@@ -98,7 +98,7 @@ in the same way.
 | 16 | How far may a revoked key's backdated events go? | 50,000 events and 100 MB per revoked key, counted one by one on the `install_keys` row, with a reason that reads as `NOT_ALLOWED`, so the row is listed with Try again. A staff function raises one row's limit. Duplicates are not counted. No closing date. | Section 6 |
 | 17 | What is a pass's id? | One id per organization, language, inviter, key and 90-day window, derived by the Worker, expiring at the window's end. | Sections 5.12, 14.1 |
 | 18 | May looked-after accounts hold join passes? | Yes. | Section 14.1 |
-| 19 | Do publishers' documents and `study@2` go in a starting copy? | No, both stay out, and the allowlist fails closed. Carl may confirm terms later and widen it. | Section 14.1 |
+| 19 | Do publishers' documents and `study@2` go in a starting copy? | No, both stay out, and the allowlist fails closed. Carl may confirm terms later and widen it. (2026-11-24: Carl confirmed the terms, and both go: a phone that joined offline does what its inviter's does.) | Section 14.1 |
 | 20 | What happens to other people on a lost shared phone? | Only the named person is revoked in the first release. No third helper question. A follow-up issue goes to Caleb. The list holds pairs. | Sections 6, 13 |
 | 21 | Which of the security review's changes stand? | The vector per install key, the budget per signer (70,000 rows, 50 MB), the tap where no echo came, and a QR that holds no pass or key. | Sections 5.3, 5.4, 5.8, 14.1 |
 | 22 | When does `android-native` run? | Also on changes to `apps/mobile/package.json` and the lockfile, as well as the module's files. This widens answer 3. | Section 7 |
@@ -3306,7 +3306,7 @@ belongs: section 2 for Carl's answers, and sections 5 to 14 for the rest.
 | Question | Who | Draft answer |
 | --- | --- | --- |
 | Which phones, and whose stack, for the real-phone test? | Carl | Section 7 lists the kinds of phone. It needs someone's own Supabase and Worker. Nobody has been named. |
-| Are the terms clear for publishers' documents to go in a starting copy? | Carl, whenever he can | They stay out until he confirms, and `study@2` with them, so a team's own guides also wait for first contact, and the allowlist fails closed (answer 19, section 14.1). If he confirms, widen `STARTING_COPY_FORMATS` and `mayGoInStartingCopy`. Nothing waits on this. |
+| Are the terms clear for publishers' documents to go in a starting copy? | Carl, whenever he can | Answered (2026-11-24): yes. Every format goes (section 14.1, docs/decisions/2026-11-24-a-starting-copy-carries-every-library-document-a-language-uses.md). The files they name (guide media, key-word and source audio) are still to come. |
 | Is the amber upload bar right on a phone holding backups? | Carl, when it ships | It counts them, as true of this phone (section 5.8). He should be told, so he can object. |
 | Is decision 168's amendment acceptable? | Caleb | Carl's answer stands: the pre-merge security review (2026-11-10) found no reason against it (section 5.5). A copied key with a live pass can let in a new person with no manage privilege, and he should know that too. |
 | A teammate holding any of the Worker's attestations can push a phone's claim mark past rows it never got. Fix it, or accept it? | Carl | Open (security review, 2026-11-10). Honest teammates then send that phone no claims below the mark, so work confirmed in town reaches it only from the server; nothing is lost or wrongly confirmed. A fix signs `afterSeq` into the attestation and moves the mark only over rows held or on the page, which changes the Worker's answer, so it waits for his word. |
@@ -3462,24 +3462,27 @@ it does today (decision 54).
        on a check; and what those refer to, such as a template's numbering. What it could reach
        does not count: the rest of the organization's library, and what other organizations
        share. The sender and the newcomer work out the same list.
-     - **What may go.** Only formats on an allowlist in core: `template@1`, `template@2`,
-       `flow@1`, `material@1`, `versification@1` and `names@1`. An allowlist fails closed if a
-       new format appears. A `material@1` goes only if it says neither `source` nor `pattern`
-       and its item is this organization's own, not followed or copied, because FIA's key words
-       are a `material@1` (`scripts/fia-terms.ts`), and a copy keeps those fields
-       (`libraryMaterialDoc`).
-     - **What stays out** (Carl's answer 19). Publishers' imports make `study@1` and
-       `collection@1` too, and sources make `source@1`, `sourceBook@1` and `timing@1`, so all of
-       those wait until Carl confirms the terms. `study@2` stays out too: the guide editor makes
-       it for an organization's own guide and also for a publisher's copied to adapt, so its
-       format cannot say which, and a team's own guides wait for first contact with it.
-       `labels@1` is not on the allowlist either, because no language names a set: the app finds
-       them through `library_shared_items`, which needs the server, so a followed item shows the
-       name it was published with until first contact.
+     - **What may go** (2026-11-24, Carl confirmed the terms: a phone that joined offline
+       does what its inviter's does). Every format this build reads, on a table in core over
+       `LibraryDoc`'s formats (`STARTING_COPY_FORMATS`): templates, flows, materials (FIA's key
+       words among them), versifications, book names, study guides and collections (`study@1`,
+       `study@2`, `collection@1`), sources (`source@1`, `sourceBook@1`, `timing@1`) and
+       `labels@1`. A format added later does not compile until someone decides on it there,
+       and any other string is refused, so the copy still fails closed. A material the language
+       chose counts whether the organization owns it, copied it or follows it.
+     - **What stays out.** Whatever the language does not use, and any format this build does
+       not read. Until the next change, the files those documents name (guide pictures and
+       audio, key-word and source audio), so a new phone shows FIA's steps without them until
+       first contact.
      - **The check.** A sender answers `copy-no` to any hash off that list, so a chain holder
-       cannot read another language's template or a publisher's document this phone holds, and
-       the newcomer keeps a text only if it hashes to its name and the allowlist takes it.
-   - **No source audio or guide media.**
+       cannot read another language's template through it, and the newcomer keeps a text only
+       if it hashes to its name, is canonical, validates and is a format on the table.
+   - **No source audio or guide media** yet (above).
+   - **The organization's nearby features** (2026-11-24). The join grant carries them as the
+     inviter's phone last heard them (`join-grant` `features`), and the newcomer keeps
+     `nearby_open` (`nearbyOpenOrgs:<profile>`) until its first contact replaces it, so it
+     shares while LangQuest is open as its inviter does. An older inviter sends none, and an
+     older newcomer ignores the field.
 
    `adoptStartingCopy` writes it in one commit with the cursor at 0, a marker,
    `startingCopy:<org>/<stream>` (section 5.1), and `nearbyClaimed` set to the copy's

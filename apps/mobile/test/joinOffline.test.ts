@@ -79,6 +79,22 @@ describe('the grant and the copy', () => {
     expect(other.log).toEqual([]);
   });
 
+  // Carl, 2026-11-24: a phone that joined offline never heard the server say the organization shares while
+  // LangQuest is open, so it never did, and the two phones never met by themselves. The inviter's word stands in.
+  it('takes the organization as sharing while open from the inviter\'s grant, before the seeds, and nothing when the grant does not say so', async () => {
+    const open: [string, readonly string[]][] = [];
+    const t = stores();
+    const s = { ...t.s, keepOpenOrgs: async (id: string, orgs: readonly string[]) => { t.log.push('open'); open.push([id, orgs]); } };
+    await keepGrant(asked, { ...grant, features: ['nearby', 'nearby_join', 'nearby_open'] }, s);
+    expect(t.log).toEqual(['record', 'chain', 'key', 'open', 'seed']);
+    expect(open).toEqual([[asked.profileId, ['org-1']]]);
+    for (const features of [undefined, [], ['nearby', 'nearby_join']]) {
+      const u = stores();
+      await keepGrant(asked, { ...grant, ...(features ? { features } : {}) }, { ...u.s, keepOpenOrgs: async () => { u.log.push('open'); } });
+      expect(u.log, JSON.stringify(features)).toEqual(['record', 'chain', 'key', 'seed']);
+    }
+  });
+
   it('a key that could not be kept is said, and the grant still stands', async () => {
     const t = stores({ find: false });
     await keepGrant(asked, grant, t.s);

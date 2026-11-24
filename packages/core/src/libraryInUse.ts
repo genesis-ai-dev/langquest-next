@@ -8,43 +8,37 @@ import type { LanguageState } from './state';
  * The library documents a language uses (docs/nearby-sync-plan.md 5.12, "Documents a language
  * uses"; Carl's answers 6 and 19): what a language's own events name and what is chosen for it,
  * not what it could reach. A starting copy carries these and no other, so a phone that holds a
- * chain cannot read another language's template or a publisher's document through it.
+ * chain cannot read another language's template through it. Since 2026-11-24 that is every
+ * document of every format the language uses, publishers' included (FIA's guides and key words,
+ * sources), since Carl confirmed the terms: a phone that joined offline does what its inviter's
+ * does (docs/decisions/2026-11-24-a-starting-copy-carries-every-library-document-a-language-uses.md).
  */
 
 /**
- * The formats a starting copy may carry. An allowlist, so it fails closed: a format added later
- * stays out until someone adds it here. Publishers' imports (`study@1`, `collection@1`), sources
- * (`source@1`, `sourceBook@1`, `timing@1`) and `study@2` wait for Carl's terms check (answer 19);
- * `labels@1` is named by no language.
+ * The formats a starting copy may carry: each one this build reads, decided one by one. A table
+ * over `LibraryDoc`'s formats, so a format added to the union does not compile until someone
+ * decides on it here, and any other string is refused at run time: it still fails closed.
  */
-export const STARTING_COPY_FORMATS = ['template@1', 'template@2', 'flow@1', 'material@1', 'versification@1', 'names@1'] as const;
+const STARTING_COPY_FORMAT_TABLE: Record<LibraryDoc['format'], true> = {
+  'template@1': true, 'template@2': true, 'flow@1': true, 'material@1': true, 'versification@1': true, 'names@1': true,
+  'study@1': true, 'study@2': true, 'collection@1': true, 'source@1': true, 'sourceBook@1': true, 'timing@1': true, 'labels@1': true
+};
 
-const FORMATS: ReadonlySet<string> = new Set(STARTING_COPY_FORMATS);
+export const STARTING_COPY_FORMATS = Object.keys(STARTING_COPY_FORMAT_TABLE) as readonly LibraryDoc['format'][];
 
-/**
- * May this document go in a starting copy? Its format is on the list, and a `material@1` says
- * neither `source` nor `pattern`, because FIA's key words are a `material@1` and a copy of a
- * publisher's material keeps those fields (`scripts/fia-terms.ts`, `libraryMaterialDoc`).
- */
+/** May this document go in a starting copy? Its format is one this build reads (`STARTING_COPY_FORMAT_TABLE`). */
 export function mayGoInStartingCopy(doc: LibraryDoc | null | undefined): boolean {
-  if (typeof doc !== 'object' || doc === null || typeof doc.format !== 'string' || !FORMATS.has(doc.format)) return false;
-  if (doc.format === 'material@1') {
-    const m = doc as unknown as Record<string, unknown>;
-    return m['source'] === undefined && m['pattern'] === undefined;
-  }
-  return true;
+  return typeof doc === 'object' && doc !== null && typeof doc.format === 'string' && Object.prototype.hasOwnProperty.call(STARTING_COPY_FORMAT_TABLE, doc.format);
 }
 
 type OrgLibrary = Pick<OrgState, 'library' | 'recommendations'>;
 
 const own = (o: object, key: string) => Object.prototype.hasOwnProperty.call(o, key);
 
-/** The view of an item a language chose, when it may count: a material only when it is this organization's own, never followed or copied. */
+/** The view of an item a language chose: the organization's own, a copy of a publisher's, or one it follows (2026-11-24). */
 function chosen(org: OrgLibrary, itemId: string): LibraryItemView | null {
   if (!own(org.library, itemId)) return null;
-  const view = libraryItemView(org.library, itemId);
-  if (!view || (view.kind === 'material' && view.source !== 'own')) return null;
-  return view;
+  return libraryItemView(org.library, itemId);
 }
 
 /**

@@ -415,7 +415,10 @@ member taps once after both compare two pictures.
   teammate's, to the new phone: a signed invitation (the member's certificate and a link naming
   the new person, their key, role and organization), a discovery key, and a starting copy of the
   language: its work, this organization's member names, and the library documents the language
-  uses, with no source audio or guide media and nothing of other languages. Only a member who
+  uses, every kind since 2026-11-24 (a publisher's study guides and key words, sources), with no
+  source audio or guide media yet and nothing of other languages, plus whether the organization
+  shares while LangQuest is open. The documents are reference material the organization chose,
+  which every member already reads in the app. Only a member who
   holds Invite can start it, after the one tap, for a role with no manage privilege, so the new
   person is someone that member chose to bring into the organization, which already sees this
   work. It is the same data reaching the person a member invited, a transfer the users start and
