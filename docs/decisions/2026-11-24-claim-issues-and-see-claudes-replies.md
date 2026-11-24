@@ -43,3 +43,15 @@ which would then be its own decision.
 
 Code: `apps/admin/src/pageMine.ts`, `apps/admin/src/index.ts` (`mine`),
 `apps/web/worker/opsActions.ts` (`issue-claim`, `replies-seen`).
+
+Amended (2026-11-24, Caleb Koster): on a claimed issue the fix team assists
+the developer. Caleb: "Claude fix team can suggest solutions and make PRs for
+an issue a developer has claimed, but shouldn't merge on its own. Its role is
+more of an assistant to the developer in that case." The fix team still
+writes a fix and opens a pull request, and the gate holds it for the
+developer with the reason `claimed` (`gate()` in `scripts/agent-team.mjs`).
+The watch's door answers `claimed` with an issue's notes
+(`ops_issue_claimed()`, migration `20261124023000_fix_team_assists_on_claim.sql`).
+A pull request of the team that merges without a person becomes a draft that
+waits when its issue is claimed later (the job `follow`). The last point of
+the list above ("The fix team does not read claims") no longer holds.

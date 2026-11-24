@@ -1239,11 +1239,13 @@ async function fixContext(dir, id) {
   // Read here, where Claude cannot write (docs/agent-team.md).
   const go = told.some((n) => n.go === true);
   const askFirst = go && (notes?.askFirst === true || saysAskFirst(told.map((n) => n.text)));
+  // A developer claimed the issue on the ops dashboard: Claude assists them, and its change never merges by itself.
+  const claimed = notes?.claimed === true;
   if (repair) {
     const draft = draftOnto(dir, fixBranch(id));
     const before = draft.applied ? worktreeHash(dir) : null;
-    if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: [], repair: { pr: repair.pr, draft: before }, go, askFirst }));
-    writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, repair: { ...repair, draft }, ...(go ? { fixIt: { askFirst } } : {}) }, null, 2));
+    if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: [], repair: { pr: repair.pr, draft: before }, go, askFirst, claimed }));
+    writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, repair: { ...repair, draft }, ...(go ? { fixIt: { askFirst } } : {}), ...(claimed ? { claimed: true } : {}) }, null, 2));
     console.log(`${id}: handed to Claude to get PR ${repair.pr} into main (${draft.applied ? 'its change applied' : 'its change does not apply to main'}, ${plural(repair.failures.length, 'failed job')})`);
     return;
   }
@@ -1252,12 +1254,12 @@ async function fixContext(dir, id) {
     before: (Array.isArray(notes.before) ? notes.before : []).map((n) => ({ at: n.at, text: redact(n.text), answer: n.answer ?? null })),
     draft: draftOnto(dir, fixBranch(id))
   } : {};
-  if (waiting.length) {
+  if (waiting.length || claimed) {
     // The change as it is before Claude (staged, so `git diff` shows only what Claude adds), to say after
     // it whether Claude changed anything: kept where Claude does not write.
-    const before = instructed.draft.applied ? worktreeHash(dir) : null;
+    const before = instructed.draft?.applied ? worktreeHash(dir) : null;
     // Whether the admin's own words can mean "merge it as it is": read here, where Claude cannot write.
-    if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: waiting.map((n) => n.id), draft: before, saysMerge: saysMerge(waiting.map((n) => n.text)), go, askFirst }));
+    if (process.env.FIX_NOTES) writeFileSync(process.env.FIX_NOTES, JSON.stringify({ ids: waiting.map((n) => n.id), draft: before, saysMerge: saysMerge(waiting.map((n) => n.text)), go, askFirst, claimed }));
   }
   // The manager's last plan, when the cause was not proven yet: Claude goes on from it, with what its probe printed.
   const lastPlan = isObj(notes?.plan) && text(notes.plan.next) ? { next: text(notes.plan.next), steps: text(notes.plan.steps) || null, probe: text(notes.plan.probe) || null, tries: Number(notes.plan.tries) || 1, at: text(notes.plan.at), reads: readsOf(notes.plan.reads) } : null;
@@ -1267,7 +1269,7 @@ async function fixContext(dir, id) {
     writeFileSync(join(dir, 'reads.json'), JSON.stringify(answers, null, 2));
     console.log(`${id}: ${answers.filter((a) => !a.error).length} of ${answers.length} production reads of the plan answered, in reads.json for Claude`);
   }
-  writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, ...instructed, ...(lastPlan ? { plan: lastPlan } : {}), ...(go ? { fixIt: { askFirst } } : {}) }, null, 2));
+  writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence, ...instructed, ...(lastPlan ? { plan: lastPlan } : {}), ...(go ? { fixIt: { askFirst } } : {}), ...(claimed ? { claimed: true } : {}) }, null, 2));
   console.log(`${id}: handed to Claude for a draft fix${waiting.length ? `, with ${plural(waiting.length, 'instruction')} from the ops dashboard${instructed.draft.branch ? ` and its draft fix (${instructed.draft.applied ? 'applied' : 'not applied'})` : ''}` : ''}`);
 }
 
@@ -1362,8 +1364,10 @@ function fixPatch(dir) {
       writeFileSync(join(out, 'probe.json'), JSON.stringify({ at: fix.next.probeAt }));
     }
   }
-  // `go` and `askFirst` as fixContext read them before Claude: the gate reads them (gateInput).
-  if (noteIds.length || notes?.go === true) writeFileSync(join(out, 'notes.json'), JSON.stringify({ ids: noteIds, changed: changed && Boolean(patch), approved, go: notes?.go === true, askFirst: notes?.askFirst === true }));
+  // `go`, `askFirst` and `claimed` as fixContext read them before Claude: the gate reads them (gateInput).
+  if (noteIds.length || notes?.go === true || notes?.claimed === true) {
+    writeFileSync(join(out, 'notes.json'), JSON.stringify({ ids: noteIds, changed: changed && Boolean(patch), approved, go: notes?.go === true, askFirst: notes?.askFirst === true, claimed: notes?.claimed === true }));
+  }
   // A pull request handed back by the job `follow`: which, and whether Claude changed its change.
   if (Number.isInteger(notes?.repair?.pr)) writeFileSync(join(out, 'repair.json'), JSON.stringify({ pr: notes.repair.pr, changed: Boolean(patch) && notes.repair.draft !== worktreeHash(dir) }));
   // The manager's model and effort, as the workflow set them for this job.

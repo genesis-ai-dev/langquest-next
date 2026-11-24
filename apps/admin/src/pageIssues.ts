@@ -205,7 +205,8 @@ function planLine(plan) {
 const FIX_REASON = {
   mode: 'The agent team asks before each merge', review: 'Claude asks you to read the change', decision: 'Your choice is needed', not_a_bug: 'Claude found no bug',
   unconfirmed: 'The cause is not proven yet', cause: 'No test proves the cause', paths: 'The change is in code that always waits', checks: 'A check failed',
-  reviewer: 'The reviewer asks you to look', instruction: 'It follows your instruction', app: 'The job could not open a pull request that merges', stalled: 'It did not merge'
+  reviewer: 'The reviewer asks you to look', instruction: 'It follows your instruction', app: 'The job could not open a pull request that merges', stalled: 'It did not merge',
+  claimed: 'Claude suggests this change to the developer who claimed the issue'
 };
 /**
  * What the team decided and why, as parts for the card: 'decision' is [bold words, the rest];
