@@ -84,6 +84,12 @@ export const VIDEO_CSS = String.raw`
 .vfilm .state.on { color: var(--ok, #22c55e); } .vfilm .state.off { color: var(--muted); }
 .vfilm .ask { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
 .vfilm button { min-height: 48px; }
+/* Where a card's video is in the grid of squares: a small square and its place, as a button that shows it. */
+.vsquare { display: inline-flex; gap: 6px; align-items: center; min-height: 32px; font-size: 13px; }
+.vsqi { width: 12px; height: 12px; border-radius: 3px; background: var(--amber); display: inline-block; }
+.vsqi.fail { background: var(--red); } .vsqi.run { background: var(--primary); } .vsqi.ok { background: var(--green); } .vsqi.off { background: var(--grey); }
+.vsqcards { display: grid; gap: 8px; margin: 0 0 12px; } .vsqcards .icards { margin: 0; }
+svg.sq .q.flash { stroke: var(--ink); stroke-width: 3; }
 @media (max-width: 760px) { .vrow { grid-template-columns: minmax(0, 1fr); } .vrow.head > span:first-child { display: none; } }
 `;
 
@@ -275,9 +281,41 @@ function videoRows() {
   return h;
 }
 
+/**
+ * A square of the videos' grid (pageLists.ts openItem): which video it is, in plain words, then the cards about that
+ * video, with their buttons, so a person sees at once how the square and the cards below go together.
+ */
+function squareCards(x) {
+  if (!VIDEOS || !x.video) return '';
+  const v = VIDEOS.videos.find((y) => y.tutorial === x.video.tutorial && y.language === x.video.language);
+  const cards = withSends(VIDEOS).admin.filter((a) => a.tutorial === x.video.tutorial && a.language === x.video.language);
+  const name = '"' + (v ? v.title : x.video.tutorial) + '" in ' + languageName(x.video.language);
+  const states = v ? v.states.filter((st) => st.key !== 'current') : [];
+  const said = !cards.length
+    ? (states.length ? 'This square is the video ' + name + '. No card is about this video alone.' : 'This square is the video ' + name + '. Nothing waits on a person or on Claude.')
+    : 'This square is the video ' + name + '. ' + (cards.length === 1 ? 'The card about this video is below. It is also on the Tutorial videos page.' : 'The ' + num(cards.length) + ' cards about this video are below. They are also on the Tutorial videos page.');
+  return '<div class="vsqcards"><p class="setup">' + esc(said) + '</p>' + (states.length ? '<p class="vstates">' + states.map((st) => '<span class="tag ' + esc(st.level) + '">' + esc(st.text) + '</span>').join('') + '</p>' : '') +
+    (cards.length ? '<div class="icards">' + cards.map(adminCard).join('') + '</div>' : '') + '</div>';
+}
+/** A card's "Square N in the row" button: the grid scrolls into view and that square is marked. */
+function showSquare(language, i) {
+  const s = results.videos;
+  const rows = s && s.state === 'ok' ? listRows('videos', s.data) : [];
+  const row = rows.findIndex((r) => r.label === language);
+  const svg = row < 0 ? null : document.querySelector('.lstbox[data-part="videos"] svg.sq[data-row="' + row + '"]');
+  if (!svg) { say('The grid of squares is not on this page.'); return; }
+  markBucket(svg, i);
+  const el = svg.querySelector('[data-i="' + i + '"]');
+  svg.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  if (el) { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 2400); }
+  svg.focus({ preventScroll: true });
+}
+
 document.addEventListener('click', (e) => {
   const t = e.target.closest ? e.target : null;
   if (!t) return;
+  const sq = t.closest('[data-square]');
+  if (sq) { closeDetail(); showSquare(sq.dataset.square, Number(sq.dataset.sqi)); }
   const tab = t.closest('[data-vtab]');
   // A new tab: the short cards of answered cards go, and the tab shows its cards as they are now.
   if (tab && VIDEOS) { videoTab = tab.dataset.vtab; GONE.clear(); const body = $('video-part'); body.innerHTML = videoPart(VIDEOS); annotate(body); const now = body.querySelector('[data-vtab="' + videoTab + '"]'); if (now) now.focus(); }

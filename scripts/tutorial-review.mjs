@@ -37,6 +37,8 @@ import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// The workflow copies this file next to the script (docs/card-words.md): why Claude stopped, kept in the fix's note.
+import { CLAUDE_WHY, cardWordProblems, fixNote } from './card-words.mjs';
 
 export const API = process.env.TUTORIAL_REVIEW_API ?? 'https://next.langquest.org/api/tutorial-review';
 /** What the Worker expects the token to be for (apps/web/worker/tutorialReview.ts REVIEW_RULE). */
@@ -123,7 +125,21 @@ export async function problemsOf(review, state, changes, sha, env) {
     if (!i.lookedAt && !placed.has(i.id)) problems.push(`Input ${i.id} (a ${i.kind}) is in no place: put it in a suggestion's inputs, in attach, or in looked with an outcome.`);
   }
   for (const key of keys) if (!placed.has(key)) problems.push(`code key ${shown(key)} is in no place: name it in the suggestion it is for.`);
-  return problems;
+  return [...problems, ...wordProblems(review)];
+}
+
+/**
+ * The words an admin reads on a card that break the standard (docs/card-words.md): a suggestion's title, the part of
+ * its detail before "For the fix:", and each picture's caption, new or written again. Claude mends them with the rest.
+ */
+export function wordProblems(review) {
+  const plainPart = (d) => String(d ?? '').split(/^For the fix:/m)[0];
+  const words = (where, text, max) => cardWordProblems(text, max ? { max } : {}).map((p) => `${where}: ${p}`);
+  const pics = (where, list) => (Array.isArray(list) ? list : []).flatMap((x, k) => words(`${where}.pictures[${k}].caption`, x?.caption, 50));
+  return [
+    ...entries(review, 'suggestions').flatMap((x, n) => [...words(`suggestions[${n}].title`, x?.title, 20), ...words(`suggestions[${n}].detail (the part before "For the fix:")`, plainPart(x?.detail)), ...pics(`suggestions[${n}]`, x?.pictures)]),
+    ...entries(review, 'pictures').flatMap((x, n) => [...(x?.title ? words(`pictures[${n}].title`, x.title, 20) : []), ...(x?.detail ? words(`pictures[${n}].detail`, plainPart(x.detail)) : []), ...pics(`pictures[${n}]`, x?.pictures)])
+  ];
 }
 
 // ---- the pictures a look names (decisions.md 186, amended 2026-11-17) --------------------------------
@@ -367,7 +383,7 @@ async function send(dir) {
 
 /** The changes Claude makes; a code change goes to Linear and a new video is made by a person (server/tutorialFeedback.ts FIXABLE_KINDS). */
 export const FIXABLE = ['script', 'screen', 'voice', 'instruction'];
-export const FIX_LIMITS = { files: 20, bytes: 200_000, summary: 3000, noFix: 1000, already: 1000, why: 1000 };
+export const FIX_LIMITS = { files: 20, bytes: 200_000, summary: 3000, noFix: 1000, already: 1000, why: 1000, plain: 300 };
 /** A fix's pull request that has not merged in this long is closed, and its fix failed. */
 export const OPEN_HOURS = 24;
 /** The phone's disguise (decisions.md 171, server/tutorialFeedback.ts DISGUISE): no video shows or explains it. */
@@ -508,7 +524,12 @@ export function checkFix(raw) {
   // `app`: with noFix, the cause is in the app (its code, its words or the library), not the video. A change a
   // person accepted then goes to the agent team (docs/decisions/2026-11-21-fix-it-sends-a-video-suggestion-to-the-agent-team.md).
   const fix = { summary, noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.'), already: '' };
-  return o.app === true && noFix ? { ...fix, app: true } : fix;
+  if (!fix.noFix) return fix;
+  // Why there is no change, for the card (docs/card-words.md): one of Claude's reasons, and Claude's plain words for
+  // an admin. A noFix the workflow wrote, not Claude, is a job that broke.
+  const app = o.app === true && !!noFix;
+  const why = app ? 'needsApp' : !noFix || o.why === 'broke' ? 'broke' : CLAUDE_WHY.includes(o.why) ? o.why : 'unknown';
+  return { ...fix, why, plain: noFix ? cut(said(o.plain), FIX_LIMITS.plain) : '', ...(app ? { app: true } : {}) };
 }
 
 /** The second Claude's verdict.json: only `ok: true` lets the fix open; `why` says what it found, in a line. */
@@ -748,7 +769,7 @@ async function queue(dir) {
       console.log(`::warning::PR ${pr}: GitHub answered ${closed.status} to closing it`);
       continue;
     }
-    updates.push({ id, state: 'failed', pr, note: why });
+    updates.push({ id, state: 'failed', pr, note: fixNote(/did not merge/.test(why) ? 'tooSlow' : 'checksFailed', '', why) });
   }
   const refilmed = await refilm(waiting.refilm ?? []);
   const elsewhere = await fixedElsewhere(waiting.failed ?? []);
@@ -776,20 +797,20 @@ function fixPatch(dir) {
   const out = process.env.FIX_OUT || join(dir, 'out');
   mkdirSync(out, { recursive: true });
   const path = join(dir, 'fix.json');
-  let raw = { noFix: 'Claude wrote no fix.json.' };
+  let raw = { noFix: 'Claude wrote no fix.json.', why: 'broke' };
   if (existsSync(path) && readFileSync(path).length < 100_000) {
     try {
       raw = readJson(path);
     } catch {
-      raw = { noFix: 'fix.json is not JSON.' };
+      raw = { noFix: 'fix.json is not JSON.', why: 'broke' };
     }
   }
   const fix = checkFix(raw);
   git('add', '-A', '--', '.', `:(exclude)${dir}`);
   const patch = git('diff', '--cached', '--binary');
-  if (fix.already && patch) Object.assign(fix, { already: '', noFix: 'Claude said the video already does it, and changed it too.' });
-  if (!fix.noFix && !fix.already && !patch) fix.noFix = 'Claude changed no file.';
-  if (!fix.noFix && !fix.already && DISGUISE.test(`${patch}\n${fix.summary}`)) fix.noFix = 'The change names the phone\'s disguise (decisions.md 171), which no video shows; a person makes it.';
+  if (fix.already && patch) Object.assign(fix, { already: '', noFix: 'Claude said the video already does it, and changed it too.', why: 'broke', plain: '' });
+  if (!fix.noFix && !fix.already && !patch) Object.assign(fix, { noFix: 'Claude changed no file.', why: 'broke', plain: '' });
+  if (!fix.noFix && !fix.already && DISGUISE.test(`${patch}\n${fix.summary}`)) Object.assign(fix, { noFix: 'The change names the phone\'s disguise (decisions.md 171), which no video shows; a person makes it.', why: 'safety', plain: '' });
   writeFileSync(join(out, 'fix.json'), JSON.stringify(fix, null, 2));
   if (!fix.noFix && !fix.already) writeFileSync(join(out, 'fix.patch'), patch);
   console.log(fix.already ? 'no change needed' : fix.noFix ? 'no fix' : `a fix: ${patch.length} bytes`);
@@ -837,7 +858,7 @@ async function fixOpen(dir, id) {
   };
   const suggestion = readJson(join(dir, 'input', `${id}.json`));
   const fixPath = join(dir, 'fix', 'fix.json');
-  const fix = existsSync(fixPath) ? checkFix(readJson(fixPath)) : { summary: '', noFix: 'The job that writes it failed.', already: '' };
+  const fix = existsSync(fixPath) ? checkFix(readJson(fixPath)) : { summary: '', noFix: 'The job that writes it failed.', already: '', why: 'broke', plain: '' };
   if (fix.already) return tell('unneeded', null, fix.already);
   // The cause is in the app: the agent team fixes it, and the video is filmed again after its merge.
   if (fix.app) return tell('failed', null, fix.noFix, true);
@@ -846,21 +867,24 @@ async function fixOpen(dir, id) {
   const checks = checkResults(existsSync(checkPath) ? readJson(checkPath) : {});
   const vetPath = join(dir, 'vet', 'verdict.json');
   const vet = checkVet(existsSync(vetPath) ? readJson(vetPath) : {});
+  // Why there is no fix: Claude's reason and plain words when Claude wrote none, else the workflow's reason (docs/card-words.md).
+  let why = fix.noFix ? fix.why ?? 'unknown' : 'broke';
   let reason = fix.noFix || (existsSync(patchPath) ? null : 'Its patch is missing.');
   if (!reason) {
     try {
       await fixPaths(patchPath, suggestion.tutorial);
     } catch (e) {
       reason = e instanceof Error ? e.message : String(e);
+      why = 'safety';
     }
   }
-  if (!reason && !vet.ok) reason = `The second check stopped it: ${vet.why}`;
-  if (!reason && !process.env.PR_TOKEN) reason = 'No token from LangQuest\'s GitHub App (secrets RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY), which opens the pull request.';
+  if (!reason && !vet.ok) [reason, why] = [`The second check stopped it: ${vet.why}`, 'safety'];
+  if (!reason && !process.env.PR_TOKEN) [reason, why] = ['No token from LangQuest\'s GitHub App (secrets RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY), which opens the pull request.', 'noAccess'];
   const pull = reason ? null : fixPull(suggestion, fix, checks, run, vet);
-  if (pull && DISGUISE.test(`${pull.title}\n${pull.body}`)) reason = 'The pull request would name the phone\'s disguise (decisions.md 171); a person makes this change.';
-  if (reason) return tell('failed', null, cut(reason, 1000));
+  if (pull && DISGUISE.test(`${pull.title}\n${pull.body}`)) [reason, why] = ['The pull request would name the phone\'s disguise (decisions.md 171); a person makes this change.', 'safety'];
+  if (reason) return tell('failed', null, fixNote(why, fix.noFix ? fix.plain : '', cut(reason, 900)));
   const branch = fixBranch(id);
-  if (git('ls-remote', '--heads', 'origin', branch).trim()) return tell('failed', null, `The branch ${branch} is there already.`);
+  if (git('ls-remote', '--heads', 'origin', branch).trim()) return tell('failed', null, fixNote('broke', '', `The branch ${branch} is there already.`));
   git('checkout', '-q', '-b', branch);
   git('apply', '--index', patchPath);
   execFileSync('git', ['-c', `user.name=${FIX_BOT.name}`, '-c', `user.email=${FIX_BOT.email}`, 'commit', '--no-verify', '-q', '-F', '-'], {
@@ -871,7 +895,7 @@ async function fixOpen(dir, id) {
   const made = await github('POST', '/pulls', { title: pull.title, head: branch, base: 'main', body: pull.body, draft: false }, process.env.PR_TOKEN);
   if (made.status !== 201) {
     console.log(`::error title=Needs you%3A tutorial fix pull request::GitHub answered ${made.status} (${String(made.json.message ?? '').slice(0, 200)}) to the App opening the fix for ${id}; the branch ${branch} is pushed. The App needs Pull requests write on this repository.`);
-    return tell('failed', null, `GitHub did not let the App open the pull request (${made.status}); the branch ${branch} is pushed.`);
+    return tell('failed', null, fixNote('noAccess', '', `GitHub did not let the App open the pull request (${made.status}); the branch ${branch} is pushed.`));
   }
   // Merges itself through the merge queue once its checks pass; a later queue closes it if they fail.
   try {

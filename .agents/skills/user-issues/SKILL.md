@@ -618,6 +618,14 @@ databases or code. So each of those lines:
 The file, line, SQL and reads go in `cause`, `steps` of a plan, the pull
 request and the issue's Agent notes, where a developer looks for them.
 
+The whole standard is `docs/card-words.md`: start from high up (which part
+of the app or the system, and what a person sees), then zoom in; sentences
+of 25 words or fewer; no file, code word, id or minute-only time; and when
+Claude stops, one plain reason and one recommended action. Before you
+finish, run `node /home/runner/work/_temp/watch/card-words.mjs
+.user-issues/decisions.json` and mend each line it prints, until it prints
+none.
+
 ### Reading production
 
 Read production in this run with

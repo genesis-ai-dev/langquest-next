@@ -16,6 +16,16 @@ ops dashboard's Research page. You change no code.
 A second lead in the same job looks for the same mistake in other places
 (the user-issues skill, "The research team"). That is not your work.
 
+## Words on the dashboard
+
+What you write for the ops dashboard follows `docs/card-words.md`: start
+from high up (what part of the system, what a person sees), then zoom in;
+sentences of 25 words or fewer, active voice, one name for each thing; no
+file, code word, id or minute-only time in the text a person reads first;
+and when Claude cannot act, say the plain reason and the one action that
+Caleb can take. `node scripts/card-words.mjs <file.json>` lists the lines
+that break it.
+
 ## What you are given
 
 All files are in `.research/team/`. Code wrote them before you started:

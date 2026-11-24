@@ -111,7 +111,9 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13 and 2026-11-
     const merged = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ ...accepted, fix: { state: 'merged', pr: 460, at: at(2), run: null, note: null } })] }) }), NOW);
     expect(keys(merged)).toEqual(['tonight']);
     const failedFix = videoBoard(input({ feedback: feedback({ suggestions: [suggestion({ ...accepted, fix: { state: 'failed', pr: null, at: at(2), run: 'https://github.com/r/2', note: 'the script would not run' } })] }) }), NOW);
-    expect(failedFix.admin[0]).toMatchObject({ kind: 'fixFailed', who: 'you', detail: 'the script would not run', link: 'https://github.com/r/2',
+    // The card says what was asked, then why Claude stopped (docs/card-words.md); Claude's note goes under Details.
+    expect(failedFix.admin[0]).toMatchObject({ kind: 'fixFailed', who: 'you', detail: 'Say "Language" in full', link: 'https://github.com/r/2',
+      stopped: { why: 'unknown', technical: 'the script would not run' },
       retry: 'Try this change again: Say "Language" in full. Step 3 cuts the G.' });
     expect(en(failedFix).marks.find((m) => m.kind === 'fix')).toMatchObject({ cause: 'failed' });
     // Closed by the fix run (its checks failed, or it waited a day): the card opens the pull request.
@@ -139,7 +141,7 @@ describe('each video\'s state (decisions.md 186, amended 2026-11-13 and 2026-11-
     ] }) }), NOW).changes;
     expect(record.map((c) => [c.pr, c.by, c.state, c.language])).toEqual([[481, 'admin', 'open', 'en'], [482, 'instruction', 'failed', 'fr'], [null, 'claude', 'unneeded', 'en'], [480, 'claude', 'merged', 'en']]);
     expect(record[0]).toMatchObject({ video: 'Record a passage', change: 'Say "Language" in full', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/481' });
-    expect(record[1]).toMatchObject({ change: 'tap On this device', note: expect.stringContaining('24 hours') });
+    expect(record[1]).toMatchObject({ change: 'tap On this device', note: expect.stringContaining('did not merge within a day') });
     expect(record[2]).toMatchObject({ link: 'https://github.com/r/5', note: 'Step 3 already says Language.' });
   });
 
@@ -412,11 +414,13 @@ describe('a change that failed, which a pull request of its own fixed (docs/deci
     const cards = b.admin.filter((a) => a.kind !== 'paused');
     expect(cards.map((a) => a.kind)).toEqual(['fixed']);
     expect(cards[0]).toMatchObject({ who: 'done', title: 'Record a passage: Fixed by PR 633, filmed again', link: 'https://github.com/genesis-ai-dev/langquest-next/pull/633' });
-    expect(cards[0]!.next).toMatch(/it changed apps\/mobile\/src\/i18n\/fr\.json, the file Claude named as the cause\. A new film/);
+    // The file goes under the technical part; the next step says it in plain words.
+    expect(cards[0]!.next).toMatch(/^Pull request 633 fixed the problem in the app\. The filming made the video again/);
+    expect(cards[0]!.detail).toMatch(/For the fix: pull request 633 changed apps\/mobile\/src\/i18n\/fr\.json, the file Claude named as the cause/);
     expect(keys(b)).not.toContain('fixFailed');
     expect(b.changes[0]).toMatchObject({ state: 'failed', pr: 633, link: 'https://github.com/genesis-ai-dev/langquest-next/pull/633', fixedBy: { pr: 633 } });
     // A pull request that names the change.
-    expect(board({ fixedBy: fixedBy({ file: null }) }).admin.find((a) => a.kind === 'fixed')!.next).toMatch(/fixed it: it names this change\./);
+    expect(board({ fixedBy: fixedBy({ file: null }) }).admin.find((a) => a.kind === 'fixed')!.detail).toMatch(/pull request 633 names this change\./);
   });
 
   it('keeps the card a day, then only the record and Changes made say it', () => {

@@ -159,7 +159,7 @@ function listRows(part, d) {
       return { s: st.key === 'paused' ? 'off' : lv[st.level] || 'none', name: v.title, at: v.film ? v.film.madeAt : null,
         fields: fieldsOf([['Language', v.language], ['Video', v.tutorial], ['State', (v.states || []).map((x) => x.text).filter(Boolean).join(' · ')],
           ['Filmed', v.film ? v.film.madeAt : null], ['Why filmed', v.film ? v.film.why : null], ['On YouTube', v.film ? (v.film.up ? 'yes' : 'no') : null]]),
-        link: st.link || null };
+        link: st.link || null, video: { tutorial: v.tutorial, language: v.language } };
     }) })).filter((r) => r.items.length);
   }
   // Meters and shares (pageMeters.ts) are rows of the same lists.
@@ -193,7 +193,8 @@ const LIST_SAID = {
   feedback: { one: 'item', many: 'items', part: 'Not seen', run: 'Seen', ok: 'Done' },
   tutorials: { one: 'channel', many: 'channels', fail: 'Failed on YouTube', part: 'Videos or comments wait', ok: 'Connected', none: 'Not connected' },
   videofeedback: { one: 'thing that came in', many: 'things that came in', fail: 'Claude could not', part: 'Waits for you', run: 'Claude works on it', ok: 'Accepted', off: 'No change', none: 'Not looked at yet' },
-  videos: { one: 'video', many: 'videos', fail: 'Failed or held', part: 'Waits on someone', run: 'A worker has it', ok: 'Up to date', off: 'Paused' },
+  videos: { one: 'video', many: 'videos', fail: 'Failed or held', part: 'Waits on a person', run: 'Claude or the filming has it', ok: 'Up to date', off: 'Paused',
+    how: 'Each square is one video in one language. A row is a language, and a column is the same video in each language. Tap a square to see what is wrong with that video and its cards.' },
   pipeline: { one: 'stage', many: 'stages', pic: 'a dot for each stage, its build above', fail: 'Needs a person', part: 'Waiting', run: 'On its way', ok: 'What people get', none: 'No build' },
   releases: { one: 'day', many: 'days', pic: 'errors and crashes each day, a tick on each day with a change', line: true },
   expiry: { one: 'key', many: 'keys', pic: 'a dot for each key on a line of days left', fail: 'Expired, or 7 days or less', part: '30 days or less', ok: 'More than 30 days', none: 'No date' },
@@ -327,6 +328,7 @@ function listBox(part, d, mini) {
     '<div class="sqrows">' + shown.map((o) => '<div class="sqrow"><span title="' + esc(rowName(o.r)) + '">' + esc(rowName(o.r)) + (o.r.items.length > SHARE_PAST ? ' (1% each)' : '') + '</span>' +
       listSvg(part, o.at, o.r, wrap, mini) + '</div>').join('') + '</div>' +
     (shown.length < rows.length ? '<p class="muted">' + num(rows.length - shown.length) + ' more rows in ' + esc(PART_TITLE[part] || part) + '.</p>' : '') +
+    (said.how && !mini ? '<p class="sqhow">' + esc(said.how) + '</p>' : '') +
     (said.line ? '<div class="sqleg"><span><i class="ln"></i>Errors a day</span><span><i class="cx"></i>Crashes <b>' + num(all.reduce((a, x) => a + (x.crashes || 0), 0)) + '</b></span>' +
       '<span><i class="tick"></i>Shipped <b>' + num(all.reduce((a, x) => a + (x.shipped || 0), 0)) + '</b></span></div></div>'
       : '<div class="sqleg">' + LIST_ORDER.filter((s) => said[s] && (!mini || all.some((x) => x.s === s))).map((s) => '<span><i class="' + s + '"></i>' + esc(said[s]) + ' <b>' + num(weigh(all.filter((x) => x.s === s))) + '</b></span>').join('') + '</div></div>');
@@ -388,7 +390,7 @@ function openItem(svg, i) {
   $('detail').innerHTML = '<div class="head"><h2 id="detail-title">' + (share ? esc(said[state] || state) + ': ' + num(items.length) + ' of ' + num(r.items.length) : esc(itemName(x))) + '</h2>' +
     '<button type="button" id="detail-close" aria-label="Close the details">Close</button></div>' +
     '<p class="muted">' + esc(where) + '</p>' +
-    (share ? '<div id="detail-rows"></div>' : fieldsTable(x.fields) + '<p class="tools">' + openLink(x.link) + '<button type="button" id="detail-copy">Copy as JSON</button></p>');
+    (share ? '<div id="detail-rows"></div>' : (part === 'videos' && typeof squareCards === 'function' ? squareCards(x) : '') + fieldsTable(x.fields) + '<p class="tools">' + openLink(x.link) + '<button type="button" id="detail-copy">Copy as JSON</button></p>');
   $('detail-close').addEventListener('click', closeDetail);
   if (share) drawShare();
   else $('detail-copy').addEventListener('click', async () => {
@@ -442,11 +444,12 @@ export const QUEUE_CONTROLS = ['data-decision', 'data-sg', 'data-instruct', 'dat
 export const FOLDED_CONTROLS = ['data-quiet', 'data-ok', 'data-run', 'data-org', 'data-q', 'data-install', 'data-fb-id', 'data-shot', 'data-what', 'data-status',
   'data-mark', 'data-vzoom', 'data-vfit', 'data-vclose', 'data-voice', 'data-goto', 'data-range', 'data-key', 'data-lookup', 'data-h', 'data-s', 'data-t', 'data-l',
   'data-kind', 'data-ver', 'data-done', 'data-href', 'data-help', 'data-help-key', 'data-rday', 'data-text', 'data-copy-code', 'data-chart', 'data-tabgo', 'data-close-out', 'data-filming-cancel', 'data-on', 'data-ask-page', 'data-ask-title',
-  'data-resolve', 'data-unresolve', 'data-claim-on', 'data-close-as', 'data-sm', 'data-sm-go'];
+  'data-resolve', 'data-unresolve', 'data-square', 'data-sqi', 'data-claim-on', 'data-close-as', 'data-sm', 'data-sm-go'];
 /** Whether a part's body holds a queue control (above). */
 export const QUEUE_SOURCE = String.raw`\s(?:` + QUEUE_CONTROLS.join('|') + String.raw`)(?=[\s=>])`;
 
 export const LISTS_CSS = String.raw`
+.sqhow { margin: 8px 0 0; font-size: 13px; color: var(--ink2); max-width: 72ch; }
 svg.sq .q.run { fill: var(--primary); } svg.sq .q.off { fill: var(--grey); }
 svg.sq .rg { fill: none; stroke: var(--card); stroke-width: 1.4; pointer-events: none; }
 .lstbox svg.sq .q { pointer-events: all; } .lstbox svg.sq circle.q.none { fill: var(--card); stroke: var(--muted); }

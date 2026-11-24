@@ -21,7 +21,7 @@ describe('tutorial-review.mjs', () => {
     expect(yml).toContain('claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}');
     expect(yml).toContain('node scripts/tutorial-review.mjs fetch .tutorial-review');
     // After Claude, the script as checked out, from a copy made before Claude: Claude can write in the checkout.
-    const copy = yml.indexOf('cp scripts/tutorial-review.mjs "$RUNNER_TEMP/look/scripts/"');
+    const copy = yml.indexOf('cp scripts/tutorial-review.mjs scripts/card-words.mjs "$RUNNER_TEMP/look/scripts/"');
     expect(copy).toBeGreaterThan(0);
     expect(yml).toContain('cp server/tutorialFeedback.ts "$RUNNER_TEMP/look/server/"');
     expect(copy).toBeLessThan(yml.indexOf('anthropics/claude-code-action'));
@@ -266,7 +266,7 @@ describe('tutorial-review.mjs', () => {
       expect(jobs.check).toContain('package-manager-cache: false');
       expect(jobs.open).not.toMatch(/npm (ci|install)|npx /);
       expect(jobs.open).toContain('node scripts/tutorial-review.mjs fix-open .tutorial-fix');
-      expect(yml).toContain('cp scripts/tutorial-review.mjs "$RUNNER_TEMP/fix/"');
+      expect(yml).toContain('cp scripts/tutorial-review.mjs scripts/card-words.mjs "$RUNNER_TEMP/fix/"');
     });
 
     it('has a second Claude read only the change, with no key but its own, before the App opens a pull request that merges itself', () => {
@@ -275,7 +275,7 @@ describe('tutorial-review.mjs', () => {
       expect(jobs.vet).not.toMatch(/id-token|contents: write|pull-requests|secrets\.(?!CLAUDE_CODE_OAUTH_TOKEN)/);
       expect(jobs.vet).toContain('persist-credentials: false');
       expect(jobs.vet).not.toMatch(/suggestion\.json|tutorial-fix-input|npm (ci|install)|npx /);
-      expect(jobs.vet.indexOf('cp scripts/tutorial-review.mjs "$RUNNER_TEMP/vet/"')).toBeLessThan(jobs.vet.indexOf('anthropics/claude-code-action'));
+      expect(jobs.vet.indexOf('cp scripts/tutorial-review.mjs scripts/card-words.mjs "$RUNNER_TEMP/vet/"')).toBeLessThan(jobs.vet.indexOf('anthropics/claude-code-action'));
       expect(jobs.vet).toContain('node "$RUNNER_TEMP/vet/tutorial-review.mjs" vet-out .tutorial-vet');
       // The opener: after the second Claude, with LangQuest's GitHub App, whose pull requests start the checks.
       expect(jobs.open).toContain('needs: [queue, fix, check, vet]');
@@ -363,13 +363,19 @@ describe('tutorial-review.mjs', () => {
 
     it('takes Claude\'s summary or why there is none, and only the check\'s fixed words', () => {
       expect(checkFix({ summary: ' Step 9 says "Tap Done." ' })).toEqual({ summary: 'Step 9 says "Tap Done."', noFix: '', already: '' });
-      expect(checkFix({ noFix: 'A code change.' })).toEqual({ summary: '', noFix: 'A code change.', already: '' });
+      // No change: why, as one of Claude's reasons, and Claude's plain words for the card (docs/card-words.md).
+      expect(checkFix({ noFix: 'A code change.' })).toEqual({ summary: '', noFix: 'A code change.', already: '', why: 'unknown', plain: '' });
+      expect(checkFix({ noFix: 'film.ts draws the light for every video.', why: 'needsChoice', plain: 'The light looks the same in all videos. Choose: 1. Change it in all videos. 2. Keep it.' }))
+        .toEqual({ summary: '', noFix: 'film.ts draws the light for every video.', already: '', why: 'needsChoice', plain: 'The light looks the same in all videos. Choose: 1. Change it in all videos. 2. Keep it.' });
+      // Only Claude's own reasons: a reason the workflow gives (a test failed) is not Claude's to say.
+      expect(checkFix({ noFix: 'x', why: 'checksFailed' }).why).toBe('unknown');
+      expect(checkFix({ noFix: 'x', plain: 'y'.repeat(400) }).plain).toHaveLength(FIX_LIMITS.plain);
       // The video already does it: no change needed, not a failure.
       expect(checkFix({ already: 'Step 4 already has no pause.', summary: 'x' })).toEqual({ summary: '', noFix: '', already: 'Step 4 already has no pause.' });
-      expect(checkFix(null).noFix).toBe('Claude wrote no summary of a change.');
+      expect(checkFix(null)).toMatchObject({ noFix: 'Claude wrote no summary of a change.', why: 'broke' });
       expect(checkFix({ summary: 'x'.repeat(5000) }).summary).toHaveLength(FIX_LIMITS.summary);
       // The cause is in the app: only with why there is no change to the video.
-      expect(checkFix({ noFix: 'The capital comes from the app (common.justNow).', app: true })).toEqual({ summary: '', noFix: 'The capital comes from the app (common.justNow).', already: '', app: true });
+      expect(checkFix({ noFix: 'The capital comes from the app (common.justNow).', app: true })).toEqual({ summary: '', noFix: 'The capital comes from the app (common.justNow).', already: '', why: 'needsApp', plain: '', app: true });
       expect(checkFix({ summary: 'Step 9 says Done.', app: true })).toEqual({ summary: 'Step 9 says Done.', noFix: '', already: '' });
       expect(checkFix({ noFix: 'x', app: 'yes' })).not.toHaveProperty('app');
       expect(checkResults({ typecheck: 'passed', tests: 'all good, trust me' })).toEqual({ typecheck: 'passed', tests: 'not run' });

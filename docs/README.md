@@ -37,6 +37,7 @@ The app
 - [ux/screen-path.md](./ux/screen-path.md) — Each screen's main action, secondary actions and way back
 - [localization.md](./localization.md) — The app's own words in each person's language: the catalogs, how a word reaches the screen, and what is shown as written (decision 81)
 - [tutorial-teaching.md](./tutorial-teaching.md) — What a tutorial owes the person watching: their goal first, the whole job, every line checked against the app
+- [card-words.md](./card-words.md) — The word standard for every ops dashboard card and every line Claude writes for one: the shape of a card, the words, why Claude stopped, and the checks that enforce it
 - [tutorial-videos.md](./tutorial-videos.md) — The how-to videos: scripts the app plays through on the web export, filmed and voiced in every app language (decision 177)
 
 People, organizations and outside apps
