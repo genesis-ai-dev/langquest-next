@@ -262,7 +262,7 @@ line. The tap sends `line-resolve` with each line's id (`<key>[:<subject>]`),
 its part, its level, its measure (usage-billed: the cost so far), its title
 and its words; `ops.line_resolves` keeps them with who and when (migrations
 `20261124013000_ops_line_resolves.sql`,
-`20261124030000_ops_line_resolve_checks.sql`). The page reads the open
+`20261124034500_ops_line_resolve_checks.sql`). The page reads the open
 resolves from `/ops/api/resolves` (`diag.ops_line_resolves()`), keeps each
 part's answer as it came, and draws it without the resolved lines, so the
 Overview, the menu's counts and each page agree.

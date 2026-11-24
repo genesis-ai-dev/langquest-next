@@ -52,7 +52,7 @@ judge only the numbers: a monthly cost that grows by the use the admin already
 saw is the same problem, and a new failure under the same count is not. Now
 the workflow `card-questions.yml` hands Claude each open resolve at most every
 3 hours, with the line's words at the resolve and now (migration
-`20261124030000_ops_line_resolve_checks.sql`, `server/lineResolves.ts`).
+`20261124034500_ops_line_resolve_checks.sql`, `server/lineResolves.ts`).
 Claude reads what the line counts and writes `same` or `back` with a reason;
 when not sure, `back`. The line shows again with Claude's reason. The rules
 for a doubled measure, a new count and 7 days are gone. Two rules stay,

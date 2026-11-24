@@ -92,7 +92,7 @@ export interface ResolvedLine {
   /** The line's measure (usage-billed: its cost so far), or null. */
   measure: number | null;
   title: string;
-  /** The line's words as the page showed them, for Claude to compare with its words later (migration 20261124030000_ops_line_resolve_checks.sql), or null. */
+  /** The line's words as the page showed them, for Claude to compare with its words later (migration 20261124034500_ops_line_resolve_checks.sql), or null. */
   text: string | null;
 }
 

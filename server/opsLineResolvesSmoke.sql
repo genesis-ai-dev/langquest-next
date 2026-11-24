@@ -1,5 +1,5 @@
 -- Resolved lines on the ops dashboard (migrations 20261124013000_ops_line_resolves.sql and
--- 20261124030000_ops_line_resolve_checks.sql): the dashboard's
+-- 20261124034500_ops_line_resolve_checks.sql): the dashboard's
 -- Worker keeps a resolve, the watch ends it when the line goes, an admin shows it again, diag_reader reads
 -- the open ones with the admin's display name; the workflow hands Claude the due ones and keeps its
 -- verdicts; nobody signed in reads or writes them. Run by

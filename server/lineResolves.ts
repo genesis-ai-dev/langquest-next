@@ -5,7 +5,7 @@ import { EMAIL } from './userIssues';
  * Claude decides whether a resolved line of the ops dashboard came back, from
  * the nature of its problem
  * (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md, amended 2026-11-24;
- * migration 20261124030000_ops_line_resolve_checks.sql). The workflow
+ * migration 20261124034500_ops_line_resolve_checks.sql). The workflow
  * card-questions.yml asks the app Worker's door (apps/web/worker/cardQuestions.ts)
  * for the resolves to check, with each line's words now; Claude decides; the
  * workflow sends the verdicts back. This module checks what the workflow sends.
