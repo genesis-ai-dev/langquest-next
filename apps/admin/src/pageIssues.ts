@@ -355,7 +355,7 @@ function stepsHtml(steps, at) {
 }
 
 /** A card's headings in plain words, by the name its maker gives each line. */
-const KV_SAID = { Next: 'What happens next', Context: 'What happened', Issue: 'What goes wrong', Solution: 'The fix', Claude: 'What Claude did', Found: 'What Claude found', Why: 'Why it matters', Where: 'Where in the code' };
+const KV_SAID = { Next: 'What happens next', Context: 'What happened', Issue: 'What goes wrong', Solution: 'The fix', Claude: 'What Claude did', Found: 'What Claude found', Why: 'Why it matters', Where: 'Where in the code', Watch: 'Watch the video' };
 /** The lines that go in the panel at the right, with the buttons: what is done about it. */
 const KV_SIDE = ['Next', 'Solution', 'Claude', 'Where'];
 /**
@@ -648,6 +648,20 @@ function appSide(a) {
 function fixAppButton(a) {
   return a.kind === 'fixFailed' && a.fixApp ? fixItButton(a.fixApp, 'Fix it in the app', false) : '';
 }
+/**
+ * Where to watch the film a card is about (sources/videos.ts Watch): one row for each film, its name, then a link for
+ * each time the card is about (the frame check's wrong stills), or one from the start. Each opens in a new tab.
+ */
+function watchHtml(w) {
+  if (!Array.isArray(w) || !w.length) return '';
+  const ok = (h) => /^(\/api\/tutorials\/|https:\/\/youtu\.be\/)/.test(String(h || ''));
+  const rows = w.map((x) => {
+    const links = (x.links || []).filter((l) => ok(l.href));
+    return links.length ? '<li><span class="vwname">' + vicon(x.film === 'youtube' ? 'up' : 'film') + esc(x.label) + '</span>' +
+      '<span class="vwlinks">' + links.map((l) => '<a class="vwat" href="' + esc(l.href) + '" target="_blank" rel="noopener noreferrer">' + esc(l.text) + '</a>').join('') + '</span></li>' : '';
+  }).join('');
+  return rows ? '<ul class="vwatch">' + rows + '</ul>' : '';
+}
 /** Whose turn it is on a video's card: the admin's, Claude's, or nobody's (a change that failed, which a pull request of its own fixed). */
 const cardPill = (a) => a.who === 'you' ? ['Waits on you', 'you'] : a.who === 'done' ? ['Done', 'done'] : ['Claude acts next', 'claude'];
 /** One thing for an admin: what it is and where it came from, who acts next, the talk so far, and where it applies, the box to tell Claude what to do. */
@@ -670,6 +684,7 @@ function adminCard(a) {
     lines: a.reply ? [['Comment', commentSaid(a)]] : [
       ['Context', from + inputs],
       ['Issue', (plain ? '<p class="setup">' + esc(plain) + '</p>' : '') + (technical ? '<details class="vtech"><summary>Technical details for the fix</summary><p class="setup">' + esc(technical) + '</p></details>' : '')],
+      ['Watch', watchHtml(a.watch)],
       [ins ? '' : 'Solution', ins ? '' : esc(a.next)]
     ],
     pill: cardPill(a),

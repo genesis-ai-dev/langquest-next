@@ -1,7 +1,7 @@
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { checkFilm, problemLines, problemsOf, promptOf, stillsOf } from './frame-check';
+import { boxOf, checkFilm, foundOf, problemLines, problemsOf, promptOf, stillsOf } from './frame-check';
 
 /** A new film looked at as someone who pauses it would (frame-check.ts, decisions.md 192). */
 
@@ -37,6 +37,16 @@ describe('the frame check', () => {
     expect(() => problemsOf('Every still looks right.', 4)).toThrow(/answered/);
   });
 
+  it('keeps the box round each problem, inside the still, for the ring on the dashboard', () => {
+    const found = foundOf({ stills: [{ still: 2, problems: ['A.', ' ', 'B.', 'C.'], boxes: [[0.1, 0.2, 0.3, 0.4], [0, 0, 1, 1], [0.9, 0.9, 0.5, 0.5], 'no'] }] }, 4);
+    expect(found.get(2)).toEqual({ problems: ['A.', 'B.', 'C.'], boxes: [[0.1, 0.2, 0.3, 0.4], [0.9, 0.9, 0.1, 0.1], null] });
+    // No boxes (an older answer): each problem has none.
+    expect(foundOf({ stills: [{ still: 1, problems: ['A.'] }] }, 4).get(1)).toEqual({ problems: ['A.'], boxes: [null] });
+    expect(boxOf([0.5, 0.5, 0, 0.2])).toBeNull();
+    expect(boxOf([-1, 0.5, 0.2, 0.2])).toEqual([0, 0.5, 0.2, 0.2]);
+    expect(promptOf('Grabar', 'es')).toContain('"boxes"');
+  });
+
   /** What Claude Code prints for a look (stream-json): the start, then the result. */
   const printed = (result: object) => [
     JSON.stringify({ type: 'system', subtype: 'init', model: 'claude-sonnet-5-5' }),
@@ -50,7 +60,7 @@ describe('the frame check', () => {
     const look = async (message: string) => {
       sent.push(JSON.parse(message));
       return printed({
-        structured_output: { stills: [{ still: 2, problems: ['A purple line shows above the lit card.'] }] },
+        structured_output: { stills: [{ still: 2, problems: ['A purple line shows above the lit card.'], boxes: [[0.25, 0.1, 0.5, 0.05]] }] },
         total_cost_usd: 0.03,
         modelUsage: {
           'claude-sonnet-5-5': { inputTokens: 10, cacheCreationInputTokens: 5000, cacheReadInputTokens: 0, outputTokens: 30, thinkingTokens: 900, costUSD: 0.0299 },
@@ -68,6 +78,7 @@ describe('the frame check', () => {
     expect(content.find((c) => c.type === 'image')!.source).toEqual({ type: 'base64', media_type: 'image/jpeg', data: Buffer.from('still at 0.5').toString('base64') });
     expect(content.map((c) => c.text).filter(Boolean)).toContain('Still 3, at 0:11. The voice says: "Tap Record."');
     expect(checked.map((s) => s.problems.length)).toEqual([0, 1, 0, 0]);
+    expect(checked[1]!.boxes).toEqual([[0.25, 0.1, 0.5, 0.05]]);
     expect(readdirSync(path.join(folder, 'check'))).toEqual(['02.jpg']);
     const json = JSON.parse(readFileSync(path.join(folder, 'check.json'), 'utf8'));
     expect(json.model).toBe('claude-sonnet-5-5');

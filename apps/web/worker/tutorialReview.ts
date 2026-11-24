@@ -1,6 +1,6 @@
 import { parseFixUpdates, parseReview, PICTURE_FILE, PICTURE_MAX, REPOSITORY, ReviewError, type FixedElsewhere, type FixUpdate, type Refilmed, type Review } from '../../../server/tutorialFeedback';
 import type { JobRun } from '../../../server/jobRuns';
-import { BadDigest, type BlobBucket } from './blobs';
+import { BadDigest, fromService, type BlobBucket } from './blobs';
 import type { GithubRun, OidcRule } from './githubOidc';
 
 /**
@@ -153,8 +153,15 @@ async function putPicture(request: Request, name: string, bucket: BlobBucket | u
  * about (decisions.md 186, amended 2026-11-17), for the ops dashboard and the fix's pull request. A step's screen
  * from a film run's try, or a still of a film: test data in a public video, so no sign-in, as the films
  * (tutorialVideos.ts). Its name is its bytes' hash, so it never changes.
+ *
+ * `PUT` with the service key is how the intake job (server/tutorialIntake.ts) brings the stills the frame check
+ * found wrong in a film it held, for that film's card on the dashboard (docs/decisions/2026-11-24-a-held-film-shows-its-wrong-stills-and-plays-at-their-time.md).
  */
-export async function handleTutorialPicture(request: Request, bucket: BlobBucket | undefined): Promise<Response> {
+export async function handleTutorialPicture(request: Request, bucket: BlobBucket | undefined, serviceKey?: string): Promise<Response> {
+  if (request.method === 'PUT' && serviceKey) {
+    if (!(await fromService(request, serviceKey))) return new Response('Only the service puts pictures here.', { status: 401 });
+    return putPicture(request, new URL(request.url).pathname.slice(PICTURE_PATH.length), bucket);
+  }
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Only GET is supported.', { status: 405 });
   const m = PICTURE_FILE.exec(new URL(request.url).pathname.slice(PICTURE_PATH.length));
   if (!m) return new Response('Not found.', { status: 404 });

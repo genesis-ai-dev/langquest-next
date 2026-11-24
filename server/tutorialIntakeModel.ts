@@ -25,6 +25,45 @@ export const manifestName = (language: string) => `manifest-${language}.json`;
 /** A film, as a release asset: its hash in the name, so a newer film never takes an older one's name. */
 export const filmName = (language: string, tutorial: string, sha256: string) => `${language}.${tutorial}.${sha256.slice(0, 16)}.mp4`;
 
+/**
+ * A film the frame check held (e2e/tutorials/nightly.ts), as a release asset: it is never in a manifest, so it never
+ * goes to YouTube; the intake brings it into R2 only so the ops dashboard can play it at the problem's time.
+ */
+export const heldFilmName = (language: string, tutorial: string, sha256: string) => `held.${language}.${tutorial}.${sha256.slice(0, 16)}.mp4`;
+/** A still of a held film that the frame check found wrong, as a release asset. */
+export const heldStillName = (language: string, sha256: string) => `held.${language}.${sha256.slice(0, 16)}.jpg`;
+/** The release assets of a language's held films and stills start with this. */
+export const heldPrefix = (language: string) => `held.${language}.`;
+
+/** A still the frame check found wrong in a held film: when, what was said, the picture, and each problem with its box. */
+export interface HeldStill {
+  /** Seconds into the film. */
+  t: number;
+  says: string;
+  /** Its name where the dashboard reads it: its bytes' SHA-256, then .jpg (/api/tutorial-pictures/). */
+  picture: string;
+  bytes: number;
+  problems: string[];
+  /** For each problem, [left, top, width, height] as parts of the still (0 to 1), or null when the check gave none. */
+  boxes: ([number, number, number, number] | null)[];
+}
+/** A film the frame check held, in status-<language>.json: the film itself and the stills it found wrong. */
+export interface HeldFilm { sha256: string; bytes: number; stills: HeldStill[] }
+
+const PICTURE = /^[0-9a-f]{64}\.jpg$/;
+/** The held films a status-<language>.json names, those that read right (each with its video), for the intake. */
+export function heldFilmsOf(json: unknown): { tutorial: string; held: HeldFilm }[] {
+  const videos = (json as { videos?: unknown } | null)?.videos;
+  if (!Array.isArray(videos)) return [];
+  return videos.flatMap((v: { tutorial?: unknown; heldFilm?: Partial<HeldFilm> }) => {
+    const h = v?.heldFilm;
+    if (typeof v?.tutorial !== 'string' || !TUTORIAL.test(v.tutorial) || !h || typeof h.sha256 !== 'string' || !SHA256.test(h.sha256)
+      || !whole(h.bytes, 1, FILM_MAX_BYTES) || !Array.isArray(h.stills)) return [];
+    const stills = h.stills.filter((s) => s && typeof s.picture === 'string' && PICTURE.test(s.picture) && whole(s.bytes, 1, 3 * 1024 * 1024));
+    return [{ tutorial: v.tutorial, held: { sha256: h.sha256, bytes: h.bytes, stills } as HeldFilm }];
+  });
+}
+
 /** One film in a manifest: its file, and what YouTube shows, in the manifest's language. */
 export interface Film {
   tutorial: string;
@@ -107,17 +146,30 @@ export interface IntakeDeps {
   /** A language's manifest as JSON, or null when the filming has made none in it yet. */
   manifest(language: ChannelLanguage): Promise<unknown>;
   /** Whether R2 already has the film (the Worker's HEAD). */
-  stored(language: ChannelLanguage, film: Film): Promise<boolean>;
+  stored(language: ChannelLanguage, film: Pick<Film, 'tutorial' | 'sha256'>): Promise<boolean>;
   /** The film's bytes from the release. */
   download(language: ChannelLanguage, film: Film): Promise<Uint8Array<ArrayBuffer>>;
   /** Into R2 through the Worker, which refuses bytes that are not the hash. */
-  put(language: ChannelLanguage, film: Film, bytes: Uint8Array): Promise<void>;
+  put(language: ChannelLanguage, film: Pick<Film, 'tutorial' | 'sha256'>, bytes: Uint8Array): Promise<void>;
   /** `ops_tutorial_made`: true when it is new to the dashboard. */
   made(language: ChannelLanguage, film: Film): Promise<boolean>;
   /** The run was asked to stop (SIGTERM): start nothing new. */
   stopping(): boolean;
   /** A pause before the one try again after the server failed (serverFailed). */
   wait(): Promise<void>;
+  /**
+   * The films the frame check held and their wrong stills (status-<language>.json `heldFilm`), for the ops
+   * dashboard's card: each is brought into R2 like a film, but never listed, so never put on YouTube.
+   */
+  held?: {
+    /** A language's status-<language>.json, or null when it has none. */
+    status(language: ChannelLanguage): Promise<unknown>;
+    /** A release asset's bytes, by its name. */
+    asset(name: string): Promise<Uint8Array<ArrayBuffer>>;
+    /** Whether R2 already has the picture (`<sha256>.jpg`). */
+    storedPicture(name: string): Promise<boolean>;
+    putPicture(name: string, bytes: Uint8Array): Promise<void>;
+  };
 }
 
 /**
@@ -149,6 +201,8 @@ export interface IntakeReport {
   firstError: string | null;
   /** The run stopped early: the server failed twice in a row (serverFailed). */
   stopped?: boolean;
+  /** Held films and stills brought into R2 by this run, for the dashboard. */
+  held?: number;
 }
 
 /** A code for the job run, from anything thrown. */
@@ -199,6 +253,43 @@ export async function takeInFilms(deps: IntakeDeps, report: IntakeReport): Promi
         }
       }
     }
+    if (deps.held && !(await takeInHeld(deps, deps.held, language, fail))) {
+      report.stopped = true;
+      break;
+    }
   }
   return report;
+
+  /** A language's held films and stills that R2 lacks; false when the server failed twice and the run must stop. */
+  async function takeInHeld(deps: IntakeDeps, held: NonNullable<IntakeDeps['held']>, language: ChannelLanguage, fail: (e: unknown) => void): Promise<boolean> {
+    let json: unknown;
+    try {
+      json = await held.status(language);
+    } catch (e) {
+      fail(e);
+      return true;
+    }
+    for (const { tutorial, held: film } of heldFilmsOf(json)) {
+      if (deps.stopping()) return true;
+      const steps: [() => Promise<boolean>, () => Promise<Uint8Array<ArrayBuffer>>, number, string, (b: Uint8Array) => Promise<void>][] = [
+        [() => deps.stored(language, { tutorial, sha256: film.sha256 }), () => held.asset(heldFilmName(language, tutorial, film.sha256)), film.bytes, film.sha256,
+          (b) => deps.put(language, { tutorial, sha256: film.sha256 }, b)],
+        ...film.stills.map((s) => [() => held.storedPicture(s.picture), () => held.asset(heldStillName(language, s.picture.slice(0, 64))), s.bytes, s.picture.slice(0, 64),
+          (b: Uint8Array) => held.putPicture(s.picture, b)] as (typeof steps)[number])
+      ];
+      for (const [stored, download, size, hash, put] of steps) {
+        try {
+          if (await twice(deps, stored)) continue;
+          const bytes = await download();
+          if (bytes.length !== size || (await hex(bytes)) !== hash) throw named('held_digest');
+          await twice(deps, () => put(bytes));
+          report.held = (report.held ?? 0) + 1;
+        } catch (e) {
+          fail(e);
+          if (serverFailed(e)) return false;
+        }
+      }
+    }
+    return true;
+  }
 }
