@@ -69,13 +69,12 @@ export const SECTION_HELP: Record<string, string> = {
 
 export const HELP: Record<string, string> = {
   // ---- Resolved: a line hidden until its problem comes back (pageResolve.ts)
-  'Resolved button': 'Hides this problem from the page. It shows again when the problem goes and comes back, gets worse, or starts a new count, and after 7 days at the latest. The watch for user issues still sees it.',
+  'Resolved button': 'Hides this problem from the page. Claude reads the line every 3 hours and shows it again when the problem comes back. It also shows again when it gets worse, or goes and comes back. The watch for user issues still sees it.',
   'Came back: worse': 'Someone resolved this problem. It shows again because it is more serious now.',
-  'Came back: grew': 'Someone resolved this problem. It shows again because it is twice as big now.',
-  'Came back: month': 'Someone resolved this problem last month. It shows again because this month has its own count.',
-  'Came back: window': 'Someone resolved this problem. It shows again because the check now counts only what happened after that.',
-  'Came back: check': 'Someone resolved this problem. It shows again because its daily check ran again and found it.',
-  'Came back: week': 'Someone resolved this problem 7 days ago. It shows again because it is still here.',
+  'Came back: claude': 'Someone resolved this problem. Claude read the line and found that the problem came back.',
+  'Came back: unchecked': 'Someone resolved this problem. Claude could not check it for 27 hours, so it shows again.',
+  'Claude says': 'Why Claude found that the problem came back.',
+  'Claude checked': 'When Claude last read the line, and why it found the same problem.',
   // ---- where each build and update is (sources/pipeline.ts)
   'Building on EAS': 'Store builds EAS is making now, and the newest one when it failed.',
   TestFlight: 'iPhone builds uploaded to Apple and not sent for review: Apple processing them, or waiting while an older build is in App Review. The hourly step sends only the newest once the review ends.',

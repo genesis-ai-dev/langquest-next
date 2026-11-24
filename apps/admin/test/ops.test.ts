@@ -422,6 +422,14 @@ describe('the longest query and oldest transaction', () => {
   it('still reads a database from before the migration, which named no one', () => {
     expect(dbDetailAlerts(db({ longestQueryS: 600 }))).toEqual([{ level: 'watch', key: 'long-query', text: 'A query has been running for 10 minutes.' }]);
   });
+  it('leaves out the staging table, which is all dead rows from the end of each cut until its vacuum (LAN-313)', () => {
+    // Production at the end of a cut: 0 live rows and 52,000 dead ones, a minute before autovacuum cleans them.
+    const tables = [
+      { name: 'public.snapshot_units_staged', bytes: 140_000_000, rows: 52_000, deadRatio: 1 },
+      { name: 'public.snapshot_units', bytes: 8_000_000_000, rows: 1_771_000, deadRatio: 0.45 }
+    ];
+    expect(dbDetailAlerts(db({ tables })).map((a) => a.subject)).toEqual(['public.snapshot_units']);
+  });
 });
 
 describe('tutorial videos (decisions.md 180)', () => {

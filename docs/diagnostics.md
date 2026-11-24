@@ -402,6 +402,12 @@ filed one as a comment on its issue with the new numbers, noise to be
 judged again. Server kinds come back after a week; noise is forgotten after
 90 days.
 
+**A merge closes what it fixes.** After each push to main, Claude checks the
+merge against every open issue in Linear, also those no commit names, and the
+issues it fixes move to Deploying or Live there
+(docs/decisions/2026-11-24-a-merge-closes-the-issues-it-fixes.md). The watch
+reads that state like any other, below.
+
 **Closed in Linear stays closed.** Every run reads the state of each issue
 the watch filed or commented on (180 days back) and sends what changed. An
 issue closed in Linear (Live, Canceled or Duplicate; not Outage, which says

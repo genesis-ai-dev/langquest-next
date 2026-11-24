@@ -320,8 +320,23 @@ export function mergesToCopy(merges, rebuildShas) {
  */
 export function mergeName(message) {
   const m = /^Merge pull request #(\d+) from \S+[^\n]*(?:\r?\n\s*([^\n]+))?/.exec(message);
-  return m ? { pr: Number(m[1]), title: m[2]?.trim() || null, label: `#${m[1]}${m[2]?.trim() ? ` ${m[2].trim()}` : ''}` }
-    : { pr: null, title: null, label: message.split('\n', 1)[0] };
+  const title = m?.[2] ? withoutIssueIds(m[2]) : '';
+  return m ? { pr: Number(m[1]), title: title || null, label: `#${m[1]}${title ? ` ${title}` : ''}` }
+    : { pr: null, title: null, label: withoutIssueIds(message.split('\n', 1)[0]) };
+}
+
+/**
+ * A copy names no Linear issue (docs/decisions/2026-11-24-a-merge-closes-the-issues-it-fixes.md):
+ * Linear's GitHub integration moves an issue a newly opened pull request names to In Progress,
+ * and an issue the merge on main had already sent to Deploying or Live stayed there. The copy
+ * names its merge on main ("#382"), which names the issue.
+ */
+export function withoutIssueIds(text) {
+  return String(text)
+    .replace(/\s*\(\s*LAN-\d+(?:\s*,\s*LAN-\d+)*\s*\)/gi, '')
+    .replace(/\bLAN-\d+\b:?\s*/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /** The commits a copy pull request carries, from its body's list (`- <sha> #<pr> <title>`), oldest first. */

@@ -143,7 +143,9 @@ function refWrap(root) {
     if (a && refs.length === 1 && a.textContent.trim() === t.data.slice(refs[0].start, refs[0].end).trim()) {
       a.classList.add('ref'); a.dataset.ref = refs[0].ref; continue;
     }
-    const frag = document.createDocumentFragment();
+    // One span holds the text and its marks: in a flex box (a button, a row) loose pieces of text each
+    // become an item of their own, and the spaces at their ends go ("OpenLAN-313in Linear").
+    const frag = document.createElement('span');
     let at = 0;
     for (const r of refs) {
       frag.append(t.data.slice(at, r.start));

@@ -193,7 +193,10 @@ describe('a copy with a conflict', () => {
 
   it('names each merge it copies by its pull request and title, as the ops dashboard reads it', () => {
     expect(mergeName('Merge pull request #317 from genesis-ai-dev/claude/project-thread-nm4lpf\n\nShow maps the study guide points to (LAN-222)\n'))
-      .toEqual({ pr: 317, title: 'Show maps the study guide points to (LAN-222)', label: '#317 Show maps the study guide points to (LAN-222)' });
+      .toEqual({ pr: 317, title: 'Show maps the study guide points to', label: '#317 Show maps the study guide points to' });
+    // A copy names no Linear issue: Linear's GitHub integration would move it back to In Progress.
+    expect(mergeName('Merge pull request #382 from genesis-ai-dev/claude/x\n\nLAN-232: New language starts on Whole Bible\n').label).toBe('#382 New language starts on Whole Bible');
+    expect(mergeName('Merge pull request #557 from o/b\n\nTwo iPhones offer Connect (LAN-148, LAN-216)').title).toBe('Two iPhones offer Connect');
     expect(mergeName('Merge pull request #315 from genesis-ai-dev/claude/b')).toEqual({ pr: 315, title: null, label: '#315' });
     expect(mergeName('Fix a typo\n\nMore')).toEqual({ pr: null, title: null, label: 'Fix a typo' });
   });

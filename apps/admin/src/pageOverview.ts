@@ -336,7 +336,7 @@ function alertRow(c) {
   const gl = c.level === 'watch' ? null : glanceOf(c.group);
   const pic = c.level === 'watch' ? '' : (SQUARES[c.part] ? squarePic(c.part, c.text) : listCardPic(c.part)) || (gl ? miniSvg(gl.s.values, gl.s.agg, 200, 48, gl.say) + '<small>' + esc(gl.said) + '</small>' : '');
   return '<div class="alert ' + c.level + (fixing(c) ? ' fixing' : '') + '" data-href="' + esc(href(lines[0])) + '">' + lvl(c.level, LEVEL[c.level].title) +
-    '<div class="text"><b><a class="card" href="' + esc(href(lines[0])) + '">' + esc(t.title) + '</a>' + backTag(lines[0], 'backtag') + '</b>' + fixHtml(lines[0]) + (lines[0] && lines[0].key !== 'unreadable' && lines[0].key !== 'user-issues-open' ? miniSteps(fixOf(lines[0])) : '') +
+    '<div class="text"><b><a class="card" href="' + esc(href(lines[0])) + '">' + esc(t.title) + '</a>' + backTag(lines[0], 'backtag') + '</b>' + backWhy(lines[0]) + fixHtml(lines[0]) + (lines[0] && lines[0].key !== 'unreadable' && lines[0].key !== 'user-issues-open' ? miniSteps(fixOf(lines[0])) : '') +
     (also ? '<ul class="also">' + also + (rest > 0 ? '<li>' + num(rest) + ' more in ' + esc(titleOf(c.group)) + '</li>' : '') + '</ul>' : '') +
     (t.next ? '<p class="next"><b>Next:</b> ' + esc(t.next) + '</p>' : '') +
     '<div class="from">' + esc(whereOf(c)) + '</div></div><div class="pic">' + pic + '</div>' +

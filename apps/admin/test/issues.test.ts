@@ -71,10 +71,20 @@ describe('where a user issue is', () => {
     expect(logic.issueWay(issue(), null)).toMatchObject({ tab: 'open', pill: 'Open', at: 3 });
   });
 
-  it('is merged with its newest merged pull request, and a newer open one waits on a person again', () => {
+  it('is merged with its newest merged pull request when Linear says so, and a newer open one waits on a person again', () => {
     const merged = [pr(5, 'merged', ['LAN-9'], '2026-11-12T00:00:00Z'), pr(6, 'merged', ['LAN-9'], '2026-11-14T00:00:00Z')];
-    expect(logic.issueWay(issue(), merged)).toMatchObject({ tab: 'merged', pill: 'Merged', at: 5, pr: { number: 6 } });
-    expect(logic.issueWay(issue(), [...merged, pr(7, 'open', ['LAN-9'])])).toMatchObject({ tab: 'you', pr: { number: 7 } });
+    expect(logic.issueWay(issue({ state: 'Deploying' }), merged)).toMatchObject({ tab: 'merged', pill: 'Merged', at: 5, pr: { number: 6 } });
+    expect(logic.issueWay(issue({ state: 'Deploying' }), [...merged, pr(7, 'open', ['LAN-9'])])).toMatchObject({ tab: 'you', pr: { number: 7 } });
+  });
+
+  it('follows Linear: a merged pull request that names an issue Linear still has open was a part of the work', () => {
+    const merged = [pr(6, 'merged', ['LAN-9'], '2026-11-14T00:00:00Z')];
+    expect(logic.issueWay(issue({ state: 'Backlog' }), merged)).toMatchObject({ tab: 'nofix', pill: 'No fix yet', pr: null, part: { number: 6 } });
+    // Merged so lately that the watch did not read Linear since: merged.
+    const lately = [pr(6, 'merged', ['LAN-9'], new Date(Date.now() - 5 * 60000).toISOString())];
+    expect(logic.issueWay(issue({ state: 'Backlog' }), lately)).toMatchObject({ tab: 'merged', pr: { number: 6 } });
+    // Linear says Deploying with no pull request that names it (the check after a merge linked it): merged.
+    expect(logic.issueWay(issue({ state: 'Deploying' }), [])).toMatchObject({ tab: 'merged', pill: 'Merged', pr: null });
   });
 
   it('is closed with every step done when Linear closed it, and has no steps when Linear dropped it or the watch found it already fixed', () => {
@@ -280,12 +290,12 @@ describe('the cards', () => {
     const open = [pr(7, 'open', ['LAN-9'])];
     // A fix that merges without a person does not wait on a developer.
     expect(logic.issueWay(issue(), open, null, record())).toMatchObject({ tab: 'claude', pill: 'Merges when checks pass', level: 'claude', at: 4, claude: true });
-    expect(logic.issueWay(issue(), [pr(7, 'merged', ['LAN-9'], '2026-11-19T21:00:00Z')], null, record())).toMatchObject({ tab: 'merged', pill: 'Merged by Claude', claude: true });
+    expect(logic.issueWay(issue({ state: 'Deploying' }), [pr(7, 'merged', ['LAN-9'], '2026-11-19T21:00:00Z')], null, record())).toMatchObject({ tab: 'merged', pill: 'Merged by Claude', claude: true });
     expect(logic.issueWay(issue({ closedAt: '2026-11-19T22:00:00Z', state: 'Live', fixedBy: 7 }), [], null, record())).toMatchObject({ tab: 'closed', claude: true });
     // One that waits is where every open pull request is; the record is never read for another pull request.
     expect(logic.issueWay(issue(), open, null, record({ decision: 'waits', reason: 'mode' }))).toMatchObject({ tab: 'you', pill: 'Waits on you' });
     expect(logic.issueWay(issue(), [pr(8, 'open', ['LAN-9'])], null, record())).toMatchObject({ tab: 'you', pill: 'Waits on you' });
-    expect(logic.issueWay(issue(), [pr(8, 'merged', ['LAN-9'], '2026-11-19T21:00:00Z')], null, record())).toMatchObject({ pill: 'Merged', claude: false });
+    expect(logic.issueWay(issue({ state: 'Deploying' }), [pr(8, 'merged', ['LAN-9'], '2026-11-19T21:00:00Z')], null, record())).toMatchObject({ pill: 'Merged', claude: false });
     expect(logic.fixFor(record(), { number: 8 })).toBeNull();
     // Claude changed nothing: a developer decides, so it waits on them.
     const none = record({ decision: 'none', reason: 'unconfirmed', why: 'The cause is not proven.', pr: null, summary: null, cause: null, proof: null, review: null });
