@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { page } from '../src/page';
 import { OVERVIEW_SCRIPT } from '../src/pageOverview';
 import { START_SCRIPT } from '../src/pageStart';
+import { SYSMAP_SCRIPT } from '../src/pageSysMap';
 
 /** The page's script between two markers. */
 function between(text: string, from: string, to: string): string {
@@ -28,10 +29,13 @@ describe('the five-minute refresh keeps the page still', async () => {
   it('draws a section, the attention list, the Overview and a chart over the old one in place', () => {
     expect(between(html, 'function show(id, s) {', '\nfunction attention()')).toMatch(/redraw\(\$\('body-' \+ g\.id\)/);
     expect(between(html, 'function attention() {', '\n/** The CLI')).toMatch(/redraw\(\$\('attention-list'\)/);
-    for (const box of ['start-you', 'start-tiles', 'map', 'start-charts', 'start-shipped']) {
+    for (const box of ['start-you', 'start-tiles', 'start-charts', 'start-shipped']) {
       expect(OVERVIEW_SCRIPT).toContain(`redraw($('${box}')`);
       expect(OVERVIEW_SCRIPT).not.toContain(`$('${box}').innerHTML`);
     }
+    // The map of where problems happen is drawn once; a refresh changes only its states, so its zoom, scroll and panel stay.
+    expect(between(SYSMAP_SCRIPT, 'function smBuild() {', '\nfunction ')).toContain('if (!canvas || sm.built) return;');
+    expect(SYSMAP_SCRIPT).toContain('function drawSysMap() { smBuild(); smLive(); }');
     expect(between(START_SCRIPT, 'function drawPart(part, hst) {', '\nfunction bucketLabel')).toMatch(/redraw\(box,/);
   });
 });
