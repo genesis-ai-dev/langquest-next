@@ -753,14 +753,19 @@ above, with one more field:
   canceled; "this one matters most" means a higher priority; "same as
   LAN-12" means a duplicate. Each entry is one of:
   `{ "status": "Canceled" }` (the team's status name: Backlog, Todo, In
-  Progress, Done, Canceled, Duplicate, Live; never Deploying, Verifying
+  Progress, Live, Canceled, Duplicate. The team has no Done: Live is its
+  done status, for work that is finished or a fix that is in the app;
+  Canceled is for an issue that needs no fix. Never Deploying, Verifying
   or Outage, which the deploy sets), `{ "priority": 2 }` (0 none, 1
   urgent, 2 high, 3 medium, 4 low), `{ "title": "..." }`,
   `{ "comment": "..." }` (for the team in Linear, plain words, no name or
   address of a person) or `{ "duplicateOf": "LAN-12" }`. At most five.
   The script makes them after you, only in a run with an admin's
   instruction, and puts what Linear did first in your answer ("I set
-  LAN-256 to Canceled in Linear."): do not write that line yourself.
+  LAN-256 to Canceled in Linear."): do not write that line yourself, and
+  do not say in `answer` what you did in Linear. The script drops each
+  sentence that does, so that the answer never says Linear changed when it
+  refused.
   Write `noFix` too when you change no code. Leave `linear` out when the
   instruction needs no change in Linear.
 - `answer` (at most 1000 characters) is for the admin, under their words

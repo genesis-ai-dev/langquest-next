@@ -223,7 +223,8 @@ export function destinations(environment, values, ref, serviceRoleKey) {
         ...(values.V2_DATABASE_URL ? { V2_DATABASE_URL: values.V2_DATABASE_URL } : {}),
         // Connect YouTube and the publish job (decisions.md 180): both or neither, as one is no use alone.
         ...(values.YOUTUBE_CLIENT_ID && values.YOUTUBE_CLIENT_SECRET ? { YOUTUBE_CLIENT_ID: values.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: values.YOUTUBE_CLIENT_SECRET } : {}),
-        // An accepted code change to Linear (decisions.md 186).
+        // An accepted code change to Linear (decisions.md 186), and an issue closed from its card on the ops dashboard and its state
+        // read there (docs/decisions/2026-11-24-close-an-issue-from-its-card.md).
         ...(values.LINEAR_API_KEY ? { LINEAR_API_KEY: values.LINEAR_API_KEY } : {}),
         // Nearby sync's certificates and attestations (apps/web/worker/nearby.ts): 503 until it is here.
         ...(values.NEARBY_SIGNING_KEY ? { NEARBY_SIGNING_KEY: values.NEARBY_SIGNING_KEY } : {}),

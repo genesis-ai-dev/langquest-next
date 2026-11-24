@@ -30,7 +30,7 @@ const page = new Function(`
   let VIDEOS = null, results = {}, udata = null, fixData = null;
   const userIssuesData = () => udata;
   // A claim on the issue (pageMine.ts) has tests of its own (mine.test.ts): none here.
-  const claimTag = () => "", claimButton = () => "";
+  const claimTag = () => "", claimButton = () => "", closeButton = () => "";
   ${SEND_LOGIC}
   ${SEND_SCRIPT}
   ${ISSUE_LOGIC}

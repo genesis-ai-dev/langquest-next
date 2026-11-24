@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, linearKept, LIMITS, linearClient, lookedOf, mergesOf,
-  linearAsked, linearChanges, noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
+  linearAsked, linearChanges, statusFor, withoutLinearClaims, noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
   repairOf, repairsOf, planRecord, planReads, READ_ROWS, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
@@ -823,5 +823,27 @@ describe('Claude changes an issue in Linear from an admin\'s instruction (docs/d
     expect(answer).toBe('I set LAN-256 to Canceled in Linear. I set the priority of LAN-256 to Low in Linear. I added a comment to LAN-256 in Linear. I could not mark LAN-256 a duplicate of LAN-12 in Linear. Do it there yourself.\n\nThe user can make a new organization.');
     expect(done).toEqual(['uuid-1 status Canceled', 'uuid-1 {"priority":4}', 'uuid-1 comment Why.']);
     expect(await linearAsked(api, issue, [], 'Only words.')).toBe('Only words.');
+  });
+
+  it('says the status Linear set, and drops what the answer says it did in Linear (LAN-327)', async () => {
+    const issue = { id: 'uuid-1', identifier: 'LAN-327' };
+    const live = { setState: async () => 'Live', update: async () => {}, comment: async () => {}, duplicate: async () => {} };
+    const words = 'I closed the issue as Done in Linear, and I changed no code.\n\nThe draft fix stays open. A developer can merge it.';
+    expect(await linearAsked(live, issue, [{ status: 'Done' }], words)).toBe('I set LAN-327 to Live in Linear.\n\nThe draft fix stays open. A developer can merge it.');
+    const refused = { ...live, setState: async () => { throw new Error('Linear: no status named Done in LAN'); } };
+    expect(await linearAsked(refused, issue, [{ status: 'Done' }], words))
+      .toBe('I could not set LAN-327 to Done in Linear. Do it there yourself.\n\nThe draft fix stays open. A developer can merge it.');
+    expect(withoutLinearClaims('The errors stopped. I set it to Canceled in Linear. Linear has the logs.')).toBe('The errors stopped. Linear has the logs.');
+  });
+
+  it('finds the team\'s status for a word it has no status of: Done is Live, Won\'t fix is Canceled, never Outage', () => {
+    const states = [{ id: 'o', name: 'Outage', type: 'canceled', position: 0 }, { id: 'c', name: 'Canceled', type: 'canceled', position: 5 },
+      { id: 'l', name: 'Live', type: 'completed', position: 4 }, { id: 't', name: 'Todo', type: 'unstarted', position: 1 }, { id: 'd', name: 'Deploying', type: 'started', position: 2 }];
+    expect(statusFor(states, 'Done')?.name).toBe('Live');
+    expect(statusFor(states, 'closed')?.name).toBe('Live');
+    expect(statusFor(states, "Won't fix")?.name).toBe('Canceled');
+    expect(statusFor(states, 'canceled')?.name).toBe('Canceled');
+    expect(statusFor(states, 'todo')?.name).toBe('Todo');
+    expect(statusFor(states, 'Shipped')).toBeNull();
   });
 });

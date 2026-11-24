@@ -528,10 +528,10 @@ function sayAt(button, text, tone) {
   p.textContent = text;
 }
 /** What a button says while its tap goes, by the tap's kind. */
-const BUSY = { run: 'Starting…', 'tutorials-publish': 'Publishing…', 'tutorial-note': 'Sending…', 'user-issue-note': 'Sending…', 'tutorial-suggestion': 'Saving…', 'tutorial-reply': 'Saving…', 'tutorial-filming': 'Saving…', 'tutorial-fix': 'Sending…', 'card-question': 'Sending…', 'line-resolve': 'Saving…', 'line-show': 'Saving…', 'issue-claim': 'Saving…' };
+const BUSY = { run: 'Starting…', 'tutorials-publish': 'Publishing…', 'tutorial-note': 'Sending…', 'user-issue-note': 'Sending…', 'tutorial-suggestion': 'Saving…', 'tutorial-reply': 'Saving…', 'tutorial-filming': 'Saving…', 'tutorial-fix': 'Sending…', 'card-question': 'Sending…', 'line-resolve': 'Saving…', 'line-show': 'Saving…', 'issue-claim': 'Saving…', 'issue-close': 'Closing…' };
 /** The parts a tap changes, read again from their source when it is done (page.ts reread). */
 const AFTER = { 'tutorial-note': ['videos', 'ops'], 'tutorial-suggestion': ['videos', 'ops'], 'tutorial-fix': ['videos', 'ops'], 'tutorial-reply': ['videos', 'ops'], 'tutorial-filming': ['videos', 'ops'], 'tutorials-publish': ['videos', 'ops'],
-  'user-issue-note': ['ops', 'videos'], 'card-question': ['questions'], 'line-resolve': ['resolves'], 'line-show': ['resolves'], 'issue-claim': [], 'quiet-account': ['ops'], verification: ['ops'], feedback: ['diag'], run: ['diag', 'container'] };
+  'user-issue-note': ['ops', 'videos'], 'card-question': ['questions'], 'line-resolve': ['resolves'], 'line-show': ['resolves'], 'issue-claim': [], 'issue-close': ['ops'], 'quiet-account': ['ops'], verification: ['ops'], feedback: ['diag'], run: ['diag', 'container'] };
 /** Each part of the page a message to Claude shows on, drawn again from what the page holds. */
 function redrawSends() { for (const id of ['videos', 'userissues', 'research']) if (results[id]) show(id, results[id]); redrawAsks(); }
 /**
@@ -560,6 +560,7 @@ async function perform(action, button, opts) {
       : action.kind === 'line-resolve' ? (action.lines.length === 1 ? 'Resolved. It shows again when the problem comes back.' : num(action.lines.length) + ' resolved. Each shows again when its problem comes back.')
       : action.kind === 'line-show' ? 'It shows again.'
       : action.kind === 'issue-claim' ? (body.result === 'claimed' ? 'You claimed ' + action.issue + '.' : 'You released ' + action.issue + '.')
+      : action.kind === 'issue-close' ? 'You closed ' + action.issue + ' in Linear. It is ' + body.result + ' there now.'
       : action.kind === 'quiet-account' ? (action.ok ? 'Marked not an issue. Its quiet installs no longer count in the warning.' : 'Its quiet installs count in the warning again.')
       : action.kind === 'tutorial-filming' ? languageName(action.language) + (body.result === 'on' ? ' is filmed from the next filming at 20:10 UTC.' : ' is paused. Its videos on YouTube stay as they are.')
       : action.kind === 'tutorial-reply' ? (body.result === 'posted' ? 'Marked as posted.' : body.result === 'none' ? 'Marked: no reply needed.' : 'The reply waits again.')
