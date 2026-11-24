@@ -51,3 +51,6 @@ already draws rings over a picture, and the bare still stays true); a
 separate upload from the filming job with its own OIDC rule (the intake
 already holds the key and the release is the one way films reach
 production, decision 141).
+
+Reverse if: the frame check's boxes miss the problem on most held films, or
+the held films in R2 cost more than the stills are worth to the admins.
