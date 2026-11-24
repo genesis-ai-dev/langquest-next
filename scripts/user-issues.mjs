@@ -813,6 +813,11 @@ export function privateOf(description) {
 }
 
 /** Whether some text carries an id or six words in a row of what was sent (case and spacing aside). */
+/** The changes in Linear whose words of Claude's (a title, a comment) carry nothing of what was sent. */
+export function linearKept(changes, priv) {
+  return (changes ?? []).filter((c) => !leaks([c.title, c.comment].filter(Boolean).join('\n'), priv));
+}
+
 export function leaks(text, priv) {
   const flat = (s) => String(s).toLowerCase().replace(/\s+/g, ' ');
   const t = flat(text);
@@ -1389,6 +1394,8 @@ function fixPatch(dir) {
     Object.assign(fix, { verdict: 'review', cause: '', proof: '', why: '', twins: '', next: null });
     patch = '';
   }
+  // The same for each change in Linear with words of Claude's (a title, a comment): one that carries what was sent is dropped.
+  if (priv) fix.linear = linearKept(fix.linear, priv);
   // A verdict that means "no change" with a change, or "approved" without the admin's word, is a change a developer reads.
   if (patch && ['not_a_bug', 'unconfirmed'].includes(fix.verdict)) fix.verdict = 'review';
   // "Merge it as it is": the admin's words say so, the manager's verdict is `approved`, and the draft fix is as it was.
