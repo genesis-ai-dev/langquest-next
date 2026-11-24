@@ -1,6 +1,6 @@
 # The ops dashboard has a menu of sections on the left and opens on an Overview of rows, numbers and a map
 
-Date: 2026-11-18 · By: Caleb Koster · Status: accepted
+Date: 2026-11-18 · By: Caleb Koster · Status: partly superseded by 2026-11-24-overview-map-of-where-problems-happen
 
 Reason: Caleb asked that the ops dashboard take the layout of the owner
 console in his prayer-robin repository (`web/admin` there), because that page

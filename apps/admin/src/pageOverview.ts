@@ -5,14 +5,16 @@
  * numbers of today against their usual range; the lines by who acts (Needs
  * you; This week, you decide; On its way; Watching), most urgent first
  * (decisions.md 254's cards, as rows); how much of the Frontier Claude plan
- * this week has used (a small monitor); a map of the parts with a dot for
- * each part's state, two charts of the last 14 days, what was merged lately,
+ * this week has used (a small monitor); a map of where problems can happen
+ * (pageSysMap.ts), two charts of the last 14 days, what was merged lately,
  * and the eight numbers it had, behind More numbers.
  * Every number and dot comes from a part the page already loads; a part that
  * has not answered, is not connected or could not be read says so, never a
  * guess. Plain JavaScript run inside page.ts's script after pageStart.ts and
  * pageFixes.ts; everything shown is escaped.
  */
+
+import { SYSMAP_HTML } from './pageSysMap';
 
 /** The Overview's look, inside page.ts's style element. */
 export const OVERVIEW_CSS = String.raw`
@@ -70,22 +72,12 @@ a.tile:hover, a.tile:focus-visible { border-color: var(--grey); }
 .tile .l { color: var(--ink2); font-size: 13px; } .tile .v { font-size: 30px; font-weight: 500; line-height: 1.15; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .tile .v.sm { font-size: 19px; padding-top: 6px; } .tile .v.none { color: var(--muted); font-size: 16px; padding-top: 8px; }
 .tile .s { color: var(--muted); font-size: 12.5px; } .tile svg.mini { margin-top: 6px; max-width: 120px; }
-.mapcard { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--sh); }
-.map { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 56px; padding: 22px; }
-.map svg.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.map svg.wires path { fill: none; stroke: var(--grey); stroke-width: 1.5; opacity: .55; }
-.map .col { display: grid; gap: 10px; align-content: center; position: relative; z-index: 1; }
-.map .col > span { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin-bottom: 2px; }
 a.node { display: flex; gap: 10px; align-items: center; min-height: 52px; padding: 8px 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--raised); text-decoration: none; color: inherit; min-width: 0; }
 a.node:hover, a.node:focus-visible { border-color: var(--grey); }
 .node .ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--soft); color: var(--ink2); flex: none; }
 .node .txt { display: grid; min-width: 0; flex: 1; } .node b { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .node small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.node .dot { margin-top: 0; width: 8px; height: 8px; }
-.node.urgent, .node.problem { border-color: var(--red); } .node.watch { border-color: var(--yellow); } .node.off { border-style: dashed; }
 .dot.off { background: transparent; border: 1.5px solid var(--grey); } .dot.error { background: transparent; border: 2px solid var(--red); } .dot.wait { background: var(--line); }
-.mapkey { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0 22px 16px; font-size: 12px; color: var(--muted); }
-.mapkey span { display: inline-flex; align-items: center; gap: 6px; } .mapkey .dot { margin-top: 0; width: 8px; height: 8px; }
 .ovcharts { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
 a.ovchart { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; color: inherit; text-decoration: none; min-width: 0; }
 a.ovchart:hover, a.ovchart:focus-visible { border-color: var(--grey); }
@@ -106,7 +98,6 @@ a.plan:hover, a.plan:focus-visible { border-color: var(--grey); }
 .plan .bar .gone { fill: var(--grey); }
 .plan p { margin: 0; font-size: 13px; } .plan.watch p b { color: var(--amber); } .plan.problem p b { color: var(--red); }
 @media (max-width: 900px) {
-  .map { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px; } .map svg.wires { display: none; }
   .alert { grid-template-columns: minmax(0, 1fr); } .alert .gos { justify-items: start; grid-auto-flow: column; justify-content: start; gap: 16px; } .alert a.go { min-height: 48px; }
   .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -128,10 +119,7 @@ export const OVERVIEW_HTML = String.raw`
       <section class="sblock" aria-labelledby="ov-watch"><div class="sh"><h2 id="ov-watch">Watching</h2><span class="cnt" id="ov-watch-n" hidden></span><span class="sp"></span></div><div class="wchips" id="start-watch"></div></section>
       <div id="start-ask"></div>
       <section aria-label="Frontier Claude plan this week"><a class="plan" id="start-plan" href="#g/access"></a></section>
-      <section aria-labelledby="ov-map"><h2 class="oh" id="ov-map">How it fits together</h2>
-        <div class="mapcard"><div class="map" id="map"></div>
-          <div class="mapkey"><span><i class="dot ok"></i>Working</span><span><i class="dot watch"></i>Watch</span><span><i class="dot problem"></i>Fix soon</span><span><i class="dot off"></i>Not connected</span><span><i class="dot error"></i>Could not read</span></div></div>
-      </section>
+      ${SYSMAP_HTML}
       <section class="ovcharts" id="start-charts" aria-label="The last 14 days"></section>
       <section aria-labelledby="ov-shipped"><h2 class="oh" id="ov-shipped">Merged lately <a class="more" href="#g/releases">Releases <span aria-hidden="true">→</span></a></h2><div class="shipped" id="start-shipped"></div></section>
       <details class="sblock more" id="start-more-box"><summary><h2>More numbers</h2></summary><div class="tiles" id="start-more"></div></details>
@@ -226,81 +214,6 @@ function planOf(results, now) {
     : level === 'watch' ? 'Used faster than the week goes.'
     : used > gone ? 'About even with the week.' : 'Less used than the week gone.';
   return { used, gone, level, said, resetsAt: w.resetsAt, runsOut, readAt: d.readAt || null, old: Number.isFinite(read) && (now - read) / 36e5 > PLAN_OLD_H };
-}
-
-/** The map: three columns of boxes. 'parts' give a box its state; 'lane' takes it from that store's builds instead. */
-const MAP_COLS = [
-  { title: 'People use', nodes: [
-    { id: 'web', title: 'Web app', group: 'releases', icon: 'web', parts: ['code'] },
-    { id: 'android', title: 'Android app', group: 'releases', icon: 'phones', parts: ['pipeline'], lane: 'android' },
-    { id: 'ios', title: 'iPhone app', group: 'releases', icon: 'phones', parts: ['pipeline'], lane: 'ios' },
-    { id: 'videos', title: 'Tutorial videos', group: 'tutorials', icon: 'tutorials', parts: ['videos', 'videofeedback'] }
-  ] },
-  { title: 'Runs on', nodes: [
-    { id: 'workers', title: 'Cloudflare Workers', group: 'traffic', icon: 'traffic', parts: ['cloudflare', 'worker'] },
-    { id: 'supabase', title: 'Supabase', group: 'database', icon: 'database', parts: ['database', 'dbdetail', 'supabase', 'cron'] },
-    { id: 'eas', title: 'EAS', group: 'releases', icon: 'releases', parts: ['expo', 'adoption'] },
-    { id: 'github', title: 'GitHub Actions', group: 'nightly', icon: 'merge', parts: ['nightly'] }
-  ] },
-  { title: 'Services', nodes: [
-    { id: 'jobs', title: 'Server jobs', group: 'jobs', icon: 'jobs', parts: ['jobs', 'container', 'push', 'v2'] },
-    { id: 'r2', title: 'Cloudflare R2', group: 'storage', icon: 'storage', parts: ['storage', 'capacity'] },
-    { id: 'linear', title: 'Linear', group: 'userissues', icon: 'userissues', parts: ['userissues'] },
-    { id: 'appstore', title: 'App Store Connect', group: 'stores', icon: 'stores', parts: ['appstore'] },
-    { id: 'play', title: 'Google Play Console', group: 'stores', icon: 'stores', parts: ['googleplay'] },
-    { id: 'youtube', title: 'YouTube', group: 'tutorials', icon: 'tutorials', parts: ['tutorials'] }
-  ] }
-];
-const MAP_WIRES = [['web', 'workers'], ['web', 'supabase'], ['android', 'eas'], ['android', 'supabase'], ['ios', 'eas'], ['ios', 'supabase'], ['videos', 'github'],
-  ['supabase', 'jobs'], ['workers', 'r2'], ['github', 'linear'], ['eas', 'appstore'], ['eas', 'play'], ['github', 'youtube']];
-
-/** A box's state from its parts: its most urgent alert, else could not read, still loading, not connected, or working. */
-function nodeState(results, parts, levels) {
-  const got = parts.map((p) => results[p]);
-  const alerts = got.filter(Boolean).flatMap((s) => s.alerts || []);
-  const top = levels.find((l) => alerts.some((a) => (levels.includes(a.level) ? a.level : 'watch') === l));
-  if (top) return top;
-  if (got.some((s) => s && s.state === 'error')) return 'error';
-  if (got.some((s) => !s)) return 'wait';
-  if (got.every((s) => s.state === 'off')) return 'off';
-  return 'ok';
-}
-
-/** One short fact under a box's name, from its own part; empty when that part has none to give. */
-function nodeFact(id, results) {
-  const d = (p) => okData(results, p);
-  try {
-    if (id === 'web' && d('code')) return new URL(d('code').live.url).host + (d('code').live.build ? ' serves ' + String(d('code').live.build).slice(0, 7) : ' does not answer');
-    if (id === 'videos' && d('tutorials')) return nf(d('tutorials').waiting.length) + ' wait to publish';
-    if (id === 'workers' && d('cloudflare')) return nf(d('cloudflare').workers.reduce((a, w) => a + Number(w.requests || 0), 0)) + ' requests in 24 h';
-    if (id === 'supabase' && d('database')) return nf(d('database').connections) + ' of ' + nf(d('database').maxConnections) + ' connections';
-    if (id === 'eas' && d('expo') && d('expo').builds[0]) return 'newest build: ' + String(d('expo').builds[0].platform).toLowerCase() + ', ' + String(d('expo').builds[0].status).toLowerCase();
-    if (id === 'github' && d('nightly')) { const s = d('nightly').runs.flatMap((r) => r.suites || []); return s.length ? (s.length - s.filter((x) => x.failed || x.broke).length) + ' of ' + s.length + ' nightly suites passed' : ''; }
-    if (id === 'jobs' && d('jobs')) { const bad = d('jobs').jobs.filter((j) => j.stale || j.streak >= 3).length; return nf(d('jobs').jobs.length) + ' jobs' + (bad ? ' · ' + bad + ' stopped or failing' : ''); }
-    if (id === 'r2' && d('storage') && d('storage').r2 && !d('storage').r2.error) return nf(d('storage').r2.objects) + ' files';
-    if (id === 'linear' && d('userissues')) return nf(d('userissues').open) + (Number(d('userissues').open) === 1 ? ' open issue' : ' open issues');
-    if (id === 'appstore' && d('appstore') && d('appstore').versions[0]) return d('appstore').versions[0].version + ': ' + String(d('appstore').versions[0].state).toLowerCase().replace(/_/g, ' ');
-    if (id === 'play' && d('googleplay') && d('googleplay').crash) return 'crashes ' + (d('googleplay').crash.userPerceived * 100).toFixed(2) + '%';
-    if (id === 'youtube' && d('tutorials')) { const c = d('tutorials').channels; return c.filter((x) => x.connectedAt).length + ' of ' + c.length + ' channels connected'; }
-  } catch { return ''; }
-  return '';
-}
-
-const NODE_SAID = { urgent: 'Act now', problem: 'Fix soon', watch: 'Watch', error: 'Could not read', wait: 'Loading…', off: 'Not connected', ok: 'Working' };
-
-/** Every box of the map with its state and the words under its name. */
-function mapOf(results, levels) {
-  const lanes = liveBuilds(okData(results, 'pipeline'));
-  return MAP_COLS.map((col) => ({ title: col.title, nodes: col.nodes.map((n) => {
-    let state = nodeState(results, n.parts, levels), fact = '';
-    if (n.lane) {
-      const lane = lanes.find((l) => l.id === n.lane);
-      // A store's box follows that store's own builds: the other store's failed build is not its problem.
-      if (okData(results, 'pipeline')) state = lane && lane.failed ? 'problem' : lane ? 'ok' : 'off';
-      if (lane) fact = (lane.live ? 'build ' + lane.live + ' is live' : 'no live build seen') + (lane.failed ? ' · ' + lane.failed + ' failed' : lane.review ? ' · ' + lane.review + ' in review' : '');
-    } else fact = nodeFact(n.id, results);
-    return { id: n.id, title: n.title, group: n.group, icon: n.icon, state, said: NODE_SAID[state], sub: state === 'wait' || state === 'off' || state === 'error' ? NODE_SAID[state] : fact || NODE_SAID[state] };
-  }) }));
 }
 
 /** The newest merges on main, newest first, from What shipped (sources/releases.ts). */
@@ -496,7 +409,7 @@ function drawStart() {
   drawResolved();
   drawPlan();
   drawTiles();
-  drawMap();
+  drawSysMap();
   drawOvCharts();
   drawShipped();
 }
@@ -565,30 +478,6 @@ function drawTiles() {
       '<span class="s">' + esc(t.sub) + '</span>' + (gl ? miniSvg(gl.s.values, gl.s.agg, 120, 24, gl.say) : '') + '</a>';
   }).join(''));
 }
-
-function drawMap() {
-  const cols = mapOf(results, LEVELS);
-  redraw($('map'), '<svg class="wires" aria-hidden="true"></svg>' + cols.map((col) => '<div class="col"><span>' + esc(col.title) + '</span>' +
-    col.nodes.map((n) => '<a class="node ' + n.state + '" href="#g/' + esc(n.group) + '" data-node="' + n.id + '"><span class="ic">' + svgIcon(n.icon) + '</span>' +
-      '<span class="txt"><b>' + esc(n.title) + '</b><small>' + esc(n.sub) + '</small></span><span class="dot ' + n.state + '" role="img" aria-label="' + esc(n.said) + '"></span></a>').join('') + '</div>').join(''));
-  drawWires();
-}
-
-/** The lines between the boxes, from where the boxes are now; a phone stacks the boxes and hides them. */
-function drawWires() {
-  const map = $('map'), svg = map && map.querySelector('svg.wires');
-  if (!svg || map.offsetParent === null || getComputedStyle(svg).display === 'none') return;
-  const box = map.getBoundingClientRect();
-  const at = (n) => { const el = map.querySelector('[data-node="' + n + '"]'); return el ? el.getBoundingClientRect() : null; };
-  svg.innerHTML = MAP_WIRES.map(([a, b]) => {
-    const p = at(a), q = at(b);
-    if (!p || !q) return '';
-    const x1 = p.right - box.left, y1 = p.top + p.height / 2 - box.top, x2 = q.left - box.left, y2 = q.top + q.height / 2 - box.top, m = (x1 + x2) / 2;
-    return '<path d="M' + x1.toFixed(1) + ',' + y1.toFixed(1) + ' C' + m.toFixed(1) + ',' + y1.toFixed(1) + ' ' + m.toFixed(1) + ',' + y2.toFixed(1) + ' ' + x2.toFixed(1) + ',' + y2.toFixed(1) + '"/>';
-  }).join('');
-}
-let wireTimer = 0;
-window.addEventListener('resize', () => { clearTimeout(wireTimer); wireTimer = setTimeout(drawWires, 150); });
 
 /** One bar for each day, the second number stacked on the first; the scale and the first and last day are written, and each day says its numbers under the pointer (pageHover.ts). */
 function daysSvg(days, a, b, an, bn) {
