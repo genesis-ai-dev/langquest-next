@@ -284,7 +284,14 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // made as the app starts, in the bundle every visit loads, so none of it can load later. lucide-react-native
 // 1.74 to 1.77, in the same bump, changed none of the icons the app draws (src/ui/icons.ts). 892 bytes are
 // left; a first visit has 952.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 172 * 1024;
+// Raised by 1 KB with Download the install file offering no download once the file is in hand, and
+// Share nearby saying offline that the file is ready (Carl, 2026-11-24, docs/nearby-sync-plan.md 14.4,
+// docs/decisions/2026-11-19-carried-build-refreshed-daily.md and decision 246, amended 2026-11-24), 86
+// bytes past it with the Teammates fold's lines (PR 685) merged in: Share nearby's ready line and its rule
+// (installFileRow), in the nearby chunk the web loads with Share nearby. The screen's own rule is in a file
+// only a phone loads (installFileOfferModel.ts), and its three words left all 16 catalogs. 938 bytes are
+// left; a first visit has 847.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 173 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

@@ -242,10 +242,7 @@
       "readyShort": "Faili ya kusakinisha iko tayari",
       "done": "Iko tayari. Unaweza kwenda nayo mahali pasipo intaneti.",
       "newer": "Faili mpya zaidi ya kusakinisha iko tayari. Ipakue ukiwa bado na intaneti, kisha uichague.",
-      "newerShort": "Faili ya kusakinisha kwa mtu mpya: faili mpya zaidi iko tayari",
-      "getNewest": "Pakua faili mpya zaidi",
-      "getNewestHelp": "Hufungua kivinjari cha simu, kinachopakua faili mpya zaidi ya kusakinisha ya toleo hili. Kisha gusa Chagua faili iliyopakuliwa, nayo itachukua nafasi ya nakala iliyohifadhiwa hapa.",
-      "getNewestHelpOpen": "Hufungua kivinjari cha simu, kinachopakua faili mpya zaidi ya kusakinisha ya toleo hili. Upakuaji ukikamilika, gusa Fungua, nayo itachukua nafasi ya nakala iliyohifadhiwa hapa."
+      "newerShort": "Faili ya kusakinisha kwa mtu mpya: faili mpya zaidi iko tayari"
     },
     "join": {
       "intro": "Jiunge na timu yako kupitia simu ya mwenzako wa timu, bila intaneti. Akaunti yako inatengenezwa mara ya kwanza simu yako itakapofika kwenye intaneti.",

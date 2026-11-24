@@ -21,7 +21,7 @@ import { NearbyIntro } from '../nearby/NearbyIntro';
 import { GetInstallFileScreen } from '../nearby/GetInstallFileScreen';
 import { GiveAppScreen } from '../nearby/GiveAppScreen';
 import { ChosenPicture } from '../auth/patternPad';
-import { joinRows, letInVersionsWords } from '../nearby/carriedApkModel';
+import { apkStep, installFileRow, joinRows, letInVersionsWords, type ApkStep } from '../nearby/carriedApkModel';
 import { joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
 import { codeLeft, type LetInEnd, type LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
@@ -78,7 +78,8 @@ export function ShareNearby(ctx: Ctx) {
             onPress={() => { void actions.setWhileOpen(!view.whileOpen); }} last />
         ) : null}
       </Group>
-      <JoinRows ctx={ctx} needed={apk.needed} apkOld={apk.stale && ctx.language.online === true} apkNewer={apk.behind && ctx.language.online === true} />
+      <JoinRows ctx={ctx} needed={apk.needed} apkOld={apk.stale && ctx.language.online === true} apkNewer={apk.behind && ctx.language.online === true}
+        apkStep={apkStep({ needed: apk.needed, opened: apk.opened, kept: apk.kept, canGive: apk.canGive, right: apk.right })} />
     </Screen>
   );
 }
@@ -98,18 +99,23 @@ function Job(props: { label: string; line: string }) {
  * pass for this language while the organization has joining on (docs/nearby-sync-plan.md 14.1, 3;
  * 14.4); hidden otherwise (`joinRows`). They are three steps at three moments, numbered: Download
  * the install file before going offline; Give the app, with the new person; Let someone in, once
- * their app is installed. While online, an install file got for an older version says so above
+ * their app is installed. Offline with the file in hand, the first is no step, since it cannot be
+ * done then: a line says the file is ready to give, and the other two are numbered from 1
+ * (`installFileRow`, Carl, 2026-11-24). While online, an install file got for an older version says so above
  * them (14.4), and so does a kept copy more than two days behind this phone's app (`keptBehind`,
  * docs/decisions/2026-11-19-carried-build-refreshed-daily.md). A run-out
  * pass keeps Let someone in, disabled, saying the phone needs the server again; the row keeps its
  * onPress so help mode can explain it.
  */
-function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean; apkNewer: boolean }) {
+function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean; apkNewer: boolean; apkStep: ApkStep | null }) {
   const whyNot = useLetInOffered(props.ctx);
   const rows = joinRows(whyNot, props.needed);
   if (rows.letIn === null) return null;
-  // Three steps at three moments, so they are numbered where all three show; one row alone is not.
-  const step = (n: number, label: string) => (rows.installFile ? t('nearby.step', { n, label }) : label);
+  const file = installFileRow({ shown: rows.installFile, step: props.apkStep, online: props.ctx.language.online });
+  // Steps at different moments, so they are numbered where more than one shows; one row alone is
+  // not. A file already in hand offline is said, not numbered, and the rest count from 1.
+  const before = file === 'step' ? 1 : 0;
+  const step = (n: number, label: string) => (file !== null ? t('nearby.step', { n: n + before, label }) : label);
   return (
     <>
       <Job label={t('nearby.newPerson')} line={t('nearby.newPersonLine')} />
@@ -123,15 +129,19 @@ function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean; apk
         </Card>
       ) : null}
       <Group>
-        {rows.installFile ? (
-          <Row icon="download" label={step(1, t('screens.get_install_file'))} sub={t('nearby.installFile.rowSub')}
+        {file === 'step' ? (
+          <Row icon="download" label={step(0, t('screens.get_install_file'))} sub={t('nearby.installFile.rowSub')}
             help={t('nearby.installFile.rowHelp')} onPress={() => props.ctx.go('get_install_file')} />
         ) : null}
-        {/* Give the app (14.5): the new phone gets LangQuest over this phone's own Wi-Fi. */}
-        {rows.installFile ? (
-          <Row icon="send" label={step(2, t('screens.give_app'))} sub={t('nearby.give.rowSub')} help={t('nearby.give.rowHelp')} onPress={() => props.ctx.go('give_app')} />
+        {/* A statement, not a step: no number and no press, as Sync's Ready for offline says it. */}
+        {file === 'ready' ? (
+          <Row icon="check" iconColor={TINT.greenText} iconBg={TINT.green} label={t('nearby.installFile.title')} sub={t('nearby.installFile.ready')} />
         ) : null}
-        <Row icon="people" label={step(3, t('screens.let_someone_in'))} sub={rows.letIn === 'expired' ? t('nearby.letIn.why.expired') : t('nearby.letIn.rowSub')}
+        {/* Give the app (14.5): the new phone gets LangQuest over this phone's own Wi-Fi. */}
+        {file !== null ? (
+          <Row icon="send" label={step(1, t('screens.give_app'))} sub={t('nearby.give.rowSub')} help={t('nearby.give.rowHelp')} onPress={() => props.ctx.go('give_app')} />
+        ) : null}
+        <Row icon="people" label={step(2, t('screens.let_someone_in'))} sub={rows.letIn === 'expired' ? t('nearby.letIn.why.expired') : t('nearby.letIn.rowSub')}
           help={t('nearby.letIn.rowHelp')} disabled={rows.letIn !== 'ready'} onPress={() => { if (rows.letIn === 'ready') props.ctx.go('let_someone_in'); }} last />
       </Group>
     </>

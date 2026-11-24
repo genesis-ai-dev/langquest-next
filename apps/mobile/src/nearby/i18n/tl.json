@@ -242,10 +242,7 @@
       "readyShort": "Handa na ang install file",
       "done": "Handa na. Puwede mo na itong dalhin kahit walang internet.",
       "newer": "May mas bagong install file na. I-download ito habang may internet ka, saka piliin ito.",
-      "newerShort": "Install file para sa bagong tao: may mas bago na",
-      "getNewest": "I-download ang pinakabagong file",
-      "getNewestHelp": "Binubuksan ang browser ng telepono, na magda-download ng pinakabagong install file para sa bersiyong ito. Pagkatapos, i-tap ang Piliin ang na-download na file, at papalitan nito ang kopyang nakatabi rito.",
-      "getNewestHelpOpen": "Binubuksan ang browser ng telepono, na magda-download ng pinakabagong install file para sa bersiyong ito. Kapag tapos na ang pag-download, i-tap ang Buksan, at papalitan nito ang kopyang nakatabi rito."
+      "newerShort": "Install file para sa bagong tao: may mas bago na"
     },
     "join": {
       "intro": "Sumali sa pangkat mo mula sa telepono ng isang kasamahan, nang walang internet. Gagawin ang account mo sa unang beses na makakonekta sa internet ang telepono mo.",

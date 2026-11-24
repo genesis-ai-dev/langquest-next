@@ -3765,7 +3765,11 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   Share nearby's A new person lists three numbered steps, each with its moment (2026-11-19):
   1. Download the install file, before you go offline; 2. Give the app, when you are with the
   new person; 3. Let someone in, once their app is installed, on the same terms (a pass held,
-  joining on, Android). Let someone in opens the screen from a line at its top saying the new
+  joining on, Android). Offline with the file in hand, the first is no step, since nothing on
+  its screen can be done then: a line in its place says "Install file for a new person: Ready to
+  give to a new person.", as Ready for offline does, with no number and no press, and the other
+  two are numbered 1 and 2 (`installFileRow`, Carl, 2026-11-24). Online, or with no file in hand,
+  it stays the first step: offline that screen can still choose a file got another way. Let someone in opens the screen from a line at its top saying the new
   phone needs LangQuest installed first, only while no copy is kept, since downloading needs
   the internet the field lacks; and Sync and offline's Ready for offline list opens it from its
   install file item (below). Let someone in keeps only the field: the role, Show the code, the
@@ -3839,12 +3843,21 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
       which ships with the filter, still downloads the `.apk` with the old steps, since Open
       would find nothing to hand it to.
   - *How old, and the newest* (Carl's choices, 2026-11-20). The ready line names the day the kept
-    copy was built (`builtMs`), and while online the ready state offers Download the newest file,
-    which the Worker answers with the newest file for these versions, and which replaces the copy
-    once opened or chosen. A kept copy from an older native build than this phone runs, by its
+    copy was built (`builtMs`). A kept copy from an older native build than this phone runs, by its
     name's fingerprint, counts as behind at once (`keptFromOlderBuild`), so the screens say a newer
     file is ready, until a copy is kept under this build (`carriedApkKeptUnder`). The two-day rule
     for JavaScript stays (docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended).
+  - *Nothing to download with the file in hand* (Carl, 2026-11-24). From 2026-11-20 the ready
+    state offered Download the newest file while online, whatever the phone held, so right after
+    the browser's Open handed the newest file over the screen still offered it, which read as
+    LangQuest not having it. Now what the screen offers is one rule (`apkOffer`): with no file in
+    hand, the step's own buttons (`apkStep`); with one, Download in the browser as the main button
+    while a newer file is known and online (`behind`), Choose the downloaded file with Download it
+    again under it when the file handed over or chosen on this visit did not check or could not
+    be kept (`checkFailed`), and otherwise nothing. While a handed file is being kept, the card
+    says so; once kept, the green line names the new copy's day. Coming back to the front, as
+    from the browser, the screen reads the phone's copy again (`reread`), and a read that ends
+    after a copy was kept never puts back the one it replaced (`readKeptFile`).
   - *Too old.* The press keeps the name in one phone-wide meta row, `carriedApkOpened`,
     which holds no person, organization or time. While the name this phone needs differs
     from it, the screen says the install file is for an older version and to download the new

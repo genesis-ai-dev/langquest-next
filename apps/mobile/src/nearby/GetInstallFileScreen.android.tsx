@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import { t } from '../i18n';
 import { formatDayYear } from '../i18n/format';
 import type { Ctx } from '../shell/ctx';
@@ -11,6 +11,7 @@ import { txt } from '../ui/textStyles';
 import { C, space, TINT } from '../ui/theme';
 import { apkGet, apkShown, apkStep, type KeepResult } from './carriedApkModel';
 import { handedFileNow, subscribeHandedFile, takeHandedFile } from './handedFile';
+import { apkOffer } from './installFileOfferModel';
 import { NearbyIntro } from './NearbyIntro';
 import { useCarriedApk } from './useCarriedApk';
 
@@ -31,28 +32,39 @@ import { useCarriedApk } from './useCarriedApk';
  * Download in the browser is the main button again, with Choose the downloaded file under it (`keptBehind`,
  * docs/decisions/2026-11-19-carried-build-refreshed-daily.md). Choose a file you already have (Check my file until 2026-11-19) stays for a file got
  * another way. The file's name shows only when a wrong one is chosen, since the app checks the
- * file, not the person; the ready line names the day the kept copy was built, and while online the
- * ready state offers Download the newest file (Carl, 2026-11-20). Last, how the file reaches the new
- * phone. Nothing here downloads or installs anything.
+ * file, not the person; the ready line names the day the kept copy was built. With the file in
+ * hand and nothing newer known, the screen offers no download, a file the browser just handed
+ * over included; a file handed over or chosen that did not check is offered again (`apkOffer`,
+ * Carl, 2026-11-24, in place of Download the newest file from 2026-11-20). Coming back to the
+ * front, as from the browser, it reads what the phone keeps again. Last, how the file reaches the
+ * new phone. Nothing here downloads or installs anything.
  */
 export function GetInstallFileScreen(ctx: Ctx) {
   const apk = useCarriedApk();
   const { worn } = useAppCovered();
   // A file the browser's Open handed over: taken once, and checked and kept here, which shows what came of it.
   const handed = useSyncExternalStore(subscribeHandedFile, handedFileNow);
-  const { take } = apk.actions;
+  const { take, reread } = apk.actions;
   useEffect(() => {
     if (handed === null) return;
     const uri = takeHandedFile();
     if (uri) take(uri);
   }, [handed, take]);
+  // Back in front, as from the browser: what the phone keeps is read again, so the screen shows the copy it holds now.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') reread(); });
+    return () => sub.remove();
+  }, [reread]);
   const get = apkGet({ needed: apk.needed, url: apk.url, online: ctx.language.online });
   const step = apkStep({ needed: apk.needed, opened: apk.opened, kept: apk.kept, canGive: apk.canGive, right: apk.right });
   const keeping = apk.checked?.keep === 'keeping';
   // What is said of a file in hand: a copy kept, or why this phone keeps none.
   const inHand: KeepResult = apk.cannotGive === 'android' ? 'needs-android' : apk.cannotGive === 'update' ? 'needs-update' : 'kept';
-  // A kept copy behind this phone's app: a newer file is ready, and only worth saying while it can be downloaded.
-  const newer = step === 'done' && apk.behind && get === 'ready';
+  // What there is to do (`apkOffer`): the step's own way while no file is in hand; with one, a newer
+  // file while one is known and can be downloaded, the file again when the one handed over or
+  // chosen did not check, and else nothing: a file in hand is not offered again (Carl, 2026-11-24).
+  const offer = apkOffer({ step, get, behind: apk.behind, checked: apk.checked });
+  const newer = offer === 'newer';
   // The step's two ways on sit together in the footer, the main one and under it the other, as on
   // Give the app and Let someone in (Carl, 2026-11-19): getting the file and choosing it are one job.
   const download = (label: string, help: string, primary: boolean) => {
@@ -63,17 +75,12 @@ export function GetInstallFileScreen(ctx: Ctx) {
     const Btn = primary ? PrimaryBtn : GhostBtn;
     return <Btn label={label} icon="folder" disabled={keeping} help={help} onPress={apk.actions.check} />;
   };
-  // In hand and nothing said to be newer: still a way to the newest file while online, which the
-  // Worker answers for these versions and which replaces the copy once opened or chosen (Carl, 2026-11-20).
-  const again = step === 'done' && !newer && get === 'ready';
+  // A file that did not check is chosen again, as after the browser, or downloaded again.
   const buttons = newer
     ? [download(t('nearby.letIn.get'), t('nearby.letIn.getHelp'), true), choose(t('nearby.letIn.choose'), t('nearby.letIn.chooseHelp'), false)]
-    : again
-      ? [download(t('nearby.installFile.getNewest'), t(apk.handOff ? 'nearby.installFile.getNewestHelpOpen' : 'nearby.installFile.getNewestHelp'), false),
-        apk.handOff ? null : choose(t('nearby.letIn.choose'), t('nearby.letIn.chooseHelp'), false)]
-    : step === 'choose'
+    : offer === 'choose' || offer === 'again'
       ? [choose(t('nearby.letIn.choose'), t('nearby.letIn.chooseHelp'), true), get !== null ? download(t('nearby.letIn.getAgain'), t('nearby.letIn.getAgainHelp'), false) : null]
-      : step === 'get'
+      : offer === 'get'
         // With no address to download from (a development build), Choose a file you already have is all there is.
         ? [get !== null ? download(t('nearby.letIn.get'), t('nearby.letIn.getHelp'), true) : null, choose(t('nearby.letIn.check'), t('nearby.letIn.checkHelp'), false)]
         : [];
@@ -85,14 +92,14 @@ export function GetInstallFileScreen(ctx: Ctx) {
   const builtMs = inHand === 'kept' ? apk.kept?.builtMs : null;
   const heldWords = typeof builtMs === 'number' ? t('nearby.letIn.keep.keptBuilt', { date: formatDayYear(builtMs) }) : t(KEEP_WORDS[inHand]);
   // What the card between them says: when to choose, that a newer file is ready, and what a choice came to.
-  const line = newer ? t('nearby.installFile.newer') : step === 'choose' ? t(apk.handOff ? 'nearby.letIn.chooseLineOpen' : 'nearby.letIn.chooseLine') : null;
+  const line = newer ? t('nearby.installFile.newer') : offer === 'choose' ? t(apk.handOff ? 'nearby.letIn.chooseLineOpen' : 'nearby.letIn.chooseLine') : null;
   // What happens after Download in the browser, before it is pressed. Where the browser hands the
   // file over: it downloads, Open brings it to LangQuest, and if Open has gone, come back and choose
   // it (Carl, 2026-11-20). Elsewhere: the browser, its warning on an app file, coming back, and
   // choosing the file (Carl, 2026-11-19), not opening it, which on this phone offers to install the
   // carried build over the app.
   const chooseLabel = t('nearby.letIn.choose');
-  const steps = (newer || step === 'get') && get !== null ? (apk.handOff ? [
+  const steps = (newer || offer === 'get') && get !== null ? (apk.handOff ? [
     t('nearby.letIn.getSteps.browser'),
     t('nearby.letIn.getSteps.open'),
     t('nearby.letIn.getSteps.openGone', { button: chooseLabel })
@@ -104,6 +111,9 @@ export function GetInstallFileScreen(ctx: Ctx) {
   ]) : null;
   const wrong = apk.checked?.result === 'other' ? apk.checked : null;
   const kept = apk.checked?.result === 'right' ? apk.checked.keep ?? null : null;
+  // With a file in hand, what a file handed over or chosen came to shows while it is kept, or when
+  // it failed; once kept, the green line names the new copy's day, which says it is here.
+  const told = waiting || offer !== null || keeping;
   return (
     <Screen header={<Header title={t('screens.get_install_file')} onBack={ctx.back} />} footer={footer}>
       <NearbyIntro icon="download" text={t('nearby.installFile.intro')} />
@@ -121,7 +131,7 @@ export function GetInstallFileScreen(ctx: Ctx) {
             </Card>
           ) : null}
           {step === 'done' ? <Banner icon="check" tone="green" title={t('nearby.installFile.done')} body={heldWords} /> : null}
-          {(waiting || newer) && (line || steps || wrong || kept) ? (
+          {told && (line || steps || wrong || kept) ? (
             <Card>
               {line ? <Text style={txt.sm}>{line}</Text> : null}
               {steps ? (

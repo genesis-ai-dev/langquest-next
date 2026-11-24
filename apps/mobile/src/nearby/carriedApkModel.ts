@@ -60,6 +60,21 @@ export function apkStep(o: {
 }
 
 /**
+ * How Share nearby shows the install file under A new person, where it shows at all (`joinRows`):
+ * `step`, Download the install file as the first of three numbered steps, which opens that screen;
+ * or `ready`, a line saying the file is ready to give, offline with the file in hand (`apkStep`
+ * done), when nothing on that screen can be done (Carl, 2026-11-24). The two steps left are then
+ * numbered from 1. Online it stays a step, from which a newer file is downloaded. Unknown online
+ * (null) is not offline, as on Sync's Ready for offline, and a step not yet read stays a step.
+ */
+export type InstallFileRow = 'step' | 'ready' | null;
+
+export function installFileRow(o: { shown: boolean; step: ApkStep | null; online: boolean | null }): InstallFileRow {
+  if (!o.shown) return null;
+  return o.step === 'done' && o.online === false ? 'ready' : 'step';
+}
+
+/**
  * Why this phone cannot give the app over Wi-Fi, so the screens say what would mend it: Android
  * before 10, which no update mends, or an older build of the app whose native module lacks Give
  * the app's functions, which an update from the store does (Carl, 2026-11-19).

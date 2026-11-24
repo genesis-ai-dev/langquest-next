@@ -242,10 +242,7 @@
       "readyShort": "Fayil ɗin girkawa ya shirya",
       "done": "A shirye yake. Za ka iya tafiya da shi inda babu intanet.",
       "newer": "Sabon fayil ɗin girkawa ya shirya. Ka sauke shi yayin da kake da intanet, sannan ka zaɓe shi.",
-      "newerShort": "Fayil ɗin girkawa don sabon mutum: sabon fayil ya shirya",
-      "getNewest": "Sauke sabon fayil",
-      "getNewestHelp": "Yana buɗe burauzar wayar, wadda ke sauke sabon fayil ɗin girkawa na wannan sigar. Sai ka taɓa Zaɓi fayil ɗin da aka sauke, zai maye gurbin kwafin da ke nan.",
-      "getNewestHelpOpen": "Yana buɗe burauzar wayar, wadda ke sauke sabon fayil ɗin girkawa na wannan sigar. Idan saukewar ta ƙare, taɓa Buɗe, zai maye gurbin kwafin da ke nan."
+      "newerShort": "Fayil ɗin girkawa don sabon mutum: sabon fayil ya shirya"
     },
     "join": {
       "intro": "Ka shiga tawagarka daga wayar abokin aiki, ba tare da intanet ba. Za a buɗe asusunka a karon farko da wayarka ta sami intanet.",
