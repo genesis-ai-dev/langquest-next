@@ -628,8 +628,8 @@ passes each read to the read gate as agent_reader
 personal data. `public.events` has no `payload` and `public.profiles` no
 name for it: read `masked.events` for the payloads, and `masked.feedback`,
 `masked.join_requests` and `masked.content_reports` for what people typed,
-with emails, phone numbers and IP addresses taken out. `pg_stat_statements`
-and `pg_stat_activity` show slow statements and locks. Ask for counts and
+with emails, phone numbers and IP addresses taken out. `masked.slow_statements`
+and `masked.connections` show slow statements, waits and locks. Ask for counts and
 groups, not long lists of rows. An answer
 with an error names the problem (a column that is not there, a table
 agent_reader cannot read): correct the statement and read again.

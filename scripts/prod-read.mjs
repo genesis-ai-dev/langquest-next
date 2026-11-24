@@ -21,6 +21,7 @@
 //   npm run prod:read -- --logs cloudflare-graphql query="query (\$account: string!) { ... }"
 //   npm run prod:read -- --logs play-crashes issue=<id>
 //   npm run prod:read -- --logs app-store-api path=v1/apps/{app}/betaFeedbackCrashSubmissions
+//   npm run prod:read -- --logs app-store-report name="App Crashes"
 //   npm run prod:read -- --logs r2-blobs keys='["org/stream/<sha256>.m4a"]'
 //   npm run prod:read -- --logs                     (lists every source)
 //

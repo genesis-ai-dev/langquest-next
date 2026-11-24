@@ -25,7 +25,7 @@ Migration `20261121194800_claude_readers.sql` makes them;
 | Reads | `public`, `diag`, `ops`, `v2_import`, the report functions | the same tables; what people typed through the views of `masked` |
 | Never | sign-in codes, password resets, push tokens, webhook secrets, API and invite token hashes, discovery keys, emails; `auth`, `storage`, `vault` | the above, and personal data: `profiles.display_name` and `avatar_blob`, `diag.feedback`'s name, screenshot, voice and picture; the report functions |
 | Typed text | whole | `masked.events` (payloads), `masked.feedback`, `masked.join_requests`, `masked.content_reports`: emails, phone numbers and IP addresses taken out (`masked.personal`) |
-| Statistics | `pg_stat_statements`, `pg_stat_activity` (`pg_read_all_stats`) | the same |
+| Statistics | `masked.slow_statements` (every login's statements, from `pg_stat_statements`) and `masked.connections` (what each connection runs and waits on, and which it is blocked by): no IP address, emails and numbers masked in the text | the same |
 | Writes | nothing: no grant to insert, update, delete or truncate anywhere | nothing |
 
 Both: every transaction is read-only unless the session turns that off, each
@@ -194,6 +194,7 @@ npm run prod:read -- --logs play-crashes issue=<id at the end of the group's nam
 npm run prod:read -- --logs google-play-api api=publisher path=reviews
 npm run prod:read -- --logs app-store-api path="v1/apps/{app}/betaFeedbackCrashSubmissions?sort=-createdDate&limit=20"
 npm run prod:read -- --logs app-store-crash-log submission=<id>
+npm run prod:read -- --logs app-store-report name="App Crashes" granularity=DAILY
 npm run prod:read -- --logs r2-blobs prefix=<org id>/<stream id>/<sha256>
 npm run prod:read -- --logs r2-blobs keys='["<org id>/<stream id>/<sha256>.m4a"]'
 ```
@@ -204,14 +205,21 @@ npm run prod:read -- --logs r2-blobs keys='["<org id>/<stream id>/<sha256>.m4a"]
 | `cloudflare-api` | a GET under the account: Workers' settings and versions, Hyperdrive configs, builds | `ADMIN_CLOUDFLARE_TOKEN` (Workers Scripts Read, Workers CI Read) |
 | `github-api` | a GET under this repository: Actions runs, jobs and artifacts (their names and sizes, not their files), commits, pull requests | `ADMIN_GITHUB_TOKEN` |
 | `eas-graphql`, `eas-updates`, `eas-submissions` | Expo's API: OTA updates on each branch, store submissions and their errors, anything else a query asks | `ADMIN_EXPO_TOKEN` (robot, Viewer) |
-| `app-store-api`, `app-store-crash-log` | App Store Connect: versions and review state, builds and their processing, TestFlight crash reports and their crash logs, customer reviews | `ADMIN_APP_STORE_KEY` |
+| `app-store-api`, `app-store-crash-log` | App Store Connect: versions and review state, builds and their processing, TestFlight crash reports and their crash logs, customer reviews, a build's hang and launch signatures (`v1/builds/<id>/diagnosticSignatures`) | `ADMIN_APP_STORE_KEY` |
+| `app-store-report` | an App Store analytics report's newest rows, such as "App Crashes": crashes on people's iPhones by day, app version, device and iOS version (counts, no stack traces) | `ADMIN_APP_STORE_KEY`, after the one report request below |
 | `play-crashes`, `google-play-api` | Google Play: crash and ANR groups, one group's reports with stack traces, crash and ANR rates, reviews | `ADMIN_GOOGLE_PLAY_KEY` |
 | `r2-blobs` | the BLOBS bucket: a key's size, time and type (a HEAD each), or one page of a prefix's listing, through the app Worker's read-only JobStatus entrypoint; never a file's bytes | none: the `APP_JOBS` binding |
 
-Not here: App Store crash reports from people's phones (not TestFlight),
-which Apple gives only through an analytics report request that an Admin
-key must make once, and langquest.org on Vercel, whose tokens cannot be
-made read-only. The phones' own crash records are in `diag.records`.
+Apple makes the analytics reports only after one ongoing report request,
+which only an Admin's key may make. Caleb chose that on 2026-11-24; it is
+made once on the Mac:
+`npx dotenvx run -f .env.production -fk .env.keys --quiet -- node scripts/app-store-analytics-request.mjs`.
+A second run changes nothing. Apple writes the first reports 1 to 2 days
+later. Apple gives no stack trace of a crash on a person's phone through its
+API (Xcode's Organizer shows them); the phones' own crash records, with
+their stacks, are in `diag.records`.
+
+Not here: langquest.org on Vercel, whose tokens cannot be made read-only.
 
 ## Where each key lives
 

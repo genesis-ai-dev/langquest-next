@@ -171,6 +171,8 @@ begin
   perform message from masked.join_requests limit 1;
   perform details from masked.content_reports limit 1;
   perform count(*) from pg_stat_activity;
+  perform count(*) from masked.slow_statements;
+  perform count(*) from masked.connections where blocked_by <> '{}';
   begin
     insert into public.profiles (id, display_name) values ('claude-readers-smoke', 'x');
     raise exception 'agent_reader wrote in a read-only transaction';

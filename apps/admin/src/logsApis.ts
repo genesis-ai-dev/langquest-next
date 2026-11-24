@@ -34,7 +34,7 @@ export interface ApisEnv {
 export interface ApisDeps { env: ApisEnv; fetcher: typeof fetch; now: () => number }
 
 export type ApiSource = 'cloudflare-graphql' | 'cloudflare-api' | 'github-api' | 'eas-graphql' | 'eas-updates' | 'eas-submissions'
-  | 'app-store-api' | 'app-store-crash-log' | 'play-crashes' | 'google-play-api' | 'r2-blobs';
+  | 'app-store-api' | 'app-store-crash-log' | 'app-store-report' | 'play-crashes' | 'google-play-api' | 'r2-blobs';
 
 export const API_SOURCES: Record<ApiSource, string> = {
   'cloudflare-graphql': 'Cloudflare\'s analytics (GraphQL): Worker requests, errors and CPU, R2 operations, Hyperdrive, Durable Objects: {query, variables?}; $account is filled in',
@@ -45,6 +45,7 @@ export const API_SOURCES: Record<ApiSource, string> = {
   'eas-submissions': 'The latest store submissions from EAS and their errors: {limit?}',
   'app-store-api': 'A GET on App Store Connect: {path} such as v1/apps/{app}/appStoreVersions, v1/apps/{app}/betaFeedbackCrashSubmissions?sort=-createdDate&limit=20, v1/builds?filter[app]={app}',
   'app-store-crash-log': 'One TestFlight crash report\'s crash log: {submission}',
+  'app-store-report': 'An App Store analytics report as rows, newest instance: {name?} ("App Crashes"), {granularity?} (DAILY, WEEKLY, MONTHLY)',
   'play-crashes': 'Google Play\'s crash and ANR groups over {days?} (7), or one group\'s reports with their stack traces: {issue?, limit?}',
   'google-play-api': 'A GET on Google Play: {api: reporting | publisher, path} such as apps/{package}/anrRateMetricSet (reporting) or reviews (publisher)',
   'r2-blobs': 'Stored files (BLOBS bucket): each key\'s size and time {keys: ["org/stream/<sha256>.m4a"]}, or a listing {prefix: "org/stream/", limit?, cursor?}'
@@ -185,6 +186,39 @@ async function appStoreCrashLog(d: ApisDeps, body: Record<string, unknown>): Pro
   return head(text.split('\n').map(maskPersonal));
 }
 
+/** Apple's analytics report files: gzip text on Apple's own hosts. */
+const REPORT_HOST = /(^|\.)apple\.com$/;
+
+async function appStoreReport(d: ApisDeps, body: Record<string, unknown>): Promise<LogAnswer> {
+  const name = typeof body.name === 'string' && /^[\w ,&()-]{2,80}$/.test(body.name) ? body.name : 'App Crashes';
+  const granularity = typeof body.granularity === 'string' && /^(DAILY|WEEKLY|MONTHLY)$/.test(body.granularity) ? body.granularity : 'DAILY';
+  const headers = { authorization: `Bearer ${await appStoreToken(appStoreKey(d), d.now())}` };
+  const api = 'https://api.appstoreconnect.apple.com/v1';
+  type List = { data?: { id: string; attributes?: Record<string, unknown> }[] };
+  const requests = await getJson<List>(d.fetcher, `${api}/apps/${d.env.APP_STORE_APP_ID}/analyticsReportRequests?filter[accessType]=ONGOING`, { headers }, 'App Store report requests');
+  const request = requests.data?.[0];
+  if (!request) throw new Refused('There is no ongoing report request yet: run scripts/app-store-analytics-request.mjs on the Mac once.', 404);
+  const reports = await getJson<List>(d.fetcher, `${api}/analyticsReportRequests/${request.id}/reports?filter[name]=${encodeURIComponent(name)}`, { headers }, 'App Store reports');
+  const report = reports.data?.[0];
+  if (!report) throw new Refused(`No report named ${name} yet. Apple makes the first ones 1 to 2 days after the request.`, 404);
+  const instances = await getJson<List>(d.fetcher, `${api}/analyticsReports/${report.id}/instances?filter[granularity]=${granularity}&limit=1`, { headers }, 'App Store report instances');
+  const instance = instances.data?.[0];
+  if (!instance) throw new Refused(`The ${name} report has no ${granularity} instance yet.`, 404);
+  const segments = await getJson<List>(d.fetcher, `${api}/analyticsReportInstances/${instance.id}/segments`, { headers }, 'App Store report segments');
+  const lines: string[] = [];
+  for (const segment of (segments.data ?? []).slice(0, 5)) {
+    const url = typeof segment.attributes?.url === 'string' ? segment.attributes.url : '';
+    let host = '';
+    try { host = new URL(url).hostname; } catch { /* not a URL */ }
+    if (!url.startsWith('https://') || !REPORT_HOST.test(host)) { lines.push(`(a segment on ${host || 'no host'}, not read: not one of Apple's hosts)`); continue; }
+    const res = await d.fetcher(url, { signal: AbortSignal.timeout(20_000) });
+    if (!res.ok || !res.body) { lines.push(`(a segment answered HTTP ${res.status})`); continue; }
+    const text = await new Response(res.body.pipeThrough(new DecompressionStream('gzip'))).text();
+    lines.push(...text.split('\n').filter(Boolean).map(maskPersonal));
+  }
+  return head(lines, `${name}, ${granularity}, the instance of ${String(instance.attributes?.processingDate ?? 'its newest day')}.`);
+}
+
 // ---- Google Play ----
 
 async function playHeaders(d: ApisDeps): Promise<Record<string, string>> {
@@ -254,6 +288,7 @@ export const API_READERS: Record<ApiSource, (d: ApisDeps, body: Record<string, u
   'eas-submissions': easSubmissions,
   'app-store-api': appStoreApi,
   'app-store-crash-log': appStoreCrashLog,
+  'app-store-report': appStoreReport,
   'play-crashes': playCrashes,
   'google-play-api': googlePlayApi,
   'r2-blobs': r2Blobs
