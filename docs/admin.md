@@ -657,7 +657,11 @@ what it decides is `startPlan` in `pageStart.ts`, `docs/ops-dashboard-plan.md`
 alerts to watch, a row for each open issue the watch filed (saying only what
 is verified: Claude works on it now only while a run works on an admin's
 instruction on it), rows for what waits on a store,
-eight numbers, a map of the parts with a dot for each, two charts of errors
+eight numbers, a map of every part where a problem can happen
+(`apps/admin/src/pageSysMap.ts`,
+`docs/decisions/2026-11-24-overview-map-of-where-problems-happen.md`: one box
+for each part, left to right as the work flows, each with its state and its
+open lines; zoom, drag, a search and two walk-throughs), two charts of errors
 over 14 days, and the newest merged pull requests. `GET /ops/api/glance`
 (`diag.ops_glance`) gives a row or a number its 14-day picture: one number
 for each section (`GLANCE` in `sources/history.ts`). `#g/<section>` shows one

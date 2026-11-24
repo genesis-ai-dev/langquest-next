@@ -18,6 +18,7 @@ import { REF_CSS, REF_LOGIC, REF_SCRIPT } from './pageRefs';
 import { START_CSS, START_HTML, START_LOGIC, START_SCRIPT } from './pageStart';
 import { ICONS, NAV, SHELL_CSS, SHELL_HTML, SHELL_LOGIC, SHELL_SCRIPT } from './pageShell';
 import { OVERVIEW_CSS, OVERVIEW_HTML, OVERVIEW_LOGIC, OVERVIEW_SCRIPT } from './pageOverview';
+import { SYSMAP_CSS, SYSMAP_LOGIC, SYSMAP_SCRIPT } from './pageSysMap';
 import { FIX_CSS, FIX_LOGIC, FIX_SCRIPT } from './pageFixes';
 import { RESOLVE_CSS, RESOLVE_LOGIC, RESOLVE_SCRIPT } from './pageResolve';
 import { ISSUE_CSS, ISSUE_LOGIC, ISSUE_SCRIPT } from './pageIssues';
@@ -223,6 +224,7 @@ td button { white-space: nowrap; }
 ${SHELL_CSS}
 ${START_CSS}
 ${OVERVIEW_CSS}
+${SYSMAP_CSS}
 ${FIX_CSS}
 ${RESOLVE_CSS}
 ${ISSUE_CSS}
@@ -1094,6 +1096,8 @@ ${OVERVIEW_LOGIC}
 ${OVERVIEW_SCRIPT}
 // ---- each line's Linear issue and fix, and the lines resolved (pageFixes.ts) ----
 const KINDS = ${JSON.stringify(KINDS).replace(/</g, '\\u003c')};
+${SYSMAP_LOGIC}
+${SYSMAP_SCRIPT}
 ${FIX_LOGIC}
 ${FIX_SCRIPT}
 // ---- Resolved: a line hidden until its problem comes back (pageResolve.ts) ----
