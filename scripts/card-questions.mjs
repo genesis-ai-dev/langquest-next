@@ -24,11 +24,18 @@
 // it reads <dir>/resolves.json (each line's words at the resolve and now) and
 // writes <dir>/verdicts.json: [{ "id", "verdict": "same" | "back", "why" }].
 //
+// An admin can also ask for a change in Linear ("LAN-158 is fixed now").
+// Claude has no Linear key: it reads what the admin means and names the
+// changes in answers.json (`linear`, linear-sync.mjs askedChanges), and the
+// step `report`, with LINEAR_API_KEY, makes those on an issue the card or the
+// question names (docs/decisions/2026-11-24-dashboard-claude-changes-linear-from-any-card.md).
+//
 // What admins asked and what Claude answered never go to this public
 // repository's log: the log says only how many.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { askedChanges, linearApi, makeAsked } from './linear-sync.mjs';
 
 export const API = process.env.CARD_QUESTIONS_URL ?? 'https://next.langquest.org/api/card-questions';
 export const AUDIENCE = 'https://next.langquest.org/api/card-questions';
@@ -92,16 +99,49 @@ export function webAsks(questions, answers) {
 /**
  * What the run did with each question it took: the web step's answer when there is one, else Claude's
  * first answer; `none` for a question with neither. answers null: Claude wrote no file at all (it
- * stopped), so the questions are left for the next run.
+ * stopped), so the questions are left for the next run. `said`: by question, the line that says what
+ * happened in Linear (linearFor), first in the answer.
  */
-export function finalAnswers(questions, answers, webAnswers) {
+export function finalAnswers(questions, answers, webAnswers, said = new Map()) {
   if (!Array.isArray(answers)) return [];
   const first = new Map(answers.filter((a) => a && typeof a === 'object').map((a) => [a.id, a]));
   const web = new Map((Array.isArray(webAnswers) ? webAnswers : []).filter((a) => a && typeof a === 'object').map((a) => [a.id, a]));
   return questions.filter((q) => UUID.test(q.id)).map((q) => {
-    const answer = cleanAnswer(web.get(q.id)?.answer) ?? cleanAnswer(first.get(q.id)?.answer);
+    const body = cleanAnswer(web.get(q.id)?.answer) ?? cleanAnswer(first.get(q.id)?.answer);
+    const answer = cleanAnswer([said.get(q.id), body].filter(Boolean).join('\n\n'));
     return answer ? { id: q.id, taken: false, result: 'answered', answer } : { id: q.id, taken: false, result: 'none' };
   });
+}
+
+/**
+ * The changes in Linear Claude named for a question (`linear` in its answer), each on an issue that the
+ * card (its id, title or words) or the admin's question names, so an answer moves only the issues it is
+ * about. `refused`: the issues Claude named that neither names.
+ */
+export function askedFor(q, a) {
+  if (!q || !a || typeof a !== 'object') return { changes: [], refused: [] };
+  const seen = `${q.card ?? ''} ${q.title ?? ''} ${q.context ?? ''} ${q.text ?? ''}`.toUpperCase();
+  const named = (id) => new RegExp(`\\b${id}\\b`).test(seen);
+  const all = askedChanges(a.linear).filter((c) => !c.comment || !EMAIL.test(c.comment));
+  return { changes: all.filter((c) => named(c.issue)), refused: [...new Set(all.filter((c) => !named(c.issue)).map((c) => c.issue))] };
+}
+
+/**
+ * Makes in Linear the changes Claude named for each question. Returns, by question, what Linear did, for
+ * the first lines of the answer. `api` null: the run has no Linear key, and nothing changes.
+ */
+export async function linearFor(questions, answers, api, run = '') {
+  const said = new Map();
+  if (!Array.isArray(answers)) return said;
+  const byId = new Map(answers.filter((a) => a && typeof a === 'object').map((a) => [a.id, a]));
+  for (const q of questions) {
+    const { changes, refused } = askedFor(q, byId.get(q.id));
+    if (!changes.length && !refused.length) continue;
+    const lines = refused.map((id) => `I did not change ${id}: neither this card nor your question names it.`);
+    if (changes.length) lines.unshift(...(api ? await makeAsked(api, changes, run) : ['I changed nothing in Linear: this run has no Linear key.']));
+    said.set(q.id, lines.join(' '));
+  }
+  return said;
 }
 
 /** As server/lineResolves.ts WHY_MAX. */
@@ -164,10 +204,13 @@ async function main([step, dir]) {
     return;
   }
   if (step === 'report') {
-    const done = finalAnswers(questions, readJson(join(dir, 'answers.json'), null), readJson(join(dir, 'web-answers.json'), []));
+    const answers = readJson(join(dir, 'answers.json'), null);
+    const key = process.env.LINEAR_API_KEY;
+    const said = await linearFor(questions, answers, key ? linearApi(key) : null, runUrl());
+    const done = finalAnswers(questions, answers, readJson(join(dir, 'web-answers.json'), []), said);
     if (!done.length) { console.log('No answers file: the questions wait for the next run.'); return; }
     const kept = await call('POST', { runUrl: runUrl(), questions: done });
-    console.log(`${kept.answered} answered, ${done.filter((d) => d.result === 'none').length} without an answer.`);
+    console.log(`${kept.answered} answered, ${done.filter((d) => d.result === 'none').length} without an answer, ${said.size} with a change in Linear.`);
     return;
   }
   throw new Error(`no step ${step}: fetch, web, report, resolves or checked`);

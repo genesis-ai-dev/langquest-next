@@ -1,4 +1,5 @@
 import {
+  askedChanges,
   deploying,
   isRevert,
   issueIds,
@@ -6,6 +7,7 @@ import {
   mayMove,
   progress,
   reportLane,
+  makeAsked,
   verdict
 } from './linear-sync.mjs';
 
@@ -190,5 +192,65 @@ describe('verdict', () => {
   it('waits while a lane has not reported, and is unknown without a Deploying comment', () => {
     expect(verdict({ lanes: ['ios', 'android'], reported: { ios: 'ok' } })).toBe('waiting');
     expect(verdict({ lanes: null, reported: {} })).toBe('unknown');
+  });
+});
+
+// An admin tells Claude on the ops dashboard what to change in Linear
+// (docs/decisions/2026-11-24-dashboard-claude-changes-linear-from-any-card.md).
+// Claude reads the meaning and names the changes; these rules decide what is made.
+describe('changes in Linear an admin asks for', () => {
+  const STATES = { Backlog: 's1', Todo: 's2', Live: 's3', Canceled: 's4', Deploying: 's5' };
+  const issue = () => ({ id: 'u1', identifier: 'LAN-256', state: 'Backlog', states: STATES, comments: [] as string[], fields: {} as Record<string, unknown> });
+  const fake = (issues: ReturnType<typeof issue>[]) => ({
+    getIssue: async (id: string) => issues.find((i) => i.identifier === id) ?? null,
+    setState: async (i: ReturnType<typeof issue>, name: string) => { i.state = name; },
+    update: async (id: string, input: Record<string, unknown>) => { Object.assign(issues.find((i) => i.id === id)!.fields, input); },
+    comment: async (id: string, body: string) => { issues.find((i) => i.id === id)!.comments.push(body); }
+  });
+
+  it('keeps only one known change for each entry, never a deploy status', () => {
+    expect(askedChanges([
+      { issue: 'lan-256', status: 'canceled' },
+      { issue: 'LAN-256', status: 'Deploying' },
+      { issue: 'LAN-256', status: 'Outage' },
+      { issue: 'LAN-256', priority: 2 },
+      { issue: 'LAN-256', priority: 7 },
+      { issue: 'OTHER-1', status: 'Live' },
+      { issue: 'LAN-256', title: '  New   title ' },
+      { issue: 'LAN-256', comment: 'x'.repeat(1200) },
+      null
+    ])).toEqual([
+      { issue: 'LAN-256', status: 'canceled' },
+      { issue: 'LAN-256', priority: 2 },
+      { issue: 'LAN-256', title: 'New title' },
+      { issue: 'LAN-256', comment: 'x'.repeat(999) + '…' }
+    ]);
+    expect(askedChanges(Array(9).fill({ issue: 'LAN-1', priority: 1 }))).toHaveLength(5);
+    expect(askedChanges('close it')).toEqual([]);
+  });
+
+  it('sets the status by the team\'s name, with a comment that says an admin asked', async () => {
+    const i = issue();
+    const said = await makeAsked(fake([i]), [{ issue: 'LAN-256', status: 'canceled' }], 'https://run');
+    expect(said).toEqual(['I set LAN-256 to Canceled in Linear.']);
+    expect(i.state).toBe('Canceled');
+    expect(i.comments).toEqual(['Set to Canceled by Claude, as an admin asked on the ops dashboard.\n\nhttps://run']);
+  });
+
+  it('sets the priority and title, and adds a comment', async () => {
+    const i = issue();
+    const said = await makeAsked(fake([i]), [{ issue: 'LAN-256', priority: 1 }, { issue: 'LAN-256', title: 'T' }, { issue: 'LAN-256', comment: 'C' }]);
+    expect(said).toEqual(['I set the priority of LAN-256 to Urgent in Linear.', 'I renamed LAN-256 in Linear.', 'I added a comment to LAN-256 in Linear.']);
+    expect(i.fields).toEqual({ priority: 1, title: 'T' });
+    expect(i.comments).toEqual(['C']);
+  });
+
+  it('says what Linear did not do, and never throws', async () => {
+    const i = { ...issue(), state: 'Canceled' };
+    expect(await makeAsked(fake([i]), [{ issue: 'LAN-256', status: 'Canceled' }])).toEqual(['LAN-256 is Canceled in Linear already.']);
+    expect(await makeAsked(fake([issue()]), [{ issue: 'LAN-256', status: 'Done' }])).toEqual(['I could not set LAN-256 to Done: the team has no status Done.']);
+    expect(await makeAsked(fake([]), [{ issue: 'LAN-9', status: 'Live' }])).toEqual(['I could not set LAN-9 to Live: Linear has no LAN-9.']);
+    const refusing = { ...fake([issue()]), setState: async () => { throw new Error('Linear: no'); } };
+    expect(await makeAsked(refusing, [{ issue: 'LAN-256', status: 'Live' }])).toEqual(['I could not set LAN-256 to Live in Linear. Do it there yourself.']);
   });
 });
