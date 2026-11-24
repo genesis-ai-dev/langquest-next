@@ -84,7 +84,7 @@ describe('Claude\'s replies in the corner', () => {
     expect(p.els['mine-count']!.hidden).toBe(true);
     const html = p.els['mine-panel']!.innerHTML;
     expect(html).toContain('href="#g/userissues/LAN-12"');
-    expect(html.match(/class="mrow new"/g)).toHaveLength(1);
+    expect(html.match(/class="mreply new"/g)).toHaveLength(1);
     expect(html).toContain('You: Why does it fail?');
     expect(html).toContain('Another admin: Why does it fail?');
     p.closeMine();
@@ -92,7 +92,7 @@ describe('Claude\'s replies in the corner', () => {
     // Opened again with nothing new: nothing is sent.
     p.openMine();
     expect(p.posts).toHaveLength(1);
-    expect(p.els['mine-panel']!.innerHTML).not.toContain('mrow new');
+    expect(p.els['mine-panel']!.innerHTML).not.toContain('mreply new');
   });
 
   it('says so when Claude has not replied yet, and keeps what it shows when a read fails', async () => {
