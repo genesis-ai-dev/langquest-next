@@ -5,7 +5,7 @@ import { nearbyViewOf, NEARBY_RUN_START, type NearbyRunState, type NearbyView } 
 import { NOTHING_TO_CARRY } from '../src/nearby/readyToCarryModel';
 import { nearbyRowShown } from '../src/nearby/nearbyRowModel';
 import {
-  connectHelp, endedWords, linesShown, nearbyRowWords, PERMISSION_WORDS, PHONE_WORDS, phoneWords, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS,
+  connectHelp, endedWords, FOLD_WORDS, linesShown, nearbyRowWords, PERMISSION_WORDS, PHONE_WORDS, phoneWords, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS,
   WHY_NOT_WORDS
 } from '../src/nearby/shareNearbyModel';
 
@@ -115,7 +115,7 @@ describe('Share nearby\'s states', () => {
     ];
     expect(keys.filter((k) => !has(en, k))).toEqual([]);
     // Sync and offline's Teammates fold and Me's reminder (docs/nearby-sync-plan.md 15.4, 15.5).
-    expect(['teamTitle', 'everyone', 'teamHelp', 'onlyHere', 'onlyHereHelp'].filter((k) => !has(en, `nearby.carry.${k}`))).toEqual([]);
+    expect([...Object.values(FOLD_WORDS), ...['teamTitle', 'teamHelp', 'onlyHere', 'onlyHereHelp'].map((k) => `nearby.carry.${k}`)].filter((k) => !has(en, k))).toEqual([]);
     // Sharing while LangQuest is open: its switch on Share nearby, and the line on Sync and offline (15.6).
     expect(['whileOpen', 'whileOpenHelp', 'whileOpenNow'].filter((k) => !has(en, `nearby.${k}`))).toEqual([]);
     expect([STOP_WORDS.run, STOP_WORDS.level, STOP_WORDS.left]).toEqual([null, null, null]);
