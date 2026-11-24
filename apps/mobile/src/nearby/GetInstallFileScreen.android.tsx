@@ -9,8 +9,9 @@ import { Banner, Card, GhostBtn, Header, Ico, PrimaryBtn, Screen } from '../ui/k
 import { Text } from '../ui/text';
 import { txt } from '../ui/textStyles';
 import { C, space, TINT } from '../ui/theme';
-import { apkGet, apkOffer, apkShown, apkStep, type KeepResult } from './carriedApkModel';
+import { apkGet, apkShown, apkStep, type KeepResult } from './carriedApkModel';
 import { handedFileNow, subscribeHandedFile, takeHandedFile } from './handedFile';
+import { apkOffer } from './installFileOfferModel';
 import { NearbyIntro } from './NearbyIntro';
 import { useCarriedApk } from './useCarriedApk';
 

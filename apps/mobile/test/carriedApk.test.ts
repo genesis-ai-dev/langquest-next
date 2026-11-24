@@ -1,7 +1,8 @@
 import { carriedApkName, carriedFileName, CARRIED_APK_PATH } from '@langquest-next/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { apkCheck, apkGet, apkOffer, apkShown, apkStale, apkStep, cannotGive, checkFailed, installFileItem, installFileRow, joinRows, KEPT_BEHIND_MS, keptBehind, letInVersionsWords } from '../src/nearby/carriedApkModel';
+import { apkCheck, apkGet, apkShown, apkStale, apkStep, cannotGive, installFileItem, installFileRow, joinRows, KEPT_BEHIND_MS, keptBehind, letInVersionsWords } from '../src/nearby/carriedApkModel';
+import { apkOffer, checkFailed } from '../src/nearby/installFileOfferModel';
 import { CARRIED_APK_KEPT_UNDER_KEY, keptFromOlderBuild } from '../src/nearby/keptBuildModel';
 import { carriedApkAddress } from '../src/server/carriedApkModel';
 
