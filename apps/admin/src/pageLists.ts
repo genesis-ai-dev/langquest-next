@@ -49,6 +49,16 @@ function listRows(part, d) {
     const items = read.concat(rest).sort(byState);
     return items.length ? [{ label: 'Projects', items }] : [];
   }
+  if (part === 'nearby') {
+    // An organization with nearby sync on, or whose phones reported it this week (sources/ops.ts Nearby).
+    const turnedOn = (o) => [o.nearby ? 'nearby' : '', o.join ? 'joining offline' : '', o.open ? 'sharing while open' : ''].filter(Boolean).join(', ') || 'off';
+    const items = (d.orgs || []).map((o) => ({
+      s: o.revoked ? 'fail' : o.met ? 'ok' : o.installs ? 'part' : 'none', name: o.name || String(o.orgId).slice(0, 8), at: o.lastAt,
+      fields: fieldsOf([['Organization', o.name || o.orgId], ['Turned on', turnedOn(o)], ['Phones', o.installs], ['Share nearby rooms', o.rooms],
+        ['Runs while open', o.runs], ['Met a teammate', o.met], ['Revoked phones turned away', o.revoked || null], ['Last record', o.lastAt]])
+    })).sort(byState);
+    return items.length ? [{ label: 'Organizations, 7 days', items }] : [];
+  }
   if (part === 'userissues') {
     const items = (d.issues || []).map((r) => {
       const what = r.title || (r.keys || [])[0] || '';
@@ -187,7 +197,8 @@ const LIST_SAID = {
   pipeline: { one: 'stage', many: 'stages', pic: 'a dot for each stage, its build above', fail: 'Needs a person', part: 'Waiting', run: 'On its way', ok: 'What people get', none: 'No build' },
   releases: { one: 'day', many: 'days', pic: 'errors and crashes each day, a tick on each day with a change', line: true },
   expiry: { one: 'key', many: 'keys', pic: 'a dot for each key on a line of days left', fail: 'Expired, or 7 days or less', part: '30 days or less', ok: 'More than 30 days', none: 'No date' },
-  appstore: { one: 'version or build', many: 'versions and builds', fail: 'Rejected or not valid', part: 'Waits for Apple', run: 'In review or processing', ok: 'On the App Store, or valid', off: 'Replaced or expired', none: 'Not sent' }
+  appstore: { one: 'version or build', many: 'versions and builds', fail: 'Rejected or not valid', part: 'Waits for Apple', run: 'In review or processing', ok: 'On the App Store, or valid', off: 'Replaced or expired', none: 'Not sent' },
+  nearby: { one: 'organization', many: 'organizations', fail: 'A revoked phone came near', part: 'Used, met no teammate', ok: 'Met teammates', none: 'Not used this week' }
 };
 const rowName = (r) => r.lang ? languageName(r.label) : r.label;
 const itemName = (x) => x.lang ? languageName(x.name) : x.name;

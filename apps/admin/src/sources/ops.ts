@@ -218,6 +218,60 @@ export function safetyAlerts(s: Safety): Alert[] {
   return out;
 }
 
+// ---- nearby sync ------------------------------------------------------------------------------
+
+/**
+ * diag.ops_nearby() (20261124110000_ops_nearby.sql): the phones' nearby records that arrived in
+ * the last 7 days, across every organization, and the organizations with a nearby feature on.
+ * Counts and codes, organizations by name, never a language, a person or who met whom (decision
+ * 235, as amended 2026-11-24).
+ */
+export interface Nearby {
+  installs: number;
+  screen: { rooms: number; installs: number; heardAny: number; met: number; sessions: number; done: number; greets: number };
+  open: {
+    runs: number; installs: number; met: number; sessions: number; done: number; openMin: number; pauseMin: number; scanMin: number; syncMin: number;
+    events: number; files: number; viaDirect: number;
+  };
+  /** Sessions that did not finish, by `end` or `end:bye`. */
+  unfinished: Record<string, number>;
+  /** Why this phone turned a phone away: window, revoked, org, expired, other. */
+  refusals: Record<string, number>;
+  links: Record<string, number>;
+  /** Teammates' work a phone carried to the server. */
+  deliver: { times: number; installs: number; sent: number; taken: number; refused: number; farAhead: number; keyRefused: number };
+  /** The last day: installs whose Find failed for a fault (diag.ops_nearby_fault_codes), installs by every Find code, and carried work refused as stamped ahead. */
+  day: { findFaultInstalls: number; findCodes: Record<string, number>; farAhead: number; farAheadInstalls: number };
+  revoked: { orgId: string; name: string | null; refusals: number; installs: number; lastAt: string }[];
+  orgs: { orgId: string; name: string | null; nearby: boolean; join: boolean; open: boolean; installs: number; rooms: number; runs: number; met: number; revoked: number; lastAt: string | null }[];
+}
+
+/** Installs whose Find failed for a fault in one day before it is a line: one phone is a field report (npm run diag), several a release. */
+export const NEARBY_FIND_FAILING_INSTALLS = 3;
+
+/**
+ * Nearby sync's lines (docs/ops-dashboard-plan.md 5.4): only what a person acts on, never a radio
+ * link that dropped (decision 235). Find failing on several phones at once, as a release might
+ * break it; work a phone carried for a teammate refused as stamped ahead, which waits until its
+ * author's own phone reaches the server; and a phone whose key was revoked trying to share with a
+ * team, which is for a person to raise with the organization.
+ */
+export function nearbyAlerts(d: Nearby): Alert[] {
+  const out: Alert[] = [];
+  const day = d.day;
+  if (num(day.findFaultInstalls) >= NEARBY_FIND_FAILING_INSTALLS) {
+    const codes = Object.entries(day.findCodes ?? {}).sort((a, b) => num(b[1]) - num(a[1])).map(([code, n]) => `${code} on ${plural(num(n), 'install')}`).join(', ');
+    out.push({ level: 'problem', key: 'nearby-find-failing', text: `Share nearby could not start finding phones on ${plural(num(day.findFaultInstalls), 'install')} in the last day (${codes}). A release or a phone maker's change may have broken Find: the codes say where, and npm run diag -- nearby names the organizations.` });
+  }
+  if (num(day.farAhead) > 0) {
+    out.push({ level: 'watch', key: 'nearby-carried-ahead', text: `${plural(num(day.farAhead), 'event')} a phone carried to the server for a teammate ${num(day.farAhead) === 1 ? 'was' : 'were'} refused in the last day as stamped too far ahead, from ${plural(num(day.farAheadInstalls), 'install')}. The author's clock is wrong: that work waits until the author's own phone reaches the server.` });
+  }
+  for (const r of d.revoked ?? []) {
+    out.push({ level: 'watch', key: 'nearby-revoked-near', subject: r.orgId, text: `A phone whose key was revoked tried to share with ${r.name ?? r.orgId}'s phones ${plural(num(r.refusals), 'time')} this week, and was turned away. Ask the organization whether that phone is lost or its member was removed, and whether the team knows.` });
+  }
+  return out;
+}
+
 // ---- people and organizations -----------------------------------------------------------------
 
 export interface People {
@@ -738,19 +792,20 @@ export interface UserReports { reports: UserReport[]; test: number }
 const USER_ISSUES_MIGRATION = 'Needs migration 20261103204500_user_issues_fixed.sql on this database.';
 const USER_REPORTS_MIGRATION = 'Needs migration 20261124061500_user_reports.sql on this database.';
 const RESEARCH_MIGRATION = 'Needs migration 20261119234319_agent_research.sql on this database.';
+const NEARBY_MIGRATION = 'Needs migration 20261124110000_ops_nearby.sql on this database.';
 
 // ---- one load ---------------------------------------------------------------------------------
 
 export interface OpsSections {
   fleet: Section; safety: Section; people: Section; cron: Section; dbdetail: Section;
   push: Section; worker: Section; integrations: Section; support: Section; security: Section; tutorials: Section; videofeedback: Section;
-  userissues: Section; userreports: Section; research: Section;
+  userissues: Section; userreports: Section; research: Section; nearby: Section;
 }
 
 /** Every section above in one answer (db.ts withDiag); each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries, plans, order, userreports] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries, plans, order, userreports, nearby] = await Promise.all([
     part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -785,7 +840,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Record<string, string>>(query, `select diag.ops_user_issue_tries() as v`),
     part<Record<string, UserIssuePlan>>(query, `select diag.ops_user_issue_plans() as v`),
     part<UserIssueOrdered[]>(query, `select diag.ops_user_issue_order() as v`),
-    part<UserReports>(query, `select diag.ops_user_reports() as v`)
+    part<UserReports>(query, `select diag.ops_user_reports() as v`),
+    part<Nearby>(query, `select diag.ops_nearby() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -811,6 +867,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
       return ok({ ...p, orgs: { ...p.orgs, top: val(orgs).orgs }, eventsByDay: eventsByDay.ok ? eventsByDay.value : [] }, peopleAlerts(p));
     }),
     cron: build([cron], MIGRATION, () => ok(val(cron), cronAlerts(val(cron)))),
+    nearby: build([nearby], NEARBY_MIGRATION, () => ok(val(nearby), nearbyAlerts(val(nearby)))),
     dbdetail: build([dbdetail], MIGRATION, () => ok(val(dbdetail), dbDetailAlerts(val(dbdetail)))),
     push: build([push], MIGRATION, () => {
       const p: Push = { ...val(push), runs: pushRuns.ok ? pushRuns.value : {} };

@@ -23,6 +23,7 @@ import { supabaseSection } from './sources/supabase';
 import { containerSection } from './sources/container';
 import { expirySection } from './sources/expiry';
 import { opsSections, orgDetail, type OpsSections } from './sources/ops';
+import { OPS_IDS } from './pageOps';
 import { releasesSection } from './sources/releases';
 import { adoptionSection } from './sources/adoption';
 import { pipelineSection } from './sources/pipeline';
@@ -75,7 +76,7 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
 
 /** The sections read as diag_reader together (db.ts withDiag), with what each says when that connection fails. */
 const DIAG_IDS = ['jobs', 'clients', 'database', 'v2', 'feedback'] as const;
-const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials'] as const;
+// The page's own list (pageOps.ts), so every part the database answers says why when the connection fails.
 
 const unreachable = (e: unknown): Section => ({ state: 'error', alerts: [], error: `Could not reach the database as diag_reader: ${errorText(e)}`, checkedAt: new Date().toISOString() });
 

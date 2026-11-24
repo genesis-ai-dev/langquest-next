@@ -357,6 +357,21 @@ Needs attention on the page.
 - **Largest languages and organizations**: events, snapshot size, the fold's
   peak memory from `projection` runs (`maxPeakRssMb`). This is the
   `diag.largest_orgs` function the proposed DO memory canary asks for.
+- **Nearby sync** (built 2026-11-24, `diag.ops_nearby`, a part of Work
+  safety): the phones' nearby records of the last 7 days across every
+  organization, read live since they are few. Each organization with nearby,
+  joining offline or sharing while open on, and what its phones did (a
+  square each on the Overview: a revoked phone near it, met teammates, used
+  but met none, not used); Share nearby rooms and runs while LangQuest is
+  open and how many met a teammate; the quiet mode's minutes on the air,
+  paused, scanning and syncing; phones turned away by reason; sessions that
+  did not finish; teammates' work carried to the server. Lines only for what
+  a person acts on (decision 235): Find failing on several phones in a day,
+  carried work refused as stamped ahead, and a revoked phone near a team, a
+  person's to raise with the organization, which files no Linear issue.
+  Organizations are named as elsewhere on the page; never a language, a
+  person or who met whom. One organization in detail is
+  `npm run diag -- nearby <organization>`.
 - **Org Durable Objects**: memory resets and refusals counted from the
   Worker's logs through Cloudflare's GraphQL (decision 132's limits).
 

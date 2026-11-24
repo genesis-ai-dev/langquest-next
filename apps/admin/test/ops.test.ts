@@ -6,9 +6,11 @@ import { containerAlerts, containerSection } from '../src/sources/container';
 import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import {
-  FLEET_SQL, dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, userIssueAlerts,
-  userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type LagRow, type Pipeline, type QuietAccounts, type Safety, type Tutorials, type UserIssues
+  FLEET_SQL, dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, NEARBY_FIND_FAILING_INSTALLS, nearbyAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts,
+  tutorialsOf, userIssueAlerts, userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type LagRow, type Nearby, type Pipeline, type QuietAccounts, type Safety,
+  type Tutorials, type UserIssues
 } from '../src/sources/ops';
+import { KINDS, watchKeyOf, watchLines } from '../src/alertKinds';
 import { CHANNELS } from '../../../server/youtube';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
 import { ALLOWANCE, PRICE_USD, capacityAlerts, capacitySection, extraUsd, growthPerDay, latestBackup, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
@@ -321,6 +323,7 @@ describe('reading as diag_reader', () => {
     expect(s.tutorials).toMatchObject({ state: 'off', setup: expect.stringContaining('20261028090000_tutorial_videos.sql') });
     expect(s.videofeedback).toMatchObject({ state: 'off', setup: expect.stringContaining('20261029120000_tutorial_feedback.sql') });
     expect(s.userissues).toMatchObject({ state: 'off', setup: expect.stringContaining('20261103204500_user_issues_fixed.sql') });
+    expect(s.nearby).toMatchObject({ state: 'off', setup: expect.stringContaining('20261124110000_ops_nearby.sql') });
   });
 
   it('marks for the page the languages that the projection passes left behind', async () => {
@@ -573,3 +576,51 @@ describe('the watch for user issues (decisions.md 202)', () => {
     expect((before.userissues.data as { fixes?: unknown }).fixes).toBeUndefined();
   });
 });
+
+// Nearby sync in Work safety (docs/ops-dashboard-plan.md 5.4, decision 235 as amended 2026-11-24): a line only
+// for what a person acts on, never for a radio link that dropped.
+describe('nearby sync', () => {
+  const quiet = (over: Partial<Nearby['day']> = {}, revoked: Nearby['revoked'] = []): Nearby => ({
+    installs: 4, screen: { rooms: 3, installs: 2, heardAny: 3, met: 2, sessions: 4, done: 3, greets: 1 },
+    open: { runs: 9, installs: 3, met: 4, sessions: 12, done: 11, openMin: 300, pauseMin: 70, scanMin: 30, syncMin: 12, events: 80, files: 6, viaDirect: 5 },
+    unfinished: { dropped: 2 }, refusals: { window: 1 }, links: { 'wifi-direct': 3 },
+    deliver: { times: 2, installs: 1, sent: 40, taken: 38, refused: 0, farAhead: 0, keyRefused: 0 },
+    day: { findFaultInstalls: 0, findCodes: {}, farAhead: 0, farAheadInstalls: 0, ...over }, revoked, orgs: []
+  });
+
+  it('says nothing for a week of ordinary use, dropped links and a teammate past the two weeks included', () => {
+    expect(nearbyAlerts(quiet())).toEqual([]);
+    // One phone with Bluetooth off, or a fault on fewer phones than the line's mark, is a field report.
+    expect(nearbyAlerts(quiet({ findFaultInstalls: NEARBY_FIND_FAILING_INSTALLS - 1, findCodes: { SCAN_FAILED: 2, BLUETOOTH_OFF: 5 } }))).toEqual([]);
+  });
+
+  it('raises Find failing on several phones at once as a problem, with the codes', () => {
+    const [a] = nearbyAlerts(quiet({ findFaultInstalls: NEARBY_FIND_FAILING_INSTALLS, findCodes: { SCAN_FAILED: 3, BLUETOOTH_OFF: 1 } }));
+    expect(a).toMatchObject({ level: 'problem', key: 'nearby-find-failing' });
+    expect(a!.text).toMatch(/^Share nearby could not start finding phones on 3 installs in the last day \(SCAN_FAILED on 3 installs, BLUETOOTH_OFF on 1 install\)\. /);
+  });
+
+  it('raises carried work refused as stamped ahead, and a revoked phone near a team once for each organization, which a person decides', () => {
+    const lines = nearbyAlerts(quiet({ farAhead: 4, farAheadInstalls: 1 }, [
+      { orgId: 'org-a', name: "Carl's Org", refusals: 2, installs: 1, lastAt: hoursAgo(2) },
+      { orgId: 'org-b', name: null, refusals: 1, installs: 1, lastAt: hoursAgo(30) }
+    ]));
+    expect(lines.map((l) => [l.key, l.subject ?? null, l.level])).toEqual([
+      ['nearby-carried-ahead', null, 'watch'], ['nearby-revoked-near', 'org-a', 'watch'], ['nearby-revoked-near', 'org-b', 'watch']
+    ]);
+    expect(lines[0]!.text).toMatch(/^4 events a phone carried to the server for a teammate were refused in the last day as stamped too far ahead, from 1 install\. /);
+    expect(lines[1]!.text).toContain("Carl's Org's phones 2 times this week");
+    expect(lines[2]!.text).toContain("org-b's phones 1 time this week");
+    // A revoked phone near a team is for a person to raise with the organization, not a Linear issue.
+    expect(KINDS['nearby-revoked-near'].person).toBe(true);
+    const watched = watchLines(lines.map((l) => ({ ...l, section: 'nearby', watchKey: watchKeyOf(l) }))).map((l) => l.key);
+    expect(watched).toEqual(['ops:nearby-carried-ahead']);
+  });
+
+  it('reads the part from diag.ops_nearby', async () => {
+    const s = await opsSections(fakeQuery([['ops_nearby', quiet({ farAhead: 1, farAheadInstalls: 1 })]]));
+    expect(s.nearby.state).toBe('ok');
+    expect(s.nearby.alerts.map((a) => a.key)).toEqual(['nearby-carried-ahead']);
+  });
+});
+

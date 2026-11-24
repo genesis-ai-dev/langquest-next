@@ -373,7 +373,11 @@ last 7 days into **kinds**, named by the records' code-like tags:
 `nearby` records are not a family: they are for reading a field report, and
 a dropped radio link or a teammate out of range is not a bug to file. Only
 Share nearby's `expected` tallies reach the watch, as every `expected` does
-(docs/nearby-sync-plan.md section 9).
+(docs/nearby-sync-plan.md section 9). The ops dashboard's Nearby sync part
+(`diag.ops_nearby`) raises two `ops` lines from them that are not a radio's
+doing, Find failing on several phones in a day and teammates' work refused
+as stamped ahead, and a third, a revoked phone near a team, that a person
+decides and that files nothing (decision 235, as amended 2026-11-24).
 
 Development builds and the accounts in `ops.watch_ignored` (the store
 review account and Claude's production test account; an operator adds

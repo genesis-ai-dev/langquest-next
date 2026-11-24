@@ -441,6 +441,13 @@ begin
      or v->'rooms'->'open'->'stops' <> '{"rest": 1}'::jsonb or (v->'sessions'->>'open:said:identity:window')::int <> 1 or (v->'deliver'->>'events')::int <> 9 then
     raise exception 'nearby_summary: %', v;
   end if;
+  -- The ops dashboard's Nearby sync part (20261124110000_ops_nearby.sql): every organization together, this one's row by name.
+  v := diag.ops_nearby();
+  if (select count(*) from jsonb_array_elements(v->'orgs') o where o->>'orgId' = 'dg_org' and (o->>'runs')::int = 1 and (o->>'rooms')::int = 2 and (o->>'met')::int = 2 and (o->>'installs')::int = 1) <> 1
+     or (v->'refusals'->>'window')::int < 1 or (v->'deliver'->>'refused')::int < 1 or (v->'open'->>'pauseMin')::int < 9 then
+    raise exception 'ops_nearby: %', v;
+  end if;
+  if v::text ~ '(dg_dN|dg_t1)' then raise exception 'ops_nearby named an install or a person: %', v; end if;
 end $$;
 reset role;
 delete from diag.records where install_id = 'dg_dN';

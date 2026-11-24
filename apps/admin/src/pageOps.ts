@@ -19,7 +19,7 @@ export const GROUPS = [
   { id: 'userreports', title: 'User reports', src: 'What people sent from help mode in the app: each problem and idea, what the watch for user issues did with it, and its Linear issue. Problems a person sent go first for the fix team', wide: true, parts: ['userreports'] },
   { id: 'userissues', title: 'User issues', src: 'What the watch for user issues filed in Linear or found already fixed, each issue\'s state and the pull request that fixed it', wide: true, parts: ['userissues'] },
   { id: 'research', title: 'Research', src: 'What the research team looked at each day, what it found, recommends and rejected, and what the fix team fixed from it', wide: true, parts: ['research'] },
-  { id: 'safety', title: 'Work safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
+  { id: 'safety', title: 'Work safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots, and nearby sync between phones', wide: true, parts: ['safety', 'nearby'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What phones and browsers report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
   { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, phone app builds and updates (Expo)', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
   { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, the database\'s timers (pg_cron), push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
@@ -41,11 +41,12 @@ export const PART_TITLES: Record<string, string> = {
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
   integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', videos: 'Videos and what waits on you', tutorials: 'Channels and videos', videofeedback: 'What came in, and notes',
-  userissues: 'Problems people hit', userreports: 'What people sent', research: 'The research team', nightly: 'Nightly tests', claudeplan: 'Frontier Claude plan this week'
+  userissues: 'Problems people hit', userreports: 'What people sent', research: 'The research team', nightly: 'Nightly tests', claudeplan: 'Frontier Claude plan this week',
+  safety: 'Refused work and the pipeline', nearby: 'Nearby sync, last 7 days'
 };
 
 /** Read as diag_reader in one call (/ops/api/ops). */
-export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues', 'userreports', 'research'] as const;
+export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues', 'userreports', 'research', 'nearby'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
 export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'videos', 'pipeline', 'nightly', 'claudeplan'] as const;
@@ -74,6 +75,7 @@ export const OPS_SECTIONS = [
   { id: 'userissues', title: 'User issues', src: 'ops.user_issues: what the watch filed in Linear, closed there, or found already fixed, with the pull request (decisions.md 202)' },
   { id: 'userreports', title: 'User reports', src: 'diag.feedback with ops.user_issues: each report a person sent, what the watch decided and its Linear issue (docs/decisions/2026-11-24-user-reports-have-their-own-page-and-go-first.md)' },
   { id: 'research', title: 'Research', src: 'ops.research_reports and ops.research_items: the research team\'s report of each day and what it found (docs/research-team.md)' },
+  { id: 'nearby', title: 'Nearby sync', src: 'diag.ops_nearby: the phones\' nearby records of the last 7 days, and the organizations with nearby, joining offline or sharing while open on (decision 235)' },
   { id: 'nightly', title: 'Nightly tests', src: 'GitHub: the line each nightly suite leaves on its latest scheduled run on main (decisions.md 209)' },
   { id: 'claudeplan', title: 'Frontier Claude plan this week', src: 'GitHub: the reading claude-plan.yml leaves on its latest run, every hour, with the agent team\'s token' }
 ] as const;
@@ -247,6 +249,33 @@ Object.assign(RENDER, {
     h += '<h3>Errors phones reported</h3>' + table([{ h: 'Day', v: (r) => esc(r.day) }, { h: 'Errors', n: true, v: (r) => num(r.errors) }, { h: 'Crashes', n: true, v: (r) => '<span class="' + (r.crashes ? 'warn' : '') + '">' + num(r.crashes) + '</span>' }, { h: 'Installs', n: true, v: (r) => num(r.installs) }], d.errorsByDay.slice().reverse());
     h += '<h3>What shipped, 14 days</h3>' + table([{ h: 'When', v: (e) => when(e.at) }, { h: 'What', v: (e) => '<span class="tag">' + esc(e.kind) + '</span> ' + esc(e.text) }], d.timeline.slice(0, 40));
     for (const n of d.notes || []) h += '<p class="muted">' + esc(n) + '</p>';
+    return h;
+  },
+  nearby(d) {
+    const s = d.screen || {}, o = d.open || {}, c = d.deliver || {};
+    const share = (a, b) => b ? Math.round((num(a) / num(b)) * 100) + '%' : '–';
+    const notDone = Math.max(0, num(s.sessions) + num(o.sessions) - num(s.done) - num(o.done));
+    let h = '<div class="stats">' + stat(num(d.installs), 'phones that used it') +
+      stat(num(s.rooms), 'Share nearby rooms', '', 'met teammates in ' + share(s.met, s.rooms)) +
+      stat(num(o.runs), 'runs while open', '', 'met teammates in ' + share(o.met, o.runs)) +
+      stat(num(num(s.done) + num(o.done)), 'sessions finished', notDone ? 'warn' : '', num(notDone) + ' did not') +
+      stat(num(c.taken), 'carried events the server took', c.refused ? 'warn' : '', num(c.refused) + ' refused') + '</div>';
+    const on = (r) => [r.nearby ? 'nearby' : '', r.join ? 'joining' : '', r.open ? 'while open' : ''].filter(Boolean).join(', ') || 'off';
+    h += '<h3>Organizations with nearby sync</h3>' + table([
+      { h: 'Organization', v: (r) => orgLink(r.orgId, r.name) }, { h: 'Turned on', v: (r) => esc(on(r)) },
+      { h: 'Phones', n: true, v: (r) => num(r.installs) }, { h: 'Rooms', n: true, v: (r) => num(r.rooms) }, { h: 'Runs while open', n: true, v: (r) => num(r.runs) },
+      { h: 'Met teammates', n: true, v: (r) => num(r.met) },
+      { h: 'Revoked phones', n: true, v: (r) => '<span class="' + (r.revoked ? 'warn' : '') + '">' + num(r.revoked) + '</span>' },
+      { h: 'Last record', v: (r) => r.lastAt ? ago(r.lastAt) : '–' }
+    ], d.orgs || []);
+    h += '<h3>While LangQuest was open</h3><p>' + num(o.openMin) + ' min on the air, ' + num(o.pauseMin) + ' paused at Up to date, ' + num(o.scanMin) + ' scanning, ' + num(o.syncMin) + ' syncing; ' +
+      num(o.events) + ' events and ' + num(o.files) + ' recordings in; ' + num(o.viaDirect) + ' of ' + num(o.done) + ' finished sessions over Wi-Fi Direct.</p>';
+    const pairs = (m) => Object.entries(m || {}).sort((a, b) => num(b[1]) - num(a[1]));
+    const words = { window: 'Past the two weeks', revoked: 'Revoked key', org: 'Another organization', expired: 'Certificate expired', other: 'Did not check' };
+    h += '<h3>Phones turned away, by reason</h3>' + table([{ h: 'Reason', v: (x) => esc(words[x[0]] || x[0]) }, { h: 'Times', n: true, v: (x) => num(x[1]) }], pairs(d.refusals));
+    h += '<h3>Sessions that did not finish</h3>' + table([{ h: 'How it ended', v: (x) => '<code>' + esc(x[0]) + '</code>' }, { h: 'Times', n: true, v: (x) => num(x[1]) }], pairs(d.unfinished));
+    h += '<h3>Teammates\' work carried to the server</h3><p>' + num(c.times) + ' deliveries from ' + num(c.installs) + ' phones: ' + num(c.taken) + ' of ' + num(c.sent) + ' events new to the server, ' +
+      num(c.refused) + ' refused (' + num(c.farAhead) + ' stamped too far ahead, ' + num(c.keyRefused) + ' a revoked key\'s).</p>';
     return h;
   },
   cron(d) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BLOCKS_LOGIC, WIDTH_CSS } from '../src/pageBlocks';
 
-const logic = new Function(`${BLOCKS_LOGIC}; return { laneTracks, releaseSay, againstLine, appleState, platformShares, andWords, nightlyView, nightlySay, supportWaits, supportSay, jobWords, jobRows, capacityView, expiryRows, daysWords, pctWords };`)() as {
+const logic = new Function(`${BLOCKS_LOGIC}; return { laneTracks, releaseSay, againstLine, appleState, platformShares, andWords, nightlyView, nightlySay, supportWaits, supportSay, jobWords, jobRows, capacityView, expiryRows, daysWords, pctWords, nearbyView };`)() as {
   laneTracks: (p: unknown) => { id: string; name: string; stages: { id: string; tone: string; cards: { title: string }[] }[] }[];
   releaseSay: (p: unknown, web: { s: string } | null) => string;
   againstLine: (v: number | null, line: number) => { at: number; tone: string } | null;
@@ -18,6 +18,7 @@ const logic = new Function(`${BLOCKS_LOGIC}; return { laneTracks, releaseSay, ag
   expiryRows: (items: unknown[], now: number) => { what: string; left: number; tone: string }[];
   daysWords: (left: number) => string;
   pctWords: (x: number) => string;
+  nearbyView: (d: unknown) => { n: number; label: string; warn?: boolean }[] | null;
 };
 const card = (title: string, tone: string) => ({ title, tone, at: null, state: '', build: null, version: null, updates: [] });
 const pipeline = { lanes: [
@@ -116,3 +117,30 @@ describe('the pages behind the scenes', () => {
     expect(logic.pctWords(0.0123)).toBe('1.23%');
   });
 });
+
+// Nearby sync on Work safety's page (docs/ops-dashboard-plan.md 5.4): said only where an organization has it or a phone used it.
+describe('nearby sync, last 7 days', () => {
+  const week = {
+    installs: 4, screen: { rooms: 4, met: 3, sessions: 5, done: 4 }, open: { runs: 10, met: 4, sessions: 12, done: 11 },
+    refusals: { window: 2 }, deliver: { refused: 0 },
+    orgs: [{ orgId: 'a', nearby: true, open: true }, { orgId: 'b', nearby: true, open: false }, { orgId: 'c', nearby: false, open: false }]
+  };
+
+  it('says nothing where no organization has it on and no phone used it', () => {
+    expect(logic.nearbyView(null)).toBeNull();
+    expect(logic.nearbyView({ installs: 0, orgs: [{ orgId: 'c', nearby: false }] })).toBeNull();
+  });
+
+  it('counts organizations, phones, how often they met a teammate, and marks only what wants a look', () => {
+    const v = logic.nearbyView(week)!;
+    expect(v.map((f) => [f.n, f.label, Boolean(f.warn)])).toEqual([
+      [2, 'organizations with nearby, 1 sharing while open', false], [4, 'phones used it', false],
+      [4, 'Share nearby rooms, 75% met a teammate', false], [10, 'runs while open, 40% met a teammate', false],
+      [2, 'sessions did not finish', false], [2, 'teammates turned away past the two weeks', true],
+      [0, 'revoked phones turned away', false], [0, 'carried events refused', false]
+    ]);
+    // With no room or run, no share of them.
+    expect(logic.nearbyView({ ...week, screen: {}, open: {} })![2]!.label).toBe('Share nearby rooms');
+  });
+});
+
