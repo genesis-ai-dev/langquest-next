@@ -11,11 +11,18 @@
 //   npm run prod:read -- --logs worker-builds worker=langquest-next
 //   npm run prod:read -- --logs worker-build-log build=<build id>
 //   npm run prod:read -- --logs worker-logs worker=langquest-next minutes=120 level=error search="E-7K2Q"
-//   npm run prod:read -- --logs supabase-logs query=postgres-errors      (agent teams)
-//   npm run prod:read -- --logs supabase-logs sql="select ... from logs ..."  (claude_reader)
+//   npm run prod:read -- --logs supabase-logs query=postgres-errors
+//   npm run prod:read -- --logs supabase-logs sql="select ... from logs ..."
 //   npm run prod:read -- --logs eas-builds
 //   npm run prod:read -- --logs eas-build-log build=<build id>
+//   npm run prod:read -- --logs eas-updates
 //   npm run prod:read -- --logs github-job-log job=<job id>
+//   npm run prod:read -- --logs github-api path=actions/runs?per_page=20
+//   npm run prod:read -- --logs cloudflare-graphql query="query (\$account: string!) { ... }"
+//   npm run prod:read -- --logs play-crashes issue=<id>
+//   npm run prod:read -- --logs app-store-api path=v1/apps/{app}/betaFeedbackCrashSubmissions
+//   npm run prod:read -- --logs r2-blobs keys='["org/stream/<sha256>.m4a"]'
+//   npm run prod:read -- --logs                     (lists every source)
 //
 // Who it reads as comes from where it runs:
 // - CLAUDE_READ_TOKEN set (a laptop that exported it, or a cloud environment
@@ -51,7 +58,9 @@ export function parseArgs(argv) {
       if (at < 1) throw new Error(`"${pair}" is not name=value`);
       const name = pair.slice(0, at);
       const value = pair.slice(at + 1);
-      logs[name] = ['minutes', 'limit'].includes(name) && /^\d+$/.test(value) ? Number(value) : value;
+      // A list or an object (r2-blobs keys, a GraphQL query's variables) goes as JSON.
+      logs[name] = ['minutes', 'limit', 'days'].includes(name) && /^\d+$/.test(value) ? Number(value)
+        : /^[[{]/.test(value) && name !== 'query' ? JSON.parse(value) : value;
     }
     return { json, logs, sql: '', params: [] };
   }
@@ -62,7 +71,7 @@ export function parseArgs(argv) {
 /** A log answer as its lines, then one line that says what it holds. */
 export function logsAsText(answer) {
   const lines = [...answer.lines];
-  lines.push(`(${answer.lines.length} line${answer.lines.length === 1 ? '' : 's'}${answer.truncated ? ', the newest only' : ''}, ${answer.ms} ms, as ${answer.login}${answer.note ? `. ${answer.note}` : ''})`);
+  lines.push(`(${answer.lines.length} line${answer.lines.length === 1 ? '' : 's'}${answer.truncated ? (answer.first ? ', the first only' : ', the newest only') : ''}, ${answer.ms} ms, as ${answer.login}${answer.note ? `. ${answer.note}` : ''})`);
   return lines.join('\n');
 }
 

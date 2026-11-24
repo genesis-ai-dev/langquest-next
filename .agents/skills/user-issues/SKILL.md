@@ -397,14 +397,28 @@ build or a server job failed:
 - `--logs worker-builds worker=langquest-next`, then `--logs
   worker-build-log build=<id>`: the Workers Build that deploys the web app
   on each merge to main (the step that failed).
-- `--logs worker-logs worker=langquest-next minutes=120`: a Worker's
-  warnings and errors, with emails, tokens and long values taken out.
+- `--logs worker-logs worker=langquest-next minutes=120 level=error`: a
+  Worker's log lines at any level, with emails, IP addresses, tokens and long
+  values taken out.
 - `--logs supabase-logs query=postgres-errors` or `query=http-errors`:
   Supabase's errors grouped by code and path, as the ops dashboard shows
-  them.
+  them. Or your own Logs Explorer SQL: `sql="select timestamp,
+  event_message from logs where source = 'function_logs' order by timestamp
+  desc limit 50"` (also `postgres_logs`, `auth_logs`, `edge_logs`).
 - `--logs eas-builds`, then `--logs eas-build-log build=<id>`: a phone app
-  build on EAS.
-- `--logs github-job-log job=<id>`: a GitHub Actions job's log.
+  build on EAS. `--logs eas-updates` and `--logs eas-submissions`: OTA
+  updates on each branch, and store submissions with their errors.
+- `--logs github-job-log job=<id>`: a GitHub Actions job's log. `--logs
+  github-api path=actions/runs?per_page=20`, then
+  `path=actions/runs/<id>/jobs`: the runs and their job ids.
+- `--logs play-crashes`, then `--logs play-crashes issue=<id>`: Google Play's
+  crash and ANR groups, then one group's stack traces. `--logs app-store-api
+  path=v1/apps/{app}/betaFeedbackCrashSubmissions` and `--logs
+  app-store-crash-log submission=<id>`: TestFlight crashes.
+- `--logs cloudflare-graphql query="query (\$account: string!) {...}"`:
+  Worker requests, errors and CPU, R2 and Hyperdrive over time.
+- `--logs r2-blobs prefix=<org>/<stream>/<sha256>`: whether a recording is
+  stored, its size and when.
 
 A log line can quote what a person typed: never copy one into what you
 write. Say what you found in words.
@@ -610,14 +624,18 @@ Read production in this run with
 `node /home/runner/work/_temp/watch/prod-read.mjs "select ..." [param ...]`
 or `--logs <source> name=value ...`. A relay that the job starts before you
 passes each read to the read gate as agent_reader
-(`docs/production-reads.md`: ids, counts, times and codes, for example
-`diag.records`, `diag.installs` with each install's `profile_id`, and
-`public.events` without `payload`; no names, emails, typed text or
-recordings). Ask for counts and groups, not long lists of rows. An answer
+(`docs/production-reads.md`): every table claude_reader reads, but no
+personal data. `public.events` has no `payload` and `public.profiles` no
+name for it: read `masked.events` for the payloads, and `masked.feedback`,
+`masked.join_requests` and `masked.content_reports` for what people typed,
+with emails, phone numbers and IP addresses taken out. `pg_stat_statements`
+and `pg_stat_activity` show slow statements and locks. Ask for counts and
+groups, not long lists of rows. An answer
 with an error names the problem (a column that is not there, a table
 agent_reader cannot read): correct the statement and read again.
 
-When an admin asks for a thing agent_reader cannot read (a name, an email),
+When an admin asks for a thing agent_reader cannot read (a name, an email, a
+phone number, a picture or a voice),
 read what you can (the profile id, its organizations' ids, its installs,
 when it was active) and give that. Say that a developer's cloud thread can
 read the name, and never give the admin SQL to run.

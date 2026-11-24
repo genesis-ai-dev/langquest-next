@@ -100,12 +100,12 @@ describe('Workers Logs', () => {
     { timestamp: 1763812800000, $metadata: { level: 'error', message: 'sign-in failed for ann@example.org with token=abc123', url: 'https://app.langquest.org/x?code=9' }, $workers: { scriptName: 'langquest-next', outcome: 'exception' } }
   ] } } };
 
-  it('gives the agent teams warnings and errors only, with what could name a person taken out', async () => {
+  it('gives the agent teams every level, with personal data and what could open something taken out', async () => {
     const d = await deps(() => events);
     const answer = await (await handleLogs(post({ source: 'worker-logs', level: 'info', minutes: 99999 }, AGENT_JWT), d)).json();
     const sent = JSON.parse(String(d.calls[0]!.init!.body));
     expect(sent.parameters.filters).toEqual([{ kind: 'group', filterCombination: 'or', filters: [
-      { key: '$metadata.level', operation: 'eq', type: 'string', value: 'warn' }, { key: '$metadata.level', operation: 'eq', type: 'string', value: 'error' }] }]);
+      { key: '$metadata.level', operation: 'eq', type: 'string', value: 'info' }] }]);
     expect(sent.timeframe.to - sent.timeframe.from).toBe(24 * 3_600_000);
     expect(sent.view).toBe('events');
     expect(sent.parameters).not.toHaveProperty('view');
@@ -113,6 +113,9 @@ describe('Workers Logs', () => {
     expect(answer.lines[1]).toContain('[email]');
     expect(answer.lines[1]).toContain('token=[hidden]');
     expect(answer.lines[1]).not.toContain('code=9');
+    const all = await handleLogs(post({ source: 'worker-logs' }, AGENT_JWT), d);
+    expect(all.status).toBe(200);
+    expect(JSON.parse(String(d.calls[1]!.init!.body)).parameters.filters).toEqual([]);
   });
 
   it('gives claude_reader the whole line, at the level it asks', async () => {
@@ -124,12 +127,13 @@ describe('Workers Logs', () => {
 });
 
 describe('Supabase logs', () => {
-  it('lets the agent teams run only the dashboard\'s grouped queries', async () => {
-    const d = await deps(() => ({ result: [{ code: '57014', n: 3 }] }));
-    expect((await handleLogs(post({ source: 'supabase-logs', sql: 'select event_message from logs' }, AGENT_JWT), d)).status).toBe(400);
+  it('lets the agent teams run the dashboard\'s grouped queries and their own SQL, with personal data taken out', async () => {
+    const d = await deps((url) => (url.includes('postgres_logs') ? { result: [{ code: '57014', n: 3 }] } : { result: [{ event_message: 'sign-in for ann@example.org from 203.0.113.9' }] }));
     const answer = await (await handleLogs(post({ source: 'supabase-logs', query: 'postgres-errors' }, AGENT_JWT), d)).json();
     expect(answer.lines).toEqual(['code\tn', '57014\t3']);
     expect(decodeURIComponent(d.calls[0]!.url)).toContain("'postgres_logs'");
+    const own = await (await handleLogs(post({ source: 'supabase-logs', sql: 'select event_message from logs where source = \'auth_logs\'' }, AGENT_JWT), d)).json();
+    expect(own.lines).toEqual(['event_message', 'sign-in for [email] from [ip]']);
   });
 
   it('runs claude_reader\'s own SQL', async () => {

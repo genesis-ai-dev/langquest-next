@@ -169,7 +169,7 @@ export async function googlePlaySection(env: { ADMIN_GOOGLE_PLAY_KEY?: string; G
 interface ErrorIssue { type?: string; cause?: string; location?: string; errorReportCount?: string | number; distinctUsers?: string | number; lastErrorReportTime?: string; issueUri?: string }
 
 /** The interval's ends, which errorIssues:search wants on whole hours in UTC. */
-function hourParams(prefix: string, t: Date): Record<string, string> {
+export function hourParams(prefix: string, t: Date): Record<string, string> {
   return {
     [`${prefix}.year`]: String(t.getUTCFullYear()), [`${prefix}.month`]: String(t.getUTCMonth() + 1), [`${prefix}.day`]: String(t.getUTCDate()),
     [`${prefix}.hours`]: String(t.getUTCHours()), [`${prefix}.timeZone.id`]: 'UTC'

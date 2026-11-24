@@ -36,3 +36,8 @@ Observability permissions with Workers roles. The logs query takes a token
 with the Workers role Metadata Read-Only, tested on production on
 2026-11-23, so `ADMIN_CLOUDFLARE_LOGS_TOKEN` is read-only too; it stays a
 token of its own.
+
+Amended (2026-11-24, Caleb Koster): agent_reader reads every log at every
+level and any Supabase log query, still through `redact`, and both logins
+read the provider APIs the Worker holds keys for
+(`docs/decisions/2026-11-24-agents-read-everything-but-personal-data.md`).

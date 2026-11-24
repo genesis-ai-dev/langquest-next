@@ -43,3 +43,8 @@ Hyperdrive keeps at least 5 connections for each config, and
 `npm run secrets -- production` set each read config to 5 on 2026-11-23.
 Postgres then refused connections past 3 ("too many connections for role
 claude_reader"), and every read through the gate timed out.
+
+Amended (2026-11-24, Caleb Koster): agent_reader no longer gets the smaller
+view. It reads every table claude_reader reads except personal data, and
+what people typed through the masked views
+(`docs/decisions/2026-11-24-agents-read-everything-but-personal-data.md`).
