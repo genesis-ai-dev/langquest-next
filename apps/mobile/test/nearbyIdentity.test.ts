@@ -327,7 +327,7 @@ describe('the nearby identity', () => {
     expect(Object.keys(findKeys())).toEqual(['o1/L1']);
   });
 
-  it('a sign-out the server forced leaves no discovery key in the clear, and no nearbyPeers (5.12 "The store")', async () => {
+  it('a sign-out the server forced leaves no discovery key in the clear, and no nearbyPeers or nearbyMet (5.12 "The store")', async () => {
     const p = await load();
     p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'] } });
     await input(p);
@@ -335,6 +335,8 @@ describe('the nearby identity', () => {
     fake.secure.set('nearbyFindKeys:mary', 'mary\'s, untouched');
     await store().setMeta('nearbyPeers:o1/L1', '[]');
     await store().setMeta('nearbyPeers:o1/L2', '[]');
+    // The days teammates were met on Share nearby say who was together and when (decision 230 as amended).
+    await store().setMeta('nearbyMet:o1', '[{"key":"k","profileId":"p","day":20000}]');
     await store().setMeta('deviceId', 'd1');
     // supabase-js deleted the session when renewing was refused, then said SIGNED_OUT; nobody chose it.
     fake.secure.delete('sb-session');
@@ -343,6 +345,7 @@ describe('the nearby identity', () => {
     expect([...fake.secure.values()].join()).not.toContain(KEY_A);
     expect(await store().meta('nearbyPeers:o1/L1')).toBeUndefined();
     expect(await store().meta('nearbyPeers:o1/L2')).toBeUndefined();
+    expect(await store().meta('nearbyMet:o1')).toBeUndefined();
     expect(fake.secure.get('nearbyFindKeys:mary')).toBe('mary\'s, untouched');
     expect(await store().meta('deviceId')).toBe('d1');
     // Any other event, or a sign-out with nobody signed in before, touches nothing.

@@ -22,6 +22,11 @@ export interface PartnerInRange {
   /** From the room's own timer: the two have not exchanged for a set time. */
   dueAnyway: boolean;
   /**
+   * Share nearby, where this phone notes the day it meets each teammate (15.8): not met here for
+   * a while, so worth a Hello with nothing to swap, and even when the two finished as they stand.
+   */
+  greet?: boolean;
+  /**
    * Whether this phone connects first, where the tags cannot say (phase 5): an iPhone always to a phone
    * that cannot hear its advert's tag, and of two iPhones the lower salt. Left out, the lower tag.
    */
@@ -47,6 +52,7 @@ export function choosePartner(
 ): { partner: string; connect: boolean } | null {
   const worthIt = inRange.filter((p) => {
     if (p.listed) return false;
+    if (p.greet) return true;
     // Finished with both summaries as they stand: nothing has changed since, even if the two differ, as they do when one phone has no room.
     if (p.finished && p.finished.mine === me.summary && p.finished.theirs === p.summary) return false;
     // `dueAnyway` overrides only this, because it alone rests on what others claim.

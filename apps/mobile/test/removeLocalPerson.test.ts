@@ -51,7 +51,7 @@ describe('removing someone let in offline from this phone', () => {
     fake.secure.set('nearby-install-key', 'seed');
     fake.secure.set('nearbyFindKeys:newcomer-1', 'keys');
     fake.secure.set('nearbyFindKeys:someone-signed-out', 'theirs, sealed by their own sign-out');
-    for (const [k, v] of [['nearbyChain:newcomer-1', '{}'], ['nearbyChainPeople', '["newcomer-1"]'], ['nearbyPasses:newcomer-1', '[]'], ['nearbyPeers:org-1', '[]'], ['other', 'kept']]) fake.meta.set(k, v);
+    for (const [k, v] of [['nearbyChain:newcomer-1', '{}'], ['nearbyChainPeople', '["newcomer-1"]'], ['nearbyPasses:newcomer-1', '[]'], ['nearbyPeers:org-1', '[]'], ['nearbyMet:org-1', '[]'], ['other', 'kept']]) fake.meta.set(k, v);
     expect((await readLocalPerson())?.profileId).toBe('newcomer-1');
     expect(localPersonHolds()).toBe(true);
 

@@ -1,6 +1,6 @@
 import { newCommandId, type LanguageState } from '@langquest-next/core';
 import { base64urlEncode, bytesToHex, summaryOf, summaryText, type Holdings, type NearbyPeople, type WantedFile } from '@langquest-next/core/nearby';
-import { nearbyKeepOf, type NearbyKeep } from '../src/nearbyKeep';
+import { nearbyFirstDayWithin, nearbyGreetDue, nearbyKeepOf, type NearbyKeep } from '../src/nearbyKeep';
 import type { NearbyLink } from '../src/nearbyLink';
 import { channelKeysOf } from '../src/nearbyOpening';
 import { NearbySession, type NearbyFileMoves, type NearbyRole, type NearbySessionOptions, type NearbySessionReport } from '../src/nearbySession';
@@ -156,12 +156,24 @@ export interface TestRoom {
   keys: { current: NearbyRoomKeys & { direct: boolean; certOrgSeq: number } };
 }
 
-export function roomFor(p: TestPhone, air: MemoryNearbyAir, time: VirtualTime, o: { caps?: Partial<NearbyCapabilities>; knobs?: MemoryRadioKnobs; keys?: NearbyRoomKeys & { direct?: boolean; certOrgSeq?: number }; room?: Partial<NearbyRoomOptions>; orgSeqHere?: number } = {}): TestRoom {
+export function roomFor(
+  p: TestPhone, air: MemoryNearbyAir, time: VirtualTime,
+  o: { caps?: Partial<NearbyCapabilities>; knobs?: MemoryRadioKnobs; keys?: NearbyRoomKeys & { direct?: boolean; certOrgSeq?: number }; room?: Partial<NearbyRoomOptions>; orgSeqHere?: number; notesMetForMs?: number } = {}
+): TestRoom {
   const radio = air.radio(p.who.deviceId, o.caps, o.knobs);
   const events: NearbyRoomEvent[] = [];
   const keys = { current: { gen: 1, key: base64urlEncode(DISCOVERY), floor: 1, direct: true, certOrgSeq: 0, ...o.keys } };
+  const within = o.notesMetForMs;
+  // As the app does on Share nearby where the quiet mode may run: Hello notes the day, and the room greets whoever is due.
+  const facts: NearbyRoomFacts = within === undefined ? roomFacts(p) : {
+    ...roomFacts(p),
+    async greetDue() {
+      const now = p.client.nearbyHelloNow;
+      return nearbyGreetDue(await p.keep.met(nearbyFirstDayWithin(now, within)), now, within);
+    }
+  };
   const room = new NearbyRoom({
-    radio, crypto: p.who.crypto, keys: () => keys.current, facts: roomFacts(p), idleLimitMs: 300_000, waitLimitMs: 1_800_000, stopWhenLevel: false,
+    radio, crypto: p.who.crypto, keys: () => keys.current, facts, idleLimitMs: 300_000, waitLimitMs: 1_800_000, stopWhenLevel: false,
     radios: () => ({ directByName: false, band5: false, hotspot: false, joinHotspot: false }), find: FIND, report: (e) => events.push(e),
     openSession: (args) => {
       const generations: NearbyGenerations = {
@@ -171,7 +183,7 @@ export function roomFor(p: TestPhone, air: MemoryNearbyAir, time: VirtualTime, o
       return sessionFor(p, args.role, args.link, time, {
         opening: { kSess: args.kSess, salt: args.salt, kFind: args.kFind, ...(args.seen ? { seen: args.seen } : {}) },
         older: args.older, ...(args.heardTag !== undefined ? { heardTag: args.heardTag } : {}), ...(args.onOpened ? { onOpened: args.onOpened } : {}),
-        otherWaiting: args.otherWaiting, generations
+        otherWaiting: args.otherWaiting, generations, ...(within !== undefined ? { notesMetForMs: within } : {})
       });
     },
     ...o.room

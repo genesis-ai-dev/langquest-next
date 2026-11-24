@@ -1680,7 +1680,9 @@ for "today", dropped when the day changes, and both dropped when this phone take
 generation; `nearbyHold`, one phone-wide true or false, written only when someone presses the
 row (section 5.6); `nearbyNames:<org>`, install key to `profileId`,
 filled from every checked chain, which does not by itself say a meeting took place;
-`nearbyRevoked:<org>`, the newest list; `nearbyRestamped:<org>/<stream>`, by a restamp;
+`nearbyRevoked:<org>`, the newest list; `nearbyMet:<org>`, on a phone that may share while
+LangQuest is open (15.8), each teammate's install key, `profileId` and the day this phone last met
+them on Share nearby, none older than the quiet mode's window; `nearbyRestamped:<org>/<stream>`, by a restamp;
 `nearbyChain:<profileId>`, a map of organization id to that organization's chain, replaced
 whole when a certificate answer arrives, never merged, so a turned-off organization's goes,
 except that an organization whose new chain this build cannot check (the Worker's key rotated
@@ -1694,7 +1696,9 @@ are sealed with that person's session, in the
 same place (`server/lock.ts`), and they come back at sign-in. Everything above is plain
 SQLite, and `nearbyPeers`, `nearbyToday`, the vector and chains
 say who is on the team, so they are not secrets but not harmless either, because a taken
-phone gives them up. So no meeting time is kept. `nearbyPeers` and `nearbyToday` are cleared
+phone gives them up. So no meeting time is kept, but one: `nearbyMet`, only the day, at most 14
+days old, only where the quiet mode may run, and gone at any sign-out and the moment a cover is on
+(15.8, decision 230 as amended). `nearbyPeers` and `nearbyToday` are cleared
 at the end of any completed sync, unless the room is running, and at any sign-out. All that
 costs is partner order and perhaps one extra session. Android's backup rules leave the
 database out today (`configureAndroidBackup`), and a test holds that, so a later rules change
@@ -4174,7 +4178,9 @@ a security review (section 15.10).
 - **Share nearby itself.** Its screen, its permissions, Hold teammates' recordings, A new
   person, Give the app and Let someone in stay as they are.
 - **What is kept** (decision 230). No meeting time, place or person is kept, here or in
-  diagnostics. Section 15.9 asks whether one small exception is worth it.
+  diagnostics, but one exception taken on 2026-11-24 (15.8): on a phone that may run the mode,
+  the day it last met each teammate on Share nearby, for 14 days at most. Section 15.9 asks
+  whether another is worth it.
 - **The disguise** (decision 171, answer 15). A phone that wears
   a cover still shares only after a press, for ten minutes at most.
 
@@ -4220,6 +4226,8 @@ running room. Today only Share nearby shows it.
 - **It lists teammates as Ready to carry does,** from the vector, holdings and the language's
   members, never from who met whom (decision 230), and counts work a third phone relayed.
 - **It is read when the screen opens and after each exchange,** never ticking in `ctx`.
+- **Offline, where this phone may share while LangQuest is open,** each row also says until when
+  it shares with that teammate (2026-11-24, 15.8).
 - **Words:** the existing `CarrySeen` keys, so all 16 catalogs and help mode reuse them; one new
   title and one new help line.
 - **This amends** `docs/decisions/2026-11-18-sync-and-offline-one-screen.md` (a fold it does not
@@ -4338,14 +4346,17 @@ That is what tells us in the field what the mode costs and whether it meets anyo
   the cheap facts (the kept flag, the switch, no cover, offline) say it may be wanted.
 - **The room** (`packages/sync/src/nearbyRoom.ts`) takes `taps: false`, which passes a phone that
   never echoed over for the run instead of offering a tap, `levelScan`, the bursts
-  (`NEARBY_OPEN_SCAN`, six seconds of every sixty from the moment it is level), and `mode`. Its
-  idle limit is infinite and its wait limit stays 30 minutes.
-- **Rest.** After a Hello the door refused, either way, or a stop of the room's own (the wait
-  limit, the 30-minute cap on a run, no key), or a radio error, the mode rests
-  `NEARBY_OPEN_REST_MS` (ten minutes), per language, before it starts again (15.8's review).
+  (`NEARBY_OPEN_SCAN`, six seconds of every sixty from the moment it is level), `levelPause`,
+  the radios off a minute of every four at "Up to date" (`NEARBY_OPEN_PAUSE`, 2026-11-24, 15.8),
+  and `mode`. Its idle limit is infinite, it has no run limit, and its wait limit stays 30
+  minutes.
+- **Rest.** After this phone turned away a phone whose chain did not check, a stop of the room's
+  own (the wait limit, no key), or a radio error, the mode rests `NEARBY_OPEN_REST_MS` (a minute
+  since 2026-11-24; ten at first), per language, before it starts again (15.8).
 - **The security review's bounds** (15.8): the app lock closes both gates, Hello in the quiet mode
-  takes only a certificate signed within 14 days, the other radio screens wait for the owner's
-  turn before their first radio call, and the server refuses `nearby_open` without `nearby`.
+  takes only a certificate signed within 14 days, or a teammate this phone met on Share nearby
+  within that long (2026-11-24), the other radio screens wait for the owner's turn before their
+  first radio call, and the server refuses `nearby_open` without `nearby`.
 - **What shows while it runs** is the Share nearby row's line on Sync and offline ("Sharing with
   teammates nearby while LangQuest is open"), not the status card's sentence, so the shared Sync
   screen carries none of it on the web. What was shared on Share nearby lists only that screen's
@@ -4423,13 +4434,16 @@ Carl asked for every change it recommended, made in the same pull request:
   in core) by the clock Hello reads, which setting the date back cannot move. Certificates renew
   daily online, so a lost or taken phone still signed in collects nothing quietly once 14 days
   have passed since it last reached the server, though the revocation list has not reached anyone.
-  It keeps decision 230 (it is the certificate's own time, not a meeting's), and unlike the draft's
-  rule it does not send the first meeting of every trip back to Share nearby. A team offline for
-  longer shares on Share nearby, which has no such rule, since both people chose to open it.
+  The rule keeps decision 230 (it is the certificate's own time, not a meeting's), and unlike the
+  draft's rule it does not send the first meeting of every trip back to Share nearby. A team
+  offline for longer shares on Share nearby, which has no such rule, since both people chose to
+  open it, and each Share nearby resets the window for the pair that met (below).
 - **The rest** after a refused Hello, a stop of the room's own or a radio error is kept per
-  language, so a remount (a moment online, a language switch) does not end it. A teammate's `bye`
+  language, so a remount (a moment online, a language switch) does not end it. (Shortened, and no
+  longer after every refusal, on 2026-11-24: below.) A teammate's `bye`
   can make another phone rest, which only denies the quiet mode; Share nearby is untouched.
-- **Each run stops at 30 minutes** (`NEARBY_OPEN_RUN_MS`) and rests, so a phone whose screen
+- **Each run stops at 30 minutes** (`NEARBY_OPEN_RUN_MS`, replaced on 2026-11-24 by a pause at
+  "Up to date": below) and rests, so a phone whose screen
   never sleeps does not broadcast without end.
 - **The other radio screens** (Let someone in, Give the app, joining offline) wait for the
   owner's turn (`nearbyOwner.settled`) before their first radio call, so a quiet room still
@@ -4448,10 +4462,78 @@ fresh); nothing prompts, notifies or keeps the screen awake; a damaged stored li
 off; and the migrations only add (the allowlist's new fields, the feature's name), keeping their
 grants.
 
+**A Share nearby resets the window (2026-11-24).** Carl found 14 days too short: a team may be
+out of reach for longer, with one person traveling now and then to carry the whole team's work
+online. That person's certificate renews; the others' do not, and the check runs on the phone
+that receives the Hello, so the trip helps nobody else. Nor can a phone reset its own date, since a
+teammate's phone cannot take its word for it. So the meeting is recorded by the phone that will
+check it:
+
+- **Noting.** On a phone that may run the mode (`notesMetOf`: the organization's `nearby_open`,
+  the switch, no cover), Share nearby's Hello notes the day it met each teammate, after their
+  proof and read gate pass: `nearbyMet:<org>`, one line a teammate with the install key,
+  `profileId` and the day by Hello's clock, nothing else (`noteMet`, `notesMetForMs`). A quiet
+  meeting never notes one, so a taken phone cannot keep itself in.
+- **Checking.** Hello in the quiet mode takes a teammate whose certificate is older than the
+  window if this phone met that key and person on Share nearby on a day that began within it
+  (`recent`); a day counts from its start, so never longer. The revocation list still refuses
+  first.
+- **Greeting.** A gathering that is already up to date would otherwise open no session and reset
+  nothing. So on such a phone Share nearby greets, once a run, a teammate not met on a day within
+  half the window (seven days), or whose key it does not know yet, even with nothing to swap and
+  even when the two finished unchanged, but never one the door refused or the list names
+  (`greetDue`, `greet` in `choosePartner`). The whole team meeting on Share nearby once a
+  fortnight keeps every pair in the mode.
+- **Forgetting.** Days older than the window go as the row is read or written, all of them at any
+  sign-out, at "Remove me from this phone", and the moment a cover is on (`useNoMetUnderCover`).
+- **Saying until when.** Nothing else would tell a team the mode is about to stop taking someone,
+  since a teammate turned away for it is only passed over. So offline, where this phone may run the mode, each
+  row of Sync and offline's Teammates fold says until when it shares with that teammate, as far as
+  it knows ("Shares while LangQuest is open until Dec 5"); from three days before, in amber, "Open
+  Share nearby together before Dec 5 to keep sharing while LangQuest is open"; after, "Not sharing
+  while LangQuest is open. Open Share nearby together." (`quietUntilOf`, `quietLineOf`,
+  `apps/mobile/src/nearby/quietUntilModel.ts`; `quietFactsOf`; `useQuietUntil`). One Hello notes
+  the same day on both phones, so a pair lasts until the later of the day met plus the window and
+  the older certificate plus the window; a teammate's certificate is the one their newest holdings
+  entry carries, so the date is never later than the one Hello holds to, and a teammate this phone
+  knows nothing of gets no line. The switch's help says to meet on Share nearby at least every two
+  weeks when out of reach for longer. It shows on screen roughly when the person last met each
+  teammate, which is what the record holds; never under a cover, where the days are gone.
+
+What it costs: a taken phone that some teammate meets on Share nearby (both screens open, in range)
+shares quietly with that teammate, and only that one, for 14 days after; and a taken phone gives
+up which teammates it met on Share nearby in the last 14 days, and on which day. Decision 230 is
+amended to accept that. Not taken: a dated note each phone signs for the other and shows in
+every quiet Hello (one meeting with anyone would let a taken phone in with the whole team, and
+every quiet meeting would tell teammates who that person last met, and when); the traveler
+bringing back renewed certificates for the team (the window would then run from the trip, and it
+needs the Worker and the protocol to change); a longer window (a taken phone works that much
+longer, and a Share nearby still resets nothing).
+
+**A pause in place of the cap, and a shorter rest (2026-11-24).** Carl found the ten-minute rest
+long, and a run cut at 30 minutes wrong while the radios were doing useful work. Thirty minutes on
+and ten off is a quarter of the time off the air; three on and one off is the same quarter, with a
+burst of listening at the start of each on-time. So the room no longer stops at 30 minutes: at "Up
+to date", with nothing to swap with anyone in range, its radios run three minutes of every four,
+counted from the moment it was level, and are off the fourth, neither advertising nor scanning
+(`levelPause`, `NEARBY_OPEN_PAUSE`); the run goes on, so a pause writes no record and costs no
+start. While anything is to be done it never pauses, and a session is never cut. A teammate who
+arrives while it is off is met within a minute or two instead of ten. The mode rests a minute
+(`NEARBY_OPEN_REST_MS`), and only after this phone turned away a phone whose chain did not check
+(`turnedAwayUnwelcome`), a stop of the room's own, or a radio error. A teammate turned away only
+because their certificate and the day met are past the window, a person with no role in the
+language, or being turned away, no longer rests the mode: the room passes that phone over for the
+rest of its run, and before, one such teammate standing near the team made every phone that met
+them stop sharing with everyone for ten minutes, again and again. A phone that turned away an
+unwelcome one now gives it the air back after a minute, not ten; the rest never kept that phone
+from hearing this one the rest of the time, so it bought little.
+
 ### 15.9 How up to date a person is
 
 Section 15.4 shows each teammate as "today", "since you were last online" or "not since", with
-the newest work held from them. That keeps decision 230: no meeting time is kept.
+the newest work held from them. That line keeps decision 230: it reads no meeting time. The line
+under it while LangQuest is open (15.8) reads the days met on Share nearby, which the decision now
+allows.
 
 It has one blind spot. "Newest work from Sam: Tuesday" cannot tell "Sam has done nothing since
 Tuesday" from "nobody has met Sam since Tuesday". With the mode on, people stop remembering when
@@ -4517,9 +4599,9 @@ random.
 | Layer | What |
 | --- | --- |
 | Unit | `openMayRun` over every input, and that it never opens on a worn phone, with a screen open, or while busy. `radiosFor` with `quiet` never offers a hotspot or a Wi-Fi join. The owner switches from `open` to `screen` and back without two rooms at once. The fold's rows equal Ready to carry's for the same facts. The reminder counts only this person's recordings that no holdings name. |
-| Room | In `open`, "Up to date" never halts the room, scans follow the burst tunables, no tap is ever offered, and a session stopped by the screen going off resumes from the vector. |
+| Room | In `open`, "Up to date" never halts the room, scans follow the burst tunables, no tap is ever offered, and a session stopped by the screen going off resumes from the vector. On Share nearby where the mode may run, each pair notes the day it met, and a pair up to date greets once a run only when its days are half gone; Hello in the mode takes a teammate met within the window whatever their certificate's age, and a quiet meeting notes nothing. |
 | Fleet | `villageDay` (phase 8), and `fiveInRoom` with every phone in `open` agrees with the server after a trip to town. |
-| UI | The fold and the reminder on Sync and offline, in the web build with a stubbed store; the switch row on Share nearby, absent on a worn phone. |
+| UI | The fold and the reminder on Sync and offline, in the web build with a stubbed store; the switch row on Share nearby, absent on a worn phone. The fold's until-when line is phone-only: its dates are unit tests (`quietUntilModel.test.ts`). |
 | Real phones | Section 15.7's four cases; two Androids and an iPhone meeting with nobody touching them; a recording made while a teammate is in range is not disturbed. |
 
 ### 15.12 Store declarations
@@ -4582,6 +4664,7 @@ what the security review settled; the draft below is kept as it was proposed.
 | May a disguised phone opt in? | Carl, with Caleb (decision 171 is his) | No. Answer 15's limits exist because a broadcasting calculator is a danger, and the mode removes the press. |
 | Should phones sign an `asOf` with their summary (15.9)? | Carl | Not in the first release. Ship 15.4 as it is, and add `asOf` only if teams say they cannot tell a quiet teammate from an absent one. It would amend decision 230. |
 | Is 2 percentage points an hour the right battery bar? | Carl | A starting guess for a 2 GB Android; the real-phone test can move it. |
+| Is 14 days too short for a team out of reach for longer, with one person carrying its work online now and then? | Carl | Answered (2026-11-24): yes, and a Share nearby now resets it for each pair that meets (15.8), kept as the day per teammate on the phone; decision 230 is amended. The window stays 14 days, since the team then has only to meet on Share nearby once a fortnight. |
 | Should the mode tell anyone it moved something? | Carl | No toast and no name on screen; the fold shows it. A name popping up in front of others is its own exposure. |
 | Should two iPhones in the mode get a quiet hint that a teammate may be nearby? | Later | No: the echo exists so a played-back advert shows nobody, and the hint would need it. iPhones meet each other on Share nearby. |
 

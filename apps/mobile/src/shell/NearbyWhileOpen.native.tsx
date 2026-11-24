@@ -1,4 +1,4 @@
-import { useNearbyWhileOpen, useWhileOpenWanted } from '../nearby/useNearbyWhileOpen.native';
+import { useNearbyWhileOpen, useNoMetUnderCover, useWhileOpenWanted } from '../nearby/useNearbyWhileOpen.native';
 import type { Ctx } from './ctx';
 
 /**
@@ -6,9 +6,11 @@ import type { Ctx } from './ctx';
  * iPhone: mounted once beside the screens, whatever screen is open, and drawing nothing. It reads
  * only what costs nothing (the organization's `nearby_open` as last heard, the switch, a cover, the
  * language offline); the room's own hook, which reads the radios and permissions, mounts only when
- * those say it may be wanted, and stops its room when it unmounts.
+ * those say it may be wanted, and stops its room when it unmounts. Under a cover it forgets the
+ * days teammates were met on Share nearby, which only the mode reads.
  */
 export function NearbyWhileOpen(props: { ctx: Ctx }) {
+  useNoMetUnderCover();
   return useWhileOpenWanted(props.ctx) ? <QuietRoom ctx={props.ctx} /> : null;
 }
 

@@ -31,6 +31,12 @@ export interface NearbyRoomFacts {
   swap(key: string | null): { hasWhatIWant: boolean; wantsWhatIHave: boolean };
   /** On the revocation list. */
   listed(key: string | null): boolean;
+  /**
+   * Share nearby on a phone that notes the day it meets each teammate (`nearbyMet`, 15.8): read
+   * once a turn, whether a teammate is due a Hello with nothing to swap so their day is noted
+   * again. A key not yet known counts as due. Left out, nobody is.
+   */
+  greetDue?(): Promise<(key: string | null) => boolean>;
 }
 
 /** What the room needs to build a session; the caller adds the store, the files and the crypto. */
@@ -128,6 +134,14 @@ export interface NearbyRoomOptions {
    * scans all the time, as on Share nearby.
    */
   levelScan?: { onMs: number; everyMs: number };
+  /**
+   * At "Up to date", the radios run `onMs` of every `everyMs` from the moment the room was level,
+   * and are off the rest, neither advertising nor scanning (docs/nearby-sync-plan.md 15.8): while
+   * LangQuest is open, so a phone whose screen never sleeps is not on the air all day, without a
+   * stop that would cut a session short. Never while there is anything to do. Left out, they
+   * never pause.
+   */
+  levelPause?: { onMs: number; everyMs: number };
   /** Which way the room runs, for its record when it stops: on Share nearby, or quietly while LangQuest is open. */
   mode?: NearbyRoomMode;
 }
@@ -232,6 +246,8 @@ export class NearbyRoom {
   /** Releases the salt a responder's open pipe holds. */
   private saltRelease: (() => void) | null = null;
   private scanHeld = false;
+  /** Off at "Up to date" with `levelPause`: Find stopped, the run going on. */
+  private paused = false;
   /** What diagnostics count over one run: numbers, and the tags only to count them once. */
   private tally: NearbyRoomTally = emptyRoomTally();
   private readonly heardTags = new Set<string>();
@@ -266,6 +282,7 @@ export class NearbyRoom {
     this.idleMs = 0;
     this.waitMs = 0;
     this.level = false;
+    this.paused = false;
     this.scanMs = 0;
     this.passedOver.clear();
     this.tally = emptyRoomTally();
@@ -337,9 +354,9 @@ export class NearbyRoom {
       const passed = this.lastTick === null ? 0 : Math.max(0, now - this.lastTick);
       this.lastTick = now;
       this.now = now;
-      if (!this.scanHeld) this.scanMs += passed;
+      if (!this.scanHeld && !this.paused) this.scanMs += passed;
       if (this.opt.runLimitMs !== undefined && now - this.startedAt >= this.opt.runLimitMs) return await this.halt('run');
-      await this.refreshFind();
+      if (!this.paused) await this.refreshFind();
       if (!this.running) return;
       this.forget();
       // A running session is exempt from both clocks, and has its own stall deadline.
@@ -356,10 +373,13 @@ export class NearbyRoom {
         if (this.opt.stopWhenLevel && this.everMet) return await this.halt('level');
         this.idleMs += passed;
         if (this.idleMs >= this.opt.idleLimitMs) return await this.halt('idle');
+        if (await this.pauseAtLevel()) return;
         await this.scanInBursts();
         return;
       }
       this.level = false;
+      if (this.paused) await this.resume();
+      if (!this.running) return;
       await this.scanInBursts();
       if (!this.running) return;
       if (choice.connect) {
@@ -536,6 +556,7 @@ export class NearbyRoom {
 
   private async choose(): Promise<{ partner: string; connect: boolean } | null> {
     await this.learnKeys();
+    const greetDue = await this.opt.facts.greetDue?.() ?? null;
     const inRange: PartnerInRange[] = [];
     for (const h of this.heard.values()) {
       const { tag, scan, summary } = h.seen;
@@ -571,6 +592,8 @@ export class NearbyRoom {
         tag, key, summary, position: position >= 0 ? position : null,
         finished: this.refused.get(tag) ?? (record ? { mine: record.mine, theirs: record.theirs } : null),
         ...this.opt.facts.swap(key), echoed, older: scan > 0, listed: this.opt.facts.listed(key), dueAnyway,
+        // Once a run, and never again to a phone the door refused.
+        greet: greetDue !== null && !this.dueSpent.has(tag) && !this.refused.has(tag) && greetDue(key),
         // An Android cannot see an iPhone's tag, so the iPhone connects; of two iPhones, the lower salt.
         ...(this.advertAlone() ? { connectsFirst: h.alone ? (this.salts.current ?? '') < h.seen.salt : true } : {})
       });
@@ -744,6 +767,26 @@ export class NearbyRoom {
     await this.holdScan(!scanning);
   }
 
+  /** With `levelPause`, at "Up to date": Find stops for the rest of each cycle, and starts again after. True while off. */
+  private async pauseAtLevel(): Promise<boolean> {
+    const pause = this.opt.levelPause;
+    if (!pause) return false;
+    const off = (this.now - this.levelSince) % pause.everyMs >= pause.onMs;
+    if (off && !this.paused) {
+      this.paused = true;
+      this.scanHeld = false;
+      await this.opt.radio.stopFind();
+    } else if (!off && this.paused) {
+      await this.resume();
+    }
+    return this.paused;
+  }
+
+  private async resume(): Promise<void> {
+    this.paused = false;
+    if (this.running) await this.startFind();
+  }
+
   private async holdScan(held: boolean): Promise<void> {
     if (this.scanHeld === held) return;
     this.scanHeld = held;
@@ -775,6 +818,7 @@ export class NearbyRoom {
     for (const off of this.unsubscribe.splice(0)) off();
     this.saltRelease = null;
     this.scanHeld = false;
+    this.paused = false;
     await this.opt.radio.stopAll();
     this.note(roomDiagOf({ ...this.tally, heard: this.heardTags.size, echoed: this.echoedTags.size, alone: this.aloneTags.size }, why, Math.max(0, this.now - this.startedAt), this.caps, this.diagMode()));
     this.opt.report({ t: 'stopped', why });

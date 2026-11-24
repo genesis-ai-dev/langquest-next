@@ -95,7 +95,7 @@
     "hold": "Guardar gravações dos colegas",
     "holdHelp": "Ligado: este celular guarda as gravações dos colegas até o servidor recebê-las. Desligado: guarda só as de que você precisa.",
     "whileOpen": "Compartilhar enquanto o LangQuest está aberto",
-    "whileOpenHelp": "Quando você está sem internet, seu celular compartilha com os colegas por perto enquanto o LangQuest está aberto, e para quando a tela se apaga. As gravações podem esperar o Compartilhar por perto.",
+    "whileOpenHelp": "Quando você está sem internet, seu celular compartilha com os colegas por perto enquanto o LangQuest está aberto, e para quando a tela se apaga. As gravações podem esperar o Compartilhar por perto. Sem internet por mais de duas semanas, abram o Compartilhar por perto juntos pelo menos a cada duas semanas para continuar.",
     "whileOpenNow": "Compartilhando com colegas por perto enquanto o LangQuest está aberto",
     "carry": {
       "title": "O que este celular tem",
@@ -115,6 +115,9 @@
       "teamTitle": "Colegas",
       "everyone": "Todos",
       "teamHelp": "Quão recente é o trabalho mais novo de cada colega neste celular, contando o trabalho passado por outro celular. Compartilhar por perto o atualiza.",
+      "quietUntil": "Compartilha enquanto o LangQuest está aberto até {{day}}",
+      "quietSoon": "Abram o Compartilhar por perto juntos antes de {{day}} para continuar compartilhando enquanto o LangQuest está aberto",
+      "quietLapsed": "Não está compartilhando enquanto o LangQuest está aberto. Abram o Compartilhar por perto juntos.",
       "onlyHere": "Gravações que só este celular tem: {{n}}",
       "onlyHereHelp": "Suas gravações que nenhum celular de colega tem, até onde este celular sabe. Compartilhe por perto com um colega para que fiquem em dois celulares."
     },

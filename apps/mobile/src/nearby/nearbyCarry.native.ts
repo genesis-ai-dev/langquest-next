@@ -1,9 +1,13 @@
+import { certificateSignedAt } from '@langquest-next/core/nearby';
 import { LanguageFiles } from '@langquest-next/sync';
-import { nearbyKeepOf } from '@langquest-next/sync/nearby';
+import { nearbyFirstDayWithin, nearbyKeepOf } from '@langquest-next/sync/nearby';
 import { installKey } from '../server/nearbyKey';
 import { getStore } from '../storage/store';
 import type { NearbyLanguage } from '../sync/useLanguage';
+import { readChains } from './nearbyPhone.native';
 import { nearbyNamesOf } from './nearbyRun.native';
+import { NEARBY_OPEN_FRESH_MS } from './nearbyRunModel';
+import type { QuietFacts } from './quietUntilModel';
 import { onlyOnThisPhone, wallOf, type CarryFacts } from './readyToCarryModel';
 
 /**
@@ -50,4 +54,30 @@ export async function onlyHereOf(language: NearbyLanguage, orgId: string, langua
   const keep = nearbyKeepOf(language.client, { orgId, streamId: languageId });
   const [key, holdings, mine] = await Promise.all([installKey(), keep.holdings(), unsent()]);
   return onlyOnThisPhone(mine.map((ref) => ref.hash), holdings, key?.publicKey ?? null);
+}
+
+/** Whose certificate a holdings entry carries: its first link's person, as the door checked it on the way in. */
+function holderOf(chain: readonly unknown[]): string | null {
+  const first = chain[0] as { kind?: unknown; body?: { profileId?: unknown } } | undefined;
+  return first?.kind === 'worker@1' && typeof first.body?.profileId === 'string' ? first.body.profileId : null;
+}
+
+/**
+ * The Teammates fold's dates while LangQuest is open (docs/nearby-sync-plan.md 15.8,
+ * `quietUntilOf`): this person's certificate for the organization, each teammate's as their
+ * holdings entry carries it, and the days met on Share nearby. Reading the days forgets any past
+ * the window, as Hello would; nothing else is written.
+ */
+export async function quietFactsOf(language: NearbyLanguage, actorId: string, orgId: string, languageId: string): Promise<QuietFacts> {
+  const keep = nearbyKeepOf(language.client, { orgId, streamId: languageId });
+  const now = language.client.nearbyHelloNow;
+  const [chains, holdings, met] = await Promise.all([readChains(actorId), keep.holdings(), keep.met(nearbyFirstDayWithin(now, NEARBY_OPEN_FRESH_MS))]);
+  const mine = chains[orgId];
+  const theirs: { profileId: string; signedAt: number }[] = [];
+  for (const entry of holdings.values()) {
+    const profileId = holderOf(entry.chain);
+    const signedAt = certificateSignedAt(entry.chain);
+    if (profileId !== null && signedAt !== null) theirs.push({ profileId, signedAt });
+  }
+  return { windowMs: NEARBY_OPEN_FRESH_MS, mySignedAt: mine ? certificateSignedAt(mine) : null, theirs, met };
 }

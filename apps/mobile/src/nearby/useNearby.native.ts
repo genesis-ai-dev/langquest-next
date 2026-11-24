@@ -11,15 +11,16 @@ import { showsLock } from '../appLock/appLockModel';
 import { useAppLock } from '../appLock/useAppLock';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
+import { isOffline } from '../sync/uploadsModel';
 import { currentHoldChoice } from './holdChoice.native';
 import { certificateLimited, nearbyOpenOrgs, nearbyOpenSwitch, onNearbyHeld, pressHoldChoice, pressOpenSwitch } from './nearbyIdentity.native';
 import { nearbyFlag, onNearbyFlag } from './nearbyFlag';
 import { nearbyRowShown } from './nearbyRowModel';
 import { nearbyRadio } from './nearbyLink.native';
-import { carryFactsOf, type StoredCarryFacts } from './nearbyCarry.native';
+import { carryFactsOf, quietFactsOf, type StoredCarryFacts } from './nearbyCarry.native';
 import { copySourceOf } from './nearbyCopySource';
 import { nearbyBlockedOf } from './nearbyDiagModel';
-import { holdByDefault, radiosMayRun } from './nearbyModel';
+import { holdByDefault, notesMetOf, radiosMayRun } from './nearbyModel';
 import { nearbyOwner } from './nearbyOwner';
 import { askingForNearby, askNearbyPermissions, checkNearbyPermissions, openNearbySettings, phoneSystem } from './nearbyPermissions';
 import {
@@ -27,8 +28,9 @@ import {
 } from './nearbyPermissionsModel';
 import { nearbyDiagFor, nearbyNamesOf, nearbyOfferedFor, nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
 import {
-  NEARBY_PROGRESS_MS, NEARBY_RUN_START, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, nearbyRunReducer, nearbyViewOf, startWithin, type NearbyHandle, type NearbyWhyNot
+  NEARBY_OPEN_FRESH_MS, NEARBY_PROGRESS_MS, NEARBY_RUN_START, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, nearbyRunReducer, nearbyViewOf, startWithin, type NearbyHandle, type NearbyWhyNot
 } from './nearbyRunModel';
+import { quietLinesShown, quietUntilOf } from './quietUntilModel';
 import { readyToCarryOf, teammatesOf, type CarryTeammate } from './readyToCarryModel';
 import { useRadioClaim } from './useRadioClaim';
 
@@ -192,6 +194,9 @@ export function useNearby(ctx: Ctx): NearbyHandle {
     try {
       const got = await nearbyPiecesFor({ actorId, orgId, languageId, org: fold, inspectOrg: () => inspectOrg.current() });
       names.current = await nearbyNamesOf(open, orgId);
+      // Where this phone may share while LangQuest is open, Hello notes the day each teammate is met here (15.8).
+      const [openOrgs, switchOn] = await Promise.all([nearbyOpenOrgs(actorId), nearbyOpenSwitch()]);
+      const notesMet = notesMetOf({ feature: openOrgs.has(orgId), switchOn, worn });
       if (!still()) return;
       if (!got.ok) {
         dispatch({ t: 'room', report: { t: 'stopped', why: 'no-key' }, worn });
@@ -215,7 +220,10 @@ export function useNearby(ctx: Ctx): NearbyHandle {
       };
       // Any teammate whose read gate passes a newcomer's chain sends a starting copy, on the same versions (14.1, 4): on Android; an iPhone has none.
       const copy = copySourceOf({ actorId, language: open.client, org: orgClient.current() });
-      room = nearbyRoomOf({ radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn, report, progress, copy });
+      room = nearbyRoomOf({
+        radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn, report, progress, copy,
+        ...(notesMet ? { notesMetForMs: NEARBY_OPEN_FRESH_MS } : {})
+      });
       held.current = { room, ticker: null };
       const starting = room;
       // After the quiet room's stop, which this screen's claim asked for first (15.6).
@@ -355,4 +363,34 @@ export function useNearbyTeammates(ctx: Ctx, usable: boolean): CarryTeammate[] {
     if (!usable || stored?.languageId !== languageId) return [];
     return teammatesOf({ ...stored.facts, me: actorId, members, todayStartMs: new Date().setHours(0, 0, 0, 0) });
   }, [usable, stored, languageId, actorId, members]);
+}
+
+/**
+ * The Teammates fold's line while LangQuest is open (docs/nearby-sync-plan.md 15.8): until when
+ * this phone shares with each teammate, as far as it knows (`quietUntilOf`). Read with the fold,
+ * and again when the switch is pressed; null where the mode does not run here (the feature, the
+ * switch, a cover) or while the language is online, where it never runs.
+ */
+export function useQuietUntil(ctx: Ctx, usable: boolean): ReadonlyMap<string, number> | null {
+  const { language } = ctx;
+  const { actorId } = ctx.session;
+  const { orgId, languageId } = language;
+  const { worn } = useAppCovered();
+  const offline = isOffline(language.online);
+  const [switched, setSwitched] = useState(0);
+  useEffect(() => onNearbyHeld(() => setSwitched((n) => n + 1)), []);
+  const [read, setRead] = useState<{ languageId: string; notesMet: boolean; until: ReadonlyMap<string, number> } | null>(null);
+  const nearbyLanguage = language.nearby;
+  const load = useCallback(() => {
+    const open = usable && offline && !worn ? nearbyLanguage() : null;
+    if (!open) return;
+    Promise.all([nearbyOpenOrgs(actorId), nearbyOpenSwitch(), quietFactsOf(open, actorId, orgId, languageId)])
+      .then(([orgs, switchOn, facts]) => setRead({ languageId, notesMet: notesMetOf({ feature: orgs.has(orgId), switchOn, worn: false }), until: quietUntilOf(facts) }))
+      .catch((e: unknown) => noteExpected('nearby: quiet until', e));
+  }, [usable, offline, worn, nearbyLanguage, actorId, orgId, languageId]);
+  // Read again when the switch is pressed on Share nearby.
+  useEffect(load, [load, switched]);
+  useFocus(load);
+  const shown = usable && !worn && read?.languageId === languageId && quietLinesShown({ notesMet: read.notesMet, offline });
+  return shown ? read.until : null;
 }

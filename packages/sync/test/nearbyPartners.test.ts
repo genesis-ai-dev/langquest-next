@@ -24,6 +24,15 @@ describe('choosePartner', () => {
     expect(choosePartner(me, [{ ...same, dueAnyway: true }])).not.toBeNull();
   });
 
+  // Decision 230 as amended: a Share nearby resets the day the quiet mode reads only if a Hello happens, so a pair
+  // already up to date greets anyway; never one on the revocation list.
+  it('greets a teammate due on Share nearby, with nothing to swap and even when the two finished unchanged, but never a listed one', () => {
+    const same = peer('000000000009', { summary: me.summary, hasWhatIWant: false, wantsWhatIHave: false, finished: { mine: me.summary, theirs: me.summary } });
+    expect(choosePartner(me, [same])).toBeNull();
+    expect(choosePartner(me, [{ ...same, greet: true }])).toEqual({ partner: '000000000009', connect: true });
+    expect(choosePartner(me, [{ ...same, greet: true, listed: true }])).toBeNull();
+  });
+
   it('two phones that finished unchanged do not reconnect, even with summaries that differ', () => {
     const finished = peer('000000000009', { finished: { mine: me.summary, theirs: 'bbbbbbbb' } });
     expect(choosePartner(me, [finished])).toBeNull();

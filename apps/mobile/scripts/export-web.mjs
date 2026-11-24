@@ -271,7 +271,14 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // nearby and the fold share, and Me's stub. The fold, the reminder and their rules are in files only a
 // phone loads (NearbyRow.native.tsx, useNearby.native.ts, useOnlyHereNote.native.ts,
 // readyToCarryModel.ts), since the web shares nothing nearby. 955 bytes are left; a first visit has 117.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 169 * 1024;
+// Raised by 1 KB with a Share nearby resetting the quiet mode's window, and the Teammates fold saying until
+// when it shares with each teammate (Carl, 2026-11-24, docs/nearby-sync-plan.md 15.8,
+// docs/decisions/0230-a-phone-keeps-who-it-last.md, amended 2026-11-24), 335 bytes past it: the fold's
+// three lines and the switch's new help sentence, in English, in the nearby chunk the web loads with Share
+// nearby. The dates, their reading and the line are in files only a phone loads (quietUntilModel.ts,
+// nearbyCarry.native.ts, useNearby.native.ts, NearbyRow.native.tsx), since the web shares nothing nearby.
+// 689 bytes are left; a first visit has 749.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 170 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

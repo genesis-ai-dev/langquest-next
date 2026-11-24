@@ -382,8 +382,10 @@ team's unsent work between the two phones, with no internet.
   them (a backup goes as soon as it does, on every phone), with "Hold teammates' recordings"
   deciding how many of the recordings a phone keeps; holdings, the batch vector, the names in
   certificates it checked, and the partners it last finished with, with no time, place or
-  meeting record. None of it reaches our server or any third party: phones exchange it only
-  with each other.
+  meeting record; from 2026-11-24, on a phone that may share while LangQuest is open, the day
+  it last met each teammate on Share nearby, never older than two weeks, gone at sign-out and
+  under a disguise (decision 230 as amended). None of it reaches our server or any third
+  party: phones exchange the rest only with each other, and the days not at all.
 - **What goes to teammates.** The language's unsent events and recordings with their
   authors' names, signed batches, holdings, the revocation list, a newer discovery key, and
   each phone's certificate (install key, profile id, device id, organization and role
@@ -477,8 +479,10 @@ unless the person turned "Share while LangQuest is open" off on Share nearby. It
 permissions Share nearby was already granted and never asks, keeps no screen awake, runs no
 service and shows no notification, stops when the screen goes off, never hosts or joins a
 hotspot, and never runs on a phone that wears a disguise or behind the app lock; it shares only
-with teammates whose certificate was renewed within the last two weeks. It sends the same data to the same
-members as Share nearby, so no Data safety, permission, content or audience answer changes.
+with teammates whose certificate was renewed within the last two weeks, or whom this phone met
+on Share nearby within that time, for which the phone keeps the day of each such meeting on the
+phone alone. It sends the same data to the same members as Share nearby, and the days never leave
+the phone, so no Data safety, permission, content or audience answer changes.
 
 Share nearby's diagnostics (`docs/diagnostics.md`, the `nearby` kind in the facts block):
 on Android, a record when a room stops, when a session ends, when Find fails and when the
