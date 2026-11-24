@@ -52,3 +52,30 @@ Reverse if: the field's diagnostics show the mode rarely meets anyone, or its
 battery cost is over the bar in docs/nearby-sync-plan.md 15.7; a lost or taken
 phone is found collecting a team's work through it; or people report sharing
 they did not expect (then the switch's default goes to off).
+
+Amended (2026-11-24, Carl Sauder): a Share nearby resets the 14-day window
+for each pair that meets there. Fourteen days was too short for a team out of
+reach for longer, with one person traveling now and then to carry the whole
+team's work online, since that trip renews only the traveler's certificate.
+Hello in the mode now also takes a teammate this phone met on Share nearby on
+a day that began within the window, whatever their certificate's age; Share
+nearby notes those days only on a phone that may run the mode, and greets,
+once a run and with nothing to swap, a teammate not met for half the window,
+so a team that meets on Share nearby once a fortnight stays in the mode. A
+quiet meeting notes nothing. A taken phone that some teammate meets on Share
+nearby then shares quietly with that one teammate for 14 days. Keeping the
+day amends 230. The window stays 14 days. Since a teammate turned away for it
+is only passed over, nothing else would tell a team the mode is about to stop: offline, each
+row of Sync and offline's Teammates fold says until when this phone shares
+with that teammate, and from three days before asks the two to meet on Share
+nearby.
+
+Amended (2026-11-24, Carl Sauder): a run no longer stops at 30 minutes. At
+"Up to date", with nothing to swap with anyone in range, the radios run three
+minutes of every four and are off the fourth, the same share of time on the
+air as 30 minutes on and ten off, without cutting a session short or keeping
+a teammate who arrives waiting ten minutes. The rest is a minute, and follows
+only turning away a phone whose chain did not check, a stop of the room's
+own or a radio error: a teammate past the window, someone with no role in the
+language, or being turned away is passed over for the run, since resting
+stopped the mode for everyone in range each time one of them was near.

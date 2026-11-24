@@ -95,7 +95,7 @@
     "hold": "Hold teammates' recordings",
     "holdHelp": "On, this phone keeps teammates' recordings until the server has them. Off, it keeps only the ones you need.",
     "whileOpen": "Share while LangQuest is open",
-    "whileOpenHelp": "When you have no internet, your phone shares with teammates nearby while LangQuest is open, and stops when the screen goes off. Recordings may wait for Share nearby.",
+    "whileOpenHelp": "When you have no internet, your phone shares with teammates nearby while LangQuest is open, and stops when the screen goes off. Recordings may wait for Share nearby. Without internet for longer than two weeks, open Share nearby together at least every two weeks to keep it going.",
     "whileOpenNow": "Sharing with teammates nearby while LangQuest is open",
     "carry": {
       "title": "What this phone holds",
@@ -115,6 +115,9 @@
       "teamTitle": "Teammates",
       "everyone": "Everyone",
       "teamHelp": "How recent the newest work on this phone is from each teammate, counting work passed on by another phone. Share nearby brings it up to date.",
+      "quietUntil": "Shares while LangQuest is open until {{day}}",
+      "quietSoon": "Open Share nearby together before {{day}} to keep sharing while LangQuest is open",
+      "quietLapsed": "Not sharing while LangQuest is open. Open Share nearby together.",
       "onlyHere": "Recordings only on this phone: {{n}}",
       "onlyHereHelp": "Your recordings that no teammate's phone holds, as far as this phone knows. Share nearby with a teammate so they are on two phones."
     },

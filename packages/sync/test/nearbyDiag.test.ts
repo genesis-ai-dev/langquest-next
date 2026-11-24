@@ -1,5 +1,5 @@
 import { Diagnostics, MemoryDiagStore, sanitizeDiag } from '../src/diagnostics';
-import { nearbyCodeOf, NEARBY_DIAG_SCHEMA, NEARBY_ROOM_MS_CAP, roomDiagOf, sessionDiagOf, type NearbyDiagInput } from '../src/nearbyDiag';
+import { addSynced, emptySyncedTally, nearbyCodeOf, NEARBY_DIAG_SCHEMA, NEARBY_ROOM_MS_CAP, roomDiagOf, sessionDiagOf, type NearbyDiagInput } from '../src/nearbyDiag';
 import type { NearbySessionReport } from '../src/nearbySession';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSigner, memoryNearbyAir, type MemoryFiles, type MemoryNearbyAir } from '../src/testing/memoryNearbyLink';
@@ -17,6 +17,16 @@ import { newTime, roomFor, testPhone, turn, unit, type TestRoom } from './nearby
 const allow = NEARBY_DIAG_SCHEMA;
 const clean = (input: NearbyDiagInput) => sanitizeDiag({ id: 'r', kind: 'nearby', at: 1, ...input }, allow);
 
+/** A session as a report says it, with a peer the record must never name. */
+const report = {
+  role: 'i', ended: { how: 'heard', reason: 'busy' }, peer: { installKey: 'KEY', profileId: 'sam', deviceId: 'd-sam', tag: 'abcdef' }, refusedTag: null,
+  newerAppNeeded: false, clockOff: true, linkKind: 'hotspot', fallbacks: 2, code: 'LINK_DROPPED', signed: null,
+  got: { pages: 3, events: 40, refused: 1, droppedPages: 0, overBudget: 0, counted: 40 }, sent: { batches: 1, claims: 0, events: 12, skipped: 0 },
+  files: { got: 2, served: 1, answeredNo: 0, toldNo: 0, failed: 1, noRoom: true, cutBackups: false }, holdings: { taken: 1, dropped: 0, sent: 1 },
+  older: false, farAhead: [{ actorId: 'sam', hlc: '1' }], handedKey: null, handedKeyRefused: 0, revokedTaken: null, revokedDropped: 0, finals: null, changed: true,
+  join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }
+} satisfies NearbySessionReport;
+
 describe('nearby diagnostics: the fields', () => {
   it('a code is one of the module\'s codes, from a drop\'s message or an error\'s code, and nothing else', () => {
     expect(nearbyCodeOf(new OfflineError('LINK_DROPPED'))).toBe('LINK_DROPPED');
@@ -27,14 +37,6 @@ describe('nearby diagnostics: the fields', () => {
   });
 
   it('a session says how it ended and what moved, as counts and flags', () => {
-    const report = {
-      role: 'i', ended: { how: 'heard', reason: 'busy' }, peer: { installKey: 'KEY', profileId: 'sam', deviceId: 'd-sam', tag: 'abcdef' }, refusedTag: null,
-      newerAppNeeded: false, clockOff: true, linkKind: 'hotspot', fallbacks: 2, code: 'LINK_DROPPED', signed: null,
-      got: { pages: 3, events: 40, refused: 1, droppedPages: 0, overBudget: 0, counted: 40 }, sent: { batches: 1, claims: 0, events: 12, skipped: 0 },
-      files: { got: 2, served: 1, answeredNo: 0, toldNo: 0, failed: 1, noRoom: true, cutBackups: false }, holdings: { taken: 1, dropped: 0, sent: 1 },
-      older: false, farAhead: [{ actorId: 'sam', hlc: '1' }], handedKey: null, handedKeyRefused: 0, revokedTaken: null, revokedDropped: 0, finals: null, changed: true,
-      join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }
-    } satisfies NearbySessionReport;
     const d = sessionDiagOf(report, 5_000);
     expect(d.t).toEqual({ event: 'session', role: 'i', end: 'heard', bye: 'busy', code: 'LINK_DROPPED', link: 'hotspot' });
     expect(d.n).toMatchObject({ ms: 5_000, fallbacks: 2, events: 40, sent: 12, refused: 1, files: 2, served: 1, fileFails: 1, farAhead: 1, noRoom: 1, clockOff: 1, newerApp: 0 });
@@ -46,18 +48,18 @@ describe('nearby diagnostics: the fields', () => {
   });
 
   it('a room says why it stopped, what it heard and what the radio can do', () => {
-    const tally = { heard: 2, echoed: 1, alone: 2, maybe: 1, taps: 0, maxUnmatched: 3, pipeFails: 1, strangers: 4, busy: 0, noAnswer: 0, sessions: 1, done: 1, levelMs: 9_000, code: 'PIPE_TIMEOUT' as const };
+    const tally = { heard: 2, echoed: 1, alone: 2, maybe: 1, taps: 0, maxUnmatched: 3, pipeFails: 1, strangers: 4, busy: 0, noAnswer: 0, sessions: 1, done: 1, greets: 0, levelMs: 9_000, maxMeetMs: null, code: 'PIPE_TIMEOUT' as const };
     const caps = { sdk: 33, advertise: false, directByName: true, band5: false, hotspot: true, joinHotspot: true, bluetoothOn: true, wifiOn: true, locationOn: true };
     const d = roomDiagOf(tally, 'idle', 60_000, caps);
     expect(d.t).toEqual({ event: 'room', stop: 'idle', code: 'PIPE_TIMEOUT', adv: 'no', direct: 'yes', hotspot: 'yes' });
-    expect(d.n).toEqual({ ms: 60_000, levelMs: 9_000, heard: 2, echoed: 1, alone: 2, maybe: 1, taps: 0, maxUnmatched: 3, pipeFails: 1, strangers: 4, busy: 0, noAnswer: 0, sessions: 1, done: 1 });
+    expect(d.n).toEqual({ ms: 60_000, levelMs: 9_000, heard: 2, echoed: 1, alone: 2, maybe: 1, taps: 0, maxUnmatched: 3, pipeFails: 1, strangers: 4, busy: 0, noAnswer: 0, sessions: 1, done: 1, greets: 0 });
     expect(clean(d)).toMatchObject(d);
   });
 
   it('a room stopped by the run limit or at "Up to date" reads as one stopped by asking, and no record runs past ten minutes', () => {
     // Why: only a disguised phone has a run limit or stops when level, so either stop, or a run
     // ending at exactly ten minutes, would mark the person in records support and Claude read.
-    const tally = { heard: 1, echoed: 1, alone: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 1, done: 1, levelMs: 700_000, code: null };
+    const tally = { heard: 1, echoed: 1, alone: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 1, done: 1, greets: 0, levelMs: 700_000, maxMeetMs: null, code: null };
     const caps = { sdk: 33, advertise: true, directByName: true, band5: false, hotspot: true, joinHotspot: true, bluetoothOn: true, wifiOn: true, locationOn: true };
     const plain = roomDiagOf(tally, 'asked', 2 * NEARBY_ROOM_MS_CAP, caps);
     expect(roomDiagOf(tally, 'run', NEARBY_ROOM_MS_CAP + 1_999, caps)).toEqual(plain);
@@ -72,20 +74,50 @@ describe('nearby diagnostics: the fields', () => {
 
   it('a room says which way it ran, and while LangQuest was open the minutes it ran and scanned, past the ten-minute cap', () => {
     // Why: what the quiet mode costs and whether it meets anyone is read from these (docs/nearby-sync-plan.md 15.6).
-    const tally = { heard: 1, echoed: 1, alone: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 1, done: 1, levelMs: 30_000, code: null };
+    const tally = { heard: 1, echoed: 1, alone: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 1, done: 1, greets: 0, levelMs: 30_000, maxMeetMs: null, code: null };
     const caps = { sdk: 33, advertise: true, directByName: true, band5: false, hotspot: true, joinHotspot: true, bluetoothOn: true, wifiOn: true, locationOn: true };
-    const open = roomDiagOf(tally, 'asked', 95 * 60_000, caps, { mode: 'open', scanMs: 12 * 60_000 + 20_000 });
+    const quiet = (scanMs: number, pauseMs = 0, synced = emptySyncedTally()) => ({ mode: 'open' as const, scanMs, pauseMs, synced });
+    const open = roomDiagOf(tally, 'asked', 95 * 60_000, caps, quiet(12 * 60_000 + 20_000));
     expect(open.t).toMatchObject({ event: 'room', stop: 'asked', mode: 'open' });
     expect(open.n).toMatchObject({ ms: NEARBY_ROOM_MS_CAP, openMin: 95, scanMin: 12 });
     expect(clean(open)).toMatchObject(open);
     // Never more scanning than running, and never more than a day.
-    expect(roomDiagOf(tally, 'asked', 60_000, caps, { mode: 'open', scanMs: 5 * 60_000 }).n).toMatchObject({ openMin: 1, scanMin: 1 });
-    expect(roomDiagOf(tally, 'asked', 3 * 86_400_000, caps, { mode: 'open', scanMs: 0 }).n).toMatchObject({ openMin: 24 * 60, scanMin: 0 });
+    expect(roomDiagOf(tally, 'asked', 60_000, caps, quiet(5 * 60_000)).n).toMatchObject({ openMin: 1, scanMin: 1 });
+    expect(roomDiagOf(tally, 'asked', 3 * 86_400_000, caps, quiet(0)).n).toMatchObject({ openMin: 24 * 60, scanMin: 0 });
     // Share nearby says its mode and nothing more; a room told no mode says none, as before.
     const screen = roomDiagOf(tally, 'idle', 60_000, caps, { mode: 'screen' });
     expect(screen.t.mode).toBe('screen');
     expect(screen.n).not.toHaveProperty('openMin');
     expect(roomDiagOf(tally, 'idle', 60_000, caps).t).not.toHaveProperty('mode');
+  });
+
+  // 2026-11-24 (decision 235 as amended): enough to tell how the quiet mode works for a team, and never who.
+  it('a session says its room\'s mode, and why this phone turned a phone away, in a word from a fixed list', () => {
+    const refused = (detail?: string) => sessionDiagOf({ ...report, ended: { how: 'said', reason: 'identity', ...(detail ? { detail } : {}) } }, 1, 'open');
+    expect(refused('certificate not recent').t).toMatchObject({ event: 'session', mode: 'open', end: 'said', bye: 'identity', refusal: 'window' });
+    expect([refused('key revoked'), refused('listed'), refused('wrong organization'), refused('no certificate for this organization'), refused('certificate expired'), refused('bad proof'), refused()]
+      .map((d) => d.t.refusal)).toEqual(['revoked', 'revoked', 'org', 'org', 'expired', 'other', 'other']);
+    expect(clean(refused('certificate not recent'))?.t).toMatchObject({ refusal: 'window', mode: 'open' });
+    // Being turned away, or another bye, says no reason: this phone does not know it.
+    expect(sessionDiagOf({ ...report, ended: { how: 'heard', reason: 'identity' } }, 1, 'screen').t).not.toHaveProperty('refusal');
+    expect(sessionDiagOf({ ...report, ended: { how: 'said', reason: 'not-member' } }, 1).t).not.toHaveProperty('refusal');
+    expect(sessionDiagOf(report, 1).t).not.toHaveProperty('mode');
+  });
+
+  it('a quiet room sums its finished sessions, its pause and its greetings, and its longest wait to meet, capped as other durations', () => {
+    const tally = { heard: 2, echoed: 2, alone: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 3, done: 2, greets: 1, levelMs: 4_000, maxMeetMs: 45_000, code: null };
+    const synced = emptySyncedTally();
+    addSynced(synced, { ...report, linkKind: 'wifi-direct' }, 90_000);
+    addSynced(synced, { ...report, linkKind: 'bluetooth', fallbacks: 0 }, 30_000);
+    const d = roomDiagOf(tally, 'rest', 40 * 60_000, null, { mode: 'open', scanMs: 3 * 60_000, pauseMs: 9 * 60_000, synced });
+    expect(d.t).toEqual({ event: 'room', stop: 'rest', mode: 'open' });
+    expect(d.n).toMatchObject({
+      openMin: 40, scanMin: 3, pauseMin: 9, syncMin: 2, events: 80, sent: 24, files: 4, served: 2, fileFails: 2, fallbacks: 2, viaDirect: 1, greets: 1, maxMeetMs: 45_000
+    });
+    expect(clean(d)).toMatchObject({ t: d.t, n: d.n });
+    expect(roomDiagOf({ ...tally, maxMeetMs: 3_600_000 }, 'asked', 60_000, null).n?.maxMeetMs).toBe(NEARBY_ROOM_MS_CAP);
+    // Share nearby's room keeps its sessions apart, so it sums none.
+    expect(roomDiagOf(tally, 'idle', 60_000, null, { mode: 'screen' }).n).not.toHaveProperty('events');
   });
 
   it('the allowlist drops a code it does not list and a reason it does not know', () => {
@@ -150,6 +182,35 @@ describe('nearby diagnostics: what a room records', () => {
     const text = JSON.stringify([a!.diag, b!.diag]);
     for (const who of people) for (const secret of [who.profileId, who.deviceId, who.key]) expect(text).not.toContain(secret);
     for (const r of [a!, b!]) expect(text).not.toContain(r.radio.salt!);
+  });
+
+  // 2026-11-24 (decision 235 as amended): a phone offline for weeks with the quiet mode writes one record a run,
+  // not one a session, so its queue keeps the start of the trip; a session that went wrong still has its own.
+  it('while LangQuest is open a finished session writes no record of its own: the room sums it, says its mode and the one who began it says how long it took to meet', async () => {
+    const OPEN = { taps: false, idleLimitMs: Number.POSITIVE_INFINITY, levelScan: { onMs: 6_000, everyMs: 60_000 }, mode: 'open' as const };
+    const [a, b] = await rooms(2, [{ room: OPEN }, { room: OPEN }]);
+    await unit(a!.phone, 'a1');
+    await unit(b!.phone, 'b1');
+    for (let i = 0; i < 12; i++) await turn(air, time, [a!, b!]);
+    await a!.room.stop('rest');
+    await b!.room.stop();
+    for (const r of [a!, b!]) {
+      expect(sessions(r.diag)).toEqual([]);
+      expect(roomRecord(r.diag)).toMatchObject({ t: { event: 'room', mode: 'open' }, n: { sessions: 1, done: 1, events: 1, sent: 1, viaDirect: 0, pauseMin: 0 } });
+      for (const d of r.diag) expect(clean(d)).toMatchObject(d);
+    }
+    expect(roomRecord(a!.diag)!.t.stop).toBe('rest');
+    expect(roomRecord(b!.diag)!.t.stop).toBe('asked');
+    const began = [a!, b!].filter((r) => roomRecord(r.diag)!.n!.maxMeetMs !== undefined);
+    expect(began.length).toBe(1);
+    expect(roomRecord(began[0]!.diag)!.n!.maxMeetMs).toBeGreaterThan(0);
+  });
+
+  it('on Share nearby a session still writes its own record, now saying its mode', async () => {
+    const [a, b] = await rooms(2, [{ room: { mode: 'screen' } }, { room: { mode: 'screen' } }]);
+    await unit(a!.phone, 'a1');
+    for (let i = 0; i < 10; i++) await turn(air, time, [a!, b!]);
+    for (const r of [a!, b!]) expect(sessions(r.diag).map((x) => x.t)).toEqual([expect.objectContaining({ end: 'done', mode: 'screen' })]);
   });
 
   it('heard but never echoed, as a replay leaves it: a tap offered, no session', async () => {

@@ -1,7 +1,7 @@
 import { applyOrgEvent, emptyOrgState, type OrgState } from '@langquest-next/core';
 import {
   ASK_EVERY_MS, askReason, certificateAnswerOf, chainsForOrgs, findKeysAfterAnswer, findKeysForOrgs, holdByDefault, holdChoiceOf, isKey32, languagesToName,
-  MAX_LANGUAGES, membershipMarkOf, nearbyOpenOrgsOf, nearbyOrgsOf, openMayRun, openSwitchOf, orgFeaturesOf, parseOpenOrgs, type OpenGate, parseAskRecord, parseCertKeys, parseChains, parseFindKeys, parsePasses, passesForOrgs, passFor, revokedSeqsOf,
+  MAX_LANGUAGES, membershipMarkOf, nearbyOpenOrgsOf, nearbyOrgsOf, notesMetOf, openMayRun, openSwitchOf, orgFeaturesOf, parseOpenOrgs, type OpenGate, parseAskRecord, parseCertKeys, parseChains, parseFindKeys, parsePasses, passesForOrgs, passFor, revokedSeqsOf,
   type AskFacts, type FindKeys
 } from '../src/nearby/nearbyModel';
 
@@ -252,6 +252,12 @@ describe('holding teammates\' recordings', () => {
       ];
       expect(closes.length).toBe(Object.keys(all).length);
       for (const c of closes) expect(openMayRun({ ...all, ...c }), JSON.stringify(c)).toBe(false);
+    });
+
+    // Decision 230 as amended: a day met is kept only where the mode that reads it may run, and never under a cover.
+    it('Share nearby notes the day it meets a teammate only with the feature and the switch on, and no cover', () => {
+      expect(notesMetOf({ feature: true, switchOn: true, worn: false })).toBe(true);
+      for (const c of [{ feature: false }, { switchOn: false }, { worn: true }]) expect(notesMetOf({ feature: true, switchOn: true, worn: false, ...c }), JSON.stringify(c)).toBe(false);
     });
   });
 });

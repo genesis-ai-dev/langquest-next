@@ -450,3 +450,12 @@ export interface OpenGate {
 export function openMayRun(g: OpenGate): boolean {
   return g.feature && g.switchOn && g.granted && g.radiosOn && g.offered && !g.worn && !g.locked && g.active && g.offline && !g.busy && !g.screenOpen && !g.resting && g.ready;
 }
+
+/**
+ * Whether Share nearby notes the day it meets each teammate (`nearbyMet`, 15.8, decision 230 as
+ * amended): only where this phone may share while LangQuest is open, the only thing that reads
+ * those days. A phone with a cover never runs the mode, so it keeps none.
+ */
+export function notesMetOf(g: Pick<OpenGate, 'feature' | 'switchOn' | 'worn'>): boolean {
+  return g.feature && g.switchOn && !g.worn;
+}

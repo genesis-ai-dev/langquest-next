@@ -4,7 +4,7 @@ import {
 } from '@langquest-next/core/nearby';
 import { chainAsSigned, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
 import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
-import type { NearbyKeep } from './nearbyKeep';
+import { nearbyDayOf, nearbyFirstDayWithin, type NearbyKeep } from './nearbyKeep';
 import { CopyRefused, StartingCopySender, takeStartingCopy, type CopyAsker, type CopyNoReason, type NearbyCopySource, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';
 import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, openingPinOf, sameBytes, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
@@ -185,9 +185,18 @@ export interface NearbySessionOptions {
    * teammate whose certificate was signed longer ago than this by Hello's clock, which setting the
    * date back cannot move. Certificates renew daily online, so a lost or taken phone still signed
    * in collects nothing quietly once this long has passed since it last reached the server, though
-   * the revocation list has not reached anyone. Left out, as on Share nearby, it refuses nobody for it.
+   * the revocation list has not reached anyone. A teammate this phone met on Share nearby on a day
+   * that began within it passes too (`nearbyMet`), so a team out of reach for longer goes on sharing
+   * while each pair meets on Share nearby that often (decision 230 as amended). Left out, as on
+   * Share nearby, it refuses nobody for it.
    */
   freshWithinMs?: number;
+  /**
+   * Share nearby on a phone that may share while LangQuest is open: after Hello, the day this
+   * teammate was met (`nearbyMet`), kept this long and no longer. Never while open, where
+   * `freshWithinMs` is set: a quiet meeting must not let a taken phone keep itself in.
+   */
+  notesMetForMs?: number;
 }
 
 /** The inviter's side of a QR link (`let-in`). Its `chain` is its certificate for the session's organization. */
@@ -246,7 +255,7 @@ export function joinOnlyPort(now: () => number): NearbySessionPort {
 
 export function joinOnlyKeep(): NearbyKeep {
   const no = (): Promise<never> => Promise.reject(new Error('a join keeps nothing'));
-  return { holdings: no, saveHoldings: no, revoked: async () => null, saveRevoked: no, noteName: async () => undefined, peers: async () => [], recordPeer: no };
+  return { holdings: no, saveHoldings: no, revoked: async () => null, saveRevoked: no, noteName: async () => undefined, peers: async () => [], recordPeer: no, met: async () => [], noteMet: no };
 }
 
 export type NearbySessionEnd =
@@ -767,11 +776,8 @@ export class NearbySession {
       ...(this.revoked ? { revoked: this.revoked.list } : {})
     });
     if (!verdict.ok) throw new SayBye('identity', verdict.reason);
-    if (opt.freshWithinMs !== undefined) {
-      const signed = certificateSignedAt(hello.chain);
-      if (signed === null || opt.port.nearbyHelloNow - signed > opt.freshWithinMs) throw new SayBye('identity', 'certificate not recent');
-    }
     const { holder } = verdict;
+    if (opt.freshWithinMs !== undefined && !await this.recent(hello.chain, holder, opt.freshWithinMs)) throw new SayBye('identity', 'certificate not recent');
     if (holder.deviceId !== hello.deviceId) throw new SayBye('identity', 'another device');
     if (holder.installKey === crypto.publicKey) throw new SayBye('identity', 'this phone');
     const theirRole = opt.role === 'i' ? 'r' : 'i';
@@ -787,6 +793,19 @@ export class NearbySession {
     this.report.peer = { installKey: holder.installKey, profileId: holder.profileId, deviceId: holder.deviceId, tag, ...(holder.name ? { name: holder.name } : {}) };
     this.report.clockOff = Math.abs(hello.wallMs - opt.port.nearbyWallNow) > CLOCK_AHEAD_TOLERANCE_MS;
     await opt.keep.noteName(holder.installKey, holder.profileId);
+    if (opt.notesMetForMs !== undefined && opt.freshWithinMs === undefined) {
+      const now = opt.port.nearbyHelloNow;
+      await opt.keep.noteMet({ key: holder.installKey, profileId: holder.profileId, day: nearbyDayOf(now) }, nearbyFirstDayWithin(now, opt.notesMetForMs));
+    }
+  }
+
+  /** While open: its certificate was signed within the window, or this phone met it on Share nearby on a day that began within it. */
+  private async recent(chain: readonly unknown[], holder: { installKey: string; profileId: string }, withinMs: number): Promise<boolean> {
+    const now = this.opt.port.nearbyHelloNow;
+    const signed = certificateSignedAt(chain);
+    if (signed !== null && now - signed <= withinMs) return true;
+    const met = await this.opt.keep.met(nearbyFirstDayWithin(now, withinMs));
+    return met.some((m) => m.key === holder.installKey && m.profileId === holder.profileId);
   }
 
   // ---- phase 6: letting someone in, and the starting copy (section 14.1) ---------

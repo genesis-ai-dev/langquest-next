@@ -95,7 +95,7 @@
     "hold": "Simpan rekaman rekan tim",
     "holdHelp": "Jika aktif, ponsel ini menyimpan rekaman rekan tim sampai server menerimanya. Jika mati, hanya rekaman yang Anda perlukan yang disimpan.",
     "whileOpen": "Berbagi saat LangQuest terbuka",
-    "whileOpenHelp": "Saat tidak ada internet, ponsel Anda berbagi dengan rekan tim di sekitar selama LangQuest terbuka, dan berhenti saat layar mati. Rekaman mungkin menunggu Berbagi di sekitar.",
+    "whileOpenHelp": "Saat tidak ada internet, ponsel Anda berbagi dengan rekan tim di sekitar selama LangQuest terbuka, dan berhenti saat layar mati. Rekaman mungkin menunggu Berbagi di sekitar. Jika tanpa internet lebih dari dua minggu, buka Berbagi di sekitar bersama setidaknya setiap dua minggu agar tetap berjalan.",
     "whileOpenNow": "Berbagi dengan rekan tim di sekitar selama LangQuest terbuka",
     "carry": {
       "title": "Yang disimpan ponsel ini",
@@ -115,6 +115,9 @@
       "teamTitle": "Rekan tim",
       "everyone": "Semua",
       "teamHelp": "Seberapa baru pekerjaan terbaru dari setiap rekan tim di ponsel ini, termasuk pekerjaan yang diteruskan oleh ponsel lain. Berbagi di sekitar memperbaruinya.",
+      "quietUntil": "Berbagi saat LangQuest terbuka hingga {{day}}",
+      "quietSoon": "Buka Berbagi di sekitar bersama sebelum {{day}} agar tetap berbagi saat LangQuest terbuka",
+      "quietLapsed": "Tidak lagi berbagi saat LangQuest terbuka. Buka Berbagi di sekitar bersama.",
       "onlyHere": "Rekaman yang hanya ada di ponsel ini: {{n}}",
       "onlyHereHelp": "Rekaman Anda yang tidak ada di ponsel rekan tim mana pun, sejauh yang diketahui ponsel ini. Berbagi di sekitar dengan rekan tim agar ada di dua ponsel."
     },

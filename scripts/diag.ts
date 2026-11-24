@@ -188,7 +188,11 @@ function installLines(install: string, x: InstallSummary & { roles?: string; lan
   if (x.nearby) {
     const n = x.nearby;
     const rt = n.roomTotals ?? {};
-    out.push(`- share nearby: ${n.rooms?.length ?? 0} rooms (last ${n.lastAt ?? '?'}), stopped ${(n.rooms ?? []).map((r) => r.stop).join(', ') || '-'}; heard ${rt.heard ?? 0}, echoed ${rt.echoed ?? 0}, bare adverts ${rt.alone ?? 0}, taps ${rt.taps ?? 0}/${rt.maybe ?? 0}, pipes failed ${rt.pipeFails ?? 0}, strangers ${rt.strangers ?? 0}`);
+    out.push(`- share nearby: ${n.rooms?.length ?? 0} rooms (last ${n.lastAt ?? '?'}), stopped ${(n.rooms ?? []).map((r) => (r.mode === 'open' ? `${r.stop} (open)` : r.stop)).join(', ') || '-'}; heard ${rt.heard ?? 0}, echoed ${rt.echoed ?? 0}, bare adverts ${rt.alone ?? 0}, taps ${rt.taps ?? 0}/${rt.maybe ?? 0}, pipes failed ${rt.pipeFails ?? 0}, strangers ${rt.strangers ?? 0}`);
+    const o = n.openTotals;
+    if (o?.count) out.push(`- while open: ${o.count} runs, ${o.openMin ?? 0} min (off ${o.pauseMin ?? 0}, scanning ${o.scanMin ?? 0}, syncing ${o.syncMin ?? 0}); met anyone in ${o.met ?? 0}; ${o.done ?? 0} sessions finished, ${o.viaDirect ?? 0} over Wi-Fi Direct; events ${o.events ?? 0} in, ${o.sent ?? 0} out; files ${o.files ?? 0} in, ${o.served ?? 0} out; longest wait to meet ${s(o.maxMeetMs)}`);
+    if (n.refusals) out.push(`- turned away: ${Object.entries(n.refusals).map(([k, c]) => `${k} ×${c}`).join(', ')}`);
+    if (n.deliver?.count) out.push(`- delivered teammates' work: ${n.deliver.count} times, ${n.deliver.events ?? 0} of ${n.deliver.sent ?? 0} events new, ${n.deliver.refused ?? 0} refused${n.deliver.stopped ? `, stopped early ${JSON.stringify(n.deliver.stopped)}` : ''}`);
     if (n.sessionTotals) out.push(`- nearby sessions: ${n.sessionTotals.count ?? 0}, ended ${JSON.stringify(n.ends ?? {})}, links ${JSON.stringify(n.links ?? {})}, fallbacks ${n.sessionTotals.fallbacks ?? 0}; events ${n.sessionTotals.events ?? 0} in, ${n.sessionTotals.sent ?? 0} out; files ${n.sessionTotals.files ?? 0} in, ${n.sessionTotals.served ?? 0} out, ${n.sessionTotals.fileFails ?? 0} failed`);
     if (n.codes || n.blocked) out.push(`- nearby codes ${JSON.stringify(n.codes ?? {})}${n.blocked ? `, could not run ${JSON.stringify(n.blocked)}` : ''}`);
   }
@@ -220,6 +224,53 @@ function orgReport(orgText: string): void {
   for (const m of summary.silent) out.push(`- **watch** Member ${m.profileId} (${m.roles}) has never delivered diagnostics.`);
   for (const [install, x] of Object.entries(summary.installs)) out.push(...installLines(install, x));
   console.log(out.join('\n'));
+}
+
+/**
+ * How Share nearby and sharing while LangQuest is open went for an organization's teams, one
+ * language each (`diag.nearby_summary`, docs/nearby-sync-plan.md 15.8): for improving the feature,
+ * not for one person's report. Counts and codes only; nothing says who met whom.
+ */
+function nearbyReport(orgText: string): void {
+  const orgs = find(orgText).filter((f) => f.kind === 'org');
+  const org = orgs.find((f) => f.org_id === orgText) ?? (orgs.length === 1 ? orgs[0] : undefined);
+  if (!org) throw new Error(orgs.length ? `"${orgText}" matches several orgs:\n${orgs.map((o) => `  ${o.org_id}  ${o.name}`).join('\n')}` : `No org matches "${orgText}".`);
+  const days = flag('days', '14')!;
+  const byLanguage = query<Record<string, NearbyTeam>>(`select diag.nearby_summary(:'org', :'since'::interval)`, { org: org.org_id, since: `${Number(days)} days` });
+  if (asJson) {
+    console.log(JSON.stringify({ org, languages: byLanguage }, null, 2));
+    return;
+  }
+  const out = [`# ${org.name}: nearby sync`, '', `org ${org.org_id} · last ${days} days · ${Object.keys(byLanguage).length} languages with records`];
+  for (const [languageId, x] of Object.entries(byLanguage)) {
+    out.push('', `## ${languageId}`, '', `- ${x.installs} installs recorded nearby sync`);
+    const quiet = x.rooms?.open;
+    if (quiet) {
+      out.push(`- while open: ${quiet.count} runs on ${quiet.installs} installs, ${quiet.openMin ?? 0} min (off ${quiet.pauseMin ?? 0}, scanning ${quiet.scanMin ?? 0}, syncing ${quiet.syncMin ?? 0}); heard anyone in ${quiet.heardAny}, met anyone in ${quiet.met}; median longest wait to meet ${s(quiet.p50MeetMs)}, longest ${s(quiet.maxMeetMs)}`,
+        `  ${quiet.done ?? 0} sessions finished (${quiet.viaDirect ?? 0} over Wi-Fi Direct): events ${quiet.events ?? 0} in, ${quiet.sent ?? 0} out; files ${quiet.files ?? 0} in, ${quiet.served ?? 0} out, ${quiet.fileFails ?? 0} failed; stopped ${JSON.stringify(quiet.stops ?? {})}`);
+    }
+    const screen = x.rooms?.screen;
+    if (screen) out.push(`- Share nearby: ${screen.count} rooms on ${screen.installs} installs; heard anyone in ${screen.heardAny}, met anyone in ${screen.met}; ${screen.greets ?? 0} greetings to note a teammate's day; median longest wait to meet ${s(screen.p50MeetMs)}; stopped ${JSON.stringify(screen.stops ?? {})}`);
+    if (x.sessions) out.push(`- sessions with a record of their own (mode:end:bye:refusal): ${Object.entries(x.sessions).map(([k, c]) => `${k} ×${c}`).join(', ')}`);
+    if (x.links) out.push(`- links: ${JSON.stringify(x.links)}`);
+    if (x.codes || x.blocked) out.push(`- codes ${JSON.stringify(x.codes ?? {})}${x.blocked ? `, could not run ${JSON.stringify(x.blocked)}` : ''}`);
+    if (x.deliver) out.push(`- delivered teammates' work: ${x.deliver.count} times from ${x.deliver.installs} installs, ${x.deliver.events ?? 0} of ${x.deliver.sent ?? 0} events new, ${x.deliver.refused ?? 0} refused`);
+  }
+  console.log(out.join('\n'));
+}
+
+type RoomGroup = Record<string, number | undefined> & { count: number; installs: number; heardAny: number; met: number; p50MeetMs?: number | null; stops?: Record<string, number> | null };
+
+/** One language's team in `diag.nearby_summary`. */
+interface NearbyTeam {
+  installs: number;
+  rooms?: { open?: RoomGroup; screen?: RoomGroup } | null;
+  sessions?: Record<string, number> | null;
+  links?: Record<string, number> | null;
+  codes?: Record<string, number> | null;
+  blocked?: Record<string, number> | null;
+  deliver?: (Record<string, number | undefined> & { count: number; installs: number }) | null;
+  lastAt?: string;
 }
 
 /** One account's phones, whatever organization: someone in none yet, or waiting on a join request. */
@@ -331,6 +382,10 @@ function main(): void {
       if (rest.length < 1) throw new Error('usage: npm run diag -- org <org> [--days 14] [--json]');
       orgReport(rest.join(' '));
       return;
+    case 'nearby':
+      if (rest.length < 1) throw new Error('usage: npm run diag -- nearby <org> [--days 14] [--json]');
+      nearbyReport(rest.join(' '));
+      return;
     case 'person':
       if (rest.length < 1) throw new Error('usage: npm run diag -- person <profileId> [--days 14] [--json]');
       personReport(rest[0]!);
@@ -366,7 +421,7 @@ function main(): void {
       feedbackReport();
       return;
     default:
-      console.log('usage: npm run diag -- find <text> | report <org> <language> | org <org> | person <profileId> | jobs | inbox <org> | v2 | error <id> | timeline <installId> | feedback');
+      console.log('usage: npm run diag -- find <text> | report <org> <language> | org <org> | nearby <org> | person <profileId> | jobs | inbox <org> | v2 | error <id> | timeline <installId> | feedback');
   }
 }
 

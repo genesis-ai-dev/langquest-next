@@ -3,10 +3,12 @@ import { View } from 'react-native';
 import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { teammateSub } from '../nearby/carryWords';
+import { formatDay } from '../i18n/format';
 import { useDeliveryRefusals } from '../nearby/useDeliveryRefusals';
 import { useLetInOffered } from '../nearby/useLetIn';
 import { useNearbyOffered } from '../nearby/useNearby';
-import { useNearbyTeammates } from '../nearby/useNearby.native';
+import { useNearbyTeammates, useQuietUntil } from '../nearby/useNearby.native';
+import { quietLineOf, type QuietLine } from '../nearby/quietUntilModel';
 import { useWhileOpenNow } from '../nearby/useNearbyWhileOpen.native';
 import { teammatesFoldLine } from '../nearby/readyToCarryModel';
 import { nearbyRowWords, SEEN_WORDS } from '../nearby/shareNearbyModel';
@@ -36,7 +38,10 @@ import type { Ctx } from './ctx';
  * Above the row, where Share nearby can run here, the Teammates fold (15.4): each teammate and how
  * recent the newest work held from them is, as Ready to carry says, so a person sees where they
  * stand without opening Share nearby. Folded, its line names the least recent teammate. While the
- * phone shares quietly with LangQuest open (15.6), the row's line says so, and names nobody.
+ * phone shares quietly with LangQuest open (15.6), the row's line says so, and names nobody. Offline,
+ * where it may share that way, each teammate's row also says until when, as far as this phone
+ * knows; from three days before it asks the two to meet on Share nearby, and after, that it has
+ * stopped (15.8, `quietUntilOf`).
  */
 export function NearbyRow(props: { ctx: Ctx }) {
   const { ctx } = props;
@@ -47,6 +52,9 @@ export function NearbyRow(props: { ctx: Ctx }) {
   const refusals = useDeliveryRefusals(ctx);
   const team = useNearbyTeammates(ctx, offered && whyNot === null);
   const teamLine = teammatesFoldLine(team);
+  // Until when the phone shares with each one while LangQuest is open, offline where the mode runs (15.8).
+  const quiet = useQuietUntil(ctx, offered && whyNot === null);
+  const now = Date.now();
   const [teamOpen, setTeamOpen] = useState(false);
   // Sharing quietly while LangQuest is open: said here, never with a name (15.6).
   const quietNow = useWhileOpenNow() && whyNot === null;
@@ -60,7 +68,8 @@ export function NearbyRow(props: { ctx: Ctx }) {
             <Group>
               {team.map((m, i) => (
                 <HelpRow key={m.profileId} of="nearby.carryTeammate">
-                  <Row label={ctx.name(m.profileId)} sub={teammateSub(m)} last={i === team.length - 1} />
+                  <Row label={ctx.name(m.profileId)} sub={teammateSub(m)} below={quietBelow(quiet ? quietLineOf(quiet.get(m.profileId), now) : null)}
+                    last={i === team.length - 1} />
                 </HelpRow>
               ))}
             </Group>
@@ -105,4 +114,13 @@ function farAheadOf(ctx: Ctx): string[] {
   } catch {
     return [];
   }
+}
+
+/** A teammate's line under the fold's row while LangQuest is open: muted while time remains, amber from three days before. */
+function quietBelow(line: QuietLine | null) {
+  if (!line) return undefined;
+  const words = line.t === 'until' ? t('nearby.carry.quietUntil', { day: formatDay(line.at) })
+    : line.t === 'soon' ? t('nearby.carry.quietSoon', { day: formatDay(line.at) })
+      : t('nearby.carry.quietLapsed');
+  return <Text style={line.t === 'until' ? txt.smMuted : [txt.sm, { color: TINT.amberText }]}>{words}</Text>;
 }

@@ -1,4 +1,5 @@
 import { base64urlEncode, concatBytes, utf8Encode } from '@langquest-next/core/nearby';
+import { nearbyDayOf } from '../src/nearbyKeep';
 import { channelKeysOf } from '../src/nearbyOpening';
 import { ALONE_TAG, NEARBY_ROOM_DEFAULTS } from '../src/nearbyRoom';
 import { FakeServer } from '../src/testing/fakeServer';
@@ -471,6 +472,49 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
       expect([...a!.events, ...b!.events].some((e) => e.t === 'maybe')).toBe(false);
     });
 
+    // Carl, 2026-11-24: in place of a run cut at 30 minutes and a 10-minute rest, the same share of time on the
+    // air at "Up to date", never cutting work short and never keeping a teammate who arrives waiting long.
+    const PAUSED = { ...OPEN, levelPause: { onMs: 180_000, everyMs: 240_000 } };
+
+    it('at "Up to date" its radios are off one minute of every four, advertising nothing, and the run goes on', async () => {
+      const [a] = await rooms(1, [{ room: PAUSED }]);
+      let off = 0;
+      let scanning = 0;
+      const ticks = 600;
+      for (let i = 0; i < ticks; i++) {
+        await turn(air, time, [a!]);
+        if (a!.radio.find === null) off += 1;
+        else if (!a!.radio.scanHeld) scanning += 1;
+      }
+      // Twenty minutes in two-second ticks: a quarter off, and the scan's bursts only while on.
+      expect(off).toBeGreaterThanOrEqual(140);
+      expect(off).toBeLessThanOrEqual(160);
+      expect(scanning).toBeGreaterThanOrEqual(40);
+      expect(scanning).toBeLessThanOrEqual(70);
+      expect(a!.radio.calls.stopFind).toBe(5);
+      expect(stopped(a!)).toBeUndefined();
+      expect(a!.room.isRunning).toBe(true);
+    });
+
+    it('a teammate who arrives while it is off meets it within minutes, and the two never pause with work to do', async () => {
+      const [a, b] = await rooms(2, [{ room: PAUSED }, { room: PAUSED }]);
+      // Both level and alone for a while: b's radio is gone, as if b were not yet there.
+      await b!.room.stop();
+      for (let i = 0; i < 100; i++) await turn(air, time, [a!], false);
+      expect(a!.radio.find).toBeNull();
+      const late = roomFor(b!.phone, air, time, { room: PAUSED });
+      await late.room.start(time.now());
+      await unit(late.phone, 'b1');
+      await unit(a!.phone, 'a1');
+      let i = 0;
+      for (; i < 150 && air.pipes.length === 0; i++) await turn(air, time, [a!, late]);
+      expect(air.pipes.length).toBe(1);
+      expect(i * 2_000).toBeLessThanOrEqual(3 * 60_000);
+      for (let j = 0; j < 10; j++) await turn(air, time, [a!, late]);
+      expect(await idsOf(a!.phone.store)).toEqual(await idsOf(late.phone.store));
+      expect([a!, late].some((r) => stopped(r))).toBe(false);
+    });
+
     it('an Android and an iPhone meet with no tap; two iPhones never do, and pass each other over', async () => {
       const [android, iphone] = await rooms(2, [{ room: OPEN }, { ...IPHONE, room: OPEN }]);
       await unit(android!.phone, 'a1');
@@ -490,6 +534,52 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
       // Passed over, each is level and scanning in bursts, not all the time.
       expect(x!.events.some((e) => e.t === 'level')).toBe(true);
       expect(x!.room.isRunning && y!.room.isRunning).toBe(true);
+    });
+  });
+
+  // Carl, 2026-11-24 (decision 230 as amended): Share nearby notes the day each teammate is met, so the quiet mode
+  // goes on taking a teammate whose certificate is older than its window. A gathering must greet every pair that is due.
+  describe('on Share nearby where the quiet mode may run', () => {
+    const WINDOW = 14 * 86_400_000;
+
+    it('notes the day each pair met, greets a pair that is up to date only once its days are half gone, and once a run', async () => {
+      const [a, b] = await rooms(2, [{ notesMetForMs: WINDOW }, { notesMetForMs: WINDOW }]);
+      await unit(a!.phone, 'a1');
+      await unit(b!.phone, 'b1');
+      for (let i = 0; i < 12; i++) await turn(air, time, [a!, b!]);
+      expect(air.pipes.length).toBe(1);
+      const today = nearbyDayOf(a!.phone.client.nearbyHelloNow);
+      expect(await a!.phone.keep.met(0)).toEqual([{ key: people[1]!.key, profileId: 'sam', day: today }]);
+      expect(await b!.phone.keep.met(0)).toEqual([{ key: people[0]!.key, profileId: 'ana', day: today }]);
+      // Up to date, finished, and met today: nothing more.
+      for (let i = 0; i < 12; i++) await turn(air, time, [a!, b!]);
+      expect(air.pipes.length).toBe(1);
+      await a!.room.stop();
+      await b!.room.stop();
+
+      // A later run where both days are eight days old: the two greet once, with nothing to swap, and the days are today's again.
+      await a!.phone.keep.noteMet({ key: people[1]!.key, profileId: 'sam', day: today - 8 }, 0);
+      await b!.phone.keep.noteMet({ key: people[0]!.key, profileId: 'ana', day: today - 8 }, 0);
+      const later = memoryNearbyAir({ time, files: shelf });
+      const records: { t: Record<string, string>; n?: Record<string, number> }[] = [];
+      const again = [a!, b!].map((r) => roomFor(r.phone, later, time, { notesMetForMs: WINDOW, room: { diag: (x) => records.push(x) } }));
+      for (const r of again) await r.room.start(time.now());
+      for (let i = 0; i < 24; i++) await turn(later, time, again);
+      expect(later.pipes.length).toBe(1);
+      // The phone that began it counts it as a greeting, for the room's record.
+      for (const r of again) await r.room.stop();
+      expect(records.filter((x) => x.t.event === 'room').map((x) => x.n?.greets).sort()).toEqual([0, 1]);
+      expect((await a!.phone.keep.met(0)).map((m) => m.day)).toEqual([today]);
+      expect((await b!.phone.keep.met(0)).map((m) => m.day)).toEqual([today]);
+
+      // Plain Share nearby, where the quiet mode may not run, greets nobody and notes nothing.
+      await a!.phone.keep.noteMet({ key: people[1]!.key, profileId: 'sam', day: today - 8 }, 0);
+      const plain = memoryNearbyAir({ time, files: shelf });
+      const off = [roomFor(a!.phone, plain, time), roomFor(b!.phone, plain, time)];
+      for (const r of off) await r.room.start(time.now());
+      for (let i = 0; i < 24; i++) await turn(plain, time, off);
+      expect(plain.pipes).toEqual([]);
+      expect((await a!.phone.keep.met(0)).map((m) => m.day)).toEqual([today - 8]);
     });
   });
 

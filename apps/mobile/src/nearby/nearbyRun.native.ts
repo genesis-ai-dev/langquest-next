@@ -2,7 +2,7 @@ import type { OrgState } from '@langquest-next/core';
 import { summaryOf, summaryText, type ChainLink, type DiscoveryKey, type Holdings, type RevocationList } from '@langquest-next/core/nearby';
 import { ensureDeviceId, type SyncInspection } from '@langquest-next/sync';
 import {
-  nearbyKeepOf, NEARBY_DIAG_SCHEMA, NearbyRoom, NearbySession, type FindTunables, type NearbyDiagInput, type NearbyCrypto, type NearbyGate, type NearbyGenerations, type NearbyRoomEvent,
+  nearbyFirstDayWithin, nearbyGreetDue, nearbyKeepOf, NEARBY_DIAG_SCHEMA, NearbyRoom, NearbySession, type FindTunables, type NearbyDiagInput, type NearbyCrypto, type NearbyGate, type NearbyGenerations, type NearbyRoomEvent,
   type NearbyRoomFacts, type NearbySessionReport, type NearbySigner, type NearbyCopySource, type StartingCopyTarget
 } from '@langquest-next/sync/nearby';
 import * as Crypto from 'expo-crypto';
@@ -105,6 +105,12 @@ export interface NearbyRoomArgs {
   freshWithinMs?: number;
   /** Diagnostics record nothing while this says so: a room stopped because a cover went on must not date it (decision 235). */
   silent?: () => boolean;
+  /**
+   * Share nearby on a phone that may share while LangQuest is open (`notesMetOf`, 15.8): Hello
+   * notes the day each teammate is met, kept this long, and the room greets a teammate not met
+   * for half of it, with nothing to swap, so the quiet mode goes on taking them. Never while open.
+   */
+  notesMetForMs?: number;
   report(event: NearbyRoomEvent): void;
   progress(report: Readonly<NearbySessionReport>): void;
   /** Phase 6: what this phone sends a newcomer as a starting copy after an ordinary Hello, to whoever passed its read gate (14.1, 4). */
@@ -126,11 +132,17 @@ export function nearbyDiagFor(orgId: string, languageId: string): (input: Nearby
 const time = { now: () => Date.now(), sleep: (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms); }) };
 
 /** The room's facts from the language's store, as a session works them out: the summary after signing, and holdings for what each side lacks. */
-function factsOf(a: NearbyRoomArgs, keep: ReturnType<typeof nearbyKeepOf>, names: () => Promise<ReadonlyMap<string, string>>): NearbyRoomFacts {
+function factsOf(a: NearbyRoomArgs, keep: ReturnType<typeof nearbyKeepOf>, names: () => Promise<ReadonlyMap<string, string>>, notesMetForMs: number | undefined): NearbyRoomFacts {
   const { client } = a.language;
   const { crypto, signer, revoked } = a.pieces;
   let holdings: Holdings = new Map();
   return {
+    ...(notesMetForMs !== undefined ? {
+      async greetDue() {
+        const now = client.nearbyHelloNow;
+        return nearbyGreetDue(await keep.met(nearbyFirstDayWithin(now, notesMetForMs)), now, notesMetForMs);
+      }
+    } : {}),
     async summary() {
       await client.signUnsigned(signer);
       holdings = await keep.holdings();
@@ -159,9 +171,11 @@ export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
   const keep = nearbyKeepOf(client, { orgId, streamId: languageId });
   let key = pieces.findKey;
   const certOrgSeq = certOrgSeqOf(pieces.chain);
+  // Only Share nearby notes a day: a quiet meeting must not keep a taken phone in by itself.
+  const notesMetForMs = mode === 'screen' ? a.notesMetForMs : undefined;
   return new NearbyRoom({
     radio, crypto: pieces.crypto, keys: () => ({ gen: key.gen, key: key.key, floor: key.floor }),
-    facts: factsOf(a, keep, () => nearbyNamesOf(language, orgId)),
+    facts: factsOf(a, keep, () => nearbyNamesOf(language, orgId), notesMetForMs),
     ...roomLimitsFor(worn, mode),
     mode,
     // An iPhone's awdl and joinDirect go through as its module says them, joinDirect while the tunable allows it; neither while open.
@@ -184,7 +198,8 @@ export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
         ...(args.onOpened ? { onOpened: args.onOpened } : {}), otherWaiting: args.otherWaiting,
         arrange: { radio, radios: args.radios }, time, onProgress: a.progress,
         ...(a.copy ? { copy: a.copy } : {}), ...(a.takeCopy ? { takeCopy: a.takeCopy } : {}),
-        ...(a.freshWithinMs !== undefined ? { freshWithinMs: a.freshWithinMs } : {})
+        ...(a.freshWithinMs !== undefined ? { freshWithinMs: a.freshWithinMs } : {}),
+        ...(notesMetForMs !== undefined ? { notesMetForMs } : {})
       });
     }
   });

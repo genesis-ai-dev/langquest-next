@@ -11,6 +11,7 @@ import { isRecording, onRecordingChange } from '../recording/recorderState';
 import { wornNow } from '../shell/appCovered';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
+import { getStore } from '../storage/store';
 import { isOffline } from '../sync/uploadsModel';
 import { nearbyOpenOrgs, nearbyOpenSwitch, onNearbyHeld } from './nearbyIdentity.native';
 import { nearbyRadio } from './nearbyLink.native';
@@ -19,7 +20,7 @@ import { nearbyOwner } from './nearbyOwner';
 import { checkNearbyPermissions, phoneSystem } from './nearbyPermissions';
 import { permissionsStateOf, radiosOffOf, type PermissionAnswers } from './nearbyPermissionsModel';
 import { nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
-import { NEARBY_OPEN_FRESH_MS, NEARBY_OPEN_REST_MS, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, refusedAtDoor, startWithin } from './nearbyRunModel';
+import { NEARBY_OPEN_FRESH_MS, NEARBY_OPEN_REST_MS, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, startWithin, turnedAwayUnwelcome } from './nearbyRunModel';
 import { useNearbyOffered } from './useNearby.native';
 
 /**
@@ -30,10 +31,12 @@ import { useNearbyOffered } from './useNearby.native';
  * (`useWhileOpenWanted`). It never asks for a permission, never keeps the screen awake, offers no
  * tap and touches no hotspot (`nearbyRoomOf` with `mode: 'open'`). A screen that runs the radios
  * claims them (`nearbyOwner`), which stops this room first; every start and stop goes through the
- * owner's turn, so two rooms never run at once. After a Hello the door refused, a stop of the
- * room's own (its 30-minute cap among them) or a radio error, it rests (`NEARBY_OPEN_REST_MS`),
- * kept per language so a remount does not end it. It never runs behind the app lock, Hello takes
- * only a teammate whose certificate is recent (`NEARBY_OPEN_FRESH_MS`), and a room stopped because a
+ * owner's turn, so two rooms never run at once. At "Up to date" its radios run three minutes of
+ * every four (`NEARBY_OPEN_PAUSE`), and it never stops while there is anything to swap. After
+ * turning away a phone whose chain did not check, a stop of the room's own or a radio error, it
+ * rests a minute (`NEARBY_OPEN_REST_MS`), kept per language so a remount does not end it. It never runs behind the app lock, Hello takes
+ * only a teammate whose certificate is recent (`NEARBY_OPEN_FRESH_MS`) or whom this phone met on Share
+ * nearby within that long (`nearbyMet`, noted only there), and a room stopped because a
  * cover went on writes no diagnostics record, which would date it (the security review of
  * 2026-11-23). It draws nothing and shows no name: Sync and offline says only that it runs
  * (`useWhileOpenNow`), and the Teammates fold says what moved.
@@ -113,6 +116,19 @@ export function useWhileOpenWanted(ctx: Ctx): boolean {
   return !!kept && kept.actorId === actorId && !readOnly && kept.on && kept.orgs.has(orgId) && !worn && offline;
 }
 
+/**
+ * A phone with a cover keeps no day it met a teammate on Share nearby (`nearbyMet`, decision 230
+ * as amended): the mode that reads them never runs under one, and they say who was together and
+ * when. They go the moment a cover is on, and at every start while it is.
+ */
+export function useNoMetUnderCover(): void {
+  const { worn } = useAppCovered();
+  useEffect(() => {
+    if (!worn) return;
+    getStore().then((store) => store.clearMeta('nearbyMet:')).catch((e: unknown) => noteExpected('nearby: met under cover', e));
+  }, [worn]);
+}
+
 // ---- the room ---------------------------------------------------------------------------------
 
 export function useNearbyWhileOpen(ctx: Ctx): void {
@@ -133,6 +149,8 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
   const [answers, setAnswers] = useState<PermissionAnswers | null>(null);
   const [facts, setFacts] = useState<NativeCapabilities | null>(null);
   const resting = restKey(orgId, languageId);
+  const restingKey = useRef(resting);
+  restingKey.current = resting;
   const [restUntil, setRestUntil] = useState(() => restsUntil.get(resting) ?? 0);
   useEffect(() => { setRestUntil(restsUntil.get(resting) ?? 0); }, [resting]);
   const { os, sdk } = phoneSystem();
@@ -183,7 +201,9 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
     if (!h) return;
     h.forget();
     if (h.ticker) clearInterval(h.ticker);
-    await nearbyOwner.turn(() => h.room.stop()).catch((e: unknown) => noteExpected('nearby: open stop', e));
+    // A stop because a rest began says so in the room's record (decision 235 as amended).
+    const why = (restsUntil.get(restingKey.current) ?? 0) > Date.now() ? 'rest' : 'asked';
+    await nearbyOwner.turn(() => h.room.stop(why)).catch((e: unknown) => noteExpected('nearby: open stop', e));
   }, []);
 
   // A radio's error stops this room and rests, only while it is the one running.
@@ -212,10 +232,10 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
       const report = (e: NearbyRoomEvent) => {
         // Someone let in offline, met before the server knows them: their chain names them (14.1, 5).
         if (e.t === 'ended' && e.report.peer?.name) void noteChainName(actorId, e.report.peer.profileId, e.report.peer.name).catch((x: unknown) => noteExpected('nearby: chain name', x));
-        // Someone the door turned away: nothing more from the air for a while (15.8's review).
-        if (e.t === 'ended' && refusedAtDoor(e.report)) rest();
+        // A phone whose chain did not check: nothing more from the air for a while (15.8). A teammate whose window ran out is only passed over.
+        if (e.t === 'ended' && turnedAwayUnwelcome(e.report)) rest();
         // A stop of its own (waiting too long, no key): it rests rather than start again at once.
-        if (e.t === 'stopped' && e.why !== 'asked' && room && holding.current?.room === room) rest();
+        if (e.t === 'stopped' && e.why !== 'asked' && e.why !== 'rest' && room && holding.current?.room === room) rest();
       };
       room = nearbyRoomOf({
         radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn: false, mode: 'open', report, progress: () => undefined,

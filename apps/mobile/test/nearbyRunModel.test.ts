@@ -2,7 +2,7 @@ import { NOTHING_TO_CARRY } from '../src/nearby/readyToCarryModel';
 import { radiosMayRun, type RadiosGate } from '../src/nearby/nearbyModel';
 import {
   certOrgSeqOf, listedKey, mergeFarAhead, NearbyStartHeld, startWithin, namesOf, NEARBY_RADIO_TUNABLES, NEARBY_RUN_LIMIT_MS, NEARBY_RUN_START, NEARBY_SESSIONS_KEPT, nearbyOffered,
-  nearbyRunReducer, nearbyViewOf, orgSeqHereOf, radiosFor, recordUnless, refusedAtDoor, roomLimitsFor, sessionLineOf, swapOf, NEARBY_OPEN_FRESH_MS, NEARBY_OPEN_REST_MS, NEARBY_OPEN_RUN_MS,
+  nearbyRunReducer, nearbyViewOf, orgSeqHereOf, radiosFor, recordUnless, roomLimitsFor, sessionLineOf, swapOf, NEARBY_OPEN_FRESH_MS, NEARBY_OPEN_PAUSE, NEARBY_OPEN_REST_MS, turnedAwayUnwelcome,
   NEARBY_OPEN_SCAN, NEARBY_WAIT_LIMIT_MS,
   type NearbyRunAction, type NearbyRunState, type SessionReportLike
 } from '../src/nearby/nearbyRunModel';
@@ -320,13 +320,17 @@ describe('an iPhone (section 7, phase 5)', () => {
 
 // Sharing while LangQuest is open (docs/nearby-sync-plan.md 15.6).
 describe('the room while LangQuest is open', () => {
-  it('has no idle stop and no tap, scans in bursts at "Up to date", keeps the wait backstop, and stops each run at its cap', () => {
+  it('has no idle stop, no run limit and no tap, scans in bursts and pauses the radios at "Up to date", and keeps the wait backstop', () => {
     expect(roomLimitsFor(false, 'open')).toEqual({
-      idleLimitMs: Number.POSITIVE_INFINITY, waitLimitMs: NEARBY_WAIT_LIMIT_MS, runLimitMs: NEARBY_OPEN_RUN_MS, stopWhenLevel: false, taps: false, levelScan: NEARBY_OPEN_SCAN
+      idleLimitMs: Number.POSITIVE_INFINITY, waitLimitMs: NEARBY_WAIT_LIMIT_MS, stopWhenLevel: false, taps: false, levelScan: NEARBY_OPEN_SCAN, levelPause: NEARBY_OPEN_PAUSE
     });
     expect(NEARBY_OPEN_SCAN.onMs).toBeLessThan(NEARBY_OPEN_SCAN.everyMs);
-    // The security review's bounds (15.8): a run of half an hour, then a rest; a certificate of two weeks.
-    expect([NEARBY_OPEN_RUN_MS, NEARBY_OPEN_REST_MS, NEARBY_OPEN_FRESH_MS]).toEqual([30 * 60_000, 10 * 60_000, 14 * 86_400_000]);
+    // Carl, 2026-11-24: three minutes on the air of every four at "Up to date", the share the old 30-minute run and
+    // 10-minute rest gave, with a burst at the start of each on-time; a rest of a minute; a window of two weeks.
+    expect(NEARBY_OPEN_PAUSE).toEqual({ onMs: 3 * 60_000, everyMs: 4 * 60_000 });
+    expect(NEARBY_OPEN_PAUSE.onMs / NEARBY_OPEN_PAUSE.everyMs).toBe(30 / 40);
+    expect(NEARBY_OPEN_PAUSE.everyMs % NEARBY_OPEN_SCAN.everyMs).toBe(0);
+    expect([NEARBY_OPEN_REST_MS, NEARBY_OPEN_FRESH_MS]).toEqual([60_000, 14 * 86_400_000]);
     // Share nearby's own are as they were.
     expect(roomLimitsFor(false)).toEqual(roomLimitsFor(false, 'screen'));
   });
@@ -352,11 +356,15 @@ describe('the room while LangQuest is open', () => {
     expect(kept).toEqual(['a session', 'a screen room']);
   });
 
-  it('rests after the door turned someone away, either way, and only then', () => {
-    expect(refusedAtDoor({ ended: { how: 'said', reason: 'not-member' } })).toBe(true);
-    expect(refusedAtDoor({ ended: { how: 'heard', reason: 'identity' } })).toBe(true);
-    for (const ended of [{ how: 'done' }, { how: 'said', reason: 'busy' }, { how: 'heard', reason: 'stopped' }, { how: 'silent' }, { how: 'dropped' }]) {
-      expect(refusedAtDoor({ ended }), JSON.stringify(ended)).toBe(false);
+  // Carl, 2026-11-24: a teammate whose window ran out, standing near the team, must not stop the mode for everyone.
+  it('rests only after turning away a phone whose chain did not check; a teammate past the window is passed over', () => {
+    expect(turnedAwayUnwelcome({ ended: { how: 'said', reason: 'identity', detail: 'listed' } })).toBe(true);
+    expect(turnedAwayUnwelcome({ ended: { how: 'said', reason: 'identity', detail: 'wrong organization' } })).toBe(true);
+    for (const ended of [
+      { how: 'said', reason: 'identity', detail: 'certificate not recent' }, { how: 'said', reason: 'not-member' }, { how: 'heard', reason: 'identity' },
+      { how: 'done' }, { how: 'said', reason: 'busy' }, { how: 'heard', reason: 'stopped' }, { how: 'silent' }, { how: 'dropped' }
+    ]) {
+      expect(turnedAwayUnwelcome({ ended }), JSON.stringify(ended)).toBe(false);
     }
   });
 
