@@ -89,12 +89,23 @@ export function refusalOf(detail: string | undefined): NearbyDiagRefusal {
  * `served`, `fileFails`, `fallbacks`, `viaDirect` for those over Wi-Fi Direct, `syncMin`), so a
  * phone offline for weeks does not fill its queue, and says `pauseMin`, the minutes its radios
  * were off at "Up to date". Any other end still writes its own record.
+ *
+ * Also from 2026-11-24 (library documents and files between teammates): a session in which this
+ * phone asked a teammate for library documents its language uses says how many it kept, how many
+ * it refused (a text that did not check), how many the teammate could not give, and whether it
+ * stopped at its cap (`docsKept`, `docsRefused`, `docsMissing`, `docsCapped` as 0 or 1); with
+ * `library-files` on both sides, how many library files it said it holds, how many of the
+ * teammate's it could use, and how many it got and served (`libHeld`, `libTheirs`, `libGot`,
+ * `libServed`; `files` and `served` count only the language's recordings). Neither is there when
+ * the session asked for no documents or exchanged no library files. A quiet room sums the
+ * documents and the files got and served of its finished sessions; what a phone holds is not a sum.
  */
 export const NEARBY_DIAG_SCHEMA = {
   nearby: {
     n: ['ms', 'levelMs', 'heard', 'echoed', 'alone', 'maybe', 'taps', 'maxUnmatched', 'pipeFails', 'strangers', 'busy', 'noAnswer', 'sessions', 'done',
       'fallbacks', 'events', 'sent', 'refused', 'overBudget', 'files', 'served', 'fileFails', 'keyRefused', 'farAhead',
-      'noRoom', 'cutBackups', 'older', 'clockOff', 'newerApp', 'openMin', 'scanMin', 'pauseMin', 'syncMin', 'viaDirect', 'greets', 'maxMeetMs'],
+      'noRoom', 'cutBackups', 'older', 'clockOff', 'newerApp', 'openMin', 'scanMin', 'pauseMin', 'syncMin', 'viaDirect', 'greets', 'maxMeetMs',
+      'docsKept', 'docsRefused', 'docsMissing', 'docsCapped', 'libHeld', 'libTheirs', 'libGot', 'libServed'],
     t: {
       event: ['room', 'session', 'find', 'blocked', 'deliver'],
       mode: ['screen', 'open'],
@@ -135,7 +146,7 @@ const flag = (b: boolean) => (b ? 1 : 0);
 
 /** One of this phone's sessions, as it ended, and in which room's `mode`. Nothing in it says who the other phone was. */
 export function sessionDiagOf(report: NearbySessionReport, ms: number, mode?: NearbyRoomModeDiag): NearbyDiagInput {
-  const { ended, got, sent, files } = report;
+  const { ended, got, sent, files, topUp, libraryFiles: lib } = report;
   const t: Record<string, string> = { event: 'session', role: report.role, end: ended.how, ...(mode ? { mode } : {}) };
   if (ended.how === 'said' || ended.how === 'heard') t.bye = ended.reason;
   if (ended.how === 'said' && ended.reason === 'identity') t.refusal = refusalOf(ended.detail);
@@ -148,7 +159,9 @@ export function sessionDiagOf(report: NearbySessionReport, ms: number, mode?: Ne
       ms, fallbacks: report.fallbacks, events: got.events, sent: sent.events, refused: got.refused, overBudget: got.overBudget,
       files: files.got, served: files.served, fileFails: files.failed, keyRefused: report.handedKeyRefused, farAhead: report.farAhead.length,
       noRoom: flag(files.noRoom), cutBackups: flag(files.cutBackups), older: flag(report.older), clockOff: flag(report.clockOff),
-      newerApp: flag(report.newerAppNeeded)
+      newerApp: flag(report.newerAppNeeded),
+      ...(topUp ? { docsKept: topUp.kept, docsRefused: topUp.refused, docsMissing: topUp.missing, docsCapped: flag(topUp.capped) } : {}),
+      ...(lib ? { libHeld: lib.held, libTheirs: lib.theirs, libGot: lib.got, libServed: lib.served } : {})
     }
   };
 }
@@ -191,10 +204,20 @@ export interface NearbySyncedTally {
   fileFails: number;
   fallbacks: number;
   viaDirect: number;
+  /** Library documents taken from teammates, and the sessions that stopped at the cap. */
+  docsKept: number;
+  docsRefused: number;
+  docsMissing: number;
+  docsCapped: number;
+  /** Library files got and served. */
+  libGot: number;
+  libServed: number;
   ms: number;
 }
 
-export const emptySyncedTally = (): NearbySyncedTally => ({ events: 0, sent: 0, files: 0, served: 0, fileFails: 0, fallbacks: 0, viaDirect: 0, ms: 0 });
+export const emptySyncedTally = (): NearbySyncedTally => ({
+  events: 0, sent: 0, files: 0, served: 0, fileFails: 0, fallbacks: 0, viaDirect: 0, docsKept: 0, docsRefused: 0, docsMissing: 0, docsCapped: 0, libGot: 0, libServed: 0, ms: 0
+});
 
 /** Adds a finished session to the room's sums. */
 export function addSynced(sum: NearbySyncedTally, report: NearbySessionReport, ms: number): void {
@@ -205,6 +228,16 @@ export function addSynced(sum: NearbySyncedTally, report: NearbySessionReport, m
   sum.fileFails += report.files.failed;
   sum.fallbacks += report.fallbacks;
   if (report.linkKind === 'wifi-direct') sum.viaDirect += 1;
+  if (report.topUp) {
+    sum.docsKept += report.topUp.kept;
+    sum.docsRefused += report.topUp.refused;
+    sum.docsMissing += report.topUp.missing;
+    sum.docsCapped += flag(report.topUp.capped);
+  }
+  if (report.libraryFiles) {
+    sum.libGot += report.libraryFiles.got;
+    sum.libServed += report.libraryFiles.served;
+  }
   sum.ms += ms;
 }
 

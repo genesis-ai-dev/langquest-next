@@ -3,7 +3,7 @@ import { base64urlDecode, base64urlEncode, joinPassStop, newcomerProfileId, type
 import { ensureDeviceId, OfflineError, ORG_MATERIALIZER, SyncClient, type Transport } from '@langquest-next/sync';
 import {
   drawOpening, joinOnlyKeep, joinOnlyPort, nearbyKeepOf, NearbySession, openingPinOf, QR_SALT, qrSessionKeyOf, wifiDirectOptions,
-  type NearbyCopySource, type NearbyDocs, type NearbySessionReport, type StartingCopyTarget
+  type NearbyCopySource, type NearbySessionReport, type StartingCopyTarget
 } from '@langquest-next/sync/nearby';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
@@ -11,7 +11,6 @@ import { appBuild } from '../diagnostics/appBuild';
 import { noteExpected } from '../diagnostics/report';
 import type { JoinCode } from '../invites/inviteCode';
 import { joinUri } from '../invites/inviteCode';
-import { docText, heldDoc, keepFetchedDoc } from '../library/docStore';
 import { savedSignIn } from '../server/auth';
 import { keepLocalPerson, readLocalPerson } from '../server/localPerson';
 import { anyLocks, keepFindKeys } from '../server/lock';
@@ -22,6 +21,8 @@ import { getStore, holdsUnsent } from '../storage/store';
 import { anyHandOvers } from '../sync/handOver';
 import { askingRecord, notEmptyWhy, seedsFor, type NotEmptyWhy } from './joinOfflineModel';
 import { keepGrant, setWhenWhole } from './joinGrant';
+import { keepOpenOrgsFromJoin, nearbyOpenOrgs } from './nearbyIdentity.native';
+import { phoneDocs } from './nearbyLibrary.native';
 import { installKey } from '../server/nearbyKey';
 import { nobleSha256, phoneCryptoOf } from './nearbyCryptoModel';
 import type { PhoneRadio } from './nearbyLink.native';
@@ -44,13 +45,6 @@ const random = (n: number) => Crypto.getRandomBytes(n);
 const where = (orgId: string, languageId: string) => `${orgId}/${languageId}`;
 
 // ---- what a starting copy reads and writes ---------------------------------------------
-
-/** The library documents kept on this phone, as a starting copy reads and keeps them (sync's `NearbyDocs`). */
-export const phoneDocs: NearbyDocs = {
-  read: (hash) => heldDoc(hash),
-  text: (hash) => docText(hash),
-  keep: (hash, text) => keepFetchedDoc(hash, text)
-};
 
 /** What this person's directory holds, as `profile-directory` caches it; the sender filters it to the copy's members. */
 async function directoryOf(actorId: string): Promise<Record<string, string>> {
@@ -190,7 +184,7 @@ export async function joinWithCode(radio: PhoneRadio, code: JoinCode, name: stri
         // i18n-ignore: the error's message, for diagnostics
         if (!hooks.still() || await phoneNotEmpty(worn)) throw new OfflineError('the join was left');
         const next = await keepGrant(asked, g, {
-          keepLocalPerson, keepChains, keepFindKeys, seed: (pairs) => AsyncStorage.multiSet(pairs),
+          keepLocalPerson, keepChains, keepFindKeys, keepOpenOrgs: keepOpenOrgsFromJoin, seed: (pairs) => AsyncStorage.multiSet(pairs),
           missed: (what) => noteExpected('join', new Error(`the ${what} was not kept`))
         });
         granted = next;
@@ -353,6 +347,8 @@ async function letInOn(onGive: boolean, o: Parameters<typeof letInWithPass>[0]):
       copy: copySourceOf({ actorId: o.actorId, language: o.language.client, org: o.orgClient }),
       join: {
         as: 'inviter', pass: o.pass, discovery: { key: findKey.key, gen: findKey.gen, floor: findKey.floor },
+        // What this phone last heard the server say of the organization, so the newcomer shares while open as this phone does.
+        features: (await nearbyOpenOrgs(o.actorId)).has(o.orgId) ? ['nearby', 'nearby_join', 'nearby_open'] : ['nearby', 'nearby_join'],
         // The role was chosen before the code was shown; the tap only says yes or no.
         tap: async (who) => ((await hooks.tap({ name: who.name, profileId: who.profileId, pictures: who.pictures })) ? o.roleId : null),
         stop: (roleId) => joinPassStop(o.pass, roleId, { now: Date.now(), org: o.org, orgSeqHere, certOrgSeq, ...(revoked ? { revoked: revoked.list } : {}) })

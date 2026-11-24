@@ -1,4 +1,4 @@
-import { canonicalJson, HlcClock, ORG_STREAM, validateDoc, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
+import { canonicalJson, docHeadOf, HlcClock, ORG_STREAM, validateDoc, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
 import {
   base64urlEncode, bytesToHex, checkChain, joinPassBody, newcomerProfileId, utf8Encode, type ChainLink, type JoinPass, type WorkerLink
 } from '@langquest-next/core/nearby';
@@ -91,27 +91,38 @@ describe.each(STORES)('letting someone in, on the %s store', (_name, make) => {
       sessionFor(newcomer, 'i', pair.a, time, { join: join.n, chain: [] }).run(),
       sessionFor(inviter, 'r', pair.b, time, { join: join.i, copy }).run());
 
-  async function setUp(o: { tap?: string | null; stop?: string | null; pass?: (p: JoinPass) => JoinPass; inviter?: Parameters<typeof inviterPhone>[0] } = {}) {
+  async function setUp(o: { tap?: string | null; stop?: string | null; pass?: (p: JoinPass) => JoinPass; inviter?: Parameters<typeof inviterPhone>[0]; features?: readonly string[] } = {}) {
     const a = await inviterPhone(o.inviter);
     const n = await newcomerPhone();
-    const granted: { chain: ChainLink[]; discovery: { key: string; gen: number; floor: number } }[] = [];
+    const granted: { chain: ChainLink[]; discovery: { key: string; gen: number; floor: number }; features: readonly string[] }[] = [];
     const shown: [number, number][] = [];
     const tapped: { name: string; profileId: string; pictures: [number, number] }[] = [];
     const join = {
       i: {
         as: 'inviter', pass: o.pass ? o.pass(a.pass) : a.pass, discovery: { key: base64urlEncode(new Uint8Array(32).fill(9)), gen: 4, floor: 2 },
         tap: async (who) => { tapped.push(who); return o.tap === undefined ? 'translator' : o.tap; },
-        ...(o.stop !== undefined ? { stop: () => o.stop! } : {})
+        ...(o.stop !== undefined ? { stop: () => o.stop! } : {}), ...(o.features ? { features: o.features } : {})
       } satisfies NearbyJoinInviter,
       n: {
         as: 'newcomer', idSalt: SALT, profileId: n.profileId, name: 'Nyibol', pictures: (p) => shown.push(p),
-        granted: async (g) => { granted.push({ chain: g.chain, discovery: g.discovery }); }, target: n.target
+        granted: async (g) => { granted.push({ chain: g.chain, discovery: g.discovery, features: g.features }); }, target: n.target
       } satisfies NearbyJoinNewcomer
     };
     const copy: NearbyCopySource = { language: a.p.client, org: a.org, names: async () => ({ ana: 'Ana', elsewhere: 'Someone else\'s', asker: 'A join request' }) };
     const pair = memoryNearbyPair({ time, kind: 'wifi-direct' });
     return { a, n, join, copy, pair, granted, shown, tapped };
   }
+
+  // Carl, 2026-11-24: a phone that joined offline never heard the server say its organization shares while LangQuest is
+  // open, so the two phones never met by themselves. The grant carries the inviter's word.
+  it('hands the newcomer the organization\'s nearby features as the inviter\'s phone knows them, and none from an inviter that says none', async () => {
+    const s = await setUp({ features: ['nearby', 'nearby_join', 'nearby_open'] });
+    await run(s.a.p, s.n.p, s.pair, s.join, s.copy);
+    expect(s.granted.map((g) => g.features)).toEqual([['nearby', 'nearby_join', 'nearby_open']]);
+    const older = await setUp();
+    await run(older.a.p, older.n.p, older.pair, older.join, older.copy);
+    expect(older.granted.map((g) => g.features)).toEqual([[]]);
+  });
 
   it('after one tap: the same two pictures on both phones, a grant naming what the newcomer asked with, and a starting copy of this language only', async () => {
     const s = await setUp();
@@ -347,7 +358,7 @@ describe('a sender\'s answers and a newcomer\'s keep', () => {
   const tpl = { format: 'template@2', name: 'Tpl', deps: [], books: [], levels: [] } as unknown as LibraryDoc;
   const fia = { format: 'material@1', kind: 'key_terms', title: 'FIA', source: 'fia.bible', pattern: 'FIA', deps: [] } as unknown as LibraryDoc;
   const docs = new Map<string, LibraryDoc>([[h(tpl), tpl], [h(fia), fia], [h(versification), versification]]);
-  const port: NearbyDocs = { read: async (x) => docs.get(x) ?? null, text: async (x) => (docs.has(x) ? canonicalJson(docs.get(x)) : null), keep: async () => true };
+  const port: NearbyDocs = { head: async (x: string) => { const d = docs.get(x); return d ? docHeadOf(d) : null; }, text: async (x) => (docs.has(x) ? canonicalJson(docs.get(x)) : null), keep: async () => true };
   const lang = (): LanguageState => ({ template: { value: { itemId: 'tpl', docHash: h(tpl), unitPrefix: 'tpl' }, hlc: '', eventId: '' }, templateHistory: {}, flow: null, passageLinks: {}, languageReferences: {}, checkHelps: { peer: { 'item:fia': { value: true, hlc: '', eventId: '' } } } } as unknown as LanguageState);
   const orgState = { library: { fia: { kind: { value: 'material', hlc: 'x', eventId: 'e' }, name: { value: 'FIA', hlc: 'x', eventId: 'e' }, description: { value: '', hlc: 'x', eventId: 'e' }, copiedFrom: { value: null, hlc: '', eventId: '' }, versions: { [h(fia)]: { docHash: h(fia), hlc: 'x', eventId: 'e', actorId: 'a' } }, sharing: { value: { shared: false, subscribable: false }, hlc: '', eventId: '' }, archived: { value: false, hlc: '', eventId: '' }, subscription: { value: null, hlc: '', eventId: '' }, pinned: { value: null, hlc: '', eventId: '' } } }, recommendations: {}, members: { ana: {} }, roles: {}, languages: {} } as unknown as OrgState;
   const sender = () => new StartingCopySender({
@@ -356,10 +367,12 @@ describe('a sender\'s answers and a newcomer\'s keep', () => {
     docs: port
   }, LANG);
 
-  it('serves a document on the list in parts, refuses one off the list, and one the allowlist refuses', async () => {
+  // Carl, 2026-11-24: FIA's key words, which the language uses on a check, go as the template does.
+  it('serves a document on the list in parts, FIA\'s key words among them, and refuses one off the list', async () => {
     const s = sender();
     expect(await s.answer({ t: 'copy-ask', part: 'doc', hash: h(tpl) })).toMatchObject({ part: 'doc', body: canonicalJson(tpl), next: null });
-    expect(await s.answer({ t: 'copy-ask', part: 'doc', hash: h(fia) })).toBe('not-allowed');
+    expect(await s.answer({ t: 'copy-ask', part: 'doc', hash: h(fia) })).toMatchObject({ part: 'doc', body: canonicalJson(fia), next: null });
+    expect(await s.answer({ t: 'copy-ask', part: 'doc', hash: h(versification) })).toBe('not-allowed');
     expect(await s.answer({ t: 'copy-ask', part: 'doc', hash: 'f'.repeat(64) })).toBe('not-allowed');
     expect(await s.answer({ t: 'copy-ask', part: 'state', stream: 'p2' })).toBe('not-allowed');
     expect(await s.answer({ t: 'copy-ask', part: 'state', stream: LANG, after: 'x' })).toBe('not-allowed');
@@ -391,7 +404,7 @@ describe('a sender\'s answers and a newcomer\'s keep', () => {
     expect(JSON.parse(parts.join(''))).toEqual({ serverSeq: 1, state: { big } });
   });
 
-  it('a newcomer keeps a text only if it hashes to its name, is canonical, validates and the allowlist takes it', async () => {
+  it('a newcomer keeps a text only if it hashes to its name, is canonical and validates, a team\'s guide and FIA\'s key words among them', async () => {
     const good = { format: 'versification@1', code: 'eng', name: 'English', maxVerses: { GEN: [31] }, mappedVerses: {} };
     const text = canonicalJson(good);
     const hash = bytesToHex(fakeSha256(utf8Encode(text)));
@@ -399,13 +412,17 @@ describe('a sender\'s answers and a newcomer\'s keep', () => {
     expect(await admitDoc('0'.repeat(64), text, fakeSha256)).toBeNull();
     const spaced = JSON.stringify(good, null, 1);
     expect(await admitDoc(bytesToHex(fakeSha256(utf8Encode(spaced))), spaced, fakeSha256)).toBeNull();
-    // A team's own guide, whole and valid: the allowlist alone keeps it out (Carl's answer 19).
+    // A team's own guide and FIA's key words, whole and valid, are kept since Carl confirmed the terms (2026-11-24).
     const guide = { format: 'study@2', title: 'Clean water', links: [{ template: 'health', node: 'water' }], steps: [{ id: 's1', title: 'Listen', text: 'Water is fetched at dawn.' }], resources: [], terms: [], deps: [] };
     expect(validateDoc(guide)).toBeNull();
     const study = canonicalJson(guide);
-    expect(await admitDoc(bytesToHex(fakeSha256(utf8Encode(study))), study, fakeSha256)).toBeNull();
+    expect(await admitDoc(bytesToHex(fakeSha256(utf8Encode(study))), study, fakeSha256)).not.toBeNull();
     const fiaText = canonicalJson(fia);
-    expect(await admitDoc(bytesToHex(fakeSha256(utf8Encode(fiaText))), fiaText, fakeSha256)).toBeNull();
+    expect(validateDoc(fia)).toBeNull();
+    expect(await admitDoc(bytesToHex(fakeSha256(utf8Encode(fiaText))), fiaText, fakeSha256)).not.toBeNull();
+    // A format this build does not know stays out, however it hashes.
+    const later = canonicalJson({ format: 'study@9', title: 'Later', deps: [] });
+    expect(await admitDoc(bytesToHex(fakeSha256(utf8Encode(later))), later, fakeSha256)).toBeNull();
     expect(await admitDoc(hash, 'not json', fakeSha256)).toBeNull();
   });
 });

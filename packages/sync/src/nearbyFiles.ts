@@ -1,8 +1,10 @@
-import { buildIndexes, forScope, MAX_FILE_BYTES, openForReviewOf, type BlobRef, type FilePlan, type OrgState } from '@langquest-next/core';
+import { buildIndexes, forScope, MAX_FILE_BYTES, openForReviewOf, type BlobRef, type FilePlan, type LibraryFile, type OrgState } from '@langquest-next/core';
 import {
   backupsConfirmedOf, copiesOf, filesNamedBy, holdingsInForce, nearbyEvictableOf, nearbyGroupOf, nearbyShedOf, wantedFilesOf, type HoldChoice, type Holdings, type NearbyMark, type WantedFile
 } from '@langquest-next/core/nearby';
+import { AUDIO } from './keptLanguage';
 import type { LanguageFiles } from './languageFiles';
+import type { LibraryFileOrigins } from './libraryFileOrigins';
 import type { LanguageSessionOptions } from './languageSession';
 import { nearbyKeepOf } from './nearbyKeep';
 import type { NearbyMarks } from './nearbyMarks';
@@ -39,6 +41,23 @@ export interface NearbyFetchFile {
   remove(files: readonly { hash: string; format: string }[]): readonly string[];
 }
 
+/**
+ * The app's study folder, for files documents name only by web address (FIA's): kept by address,
+ * their bytes on a teammate's word until the phone fetches them again online (2026-11-24).
+ */
+export interface NearbyStudyLinks {
+  /** Of these addresses, the ones whose file is here. */
+  held(urls: readonly string[]): string[];
+  /** Of these addresses, the ones whose file is not here: those a kept passage needs first. */
+  lacking(urls: readonly string[]): string[];
+  /** Where to read one to serve it. */
+  serve(url: string): { uri: string; size: number } | null;
+  /** Where one lands, or null when it would leave too little room, or overrun the room kept for files no kept passage needs. */
+  stage(url: string): { stagingUri: string; maxBytes: number; minFreeBytes: number } | null;
+  /** It came: take it under its address, to be fetched again once online. */
+  adopt(url: string, stagingUri: string, size: number): Promise<void>;
+}
+
 /** What the phone gives once per person and organization. */
 export interface NearbyFilesPlatform {
   marks: NearbyMarks;
@@ -48,6 +67,25 @@ export interface NearbyFilesPlatform {
   canReview(languageId: string): boolean;
   /** This organization's fold, when it is read: a teammate's holdings stop counting once they are removed in it. */
   org?(): OrgState | null;
+  /** The study folder, for files named by address. Absent, none move. */
+  studyLinks?: NearbyStudyLinks;
+  /**
+   * The phone wears a cover now (decision 171): it takes no library file a kept passage of its own
+   * does not need (2026-11-24), so a search finds no more than its own work asks for. It still
+   * serves what it holds.
+   */
+  worn?(): boolean;
+  /**
+   * Which files came from the library (`LibraryFileOrigins`): only those are passed on as library
+   * files, and one taken from a teammate is added. Absent, none are passed on.
+   */
+  libraryOrigins?: LibraryFileOrigins;
+  /**
+   * The source chapters' audio this phone's kept passages want and lack, by hash (sources/offline.ts):
+   * the only source audio it takes from a teammate, as it would download it online, within the
+   * sources' share. Absent, it takes none.
+   */
+  sourceAudioWanted?(): ReadonlySet<string>;
 }
 
 /** Exactly what the nearby files reach of their `LanguageSession`. */
@@ -404,6 +442,8 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     } catch {
       return;
     }
+    // A library file never makes room, nor one named by address: with too little, this one waits and the rest go on.
+    if (!stage && (file.group === 'reference' || file.group === 'link')) return;
     if (!stage) {
       job.noRoom = true;
       job.finish();
@@ -418,10 +458,22 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     if (this.jobWork().length === 0) job.finish();
   }
 
-  /** Level 1 gives way first, before a nearby file lands, not after; level 2 never gives way for one. */
+  /**
+   * Level 1 gives way first, before a nearby file lands, not after; level 2 never gives way for one.
+   * A library file (`reference`) makes no room at all: it lands only while the phone already has
+   * the room every file keeps free.
+   */
   private async stage(file: WantedFile): Promise<{ stagingUri: string; maxBytes: number; minFreeBytes: number } | null> {
     const { fetchFile } = this;
     const { limits } = this.port.o;
+    if (file.group === 'link') return file.url ? this.platform.studyLinks?.stage(file.url) ?? null : null;
+    if (file.group === 'reference') {
+      const free = fetchFile.freeBytes();
+      if (free !== null && free < limits.minFreeBytes) return null;
+      const stagingUri = fetchFile.stagingUri(file);
+      if (!stagingUri) throw new Error('not a file name this store makes');
+      return { stagingUri, maxBytes: MAX_FILE_BYTES, minFreeBytes: limits.minFreeBytes };
+    }
     const reserve = this.port.plan.sizeOf(file.hash) ?? 0;
     const freed = await this.reclaim(await this.port.level1(), reserve);
     const free = fetchFile.freeBytes();
@@ -431,8 +483,39 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     return { stagingUri, maxBytes: MAX_FILE_BYTES, minFreeBytes: limits.minFreeBytes };
   }
 
+  private linksOf(links: NearbyStudyLinks): NonNullable<NonNullable<NearbyFileMoves['reference']>['links']> {
+    return {
+      held: async (urls) => links.held(urls),
+      lacking: async (urls) => links.lacking(urls),
+      serve: async (url) => links.serve(url)
+    };
+  }
+
   private choice(): HoldChoice | null {
     return this.port.o.holdChoice?.() ?? null;
+  }
+
+  /**
+   * Of these, library files here to pass on: present, known to have come from the library
+   * (`LibraryFileOrigins`), not a teammate's recording marked here, and named by no recording in any
+   * language kept on this phone (`audio` rows by hash) nor by this language's plan. The record of
+   * origins is what holds: a redacted recording, another language's unsent one or one not yet in a
+   * checkpoint is in no `audio` row, but never came from the library either (security review,
+   * 2026-11-24). Without the record, or a store that can say, it gives none.
+   */
+  private async referenceHeld(hashes: readonly string[]): Promise<string[]> {
+    const present = this.here();
+    const here = hashes.filter((h) => present.has(h) && !this.all.has(h));
+    const store = this.port.o.store;
+    const origins = this.platform.libraryOrigins;
+    if (here.length === 0 || !store?.keptIdsAnywhere || !origins) return [];
+    const known = await origins.has(here);
+    const library = here.filter((h) => known.has(h));
+    if (library.length === 0) return [];
+    // This language's own, whether or not it is kept on disk, and every language's kept on disk.
+    const plan = await this.port.plan.plan({ hashes: library });
+    const recordings = await store.keptIdsAnywhere(AUDIO, library);
+    return library.filter((h) => !plan.refs.has(h) && !recordings.has(h));
   }
 
   moves(): NearbyFileMoves {
@@ -452,13 +535,30 @@ class LanguageNearbyFiles implements NearbyFilesPart {
       },
       fetchFile: (file) => this.stage(file),
       landed: async (file, stagingUri, size) => {
+        // A file named by address goes to the study folder, under its address.
+        if (file.group === 'link') {
+          const links = this.platform.studyLinks;
+          if (file.url && links) await links.adopt(file.url, stagingUri, size);
+          else await fetchFile.discard(stagingUri);
+          return;
+        }
+        // A library file lands with no mark: nothing nearby ever deletes it, and no holdings count it.
+        if (file.group === 'reference') {
+          if (this.here().has(file.hash)) await fetchFile.discard(stagingUri);
+          else {
+            await fetchFile.commit(file, stagingUri, size);
+            // A teammate passed it on as a library file, so it had come from the library: so has this copy.
+            await this.platform.libraryOrigins?.add([file.hash]);
+          }
+          return;
+        }
         // The same bytes are here already, maybe this person's own: no mark can make them deletable.
         if (this.here().has(file.hash) && !this.all.has(file.hash)) {
           await fetchFile.discard(stagingUri);
           return;
         }
         // The mark before the name: a crash between leaves a mark on nothing, never a teammate's file unmarked and so counted as this person's.
-        const mark: NearbyMark = { hash: file.hash, format: file.format, languageId: this.languageId, group: file.group, copies: 0 };
+        const mark: NearbyMark = { hash: file.hash, format: file.format, languageId: this.languageId, group: file.group as NearbyMark['group'], copies: 0 };
         await this.platform.marks.put([mark]);
         this.all.set(mark.hash, mark);
         await fetchFile.commit(file, stagingUri, size);
@@ -472,7 +572,24 @@ class LanguageNearbyFiles implements NearbyFilesPart {
       },
       holds: () => this.choice()?.hold === true,
       shed: (holdings) => this.shed(holdings),
-      take: (job) => this.take(job)
+      take: (job) => this.take(job),
+      reference: {
+        held: (hashes) => this.referenceHeld(hashes),
+        lacking: (wanted: readonly LibraryFile[]) => {
+          const present = this.here();
+          const sources = this.platform.sourceAudioWanted?.() ?? new Set<string>();
+          // A source's chapter only when a kept passage wants it. A team's guide files are not known by passage
+          // here, so a phone under a cover takes none of them; its kept passages' chapters it still takes.
+          const worn = this.platform.worn?.() === true;
+          return wanted.filter((f) => !present.has(f.hash) && (f.kind === 'source' ? sources.has(f.hash) : !worn));
+        },
+        serve: async (file) => {
+          if ((await this.referenceHeld([file.hash])).length === 0) return null;
+          const uri = fetchFile.uriOf({ hash: file.hash, format: files.formatOf(file.hash) ?? file.format });
+          return uri ? { uri, size: files.sizeOf(file.hash) ?? 0 } : null;
+        },
+        ...(this.platform.studyLinks ? { links: this.linksOf(this.platform.studyLinks) } : {})
+      }
     };
   }
 

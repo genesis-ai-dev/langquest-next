@@ -199,6 +199,13 @@ describe('diagnostic signals', () => {
     expect(all).toMatch(/watch: Delivering teammates' work to the server, 3 events were refused here \(3 stamped too far ahead/);
   });
 
+  // 2026-11-24: library documents from a teammate that do not check are a fault on one side; documents a teammate lacked are not.
+  it('reads library documents from a teammate that did not check, on Share nearby and while open together, and nothing for ones it lacked', () => {
+    const t = texts({ a: install({ nearby: { sessionTotals: { count: 2, docsKept: 4, docsRefused: 1, docsMissing: 3 }, openTotals: { count: 1, docsRefused: 2, libGot: 5 } } }) });
+    expect(t.join('\n')).toMatch(/watch: 3 library documents from a teammate's phone did not check/);
+    expect(texts({ b: install({ nearby: { sessionTotals: { count: 1, docsKept: 2, docsMissing: 5, docsCapped: 1, libGot: 3 } } }) })).toEqual([]);
+  });
+
   it("names Share nearby's expected failures, and an attestation that did not match as a problem", () => {
     const t = texts({ a: install({ expected: [
       { where: 'nearby_attest', name: 'mismatch', code: null, count: 1, lastAt: 'T' },

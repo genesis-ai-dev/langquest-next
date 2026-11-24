@@ -19,6 +19,7 @@ import { nearbyRowShown } from './nearbyRowModel';
 import { nearbyRadio } from './nearbyLink.native';
 import { carryFactsOf, quietFactsOf, type StoredCarryFacts } from './nearbyCarry.native';
 import { copySourceOf } from './nearbyCopySource';
+import { nearbyLibraryOf } from './nearbyLibrary.native';
 import { nearbyBlockedOf } from './nearbyDiagModel';
 import { holdByDefault, notesMetOf, radiosMayRun } from './nearbyModel';
 import { nearbyOwner } from './nearbyOwner';
@@ -220,8 +221,10 @@ export function useNearby(ctx: Ctx): NearbyHandle {
       };
       // Any teammate whose read gate passes a newcomer's chain sends a starting copy, on the same versions (14.1, 4): on Android; an iPhone has none.
       const copy = copySourceOf({ actorId, language: open.client, org: orgClient.current() });
+      // Any teammate, iPhone or Android, swaps the library documents the language uses (14.1, 2026-11-24).
+      const library = nearbyLibraryOf({ language: open.client, org: () => orgState.current });
       room = nearbyRoomOf({
-        radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn, report, progress, copy,
+        radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn, report, progress, copy, library,
         ...(notesMet ? { notesMetForMs: NEARBY_OPEN_FRESH_MS } : {})
       });
       held.current = { room, ticker: null };

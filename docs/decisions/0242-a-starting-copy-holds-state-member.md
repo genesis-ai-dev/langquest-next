@@ -1,6 +1,6 @@
 # 242. A starting copy holds state, member names and the library documents the language uses, on allowlists that fail closed, until the server's first download replaces it
 
-Date: 2026-11-12 · By: Carl Sauder · Status: accepted
+Date: 2026-11-12 · By: Carl Sauder · Status: partly superseded by 2026-11-24-a-starting-copy-carries-every-library-document-a-language-uses
 
 Reason: Carl's answer 6: a newcomer needs a language to work in before
 first contact, so the inviter's phone, or any teammate's on the same

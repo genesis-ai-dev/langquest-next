@@ -35,13 +35,15 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 }));
 vi.mock('../src/diagnostics/appBuild', () => ({ appBuild: () => ({}) }));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: (where: string, e: unknown) => { fake.noted.push(`${where}: ${e instanceof Error ? e.message : String(e)}`); } }));
-vi.mock('../src/library/docStore', () => ({ docText: async () => null, heldDoc: async () => null, keepFetchedDoc: async () => undefined }));
+vi.mock('../src/library/docStore', () => ({ docText: async () => null, heldDoc: async () => null, heldDocHead: async () => null, keepFetchedDoc: async () => undefined }));
 vi.mock('../src/server/auth', () => ({ savedSignIn: async () => null }));
 vi.mock('../src/server/localPerson', () => ({ keepLocalPerson: async () => true, readLocalPerson: async () => null }));
 vi.mock('../src/server/lock', () => ({ anyLocks: async () => false, keepFindKeys: async () => undefined }));
 vi.mock('../src/server/nearbyKey', () => ({ installKey: async () => null, replaceInstallKey: async () => null }));
 vi.mock('../src/storage/store', () => ({ getStore: async () => null, holdsUnsent: async () => false }));
 vi.mock('../src/sync/handOver', () => ({ anyHandOvers: async () => false }));
+// What the phone knows of the organization's sharing while open, handed on in the grant (2026-11-24).
+vi.mock('../src/nearby/nearbyIdentity.native', () => ({ keepOpenOrgsFromJoin: async () => undefined, nearbyOpenOrgs: async () => new Set<string>() }));
 vi.mock('../src/nearby/nearbyPhone.native', () => ({
   keepChains: async () => undefined, nearbyGateFor: async () => ({ people: () => [] }), nearbyMakerFor: async () => null, readChains: async () => ({}),
   readRevoked: async () => null, ROOT_KEYS: new Map()

@@ -9,7 +9,7 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { noteExpected } from '../diagnostics/report';
 import * as server from '../server/library';
-import { cachedDoc, flushOutbox, keepNewDoc, loadDocs, onDocs, prepareDoc } from './docStore';
+import { cachedDoc, flushOutbox, heldDoc, keepNewDoc, loadDocs, onDocs, prepareDoc } from './docStore';
 import { adoptError } from './failureModel';
 import { copyOps, followOps, mayWriteLibrary, newItemId, publishOps, readRetryMs, subscribeOps, type LibraryOp, type SharedItem } from './model';
 
@@ -157,6 +157,22 @@ export function useLibraryDocs(orgId: string, hashes: (string | null | undefined
   const answered = useRef(new Set<string>());
   const [answers, setAnswers] = useState(0);
   useEffect(() => onDocs(() => bump((n) => n + 1)), []);
+  // A teammate's phone may hand over a guide this screen waits for, kept on disk only (docStore's
+  // `READ_WHEN_NEEDED`): when documents arrive, read from this phone what the screen still lacks.
+  useEffect(() => {
+    if (!key || revision === 0) return;
+    const lacking = key.split(',').filter((h) => !cachedDoc(h));
+    if (lacking.length === 0) return;
+    let active = true;
+    void Promise.all(lacking.map((h) => heldDoc(h).catch(() => null))).then((got) => {
+      if (!active || !got.some(Boolean)) return;
+      lacking.forEach((h, i) => { if (got[i]) answered.current.add(h); });
+      setAnswers((n) => n + 1);
+      // A new `get`, so memos that read through it see what came; what is still lacking is not read again until more arrive.
+      bump((n) => n + 1);
+    });
+    return () => { active = false; };
+  }, [key, revision]);
   useEffect(() => {
     if (!key) return;
     let active = true;

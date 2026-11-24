@@ -5,7 +5,7 @@ import type { Session } from '../shell/session';
 import type { OrgHandle } from '../sync/useOrg';
 import type { LanguageHandle } from '../sync/useLanguage';
 import { referenceUnits } from '../sync/offlineModel';
-import { pass, restoreReference } from './offline';
+import { pass, restoreReference, sourceAudioWanted } from './offline';
 
 /** How long after a change a pass runs: a sync changes the record many times a second, and one pass covers them all. */
 const PASS_AFTER_MS = 4000;
@@ -66,6 +66,16 @@ export function useSourceOffline(language: LanguageHandle, org: OrgHandle, sessi
     if (soon.current) return;
     soon.current = setTimeout(() => { soon.current = null; run.current(); }, PASS_AFTER_MS);
   }, [libraryKey, scope, language.online]);
+
+  // A chapter this phone wants arriving in the store from a teammate's phone: soon, so it is indexed and counted.
+  const store = language.blobs.store;
+  useEffect(() => {
+    if (!store) return;
+    return store.onChange(() => {
+      if (soon.current || ![...sourceAudioWanted()].some((h) => store.has(h))) return;
+      soon.current = setTimeout(() => { soon.current = null; run.current(); }, PASS_AFTER_MS);
+    });
+  }, [store]);
 
   useEffect(() => () => {
     if (settled.current) clearTimeout(settled.current);

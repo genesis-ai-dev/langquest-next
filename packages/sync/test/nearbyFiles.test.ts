@@ -5,6 +5,7 @@ import { MemoryStore } from '../src/memoryStore';
 import { nearbyClient } from '../src/nearbyClient';
 import { nearbyFiles, type NearbyFetchFile } from '../src/nearbyFiles';
 import { nearbyKeepOf } from '../src/nearbyKeep';
+import { MemoryLibraryFileOrigins } from '../src/libraryFileOrigins';
 import { MemoryNearbyMarks } from '../src/nearbyMarks';
 import { FakeServer } from '../src/testing/fakeServer';
 import type { Transport } from '../src/types';
@@ -92,9 +93,10 @@ async function until(ok: () => boolean | Promise<boolean>, ms = 3000): Promise<v
   }
 }
 
-async function setUp(over: { choice?: HoldChoice | null; org?: OrgState; mayUpload?: boolean; limits?: LanguageSessionOptions['limits']; preset?: NearbyMark[]; upload?: LanguageSessionOptions['upload']; transport?: (t: Transport) => Transport } = {}) {
+async function setUp(over: { origins?: MemoryLibraryFileOrigins; worn?: () => boolean; sourceAudioWanted?: () => ReadonlySet<string>; choice?: HoldChoice | null; org?: OrgState; mayUpload?: boolean; limits?: LanguageSessionOptions['limits']; preset?: NearbyMark[]; upload?: LanguageSessionOptions['upload']; transport?: (t: Transport) => Transport } = {}) {
   const server = new FakeServer();
   const marks = new MemoryNearbyMarks();
+  const origins = over.origins ?? new MemoryLibraryFileOrigins();
   await marks.put(over.preset ?? []);
   const f = phoneFiles();
   const wall = { t: 0 };
@@ -107,7 +109,8 @@ async function setUp(over: { choice?: HoldChoice | null; org?: OrgState; mayUplo
     limits: over.limits ?? { minFreeBytes: 500 * MB, maxTotalBytes: 2048 * MB },
     client: { clock: new HlcClock('phone', () => (wall.t += 1)), newId: () => `e${(wall.t += 1)}`, nearby: nearbyClient() },
     fetchFile: f.fetchFile,
-    nearbyFiles: nearbyFiles({ marks, installKey: () => ME_KEY, canReview: () => false, org: () => over.org ?? null }),
+    nearbyFiles: nearbyFiles({ marks, installKey: () => ME_KEY, canReview: () => false, org: () => over.org ?? null, ...(over.worn ? { worn: over.worn } : {}), ...(over.sourceAudioWanted ? { sourceAudioWanted: over.sourceAudioWanted } : {}),
+      libraryOrigins: over.origins ?? origins }),
     holdChoice: () => choice.now,
     mayUpload: () => over.mayUpload ?? true
   });
@@ -148,7 +151,7 @@ async function setUp(over: { choice?: HoldChoice | null; org?: OrgState; mayUplo
     await again.sync();
     again.close();
   };
-  return { server, session, marks, ...f, moves, land, keep, choice, samRecords, openAkol };
+  return { server, session, marks, store, origins, ...f, moves, land, keep, choice, samRecords, openAkol };
 }
 
 const chainOf = (profileId: string) => [{ kind: 'worker@1', kid: 'k', body: { profileId }, sig: SIG }] as unknown as ChainLink[];
@@ -482,6 +485,90 @@ describe('nearby files: serving and the third worker (5.6)', () => {
     disk.free = 10_000 * MB;
     const drop = new Error('dropped');
     await expect(moves.take!({ list: [{ hash: H('6'), format: 'm4a', group: 'needed' }], fetch: async () => { throw drop; }, linkUp: () => true, stop: () => false })).rejects.toBe(drop);
+    session.close();
+  });
+});
+
+// 2026-11-24: a team's guides' pictures and audio go between teammates' phones, never a recording a document names.
+describe('nearby files: library files (5.12, 2026-11-24)', () => {
+  const GUIDE = H('d');
+  const OTHER_LANGUAGE = H('e');
+
+  it('holds and serves a library file that is here, never one a recording of this or any language names', async () => {
+    const { session, moves, files, store, origins } = await setUp();
+    files.put(GUIDE, 2 * MB);
+    files.put(OTHER_LANGUAGE, MB);
+    // Each came from the library as far as this phone knows; the recordings' rows still hold them back.
+    await origins.add([GUIDE, MINE, OTHER_LANGUAGE]);
+    // Another language's recording on this phone, kept on disk: its audio row names the file.
+    await store.commit({ kept: { orgId: 'org1', streamId: 'mark', upsert: [{ kind: 'audio', id: OTHER_LANGUAGE, unitId: 'Mark 1', ref: '', json: '{}' }] } });
+    const reference = moves.reference!;
+    expect(await reference.held([GUIDE, MINE, OTHER_LANGUAGE, H('0')])).toEqual([GUIDE]);
+    expect(await reference.serve({ hash: GUIDE, format: 'jpg' })).toEqual({ uri: `file:${GUIDE}`, size: 2 * MB });
+    // A document naming this language's recording, or another's, gets nothing.
+    expect(await reference.serve({ hash: MINE, format: 'm4a' })).toBeNull();
+    expect(await reference.serve({ hash: OTHER_LANGUAGE, format: 'm4a' })).toBeNull();
+    expect(reference.lacking([{ hash: GUIDE, format: 'jpg' }, { hash: H('7'), format: 'jpg' }])).toEqual([{ hash: H('7'), format: 'jpg' }]);
+    session.close();
+  });
+
+  // The security review's (2026-11-24): a redacted recording is in no plan and no audio row, yet its file stays on the phone.
+  it('a file not known to have come from the library is never passed on: a redacted recording\'s, or another language\'s unsent one', async () => {
+    const { session, moves, files, origins } = await setUp();
+    const redacted = H('6');
+    files.put(redacted, MB);
+    files.put(GUIDE, MB);
+    await origins.add([GUIDE]);
+    expect(await moves.reference!.held([redacted, GUIDE])).toEqual([GUIDE]);
+    expect(await moves.reference!.serve({ hash: redacted, format: 'm4a' })).toBeNull();
+    session.close();
+  });
+
+  it('a library file a teammate gives becomes one this phone knows came from the library', async () => {
+    const { session, moves, origins } = await setUp();
+    const file: WantedFile = { hash: H('5'), format: 'jpg', group: 'reference' };
+    const stage = await moves.fetchFile(file);
+    await moves.landed(file, stage!.stagingUri, MB);
+    expect(await origins.has([H('5')])).toEqual(new Set([H('5')]));
+    session.close();
+  });
+
+  it('a phone under a cover takes no team guide file (decision 171), and still serves what it holds', async () => {
+    const worn = { now: true };
+    const { session, moves, files, origins } = await setUp({ worn: () => worn.now });
+    files.put(GUIDE, MB);
+    await origins.add([GUIDE]);
+    expect(moves.reference!.lacking([{ hash: H('7'), format: 'jpg' }])).toEqual([]);
+    expect(await moves.reference!.serve({ hash: GUIDE, format: 'jpg' })).not.toBeNull();
+    worn.now = false;
+    expect(moves.reference!.lacking([{ hash: H('7'), format: 'jpg' }])).toEqual([{ hash: H('7'), format: 'jpg' }]);
+    session.close();
+  });
+
+  it('a source\'s chapter only when a kept passage wants it, even under a cover', async () => {
+    const wanted = new Set([H('8')]);
+    const worn = { now: false };
+    const { session, moves } = await setUp({ sourceAudioWanted: () => wanted, worn: () => worn.now });
+    const chapters = [{ hash: H('8'), format: 'mp3', kind: 'source' as const }, { hash: H('9'), format: 'mp3', kind: 'source' as const }];
+    expect(moves.reference!.lacking(chapters)).toEqual([chapters[0]]);
+    worn.now = true;
+    expect(moves.reference!.lacking([...chapters, { hash: H('7'), format: 'jpg' }])).toEqual([chapters[0]]);
+    session.close();
+  });
+
+  it('a library file lands unmarked, makes no room by deleting, and counts for no one', async () => {
+    const { session, moves, marks, disk, reclaims } = await setUp();
+    const file: WantedFile = { hash: GUIDE, format: 'jpg', group: 'reference' };
+    const stage = await moves.fetchFile(file);
+    expect(stage).not.toBeNull();
+    expect(reclaims).toEqual([]);
+    await moves.landed(file, stage!.stagingUri, MB);
+    expect(await marks.all()).toEqual([]);
+    expect(await moves.held()).not.toContain(GUIDE);
+    // Short of room, it waits rather than make room.
+    disk.free = 100 * MB;
+    expect(await moves.fetchFile({ hash: H('8'), format: 'jpg', group: 'reference' })).toBeNull();
+    expect(reclaims).toEqual([]);
     session.close();
   });
 });

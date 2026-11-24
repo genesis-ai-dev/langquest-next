@@ -22,8 +22,8 @@ import { GetInstallFileScreen } from '../nearby/GetInstallFileScreen';
 import { GiveAppScreen } from '../nearby/GiveAppScreen';
 import { ChosenPicture } from '../auth/patternPad';
 import { apkStep, installFileRow, joinRows, letInVersionsWords, type ApkStep } from '../nearby/carriedApkModel';
-import { joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
-import { codeLeft, type LetInEnd, type LetInWhyNot } from '../nearby/letInModel';
+import { joinGuideFilesLine, joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
+import { codeLeft, letInGuideFilesLine, type LetInEnd, type LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
 import { useCarriedApk } from '../nearby/useCarriedApk';
 import { useLetIn, useLetInOffered } from '../nearby/useLetIn';
@@ -210,7 +210,7 @@ function StageCard(props: { stage: NearbyStage; view: NearbyView; actions: Nearb
                 <ActivityIndicator color={C.primary} />
                 <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{t('nearby.sharingWith', { name: props.who(sharingWith) })}</Text>
               </View>
-              <Counts eventsIn={current.eventsIn} eventsOut={current.eventsOut} filesIn={current.filesIn} filesOut={current.filesOut} />
+              <Counts eventsIn={current.eventsIn} eventsOut={current.eventsOut} filesIn={current.filesIn} filesOut={current.filesOut} guideFilesIn={current.guideFilesIn} />
             </View>
           ) : stage.level ? null : (
             <View style={styles.line}>
@@ -283,14 +283,18 @@ function Teammates(props: { view: NearbyView; actions: NearbyActions; who: (p: s
   );
 }
 
-/** Changes and recordings each way, as label and number, so no language needs a plural for them. */
-function Counts(props: { eventsIn: number; eventsOut: number; filesIn: number; filesOut: number }) {
+/**
+ * Changes and recordings each way, as label and number, so no language needs a plural for them;
+ * and guide pictures and audio received, only when some came (5.12, Library files).
+ */
+function Counts(props: { eventsIn: number; eventsOut: number; filesIn: number; filesOut: number; guideFilesIn: number }) {
   return (
     <View style={styles.counts}>
       <Text style={txt.sm}>{t('nearby.came.changesIn', { n: props.eventsIn })}</Text>
       <Text style={txt.sm}>{t('nearby.came.changesOut', { n: props.eventsOut })}</Text>
       <Text style={txt.sm}>{t('nearby.came.filesIn', { n: props.filesIn })}</Text>
       <Text style={txt.sm}>{t('nearby.came.filesOut', { n: props.filesOut })}</Text>
+      {props.guideFilesIn ? <Text style={txt.sm}>{t('nearby.came.guideFilesIn', { n: props.guideFilesIn })}</Text> : null}
     </View>
   );
 }
@@ -307,7 +311,7 @@ function CameAcross(props: { sessions: readonly NearbySessionLine[]; who: (p: st
         return (
           <Card key={`${l.tag ?? ''}-${i}`}>
             <Text style={[txt.body, { fontWeight: '700' }]}>{props.who(l.profileId)}</Text>
-            <Counts eventsIn={l.eventsIn} eventsOut={l.eventsOut} filesIn={l.filesIn} filesOut={l.filesOut} />
+            <Counts eventsIn={l.eventsIn} eventsOut={l.eventsOut} filesIn={l.filesIn} filesOut={l.filesOut} guideFilesIn={l.guideFilesIn} />
             {l.refused ? <Text style={txt.smMuted}>{t('nearby.came.refused', { n: l.refused })}</Text> : null}
             {l.filesFailed ? <Text style={txt.smMuted}>{t('nearby.came.filesFailed', { n: l.filesFailed })}</Text> : null}
             {ended ? <Text style={txt.smMuted}>{t(ended)}</Text> : null}
@@ -519,6 +523,8 @@ export function LetSomeoneIn(ctx: Ctx) {
           {stage.t === 'ended' ? (
             <Banner icon="info" tone="amber" title={stage.why === 'versions' ? versionsWords(apk.needed) : t(LET_IN_END[stage.why])} />
           ) : null}
+          {/* Once they are in: the starting copy carried their guides without pictures and audio (docs/nearby-sync-plan.md 5.12, Library files). */}
+          {letInGuideFilesLine(stage) ? <Text style={txt.sm}>{t('nearby.letIn.guideFiles')}</Text> : null}
           {state.turnedAway ? (
             <View style={styles.line}>
               <Ico name="warning" size={20} color={TINT.amberText} />
@@ -648,6 +654,8 @@ export function JoinOffline(ctx: Ctx) {
       {(stage.t === 'unfinished' || stage.t === 'looking') && stage.otherVersion
         ? <Banner icon="info" tone="amber" title={t('nearby.join.otherVersion')} body={t('nearby.join.otherVersionLine')} /> : null}
       {stage.t === 'whole' ? <Banner icon="check" tone="green" title={t('nearby.join.whole')} body={t('nearby.join.installFile')} /> : null}
+      {/* From the grant on: the starting copy carries guides without pictures and audio (docs/nearby-sync-plan.md 5.12, Library files). */}
+      {joinGuideFilesLine(stage) ? <Text style={txt.sm}>{t('nearby.join.guideFiles')}</Text> : null}
       {stage.t === 'ended' ? <Banner icon="info" tone="amber" title={t(JOIN_END[stage.why])} /> : null}
     </Screen>
   );

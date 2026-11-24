@@ -6,8 +6,8 @@
 // so guides numbered in English land on passages a team numbers another way.
 // Pure: documents in, a choice out.
 import {
-  libraryUnitRange, parseRef, sharedVerses, studyEntriesFor, unitPrefixFor, usfmOf, versesInChapter,
-  type CollectionDoc, type LibraryDoc, type MediaRef, type LanguageState, type StudyDoc, type StudyDoc2, type TemplateDoc, type VerseRange, type VersificationDoc
+  libraryUnitRange, mediaFileOf, parseRef, sharedVerses, studyEntriesFor, unitPrefixFor, usfmOf, versesInChapter,
+  type CollectionDoc, type LibraryDoc, type MediaFileKind, type MediaRef, type LanguageState, type StudyDoc, type StudyDoc2, type TemplateDoc, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import type { GlossaryEntry, GuideOrigin, StudyFile, StudyGuide, StudyMediaKind } from './guides';
 import { unitRange } from './range';
@@ -24,21 +24,16 @@ export interface GuideSource {
 
 type Get = (hash: string | null | undefined) => LibraryDoc | null;
 
-/** What a stored file is when the guide does not say: audio is the recorder's m4a, pictures JPEG, films MP4. */
-const DEFAULT_FORMAT = { audio: 'm4a', image: 'jpg', video: 'mp4' } as const;
-type FileKind = keyof typeof DEFAULT_FORMAT;
-const FORMAT = /^[a-z0-9]{2,5}$/;
+type FileKind = MediaFileKind;
 
 /**
  * The stored file to use for a media reference: on a phone the smaller copy
  * when there is one (pictures 500px, always JPEG; films MP4), else the
- * original. None when the media is only a URL.
+ * original. None when the media is only a URL. Core's `mediaFileOf`, which the
+ * files teammates' phones pass each other read too (2026-11-24).
  */
 export function mediaFile(ref: MediaRef | undefined, kind: FileKind, phone: boolean): StudyFile | undefined {
-  if (!ref?.hash) return undefined;
-  if (phone && ref.lowHash) return { hash: ref.lowHash, format: DEFAULT_FORMAT[kind] };
-  const f = ref.format?.toLowerCase().replace(/^jpeg$/, 'jpg');
-  return { hash: ref.hash, format: f && FORMAT.test(f) ? f : DEFAULT_FORMAT[kind] };
+  return mediaFileOf(ref, kind, phone);
 }
 
 const fileKindOf = (k: StudyMediaKind): FileKind => (k === 'video' ? 'video' : 'image');

@@ -20,6 +20,7 @@ import { t } from '../i18n';
 import type { StudyMediaKind } from '../study/guides';
 import type { GuideDraft } from './draftModel';
 import { draftFiles } from './draftModel';
+import { noteLibraryFiles } from '../library/libraryOrigins';
 
 /** Supabase Storage's limit for one file (supabase/config.toml). */
 const MAX_BYTES = 50 * 1024 * 1024;
@@ -149,6 +150,8 @@ export async function pickMedia(kind: PickKind): Promise<MediaRef | null> {
 function uploadGuideFile(orgId: string, f: StoredFile, store: BlobStore): Promise<number> {
   return timedTransfer('up', { orgId, streamId: ORG_STREAM, src: 'guide' }, async (timings) => {
     await uploadBlob(orgId, ORG_STREAM, f, store, timings);
+    // Now one of the organization's guide files: a teammate may be given it as a library file.
+    noteLibraryFiles([f.hash]);
     return store.sizeOf(f.hash) ?? 0;
   });
 }

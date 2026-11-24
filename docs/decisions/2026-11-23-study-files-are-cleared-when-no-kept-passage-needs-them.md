@@ -51,3 +51,12 @@ Reverse if: study files left over from before this build take room people
 notice (then list the held languages, as considered), or phones in the field
 are short of room with study files of let-go passages still on them (then
 the spare room is too large, or the phone does not look often enough).
+
+Amended (2026-11-24, Carl Sauder): a teammate's phone can hand over study
+files by address over Share nearby or while LangQuest is open
+(2026-11-24-library-files-move-between-teammates-as-reference-files). They
+land in this folder and are cleared by the same rule. A phone takes those no
+kept passage needs only while the spare room lasts, so clearing never throws
+away what a teammate just gave, to be asked for again. Each is written down,
+and once online the phone fetches it again from its address and forgets it;
+one its source refuses is deleted.

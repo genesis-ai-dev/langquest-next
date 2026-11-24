@@ -66,15 +66,18 @@ export interface NearbyRoom {
   openMin?: number; scanMin?: number; pauseMin?: number; syncMin?: number;
 }
 
+/** Library documents a session took from a teammate, and library files it got and served (2026-11-24): sessions and quiet rooms both total these. */
+export type NearbyLibraryField = 'docsKept' | 'docsRefused' | 'docsMissing' | 'docsCapped' | 'libGot' | 'libServed';
+
 /** What an install's Share nearby recorded over the window (`diag.install_summary`'s `nearby`). Counts and codes, never who. */
 export interface NearbySummary {
   rooms?: NearbyRoom[] | null;
   roomTotals?: Partial<Record<'ms' | 'heard' | 'echoed' | 'alone' | 'maybe' | 'taps' | 'pipeFails' | 'strangers' | 'busy' | 'noAnswer' | 'sessions' | 'done', number>> | null;
   sessionTotals?: Partial<Record<'count' | 'ms' | 'fallbacks' | 'events' | 'sent' | 'files' | 'served' | 'fileFails' | 'refused' | 'overBudget'
-    | 'keyRefused' | 'farAhead' | 'noRoom' | 'cutBackups' | 'older' | 'clockOff' | 'newerApp', number>> | null;
+    | 'keyRefused' | 'farAhead' | 'noRoom' | 'cutBackups' | 'older' | 'clockOff' | 'newerApp' | NearbyLibraryField | 'libHeld' | 'libTheirs', number>> | null;
   /** Rooms while LangQuest was open (15.8): their totals, how many, and how many met anyone. Their finished sessions are summed here, not in `ends`. */
   openTotals?: Partial<Record<'count' | 'met' | 'openMin' | 'scanMin' | 'pauseMin' | 'syncMin' | 'heard' | 'sessions' | 'done' | 'events' | 'sent' | 'files' | 'served'
-    | 'fileFails' | 'fallbacks' | 'viaDirect' | 'maxMeetMs', number>> | null;
+    | 'fileFails' | 'fallbacks' | 'viaDirect' | 'maxMeetMs' | NearbyLibraryField, number>> | null;
   /** `end` or `end:bye`. */
   ends?: Record<string, number> | null;
   /** `mode:refusal`: why this phone turned phones away (window, revoked, org, expired, other). */
@@ -230,7 +233,8 @@ const REFUSED: Record<string, string> = {
  * connections that failed, strangers' openings, sessions that did not finish and by what, the link
  * the work went over, and the phone short of room; and, from 2026-11-24, what sharing while
  * LangQuest was open did (its rooms read apart, since hearing nobody is no fault there), why this
- * phone turned phones away, and what delivery to the server refused. Counts and codes only;
+ * phone turned phones away, what delivery to the server refused, and library documents from a
+ * teammate that did not check. Counts and codes only;
  * nothing names the other phone.
  */
 export function nearbySignals(x: NearbySummary | null | undefined): { level: Signal['level']; text: string }[] {
@@ -286,6 +290,9 @@ export function nearbySignals(x: NearbySummary | null | undefined): { level: Sig
     if (why === 'window') add('watch', `${mode === 'open' ? 'While LangQuest was open' : 'On Share nearby'} this phone turned a teammate away ${times(n)} because their certificate and the day they last met here were over two weeks old: they meet on Share nearby to share quietly again (15.8).`);
     else add(why === 'revoked' ? 'problem' : 'watch', `This phone turned away a phone ${where} ${times(n)}: ${REFUSED[why ?? ''] ?? why}.`);
   }
+  // Library documents a teammate's phone sent that did not check (2026-11-24): not a weak link, a fault on one side.
+  const docsRefused = (s.docsRefused ?? 0) + (o?.docsRefused ?? 0);
+  if (docsRefused) add('watch', `${docsRefused} library document${docsRefused === 1 ? '' : 's'} from a teammate's phone did not check (its name, form or contents, or a format this build cannot take): one of the two may need a newer app.`);
   const d = x.deliver;
   if (d?.refused) add('watch', `Delivering teammates' work to the server, ${d.refused} event${d.refused === 1 ? ' was' : 's were'} refused here (${d.farAhead ?? 0} stamped too far ahead, ${d.keyRefused ?? 0} a revoked key's).`);
   return out;

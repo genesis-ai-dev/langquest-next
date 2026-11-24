@@ -103,7 +103,7 @@ describe('Share nearby\'s states', () => {
     expect(stageOf(view({}, { running: true, level: true, met: true }))).toEqual({ t: 'running', level: true, sharing: false });
     // Level with nobody heard this run is still looking for teammates (5.11).
     expect(stageOf(view({}, { running: true, level: true }))).toEqual({ t: 'running', level: false, sharing: false });
-    expect(stageOf(view({}, { running: true, current: { tag: 't', role: 'i', eventsIn: 0, eventsOut: 0, filesIn: 0, filesOut: 0 } }))).toMatchObject({ sharing: true });
+    expect(stageOf(view({}, { running: true, current: { tag: 't', role: 'i', eventsIn: 0, eventsOut: 0, filesIn: 0, filesOut: 0, guideFilesIn: 0 } }))).toMatchObject({ sharing: true });
     expect(stageOf(view())).toEqual({ t: 'starting' });
   });
 
@@ -124,9 +124,15 @@ describe('Share nearby\'s states', () => {
   });
 
   it('draws no line or row for a played-back advert or a stranger: nothing moved and nobody named', () => {
-    const line = { tag: 't', profileId: null, role: 'i' as const, how: 'silent', linkKind: null, eventsIn: 0, eventsOut: 0, refused: 0, filesIn: 0, filesOut: 0, filesFailed: 0, noRoom: false, cutBackups: false, olderFromServer: false };
+    const line = {
+      tag: 't', profileId: null, role: 'i' as const, how: 'silent', linkKind: null, eventsIn: 0, eventsOut: 0, refused: 0, filesIn: 0, filesOut: 0, filesFailed: 0, guideFilesIn: 0,
+      noRoom: false, cutBackups: false, olderFromServer: false
+    };
     expect(linesShown([line])).toEqual([]);
     expect(linesShown([line, { ...line, profileId: 'sam', how: 'done' }, { ...line, eventsIn: 2 }]).map((l) => l.profileId ?? l.eventsIn)).toEqual([2, 'sam']);
+    // Guide pictures and audio that came are something moved, though no recording or change did (5.12, Library files).
+    expect(linesShown([{ ...line, how: 'done', guideFilesIn: 5 }]).map((l) => l.guideFilesIn)).toEqual([5]);
+    expect(has(en, 'nearby.came.guideFilesIn')).toBe(true);
     expect(teammatesShown([{ tag: 'a', key: null, profileId: null, older: false, state: 'missed' }, { tag: 'b', key: null, profileId: null, older: false, state: 'maybe' }]).map((m) => m.tag)).toEqual(['b']);
   });
 });
