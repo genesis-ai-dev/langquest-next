@@ -14,7 +14,6 @@ import { ICONS } from './pageShell';
 
 /** The bell, the list and the claim, inside page.ts's style element. */
 export const MINE_CSS = String.raw`
-.top { position: relative; }
 .top #mine { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 40px; padding: 0 10px; }
 .top #mine svg.i { width: 20px; height: 20px; }
 #mine-count { position: absolute; top: 2px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--red); color: #fff;
@@ -24,17 +23,17 @@ export const MINE_CSS = String.raw`
 #mine-panel > h2 { position: sticky; top: 0; margin: 0; padding: 14px 16px 10px; font-size: 15px; background: var(--raised); border-bottom: 1px solid var(--line); }
 #mine-panel ol { list-style: none; margin: 0; padding: 4px 0; }
 #mine-panel li + li { border-top: 1px solid var(--line); }
-.mrow { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 4px 10px; padding: 12px 16px; color: var(--ink); text-decoration: none; }
-.mrow:hover, .mrow:focus-visible { background: var(--soft); }
-.mrow .mdot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; }
-.mrow.new .mdot { background: var(--primary); }
-.mrow .mwhere { display: flex; gap: 8px; align-items: baseline; min-width: 0; font-size: 12.5px; color: var(--muted); }
-.mrow .mwhere b { color: var(--ink2); font-weight: 600; flex: none; }
-.mrow .mwhere span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mrow .mwhere time { flex: none; font-variant-numeric: tabular-nums; }
-.mrow .msaid { grid-column: 2; margin: 0; font-size: 14px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.mrow.new .msaid { font-weight: 600; }
-.mrow q { grid-column: 2; display: block; font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; quotes: none; }
+.mreply { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 4px 10px; padding: 12px 16px; color: var(--ink); text-decoration: none; }
+.mreply:hover, .mreply:focus-visible { background: var(--soft); }
+.mreply .mdot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; }
+.mreply.new .mdot { background: var(--primary); }
+.mreply .mwhere { display: flex; gap: 8px; align-items: baseline; min-width: 0; font-size: 12.5px; color: var(--muted); }
+.mreply .mwhere b { color: var(--ink2); font-weight: 600; flex: none; }
+.mreply .mwhere span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mreply .mwhere time { flex: none; font-variant-numeric: tabular-nums; }
+.mreply .msaid { grid-column: 2; margin: 0; font-size: 14px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.mreply.new .msaid { font-weight: 600; }
+.mreply q { grid-column: 2; display: block; font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; quotes: none; }
 #mine-panel .mnone { margin: 0; padding: 18px 16px; color: var(--muted); font-size: 14px; }
 .tag.claimed { display: inline-flex; gap: 5px; align-items: center; color: var(--ink); background: var(--amberbg); font-weight: 600; }
 .tag.claimed.me { color: var(--primary); background: var(--bg); border: 1px solid var(--primary); }
@@ -115,7 +114,7 @@ function drawMinePanel() {
   $('mine-panel').innerHTML = '<h2>Claude\'s replies</h2>' + (!MINE ? '<p class="mnone">Loading…</p>' : !list.length ? '<p class="mnone">No replies yet.</p>' :
     '<ol>' + list.map((r) => {
       const [what, title] = replyWhere(r);
-      return '<li><a class="mrow' + (Date.parse(r.at) > seen ? ' new' : '') + '" href="' + esc(replyHref(r)) + '"><span class="mdot" aria-hidden="true"></span>' +
+      return '<li><a class="mreply' + (Date.parse(r.at) > seen ? ' new' : '') + '" href="' + esc(replyHref(r)) + '"><span class="mdot" aria-hidden="true"></span>' +
         '<span class="mwhere"><b>' + esc(what) + '</b><span>' + esc(title) + '</span><time datetime="' + esc(r.at) + '" title="' + esc(new Date(r.at).toLocaleString()) + '">' + esc(ago(r.at)) + '</time></span>' +
         '<p class="msaid">' + esc(replySaid(r)) + '</p>' + (r.asked ? '<q>' + esc((r.mine ? 'You: ' : 'Another admin: ') + replyPlain(r.asked, 120)) + '</q>' : '') + '</a></li>';
     }).join('') + '</ol>');
