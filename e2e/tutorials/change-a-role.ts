@@ -85,7 +85,8 @@ export const changeARole: Tutorial = {
     },
     {
       screen: 'edit_member',
-      part: (page) => sheet(page).getByRole('button', { name: 'Remove from language', exact: true }),
+      // The whole question is lit while the voice speaks of it; the first part is the one the finger taps.
+      part: (page) => [sheet(page).getByRole('button', { name: 'Remove from language', exact: true }), sheet(page)],
       say: 'It asks first, because nothing puts them back afterwards. What they made stays with the work.',
       tap: true,
       until: (page) => id(page, 'toast').waitFor({ timeout: 30_000 }),
