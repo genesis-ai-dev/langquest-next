@@ -26,8 +26,11 @@ import { plainConnection } from './db';
 
 export const READ_PATH = '/ops/api/read';
 export const READ_AUDIENCE = 'https://app.langquest.org/ops/api/read';
-/** The agent teams: these workflows, run from main, read as agent_reader. */
-export const READ_WORKFLOWS = ['user-issues.yml'] as const;
+/**
+ * The agent teams: these workflows, run from main, read as agent_reader. card-questions.yml answers an
+ * admin's question from a card of the ops dashboard (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md).
+ */
+export const READ_WORKFLOWS = ['user-issues.yml', 'card-questions.yml'] as const;
 export const READ_RULES: OidcRule[] = READ_WORKFLOWS.map((file) => ({
   audience: READ_AUDIENCE,
   workflowRef: `genesis-ai-dev/langquest-next/.github/workflows/${file}@refs/heads/main`

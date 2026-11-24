@@ -219,7 +219,7 @@ describe('user-issues.mjs', () => {
     expect(manager).toContain('.user-issues/reads.json holds the answers to the reads your last plan named');
     expect(jobs['fix']).toContain('id-token: write');
     // The gate lets in this workflow, from main, as agent_reader (apps/admin/src/read.ts).
-    expect(read('apps/admin/src/read.ts')).toContain("READ_WORKFLOWS = ['user-issues.yml']");
+    expect(read('apps/admin/src/read.ts')).toMatch(/READ_WORKFLOWS = \['user-issues\.yml'[,\]]/);
     expect(read('scripts/prod-read.mjs')).toContain("READ_AUDIENCE = 'https://app.langquest.org/ops/api/read'");
   });
 

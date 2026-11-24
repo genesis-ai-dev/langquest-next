@@ -126,6 +126,7 @@ export const OVERVIEW_HTML = String.raw`
         <section class="sblock" aria-labelledby="ov-way"><div class="sh"><h2 id="ov-way">On its way</h2><span class="cnt way" id="ov-way-n" hidden></span><span class="sp"></span></div><div class="waykey" aria-label="Who acts next"><span><i class="by-claude"></i>Claude does it</span><span><i class="by-check"></i>A check shows that the fix works</span><span><i class="by-dev"></i>A developer</span><span><i class="by-store"></i>Apple or Google</span></div><div class="alerts" id="start-way"></div></section>
       </div>
       <section class="sblock" aria-labelledby="ov-watch"><div class="sh"><h2 id="ov-watch">Watching</h2><span class="cnt" id="ov-watch-n" hidden></span><span class="sp"></span></div><div class="wchips" id="start-watch"></div></section>
+      <div id="start-ask"></div>
       <section aria-label="Frontier Claude plan this week"><a class="plan" id="start-plan" href="#g/access"></a></section>
       <section aria-labelledby="ov-map"><h2 class="oh" id="ov-map">How it fits together</h2>
         <div class="mapcard"><div class="map" id="map"></div>
@@ -489,6 +490,8 @@ function drawStart() {
   redraw($('start-way'), way.map(wayRow).join('') || none('Nothing is on its way.'));
   // What to watch: a chip for each line, each opening its card.
   redraw($('start-watch'), plan.watch.flatMap((r) => r.alerts.map((a) => '<a class="chip watch" href="' + esc(cardHref(r.group, lineCardId(a))) + '">' + esc(splitAlert(tidy(a.text)).title.replace(/\.$/, '')) + '<small>' + esc(titleOf(r.group)) + '</small></a>')).join('') || none('Nothing to watch.'));
+  // Questions about the whole Overview, with what it shows (pageAsk.ts).
+  redraw($('start-ask'), askBlock('page:start', 'start', 'Overview'));
   drawResolved();
   drawPlan();
   drawTiles();

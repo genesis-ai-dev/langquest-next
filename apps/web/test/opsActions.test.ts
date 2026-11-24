@@ -38,6 +38,7 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     markQuietAccount: async (profile, ok, by) => { done.push(`quiet ${profile} ${ok} by ${by}`); return profile === QUIET ? (ok ? 'marked' : 'unmarked') : 'not_found'; },
     instruct: async (row, by) => { done.push(`instruct ${JSON.stringify(row)} by ${by}`); return SUGGESTION; },
     instructIssue: async (issue, text, by) => { done.push(`issue ${issue} ${text} by ${by}`); return issue === 'LAN-284' ? SUGGESTION : issue === 'LAN-285' ? 'full' : 'not_found'; },
+    askCard: async (row, by) => { done.push(`ask ${row.card} ${row.page} ${row.title} [${row.context}] ${row.text} by ${by}`); return row.card === 'page:full' ? 'full' : row.card === 'page:many' ? 'many' : SUGGESTION; },
     decideSuggestion: async (id, decision, detail, reason, by) => {
       done.push(`${decision} ${id} ${detail} ${reason} by ${by}`);
       return id === SUGGESTION ? { result: decision, kind: 'script' } : id === CODE ? { result: decision, kind: 'code' } : id === ANSWERED ? { result: 'decided', kind: 'script' } : { result: 'not_found' };
@@ -328,6 +329,41 @@ describe('an instruction on a user issue (docs/decisions/2026-11-18-an-admin-tel
     expect(calls.at(-1)).toEqual({ p_issue: 'LAN-5', p_text: 'Fix it.', p_by: VIEWER });
     // A dashboard that answers something else names nothing.
     expect(await instructIssue('LAN-278', 'x', VIEWER, rpc, async () => 'LAN-278')).toBe('not_found');
+  });
+});
+
+describe('a question to Claude from any card (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md)', () => {
+  const q = { kind: 'card-question', card: 'line:capacity-r2-class-a', page: 'storage', title: 'R2 class A operations are past the plan', context: 'Recording uploads 5,524,967 of 1,000,000 free', text: ' What does it cost? ' };
+
+  it('takes a line\'s or a page\'s card, its section, title, words and the question, checked', () => {
+    expect(parseAction(q)).toEqual({ ...q, text: 'What does it cost?' });
+    expect(parseAction({ ...q, context: undefined })).toEqual({ ...q, context: '', text: 'What does it cost?' });
+    for (const bad of [{ ...q, card: 'feedback:x' }, { ...q, card: 'line:a\nb' }, { ...q, page: 'Storage' }, { ...q, title: ' ' }, { ...q, text: ' ' },
+      { ...q, text: 'x'.repeat(2001) }, { ...q, title: 'x'.repeat(301) }, { ...q, context: 'x'.repeat(6001) }, { ...q, context: 7 }]) {
+      expect(parseAction(bad), JSON.stringify(bad).slice(0, 80)).toBeNull();
+    }
+  });
+
+  it('keeps it for Claude, and says why when a card or the dashboard has too many waiting', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', q)).toEqual({ ok: true, result: 'asked' });
+    expect(d.done).toEqual([`ask line:capacity-r2-class-a storage R2 class A operations are past the plan [Recording uploads 5,524,967 of 1,000,000 free] What does it cost? by ${VIEWER}`]);
+    expect(await act(d, 'aal2', { ...q, card: 'page:full' })).toMatchObject({ ok: false, status: 400, error: expect.stringContaining('Three questions on this card') });
+    expect(await act(d, 'aal2', { ...q, card: 'page:many' })).toMatchObject({ ok: false, status: 400, error: expect.stringContaining('Twenty questions') });
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'card_question', target: 'line:capacity-r2-class-a', result: 'ok', detail: `question:${SUGGESTION}` },
+      { profileId: VIEWER, action: 'card_question', target: 'page:full', result: 'refused', detail: 'full' },
+      { profileId: VIEWER, action: 'card_question', target: 'page:many', result: 'refused', detail: 'many' }
+    ]);
+    const aal1 = deps();
+    expect(await act(aal1, 'aal1', q)).toMatchObject({ ok: false, status: 403 });
+    expect(aal1.done).toEqual([]);
+  });
+
+  it('logs at most 100 characters of a long card', async () => {
+    const d = deps();
+    await act(d, 'aal2', { ...q, card: 'line:' + 'x'.repeat(190) });
+    expect((d.rows[0] as { target: string }).target).toHaveLength(100);
   });
 });
 

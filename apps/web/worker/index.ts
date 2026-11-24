@@ -494,6 +494,21 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       verify: subtleVerify,
       sha256: subtleSha256
     },
+    // Questions from the ops dashboard's cards, every 5 minutes from GitHub Actions (cardQuestions.ts,
+    // docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md).
+    cardQuestions: {
+      verify: githubOidcCached ??= githubOidc((input, init) => fetch(input, init)),
+      waiting: async () => {
+        const { data, error } = await serviceClient(env).rpc('ops_card_questions_waiting');
+        if (error) throw new Error(`ops_card_questions_waiting: ${error.message}`);
+        return data ?? [];
+      },
+      done: async (answered) => {
+        const { data, error } = await serviceClient(env).rpc('ops_card_questions_done', { p: answered });
+        if (error) throw new Error(`ops_card_questions_done: ${error.message}`);
+        return data as { taken: number; answered: number };
+      }
+    },
     // The watch for user issues, every 15 minutes from GitHub Actions (userIssues.ts, decisions.md 202).
     userIssues: {
       verify: githubOidcCached ??= githubOidc((input, init) => fetch(input, init)),

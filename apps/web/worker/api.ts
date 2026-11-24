@@ -8,6 +8,7 @@ import { FIXES_PATH, handleTutorialPicture, handleTutorialReview, PICTURE_PATH, 
 import { handleOrgExports, type ExportDeps } from './orgExports';
 import { FILMED_PATH, handleTutorialFilmed, type FilmedDeps } from './tutorialFilmed';
 import { handleUserIssues, USER_ISSUES_PATH, type UserIssuesDeps } from './userIssues';
+import { CARD_QUESTIONS_PATH, handleCardQuestions, type CardQuestionsDeps } from './cardQuestions';
 import { handleLanguoids, type LanguoidDeps } from './languoids';
 import { handleAgentApi, type AgentDeps } from './agent/http';
 import { handleNearby, isNearbyPath, type NearbyDeps } from './nearby';
@@ -45,6 +46,8 @@ export interface ApiDeps {
   orgExports?: ExportDeps;
   /** The watch for user issues (`/api/user-issues`, userIssues.ts); without it that route answers 503. */
   userIssues?: UserIssuesDeps;
+  /** Questions from the ops dashboard's cards (`/api/card-questions`, cardQuestions.ts); without it that route answers 503. */
+  cardQuestions?: CardQuestionsDeps;
   /** Nearby sync's certificates and attestations (`/api/nearby/*`, nearby.ts); without it those routes answer 503. */
   nearby?: NearbyDeps;
   /** Delivery of teammates' signed work (`/api/relay`, relay.ts); without it the route answers 503. */
@@ -117,6 +120,7 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   }
   if (url.pathname.startsWith(PICTURE_PATH)) return handleTutorialPicture(request, deps.blobs?.bucket);
   if (url.pathname === USER_ISSUES_PATH) return deps.userIssues ? handleUserIssues(request, deps.userIssues) : json(503, { error: 'The watch for user issues is not set up here.' });
+  if (url.pathname === CARD_QUESTIONS_PATH) return deps.cardQuestions ? handleCardQuestions(request, deps.cardQuestions) : json(503, { error: 'Questions from the ops dashboard are not set up here.' });
   if (url.pathname === FILMED_PATH) return deps.tutorialFilmed ? handleTutorialFilmed(request, deps.tutorialFilmed) : json(503, { error: 'The tutorial intake is not set up here.' });
   if (url.pathname === JOIN_PATH) return deps.join ? handleJoin(request, deps.join) : json(503, { error: 'Nearby sync is not set up here yet.' });
   if (isNearbyPath(url.pathname)) return deps.nearby ? handleNearby(request, deps.nearby) : json(503, { error: 'Nearby sync is not set up here yet.' });

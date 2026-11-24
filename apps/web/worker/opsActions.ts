@@ -9,6 +9,7 @@ import {
 } from '../../../server/youtube';
 import { LinearError } from '../../../server/linear';
 import { fileSuggestion } from './fileSuggestion';
+import { CARD, PAGE, QUESTION_MAX } from '../../../server/cardQuestions';
 
 /**
  * The few things the ops dashboard may do (docs/ops-dashboard-plan.md
@@ -18,8 +19,9 @@ import { fileSuggestion } from './fileSuggestion';
  * on a tutorial video or answer Claude's suggestion for one (186), say what
  * became of the reply Claude suggested for a comment (posted by a person, or
  * none needed), tell Claude what to do with a user issue
- * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md), and mark an
- * account's quiet installs not an issue. The dashboard's own Worker holds no writer's key; it
+ * (docs/decisions/2026-11-18-an-admin-tells-claude-what-to-do-with-a-user-issue.md), ask Claude a
+ * question from any card or page (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md),
+ * and mark an account's quiet installs not an issue. The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
  * and this Worker checks that token itself (a live session, a Global Viewer
  * on an `aal2` session) before acting with the service role. Every attempt
@@ -59,6 +61,8 @@ export type Action =
   | { kind: 'tutorial-reply'; id: string; done: 'posted' | 'none' | 'open' }
   /** What an admin told Claude to do with a user issue, from its card on the dashboard: for the watch's next run. */
   | { kind: 'user-issue-note'; issue: string; text: string }
+  /** A question to Claude from a card or a page of the dashboard, with the card's words as the page drew them. */
+  | { kind: 'card-question'; card: string; page: string; title: string; context: string; text: string }
   /** An account's quiet installs marked not an issue, or counted again. */
   | { kind: 'quiet-account'; profile: string; ok: boolean }
   /** A language's tutorial videos filmed each night, or paused (decision 2026-11-21, filming languages switch). */
@@ -90,6 +94,8 @@ export interface ActionDeps {
   instruct(row: { tutorial: string; text: string; problem: string | null; language: string | null; inputs: string[] }, by: string): Promise<string>;
   /** An admin's instruction on a user issue kept for the watch (`ops_user_issue_instruct`): its id, `not_found` or `full`. */
   instructIssue(issue: string, text: string, by: string): Promise<string>;
+  /** A question from a card kept for Claude (`ops_card_ask`): its id, `full` or `many`. */
+  askCard(row: { card: string; page: string; title: string; context: string; text: string }, by: string): Promise<string>;
   /** A suggestion answered (`ops_suggestion_decide`): what happened, and the suggestion's kind. */
   decideSuggestion(id: string, decision: 'accepted' | 'rejected' | 'edited', detail: string | null, reason: string | null, by: string): Promise<{ result: string; kind?: string }>;
   /** A comment's suggested reply marked posted, not needed, or waiting again, by this person: `ok`, or `not_found` (`ops_tutorial_reply_done`). */
@@ -179,6 +185,15 @@ export function parseAction(input: unknown): Action | null {
     const text = optional(t.text, NOTE_MAX);
     return typeof issue === 'string' && ISSUE.test(issue) && text ? { kind: 'user-issue-note', issue, text } : null;
   }
+  if (a.kind === 'card-question') {
+    const q = input as { card?: unknown; page?: unknown; title?: unknown; context?: unknown };
+    const text = optional(t.text, QUESTION_MAX.text);
+    const title = optional(q.title, QUESTION_MAX.title);
+    // The card's words may be cut by the page; none is fine.
+    const context = q.context === undefined || q.context === '' ? '' : typeof q.context === 'string' && q.context.length <= QUESTION_MAX.context ? q.context : null;
+    return typeof q.card === 'string' && CARD.test(q.card) && typeof q.page === 'string' && PAGE.test(q.page) && title && text && context !== null
+      ? { kind: 'card-question', card: q.card, page: q.page, title, context, text } : null;
+  }
   if (a.kind === 'tutorial-fix' && typeof a.id === 'string' && UUID.test(a.id) && (a.askFirst === undefined || typeof a.askFirst === 'boolean')) return { kind: 'tutorial-fix', id: a.id.toLowerCase(), askFirst: a.askFirst === true };
   if (a.kind === 'tutorial-suggestion' && typeof a.id === 'string' && UUID.test(a.id) && (d === 'accept' || d === 'reject' || d === 'edit')) {
     const detail = optional(t.detail, DETAIL_MAX);
@@ -206,6 +221,8 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'tutorial-fix': return { name: 'suggestion_fix', target: action.id };
     case 'tutorial-reply': return { name: `reply_${action.done}`, target: action.id };
     case 'user-issue-note': return { name: 'user_issue_note', target: action.issue };
+    // ops.actions keeps a target of at most 100 characters.
+    case 'card-question': return { name: 'card_question', target: action.card.slice(0, 100) };
     case 'tutorial-filming': return { name: action.on ? 'filming_on' : 'filming_off', target: action.language };
     case 'quiet-account': return { name: action.ok ? 'quiet_ok' : 'quiet_ok_undo', target: action.profile };
     default: return { name: NAMES[action.kind], target: 'youtube' };
@@ -275,6 +292,15 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       return kept ? { ok: true, result: 'instructed' }
         : answer === 'full' ? { ok: false, status: 400, error: 'Three instructions on that issue wait for Claude already. Wait for its answer.' }
           : { ok: false, status: 404, error: `Claude cannot take an instruction on ${action.issue}. The watch did not file this issue, and no line on this page names it now.` };
+    }
+    if (action.kind === 'card-question') {
+      const { kind: _kind, ...row } = action;
+      const answer = await deps.askCard(row, who.profileId);
+      const kept = answer !== 'full' && answer !== 'many';
+      await deps.record({ profileId: who.profileId, action: name, target, result: kept ? 'ok' : 'refused', detail: kept ? `question:${answer}` : answer });
+      return kept ? { ok: true, result: 'asked' }
+        : answer === 'full' ? { ok: false, status: 400, error: 'Three questions on this card wait for Claude already. Wait for its answer.' }
+          : { ok: false, status: 400, error: 'Twenty questions on the dashboard wait for Claude already. Wait for its answers.' };
     }
     if (action.kind === 'tutorial-filming') {
       const answer = await deps.setFilming(action.language, action.on, who.profileId);
@@ -487,6 +513,11 @@ export function actionDeps(env: Env): ActionDeps {
       console.error(`ops named issues: ${e instanceof Error ? e.name : 'unknown'}`);
       return [];
     })),
+    askCard: async ({ card, page, title, context, text }, by) => {
+      const { data, error } = await db().rpc('ops_card_ask', { p_card: card, p_page: page, p_title: title, p_context: context, p_text: text, p_by: by });
+      if (error) throw new Error(`ops_card_ask: ${error.message}`);
+      return String(data);
+    },
     decideSuggestion: async (id, decision, detail, reason, by) => {
       const { data, error } = await db().rpc('ops_suggestion_decide', { p_id: id, p_decision: decision, p_detail: detail, p_reason: reason, p_by: by });
       if (error) throw new Error(`ops_suggestion_decide: ${error.message}`);
