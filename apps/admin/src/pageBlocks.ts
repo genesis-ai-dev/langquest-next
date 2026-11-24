@@ -190,6 +190,32 @@ function supportSay(w) {
   return w.read && !w.blue ? 'Nothing waits on staff.' : 'No content report is open.';
 }
 
+/**
+ * Nearby sync on Work safety's page, the last 7 days (sources/ops.ts Nearby): how many organizations
+ * have it and how many phones used it, how often they met a teammate, and what went wrong, in plain
+ * words. Null where no organization has it on and no phone used it, so the page says nothing of it.
+ */
+function nearbyView(d) {
+  if (!d) return null;
+  const n = (x) => Number(x) || 0;
+  const orgs = d.orgs || [];
+  const on = orgs.filter((o) => o.nearby).length, quiet = orgs.filter((o) => o.open).length;
+  if (!on && !n(d.installs)) return null;
+  const s = d.screen || {}, o = d.open || {}, c = d.deliver || {}, r = d.refusals || {};
+  const met = (a, b) => (n(b) ? ', ' + Math.round((n(a) / n(b)) * 100) + '% met a teammate' : '');
+  const notDone = Math.max(0, n(s.sessions) + n(o.sessions) - n(s.done) - n(o.done));
+  return [
+    { n: on, label: quiet ? 'organizations with nearby, ' + quiet + ' sharing while open' : 'organizations with nearby' },
+    { n: n(d.installs), label: 'phones used it' },
+    { n: n(s.rooms), label: 'Share nearby rooms' + met(s.met, s.rooms) },
+    { n: n(o.runs), label: 'runs while open' + met(o.met, o.runs) },
+    { n: notDone, label: 'sessions did not finish' },
+    { n: n(r.window), label: 'teammates turned away past the two weeks', warn: n(r.window) > 0 },
+    { n: n(r.revoked), label: 'revoked phones turned away', warn: n(r.revoked) > 0 },
+    { n: n(c.refused), label: 'carried events refused', warn: n(c.refused) > 0 }
+  ];
+}
+
 /** Each server job in plain words; its code name stays in its help and in All the details. */
 const JOB_WORDS = {
   account_delete: 'Delete accounts people asked to delete', blob_reconcile: 'Nightly check of recordings against the log', daily_totals: 'Daily totals for the charts',
@@ -345,6 +371,14 @@ PAGE_BLOCKS.people = () => {
 PAGE_SAY.people = () => {
   const d = okData(results, 'people');
   return d ? num(d.activeProfiles.day) + ' people were active today, ' + num(d.activeProfiles.week) + ' this week.' : null;
+};
+
+// ---- Work safety -------------------------------------------------------------------------------
+PAGE_BLOCKS.safety = () => {
+  const v = nearbyView(okData(results, 'nearby'));
+  if (!v) return '';
+  const fact = (n, label, warn) => '<div class="fact' + (warn ? ' warn' : '') + '"><b>' + esc(num(n)) + '</b><span>' + esc(label) + '</span></div>';
+  return block('Nearby sync, last 7 days', 0, '', '<div class="facts">' + v.map((f) => fact(f.n, f.label, f.warn)).join('') + '</div>');
 };
 
 // ---- Phones and browsers ---------------------------------------------------------------------

@@ -16,7 +16,7 @@ const logic = new Function(`${LISTS_LOGIC}; return { listRows, shareCells, LIST_
 };
 const states = (r: Row) => r.items.map((x) => x.s);
 const field = (x: Item, name: string) => x.fields.find((f) => f[0] === name)?.[1];
-const LISTED = ['nightly', 'v2', 'userissues', 'feedback', 'tutorials', 'videofeedback', 'videos', 'pipeline', 'releases', 'expiry', 'appstore'];
+const LISTED = ['nightly', 'v2', 'userissues', 'feedback', 'tutorials', 'videofeedback', 'videos', 'pipeline', 'releases', 'expiry', 'appstore', 'nearby'];
 
 describe('a square for each item of a fixed list (plan 5c2)', () => {
   it('draws a list for each part it names, each with a title, and none for the rest', () => {
@@ -27,6 +27,15 @@ describe('a square for each item of a fixed list (plan 5c2)', () => {
     }
     expect(logic.listRows('jobs', {})).toBeNull();
     expect(logic.listRows('nightly', null)).toBeNull();
+  });
+
+  // Nearby sync (docs/ops-dashboard-plan.md 5.4): an organization a revoked phone came near first, then those whose phones met no teammate.
+  it('draws a square for each organization with nearby sync: a revoked phone near it, met teammates, used but met none, not used', () => {
+    const org = (orgId: string, o: Record<string, unknown>) => ({ orgId, name: orgId.toUpperCase(), nearby: true, join: false, open: false, installs: 0, rooms: 0, runs: 0, met: 0, revoked: 0, lastAt: null, ...o });
+    const [row] = logic.listRows('nearby', { orgs: [org('quiet', {}), org('met', { installs: 3, runs: 5, met: 2, open: true }), org('lone', { installs: 1, rooms: 1 }), org('lost', { installs: 2, met: 1, revoked: 1 })] })!;
+    expect(row!.items.map((x) => [x.name, x.s])).toEqual([['LOST', 'fail'], ['LONE', 'part'], ['MET', 'ok'], ['QUIET', 'none']]);
+    expect(field(row!.items.find((x) => x.name === 'MET')!, 'Turned on')).toBe('nearby, sharing while open');
+    expect(logic.listRows('nearby', { orgs: [] })).toEqual([]);
   });
 
   it('puts a suite that broke before one whose tests failed, before one that passed, and opens its Linear issue', () => {

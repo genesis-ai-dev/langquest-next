@@ -103,6 +103,11 @@ export const KINDS = {
   'snapshots-overdue': { part: 'safety', title: 'Snapshots are overdue', recheck: COUNTED },
   'snapshots-old-reducer': { part: 'safety', title: 'Snapshots wait for the current reducer', recheck: COUNTED },
 
+  // ---- Nearby sync (diag.ops_nearby, the last 7 days; decision 235 as amended 2026-11-24) ----
+  'nearby-find-failing': { part: 'nearby', title: 'Share nearby could not start on several phones', recheck: DAY_PHONES },
+  'nearby-carried-ahead': { part: 'nearby', title: 'Work carried for a teammate was refused as stamped ahead', recheck: DAY_PHONES },
+  'nearby-revoked-near': { part: 'nearby', title: 'A revoked phone tried to share with a team', recheck: WEEK_PHONES, person: true },
+
   // ---- Releases ----
   'version-json-down': { part: 'code', title: 'The web app did not answer', recheck: LIVE },
   'deploy-behind': { part: 'code', title: 'The web app is behind main', recheck: LIVE },

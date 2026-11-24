@@ -73,3 +73,14 @@ server's install summary keeps the two modes apart and shows delivery to the
 server, and `diag.nearby_summary` reads a language's phones together
 (`npm run diag -- nearby <org>`), for improving the feature rather than one
 report; no record holds who met whom, so it is counts per language.
+
+Amended (2026-11-24, Carl Sauder): the ops dashboard reads these records too,
+in Work safety's Nearby sync part (`diag.ops_nearby`, the last 7 days across
+every organization, named by organization and never by language or person),
+so staff see how nearby sync works for teams without a field report. A
+dropped radio link is still not a bug to file. The part raises lines only
+for what a person acts on: Find failing on several phones in one day, as a
+release would break it, and teammates' work refused as stamped ahead, which
+waits until its author's own phone reaches the server; these two get a
+Linear issue as every ops line does. A phone whose key was revoked near a
+team is a person's to raise with the organization, and files nothing.
