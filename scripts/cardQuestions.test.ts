@@ -76,7 +76,7 @@ describe('the workflow', () => {
   });
 
   it('copies its scripts before Claude, and runs them from the copy after', () => {
-    const copy = yml.indexOf('cp scripts/card-questions.mjs scripts/prod-read.mjs scripts/linear-sync.mjs "$RUNNER_TEMP/ask/"');
+    const copy = yml.indexOf('cp scripts/card-questions.mjs scripts/prod-read.mjs scripts/prod-read-relay.mjs scripts/linear-sync.mjs "$RUNNER_TEMP/ask/"');
     expect(copy).toBeGreaterThan(0);
     expect(copy).toBeLessThan(yml.indexOf('anthropics/claude-code-action'));
     expect(yml).not.toMatch(/run: node scripts\//);

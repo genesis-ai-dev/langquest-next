@@ -462,6 +462,15 @@ describe("Claude's answer in the talk", () => {
     expect(said('Do this. 1) Run x. 2) Read y.')).toBe('<p><strong>Do this.</strong></p><ol><li>Run x.</li><li>Read y.</li></ol>');
     expect(said('See line 361) and 2) here.')).toBe('<p><strong>See line 361) and 2) here.</strong></p>');
   });
+  it('shows the commands of an answer on one line as code, and a last "Also:" as its own paragraph', () => {
+    const html = said("I cannot find it. 1) Run: npm run diag -- --hosted timeline <install id> --days 3. The id is in the notes. " +
+      "2) Run this as the owner: select email from auth.users where id = '<id>'. Also: the host refused the files.");
+    expect(html).toBe('<p><strong>I cannot find it.</strong></p><ol><li>Run: <code>npm run diag -- --hosted timeline &#60;install id&#62; --days 3</code>. The id is in the notes.</li>' +
+      '<li>Run this as the owner: <code>select email from auth.users where id = &#39;&#60;id&#62;&#39;</code>.</li></ol><p>Also: the host refused the files.</p>');
+    // Prose that only has the word stays prose; an answer with code marks keeps its own.
+    expect(said('Please select one. Then go.')).toBe('<p><strong>Please select one.</strong> Then go.</p>');
+    expect(said('Run `npm run x` now.')).toBe('<p><strong>Run <code>npm run x</code> now.</strong></p>');
+  });
   it('escapes every word, also inside code and bold', () => {
     const html = said('<img src=x onerror=alert(1)> **<b>** `<script>`');
     expect(html).not.toMatch(/<img|<b>|<script/);
