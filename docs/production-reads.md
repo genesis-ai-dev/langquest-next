@@ -25,7 +25,7 @@ Migration `20261121194800_claude_readers.sql` makes them;
 | Reads | `public`, `diag`, `ops`, `v2_import`, the report functions | the same tables; what people typed through the views of `masked` |
 | Never | sign-in codes, password resets, push tokens, webhook secrets, API and invite token hashes, discovery keys, emails; `auth`, `storage`, `vault` | the above, and personal data: `profiles.display_name` and `avatar_blob`, `diag.feedback`'s name, screenshot, voice and picture; the report functions |
 | Typed text | whole | `masked.events` (payloads), `masked.feedback`, `masked.join_requests`, `masked.content_reports`: emails, phone numbers and IP addresses taken out (`masked.personal`) |
-| Statistics | `pg_stat_statements`, `pg_stat_activity` (`pg_read_all_stats`) | the same |
+| Statistics | `masked.slow_statements` (every login's statements, from `pg_stat_statements`) and `masked.connections` (what each connection runs and waits on, and which it is blocked by): no IP address, emails and numbers masked in the text | the same |
 | Writes | nothing: no grant to insert, update, delete or truncate anywhere | nothing |
 
 Both: every transaction is read-only unless the session turns that off, each
