@@ -37,5 +37,9 @@ admin opened that card again.
 - **The fix team does not read claims.** A claim tells developers. The agent
   team still skips only what Linear says is In Progress or In Review.
 
+Reverse if: the team tracks who works on an issue in Linear (its assignee)
+and wants one place for it; or the agent team must also skip claimed issues,
+which would then be its own decision.
+
 Code: `apps/admin/src/pageMine.ts`, `apps/admin/src/index.ts` (`mine`),
 `apps/web/worker/opsActions.ts` (`issue-claim`, `replies-seen`).
