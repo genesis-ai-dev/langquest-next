@@ -80,7 +80,7 @@ ol.steps li.now::after { background: var(--primary); border-color: var(--primary
 .iside .ibtns { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
 .iside details > summary, .ifix details > summary { cursor: pointer; min-height: 40px; display: flex; align-items: center; font-size: 13px; color: var(--primary); font-weight: 600; }
 .talk { display: grid; gap: 4px; }
-.said { max-width: min(560px, 88%); margin: 0; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+.said.you, .said.claude { max-width: min(560px, 88%); margin: 0; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
 .said.you { justify-self: end; background: var(--primary); color: #fff; border-end-end-radius: 4px; }
 .said.claude { justify-self: start; background: var(--soft); color: var(--ink); border-end-start-radius: 4px; }
 .said.claude { white-space: normal; display: grid; gap: 8px; }

@@ -68,7 +68,7 @@ export const SHELL_CSS = String.raw`
 .nav a .dot.off { background: transparent; border: 1.5px solid var(--grey); }
 svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .mainw { min-width: 0; }
-.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; max-width: 1280px; margin: 0 auto; padding: 24px clamp(16px, 3vw, 40px) 0; }
+.top { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; max-width: 1280px; margin: 0 auto; padding: 24px clamp(16px, 3vw, 40px) 0; }
 .top h1 { font-size: 26px; line-height: 1.15; margin: 0; letter-spacing: -.01em; flex: 1; min-width: 160px; }
 .top form.look { margin: 0; flex: 0 1 340px; } .top form.look input { min-height: 40px; background: var(--raised); }
 .top #refresh { display: inline-flex; align-items: center; gap: 8px; } .top #refresh small { font-weight: 400; }
