@@ -140,13 +140,15 @@ it" in the box on the issue's card. The manager then says `approved` and
 changes nothing; the script checks both, and the draft pull request merges
 when its checks pass.
 
-A developer can close an issue the same way: write "close it" (or "cancel
-it", "won't fix", "a duplicate", "mark it done") in the box. The manager
-writes the status in `fix.json` (`linear`: Done, Canceled or Duplicate); the
-fix job reads the admin's own words before Claude (`saysClose`), and the job
-`open`, which holds the Linear key, sets the status and says so first in
-Claude's answer on the card (`closeAsked`). Without such words the issue
-keeps its status, whatever the manager wrote.
+An instruction can also change the issue in Linear: its status, priority
+or title, a comment, or the issue it duplicates. The manager decides from
+what the admin means, with no list of words, and writes the changes in
+`fix.json` (`linear`, checked by `linearChanges`). The job `open`, which
+holds the Linear key, makes them on this issue only, and only in a run with
+an admin's instruction, so what people reported cannot ask for one. Claude's
+answer on the card starts with what Linear did or refused (`linearAsked`).
+The deploy's statuses (Deploying, Verifying, Outage) stay with
+`linear-sync.mjs`.
 
 ## The mode
 

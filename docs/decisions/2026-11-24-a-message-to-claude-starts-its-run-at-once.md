@@ -31,19 +31,27 @@ run of the watch". He asked that Claude answer right away and start working.
   token, or when GitHub refuses, nothing changes: the message waits for the
   schedule and the card says when.
 
-- **"Close it" closes it.** On LAN-256 Claude answered "I cannot close the
-  issue from here", though the watch's job `open` holds the Linear key. Now
-  the manager can write a status (`linear` in `fix.json`: Done, Canceled or
-  Duplicate), and `open` sets it in Linear when the admin's own words ask to
-  close the issue (`saysClose` in `scripts/agent-team.mjs`, read before
-  Claude). The answer starts with what Linear did (docs/agent-team.md).
+- **Claude changes the issue in Linear when the instruction needs it.** On
+  LAN-256 Claude answered "I cannot close the issue from here", though the
+  watch's job `open` holds the Linear key. Now the manager reads what the
+  admin means and lists the changes the issue needs (`linear` in
+  `fix.json`: status, priority, title, a comment, a duplicate). `open` makes
+  them on this issue only, and only in a run with an admin's instruction,
+  so what people reported cannot ask for one. The answer starts with what
+  Linear did or refused (docs/agent-team.md). No list of words decides it:
+  Caleb asked that Claude know from his instruction, with no words to
+  remember.
 - **A reply in the bell opens its card and keeps it marked.** A tap on a
   reply scrolls to its card and rings it for 10 minutes, through each
   redraw of the page (`remark` in `apps/admin/src/pageCards.ts`). A tap on
   the reply whose card the address names already finds it again, and a
   tutorial video's reply opens that video's cards, not only the page.
 
-Not chosen: Claude answering in the Worker itself (no code, no production
+Not chosen: a list of words ("close it", "cancel") that must be in the
+instruction before Claude may change Linear (Caleb: the admin must not need
+to remember words); giving the manager the Linear key itself (it has no
+network and no key, as what people reported can steer it); Claude answering
+in the Worker itself (no code, no production
 reads, and a Claude key in the Worker); a run that waits all day for
 messages (it holds a runner for nothing); the dashboard's read-only GitHub
 token with write added (every ADMIN_* token is read-only, docs/admin.md).
