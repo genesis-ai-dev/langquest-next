@@ -122,6 +122,17 @@ describe('how the manager\'s run ended', () => {
 });
 
 describe('the gate', () => {
+  it('holds every fix on an issue a developer claimed for that developer, unless the developer said to merge it', () => {
+    const fixIt = { go: true, instructed: true, mode: 'ask' };
+    expect(gate(all({ claimed: true }))).toMatchObject({ merge: false, reason: 'claimed', why: expect.stringContaining('the developer reads it and merges it') });
+    // Fix it on a tutorial video's card is no yes on a claimed issue.
+    expect(gate(all({ ...fixIt, claimed: true }))).toMatchObject({ merge: false, reason: 'claimed' });
+    // The developer's own "merge it" on the card still merges the draft fix as it is.
+    expect(gate(all({ claimed: true, instructed: true, approved: true, verdict: verdict({ verdict: 'approved' }) })).merge).toBe(true);
+    // A claimed issue's change is not read by the reviewer: it waits for the developer either way.
+    expect(reviewNeeded({ verdict: verdict(), changes: CHANGES, checks: PASSED, claimed: true })).toBe(false);
+  });
+
   it('lets a fix merge without a person only when every part of the rule holds', () => {
     expect(gate(all())).toEqual({ merge: true, reason: null, why: 'The change does what it says.' });
     // No limit on its size, and none on how many merge in a day.
@@ -153,6 +164,7 @@ describe('the gate', () => {
     expect(reason({ vet: { ok: false, why: 'It also changes what a tap does.' } })).toBe('reviewer');
     expect(reason({ instructed: true })).toBe('instruction');
     expect(reason({ app: false })).toBe('app');
+    expect(reason({ claimed: true })).toBe('claimed');
     // Every reason is one the Worker keeps and the ops dashboard can say.
     expect(REASONS).toEqual([...model.FIX_REASONS]);
     expect(gate(all({ mode: 'ask' })).why).toContain('passed every other part of the rule');

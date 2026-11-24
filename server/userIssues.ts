@@ -136,8 +136,11 @@ export interface Watch {
   order?: OrderedIssue[];
 }
 
-/** Where an issue that waits for the fix team comes from: a plan whose time came, the research, or never tried. */
-export const ORDER_FROM = ['plan', 'research', 'untried'] as const;
+/**
+ * Where an issue that waits for the fix team comes from: a plan whose time came, the research, never
+ * tried, or a choice Claude asked for before it could read production, tried once more (again).
+ */
+export const ORDER_FROM = ['plan', 'research', 'untried', 'again'] as const;
 
 /** One issue in the order the fix team takes them, with the facts the order used. */
 export interface OrderedIssue {
@@ -164,6 +167,11 @@ export interface IssueNotes {
   before: { at: string; text: string; result: NoteResult; answer: string | null }[];
   /** The manager's last plan for the issue, with what its probe printed, or null. Absent before migration 20261121235200_user_issue_plans.sql. */
   plan?: { next: string; steps: string | null; nextAt: string; probe: string | null; tries: number; at: string; reads?: string[] | null } | null;
+  /**
+   * A developer claimed the issue on the ops dashboard (ops.issue_claims): the fix team assists and never merges
+   * (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md). Absent before migration 20261124023000.
+   */
+  claimed?: boolean;
 }
 
 /** What a run did with an instruction: changed the draft fix (or wrote one), answered in words only, or neither. */
@@ -198,7 +206,7 @@ export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixe
 export const FIX_DECISIONS = ['merge', 'waits', 'none'] as const;
 export type FixDecision = (typeof FIX_DECISIONS)[number];
 /** Why a fix waits, as the gate says it (scripts/agent-team.mjs REASONS; scripts/agentTeam.test.ts holds them equal). */
-export const FIX_REASONS = ['mode', 'review', 'decision', 'not_a_bug', 'unconfirmed', 'cause', 'paths', 'checks', 'reviewer', 'instruction', 'app', 'stalled'] as const;
+export const FIX_REASONS = ['mode', 'review', 'decision', 'not_a_bug', 'unconfirmed', 'cause', 'paths', 'checks', 'reviewer', 'instruction', 'app', 'stalled', 'claimed'] as const;
 export type FixReason = (typeof FIX_REASONS)[number];
 /** The manager's verdict (scripts/agent-team.mjs VERDICTS). */
 export const FIX_VERDICTS = ['fix', 'review', 'decision', 'not_a_bug', 'unconfirmed', 'approved'] as const;

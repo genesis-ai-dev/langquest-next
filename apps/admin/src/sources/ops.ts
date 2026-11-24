@@ -331,6 +331,18 @@ export const LONG_QUERY_S = 300;
 /** A table with this share of dead rows, of at least this many rows, is a line. */
 export const DEAD_ROWS_SHARE = 0.3;
 export const DEAD_ROWS_MIN = 10_000;
+/**
+ * Tables that a job fills and then empties all at once. The snapshot job stages a cut's rows in
+ * public.snapshot_units_staged and deletes them all when the cut ends (put_snapshot), so from that
+ * moment until the next autovacuum round, about a minute later, every row is dead. That is normal,
+ * not "autovacuum is behind": production showed a vacuum about a minute after each cut (LAN-313).
+ * The dead-rows line leaves these tables out; a queue that vacuum stopped cleaning still shows as
+ * a table that grows, among the largest tables.
+ */
+export const QUEUE_TABLES: readonly string[] = ['public.snapshot_units_staged'];
+/** Whether a table's dead rows are a line (the Database pictures draw the same rule, pageMeters.ts). */
+export const deadRowsLine = (t: DbDetail['tables'][number]): boolean =>
+  num(t.deadRatio) >= DEAD_ROWS_SHARE && t.rows >= DEAD_ROWS_MIN && !QUEUE_TABLES.includes(t.name);
 
 export function dbDetailAlerts(d: DbDetail): Alert[] {
   const out: Alert[] = [];
@@ -342,7 +354,7 @@ export function dbDetailAlerts(d: DbDetail): Alert[] {
     const q = d.longestQuery;
     out.push({ level: 'watch', key: 'long-query', text: `A query${q ? ` by ${whose(q)}` : ''} has been running for ${Math.round(num(d.longestQueryS) / 60)} minutes${q?.waitingOn === 'Lock' ? ', blocked by a lock' : ''}.` });
   }
-  for (const t of d.tables) if (num(t.deadRatio) >= DEAD_ROWS_SHARE && t.rows >= DEAD_ROWS_MIN) out.push({ level: 'watch', key: 'dead-rows', subject: t.name, text: `${t.name} is ${Math.round(num(t.deadRatio) * 100)}% dead rows: autovacuum is behind.` });
+  for (const t of d.tables) if (deadRowsLine(t)) out.push({ level: 'watch', key: 'dead-rows', subject: t.name, text: `${t.name} is ${Math.round(num(t.deadRatio) * 100)}% dead rows: autovacuum is behind.` });
   return out;
 }
 
@@ -573,7 +585,7 @@ export interface UserIssueNote {
  * 20261121235200_user_issue_plans.sql.
  */
 /** One issue in the order the fix team takes them (server/userIssues.ts OrderedIssue). */
-export interface UserIssueOrdered { issue: string; from: 'plan' | 'research' | 'untried'; priority: number; people: number; kinds: number; places: number; times: number; firstAt: string | null }
+export interface UserIssueOrdered { issue: string; from: 'plan' | 'research' | 'untried' | 'again'; priority: number; people: number; kinds: number; places: number; times: number; firstAt: string | null }
 
 export interface UserIssuePlan { next: string; steps: string | null; nextAt: string; tries: number; at: string }
 
