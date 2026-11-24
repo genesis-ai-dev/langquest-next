@@ -106,10 +106,15 @@ ol.steps li.now::after { background: var(--primary); border-color: var(--primary
 
 /** Pure: apps/admin/test/issues.test.ts runs these with new Function. */
 export const ISSUE_LOGIC = String.raw`
-/** Where the watch found a user issue, from the family of its first key (scripts/user-issues.mjs FAMILIES). */
+/**
+ * Where the watch found a user issue, from the family of its first key (scripts/user-issues.mjs FAMILIES).
+ * A person who sent it wins over every other key: a report the watch added to an issue it filed for a
+ * phone's records keeps "A person sent it", though its key does not come first.
+ */
 const ISSUE_SOURCES = { job: 'Server jobs', worker: 'Web traffic', feedback: 'A person sent it', ops: 'The ops dashboard' };
 const PHONE_FAMILIES = ['error', 'sync', 'transfer', 'auth', 'expected', 'audio', 'fill', 'device', 'slow', 'snapshot'];
 function issueSource(keys) {
+  if ((keys || []).some((k) => String(k).startsWith('feedback:'))) return ISSUE_SOURCES.feedback;
   const family = String((keys || [])[0] || '').split(':')[0];
   return ISSUE_SOURCES[family] || (PHONE_FAMILIES.includes(family) ? 'Phones and browsers' : '');
 }

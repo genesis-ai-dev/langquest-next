@@ -585,7 +585,7 @@ export interface UserIssueNote {
  * 20261121235200_user_issue_plans.sql.
  */
 /** One issue in the order the fix team takes them (server/userIssues.ts OrderedIssue). */
-export interface UserIssueOrdered { issue: string; from: 'plan' | 'research' | 'untried' | 'again'; priority: number; people: number; kinds: number; places: number; times: number; firstAt: string | null }
+export interface UserIssueOrdered { issue: string; from: 'plan' | 'research' | 'untried' | 'again'; /** A person sent it from help mode: it goes first (migration 20261124061500_user_reports.sql). */ sent?: boolean; priority: number; people: number; kinds: number; places: number; times: number; firstAt: string | null }
 
 export interface UserIssuePlan { next: string; steps: string | null; nextAt: string; tries: number; at: string }
 
@@ -716,7 +716,27 @@ export function userIssueAlerts(u: UserIssues): Alert[] {
   return out;
 }
 
+/**
+ * One report a person sent from help mode in the app (diag.ops_user_reports, docs/decisions/2026-11-24-user-reports-have-their-own-page-and-go-first.md):
+ * a problem or an idea, what it says and from which screen, what the watch decided about it, and the state of its Linear issue.
+ * Never a name, an address, an install or an account.
+ */
+export interface UserReport {
+  id: string; at: string; kind: 'bug' | 'idea'; says: string; screen: string | null; os: string | null;
+  screenshot: boolean; picture: boolean; voiceMs: number | null;
+  /** What the watch decided: filed (a new issue), known (added to an issue), fixed (already fixed), noise; null before it looked. */
+  verdict: 'filed' | 'known' | 'fixed' | 'noise' | null; note: string | null; lookedAt: string | null;
+  issue: string | null; issueUrl: string | null; title: string | null; state: string | null;
+  closedAt: string | null; fixedBy: number | null; fixedAt: string | null;
+  problem: string | null; known: string | null; solution: string | null;
+  /** Linear's priority as the watch last read it: 0 none, 1 Urgent, 2 High, 3 Medium, 4 Low. */
+  priority: number | null;
+}
+/** diag.ops_user_reports(): the reports of the last 90 days, the newest first, and how many came from test accounts. */
+export interface UserReports { reports: UserReport[]; test: number }
+
 const USER_ISSUES_MIGRATION = 'Needs migration 20261103204500_user_issues_fixed.sql on this database.';
+const USER_REPORTS_MIGRATION = 'Needs migration 20261124061500_user_reports.sql on this database.';
 const RESEARCH_MIGRATION = 'Needs migration 20261119234319_agent_research.sql on this database.';
 
 // ---- one load ---------------------------------------------------------------------------------
@@ -724,13 +744,13 @@ const RESEARCH_MIGRATION = 'Needs migration 20261119234319_agent_research.sql on
 export interface OpsSections {
   fleet: Section; safety: Section; people: Section; cron: Section; dbdetail: Section;
   push: Section; worker: Section; integrations: Section; support: Section; security: Section; tutorials: Section; videofeedback: Section;
-  userissues: Section; research: Section;
+  userissues: Section; userreports: Section; research: Section;
 }
 
 /** Every section above in one answer (db.ts withDiag); each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries, plans, order] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues, quiet, usernotes, userfixes, research, diagrams, records, tries, plans, order, userreports] = await Promise.all([
     part<Omit<Fleet, 'quiet'>>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -764,7 +784,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<CardRecord[]>(query, `select diag.ops_card_record('issue') as v`),
     part<Record<string, string>>(query, `select diag.ops_user_issue_tries() as v`),
     part<Record<string, UserIssuePlan>>(query, `select diag.ops_user_issue_plans() as v`),
-    part<UserIssueOrdered[]>(query, `select diag.ops_user_issue_order() as v`)
+    part<UserIssueOrdered[]>(query, `select diag.ops_user_issue_order() as v`),
+    part<UserReports>(query, `select diag.ops_user_reports() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -834,6 +855,11 @@ export async function opsSections(query: Query): Promise<OpsSections> {
       // Before its migration the cards show without the box, and without the agent team's record.
       const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: withPlans(userfixes.value, plans.ok ? plans.value : {}) } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}), ...(tries.ok ? { tries: tries.value } : {}), ...(order.ok && Array.isArray(order.value) ? { order: order.value } : {}) };
       return ok(u, userIssueAlerts(u));
+    }),
+    // No line of its own: each open report is a user issue already, and the User issues part has the lines (alertKinds.ts).
+    userreports: build([userreports], USER_REPORTS_MIGRATION, () => {
+      const u = val(userreports);
+      return ok({ reports: Array.isArray(u.reports) ? u.reports : [], test: num(u.test) }, []);
     }),
     research: build([research], RESEARCH_MIGRATION, () => {
       const r: Research = { ...val(research), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: userfixes.value } : {}) };

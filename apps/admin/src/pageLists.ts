@@ -422,7 +422,7 @@ document.addEventListener('keydown', (e) => {
  * shows one keeps its body open under its picture, so an answer never waits behind "Show the numbers".
  */
 export const QUEUE_CONTROLS = ['data-decision', 'data-sg', 'data-instruct', 'data-cards', 'data-note', 'data-yt-connect', 'data-yt-publish', 'data-yt-item', 'data-yt-all', 'data-fb', 'data-itab', 'data-uinote',
-  'data-vtab', 'data-reply-copy', 'data-reply-done', 'data-retry', 'data-rtab', 'data-rchoice', 'data-filming', 'data-filming-ask', 'data-fixapp', 'data-askfirst', 'data-appmerge', 'data-ask', 'data-claim'];
+  'data-vtab', 'data-reply-copy', 'data-reply-done', 'data-retry', 'data-rtab', 'data-rchoice', 'data-filming', 'data-filming-ask', 'data-fixapp', 'data-askfirst', 'data-appmerge', 'data-ask', 'data-claim', 'data-rptab'];
 /**
  * The controls that may wait behind "Show the numbers": they open, look, move or zoom, or only quiet a
  * warning or start a job early (Not an issue, Run now). A new control goes in one list or the other

@@ -289,7 +289,11 @@ issue that waits for the fix team: the new issues, the plans whose time
 came, the research's, the issues Claude never tried, and once each the
 choices Claude asked a developer for before 2026-11-24 06:00 UTC (`again`)
 (`ops_user_issue_order()`, `orderToTake()` in `scripts/user-issues.mjs`).
-The order is Linear's priority (Urgent, High, Medium or none, Low), then
+A problem that a person sent from help mode in the app goes before every
+other issue, also when the watch added the report to an issue it filed for
+another kind (`sent`;
+`docs/decisions/2026-11-24-user-reports-have-their-own-page-and-go-first.md`).
+Inside each half the order is Linear's priority (Urgent, High, Medium or none, Low), then
 the most people of one of its kinds in 7 days, then how many kinds point to
 it, then how many places the research found with the same mistake, then
 times, then the oldest. Each run reads each open issue's priority with its
