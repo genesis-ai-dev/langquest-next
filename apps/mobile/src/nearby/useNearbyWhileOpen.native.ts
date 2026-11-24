@@ -149,6 +149,8 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
   const [answers, setAnswers] = useState<PermissionAnswers | null>(null);
   const [facts, setFacts] = useState<NativeCapabilities | null>(null);
   const resting = restKey(orgId, languageId);
+  const restingKey = useRef(resting);
+  restingKey.current = resting;
   const [restUntil, setRestUntil] = useState(() => restsUntil.get(resting) ?? 0);
   useEffect(() => { setRestUntil(restsUntil.get(resting) ?? 0); }, [resting]);
   const { os, sdk } = phoneSystem();
@@ -199,7 +201,9 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
     if (!h) return;
     h.forget();
     if (h.ticker) clearInterval(h.ticker);
-    await nearbyOwner.turn(() => h.room.stop()).catch((e: unknown) => noteExpected('nearby: open stop', e));
+    // A stop because a rest began says so in the room's record (decision 235 as amended).
+    const why = (restsUntil.get(restingKey.current) ?? 0) > Date.now() ? 'rest' : 'asked';
+    await nearbyOwner.turn(() => h.room.stop(why)).catch((e: unknown) => noteExpected('nearby: open stop', e));
   }, []);
 
   // A radio's error stops this room and rests, only while it is the one running.
@@ -231,7 +235,7 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
         // A phone whose chain did not check: nothing more from the air for a while (15.8). A teammate whose window ran out is only passed over.
         if (e.t === 'ended' && turnedAwayUnwelcome(e.report)) rest();
         // A stop of its own (waiting too long, no key): it rests rather than start again at once.
-        if (e.t === 'stopped' && e.why !== 'asked' && room && holding.current?.room === room) rest();
+        if (e.t === 'stopped' && e.why !== 'asked' && e.why !== 'rest' && room && holding.current?.room === room) rest();
       };
       room = nearbyRoomOf({
         radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn: false, mode: 'open', report, progress: () => undefined,

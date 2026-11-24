@@ -179,6 +179,26 @@ describe('diagnostic signals', () => {
     expect(texts({ b: install({ nearby: { rooms: [{ at: 'T', stop: 'asked', heard: 0, echoed: 0, alone: 1, maybe: 1, taps: 1, sessions: 1, done: 1 }], ends: { done: 1 }, links: { awdl: 1 } } }) })).toEqual([]);
   });
 
+  // 2026-11-24 (docs/nearby-sync-plan.md 15.8): enough to see how sharing while LangQuest is open works for a team.
+  it('reads sharing while LangQuest is open apart: hearing nobody is no fault, its finished sessions count, and a refusal says why', () => {
+    const quiet = { at: 'T', stop: 'asked', mode: 'open', heard: 0, echoed: 0, sessions: 0, done: 0, openMin: 30 };
+    expect(texts({ a: install({ nearby: { rooms: [quiet] } }) }).join('\n')).not.toMatch(/heard no teammate's phone/);
+    const t = texts({ a: install({ nearby: {
+      rooms: [quiet],
+      openTotals: { count: 4, met: 2, openMin: 90, pauseMin: 20, scanMin: 8, syncMin: 3, done: 9, events: 30, files: 2 },
+      // One dropped of ten: the nine finished while open have no record of their own.
+      ends: { dropped: 1 },
+      refusals: { 'open:window': 2, 'screen:revoked': 1 },
+      deliver: { count: 2, sent: 40, events: 35, refused: 3, farAhead: 3, keyRefused: 0 }
+    } }) });
+    const all = t.join('\n');
+    expect(all).toMatch(/info: Shared while LangQuest was open 4 times for 90 min \(radios off 20, scanning 8, syncing 3\); met a teammate in 2, 9 sessions finished/);
+    expect(all).toMatch(/watch: 1 of 10 nearby sessions did not finish: 1 dropped/);
+    expect(all).toMatch(/watch: While LangQuest was open this phone turned a teammate away 2 times because their certificate and the day they last met here were over two weeks old/);
+    expect(all).toMatch(/problem: This phone turned away a phone on Share nearby once: its key was revoked/);
+    expect(all).toMatch(/watch: Delivering teammates' work to the server, 3 events were refused here \(3 stamped too far ahead/);
+  });
+
   it("names Share nearby's expected failures, and an attestation that did not match as a problem", () => {
     const t = texts({ a: install({ expected: [
       { where: 'nearby_attest', name: 'mismatch', code: null, count: 1, lastAt: 'T' },

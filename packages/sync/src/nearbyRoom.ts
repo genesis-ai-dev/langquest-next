@@ -1,9 +1,9 @@
 import { base64urlDecode, base64urlEncode, discoveryKeyAt, type DiscoveryKey } from '@langquest-next/core/nearby';
 import type { NearbyPeerRecord } from './nearbyKeep';
-import { emptyRoomTally, nearbyCodeOf, roomDiagOf, sessionDiagOf, type NearbyDiagInput, type NearbyRoomTally, type RoomDiagMode } from './nearbyDiag';
+import { addSynced, emptyRoomTally, emptySyncedTally, nearbyCodeOf, roomDiagOf, sessionDiagOf, type NearbyDiagInput, type NearbyRoomTally, type NearbySyncedTally, type RoomDiagMode } from './nearbyDiag';
 import type { FindTunables, HeardAdvert, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from './nearbyLink';
 import { channelKeysOf, findEchoOf, findPayload, findTagOf } from './nearbyOpening';
-import { choosePartner, type PartnerInRange } from './nearbyPartners';
+import { choosePartner, worthBesidesGreeting, type PartnerInRange } from './nearbyPartners';
 import type { NearbyRole, NearbySessionReport, Radios } from './nearbySession';
 
 /**
@@ -90,7 +90,8 @@ export const NEARBY_ROOM_DEFAULTS: NearbyRoomTunables = {
   scanKeysMax: 16, formSaltsMax: 8, heardForMs: 30_000, tapAfterMs: 60_000, tapAfterAloneMs: 10_000, waitToConnectMs: 20_000, retryMs: 15_000, retryMaxMs: 300_000, dueAfterMs: 30 * 60_000, scanOnlyConnects: true
 };
 
-export type NearbyRoomStop = 'asked' | 'idle' | 'wait' | 'run' | 'level' | 'no-key';
+/** `rest`: stopped by its caller to rest (the quiet mode, docs/nearby-sync-plan.md 15.8); `asked`, any other stop it was asked for. */
+export type NearbyRoomStop = 'asked' | 'idle' | 'wait' | 'run' | 'level' | 'no-key' | 'rest';
 
 export type NearbyRoomEvent =
   /** Teammates who have echoed this phone's salt. Nobody shows before that. */
@@ -248,6 +249,13 @@ export class NearbyRoom {
   private scanHeld = false;
   /** Off at "Up to date" with `levelPause`: Find stopped, the run going on. */
   private paused = false;
+  private pauseMs = 0;
+  /** While LangQuest is open, what finished sessions moved, for the room's record. */
+  private synced: NearbySyncedTally = emptySyncedTally();
+  /** Tags this phone began a session with this run, so only the first counts toward `maxMeetMs`. */
+  private readonly connectedTags = new Set<string>();
+  /** Tags the last choice found worth a session only to greet (15.8), for `greets`. */
+  private greetOnly = new Set<string>();
   /** What diagnostics count over one run: numbers, and the tags only to count them once. */
   private tally: NearbyRoomTally = emptyRoomTally();
   private readonly heardTags = new Set<string>();
@@ -283,6 +291,10 @@ export class NearbyRoom {
     this.waitMs = 0;
     this.level = false;
     this.paused = false;
+    this.pauseMs = 0;
+    this.synced = emptySyncedTally();
+    this.connectedTags.clear();
+    this.greetOnly = new Set();
     this.scanMs = 0;
     this.passedOver.clear();
     this.tally = emptyRoomTally();
@@ -321,9 +333,10 @@ export class NearbyRoom {
     await this.start(now);
   }
 
-  stop(): Promise<void> {
+  /** `rest` when the caller stops it to rest, for the record; else `asked`. */
+  stop(why: 'asked' | 'rest' = 'asked'): Promise<void> {
     this.starts += 1;
-    return this.halt('asked');
+    return this.halt(why);
   }
 
   /**
@@ -355,6 +368,7 @@ export class NearbyRoom {
       this.lastTick = now;
       this.now = now;
       if (!this.scanHeld && !this.paused) this.scanMs += passed;
+      if (this.paused) this.pauseMs += passed;
       if (this.opt.runLimitMs !== undefined && now - this.startedAt >= this.opt.runLimitMs) return await this.halt('run');
       if (!this.paused) await this.refreshFind();
       if (!this.running) return;
@@ -599,6 +613,7 @@ export class NearbyRoom {
       });
     }
     const me = { tag: this.myTag, summary: this.summary };
+    this.greetOnly = new Set(inRange.filter((p) => p.greet && !p.listed && !worthBesidesGreeting(me, p)).map((p) => p.tag));
     let choice = choosePartner(me, inRange);
     if (choice && !choice.connect) {
       const partner = inRange.find((p) => p.tag === choice!.partner)!;
@@ -657,6 +672,11 @@ export class NearbyRoom {
     this.session = session;
     this.began.set(session, this.now);
     this.everMet = true;
+    if (!this.connectedTags.has(tag)) {
+      this.connectedTags.add(tag);
+      this.tally.maxMeetMs = Math.max(this.tally.maxMeetMs ?? 0, this.now - h.firstAt);
+    }
+    if (this.greetOnly.has(tag)) this.tally.greets += 1;
     this.opt.report({ t: 'session', tag, role: 'i' });
     void this.finish(session, tag, mine, seen.summary);
   }
@@ -726,7 +746,10 @@ export class NearbyRoom {
     this.tally.sessions += 1;
     if (ended.how === 'done') this.tally.done += 1;
     if (ended.how === 'no-answer') this.tally.noAnswer += 1;
-    this.note(sessionDiagOf(report, Math.max(0, this.now - (this.began.get(session) ?? this.now))));
+    const ms = Math.max(0, this.now - (this.began.get(session) ?? this.now));
+    // While LangQuest is open a finished session is summed in the room's record, so weeks offline do not fill the queue.
+    if (this.opt.mode === 'open' && ended.how === 'done') addSynced(this.synced, report, ms);
+    else this.note(sessionDiagOf(report, ms, this.opt.mode));
     this.began.delete(session);
     // Only a verified session that committed something restarts the clocks, never a connection.
     if (report.changed) {
@@ -828,7 +851,7 @@ export class NearbyRoom {
   private diagMode(): RoomDiagMode | undefined {
     const { mode } = this.opt;
     if (!mode) return undefined;
-    return mode === 'open' ? { mode, scanMs: this.scanMs } : { mode };
+    return mode === 'open' ? { mode, scanMs: this.scanMs, pauseMs: this.pauseMs, synced: this.synced } : { mode };
   }
 
   /** Diagnostics never stop the room. */

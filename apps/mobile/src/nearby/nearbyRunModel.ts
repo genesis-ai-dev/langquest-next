@@ -240,8 +240,8 @@ export function turnedAwayUnwelcome(report: Pick<SessionReportLike, 'ended'>): b
   return how === 'said' && reason === 'identity' && detail !== 'certificate not recent';
 }
 
-/** Why the room stopped: sync's `NearbyRoomStop`. `asked` is this phone's own stop (a blur, the background). */
-export type RoomStop = 'asked' | 'idle' | 'wait' | 'run' | 'level' | 'no-key';
+/** Why the room stopped: sync's `NearbyRoomStop`. `asked` is this phone's own stop (a blur, the background); `rest`, the quiet mode's. */
+export type RoomStop = 'asked' | 'idle' | 'wait' | 'run' | 'level' | 'no-key' | 'rest';
 
 /** sync's `NearbyRoomEvent`. */
 export type RoomReport =
@@ -259,7 +259,7 @@ export type RoomReport =
  * the room's own (`idle`, `wait`, `run`, `level`, `no-key`), `left` when a worn phone went to
  * the background (its lock clears the press), and `failed` when the radios would not start.
  */
-export type NearbyStop = Exclude<RoomStop, 'asked'> | 'left' | 'failed';
+export type NearbyStop = Exclude<RoomStop, 'asked' | 'rest'> | 'left' | 'failed';
 
 /**
  * A teammate as the screen shows it: `here` once echoed (or tapped), `maybe` when no echo came
@@ -441,7 +441,7 @@ function roomReported(s: NearbyRunState, e: RoomReport, worn: boolean, names: Re
     case 'level':
       return { ...s, level: true };
     case 'stopped':
-      return halted(s, e.why === 'asked' ? null : e.why, worn);
+      return halted(s, e.why === 'asked' || e.why === 'rest' ? null : e.why, worn);
   }
 }
 

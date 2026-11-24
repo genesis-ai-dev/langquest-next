@@ -488,7 +488,12 @@ Share nearby's diagnostics (`docs/diagnostics.md`, the `nearby` kind in the fact
 on Android, a record when a room stops, when a session ends, when Find fails and when the
 screen cannot run, with counts, durations and the nearby module's fixed codes; from phase 10
 a room's record also says whether it ran on Share nearby or while LangQuest was open, and
-then the minutes it ran and scanned. They name no
+then the minutes it ran and scanned; from 2026-11-24 the minutes its radios paused and
+synced, the sums of the sessions it finished while open (which no longer write a record
+each), how many sessions Share nearby began only to note a teammate's day, the longest wait
+from hearing a teammate to meeting them, a stop to rest, and, when the phone turned another
+away, a reason from a fixed list (past the two weeks, revoked, another organization, expired,
+other). They name no
 teammate's phone (no tag, salt, key, install key, profile or device id), say nothing of a
 disguise, carry no content, and go only to our own database with the person's other
 diagnostics, under the same Settings switch and 90 days. That is more of "App info and
@@ -590,7 +595,7 @@ this block.
       "error": ["code", "errorId", "fatal", "name", "where"],
       "expected": ["code", "count", "name", "where"],
       "fill": ["event", "headKb", "ms", "msToMap", "passages", "reason", "rows", "why"],
-      "nearby": ["adv", "alone", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "heard", "hotspot", "keyRefused", "levelMs", "link", "maxUnmatched", "maybe", "mode", "ms", "newerApp", "noAnswer", "noRoom", "older", "openMin", "overBudget", "pipeFails", "refused", "role", "scanMin", "sent", "served", "sessions", "stop", "strangers", "taps", "why"],
+      "nearby": ["adv", "alone", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "greets", "heard", "hotspot", "keyRefused", "levelMs", "link", "maxMeetMs", "maxUnmatched", "maybe", "mode", "ms", "newerApp", "noAnswer", "noRoom", "older", "openMin", "overBudget", "pauseMin", "pipeFails", "refusal", "refused", "role", "scanMin", "sent", "served", "sessions", "stop", "strangers", "syncMin", "taps", "viaDirect", "why"],
       "load": ["checkpoint", "events", "foldMs", "fromSnapshot", "ms", "readMs", "reason", "staleCheckpointSeq"],
       "open": ["cold", "loadMs", "ms", "pulled", "snapshotMs", "syncs"],
       "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq", "why"],

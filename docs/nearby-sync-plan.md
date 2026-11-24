@@ -4510,6 +4510,20 @@ bringing back renewed certificates for the team (the window would then run from 
 needs the Worker and the protocol to change); a longer window (a taken phone works that much
 longer, and a Share nearby still resets nothing).
 
+**Diagnostics enough to improve it (2026-11-24).** A review of the records found they could
+answer one person's report but not how the mode works for a team. Sessions did not say their
+mode; a refusal said `identity` whether the window or a lost phone caused it; nothing showed the
+pause, the greetings, the rests or how long a teammate waited to be met; a phone syncing quietly
+all day wrote a record each session, so weeks offline could drop the start of a trip from its
+queue of 3,000; and the only reading was per install, with delivery left out. Now a session says
+its `mode` and a `refusal` reason (`window`, `revoked`, `org`, `expired`, `other`); a room says
+`greets`, `maxMeetMs`, `stop` `rest`, and while open `pauseMin` and the sums of its finished
+sessions, which write no record each (`packages/sync/src/nearbyDiag.ts`); the install summary
+keeps the modes apart with refusals and delivery; and `diag.nearby_summary`, read by
+`npm run diag -- nearby <org>`, shows each language's phones together
+(`20261124090000_diag_nearby_quiet.sql`, decision 235 as amended). Battery is still read only in
+the real-phone test (15.7): the field has minutes on, off, scanning and syncing to set against it.
+
 **A pause in place of the cap, and a shorter rest (2026-11-24).** Carl found the ten-minute rest
 long, and a run cut at 30 minutes wrong while the radios were doing useful work. Thirty minutes on
 and ten off is a quarter of the time off the air; three on and one off is the same quarter, with a

@@ -41,6 +41,14 @@ const lower = (a: PartnerInRange, b: PartnerInRange): number => {
   return a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : 0;
 };
 
+/** Worth a session for what the two may swap or are due, a greeting aside. */
+export function worthBesidesGreeting(me: { summary: string }, p: PartnerInRange): boolean {
+  // Finished with both summaries as they stand: nothing has changed since, even if the two differ, as they do when one phone has no room.
+  if (p.finished && p.finished.mine === me.summary && p.finished.theirs === p.summary) return false;
+  // `dueAnyway` overrides only this, because it alone rests on what others claim.
+  return !(p.summary === me.summary && !p.hasWhatIWant && !p.wantsWhatIHave && !p.dueAnyway);
+}
+
 /**
  * Null means "Up to date". `waited` is the time-out for a phone that is not the lower tag:
  * the other may only be able to scan, so nobody would otherwise connect.
@@ -50,14 +58,7 @@ export function choosePartner(
   inRange: readonly PartnerInRange[],
   opts: { waited?: boolean } = {}
 ): { partner: string; connect: boolean } | null {
-  const worthIt = inRange.filter((p) => {
-    if (p.listed) return false;
-    if (p.greet) return true;
-    // Finished with both summaries as they stand: nothing has changed since, even if the two differ, as they do when one phone has no room.
-    if (p.finished && p.finished.mine === me.summary && p.finished.theirs === p.summary) return false;
-    // `dueAnyway` overrides only this, because it alone rests on what others claim.
-    return !(p.summary === me.summary && !p.hasWhatIWant && !p.wantsWhatIHave && !p.dueAnyway);
-  });
+  const worthIt = inRange.filter((p) => !p.listed && (p.greet === true || worthBesidesGreeting(me, p)));
   const [best] = [...worthIt].sort(lower);
   if (!best) return null;
   return { partner: best.tag, connect: best.echoed && (best.older || opts.waited === true || (best.connectsFirst ?? me.tag < best.tag)) };

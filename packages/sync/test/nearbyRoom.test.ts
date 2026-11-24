@@ -561,16 +561,19 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
       await a!.phone.keep.noteMet({ key: people[1]!.key, profileId: 'sam', day: today - 8 }, 0);
       await b!.phone.keep.noteMet({ key: people[0]!.key, profileId: 'ana', day: today - 8 }, 0);
       const later = memoryNearbyAir({ time, files: shelf });
-      const again = [roomFor(a!.phone, later, time, { notesMetForMs: WINDOW }), roomFor(b!.phone, later, time, { notesMetForMs: WINDOW })];
+      const records: { t: Record<string, string>; n?: Record<string, number> }[] = [];
+      const again = [a!, b!].map((r) => roomFor(r.phone, later, time, { notesMetForMs: WINDOW, room: { diag: (x) => records.push(x) } }));
       for (const r of again) await r.room.start(time.now());
       for (let i = 0; i < 24; i++) await turn(later, time, again);
       expect(later.pipes.length).toBe(1);
+      // The phone that began it counts it as a greeting, for the room's record.
+      for (const r of again) await r.room.stop();
+      expect(records.filter((x) => x.t.event === 'room').map((x) => x.n?.greets).sort()).toEqual([0, 1]);
       expect((await a!.phone.keep.met(0)).map((m) => m.day)).toEqual([today]);
       expect((await b!.phone.keep.met(0)).map((m) => m.day)).toEqual([today]);
 
       // Plain Share nearby, where the quiet mode may not run, greets nobody and notes nothing.
       await a!.phone.keep.noteMet({ key: people[1]!.key, profileId: 'sam', day: today - 8 }, 0);
-      for (const r of again) await r.room.stop();
       const plain = memoryNearbyAir({ time, files: shelf });
       const off = [roomFor(a!.phone, plain, time), roomFor(b!.phone, plain, time)];
       for (const r of off) await r.room.start(time.now());
