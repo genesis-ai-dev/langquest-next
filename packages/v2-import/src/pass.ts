@@ -477,9 +477,11 @@ class Run {
    * R2 lost is put back; a 15-minute pass asks the log (`unstored`). Listing R2 is a class A
    * operation for each 1,000 files, and the 15-minute passes listed the biggest languages (84,000
    * files) twice a pass, 76 passes a day: about 165,000 list calls a day, $15 to $20 a month in November 2026.
+   * The listing is a file step like the others, tried `again` after a passing failure: R2 answered
+   * 500 to every list for a minute or two some nights (LAN-298), and each failure stopped the project's transfer.
    */
   private async storedOf(orgId: string, languageId: string, known: (CopiedFile | { missingSince: string } | undefined)[]): Promise<Set<string>> {
-    if (this.whole || !this.deps.target.unstored) return this.deps.target.stored(orgId, languageId);
+    if (this.whole || !this.deps.target.unstored) return again(() => this.deps.target.stored(orgId, languageId), this.deps.wait);
     const files = new Map<string, { hash: string; size: number }>();
     for (const f of known) if (f && !('missingSince' in f)) files.set(f.hash, { hash: f.hash, size: f.size });
     if (files.size === 0) return new Set();

@@ -43,8 +43,11 @@ const rows: V2ProjectRows = {
 };
 const bucket: Record<string, Uint8Array> = { 'a1.wav': wav(500, 1), 'a2.wav': wav(700, 2) };
 
-/** `log`: the target answers `unstored` from the log (each upload is logged), as the Supabase target does. */
-function fakes(opts: { log?: boolean } = {}) {
+/**
+ * `log`: the target answers `unstored` from the log (each upload is logged), as the Supabase target does.
+ * `listFails`: the first so many listings of R2 fail, as R2 answered 500 to every list for a minute some nights.
+ */
+function fakes(opts: { log?: boolean; listFails?: number } = {}) {
   const placement = { project_id: 'birat', org_id: 'org-birat', languoid_id: null, code: 'rjs', confirmed_by: 'caleb', confirmed_at: at, language_id: null as string | null, moved_at: null as string | null };
   const ledgers = new Map<string, Map<string, LedgerEntry>>();
   const fileMap = new Map<string, CopiedFile | { missingSince: string }>();
@@ -82,6 +85,7 @@ function fakes(opts: { log?: boolean } = {}) {
     putFiles: async (list: { name: string; file: CopiedFile | null }[]) => { for (const f of list) fileMap.set(f.name, f.file ?? { missingSince: new Date(now).toISOString() }); },
     stored: async (org: string, lang: string) => {
       calls.lists += 1;
+      if (calls.lists <= (opts.listFails ?? 0)) throw new Error(`list ${org}/${lang}/ (502): Files are not available just now.`);
       return new Set([...r2].filter((k) => k.startsWith(`${org}/${lang}/`)).map((k) => k.split('/')[2]!));
     },
     ...(opts.log ? {
@@ -202,6 +206,19 @@ describe('what the import already stored for a language', () => {
 
     const [report] = await f.whole();
     expect(f.calls.lists).toBe(1);
+    expect(report!.files).toMatchObject({ uploaded: 1 });
+    expect(f.r2.has(lost)).toBe(true);
+  });
+
+  it('is listed again when R2 fails a listing, so the whole read does not stop the transfer', async () => {
+    const f = fakes({ log: true, listFails: 2 });
+    await f.pass();
+    const lost = [...f.r2][0]!;
+    f.r2.delete(lost);
+
+    const [report] = await f.whole();
+    expect(report!.error).toBeUndefined();
+    expect(f.calls.lists).toBe(3);
     expect(report!.files).toMatchObject({ uploaded: 1 });
     expect(f.r2.has(lost)).toBe(true);
   });
