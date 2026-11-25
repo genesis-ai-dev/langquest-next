@@ -213,6 +213,87 @@ export function groupLook(
   return { kind: 'partial', title: here, tone, sub: fromTeammate ? t('offline.teammateToFinish') : o.offline ? t('offline.connectToFinish') : t('offline.group.stillToCome'), help, tap, ...none };
 }
 
+/**
+ * What keeping a group's passages would bring, asked at the tap
+ * (`LanguageSession.offlineCost`): `bytes` of recordings in `files`, both null
+ * where the device could not work it out; `here`, recordings of theirs already
+ * on this device; `room`, what it has to spare for them: what is free above
+ * what recording keeps (`BlobStore.roomBytes`) and what it would free for them
+ * by itself (the session's `freeable`), null where it cannot say.
+ */
+export type GroupCost = { bytes: number | null; files: number | null; room: number | null; here: number | null };
+
+/** The sheet that asks before a book downloads: how much it brings, and what else. */
+export interface KeepAsk {
+  title: string;
+  /** The recordings' size, said large; null where there is no size to say (none to fetch, or not worked out). */
+  size: string | null;
+  /** What the size is of: recordings, for how many passages. */
+  what: string;
+  /** What else is true of it, a sentence each: no size, recordings already here or none made, reference material, room, a teammate. */
+  lines: string[];
+  /** The button that starts it, with the size when there is one, as the button that opened the sheet. */
+  confirm: string;
+  /** What help mode says of that button. */
+  help: string;
+}
+
+/**
+ * What a book's sheet says before its passages download (Carl, 2026-11-25:
+ * say how much data will come, and let the person confirm or cancel), from
+ * what the tap just asked: the recordings' size for the passages not kept
+ * yet, that their reference material comes too though its size is not known
+ * before it does, and the room this device has for it. Offline where Share
+ * nearby can run it says a teammate's phone brings them.
+ */
+export function keepAsk(name: string, count: number, cost: GroupCost, fromTeammate: boolean): KeepAsk {
+  const bytes = cost.bytes ?? 0;
+  const size = bytes > 0 ? formatBytes(bytes) : null;
+  // Why there is no size: the device could not work it out, the recordings are here already (a book let go keeps its
+  // files until room is needed), or nobody has recorded them yet.
+  const why = cost.bytes === null ? t('offline.group.keepSizeUnknown')
+    : bytes > 0 || cost.files ? null
+    : cost.here ? t('offline.group.keepHereAlready')
+    : t('offline.group.keepNoneYet');
+  const lines = [
+    why,
+    t('offline.group.keepReference'),
+    cost.room === null ? null : t('offline.group.keepRoom', { room: formatBytes(cost.room) }),
+    fromTeammate ? t('offline.group.keepTeammate') : null
+  ].filter((l): l is string => !!l);
+  return {
+    title: t('offline.group.keepTitle', { name }), size, what: t('offline.group.keepWhat', { count }), lines,
+    confirm: size ? t('offline.group.downloadButtonSize', { size }) : t('offline.group.downloadButton'),
+    help: t(fromTeammate ? 'offline.group.keepFromTeammateHelp' : 'offline.group.keepHelp')
+  };
+}
+
+/**
+ * How far a group's download has come, once it is asked for: of the files
+ * its kept passages need (recordings that can come, study guide files,
+ * reference audio), how many are on this device, from the same counts each
+ * passage's own button reads (decisions.md 166). Files that cannot come (a
+ * recording not sent yet, a study file its source refused, reference audio
+ * with no room) are not counted, so it can reach the end. `checking` from
+ * the tap until the device has counted the passages just kept, which can take
+ * some seconds: a count of some of them would jump. Null while a download is
+ * still offered (the button is there instead), once every passage is here, or
+ * when they need no file at all.
+ */
+export function groupProgress(g: GroupOffline, unitIds: readonly string[], counted: ReadonlyMap<string, KeptOffline>): { here: number; total: number } | 'checking' | null {
+  if (g.checking || g.toKeep.length > 0 || g.ready === g.count) return null;
+  let here = 0;
+  let total = 0;
+  for (const unitId of unitIds) {
+    const u = counted.get(unitId);
+    // Not kept to be offered, so kept a moment ago: the count has not caught up with it yet.
+    if (!u?.reason) return 'checking';
+    here += u.here + u.studyHere + u.refHere;
+    total += u.here + u.toFetch + u.studyTotal + u.refTotal;
+  }
+  return total > 0 ? { here: Math.min(here, total), total } : null;
+}
+
 /** Would this much audio fit in the room the device has to spare (`BlobStore.roomBytes`)? A device that cannot say (`null`) is not held back. */
 export function fits(bytes: number, room: number | null): boolean {
   return room === null || bytes <= room;
