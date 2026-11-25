@@ -16,24 +16,48 @@ export interface BlobFiles {
 export const blobKey = (orgId: string, streamId: string, hash: string, format: string) => `${orgId}/${streamId}/${hash}.${format}`;
 
 /**
+ * How long a listing waits before it asks for a failed page again: about three minutes in all, longer
+ * than the list failures seen in production (LAN-298: at most about two minutes).
+ */
+export const LIST_WAITS_MS = [2_000, 4_000, 8_000, 16_000, 32_000, 60_000, 60_000] as const;
+
+/** A status that says the Worker or R2 failed for a moment, so the same request can work again. */
+const mayWorkAgain = (status: number) => status === 429 || status >= 500;
+
+/**
  * The Worker's file routes under one token: the service-role key for the
  * reconciler and imports, a person's access token to upload as them.
  * `apiUrl` is the Worker (`http://127.0.0.1:8787` locally, `npm run web:dev`).
  */
-export function workerBlobs(apiUrl: string, token: string): BlobFiles {
+export function workerBlobs(apiUrl: string, token: string, opts: { wait?: (ms: number) => Promise<void> } = {}): BlobFiles {
+  const wait = opts.wait ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const base = apiUrl.replace(/\/$/, '');
   const auth = { authorization: `Bearer ${token}` };
   const path = (key: string) => `${base}/api/blobs/${key.split('/').map(encodeURIComponent).join('/')}`;
   const fail = async (what: string, res: Response) => new Error(`${what} (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  // One page of a listing, asked again while it fails for a moment (LAN-298): a list page failed
+  // 66 times from October to November 2026, at most about two minutes at a time, and each failure
+  // stopped a whole v2 project's transfer. Only that page is asked again, not the pages before it,
+  // which each cost a class A operation.
+  const listPage = async (url: string, prefix: string) => {
+    for (let attempt = 0; ; attempt++) {
+      const res = await fetch(url, { headers: auth }).catch((e: unknown) => {
+        if (attempt >= LIST_WAITS_MS.length) throw e;
+        return null;
+      });
+      if (res?.ok) return (await res.json()) as { objects: { key: string; size: number }[]; cursor: string | null };
+      if (res && (!mayWorkAgain(res.status) || attempt >= LIST_WAITS_MS.length)) throw await fail(`list ${prefix}`, res);
+      if (res) await res.body?.cancel();
+      await wait(LIST_WAITS_MS[attempt]!);
+    }
+  };
   return {
     async list(prefix) {
       const out: { key: string; size: number }[] = [];
       let cursor: string | null = null;
       do {
         const query = new URLSearchParams({ prefix, ...(cursor ? { cursor } : {}) });
-        const res = await fetch(`${base}/api/blobs?${query}`, { headers: auth });
-        if (!res.ok) throw await fail(`list ${prefix}`, res);
-        const page = (await res.json()) as { objects: { key: string; size: number }[]; cursor: string | null };
+        const page = await listPage(`${base}/api/blobs?${query}`, prefix);
         out.push(...page.objects);
         cursor = page.cursor;
       } while (cursor);

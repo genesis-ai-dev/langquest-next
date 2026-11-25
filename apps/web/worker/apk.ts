@@ -1,4 +1,4 @@
-import { CARRIED_APK_PATH, CARRIED_APK_VERSION_CODE, CARRIED_FILE_TYPE, carriedApkNameOf, carriedApkVersionsPart, carriedFileName, parseCarriedApkName, sameCarriedVersions } from '@langquest-next/core';
+import { CARRIED_APK_BUILT_MS, CARRIED_APK_PATH, CARRIED_APK_VERSION_CODE, CARRIED_BUILT_HEADER, CARRIED_FILE_TYPE, carriedApkNameOf, carriedApkVersionsPart, carriedFileName, parseCarriedApkName, sameCarriedVersions } from '@langquest-next/core';
 
 /**
  * Carried builds (docs/nearby-sync-plan.md 14.4): `GET /apk/<name>` serves the Play-signed
@@ -57,6 +57,12 @@ function headersFor(asked: ApkAsked, object: R2Object): Headers {
   // Kept in no cache: the download list is trace enough on a carrier's phone, which may wear a disguise
   // (security review, 2026-11-10). A Worker's answer is not cached at the edge either way.
   headers.set('cache-control', 'private, no-store');
+  // When the file's JavaScript was built, which scripts/carried-build.mjs records with it: a carrier's
+  // phone asks with HEAD and compares it with the copy it keeps, so it can say a newer file is ready
+  // (docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended 2026-11-25). A file published
+  // before it was recorded says nothing, and the phone goes by its two-day rule.
+  const built = Number(object.customMetadata?.[CARRIED_APK_BUILT_MS]);
+  if (Number.isSafeInteger(built) && built > 0) headers.set(CARRIED_BUILT_HEADER, String(built));
   return headers;
 }
 

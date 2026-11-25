@@ -8,7 +8,7 @@ import { useLetInOffered } from './useLetIn';
  * The install file as an item of Sync's Ready for offline list (`installFileItem`,
  * docs/nearby-sync-plan.md 14.4): never got, too old, downloaded but not chosen, or ready; whether
  * this phone keeps a copy of it, which decides what Ready says to do with the file; and whether
- * that copy is behind this phone's app, so a newer one is ready (`keptBehind`). Only
+ * a newer file than that copy is ready (`keptOutdated`, `keptFromOlderBuild`). Only
  * an Android phone lets someone in, so elsewhere `useLetInOffered` and `useCarriedApk` are their
  * plain stubs and the item is null.
  */

@@ -1,4 +1,4 @@
-import { evidenceAsked, LookedError, parseLooked, type EvidenceAsk, type IssueNotes, type Looked, type Media, type Phone, type ResearchContext, type Watch } from '../../../server/userIssues';
+import { evidenceAsked, LookedError, parseLooked, parseSavedLogs, type EvidenceAsk, type SavedLog, type SavedLogs, type IssueNotes, type Looked, type Media, type Phone, type ResearchContext, type Watch } from '../../../server/userIssues';
 import { REPOSITORY } from '../../../server/tutorialFeedback';
 import type { JobRun } from '../../../server/jobRuns';
 import type { GithubRun, OidcRule } from './githubOidc';
@@ -32,6 +32,11 @@ import type { GithubRun, OidcRule } from './githubOidc';
  * of each fix in Claude's own words, and the items of earlier runs. A POST's
  * `research` is what it found, and `handed` the issues of it that the watch
  * gave to the fix team.
+ *
+ * `POST ?logs=1` is what the watch read in the logs at the moment it saw a
+ * failure, and `GET ?logs=<issue>` hands those of an issue's kinds to the run
+ * that writes its fix (docs/agent-team.md "The logs of the moment"): the Worker
+ * logs keep 24 hours, and the fix team can come days later.
  */
 export const USER_ISSUES_PATH = '/api/user-issues';
 export const USER_ISSUES_RULE: OidcRule = {
@@ -52,6 +57,10 @@ export interface UserIssuesDeps {
   notes(issue: string): Promise<IssueNotes>;
   /** What the research team's lead reads. */
   research(): Promise<ResearchContext>;
+  /** The logs the watch saved for an issue's kinds, the newest first. */
+  logs(issue: string): Promise<(SavedLog & { at: string; runUrl: string | null })[]>;
+  /** Keeps the logs a run read; returns how many kinds were kept. */
+  logsSaved(saved: SavedLogs): Promise<number>;
   looked(looked: Looked): Promise<{ looked: number; grew: number; closed?: number; reopened?: number; taken?: number; answered?: number; fixes?: number; research?: number; handed?: number; tried?: number }>;
   record(run: JobRun): Promise<void>;
   now(): number;
@@ -76,6 +85,7 @@ export async function handleUserIssues(request: Request, deps: UserIssuesDeps): 
     if (ask) {
       if ('notes' in ask) return json(200, await deps.notes(ask.notes));
       if ('research' in ask) return json(200, await deps.research());
+      if ('logs' in ask) return json(200, await deps.logs(ask.logs));
       const found = 'media' in ask ? await deps.media(ask.media) : await deps.phone(ask.phone, ask.at);
       return found ? json(200, found) : json(404, { error: 'Not there, or not one the watch hands over.' });
     }
@@ -98,6 +108,16 @@ export async function handleUserIssues(request: Request, deps: UserIssuesDeps): 
   if (Number.isFinite(length) && length > USER_ISSUES_MAX_BYTES) return json(413, { error: tooBig });
   const text = await request.text();
   if (text.length > USER_ISSUES_MAX_BYTES) return json(413, { error: tooBig });
+  if (new URL(request.url).searchParams.get('logs') === '1') {
+    let saved: SavedLogs;
+    try {
+      saved = parseSavedLogs(JSON.parse(text));
+    } catch (e) {
+      return json(400, { error: e instanceof LookedError ? e.message : 'not JSON' });
+    }
+    if (!saved.runUrl.includes(`/actions/runs/${run.runId}`)) return json(400, { error: 'runUrl: this run\'s address' });
+    return json(200, { saved: saved.logs.length ? await deps.logsSaved(saved) : 0 });
+  }
   let looked: Looked;
   try {
     looked = parseLooked(JSON.parse(text));

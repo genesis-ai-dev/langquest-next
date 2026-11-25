@@ -93,6 +93,17 @@ people using the app their work.
       `snapshot`, `checkpoint` and `fill` how long a language took to open
       and sync (`ms`); `device` the disk and what waits; `error` a fault, with
       its stack. `receivedAt` long after `at` means the phone was offline.
+    - `logs`: the logs of the moment, read a few minutes before you started
+      (docs/agent-team.md "The logs of the moment"): one JSON file whose
+      `logs` are reads, each with its `source`, what was asked (`ask`) and
+      its `lines`, newest last. `watch` is what the watch saw (a job's last
+      run and error class, an ops line's words: the error text); then the
+      errors and warnings of every Worker and Supabase's errors of the last
+      2 hours; for a job or a route, a day of the Worker lines that name it.
+      Personal data is already out. **Read them first for a server kind**:
+      the Worker's own logs keep a day, and these stay 30 days with the
+      kind, so the fix team reads the same lines later. Say in words what
+      they show; never copy a line into what you write.
   - `phoneFacts` (a problem sent from help mode): the script's own summary
     of that phone's half hour before the report; it goes in the issue.
 - `grew`: kinds already filed that more people hit. The script comments on
@@ -366,8 +377,13 @@ holds its `identifier`, `url`, `title` and `description` (what the watch
 saw, the person's words when they sent it from help mode, that phone's
 numbers, and the Agent notes with the kinds, the stack and the cause found
 when it was filed), and `evidence`: the `pictures` (screenshots and chosen
-pictures, JPEG files) and the `phones`' records (JSON, as above) in
-`.user-issues/evidence`. Open each of them first.
+pictures, JPEG files), the `phones`' records (JSON, as above) and `logs`:
+every save of the logs of the moment for the issue's kinds, the newest
+first, each with when (`at`) and why (`new`: the watch first saw it;
+`back`: the failure came back while the issue was open), in
+`.user-issues/evidence`. Open each of them first, the logs first: the
+Worker's own logs keep only a day, so for an old failure these are the only
+lines left. Read today's logs yourself too, to compare.
 Write the smallest change that fixes it, and `.user-issues/fix.json` with
 your verdict. Code then decides what happens to the change
 (`gate` in `scripts/agent-team.mjs`, docs/agent-team.md): it merges without

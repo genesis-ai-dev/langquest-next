@@ -134,13 +134,24 @@ export interface Watch {
    * migration 20261122044500_user_issue_order.sql.
    */
   order?: OrderedIssue[];
+  /**
+   * The open issues whose server job or ops line fails now, which the watch does not hand to Claude (looked at
+   * in the last 7 days), with no logs saved for that kind in 12 hours (docs/agent-team.md "The logs of the
+   * moment", `ops_user_issue_back`). The workflow saves their logs at once. Absent before migration
+   * 20261125171500_user_issue_logs.sql.
+   */
+  back?: BackKind[];
 }
 
+/** The kind of an open issue whose failure is there again now: its key, its issue, and the job's or the line's facts. */
+export interface BackKind { key: string; issue: string; server: Record<string, unknown> | null }
+
 /**
- * Where an issue that waits for the fix team comes from: a plan whose time came, the research, never
- * tried, or a choice Claude asked for before it could read production, tried once more (again).
+ * Where an issue that waits for the fix team comes from: its failure came back and the watch saved its logs
+ * (back), a plan whose time came, the research, never tried, or a choice Claude asked for before it could
+ * read production, tried once more (again).
  */
-export const ORDER_FROM = ['plan', 'research', 'untried', 'again'] as const;
+export const ORDER_FROM = ['back', 'plan', 'research', 'untried', 'again'] as const;
 
 /** One issue in the order the fix team takes them, with the facts the order used. */
 export interface OrderedIssue {
@@ -148,6 +159,11 @@ export interface OrderedIssue {
   from: (typeof ORDER_FROM)[number];
   /** A person sent it from help mode: it goes before every issue that nobody sent (migration 20261124061500_user_reports.sql). Absent before it. */
   sent?: boolean;
+  /**
+   * Its failure came back and the watch saved its logs after the fix team last had it: it goes after the issues a
+   * person sent and before every other issue (migration 20261125171500_user_issue_logs.sql). Absent before it.
+   */
+  back?: boolean;
   /** Linear's number: 0 none, 1 Urgent, 2 High, 3 Medium, 4 Low. */
   priority: number;
   /** The most people of one of its kinds, in 7 days. */
@@ -423,7 +439,7 @@ export interface Phone {
 export const FEEDBACK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const INSTALL_ID = /^[A-Za-z0-9_.-]{1,64}$/;
 
-export type EvidenceAsk = { media: string } | { phone: string; at: string | null } | { notes: string } | { research: true };
+export type EvidenceAsk = { media: string } | { phone: string; at: string | null } | { notes: string } | { research: true } | { logs: string };
 
 /** What a GET asks for besides what is new: null for the watch itself, or a LookedError for what is wrong. */
 export function evidenceAsked(params: URLSearchParams): EvidenceAsk | null {
@@ -431,8 +447,13 @@ export function evidenceAsked(params: URLSearchParams): EvidenceAsk | null {
   const phone = params.get('phone');
   const notes = params.get('notes');
   const research = params.get('research');
-  if (media === null && phone === null && notes === null && research === null) return null;
-  if ([media, phone, notes, research].filter((v) => v !== null).length > 1) throw new LookedError('media, phone, notes or research: one of them');
+  const logs = params.get('logs');
+  if (media === null && phone === null && notes === null && research === null && logs === null) return null;
+  if ([media, phone, notes, research, logs].filter((v) => v !== null).length > 1) throw new LookedError('media, phone, notes, research or logs: one of them');
+  if (logs !== null) {
+    if (!ISSUE.test(logs)) throw new LookedError('logs: a Linear issue (LAN-12)');
+    return { logs };
+  }
   if (research !== null) {
     if (research !== '1') throw new LookedError('research: 1');
     return { research: true };
@@ -791,4 +812,84 @@ export function parseLooked(input: unknown): Looked {
     return { issue, priority: priority as number };
   });
   return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, report, handed, tried, diagrams, plans, priorities };
+}
+
+// ---- the logs of the moment (POST /api/user-issues?logs=1) ---------------------------------------
+
+/**
+ * What the watch read when it saw a failure (docs/agent-team.md "The logs of the moment",
+ * migration 20261125171500_user_issue_logs.sql): for each kind, the answers of the log gate as
+ * agent_reader, which took personal data out. `new`: a kind the watch handed to Claude; `back`: the
+ * failure of an open issue came back while the watch did not hand it over.
+ */
+export const LOG_WHYS = ['new', 'back'] as const;
+export interface SavedLog {
+  key: string;
+  why: (typeof LOG_WHYS)[number];
+  logs: { source: string; ask: string; note: string | null; lines: string[] }[];
+}
+export interface SavedLogs { runUrl: string; logs: SavedLog[] }
+
+/** How much one run saves: kinds, reads for each kind, lines for each read, characters for each line, and bytes for each kind. */
+export const SAVED_LOGS_MAX = { kinds: 20, reads: 8, lines: 200, line: 600, bytes: 50_000 } as const;
+
+const EMAIL_ALL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+const IPV4 = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
+const IPV6 = /\b(?:[0-9a-f]{1,4}:){4,7}[0-9a-f]{1,4}\b/gi;
+const PHONE = /\+\d[\d ().-]{6,}\d/g;
+
+/**
+ * A saved log line with personal data taken out once more: the log gate already did it for agent_reader
+ * (apps/admin/src/logsShared.ts redact); this is the second lock, as the lines stay 30 days. Emails, IP
+ * addresses, phone numbers, JWTs and bearer tokens go. Ids, codes and times stay.
+ */
+export function maskLogLine(line: string): string {
+  return line
+    .replace(EMAIL_ALL, '[email]')
+    .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[jwt]')
+    .replace(/\bbearer\s+[^\s"',}]+/gi, 'Bearer [hidden]')
+    .replace(IPV4, '[ip]').replace(IPV6, '[ip]')
+    .replace(PHONE, '[number]');
+}
+
+/** The logs a run saves, checked, each line masked and cut. Throws a LookedError for what is wrong. */
+export function parseSavedLogs(input: unknown): SavedLogs {
+  if (!isObj(input)) throw new LookedError('an object');
+  const runUrl = input['runUrl'];
+  if (typeof runUrl !== 'string' || !RUN.test(runUrl)) throw new LookedError('runUrl: a run of this repository\'s workflow');
+  const logs = list(input, 'logs', SAVED_LOGS_MAX.kinds).map((x, n) => {
+    const where = `logs[${n}]`;
+    if (!isObj(x)) throw new LookedError(`${where}: an object`);
+    const key = x['key'];
+    if (typeof key !== 'string' || !KEY.test(key)) throw new LookedError(`${where}.key: a kind's key`);
+    const why = x['why'];
+    if (!LOG_WHYS.includes(why as SavedLog['why'])) throw new LookedError(`${where}.why: ${LOG_WHYS.join(' or ')}`);
+    const reads = x['logs'];
+    if (!Array.isArray(reads) || reads.length > SAVED_LOGS_MAX.reads) throw new LookedError(`${where}.logs: a list of at most ${SAVED_LOGS_MAX.reads}`);
+    let bytes = 0;
+    const kept = reads.map((r, m) => {
+      if (!isObj(r)) throw new LookedError(`${where}.logs[${m}]: an object`);
+      const source = r['source'];
+      const ask = r['ask'];
+      const note = r['note'];
+      const lines = r['lines'];
+      if (typeof source !== 'string' || !/^[a-z0-9-]{1,40}$/.test(source)) throw new LookedError(`${where}.logs[${m}].source: a log source`);
+      if (typeof ask !== 'string' || ask.length > 300) throw new LookedError(`${where}.logs[${m}].ask: at most 300 characters`);
+      if (note !== null && note !== undefined && (typeof note !== 'string' || note.length > 300)) throw new LookedError(`${where}.logs[${m}].note: at most 300 characters`);
+      if (!Array.isArray(lines) || lines.some((l) => typeof l !== 'string')) throw new LookedError(`${where}.logs[${m}].lines: a list of lines`);
+      const cutLines: string[] = [];
+      // The newest lines are at the end (the log gate's `tail`): keep the last ones that fit.
+      for (const l of (lines as string[]).slice(-SAVED_LOGS_MAX.lines).reverse()) {
+        const one = maskLogLine(l.length > SAVED_LOGS_MAX.line ? `${l.slice(0, SAVED_LOGS_MAX.line - 1)}…` : l);
+        // As the database counts it: the line in JSON, in UTF-8 (ops.user_issue_logs holds at most 64 KB a kind).
+        const size = new TextEncoder().encode(JSON.stringify(one)).length + 2;
+        if (bytes + size > SAVED_LOGS_MAX.bytes) break;
+        bytes += size;
+        cutLines.unshift(one);
+      }
+      return { source, ask: maskLogLine(ask), note: typeof note === 'string' ? maskLogLine(note) : null, lines: cutLines };
+    });
+    return { key, why: why as SavedLog['why'], logs: kept };
+  });
+  return { runUrl, logs };
 }

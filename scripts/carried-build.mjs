@@ -47,7 +47,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync } from 'node:zlib';
-import { CARRIED_APK_VERSION_CODE, LINES_VERSION, NEARBY_PROTOCOL, REDUCER_VERSION, carriedApkName } from '@langquest-next/core';
+import { CARRIED_APK_BUILT_MS, CARRIED_APK_VERSION_CODE, LINES_VERSION, NEARBY_PROTOCOL, REDUCER_VERSION, carriedApkName } from '@langquest-next/core';
 import { parseJsonc, root, wranglerFor } from './env-files.mjs';
 import { API, PACKAGE, TOKEN_URL, assertion, playKey } from './play-review.mjs';
 
@@ -408,6 +408,29 @@ export function protection(bytes) {
   return null;
 }
 
+/** Where expo-updates keeps the manifest of the JavaScript built into an APK, and the most of it that is read. */
+const UPDATES_MANIFEST = 'assets/app.manifest';
+const MAX_MANIFEST_BYTES = 8 << 20;
+
+/**
+ * When an APK's JavaScript was built, in ms since 1970: the `commitTime` in expo-updates' manifest
+ * inside it, read as the Android app reads its own kept copy's (native `InstallFiles.builtAtOf`),
+ * so the two compare (docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended
+ * 2026-11-25). Null when it holds none or it cannot be read: the file is published all the same,
+ * and phones then go by the two-day rule.
+ */
+export function builtMsOf(bytes) {
+  try {
+    const entry = zipEntries(bytes).find((e) => e.name === UPDATES_MANIFEST);
+    if (!entry || entry.size > MAX_MANIFEST_BYTES) return null;
+    const found = /"commitTime"\s*:\s*([0-9]{1,15})/.exec(entryBytes(bytes, entry).toString('utf8'));
+    const ms = found ? Number(found[1]) : 0;
+    return ms > 0 ? ms : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Whether these bytes are an APK a carrier can install from a file: a zip of
  * a believable size, with a manifest, and without Play's automatic
@@ -495,7 +518,8 @@ export async function publish({
   }
   const app = hash ?? appHash();
   const already = await bucket.head(name);
-  const record = { name, versionCode: code, fingerprint: String(fingerprint).toLowerCase(), ...versions, sha256: digest, bytes: bytes.length, publishedAt: now().toISOString() };
+  const built = builtMsOf(bytes);
+  const record = { name, versionCode: code, fingerprint: String(fingerprint).toLowerCase(), ...versions, sha256: digest, bytes: bytes.length, builtMs: built, publishedAt: now().toISOString() };
   // A file there with this app code was published with its own record, and this build's sha256 and size describe other bytes,
   // so it stays. One holding other app code is replaced (the daily refresh), but never by a build older than it: two runs racing
   // leave the newer file.
@@ -509,13 +533,15 @@ export async function publish({
   if (!writes) log(`${name} is in the APK bucket already${already.appHash === app ? ' with this app code' : ' from a newer build'}; it and the current record are left as they are.`);
   else {
     // The version code goes with the file, so the Worker can send a phone whose own build has no file to the newest for its
-    // versions, and the app code, so the daily refresh can tell whether main has moved on.
+    // versions, the app code, so the daily refresh can tell whether main has moved on, and when its JavaScript was built,
+    // so a carrier's phone can tell this file from the copy it keeps.
     await bucket.put(name, bytes, APK_TYPE, {
-      'content-disposition': `attachment; filename="${name}"`, [`x-amz-meta-${CARRIED_APK_VERSION_CODE}`]: String(code), [`x-amz-meta-${APP_HASH_META}`]: app
+      'content-disposition': `attachment; filename="${name}"`, [`x-amz-meta-${CARRIED_APK_VERSION_CODE}`]: String(code), [`x-amz-meta-${APP_HASH_META}`]: app,
+      ...(built === null ? {} : { [`x-amz-meta-${CARRIED_APK_BUILT_MS}`]: String(built) })
     });
     const stored = await bucket.head(name);
     if (stored?.size !== bytes.length) throw new Refusal(`the APK bucket holds ${stored?.size ?? 'nothing'} bytes under ${name}, not ${bytes.length}`);
-    log(`${name} is in the APK bucket${replaces ? `, replaced: it held version code ${already.versionCode ?? 'unknown'} with other app code` : ''}: version code ${code}, ${bytes.length} bytes, sha256 ${digest}.`);
+    log(`${name} is in the APK bucket${replaces ? `, replaced: it held version code ${already.versionCode ?? 'unknown'} with other app code` : ''}: version code ${code}, ${bytes.length} bytes, sha256 ${digest}, ${built === null ? 'with no built time in it, so phones keeping a copy go by the two-day rule' : `built ${new Date(built).toISOString()}`}.`);
   }
   if (moves) {
     await bucket.put(CURRENT, JSON.stringify(record, null, 2), 'application/json');

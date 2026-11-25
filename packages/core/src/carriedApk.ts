@@ -28,6 +28,18 @@ export const CARRIED_APK_PATH = '/apk/';
  */
 export const CARRIED_APK_VERSION_CODE = 'version-code';
 
+/**
+ * More custom metadata on each file in the APK bucket (as `x-amz-meta-built-ms`): when its
+ * JavaScript was built, in ms since 1970, the `commitTime` in expo-updates' manifest inside it,
+ * which the Android app reads from its own kept copy the same way. The Worker answers it under
+ * `CARRIED_BUILT_HEADER`, so a carrier's phone can tell a newer file from the one it keeps
+ * (docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended 2026-11-25).
+ */
+export const CARRIED_APK_BUILT_MS = 'built-ms';
+
+/** The response header the Worker gives a carried build's built time under (`CARRIED_APK_BUILT_MS`). */
+export const CARRIED_BUILT_HEADER = 'x-carried-built-ms';
+
 const FINGERPRINT = /^[0-9a-f]{8,}$/;
 const NAME = /^r(\d{1,6})-l(\d{1,6})-p(\d{1,6})(?:\.(\d{1,6}))?-([0-9a-f]{8})\.apk$/;
 

@@ -39,3 +39,9 @@ that one person hit once.
 Reverse if: the order often puts issues first that developers move down in
 Linear by hand, or a Claude judgment of the whole queue proves the cause of
 more issues for the same use of the plan.
+
+Amended (2026-11-25, Caleb Koster): an open issue whose failure came back,
+and whose logs the watch kept after the fix team last had it, goes after
+the issues a person sent and before Linear's priority, since its logs are
+gone in a day
+(docs/decisions/2026-11-25-the-watch-keeps-the-logs-of-the-moment-a-failure-starts.md).

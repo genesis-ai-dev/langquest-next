@@ -6,7 +6,8 @@ import {
   API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, linearKept, LIMITS, linearClient, lookedOf, mergesOf,
   linearAsked, linearChanges, statusFor, withoutLinearClaims, noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
-  repairOf, repairsOf, planRecord, planReads, READ_ROWS, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend, OPEN_AGAIN, refusedWhy
+  repairOf, repairsOf, planRecord, planReads, READ_ROWS, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend, OPEN_AGAIN, refusedWhy,
+  backComment, kindLogs, LOGS_KINDS, logsPlan, logsSearchOf, maskLine, MOMENT_READS, savedRead, saveLogs
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -875,5 +876,105 @@ describe('Claude changes an issue in Linear from an admin\'s instruction (docs/d
     expect(statusFor(states, 'canceled')?.name).toBe('Canceled');
     expect(statusFor(states, 'todo')?.name).toBe('Todo');
     expect(statusFor(states, 'Shipped')).toBeNull();
+  });
+});
+
+describe('the logs of the moment', () => {
+  const line = { level: 'error', text: 'The v2 import failed for a project', title: 'The v2 import failed', part: 'v2' };
+
+  it('saves the logs of the failures that came back first, then of the kinds Claude looks at now', () => {
+    const watch = {
+      back: [{ key: 'ops:v2-failed', issue: 'LAN-12', server: { line } }, { key: 'not a key', issue: 'LAN-1', server: null }],
+      look: [kind('job:projection:failing', { server: { job: 'projection', streak: 4 } }), kind('error:TypeError@sign in:-'), kind('ops:v2-failed')]
+    };
+    expect(logsPlan(watch).map((p) => [p.key, p.why, p.issue])).toEqual([
+      ['ops:v2-failed', 'back', 'LAN-12'], ['job:projection:failing', 'new', null], ['error:TypeError@sign in:-', 'new', null]
+    ]);
+    const many = { look: Array.from({ length: 30 }, (_, i) => kind(`error:E${i}@x:-`)) };
+    expect(logsPlan(many)).toHaveLength(LOGS_KINDS);
+    expect(logsPlan({})).toEqual([]);
+  });
+
+  it('searches a day of the Worker logs for a job\'s name or a route, and nothing else', () => {
+    expect(logsSearchOf('job:projection:failing')).toBe('projection');
+    expect(logsSearchOf('worker:blobs:5xx')).toBe('blobs');
+    expect(logsSearchOf('ops:v2-failed')).toBeNull();
+    expect(logsSearchOf('error:TypeError@sign in:-')).toBeNull();
+  });
+
+  it('takes personal data out of each line, and keeps ids and codes', () => {
+    expect(maskLine('a@b.org 10.1.2.3 2001:db8:0:0:1:0:0:1 +44 20 7946 0958 Bearer abc eyJh.eyJi.sig')).toBe('[address] [ip] [ip] [number] Bearer [hidden] [jwt]');
+    expect(maskLine('E-7K2Q01 0d000000-0000-4000-8000-000000000001')).toBe('E-7K2Q01 0d000000-0000-4000-8000-000000000001');
+  });
+
+  it('says why a read has no lines, and never fails the run for it', () => {
+    expect(savedRead({ source: 'worker-logs', level: 'error' }, { ok: false, status: 503, body: { error: 'The admin Worker has no key' } }))
+      .toEqual({ source: 'worker-logs', ask: 'worker-logs level=error', note: 'No lines: The admin Worker has no key', lines: [] });
+    expect(savedRead({ source: 'supabase-logs', query: 'postgres-errors' }, { ok: true, status: 200, body: { lines: ['x a@b.org'], truncated: true, note: 'The last 120 minutes.' } }))
+      .toEqual({ source: 'supabase-logs', ask: 'supabase-logs query=postgres-errors', note: 'The last 120 minutes. the newest only', lines: ['x [address]'] });
+  });
+
+  it('keeps the error text the watch saw (a job\'s run, an ops line\'s words) with the shared reads', () => {
+    const shared = [{ source: 'worker-logs', ask: 'worker-logs', note: null, lines: ['a'] }];
+    const got = kindLogs({ key: 'ops:v2-failed', why: 'back', server: { line } }, shared, null);
+    expect(got.logs[0]!.source).toBe('watch');
+    expect(got.logs[0]!.lines.join('\n')).toContain('The v2 import failed for a project');
+    expect(got.logs.slice(1)).toEqual(shared);
+  });
+
+  it('reads the moment once, a day for each job, hands the Worker the logs in parts, and points Claude to them', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'logs-'));
+    try {
+      const asked: Record<string, unknown>[] = [];
+      const sent: { key: string }[][] = [];
+      const watch = {
+        asOf: '2026-11-25T17:00:00Z',
+        back: [{ key: 'ops:v2-failed', issue: 'LAN-12', server: { line } }],
+        look: [kind('job:projection:failing', { server: { job: 'projection' } }), ...Array.from({ length: 9 }, (_, i) => kind(`error:E${i}@x:-`))]
+      };
+      const got = await saveLogs(dir, watch, {
+        gate: async (_url: string, read: Record<string, unknown>) => { asked.push(read); return { ok: true, status: 200, body: { lines: [`${read.source} line`] } }; },
+        send: async (logs: { key: string }[]) => { sent.push(logs); return { saved: logs.length }; },
+        now: () => new Date('2026-11-25T17:00:00Z')
+      });
+      expect(asked.slice(0, MOMENT_READS.length)).toEqual(MOMENT_READS);
+      expect(asked.slice(MOMENT_READS.length)).toEqual([{ source: 'worker-logs', search: 'projection', minutes: 1440, limit: 100 }]);
+      expect(sent.map((b) => b.length)).toEqual([8, 3]);
+      expect(sent[0]![0]).not.toHaveProperty('path');
+      expect(got.saved).toBe(11);
+      expect(got.back).toBe(1);
+      expect(got.watch.logsBack).toBe(1);
+      const job = got.watch.look[0] as { evidence: { logs: string } };
+      const file = JSON.parse(readFileSync(job.evidence.logs, 'utf8'));
+      expect(file.key).toBe('job:projection:failing');
+      expect(file.logs.map((r: { source: string }) => r.source)).toEqual(['watch', 'worker-logs', 'worker-logs', 'supabase-logs', 'supabase-logs', 'worker-logs']);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('goes on when the Worker cannot keep them, and says nothing came back then', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'logs-'));
+    try {
+      const got = await saveLogs(dir, { look: [], back: [{ key: 'ops:v2-failed', issue: 'LAN-12', server: null }] }, {
+        gate: async () => { throw new Error('offline'); },
+        send: async () => { throw new Error('HTTP 500'); }
+      });
+      expect(got.saved).toBe(0);
+      expect(got.watch.logsBack).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('tells the issue the failure came back, with no log line in it', () => {
+    const c = backComment(['ops:v2-failed'], '2026-11-22T10:00:00Z', RUN);
+    expect(c).toContain('The failure came back');
+    expect(c).toContain('`ops:v2-failed`');
+    expect(c).toContain(RUN);
+  });
+
+  it('says a failure that came back is why an issue goes first', () => {
+    expect(whyInOrder({ back: true, priority: 4 })).toBe('The failure came back · Low');
   });
 });

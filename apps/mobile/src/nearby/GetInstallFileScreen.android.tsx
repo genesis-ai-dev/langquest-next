@@ -28,9 +28,10 @@ import { useCarriedApk } from './useCarriedApk';
  * type, with no warning, and its Open brings it here: this screen takes it (src/nearby/handedFile.android.ts)
  * and checks and keeps it as one chosen, and the steps say to tap Open, or to come back and choose
  * it if Open has gone (docs/decisions/0246-a-carried-build-is-the-newcomers.md, amended 2026-11-20).
- * While online, a copy two days behind this phone's app says a newer file is ready, and
- * Download in the browser is the main button again, with Choose the downloaded file under it (`keptBehind`,
- * docs/decisions/2026-11-19-carried-build-refreshed-daily.md). Choose a file you already have (Check my file until 2026-11-19) stays for a file got
+ * While online, a copy older than the file the Worker serves (or, where it does not say, two days
+ * behind this phone's app) says a newer file is ready, and
+ * Download in the browser is the main button again, with Choose the downloaded file under it (`keptOutdated`,
+ * docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended 2026-11-25). Choose a file you already have (Check my file until 2026-11-19) stays for a file got
  * another way. The file's name shows only when a wrong one is chosen, since the app checks the
  * file, not the person; the ready line names the day the kept copy was built. With the file in
  * hand and nothing newer known, the screen offers no download, a file the browser just handed

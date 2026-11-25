@@ -1,6 +1,6 @@
 import { WorkerEntrypoint } from 'cloudflare:workers';
 import type { Env } from './env';
-import { JOBS, type JobKey } from './jobsModel';
+import { callFailure, JOBS, type JobKey } from './jobsModel';
 
 export interface JobState {
   key: string;
@@ -9,7 +9,7 @@ export interface JobState {
   startedAt: string | null;
   timeLimitMs: number;
   all: boolean;
-  /** Set when this job's object could not be asked: the error's class name, nothing more. */
+  /** Set when this job's object could not be asked: the error's class name and Cloudflare's flags on it (jobsModel.ts `callFailure`), never its message. */
   error?: string;
 }
 
@@ -20,15 +20,31 @@ export interface JobState {
  * stored file. Nothing else on the class is public.
  */
 export class JobStatus extends WorkerEntrypoint<Env> {
-  /** Each job's run state, as its object reports it (`JobRunner.status`). */
+  /**
+   * Each job's run state, as its object reports it (`JobRunner.status`). The
+   * call only reads, so a fault Cloudflare marks as retryable is asked once
+   * more, on a new stub, as Cloudflare says to: a stub that threw may stay
+   * broken. A second failure, or any other, is the line's error and a log.
+   */
   async jobs(): Promise<JobState[]> {
     return Promise.all((Object.keys(JOBS) as JobKey[]).map(async (key): Promise<JobState> => {
       const { job, timeLimitMs } = JOBS[key];
+      const ask = () => this.env.JOBS.get(this.env.JOBS.idFromName(key)).status(key);
+      const askTwice = async () => {
+        try {
+          return await ask();
+        } catch (e) {
+          if (!callFailure(e).askAgain) throw e;
+          return await ask();
+        }
+      };
       try {
-        const s = await this.env.JOBS.get(this.env.JOBS.idFromName(key)).status(key);
+        const s = await askTwice();
         return { key, job, running: s.running, startedAt: s.startedAt === null ? null : new Date(s.startedAt).toISOString(), timeLimitMs: s.timeLimitMs, all: s.all };
       } catch (e) {
-        return { key, job, running: false, startedAt: null, timeLimitMs, all: false, error: e instanceof Error ? e.constructor.name : 'unknown' };
+        const failure = callFailure(e);
+        console.error(`job status ${key}: could not ask its object (${failure.text})`, e);
+        return { key, job, running: false, startedAt: null, timeLimitMs, all: false, error: failure.text };
       }
     }));
   }

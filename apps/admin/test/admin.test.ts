@@ -225,6 +225,44 @@ describe('the API', () => {
   });
 });
 
+describe('work that later requests share', () => {
+  beforeEach(() => forgetSignIns());
+
+  // The Workers runtime ends a canceled request's work, and each request that waits on it then throws (LAN-311).
+  it('is kept alive by the request that starts it, once for each question, not by each request that waits', async () => {
+    const fetcher = authFetch({ good: VIEWER }, { good: 'on' });
+    const keep = vi.fn();
+    const all = await Promise.all(Array.from({ length: 3 }, () => access(req('good'), env, fetcher, keep)));
+    expect(all.every((a) => a.ok)).toBe(true);
+    // The question to Supabase Auth and the one to the database.
+    expect(keep).toHaveBeenCalledTimes(2);
+  });
+
+  it('is kept with no rejection when it fails, and the request still says the service is down', async () => {
+    const keep = vi.fn();
+    expect(await access(req('good'), env, authFetch({ good: 502 }), keep)).toMatchObject({ ok: false, status: 503 });
+    expect(keep).toHaveBeenCalledTimes(1);
+    await expect(keep.mock.calls[0]![0]).resolves.toBeUndefined();
+  });
+
+  it("is kept with the request's waitUntil, for the sign-in and for a provider's answer", async () => {
+    const signedIn = (async (url: RequestInfo | URL) => String(url).endsWith('get_user_state')
+      ? Response.json({ globalViewer: 'on' }) : Response.json({ id: VIEWER })) as typeof fetch;
+    vi.stubGlobal('fetch', signedIn);
+    try {
+      const waitUntil = vi.fn();
+      const worker = (await import('../src/index')).default;
+      const request = new Request('https://next.langquest.org/ops/api/expiry?fresh=1', { headers: { authorization: 'Bearer good' } });
+      const response = await worker.fetch(request as never, { ...env } as never, { waitUntil, passThroughOnException: () => {} } as never);
+      expect(response.status).toBe(200);
+      // Who it is, their Global Viewer state, and the answer of the part.
+      expect(waitUntil).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
 describe('a section that hangs or throws', () => {
   it('becomes an error section, so the others still show', async () => {
     expect(await settle('slow', () => new Promise(() => {}), 10)).toMatchObject({ state: 'error', error: 'slow did not answer within 0 s' });

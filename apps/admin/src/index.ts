@@ -1,4 +1,4 @@
-import { access, bearer } from './auth';
+import { access, bearer, keepAlive, type Keep } from './auth';
 import { API_BASE, PAGE_PATH } from './paths';
 import { ACTION_BYTES, youtubeCallback } from './youtube';
 import { diagConnection, withDiag } from './db';
@@ -44,12 +44,15 @@ import { detail, detailAsk, glance, history, isRange, PART_IDS, RANGES } from '.
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...SECURITY_HEADERS } });
 
-/** A provider's answer, kept a minute per isolate so a few people reloading do not spend its rate limit; Refresh skips it. */
+/**
+ * A provider's answer, kept a minute per isolate so a few people reloading do not spend its rate limit; Refresh
+ * skips it. Later requests share it while it runs, so the request that starts it keeps it alive (auth.ts Keep).
+ */
 const kept = new Map<string, { until: number; value: Promise<Section> }>();
-function memo(key: string, fresh: boolean, run: () => Promise<Section>): Promise<Section> {
+function memo(key: string, fresh: boolean, run: () => Promise<Section>, keep?: Keep): Promise<Section> {
   const hit = kept.get(key);
   if (!fresh && hit && hit.until > Date.now()) return hit.value;
-  const value = run();
+  const value = keepAlive(run(), keep);
   kept.set(key, { until: Date.now() + 60_000, value });
   value.then((s) => { if (s.state === 'error') kept.delete(key); }, () => kept.delete(key));
   return value;
@@ -104,10 +107,10 @@ export interface AttentionItem {
   issues?: string[];
 }
 
-export async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; urgent: number; problems: number; watch: number; items: AttentionItem[]; answered: string[] }> {
+export async function attention(env: Env, fresh: boolean, keep?: Keep): Promise<{ checkedAt: string; urgent: number; problems: number; watch: number; items: AttentionItem[]; answered: string[] }> {
   const [diag, ops, ...providers] = await Promise.all([
     diagAnswer(env), opsAnswer(env),
-    ...Object.entries(PROVIDERS).map(([id, run]) => memo(id, fresh, () => settle(id, () => run(env))).then((s) => [id, s] as const))
+    ...Object.entries(PROVIDERS).map(([id, run]) => memo(id, fresh, () => settle(id, () => run(env)), keep).then((s) => [id, s] as const))
   ]);
   const all: (readonly [string, Section])[] = [...Object.entries(diag), ...Object.entries(ops), ...(providers as (readonly [string, Section])[])];
   const items = all.flatMap(([section, s]) => [
@@ -129,7 +132,7 @@ const MINE_SQL = 'select diag.ops_mine($1::uuid) as v';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function handle(request: Request, env: Env): Promise<Response> {
+export async function handle(request: Request, env: Env, keep?: Keep): Promise<Response> {
   const url = new URL(request.url);
   // The read gate checks its own bearer token, not a person's sign-in (read.ts).
   if (url.pathname === LOGS_PATH) {
@@ -170,7 +173,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   // Google sends the person back here from Connect YouTube (decisions.md 180), without the page's token.
   if (url.pathname === `${API_BASE}youtube/callback`) return youtubeCallback(url);
-  const who = await access(request, env);
+  const who = await access(request, env, fetch, keep);
   if (!who.ok) return json({ error: who.error, ...(who.need ? { need: who.need } : {}) }, who.status);
 
   if (acting) {
@@ -246,7 +249,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   // The connection itself failing makes every section of the answer say so.
   if (section === 'diag') return json(await diagAnswer(env));
   if (section === 'ops') return json(await opsAnswer(env));
-  if (section === 'attention') return json(await attention(env, fresh));
+  if (section === 'attention') return json(await attention(env, fresh, keep));
   const org = /^org\/([^/]{1,200})$/.exec(section);
   if (org) {
     try {
@@ -291,7 +294,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     }
   }
   // Pull requests that say which lines they fix, for each line's state (sources/fixes.ts).
-  if (section === 'fixes') return json(await memo('fixes', fresh, () => settle('fixes', () => fixesSection(env))));
+  if (section === 'fixes') return json(await memo('fixes', fresh, () => settle('fixes', () => fixesSection(env)), keep));
   // What each pull request the page names is about, for the box over "PR 596" (sources/prs.ts, pageRefs.ts).
   if (section === 'prs') {
     const numbers = askedNumbers(url.searchParams.get('n'));
@@ -299,10 +302,10 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     return json({ prs: await prInfos(env, numbers) });
   }
   const provider = PROVIDERS[section];
-  if (provider) return json(await memo(section, fresh, () => settle(section, () => provider(env))));
+  if (provider) return json(await memo(section, fresh, () => settle(section, () => provider(env)), keep));
   return json({ error: 'Not found' }, 404);
 }
 
 export default {
-  fetch: (request, env) => handle(request, env)
+  fetch: (request, env, ctx) => handle(request, env, (work) => ctx.waitUntil(work))
 } satisfies ExportedHandler<Env>;

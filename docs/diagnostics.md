@@ -407,6 +407,15 @@ filed one as a comment on its issue with the new numbers, noise to be
 judged again. Server kinds come back after a week; noise is forgotten after
 90 days.
 
+**The logs of the moment.** Before Claude looks, the watch reads the logs
+(Worker errors and warnings, Supabase's errors, a day of the lines that name
+a job or a route, and what it saw of the failure) and the database keeps
+them with each kind for 30 days, with personal data out. It does the same
+when the server job or ops line of an open issue fails again, and that
+issue goes to the fix team first. The Worker logs keep only a day; the fix
+team reads these later (docs/agent-team.md "The logs of the moment",
+docs/decisions/2026-11-25-the-watch-keeps-the-logs-of-the-moment-a-failure-starts.md).
+
 **A merge closes what it fixes.** After each push to main, Claude checks the
 merge against every open issue in Linear, also those no commit names, and the
 issues it fixes move to Deploying or Live there

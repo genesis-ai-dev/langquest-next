@@ -471,8 +471,11 @@ member taps once after both compare two pictures.
   track, as drafts.
 - **Finding and checking the file** (decision 246, amended 2026-11-09 and 2026-11-19). Download
   the install file (Get the install file until 2026-11-19), a screen opened from Share nearby,
-  Let someone in and Sync, opens that address in the phone's own browser; the app makes no
-  request to it. It remembers two names, each in one row on the phone holding only that name
+  Let someone in and Sync, opens that address in the phone's own browser. Since 2026-11-25 a
+  phone keeping a copy also asks that address, by a HEAD request while online, when the file
+  there was built, and compares it on the phone with its copy's, to say a newer one is ready:
+  the request names only the versions this phone runs, nothing is downloaded, and the Worker
+  keeps nothing of it but its route's count. It remembers two names, each in one row on the phone holding only that name
   (no person, organization or time): the file last opened, to say when it is for an older
   version, and since 2026-11-19 the file last found right, to say when one is in hand. Neither
   leaves the phone. Choosing a file opens Android's system file picker through
