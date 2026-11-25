@@ -235,6 +235,28 @@ export function refusedStart(key: JobKey, startedAt: number, now: number, error:
   };
 }
 
+/**
+ * A failed call to a job's object, as the ops dashboard's line says it: the
+ * error's class and the flags Cloudflare sets on a Durable Object call's
+ * error (developers.cloudflare.com/durable-objects/best-practices/error-handling),
+ * never its message. `retryable`: a fault of the platform, such as a lost
+ * connection, that a new stub may ask again. `overloaded`: the object has too
+ * much to do, and asking again adds to it. Why: on 2026-11-18 at 09:33 UTC
+ * one status call to the idle fold canary's object ran 12.5 s and was cut
+ * inside Cloudflare (its analytics: clientDisconnected) while the other job
+ * objects answered at once, and the line said only "(Error)".
+ */
+export function callFailure(error: unknown): { text: string; askAgain: boolean } {
+  const e = error as { retryable?: unknown; overloaded?: unknown } | null;
+  const retryable = e?.retryable === true;
+  const overloaded = e?.overloaded === true;
+  const name = error instanceof Error ? error.constructor.name : 'unknown';
+  return {
+    text: [name, ...(retryable ? ['retryable'] : []), ...(overloaded ? ['overloaded'] : [])].join(', '),
+    askAgain: retryable && !overloaded
+  };
+}
+
 /** What the Worker hands a job's container: the database for every job, v2's keys and the Worker's address for the import, and the OAuth client for publishing. */
 export interface JobSettings {
   SUPABASE_URL: string;
