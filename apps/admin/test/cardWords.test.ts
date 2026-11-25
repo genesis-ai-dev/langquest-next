@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardWordProblems, WHY_STOPPED } from '../../../scripts/card-words.mjs';
+import { cardText, cardWordProblems, fileProblems, issueCardOf, NAIVE_CONTEXT, naivePrompt, WHY_STOPPED } from '../../../scripts/card-words.mjs';
 import { aboutOf, APP_NEXT, videoBoard, type AdminItem, type FilmRow, type StatusFile, type VideosInput } from '../src/sources/videos';
 
 // Every card on the ops dashboard keeps one word standard (docs/card-words.md,
@@ -65,5 +65,43 @@ describe('the words on the Tutorial videos page\'s cards (docs/card-words.md)', 
       expect(a.next).toBe(WHY_STOPPED[a.stopped!.why].youCan);
     }
     expect(Object.entries(WHY_STOPPED).flatMap(([k, w]) => [...problems(`${k} label`, w.label, 8), ...problems(`${k} says`, w.says), ...problems(`${k} youCan`, w.youCan)])).toEqual([]);
+  });
+});
+
+describe("an issue's card, as the issue manager writes it", () => {
+  // LAN-339 as Claude rewrote it on 2026-11-25. A naive reader that got only this text and NAIVE_CONTEXT was 4 of 5
+  // sure what to do; with the card as the watch first wrote it, 2 of 5.
+  const lan339 = {
+    title: 'A phone stops uploading after its network drops during a sync',
+    about: 'The phone app sends each new recording to the server. On Nov 25, a person on Android recorded a key word (how to say an important term). The recording did not go to the server, although the phone was online.',
+    wrong: 'About 90 minutes before, the phone lost its network during a sync. The phone then waited for an answer that never came. The app starts no new sync while one runs, so uploads stopped.',
+    known: 'No work was lost. The recording went to the server when the person opened the app again, about 90 seconds later. The person could not see that uploads stopped. Any phone can have this problem.',
+    ask: 'Merge pull request 716? The fix stops a request to the server after 2 minutes with no answer. Then the phone tries again.',
+    options: [
+      { option: 'Merge it with the 2-minute limit', then: 'Phones get the fix in an app update soon after the merge, with no store review. After a network drop, uploads start again within about 2 minutes.' },
+      { option: 'Ask Claude for a longer limit', then: 'On a very slow network, one large download can need more than 2 minutes. A longer limit stops it less often. But after a network drop, uploads wait longer.' },
+      { option: 'Do not merge', then: 'The problem stays. A person whose uploads stop must close the app and open it again.' }
+    ]
+  };
+
+  it('keeps the word standard', () => {
+    expect(fileProblems({ card: lan339 })).toEqual([]);
+    expect(issueCardOf(lan339)).toEqual(lan339);
+  });
+
+  it('finds what made the first LAN-339 card unclear', () => {
+    // The step line: the cause in a developer's words.
+    const step = "The language's sync run never finished: no sync record of that language from about 17:00 UTC to the restart at 18:30, while the organization's kept syncing; a run that pushed or went offline is always recorded (syncClient.ts recordSync).";
+    expect(cardWordProblems(step).join(' ')).toMatch(/Names a file|code word/);
+    expect(fileProblems({ card: { ...lan339, option: undefined, options: [{ option: 'Merge pull request 716 with the limit of 2 minutes as it is', then: 'x' }, lan339.options[2]] } })).not.toEqual([]);
+  });
+
+  it("gives a naive reader only the card's text and one line about the app", () => {
+    const p = naivePrompt(lan339);
+    expect(p).toContain(NAIVE_CONTEXT);
+    expect(p).toContain(cardText(lan339));
+    expect(cardText(lan339)).toContain('1. Merge it with the 2-minute limit (recommended): Phones get the fix');
+    for (const q of ['What is the problem', 'What must the admin decide', 'From 1 to 5']) expect(p).toContain(q);
+    expect(p).not.toMatch(/LAN-339|\.ts\b|PR 716/);
   });
 });

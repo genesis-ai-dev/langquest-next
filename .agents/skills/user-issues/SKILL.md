@@ -555,6 +555,9 @@ With the verdict, `fix.json` also holds:
 - `twins` (at most 1000): the other places with the same mistake, each with
   its file and line, or left out when there are none. Do not fix them in
   this change: the team's research presents them to the developers.
+- `card`: the issue's card in plain words, for every verdict. The
+  dashboard shows it in place of the watch's first lines. Part "The card
+  for your issue" below says how to write it and check it.
 
 These go on the ops dashboard and into the pull request, which is public:
 the rules below hold for them too.
@@ -641,6 +644,81 @@ Claude stops, one plain reason and one recommended action. Before you
 finish, run `node /home/runner/work/_temp/watch/card-words.mjs
 .user-issues/decisions.json` and mend each line it prints, until it prints
 none.
+
+### The card for your issue
+
+Caleb Koster, 2026-11-25, on LAN-339's card: "horribly ambiguous and
+unhelpful. I read it and have no idea what it's talking about." The card
+kept the watch's first guess (it said the phone pushed nothing; the
+recording went up at the restart), the choice you asked for was behind
+Details, and the step line showed the cause in file names, cut off in the
+middle of a word. A newcomer that read only the card was 2 of 5 sure
+what to do. A word check alone did not catch it: every sentence was
+short, and the card still said nothing a person could act on.
+
+You know the issue best when you finish. So you write the card, in
+`fix.json` `card`, for every verdict:
+
+```json
+"card": {
+  "title": "A phone stops uploading after its network drops during a sync",
+  "about": "The phone app sends each new recording to the server. On Nov 25, a person on Android recorded a key word (how to say an important term). The recording did not go to the server, although the phone was online.",
+  "wrong": "About 90 minutes before, the phone lost its network during a sync. The phone then waited for an answer that never came. The app starts no new sync while one runs, so uploads stopped.",
+  "known": "No work was lost. The recording went to the server when the person opened the app again, about 90 seconds later. The person could not see that uploads stopped. Any phone can have this problem.",
+  "ask": "Merge pull request 716? The fix stops a request to the server after 2 minutes with no answer. Then the phone tries again.",
+  "options": [
+    { "option": "Merge it with the 2-minute limit", "then": "Phones get the fix in an app update soon after the merge, with no store review. After a network drop, uploads start again within about 2 minutes." },
+    { "option": "Ask Claude for a longer limit", "then": "On a very slow network, one large download can need more than 2 minutes. A longer limit stops it less often. But after a network drop, uploads wait longer." },
+    { "option": "Do not merge", "then": "The problem stays. A person whose uploads stop must close the app and open it again." }
+  ]
+}
+```
+
+- `title` (at most 80 characters): what goes wrong, as a person sees it,
+  for everyone who can have it, not only the one case.
+- `about` (at most 300): start from high up. Which part of LangQuest (the
+  phone app, the web app, a server job, a store), what a person did, and
+  what they saw. Explain each word of the app a newcomer may not know, in
+  a few words ("a key word (how to say an important term)").
+- `wrong` (at most 300): zoom in one step. What goes wrong and the cause
+  you proved, in words about what the app does, never about the code.
+- `known` (at most 300): what is safe and what is not. Say whether work is
+  lost, whether the person is still stuck, whether they can see the
+  problem, and who else can have it. Correct the watch's first lines here:
+  they were a guess from before your work.
+- `ask` (at most 300): the one question the reader must answer, then what
+  the change does, in one or two sentences ("Merge pull request 716? The
+  fix stops ..."). With no pull request: the choice you need ("Where does
+  Remove go?").
+- `options`: 2 to 4, the one you recommend first. `option` (at most 80
+  characters, 12 words) is the action; `then` (at most 200) says what
+  happens after it: what people see, when phones or the web app get it
+  (a merge is a release: the web app at once, the phone app as an update),
+  and the cost or the risk. Always give the option to do nothing, and what
+  it leaves.
+
+Every line follows "Words on a card" above. No time as a UTC clock:
+say how long or how far before ("about 90 minutes before"). Each line says
+a new thing.
+
+**Check it with a naive reader.** When `fix.json` is written:
+
+1. Run `node /home/runner/work/_temp/watch/card-words.mjs
+   .user-issues/fix.json` and mend each line it prints.
+2. Run `node /home/runner/work/_temp/watch/card-words.mjs --naive
+   .user-issues/fix.json`. It prints a prompt: the card's text and one
+   line about the app, nothing more.
+3. Start one Agent worker (`model: "sonnet"`, `run_in_background:
+   false`) with that prompt as it is. Do not add to it.
+4. Compare its answer with what you know. Mend each line it got wrong, or
+   called unclear, or each fact it says it needs and the card does not
+   give. Then do steps 1 to 3 once more.
+5. Stop when the reader says the problem, the cause and each option's
+   result as you would, and is 4 or 5 of 5 sure. After two rounds, stop
+   and keep your best card.
+
+`fix.json` is public like the rest: the card has no name, address or id
+of a person, and nothing a person wrote.
 
 ### Reading production
 

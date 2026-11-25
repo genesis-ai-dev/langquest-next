@@ -4,6 +4,10 @@
 // Plain Node, no packages and no imports but Node's own, so a workflow can copy this file next
 // to its script and run it before `npm ci`.
 //
+//   node scripts/card-words.mjs --naive <fix.json>
+//       Prints the prompt for a naive reader of the issue's card in fix.json `card`: the issue manager gives it to a
+//       new worker, and mends each line the worker got wrong (docs/card-words.md, "A naive reader").
+//
 //   node scripts/card-words.mjs <file.json> [field ...]
 //       Reads the JSON file, finds each string under one of the fields (by default
 //       CARD_FIELDS), and prints each line that breaks the standard, with where it
@@ -28,7 +32,62 @@ export const JARGON = ['oidc', 'sql', 'rpc', 'regex', 'payload', 'json', 'yaml',
   'wrangler', 'token', 'patch', 'diff', 'stack trace', 'env var', 'refactor', 'mutex', 'fixture', 'regexp', 'stub', 'mock'];
 
 /** The fields of what Claude writes that a person reads on a card, which the command line checks by default. */
-export const CARD_FIELDS = ['title', 'context', 'problem', 'known', 'solution', 'plain', 'answer', 'caption'];
+export const CARD_FIELDS = ['title', 'context', 'problem', 'known', 'solution', 'plain', 'answer', 'caption', 'about', 'wrong', 'ask', 'then', 'option'];
+
+/**
+ * The fields of an issue's card that the issue manager writes in fix.json `card` (docs/card-words.md, "An issue's
+ * card"), and the most characters of each. `options` holds 2 to 4 { option, then }: the recommended one first.
+ */
+export const ISSUE_CARD = { title: 80, about: 300, wrong: 300, known: 300, ask: 300, option: 80, then: 200, options: { min: 2, max: 4 } };
+
+/**
+ * An issue's card from fix.json `card`, checked and cut: { title, about, wrong, known, ask, options }, or null when
+ * it has no about, wrong or ask, or fewer than 2 options. Words only; a person's address is the caller's to take out.
+ */
+export function issueCardOf(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const line = (v, max) => {
+    const t = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '';
+    return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+  };
+  const options = (Array.isArray(raw.options) ? raw.options : []).slice(0, ISSUE_CARD.options.max)
+    .map((o) => ({ option: line(o?.option, ISSUE_CARD.option), then: line(o?.then, ISSUE_CARD.then) })).filter((o) => o.option && o.then);
+  const card = { title: line(raw.title, ISSUE_CARD.title), about: line(raw.about, ISSUE_CARD.about), wrong: line(raw.wrong, ISSUE_CARD.wrong),
+    known: line(raw.known, ISSUE_CARD.known), ask: line(raw.ask, ISSUE_CARD.ask), options };
+  return card.about && card.wrong && card.ask && options.length >= ISSUE_CARD.options.min ? card : null;
+}
+
+/** The one line of context a naive reader gets: no more than a person who never saw the code knows. */
+export const NAIVE_CONTEXT = 'LangQuest is a phone app for recording Bible translation.';
+
+/** An issue's card as plain text, in the order the dashboard shows it: what a naive reader reads. */
+export function cardText(card) {
+  const c = issueCardOf(card);
+  if (!c) return '';
+  return [c.title, '', `About: ${c.about}`, `Wrong: ${c.wrong}`, c.known ? `Known: ${c.known}` : '', `Decide: ${c.ask}`,
+    ...c.options.map((o, i) => `  ${i + 1}. ${o.option}${i === 0 ? ' (recommended)' : ''}: ${o.then}`)].filter((l, i) => l || i === 1).join('\n');
+}
+
+/**
+ * The prompt for a naive reader (Caleb Koster, 2026-11-25: "assume I am dropping into the card fresh"): a new
+ * worker with no tools gets only the card's text and NAIVE_CONTEXT, and says what it understood. The issue manager
+ * compares the answer with what it knows, and mends each line the reader got wrong or was not sure of.
+ */
+export function naivePrompt(card) {
+  return [
+    'You are a newcomer. Use no tools. Read no files. Answer only from the text below.',
+    `You know one thing: "${NAIVE_CONTEXT}"`,
+    'An admin of the app sees this card on a web dashboard. It is the whole card.',
+    '', '----- CARD -----', cardText(card), '----- END -----', '',
+    'Answer in at most 250 words:',
+    '1. What is the problem, in your own words? Who has it, and how bad is it? Is any work lost?',
+    '2. What is the cause?',
+    '3. What must the admin decide? What happens after each option?',
+    '4. Each word or sentence that is not clear to you, and why.',
+    '5. What you need to know to decide, that the card does not say.',
+    '6. From 1 to 5: how sure are you that you can act on the card? (1 = no idea, 5 = fully clear)'
+  ].join('\n');
+}
 
 /** Words that are the names of things and look like code: allowed. */
 const NAMES = /^(iPhone|iPad|iOS|iPadOS|macOS|eSIM|YouTube|LangQuest|GitHub|TestFlight|WhatsApp|PowerPoint|JavaScript|OpenAI)$/;
@@ -151,7 +210,7 @@ export function cardTexts(value, fields = CARD_FIELDS, at = '') {
   if (!value || typeof value !== 'object') return [];
   return Object.entries(value).flatMap(([k, v]) => {
     const where = at ? `${at}.${k}` : k;
-    if (typeof v === 'string' && fields.includes(k)) return [{ where, text: v, max: k === 'title' ? 20 : LIMITS.line }];
+    if (typeof v === 'string' && fields.includes(k)) return [{ where, text: v, max: k === 'title' ? 20 : k === 'option' ? 12 : LIMITS.line }];
     return cardTexts(v, fields, where);
   });
 }
@@ -162,10 +221,22 @@ export function fileProblems(value, fields = CARD_FIELDS) {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  const [file, ...fields] = process.argv.slice(2);
+  const naive = process.argv[2] === '--naive';
+  const [file, ...fields] = process.argv.slice(naive ? 3 : 2);
   if (!file) {
-    console.error('usage: node scripts/card-words.mjs <file.json> [field ...]');
+    console.error('usage: node scripts/card-words.mjs <file.json> [field ...]\n       node scripts/card-words.mjs --naive <fix.json>');
     process.exit(2);
+  }
+  if (naive) {
+    // The prompt for a naive reader of the card in fix.json `card`: give it, as it is, to a new worker.
+    let card = null;
+    try { card = issueCardOf(JSON.parse(readFileSync(file, 'utf8'))?.card); } catch { /* said below */ }
+    if (!card) {
+      console.error(`${file} has no card: it needs card.about, card.wrong, card.ask and 2 to 4 card.options (docs/card-words.md)`);
+      process.exit(1);
+    }
+    console.log(naivePrompt(card));
+    process.exit(0);
   }
   let problems;
   try {

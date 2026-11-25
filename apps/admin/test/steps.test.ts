@@ -68,7 +68,8 @@ describe('the steps on a user issue (docs/decisions/2026-11-24-each-issue-card-s
     ]);
     expect(t[2]!.sub).toBe('The next try reads the field diagnostics (2 queries) and the Cloudflare Worker logs.');
     expect(t[3]!.sub).toBe('Before it starts, it reads the field diagnostics (2 queries) and the Cloudflare Worker logs.');
-    expect(t[4]!.sub).toBe('Cause: The retry dropped the language id. Issue manager: Opus, high effort.');
+    // The cause in a developer's words and the manager's model stay under Details (LAN-339: "the run holds t").
+    expect(t[4]!.sub).toBe('');
     expect(t[4]!.look).toBe('done');
     expect(t.every((e) => e.run === RUN || e.who === '')).toBe(true);
   });

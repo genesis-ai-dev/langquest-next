@@ -476,3 +476,47 @@ describe("Claude's answer in the talk", () => {
     expect(html).not.toMatch(/<img|<b>|<script/);
   });
 });
+
+describe("the issue manager's card (docs/card-words.md, \"An issue's card\")", () => {
+  // LAN-339, 2026-11-25: the watch's first lines stayed on the card after Claude proved the cause; the choice was
+  // under Details, the step showed the cause in file names cut at 300 characters, and the pull request's title
+  // repeated the card's title. A naive reader was 2 of 5 sure what to do.
+  const card = {
+    title: 'A phone stops uploading after its network drops during a sync',
+    about: 'The phone app sends each new recording to the server. A person recorded a key word, and it did not go up.',
+    wrong: 'The phone lost its network during a sync and waited for an answer that never came.',
+    known: 'No work was lost. The recording went up when the person opened the app again.',
+    ask: 'Merge pull request 7? The fix stops a request with no answer after 2 minutes.',
+    options: [{ option: 'Merge it', then: 'Phones get the fix in an app update.' }, { option: 'Do not merge', then: 'The problem stays.' }]
+  };
+  const waiting = (over: Row = {}): Row => ({
+    decision: 'waits', reason: 'review', why: 'Please choose: 1. Keep the limit. 2. Use a longer limit.', pr: 7, verdict: 'review', model: 'opus', effort: 'high',
+    summary: 'A time limit on each request.', cause: 'syncScheduler.ts starts no run while one runs.', proof: 'A new case fails on main.', review: null,
+    twins: null, runUrl: 'https://github.com/o/r/actions/runs/9', at: '2026-11-25T18:51:00Z', pictures: [], ...over
+  });
+  const title = 'A key word recording stays waiting to upload';
+
+  it('leads with About, Wrong, Known and the choice, each option with what it leads to', () => {
+    draw.fixes({ state: 'ok', data: { prs: [{ ...pr(7, 'open', ['LAN-9']), title: 'LAN-9: ' + title }] } });
+    const html = draw.userIssuesHtml({ issues: [issue({ title, problem: 'The watch guessed this.', known: 'The watch guessed this too.' })], fixes: { 'LAN-9': waiting({ card }) }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
+    expect(html).toContain('<h4>' + card.title + '</h4>');
+    for (const label of ['About', 'Wrong', 'Known', 'Decide']) expect(html).toContain('<dt>' + label + '</dt>');
+    expect(html).not.toContain('The watch guessed this');
+    expect(html).toContain('<p class="inext">Merge pull request 7? The fix stops a request with no answer after 2 minutes.</p><ol class="ichoice"><li><b>Merge it</b><span class="tag">Recommended</span><br>Phones get the fix in an app update.</li><li><b>Do not merge</b><br>The problem stays.</li></ol>');
+    // The cause in a developer's words stays under Details.
+    expect(html.indexOf('syncScheduler.ts')).toBeGreaterThan(html.indexOf('<summary>Details</summary>'));
+    draw.fixes(null);
+  });
+
+  it('without a card, shows why the fix waits in view, never only a title that repeats the card', () => {
+    draw.fixes({ state: 'ok', data: { prs: [{ ...pr(7, 'open', ['LAN-9']), title: 'LAN-9: ' + title }] } });
+    const html = draw.userIssuesHtml({ issues: [issue({ title })], fixes: { 'LAN-9': waiting() }, open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
+    const next = html.slice(html.indexOf('<dt>Next</dt>'), html.indexOf('</dd>', html.indexOf('<dt>Next</dt>')));
+    expect(next).toContain('waits on its merge.<br><small>Please choose: 1. Keep the limit. 2. Use a longer limit.</small>');
+    expect(next).not.toContain('LAN-9: ' + title);
+    // With no record, a title that says more than the card's still shows.
+    const other = draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null });
+    expect(other).toContain('<small class="muted">LAN-9: ' + title + '</small>');
+    draw.fixes(null);
+  });
+});

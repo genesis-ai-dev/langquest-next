@@ -44,6 +44,15 @@ describe('what the workflow sends back', () => {
     expect(() => one({ decision: 'merge' })).toThrow(/reason/);
     expect(() => one({ decision: 'none' })).toThrow(/pr/);
     expect(() => one({ why: 'Write to a@b.org' })).toThrow();
+    // The issue manager's card (docs/card-words.md, "An issue's card"): kept as sent, null when none came.
+    expect(one({}).card).toBeNull();
+    const card = { title: '', about: 'The phone sends recordings.', wrong: 'The phone waits for ever.', known: 'No work was lost.', ask: 'Merge it?',
+      options: [{ option: 'Merge it', then: 'Phones get the fix.' }, { option: 'Do not merge', then: 'The problem stays.' }] };
+    expect(one({ card }).card).toEqual(card);
+    expect(() => one({ card: { ...card, options: card.options.slice(0, 1) } })).toThrow(/card.options: 2 to 4/);
+    expect(() => one({ card: { ...card, about: '' } })).toThrow(/card.about/);
+    expect(() => one({ card: { ...card, known: 'Mail a@b.org' } })).toThrow(/card.known/);
+    expect(() => one({ card: { ...card, options: [{ option: 'x'.repeat(81), then: 'y' }, card.options[1]] } })).toThrow(/card.options\[0\]/);
   });
 
   it('takes new issues, known ones, noise and grown kinds', () => {

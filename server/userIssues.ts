@@ -249,6 +249,43 @@ export interface FixRecord {
    * base64. Both are a display fix's proof; `before` alone shows the problem of an issue with no fix. Never `after` alone.
    */
   before: string | null; after: string | null;
+  /**
+   * The issue's card in plain words, written by the issue manager after its work (docs/card-words.md, "An issue's
+   * card"): it replaces the watch's first lines on the dashboard. null when the manager wrote none.
+   */
+  card?: IssueCard | null;
+}
+/** The most characters of each part of an issue's card (scripts/card-words.mjs ISSUE_CARD holds the same numbers). */
+export const ISSUE_CARD = { title: 80, about: 300, wrong: 300, known: 300, ask: 300, option: 80, then: 200, options: { min: 2, max: 4 } } as const;
+/**
+ * An issue's card: a title, what it is about (high up), what goes wrong and why, what is known (what is safe, who
+ * else can have it), and the choice: the question and 2 to 4 options, each with what happens after it, the
+ * recommended one first.
+ */
+export interface IssueCard { title: string; about: string; wrong: string; known: string; ask: string; options: { option: string; then: string }[] }
+
+/** An issue's card as the workflow sent it, checked: null when it sent none. */
+export function parseIssueCard(v: unknown, at: string): IssueCard | null {
+  if (v === undefined || v === null) return null;
+  if (!isObj(v)) throw new LookedError(`${at}: an object`);
+  const text = (field: 'title' | 'about' | 'wrong' | 'known' | 'ask', need: boolean): string => {
+    const t = v[field];
+    if (!need && (t === undefined || t === null || t === '')) return '';
+    if (typeof t !== 'string' || !t.trim() || t.length > ISSUE_CARD[field] || EMAIL.test(t)) throw new LookedError(`${at}.${field}: 1 to ${ISSUE_CARD[field]} characters, no address`);
+    return t;
+  };
+  const options = v['options'];
+  if (!Array.isArray(options) || options.length < ISSUE_CARD.options.min || options.length > ISSUE_CARD.options.max) throw new LookedError(`${at}.options: ${ISSUE_CARD.options.min} to ${ISSUE_CARD.options.max}`);
+  return {
+    title: text('title', false), about: text('about', true), wrong: text('wrong', true), known: text('known', false), ask: text('ask', true),
+    options: options.map((o, n) => {
+      const ok = (t: unknown, max: number) => typeof t === 'string' && t.trim() !== '' && t.length <= max && !EMAIL.test(t);
+      if (!isObj(o) || !ok(o['option'], ISSUE_CARD.option) || !ok(o['then'], ISSUE_CARD.then)) {
+        throw new LookedError(`${at}.options[${n}]: option (1 to ${ISSUE_CARD.option} characters) and then (1 to ${ISSUE_CARD.then}), no address`);
+      }
+      return { option: o['option'] as string, then: o['then'] as string };
+    })
+  };
 }
 /**
  * What the manager does next on an issue whose cause it did not prove yet (docs/agent-team.md "When the cause
@@ -700,7 +737,8 @@ export function parseLooked(input: unknown): Looked {
       before, after,
       issue, decision, reason, why: words(f, 'why', where), pr: number, verdict: oneOf(f, 'verdict', FIX_VERDICTS, where),
       model: oneOf(f, 'model', FIX_MODELS, where), effort: oneOf(f, 'effort', FIX_EFFORTS, where),
-      summary: words(f, 'summary', where), cause: words(f, 'cause', where), proof: words(f, 'proof', where), review: words(f, 'review', where), twins: words(f, 'twins', where)
+      summary: words(f, 'summary', where), cause: words(f, 'cause', where), proof: words(f, 'proof', where), review: words(f, 'review', where), twins: words(f, 'twins', where),
+      card: parseIssueCard(f['card'], `${where}.card`)
     };
   });
   const tags = new Set<string>();

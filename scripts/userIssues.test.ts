@@ -83,7 +83,7 @@ describe('user-issues.mjs', () => {
     const fix = jobs['fix']!.split(/\n {6}- /);
     const claude = fix.find((s) => s.includes('anthropics/claude-code-action'))!;
     // The issue manager starts its workers with the Agent tool; they have its tools and no more.
-    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Edit,Write,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)"');
+    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Edit,Write,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*),Bash(node /home/runner/work/_temp/watch/card-words.mjs:*)"');
     expect(claude).not.toMatch(/LINEAR_API_KEY|show_full_output|display_report/);
     // The key reads the issue before Claude; the patch is taken with the scripts and repository copied before it.
     expect(fix.findIndex((s) => s.includes('LINEAR_API_KEY'))).toBeLessThan(fix.indexOf(claude));
@@ -610,8 +610,13 @@ describe('a draft fix for each new issue', () => {
   });
 
   it('takes Claude\'s summary or its reason for none, cut and without addresses, and only fixed words from the checks', () => {
-    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', linear: [], verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null, ended: false });
+    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', linear: [], verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null, card: null, ended: false });
     expect(checkFix({ summary: 'S', askFirst: true }).askFirst).toBe(true);
+    // The issue's card (docs/card-words.md, "An issue's card"): checked, cut, addresses out, and sent to the Worker.
+    const card = { title: 'T', about: 'The phone sends recordings.', wrong: 'Ask a@b.org', known: '', ask: 'Merge it?', options: [{ option: 'Merge it', then: 'Fixed.' }, { option: 'Do not merge', then: 'It stays.' }] };
+    expect(checkFix({ summary: 'S', card }).card).toEqual({ ...card, wrong: 'Ask [address]' });
+    expect(fixRecord('LAN-9', { decision: 'waits', reason: 'review', pr: 7 }, checkFix({ summary: 'S', card })).card).toEqual({ ...card, wrong: 'Ask [address]' });
+    expect(fixRecord('LAN-9', { decision: 'waits', reason: 'review', pr: 7 }, checkFix({ summary: 'S' }))).not.toHaveProperty('card');
     expect(checkFix({ summary: 'S', answer: ' I moved the wait.  \r\n\n\n\n1. Ask a@b.org ' }).answer).toBe('I moved the wait.\n\n1. Ask [address]');
     expect(checkFix({ summary: 'S', answer: 'x'.repeat(2000) }).answer).toHaveLength(FIX_LIMITS.answer);
     expect(checkFix({ noFix: 'Needs a store build.' }).noFix).toBe('Needs a store build.');

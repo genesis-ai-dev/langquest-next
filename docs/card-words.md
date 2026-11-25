@@ -65,6 +65,40 @@ sentences for the card. For "A person must choose", `plain` lists the
 choices as "1. ... 2. ...", the recommended one first. The technical reason
 stays in `noFix`, which goes under Details.
 
+## An issue's card
+
+The watch for user issues writes an issue's first lines before anyone
+looked at the cause. Those lines are a guess. The issue manager proves the
+cause, and then writes the card again in `fix.json` `card`
+(`.agents/skills/user-issues/SKILL.md`, "The card for your issue"). The
+dashboard shows the manager's card in place of the watch's lines:
+
+| Line | What it says |
+| --- | --- |
+| Title | What goes wrong, as a person sees it, for all who can have it. |
+| About | From high up: the part of LangQuest, what a person did and saw. Each word of the app a newcomer may not know, explained. |
+| Wrong | One step closer: what goes wrong, and the proven cause, in words about the app. |
+| Known | What is safe: lost work, whether the person is still stuck, who else can have it. |
+| Decide | The one question, what the change does, then 2 to 4 options. Each option says what happens after it. The recommended one is first. Doing nothing is an option. |
+
+The cause in a developer's words, the reasons, the reviewer, the issue
+manager and the run stay under Details. A step on the card says only what
+happened. Without a manager's card, the Next line shows the fix's `why`,
+so the choice is never behind Details.
+
+### A naive reader
+
+A word check sees short sentences, not a card that says nothing a person can
+act on. LAN-339's first card kept every rule of the word check, and a new
+reader with no context was 2 of 5 sure what to do. So the issue manager
+gives the card to a naive reader before it finishes:
+`node scripts/card-words.mjs --naive fix.json` prints the prompt (the card's
+text and one line about the app, `NAIVE_CONTEXT`). A new worker with no tools
+answers what the problem is, what the cause is, what each option leads to,
+what is unclear and how sure it is. The manager mends each line the reader
+got wrong, at most twice. The card for LAN-339 that Claude wrote this way
+made the reader 4 of 5 sure.
+
 ## How the standard is kept
 
 - `scripts/card-words.mjs` holds the rules. The dashboard, the checks of
@@ -76,5 +110,10 @@ stays in `noFix`, which goes under Details.
 - The watch for user issues runs
   `node scripts/card-words.mjs .user-issues/decisions.json` and mends each
   line it prints before it finishes.
+- The issue manager runs `node scripts/card-words.mjs .user-issues/fix.json`
+  on its card, then the naive reader (above), and mends the card.
+- `apps/admin/test/cardWords.test.ts` holds LAN-339's card as Claude wrote it
+  again: it keeps the standard, and the naive reader's prompt has only the
+  card's text.
 - On a card, Claude's plain words that break the standard go under Details;
   the fixed words of the reason stay in view.

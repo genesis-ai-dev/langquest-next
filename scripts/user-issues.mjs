@@ -460,7 +460,8 @@ export function checkFix(raw) {
   // The manager's verdict and reasoning (scripts/agent-team.mjs verdictOf), addresses out.
   const v = verdictOf(o);
   const next = v.next ? { ...v.next, do: redact(v.next.do), steps: redact(v.next.steps) } : null;
-  const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display, askFirst: v.askFirst, next };
+  const card = v.card ? JSON.parse(redact(JSON.stringify(v.card))) : null;
+  const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display, askFirst: v.askFirst, next, card };
   // `ended`: the manager wrote no fix.json, or one that does not read (fixPatch), so it gave no verdict (ENDED).
   // `linear`: the changes to the issue in Linear that Claude chose from an admin's instruction (linearChanges).
   const linear = linearChanges(o.linear);
@@ -550,7 +551,9 @@ export function fixRecord(issue, { decision, reason = null, why = null, pr = nul
     // The screen without the change and, when there is a change, with it (base64 JPEG), as the picture job made them.
     ...(pictures?.before ? { before: pictures.before.toString('base64'), ...(pictures.after ? { after: pictures.after.toString('base64') } : {}) } : {}),
     issue, decision, reason, why: word(why, 600), pr, verdict: fix.ended ? null : fix.verdict ?? null, model: plan.model ?? null, effort: plan.effort ?? null,
-    summary: word(fix.summary, 1000), cause: word(fix.cause, 600), proof: word(fix.proof, 400), review: word(vet?.why, 1000), twins: word(fix.twins, 1000)
+    summary: word(fix.summary, 1000), cause: word(fix.cause, 600), proof: word(fix.proof, 400), review: word(vet?.why, 1000), twins: word(fix.twins, 1000),
+    // The card in plain words (docs/card-words.md, "An issue's card"), already checked and cut (issueCardOf).
+    ...(fix.card ? { card: fix.card } : {})
   };
 }
 
@@ -1579,12 +1582,12 @@ function fixPatch(dir) {
   // This repository is public: a change or fix.json that carries what was sent is not kept.
   const privPath = process.env.FIX_PRIVATE;
   const priv = privPath && existsSync(privPath) ? readJson(privPath) : null;
-  if (priv && leaks([patch, fix.summary, fix.tests, fix.noFix, fix.answer, fix.cause, fix.proof, fix.why, fix.twins, fix.next?.do, fix.next?.steps, ...(fix.next?.reads ?? [])].join('\n'), priv)) {
+  if (priv && leaks([patch, fix.summary, fix.tests, fix.noFix, fix.answer, fix.cause, fix.proof, fix.why, fix.twins, fix.next?.do, fix.next?.steps, ...(fix.next?.reads ?? []), fix.card ? JSON.stringify(fix.card) : ''].join('\n'), priv)) {
     fix.noFix = 'Claude\'s change carried part of what was sent (the person\'s words or an id), and this repository is public, so it was not kept.';
     fix.summary = '';
     fix.tests = '';
     fix.answer = '';
-    Object.assign(fix, { verdict: 'review', cause: '', proof: '', why: '', twins: '', next: null });
+    Object.assign(fix, { verdict: 'review', cause: '', proof: '', why: '', twins: '', next: null, card: null });
     patch = '';
   }
   // The same for each change in Linear with words of Claude's (a title, a comment): one that carries what was sent is dropped.

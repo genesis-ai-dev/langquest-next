@@ -27,6 +27,7 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkVet, runUrl } from './tutorial-review.mjs';
+import { issueCardOf } from './card-words.mjs';
 
 export { checkVet };
 
@@ -97,7 +98,10 @@ export function verdictOf(raw) {
     // The manager read the admin's instructions as "show me the change before it merges" (with `go`, below).
     askFirst: o.askFirst === true,
     // What the manager does next to prove the cause, and when the watch hands the issue back (nextOf).
-    next: nextOf(o.next)
+    next: nextOf(o.next),
+    // The issue's card in plain words, written after the manager's work (docs/card-words.md, "An issue's card"):
+    // it replaces the watch's first lines on the dashboard. null when the manager wrote none.
+    card: issueCardOf(o.card)
   };
 }
 

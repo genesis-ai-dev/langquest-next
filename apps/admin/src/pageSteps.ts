@@ -55,7 +55,6 @@ function readsSaid(r) {
 }
 /** Where the watch found a kind of problem, by its family (server/userIssues.ts FAMILIES). */
 const FAMILY_SAID = { feedback: 'A person sent it from help mode.', job: 'A server job reported it.', worker: 'The web traffic showed it.', ops: 'The ops dashboard showed it.' };
-const MODEL_SAID = { opus: 'Opus', sonnet: 'Sonnet' };
 /** What a fix record says the team did (ops.user_issue_fixes: decision, reason, verdict). */
 function fixStepSaid(d) {
   if (d.decision === 'merge') return 'wrote the fix. It keeps the rules, so it merges by itself when its checks pass';
@@ -96,10 +95,9 @@ function stepSaid(s, issue) {
     return { ...x, said: 'made a plan: ' + String(d.next || '').replace(/\.$/, ''),
       sub: [reads ? 'The next try reads ' + reads + '.' : '', d.probe ? 'A test of its own runs on main first.' : ''].filter(Boolean).join(' ') };
   }
-  if (s.kind === 'fix') {
-    const who = MODEL_SAID[d.model] ? 'Issue manager: ' + MODEL_SAID[d.model] + (d.effort ? ', ' + d.effort + ' effort' : '') + '.' : '';
-    return { ...x, said: fixStepSaid(d), sub: [d.cause ? 'Cause: ' + d.cause : '', who].filter(Boolean).join(' '), look: d.decision === 'merge' ? 'done' : '' };
-  }
+  // The cause in a developer's words (files, code names, cut at 300 characters) and the manager's model stay under
+  // the card's Details, "What Claude did": a step says only what happened (LAN-339's step ended "the run holds t").
+  if (s.kind === 'fix') return { ...x, said: fixStepSaid(d), look: d.decision === 'merge' ? 'done' : '' };
   if (s.kind === 'merged') return { ...x, who: '', said: 'Pull request ' + (s.pr || '') + ' merged. It fixes ' + issue + '.', look: 'done' };
   if (s.kind === 'state') return { ...x, who: '', said: issue + ' is ' + (d.state || 'changed') + ' in Linear.' };
   if (s.kind === 'closed') return { ...x, who: '', said: issue + ' closed in Linear' + (d.state ? ' as ' + d.state : '') + '.', look: 'done' };
