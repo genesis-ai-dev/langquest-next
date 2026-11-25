@@ -344,9 +344,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // growth below, and in the nearby chunk the work set on Let someone in (`letInBooks`, `workSetOf` and the grant's `kept`)
 // and the limit of file bytes a session moves while LangQuest is open, which the web never opens.
 // Raised by 3 KB with the follow-up to LAN-317 (Carl, 2026-11-25,
-// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md as amended), 2,349 bytes past it: the
+// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md as amended), 2,846 bytes past it: the
 // first visit's growth (FIRST_VISIT_BUDGET_BYTES, below, says what) and the back translation's hold on deleting a
-// part that cannot be heard. 723 bytes are left.
+// part that cannot be heard. 226 bytes are left.
 const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 199 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
@@ -502,13 +502,13 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 199 * 1024;
 // sync/useGroupOffline.ts), the one answer they share (nearby/useNearbyCanRun.ts), and their seven English lines in the
 // catalog every visit carries. The web never shows those lines, since Share nearby never runs there, but the buttons
 // are the same code on every platform.
-// Raised by 2 KB with the follow-up to LAN-317 (Carl, 2026-11-25,
-// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md as amended), 1,923 bytes past it: six
+// Raised by 3 KB with the follow-up to LAN-317 (Carl, 2026-11-25,
+// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md as amended), 2,420 bytes past it: six
 // English lines in the catalog every visit carries (the lock banner's three, Keep's two, Done's one); the lock
 // banner's New version and the Done screen that stays open when the device goes offline (screens/translate.tsx,
 // recording/workspaceModel.ts); Keep's hold on spoken feedback (screens/passage.tsx, passage/reviewModel.ts); Done's
-// line for it (recording/publish.tsx); and the Versions page's dimmed Done. 125 bytes are left.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 138 * 1024;
+// line for it (recording/publish.tsx); and the Versions page's dimmed Done. 652 bytes are left.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 139 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
