@@ -1,7 +1,8 @@
 // Takes kept passages' study pictures and audio along (decisions.md 61):
 // mounted once with the app, it finds each kept passage's guide and hands
 // its addresses to `studyFiles.ts`, which downloads what is missing while
-// connected. Draws nothing.
+// connected, and the files a team's own guide names by hash to
+// `guideFilesAhead.ts`, which fetches them into the blob store. Draws nothing.
 //
 // Every passage kept on this device (`referenceUnits`): the person's own, and
 // those chosen one by one or a book at a time. One guide names about a dozen
@@ -13,6 +14,8 @@ import type { Ctx } from '../shell/ctx';
 import { referenceUnits } from '../sync/offlineModel';
 import { useStudyGuideSet } from './useStudyGuides';
 import { setStudyWanted, STUDY_FILES_OFFLINE, studyUrls } from './studyFiles';
+import { guideStoredFiles, setGuideFilesWanted } from './guideFilesAhead';
+import type { StoredFile } from '../storage/storedFile';
 import { wishListWhole } from './prefetchModel';
 import { useSlowly } from '../ui/useSlowly';
 
@@ -46,10 +49,17 @@ export function StudyPrefetch(props: { ctx: Ctx }) {
   useEffect(() => {
     if (!STUDY_FILES_OFFLINE) return;
     const next = new Map<string, string[]>();
-    for (const [unitId, guide] of guides) next.set(unitId, studyUrls(guide));
+    // A team's own guide's files, named by hash, go to the blob store (guideFilesAhead.ts, 2026-11-24).
+    const stored = new Map<string, StoredFile[]>();
+    for (const [unitId, guide] of guides) {
+      next.set(unitId, studyUrls(guide));
+      const files = guideStoredFiles(guide);
+      if (files.length) stored.set(unitId, files);
+    }
     // A passage with no guide here counts as having none only once its documents have been read: until
     // then it may have one, and its study files are not counted as here (decisions.md 166).
     setStudyWanted(next, online, { orgId, languageId }, lookedUp, complete);
+    setGuideFilesWanted(stored, online, orgId, { orgId, languageId }, complete);
   }, [guides, lookedUp, online, orgId, languageId, complete]);
   return null;
 }

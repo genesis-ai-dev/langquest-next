@@ -125,7 +125,7 @@ describe('Share nearby\'s states', () => {
 
   it('draws no line or row for a played-back advert or a stranger: nothing moved and nobody named', () => {
     const line = {
-      tag: 't', profileId: null, role: 'i' as const, how: 'silent', linkKind: null, eventsIn: 0, eventsOut: 0, refused: 0, filesIn: 0, filesOut: 0, filesFailed: 0, guideFilesIn: 0,
+      tag: 't', profileId: null, role: 'i' as const, how: 'silent', linkKind: null, eventsIn: 0, eventsOut: 0, refused: 0, filesIn: 0, filesOut: 0, filesFailed: 0, guideFilesIn: 0, guideFilesShort: 0,
       noRoom: false, cutBackups: false, olderFromServer: false
     };
     expect(linesShown([line])).toEqual([]);
@@ -133,6 +133,9 @@ describe('Share nearby\'s states', () => {
     // Guide pictures and audio that came are something moved, though no recording or change did (5.12, Library files).
     expect(linesShown([{ ...line, how: 'done', guideFilesIn: 5 }]).map((l) => l.guideFilesIn)).toEqual([5]);
     expect(has(en, 'nearby.came.guideFilesIn')).toBe(true);
+    // So are guide files that waited for room: the person learns why they are missing.
+    expect(linesShown([{ ...line, how: 'done', guideFilesShort: 3 }]).map((l) => l.guideFilesShort)).toEqual([3]);
+    expect(has(en, 'nearby.came.guideFilesShort')).toBe(true);
     expect(teammatesShown([{ tag: 'a', key: null, profileId: null, older: false, state: 'missed' }, { tag: 'b', key: null, profileId: null, older: false, state: 'maybe' }]).map((m) => m.tag)).toEqual(['b']);
   });
 });

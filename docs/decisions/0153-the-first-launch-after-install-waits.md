@@ -25,3 +25,12 @@ next new build.
 Reverse if: first launches on slow connections time out often enough that
 the wait only delays people (then shorten it), or expo-updates gains a
 setting that waits on the first launch only (then use that instead).
+
+Amended (2026-11-24, Carl Sauder): the app's own looks for an update, this
+first-launch wait among them, do not run while the phone holds a teammate's
+starting copy the server has not replaced, and once this wait is over the app
+has a look of its own at each start (`useUpdateAtStart`), held the same way,
+which runs only once a store build sets app.json's `checkAutomatically` to
+`NEVER`; until then expo-updates looks at each start by itself, as above
+(2026-11-24-a-lost-or-short-copy-is-taken-again-and-updates-wait). The first
+launch after install still waits as above, and holds no copy then.

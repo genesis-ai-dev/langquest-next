@@ -25,7 +25,13 @@ const fake = vi.hoisted(() => ({
   events: [] as string[],
   report: { ended: { how: 'done' }, join: { granted: true, refused: null } } as unknown,
   sessions: 0,
-  pieces: true
+  pieces: true,
+  /** Each session's options, as the app built them (review of 2026-11-24, T5). */
+  options: [] as Record<string, unknown>[],
+  /** Field diagnostics the attempt recorded, with where. */
+  diag: [] as { orgId: string; languageId: string; record: unknown }[],
+  openOrgs: [] as string[],
+  switchOn: true
 }));
 
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
@@ -43,12 +49,15 @@ vi.mock('../src/server/nearbyKey', () => ({ installKey: async () => null, replac
 vi.mock('../src/storage/store', () => ({ getStore: async () => null, holdsUnsent: async () => false }));
 vi.mock('../src/sync/handOver', () => ({ anyHandOvers: async () => false }));
 // What the phone knows of the organization's sharing while open, handed on in the grant (2026-11-24).
-vi.mock('../src/nearby/nearbyIdentity.native', () => ({ keepOpenOrgsFromJoin: async () => undefined, nearbyOpenOrgs: async () => new Set<string>() }));
+vi.mock('../src/nearby/nearbyIdentity.native', () => ({
+  keepOpenOrgsFromJoin: async () => undefined, nearbyOpenOrgs: async () => new Set<string>(fake.openOrgs), nearbyOpenSwitch: async () => fake.switchOn
+}));
 vi.mock('../src/nearby/nearbyPhone.native', () => ({
   keepChains: async () => undefined, nearbyGateFor: async () => ({ people: () => [] }), nearbyMakerFor: async () => null, readChains: async () => ({}),
   readRevoked: async () => null, ROOT_KEYS: new Map()
 }));
 vi.mock('../src/nearby/nearbyRun.native', () => ({
+  nearbyDiagFor: (orgId: string, languageId: string) => (record: unknown) => { fake.diag.push({ orgId, languageId, record }); },
   findKeyFor: async () => ({ key: new Uint8Array(32), gen: 1, floor: 0 }),
   nearbyPiecesFor: async () => (fake.pieces
     ? { ok: true, pieces: { crypto: phoneCryptoOf(new Uint8Array(randomBytes(32)), (n: number) => new Uint8Array(randomBytes(n))), chain: [], deviceId: 'd1', signer: {} } }
@@ -58,11 +67,13 @@ vi.mock('../src/nearby/nearbyRun.native', () => ({
 vi.mock('@langquest-next/sync/nearby', async (importOriginal) => {
   const real = await importOriginal<typeof import('@langquest-next/sync/nearby')>();
   class NearbySession {
-    constructor(_options: unknown) { fake.sessions += 1; }
+    constructor(options: Record<string, unknown>) { fake.sessions += 1; fake.options.push(options); }
     run() { fake.events.push('session'); return Promise.resolve(fake.report); }
     stop() { /* nothing runs */ }
   }
-  return { ...real, NearbySession };
+  // The record a session's report makes is sync's, tested there: here only that one is made, of a join, and where.
+  const sessionDiagOf = (_r: unknown, ms: number, mode: string) => ({ t: { event: 'session', mode }, n: { ms } });
+  return { ...real, NearbySession, sessionDiagOf };
 });
 
 const GIVE_GROUP = { kind: 'wifi-direct' as const, ssid: 'DIRECT-gv-Android_1a2b', passphrase: 'give-pass-1234', port: 4300 };
@@ -98,11 +109,11 @@ async function letIn() {
 }
 
 /** One attempt, as useLetIn.android.ts starts it, with what its hooks were told. */
-async function attempt(radio: PhoneRadio, over: { still?: () => boolean; stopped?: Promise<void>; giveHandedOver?: boolean } = {}) {
+async function attempt(radio: PhoneRadio, over: { still?: () => boolean; stopped?: Promise<void>; giveHandedOver?: boolean; worn?: boolean; language?: NearbyLanguage } = {}) {
   const shown: { uri: string; until: number; onGiveGroup: boolean }[] = [];
   const run = (await letIn())({
     radio, actorId: 'ana', orgId: 'o1', languageId: 'l1', roleId: 'translator', pass: {} as JoinPass, org: {} as never, inspectOrg: async () => null,
-    language: { client: {} } as unknown as NearbyLanguage, orgClient: null, codeMs: letInCodeMs, onSession: () => undefined,
+    language: over.language ?? ({ client: {} } as unknown as NearbyLanguage), orgClient: null, worn: over.worn ?? false, codeMs: letInCodeMs, onSession: () => undefined,
     ...(over.stopped ? { stopped: over.stopped } : {}),
     ...(over.giveHandedOver ? { giveHandedOver: true } : {}),
     hooks: {
@@ -129,6 +140,10 @@ beforeEach(() => {
   fake.noted = [];
   fake.sessions = 0;
   fake.pieces = true;
+  fake.options = [];
+  fake.diag = [];
+  fake.openOrgs = [];
+  fake.switchOn = true;
   fake.report = { ended: { how: 'done' }, join: { granted: true, refused: null } };
 });
 afterEach(() => { vi.useRealTimers(); });
@@ -250,5 +265,48 @@ describe('without Give the app', () => {
     await expect(run).resolves.toEqual({ report: null, why: 'expired' });
     expect(fake.events).toEqual(['giveGroupServing', 'host wifi-direct', 'showing', 'takeDown']);
     expect(fake.noted).toEqual(['let in: give the app: no status']);
+  });
+});
+
+// The review of 2026-11-24 (items 2, 8 and 14; T5): the session after the link is taken was faked here with its options
+// thrown away, so nothing showed that the app gave it what the join now needs.
+describe('the inviter\'s session, as the app builds it', () => {
+  const moves = { wanted: async () => [], serveFile: async () => ({ no: 'not-here' as const }), fetchFile: async () => null, landed: async () => undefined, discard: async () => undefined, held: async () => [] };
+  const language = { client: { nearbyHelloNow: 1 }, moves } as unknown as NearbyLanguage;
+  const linked = async (o: { worn?: boolean } = {}) => {
+    const r = fakeRadio({ give: false });
+    const { run, shown } = await attempt(r.radio, { language, ...o });
+    await untilShown(shown);
+    r.linkComes();
+    await run;
+    expect(fake.options).toHaveLength(1);
+    return fake.options[0]!;
+  };
+
+  it('moves the language\'s files and library files after the copy, so the newcomer leaves with this phone\'s newest work and its files', async () => {
+    const options = await linked();
+    expect(options['files']).toBe(moves);
+    expect(options['library']).toBeDefined();
+    expect(options['copy']).toBeDefined();
+    expect(options['join']).toMatchObject({ as: 'inviter' });
+  });
+
+  it('notes the join as a meeting only where this phone may share while LangQuest is open, and never under a cover', async () => {
+    fake.openOrgs = ['o1'];
+    expect((await linked())['notesMetForMs']).toBe(14 * 86_400_000);
+    fake.options = [];
+    expect((await linked({ worn: true }))['notesMetForMs']).toBeUndefined();
+    fake.options = [];
+    fake.switchOn = false;
+    expect((await linked())['notesMetForMs']).toBeUndefined();
+    fake.options = [];
+    fake.switchOn = true;
+    fake.openOrgs = [];
+    expect((await linked())['notesMetForMs']).toBeUndefined();
+  });
+
+  it('records the join in field diagnostics, under its organization and language, as a join', async () => {
+    await linked();
+    expect(fake.diag).toEqual([{ orgId: 'o1', languageId: 'l1', record: { t: { event: 'session', mode: 'join' }, n: { ms: expect.any(Number) } } }]);
   });
 });

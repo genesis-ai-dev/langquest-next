@@ -4,7 +4,7 @@ import type { NearbySessionReport } from '../src/nearbySession';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSigner, memoryNearbyAir, type MemoryFiles, type MemoryNearbyAir } from '../src/testing/memoryNearbyLink';
 import { OfflineError } from '../src/types';
-import { STORES, teammate, type Teammate } from './nearbyFixtures';
+import { LANG, STORES, teammate, type Teammate } from './nearbyFixtures';
 import { newTime, roomFor, testPhone, turn, unit, type TestRoom } from './nearbyKit';
 
 /**
@@ -19,12 +19,12 @@ const clean = (input: NearbyDiagInput) => sanitizeDiag({ id: 'r', kind: 'nearby'
 
 /** A session as a report says it, with a peer the record must never name. */
 const report = {
-  role: 'i', ended: { how: 'heard', reason: 'busy' }, peer: { installKey: 'KEY', profileId: 'sam', deviceId: 'd-sam', tag: 'abcdef' }, refusedTag: null,
+  role: 'i', ended: { how: 'heard', reason: 'busy' }, peer: { installKey: 'KEY', profileId: 'sam', deviceId: 'd-sam', tag: 'abcdef' }, names: [{ profileId: 'nc-1', name: 'Nyibol' }], refusedTag: null,
   newerAppNeeded: false, clockOff: true, linkKind: 'hotspot', fallbacks: 2, code: 'LINK_DROPPED', signed: null,
   got: { pages: 3, events: 40, refused: 1, droppedPages: 0, overBudget: 0, counted: 40 }, sent: { batches: 1, claims: 0, events: 12, skipped: 0 },
   files: { got: 2, served: 1, answeredNo: 0, toldNo: 0, failed: 1, noRoom: true, cutBackups: false }, holdings: { taken: 1, dropped: 0, sent: 1 },
   older: false, farAhead: [{ actorId: 'sam', hlc: '1' }], handedKey: null, handedKeyRefused: 0, revokedTaken: null, revokedDropped: 0, finals: null, changed: true,
-  join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }, topUp: null, libraryFiles: null
+  join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }, topUp: null, libraryFiles: null, docsAgain: false
 } satisfies NearbySessionReport;
 
 describe('nearby diagnostics: the fields', () => {
@@ -41,7 +41,7 @@ describe('nearby diagnostics: the fields', () => {
     expect(d.t).toEqual({ event: 'session', role: 'i', end: 'heard', bye: 'busy', code: 'LINK_DROPPED', link: 'hotspot' });
     expect(d.n).toMatchObject({ ms: 5_000, fallbacks: 2, events: 40, sent: 12, refused: 1, files: 2, served: 1, fileFails: 1, farAhead: 1, noRoom: 1, clockOff: 1, newerApp: 0 });
     expect(clean(d)).toMatchObject({ t: d.t, n: d.n });
-    expect(JSON.stringify(d)).not.toMatch(/KEY|sam|abcdef/);
+    expect(JSON.stringify(d)).not.toMatch(/KEY|sam|abcdef|nc-1|Nyibol/);
     // A store fault names its class; the fleet's memory link names no link.
     const failed = sessionDiagOf({ ...report, ended: { how: 'failed', error: 'SQLiteError' }, linkKind: 'memory', code: null }, 1);
     expect(failed.t).toEqual({ event: 'session', role: 'i', end: 'failed', error: 'SQLiteError' });
@@ -98,6 +98,9 @@ describe('nearby diagnostics: the fields', () => {
     expect([refused('key revoked'), refused('listed'), refused('wrong organization'), refused('no certificate for this organization'), refused('certificate expired'), refused('bad proof'), refused()]
       .map((d) => d.t.refusal)).toEqual(['revoked', 'revoked', 'org', 'org', 'expired', 'other', 'other']);
     expect(clean(refused('certificate not recent'))?.t).toMatchObject({ refusal: 'window', mode: 'open' });
+    // 2026-11-24: a newcomer whose join pass ran out has its own word, not "other", and the allowlist keeps it.
+    expect(refused('pass expired').t.refusal).toBe('pass-expired');
+    expect(clean(refused('pass expired'))?.t).toMatchObject({ refusal: 'pass-expired' });
     // Being turned away, or another bye, says no reason: this phone does not know it.
     expect(sessionDiagOf({ ...report, ended: { how: 'heard', reason: 'identity' } }, 1, 'screen').t).not.toHaveProperty('refusal');
     expect(sessionDiagOf({ ...report, ended: { how: 'said', reason: 'not-member' } }, 1).t).not.toHaveProperty('refusal');
@@ -125,7 +128,7 @@ describe('nearby diagnostics: the fields', () => {
   const LIBRARY_FIELDS = ['docsKept', 'docsRefused', 'docsMissing', 'docsCapped', 'libHeld', 'libTheirs', 'libGot', 'libServed'];
 
   it('a session says the library documents it took and the library files it held, could use, got and served, and nothing of either when there was none', () => {
-    const d = sessionDiagOf({ ...report, topUp: { kept: 3, refused: 1, missing: 2, capped: true }, libraryFiles: { held: 5, theirs: 4, got: 3, served: 2 } }, 1_000, 'screen');
+    const d = sessionDiagOf({ ...report, topUp: { kept: 3, refused: 1, missing: 2, capped: true }, libraryFiles: { held: 5, theirs: 4, got: 3, served: 2, short: 0 } }, 1_000, 'screen');
     expect(d.n).toMatchObject({ docsKept: 3, docsRefused: 1, docsMissing: 2, docsCapped: 1, libHeld: 5, libTheirs: 4, libGot: 3, libServed: 2 });
     // The language's recordings are counted apart, as before.
     expect(d.n).toMatchObject({ files: 2, served: 1, fileFails: 1 });
@@ -133,16 +136,16 @@ describe('nearby diagnostics: the fields', () => {
     // Asked for no documents and exchanged no library files: no field at all, so "none asked" reads apart from "asked, got none".
     const none = sessionDiagOf(report, 1_000).n!;
     for (const k of LIBRARY_FIELDS) expect(none).not.toHaveProperty(k);
-    const empty = sessionDiagOf({ ...report, topUp: { kept: 0, refused: 0, missing: 4, capped: false }, libraryFiles: { held: 0, theirs: 0, got: 0, served: 0 } }, 1).n;
+    const empty = sessionDiagOf({ ...report, topUp: { kept: 0, refused: 0, missing: 4, capped: false }, libraryFiles: { held: 0, theirs: 0, got: 0, served: 0, short: 0 } }, 1).n;
     expect(empty).toMatchObject({ docsKept: 0, docsRefused: 0, docsMissing: 4, docsCapped: 0, libHeld: 0, libTheirs: 0, libGot: 0, libServed: 0 });
   });
 
   it('a quiet room sums the library documents and the library files got and served of its finished sessions, never what a phone holds', () => {
     const tally = { heard: 1, echoed: 1, alone: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 3, done: 3, greets: 0, levelMs: null, maxMeetMs: null, code: null };
     const synced = emptySyncedTally();
-    addSynced(synced, { ...report, topUp: { kept: 2, refused: 1, missing: 0, capped: true }, libraryFiles: { held: 4, theirs: 2, got: 2, served: 1 } }, 1_000);
+    addSynced(synced, { ...report, topUp: { kept: 2, refused: 1, missing: 0, capped: true }, libraryFiles: { held: 4, theirs: 2, got: 2, served: 1, short: 0 } }, 1_000);
     addSynced(synced, { ...report, topUp: { kept: 1, refused: 0, missing: 1, capped: false } }, 1_000);
-    addSynced(synced, { ...report, libraryFiles: { held: 4, theirs: 0, got: 0, served: 3 } }, 1_000);
+    addSynced(synced, { ...report, libraryFiles: { held: 4, theirs: 0, got: 0, served: 3, short: 0 } }, 1_000);
     const d = roomDiagOf(tally, 'asked', 60_000, null, { mode: 'open', scanMs: 0, pauseMs: 0, synced });
     expect(d.n).toMatchObject({ docsKept: 3, docsRefused: 1, docsMissing: 1, docsCapped: 1, libGot: 2, libServed: 4, files: 6, served: 3 });
     expect(d.n).not.toHaveProperty('libHeld');
@@ -152,6 +155,83 @@ describe('nearby diagnostics: the fields', () => {
     expect(roomDiagOf(tally, 'asked', 60_000, null, { mode: 'open', scanMs: 0, pauseMs: 0, synced: emptySyncedTally() }).n).toMatchObject({ docsKept: 0, libGot: 0 });
     const screen = roomDiagOf(tally, 'idle', 60_000, null, { mode: 'screen' }).n!;
     for (const k of LIBRARY_FIELDS) expect(screen).not.toHaveProperty(k);
+  });
+
+  // The review of 2026-11-24, item 14: a join on Let someone in wrote no record, and none said what came of a starting copy,
+  // so a newcomer who came away short showed in the field only as a complaint.
+  it('a join\'s session says it was a join, whether the grant went, whether the steps after the copy ran, and what of the copy moved', () => {
+    const newcomer = sessionDiagOf({
+      ...report, ended: { how: 'dropped' }, join: { pictures: [1, 2], granted: true, refused: null, exchange: false, exchangeSkip: null },
+      copy: { whole: false, filled: 7, docs: { kept: 3, missing: 2, refused: 1, capped: false } }, copyRefused: 'not-filled'
+    }, 2_000, 'join');
+    expect(newcomer.t).toMatchObject({ event: 'session', mode: 'join', role: 'i', end: 'dropped', copyNo: 'not-filled' });
+    expect(newcomer.n).toMatchObject({ granted: 1, exchanged: 0, copyWhole: 0, copyFilled: 7, copyDocsKept: 3, copyDocsMissing: 2, copyDocsRefused: 1 });
+    expect(newcomer.n).not.toHaveProperty('copyParts');
+    expect(clean(newcomer)).toMatchObject({ t: newcomer.t, n: newcomer.n });
+    const inviter = sessionDiagOf({
+      ...report, role: 'r', ended: { how: 'done' }, join: { pictures: [1, 2], granted: true, refused: null, exchange: true, exchangeSkip: null },
+      copyServed: { parts: 40, no: 1, stateRefused: null }
+    }, 9_000, 'join');
+    expect(inviter.t).toMatchObject({ mode: 'join', role: 'r', end: 'done' });
+    expect(inviter.t).not.toHaveProperty('copyNo');
+    expect(inviter.n).toMatchObject({ granted: 1, exchanged: 1, copyParts: 40, copyNos: 1 });
+    expect(inviter.n).not.toHaveProperty('copyWhole');
+    // A sender with no language to give says why; a refused join says no grant; nothing names who.
+    expect(sessionDiagOf({ ...report, copyServed: { parts: 1, no: 1, stateRefused: 'not-filled' } }, 1).t.copyNo).toBe('not-filled');
+    expect(sessionDiagOf({ ...report, join: { pictures: null, granted: false, refused: 'pass expired', exchange: false, exchangeSkip: null }, ended: { how: 'said', reason: 'identity', detail: 'pass expired' } }, 1, 'join'))
+      .toMatchObject({ t: { refusal: 'pass-expired', mode: 'join' }, n: { granted: 0 } });
+    // An ordinary session moved no copy and was no join: none of these fields.
+    for (const k of ['granted', 'exchanged', 'copyWhole', 'copyFilled', 'copyParts']) expect(sessionDiagOf(report, 1).n).not.toHaveProperty(k);
+    expect(JSON.stringify([newcomer, inviter])).not.toMatch(/KEY|sam|abcdef/);
+  });
+
+  // The review of 2026-11-24, item 14, again: `exchanged` 0 beside a whole copy had three causes, an older app, the newcomer's own
+  // language not opening, and the person leaving, and the record could not tell them apart.
+  it('a join whose newest work did not follow its copy says why, as one count the summaries total, and the schema keeps it', () => {
+    const skipped = (exchangeSkip: 'older' | 'no-pieces' | 'left' | null, exchange = false) => sessionDiagOf({
+      ...report, ended: { how: 'done' }, join: { pictures: [1, 2], granted: true, refused: null, exchange, exchangeSkip },
+      copy: { whole: true, filled: 3, docs: { kept: 0, missing: 0, refused: 0, capped: false } }
+    }, 1, 'join');
+    const SKIPS = ['exchangeOlder', 'exchangeNoPieces', 'exchangeLeft'];
+    const only = (d: ReturnType<typeof skipped>) => SKIPS.filter((k) => k in d.n!);
+    expect(skipped('older').n).toMatchObject({ exchanged: 0, exchangeOlder: 1 });
+    expect(skipped('no-pieces').n).toMatchObject({ exchanged: 0, exchangeNoPieces: 1 });
+    expect(skipped('left').n).toMatchObject({ exchanged: 0, exchangeLeft: 1 });
+    for (const why of ['older', 'no-pieces', 'left'] as const) {
+      expect(only(skipped(why))).toHaveLength(1);
+      expect(clean(skipped(why))!.n).toMatchObject(skipped(why).n!);
+    }
+    // Ran, or not known: none of the three.
+    expect(only(skipped(null, true))).toEqual([]);
+    expect(only(skipped(null))).toEqual([]);
+    for (const k of SKIPS) expect(NEARBY_DIAG_SCHEMA.nearby.n).toContain(k);
+  });
+
+  // The review of the fixes, 2026-11-24: a teammate whose checkpoint moved refused the copy as `moved`, which the list did not
+  // know, so the record said nothing of why; and a copy whole before its documents were cut, or documents this build cannot
+  // read, showed nowhere.
+  it('a copy refused because its teammate moved, cut during its documents, or with documents this build cannot read, says so', () => {
+    const moved = sessionDiagOf({
+      ...report, ended: { how: 'done' }, copy: null, copyRefused: 'moved'
+    }, 1, 'open');
+    expect(moved.t.copyNo).toBe('moved');
+    expect(clean(moved)!.t).toMatchObject({ copyNo: 'moved' });
+    const cut = sessionDiagOf({
+      ...report, ended: { how: 'dropped' }, join: { pictures: [1, 2], granted: true, refused: null, exchange: false, exchangeSkip: null },
+      copy: { whole: true, filled: 9, docs: { kept: 4, missing: 0, refused: 0, capped: false, unreadable: 2, cut: true } }
+    }, 1, 'join');
+    expect(cut.n).toMatchObject({ copyWhole: 1, copyDocsCut: 1, copyDocsUnreadable: 2, copyDocsKept: 4 });
+    expect(clean(cut)!.n).toMatchObject(cut.n!);
+    const whole = sessionDiagOf({ ...report, copy: { whole: true, filled: 9, docs: { kept: 4, missing: 0, refused: 0, capped: false } } }, 1);
+    expect(whole.n).toMatchObject({ copyDocsCut: 0, copyDocsUnreadable: 0 });
+    // A member's documents, and a quiet room's sum of them.
+    const topUp = sessionDiagOf({ ...report, topUp: { kept: 3, refused: 0, missing: 0, capped: false, unreadable: 1 } }, 1);
+    expect(topUp.n).toMatchObject({ docsUnreadable: 1 });
+    const synced = emptySyncedTally();
+    addSynced(synced, { ...report, topUp: { kept: 3, refused: 0, missing: 0, capped: false, unreadable: 1 } }, 1);
+    addSynced(synced, { ...report, topUp: { kept: 1, refused: 0, missing: 0, capped: false, unreadable: 2 } }, 1);
+    expect(synced.docsUnreadable).toBe(3);
+    for (const k of ['docsUnreadable', 'copyDocsUnreadable', 'copyDocsCut']) expect(NEARBY_DIAG_SCHEMA.nearby.n).toContain(k);
   });
 
   it('the allowlist drops a code it does not list and a reason it does not know', () => {
@@ -238,6 +318,34 @@ describe('nearby diagnostics: what a room records', () => {
     const began = [a!, b!].filter((r) => roomRecord(r.diag)!.n!.maxMeetMs !== undefined);
     expect(began.length).toBe(1);
     expect(roomRecord(began[0]!.diag)!.n!.maxMeetMs).toBeGreaterThan(0);
+  });
+
+  // The review of 2026-11-24, item 14: summed in the room's record, what came of a copy was lost.
+  it('while LangQuest is open a finished session that moved a starting copy writes its own record, saying what of it moved', async () => {
+    const OPEN = { taps: false, idleLimitMs: Number.POSITIVE_INFINITY, levelScan: { onMs: 6_000, everyMs: 60_000 }, mode: 'open' as const };
+    const giver = await testPhone(server, make(), people[0]!, shelf);
+    await unit(giver, 'a1');
+    await giver.client.sync();
+    // A phone with nothing from the server, whose copy is to come from a teammate.
+    const taker = await testPhone(server, make(), people[1]!, shelf);
+    const target = {
+      languageId: LANG, org: null,
+      language: { holdsCopy: () => taker.client.holdsCopy(), adoptStartingCopy: (c: Parameters<typeof taker.client.adoptStartingCopy>[0]) => taker.client.adoptStartingCopy(c), keptOnDisk: false, state: () => taker.client.getState() as never }
+    };
+    const out: (TestRoom & { diag: NearbyDiagInput[] })[] = [];
+    for (const [p, session] of [[giver, { copy: { language: giver.client } }], [taker, { takeCopy: target }]] as const) {
+      const diag: NearbyDiagInput[] = [];
+      out.push({ ...roomFor(p, air, time, { room: { ...OPEN, diag: (x) => diag.push(x) }, session }), diag });
+    }
+    for (const r of out) await r.room.start(time.now());
+    for (let i = 0; i < 12; i++) await turn(air, time, out);
+    for (const r of out) await r.room.stop();
+    const [gave, took] = out as [typeof out[0], typeof out[0]];
+    expect(await taker.client.holdsCopy()).toBe(true);
+    expect(sessions(took.diag)).toEqual([expect.objectContaining({ t: expect.objectContaining({ end: 'done', mode: 'open' }), n: expect.objectContaining({ copyWhole: 1 }) })]);
+    expect(sessions(gave.diag)).toHaveLength(1);
+    expect(sessions(gave.diag)[0]!.n!['copyParts']).toBeGreaterThan(0);
+    for (const r of out) for (const d of r.diag) expect(clean(d)).toMatchObject(d);
   });
 
   it('on Share nearby a session still writes its own record, now saying its mode', async () => {

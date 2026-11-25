@@ -1,6 +1,6 @@
 import type { DiagSpec } from './diagnostics';
 import type { NearbyCapabilities } from './nearbyLink';
-import type { NearbySessionReport } from './nearbySession';
+import type { NearbyJoinExchangeSkip, NearbySessionReport } from './nearbySession';
 
 /**
  * What Share nearby records for field diagnostics (docs/diagnostics.md, docs/nearby-sync-plan.md
@@ -43,16 +43,17 @@ const YES_NO = ['yes', 'no'] as const;
 /**
  * Why this phone's Hello turned a phone away as `identity` (docs/nearby-sync-plan.md 15.8): its
  * certificate and the day met are older than the quiet mode's window, its key was revoked, it is
- * of another organization, its certificate expired, or anything else (a bad proof or signature, a
- * key this build does not know, another device). Never who it was.
+ * of another organization, its certificate expired, a newcomer's join pass or 90 days from their
+ * link ran out (`pass-expired`, from 2026-11-24, which was filed as `other`), or anything else (a
+ * bad proof or signature, a key this build does not know, another device). Never who it was.
  */
-export const NEARBY_DIAG_REFUSALS = ['window', 'revoked', 'org', 'expired', 'other'] as const;
+export const NEARBY_DIAG_REFUSALS = ['window', 'revoked', 'org', 'expired', 'pass-expired', 'other'] as const;
 
 export type NearbyDiagRefusal = (typeof NEARBY_DIAG_REFUSALS)[number];
 
 const REFUSAL_OF: Record<string, NearbyDiagRefusal> = {
   'certificate not recent': 'window', 'key revoked': 'revoked', listed: 'revoked',
-  'wrong organization': 'org', 'no certificate for this organization': 'org', 'certificate expired': 'expired'
+  'wrong organization': 'org', 'no certificate for this organization': 'org', 'certificate expired': 'expired', 'pass expired': 'pass-expired'
 };
 
 /** A refusal's reason as the record says it, from Hello's own words. */
@@ -99,16 +100,43 @@ export function refusalOf(detail: string | undefined): NearbyDiagRefusal {
  * `libServed`; `files` and `served` count only the language's recordings). Neither is there when
  * the session asked for no documents or exchanged no library files. A quiet room sums the
  * documents and the files got and served of its finished sessions; what a phone holds is not a sum.
+ *
+ * Also from 2026-11-24 (review item 14): a join on Let someone in writes a `session` record on both
+ * phones, `mode` `join` (the inviter's `role` is `r`, the newcomer's `i`), with `granted` (0 or 1)
+ * and `exchanged`, 1 when the ordinary steps ran on the join's link after a whole copy; when they
+ * did not, one of `exchangeOlder` (the other phone's Hello named no `join-exchange`),
+ * `exchangeNoPieces` (the newcomer's own language did not open, or came short of what its Hello
+ * said) and `exchangeLeft` (the newcomer's person left first) says why, as 1: counts, so the field
+ * sums them. Each is said only after a whole copy: the last two by the newcomer alone, and
+ * `exchangeOlder` by the inviter only once the newcomer ended a copy it gave whole. Any session
+ * that moved a starting copy says what of it: the newcomer how it ended, `copyWhole` (0 or 1), the
+ * passages it filled, `copyFilled`, its documents kept, missing and refused (`copyDocsKept`,
+ * `copyDocsMissing`, `copyDocsRefused`) and, when a teammate gave no more, why (`copyNo`); the
+ * sender the parts it sent, `copyParts`, the asks it answered no, `copyNos`, and why it gave no
+ * language or organization (`copyNo`). A quiet room's finished session that took a copy writes its
+ * own record rather than adding to the room's sums, so the copy is never lost in them. The newcomer's
+ * record is queued with the rest, and goes once its person is set and the phone is online.
+ *
+ * Also from 2026-11-24 (review items 3, 4 and 28): documents that came whole, hashing to their
+ * names, but in a format this build cannot read, skipped rather than refused, `docsUnreadable` (a
+ * member's documents, summed by a quiet room) and `copyDocsUnreadable` (a starting copy's); a
+ * starting copy whole once its passages were filled whose link went during the names or documents
+ * after, `copyDocsCut` (0 or 1); and `copyNo` `moved`, a teammate whose checkpoint moved while this
+ * phone took its copy, or whose rows and state came from two checkpoints, so another finishes it.
  */
+export const NEARBY_DIAG_COPY_NO = ['versions', 'not-filled', 'not-allowed', 'not-here', 'malformed', 'moved'] as const;
+
 export const NEARBY_DIAG_SCHEMA = {
   nearby: {
     n: ['ms', 'levelMs', 'heard', 'echoed', 'alone', 'maybe', 'taps', 'maxUnmatched', 'pipeFails', 'strangers', 'busy', 'noAnswer', 'sessions', 'done',
       'fallbacks', 'events', 'sent', 'refused', 'overBudget', 'files', 'served', 'fileFails', 'keyRefused', 'farAhead',
       'noRoom', 'cutBackups', 'older', 'clockOff', 'newerApp', 'openMin', 'scanMin', 'pauseMin', 'syncMin', 'viaDirect', 'greets', 'maxMeetMs',
-      'docsKept', 'docsRefused', 'docsMissing', 'docsCapped', 'libHeld', 'libTheirs', 'libGot', 'libServed'],
+      'docsKept', 'docsRefused', 'docsMissing', 'docsCapped', 'libHeld', 'libTheirs', 'libGot', 'libServed',
+      'granted', 'exchanged', 'copyWhole', 'copyFilled', 'copyDocsKept', 'copyDocsMissing', 'copyDocsRefused', 'copyParts', 'copyNos',
+      'exchangeOlder', 'exchangeNoPieces', 'exchangeLeft', 'docsUnreadable', 'copyDocsUnreadable', 'copyDocsCut'],
     t: {
       event: ['room', 'session', 'find', 'blocked', 'deliver'],
-      mode: ['screen', 'open'],
+      mode: ['screen', 'open', 'join'],
       stop: ['asked', 'idle', 'wait', 'run', 'level', 'no-key', 'rest'],
       role: ['i', 'r'],
       end: ['done', 'silent', 'no-answer', 'said', 'heard', 'dropped', 'stalled', 'failed'],
@@ -120,7 +148,8 @@ export const NEARBY_DIAG_SCHEMA = {
       why: NEARBY_DIAG_BLOCKED,
       adv: YES_NO,
       direct: YES_NO,
-      hotspot: YES_NO
+      hotspot: YES_NO,
+      copyNo: NEARBY_DIAG_COPY_NO
     }
   }
 } as const satisfies Record<string, DiagSpec>;
@@ -144,15 +173,48 @@ export function nearbyCodeOf(error: unknown): NearbyDiagCode | undefined {
 
 const flag = (b: boolean) => (b ? 1 : 0);
 
-/** One of this phone's sessions, as it ended, and in which room's `mode`. Nothing in it says who the other phone was. */
-export function sessionDiagOf(report: NearbySessionReport, ms: number, mode?: NearbyRoomModeDiag): NearbyDiagInput {
-  const { ended, got, sent, files, topUp, libraryFiles: lib } = report;
+/** A session's `mode`: its room's, or `join` for Let someone in's link a QR code started (2026-11-24). */
+export type NearbySessionModeDiag = NearbyRoomModeDiag | 'join';
+
+/** Why a teammate gave no more of a starting copy, as the record says it, or nothing for a reason it does not list. */
+function copyNoOf(reason: string | null): string | undefined {
+  return reason !== null && (NEARBY_DIAG_COPY_NO as readonly string[]).includes(reason) ? reason : undefined;
+}
+
+/** Why the steps after a join's copy did not run, as the one count of the three that is 1; nothing when they ran or it is not known. */
+function exchangeSkipOf(skip: NearbyJoinExchangeSkip | null): Record<string, number> {
+  if (skip === 'older') return { exchangeOlder: 1 };
+  if (skip === 'no-pieces') return { exchangeNoPieces: 1 };
+  if (skip === 'left') return { exchangeLeft: 1 };
+  return {};
+}
+
+/** What a session moved of a starting copy (2026-11-24, review item 14): what this phone took, or what it sent. Empty when it moved none. */
+function copyDiagOf(report: NearbySessionReport): { n: Record<string, number>; copyNo?: string } {
+  const { copy, copyServed } = report;
+  const n: Record<string, number> = {};
+  if (copy) {
+    Object.assign(n, {
+      copyWhole: flag(copy.whole), copyFilled: copy.filled, copyDocsKept: copy.docs.kept, copyDocsMissing: copy.docs.missing, copyDocsRefused: copy.docs.refused,
+      copyDocsUnreadable: copy.docs.unreadable ?? 0, copyDocsCut: flag(!!copy.docs.cut)
+    });
+  }
+  if (copyServed.parts > 0 || copyServed.no > 0) Object.assign(n, { copyParts: copyServed.parts, copyNos: copyServed.no });
+  const copyNo = copyNoOf(report.copyRefused) ?? copyNoOf(copyServed.stateRefused);
+  return copyNo ? { n, copyNo } : { n };
+}
+
+/** One of this phone's sessions, as it ended, and in which room's `mode`, or `join`. Nothing in it says who the other phone was. */
+export function sessionDiagOf(report: NearbySessionReport, ms: number, mode?: NearbySessionModeDiag): NearbyDiagInput {
+  const { ended, got, sent, files, topUp, libraryFiles: lib, join } = report;
   const t: Record<string, string> = { event: 'session', role: report.role, end: ended.how, ...(mode ? { mode } : {}) };
   if (ended.how === 'said' || ended.how === 'heard') t.bye = ended.reason;
   if (ended.how === 'said' && ended.reason === 'identity') t.refusal = refusalOf(ended.detail);
   if (ended.how === 'failed') t.error = ended.error;
   if (report.code) t.code = report.code;
   if (report.linkKind && report.linkKind !== 'memory') t.link = report.linkKind;
+  const copied = copyDiagOf(report);
+  if (copied.copyNo) t.copyNo = copied.copyNo;
   return {
     t,
     n: {
@@ -160,8 +222,10 @@ export function sessionDiagOf(report: NearbySessionReport, ms: number, mode?: Ne
       files: files.got, served: files.served, fileFails: files.failed, keyRefused: report.handedKeyRefused, farAhead: report.farAhead.length,
       noRoom: flag(files.noRoom), cutBackups: flag(files.cutBackups), older: flag(report.older), clockOff: flag(report.clockOff),
       newerApp: flag(report.newerAppNeeded),
-      ...(topUp ? { docsKept: topUp.kept, docsRefused: topUp.refused, docsMissing: topUp.missing, docsCapped: flag(topUp.capped) } : {}),
-      ...(lib ? { libHeld: lib.held, libTheirs: lib.theirs, libGot: lib.got, libServed: lib.served } : {})
+      ...(topUp ? { docsKept: topUp.kept, docsRefused: topUp.refused, docsMissing: topUp.missing, docsCapped: flag(topUp.capped), docsUnreadable: topUp.unreadable ?? 0 } : {}),
+      ...(lib ? { libHeld: lib.held, libTheirs: lib.theirs, libGot: lib.got, libServed: lib.served } : {}),
+      ...(join ? { granted: flag(join.granted), exchanged: flag(join.exchange), ...exchangeSkipOf(join.exchangeSkip) } : {}),
+      ...copied.n
     }
   };
 }
@@ -209,6 +273,8 @@ export interface NearbySyncedTally {
   docsRefused: number;
   docsMissing: number;
   docsCapped: number;
+  /** Documents that came whole but in a format this build cannot read (review item 28). */
+  docsUnreadable: number;
   /** Library files got and served. */
   libGot: number;
   libServed: number;
@@ -216,7 +282,8 @@ export interface NearbySyncedTally {
 }
 
 export const emptySyncedTally = (): NearbySyncedTally => ({
-  events: 0, sent: 0, files: 0, served: 0, fileFails: 0, fallbacks: 0, viaDirect: 0, docsKept: 0, docsRefused: 0, docsMissing: 0, docsCapped: 0, libGot: 0, libServed: 0, ms: 0
+  events: 0, sent: 0, files: 0, served: 0, fileFails: 0, fallbacks: 0, viaDirect: 0, docsKept: 0, docsRefused: 0, docsMissing: 0, docsCapped: 0, docsUnreadable: 0, libGot: 0, libServed: 0,
+  ms: 0
 });
 
 /** Adds a finished session to the room's sums. */
@@ -233,6 +300,7 @@ export function addSynced(sum: NearbySyncedTally, report: NearbySessionReport, m
     sum.docsRefused += report.topUp.refused;
     sum.docsMissing += report.topUp.missing;
     sum.docsCapped += flag(report.topUp.capped);
+    sum.docsUnreadable += report.topUp.unreadable ?? 0;
   }
   if (report.libraryFiles) {
     sum.libGot += report.libraryFiles.got;

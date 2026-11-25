@@ -2,7 +2,7 @@ import type { NearbyRoom, NearbyRoomEvent } from '@langquest-next/sync/nearby';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 import type { NativeCapabilities } from '../../modules/nearby-link';
-import { noteChainName } from '../account/chainNames';
+import { noteChainNames } from '../account/chainNames';
 import { showsLock } from '../appLock/appLockModel';
 import { useAppLock } from '../appLock/useAppLock';
 import { anythingPlaying, subscribeNowPlaying } from '../audio/nowPlaying';
@@ -20,6 +20,8 @@ import { nearbyOwner } from './nearbyOwner';
 import { checkNearbyPermissions, phoneSystem } from './nearbyPermissions';
 import { permissionsStateOf, radiosOffOf, type PermissionAnswers } from './nearbyPermissionsModel';
 import { nearbyLibraryOf } from './nearbyLibrary.native';
+import { copySourceOf } from './nearbyCopySource';
+import { roomCopyTargetFor } from './nearbyCopyTarget.native';
 import { nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
 import { NEARBY_OPEN_FRESH_MS, NEARBY_OPEN_REST_MS, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, startWithin, turnedAwayUnwelcome } from './nearbyRunModel';
 import { useNearbyOffered } from './useNearby.native';
@@ -81,6 +83,8 @@ function useAppActive(): boolean {
 }
 
 const busyNow = () => isRecording() || anythingPlaying();
+/** How long the phone is quiet after playing or recording before a held room finds again (review P2). */
+const NEARBY_AUDIO_QUIET_MS = 15_000;
 function onBusy(hear: () => void): () => void {
   const offRecording = onRecordingChange(hear);
   const offPlaying = subscribeNowPlaying(hear);
@@ -142,6 +146,7 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
   const active = useAppActive();
   const offline = isOffline(language.online);
   const busy = useSyncExternalStore(onBusy, busyNow);
+  const recording = useSyncExternalStore(onRecordingChange, isRecording);
   const screenOpen = useSyncExternalStore(nearbyOwner.subscribe, nearbyOwner.claimed);
   // The app lock stands in front of every screen and keeps them running: the mode waits behind it (decision 253).
   const locked = showsLock(useAppLock());
@@ -183,15 +188,16 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
   }, [resting]);
 
   const state = answers ? permissionsStateOf(sdk, answers, os) : null;
+  const holding = useRef<{ room: NearbyRoom; ticker: ReturnType<typeof setInterval> | null; forget: () => void } | null>(null);
   const mayRun = openMayRun({
     feature: !!kept?.orgs.has(orgId), switchOn: !!kept?.on, granted: state === 'granted' || state === 'none',
-    radiosOn: facts !== null && radiosOffOf(facts, os).length === 0, offered: offered && whyNot === null, worn, locked, active, offline, busy, screenOpen,
+    // Audio keeps a room from starting; one already running is held instead (below), not stopped (review P2).
+    radiosOn: facts !== null && radiosOffOf(facts, os).length === 0, offered: offered && whyNot === null, worn, locked, active, offline, busy: busy && !holding.current, screenOpen,
     resting: restUntil > now, ready: org.state !== null && language.state !== null
   });
   const gate = useRef(mayRun);
   gate.current = mayRun;
 
-  const holding = useRef<{ room: NearbyRoom; ticker: ReturnType<typeof setInterval> | null; forget: () => void } | null>(null);
   const attempt = useRef(0);
 
   const stop = useCallback(async () => {
@@ -218,6 +224,8 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
   orgState.current = org.state;
   const inspectOrg = useRef(org.inspect);
   inspectOrg.current = org.inspect;
+  const orgClient = useRef(org.client);
+  orgClient.current = org.client;
   const nearbyLanguage = language.nearby;
   const start = useCallback(async () => {
     const mine = ++attempt.current;
@@ -227,22 +235,32 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
     if (!radio || !open || !fold || holding.current) return;
     try {
       const got = await nearbyPiecesFor({ actorId, orgId, languageId, org: fold, inspectOrg: () => inspectOrg.current() });
+      // A person let in offline whose copy is missing, short or lost to an update takes one quietly too (2026-11-24, review items 6, 26).
+      const takeCopy = await roomCopyTargetFor({ actorId, orgId, languageId, language: open.client, org: orgClient.current() });
       if (!still()) return;
       if (!got.ok) { rest(); return; }
       let room: NearbyRoom | null = null;
       const report = (e: NearbyRoomEvent) => {
         // Someone let in offline, met before the server knows them: their chain names them (14.1, 5).
-        if (e.t === 'ended' && e.report.peer?.name) void noteChainName(actorId, e.report.peer.profileId, e.report.peer.name).catch((x: unknown) => noteExpected('nearby: chain name', x));
+        // And whoever else a checked chain named, on a batch or a holdings entry this phone took (review item 12).
+        if (e.t === 'ended' && (e.report.peer?.name || e.report.names.length > 0)) {
+          const named = [...(e.report.peer?.name ? [{ profileId: e.report.peer.profileId, name: e.report.peer.name }] : []), ...e.report.names];
+          void noteChainNames(actorId, named).catch((x: unknown) => noteExpected('nearby: chain name', x));
+        }
         // A phone whose chain did not check: nothing more from the air for a while (15.8). A teammate whose window ran out is only passed over.
         if (e.t === 'ended' && turnedAwayUnwelcome(e.report)) rest();
         // A stop of its own (waiting too long, no key): it rests rather than start again at once.
         if (e.t === 'stopped' && e.why !== 'asked' && e.why !== 'rest' && room && holding.current?.room === room) rest();
       };
+      // A starting copy, to a teammate let in offline whose copy is short or lost (review items 6, 26): only an Android
+      // phone gives one, and only to a phone that asks.
+      const copy = copySourceOf({ actorId, language: open.client, org: orgClient.current() });
       room = nearbyRoomOf({
         radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn: false, mode: 'open', report, progress: () => undefined,
         freshWithinMs: NEARBY_OPEN_FRESH_MS, silent: wornNow,
         // The library documents the language uses go between teammates here too (14.1, 2026-11-24).
-        library: nearbyLibraryOf({ language: open.client, org: () => orgState.current })
+        library: nearbyLibraryOf({ language: open.client, org: () => orgState.current }),
+        ...(copy ? { copy } : {}), ...(takeCopy ? { takeCopy: takeCopy.target } : {})
       });
       const starting = room;
       const held = { room, ticker: null as ReturnType<typeof setInterval> | null, forget: () => undefined as void };
@@ -282,4 +300,19 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
     void start();
     return () => { void stop(); };
   }, [mayRun, start, stop]);
+
+  // Playing or recording holds a running room rather than stopping it, and recording cuts its session; after a quiet
+  // spell it finds again (2026-11-24 review, P2). A reviewer plays clip after clip: each used to stop the room, cut its
+  // session and write a diagnostic, and build it all again after.
+  useEffect(() => {
+    const room = holding.current?.room;
+    if (!room) return;
+    if (busy) {
+      void room.hold(recording).catch((e: unknown) => noteExpected('nearby: open hold', e));
+      return;
+    }
+    if (!room.held) return;
+    const timer = setTimeout(() => { void room.release().catch((e: unknown) => noteExpected('nearby: open hold', e)); }, NEARBY_AUDIO_QUIET_MS);
+    return () => clearTimeout(timer);
+  }, [busy, recording]);
 }

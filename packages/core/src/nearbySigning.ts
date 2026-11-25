@@ -348,7 +348,11 @@ export function proofText(role: 'i' | 'r', thHex: string): string {
   return `${role}\n${thHex}`;
 }
 
-/** `prev` is the `sig` of the link before, or ''. An `invite@1` link has no `kid`, which canonicalizes as absent. */
+/**
+ * `prev` is the `sig` of the link before, or ''. An `invite@1` link has no `kid`, which canonicalizes
+ * as absent. Its whole body is signed, `madeAt` with it when there is one (2026-11-24), so a body
+ * with no `madeAt` signs the same text as before.
+ */
 export function linkText(link: Pick<WorkerLink, 'kind' | 'kid' | 'body'> | Pick<InviteLink, 'kind' | 'body'>, prev: string): string {
   return canonicalJson({ kind: link.kind, kid: 'kid' in link ? link.kid : undefined, body: link.body, prev });
 }
@@ -357,7 +361,11 @@ export function passText(pass: Pick<JoinPass, 'kind' | 'kid' | 'body'>): string 
   return canonicalJson({ kind: pass.kind, kid: pass.kid, body: pass.body });
 }
 
-/** The length of a pass's window (Carl's answer 17): every certificate answer in a window gives the same id. */
+/**
+ * The length of a pass's window (Carl's answer 17): every certificate answer in a window gives the
+ * same id. It bounds when someone may be let in, not how long they stay in: a newcomer is accepted
+ * for `NEARBY_NEWCOMER_MS` from their link's `madeAt` (decision 240 as amended 2026-11-24).
+ */
 export const PASS_WINDOW_MS = 7776000000;
 
 export function passWindowAt(nowMs: number): { window: number; expiresAt: number } {

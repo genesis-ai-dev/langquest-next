@@ -123,6 +123,29 @@ describe('the door refuses, in its order', () => {
     for (const id of ['v2:1', 'seed:1', 'blob:1', 'api-1', 'removed:by:sam:1']) expectRefusal({ ...e, id } as unknown as AnyEvent, /only the server/);
   });
 
+  it('6: team work the server wrote passes as a claim, and never in a batch (review item 16)', () => {
+    const review = one('v1.ReviewRecorded');
+    const listener = { ...review, id: 'api-listener-1', payload: { ...review.payload, reviewId: 'listener-1' } } as unknown as AnyEvent;
+    const release = { ...one('v1.VersionReleased'), id: 'api-release-1' } as unknown as AnyEvent;
+    const recording = one('v1.RecordingAdded');
+    const imported = { ...recording, id: 'v2:org:key#1:RecordingAdded', payload: { ...recording.payload, recordingId: 'v2-recording-1' } } as unknown as AnyEvent;
+    for (const e of [listener, release, imported]) {
+      expect(nearbyDoor(e, context({ claim: true })), e.type).toBeNull();
+      // The same row in a batch: a phone cannot sign for the server.
+      expectRefusal(e, /only the server/);
+    }
+  });
+
+  it('6: a server row that is not team work is refused even as a claim', () => {
+    const e = one('v1.TakeArchived');
+    const blob = { ...one('v1.BlobStored'), id: 'blob:abc' } as unknown as AnyEvent;
+    const redacted = { ...one('v1.Redacted'), id: 'removed:x' } as unknown as AnyEvent;
+    const unknown = { ...e, id: 'api-1', type: 'v9.FromTheFuture' } as unknown as AnyEvent;
+    expectRefusal(unknown, /only the server/, false, { claim: true });
+    expectRefusal(blob, /only the server/, false, { claim: true });
+    expectRefusal(redacted, /only the server/, false, { claim: true });
+  });
+
   it('6: an event id or created id that does not name its author', () => {
     const e = one('v1.TakeComposed');
     expectRefusal({ ...e, id: 'old-uuid:0' } as unknown as AnyEvent, /does not name/);
@@ -271,7 +294,9 @@ describe('a claim', () => {
     expect(claim({ ...e, payload: { takeId: 5 } } as unknown as AnyEvent)?.reason).toMatch(/must be/);
     expect(claim({ ...e, orgId: 'other' } as unknown as AnyEvent)?.reason).toMatch(/organization/);
     expect(claim({ ...e, hlc: '123' } as unknown as AnyEvent)?.reason).toMatch(/clock/);
-    expect(claim({ ...e, id: 'v2:1' } as unknown as AnyEvent)?.reason).toMatch(/only the server/);
+    // Team work the server wrote passes as a claim (review item 16); anything else under its ids does not.
+    expect(claim({ ...e, id: 'v2:1' } as unknown as AnyEvent)).toBeNull();
+    expect(claim({ ...e, id: 'v2:1', type: 'v9.FromTheFuture' } as unknown as AnyEvent)?.reason).toMatch(/only the server/);
     expect(claim({ ...e, id: 'by:carla:x:0' } as unknown as AnyEvent)?.reason).toMatch(/names someone else/);
     expect(claim(asBound(buildOrgFixture()[0]!))?.reason).toMatch(/organization events/);
     expect(claim({ ...one('v1.TakeArchived'), type: 'v1.Redacted', payload: { eventId: 'e1' } } as unknown as AnyEvent)?.reason).toMatch(/v1.Redacted/);

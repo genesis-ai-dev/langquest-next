@@ -31,3 +31,5 @@ nothing nearby) and the fleet's `villageMonth`, `wrongDate`, `fiveInRoom` and
 `lostPhone` scenarios.
 Reverse if: a phone back from town ever folds to something the server's log
 does not give, or a nearby row is ever found in a checkpoint or the outbox.
+
+Amended (2026-11-24, Carl Sauder): server-written team work (listener and review-link reviews, releases, imports from LangQuest v2) travels as an attested claim, never in a batch; `v1.BlobStored`, `v1.Redacted` and the rest stay refused (docs/decisions/2026-11-24-server-written-team-work-travels-as-a-claim.md, review item 16).

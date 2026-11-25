@@ -497,6 +497,8 @@ const NODE_ID = /^[^/@\s]+$/;
 export interface DocHead {
   format: string;
   refs: readonly string[] | null;
+  /** The guide set it is one language of (`guideSetOf`), when it is one: a walk leaves out the set's other languages (review P13). */
+  set?: string;
   /** The files it names that may go between teammates' phones: only a phone's walk reads them (`nearbyDocHeadOf`). */
   files?: readonly LibraryFile[];
   /** The web addresses of files it names that a phone keeps by address (`libraryLinksOf`), as a phone's walk reads them. */
@@ -510,7 +512,28 @@ export function docHeadOf(doc: LibraryDoc): DocHead {
   } catch {
     refs = null;
   }
-  return { format: doc.format, refs };
+  let set: string | null;
+  try {
+    set = guideSetOf(doc);
+  } catch {
+    set = null;
+  }
+  return { format: doc.format, refs, ...(set ? { set } : {}) };
+}
+
+/**
+ * The guide set a document is one language of (decisions 84 and 172), without its publisher: a
+ * collection, or a key-word list, in one language that follows a method (`FIA` and `FIA|words`,
+ * chosen apart). Null for anything else. The app's `setKeyOf` (reference/guideSets.ts) puts the
+ * publisher in front; a team that chose one language of a set is not offered the others.
+ */
+export function guideSetOf(doc: LibraryDoc): string | null {
+  const words = doc.format === 'material@1' && doc.kind === 'key_terms';
+  if (doc.format !== 'collection@1' && !words) return null;
+  if (!doc.language) return null;
+  const pattern = doc.pattern || (doc.format === 'collection@1' && /\bFIA\b/.test(doc.title) ? 'FIA' : null);
+  if (!pattern) return null;
+  return words ? `${pattern}|words` : pattern;
 }
 
 /** A file a library document names, as a phone keeps it in its file store: its SHA-256 and format. */

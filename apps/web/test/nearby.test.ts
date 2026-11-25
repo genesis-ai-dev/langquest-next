@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { AnyEvent } from '@langquest-next/core';
 import {
   base64urlDecode, base64urlEncode, bytesToHex, certRequestText, checkChain, eventDigest, issueInviteLink, JOIN_PASS_USES, nearbyBytes, newcomerProfileId,
-  parseAttestation, parseRevocationList, passText, type JoinPass, type Verify, type WorkerLink
+  parseAttestation, parseRevocationList, PASS_WINDOW_MS, passText, type JoinPass, type Verify, type WorkerLink
 } from '@langquest-next/core/nearby';
 import { NotAuthorizedError, SupabaseTransport } from '@langquest-next/sync';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -234,6 +234,24 @@ describe('POST /api/nearby/certificate', () => {
     if (!issued.ok) throw new Error(issued.reason);
     const verdict = await checkChain([inviterLink, issued.link], { rootKeys: ROOT_KEYS, orgId: 'org1', languageId: 'lang1', now: PASS_NOW_MS, verify: nodeVerifyFn, sha256: subtleSha256 });
     expect(verdict).toMatchObject({ ok: true, links: 2, holder: { installKey: key, profileId }, roleId: 'reviewer' });
+  });
+
+  // Carl, 2026-11-24 (decision 240 as amended): a pass fetched late in its window had days left, and every pass ended on one date.
+  it('in a window\'s last 30 days also signs the next window\'s pass, after this one\'s, which is the very pass the next window gives', async () => {
+    const passes = [{ languageId: 'lang1', held: ['invite_members', 'translate'], roles: [{ roleId: 'translator', privileges: ['translate'] }] }];
+    const at = async (now: number) => {
+      const { deps } = setup({ now: () => now }, { facts: { data: { ...FACTS, orgs: [factsOrg({ passes })] }, error: null } });
+      const proof = signWith(SEED_HEX, nearbyBytes('certRequest', certRequestText({ profileId: PROFILE, deviceId: DEVICE, publicKey: PUBLIC_KEY })));
+      return (await (await handleNearby(post(CERTIFICATE_PATH, certBody({ publicKey: PUBLIC_KEY, proof })), deps)).json() as { passes: { orgId: string; languageId: string; pass: JoinPass }[] }).passes;
+    };
+    expect((await at(PASS_EXPIRES_AT - 31 * 86_400_000)).map((p) => p.pass.body.expiresAt)).toEqual([PASS_EXPIRES_AT]);
+    const late = await at(PASS_EXPIRES_AT - 10 * 86_400_000);
+    expect(late.map((p) => [p.languageId, p.pass.body.passId === PASS_ID, p.pass.body.expiresAt])).toEqual([
+      ['lang1', true, PASS_EXPIRES_AT], ['lang1', false, PASS_EXPIRES_AT + PASS_WINDOW_MS]
+    ]);
+    for (const { pass } of late) expect(await nodeVerifyFn(CHAIN_ROOT_KEY, nearbyBytes('pass', passText(pass)), pass.sig)).toBe(true);
+    // No third id and no new uses: the next window's own answers give the same pass, byte for byte.
+    expect((await at(PASS_EXPIRES_AT + 5)).map((p) => p.pass)).toEqual([late[1]!.pass]);
   });
 
   it('gives no pass where the facts give none, as a database before passes does', async () => {

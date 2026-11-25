@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { canonicalJson, referencedDocs, validateDoc, type SourceBookDoc, type SourceDoc, type TimingDoc } from '@langquest-next/core';
+import { libraryFilesOf } from '@langquest-next/core/nearby';
 import {
-  bibleBrainSourceDoc, bsbAudioUrl, buildSources, fetchBible, gatewayProblem, parseBsbText, timingDoc, timingsByChapter,
+  bibleBrainSourceDoc, bsbAudioUrl, buildSources, fetchBible, gatewayProblem, parseBsbText, readBsbAudio, timingDoc, timingsByChapter,
   type FetchedBible
 } from './sources-seed';
 
@@ -129,6 +130,33 @@ describe('LangQuest sources seed', () => {
     const mat = doc(source.books[2]!.doc!) as SourceBookDoc;
     expect(mat.chapters[0]!.timing).toBeUndefined();
     expect(warnings).toEqual([expect.stringMatching(/MAT 17 names another recording/), expect.stringMatching(/REV 1 has no chapter/)]);
+  });
+
+  it('names each chapter\'s MP3 by its hash once it was hashed, so a phone may pass the chapter to a teammate', () => {
+    const warnings: string[] = [];
+    const [gen1, gen2] = ['a'.repeat(64), 'c'.repeat(64)];
+    const bsbAudio = readBsbAudio({ 'GEN.1': { sha256: gen1, bytes: 4_384_709 }, 'GEN.2': { sha256: gen2, bytes: 3_000_000 } });
+    // GEN 1's timing was made from the hashed MP3; GEN 2's from other bytes.
+    const timings = [timingDoc(rawTiming('GEN', 1), V), timingDoc(rawTiming('GEN', 2), V)];
+    const build = buildSources({ bibles: [], bsbText: parseBsbText(BSB_TEXT), timings, bsbAudio, versifications: V, warn: (m) => warnings.push(m) });
+    const doc = (hash: string) => build.documents.find((d) => d.hash === hash)!.body;
+    for (const d of build.documents) expect(validateDoc(d.body)).toBeNull();
+    const source = doc(build.items[0]!.docHash) as SourceDoc;
+    const [gen, psa] = [doc(source.books[0]!.doc!) as SourceBookDoc, doc(source.books[1]!.doc!) as SourceBookDoc];
+    expect(gen.chapters.map((c) => c.audio)).toEqual([
+      { url: bsbAudioUrl('GEN', 1), hash: gen1, format: 'mp3' },
+      { url: bsbAudioUrl('GEN', 2), hash: gen2, format: 'mp3' }
+    ]);
+    expect(gen.chapters[0]!.timing).toBeDefined();
+    expect(gen.chapters[1]!.timing).toBeUndefined();
+    expect(warnings).toEqual([expect.stringMatching(/GEN 2 was made from other bytes/)]);
+    // What phones pass between them is what the seed writes: every hashed chapter as a source's, none named by address alone.
+    expect(libraryFilesOf(gen)).toEqual([{ hash: gen1, format: 'mp3', kind: 'source' }, { hash: gen2, format: 'mp3', kind: 'source' }]);
+    expect(psa.chapters[0]!.audio).toEqual({ url: bsbAudioUrl('PSA', 23), format: 'mp3' });
+    expect(libraryFilesOf(psa)).toEqual([]);
+    expect(() => readBsbAudio({ 'GEN.1': { sha256: 'not a hash', bytes: 1 } })).toThrow(/GEN\.1/);
+    expect(() => readBsbAudio({ 'Genesis 1': { sha256: gen1, bytes: 1 } })).toThrow(/Genesis 1/);
+    expect(() => readBsbAudio([])).toThrow();
   });
 
   it('builds the same hashes twice', () => {

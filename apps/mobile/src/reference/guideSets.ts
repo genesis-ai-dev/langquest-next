@@ -6,7 +6,7 @@
 // for a language are what its team is offered, and the others stay out of
 // the way (`chosenOnly`). Pure, so it is tested (test/guideSets.test.ts).
 import {
-  recommendedFor,
+  guideSetOf, recommendedFor,
   type CollectionDoc, type LanguageRecommendation, type LanguageState, type LibraryDoc, type LibraryItemView, type MaterialDoc, type Register
 } from '@langquest-next/core';
 import type { SharedItem } from '../library/model';
@@ -33,11 +33,9 @@ const setDoc = (doc: LibraryDoc | null | undefined): SetDoc | null =>
  * and its key words are two sets (`FIA` and `FIA|words`), chosen apart.
  */
 export function setKeyOf(origin: string, doc: LibraryDoc | null | undefined): string | null {
-  const d = setDoc(doc);
-  if (!d?.language) return null;
-  const pattern = patternOf(d);
-  if (!pattern) return null;
-  return d.format === 'collection@1' ? `${origin}|${pattern}` : `${origin}|${pattern}|words`;
+  // Core's rule, which a phone's nearby walk follows too (review P13), with the publisher in front.
+  const set = doc ? guideSetOf(doc) : null;
+  return set ? `${origin}|${set}` : null;
 }
 
 /** Whether a set's members are key-word lists (its rows count words, not passages). */

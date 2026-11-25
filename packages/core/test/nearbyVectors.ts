@@ -123,3 +123,16 @@ const CHAIN_INVITE_LINK = {
   sig: '7QqkCvIjMKzzYIeA7S6bj_uvpoxHwYYJ3NeCztznHmXXsZzuhEg_Lq8DQ1OB5Cb1CejFKS1BwrVKT0SR_-s-DQ'
 } as const;
 export const CHAIN: readonly unknown[] = [CHAIN_WORKER_LINK, CHAIN_INVITE_LINK];
+
+/**
+ * The same invite link as made from 2026-11-24, with `madeAt` signed in its body (decision 240 as
+ * amended), by the inviter from a seed of 0x02. A day under 11 before `PASS_EXPIRES_AT`, so the
+ * newcomer is accepted past the pass's expiry until `CHAIN_MADE_AT` plus 90 days.
+ */
+export const CHAIN_MADE_AT = 1702000000000;
+const CHAIN_MADE_AT_LINK = {
+  ...CHAIN_INVITE_LINK,
+  body: { ...CHAIN_INVITE_LINK.body, madeAt: CHAIN_MADE_AT },
+  sig: '3tWwPkSRhEb14ud_KpAKNU4XwSj5wq7rEQ45leLuTf4SQ2kYSNu8ao3BJM__RgU3-iR65PcVa4YAusuEONSdDg'
+} as const;
+export const CHAIN_MADE: readonly unknown[] = [CHAIN_WORKER_LINK, CHAIN_MADE_AT_LINK];

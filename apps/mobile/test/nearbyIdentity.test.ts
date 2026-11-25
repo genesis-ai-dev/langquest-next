@@ -327,7 +327,7 @@ describe('the nearby identity', () => {
     expect(Object.keys(findKeys())).toEqual(['o1/L1']);
   });
 
-  it('a sign-out the server forced leaves no discovery key in the clear, and no nearbyPeers or nearbyMet (5.12 "The store")', async () => {
+  it('a sign-out the server forced leaves no discovery key in the clear, and no nearbyPeers, nearbyMet or nearbyLetIn (5.12 "The store")', async () => {
     const p = await load();
     p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'] } });
     await input(p);
@@ -337,6 +337,8 @@ describe('the nearby identity', () => {
     await store().setMeta('nearbyPeers:o1/L2', '[]');
     // The days teammates were met on Share nearby say who was together and when (decision 230 as amended).
     await store().setMeta('nearbyMet:o1', '[{"key":"k","profileId":"p","day":20000}]');
+    // Whom this phone let in under its passes says who joined the team through it (2026-11-24, review item 7).
+    await store().setMeta('nearbyLetIn:o1/L1', '[["pass-1",["p-new"]]]');
     await store().setMeta('deviceId', 'd1');
     // supabase-js deleted the session when renewing was refused, then said SIGNED_OUT; nobody chose it.
     fake.secure.delete('sb-session');
@@ -346,6 +348,7 @@ describe('the nearby identity', () => {
     expect(await store().meta('nearbyPeers:o1/L1')).toBeUndefined();
     expect(await store().meta('nearbyPeers:o1/L2')).toBeUndefined();
     expect(await store().meta('nearbyMet:o1')).toBeUndefined();
+    expect(await store().meta('nearbyLetIn:o1/L1')).toBeUndefined();
     expect(fake.secure.get('nearbyFindKeys:mary')).toBe('mary\'s, untouched');
     expect(await store().meta('deviceId')).toBe('d1');
     // Any other event, or a sign-out with nobody signed in before, touches nothing.
@@ -427,10 +430,11 @@ describe('join passes (docs/nearby-sync-plan.md 14.1, 1)', () => {
     fake.answer = withPasses();
     p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby', 'nearby_join'] } });
     await input(p);
-    const pass = await p.phone.joinPassFor(ME, 'o1', 'L1');
+    const [pass, ...more] = await p.phone.joinPassesFor(ME, 'o1', 'L1');
+    expect(more).toEqual([]);
     expect(pass?.body).toMatchObject({ orgId: 'o1', languageId: 'L1', inviter: ME, maxUses: 10 });
-    expect(await p.phone.joinPassFor(ME, 'o1', 'L2')).toBeNull();
-    expect(await p.phone.joinPassFor(ME, 'o2', 'L1')).toBeNull();
+    expect(await p.phone.joinPassesFor(ME, 'o1', 'L2')).toEqual([]);
+    expect(await p.phone.joinPassesFor(ME, 'o2', 'L1')).toEqual([]);
     expect(fake.noted).toEqual([]);
     // Replaced whole: an answer with none leaves none.
     fake.answer = issued();

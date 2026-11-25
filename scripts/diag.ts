@@ -23,7 +23,7 @@
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { REDUCER_VERSION } from '../packages/core/src/index';
-import { buildLabel, jobSignals, signals, throughput, type InstallSummary, type JobStat, type Member, type LanguageHealth, type NearbyLibraryField, type RpcStat } from './diagSignals';
+import { buildLabel, jobSignals, signals, throughput, type InstallSummary, type JobStat, type Member, type LanguageHealth, type NearbyCopyField, type NearbyLibraryField, type RpcStat } from './diagSignals';
 
 if (process.argv.includes('--hosted')) {
   const rest = process.argv.slice(1).filter((a) => a !== '--hosted');
@@ -84,9 +84,23 @@ const s = (ms?: number | null) => (ms ? `${(ms / 1000).toFixed(1)} s` : '-');
 /** Library documents taken from teammates and library files moved nearby (2026-11-24), when there were any; '' when none. */
 function library(x: Partial<Record<NearbyLibraryField | 'libTheirs', number>>): string {
   const n = (k: NearbyLibraryField | 'libTheirs') => x[k] ?? 0;
-  if (!n('docsKept') && !n('docsRefused') && !n('docsMissing') && !n('docsCapped') && !n('libGot') && !n('libServed') && !n('libTheirs')) return '';
+  if (!n('docsKept') && !n('docsRefused') && !n('docsMissing') && !n('docsCapped') && !n('docsUnreadable') && !n('libGot') && !n('libServed') && !n('libTheirs')) return '';
   return `; library documents ${n('docsKept')} kept, ${n('docsRefused')} refused, ${n('docsMissing')} not given${n('docsCapped') ? `, ${n('docsCapped')} stopped at the cap` : ''}`
+    + `${n('docsUnreadable') ? `, ${n('docsUnreadable')} in a format this app cannot read` : ''}`
     + `; library files ${n('libGot')} in${x.libTheirs !== undefined ? ` (of ${n('libTheirs')} usable)` : ''}, ${n('libServed')} out`;
+}
+
+/** Joins on Let someone in and starting copies moved (review of 2026-11-24, item 14), when there were any; '' when none. */
+function copies(x: Partial<Record<NearbyCopyField, number>>): string {
+  const n = (k: NearbyCopyField) => x[k] ?? 0;
+  if (!n('granted') && x.copyWhole === undefined && !n('copyParts')) return '';
+  const took = x.copyWhole !== undefined
+    ? `; copies taken whole ${n('copyWhole')}${n('copyDocsCut') ? ` (${n('copyDocsCut')} cut during the documents)` : ''}, ${n('copyFilled')} passages filled, documents ${n('copyDocsKept')} kept, `
+      + `${n('copyDocsMissing')} not given, ${n('copyDocsRefused')} refused${n('copyDocsUnreadable') ? `, ${n('copyDocsUnreadable')} in a format this app cannot read` : ''}`
+    : '';
+  const skipped = n('exchangeOlder') + n('exchangeNoPieces') + n('exchangeLeft');
+  const why = skipped ? ` (not after: an older app ${n('exchangeOlder')}, own language not opened ${n('exchangeNoPieces')}, person left ${n('exchangeLeft')})` : '';
+  return `; joins granted ${n('granted')}, the newest work after the copy ${n('exchanged')}${why}${took}${n('copyParts') ? `; copy parts given ${n('copyParts')}, refused ${n('copyNos')}` : ''}`;
 }
 
 function report(orgText: string, langText: string): void {
@@ -201,7 +215,7 @@ function installLines(install: string, x: InstallSummary & { roles?: string; lan
     if (o?.count) out.push(`- while open: ${o.count} runs, ${o.openMin ?? 0} min (off ${o.pauseMin ?? 0}, scanning ${o.scanMin ?? 0}, syncing ${o.syncMin ?? 0}); met anyone in ${o.met ?? 0}; ${o.done ?? 0} sessions finished, ${o.viaDirect ?? 0} over Wi-Fi Direct; events ${o.events ?? 0} in, ${o.sent ?? 0} out; files ${o.files ?? 0} in, ${o.served ?? 0} out${library(o)}; longest wait to meet ${s(o.maxMeetMs)}`);
     if (n.refusals) out.push(`- turned away: ${Object.entries(n.refusals).map(([k, c]) => `${k} ×${c}`).join(', ')}`);
     if (n.deliver?.count) out.push(`- delivered teammates' work: ${n.deliver.count} times, ${n.deliver.events ?? 0} of ${n.deliver.sent ?? 0} events new, ${n.deliver.refused ?? 0} refused${n.deliver.stopped ? `, stopped early ${JSON.stringify(n.deliver.stopped)}` : ''}`);
-    if (n.sessionTotals) out.push(`- nearby sessions: ${n.sessionTotals.count ?? 0}, ended ${JSON.stringify(n.ends ?? {})}, links ${JSON.stringify(n.links ?? {})}, fallbacks ${n.sessionTotals.fallbacks ?? 0}; events ${n.sessionTotals.events ?? 0} in, ${n.sessionTotals.sent ?? 0} out; files ${n.sessionTotals.files ?? 0} in, ${n.sessionTotals.served ?? 0} out, ${n.sessionTotals.fileFails ?? 0} failed${library(n.sessionTotals)}`);
+    if (n.sessionTotals) out.push(`- nearby sessions: ${n.sessionTotals.count ?? 0}, ended ${JSON.stringify(n.ends ?? {})}, links ${JSON.stringify(n.links ?? {})}, fallbacks ${n.sessionTotals.fallbacks ?? 0}; events ${n.sessionTotals.events ?? 0} in, ${n.sessionTotals.sent ?? 0} out; files ${n.sessionTotals.files ?? 0} in, ${n.sessionTotals.served ?? 0} out, ${n.sessionTotals.fileFails ?? 0} failed${library(n.sessionTotals)}${copies(n.sessionTotals)}`);
     if (n.codes || n.blocked) out.push(`- nearby codes ${JSON.stringify(n.codes ?? {})}${n.blocked ? `, could not run ${JSON.stringify(n.blocked)}` : ''}`);
   }
   for (const e of x.expected ?? []) out.push(`- expected: ${e.count}× "${e.where}" ${e.name}${e.code ? ` (${e.code})` : ''}, last ${e.lastAt}`);

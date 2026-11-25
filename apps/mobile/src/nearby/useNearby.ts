@@ -15,7 +15,8 @@ const NOT_HERE: NearbyHandle = {
     offered: false, iphone: false, tapCoversAll: false, whyNot: 'not-in-build', radiosOff: [], permissions: { state: 'none', step: { t: 'ready' } }, worn: false, needsPress: false,
     running: false, stopped: null, level: false, teammates: [], sessions: [], current: null, holding: 0, farAhead: [], clockOff: false,
     newerAppNeeded: false, findError: null, hold: true, whileOpen: null,
-    carry: { everything: true, missing: 0, coming: 0, elsewhere: [], noRoom: false, notAllRecordings: false, pulledUnshared: false, olderFromServer: false, farAhead: [], teammates: [] }
+    carry: { everything: true, missing: 0, coming: 0, elsewhere: [], noRoom: false, notAllRecordings: false, pulledUnshared: false, olderFromServer: false, farAhead: [], teammates: [] },
+    copyNeed: null, copyHeld: false
   },
   actions: { press: NOTHING, lookAgain: NOTHING, tap: NOTHING, warned: NOTHING, askPermissions: NOTHING_LATER, openSettings: NOTHING_LATER, setHold: NOTHING_LATER, setWhileOpen: NOTHING_LATER }
 };

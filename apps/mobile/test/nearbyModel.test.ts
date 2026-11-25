@@ -1,7 +1,7 @@
 import { applyOrgEvent, emptyOrgState, type OrgState } from '@langquest-next/core';
 import {
   ASK_EVERY_MS, askReason, certificateAnswerOf, chainsForOrgs, findKeysAfterAnswer, findKeysForOrgs, holdByDefault, holdChoiceOf, isKey32, languagesToName,
-  MAX_LANGUAGES, membershipMarkOf, nearbyOpenOrgsOf, nearbyOrgsOf, notesMetOf, openMayRun, openSwitchOf, orgFeaturesOf, parseOpenOrgs, type OpenGate, parseAskRecord, parseCertKeys, parseChains, parseFindKeys, parsePasses, passesForOrgs, passFor, revokedSeqsOf,
+  MAX_LANGUAGES, membershipMarkOf, nearbyOpenOrgsOf, nearbyOrgsOf, notesMetOf, openMayRun, openSwitchOf, orgFeaturesOf, parseOpenOrgs, type OpenGate, parseAskRecord, parseCertKeys, parseChains, parseFindKeys, parsePasses, passesFor, passesForOrgs, passesUntil, passFor, passInEffect, revokedSeqsOf,
   type AskFacts, type FindKeys
 } from '../src/nearby/nearbyModel';
 
@@ -128,8 +128,23 @@ describe('the certificate answer', () => {
     expect(parsePasses(null)).toEqual([]);
     expect(parsePasses('{}')).toEqual([]);
     expect(passesForOrgs(held, new Set(['o2']))).toEqual([held[1]]);
-    expect(passFor(held, 'o1', 'L1')).toEqual(pass);
-    expect(passFor(held, 'o1', 'L2')).toBeNull();
+    expect(passFor(held, 'o1', 'L1', 5)).toEqual(pass);
+    expect(passFor(held, 'o1', 'L2', 5)).toBeNull();
+  });
+
+  // Carl, 2026-11-24: in a window's last 30 days an answer holds the next window's pass too, after this one's.
+  it('offers the pass in effect: the soonest of those not expired, else the last to expire, so the screen can say it ran out', () => {
+    const next = { ...pass, body: { ...pass.body, passId: 'p2', expiresAt: 99 } };
+    const held = [{ orgId: 'o1', languageId: 'L1', pass }, { orgId: 'o1', languageId: 'L1', pass: next }, { orgId: 'o1', languageId: 'L2', pass }];
+    expect(passesFor(held, 'o1', 'L1')).toEqual([pass, next]);
+    expect(passFor(held, 'o1', 'L1', 9)).toEqual(pass);
+    expect(passFor(held, 'o1', 'L1', 10)).toEqual(next);
+    expect(passFor(held, 'o1', 'L1', 100)).toEqual(next);
+    // In whatever order the answer listed them.
+    expect(passInEffect([next, pass], 3)).toEqual(pass);
+    expect(passInEffect([], 3)).toBeNull();
+    expect(passesUntil([pass, next])).toBe(99);
+    expect(passesUntil([])).toBeNull();
   });
 
   it('takes nothing from an answer the Worker would not send', () => {

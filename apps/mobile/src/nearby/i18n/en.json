@@ -76,6 +76,7 @@
       "filesIn": "Recordings received: {{n}}",
       "filesOut": "Recordings sent: {{n}}",
       "guideFilesIn": "Guide pictures and audio received: {{n}}",
+      "guideFilesShort": "Guide pictures and audio that did not fit: {{n}}",
       "refused": "Changes not taken: {{n}}",
       "filesFailed": "Recordings that did not arrive: {{n}}",
       "noRoom": "This phone ran out of room for recordings.",
@@ -90,6 +91,11 @@
     "clockOff": "A teammate's clock and this phone's differ by more than five minutes. Check the date and time on both phones.",
     "newerApp": "This phone's app and a teammate's are too far apart in version to share. Update the older one from the store, or from the other phone's install file.",
     "newerAppIphone": "This phone's app and a teammate's are too far apart in version to share. Update the older one from the store.",
+    "copy": {
+      "lost": "An app update removed the team's work this phone got from a teammate. Stay near a teammate with Share nearby open to get it again.",
+      "short": "This phone does not have all of the team's work yet. Stay near a teammate with Share nearby open to get the rest.",
+      "keepVersion": "Until this phone reaches the internet, do not install another version of LangQuest on it. The team's work it got from a teammate would be removed, and a teammate would have to give it again."
+    },
     "tooOld": "This app is too old to share. Update it from the store.",
     "farAhead": "{{name}}'s phone has a date far in the future. Their work waits until it reaches the server.",
     "olderFromServer": "Older work will come from the server.",
@@ -145,8 +151,13 @@
         "noPass": "This phone cannot let anyone in. Your organization must have it turned on, you must be able to invite people to this language, and this phone must have reached the internet since.",
         "expired": "This phone's permission to let people in has run out. Connect to the internet once to renew it.",
         "noRole": "There is no role this phone can give without internet. An admin can give roles after the new person reaches the internet.",
-        "wifiOff": "Turn on Wi-Fi in your phone's settings, then come back."
+        "wifiOff": "Turn on Wi-Fi in your phone's settings, then come back.",
+        "usedUp": "This phone has let in as many people as it can without internet. Connect to the internet once to let in more.",
+        "copyNotReady": "This phone has not finished downloading the team's work, so it cannot give a new person a copy yet. Connect to the internet until it finishes, then come back.",
+        "copyFilling": "This phone is still getting the team's work: {{filled, number}} of {{total, number}} passages. Connect to the internet until it finishes, then come back."
       },
+      "daysLeft": "Days left to let people in from this phone: {{n, number}}",
+      "renewSoon": "Connect to the internet once before they run out, so this phone can go on letting people in. People already let in are not affected.",
       "role": "Their role",
       "roleHelp": "The role the new person gets. An admin can change it after they reach the internet.",
       "asRole": "They join as {{role}}. An admin can change it after they reach the internet.",
@@ -209,6 +220,7 @@
         "refused": "This phone could not let them in under that role. Connect to the internet once, then try again.",
         "dropped": "The connection dropped before they were let in. Make a new code.",
         "droppedAfter": "They are in, but the connection dropped. Any teammate with Share nearby open can finish their starting copy.",
+        "droppedDocs": "They are in and can start working, but the connection dropped before everything came. Any teammate with Share nearby open can give them the rest.",
         "copyShort": "They are in, but this phone had no starting copy to give them yet. Any teammate with Share nearby open can finish it.",
         "stopped": "The code is gone because you left this screen. Make a new one.",
         "noCertificate": "This phone must connect to the internet once before it can let anyone in.",

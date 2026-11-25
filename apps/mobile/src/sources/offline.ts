@@ -35,7 +35,7 @@ import type { LanguageHandle } from '../sync/useLanguage';
 import { isRecording } from '../recording/recorderState';
 import { BibleError } from './bibleBrain';
 import { offlineAllowed, sourceEvictions, type SourceOption } from './model';
-import { audioFormatOf, bbKey, bookHashesFor, libAudioKey, offlineOptions, sourceHashes, wantsByUnit, type AudioFormat } from './offlineModel';
+import { audioFormatOf, bbKey, bookHashesFor, libAudioKey, offlineOptions, sourceHashes, wantsByUnit, type AudioFormat, type Want } from './offlineModel';
 import { forgetReference, publishReference, referenceArrived, referenceState, type ReferenceMissing } from './referenceCounts';
 import { bibleBrain, type MyBible } from './store';
 import { bibleFilePath, fetchThroughWorker, libraryAudioPath } from './throughWorker';
@@ -90,6 +90,16 @@ export function sourceAudioWanted(): ReadonlySet<string> {
   return wantedHashes;
 }
 
+/**
+ * Every chapter the sources keep on this phone, by hash, whatever language keeps it: nearby treats
+ * these as kept, never as spare library files (2026-11-24 review, item 24). Null until the index
+ * is read.
+ */
+export function sourceAudioKept(): ReadonlySet<string> | null {
+  if (!index) { void loadIndex(); return null; }
+  return new Set(Object.values(index).map((e) => e.hash));
+}
+
 /** Re-render when files arrive or go. */
 export function onSourceFiles(l: () => void): () => void {
   indexListeners.add(l);
@@ -115,6 +125,31 @@ export async function playableUri(store: BlobStore, ref: BlobFile): Promise<stri
     const off = store.onUrlReady(() => { const u = store.uriFor(ref); if (u) done(u); });
     const timer = setTimeout(() => done(store.uriFor(ref)), 3000);
   });
+}
+
+/**
+ * A chapter this phone downloaded by its address before its document named it by hash as well (the
+ * BSB's chapters, hashed from 2026-11-24): the bytes the address gave hash to what the document now
+ * names, so they are the library's.
+ */
+function downloadedByLink(idx: Record<string, Entry>, w: Want): boolean {
+  const old = w.hash && w.url ? idx[`url:${w.url}`] : undefined;
+  return !!old && old.hash === w.hash;
+}
+
+/**
+ * Index a chapter already in the store under the hash its document names. One downloaded by its
+ * address (`downloadedByLink`) moves from the address's entry to the hash's, so clearing the old
+ * entry never deletes the file the new one plays, and it is noted as the library's: a teammate's
+ * phone may be given it (docs/decisions/2026-11-24-library-files-move-between-teammates-as-reference-files.md).
+ */
+function keepUnderHash(idx: Record<string, Entry>, w: Want, store: BlobStore): void {
+  if (!w.hash) return;
+  if (downloadedByLink(idx, w)) {
+    delete idx[`url:${w.url}`];
+    noteLibraryFiles([w.hash]);
+  }
+  idx[w.key] = { hash: w.hash, bytes: store.sizeOf(w.hash) ?? 0, format: w.format ?? 'mp3', at: Date.now() };
 }
 
 /**
@@ -270,8 +305,8 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
   // Only a file known to have come from the library (downloaded, or a teammate's library file): never a recording a document names.
   const fromLibrary = await libraryFilesKnown(wants.flatMap((w) => (w.hash && !present(w.key) && store.has(w.hash) ? [w.hash] : [])));
   for (const w of wants) {
-    if (!w.hash || present(w.key) || !fromLibrary.has(w.hash)) continue;
-    idx[w.key] = { hash: w.hash, bytes: store.sizeOf(w.hash) ?? 0, format: w.format ?? 'mp3', at: Date.now() };
+    if (!w.hash || present(w.key) || !(fromLibrary.has(w.hash) || downloadedByLink(idx, w))) continue;
+    keepUnderHash(idx, w, store);
     indexed = true;
   }
   if (indexed) await saveIndex();
@@ -348,7 +383,7 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
     if (total >= SOURCE_CACHE_BYTES) { stop(w.key, 'full'); continue; }
     if (w.fileset && streamOnly.has(w.fileset)) { stop(w.key, null); continue; }
     if (w.hash && store.has(w.hash)) {
-      idx[w.key] = { hash: w.hash, bytes: store.sizeOf(w.hash) ?? 0, format: w.format ?? 'mp3', at: Date.now() };
+      keepUnderHash(idx, w, store);
       await saveIndex();
       referenceArrived(w.key);
       coming.delete(w.key);

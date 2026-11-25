@@ -1,4 +1,5 @@
 import type { OrgState, Privilege } from '@langquest-next/core';
+import type { LetInCopyReady } from './letInModel';
 
 /**
  * What a phone keeps of its nearby identity, and when it asks for more
@@ -287,9 +288,94 @@ export function passesForOrgs(held: readonly HeldPass[], orgs: ReadonlySet<strin
   return held.filter((p) => orgs.has(p.orgId));
 }
 
-/** This person's pass for one language, or null: what Let someone in offers (14.1, 3). */
-export function passFor(held: readonly HeldPass[], orgId: string, languageId: string): PassShape | null {
-  return held.find((p) => p.orgId === orgId && p.languageId === languageId)?.pass ?? null;
+/**
+ * This person's passes for one language, in the answer's order. From 2026-11-24 an answer in a
+ * window's last 30 days holds the next window's pass too, after this one's (core `passWindowTimes`).
+ */
+export function passesFor(held: readonly HeldPass[], orgId: string, languageId: string): PassShape[] {
+  return held.filter((p) => p.orgId === orgId && p.languageId === languageId).map((p) => p.pass);
+}
+
+/**
+ * The pass Let someone in offers at `now` (14.1, 3), or null with none held: of those not past their
+ * expiry the one that ends soonest, so this window's uses go first; with none still good, the last to
+ * expire, so the screen says it ran out. `now` is the clock Hello checks with (`nearbyHelloNow`).
+ * `used` says how many people this phone let in under a pass (`nearbyLetIn`, 2026-11-24, review
+ * item 7): a pass that has let in its `maxUses` is passed over for one with room, and offered only
+ * when none has any, so the screen says it is used up.
+ */
+export function passInEffect(passes: readonly PassShape[], now: number, used: (passId: string) => number = () => 0): PassShape | null {
+  const good = passes.filter((p) => now <= p.body.expiresAt);
+  const open = good.filter((p) => used(p.body.passId) < p.body.maxUses);
+  const pick = (from: readonly PassShape[], soonest: boolean) =>
+    from.reduce<PassShape | null>((best, p) => (!best || (soonest ? p.body.expiresAt < best.body.expiresAt : p.body.expiresAt > best.body.expiresAt) ? p : best), null);
+  return open.length > 0 ? pick(open, true) : good.length > 0 ? pick(good, true) : pick(passes, false);
+}
+
+/** When this phone can no longer let anyone in to the language without the server: the last of its passes' expiries, or null with none. */
+export function passesUntil(passes: readonly PassShape[]): number | null {
+  return passes.length > 0 ? Math.max(...passes.map((p) => p.body.expiresAt)) : null;
+}
+
+/** Under this many days left, Let someone in warns that this phone needs the internet again (Carl, 2026-11-24). */
+export const LET_IN_WARN_DAYS = 30;
+
+/**
+ * How long this phone can still let people in to the language without the server: whole days,
+ * rounded up, until the last of its passes expires (`passesUntil`), and whether to warn, under
+ * `LET_IN_WARN_DAYS`. Null with no pass, or once they have all run out (`letInWhyNot` says so).
+ * `now` is the clock Hello checks with, which setting the date back does not move. Only who may
+ * be let in ends then: anyone let in is accepted for 90 days from their tap (decision 240 as
+ * amended), and online the phone holds the next window's pass from 30 days before the end.
+ * Here, not in `letInModel.ts`, since only a phone's own files read it and the web need not
+ * carry it (apps/mobile/scripts/export-web.mjs).
+ */
+export function letInDaysLeft(until: number | null, now: number): { days: number; warn: boolean } | null {
+  if (until === null || !(now <= until)) return null;
+  const days = Math.max(1, Math.ceil((until - now) / ASK_EVERY_MS));
+  return { days, warn: days < LET_IN_WARN_DAYS };
+}
+
+/**
+ * Whether this phone can give a whole starting copy, from both streams' `canGiveCopy` answers
+ * (2026-11-24, review item 5): not while either cannot, and the language's fill, which says how
+ * far it has come, before anything else; null until both are read. Here, not in `letInModel.ts`,
+ * since only a phone's own files read it.
+ */
+export function copyReadyOf(language: LetInCopyReady | null, org: LetInCopyReady | null): LetInCopyReady | null {
+  if (!language || !org) return null;
+  return language.ok ? org : language;
+}
+
+/** How often Let someone in reads `canGiveCopy` again while the copy is not known ready (`copyReadAgain`). */
+export const LET_IN_COPY_READ_MS = 3_000;
+
+/**
+ * Both streams' `canGiveCopy`, read from the sessions open now (2026-11-24, review item 5), or
+ * `undefined` while either is not open: nothing is said against the copy then, as before the
+ * check, and it is read again once both are (`copyReadAgain`), rather than the screen saying
+ * "Checking this phone" until the person leaves and comes back.
+ */
+export async function readCopyReady(
+  language: { canGiveCopy(): Promise<LetInCopyReady> } | null, org: { canGiveCopy(): Promise<LetInCopyReady> } | null
+): Promise<LetInCopyReady | null | undefined> {
+  if (!language || !org) return undefined;
+  const [l, o] = await Promise.all([language.canGiveCopy(), org.canGiveCopy()]);
+  return copyReadyOf(l, o);
+}
+
+/**
+ * Whether Let someone in reads the copy again, every `LET_IN_COPY_READ_MS` while in view: until it
+ * is known ready, since a session opening, or a fill or download running on this phone, changes
+ * the answer, and "filled N of M" moves with it. Once ready, nothing on the phone makes it less so.
+ */
+export function copyReadAgain(copy: LetInCopyReady | null | undefined): boolean {
+  return copy?.ok !== true;
+}
+
+/** This person's pass for one language at `now`, or null: what Let someone in offers (14.1, 3). */
+export function passFor(held: readonly HeldPass[], orgId: string, languageId: string, now: number): PassShape | null {
+  return passInEffect(passesFor(held, orgId, languageId), now);
 }
 
 // ---- when to ask -----------------------------------------------------------------------
@@ -436,7 +522,10 @@ export interface OpenGate {
   active: boolean;
   /** The language is offline; unknown is not offline. */
   offline: boolean;
-  /** Recording or playing: the mode pauses. */
+  /**
+   * Recording or playing with no room running: the mode waits to start. A room already running is
+   * held instead and finds again after a quiet spell (2026-11-24 review, P2), so this is false then.
+   */
   busy: boolean;
   /** A screen that runs the radios is open (Share nearby, Let someone in, …): it owns them then. */
   screenOpen: boolean;

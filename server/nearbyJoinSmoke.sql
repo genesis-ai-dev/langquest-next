@@ -7,7 +7,8 @@
 -- and a repeat that still answers; no token reaching a pass; the newcomer's
 -- id following from their key, and an existing, imported, profiled, linked or
 -- deleted id refused; key sign-in until the key's first session; the relay's
--- branch for an author with no account yet; and deleting a newcomer's account.
+-- branch for an author with no account yet; deleting a newcomer's account; and
+-- a link's madeAt, which lets its newcomer in for 90 days past its pass's expiry.
 -- Repeatable against a populated database; every write rolls back.
 \set ON_ERROR_STOP on
 begin;
@@ -50,27 +51,28 @@ create function pg_temp.account(n int, p_email text default null, p_meta jsonb d
   values (pg_temp.nid(n)::uuid, coalesce(p_email, 'jn-new-' || n || '@people.langquest.org'), 'authenticated', 'authenticated',
           coalesce(p_meta, jsonb_build_object('managed', true, 'chain_key', pg_temp.k(n))), '{"has_password":false}');
 $$;
-create function pg_temp.state(n int, p_pass jsonb, p_role text) returns jsonb language plpgsql as $$
+-- p_made_at: the invite link's signed madeAt, as the Worker passes it, or none for a link with none.
+create function pg_temp.state(n int, p_pass jsonb, p_role text, p_made_at bigint default null) returns jsonb language plpgsql as $$
 begin
   perform pg_temp.as_caller(null);
-  return public.nearby_join_state(pg_temp.nid(n), pg_temp.k(n), pg_temp.salt(n), p_pass, p_role);
+  return public.nearby_join_state(pg_temp.nid(n), pg_temp.k(n), pg_temp.salt(n), p_pass, p_role, p_made_at);
 end $$;
-create function pg_temp.finish(n int, p_pass jsonb, p_role text, p_token text default null) returns jsonb language plpgsql as $$
+create function pg_temp.finish(n int, p_pass jsonb, p_role text, p_token text default null, p_made_at bigint default null) returns jsonb language plpgsql as $$
 begin
   perform pg_temp.as_caller(null);
-  return public.nearby_join_finish(pg_temp.nid(n), pg_temp.k(n), pg_temp.salt(n), 'dev-n' || n, 'Newcomer ' || n, p_pass, p_role, p_token);
+  return public.nearby_join_finish(pg_temp.nid(n), pg_temp.k(n), pg_temp.salt(n), 'dev-n' || n, 'Newcomer ' || n, p_pass, p_role, p_token, p_made_at);
 end $$;
 -- The whole first contact for newcomer n as the Worker runs it: the state, an account if new and the pass takes them, then finish.
-create function pg_temp.join(n int, p_pass jsonb, p_role text) returns jsonb language plpgsql as $$
-declare s jsonb := pg_temp.state(n, p_pass, p_role);
+create function pg_temp.join(n int, p_pass jsonb, p_role text, p_made_at bigint default null) returns jsonb language plpgsql as $$
+declare s jsonb := pg_temp.state(n, p_pass, p_role, p_made_at);
 begin
   if s->>'state' not in ('new', 'mine') then return jsonb_build_object('refused', s->>'state'); end if;
   if s->>'refusal' is not null and not (s->>'redeemed')::boolean then return jsonb_build_object('refused', s->>'refusal'); end if;
   if s->>'state' = 'new' then perform pg_temp.account(n); end if;
-  return pg_temp.finish(n, p_pass, p_role);
+  return pg_temp.finish(n, p_pass, p_role, null, p_made_at);
 end $$;
-create function pg_temp.refused(p_pass jsonb, p_role text, p_words text, p_what text) returns void language plpgsql as $$
-declare v text := public.pass_refusal(p_pass, p_role);
+create function pg_temp.refused(p_pass jsonb, p_role text, p_words text, p_what text, p_made_at bigint default null) returns void language plpgsql as $$
+declare v text := public.pass_refusal(p_pass, p_role, p_made_at);
 begin
   if v is distinct from p_words then raise exception '%: expected "%", got "%"', p_what, p_words, v; end if;
 end $$;
@@ -511,6 +513,46 @@ do $$ declare p jsonb := pg_temp.pass(pg_temp.u('0b'), pg_temp.k(101), array['tr
   v := pg_temp.state(12, p, 'translator');
   if v->>'state' <> 'deleted' then raise exception 'a deleted id: %', v; end if;
   if pg_temp.join(12, p, 'translator')->>'refused' <> 'deleted' then raise exception 'a deleted id joined again'; end if;
+end $$;
+
+-- 13. A link's madeAt (decision 240 as amended, 2026-11-24): a link made
+-- before its pass expired lets its newcomer in for 90 days from then, past
+-- the pass's expiry; one made after it, or more than 90 days ago, does not;
+-- a link with none is held to the pass's expiry, as before. The row keeps the
+-- pass's own expiry, and a first use past it still redeems.
+do $$ declare
+  now_ms bigint := (extract(epoch from now()) * 1000)::bigint;
+  dead jsonb := pg_temp.pass(pg_temp.u('0b'), pg_temp.k(101), array['translator'], 'jn-L', 10, now() - interval '1 day');
+  live jsonb := pg_temp.pass(pg_temp.u('0b'), pg_temp.k(101), array['translator'], 'jn-L', 10, now() + interval '100 days');
+  v jsonb;
+begin
+  perform pg_temp.refused(dead, 'translator', 'pass expired', 'no madeAt, past the pass''s expiry');
+  perform pg_temp.refused(dead, 'translator', null, 'made two days ago, before the pass expired', now_ms - 2 * 86400000);
+  perform pg_temp.refused(dead, 'translator', 'pass expired', 'made an hour ago, after the pass expired', now_ms - 3600000);
+  perform pg_temp.refused(live, 'translator', null, 'made 89 days ago', now_ms - 89 * 86400000::bigint);
+  perform pg_temp.refused(live, 'translator', 'pass expired', 'made 91 days ago', now_ms - 91 * 86400000::bigint);
+  perform pg_temp.refused(live, 'translator', 'not a pass: madeAt', 'a negative madeAt', -1);
+
+  v := pg_temp.join(50, dead, 'translator', now_ms - 2 * 86400000);
+  if v->>'orgId' <> 'jn-org' then raise exception 'a newcomer let in before the pass expired, at first contact after it: %', v; end if;
+  if not exists (select 1 from public.org_memberships m where m.profile_id = pg_temp.nid(50) and m.org_id = 'jn-org' and not m.removed) then
+    raise exception 'no membership past the pass''s expiry';
+  end if;
+  if (select i.expires_at from public.invites i where i.token_hash = 'pass:' || (dead->>'passId')) <> to_timestamp((dead->>'expiresAt')::bigint / 1000.0) then
+    raise exception 'the pass''s row does not keep the pass''s expiry';
+  end if;
+  -- The same pass, under a link with no madeAt: refused before any account, as before.
+  v := pg_temp.join(51, dead, 'translator');
+  if v->>'refused' <> 'pass expired' or exists (select 1 from auth.users u where u.id = pg_temp.nid(51)::uuid) then
+    raise exception 'a link with no madeAt, after its pass expired: %', v;
+  end if;
+  -- And redeem_pass_for raises the same words for a link made after the pass expired.
+  begin
+    perform public.redeem_pass_for(pg_temp.nid(51), dead, 'translator', now_ms - 3600000);
+    raise exception 'redeemed a link made after its pass expired';
+  exception when sqlstate '22023' then
+    if sqlerrm <> 'pass expired' then raise; end if;
+  end;
 end $$;
 
 rollback;

@@ -20,6 +20,7 @@ and publishes them; `docs/library.md` explains items, versions and documents.
 | `fia/pericopes.tsv` | FIA's passage list from its API (`list_content.py` in genesis-ai-dev/fia, 2026-10-09): 2,376 passages in 46 books, in FIA's order | fia.bible; © 2025 Word Collective, CC BY-SA 4.0 |
 | `divisions/unfoldingword-chunks.json` | Where each chunk starts, every book, from unfoldingWord's Unlocked Literal Bible (`api.unfoldingword.org/bible/txt/1/<book>/chunks.json`, fetched 2026-10-08) | unfoldingWord; the ULB is CC BY-SA 4.0 (the chunk files state no licence of their own), attributed in the template's description |
 | `divisions/openbible-section-counts.tsv` | For every section, how many of 20 English Bibles start it there (BSB, ESV, NIV, NLT, NRSVue, NET, NABRE and more) | OpenBible.info (openbible.info/labs/bible-section-sankeys), CC BY 4.0, attributed in each template's description. Also bundled per verse in core (`packages/core/src/bibleBreaksData.ts`, `scripts/bible-breaks.ts`) for the dashed lines when a book is divided your own way, credited on that screen |
+| `bsb-audio.json` | Each BSB chapter's MP3 by `BOOK.chapter`: its SHA-256 and size, so the seed names each chapter by hash as well as by address and a phone may pass one to a teammate. Absent until `npm run library:bsb-audio` writes it (about 1,189 downloads, 5 GB; run it again to fill what failed); only the hashes are kept, never the audio. | Hashes of openbible.com's recordings by Frederick Surrey, CC0 1.0. |
 | `fia/demo_*.study.json` | Luke 15:11–32 and John 3:1–21, written for the partner demo in FIA's format (their notes are the demo's, not FIA's) | Converted from the app's former `src/study/fia.ts`; `versification` names a code, which the seed turns into a hash. |
 
 Built from core as well: the flows (`FLOWS` and `DEFAULT_KINDS` in
@@ -133,6 +134,14 @@ the chapter's MP3 is left out.
 Seeding a hosted project needs its service role key and the owner's
 go-ahead. The script refuses a non-local `SUPABASE_URL` unless it is given
 `--hosted`; never put the key in a file here.
+
+Publish `bsb-fs` with the hashes from `bsb-audio.json` to a hosted project
+only once phones run a build that moves a chapter downloaded by its address
+over to its hash (`keepUnderHash` in `apps/mobile/src/sources/offline.ts`,
+2026-11-25). An older build does not count a chapter it fetched by address
+as the hash's, so it downloads every chapter it keeps again. Near its cap,
+it then clears the old entry, which deletes the file the new entry plays,
+and downloads it once more.
 
 ## Verse timings
 

@@ -272,7 +272,7 @@ Object.assign(RENDER, {
     h += '<h3>While LangQuest was open</h3><p>' + num(o.openMin) + ' min on the air, ' + num(o.pauseMin) + ' paused at Up to date, ' + num(o.scanMin) + ' scanning, ' + num(o.syncMin) + ' syncing; ' +
       num(o.events) + ' events and ' + num(o.files) + ' recordings in; ' + num(o.viaDirect) + ' of ' + num(o.done) + ' finished sessions over Wi-Fi Direct.</p>';
     const pairs = (m) => Object.entries(m || {}).sort((a, b) => num(b[1]) - num(a[1]));
-    const words = { window: 'Past the two weeks', revoked: 'Revoked key', org: 'Another organization', expired: 'Certificate expired', other: 'Did not check' };
+    const words = { window: 'Past the two weeks', revoked: 'Revoked key', org: 'Another organization', expired: 'Certificate expired', 'pass-expired': 'Newcomer past their 90 days or pass', other: 'Did not check' };
     h += '<h3>Phones turned away, by reason</h3>' + table([{ h: 'Reason', v: (x) => esc(words[x[0]] || x[0]) }, { h: 'Times', n: true, v: (x) => num(x[1]) }], pairs(d.refusals));
     h += '<h3>Sessions that did not finish</h3>' + table([{ h: 'How it ended', v: (x) => '<code>' + esc(x[0]) + '</code>' }, { h: 'Times', n: true, v: (x) => num(x[1]) }], pairs(d.unfinished));
     h += '<h3>Teammates\' work carried to the server</h3><p>' + num(c.times) + ' deliveries from ' + num(c.installs) + ' phones: ' + num(c.taken) + ' of ' + num(c.sent) + ' events new to the server, ' +

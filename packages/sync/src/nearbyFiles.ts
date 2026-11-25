@@ -56,6 +56,8 @@ export interface NearbyStudyLinks {
   stage(url: string): { stagingUri: string; maxBytes: number; minFreeBytes: number } | null;
   /** It came: take it under its address, to be fetched again once online. */
   adopt(url: string, stagingUri: string, size: number): Promise<void>;
+  /** Whether any of these addresses a kept passage needs is not here (review P3). */
+  neededLacking?(urls: readonly string[]): boolean;
 }
 
 /** What the phone gives once per person and organization. */
@@ -86,7 +88,27 @@ export interface NearbyFilesPlatform {
    * sources' share. Absent, it takes none.
    */
   sourceAudioWanted?(): ReadonlySet<string>;
+  /**
+   * The team guide files this phone's kept passages need, by hash (the app's guide files ahead):
+   * asked for before other library files, and the only ones a phone under a cover takes
+   * (2026-11-24 review, item 20). Absent, none is known by passage.
+   */
+  guideFilesWanted?(): ReadonlySet<string>;
+  /**
+   * The library files this phone keeps for its own reasons, by hash: its kept passages' guide
+   * files and every source chapter the sources keep. Any other library file here is spare: all
+   * of them stay within `LIBRARY_SPARE_BYTES`, and they give way before teammates' recordings
+   * (2026-11-24 review, item 24). Null while it cannot say, and absent, no library file is spare.
+   */
+  libraryFilesKept?(): ReadonlySet<string> | null;
 }
+
+/**
+ * The most the library files no kept passage needs (`libraryFilesKept`) may take on a phone, as
+ * the study folder's spare room does for files named by address: a teammate's are taken only
+ * within it (2026-11-24 review, item 24).
+ */
+export const LIBRARY_SPARE_BYTES = 256 * 1024 * 1024;
 
 /** Exactly what the nearby files reach of their `LanguageSession`. */
 export interface NearbyFilesPort {
@@ -149,6 +171,10 @@ interface Job extends NearbyFetchJob {
   byHash: Map<string, WantedFile>;
   tried: Set<string>;
   noRoom: boolean;
+  /** Library files and files named by address that waited for want of room. */
+  short: number;
+  /** Files of the list not here when it came and not tried yet: none left finishes the job, with no walk of the list (review P10). */
+  left: number;
   finish(error?: unknown): void;
 }
 
@@ -304,9 +330,15 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     return nearbyEvictableOf(every, this.here(), this.files.sizes(), (h) => fresh.has(h) && stored(h));
   }
 
-  /** With `reserve`, level 1 alone, keeping that much more free: it gives way for a nearby file, and level 2 never does. */
+  /**
+   * With `reserve`, level 1 and spare library files alone, keeping that much more free: they give
+   * way for a nearby file, and level 2 never does. Library files no kept passage needs go after
+   * level 1 and before teammates' recordings (2026-11-24 review, item 24).
+   */
   async reclaim(level1: readonly { hash: string; format: string }[], reserve?: number): Promise<number> {
-    const lists = reserve === undefined ? [level1, await this.level2()] : [level1];
+    const spare = await this.librarySpare();
+    const first = spare.length ? [level1, spare] : [level1];
+    const lists = reserve === undefined ? [...first, await this.level2()] : first;
     if (this.port.closed()) return 0;
     const { limits } = this.port.o;
     const sizes = new Map(this.files.sizes());
@@ -435,6 +467,7 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     const file = job?.byHash.get(ref.hash);
     if (!job || !file) return;
     if (job.stop(file)) { job.finish(); return; }
+    if (!job.tried.has(file.hash)) job.left -= 1;
     job.tried.add(file.hash);
     let stage: Awaited<ReturnType<NearbyFileMoves['fetchFile']>>;
     try {
@@ -443,7 +476,10 @@ class LanguageNearbyFiles implements NearbyFilesPart {
       return;
     }
     // A library file never makes room, nor one named by address: with too little, this one waits and the rest go on.
-    if (!stage && (file.group === 'reference' || file.group === 'link')) return;
+    if (!stage && (file.group === 'reference' || file.group === 'link')) {
+      job.short += 1;
+      return;
+    }
     if (!stage) {
       job.noRoom = true;
       job.finish();
@@ -455,7 +491,8 @@ class LanguageNearbyFiles implements NearbyFilesPart {
       job.finish(err);
       throw err instanceof Error ? err : new OfflineError('the link dropped');
     }
-    if (this.jobWork().length === 0) job.finish();
+    // Counted down, not the list walked again after every file: a session of thousands of files did that thousands of times.
+    if (job.left <= 0) job.finish();
   }
 
   /**
@@ -470,17 +507,58 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     if (file.group === 'reference') {
       const free = fetchFile.freeBytes();
       if (free !== null && free < limits.minFreeBytes) return null;
+      // One no kept passage needs comes only within the room spare library files share.
+      let maxBytes = MAX_FILE_BYTES;
+      if (!this.libraryNeeded(file.hash)) {
+        const left = await this.librarySpareLeft();
+        if (left !== null) {
+          if (left <= 0) return null;
+          maxBytes = Math.min(maxBytes, left);
+        }
+      }
       const stagingUri = fetchFile.stagingUri(file);
       if (!stagingUri) throw new Error('not a file name this store makes');
-      return { stagingUri, maxBytes: MAX_FILE_BYTES, minFreeBytes: limits.minFreeBytes };
+      return { stagingUri, maxBytes, minFreeBytes: limits.minFreeBytes };
     }
     const reserve = this.port.plan.sizeOf(file.hash) ?? 0;
-    const freed = await this.reclaim(await this.port.level1(), reserve);
-    const free = fetchFile.freeBytes();
+    // With room to spare, nothing is worked out to free (review P11): level 1 is a query over the language's files, once a file.
+    const before = fetchFile.freeBytes();
+    const ample = before !== null && before - reserve >= 2 * limits.minFreeBytes;
+    const freed = ample ? 0 : await this.reclaim(await this.port.level1(), reserve);
+    const free = ample ? before : fetchFile.freeBytes();
     if (free !== null && free + freed - reserve < limits.minFreeBytes) return null;
     const stagingUri = fetchFile.stagingUri(file);
     if (!stagingUri) throw new Error('not a file name this store makes');
     return { stagingUri, maxBytes: MAX_FILE_BYTES, minFreeBytes: limits.minFreeBytes };
+  }
+
+  /** Does a kept passage of this phone want this library file: its guide's, or a source chapter it lacks? */
+  private libraryNeeded(hash: string): boolean {
+    return (this.platform.guideFilesWanted?.().has(hash) ?? false) || (this.platform.sourceAudioWanted?.().has(hash) ?? false);
+  }
+
+  /** Library files here no kept passage needs (`libraryFilesKept`), to go before teammates' recordings; none while that cannot be said. */
+  private async librarySpare(): Promise<{ hash: string; format: string }[]> {
+    const kept = this.platform.libraryFilesKept?.() ?? null;
+    if (!kept) return [];
+    const held = await this.referenceHeld([...this.here()]);
+    return held.filter((h) => !kept.has(h)).map((hash) => ({ hash, format: this.files.formatOf(hash) ?? 'jpg' }));
+  }
+
+  /** The library files the last `reference.held` found passable on: a session serves from it (review P7). */
+  private heldNow: Set<string> | null = null;
+
+  /** What is left of `LIBRARY_SPARE_BYTES`, worked out once a session (`reference.lacking` starts one) and counted down as files land. */
+  private spareLeft: number | null | undefined;
+  private async librarySpareLeft(): Promise<number | null> {
+    if (this.spareLeft === undefined) {
+      if (!this.platform.libraryFilesKept?.()) this.spareLeft = null;
+      else {
+        const sizes = this.files.sizes();
+        this.spareLeft = LIBRARY_SPARE_BYTES - (await this.librarySpare()).reduce((n, f) => n + (sizes.get(f.hash) ?? 0), 0);
+      }
+    }
+    return this.spareLeft;
   }
 
   private linksOf(links: NearbyStudyLinks): NonNullable<NonNullable<NearbyFileMoves['reference']>['links']> {
@@ -549,6 +627,7 @@ class LanguageNearbyFiles implements NearbyFilesPart {
             await fetchFile.commit(file, stagingUri, size);
             // A teammate passed it on as a library file, so it had come from the library: so has this copy.
             await this.platform.libraryOrigins?.add([file.hash]);
+            if (typeof this.spareLeft === 'number' && !this.libraryNeeded(file.hash)) this.spareLeft -= size;
           }
           return;
         }
@@ -574,17 +653,33 @@ class LanguageNearbyFiles implements NearbyFilesPart {
       shed: (holdings) => this.shed(holdings),
       take: (job) => this.take(job),
       reference: {
-        held: (hashes) => this.referenceHeld(hashes),
+        // What a session's step 7 says it holds is what it serves from, without asking the store again per file (review P7).
+        held: async (hashes) => {
+          const held = await this.referenceHeld(hashes);
+          this.heldNow = new Set(held);
+          return held;
+        },
         lacking: (wanted: readonly LibraryFile[]) => {
           const present = this.here();
           const sources = this.platform.sourceAudioWanted?.() ?? new Set<string>();
-          // A source's chapter only when a kept passage wants it. A team's guide files are not known by passage
-          // here, so a phone under a cover takes none of them; its kept passages' chapters it still takes.
+          const guides = this.platform.guideFilesWanted?.() ?? new Set<string>();
+          // A new session works out the spare room again.
+          this.spareLeft = undefined;
+          // A source's chapter only when a kept passage wants it. A phone under a cover takes only its kept
+          // passages' guide files and chapters, so a search finds no more than its own work asks for.
           const worn = this.platform.worn?.() === true;
-          return wanted.filter((f) => !present.has(f.hash) && (f.kind === 'source' ? sources.has(f.hash) : !worn));
+          const missing = wanted.filter((f) => !present.has(f.hash) && (f.kind === 'source' ? sources.has(f.hash) : !worn || guides.has(f.hash)));
+          // What kept passages' guides need first (2026-11-24 review, item 20).
+          return [...missing.filter((f) => guides.has(f.hash)), ...missing.filter((f) => !guides.has(f.hash))];
+        },
+        neededLacking: async (named, urls) => {
+          const present = this.here();
+          if (named.some((f) => !present.has(f.hash) && this.libraryNeeded(f.hash))) return true;
+          return this.platform.studyLinks?.neededLacking?.(urls) ?? false;
         },
         serve: async (file) => {
-          if ((await this.referenceHeld([file.hash])).length === 0) return null;
+          const known = this.heldNow?.has(file.hash) === true && this.here().has(file.hash) && !this.all.has(file.hash);
+          if (!known && (await this.referenceHeld([file.hash])).length === 0) return null;
           const uri = fetchFile.uriOf({ hash: file.hash, format: files.formatOf(file.hash) ?? file.format });
           return uri ? { uri, size: files.sizeOf(file.hash) ?? 0 } : null;
         },
@@ -594,18 +689,22 @@ class LanguageNearbyFiles implements NearbyFilesPart {
   }
 
   /** A session's files through the third worker: its backoff and its pause while recording. Resolves when each was tried once, the link went, room ran out or `stop` said so. */
-  private take(asked: NearbyFetchJob): Promise<{ noRoom: boolean }> {
+  private take(asked: NearbyFetchJob): Promise<{ noRoom: boolean; short: number }> {
     this.job?.finish(new OfflineError('a later session took over'));
     return new Promise((resolve, reject) => {
+      const byHash = new Map(asked.list.map((f) => [f.hash, f]));
+      const present = this.here();
       const job: Job = {
         ...asked,
-        byHash: new Map(asked.list.map((f) => [f.hash, f])),
+        byHash,
         tried: new Set(),
         noRoom: false,
+        short: 0,
+        left: [...byHash.keys()].filter((h) => !present.has(h)).length,
         finish: (error) => {
           if (this.job !== job) return;
           this.job = null;
-          if (error === undefined) resolve({ noRoom: job.noRoom });
+          if (error === undefined) resolve({ noRoom: job.noRoom, short: job.short });
           else reject(error instanceof Error ? error : new OfflineError(String(error)));
         }
       };

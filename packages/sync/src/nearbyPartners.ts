@@ -27,6 +27,14 @@ export interface PartnerInRange {
    */
   greet?: boolean;
   /**
+   * This phone's last session with it ended `docsAgain` (review item 15): the events named documents no ask covered, or
+   * the documents stopped at a bound. Worth another session in the same run, whatever the summaries say, a set number of
+   * times a run (`NearbyRoomTunables.docsAgainMax`). The teammate counts the pair finished, so it waits to be connected to.
+   */
+  docsAgain?: boolean;
+  /** The two finished a session less than `partnerGapMs` ago (review P3): another waits unless files wait. */
+  recent?: boolean;
+  /**
    * Whether this phone connects first, where the tags cannot say (phase 5): an iPhone always to a phone
    * that cannot hear its advert's tag, and of two iPhones the lower salt. Left out, the lower tag.
    */
@@ -43,6 +51,10 @@ const lower = (a: PartnerInRange, b: PartnerInRange): number => {
 
 /** Worth a session for what the two may swap or are due, a greeting aside. */
 export function worthBesidesGreeting(me: { summary: string }, p: PartnerInRange): boolean {
+  // Documents still to ask for after the last session's events: the summaries cannot say so, and nor can a finished record.
+  if (p.docsAgain === true) return true;
+  // Met a moment ago: only files waiting either way bring them together again so soon (review P3).
+  if (p.recent === true && !p.hasWhatIWant && !p.wantsWhatIHave) return false;
   // Finished with both summaries as they stand: nothing has changed since, even if the two differ, as they do when one phone has no room.
   if (p.finished && p.finished.mine === me.summary && p.finished.theirs === p.summary) return false;
   // `dueAnyway` overrides only this, because it alone rests on what others claim.

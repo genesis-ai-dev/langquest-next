@@ -8,7 +8,7 @@ import { subtleSha256, subtleVerify } from '../worker/nearbyKeys';
 import { handleRelay, RELAY_PATH, type RelayDeps } from '../worker/relay';
 import { routeClass } from '../worker/requestTally';
 import type { AccountDeps } from '../worker/nearbyJoin';
-import { CHAIN, NEWCOMER_ID, PUBLIC_KEY } from '../../../packages/core/test/nearbyVectors';
+import { CHAIN, CHAIN_MADE, CHAIN_MADE_AT, NEWCOMER_ID, PUBLIC_KEY } from '../../../packages/core/test/nearbyVectors';
 
 /**
  * Delivery through a teammate, at the Worker (docs/nearby-sync-plan.md section 6), with real
@@ -247,16 +247,17 @@ describe('POST /api/relay', () => {
     const golden = CHAIN[1] as InviteLink;
     const newcomer: Author = { seed: '01'.repeat(32), key: PUBLIC_KEY, profileId: NEWCOMER_ID, deviceId: golden.body.deviceId, chain: CHAIN as WorkerLink[] };
     const at = (a: Author) => ({ ...note(a), streamId: 'lang1' } as AnyEvent);
-    const batchIn = async (events: AnyEvent[]) => {
+    const batchIn = async (events: AnyEvent[], chain: readonly unknown[] = CHAIN) => {
       const manifest = manifestText({
         v: 1, orgId: 'org1', streamId: 'lang1', key: newcomer.key, deviceId: newcomer.deviceId, actorId: newcomer.profileId, n: 1, floor: 0,
         events: await Promise.all(events.map(async (e) => [e.id, await eventDigest(e, subtleSha256)] as [string, string]))
       });
-      return { manifest, sig: signWith(newcomer.seed, nearbyBytes('batch', manifest)), chain: CHAIN, events };
+      return { manifest, sig: signWith(newcomer.seed, nearbyBytes('batch', manifest)), chain, events };
     };
+    const madeAts: (number | undefined)[] = [];
     const accounts = (state: Record<string, unknown> | { error: RpcAnswer['error'] }, calls: string[]): Omit<AccountDeps, 'rootKeys' | 'verify' | 'sha256'> => ({
-      state: async () => { calls.push('state'); return 'error' in state ? { data: null, error: state.error } : { data: state, error: null }; },
-      finish: async (a) => { calls.push('finish'); return { data: { orgId: a.pass.orgId, email: 'ye-1@people.langquest.org', signIn: true }, error: null }; },
+      state: async (a) => { calls.push('state'); madeAts.push(a.madeAt); return 'error' in state ? { data: null, error: state.error } : { data: state, error: null }; },
+      finish: async (a) => { calls.push('finish'); madeAts.push(a.madeAt); return { data: { orgId: a.pass.orgId, email: 'ye-1@people.langquest.org', signIn: true }, error: null }; },
       preview: async () => { calls.push('preview'); return { data: null, error: null }; },
       createUser: async (a) => { calls.push(`createUser ${a.id} ${a.chainKey}`); return { error: null }; },
       random: () => 0.5
@@ -270,6 +271,17 @@ describe('POST /api/relay', () => {
       expect(calls).toEqual(['state', `createUser ${NEWCOMER_ID} ${PUBLIC_KEY}`, 'finish']);
       expect(w.calls).toEqual([{ author: NEWCOMER_ID, key: PUBLIC_KEY, ids: events.map((e) => e.id), clientVersion: 7 }]);
       expect(out.batches[0]!.verdicts!.every((v) => v.accepted)).toBe(true);
+    });
+
+    // Decision 240 as amended (2026-11-24): the pass's stops count 90 days from when the link was made, so the server is told when.
+    it('tells the database when a newcomer\'s link was made, and nothing for a link from before', async () => {
+      madeAts.length = 0;
+      const { deps } = setup({ accounts: accounts({ state: 'new', redeemed: false, member: false, keyed: false, refusal: null }, []) });
+      await handleRelay(post(relayBody([await batchIn([at(newcomer)], CHAIN_MADE)], { streamId: 'lang1' })), deps);
+      expect(madeAts).toEqual([CHAIN_MADE_AT, CHAIN_MADE_AT]);
+      madeAts.length = 0;
+      await handleRelay(post(relayBody([await batchIn([at(newcomer)])], { streamId: 'lang1' })), deps);
+      expect(madeAts).toEqual([undefined, undefined]);
     });
 
     it('makes no account when the pass no longer takes them, and answers each event as not a member, for Try again', async () => {

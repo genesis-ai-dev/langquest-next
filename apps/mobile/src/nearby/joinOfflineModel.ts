@@ -46,7 +46,25 @@ export function afterGrant(held: LocalPerson, chain: unknown[]): LocalPerson | n
 /** The record once the copy is whole: `ready`, and only then, since `Shell` remounts on the actor id (section 7, phase 6). */
 export function afterCopy(held: LocalPerson, whole: boolean): LocalPerson | null {
   if (!whole || held.stage !== 'filling') return null;
-  return { ...held, stage: 'ready' };
+  return readyFrom(held);
+}
+
+/**
+ * The record marked when the copy came whole and the join's link went on to the steps after it
+ * (2026-11-24): still `filling`, so `Shell` does not remount and stop the session those steps run
+ * in, but a phone that dies before they end is set at its next start (`wholeAtStart`).
+ */
+export function copyWholeMark(held: LocalPerson): LocalPerson | null {
+  return held.stage === 'filling' && !held.copyWhole ? { ...held, copyWhole: true } : null;
+}
+
+/**
+ * At the join screen's start, a person whose copy came whole before the phone died, or the app was
+ * swiped away, during the steps after it on the join's link (2026-11-24): `ready`, with no teammate,
+ * as the copy alone would have set them. Null for anyone else.
+ */
+export function wholeAtStart(held: LocalPerson | null): LocalPerson | null {
+  return held?.stage === 'filling' && held.copyWhole ? readyFrom(held) : null;
 }
 
 /**
@@ -55,7 +73,14 @@ export function afterCopy(held: LocalPerson, whole: boolean): LocalPerson | null
  * first download fills in what the copy did not. Only a granted person whose copy is not whole.
  */
 export function goOnOnline(held: LocalPerson): LocalPerson | null {
-  return held.stage === 'filling' ? { ...held, stage: 'ready' } : null;
+  return held.stage === 'filling' ? readyFrom(held) : null;
+}
+
+/** `ready`, without the `filling` stage's mark. */
+function readyFrom(held: LocalPerson): LocalPerson {
+  const next: LocalPerson = { ...held, stage: 'ready' };
+  delete next.copyWhole;
+  return next;
 }
 
 /**
@@ -135,8 +160,11 @@ export type JoinStage =
   | { t: 'unfinished'; otherVersion?: true }
   /** Looking for a teammate to finish the copy. */
   | { t: 'looking'; otherVersion?: true }
-  /** Whole: the person is set, and the app starts over as them. */
-  | { t: 'whole' }
+  /**
+   * Whole: the person is set, and the app starts over as them. `guideFilesCame`: guide pictures and
+   * audio came on the link that made it whole (`joinGuideFilesCame`), so none are said to come later.
+   */
+  | { t: 'whole'; guideFilesCame?: true }
   | { t: 'ended'; why: JoinEnd };
 
 export type JoinAction =
@@ -151,7 +179,8 @@ export type JoinAction =
   | { t: 'asked'; pictures: [number, number] }
   | { t: 'granted' }
   | { t: 'part' }
-  | { t: 'copied'; whole: boolean }
+  /** `guideFilesCame`: the session that ended said guide pictures and audio came (`joinGuideFilesCame`). */
+  | { t: 'copied'; whole: boolean; guideFilesCame?: boolean }
   /** The server answered while the copy is left to finish: the person is set, and the server fills in the rest. */
   | { t: 'online' }
   | { t: 'ended'; why: JoinEnd }
@@ -186,7 +215,8 @@ export function joinReducer(s: JoinStage, a: JoinAction): JoinStage {
     case 'part':
       return s.t === 'copying' ? { t: 'copying', parts: s.parts + 1 } : s;
     case 'copied':
-      return a.whole ? { t: 'whole' } : { t: 'unfinished' };
+      if (!a.whole) return { t: 'unfinished' };
+      return a.guideFilesCame ? { t: 'whole', guideFilesCame: true } : { t: 'whole' };
     case 'online':
       return s.t === 'unfinished' || s.t === 'looking' || s.t === 'wifi-off' ? { t: 'whole' } : s;
     case 'ended':
@@ -199,13 +229,27 @@ export function joinReducer(s: JoinStage, a: JoinAction): JoinStage {
 }
 
 /**
- * Whether the progress screen says guide pictures and audio come later: from the grant on, while
- * the starting copy comes, is left to finish or is whole. The copy carries the language's guides
- * but never the files they name, which come in the first Wi-Fi session with any teammate
- * (docs/nearby-sync-plan.md 5.12, Library files), so until then guides show without them.
+ * Whether guide pictures and audio came in the session that ended: it ran to its end, and its
+ * library files step brought at least one (docs/nearby-sync-plan.md 5.12, Library files). On the
+ * join's link that step runs only after a whole copy, when both phones run a build from 2026-11-24
+ * (`join-exchange`, `library-files`); a teammate met while looking runs it after finishing a copy.
+ */
+export function joinGuideFilesCame(r: { ended: { how: string }; libraryFiles: { got: number } | null } | null): boolean {
+  return r?.ended.how === 'done' && (r.libraryFiles?.got ?? 0) > 0;
+}
+
+/**
+ * Whether the progress screen says guide pictures and audio come later: once the copy is left to
+ * finish, or is whole without any having come (`guideFilesCame`). The copy carries the language's
+ * guides but never the files they name. Since 2026-11-24 the join's link brings them after a
+ * whole copy, from the teammate's phone, so nothing is said while the copy comes; but a copy left
+ * to finish, an older phone on either side, a link that dropped first, or a teammate whose phone
+ * holds none leaves them to the first Wi-Fi session with any teammate, and until then guides show
+ * without them. When some came, nothing is said: any the teammate's phone did not hold come in any
+ * later session, as for everyone.
  */
 export function joinGuideFilesLine(s: JoinStage): boolean {
-  return s.t === 'copying' || s.t === 'unfinished' || s.t === 'looking' || s.t === 'whole';
+  return s.t === 'unfinished' || s.t === 'looking' || (s.t === 'whole' && !s.guideFilesCame);
 }
 
 /** A name as the newcomer typed it, trimmed, or null when it cannot go in an invite link (1 to 80 characters, no control characters). */

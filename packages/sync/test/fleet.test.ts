@@ -291,6 +291,8 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
       const { device: newcomer, crypto, idSalt } = await fleet.addNewcomer('n0', never(NETWORKS.phone), { kept });
       const inviter = team.find((d) => d.keepsOnDisk === kept && d.persona.role !== 'reviewer')!;
       const forged = 'forged/p999';
+      // What the inviter's phone holds as the newcomer is let in: its checkpoint, what it pulled since, its unsent work and what it carries.
+      const before = await inviter.wholeState();
       const joined = await fleet.nearby!.letIn(inviter, newcomer, {
         crypto, idSalt, name: 'Nyibol', roleId: 'translator',
         forge: (copy) => { const s = copy.state as { units: Record<string, unknown> }; s.units[forged] = Object.values(s.units)[0]; return copy; }
@@ -299,6 +301,12 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
       expect(await newcomer.client.holdsCopy()).toBe(true);
       const copied = await newcomer.wholeState();
       expect(forged in copied.units).toBe(true);
+      // The review of 2026-11-24 (item 2, T1), before anyone reaches the server, which hides every gap: the newcomer leaves the
+      // join holding all of that, not only the inviter's last checkpoint.
+      expect(joined.newcomer.join?.exchange).toBe(true);
+      for (const part of ['units', 'recordings', 'takes', 'notes'] as const) {
+        expect(Object.keys(before[part]).filter((id) => !(id in copied[part])), part).toEqual([]);
+      }
       for (const [unitId, u] of Object.entries(copied.units)) newcomer.persona.observe({ type: 'v1.UnitAdded', payload: { unitId, parentUnitId: u.parentUnitId, kind: u.kind, label: u.label, order: u.order } } as never);
       const everyone = [...team, newcomer];
       for (let day = 2; day < 4; day++) {
@@ -320,6 +328,39 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
       expect([...made].filter((id) => !server.has(id))).toEqual([]);
       expect(await newcomer.client.holdsCopy()).toBe(false);
       for (const d of fleet.devices) expect(forged in (await d.wholeState()).units, d.id).toBe(false);
+    });
+
+    // Decision 240 as amended (Carl, 2026-11-24): a pass expires at its window's end, and teammates refused a
+    // newcomer at Hello from then on, however recently they were let in. They now count 90 days from the tap.
+    it('a newcomer let in an hour before the inviter\'s pass expired still shares with every teammate in the days after, with no server', async () => {
+      const fleet = new Fleet({
+        seed: 12, audio: { bytesPerSecond: 16_000 }, nearby: { delivery: true },
+        crew: { passages: 12, translators: 2, reviewers: 1, link: () => offlineBetween(FLEET_EPOCH + TIME.DAY + 12 * TIME.HOUR, FLEET_EPOCH + 1000 * TIME.DAY, always(NETWORKS.phone, 'phone')) }
+      });
+      await fleet.start();
+      await fleet.time.runUntil(FLEET_EPOCH + TIME.DAY + 17 * TIME.HOUR);
+      const team = [...fleet.devices];
+      const { device: newcomer, crypto, idSalt } = await fleet.addNewcomer('n0', never(NETWORKS.phone), { kept: false });
+      const inviter = team.find((d) => d.persona.role !== 'reviewer')!;
+      const joined = await fleet.nearby!.letIn(inviter, newcomer, { crypto, idSalt, name: 'Nyibol', roleId: 'translator', passExpiresAt: fleet.time.now() + TIME.HOUR });
+      expect(joined.newcomer.join?.granted).toBe(true);
+      const copied = await newcomer.wholeState();
+      for (const [unitId, u] of Object.entries(copied.units)) newcomer.persona.observe({ type: 'v1.UnitAdded', payload: { unitId, parentUnitId: u.parentUnitId, kind: u.kind, label: u.label, order: u.order } } as never);
+      const everyone = [...team, newcomer];
+      for (let day = 2; day < 4; day++) {
+        await fleet.time.runUntil(FLEET_EPOCH + day * TIME.DAY + 17 * TIME.HOUR);
+        await meet(fleet, everyone);
+      }
+      fleet.stopWork();
+      await meet(fleet, everyone);
+      // Before anyone reaches the server: the newcomer's work is on every teammate's phone.
+      const made = new Set((await newcomer.client.inspect()).pending.filter((l) => l.event.actorId === newcomer.actorId).map((l) => l.event.id));
+      expect(made.size).toBeGreaterThan(0);
+      for (const d of team) {
+        const held = await d.eventIds();
+        expect([...made].filter((id) => !held.has(id)), d.id).toEqual([]);
+      }
+      expect(Object.keys(fleet.nearby!.stats.ended).filter((how) => how.startsWith('said:identity'))).toEqual([]);
     });
   });
 });

@@ -1,11 +1,12 @@
 import { emptyOrgState } from '@langquest-next/core';
 import { GIVE_IDLE_MS } from '../src/nearby/giveAppModel';
+import { NEARBY_PASS_USED_UP } from '@langquest-next/sync/nearby';
 import {
-  codeLeft, codeShown, LET_IN_CODE_MS, LET_IN_GIVE_CODE_MS, LET_IN_START, letInCodeMs, letInEndOf, letInGuideFilesLine, letInReducer, letInRoles, letInWhyNot,
-  type LetInAction, type LetInState
+  codeLeft, codeShown, LET_IN_CODE_MS, LET_IN_GIVE_CODE_MS, LET_IN_START, LET_IN_USED_UP, letInCodeMs, letInEndOf, letInGuideFilesLine, letInGuideFilesWent, letInReducer, letInRoles,
+  letInWhyNot, type LetInAction, type LetInCopyReady, type LetInState
 } from '../src/nearby/letInModel';
 import { letInPermit } from '../src/nearby/letInPermitModel';
-import type { PassShape } from '../src/nearby/nearbyModel';
+import { copyReadAgain, copyReadyOf, LET_IN_WARN_DAYS, letInDaysLeft, passInEffect, readCopyReady, type PassShape } from '../src/nearby/nearbyModel';
 import { nearbyPermissionsFor } from '../src/nearby/nearbyPermissionsModel';
 
 /**
@@ -48,6 +49,84 @@ describe('which roles a pass offers, and when it is offered', () => {
     expect(letInWhyNot({ ...base, inBuild: false })).toBe('not-in-build');
     expect(letInWhyNot({ ...base, permitted: false })).toBe('permissions');
     expect(letInWhyNot({ ...base, wifiOn: false })).toBe('wifi-off');
+  });
+
+  // The review of 2026-11-24, item 7: a pass lets in `maxUses` people and only this phone uses it, but nothing counted, so an
+  // eleventh newcomer was let in, then cut by teammates and refused by the server.
+  it('says the pass is used up once this phone let in its count, and offers a pass with room first', () => {
+    const roles = [{ roleId: 'translator', name: 'Translator' }];
+    const p = pass([{ roleId: 'translator', privileges: ['translate'] }] as PassShape['body']['roles']);
+    const base = { inBuild: true, readOnly: false, pass: p, features: null, roles, now: 1_000 };
+    expect(letInWhyNot({ ...base, used: 9 })).toBeNull();
+    expect(letInWhyNot({ ...base, used: 10 })).toBe('used-up');
+    // This window's pass used up, the next window's held: the next one is offered.
+    const next = { ...p, body: { ...p.body, passId: 'p2', expiresAt: 5_000 } } as PassShape;
+    expect(passInEffect([p, next], 1_000, (id) => (id === 'p1' ? 10 : 0))?.body.passId).toBe('p2');
+    expect(passInEffect([p, next], 1_000)?.body.passId).toBe('p1');
+    // None with room: the one in effect, so the screen says it is used up.
+    expect(passInEffect([p], 1_000, () => 10)?.body.passId).toBe('p1');
+    // The session's word, which the screen reads.
+    expect(LET_IN_USED_UP).toBe(NEARBY_PASS_USED_UP);
+    expect(letInEndOf({ ended: { how: 'said', reason: 'stopped', detail: NEARBY_PASS_USED_UP }, versionsDiffer: false, clockOff: false, join: { granted: false, refused: NEARBY_PASS_USED_UP } }))
+      .toBe('used-up');
+  });
+
+  // The review of 2026-11-24, item 5: an inviter whose own download never finished could give no copy, but the code still
+  // showed, and the newcomer was let in with only the organization.
+  it('shows no code until this phone can give a whole copy, and says how far its fill has come', () => {
+    const roles = [{ roleId: 'translator', name: 'Translator' }];
+    const p = pass([{ roleId: 'translator', privileges: ['translate'] }] as PassShape['body']['roles']);
+    const base = { inBuild: true, readOnly: false, pass: p, features: null, roles, now: 1_000 };
+    expect(letInWhyNot({ ...base, copy: null })).toBe('loading');
+    expect(letInWhyNot({ ...base, copy: { ok: true } })).toBeNull();
+    expect(letInWhyNot({ ...base, copy: { ok: false, why: 'downloading' } })).toBe('copy-not-ready');
+    const filling = copyReadyOf({ ok: false, why: 'filling', fill: { filled: 3, total: 9 } }, { ok: true });
+    expect(filling).toEqual({ ok: false, why: 'filling', fill: { filled: 3, total: 9 } });
+    expect(letInWhyNot({ ...base, copy: filling })).toBe('copy-not-ready');
+    // The organization, not downloaded to the server's newest, is as short a copy as the language.
+    expect(copyReadyOf({ ok: true }, { ok: false, why: 'downloading' })).toEqual({ ok: false, why: 'downloading' });
+    expect(copyReadyOf({ ok: true }, { ok: true })).toEqual({ ok: true });
+    expect(copyReadyOf(null, { ok: true })).toBeNull();
+  });
+
+  // The review of the fixes, 2026-11-24: the copy was read only on mount, on focus and after a session, so a language not yet
+  // open left the screen saying "Checking this phone" until the person left, and "filled N of M" never moved while it stayed.
+  it('says nothing against the copy while a session is not open, and reads it again until it is known ready', async () => {
+    const ready = (r: LetInCopyReady) => ({ canGiveCopy: async () => r });
+    expect(await readCopyReady(null, ready({ ok: true }))).toBeUndefined();
+    expect(await readCopyReady(ready({ ok: true }), null)).toBeUndefined();
+    const filling = { ok: false, why: 'filling', fill: { filled: 3, total: 9 } } as const;
+    expect(await readCopyReady(ready(filling), ready({ ok: true }))).toEqual(filling);
+    expect(await readCopyReady(ready({ ok: true }), ready({ ok: true }))).toEqual({ ok: true });
+    // Read again while not read, while a session is not open, and while not ready; never once ready.
+    expect([null, undefined, filling, { ok: false, why: 'downloading' } as const].map(copyReadAgain)).toEqual([true, true, true, true]);
+    expect(copyReadAgain({ ok: true })).toBe(false);
+    // A session not open says nothing against the copy: the reasons before the check still decide.
+    const roles = [{ roleId: 'translator', name: 'Translator' }];
+    const p = pass([{ roleId: 'translator', privileges: ['translate'] }] as PassShape['body']['roles']);
+    expect(letInWhyNot({ inBuild: true, readOnly: false, pass: p, features: null, roles, now: 1_000 })).toBeNull();
+  });
+});
+
+// Carl, 2026-11-24 (decision 240 as amended): a pass ends with its window, the same date for every pass, and the screen
+// let someone in hours before it said nothing. It says the days left, and warns under 30.
+describe('how long this phone can still let people in', () => {
+  const DAY = 86_400_000;
+  it('counts whole days, rounded up, to the last pass\'s expiry, and warns under 30', () => {
+    expect(LET_IN_WARN_DAYS).toBe(30);
+    expect(letInDaysLeft(100 * DAY, 10 * DAY)).toEqual({ days: 90, warn: false });
+    expect(letInDaysLeft(40 * DAY, 10 * DAY)).toEqual({ days: 30, warn: false });
+    expect(letInDaysLeft(40 * DAY - 1, 10 * DAY)).toEqual({ days: 30, warn: false });
+    expect(letInDaysLeft(39 * DAY, 10 * DAY)).toEqual({ days: 29, warn: true });
+    // Hours before the end it still says a day, not none.
+    expect(letInDaysLeft(10 * DAY + 3_600_000, 10 * DAY)).toEqual({ days: 1, warn: true });
+    expect(letInDaysLeft(10 * DAY, 10 * DAY)).toEqual({ days: 1, warn: true });
+  });
+
+  it('says nothing with no pass, or once it has run out, which the screen says another way', () => {
+    expect(letInDaysLeft(null, 5)).toBeNull();
+    expect(letInDaysLeft(5, 6)).toBeNull();
+    expect(letInDaysLeft(5, Number.NaN)).toBeNull();
   });
 });
 
@@ -110,6 +189,7 @@ describe('the screen', () => {
     // The starting copy carries no guide files; their first Wi-Fi session with a teammate brings them (5.12, Library files).
     const yes = [...up, { t: 'answered', yes: true } as LetInAction];
     expect(letInGuideFilesLine(run(...yes, { t: 'ended', why: 'done' }).stage)).toBe(true);
+    expect(letInGuideFilesLine(run(...yes, { t: 'ended', why: 'done', guideFilesWent: false }).stage)).toBe(true);
     expect(letInGuideFilesLine(run(...yes, { t: 'ended', why: 'dropped-after' }).stage)).toBe(true);
     expect(letInGuideFilesLine(run(...yes, { t: 'ended', why: 'copy-short' }).stage)).toBe(true);
     expect(letInGuideFilesLine(run(...yes).stage)).toBe(false);
@@ -117,6 +197,28 @@ describe('the screen', () => {
     expect(letInGuideFilesLine(run(...up, { t: 'answered', yes: false }).stage)).toBe(false);
     expect(letInGuideFilesLine(run(...up, { t: 'ended', why: 'dropped' }).stage)).toBe(false);
     expect(letInGuideFilesLine(LET_IN_START.stage)).toBe(false);
+  });
+
+  // The review of 2026-11-24, item 2: the join's link now sends the guides' files after a whole copy, and the done screen still
+  // said they reach the new person later.
+  it('says nothing of the new person\'s guide pictures and audio once the link sent some', () => {
+    const yes = [...up, { t: 'answered', yes: true } as LetInAction];
+    const went = run(...yes, { t: 'ended', why: 'done', guideFilesWent: true }).stage;
+    expect(went).toEqual({ t: 'done', name: 'Nyibol', guideFilesWent: true });
+    expect(letInGuideFilesLine(went)).toBe(false);
+    // Only the done screen can follow files sent: a drop before the steps after the copy, or a short copy, never ran them.
+    expect(run(...yes, { t: 'ended', why: 'dropped-after', guideFilesWent: true }).stage).toEqual({ t: 'ended', why: 'dropped-after', name: 'Nyibol' });
+  });
+
+  it('counts guide pictures and audio as sent only when the session ended done and its library files step served one', () => {
+    const done = { how: 'done' };
+    expect(letInGuideFilesWent({ ended: done, libraryFiles: { served: 4 } })).toBe(true);
+    // A newcomer on an older build, or none held here: no library files step, or nothing served in it.
+    expect(letInGuideFilesWent({ ended: done, libraryFiles: null })).toBe(false);
+    expect(letInGuideFilesWent({ ended: done, libraryFiles: { served: 0 } })).toBe(false);
+    // The link dropped during the steps after a whole copy: the screen says done, and the rest reach them later.
+    expect(letInGuideFilesWent({ ended: { how: 'dropped' }, libraryFiles: { served: 2 } })).toBe(false);
+    expect(letInEndOf({ ended: { how: 'dropped' }, versionsDiffer: false, clockOff: false, join: { granted: true, refused: null, exchange: true } })).toBe('done');
   });
 
   it('a second phone that tried the code is told about until a new code', () => {
@@ -136,6 +238,14 @@ describe('the screen', () => {
     const base = { versionsDiffer: false, clockOff: false, join: { granted: false, refused: null as string | null } };
     expect(letInEndOf({ ...base, join: { granted: true, refused: null }, ended: { how: 'done' } })).toBe('done');
     expect(letInEndOf({ ...base, join: { granted: true, refused: null }, ended: { how: 'dropped' } })).toBe('dropped-after');
+    // 2026-11-24: the copy was whole and the two went on to the newest work; a drop there leaves them in, with nothing to finish.
+    expect(letInEndOf({ ...base, join: { granted: true, refused: null, exchange: true }, ended: { how: 'dropped' } })).toBe('done');
+    expect(letInEndOf({ ...base, join: { granted: true, refused: null, exchange: false }, ended: { how: 'dropped' } })).toBe('dropped-after');
+    // The review of the fixes, 2026-11-24 (item 3): the newcomer asked for names or documents, so its copy was whole and its person
+    // set; a drop then cut only those, and the screen says they can work, not that their copy needs finishing.
+    expect(letInEndOf({ ...base, join: { granted: true, refused: null, exchange: false, copyWhole: true }, ended: { how: 'dropped' } })).toBe('dropped-docs');
+    expect(letInEndOf({ ...base, join: { granted: true, refused: null, exchange: true, copyWhole: true }, ended: { how: 'dropped' } })).toBe('done');
+    expect(letInGuideFilesLine({ t: 'ended', why: 'dropped-docs', name: 'Nyibol' })).toBe(true);
     // Let in, but this phone had no copy of the language or organization to give: a teammate finishes it.
     expect(letInEndOf({ ...base, join: { granted: true, refused: null }, ended: { how: 'done' }, copyServed: { stateRefused: 'not-filled' } })).toBe('copy-short');
     expect(letInEndOf({ ...base, join: { granted: true, refused: null }, ended: { how: 'done' }, copyServed: { stateRefused: null } })).toBe('done');

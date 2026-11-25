@@ -3,7 +3,7 @@ import { revocationText, type ChainLink, type HoldChoice, type HoldingEntry, typ
 import { LanguageSession, type LanguageSessionOptions, type LocalFiles } from '../src/languageSession';
 import { MemoryStore } from '../src/memoryStore';
 import { nearbyClient } from '../src/nearbyClient';
-import { nearbyFiles, type NearbyFetchFile } from '../src/nearbyFiles';
+import { LIBRARY_SPARE_BYTES, nearbyFiles, type NearbyFetchFile } from '../src/nearbyFiles';
 import { nearbyKeepOf } from '../src/nearbyKeep';
 import { MemoryLibraryFileOrigins } from '../src/libraryFileOrigins';
 import { MemoryNearbyMarks } from '../src/nearbyMarks';
@@ -93,7 +93,7 @@ async function until(ok: () => boolean | Promise<boolean>, ms = 3000): Promise<v
   }
 }
 
-async function setUp(over: { origins?: MemoryLibraryFileOrigins; worn?: () => boolean; sourceAudioWanted?: () => ReadonlySet<string>; choice?: HoldChoice | null; org?: OrgState; mayUpload?: boolean; limits?: LanguageSessionOptions['limits']; preset?: NearbyMark[]; upload?: LanguageSessionOptions['upload']; transport?: (t: Transport) => Transport } = {}) {
+async function setUp(over: { origins?: MemoryLibraryFileOrigins; worn?: () => boolean; sourceAudioWanted?: () => ReadonlySet<string>; guideFilesWanted?: () => ReadonlySet<string>; libraryFilesKept?: () => ReadonlySet<string> | null; choice?: HoldChoice | null; org?: OrgState; mayUpload?: boolean; limits?: LanguageSessionOptions['limits']; preset?: NearbyMark[]; upload?: LanguageSessionOptions['upload']; transport?: (t: Transport) => Transport } = {}) {
   const server = new FakeServer();
   const marks = new MemoryNearbyMarks();
   const origins = over.origins ?? new MemoryLibraryFileOrigins();
@@ -110,6 +110,7 @@ async function setUp(over: { origins?: MemoryLibraryFileOrigins; worn?: () => bo
     client: { clock: new HlcClock('phone', () => (wall.t += 1)), newId: () => `e${(wall.t += 1)}`, nearby: nearbyClient() },
     fetchFile: f.fetchFile,
     nearbyFiles: nearbyFiles({ marks, installKey: () => ME_KEY, canReview: () => false, org: () => over.org ?? null, ...(over.worn ? { worn: over.worn } : {}), ...(over.sourceAudioWanted ? { sourceAudioWanted: over.sourceAudioWanted } : {}),
+      ...(over.guideFilesWanted ? { guideFilesWanted: over.guideFilesWanted } : {}), ...(over.libraryFilesKept ? { libraryFilesKept: over.libraryFilesKept } : {}),
       libraryOrigins: over.origins ?? origins }),
     holdChoice: () => choice.now,
     mayUpload: () => over.mayUpload ?? true
@@ -471,16 +472,16 @@ describe('nearby files: serving and the third worker (5.6)', () => {
       await moves.landed(file, stage.stagingUri, MB);
     };
     const list: WantedFile[] = [{ hash: SAMS, format: 'm4a', group: 'review' }, { hash: CYS, format: 'm4a', group: 'backup' }];
-    expect(await moves.take!({ list, fetch, linkUp: () => true, stop: () => false })).toEqual({ noRoom: false });
+    expect(await moves.take!({ list, fetch, linkUp: () => true, stop: () => false })).toEqual({ noRoom: false, short: 0 });
     expect(got).toEqual([SAMS, CYS]);
     // A link that is down moves nothing.
-    expect(await moves.take!({ list: [{ hash: H('5'), format: 'm4a', group: 'backup' }], fetch, linkUp: () => false, stop: () => false })).toEqual({ noRoom: false });
+    expect(await moves.take!({ list: [{ hash: H('5'), format: 'm4a', group: 'backup' }], fetch, linkUp: () => false, stop: () => false })).toEqual({ noRoom: false, short: 0 });
     expect(got).toHaveLength(2);
     // The session cuts backups.
-    expect(await moves.take!({ list: [{ hash: H('5'), format: 'm4a', group: 'backup' }], fetch, linkUp: () => true, stop: (f) => f.group === 'backup' })).toEqual({ noRoom: false });
+    expect(await moves.take!({ list: [{ hash: H('5'), format: 'm4a', group: 'backup' }], fetch, linkUp: () => true, stop: (f) => f.group === 'backup' })).toEqual({ noRoom: false, short: 0 });
     expect(got).toHaveLength(2);
     disk.free = 100 * MB;
-    expect(await moves.take!({ list: [{ hash: H('5'), format: 'm4a', group: 'needed' }], fetch, linkUp: () => true, stop: () => false })).toEqual({ noRoom: true });
+    expect(await moves.take!({ list: [{ hash: H('5'), format: 'm4a', group: 'needed' }], fetch, linkUp: () => true, stop: () => false })).toEqual({ noRoom: true, short: 0 });
     // A dropped link ends the job with the drop, as the session expects.
     disk.free = 10_000 * MB;
     const drop = new Error('dropped');
@@ -553,6 +554,57 @@ describe('nearby files: library files (5.12, 2026-11-24)', () => {
     expect(moves.reference!.lacking(chapters)).toEqual([chapters[0]]);
     worn.now = true;
     expect(moves.reference!.lacking([...chapters, { hash: H('7'), format: 'jpg' }])).toEqual([chapters[0]]);
+    session.close();
+  });
+
+  // The 2026-11-24 review (item 20): a team's guide files are known by passage now.
+  it('a kept passage\'s guide files are asked for first, and are the only ones a phone under a cover takes', async () => {
+    const worn = { now: false };
+    const { session, moves } = await setUp({ guideFilesWanted: () => new Set([H('7')]), worn: () => worn.now });
+    const files = [{ hash: H('6'), format: 'jpg' }, { hash: H('7'), format: 'jpg' }];
+    expect(moves.reference!.lacking(files)).toEqual([files[1], files[0]]);
+    worn.now = true;
+    expect(moves.reference!.lacking(files)).toEqual([files[1]]);
+    session.close();
+  });
+
+  // The 2026-11-24 review (item 24): library files no kept passage needs are bounded, and give way before teammates' recordings.
+  it('takes a library file no kept passage needs only within the room spare ones share', async () => {
+    const { session, moves, files, origins } = await setUp({ guideFilesWanted: () => new Set([H('4')]), libraryFilesKept: () => new Set([H('4')]) });
+    files.put(H('6'), LIBRARY_SPARE_BYTES - MB);
+    await origins.add([H('6')]);
+    moves.reference!.lacking([]);
+    expect((await moves.fetchFile({ hash: H('5'), format: 'jpg', group: 'reference' }))!.maxBytes).toBe(MB);
+    files.put(H('3'), MB);
+    await origins.add([H('3')]);
+    // A new session works it out again: the spare room is used up, and only what a kept passage needs still comes.
+    moves.reference!.lacking([]);
+    expect(await moves.fetchFile({ hash: H('5'), format: 'jpg', group: 'reference' })).toBeNull();
+    expect(await moves.fetchFile({ hash: H('4'), format: 'jpg', group: 'reference' })).not.toBeNull();
+    session.close();
+  });
+
+  it('a phone that cannot say which library files it keeps treats none as spare', async () => {
+    const { session, moves, files, origins } = await setUp({ libraryFilesKept: () => null });
+    files.put(H('6'), LIBRARY_SPARE_BYTES + MB);
+    await origins.add([H('6')]);
+    moves.reference!.lacking([]);
+    expect(await moves.fetchFile({ hash: H('5'), format: 'jpg', group: 'reference' })).not.toBeNull();
+    session.close();
+  });
+
+  it('spare library files go after level 1 and before teammates\' recordings', async () => {
+    const { session, land, reclaims, files, origins, disk } = await setUp({ upload: NO_UPLOAD, libraryFilesKept: () => new Set([GUIDE]) });
+    await land(SAMS, 40 * MB);
+    files.put(H('6'), MB);
+    files.put(GUIDE, MB);
+    await origins.add([H('6'), GUIDE]);
+    disk.free = 10_000 * MB;
+    session.start();
+    await until(() => reclaims.some((r) => r.lists.length === 3));
+    const last = reclaims.find((r) => r.lists.length === 3)!;
+    expect(last.lists[1]).toEqual([H('6')]);
+    expect(last.lists[2]).toEqual([SAMS]);
     session.close();
   });
 

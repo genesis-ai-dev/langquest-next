@@ -4,12 +4,13 @@
 // STUDY-5, STUDY-7, ADR-019. Audio follows audioSession.ts: starting one
 // player stops every other, and playback sets the session to play mode.
 import type { PassageNote } from '@langquest-next/core';
-import { createElement, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createElement, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Image, Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { Text } from '../ui/text';
 import { openContentLink } from '../ui/share';
 import { AudioClip } from '../audio/audioClip';
-import { studyUri } from './studyFiles';
+import { onStudyFiles, studyRevision, studyUri } from './studyFiles';
+import { failedNow } from './studyFilesModel';
 import type { Ctx } from '../shell/ctx';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
@@ -213,9 +214,14 @@ const MEDIA_ICON: Record<StudyMediaKind, IconName> = { map: 'map', photo: 'camer
 
 /** The picture when there is a file for it (FIA sends low-resolution copies), a neutral stand-in otherwise or offline. */
 function MediaImage(props: { item: StudyMedia; orgId?: string | null }) {
-  const [failed, setFailed] = useState(false);
+  // Told when a study file arrives, so a picture that came while the guide is open shows without reopening it.
+  useSyncExternalStore(onStudyFiles, studyRevision, studyRevision);
   const it = props.item;
   const { uri, waiting } = useStudyFileUri(props.orgId, it.file, it.url);
+  // A kept copy of a picture known only by its address plays from the phone (studyFiles.ts); a stored file is already local.
+  const shown = it.file ? uri : studyUri(uri);
+  const [failedFor, setFailedFor] = useState<string | undefined>();
+  const failed = failedNow(failedFor, shown);
   // A film kept as a file plays in the browser; phones have no player for it yet, so they say so.
   const film = it.kind === 'video' && !!it.file;
   if (film && uri && Platform.OS === 'web') {
@@ -230,8 +236,7 @@ function MediaImage(props: { item: StudyMedia; orgId?: string | null }) {
       </View>
     );
   }
-  // A kept copy of a picture known only by its address plays from the phone (studyFiles.ts); a stored file is already local.
-  return <Image source={{ uri: it.file ? uri : studyUri(uri) }} accessibilityLabel={it.title} onError={() => setFailed(true)}
+  return <Image source={{ uri: shown }} accessibilityLabel={it.title} onError={() => setFailedFor(shown)}
     resizeMode={it.kind === 'map' ? 'contain' : 'cover'} style={styles.image} />;
 }
 

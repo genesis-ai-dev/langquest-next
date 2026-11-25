@@ -4,17 +4,20 @@ import { meet, type Meeting } from './nearbyMeet';
 import type { Scenario } from './types';
 
 /**
- * One phone's date is years off (docs/nearby-sync-plan.md 5.4, the clock rows of the traps
- * table). The team works offline and shares nearby each evening, then goes to town, where
- * the server refuses a clock over 5 minutes ahead and that phone re-stamps its work. A
- * teammate's clock must never follow a far-off one (`clockCloseEnough`), every phone must
- * end agreeing with the server's fold with nothing nearby, and the far-ahead stamps a
- * teammate took must give way to the re-stamped copies the server holds.
+ * One phone's date is months off (docs/nearby-sync-plan.md 5.4, the clock rows of the traps
+ * table). A year or more ahead, its Hello refuses every teammate's certificate as expired, since
+ * the fleet's certificates are signed at the simulated time and last a year (2026-11-24), so it
+ * shares nothing; half a year ahead is the case nearby must carry. The team works offline and
+ * shares nearby each evening, then goes to town, where the server refuses a clock over 5 minutes
+ * ahead and that phone re-stamps its work. A teammate's clock must never follow a far-off one
+ * (`clockCloseEnough`), every phone must end agreeing with the server's fold with nothing
+ * nearby, and the far-ahead stamps a teammate took must give way to the re-stamped copies the
+ * server holds.
  */
 export const wrongDate: Scenario = {
   name: 'wrongDate',
-  summary: 'One phone\'s date is years ahead; the team shares nearby, then reaches the server.',
-  defaults: { seed: 1, days: 4, passages: 60, translators: 3, reviewers: 1, yearsOff: 3, audio: 0 },
+  summary: 'One phone\'s date is months ahead; the team shares nearby, then reaches the server.',
+  defaults: { seed: 1, days: 4, passages: 60, translators: 3, reviewers: 1, yearsOff: 0.5, audio: 0 },
   async run(k) {
     const started = performance.now();
     const away = FLEET_EPOCH + 2 * TIME.HOUR;

@@ -3,7 +3,7 @@
  *
  *   npm run library:seed -- --dry-run
  *   npm run library:seed -- [--fia-dir <dir>]... [--fia-terms <file>] [--hosted]
- *   npm run library:seed -- --sources [--timings <dir>] [--bsb-text <file>]
+ *   npm run library:seed -- --sources [--timings <dir>] [--bsb-text <file>] [--bsb-audio <file>]
  *   npm run library:seed -- --only <itemId>... [--dry-run | --hosted]
  *
  * The official LangQuest organization (`langquest`) hosts the starters:
@@ -20,8 +20,9 @@
  * `--sources` adds the sources to read and hear (`scripts/sources-seed.ts`):
  * Bible Brain editions, built from FCBH's API with BIBLE_BRAIN_ACCESS_KEY
  * from the environment, and the BSB read by Frederick Surrey with the
- * fia-align timings in `--timings`. It needs the network, even with
- * `--dry-run`.
+ * fia-align timings in `--timings`, each chapter's MP3 named by the hash in
+ * `library/bsb-audio.json` (or `--bsb-audio`; `npm run library:bsb-audio`
+ * writes it). It needs the network, even with `--dry-run`.
  *
  * Publishing goes through the service-role RPCs `library_seed_document`
  * (dependencies first) and `library_seed_events`, at SUPABASE_URL (local by
@@ -564,7 +565,9 @@ async function main(argv: string[]) {
       const body = all.documents.find((d) => d.hash === it.docHash)!.body as VersificationDoc;
       return { code: body.code, hash: it.docHash, books: Object.keys(body.maxVerses) };
     });
-    const sources = await sourcesFor(versifications, { timingsDir: values('timings')[0], bsbTextPath: values('bsb-text')[0], key: process.env['BIBLE_BRAIN_ACCESS_KEY'] });
+    const sources = await sourcesFor(versifications, {
+      timingsDir: values('timings')[0], bsbTextPath: values('bsb-text')[0], bsbAudioPath: values('bsb-audio')[0], key: process.env['BIBLE_BRAIN_ACCESS_KEY']
+    });
     const have = new Set(all.documents.map((d) => d.hash));
     all.documents.push(...sources.documents.filter((d) => !have.has(d.hash)));
     all.items.push(...sources.items);

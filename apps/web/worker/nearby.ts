@@ -1,7 +1,7 @@
 import type { AnyEvent, Privilege } from '@langquest-next/core';
 import {
   attestationText, base64urlEncode, certRequestText, eventDigest, isBase64url, joinPassBody, linkText, nearbyBytes, NEARBY_BATCH_MAX_EVENTS, NEARBY_CERTIFICATE_MS,
-  passRoles, revocationText, signedBy, signJoinPass, type Attestation, type ChainOrg, type JoinPass, type RevokedKey, type Sha256, type Verify, type WorkerLink
+  passRoles, passWindowTimes, revocationText, signedBy, signJoinPass, type Attestation, type ChainOrg, type JoinPass, type RevokedKey, type Sha256, type Verify, type WorkerLink
 } from '@langquest-next/core/nearby';
 import { NotAuthorizedError } from '@langquest-next/sync';
 import { hexBytes, type NearbySigner } from './nearbyKeys';
@@ -18,7 +18,8 @@ import { hexBytes, type NearbySigner } from './nearbyKeys';
  * signed revocation list, and, where `nearby_join` is on too, a join pass for
  * each language named where they hold Invite (14.1, Carl's answers 8, 11, 17,
  * 18), signed with core's `joinPassBody` and `signJoinPass` over the roles
- * core's `passRoles` keeps, the same functions phones use, and nothing written.
+ * core's `passRoles` keeps, the same functions phones use, and nothing written;
+ * in a window's last 30 days the next window's pass as well (`passWindowTimes`).
  * `{ revoked: true }` for a revoked key.
  *
  * `POST /api/nearby/attest`, bearer token, `{ orgId, streamId, afterSeq }`: the
@@ -221,10 +222,15 @@ async function certificate(request: Request, deps: NearbyDeps): Promise<Response
     chains.push({ orgId: org.orgId, chain: [{ ...unsigned, sig: await signer.sign(nearbyBytes('link', linkText(unsigned, ''))) }] });
     for (const k of org.discoveryKeys) discoveryKeys.push({ orgId: org.orgId, ...k });
     // One pass to a window (Carl's answer 17): the same id all window long for this organization, language, person and key.
+    // In a window's last 30 days the next window's too, after this one's, so a team leaving town can still let people in
+    // (Carl, 2026-11-24, decision 240 as amended); an older phone takes the first, as it always did.
+    const times = passWindowTimes(deps.now());
     for (const p of org.passes) {
       const roles = passRoles(p.roles, new Set(p.held));
-      const body = await joinPassBody({ orgId: org.orgId, languageId: p.languageId, inviter: profileId, inviterKey: publicKey, roles, nowMs: deps.now() }, deps.sha256);
-      if (body) passes.push({ orgId: org.orgId, languageId: p.languageId, pass: await signJoinPass(body, signer.kid, signer.sign) });
+      for (const nowMs of times) {
+        const body = await joinPassBody({ orgId: org.orgId, languageId: p.languageId, inviter: profileId, inviterKey: publicKey, roles, nowMs }, deps.sha256);
+        if (body) passes.push({ orgId: org.orgId, languageId: p.languageId, pass: await signJoinPass(body, signer.kid, signer.sign) });
+      }
     }
     // A list with no seq yet has nothing a phone could take: it reads seq 1 and up.
     if (org.revokedSeq >= 1) {

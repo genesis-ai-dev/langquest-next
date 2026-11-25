@@ -325,6 +325,28 @@ describe("the pass says what each kept passage's reference audio is", () => {
     origins.known = new Set();
   });
 
+  // 2026-11-24: the BSB's chapters are now named by hash as well as by address. A chapter this phone downloaded by its address
+  // moves to its hash's entry, offline too, and is noted as the library's, so a teammate's phone may be given it.
+  it('a chapter downloaded by its address, once its document names its hash, moves under the hash and may go to a teammate', async () => {
+    // As an earlier pass left it: the chapter downloaded by its address, kept under the hash its bytes have.
+    const byLink = H('e');
+    fake.storage.set('source-audio:index', JSON.stringify({ 'url:https://x/gen1.mp3': { hash: byLink, bytes: 5, format: 'mp3', at: 1 }, 'url:https://x/gen2.mp3': { hash: H('f'), bytes: 6, format: 'mp3', at: 1 } }));
+    const store = Object.assign(fakeStore(), { sizeOf: (h: string) => store.present.get(h) });
+    store.present.set(byLink, 5);
+    store.present.set(H('f'), 6);
+    const o = await offline();
+    const hashed: SourceBookDoc = { ...bookDoc, chapters: [{ chapter: 1, audio: { url: 'https://x/gen1.mp3', hash: byLink } as never }, bookDoc.chapters[1]!] };
+    for (const [h, d] of [[H('1'), sourceDoc], [H('b'), hashed]] as const) { fake.docs.set(h, d); fake.held.set(h, d); }
+    fake.away = true;
+    origins.noted = [];
+    expect(await o.pass(language(store, false) as never, org as never, session as never)).toBe(false);
+    expect(index()[`lib:${byLink}`]).toMatchObject({ hash: byLink });
+    // The address's entry goes, so clearing it never deletes the file the hash's entry plays.
+    expect(index()['url:https://x/gen1.mp3']).toBeUndefined();
+    expect(index()['url:https://x/gen2.mp3']).toBeDefined();
+    expect(origins.noted).toEqual([byLink]);
+  });
+
   it('offline with a document neither here nor readable, it cannot say, and the passage is not called ready', async () => {
     serveAll();
     fake.held.delete(H('b'));

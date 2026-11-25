@@ -1,8 +1,9 @@
 // Playing a study's audio (study/ui.tsx).
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
-import { studyUri } from './studyFiles';
+import { onStudyFiles, studyRevision, studyUri } from './studyFiles';
+import { studySourceNow, type StudySource } from './studyFilesModel';
 import { noteExpected } from '../diagnostics/report';
 
 export interface StudyAudio {
@@ -27,10 +28,15 @@ export interface StudyAudio {
  * first Play, to spare field data.
  */
 export function useStudyAudio(address: string | undefined, estimate: number): StudyAudio {
-  // The phone's copy when the passage is kept offline (studyFiles.ts), else the web.
-  const url = studyUri(address);
+  // Told when a study file arrives, so an open guide takes up the phone's copy without being reopened.
+  useSyncExternalStore(onStudyFiles, studyRevision, studyRevision);
   const player = useRef<AudioPlayer | null>(null);
   const [playing, setPlaying] = useState(false);
+  // The phone's copy when the passage is kept offline (studyFiles.ts), else the web; not switched while it plays.
+  const [src, setSrc] = useState<StudySource>(() => ({ address, url: studyUri(address) }));
+  const now0 = studySourceNow(src, address, studyUri(address), playing);
+  if (now0 !== src) setSrc(now0);
+  const url = now0.url;
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(estimate);
   const [failed, setFailed] = useState(false);

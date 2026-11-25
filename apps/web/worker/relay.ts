@@ -17,7 +17,8 @@ import { accountFromChain, type AccountDeps, type CheckedJoin } from './nearbyJo
  * the caller's token and that the caller may read the language, then each batch's chain
  * (with no expiry, since a batch may be carried for months, and at most two links), its
  * signature and every event's digest. A newcomer's batch (two links) goes through the join
- * route's `accountFromChain`: if the pass still takes them, their account is made with that id
+ * route's `accountFromChain`: if the pass still takes them (for 90 days from their link's `madeAt`
+ * when it has one, decision 240 as amended), their account is made with that id
  * and the events are applied as theirs; if not, no account is made and each event answers
  * `not a member`, so a teammate's copy keeps its Try again for when they are let in; and a
  * database not ready refuses the batch whole, which the phone keeps. The manifest's signature

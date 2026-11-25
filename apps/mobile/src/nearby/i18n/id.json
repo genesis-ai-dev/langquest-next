@@ -76,6 +76,7 @@
       "filesIn": "Rekaman diterima: {{n}}",
       "filesOut": "Rekaman dikirim: {{n}}",
       "guideFilesIn": "Gambar dan audio panduan diterima: {{n}}",
+      "guideFilesShort": "Gambar dan audio panduan yang tidak muat: {{n}}",
       "refused": "Perubahan tidak diambil: {{n}}",
       "filesFailed": "Rekaman yang tidak sampai: {{n}}",
       "noRoom": "Ruang untuk rekaman di ponsel ini habis.",
@@ -90,6 +91,11 @@
     "clockOff": "Jam ponsel rekan tim dan jam ponsel ini berbeda lebih dari lima menit. Periksa tanggal dan jam di kedua ponsel.",
     "newerApp": "Versi aplikasi di ponsel ini dan di ponsel rekan tim terlalu jauh berbeda untuk berbagi. Perbarui aplikasi yang lebih lama lewat toko aplikasi, atau lewat file instalasi dari ponsel yang lain.",
     "newerAppIphone": "Versi aplikasi di ponsel ini dan di ponsel rekan tim terlalu jauh berbeda untuk berbagi. Perbarui aplikasi yang lebih lama lewat toko aplikasi.",
+    "copy": {
+      "lost": "Pembaruan aplikasi menghapus pekerjaan tim yang didapat ponsel ini dari rekan tim. Tetaplah dekat rekan tim yang membuka Berbagi di sekitar untuk mendapatkannya lagi.",
+      "short": "Ponsel ini belum memiliki semua pekerjaan tim. Tetaplah dekat rekan tim yang membuka Berbagi di sekitar untuk mendapatkan sisanya.",
+      "keepVersion": "Sampai ponsel ini terhubung ke internet, jangan pasang versi LangQuest lain di ponsel ini. Pekerjaan tim yang didapat dari rekan tim akan terhapus, dan rekan tim harus memberikannya lagi."
+    },
     "tooOld": "Aplikasi ini terlalu lama untuk berbagi. Perbarui dari toko aplikasi.",
     "farAhead": "Ponsel {{name}} memakai tanggal yang jauh di masa depan. Pekerjaannya menunggu sampai tiba di server.",
     "olderFromServer": "Pekerjaan yang lebih lama akan datang dari server.",
@@ -145,8 +151,13 @@
         "noPass": "Ponsel ini tidak bisa mengizinkan siapa pun masuk. Organisasi Anda harus menyalakannya, Anda harus bisa mengundang orang ke bahasa ini, dan ponsel ini harus sudah tersambung ke internet sejak itu.",
         "expired": "Izin ponsel ini untuk mengizinkan orang masuk sudah habis. Sambungkan ke internet sekali untuk memperbaruinya.",
         "noRole": "Tidak ada peran yang bisa diberikan ponsel ini tanpa internet. Admin bisa memberi peran setelah orang baru itu tersambung ke internet.",
-        "wifiOff": "Nyalakan Wi-Fi di pengaturan ponsel Anda, lalu kembali ke sini."
+        "wifiOff": "Nyalakan Wi-Fi di pengaturan ponsel Anda, lalu kembali ke sini.",
+        "usedUp": "Ponsel ini sudah mengizinkan masuk sebanyak orang yang bisa tanpa internet. Sambungkan ke internet sekali untuk mengizinkan lebih banyak.",
+        "copyNotReady": "Ponsel ini belum selesai mengunduh pekerjaan tim, jadi belum bisa memberi salinan kepada orang baru. Sambungkan ke internet sampai selesai, lalu kembali.",
+        "copyFilling": "Ponsel ini masih menerima pekerjaan tim: {{filled, number}} dari {{total, number}} perikop. Sambungkan ke internet sampai selesai, lalu kembali."
       },
+      "daysLeft": "Sisa hari untuk mengizinkan orang masuk dari ponsel ini: {{n, number}}",
+      "renewSoon": "Sambungkan ke internet sekali sebelum habis, agar ponsel ini tetap bisa mengizinkan orang masuk. Orang yang sudah masuk tidak terpengaruh.",
       "role": "Perannya",
       "roleHelp": "Peran yang didapat orang baru itu. Admin bisa mengubahnya setelah dia tersambung ke internet.",
       "asRole": "Dia bergabung sebagai {{role}}. Admin bisa mengubahnya setelah dia tersambung ke internet.",
@@ -209,6 +220,7 @@
         "refused": "Ponsel ini tidak bisa mengizinkan mereka masuk dengan peran itu. Sambungkan ke internet sekali, lalu coba lagi.",
         "dropped": "Sambungan terputus sebelum mereka diizinkan masuk. Buat kode baru.",
         "droppedAfter": "Mereka sudah masuk, tetapi sambungan terputus. Rekan tim mana pun yang membuka Berbagi di sekitar bisa menyelesaikan salinan awal mereka.",
+        "droppedDocs": "Mereka sudah masuk dan bisa mulai bekerja, tetapi sambungan terputus sebelum semuanya sampai. Rekan tim mana pun yang membuka Berbagi di sekitar bisa memberikan sisanya.",
         "copyShort": "Mereka sudah masuk, tetapi ponsel ini belum punya salinan awal untuk diberikan. Rekan tim mana pun yang membuka Berbagi di sekitar bisa menyelesaikannya.",
         "stopped": "Kode hilang karena Anda meninggalkan layar ini. Buat kode baru.",
         "noCertificate": "Ponsel ini harus tersambung ke internet sekali sebelum bisa mengizinkan siapa pun masuk.",

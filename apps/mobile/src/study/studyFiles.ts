@@ -175,7 +175,18 @@ export function studyUrls(guide: StudyGuide): string[] {
   return [...out];
 }
 
-/** How many of a passage's study files are here; `total` 0 when it has no guide or its guide is not known yet. */
+/** The files a kept passage's guide names by hash, counted with its study files (guideFilesAhead.ts tells them). */
+let storedCounts: ((unitId: string) => { here: number; total: number }) | null = null;
+export function countStoredStudyFiles(counts: (unitId: string) => { here: number; total: number }): void {
+  storedCounts = counts;
+  changed();
+}
+
+/**
+ * How many of a passage's study files are here: those named by address, and those a team's own
+ * guide names by hash (2026-11-24 review, item 20). `total` 0 when it has no guide or its guide is
+ * not known yet.
+ */
 export function studyCounts(unitId: string): { here: number; total: number; refused: number } {
   const urls = wanted.get(unitId) ?? [];
   let here = 0;
@@ -184,8 +195,9 @@ export function studyCounts(unitId: string): { here: number; total: number; refu
     if (hasStudyFile(url)) here++;
     else if (refusedAt.has(url)) refused++;
   }
+  const stored = storedCounts?.(unitId) ?? { here: 0, total: 0 };
   // A file its source refused is not counted as one to come: no wait will bring it (`refused` says how many).
-  return { here, total: urls.length - refused, refused };
+  return { here: here + stored.here, total: urls.length - refused + stored.total, refused };
 }
 
 /**
@@ -401,7 +413,11 @@ async function fetchOne(url: string): Promise<void> {
  * hands over by address: the folder, each address's file name, what is here, what kept passages
  * want, whether the device is online, and the room kept for files none of them needs.
  */
-export const studyFolder = { dir: () => { load(); return DIR; }, nameOf, present, changed, wanted: () => wanted, online: () => online, spare: STUDY_SPARE_BYTES };
+export const studyFolder = {
+  dir: () => { load(); return DIR; }, nameOf, present, changed, wanted: () => wanted, online: () => online, spare: STUDY_SPARE_BYTES,
+  /** Does the wish list name every file this language's kept passages need (`setStudyWanted`'s `complete`)? */
+  whole: () => whole
+};
 
 /** Bumped on every change, for `useSyncExternalStore`. */
 export function studyRevision(): number {

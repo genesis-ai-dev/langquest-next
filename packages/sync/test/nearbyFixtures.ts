@@ -60,7 +60,8 @@ export const LANG = 'p1';
 export const LANG2 = 'p2';
 /** A date that reads as today on every phone here. */
 export const NOW = 1_700_000_000_000;
-export const worker = fakeWorker('k1');
+/** Certificates signed at `NOW`, so they expire a year on as the Worker's do (the review of 2026-11-24, T2). */
+export const worker = fakeWorker('k1', { now: () => NOW });
 export const session = { orgId: ORG, streamId: LANG };
 
 export interface Teammate {

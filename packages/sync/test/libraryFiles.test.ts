@@ -123,14 +123,33 @@ describe.each(STORES)('library files between two members, on the %s store', (_na
     // Small files first (Carl, 2026-11-24): the guide's, then the teammate's backup.
     const asked = pair.sent.b.frames.map((f) => parseMessage(f)).flatMap((p) => (p.kind === 'message' && p.message.t === 'file-ask' ? [p.message.hash] : []));
     expect(asked).toEqual([...[...pictures].sort(), backup]);
-    expect(rb.libraryFiles).toEqual({ held: 0, theirs: 2, got: 2, served: 0 });
-    expect(ra.libraryFiles).toEqual({ held: 2, theirs: 0, got: 0, served: 2 });
+    expect(rb.libraryFiles).toEqual({ held: 0, theirs: 2, got: 2, served: 0, short: 0 });
+    expect(ra.libraryFiles).toEqual({ held: 2, theirs: 0, got: 0, served: 2, short: 0 });
     // The guide's are not counted as recordings: only the backup is one. Nothing was asked in vain.
     expect(rb.files.got).toBe(1);
     expect(ra.files.toldNo).toBe(0);
     for (const hello of [helloOf(pair.sent.a.frames), helloOf(pair.sent.b.frames)]) {
       expect(hello?.kind === 'message' && hello.message.t === 'hello' && hello.message.can.includes(LIBRARY_FILES_ABILITY)).toBe(true);
     }
+  });
+
+  // The 2026-11-24 review (item 22): a library file never makes room, and the person is told how many waited for it.
+  it('a library file that finds no room waits, the rest go on, and the report says how many waited', async () => {
+    const a = await testPhone(server, make(), ana, shelf);
+    const b = await testPhone(server, make(), sam, shelf);
+    const pictures = ['one', 'two'].map((n) => { const x = fileHash(n); shelf.set(`${ana.deviceId}/${x}`, bytesOf(n)); a.files.here.add(x); return x; });
+    const guide = guideNaming(...pictures);
+    withLibraryFiles(a, shelf, new Set());
+    withLibraryFiles(b, shelf, new Set());
+    const fetchFile = b.files.fetchFile.bind(b.files);
+    b.files.fetchFile = async (f) => (f.group === 'reference' ? null : fetchFile(f));
+    const pair = memoryNearbyPair({ time, files: shelf, kind: 'wifi-direct' });
+    const [, rb] = await settled<[NearbySessionReport, NearbySessionReport]>(time,
+      sessionFor(a, 'i', pair.a, time, { library: libraryOf(guide) }).run(),
+      sessionFor(b, 'r', pair.b, time, { library: libraryOf(guide) }).run());
+    expect(rb.ended).toEqual({ how: 'done' });
+    expect(rb.libraryFiles).toMatchObject({ theirs: 2, got: 0, short: 2 });
+    expect(rb.files.noRoom).toBe(false);
   });
 
   it('a source\'s chapter audio comes last, after backups', async () => {

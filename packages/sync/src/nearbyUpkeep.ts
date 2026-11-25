@@ -162,6 +162,17 @@ async function closeSwept(up: NearbyHost, swept: Swept): Promise<void> {
 // ---- attesting ------------------------------------------------------------------
 
 /**
+ * The seq every confirmed row past which is still here, in the log or in what this phone's own
+ * checkpoints kept for claims (2026-11-24, review item 18): the side table's oldest row less one,
+ * or the checkpoint when it holds none. Claims and attestations start here at the lowest.
+ */
+export async function claimsFloorOf(up: Pick<NearbyHost, 'store' | 'orgId' | 'streamId' | 'checkpointSeq'>): Promise<number> {
+  const kept = await up.store.claimableFrom(up.orgId, up.streamId);
+  const checkpoint = (await up.checkpointSeq()) ?? 0;
+  return kept === null ? checkpoint : Math.min(checkpoint, kept - 1);
+}
+
+/**
  * The Worker's answer against this phone's own rows: in `serverSeq` order, past where it
  * asked, each row pulled here the same, and no row here left out, so claims can stop at the
  * contiguous attested seq. A row past the cursor is not here yet. An event no digest can
@@ -199,7 +210,9 @@ export async function attestNearby(up: NearbyHost): Promise<void> {
   const cursor = await store.cursor(orgId, streamId);
   // The newest answer's seq, written with it, so that a sync with nothing new does not read every answer held.
   const newest = up.key('nearbyAttested');
-  let after = Math.max(await up.number(newest), (await up.checkpointSeq()) ?? 0);
+  // From the oldest row still held, the rows checkpoints kept for claims among them (review item 18): a pull in town that
+  // checkpointed as it went is vouched for at the next syncs, a page at a time.
+  let after = Math.max(await up.number(newest), await claimsFloorOf(up));
   for (let pages = 0; after < cursor && pages < ATTEST_PAGES; pages += 1) {
     let answer: Awaited<ReturnType<NonNullable<Transport['attest']>>>;
     try {
@@ -211,7 +224,7 @@ export async function attestNearby(up: NearbyHost): Promise<void> {
     if (!answer) return;
     const attested = parseAttestation(answer.text, { orgId, streamId, kid: answer.kid });
     if (attested?.rows.length === 0) return;
-    const mine = attested ? await store.confirmedAfter(orgId, streamId, after, NEARBY_BATCH_MAX_EVENTS + 1) : [];
+    const mine = attested ? await store.claimableAfter(orgId, streamId, after, NEARBY_BATCH_MAX_EVENTS + 1) : [];
     if (!attested || !await attestationHolds(attested, after, cursor, mine, platform.sha256)) {
       up.diag?.expected('nearby_attest', 'mismatch');
       return;

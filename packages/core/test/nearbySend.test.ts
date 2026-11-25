@@ -207,13 +207,29 @@ describe('shouldClaim', () => {
   });
 
   it('is false for what no phone may claim', () => {
-    expect(yes(event({ id: 'v2:1' }))).toBe(false);
-    expect(yes(event({ id: 'api-1' }))).toBe(false);
     expect(yes(event({ type: 'v1.Redacted' }))).toBe(false);
     expect(yes(event({ type: 'v1.ExternalValueSet' }))).toBe(false);
     expect(yes(event({ type: 'v1.MemberAdded' }))).toBe(false);
     expect(yes(event({ type: 'v1.BlobStored' }))).toBe(false);
     expect(shouldClaim({ event: event(), status: 'confirmed' }, them, { attestedSeq: 20, isRedacted: (id) => id === 'e1' })).toBe(false);
+  });
+
+  it('is true for team work the server wrote: a listener\'s or a link\'s review, a release, an import from v2 (review item 16)', () => {
+    expect(yes(event({ id: 'api-listener-abc', type: 'v1.ReviewRecorded' }))).toBe(true);
+    expect(yes(event({ id: 'api-review-abc', type: 'v1.ReviewRecorded' }))).toBe(true);
+    expect(yes(event({ id: 'api-release-abc', type: 'v1.VersionReleased' }))).toBe(true);
+    expect(yes(event({ id: 'v2:org:key#1:RecordingAdded', type: 'v1.RecordingAdded' }))).toBe(true);
+    expect(yes(event({ id: 'v2:1' }))).toBe(true);
+  });
+
+  it('is false for a server row that is not team work: a file\'s record, a redaction, a type this build does not know', () => {
+    expect(yes(event({ id: 'blob:abc', type: 'v1.BlobStored' }))).toBe(false);
+    expect(yes(event({ id: 'blobinvalid:abc', type: 'v1.BlobInvalidated' }))).toBe(false);
+    expect(yes(event({ id: 'removed:e1', type: 'v1.Redacted' }))).toBe(false);
+    expect(yes(event({ id: 'api-tok1', type: 'v1.ExternalValueSet' }))).toBe(false);
+    expect(yes(event({ id: 'api-1', type: 'v9.FromTheFuture' }))).toBe(false);
+    expect(yes(event({ id: 'accountdeleted:a:org', type: 'v1.MemberRemoved' }))).toBe(false);
+    expect(yes(event({ id: 'pin:o:i:h', type: 'v1.LibraryPinned' }))).toBe(false);
   });
 
   it('is true for a type this build does not know, which it passes on as a pull keeps it', () => {

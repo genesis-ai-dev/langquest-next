@@ -1,7 +1,7 @@
 import { createHash, createHmac, createPrivateKey, createPublicKey, diffieHellman, hkdfSync, sign as edSign, verify as edVerify } from 'node:crypto';
 import { type AnyEvent, type Privilege } from '@langquest-next/core';
 import {
-  attestationText, base64urlEncode, bytesToHex, eventDigest, linkText, nearbyBytes, signJoinPass, utf8Encode, type Attestation, type ChainLink, type ChainOrg, type JoinPass, type WorkerLink
+  attestationText, base64urlEncode, bytesToHex, eventDigest, linkText, NEARBY_CERTIFICATE_MS, nearbyBytes, signJoinPass, utf8Encode, type Attestation, type ChainLink, type ChainOrg, type JoinPass, type WorkerLink
 } from '@langquest-next/core/nearby';
 import type { FindTunables, HeardAdvert, HostDetails, HostOptions, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from '../nearbyLink';
 import { NEARBY_MESSAGE_MAX } from '../nearbyLink';
@@ -64,7 +64,7 @@ export function fakeSigner(installId: string): NearbyCrypto {
 export interface FakeWorker {
   kid: string;
   rootKeys: ReadonlyMap<string, string>;
-  /** A one-link chain, as the certificate call answers. */
+  /** A one-link chain, as the certificate call answers: expiring a year after the worker's clock, or never for a worker made with none. */
   certify(
     holder: { installKey: string; profileId: string; deviceId: string }, org: Pick<ChainOrg, 'orgId'> & Partial<Omit<ChainOrg, 'orgId'>> & { privileges?: Privilege[] },
     o?: { expiresAt?: number }
@@ -77,7 +77,12 @@ export interface FakeWorker {
   signPass(body: JoinPass['body']): Promise<JoinPass>;
 }
 
-export function fakeWorker(kid = 'k1'): FakeWorker {
+/**
+ * The Worker as tests meet it. Given a clock, it signs certificates at that clock's now, so they
+ * age and expire as the Worker's do (docs/nearby-sync-plan.md 5.5); with none, they never expire,
+ * for a test that is about something else.
+ */
+export function fakeWorker(kid = 'k1', o: { now?: () => number } = {}): FakeWorker {
   const root = fakeSigner(`worker:${kid}`);
   const attest: FakeWorker['attest'] = async (att) => {
     const text = attestationText({ v: 1, kid, ...att });
@@ -86,9 +91,9 @@ export function fakeWorker(kid = 'k1'): FakeWorker {
   return {
     kid,
     rootKeys: new Map([[kid, root.publicKey]]),
-    async certify(holder, { orgId, orgSeq = 1, scopes, privileges = [] }, o = {}) {
+    async certify(holder, { orgId, orgSeq = 1, scopes, privileges = [] }, over = {}) {
       const body: WorkerLink['body'] = {
-        ...holder, expiresAt: o.expiresAt ?? Number.MAX_SAFE_INTEGER,
+        ...holder, expiresAt: over.expiresAt ?? (o.now ? o.now() + NEARBY_CERTIFICATE_MS : Number.MAX_SAFE_INTEGER),
         org: { orgId, orgSeq, scopes: scopes ?? [{ level: 'org', privileges }] }
       };
       return [{ kind: 'worker@1', kid, body, sig: await root.sign(nearbyBytes('link', linkText({ kind: 'worker@1', kid, body }, ''))) }];

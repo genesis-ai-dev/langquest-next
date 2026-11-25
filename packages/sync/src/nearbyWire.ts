@@ -29,7 +29,13 @@ export type Message =
    * `joinHotspot` is false on a disguised phone. `awdl` and `joinDirect` came with iPhones (phase 5): a phone
    * that names neither leaves them out, and an older phone drops them, so a plan offers them only when both name them.
    */
-  | { t: 'arrange'; summary: string; radios: { directByName: boolean; band5: boolean; hotspot: boolean; joinHotspot: boolean; awdl?: boolean; joinDirect?: boolean } }
+  /**
+   * `soon`, from 2026-11-24 and only between phones whose Hellos name `files-when-wanted` (review P3): this phone wants
+   * the link that moves files now (it takes a starting copy). Without it from either, the link waits for `wants`.
+   */
+  | { t: 'arrange'; summary: string; radios: { directByName: boolean; band5: boolean; hotspot: boolean; joinHotspot: boolean; awdl?: boolean; joinDirect?: boolean }; soon?: boolean }
+  /** After the events, between phones whose Hellos name `files-when-wanted` (review P3): whether this phone wants files; the link that moves them comes up only if either does. */
+  | { t: 'wants'; files: boolean }
   | ({ t: 'host'; attempt?: number /* the place in the arranged plan; the session refuses a host without it */ } & HostDetails)
   | { t: 'ready' }
   /** `vector` and `holdings` (counters) are by install key. */
@@ -64,15 +70,30 @@ export type Message =
    * organization's nearby features as the inviter's phone last heard them from the server, so a
    * phone that joined offline shares while LangQuest is open as the inviter's does (14.1). Absent
    * from an older inviter, and only names `NEARBY_GRANT_FEATURES` knows; an older newcomer ignores it.
+   * `revoked`, also from 2026-11-24: the Worker's revocation list as the inviter's phone holds it,
+   * exactly as a `revoked` message carries it, so the newcomer refuses a stolen phone before it meets
+   * an honest teammate (review of 2026-11-24, item 11). The newcomer checks it against the Worker's
+   * keys before it keeps it; absent from an older inviter, or when the inviter holds none.
    */
-  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[] }
+  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[]; revoked?: { text: string; kid: string; sig: string } }
   /**
    * `held`, from 2026-11-24 and only to a phone whose Hello names `copy-library`: the sorted hashes of the documents
    * the language uses that the sender holds, as a JSON list, so the asker asks only for those. An older phone ends
    * the session on a part it does not know, so it is never asked.
+   * `labels`, also from 2026-11-24 and only to a phone whose Hello names `copy-labels` (review item 13): what the
+   * sender's phone keeps of the names its language's library items go by in the language `lang` (the app's language,
+   * `library-labels:<lang>`), as a JSON list of `[key, { name, description? }]`. `lang` goes on no other part.
+   * `shared`, also from 2026-11-24 and only to a phone whose Hello names `copy-shared` (review item 9): the rows of
+   * what other organizations share that the sender keeps for the Bibles this language reads (`library-shared:material`,
+   * other organizations' shared sources in the team's languages), as a JSON list.
    */
-  | { t: 'copy-ask'; part: 'state' | 'rows' | 'names' | 'doc' | 'held'; stream?: string; after?: string; hash?: string }
-  | { t: 'copy-part'; part: string; stream?: string; next: string | null; body: string }
+  | { t: 'copy-ask'; part: 'state' | 'rows' | 'names' | 'doc' | 'held' | 'labels' | 'shared'; stream?: string; after?: string; hash?: string; lang?: string }
+  /**
+   * `seq`, from 2026-11-24 and only on a `rows` part: the seq of the sender's checkpoint those rows belong to, so a
+   * newcomer resumes a fill only from a teammate whose checkpoint its copy came from (review item 4). An older phone
+   * ignores it, and an older sender leaves it out.
+   */
+  | { t: 'copy-part'; part: string; stream?: string; next: string | null; body: string; seq?: number }
   | { t: 'copy-no'; reason: 'versions' | 'not-filled' | 'not-allowed' | 'not-here' };
 
 /** A message a phone does not know is ignored. A malformed one ends the session with `bye`. */
@@ -94,6 +115,9 @@ const MAX_WIRE_RANGES = 256;
 const TRANSFER_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const FORMAT = /^[a-z0-9]{1,8}$/;
 const SUMMARY = /^[0-9a-f]{8}$/;
+/** A language code as the app names one (`eng`, `fr`, `zh-Hans`): it goes into a saved key's name, so it holds nothing else. */
+const LANG = /^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8}){0,3}$/;
+const isLang = (v: unknown): v is string => typeof v === 'string' && LANG.test(v);
 
 type Raw = Record<string, unknown>;
 
@@ -135,6 +159,8 @@ function read(t: string, o: Raw): Message | null | undefined {
     }
     case 'you-first': case 'ready': case 'holdings-end': case 'files-done': case 'done':
       return { t };
+    case 'wants':
+      return typeof o['files'] === 'boolean' ? { t, files: o['files'] } : null;
     case 'discovery-key': {
       // `handedKeyHolds` judges the number and the key, and a failure there ends nothing.
       const { gen, key } = o;
@@ -146,8 +172,11 @@ function read(t: string, o: Raw): Message | null | undefined {
       const { directByName, band5, hotspot, joinHotspot, awdl, joinDirect } = r;
       if (typeof directByName !== 'boolean' || typeof band5 !== 'boolean' || typeof hotspot !== 'boolean' || typeof joinHotspot !== 'boolean') return null;
       if (!optionalIs(awdl, (v) => typeof v === 'boolean') || !optionalIs(joinDirect, (v) => typeof v === 'boolean')) return null;
+      const soon = o['soon'];
+      if (!optionalIs(soon, (v) => typeof v === 'boolean')) return null;
       return {
-        t, summary: o['summary'], radios: { directByName, band5, hotspot, joinHotspot, ...optional('awdl', awdl as boolean | undefined), ...optional('joinDirect', joinDirect as boolean | undefined) }
+        t, summary: o['summary'], radios: { directByName, band5, hotspot, joinHotspot, ...optional('awdl', awdl as boolean | undefined), ...optional('joinDirect', joinDirect as boolean | undefined) },
+        ...optional('soon', soon as boolean | undefined)
       };
     }
     case 'host': {
@@ -214,23 +243,31 @@ function read(t: string, o: Raw): Message | null | undefined {
         ? { t, installKey, idSalt, profileId, deviceId, name, proof } : null;
     }
     case 'join-grant': {
-      const { chain, proof, discoveryKey, gen, floor, features } = o;
+      const { chain, proof, discoveryKey, gen, floor, features, revoked } = o;
       if (!(isChain(chain) && isSig(proof) && isKey(discoveryKey) && isCount(gen) && isCount(floor))) return null;
       // A list of names, or none: a field of another kind is malformed, as in every message. Of the names, only those
       // this build knows, each once, so a later build's feature leaves the grant standing.
       if (features !== undefined && !(Array.isArray(features) && features.length <= 16 && features.every((f) => typeof f === 'string'))) return null;
       const known = [...new Set(((features ?? []) as string[]).filter((f) => (NEARBY_GRANT_FEATURES as readonly string[]).includes(f)))];
-      return { t, chain, proof, discoveryKey, gen, floor, ...(known.length ? { features: known } : {}) };
+      // The revocation list as a `revoked` message carries it, or none; its signature is checked by the session.
+      if (revoked !== undefined && !(isRaw(revoked) && typeof revoked['text'] === 'string' && isId(revoked['kid']) && isSig(revoked['sig']))) return null;
+      const r = revoked as Raw | undefined;
+      const list = r === undefined ? undefined : { text: r['text'] as string, kid: r['kid'] as string, sig: r['sig'] as string };
+      return { t, chain, proof, discoveryKey, gen, floor, ...(known.length ? { features: known } : {}), ...optional('revoked', list) };
     }
     case 'copy-ask': {
-      const { part, stream, after, hash } = o;
-      if (!isOneOf(part, ['state', 'rows', 'names', 'doc', 'held'] as const) || !optionalIs(stream, isText) || !optionalIs(after, isText) || !optionalIs(hash, isHash)) return null;
-      return { t, part, ...optional('stream', stream as string | undefined), ...optional('after', after as string | undefined), ...optional('hash', hash as string | undefined) };
+      const { part, stream, after, hash, lang } = o;
+      if (!isOneOf(part, ['state', 'rows', 'names', 'doc', 'held', 'labels', 'shared'] as const) || !optionalIs(stream, isText) || !optionalIs(after, isText) || !optionalIs(hash, isHash)) return null;
+      if (!optionalIs(lang, isLang)) return null;
+      return {
+        t, part, ...optional('stream', stream as string | undefined), ...optional('after', after as string | undefined), ...optional('hash', hash as string | undefined),
+        ...optional('lang', lang as string | undefined)
+      };
     }
     case 'copy-part': {
-      const { part, stream, next, body } = o;
-      if (!isId(part) || !optionalIs(stream, isText) || !(next === null || isText(next)) || !isText(body, NEARBY_COPY_PART_MAX_CHARS)) return null;
-      return { t, part, ...optional('stream', stream as string | undefined), next, body };
+      const { part, stream, next, body, seq } = o;
+      if (!isId(part) || !optionalIs(stream, isText) || !(next === null || isText(next)) || !isText(body, NEARBY_COPY_PART_MAX_CHARS) || !optionalIs(seq, isCount)) return null;
+      return { t, part, ...optional('stream', stream as string | undefined), next, body, ...optional('seq', seq as number | undefined) };
     }
     case 'copy-no':
       return isOneOf(o['reason'], ['versions', 'not-filled', 'not-allowed', 'not-here'] as const) ? { t, reason: o['reason'] } : null;

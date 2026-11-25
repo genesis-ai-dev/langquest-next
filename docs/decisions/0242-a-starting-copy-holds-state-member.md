@@ -28,3 +28,5 @@ pulled from 0; the organization stream pulls into a temporary client. Only
 a newcomer takes organization state from a phone.
 Reverse if: Carl confirms the terms for publishers' documents (then widen
 the allowlist), or newcomers can do too little without source audio.
+
+Amended (2026-11-24, Carl Sauder): the copy's names also take the names checked chains gave people let in offline, for the authors of the signed batches the sender's language holds as well as the cut's members, so work by someone let in offline shows by name on the newcomer; and a session reports the names the chains of the batches and holdings entries it takes give, not only Hello's (review item 12). Still nobody from another organization: chain names and the directory are filtered alike.

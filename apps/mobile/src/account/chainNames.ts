@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { keepChainName } from './chainNamesModel';
+import { keepChainNames } from './chainNamesModel';
 
 /**
  * Names from checked chains, by account (docs/nearby-sync-plan.md 14.1, 5 "Teammates"): someone
@@ -36,9 +36,14 @@ export async function readChainNames(actorId: string): Promise<Record<string, st
   return now;
 }
 
-/** Keep the name a checked chain gives someone let in offline, for this account's screens. */
-export async function noteChainName(actorId: string, profileId: string, name: string): Promise<void> {
-  const next = keepChainName(await readChainNames(actorId), profileId, name);
+/**
+ * Keep every name these checked chains gave, in one write: a session's (`report.names`, from Hello,
+ * batches and holdings entries) or those a starting copy brought for people let in offline
+ * (2026-11-24, review item 12).
+ */
+export async function noteChainNames(actorId: string, names: readonly { profileId: string; name: string }[]): Promise<void> {
+  if (names.length === 0) return;
+  const next = keepChainNames(await readChainNames(actorId), names);
   if (!next) return;
   held.set(actorId, next);
   for (const hear of listeners) hear();

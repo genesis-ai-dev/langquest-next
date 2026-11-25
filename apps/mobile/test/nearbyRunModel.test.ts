@@ -165,6 +165,9 @@ describe('teammates and what came across', () => {
     expect(s.sessions[0]).toMatchObject({ filesIn: 3, guideFilesIn: 7 });
     // Over the Bluetooth pipe, or with a phone that cannot take them, the report says null.
     expect(sessionLineOf('t1', report()).guideFilesIn).toBe(0);
+    // Those the teammate held that waited for room are said too (2026-11-24 review, item 22).
+    expect(sessionLineOf('t1', report({ libraryFiles: { got: 1, short: 4 } })).guideFilesShort).toBe(4);
+    expect(sessionLineOf('t1', report()).guideFilesShort).toBe(0);
   });
 
   it('says "Up to date" only once this run heard someone: level with nobody heard is still looking (5.11)', () => {

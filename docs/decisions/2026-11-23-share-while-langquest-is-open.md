@@ -87,3 +87,26 @@ grant now carries what the inviter's phone last heard of the organization's
 nearby features, and the newcomer keeps `nearby_open` from it until its first
 contact replaces it
 (2026-11-24-a-starting-copy-carries-every-library-document-a-language-uses).
+
+Amended (2026-11-24, Carl Sauder): the join on Let someone in counts as a
+meeting on both phones (decision 230 as amended), so the quiet mode takes
+the inviter and the newcomer at once, whatever the age of the inviter's
+certificate, which the newcomer's chain starts with. A newcomer's certificate
+is its inviter's, and before this the two refused each other while LangQuest
+was open until they met on Share nearby. The security limit is unchanged
+otherwise: a quiet meeting still notes nothing.
+
+Amended (2026-11-24, Carl Sauder): the quiet mode gives and takes starting
+copies, as Share nearby does (review of 2026-11-24, items 6 and 26;
+2026-11-24-a-lost-or-short-copy-is-taken-again-and-updates-wait). A person let
+in offline whose copy is missing, short or lost to an update takes one from a
+teammate on the same versions, and an Android phone gives one only to a phone
+that asks and passes the read gate and Hello's limits, which are unchanged.
+
+Amended (2026-11-24, Carl Sauder): after the review of nearby sync that day
+(P2), recording or playing keeps the quiet room from starting, but no longer
+stops one that runs: it is held, finding nothing and starting no session, a
+session under way finishing unless the phone records, and finds again after
+15 seconds of quiet. A reviewer plays clip after clip, and each used to stop
+the room, cut its session and write a diagnostic, and build it all again
+after (docs/decisions/2026-11-24-nearby-sessions-spare-the-radios-and-the-round-trips.md).

@@ -1,5 +1,5 @@
 import { WriteQueue } from './writeQueue';
-import { nearbyBudgetOf, passIdOfChain, type EventStore, type KeptKind, type KeptRecord, type LocalEvent, type NearbyAttestRow, type NearbyBatchRow, type NearbyUse, type WriteBatch } from './types';
+import { nearbyBudgetOf, passIdOfChain, type EventStore, type KeptKind, type KeptRecord, type LocalEvent, type NearbyAttestRow, type NearbyBatchRow, type NearbyClaimableBound, type NearbyUse, type WriteBatch } from './types';
 
 /**
  * A row as SQLite gives it back: no property holding undefined. An event carrying
@@ -25,6 +25,8 @@ export class MemoryStore implements EventStore {
   private nearbyBatches = new Map<string, NearbyBatchRow>();
   /** `${org}/${stream}/${lastSeq}` -> row. */
   private nearbyAttests = new Map<string, NearbyAttestRow>();
+  /** `${org}/${stream}` -> the confirmed rows checkpoints dropped, kept for claims (`prune`'s `claimable`), by id. */
+  private claimable = new Map<string, Map<string, LocalEvent>>();
 
   commit(batch: WriteBatch): Promise<void> {
     return this.writer.run(() => this.commitNow(batch));
@@ -44,7 +46,7 @@ export class MemoryStore implements EventStore {
     }
     if (batch.cursor) this.cursors.set(`${batch.cursor.orgId}/${batch.cursor.streamId}`, batch.cursor.seq);
     for (const [k, v] of Object.entries(batch.meta ?? {})) this.metas.set(k, v);
-    if (batch.prune) await this.pruneNow(batch.prune.orgId, batch.prune.streamId, batch.prune.uptoSeq);
+    if (batch.prune) await this.pruneNow(batch.prune.orgId, batch.prune.streamId, batch.prune.uptoSeq, batch.prune.claimable);
     if (batch.kept) {
       const key = `${batch.kept.orgId}/${batch.kept.streamId}`;
       if (batch.kept.clear) this.kept.delete(key);
@@ -185,6 +187,18 @@ export class MemoryStore implements EventStore {
       .slice(0, limit);
   }
 
+  async claimableAfter(orgId: string, streamId: string, afterSeq: number, limit: number): Promise<LocalEvent[]> {
+    const log = this.stream(orgId, streamId).filter((e) => e.status === 'confirmed' && e.event.serverSeq !== undefined && e.event.serverSeq > afterSeq);
+    const ids = new Set(log.map((l) => l.event.id));
+    const side = [...(this.claimable.get(`${orgId}/${streamId}`)?.values() ?? [])].filter((l) => l.event.serverSeq! > afterSeq && !ids.has(l.event.id));
+    return [...log, ...side].sort((a, b) => a.event.serverSeq! - b.event.serverSeq!).slice(0, limit);
+  }
+
+  async claimableFrom(orgId: string, streamId: string): Promise<number | null> {
+    const seqs = [...(this.claimable.get(`${orgId}/${streamId}`)?.values() ?? [])].map((l) => l.event.serverSeq!);
+    return seqs.length > 0 ? Math.min(...seqs) : null;
+  }
+
   private batchesOf(orgId: string, streamId: string): NearbyBatchRow[] {
     return [...this.nearbyBatches.values()]
       .filter((b) => b.orgId === orgId && b.streamId === streamId)
@@ -265,11 +279,35 @@ export class MemoryStore implements EventStore {
     await this.commit({ prune: { orgId, streamId, uptoSeq } });
   }
 
-  private async pruneNow(orgId: string, streamId: string, uptoSeq: number): Promise<void> {
+  private async pruneNow(orgId: string, streamId: string, uptoSeq: number, claimable?: NearbyClaimableBound): Promise<void> {
+    const where = `${orgId}/${streamId}`;
+    const side = claimable ? this.claimable.get(where) ?? new Map<string, LocalEvent>() : null;
     for (const [id, e] of this.events) {
       if (e.status === 'confirmed' && e.event.orgId === orgId && e.event.streamId === streamId
-          && (e.event.serverSeq ?? Infinity) <= uptoSeq) this.events.delete(id);
+          && (e.event.serverSeq ?? Infinity) <= uptoSeq) {
+        side?.set(id, stored(e));
+        this.events.delete(id);
+      }
     }
+    if (!side || !claimable) {
+      this.claimable.delete(where);
+      return;
+    }
+    // The newest rows within both bounds, so what stays is a run up to the checkpoint.
+    const newest = [...side.values()].sort((a, b) => b.event.serverSeq! - a.event.serverSeq!);
+    let chars = 0;
+    let kept = 0;
+    for (const l of newest) {
+      chars += JSON.stringify(l.event).length;
+      if (kept >= claimable.maxRows || chars > claimable.maxChars) break;
+      kept += 1;
+    }
+    const stays = new Map(newest.slice(0, kept).map((l) => [l.event.id, l]));
+    if (stays.size > 0) this.claimable.set(where, stays);
+    else this.claimable.delete(where);
+    // An answer whose rows are all gone speaks for nothing here.
+    const from = kept > 0 ? newest[kept - 1]!.event.serverSeq! : uptoSeq + 1;
+    for (const [key, a] of this.nearbyAttests) if (a.orgId === orgId && a.streamId === streamId && a.lastSeq < from) this.nearbyAttests.delete(key);
   }
 
   async meta(key: string): Promise<string | undefined> {

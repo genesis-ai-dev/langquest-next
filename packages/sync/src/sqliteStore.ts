@@ -1,7 +1,7 @@
 import { WriteQueue } from './writeQueue';
 import type { AnyEvent } from '@langquest-next/core';
 import type { NearbyVia } from '@langquest-next/core/nearby';
-import type { EventStore, KeptKind, KeptRecord, LocalEvent, NearbyAttestRow, NearbyBatchRow, NearbyUse, WriteBatch } from './types';
+import type { EventStore, KeptKind, KeptRecord, LocalEvent, NearbyAttestRow, NearbyBatchRow, NearbyClaimableBound, NearbyUse, WriteBatch } from './types';
 
 /**
  * Minimal SQL driver so the same store runs on expo-sqlite in the app and on
@@ -93,6 +93,9 @@ export class SqliteStore implements EventStore {
     )`);
     await db.run(`create index if not exists kept_rows_unit on kept_rows (org_id, stream_id, kind, unit_id)`);
     await db.run(`create index if not exists kept_rows_ref on kept_rows (org_id, stream_id, kind, ref)`);
+    // Rows of a kind by id in any organization and stream (`keptIdsAnywhere`): without it every library file served scanned
+    // every kept row (2026-11-24 review, P7).
+    await db.run(`create index if not exists kept_rows_kind_id on kept_rows (kind, id)`);
     await db.run(`create table if not exists nearby_batches (
       org_id text not null,
       stream_id text not null,
@@ -115,6 +118,15 @@ export class SqliteStore implements EventStore {
       sig text not null,
       primary key (org_id, stream_id, last_seq)
     )`);
+    // The confirmed rows a checkpoint of this phone's own dropped, newest kept, for claims (2026-11-24, review item 18).
+    await db.run(`create table if not exists nearby_claimable (
+      org_id text not null,
+      stream_id text not null,
+      server_seq integer not null,
+      id text not null,
+      json text not null,
+      primary key (org_id, stream_id, server_seq)
+    )`);
     return new SqliteStore(db);
   }
 
@@ -125,7 +137,7 @@ export class SqliteStore implements EventStore {
       if (batch.dropNearby) await this.dropNearbyOn(tx, batch.dropNearby);
       if (batch.cursor) await this.setCursorOn(tx, batch.cursor.orgId, batch.cursor.streamId, batch.cursor.seq);
       for (const [k, v] of Object.entries(batch.meta ?? {})) await this.setMetaOn(tx, k, v);
-      if (batch.prune) await this.pruneOn(tx, batch.prune.orgId, batch.prune.streamId, batch.prune.uptoSeq);
+      if (batch.prune) await this.pruneOn(tx, batch.prune.orgId, batch.prune.streamId, batch.prune.uptoSeq, batch.prune.claimable);
       if (batch.kept) {
         const { orgId, streamId } = batch.kept;
         if (batch.kept.clear || batch.kept.replaceFrom !== undefined) await tx.run(`delete from kept_rows where org_id = ? and stream_id = ?`, [orgId, streamId]);
@@ -361,6 +373,26 @@ where e.org_id=? and e.stream_id=? and e.status='nearby' group by 1`,
     return rows.map(toLocal);
   }
 
+  async claimableAfter(orgId: string, streamId: string, afterSeq: number, limit: number): Promise<LocalEvent[]> {
+    const rows = await this.db.all<Row>(
+      `select * from (
+         select id, status, reject_reason, server_seq, json, via from events
+          where org_id = ? and stream_id = ? and status = 'confirmed' and server_seq > ?
+         union all
+         select c.id, 'confirmed' as status, null as reject_reason, c.server_seq, c.json, null as via from nearby_claimable c
+          where c.org_id = ? and c.stream_id = ? and c.server_seq > ?
+            and not exists (select 1 from events e where e.id = c.id and e.status = 'confirmed')
+       ) order by server_seq limit ?`,
+      [orgId, streamId, afterSeq, orgId, streamId, afterSeq, limit]
+    );
+    return rows.map(toLocal);
+  }
+
+  async claimableFrom(orgId: string, streamId: string): Promise<number | null> {
+    const [row] = await this.db.all<{ low: number | null }>(`select min(server_seq) as low from nearby_claimable where org_id = ? and stream_id = ?`, [orgId, streamId]);
+    return row?.low === null || row?.low === undefined ? null : Number(row.low);
+  }
+
   async batchKeys(orgId: string, streamId: string): Promise<{ key: string; n: number; actorId: string; firstHlc: string | null }[]> {
     const rows = await this.db.all<{ signer_key: string; n: number; actor_id: string; first_hlc: string | null }>(
       `select signer_key, n, actor_id, first_hlc from nearby_batches where org_id = ? and stream_id = ? order by signer_key, n`,
@@ -466,7 +498,36 @@ where e.org_id=? and e.stream_id=? and e.status='nearby' group by 1`,
     await this.commit({ prune: { orgId, streamId, uptoSeq } });
   }
 
-  private async pruneOn(db: SqlDriver, orgId: string, streamId: string, uptoSeq: number): Promise<void> {
+  private async pruneOn(db: SqlDriver, orgId: string, streamId: string, uptoSeq: number, claimable?: NearbyClaimableBound): Promise<void> {
+    if (!claimable) {
+      // A server's snapshot, or anything else that is not a checkpoint of this log: the side table could not run on from here.
+      await db.run(`delete from nearby_claimable where org_id = ? and stream_id = ?`, [orgId, streamId]);
+    } else {
+      await db.run(
+        `insert into nearby_claimable (org_id, stream_id, server_seq, id, json)
+         select org_id, stream_id, server_seq, id, json from events
+          where org_id = ? and stream_id = ? and status = 'confirmed' and server_seq <= ?
+         on conflict(org_id, stream_id, server_seq) do nothing`,
+        [orgId, streamId, uptoSeq]
+      );
+      // The newest rows within both bounds stay, so what is kept is a run up to the checkpoint.
+      const [cut] = await db.all<{ server_seq: number }>(
+        `select server_seq from (
+           select server_seq,
+                  row_number() over (order by server_seq desc) as n,
+                  sum(length(json)) over (order by server_seq desc rows unbounded preceding) as chars
+             from nearby_claimable where org_id = ? and stream_id = ?
+         ) where n > ? or chars > ? order by server_seq desc limit 1`,
+        [orgId, streamId, claimable.maxRows, claimable.maxChars]
+      );
+      if (cut) await db.run(`delete from nearby_claimable where org_id = ? and stream_id = ? and server_seq <= ?`, [orgId, streamId, Number(cut.server_seq)]);
+      // An answer whose rows are all gone speaks for nothing here.
+      await db.run(
+        `delete from nearby_attests where org_id = ? and stream_id = ?
+            and last_seq < coalesce((select min(server_seq) from nearby_claimable where org_id = ? and stream_id = ?), ? + 1)`,
+        [orgId, streamId, orgId, streamId, uptoSeq]
+      );
+    }
     await db.run(
       `delete from events where org_id = ? and stream_id = ? and status = 'confirmed' and server_seq <= ?`,
       [orgId, streamId, uptoSeq]

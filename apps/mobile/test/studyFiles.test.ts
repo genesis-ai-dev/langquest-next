@@ -131,6 +131,15 @@ describe('study files kept for offline (decisions.md 61)', () => {
     expect(f.studyCounts('other')).toEqual({ here: 0, total: 0, refused: 0 });
   });
 
+  // The 2026-11-24 review (item 20): a team's own guide names its files by hash; they count too, so the passage is not ready without them.
+  it('counts the files a team\'s guide names by hash with the rest, as the download ahead tells them', async () => {
+    const f = await import('../src/study/studyFiles');
+    f.setStudyWanted(new Map([['luke1', ['https://x/a.mp3']]]), false);
+    f.countStoredStudyFiles((unitId) => (unitId === 'luke1' ? { here: 1, total: 3 } : { here: 0, total: 0 }));
+    expect(f.studyCounts('luke1')).toEqual({ here: 1, total: 4, refused: 0 });
+    expect(f.studyCounts('other')).toEqual({ here: 0, total: 0, refused: 0 });
+  });
+
   it('offline, it counts what is missing and fetches nothing', async () => {
     const f = await import('../src/study/studyFiles');
     f.setStudyWanted(new Map([['luke1', ['https://x/a.mp3']]]), false);

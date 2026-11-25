@@ -76,6 +76,7 @@
       "filesIn": "Gravações recebidas: {{n}}",
       "filesOut": "Gravações enviadas: {{n}}",
       "guideFilesIn": "Imagens e áudios de guias recebidos: {{n}}",
+      "guideFilesShort": "Imagens e áudios de guias que não couberam: {{n}}",
       "refused": "Mudanças não aceitas: {{n}}",
       "filesFailed": "Gravações que não chegaram: {{n}}",
       "noRoom": "Este celular ficou sem espaço para gravações.",
@@ -90,6 +91,11 @@
     "clockOff": "O relógio de um colega e o deste celular estão diferentes em mais de cinco minutos. Confira a data e a hora nos dois celulares.",
     "newerApp": "O app deste celular e o de um colega têm versões diferentes demais para compartilhar. Atualize o mais antigo pela loja ou com o arquivo de instalação do outro celular.",
     "newerAppIphone": "O app deste celular e o de um colega têm versões diferentes demais para compartilhar. Atualize o mais antigo pela loja.",
+    "copy": {
+      "lost": "Uma atualização do app apagou o trabalho da equipe que este celular recebeu de um colega. Fique perto de um colega com o Compartilhar por perto aberto para recebê-lo de novo.",
+      "short": "Este celular ainda não tem todo o trabalho da equipe. Fique perto de um colega com o Compartilhar por perto aberto para receber o resto.",
+      "keepVersion": "Até este celular se conectar à internet, não instale outra versão do LangQuest nele. O trabalho da equipe que ele recebeu de um colega seria apagado, e um colega teria que dá-lo de novo."
+    },
     "tooOld": "Este app é antigo demais para compartilhar. Atualize pela loja.",
     "farAhead": "O celular de {{name}} está com uma data muito no futuro. O trabalho dessa pessoa espera até chegar ao servidor.",
     "olderFromServer": "O trabalho mais antigo virá do servidor.",
@@ -145,8 +151,13 @@
         "noPass": "Este celular não pode deixar ninguém entrar. A sua organização precisa ter isso ligado, você precisa poder convidar pessoas para este idioma, e este celular precisa ter se conectado à internet depois disso.",
         "expired": "A permissão deste celular para deixar pessoas entrarem venceu. Conecte-se à internet uma vez para renová-la.",
         "noRole": "Não há nenhuma função que este celular possa dar sem internet. Um administrador pode dar funções depois que a pessoa nova se conectar à internet.",
-        "wifiOff": "Ligue o Wi-Fi nas configurações do celular, depois volte."
+        "wifiOff": "Ligue o Wi-Fi nas configurações do celular, depois volte.",
+        "usedUp": "Este celular já deixou entrar todas as pessoas que pode sem internet. Conecte-se à internet uma vez para deixar entrar mais.",
+        "copyNotReady": "Este celular não terminou de baixar o trabalho da equipe, então ainda não pode dar uma cópia a uma pessoa nova. Conecte-se à internet até terminar e depois volte.",
+        "copyFilling": "Este celular ainda está recebendo o trabalho da equipe: {{filled, number}} de {{total, number}} passagens. Conecte-se à internet até terminar e depois volte."
       },
+      "daysLeft": "Dias restantes para deixar pessoas entrarem por este celular: {{n, number}}",
+      "renewSoon": "Conecte-se à internet uma vez antes que acabem, para que este celular possa continuar deixando pessoas entrarem. Quem já entrou não é afetado.",
       "role": "A função dela",
       "roleHelp": "A função que a pessoa nova recebe. Um administrador pode mudá-la depois que ela se conectar à internet.",
       "asRole": "A pessoa entra como {{role}}. Um administrador pode mudar isso depois que ela se conectar à internet.",
@@ -209,6 +220,7 @@
         "refused": "Este celular não conseguiu deixar a pessoa entrar com essa função. Conecte-se à internet uma vez e tente de novo.",
         "dropped": "A conexão caiu antes de a pessoa entrar. Crie um código novo.",
         "droppedAfter": "A pessoa entrou, mas a conexão caiu. Qualquer colega com o Compartilhar por perto aberto pode terminar a cópia inicial dela.",
+        "droppedDocs": "A pessoa entrou e já pode começar a trabalhar, mas a conexão caiu antes de chegar tudo. Qualquer colega com o Compartilhar por perto aberto pode passar o resto para ela.",
         "copyShort": "A pessoa entrou, mas este telefone ainda não tinha uma cópia inicial para dar a ela. Qualquer colega com o Compartilhar por perto aberto pode terminá-la.",
         "stopped": "O código não vale mais porque você saiu desta tela. Crie um novo.",
         "noCertificate": "Este celular precisa se conectar à internet uma vez antes de poder deixar alguém entrar.",

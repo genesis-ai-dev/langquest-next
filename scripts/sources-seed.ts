@@ -30,6 +30,8 @@ import {
 import { abbreviationOf, chooseFilesets, type DbpFileset, type Testaments } from '../apps/web/worker/bible';
 
 const LIBRARY = fileURLToPath(new URL('../library/', import.meta.url));
+/** Each BSB chapter's MP3 hash, written by `npm run library:bsb-audio` (scripts/bsb-audio.ts). */
+export const BSB_AUDIO_HASHES = join(LIBRARY, 'bsb-audio.json');
 
 interface SourceSpec {
   bibleId: string;
@@ -201,12 +203,34 @@ export function timingsByChapter(docs: TimingDoc[]): Map<string, TimingDoc> {
 }
 
 /**
- * The BSB read by Frederick Surrey: one `sourceBook@1` per book (verses, the
- * chapter's MP3, its timing's hash when there is one) and the `source@1`
- * that lists them. A timing that names another recording than the chapter's
- * MP3 (`audio.source.url`) is left out.
+ * Each BSB chapter's MP3 by `BOOK.chapter` (`GEN.1`): the SHA-256 and size of
+ * the bytes at its address, as `npm run library:bsb-audio` found them
+ * (`library/bsb-audio.json`).
  */
-function bsbDocuments(text: ParsedText, eng: string, timings: Map<string, TimingDoc>, warn: (m: string) => void = () => {}): {
+export type BsbAudioHashes = ReadonlyMap<string, { sha256: string; bytes: number }>;
+
+/** `library/bsb-audio.json`, or another file in its shape; an entry that is not a SHA-256 and a size is refused. */
+export function readBsbAudio(json: unknown): BsbAudioHashes {
+  if (typeof json !== 'object' || json === null || Array.isArray(json)) throw new Error('the BSB audio hashes are an object by BOOK.chapter');
+  const out = new Map<string, { sha256: string; bytes: number }>();
+  for (const [at, v] of Object.entries(json as Record<string, unknown>)) {
+    const e = v as { sha256?: unknown; bytes?: unknown } | null;
+    if (!/^[A-Z0-9]{3}\.[1-9]\d{0,2}$/.test(at) || !e || !isHash(e.sha256) || !Number.isInteger(e.bytes) || (e.bytes as number) <= 0) {
+      throw new Error(`the BSB audio hash for ${at} is not a SHA-256 and a size`);
+    }
+    out.set(at, { sha256: e.sha256 as string, bytes: e.bytes as number });
+  }
+  return out;
+}
+
+/**
+ * The BSB read by Frederick Surrey: one `sourceBook@1` per book (verses, the
+ * chapter's MP3, by hash too when it was hashed, its timing's hash when there
+ * is one) and the `source@1` that lists them. A timing that names another
+ * recording than the chapter's MP3 (`audio.source.url`), or other bytes than
+ * the hashed MP3's, is left out.
+ */
+function bsbDocuments(text: ParsedText, eng: string, timings: Map<string, TimingDoc>, audio: BsbAudioHashes, warn: (m: string) => void = () => {}): {
   timings: TimingDoc[]; books: SourceBookDoc[]; source: SourceDoc;
 } {
   const names = JSON.parse(readFileSync(join(LIBRARY, 'books.eng.json'), 'utf8')) as Record<string, string>;
@@ -218,16 +242,20 @@ function bsbDocuments(text: ParsedText, eng: string, timings: Map<string, Timing
       const url = bsbAudioUrl(book, chapter);
       const t = timings.get(`${book}.${chapter}`);
       unused.delete(`${book}.${chapter}`);
+      const known = audio.get(`${book}.${chapter}`);
       let timing: string | undefined;
       if (t) {
         const named = t.audio.source?.['url'];
         if (named && named !== url) warn(`timing for ${book} ${chapter} names another recording; left out`);
+        else if (known && t.audio.sha256 !== known.sha256) warn(`timing for ${book} ${chapter} was made from other bytes than the chapter's MP3; left out`);
         else {
           used.push(t);
           timing = hashOf(t);
         }
       }
-      return { chapter, verses, audio: { url, format: 'mp3' }, ...(timing ? { timing } : {}) };
+      // Named by hash too when the MP3 was hashed (`library/bsb-audio.json`): a phone then checks what it downloads, and a
+      // teammate's phone may pass the chapter on (2026-11-24-library-files-move-between-teammates-as-reference-files).
+      return { chapter, verses, audio: { url, ...(known ? { hash: known.sha256 } : {}), format: 'mp3' }, ...(timing ? { timing } : {}) };
     });
     books.push(withDeps({ format: 'sourceBook@1', book, chapters, deps: [] } satisfies SourceBookDoc));
   }
@@ -257,6 +285,8 @@ export function buildSources(input: {
   bibles: FetchedBible[];
   bsbText?: ParsedText;
   timings?: TimingDoc[];
+  /** Each chapter's MP3 hash (`readBsbAudio`); a chapter missing from it is named by address alone. */
+  bsbAudio?: BsbAudioHashes;
   versifications: Record<string, string>;
   warn?: (m: string) => void;
 }): SourceBuild {
@@ -279,7 +309,7 @@ export function buildSources(input: {
     items.push({ itemId: `langquest.source.${b.spec.slug}`, kind: 'material', name: doc.name, description: doc.description!, docHash: put(doc) });
   }
   if (input.bsbText) {
-    const bsb = bsbDocuments(input.bsbText, eng, timingsByChapter(input.timings ?? []), input.warn);
+    const bsb = bsbDocuments(input.bsbText, eng, timingsByChapter(input.timings ?? []), input.bsbAudio ?? new Map(), input.warn);
     for (const t of bsb.timings) put(t);
     for (const b of bsb.books) put(b);
     items.push({ itemId: 'langquest.source.bsb-fs', kind: 'material', name: bsb.source.name, description: bsb.source.description!, docHash: put(bsb.source) });
@@ -386,7 +416,7 @@ async function fetchBibleBrainSources(key: string, versificationBooks: Record<st
 }
 
 /** berean.bible's text, downloaded once into the OS temp directory (never into the repository). */
-async function loadBsbText(path?: string): Promise<string> {
+export async function loadBsbText(path?: string): Promise<string> {
   if (path) return readFileSync(path, 'utf8');
   const dir = join(tmpdir(), 'langquest-sources');
   const file = join(dir, 'bsb.txt');
@@ -415,7 +445,7 @@ function readTimings(dir: string, versifications: Record<string, string>): Timin
  */
 export async function sourcesFor(
   versificationDocs: { code: string; hash: string; books: string[] }[],
-  opts: { timingsDir?: string | undefined; bsbTextPath?: string | undefined; key?: string | undefined },
+  opts: { timingsDir?: string | undefined; bsbTextPath?: string | undefined; bsbAudioPath?: string | undefined; key?: string | undefined },
   log: (m: string) => void = console.log
 ): Promise<SourceBuild> {
   const versifications = Object.fromEntries(versificationDocs.map((v) => [v.code, v.hash]));
@@ -428,5 +458,10 @@ export async function sourcesFor(
     log('sources: BIBLE_BRAIN_ACCESS_KEY is not set, so only the BSB read by Frederick Surrey is built');
   }
   const timings = opts.timingsDir ? readTimings(opts.timingsDir, versifications) : [];
-  return buildSources({ bibles, bsbText: parseBsbText(await loadBsbText(opts.bsbTextPath)), timings, versifications, warn: (m) => log(`  ${m}`) });
+  // The chapters' MP3 hashes, from library/bsb-audio.json unless another file is named. Without them every chapter is named
+  // by address alone, and no phone can pass one to a teammate.
+  const audioPath = opts.bsbAudioPath ?? BSB_AUDIO_HASHES;
+  const bsbAudio = existsSync(audioPath) ? readBsbAudio(JSON.parse(readFileSync(audioPath, 'utf8'))) : new Map();
+  if (bsbAudio.size === 0) log('sources: no BSB audio hashes (npm run library:bsb-audio), so its chapters are named by address alone');
+  return buildSources({ bibles, bsbText: parseBsbText(await loadBsbText(opts.bsbTextPath)), timings, bsbAudio, versifications, warn: (m) => log(`  ${m}`) });
 }

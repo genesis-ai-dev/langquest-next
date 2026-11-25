@@ -469,6 +469,69 @@ describe.each(impls)('%s nearby contract', (_name, make) => {
     expect(await s.attestedUpTo('o', 'q')).toEqual([attest(5, { streamId: 'q' })]);
   });
 
+  describe('rows a checkpoint keeps for claims (review item 18)', () => {
+    const attest = (lastSeq: number): NearbyAttestRow => ({ orgId: 'o', streamId: 'p', lastSeq, text: `t${lastSeq}`, kid: 'k1', sig: `s${lastSeq}` });
+    const confirmed = (n: number, stream = 'p'): LocalEvent => ({ event: { ...ev(`c${n}${stream === 'p' ? '' : stream}`, `h${String(n).padStart(3, '0')}`, n), streamId: stream } as AnyEvent, status: 'confirmed' });
+    const seqs = (rows: LocalEvent[]) => rows.map((l) => l.event.serverSeq);
+    const bound = { maxRows: 100, maxChars: 1_000_000 };
+
+    it('a prune with claimable keeps the rows it drops, read after the log, and confirmedAfter reads the log alone', async () => {
+      const s = await make();
+      await s.commit({ events: [1, 2, 3, 4, 5].map((n) => confirmed(n)) });
+      await s.commit({ events: [confirmed(12, 'q')] });
+      await s.commit({ prune: { orgId: 'o', streamId: 'p', uptoSeq: 3, claimable: bound } });
+      expect(seqs(await s.confirmedAfter('o', 'p', 0, 10))).toEqual([4, 5]);
+      expect(seqs(await s.claimableAfter('o', 'p', 0, 10))).toEqual([1, 2, 3, 4, 5]);
+      expect(seqs(await s.claimableAfter('o', 'p', 1, 2))).toEqual([2, 3]);
+      expect(await s.claimableFrom('o', 'p')).toBe(1);
+      expect(await s.claimableFrom('o', 'q')).toBeNull();
+      // Each row reads back as it was, confirmed and whole.
+      const [first] = await s.claimableAfter('o', 'p', 0, 1);
+      expect(first).toEqual(confirmed(1));
+      // Another stream's rows are its own.
+      expect(seqs(await s.claimableAfter('o', 'q', 0, 10))).toEqual([12]);
+    });
+
+    it('keeps the newest rows within both bounds, and an answer goes only once all its rows have', async () => {
+      const s = await make();
+      await s.commit({ attests: [attest(2), attest(4), attest(6)] });
+      await s.commit({ events: [1, 2, 3, 4].map((n) => confirmed(n)) });
+      await s.commit({ prune: { orgId: 'o', streamId: 'p', uptoSeq: 4, claimable: { ...bound, maxRows: 3 } } });
+      expect(seqs(await s.claimableAfter('o', 'p', 0, 10))).toEqual([2, 3, 4]);
+      expect((await s.attestedUpTo('o', 'p')).map((a) => a.lastSeq)).toEqual([2, 4, 6]);
+      await s.commit({ events: [5, 6].map((n) => confirmed(n)) });
+      await s.commit({ prune: { orgId: 'o', streamId: 'p', uptoSeq: 6, claimable: { ...bound, maxRows: 3 } } });
+      expect(seqs(await s.claimableAfter('o', 'p', 0, 10))).toEqual([4, 5, 6]);
+      expect(await s.claimableFrom('o', 'p')).toBe(4);
+      expect((await s.attestedUpTo('o', 'p')).map((a) => a.lastSeq)).toEqual([4, 6]);
+      // Characters bound it too: one row's JSON is all it may keep.
+      const one = JSON.stringify(confirmed(7).event).length;
+      await s.commit({ events: [7].map((n) => confirmed(n)) });
+      await s.commit({ prune: { orgId: 'o', streamId: 'p', uptoSeq: 7, claimable: { maxRows: 100, maxChars: one + 5 } } });
+      expect(seqs(await s.claimableAfter('o', 'p', 0, 10))).toEqual([7]);
+      expect((await s.attestedUpTo('o', 'p')).map((a) => a.lastSeq)).toEqual([]);
+    });
+
+    it('a prune without claimable, as a server snapshot\'s, lets every kept row go, and answers as before', async () => {
+      const s = await make();
+      await s.commit({ events: [1, 2, 3].map((n) => confirmed(n)), attests: [attest(2), attest(9)] });
+      await s.commit({ prune: { orgId: 'o', streamId: 'p', uptoSeq: 2, claimable: bound } });
+      expect(await s.claimableFrom('o', 'p')).toBe(1);
+      await s.commit({ prune: { orgId: 'o', streamId: 'p', uptoSeq: 3 } });
+      expect(await s.claimableFrom('o', 'p')).toBeNull();
+      expect(await s.claimableAfter('o', 'p', 0, 10)).toEqual([]);
+    });
+
+    it('an id in the log and the side table is read once, from the log', async () => {
+      const s = await make();
+      await s.commit({ events: [1, 2].map((n) => confirmed(n)) });
+      await s.commit({ prune: { orgId: 'o', streamId: 'p', uptoSeq: 2, claimable: bound } });
+      // Pulled again from the start: the log holds them too.
+      await s.commit({ events: [1, 2, 3].map((n) => confirmed(n)) });
+      expect(seqs(await s.claimableAfter('o', 'p', 0, 10))).toEqual([1, 2, 3]);
+    });
+  });
+
   it('clearMeta removes one prefix, exactly, and an empty prefix removes nothing', async () => {
     const s = await make();
     for (const k of ['nearbyPeers:o/p', 'nearbyPeers:o/q', 'NEARBYPEERS:o/r', 'nearbyPeersOther', 'nearby_Peers:x', 'deviceId']) await s.setMeta(k, 'v');

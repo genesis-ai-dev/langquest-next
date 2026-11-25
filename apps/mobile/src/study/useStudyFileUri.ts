@@ -4,46 +4,17 @@
 // from the organization's guide files (`<org>/_org/<hash>.<ext>`, where the
 // guide editor puts them); until it arrives, or if it cannot, the URL stands
 // in when there is one.
-import { ORG_STREAM } from '@langquest-next/core';
 import { classifyTransferFailure } from '@langquest-next/sync';
 import { useEffect, useState } from 'react';
 import { getBlobStore, type BlobStore } from '../sync/blobs';
 import { isStoredFormat, type StoredFile } from '../storage/storedFile';
-import { downloadBlob } from '../server/blobTransport';
 import { noteExpected } from '../diagnostics/report';
-import { timedTransfer } from '../diagnostics/diagnostics';
-import { noteLibraryFiles } from '../library/libraryOrigins';
+import { fetchGuideFile } from './guideFileFetch';
 import type { StudyFile } from './guides';
-
-/** Downloads under way, by hash, so two screens asking for one file fetch it once. */
-const inflight = new Map<string, Promise<void>>();
-/** Hashes that could not be fetched, and when: tried again after a minute. */
-const failedAt = new Map<string, number>();
-const RETRY_MS = 60_000;
 
 /** The blob store's name for a guide file, or null when its format is not one the store keeps. */
 function storedFileOf(file: StudyFile | undefined): StoredFile | null {
   return file && isStoredFormat(file.format) ? { hash: file.hash, format: file.format } : null;
-}
-
-/** Fetch a guide file into the blob store from the organization's guide files, tallied as a `guide` download of the organization. */
-function fetchGuideFile(orgId: string, ref: StoredFile, store: BlobStore): Promise<void> {
-  const last = failedAt.get(ref.hash);
-  if (last && Date.now() - last < RETRY_MS) return Promise.reject(new Error('Not available yet.'));
-  let p = inflight.get(ref.hash);
-  if (!p) {
-    p = timedTransfer('down', { orgId, streamId: ORG_STREAM, src: 'guide' }, async (timings) => {
-      await downloadBlob(orgId, ORG_STREAM, ref, store, timings);
-      // From the organization's guide files: a teammate may be given it as a library file.
-      noteLibraryFiles([ref.hash]);
-      return store.sizeOf(ref.hash) ?? 0;
-    })
-      .then(() => undefined)
-      .catch((e: unknown) => { failedAt.set(ref.hash, Date.now()); throw e; })
-      .finally(() => inflight.delete(ref.hash));
-    inflight.set(ref.hash, p);
-  }
-  return p;
 }
 
 /**

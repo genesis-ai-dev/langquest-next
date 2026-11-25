@@ -1,7 +1,7 @@
 import { createHash, createPublicKey, verify as edVerify } from 'node:crypto';
 import fc from 'fast-check';
 import {
-  certificateSignedAt, checkChain, NEARBY_CERTIFICATE_MS, newcomerProfileId, peopleWithChains, revokedLater, signedBy, type CheckChainOptions, type ChainVerdict, type InviteLink, type JoinPass, type RevocationList, type WorkerLink
+  certificateSignedAt, checkChain, NEARBY_CERTIFICATE_MS, NEARBY_NEWCOMER_MS, newcomerProfileId, peopleWithChains, revokedLater, signedBy, type CheckChainOptions, type ChainVerdict, type InviteLink, type JoinPass, type RevocationList, type WorkerLink
 } from '../src/nearbyChain';
 import { nearbyDoor, type DoorFacts } from '../src/nearbyDoor';
 import { base64urlEncode, linkText, nearbyBytes, passText } from '../src/nearbySigning';
@@ -117,6 +117,21 @@ describe('checkChain over real Ed25519', () => {
     expect(await golden({ rootKeys: new Map([['k1', v.CHAIN_INVITER_KEY]]) })).toMatchObject({ ok: false });
   });
 
+  it('accepts the golden chain made with `madeAt` for 90 days from it, past its pass\'s expiry, and refuses `madeAt` changed', async () => {
+    // Why: Hello refused every newcomer once their pass's window ended, whenever they were let in (decision 240 as amended).
+    expect(await golden()).toMatchObject({ ok: true });
+    const made = (now: number | null) => checkChain(v.CHAIN_MADE, { rootKeys: new Map([['k1', v.CHAIN_ROOT_KEY]]), orgId: 'org1', languageId: 'lang1', now, verify: real, sha256 });
+    expect(await made(v.PASS_EXPIRES_AT + 86_400_000)).toMatchObject({ ok: true, links: 2, holder: { profileId: v.NEWCOMER_ID } });
+    expect(await made(v.CHAIN_MADE_AT + NEARBY_NEWCOMER_MS + 1)).toEqual({ ok: false, reason: 'pass expired' });
+    expect(await golden({ now: v.PASS_EXPIRES_AT + 86_400_000 })).toEqual({ ok: false, reason: 'pass expired' });
+    const copy = JSON.parse(JSON.stringify(v.CHAIN_MADE)) as [WorkerLink, InviteLink];
+    copy[1].body.madeAt = v.CHAIN_MADE_AT + 1;
+    expect(await checkChain(copy, { rootKeys: new Map([['k1', v.CHAIN_ROOT_KEY]]), orgId: 'org1', now: null, verify: real, sha256 })).toEqual({ ok: false, reason: 'bad link signature' });
+    // Taking `madeAt` out is a change to what was signed too: nobody can hand a newcomer the older rule, or the newer one.
+    delete copy[1].body.madeAt;
+    expect(await checkChain(copy, { rootKeys: new Map([['k1', v.CHAIN_ROOT_KEY]]), orgId: 'org1', now: null, verify: real, sha256 })).toEqual({ ok: false, reason: 'bad link signature' });
+  });
+
   it('refuses the chain with any signed word changed', async () => {
     const copy = JSON.parse(JSON.stringify(v.CHAIN)) as [WorkerLink, InviteLink];
     copy[1].body.name = 'Mallory';
@@ -173,6 +188,34 @@ describe('expiry', () => {
     const first = workerLink();
     expect(await reasonOf([first, await inviteLink(first, { pass: joinPass({ expiresAt: NOW }) })])).toBe('accepted');
     expect(await reasonOf([first, await inviteLink(first, { pass: joinPass({ expiresAt: NOW - 1 }) })])).toBe('pass expired');
+  });
+
+  it('a newcomer whose link says when it was made lasts 90 days from then, past the pass\'s expiry (decision 240 as amended)', async () => {
+    const first = workerLink({ expiresAt: NOW + 10 * NEARBY_NEWCOMER_MS });
+    const p = joinPass({ expiresAt: NOW });
+    const made = await inviteLink(first, { pass: p, madeAt: NOW - 5 });
+    expect(await reasonOf([first, made], { now: NOW + 1 })).toBe('accepted');
+    expect(await reasonOf([first, made], { now: NOW - 5 + NEARBY_NEWCOMER_MS })).toBe('accepted');
+    expect(await reasonOf([first, made], { now: NOW - 4 + NEARBY_NEWCOMER_MS })).toBe('pass expired');
+    // Made at the very moment its pass expires still counts; a moment later does not, whatever the clock or none.
+    expect(await reasonOf([first, await inviteLink(first, { pass: p, madeAt: NOW })], { now: NOW + 1 })).toBe('accepted');
+    const late = await inviteLink(first, { pass: p, madeAt: NOW + 1 });
+    expect(await reasonOf([first, late], { now: NOW + 1 })).toBe('pass expired');
+    expect(await reasonOf([first, late], { now: null })).toBe('pass expired');
+    // The same 90 days whatever the calendar: a link made early in a long pass's life ends 90 days on, before the pass does.
+    const early = await inviteLink(first, { pass: joinPass({ expiresAt: NOW + 2 * NEARBY_NEWCOMER_MS }), madeAt: NOW });
+    expect(await reasonOf([first, early], { now: NOW + NEARBY_NEWCOMER_MS + 1 })).toBe('pass expired');
+    // A link with none lasts as it always did, to its pass's expiry.
+    expect(await reasonOf([first, await inviteLink(first, { pass: p })], { now: NOW + 1 })).toBe('pass expired');
+    expect(NEARBY_NEWCOMER_MS).toBe(7_776_000_000);
+  });
+
+  it('a `madeAt` that is not a time is a malformed link, though signed', async () => {
+    const first = workerLink();
+    for (const madeAt of [-1, 1.5, '5', null, Number.MAX_SAFE_INTEGER + 2]) {
+      const link = await inviteLink(first, { madeAt: madeAt as unknown as number });
+      expect(await reasonOf([first, link], { now: null }), String(madeAt)).toBe('malformed link');
+    }
   });
 
   it('`now: null` skips every expiry: batches are carried for months', async () => {

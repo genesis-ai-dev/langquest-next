@@ -206,6 +206,39 @@ describe('diagnostic signals', () => {
     expect(texts({ b: install({ nearby: { sessionTotals: { count: 1, docsKept: 2, docsMissing: 5, docsCapped: 1, libGot: 3 } } }) })).toEqual([]);
   });
 
+  // The review of the fixes, 2026-11-24 (items 3 and 28): documents in a format a newer build added are skipped, not refused,
+  // so no fault; a copy whole before its documents, whose link went then, left the person set. Both are info, never a watch.
+  it('reads documents this app cannot read, and a copy whole before its documents were cut, as information, not faults', () => {
+    const t = texts({ a: install({ nearby: { sessionTotals: { count: 2, docsUnreadable: 1, copyWhole: 1, copyDocsCut: 1, copyDocsUnreadable: 2 }, openTotals: { count: 1, docsUnreadable: 1 } } }) }).join('\n');
+    expect(t).toMatch(/info: 4 library documents from a teammate's phone came whole in a format this app cannot read, and were skipped: this phone needs a newer app/);
+    expect(t).toMatch(/info: 1 starting copy was whole, but the link went during the names or documents after/);
+    expect(t).not.toMatch(/watch|problem/);
+  });
+
+  // The review of 2026-11-24, item 14: a join on Let someone in, and what came of a starting copy, are readable in the field.
+  it('reads a starting copy this phone took that never came whole, its documents that did not check, and a join turned away by name', () => {
+    const t = texts({ a: install({ nearby: { sessionTotals: { count: 2, granted: 1, copyWhole: 0, copyFilled: 12, copyDocsMissing: 4, copyDocsRefused: 1 }, refusals: { 'join:pass-expired': 1 } } }) }).join('\n');
+    expect(t).toMatch(/watch: This phone took part of a starting copy but never a whole one \(12 passages filled, 4 documents not given\)/);
+    expect(t).toMatch(/watch: 1 document of a starting copy from a teammate's phone did not check/);
+    expect(t).toMatch(/This phone turned away a phone on Let someone in once: they were let in offline, and their 90 days/);
+    // Whole, and the newest work followed on the link: nothing to say. Whole without it, and no cause recorded: nothing blamed.
+    expect(texts({ b: install({ nearby: { sessionTotals: { count: 1, granted: 1, exchanged: 1, copyWhole: 1, copyFilled: 3 } } }) })).toEqual([]);
+    expect(texts({ c: install({ nearby: { sessionTotals: { count: 1, granted: 1, exchanged: 0, copyWhole: 1 } } }) })).toEqual([]);
+    // An inviter gave parts and took none: nothing of a copy taken.
+    expect(texts({ d: install({ nearby: { sessionTotals: { count: 1, granted: 1, exchanged: 1, copyParts: 40 } } }) })).toEqual([]);
+  });
+
+  // The review of 2026-11-24, item 14, again: `exchanged` 0 beside a whole copy had three causes the record could not tell apart,
+  // and the signal blamed the inviter's app for all three. Pieces that would not open are this phone's, and the decision on the
+  // join's link is reversed if they are common, so they are a watch, apart from an older app and a person who left.
+  it('says why the newest work did not follow a join\'s copy: an older app, this phone\'s own language not opening, or the person leaving', () => {
+    const totals = (x: Record<string, number>) => texts({ a: install({ nearby: { sessionTotals: { count: 1, granted: 1, exchanged: 0, copyWhole: 1, ...x } } }) });
+    expect(totals({ exchangeOlder: 1 })).toEqual([expect.stringMatching(/^info: 1 join on Let someone in ended with the starting copy, without the newest work after it, because the other phone's app is older/)]);
+    expect(totals({ exchangeNoPieces: 2 })).toEqual([expect.stringMatching(/^watch: 2 joins on Let someone in came away with a whole starting copy, but this phone could not open its own language/)]);
+    expect(totals({ exchangeLeft: 1 })).toEqual([expect.stringMatching(/^info: 1 join on Let someone in ended after a whole starting copy, before the newest work followed, because the person left the screen/)]);
+    expect(totals({ exchangeNoPieces: 1 }).join('\n')).not.toMatch(/older/);
+  });
+
   it("names Share nearby's expected failures, and an attestation that did not match as a problem", () => {
     const t = texts({ a: install({ expected: [
       { where: 'nearby_attest', name: 'mismatch', code: null, count: 1, lastAt: 'T' },
