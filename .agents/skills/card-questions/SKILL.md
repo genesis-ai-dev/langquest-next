@@ -10,6 +10,16 @@ dashboard (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md).
 The admin is a Global Viewer: the question is the team's, not a user's. Answer
 it. Your answer shows under the question on that card.
 
+## Words on the dashboard
+
+What you write for the ops dashboard follows `docs/card-words.md`: start
+from high up (what part of the system, what a person sees), then zoom in;
+sentences of 25 words or fewer, active voice, one name for each thing; no
+file, code word, id or minute-only time in the text a person reads first;
+and when Claude cannot act, say the plain reason and the one action that
+Caleb can take. `node scripts/card-words.mjs <file.json>` lists the lines
+that break it.
+
 ## What you get
 
 `.questions/questions.json` is a list. Each question has:
@@ -35,12 +45,17 @@ it. Your answer shows under the question on that card.
 2. Read the code the question is about. For "is the app wasteful" or "are
    there duplicates", read the real path (for files: `packages/sync`,
    `apps/web/worker/blobs.ts`, `apps/mobile/src`), and name the file and line.
-3. Check facts in production with the read gate, as agent_reader: ids,
-   counts, times and codes (docs/production-reads.md).
+3. Check facts in production yourself, in this run, with the read gate, as
+   agent_reader: every table but personal data, and what people typed in
+   the views of schema `masked` (docs/production-reads.md).
+   A relay that the job starts before you passes each read on.
    `node /home/runner/work/_temp/ask/prod-read.mjs "select ..."`
    Read a log the same way:
    `node /home/runner/work/_temp/ask/prod-read.mjs --logs <source> name=value ...`
-   (with no source it lists them).
+   (with no source it lists them). Never give an admin SQL, a `diag`
+   command or a read to run: do it. When agent_reader cannot read a thing
+   (a name, an email, a phone number, a picture), give the ids you found and say
+   that a developer's cloud thread can read the rest.
 4. When the answer needs public facts (a price, a plan's limits, a
    provider's choices), do not guess and do not answer from memory. Put what
    to look up in `web` (below). A second step, with the web, finishes the

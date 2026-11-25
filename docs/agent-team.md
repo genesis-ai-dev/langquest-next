@@ -271,10 +271,11 @@ flowchart LR
 ```
 
 1. The manager reads production first (read only, as `agent_reader`), and
-   follows the code from where the numbers point. Its shell cannot reach the
-   gate, so it names the reads in `next.reads`, and the next try starts with
-   their answers in `.user-issues/reads.json` (`docs/production-reads.md`,
-   "The fix team's reads").
+   follows the code from where the numbers point. It reads in its own run,
+   through the relay the job starts before Claude (`docs/production-reads.md`,
+   "Reads while Claude runs"). A read whose answer is not there yet goes in
+   `next.reads`, and the next try starts with its answer in
+   `.user-issues/reads.json` ("The fix team's reads").
 2. When it has no proof, `fix.json` holds `next` (`nextOf` in
    `scripts/agent-team.mjs`): `do`, what Claude does next, in a sentence;
    `steps`, the whole plan; `inHours`, from 0.25 to 168; and `probeAt`, the

@@ -7,6 +7,7 @@ import { filmingSection, type Filming } from './filming';
 import { fixesSection, type FixPr } from './fixes';
 import { githubApi, type GitHubEnv } from './githubApi';
 import { tutorialsOf, type CardRecord, type Feedback, type Tutorials } from './ops';
+import { fixNoteParts, plainEnough, sentencesOf, WHY_STOPPED, type WhyStopped } from '../../../../scripts/card-words.mjs';
 
 /**
  * The tutorial videos as three lists (docs/tutorial-videos.md "On the ops
@@ -149,6 +150,17 @@ export interface AdminItem {
   who: 'you' | 'claude' | 'done';
   /** What happens next, and what happens if the admin does nothing. */
   next: string;
+  /**
+   * What the card is about, from high up, for a person who opens it fresh: the video and the language, and what
+   * happened to it, in one or two plain sentences (docs/card-words.md). Every card about a video has one.
+   */
+  about?: string;
+  /**
+   * For `fixFailed`: why Claude stopped, as one of the reasons in scripts/card-words.mjs WHY_STOPPED (what happened
+   * and what the admin can do, with the one action the card recommends), Claude's own plain words when they keep
+   * the standard, and the technical note for Details. Never only "Claude could not make the change".
+   */
+  stopped?: { why: WhyStopped; label: string; says: string; plain: string; youCan: string; act: 'tell' | 'retry' | 'app'; technical: string };
   tutorial?: string; language?: string; link?: string;
   /** For `approve`: the suggestion, for its Accept, Edit and Reject. */
   suggestion?: FixedSuggestion;
@@ -235,6 +247,46 @@ const REPO = 'https://github.com/genesis-ai-dev/langquest-next';
 const LANGUAGE_NAMES: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portuguese', fr: 'French', ar: 'Arabic', sw: 'Swahili', ha: 'Hausa', am: 'Amharic',
   hi: 'Hindi', bn: 'Bangla', ne: 'Nepali', id: 'Indonesian', th: 'Thai', my: 'Burmese', 'zh-Hans': 'Simplified Chinese', tl: 'Tagalog' };
 const pr = (n: number) => `${REPO}/pull/${n}`;
+/**
+ * Why a fix stopped, for its card and its record: the reason and what to do (WHY_STOPPED), Claude's plain words when
+ * they keep the standard (else they go under Details with the rest), and the technical note.
+ */
+export function stoppedOf(note: string | null | undefined, app = false): NonNullable<AdminItem['stopped']> {
+  const parts = fixNoteParts(note, app);
+  const words = WHY_STOPPED[parts.why];
+  // A note from before the reason was kept has no plain words: for a choice, the sentence that names it, when it is plain.
+  const choice = !parts.plain && parts.why === 'needsChoice' ? sentencesOf(parts.technical).find((x) => /\b(decide|choose)\b/i.test(x) && plainEnough(x)) ?? '' : '';
+  const plain = parts.plain && plainEnough(parts.plain) ? parts.plain : choice;
+  const technical = [parts.plain && !plain ? parts.plain : '', parts.technical].filter(Boolean).join('\n\n');
+  return { why: parts.why, ...words, plain, technical };
+}
+/** A stopped fix in one plain paragraph: where a card's talk or the record says what Claude did. */
+export const stoppedSaid = (x: NonNullable<AdminItem['stopped']>) => `Claude stopped: ${x.label.toLowerCase()}. ${x.says}${x.plain ? ` ${x.plain}` : ''} ${x.youCan}`;
+/** A language's English name, as the dashboard says it in a sentence. */
+const langName = (l: string) => LANGUAGE_NAMES[l] ?? l;
+/**
+ * The first line of a card: which tutorial video, in which language, and what happened, for a person who knows
+ * nothing about it yet (docs/card-words.md). Plain words only; the test checks each against the standard.
+ */
+export function aboutOf(kind: AdminItem['kind'], video: string | null, language: string | null, extra = ''): string {
+  const v = video ? `the "${video}" tutorial video${language ? `, in ${language}` : ''}` : 'a tutorial video';
+  const V = v.charAt(0).toUpperCase() + v.slice(1);
+  switch (kind) {
+    case 'approve': return extra === 'app' ? `Claude found a problem in the app that shows in ${v}. You decide what Claude does.` : `Claude suggests a change to ${v}. Claude makes the change only when you accept it.`;
+    case 'appFix': return `You asked Claude to fix the app, because the app causes a problem in ${v}. After the fix, the filming makes the video again.`;
+    case 'fixFailed': return `Someone asked for a change to ${v}. Claude tried to make the change and stopped before the end.`;
+    case 'fixed': return `Claude could not change ${v}. Later a change to the app fixed the problem, and the filming made the video again.`;
+    case 'held': return `Each night the filming makes ${v} again. Last night a check found a problem in the new film, so YouTube still shows the old film.`;
+    case 'fails': return `Each night the filming makes ${v} again. Last night the filming stopped before the end, so YouTube still shows the old film.`;
+    case 'reply': return `A viewer wrote a comment under ${v} on YouTube. Claude wrote a reply for you to post.`;
+    case 'comment': return `A viewer wrote a new comment under ${v} on YouTube.`;
+    case 'screen': return `A change to the app changed a screen that ${v} shows. ${V} may need a new film.`;
+    case 'publish': return 'New films of the tutorial videos are ready. The films go on YouTube only after you press Publish.';
+    case 'connect': return `LangQuest puts the tutorial videos in ${language ?? 'a language'} on a YouTube channel. LangQuest cannot reach that channel now.`;
+    case 'empty': return `The YouTube channel for the tutorial videos in ${language ?? 'a language'} has no videos, because the filming of that language is off.`;
+    case 'paused': return 'The filming makes the tutorial videos again each night, but only in the languages that are on.';
+  }
+}
 /** The timeline goes back this far. */
 export const TIMELINE_DAYS = 60;
 const RECONNECT = /^youtube_(invalid_grant|not_connected|unauthorized|forbidden)/;
@@ -272,14 +324,14 @@ export function appStage(s: { issue: string | null; app?: AppFix | null }, prs: 
 /** A fix in the app's card stays this long after the new film came in, so the admin sees the chain end. */
 export const APP_DONE_HOURS = 24;
 /** What happens next at each stage of a fix in the app, and what happens if the admin does nothing. */
-const APP_NEXT: Record<AppStage, string> = {
+export const APP_NEXT: Record<AppStage, string> = {
   filing: 'Claude files it in Linear, then its agent team changes the app. When the ops dashboard has no Linear key, the comments job files it at midnight Pacific. Nothing waits on you.',
   queued: 'Claude\'s agent team starts within 15 minutes (it runs every 15 minutes). It changes the app, not the video. Nothing waits on you.',
   writing: 'Claude\'s agent team writes the fix now. Then a second Claude reads the change and the checks run. Nothing waits on you.',
   checks: 'The fix merges by itself when its checks pass. If a check fails, Claude tries again, up to 3 times. Then it asks you here. Nothing waits on you.',
   yours: 'Merge it, or tell Claude what to change. Nothing happens until you answer.',
   none: 'Read Claude\'s answer. Tell Claude what to do instead, or leave the issue in Linear for a person. Nothing happens until you answer.',
-  merged: 'The fix is in main. Claude\'s next fix run (:20 and :50 each hour) films the video again. Nothing waits on you.',
+  merged: 'The fix is in main. Claude\'s next fix run, within 30 minutes, films the video again. Nothing waits on you.',
   filming: 'The film run films the video again now. The new film goes to YouTube by itself. Nothing waits on you.',
   filmed: 'Done: the new film is in. This card goes away a day after the film.'
 };
@@ -446,17 +498,23 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
     // A change that failed and a pull request of its own fixed later: it says so, for a day, and waits on nobody.
     const fixedBy = fix?.state === 'failed' && !s.app ? s.fixedBy ?? null : null;
     if (fixedBy && s.tutorial && now - Date.parse(fixedBy.at) < APP_DONE_HOURS * 3600_000) admin.push({ kind: 'fixed', title: `${on}Fixed by PR ${fixedBy.pr}, filmed again`,
-      detail: s.kind === 'instruction' ? s.detail : s.title, at: fixedBy.at, who: 'done', ...where, ...pictures, link: pr(fixedBy.pr),
-      next: `Claude could not make this change to the video, but pull request ${fixedBy.pr} fixed it: ${fixedBy.file ? `it changed ${fixedBy.file}, the file Claude named as the cause` : 'it names this change'}. A new film of the video came in after it, and the frame check passed it. Nothing to do. This card goes away a day after.` });
+      detail: `${s.kind === 'instruction' ? s.detail : s.title}\nFor the fix: pull request ${fixedBy.pr} ${fixedBy.file ? `changed ${fixedBy.file}, the file Claude named as the cause` : 'names this change'}.`, at: fixedBy.at, who: 'done', ...where, ...pictures, link: pr(fixedBy.pr),
+      next: `Pull request ${fixedBy.pr} fixed the problem in the app. The filming made the video again, and the check found no problem. Nothing waits on you. This card goes away after a day.` });
     const yes = s.kind === 'instruction' ? `Your instruction: ${s.detail}` : s.clear ? `${s.title}. Claude found it clear and accepted it itself.` : `${s.title}. You accepted it.`;
     if (fix?.state === 'open' && fix.pr) worker.push({ when: 'now', kind: 'merging', title: `${on}Claude's change merges itself when its checks pass (PR ${fix.pr})`, detail: `${yes} If a check fails, or it does not merge within a day, Claude closes it and asks you under Waits on you.`, at: fix.at, link: pr(fix.pr) });
-    if (fix?.state === 'failed' && !s.app && !fixedBy) admin.push({ kind: 'fixFailed', title: `${on}Claude could not make the change`, detail: fix.note ?? s.title, at: fix.at, who: 'you', ...pictures, ...(fix.pr ? { link: pr(fix.pr) } : fix.run ? { link: fix.run } : {}),
-      ...(s.tutorial ? { fixApp: s.id } : {}),
-      next: 'Try again, or tell Claude what to do instead. Claude starts at its next fix run (:20 and :50 each hour). When the cause is in the app, Fix it in the app: Claude changes the app, the fix merges by itself when it keeps the rules, and then the video is filmed again. Nothing happens until you do.', ...where, ...(s.tutorial ? { instruct: `Claude could not make the change "${s.title}" (${fix.note ?? 'no reason given'}).`, retry: `Try this change again: ${s.title}. ${s.detail}`.slice(0, 2000) } : {}) });
+    if (fix?.state === 'failed' && !s.app && !fixedBy) {
+      const stopped = stoppedOf(fix.note);
+      const video = s.tutorial ? `the "${title(s.tutorial)}" video` : 'a video';
+      admin.push({ kind: 'fixFailed', title: `Claude did not change ${video}: ${stopped.label.toLowerCase()}`, detail: s.kind === 'instruction' ? s.detail : s.title, at: fix.at, who: 'you', ...pictures,
+        ...(fix.pr ? { link: pr(fix.pr) } : fix.run ? { link: fix.run } : {}), stopped,
+        ...(s.tutorial ? { fixApp: s.id } : {}),
+        about: `${s.kind === 'instruction' ? 'You told Claude to change' : s.clear ? 'Claude found a mistake in' : 'You accepted a change to'} ${video}${s.tutorial ? `, in ${langName(s.language ?? 'en')}` : ''}. Claude tried to make the change and stopped before the end.`,
+        next: stopped.youCan, ...where, ...(s.tutorial ? { instruct: `Claude could not make the change "${s.title}" (${stopped.label}: ${fix.note ?? 'no reason given'}).`.slice(0, 2000), retry: `Try this change again: ${s.title}. ${s.detail}`.slice(0, 2000) } : {}) });
+    }
     if (fix?.state === 'working') worker.push({ when: 'now', kind: 'fixing', title: `${on}Claude writes the change now`, detail: `${yes} When done, the pull request merges itself when its checks pass.`, at: fix.at, ...(fix.run ? { link: fix.run } : {}) });
-    if (s.decision === 'accepted' && !fix && s.tutorial && FIXABLE.has(s.kind)) worker.push({ when: 'next', kind: 'toFix', title: `${on}Claude starts the change at its next fix run (:20 and :50 each hour)`, detail: `${yes} Claude makes it as a pull request that merges itself when its checks pass.`, at: s.decidedAt });
+    if (s.decision === 'accepted' && !fix && s.tutorial && FIXABLE.has(s.kind)) worker.push({ when: 'next', kind: 'toFix', title: `${on}Claude starts the change at its next fix run, within 30 minutes`, detail: `${yes} Claude makes it as a pull request that merges itself when its checks pass.`, at: s.decidedAt });
     if (fix && s.tutorial) changes.push({ at: fix.at, tutorial: s.tutorial, language: s.language ?? 'en', video: title(s.tutorial), change: s.kind === 'instruction' ? s.detail : s.title,
-      by: s.kind === 'instruction' ? 'instruction' : s.clear ? 'claude' : 'admin', state: fix.state, pr: fixedBy?.pr ?? fix.pr, link: fixedBy ? pr(fixedBy.pr) : fix.pr ? pr(fix.pr) : fix.run, note: fix.note,
+      by: s.kind === 'instruction' ? 'instruction' : s.clear ? 'claude' : 'admin', state: fix.state, pr: fixedBy?.pr ?? fix.pr, link: fixedBy ? pr(fixedBy.pr) : fix.pr ? pr(fix.pr) : fix.run, note: fix.state === 'failed' ? stoppedSaid(stoppedOf(fix.note)) : fix.note,
       pictures: s.pictures ?? [], after: s.after ?? [], ...(fixedBy ? { fixedBy } : {}) });
   }
   changes.sort((a, b) => b.at.localeCompare(a.at));
@@ -486,7 +544,7 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
         if (ap?.stage === 'writing' || ap?.stage === 'queued' || ap?.stage === 'filing') add({ key: 'fixing', text: 'Claude fixes the app', level: 'info' });
         if (ap?.stage === 'checks') add({ key: 'merge', text: 'App fix waits on its checks', level: 'info', ...(ap.pr ? { link: pr(ap.pr) } : {}) });
         if (ap?.stage === 'merged' || ap?.stage === 'filming') add({ key: 'filming', text: 'App fix merged, filmed again now', level: 'info', ...(ap.pr ? { link: pr(ap.pr) } : {}) });
-        if (sg.fix?.state === 'failed' && !sg.app && !sg.fixedBy) add({ key: 'fixFailed', text: 'Change failed', level: 'bad', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}) });
+        if (sg.fix?.state === 'failed' && !sg.app && !sg.fixedBy) add({ key: 'fixFailed', text: 'Change not made', level: 'bad', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}) });
         if (sg.fix?.state === 'open') add({ key: 'merge', text: 'Change waits on its checks', level: 'info', ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : {}) });
         if (sg.fix?.state === 'working') add({ key: 'fixing', text: 'Claude writes the change', level: 'info' });
         if (sg.decision === 'accepted' && !sg.fix && FIXABLE.has(sg.kind)) add({ key: 'toFix', text: sg.kind === 'instruction' ? 'Claude has your instruction' : sg.clear ? 'Clear fix, Claude starts it next' : 'Accepted, Claude starts the change next', level: 'info' });
@@ -554,7 +612,8 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
         } });
         const fixState = sg.fix?.state === 'unneeded' ? 'no change needed' : sg.fix?.state === 'open' ? 'open, merges itself when checks pass' : sg.fix?.state;
         if (sg.fix && recent(sg.fix.at)) marks.push({ at: sg.fix.at, kind: 'fix', cause: sg.fix.state, text: `Fix ${fixState}${sg.fix.pr ? ` (PR ${sg.fix.pr})` : ''}`, ...(sg.fix.pr ? { link: pr(sg.fix.pr) } : sg.fix.run ? { link: sg.fix.run } : {}), detail: {
-          title: `Fix: ${fixState}`, lines: [sg.title, ...(sg.fix.note ? [`${sg.fix.state === 'unneeded' ? 'Why' : 'Error'}: ${sg.fix.note}`] : [])],
+          title: `Fix: ${fixState}`, lines: [sg.title, ...(sg.fix.state === 'failed' ? [stoppedSaid(stoppedOf(sg.fix.note)), ...(stoppedOf(sg.fix.note).technical ? [`Details: ${stoppedOf(sg.fix.note).technical}`] : [])]
+            : sg.fix.note ? [`Why: ${sg.fix.note}`] : [])],
           links: [...(sg.fix.pr ? [{ text: `PR ${sg.fix.pr}: what changed in the script`, href: `${pr(sg.fix.pr)}/files` }] : []), ...(sg.fix.run ? [{ text: 'The run that wrote it', href: sg.fix.run }] : [])], films: [], ...shown
         } });
       }
@@ -631,6 +690,8 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
   if (filming?.run && !filmingNow) worker.unshift({ when: 'next', kind: 'filming', title: `20:10 UTC: film the videos that changed (${(nightly ?? ['en']).join(', ')})`, detail: `Each video is tried; one films again only when its script or screen words changed. New films then go up on YouTube. Last run (${filming.run.number}): ${filming.run.conclusion ?? filming.run.status}.`, link: filming.run.url });
 
   for (const a of admin) if (a.tutorial) a.video = title(a.tutorial);
+  // Each card starts from high up: which video, in which language, and what happened to it (docs/card-words.md).
+  for (const a of admin) if (!a.about) a.about = aboutOf(a.kind, a.tutorial ? title(a.tutorial) : null, a.language ? langName(a.language) : null, a.app ? 'app' : '');
   // Every other card about a video links to it too: at the times of its stills when they are of the film held now.
   for (const a of admin) {
     if (a.watch || !a.tutorial || !a.language) continue;
@@ -647,7 +708,8 @@ export function videoBoard(input: VideosInput, now = Date.now()): Videos {
     if (!a.instruct || !a.tutorial) continue;
     const ins = instructions.filter((x) => x.tutorial === a.tutorial && (x.language ?? 'en') === (a.language ?? 'en') && after(a, x.madeAt)).sort((x, y) => y.madeAt.localeCompare(x.madeAt))[0];
     const n = ins ? null : notes.filter((i) => i.tutorial === a.tutorial && after(a, i.at)).sort((x, y) => y.at.localeCompare(x.at))[0];
-    if (ins) a.instructed = { at: ins.madeAt, text: ins.detail, looked: true, fix: ins.fix ?? null };
+    // A fix that stopped says why in plain words in the talk; its technical note stays in the change's record.
+    if (ins) a.instructed = { at: ins.madeAt, text: ins.detail, looked: true, fix: ins.fix ? { ...ins.fix, note: ins.fix.state === 'failed' ? stoppedSaid(stoppedOf(ins.fix.note)) : ins.fix.note } : null };
     else if (n) a.instructed = { at: n.at, text: n.text, looked: !!n.lookedAt, fix: null };
     if (a.instructed) a.who = 'claude';
   }

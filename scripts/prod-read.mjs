@@ -11,11 +11,19 @@
 //   npm run prod:read -- --logs worker-builds worker=langquest-next
 //   npm run prod:read -- --logs worker-build-log build=<build id>
 //   npm run prod:read -- --logs worker-logs worker=langquest-next minutes=120 level=error search="E-7K2Q"
-//   npm run prod:read -- --logs supabase-logs query=postgres-errors      (agent teams)
-//   npm run prod:read -- --logs supabase-logs sql="select ... from logs ..."  (claude_reader)
+//   npm run prod:read -- --logs supabase-logs query=postgres-errors
+//   npm run prod:read -- --logs supabase-logs sql="select ... from logs ..."
 //   npm run prod:read -- --logs eas-builds
 //   npm run prod:read -- --logs eas-build-log build=<build id>
+//   npm run prod:read -- --logs eas-updates
 //   npm run prod:read -- --logs github-job-log job=<job id>
+//   npm run prod:read -- --logs github-api path=actions/runs?per_page=20
+//   npm run prod:read -- --logs cloudflare-graphql query="query (\$account: string!) { ... }"
+//   npm run prod:read -- --logs play-crashes issue=<id>
+//   npm run prod:read -- --logs app-store-api path=v1/apps/{app}/betaFeedbackCrashSubmissions
+//   npm run prod:read -- --logs app-store-report name="App Crashes"
+//   npm run prod:read -- --logs r2-blobs keys='["org/stream/<sha256>.m4a"]'
+//   npm run prod:read -- --logs                     (lists every source)
 //
 // Who it reads as comes from where it runs:
 // - CLAUDE_READ_TOKEN set (a laptop that exported it, or a cloud environment
@@ -26,6 +34,9 @@
 //   replaces, so the thread never holds the token itself.
 // - In a GitHub Actions job with `id-token: write`: the job's OIDC token, and
 //   agent_reader if the workflow is one the gate lets in from main.
+// - Claude in an agent team's job (PROD_READ_RELAY): the relay started before
+//   Claude (prod-read-relay.mjs) holds the job's token and passes the read on,
+//   as agent_reader, since the action takes the token out of Claude's shell.
 // Nothing here can write: the database refuses it to both logins.
 //
 // What it prints is production data. Never paste it into a pull request,
@@ -48,7 +59,9 @@ export function parseArgs(argv) {
       if (at < 1) throw new Error(`"${pair}" is not name=value`);
       const name = pair.slice(0, at);
       const value = pair.slice(at + 1);
-      logs[name] = ['minutes', 'limit'].includes(name) && /^\d+$/.test(value) ? Number(value) : value;
+      // A list or an object (r2-blobs keys, a GraphQL query's variables) goes as JSON.
+      logs[name] = ['minutes', 'limit', 'days'].includes(name) && /^\d+$/.test(value) ? Number(value)
+        : /^[[{]/.test(value) && name !== 'query' ? JSON.parse(value) : value;
     }
     return { json, logs, sql: '', params: [] };
   }
@@ -59,7 +72,7 @@ export function parseArgs(argv) {
 /** A log answer as its lines, then one line that says what it holds. */
 export function logsAsText(answer) {
   const lines = [...answer.lines];
-  lines.push(`(${answer.lines.length} line${answer.lines.length === 1 ? '' : 's'}${answer.truncated ? ', the newest only' : ''}, ${answer.ms} ms, as ${answer.login}${answer.note ? `. ${answer.note}` : ''})`);
+  lines.push(`(${answer.lines.length} line${answer.lines.length === 1 ? '' : 's'}${answer.truncated ? (answer.first ? ', the first only' : ', the newest only') : ''}, ${answer.ms} ms, as ${answer.login}${answer.note ? `. ${answer.note}` : ''})`);
   return lines.join('\n');
 }
 
@@ -87,8 +100,25 @@ export function asText(answer) {
   return lines.join('\n');
 }
 
+/**
+ * The relay's address for a gate address, when this shell has no token of its own but a relay
+ * (PROD_READ_RELAY): Claude's shell in an agent team's job. Else null.
+ */
+export function viaRelay(url, env = process.env) {
+  const relay = env.PROD_READ_RELAY;
+  if (!relay || env.CLAUDE_READ_TOKEN || env.ACTIONS_ID_TOKEN_REQUEST_URL) return null;
+  return relay.replace(/\/+$/, '') + (url === LOGS_URL ? '/read/logs' : '/read');
+}
+
 /** One request to the gate, with the bearer token for this place: { status, ok, body, token }. */
 export async function post(url, payload, env = process.env, fetcher = fetch) {
+  const relayed = viaRelay(url, env);
+  if (relayed) {
+    const res = await fetcher(relayed, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+      .catch(() => { throw new Error(`the relay for production reads does not answer at ${env.PROD_READ_RELAY}: the job starts it before Claude (docs/production-reads.md)`); });
+    const body = await res.json().catch(() => ({ error: `the relay answered ${res.status} without JSON` }));
+    return { status: res.status, ok: res.ok, body, token: 'relay' };
+  }
   const token = await bearer(env, fetcher);
   const res = await fetcher(url, {
     method: 'POST',
@@ -113,7 +143,9 @@ async function main() {
   const { status, ok, body, token } = args.logs ? await post(LOGS_URL, args.logs) : await ask(args.sql, args.params);
   const res = { status, ok };
   if (res.status === 401 && token === PROXY_STAND_IN) {
-    console.error('x The cloud environment has no CLAUDE_READ_TOKEN for app.langquest.org, as a network secret or a variable (docs/production-reads.md, setup step 4).');
+    console.error(process.env.NODE_USE_ENV_PROXY
+      ? 'x The cloud environment has no CLAUDE_READ_TOKEN for app.langquest.org, as a network secret or a variable (docs/production-reads.md, setup step 4).'
+      : 'x The read went around the cloud proxy, which adds the token: run it as npm run prod:read -- ..., or with NODE_USE_ENV_PROXY=1.');
     process.exit(1);
   }
   if (!res.ok) {

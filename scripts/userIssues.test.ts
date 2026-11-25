@@ -50,7 +50,9 @@ describe('user-issues.mjs', () => {
     const steps = yml.split(/\n {6}- /);
     const claude = steps.find((s) => s.includes('anthropics/claude-code-action'))!;
     expect(claude).toContain('claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}');
-    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)"');
+    // The read relay, and the checker of a card's words (docs/card-words.md), which reads one file and sends nothing.
+    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*),Bash(node /home/runner/work/_temp/watch/card-words.mjs:*)"');
+    expect(claude).toContain('card-words.mjs .user-issues/decisions.json');
     expect(claude).not.toContain('LINEAR_API_KEY');
     expect(claude).not.toMatch(/show_full_output|display_report/);
     // Scheduled runs start as the merge queue, which the action refuses otherwise.
@@ -80,7 +82,7 @@ describe('user-issues.mjs', () => {
     const fix = jobs['fix']!.split(/\n {6}- /);
     const claude = fix.find((s) => s.includes('anthropics/claude-code-action'))!;
     // The issue manager starts its workers with the Agent tool; they have its tools and no more.
-    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Edit,Write,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"');
+    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Edit,Write,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)"');
     expect(claude).not.toMatch(/LINEAR_API_KEY|show_full_output|display_report/);
     // The key reads the issue before Claude; the patch is taken with the scripts and repository copied before it.
     expect(fix.findIndex((s) => s.includes('LINEAR_API_KEY'))).toBeLessThan(fix.indexOf(claude));
@@ -196,26 +198,28 @@ describe('user-issues.mjs', () => {
   it('lets Claude read production only through the copy of prod-read.mjs made before it, which Claude cannot change (docs/production-reads.md)', () => {
     const yml = read('.github/workflows/user-issues.yml');
     const jobs = Object.fromEntries(yml.slice(yml.search(/^jobs:$/m)).split(/^ {2}(?=[\w-]+:$)/m).slice(1).map((b) => [b.match(/^([\w-]+):/)![1], b]));
-    for (const name of ['watch', 'research']) {
+    for (const name of ['watch', 'research', 'fix']) {
       const steps = jobs[name]!.split(/\n {6}- /);
       const claude = steps.find((s) => s.includes('anthropics/claude-code-action'))!;
-      const copy = steps.findIndex((s) => /cp scripts\/.*scripts\/prod-read\.mjs "\$RUNNER_TEMP\/watch\/"/.test(s));
+      const copy = steps.findIndex((s) => /cp scripts\/.*scripts\/prod-read\.mjs scripts\/prod-read-relay\.mjs "\$RUNNER_TEMP\/watch\/"/.test(s));
       expect(copy, name).toBeGreaterThanOrEqual(0);
       expect(copy, name).toBeLessThan(steps.indexOf(claude));
       expect(claude).toContain('Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*)');
       expect(claude).not.toContain('Bash(node scripts/');
-      expect(claude).toContain('Never copy a row of its answer into what you write.');
+      expect(claude).toMatch(/Never copy a row of (its|an) answer into what you write\./);
       expect(claude).toContain('prod-read.mjs --logs <source>');
+      // Claude is told it can read now, and never to hand a read to a person.
+      expect(claude).toContain('You can read production and the logs yourself, now, in this run');
+      expect(claude).toContain('never ask a person to run a read');
       expect(jobs[name]).toContain('id-token: write');
     }
-    // The fix job: claude-code-action removes the OIDC variables from Claude's shell, so the reads the plan named
-    // run in the step before Claude (fix-context, from the checkout before Claude), and Claude reads their answers.
+    // The fix job: the reads the plan named also run in the step before Claude (fix-context, from the checkout
+    // before Claude), and Claude reads their answers.
     const fixSteps = jobs['fix']!.split(/\n {6}- /);
     const manager = fixSteps.find((s) => s.includes('anthropics/claude-code-action'))!;
     const context = fixSteps.findIndex((s) => s.includes('node scripts/user-issues.mjs fix-context'));
     expect(context).toBeGreaterThanOrEqual(0);
     expect(context).toBeLessThan(fixSteps.indexOf(manager));
-    expect(manager).not.toContain('prod-read.mjs');
     expect(manager).toContain('.user-issues/reads.json holds the answers to the reads your last plan named');
     expect(jobs['fix']).toContain('id-token: write');
     // The gate lets in this workflow, from main, as agent_reader (apps/admin/src/read.ts).

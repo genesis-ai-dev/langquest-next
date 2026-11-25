@@ -3,14 +3,21 @@ import { ok, off, type Alert, type Section } from '../section';
 /**
  * Whether each server job is running in its container now, since when and
  * until when it may (docs/ops-dashboard-plan.md 11.3). Asked of the app's
- * Worker through its JobStatus entrypoint, the one read-only call this
- * Worker may make there: it cannot start or stop a job.
+ * Worker through its JobStatus entrypoint, whose calls only read: this
+ * Worker cannot start or stop a job there.
  */
 
 export interface JobState { key: string; job: string; running: boolean; startedAt: string | null; timeLimitMs: number; all: boolean; error?: string }
 
 /** The app Worker's `JobStatus` entrypoint (apps/web/worker/jobStatus.ts), over the APP_JOBS service binding. */
-export interface JobStatusRpc { jobs(): Promise<JobState[]> }
+export interface JobStatusRpc {
+  jobs(): Promise<JobState[]>;
+  /** Stored files' sizes and times, never their bytes (the log gate's `r2-blobs`). */
+  blobs?(ask: { keys?: string[]; prefix?: string; limit?: number; cursor?: string }): Promise<{
+    objects: { key: string; size: number; uploaded: string; type: string | null }[];
+    missing: string[]; truncated: boolean; cursor: string | null; error?: string;
+  }>;
+}
 
 export function containerAlerts(jobs: JobState[], now = Date.now()): Alert[] {
   const out: Alert[] = [];

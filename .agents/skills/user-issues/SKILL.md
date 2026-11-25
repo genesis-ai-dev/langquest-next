@@ -383,29 +383,42 @@ only answer "then prove it". When you cannot prove the cause in this run,
 make a plan that proves it, and the team carries it out without a person:
 read "When the cause is not proven yet" below.
 
-Your shell cannot read production: the action that runs you removes the
-job's token. You read it through your plan instead: name the statements in
-`next.reads`, and the next try starts with their answers in
-`.user-issues/reads.json` (part "Reading production" below). Read the
-answers before you guess: how many records, which build, which phase is
-slow, since when. Never copy a row of an answer into what you write.
+You can read production yourself, in this run:
+`node /home/runner/work/_temp/watch/prod-read.mjs "select ..."`, read
+only, as agent_reader (part "Reading production" below). Read before you
+guess: how many records, which build, which phase is slow, since when, which
+profile id an install belongs to. Your workers can run it too. Never copy a
+row of an answer into what you write.
 
-You read the logs the same way: a read in `next.reads` that starts with
-`--logs` is a log, as `prod-read.mjs` takes it: `--logs <source>
-name=value ...` (docs/production-reads.md, Logs). Read the log before you
-guess why a build or a server job failed:
+You read the logs the same way: `prod-read.mjs --logs <source> name=value
+...` (docs/production-reads.md, Logs). Read the log before you guess why a
+build or a server job failed:
 
 - `--logs worker-builds worker=langquest-next`, then `--logs
   worker-build-log build=<id>`: the Workers Build that deploys the web app
   on each merge to main (the step that failed).
-- `--logs worker-logs worker=langquest-next minutes=120`: a Worker's
-  warnings and errors, with emails, tokens and long values taken out.
+- `--logs worker-logs worker=langquest-next minutes=120 level=error`: a
+  Worker's log lines at any level, with emails, IP addresses, tokens and long
+  values taken out.
 - `--logs supabase-logs query=postgres-errors` or `query=http-errors`:
   Supabase's errors grouped by code and path, as the ops dashboard shows
-  them.
+  them. Or your own Logs Explorer SQL: `sql="select timestamp,
+  event_message from logs where source = 'function_logs' order by timestamp
+  desc limit 50"` (also `postgres_logs`, `auth_logs`, `edge_logs`).
 - `--logs eas-builds`, then `--logs eas-build-log build=<id>`: a phone app
-  build on EAS.
-- `--logs github-job-log job=<id>`: a GitHub Actions job's log.
+  build on EAS. `--logs eas-updates` and `--logs eas-submissions`: OTA
+  updates on each branch, and store submissions with their errors.
+- `--logs github-job-log job=<id>`: a GitHub Actions job's log. `--logs
+  github-api path=actions/runs?per_page=20`, then
+  `path=actions/runs/<id>/jobs`: the runs and their job ids.
+- `--logs play-crashes`, then `--logs play-crashes issue=<id>`: Google Play's
+  crash and ANR groups, then one group's stack traces. `--logs app-store-api
+  path=v1/apps/{app}/betaFeedbackCrashSubmissions` and `--logs
+  app-store-crash-log submission=<id>`: TestFlight crashes.
+- `--logs cloudflare-graphql query="query (\$account: string!) {...}"`:
+  Worker requests, errors and CPU, R2 and Hyperdrive over time.
+- `--logs r2-blobs prefix=<org>/<stream>/<sha256>`: whether a recording is
+  stored, its size and when.
 
 A log line can quote what a person typed: never copy one into what you
 write. Say what you found in words.
@@ -568,8 +581,10 @@ the rules below hold for them too.
   cause is unclear, that is not a reason to stop: make a plan
   (below).
 - **Never ask a person to do what Claude can do.** A read of production or
-  of a log is never a `decision`: name it in `next.reads`, say
-  `unconfirmed`, and the next try starts with its answer. Never ask a
+  of a log is never a `decision`: run it now with `prod-read.mjs`, or,
+  when you wait for records that are not there yet, name it in
+  `next.reads` and say `unconfirmed`. Never give an admin SQL, a `diag`
+  command or a read to run. Never ask a
   developer to give Claude a token, a key or more access, and never give
   them a read to run. When a thing Claude needs is truly out of its reach
   (a setting only a person can change, a store or dashboard page), say in
@@ -603,23 +618,45 @@ databases or code. So each of those lines:
 The file, line, SQL and reads go in `cause`, `steps` of a plan, the pull
 request and the issue's Agent notes, where a developer looks for them.
 
+The whole standard is `docs/card-words.md`: start from high up (which part
+of the app or the system, and what a person sees), then zoom in; sentences
+of 25 words or fewer; no file, code word, id or minute-only time; and when
+Claude stops, one plain reason and one recommended action. Before you
+finish, run `node /home/runner/work/_temp/watch/card-words.mjs
+.user-issues/decisions.json` and mend each line it prints, until it prints
+none.
+
 ### Reading production
 
-The fix job runs the reads your last plan named before you start, through
-the read gate as agent_reader (`docs/production-reads.md`: ids, counts,
-times and codes; no names, typed text or recordings). Their answers are in
-`.user-issues/reads.json`: for each statement, `columns` and `rows` (at most
-200), or `error`; for each log, its newest `lines` (at most 200).
+Read production in this run with
+`node /home/runner/work/_temp/watch/prod-read.mjs "select ..." [param ...]`
+or `--logs <source> name=value ...`. A relay that the job starts before you
+passes each read to the read gate as agent_reader
+(`docs/production-reads.md`): every table claude_reader reads, but no
+personal data. `public.events` has no `payload` and `public.profiles` no
+name for it: read `masked.events` for the payloads, and `masked.feedback`,
+`masked.join_requests` and `masked.content_reports` for what people typed,
+with emails, phone numbers and IP addresses taken out. `masked.slow_statements`
+and `masked.connections` show slow statements, waits and locks. Ask for counts and
+groups, not long lists of rows. An answer
+with an error names the problem (a column that is not there, a table
+agent_reader cannot read): correct the statement and read again.
 
-- Write each read in `next.reads`: at most 6, each a statement (`select` or
-  `with`, at most 1500 characters, no `;`) or a log (`--logs <source>
-  name=value ...`, values without spaces). Ask for counts and groups, not
-  long lists of rows.
-- When you need production and have no answers yet (a new issue), say
-  `unconfirmed`, name the reads, and set `inHours` to 0.25: the next run of
-  the watch, about 15 minutes later, starts with the answers.
-- A read with `error` names the problem (a column that is not there, a
-  table agent_reader cannot read): correct it in the next plan.
+When an admin asks for a thing agent_reader cannot read (a name, an email, a
+phone number, a picture or a voice),
+read what you can (the profile id, its organizations' ids, its installs,
+when it was active) and give that. Say that a developer's cloud thread can
+read the name, and never give the admin SQL to run.
+
+The fix job also runs the reads your last plan named before you start.
+Their answers are in `.user-issues/reads.json`: for each statement,
+`columns` and `rows` (at most 200), or `error`; for each log, its newest
+`lines` (at most 200).
+
+- Name a read in `next.reads` only when its answer is not there yet (more
+  records, a new build): at most 6, each a statement (`select` or `with`,
+  at most 1500 characters, no `;`) or a log (`--logs <source> name=value
+  ...`, values without spaces).
 
 ### When the cause is not proven yet
 
