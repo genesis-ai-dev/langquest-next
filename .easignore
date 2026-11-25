@@ -5,7 +5,12 @@ node_modules/
 .claude/worktrees/
 .git/
 dist/
-build/
+# Build output by where it lands: a bare `build/` also left out
+# apps/mobile/src/build, which is source, so a carried build started from a
+# laptop could not bundle (2026-11-25). scripts/easUpload.test.ts holds it.
+apps/mobile/build/
+apps/mobile/modules/*/android/build/
+coverage/
 apps/mobile/ios/
 apps/mobile/android/
 **/*.tsbuildinfo
