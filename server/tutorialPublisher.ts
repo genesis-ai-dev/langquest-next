@@ -6,8 +6,9 @@ import {
 /**
  * What the publish job does (server/tutorialPublish.ts, decisions.md 180),
  * with the database and the files given in so a test can play YouTube: each
- * video a Publish chose goes up on its language's channel, in the plan's
- * order, and the database is told which YouTube video it became as soon as
+ * video a Publish chose goes up on its language's channel, the one that has
+ * waited longest since it last went up first, then in the plan's order
+ * (`ops_tutorials_due`), and the database is told which YouTube video it became as soon as
  * it is up, so a later failure never puts it up twice. A new version takes
  * the old one's place in its playlist, and the old one is unlisted with a
  * line pointing to the new one. The trailer (decisions.md 189) goes first in

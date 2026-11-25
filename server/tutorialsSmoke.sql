@@ -741,4 +741,30 @@ exception when insufficient_privilege then null;
 end $$;
 reset role;
 
+-- The video that has waited longest goes up first (migration *_tutorial_due_longest_waiting.sql, decision 180
+-- amended 2026-11-25): a channel's day of uploads went to new versions of the plan's first videos, filmed again
+-- each day, and the videos late in the plan never went up. Early in the plan, up yesterday; late, up 9 days ago;
+-- last, never up. Each has a version due now.
+set local role service_role;
+select public.ops_tutorial_made('wait-early', 'es', repeat('1', 64), 'Temprano', 'x', 'Todos', 3, 40, 4000000, true);
+select public.ops_tutorial_made('wait-late', 'es', repeat('2', 64), 'Tarde', 'x', 'Todos', 40, 40, 4000000, true);
+select public.ops_tutorial_published('wait-early', 'es', repeat('1', 64), 'W41tE4rly01', null);
+select public.ops_tutorial_published('wait-late', 'es', repeat('2', 64), 'W41tL4t3001', null);
+reset role;
+update ops.tutorial_videos set made_at = now() - interval '10 days' where tutorial in ('wait-early', 'wait-late');
+update ops.tutorial_videos set published_at = now() - interval '1 day' where tutorial = 'wait-early';
+update ops.tutorial_videos set published_at = now() - interval '9 days' where tutorial = 'wait-late';
+set local role service_role;
+select public.ops_tutorial_made('wait-early', 'es', repeat('8', 64), 'Temprano', 'x', 'Todos', 3, 40, 4000000, true);
+select public.ops_tutorial_made('wait-late', 'es', repeat('01', 32), 'Tarde', 'x', 'Todos', 40, 40, 4000000, true);
+select public.ops_tutorial_made('wait-never', 'es', repeat('02', 32), 'Nunca', 'x', 'Todos', 45, 40, 4000000, true);
+do $$ declare v jsonb; begin
+  v := public.ops_tutorials_due(500);
+  assert (select string_agg(x->>'tutorial', ', ' order by n) from jsonb_array_elements(v) with ordinality t(x, n) where x->>'tutorial' like 'wait-%')
+    = 'wait-never, wait-late, wait-early', 'never up, then up longest ago, then the plan: %', v;
+  assert (select x->>'replaces' from jsonb_array_elements(v) x where x->>'tutorial' = 'wait-late') = 'W41tL4t3001', 'it still replaces the one up: %', v;
+  assert (select x->'replaces' from jsonb_array_elements(v) x where x->>'tutorial' = 'wait-never') = 'null'::jsonb, 'one never up replaces nothing: %', v;
+end $$;
+reset role;
+
 rollback;
