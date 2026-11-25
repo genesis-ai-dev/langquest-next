@@ -30,10 +30,24 @@ const states = new Map<string, { state: ViewerState; until: number }>();
 const askingWho = new Map<string, Promise<string | null>>();
 const askingState = new Map<string, Promise<ViewerState>>();
 
-function once<V>(asking: Map<string, Promise<V>>, key: string, ask: () => Promise<V>): Promise<V> {
+/**
+ * Keeps work that later requests share alive after the request that started it ends: that request's
+ * `ctx.waitUntil`. Without it, the Workers runtime ends the work when its request is canceled (a reload, a
+ * closed tab), the shared promise never settles, and each request that waits on it throws (LAN-311).
+ * Tests leave it out.
+ */
+export type Keep = (work: Promise<unknown>) => void;
+
+/** Hands `work` to `keep` and returns it; a failure stays the callers' to handle, and is not thrown twice. */
+export function keepAlive<V>(work: Promise<V>, keep?: Keep): Promise<V> {
+  keep?.(work.then(() => undefined, () => undefined));
+  return work;
+}
+
+function once<V>(asking: Map<string, Promise<V>>, key: string, ask: () => Promise<V>, keep?: Keep): Promise<V> {
   const running = asking.get(key);
   if (running) return running;
-  const started = ask().finally(() => asking.delete(key));
+  const started = keepAlive(ask().finally(() => asking.delete(key)), keep);
   asking.set(key, started);
   return started;
 }
@@ -50,11 +64,11 @@ export function bearer(request: Request): string | null {
 }
 
 /** The signed-in person's profile id, from Supabase Auth; null when the token or its session is no good. */
-export async function profileOf(token: string, supabaseUrl: string, anonKey: string, fetcher: typeof fetch = fetch, now = Date.now()): Promise<string | null> {
+export async function profileOf(token: string, supabaseUrl: string, anonKey: string, fetcher: typeof fetch = fetch, now = Date.now(), keep?: Keep): Promise<string | null> {
   const key = await digest(token);
   const hit = known.get(key);
   if (hit && hit.until > now) return hit.profileId;
-  return once(askingWho, key, () => askAuth(key, token, supabaseUrl, anonKey, fetcher, now));
+  return once(askingWho, key, () => askAuth(key, token, supabaseUrl, anonKey, fetcher, now), keep);
 }
 
 async function askAuth(key: string, token: string, supabaseUrl: string, anonKey: string, fetcher: typeof fetch, now: number): Promise<string | null> {
@@ -72,11 +86,11 @@ async function askAuth(key: string, token: string, supabaseUrl: string, anonKey:
 }
 
 /** The person's Global Viewer state, asked as them, so the database reads the token's own `aal`. */
-export async function viewerState(token: string, supabaseUrl: string, anonKey: string, fetcher: typeof fetch = fetch, now = Date.now()): Promise<ViewerState> {
+export async function viewerState(token: string, supabaseUrl: string, anonKey: string, fetcher: typeof fetch = fetch, now = Date.now(), keep?: Keep): Promise<ViewerState> {
   const key = await digest(token);
   const hit = states.get(key);
   if (hit && hit.until > now) return hit.state;
-  return once(askingState, key, () => askDatabase(key, token, supabaseUrl, anonKey, fetcher, now));
+  return once(askingState, key, () => askDatabase(key, token, supabaseUrl, anonKey, fetcher, now), keep);
 }
 
 async function askDatabase(key: string, token: string, supabaseUrl: string, anonKey: string, fetcher: typeof fetch, now: number): Promise<ViewerState> {
@@ -98,20 +112,21 @@ async function askDatabase(key: string, token: string, supabaseUrl: string, anon
 export async function access(
   request: Request,
   env: { SUPABASE_URL: string; SUPABASE_ANON_KEY: string },
-  fetcher: typeof fetch = fetch
+  fetcher: typeof fetch = fetch,
+  keep?: Keep
 ): Promise<Access> {
   const token = bearer(request);
   if (!token) return { ok: false, status: 401, error: 'Sign in first.' };
   let profileId: string | null;
   try {
-    profileId = await profileOf(token, env.SUPABASE_URL, env.SUPABASE_ANON_KEY, fetcher);
+    profileId = await profileOf(token, env.SUPABASE_URL, env.SUPABASE_ANON_KEY, fetcher, Date.now(), keep);
   } catch (e) {
     return { ok: false, status: 503, error: e instanceof Error ? e.message : 'Supabase Auth did not answer' };
   }
   if (!profileId) return { ok: false, status: 401, error: 'Your sign-in ended. Sign in again.' };
   let state: ViewerState;
   try {
-    state = await viewerState(token, env.SUPABASE_URL, env.SUPABASE_ANON_KEY, fetcher);
+    state = await viewerState(token, env.SUPABASE_URL, env.SUPABASE_ANON_KEY, fetcher, Date.now(), keep);
   } catch (e) {
     return { ok: false, status: 503, error: e instanceof Error ? e.message : 'The database did not answer' };
   }
