@@ -4023,6 +4023,11 @@ it does today (decision 54).
    `accountFromChain`, so one implementation can be tested here with fakes.
    `supabase/functions/join` stays untouched for current builds, and Edge Functions cannot
    import core.
+   - **What field diagnostics say (2026-11-25).** A newcomer's phone came online and nothing
+     said when first contact went through, since only its failures were noted. An `auth`
+     record, op `first_contact`, says `ok` with action `session` when the join route's
+     session is saved and `certificate` when the certificate route answers, or how it was
+     refused (`joinRefusalRecord`), with the call's ms and the turn since the app started.
    - **The account.** `accountFromChain` takes a two-link chain only, and `checkChain` has
      already recomputed the id from the key, so it cannot name an existing member, an
      imported v2 person who has not signed in yet, or anyone else (section 5.12, Chains).

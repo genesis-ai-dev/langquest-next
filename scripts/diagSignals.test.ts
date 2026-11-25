@@ -114,6 +114,24 @@ describe('diagnostic signals', () => {
     expect(t.join('\n')).toMatch(/organizations could not be fetched \(http503\) 2 times/);
   });
 
+  // 2026-11-25: a newcomer's phone came online, and nothing said when first contact went through.
+  it('says when a person let in offline got their sign-in and certificate, and when first contact was refused', () => {
+    const t = texts({ a: install({ auth: [
+      { op: 'first_contact', outcome: 'ok', code: null, action: 'session', count: 1, lastAt: 'T1', maxMs: 400, last: { ms: 400, attempt: 3 } },
+      { op: 'first_contact', outcome: 'ok', code: null, action: 'certificate', count: 1, lastAt: 'T2', maxMs: 300, last: { ms: 300, attempt: 4 } }
+    ] }) });
+    expect(t).toContain('info: First contact (session) went through at T1, on turn 3.');
+    expect(t).toContain('info: First contact (certificate) went through at T2, on turn 4.');
+    const refused = texts({ a: install({ auth: [
+      { op: 'first_contact', outcome: 'expired', code: 'expired', action: null, count: 2, lastAt: 'T', maxMs: 200, last: { ms: 200, attempt: 1 } }
+    ] }) });
+    expect(refused).toContain('problem: First contact for a person let in offline was refused ("expired") 2 times: their work stays on the phone, and an ordinary invite lets the same id in.');
+    const needsCode = texts({ a: install({ auth: [
+      { op: 'first_contact', outcome: 'refused', code: 'needs_code', action: null, count: 1, lastAt: 'T', maxMs: 200, last: { ms: 200, attempt: 1 } }
+    ] }) });
+    expect(needsCode).toContain('watch: First contact found this account\'s key sign-in over once: a helper\'s code signs the person in, and their work stays on the phone meanwhile.');
+  });
+
   it("notices a member's phone that syncs the organization but never opened the language", () => {
     const t = texts({ a: install({ orgSync: { count: 4, p95Ms: 1000, applyMs: 10, pulled: 3, outcomes: { ok: 4 }, lastAt: 'T' } }) });
     expect(t.join('\n')).toMatch(/synced the organization \(4 times, last T\) but recorded nothing about this language/);

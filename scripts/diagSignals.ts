@@ -427,6 +427,10 @@ export function signals(health: LanguageHealth | null, members: Member[], summar
       if (g.op === 'ended') add('problem', install, `Signed out by the server${code} ${times}, last ${g.lastAt}, with ${g.last?.pending ?? 0} events not yet sent.`);
       else if (g.op === 'renew' && g.outcome !== 'ok') add('watch', install, `The sign-in could not be renewed (${g.outcome}${g.last?.status ? ` ${g.last.status}` : ''}) ${times}.`);
       else if ((g.op === 'redeem' || g.op === 'join') && !['ok', 'offline', 'needs_name'].includes(g.outcome)) add('problem', install, `Joining by invite ended "${g.outcome}"${code} ${times}${g.last?.attempt ? ` (attempt ${g.last.attempt})` : ''}.`);
+      // A person let in offline reaching the server (2026-11-25): when each step went through, or why it was refused.
+      else if (g.op === 'first_contact' && g.outcome === 'ok') add('info', install, `First contact (${g.action ?? '?'}) went through at ${g.lastAt}${g.last?.attempt ? `, on turn ${g.last.attempt}` : ''}.`);
+      else if (g.op === 'first_contact' && g.code === 'needs_code') add('watch', install, `First contact found this account's key sign-in over ${times}: a helper's code signs the person in, and their work stays on the phone meanwhile.`);
+      else if (g.op === 'first_contact') add('problem', install, `First contact for a person let in offline was refused ("${g.outcome}") ${times}: their work stays on the phone, and an ordinary invite lets the same id in.`);
       else if (g.op === 'org_list' && g.outcome !== 'ok') add('problem', install, `The list of the person's organizations could not be fetched${code} ${times}: a new phone cannot open their organization.`);
       else if (g.op === 'route' && g.outcome !== 'home') add(g.outcome === 'org_unknown' ? 'problem' : 'info', install, `After signing in the app went to "${g.outcome}" ${times}.`);
       else if (g.op === 'route' && (g.maxMs ?? 0) > 60_000) add('watch', install, `Getting from sign-in to the home screen took up to ${secs(g.maxMs ?? 0)}.`);
