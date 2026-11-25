@@ -65,7 +65,8 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
     expect(ra.peer).toMatchObject({ profileId: 'sam', installKey: sam.key, tag: findTagOf(sam.crypto, keys.kFind, sam.key) });
     expect(ra.changed).toBe(true);
     // Each records the pair in `nearbyPeers`, under the tag from Hello's chain.
-    expect(await a.keep.peers()).toEqual([{ tag: ra.peer!.tag, gen: 0, mine: ra.finals!.mine, theirs: ra.finals!.theirs }]);
+    // With the files this phone held as the two finished (2026-11-25).
+    expect(await a.keep.peers()).toEqual([{ tag: ra.peer!.tag, gen: 0, mine: ra.finals!.mine, theirs: ra.finals!.theirs, files: a.files.fingerprint!() }]);
     // Signing came first: the rows went as batches, so their numbers count on the other side.
     expect(isCounted((await b.client.nearbyHave()).vector, ana.key, 1)).toBe(true);
     // A teammate's rows are nearby, never pending: only the author pushes.

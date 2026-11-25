@@ -61,6 +61,11 @@ export interface NearbyFileMoves {
   discard(stagingUri: string): Promise<void>;
   /** Unconfirmed files this phone holds, for its own holdings entry. */
   held(): Promise<readonly string[]>;
+  /**
+   * A fingerprint of every file this phone holds now (`filesFingerprint`, 2026-11-25), kept with the pair when two finish:
+   * a file gained since makes the room meet that teammate again. Absent, a pair's record has none, as before.
+   */
+  fingerprint?(): string;
   /** With "Hold teammates' recordings" off, what no longer needs keeping (`nearbyShedOf`), before this phone's own entry goes. */
   shed?(holdings: Holdings): Promise<void>;
   /** Whether this phone's "Hold teammates' recordings" row is on, signed into its own entry. Absent means off, which lets no teammate shed a file for its sake. */
@@ -2444,7 +2449,11 @@ export class NearbySession {
     report.finals = { mine, theirs: final.summary };
     // A session that cut backups records none, so the pair can go on later; nor does a QR link's, which knows no find tag;
     // nor one whose events named documents no ask covered, or whose documents stopped at a bound (review item 15).
-    if (!report.files.cutBackups && !report.files.capped && !report.docsAgain && report.peer!.tag !== '') await opt.keep.recordPeer({ tag: report.peer!.tag, gen: opt.generations?.sessionGen ?? 0, mine, theirs: final.summary });
+    if (!report.files.cutBackups && !report.files.capped && !report.docsAgain && report.peer!.tag !== '') {
+      // With the files this phone holds as the two finish: one gained since makes them meet again (2026-11-25).
+      const files = opt.files?.fingerprint?.();
+      await opt.keep.recordPeer({ tag: report.peer!.tag, gen: opt.generations?.sessionGen ?? 0, mine, theirs: final.summary, ...(files !== undefined ? { files } : {}) });
+    }
     await this.send({ t: 'bye', reason: 'done' }).catch((err: unknown) => { if (!isDrop(err)) throw err; });
     // Both finals are here, so whatever comes now, or no bye at all, changes nothing.
     await this.take().catch(() => undefined);

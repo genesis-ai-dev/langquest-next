@@ -188,7 +188,8 @@ export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
   const notesMetForMs = mode === 'screen' ? a.notesMetForMs : undefined;
   return new NearbyRoom({
     radio, crypto: pieces.crypto, keys: () => ({ gen: key.gen, key: key.key, floor: key.floor }),
-    facts: factsOf(a, keep, () => nearbyNamesOf(language, orgId), notesMetForMs),
+    // A file gained since two teammates finished makes them meet again, as no summary says it (2026-11-25).
+    facts: { ...factsOf(a, keep, () => nearbyNamesOf(language, orgId), notesMetForMs), filesFingerprint: () => moves?.fingerprint?.() ?? null },
     ...roomLimitsFor(worn, mode),
     mode,
     // An iPhone's awdl and joinDirect go through as its module says them, joinDirect while the tunable allows it; neither while open.
