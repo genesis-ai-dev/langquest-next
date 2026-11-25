@@ -434,6 +434,31 @@ Each run prints a line that starts with what it found:
 | `none:` | the file is there; nothing to build |
 | `no carried build:` | a setting or key is missing, Google or the bucket answered something unexpected, or Play's automatic protection is in the APK (step 5); the job failed and changed nothing. The next merge that changes the app checks again |
 
+### Refreshing the file by hand
+
+When testers need a merge that landed after 08:30 GMT the same day, a person
+signed in with `npx eas-cli login` (or an agent the developer asked) starts
+the refresh on main's newest commit. From a clean checkout of that commit,
+such as a detached worktree, in `apps/mobile`:
+
+```
+npx eas-cli workflow:run .eas/workflows/refresh-carried.yml --git-branch main --git-commit-hash <full SHA of origin/main>
+```
+
+This uploads the checkout, so `git status` must be clean and `git rev-parse
+HEAD` must be `origin/main`. Not these:
+
+- `--ref main`: eas-cli turns it into a commit with `git rev-parse` on the
+  laptop, so a local `main` that is behind builds old code, and EAS lists
+  the run with no branch. On 2026-11-25 it started on a commit three days
+  old and was cancelled.
+- Re-run on an earlier run: it builds that run's commit under a new, higher
+  version code, and a publish keeps the file with the higher version code.
+
+The publish step's log names what it replaced ("replaced: it held version
+code 72 … version code 74"), and `curl -I
+https://next.langquest.org/apk/<name>` shows the new size.
+
 ## Replacing a build in review
 
 By default a new store build waits while an older one is in review, on
