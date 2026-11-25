@@ -40,6 +40,45 @@ describe('the JobStatus entrypoint', () => {
     expect(jobs[0]).not.toHaveProperty('error');
     expect(jobs[1]).toEqual({ key: 'v2-import', job: 'v2_import', running: false, startedAt: null, timeLimitMs: JOBS['v2-import'].timeLimitMs, all: false, error: 'RangeError' });
   });
+
+  /** A Durable Object call's error as Cloudflare throws it: an Error with its flags set. */
+  const platformError = (flags: { retryable?: boolean; overloaded?: boolean }) => Object.assign(new Error('Network connection lost.'), flags);
+
+  /** A namespace whose fold canary object throws `errors` in turn, then answers; it counts the stubs it hands out. */
+  function canaryFails(...errors: Error[]) {
+    const stubs: string[] = [];
+    const entry = entrypoint((key) => {
+      stubs.push(key);
+      return {
+        status: async () => {
+          if (key === 'fold-canary' && errors.length) throw errors.shift();
+          return { running: false, startedAt: null, timeLimitMs: 1, all: false };
+        }
+      };
+    });
+    return { stubs, entry };
+  }
+  const canaryOf = (jobs: { key: string }[]) => jobs.find((j) => j.key === 'fold-canary');
+
+  it('asks a job again on a new stub when the platform marks its fault retryable', async () => {
+    const { stubs, entry } = canaryFails(platformError({ retryable: true }));
+    const canary = canaryOf(await entry.jobs());
+    expect(canary).not.toHaveProperty('error');
+    expect(canary).toMatchObject({ running: false, startedAt: null });
+    expect(stubs.filter((k) => k === 'fold-canary')).toHaveLength(2);
+  });
+
+  it('says the flags when the second ask fails too, and asks only twice', async () => {
+    const { stubs, entry } = canaryFails(platformError({ retryable: true }), platformError({ retryable: true }), platformError({ retryable: true }));
+    expect(canaryOf(await entry.jobs())).toMatchObject({ error: 'Error, retryable' });
+    expect(stubs.filter((k) => k === 'fold-canary')).toHaveLength(2);
+  });
+
+  it('does not ask an overloaded object again', async () => {
+    const { stubs, entry } = canaryFails(platformError({ retryable: true, overloaded: true }));
+    expect(canaryOf(await entry.jobs())).toMatchObject({ error: 'Error, retryable, overloaded' });
+    expect(stubs.filter((k) => k === 'fold-canary')).toHaveLength(1);
+  });
 });
 
 describe('stored files through the JobStatus entrypoint', () => {
