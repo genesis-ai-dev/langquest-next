@@ -6,6 +6,12 @@ node_modules/
 .git/
 dist/
 build/
+# `build/` matches a folder of that name at any depth, and the app's code has
+# one (apps/mobile/src/build, decision 105's base layer): keep it in the
+# upload, or Metro cannot resolve ../build/testBuild (LAN-334).
+# scripts/easignore.test.ts holds that no app or package source is dropped.
+!apps/mobile/src/build/
+!apps/mobile/src/build/**
 apps/mobile/ios/
 apps/mobile/android/
 **/*.tsbuildinfo
