@@ -11,7 +11,7 @@ import type { ApkCheck, ApkGet, ApkStep, KeepResult } from './carriedApkModel';
  * - `get`, `choose`: no file in hand for these versions (never got, the copy gone, or one for
  *   other versions): the step's own buttons.
  * - `newer`: in hand, and while it can be downloaded (`get` ready) a newer file is known to be
- *   ready (`behind`: `keptBehind` or `keptFromOlderBuild`): Download in the browser is the main
+ *   ready (`behind`: `keptOutdated` or `keptFromOlderBuild`): Download in the browser is the main
  *   button again.
  * - `again`: in hand, but the file handed over or chosen on this visit did not check or could not
  *   be kept (`checkFailed`): choose it again, or download it again.

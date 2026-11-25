@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { CARRIED_APK_VERSION_CODE, CARRIED_FILE_TYPE, carriedApkName, carriedApkNameHere, carriedFileName } from '@langquest-next/core';
+import { CARRIED_APK_BUILT_MS, CARRIED_APK_VERSION_CODE, CARRIED_BUILT_HEADER, CARRIED_FILE_TYPE, carriedApkName, carriedApkNameHere, carriedFileName } from '@langquest-next/core';
 import { APK_CONTENT_TYPE, apkNameOf, newestFitting, serveApk, type ApkBucket } from '../worker/apk';
 import { ownsResponse } from '../worker/securityHeaders';
 import { routeClass } from '../worker/requestTally';
@@ -13,13 +13,17 @@ const NAME = carriedApkName({ reducer: 21, lines: 1, protocol: { min: 1, max: 1 
 
 /**
  * An R2 bucket of named byte arrays, answering get (with ranges), head and list (by prefix, with
- * custom metadata) as the binding does. `put` gives a file's version code and when it was put there.
+ * custom metadata) as the binding does. `put` gives a file's version code, when its JavaScript was
+ * built and when it was put there.
  */
-function fakeBucket(files: Record<string, Uint8Array>, put: Record<string, { code?: string; at?: number }> = {}) {
+function fakeBucket(files: Record<string, Uint8Array>, put: Record<string, { code?: string; built?: string; at?: number }> = {}) {
   const asked: string[] = [];
   const meta = (key: string, bytes: Uint8Array) => ({
     key, size: bytes.length, httpEtag: `"${key.length}-${bytes.length}"`, uploaded: new Date(put[key]?.at ?? 0),
-    customMetadata: put[key]?.code === undefined ? {} : { [CARRIED_APK_VERSION_CODE]: put[key].code }
+    customMetadata: {
+      ...(put[key]?.code === undefined ? {} : { [CARRIED_APK_VERSION_CODE]: put[key].code }),
+      ...(put[key]?.built === undefined ? {} : { [CARRIED_APK_BUILT_MS]: put[key].built })
+    }
   });
   const bucket = {
     async list(options: { prefix?: string; include?: string[] }) {
@@ -77,6 +81,22 @@ describe('the APK route', () => {
     expect(part.status).toBe(206);
     expect(part.headers.get('content-range')).toBe(`bytes 4-9/${apk.length}`);
     expect(new Uint8Array(await part.arrayBuffer())).toEqual(apk.slice(4));
+  });
+
+  it('says when the file\'s JavaScript was built, on HEAD and GET, so a carrier\'s phone can tell it from the copy it keeps', async () => {
+    const { bucket } = fakeBucket({ [NAME]: apk }, { [NAME]: { code: '74', built: '1795600000000' } });
+    for (const method of ['HEAD', 'GET']) {
+      const res = await serveApk(ask(`/apk/${NAME}`, { method }), bucket);
+      expect(res.status).toBe(200);
+      expect(res.headers.get(CARRIED_BUILT_HEADER)).toBe('1795600000000');
+    }
+    const asTaken = await serveApk(ask(`/apk/${carriedFileName(NAME)}`, { method: 'HEAD' }), bucket);
+    expect(asTaken.headers.get(CARRIED_BUILT_HEADER)).toBe('1795600000000');
+    // A file published before the time was recorded, or with one that is not a time, says nothing.
+    for (const built of [undefined, '', 'soon', '-5', '0', '1.5']) {
+      const { bucket: other } = fakeBucket({ [NAME]: apk }, { [NAME]: { code: '72', ...(built === undefined ? {} : { built }) } });
+      expect((await serveApk(ask(`/apk/${NAME}`, { method: 'HEAD' }), other)).headers.has(CARRIED_BUILT_HEADER)).toBe(false);
+    }
   });
 
   it('is 404 for a name the bucket lacks, anything that is not a carried build\'s name, and other methods, and never lists', async () => {

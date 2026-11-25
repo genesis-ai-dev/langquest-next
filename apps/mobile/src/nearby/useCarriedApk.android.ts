@@ -7,9 +7,10 @@ import { noteExpected } from '../diagnostics/report';
 import { carriedApkUrl } from '../server/carriedApk';
 import { apkKeptUnderNow, apkOpenedNow, apkRightNow, keepApkKeptUnder, keepApkOpened, keepApkRight, loadApkKeptUnder, loadApkOpened, loadApkRight, subscribeApkKeptUnder, subscribeApkOpened, subscribeApkRight } from './carriedApkKept';
 import { nearbyCodeOf, nearbyLinkNative } from '../../modules/nearby-link';
-import { apkCheck, apkStale, cannotGive, chosenName, KEEP_MIN_FREE_BYTES, keepResultOf, keptBehind, keptStale, type ApkCheck, type KeepResult } from './carriedApkModel';
+import { builtOnServer } from './carriedApkBuilt';
+import { apkCheck, apkStale, cannotGive, chosenName, KEEP_MIN_FREE_BYTES, keepResultOf, keptStale, type ApkCheck, type KeepResult } from './carriedApkModel';
 import { keptFileNow, keptFileReadStart, readKeptFile, setKeptFile, subscribeKeptFile } from './installFileKept';
-import { keptFromOlderBuild } from './keptBuildModel';
+import { keptFromOlderBuild, keptOutdated } from './keptBuildModel';
 import { androidSdk } from './nearbyPermissions.android';
 import type { CarriedApkHandle } from './useCarriedApk';
 
@@ -57,10 +58,22 @@ export function useCarriedApk(): CarriedApkHandle {
   const canGive = whyNot === null;
   const held = useSyncExternalStore(subscribeKeptFile, keptFileNow);
   const kept = canGive ? held : null;
-  // The kept copy against the app this phone runs (an OTA update's time, or the build's own): a
-  // newer file is ready once the copy is two days behind (docs/decisions/2026-11-19-carried-build-refreshed-daily.md).
-  // Or from an older native build than this phone runs, which installs an older app (Carl, 2026-11-20).
-  const behind = keptBehind(kept, Updates.createdAt?.getTime() ?? null) || keptFromOlderBuild(kept, needed, keptUnder);
+  // With a copy kept, the Worker is asked when its file was built (a HEAD request, which fails
+  // offline and is asked again on the next screen): a file built after the copy is newer, so it is
+  // ready (Carl, 2026-11-25, after a phone keeping the morning's file said nothing of a later one).
+  const [serverBuilt, setServerBuilt] = useState<number | null>(null);
+  const keptName = kept?.name ?? null;
+  useEffect(() => {
+    if (!needed || keptName === null) return;
+    let live = true;
+    builtOnServer(needed).then((ms) => { if (live) setServerBuilt(ms); }, (e: unknown) => noteExpected('carried apk: built on server', e));
+    return () => { live = false; };
+  }, [needed, keptName]);
+  // Without that answer, the copy against the app this phone runs (an OTA update's time, or the
+  // build's own): a newer file is ready once the copy is two days behind
+  // (docs/decisions/2026-11-19-carried-build-refreshed-daily.md). Or the copy comes from an older
+  // native build than this phone runs, which installs an older app (Carl, 2026-11-20).
+  const behind = keptOutdated(kept, serverBuilt, Updates.createdAt?.getTime() ?? null) || keptFromOlderBuild(kept, needed, keptUnder);
   // What native keeps, read on opening and again when Download the install file comes back to the
   // front, as from the browser (`reread`). A read that ends after a copy was kept meanwhile, as
   // when the browser's Open hands one over, leaves that copy shown (`readKeptFile`).

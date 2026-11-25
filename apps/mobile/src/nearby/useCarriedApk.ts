@@ -28,7 +28,11 @@ export interface CarriedApkHandle {
   canGive: boolean;
   /** Why it cannot, where it cannot: Android before 10, or an older build of the app (`cannotGive`). */
   cannotGive: CannotGive | null;
-  /** The kept copy is more than two days older than the app this phone runs, so a newer file is ready (`keptBehind`). */
+  /**
+   * A newer file than the kept copy is ready: the Worker's was built after it, or, without that
+   * answer, the copy is more than two days older than the app this phone runs (`keptOutdated`); or the
+   * copy comes from an older native build (`keptFromOlderBuild`).
+   */
   behind: boolean;
   /**
    * `take`: a file the browser handed over with its Open (src/nearby/handedFile.android.ts), checked and kept as one chosen.

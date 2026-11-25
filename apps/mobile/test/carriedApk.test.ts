@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { apkCheck, apkGet, apkShown, apkStale, apkStep, cannotGive, installFileItem, installFileRow, joinRows, KEPT_BEHIND_MS, keptBehind, letInVersionsWords } from '../src/nearby/carriedApkModel';
 import { apkOffer, checkFailed } from '../src/nearby/installFileOfferModel';
-import { CARRIED_APK_KEPT_UNDER_KEY, keptFromOlderBuild } from '../src/nearby/keptBuildModel';
+import { CARRIED_APK_KEPT_UNDER_KEY, keptFromOlderBuild, keptOutdated } from '../src/nearby/keptBuildModel';
 import { carriedApkAddress } from '../src/server/carriedApkModel';
 
 /**
@@ -360,5 +360,42 @@ describe('the inviter told of a version refusal', () => {
   it('names the file this phone needs, or the version without a name where there is none', () => {
     expect(letInVersionsWords(NOW)).toEqual({ key: 'nearby.letIn.end.versions', file: 'r21-l1-p1-….apk' });
     expect(letInVersionsWords(null)).toEqual({ key: 'nearby.letIn.end.versionsUnnamed' });
+  });
+});
+
+describe('a newer file on the Worker than the kept copy', () => {
+  // Why: the two-day rule said nothing of a file refreshed the same day, so a carrier who kept the
+  // morning's file never heard of the one made at noon with the fix they were testing (Carl,
+  // 2026-11-25). The Worker now says when its file was built, from the same commitTime native reads
+  // in the kept copy, so the same file is never newer, and a newer one shows at once.
+  const MORNING = Date.UTC(2026, 10, 25, 8, 50);
+  const NOON = Date.UTC(2026, 10, 25, 10, 40);
+  const copy = (builtMs?: number | null) => ({ name: 'r21-l1-p1-34f7634a.apk', size: 213 * 1024 * 1024, builtMs });
+
+  it('is ready when the Worker\'s file was built after the copy, and not for the same file or an older one', () => {
+    expect(keptOutdated(copy(MORNING), NOON, NOON + 60_000)).toBe(true);
+    expect(keptOutdated(copy(NOON), NOON, NOON + 60_000)).toBe(false);
+    expect(keptOutdated(copy(NOON), MORNING, NOON + 60_000)).toBe(false);
+  });
+
+  it('goes by the Worker over the two-day rule when it answers, so a refresh that failed for days does not send the carrier for the same file', () => {
+    const late = MORNING + KEPT_BEHIND_MS + 60_000;
+    expect(keptBehind(copy(MORNING), late)).toBe(true);
+    expect(keptOutdated(copy(MORNING), MORNING, late)).toBe(false);
+  });
+
+  it('falls back to the two-day rule when either time is unknown: no answer yet or offline, a file published before its time was recorded, or a copy native could not read', () => {
+    const late = MORNING + KEPT_BEHIND_MS + 60_000;
+    for (const server of [null, undefined]) {
+      expect(keptOutdated(copy(MORNING), server, late)).toBe(true);
+      expect(keptOutdated(copy(MORNING), server, NOON)).toBe(false);
+    }
+    expect(keptOutdated(copy(null), NOON, late)).toBe(false);
+    expect(keptOutdated(copy(undefined), NOON, NOON)).toBe(false);
+  });
+
+  it('says nothing with no copy', () => {
+    expect(keptOutdated(null, NOON, NOON)).toBe(false);
+    expect(keptOutdated(undefined, NOON, NOON)).toBe(false);
   });
 });

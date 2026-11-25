@@ -4374,6 +4374,17 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     newer file is ready. Since 2026-11-19 it is amber, on Sync's folded line too ("Install file
     for a new person: a newer one is ready"): the older copy still lets a new phone join, but
     the newer app may hold fixes the newcomer needs offline (Carl).
+  - *Told the day a newer file lands* (Carl's choice, 2026-11-25). The two-day rule said nothing
+    of a file refreshed the same day: a carrier who kept the morning's file never heard of one
+    made at noon, by hand, with the fix they were to test. The publish now records when each
+    file's JavaScript was built (R2 metadata `built-ms`, the same `commitTime` native reads in
+    the kept copy), and the Worker gives it on `GET` and `HEAD /apk/<name>` as
+    `x-carried-built-ms`. A phone keeping a copy asks with `HEAD` while online, at most once in
+    ten minutes for its screens together (`builtOnServer`), and a file built after its copy is a
+    newer one ready (`keptOutdated`). The same file is never newer, so a download never brings
+    it back. With no answer (offline, a file published before the time was recorded, a copy
+    whose time native could not read) the two-day rule decides as before, and a copy from an
+    older native build still counts at once (`keptFromOlderBuild`).
   - *A phone whose build has no file.* Files are made only at merges into main, for main's
     fingerprint, so a phone on another build (a store build from before publishing worked, or
     a release branch's) asks for a name the bucket lacks. The Worker sends it, by a 302 that
