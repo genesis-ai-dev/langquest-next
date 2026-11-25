@@ -57,7 +57,7 @@ newcomer until the pass expires, where it would refuse an unknown kind
 outright, and a link with no `madeAt` (an older inviter's) lasts as before.
 The Worker passes it as `p_made_at` to `pass_refusal`, `redeem_pass_for`,
 `nearby_join_state` and `nearby_join_finish`, and a pass's own invites row
-no longer refuses by its expiry (`20261124230000_nearby_newcomer_life.sql`).
+no longer refuses by its expiry (`20261124232000_nearby_newcomer_life.sql`).
 An inviter whose clock runs ahead can give a newcomer at most 90 days past
 the pass's expiry, since `madeAt` past it is refused. Answering section 13,
 in a window's last 30 days a certificate answer holds the next window's

@@ -4030,7 +4030,7 @@ it does today (decision 54).
         an unlimited factory. `madeAt` is the invite link's, after `checkChain` checked its
         signature, and is left out for a link with none: the pass then stops a first use
         made past its `expiresAt`, or, with `madeAt`, a link made past it or more than 90
-        days ago (2026-11-24, `20261124230000_nearby_newcomer_life.sql`). A pass's own
+        days ago (2026-11-24, `20261124232000_nearby_newcomer_life.sql`). A pass's own
         invites row keeps the pass's expiry and no longer refuses by it, since
         `pass_refusal` has just decided under the same `now()`.
      4. `createUser` with the phone's own id and `app_metadata: { managed: true, chain_key }`,
@@ -5013,7 +5013,7 @@ all day wrote a record each session, so weeks offline could drop the start of a 
 queue of 3,000; and the only reading was per install, with delivery left out. Now a session says
 its `mode` and a `refusal` reason (`window`, `revoked`, `org`, `expired`, `other`, and from
 2026-11-24 `pass-expired`, a newcomer whose pass or 90 days ran out, which was `other`,
-`20261124230500_diag_nearby_pass_expired.sql`); a room says
+`20261124232500_diag_nearby_pass_expired.sql`); a room says
 `greets`, `maxMeetMs`, `stop` `rest`, and while open `pauseMin` and the sums of its finished
 sessions, which write no record each (`packages/sync/src/nearbyDiag.ts`); the install summary
 keeps the modes apart with refusals and delivery; and `diag.nearby_summary`, read by

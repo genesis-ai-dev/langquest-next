@@ -31,7 +31,7 @@ export interface AccountDeps {
   /**
    * `nearby_join_state` with the service client. `madeAt` is the invite link's signed time, when it
    * has one (decision 240 as amended): `p_made_at`, left out for a link with none, so a database
-   * before 20261124230000 still answers those.
+   * before 20261124232000 still answers those.
    */
   state(a: { profileId: string; key: string; salt: string; pass: JoinPass['body']; roleId: string; madeAt?: number }): Promise<RpcAnswer>;
   /** `nearby_join_finish` with the service client, `madeAt` as for `state`. */

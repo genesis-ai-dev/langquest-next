@@ -89,7 +89,7 @@ Amended (2026-11-24, Carl Sauder): the refusal list gains `pass-expired`, a
 newcomer whose join pass, or 90 days from their invite link, ran out
 (decision 240 as amended). It was filed as `other`, which hid the date every
 newcomer was cut off on at their pass's window end. Still a fixed word, never
-who (`20261124230500_diag_nearby_pass_expired.sql`).
+who (`20261124232500_diag_nearby_pass_expired.sql`).
 
 Amended (2026-11-24, Carl Sauder): a join on Let someone in writes a session
 record on both phones, `mode` `join`, which only rooms did, so a newcomer who
