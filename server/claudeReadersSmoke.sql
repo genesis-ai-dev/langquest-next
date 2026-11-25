@@ -53,7 +53,7 @@ begin
      and format('%s.%s', c.table_name, c.column_name) not in (
        'library_versions.doc_hash', 'monthly.key', 'hourly.key', 'daily.key', 'detail_filters.key',
        'ledger.key', 'stamps.key', 'languoid_property.key', 'region_property.key', 'region_staging.key',
-       'languoid_property_staging.key', '_languoid_staged_property.key', 'user_issues.key');
+       'languoid_property_staging.key', '_languoid_staged_property.key', 'user_issues.key', 'user_issue_logs.key');
   if bad is not null then raise exception 'claude_reader reads a secret or an email: %', bad; end if;
 end $$;
 
@@ -77,7 +77,7 @@ begin
      and format('%s.%s', c.table_name, c.column_name) not in (
        'library_versions.doc_hash', 'monthly.key', 'hourly.key', 'daily.key', 'detail_filters.key',
        'ledger.key', 'stamps.key', 'languoid_property.key', 'region_property.key', 'region_staging.key',
-       'languoid_property_staging.key', '_languoid_staged_property.key', 'user_issues.key',
+       'languoid_property_staging.key', '_languoid_staged_property.key', 'user_issues.key', 'user_issue_logs.key',
        -- library documents (templates, flows), a Bible timing's answer and the v2 import's own log: no person's words
        'library_documents.body', 'timing_job_results.body', 'log.message');
   if bad is not null then raise exception 'agent_reader reads a secret or personal column: %', bad; end if;

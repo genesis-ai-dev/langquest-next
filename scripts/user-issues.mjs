@@ -185,6 +185,12 @@ export function grewComment(grown, state, run) {
   return [`**More people are hitting this${done ? ` although it is ${state.name}` : ''}.**`, '', ...lines, '', `The watch for user issues: ${run}`].join('\n');
 }
 
+/** A comment on an open issue whose failure came back: the watch kept its logs, and Claude starts on it. Never a log line: Linear is read by the whole team, the logs stay in the database. */
+export function backComment(keys, at, run) {
+  return [`**The failure came back** (${when(at)}).`, '', ...keys.map((k) => `- \`${k}\``), '',
+    'The watch kept the logs of the moment with the issue, for 30 days. Claude starts on it at once, with those logs.', '', `The watch for user issues: ${run}`].join('\n');
+}
+
 // ---- Claude's decisions, checked -------------------------------------------------------------------
 
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -674,7 +680,7 @@ export function orderToTake(order, fixes) {
 /** Why an issue has its place in the order, in a few words: "High · 12 people · 3 kinds · 40 times". */
 export function whyInOrder(o) {
   const n = (v, one, many) => (Number(v) > 0 ? `${Number(v)} ${Number(v) === 1 ? one : many}` : '');
-  return [o?.sent ? 'A person sent it' : '', PRIORITY_NAMES[Number(o?.priority)] ?? PRIORITY_NAMES[0], n(o?.people, 'person', 'people'), n(o?.kinds, 'kind', 'kinds'), n(o?.places, 'place with the same mistake', 'places with the same mistake'), n(o?.times, 'time', 'times')].filter(Boolean).join(' · ');
+  return [o?.sent ? 'A person sent it' : '', o?.back ? 'The failure came back' : '', PRIORITY_NAMES[Number(o?.priority)] ?? PRIORITY_NAMES[0], n(o?.people, 'person', 'people'), n(o?.kinds, 'kind', 'kinds'), n(o?.places, 'place with the same mistake', 'places with the same mistake'), n(o?.times, 'time', 'times')].filter(Boolean).join(' · ');
 }
 
 /** The issues the job `follow` hands back to the fix team (its output `repairs`): ids only, at most REPAIR_MAX. */
@@ -1060,6 +1066,156 @@ export function withEvidence(kinds, got) {
   });
 }
 
+// ---- the logs of the moment (docs/agent-team.md "The logs of the moment") ------------------------
+
+/** How many kinds one run saves logs for (server/userIssues.ts SAVED_LOGS_MAX.kinds), and how many go in one POST (under 512 KB). */
+export const LOGS_KINDS = 20;
+export const LOGS_BATCH = 8;
+/** How far back the reads of the moment look, in minutes; a kind's own search looks back the day the Worker logs keep. */
+export const LOGS_MINUTES = 120;
+export const LOGS_DAY = 1440;
+
+/** The reads every kind of one run shares: the errors and warnings of every Worker, and Supabase's errors, of the last 2 hours. */
+export const MOMENT_READS = [
+  { source: 'worker-logs', level: 'error', minutes: LOGS_MINUTES, limit: 100 },
+  { source: 'worker-logs', level: 'warn', minutes: LOGS_MINUTES, limit: 60 },
+  { source: 'supabase-logs', query: 'postgres-errors', minutes: LOGS_MINUTES },
+  { source: 'supabase-logs', query: 'http-errors', minutes: LOGS_MINUTES }
+];
+
+/** A word the Worker logs use for a kind, to search a day of them: a server job's name, a Worker route. Null for the rest. */
+export function logsSearchOf(key) {
+  const [family, first] = String(key ?? '').split(':');
+  if (family === 'job' && /^[a-z0-9_]{2,60}$/i.test(first ?? '')) return first;
+  if (family === 'worker' && /^[A-Za-z0-9_/.-]{2,80}$/.test(first ?? '')) return first;
+  return null;
+}
+
+/**
+ * Which kinds get their logs saved this run, and why: first the open issues whose failure is there again
+ * (`back`, at most 10 a run, ops_user_issue_back), then the kinds the watch hands to Claude (`new`), while
+ * LOGS_KINDS has room.
+ */
+export function logsPlan(watch) {
+  const out = [];
+  for (const b of Array.isArray(watch?.back) ? watch.back : []) {
+    if (!isObj(b) || !KEY.test(text(b.key)) || out.some((o) => o.key === b.key)) continue;
+    out.push({ key: b.key, why: 'back', issue: ISSUE_ID.test(text(b.issue)) ? b.issue : null, server: isObj(b.server) ? b.server : null });
+  }
+  for (const k of Array.isArray(watch?.look) ? watch.look : []) {
+    if (!isObj(k) || !KEY.test(text(k.key)) || out.some((o) => o.key === k.key)) continue;
+    out.push({ key: k.key, why: 'new', issue: null, server: isObj(k.server) ? k.server : null });
+  }
+  return out.slice(0, LOGS_KINDS);
+}
+
+const IPV4 = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
+const IPV6 = /\b(?:[0-9a-f]{1,4}:){4,7}[0-9a-f]{1,4}\b/gi;
+const PHONE_NUMBER = /\+\d[\d ().-]{6,}\d/g;
+
+/** A log line with personal data out once more (the log gate already did it for agent_reader; server/userIssues.ts maskLogLine does it a third time). */
+export const maskLine = (line) => redact(String(line ?? ''))
+  .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[jwt]')
+  .replace(/\bbearer\s+[^\s"',}]+/gi, 'Bearer [hidden]')
+  .replace(IPV4, '[ip]').replace(IPV6, '[ip]').replace(PHONE_NUMBER, '[number]');
+
+/** A read as words a person reads in a saved log: `worker-logs level=error minutes=120`. */
+export const askOf = (read) => Object.entries(read).map(([k, v]) => (k === 'source' ? v : `${k}=${v}`)).join(' ');
+
+/** One answer of the log gate as a saved read: its lines masked, or the gate's error in `note`. */
+export function savedRead(read, answer) {
+  if (!answer?.ok || !Array.isArray(answer.body?.lines)) {
+    return { source: read.source, ask: askOf(read), note: cut(`No lines: ${String(answer?.body?.error ?? `the gate answered ${answer?.status ?? '?'}`)}`, 300), lines: [] };
+  }
+  const lines = answer.body.lines.map(maskLine);
+  const note = [answer.body.note, answer.body.truncated ? 'the newest only' : ''].filter(Boolean).join(' ');
+  return { source: read.source, ask: askOf(read), note: note ? cut(note, 300) : null, lines };
+}
+
+/**
+ * The saved logs of one kind: what the watch knows of its failure now (a server job's last run and error
+ * class, an ops line's words: the error text), the reads every kind shares, and a day of the Worker logs that
+ * name it.
+ */
+export function kindLogs(entry, shared, own) {
+  const facts = entry.server ? [{ source: 'watch', ask: 'what the watch saw', note: null, lines: JSON.stringify(entry.server, null, 1).split('\n').map(maskLine) }] : [];
+  return { key: entry.key, why: entry.why, logs: [...facts, ...shared, ...(own ? [own] : [])] };
+}
+
+/**
+ * Reads the logs of the moment through the log gate, as agent_reader, for each kind of logsPlan(watch), and
+ * hands them to the Worker to keep with the kind (ops.user_issue_logs). The kinds Claude looks at now get
+ * their file in <dir>/evidence. The job log says only counts and keys. `gate(url, read)` is prod-read.mjs post;
+ * `send(batch)` the Worker's door.
+ */
+export async function saveLogs(dir, watch, { gate = postGate, send = (logs) => call('POST', { runUrl: runUrl(process.env), logs }, '?logs=1'), now = () => new Date() } = {}) {
+  const plan = logsPlan(watch);
+  if (!plan.length) return { watch, saved: 0, back: 0 };
+  const ask = async (read) => {
+    try {
+      return savedRead(read, await gate(LOGS_URL, read));
+    } catch (e) {
+      return savedRead(read, { ok: false, status: 0, body: { error: e instanceof Error ? e.message : String(e) } });
+    }
+  };
+  const shared = [];
+  for (const read of MOMENT_READS) shared.push(await ask(read));
+  const at = now().toISOString();
+  const out = join(dir, 'evidence');
+  mkdirSync(out, { recursive: true });
+  const kept = [];
+  for (const [n, entry] of plan.entries()) {
+    const word = logsSearchOf(entry.key);
+    const own = word ? await ask({ source: 'worker-logs', search: word, minutes: LOGS_DAY, limit: 100 }) : null;
+    const logs = kindLogs(entry, shared, own);
+    const path = join(out, `logs-${n}.json`);
+    writeFileSync(path, JSON.stringify({ ...logs, at }, null, 2));
+    kept.push({ ...logs, path });
+  }
+  let saved = 0;
+  for (let i = 0; i < kept.length; i += LOGS_BATCH) {
+    try {
+      const done = await send(kept.slice(i, i + LOGS_BATCH).map(({ path, ...l }) => l));
+      saved += Number(done?.saved) || 0;
+    } catch (e) {
+      console.log(`::warning::logs not kept for ${kept.slice(i, i + LOGS_BATCH).map((l) => l.key).join(', ')} (${String(e instanceof Error ? e.message : e).slice(0, 160)})`);
+    }
+  }
+  const lines = shared.reduce((a, r) => a + r.lines.length, 0);
+  console.log(`logs of the moment: ${lines} shared lines from ${shared.filter((r) => r.lines.length).length} of ${shared.length} reads; kept for ${saved} of ${kept.length} kinds`);
+  for (const l of kept) console.log(`logs kept: ${l.key} (${l.why}${l.why === 'back' ? `, ${plan.find((p) => p.key === l.key)?.issue ?? '?'}` : ''})`);
+  const paths = new Map(kept.map((l) => [l.key, l.path]));
+  const back = kept.filter((l) => l.why === 'back').length;
+  const look = (watch.look ?? []).map((k) => (paths.has(k.key) ? { ...k, evidence: { ...(k.evidence ?? {}), logs: paths.get(k.key) } } : k));
+  return { watch: { ...watch, look, logsBack: saved && back ? back : 0 }, saved, back };
+}
+
+/** The logs the watch kept for an issue's kinds, in <dir>/evidence/logs-kept.json for Claude; the path, or null when there are none. */
+async function keptLogs(dir, id) {
+  const kept = await ask(`?logs=${id}`).catch((e) => {
+    console.log(`${id}: no kept logs read (${String(e instanceof Error ? e.message : e).slice(0, 80)})`);
+    return null;
+  });
+  if (!Array.isArray(kept) || !kept.length) {
+    console.log(`${id}: the watch kept no logs for it`);
+    return null;
+  }
+  const out = join(dir, 'evidence');
+  mkdirSync(out, { recursive: true });
+  const path = join(out, 'logs-kept.json');
+  writeFileSync(path, JSON.stringify(kept, null, 2));
+  console.log(`${id}: ${plural(kept.length, 'save')} of the logs of the moment, the newest ${when(kept[0]?.at)}, in logs-kept.json for Claude`);
+  return path;
+}
+
+async function captureLogs(dir) {
+  const path = join(dir, 'watch.json');
+  const watch = readJson(path);
+  const got = await saveLogs(dir, watch);
+  writeFileSync(path, JSON.stringify(got.watch, null, 2));
+  output({ logs: got.saved, back: got.watch.logsBack ?? 0 });
+}
+
 function linearKey() {
   const key = process.env.LINEAR_API_KEY;
   if (!key) throw new Error('No LINEAR_API_KEY: the watch cannot tell anyone. It is a repository secret (docs/diagnostics.md "The watch for user issues").');
@@ -1103,7 +1259,10 @@ async function fetchWatch(dir) {
   // Every issue that waits for the fix team (ops_user_issue_order), or before its migration the plans whose time came:
   // the step `file` must run for them too, also when nothing is new (docs/agent-team.md "Which issue Claude takes first").
   const waiting = Array.isArray(watch.order) ? watch.order.length : Array.isArray(watch.due) ? watch.due.length : 0;
-  output({ look: watch.look.length, grew: watch.grew.length, notes, research, untried, waiting });
+  // The open issues whose failure is there again now: the next step saves their logs (docs/agent-team.md "The logs of the moment").
+  const back = Array.isArray(watch.back) ? watch.back.length : 0;
+  output({ look: watch.look.length, grew: watch.grew.length, notes, research, untried, waiting, back });
+  if (back) console.log(`watch: the failure of ${back} open issue kinds is there again now: ${watch.back.map((b) => `${b.key} (${b.issue})`).join(', ')}`);
   if (waiting) console.log(`watch: ${waiting} issues wait in the order for the fix team`);
   if (untried) console.log(`watch: ${untried} open issues Claude never tried wait for room in the fix jobs`);
   if (research) console.log(`watch: the research recommends a fix for ${research} issues that the fix team did not get yet`);
@@ -1217,6 +1376,20 @@ async function file(dir) {
     }
   }
 
+  // The open issues whose failure came back and whose logs the step before kept: one comment each.
+  const backIssues = new Map();
+  if (Number(watch.logsBack) > 0) for (const b of Array.isArray(watch.back) ? watch.back : []) if (ISSUE_ID.test(text(b?.issue)) && KEY.test(text(b?.key))) backIssues.set(b.issue, [...(backIssues.get(b.issue) ?? []), b.key]);
+  for (const [id, keys] of backIssues) {
+    try {
+      const issue = await api.issue(id);
+      if (!issue) continue;
+      await api.comment(issue.id, backComment(keys, watch.asOf, run));
+      console.log(`back ${id}: ${keys.join(', ')}`);
+    } catch (e) {
+      console.log(`::warning::could not comment on ${id}: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
   // Which issues the fix jobs get: the instructions, then the order (docs/agent-team.md "Which issue Claude takes first").
   // In mode off the team writes no fix and reads no instruction (scripts/agent-team.mjs MODES).
   // Without its own Claude token (AGENT_TEAM_CLAUDE_TOKEN, docs/agent-team.md) the team does nothing, as when off.
@@ -1233,7 +1406,8 @@ async function file(dir) {
   // Then every issue that waits for the fix team, the most important first: the new ones, the plans whose
   // time came, the research's and the ones Claude never tried (ops_user_issue_order).
   let order = off ? null : Array.isArray(watch.order) ? watch.order : null;
-  if (order && fixes.length) {
+  // Read again after new issues, or after the step before saved the logs of a failure that came back: those go first now.
+  if (order && (fixes.length || Number(watch.logsBack) > 0)) {
     order = await call('GET').then((w) => (Array.isArray(w.order) ? w.order : null)).catch((e) => {
       console.log(`::warning::could not read the order again (${e instanceof Error ? e.message : e}); the new issues go first`);
       return null;
@@ -1291,7 +1465,10 @@ async function fixContext(dir, id) {
   const got = await fetchEvidence(dir, plan);
   const evidence = {
     pictures: Object.values(got.media).flatMap((m) => [m.screenshot, m.picture]).filter(Boolean),
-    phones: Object.values(got.phones).map((p) => p.path)
+    phones: Object.values(got.phones).map((p) => p.path),
+    // The logs the watch kept at the moment it saw the failure, the newest first: the Worker's own keep only a day
+    // (docs/agent-team.md "The logs of the moment").
+    logs: await keptLogs(dir, id)
   };
   // A pull request of the team that did not get into main, handed back by the job `follow`: Claude starts
   // from its change, with why and the failed jobs' logs. An admin's instructions wait for the next run.
@@ -1818,7 +1995,7 @@ Claude changed the fix to get it into main, try ${tries.count} (the watch for us
   console.log(`${id}: PR ${p.number} changed (try ${tries.count}); it merges without a person when its checks pass`);
 }
 
-const COMMANDS = { fetch: fetchWatch, file, 'fix-context': fixContext, 'fix-patch': fixPatch, 'fix-paths': fixPaths, 'fix-open': fixOpen };
+const COMMANDS = { fetch: fetchWatch, logs: captureLogs, file, 'fix-context': fixContext, 'fix-patch': fixPatch, 'fix-paths': fixPaths, 'fix-open': fixOpen };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [command, dir, id] = process.argv.slice(2);

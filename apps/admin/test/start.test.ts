@@ -155,6 +155,7 @@ describe('the Overview, what needs you first', () => {
     expect(logic.claudeLine({ order }, w)[0].whyFirst).toBe('High · 12 people · 3 kinds · 40 times');
     expect(logic.whyInOrder(order[3])).toBe('Medium · 2 places with the same mistake');
     expect(logic.whyInOrder({ sent: true, priority: 2 })).toBe('A person sent it · High');
+    expect(logic.whyInOrder({ back: true, priority: 4 })).toBe('The failure came back · Low');
     // Before the order's migration: the issues never tried, the oldest first, with no why.
     expect(logic.claudeLine({}, w).map((i) => [i.issue, i.whyFirst])).toEqual([['LAN-3', null], ['LAN-9', null]]);
   });

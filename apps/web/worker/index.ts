@@ -562,7 +562,21 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         // Every issue that waits for the fix team, the most important first (docs/agent-team.md "Which issue Claude takes first"). Before its migration is there, none: the watch uses the lists above.
         const order = await serviceClient(env).rpc('ops_user_issue_order', { p_tries: PLAN_TRIES });
         if (order.error) console.error(`ops_user_issue_order: ${order.error.code ?? 'unknown'}`);
-        return { ...data, notes: notes.error ? [] : notes.data, research: research.error ? [] : research.data, untried: untried.error ? [] : untried.data, due: due.error ? [] : due.data, ...(order.error ? {} : { order: order.data }) };
+        // The open issues whose failure is there again now, for the watch to save their logs (docs/agent-team.md
+        // "The logs of the moment"). Before its migration is there, none.
+        const back = await serviceClient(env).rpc('ops_user_issue_back', { p_lines: lines });
+        if (back.error) console.error(`ops_user_issue_back: ${back.error.code ?? 'unknown'}`);
+        return { ...data, notes: notes.error ? [] : notes.data, research: research.error ? [] : research.data, untried: untried.error ? [] : untried.data, due: due.error ? [] : due.data, ...(order.error ? {} : { order: order.data }), ...(back.error ? {} : { back: back.data ?? [] }) };
+      },
+      logs: async (issue) => {
+        const { data, error } = await serviceClient(env).rpc('ops_user_issue_logs_of', { p_issue: issue });
+        if (error) throw new Error(`ops_user_issue_logs_of: ${error.message}`);
+        return Array.isArray(data) ? data : [];
+      },
+      logsSaved: async (saved) => {
+        const { data, error } = await serviceClient(env).rpc('ops_user_issue_logs_saved', { p: saved });
+        if (error) throw new Error(`ops_user_issue_logs_saved: ${error.message}`);
+        return Number(data) || 0;
       },
       research: async () => {
         const { data, error } = await serviceClient(env).rpc('ops_research_context');
