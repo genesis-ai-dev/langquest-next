@@ -135,6 +135,14 @@ Seeding a hosted project needs its service role key and the owner's
 go-ahead. The script refuses a non-local `SUPABASE_URL` unless it is given
 `--hosted`; never put the key in a file here.
 
+Publish `bsb-fs` with the hashes from `bsb-audio.json` to a hosted project
+only once phones run a build that moves a chapter downloaded by its address
+over to its hash (`keepUnderHash` in `apps/mobile/src/sources/offline.ts`,
+2026-11-25). An older build does not count a chapter it fetched by address
+as the hash's, so it downloads every chapter it keeps again. Near its cap,
+it then clears the old entry, which deletes the file the new entry plays,
+and downloads it once more.
+
 ## Verse timings
 
 `timings/bsb-fs/` holds fia-align `timing@1` output for the BSB read by
