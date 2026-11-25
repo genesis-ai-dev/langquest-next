@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { publishTutorials, type Channel, type Due, type PublishReport, type Up } from '../../../server/tutorialPublisher';
+import { FREE_WAIT_MS, freesAt, publishTutorials, type Channel, type Due, type PublishReport, type Up } from '../../../server/tutorialPublisher';
 import { brandOf, channelAbout, CHANNELS } from '../../../server/youtube';
 
 /** The publish job (server/tutorialPublisher.ts, decisions.md 180) against a YouTube that answers by address. */
 
-const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, firstError: null });
+const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, waitedMs: 0, firstError: null });
 const video = (tutorial: string, over: Partial<Due> = {}): Due => ({
   tutorial, language: 'es', sha256: 'a'.repeat(64), title: tutorial, description: 'd', playlist: 'Traductores', bytes: 5,
   channelId: CHANNELS.es, replaces: null, ...over
@@ -131,8 +131,36 @@ function deps(due: Due[], yt: ReturnType<typeof youtube>, refresh: Record<string
       refreshToken: async (channelId: string) => refresh[channelId] ?? null,
       file: async () => ({ body: new Response('video').body!, bytes: 5 }),
       published: async (v: Due, id: string | null, failed: string | null) => { marks.push(`${v.tutorial} ${id ?? `failed ${failed}`}`); },
+      uploadsDay: async (): Promise<{ channelId: string; at: string }[]> => [],
+      now: () => Date.now(),
+      wait: async (_ms: number) => {},
       stopping: () => false
     }
+  };
+}
+
+/**
+ * A YouTube whose channels each take `perDay` uploads over the last 24 hours, as YouTube counts them, on a clock
+ * the run's waits move on; `before`: each channel's uploads of the day before, by when they went up.
+ */
+function rollingDay(perDay: number, before: Record<string, number[]>) {
+  let now = Date.parse('2026-11-23T08:07:55Z');
+  const times = new Map(Object.entries(before).map(([token, at]) => [token, [...at]]));
+  const waits: number[] = [];
+  const yt = youtube();
+  const fetcher = async (input: string, init?: RequestInit) => {
+    if (input.split('?')[0] === 'https://www.googleapis.com/upload/youtube/v3/videos') {
+      const channel = (new Headers(init?.headers).get('authorization') ?? '').replace('Bearer ya29 ', '');
+      const at = (times.get(channel) ?? []).filter((t) => t > now - 24 * 3_600_000);
+      if (at.length >= perDay) return Response.json({ error: { errors: [{ reason: 'uploadLimitExceeded' }] } }, { status: 400 });
+      times.set(channel, [...at, now]);
+    }
+    now += 3_000;
+    return yt.fetcher(input, init);
+  };
+  return {
+    yt: { ...yt, fetcher }, waits,
+    clock: { now: () => now, wait: async (ms: number) => { waits.push(ms); now += ms; } }
   };
 }
 
@@ -207,6 +235,44 @@ describe('the publish job', () => {
     // Each channel is tried until it is full, and its other videos are left for the next run.
     expect(d.marks).toEqual(['a video000001', 'a video000002']);
     expect(yt.calls.filter((c) => c === 'POST /upload/youtube/v3/videos')).toHaveLength(4);
+  });
+
+  it('waits for a channel whose uploads of the day before are a minute from a day old, then puts its videos up', async () => {
+    // 2026-11-23: the run came to Spanish a minute before the day before's ten uploads were 24 hours old, and YouTube refused it.
+    const before = Array.from({ length: 10 }, (_, i) => Date.parse('2026-11-22T08:09:16Z') + i * 5_000);
+    const { yt, clock, waits } = rollingDay(10, { '1//es': before });
+    const d = deps([video('a'), video('b'), video('c')], yt);
+    Object.assign(d.deps, clock, { uploadsDay: async () => before.map((at) => ({ channelId: CHANNELS.es, at: new Date(at).toISOString() })) });
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ published: 3, failed: 0, channelsFull: 1, outOfQuota: false });
+    expect(d.marks).toEqual(['a video000001', 'b video000002', 'c video000003']);
+    // One wait, of about a minute and a half: until the oldest of those ten is a day old.
+    expect(waits).toHaveLength(1);
+    expect(waits[0]).toBeGreaterThan(60_000);
+    expect(waits[0]).toBeLessThan(FREE_WAIT_MS);
+  });
+
+  it('does not wait for a channel that put up its day in this run, or one whose day ends long after the run', async () => {
+    const full = rollingDay(2, {});
+    const d = deps([video('a'), video('b'), video('c')], full.yt);
+    Object.assign(d.deps, full.clock);
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ published: 2, channelsFull: 1, waitedMs: 0 });
+    expect(full.waits).toEqual([]);
+
+    // The day before's run came an hour later: its uploads are a day old only past the time a run waits.
+    const late = [Date.parse('2026-11-22T09:07:55Z')];
+    const later = rollingDay(1, { '1//es': late });
+    const e = deps([video('a')], later.yt);
+    Object.assign(e.deps, later.clock, { uploadsDay: async () => late.map((at) => ({ channelId: CHANNELS.es, at: new Date(at).toISOString() })) });
+    expect(await publishTutorials(e.deps, fresh())).toMatchObject({ published: 0, failed: 0, channelsFull: 1, waitedMs: 0 });
+    expect(later.waits).toEqual([]);
+  });
+
+  it('knows when a full channel can upload again: once its oldest upload of the last 24 hours is a day old', () => {
+    const now = Date.parse('2026-11-23T08:07:55Z');
+    expect(freesAt([], now)).toBeNull();
+    // An upload more than a day old no longer counts.
+    expect(freesAt([Date.parse('2026-11-22T08:00:00Z'), Date.parse('2026-11-22T08:09:16Z'), Date.parse('2026-11-22T08:10:01Z')], now))
+      .toBe(Date.parse('2026-11-23T08:09:31Z'));
   });
 
   it('fails a channel whose token Google took back, and goes on with the others', async () => {

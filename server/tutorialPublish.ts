@@ -10,7 +10,8 @@
  * `held` (comments held for review, on all channels),
  * `due`, `published`, `replaced`, `failed` and `incomplete`, `tidied` (playlist
  * places and old versions put right, tutorialPublisher.ts `tidyChannel`), `channels_full`
- * (channels at their own day's limit), `partial` when any failed or
+ * (channels at their own day's limit), `waited_s` (seconds it waited for a
+ * full channel whose oldest upload of the day was soon a day old), `partial` when any failed or
  * YouTube's day ran out, for the project or a channel. Each channel's banner is read from the
  * web app (API_URL) too. The log prints counts, never
  * titles or tokens.
@@ -36,12 +37,15 @@ const service = createClient(url, key, { auth: { persistSession: false } });
 
 const started = Date.now();
 let stopping = false;
+/** Ends the wait for a full channel at once, when the run is asked to stop. */
+let wake: (() => void) | null = null;
 process.once('SIGTERM', () => {
   stopping = true;
+  wake?.();
   console.error('SIGTERM: finishing the upload in hand');
 });
 // Counted as it goes, so a run cut short still reports what it did.
-const report: PublishReport = { branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, firstError: null };
+const report: PublishReport = { branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, waitedMs: 0, firstError: null };
 
 async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await service.rpc(name, args);
@@ -73,6 +77,17 @@ try {
     published: (video, youtubeId, failed) => rpc<void>('ops_tutorial_published', {
       p_tutorial: video.tutorial, p_language: video.language, p_sha256: video.sha256, p_youtube_id: youtubeId, p_failed: failed
     }),
+    uploadsDay: () => rpc<{ channelId: string; at: string }[]>('ops_youtube_uploads_day', {}),
+    now: () => Date.now(),
+    wait: (ms) => new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        wake = null;
+        resolve();
+      };
+      const timer = setTimeout(done, ms);
+      wake = done;
+    }),
     stopping: () => stopping
   }, report);
 } catch (e) {
@@ -82,7 +97,7 @@ const errorClass = error !== undefined ? errorClassOf(error) : report.firstError
 await record({
   job: 'tutorial_publish', startedAt: started, ms: Date.now() - started,
   outcome: error !== undefined && report.published === 0 ? 'error' : error !== undefined || stopping || report.failed > 0 || report.incomplete > 0 || report.brandFailed > 0 || report.outOfQuota || report.channelsFull > 0 ? 'partial' : 'ok',
-  n: { branded: report.branded, brand_failed: report.brandFailed, held: report.held, due: report.due, published: report.published, replaced: report.replaced, failed: report.failed, incomplete: report.incomplete, tidied: report.tidied, out_of_quota: report.outOfQuota ? 1 : 0, channels_full: report.channelsFull },
+  n: { branded: report.branded, brand_failed: report.brandFailed, held: report.held, due: report.due, published: report.published, replaced: report.replaced, failed: report.failed, incomplete: report.incomplete, tidied: report.tidied, out_of_quota: report.outOfQuota ? 1 : 0, channels_full: report.channelsFull, waited_s: Math.round(report.waitedMs / 1000) },
   ...(errorClass ? { errorClass } : {})
 });
 console.log(`channels: ${report.branded} brought up to date, ${report.brandFailed} failed, ${report.tidied} playlist places and old versions put right, ${report.held} comments held for review`);

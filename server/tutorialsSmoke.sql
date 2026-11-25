@@ -706,12 +706,25 @@ do $$ declare v jsonb; x jsonb; begin
   assert (select array_agg(e->>'tutorial') from jsonb_array_elements(v) e where e->>'language' = 'es') = array['trailer', 'find-your-way-around'],
     'Spanish in the plan''s order, the trailer first: %', v;
   assert (select bool_and(e->'older' = '[]'::jsonb) from jsonb_array_elements(v) e where e->>'language' = 'es'), 'nothing older in Spanish: %', v;
+  -- When each channel's uploads of the last 24 hours went up (migration *_youtube_uploads_day.sql): English's new
+  -- version, just now, and not the old one, a day ago.
+  v := public.ops_youtube_uploads_day();
+  assert (select count(*) from jsonb_array_elements(v) e where e->>'channelId' = 'UC8Ry8oFIPWzDygngMwvkBLQ') = 1
+    and (select bool_and(now() - (e->>'at')::timestamptz < interval '1 minute') from jsonb_array_elements(v) e where e->>'channelId' = 'UC8Ry8oFIPWzDygngMwvkBLQ'),
+    'English''s upload of the last 24 hours, and only that one: %', v;
 end $$;
 reset role;
 do $$ begin
   set local role authenticated;
   perform public.ops_tutorials_up();
   raise exception 'a signed-in person read what is up';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+do $$ begin
+  set local role authenticated;
+  perform public.ops_youtube_uploads_day();
+  raise exception 'a signed-in person read when the uploads went up';
 exception when insufficient_privilege then null;
 end $$;
 reset role;

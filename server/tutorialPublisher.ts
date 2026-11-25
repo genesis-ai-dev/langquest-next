@@ -27,7 +27,9 @@ import {
  * playlist place cost about 100). Out of either, the run stops and the rest
  * wait for the next day's run. Each channel has its own limit too, lower for
  * a new channel (Arabic's first morning stopped at 10): a channel that
- * reaches it waits, and the others go on.
+ * reaches it waits, and the others go on. That limit counts the last 24
+ * hours, not a day: when a channel's oldest upload of those 24 hours is
+ * soon a day old, the run waits for it and goes on with that channel.
  */
 
 /** One version due, as `ops_tutorials_due` answers it. */
@@ -85,6 +87,12 @@ export interface PublisherDeps {
   file(video: Due): Promise<{ body: ReadableStream<Uint8Array>; bytes: number }>;
   /** Up as `youtubeId`, or not, with a code. */
   published(video: Due, youtubeId: string | null, failed: string | null): Promise<void>;
+  /** When each channel's uploads of the last 24 hours went up, as `ops_youtube_uploads_day` answers it. */
+  uploadsDay(): Promise<{ channelId: string; at: string }[]>;
+  /** The run's clock, in ms. */
+  now(): number;
+  /** Waits so many ms, or less when the run is asked to stop. */
+  wait(ms: number): Promise<void>;
   /** The run was asked to stop (SIGTERM): finish nothing new. */
   stopping(): boolean;
 }
@@ -107,6 +115,8 @@ export interface PublishReport {
   outOfQuota: boolean;
   /** Channels that reached their own day's limit: their videos wait, the others went on. */
   channelsFull: number;
+  /** How long the run waited for full channels to upload again, in ms. */
+  waitedMs: number;
   /** The first failure's code, for the job run. */
   firstError: string | null;
 }
@@ -115,6 +125,25 @@ export interface PublishReport {
 export const DAY_UPLOADS = 100;
 /** How many due versions are asked for at once: enough to reach every language past the channels that are full. */
 const ASKED = 500;
+/** YouTube counts a channel's own limit over this long. */
+const DAY_MS = 24 * 3_600_000;
+/** Past the moment an upload is a day old: YouTube counts from when the upload began, a little before it was recorded. */
+const FREE_MARGIN_MS = 15_000;
+/**
+ * How long after its start a run still waits for a full channel to upload
+ * again. A run each morning reaches a channel at about the time the run of
+ * the day before did; on 2026-11-23 it came to Spanish about a minute
+ * early, YouTube refused the channel, and its videos waited a day more.
+ */
+export const FREE_WAIT_MS = 30 * 60_000;
+/** Most times a run goes back to the channels it waits for. */
+const FREE_ROUNDS = 20;
+
+/** When a full channel can upload again: once its oldest upload of the last 24 hours is a day old; null when none is known. */
+export function freesAt(uploads: number[], now: number): number | null {
+  const inDay = uploads.filter((at) => at > now - DAY_MS);
+  return inDay.length ? Math.min(...inDay) + DAY_MS + FREE_MARGIN_MS : null;
+}
 
 /** A code that fits the database's columns, from anything thrown. */
 export const failureCode = (e: unknown) => (e instanceof YouTubeError ? e.code : e instanceof Error ? e.name.replace(/[^A-Za-z0-9_]/g, '').slice(0, 80) || 'Error' : 'unknown');
@@ -125,12 +154,36 @@ export const failureCode = (e: unknown) => (e instanceof YouTubeError ? e.code :
  * day's uploads are tried.
  */
 export async function publishTutorials(deps: PublisherDeps, report: PublishReport): Promise<PublishReport> {
-  const run: Run = { tokens: new Map(), playlists: new Map(), tried: new Set(), full: new Set(), newPlaylists: new Map() };
+  const run: Run = {
+    tokens: new Map(), playlists: new Map(), tried: new Set(), full: new Set(), newPlaylists: new Map(),
+    uploads: new Map(), waiting: new Map(), counted: new Set(), waitUntil: deps.now() + FREE_WAIT_MS
+  };
   await tendChannels(deps, run, report);
-  while (!report.outOfQuota && !deps.stopping() && run.tried.size < DAY_UPLOADS) {
-    const due = (await deps.due(ASKED)).filter((v) => !run.tried.has(key(v)) && !run.full.has(v.channelId));
-    if (!due.length) break;
-    await publishSome(deps, run, due, report);
+  try {
+    for (const u of await deps.uploadsDay()) {
+      const at = Date.parse(u.at);
+      if (Number.isFinite(at)) uploadsOf(run, u.channelId).push(at);
+    }
+  } catch (e) {
+    // Then the run waits for no channel, as before.
+    report.firstError ??= failureCode(e);
+  }
+  await publishDue(deps, run, report);
+  // A channel YouTube refused whose oldest upload of the day is soon a day old: wait for that, then go on with it.
+  for (let round = 0; round < FREE_ROUNDS && run.waiting.size && !report.outOfQuota && !deps.stopping(); round++) {
+    const from = deps.now();
+    await deps.wait(Math.max(0, Math.min(...[...run.waiting.values()].map((w) => w.at)) - from));
+    report.waitedMs += deps.now() - from;
+    if (deps.stopping()) break;
+    for (const [channelId, w] of run.waiting) {
+      if (w.at > deps.now()) continue;
+      run.waiting.delete(channelId);
+      run.full.delete(channelId);
+      run.tried.delete(w.key);
+      // The version YouTube refused is tried again, and counted once.
+      report.due -= 1;
+    }
+    await publishDue(deps, run, report);
   }
   for (const [channelId, language] of run.newPlaylists) {
     if (report.outOfQuota) break;
@@ -146,6 +199,21 @@ export async function publishTutorials(deps: PublisherDeps, report: PublishRepor
 
 const key = (v: Due) => `${v.tutorial}/${v.language}/${v.sha256}`;
 
+/** Puts up what is due and not tried, asking again for what was chosen meanwhile, until nothing left may go up. */
+async function publishDue(deps: PublisherDeps, run: Run, report: PublishReport): Promise<void> {
+  while (!report.outOfQuota && !deps.stopping() && run.tried.size < DAY_UPLOADS) {
+    const due = (await deps.due(ASKED)).filter((v) => !run.tried.has(key(v)) && !run.full.has(v.channelId));
+    if (!due.length) break;
+    await publishSome(deps, run, due, report);
+  }
+}
+
+function uploadsOf(run: Run, channelId: string): number[] {
+  let at = run.uploads.get(channelId);
+  if (!at) run.uploads.set(channelId, (at = []));
+  return at;
+}
+
 interface Run {
   /** Per channel: its access token (an hour's, asked again past 45 minutes) or why there is none. */
   tokens: Map<string, { token: string; at: number } | { failed: string }>;
@@ -155,6 +223,13 @@ interface Run {
   tried: Set<string>;
   /** The channels at their own day's limit. */
   full: Set<string>;
+  /** Per channel: when its uploads of the last 24 hours went up, this run's too. */
+  uploads: Map<string, number[]>;
+  /** The full channels that can upload again before `waitUntil`: when, and the version YouTube refused. */
+  waiting: Map<string, { at: number; key: string }>;
+  /** The full channels counted in the report, each once. */
+  counted: Set<string>;
+  waitUntil: number;
   /** The channels that got a playlist this run, whose home pages want its row. */
   newPlaylists: Map<string, ChannelLanguage>;
 }
@@ -311,10 +386,13 @@ async function publishSome(deps: PublisherDeps, run: Run, due: Due[], report: Pu
       });
     } catch (e) {
       if (channelFull(e)) {
-        // Not the video's failure: it goes up when the channel may upload again.
+        // Not the video's failure: it goes up when the channel may upload again, in this run when that is soon.
         run.full.add(video.channelId);
-        report.channelsFull += 1;
+        if (!run.counted.has(video.channelId)) report.channelsFull += 1;
+        run.counted.add(video.channelId);
         report.firstError ??= failureCode(e);
+        const at = freesAt(uploadsOf(run, video.channelId), deps.now());
+        if (at !== null && at <= run.waitUntil) run.waiting.set(video.channelId, { at, key: key(video) });
         continue;
       }
       await fail(video, e);
@@ -325,6 +403,7 @@ async function publishSome(deps: PublisherDeps, run: Run, due: Due[], report: Pu
       continue;
     }
     await deps.published(video, youtubeId, null);
+    uploadsOf(run, video.channelId).push(deps.now());
     report.published += 1;
     try {
       const key = `${video.channelId}\n${video.playlist}`;
