@@ -12,6 +12,7 @@ import { getStore } from '../storage/store';
 import { nearbyFilesFor, nearbyMakerFor } from '../nearby/nearbyPhone';
 import { serverTransport } from './serverTransport';
 import { trackSync } from './syncActivity';
+import { outOfSight } from './wake';
 import type { LanguagePlatform } from './openLanguage';
 import type { RecoveryEnv } from './recoverRecordings';
 
@@ -40,7 +41,8 @@ export async function appLanguagePlatform(): Promise<LanguagePlatform> {
       newId: () => Crypto.randomUUID(),
       // A long catch-up shares the thread with taps and the meter.
       yieldBetweenPages: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
-      diag: diagnostics
+      diag: diagnostics,
+      hidden: outOfSight
     },
     aroundSync: trackSync,
     build: appBuild(),

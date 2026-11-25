@@ -3,6 +3,15 @@ import { AppState, Platform } from 'react-native';
 import { wakeOnReconnect } from './networkWake';
 
 /**
+ * Is the app out of sight now: on the web a tab not shown (react-native-web's
+ * AppState follows the page's visibility), on a phone an app not in front. A
+ * sync record says so (`hidden`), as a browser slows a tab not shown.
+ */
+export function outOfSight(): boolean {
+  return AppState.currentState !== 'active';
+}
+
+/**
  * Call `fn` when sync has a reason to try again at once (SyncScheduler
  * `wake`): the app is back on screen (on the web, the tab is shown again),
  * or the network is back: a browser's `online` event, or on a phone the

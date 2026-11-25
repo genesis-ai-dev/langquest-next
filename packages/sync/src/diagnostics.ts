@@ -35,14 +35,20 @@ export const DIAG_SCHEMA = {
    * membership change. `unrenewed`: the sign-in could not be renewed (a
    * rate limit, a 5xx or a captive portal), which once read as offline.
    * On `error`, `code` is the server's SQLSTATE or PostgREST code, or
-   * `http<status>`, and `phase` says where it failed.
+   * `http<status>`, and `phase` says where it failed. A request that failed
+   * counts in the network's time too. `storeMs` is the part of `applyMs` that
+   * this stream's calls to the device's storage were under way, and `hidden`
+   * whether the app was out of sight (a tab not shown) at the sync's start,
+   * its end, both or neither (LAN-322: on the web, syncs with nothing to
+   * pull took seconds of the phone's own work).
    */
   sync: {
     n: ['ms', 'pushNetMs', 'pullNetMs', 'applyMs', 'pushed', 'rejected', 'pulled', 'pages', 'pending', 'offlineMs',
-      'rejNotMember', 'rejNotAllowed', 'rejNotListed', 'rejInvalid', 'rejClockAhead', 'rejOther', 'requeued', 'more'],
+      'rejNotMember', 'rejNotAllowed', 'rejNotListed', 'rejInvalid', 'rejClockAhead', 'rejOther', 'requeued', 'more', 'storeMs'],
     t: {
       outcome: ['ok', 'offline', 'unrenewed', 'refused', 'too_old', 'error'], error: TOKEN, code: TOKEN,
-      phase: ['push', 'pull', 'snapshot', 'checkpoint', 'load', 'store']
+      phase: ['push', 'pull', 'snapshot', 'checkpoint', 'load', 'store'],
+      hidden: ['no', 'start', 'end', 'both']
     }
   },
   /**

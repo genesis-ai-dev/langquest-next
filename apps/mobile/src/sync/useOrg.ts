@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getStore } from '../storage/store';
 import { trackSync } from './syncActivity';
 import { onGateOpen } from './firstContactGate';
-import { onWake } from './wake';
+import { onWake, outOfSight } from './wake';
 import { serverTransport } from './serverTransport';
 import { diagnostics, flushDiagnostics } from '../diagnostics/diagnostics';
 import { watchLocalStore } from './storeProbe';
@@ -78,7 +78,7 @@ export function useOrg(orgId: string | null, actorId: string): OrgHandle {
       const session = await OrgSession.open({
         orgId, actorId, deviceId, store,
         transport: serverTransport(),
-        client: { newId: () => Crypto.randomUUID(), diag: diagnostics },
+        client: { newId: () => Crypto.randomUUID(), diag: diagnostics, hidden: outOfSight },
         aroundSync: trackSync,
         // A phone that never opens a language still delivers its diagnostics.
         onSettled: () => { void flushDiagnostics().catch(() => {}); }

@@ -6,7 +6,7 @@ import {
 import type { NearbyVector, RevocationList } from '@langquest-next/core/nearby';
 import type { NearbyMaker, NearbyPart, NearbyPort } from './nearbyClient';
 import type { NearbyBatchPage, NearbyClaimsPage, NearbyGate, NearbyIntake, NearbyPage, NearbyReceipt, NearbySigned, NearbySigner } from './nearbyIntake';
-import type { CopyNeed, CopyReadiness, EventStore, LocalEvent, NearbyClaimableBound, StartingCopy, SyncInspection, Transport, WriteBatch } from './types';
+import type { AppendResult, CopyNeed, CopyReadiness, EventStore, LocalEvent, NearbyClaimableBound, StartingCopy, SyncInspection, Transport, WriteBatch } from './types';
 import { WriteQueue } from './writeQueue';
 import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
@@ -162,6 +162,12 @@ export interface SyncClientOptions<S = LanguageState> {
    */
   diag?: Diagnostics;
   /**
+   * Whether the app is out of sight now: a browser tab not shown, or a phone's app not in front.
+   * Each `sync` record says whether it was at the start or the end of the sync (`hidden`), as a
+   * browser slows the work of a tab not shown (LAN-322).
+   */
+  hidden?: () => boolean;
+  /**
    * Nearby sharing, from `nearbyClient(platform)` in `@langquest-next/sync/nearby`: only the
    * Android app passes it, so the web app does not carry that code. Without it the client
    * takes no teammate's page, and a sync neither attests nor sweeps.
@@ -242,6 +248,12 @@ const TURNS = new WeakMap<object, Map<string, Promise<unknown>>>();
 
 /** A sync that moved nothing is recorded only when it took at least this long. */
 const SLOW_SYNC_MS = 2_000;
+
+/** The `sync` record's `hidden`: whether the app was out of sight at the sync's start, its end, both or neither. */
+function hiddenTag(atStart: boolean, atEnd: boolean): (typeof DIAG_SCHEMA.sync.t.hidden)[number] {
+  return atStart ? (atEnd ? 'both' : 'start') : atEnd ? 'end' : 'no';
+}
+
 /** After the server says it has no snapshot for a stream, how long before asking again. */
 const NO_SNAPSHOT_RECHECK_MS = 5 * 60 * 1000;
 /**
@@ -301,6 +313,15 @@ export class SyncClient<S = LanguageState> {
   private readonly elapsed: () => number;
   /** Network waits in the current `sync()`, for diagnostics. */
   private net = { push: 0, pull: 0, pages: 0 };
+  /**
+   * Time with one of this client's calls to the device's storage under way (`timedStore`), since
+   * the current `sync()` began: of a sync's own work, what waited on storage (LAN-322).
+   */
+  private storage = { busy: 0, since: 0, ms: 0 };
+  /** Was the app out of sight (`hidden`) when the current `sync()` began? */
+  private hiddenAtStart = false;
+  /** The store as the caller gave it: the key of a stream's turn (`exclusive`) and what nearby sharing is handed. */
+  private readonly givenStore: EventStore;
   /** Refusals in the current `sync()` by reason (`REJECT_FIELD`). */
   private refusals: Record<string, number> = {};
   /** Refused events queued again since the last `sync` record (`retryRejected`). */
@@ -342,6 +363,9 @@ export class SyncClient<S = LanguageState> {
   get streamId(): string { return this.opts.streamId; }
 
   constructor(private readonly opts: SyncClientOptions<S>) {
+    this.givenStore = opts.store;
+    // Every call this client makes to the store is timed, so a sync record says how much of its own work waited on storage.
+    this.opts = opts = { ...opts, store: this.timedStore(opts.store) };
     this.m = opts.materializer ?? (LANGUAGE_MATERIALIZER as unknown as Materializer<S>);
     this.state = this.m.empty();
     this.writer.onChange(() => this.publish());
@@ -1393,8 +1417,8 @@ export class SyncClient<S = LanguageState> {
    * for the other, so the turn is kept per store and stream, not per client.
    */
   private exclusive<T>(work: () => Promise<T>): Promise<T> {
-    let byStream = TURNS.get(this.opts.store);
-    if (!byStream) TURNS.set(this.opts.store, (byStream = new Map()));
+    let byStream = TURNS.get(this.givenStore);
+    if (!byStream) TURNS.set(this.givenStore, (byStream = new Map()));
     const key = `${this.opts.orgId}/${this.opts.streamId}`;
     const run = (byStream.get(key) ?? Promise.resolve()).then(work, work);
     byStream.set(key, run.catch(() => undefined));
@@ -1439,9 +1463,14 @@ export class SyncClient<S = LanguageState> {
         // One bounded request per batch. Each batch's results are persisted
         // before the next is sent, so a dropped link keeps what got through.
         const sent = this.elapsed();
-        const results = await this.opts.transport.append(batch.map((p) => p.event));
+        let results: AppendResult[];
+        // A request that fails (no signal, a timeout) waited on the network too, not on the phone.
+        try {
+          results = await this.opts.transport.append(batch.map((p) => p.event));
+        } finally {
+          this.net.push += this.elapsed() - sent;
+        }
         const byId = new Map(batch.map((p) => [p.event.id, p]));
-        this.net.push += this.elapsed() - sent;
         const writes: LocalEvent[] = [];
         let notListed = false;
         for (const r of results) {
@@ -1633,13 +1662,18 @@ export class SyncClient<S = LanguageState> {
     let differs = false;
     for (;;) {
       const asked = this.elapsed();
-      const page = await this.opts.transport.pull(
-        this.opts.orgId,
-        this.opts.streamId,
-        after,
-        this.pullPageSize
-      );
-      this.net.pull += this.elapsed() - asked;
+      let page: AnyEvent[];
+      // A request that fails (no signal, a timeout) waited on the network too, not on the phone.
+      try {
+        page = await this.opts.transport.pull(
+          this.opts.orgId,
+          this.opts.streamId,
+          after,
+          this.pullPageSize
+        );
+      } finally {
+        this.net.pull += this.elapsed() - asked;
+      }
       this.net.pages += 1;
       // Passages this page has news of past the server's lines are filled in before it is folded, so no list shows them stale.
       if (this.fill?.active()) {
@@ -1834,6 +1868,8 @@ export class SyncClient<S = LanguageState> {
     const idle = { pushed: 0, rejected: 0, pulled: 0, tooOld: false, offline: false, refused: null, more: false, filling: false };
     const started = this.elapsed();
     this.net = { push: 0, pull: 0, pages: 0 };
+    this.storage = { busy: this.storage.busy, since: started, ms: 0 };
+    this.hiddenAtStart = this.isHidden();
     this.refusals = {};
     if (this.opening) this.opening.syncs += 1;
     let result: SyncResult;
@@ -2195,6 +2231,8 @@ export class SyncClient<S = LanguageState> {
       if (!worth) return;
       this.lastOutcome = { outcome, at: now };
       const netMs = this.net.push + this.net.pull;
+      const storeMs = this.storage.ms + (this.storage.busy > 0 ? now - this.storage.since : 0);
+      const hidden = this.opts.hidden ? hiddenTag(this.hiddenAtStart, this.isHidden()) : undefined;
       const requeued = this.requeuedSinceRecord;
       this.requeuedSinceRecord = 0;
       diag.record('sync', {
@@ -2204,6 +2242,8 @@ export class SyncClient<S = LanguageState> {
           pushNetMs: this.net.push,
           pullNetMs: this.net.pull,
           applyMs: Math.max(0, ms - netMs),
+          // Of the phone's own work, the time this stream's calls to the device's storage were under way.
+          storeMs: Math.min(storeMs, Math.max(0, ms - netMs)),
           pushed: r.pushed,
           rejected: r.rejected,
           ...this.refusals,
@@ -2214,13 +2254,48 @@ export class SyncClient<S = LanguageState> {
           pending: await this.pendingCount(),
           ...(offlineMs !== undefined ? { offlineMs } : {})
         },
-        t: { outcome, ...failure }
+        t: { outcome, ...failure, ...(hidden ? { hidden } : {}) }
       });
     } catch { /* diagnostics never fail a sync */ }
   }
 
   private stream(): { orgId: string; streamId: string } {
     return { orgId: this.opts.orgId, streamId: this.opts.streamId };
+  }
+
+  /** Is the app out of sight now (`hidden`)? False when the app does not say, or saying throws. */
+  private isHidden(): boolean {
+    try {
+      return this.opts.hidden?.() ?? false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * The store, with each call that returns a promise timed into `storage`: the time with at least
+   * one of this client's calls under way, so calls at once count once. Nothing else changes: each
+   * call goes to the store itself, with its own arguments, and gives back what the store gave.
+   */
+  private timedStore(store: EventStore): EventStore {
+    const begin = () => {
+      if (this.storage.busy++ === 0) this.storage.since = this.elapsed();
+    };
+    const end = () => {
+      if (--this.storage.busy === 0) this.storage.ms += this.elapsed() - this.storage.since;
+    };
+    return new Proxy(store, {
+      get: (target, key) => {
+        const value: unknown = Reflect.get(target, key, target);
+        if (typeof value !== 'function') return value;
+        return (...args: unknown[]) => {
+          const out: unknown = (value as (...a: unknown[]) => unknown).apply(target, args);
+          if (!out || typeof (out as PromiseLike<unknown>).then !== 'function') return out;
+          begin();
+          return Promise.resolve(out).finally(end);
+        };
+      }
+    });
   }
 
   /** The local log as the sync status screen shows it. */
@@ -2289,9 +2364,9 @@ export class SyncClient<S = LanguageState> {
 
   /** What nearby sharing reaches of this client (`NearbyPort`), and nothing else. */
   private nearbyPort(): NearbyPort {
-    const { store, transport, orgId, streamId, actorId, deviceId, diag } = this.opts;
+    const { transport, orgId, streamId, actorId, deviceId, diag } = this.opts;
     return {
-      store, transport, orgId, streamId, actorId, deviceId, diag,
+      store: this.givenStore, transport, orgId, streamId, actorId, deviceId, diag,
       version: this.m.version,
       keptOnDisk: !!this.kept,
       loaded: () => this.loaded,
