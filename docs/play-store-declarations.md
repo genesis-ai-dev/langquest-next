@@ -634,7 +634,7 @@ this block.
       "load": ["checkpoint", "events", "foldMs", "fromSnapshot", "ms", "readMs", "reason", "staleCheckpointSeq"],
       "open": ["cold", "loadMs", "ms", "pulled", "snapshotMs", "syncs"],
       "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq", "why"],
-      "sync": ["applyMs", "code", "error", "more", "ms", "offlineMs", "outcome", "pages", "pending", "phase", "pullNetMs", "pulled", "pushNetMs", "pushed", "rejClockAhead", "rejInvalid", "rejNotAllowed", "rejNotListed", "rejNotMember", "rejOther", "rejected", "requeued"],
+      "sync": ["applyMs", "code", "error", "hidden", "more", "ms", "offlineMs", "outcome", "pages", "pending", "phase", "pullNetMs", "pulled", "pushNetMs", "pushed", "rejClockAhead", "rejInvalid", "rejNotAllowed", "rejNotListed", "rejNotMember", "rejOther", "rejected", "requeued", "storeMs"],
       "transfer": ["bytes", "count", "dir", "failAuth", "failBadDigest", "failDisk", "failGone", "failHash", "failHttp4xx", "failHttp5xx", "failNotFound", "failOffline", "failOther", "failTooLarge", "fetchMs", "maxMs", "ms", "signMs", "src", "verifyMs"]
     }
   }

@@ -36,7 +36,7 @@ export interface OrgSessionOptions {
   store: EventStore;
   transport: Transport;
   /** Passed to the SyncClient. */
-  client?: Pick<SyncClientOptions<OrgState>, 'newId' | 'diag' | 'clock' | 'now'>;
+  client?: Pick<SyncClientOptions<OrgState>, 'newId' | 'diag' | 'clock' | 'now' | 'hidden'>;
   /** Wraps every `client.sync()`, for a test-state probe. */
   aroundSync?: (run: () => Promise<SyncResult>) => Promise<SyncResult>;
   /**

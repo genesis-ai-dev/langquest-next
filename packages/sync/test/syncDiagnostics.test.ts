@@ -3,7 +3,7 @@ import { Diagnostics, MemoryDiagStore, type DiagRecord } from '../src/diagnostic
 import { MemoryStore } from '../src/memoryStore';
 import { LANGUAGE_MATERIALIZER, SyncClient, type Materializer, type SyncClientOptions } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
-import { ServerError, UnrenewedError, type Transport, type WriteBatch } from '../src/types';
+import { OfflineError, ServerError, UnrenewedError, type Transport, type WriteBatch } from '../src/types';
 
 const unit = (i: number, label = `P${i}`) => ({ unitId: `u${i}`, parentUnitId: null, kind: 'passage', label, order: `a${i}` });
 
@@ -120,6 +120,57 @@ describe('sync record', () => {
     const syncs = await of('sync');
     expect(syncs.map((s) => s.t.outcome)).toEqual(['unrenewed', 'ok']);
     expect(syncs[1]!.n.offlineMs).toBeGreaterThanOrEqual(10 * 60_000);
+  });
+
+  it('a request that fails waited on the network, not on the phone', async () => {
+    // Why (LAN-322): a pull that timed out after 10 s with no signal said 0 s of
+    // network and 10 s of the phone's own work, and support looked at the phone.
+    const server = new FakeServer();
+    const real = server.transportFor();
+    let waitOnNetwork = () => {};
+    const transport: Transport = { ...real, pull: async () => { waitOnNetwork(); throw new OfflineError('Failed to fetch'); } };
+    const { client, wall, of } = phone(server, { transport });
+    await client.load();
+    waitOnNetwork = () => { wall.t += 10_000; };
+    const r = await client.sync();
+    expect(r.offline).toBe(true);
+    const [rec] = await of('sync');
+    expect(rec!.t.outcome).toBe('offline');
+    expect(rec!.n.pullNetMs).toBeGreaterThanOrEqual(10_000);
+    expect(rec!.n.applyMs).toBeLessThan(1_000);
+  });
+
+  it('says how much of the phone\'s own work waited on storage, and whether the app was out of sight', async () => {
+    // Why (LAN-322): on the web, syncs that pulled nothing took 3 to 20 s of
+    // the phone's own work, and no number said whether storage or the page
+    // being out of sight held them.
+    class SlowStore extends MemoryStore {
+      slow: () => void = () => {};
+      override async cursor(orgId: string, streamId: string): Promise<number> {
+        this.slow();
+        return super.cursor(orgId, streamId);
+      }
+    }
+    const server = new FakeServer();
+    const store = new SlowStore();
+    let hidden = true;
+    const { client, wall, of } = phone(server, { hidden: () => hidden }, store);
+    await client.load();
+    store.slow = () => { wall.t += 3_000; hidden = false; };
+    await client.sync();
+    const [rec] = await of('sync');
+    expect(rec!.t).toMatchObject({ outcome: 'ok', hidden: 'start' });
+    expect(rec!.n.storeMs).toBeGreaterThanOrEqual(3_000);
+    expect(rec!.n.storeMs).toBeLessThanOrEqual(rec!.n.applyMs!);
+
+    // A sync that waited on nothing says little of storage, and an app in sight says so.
+    store.slow = () => {};
+    wall.t += 60_000;
+    await client.append('v1.UnitAdded', unit(1));
+    await client.sync();
+    const last = (await of('sync')).at(-1)!;
+    expect(last.t.hidden).toBe('no');
+    expect(last.n.storeMs).toBeLessThan(1_000);
   });
 });
 
