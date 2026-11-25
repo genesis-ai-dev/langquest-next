@@ -15,14 +15,15 @@ import { getStore } from '../storage/store';
 import { isOffline } from '../sync/uploadsModel';
 import { nearbyOpenOrgs, nearbyOpenSwitch, onNearbyHeld } from './nearbyIdentity.native';
 import { nearbyRadio } from './nearbyLink.native';
-import { openMayRun } from './nearbyModel';
+import { openMayRun, type OpenGate } from './nearbyModel';
+import { openHeldOf, OpenWaitTally, type OpenHeld, type OpenPiecesWhy, type OpenRest } from './openWaitModel';
 import { nearbyOwner } from './nearbyOwner';
 import { checkNearbyPermissions, phoneSystem } from './nearbyPermissions';
 import { permissionsStateOf, radiosOffOf, type PermissionAnswers, type PermissionsState, type RadioOff } from './nearbyPermissionsModel';
 import { nearbyLibraryOf } from './nearbyLibrary.native';
 import { copySourceOf } from './nearbyCopySource';
 import { roomCopyTargetFor } from './nearbyCopyTarget.native';
-import { nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
+import { nearbyDiagFor, nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
 import { NEARBY_OPEN_FRESH_MS, NEARBY_OPEN_REST_MS, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, startWithin, turnedAwayUnwelcome } from './nearbyRunModel';
 import type { WhileOpenFacts } from './shareNearbyModel';
 import { useFocus, useNearbyOffered } from './useNearby.native';
@@ -44,7 +45,9 @@ import { useFocus, useNearbyOffered } from './useNearby.native';
  * cover went on writes no diagnostics record, which would date it (the security review of
  * 2026-11-23). It draws nothing and shows no name: Sync and offline's row says that it is on,
  * that it runs, or that Share nearby says what it needs (`useWhileOpenRow`), and the Teammates
- * fold says what moved.
+ * fold says what moved. A wait of a minute or more with the app in front, no room running and no
+ * screen owning the radios writes one diagnostics record as it ends, naming what held it and why
+ * each rest began (`openWaitModel`, 2026-11-25).
  */
 
 // ---- whether it runs now, for Sync and offline ---------------------------------------------
@@ -217,7 +220,10 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
     const timer = setTimeout(() => setNow(Date.now()), restUntil - now);
     return () => clearTimeout(timer);
   }, [restUntil, now]);
-  const rest = useCallback(() => {
+  // Why the mode waited (2026-11-25): told of each rest's cause, and of what holds the room below.
+  const waits = useRef(new OpenWaitTally());
+  const rest = useCallback((cause: OpenRest, why?: OpenPiecesWhy) => {
+    waits.current.rest(cause, why);
     const at = Date.now();
     restsUntil.set(resting, at + NEARBY_OPEN_REST_MS);
     setRestUntil(at + NEARBY_OPEN_REST_MS);
@@ -226,14 +232,30 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
 
   const state = answers ? permissionsStateOf(sdk, answers, os) : null;
   const holding = useRef<{ room: NearbyRoom; ticker: ReturnType<typeof setInterval> | null; forget: () => void } | null>(null);
-  const mayRun = openMayRun({
+  const inputs: OpenGate = {
     feature: !!kept?.orgs.has(orgId), switchOn: !!kept?.on, granted: state === 'granted' || state === 'none',
     // Audio keeps a room from starting; one already running is held instead (below), not stopped (review P2).
     radiosOn: facts !== null && radiosOffOf(facts, os).length === 0, offered: offered && whyNot === null, worn, locked, active, offline, busy: busy && !holding.current, screenOpen,
     resting: restUntil > now, ready: org.state !== null && language.state !== null
-  });
+  };
+  const mayRun = openMayRun(inputs);
   const gate = useRef(mayRun);
   gate.current = mayRun;
+
+  // A wait of a minute or more with the app in front and the radios its own writes one record as it ends (`openWaitModel`):
+  // a phone let in offline shared nothing for 21 minutes and nothing said why (2026-11-25).
+  const running = useWhileOpenNow();
+  const waitHeld = openHeldOf(inputs, running)?.join(',') ?? null;
+  useEffect(() => {
+    const record = waits.current.note(Date.now(), waitHeld === null ? null : (waitHeld.split(',') as OpenHeld[]));
+    if (record) nearbyDiagFor(orgId, languageId)(record);
+  }, [waitHeld, orgId, languageId]);
+  // Leaving ends a wait, and so does another language. One a cover ended writes nothing: the record would date the cover.
+  useEffect(() => () => {
+    if (wornNow()) { waits.current.drop(); return; }
+    const record = waits.current.note(Date.now(), null);
+    if (record) nearbyDiagFor(orgId, languageId)(record);
+  }, [orgId, languageId]);
 
   const attempt = useRef(0);
 
@@ -253,7 +275,7 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
   // A radio's error stops this room and rests, only while it is the one running.
   useEffect(() => radio?.onFindError(() => {
     if (!holding.current) return;
-    rest();
+    rest('radio');
   }), [radio, rest]);
 
   // Read when a start needs them: the folds and the language's handle change with every revision, which must not restart the radios.
@@ -275,7 +297,7 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
       // A person let in offline whose copy is missing, short or lost to an update takes one quietly too (2026-11-24, review items 6, 26).
       const takeCopy = await roomCopyTargetFor({ actorId, orgId, languageId, language: open.client, org: orgClient.current() });
       if (!still()) return;
-      if (!got.ok) { rest(); return; }
+      if (!got.ok) { rest('pieces', got.why); return; }
       let room: NearbyRoom | null = null;
       const report = (e: NearbyRoomEvent) => {
         // Someone let in offline, met before the server knows them: their chain names them (14.1, 5).
@@ -285,9 +307,9 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
           void noteChainNames(actorId, named).catch((x: unknown) => noteExpected('nearby: chain name', x));
         }
         // A phone whose chain did not check: nothing more from the air for a while (15.8). A teammate whose window ran out is only passed over.
-        if (e.t === 'ended' && turnedAwayUnwelcome(e.report)) rest();
+        if (e.t === 'ended' && turnedAwayUnwelcome(e.report)) rest('unwelcome');
         // A stop of its own (waiting too long, no key): it rests rather than start again at once.
-        if (e.t === 'stopped' && e.why !== 'asked' && e.why !== 'rest' && room && holding.current?.room === room) rest();
+        if (e.t === 'stopped' && e.why !== 'asked' && e.why !== 'rest' && room && holding.current?.room === room) rest('stopped');
       };
       // A starting copy, to a teammate let in offline whose copy is short or lost (review items 6, 26): only an Android
       // phone gives one, and only to a phone that asks.
@@ -327,7 +349,7 @@ export function useNearbyWhileOpen(ctx: Ctx): void {
       noteExpected('nearby: open start', e, e instanceof NearbyStartHeld ? e.at : undefined);
       const failed = mine === attempt.current;
       await stop();
-      if (failed) rest();
+      if (failed) rest('start');
     }
   }, [radio, nearbyLanguage, actorId, orgId, languageId, rest, stop]);
 

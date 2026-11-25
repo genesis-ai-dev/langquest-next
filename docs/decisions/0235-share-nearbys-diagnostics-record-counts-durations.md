@@ -108,3 +108,18 @@ copy writes its own record rather than adding to the room's sums, since a
 copy is rare and what came of it is what a report needs. The newcomer's
 record waits in its queue until its person is set and it is online. Counts
 and fixed words only, never who (`20261124233000_diag_nearby_join.sql`).
+
+Amended (2026-11-25, Carl Sauder): sharing while LangQuest is open also
+records why it waited. A phone let in offline shared nothing for about 21
+minutes after its join, and no record said why: the mode's gate wrote
+nothing, nor did a rest after the room's pieces were missing. A `wait` record
+(`mode` `open`) is written when the mode was wanted, the app in front and no
+screen owning the radios, yet no room ran for a minute or more: how long, how
+long each gate input held it, how long the gate stood open with no room yet,
+the rests that began by cause, and `no-key` or `no-certificate` when the
+pieces were missing (`openWaitModel`,
+`20261125200000_diag_nearby_open_wait.sql`). Like a quiet room's, such a
+record shows the phone wore no cover then, and a wait a cover ended writes
+nothing. The app lock is no wait, as a locked screen is not: time behind it
+would say the person uses the lock, which marks them, so it is never
+recorded. Durations, counts and fixed words only, never who.

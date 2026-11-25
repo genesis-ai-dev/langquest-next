@@ -76,6 +76,24 @@ export type NearbyLibraryField = 'docsKept' | 'docsRefused' | 'docsMissing' | 'd
 export type NearbyCopyField = 'granted' | 'exchanged' | 'copyWhole' | 'copyFilled' | 'copyDocsKept' | 'copyDocsMissing' | 'copyDocsRefused' | 'copyParts' | 'copyNos'
   | 'exchangeOlder' | 'exchangeNoPieces' | 'exchangeLeft' | 'copyDocsCut' | 'copyDocsUnreadable';
 
+/**
+ * What held sharing while LangQuest was open over a minute with the app in front (2026-11-25, the app's `openWaitModel`): each
+ * gate input's field, in the words a report says it in.
+ */
+export const OPEN_WAIT_HELD = {
+  heldFeatureMs: 'the organization\'s setting not on this phone', heldSwitchMs: 'the switch off', heldAllowMs: 'permission not allowed',
+  heldRadiosMs: 'a radio off', heldOfferedMs: 'Share nearby not offered', heldAudioMs: 'audio playing or recording',
+  heldRestMs: 'resting', heldReadyMs: 'the language still opening', startingMs: 'starting'
+} as const;
+
+/** Why a rest began during such a wait, by its field. */
+export const OPEN_WAIT_RESTS = {
+  restPieces: 'the room\'s certificate or key missing', restStart: 'a start that failed or ran out of time', restRadio: 'a radio error',
+  restUnwelcome: 'a phone turned away', restStopped: 'the room stopping by itself'
+} as const;
+
+export type OpenWaitField = keyof typeof OPEN_WAIT_HELD | keyof typeof OPEN_WAIT_RESTS;
+
 /** What an install's Share nearby recorded over the window (`diag.install_summary`'s `nearby`). Counts and codes, never who. */
 export interface NearbySummary {
   rooms?: NearbyRoom[] | null;
@@ -85,6 +103,8 @@ export interface NearbySummary {
   /** Rooms while LangQuest was open (15.8): their totals, how many, and how many met anyone. Their finished sessions are summed here, not in `ends`. */
   openTotals?: Partial<Record<'count' | 'met' | 'openMin' | 'scanMin' | 'pauseMin' | 'syncMin' | 'heard' | 'sessions' | 'done' | 'events' | 'sent' | 'files' | 'served'
     | 'fileFails' | 'fallbacks' | 'viaDirect' | 'maxMeetMs' | NearbyLibraryField, number>> | null;
+  /** Waits of a minute or more while LangQuest was open (2026-11-25): how many, the longest, what held them and why rests began, summed; `why` counts missing pieces' reasons. */
+  openWaits?: Partial<Record<'count' | 'waitMs' | 'maxWaitMs' | OpenWaitField, number>> & { why?: Record<string, number> | null } | null;
   /** `end` or `end:bye`. */
   ends?: Record<string, number> | null;
   /** `mode:refusal`: why this phone turned phones away (window, revoked, org, expired, pass-expired, other). */
@@ -291,6 +311,16 @@ export function nearbySignals(x: NearbySummary | null | undefined): { level: Sig
   const o = x.openTotals;
   if (o?.count) {
     add('info', `Shared while LangQuest was open ${times(o.count)} for ${o.openMin ?? 0} min (radios off ${o.pauseMin ?? 0}, scanning ${o.scanMin ?? 0}, syncing ${o.syncMin ?? 0}); met a teammate in ${o.met ?? 0}, ${o.done ?? 0} sessions finished, ${o.events ?? 0} events and ${o.files ?? 0} recordings in.`);
+  }
+  // What held it with the app in front, the longest first, and why rests began (2026-11-25).
+  const w = x.openWaits;
+  if (w?.count) {
+    const held = (Object.keys(OPEN_WAIT_HELD) as (keyof typeof OPEN_WAIT_HELD)[]).filter((k) => (w[k] ?? 0) > 0)
+      .sort((a, b) => (w[b] ?? 0) - (w[a] ?? 0)).map((k) => `${OPEN_WAIT_HELD[k]} ${secs(w[k]!)}`);
+    const why = Object.keys(w.why ?? {});
+    const rests = (Object.keys(OPEN_WAIT_RESTS) as (keyof typeof OPEN_WAIT_RESTS)[]).filter((k) => (w[k] ?? 0) > 0)
+      .map((k) => `${OPEN_WAIT_RESTS[k]} ${times(w[k]!)}${k === 'restPieces' && why.length ? ` (${why.join(', ')})` : ''}`);
+    add('watch', `Sharing while LangQuest was open waited over a minute ${times(w.count)} with the app in front (longest ${secs(w.maxWaitMs ?? 0)}): held by ${held.join(', ') || 'nothing recorded'}${rests.length ? `; rests began for: ${rests.join(', ')}` : ''}.`);
   }
   for (const [k, n] of Object.entries(x.refusals ?? {})) {
     const [mode, why] = k.split(':');

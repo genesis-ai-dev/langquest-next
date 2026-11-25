@@ -4841,6 +4841,16 @@ offline, a radio is off; else "On: shares with teammates nearby while LangQuest 
 internet". `useWhileOpenRow` reads the permissions and radios without a prompt, again on coming
 back to Sync or to the front; what is not read yet counts as on.
 
+**Why it waited (2026-11-25).** A phone let in offline shared nothing for about 21 minutes after
+its join, and no record said why: the gate wrote nothing, nor did a rest after the room's pieces
+were missing. Now a wait of a minute or more, with the mode wanted, the app in front, no screen
+owning the radios and no room running, writes one `nearby` `wait` record as it ends
+(`openWaitModel`, docs/diagnostics.md): how long, how long each gate input held it, how long the
+gate stood open with no room yet, the rests that began by cause, and `no-key` or
+`no-certificate` when the pieces were missing. A locked screen, the app lock (time behind it would say the person uses
+it), Share nearby, online and a cover are no wait, and a wait a cover ended records nothing. `npm run diag` shows their totals, and a
+signal says what held them.
+
 **The flag.** A third feature, `nearby_open`, granted per organization by staff as `nearby_join`
 is (decision 220), and only with `nearby` on. It needs the check in
 `supabase/migrations/20261112010000_nearby_identity.sql` widened by a new migration, and

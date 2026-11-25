@@ -123,6 +123,16 @@ export function refusalOf(detail: string | undefined): NearbyDiagRefusal {
  * starting copy whole once its passages were filled whose link went during the names or documents
  * after, `copyDocsCut` (0 or 1); and `copyNo` `moved`, a teammate whose checkpoint moved while this
  * phone took its copy, or whose rows and state came from two checkpoints, so another finishes it.
+ *
+ * From 2026-11-25 (why sharing while LangQuest is open waited): `wait`, `mode` `open`, when the
+ * mode was wanted, the app in front and nothing else owning the radios, yet no room ran for a
+ * minute or more (the app's `openWaitModel`). `waitMs` is how long, uncapped since the mode never
+ * runs under a cover; `heldFeatureMs`, `heldSwitchMs`, `heldAllowMs`, `heldRadiosMs`,
+ * `heldOfferedMs`, `heldAudioMs`, `heldRestMs` and `heldReadyMs` how long each gate input held it
+ * (never the app lock, which is no wait: time behind it would say the person uses it), and `startingMs` how long the gate stood open with no room yet; `restPieces`,
+ * `restStart`, `restRadio`, `restUnwelcome` and `restStopped` the rests that began for each cause;
+ * and `why` (`no-key`, `no-certificate`) when the room's pieces were missing. A wait a cover ended
+ * writes nothing.
  */
 export const NEARBY_DIAG_COPY_NO = ['versions', 'not-filled', 'not-allowed', 'not-here', 'malformed', 'moved'] as const;
 
@@ -133,9 +143,11 @@ export const NEARBY_DIAG_SCHEMA = {
       'noRoom', 'cutBackups', 'older', 'clockOff', 'newerApp', 'openMin', 'scanMin', 'pauseMin', 'syncMin', 'viaDirect', 'greets', 'maxMeetMs',
       'docsKept', 'docsRefused', 'docsMissing', 'docsCapped', 'libHeld', 'libTheirs', 'libGot', 'libServed',
       'granted', 'exchanged', 'copyWhole', 'copyFilled', 'copyDocsKept', 'copyDocsMissing', 'copyDocsRefused', 'copyParts', 'copyNos',
-      'exchangeOlder', 'exchangeNoPieces', 'exchangeLeft', 'docsUnreadable', 'copyDocsUnreadable', 'copyDocsCut'],
+      'exchangeOlder', 'exchangeNoPieces', 'exchangeLeft', 'docsUnreadable', 'copyDocsUnreadable', 'copyDocsCut',
+      'waitMs', 'heldFeatureMs', 'heldSwitchMs', 'heldAllowMs', 'heldRadiosMs', 'heldOfferedMs', 'heldAudioMs', 'heldRestMs', 'heldReadyMs',
+      'startingMs', 'restPieces', 'restStart', 'restRadio', 'restUnwelcome', 'restStopped'],
     t: {
-      event: ['room', 'session', 'find', 'blocked', 'deliver'],
+      event: ['room', 'session', 'find', 'blocked', 'deliver', 'wait'],
       mode: ['screen', 'open', 'join'],
       stop: ['asked', 'idle', 'wait', 'run', 'level', 'no-key', 'rest'],
       role: ['i', 'r'],

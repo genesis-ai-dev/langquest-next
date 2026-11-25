@@ -179,6 +179,16 @@ describe('diagnostic signals', () => {
     expect(texts({ b: install({ nearby: { rooms: [{ at: 'T', stop: 'asked', heard: 0, echoed: 0, alone: 1, maybe: 1, taps: 1, sessions: 1, done: 1 }], ends: { done: 1 }, links: { awdl: 1 } } }) })).toEqual([]);
   });
 
+  // 2026-11-25: a phone let in offline shared nothing for about 21 minutes after its join, and nothing said why.
+  it('says what held sharing while LangQuest is open over a minute with the app in front, the longest first, and why rests began', () => {
+    const t = texts({ a: install({ nearby: { openWaits: {
+      count: 2, waitMs: 1_350_000, maxWaitMs: 1_260_000, heldAudioMs: 1_200_000, heldAllowMs: 90_000, startingMs: 60_000, restPieces: 1,
+      why: { 'no-certificate': 1 }
+    } } }) }).join('\n');
+    expect(t).toMatch(/watch: Sharing while LangQuest was open waited over a minute 2 times with the app in front \(longest 21 min\): held by audio playing or recording 20 min, permission not allowed 90\.0 s, starting 60\.0 s; rests began for: the room's certificate or key missing once \(no-certificate\)\./);
+    expect(texts({ a: install({ nearby: { openWaits: null } }) }).join('\n')).not.toMatch(/waited over a minute/);
+  });
+
   // 2026-11-24 (docs/nearby-sync-plan.md 15.8): enough to see how sharing while LangQuest is open works for a team.
   it('reads sharing while LangQuest is open apart: hearing nobody is no fault, its finished sessions count, and a refusal says why', () => {
     const quiet = { at: 'T', stop: 'asked', mode: 'open', heard: 0, echoed: 0, sessions: 0, done: 0, openMin: 30 };
