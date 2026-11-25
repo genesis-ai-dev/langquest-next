@@ -15,7 +15,10 @@ import { statusClass, type JobRun } from '../../../server/jobRuns';
  */
 export type RouteClass =
   | 'blobs_put' | 'blobs_get' | 'blob_access' | 'r2_put' | 'record_blob'
-  | 'reports' | 'agent_api' | 'agent_list' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'tutorials' | 'ops' | 'other';
+  | 'reports' | 'agent_api' | 'agent_list' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'tutorials' | 'bible' | 'automation' | 'ops' | 'other';
+
+/** The team's own workflows' doors (the watch, card questions, the tutorial review and intake): no person using the app waits on them. */
+const AUTOMATION = ['/api/user-issues', '/api/card-questions', '/api/tutorial-review', '/api/tutorial-pictures/', '/api/tutorial-filmed'];
 
 /** Which kind of request this is; null for what is not counted (the web app and its files). */
 export function routeClass(method: string, path: string): RouteClass | null {
@@ -38,6 +41,10 @@ export function routeClass(method: string, path: string): RouteClass | null {
   if (path.startsWith('/api/nearby/') || path === '/api/relay') return 'nearby';
   // The tutorial videos: people play them, and the intake job asks for each film whether it is stored.
   if (path.startsWith('/api/tutorials/')) return 'tutorials';
+  // Bible Brain's proxy (bible.ts): a miss in the Worker's cache waits on FCBH, so its time is counted apart from
+  // the quick calls; mixed into `other`, 16 lookups of one language list made `other` look slow (LAN-328).
+  if (path.startsWith('/api/bible/')) return 'bible';
+  if (AUTOMATION.some((p) => path === p || path.startsWith(p.endsWith('/') ? p : `${p}/`))) return 'automation';
   if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/') || path.startsWith('/apk/') || path === '/videos') return 'other';
   return null;
 }

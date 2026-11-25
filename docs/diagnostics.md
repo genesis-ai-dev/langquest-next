@@ -204,7 +204,10 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   isolate (`worker_requests`: `<route>_<2xx…5xx>`, `<route>_429` for a rate
   limit's refusal, and the time taken as `<route>_lt100ms`, `_lt1s`,
   `_lt10s` or `_over10s`; routes include `device` and `links`, the two
-  rate-limited ones, and `ops`, the ops dashboard), invitation email (`invite_email`, from
+  rate-limited ones, `ops`, the ops dashboard, `bible`, Bible Brain's
+  proxy, which waits on FCBH when its cache misses, and `automation`, the
+  team's own workflows: the watch, card questions and the tutorial review
+  and intake), invitation email (`invite_email`, from
   `send-invite`, with the email service's code), and Forgot password email
   (`password_reset_email`, from `password-reset`, likewise).
 - `diag.job_schedule` says how often each runs; `diag.jobs()` gives each

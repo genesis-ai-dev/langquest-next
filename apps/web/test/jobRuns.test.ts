@@ -71,7 +71,16 @@ describe('the Worker request tally', () => {
     expect(routeClass('GET', '/ops-dashboard')).toBe('ops');
     expect(routeClass('GET', '/ops-dashboard/x')).toBe('ops');
     expect(routeClass('GET', '/ops/api/runs')).toBe('ops');
-    expect(routeClass('GET', '/api/bible/x')).toBe('other');
+    // Bible Brain's proxy and the team's own workflows each count apart, so `other` holds only quick calls and pages (LAN-328).
+    expect(routeClass('GET', '/api/bible/bibles')).toBe('bible');
+    expect(routeClass('GET', '/api/bible/file/ENGKJVO1DA/GEN/1')).toBe('bible');
+    expect(routeClass('GET', '/api/user-issues')).toBe('automation');
+    expect(routeClass('POST', '/api/card-questions')).toBe('automation');
+    expect(routeClass('GET', '/api/tutorial-review/fixes')).toBe('automation');
+    expect(routeClass('PUT', '/api/tutorial-pictures/a.png')).toBe('automation');
+    expect(routeClass('POST', '/api/tutorial-filmed')).toBe('automation');
+    expect(routeClass('GET', '/api/tutorial-reviewer')).toBe('other');
+    expect(routeClass('GET', '/api/help-audio/en/index.json')).toBe('other');
     expect(routeClass('GET', '/index.html')).toBeNull();
   });
 
