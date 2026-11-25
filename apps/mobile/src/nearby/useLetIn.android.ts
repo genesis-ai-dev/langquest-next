@@ -211,7 +211,9 @@ export function useLetIn(ctx: Ctx): LetInHandle {
             answer.current = resolve;
             dispatch({ t: 'asked', name: who.name, pictures: who.pictures });
           }),
-          progress: (r) => { if (r.copyServed.parts > 0) dispatch({ t: 'part' }); },
+          progress: (r) => {
+            if (r.copyServed.parts > 0) dispatch({ t: 'copy', parts: r.copyServed.parts, progress: r.copyServed.progress ?? null, rest: r.join?.exchange === true });
+          },
           turnedAway: () => dispatch({ t: 'turned-away' }),
           still
         }

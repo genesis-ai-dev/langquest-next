@@ -23,7 +23,7 @@ import { GiveAppScreen } from '../nearby/GiveAppScreen';
 import { ChosenPicture } from '../auth/patternPad';
 import { apkStep, installFileRow, joinRows, letInVersionsWords, type ApkStep } from '../nearby/carriedApkModel';
 import { joinGuideFilesLine, joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
-import { codeLeft, letInGuideFilesLine, type LetInCopyReady, type LetInEnd, type LetInWhyNot } from '../nearby/letInModel';
+import { codeLeft, letInGuideFilesLine, type LetInCopyReady, type LetInEnd, type LetInStage, type LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
 import { useCarriedApk } from '../nearby/useCarriedApk';
 import { useLetIn, useLetInOffered } from '../nearby/useLetIn';
@@ -41,7 +41,7 @@ import type { Ctx } from '../shell/ctx';
 import { LetInCoverNote } from '../shell/LetInCoverNote';
 import { NearbyCoverNotes } from '../shell/NearbyCoverNotes';
 import { contractsFor } from '../shell/screenContracts';
-import { Banner, Card, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, Row, Screen, SectionLabel, SmallBtn, type IconName } from '../ui/kit';
+import { Banner, Card, Field, GhostBtn, Group, Header, Ico, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, SmallBtn, type IconName } from '../ui/kit';
 import { personLook } from '../ui/people';
 import { usePerson } from '../ui/usePerson';
 import { PersonAvatar } from '../ui/UserChip';
@@ -541,7 +541,7 @@ export function LetSomeoneIn(ctx: Ctx) {
               <Text style={txt.smMuted}>{t('nearby.letIn.whatGoes')}</Text>
             </Card>
           ) : null}
-          {stage.t === 'copying' ? <Waiting text={t('nearby.letIn.copying', { name: stage.name, n: stage.parts })} /> : null}
+          {stage.t === 'copying' ? <Copying stage={stage} /> : null}
           {stage.t === 'done' ? (
             <Banner icon="check" tone="green" title={t('nearby.letIn.done', { name: stage.name })} body={t('nearby.letIn.doneLine')} />
           ) : null}
@@ -595,6 +595,22 @@ export function GetInstallFile(ctx: Ctx) {
  */
 export function GiveApp(ctx: Ctx) {
   return <GiveAppScreen {...ctx} />;
+}
+
+/**
+ * The starting copy as it goes (2026-11-25): a bar once this phone knows how much the new phone
+ * asks for, then, once the copy is whole, a moving one while the newest work and the guides'
+ * pictures and audio follow on the same link, which no bar measures.
+ */
+function Copying(props: { stage: Extract<LetInStage, { t: 'copying' }> }) {
+  const { stage } = props;
+  const text = stage.rest ? t('nearby.letIn.copyRest', { name: stage.name }) : t('nearby.letIn.copying', { name: stage.name, n: stage.parts });
+  return (
+    <Card>
+      <Text style={txt.body}>{text}</Text>
+      {stage.rest || stage.shown === null ? <MovingBar /> : <ProgressBar value={stage.shown * 100} label={text} />}
+    </Card>
+  );
 }
 
 function Waiting(props: { text: string }) {

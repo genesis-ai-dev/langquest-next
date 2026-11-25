@@ -177,6 +177,7 @@
       "no": "Hindi",
       "noHelp": "Walang ipinapadala sa kanila at tinatapos ang koneksiyon.",
       "copying": "Pinapadalhan si {{name}} ng panimulang kopya… Mga bahaging naipadala: {{n, number}}",
+      "copyRest": "Nasa kay {{name}} na ang panimulang kopya. Ipinapadala ang pinakabagong gawa, at ang mga larawan at audio ng mga gabay…",
       "done": "Nakapasok na si {{name}}",
       "doneLine": "Makakapagtrabaho na sila. Gagawin ang account nila kapag nakakonekta sa internet ang telepono nila, o ang telepono ng isang kasamahang may dala ng gawa nila.",
       "guideFiles": "Darating sa kanila mamaya ang mga larawan at audio ng mga gabay, sa unang beses na gamitin nila ang Ibahagi sa malapit kasama ang isang kasamahan gamit ang Wi-Fi.",

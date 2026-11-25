@@ -177,6 +177,7 @@
       "no": "Hapana",
       "noHelp": "Haimtumii chochote na inamaliza muunganisho.",
       "copying": "Inamtumia {{name}} nakala ya kuanzia… Sehemu zilizotumwa: {{n, number}}",
+      "copyRest": "{{name}} amepata nakala ya kuanzia. Inatuma kazi mpya zaidi, na picha na sauti za miongozo…",
       "done": "{{name}} ameingia",
       "doneLine": "Anaweza kufanya kazi sasa. Akaunti yake inatengenezwa simu yake, au ya mwenzako aliyebeba kazi yake, ikifika kwenye intaneti.",
       "guideFiles": "Picha na sauti za miongozo zitamfikia baadaye, mara ya kwanza atakapotumia Shiriki karibu na mwenzake wa timu kupitia Wi-Fi.",

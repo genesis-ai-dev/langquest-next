@@ -5,7 +5,7 @@ import {
 import { chainAsSigned, chainNameOf, type NearbyChainName, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
 import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
 import { nearbyDayOf, nearbyFirstDayWithin, type NearbyKeep } from './nearbyKeep';
-import { CopyRefused, docsLackingOf, docsListOf, libraryFilesNamed, LibraryDocsSender, StartingCopySender, takeLabels, takeLibraryDocs, takeShared, takeStartingCopy, type CopyAsker, type CopyNoReason, type LibraryDocsAsk, type LibraryDocsTaken, type NearbyCopySource, type NearbyLibrary, type NearbyListedDocs, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
+import { CopyRefused, docsLackingOf, docsListOf, libraryFilesNamed, LibraryDocsSender, StartingCopySender, takeLabels, takeLibraryDocs, takeShared, takeStartingCopy, type CopyAsker, type CopyNoReason, type CopyProgress, type LibraryDocsAsk, type LibraryDocsTaken, type NearbyCopySource, type NearbyLibrary, type NearbyListedDocs, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';
 import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, openingPinOf, sameBytes, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
 import { encodeMessage, NEARBY_HOLDINGS_MESSAGE_FILES, parseMessage, type Message } from './nearbyWire';
@@ -451,8 +451,13 @@ export interface NearbySessionReport {
   /** What this phone took of a starting copy, and why a teammate gave no more. */
   copy: StartingCopyTaken | null;
   copyRefused: string | null;
-  /** Parts of a starting copy this phone sent, asks it answered with `copy-no`, and why it gave no organization or language, which leaves the copy short. */
-  copyServed: { parts: number; no: number; stateRefused: CopyNoReason | null };
+  /**
+   * Parts of a starting copy this phone sent, asks it answered with `copy-no`, and why it gave no
+   * organization or language, which leaves the copy short. `progress`, once the sender knows what a
+   * newcomer with nothing asks for: how far the copy has gone, in characters (Let someone in's bar,
+   * 2026-11-25).
+   */
+  copyServed: { parts: number; no: number; stateRefused: CopyNoReason | null; progress?: CopyProgress };
   /** What this phone took of the library documents its language uses, as any member (`library`), or null when it asked for none. */
   topUp: LibraryDocsTaken | null;
   /** With `library-files` on both sides: library files this phone said it holds, how many of theirs it could use, and how many it got and served. */
@@ -1468,6 +1473,9 @@ export class NearbySession {
       return;
     }
     report.copyServed.parts += 1;
+    // Before it goes, so the screen hears it with the part (`moved`).
+    const progress = this.sender?.progress();
+    if (progress) report.copyServed.progress = progress;
     await this.send({ t: 'copy-part', ...answer });
   }
 

@@ -177,6 +177,7 @@
       "no": "Non",
       "noHelp": "Ne lui envoie rien et met fin à la connexion.",
       "copying": "Envoi d’une copie de départ à {{name}}… Parties envoyées : {{n, number}}",
+      "copyRest": "{{name}} a la copie de départ. Envoi du travail le plus récent, et des images et audios des guides…",
       "done": "{{name}} est entré",
       "doneLine": "Cette personne peut travailler maintenant. Son compte est créé quand son téléphone, ou celui d’un coéquipier qui porte son travail, se connecte à Internet.",
       "guideFiles": "Les images et les audios des guides lui arrivent plus tard, la première fois que cette personne utilise Partager à proximité avec un coéquipier en Wi-Fi.",

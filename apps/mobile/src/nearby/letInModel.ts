@@ -183,7 +183,12 @@ export type LetInStage =
   | { t: 'connected' }
   /** The one tap: "Let Nyibol in?", beside the two pictures. */
   | { t: 'asked'; name: string; pictures: [number, number] }
-  | { t: 'copying'; name: string; parts: number }
+  /**
+   * Sending the starting copy. `shown`: the bar's share, 0 to 1, once the inviter knows what the new
+   * phone asks for (`copyShown`), else null. `rest`: the copy is whole, and the newest work and the
+   * guides' files follow on the same link (`join-exchange`), which no bar measures.
+   */
+  | { t: 'copying'; name: string; parts: number; shown: number | null; rest: boolean }
   /** In. `guideFilesWent`: guide pictures and audio went to them on the link (`letInGuideFilesWent`), so none are said to come later. */
   | { t: 'done'; name: string; guideFilesWent?: true }
   | { t: 'ended'; why: LetInEnd; name: string | null };
@@ -203,7 +208,8 @@ export type LetInAction =
   | { t: 'connected' }
   | { t: 'asked'; name: string; pictures: [number, number] }
   | { t: 'answered'; yes: boolean }
-  | { t: 'part' }
+  /** How far the copy has gone, from the session's report: parts sent, the estimate in characters, and whether the copy is whole. */
+  | { t: 'copy'; parts: number; progress: { sent: number; total: number } | null; rest: boolean }
   /** `guideFilesWent`: the session said guide pictures and audio went (`letInGuideFilesWent`). */
   | { t: 'ended'; why: LetInEnd | 'done'; guideFilesWent?: boolean }
   | { t: 'turned-away' }
@@ -227,9 +233,15 @@ export function letInReducer(s: LetInState, a: LetInAction): LetInState {
       return stage.t === 'connected' || stage.t === 'showing' ? { ...s, stage: { t: 'asked', name: a.name, pictures: a.pictures } } : s;
     case 'answered':
       if (stage.t !== 'asked') return s;
-      return a.yes ? { ...s, stage: { t: 'copying', name: stage.name, parts: 0 } } : { ...s, stage: { t: 'ended', why: 'said-no', name: stage.name } };
-    case 'part':
-      return stage.t === 'copying' ? { ...s, stage: { ...stage, parts: stage.parts + 1 } } : s;
+      return a.yes ? { ...s, stage: { t: 'copying', name: stage.name, parts: 0, shown: null, rest: false } } : { ...s, stage: { t: 'ended', why: 'said-no', name: stage.name } };
+    case 'copy': {
+      if (stage.t !== 'copying') return s;
+      const parts = Math.max(stage.parts, a.parts);
+      const shown = copyShown(stage.shown, a.progress);
+      const rest = stage.rest || a.rest;
+      // The same screen when nothing it shows changed: the session reports every message.
+      return parts === stage.parts && shown === stage.shown && rest === stage.rest ? s : { ...s, stage: { ...stage, parts, shown, rest } };
+    }
     case 'ended': {
       if (stage.t === 'choose' || stage.t === 'done') return s;
       // A No already said so; the session's end after it changes nothing.
@@ -243,6 +255,20 @@ export function letInReducer(s: LetInState, a: LetInAction): LetInState {
     case 'new-code':
       return stage.t === 'ended' || stage.t === 'done' ? { ...s, stage: { t: 'choose' }, turnedAway: false } : s;
   }
+}
+
+/** The bar stops short of the end until the copy is whole: the estimate can reach what went before the last small parts have. */
+export const COPY_SHOWN_MAX = 0.99;
+
+/**
+ * The bar's share while a starting copy goes (2026-11-25): what went of the inviter's estimate
+ * (`CopyProgress`), in steps of half a percent, never back from what it showed, and short of the
+ * end (`COPY_SHOWN_MAX`). Null until there is an estimate.
+ */
+export function copyShown(before: number | null, progress: { sent: number; total: number } | null): number | null {
+  if (!progress || !(progress.total > 0)) return before;
+  const now = Math.min(Math.floor((progress.sent / progress.total) * 200) / 200, COPY_SHOWN_MAX);
+  return before === null ? now : Math.max(before, now);
 }
 
 /**

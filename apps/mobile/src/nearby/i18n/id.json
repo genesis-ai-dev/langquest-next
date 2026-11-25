@@ -177,6 +177,7 @@
       "no": "Tidak",
       "noHelp": "Tidak mengirim apa pun dan memutus sambungan.",
       "copying": "Mengirim salinan awal ke {{name}}… Bagian terkirim: {{n, number}}",
+      "copyRest": "{{name}} sudah menerima salinan awal. Mengirim pekerjaan terbaru, serta gambar dan audio panduan…",
       "done": "{{name}} sudah masuk",
       "doneLine": "Mereka bisa bekerja sekarang. Akun mereka dibuat saat ponsel mereka, atau ponsel rekan tim yang membawa pekerjaan mereka, tersambung ke internet.",
       "guideFiles": "Gambar dan audio panduan sampai ke mereka nanti, saat pertama kali mereka memakai Berbagi di sekitar dengan rekan tim lewat Wi-Fi.",

@@ -595,6 +595,10 @@ describe.each(STORES)('letting someone in, on the %s store', (_name, make) => {
       sessionFor(s.a.p, 'r', s.pair.b, time, { join: join.i, copy: { ...s.copy, docs: inviterDocs }, library: inviterLibrary }).run());
     expect([rn.ended.how, ri.ended.how]).toEqual(['done', 'done']);
     expect(rn.copy).toMatchObject({ whole: true });
+    // Let someone in's bar (2026-11-25): the inviter's estimate, once every passage and document went, is exactly what went.
+    const progress = ri.copyServed.progress;
+    expect(progress?.sent).toBeGreaterThan(0);
+    expect(progress?.sent).toBe(progress?.total);
     // The documents the language uses, as the inviter's phone holds them.
     expect([...newcomerDocs.held.keys()].sort()).toEqual([...inviterDocs.held.keys()].sort());
     // The files they name, over the same link, each kept as a library file it may pass on.

@@ -177,6 +177,7 @@
       "no": "A'a",
       "noHelp": "Ba ya aika masa komai, kuma yana yanke haɗin.",
       "copying": "Ana aika wa {{name}} kwafin farko… Sassan da aka aika: {{n, number}}",
+      "copyRest": "{{name}} ya samu kwafin farko. Ana aika sabon aiki, da hotuna da sautukan jagorori…",
       "done": "{{name}} ya shiga",
       "doneLine": "Zai iya aiki yanzu. Za a buɗe asusunsa idan wayarsa, ko ta abokin aikin da ke ɗauke da aikinsa, ta sami intanet.",
       "guideFiles": "Hotuna da sautukan jagorori za su iso masa daga baya, a karon farko da ya yi amfani da Raba da na kusa tare da abokin aiki ta Wi-Fi.",

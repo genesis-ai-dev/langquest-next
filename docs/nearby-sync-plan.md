@@ -3929,6 +3929,17 @@ it does today (decision 54).
    delete it, unless you will pass it on." and a second: until the phone reaches the internet,
    install no other version of LangQuest on it, since the copy would be removed and a teammate
    would have to give it again (2026-11-24, review item 26).
+
+   While the copy goes, Let someone in shows a bar beside the parts sent (Carl, 2026-11-25).
+   The inviter sees only the asks it answers, so it estimates in characters (`CopyTally` in
+   `packages/sync/src/nearbyCopy.ts`, `copyServed.progress`). It counts against what a newcomer
+   with nothing asks for: each passage whose rows follow the state, with its rows
+   (`kept.units`), and each document on the language's list that it holds. An item not yet
+   asked counts at the average length of those gone (500 characters a row and 40,000 a
+   document before any has). The bar never moves back and stops short of the end until the
+   copy is whole. Then, while the newest work and the guides' files follow on the same link
+   (`join.exchange`), the screen says so over a moving bar, since nothing measures them. No
+   message changes: the newcomer's screen still counts parts.
 5. **Working.** The app runs with a *local person*: an actor id and no server session, in
    `secureStorage` (`src/server/localPerson.ts`). Only one per install, because a local
    person cannot sign out and Sign In is unreachable for them.
