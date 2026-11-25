@@ -102,7 +102,7 @@ export interface NearbySummary {
     | 'keyRefused' | 'farAhead' | 'noRoom' | 'cutBackups' | 'older' | 'clockOff' | 'newerApp' | NearbyLibraryField | 'libHeld' | 'libTheirs' | NearbyCopyField, number>> | null;
   /** Rooms while LangQuest was open (15.8): their totals, how many, and how many met anyone. Their finished sessions are summed here, not in `ends`. */
   openTotals?: Partial<Record<'count' | 'met' | 'openMin' | 'scanMin' | 'pauseMin' | 'syncMin' | 'heard' | 'sessions' | 'done' | 'events' | 'sent' | 'files' | 'served'
-    | 'fileFails' | 'fallbacks' | 'viaDirect' | 'maxMeetMs' | NearbyLibraryField, number>> | null;
+    | 'fileFails' | 'fallbacks' | 'viaDirect' | 'maxMeetMs' | 'filesCapped' | NearbyLibraryField, number>> | null;
   /** Waits of a minute or more while LangQuest was open (2026-11-25): how many, the longest, what held them and why rests began, summed; `why` counts missing pieces' reasons. */
   openWaits?: Partial<Record<'count' | 'waitMs' | 'maxWaitMs' | OpenWaitField, number>> & { why?: Record<string, number> | null } | null;
   /** `end` or `end:bye`. */
@@ -311,6 +311,8 @@ export function nearbySignals(x: NearbySummary | null | undefined): { level: Sig
   const o = x.openTotals;
   if (o?.count) {
     add('info', `Shared while LangQuest was open ${times(o.count)} for ${o.openMin ?? 0} min (radios off ${o.pauseMin ?? 0}, scanning ${o.scanMin ?? 0}, syncing ${o.syncMin ?? 0}); met a teammate in ${o.met ?? 0}, ${o.done ?? 0} sessions finished, ${o.events ?? 0} events and ${o.files ?? 0} recordings in.`);
+    // The limit of about 100 MB a session while open (2026-11-25): how often it left files for the next meeting.
+    if (o.filesCapped) add('info', `While LangQuest was open ${o.filesCapped} session${o.filesCapped === 1 ? '' : 's'} stopped at their limit of about 100 MB of files, leaving the rest for the next meeting.`);
   }
   // What held it with the app in front, the longest first, and why rests began (2026-11-25).
   const w = x.openWaits;

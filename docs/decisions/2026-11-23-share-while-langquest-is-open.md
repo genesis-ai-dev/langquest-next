@@ -110,3 +110,10 @@ session under way finishing unless the phone records, and finds again after
 15 seconds of quiet. A reviewer plays clip after clip, and each used to stop
 the room, cut its session and write a diagnostic, and build it all again
 after (docs/decisions/2026-11-24-nearby-sessions-spare-the-radios-and-the-round-trips.md).
+
+Amended (2026-11-25, Carl Sauder): a quiet session moves at most about
+100 MB of files with one teammate, both ways together, most wanted first,
+and leaves the rest for the next meeting; Share nearby and a join have no
+limit. Recordings are about 1 MB a minute, and while LangQuest is open the
+radios run because the mode is on, not because the person chose to spend the
+time (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).

@@ -1,5 +1,5 @@
 import { HlcClock, type BlobRef } from '@langquest-next/core';
-import { LanguageSession, type LanguageSessionOptions, type LocalFiles } from '../src/languageSession';
+import { keepOfflineUnopened, LanguageSession, type LanguageSessionOptions, type LocalFiles } from '../src/languageSession';
 import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient } from '../src/syncClient';
@@ -112,6 +112,22 @@ describe('LanguageSession: one language kept and moved (decisions.md 104)', () =
     const second = await open();
     expect([...second.status.keptUnits]).toEqual(['Luke 2']);
     second.close();
+  });
+
+  // docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: a newcomer let in offline keeps the passages the
+  // inviter chose before the join's steps open the language, so their recordings are wanted on that link.
+  it('passages kept before the language opens join what it keeps, and the session reads them when it opens', async () => {
+    const { open, store } = phone();
+    const first = await open();
+    await first.keepOffline('Luke 2', true);
+    first.close();
+    await keepOfflineUnopened(store, 'org1', 'luke', ['Luke 1', 'Luke 2']);
+    await keepOfflineUnopened(store, 'org1', 'luke', []);
+    const second = await open();
+    expect([...second.status.keptUnits].sort()).toEqual(['Luke 1', 'Luke 2']);
+    second.close();
+    // Another language's keep is not touched.
+    expect(await store.meta('keep:org1/other')).toBeFalsy();
   });
 
   it("uploads this person's recording once started, and the server's confirmation clears it", async () => {

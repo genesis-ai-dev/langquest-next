@@ -183,6 +183,20 @@ const INBOX_PASSAGES_PER_READ = 25;
 export const FILE_NEWS_MS = 500;
 
 const keepKey = (orgId: string, languageId: string) => `keep:${orgId}/${languageId}`;
+
+/**
+ * Keep passages offline for a language not open yet, merged with what it keeps; read when it opens
+ * (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md). A newcomer let in
+ * offline keeps the passages the inviter chose before the join's steps after the copy open the
+ * language, so their recordings are wanted on that link.
+ */
+export async function keepOfflineUnopened(store: Pick<EventStore, 'meta' | 'setMeta'>, orgId: string, languageId: string, unitIds: readonly string[]): Promise<void> {
+  if (unitIds.length === 0) return;
+  const kept = new Set<string>(JSON.parse((await store.meta(keepKey(orgId, languageId))) || '[]') as string[]);
+  const before = kept.size;
+  for (const unitId of unitIds) kept.add(unitId);
+  if (kept.size !== before) await store.setMeta(keepKey(orgId, languageId), JSON.stringify([...kept]));
+}
 /**
  * Where a book's button kept its passages, for their recordings alone, until
  * every kept passage took its reference material along

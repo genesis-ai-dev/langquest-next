@@ -106,6 +106,8 @@ describe.each(STORES)('letting someone in, on the %s store', (_name, make) => {
 
   async function setUp(o: {
     tap?: string | null; stop?: string | null; pass?: (p: JoinPass) => JoinPass; inviter?: Parameters<typeof inviterPhone>[0]; newcomer?: Parameters<typeof newcomerPhone>[0]; features?: readonly string[];
+    /** The passages the inviter chose for the newcomer to work on (2026-11-25). */
+    kept?: readonly string[];
     /** The newcomer runs the ordinary steps after a whole copy (2026-11-24), on its own phone's pieces. */
     exchange?: boolean;
     /** What the newcomer's `granted` answers for noting the meeting. */
@@ -114,19 +116,19 @@ describe.each(STORES)('letting someone in, on the %s store', (_name, make) => {
     const shelf: MemoryFiles = new Map();
     const a = await inviterPhone({ shelf, ...o.inviter });
     const n = await newcomerPhone({ shelf, ...o.newcomer });
-    const granted: { chain: ChainLink[]; discovery: { key: string; gen: number; floor: number }; features: readonly string[]; revoked: { text: string; kid: string; sig: string } | null }[] = [];
+    const granted: { chain: ChainLink[]; discovery: { key: string; gen: number; floor: number }; features: readonly string[]; revoked: { text: string; kid: string; sig: string } | null; kept: readonly string[] }[] = [];
     const shown: [number, number][] = [];
     const tapped: { name: string; profileId: string; pictures: [number, number] }[] = [];
     const join = {
       i: {
         as: 'inviter', pass: o.pass ? o.pass(a.pass) : a.pass, discovery: { key: base64urlEncode(new Uint8Array(32).fill(9)), gen: 4, floor: 2 },
         tap: async (who) => { tapped.push(who); return o.tap === undefined ? 'translator' : o.tap; },
-        ...(o.stop !== undefined ? { stop: () => o.stop! } : {}), ...(o.features ? { features: o.features } : {})
+        ...(o.stop !== undefined ? { stop: () => o.stop! } : {}), ...(o.features ? { features: o.features } : {}), ...(o.kept ? { kept: o.kept } : {})
       } satisfies NearbyJoinInviter,
       n: {
         as: 'newcomer', idSalt: SALT, profileId: n.profileId, name: 'Nyibol', pictures: (p) => shown.push(p),
         granted: async (g) => {
-          granted.push({ chain: g.chain, discovery: g.discovery, features: g.features, revoked: g.revoked });
+          granted.push({ chain: g.chain, discovery: g.discovery, features: g.features, revoked: g.revoked, kept: g.kept });
           return o.notesMetForMs !== undefined ? { keep: n.p.keep, notesMetForMs: o.notesMetForMs } : undefined;
         },
         target: n.target,
@@ -152,6 +154,17 @@ describe.each(STORES)('letting someone in, on the %s store', (_name, make) => {
     const older = await setUp();
     await run(older.a.p, older.n.p, older.pair, older.join, older.copy);
     expect(older.granted.map((g) => g.features)).toEqual([[]]);
+  });
+
+  // docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: the inviter picks the newcomer's first work set, so the
+  // team's recordings of it come on the join's link rather than never.
+  it('hands the newcomer the passages the inviter chose for them, each once, and none from an inviter that chose none', async () => {
+    const s = await setUp({ kept: ['u1', 'u2', 'u1'] });
+    await run(s.a.p, s.n.p, s.pair, s.join, s.copy);
+    expect(s.granted.map((g) => g.kept)).toEqual([['u1', 'u2']]);
+    const none = await setUp();
+    await run(none.a.p, none.n.p, none.pair, none.join, none.copy);
+    expect(none.granted.map((g) => g.kept)).toEqual([[]]);
   });
 
   it('after one tap: the same two pictures on both phones, a grant naming what the newcomer asked with, and a starting copy of this language only', async () => {

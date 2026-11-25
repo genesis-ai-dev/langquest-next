@@ -14,6 +14,7 @@ import { fits, groupLook, groupOffline, letGoWords, noRoomWords, workKept, type 
 import { useReferenceRevision } from './useOfflineSummary';
 import { useSyncStatus } from './useSyncStatus';
 import { isOffline } from './uploadsModel';
+import { useNearbyCanRun } from '../nearby/useNearbyCanRun';
 
 /**
  * Is a file of a passage coming down now: one of its recordings (the
@@ -100,12 +101,15 @@ export function useGroupOffline(ctx: Ctx, unitIds: readonly string[], sized: boo
   // passage's files, so it could not tell whether they fit: no group is offered until it ends.
   const fill = ctx.language.fill;
   const filling = !!fill && fill.total > 0;
-  const offering = !filling && !g.checking && !offline && g.toKeep.length > 0;
+  // Offline, where Share nearby can run, keeping them is a want a teammate's phone fills: offered, under the same room rule
+  // (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).
+  const nearby = useNearbyCanRun();
+  const offering = !filling && !g.checking && (!offline || nearby) && g.toKeep.length > 0;
   // The size is said before the tap: until it is answered the line is still checking.
   const { answer, ask } = useGroupCost(ctx, g.toKeep, sized && offering);
   const cost = answer && answer.bytes !== null && answer.files !== null ? { bytes: answer.bytes, files: answer.files, here: answer.here ?? 0 } : null;
   const look = groupLook(g, {
-    offline, filling, downloading: unitIds.some(coming), cost, room: answer?.room ?? null, sizing: sized && offering && !answer
+    offline, filling, downloading: unitIds.some(coming), cost, room: answer?.room ?? null, sizing: sized && offering && !answer, nearby
   });
   const keep = async () => {
     // Asked again at the tap: a section's button says no size, and room changes.

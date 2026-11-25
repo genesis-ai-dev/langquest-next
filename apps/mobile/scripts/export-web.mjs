@@ -339,7 +339,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // docs/decisions/2026-11-18-sync-and-offline-one-screen.md as amended), 305 bytes past it with main merged in: the
 // starting copy's estimate (`CopyTally`), the Let someone in stage's share, and the Sync row's rule with its three
 // English lines, all in the nearby chunk, which the web never opens. A first visit does not grow (58 bytes left).
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 192 * 1024;
+// Raised by 4 KB with what teammates share (Carl, 2026-11-25,
+// docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md), 3,678 bytes past it: the first visit's
+// growth below, and in the nearby chunk the work set on Let someone in (`letInBooks`, `workSetOf` and the grant's `kept`)
+// and the limit of file bytes a session moves while LangQuest is open, which the web never opens.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 196 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -488,7 +492,13 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 192 * 1024;
 // the app and nearby leave out the same languages, and `SyncClient` says when it last wrote. What only a phone does
 // stays in files the web never loads: the download ahead (study/guideFilesAhead.native.ts), heads kept on disk
 // (library/docHeads.native.ts) and shared Bibles between phones (library/sharedTeammate.native.ts).
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 132 * 1024;
+// Raised by 4 KB with what teammates share (Carl, 2026-11-25,
+// docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md), 3,386 bytes past it: the download buttons'
+// rule for keeping a passage or a book offline where Share nearby can run (sync/offlineModel.ts, sync/offline.tsx,
+// sync/useGroupOffline.ts), the one answer they share (nearby/useNearbyCanRun.ts), and their seven English lines in the
+// catalog every visit carries. The web never shows those lines, since Share nearby never runs there, but the buttons
+// are the same code on every platform.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 136 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

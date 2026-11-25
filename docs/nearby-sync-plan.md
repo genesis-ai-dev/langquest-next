@@ -750,6 +750,20 @@ real phone, and section 13 what stays open.
 
 ### 5.6 Audio
 
+**Text whole, recordings by want (2026-11-25,
+docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).** Every member keeps a
+language's events, state and the documents it uses; a recording moves only when the phone that
+takes it wants it, for one of the purposes below. Nothing is pushed. A person adds to what their
+phone wants by keeping a passage or a book offline, and where Share nearby can run that works
+offline too (`useKeepToggle` and `offlineLook` in `apps/mobile/src/sync/`, from
+`useNearbyCanRun`): the passage says a teammate's phone can bring it, then that it waits for one,
+and any teammate who holds its files brings them, since a kept passage is needed. A book that would
+not fit above the 500 MB kept for recording is still not kept, offline as online. A newcomer's
+first passages come from the inviter's choice on Let someone in (14.1). While LangQuest is open a
+session moves at most `NEARBY_OPEN_FILE_BYTES`, about 100 MB, with one teammate, both ways
+together, in this order, and stops asking past it (`files.capped`, which also has the room pick the
+pair again, as `docsAgain` does); Share nearby and a join have no limit.
+
 The list a phone asks for follows the purposes in section 1, in order:
 
 1. **Needed.** Files for the passages in its offline scope (`defaultOfflineScope`: asked
@@ -1470,7 +1484,7 @@ type Message =
   | { t: 'bye'; reason: 'done' | 'nothing' | 'busy' | 'protocol' | 'identity' | 'not-member' | 'stopped' }
   // Phase 6, with the abilities let-in and starting-copy (section 14.1):
   | { t: 'join-ask'; installKey: string; idSalt: string; profileId: string; deviceId: string; name: string; proof: string } // the newcomer, first
-  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[]; revoked?: { text: string; kid: string; sig: string } } // the inviter, after one tap; the pass is inside the chain; `revoked` as a `revoked` message carries it (2026-11-24)
+  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[]; revoked?: { text: string; kid: string; sig: string }; kept?: string[] } // the inviter, after one tap; the pass is inside the chain; `revoked` as a `revoked` message carries it (2026-11-24); `kept`, the passages the newcomer will work on (2026-11-25)
   | { t: 'copy-ask'; part: 'state' | 'rows' | 'names' | 'doc' | 'held' | 'labels' | 'shared'; stream?: string; after?: string; hash?: string; lang?: string } // 'held' only to a phone that says copy-library; 'labels', with `lang`, only to one that says copy-labels; 'shared' only to one that says copy-shared (2026-11-24)
   | { t: 'copy-part'; part: string; stream?: string; next: string | null; body: string; seq?: number } // body at most 900 KiB; `seq` on a `rows` part, the sender's checkpoint (2026-11-24)
   | { t: 'copy-no'; reason: 'versions' | 'not-filled' | 'not-allowed' | 'not-here' };
@@ -3857,6 +3871,18 @@ it does today (decision 54).
      `nearby_open` (`nearbyOpenOrgs:<profile>`) until its first contact replaces it, so it
      shares while LangQuest is open as its inviter does. An older inviter sends none, and an
      older newcomer ignores the field.
+   - **What they will work on** (2026-11-25,
+     docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md). Before the code,
+     beside the role, the inviter may pick a book the new person will work on ("They will work
+     on", `WorkSetChoice` on Let someone in, `letInBooks`). The grant carries its passages
+     (`join-grant` `kept`, at most `NEARBY_GRANT_KEPT_MAX`, 1,000, each once), and the newcomer's
+     phone keeps them offline in the grant's language (`keepGrant`'s `keepOffline`,
+     `keepOfflineUnopened`) before the steps after the copy open it, so the recordings the
+     inviter's phone holds of them come on the join's link rather than never: before, the team's
+     confirmed recordings were in no purpose of a newcomer's (5.6), and their Map called them not
+     on the phone. The passages around them are not added. This build offers a book; choosing
+     passages one by one is left for later. An older inviter sends none, and an older newcomer
+     ignores the field.
    - **The revocation list** (2026-11-24, review item 11). The grant carries the Worker's list
      as the inviter's phone holds it (`join-grant` `revoked`, exactly a `revoked` message's
      text, `kid` and signature). The newcomer checks it against the Worker's keys for the

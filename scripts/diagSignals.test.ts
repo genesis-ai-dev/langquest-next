@@ -114,6 +114,13 @@ describe('diagnostic signals', () => {
     expect(t.join('\n')).toMatch(/organizations could not be fetched \(http503\) 2 times/);
   });
 
+  // docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: how often the limit while open left files for later.
+  it('says how often sessions while LangQuest was open stopped at their file limit, and nothing when none did', () => {
+    const t = texts({ a: install({ nearby: { openTotals: { count: 3, openMin: 20, filesCapped: 2 } } }) }).join('\n');
+    expect(t).toMatch(/info: While LangQuest was open 2 sessions stopped at their limit of about 100 MB of files, leaving the rest for the next meeting\./);
+    expect(texts({ a: install({ nearby: { openTotals: { count: 3, openMin: 20 } } }) }).join('\n')).not.toMatch(/limit of about 100 MB/);
+  });
+
   // 2026-11-25: a newcomer's phone came online, and nothing said when first contact went through.
   it('says when a person let in offline got their sign-in and certificate, and when first contact was refused', () => {
     const t = texts({ a: install({ auth: [

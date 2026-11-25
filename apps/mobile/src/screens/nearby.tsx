@@ -14,7 +14,7 @@
 // says it is not in this build. On an iPhone (section 7's phase 5) the joining and install file
 // hooks are their plain stubs, so A new person never shows, and words that would name Android or
 // the install file come from `phoneWords`. Loads the first time it is opened (lazyScreens.tsx).
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LetInCode } from '../nearby/LetInCode';
 import { NearbyIntro } from '../nearby/NearbyIntro';
@@ -23,7 +23,7 @@ import { GiveAppScreen } from '../nearby/GiveAppScreen';
 import { ChosenPicture } from '../auth/patternPad';
 import { apkStep, installFileRow, joinRows, letInVersionsWords, type ApkStep } from '../nearby/carriedApkModel';
 import { joinGuideFilesLine, joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
-import { codeLeft, letInGuideFilesLine, type LetInCopyReady, type LetInEnd, type LetInStage, type LetInWhyNot } from '../nearby/letInModel';
+import { codeLeft, letInBooks, letInGuideFilesLine, type LetInCopyReady, type LetInEnd, type LetInStage, type LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
 import { useCarriedApk } from '../nearby/useCarriedApk';
 import { useLetIn, useLetInOffered } from '../nearby/useLetIn';
@@ -41,7 +41,7 @@ import type { Ctx } from '../shell/ctx';
 import { LetInCoverNote } from '../shell/LetInCoverNote';
 import { NearbyCoverNotes } from '../shell/NearbyCoverNotes';
 import { contractsFor } from '../shell/screenContracts';
-import { Banner, Card, Field, GhostBtn, Group, Header, Ico, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, SmallBtn, type IconName } from '../ui/kit';
+import { Banner, Card, Field, GhostBtn, Group, Header, Ico, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, SmallBtn, type IconName } from '../ui/kit';
 import { personLook } from '../ui/people';
 import { usePerson } from '../ui/usePerson';
 import { PersonAvatar } from '../ui/UserChip';
@@ -441,6 +441,48 @@ function TwoPictures(props: { pictures: [number, number] }) {
  * Give the app serves, the code runs on its Wi-Fi, which the new phone is still on after installing,
  * and its LangQuest finds this phone by itself (docs/nearby-sync-plan.md 14.5).
  */
+/**
+ * What the new person will work on, chosen with the role before the code
+ * (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md): one book, or nothing.
+ * Its passages are kept offline on their phone, so the recordings this phone holds go with the
+ * starting copy, where before the Map on their phone called them not there. Optional, and only
+ * where the language has a book with passages.
+ */
+function WorkSetChoice(props: { ctx: Ctx; bookId: string | null; onChoose: (bookId: string | null) => void }) {
+  const { ctx, bookId, onChoose } = props;
+  const [open, setOpen] = useState(false);
+  const books = useMemo(() => letInBooks(ctx.language.state, ctx.language.lines), [ctx.language.state, ctx.language.lines]);
+  if (books.length === 0) return null;
+  const chosen = books.find((b) => b.key === bookId) ?? null;
+  const pick = (id: string | null) => { onChoose(id); setOpen(false); };
+  const mark = (on: boolean) => (on ? <Ico name="check" size={20} color={C.primary} strokeWidth={3} /> : <View />);
+  return (
+    <>
+      <SectionLabel label={t('nearby.letIn.workTitle')} />
+      <Group>
+        <HelpRow of="nearby.letInWork">
+          <Row icon="book" label={chosen ? chosen.name : t('nearby.letIn.workNone')} sub={t('nearby.letIn.workSub')} help={t('nearby.letIn.workHelp')}
+            onPress={() => setOpen(true)} last />
+        </HelpRow>
+      </Group>
+      <Sheet visible={open} title={t('nearby.letIn.workSheet')} onClose={() => setOpen(false)}>
+        <Group>
+          {/* A choice, not a way somewhere: a check on the chosen one, as the role's rows draw it. */}
+          <Row label={t('nearby.letIn.workNothing')} role="radio" selected={bookId === null} checked={bookId === null} right={mark(bookId === null)}
+            help={t('nearby.letIn.workHelp')} onPress={() => pick(null)} />
+          {books.map((b, i) => (
+            <HelpRow key={b.key} of="nearby.letInWorkBook">
+              <Row label={b.name} sub={t('nearby.letIn.workRecorded', { recorded: b.recorded, total: b.total })} role="radio"
+                selected={bookId === b.key} checked={bookId === b.key} right={mark(bookId === b.key)} help={t('nearby.letIn.workHelp')}
+                onPress={() => pick(b.key)} last={i === books.length - 1} />
+            </HelpRow>
+          ))}
+        </Group>
+      </Sheet>
+    </>
+  );
+}
+
 export function LetSomeoneIn(ctx: Ctx) {
   const { whyNot, roles, state, code, secondsLeft, worn, permit, actions, daysLeft, copyReady } = useLetIn(ctx);
   const apk = useCarriedApk();
@@ -517,6 +559,7 @@ export function LetSomeoneIn(ctx: Ctx) {
             </>
           ) : null}
           {stage.t === 'choose' && roles.length === 1 ? <Text style={txt.sm}>{t('nearby.letIn.asRole', { role: roles[0]!.name })}</Text> : null}
+          {stage.t === 'choose' || stage.t === 'ended' ? <WorkSetChoice ctx={ctx} bookId={state.workBook} onChoose={actions.work} /> : null}
           {/* How long this phone can still let people in, and a warning under 30 days (Carl, 2026-11-24): its pass ends with its window. */}
           {(stage.t === 'choose' || stage.t === 'ended' || stage.t === 'done') && daysLeft ? (
             daysLeft.warn

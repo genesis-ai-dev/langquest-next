@@ -166,6 +166,19 @@ describe('the screen', () => {
   const run = (...actions: LetInAction[]): LetInState => actions.reduce(letInReducer, LET_IN_START);
   const up: LetInAction[] = [{ t: 'role', roleId: 'translator' }, { t: 'host' }, { t: 'showing', uri: 'langquestnext://join?v=1', until: 120_000 }, { t: 'connected' }, { t: 'asked', name: 'Nyibol', pictures: [1, 2] }];
 
+  // docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: the inviter may pick a book the new person will work on,
+  // with the role, before the code; New code keeps it, as it keeps the role.
+  it('takes a book to work on with the role, before the code, keeps it for a new code, and lets it be cleared', () => {
+    expect(LET_IN_START.workBook).toBeNull();
+    expect(run({ t: 'work', bookId: 'LUK' }).workBook).toBe('LUK');
+    expect(run({ t: 'work', bookId: 'LUK' }, { t: 'work', bookId: null }).workBook).toBeNull();
+    // Once the code is up, the choice is made.
+    expect(run({ t: 'role', roleId: 'translator' }, { t: 'host' }, { t: 'work', bookId: 'LUK' }).workBook).toBeNull();
+    const again = run({ t: 'work', bookId: 'LUK' }, ...up, { t: 'answered', yes: false }, { t: 'ended', why: 'refused' }, { t: 'new-code' });
+    expect(again).toMatchObject({ stage: { t: 'choose' }, roleId: 'translator', workBook: 'LUK' });
+    expect(run(...up, { t: 'answered', yes: false }, { t: 'ended', why: 'refused' }, { t: 'work', bookId: 'MRK' }).workBook).toBe('MRK');
+  });
+
   it('shows nothing until a role is chosen and Show the code pressed', () => {
     expect(run({ t: 'host' }).stage).toEqual({ t: 'choose' });
     expect(run(...up).stage).toEqual({ t: 'asked', name: 'Nyibol', pictures: [1, 2] });

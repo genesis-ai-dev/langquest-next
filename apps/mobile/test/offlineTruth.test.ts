@@ -60,6 +60,40 @@ describe('the download line tells the truth', () => {
 });
 
 // LAN-316: a book's or a section's passages as one download, by the same rules as one passage's.
+// docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: where Share nearby can run, keeping a passage
+// offline is a want any teammate's phone fills, so offline it is offered and says who brings it. A person let in offline
+// could not ask for the team's recordings at all, and the Map called them not on this phone (Carl, 2026-11-25).
+describe('offline where Share nearby can run, a teammate brings what is kept', () => {
+  const nearby = { offline: true, downloading: false, nearby: true };
+  it('offers keeping a passage, says a teammate\'s phone can bring it, and keeps saying "needs a connection" elsewhere', () => {
+    expect(offlineLook(NOT_KEPT, nearby)).toMatchObject({ kind: 'none', label: "A teammate's phone can bring it" });
+    expect(offlineLook(NOT_KEPT, { ...nearby, nearby: false })).toMatchObject({ kind: 'noConnection', label: 'Download needs a connection' });
+    // Online, nothing changes.
+    expect(offlineLook(NOT_KEPT, { ...nearby, offline: false })).toMatchObject({ kind: 'none', label: 'Download for offline' });
+  });
+
+  it('says a kept passage waits for a teammate, with how much is here', () => {
+    expect(offlineLook(kept({}), nearby)).toMatchObject({ kind: 'partial', label: "1 of 3 files here · a teammate's phone can bring the rest" });
+    expect(offlineLook(kept({ audio: 0, here: 0 }), nearby)).toMatchObject({ kind: 'partial', label: "Waiting for a teammate's phone" });
+    expect(offlineLook(kept({ ready: true, here: 3 }), nearby)).toMatchObject({ kind: 'ready', label: 'On this device' });
+    expect(offlineLook(kept({}), { ...nearby, nearby: false })).toMatchObject({ kind: 'partial', label: 'Only 1 of 3 files on this device' });
+  });
+
+  it('a book: offers Download offline under the same room rule, and says a teammate brings what is kept', () => {
+    const MB = 1024 * 1024;
+    const ids = ['GEN.1', 'GEN.2', 'GEN.3'];
+    const none = groupOffline(ids, new Map(), new Set());
+    const off = { offline: true, downloading: false, cost: { bytes: 20 * MB }, room: 100 * MB, nearby: true };
+    expect(groupLook(none, off)).toMatchObject({ kind: 'none', tap: 'keep', size: '20 MB', blocked: null });
+    // A book that would not fit is still not kept, offline as online (decision of 2026-11-20 on a book's download).
+    expect(groupLook(none, { ...off, cost: { bytes: 300 * MB } })).toMatchObject({ kind: 'noRoom', tap: 'keep' });
+    expect(groupLook(none, { ...off, nearby: false })).toMatchObject({ tap: null, blocked: 'Download needs a connection' });
+    const allChosen = groupOffline(ids, new Map(), new Set(ids));
+    expect(groupLook(allChosen, off)).toMatchObject({ title: "Waiting for a teammate's phone · 0 of 3", tone: 'waiting', sub: "A teammate's phone can bring the rest." });
+    expect(groupLook(allChosen, { ...off, nearby: false })).toMatchObject({ title: 'Connect to finish downloading · 0 of 3', sub: 'Connect to finish before you travel.' });
+  });
+});
+
 describe("a book's download line tells the truth", () => {
   const MB = 1024 * 1024;
   const ids = ['GEN.1', 'GEN.2', 'GEN.3'];

@@ -8,7 +8,7 @@ import { noteExpected } from '../diagnostics/report';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
 import { takeGiveHandOver } from './giveHandOver';
-import { codeShown, LET_IN_START, letInCodeMs, letInEndOf, letInGuideFilesWent, letInReducer, letInRoles, letInWhyNot, type LetInCopyReady, type LetInWhyNot } from './letInModel';
+import { codeShown, LET_IN_START, letInCodeMs, letInEndOf, letInGuideFilesWent, letInReducer, letInRoles, letInWhyNot, workSetOf, type LetInCopyReady, type LetInWhyNot } from './letInModel';
 import { letInPermit } from './letInPermitModel';
 import { copyReadAgain, LET_IN_COPY_READ_MS, letInDaysLeft, passesUntil, passInEffect, radiosMayRun, readCopyReady, type PassShape } from './nearbyModel';
 import { letInWithPass } from './nearbyJoin.android';
@@ -180,6 +180,8 @@ export function useLetIn(ctx: Ctx): LetInHandle {
     const roleId = state.roleId;
     const open = ctx.language.nearby();
     const org = orgState.current;
+    // The book the new person will work on: its passages, kept offline on their phone (2026-11-25).
+    const kept = state.workBook ? workSetOf(ctx.language.state, ctx.language.lines, state.workBook) : [];
     if (!radio || !roleId || !pass || !open || !org || whyNot !== null) return;
     const mine = ++attempt.current;
     const still = () => mine === attempt.current && gate.current;
@@ -201,7 +203,7 @@ export function useLetIn(ctx: Ctx): LetInHandle {
       if (!still()) return;
       const out = await letInWithPass({
         radio, actorId, orgId, languageId, roleId, pass: pass as unknown as JoinPass, org, inspectOrg: () => ctx.org.inspect(),
-        language: open, orgClient: ctx.org.client(), worn, codeMs: letInCodeMs, giveHandedOver, stopped,
+        language: open, orgClient: ctx.org.client(), worn, codeMs: letInCodeMs, giveHandedOver, stopped, kept,
         onSession: (s) => { session.current = s; },
         hooks: {
           showing: (uri, until, onGiveGroup) => { setNow(Date.now()); dispatch({ t: 'showing', uri, until, onGiveGroup }); },
@@ -237,10 +239,11 @@ export function useLetIn(ctx: Ctx): LetInHandle {
       answer.current = null;
       deactivateKeepAwake(KEEP_AWAKE).catch((e: unknown) => noteExpected('let in: keep awake', e));
     }
-  }, [state.roleId, ctx.language, ctx.org, radio, pass, whyNot, actorId, orgId, languageId, worn, refresh]);
+  }, [state.roleId, state.workBook, ctx.language, ctx.org, radio, pass, whyNot, actorId, orgId, languageId, worn, refresh]);
 
   const actions = useMemo(() => ({
     choose: (roleId: string) => dispatch({ t: 'role', roleId }),
+    work: (bookId: string | null) => dispatch({ t: 'work', bookId }),
     show: () => { void show(); },
     answer: (yes: boolean) => {
       const a = answer.current;

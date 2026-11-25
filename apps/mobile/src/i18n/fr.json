@@ -4912,6 +4912,7 @@
     "downloading": "Téléchargement pour le hors-ligne",
     "audioNotKept": "Audio pas gardé sur cet appareil",
     "connectToFinish": "Connectez-vous pour terminer avant de partir.",
+    "teammateToFinish": "Le téléphone d’un coéquipier peut apporter le reste.",
     "stayConnected": "Restez connecté jusqu’à la fin.",
     "reason": {
       "asked": "Gardé parce qu’on vous a demandé d’y travailler.",
@@ -4922,6 +4923,10 @@
       "onlySomeHere_one": "Seulement {{here, number}} fichier sur {{count, number}} sur cet appareil",
       "onlySomeHere_many": "Seulement {{here, number}} fichiers sur {{count, number}} sur cet appareil",
       "onlySomeHere_other": "Seulement {{here, number}} fichiers sur {{count, number}} sur cet appareil",
+      "waitingTeammate": "En attente du téléphone d’un coéquipier",
+      "teammateBringsRest_one": "{{here, number}} fichier sur {{count, number}} ici · le téléphone d’un coéquipier peut apporter le reste",
+      "teammateBringsRest_many": "{{here, number}} fichiers sur {{count, number}} ici · le téléphone d’un coéquipier peut apporter le reste",
+      "teammateBringsRest_other": "{{here, number}} fichiers sur {{count, number}} ici · le téléphone d’un coéquipier peut apporter le reste",
       "downloadingCount": "Téléchargement pour le hors-ligne · {{here, number}} sur {{total, number}}"
     },
     "toast": {
@@ -4988,6 +4993,8 @@
     "download": "Télécharger pour le hors-ligne",
     "needsConnection": "Le téléchargement demande une connexion",
     "needsConnectionHelp": "Pas sur cet appareil. Il pourra être téléchargé une fois l’appareil connecté.",
+    "teammateCanBring": "Le téléphone d’un coéquipier peut l’apporter",
+    "keepFromTeammateHelp": "Garde ce passage sur ce téléphone. Ses enregistrements viennent du téléphone d’un coéquipier quand vous vous retrouvez, ou d’internet une fois connecté.",
     "checkingHelp": "Cet appareil compte ce qu’il a de ce passage.",
     "notSent_one": "{{count, number}} enregistrement n’a pas encore été envoyé par l’appareil qui l’a fait.",
     "notSent_many": "{{count, number}} enregistrements n’ont pas encore été envoyés par l’appareil qui les a faits.",
@@ -5025,6 +5032,7 @@
       "statusNone": "Pas sur cet appareil",
       "statusWaiting": "En attente de téléchargement · {{here, number}} sur {{total, number}}",
       "statusConnect": "Connectez-vous pour terminer le téléchargement · {{here, number}} sur {{total, number}}",
+      "statusTeammate": "En attente du téléphone d’un coéquipier · {{here, number}} sur {{total, number}}",
       "statusSome_many": "{{ready}} sur {{count, number}} sur cet appareil",
       "statusSome_one": "{{ready}} sur {{count, number}} sur cet appareil",
       "statusSome_other": "{{ready}} sur {{count, number}} sur cet appareil",
@@ -5039,6 +5047,7 @@
       "removeStay_many": "{{count, number}} passages qui sont votre travail restent sur cet appareil.",
       "removeStay_other": "{{count, number}} passages qui sont votre travail restent sur cet appareil.",
       "keepHelp": "Garde les enregistrements et les documents de référence de chaque passage sur cet appareil, pour qu’ils fonctionnent sans connexion.",
+      "keepFromTeammateHelp": "Garde les enregistrements et les documents de référence de chaque passage sur ce téléphone. Ils viennent des téléphones de vos coéquipiers quand vous vous retrouvez, ou d’internet une fois connecté.",
       "letGoHelp": "Laisse cet appareil retirer à nouveau leur audio quand il a besoin de place. Les passages qui sont votre travail restent.",
       "reason": "Gardés parce qu’on vous a demandé de travailler sur ces passages, ou parce que vous y avez travaillé.",
       "toast": {

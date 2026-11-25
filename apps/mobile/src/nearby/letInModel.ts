@@ -1,4 +1,5 @@
-import { MANAGE_PRIVILEGES, type OrgState, type Privilege } from '@langquest-next/core';
+import { bookNameOf, MANAGE_PRIVILEGES, usfmOf, type LanguageState, type OrgState, type PassageLines, type Privilege } from '@langquest-next/core';
+import { bookEntries, languageEntries, summarizeBooks, type BookSummary } from '../map/mapModel';
 import type { PassShape } from './nearbyModel';
 
 /**
@@ -196,13 +197,35 @@ export type LetInStage =
 export interface LetInState {
   stage: LetInStage;
   roleId: string | null;
+  /**
+   * The book the new person will work on, chosen with the role before the code, or none: its
+   * passages go in the grant, kept offline on their phone so the join brings their recordings
+   * (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).
+   */
+  workBook: string | null;
   turnedAway: boolean;
 }
 
-export const LET_IN_START: LetInState = { stage: { t: 'choose' }, roleId: null, turnedAway: false };
+export const LET_IN_START: LetInState = { stage: { t: 'choose' }, roleId: null, workBook: null, turnedAway: false };
+
+/**
+ * The books a new person may be given to work on, as the Map lists them, with what the language calls them: those with
+ * passages to record, not one listed and not broken up yet (2026-11-25).
+ */
+export function letInBooks(state: LanguageState | null, lines: PassageLines): BookSummary[] {
+  if (!state) return [];
+  return summarizeBooks(languageEntries(state, lines), 'all', new Set(), [], (id) => bookNameOf(state, usfmOf(id))).filter((b) => !b.waiting && b.total > 0);
+}
+
+/** A book's passages, for the grant: what the new person's phone keeps offline (2026-11-25). */
+export function workSetOf(state: LanguageState | null, lines: PassageLines, bookId: string): string[] {
+  return state ? bookEntries(languageEntries(state, lines), bookId).map((e) => e.unitId) : [];
+}
 
 export type LetInAction =
   | { t: 'role'; roleId: string }
+  /** The book the new person will work on, or none (2026-11-25). */
+  | { t: 'work'; bookId: string | null }
   | { t: 'host' }
   | { t: 'showing'; uri: string; until: number; onGiveGroup?: boolean }
   | { t: 'connected' }
@@ -223,6 +246,8 @@ export function letInReducer(s: LetInState, a: LetInAction): LetInState {
   switch (a.t) {
     case 'role':
       return stage.t === 'choose' || stage.t === 'ended' ? { ...s, roleId: a.roleId } : s;
+    case 'work':
+      return stage.t === 'choose' || stage.t === 'ended' ? { ...s, workBook: a.bookId } : s;
     case 'host':
       return s.roleId && (stage.t === 'choose' || stage.t === 'ended') ? { ...s, stage: { t: 'starting' }, turnedAway: false } : s;
     case 'showing':
