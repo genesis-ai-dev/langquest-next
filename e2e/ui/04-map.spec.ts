@@ -537,9 +537,24 @@ test('MAP-036 A whole book downloads for offline with one button', async ({ brow
     expect(Math.min(...heights), seen).toBe(heights[0]);
     expect(Math.max(...heights), seen).toBe(heights[0]);
   }
-  // The rest, with the button at the line's end: every passage is kept, and no row offers a download any more.
+  // The rest, with the button at the line's end. It asks first, saying how much data the recordings of the 96 passages
+  // not kept yet are and what else comes, and Cancel downloads nothing (Carl, 2026-11-25).
   await byId(page, 'book-offline-download').click();
+  await expect(text(page, 'Download Luke for offline?')).toBeVisible();
+  await expect(byId(page, 'keep-size')).toHaveAttribute('aria-label', /^(.+\. )?Recordings for 96 passages$/);
+  await expect(text(page, "Their reference material comes too. Its size isn't known until it arrives.")).toBeVisible();
+  await button(page, 'Cancel').click();
+  await expect(text(page, 'Download Luke for offline?')).toHaveCount(0);
+  await expect(byId(page, 'book-offline-download')).toHaveAttribute('aria-label', DOWNLOAD_ALL);
+  await byId(page, 'book-offline-download').click();
+  await expect(primary(page)).toHaveAttribute('aria-label', DOWNLOAD_ALL);
+  await primary(page).click();
+  // Every passage is kept, and no row offers a download any more.
   await expect(byId(page, 'book-offline-download')).toHaveCount(0);
+  // Where the button was, how many of the files the passages need are here, until all are; the header counts passages.
+  const progress = byId(page, 'book-offline-progress');
+  await expect.poll(async () => ((await progress.count()) ? await progress.getAttribute('aria-label') : await status.textContent()))
+    .toMatch(/^(Checking this device…|\d+ of [\d,]+ files?|On this device( · .+)?|(Downloading for offline|Waiting to download) · \d+ of 97)$/);
   // Kept: coming down, waiting its turn, or here; never "Not on this device" as if nothing had been asked (Carl, 2026-11-23).
   await expect(status).toHaveText(/^(On this device( · .+)?|(Downloading for offline|Waiting to download) · \d+ of 97)$/);
   await wholeBook(page);

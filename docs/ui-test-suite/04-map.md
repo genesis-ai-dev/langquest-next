@@ -509,8 +509,9 @@ Steps:
    and close it.
 2. Tap the download button of one passage's row, and watch the header, the
    buttons and the list under them.
-3. Tap the book's "Download". Read the header again, and the rows' download
-   buttons.
+3. Tap the book's "Download" and read the sheet. Tap Cancel, then tap
+   "Download" again and the sheet's "Download". Read the header again, the
+   row over the list, and the rows' download buttons.
 4. Open P-NEW. Read the line at the top. Go back.
 5. Tap the book's "Stop keeping", read the sheet, and tap its "Stop
    keeping".
@@ -551,7 +552,21 @@ Expected:
   "Stop keeping" asks first, as in step 5, and lets go only the passages chosen; the
   toast counts only kept passages that are the person's work as staying. On a book of chapter tiles
   the same holds for the tiles under the line.
-- Step 3: the Download button goes, "Stop keeping" stays. The header reads
+- Step 3: the tap opens "Download Luke for offline?": the size of the
+  recordings to come said large (none when there are none to fetch), with
+  "Recordings for 96 passages" under it, then "Their reference material
+  comes too. Its size isn't known until it arrives." and, on a phone that
+  can say, "This device has room for {room}."; "Download · {size}" (or
+  "Download") and Cancel. Where there is no size it says why: "Their
+  recordings are on this device already.", "None are recorded yet.
+  Recordings come as they are made." or "Their size couldn't be worked out
+  now." Cancel closes it and downloads nothing: "Download" is still
+  offered. The sheet's "Download" closes it. The book's Download button
+  goes, "Stop keeping" stays, and in the button's place "Checking this
+  device…" over a moving bar until the device has counted the passages,
+  then "{here} of {total} files" over a bar counts the files they need
+  (recordings, study files, reference audio) until every passage is here,
+  blue while files come down and amber while none do. The header reads
   "Downloading for offline · {ready} of 97" while a recording or study file
   of any of them comes down, "Waiting to download · {ready} of 97" (amber)
   when none is moving (offline: "Connect to finish downloading · {ready} of
