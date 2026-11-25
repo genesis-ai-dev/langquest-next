@@ -20,6 +20,9 @@ import { noteRefusal } from '../session/signOutCause';
  *   member". A person who still has a saved sign-in is offline for this,
  *   not refused, so such a request fails as a network failure would.
  *
+ * And every request gets its answer within ANSWER_WITHIN_MS, or fails as a
+ * lost network does (`answerWithin`).
+ *
  * Pure (no app imports), so the tests run it against supabase-js itself.
  */
 export interface SessionSafeOptions {
@@ -39,6 +42,8 @@ export interface SessionSafeOptions {
   watch?: RenewalWatch;
   /** The fetch underneath; the global one when left out. */
   base?: typeof fetch;
+  /** How long a request may wait for its answer; ANSWER_WITHIN_MS when left out. */
+  answerWithinMs?: number;
 }
 
 /** When a renewal last failed for want of a network (or a busy one); null once one has worked. */
@@ -117,8 +122,51 @@ function renewed(watch: RenewalWatch | undefined, result: { failed: 'offline' } 
 /** The message fetch failures carry, so OfflineError (supabaseTransport.ts) and supabase-js both read it as no network. */
 export const NOT_RENEWED = 'Network request failed: the sign-in could not be renewed yet';
 
+/**
+ * How long a request may wait for its answer. React Native's fetch on
+ * Android sets no time limit, and its promise settles only once the whole
+ * answer is in: a request whose connection died with the network waited for
+ * ever. A sync holds its language's turn while its request is out, so that
+ * language sent and fetched nothing more until the app restarted, while the
+ * organization's sync and the live channel went on (LAN-339). Long enough
+ * for the largest answer, a snapshot's 256 KB piece, on a slow link.
+ */
+export const ANSWER_WITHIN_MS = 120_000;
+
+/** The message of a request that got no answer in time: "Network request failed", so it reads as offline. */
+export const NO_ANSWER = 'Network request failed: no answer in time';
+
+/**
+ * `base`, failing as a lost network does once a request has waited `ms`
+ * for its answer, and stopping the request. A caller's own signal still
+ * stops it too.
+ */
+export function answerWithin(base: typeof fetch, ms: number): typeof fetch {
+  return (input, init) => {
+    const stop = new AbortController();
+    const theirs = init?.signal ?? undefined;
+    const passOn = () => stop.abort(theirs?.reason);
+    if (theirs?.aborted) passOn();
+    else theirs?.addEventListener('abort', passOn);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Settles first even when `base` ignores the stop, as a request on a dead connection may.
+    const late = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(new TypeError(NO_ANSWER));
+        stop.abort();
+      }, ms);
+    });
+    // A `base` that throws at once fails this request too, and its timer goes with it.
+    const sent = new Promise<Response>((resolve) => resolve(base(input, { ...init, signal: stop.signal })));
+    return Promise.race([sent, late]).finally(() => {
+      clearTimeout(timer);
+      theirs?.removeEventListener('abort', passOn);
+    });
+  };
+}
+
 export function sessionSafeFetch(opts: SessionSafeOptions): typeof fetch {
-  const base = opts.base ?? ((input, init) => fetch(input, init));
+  const base = answerWithin(opts.base ?? ((input, init) => fetch(input, init)), opts.answerWithinMs ?? ANSWER_WITHIN_MS);
   return async (input, init) => {
     const url = urlOf(input);
     if (isRenewal(url)) {

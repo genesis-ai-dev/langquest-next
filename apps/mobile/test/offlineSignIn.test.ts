@@ -1,6 +1,7 @@
+import { OfflineError, SupabaseTransport } from '@langquest-next/sync';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { accessTokenFresh, afterAuthEvent, savedSession } from '../src/session/authState';
-import { answerAtOnceWhileOffline, listenToRenewals, NOT_RENEWED, renewalChanges, sessionSafeFetch, type RenewalChange, type RenewalWatch } from '../src/server/sessionSafeFetch';
+import { answerAtOnceWhileOffline, answerWithin, ANSWER_WITHIN_MS, listenToRenewals, NO_ANSWER, NOT_RENEWED, renewalChanges, sessionSafeFetch, type RenewalChange, type RenewalWatch } from '../src/server/sessionSafeFetch';
 import { signOutThisDevice } from '../src/server/signOut';
 import { signOutChosen, takeRefusal } from '../src/session/signOutCause';
 
@@ -285,5 +286,56 @@ describe('what field diagnostics hear about the sign-in (signOutCause.ts, renewa
       offFirst();
       offSecond();
     }
+  });
+});
+
+describe('a request that gets no answer (sessionSafeFetch.ts answerWithin)', () => {
+  /** A connection that died with the network: the request went out, and nothing comes back, nor does it fail. */
+  function silent(heard: { stopped: boolean }): Network {
+    return (_url, init) => new Promise<Response>(() => {
+      init?.signal?.addEventListener('abort', () => { heard.stopped = true; });
+    });
+  }
+
+  it('a sync request with no answer fails as offline in time, so the sync ends and is tried again', async () => {
+    // Why: without a limit the request waited for ever, and the language's
+    // sync with it: work made on the phone stayed "waiting to upload" while
+    // the organization's sync went on (LAN-339).
+    const heard = { stopped: false };
+    const p = phone(now() + 3600, silent(heard));
+    const outcome = new SupabaseTransport(p.client).pull('org1', 'L-1', 0, 500).then(() => 'answered', (e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(ANSWER_WITHIN_MS - 1000);
+    expect(await Promise.race([outcome, Promise.resolve('waiting')])).toBe('waiting');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(await outcome).toBeInstanceOf(OfflineError);
+    expect(heard.stopped).toBe(true);
+  });
+
+  it('a renewal with no answer keeps the sign-in and is told as offline', async () => {
+    listenToRenewals(() => undefined)(); // what earlier tests left unheard
+    const told: RenewalChange[] = [];
+    const off = listenToRenewals((c) => { told.push(c); });
+    try {
+      const p = phone(now() - 60 * DAY, silent({ stopped: false }));
+      const session = p.client.auth.getSession();
+      await vi.advanceTimersByTimeAsync(3 * ANSWER_WITHIN_MS);
+      await session;
+      expect(p.stored.has(KEY)).toBe(true);
+      expect(p.events).not.toContain('SIGNED_OUT');
+      expect(told).toContainEqual({ outcome: 'offline' });
+    } finally {
+      off();
+    }
+  });
+
+  it("a caller's own stop still stops the request", async () => {
+    const heard = { stopped: false };
+    const stop = new AbortController();
+    const answer = answerWithin(silent(heard) as typeof fetch, ANSWER_WITHIN_MS)('https://abcdefgh.supabase.co/rest/v1/rpc/x', { signal: stop.signal })
+      .catch((e: unknown) => e);
+    stop.abort();
+    expect(heard.stopped).toBe(true);
+    await vi.advanceTimersByTimeAsync(ANSWER_WITHIN_MS);
+    expect(String(await answer)).toContain(NO_ANSWER);
   });
 });
