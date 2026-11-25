@@ -343,11 +343,14 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md), 3,678 bytes past it: the first visit's
 // growth below, and in the nearby chunk the work set on Let someone in (`letInBooks`, `workSetOf` and the grant's `kept`)
 // and the limit of file bytes a session moves while LangQuest is open, which the web never opens.
+// Raised by 4 KB with a book's download asking first and showing how far it has come (Carl, 2026-11-25,
+// docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended that day), 3,907 bytes past it: the first
+// visit's growth below, which every chunk counts too. 189 bytes are left.
 // Raised by 3 KB with the follow-up to LAN-317 (Carl, 2026-11-25,
-// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md as amended), 2,846 bytes past it: the
+// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md as amended), 2,950 bytes past it with main merged in: the
 // first visit's growth (FIRST_VISIT_BUDGET_BYTES, below, says what) and the back translation's hold on deleting a
-// part that cannot be heard. 226 bytes are left.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 199 * 1024;
+// part that cannot be heard. 122 bytes are left.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 203 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -502,13 +505,20 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 199 * 1024;
 // sync/useGroupOffline.ts), the one answer they share (nearby/useNearbyCanRun.ts), and their seven English lines in the
 // catalog every visit carries. The web never shows those lines, since Share nearby never runs there, but the buttons
 // are the same code on every platform.
+// Raised by 4 KB with a book's download asking first and showing how far it has come (Carl, 2026-11-25,
+// docs/decisions/2026-11-20-a-book-has-its-own-download-button.md, amended that day), 3,482 bytes past it: the sheet
+// that says how much data the recordings are before they come, with Download and Cancel, and the file count and bar
+// that take the Download button's place (sync/offline.tsx), the words and the count they read
+// (`keepAsk`, `groupProgress` in sync/offlineModel.ts, sync/useGroupOffline.ts), and their thirteen English lines in
+// the catalog every visit carries. A book's screen is the Map's, which every visit loads, so none of it can load
+// later. 614 bytes are left; all chunks have 189.
 // Raised by 3 KB with the follow-up to LAN-317 (Carl, 2026-11-25,
-// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md as amended), 2,420 bytes past it: six
+// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md as amended), 2,516 bytes past it with main merged in: six
 // English lines in the catalog every visit carries (the lock banner's three, Keep's two, Done's one); the lock
 // banner's New version and the Done screen that stays open when the device goes offline (screens/translate.tsx,
 // recording/workspaceModel.ts); Keep's hold on spoken feedback (screens/passage.tsx, passage/reviewModel.ts); Done's
-// line for it (recording/publish.tsx); and the Versions page's dimmed Done. 652 bytes are left.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 139 * 1024;
+// line for it (recording/publish.tsx); and the Versions page's dimmed Done. 556 bytes are left.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 143 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

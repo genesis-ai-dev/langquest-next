@@ -86,10 +86,11 @@ below was earned in production there.
     left in the 1 GB kept for reference audio, or not downloadable now) is
     named on the passage's line instead of keeping it amber, as a study file
     its source refuses is. It says first how much its recordings are
-    (`offlineCost`, on its button; reference material's size is not known
-    before it comes), and does not run when that would not fit in what is
-    free above the 500 MB kept for recording (`BlobStore.roomBytes`) and what
-    the device would free by itself (`freeable`), since kept files are never
+    (`offlineCost`, on its button and in the sheet that asks before it runs;
+    reference material's size is not known before it comes), and does not
+    run when that would not fit in what is free above the 500 MB kept for
+    recording (`BlobStore.roomBytes`) and what the device would free by
+    itself (`freeable`), since kept files are never
     deleted to make room: its button is dimmed, and a tap asks again.
 11. **Audio is immutable.** Already PLAN.md invariant 4. It is what makes the
     confirmation monotonic and the upsert safe; v2 had to document the
