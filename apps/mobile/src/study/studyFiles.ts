@@ -17,6 +17,7 @@
 // language's clearing never takes another's files; a file from before this
 // build kept those lists is never cleared, since a language not opened since
 // may need it and nothing on the phone says.
+import type { FailureClass } from '@langquest-next/sync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
@@ -213,6 +214,17 @@ export function refusedBy(e: unknown): boolean {
   return status >= 400 && status < 500 && status !== 408 && status !== 429;
 }
 
+/**
+ * How the download tally names a failed study file. One its source refused
+ * is a file the source lacks (`failNotFound`), never a refused sign-in: these
+ * are public addresses fetched with no sign-in, and FIA's file store answers
+ * 403 for a file it does not have. Tallied as `failAuth`, they raised the ops
+ * dashboard's "refused for sign-in" line (LAN-318). Else the status decides.
+ */
+export function studyFailure(e: unknown): FailureClass | undefined {
+  return refusedBy(e) ? 'notFound' : undefined;
+}
+
 export function studyWanted(): ReadonlyMap<string, string[]> {
   return wanted;
 }
@@ -386,7 +398,7 @@ async function fetchOne(url: string): Promise<void> {
   };
   const where = tallyAs;
   try {
-    const { uri } = await (where ? timedTransfer('down', { ...where, src: 'study' }, download) : download());
+    const { uri } = await (where ? timedTransfer('down', { ...where, src: 'study' }, download, studyFailure) : download());
     present.set(name, uri);
     failedAt.delete(url);
     refusedAt.delete(url);
