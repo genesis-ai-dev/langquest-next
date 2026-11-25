@@ -43,7 +43,7 @@ export const doACheck: Tutorial = {
     },
     {
       screen: 'review_capture',
-      part: (page) => [button(page, 'Say it'), page.getByLabel('Or type it', { exact: true }).locator('visible=true').first()],
+      part: (page) => [page.getByLabel('Or type it', { exact: true }).locator('visible=true').first(), button(page, 'Say it')],
       say: 'Say it, or type it.',
       type: 'Say "his share" more clearly',
       stay: 0.5
