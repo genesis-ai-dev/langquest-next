@@ -75,12 +75,24 @@ export const need = (token: string | undefined, name: string, what: string): str
 };
 export const ISO = (ms: number) => new Date(ms).toISOString();
 
+/**
+ * The gate's answer when a provider refuses a read. A refusal of what was
+ * asked (a run, job or path it does not have, a query it does not take,
+ * its rate limit) is the caller's to change, so it stays that 4xx. A key the
+ * provider refuses (401, 403) and the provider's own fault are this
+ * Worker's: 502. Every refusal was a 502 before, so an agent that asked for
+ * a run GitHub does not have counted as a server error of the ops dashboard
+ * in the watch for user issues (LAN-327).
+ */
+export const providerStatus = (status: number): number =>
+  status >= 400 && status < 500 && status !== 401 && status !== 403 ? status : 502;
+
 export async function getJson<T>(fetcher: typeof fetch, url: string, init: RequestInit, what: string): Promise<T> {
   const res = await fetcher(url, { ...init, signal: AbortSignal.timeout(20_000) });
   if (!res.ok) {
     const hint = res.status === 401 || res.status === 403 ? ' (the token is refused or lacks a permission)' : '';
     const detail = (await res.text().catch(() => '')).slice(0, 300).replace(/\s+/g, ' ');
-    throw new Refused(`${what}: HTTP ${res.status}${hint}${detail ? `: ${maskPersonal(detail)}` : ''}`, 502);
+    throw new Refused(`${what}: HTTP ${res.status}${hint}${detail ? `: ${maskPersonal(detail)}` : ''}`, providerStatus(res.status));
   }
   return (await res.json()) as T;
 }

@@ -162,6 +162,20 @@ describe('EAS and GitHub', () => {
     expect(answer.lines).toEqual(['step 1', 'step 2']);
     expect(d.calls[0]!.url).toBe('https://api.github.com/repos/o/r/actions/jobs/123/logs');
   });
+
+  it('answers a 4xx when the provider refuses what was asked, and a 502 only for its key or its own fault', async () => {
+    const d = await deps(() => ({}));
+    const answering = (status: number) => { d.fetcher = (async () => new Response('{"message":"x"}', { status, headers: { 'content-type': 'application/json' } })) as typeof fetch; };
+    const asked = [{ source: 'github-api', path: 'actions/runs/1' }, { source: 'github-job-log', job: '1' }, { source: 'cloudflare-graphql', query: 'query { a }' }];
+    for (const [provider, gate] of [[404, 404], [422, 422], [429, 429], [401, 502], [403, 502], [500, 502], [503, 502]] as const) {
+      answering(provider);
+      for (const body of asked) {
+        const res = await handleLogs(post(body, AGENT_JWT), d);
+        expect(res.status, `${body.source} ${provider}`).toBe(gate);
+        expect((await res.json()).error).toContain(`HTTP ${provider}`);
+      }
+    }
+  });
 });
 
 describe('redact and tail', () => {

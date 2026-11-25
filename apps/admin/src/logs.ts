@@ -2,7 +2,7 @@ import { list } from './env';
 import { whoReads, type ReadDeps, type ReadLogin } from './read';
 import { httpErrorsSql, pgErrorsSql } from './sources/supabase';
 import { API_READERS, API_SOURCES, type ApiSource, type ApisEnv } from './logsApis';
-import { getJson, ISO, LOGS_MAX_MINUTES, need, num, redact, Refused, str, tail, type LogAnswer } from './logsShared';
+import { getJson, ISO, LOGS_MAX_MINUTES, need, num, providerStatus, redact, Refused, str, tail, type LogAnswer } from './logsShared';
 
 export { LOGS_MAX_LINE, LOGS_MAX_LINES, LOGS_MAX_MINUTES, head, maskPersonal, redact, tail, type LogAnswer } from './logsShared';
 
@@ -250,7 +250,7 @@ async function githubJobLog(d: LogsDeps, body: Record<string, unknown>): Promise
     headers: { accept: 'application/vnd.github+json', 'user-agent': 'langquest-next-admin', ...(d.env.ADMIN_GITHUB_TOKEN ? { authorization: `Bearer ${d.env.ADMIN_GITHUB_TOKEN}` } : {}) },
     signal: AbortSignal.timeout(20_000)
   });
-  if (!res.ok) throw new Refused(`GitHub job log: HTTP ${res.status}${res.status === 401 || res.status === 403 ? ' (needs ADMIN_GITHUB_TOKEN with Actions read)' : ''}`, 502);
+  if (!res.ok) throw new Refused(`GitHub job log: HTTP ${res.status}${res.status === 401 || res.status === 403 ? ' (needs ADMIN_GITHUB_TOKEN with Actions read)' : ''}`, providerStatus(res.status));
   return tail((await res.text()).split('\n'));
 }
 

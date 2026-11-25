@@ -210,6 +210,12 @@ npm run prod:read -- --logs r2-blobs keys='["<org id>/<stream id>/<sha256>.m4a"]
 | `play-crashes`, `google-play-api` | Google Play: crash and ANR groups, one group's reports with stack traces, crash and ANR rates, reviews | `ADMIN_GOOGLE_PLAY_KEY` |
 | `r2-blobs` | the BLOBS bucket: a key's size, time and type (a HEAD each), or one page of a prefix's listing, through the app Worker's read-only JobStatus entrypoint; never a file's bytes | none: the `APP_JOBS` binding |
 
+When a provider refuses what a read asks (a run or job it does not have, a
+query it does not take, its rate limit), the gate answers the provider's own
+4xx with its message. It answers 502 only when the provider refuses the
+Worker's key (401, 403) or fails itself. The ops route's 5xx count in the
+watch for user issues then means a fault, not a wrong question (LAN-327).
+
 Apple makes the analytics reports only after one ongoing report request,
 which only an Admin's key may make. Caleb chose that on 2026-11-24; it is
 made once on the Mac:
