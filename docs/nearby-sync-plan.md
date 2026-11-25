@@ -1007,9 +1007,10 @@ protocol version.
   "today", "since you were last online" or "not since you were last online", with the newest
   work held from them (`batchKeys`' `firstHlc`, the author's clock), which adds no new record
   and counts work relayed by a third phone. Since 2026-11-24 the words say so outright, because
-  a bare "Today" read as "we shared today": "Has their work up to 3:05 PM today", "Has their work
-  up to Dec 4, 3:05 PM", "Nothing new from them since you were last online"
-  (`apps/mobile/src/nearby/carryWords.ts`). No meeting
+  a bare "Today" read as "we shared today": "This phone has their work up to 3:05 PM today",
+  "This phone has their work up to Dec 4, 3:05 PM", "Nothing new from them since you were last
+  online" (`apps/mobile/src/nearby/carryWords.ts`; "This phone" from 2026-11-25, Carl: the line
+  had no subject and read too terse). No meeting
   time is kept (section 5.12, The store). So the person leaving for town can see that
   nothing is left behind. When a teammate could not send what was pruned, it says that
   older work will come from the server. If a batch carries a stamp far ahead, it says one
@@ -4780,8 +4781,8 @@ running room. Today only Share nearby shows it.
 
 - **A Teammates fold on Sync and offline** (`apps/mobile/src/screens/sync.tsx`), shown where the
   organization has `nearby` on and this phone holds a certificate. Its line says the least recent
-  teammate ("Furthest behind: Sam, nothing new since you were last online", or "Has today's work
-  from every teammate"), and it opens to one row each: name, and the words Share nearby uses for
+  teammate ("Furthest behind: Sam, nothing new since you were last online", or "This phone has
+  today's work from every teammate"), and it opens to one row each: name, and the words Share nearby uses for
   what this phone holds of their work, up to when. Its help says it is not when the two last
   shared: a teammate who has not worked today shows an older time. It is computed with an empty
   `inRange`.
