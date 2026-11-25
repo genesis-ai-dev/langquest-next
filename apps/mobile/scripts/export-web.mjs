@@ -335,7 +335,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // docs/decisions/2026-11-24-nearby-sessions-spare-the-radios-and-the-round-trips.md), about 3 KB past it: the 2 KB
 // a first visit grew by (FIRST_VISIT_BUDGET_BYTES, below, says what), and Share nearby's line for guide files that did
 // not fit in its 16 languages. The rest of the review's work is in the nearby entry and in files only a phone loads.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 191 * 1024;
+// Raised by 1 KB with Let someone in's bar and Sync's line for sharing while LangQuest is open (Carl, 2026-11-25,
+// docs/decisions/2026-11-18-sync-and-offline-one-screen.md as amended), 305 bytes past it with main merged in: the
+// starting copy's estimate (`CopyTally`), the Let someone in stage's share, and the Sync row's rule with its three
+// English lines, all in the nearby chunk, which the web never opens. A first visit does not grow (58 bytes left).
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 192 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
