@@ -104,6 +104,8 @@
     "whileOpen": "Share while LangQuest is open",
     "whileOpenHelp": "When you have no internet, your phone shares with teammates nearby while LangQuest is open, and stops when the screen goes off. Recordings may wait for Share nearby. Without internet for longer than two weeks, open Share nearby together at least every two weeks to keep it going.",
     "whileOpenNow": "Sharing with teammates nearby while LangQuest is open",
+    "whileOpenOn": "On: shares with teammates nearby while LangQuest is open without internet",
+    "whileOpenNeeds": "On, but this phone needs something allowed or turned on. Open Share nearby to see what.",
     "carry": {
       "title": "What this phone holds",
       "everything": "This phone holds everything it knows of.",

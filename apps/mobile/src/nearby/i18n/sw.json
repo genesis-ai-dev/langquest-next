@@ -104,6 +104,8 @@
     "whileOpen": "Shiriki LangQuest ikiwa wazi",
     "whileOpenHelp": "Usipokuwa na intaneti, simu yako hushiriki na wenzako walio karibu LangQuest ikiwa wazi, na husimama skrini inapozimika. Rekodi zinaweza kusubiri Shiriki karibu. Mkikaa bila intaneti zaidi ya wiki mbili, fungueni Shiriki karibu pamoja angalau kila wiki mbili ili iendelee.",
     "whileOpenNow": "Inashiriki na wenzako walio karibu LangQuest ikiwa wazi",
+    "whileOpenOn": "Imewashwa: inashiriki na wenzako walio karibu LangQuest ikiwa wazi bila intaneti",
+    "whileOpenNeeds": "Imewashwa, lakini simu hii inahitaji kitu kiruhusiwe au kiwashwe. Fungua Shiriki karibu uone ni nini.",
     "carry": {
       "title": "Kilichomo kwenye simu hii",
       "everything": "Simu hii ina kila kitu inachokijua.",

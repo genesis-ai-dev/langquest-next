@@ -104,6 +104,8 @@
     "whileOpen": "Compartilhar enquanto o LangQuest está aberto",
     "whileOpenHelp": "Quando você está sem internet, seu celular compartilha com os colegas por perto enquanto o LangQuest está aberto, e para quando a tela se apaga. As gravações podem esperar o Compartilhar por perto. Sem internet por mais de duas semanas, abram o Compartilhar por perto juntos pelo menos a cada duas semanas para continuar.",
     "whileOpenNow": "Compartilhando com colegas por perto enquanto o LangQuest está aberto",
+    "whileOpenOn": "Ativado: compartilha com colegas por perto enquanto o LangQuest está aberto sem internet",
+    "whileOpenNeeds": "Ativado, mas este celular precisa que algo seja permitido ou ligado. Abra Compartilhar por perto para ver o quê.",
     "carry": {
       "title": "O que este celular tem",
       "everything": "Este celular tem tudo o que conhece.",

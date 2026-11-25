@@ -4831,6 +4831,16 @@ a name popping up in front of others is its own exposure. Sync and offline's sta
 "Sharing with teammates nearby while LangQuest is open" while the gate is open, and the Teammates
 fold (15.4) and What was shared on Share nearby show what moved.
 
+Where the mode is on for the person (the organization's `nearby_open`, the switch, no cover), the
+Share nearby row's line on Sync and offline says so even while the room does not run (Carl,
+2026-11-25: a person let in offline saw only the row's jobs and could not tell it was on).
+`nearbyRowWords` picks one of three: sharing now while the room runs; "On, but this phone needs
+something allowed or turned on. Open Share nearby to see what." where a permission is missing
+(online too, since it is granted once, before the person is where there is no internet) or,
+offline, a radio is off; else "On: shares with teammates nearby while LangQuest is open without
+internet". `useWhileOpenRow` reads the permissions and radios without a prompt, again on coming
+back to Sync or to the front; what is not read yet counts as on.
+
 **The flag.** A third feature, `nearby_open`, granted per organization by staff as `nearby_join`
 is (decision 220), and only with `nearby` on. It needs the check in
 `supabase/migrations/20261112010000_nearby_identity.sql` widened by a new migration, and

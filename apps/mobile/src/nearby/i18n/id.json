@@ -104,6 +104,8 @@
     "whileOpen": "Berbagi saat LangQuest terbuka",
     "whileOpenHelp": "Saat tidak ada internet, ponsel Anda berbagi dengan rekan tim di sekitar selama LangQuest terbuka, dan berhenti saat layar mati. Rekaman mungkin menunggu Berbagi di sekitar. Jika tanpa internet lebih dari dua minggu, buka Berbagi di sekitar bersama setidaknya setiap dua minggu agar tetap berjalan.",
     "whileOpenNow": "Berbagi dengan rekan tim di sekitar selama LangQuest terbuka",
+    "whileOpenOn": "Aktif: berbagi dengan rekan tim di sekitar selama LangQuest terbuka tanpa internet",
+    "whileOpenNeeds": "Aktif, tetapi ponsel ini perlu sesuatu diizinkan atau dinyalakan. Buka Berbagi di sekitar untuk melihat apa.",
     "carry": {
       "title": "Yang disimpan ponsel ini",
       "everything": "Ponsel ini menyimpan semua yang diketahuinya.",

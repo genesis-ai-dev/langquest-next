@@ -104,6 +104,8 @@
     "whileOpen": "Magbahagi habang bukas ang LangQuest",
     "whileOpenHelp": "Kapag wala kang internet, nagbabahagi ang telepono mo sa mga kasamahang malapit habang bukas ang LangQuest, at humihinto kapag namatay ang screen. Maaaring maghintay ang mga rekording sa Ibahagi sa malapit. Kapag walang internet nang higit sa dalawang linggo, buksan nang magkasama ang Ibahagi sa malapit kahit tuwing dalawang linggo para magpatuloy ito.",
     "whileOpenNow": "Nagbabahagi sa mga kasamahang malapit habang bukas ang LangQuest",
+    "whileOpenOn": "Naka-on: nagbabahagi sa mga kasamahang malapit habang bukas ang LangQuest nang walang internet",
+    "whileOpenNeeds": "Naka-on, pero may kailangang payagan o i-on sa teleponong ito. Buksan ang Ibahagi sa malapit para makita kung ano.",
     "carry": {
       "title": "Ang hawak ng teleponong ito",
       "everything": "Hawak ng teleponong ito ang lahat ng alam nito.",

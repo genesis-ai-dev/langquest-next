@@ -104,6 +104,8 @@
     "whileOpen": "LangQuest 打开时共享",
     "whileOpenHelp": "没有网络时，LangQuest 打开期间你的手机会与附近的队友共享，屏幕熄灭时停止。录音可能要等到附近共享时才传。如果超过两周没有网络，请至少每两周一起打开一次附近共享，以便继续共享。",
     "whileOpenNow": "LangQuest 打开期间正在与附近的队友共享",
+    "whileOpenOn": "已开启：没有网络时，LangQuest 打开期间与附近的队友共享",
+    "whileOpenNeeds": "已开启，但这部手机需要允许或打开某项设置。打开“附近共享”查看是哪一项。",
     "carry": {
       "title": "这部手机上有什么",
       "everything": "这部手机保存了它所知道的全部内容。",

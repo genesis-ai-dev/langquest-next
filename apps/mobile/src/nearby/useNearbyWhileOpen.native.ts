@@ -18,13 +18,14 @@ import { nearbyRadio } from './nearbyLink.native';
 import { openMayRun } from './nearbyModel';
 import { nearbyOwner } from './nearbyOwner';
 import { checkNearbyPermissions, phoneSystem } from './nearbyPermissions';
-import { permissionsStateOf, radiosOffOf, type PermissionAnswers } from './nearbyPermissionsModel';
+import { permissionsStateOf, radiosOffOf, type PermissionAnswers, type PermissionsState, type RadioOff } from './nearbyPermissionsModel';
 import { nearbyLibraryOf } from './nearbyLibrary.native';
 import { copySourceOf } from './nearbyCopySource';
 import { roomCopyTargetFor } from './nearbyCopyTarget.native';
 import { nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.native';
 import { NEARBY_OPEN_FRESH_MS, NEARBY_OPEN_REST_MS, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, startWithin, turnedAwayUnwelcome } from './nearbyRunModel';
-import { useNearbyOffered } from './useNearby.native';
+import type { WhileOpenFacts } from './shareNearbyModel';
+import { useFocus, useNearbyOffered } from './useNearby.native';
 
 /**
  * Sharing while LangQuest is open (docs/nearby-sync-plan.md 15.6, phase 10): the room for the open
@@ -41,8 +42,9 @@ import { useNearbyOffered } from './useNearby.native';
  * only a teammate whose certificate is recent (`NEARBY_OPEN_FRESH_MS`) or whom this phone met on Share
  * nearby within that long (`nearbyMet`, noted only there), and a room stopped because a
  * cover went on writes no diagnostics record, which would date it (the security review of
- * 2026-11-23). It draws nothing and shows no name: Sync and offline says only that it runs
- * (`useWhileOpenNow`), and the Teammates fold says what moved.
+ * 2026-11-23). It draws nothing and shows no name: Sync and offline's row says that it is on,
+ * that it runs, or that Share nearby says what it needs (`useWhileOpenRow`), and the Teammates
+ * fold says what moved.
  */
 
 // ---- whether it runs now, for Sync and offline ---------------------------------------------
@@ -62,7 +64,7 @@ function onRunningNow(hear: () => void): () => void {
 }
 
 /** The quiet room runs now: a line on Sync and offline, never a name. */
-export function useWhileOpenNow(): boolean {
+function useWhileOpenNow(): boolean {
   return useSyncExternalStore(onRunningNow, () => runningNow);
 }
 
@@ -99,11 +101,11 @@ function useHeld(): number {
 }
 
 /**
- * Whether the quiet mode may be wanted here at all, from what costs nothing to read: the
- * organization's `nearby_open` as the phone last heard it, the switch, no cover, and the language
- * offline. Only then does the room's own hook read the radios and permissions.
+ * Whether the quiet mode is on for this person here, from what costs nothing to read: the
+ * organization's `nearby_open` as the phone last heard it, the switch and no cover. Read again
+ * when the switch or the kept organizations change, and when the language goes on or offline.
  */
-export function useWhileOpenWanted(ctx: Ctx): boolean {
+function useWhileOpenOn(ctx: Ctx): boolean {
   const { actorId, readOnly } = ctx.session;
   const { orgId } = ctx.language;
   const { worn } = useAppCovered();
@@ -118,7 +120,42 @@ export function useWhileOpenWanted(ctx: Ctx): boolean {
       .catch((e: unknown) => noteExpected('nearby: open', e));
     return () => { live = false; };
   }, [actorId, readOnly, held, offline]);
-  return !!kept && kept.actorId === actorId && !readOnly && kept.on && kept.orgs.has(orgId) && !worn && offline;
+  return !!kept && kept.actorId === actorId && !readOnly && kept.on && kept.orgs.has(orgId) && !worn;
+}
+
+/**
+ * Whether the quiet mode may be wanted here at all: on (`useWhileOpenOn`) and the language
+ * offline. Only then does the room's own hook read the radios and permissions.
+ */
+export function useWhileOpenWanted(ctx: Ctx): boolean {
+  return useWhileOpenOn(ctx) && isOffline(ctx.language.online);
+}
+
+/**
+ * What Sync and offline's Share nearby row says of the quiet mode (`nearbyRowWords`): `null`
+ * where it is not on for this person here, else whether its room runs now and what of the phone
+ * would keep it from running, its permissions and radios. Read without a prompt where the row can
+ * run (`usable`), and again on coming back to Sync or to the front, where the person may have
+ * allowed or turned something on.
+ */
+export function useWhileOpenRow(ctx: Ctx, usable: boolean): WhileOpenFacts | null {
+  const radio = nearbyRadio();
+  const on = useWhileOpenOn(ctx) && usable;
+  const running = useWhileOpenNow();
+  const offline = isOffline(ctx.language.online);
+  const active = useAppActive();
+  const [read, setRead] = useState<{ permissions: PermissionsState; radiosOff: RadioOff[] } | null>(null);
+  const load = useCallback(() => {
+    if (!radio || !on || !active) return;
+    const { os, sdk } = phoneSystem();
+    Promise.all([checkNearbyPermissions(), radio.facts()])
+      .then(([answers, facts]) => setRead({ permissions: permissionsStateOf(sdk, answers, os), radiosOff: radiosOffOf(facts, os) }))
+      .catch((e: unknown) => noteExpected('nearby: open row', e));
+  }, [radio, on, active]);
+  useEffect(load, [load, offline]);
+  useFocus(load);
+  if (!on) return null;
+  return { running, offline, permissions: read?.permissions ?? null, radiosOff: read?.radiosOff ?? null };
 }
 
 /**

@@ -104,6 +104,8 @@
     "whileOpen": "Partager pendant que LangQuest est ouvert",
     "whileOpenHelp": "Quand vous n'avez pas internet, votre téléphone partage avec les coéquipiers à proximité pendant que LangQuest est ouvert, et s'arrête quand l'écran s'éteint. Les enregistrements peuvent attendre Partager à proximité. Sans internet pendant plus de deux semaines, ouvrez Partager à proximité ensemble au moins toutes les deux semaines pour que cela continue.",
     "whileOpenNow": "Partage avec les coéquipiers à proximité pendant que LangQuest est ouvert",
+    "whileOpenOn": "Activé : partage avec les coéquipiers à proximité pendant que LangQuest est ouvert sans internet",
+    "whileOpenNeeds": "Activé, mais ce téléphone a besoin d'une autorisation ou d'un réglage. Ouvrez Partager à proximité pour voir lequel.",
     "carry": {
       "title": "Ce que ce téléphone contient",
       "everything": "Ce téléphone a tout ce qu’il connaît.",
