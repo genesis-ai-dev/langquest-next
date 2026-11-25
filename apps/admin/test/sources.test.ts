@@ -5,7 +5,7 @@ import { clientAlerts, databaseAlerts, diagSections, errorText, jobsSection, med
 import { expoAlerts, expoFrom } from '../src/sources/expo';
 import { filmingRun, filmingSection, filmJobs, type Filming } from '../src/sources/filming';
 import { APP_BUILD_PATHS, changesApp, codeAlerts, codeSection, latestPerWorkflow, needsYouOf, ownWorkflows, saidByNightly, type Code } from '../src/sources/github';
-import { SQLSTATE, errorGroups, httpErrorsSql, pathShape, pgErrorsSql, projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
+import { SQLSTATE, errorGroups, healthWhy, httpErrorsSql, pathShape, pgErrorsSql, projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
 
 const NOW = Date.parse('2026-10-19T22:00:00Z');
 const hAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
@@ -424,6 +424,33 @@ describe('Supabase', () => {
     expect(SQLSTATE['22003']).toBe('number out of range');
     // No query reads a log message.
     for (const sql of [pgErrorsSql('source'), httpErrorsSql('source')]) expect(sql).not.toMatch(/event_message|\bmsg\b/);
+  });
+
+  it("keeps Supabase's reason for a service that is not healthy, with no strings from its info", async () => {
+    const fetcher = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/analytics/endpoints/logs')) return Response.json({ result: [{ gatewayTotal: '5', gateway5xx: '0', function5xx: '0', postgresErrors: '0', authErrors: '0' }] });
+      if (url.includes('/health')) return Response.json([
+        { name: 'db', status: 'ACTIVE_HEALTHY', info: { name: 'db', version: '17' } },
+        { name: 'realtime', healthy: false, status: 'UNHEALTHY', info: { healthy: false, db_connected: false, connected_cluster: 0, region: 'somewhere' } },
+        { name: 'storage', healthy: false, status: 'UNHEALTHY', error: '  connect\n  timed out  ' },
+        { name: 'auth', healthy: false, status: 'UNHEALTHY' }
+      ]);
+      if (url.includes('/functions')) return Response.json([]);
+      return Response.json({ status: 'ACTIVE_HEALTHY' });
+    }) as unknown as typeof fetch;
+    const s = await supabaseSection({ ADMIN_SUPABASE_TOKEN: 't', SUPABASE_PROJECTS: 'abc:Next' }, fetcher, NOW);
+    expect(s.data!.projects[0]!.health).toEqual([
+      { name: 'db', healthy: true, status: 'ACTIVE_HEALTHY' },
+      { name: 'realtime', healthy: false, status: 'UNHEALTHY', why: 'db_connected false, connected_cluster 0' },
+      { name: 'storage', healthy: false, status: 'UNHEALTHY', why: 'connect timed out' },
+      { name: 'auth', healthy: false, status: 'UNHEALTHY' }
+    ]);
+    // The key and subject stay, so a later line still matches the issue filed for it.
+    expect(s.alerts).toEqual([{ level: 'urgent', key: 'supabase-services-down', subject: 'Next',
+      text: 'Next: realtime UNHEALTHY (db_connected false, connected_cluster 0), storage UNHEALTHY (connect timed out), auth UNHEALTHY.' }]);
+    expect(healthWhy('x'.repeat(300), null)).toHaveLength(120);
+    expect(healthWhy(undefined, ['a', 1])).toBeUndefined();
   });
 
   it('calls a paused or unhealthy project urgent', () => {
