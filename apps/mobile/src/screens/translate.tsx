@@ -46,7 +46,10 @@
 // offline, or not yet sent from the phone it was said on), the whole draft
 // is locked until it is: nothing changes it, nothing new is recorded into
 // it and Done waits. The parts that are here still play, a banner says why
-// and how to record without it, and a new empty draft is never locked (LAN-317,
+// (a part only on another device of the person's own says to bring that
+// device online), and its New version starts an empty draft here, which is
+// never locked. A Done screen open when the device goes offline stays open:
+// those parts are on the server already (LAN-317,
 // docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md).
 // Back translation: the same tools, but you
 // listen to the latest version and what you save is content for the next
@@ -82,7 +85,7 @@ import { RecordingView } from '../recording/RecordingView';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { VerseTile } from '../recording/verseParts';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, cleanUpNoteOf, clearListSpecs, draftToOpen, labelAt, marksForSaid, marksKeepingLabels, marksOf, movedList,
+  backTranslationDraftKey, canPublish, cardDurations, cleanUpNoteOf, clearListSpecs, doneShows, draftToOpen, emptyDraftParams, labelAt, marksForSaid, marksKeepingLabels, marksOf, movedList, partMaker,
   removeCardSpecs, restoreSpecs, sameCards, slotRows, targetNumber,
   changedParts, historyFits, parsePartsHistory, partsHistoryKey,
   type CleanUpNote, type PartsHistory, type PartsSnap, type RecordTarget, type SlotRow,
@@ -127,7 +130,8 @@ import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
 import { useClipsReach } from '../audio/useClipsReach';
-import { unheardOf } from '../audio/clipReachModel';
+import { canHear, unheardOf } from '../audio/clipReachModel';
+import { unsentOf } from '../audio/clipsAvailable';
 import { NoteStepContext } from '../checks/noteStep';
 import { PartNotesProvider } from '../passage/PartNotes';
 import { anyFrom, fromFilter } from '../checks/showsModel';
@@ -149,14 +153,19 @@ const say = (message: string) => AccessibilityInfo.announceForAccessibility(mess
 
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
+  // A new version started from a locked draft's banner opens here, empty, as Versions' New version does (LAN-317).
+  const [startedEmpty, setStartedEmpty] = useState(false);
   if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
+  const here = startedEmpty ? { ...ctx, params: emptyDraftParams(ctx.params) } : ctx;
   // Each draft opened is its own workspace (decisions.md 83).
-  const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
+  const which = ['draftId', 'from', 'fresh'].map((k) => here.params[k] ?? '').join(':');
   // Notes written while recording are the recording's (decisions.md 130).
   // A part the checks left notes on shows them where it is recorded (decisions.md 149).
   return (
     <NoteStepContext.Provider value={RECORD_STEP}>
-      <PartNotesProvider ctx={ctx} v={v}><WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} /></PartNotesProvider>
+      <PartNotesProvider ctx={ctx} v={v}>
+        <WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={here} v={v} onStartEmpty={() => setStartedEmpty(true)} />
+      </PartNotesProvider>
     </NoteStepContext.Provider>
   );
 }
@@ -169,7 +178,7 @@ function Missing(props: { ctx: Ctx; title: string; text?: string }) {
   );
 }
 
-function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
+function WorkspaceBody({ ctx, v, onStartEmpty }: { ctx: Ctx; v: PassageView; onStartEmpty: () => void }) {
   const { state, unitId, languageId, p } = v;
   const me = ctx.session.actorId;
   const idx = indexesFor(state);
@@ -250,7 +259,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     return [...rest.slice(0, at), ...said, ...rest.slice(at + over)];
   }, [draftCards, startCards, pending, cleared, insertBefore, aim.kind]);
   // Part of the draft cannot be heard here: nothing changes it and Done waits until it is (LAN-317).
-  const locked = unheardOf(useClipsReach(ctx.language, list));
+  const reach = useClipsReach(ctx.language, list);
+  const locked = unheardOf(reach);
+  // Not uploaded yet, and every part still away is this person's own: it is on another device of theirs, which they can bring online.
+  const lockedYours = locked === 'notSent' && unsentOf(ctx.language, list).every((h) => partMaker(state, unitId, h) === me);
   const changed = canPublish(list, latest?.cardHashes);
   // While the parts are still the version's they started from, the card is named for it (LAN-83).
   const fromVersion = startedFrom(p.versions, startFrom);
@@ -259,8 +271,13 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // Publish from the Versions page opens the publish screen at once.
   const publishParam = ctx.params['publish'] === '1';
   const [confirming, setConfirming] = useState(publishParam);
+  // Whether the draft could be heard here while Done was open: then going offline does not close it (workspaceModel `doneShows`).
+  const heardAtDone = useRef(false);
+  if (!confirming) heardAtDone.current = false;
+  else if (canHear(reach)) heardAtDone.current = true;
+  const doneOpen = doneShows({ asked: confirming, locked, heardWhileOpen: heardAtDone.current });
   // Done asked for while the draft is locked is dropped, not kept waiting: its screen would open by itself, later, when the audio arrives.
-  useEffect(() => { if (locked) setConfirming(false); }, [locked]);
+  useEffect(() => { if (confirming && !doneOpen) setConfirming(false); }, [confirming, doneOpen]);
 
   // Cards arrive from the recorder already saved (addRecording, id chosen
   // before any save step, journaled against this passage). The latest
@@ -523,7 +540,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const usage = useUsage();
   // What the recorder shows is the language's to say (decisions.md 130).
   const shows = useMemo(() => checkShows(state, RECORD_STEP), [state]);
-  const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: confirming && !locked, shows: { audio: shows.bibleAudio, text: shows.bibleText } });
+  const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: doneOpen, shows: { audio: shows.bibleAudio, text: shows.bibleText } });
   const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
   // ---- verse labels on the parts (decisions.md 82) ----
   const v11n = bible.passage.versification;
@@ -661,7 +678,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // Nobody else here could check it: Done does the next check now (decisions.md 178).
   const selfCheck = useMemo(() => !!nextUp && can.review && nobodyElseReviews(state, orgState, { languageId, me, lines }), [nextUp, can.review, state, orgState, languageId, me, lines]);
   async function publish(note: string, noteBlobHash: string | null, ask: DoneAsk): Promise<boolean> {
-    if (locked) return false;
+    if (!doneOpen) return false;
     const commandId = newCommandId(me, Crypto.randomUUID());
     let specs: EventSpec[];
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
@@ -758,7 +775,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const savedStatus = useSaveStatus(saving, list.length > 0 && !(startCards && sameCards(list, startCards)) || !!draft, rec.failureCount > 0 || !!composeError);
 
   // Done's screen waits while the draft is locked, even when the Versions page asked for it.
-  if (confirming && !locked) {
+  if (doneOpen) {
     return (
       <PublishScreen ctx={ctx} v={v} n={nextN} first={isFirst} cards={list} totalMs={totalMs(parts.map((x) => x.durationMs))}
         bible={bible.option?.abbreviation} busy={publishing} answers={answers} tied={canTie ? tied.size : 0}
@@ -843,8 +860,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
             <DragScrollContext.Provider value={dragScroll.scroll}>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.recordBody} accessibilityLabel={t('translate.yourRecording')} {...dragScroll.props}>
                 {locked ? (
+                  // To record without it, a new version starts here, empty (LAN-317); not while something just said is still being kept.
                   <Banner icon="notOnPhone" tone="amber" title={t('translate.lockedTitle')}
-                    body={t(locked === 'offline' ? 'translate.lockedOffline' : 'translate.lockedNotUploaded', { versions: t('passage.page.history'), newVersion: t('passage.versions.newVersion') })} />
+                    body={t(locked === 'offline' ? 'translate.lockedOffline' : lockedYours ? 'translate.lockedNotUploadedYours' : 'translate.lockedNotUploaded', { newVersion: t('passage.versions.newVersion') })}
+                    action={<SmallBtn label={t('passage.versions.newVersion')} icon="plus" help={t('passage.versions.newVersionHelp')} disabled={blocked || pending.length > 0} onPress={onStartEmpty} />} />
                 ) : null}
                 {problem}
                 <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked} locked={!!locked}

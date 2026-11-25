@@ -72,8 +72,8 @@ below was earned in production there.
     disk. A recording that can do neither on a device (offline and not kept
     there, or a part not uploaded yet) is not checked, said back or changed
     from it: `clipReach` in `apps/mobile/src/audio/clipReachModel.ts` says
-    which, and the review, back translation and recording screens hold back
-    and say why
+    which, and the review, back translation and recording screens, and
+    keeping a version despite spoken feedback, hold back and say why
     (`docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md`).
     A book's download button keeps each of its passages, in one write
     (`docs/decisions/2026-11-20-a-book-has-its-own-download-button.md`), as

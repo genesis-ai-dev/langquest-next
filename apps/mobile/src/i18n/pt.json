@@ -4369,7 +4369,9 @@
       "sayWhy": "Diga por quê. {{who}} e a equipe vão ouvir.",
       "tapAndSay": "Toque e diga por quê",
       "keepItHelp": "Mantém esta versão como está e envia o seu motivo.",
-      "sayWhyHelp": "Mantenha esta versão como está. Você diz por quê; eles ouvem."
+      "sayWhyHelp": "Mantenha esta versão como está. Você diz por quê; eles ouvem.",
+      "waitsOffline": "Estes comentários foram falados, e não estão neste aparelho. Fique online e ouça-os antes de manter a versão como está.",
+      "waitsNotUploaded": "Estes comentários foram falados, e ainda não foram enviados do aparelho em que foram gravados. Ouça-os antes de manter a versão como está."
     },
     "addNote": {
       "done": "Nota adicionada: ela acompanha esta passagem",
@@ -5405,6 +5407,7 @@
       "withBible": "gravada com a Bíblia {{bible}}",
       "atMoment": "Em {{time}}:",
       "answers": "Responde aos comentários da {{kind}} de {{from}}",
+      "answersUnheard": "Os comentários falados ainda não estão neste aparelho.",
       "tied_one": "{{count, number}} palavra-chave ligada a esta versão",
       "tied_many": "{{count, number}} de palavras-chave ligadas a esta versão",
       "tied_other": "{{count, number}} palavras-chave ligadas a esta versão",
@@ -7027,8 +7030,9 @@
     "redone": "Refeito.",
     "newRecording": "Gravação nova",
     "lockedTitle": "Parte desta gravação ainda não está neste aparelho",
-    "lockedOffline": "Essa parte não pode ser mudada nem enviada daqui até que este aparelho esteja online e a receba. Para gravar sem ela, abra {{versions}} na passagem e escolha {{newVersion}}.",
-    "lockedNotUploaded": "Essa parte ainda não foi enviada do aparelho em que foi feita, então não pode ser mudada nem enviada daqui. Para gravar sem ela, abra {{versions}} na passagem e escolha {{newVersion}}."
+    "lockedOffline": "Essa parte não pode ser mudada nem enviada daqui até que este aparelho esteja online e a receba. Para gravar sem ela, toque em {{newVersion}}.",
+    "lockedNotUploaded": "Essa parte ainda não foi enviada do aparelho em que foi feita, então não pode ser mudada nem enviada daqui. Ela chega aqui depois que esse aparelho ficar online. Para gravar sem ela, toque em {{newVersion}}.",
+    "lockedNotUploadedYours": "Você a gravou em outro aparelho, e ela ainda não foi enviada de lá. Abra o LangQuest nesse aparelho enquanto ele estiver online, e ela chega aqui sozinha. Até lá, não pode ser mudada nem enviada daqui. Para gravar sem ela, toque em {{newVersion}}."
   },
   "reference": {
     "organization": "Organização",

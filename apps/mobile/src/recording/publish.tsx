@@ -4,12 +4,16 @@
 // needed from Version 2 on, where it says what changed), and send it to the
 // people who do its next check, all in one tap. "Someone else" and "Send
 // later" finish it too. What is said here is kept as you go, like the parts,
-// so leaving loses nothing.
+// so leaving loses nothing. Feedback it answers that was said aloud and
+// cannot be heard on this device says so on its line (LAN-317).
 import { checkPeople, questionsForKind, type KindStatus, type QuestionSpec, type ReviewView } from '@langquest-next/core';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { ClipPlayer } from '../audio/clipPlayer';
+import { unheardOf } from '../audio/clipReachModel';
+import { useClipsReach } from '../audio/useClipsReach';
+import { feedbackSounds } from '../passage/reviewModel';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
@@ -114,12 +118,7 @@ export function PublishScreen(props: {
       <SayRow said={said} needsNote={needsNote} text={text} hasVoice={!!hash} prior={props.n - 1} onPress={() => setSaying(true)} />
       {props.answers.length > 0 || props.tied > 0 ? (
         <View style={{ gap: space.xs, paddingHorizontal: space.xs }}>
-          {props.answers.map((r) => (
-            <View key={r.id} style={styles.check}>
-              <Ico name="check" size={16} color={TINT.greenText} strokeWidth={3} />
-              <Text style={[txt.sm, { flex: 1 }]}>{t('recording.publish.answers', { kind: checkName(r.kindId, v.kinds), from: feedbackSource(r, ctx.name) })}</Text>
-            </View>
-          ))}
+          {props.answers.map((r) => <AnswersRow key={r.id} ctx={ctx} v={v} review={r} />)}
           {props.tied > 0 ? (
             <View style={styles.check}>
               <Ico name="check" size={16} color={TINT.greenText} strokeWidth={3} />
@@ -154,6 +153,25 @@ export function PublishScreen(props: {
 }
 
 /** "Say something about it · Optional": the change note, voice first (a-publish). */
+/**
+ * "This answers Ana's feedback": Done closes it. Feedback said aloud that
+ * cannot be heard on this device says so under it; Done still sends (LAN-317,
+ * docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md).
+ */
+function AnswersRow(props: { ctx: Ctx; v: PassageView; review: ReviewView }) {
+  const { ctx, v, review } = props;
+  const unheard = !!unheardOf(useClipsReach(ctx.language, feedbackSounds(review)));
+  return (
+    <View style={styles.check}>
+      <Ico name="check" size={16} color={TINT.greenText} strokeWidth={3} />
+      <View style={{ flex: 1 }}>
+        <Text style={txt.sm}>{t('recording.publish.answers', { kind: checkName(review.kindId, v.kinds), from: feedbackSource(review, ctx.name) })}</Text>
+        {unheard ? <Text style={txt.smMuted}>{t('recording.publish.answersUnheard')}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
 function SayRow(props: { said: boolean; needsNote: boolean; text: string; hasVoice: boolean; prior: number; onPress: () => void }) {
   const label = props.said ? (props.needsNote ? t('recording.publish.whatChanged') : t('recording.publish.whatYouSaid'))
     : props.needsNote ? t('recording.publish.sayWhatChanged') : t('recording.publish.saySomething');

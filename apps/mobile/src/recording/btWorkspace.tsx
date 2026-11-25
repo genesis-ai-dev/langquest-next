@@ -10,8 +10,8 @@
 // clearing a part, is one step, and the parts that changed are shaded; no
 // toast offers an Undo that runs out (Caleb, 2026-10-16).
 // A part that cannot be heard on this device (offline and not kept here, or
-// not uploaded yet) is not said back from here: Record and Note wait, and
-// the footer says why (LAN-317).
+// not uploaded yet) is not said back from here: Record, Note and the delete
+// of what was said for it wait, and the footer says why (LAN-317).
 //
 // The parts are kept on this device until Done (decision 30): each
 // recorded piece goes to a local draft with the moment in the version its
@@ -200,7 +200,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   }, [settled, nowCards]); // eslint-disable-line react-hooks/exhaustive-deps -- partsOf and setHistory read only what this render shows
 
   async function clearPart(target: BackPart) {
-    if (blocked || target.cards.length === 0) return;
+    // A part that cannot be heard here keeps what was said for it: it could not be said again (LAN-317).
+    if (blocked || target.cards.length === 0 || (target.index === focus && partUnheard)) return;
     setWorking(true);
     const before = piecesNow();
     const gone = new Set(target.cards.map((c) => c.hash));
@@ -399,6 +400,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
               {!drafts.loaded ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('backTranslation.loadingParts')}</Text> : parts.map((x) => (
                 <HelpRow key={x.index} of="bt.part">
                   <PartCard ctx={ctx} part={x} verse={verseOf(x.index)} into={produces.into} focused={x.index === focus} disabled={blocked} fresh={justSaid.has(x.index)}
+                    kept={x.index === focus && !!partUnheard}
                     onPick={() => setPicked(x.index)} onDelete={() => void clearPart(x)} />
                 </HelpRow>
               ))}
@@ -434,7 +436,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
 
 /** A part's card: said (green check, how long in English), the one being said (lit), or still to come. */
 function PartCard(props: { ctx: Ctx; part: BackPart; verse: string | null; into: string; focused: boolean; disabled: boolean; onPick: () => void; onDelete: () => void;
-  /** Just said, or changed by Undo or Redo: shaded until the next recording. */ fresh: boolean }) {
+  /** Just said, or changed by Undo or Redo: shaded until the next recording. */ fresh: boolean;
+  /** The part being said back cannot be heard here (LAN-317): what was said for it stays, since it could not be said again. */ kept: boolean }) {
   const { part, focused } = props;
   const said = part.cards.length > 0;
   const n = part.index + 1;
@@ -465,7 +468,7 @@ function PartCard(props: { ctx: Ctx; part: BackPart; verse: string | null; into:
         <View style={styles.partActions}>
           <AudioClip language={props.ctx.language} hashes={part.cards.map((c) => c.hash)} label={t('backTranslation.playYourPart', { n })} disabled={props.disabled} />
           <Text style={[txt.sm, { flex: 1 }]}>{t('backTranslation.hearWhatYouSaid')}</Text>
-          <IconBtn name="trash" label={t('backTranslation.deletePart', { n })} help={t('backTranslation.deletePartHelp')} bg="transparent" color={C.muted} disabled={props.disabled} onPress={props.onDelete} />
+          <IconBtn name="trash" label={t('backTranslation.deletePart', { n })} help={t('backTranslation.deletePartHelp')} bg="transparent" color={C.muted} disabled={props.disabled || props.kept} onPress={props.onDelete} />
         </View>
       ) : null}
     </View>

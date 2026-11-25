@@ -1046,7 +1046,8 @@ export function NoteCard(props: { anchor: string; text?: string; by: string; whe
 }
 
 /** A banner of context above a task ("Revising after Peer Review feedback"). */
-export function Banner(props: { icon: IconName; title: string; body?: string; tone?: 'brand' | 'amber' | 'green' }) {
+export function Banner(props: { icon: IconName; title: string; body?: string; tone?: 'brand' | 'amber' | 'green';
+  /** What to do about it, under the words: a button. */ action?: ReactNode }) {
   const [bg, fg] = props.tone === 'amber' ? [TINT.amber, TINT.amberText] : props.tone === 'green' ? [TINT.green, TINT.greenText] : [C.light, C.primary];
   return (
     <View style={[styles.banner, { backgroundColor: bg }]}>
@@ -1054,6 +1055,7 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
       <View style={{ flex: 1 }}>
         <Text style={[txt.sm, { fontWeight: '700', color: fg }]}>{props.title}</Text>
         {props.body ? <Text style={[txt.sm, { marginTop: 2 }]}>{props.body}</Text> : null}
+        {props.action ? <View style={{ marginTop: space.sm, alignSelf: 'flex-start' }}>{props.action}</View> : null}
       </View>
     </View>
   );

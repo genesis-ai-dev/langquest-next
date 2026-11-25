@@ -914,10 +914,43 @@ Expected:
 - After step 2: "Part 1 has not been uploaded yet from the device it was made on. You can say it back once that device has been online.", and "Record part 1" is still off.
 - After step 3, without leaving the screen, the sentence goes, and "Record part 1" and "Note" come on.
 - Done with what was already said is not held (REV-036): the automated test does not say a part first, since every part of its version is away.
+- A part already said keeps its pieces while it cannot be heard: the bin beside "Hear what you said" is off (amended 2026-11-25; checked by hand), and Undo still works.
 
 ---
 
 ## Answering feedback
+
+### REV-057 Feedback said only aloud is heard before the version is kept as it is
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Decided 2026-11-25 (LAN-317, `docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md`, amended): spoken feedback that cannot be heard on this device is not set aside from it. Typed words can be read, so feedback with them is not held.
+
+Preconditions:
+- A passage with TRANS's Version 1, its parts on the server, and REV's "needs changes" said only as a voice note, from a phone that has not been online since (the review reached the server, the voice note did not).
+
+Steps:
+1. TRANS: open the passage and tap "Hear the feedback".
+2. REV's phone comes online and uploads the voice note. Stay on the screen.
+
+Expected:
+- Step 1: "This feedback was spoken, and it has not been uploaded yet from the device it was made on. Listen to it before you keep the version as it is." above "Keep it, say why", which is off. "Record a fix" is on.
+- Offline with the voice note not on the device, the sentence is "This feedback was spoken, and it is not on this device. Go online and listen to it before you keep the version as it is." (checked by hand).
+- After step 2, without leaving the screen, the sentence goes and "Keep it, say why" comes on.
+
+### REV-058 Done says when the feedback it answers was said aloud and is not on this device
+Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- As REV-057: REV's spoken-only feedback on TRANS's Version 1, its voice note not uploaded.
+
+Steps:
+1. TRANS: open the passage, "Hear the feedback", "Record a fix".
+2. Record a part and tap "Done".
+3. Tap "Done, don't ask anyone".
+
+Expected:
+- Step 2: under "Answers the Peer check feedback from ...", "The spoken feedback is not on this device yet."
+- Step 3 publishes "Version 2 published.": the line says so, and does not hold Done.
 
 ### REV-040 "Hear the feedback" opens what the reviewer said
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

@@ -4239,7 +4239,9 @@
       "sayWhy": "Sema kwa nini. {{who}} na timu wataisikia.",
       "tapAndSay": "Gusa na useme kwa nini",
       "keepItHelp": "Hubaki na toleo hili kama lilivyo, na kutuma sababu yako.",
-      "sayWhyHelp": "Baki na toleo hili kama lilivyo. Unasema kwa nini; wanaisikia."
+      "sayWhyHelp": "Baki na toleo hili kama lilivyo. Unasema kwa nini; wanaisikia.",
+      "waitsOffline": "Maoni haya yalitolewa kwa sauti, na hayapo kwenye kifaa hiki. Ingia mtandaoni uyasikilize kabla ya kuacha toleo kama lilivyo.",
+      "waitsNotUploaded": "Maoni haya yalitolewa kwa sauti, na bado hayajapakiwa kutoka kwenye kifaa kilichoyarekodi. Yasikilize kabla ya kuacha toleo kama lilivyo."
     },
     "addNote": {
       "done": "Dokezo limeongezwa — linafuata kifungu hiki",
@@ -5230,6 +5232,7 @@
       "withBible": "imerekodiwa kwa kutumia Biblia {{bible}}",
       "atMoment": "Kwenye {{time}}:",
       "answers": "Inajibu maoni ya {{kind}} kutoka kwa {{from}}",
+      "answersUnheard": "Maoni ya sauti bado hayapo kwenye kifaa hiki.",
       "tied_one": "Neno muhimu {{count, number}} limeunganishwa na toleo hili",
       "tied_other": "Maneno muhimu {{count, number}} yameunganishwa na toleo hili",
       "whatChangedQuestion": "Nini kimebadilika?",
@@ -6750,8 +6753,9 @@
     "redone": "Imerudiwa.",
     "newRecording": "Rekodi mpya",
     "lockedTitle": "Sehemu ya rekodi hii bado haipo kwenye kifaa hiki",
-    "lockedOffline": "Sehemu hiyo haiwezi kubadilishwa wala kutumwa kutoka hapa hadi kifaa hiki kiwe mtandaoni na kiipate. Ili kurekodi bila hiyo, fungua {{versions}} kwenye kifungu na uchague {{newVersion}}.",
-    "lockedNotUploaded": "Sehemu hiyo bado haijapakiwa kutoka kwenye kifaa kilichoirekodi, kwa hiyo haiwezi kubadilishwa wala kutumwa kutoka hapa. Ili kurekodi bila hiyo, fungua {{versions}} kwenye kifungu na uchague {{newVersion}}."
+    "lockedOffline": "Sehemu hiyo haiwezi kubadilishwa wala kutumwa kutoka hapa hadi kifaa hiki kiwe mtandaoni na kiipate. Ili kurekodi bila hiyo, gusa {{newVersion}}.",
+    "lockedNotUploaded": "Sehemu hiyo bado haijapakiwa kutoka kwenye kifaa kilichoirekodi, kwa hiyo haiwezi kubadilishwa wala kutumwa kutoka hapa. Itafika hapa baada ya kifaa hicho kuwa mtandaoni. Ili kurekodi bila hiyo, gusa {{newVersion}}.",
+    "lockedNotUploadedYours": "Uliirekodi kwenye kifaa kingine, na bado haijapakiwa kutoka huko. Fungua LangQuest kwenye kifaa hicho kikiwa mtandaoni, na itafika hapa yenyewe. Hadi hapo, haiwezi kubadilishwa wala kutumwa kutoka hapa. Ili kurekodi bila hiyo, gusa {{newVersion}}."
   },
   "reference": {
     "organization": "Shirika",

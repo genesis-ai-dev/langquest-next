@@ -4369,7 +4369,9 @@
       "sayWhy": "Dites pourquoi. {{who}} et l’équipe l’entendront.",
       "tapAndSay": "Touchez et dites pourquoi",
       "keepItHelp": "Garde cette version telle quelle, et envoie votre raison.",
-      "sayWhyHelp": "Gardez cette version telle quelle. Vous dites pourquoi ; ils l’entendent."
+      "sayWhyHelp": "Gardez cette version telle quelle. Vous dites pourquoi ; ils l’entendent.",
+      "waitsOffline": "Ces remarques ont été dites à voix haute, et elles ne sont pas sur cet appareil. Connectez-vous et écoutez-les avant de garder la version telle quelle.",
+      "waitsNotUploaded": "Ces remarques ont été dites à voix haute, et elles n’ont pas encore été envoyées depuis l’appareil où elles ont été enregistrées. Écoutez-les avant de garder la version telle quelle."
     },
     "addNote": {
       "done": "Note ajoutée — elle suit ce passage",
@@ -5405,6 +5407,7 @@
       "withBible": "enregistré avec la Bible {{bible}}",
       "atMoment": "À {{time}} :",
       "answers": "Répond aux remarques de {{from}} ({{kind}})",
+      "answersUnheard": "Les remarques dites à voix haute ne sont pas encore sur cet appareil.",
       "tied_one": "{{count, number}} mot clé lié à cette version",
       "tied_many": "{{count, number}} mots clés liés à cette version",
       "tied_other": "{{count, number}} mots clés liés à cette version",
@@ -7027,8 +7030,9 @@
     "redone": "Rétabli.",
     "newRecording": "Nouvel enregistrement",
     "lockedTitle": "Une partie de cet enregistrement n’est pas encore sur cet appareil",
-    "lockedOffline": "Cette partie ne peut être ni modifiée ni transmise d’ici tant que cet appareil n’est pas connecté et ne l’a pas reçue. Pour enregistrer sans elle, ouvrez {{versions}} dans le passage et choisissez {{newVersion}}.",
-    "lockedNotUploaded": "Cette partie n’a pas encore été envoyée depuis l’appareil où elle a été faite, elle ne peut donc être ni modifiée ni transmise d’ici. Pour enregistrer sans elle, ouvrez {{versions}} dans le passage et choisissez {{newVersion}}."
+    "lockedOffline": "Cette partie ne peut être ni modifiée ni transmise d’ici tant que cet appareil n’est pas connecté et ne l’a pas reçue. Pour enregistrer sans elle, touchez {{newVersion}}.",
+    "lockedNotUploaded": "Cette partie n’a pas encore été envoyée depuis l’appareil où elle a été faite, elle ne peut donc être ni modifiée ni transmise d’ici. Elle arrivera ici une fois cet appareil connecté. Pour enregistrer sans elle, touchez {{newVersion}}.",
+    "lockedNotUploadedYours": "Vous l’avez enregistrée sur un autre appareil, et elle n’a pas encore été envoyée depuis celui-ci. Ouvrez LangQuest sur cet appareil pendant qu’il est connecté, et elle arrivera ici d’elle-même. D’ici là, elle ne peut être ni modifiée ni transmise d’ici. Pour enregistrer sans elle, touchez {{newVersion}}."
   },
   "reference": {
     "organization": "Organisation",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnNames, gridModel, hasFeedback, notesSummary, responseLine,
+  answersSummary, changeNoteText, feedbackIsEmpty, feedbackSounds, gridCell, gridCellLabel, gridColumnNames, gridModel, hasFeedback, keepWaits, notesSummary, responseLine,
   revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor
 } from '../src/passage/reviewModel';
 import { gridKindIds } from '../src/passage/recordTextModel';
@@ -76,6 +76,18 @@ describe('one review (reviewModel.ts)', () => {
     expect(feedbackIsEmpty({ artifacts: [] })).toBe(true);
     expect(feedbackIsEmpty({ artifacts: [{ hash: 'a', durationMs: 1, format: 'wav' }] } as never)).toBe(false);
     expect(feedbackIsEmpty({ comment: 'x' })).toBe(false);
+  });
+
+  it('lists what the feedback says aloud, and holds Keep only while spoken feedback cannot be heard (LAN-317)', () => {
+    // Why: Carl, 2026-11-25: feedback said only aloud is heard before the version is kept as it is; typed words can be read.
+    const part = { hash: 'retold', durationMs: 1, format: 'wav' } as const;
+    expect(feedbackSounds({})).toEqual([]);
+    expect(feedbackSounds({ commentBlobHash: 'voice', artifacts: [part] })).toEqual(['voice', 'retold']);
+    expect(keepWaits({}, 'offline')).toBe('offline');
+    expect(keepWaits({}, 'notSent')).toBe('notSent');
+    expect(keepWaits({ comment: 'Verse 3 is missing' }, 'offline')).toBeNull();
+    expect(keepWaits({ comment: '  ' }, 'offline')).toBe('offline');
+    expect(keepWaits({}, null)).toBeNull();
   });
 
   it('says how the translator answered, and finds the version it led to', () => {

@@ -7,6 +7,9 @@
 // Everything shown is derived from the event log
 // (core derivePassage and friends); every change is a core command through
 // ctx.act, with Undo where the demo offers it.
+// Feedback said only aloud is heard before the version is kept as it is:
+// "Keep it, say why" waits while it cannot be heard on this device (LAN-317,
+// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md).
 import { EarlierNote, EarlierSections } from '../breakup/earlier';
 import { isEarlierSection } from '../breakup/earlierSections';
 import { Faces, PeopleLine } from '../checks/parts';
@@ -36,7 +39,7 @@ import { parseReportLink } from '../passage/reportLinkModel';
 import { AskCheckCard, TheyAnswer } from '../passage/askParts';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
 import {
-  answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnNames, gridModel, hasFeedback, notesSummary, responseLine,
+  answersSummary, changeNoteText, feedbackIsEmpty, feedbackSounds, gridCell, gridCellLabel, gridColumnNames, gridModel, hasFeedback, keepWaits, notesSummary, responseLine,
   revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor, versionName,
   type OutcomeTone
 } from '../passage/reviewModel';
@@ -85,6 +88,8 @@ import { PersonAvatar } from '../ui/UserChip';
 import { usePerson } from '../ui/usePerson';
 import { BigVoice } from '../recording/bigVoice';
 import { ClipPlayer } from '../audio/clipPlayer';
+import { unheardOf } from '../audio/clipReachModel';
+import { useClipsReach } from '../audio/useClipsReach';
 import { VoiceNote } from '../audio/voiceNote';
 import { useDraft } from '../drafts/useDraft';
 import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
@@ -1079,6 +1084,22 @@ function KeepPage(props: { ctx: Ctx; v: PassageView; review: ReviewView; source:
   );
 }
 
+/**
+ * Feedback to answer: Record a fix, or keep the version as it is. Keeping
+ * waits while feedback said only aloud cannot be heard on this device, and
+ * says why (LAN-317): it is heard before it is set aside.
+ */
+function AnswerFooter(props: { ctx: Ctx; review: ReviewView; onFix: () => void; onKeep: () => void }) {
+  const waits = keepWaits(props.review, unheardOf(useClipsReach(props.ctx.language, feedbackSounds(props.review))));
+  return (
+    <View style={{ gap: space.sm }}>
+      <PrimaryBtn label={t('passage.review.recordFix')} icon="mic" help={t('passage.review.recordFixHelp')} onPress={props.onFix} />
+      {waits ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t(waits === 'offline' ? 'passage.keep.waitsOffline' : 'passage.keep.waitsNotUploaded')}</Text> : null}
+      <GhostBtn label={t('passage.keep.sayWhyTitle')} help={t('passage.keep.sayWhyHelp')} disabled={!!waits} onPress={props.onKeep} />
+    </View>
+  );
+}
+
 export function ReviewDetail(ctx: Ctx) {
   const v = usePassage(ctx);
   const [keeping, setKeeping] = useState(false);
@@ -1111,12 +1132,7 @@ export function ReviewDetail(ctx: Ctx) {
     return (
       <Screen header={<Header title={v.title} onBack={ctx.back} close
         action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'review', review.id, review.by, unitId)} />} />}
-        footer={(
-          <View style={{ gap: space.sm }}>
-            <PrimaryBtn label={t('passage.review.recordFix')} icon="mic" help={t('passage.review.recordFixHelp')} onPress={() => ctx.go('workspace', { ...params, reviewId: review.id })} />
-            <GhostBtn label={t('passage.keep.sayWhyTitle')} help={t('passage.keep.sayWhyHelp')} onPress={() => setKeepPage(true)} />
-          </View>
-        )}>
+        footer={<AnswerFooter ctx={ctx} review={review} onFix={() => ctx.go('workspace', { ...params, reviewId: review.id })} onKeep={() => setKeepPage(true)} />}>
         <View style={{ alignItems: 'center', gap: space.sm, paddingTop: space.xl }}>
           <View style={styles.amberPill}>
             <Ico name="chat" size={16} color={TINT.amberText} />
