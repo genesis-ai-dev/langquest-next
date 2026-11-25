@@ -3,6 +3,7 @@ import { base64urlEncode, bytesToHex, summaryOf, summaryText, type Holdings, typ
 import { nearbyFirstDayWithin, nearbyGreetDue, nearbyKeepOf, type NearbyKeep } from '../src/nearbyKeep';
 import type { NearbyLink } from '../src/nearbyLink';
 import { channelKeysOf } from '../src/nearbyOpening';
+import { filesFingerprint } from '../src/nearbyPartners';
 import { NearbySession, type NearbyFileMoves, type NearbyRole, type NearbySessionOptions, type NearbySessionReport } from '../src/nearbySession';
 import type { SyncClient } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
@@ -51,7 +52,8 @@ export function testFiles(name: string, client: SyncClient, shelf: MemoryFiles):
     },
     async held() {
       return [...held];
-    }
+    },
+    fingerprint: () => filesFingerprint(held)
   };
   return files;
 }
@@ -133,6 +135,7 @@ export function roomFacts(p: TestPhone): NearbyRoomFacts & { holdings: Holdings 
       return summaryOf(summaryText(Math.max(cursor, claimedSeq), vector, facts.holdings, (await p.keep.revoked())?.list.seq ?? 0), fakeSha256);
     },
     peers: () => p.keep.peers(),
+    filesFingerprint: () => p.files.fingerprint?.() ?? null,
     async knownKeys() {
       const { vector } = await p.client.nearbyHave();
       return [...new Set([...vector.keys(), ...facts.holdings.keys()])];

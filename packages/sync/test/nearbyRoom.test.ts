@@ -100,6 +100,29 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
     expect(air.maskRepeats).toEqual([]);
   });
 
+  // 2026-11-25: a phone that gained files since it last finished with a teammate (a library version's chapters filed under
+  // their hashes, recordings downloaded online) said nothing new in its summary, so the two never met again for them.
+  it('two teammates that finished meet once more when one gains a file, then are up to date again', async () => {
+    const [a, b] = await rooms(2);
+    await unit(a!.phone, 'a1');
+    for (let i = 0; i < 10; i++) await turn(air, time, [a!, b!]);
+    expect(air.pipes.length).toBe(1);
+    const [record] = await a!.phone.keep.peers();
+    expect(record?.files).toBe(a!.phone.files.fingerprint!());
+    // Nothing changed: no second session, however long they stay together.
+    for (let i = 0; i < 60; i++) await turn(air, time, [a!, b!]);
+    expect(air.pipes.length).toBe(1);
+    // A gains a file outside any session, as a download online or a library file filed under its hash would.
+    shelf.set(`${a!.phone.who.deviceId}/f00d`, new Uint8Array([1]));
+    a!.phone.files.here.add('f00d');
+    for (let i = 0; i < 60; i++) await turn(air, time, [a!, b!]);
+    expect(air.pipes.length).toBe(2);
+    expect((await a!.phone.keep.peers())[0]?.files).toBe(a!.phone.files.fingerprint!());
+    // And then no third.
+    for (let i = 0; i < 60; i++) await turn(air, time, [a!, b!]);
+    expect(air.pipes.length).toBe(2);
+  });
+
   it('stops scanning during a session and keeps advertising, and holds the salt only while the responder\'s pipe is open', async () => {
     const [a, b] = await rooms(2);
     await unit(a!.phone, 'a1');
