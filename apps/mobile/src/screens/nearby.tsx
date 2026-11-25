@@ -102,8 +102,8 @@ function Job(props: { label: string; line: string }) {
  * their app is installed. Offline with the file in hand, the first is no step, since it cannot be
  * done then: a line says the file is ready to give, and the other two are numbered from 1
  * (`installFileRow`, Carl, 2026-11-24). While online, an install file got for an older version says so above
- * them (14.4), and so does a kept copy more than two days behind this phone's app (`keptBehind`,
- * docs/decisions/2026-11-19-carried-build-refreshed-daily.md). A run-out
+ * them (14.4), and so does a kept copy older than the Worker's file (`keptOutdated`,
+ * docs/decisions/2026-11-19-carried-build-refreshed-daily.md, amended 2026-11-25). A run-out
  * pass keeps Let someone in, disabled, saying the phone needs the server again; the row keeps its
  * onPress so help mode can explain it.
  */
@@ -123,7 +123,7 @@ function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean; apk
         <Card>
           <View style={styles.line}>
             <Ico name="warning" size={20} color={TINT.amberText} />
-            {/* A kept copy behind this phone's app may lack fixes the newcomer needs (keptBehind, Carl 2026-11-19). */}
+            {/* A kept copy older than the Worker's file may lack fixes the newcomer needs (keptOutdated, Carl 2026-11-19, 2026-11-25). */}
             <Text style={[txt.sm, { flex: 1 }]}>{t(props.apkOld ? 'nearby.installFile.old' : 'nearby.installFile.newer')}</Text>
           </View>
         </Card>

@@ -6,7 +6,7 @@ import { crc32, deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { carriedApkNameHere } from '@langquest-next/core';
 import {
-  APK_TYPE, APP_PATHS, BINDING, CURRENT, MAX_DOWNLOAD_ID, MIN_BYTES, Refusal, appHash, bucketConfig, check, checkApk, fileName, protection, publish, run, signV4,
+  APK_TYPE, APP_PATHS, BINDING, CURRENT, MAX_DOWNLOAD_ID, MIN_BYTES, Refusal, appHash, bucketConfig, builtMsOf, check, checkApk, fileName, protection, publish, run, signV4,
   universalApk, zipEntries
 } from './carried-build.mjs';
 import { look } from './play-review.mjs';
@@ -93,7 +93,7 @@ function apk(size = MIN_BYTES + 10, files: ZipFile[] = APP_FILES): Uint8Array {
 
 interface Call { method: string; url: string; headers: Record<string, string> }
 /** An object in the fake bucket, with the custom metadata the script writes. */
-interface Stored { body: Uint8Array | string; type: string; disposition?: string; versionCode?: string; appHash?: string }
+interface Stored { body: Uint8Array | string; type: string; disposition?: string; versionCode?: string; appHash?: string; builtMs?: string }
 
 /** Google's token endpoint, generatedApks and its download, and R2's S3 API for one bucket, in one fetch. */
 function fakes(o: { generated?: (n: number) => { status: number; body?: unknown }; download?: string; file?: Uint8Array; bucket?: Map<string, Stored>; bucketStatus?: number } = {}) {
@@ -125,7 +125,7 @@ function fakes(o: { generated?: (n: number) => { status: number; body?: unknown 
       const obj = bucket.get(key);
       if (method === 'PUT') {
         const body = init.body as Uint8Array | string;
-        bucket.set(key, { body, type: headers['content-type']!, disposition: headers['content-disposition'], versionCode: headers['x-amz-meta-version-code'], appHash: headers['x-amz-meta-app-hash'] });
+        bucket.set(key, { body, type: headers['content-type']!, disposition: headers['content-disposition'], versionCode: headers['x-amz-meta-version-code'], appHash: headers['x-amz-meta-app-hash'], builtMs: headers['x-amz-meta-built-ms'] });
         return new Response(null, { status: 200 });
       }
       if (!obj) return new Response('<Code>NoSuchKey</Code>', { status: 404 });
@@ -289,6 +289,31 @@ describe('--publish', () => {
     // No key or secret in what it says.
     const said = lines.join('\n');
     for (const secret of ['r2-secret-value', 'PRIVATE KEY', 'tok']) expect(said).not.toContain(secret);
+  });
+
+  it('records when the APK\'s JavaScript was built, from expo-updates\' manifest in it, as the app reads its kept copy\'s', async () => {
+    const BUILT = 1795600000000;
+    const manifest = JSON.stringify({ id: 'u', commitTime: BUILT, assets: [] });
+    const withTime = apk(MIN_BYTES + 10, [...APP_FILES, ['assets/app.manifest', manifest]]);
+    expect(builtMsOf(withTime)).toBe(BUILT);
+    expect(builtMsOf(apk(MIN_BYTES + 10, [...APP_FILES, ['assets/app.manifest', manifest, false]]))).toBe(BUILT);
+    // None in it, one that is not a time, or a file it cannot read: null, and the file is still published.
+    expect(builtMsOf(apk())).toBeNull();
+    expect(builtMsOf(apk(MIN_BYTES + 10, [...APP_FILES, ['assets/app.manifest', '{"commitTime":"soon"}']]))).toBeNull();
+    expect(builtMsOf(new Uint8Array([0x50, 0x4b, 0x03, 0x04]))).toBeNull();
+
+    const f = fakes({ file: withTime });
+    const lines: string[] = [];
+    await publish({ ...base, fetch: f.fetch, log: (s: string) => lines.push(s) });
+    expect(f.bucket.get(NAME)).toMatchObject({ versionCode: '42', builtMs: String(BUILT) });
+    expect(JSON.parse(f.bucket.get(CURRENT)!.body as string)).toMatchObject({ builtMs: BUILT });
+    expect(lines.join('\n')).toContain(`built ${new Date(BUILT).toISOString()}`);
+
+    const none = fakes();
+    const said: string[] = [];
+    expect((await publish({ ...base, fetch: none.fetch, log: (s: string) => said.push(s) })).wrote).toBe(true);
+    expect(none.bucket.get(NAME)!.builtMs).toBeUndefined();
+    expect(said.join('\n')).toMatch(/no built time in it/);
   });
 
   it('waits for Play to make the APKs of a bundle just uploaded, then gives up having written nothing', async () => {
