@@ -2,7 +2,7 @@ import { emptyOrgState } from '@langquest-next/core';
 import { GIVE_IDLE_MS } from '../src/nearby/giveAppModel';
 import { NEARBY_PASS_USED_UP } from '@langquest-next/sync/nearby';
 import {
-  codeLeft, codeShown, LET_IN_CODE_MS, LET_IN_GIVE_CODE_MS, LET_IN_START, LET_IN_USED_UP, letInCodeMs, letInEndOf, letInGuideFilesLine, letInGuideFilesWent, letInReducer, letInRoles,
+  codeLeft, codeShown, COPY_SHOWN_MAX, copyShown, LET_IN_CODE_MS, LET_IN_GIVE_CODE_MS, LET_IN_START, LET_IN_USED_UP, letInCodeMs, letInEndOf, letInGuideFilesLine, letInGuideFilesWent, letInReducer, letInRoles,
   letInWhyNot, type LetInAction, type LetInCopyReady, type LetInState
 } from '../src/nearby/letInModel';
 import { letInPermit } from '../src/nearby/letInPermitModel';
@@ -166,6 +166,19 @@ describe('the screen', () => {
   const run = (...actions: LetInAction[]): LetInState => actions.reduce(letInReducer, LET_IN_START);
   const up: LetInAction[] = [{ t: 'role', roleId: 'translator' }, { t: 'host' }, { t: 'showing', uri: 'langquestnext://join?v=1', until: 120_000 }, { t: 'connected' }, { t: 'asked', name: 'Nyibol', pictures: [1, 2] }];
 
+  // docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: the inviter may pick a book the new person will work on,
+  // with the role, before the code; New code keeps it, as it keeps the role.
+  it('takes a book to work on with the role, before the code, keeps it for a new code, and lets it be cleared', () => {
+    expect(LET_IN_START.workBook).toBeNull();
+    expect(run({ t: 'work', bookId: 'LUK' }).workBook).toBe('LUK');
+    expect(run({ t: 'work', bookId: 'LUK' }, { t: 'work', bookId: null }).workBook).toBeNull();
+    // Once the code is up, the choice is made.
+    expect(run({ t: 'role', roleId: 'translator' }, { t: 'host' }, { t: 'work', bookId: 'LUK' }).workBook).toBeNull();
+    const again = run({ t: 'work', bookId: 'LUK' }, ...up, { t: 'answered', yes: false }, { t: 'ended', why: 'refused' }, { t: 'new-code' });
+    expect(again).toMatchObject({ stage: { t: 'choose' }, roleId: 'translator', workBook: 'LUK' });
+    expect(run(...up, { t: 'answered', yes: false }, { t: 'ended', why: 'refused' }, { t: 'work', bookId: 'MRK' }).workBook).toBe('MRK');
+  });
+
   it('shows nothing until a role is chosen and Show the code pressed', () => {
     expect(run({ t: 'host' }).stage).toEqual({ t: 'choose' });
     expect(run(...up).stage).toEqual({ t: 'asked', name: 'Nyibol', pictures: [1, 2] });
@@ -179,10 +192,36 @@ describe('the screen', () => {
   });
 
   it('a yes copies, and the session says done or that the copy is left to a teammate', () => {
-    const yes = [...up, { t: 'answered', yes: true } as LetInAction, { t: 'part' } as LetInAction];
-    expect(run(...yes).stage).toEqual({ t: 'copying', name: 'Nyibol', parts: 1 });
+    const yes = [...up, { t: 'answered', yes: true } as LetInAction, { t: 'copy', parts: 1, progress: null, rest: false } as LetInAction];
+    expect(run(...yes).stage).toEqual({ t: 'copying', name: 'Nyibol', parts: 1, shown: null, rest: false });
     expect(run(...yes, { t: 'ended', why: 'done' }).stage).toEqual({ t: 'done', name: 'Nyibol' });
     expect(run(...yes, { t: 'ended', why: 'dropped-after' }).stage).toEqual({ t: 'ended', why: 'dropped-after', name: 'Nyibol' });
+  });
+
+  // Carl, 2026-11-25: a bar beside the parts sent, so the inviter sees how long is left.
+  it('the bar follows the inviter\'s estimate, never back, short of the end until the copy is whole, and then the rest goes unmeasured', () => {
+    const copy = (parts: number, sent: number, total: number, rest = false): LetInAction => ({ t: 'copy', parts, progress: { sent, total }, rest });
+    const yes = [...up, { t: 'answered', yes: true } as LetInAction];
+    const stage = (...more: LetInAction[]) => run(...yes, ...more).stage;
+    expect(stage({ t: 'copy', parts: 3, progress: null, rest: false })).toMatchObject({ parts: 3, shown: null, rest: false });
+    expect(stage(copy(3, 25, 100))).toMatchObject({ shown: 0.25 });
+    // The estimate grew: the bar stays where it was.
+    expect(stage(copy(3, 25, 100), copy(4, 26, 200))).toMatchObject({ parts: 4, shown: 0.25 });
+    expect(stage(copy(9, 100, 100))).toMatchObject({ shown: COPY_SHOWN_MAX });
+    expect(stage(copy(9, 50, 100), copy(10, 100, 100, true))).toMatchObject({ parts: 10, rest: true });
+    // A report that changes nothing on screen leaves the state as it was.
+    const before = run(...yes, copy(3, 25, 100));
+    expect(letInReducer(before, copy(3, 25.1, 100))).toBe(before);
+    // Not while asking or after.
+    expect(run(...up, copy(1, 1, 2)).stage.t).toBe('asked');
+  });
+
+  it('the bar\'s share moves in half-percent steps, and only once there is an estimate', () => {
+    expect(copyShown(null, null)).toBeNull();
+    expect(copyShown(0.3, null)).toBe(0.3);
+    expect(copyShown(null, { sent: 0, total: 0 })).toBeNull();
+    expect(copyShown(null, { sent: 1, total: 3 })).toBe(0.33);
+    expect(copyShown(0.5, { sent: 1, total: 3 })).toBe(0.5);
   });
 
   it('says the new person\'s guide pictures and audio come later once they are in, and not before or when they were not let in', () => {

@@ -98,6 +98,22 @@ describe('the grant and the copy', () => {
     }
   });
 
+  // docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: the passages the inviter chose are kept offline in
+  // the grant's language, before the seeds and the copy, so the join's steps after the copy bring their recordings.
+  it('keeps the passages the inviter chose offline, in the grant\'s language, before the seeds, and nothing when none were chosen', async () => {
+    const kept: [string, string, readonly string[]][] = [];
+    const t = stores();
+    const s = { ...t.s, keepOffline: async (orgId: string, languageId: string, ids: readonly string[]) => { t.log.push('kept'); kept.push([orgId, languageId, ids]); } };
+    await keepGrant(asked, { ...grant, kept: ['u1', 'u2'] }, s);
+    expect(t.log).toEqual(['record', 'chain', 'key', 'kept', 'seed']);
+    expect(kept).toEqual([[grant.orgId, grant.languageId, ['u1', 'u2']]]);
+    for (const none of [undefined, []]) {
+      const u = stores();
+      await keepGrant(asked, { ...grant, ...(none ? { kept: none } : {}) }, { ...u.s, keepOffline: async () => { u.log.push('kept'); } });
+      expect(u.log).toEqual(['record', 'chain', 'key', 'seed']);
+    }
+  });
+
   it('a key that could not be kept is said, and the grant still stands', async () => {
     const t = stores({ find: false });
     await keepGrant(asked, grant, t.s);

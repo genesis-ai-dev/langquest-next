@@ -4912,6 +4912,7 @@
     "downloading": "Descargando para usar sin conexión",
     "audioNotKept": "El audio no se guarda en este dispositivo",
     "connectToFinish": "Conéctate para terminar antes de viajar.",
+    "teammateToFinish": "El teléfono de un compañero puede traer el resto.",
     "stayConnected": "Mantente conectado hasta que esto termine.",
     "reason": {
       "asked": "Se guarda porque te pidieron trabajar en él.",
@@ -4922,6 +4923,10 @@
       "onlySomeHere_one": "Solo {{here, number}} de {{count, number}} archivo en este dispositivo",
       "onlySomeHere_many": "Solo {{here, number}} de {{count, number}} archivos en este dispositivo",
       "onlySomeHere_other": "Solo {{here, number}} de {{count, number}} archivos en este dispositivo",
+      "waitingTeammate": "Esperando el teléfono de un compañero",
+      "teammateBringsRest_one": "{{here, number}} de {{count, number}} archivo aquí · el teléfono de un compañero puede traer el resto",
+      "teammateBringsRest_many": "{{here, number}} de {{count, number}} archivos aquí · el teléfono de un compañero puede traer el resto",
+      "teammateBringsRest_other": "{{here, number}} de {{count, number}} archivos aquí · el teléfono de un compañero puede traer el resto",
       "downloadingCount": "Descargando para usar sin conexión · {{here, number}} de {{total, number}}"
     },
     "toast": {
@@ -4988,6 +4993,8 @@
     "download": "Descargar para usar sin conexión",
     "needsConnection": "Para descargar hace falta conexión",
     "needsConnectionHelp": "No está en este dispositivo. Se puede descargar cuando el dispositivo tenga conexión.",
+    "teammateCanBring": "El teléfono de un compañero puede traerlo",
+    "keepFromTeammateHelp": "Guarda este pasaje en este teléfono. Sus grabaciones llegan del teléfono de un compañero cuando se encuentren, o de internet cuando tengas conexión.",
     "checkingHelp": "Este dispositivo está contando cuánto de este pasaje tiene.",
     "notSent_one": "{{count, number}} grabación todavía no se ha enviado desde el dispositivo que la hizo.",
     "notSent_many": "{{count, number}} grabaciones todavía no se han enviado desde el dispositivo que las hizo.",
@@ -5025,6 +5032,7 @@
       "statusNone": "No está en este dispositivo",
       "statusWaiting": "Esperando para descargar · {{here, number}} de {{total, number}}",
       "statusConnect": "Conéctate para terminar la descarga · {{here, number}} de {{total, number}}",
+      "statusTeammate": "Esperando el teléfono de un compañero · {{here, number}} de {{total, number}}",
       "statusSome_many": "{{ready}} de {{count, number}} en este dispositivo",
       "statusSome_one": "{{ready}} de {{count, number}} en este dispositivo",
       "statusSome_other": "{{ready}} de {{count, number}} en este dispositivo",
@@ -5039,6 +5047,7 @@
       "removeStay_many": "{{count, number}} pasajes que son tu trabajo se quedan en este dispositivo.",
       "removeStay_other": "{{count, number}} pasajes que son tu trabajo se quedan en este dispositivo.",
       "keepHelp": "Guarda las grabaciones y el material de referencia de cada pasaje en este dispositivo, para que funcionen sin conexión.",
+      "keepFromTeammateHelp": "Guarda las grabaciones y el material de referencia de cada pasaje en este teléfono. Llegan de los teléfonos de tus compañeros cuando se encuentren, o de internet cuando tengas conexión.",
       "letGoHelp": "Permite que este dispositivo vuelva a quitar su audio cuando necesite espacio. Los pasajes que son tu trabajo se quedan.",
       "reason": "Se guardan porque te pidieron trabajar en estos pasajes, o trabajaste en ellos.",
       "toast": {

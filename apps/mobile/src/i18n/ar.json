@@ -5362,6 +5362,7 @@
     "downloading": "جارٍ التنزيل للعمل بدون اتصال",
     "audioNotKept": "الصوت غير محفوظ على هذا الجهاز",
     "connectToFinish": "اتصل لتُكمل التنزيل قبل أن تسافر.",
+    "teammateToFinish": "يمكن لهاتف زميل أن يجلب الباقي.",
     "stayConnected": "ابقَ متصلًا حتى ينتهي هذا.",
     "reason": {
       "asked": "محفوظ لأنه طُلب منك العمل عليه.",
@@ -5375,6 +5376,13 @@
       "onlySomeHere_few": "الملفات على هذا الجهاز: {{here, number}} فقط من {{count, number}}",
       "onlySomeHere_many": "الملفات على هذا الجهاز: {{here, number}} فقط من {{count, number}}",
       "onlySomeHere_other": "الملفات على هذا الجهاز: {{here, number}} فقط من {{count, number}}",
+      "waitingTeammate": "في انتظار هاتف زميل",
+      "teammateBringsRest_zero": "الملفات هنا: {{here, number}} من {{count, number}} · يمكن لهاتف زميل أن يجلب الباقي",
+      "teammateBringsRest_one": "الملفات هنا: {{here, number}} من {{count, number}} · يمكن لهاتف زميل أن يجلب الباقي",
+      "teammateBringsRest_two": "الملفات هنا: {{here, number}} من {{count, number}} · يمكن لهاتف زميل أن يجلب الباقي",
+      "teammateBringsRest_few": "الملفات هنا: {{here, number}} من {{count, number}} · يمكن لهاتف زميل أن يجلب الباقي",
+      "teammateBringsRest_many": "الملفات هنا: {{here, number}} من {{count, number}} · يمكن لهاتف زميل أن يجلب الباقي",
+      "teammateBringsRest_other": "الملفات هنا: {{here, number}} من {{count, number}} · يمكن لهاتف زميل أن يجلب الباقي",
       "downloadingCount": "جارٍ التنزيل للعمل بدون اتصال · {{here, number}} من {{total, number}}"
     },
     "toast": {
@@ -5462,6 +5470,8 @@
     "download": "نزّله للعمل بدون اتصال",
     "needsConnection": "التنزيل يحتاج إلى اتصال",
     "needsConnectionHelp": "ليس على هذا الجهاز. يمكن تنزيله عندما يتصل هذا الجهاز.",
+    "teammateCanBring": "يمكن لهاتف زميل أن يجلبه",
+    "keepFromTeammateHelp": "يحفظ هذا المقطع على هذا الهاتف. تصل تسجيلاته من هاتف زميل عندما تلتقيان، أو من الإنترنت عندما تتصل.",
     "checkingHelp": "يحصي هذا الجهاز ما لديه من هذا المقطع.",
     "notSent_zero": "{{count, number}} تسجيل لم يُرسل بعد من الجهاز الذي صنعه.",
     "notSent_one": "تسجيل واحد لم يُرسل بعد من الجهاز الذي صنعه.",
@@ -5505,6 +5515,7 @@
       "statusNone": "ليس على هذا الجهاز",
       "statusWaiting": "في انتظار التنزيل · {{here, number}} من {{total, number}}",
       "statusConnect": "اتصل لإكمال التنزيل · {{here, number}} من {{total, number}}",
+      "statusTeammate": "في انتظار هاتف زميل · {{here, number}} من {{total, number}}",
       "statusSome_few": "على هذا الجهاز: {{ready}} من {{count, number}}",
       "statusSome_many": "على هذا الجهاز: {{ready}} من {{count, number}}",
       "statusSome_one": "على هذا الجهاز: {{ready}} من {{count, number}}",
@@ -5525,6 +5536,7 @@
       "removeStay_many": "المقاطع التي هي من عملك ({{count, number}}) تبقى على هذا الجهاز.",
       "removeStay_other": "المقاطع التي هي من عملك ({{count, number}}) تبقى على هذا الجهاز.",
       "keepHelp": "يحفظ تسجيلات كل مقطع ومواده المرجعية على هذا الجهاز، لتعمل بدون اتصال.",
+      "keepFromTeammateHelp": "يحفظ تسجيلات كل مقطع ومواده المرجعية على هذا الهاتف. تصل من هواتف الزملاء عندما تلتقون، أو من الإنترنت عندما تتصل.",
       "letGoHelp": "يسمح لهذا الجهاز بإزالة صوتها مرة أخرى عندما يحتاج إلى مساحة. المقاطع التي هي من عملك تبقى.",
       "reason": "محفوظة لأنه طُلب منك العمل على هذه المقاطع، أو لأنك عملت عليها.",
       "toast": {

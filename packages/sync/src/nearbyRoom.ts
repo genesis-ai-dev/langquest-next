@@ -802,9 +802,10 @@ export class NearbyRoom {
         this.lastExchange.set(tag, this.now);
         this.dueSpent.add(tag);
         this.refused.delete(tag);
-        // Its events named documents no ask covered, or they stopped at a bound: the pair goes again this run, a set number of times.
+        // Its events named documents no ask covered, or they stopped at a bound, or its files stopped at the session's limit while
+        // LangQuest is open (2026-11-25): the pair goes again this run, a set number of times.
         const tries = this.docsAgainTries.get(tag) ?? 0;
-        if (report.docsAgain && tries < this.tune.docsAgainMax) {
+        if ((report.docsAgain || report.files.capped) && tries < this.tune.docsAgainMax) {
           this.docsAgainTries.set(tag, tries + 1);
           this.docsWanted.add(tag);
         } else {

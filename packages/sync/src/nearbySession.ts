@@ -5,10 +5,10 @@ import {
 import { chainAsSigned, chainNameOf, type NearbyChainName, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
 import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
 import { nearbyDayOf, nearbyFirstDayWithin, type NearbyKeep } from './nearbyKeep';
-import { CopyRefused, docsLackingOf, docsListOf, libraryFilesNamed, LibraryDocsSender, StartingCopySender, takeLabels, takeLibraryDocs, takeShared, takeStartingCopy, type CopyAsker, type CopyNoReason, type LibraryDocsAsk, type LibraryDocsTaken, type NearbyCopySource, type NearbyLibrary, type NearbyListedDocs, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
+import { CopyRefused, docsLackingOf, docsListOf, libraryFilesNamed, LibraryDocsSender, StartingCopySender, takeLabels, takeLibraryDocs, takeShared, takeStartingCopy, type CopyAsker, type CopyNoReason, type CopyProgress, type LibraryDocsAsk, type LibraryDocsTaken, type NearbyCopySource, type NearbyLibrary, type NearbyListedDocs, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';
 import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, openingPinOf, sameBytes, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
-import { encodeMessage, NEARBY_HOLDINGS_MESSAGE_FILES, parseMessage, type Message } from './nearbyWire';
+import { encodeMessage, NEARBY_GRANT_KEPT_MAX, NEARBY_HOLDINGS_MESSAGE_FILES, parseMessage, type Message } from './nearbyWire';
 import { OfflineError, passIdOfChain } from './types';
 
 /**
@@ -198,6 +198,11 @@ export interface NearbySessionOptions {
   maxRanges?: number;
   /** True when a teammate was seen waiting before this session began, so backups may be cut. */
   otherWaiting?: () => boolean;
+  /**
+   * The most file bytes this session moves, both ways together (`NEARBY_OPEN_FILE_BYTES` while LangQuest is open,
+   * 2026-11-25); none for Share nearby and a join. Past it this phone stops asking, and serves what it is asked.
+   */
+  fileBytes?: number;
   /** The opening passed. False: this phone is busy, so it says so, sealed, and ends. Nothing before this point holds the phone. */
   onOpened?: () => boolean;
   /** Anything moved, for a progress line. */
@@ -254,6 +259,13 @@ export interface NearbyJoinInviter {
    * does until its first contact says otherwise (14.1, Carl 2026-11-24).
    */
   features?: readonly string[];
+  /**
+   * The passages this phone's person chose for the newcomer to work on, handed to them in the grant
+   * so their phone keeps them offline and the join brings their recordings
+   * (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md). Each once, at most
+   * `NEARBY_GRANT_KEPT_MAX`.
+   */
+  kept?: readonly string[];
 }
 
 /**
@@ -279,6 +291,8 @@ export interface NearbyJoinNewcomer {
     chain: ChainLink[]; verdict: Extract<ChainVerdict, { ok: true }>; discovery: { key: string; gen: number; floor: number }; orgId: string; languageId: string;
     /** The inviter's word for the organization's nearby features; empty from an older inviter. */
     features: readonly string[];
+    /** The passages the inviter chose for this person to work on (2026-11-25); empty from an older inviter or when none were chosen. */
+    kept: readonly string[];
     /**
      * The Worker's revocation list the inviter's phone held, checked against the Worker's keys
      * (2026-11-24), or null. The session keeps it in its keep before the copy is asked for.
@@ -422,7 +436,8 @@ export interface NearbySessionReport {
   got: { pages: number; events: number; refused: number; droppedPages: number; overBudget: number; counted: number };
   sent: { batches: number; claims: number; events: number; skipped: number };
   /** `wanted`: over a pipe with `files-when-wanted`, what each phone said it wanted (review P3); absent otherwise. */
-  files: { got: number; served: number; answeredNo: number; toldNo: number; failed: number; noRoom: boolean; cutBackups: boolean; wanted?: { mine: boolean; theirs: boolean } };
+  /** `capped`: this phone stopped asking at its limit of file bytes for the session (`fileBytes`, 2026-11-25). */
+  files: { got: number; served: number; answeredNo: number; toldNo: number; failed: number; noRoom: boolean; cutBackups: boolean; capped: boolean; wanted?: { mine: boolean; theirs: boolean } };
   holdings: { taken: number; dropped: number; sent: number };
   /** A sender said it could not send all it knows of: older work will come from the server. */
   older: boolean;
@@ -451,8 +466,13 @@ export interface NearbySessionReport {
   /** What this phone took of a starting copy, and why a teammate gave no more. */
   copy: StartingCopyTaken | null;
   copyRefused: string | null;
-  /** Parts of a starting copy this phone sent, asks it answered with `copy-no`, and why it gave no organization or language, which leaves the copy short. */
-  copyServed: { parts: number; no: number; stateRefused: CopyNoReason | null };
+  /**
+   * Parts of a starting copy this phone sent, asks it answered with `copy-no`, and why it gave no
+   * organization or language, which leaves the copy short. `progress`, once the sender knows what a
+   * newcomer with nothing asks for: how far the copy has gone, in characters (Let someone in's bar,
+   * 2026-11-25).
+   */
+  copyServed: { parts: number; no: number; stateRefused: CopyNoReason | null; progress?: CopyProgress };
   /** What this phone took of the library documents its language uses, as any member (`library`), or null when it asked for none. */
   topUp: LibraryDocsTaken | null;
   /** With `library-files` on both sides: library files this phone said it holds, how many of theirs it could use, and how many it got and served. */
@@ -470,7 +490,7 @@ const emptyReport = (role: NearbyRole): NearbySessionReport => ({
   role, ended: { how: 'dropped' }, peer: null, names: [], refusedTag: null, newerAppNeeded: false, clockOff: false, linkKind: null, fallbacks: 0, code: null, signed: null,
   got: { pages: 0, events: 0, refused: 0, droppedPages: 0, overBudget: 0, counted: 0 },
   sent: { batches: 0, claims: 0, events: 0, skipped: 0 },
-  files: { got: 0, served: 0, answeredNo: 0, toldNo: 0, failed: 0, noRoom: false, cutBackups: false },
+  files: { got: 0, served: 0, answeredNo: 0, toldNo: 0, failed: 0, noRoom: false, cutBackups: false, capped: false },
   holdings: { taken: 0, dropped: 0, sent: 0 },
   older: false, farAhead: [], handedKey: null, handedKeyRefused: 0, revokedTaken: null, revokedDropped: 0, finals: null, changed: false,
   join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }, topUp: null,
@@ -529,6 +549,16 @@ const LINK_KEYS = new WeakMap<object, Map<string, string>>();
 const LINK_KEYS_KEPT = 50_000;
 /** The characters of documents one session takes over the Bluetooth pipe (20 to 70 KB/s), past which the rest waits for the next. */
 export const NEARBY_TOP_UP_PIPE_CHARS = 256 * 1024;
+
+/**
+ * The most file bytes a session moves with one teammate while LangQuest is open, both ways together
+ * (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md): about 100 minutes of
+ * recordings. Files go most wanted first, and the rest wait for the next meeting. Share nearby, which
+ * the person opened to spend the time, and a join have no limit. Checked against what has moved,
+ * never a file's size before it moves (mostly not known), so a session always moves at least one file
+ * and can go past it by one.
+ */
+export const NEARBY_OPEN_FILE_BYTES = 100 * 1024 * 1024;
 /**
  * This phone says in step 7 which library files it holds (`lib-held`), serves them, and asks for
  * those it lacks (2026-11-24). Only when both phones name it, and only on a link that moves files.
@@ -649,6 +679,8 @@ export class NearbySession {
   /** Local work and files say nothing while they run, so the stall clock waits. */
   private localWork = 0;
   private moving = 0;
+  /** File bytes this session has moved, both ways, against `fileBytes`. */
+  private fileBytesMoved = 0;
   /**
    * The inviter of a join both Hellos say goes on after the copy, once the copy's state is all
    * given: the newcomer keeps its documents and opens its own language before its `have`, which the
@@ -1234,7 +1266,9 @@ export class NearbySession {
     const proof = await crypto.sign(nearbyBytes('proof', proofText(opt.role, this.keys!.th)));
     const grant: Extract<Message, { t: 'join-grant' }> = {
       t: 'join-grant', chain: [first, issued.link], proof, discoveryKey: join.discovery.key, gen: join.discovery.gen, floor: join.discovery.floor,
-      ...(join.features?.length ? { features: [...join.features] } : {})
+      ...(join.features?.length ? { features: [...join.features] } : {}),
+      // What the newcomer will work on, each once and at most what the wire takes (2026-11-25).
+      ...(join.kept?.length ? { kept: [...new Set(join.kept)].slice(0, NEARBY_GRANT_KEPT_MAX) } : {})
     };
     // With the revocation list this phone holds, so the newcomer refuses a stolen phone from the start (2026-11-24, review
     // item 11); a list too long to ride in one message with the chain goes as before, after Have.
@@ -1348,7 +1382,7 @@ export class NearbySession {
     report.peer = { installKey: verdict.inviterKey, profileId: verdict.inviter ?? '', deviceId: '', tag: '' };
     const answered: NearbyJoinGranted = (await this.local(() => join.granted({
       chain: grant.chain, verdict, discovery: { key: grant.discoveryKey, gen: grant.gen, floor: grant.floor }, orgId, languageId, features: grant.features ?? [],
-      revoked: listed?.signed ?? null
+      revoked: listed?.signed ?? null, kept: grant.kept ?? []
     }))) ?? {};
     report.join!.granted = true;
     // From here this phone is the person the grant names: its organization, language, chain and own keep.
@@ -1468,6 +1502,9 @@ export class NearbySession {
       return;
     }
     report.copyServed.parts += 1;
+    // Before it goes, so the screen hears it with the part (`moved`).
+    const progress = this.sender?.progress();
+    if (progress) report.copyServed.progress = progress;
     await this.send({ t: 'copy-part', ...answer });
   }
 
@@ -2252,6 +2289,7 @@ export class NearbySession {
     this.moving += 1;
     try {
       await this.link.sendFile({ transferId: ask.transferId, uri: answer.uri, size: answer.size });
+      this.fileBytesMoved += answer.size;
       if (reference && this.report.libraryFiles) this.report.libraryFiles.served += 1;
       else files.served += 1;
     } catch (err) {
@@ -2297,6 +2335,7 @@ export class NearbySession {
         fetch: (file, stage) => this.fetchOne(file, stage),
         linkUp: () => !this.over && !this.stopped && !this.stalled,
         stop: (file) => {
+          if (this.overFileBytes()) return true;
           if (file.group !== 'backup') return false;
           backupsFrom ??= opt.time.now();
           if (!opt.otherWaiting?.() || opt.time.now() - backupsFrom < tune.backupLimitMs) return false;
@@ -2310,6 +2349,7 @@ export class NearbySession {
       return;
     }
     for (const file of wanted) {
+      if (this.overFileBytes()) break;
       if (file.group === 'backup') {
         // Holdings say whether this partner has one, so a wanted list of thousands does not cost thousands of `no`s.
         if (!theirs.has(file.hash)) continue;
@@ -2334,6 +2374,14 @@ export class NearbySession {
     await this.send({ t: 'files-done' });
   }
 
+  /** This session has moved its limit of file bytes (`fileBytes`): it asks for no more, and says so. Never before a first file. */
+  private overFileBytes(): boolean {
+    const limit = this.opt.fileBytes;
+    if (limit === undefined || this.fileBytesMoved < limit) return false;
+    this.report.files.capped = true;
+    return true;
+  }
+
   private async fetchOne(file: WantedFile, stage: { stagingUri: string; maxBytes: number; minFreeBytes: number }): Promise<void> {
     const { opt, report } = this;
     const transferId = base64urlEncode(this.crypto.randomBytes(12));
@@ -2348,6 +2396,8 @@ export class NearbySession {
         await this.link.cancelFile(transferId).catch(() => undefined);
         return;
       }
+      // What crossed the radio counts against the session's limit, kept or not.
+      this.fileBytesMoved += outcome.size;
       // Native wrote and hashed it. A teammate's wrong bytes never get this file's name. A file named by its
       // address has no hash to hold it to: it comes on the teammate's word, and is fetched again once online.
       if (file.group !== 'link' && outcome.sha256 !== file.hash) {
@@ -2394,7 +2444,7 @@ export class NearbySession {
     report.finals = { mine, theirs: final.summary };
     // A session that cut backups records none, so the pair can go on later; nor does a QR link's, which knows no find tag;
     // nor one whose events named documents no ask covered, or whose documents stopped at a bound (review item 15).
-    if (!report.files.cutBackups && !report.docsAgain && report.peer!.tag !== '') await opt.keep.recordPeer({ tag: report.peer!.tag, gen: opt.generations?.sessionGen ?? 0, mine, theirs: final.summary });
+    if (!report.files.cutBackups && !report.files.capped && !report.docsAgain && report.peer!.tag !== '') await opt.keep.recordPeer({ tag: report.peer!.tag, gen: opt.generations?.sessionGen ?? 0, mine, theirs: final.summary });
     await this.send({ t: 'bye', reason: 'done' }).catch((err: unknown) => { if (!isDrop(err)) throw err; });
     // Both finals are here, so whatever comes now, or no bye at all, changes nothing.
     await this.take().catch(() => undefined);

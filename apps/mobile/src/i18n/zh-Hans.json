@@ -4612,6 +4612,7 @@
     "downloading": "正在下载以便离线使用",
     "audioNotKept": "音频未保存在本设备上",
     "connectToFinish": "出行前请联网完成下载。",
+    "teammateToFinish": "剩下的队友手机可以带过来。",
     "stayConnected": "请保持联网，直到完成。",
     "reason": {
       "asked": "已保存，因为有人请你做这项工作。",
@@ -4620,6 +4621,8 @@
     },
     "passage": {
       "onlySomeHere_other": "本设备上只有 {{here, number}}/{{count, number}} 个文件",
+      "waitingTeammate": "正在等队友的手机",
+      "teammateBringsRest_other": "这里有 {{here, number}}/{{count, number}} 个文件 · 剩下的队友手机可以带过来",
       "downloadingCount": "正在下载以便离线使用 · {{here, number}}/{{total, number}}"
     },
     "toast": {
@@ -4672,6 +4675,8 @@
     "download": "下载以便离线使用",
     "needsConnection": "下载需要网络连接",
     "needsConnectionHelp": "不在本设备上。设备联网后即可下载。",
+    "teammateCanBring": "队友的手机可以带过来",
+    "keepFromTeammateHelp": "把这个经段保存在这部手机上。见面时它的录音会从队友的手机传来，联网后也会从网上下载。",
     "checkingHelp": "本设备正在清点它有这一段落的哪些内容。",
     "notSent_other": "有 {{count, number}} 段录音还没有从录制它们的设备上发送出来。",
     "studyRefused_other": "有 {{count, number}} 个学习文件无法下载：来源没有这些文件。",
@@ -4705,6 +4710,7 @@
       "statusNone": "不在本设备上",
       "statusWaiting": "等待下载 · {{here, number}}/{{total, number}}",
       "statusConnect": "请联网以完成下载 · {{here, number}}/{{total, number}}",
+      "statusTeammate": "正在等队友的手机 · {{here, number}}/{{total, number}}",
       "statusSome_other": "{{ready}}/{{count, number}} 在本设备上",
       "noRoom": "本设备空间不足",
       "noRoomNeeds": "它们的音频有 {{size}}。本设备还有 {{room}} 空间。",
@@ -4715,6 +4721,7 @@
       "removeCancelHelp": "保留本设备上的一切，不做改动。",
       "removeStay_other": "属于你工作的 {{count, number}} 个经段会保留在本设备上。",
       "keepHelp": "把每个经段的录音和参考资料都保存在本设备上，不联网也能用。",
+      "keepFromTeammateHelp": "把每个经段的录音和参考资料都保存在这部手机上。见面时会从队友的手机传来，联网后也会从网上下载。",
       "letGoHelp": "本设备需要空间时，可以再次删除它们的音频。属于你工作的经段会保留。",
       "reason": "已保存，因为有人请你做这些经段，或你做过它们。",
       "toast": {

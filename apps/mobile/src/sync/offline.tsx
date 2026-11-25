@@ -29,6 +29,7 @@ import { WaveArrow } from './transit';
 import { a11yState } from '../ui/a11yModel';
 import { useLayout } from '../ui/useLayout';
 import { useComing, useGroupOffline, type GroupOffer } from './useGroupOffline';
+import { useNearbyCanRun } from '../nearby/useNearbyCanRun';
 
 /**
  * Where one passage stands, from what this device has counted and nothing
@@ -58,10 +59,12 @@ function reasonText(reason: NonNullable<UnitOffline['reason']>): string {
 }
 
 /** What tapping the download button does: keep a passage, stop keeping one chosen, or say why it is kept. */
-function useKeepToggle(ctx: Ctx, unitId: string, u: KeptOffline | 'checking', offline: boolean): { onPress: (() => void) | undefined; help: string } {
+function useKeepToggle(ctx: Ctx, unitId: string, u: KeptOffline | 'checking', offline: boolean, nearby: boolean): { onPress: (() => void) | undefined; help: string } {
   if (u === 'checking') return { help: t('offline.checkingHelp'), onPress: undefined };
   if (!u.reason) {
-    // Offline nothing can come down: no download is offered (decisions.md 166).
+    // Offline nothing can come down from the server (decisions.md 166). Where Share nearby can run, keeping it is a want a
+    // teammate's phone fills, so it is offered (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).
+    if (offline && nearby) return { help: t('offline.keepFromTeammateHelp'), onPress: () => { void ctx.language.blobs.keepOffline(unitId, true); } };
     if (offline) return { help: t('offline.needsConnectionHelp'), onPress: undefined };
     // No toast: the button itself says what happens, as it happens.
     return { help: t('offline.keepHelp'), onPress: () => { void ctx.language.blobs.keepOffline(unitId, true); } };
@@ -105,8 +108,9 @@ export function DownloadButton(props: { ctx: Ctx; unitId: string; testID?: strin
   const { ctx, unitId } = props;
   const u = useOffline(ctx, unitId);
   const offline = isOffline(ctx.language.online);
-  const look = offlineLook(u, { offline, downloading: useComing()(unitId) });
-  const keep = useKeepToggle(ctx, unitId, u, offline);
+  const nearby = useNearbyCanRun();
+  const look = offlineLook(u, { offline, downloading: useComing()(unitId), nearby });
+  const keep = useKeepToggle(ctx, unitId, u, offline, nearby);
   const spot = useHelpSpot(look.label, keep.help, keep.onPress);
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={!keep.onPress && !spot.id} accessibilityRole="button" accessibilityLabel={look.label}
@@ -131,8 +135,9 @@ export function PassageOfflineBar(props: { ctx: Ctx; unitId: string }) {
   const { ctx, unitId } = props;
   const u = useOffline(ctx, unitId);
   const offline = isOffline(ctx.language.online);
-  const look = offlineLook(u, { offline, downloading: useComing()(unitId) });
-  const keep = useKeepToggle(ctx, unitId, u, offline);
+  const nearby = useNearbyCanRun();
+  const look = offlineLook(u, { offline, downloading: useComing()(unitId), nearby });
+  const keep = useKeepToggle(ctx, unitId, u, offline, nearby);
   const spot = useHelpSpot(look.label, keep.help, keep.onPress);
   const tone = toneOf(look.kind);
   return (

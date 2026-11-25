@@ -18,13 +18,13 @@ export interface LetInHandle {
   daysLeft: { days: number; warn: boolean } | null;
   /** Whether this phone can give a whole starting copy (`copyReadyOf`), and how far a fill has come; null while read. */
   copyReady: LetInCopyReady | null;
-  actions: { choose(roleId: string): void; show(): void; answer(yes: boolean): void; newCode(): void; askPermissions(): void; openSettings(): void };
+  actions: { choose(roleId: string): void; work(bookId: string | null): void; show(): void; answer(yes: boolean): void; newCode(): void; askPermissions(): void; openSettings(): void };
 }
 
 const NOTHING = (): void => undefined;
 const NOT_HERE: LetInHandle = {
   whyNot: 'not-in-build', roles: [], state: LET_IN_START, code: null, secondsLeft: 0, worn: false, permit: null, daysLeft: null, copyReady: null,
-  actions: { choose: NOTHING, show: NOTHING, answer: NOTHING, newCode: NOTHING, askPermissions: NOTHING, openSettings: NOTHING }
+  actions: { choose: NOTHING, work: NOTHING, show: NOTHING, answer: NOTHING, newCode: NOTHING, askPermissions: NOTHING, openSettings: NOTHING }
 };
 
 /**

@@ -8,13 +8,20 @@ import type { KeptOffline } from './offlineText';
  * line say it (decisions.md 61, 166). Each says only what the device knows:
  * "On this device" once its own count says every file is here, "Downloading"
  * only while a file of it is coming down, and no download offered while the
- * device is offline.
+ * device is offline, except where Share nearby can run (`nearby`): there
+ * keeping a passage is a want any teammate's phone fills, so it is offered
+ * and says a teammate's phone brings it
+ * (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).
  */
 export type OfflineLook = { kind: 'checking' | 'none' | 'noConnection' | 'downloading' | 'partial' | 'ready'; label: string };
 
-export function offlineLook(u: KeptOffline | 'checking', o: { offline: boolean; downloading: boolean }): OfflineLook {
+export function offlineLook(u: KeptOffline | 'checking', o: { offline: boolean; downloading: boolean; nearby?: boolean }): OfflineLook {
   if (u === 'checking') return { kind: 'checking', label: t('offline.summary.checking') };
-  if (!u.reason) return o.offline ? { kind: 'noConnection', label: t('offline.needsConnection') } : { kind: 'none', label: t('offline.download') };
+  const fromTeammate = o.offline && o.nearby === true;
+  if (!u.reason) {
+    if (!o.offline) return { kind: 'none', label: t('offline.download') };
+    return fromTeammate ? { kind: 'none', label: t('offline.teammateCanBring') } : { kind: 'noConnection', label: t('offline.needsConnection') };
+  }
   if (u.ready) return { kind: 'ready', label: t('offline.onDevice') };
   // Its recordings are here, and its study guide or its reference audio has not been worked out yet: the device
   // cannot say its files are here. Online that is a moment's checking; offline what it needs may not be on this
@@ -24,11 +31,10 @@ export function offlineLook(u: KeptOffline | 'checking', o: { offline: boolean; 
   }
   const here = u.here + u.studyHere + u.refHere;
   const total = u.audio + u.studyTotal + u.refTotal;
-  // Kept, but its rows have not reached this device yet (decisions.md 147).
-  if (total === 0) return { kind: 'partial', label: t('offline.notHere.title') };
-  return o.downloading && !o.offline
-    ? { kind: 'downloading', label: t('offline.passage.downloadingCount', { here, total }) }
-    : { kind: 'partial', label: t('offline.passage.onlySomeHere', { here, count: total }) };
+  // Kept, but its rows have not reached this device yet (decisions.md 147); offline where nearby runs, a teammate brings them.
+  if (total === 0) return { kind: 'partial', label: fromTeammate ? t('offline.passage.waitingTeammate') : t('offline.notHere.title') };
+  if (o.downloading && !o.offline) return { kind: 'downloading', label: t('offline.passage.downloadingCount', { here, total }) };
+  return { kind: 'partial', label: fromTeammate ? t('offline.passage.teammateBringsRest', { here, count: total }) : t('offline.passage.onlySomeHere', { here, count: total }) };
 }
 
 /**
@@ -141,9 +147,12 @@ export interface GroupLook {
  */
 export function groupLook(
   g: GroupOffline,
-  o: { offline: boolean; downloading: boolean; cost: { bytes: number; files?: number; here?: number } | null; room: number | null; sizing?: boolean; filling?: boolean }
+  o: { offline: boolean; downloading: boolean; cost: { bytes: number; files?: number; here?: number } | null; room: number | null; sizing?: boolean; filling?: boolean; nearby?: boolean }
 ): GroupLook {
   const none = { note: null, size: null, blocked: null };
+  // Offline where Share nearby can run, keeping is a want a teammate's phone fills: offered as online, under the same room
+  // rule (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).
+  const fromTeammate = o.offline && o.nearby === true;
   // Where a tap does nothing, help mode has nothing to light, so there are no help words. The download button is there
   // already, dimmed, so the line has its height before the device has counted.
   if (g.checking) {
@@ -156,13 +165,14 @@ export function groupLook(
   const counted = { here: g.ready, total: g.count };
   const { title: here, tone } = waiting > 0
     ? o.downloading && !o.offline ? { title: t('offline.passage.downloadingCount', counted), tone: 'downloading' as const }
+      : fromTeammate ? { title: t('offline.group.statusTeammate', counted), tone: 'waiting' as const }
       : o.offline ? { title: t('offline.group.statusConnect', counted), tone: 'waiting' as const }
       : { title: t('offline.group.statusWaiting', counted), tone: 'waiting' as const }
     : g.ready === 0 ? { title: t('offline.group.statusNone'), tone: 'plain' as const }
     : g.ready === g.count ? { title: t('offline.onDevice'), tone: 'ready' as const }
     : { title: t('offline.group.statusSome', { ready: formatNumber(g.ready), count: g.count }), tone: 'plain' as const };
   if (g.toKeep.length > 0) {
-    if (o.offline) {
+    if (o.offline && !fromTeammate) {
       const sub = t('offline.needsConnection');
       return { kind: 'noConnection', title: here, tone, sub, help: '', tap: null, ...none, blocked: sub };
     }
@@ -184,7 +194,7 @@ export function groupLook(
     const sub = bytes > 0 ? t('offline.group.sizeLine', { size: formatBytes(bytes) })
       : o.cost?.files === 0 && !o.cost.here ? t('offline.group.nothingYet')
       : t('offline.group.whatComes');
-    return { kind: 'none', title: here, tone, sub, help: t('offline.group.keepHelp'), tap: 'keep', ...none, size: bytes > 0 ? formatBytes(bytes) : null };
+    return { kind: 'none', title: here, tone, sub, help: t(fromTeammate ? 'offline.group.keepFromTeammateHelp' : 'offline.group.keepHelp'), tap: 'keep', ...none, size: bytes > 0 ? formatBytes(bytes) : null };
   }
   // Every passage is kept: a tap lets go what the person chose, or says why none of it was a choice.
   const tap: GroupTap = g.chosen.length ? 'letGo' : 'why';
@@ -200,7 +210,7 @@ export function groupLook(
   if (o.downloading && !o.offline) {
     return { kind: 'downloading', title: here, tone, sub: t('offline.stayConnected'), help, tap, ...none };
   }
-  return { kind: 'partial', title: here, tone, sub: o.offline ? t('offline.connectToFinish') : t('offline.group.stillToCome'), help, tap, ...none };
+  return { kind: 'partial', title: here, tone, sub: fromTeammate ? t('offline.teammateToFinish') : o.offline ? t('offline.connectToFinish') : t('offline.group.stillToCome'), help, tap, ...none };
 }
 
 /** Would this much audio fit in the room the device has to spare (`BlobStore.roomBytes`)? A device that cannot say (`null`) is not held back. */
