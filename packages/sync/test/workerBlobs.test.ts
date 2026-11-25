@@ -1,5 +1,5 @@
 import { afterEach, vi } from 'vitest';
-import { blobKey, workerBlobs } from '../src/workerBlobs';
+import { blobKey, LIST_WAITS_MS, workerBlobs } from '../src/workerBlobs';
 
 /** The Worker's file routes, answered by a scripted fetch. */
 function script(...replies: (Response | Error)[]) {
@@ -70,8 +70,39 @@ describe('workerBlobs (the server-side view of the file store)', () => {
     expect(calls[1]!.url).toContain('cursor=c1');
   });
 
-  it('a failed list page fails the whole listing', async () => {
-    script(json({ objects: [], cursor: 'c1' }), new Response('down', { status: 502 }));
-    await expect(files().list('o/s/')).rejects.toThrow('list o/s/ (502): down');
+  describe('a list page that fails for a moment (LAN-298: at most about two minutes)', () => {
+    const waited: number[] = [];
+    const patient = () => workerBlobs('http://127.0.0.1:8787/', 'tok', { wait: async (ms) => { waited.push(ms); } });
+    afterEach(() => { waited.length = 0; });
+
+    it('is asked for again, and only that page: the pages before it are not listed again', async () => {
+      const calls = script(
+        json({ objects: [{ key: 'o/s/a.wav', size: 1 }], cursor: 'c1' }),
+        new Response('{"error":"Files are not available just now. Try again."}', { status: 502 }),
+        new TypeError('fetch failed'),
+        json({ objects: [{ key: 'o/s/b.wav', size: 2 }], cursor: null })
+      );
+      expect(await patient().list('o/s/')).toEqual([{ key: 'o/s/a.wav', size: 1 }, { key: 'o/s/b.wav', size: 2 }]);
+      expect(calls.map((c) => c.url.includes('cursor=c1'))).toEqual([false, true, true, true]);
+      expect(waited).toEqual([LIST_WAITS_MS[0], LIST_WAITS_MS[1]]);
+    });
+
+    it('waits about three minutes in all before the listing fails', async () => {
+      const tries = LIST_WAITS_MS.length + 1;
+      const calls = script(json({ objects: [], cursor: 'c1' }), ...Array.from({ length: tries }, () => new Response('down', { status: 502 })));
+      await expect(patient().list('o/s/')).rejects.toThrow('list o/s/ (502): down');
+      expect(calls).toHaveLength(1 + tries);
+      expect(waited).toEqual([...LIST_WAITS_MS]);
+      const total = waited.reduce((a, b) => a + b, 0);
+      expect(total).toBeGreaterThanOrEqual(150_000);
+      expect(total).toBeLessThanOrEqual(240_000);
+    });
+
+    it('is not asked for again when the Worker refuses it (a 4xx)', async () => {
+      const calls = script(new Response('bad token', { status: 401 }));
+      await expect(patient().list('o/s/')).rejects.toThrow('list o/s/ (401): bad token');
+      expect(calls).toHaveLength(1);
+      expect(waited).toEqual([]);
+    });
   });
 });

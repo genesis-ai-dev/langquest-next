@@ -238,6 +238,11 @@ weeks ago, so a wait counted from the recording was over before it began.
   until 2026-11-23 every pass listed twice: about 165,000 lists a day,
   over R2's free million a month
   (`docs/decisions/2026-11-23-the-v2-import-asks-the-log-what-is-stored.md`).
+  A list page sometimes fails for a moment (66 passes from
+  2026-10-15 to 2026-11-22, at most two minutes at a time), and one failed
+  page stopped the project's transfer (LAN-298). A failed page is now asked for again, and only that
+  page, for about three minutes before the transfer fails
+  (`packages/sync/src/workerBlobs.ts`).
 - **Audio phones may not play.** v2 took any file a team uploaded, and
   some Every Language teams uploaded whole chapters as MP3 (573 files in
   33 projects on 2026-10-23, 16 of them WebM). A recording here is
