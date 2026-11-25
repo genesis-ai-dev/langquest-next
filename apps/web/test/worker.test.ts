@@ -3,8 +3,8 @@ import {
   emptyLanguageState, encodeHlc, foldLanguage, REDUCER_VERSION, REPORT_VERSION, reportInputs, SEED_ROLES, takeSnapshot,
   type AnyEvent, type OrgReportsResponse, type ReportInputs
 } from '@langquest-next/core';
-import { handleApi, type ApiDeps } from '../worker/api';
-import { FOLD_ON_CATCH_UP_EVENTS, MemoryCache, OrgFolder, STATE_SAVE_EVERY, type Source } from '../worker/orgFolder';
+import { handleApi, slowReportsLine, type ApiDeps } from '../worker/api';
+import { FOLD_ON_CATCH_UP_EVENTS, MemoryCache, OrgFolder, passLine, SLOW_REPORTS_MS, slowObjectLine, STATE_SAVE_EVERY, type Source } from '../worker/orgFolder';
 import { SqlCache, splitText } from '../worker/sqlCache';
 
 /**
@@ -119,6 +119,36 @@ describe('OrgFolder', () => {
     expect(report(later).name).toBe('Renamed');
     expect(log.pulls.slice(pulled).find((p) => p.streamId === 'din')).toEqual({ streamId: 'din', after: 1 });
     expect(Date.parse(later!.asOf) - Date.parse(first!.asOf)).toBe(61_000);
+  });
+
+  it('says what each pass did and why, so a slow reports request can name its step (LAN-319)', async () => {
+    let now = Date.UTC(2026, 8, 30, 12);
+    const log = orgLog();
+    log.snapshot('din');
+    const folder = new OrgFolder(log, ORG, new MemoryCache(), () => now);
+    expect(folder.lastPass).toBeNull();
+    await folder.reportsFor('admin');
+    // Cold: both languages folded, each asked for a server snapshot (only din has one, at its head); one page each of _org and nus.
+    expect(folder.lastPass).toMatchObject({ cold: true, forced: false, orgMoved: false, dayTurned: false, languages: 2, inputsRead: 0, folded: 2, fromServer: 2, pages: 2 });
+    log.add('_org', 'v1.LanguageRenamed', { languageId: 'din', name: 'Renamed' });
+    now += 61_000;
+    await folder.reportsFor('admin');
+    // The organization moved: every language's summary is made again, from the folds in memory.
+    expect(folder.lastPass).toMatchObject({ cold: false, orgMoved: true, dayTurned: false, folded: 2, fromServer: 0, pages: 1 });
+    now += 86_400_000;
+    await folder.reportsFor('admin', true);
+    expect(folder.lastPass).toMatchObject({ forced: true, orgMoved: false, dayTurned: true, folded: 2, pages: 0 });
+    now += 61_000;
+    await folder.reportsFor('admin');
+    const quiet = folder.lastPass!;
+    expect(quiet).toMatchObject({ at: now, ms: 0, orgMoved: false, dayTurned: false, folded: 0, inputsRead: 0, fromServer: 0, pages: 0 });
+    expect(passLine({ ...quiet, ms: 1200, cold: true, orgMoved: true }))
+      .toBe('1200 ms, cold, organization moved; 2 languages, 0 stored inputs read, 0 folded, 0 server snapshots asked for, 0 pages pulled');
+    // The object's line: quick calls log nothing; a slow one says how long it waited for its turn, or that no pass ran.
+    expect(slowObjectLine(SLOW_REPORTS_MS - 1, now, quiet)).toBeNull();
+    expect(slowObjectLine(1500, now - 500, { ...quiet, ms: 1000 }))
+      .toBe('reports-slow-object: 1500 ms; waited 500 ms for its turn; pass 1000 ms; 2 languages, 0 stored inputs read, 0 folded, 0 server snapshots asked for, 0 pages pulled');
+    expect(slowObjectLine(1200, now + 10_000, quiet)).toBe('reports-slow-object: 1200 ms; no pass');
   });
 
   it('shares one pass among requests that arrive together', async () => {
@@ -283,6 +313,23 @@ describe('OrgFolder with the report inputs the projection pass stored (decision 
     expect(languagePulls(log)).toEqual([]);
     const folded = await new OrgFolder(orgLog(), ORG, new MemoryCache(), () => at).reportsFor('admin');
     expect(out!.rows).toEqual(folded!.rows);
+  });
+
+  it('counts the stored inputs a pass reads: all of them when the organization moved, none when nothing did (LAN-319)', async () => {
+    let now = at;
+    const log = orgLog();
+    const { source, reads } = withInputs(log, ['din']);
+    const folder = new OrgFolder(source, ORG, new MemoryCache(), () => now);
+    await folder.reportsFor('admin');
+    expect(folder.lastPass).toMatchObject({ cold: true, languages: 2, inputsRead: 1, folded: 1 });
+    now += 61_000;
+    await folder.reportsFor('admin');
+    expect(folder.lastPass).toMatchObject({ cold: false, orgMoved: false, inputsRead: 0, folded: 0 });
+    log.add('_org', 'v1.LanguageRenamed', { languageId: 'nus', name: 'Renamed' });
+    now += 61_000;
+    await folder.reportsFor('admin');
+    expect(folder.lastPass).toMatchObject({ orgMoved: true, inputsRead: 1, folded: 1 });
+    expect(reads()).toBe(2);
   });
 
   it('folds a language the pass has not stored yet, as before', async () => {
@@ -581,6 +628,28 @@ describe('the reports API', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect((await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => { throw new Error('down'); } }))).status).toBe(502);
     err.mockRestore();
+  });
+
+  it('logs which step of a slow request took the time, with no organization or person, and nothing for a quick one (LAN-319)', async () => {
+    let now = 1_790_000_000_000;
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const slow = deps({
+        profileOf: async () => { now += 80; return 'p1'; },
+        reports: async () => { now += 1500; return body; }
+      });
+      expect((await handleApi(get('/api/orgs/org%201/reports?fresh=1', 'good'), slow)).status).toBe(200);
+      expect(warn.mock.calls).toEqual([['reports-slow: 1580 ms; sign-in 80 ms, access 0 ms, organization 1500 ms, answer 0 ms; 0 languages, fresh']]);
+      warn.mockClear();
+      expect((await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => { now += 900; return body; } }))).status).toBe(200);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      clock.mockRestore();
+      warn.mockRestore();
+    }
+    expect(slowReportsLine({ signIn: 0, access: 0, organization: SLOW_REPORTS_MS, answer: 0 }, false, 3))
+      .toBe('reports-slow: 1000 ms; sign-in 0 ms, access 0 ms, organization 1000 ms, answer 0 ms; 3 languages');
   });
 
   it('answers a summary view with each language\'s progress alone', async () => {

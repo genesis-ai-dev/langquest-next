@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { SqliteStore, SupabaseTransport } from '@langquest-next/sync';
 import { languageInfo, REPORT_VERSION, type OrgReportsResponse, type ReportInputs } from '@langquest-next/core';
 import { serviceClient, type Env } from './env';
-import { OrgFolder } from './orgFolder';
+import { OrgFolder, slowObjectLine } from './orgFolder';
 import { AgentOrg, type AgentQuery, type AgentWrite, type OrgAccess } from './agent/org';
 import type { Grant } from './agent/tokens';
 import type { LinkReviewInput, LinkSpec, ReviewLink } from './agent/view';
@@ -33,7 +33,12 @@ export class OrgSnapshot extends DurableObject<Env> {
   private agent: AgentOrg | null = null;
 
   async reports(orgId: string, profileId: string, fresh: boolean, everyLanguage = false): Promise<OrgReportsResponse | null> {
-    return this.folderFor(orgId).reportsFor(profileId, fresh, everyLanguage);
+    const folder = this.folderFor(orgId);
+    const began = Date.now();
+    const out = await folder.reportsFor(profileId, fresh, everyLanguage);
+    const slow = slowObjectLine(Date.now() - began, began, folder.lastPass);
+    if (slow) console.warn(slow);
+    return out;
   }
 
   // The access-token API (agent/, decision 70): the same folds, read for a token.
